@@ -7,10 +7,12 @@ export const PLAN_TEMPLATE = (prompt) =>
   `# ${prompt.split("\n")[0].slice(0, 140)}\n\n## Intent\n\n${prompt}\n\n## Design\n\nDescribe the outcome, scope, alternatives, and decisions here.\n\n## Proposed work\n\nAdd one task block per deliverable. These remain proposals until this document revision is approved.\n\n\`\`\`task\n${JSON.stringify({ id: "first-deliverable", title: "Define the first deliverable", summary: "Describe the resulting behavior.", acceptance: ["Define an observable acceptance check."], requires: [], tags: [] }, null, 2)}\n\`\`\`\n`;
 export const PLAN_FORMAT =
   "Write one Markdown plan, including design and proposed work. Describe each proposed task in a fenced task block containing a JSON object: {id,title,summary,acceptance:[strings],requires:[local IDs or existing global task IDs],sequence:[IDs],supports:[IDs],tags:[strings],resources:[shared resource names],epic,track,taskId:optional existing canonical ID,distinctReason:optional separate-scope explanation}. Only id,title,acceptance are required. No tasks are executable before revision approval. Never approve your own plan. Return the Markdown plan as your final response.";
+// One fenced task block. A fresh instance per use keeps /g state local.
+const taskBlocks = () => /^```task\s*\r?\n([\s\S]*?)^```\s*$/gm;
 export function extractPlan(markdown) {
   const proposals = [];
   let match;
-  const re = /^```task\s*\r?\n([\s\S]*?)^```\s*$/gm;
+  const re = taskBlocks();
   while ((match = re.exec(markdown))) {
     let item;
     try {
@@ -103,6 +105,33 @@ export function createPlan(
     return plan;
   });
 }
+// One revision of the design document. An amended approved plan no longer
+// matches its approval receipt, so its tasks require review until the next
+// explicit approval.
+function writeRevision(store, plan, text, summary) {
+  plan.history.push({
+    revision: plan.revision,
+    hash: plan.hash,
+    text: plan.text,
+    at: plan.updatedAt,
+    state: plan.state,
+  });
+  plan.revision++;
+  plan.text = text;
+  plan.hash = digest(text);
+  plan.title = text.match(/^# (.+)$/m)?.[1] || plan.title;
+  plan.state = "draft";
+  plan.updatedAt = new Date().toISOString();
+  store.put("plans", plan);
+  if (plan.documentId) {
+    const data = structuredClone(store.read());
+    for (const task of data.tasks.filter((t) => t.planId === plan.id))
+      task.needsReview = true;
+    store.commit(data, summary + plan.title);
+  }
+  store.event(null, "plan.changed", { planId: plan.id, hash: plan.hash });
+  return plan;
+}
 export function savePlan(store, { id, text, expectedHash }) {
   return store.transaction(() => {
     const plan = store.get("plans", id);
@@ -111,28 +140,80 @@ export function savePlan(store, { id, text, expectedHash }) {
       fail("This draft changed. Reload before saving.", 409);
     if (typeof text !== "string" || text.length > 1000000)
       fail("Plan text is required.");
-    plan.history.push({
-      revision: plan.revision,
-      hash: plan.hash,
-      text: plan.text,
-      at: plan.updatedAt,
-      state: plan.state,
-    });
-    plan.revision++;
-    plan.text = text;
-    plan.hash = digest(text);
-    plan.title = text.match(/^# (.+)$/m)?.[1] || plan.title;
-    plan.state = "draft";
-    plan.updatedAt = new Date().toISOString();
-    store.put("plans", plan);
-    if (plan.documentId) {
-      const data = structuredClone(store.read());
-      for (const task of data.tasks.filter((t) => t.planId === id))
-        task.needsReview = true;
-      store.commit(data, "Review amended design: " + plan.title);
-    }
-    store.event(null, "plan.changed", { planId: id, hash: plan.hash });
-    return plan;
+    return writeRevision(store, plan, text, "Review amended design: ");
+  });
+}
+// Place the rendered block where extractPlan and the reader both expect
+// proposals: after the last existing block, otherwise inside the proposed-work
+// section, otherwise under a new one. Surrounding prose is never rewritten.
+function insertBlock(text, at, block, eol) {
+  const head = text.slice(0, at).replace(/(?:\r?\n)+$/, ""),
+    tail = text.slice(at).replace(/^(?:\r?\n)+/, "");
+  return (head ? head + eol + eol : "") + block + (tail ? eol + tail : "");
+}
+export function appendProposal(text, proposal) {
+  if (!proposal || typeof proposal !== "object" || Array.isArray(proposal))
+    fail("Describe one proposed task as a JSON object.");
+  let json;
+  try {
+    json = JSON.stringify(proposal, null, 2);
+  } catch {
+    fail("A task block contains invalid JSON.");
+  }
+  if (typeof json !== "string" || !json.startsWith("{"))
+    fail("Describe one proposed task as a JSON object.");
+  const lines = json.split("\n");
+  if (lines.some((line) => line.startsWith("```")))
+    fail("A proposed task may not contain a code fence.");
+  const eol = text.includes("\r\n") ? "\r\n" : "\n",
+    block = ["```task", ...lines, "```"].join(eol) + eol;
+  // Validate the new block alone first so its own fields report their errors.
+  extractPlan(block);
+  const existing = [...text.matchAll(taskBlocks())];
+  if (existing.length) {
+    const last = existing[existing.length - 1];
+    return insertBlock(text, last.index + last[0].length, block, eol);
+  }
+  const headings = [...text.matchAll(/^(#{1,6})[ \t]+(\S.*)$/gm)],
+    section = headings.find((h) => /proposed work/i.test(h[2]));
+  if (section) {
+    const next = headings.find(
+      (h) => h.index > section.index && h[1].length <= section[1].length,
+    );
+    return insertBlock(text, next ? next.index : text.length, block, eol);
+  }
+  return insertBlock(
+    text,
+    text.length,
+    "## Proposed work" + eol + eol + block,
+    eol,
+  );
+}
+// Append-only amendment for an agent that discovered adjacent work. This is a
+// proposal: it never mints a canonical task ID, approves a plan or touches an
+// approval receipt.
+export function proposeWork(store, { id, proposal, expectedHash }) {
+  return store.transaction(() => {
+    const plan = store.get("plans", id);
+    if (!plan || plan.deletedAt) fail("Plan not found.", 404);
+    if (plan.kind === "conversation")
+      fail(
+        "A conversation is not a plan. Create an explicit plan draft before proposing work.",
+      );
+    if (expectedHash !== undefined && plan.hash !== expectedHash)
+      fail("This plan changed. Reload before proposing work.", 409);
+    const text = appendProposal(plan.text, proposal);
+    if (text.length > 1000000) fail("Plan text is too large.");
+    // Same rules as approval, including rejection of a repeated local ID.
+    const proposals = extractPlan(text);
+    return {
+      ...writeRevision(store, plan, text, "Review proposed work: "),
+      proposalId: proposal.id,
+      proposalCount: proposals.length,
+      approved: false,
+      policy:
+        "Proposed work is not executable. This plan no longer matches its approval receipt and its tasks need review; an authorized plan.approve converts this proposal alongside the existing ones.",
+    };
   });
 }
 export function approvePlan(
@@ -330,13 +411,10 @@ export function approvePlan(
     };
     for (const task of data.tasks) visit(task.id);
     const previousDesignHash = data.documents[documentId]?.hash || null;
-    const designText = plan.text.replace(
-      /^```task\s*\r?\n([\s\S]*?)^```\s*$/gm,
-      (_, json) => {
-        const p = JSON.parse(json);
-        return `<!-- task:${mapping[p.id]} -->\n[${p.title}](/?view=tasks&node=${mapping[p.id]})`;
-      },
-    );
+    const designText = plan.text.replace(taskBlocks(), (_, json) => {
+      const p = JSON.parse(json);
+      return `<!-- task:${mapping[p.id]} -->\n[${p.title}](/?view=tasks&node=${mapping[p.id]})`;
+    });
     data.documents[documentId] = {
       id: documentId,
       path: documentId,

@@ -46,6 +46,23 @@ Implementation with scoped checks, source integration and whole-head acceptance 
 
 SQLite owns live tasks, status, relationships, evidence and agent state. Markdown owns design prose. The HTTP `/database.json` route is a current compatibility export. Use the CLI, site or MCP instead of direct SQL writes. Follow the workspace and target repository's rules for issue tracking and implementation languages.
 
+## Handle what you discover while implementing
+
+Work you find mid-task has three dispositions. Normally the first applies:
+
+1. **In scope for the task you are doing.** Do it, and record the result as evidence on that task. Filing anything is the exception.
+2. **Related to the task's plan, but not this task.** Append one proposed `task` block to that plan. The proposal is not executable, and the amended plan no longer matches its approval receipt, so the plan itself reads as having unapproved changes and its tasks are flagged for review. The discovery is resolved the next time a person approves that plan — there is no separate queue to groom.
+
+   ```sh
+   {{CLI}} plan.propose --json '{"id":"PLAN_ID","proposal":{"id":"local-id","title":"...","acceptance":["Observable check."]}}'
+   ```
+
+   Pass the plan's current `hash` as `expectedHash` to refuse a concurrent edit instead of appending to a changed document. MCP exposes this as `plans_propose_work`.
+
+3. **Needs a different design.** Draft a new plan and tell the user; a design decision is theirs.
+
+Do not use capture as a discovery channel. `task.capture` / `plans_capture` is a person's own request from the view in front of them; using it for findings manufactures inert inbox tasks with no plan, no approval and no dependencies.
+
 ## Avoid duplicate tasks
 
 Search current tasks and use `task.duplicates` / MCP `plans_duplicates`
