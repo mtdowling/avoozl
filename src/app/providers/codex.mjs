@@ -20,6 +20,11 @@ export const CODEX_CAPABILITIES = Object.freeze({
   models: true,
   liveModelChange: true,
   modelChangeApplies: "next-turn",
+  // Observed on Codex 0.167.0: `turn/interrupt` is acknowledged and the turn
+  // ends, but a command the provider already spawned keeps running. It only
+  // stopped when the app-server process itself was stopped. Cancelling must
+  // therefore not be presented as having stopped that work.
+  interruptStopsSpawnedWork: false,
   subagents: false,
   subagentsReason:
     "Codex app-server reports no subagent attribution on its items.",
@@ -49,15 +54,20 @@ export class CodexAdapter {
       { cwd: options.cwd, stdio: ["pipe", "pipe", "pipe"] },
     );
     this.proc.on("error", (error) => this.crash(error));
-    this.proc.stderr.on("data", (chunk) =>
-      this.emit("provider.log", { text: chunk.toString().slice(0, 12000) }),
-    );
+    // A closed adapter must stop emitting. The child's pipes can deliver
+    // buffered output after close, and the host that owns the run record may
+    // already have shut its database down by then.
+    this.proc.stderr.on("data", (chunk) => {
+      if (this.closing) return;
+      this.emit("provider.log", { text: chunk.toString().slice(0, 12000) });
+    });
     this.proc.on("exit", (code, signal) => {
       if (!this.closing)
         this.crash(Error(`Codex process exited (${code ?? signal}).`));
     });
     this.lines = readline.createInterface({ input: this.proc.stdout });
     this.lines.on("line", (line) => {
+      if (this.closing) return;
       try {
         this.receive(JSON.parse(line));
       } catch (error) {

@@ -1,0 +1,150 @@
+{
+  "at": "2026-11-09T23:56:47.755Z",
+  "acceptance": "Opt-in real-provider interruption classification",
+  "scope": "Disposable workspace and Git repository, one authored harmless command, real provider sessions on the operator's own accounts. Claude bounded to a $0.50 list-price budget and 12 turns.",
+  "method": "Production adapters and run manager. The approval was delivered through the shared operations, not by clicking a native control: this check is about how each provider classifies an interrupted turn, not about the editor UI.",
+  "versions": {
+    "node": "v26.13.0",
+    "clientApi": "1.0.0"
+  },
+  "providers": {
+    "codex": {
+      "provider": "codex",
+      "steps": [
+        {
+          "at": "2026-11-09T23:56:21.394Z",
+          "text": "catalog has 9 model(s); using provider default"
+        },
+        {
+          "at": "2026-11-09T23:56:22.009Z",
+          "text": "session started"
+        },
+        {
+          "at": "2026-11-09T23:56:27.041Z",
+          "text": "permission requested: item/commandExecution/requestApproval"
+        },
+        {
+          "at": "2026-11-09T23:56:27.043Z",
+          "text": "approved"
+        },
+        {
+          "at": "2026-11-09T23:56:27.547Z",
+          "text": "process 50196 running"
+        },
+        {
+          "at": "2026-11-09T23:56:27.561Z",
+          "text": "interrupt acknowledged"
+        },
+        {
+          "at": "2026-11-09T23:56:47.748Z",
+          "text": "the spawned process is STILL RUNNING after the interrupt"
+        }
+      ],
+      "checks": [
+        {
+          "name": "the provider asked permission before running anything",
+          "passed": true,
+          "detail": "item/commandExecution/requestApproval"
+        },
+        {
+          "name": "an actual process started",
+          "passed": true,
+          "detail": "pid 50196"
+        },
+        {
+          "name": "the command did not reach normal completion",
+          "passed": true
+        },
+        {
+          "name": "the host reports honestly what the interruption reached",
+          "passed": true,
+          "detail": "declared keeps-running, observed keeps-running"
+        },
+        {
+          "name": "the run is interrupted, not failed",
+          "passed": true,
+          "detail": "state interrupted"
+        },
+        {
+          "name": "an intentional stop records no error",
+          "passed": true,
+          "detail": null
+        },
+        {
+          "name": "the cancellation is attributed",
+          "passed": true,
+          "detail": "provider"
+        },
+        {
+          "name": "Codex reports the interruption itself",
+          "passed": true,
+          "detail": "provider"
+        },
+        {
+          "name": "the turn is cancelled in the transcript",
+          "passed": true,
+          "detail": "cancelled"
+        },
+        {
+          "name": "a tool that ran is completed, not skipped",
+          "passed": true,
+          "detail": "completed"
+        }
+      ],
+      "model": "provider default",
+      "catalogSize": 9,
+      "catalogDefault": "openai.gpt-6.1-sol",
+      "request": {
+        "providerRequestId": "0",
+        "kind": "approval",
+        "method": "item/commandExecution/requestApproval",
+        "toolUseId": null,
+        "itemId": "call_ed7c86ead30f5988ae696a9c523beb21",
+        "providerOptions": ["accept", "acceptWithExecpolicyAmendment", "cancel"]
+      },
+      "actualExecution": {
+        "pid": 50196,
+        "at": "2026-11-09T23:56:27.361Z"
+      },
+      "interrupt": {
+        "requested": true,
+        "acknowledged": true,
+        "turnId": "01a1c2bd-d040-7cb0-8b2d-077f51b1d3a8",
+        "requestedAt": "2026-11-09T23:56:27.548Z",
+        "acknowledgedAt": "2026-11-09T23:56:27.561Z",
+        "runId": "run-real-codex"
+      },
+      "spawnedWorkStopped": false,
+      "run": {
+        "state": "interrupted",
+        "error": null,
+        "providerDiagnostic": null,
+        "cancellation": {
+          "source": "provider",
+          "requested": true,
+          "requestedAt": "2026-11-09T23:56:27.548Z",
+          "acknowledgedAt": "2026-11-09T23:56:27.561Z",
+          "reason": "real-provider-check",
+          "contract": 1,
+          "spawnedWork": "keeps-running"
+        },
+        "requestedModel": null,
+        "actualModel": "openai.gpt-5.6-sol",
+        "providerSessionId": "<redacted>"
+      },
+      "processOutcome": {
+        "stopped": false,
+        "signalRecordedByCommand": null,
+        "normalCompletionMarker": false
+      },
+      "observedInterruptionScope": "turn only; the spawned command kept running",
+      "transcript": {
+        "turnState": "cancelled",
+        "toolCallId": "<provider-tool-id>",
+        "toolStatus": "completed",
+        "toolSuccess": false,
+        "toolPastTense": "Stopped by cancellation after it had started running. Any partial effects remain."
+      }
+    }
+  }
+}

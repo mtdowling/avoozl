@@ -32,6 +32,10 @@ import { ClaudeAdapter } from "../src/app/providers/claude.mjs";
 import { startAhpFacade } from "../src/app/ahp/facade.mjs";
 import { localClient, CLIENT_API_VERSION } from "../src/app/client.mjs";
 
+// Imported up front: the adapter uses the object `query` returns immediately,
+// so the factory cannot be async.
+const { query: claudeQuery } = await import("@anthropic-ai/claude-agent-sdk");
+
 if (process.env.RUN_REAL_PROVIDER !== "1") {
   console.error(
     "This starts real provider sessions and uses your account quota.\n" +
@@ -104,10 +108,10 @@ const cleanup = async () => {
       server.close(resolve);
       setTimeout(resolve, 8000);
     });
+    // The agent host closes the store from its own close handler. Give that a
+    // moment rather than closing it here and racing the handler.
+    await delay(500);
   }
-  try {
-    store?.close();
-  } catch {}
   if (!keep) fs.rmSync(fixture.root, { recursive: true, force: true });
   else say("\nFixture kept at " + fixture.root);
 };
@@ -129,13 +133,12 @@ try {
       claude: (options) =>
         new ClaudeAdapter({
           ...options,
-          query: async (args) => {
-            const { query } = await import("@anthropic-ai/claude-agent-sdk");
-            return query({
+          // Wrapped only to bound what this check can spend.
+          query: (args) =>
+            claudeQuery({
               ...args,
               options: { ...args.options, maxBudgetUsd: 0.5, maxTurns: 12 },
-            });
-          },
+            }),
         }),
     },
   });
@@ -177,16 +180,23 @@ try {
     };
     try {
       const catalog = await ops.execute("models", { provider });
+      // No model unless the operator names one. A catalog entry is not a
+      // promise that the backend will serve it: Codex advertised a default its
+      // own endpoint then answered 404 for, so letting each provider choose is
+      // both more honest and more likely to work.
       const model =
-        (provider === "claude"
+        provider === "claude"
           ? process.env.CLAUDE_MODEL
-          : process.env.CODEX_MODEL) ||
-        catalog.models.find((m) => m.isDefault)?.id ||
-        catalog.models[0]?.id;
-      record.model = model;
+          : process.env.CODEX_MODEL;
+      record.model = model || "provider default";
       record.catalogSize = catalog.models.length;
+      record.catalogDefault =
+        catalog.models.find((m) => m.isDefault)?.id || null;
       note(
-        "catalog has " + catalog.models.length + " model(s); using " + model,
+        "catalog has " +
+          catalog.models.length +
+          " model(s); using " +
+          record.model,
       );
 
       const task = ready[taskIndex++]?.id || ready[0]?.id;
@@ -195,7 +205,7 @@ try {
         taskId: task,
         projectId: fixture.projectId,
         provider,
-        model,
+        ...(model ? { model } : {}),
         mode: "implement",
         approvalMode: "manual",
         title: provider + " interruption check",
@@ -259,7 +269,18 @@ try {
       record.interrupt = acknowledgement;
       note("interrupt acknowledged");
 
-      await waitFor("the process to stop", () => !alive(started.pid));
+      // Whether the provider's interruption reaches a command it already
+      // spawned is the thing under test, not an assumption. Give it a bounded
+      // window and record what actually happened either way.
+      const stopWindowEnds = Date.now() + 20000;
+      while (alive(started.pid) && Date.now() < stopWindowEnds)
+        await delay(250);
+      record.spawnedWorkStopped = !alive(started.pid);
+      note(
+        record.spawnedWorkStopped
+          ? "the spawned process stopped"
+          : "the spawned process is STILL RUNNING after the interrupt",
+      );
       const terminal = await waitFor("a terminal turn state", () => {
         const run = store.get("runs", runId);
         return ["completed", "interrupted", "failed", "disconnected"].includes(
@@ -286,10 +307,23 @@ try {
         normalCompletionMarker: fs.existsSync(marker + ".completed"),
       };
 
-      check("that actual process stopped", !alive(started.pid));
       check(
         "the command did not reach normal completion",
         !fs.existsSync(marker + ".completed"),
+      );
+      // Not a pass/fail: what this provider's interruption actually reaches.
+      record.observedInterruptionScope = record.spawnedWorkStopped
+        ? "turn and spawned command"
+        : "turn only; the spawned command kept running";
+      check(
+        "the host reports honestly what the interruption reached",
+        (terminal.cancellation?.spawnedWork === "stopped") ===
+          record.spawnedWorkStopped ||
+          terminal.cancellation?.spawnedWork === "unknown",
+        "declared " +
+          String(terminal.cancellation?.spawnedWork) +
+          ", observed " +
+          (record.spawnedWorkStopped ? "stopped" : "keeps-running"),
       );
       // The point of the whole contract.
       check(
@@ -354,7 +388,34 @@ try {
           state: run.state,
           error: run.error ?? null,
           providerDiagnostic: run.providerDiagnostic ?? null,
+          cancellation: run.cancellation ?? null,
         };
+      // A run that failed for the provider's own reasons still tests half the
+      // contract: a real failure must stay a failure. Record that rather than
+      // discarding the run as merely incomplete.
+      if (run?.state === "failed") {
+        record.negativePath = true;
+        check(
+          "a genuine provider failure is recorded as failed",
+          run.state === "failed",
+          run.state,
+        );
+        check(
+          "the provider's own message is preserved",
+          Boolean(run.error),
+          String(run.error || "").slice(0, 160),
+        );
+        check(
+          "no cancellation is attributed to a failure nobody requested",
+          !run.cancellation,
+          JSON.stringify(run.cancellation ?? null),
+        );
+        check(
+          "a failure carries no interruption diagnostic",
+          run.providerDiagnostic == null,
+          JSON.stringify(run.providerDiagnostic ?? null),
+        );
+      }
       record.providerLog = store
         .events({ runId })
         .filter((event) =>
@@ -374,6 +435,18 @@ try {
       try {
         await manager.interrupt(runId).catch(() => {});
       } catch {}
+      // Never leave a fixture process behind, even when the provider's own
+      // interruption does not reach it.
+      for (const name of fs.existsSync(fixture.markers)
+        ? fs.readdirSync(fixture.markers)
+        : [])
+        if (name.endsWith(".started"))
+          try {
+            const { pid } = JSON.parse(
+              fs.readFileSync(path.join(fixture.markers, name), "utf8"),
+            );
+            if (alive(pid)) process.kill(pid, "SIGTERM");
+          } catch {}
       results[provider] = record;
     }
   }

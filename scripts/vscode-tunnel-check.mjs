@@ -37,7 +37,6 @@ import path from "node:path";
 import { spawn, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
-import readline from "node:readline";
 import { createFixture } from "./vscode-fixture.mjs";
 import { startServer } from "../src/app/server.mjs";
 import { ensureAgentHost } from "../src/app/remote-manager.mjs";
@@ -117,18 +116,6 @@ const cleanup = async () => {
   } else
     say("\nFixture kept at " + fixture.root + "\nTunnel data at " + tunnelRoot);
 };
-
-const ask = (question) =>
-  new Promise((resolve) => {
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout,
-    });
-    rl.question(question, (answer) => {
-      rl.close();
-      resolve(answer.trim());
-    });
-  });
 
 try {
   host = fork(
@@ -280,10 +267,12 @@ try {
   say("Nothing of yours outside that directory is shared. The tunnel is");
   say("unregistered when this script exits.");
   say("─".repeat(72));
-  const go = await ask(
-    "\nType 'open' to start the tunnel, anything else to stop: ",
-  );
-  if (go !== "open") throw Error("Tunnel not opened; the operator declined.");
+  // Consent is an explicit flag: this runs unattended while the operator
+  // works in a browser, so there is no prompt for them to answer.
+  if (!argv.includes("--yes"))
+    throw Error(
+      "Opening a tunnel publishes the fixture repository through Microsoft's relay. Pass --yes to confirm.",
+    );
 
   tunnelName = "avoozl-check-" + Math.random().toString(36).slice(2, 8);
   const tunnelLog = path.join(fixture.root, "tunnel.log");
@@ -408,45 +397,19 @@ try {
       observed.processStopped = true;
   }, 1000);
 
-  await ask("Press Enter when you are done with the remote client… ");
+  // Ends when the operator writes the sentinel, or when the window closes.
+  const sentinel = path.join(fixture.root, "done");
+  say("When you are finished, run:  touch " + sentinel);
+  say("Otherwise this stops on its own in " + minutes + " minutes.");
+  while (Date.now() < deadline && !fs.existsSync(sentinel)) await delay(1000);
   clearInterval(watcher);
 
-  // The operator answers what the host cannot see.
-  say("");
-  const answers = {};
-  const questions = [
-    [
-      "desktopBrowserOpened",
-      "Did the tunnel URL open a working editor in a desktop browser? (y/n/skip) ",
-    ],
-    [
-      "extensionVisible",
-      "Did the Avoozl view load plans and tasks there? (y/n/skip) ",
-    ],
-    [
-      "chatListedSession",
-      "Did the chat list the Avoozl conversation? (y/n/skip) ",
-    ],
-    [
-      "approvedRemotely",
-      "Were you able to approve the command from the remote client? (y/n/skip) ",
-    ],
-    [
-      "cancelledRemotely",
-      "Were you able to cancel it from the remote client? (y/n/skip) ",
-    ],
-    ["phoneUsed", "Did you open it on a physical phone? (y/n/skip) "],
-    [
-      "phoneOffNetwork",
-      "Was the phone off this network, e.g. on cellular? (y/n/skip) ",
-    ],
-    [
-      "phoneUsable",
-      "On the phone, were the controls and layout actually usable? (y/n/skip) ",
-    ],
-    ["phoneNotes", "Anything that did not work, in your own words: "],
-  ];
-  for (const [key, prompt] of questions) answers[key] = await ask(prompt);
+  // What the host cannot see is recorded separately from the operator's
+  // own answers, so this receipt never implies the host observed a device
+  // it has no way to observe.
+  const answers = {
+    pending: "merge the operator's answers before publishing",
+  };
 
   const receipt = {
     at: new Date().toISOString(),

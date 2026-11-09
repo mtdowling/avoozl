@@ -365,3 +365,99 @@ test("a turn ending while a stop is in flight still reports the acknowledgement"
     "interrupted",
   );
 });
+
+test("a closed adapter stops emitting, so a shut-down host is never written to", async (t) => {
+  // A child's pipes can deliver buffered output after close, and by then the
+  // host that owns the run record may have closed its database.
+  const { root } = fixture(t);
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+  const file = path.join(root, "chatty-codex.mjs");
+  fs.writeFileSync(
+    file,
+    `import readline from 'node:readline';
+const send=(v)=>process.stdout.write(JSON.stringify(v)+'\\n');
+for await (const line of readline.createInterface({input:process.stdin})) {
+  const m=JSON.parse(line);
+  if(m.method==='initialize') send({id:m.id,result:{}});
+  else if(m.method==='thread/start') send({id:m.id,result:{thread:{id:'t'}}});
+  else if(m.method==='noisy'){
+    // Keep talking on both pipes, as a real provider can while shutting down.
+    for(let i=0;i<40;i++){ process.stderr.write('log line '+i+'\\n'); send({method:'error',params:{error:{message:'late '+i}}}); }
+  }
+}`,
+  );
+  const events = [];
+  const adapter = new CodexAdapter({
+    command: process.execPath,
+    args: [file],
+    emit: (kind, body) => events.push({ kind, ...body }),
+    onRequest: () => {},
+  });
+  await adapter.start({ cwd: root, mode: "ask" });
+  await waitFor(() => adapter.threadId, { label: "the thread" });
+  adapter.write({ method: "noisy" });
+  await adapter.close();
+  const after = events.length;
+  // Anything still in flight must be dropped rather than emitted.
+  await delay(150);
+  assert.equal(
+    events.length,
+    after,
+    "no event may be emitted after close: " +
+      JSON.stringify(events.slice(after, after + 3)),
+  );
+});
+
+test("cancelling says whether work the provider spawned actually stopped", async (t) => {
+  const { store, root } = fixture(t);
+  store.put("projects", {
+    id: "fixture",
+    root,
+    baseBranch: "main",
+    checks: [],
+  });
+  // A provider whose interruption ends the turn without reaching the command
+  // it already started. Observed with Codex 0.167.0.
+  const manager = new RunManager(store, {
+    recover: false,
+    factories: {
+      codex: ({ emit }) => ({
+        capabilities: { interrupt: true, interruptStopsSpawnedWork: false },
+        async start() {
+          emit("session", { providerSessionId: "thread" });
+        },
+        async interrupt() {
+          return { requested: true, acknowledged: true };
+        },
+        async close() {},
+      }),
+    },
+  });
+  t.after(() => manager.close());
+  const ops = new Operations(store, { manager });
+  const run = await ops.execute("run.start", {
+    id: "run-scope",
+    provider: "codex",
+    projectId: "fixture",
+    mode: "ask",
+    prompt: "A question",
+  });
+  await ops.execute("run.interrupt", { id: run.id });
+  const acknowledged = store
+    .events({ runId: run.id })
+    .find((event) => event.kind === "interrupt.acknowledged");
+  // The acknowledgement names what it covers, rather than implying both.
+  assert.equal(acknowledged.scope, "turn");
+  assert.equal(acknowledged.spawnedWork, "keeps-running");
+
+  manager.receive(run.id, "turn.completed", {
+    state: "interrupted",
+    cancellation: { source: "provider", requested: true },
+  });
+  assert.equal(
+    store.get("runs", run.id).cancellation.spawnedWork,
+    "keeps-running",
+    "the run record keeps the distinction, so a client cannot imply the work stopped",
+  );
+});
