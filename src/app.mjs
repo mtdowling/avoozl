@@ -2,6 +2,12 @@ const workspaceActive = () =>
   location.pathname === "/workspace" ||
   document.body.classList.contains("execution-open");
 import { updateOnboarding } from "./onboarding.mjs";
+import {
+  NODE_W,
+  NODE_H,
+  dependencyLayout,
+  dependencyPath,
+} from "./graph-layout.mjs";
 import { createPanMomentum } from "./pan-momentum.mjs";
 import { resolveTaskId, taskSourceRefs, randomUUID } from "./task-identity.mjs";
 import { createVirtualList } from "./virtual-list.mjs";
@@ -98,7 +104,6 @@ let data,
   lastSelected = "",
   positionMode = "",
   positionLayouts = {},
-  layoutLabels = [],
   editEtag = "",
   editingTask = null,
   editingDocument = null;
@@ -222,6 +227,7 @@ let captureDraft = null,
   tourWasFullscreen = false,
   tourTransition = 0;
 const compactLayout = matchMedia("(max-width:900px)");
+let panelView = null;
 let mobileFiltersOpen = false;
 let fullLeftOpen = false;
 const panelPrefs = { left: false, right: true };
@@ -346,7 +352,7 @@ function presentSavedViews() {
 }
 try {
   positionLayouts = JSON.parse(
-    localStorage.getItem("nupp-plan-layouts-v2") || "{}",
+    localStorage.getItem("aicommander-plan-layouts-v3") || "{}",
   );
 } catch {}
 const badge = (id) => {
@@ -524,6 +530,7 @@ function refreshViews({ fit = false } = {}) {
     updateActivityPresence();
     return;
   }
+  applyPanels();
   if (lastRenderedView !== state.view) {
     clearInactiveView();
     lastRenderedView = state.view;
@@ -1198,8 +1205,6 @@ function renderDocumentDetail() {
     "</details></aside></div>";
 }
 
-const NODE_W = 250,
-  NODE_H = 106;
 function overviewNodes() {
   return data.epics
     .filter((e) => !state.epic || e.id === state.epic)
@@ -1268,52 +1273,23 @@ function graphData() {
     total: rows.length,
   };
 }
-function graphPosition(nodes, overview) {
-  layoutLabels = [];
-  if (overview) {
-    for (const n of nodes) positions[n.id] ??= { ...n.layout };
-    return;
-  }
-  const groups = new Map(),
-    groupKey = (t) =>
-      state.group === "status"
-        ? t.status
-        : state.group === "epic"
-          ? t.epic
-          : state.group === "tag"
-            ? t.tags?.[0] || "untagged"
-            : t.track;
-  for (const n of nodes) {
-    const g = groupKey(n);
-    if (!groups.has(g)) groups.set(g, []);
-    groups.get(g).push(n);
-  }
-  let y = 35;
-  for (const [g, items] of groups) {
-    layoutLabels.push({
-      label:
-        state.group === "status"
-          ? data.statuses.find((s) => s.id === g)?.label
-          : state.group === "epic"
-            ? epicName(g)
-            : state.group === "tag"
-              ? "#" + g
-              : trackName(g),
-      y: y - 18,
-    });
-    const buckets = new Map();
-    for (const n of items) {
-      const rank = n.rank ?? 2;
-      if (!buckets.has(rank)) buckets.set(rank, []);
-      buckets.get(rank).push(n);
-    }
-    const count = Math.max(...[...buckets.values()].map((a) => a.length));
-    for (const [rank, items] of buckets)
-      items.forEach((n, i) => {
-        positions[n.id] ??= { x: Number(rank) * 320, y: y + i * 135 };
-      });
-    y += Math.max(1, count) * 135 + 65;
-  }
+function graphPosition(nodes) {
+  const groupKey = (t) =>
+    state.group === "status"
+      ? t.status
+      : state.group === "epic"
+        ? t.epic
+        : state.group === "tag"
+          ? t.tags?.[0] || "untagged"
+          : t.track;
+  positions = {
+    ...dependencyLayout(nodes, graphLinks, groupKey),
+    ...Object.fromEntries(
+      Object.entries(positionLayouts[positionMode] || {}).filter(([id]) =>
+        nodeById.has(id),
+      ),
+    ),
+  };
 }
 function wrap(text, max = 29) {
   const words = text.split(" "),
@@ -1335,16 +1311,7 @@ function wrap(text, max = 29) {
   return lines.slice(0, 2);
 }
 function edgePath(e) {
-  const a = positions[e.from],
-    b = positions[e.to];
-  if (!a || !b) return "";
-  const from = { x: a.x + NODE_W, y: a.y + NODE_H / 2 },
-    to = { x: b.x, y: b.y + NODE_H / 2 };
-  if (Math.abs(from.x - to.x) < 80) {
-    return `M${a.x + NODE_W / 2},${a.y + NODE_H} C${a.x + NODE_W / 2},${a.y + NODE_H + 60} ${b.x + NODE_W / 2},${b.y - 60} ${b.x + NODE_W / 2},${b.y}`;
-  }
-  const bend = Math.max(70, Math.abs(to.x - from.x) * 0.45);
-  return `M${from.x},${from.y} C${from.x + bend},${from.y} ${to.x - bend},${to.y} ${to.x},${to.y}`;
+  return dependencyPath(e, positions, graphLinks);
 }
 function renderGraph(fit = false) {
   const g = graphData();
@@ -1358,12 +1325,8 @@ function renderGraph(fit = false) {
   const mode = g.overview
     ? "overview"
     : state.scope + ":" + state.group + ":" + state.epic;
-  if (mode !== positionMode) {
-    if (positionMode) positionLayouts[positionMode] = positions;
-    positions = positionLayouts[mode] || {};
-    positionMode = mode;
-  }
-  graphPosition(graphNodes, g.overview);
+  positionMode = mode;
+  graphPosition(graphNodes);
   const near =
     state.selected.startsWith("epic:") || !nodeById.has(state.selected)
       ? new Set()
@@ -1389,17 +1352,10 @@ function renderGraph(fit = false) {
         `<path class="edge ${esc(e.kind)}${e.from === state.selected || e.to === state.selected ? " highlight" : ""}" d="${edgePath(e)}"><title>${esc(e.kind + ": " + e.reason)}</title></path>`,
     )
     .join("");
-  $("lanes").innerHTML = g.overview
-    ? '<text class="stage-label" x="0" y="-25">PARALLEL CAPABILITY TRACKS</text><text class="stage-label" x="350" y="-25">ACCEPT → PUBLISH → FLIP</text><text class="stage-label" x="700" y="-25">AFTER DELIVERY</text>'
-    : layoutLabels
-        .map(
-          (l) =>
-            `<text class="lane-label" x="0" y="${l.y}">${esc(l.label?.toUpperCase())}</text>`,
-        )
-        .join("");
+  $("lanes").innerHTML = "";
   $("graph-count").textContent = g.overview
-    ? "7 workstreams · select one to expand its tasks"
-    : `${graphNodes.length} of ${g.total} matching tasks · ${graphLinks.length}connections${g.total > 180 ? " · narrow your query to show more" : ""}`;
+    ? `${graphNodes.length} workstreams · select one to expand its tasks`
+    : `${graphNodes.length} of ${g.total} matching tasks · ${graphLinks.length} connections${g.total > 180 ? " · narrow your query to show more" : ""}`;
   $("graph-empty").hidden = graphNodes.length > 0;
   $("graph-empty").textContent = "No tasks match these graph filters.";
   if (fit || key !== lastGraphKey || fitPending) {
@@ -1413,8 +1369,8 @@ function fitGraph() {
   if (!graphNodes.length) return;
   const xs = graphNodes.map((n) => positions[n.id].x),
     ys = graphNodes.map((n) => positions[n.id].y),
-    minX = Math.min(...xs) - 35,
-    maxX = Math.max(...xs) + NODE_W + 35,
+    minX = Math.min(...xs) - 110,
+    maxX = Math.max(...xs) + NODE_W + 110,
     minY = Math.min(...ys) - 55,
     maxY = Math.max(...ys) + NODE_H + 55;
   const overlay = 0;
@@ -1456,11 +1412,12 @@ function zoomAt(
   transform.k = next;
   scheduleTransform();
 }
-function savePositions() {
+function savePositions(id) {
   try {
-    positionLayouts[positionMode] = positions;
+    if (id) (positionLayouts[positionMode] ??= {})[id] = positions[id];
+    else delete positionLayouts[positionMode];
     localStorage.setItem(
-      "nupp-plan-layouts-v2",
+      "aicommander-plan-layouts-v3",
       JSON.stringify(positionLayouts),
     );
   } catch {}
@@ -1563,7 +1520,7 @@ function endPointer(e) {
   pointers.delete(e.pointerId);
   if (drag?.id) {
     if (!drag.moved && e.type === "pointerup") select(drag.id);
-    else if (drag.moved) savePositions();
+    else if (drag.moved) savePositions(drag.id);
   } else if (drag?.moved && !wasPinch && e.type === "pointerup")
     graphMomentum.release(e.timeStamp);
   else graphMomentum.stop();
@@ -1892,6 +1849,11 @@ document.addEventListener("keydown", (e) => {
     ) {
       $("plan-search").focus();
       return;
+    }
+    if (state.view === "activity") {
+      state.view = "tasks";
+      controls();
+      refreshViews();
     }
     if (workspace.classList.contains("theater")) fullLeftOpen = true;
     else panelPrefs.left = true;
@@ -2223,7 +2185,12 @@ function renderTour() {
     tourStep + 1 + " / " + tour.steps.length;
   $("presentation-prev").disabled = tourStep === 0;
   $("presentation-next").disabled = tourStep === tour.steps.length - 1;
-  $("presentation-play").textContent = tourPlaying ? "Pause" : "Play";
+  const play = $("presentation-play");
+  play.innerHTML = tourPlaying
+    ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg>'
+    : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 10 7-10 7Z"/></svg>';
+  play.title = tourPlaying ? "Pause walkthrough" : "Play walkthrough";
+  play.setAttribute("aria-label", play.title);
   $("tour-cue").innerHTML =
     "<small>" +
     esc(tour.title) +
@@ -2233,7 +2200,7 @@ function renderTour() {
     tour.steps.length +
     "</small><p>" +
     esc(tour.steps[tourStep].caption || view?.caption || view?.title || "") +
-    "</p><span>← Previous · Next →</span>";
+    "</p><span>Use ← → to move between steps</span>";
   requestAnimationFrame(positionTourCue);
 }
 function positionTourCue() {
@@ -2243,16 +2210,16 @@ function positionTourCue() {
     view = $(state.view + "-view");
   let target;
   const anchors = {
-    search: $("#search-facets"),
-    filters: $("#filters-panel"),
+    search: $("search-facets"),
+    filters: $("filters-panel"),
     chart:
       state.view === "graph"
-        ? $("#graph-stage")
+        ? $("graph-stage")
         : state.view === "strip"
           ? document.querySelector(".strip-stage")
           : document.querySelector(".epic-scroll"),
-    tasks: $("#tasks-view"),
-    documents: $("#documents-view"),
+    tasks: $("tasks-view"),
+    documents: $("documents-view"),
   };
   if (step.target && step.target !== "selection") target = anchors[step.target];
   if (!target && state.selected) {
@@ -2827,10 +2794,21 @@ $("detail-dialog").addEventListener("click", (e) => {
   }
 });
 function applyPanels() {
+  const available = state.view !== "activity";
+  if (panelView !== state.view) {
+    panelView = state.view;
+    mobileFiltersOpen =
+      fullLeftOpen =
+      panelPrefs.left =
+        ["tasks", "strip", "graph", "epics"].includes(state.view);
+  }
+  $("toggle-left").hidden = !available;
   const w = document.querySelector(".workspace"),
     full = w.classList.contains("theater"),
     mobile = compactLayout.matches,
-    left = mobile ? mobileFiltersOpen : full ? fullLeftOpen : panelPrefs.left;
+    left =
+      available &&
+      (mobile ? mobileFiltersOpen : full ? fullLeftOpen : panelPrefs.left);
   w.classList.toggle("left-collapsed", !left);
   w.classList.toggle("left-expanded", left);
   $("toggle-left").title = left ? "Collapse filters" : "Expand filters";
@@ -2860,7 +2838,7 @@ $("filters-panel").addEventListener("keydown", (e) => {
   }
 });
 compactLayout.addEventListener("change", () => {
-  mobileFiltersOpen = false;
+  mobileFiltersOpen = state.view !== "activity";
   applyPanels();
   if (data) refreshViews();
 });

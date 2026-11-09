@@ -25,6 +25,7 @@ test("legacy UI and editing APIs run on SQLite; HTTP and MCP share task mutation
   assert.match(html, /strip-view/);
   for (const asset of [
     "app.mjs",
+    "graph-layout.mjs",
     "workspace.mjs",
     "workspace.css",
     "strip.mjs",
