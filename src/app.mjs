@@ -352,7 +352,7 @@ function presentSavedViews() {
 }
 try {
   positionLayouts = JSON.parse(
-    localStorage.getItem("aicommander-plan-layouts-v3") || "{}",
+    localStorage.getItem("avoozl-plan-layouts-v3") || "{}",
   );
 } catch {}
 const badge = (id) => {
@@ -460,8 +460,8 @@ function controls() {
   $("graph-stage").title = data.project.dependencyNote || "";
   updateOnboarding(data);
   $("brand-title").textContent =
-    data.project.workspaceName || data.project.name || "AICommander";
-  document.title = $("brand-title").textContent + " · AICommander";
+    data.project.workspaceName || data.project.name || "Avoozl";
+  document.title = $("brand-title").textContent + " · Avoozl";
   document
     .querySelector(".brand")
     .setAttribute("aria-label", $("brand-title").textContent + " home");
@@ -507,7 +507,7 @@ function syncNavigation() {
   }
   const active = document.querySelector("#nav [aria-current=page]");
   $("page-title").textContent =
-    active?.getAttribute("aria-label") || active?.textContent || "AICommander";
+    active?.getAttribute("aria-label") || active?.textContent || "Avoozl";
 }
 window.addEventListener("nupp-workspace-navigation", () => {
   if (document.body.classList.contains("execution-open")) {
@@ -1417,7 +1417,7 @@ function savePositions(id) {
     if (id) (positionLayouts[positionMode] ??= {})[id] = positions[id];
     else delete positionLayouts[positionMode];
     localStorage.setItem(
-      "aicommander-plan-layouts-v3",
+      "avoozl-plan-layouts-v3",
       JSON.stringify(positionLayouts),
     );
   } catch {}
@@ -3211,7 +3211,7 @@ document.addEventListener("click", async (e) => {
 
 new MutationObserver(() => {
   $("mcp-info").title =
-    $("sync-state").textContent + " · Connect an agent to AICommander";
+    $("sync-state").textContent + " · Connect an agent to Avoozl";
   $("mcp-info").setAttribute("aria-label", $("mcp-info").title);
 }).observe($("sync-state"), {
   childList: true,

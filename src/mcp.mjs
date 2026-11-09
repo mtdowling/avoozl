@@ -10,7 +10,7 @@ export const MCP_VERSIONS = [
   "2025-06-18",
   "2025-03-26",
 ];
-const identity = { name: "aicommander", version: "0.1.0" };
+const identity = { name: "avoozl", version: "0.1.0" };
 const queryProperties = {
   scope: { type: "string", enum: ["all", "runtime"], default: "all" },
   activity: {

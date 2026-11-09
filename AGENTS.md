@@ -1,6 +1,6 @@
-# Working on AICommander
+# Working on Avoozl
 
-AICommander is a local planning application with a website, CLI, MCP interface,
+Avoozl is a local planning application with a website, CLI, MCP interface,
 and managed agent host. UI, CLI, and MCP share operations in `src/app/operations.mjs`.
 SQLite owns execution state; Markdown owns design prose.
 

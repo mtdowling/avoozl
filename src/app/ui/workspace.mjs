@@ -45,7 +45,7 @@ const shell = document.createElement("section");
 shell.id = "execution-workspace";
 shell.hidden = true;
 shell.setAttribute("aria-label", "Planning and agent workspace");
-shell.innerHTML = `<aside class="execution-nav"><div><span class="eyebrow">AICOMMANDER</span><h2>From intent<br>to delivery.</h2><p id="execution-mode"></p></div><nav aria-label="Workspace sections">${[
+shell.innerHTML = `<aside class="execution-nav"><div><span class="eyebrow">AVOOZL</span><h2>From intent<br>to delivery.</h2><p id="execution-mode"></p></div><nav aria-label="Workspace sections">${[
   ["sessions", "Agent sessions"],
   ["metrics", "Usage trends"],
 ]

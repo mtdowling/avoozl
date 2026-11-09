@@ -42,8 +42,8 @@ export class CodexAdapter {
     });
     await this.rpc("initialize", {
       clientInfo: {
-        name: "aicommander",
-        title: "AICommander",
+        name: "avoozl",
+        title: "Avoozl",
         version: "2.0.0",
       },
       capabilities: { experimentalApi: true },

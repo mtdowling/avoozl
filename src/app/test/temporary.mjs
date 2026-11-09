@@ -15,7 +15,7 @@ after(() => {
       retryDelay: 100,
     });
 });
-export function temporaryDirectory(prefix = "aicommander-") {
+export function temporaryDirectory(prefix = "avoozl-") {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
   directories.add(root);
   return root;

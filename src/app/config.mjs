@@ -7,7 +7,7 @@ export const applicationRoot = fileURLToPath(
 );
 export function workspaceConfig(options = {}) {
   const workspaceRoot = path.resolve(
-    options.workspace || process.env.AICOMMANDER_WORKSPACE || process.cwd(),
+    options.workspace || process.env.AVOOZL_WORKSPACE || process.cwd(),
   );
   const filename = path.join(workspaceRoot, "workspace.json");
   let saved = {};
@@ -22,7 +22,7 @@ export function workspaceConfig(options = {}) {
     throw Error("Choose a port from 0 to 65535.");
   const dbPath = relative(
     options.db ||
-      process.env.AICOMMANDER_DB ||
+      process.env.AVOOZL_DB ||
       process.env.NUPP_WORKSPACE_DB ||
       saved.dbPath ||
       "state/workspace.sqlite",
@@ -46,7 +46,7 @@ export function workspaceConfig(options = {}) {
     ),
     endpoint:
       options.url ||
-      process.env.AICOMMANDER_URL ||
+      process.env.AVOOZL_URL ||
       process.env.NUPP_WORKSPACE_URL ||
       saved.url ||
       "http://127.0.0.1:" + port,
