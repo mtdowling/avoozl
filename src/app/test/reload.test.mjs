@@ -47,6 +47,12 @@ test("web reload preserves agent session, pending approval, subagent ownership a
       manifestPath,
       factories: { codex: factory },
     });
+  const servers = [host];
+  t.after(async () => {
+    for (const server of servers.reverse())
+      if (server.listening)
+        await new Promise((resolve) => server.close(resolve));
+  });
   await once(host, "listening");
   const remote = new RemoteManager(manifestPath),
     web1 = startServer({
@@ -55,6 +61,7 @@ test("web reload preserves agent session, pending approval, subagent ownership a
       projectionRoot: path.join(root, "docs"),
       manager: remote,
     });
+  servers.push(web1);
   await once(web1, "listening");
   const ops = web1.workspace.ops;
   await ops.execute("project.configure", { id: "fixture", root: repo });
@@ -85,11 +92,8 @@ test("web reload preserves agent session, pending approval, subagent ownership a
     projectionRoot: path.join(root, "docs"),
     manager: remote,
   });
+  servers.push(web2);
   await once(web2, "listening");
-  t.after(async () => {
-    await new Promise((resolve) => web2.close(resolve));
-    await new Promise((resolve) => host.close(resolve));
-  });
   const response = await fetch(
     "http://127.0.0.1:" +
       web2.address().port +
