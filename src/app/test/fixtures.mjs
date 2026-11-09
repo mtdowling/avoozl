@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { Store } from "../store.mjs";
+import { temporaryDirectory } from "./temporary.mjs";
 export function snapshot() {
   return {
     schemaVersion: 1,
@@ -47,14 +48,13 @@ export function snapshot() {
   };
 }
 export function fixture(t) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "nupp-workspace-test-")),
+  const root = temporaryDirectory(),
     store = new Store(path.join(root, "workspace.sqlite"));
   store.importSnapshot(snapshot());
   t.after(() => {
     try {
       store.close();
     } catch {}
-    fs.rmSync(root, { recursive: true, force: true });
   });
   return { root, store };
 }

@@ -12,11 +12,10 @@ import { Store } from "../store.mjs";
 import { Operations } from "../operations.mjs";
 import { handleMcp } from "../mcp.mjs";
 import { startServer } from "../server.mjs";
+import { temporaryDirectory } from "./temporary.mjs";
 const exec = promisify(execFile);
 function temporary(t) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "aicommander-"));
-  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
-  return root;
+  return temporaryDirectory();
 }
 
 test("initialization starts empty, refuses replacement, and paths survive moving a workspace", (t) => {
