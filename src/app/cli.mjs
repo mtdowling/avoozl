@@ -128,6 +128,7 @@ try {
     let facade = null;
     if (options.ahp) {
       const { startAhpFacade } = await import("./ahp/facade.mjs");
+      const { agentProviderId } = await import("./ahp/projection.mjs");
       const { loadTokens } = await import("./ahp/main.mjs");
       const { localClient } = await import("./client.mjs");
       // The facade records the endpoint it serves, so wait until the site is
@@ -155,19 +156,19 @@ try {
                 provider,
               });
               agents.push({
-                provider,
+                provider: agentProviderId(provider),
                 displayName: "AICommander " + provider,
                 description: "Sessions owned by this workspace's agent host.",
                 models: catalog.models.map((m) => ({
                   id: m.id,
-                  provider,
+                  provider: agentProviderId(provider),
                   name: m.label || m.id,
                 })),
                 protectedResources: [],
               });
             } catch (error) {
               agents.push({
-                provider,
+                provider: agentProviderId(provider),
                 displayName: "AICommander " + provider,
                 description: "Unavailable: " + error.message,
                 models: [],

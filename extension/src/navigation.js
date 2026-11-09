@@ -81,8 +81,13 @@ class ChatNavigator {
       chat: entry.chat,
       provider: entry.provider,
       candidates: [
-        // The form observed in the research: the editor registers each
-        // provider's sessions under its own scheme.
+        // The editor registers one chat-sessions provider per agent the host
+        // advertises, named `agent-host-<advertised provider id>`. That id is
+        // namespaced to avoid colliding with the editor's own built-in
+        // providers, so it is read from the host rather than assumed.
+        ...(entry.agentProvider && uuid
+          ? ["agent-host-" + entry.agentProvider + ":/" + uuid]
+          : []),
         ...(entry.provider && uuid
           ? ["agent-host-" + entry.provider + ":/" + uuid]
           : []),
@@ -143,7 +148,12 @@ class ChatNavigator {
     for (const resource of channels.candidates) {
       let failure = null;
       try {
-        await vscode.commands.executeCommand(NATIVE_COMMAND, { resource });
+        // The command takes a Uri, not a string: it calls `.with()` on what it
+        // is given. Passing a string fails with "o.with is not a function",
+        // which is also why the fallback used to be the only path that worked.
+        await vscode.commands.executeCommand(NATIVE_COMMAND, {
+          resource: vscode.Uri.parse(resource),
+        });
       } catch (error) {
         failure = error.message;
       }

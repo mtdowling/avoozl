@@ -24,11 +24,25 @@ import { workspaceIdentity } from "../identity.mjs";
 import { fail } from "../store.mjs";
 import { pathToFileURL } from "node:url";
 
-export const PROJECTION_SCHEMA_VERSION = 3;
+export const PROJECTION_SCHEMA_VERSION = 4;
 // The projection always folds at the newest protocol version it knows, so the
 // action log is complete. Delivery to a client is filtered by the version that
 // client negotiated.
 export const PROJECTION_PROTOCOL_VERSION = SUPPORTED_PROTOCOL_VERSIONS[0];
+
+// The editor registers one chat-sessions provider per agent a host advertises,
+// named `agent-host-<provider>`. Its own built-in host advertises `claude` and
+// `copilotcli`, so advertising a bare `claude` collides with it: the editor
+// resolves `agent-host-claude:/<id>` against its built-in provider, which has
+// no such session, and the chat never loads. Namespacing the advertised ids
+// keeps the provider visible while making the registration ours.
+export const AGENT_PROVIDER_PREFIX = "aicommander-";
+export const agentProviderId = (provider) =>
+  AGENT_PROVIDER_PREFIX + (provider || "unknown");
+export const runProviderFromAgentId = (id) =>
+  String(id || "").startsWith(AGENT_PROVIDER_PREFIX)
+    ? String(id).slice(AGENT_PROVIDER_PREFIX.length)
+    : id;
 
 export class Projection {
   constructor({
@@ -59,6 +73,7 @@ export class Projection {
       CREATE TABLE IF NOT EXISTS correlation(run_id TEXT PRIMARY KEY, body TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS archived_turns(channel TEXT NOT NULL, turn_id TEXT NOT NULL, ordinal INTEGER NOT NULL, body TEXT NOT NULL, PRIMARY KEY(channel, turn_id));
       CREATE INDEX IF NOT EXISTS archived_turns_channel ON archived_turns(channel, ordinal);
+      CREATE TABLE IF NOT EXISTS dispatches(seq INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL, client_id TEXT, client_name TEXT, grant_name TEXT, channel TEXT, action TEXT, accepted INTEGER NOT NULL, detail TEXT);
     `);
     this.verify();
     this.seq = Number(
@@ -96,9 +111,12 @@ export class Projection {
         "actions",
         "correlation",
         "archived_turns",
+        "dispatches",
       ])
         this.db.exec("DELETE FROM " + table);
-      this.db.exec("DELETE FROM sqlite_sequence WHERE name='actions'");
+      this.db.exec(
+        "DELETE FROM sqlite_sequence WHERE name IN ('actions','dispatches')",
+      );
       this.setMeta("identity", identity);
       this.setMeta("sourceCursor", 0);
       this.setMeta("rebuiltAt", new Date().toISOString());
@@ -176,7 +194,7 @@ export class Projection {
     if (!this.channelRow(uris.session))
       this.putChannel(uris.session, "session", run.id, {
         resource: uris.session,
-        provider: run.provider || "unknown",
+        provider: agentProviderId(run.provider),
         title: chatTitle(run),
         status: runStatus(run),
         createdAt: run.createdAt || new Date().toISOString(),
@@ -213,7 +231,8 @@ export class Projection {
   }
   sessionConfig(run) {
     const models = (
-      this.agents.find((a) => a.provider === run.provider)?.models || []
+      this.agents.find((a) => a.provider === agentProviderId(run.provider))
+        ?.models || []
     ).map((m) => m.id);
     return {
       schema: {
@@ -245,6 +264,7 @@ export class Projection {
       "aicommander.runId": run.id,
       "aicommander.taskId": run.taskId,
       "aicommander.workspaceId": this.workspaceId,
+      "aicommander.provider": run.provider,
       "aicommander.state": run.state,
       "aicommander.requestedModel": run.requestedModel || null,
       "aicommander.actualModel": run.actualModel || null,
@@ -355,6 +375,55 @@ export class Projection {
       .run(this.seq - this.retainActions);
   }
 
+  // Durable record of which client asked for what, and whether it was
+  // accepted. It is the authorization audit trail for a facade that can be
+  // reached by more than one client, and it is the only way to show that a
+  // native editor control, rather than a script, produced an action.
+  recordDispatch(entry) {
+    this.db
+      .prepare(
+        "INSERT INTO dispatches(at,client_id,client_name,grant_name,channel,action,accepted,detail) VALUES (?,?,?,?,?,?,?,?)",
+      )
+      .run(
+        entry.at || new Date().toISOString(),
+        entry.clientId || null,
+        entry.clientName || null,
+        entry.grant || null,
+        entry.channel || null,
+        entry.action || null,
+        entry.accepted ? 1 : 0,
+        entry.detail || null,
+      );
+    const excess = Number(
+      this.db.prepare("SELECT COUNT(*) count FROM dispatches").get().count,
+    );
+    if (excess > 5000)
+      this.db.exec(
+        "DELETE FROM dispatches WHERE seq <= (SELECT MAX(seq)-5000 FROM dispatches)",
+      );
+  }
+  dispatches({ limit = 200, since } = {}) {
+    const rows = since
+      ? this.db
+          .prepare(
+            "SELECT * FROM dispatches WHERE at >= ? ORDER BY seq DESC LIMIT ?",
+          )
+          .all(since, limit)
+      : this.db
+          .prepare("SELECT * FROM dispatches ORDER BY seq DESC LIMIT ?")
+          .all(limit);
+    return rows.reverse().map((row) => ({
+      seq: row.seq,
+      at: row.at,
+      clientId: row.client_id,
+      clientName: row.client_name,
+      grant: row.grant_name,
+      channel: row.channel,
+      action: row.action,
+      accepted: Boolean(row.accepted),
+      ...(row.detail ? { detail: row.detail } : {}),
+    }));
+  }
   correlationFor(runId) {
     const row = this.db
       .prepare("SELECT body FROM correlation WHERE run_id=?")
@@ -644,7 +713,7 @@ export class Projection {
       const chat = this.channelState(uris.chat);
       return {
         resource: uris.session,
-        provider: run.provider || "unknown",
+        provider: agentProviderId(run.provider),
         title: chatTitle(run),
         status: runStatus(run, { archived }),
         createdAt: run.createdAt || new Date(0).toISOString(),

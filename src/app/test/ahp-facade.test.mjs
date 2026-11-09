@@ -101,12 +101,12 @@ async function harness(t, { script, retainTurns } = {}) {
     },
     models: async () => [
       {
-        provider: "codex",
+        provider: "aicommander-codex",
         displayName: "AICommander codex",
         description: "stub",
         models: [
-          { id: "stub-model", provider: "codex", name: "Stub" },
-          { id: "other-model", provider: "codex", name: "Other" },
+          { id: "stub-model", provider: "aicommander-codex", name: "Stub" },
+          { id: "other-model", provider: "aicommander-codex", name: "Other" },
         ],
       },
     ],
@@ -253,7 +253,12 @@ test("sessions and chats are listed, snapshotted, and tied to the owning run", a
     return result.result.snapshot ? result : null;
   });
   const session = listed.result.snapshot.state;
-  assert.equal(session.provider, "codex");
+  assert.equal(
+    session.provider,
+    "aicommander-codex",
+    "the advertised provider id is namespaced away from the editor's built-ins",
+  );
+  assert.equal(session._meta["aicommander.provider"], "codex");
   assert.equal(session.defaultChat, uris.chat);
   assert.equal(session._meta["aicommander.runId"], run.id);
   assert.equal(
@@ -759,3 +764,59 @@ async function rawDispatch(facade, channel, action, token = EDITOR_TOKEN) {
   ws.close();
   return reply;
 }
+
+test("the audit trail names the client behind every dispatch, accepted or refused", async (t) => {
+  const { facade, ops, store, manager } = await harness(t);
+  const run = await startRun(ops);
+  manager.receive(run.id, "turn.completed", { state: "completed" });
+  const uris = runUris(workspaceIdentity(store), run.id);
+  const editor = await connect(facade, EDITOR_TOKEN, [uris.chat]);
+  t.after(() => editor.client.shutdown());
+  editor.client.dispatch(uris.chat, {
+    type: "chat/turnStarted",
+    turnId: "audited-turn",
+    startedAt: new Date().toISOString(),
+    message: { text: "Audited", origin: { kind: "user" } },
+  });
+  await until(() => facade.dispatches().some((entry) => entry.accepted));
+  // A refusal is recorded too, with the reason and the client that asked.
+  await rawDispatch(
+    facade,
+    uris.chat,
+    { type: "chat/truncated" },
+    EDITOR_TOKEN,
+  );
+  await rawDispatch(
+    facade,
+    uris.chat,
+    {
+      type: "chat/turnStarted",
+      turnId: "observer-turn",
+      startedAt: new Date().toISOString(),
+      message: { text: "no", origin: { kind: "user" } },
+    },
+    OBSERVER_TOKEN,
+  );
+  const trail = await until(() =>
+    facade.dispatches().length >= 3 ? facade.dispatches() : null,
+  );
+  const accepted = trail.find((entry) => entry.accepted);
+  assert.equal(accepted.action, "chat/turnStarted");
+  assert.equal(accepted.grant, "editor");
+  assert.equal(accepted.channel, uris.chat);
+  // The client identity is what makes it possible to say a native editor
+  // control, rather than a script, produced an action.
+  assert.ok(accepted.clientId);
+  const truncation = trail.find((entry) => entry.action === "chat/truncated");
+  assert.equal(truncation.accepted, false);
+  assert.match(truncation.detail, /durable execution record/);
+  const denied = trail.find((entry) => entry.grant === "observer");
+  assert.equal(denied.accepted, false);
+  assert.match(denied.detail, /observe/);
+  // Ordering is by the facade's own sequence, oldest first.
+  const seqs = trail.map((entry) => entry.seq);
+  assert.deepEqual(
+    seqs,
+    [...seqs].sort((a, b) => a - b),
+  );
+});

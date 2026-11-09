@@ -10,6 +10,7 @@ import { randomUUID } from "node:crypto";
 import { Store } from "../store.mjs";
 import { remoteClient } from "../client.mjs";
 import { startAhpFacade } from "./facade.mjs";
+import { agentProviderId } from "./projection.mjs";
 
 export async function startFacadeForWorkspace({
   dbPath,
@@ -46,13 +47,13 @@ export async function startFacadeForWorkspace({
         try {
           const catalog = await client.models(provider);
           agents.push({
-            provider,
+            provider: agentProviderId(provider),
             displayName: "AICommander " + provider,
             description:
               "Sessions owned by this workspace's persistent agent host.",
             models: catalog.models.map((model) => ({
               id: model.id,
-              provider,
+              provider: agentProviderId(provider),
               name: model.label || model.id,
               ...(model._meta ? { _meta: model._meta } : {}),
             })),
@@ -62,7 +63,7 @@ export async function startFacadeForWorkspace({
           // A provider that cannot be reached is advertised with no models
           // rather than with invented ones.
           agents.push({
-            provider,
+            provider: agentProviderId(provider),
             displayName: "AICommander " + provider,
             description: "Unavailable: " + error.message,
             models: [],

@@ -201,7 +201,9 @@ export class Operations {
         approvalMode: saved.approvalMode,
         prompt: saved.prompt,
         context: saved.context,
-        title: saved.prompt.split("\n")[0].slice(0, 160),
+        // A caller-supplied title names the conversation in a client's list;
+        // without one the first prompt line stands in.
+        title: saved.title || saved.prompt.split("\n")[0].slice(0, 160),
         background: true,
       });
       receipt.acceptedAt = new Date().toISOString();

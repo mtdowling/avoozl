@@ -20,7 +20,7 @@ import {
   isClientDispatchable,
   AhpErrorCodes,
 } from "@microsoft/agent-host-protocol";
-import { Projection } from "./projection.mjs";
+import { Projection, agentProviderId } from "./projection.mjs";
 import { ROOT_CHANNEL, channelKind } from "./uris.mjs";
 import { AHP_SUBMISSION_PREFIX } from "./events.mjs";
 
@@ -168,6 +168,7 @@ export function startAhpFacade({
                 // The channel identifiers this host owns. A client resolves a
                 // conversation's channel from here rather than constructing a
                 // scheme, because editor registrations differ by surface.
+                dispatches: projection.dispatches({ limit: 50 }),
                 sessions: store
                   .list("runs")
                   .filter((r) => !r.deletedAt)
@@ -175,6 +176,9 @@ export function startAhpFacade({
                     runId: r.id,
                     taskId: r.taskId,
                     provider: r.provider,
+                    // What the editor was told, and therefore the scheme it
+                    // registers this session's chat under.
+                    agentProvider: agentProviderId(r.provider),
                     state: r.state,
                     ...projection.transaction(() => projection.ensureRun(r)),
                   })),
@@ -748,21 +752,43 @@ export function startAhpFacade({
         return resolveResource(params);
       case "dispatchAction": {
         requireReady(connection);
+        // Every attempt is recorded, accepted or refused, so the trail shows
+        // which client asked for what rather than only what succeeded. It is
+        // the authorization audit for a host more than one client can reach,
+        // and the only way to show that an action came from a native editor
+        // control rather than from a script.
+        const audit = (accepted, detail) => {
+          try {
+            projection.recordDispatch({
+              clientId: connection.clientId,
+              clientName: connection.clientInfo?.name || null,
+              grant: connection.grant.name,
+              channel: params.channel,
+              action: params.action?.type || null,
+              accepted,
+              detail,
+            });
+          } catch {}
+        };
+        const refuse = (code, message) => {
+          audit(false, message);
+          throw new AhpError(code, message);
+        };
         if (connection.grant.scope !== "full")
-          throw new AhpError(
+          refuse(
             AhpErrorCodes.PermissionDenied,
             "This client is authorized to observe sessions, not to change them.",
           );
         const action = params.action;
         if (!action?.type)
-          throw new AhpError(JSON_RPC.invalidParams, "An action is required.");
+          refuse(JSON_RPC.invalidParams, "An action is required.");
         if (!isClientDispatchable(action))
-          throw new AhpError(
+          refuse(
             JSON_RPC.invalidParams,
             action.type + " is a server action; a client cannot dispatch it.",
           );
         if (!deliverable(connection, action.type))
-          throw new AhpError(
+          refuse(
             JSON_RPC.invalidParams,
             action.type +
               " was introduced after protocol version " +
@@ -770,12 +796,9 @@ export function startAhpFacade({
               ".",
           );
         if (UNSUPPORTED_REASON[action.type])
-          throw new AhpError(
-            JSON_RPC.invalidParams,
-            UNSUPPORTED_REASON[action.type],
-          );
+          refuse(JSON_RPC.invalidParams, UNSUPPORTED_REASON[action.type]);
         if (!DISPATCH.has(action.type))
-          throw new AhpError(
+          refuse(
             JSON_RPC.invalidParams,
             "This host does not implement " + action.type + ".",
           );
@@ -795,6 +818,7 @@ export function startAhpFacade({
           correct(params.channel, action, error);
           // Surface the workspace's own refusal, including its status, instead
           // of reporting a generic failure or pretending the action applied.
+          audit(false, error.message);
           throw new AhpError(
             Number.isInteger(error.code)
               ? error.code
@@ -806,6 +830,7 @@ export function startAhpFacade({
             error.message,
           );
         }
+        audit(true, null);
         if (outcome.echo) {
           const envelope = projection.echo(params.channel, action, origin);
           broadcast([envelope]);
@@ -967,6 +992,10 @@ export function startAhpFacade({
           serverSeq: projection.seq,
         });
       return projection.agents;
+    },
+    // Which clients dispatched which actions, and whether each was accepted.
+    dispatches(options) {
+      return projection.dispatches(options);
     },
     // Evidence helper: which clients subscribed to a channel, and when.
     subscribers(resource, since) {
