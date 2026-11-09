@@ -32,7 +32,13 @@ export function operatorIdentity() {
 }
 export function workspaceConfig(options = {}) {
   const workspaceRoot = path.resolve(
-    options.workspace || process.env.AICOMMANDER_WORKSPACE || process.cwd(),
+    // AVOOZL_* is the current form. AICOMMANDER_* and NUPP_WORKSPACE_* stay
+    // accepted: they are compatibility interfaces, not names to drop because
+    // the product was renamed.
+    options.workspace ||
+      process.env.AVOOZL_WORKSPACE ||
+      process.env.AICOMMANDER_WORKSPACE ||
+      process.cwd(),
   );
   const filename = path.join(workspaceRoot, "workspace.json");
   let saved = {};
@@ -47,6 +53,7 @@ export function workspaceConfig(options = {}) {
     throw Error("Choose a port from 0 to 65535.");
   const dbPath = relative(
     options.db ||
+      process.env.AVOOZL_DB ||
       process.env.AICOMMANDER_DB ||
       process.env.NUPP_WORKSPACE_DB ||
       saved.dbPath ||
@@ -62,6 +69,7 @@ export function workspaceConfig(options = {}) {
     name: saved.name || "My workspace",
     operator:
       options.operator ||
+      process.env.AVOOZL_OPERATOR ||
       process.env.AICOMMANDER_OPERATOR ||
       saved.operator ||
       operatorIdentity(),
@@ -76,6 +84,7 @@ export function workspaceConfig(options = {}) {
     ),
     endpoint:
       options.url ||
+      process.env.AVOOZL_URL ||
       process.env.AICOMMANDER_URL ||
       process.env.NUPP_WORKSPACE_URL ||
       saved.url ||

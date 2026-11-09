@@ -149,7 +149,7 @@ export class RunManager {
         summary:
           action === "finish"
             ? "Agent turn ended; implementation and acceptance require evidence."
-            : "Agent session connected through AICommander.",
+            : "Agent session connected through Avoozl.",
       });
       run.activityLeaseId = result.activity.leaseId;
       this.store.transaction(() => this.store.commit(data, "Report " + run.id));
@@ -251,7 +251,7 @@ export class RunManager {
           truncated: d.text.length > 20000,
         }));
     return [
-      "You are working through the AICommander workspace. Follow workspace and repository instructions. Preserve other workers and worktrees. Routine authorized work may proceed; approval requests are delivered to the user through this app. Do not approve plans, accept tasks, or merge changes on the user's behalf through MCP. Agent and subagent reconnect contract: the agent host survives UI/API reloads. If MCP is unavailable, continue already authorized local work, retry with bounded backoff, reuse submission IDs and inspect receipts before resending. Stop at unresolved approvals. A stale check-in is not permission to replace a worker. Pass this contract to any subagents you create. Durable handoff: " +
+      "You are working through the Avoozl workspace. Follow workspace and repository instructions. Preserve other workers and worktrees. Routine authorized work may proceed; approval requests are delivered to the user through this app. Do not approve plans, accept tasks, or merge changes on the user's behalf through MCP. Agent and subagent reconnect contract: the agent host survives UI/API reloads. If MCP is unavailable, continue already authorized local work, retry with bounded backoff, reuse submission IDs and inspect receipts before resending. Stop at unresolved approvals. A stale check-in is not permission to replace a worker. Pass this contract to any subagents you create. Durable handoff: " +
         run.handoffPath,
       run.mode === "plan"
         ? PLAN_FORMAT

@@ -1,5 +1,5 @@
 "use strict";
-// AICommander VS Code client.
+// Avoozl VS Code client.
 //
 // The extension is a client of a workspace that already exists. It does not
 // own execution state, does not start provider processes, and does not keep a
@@ -34,7 +34,7 @@ const {
 const { VisualPanels } = require("./webviews");
 
 function activate(context) {
-  const channel = vscode.window.createOutputChannel("AICommander");
+  const channel = vscode.window.createOutputChannel("Avoozl");
   const log = (text) =>
     channel.appendLine(new Date().toISOString() + " " + text);
   context.subscriptions.push(channel);
@@ -51,7 +51,7 @@ function activate(context) {
     vscode.StatusBarAlignment.Left,
     40,
   );
-  status.command = "aicommander.diagnostics";
+  status.command = "avoozl.diagnostics";
   context.subscriptions.push(status);
 
   context.subscriptions.push(
@@ -59,24 +59,21 @@ function activate(context) {
       isCaseSensitive: true,
     }),
     vscode.workspace.registerTextDocumentContentProvider(
-      "aicommander-plan-saved",
+      "avoozl-plan-saved",
       new SavedRevisionProvider(() => client),
     ),
     // The base revision of a file a conversation changed, so the editor's own
     // diff view can show what the run did.
-    vscode.workspace.registerTextDocumentContentProvider(
-      "aicommander-run-base",
-      {
-        async provideTextDocumentContent(uri) {
-          const [, runId, ...rest] = uri.path.split("/");
-          const result = await client.call("run.changes", {
-            id: decodeURIComponent(runId),
-            path: rest.join("/"),
-          });
-          return result.before;
-        },
+    vscode.workspace.registerTextDocumentContentProvider("avoozl-run-base", {
+      async provideTextDocumentContent(uri) {
+        const [, runId, ...rest] = uri.path.split("/");
+        const result = await client.call("run.changes", {
+          id: decodeURIComponent(runId),
+          path: rest.join("/"),
+        });
+        return result.before;
       },
-    ),
+    }),
   );
 
   const views = {
@@ -87,7 +84,7 @@ function activate(context) {
   };
   for (const [name, provider] of Object.entries(views))
     context.subscriptions.push(
-      vscode.window.createTreeView("aicommander." + name, {
+      vscode.window.createTreeView("avoozl." + name, {
         treeDataProvider: provider,
         showCollapseAll: name !== "now",
       }),
@@ -100,14 +97,30 @@ function activate(context) {
   let compatible = false;
 
   function endpoint() {
-    return vscode.workspace
-      .getConfiguration("aicommander")
-      .get("endpoint", "http://127.0.0.1:9428");
+    return setting("endpoint", "http://127.0.0.1:9428");
+  }
+  // The extension was previously published under another name. A setting
+  // written against the old key still applies until the user moves it.
+  function setting(key, fallback) {
+    const current = vscode.workspace.getConfiguration("avoozl").get(key);
+    if (current !== undefined && current !== "") return current;
+    const previous = vscode.workspace.getConfiguration("aicommander").get(key);
+    if (previous !== undefined && previous !== "") {
+      log(
+        'Using the earlier "aicommander.' +
+          key +
+          '" setting. Move it to "avoozl.' +
+          key +
+          '" when convenient.',
+      );
+      return previous;
+    }
+    return fallback;
   }
 
   function renderStatus() {
     if (!compatible) {
-      status.text = "$(warning) AICommander";
+      status.text = "$(warning) Avoozl";
       status.tooltip =
         state.error?.message || "Not connected to a workspace server.";
       status.backgroundColor = new vscode.ThemeColor(
@@ -122,7 +135,7 @@ function activate(context) {
         (active ? "$(pulse) " + active : "idle");
       status.tooltip = new vscode.MarkdownString(
         [
-          "**AICommander**",
+          "**Avoozl**",
           "",
           "- Endpoint: `" + client.origin + "`",
           "- Workspace: `" +
@@ -201,9 +214,7 @@ function activate(context) {
   }
   function startPolling() {
     clearInterval(pollTimer);
-    const seconds = vscode.workspace
-      .getConfiguration("aicommander")
-      .get("refreshSeconds", 5);
+    const seconds = setting("refreshSeconds", 5);
     pollTimer = setInterval(() => state.refresh(), seconds * 1000);
   }
   context.subscriptions.push({
@@ -215,8 +226,15 @@ function activate(context) {
   });
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((event) => {
-      if (event.affectsConfiguration("aicommander.endpoint")) connect();
-      else if (event.affectsConfiguration("aicommander.refreshSeconds"))
+      if (
+        event.affectsConfiguration("avoozl.endpoint") ||
+        event.affectsConfiguration("aicommander.endpoint")
+      )
+        connect();
+      else if (
+        event.affectsConfiguration("avoozl.refreshSeconds") ||
+        event.affectsConfiguration("aicommander.refreshSeconds")
+      )
         startPolling();
     }),
   );
@@ -260,15 +278,12 @@ function activate(context) {
 
   const register = (name, handler) =>
     context.subscriptions.push(
-      vscode.commands.registerCommand("aicommander." + name, handler),
+      vscode.commands.registerCommand("avoozl." + name, handler),
     );
 
   register("refresh", () => connect());
   register("openSettings", () =>
-    vscode.commands.executeCommand(
-      "workbench.action.openSettings",
-      "aicommander",
-    ),
+    vscode.commands.executeCommand("workbench.action.openSettings", "avoozl"),
   );
 
   register("diagnostics", () =>
@@ -281,7 +296,7 @@ function activate(context) {
         health = { error: error.message };
       }
       const lines = [
-        "# AICommander diagnostics",
+        "# Avoozl diagnostics",
         "",
         "## Client",
         "",
@@ -320,7 +335,7 @@ function activate(context) {
           "**" +
           (capability.canVerifyIdentity
             ? ""
-            : " — set `aicommander.facadeManifest` to the facade's `ahp-facade.json` to enable confirmation"),
+            : " — set `avoozl.facadeManifest` to the facade's `ahp-facade.json` to enable confirmation"),
         "",
         "This command is not a published extension API. It is used behind the",
         "checks above and falls back to a session picker.",
@@ -488,7 +503,7 @@ function activate(context) {
     guard(async () => {
       const planId = typeof argument === "string" ? argument : argument?.planId;
       const left = vscode.Uri.parse(
-        "aicommander-plan-saved:/" + encodeURIComponent(planId) + ".md",
+        "avoozl-plan-saved:/" + encodeURIComponent(planId) + ".md",
       );
       await vscode.commands.executeCommand(
         "vscode.diff",
@@ -545,7 +560,7 @@ function activate(context) {
     }),
   );
   register("approvePlan", (argument) =>
-    vscode.commands.executeCommand("aicommander.previewApproval", argument),
+    vscode.commands.executeCommand("avoozl.previewApproval", argument),
   );
 
   register("graph", () => panels.open("graph"));
@@ -567,7 +582,7 @@ function activate(context) {
         vscode.window.showInformationMessage(
           "Structured questions are answered in the conversation itself so every option and its description are visible.",
         );
-        await vscode.commands.executeCommand("aicommander.openConversation", {
+        await vscode.commands.executeCommand("avoozl.openConversation", {
           runId: request.runId,
         });
         return;
@@ -706,7 +721,7 @@ function activate(context) {
       // Diff against the revision the run started from, read through the
       // workspace that owns the repository.
       const base = vscode.Uri.parse(
-        "aicommander-run-base:/" +
+        "avoozl-run-base:/" +
           encodeURIComponent(run.id) +
           "/" +
           picked.file.path,
@@ -893,25 +908,25 @@ function activate(context) {
           const runId = query.get("run");
           const taskId = query.get("task");
           await vscode.commands.executeCommand(
-            "aicommander.openConversation",
+            "avoozl.openConversation",
             runId ? { runId } : { taskId },
           );
         } else if (uri.path === "/task")
           await vscode.commands.executeCommand(
-            "aicommander.openTask",
+            "avoozl.openTask",
             query.get("id"),
           );
         else if (uri.path === "/plan")
           await vscode.commands.executeCommand(
-            "aicommander.openPlan",
+            "avoozl.openPlan",
             query.get("id"),
           );
         else if (uri.path === "/graph") panels.open("graph");
         else if (uri.path === "/diagnostics")
-          await vscode.commands.executeCommand("aicommander.diagnostics");
+          await vscode.commands.executeCommand("avoozl.diagnostics");
         else
           vscode.window.showWarningMessage(
-            "AICommander does not handle the link " + uri.path + ".",
+            "Avoozl does not handle the link " + uri.path + ".",
           );
       },
     }),

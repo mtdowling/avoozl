@@ -168,7 +168,7 @@ try {
       const catalog = await ops.execute("models", { provider: "claude" });
       return ["claude", "codex"].map((provider) => ({
         provider: agentProviderId(provider),
-        displayName: "AICommander " + provider,
+        displayName: "Avoozl " + provider,
         description: "Fixture provider; real child processes.",
         models: catalog.models.map((m) => ({
           id: m.id,
@@ -206,19 +206,19 @@ try {
   ]);
   fs.renameSync(
     path.join(fixture.root, "unpacked", "extension"),
-    path.join(extensions, "mtdowling.aicommander-0.1.0"),
+    path.join(extensions, "mtdowling.avoozl-0.1.0"),
   );
   fs.writeFileSync(
     path.join(profile, "User", "settings.json"),
     JSON.stringify(
       {
-        "aicommander.endpoint": endpoint,
-        "aicommander.facadeManifest": facadeManifest,
+        "avoozl.endpoint": endpoint,
+        "avoozl.facadeManifest": facadeManifest,
         "chat.remoteAgentHostsEnabled": true,
         "chat.remoteAgentHosts": [
           {
             address: editorClient.address,
-            name: "AICommander native check",
+            name: "Avoozl native check",
             connectionToken: editorClient.connectionToken,
           },
         ],
@@ -315,7 +315,7 @@ try {
   say("");
   say("VS Code may first ask you to sign in to GitHub. That is VS Code's own");
   say("gate on its chat UI, not something this facade asks for: the session");
-  say("itself is a Claude or Codex session owned by AICommander. The profile");
+  say("itself is a Claude or Codex session owned by Avoozl. The profile");
   say(
     "is a throwaway, and this script will not touch the window for " +
       Math.round(timeoutSeconds / 60) +
@@ -325,7 +325,7 @@ try {
   say("Please click, in this order:");
   step(1, "Open the Agents or Chat view and pick the conversation named");
   say('     "' + (store.get("runs", runId).title || runId) + '".');
-  say("     The AICommander sidebar also lists it under Conversations, where");
+  say("     The Avoozl sidebar also lists it under Conversations, where");
   say('     "Open This Task\'s Conversation" will try the native command.');
   step(2, 'The agent is asking to run a command. Click "Allow once".');
   step(3, "Wait until its output shows FIXTURE_SLOW_COMMAND_STARTED.");

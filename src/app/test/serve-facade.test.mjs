@@ -17,7 +17,7 @@ const cli = path.join(
 // It reads the site's own port to record the endpoint the facade serves, which
 // is only known once the site is listening.
 test("serve --ahp brings up the site and a loopback-only authenticated facade", async (t) => {
-  const root = temporaryDirectory("aicommander-serve-");
+  const root = temporaryDirectory("avoozl-serve-");
   const workspace = path.join(root, "workspace");
   initializeWorkspace(workspace, { name: "Serve fixture", port: 0 });
   const log = path.join(root, "serve.log");
@@ -69,7 +69,7 @@ test("serve --ahp brings up the site and a loopback-only authenticated facade", 
   const output = await waitFor(
     () => {
       const text = fs.existsSync(log) ? fs.readFileSync(log, "utf8") : "";
-      return /AICommander: http:\/\/\S+/.test(text) &&
+      return /Avoozl: http:\/\/\S+/.test(text) &&
         /Agent host facade: ws:\/\/\S+/.test(text)
         ? text
         : null;
@@ -81,7 +81,7 @@ test("serve --ahp brings up the site and a loopback-only authenticated facade", 
     /Cannot read properties/,
     "the facade must not be started before the site's port is known",
   );
-  const site = output.match(/AICommander: (http:\/\/\S+)/)[1];
+  const site = output.match(/Avoozl: (http:\/\/\S+)/)[1];
   const facade = output.match(/Agent host facade: (ws:\/\/\S+)/)[1];
   // Loopback only. A listener that hands out owned provider sessions is never
   // published on another interface.

@@ -24,7 +24,7 @@ import { workspaceIdentity } from "../identity.mjs";
 import { fail } from "../store.mjs";
 import { pathToFileURL } from "node:url";
 
-export const PROJECTION_SCHEMA_VERSION = 4;
+export const PROJECTION_SCHEMA_VERSION = 5;
 // The projection always folds at the newest protocol version it knows, so the
 // action log is complete. Delivery to a client is filtered by the version that
 // client negotiated.
@@ -36,7 +36,7 @@ export const PROJECTION_PROTOCOL_VERSION = SUPPORTED_PROTOCOL_VERSIONS[0];
 // resolves `agent-host-claude:/<id>` against its built-in provider, which has
 // no such session, and the chat never loads. Namespacing the advertised ids
 // keeps the provider visible while making the registration ours.
-export const AGENT_PROVIDER_PREFIX = "aicommander-";
+export const AGENT_PROVIDER_PREFIX = "avoozl-";
 export const agentProviderId = (provider) =>
   AGENT_PROVIDER_PREFIX + (provider || "unknown");
 export const runProviderFromAgentId = (id) =>
@@ -222,11 +222,11 @@ export class Projection {
 
   chatMeta(run) {
     return {
-      "aicommander.runId": run.id,
-      "aicommander.taskId": run.taskId,
-      "aicommander.workspaceId": this.workspaceId,
-      "aicommander.mode": run.mode,
-      ...(run.planId ? { "aicommander.planId": run.planId } : {}),
+      "avoozl.runId": run.id,
+      "avoozl.taskId": run.taskId,
+      "avoozl.workspaceId": this.workspaceId,
+      "avoozl.mode": run.mode,
+      ...(run.planId ? { "avoozl.planId": run.planId } : {}),
     };
   }
   sessionConfig(run) {
@@ -261,26 +261,24 @@ export class Projection {
   sessionMeta(run) {
     const integration = this.store.get("integration", run.id);
     return {
-      "aicommander.runId": run.id,
-      "aicommander.taskId": run.taskId,
-      "aicommander.workspaceId": this.workspaceId,
-      "aicommander.provider": run.provider,
-      "aicommander.state": run.state,
-      "aicommander.requestedModel": run.requestedModel || null,
-      "aicommander.actualModel": run.actualModel || null,
-      "aicommander.approvalMode": run.approvalMode || null,
-      "aicommander.effectiveApprovalMode": run.effectiveApprovalMode || null,
-      ...(run.cancellation
-        ? { "aicommander.cancellation": run.cancellation }
-        : {}),
+      "avoozl.runId": run.id,
+      "avoozl.taskId": run.taskId,
+      "avoozl.workspaceId": this.workspaceId,
+      "avoozl.provider": run.provider,
+      "avoozl.state": run.state,
+      "avoozl.requestedModel": run.requestedModel || null,
+      "avoozl.actualModel": run.actualModel || null,
+      "avoozl.approvalMode": run.approvalMode || null,
+      "avoozl.effectiveApprovalMode": run.effectiveApprovalMode || null,
+      ...(run.cancellation ? { "avoozl.cancellation": run.cancellation } : {}),
       ...(run.providerDiagnostic
-        ? { "aicommander.providerDiagnostic": run.providerDiagnostic }
+        ? { "avoozl.providerDiagnostic": run.providerDiagnostic }
         : {}),
-      ...(run.error ? { "aicommander.error": run.error } : {}),
-      ...(run.branch ? { "aicommander.branch": run.branch } : {}),
+      ...(run.error ? { "avoozl.error": run.error } : {}),
+      ...(run.branch ? { "avoozl.branch": run.branch } : {}),
       ...(integration
         ? {
-            "aicommander.integration": {
+            "avoozl.integration": {
               state: integration.state,
               commit: integration.commit,
               integratedCommit: integration.integratedCommit || null,
@@ -688,10 +686,10 @@ export class Projection {
       activeSessions: runs.length,
       config: { schema: { type: "object", properties: {} }, values: {} },
       _meta: {
-        "aicommander.workspaceId": this.workspaceId,
-        "aicommander.authority": path.resolve(this.store.filename),
-        "aicommander.projectionSchema": PROJECTION_SCHEMA_VERSION,
-        "aicommander.sourceCursor": this.cursor(),
+        "avoozl.workspaceId": this.workspaceId,
+        "avoozl.authority": path.resolve(this.store.filename),
+        "avoozl.projectionSchema": PROJECTION_SCHEMA_VERSION,
+        "avoozl.sourceCursor": this.cursor(),
         "vscode.remoteSessions": true,
       },
     };

@@ -103,7 +103,7 @@ export const CLIENT_CONTRACT = Object.freeze({
 
 export function describeWorkspace(store, { manager } = {}) {
   return {
-    application: "aicommander",
+    application: "avoozl",
     apiVersion: CLIENT_API_VERSION,
     workspaceId: workspaceIdentity(store),
     revision: store.read().revision,

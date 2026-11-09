@@ -1,5 +1,5 @@
 {
-  "name": "aicommander",
+  "name": "avoozl",
   "type": "module",
   "engines": {
     "node": ">=22.13"
@@ -23,6 +23,7 @@
   "description": "Plans, tasks, and agents in one local workspace.",
   "license": "MIT",
   "bin": {
+    "avoozl": "./cli.mjs",
     "aicommander": "./cli.mjs"
   },
   "files": [
@@ -39,7 +40,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mtdowling/aicommander.git"
+    "url": "git+https://github.com/mtdowling/avoozl.git"
   },
-  "homepage": "https://github.com/mtdowling/aicommander#readme"
+  "homepage": "https://github.com/mtdowling/avoozl#readme"
 }

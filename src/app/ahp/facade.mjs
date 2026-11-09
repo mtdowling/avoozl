@@ -1,4 +1,4 @@
-// The AHP facade: a versioned, authenticated translation of AICommander's
+// The AHP facade: a versioned, authenticated translation of Avoozl's
 // owned sessions into the Agent Host Protocol.
 //
 // It is a client of the workspace, never a second writer. Every state change
@@ -102,7 +102,7 @@ export function startAhpFacade({
   pollIntervalMs = 150,
   retainTurns = 40,
   models,
-  serverName = "AICommander",
+  serverName = "Avoozl",
   allowNonLoopback = false,
   workspaceEndpoint = null,
 }) {
@@ -639,9 +639,9 @@ export function startAhpFacade({
           snapshots: snapshotsFor(connection),
           defaultDirectory: defaultDirectory(),
           _meta: {
-            "aicommander.workspaceId": projection.workspaceId,
-            "aicommander.scope": connection.grant.scope,
-            "aicommander.facadeVersion": FACADE_VERSION,
+            "avoozl.workspaceId": projection.workspaceId,
+            "avoozl.scope": connection.grant.scope,
+            "avoozl.facadeVersion": FACADE_VERSION,
             "vscode.ahpSessionUris": true,
             "vscode.agentHost": true,
           },

@@ -1,9 +1,9 @@
 ---
 name: aicommander
-description: Find, claim, plan and maintain work in the AICommander workspace through its shared CLI or MCP. Use for tracked tasks, plan drafting and approval, progress updates, evidence and agent handoffs.
+description: Find, claim, plan and maintain work in the Avoozl workspace through its shared CLI or MCP. Use for tracked tasks, plan drafting and approval, progress updates, evidence and agent handoffs.
 ---
 
-# AICommander workflow
+# Avoozl workflow
 
 Use the live database for current work. This skill contains workflow, not a snapshot of task status or priorities. Read workspace guidance at `{{PLANS_ROOT}}/AGENTS.md` when present, and the assigned repository's guidance before making changes.
 
@@ -107,8 +107,8 @@ to obtain an identity. MCP `plans_register_session` takes the same fields as
 Claude launchers can use `{{WORKSPACE_CLI}} session-hook --task TASK_ID --lease
 LEASE_ID` as a SessionStart/SubagentStart/PostToolUse command hook. It reads Claude's JSON
 hook input (`session_id`, optional `agent_id`), validates the transcript, and
-registers it without taking over the worker. `AICOMMANDER_TASK` and
-`AICOMMANDER_LEASE` can supply the task and lease instead of flags. Hook
+registers it without taking over the worker. `AVOOZL_TASK` and
+`AVOOZL_LEASE` can supply the task and lease instead of flags. Hook
 failure reports to stderr and leaves the worker running; retry registration
 through the CLI or MCP when the workspace returns. A new task claim needs a
 new registration; heartbeats preserve the existing link.

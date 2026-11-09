@@ -179,7 +179,7 @@ try {
       const catalog = await ops.execute("models", { provider: "claude" });
       return ["claude", "codex"].map((provider) => ({
         provider: agentProviderId(provider),
-        displayName: "AICommander " + provider,
+        displayName: "Avoozl " + provider,
         description: "Fixture provider; real child processes.",
         models: catalog.models.map((m) => ({
           id: m.id,
@@ -220,7 +220,7 @@ try {
   ]);
   fs.cpSync(
     path.join(fixture.root, "unpacked", "extension"),
-    path.join(serverExtensions, "mtdowling.aicommander-0.1.0"),
+    path.join(serverExtensions, "mtdowling.avoozl-0.1.0"),
     { recursive: true },
   );
   // Machine-scoped, because that is where a remote server reads settings that
@@ -229,13 +229,13 @@ try {
     path.join(machineSettings, "settings.json"),
     JSON.stringify(
       {
-        "aicommander.endpoint": endpoint,
-        "aicommander.facadeManifest": facadeManifest,
+        "avoozl.endpoint": endpoint,
+        "avoozl.facadeManifest": facadeManifest,
         "chat.remoteAgentHostsEnabled": true,
         "chat.remoteAgentHosts": [
           {
             address: editorClient.address,
-            name: "AICommander remote check",
+            name: "Avoozl remote check",
             connectionToken: editorClient.connectionToken,
           },
         ],
@@ -285,7 +285,7 @@ try {
   );
   if (go !== "open") throw Error("Tunnel not opened; the operator declined.");
 
-  tunnelName = "aicommander-check-" + Math.random().toString(36).slice(2, 8);
+  tunnelName = "avoozl-check-" + Math.random().toString(36).slice(2, 8);
   const tunnelLog = path.join(fixture.root, "tunnel.log");
   const tunnelStream = fs.createWriteStream(tunnelLog);
   tunnel = spawn(
@@ -353,7 +353,7 @@ try {
   say("");
   say("On a desktop browser first, then on your phone off this network:");
   say("  1. Open that URL and sign in if asked.");
-  say("  2. Open the AICommander view: plans and tasks should load.");
+  say("  2. Open the Avoozl view: plans and tasks should load.");
   say('  3. Open the conversation "Remote route check" and see whether the');
   say("     chat lists it at all. This is the part the research could not do.");
   say("  4. If it is there, click Allow once, wait for the command to start,");
@@ -421,11 +421,11 @@ try {
     ],
     [
       "extensionVisible",
-      "Did the AICommander view load plans and tasks there? (y/n/skip) ",
+      "Did the Avoozl view load plans and tasks there? (y/n/skip) ",
     ],
     [
       "chatListedSession",
-      "Did the chat list the AICommander conversation? (y/n/skip) ",
+      "Did the chat list the Avoozl conversation? (y/n/skip) ",
     ],
     [
       "approvedRemotely",

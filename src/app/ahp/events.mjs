@@ -1,4 +1,4 @@
-// Maps each AICommander execution event onto AHP actions through `Translator`.
+// Maps each Avoozl execution event onto AHP actions through `Translator`.
 //
 // Every branch here is about the provider event vocabulary. The invariants
 // (tool identity, honest terminal results, distinct states) live in
@@ -98,7 +98,7 @@ export function applyEvent(event, context) {
               id: "subagent:" + event.id,
               label: "Subagent via " + tracked.displayName,
               startedAt: tracked.startedAt,
-              _meta: { "aicommander.parentToolUseId": event.id },
+              _meta: { "avoozl.parentToolUseId": event.id },
             },
           })
         )
@@ -220,7 +220,7 @@ export function applyEvent(event, context) {
               part: {
                 kind: "systemNotification",
                 content: { markdown: "Steered: " + clamp(delivery.text, 400) },
-                _meta: { "aicommander.deliveryId": delivery.id },
+                _meta: { "avoozl.deliveryId": delivery.id },
               },
             });
         } else
@@ -254,7 +254,7 @@ export function applyEvent(event, context) {
                   "Delivery of a follow-up is uncertain and was not resent automatically: " +
                   clamp(delivery.error || "no detail", 300),
               },
-              _meta: { "aicommander.deliveryId": delivery.id },
+              _meta: { "avoozl.deliveryId": delivery.id },
             },
           });
       }
@@ -289,7 +289,7 @@ export function applyEvent(event, context) {
                 (event.actual || "unknown") +
                 "`.",
             },
-            _meta: { "aicommander.modelChange": event },
+            _meta: { "avoozl.modelChange": event },
           },
         });
       break;
@@ -340,7 +340,7 @@ export function applyEvent(event, context) {
             content: {
               markdown: "Provider error: " + clamp(event.message || "", 600),
             },
-            _meta: { "aicommander.providerError": true },
+            _meta: { "avoozl.providerError": true },
           },
         });
       break;
@@ -383,10 +383,10 @@ function usageInfo(event, run) {
     model: event.model || run.actualModel || run.model || undefined,
     _meta: {
       ...(event.totalCostUsd !== undefined
-        ? { "aicommander.totalCostUsd": event.totalCostUsd }
+        ? { "avoozl.totalCostUsd": event.totalCostUsd }
         : {}),
       ...(event.providerDurationMs !== undefined
-        ? { "aicommander.providerDurationMs": event.providerDurationMs }
+        ? { "avoozl.providerDurationMs": event.providerDurationMs }
         : {}),
     },
   };
@@ -442,7 +442,7 @@ function requestCreated(t, request) {
             request.providerOptions.join("`, `") +
             "`. This host delivers only allow once and deny; other permission scopes are not wired yet.",
         },
-        _meta: { "aicommander.providerOptions": request.providerOptions },
+        _meta: { "avoozl.providerOptions": request.providerOptions },
       },
     });
 }

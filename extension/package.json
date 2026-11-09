@@ -1,13 +1,13 @@
 {
-  "name": "aicommander",
-  "displayName": "AICommander",
-  "description": "Plans, tasks, and owned agent sessions from an AICommander workspace.",
+  "name": "avoozl",
+  "displayName": "Avoozl",
+  "description": "Plans, tasks, and owned agent sessions from an Avoozl workspace.",
   "version": "0.1.0",
   "license": "MIT",
   "publisher": "mtdowling",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mtdowling/aicommander.git"
+    "url": "git+https://github.com/mtdowling/avoozl.git"
   },
   "engines": {
     "vscode": "^1.138.0"
@@ -28,26 +28,26 @@
   },
   "contributes": {
     "configuration": {
-      "title": "AICommander",
+      "title": "Avoozl",
       "properties": {
-        "aicommander.endpoint": {
+        "avoozl.endpoint": {
           "type": "string",
           "default": "http://127.0.0.1:9428",
           "markdownDescription": "Workspace server to drive. The extension resolves repository files on the machine that owns them, so this may be a different path from the open folder."
         },
-        "aicommander.facadeManifest": {
+        "avoozl.facadeManifest": {
           "type": "string",
           "default": "",
           "markdownDescription": "Optional path to the agent host facade manifest (`ahp-facade.json`). Used only to report connection diagnostics and to verify which conversation an editor opened. Leave empty if the facade is not running."
         },
-        "aicommander.refreshSeconds": {
+        "avoozl.refreshSeconds": {
           "type": "number",
           "default": 5,
           "minimum": 1,
           "maximum": 120,
           "description": "Fallback refresh interval used when the workspace event stream is unavailable."
         },
-        "aicommander.nativeChatNavigation": {
+        "avoozl.nativeChatNavigation": {
           "type": "string",
           "default": "auto",
           "enum": [
@@ -67,214 +67,214 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "aicommander",
-          "title": "AICommander",
+          "id": "avoozl",
+          "title": "Avoozl",
           "icon": "media/activity.svg"
         }
       ]
     },
     "views": {
-      "aicommander": [
+      "avoozl": [
         {
-          "id": "aicommander.now",
+          "id": "avoozl.now",
           "name": "Now",
           "icon": "media/activity.svg"
         },
         {
-          "id": "aicommander.tasks",
+          "id": "avoozl.tasks",
           "name": "Tasks"
         },
         {
-          "id": "aicommander.plans",
+          "id": "avoozl.plans",
           "name": "Plans"
         },
         {
-          "id": "aicommander.sessions",
+          "id": "avoozl.sessions",
           "name": "Conversations"
         }
       ]
     },
     "viewsWelcome": [
       {
-        "view": "aicommander.now",
-        "contents": "No workspace server is answering at the configured endpoint.\n[Open settings](command:aicommander.openSettings)\n[Run diagnostics](command:aicommander.diagnostics)"
+        "view": "avoozl.now",
+        "contents": "No workspace server is answering at the configured endpoint.\n[Open settings](command:avoozl.openSettings)\n[Run diagnostics](command:avoozl.diagnostics)"
       }
     ],
     "commands": [
       {
-        "command": "aicommander.refresh",
-        "title": "AICommander: Refresh",
+        "command": "avoozl.refresh",
+        "title": "Avoozl: Refresh",
         "icon": "$(refresh)"
       },
       {
-        "command": "aicommander.diagnostics",
-        "title": "AICommander: Show Diagnostics"
+        "command": "avoozl.diagnostics",
+        "title": "Avoozl: Show Diagnostics"
       },
       {
-        "command": "aicommander.openSettings",
-        "title": "AICommander: Open Settings"
+        "command": "avoozl.openSettings",
+        "title": "Avoozl: Open Settings"
       },
       {
-        "command": "aicommander.openTask",
-        "title": "AICommander: Open Task Details"
+        "command": "avoozl.openTask",
+        "title": "Avoozl: Open Task Details"
       },
       {
-        "command": "aicommander.openTaskSource",
-        "title": "AICommander: Open Task Source Context"
+        "command": "avoozl.openTaskSource",
+        "title": "Avoozl: Open Task Source Context"
       },
       {
-        "command": "aicommander.openConversation",
-        "title": "AICommander: Open This Task's Conversation",
+        "command": "avoozl.openConversation",
+        "title": "Avoozl: Open This Task's Conversation",
         "icon": "$(comment-discussion)"
       },
       {
-        "command": "aicommander.openPlan",
-        "title": "AICommander: Open Plan Draft",
+        "command": "avoozl.openPlan",
+        "title": "Avoozl: Open Plan Draft",
         "icon": "$(edit)"
       },
       {
-        "command": "aicommander.previewApproval",
-        "title": "AICommander: Review Plan Approval"
+        "command": "avoozl.previewApproval",
+        "title": "Avoozl: Review Plan Approval"
       },
       {
-        "command": "aicommander.approvePlan",
-        "title": "AICommander: Approve Plan Revision"
+        "command": "avoozl.approvePlan",
+        "title": "Avoozl: Approve Plan Revision"
       },
       {
-        "command": "aicommander.comparePlan",
-        "title": "AICommander: Compare Plan With Saved Revision"
+        "command": "avoozl.comparePlan",
+        "title": "Avoozl: Compare Plan With Saved Revision"
       },
       {
-        "command": "aicommander.reloadPlan",
-        "title": "AICommander: Discard Local Plan Edits"
+        "command": "avoozl.reloadPlan",
+        "title": "Avoozl: Discard Local Plan Edits"
       },
       {
-        "command": "aicommander.graph",
-        "title": "AICommander: Open Task Graph",
+        "command": "avoozl.graph",
+        "title": "Avoozl: Open Task Graph",
         "icon": "$(type-hierarchy)"
       },
       {
-        "command": "aicommander.progress",
-        "title": "AICommander: Open Epic Progress"
+        "command": "avoozl.progress",
+        "title": "Avoozl: Open Epic Progress"
       },
       {
-        "command": "aicommander.strip",
-        "title": "AICommander: Open Timeline Strip"
+        "command": "avoozl.strip",
+        "title": "Avoozl: Open Timeline Strip"
       },
       {
-        "command": "aicommander.validate",
-        "title": "AICommander: Validate This Conversation's Work"
+        "command": "avoozl.validate",
+        "title": "Avoozl: Validate This Conversation's Work"
       },
       {
-        "command": "aicommander.integrate",
-        "title": "AICommander: Integrate Validated Work"
+        "command": "avoozl.integrate",
+        "title": "Avoozl: Integrate Validated Work"
       },
       {
-        "command": "aicommander.acceptTask",
-        "title": "AICommander: Record Task Acceptance"
+        "command": "avoozl.acceptTask",
+        "title": "Avoozl: Record Task Acceptance"
       },
       {
-        "command": "aicommander.cancelSession",
-        "title": "AICommander: Stop This Conversation",
+        "command": "avoozl.cancelSession",
+        "title": "Avoozl: Stop This Conversation",
         "icon": "$(debug-stop)"
       },
       {
-        "command": "aicommander.resumeSession",
-        "title": "AICommander: Resume This Conversation"
+        "command": "avoozl.resumeSession",
+        "title": "Avoozl: Resume This Conversation"
       },
       {
-        "command": "aicommander.setModel",
-        "title": "AICommander: Change This Conversation's Model"
+        "command": "avoozl.setModel",
+        "title": "Avoozl: Change This Conversation's Model"
       },
       {
-        "command": "aicommander.answerRequest",
-        "title": "AICommander: Answer Pending Request"
+        "command": "avoozl.answerRequest",
+        "title": "Avoozl: Answer Pending Request"
       },
       {
-        "command": "aicommander.installExample",
-        "title": "AICommander: Install Example Pack"
+        "command": "avoozl.installExample",
+        "title": "Avoozl: Install Example Pack"
       },
       {
-        "command": "aicommander.openChanges",
-        "title": "AICommander: Open This Conversation's Changes",
+        "command": "avoozl.openChanges",
+        "title": "Avoozl: Open This Conversation's Changes",
         "icon": "$(git-compare)"
       }
     ],
     "menus": {
       "view/title": [
         {
-          "command": "aicommander.refresh",
-          "when": "view =~ /^aicommander\\./",
+          "command": "avoozl.refresh",
+          "when": "view =~ /^avoozl\\./",
           "group": "navigation"
         },
         {
-          "command": "aicommander.graph",
-          "when": "view == aicommander.tasks",
+          "command": "avoozl.graph",
+          "when": "view == avoozl.tasks",
           "group": "navigation"
         }
       ],
       "view/item/context": [
         {
-          "command": "aicommander.openConversation",
-          "when": "viewItem =~ /aicommander.task|aicommander.session/",
+          "command": "avoozl.openConversation",
+          "when": "viewItem =~ /avoozl.task|avoozl.session/",
           "group": "inline"
         },
         {
-          "command": "aicommander.openTaskSource",
-          "when": "viewItem =~ /aicommander.task/"
+          "command": "avoozl.openTaskSource",
+          "when": "viewItem =~ /avoozl.task/"
         },
         {
-          "command": "aicommander.acceptTask",
-          "when": "viewItem =~ /aicommander.task/"
+          "command": "avoozl.acceptTask",
+          "when": "viewItem =~ /avoozl.task/"
         },
         {
-          "command": "aicommander.openPlan",
-          "when": "viewItem =~ /aicommander.plan/",
+          "command": "avoozl.openPlan",
+          "when": "viewItem =~ /avoozl.plan/",
           "group": "inline"
         },
         {
-          "command": "aicommander.previewApproval",
-          "when": "viewItem =~ /aicommander.plan/"
+          "command": "avoozl.previewApproval",
+          "when": "viewItem =~ /avoozl.plan/"
         },
         {
-          "command": "aicommander.cancelSession",
-          "when": "viewItem =~ /aicommander.session.active/",
+          "command": "avoozl.cancelSession",
+          "when": "viewItem =~ /avoozl.session.active/",
           "group": "inline"
         },
         {
-          "command": "aicommander.resumeSession",
-          "when": "viewItem =~ /aicommander.session.disconnected/"
+          "command": "avoozl.resumeSession",
+          "when": "viewItem =~ /avoozl.session.disconnected/"
         },
         {
-          "command": "aicommander.setModel",
-          "when": "viewItem =~ /aicommander.session/"
+          "command": "avoozl.setModel",
+          "when": "viewItem =~ /avoozl.session/"
         },
         {
-          "command": "aicommander.validate",
-          "when": "viewItem =~ /aicommander.session/"
+          "command": "avoozl.validate",
+          "when": "viewItem =~ /avoozl.session/"
         },
         {
-          "command": "aicommander.openChanges",
-          "when": "viewItem =~ /aicommander.session/"
+          "command": "avoozl.openChanges",
+          "when": "viewItem =~ /avoozl.session/"
         }
       ],
       "editor/title": [
         {
-          "command": "aicommander.previewApproval",
-          "when": "resourceScheme == aicommander-plan",
+          "command": "avoozl.previewApproval",
+          "when": "resourceScheme == avoozl-plan",
           "group": "navigation"
         }
       ],
       "commandPalette": [
         {
-          "command": "aicommander.openSettings",
+          "command": "avoozl.openSettings",
           "when": "false"
         }
       ]
     },
     "uriHandler": {
       "scheme": "vscode",
-      "authority": "mtdowling.aicommander"
+      "authority": "mtdowling.avoozl"
     }
   }
 }

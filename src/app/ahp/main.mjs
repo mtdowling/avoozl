@@ -48,7 +48,7 @@ export async function startFacadeForWorkspace({
           const catalog = await client.models(provider);
           agents.push({
             provider: agentProviderId(provider),
-            displayName: "AICommander " + provider,
+            displayName: "Avoozl " + provider,
             description:
               "Sessions owned by this workspace's persistent agent host.",
             models: catalog.models.map((model) => ({
@@ -64,7 +64,7 @@ export async function startFacadeForWorkspace({
           // rather than with invented ones.
           agents.push({
             provider: agentProviderId(provider),
-            displayName: "AICommander " + provider,
+            displayName: "Avoozl " + provider,
             description: "Unavailable: " + error.message,
             models: [],
             protectedResources: [],
@@ -128,7 +128,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     port: Number(port || 9496),
     host: host || "127.0.0.1",
   });
-  console.log("AICommander agent host facade: " + facade.url);
+  console.log("Avoozl agent host facade: " + facade.url);
   const stop = async () => {
     await facade.close();
     facade.store.close();

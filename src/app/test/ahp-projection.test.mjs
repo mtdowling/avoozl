@@ -148,9 +148,7 @@ test("an approved tool that ran, then was cancelled, stays a completed unsuccess
     ),
   );
   assert.ok(
-    notifications.some(
-      (p) => p._meta?.["aicommander.diagnosticDuringInterruption"],
-    ),
+    notifications.some((p) => p._meta?.["avoozl.diagnosticDuringInterruption"]),
   );
 });
 
@@ -290,7 +288,7 @@ test("subagent work is attributed and cleared when the delegating tool finishes"
   assert.equal(state.backgroundWork.length, 1);
   assert.equal(state.backgroundWork[0].kind, "subagent");
   assert.equal(
-    state.backgroundWork[0]._meta["aicommander.parentToolUseId"],
+    state.backgroundWork[0]._meta["avoozl.parentToolUseId"],
     "toolu_task",
   );
   store.event(run.id, "tool.finished", { id: "toolu_task", content: "done" });
