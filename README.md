@@ -156,6 +156,16 @@ Run `npm test` before sharing changes. Tests use disposable workspaces and provi
 
 MIT. The bundled Marked renderer retains its own license in [src/MARKED-LICENSE.md](src/MARKED-LICENSE.md).
 
-## VS Code client design
+## VS Code client
 
-The [implementation plan](docs/design/vscode-client.md) and [research handoff](docs/research/vscode/README.md) describe the proposed native client, its prototype evidence, and the gates for replacing website features. The current website remains operational.
+An extension in [`extension/`](extension/README.md) brings plans, tasks, and the conversations this workspace owns into the editor. It is a client: it never starts a provider process and never opens a second writer for a conversation that already has an owner. Saving a plan records a draft revision and never approves it, a conflicting save cannot overwrite another client's revision, and stopping a conversation is reported as a cancellation rather than a failure.
+
+```sh
+node cli.mjs serve --workspace ../my-plans --ahp   # site, agent host, and the editor facade
+node cli.mjs editor --workspace ../my-plans        # the editor settings to paste
+node scripts/package-extension.mjs                 # build an installable .vsix
+```
+
+The editor facade translates owned sessions into Microsoft's Agent Host Protocol so they appear as native chat. It binds loopback only and requires a bearer token on every connection; the address `editor` prints contains that token, so treat it as a credential. Reach it from another machine through an authenticated tunnel or an SSH local port forward, never by publishing the listener.
+
+The [implementation plan](docs/design/vscode-client.md) records what is built, what the implementation changed about its own assumptions, and which acceptance gates remain open: native clicked controls, a real-provider run, remote routing, and physical-phone parity. [The evidence](docs/evidence/vscode/README.md) is reproducible with `node scripts/vscode-evidence.mjs`. The website remains the phone companion, and no website feature has been retired. The [research handoff](docs/research/vscode/README.md) records the original investigation and which of its conclusions have since been corrected.

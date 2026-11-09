@@ -47,6 +47,7 @@ export const CLIENT_OPERATIONS = Object.freeze([
   "run.model",
   "run.unsend",
   "run.queue",
+  "run.changes",
   "run.validate",
   "run.archive",
   "run.unarchive",
@@ -304,6 +305,10 @@ export class WorkspaceClient {
   }
   reorderQueue({ id, order }) {
     return this.call("run.queue", { id, order });
+  }
+  // Read-only view of what a conversation changed in its own worktree.
+  changes({ id, path }) {
+    return this.call("run.changes", { id, path });
   }
   validate(id) {
     return this.call("run.validate", { id });

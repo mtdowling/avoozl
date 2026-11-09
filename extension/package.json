@@ -193,6 +193,11 @@
       {
         "command": "aicommander.installExample",
         "title": "AICommander: Install Example Pack"
+      },
+      {
+        "command": "aicommander.openChanges",
+        "title": "AICommander: Open This Conversation's Changes",
+        "icon": "$(git-compare)"
       }
     ],
     "menus": {
@@ -246,6 +251,10 @@
         },
         {
           "command": "aicommander.validate",
+          "when": "viewItem =~ /aicommander.session/"
+        },
+        {
+          "command": "aicommander.openChanges",
           "when": "viewItem =~ /aicommander.session/"
         }
       ],

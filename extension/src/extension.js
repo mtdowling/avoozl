@@ -7,6 +7,7 @@
 // workspace's shared operations, which route agent commands to the one
 // persistent host that owns each provider session.
 const vscode = require("vscode");
+const path = require("node:path");
 const {
   WorkspaceClient,
   WorkspaceError,
@@ -60,6 +61,21 @@ function activate(context) {
     vscode.workspace.registerTextDocumentContentProvider(
       "aicommander-plan-saved",
       new SavedRevisionProvider(() => client),
+    ),
+    // The base revision of a file a conversation changed, so the editor's own
+    // diff view can show what the run did.
+    vscode.workspace.registerTextDocumentContentProvider(
+      "aicommander-run-base",
+      {
+        async provideTextDocumentContent(uri) {
+          const [, runId, ...rest] = uri.path.split("/");
+          const result = await client.call("run.changes", {
+            id: decodeURIComponent(runId),
+            path: rest.join("/"),
+          });
+          return result.before;
+        },
+      },
     ),
   );
 
@@ -650,6 +666,60 @@ function activate(context) {
           "`.",
       );
       await state.refresh();
+    }),
+  );
+
+  register("openChanges", (argument) =>
+    guard(async () => {
+      const run = runFrom(argument);
+      if (!run) return;
+      const changes = await client.call("run.changes", { id: run.id });
+      const items = [
+        ...changes.files.map((file) => ({
+          label: file.path,
+          description:
+            "+" + (file.additions ?? "?") + " -" + (file.deletions ?? "?"),
+          detail: "committed on " + changes.branch,
+          file,
+        })),
+        ...changes.uncommitted.map((file) => ({
+          label: file.path,
+          description: file.status,
+          detail: "not committed yet",
+          file,
+        })),
+      ];
+      if (!items.length) {
+        vscode.window.showInformationMessage(
+          "This conversation has not changed any files in its worktree.",
+        );
+        return;
+      }
+      const picked = await vscode.window.showQuickPick(items, {
+        title:
+          "Changes in " +
+          (run.title || run.id) +
+          (changes.truncated ? " (list truncated)" : ""),
+        placeHolder: changes.worktree,
+      });
+      if (!picked) return;
+      // Diff against the revision the run started from, read through the
+      // workspace that owns the repository.
+      const base = vscode.Uri.parse(
+        "aicommander-run-base:/" +
+          encodeURIComponent(run.id) +
+          "/" +
+          picked.file.path,
+      );
+      const current = vscode.Uri.file(
+        path.join(changes.worktree, picked.file.path),
+      );
+      await vscode.commands.executeCommand(
+        "vscode.diff",
+        base,
+        current,
+        picked.file.path + " (" + changes.base.slice(0, 10) + " ↔ worktree)",
+      );
     }),
   );
 

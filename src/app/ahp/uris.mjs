@@ -35,17 +35,14 @@ export function sessionUri(workspaceId, runId) {
 export function chatUri(workspaceId, runId) {
   return "ahp-chat:/" + channelUuid(workspaceId, "chat", runId);
 }
-export function changesetUri(workspaceId, runId, view) {
-  return (
-    "ahp-changeset:/" + channelUuid(workspaceId, "changeset:" + view, runId)
-  );
-}
+// Only channels this host actually serves. A changeset channel is not among
+// them: a run's diff is read through `run.changes` and shown with the editor's
+// own diff view, so advertising a changeset URI here would promise a
+// subscription that does not exist.
 export function runUris(workspaceId, runId) {
   return {
     session: sessionUri(workspaceId, runId),
     chat: chatUri(workspaceId, runId),
-    worktreeChangeset: changesetUri(workspaceId, runId, "worktree"),
-    branchChangeset: changesetUri(workspaceId, runId, "branch"),
   };
 }
 export function channelKind(resource) {
