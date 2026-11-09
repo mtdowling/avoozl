@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Builds the canned project the VS Code client is implemented and verified
-// against: a fresh AICommander workspace, the optional product-launch example
+// against: a fresh Avoozl workspace, the optional product-launch example
 // pack, and a separate disposable Git repository holding a trivial
 // application, a deterministic check, and an authored slow command.
 //
@@ -67,7 +67,7 @@ setTimeout(() => {
 
 export const README_SOURCE = `# Disposable VS Code client fixture
 
-A throwaway repository for exercising AICommander's VS Code client: one
+A throwaway repository for exercising Avoozl's VS Code client: one
 trivial application, one deterministic check, and one authored slow command
 used to prove approval, execution, and cancellation against a real process.
 
@@ -84,8 +84,7 @@ export async function createFixture({
   port = 9428,
 } = {}) {
   root =
-    root ||
-    fs.mkdtempSync(path.join(os.tmpdir(), "aicommander-vscode-fixture-"));
+    root || fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-vscode-fixture-"));
   fs.mkdirSync(root, { recursive: true });
   const workspaceRoot = path.join(root, "workspace"),
     repo = path.join(root, "fixture-repo"),
@@ -98,7 +97,7 @@ export async function createFixture({
   await git(["init", "-b", "main"]);
   // Identity local to this repository only; no global Git configuration is read
   // for authorship and none is written.
-  await git(["config", "user.name", "AICommander fixture"]);
+  await git(["config", "user.name", "Avoozl fixture"]);
   await git(["config", "user.email", "fixture@example.invalid"]);
   await git(["config", "commit.gpgsign", "false"]);
   fs.writeFileSync(path.join(repo, "app.mjs"), APPLICATION_SOURCE);

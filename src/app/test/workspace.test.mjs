@@ -180,7 +180,7 @@ test("CLI, MCP, and HTTP use the same seed receipt and publish example Markdown"
   assert.equal((await cli(["examples"])).examples[0].id, "product-launch");
   assert.equal(
     (await (await fetch(url + "/api/health")).json()).application,
-    "aicommander",
+    "avoozl",
   );
   const denied = await handleMcp(message, server.workspace.ops, {
     runId: "owned-run",
@@ -272,4 +272,49 @@ test("source changes preserve portable document IDs across filesystem separators
   assert.equal(doc.id, "design/plan.md");
   assert.deepEqual(doc.links, ["design/next.md"]);
   assert.equal(store.read().documents["design\\plan.md"], undefined);
+});
+
+test("the earlier environment names still select a workspace after the rename", async (t) => {
+  const root = temporaryDirectory("avoozl-env-");
+  const workspace = path.join(root, "workspace");
+  initializeWorkspace(workspace, { name: "Renamed workspace" });
+  const saved = { ...process.env };
+  t.after(() => {
+    for (const key of Object.keys(process.env))
+      if (!(key in saved)) delete process.env[key];
+    Object.assign(process.env, saved);
+  });
+  for (const key of [
+    "AVOOZL_WORKSPACE",
+    "AICOMMANDER_WORKSPACE",
+    "AVOOZL_URL",
+    "AICOMMANDER_URL",
+    "NUPP_WORKSPACE_URL",
+  ])
+    delete process.env[key];
+
+  // The previous product name remains a working interface, not a casualty of
+  // the rename.
+  process.env.AICOMMANDER_WORKSPACE = workspace;
+  assert.equal(workspaceConfig({}).workspaceRoot, workspace);
+  process.env.AICOMMANDER_URL = "http://127.0.0.1:1234";
+  assert.equal(workspaceConfig({}).endpoint, "http://127.0.0.1:1234");
+
+  // The current name wins when both are set.
+  process.env.AVOOZL_URL = "http://127.0.0.1:4321";
+  assert.equal(workspaceConfig({}).endpoint, "http://127.0.0.1:4321");
+  // An explicit option still outranks both.
+  assert.equal(
+    workspaceConfig({ url: "http://127.0.0.1:9999" }).endpoint,
+    "http://127.0.0.1:9999",
+  );
+
+  // Who is working here is resolved rather than typed.
+  const operator = workspaceConfig({}).operator;
+  assert.equal(typeof operator, "string");
+  assert.ok(operator.length);
+  assert.equal(
+    workspaceConfig({ operator: "Someone else" }).operator,
+    "Someone else",
+  );
 });

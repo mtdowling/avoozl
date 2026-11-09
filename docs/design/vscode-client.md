@@ -1,14 +1,14 @@
-# VS Code client for AICommander
+# VS Code client for Avoozl
 
 Status: implementation design, November 9, 2026. The proof is experimental; this document does not announce a shipped extension or authorize a production cutover.
 
-Build a VS Code client for AICommander's existing planning and execution backend. Use a fictional project on a second computer for implementation and acceptance. No Nupp checkout, personal workspace, account token, or original experiment directory may be required.
+Build a VS Code client for Avoozl's existing planning and execution backend. Use a fictional project on a second computer for implementation and acceptance. No Nupp checkout, personal workspace, account token, or original experiment directory may be required.
 
 The goal is to make plans, tasks, code, diffs, and agent conversations convenient in one editor. Retiring the website is a possible later outcome, conditional on measured desktop and phone parity. Keep the website operational while the new client is built. The database, workflow, CLI, MCP, and execution host remain useful with either client.
 
 ## Decisions
 
-- AICommander owns each managed provider process. VS Code and the website are clients of that owner. Never open a second live provider writer to make native chat appear.
+- Avoozl owns each managed provider process. VS Code and the website are clients of that owner. Never open a second live provider writer to make native chat appear.
 - Expose the existing host through Microsoft's Agent Host Protocol (AHP). Keep provider-specific translation behind an adapter. Use normal VS Code extension APIs for plans, task views, Markdown editing, and webviews.
 - Use the working, undocumented native conversation navigation command behind a version/capability check. Do not confuse successful command return with opening the intended transcript.
 - Use the ordinary desktop editor as the initial extension target. Treat the desktop Agents window, full browser editor, and browser Agents client as separate surfaces with separate acceptance results.
@@ -43,7 +43,7 @@ The approval-to-execution proof checks provider request IDs, native AHP actions,
 
 ```mermaid
 flowchart LR
-  VS[VS Code plans extension] --> API[Shared AICommander operations]
+  VS[VS Code plans extension] --> API[Shared Avoozl operations]
   CLI[CLI and MCP] --> API
   WEB[Website and phone companion] --> API
   CHAT[Native VS Code chat] --> AHP[AHP facade]
@@ -72,7 +72,7 @@ Do not make the AHP facade another writer of authoritative run records. A derive
 
 ## Session and event contract
 
-Use one stable mapping per workspace, run, and chat. Include a workspace namespace so two workspaces cannot collide. Persist these mappings; do not derive them from mutable titles or the currently selected folder. The task links to an AICommander run/AHP session that we control. Provider application deep links are optional and do not block this design.
+Use one stable mapping per workspace, run, and chat. Include a workspace namespace so two workspaces cannot collide. Persist these mappings; do not derive them from mutable titles or the currently selected folder. The task links to an Avoozl run/AHP session that we control. Provider application deep links are optional and do not block this design.
 
 | AHP/client intent           | Existing backend seam               | Required behavior                                                                                                                                                                                                                                                     |
 | --------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -100,7 +100,7 @@ Model changes must be host operations, not UI-only selections. Existing startup 
 
 ## Native editor UX
 
-Provide an AICommander activity/sidebar view with Now, attention needed, ready work, task tree, plans, and linked sessions. Keep rows dense and controls small. Selecting a task opens details or its source context; an explicit conversation action opens that task's exact native chat. Keep implementation, integration, component acceptance, and whole-head acceptance separate.
+Provide an Avoozl activity/sidebar view with Now, attention needed, ready work, task tree, plans, and linked sessions. Keep rows dense and controls small. Selecting a task opens details or its source context; an explicit conversation action opens that task's exact native chat. Keep implementation, integration, component acceptance, and whole-head acceptance separate.
 
 Use a native Markdown document backed by the shared plan operations. The experiment used a `FileSystemProvider`; reuse that approach only if it preserves normal editor save, dirty state, previews, search, and link resolution. Save sends the expected hash. On conflict keep the local buffer and offer reload, compare, or resolve. Saving must never approve a plan. Approval shows the exact reviewed revision and proposed extracted task/dependency set, and invokes the existing transactional operation.
 
@@ -135,7 +135,7 @@ If the internal command changes, provide a graceful session-picker/manual-open f
 There are three different questions:
 
 1. Can an authenticated remote client reach the host?
-2. Does that client expose the AICommander-owned sessions and the plans extension?
+2. Does that client expose the Avoozl-owned sessions and the plans extension?
 3. Is the result convenient on a physical phone while desktop work stays open?
 
 A successful result for one is not evidence for the others. The browser Agents client and full browser editor must each be tested. The latter can run a remote workspace extension. The former is an agent-focused UI; custom extension placement must be demonstrated rather than assumed.
@@ -201,7 +201,7 @@ After VSC-00, host/API work and editor work can proceed independently once the s
 
 ## Canned project and verification
 
-Use AICommander's fictional `product-launch` pack to test planning, dependencies, filters, and draft approval. It does not configure or launch agents automatically. Create a separate, disposable Git repository for execution, with one trivial application, a deterministic check, and an authored slow command that writes a PID/start marker and a different normal-completion marker. Configure that repository explicitly as an execution project.
+Use Avoozl's fictional `product-launch` pack to test planning, dependencies, filters, and draft approval. It does not configure or launch agents automatically. Create a separate, disposable Git repository for execution, with one trivial application, a deterministic check, and an authored slow command that writes a PID/start marker and a different normal-completion marker. Configure that repository explicitly as an execution project.
 
 ```sh
 npm ci --ignore-scripts
@@ -408,6 +408,6 @@ tunnel` selects a native VS Code host and does not discover this facade.
 
 ## Handoff to the implementation agent
 
-Start with this document and the research handoff. Work in the AICommander repository on another computer against the canned fixture. First reproduce and publish a compact evidence receipt for VSC-00 and VSC-01; then implement the shared API/AHP contract and editor client. Keep normal AICommander operation available throughout.
+Start with this document and the research handoff. Work in the Avoozl repository on another computer against the canned fixture. First reproduce and publish a compact evidence receipt for VSC-00 and VSC-01; then implement the shared API/AHP contract and editor client. Keep normal Avoozl operation available throughout.
 
-Do not use Nupp acceptance commands or its current database. Do not revive an original provider session, depend on the original account/profile, install the experiment as production, or treat its hardcoded ports and URI prefixes as supported interfaces. Do not open GitHub issues for the remaining work. Track it through the approved plan and AICommander's normal workflow.
+Do not use Nupp acceptance commands or its current database. Do not revive an original provider session, depend on the original account/profile, install the experiment as production, or treat its hardcoded ports and URI prefixes as supported interfaces. Do not open GitHub issues for the remaining work. Track it through the approved plan and Avoozl's normal workflow.

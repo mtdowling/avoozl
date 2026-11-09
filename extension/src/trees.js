@@ -93,7 +93,7 @@ function taskRow(task, { contextSuffix = "" } = {}) {
   const row = new Row(task.title || task.id, {
     id: "task:" + task.id,
     description: [task.status, task.epic].filter(Boolean).join(" · "),
-    contextValue: "aicommander.task" + contextSuffix,
+    contextValue: "avoozl.task" + contextSuffix,
     iconPath: new vscode.ThemeIcon(
       task.status === "accepted"
         ? "pass-filled"
@@ -105,7 +105,7 @@ function taskRow(task, { contextSuffix = "" } = {}) {
     ),
     taskId: task.id,
     command: {
-      command: "aicommander.openTask",
+      command: "avoozl.openTask",
       title: "Open task",
       arguments: [task.id],
     },
@@ -194,14 +194,14 @@ class NowProvider {
           {
             id: "request:" + request.id,
             description: run ? runLabel(run) : request.runId,
-            contextValue: "aicommander.request",
+            contextValue: "avoozl.request",
             iconPath: new vscode.ThemeIcon(
               request.kind === "approval" ? "shield" : "question",
             ),
             requestId: request.id,
             runId: request.runId,
             command: {
-              command: "aicommander.answerRequest",
+              command: "avoozl.answerRequest",
               title: "Answer",
               arguments: [request.id],
             },
@@ -221,11 +221,11 @@ class NowProvider {
             id: "blocked:" + entry.id,
             description:
               "waiting on " + entry.blockers.map((b) => b.id).join(", "),
-            contextValue: "aicommander.task.blocked",
+            contextValue: "avoozl.task.blocked",
             taskId: entry.id,
             iconPath: new vscode.ThemeIcon("circle-slash"),
             command: {
-              command: "aicommander.openTask",
+              command: "avoozl.openTask",
               title: "Open task",
               arguments: [entry.id],
             },
@@ -237,12 +237,12 @@ class NowProvider {
           new Row(entry.taskId, {
             id: "integration:" + entry.id,
             description: (entry.commit || "").slice(0, 10),
-            contextValue: "aicommander.integration",
+            contextValue: "avoozl.integration",
             integrationId: entry.id,
             expectedCommit: entry.commit,
             iconPath: new vscode.ThemeIcon("git-merge"),
             command: {
-              command: "aicommander.integrate",
+              command: "avoozl.integrate",
               title: "Integrate",
               arguments: [entry.id],
             },
@@ -259,7 +259,7 @@ function sessionRow(run) {
     tooltip: runTooltip(run),
     iconPath: stateIcon(run),
     contextValue:
-      "aicommander.session" +
+      "avoozl.session" +
       (ACTIVE.has(run.state)
         ? ".active"
         : run.state === "disconnected"
@@ -268,7 +268,7 @@ function sessionRow(run) {
     runId: run.id,
     taskId: run.taskId,
     command: {
-      command: "aicommander.openConversation",
+      command: "avoozl.openConversation",
       title: "Open conversation",
       arguments: [{ runId: run.id }],
     },
@@ -334,14 +334,13 @@ class PlanProvider {
         // The state is the point: a saved draft is not an approved plan.
         description: plan.state + " · r" + plan.revision,
         contextValue:
-          "aicommander.plan" +
-          (plan.state === "approved" ? ".approved" : ".draft"),
+          "avoozl.plan" + (plan.state === "approved" ? ".approved" : ".draft"),
         planId: plan.id,
         iconPath: new vscode.ThemeIcon(
           plan.state === "approved" ? "verified-filled" : "edit",
         ),
         command: {
-          command: "aicommander.openPlan",
+          command: "avoozl.openPlan",
           title: "Open plan",
           arguments: [plan.id],
         },

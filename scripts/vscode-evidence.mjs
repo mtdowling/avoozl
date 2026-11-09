@@ -159,7 +159,7 @@ try {
       return [
         {
           provider: agentProviderId("claude"),
-          displayName: "AICommander claude",
+          displayName: "Avoozl claude",
           description: "Fixture provider; real child processes.",
           models: catalog.models.map((m) => ({
             id: m.id,
@@ -206,7 +206,7 @@ try {
   const initialized = await client.initialize({
     clientId: "evidence-client",
     protocolVersions: EDITOR_OFFER,
-    clientInfo: { name: "aicommander-evidence", version: "1.0.0" },
+    clientInfo: { name: "avoozl-evidence", version: "1.0.0" },
   });
   check(
     "the facade negotiates a version the editor offered",
@@ -219,7 +219,7 @@ try {
   // covered by the facade's own tests.
   const session = facade.projection
     .sessionSummaries()
-    .find((item) => item._meta?.["aicommander.runId"] === runId);
+    .find((item) => item._meta?.["avoozl.runId"] === runId);
   check("the owned session appears in the host catalog", Boolean(session));
   const chatChannel = session.defaultChat;
   const actions = [];
@@ -369,7 +369,7 @@ try {
     turn.responseParts.some(
       (part) =>
         part.kind === "systemNotification" &&
-        part._meta?.["aicommander.diagnosticDuringInterruption"],
+        part._meta?.["avoozl.diagnosticDuringInterruption"],
     ),
   );
 

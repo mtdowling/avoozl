@@ -1,4 +1,4 @@
-// Translation from AICommander's durable execution events to AHP actions.
+// Translation from Avoozl's durable execution events to AHP actions.
 //
 // Rules this module exists to enforce:
 //
@@ -285,8 +285,8 @@ export class Translator {
                 "`",
             },
             _meta: {
-              "aicommander.diagnosticDuringInterruption": true,
-              "aicommander.cancellation": outcome.cancellation || null,
+              "avoozl.diagnosticDuringInterruption": true,
+              "avoozl.cancellation": outcome.cancellation || null,
             },
           },
         });
@@ -300,7 +300,7 @@ export class Translator {
               markdown:
                 "This provider reports no interruption status of its own, so the host cannot tell whether the turn finished just before your cancellation landed.",
             },
-            _meta: { "aicommander.completionRace": "possible" },
+            _meta: { "avoozl.completionRace": "possible" },
           },
         });
       this.chat({ type: "chat/turnCancelled", turnId, duration });
@@ -560,7 +560,7 @@ function subagentMeta(subagent) {
   // Attribution for work a delegating tool call performed, so nested output is
   // not presented as the main agent's own.
   return {
-    "aicommander.subagent": { parentToolUseId: subagent },
+    "avoozl.subagent": { parentToolUseId: subagent },
   };
 }
 

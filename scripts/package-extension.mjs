@@ -86,7 +86,7 @@ const out = (() => {
     : process.argv[index + 1];
 })();
 
-const staging = fs.mkdtempSync(path.join(os.tmpdir(), "aicommander-vsix-"));
+const staging = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-vsix-"));
 try {
   fs.mkdirSync(path.join(staging, "extension"), { recursive: true });
   copyInto(path.join(staging, "extension"));

@@ -101,12 +101,12 @@ async function harness(t, { script, retainTurns } = {}) {
     },
     models: async () => [
       {
-        provider: "aicommander-codex",
-        displayName: "AICommander codex",
+        provider: "avoozl-codex",
+        displayName: "Avoozl codex",
         description: "stub",
         models: [
-          { id: "stub-model", provider: "aicommander-codex", name: "Stub" },
-          { id: "other-model", provider: "aicommander-codex", name: "Other" },
+          { id: "stub-model", provider: "avoozl-codex", name: "Stub" },
+          { id: "other-model", provider: "avoozl-codex", name: "Other" },
         ],
       },
     ],
@@ -205,7 +205,7 @@ test("protocol negotiation selects a version the client offered, or refuses clea
     "the installed editor offers 0.9.0 as its newest; the facade must speak it",
   );
   assert.ok(VSCODE_1_138_OFFER.includes(result.protocolVersion));
-  assert.equal(result.serverInfo.name, "AICommander");
+  assert.equal(result.serverInfo.name, "Avoozl");
 
   const transport = await WebSocketTransport.connect(
     facade.url + "/?token=" + encodeURIComponent(EDITOR_TOKEN),
@@ -255,16 +255,13 @@ test("sessions and chats are listed, snapshotted, and tied to the owning run", a
   const session = listed.result.snapshot.state;
   assert.equal(
     session.provider,
-    "aicommander-codex",
+    "avoozl-codex",
     "the advertised provider id is namespaced away from the editor's built-ins",
   );
-  assert.equal(session._meta["aicommander.provider"], "codex");
+  assert.equal(session._meta["avoozl.provider"], "codex");
   assert.equal(session.defaultChat, uris.chat);
-  assert.equal(session._meta["aicommander.runId"], run.id);
-  assert.equal(
-    session._meta["aicommander.workspaceId"],
-    workspaceIdentity(store),
-  );
+  assert.equal(session._meta["avoozl.runId"], run.id);
+  assert.equal(session._meta["avoozl.workspaceId"], workspaceIdentity(store));
   // Model choice is advertised from the provider catalog, not from a hardcoded
   // list on whichever machine built the facade.
   assert.deepEqual(session.config.schema.properties.model.enum, [
@@ -273,7 +270,7 @@ test("sessions and chats are listed, snapshotted, and tied to the owning run", a
   ]);
   const chat = (await client.subscribe(uris.chat)).result.snapshot.state;
   assert.equal(chat.activeTurn.message.text, "What needs my decision?");
-  assert.equal(chat._meta["aicommander.runId"], run.id);
+  assert.equal(chat._meta["avoozl.runId"], run.id);
   await assert.rejects(
     client.subscribe("ahp-chat:/00000000-0000-5000-8000-000000000000"),
     /No channel named/,
@@ -482,7 +479,7 @@ test("a read-only client observes but cannot change a session", async (t) => {
   const uris = runUris(workspaceIdentity(store), run.id);
   const { client, result } = await connect(facade, OBSERVER_TOKEN, [uris.chat]);
   t.after(() => client.shutdown());
-  assert.equal(result._meta["aicommander.scope"], "read");
+  assert.equal(result._meta["avoozl.scope"], "read");
   assert.ok(result.snapshots.length, "observers still receive state");
   const raw = await rawDispatch(
     facade,
@@ -631,8 +628,8 @@ test("a model change is a host operation recorded at a turn boundary", async (t)
     const state = facade.projection.channelState(uris.session);
     return state.config.values.model === "other-model" ? state : null;
   });
-  assert.equal(session._meta["aicommander.requestedModel"], "other-model");
-  assert.equal(session._meta["aicommander.actualModel"], "stub-model");
+  assert.equal(session._meta["avoozl.requestedModel"], "other-model");
+  assert.equal(session._meta["avoozl.actualModel"], "stub-model");
 });
 
 test("queue controls the editor offers are carried out or refused for a stated reason", async (t) => {

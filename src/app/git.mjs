@@ -83,7 +83,7 @@ export async function projectConfig({
   )
     fail("Checks must be arrays of command arguments.");
   worktreeRoot = path.resolve(
-    worktreeRoot || path.join(path.dirname(root), ".aicommander-worktrees"),
+    worktreeRoot || path.join(path.dirname(root), ".avoozl-worktrees"),
   );
   if (worktreeRoot === root || worktreeRoot.startsWith(root + path.sep))
     fail("Place worktrees outside the project checkout.");

@@ -260,7 +260,7 @@ export function startServer({
           ok: true,
           instanceId: runtimeId,
           pid: process.pid,
-          application: "aicommander",
+          application: "avoozl",
           applicationRoot,
           authority: dbPath,
           storage: "sqlite",
@@ -586,11 +586,7 @@ export function startServer({
   server.listen(port, host, () => {
     manager.baseUrl = "http://127.0.0.1:" + server.address().port;
     console.log(
-      "AICommander: " +
-        manager.baseUrl +
-        " (SQLite " +
-        store.getMeta("mode") +
-        ")",
+      "Avoozl: " + manager.baseUrl + " (SQLite " + store.getMeta("mode") + ")",
     );
   });
   const release = () => {

@@ -217,7 +217,7 @@ export function startAgentHost({
       });
       fs.renameSync(manifestPath + ".pending", manifestPath);
     }
-    console.log("AICommander agent host: " + origin);
+    console.log("Avoozl agent host: " + origin);
   });
   server.on("close", () => {
     manager.close().then(() => {

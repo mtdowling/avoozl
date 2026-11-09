@@ -33,7 +33,7 @@ class ChatNavigator {
     if (this.capability) return this.capability;
     const commands = await vscode.commands.getCommands(true);
     const setting = vscode.workspace
-      .getConfiguration("aicommander")
+      .getConfiguration("avoozl")
       .get("nativeChatNavigation", "auto");
     const manifest = this.manifest();
     this.capability = {
@@ -54,9 +54,7 @@ class ChatNavigator {
   manifest() {
     const configured =
       this.manifestPath ||
-      vscode.workspace
-        .getConfiguration("aicommander")
-        .get("facadeManifest", "");
+      vscode.workspace.getConfiguration("avoozl").get("facadeManifest", "");
     if (!configured) return null;
     try {
       return JSON.parse(fs.readFileSync(configured, "utf8"));

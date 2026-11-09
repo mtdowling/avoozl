@@ -33,8 +33,8 @@ class VisualPanels {
       return existing;
     }
     const panel = vscode.window.createWebviewPanel(
-      "aicommander." + kind,
-      "AICommander: " + spec.title,
+      "avoozl." + kind,
+      "Avoozl: " + spec.title,
       vscode.ViewColumn.Active,
       {
         enableScripts: true,
@@ -57,12 +57,9 @@ class VisualPanels {
     panel.webview.onDidReceiveMessage(async (message) => {
       if (message.kind === "ready") this.push(entry);
       else if (message.kind === "selectTask")
-        await vscode.commands.executeCommand(
-          "aicommander.openTask",
-          message.taskId,
-        );
+        await vscode.commands.executeCommand("avoozl.openTask", message.taskId);
       else if (message.kind === "openConversation")
-        await vscode.commands.executeCommand("aicommander.openConversation", {
+        await vscode.commands.executeCommand("avoozl.openConversation", {
           taskId: message.taskId,
         });
       else if (message.kind === "page") {
@@ -119,7 +116,7 @@ class VisualPanels {
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} data:; style-src ${webview.cspSource}; script-src 'nonce-${nonce}' ${origin}; connect-src ${origin};">
 <link rel="stylesheet" href="${style}">
-<title>AICommander</title>
+<title>Avoozl</title>
 </head>
 <body data-view="${kind}" data-origin="${origin}">
 <header>

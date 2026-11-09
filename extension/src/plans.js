@@ -13,7 +13,7 @@
 //     never overwrite another client's revision.
 const vscode = require("vscode");
 
-const SCHEME = "aicommander-plan";
+const SCHEME = "avoozl-plan";
 
 class PlanFileSystem {
   constructor(client, log) {
@@ -115,9 +115,9 @@ class PlanFileSystem {
       "Discard my edits",
     );
     if (choice === "Compare")
-      await vscode.commands.executeCommand("aicommander.comparePlan", id);
+      await vscode.commands.executeCommand("avoozl.comparePlan", id);
     else if (choice === "Discard my edits")
-      await vscode.commands.executeCommand("aicommander.reloadPlan", id);
+      await vscode.commands.executeCommand("avoozl.reloadPlan", id);
     else if (choice === "Save as new revision") {
       // Explicitly rebase this save onto the revision now in the workspace.
       // This is a user decision, never an automatic overwrite.

@@ -40,7 +40,7 @@ try {
   const requireDatabase = () => {
     if (!fs.existsSync(dbPath))
       throw Error(
-        "Initialize a workspace first: aicommander init PATH, then use --workspace PATH.",
+        "Initialize a workspace first: avoozl init PATH, then use --workspace PATH.",
       );
   };
   const request = async (operation, input = {}, expectedRevision) => {
@@ -62,6 +62,7 @@ try {
   const localOrRequest = async (operation, input = {}) => {
     if (
       options.url ||
+      process.env.AVOOZL_URL ||
       process.env.AICOMMANDER_URL ||
       process.env.NUPP_WORKSPACE_URL ||
       !fs.existsSync(dbPath)
@@ -99,7 +100,7 @@ try {
   });
   if (command === "init") {
     if (!positionals[0])
-      throw Error("Choose a workspace directory: aicommander init PATH.");
+      throw Error("Choose a workspace directory: avoozl init PATH.");
     console.log(
       JSON.stringify(
         initializeWorkspace(positionals[0], {
@@ -161,7 +162,7 @@ try {
               });
               agents.push({
                 provider: agentProviderId(provider),
-                displayName: "AICommander " + provider,
+                displayName: "Avoozl " + provider,
                 description: "Sessions owned by this workspace's agent host.",
                 models: catalog.models.map((m) => ({
                   id: m.id,
@@ -173,7 +174,7 @@ try {
             } catch (error) {
               agents.push({
                 provider: agentProviderId(provider),
-                displayName: "AICommander " + provider,
+                displayName: "Avoozl " + provider,
                 description: "Unavailable: " + error.message,
                 models: [],
                 protectedResources: [],
@@ -318,8 +319,8 @@ try {
           // workspace. The address carries the facade's bearer token, so treat
           // it as a credential and never commit or publish it.
           settings: {
-            "aicommander.endpoint": liveEndpoint,
-            "aicommander.facadeManifest": config.ahp.manifest,
+            "avoozl.endpoint": liveEndpoint,
+            "avoozl.facadeManifest": config.ahp.manifest,
             ...(editorClient
               ? {
                   "chat.remoteAgentHostsEnabled": true,
@@ -513,10 +514,12 @@ try {
     const result = await request("session.register", {
       taskId:
         options.task ||
+        process.env.AVOOZL_TASK ||
         process.env.AICOMMANDER_TASK ||
         process.env.NUPP_WORKSPACE_TASK,
       leaseId:
         options.lease ||
+        process.env.AVOOZL_LEASE ||
         process.env.AICOMMANDER_LEASE ||
         process.env.NUPP_WORKSPACE_LEASE,
       provider: options.provider || "claude",
@@ -526,7 +529,7 @@ try {
     if (command !== "session-hook")
       console.log(JSON.stringify(result, null, 2));
   } else if (command === "help")
-    console.log(`AICommander — plans, tasks, and agents in one local workspace.
+    console.log(`Avoozl — plans, tasks, and agents in one local workspace.
   init PATH [--name NAME] [--port 9428]   Create an empty workspace
   serve --workspace PATH [--ahp]        Start the site and agent host
   ahp --workspace PATH                  Start the editor agent-host facade
@@ -546,7 +549,7 @@ try {
   OPERATION --json JSON [--revision N] --workspace PATH
   OPERATION --input FILE --workspace PATH
 
-Use --workspace PATH or AICOMMANDER_WORKSPACE to choose data independently
+Use --workspace PATH or AVOOZL_WORKSPACE to choose data independently
 of the application checkout. --db, --documents, --host, --port and --url
 override workspace configuration. UI, CLI and MCP share application operations.`);
   else

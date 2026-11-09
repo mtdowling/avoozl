@@ -235,7 +235,7 @@ test("the extension client refuses a workspace speaking another API major versio
   const { WorkspaceClient } = loadExtensionModule("client.js");
   const client = new WorkspaceClient(endpoint);
   const described = await client.describe();
-  assert.equal(described.application, "aicommander");
+  assert.equal(described.application, "avoozl");
   assert.ok(described.workspaceId);
   assert.ok(described.operations.includes("plan.save"));
   // The contract a client must follow is published, not guessed at.

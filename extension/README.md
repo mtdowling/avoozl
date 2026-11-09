@@ -1,6 +1,6 @@
-# AICommander for VS Code
+# Avoozl for VS Code
 
-Plans, tasks, and owned agent conversations from an AICommander workspace,
+Plans, tasks, and owned agent conversations from an Avoozl workspace,
 inside the editor.
 
 This extension is a **client**. The workspace server owns planning state,
@@ -33,7 +33,7 @@ writer for a conversation that already has an owner.
 
    ```json
    {
-     "aicommander.endpoint": "http://127.0.0.1:9428"
+     "avoozl.endpoint": "http://127.0.0.1:9428"
    }
    ```
 
@@ -45,7 +45,7 @@ writer for a conversation that already has an owner.
    ```
 
    That prints the `chat.remoteAgentHosts` entry to paste in, and the
-   `aicommander.facadeManifest` path. **The printed address contains the
+   `avoozl.facadeManifest` path. **The printed address contains the
    facade's bearer token — treat it as a credential.** The facade listens on
    loopback only; reach it from another machine through an authenticated tunnel
    or an SSH port forward, never by publishing the listener.
@@ -76,7 +76,7 @@ exercised on, and — crucially — the fact that it returned is _not_ treated a
 proof that the right transcript opened. Where the facade is configured,
 identity is confirmed against the host's record of which chat channel a client
 subscribed to. Without that confirmation the result is reported as unverified,
-and a session picker is always available. See **AICommander: Show
+and a session picker is always available. See **Avoozl: Show
 Diagnostics**.
 
 **The website is still the phone companion.** This extension has not been
@@ -84,12 +84,12 @@ accepted on a physical phone. Until it is, use the website there.
 
 ## Settings
 
-| Setting                            | Purpose                                                                                 |
-| ---------------------------------- | --------------------------------------------------------------------------------------- |
-| `aicommander.endpoint`             | Workspace server to drive.                                                              |
-| `aicommander.facadeManifest`       | Path to `ahp-facade.json`, enabling connection diagnostics and transcript confirmation. |
-| `aicommander.refreshSeconds`       | Fallback poll interval when the event stream is unavailable.                            |
-| `aicommander.nativeChatNavigation` | `auto`, `always`, or `never` for the unpublished navigation command.                    |
+| Setting                       | Purpose                                                                                 |
+| ----------------------------- | --------------------------------------------------------------------------------------- |
+| `avoozl.endpoint`             | Workspace server to drive.                                                              |
+| `avoozl.facadeManifest`       | Path to `ahp-facade.json`, enabling connection diagnostics and transcript confirmation. |
+| `avoozl.refreshSeconds`       | Fallback poll interval when the event stream is unavailable.                            |
+| `avoozl.nativeChatNavigation` | `auto`, `always`, or `never` for the unpublished navigation command.                    |
 
 ## Building
 
