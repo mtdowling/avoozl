@@ -66,7 +66,11 @@ export async function projectConfig({
     fail("Choose a stable project ID.");
   root = fs.realpathSync(root);
   if (
-    fs.realpathSync(await git(root, ["rev-parse", "--show-toplevel"])) !== root
+    (await git(root, [
+      "rev-parse",
+      "--is-inside-work-tree",
+      "--show-prefix",
+    ])) !== "true"
   )
     fail("Project root must be the Git checkout root.");
   await git(root, ["rev-parse", "--verify", baseBranch + "^{commit}"]);
