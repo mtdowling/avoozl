@@ -667,7 +667,7 @@ export function dispatchMcp(message, ctx, { versionHeader } = {}) {
       resources: [
         {
           uri: "nupp-plans://status",
-          name: "Nupp plan status",
+          name: "Workspace plan status",
           mimeType: "application/json",
         },
         {
