@@ -3,7 +3,12 @@
 // Every branch here is about the provider event vocabulary. The invariants
 // (tool identity, honest terminal results, distinct states) live in
 // `translate.mjs`.
-import { Translator, clamp, userMessage, toolResultFromClaude } from "./translate.mjs";
+import {
+  Translator,
+  clamp,
+  userMessage,
+  toolResultFromClaude,
+} from "./translate.mjs";
 
 export const INITIAL_TURN = (runId) => "initial:" + runId;
 // A client dispatches `chat/turnStarted` with its own turn identifier and the
@@ -19,8 +24,7 @@ export const DELIVERY_TURN = (deliveryId) =>
   clientId(deliveryId) || "message:" + deliveryId;
 // Pending-message identity follows the same rule, so a client that queued a
 // message sees its own identifier removed when the host consumes it.
-export const PENDING_ID = (deliveryId) =>
-  clientId(deliveryId) || deliveryId;
+export const PENDING_ID = (deliveryId) => clientId(deliveryId) || deliveryId;
 
 // Codex item types that behave like tool calls in a transcript.
 const CODEX_TOOL_ITEMS = new Set([
@@ -53,8 +57,7 @@ export function applyEvent(event, context) {
           // The provider started a turn the host did not initiate (for
           // example after a resume). Open one rather than attaching its
           // output to an unrelated turn.
-          const turnId =
-            t.c.activeTurnId || "provider:" + event.turnId;
+          const turnId = t.c.activeTurnId || "provider:" + event.turnId;
           if (!t.c.activeTurnId)
             t.startTurn(turnId, "", {
               origin: {
@@ -109,16 +112,28 @@ export function applyEvent(event, context) {
       else claudeToolActivity(t, event);
       break;
 
-    case "tool.finished":
-      t.completeTool(
-        event.id,
-        toolResultFromClaude({
-          isError: event.isError,
-          content: event.content,
-          displayName: t.tool(event.id)?.displayName,
-        }),
-      );
+    case "tool.finished": {
+      const result = toolResultFromClaude({
+        isError: event.isError,
+        content: event.content,
+        displayName: t.tool(event.id)?.displayName,
+      });
+      // A tool that ends while a stop is pending ended because it was asked
+      // to. Say that rather than reporting a bare failure, and keep the
+      // provider's own output and wording in the result.
+      if (t.c.interruptRequestedAt && !result.success)
+        t.completeTool(event.id, {
+          ...result,
+          pastTenseMessage:
+            "Stopped by cancellation after it had started running. Any partial effects remain.",
+          error: {
+            message: result.error?.message || "Stopped by cancellation.",
+            code: "interrupted",
+          },
+        });
+      else t.completeTool(event.id, result);
       break;
+    }
 
     case "request.created":
       requestCreated(t, event.request);
@@ -156,6 +171,7 @@ export function applyEvent(event, context) {
 
     case "turn.completed":
       t.endTurn(event);
+      t.c.interruptRequestedAt = null;
       break;
 
     case "usage": {
@@ -185,7 +201,8 @@ export function applyEvent(event, context) {
     case "delivery.updated": {
       const delivery = event.delivery,
         known = t.c.queued[delivery.id],
-        kind = known?.kind || (delivery.mode === "steer" ? "steering" : "queued");
+        kind =
+          known?.kind || (delivery.mode === "steer" ? "steering" : "queued");
       if (["accepted", "submitted"].includes(delivery.state)) {
         t.chat({
           type: "chat/pendingMessageRemoved",
@@ -278,6 +295,10 @@ export function applyEvent(event, context) {
       break;
 
     case "interrupt.requested":
+      // Taken from the ordered event log, not from the run record: by the
+      // time an event is folded the record may already have moved on, and a
+      // replay must reach the same conclusion.
+      t.c.interruptRequestedAt = event.at;
       t.chat({
         type: "chat/activityChanged",
         activity: "Stopping at your request",
@@ -298,7 +319,8 @@ export function applyEvent(event, context) {
           "The agent host restarted. Resume explicitly; pending prompts were not resent.",
       });
       for (const tracked of Object.values(t.c.tools))
-        if (tracked.status === "pending-confirmation") tracked.status = "cancelled";
+        if (tracked.status === "pending-confirmation")
+          tracked.status = "cancelled";
       t.c.requests = {};
       break;
 
@@ -352,7 +374,10 @@ function usageInfo(event, run) {
     inputTokens:
       main.input_tokens ?? main.inputTokens ?? event.inputTokens ?? undefined,
     outputTokens:
-      main.output_tokens ?? main.outputTokens ?? event.outputTokens ?? undefined,
+      main.output_tokens ??
+      main.outputTokens ??
+      event.outputTokens ??
+      undefined,
     cacheReadTokens:
       main.cache_read_input_tokens ?? main.cachedInputTokens ?? undefined,
     model: event.model || run.actualModel || run.model || undefined,
@@ -393,7 +418,9 @@ function requestCreated(t, request) {
   tracked.requestId = request.id;
   t.readyTool(providerToolId, {
     invocationMessage: { markdown: invocationFor(request) },
-    toolInput: clamp(JSON.stringify(request.payload?.input ?? request.payload, null, 2)),
+    toolInput: clamp(
+      JSON.stringify(request.payload?.input ?? request.payload, null, 2),
+    ),
     confirmation: {
       requestId: request.id,
       title: confirmationTitleFor(request),
@@ -500,7 +527,9 @@ function invocationFor(request) {
         : "")
     );
   if (payload.input?.file_path)
-    return "`" + toolNameFor(request) + "` on `" + payload.input.file_path + "`";
+    return (
+      "`" + toolNameFor(request) + "` on `" + payload.input.file_path + "`"
+    );
   return (
     "`" +
     toolNameFor(request) +
@@ -518,7 +547,8 @@ export function normalizeQuestions(request) {
       payload.requestedSchema?.questions ||
       [];
   const questions = raw.map((question, index) => {
-    const id = question.id || question.header || question.question || String(index);
+    const id =
+      question.id || question.header || question.question || String(index);
     const options = question.options || question.choices;
     if (Array.isArray(options) && options.length)
       return {
@@ -600,8 +630,10 @@ function claudeInvocation(event) {
       "\n```" +
       (input.description ? "\n\n" + clamp(input.description, 400) : "")
     );
-  if (input.file_path) return "`" + event.tool + "` on `" + input.file_path + "`";
-  if (input.pattern) return "`" + event.tool + "` for `" + clamp(input.pattern, 200) + "`";
+  if (input.file_path)
+    return "`" + event.tool + "` on `" + input.file_path + "`";
+  if (input.pattern)
+    return "`" + event.tool + "` for `" + clamp(input.pattern, 200) + "`";
   if (input.prompt)
     return "`" + event.tool + "`\n\n" + clamp(input.prompt, 1200);
   return "`" + event.tool + "`";
@@ -611,7 +643,10 @@ function codexToolActivity(t, event) {
   if (event.method === "item/commandExecution/outputDelta") {
     const tracked = t.tool(event.itemId);
     if (!tracked) return;
-    tracked.content = clamp((tracked.content || "") + (event.delta || ""), 40000);
+    tracked.content = clamp(
+      (tracked.content || "") + (event.delta || ""),
+      40000,
+    );
     t.chat({
       type: "chat/toolCallContentChanged",
       turnId: tracked.turnId,
@@ -645,11 +680,13 @@ function codexToolActivity(t, event) {
     const failed =
       item.status === "failed" ||
       (item.exitCode !== undefined && item.exitCode !== 0);
-    const output = item.aggregatedOutput || item.output || tracked.content || "";
+    const output =
+      item.aggregatedOutput || item.output || tracked.content || "";
     t.completeTool(item.id, {
       success: !failed,
       pastTenseMessage: failed
-        ? tracked.displayName + " failed" +
+        ? tracked.displayName +
+          " failed" +
           (item.exitCode !== undefined ? " (exit " + item.exitCode + ")" : "")
         : tracked.displayName + " finished",
       ...(output ? { content: [{ type: "text", text: clamp(output) }] } : {}),
@@ -683,5 +720,11 @@ function codexInvocation(item) {
         .map((file) => "- `" + file + "`")
         .join("\n")
     );
-  return "`" + item.type + "`\n\n```json\n" + clamp(JSON.stringify(item, null, 2), 1500) + "\n```";
+  return (
+    "`" +
+    item.type +
+    "`\n\n```json\n" +
+    clamp(JSON.stringify(item, null, 2), 1500) +
+    "\n```"
+  );
 }

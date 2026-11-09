@@ -104,6 +104,7 @@ export function startAhpFacade({
   models,
   serverName = "AICommander",
   allowNonLoopback = false,
+  workspaceEndpoint = null,
 }) {
   if (!store) throw Error("A workspace store is required.");
   if (!client) throw Error("A workspace client is required.");
@@ -121,9 +122,11 @@ export function startAhpFacade({
   // must authenticate even on loopback, because a tunnel or port forward can
   // extend loopback to another machine.
   const grants = new Map(
-    Object.entries(tokens && Object.keys(tokens).length
-      ? tokens
-      : { [randomUUID()]: { name: "default", scope: "full" } }),
+    Object.entries(
+      tokens && Object.keys(tokens).length
+        ? tokens
+        : { [randomUUID()]: { name: "default", scope: "full" } },
+    ),
   );
   const projection = new Projection({
     store,
@@ -157,10 +160,24 @@ export function startAhpFacade({
                 serverSeq: projection.seq,
                 clients: [...clients.values()].map((c) => ({
                   clientId: c.clientId,
+                  clientName: c.clientInfo?.name || null,
                   grant: c.grant.name,
                   protocolVersion: c.protocolVersion,
                   subscriptions: [...c.subs],
                 })),
+                // The channel identifiers this host owns. A client resolves a
+                // conversation's channel from here rather than constructing a
+                // scheme, because editor registrations differ by surface.
+                sessions: store
+                  .list("runs")
+                  .filter((r) => !r.deletedAt)
+                  .map((r) => ({
+                    runId: r.id,
+                    taskId: r.taskId,
+                    provider: r.provider,
+                    state: r.state,
+                    ...projection.transaction(() => projection.ensureRun(r)),
+                  })),
               }
             : { error: "Authentication required." },
         ),
@@ -407,10 +424,9 @@ export function startAhpFacade({
       }
       case "chat/isArchivedChanged":
       case "session/isArchivedChanged": {
-        await client.call(
-          action.isArchived ? "run.archive" : "run.unarchive",
-          { id: runId },
-        );
+        await client.call(action.isArchived ? "run.archive" : "run.unarchive", {
+          id: runId,
+        });
         return { echo: true };
       }
       case "session/configChanged": {
@@ -418,8 +434,7 @@ export function startAhpFacade({
         const model = action.config?.model;
         const approvalMode = action.config?.approvalMode;
         if (model) await client.setModel({ id: runId, model });
-        if (approvalMode)
-          await client.approvals({ id: runId, approvalMode });
+        if (approvalMode) await client.approvals({ id: runId, approvalMode });
         if (!model && !approvalMode)
           throw new AhpError(
             JSON_RPC.invalidParams,
@@ -630,7 +645,8 @@ export function startAhpFacade({
           // A reconnect on a fresh socket has negotiated nothing. Pick the
           // newest version this host speaks rather than guessing the client's.
           connection.protocolVersion = SUPPORTED_PROTOCOL_VERSIONS[0];
-        connection.clientId = params.clientId || connection.clientId || randomUUID();
+        connection.clientId =
+          params.clientId || connection.clientId || randomUUID();
         connection.subs = new Set(params.subscriptions || []);
         connection.ready = true;
         recordSubscriptions(connection);
@@ -999,6 +1015,7 @@ export function startAhpFacade({
           port: facade.port,
           workspaceId: projection.workspaceId,
           authority: path.resolve(store.filename),
+          ...(workspaceEndpoint ? { workspaceEndpoint } : {}),
           protocolVersions: [...SUPPORTED_PROTOCOL_VERSIONS],
           startedAt: new Date().toISOString(),
           clients: Object.fromEntries(
@@ -1011,9 +1028,13 @@ export function startAhpFacade({
             ]),
           ),
         };
-        fs.writeFileSync(manifestPath + ".pending", JSON.stringify(manifest, null, 2), {
-          mode: 0o600,
-        });
+        fs.writeFileSync(
+          manifestPath + ".pending",
+          JSON.stringify(manifest, null, 2),
+          {
+            mode: 0o600,
+          },
+        );
         fs.renameSync(manifestPath + ".pending", manifestPath);
       }
       resolve(facade);

@@ -806,10 +806,7 @@ export class RunManager {
     // A client may hold a stale view: the request can already be answered,
     // interrupted by a cancellation, or invalidated by a host restart.
     if (request.state !== "pending")
-      fail(
-        "This request is no longer pending (" + request.state + ").",
-        409,
-      );
+      fail("This request is no longer pending (" + request.state + ").", 409);
     if (!["allow", "deny"].includes(input.decision))
       fail("Choose allow or deny.");
     // Callers that know which run they are answering must match it, so a

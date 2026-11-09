@@ -19,7 +19,7 @@ import {
   compactEvent,
   recentIntegrations,
 } from "./views.mjs";
-import { createPlan, savePlan, approvePlan } from "./plans.mjs";
+import { createPlan, savePlan, approvePlan, extractPlan } from "./plans.mjs";
 import { projectConfig, validateRun, integrateRun } from "./git.mjs";
 import { Batches } from "./batches.mjs";
 import { metrics } from "./telemetry.mjs";
@@ -757,6 +757,55 @@ export class Operations {
       return {
         ...plan,
         approvals: store.list("approvals").filter((a) => a.planId === plan.id),
+      };
+    }
+    if (name === "plan.preview") {
+      const plan = store.get("plans", input.id);
+      if (!plan) fail("Plan not found.", 404);
+      const text = input.text ?? plan.text;
+      // Read-only: show exactly what approving this revision would extract,
+      // without creating anything. Approval remains a separate operation.
+      const data = this.read(),
+        proposals = extractPlan(text),
+        mapping = Object.fromEntries(
+          proposals.map((p) => [
+            p.id,
+            resolveTaskId(
+              data,
+              p.taskId || plan.mapping?.[p.id] || `${plan.id}-${p.id}`,
+            ),
+          ]),
+        );
+      const existing = new Set(data.tasks.map((t) => t.id));
+      return {
+        planId: plan.id,
+        reviewedHash: digest(text),
+        currentHash: plan.hash,
+        state: plan.state,
+        databaseRevision: data.revision,
+        approved: store
+          .list("approvals")
+          .some((a) => a.planId === plan.id && a.hash === digest(text)),
+        tasks: proposals.map((p) => ({
+          localId: p.id,
+          taskId: mapping[p.id],
+          title: p.title,
+          acceptance: p.acceptance,
+          existing: existing.has(mapping[p.id]),
+          lineStart: p.lineStart,
+          lineEnd: p.lineEnd,
+        })),
+        dependencies: proposals.flatMap((p) =>
+          ["requires", "sequence", "supports"].flatMap((kind) =>
+            (p[kind] || []).map((ref) => ({
+              kind,
+              from: mapping[ref] || ref,
+              to: mapping[p.id],
+              known: existing.has(mapping[ref] || ref) || Boolean(mapping[ref]),
+            })),
+          ),
+        ),
+        retiring: Object.keys(plan.mapping || {}).filter((id) => !mapping[id]),
       };
     }
     if (name === "plan.approve")

@@ -1,0 +1,271 @@
+{
+  "name": "aicommander",
+  "displayName": "AICommander",
+  "description": "Plans, tasks, and owned agent sessions from an AICommander workspace.",
+  "version": "0.1.0",
+  "license": "MIT",
+  "publisher": "mtdowling",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mtdowling/aicommander.git"
+  },
+  "engines": {
+    "vscode": "^1.138.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./src/extension.js",
+  "activationEvents": [
+    "onStartupFinished",
+    "onUri"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "The extension drives agent sessions that execute commands in a configured repository."
+    }
+  },
+  "contributes": {
+    "configuration": {
+      "title": "AICommander",
+      "properties": {
+        "aicommander.endpoint": {
+          "type": "string",
+          "default": "http://127.0.0.1:9428",
+          "markdownDescription": "Workspace server to drive. The extension resolves repository files on the machine that owns them, so this may be a different path from the open folder."
+        },
+        "aicommander.facadeManifest": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Optional path to the agent host facade manifest (`ahp-facade.json`). Used only to report connection diagnostics and to verify which conversation an editor opened. Leave empty if the facade is not running."
+        },
+        "aicommander.refreshSeconds": {
+          "type": "number",
+          "default": 5,
+          "minimum": 1,
+          "maximum": 120,
+          "description": "Fallback refresh interval used when the workspace event stream is unavailable."
+        },
+        "aicommander.nativeChatNavigation": {
+          "type": "string",
+          "default": "auto",
+          "enum": [
+            "auto",
+            "always",
+            "never"
+          ],
+          "markdownEnumDescriptions": [
+            "Use the native conversation command when this VS Code build offers it, and fall back to a session picker otherwise.",
+            "Always attempt the native command, even on an untested build.",
+            "Never use the native command; always use the fallback."
+          ],
+          "description": "Opening a task's exact conversation relies on a VS Code command that is not a published extension API."
+        }
+      }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "aicommander",
+          "title": "AICommander",
+          "icon": "media/activity.svg"
+        }
+      ]
+    },
+    "views": {
+      "aicommander": [
+        {
+          "id": "aicommander.now",
+          "name": "Now",
+          "icon": "media/activity.svg"
+        },
+        {
+          "id": "aicommander.tasks",
+          "name": "Tasks"
+        },
+        {
+          "id": "aicommander.plans",
+          "name": "Plans"
+        },
+        {
+          "id": "aicommander.sessions",
+          "name": "Conversations"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "aicommander.now",
+        "contents": "No workspace server is answering at the configured endpoint.\n[Open settings](command:aicommander.openSettings)\n[Run diagnostics](command:aicommander.diagnostics)"
+      }
+    ],
+    "commands": [
+      {
+        "command": "aicommander.refresh",
+        "title": "AICommander: Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "aicommander.diagnostics",
+        "title": "AICommander: Show Diagnostics"
+      },
+      {
+        "command": "aicommander.openSettings",
+        "title": "AICommander: Open Settings"
+      },
+      {
+        "command": "aicommander.openTask",
+        "title": "AICommander: Open Task Details"
+      },
+      {
+        "command": "aicommander.openTaskSource",
+        "title": "AICommander: Open Task Source Context"
+      },
+      {
+        "command": "aicommander.openConversation",
+        "title": "AICommander: Open This Task's Conversation",
+        "icon": "$(comment-discussion)"
+      },
+      {
+        "command": "aicommander.openPlan",
+        "title": "AICommander: Open Plan Draft",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "aicommander.previewApproval",
+        "title": "AICommander: Review Plan Approval"
+      },
+      {
+        "command": "aicommander.approvePlan",
+        "title": "AICommander: Approve Plan Revision"
+      },
+      {
+        "command": "aicommander.comparePlan",
+        "title": "AICommander: Compare Plan With Saved Revision"
+      },
+      {
+        "command": "aicommander.reloadPlan",
+        "title": "AICommander: Discard Local Plan Edits"
+      },
+      {
+        "command": "aicommander.graph",
+        "title": "AICommander: Open Task Graph",
+        "icon": "$(type-hierarchy)"
+      },
+      {
+        "command": "aicommander.progress",
+        "title": "AICommander: Open Epic Progress"
+      },
+      {
+        "command": "aicommander.strip",
+        "title": "AICommander: Open Timeline Strip"
+      },
+      {
+        "command": "aicommander.validate",
+        "title": "AICommander: Validate This Conversation's Work"
+      },
+      {
+        "command": "aicommander.integrate",
+        "title": "AICommander: Integrate Validated Work"
+      },
+      {
+        "command": "aicommander.acceptTask",
+        "title": "AICommander: Record Task Acceptance"
+      },
+      {
+        "command": "aicommander.cancelSession",
+        "title": "AICommander: Stop This Conversation",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "aicommander.resumeSession",
+        "title": "AICommander: Resume This Conversation"
+      },
+      {
+        "command": "aicommander.setModel",
+        "title": "AICommander: Change This Conversation's Model"
+      },
+      {
+        "command": "aicommander.answerRequest",
+        "title": "AICommander: Answer Pending Request"
+      },
+      {
+        "command": "aicommander.installExample",
+        "title": "AICommander: Install Example Pack"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "aicommander.refresh",
+          "when": "view =~ /^aicommander\\./",
+          "group": "navigation"
+        },
+        {
+          "command": "aicommander.graph",
+          "when": "view == aicommander.tasks",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "aicommander.openConversation",
+          "when": "viewItem =~ /aicommander.task|aicommander.session/",
+          "group": "inline"
+        },
+        {
+          "command": "aicommander.openTaskSource",
+          "when": "viewItem =~ /aicommander.task/"
+        },
+        {
+          "command": "aicommander.acceptTask",
+          "when": "viewItem =~ /aicommander.task/"
+        },
+        {
+          "command": "aicommander.openPlan",
+          "when": "viewItem =~ /aicommander.plan/",
+          "group": "inline"
+        },
+        {
+          "command": "aicommander.previewApproval",
+          "when": "viewItem =~ /aicommander.plan/"
+        },
+        {
+          "command": "aicommander.cancelSession",
+          "when": "viewItem =~ /aicommander.session.active/",
+          "group": "inline"
+        },
+        {
+          "command": "aicommander.resumeSession",
+          "when": "viewItem =~ /aicommander.session.disconnected/"
+        },
+        {
+          "command": "aicommander.setModel",
+          "when": "viewItem =~ /aicommander.session/"
+        },
+        {
+          "command": "aicommander.validate",
+          "when": "viewItem =~ /aicommander.session/"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "aicommander.previewApproval",
+          "when": "resourceScheme == aicommander-plan",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "aicommander.openSettings",
+          "when": "false"
+        }
+      ]
+    },
+    "uriHandler": {
+      "scheme": "vscode",
+      "authority": "mtdowling.aicommander"
+    }
+  }
+}

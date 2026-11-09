@@ -32,6 +32,7 @@ export const CLIENT_OPERATIONS = Object.freeze([
   "plan.get",
   "plan.create",
   "plan.save",
+  "plan.preview",
   "plan.approve",
   "plan.classify",
   "run.list",
@@ -238,6 +239,10 @@ export class WorkspaceClient {
   // Saving records a new draft revision. It never approves.
   savePlan({ id, text, expectedHash }) {
     return this.call("plan.save", { id, text, expectedHash });
+  }
+  // What approving a revision would extract, without changing anything.
+  previewPlan({ id, text }) {
+    return this.call("plan.preview", { id, text });
   }
   // Approval is a separate, explicit, transactional operation that names the
   // exact reviewed hash and database revision.

@@ -24,7 +24,7 @@ try {
   for (let i = 0; i < args.length; i++) {
     if (args[i].startsWith("--")) {
       const key = args[i].slice(2);
-      if (["dry-run", "final"].includes(key)) options[key] = true;
+      if (["dry-run", "final", "ahp"].includes(key)) options[key] = true;
       else {
         if (args[i + 1] === undefined || args[i + 1].startsWith("--"))
           throw Error("Missing value for --" + key);
@@ -76,6 +76,24 @@ try {
       store.close();
     }
   };
+  // The facade is a client of the running workspace. Starting it never creates
+  // a second writer and never changes which process owns a provider session.
+  const describeFacade = (facade) => ({
+    url: facade.url,
+    host: config.ahp.host,
+    port: facade.port,
+    workspaceId: facade.projection.workspaceId,
+    clients: Object.fromEntries(
+      [...facade.grants.entries()].map(([token, grant]) => [
+        grant.name,
+        {
+          scope: grant.scope,
+          address: facade.url + "/?token=" + encodeURIComponent(token),
+        },
+      ]),
+    ),
+    note: "Loopback only. Reach it remotely through an authenticated tunnel or an SSH port forward; never publish this listener.",
+  });
   if (command === "init") {
     if (!positionals[0])
       throw Error("Choose a workspace directory: aicommander init PATH.");
@@ -107,8 +125,87 @@ try {
       host: config.host,
       manager,
     });
-    process.once("SIGTERM", () => server.drain());
-    process.once("SIGINT", () => server.drain());
+    let facade = null;
+    if (options.ahp) {
+      const { startAhpFacade } = await import("./ahp/facade.mjs");
+      const { loadTokens } = await import("./ahp/main.mjs");
+      const { localClient } = await import("./client.mjs");
+      const { Operations } = await import("./operations.mjs");
+      const { store } = server.workspace;
+      facade = startAhpFacade({
+        store,
+        client: localClient(server.workspace.ops),
+        file: config.ahp.projection,
+        host: config.ahp.host,
+        port: config.ahp.port,
+        tokens: loadTokens(config.ahp.tokens),
+        manifestPath: config.ahp.manifest,
+        workspaceEndpoint: "http://127.0.0.1:" + server.address().port,
+        models: async () => {
+          const agents = [];
+          for (const provider of ["claude", "codex"])
+            try {
+              const catalog = await server.workspace.ops.execute("models", {
+                provider,
+              });
+              agents.push({
+                provider,
+                displayName: "AICommander " + provider,
+                description: "Sessions owned by this workspace's agent host.",
+                models: catalog.models.map((m) => ({
+                  id: m.id,
+                  provider,
+                  name: m.label || m.id,
+                })),
+                protectedResources: [],
+              });
+            } catch (error) {
+              agents.push({
+                provider,
+                displayName: "AICommander " + provider,
+                description: "Unavailable: " + error.message,
+                models: [],
+                protectedResources: [],
+              });
+            }
+          return agents;
+        },
+      });
+      await facade.listening;
+      console.log(
+        "Agent host facade: " +
+          facade.url +
+          " (addresses in " +
+          config.ahp.manifest +
+          ")",
+      );
+    }
+    const stop = async () => {
+      if (facade) await facade.close();
+      server.drain();
+    };
+    process.once("SIGTERM", stop);
+    process.once("SIGINT", stop);
+  } else if (command === "ahp") {
+    requireDatabase();
+    const { startFacadeForWorkspace } = await import("./ahp/main.mjs");
+    const facade = await startFacadeForWorkspace({
+      dbPath,
+      endpoint,
+      manifestPath: config.ahp.manifest,
+      projectionPath: config.ahp.projection,
+      tokenFile: config.ahp.tokens,
+      host: config.ahp.host,
+      port: config.ahp.port,
+    });
+    console.log(JSON.stringify(describeFacade(facade), null, 2));
+    const stop = async () => {
+      await facade.close();
+      facade.store.close();
+      process.exit(0);
+    };
+    process.once("SIGTERM", stop);
+    process.once("SIGINT", stop);
   } else if (command === "reload") {
     const before = await (await fetch(endpoint + "/api/health")).json();
     await request("server.drain");
@@ -189,6 +286,53 @@ try {
         );
     }
     console.log(JSON.stringify(result, null, 2));
+  } else if (command === "editor") {
+    let manifest = null;
+    try {
+      manifest = JSON.parse(fs.readFileSync(config.ahp.manifest, "utf8"));
+    } catch {}
+    const editorAddress = manifest?.clients?.editor?.address;
+    // A running facade records the endpoint it was pointed at, which is the
+    // live server even when the saved port is not.
+    const liveEndpoint = manifest?.workspaceEndpoint || endpoint;
+    console.log(
+      JSON.stringify(
+        {
+          endpoint: liveEndpoint,
+          workspace: config.workspaceRoot,
+          facade: manifest
+            ? { url: manifest.url, startedAt: manifest.startedAt }
+            : null,
+          // Paste these into the VS Code profile that should drive this
+          // workspace. The address carries the facade's bearer token, so treat
+          // it as a credential and never commit or publish it.
+          settings: {
+            "aicommander.endpoint": liveEndpoint,
+            "aicommander.facadeManifest": config.ahp.manifest,
+            ...(editorAddress
+              ? {
+                  "chat.remoteAgentHostsEnabled": true,
+                  "chat.remoteAgentHosts": [
+                    { address: editorAddress, name: config.name },
+                  ],
+                  "chat.remoteAgentHostsAutoConnect": true,
+                }
+              : {}),
+          },
+          ...(manifest
+            ? {}
+            : {
+                note:
+                  "No facade manifest at " +
+                  config.ahp.manifest +
+                  ". Start one with: aicommander serve --ahp --workspace " +
+                  config.workspaceRoot,
+              }),
+        },
+        null,
+        2,
+      ),
+    );
   } else if (command === "import") {
     const snapshot = JSON.parse(fs.readFileSync(positionals[0], "utf8"));
     const store = new Store(dbPath);
@@ -369,7 +513,9 @@ try {
   } else if (command === "help")
     console.log(`AICommander — plans, tasks, and agents in one local workspace.
   init PATH [--name NAME] [--port 9428]   Create an empty workspace
-  serve --workspace PATH                Start the site and agent host
+  serve --workspace PATH [--ahp]        Start the site and agent host
+  ahp --workspace PATH                  Start the editor agent-host facade
+  editor --workspace PATH               Print editor client settings
   seed --workspace PATH [--example product-launch]
   examples --workspace PATH             List available example packs
   query [--q QUERY] | show TASK_ID | update TASK_ID --status STATUS

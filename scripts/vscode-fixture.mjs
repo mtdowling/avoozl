@@ -81,10 +81,11 @@ export async function createFixture({
   root,
   example = "product-launch",
   name = "VS Code client fixture",
-  port = 0,
+  port = 9428,
 } = {}) {
   root =
-    root || fs.mkdtempSync(path.join(os.tmpdir(), "aicommander-vscode-fixture-"));
+    root ||
+    fs.mkdtempSync(path.join(os.tmpdir(), "aicommander-vscode-fixture-"));
   fs.mkdirSync(root, { recursive: true });
   const workspaceRoot = path.join(root, "workspace"),
     repo = path.join(root, "fixture-repo"),
@@ -92,7 +93,8 @@ export async function createFixture({
   const initialized = initializeWorkspace(workspaceRoot, { name, port });
   fs.mkdirSync(markers, { recursive: true });
   fs.mkdirSync(repo, { recursive: true });
-  const git = (args) => exec("git", args, { cwd: repo }).then((r) => r.stdout.trim());
+  const git = (args) =>
+    exec("git", args, { cwd: repo }).then((r) => r.stdout.trim());
   await git(["init", "-b", "main"]);
   // Identity local to this repository only; no global Git configuration is read
   // for authorship and none is written.
@@ -104,7 +106,11 @@ export async function createFixture({
   fs.writeFileSync(path.join(repo, "slow-command.mjs"), SLOW_COMMAND_SOURCE);
   fs.writeFileSync(path.join(repo, "README.md"), README_SOURCE);
   await git(["add", "."]);
-  await git(["commit", "-m", "Add fixture application, check and slow command"]);
+  await git([
+    "commit",
+    "-m",
+    "Add fixture application, check and slow command",
+  ]);
   const baseCommit = await git(["rev-parse", "HEAD"]);
 
   const store = new Store(initialized.dbPath);

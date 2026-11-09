@@ -181,7 +181,10 @@ export class CodexAdapter {
         observation,
       });
       this.interruption = null;
-      this.emit("turn.completed", { ...outcome, providerStatus: p.turn.status });
+      this.emit("turn.completed", {
+        ...outcome,
+        providerStatus: p.turn.status,
+      });
     } else if (message.method === "item/agentMessage/delta")
       this.emit("message.delta", { text: p.delta || "", itemId: p.itemId });
     else if (
@@ -240,10 +243,13 @@ export class CodexAdapter {
         noActiveTurn: true,
         requestedAt: new Date().toISOString(),
       };
-    this.interruption = requestInterruption(this.observations, reason);
+    // Held locally: the provider may end the turn while this request is in
+    // flight, which clears the adapter's record.
+    const interruption = requestInterruption(this.observations, reason);
+    this.interruption = interruption;
     const turnId = this.turnId;
     await this.rpc("turn/interrupt", { threadId: this.threadId, turnId });
-    acknowledgeInterruption(this.interruption, {
+    acknowledgeInterruption(interruption, {
       api: "codex turn/interrupt",
       turnId,
     });
@@ -251,8 +257,8 @@ export class CodexAdapter {
       requested: true,
       acknowledged: true,
       turnId,
-      requestedAt: this.interruption.requestedAt,
-      acknowledgedAt: this.interruption.acknowledgedAt,
+      requestedAt: interruption.requestedAt,
+      acknowledgedAt: interruption.acknowledgedAt,
     };
   }
   async setModel(model) {
