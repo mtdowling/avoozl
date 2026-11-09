@@ -155,3 +155,7 @@ Run `npm test` before sharing changes. Tests use disposable workspaces and provi
 ## License
 
 MIT. The bundled Marked renderer retains its own license in [src/MARKED-LICENSE.md](src/MARKED-LICENSE.md).
+
+## VS Code client design
+
+The [implementation plan](docs/design/vscode-client.md) and [research handoff](docs/research/vscode/README.md) describe the proposed native client, its prototype evidence, and the gates for replacing website features. The current website remains operational.
