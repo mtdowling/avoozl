@@ -1184,7 +1184,7 @@ async function loadPlan(id) {
   shell.classList.remove("chat-mode");
   $("workspace-heading").textContent = "Review plan";
   $("execution-content").innerHTML =
-    `<section class="execution-card plan-review"><div class="section-heading"><h2>${esc(p.title)}</h2><button type="button" class="copy-markdown" data-copy-draft aria-label="Copy plan Markdown" title="Copy plan Markdown">${copyIcon}</button>${status(p.state)}${p.state !== "approved" ? '<button class="button subtle" data-delete-plan="' + esc(p.id) + '">Delete draft</button>' : ""}</div><p>Review this proposal. Saving preserves a revision; approving creates its tasks.</p><div class="plan-editor-grid"><label>Markdown<textarea id="plan-source" rows="24" spellcheck="false">${esc(p.text)}</textarea></label><section class="plan-preview doc-content" id="plan-live-preview" aria-label="Plan preview">${chatMarkdown(p.text.slice(0, 50000))}</section></div><div class="intent-controls"><button id="save-draft" class="button">Save revision</button><button id="draft-with-agent" class="button">Develop in chat</button><button class="button subtle" data-agent-settings>Agent settings</button>${p.state === "approved" ? '<button id="execute-approved-plan" class="button">Execute approved tasks</button>' : ""}<button id="approve-draft" class="button primary">Approve this revision & create tasks</button></div><p id="plan-feedback" role="status"></p><details><summary>Approval history</summary>${p.approvals.map((a) => `<p>${esc(a.approvedBy)} · ${esc(a.at)}<br>${esc(a.evidence)}</p>`).join("") || "<p>Not approved.</p>"}</details></section>`;
+    `<section class="execution-card plan-review"><div class="section-heading"><h2>${esc(p.title)}</h2><button type="button" class="copy-markdown" data-copy-draft aria-label="Copy plan Markdown" title="Copy plan Markdown">${copyIcon}</button>${status(p.state)}${p.state !== "approved" ? '<button class="button subtle" data-delete-plan="' + esc(p.id) + '">Delete draft</button>' : ""}</div><p>Review this proposal. Saving preserves a revision; approving creates its tasks.</p><div class="plan-editor-grid"><label>Markdown<textarea id="plan-source" rows="24" spellcheck="false">${esc(p.text)}</textarea></label><section class="plan-preview doc-content" id="plan-live-preview" aria-label="Plan preview">${chatMarkdown(p.text.slice(0, 50000))}</section></div><div class="intent-controls"><button id="save-draft" class="button">Save revision</button><button id="draft-with-agent" class="button">Develop in chat</button><button class="button subtle" data-agent-settings>Agent settings</button>${p.state === "approved" ? '<button id="execute-approved-plan" class="button">Execute approved tasks</button>' : ""}<button id="approve-draft" class="button primary">Approve this revision & create tasks</button></div><p id="plan-feedback" role="status"></p><details><summary>Approval history</summary>${p.approvals.map((a) => `<p>${esc(a.approvedBy || "Unattributed")} · ${esc(a.at)}<br>Revision ${esc(a.hash.slice(0, 12))} · ${(a.taskIds || []).length} task${(a.taskIds || []).length === 1 ? "" : "s"}${a.evidence ? "<br>" + esc(a.evidence) : ""}</p>`).join("") || "<p>Not approved.</p>"}</details></section>`;
 }
 $("intent-form").onsubmit = (e) => {
   e.preventDefault();
@@ -1648,12 +1648,12 @@ shell.addEventListener("click", async (e) => {
     if (b.id === "approve-draft") {
       if (planDraft.dirty)
         throw Error("Save this revision before approving it.");
+      // The reviewed hash and revision are the authorization. The workspace
+      // operator is recorded server-side; evidence stays for a real statement.
       const receipt = await call("plan.approve", {
         id: planDraft.id,
         expectedHash: planDraft.hash,
         expectedRevision: workspace.revision,
-        approvedBy: "Local user",
-        evidence: "Explicit approval of the displayed document revision.",
       });
       await loadPlan(planDraft.id);
       note(receipt.taskIds.length + " tasks created");

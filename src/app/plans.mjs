@@ -220,8 +220,8 @@ export function approvePlan(
   store,
   { id, expectedHash, expectedRevision, approvedBy, evidence },
 ) {
-  if (!approvedBy?.trim() || !evidence?.trim())
-    fail("Record who authorized this revision and the approval evidence.");
+  // Authorization is the reviewed hash and database revision below. Who
+  // approved and why are recorded when supplied; typing them proves nothing.
   return store.transaction(() => {
     const plan = store.get("plans", id);
     if (!plan) fail("Plan not found.", 404);
@@ -449,12 +449,11 @@ export function approvePlan(
       planId: id,
       hash: plan.hash,
       source: plan.text,
-      approvedBy,
-      evidence,
+      approvedBy: approvedBy?.trim() || "",
+      evidence: evidence?.trim() || "",
       at: now,
       mapping,
       taskIds: Object.values(mapping),
-      databaseRevision: data.revision + 1,
     };
     store.put("approvals", receipt);
     plan.state = "approved";

@@ -27,10 +27,39 @@ import { taskSignals, isPlanInventory } from "../workbench-model.mjs";
 import { ExternalSessions } from "./external-sessions.mjs";
 import { listExamples, seedExample } from "./examples.mjs";
 
+// Acceptance evidence a caller did not type, when validateRun already recorded
+// passing checks for the commit being accepted. A failed or absent validation
+// derives nothing: acceptance stays the operator's own statement.
+function validatedEvidence(store, data, task) {
+  const records = store
+      .list("evidence")
+      .filter(
+        (e) =>
+          e.kind === "command" &&
+          typeof e.commit === "string" &&
+          resolveTaskId(data, e.taskId) === task.id,
+      ),
+    commit = task.integration?.commit || records[0]?.commit;
+  if (!commit) return "";
+  const matching = records.filter((e) => e.commit === commit);
+  if (!matching.length || matching.some((e) => e.exitCode !== 0)) return "";
+  // Validation and integration revalidation record the same command twice.
+  // Report the distinct checks, not how many times they ran.
+  const checks = [
+    ...new Set(matching.map((e) => (e.argv || []).join(" ")).filter(Boolean)),
+  ];
+  if (!checks.length) return "";
+  return (
+    `${checks.length} configured check${checks.length === 1 ? "" : "s"} passed at commit ${commit.slice(0, 12)}: ` +
+    checks.join("; ")
+  ).slice(0, 2000);
+}
 export class Operations {
-  constructor(store, { manager = null, externalSessions } = {}) {
+  constructor(store, { manager = null, externalSessions, operator } = {}) {
     this.store = store;
     this.manager = manager;
+    // Provenance for records this workspace mints; never an authorization.
+    this.operator = operator || "";
     this.externalSessions = externalSessions || new ExternalSessions(store);
     this.batches =
       manager && !manager.remote ? new Batches(store, manager) : null;
@@ -754,6 +783,7 @@ export class Operations {
     if (name === "plan.approve")
       return approvePlan(store, {
         ...input,
+        approvedBy: input.approvedBy?.trim() || this.operator,
         expectedRevision: input.expectedRevision ?? expectedRevision,
       });
     if (name === "project.configure") {
@@ -829,12 +859,12 @@ export class Operations {
         (data) => {
           const task = data.tasks.find((t) => t.id === input.id);
           if (!task) fail("Task not found.", 404);
-          if (!input.evidence?.trim()) fail("Acceptance evidence is required.");
           if (!task.integration && !input.componentOnly)
             fail("Record integration before whole-head acceptance.");
           task.acceptanceEvidence = {
             at: new Date().toISOString(),
-            evidence: input.evidence,
+            evidence:
+              input.evidence?.trim() || validatedEvidence(store, data, task),
             componentOnly: Boolean(input.componentOnly),
           };
           task.status = input.componentOnly ? "implemented" : "accepted";

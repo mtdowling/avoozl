@@ -66,7 +66,7 @@ const operations = {
   ],
   plans_approve_plan: [
     "plan.approve",
-    "Extract an explicitly authorized revision into tasks atomically. Requires expectedHash, expectedRevision, approvedBy and approval evidence.",
+    "Extract an explicitly authorized revision into tasks atomically. Requires expectedHash and expectedRevision; the reviewed document hash and database revision are the authorization. approvedBy and evidence are optional: approvedBy defaults to the workspace operator, and evidence records a real statement when there is one.",
   ],
   plans_start_run: [
     "run.start",
