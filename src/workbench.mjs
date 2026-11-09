@@ -1,0 +1,513 @@
+import {
+  taskTree,
+  nowBoard,
+  taskSignals,
+  taskIndex,
+  taskSession,
+  activeRunStates,
+  recentLandings,
+} from "./workbench-model.mjs";
+import { createVirtualList } from "./virtual-list.mjs";
+const esc = (value) =>
+  String(value ?? "").replace(
+    /[&<>"']/g,
+    (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        c
+      ],
+  );
+export function createWorkbench({
+  tasksElement,
+  nowElement,
+  badge,
+  epicName,
+  trackName,
+  refresh,
+  setCount,
+}) {
+  const prefs = { completed: false, inventory: false };
+  try {
+    Object.assign(
+      prefs,
+      JSON.parse(localStorage.getItem("nupp-plans-workbench-v1") || "{}"),
+    );
+  } catch {}
+  const expanded = new Map(),
+    nowExpanded = new Set(),
+    pages = new Map(),
+    sessionStates = new Map();
+  let current,
+    virtual = null,
+    treeScroll = 0,
+    nowScroll = 0,
+    nowPayload = null,
+    nowAt = 0,
+    nowTimer,
+    nowRequest = null,
+    requestController;
+  const save = () => {
+    try {
+      localStorage.setItem("nupp-plans-workbench-v1", JSON.stringify(prefs));
+    } catch {}
+  };
+  function groupName(key, group) {
+    return group === "epic"
+      ? epicName(key)
+      : group === "track"
+        ? trackName(key)
+        : group === "status"
+          ? current.data.statuses.find((s) => s.id === key)?.label || key
+          : "#" + key;
+  }
+  function age(value) {
+    const seconds = Math.max(
+      0,
+      Math.floor((Date.now() - Date.parse(value)) / 1000),
+    );
+    return !Number.isFinite(seconds)
+      ? "No check-in"
+      : seconds < 60
+        ? "Just now"
+        : seconds < 3600
+          ? Math.floor(seconds / 60) + "m ago"
+          : seconds < 86400
+            ? Math.floor(seconds / 3600) + "h ago"
+            : Math.floor(seconds / 86400) + "d ago";
+  }
+  function blockers(task) {
+    const signals = taskSignals(current.data, task),
+      index = taskIndex(current.data);
+    return signals.blockers.length
+      ? `<div class="task-blockers"><span>Blocked by</span> ${signals.blockers
+          .slice(0, 3)
+          .map(
+            (id) =>
+              `<button data-task="${esc(id)}">${esc(index.tasks.get(id)?.title || id)}</button>`,
+          )
+          .join(
+            "<span> · </span>",
+          )}${signals.blockers.length > 3 ? ' <button data-task="' + esc(task.id) + '">+' + (signals.blockers.length - 3) + " more</button>" : ""}</div>`
+      : task.status === "blocked"
+        ? '<div class="task-blockers unspecified"><span>Blocked · no specific prerequisite recorded</span></div>'
+        : "";
+  }
+  function taskRow(task) {
+    const signals = taskSignals(current.data, task),
+      owner = task.activity?.owner || task.owner;
+    return `<article class="tree-task" data-workbench-task="${esc(task.id)}"><div class="tree-title-cell"><button class="tree-task-open" title="${esc(task.title)}" data-task="${esc(task.id)}"><span class="tree-task-title">${esc(task.title)}</span></button><small>${esc(trackName(task.track))} · ${esc(task.id)}</small></div><div class="tree-state-cell">${badge(task.status)}${signals.activity === "active" ? '<small class="tree-live">● In flight</small>' : signals.ready ? "<small>Ready</small>" : ""}</div><div class="tree-owner-cell" data-label="Owner">${esc(owner || "—")}</div><div class="tree-next-cell" data-label="Next" title="${esc(task.nextAction || task.summary || "")}">${esc(task.nextAction || task.summary || "—")}</div><div class="tree-blocker-cell" data-label="Blocked by">${blockers(task) || '<span class="muted">—</span>'}</div><button class="tree-graph" data-focus-task="${esc(task.id)}" aria-label="Connections for ${esc(task.title)}" title="Connections">↗</button></article>`;
+  }
+  function taskHeight(task) {
+    if (matchMedia("(min-width:600px) and (max-width:900px)").matches)
+      return 176;
+    if (matchMedia("(max-width:900px)").matches)
+      return taskSignals(current.data, task).blockers.length ||
+        task.status === "blocked"
+        ? 252
+        : 210;
+    return taskSignals(current.data, task).blockers.length > 1 ? 74 : 62;
+  }
+
+  function flattened(roots) {
+    const rows = [];
+    for (const root of roots) {
+      const key = current.group + ":" + root.key;
+      if (!expanded.has(key))
+        expanded.set(
+          key,
+          Boolean(
+            (current.narrow && roots.length < 8) ||
+              root.tasks.some((t) => t.id === current.selected),
+          ),
+        );
+      rows.push({ id: "root:" + key, type: "root", root, key, height: 52 });
+      if (expanded.get(key))
+        for (const child of root.children) {
+          rows.push({
+            id: "group:" + key + ":" + child.key,
+            type: "group",
+            child,
+            height: 28,
+          });
+          for (const task of child.tasks)
+            rows.push({
+              id: key + ":" + task.id,
+              type: "task",
+              task,
+              height: taskHeight(task),
+            });
+        }
+    }
+    return rows;
+  }
+  function renderTasks(input) {
+    current = { ...input, view: "tasks" };
+    clearTimeout(nowTimer);
+    const roots = taskTree(input.data, input.rows, {
+        ...prefs,
+        group: input.group,
+      }),
+      visible = new Set(roots.flatMap((r) => r.tasks.map((t) => t.id))).size;
+    setCount(
+      visible.toLocaleString() + " tasks",
+      "Groups expand into windowed task rows",
+    );
+    treeScroll =
+      tasksElement.querySelector(".task-tree-window")?.scrollTop ?? treeScroll;
+    virtual?.destroy();
+    tasksElement.innerHTML = `<div class="workbench-controls"><label><input type="checkbox" aria-label="Show completed tasks" data-workbench-pref="completed" ${prefs.completed ? "checked" : ""}> Completed</label><label><input type="checkbox" aria-label="Include imported tasks" data-workbench-pref="inventory" ${prefs.inventory ? "checked" : ""}> Imported</label><button class="icon-button" data-tree-expand aria-label="Expand all groups" title="Expand all groups"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m6 6 6 5 6-5m-12 7 6 5 6-5"/></svg></button><button class="icon-button" data-tree-collapse aria-label="Collapse all groups" title="Collapse all groups"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m6 11 6-5 6 5m-12 7 6-5 6 5"/></svg></button></div><div class="task-tree-window"></div>`;
+    const viewport = tasksElement.querySelector(".task-tree-window");
+    virtual = createVirtualList(viewport, {
+      items: [
+        { id: "tree-heading", type: "heading", height: 64 },
+        ...(!matchMedia("(max-width:900px)").matches
+          ? [{ id: "tree-columns", type: "columns", height: 32 }]
+          : []),
+        ...flattened(roots),
+      ],
+      height: (r) => r.height,
+      key: (r) => r.id,
+      label: "Task tree rows",
+      render: (r) =>
+        r.type === "heading"
+          ? `<header class="tree-scroll-heading"><h2>Task tree</h2><p>${visible.toLocaleString()} tasks · select a task for its plan and evidence.</p></header>`
+          : r.type === "columns"
+            ? '<div class="tree-table-heading"><span>Task / track</span><span>Status</span><span>Owner / agent</span><span>Next action</span><span>Blocked by</span><span></span></div>'
+            : r.type === "task"
+              ? taskRow(r.task)
+              : r.type === "group"
+                ? `<h4 class="tree-track-heading">${esc(input.group === "track" ? epicName(r.child.key) : trackName(r.child.key))}<span>${r.child.tasks.length}</span></h4>`
+                : `<button class="tree-group-toggle" data-tree-group="${esc(r.key)}" aria-expanded="${expanded.get(r.key)}"><span class="tree-chevron">${expanded.get(r.key) ? "⌄" : "›"}</span><span><strong>${esc(groupName(r.root.key, input.group))}</strong><small>${r.root.tasks.length} tasks · ${r.root.complete} / ${r.root.total} complete</small></span><span class="tree-percent">${Math.round((r.root.complete / r.root.total) * 100)}%</span></button>`,
+    });
+    viewport.scrollTop = treeScroll;
+  }
+  function person(task) {
+    return task.activity?.owner || task.owner || "Unassigned";
+  }
+  function sessionNote(task) {
+    if (!nowExpanded.has("session:" + task.id)) return "";
+    const state = sessionStates.get(task.id),
+      loading = state?.status === "loading";
+    return `<div class="hub-session-note" role="status"><p><strong>${loading ? "Checking connected sessions…" : state?.error ? "Could not check this session" : "External check-in · transcript not connected"}</strong></p>${loading ? "" : state?.error ? "<p>" + esc(state.error) + "</p>" : "<p>This worker reports progress from outside the site’s agent host. Link its existing Claude session to read the transcript here. Direction changes do not send a message to the external worker.</p>"}<button class="button subtle" data-link-session="${esc(task.id)}">Link Claude session</button><small>Session: ${esc(task.activity?.sessionId || "Not reported")}${task.activity?.branch ? " · Branch: " + esc(task.activity.branch) : ""}</small><button class="text-button" data-reported-close="${esc(task.id)}" aria-label="Close session explanation">Close</button></div>`;
+  }
+  function taskSummary(task, { running = false } = {}) {
+    const signals = taskSignals(current.data, task),
+      linked = running ? taskSession(nowPayload?.runs || [], task) : null,
+      open = linked
+        ? 'data-open-run="' + esc(linked.id) + '"'
+        : running
+          ? 'data-reported-task="' + esc(task.id) + '"'
+          : 'data-task="' + esc(task.id) + '"';
+    return `<article class="hub-work-row" data-workbench-task="${esc(task.id)}" ${running && !linked ? 'data-reported-task="' + esc(task.id) + '"' : ""}><div class="hub-work-marker ${running ? "is-working" : signals.blockers.length ? "is-blocked" : ""}"></div><div class="hub-work-copy"><button class="hub-task-name" ${open}>${esc(task.title)}</button><p>${esc(running ? task.activity?.summary || task.nextAction || "Work reported" : task.nextAction || task.summary || "Open the task for context.")}</p>${blockers(task)}<small>${esc(person(task))} · ${esc(epicName(task.epic))}${task.activity ? " · " + age(task.activity.heartbeatAt) : ""}${running && !linked ? " · External check-in" : ""}</small>${running && !linked ? sessionNote(task) : ""}</div><div class="hub-row-actions">${linked ? '<button class="button subtle" data-open-run="' + esc(linked.id) + '">Open session</button>' : '<button class="button subtle" data-edit="' + esc(task.id) + '">Update direction</button>'}${signals.blockers.length ? '<button class="text-button" data-ask-task="' + esc(task.id) + '">Help unblock</button>' : ""}<button class="text-button" data-task="${esc(task.id)}">Details ↗</button></div></article>`;
+  }
+  function runSummary(run) {
+    return `<article class="hub-work-row" data-open-run="${esc(run.id)}"><div class="hub-work-marker is-working"></div><div class="hub-work-copy"><button class="hub-task-name" data-open-run="${esc(run.id)}">${esc(run.title || run.taskId)}</button><p>${run.state === "starting" ? "Connecting to the agent…" : run.state === "waiting-approval" ? "Waiting for approval" : run.state === "waiting-input" ? "Waiting for your answer" : "Agent is working"} · Live transcript and message queue</p><small>${esc(run.provider)}${run.model ? " · " + esc(run.model) : ""} · ${esc(run.projectId)} · ${age(run.lastObservedAt || run.createdAt)}</small></div><div class="hub-row-actions"><button class="button" data-open-run="${esc(run.id)}">Open session</button></div></article>`;
+  }
+  async function openReportedSession(id) {
+    if (!current || current.view !== "now") return;
+    const task = taskIndex(current.data).tasks.get(id);
+    if (!task) return;
+    const linked = taskSession(nowPayload?.runs || [], task);
+    if (linked) {
+      window.dispatchEvent(
+        new CustomEvent("nupp-open-session", {
+          detail: { id: linked.id, steer: false },
+        }),
+      );
+      return;
+    }
+    const saved = sessionStates.get(id);
+    if (
+      saved?.sessionId === task.activity?.sessionId &&
+      saved.status === "loading"
+    )
+      return;
+    sessionStates.set(id, {
+      sessionId: task.activity?.sessionId,
+      status: "loading",
+    });
+    nowExpanded.add("session:" + id);
+    paintNow();
+    try {
+      const r = await fetch("/api/command", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ operation: "task.sessions", input: { id } }),
+        }),
+        body = await r.json();
+      if (!r.ok) throw Error(body.error || "Sessions unavailable. Try again.");
+      const run = taskSession(body.result || [], task);
+      sessionStates.set(id, {
+        sessionId: task.activity?.sessionId,
+        status: run ? "connected" : "external",
+      });
+      if (current?.view !== "now") return;
+      if (run)
+        window.dispatchEvent(
+          new CustomEvent("nupp-open-session", {
+            detail: { id: run.id, steer: false },
+          }),
+        );
+      else paintNow();
+    } catch (error) {
+      sessionStates.set(id, {
+        sessionId: task.activity?.sessionId,
+        status: "error",
+        error: error.message,
+      });
+      paintNow();
+    }
+  }
+  function landingSummary(row) {
+    const { task } = row,
+      label =
+        row.acceptance === "accepted"
+          ? "Accepted"
+          : row.acceptance === "component"
+            ? "Component accepted"
+            : "Acceptance pending",
+      date = new Date(row.at).toLocaleString("en-US", {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      });
+    return `<article class="hub-landing-row"><div class="hub-landing-copy"><button class="hub-task-name" data-task="${esc(task.id)}">${esc(task.title)}</button><small>${esc(epicName(task.epic))} · <time datetime="${esc(row.at)}" title="${esc(date)}">${age(row.at)}</time> · <code title="${esc(row.commit)}">${esc(row.commit.slice(0, 9))}</code>${row.branch ? " · " + esc(row.branch) : ""}</small></div><div class="hub-landing-actions"><span class="hub-landing-state ${row.acceptance === "accepted" ? "is-accepted" : ""}">${label}</span><button class="icon-button" data-task="${esc(task.id)}" aria-label="Review ${esc(task.title)} and its evidence" title="Review task and evidence">↗</button>${row.runId ? '<button class="icon-button" data-open-run="' + esc(row.runId) + '" aria-label="Open landing session" title="Open session">◷</button>' : ""}</div></article>`;
+  }
+  function paged(tasks, key, render, size = 8) {
+    const page = Math.min(
+        pages.get(key) || 0,
+        Math.max(0, Math.ceil(tasks.length / size) - 1),
+      ),
+      start = page * size;
+    return (
+      tasks
+        .slice(start, start + size)
+        .map(render)
+        .join("") +
+      (tasks.length > size
+        ? `<div class="list-pager"><button class="button subtle" data-now-page="${key}" data-page="${Math.max(0, page - 1)}" ${page === 0 ? "disabled" : ""}>Previous</button><small>${start + 1}–${Math.min(tasks.length, start + size)} of ${tasks.length}</small><button class="button subtle" data-now-page="${key}" data-page="${page + 1}" ${start + size >= tasks.length ? "disabled" : ""}>Next</button></div>`
+        : "")
+    );
+  }
+  function fold(key, title, tasks, render) {
+    return `<details class="hub-fold" data-now-fold="${key}" ${nowExpanded.has(key) ? "open" : ""}><summary>${title}<span>${tasks.length}</span></summary><div>${nowExpanded.has(key) ? paged(tasks, key, render) : ""}</div></details>`;
+  }
+  function paintNow() {
+    if (!current || current.view !== "now" || nowElement.hidden) return;
+    const { data, rows } = current,
+      lanes = nowBoard(data, rows, prefs),
+      w = nowPayload || { runs: [], requests: [], integrations: [] },
+      active = w.runs.filter((r) => activeRunStates.has(r.state)),
+      external = lanes.reported.filter((t) => !taskSession(active, t)),
+      requests = w.requests || [],
+      index = taskIndex(data),
+      ready = [...lanes.ready].sort(
+        (a, b) =>
+          taskSignals(data, b).dependents.length -
+          taskSignals(data, a).dependents.length,
+      ),
+      inProgress = active.length + external.length,
+      landings = recentLandings(data, rows, w.recentIntegrations || []);
+    setCount(
+      inProgress + " in progress",
+      requests.length ? requests.length + " waiting for you" : "",
+    );
+    nowScroll = nowElement.scrollTop;
+    nowElement.innerHTML = `<header class="hub-heading"><div><span class="hub-date">${new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</span><h1>Now</h1><p>A clear view of the work. A place to change its direction.</p></div><button class="button primary" data-ask-blockers>Ask about blockers</button></header><div class="hub-pulse" style="--hub-pulse-columns:${requests.length ? 4 : 3}"><button data-jump-hub="working"><strong>${inProgress}</strong><span>In progress</span></button>${requests.length ? `<button data-jump-hub="decisions"><strong>${requests.length}</strong><span>Need your input</span></button>` : ""}<button data-jump-hub="blocked"><strong>${lanes.blocked.length}</strong><span>Blocked</span></button><button data-jump-hub="ready"><strong>${ready.length}</strong><span>Ready next</span></button></div>
+ <section class="hub-section hub-decisions" id="hub-decisions" ${requests.length || (w.integrations || []).length ? "" : "hidden"}>${requests.length ? `<div class="section-heading"><h2>Needs your input</h2><span>${requests.length} pending</span></div>` : ""}${
+   requests.length
+     ? requests
+         .slice(0, 12)
+         .map((q) => {
+           const run = w.runs.find((r) => r.id === q.runId);
+           return `<article class="hub-decision"><div><small>${q.kind === "input" ? "Question" : "Approval"} · ${esc(run?.provider || "Agent")}</small><h3>${esc(run?.title || q.method)}</h3><p>${q.kind === "input" ? "The agent needs an answer to continue." : "Review the requested action before the agent continues."}</p></div><button class="button primary" data-open-run="${esc(q.runId)}">Review & respond</button></article>`;
+         })
+         .join("")
+     : ""
+ }${(w.integrations || []).length ? `<button class="hub-integration-link" data-open-integration>${w.integrations.length} validated ${w.integrations.length === 1 ? "branch is" : "branches are"} ready to review and integrate →</button>` : ""}</section>
+ <section class="hub-section" id="hub-working"><div class="section-heading"><h2>In progress</h2><span>${nowPayload ? "Updated " + age(new Date(nowAt).toISOString()) : "Loading connected sessions…"}</span></div>${active.map(runSummary).join("")}${paged(external, "working", (t) => taskSummary(t, { running: true }))}${!inProgress ? '<p class="hub-empty">No work is currently reported. Unreported external work may still be running.</p>' : ""}</section>
+ ${landings.length ? '<section class="hub-section hub-landings" id="hub-landed"><div class="section-heading"><h2>Recently landed</h2><span>Last 30 days · current filters</span></div>' + paged(landings, "landed", landingSummary, 5) + "</section>" : ""}
+ <section class="hub-section" id="hub-ready"><div class="section-heading"><h2>Up next</h2><span>Ready work with the most dependent tasks first</span></div>${paged(ready, "ready", (t) => taskSummary(t)) || '<p class="hub-empty">No matching tasks are ready.</p>'}</section>
+ <section class="hub-section" id="hub-blocked">${fold("blocked", "Blocked work", lanes.blocked, (t) => taskSummary(t))}${fold("checkins", "Check-ins & context to review", lanes.attention, (t) => taskSummary(t))}${fold("completed", "Recently updated completed work", lanes.completed, (t) => taskSummary(t))}</section>
+ ${
+   w.runs.some((r) => r.state === "completed" && r.mode === "ask")
+     ? '<section class="hub-section"><div class="section-heading"><h2>Recent conversations</h2></div>' +
+       w.runs
+         .filter((r) => r.state === "completed" && r.mode === "ask")
+         .slice(0, 4)
+         .map(
+           (r) =>
+             `<button class="hub-conversation" data-open-run="${esc(r.id)}">${esc(r.title || r.taskId)}<span>Open chat →</span></button>`,
+         )
+         .join("") +
+       "</section>"
+     : ""
+ }`;
+    nowElement.scrollTop = nowScroll;
+  }
+  async function updateNow() {
+    if (
+      nowRequest ||
+      current?.view !== "now" ||
+      nowElement.hidden ||
+      document.hidden
+    )
+      return;
+    requestController = new AbortController();
+    nowRequest = fetch("/api/workspace", { signal: requestController.signal })
+      .then((r) => {
+        if (!r.ok) throw Error("Sessions unavailable");
+        return r.json();
+      })
+      .then((w) => {
+        nowPayload = w;
+        nowAt = Date.now();
+        paintNow();
+      })
+      .catch(() => {})
+      .finally(() => {
+        nowRequest = null;
+        clearTimeout(nowTimer);
+        if (current?.view === "now" && !document.hidden)
+          nowTimer = setTimeout(updateNow, 10000);
+      });
+    return nowRequest;
+  }
+  function renderNow(input) {
+    virtual?.destroy();
+    virtual = null;
+    current = { ...input, view: "now" };
+    paintNow();
+    if (Date.now() - nowAt > 5000) updateNow();
+  }
+  tasksElement.addEventListener("click", (e) => {
+    const group = e.target.closest("[data-tree-group]");
+    if (group) {
+      const key = group.dataset.treeGroup;
+      expanded.set(key, !expanded.get(key));
+      refresh();
+    }
+    if (
+      e.target.closest("[data-tree-expand]") ||
+      e.target.closest("[data-tree-collapse]")
+    ) {
+      const open = Boolean(e.target.closest("[data-tree-expand]"));
+      for (const root of taskTree(current.data, current.rows, {
+        ...prefs,
+        group: current.group,
+      }))
+        expanded.set(current.group + ":" + root.key, open);
+      refresh();
+    }
+  });
+  for (const el of [tasksElement, nowElement])
+    el.addEventListener("change", (e) => {
+      if (e.target.dataset.workbenchPref) {
+        prefs[e.target.dataset.workbenchPref] = e.target.checked;
+        save();
+        refresh();
+      }
+    });
+  nowElement.addEventListener(
+    "toggle",
+    (e) => {
+      const key = e.target.dataset.nowFold;
+      if (!key || !e.target.isConnected) return;
+      if (e.target.open) nowExpanded.add(key);
+      else nowExpanded.delete(key);
+      const tasks = nowBoard(current.data, current.rows, prefs)[
+        key === "checkins" ? "attention" : key
+      ];
+      e.target.querySelector("div").innerHTML = e.target.open
+        ? paged(tasks, key, (t) => taskSummary(t))
+        : "";
+    },
+    true,
+  );
+  nowElement.addEventListener("click", (e) => {
+    const link = e.target.closest("[data-link-session]");
+    if (link) {
+      window.dispatchEvent(
+        new CustomEvent("nupp-link-session", {
+          detail: { taskId: link.dataset.linkSession },
+        }),
+      );
+      return;
+    }
+    const open = e.target.closest("[data-open-run]"),
+      reported = e.target.closest("[data-reported-task]"),
+      close = e.target.closest("[data-reported-close]"),
+      page = e.target.closest("[data-now-page]"),
+      jump = e.target.closest("[data-jump-hub]");
+    if (close) {
+      nowExpanded.delete("session:" + close.dataset.reportedClose);
+      paintNow();
+    } else if (
+      reported &&
+      !e.target.closest("[data-task],[data-edit],.hub-session-note")
+    )
+      openReportedSession(reported.dataset.reportedTask);
+    if (open)
+      window.dispatchEvent(
+        new CustomEvent("nupp-open-session", {
+          detail: { id: open.dataset.openRun, steer: false },
+        }),
+      );
+    if (page) {
+      pages.set(page.dataset.nowPage, Number(page.dataset.page));
+      paintNow();
+    }
+    if (jump) {
+      const target = nowElement.querySelector("#hub-" + jump.dataset.jumpHub);
+      if (jump.dataset.jumpHub === "blocked") {
+        nowExpanded.add("blocked");
+        paintNow();
+      }
+      target?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    const ask = e.target.closest("[data-ask-task]");
+    if (ask)
+      window.dispatchEvent(
+        new CustomEvent("nupp-ask-context", {
+          detail: {
+            taskId: ask.dataset.askTask,
+            prompt:
+              "What blocks this task, and do you need a decision from me?",
+          },
+        }),
+      );
+    if (e.target.closest("[data-ask-blockers]"))
+      window.dispatchEvent(
+        new CustomEvent("nupp-ask-context", {
+          detail: {
+            prompt:
+              "What tasks are blocked and do I need to weigh in to unblock them?",
+          },
+        }),
+      );
+    if (e.target.closest("[data-open-integration]"))
+      window.dispatchEvent(new CustomEvent("nupp-open-integration"));
+  });
+  return {
+    renderTasks,
+    renderNow,
+    select(id) {
+      if (current) current.selected = id;
+      for (const row of document.querySelectorAll("[data-workbench-task]"))
+        row.classList.toggle("selected", row.dataset.workbenchTask === id);
+    },
+    suspend() {
+      if (current?.view === "tasks")
+        treeScroll =
+          tasksElement.querySelector(".task-tree-window")?.scrollTop ||
+          treeScroll;
+      virtual?.destroy();
+      virtual = null;
+      clearTimeout(nowTimer);
+      requestController?.abort();
+      current = null;
+      tasksElement.replaceChildren();
+      nowElement.replaceChildren();
+    },
+  };
+}

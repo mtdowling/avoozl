@@ -1,0 +1,368 @@
+import { DatabaseSync } from "node:sqlite";
+import fs from "node:fs";
+import path from "node:path";
+import { digest, validate } from "../model.mjs";
+
+export const canonical = (value) => JSON.stringify(normalize(value));
+function normalize(value) {
+  if (Array.isArray(value)) return value.map(normalize);
+  if (value && typeof value === "object")
+    return Object.fromEntries(
+      Object.keys(value)
+        .sort()
+        .map((k) => [k, normalize(value[k])]),
+    );
+  return value;
+}
+export function fail(message, status = 400) {
+  const error = Error(message);
+  error.status = status;
+  throw error;
+}
+const stamp = () => new Date().toISOString();
+export class Store {
+  constructor(filename) {
+    if (filename !== ":memory:")
+      fs.mkdirSync(path.dirname(path.resolve(filename)), { recursive: true });
+    this.filename = filename;
+    this.db = new DatabaseSync(filename);
+    this.db
+      .exec(`PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;
+   CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS entities(kind TEXT NOT NULL,id TEXT NOT NULL,ordinal INTEGER NOT NULL,body TEXT NOT NULL,PRIMARY KEY(kind,id));
+   CREATE TABLE IF NOT EXISTS baseline(kind TEXT NOT NULL,id TEXT NOT NULL,body TEXT NOT NULL,PRIMARY KEY(kind,id));
+   CREATE TABLE IF NOT EXISTS plans(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS approvals(id TEXT PRIMARY KEY,plan_id TEXT NOT NULL,hash TEXT NOT NULL,body TEXT NOT NULL,UNIQUE(plan_id,hash));
+   CREATE TABLE IF NOT EXISTS runs(id TEXT PRIMARY KEY,task_id TEXT NOT NULL,state TEXT NOT NULL,body TEXT NOT NULL);
+   CREATE INDEX IF NOT EXISTS runs_task ON runs(task_id,state);
+   CREATE TABLE IF NOT EXISTS events(seq INTEGER PRIMARY KEY AUTOINCREMENT,run_id TEXT,kind TEXT NOT NULL,at TEXT NOT NULL,body TEXT NOT NULL);
+   CREATE INDEX IF NOT EXISTS events_run ON events(run_id,seq);
+   CREATE TABLE IF NOT EXISTS requests(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS deliveries(id TEXT PRIMARY KEY,run_id TEXT NOT NULL,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS outbox(id TEXT PRIMARY KEY,path TEXT NOT NULL,text TEXT NOT NULL,expected_hash TEXT,state TEXT NOT NULL DEFAULT 'pending');
+   CREATE TABLE IF NOT EXISTS evidence(id TEXT PRIMARY KEY,task_id TEXT NOT NULL,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS integration(id TEXT PRIMARY KEY,task_id TEXT NOT NULL,state TEXT NOT NULL,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS projects(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS work_locks(id TEXT PRIMARY KEY,project_id TEXT NOT NULL,kind TEXT NOT NULL,pid INTEGER NOT NULL,token TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS receipts(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS batches(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS usage_counters(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS usage_samples(id TEXT PRIMARY KEY,run_id TEXT NOT NULL,task_id TEXT NOT NULL,at TEXT NOT NULL,body TEXT NOT NULL);
+   CREATE INDEX IF NOT EXISTS usage_samples_task ON usage_samples(task_id,at);
+  `);
+  }
+  transaction(fn) {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const result = fn();
+      this.db.exec("COMMIT");
+      this.cache = null;
+      return result;
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      this.cache = null;
+      throw error;
+    }
+  }
+  getMeta(key) {
+    const row = this.db.prepare("SELECT value FROM meta WHERE key=?").get(key);
+    return row ? JSON.parse(row.value) : null;
+  }
+  setMeta(key, value) {
+    this.db
+      .prepare(
+        "INSERT INTO meta VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+      )
+      .run(key, JSON.stringify(value));
+  }
+  initialized() {
+    return Boolean(this.getMeta("snapshot"));
+  }
+  read() {
+    const metadata = this.getMeta("snapshot");
+    if (!metadata) fail("Import a JSON snapshot first.", 503);
+    if (this.cache?.revision === metadata.revision) return this.cache;
+    const data = { ...metadata, tasks: [], documents: {}, edges: [] };
+    for (const row of this.db
+      .prepare("SELECT * FROM entities ORDER BY kind,ordinal")
+      .all()) {
+      const value = JSON.parse(row.body);
+      if (row.kind === "task") data.tasks.push(value);
+      else if (row.kind === "document") data.documents[row.id] = value;
+      else if (row.kind === "edge") data.edges.push(value);
+    }
+    this.cache = data;
+    return data;
+  }
+  write(data) {
+    const errors = validate(data);
+    if (errors.length) fail(errors.join("\n"), 422);
+    const { tasks, documents, edges, ...metadata } = data;
+    this.setMeta("snapshot", metadata);
+    const seen = new Set(),
+      upsert = this.db.prepare(
+        "INSERT INTO entities VALUES (?,?,?,?) ON CONFLICT(kind,id) DO UPDATE SET ordinal=excluded.ordinal,body=excluded.body WHERE body<>excluded.body OR ordinal<>excluded.ordinal",
+      );
+    for (const [kind, rows] of [
+      ["task", tasks.map((t) => [t.id, t])],
+      ["document", Object.entries(documents)],
+      ["edge", edges.map((e, i) => [e.id || "edge-" + i, e])],
+    ])
+      rows.forEach(([id, value], i) => {
+        seen.add(kind + "\0" + id);
+        upsert.run(kind, id, i, JSON.stringify(value));
+      });
+    for (const row of this.db.prepare("SELECT kind,id FROM entities").all())
+      if (!seen.has(row.kind + "\0" + row.id))
+        this.db
+          .prepare("DELETE FROM entities WHERE kind=? AND id=?")
+          .run(row.kind, row.id);
+    this.cache = null;
+  }
+  commit(data, summary, expectedRevision) {
+    if (this.read().revision !== (expectedRevision ?? data.revision))
+      fail("Database changed. Reload and review before saving.", 409);
+    data.revision = this.read().revision + 1;
+    data.updatedAt = stamp();
+    data.changelog = [
+      { at: data.updatedAt, kind: "workspace", summary },
+      ...(data.changelog || []),
+    ].slice(0, 100);
+    this.write(data);
+    return data.revision;
+  }
+  mutate(summary, fn, expectedRevision) {
+    return this.transaction(() => {
+      const next = structuredClone(this.read());
+      if (expectedRevision !== undefined && next.revision !== expectedRevision)
+        fail("Database changed. Reload and review before saving.", 409);
+      const result = fn(next);
+      this.commit(next, summary);
+      return result;
+    });
+  }
+  importSnapshot(data, { final = false, dryRun = false } = {}) {
+    const errors = validate(data);
+    if (errors.length) fail(errors.join("\n"), 422);
+    const sourceHash = digest(canonical(data)),
+      old = this.initialized() ? this.read() : null;
+    let merged = structuredClone(data);
+    const conflicts = [];
+    if (old) {
+      const baseline = new Map(
+        this.db
+          .prepare("SELECT * FROM baseline")
+          .all()
+          .map((r) => [r.kind + "\0" + r.id, JSON.parse(r.body)]),
+      );
+      for (const [kind, list] of [
+        ["task", "tasks"],
+        ["edge", "edges"],
+        ["document", "documents"],
+      ]) {
+        const entries = (value) =>
+          list === "documents"
+            ? Object.entries(value[list])
+            : value[list].map((v, i) => [v.id || "edge-" + i, v]);
+        const current = new Map(entries(old)),
+          incoming = new Map(entries(merged));
+        for (const [id, value] of current) {
+          const base = baseline.get(kind + "\0" + id),
+            next = incoming.get(id);
+          if (base === undefined) {
+            if (next && canonical(next) !== canonical(value))
+              conflicts.push(kind + ":" + id);
+            else incoming.set(id, value);
+          } else if (canonical(value) !== canonical(base)) {
+            if (
+              next &&
+              canonical(next) !== canonical(base) &&
+              canonical(next) !== canonical(value)
+            )
+              conflicts.push(kind + ":" + id);
+            else if (!next)
+              conflicts.push(kind + ":" + id + " removed upstream");
+            else incoming.set(id, value);
+          }
+        }
+        merged[list] =
+          list === "documents"
+            ? Object.fromEntries(incoming)
+            : [...incoming.values()];
+      }
+      const baseMetadata = this.getMeta("baselineMetadata") || {};
+      for (const key of new Set([
+        ...Object.keys(baseMetadata),
+        ...Object.keys(old),
+      ])) {
+        if (
+          [
+            "tasks",
+            "edges",
+            "documents",
+            "revision",
+            "updatedAt",
+            "changelog",
+          ].includes(key)
+        )
+          continue;
+        if (canonical(old[key]) !== canonical(baseMetadata[key])) {
+          if (
+            canonical(data[key]) !== canonical(baseMetadata[key]) &&
+            canonical(data[key]) !== canonical(old[key])
+          )
+            conflicts.push("metadata:" + key);
+          else merged[key] = old[key];
+        }
+      }
+      merged.revision = Math.max(old.revision, data.revision) + 1;
+    }
+    const report = {
+      sourceHash,
+      sourceRevision: data.revision,
+      tasks: data.tasks.length,
+      documents: Object.keys(data.documents).length,
+      edges: data.edges.length,
+      conflicts,
+      final,
+    };
+    if (dryRun) return report;
+    if (conflicts.length)
+      fail(
+        "Import conflicts require reconciliation: " + conflicts.join(", "),
+        409,
+      );
+    return this.transaction(() => {
+      this.write(merged);
+      this.db.exec("DELETE FROM baseline");
+      const put = this.db.prepare("INSERT INTO baseline VALUES (?,?,?)");
+      for (const [kind, rows] of [
+        ["task", data.tasks.map((v) => [v.id, v])],
+        ["document", Object.entries(data.documents)],
+        ["edge", data.edges.map((v, i) => [v.id || "edge-" + i, v])],
+      ])
+        for (const [id, v] of rows) put.run(kind, id, JSON.stringify(v));
+      const { tasks, documents, edges, ...metadata } = data;
+      this.setMeta("baselineMetadata", metadata);
+      this.setMeta("import", { ...report, at: stamp() });
+      if (final) this.setMeta("mode", "final-import");
+      else if (!this.getMeta("mode")) this.setMeta("mode", "shadow");
+      this.event(null, "import.completed", report);
+      return report;
+    });
+  }
+  event(runId, kind, body) {
+    const at = stamp();
+    const result = this.db
+      .prepare("INSERT INTO events(run_id,kind,at,body) VALUES (?,?,?,?)")
+      .run(runId, kind, at, JSON.stringify(body));
+    return { seq: Number(result.lastInsertRowid), runId, kind, at, ...body };
+  }
+  events({ after = 0, before, runId, limit = 500, latest = false } = {}) {
+    const backward = latest || before !== undefined,
+      where = ["seq>?"],
+      args = [Number(after) || 0];
+    if (runId) {
+      where.push("run_id=?");
+      args.push(runId);
+    }
+    if (before !== undefined) {
+      where.push("seq<?");
+      args.push(Number(before));
+    }
+    args.push(Math.max(1, Math.min(Number(limit) || 500, 1000)));
+    const rows = this.db
+      .prepare(
+        "SELECT * FROM events WHERE " +
+          where.join(" AND ") +
+          " ORDER BY seq " +
+          (backward ? "DESC" : "ASC") +
+          " LIMIT ?",
+      )
+      .all(...args);
+    if (backward) rows.reverse();
+    return rows.map((r) => ({
+      seq: r.seq,
+      runId: r.run_id,
+      kind: r.kind,
+      at: r.at,
+      ...JSON.parse(r.body),
+    }));
+  }
+  get(table, id) {
+    if (
+      ![
+        "plans",
+        "approvals",
+        "runs",
+        "requests",
+        "deliveries",
+        "evidence",
+        "integration",
+        "projects",
+        "receipts",
+        "batches",
+      ].includes(table)
+    )
+      fail("Unknown record type");
+    const row = this.db.prepare(`SELECT body FROM ${table} WHERE id=?`).get(id);
+    return row ? JSON.parse(row.body) : null;
+  }
+  list(table) {
+    if (
+      ![
+        "plans",
+        "approvals",
+        "runs",
+        "requests",
+        "deliveries",
+        "evidence",
+        "integration",
+        "projects",
+        "receipts",
+        "batches",
+      ].includes(table)
+    )
+      fail("Unknown record type");
+    return this.db
+      .prepare(`SELECT body FROM ${table} ORDER BY rowid DESC`)
+      .all()
+      .map((r) => JSON.parse(r.body));
+  }
+  put(table, item) {
+    const body = JSON.stringify(item);
+    if (
+      ["plans", "requests", "projects", "receipts", "batches"].includes(table)
+    )
+      this.db
+        .prepare(
+          `INSERT INTO ${table} VALUES (?,?) ON CONFLICT(id) DO UPDATE SET body=excluded.body`,
+        )
+        .run(item.id, body);
+    else if (table === "runs" || table === "integration")
+      this.db
+        .prepare(
+          `INSERT INTO ${table} VALUES (?,?,?,?) ON CONFLICT(id) DO UPDATE SET state=excluded.state,body=excluded.body`,
+        )
+        .run(item.id, item.taskId, item.state, body);
+    else if (table === "approvals")
+      this.db
+        .prepare("INSERT INTO approvals VALUES (?,?,?,?)")
+        .run(item.id, item.planId, item.hash, body);
+    else if (table === "deliveries")
+      this.db
+        .prepare(
+          "INSERT INTO deliveries VALUES (?,?,?) ON CONFLICT(id) DO UPDATE SET body=excluded.body",
+        )
+        .run(item.id, item.runId, body);
+    else if (table === "evidence")
+      this.db
+        .prepare("INSERT INTO evidence VALUES (?,?,?)")
+        .run(item.id, item.taskId, body);
+    else fail("Unknown record type");
+    return item;
+  }
+  close() {
+    this.db.close();
+  }
+}

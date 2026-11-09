@@ -1,0 +1,6 @@
+node_modules/
+.state/
+workspace.local.json
+*.sqlite*
+*.log
+.DS_Store
