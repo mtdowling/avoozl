@@ -34,6 +34,7 @@ import { createFixture } from "./vscode-fixture.mjs";
 import { startServer } from "../src/app/server.mjs";
 import { ensureAgentHost } from "../src/app/remote-manager.mjs";
 import { startAhpFacade } from "../src/app/ahp/facade.mjs";
+import { agentProviderId } from "../src/app/ahp/projection.mjs";
 import { localClient } from "../src/app/client.mjs";
 import { loadTokens } from "../src/app/ahp/main.mjs";
 import { CLIENT_API_VERSION } from "../src/app/client.mjs";
@@ -157,12 +158,12 @@ try {
       const catalog = await ops.execute("models", { provider: "claude" });
       return [
         {
-          provider: "claude",
+          provider: agentProviderId("claude"),
           displayName: "AICommander claude",
           description: "Fixture provider; real child processes.",
           models: catalog.models.map((m) => ({
             id: m.id,
-            provider: "claude",
+            provider: agentProviderId("claude"),
             name: m.label || m.id,
           })),
           protectedResources: [],

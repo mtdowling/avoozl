@@ -88,7 +88,15 @@ function installVscodeStub(t, overrides = {}) {
       parse: (value) => ({
         scheme: value.split(":")[0],
         path: value.slice(value.indexOf(":") + 1),
+        with: (changes) => ({ ...changes, toString: () => value }),
         toString: () => value,
+      }),
+      file: (value) => ({
+        scheme: "file",
+        path: value,
+        fsPath: value,
+        with: (changes) => ({ ...changes, toString: () => value }),
+        toString: () => "file://" + value,
       }),
       joinPath: (base, ...parts) => ({
         toString: () => [base?.toString() || "", ...parts].join("/"),
@@ -511,5 +519,70 @@ test("the task graph webview is bounded by its page and reuses workspace models"
     /default-src 'none'/.test(html),
     true,
     "the webview may reach only the workspace that owns the data",
+  );
+});
+
+test("the native conversation command is given a Uri, not a string", async (t) => {
+  // VS Code calls `.with()` on the resource it is handed. Passing a string
+  // fails with "o.with is not a function", which silently pushed every
+  // attempt onto the fallback path.
+  const received = [];
+  const { calls, queue } = installVscodeStub(t, {
+    version: "1.138.0",
+    commands: ["workbench.action.chat.openSessionInEditorGroup"],
+    configuration: { nativeChatNavigation: "auto" },
+    executeCommand: (name, args) => {
+      if (name !== "workbench.action.chat.openSessionInEditorGroup") return;
+      const resource = args[0]?.resource;
+      received.push(resource);
+      // Exactly what the editor does with it.
+      if (typeof resource?.with !== "function")
+        throw Error("o.with is not a function");
+    },
+  });
+  const { endpoint, store } = await serve(t);
+  const { WorkspaceClient } = loadExtensionModule("client.js");
+  const { ChatNavigator } = loadExtensionModule("navigation.js");
+  store.put("runs", {
+    id: "run-uri",
+    taskId: "sample-task",
+    state: "waiting-approval",
+    mode: "implement",
+    provider: "claude",
+    prompt: "Needs a decision",
+  });
+  const navigator = new ChatNavigator({
+    client: new WorkspaceClient(endpoint),
+    log: () => {},
+  });
+  navigator.manifest = () => ({
+    url: "ws://127.0.0.1:1",
+    clients: { editor: { address: "ws://127.0.0.1:1/?token=x" } },
+  });
+  navigator.channels = async () => ({
+    session: "ahp-session:/abc",
+    chat: "ahp-chat:/def",
+    provider: "claude",
+    candidates: ["agent-host-claude:/abc"],
+  });
+  // No facade is reachable, so identity cannot be confirmed and the picker is
+  // used. The point is what the command was handed before that.
+  navigator.confirmSubscription = async () => ({
+    confirmed: false,
+    detail: "no facade in this test",
+  });
+  queue.picks.push(undefined);
+  const report = await navigator.open("run-uri");
+  assert.equal(received.length, 1);
+  assert.equal(
+    typeof received[0]?.with,
+    "function",
+    "the resource must be a Uri",
+  );
+  assert.equal(received[0].toString(), "agent-host-claude:/abc");
+  assert.equal(
+    report.tried[0].detail.includes("o.with is not a function"),
+    false,
+    "a Uri must not be rejected by the command",
   );
 });
