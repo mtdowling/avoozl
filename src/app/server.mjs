@@ -18,6 +18,7 @@ export const appRoot = path.dirname(fileURLToPath(import.meta.url)),
 const LEGACY_ASSETS = new Set([
   "index.html",
   "app.mjs",
+  "graph-layout.mjs",
   "facets.mjs",
   "workbench.mjs",
   "workbench-model.mjs",

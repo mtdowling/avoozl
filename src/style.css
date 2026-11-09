@@ -4339,7 +4339,7 @@ body .presentation-bar {
   display: flex !important;
   align-items: center;
   justify-content: center;
-  width: 270px;
+  width: auto;
   height: 54px !important;
   min-height: 54px !important;
   max-height: 54px !important;
@@ -4358,9 +4358,60 @@ body .presentation-actions {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 4px;
   width: 100%;
   height: 40px;
+}
+body .presentation-actions .presentation-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  padding: 8px;
+  border: 0;
+  border-radius: 7px;
+  color: #dedede;
+  background: transparent;
+  cursor: pointer;
+}
+body .presentation-actions .presentation-icon:hover:not(:disabled) {
+  background: #414141;
+  color: #fff;
+}
+body .presentation-actions .presentation-icon:focus-visible {
+  outline: 2px solid #b8d6ff;
+  outline-offset: 1px;
+}
+body .presentation-actions .presentation-icon:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+body .presentation-actions .presentation-icon svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+body #presentation-play {
+  background: #414141;
+}
+body #presentation-count {
+  min-width: 44px;
+  padding: 0 8px;
+  font-size: 12px;
+  color: #aaa;
+  text-align: center;
+}
+body #presentation-close {
+  margin-left: 4px;
+}
+body #toggle-left[hidden] {
+  display: none !important;
 }
 body .tour-active .toolbar {
   height: auto;
