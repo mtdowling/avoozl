@@ -80,20 +80,7 @@ class ChatNavigator {
       session: entry.session,
       chat: entry.chat,
       provider: entry.provider,
-      candidates: [
-        // The editor registers one chat-sessions provider per agent the host
-        // advertises, named `agent-host-<advertised provider id>`. That id is
-        // namespaced to avoid colliding with the editor's own built-in
-        // providers, so it is read from the host rather than assumed.
-        ...(entry.agentProvider && uuid
-          ? ["agent-host-" + entry.agentProvider + ":/" + uuid]
-          : []),
-        ...(entry.provider && uuid
-          ? ["agent-host-" + entry.provider + ":/" + uuid]
-          : []),
-        entry.session,
-        entry.chat,
-      ],
+      candidates: candidateResources(entry, uuid),
     };
   }
   async open(runId) {
@@ -228,6 +215,41 @@ class ChatNavigator {
       ),
     );
   }
+}
+
+// Candidate resources for the conversation command, most likely first.
+//
+// The editor opens an agent host session from a URI shaped
+// `agent-host-session://<provider>/<id>`: the authority is the chat-session
+// provider and the path is the session identifier. Neither the provider name
+// nor the identifier encoding is a published contract, and they differ between
+// the editor's built-in host and a remote one, so each form is attempted and
+// then verified rather than trusted.
+function candidateResources(entry, uuid) {
+  const providers = [entry.agentProvider, entry.provider]
+    .filter(Boolean)
+    .map((provider) => "agent-host-" + provider);
+  // Observed encodings: a colon in an identifier is written as a double
+  // underscore, and the bare identifier is also accepted in some builds.
+  const identifiers = [
+    ...(entry.session ? [String(entry.session).replaceAll(":", "__")] : []),
+    ...(uuid ? [uuid] : []),
+  ];
+  const resources = [];
+  for (const provider of providers)
+    for (const identifier of identifiers)
+      resources.push(
+        "agent-host-session://" +
+          provider +
+          "/" +
+          identifier.replace(/^\/+/, ""),
+      );
+  // Then the provider-scheme and raw host forms, which earlier builds accepted.
+  for (const provider of providers)
+    if (uuid) resources.push(provider + ":/" + uuid);
+  if (entry.session) resources.push(entry.session);
+  if (entry.chat) resources.push(entry.chat);
+  return [...new Set(resources)];
 }
 
 function facadeHealth(manifest) {
