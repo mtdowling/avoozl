@@ -1,5 +1,3 @@
-import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { Store } from "../store.mjs";
 import { temporaryDirectory } from "./temporary.mjs";

@@ -1,5 +1,8 @@
 node_modules/
 .state/
+state/
+plans/
+workspace.json
 workspace.local.json
 *.sqlite*
 *.log
