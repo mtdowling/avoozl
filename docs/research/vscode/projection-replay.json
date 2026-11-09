@@ -1,0 +1,22 @@
+{
+  "at": "2026-11-09T20:11:00.895Z",
+  "source": "Synthetic recorded provider events from tool-roundtrip.json",
+  "checks": [
+    {
+      "provider": "claude",
+      "turnState": "complete",
+      "toolStatus": "completed",
+      "toolSuccess": false,
+      "toolResult": "Provider turn failed",
+      "preservesRawFailure": true
+    },
+    {
+      "provider": "codex",
+      "turnState": "cancelled",
+      "toolStatus": "completed",
+      "toolSuccess": false,
+      "toolResult": "Interrupted by user",
+      "preservesRawFailure": false
+    }
+  ]
+}
