@@ -26,6 +26,7 @@ import { metrics } from "./telemetry.mjs";
 import { taskSignals, isPlanInventory } from "../workbench-model.mjs";
 import { ExternalSessions } from "./external-sessions.mjs";
 import { listExamples, seedExample } from "./examples.mjs";
+import { describeWorkspace } from "./client.mjs";
 
 export class Operations {
   constructor(store, { manager = null, externalSessions } = {}) {
@@ -218,6 +219,8 @@ export class Operations {
   }
   async execute(name, input = {}, expectedRevision) {
     const store = this.store;
+    if (name === "client.describe")
+      return describeWorkspace(store, { manager: this.manager });
     if (name === "workspace.examples") return listExamples();
     if (name === "workspace.seed")
       return seedExample(store, input, expectedRevision);
@@ -250,6 +253,9 @@ export class Operations {
         "run.resume",
         "run.approvals",
         "run.answer",
+        "run.model",
+        "run.unsend",
+        "run.queue",
         "run.validate",
         "integration.merge",
       ].includes(name)
@@ -278,6 +284,9 @@ export class Operations {
         "run.resume",
         "run.approvals",
         "run.answer",
+        "run.model",
+        "run.unsend",
+        "run.queue",
         "run.validate",
         "integration.merge",
         "batch.start",
@@ -761,10 +770,14 @@ export class Operations {
     }
     if (name === "run.start") return this.manager.start(input);
     if (name === "run.send") return this.manager.send(input);
-    if (name === "run.interrupt") return this.manager.interrupt(input.id);
+    if (name === "run.interrupt")
+      return this.manager.interrupt(input.id, { reason: input.reason });
     if (name === "run.resume") return this.manager.resume(input);
     if (name === "run.approvals") return this.manager.approvals(input);
     if (name === "run.answer") return this.manager.answer(input);
+    if (name === "run.model") return this.manager.setModel(input);
+    if (name === "run.unsend") return this.manager.cancelDelivery(input);
+    if (name === "run.queue") return this.manager.reorderQueue(input);
     if (name === "run.event") {
       const row = store.db
         .prepare("SELECT * FROM events WHERE seq=? AND run_id=?")

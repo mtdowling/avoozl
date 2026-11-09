@@ -11,8 +11,12 @@ import { fail, canonical } from "./store.mjs";
 import { digest } from "../model.mjs";
 import { PLAN_FORMAT } from "./plans.mjs";
 import { createWorktree, assertProjectAvailable } from "./git.mjs";
-import { CodexAdapter } from "./providers/codex.mjs";
-import { ClaudeAdapter, claudeModels } from "./providers/claude.mjs";
+import { CodexAdapter, CODEX_CAPABILITIES } from "./providers/codex.mjs";
+import {
+  ClaudeAdapter,
+  claudeModels,
+  CLAUDE_CAPABILITIES,
+} from "./providers/claude.mjs";
 import { approvalMode } from "./approvals.mjs";
 import { recordUsage } from "./telemetry.mjs";
 const exec = promisify(execFile),
@@ -22,6 +26,16 @@ const exec = promisify(execFile),
     "waiting-input",
     "waiting-approval",
   ]);
+// Provider permission scopes we do not implement yet. Recording them keeps
+// "allow once or deny" honest instead of pretending the provider offered
+// nothing else.
+function providerDecisions(request) {
+  const list = request.payload?.availableDecisions;
+  if (!Array.isArray(list)) return undefined;
+  return list.map((entry) =>
+    typeof entry === "string" ? entry : Object.keys(entry)[0] || "unknown",
+  );
+}
 export class RunManager {
   constructor(
     store,
@@ -149,31 +163,23 @@ export class RunManager {
       ["codex", "claude"].map(async (id) => {
         try {
           if (id === "codex") {
-            await exec("codex", ["--version"], { timeout: 5000 });
+            const version = (
+              await exec("codex", ["--version"], { timeout: 5000 })
+            ).stdout.trim();
             return {
               id,
               available: true,
-              capabilities: {
-                steer: true,
-                queue: true,
-                interrupt: true,
-                resume: true,
-                approvals: true,
-              },
+              version,
+              capabilities: CODEX_CAPABILITIES,
               authentication: "Checked when starting a session",
             };
           }
-          await import("@anthropic-ai/claude-agent-sdk");
+          const sdk = await import("@anthropic-ai/claude-agent-sdk");
           return {
             id,
             available: true,
-            capabilities: {
-              steer: false,
-              queue: true,
-              interrupt: true,
-              resume: true,
-              approvals: true,
-            },
+            version: sdk.version || null,
+            capabilities: CLAUDE_CAPABILITIES,
             authentication: "Checked when starting a session",
           };
         } catch (error) {
@@ -195,16 +201,20 @@ export class RunManager {
     this.modelCatalogs ??= new Map();
     const cached = this.modelCatalogs.get(provider);
     if (cached && Date.now() - cached.at < 300000) return cached.value;
+    // Read the catalog through the same factory that will run the session, so
+    // a model offered to a client is one that session could actually use.
+    const adapter = this.factories[provider]({
+      emit: () => {},
+      onRequest: () => {},
+    });
     let models;
-    if (provider === "claude") models = await claudeModels();
-    else {
-      const adapter = new CodexAdapter({ emit: () => {}, onRequest: () => {} });
-      try {
-        models = await adapter.start({ cwd: process.cwd(), catalogOnly: true });
-      } finally {
-        await adapter.close();
-      }
+    try {
+      models = await adapter.start({ cwd: process.cwd(), catalogOnly: true });
+    } finally {
+      await adapter.close();
     }
+    if (!Array.isArray(models))
+      fail("This provider connection does not expose a model catalog.", 409);
     const value = {
       provider,
       models,
@@ -429,7 +439,13 @@ export class RunManager {
     if (kind === "state") run.state = body.state;
     if (kind === "turn.completed") {
       run.state = body.state;
-      run.error = body.error;
+      // Only a genuine failure carries an error. An intentional interruption
+      // keeps the provider's wording in a separate field so a stopped run is
+      // never displayed as a failure and a real failure is never hidden.
+      run.error = body.error || undefined;
+      run.providerDiagnostic = body.providerDiagnostic || undefined;
+      run.cancellation = body.cancellation || undefined;
+      run.interruptRequestedAt = undefined;
       run.updatedAt = new Date().toISOString();
       this.reportActivity(run, "finish");
     }
@@ -438,6 +454,23 @@ export class RunManager {
       run.error = body.message;
       this.live.delete(id);
     }
+    if (kind === "request.interrupted")
+      for (const r of this.store
+        .list("requests")
+        .filter(
+          (r) =>
+            r.runId === id &&
+            r.providerRequestId === body.providerRequestId &&
+            r.state === "pending",
+        )) {
+        // The request stopped before any decision reached the provider. It is
+        // neither allowed nor denied, and the tool never executed.
+        r.state = "interrupted";
+        r.executed = false;
+        r.interruptedReason = body.reason;
+        r.resolvedAt = new Date().toISOString();
+        this.store.put("requests", r);
+      }
     if (kind === "request.resolved")
       for (const r of this.store
         .list("requests")
@@ -469,6 +502,17 @@ export class RunManager {
       id: "request-" + randomUUID(),
       runId: id,
       state: "pending",
+      // Only the decisions this host can actually deliver are offered. The
+      // provider's own list is retained so an unsupported permission scope is
+      // visible instead of being silently dropped.
+      options:
+        request.kind === "approval"
+          ? [
+              { id: "allow-once", label: "Allow once", kind: "approve" },
+              { id: "deny", label: "Deny", kind: "deny" },
+            ]
+          : undefined,
+      providerOptions: providerDecisions(request),
       createdAt: new Date().toISOString(),
     };
     this.store.put("requests", record);
@@ -555,15 +599,68 @@ export class RunManager {
     this.store.put("deliveries", delivery);
     this.store.event(run.id, "delivery.updated", { delivery });
   }
+  // The queue is ordered oldest-first unless the user has reordered it. The
+  // order lives beside the deliveries so reordering never rewrites or loses a
+  // durable delivery record.
+  queueOrder(runId) {
+    const queued = this.store
+      .list("deliveries")
+      .reverse()
+      .filter((d) => d.runId === runId && d.state === "queued");
+    const preferred = this.store.getMeta("queueOrder:" + runId) || [];
+    const byId = new Map(queued.map((d) => [d.id, d]));
+    const ordered = [];
+    for (const id of preferred) {
+      const delivery = byId.get(id);
+      if (delivery) {
+        ordered.push(delivery);
+        byId.delete(id);
+      }
+    }
+    // Anything the caller did not name keeps its original relative order, so a
+    // stale view can never silently drop a queued message.
+    return [...ordered, ...byId.values()];
+  }
+  async reorderQueue({ id, order }) {
+    return this.serialize(id, async () => {
+      const run = this.store.get("runs", id);
+      if (!run) fail("Run not found.", 404);
+      if (!Array.isArray(order) || order.some((v) => typeof v !== "string"))
+        fail("Provide the queued submission IDs in their new order.");
+      this.store.setMeta("queueOrder:" + id, order);
+      const result = this.queueOrder(id).map((d) => d.id);
+      this.store.event(id, "queue.reordered", { order: result });
+      return { order: result };
+    });
+  }
+  async cancelDelivery({ id, submissionId }) {
+    return this.serialize(id, async () => {
+      const delivery = this.store.get("deliveries", submissionId);
+      if (!delivery) fail("Queued message not found.", 404);
+      if (delivery.runId !== id)
+        fail("That queued message belongs to another conversation.", 409);
+      // Only a message that never reached the provider can be withdrawn.
+      // Anything sent, accepted, or uncertain stays on the record.
+      if (delivery.state !== "queued")
+        fail(
+          "This message is already " +
+            delivery.state +
+            " and cannot be withdrawn.",
+          409,
+        );
+      delivery.state = "cancelled";
+      delivery.cancelledAt = new Date().toISOString();
+      this.store.put("deliveries", delivery);
+      this.store.event(id, "delivery.updated", { delivery });
+      return delivery;
+    });
+  }
   async drain(id) {
     return this.serialize(id, async () => {
       if (this.draining) return;
       const run = this.store.get("runs", id);
       if (!run || ACTIVE.has(run.state)) return;
-      const next = this.store
-        .list("deliveries")
-        .reverse()
-        .find((d) => d.runId === id && d.state === "queued");
+      const next = this.queueOrder(id)[0];
       if (next) await this.deliver(run, next);
     });
   }
@@ -606,13 +703,72 @@ export class RunManager {
       };
     });
   }
-  async interrupt(id) {
-    const run = this.store.get("runs", id),
-      adapter = this.live.get(id);
-    if (!run || !adapter) fail("Run is disconnected.", 409);
-    await adapter.interrupt();
-    this.store.event(id, "interrupt.requested", {});
-    return { requested: true };
+  async interrupt(id, { reason = "client-cancel" } = {}) {
+    const run = this.store.get("runs", id);
+    if (!run) fail("Run not found.", 404);
+    const adapter = this.live.get(id);
+    if (!adapter) fail("Run is disconnected.", 409);
+    // Record the intent before asking the provider, so a crash between the
+    // two leaves evidence that a stop was requested.
+    const requestedAt = new Date().toISOString();
+    run.interruptRequestedAt = requestedAt;
+    this.store.put("runs", run);
+    this.store.event(id, "interrupt.requested", {
+      at: requestedAt,
+      reason,
+      state: run.state,
+    });
+    let acknowledgement;
+    try {
+      acknowledgement = (await adapter.interrupt(reason)) || {
+        requested: true,
+      };
+    } catch (error) {
+      this.store.event(id, "interrupt.failed", { message: error.message });
+      throw error;
+    }
+    this.store.event(id, "interrupt.acknowledged", {
+      ...acknowledgement,
+      requestedAt,
+    });
+    // The run's terminal state still comes from the provider's own turn end.
+    return { ...acknowledgement, requestedAt, runId: id };
+  }
+  async setModel(input) {
+    return this.serialize(input.id, async () => {
+      const run = this.store.get("runs", input.id);
+      if (!run) fail("Run not found.", 404);
+      if (typeof input.model !== "string" || !input.model.trim())
+        fail("Choose a model.");
+      const catalog = await this.models(run.provider);
+      if (!catalog.models.some((m) => m.id === input.model))
+        fail("That model is not in the provider catalog for this session.");
+      if (ACTIVE.has(run.state) && run.state !== "running")
+        fail("Answer the pending request before changing models.", 409);
+      const adapter = this.live.get(run.id);
+      let result = { applies: "on-resume", model: input.model };
+      if (adapter) {
+        if (!adapter.setModel)
+          fail("This provider connection cannot change models.", 409);
+        result = await adapter.setModel(input.model);
+      }
+      const latest = this.store.get("runs", run.id);
+      latest.requestedModel = input.model;
+      latest.model = input.model;
+      // `actualModel` stays as the provider last reported it until the change
+      // takes effect, so requested and effective models remain separable.
+      latest.modelChange = {
+        requested: input.model,
+        previous: run.model || null,
+        actual: latest.actualModel || null,
+        applies: result.applies,
+        at: new Date().toISOString(),
+      };
+      this.store.put("runs", latest);
+      this.store.event(run.id, "model.changed", latest.modelChange);
+      this.checkpoint(latest);
+      return { ...result, ...latest.modelChange };
+    });
   }
   async resume(input) {
     return this.serialize(input.id, async () => {
@@ -646,21 +802,54 @@ export class RunManager {
   }
   async answer(input) {
     const request = this.store.get("requests", input.id);
-    if (!request || request.state !== "pending")
-      fail("Request is no longer pending.", 409);
+    if (!request) fail("Request not found.", 404);
+    // A client may hold a stale view: the request can already be answered,
+    // interrupted by a cancellation, or invalidated by a host restart.
+    if (request.state !== "pending")
+      fail(
+        "This request is no longer pending (" + request.state + ").",
+        409,
+      );
     if (!["allow", "deny"].includes(input.decision))
       fail("Choose allow or deny.");
+    // Callers that know which run they are answering must match it, so a
+    // mismatched client cannot answer another conversation's request.
+    if (input.runId && input.runId !== request.runId)
+      fail("This request belongs to another conversation.", 409);
+    if (
+      input.providerRequestId &&
+      String(input.providerRequestId) !== String(request.providerRequestId)
+    )
+      fail("This request belongs to another provider request.", 409);
+    const allowed = (request.options || []).map((o) => o.id);
+    if (input.optionId && allowed.length && !allowed.includes(input.optionId))
+      fail("That option is not offered for this request.");
     const adapter = this.live.get(request.runId);
     if (!adapter) fail("Session disconnected; resume before answering.", 409);
-    await adapter.answer({ ...request, ...input });
-    request.state = input.decision === "allow" ? "allowed" : "denied";
-    request.answeredAt = new Date().toISOString();
-    this.store.put("requests", request);
-    const run = this.store.get("runs", request.runId);
-    run.state = "running";
-    this.store.put("runs", run);
-    this.store.event(run.id, "request.answered", { request });
-    return request;
+    return this.serialize("answer:" + request.id, async () => {
+      // Re-read inside the serialized section: two clients answering at once
+      // must produce exactly one delivery to the provider.
+      const current = this.store.get("requests", request.id);
+      if (!current || current.state !== "pending")
+        fail(
+          "This request was already answered (" +
+            (current?.state || "missing") +
+            ").",
+          409,
+        );
+      await adapter.answer({ ...current, ...input });
+      current.state = input.decision === "allow" ? "allowed" : "denied";
+      current.answeredAt = new Date().toISOString();
+      current.answeredBy = input.answeredBy || "client";
+      current.optionId = input.optionId || null;
+      current.executed = input.decision === "allow";
+      this.store.put("requests", current);
+      const run = this.store.get("runs", current.runId);
+      run.state = "running";
+      this.store.put("runs", run);
+      this.store.event(run.id, "request.answered", { request: current });
+      return current;
+    });
   }
   async close() {
     clearInterval(this.activityTimer);
