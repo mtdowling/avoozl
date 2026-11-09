@@ -102,8 +102,8 @@ export function createFacetSearch({ state, getData, change, promptResult }) {
         key: "scope",
         title: "Collection",
         values: [
-          ["all", "All Nupp plans"],
-          ["runtime", "Runtime rewrite"],
+          ["all", "All plans"],
+          ["runtime", "Runtime tasks"],
         ],
       },
       {
