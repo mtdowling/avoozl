@@ -3,6 +3,11 @@ import { fail } from "../store.mjs";
 import { claudeApprovals } from "../approvals.mjs";
 import { MCP_TOOLS } from "../../mcp.mjs";
 import { WORKSPACE_TOOLS } from "../mcp.mjs";
+import {
+  requestInterruption,
+  acknowledgeInterruption,
+  classifyTurnEnd,
+} from "./cancellation.mjs";
 
 class InputQueue {
   constructor() {
@@ -32,17 +37,60 @@ class InputQueue {
     };
   }
 }
+// Advertised to clients so unsupported controls are disabled with a reason
+// rather than silently accepted. Claude redirects an active turn by
+// interrupting and then sending; it has no active-steering API.
+export const CLAUDE_CAPABILITIES = Object.freeze({
+  steer: false,
+  steerReason:
+    "Claude follow-ups queue. Interrupt, then send, to redirect immediately.",
+  queue: true,
+  interrupt: true,
+  resume: true,
+  approvals: true,
+  approvalOptions: ["allow-once", "deny"],
+  models: true,
+  liveModelChange: true,
+  modelChangeApplies: "next-turn",
+  subagents: true,
+  toolOutput: "result-blocks",
+});
+// Tool results arrive as a string or as MCP-style content blocks.
+function toolResultText(content) {
+  if (typeof content === "string") return content.slice(0, 20000);
+  if (!Array.isArray(content)) return "";
+  return content
+    .map((block) =>
+      typeof block === "string"
+        ? block
+        : block?.type === "text"
+          ? block.text || ""
+          : block?.type
+            ? "[" + block.type + "]"
+            : "",
+    )
+    .join("\n")
+    .slice(0, 20000);
+}
 export class ClaudeAdapter {
   constructor({ emit, onRequest, query }) {
     this.emit = emit;
     this.onRequest = onRequest;
     this.queryFactory = query;
     this.permissions = new Map();
+    // Provider-message counter. Interruption intent is ordered against this,
+    // not against wall-clock timestamps.
+    this.observations = 0;
+    this.interruption = null;
+    this.capabilities = CLAUDE_CAPABILITIES;
   }
   async start(options) {
     const query =
       this.queryFactory ||
       (await import("@anthropic-ai/claude-agent-sdk")).query;
+    // The catalog is read through this adapter so the models offered to a
+    // client come from the same SDK the session would use.
+    if (options.catalogOnly) return claudeModels({ query });
     this.queue = new InputQueue();
     this.options = options;
     this.query = query({
@@ -69,7 +117,12 @@ export class ClaudeAdapter {
           const providerRequestId = context.requestId || randomUUID(),
             kind = tool === "AskUserQuestion" ? "input" : "approval";
           return new Promise((resolve) => {
-            this.permissions.set(providerRequestId, { resolve, tool, input });
+            this.permissions.set(providerRequestId, {
+              resolve,
+              tool,
+              input,
+              toolUseId: context.toolUseID,
+            });
             context.signal?.addEventListener(
               "abort",
               () => {
@@ -77,6 +130,16 @@ export class ClaudeAdapter {
                 resolve({
                   behavior: "deny",
                   message: "The request was interrupted.",
+                });
+                // The tool never ran: acquisition was interrupted before the
+                // decision. This is not the same as a user denial.
+                this.emit("request.interrupted", {
+                  providerRequestId,
+                  toolUseId: context.toolUseID,
+                  executed: false,
+                  reason: this.interruption
+                    ? "cancelled-before-acquisition"
+                    : "provider-aborted-acquisition",
                 });
                 this.emit("request.resolved", { providerRequestId });
               },
@@ -99,6 +162,9 @@ export class ClaudeAdapter {
   async consume() {
     try {
       for await (const message of this.query) {
+        const observation = ++this.observations;
+        // Claude attributes subagent work with the delegating tool use.
+        const subagent = message.parent_tool_use_id || null;
         if (
           message.type === "system" &&
           message.permissionMode &&
@@ -132,20 +198,37 @@ export class ClaudeAdapter {
             this.emit("message.delta", {
               text: e.delta.text,
               itemId: String(e.index),
+              ...(subagent ? { subagent } : {}),
+            });
+          else if (
+            e.type === "content_block_delta" &&
+            (e.delta?.type === "thinking_delta" ||
+              e.delta?.type === "signature_delta")
+          )
+            this.emit("reasoning.delta", {
+              text: e.delta.thinking || "",
+              itemId: "thinking-" + e.index,
+              ...(subagent ? { subagent } : {}),
             });
         } else if (message.type === "assistant") {
           const text = (message.message?.content || [])
             .filter((x) => x.type === "text")
             .map((x) => x.text)
             .join("\n");
-          if (text) this.emit("message", { text });
+          if (text)
+            this.emit("message", { text, ...(subagent ? { subagent } : {}) });
           for (const block of message.message?.content || [])
             if (block.type === "tool_use") {
-              this.emit("tool.started", { tool: block.name, id: block.id });
+              this.emit("tool.started", {
+                tool: block.name,
+                id: block.id,
+                ...(subagent ? { subagent } : {}),
+              });
               this.emit("tool.activity", {
                 tool: block.name,
                 input: block.input,
                 id: block.id,
+                ...(subagent ? { subagent } : {}),
               });
             }
         } else if (message.type === "result") {
@@ -157,20 +240,36 @@ export class ClaudeAdapter {
             providerDurationMs: message.duration_ms,
             providerApiDurationMs: message.duration_api_ms,
           });
+          // Claude reports no interruption status of its own: an interrupted
+          // turn arrives as an error result. Classify it against our recorded
+          // intent rather than matching the diagnostic text, and keep the
+          // provider's own wording either way.
+          const diagnostic =
+            message.errors?.join("\n") ||
+            (message.is_error ? message.result || null : null);
+          const outcome = classifyTurnEnd({
+            interruption: this.interruption,
+            isError: Boolean(message.is_error),
+            diagnostic,
+            observation,
+          });
+          this.interruption = null;
           this.emit("turn.completed", {
-            state: message.is_error
-              ? "failed"
-              : this.interrupted
-                ? "interrupted"
-                : "completed",
+            ...outcome,
             result: message.result,
-            error: message.errors?.join("\n"),
           });
         } else if (message.type === "user") {
           this.emit("input.received", { messageId: message.uuid });
           for (const block of message.message?.content || [])
             if (block.type === "tool_result")
-              this.emit("tool.finished", { id: block.tool_use_id });
+              this.emit("tool.finished", {
+                id: block.tool_use_id,
+                // The SDK reports tool failure on the result block. Dropping
+                // it would turn a failed tool into a silent success.
+                isError: Boolean(block.is_error),
+                content: toolResultText(block.content),
+                ...(subagent ? { subagent } : {}),
+              });
         } else if (message.type === "system")
           this.emit("provider.info", { subtype: message.subtype });
       }
@@ -183,7 +282,7 @@ export class ClaudeAdapter {
     }
   }
   async send(text) {
-    this.interrupted = false;
+    this.interruption = null;
     const id = randomUUID();
     this.queue.push({
       type: "user",
@@ -194,9 +293,26 @@ export class ClaudeAdapter {
     });
     return { messageId: id, delivery: "submitted" };
   }
-  async interrupt() {
-    this.interrupted = true;
-    return this.query.interrupt();
+  async interrupt(reason = "client-cancel") {
+    this.interruption = requestInterruption(this.observations, reason);
+    await this.query.interrupt();
+    // The SDK resolves once it has asked the session to stop. Record that
+    // acknowledgement; the truthful terminal state still comes from the turn.
+    acknowledgeInterruption(this.interruption, { api: "Claude SDK interrupt" });
+    return {
+      requested: true,
+      acknowledged: true,
+      requestedAt: this.interruption.requestedAt,
+      acknowledgedAt: this.interruption.acknowledgedAt,
+    };
+  }
+  async setModel(model) {
+    if (typeof this.query.setModel !== "function")
+      fail("This Claude session cannot change models.", 409);
+    await this.query.setModel(model);
+    this.options.model = model;
+    // Claude applies a model change to the next turn, not retroactively.
+    return { applies: "next-turn", api: "Claude SDK setModel", model };
   }
   async setApprovalMode(value) {
     const settings = claudeApprovals(this.options.mode, value);

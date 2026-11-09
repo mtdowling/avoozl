@@ -3,7 +3,28 @@ import readline from "node:readline";
 import { randomUUID } from "node:crypto";
 import { fail } from "../store.mjs";
 import { codexApprovals } from "../approvals.mjs";
+import {
+  requestInterruption,
+  acknowledgeInterruption,
+  classifyTurnEnd,
+} from "./cancellation.mjs";
 
+// Codex can steer an active turn through `turn/steer`.
+export const CODEX_CAPABILITIES = Object.freeze({
+  steer: true,
+  queue: true,
+  interrupt: true,
+  resume: true,
+  approvals: true,
+  approvalOptions: ["allow-once", "deny"],
+  models: true,
+  liveModelChange: true,
+  modelChangeApplies: "next-turn",
+  subagents: false,
+  subagentsReason:
+    "Codex app-server reports no subagent attribution on its items.",
+  toolOutput: "streamed",
+});
 export class CodexAdapter {
   constructor({ emit, onRequest, command = "codex", args = [] }) {
     this.emit = emit;
@@ -13,6 +34,9 @@ export class CodexAdapter {
     this.pending = new Map();
     this.nextId = 1;
     this.requests = new Map();
+    this.observations = 0;
+    this.interruption = null;
+    this.capabilities = CODEX_CAPABILITIES;
   }
   async start(options) {
     this.options = options;
@@ -102,6 +126,7 @@ export class CodexAdapter {
     });
   }
   receive(message) {
+    const observation = ++this.observations;
     if (message.id !== undefined && !message.method) {
       const p = this.pending.get(message.id);
       if (p) {
@@ -136,15 +161,27 @@ export class CodexAdapter {
       this.emit("state", { state: "running", turnId: this.turnId });
     } else if (message.method === "turn/completed") {
       this.turnId = null;
-      this.emit("turn.completed", {
-        state:
-          p.turn.status === "completed"
-            ? "completed"
-            : p.turn.status === "interrupted"
-              ? "interrupted"
-              : "failed",
-        error: p.turn.error,
+      const providerState =
+        p.turn.status === "completed"
+          ? "completed"
+          : p.turn.status === "interrupted"
+            ? "interrupted"
+            : "failed";
+      const diagnostic =
+        typeof p.turn.error === "string"
+          ? p.turn.error
+          : p.turn.error
+            ? p.turn.error.message || JSON.stringify(p.turn.error)
+            : null;
+      const outcome = classifyTurnEnd({
+        interruption: this.interruption,
+        providerState,
+        isError: providerState === "failed",
+        diagnostic,
+        observation,
       });
+      this.interruption = null;
+      this.emit("turn.completed", { ...outcome, providerStatus: p.turn.status });
     } else if (message.method === "item/agentMessage/delta")
       this.emit("message.delta", { text: p.delta || "", itemId: p.itemId });
     else if (
@@ -170,6 +207,7 @@ export class CodexAdapter {
       });
   }
   async send(text, mode = "steer") {
+    if (mode !== "steer" || !this.turnId) this.interruption = null;
     if (mode === "steer" && this.turnId)
       return this.rpc("turn/steer", {
         threadId: this.threadId,
@@ -194,12 +232,38 @@ export class CodexAdapter {
     this.options.approvalMode = value;
     return { applies: "next-turn" };
   }
-  async interrupt() {
-    if (this.turnId)
-      await this.rpc("turn/interrupt", {
-        threadId: this.threadId,
-        turnId: this.turnId,
-      });
+  async interrupt(reason = "client-cancel") {
+    if (!this.turnId)
+      return {
+        requested: true,
+        acknowledged: true,
+        noActiveTurn: true,
+        requestedAt: new Date().toISOString(),
+      };
+    this.interruption = requestInterruption(this.observations, reason);
+    const turnId = this.turnId;
+    await this.rpc("turn/interrupt", { threadId: this.threadId, turnId });
+    acknowledgeInterruption(this.interruption, {
+      api: "codex turn/interrupt",
+      turnId,
+    });
+    return {
+      requested: true,
+      acknowledged: true,
+      turnId,
+      requestedAt: this.interruption.requestedAt,
+      acknowledgedAt: this.interruption.acknowledgedAt,
+    };
+  }
+  async setModel(model) {
+    await this.rpc("thread/settings/update", {
+      threadId: this.threadId,
+      model,
+    });
+    this.model = model;
+    this.options.model = model;
+    // Codex applies thread settings from the next turn onward.
+    return { applies: "next-turn", api: "codex thread/settings/update", model };
   }
   async answer({ providerRequestId, decision, answers }) {
     const request = this.requests.get(providerRequestId);
