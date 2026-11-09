@@ -119,6 +119,15 @@ The local browser registration used `agent-host-claude:/<session-id>` and `agent
 
 The `agent-host-${provider}` form is confirmed in the 1.138.0 bundle, but no API returns the registered resource, so the form cannot simply be looked up either. The workable approach is to take the channel identifiers from the host that owns the run, derive candidates, try them in order, and verify each attempt. Verification needs an independent signal, because an extension cannot read the chat UI: ask the host which chat channel a client subscribed to just after the attempt. Absent that signal, report the result as unverified rather than as success.
 
+**Implementation result: this does not work through `chat.remoteAgentHosts` on 1.138.0, and no URI form will make it work.** Tested by hand at the editor, with the findings below. The plan assumed one integration shape where there are two, and only the other one supports a chat editor:
+
+- The editor registers a chat **editor** contribution — `registerChatSessionContribution`, which is also what adds the scheme to `chatSessionsService.getContentProviderSchemes()`, which is in turn what registers the editor for that scheme — only for its **own** agent host's providers.
+- For a host configured through `chat.remoteAgentHosts`, the registration path calls only `registerChatSessionItemController`. A remote host's sessions can therefore appear in the session list, but there is no editor registered to open one. Every candidate resource fails with `Unable to resolve resource`, including the editor's own `agent-host-session://<provider>/<id>` form.
+- Three real defects were found on the way, all now fixed, and each worth knowing independently: the command takes a `Uri` and calls `.with()` on it, so a string fails with `o.with is not a function`; advertising a provider named `claude` collides with the editor's built-in `claude` provider, so `agent-host-claude:/<id>` resolves against the built-in host and reports `Session not found on backend`; and a token carried in the address's query string is wrong on two counts — the editor has a `connectionToken` field for it, and `fb()` derives a session's authority from the address, so a query string forces an opaque `hex-` encoding of it.
+- The research's working observation came from the other shape: a VS Code **Server** started with `--agent-host-bridge-port`, which makes the facade the editor's _own_ agent host rather than an additional remote one. The desktop application exposes no such flag; the string does not appear in its bundle.
+
+So native chat for owned sessions needs the bridge shape, which means the standalone server package rather than the desktop app. Until that is exercised, the honest position is that the session list works, the editor does not, and the extension's verified-candidate-then-fallback behaviour reports exactly that.
+
 If the internal command changes, provide a graceful session-picker/manual-open fallback. Proposed `chatSessionsProvider` APIs are another possible fallback for a private installation with explicit opt-in. They are not generally usable for a Marketplace release; a single-user opt-in is possible, with compatibility maintenance. Do not call the approach impossible merely because a proposal is involved.
 
 ## Remote access and the website decision
@@ -304,19 +313,19 @@ corrected here rather than left for the next reader to rediscover.
 
 ### Delivered
 
-| ID     | State        | Evidence                                                                                                                                                                                                                                                                                                         |
-| ------ | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| VSC-00 | Done         | `scripts/vscode-fixture.mjs` builds a fresh workspace, the optional `product-launch` pack, and a disposable repository with a deterministic check and an authored slow command. `scripts/vscode-evidence.mjs` writes a redacted receipt. Nothing requires the original machine, its database, or any credential. |
-| VSC-01 | Done         | `src/app/providers/cancellation.mjs` defines the contract; both adapters use it. `src/app/test/cancellation.test.mjs` covers interrupted commands, real tool failures, interrupted acquisition, errors racing with cancellation, the undecidable completion race, and the in-flight-terminal race.               |
-| VSC-02 | Done         | `src/app/client.mjs` publishes `CLIENT_API_VERSION`, the operation allowlist, and the idempotency and conflict rules through `client.describe`. The extension refuses a mismatched major version.                                                                                                                |
-| VSC-03 | Done         | `src/app/ahp/` with version negotiation, per-client authorization, durable replay, rebuild-from-zero, bounded history, and honest tool lifecycle. 29 tests in `ahp-projection.test.mjs` and `ahp-facade.test.mjs`, the latter driven by the protocol library's own client over real WebSocket traffic.           |
-| VSC-04 | Done         | `extension/src/plans.js` and `trees.js`. A conflicting save cannot overwrite another revision, saving never approves, and approval shows the reviewed hash with the exact task and dependency set it would create.                                                                                               |
-| VSC-05 | **Partial**  | Protocol and process behaviour proven end to end; see below. Clicked-control acceptance is **not** done.                                                                                                                                                                                                         |
-| VSC-06 | Done         | `extension/src/webviews.js` with graph, progress, and timeline. Rendering reuses the workspace's own model modules over a CSP limited to that one origin; the payload is paged, hidden panels receive nothing, and keyboard navigation works.                                                                    |
-| VSC-07 | **Not done** | See below.                                                                                                                                                                                                                                                                                                       |
-| VSC-08 | **Not done** | No physical phone was available. Nothing about phone behaviour is claimed.                                                                                                                                                                                                                                       |
-| VSC-09 | **Partial**  | `scripts/package-extension.mjs` produces an installable `.vsix` with no build dependency. The extension installs into an isolated profile, activates, and connects. A real-work desktop flow has not been accepted.                                                                                              |
-| VSC-10 | **Not done** | No website surface has been retired, and none should be until VSC-08 passes.                                                                                                                                                                                                                                     |
+| ID     | State        | Evidence                                                                                                                                                                                                                                                                                                            |
+| ------ | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| VSC-00 | Done         | `scripts/vscode-fixture.mjs` builds a fresh workspace, the optional `product-launch` pack, and a disposable repository with a deterministic check and an authored slow command. `scripts/vscode-evidence.mjs` writes a redacted receipt. Nothing requires the original machine, its database, or any credential.    |
+| VSC-01 | Done         | `src/app/providers/cancellation.mjs` defines the contract; both adapters use it. `src/app/test/cancellation.test.mjs` covers interrupted commands, real tool failures, interrupted acquisition, errors racing with cancellation, the undecidable completion race, and the in-flight-terminal race.                  |
+| VSC-02 | Done         | `src/app/client.mjs` publishes `CLIENT_API_VERSION`, the operation allowlist, and the idempotency and conflict rules through `client.describe`. The extension refuses a mismatched major version.                                                                                                                   |
+| VSC-03 | Done         | `src/app/ahp/` with version negotiation, per-client authorization, durable replay, rebuild-from-zero, bounded history, and honest tool lifecycle. 29 tests in `ahp-projection.test.mjs` and `ahp-facade.test.mjs`, the latter driven by the protocol library's own client over real WebSocket traffic.              |
+| VSC-04 | Done         | `extension/src/plans.js` and `trees.js`. A conflicting save cannot overwrite another revision, saving never approves, and approval shows the reviewed hash with the exact task and dependency set it would create.                                                                                                  |
+| VSC-05 | **Blocked**  | Protocol and process behaviour proven end to end. Clicked-control acceptance is blocked by the editor: a host configured through `chat.remoteAgentHosts` gets a session list but no chat editor on 1.138.0, so there is no Allow or Cancel control to click. Three real defects were found and fixed getting there. |
+| VSC-06 | Done         | `extension/src/webviews.js` with graph, progress, and timeline. Rendering reuses the workspace's own model modules over a CSP limited to that one origin; the payload is paged, hidden panels receive nothing, and keyboard navigation works.                                                                       |
+| VSC-07 | **Not done** | See below.                                                                                                                                                                                                                                                                                                          |
+| VSC-08 | **Not done** | No physical phone was available. Nothing about phone behaviour is claimed.                                                                                                                                                                                                                                          |
+| VSC-09 | **Partial**  | `scripts/package-extension.mjs` produces an installable `.vsix` with no build dependency. The extension installs into an isolated profile, activates, and connects. A real-work desktop flow has not been accepted.                                                                                                 |
+| VSC-10 | **Not done** | No website surface has been retired, and none should be until VSC-08 passes.                                                                                                                                                                                                                                        |
 
 ### What was proven with the real editor
 
@@ -370,13 +379,14 @@ will eventually decide, not a recommendation to remove anything.
 
 ### The gaps, stated plainly
 
-- **No native control was clicked.** Every action in the evidence receipt was
-  sent by the protocol's own client library. That is what the editor sends on
-  the wire, and it is strictly more than a transport marker, but it is not a
-  person clicking Allow and Cancel in the chat UI. VSC-05 acceptance needs a
-  human at the editor with a session open. The fixture makes that a short
-  manual exercise: serve with `--ahp`, start a run, click through, then run
-  the evidence script's assertions against the resulting records.
+- **No native control was clicked, and on this build none can be.** Five
+  attempts were made at the editor, each one fixing a real defect. The
+  outcome is that VS Code 1.138.0 registers no chat editor for a host
+  configured through `chat.remoteAgentHosts`, so the conversation cannot be
+  opened and there is no Allow or Cancel to click. `scripts/vscode-native-check.mjs`
+  stands the whole thing up and verifies the clicks when a build does support
+  it; the remaining work is the bridge shape, using the standalone VS Code
+  Server with `--agent-host-bridge-port`, not more URI guessing.
 - **No real provider was exercised.** How Claude and Codex actually classify
   an interrupted turn is covered by unit tests against their documented and
   previously observed shapes, not by a live run on this machine. The
