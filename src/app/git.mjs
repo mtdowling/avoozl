@@ -65,7 +65,9 @@ export async function projectConfig({
   if (!/^[a-z][a-z0-9-]{1,60}$/.test(id || ""))
     fail("Choose a stable project ID.");
   root = fs.realpathSync(root);
-  if ((await git(root, ["rev-parse", "--show-toplevel"])) !== root)
+  if (
+    fs.realpathSync(await git(root, ["rev-parse", "--show-toplevel"])) !== root
+  )
     fail("Project root must be the Git checkout root.");
   await git(root, ["rev-parse", "--verify", baseBranch + "^{commit}"]);
   if (

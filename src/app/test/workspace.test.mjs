@@ -256,3 +256,22 @@ test("application, plans, state, and working repository can use independent dire
   assert(fs.existsSync(path.join(plans, "examples/product-launch.md")));
   assert(!fs.existsSync(path.join(applicationRoot, "state")));
 });
+
+test("source changes preserve portable document IDs across filesystem separators", async (t) => {
+  const root = temporary(t);
+  initializeWorkspace(root);
+  const config = workspaceConfig({ workspace: root });
+  fs.mkdirSync(path.join(config.plansRoot, "design"));
+  fs.writeFileSync(
+    path.join(config.plansRoot, "design", "plan.md"),
+    "# Design\n\n[Next](next.md)\n",
+  );
+  const store = new Store(config.dbPath);
+  t.after(() => store.close());
+  const { reconcileSource } = await import("../source-sync.mjs");
+  reconcileSource(store, config.plansRoot, "design\\plan.md");
+  const doc = store.read().documents["design/plan.md"];
+  assert.equal(doc.id, "design/plan.md");
+  assert.deepEqual(doc.links, ["design/next.md"]);
+  assert.equal(store.read().documents["design\\plan.md"], undefined);
+});

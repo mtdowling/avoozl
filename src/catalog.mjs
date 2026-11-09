@@ -16,20 +16,23 @@ export function planFiles(root) {
       const file = path.join(dir, e.name);
       if (e.isDirectory()) visit(file);
       else if (e.isFile() && e.name.endsWith(".md"))
-        files.push(path.relative(root, file));
+        files.push(path.relative(root, file).split(path.sep).join("/"));
     }
   }
   visit(root);
   return files.sort();
 }
 export function readDocument(root, relative) {
+  relative = relative.replaceAll("\\", "/");
   const file = path.join(root, relative),
     text = fs.readFileSync(file, "utf8");
   const rawLinks = [...text.matchAll(/\[[^\]]*\]\(([^)]+)\)/g)]
     .map((m) => m[1])
     .filter((href) => !/^https?:|^#|^mailto:/.test(href))
     .map((href) =>
-      path.normalize(path.join(path.dirname(relative), href.split("#")[0])),
+      path.posix.normalize(
+        path.posix.join(path.posix.dirname(relative), href.split("#")[0]),
+      ),
     )
     .filter((href) => !href.startsWith(".."));
   return {
@@ -48,7 +51,9 @@ export function readDocument(root, relative) {
       .map((m) => m[1])
       .filter((href) => !/^https?:|^#|^mailto:/.test(href))
       .map((href) =>
-        path.normalize(path.join(path.dirname(relative), href.split("#")[0])),
+        path.posix.normalize(
+          path.posix.join(path.posix.dirname(relative), href.split("#")[0]),
+        ),
       )
       .filter((href) => !href.startsWith("..")),
   };
