@@ -42,7 +42,7 @@ const operations = {
   ],
   plans_capture: [
     "task.capture",
-    "Create a task from a prompt with the current view as context.",
+    "Record a person's own request from the view they are looking at, as an untriaged inbox task awaiting planning. Not a channel for work an agent discovered: do the in-scope part and record its evidence, propose adjacent work on the current plan with plans_propose_work, or draft a new plan.",
   ],
   plans_update_task: [
     "task.update",
@@ -55,6 +55,10 @@ const operations = {
   plans_save_plan: [
     "plan.save",
     "Save a Markdown draft with expectedHash; amendments flag affected tasks for review.",
+  ],
+  plans_propose_work: [
+    "plan.propose",
+    "Append one proposed task block to a plan without rewriting its prose: {id, proposal:{id,title,acceptance,...}, expectedHash?}. Use it for work discovered while implementing that belongs to this plan. The proposal is not executable; the plan reads as changed against its approval receipt and its tasks need review until an authorized plan.approve converts it.",
   ],
   plans_get_plan: [
     "plan.get",

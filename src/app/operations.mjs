@@ -19,7 +19,7 @@ import {
   compactEvent,
   recentIntegrations,
 } from "./views.mjs";
-import { createPlan, savePlan, approvePlan } from "./plans.mjs";
+import { createPlan, savePlan, proposeWork, approvePlan } from "./plans.mjs";
 import { projectConfig, validateRun, integrateRun } from "./git.mjs";
 import { Batches } from "./batches.mjs";
 import { metrics } from "./telemetry.mjs";
@@ -742,6 +742,7 @@ export class Operations {
       );
     if (name === "plan.create") return createPlan(store, input);
     if (name === "plan.save") return savePlan(store, input);
+    if (name === "plan.propose") return proposeWork(store, input);
     if (name === "plan.get") {
       const plan = store.get("plans", input.id);
       if (!plan) fail("Plan not found.", 404);
@@ -867,7 +868,7 @@ export class Operations {
         evidence: task.evidenceRecords,
         nextAction: task.nextAction,
         policy:
-          "Task evidence, integration and acceptance are separate. Preserve existing worktrees and do not open GitHub issues.",
+          "Task evidence, integration and acceptance are separate. Preserve existing worktrees and do not open GitHub issues. Work discovered while implementing has three dispositions: in scope for this task, do it and record the evidence here, which is the normal case; related to this plan but out of scope, append one proposed task block with plan.propose, which makes this plan read as changed until its next approval; needing a different design, write a new plan draft and tell the user. Filing anything is the exception; do not capture discoveries as new request tasks.",
       };
     }
     if (name === "queue") {
