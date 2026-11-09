@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node cli.mjs serve",
     "workspace": "node cli.mjs",
-    "test": "node --test src/*.test.mjs src/app/test/*.test.mjs",
+    "test": "node --test --test-timeout=60000 src/*.test.mjs src/app/test/*.test.mjs",
     "format": "prettier --write cli.mjs src examples README.md AGENTS.md package.json .github",
     "format:check": "prettier --check cli.mjs src examples README.md AGENTS.md package.json .github"
   },

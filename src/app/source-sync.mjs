@@ -4,9 +4,10 @@ import { readDocument } from "../catalog.mjs";
 import { blocks, digest } from "../model.mjs";
 import { taskSourceRefs } from "../task-identity.mjs";
 export function reconcileSource(store, root, relative) {
+  relative = relative.replaceAll("\\", "/");
   if (
     relative
-      .split(path.sep)
+      .split("/")
       .some((p) =>
         ["native-runtime", "evidence", ".git", "node_modules"].includes(p),
       ) ||
@@ -80,11 +81,11 @@ export function watchSources(store, root) {
   const dirty = new Set();
   const watcher = fs.watch(root, { recursive: true }, (_kind, name) => {
     if (!name) return;
-    const file = String(name);
+    const file = String(name).replaceAll("\\", "/");
     if (
       !file.endsWith(".md") ||
       file
-        .split(path.sep)
+        .split("/")
         .some((p) =>
           ["native-runtime", "evidence", ".git", "node_modules"].includes(p),
         )
