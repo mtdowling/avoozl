@@ -130,7 +130,13 @@ try {
       const { startAhpFacade } = await import("./ahp/facade.mjs");
       const { loadTokens } = await import("./ahp/main.mjs");
       const { localClient } = await import("./client.mjs");
-      const { Operations } = await import("./operations.mjs");
+      // The facade records the endpoint it serves, so wait until the site is
+      // actually listening and its port is known.
+      if (!server.listening)
+        await new Promise((resolve, reject) => {
+          server.once("listening", resolve);
+          server.once("error", reject);
+        });
       const { store } = server.workspace;
       facade = startAhpFacade({
         store,
