@@ -377,6 +377,39 @@ will eventually decide, not a recommendation to remove anything.
 | Example pack installation           | yes     | yes       |                                                                                 |
 | Phone use                           | yes     | unproven  | The website stays the phone companion.                                          |
 
+### Real providers, and a finding that changes a plan assumption
+
+`scripts/vscode-real-provider.mjs` runs the production adapters against real
+provider sessions. **Codex 0.167.0 passes all ten of its checks** — it asks
+permission before running anything, an actual process starts, the run ends
+`interrupted` rather than `failed`, with no error, and Codex reports the
+interruption itself.
+
+It also contradicts this plan's opening claim that "native Cancel stopped both
+tested providers' commands":
+
+> **Codex's `turn/interrupt` ends the turn but does not stop a command it has
+> already spawned.** The interrupt was acknowledged, the turn went to
+> `interrupted`, and the child process was still running twenty seconds later.
+> It only died when the app-server process itself was stopped, and it never
+> received a signal: its `.interrupted` marker was never written.
+
+A user who clicks Cancel would otherwise be told the work stopped when it had
+not. So the host now records what an acknowledgement actually covers —
+`interrupt.acknowledged` carries `scope: "turn"` and
+`spawnedWork: "stopped" | "keeps-running" | "unknown"`, taken from the
+provider's declared capability — and the transcript says plainly that a command
+the provider started keeps running and the worktree is where to check. Codex
+declares `keeps-running` from this observation; Claude is left `"unknown"`
+rather than assumed, because it has not been verified here.
+
+Claude's own interruption run is **not done**: both providers on this machine
+route through AWS Bedrock, and the credential profile the environment names
+(`AWS_PROFILE`) is not configured, so a real Claude turn fails before it asks
+permission. That failure is itself partial evidence, recorded by the harness: a
+genuine provider failure stayed `failed`, kept the provider's own message, and
+had no cancellation attached.
+
 ### The gaps, stated plainly
 
 - **No native control was clicked, and on this build none can be.** Five
@@ -387,16 +420,22 @@ will eventually decide, not a recommendation to remove anything.
   stands the whole thing up and verifies the clicks when a build does support
   it; the remaining work is the bridge shape, using the standalone VS Code
   Server with `--agent-host-bridge-port`, not more URI guessing.
-- **No real provider was exercised.** How Claude and Codex actually classify
-  an interrupted turn is covered by unit tests against their documented and
-  previously observed shapes, not by a live run on this machine. The
-  interruption contract was written to be independent of any provider's
-  diagnostic text for exactly this reason, but an opt-in real-provider run is
-  still owed.
-- **Remote routing is unimplemented.** The research finding stands: `code
-tunnel` selects a native VS Code host and does not discover this facade.
-  Completing VSC-07 needs an authenticated tunnel, which needs an interactive
-  GitHub device login that could not be completed unattended. What the
+- **Claude's real interruption is untested here.** Codex passed its real run
+  in full; Claude cannot start a turn on this machine because the AWS profile
+  its SDK needs is not configured. Whether Claude's interruption reaches a
+  command it already spawned is therefore still `"unknown"` rather than
+  assumed either way.
+- **Remote routing is blocked by network policy, not by design.** A tunnel was
+  attempted with the operator's own GitHub device login, which succeeded; the
+  tunnel then never reported a URL because this network does not resolve
+  Microsoft's relay hostnames (`global.rel.tunnels.api.visualstudio.com` and
+  `*.devtunnels.ms` both time out, while `github.com` and `vscode.dev`
+  answer). Nothing was ever registered and no service was installed. The
+  better route needs no relay at all: `chat.remoteAgentHosts` accepts
+  `sshConfigHost`, `sshHostName`, `sshUser`, `sshPort` and `connectionToken`,
+  so an editor elsewhere can reach this machine's loopback facade over SSH.
+  `avoozl editor --ssh HOST` now emits exactly that, though it is unexercised
+  here and those fields are not a documented extension contract. What the
   implementation does guarantee is that the facade never becomes publicly
   reachable by accident: it refuses any non-loopback bind outright, and every
   socket must present a bearer token at the HTTP upgrade. The supported remote

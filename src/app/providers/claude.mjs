@@ -52,6 +52,9 @@ export const CLAUDE_CAPABILITIES = Object.freeze({
   models: true,
   liveModelChange: true,
   modelChangeApplies: "next-turn",
+  // Not verified on this machine. Treat the fate of an already-spawned
+  // command as unknown rather than assuming interruption reaches it.
+  interruptStopsSpawnedWork: "unknown",
   subagents: true,
   toolOutput: "result-blocks",
 });

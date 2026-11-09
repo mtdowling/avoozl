@@ -316,8 +316,13 @@ try {
             ? { url: manifest.url, startedAt: manifest.startedAt }
             : null,
           // Paste these into the VS Code profile that should drive this
-          // workspace. The address carries the facade's bearer token, so treat
-          // it as a credential and never commit or publish it.
+          // workspace. `connectionToken` is a credential: never commit or
+          // publish it.
+          //
+          // With --ssh HOST the editor reaches this machine's loopback facade
+          // over SSH, so an editor on another machine needs no relay and the
+          // facade is still never published. HOST is an entry in the client's
+          // own ~/.ssh/config.
           settings: {
             "avoozl.endpoint": liveEndpoint,
             "avoozl.facadeManifest": config.ahp.manifest,
@@ -329,19 +334,44 @@ try {
                       address: editorClient.address,
                       name: config.name,
                       connectionToken: editorClient.connectionToken,
+                      ...(options.ssh
+                        ? {
+                            sshConfigHost: options.ssh,
+                            ...(options["ssh-user"]
+                              ? { sshUser: options["ssh-user"] }
+                              : {}),
+                            ...(options["ssh-port"]
+                              ? { sshPort: Number(options["ssh-port"]) }
+                              : {}),
+                            sshServerType: "standalone",
+                          }
+                        : {}),
                     },
                   ],
                   "chat.remoteAgentHostsAutoConnect": true,
                 }
               : {}),
           },
+          remote: options.ssh
+            ? {
+                route: "ssh",
+                host: options.ssh,
+                note: "The editor connects over SSH and reaches this machine's loopback facade, so nothing is published and no relay is involved. The editor's SSH fields are not a documented extension contract: confirm the session list appears before relying on it.",
+              }
+            : {
+                route: "loopback only",
+                note:
+                  "To reach this facade from another machine, pass --ssh HOST, or set up an SSH local port forward to " +
+                  (editorClient?.address || "the facade's port") +
+                  ". Do not publish the listener.",
+              },
           ...(manifest
             ? {}
             : {
                 note:
                   "No facade manifest at " +
                   config.ahp.manifest +
-                  ". Start one with: aicommander serve --ahp --workspace " +
+                  ". Start one with: avoozl serve --ahp --workspace " +
                   config.workspaceRoot,
               }),
         },
@@ -533,7 +563,7 @@ try {
   init PATH [--name NAME] [--port 9428]   Create an empty workspace
   serve --workspace PATH [--ahp]        Start the site and agent host
   ahp --workspace PATH                  Start the editor agent-host facade
-  editor --workspace PATH               Print editor client settings
+  editor --workspace PATH [--ssh HOST]  Print editor client settings
   seed --workspace PATH [--example product-launch]
   examples --workspace PATH             List available example packs
   query [--q QUERY] | show TASK_ID | update TASK_ID --status STATUS

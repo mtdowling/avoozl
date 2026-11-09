@@ -445,6 +445,17 @@ export class RunManager {
       run.error = body.error || undefined;
       run.providerDiagnostic = body.providerDiagnostic || undefined;
       run.cancellation = body.cancellation || undefined;
+      if (run.cancellation) {
+        const observed = this.store
+          .events({ runId: id })
+          .filter((event) => event.kind === "interrupt.acknowledged")
+          .at(-1);
+        if (observed?.spawnedWork)
+          run.cancellation = {
+            ...run.cancellation,
+            spawnedWork: observed.spawnedWork,
+          };
+      }
       run.interruptRequestedAt = undefined;
       run.updatedAt = new Date().toISOString();
       this.reportActivity(run, "finish");
@@ -727,9 +738,20 @@ export class RunManager {
       this.store.event(id, "interrupt.failed", { message: error.message });
       throw error;
     }
+    // What the acknowledgement covers. A provider can end its turn without
+    // stopping a command it already spawned, so the record says which of the
+    // two actually happened rather than implying both.
+    const capabilities = adapter.capabilities || {};
     this.store.event(id, "interrupt.acknowledged", {
       ...acknowledgement,
       requestedAt,
+      scope: "turn",
+      spawnedWork:
+        capabilities.interruptStopsSpawnedWork === true
+          ? "stopped"
+          : capabilities.interruptStopsSpawnedWork === false
+            ? "keeps-running"
+            : "unknown",
     });
     // The run's terminal state still comes from the provider's own turn end.
     return { ...acknowledgement, requestedAt, runId: id };

@@ -24,6 +24,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fork, execFileSync, spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
 import { createFixture } from "./vscode-fixture.mjs";
@@ -48,6 +49,13 @@ const timeoutSeconds = Number(argv[argv.indexOf("--timeout") + 1] || 1800);
 // With --no-launch the operator opens the editor themselves; the script still
 // prints the profile and the settings it prepared.
 const launchEditor = !argv.includes("--no-launch");
+// With --server DIR the browser editor from an extracted VS Code Server
+// package is used, bridged so this facade becomes the editor's own agent host
+// rather than an additional remote one. On the desktop application a remote
+// host gets a session list but no chat editor, so there is nothing to click;
+// the bridge is the shape that registers one.
+const serverIndex = argv.indexOf("--server");
+const serverRoot = serverIndex === -1 ? null : argv[serverIndex + 1];
 const outFile = path.join(
   repositoryRoot,
   "docs/evidence/vscode/native-controls.json",
@@ -271,7 +279,69 @@ try {
     ];
     return candidates.find((candidate) => fs.existsSync(candidate)) || "code";
   })();
-  if (!launchEditor) {
+  if (serverRoot) {
+    const binary = path.join(serverRoot, "bin", "code-server");
+    if (!fs.existsSync(binary))
+      throw Error(
+        "No code-server at " +
+          binary +
+          ". Extract a VS Code Server package there first.",
+      );
+    const tokenFile = path.join(editorRoot, "connection-token");
+    const browserToken = randomUUID();
+    fs.writeFileSync(tokenFile, browserToken, { mode: 0o600 });
+    const webPort = 9443;
+    say("");
+    say("Starting the bridged browser editor. Its license terms are accepted");
+    say("by this run, as agreed. It listens on loopback and requires the");
+    say("connection token below.");
+    editor = spawn(
+      binary,
+      [
+        "--accept-server-license-terms",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        String(webPort),
+        "--connection-token-file",
+        tokenFile,
+        "--server-data-dir",
+        path.join(editorRoot, "s"),
+        "--user-data-dir",
+        profile,
+        "--extensions-dir",
+        extensions,
+        // The facade becomes this editor's agent host, rather than an extra
+        // remote one. That is the shape that registers a chat editor.
+        "--agent-host-bridge-host",
+        "127.0.0.1",
+        "--agent-host-bridge-port",
+        String(facade.port),
+        "--agent-host-bridge-connection-token",
+        editorClient.connectionToken,
+        fixture.repository,
+      ],
+      { stdio: ["ignore", "pipe", "pipe"] },
+    );
+    const serverLog = fs.createWriteStream(
+      path.join(fixture.root, "server.log"),
+    );
+    editor.stdout.pipe(serverLog);
+    editor.stderr.pipe(serverLog);
+    editor.on("error", (error) =>
+      say("  ! could not start the browser editor: " + error.message),
+    );
+    say("");
+    say("Open this in a browser:");
+    say(
+      "  http://127.0.0.1:" +
+        webPort +
+        "/?tkn=" +
+        browserToken +
+        "&folder=" +
+        encodeURIComponent(fixture.repository),
+    );
+  } else if (!launchEditor) {
     say("");
     say("Editor not launched (--no-launch). Open it yourself with:");
     say(
@@ -285,20 +355,22 @@ try {
         fixture.repository,
     );
   }
-  editor = launchEditor
-    ? spawn(
-        appBinary,
-        [
-          "--user-data-dir",
-          profile,
-          "--extensions-dir",
-          extensions,
-          "--disable-workspace-trust",
-          fixture.repository,
-        ],
-        { stdio: ["ignore", "pipe", "pipe"], detached: false },
-      )
-    : null;
+  editor = editor
+    ? editor
+    : launchEditor
+      ? spawn(
+          appBinary,
+          [
+            "--user-data-dir",
+            profile,
+            "--extensions-dir",
+            extensions,
+            "--disable-workspace-trust",
+            fixture.repository,
+          ],
+          { stdio: ["ignore", "pipe", "pipe"], detached: false },
+        )
+      : null;
   if (editor) {
     const editorLog = fs.createWriteStream(path.join(fixture.root, "code.log"));
     editor.stdout?.pipe(editorLog);
