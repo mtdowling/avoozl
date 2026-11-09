@@ -7,3 +7,6 @@ workspace.local.json
 *.sqlite*
 *.log
 .DS_Store
+
+# Packaged extension artifacts are built on demand.
+build/

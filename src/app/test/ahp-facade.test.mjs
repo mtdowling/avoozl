@@ -159,7 +159,8 @@ async function until(check, { timeoutMs = 4000 } = {}) {
       value = null;
     }
     if (value) return value;
-    if (Date.now() > deadline) throw Error("Timed out waiting for a condition.");
+    if (Date.now() > deadline)
+      throw Error("Timed out waiting for a condition.");
     await delay(10);
   }
 }
@@ -219,10 +220,9 @@ test("protocol negotiation selects a version the client offered, or refuses clea
     }),
     (error) => {
       assert.equal(error.code, AhpErrorCodes.UnsupportedProtocolVersion);
-      assert.deepEqual(
-        error.data.supportedVersions,
-        [...SUPPORTED_PROTOCOL_VERSIONS],
-      );
+      assert.deepEqual(error.data.supportedVersions, [
+        ...SUPPORTED_PROTOCOL_VERSIONS,
+      ]);
       return true;
     },
   );
@@ -283,7 +283,9 @@ test("a client turn delivers exactly once however many times it is dispatched", 
   const uris = runUris(workspaceIdentity(store), run.id);
   const first = await connect(facade, EDITOR_TOKEN, [uris.chat]);
   const second = await connect(facade, EDITOR_TOKEN, [uris.chat]);
-  t.after(() => Promise.all([first.client.shutdown(), second.client.shutdown()]));
+  t.after(() =>
+    Promise.all([first.client.shutdown(), second.client.shutdown()]),
+  );
   const action = {
     type: "chat/turnStarted",
     turnId: "client-turn-1",
@@ -306,10 +308,7 @@ test("a client turn delivers exactly once however many times it is dispatched", 
     return state.activeTurn?.id === "client-turn-1" ? state : null;
   });
   assert.equal(chat.activeTurn.message.text, "Please continue");
-  assert.equal(
-    store.get("deliveries", "ahp:client-turn-1").state,
-    "accepted",
-  );
+  assert.equal(store.get("deliveries", "ahp:client-turn-1").state, "accepted");
 });
 
 test("two clients answering one approval produce one provider answer and a clear conflict", async (t) => {
@@ -332,12 +331,14 @@ test("two clients answering one approval produce one provider answer and a clear
   await until(() => {
     const state = facade.projection.channelState(uris.chat);
     return state.activeTurn?.responseParts.some(
-      (p) => p.kind === "toolCall" && p.toolCall.status === "pending-confirmation",
+      (p) =>
+        p.kind === "toolCall" && p.toolCall.status === "pending-confirmation",
     );
   });
   // Answer once through the facade and once directly, as the website would.
   const confirm = () =>
-    facade.projection && ops.execute("run.answer", { id: pending.id, decision: "allow" });
+    facade.projection &&
+    ops.execute("run.answer", { id: pending.id, decision: "allow" });
   await confirm();
   await assert.rejects(confirm(), /no longer pending/);
   const direct = await until(
@@ -355,7 +356,10 @@ test("two clients answering one approval produce one provider answer and a clear
     confirmed: "user-action",
   });
   assert.equal(raw.error.code, AhpErrorCodes.Conflict);
-  assert.match(raw.error.message, /already have been answered|no longer pending/);
+  assert.match(
+    raw.error.message,
+    /already have been answered|no longer pending/,
+  );
   assert.equal(stub.calls.answered.length, 1);
 });
 
@@ -563,7 +567,10 @@ test("reconnect replays the exact gap, or admits it must resend a snapshot", asy
   const gone = await client.reconnect({
     clientId: "reconnecting",
     lastSeenServerSeq: facade.projection.seq,
-    subscriptions: [uris.chat, "ahp-chat:/00000000-0000-5000-8000-000000000000"],
+    subscriptions: [
+      uris.chat,
+      "ahp-chat:/00000000-0000-5000-8000-000000000000",
+    ],
   });
   assert.deepEqual(gone.missing, [
     "ahp-chat:/00000000-0000-5000-8000-000000000000",
@@ -645,10 +652,10 @@ test("queue controls the editor offers are carried out or refused for a stated r
     order: ["q2", "q1"],
   });
   assert.equal(reordered.error, undefined);
-  assert.deepEqual(manager.queueOrder(run.id).map((d) => d.id), [
-    "ahp:q2",
-    "ahp:q1",
-  ]);
+  assert.deepEqual(
+    manager.queueOrder(run.id).map((d) => d.id),
+    ["ahp:q2", "ahp:q1"],
+  );
   // A queued message that never reached the provider can be withdrawn.
   const removed = await rawDispatch(facade, uris.chat, {
     type: "chat/pendingMessageRemoved",
@@ -724,9 +731,7 @@ test("resource reads are confined to the directories the workspace exposes", asy
 // observe a refusal. These tests send it with an id to read the error the
 // facade produces; the facade answers both shapes.
 async function rawDispatch(facade, channel, action, token = EDITOR_TOKEN) {
-  const ws = new WebSocket(
-    facade.url + "/?token=" + encodeURIComponent(token),
-  );
+  const ws = new WebSocket(facade.url + "/?token=" + encodeURIComponent(token));
   await new Promise((resolve, reject) => {
     ws.addEventListener("open", resolve, { once: true });
     ws.addEventListener("error", reject, { once: true });

@@ -86,7 +86,11 @@ test("an approved tool that ran, then was cancelled, stays a completed unsuccess
   let state = chat(projection, store);
   assert.equal(state.activeTurn.message.text, "Run the fixture slow command");
   let call = toolCalls(state)[0];
-  assert.equal(call.toolCallId, "toolu_1", "the provider tool ID is the tool call ID");
+  assert.equal(
+    call.toolCallId,
+    "toolu_1",
+    "the provider tool ID is the tool call ID",
+  );
   assert.equal(call.status, "pending-confirmation");
   assert.deepEqual(
     call.options.map((o) => o.id),
@@ -94,9 +98,17 @@ test("an approved tool that ran, then was cancelled, stays a completed unsuccess
   );
   // Waiting for approval is visible from the session channel alone.
   assert.equal(session(projection, store).inputNeeded.length, 1);
-  assert.equal(session(projection, store).inputNeeded[0].kind, "toolConfirmation");
+  assert.equal(
+    session(projection, store).inputNeeded[0].kind,
+    "toolConfirmation",
+  );
 
-  const answered = { ...request, state: "allowed", optionId: "allow-once", executed: true };
+  const answered = {
+    ...request,
+    state: "allowed",
+    optionId: "allow-once",
+    executed: true,
+  };
   store.put("requests", answered);
   store.event(run.id, "request.answered", { request: answered });
   projection.catchUp();
@@ -154,7 +166,11 @@ test("a tool cancelled before its decision is recorded as never executed", async
     providerRequestId: "p-b",
     state: "pending",
     options: [{ id: "allow-once", label: "Allow once", kind: "approve" }],
-    payload: { tool: "Bash", toolUseId: "toolu_b", input: { command: "sleep 100" } },
+    payload: {
+      tool: "Bash",
+      toolUseId: "toolu_b",
+      input: { command: "sleep 100" },
+    },
   };
   store.put("requests", request);
   store.event(run.id, "request.created", { request });
@@ -176,7 +192,10 @@ test("a tool cancelled before its decision is recorded as never executed", async
   assert.equal(call.reason, "skipped");
   assert.match(JSON.stringify(call.reasonMessage), /did not run/);
   assert.equal(state.turns.at(-1).state, "cancelled");
-  assert.equal((session(projection, store, run.id).inputNeeded || []).length, 0);
+  assert.equal(
+    (session(projection, store, run.id).inputNeeded || []).length,
+    0,
+  );
 });
 
 test("a genuine provider failure stays an error with its own message", async (t) => {
@@ -283,7 +302,11 @@ test("subagent work is attributed and cleared when the delegating tool finishes"
 
 test("queued and steered follow-ups stay distinguishable and durable", async (t) => {
   const { store } = fixture(t);
-  const run = seedRun(store, { id: "run-queue", provider: "codex", state: "running" });
+  const run = seedRun(store, {
+    id: "run-queue",
+    provider: "codex",
+    state: "running",
+  });
   store.event(run.id, "run.created", { run });
   const queued = {
     id: "ahp:turn-7",
@@ -334,7 +357,9 @@ test("queued and steered follow-ups stay distinguishable and durable", async (t)
   assert.equal(state.activeTurn.id, "turn-7");
   assert.ok(
     state.activeTurn.responseParts.some(
-      (p) => p.kind === "systemNotification" && JSON.stringify(p.content).includes("Steered"),
+      (p) =>
+        p.kind === "systemNotification" &&
+        JSON.stringify(p.content).includes("Steered"),
     ),
   );
 });
@@ -399,7 +424,10 @@ test("a host restart ends the turn resumably and invalidates pending approvals",
   const errorPart = turn.responseParts.find((p) => p.kind === "error");
   assert.equal(errorPart.resumable, true);
   assert.equal(errorPart.error.errorType, "SessionDisconnected");
-  assert.equal((session(projection, store, run.id).inputNeeded || []).length, 0);
+  assert.equal(
+    (session(projection, store, run.id).inputNeeded || []).length,
+    0,
+  );
 });
 
 test("a question reaches the session channel and its answer converges", async (t) => {
@@ -442,7 +470,10 @@ test("a question reaches the session channel and its answer converges", async (t
     part.request.questions[0].options.map((o) => o.id),
     ["Blue", "Green"],
   );
-  assert.equal(session(projection, store, run.id).inputNeeded[0].kind, "chatInput");
+  assert.equal(
+    session(projection, store, run.id).inputNeeded[0].kind,
+    "chatInput",
+  );
 
   store.event(run.id, "request.answered", {
     request: {
@@ -458,7 +489,10 @@ test("a question reaches the session channel and its answer converges", async (t
   );
   assert.equal(answered.request.response ?? "accept", "accept");
   assert.equal(answered.request.answers.Colour.value.value, "Blue");
-  assert.equal((session(projection, store, run.id).inputNeeded || []).length, 0);
+  assert.equal(
+    (session(projection, store, run.id).inputNeeded || []).length,
+    0,
+  );
 });
 
 test("the projection rebuilds from the event log and reproduces the same state", async (t) => {
@@ -481,9 +515,12 @@ test("the projection rebuilds from the event log and reproduces the same state",
   const identity = JSON.parse(
     direct.prepare("SELECT value FROM meta WHERE key='identity'").get().value,
   );
-  direct
-    .prepare("UPDATE meta SET value=? WHERE key='identity'")
-    .run(JSON.stringify({ ...identity, schemaVersion: identity.schemaVersion - 1 }));
+  direct.prepare("UPDATE meta SET value=? WHERE key='identity'").run(
+    JSON.stringify({
+      ...identity,
+      schemaVersion: identity.schemaVersion - 1,
+    }),
+  );
   direct.close();
 
   const second = new Projection({ store, file });
@@ -541,7 +578,11 @@ test("history stays bounded and older turns page back in without gaps", async (t
     store.event(run.id, "message", { text: "Reply " + i });
     store.event(run.id, "turn.completed", { state: "completed" });
   }
-  const projection = new Projection({ store, file: ":memory:", retainTurns: 5 });
+  const projection = new Projection({
+    store,
+    file: ":memory:",
+    retainTurns: 5,
+  });
   t.after(() => projection.close());
   projection.catchUp();
   const uris = runUris(workspaceIdentity(store), run.id);
@@ -576,16 +617,13 @@ test("history stays bounded and older turns page back in without gaps", async (t
     null,
     "there is nothing left to page",
   );
-  assert.throws(
-    () => {
-      projection.putChannel(uris.chat, "chat", run.id, {
-        ...projection.channelState(uris.chat),
-        turnsNextCursor: "ordinal:3",
-      });
-      projection.loadOlderTurns(uris.chat, "ordinal:nonsense");
-    },
-    /Unrecognised history cursor/,
-  );
+  assert.throws(() => {
+    projection.putChannel(uris.chat, "chat", run.id, {
+      ...projection.channelState(uris.chat),
+      turnsNextCursor: "ordinal:3",
+    });
+    projection.loadOlderTurns(uris.chat, "ordinal:nonsense");
+  }, /Unrecognised history cursor/);
 });
 
 test("channel identifiers are namespaced by workspace and stable across titles", async (t) => {

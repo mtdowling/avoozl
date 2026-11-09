@@ -109,8 +109,15 @@ export function loadTokens(tokenFile) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const [dbPath, endpoint, manifestPath, projectionPath, tokenFile, port, host] =
-    process.argv.slice(2);
+  const [
+    dbPath,
+    endpoint,
+    manifestPath,
+    projectionPath,
+    tokenFile,
+    port,
+    host,
+  ] = process.argv.slice(2);
   const facade = await startFacadeForWorkspace({
     dbPath,
     endpoint,

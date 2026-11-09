@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { setTimeout as delay } from "node:timers/promises";
-import { fixture } from "./fixtures.mjs";
+import { fixture, waitFor } from "./fixtures.mjs";
 import { RunManager } from "../manager.mjs";
 import { Operations } from "../operations.mjs";
 import { ClaudeAdapter } from "../providers/claude.mjs";
@@ -102,11 +102,15 @@ test("Claude reports an interrupted turn as interrupted and keeps its diagnostic
   });
   t.after(() => adapter.close());
   await adapter.start({ cwd: ".", mode: "implement" });
-  await delay(10);
+  await waitFor(() => events.some((e) => e.kind === "session"), {
+    label: "the session to be reported",
+  });
   const acknowledgement = await adapter.interrupt();
   assert.equal(acknowledgement.acknowledged, true);
   assert.ok(acknowledgement.requestedAt);
-  await delay(20);
+  await waitFor(() => events.some((e) => e.kind === "turn.completed"), {
+    label: "the terminal turn event",
+  });
   const completed = events.find((e) => e.kind === "turn.completed");
   assert.equal(completed.state, "interrupted");
   assert.equal(completed.error, undefined);
@@ -126,7 +130,12 @@ test("Claude keeps an uncancelled provider error as a failure and reports tool r
         type: "assistant",
         message: {
           content: [
-            { type: "tool_use", id: "toolu_1", name: "Bash", input: { command: "false" } },
+            {
+              type: "tool_use",
+              id: "toolu_1",
+              name: "Bash",
+              input: { command: "false" },
+            },
           ],
         },
       };
@@ -157,7 +166,9 @@ test("Claude keeps an uncancelled provider error as a failure and reports tool r
   });
   t.after(() => adapter.close());
   await adapter.start({ cwd: ".", mode: "implement" });
-  await delay(30);
+  await waitFor(() => events.some((e) => e.kind === "turn.completed"), {
+    label: "the tool result and terminal turn",
+  });
   const finished = events.find((e) => e.kind === "tool.finished");
   assert.equal(finished.id, "toolu_1");
   assert.equal(finished.isError, true);
@@ -179,7 +190,11 @@ test("Claude records an interrupted permission acquisition as never executed", a
       await options.options.canUseTool(
         "Bash",
         { command: "node slow-command.mjs markers/demo" },
-        { requestId: "permission-1", toolUseID: "toolu_slow", signal: controller.signal },
+        {
+          requestId: "permission-1",
+          toolUseID: "toolu_slow",
+          signal: controller.signal,
+        },
       );
       yield { type: "result", is_error: true, result: "stopped", uuid: "r" };
     })();
@@ -194,10 +209,15 @@ test("Claude records an interrupted permission acquisition as never executed", a
   });
   t.after(() => adapter.close());
   await adapter.start({ cwd: ".", mode: "implement" });
-  await delay(20);
+  await waitFor(() => requests.length, { label: "the permission request" });
   assert.equal(requests[0].payload.toolUseId, "toolu_slow");
   await adapter.interrupt();
-  await delay(30);
+  await waitFor(
+    () =>
+      events.some((e) => e.kind === "request.interrupted") &&
+      events.some((e) => e.kind === "turn.completed"),
+    { label: "the interrupted acquisition and terminal turn" },
+  );
   const interrupted = events.find((e) => e.kind === "request.interrupted");
   assert.equal(interrupted.executed, false);
   assert.equal(interrupted.reason, "cancelled-before-acquisition");
@@ -230,12 +250,14 @@ for await (const line of readline.createInterface({input:process.stdin})) {
   });
   t.after(() => adapter.close());
   await adapter.start({ cwd: root, mode: "implement", prompt: "work" });
-  await delay(60);
+  await waitFor(() => adapter.turnId, { label: "the provider turn to start" });
   const idle = await adapter.interrupt();
   assert.equal(idle.acknowledged, true);
   // There was an active turn, so this is a real interruption.
   assert.equal(idle.noActiveTurn, undefined);
-  await delay(60);
+  await waitFor(() => events.some((e) => e.kind === "turn.completed"), {
+    label: "the provider to report the interrupted turn",
+  });
   const completed = events.find((e) => e.kind === "turn.completed");
   assert.equal(completed.state, "interrupted");
   assert.equal(completed.cancellation.source, "provider");
@@ -247,7 +269,12 @@ for await (const line of readline.createInterface({input:process.stdin})) {
 
 test("interrupt records intent, waits for acknowledgement, and reports it", async (t) => {
   const { store, root } = fixture(t);
-  store.put("projects", { id: "fixture", root, baseBranch: "main", checks: [] });
+  store.put("projects", {
+    id: "fixture",
+    root,
+    baseBranch: "main",
+    checks: [],
+  });
   let acknowledged = 0;
   const manager = new RunManager(store, {
     recover: false,
@@ -284,14 +311,57 @@ test("interrupt records intent, waits for acknowledgement, and reports it", asyn
   const kinds = store.events({ runId: run.id }).map((e) => e.kind);
   // The intent is durable before the provider is asked, so a crash between
   // the two still shows that a stop was requested.
-  assert.ok(kinds.indexOf("interrupt.requested") < kinds.indexOf("interrupt.acknowledged"));
+  assert.ok(
+    kinds.indexOf("interrupt.requested") <
+      kinds.indexOf("interrupt.acknowledged"),
+  );
   assert.equal(
-    store.events({ runId: run.id }).find((e) => e.kind === "interrupt.requested")
-      .reason,
+    store
+      .events({ runId: run.id })
+      .find((e) => e.kind === "interrupt.requested").reason,
     "client-cancel:test",
   );
   await assert.rejects(
     ops.execute("run.interrupt", { id: "run-missing" }),
     /Run not found/,
+  );
+});
+
+test("a turn ending while a stop is in flight still reports the acknowledgement", async (t) => {
+  // The provider can end the turn before `interrupt` returns. The reply must
+  // still describe what was requested rather than failing on a record the
+  // terminal event has already cleared.
+  const events = [];
+  let endTurn;
+  const query = () => {
+    const iterator = (async function* () {
+      yield { type: "system", session_id: "s" };
+      await new Promise((resolve) => (endTurn = resolve));
+      yield { type: "result", is_error: true, result: "stopped", uuid: "r" };
+    })();
+    iterator.interrupt = async () => {
+      // End the turn first, then resolve the interrupt request.
+      endTurn();
+      await delay(5);
+    };
+    iterator.close = () => endTurn?.();
+    return iterator;
+  };
+  const adapter = new ClaudeAdapter({
+    query,
+    emit: (kind, body) => events.push({ kind, ...body }),
+    onRequest: () => {},
+  });
+  t.after(() => adapter.close());
+  await adapter.start({ cwd: ".", mode: "implement" });
+  await waitFor(() => events.some((e) => e.kind === "session"));
+  const acknowledgement = await adapter.interrupt();
+  assert.equal(acknowledgement.acknowledged, true);
+  assert.ok(acknowledgement.requestedAt);
+  assert.ok(acknowledgement.acknowledgedAt);
+  await waitFor(() => events.some((e) => e.kind === "turn.completed"));
+  assert.equal(
+    events.find((e) => e.kind === "turn.completed").state,
+    "interrupted",
   );
 });

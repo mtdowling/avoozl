@@ -294,16 +294,19 @@ export class ClaudeAdapter {
     return { messageId: id, delivery: "submitted" };
   }
   async interrupt(reason = "client-cancel") {
-    this.interruption = requestInterruption(this.observations, reason);
+    // Held locally: the SDK may end the turn while this request is in flight,
+    // which clears the adapter's record.
+    const interruption = requestInterruption(this.observations, reason);
+    this.interruption = interruption;
     await this.query.interrupt();
     // The SDK resolves once it has asked the session to stop. Record that
     // acknowledgement; the truthful terminal state still comes from the turn.
-    acknowledgeInterruption(this.interruption, { api: "Claude SDK interrupt" });
+    acknowledgeInterruption(interruption, { api: "Claude SDK interrupt" });
     return {
       requested: true,
       acknowledged: true,
-      requestedAt: this.interruption.requestedAt,
-      acknowledgedAt: this.interruption.acknowledgedAt,
+      requestedAt: interruption.requestedAt,
+      acknowledgedAt: interruption.acknowledgedAt,
     };
   }
   async setModel(model) {

@@ -64,7 +64,8 @@ export function classifyTurnEnd({
       ...(detail ? { providerDiagnostic: detail } : {}),
     };
   // Only an intent recorded before this event was observed can explain it.
-  const applies = Boolean(interruption) && interruption.observation <= observation;
+  const applies =
+    Boolean(interruption) && interruption.observation <= observation;
   if (!applies)
     return isError || providerState === "failed"
       ? { state: "failed", error: detail || "The provider reported a failure." }

@@ -212,8 +212,9 @@ export class Projection {
     };
   }
   sessionConfig(run) {
-    const models = (this.agents.find((a) => a.provider === run.provider)
-      ?.models || []).map((m) => m.id);
+    const models = (
+      this.agents.find((a) => a.provider === run.provider)?.models || []
+    ).map((m) => m.id);
     return {
       schema: {
         type: "object",
@@ -303,7 +304,10 @@ export class Projection {
     if (row?.kind !== "chat") return;
     const state = row.state;
     if (!state.turns || state.turns.length <= this.retainTurns) return;
-    const overflow = state.turns.slice(0, state.turns.length - this.retainTurns);
+    const overflow = state.turns.slice(
+      0,
+      state.turns.length - this.retainTurns,
+    );
     // Archiving is idempotent: a turn that was paged back in and then trimmed
     // again keeps its original ordinal, so history order never changes.
     let next =
@@ -391,34 +395,34 @@ export class Projection {
     const envelopes = [];
     try {
       this.transaction(() => {
-      if (event.seq <= this.cursor()) {
-        return;
-      }
-      if (event.runId) {
-        const run = this.store.get("runs", event.runId);
-        if (run) {
-          const uris = this.ensureRun(run);
-          const correlation = this.correlationFor(run.id);
-          const emit = (channel, action) => {
-            envelopes.push(this.record(channel, action, event.seq));
-            this.reduce(channel, action);
-          };
-          applyEvent(event, {
-            run,
-            uris,
-            correlation,
-            emit,
-            at: event.at,
-            protocolVersion: PROJECTION_PROTOCOL_VERSION,
-            chatState: () => this.channelState(uris.chat),
-            sessionConfig: () => this.sessionConfig(run),
-            sessionMeta: () => this.sessionMeta(run),
-          });
-          this.putCorrelation(run.id, correlation);
-          this.syncSummaries(run, uris, envelopes, event.seq);
-          this.trimTurns(uris.chat);
+        if (event.seq <= this.cursor()) {
+          return;
         }
-      }
+        if (event.runId) {
+          const run = this.store.get("runs", event.runId);
+          if (run) {
+            const uris = this.ensureRun(run);
+            const correlation = this.correlationFor(run.id);
+            const emit = (channel, action) => {
+              envelopes.push(this.record(channel, action, event.seq));
+              this.reduce(channel, action);
+            };
+            applyEvent(event, {
+              run,
+              uris,
+              correlation,
+              emit,
+              at: event.at,
+              protocolVersion: PROJECTION_PROTOCOL_VERSION,
+              chatState: () => this.channelState(uris.chat),
+              sessionConfig: () => this.sessionConfig(run),
+              sessionMeta: () => this.sessionMeta(run),
+            });
+            this.putCorrelation(run.id, correlation);
+            this.syncSummaries(run, uris, envelopes, event.seq);
+            this.trimTurns(uris.chat);
+          }
+        }
         this.setMeta("sourceCursor", event.seq);
       });
     } catch (error) {
@@ -475,10 +479,14 @@ export class Projection {
         current.activity !== summary.activity
       )
         envelopes.push(
-          this.applyNow(uris.session, {
-            type: "session/chatUpdated",
-            chat: summary,
-          }, sourceSeq),
+          this.applyNow(
+            uris.session,
+            {
+              type: "session/chatUpdated",
+              chat: summary,
+            },
+            sourceSeq,
+          ),
         );
       if (session.status !== status || session.title !== title)
         this.putChannel(uris.session, "session", run.id, {
@@ -641,7 +649,10 @@ export class Projection {
         status: runStatus(run, { archived }),
         createdAt: run.createdAt || new Date(0).toISOString(),
         modifiedAt:
-          run.updatedAt || run.lastObservedAt || run.createdAt || new Date(0).toISOString(),
+          run.updatedAt ||
+          run.lastObservedAt ||
+          run.createdAt ||
+          new Date(0).toISOString(),
         workingDirectories: run.worktree
           ? [pathToFileURL(run.worktree).href]
           : [],

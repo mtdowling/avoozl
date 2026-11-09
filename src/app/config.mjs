@@ -50,5 +50,26 @@ export function workspaceConfig(options = {}) {
       process.env.NUPP_WORKSPACE_URL ||
       saved.url ||
       "http://127.0.0.1:" + port,
+    // Editor client surface. The agent host facade is opt-in, binds loopback,
+    // and keeps its derived projection and client tokens beside the database.
+    ahp: {
+      port: Number(options["ahp-port"] ?? saved.ahpPort ?? 9496),
+      host: options["ahp-host"] || saved.ahpHost || "127.0.0.1",
+      projection: relative(
+        options["ahp-projection"] ||
+          saved.ahpProjection ||
+          path.join(path.dirname(dbPath), "ahp.sqlite"),
+      ),
+      tokens: relative(
+        options["ahp-tokens"] ||
+          saved.ahpTokens ||
+          path.join(path.dirname(dbPath), "ahp-tokens.json"),
+      ),
+      manifest: relative(
+        options["ahp-manifest"] ||
+          saved.ahpManifest ||
+          path.join(path.dirname(dbPath), "ahp-facade.json"),
+      ),
+    },
   };
 }

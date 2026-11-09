@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
-import { fixture } from "./fixtures.mjs";
+import { fixture, waitFor } from "./fixtures.mjs";
 import { RunManager } from "../manager.mjs";
 import { Operations } from "../operations.mjs";
 import { git } from "../git.mjs";
@@ -67,7 +67,9 @@ test("authorized batches integrate prerequisites before dispatching dependent wo
   await git(first.worktree, ["add", "."]);
   await git(first.worktree, ["commit", "-m", "Build foundation"]);
   manager.receive(first.id, "turn.completed", { state: "completed" });
-  for (let n = 0; n < 100 && dispatch.length < 2; n++) await delay(15);
+  await waitFor(() => dispatch.length >= 2, {
+    label: "the dependent run to be dispatched after integration",
+  });
   assert.equal(dispatch.length, 2);
   const updated = store.get("batches", batch.id),
     second = store.get("runs", updated.runIds[1]);

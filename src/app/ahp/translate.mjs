@@ -15,7 +15,10 @@
 //   * Interruption, failure, disconnection, waiting for input, and waiting
 //     for approval stay distinct, and a provider diagnostic recorded during
 //     an intentional interruption is shown as such rather than as a failure.
-import { ACTION_INTRODUCED_IN, compareProtocolVersions } from "@microsoft/agent-host-protocol";
+import {
+  ACTION_INTRODUCED_IN,
+  compareProtocolVersions,
+} from "@microsoft/agent-host-protocol";
 
 // Session status bit flags (AHP `SessionStatus`).
 export const STATUS = {
@@ -86,6 +89,7 @@ export function emptyCorrelation() {
     pendingApprovals: {},
     queued: {},
     background: {},
+    interruptRequestedAt: null,
   };
 }
 
@@ -106,7 +110,15 @@ export class Translator {
   // `emit(channel, action)` must apply the action to the channel state and
   // record it before returning, so later decisions in the same event see the
   // state the earlier actions produced.
-  constructor({ emit, chatState, protocolVersion, uris, run, correlation, at }) {
+  constructor({
+    emit,
+    chatState,
+    protocolVersion,
+    uris,
+    run,
+    correlation,
+    at,
+  }) {
     this.emitAction = emit;
     this.chatState = chatState;
     this.protocolVersion = protocolVersion;
@@ -367,7 +379,8 @@ export class Translator {
         length > 0 &&
         id.startsWith("text:" + turn.id + ":" + this.c.epoch + ":"),
     );
-    if (!streamedHere.length) this.appendText("markdown", { text, itemId, subagent });
+    if (!streamedHere.length)
+      this.appendText("markdown", { text, itemId, subagent });
     // Close the block so the next message starts fresh part identifiers.
     this.c.epoch += 1;
   }
@@ -380,10 +393,7 @@ export class Translator {
 
   // Create the tool call if this is the first thing seen about it, regardless
   // of whether that was the provider's tool item or its permission request.
-  ensureTool(
-    providerToolId,
-    { name, subagent, intention, contributor } = {},
-  ) {
+  ensureTool(providerToolId, { name, subagent, intention, contributor } = {}) {
     const turn = this.activeTurn();
     if (!turn || !providerToolId) return null;
     let tracked = this.c.tools[providerToolId];
@@ -466,7 +476,8 @@ export class Translator {
   completeTool(providerToolId, result) {
     const tracked = this.c.tools[providerToolId];
     if (!tracked) return;
-    if (tracked.status === "completed" || tracked.status === "cancelled") return;
+    if (tracked.status === "completed" || tracked.status === "cancelled")
+      return;
     if (tracked.status === "pending-confirmation") {
       // A result for an unconfirmed tool means the provider resolved it
       // without our decision. Say so rather than inventing an approval.
@@ -505,7 +516,8 @@ export class Translator {
   setToolConfirmationNeeded(tracked) {
     const turn = this.activeTurn();
     const part = turn?.responseParts.find(
-      (p) => p.kind === "toolCall" && p.toolCall.toolCallId === tracked.toolCallId,
+      (p) =>
+        p.kind === "toolCall" && p.toolCall.toolCallId === tracked.toolCallId,
     );
     if (!part || part.toolCall.status !== "pending-confirmation") return;
     const id = "tool:" + tracked.toolCallId;
@@ -555,10 +567,16 @@ function subagentMeta(subagent) {
 export function toolResultFromClaude({ isError, content, displayName: label }) {
   return {
     success: !isError,
-    pastTenseMessage: isError ? (label || "Tool") + " failed" : (label || "Tool") + " finished",
+    pastTenseMessage: isError
+      ? (label || "Tool") + " failed"
+      : (label || "Tool") + " finished",
     ...(content ? { content: [{ type: "text", text: clamp(content) }] } : {}),
     ...(isError
-      ? { error: { message: clamp(content || "The tool reported an error.", 2000) } }
+      ? {
+          error: {
+            message: clamp(content || "The tool reported an error.", 2000),
+          },
+        }
       : {}),
   };
 }
