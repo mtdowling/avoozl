@@ -1,0 +1,39 @@
+{
+  "name": "aicommander",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node cli.mjs serve",
+    "workspace": "node cli.mjs",
+    "test": "node --test src/*.test.mjs src/app/test/*.test.mjs",
+    "format": "prettier --write cli.mjs src examples README.md AGENTS.md package.json .github",
+    "format:check": "prettier --check cli.mjs src examples README.md AGENTS.md package.json .github"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "0.3.319"
+  },
+  "version": "0.1.0",
+  "description": "Plans, tasks, and agents in one local workspace.",
+  "license": "MIT",
+  "bin": {
+    "aicommander": "./cli.mjs"
+  },
+  "files": [
+    "cli.mjs",
+    "src/",
+    "examples/",
+    "README.md",
+    "LICENSE",
+    "docs/example-workspace.png"
+  ],
+  "devDependencies": {
+    "prettier": "3.6.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mtdowling/aicommander.git"
+  },
+  "homepage": "https://github.com/mtdowling/aicommander#readme"
+}

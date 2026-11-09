@@ -1,0 +1,323 @@
+{
+  "version": 1,
+  "epics": [
+    {
+      "id": "example-launch-foundation",
+      "title": "Product foundation",
+      "scope": "catalog",
+      "color": "#68b5a0"
+    },
+    {
+      "id": "example-launch-delivery",
+      "title": "Launch and feedback",
+      "scope": "catalog",
+      "color": "#8c9ed4"
+    }
+  ],
+  "tracks": [
+    {
+      "id": "example-launch-product",
+      "label": "Example product"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "example-launch-scope",
+      "title": "Agree on the first release",
+      "summary": "Write down who the product serves and what the first release includes.",
+      "status": "accepted",
+      "epic": "example-launch-foundation",
+      "track": "example-launch-product",
+      "scope": "catalog",
+      "kind": "task",
+      "tags": ["example", "product-launch"],
+      "contextDocuments": ["examples/product-launch.md"],
+      "acceptance": [
+        "Write down who the product serves and what the first release includes."
+      ],
+      "nextAction": "Write down who the product serves and what the first release includes.",
+      "notes": "Fictional example data. Replace with your own work."
+    },
+    {
+      "id": "example-launch-prototype",
+      "title": "Build an interactive prototype",
+      "summary": "Implement the primary user journey with fixture data.",
+      "status": "partial",
+      "epic": "example-launch-foundation",
+      "track": "example-launch-product",
+      "scope": "catalog",
+      "kind": "task",
+      "tags": ["example", "product-launch"],
+      "contextDocuments": ["examples/product-launch.md"],
+      "acceptance": ["Implement the primary user journey with fixture data."],
+      "nextAction": "Implement the primary user journey with fixture data.",
+      "notes": "Fictional example data. Replace with your own work."
+    },
+    {
+      "id": "example-launch-storage",
+      "title": "Persist user settings",
+      "summary": "Keep settings after restarting the application.",
+      "status": "planned",
+      "epic": "example-launch-foundation",
+      "track": "example-launch-product",
+      "scope": "catalog",
+      "kind": "task",
+      "tags": ["example", "product-launch"],
+      "contextDocuments": ["examples/product-launch.md"],
+      "acceptance": ["Keep settings after restarting the application."],
+      "nextAction": "Keep settings after restarting the application.",
+      "notes": "Fictional example data. Replace with your own work."
+    },
+    {
+      "id": "example-launch-accessibility",
+      "title": "Check keyboard navigation",
+      "summary": "Complete the main flow without a mouse.",
+      "status": "planned",
+      "epic": "example-launch-foundation",
+      "track": "example-launch-product",
+      "scope": "catalog",
+      "kind": "task",
+      "tags": ["example", "product-launch"],
+      "contextDocuments": ["examples/product-launch.md"],
+      "acceptance": ["Complete the main flow without a mouse."],
+      "nextAction": "Complete the main flow without a mouse.",
+      "notes": "Fictional example data. Replace with your own work."
+    },
+    {
+      "id": "example-launch-guide",
+      "title": "Write the getting-started guide",
+      "summary": "Help a new user finish the first meaningful action.",
+      "status": "planned",
+      "epic": "example-launch-delivery",
+      "track": "example-launch-product",
+      "scope": "catalog",
+      "kind": "task",
+      "tags": ["example", "product-launch"],
+      "contextDocuments": ["examples/product-launch.md"],
+      "acceptance": ["Help a new user finish the first meaningful action."],
+      "nextAction": "Help a new user finish the first meaningful action.",
+      "notes": "Fictional example data. Replace with your own work."
+    },
+    {
+      "id": "example-launch-feedback",
+      "title": "Collect pilot feedback",
+      "summary": "Wait for the prototype before inviting pilot users.",
+      "status": "blocked",
+      "epic": "example-launch-delivery",
+      "track": "example-launch-product",
+      "scope": "catalog",
+      "kind": "task",
+      "tags": ["example", "product-launch"],
+      "contextDocuments": ["examples/product-launch.md"],
+      "acceptance": ["Wait for the prototype before inviting pilot users."],
+      "nextAction": "Wait for the prototype before inviting pilot users.",
+      "notes": "Fictional example data. Replace with your own work."
+    },
+    {
+      "id": "example-launch-polish",
+      "title": "Address pilot findings",
+      "summary": "Resolve the highest-priority findings from the pilot.",
+      "status": "planned",
+      "epic": "example-launch-delivery",
+      "track": "example-launch-product",
+      "scope": "catalog",
+      "kind": "task",
+      "tags": ["example", "product-launch"],
+      "contextDocuments": ["examples/product-launch.md"],
+      "acceptance": ["Resolve the highest-priority findings from the pilot."],
+      "nextAction": "Resolve the highest-priority findings from the pilot.",
+      "notes": "Fictional example data. Replace with your own work."
+    },
+    {
+      "id": "example-launch-release",
+      "title": "Publish the first release",
+      "summary": "Ship a build with the guide and an explicit acceptance record.",
+      "status": "planned",
+      "epic": "example-launch-delivery",
+      "track": "example-launch-product",
+      "scope": "catalog",
+      "kind": "task",
+      "tags": ["example", "product-launch"],
+      "contextDocuments": ["examples/product-launch.md"],
+      "acceptance": [
+        "Ship a build with the guide and an explicit acceptance record."
+      ],
+      "nextAction": "Ship a build with the guide and an explicit acceptance record.",
+      "notes": "Fictional example data. Replace with your own work."
+    }
+  ],
+  "edges": [
+    {
+      "id": "example-launch-scope:requires:example-launch-prototype",
+      "from": "example-launch-scope",
+      "to": "example-launch-prototype",
+      "kind": "requires",
+      "reason": "Example launch prerequisite."
+    },
+    {
+      "id": "example-launch-scope:requires:example-launch-storage",
+      "from": "example-launch-scope",
+      "to": "example-launch-storage",
+      "kind": "requires",
+      "reason": "Example launch prerequisite."
+    },
+    {
+      "id": "example-launch-prototype:requires:example-launch-accessibility",
+      "from": "example-launch-prototype",
+      "to": "example-launch-accessibility",
+      "kind": "requires",
+      "reason": "Example launch prerequisite."
+    },
+    {
+      "id": "example-launch-prototype:requires:example-launch-feedback",
+      "from": "example-launch-prototype",
+      "to": "example-launch-feedback",
+      "kind": "requires",
+      "reason": "Example launch prerequisite."
+    },
+    {
+      "id": "example-launch-feedback:requires:example-launch-polish",
+      "from": "example-launch-feedback",
+      "to": "example-launch-polish",
+      "kind": "requires",
+      "reason": "Example launch prerequisite."
+    },
+    {
+      "id": "example-launch-storage:requires:example-launch-release",
+      "from": "example-launch-storage",
+      "to": "example-launch-release",
+      "kind": "requires",
+      "reason": "Example launch prerequisite."
+    },
+    {
+      "id": "example-launch-accessibility:requires:example-launch-release",
+      "from": "example-launch-accessibility",
+      "to": "example-launch-release",
+      "kind": "requires",
+      "reason": "Example launch prerequisite."
+    },
+    {
+      "id": "example-launch-guide:requires:example-launch-release",
+      "from": "example-launch-guide",
+      "to": "example-launch-release",
+      "kind": "requires",
+      "reason": "Example launch prerequisite."
+    },
+    {
+      "id": "example-launch-polish:requires:example-launch-release",
+      "from": "example-launch-polish",
+      "to": "example-launch-release",
+      "kind": "requires",
+      "reason": "Example launch prerequisite."
+    }
+  ],
+  "documents": [
+    {
+      "id": "examples/product-launch.md",
+      "title": "Product launch example",
+      "text": "# Product launch example\n\nThis fictional workspace demonstrates a small product launch with two epics. Example completion represents a fictional decision, not acceptance of real work.\n\n## Product foundation\n\nAgree on scope, build a prototype, persist settings, and check keyboard access.\n\n## Delivery\n\nWrite the guide, gather pilot feedback, address findings, and publish. Dependencies keep release work behind the relevant checks.\n\nThe separate pilot-expansion proposal remains a draft until you approve its exact revision. Loading examples does not start agents, configure a repository, or approve that proposal.\n",
+      "plan": {
+        "status": "started",
+        "category": "Examples",
+        "taskIds": [
+          "example-launch-scope",
+          "example-launch-prototype",
+          "example-launch-storage",
+          "example-launch-accessibility",
+          "example-launch-guide",
+          "example-launch-feedback",
+          "example-launch-polish",
+          "example-launch-release"
+        ]
+      }
+    }
+  ],
+  "draft": {
+    "id": "example-launch-pilot-proposal",
+    "title": "Expand the pilot",
+    "prompt": "Propose a second pilot group after launch.",
+    "text": "# Expand the pilot\n\n## Design\n\nAfter the first pilot, invite a second group and compare onboarding results. This is an example proposal; its tasks do not exist until approval.\n\n## Proposed work\n\n```task\n{\"id\":\"invite-second-group\",\"title\":\"Invite a second pilot group\",\"summary\":\"Collect independent feedback on the revised onboarding.\",\"acceptance\":[\"Record feedback from the second pilot group.\"],\"tags\":[\"example\",\"product-launch\"],\"epic\":\"example-launch-delivery\"}\n```\n"
+  },
+  "views": [
+    {
+      "id": "example-launch-strip",
+      "title": "Example launch: strip",
+      "caption": "Fictional product launch. Explore connected tasks and replace them with your own.",
+      "view": "strip",
+      "filters": {
+        "scope": "all",
+        "q": "tag:product-launch"
+      },
+      "taskIds": [],
+      "selected": "",
+      "group": "epic",
+      "detail": "all",
+      "zoom": 100,
+      "stripOrder": "chronological",
+      "stripZoom": 1,
+      "stripAt": 0.5
+    },
+    {
+      "id": "example-launch-epics",
+      "title": "Example launch: epics",
+      "caption": "Fictional product launch. Explore connected tasks and replace them with your own.",
+      "view": "epics",
+      "filters": {
+        "scope": "all",
+        "q": "tag:product-launch"
+      },
+      "taskIds": [],
+      "selected": "",
+      "group": "epic",
+      "detail": "all",
+      "zoom": 100,
+      "stripOrder": "chronological",
+      "stripZoom": 1,
+      "stripAt": 0.5
+    },
+    {
+      "id": "example-launch-graph",
+      "title": "Example launch: graph",
+      "caption": "Fictional product launch. Explore connected tasks and replace them with your own.",
+      "view": "graph",
+      "filters": {
+        "scope": "all",
+        "q": "tag:product-launch"
+      },
+      "taskIds": [],
+      "selected": "",
+      "group": "epic",
+      "detail": "all",
+      "zoom": 100,
+      "stripOrder": "chronological",
+      "stripZoom": 1,
+      "stripAt": 0.5
+    }
+  ],
+  "tours": [
+    {
+      "id": "example-launch-walkthrough",
+      "title": "Explore the example launch",
+      "steps": [
+        {
+          "viewId": "example-launch-strip",
+          "caption": "Fictional product launch. Explore connected tasks and replace them with your own.",
+          "target": "chart",
+          "durationMs": 6000
+        },
+        {
+          "viewId": "example-launch-epics",
+          "caption": "Fictional product launch. Explore connected tasks and replace them with your own.",
+          "target": "chart",
+          "durationMs": 6000
+        },
+        {
+          "viewId": "example-launch-graph",
+          "caption": "Fictional product launch. Explore connected tasks and replace them with your own.",
+          "target": "chart",
+          "durationMs": 6000
+        }
+      ]
+    }
+  ]
+}

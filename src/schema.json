@@ -1,0 +1,432 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Nupp plan database",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "revision",
+    "updatedAt",
+    "project",
+    "statuses",
+    "epics",
+    "tracks",
+    "tasks",
+    "edges",
+    "documents"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "project": {
+      "type": "object",
+      "required": ["name", "title", "estimatedPercent", "maintenance"]
+    },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "status", "scope", "epic", "track"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "scope": {
+            "enum": ["runtime", "catalog"]
+          },
+          "status": {
+            "enum": [
+              "accepted",
+              "implemented",
+              "partial",
+              "planned",
+              "blocked",
+              "deferred",
+              "review",
+              "recorded"
+            ]
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "uniqueItems": true
+          },
+          "summary": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "nextAction": {
+            "type": "string"
+          },
+          "acceptance": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "source": {
+            "type": "object",
+            "required": ["document", "key", "lineStart", "lineEnd"]
+          },
+          "needsReview": {
+            "type": "boolean"
+          },
+          "statusAuthority": {
+            "const": "database"
+          },
+          "progressPercent": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "timeline": {
+            "type": "object",
+            "properties": {
+              "order": {
+                "type": "number"
+              },
+              "at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "additionalProperties": false
+          },
+          "prompt": {
+            "type": "string",
+            "maxLength": 20000
+          },
+          "capture": {
+            "type": "object",
+            "required": ["submissionId", "context"],
+            "properties": {
+              "submissionId": {
+                "type": "string"
+              },
+              "at": {
+                "type": "string"
+              },
+              "context": {
+                "type": "object",
+                "description": "Original view, filters, selected IDs, documents and camera. Context does not imply dependencies."
+              }
+            }
+          },
+          "activity": {
+            "type": "object",
+            "required": [
+              "state",
+              "owner",
+              "sessionId",
+              "leaseId",
+              "startedAt",
+              "heartbeatAt",
+              "expiresAt"
+            ],
+            "properties": {
+              "state": {
+                "enum": ["active", "paused", "finished"]
+              },
+              "owner": {
+                "type": "string"
+              },
+              "sessionId": {
+                "type": "string"
+              },
+              "leaseId": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "branch": {
+                "type": "string"
+              },
+              "worktree": {
+                "type": "string"
+              },
+              "startedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "heartbeatAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "expiresAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "endedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "leaseMinutes": {
+                "type": "integer",
+                "minimum": 5,
+                "maximum": 240
+              }
+            }
+          }
+        }
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["from", "to", "kind", "reason"],
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": ["requires", "supports", "sequence"]
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "documents": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["id", "path", "title", "text", "hash", "links"],
+        "properties": {
+          "hash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "text": {
+            "type": "string"
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "plan": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "enum": ["done", "not-started", "started", "abandoned"]
+              },
+              "category": {
+                "type": "string"
+              },
+              "targetBranch": {
+                "type": "string"
+              },
+              "progressPercent": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "taskQuery": {
+                "type": "object",
+                "description": "Explicit task ownership query for this plan; supporting context links do not imply ownership."
+              },
+              "taskIds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "uniqueItems": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "epics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$"
+          }
+        }
+      }
+    },
+    "presentation": {
+      "type": "object",
+      "properties": {
+        "views": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "title", "view", "filters"],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "caption": {
+                "type": "string"
+              },
+              "view": {
+                "enum": ["strip", "epics", "graph"]
+              },
+              "filters": {
+                "type": "object",
+                "properties": {
+                  "activity": {
+                    "enum": [
+                      "",
+                      "active",
+                      "stale",
+                      "paused",
+                      "finished",
+                      "none"
+                    ]
+                  }
+                }
+              },
+              "taskIds": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "selected": {
+                "type": "string"
+              },
+              "group": {
+                "enum": ["epic", "track", "status", "tag"]
+              },
+              "detail": {
+                "enum": ["overview", "all"]
+              },
+              "zoom": {
+                "type": "number",
+                "minimum": 45,
+                "maximum": 350
+              },
+              "stripZoom": {
+                "type": "number",
+                "minimum": 1,
+                "maximum": 100000
+              },
+              "stripAt": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "focus": {
+                "enum": ["", "matches"]
+              },
+              "stripOrder": {
+                "type": "string",
+                "enum": ["chronological", "progress"]
+              }
+            }
+          }
+        },
+        "activeVisualization": {
+          "type": "object",
+          "required": ["id", "token", "at"],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "token": {
+              "type": "string"
+            },
+            "at": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        "tours": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "title", "steps"],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "steps": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 12,
+                "items": {
+                  "type": "object",
+                  "required": ["viewId"],
+                  "properties": {
+                    "viewId": {
+                      "type": "string"
+                    },
+                    "caption": {
+                      "type": "string"
+                    },
+                    "durationMs": {
+                      "type": "integer",
+                      "minimum": 1500,
+                      "maximum": 30000
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "activeTour": {
+          "type": "object",
+          "required": ["id", "token"],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "token": {
+              "type": "string"
+            },
+            "autoplay": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    }
+  }
+}
