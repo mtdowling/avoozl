@@ -58,6 +58,7 @@ export function startServer(options = {}) {
   const config = activeConfig();
   return startWorkspace({
     dbPath: config.dbPath,
+    workspaceName: config.name,
     port: config.port,
     host: config.host,
     projectionRoot: config.plansRoot,

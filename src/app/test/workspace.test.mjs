@@ -125,6 +125,7 @@ test("CLI, MCP, and HTTP use the same seed receipt and publish example Markdown"
   const config = workspaceConfig({ workspace: root }),
     server = startServer({
       dbPath: config.dbPath,
+      workspaceName: "Named deployment",
       projectionRoot: config.plansRoot,
       sourceRoot: config.plansRoot,
       port: 0,
@@ -132,6 +133,14 @@ test("CLI, MCP, and HTTP use the same seed receipt and publish example Markdown"
   await once(server, "listening");
   t.after(() => new Promise((resolve) => server.close(resolve)));
   const url = "http://127.0.0.1:" + server.address().port;
+  assert.equal(
+    (await (await fetch(url + "/api/view-state")).json()).project.workspaceName,
+    "Named deployment",
+  );
+  assert.equal(
+    (await (await fetch(url + "/database.json")).json()).project.workspaceName,
+    undefined,
+  );
   const cli = async (args) =>
     JSON.parse(
       (

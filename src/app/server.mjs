@@ -94,6 +94,7 @@ export function startServer({
   projectionRoot = process.env.NUPP_WORKSPACE_DOCS ||
     path.join(appRoot, ".state/documents"),
   sourceRoot,
+  workspaceName,
   factories,
   manager: providedManager,
   mode,
@@ -234,15 +235,15 @@ export function startServer({
         if (req.headers["if-none-match"] === tag) {
           res.writeHead(304, { ETag: tag });
           res.end();
-        } else
-          json(
-            res,
-            200,
+        } else {
+          const snapshot =
             route === "/api/view-state"
               ? viewSnapshot(store.read())
-              : store.read(),
-            { ETag: tag },
-          );
+              : store.read();
+          if (route === "/api/view-state" && workspaceName)
+            snapshot.project = { ...snapshot.project, workspaceName };
+          json(res, 200, snapshot, { ETag: tag });
+        }
         return;
       }
       if (req.method === "GET" && route === "/api/document") {

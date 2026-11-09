@@ -100,6 +100,7 @@ try {
     });
     const server = startServer({
       dbPath,
+      workspaceName: config.name,
       port: config.port,
       projectionRoot: config.plansRoot,
       sourceRoot: config.plansRoot,
