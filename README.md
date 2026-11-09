@@ -61,7 +61,7 @@ node /opt/avoozl/cli.mjs serve --workspace /srv/team-state
 
 Then configure a working repository such as `/home/you/projects/product` in Settings. Its code stays in that repository; plans stay in `/srv/team-plans`; the application stays in `/opt/avoozl`. Use `init --db PATH` to place SQLite independently too.
 
-`--db`, `--documents`, `--host`, `--port`, and `--url` override configuration. `AVOOZL_URL` selects an endpoint for CLI and MCP clients. Repository checkout paths, worktree directories, and provider authentication are machine-specific; configure those on each machine. Each workspace has one agent host and web server.
+`--db`, `--documents`, `--host`, `--port`, and `--url` override configuration. `AVOOZL_URL` selects an endpoint for CLI and MCP clients. `operator` in the workspace configuration, `AVOOZL_OPERATOR`, or `--operator` names the person this workspace acts for, defaulting to `git config user.name` and then the OS user; it is recorded on approval receipts as provenance, not as an authorization. Repository checkout paths, worktree directories, and provider authentication are machine-specific; configure those on each machine. Each workspace has one agent host and web server.
 
 To adopt an existing SQLite workspace, write a configuration pointing to its existing database and Markdown directory, then start Avoozl with that workspace. Do not import a stale JSON export over a live database. Stop the previous web server before replacing it. Drain and stop the previous agent host only after its active work finishes; web reloads can preserve a compatible existing host.
 
@@ -115,7 +115,7 @@ Preserve the user's settings after restarting.
 ```
 ````
 
-Use `plan.create`, `plan.save`, and `plan.get` to work on the draft. Approval identifies the exact document hash and database revision, records who authorized it and the evidence, and extracts tasks atomically. Indexing Markdown alone does not create ready work. The example proposal stays a draft until explicitly approved.
+Use `plan.create`, `plan.save`, and `plan.get` to work on the draft. Approval identifies the exact document hash and database revision — those two checks are the authorization — and extracts tasks atomically. The receipt records the workspace operator, and `evidence` when a caller has something real to say. Indexing Markdown alone does not create ready work. The example proposal stays a draft until explicitly approved.
 
 An agent that discovers adjacent work while implementing appends one proposal with `plan.propose` instead of creating a task: `{"id":"PLAN_ID","proposal":{"id":"local-id","title":"...","acceptance":["Observable check."]}}`. The appended block is validated by the same rules as approval and stays non-executable. The amended plan no longer matches its approval receipt, so it reads as having unapproved changes and its tasks are flagged for review until the next approval converts the proposal.
 

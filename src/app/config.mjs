@@ -1,10 +1,31 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 export const applicationRoot = fileURLToPath(
   new URL("../../", import.meta.url),
 );
+// Who operates this workspace. Provenance of the records it mints, not an
+// authorization check: approval authority comes from the reviewed hashes.
+export function operatorName({ configured, workspaceRoot } = {}) {
+  let name = configured;
+  if (!name?.trim() && workspaceRoot && fs.existsSync(workspaceRoot))
+    try {
+      name = execFileSync("git", ["config", "--get", "user.name"], {
+        cwd: workspaceRoot,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+        timeout: 5000,
+      });
+    } catch {}
+  if (!name?.trim())
+    try {
+      name = os.userInfo().username;
+    } catch {}
+  return (name || "").trim().slice(0, 200) || "Local operator";
+}
 export function workspaceConfig(options = {}) {
   const workspaceRoot = path.resolve(
     options.workspace || process.env.AVOOZL_WORKSPACE || process.cwd(),
@@ -35,6 +56,11 @@ export function workspaceConfig(options = {}) {
     filename,
     configured: fs.existsSync(filename),
     name: saved.name || "My workspace",
+    operator: operatorName({
+      configured:
+        options.operator || process.env.AVOOZL_OPERATOR || saved.operator,
+      workspaceRoot,
+    }),
     dbPath,
     plansRoot,
     port,

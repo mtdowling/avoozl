@@ -99,6 +99,7 @@ export function startServer({
   factories,
   manager: providedManager,
   mode,
+  operator,
   host = process.env.NUPP_WORKSPACE_HOST || "127.0.0.1",
   allowedHosts = [],
 } = {}) {
@@ -127,7 +128,7 @@ export function startServer({
   const manager =
       providedManager ||
       new RunManager(store, { factories, baseUrl: "http://127.0.0.1:" + port }),
-    ops = new Operations(store, { manager });
+    ops = new Operations(store, { manager, operator });
   let draining = false;
   const clients = new Set();
   const stopSourceWatch = sourceRoot

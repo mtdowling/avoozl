@@ -69,7 +69,9 @@ try {
       return request(operation, input);
     const store = new Store(dbPath);
     try {
-      const result = await new Operations(store).execute(operation, input);
+      const result = await new Operations(store, {
+        operator: config.operator,
+      }).execute(operation, input);
       flushOutbox(store, config.plansRoot);
       return result;
     } finally {
@@ -101,6 +103,7 @@ try {
     const server = startServer({
       dbPath,
       workspaceName: config.name,
+      operator: config.operator,
       port: config.port,
       projectionRoot: config.plansRoot,
       sourceRoot: config.plansRoot,
@@ -386,8 +389,8 @@ try {
   OPERATION --input FILE --workspace PATH
 
 Use --workspace PATH or AVOOZL_WORKSPACE to choose data independently
-of the application checkout. --db, --documents, --host, --port and --url
-override workspace configuration. UI, CLI and MCP share application operations.`);
+of the application checkout. --db, --documents, --host, --port, --operator and
+--url override workspace configuration. UI, CLI and MCP share application operations.`);
   else
     console.log(
       JSON.stringify(

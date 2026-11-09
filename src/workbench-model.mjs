@@ -227,9 +227,12 @@ export function recentLandings(
       at < now - days * 86400000
     )
       return;
-    const accepted = task.acceptanceEvidence;
+    // A recorded acceptance counts, with or without a typed statement, but
+    // only when it postdates this landing.
+    const accepted = task.acceptanceEvidence,
+      acceptedAt = Date.parse(accepted?.at);
     const acceptance =
-      accepted?.evidence?.trim() && Date.parse(accepted.at) >= at
+      Number.isFinite(acceptedAt) && acceptedAt >= at
         ? accepted.componentOnly
           ? "component"
           : "accepted"
