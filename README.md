@@ -1,10 +1,10 @@
-# AICommander
+# Avoozl
 
 Plans, tasks, and agents in one local workspace. Use the website, CLI, or MCP to work with the same plans and execution state.
 
 ```sh
-git clone https://github.com/mtdowling/aicommander.git
-cd aicommander
+git clone https://github.com/mtdowling/avoozl.git
+cd avoozl
 npm ci --ignore-scripts
 node cli.mjs init ../my-plans --name "My plans"
 node cli.mjs serve --workspace ../my-plans
@@ -12,7 +12,7 @@ node cli.mjs serve --workspace ../my-plans
 
 Open [localhost:9428](http://127.0.0.1:9428/). Node 22.13 or later is required for its built-in SQLite support; Node 26 is tested. Planning and browsing work without an agent account. Managed agents use your installed provider and its own authentication.
 
-![An example product launch in AICommander](docs/example-workspace.png)
+![An example product launch in Avoozl](docs/example-workspace.png)
 
 ## Start empty or load examples
 
@@ -39,7 +39,7 @@ my-plans/
 
 SQLite owns live tasks, dependencies, evidence, approvals, conversations, and agent state. Markdown owns design prose. `/database.json` is an export of current state, not a file to edit.
 
-Choose a workspace with `--workspace PATH` or `AICOMMANDER_WORKSPACE`. Configuration paths are relative to that workspace, so moving an ordinary workspace preserves them:
+Choose a workspace with `--workspace PATH` or `AVOOZL_WORKSPACE`. Configuration paths are relative to that workspace, so moving an ordinary workspace preserves them:
 
 ```json
 {
@@ -55,15 +55,15 @@ Choose a workspace with `--workspace PATH` or `AICOMMANDER_WORKSPACE`. Configura
 The application checkout, plan directory, and repositories being worked on can all live in different locations. For example:
 
 ```sh
-node /opt/aicommander/cli.mjs init /srv/team-state --documents /srv/team-plans
-node /opt/aicommander/cli.mjs serve --workspace /srv/team-state
+node /opt/avoozl/cli.mjs init /srv/team-state --documents /srv/team-plans
+node /opt/avoozl/cli.mjs serve --workspace /srv/team-state
 ```
 
-Then configure a working repository such as `/home/you/projects/product` in Settings. Its code stays in that repository; plans stay in `/srv/team-plans`; the application stays in `/opt/aicommander`. Use `init --db PATH` to place SQLite independently too.
+Then configure a working repository such as `/home/you/projects/product` in Settings. Its code stays in that repository; plans stay in `/srv/team-plans`; the application stays in `/opt/avoozl`. Use `init --db PATH` to place SQLite independently too.
 
-`--db`, `--documents`, `--host`, `--port`, and `--url` override configuration. `AICOMMANDER_URL` selects an endpoint for CLI and MCP clients. Repository checkout paths, worktree directories, and provider authentication are machine-specific; configure those on each machine. Each workspace has one agent host and web server.
+`--db`, `--documents`, `--host`, `--port`, and `--url` override configuration. `AVOOZL_URL` selects an endpoint for CLI and MCP clients. Repository checkout paths, worktree directories, and provider authentication are machine-specific; configure those on each machine. Each workspace has one agent host and web server.
 
-To adopt an existing SQLite workspace, write a configuration pointing to its existing database and Markdown directory, then start AICommander with that workspace. Do not import a stale JSON export over a live database. Stop the previous web server before replacing it. Drain and stop the previous agent host only after its active work finishes; web reloads can preserve a compatible existing host.
+To adopt an existing SQLite workspace, write a configuration pointing to its existing database and Markdown directory, then start Avoozl with that workspace. Do not import a stale JSON export over a live database. Stop the previous web server before replacing it. Drain and stop the previous agent host only after its active work finishes; web reloads can preserve a compatible existing host.
 
 ## Connect an agent
 
@@ -72,10 +72,10 @@ The HTTP MCP endpoint is [localhost:9428/mcp](http://127.0.0.1:9428/mcp). A stdi
 ```json
 {
   "mcpServers": {
-    "aicommander": {
+    "avoozl": {
       "command": "node",
       "args": [
-        "/path/to/aicommander/cli.mjs",
+        "/path/to/avoozl/cli.mjs",
         "mcp",
         "--workspace",
         "/path/to/my-plans"
@@ -93,7 +93,7 @@ Export the portable agent workflow skill without starting the server:
 node cli.mjs skill --workspace ../my-plans
 ```
 
-Install that output as the `aicommander` skill in your agent client's skill directory. It contains this installation's paths and endpoint, not task records or credentials. Re-export after moving the application or workspace. Read the workspace and target repository's own guidance before acting.
+Install that output as the `avoozl` skill in your agent client's skill directory. It contains this installation's paths and endpoint, not task records or credentials. Re-export after moving the application or workspace. Read the workspace and target repository's own guidance before acting.
 
 ## Plan and execute
 
@@ -148,7 +148,7 @@ The default listener is loopback. Private LAN/VPN listening is available with `-
 
 Fork this repository to retain an upstream relationship and bring in later improvements. Create your workspace separately, then change the UI, workflow, providers, or example packs in your fork. Your planning data stays independent of source updates. The repository can also be used as a GitHub template for a fresh independent history.
 
-Application operations and SQLite storage live in `src/app/`. Shared models and browser assets live in `src/`. Provider adapters live in `src/app/providers/`. The exported workflow skill lives in `src/app/skills/aicommander/`. Add example packs under `examples/` and register them in `src/app/examples.mjs`; packs use stable IDs and installation receipts to preserve later edits.
+Application operations and SQLite storage live in `src/app/`. Shared models and browser assets live in `src/`. Provider adapters live in `src/app/providers/`. The exported workflow skill lives in `src/app/skills/avoozl/`. Add example packs under `examples/` and register them in `src/app/examples.mjs`; packs use stable IDs and installation receipts to preserve later edits.
 
 Run `npm test` before sharing changes. Tests use disposable workspaces and provider fixtures; they do not require paid agent calls. CI runs on Linux, macOS, and Windows with Node 26.
 

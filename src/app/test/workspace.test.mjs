@@ -180,7 +180,7 @@ test("CLI, MCP, and HTTP use the same seed receipt and publish example Markdown"
   assert.equal((await cli(["examples"])).examples[0].id, "product-launch");
   assert.equal(
     (await (await fetch(url + "/api/health")).json()).application,
-    "aicommander",
+    "avoozl",
   );
   const denied = await handleMcp(message, server.workspace.ops, {
     runId: "owned-run",
@@ -206,7 +206,7 @@ test("offline skill export binds the chosen workspace without creating data", as
     "http://127.0.0.1:9876",
   ];
   const { stdout } = await exec(process.execPath, args, { cwd: root });
-  assert.match(stdout, /^---\nname: aicommander\n/);
+  assert.match(stdout, /^---\nname: avoozl\n/);
   assert(stdout.includes(workspace));
   assert(stdout.includes("http://127.0.0.1:9876/mcp"));
   assert(!stdout.includes("{{"));

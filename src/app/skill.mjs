@@ -16,10 +16,7 @@ export function workflowSkill(config = workspaceConfig()) {
     APP_ROOT: applicationRoot.replace(/\/$/, ""),
   };
   return fs
-    .readFileSync(
-      new URL("./skills/aicommander/SKILL.md", import.meta.url),
-      "utf8",
-    )
+    .readFileSync(new URL("./skills/avoozl/SKILL.md", import.meta.url), "utf8")
     .replace(
       /\{\{(PLANS_ROOT|BASE|CLI|WORKSPACE_CLI|APP_ROOT)\}\}/g,
       (_, key) => values[key],
