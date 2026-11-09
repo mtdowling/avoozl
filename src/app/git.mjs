@@ -161,6 +161,74 @@ export async function commandEvidence(
     };
   }
 }
+// The changes a run has made in its own worktree, bounded so a large branch
+// cannot produce an unbounded response. Read-only: it never checks out,
+// rebases, or stages anything.
+export async function runChanges(store, { id, path: file, limit = 400 }) {
+  const run = store.get("runs", id);
+  if (!run) fail("Run not found.", 404);
+  if (!run.worktree || run.readOnly)
+    fail("This conversation has no worktree of its own.", 409);
+  if (!fs.existsSync(run.worktree))
+    fail("This conversation's worktree has been removed.", 409);
+  const base = run.baseCommit || run.branch + "^";
+  const head = await git(run.worktree, ["rev-parse", "HEAD"]);
+  if (file) {
+    // One file's previous contents, so a client can show a real diff against
+    // the revision the run started from.
+    if (file.includes("..") || path.isAbsolute(file))
+      fail("Use a repository-relative path.");
+    let before = "";
+    try {
+      before = await git(run.worktree, ["show", base + ":" + file]);
+    } catch {
+      before = "";
+    }
+    return { id, path: file, base, head, before };
+  }
+  const committed = await git(run.worktree, [
+    "diff",
+    "--numstat",
+    "--find-renames",
+    base,
+    "HEAD",
+  ]);
+  const uncommitted = await git(run.worktree, ["status", "--porcelain"]);
+  const files = committed
+    .split("\n")
+    .filter(Boolean)
+    .slice(0, limit)
+    .map((line) => {
+      const [additions, deletions, name] = line.split("\t");
+      return {
+        path: name,
+        additions: additions === "-" ? null : Number(additions),
+        deletions: deletions === "-" ? null : Number(deletions),
+        state: "committed",
+      };
+    });
+  const pending = uncommitted
+    .split("\n")
+    .filter(Boolean)
+    .slice(0, limit)
+    .map((line) => ({
+      path: line.slice(3).trim(),
+      status: line.slice(0, 2).trim(),
+      state: "uncommitted",
+    }));
+  return {
+    id,
+    branch: run.branch,
+    worktree: run.worktree,
+    base,
+    head,
+    files,
+    uncommitted: pending,
+    truncated:
+      committed.split("\n").filter(Boolean).length > limit ||
+      uncommitted.split("\n").filter(Boolean).length > limit,
+  };
+}
 export async function validateRun(store, runId) {
   const run = store.get("runs", runId);
   if (!run) fail("Run not found.", 404);

@@ -1,5 +1,24 @@
 # VS Code investigation handoff
 
+> **Superseded in part.** The client has since been implemented; see
+> [the implementation status](../../design/vscode-client.md#implementation-status-november-9-2026)
+> and [its evidence](../../evidence/vscode/README.md). Three statements below
+> are now known to be wrong or incomplete, and the prototype must not be
+> copied on any of them:
+>
+> - The "AHP package: 1.0.0" version recorded under **Versions and
+>   compatibility** is the npm package version, not the wire protocol version.
+>   The prototype answers `protocolVersion: "1.0.0"`, which a real editor
+>   rejects. VS Code 1.138.0 offers `0.9.0` and below.
+> - The prototype's `dispatchAction` handling assumes a reply can carry a
+>   refusal. It cannot: `dispatchAction` is a notification.
+> - The note that the prototype "treated incomplete tool parts as skipped at
+>   turn end" describes the protocol reducer's own behaviour, not a bug in the
+>   prototype's bookkeeping. Fixing it is a matter of emitting terminal tool
+>   results before ending the turn.
+>
+> Everything else below stands as the observation it was.
+
 This is research for [the implementation plan](../../design/vscode-client.md), not an installed VS Code integration. The reusable application is AICommander. The original project happened to be Nupp; implementation and acceptance must use a fictional project on a different computer.
 
 The architecture has evidence beyond transport markers: real approvals, questions, tool execution, cancellation, restart recovery, native plan editing, and a disposable backend integration flow. It still requires production translation work, desktop control acceptance, authenticated remote-session testing, and a physical-phone assessment. Do not retire the website based on this investigation alone.

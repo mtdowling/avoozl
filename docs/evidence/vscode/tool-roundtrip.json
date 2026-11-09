@@ -6,17 +6,8 @@
     "node": "v26.13.0",
     "clientApi": "1.0.0",
     "ahpPackage": "1.0.0",
-    "facadeProtocolVersions": [
-      "1.0.0",
-      "0.9.0"
-    ],
-    "editorOffer": [
-      "0.9.0",
-      "0.7.0",
-      "0.6.0",
-      "0.5.2",
-      "0.5.1"
-    ],
+    "facadeProtocolVersions": ["1.0.0", "0.9.0"],
+    "editorOffer": ["0.9.0", "0.7.0", "0.6.0", "0.5.2", "0.5.1"],
     "negotiated": "0.9.0"
   },
   "workspaceId": "13fa8a76-35b7-4e75-8a38-821aa32278b4",
@@ -42,10 +33,7 @@
     "id": "request-bf34337e-75c5-4bac-9c90-eed40f40d8ae",
     "providerRequestId": "d3d3c068-0efb-4cfb-b634-912801f87121",
     "toolUseId": "tool-eb06c5b8",
-    "offered": [
-      "allow-once",
-      "deny"
-    ],
+    "offered": ["allow-once", "deny"],
     "answeredThroughProtocol": true,
     "approvedAt": "2026-11-09T22:17:39.794Z"
   },

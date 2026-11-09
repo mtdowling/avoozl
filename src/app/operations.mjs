@@ -20,7 +20,12 @@ import {
   recentIntegrations,
 } from "./views.mjs";
 import { createPlan, savePlan, approvePlan, extractPlan } from "./plans.mjs";
-import { projectConfig, validateRun, integrateRun } from "./git.mjs";
+import {
+  projectConfig,
+  validateRun,
+  integrateRun,
+  runChanges,
+} from "./git.mjs";
 import { Batches } from "./batches.mjs";
 import { metrics } from "./telemetry.mjs";
 import { taskSignals, isPlanInventory } from "../workbench-model.mjs";
@@ -876,6 +881,7 @@ export class Operations {
           .map((r) => JSON.parse(r.body)),
       };
     }
+    if (name === "run.changes") return runChanges(store, input);
     if (name === "run.validate") return validateRun(store, input.id);
     if (name === "batch.start") return this.batches.start(input);
     if (name === "batch.control") return this.batches.control(input);

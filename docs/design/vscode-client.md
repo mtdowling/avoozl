@@ -68,27 +68,33 @@ Existing seams to reuse:
 
 Do not make the AHP facade another writer of authoritative run records. A derived projection/cache is acceptable. It must be rebuildable from persisted execution events and committed commands, with a recorded source cursor and schema version. The experiment used separate SQLite for its AHP projection, not a replacement task database.
 
+"Rebuildable" implies two things the experiment did not do. The fold must be deterministic, so every value in projected state comes from the event log rather than from the host clock; otherwise a rebuild silently differs from the original. And the fold must not read mutable records for facts about the moment an event happened, because by the time an event is folded those records have moved on.
+
 ## Session and event contract
 
 Use one stable mapping per workspace, run, and chat. Include a workspace namespace so two workspaces cannot collide. Persist these mappings; do not derive them from mutable titles or the currently selected folder. The task links to an AICommander run/AHP session that we control. Provider application deep links are optional and do not block this design.
 
-| AHP/client intent           | Existing backend seam               | Required behavior                                                                                             |
-| --------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| List/open a conversation    | Runs plus events                    | Resolve its exact run; never start a replacement implicitly.                                                  |
-| Send a turn                 | `run.send`                          | Carry a stable submission ID. Reconnecting/retrying must not send twice.                                      |
-| Answer an approval/question | `run.answer`                        | Match the exact pending request, allowed option, workspace, and run. Reject stale answers.                    |
-| Interrupt                   | `run.interrupt`                     | Record intent, request provider interruption, wait for its acknowledgement, and show truthful terminal state. |
-| Explicit resume             | `run.resume`                        | Resume through the owner; do not quietly create another provider session.                                     |
-| Validate/integrate          | `run.validate`, `integration.merge` | Retain existing expected-commit checks and acceptance distinctions.                                           |
-| Plan read/save/approve      | Existing plan operations            | Retain expected Markdown hash and immutable approval/extraction receipt.                                      |
+| AHP/client intent           | Existing backend seam               | Required behavior                                                                                                                                                                                                                                                     |
+| --------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| List/open a conversation    | Runs plus events                    | Resolve its exact run; never start a replacement implicitly.                                                                                                                                                                                                          |
+| Send a turn                 | `run.send`                          | Carry a stable submission ID. Reconnecting/retrying must not send twice.                                                                                                                                                                                              |
+| Answer an approval/question | `run.answer`                        | Match the exact pending request, allowed option, workspace, and run. Reject stale answers. Because `dispatchAction` is a notification with no reply channel, a rejection must also push a corrective action, or the client keeps showing a decision the host refused. |
+| Interrupt                   | `run.interrupt`                     | Record intent, request provider interruption, wait for its acknowledgement, and show truthful terminal state.                                                                                                                                                         |
+| Explicit resume             | `run.resume`                        | Resume through the owner; do not quietly create another provider session.                                                                                                                                                                                             |
+| Validate/integrate          | `run.validate`, `integration.merge` | Retain existing expected-commit checks and acceptance distinctions.                                                                                                                                                                                                   |
+| Plan read/save/approve      | Existing plan operations            | Retain expected Markdown hash and immutable approval/extraction receipt.                                                                                                                                                                                              |
 
 Order events by a durable server sequence, not arrival timestamps. Replay requires snapshot plus cursor, history pagination, and bounded catch-up. Show interrupted, failed, disconnected, waiting for input, and waiting for approval distinctly. Never relabel all errors following a Cancel click as cancellation: preserve unexpected provider errors and their causal relationship.
 
 Implement full tool lifecycle from the provider tool ID. Permission request IDs are different identifiers. Preserve their correlation, command/input, confirmation scope, streamed output, exit result, and cancellation. A tool that ran must not become a skipped/never-executed tool in the UI. The prototype needs this correction; do not copy its reducer plumbing as a finished implementation.
 
+The mechanism behind that requirement is the protocol reducer itself: ending a turn rewrites every tool call that has not reached a terminal state as cancelled with reason `skipped`. So the correction is about ordering, not labelling — give each open tool call a truthful terminal transition before the turn ends. Whichever of the provider's tool item or its permission request arrives first must create the tool call, because the two providers disagree on that order.
+
 Normalize Claude's cancellation result in its provider adapter only when supported by a tested intentional-interruption contract. The observed SDK result had `is_error` and a diagnostic ending in `stop_reason=tool_use`; the adapter checks `is_error` before its own interruption flag. Do not match that exact diagnostic text as a permanent API. Test interrupted commands, actual tool failures, interrupted acquisition, and errors racing with Cancel separately.
 
 Codex supports active steering through `turn/steer`; Claude redirects an active turn by interrupting and then sending. Queued messages remain durable. Do not silently reinterpret a queued message as active steering. Advertise supported capabilities and disable unsupported controls with a clear reason.
+
+Note which queue controls the native editor dispatches on its own: it sends `chat/pendingMessageRemoved` and `chat/queuedMessagesReordered`. Refusing a control the editor already offers leaves its UI disagreeing with the host, so either support it or expect the divergence. Withdrawing a delivery is only honest while it has not reached the provider, and reordering must change the order without rewriting any durable delivery.
 
 Model changes must be host operations, not UI-only selections. Existing startup selection works; live model-change probes used provider APIs directly. Record requested and actual model and when the change takes effect. Use provider catalogs rather than hardcoded model names from this machine.
 
@@ -110,6 +116,8 @@ await vscode.commands.executeCommand(
 ```
 
 The local browser registration used `agent-host-claude:/<session-id>` and `agent-host-codex:/<session-id>`. Desktop remote registrations use different prefixes. Resolve the URI from the connected provider/authority; do not construct a universal hardcoded scheme. Check command availability and tested version first. Verify visible transcript identity after navigation. Generic `vscode.open(ahpChatUri)` returned successfully but opened a text document in the experiment.
+
+The `agent-host-${provider}` form is confirmed in the 1.138.0 bundle, but no API returns the registered resource, so the form cannot simply be looked up either. The workable approach is to take the channel identifiers from the host that owns the run, derive candidates, try them in order, and verify each attempt. Verification needs an independent signal, because an extension cannot read the chat UI: ask the host which chat channel a client subscribed to just after the attempt. Absent that signal, report the result as unverified rather than as success.
 
 If the internal command changes, provide a graceful session-picker/manual-open fallback. Proposed `chatSessionsProvider` APIs are another possible fallback for a private installation with explicit opt-in. They are not generally usable for a Marketplace release; a single-user opt-in is possible, with compatibility maintenance. Do not call the approach impossible merely because a proposal is involved.
 
@@ -195,11 +203,198 @@ node cli.mjs serve --workspace ../vscode-fixture
 
 Those commands exist now. Extension/AHP launch and installation commands should be added by implementation with documented options, not copied from the original machine's private paths. A fresh workspace starts empty; do not auto-import production JSON, approve example drafts, start agents, or register a tunnel as part of installation.
 
+The implementation added:
+
+```sh
+node scripts/vscode-fixture.mjs                  # workspace, example pack, disposable repository
+node scripts/vscode-fixture-host.mjs <root>      # agent host with a real-process fixture provider
+node cli.mjs serve --workspace <ws> --ahp        # site, agent host, and the editor facade
+node cli.mjs editor --workspace <ws>             # the editor settings to paste, including the token
+node scripts/vscode-evidence.mjs                 # the end-to-end receipt
+node scripts/package-extension.mjs               # an installable .vsix
+```
+
+`node cli.mjs editor` prints an address containing the facade's bearer token. It is a credential: do not commit it, paste it into a shared document, or publish it in evidence.
+
 Use protocol fixtures for routine CI. Add opt-in real-provider tests for the contracts fixtures cannot prove. Record requested/actual model, provider/session/run/request/tool/turn IDs, source commit, client/server versions, and exact assertions. Redact credentials and personal paths before publishing evidence. A single successful run is a point in a compatibility matrix, not a promise that every newer version works.
 
 Essential automated tests include duplicate and racing answers, permissions that expire during reconnect, cancel-before-acquisition, cancel while executing, provider errors racing with cancellation, facade crash before/after command acknowledgement, projection rebuild, out-of-order/replayed events, concurrent Markdown saves, review-hash approval retry, model changes at turn boundaries, and host drain with active work. Exercise both clients against the same fixture. Large transcript/graph tests must measure bounded rendering/history, not merely load a large JSON object into memory.
 
-Pin the AHP package used for the implementation and record VS Code desktop/web/server and provider versions in diagnostics. Negotiate supported protocol versions and reject incompatible contracts clearly. Probe optional methods/capabilities instead of advertising an unsupported feature or converting unknown actions into successful no-ops. Re-run native navigation and approval/cancel smoke tests on upgrades.
+Pin the AHP package used for the implementation and record VS Code desktop/web/server and provider versions in diagnostics. Negotiate supported protocol versions and reject incompatible contracts clearly. The package version is not the wire version: the pinned 1.0.0 package speaks `["1.0.0","0.9.0"]`, while VS Code 1.138.0 offers `0.9.0` and below. A host that answers with its own preferred version instead of one the client offered is refused by a real editor. Probe optional methods/capabilities instead of advertising an unsupported feature or converting unknown actions into successful no-ops. Re-run native navigation and approval/cancel smoke tests on upgrades.
+
+## Implementation status, November 9, 2026
+
+Implemented on a second computer against the canned `product-launch` fixture
+and a separate disposable Git repository. No Nupp checkout, personal
+workspace, account token, or original experiment directory was used. The
+website, CLI, MCP, and agent host keep working unchanged; the facade and the
+extension are both opt-in additions.
+
+### What the implementation changed about this plan
+
+Several assumptions above turned out to be wrong or incomplete. They are
+corrected here rather than left for the next reader to rediscover.
+
+- **Protocol version negotiation was the first real blocker.** This document
+  and the research handoff both record "AHP package: 1.0.0", and the prototype
+  answered `protocolVersion: "1.0.0"` unconditionally. A real editor rejects
+  that. VS Code 1.138.0 offers `["0.9.0","0.7.0","0.6.0","0.5.2","0.5.1"]`,
+  and the library's own `SUPPORTED_PROTOCOL_VERSIONS` is `["1.0.0","0.9.0"]`.
+  The npm package version is not the wire version. The facade negotiates with
+  `negotiateProtocolVersion`, selects `0.9.0` for the installed editor, and
+  rejects an unsupported offer with `-32005` plus `supportedVersions`.
+  Outgoing actions are filtered per client by `ACTION_INTRODUCED_IN`, so a
+  client never receives an action newer than the version it negotiated.
+- **`dispatchAction` is a fire-and-forget notification, not a request.** A
+  client applies the action optimistically and the server echoes it once
+  accepted; there is no reply channel for a refusal. So "reject stale answers"
+  is not enough on its own — a refusal leaves the editor showing work that
+  never happened. The facade therefore pushes a _corrective_ action (a
+  `chat/error` for a refused turn, a `chat/pendingMessageRemoved` for a
+  refused queued message) and answers with a JSON-RPC error when a client did
+  supply an id.
+- **The protocol reducer is what turns a tool that ran into a skipped one.**
+  `endTurn` rewrites every non-terminal tool call as
+  `cancelled`/`ToolCallCancellationReason.Skipped`. The fix is ordering: give
+  every open tool call a truthful terminal transition _before_ ending the
+  turn. A call that was confirmed and therefore executed is completed with an
+  unsuccessful result; a call that was never confirmed is cancelled, which is
+  accurate. When the provider supplies its own tool result during a pending
+  stop, that result is kept and relabelled as stopped rather than failed.
+- **A rebuildable projection has to be deterministic.** Turn timing taken from
+  the host clock made a replay produce different state from the original fold.
+  All timing now comes from the durable event's own timestamp, and the rebuild
+  test asserts byte-identical state.
+- **The projection must not read mutable records for event-time facts.** An
+  early version decided "was a stop pending when this tool ended?" from the
+  current run record, which by fold time had already moved on. Interruption
+  intent is now tracked from the ordered event log, which is also what makes a
+  replay reach the same conclusion.
+- **The native editor dispatches queue controls this host had refused.**
+  VS Code sends `chat/pendingMessageRemoved` and
+  `chat/queuedMessagesReordered`. Refusing them is honest but leaves the
+  editor's own queue UI wrong, so the host grew the matching operations:
+  `run.unsend` withdraws only a delivery that never reached the provider, and
+  `run.queue` reorders without rewriting any durable delivery. Controls that
+  genuinely cannot be supported — truncating a durable transcript, completing
+  a client-contributed tool — are refused by name with the reason.
+- **Smaller protocol details the prototype had wrong.** `session/configChanged`
+  carries the values map itself, not a `{schema, values}` object. The reducer
+  flattens `ToolCallResult` onto the tool call rather than nesting it under
+  `result`. An emptied `inputNeeded` is removed rather than left as `[]`. A
+  `ChatInputAnswer` is `{state, value: {kind, value}}`, not a bare value.
+- **Model catalogs must come from the session's own factory.** `models()` built
+  a provider adapter directly, bypassing the configured factories, so the
+  catalog could describe a different provider from the one a session would
+  use. It now reads through the same factory, and a model that is not in that
+  catalog is refused.
+- **Two adapter races, found by tests rather than by reasoning.** A terminal
+  turn event arriving while an interrupt was in flight cleared the record the
+  reply read; and an optimistically auto-confirmed tool kept `executed` set
+  when a permission request later superseded it, which would have reported a
+  never-run tool as having run.
+- **Editor session resources are registered as `agent-host-<provider>:/<uuid>`.**
+  Confirmed in the 1.138.0 bundle. There is still no API to ask for the
+  registered form, so the extension derives candidates from the host's own
+  channel list, tries them in order, and verifies each attempt.
+- **Node version.** Unflagged `node:sqlite` needs Node 22.13 or 23.4 and
+  later. This machine began on 23.3.0, which required
+  `NODE_OPTIONS=--experimental-sqlite`, and was upgraded to 26.13.0 mid-work,
+  where no flag is needed. `package.json` already states `>=22.13`.
+
+### Delivered
+
+| ID     | State        | Evidence                                                                                                                                                                                                                                                                                                         |
+| ------ | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| VSC-00 | Done         | `scripts/vscode-fixture.mjs` builds a fresh workspace, the optional `product-launch` pack, and a disposable repository with a deterministic check and an authored slow command. `scripts/vscode-evidence.mjs` writes a redacted receipt. Nothing requires the original machine, its database, or any credential. |
+| VSC-01 | Done         | `src/app/providers/cancellation.mjs` defines the contract; both adapters use it. `src/app/test/cancellation.test.mjs` covers interrupted commands, real tool failures, interrupted acquisition, errors racing with cancellation, the undecidable completion race, and the in-flight-terminal race.               |
+| VSC-02 | Done         | `src/app/client.mjs` publishes `CLIENT_API_VERSION`, the operation allowlist, and the idempotency and conflict rules through `client.describe`. The extension refuses a mismatched major version.                                                                                                                |
+| VSC-03 | Done         | `src/app/ahp/` with version negotiation, per-client authorization, durable replay, rebuild-from-zero, bounded history, and honest tool lifecycle. 29 tests in `ahp-projection.test.mjs` and `ahp-facade.test.mjs`, the latter driven by the protocol library's own client over real WebSocket traffic.           |
+| VSC-04 | Done         | `extension/src/plans.js` and `trees.js`. A conflicting save cannot overwrite another revision, saving never approves, and approval shows the reviewed hash with the exact task and dependency set it would create.                                                                                               |
+| VSC-05 | **Partial**  | Protocol and process behaviour proven end to end; see below. Clicked-control acceptance is **not** done.                                                                                                                                                                                                         |
+| VSC-06 | Done         | `extension/src/webviews.js` with graph, progress, and timeline. Rendering reuses the workspace's own model modules over a CSP limited to that one origin; the payload is paged, hidden panels receive nothing, and keyboard navigation works.                                                                    |
+| VSC-07 | **Not done** | See below.                                                                                                                                                                                                                                                                                                       |
+| VSC-08 | **Not done** | No physical phone was available. Nothing about phone behaviour is claimed.                                                                                                                                                                                                                                       |
+| VSC-09 | **Partial**  | `scripts/package-extension.mjs` produces an installable `.vsix` with no build dependency. The extension installs into an isolated profile, activates, and connects. A real-work desktop flow has not been accepted.                                                                                              |
+| VSC-10 | **Not done** | No website surface has been retired, and none should be until VSC-08 passes.                                                                                                                                                                                                                                     |
+
+### What was proven with the real editor
+
+- VS Code desktop **1.138.0** connected to the facade, negotiated **0.9.0**,
+  and appeared as a `vscode-editor-window` client subscribed to `ahp-root://`.
+  That required the negotiation correction above; the prototype's hardcoded
+  `1.0.0` would have been refused.
+- The packaged extension installed into an isolated profile, activated on
+  `onStartupFinished`, and connected to the fixture workspace, logging the
+  negotiated client API version.
+
+### What was proven without a provider account
+
+`scripts/vscode-evidence.mjs` runs 22 checks over the real protocol, using the
+protocol library's own client — the same wire messages an editor sends — and a
+fixture provider that starts real child processes:
+
+- An approval dispatched over the protocol reaches the provider, and an actual
+  child process starts, identified by the PID it wrote itself.
+- A `chat/turnCancelled` dispatch stops that actual process: the recorded PID
+  is gone, the command recorded `SIGTERM`, and its normal-completion marker is
+  absent.
+- The transcript records the tool as **completed and unsuccessful**, with
+  "Stopped by cancellation after it had started running" — not as skipped.
+- The run is **interrupted**, not failed, carries no `error`, and retains the
+  provider's own diagnostic separately.
+- The same request cannot be answered twice; the second attempt is a 409.
+
+### Website parity, as it actually stands
+
+Nothing has been retired. This is the current state of the comparison VSC-10
+will eventually decide, not a recommendation to remove anything.
+
+| Capability                          | Website | Extension | Note                                                                            |
+| ----------------------------------- | ------- | --------- | ------------------------------------------------------------------------------- |
+| Attention needed, running, ready    | yes     | yes       | Same operations behind both.                                                    |
+| Task tree and details               | yes     | yes       |                                                                                 |
+| Task graph, epic progress, timeline | yes     | yes       | The extension pages the payload; the website renders the whole set.             |
+| Plan drafting and approval          | yes     | yes       | The extension adds a reviewed-revision preview before approval.                 |
+| Conversation transcript             | yes     | partial   | Native chat shows it; opening a specific one depends on an unpublished command. |
+| Approve, deny, answer a question    | yes     | partial   | Protocol path proven; clicked-control acceptance outstanding.                   |
+| Cancel, resume, queue, steer        | yes     | yes       | Steering is Codex only, and the extension says so rather than offering it.      |
+| Model change                        | yes     | yes       | Both record requested against actually-reported model.                          |
+| Validate, integrate, accept         | yes     | yes       | Kept as three separate, explicit actions in both.                               |
+| Diff of a conversation's changes    | no      | yes       | New: `run.changes` plus the editor's own diff view.                             |
+| Prompt search, presentations, tours | yes     | no        | Not ported.                                                                     |
+| Usage charts                        | yes     | no        | Not ported.                                                                     |
+| Trash and restore                   | yes     | no        | Not ported.                                                                     |
+| Example pack installation           | yes     | yes       |                                                                                 |
+| Phone use                           | yes     | unproven  | The website stays the phone companion.                                          |
+
+### The gaps, stated plainly
+
+- **No native control was clicked.** Every action in the evidence receipt was
+  sent by the protocol's own client library. That is what the editor sends on
+  the wire, and it is strictly more than a transport marker, but it is not a
+  person clicking Allow and Cancel in the chat UI. VSC-05 acceptance needs a
+  human at the editor with a session open. The fixture makes that a short
+  manual exercise: serve with `--ahp`, start a run, click through, then run
+  the evidence script's assertions against the resulting records.
+- **No real provider was exercised.** How Claude and Codex actually classify
+  an interrupted turn is covered by unit tests against their documented and
+  previously observed shapes, not by a live run on this machine. The
+  interruption contract was written to be independent of any provider's
+  diagnostic text for exactly this reason, but an opt-in real-provider run is
+  still owed.
+- **Remote routing is unimplemented.** The research finding stands: `code
+tunnel` selects a native VS Code host and does not discover this facade.
+  Completing VSC-07 needs an authenticated tunnel, which needs an interactive
+  GitHub device login that could not be completed unattended. What the
+  implementation does guarantee is that the facade never becomes publicly
+  reachable by accident: it refuses any non-loopback bind outright, and every
+  socket must present a bearer token at the HTTP upgrade. The supported remote
+  routes are therefore an authenticated tunnel whose _remote extension host
+  runs on this machine_ (where the facade stays on loopback), or an SSH local
+  port forward. Neither has been exercised here.
+- **The browser Agents client remains unaddressed.** It connects to its own
+  native host; nothing here changes that.
 
 ## Handoff to the implementation agent
 
