@@ -33,11 +33,16 @@ export async function withWorkLock(store, { id, projectId, kind }, fn) {
         (row) =>
           row.id === id || row.kind === "integration" || kind === "integration",
       )
-    )
-      fail(
+    ) {
+      // Contention is transient: the work is valid, the lock is simply held.
+      // Callers that run unattended may retry instead of reporting failure.
+      const error = Error(
         "Validation or integration already owns this work. Retry after it finishes.",
-        409,
       );
+      error.status = 409;
+      error.contention = true;
+      throw error;
+    }
     store.db
       .prepare("INSERT INTO work_locks VALUES (?,?,?,?,?)")
       .run(id, projectId, kind, process.pid, token);
@@ -96,31 +101,41 @@ export async function projectConfig({
     createdAt: new Date().toISOString(),
   };
 }
-export async function createWorktree(project, runId) {
-  fs.mkdirSync(project.worktreeRoot, { recursive: true });
-  const branch = "plans/" + runId,
-    worktree = path.join(project.worktreeRoot, runId);
-  if (fs.existsSync(worktree)) fail("Run worktree already exists.", 409);
-  const helper = path.join(project.root, "scripts/worktree");
-  if (fs.existsSync(helper))
-    await exec(helper, [branch, worktree, project.baseBranch], {
-      cwd: project.root,
-      maxBuffer: 8 * 1024 * 1024,
-    });
-  else
-    await git(project.root, [
-      "worktree",
-      "add",
-      "-b",
-      branch,
-      worktree,
-      project.baseBranch,
-    ]);
-  return {
-    branch,
-    worktree,
-    baseCommit: await git(worktree, ["rev-parse", "HEAD"]),
-  };
+// `git worktree add` writes refs and administrative files in project.root, the
+// same checkout integration fast-forwards. Hold a lock that excludes
+// integration, and that integration excludes, for the duration of the add.
+// Worktree adds for different runs still proceed concurrently.
+export async function createWorktree(store, project, runId) {
+  return withWorkLock(
+    store,
+    { id: "worktree:" + runId, projectId: project.id, kind: "worktree" },
+    async () => {
+      fs.mkdirSync(project.worktreeRoot, { recursive: true });
+      const branch = "plans/" + runId,
+        worktree = path.join(project.worktreeRoot, runId);
+      if (fs.existsSync(worktree)) fail("Run worktree already exists.", 409);
+      const helper = path.join(project.root, "scripts/worktree");
+      if (fs.existsSync(helper))
+        await exec(helper, [branch, worktree, project.baseBranch], {
+          cwd: project.root,
+          maxBuffer: 8 * 1024 * 1024,
+        });
+      else
+        await git(project.root, [
+          "worktree",
+          "add",
+          "-b",
+          branch,
+          worktree,
+          project.baseBranch,
+        ]);
+      return {
+        branch,
+        worktree,
+        baseCommit: await git(worktree, ["rev-parse", "HEAD"]),
+      };
+    },
+  );
 }
 export async function commandEvidence(
   cwd,
@@ -170,7 +185,7 @@ export async function validateRun(store, runId) {
     () => validateUnlocked(store, runId),
   );
 }
-async function validateUnlocked(store, runId) {
+async function validateUnlocked(store, runId, { phase = "validation" } = {}) {
   const run = store.get("runs", runId);
   if (!run?.worktree) fail("Run has no worktree.");
   if (
@@ -192,14 +207,18 @@ async function validateUnlocked(store, runId) {
     fail("Configure the project acceptance commands before validation.");
   const results = [];
   for (const argv of project.checks) {
-    store.event(runId, "validation.started", { argv });
+    store.event(runId, "validation.started", { argv, phase });
     const record = await commandEvidence(run.worktree, argv);
+    // Each record names the commit and the phase it ran in, so the checks that
+    // ran on the rebased base are distinguishable from the earlier ones rather
+    // than reading as duplicates of the same work.
     const evidence = {
       ...record,
       id: crypto.randomUUID(),
       taskId: run.taskId,
       runId,
       kind: "command",
+      phase,
       commit: head,
     };
     store.put("evidence", evidence);
@@ -282,21 +301,16 @@ async function integrateUnlocked(store, { id, expectedCommit }) {
     fail("Run worktree has uncommitted changes.", 409);
   if ((await git(entry.worktree, ["rev-parse", "HEAD"])) !== expectedCommit)
     fail("Run branch changed after validation.", 409);
-  if (
-    store
-      .list("runs")
-      .some(
-        (r) =>
-          r.projectId === project.id &&
-          ["running", "starting", "waiting-approval", "waiting-input"].includes(
-            r.state,
-          ),
-      )
-  )
-    fail("Finish active project runs before integrating.", 409);
   store.event(id, "integration.started", { commit: entry.commit });
+  // Other runs on this project may be working while this merge proceeds. What
+  // makes that safe is here: the work is rebased onto the branch it is about to
+  // land on and revalidated at that exact base, and a failure refuses the
+  // merge. `entry.state === "ready"` records an older validation against an
+  // older base; never skip this step by trusting it.
   await git(entry.worktree, ["rebase", project.baseBranch]);
-  const revalidated = await validateUnlocked(store, id);
+  const revalidated = await validateUnlocked(store, id, {
+    phase: "integration",
+  });
   if (!revalidated.passed)
     fail("Rebased work did not pass acceptance checks.", 409);
   const head = await git(entry.worktree, ["rev-parse", "HEAD"]);
@@ -304,6 +318,7 @@ async function integrateUnlocked(store, { id, expectedCommit }) {
   entry.state = "integrated";
   entry.integratedCommit = head;
   entry.integratedAt = new Date().toISOString();
+  entry.revalidatedEvidenceIds = revalidated.results.map((r) => r.id);
   store.put("integration", entry);
   store.mutate("Integrate " + entry.taskId, (data) => {
     const task = data.tasks.find((t) => t.id === entry.taskId);
@@ -315,6 +330,25 @@ async function integrateUnlocked(store, { id, expectedCommit }) {
       };
   });
   store.event(id, "integration.completed", { entry });
+  // The base moved: worktrees of runs still working are now behind it. A
+  // steering signal for those runs and the UI, not a correctness step.
+  store.event(null, "project.base.moved", {
+    projectId: project.id,
+    baseBranch: project.baseBranch,
+    commit: head,
+    behind: store
+      .list("runs")
+      .filter(
+        (r) =>
+          r.projectId === project.id &&
+          r.id !== entry.runId &&
+          !r.readOnly &&
+          ["running", "starting", "waiting-approval", "waiting-input"].includes(
+            r.state,
+          ),
+      )
+      .map((r) => r.id),
+  });
   // Remove only the exact worktree created for this run, after its branch landed.
   if (
     path.dirname(entry.worktree) === project.worktreeRoot &&

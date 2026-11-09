@@ -83,6 +83,9 @@ export class Batches {
     if (action === "resume") await this.advance(id);
     return this.store.get("batches", id);
   }
+  retry(id, delayMs = 250) {
+    setTimeout(() => this.advance(id), delayMs).unref?.();
+  }
   async advance(id) {
     if (this.working.has(id)) {
       this.wake.add(id);
@@ -110,7 +113,10 @@ export class Batches {
       const projectActive = this.store
         .list("runs")
         .filter((r) => r.projectId === batch.projectId && ACTIVE.has(r.state));
-      if (batch.autoIntegrate && !projectActive.length) {
+      // Sibling runs keep working while a validated entry lands: integration
+      // holds the project work lock, rebases onto the base branch and
+      // revalidates there, so a quiet window is not required.
+      if (batch.autoIntegrate) {
         for (const entry of this.store
           .list("integration")
           .filter(
@@ -181,6 +187,12 @@ export class Batches {
         this.store.event(null, "batch.completed", { batch });
       }
     } catch (error) {
+      // A held validation or integration lock is not a batch problem: the work
+      // is still valid and the lock clears. Retry instead of demanding review.
+      if (error.contention) {
+        this.retry(id);
+        return;
+      }
       const batch = this.store.get("batches", id);
       batch.state = "attention";
       batch.reason = error.message;

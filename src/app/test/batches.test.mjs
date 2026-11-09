@@ -67,7 +67,11 @@ test("authorized batches integrate prerequisites before dispatching dependent wo
   await git(first.worktree, ["add", "."]);
   await git(first.worktree, ["commit", "-m", "Build foundation"]);
   manager.receive(first.id, "turn.completed", { state: "completed" });
-  for (let n = 0; n < 100 && dispatch.length < 2; n++) await delay(15);
+  // Validation, integration and the next dispatch are real Git work. Wait for
+  // the outcome against a wall-clock deadline rather than a fixed number of
+  // short sleeps, which a loaded machine running this suite can outlast.
+  const deadline = Date.now() + 20000;
+  while (dispatch.length < 2 && Date.now() < deadline) await delay(25);
   assert.equal(dispatch.length, 2);
   const updated = store.get("batches", batch.id),
     second = store.get("runs", updated.runIds[1]);

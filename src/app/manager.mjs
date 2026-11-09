@@ -357,7 +357,7 @@ export class RunManager {
           run,
           run.mode === "ask"
             ? { worktree: project.root, readOnly: true }
-            : await createWorktree(project, id),
+            : await createWorktree(this.store, project, id),
         );
         run.handoffPath = path.join(
           path.dirname(path.resolve(this.store.filename)),
