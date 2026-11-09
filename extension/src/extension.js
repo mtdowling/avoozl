@@ -823,17 +823,26 @@ function activate(context) {
         { title: "Acceptance for " + (task.title || task.id) },
       );
       if (!scope) return;
+      // Optional: when a run has been validated, the workspace records what
+      // ran and against which commit, so there is nothing to retype.
       const evidence = await vscode.window.showInputBox({
-        title: "Acceptance evidence",
-        prompt: "What was checked, and where the evidence lives.",
+        title: "Acceptance evidence (optional)",
+        prompt:
+          "Leave empty to record the validated run's own checks, if there are any.",
+        placeHolder: "Optional",
         ignoreFocusOut: true,
       });
-      if (!evidence?.trim()) return;
-      await client.call("task.accept", {
+      if (evidence === undefined) return;
+      const accepted = await client.call("task.accept", {
         id: task.id,
-        evidence,
+        ...(evidence.trim() ? { evidence: evidence.trim() } : {}),
         componentOnly: scope.componentOnly,
       });
+      vscode.window.showInformationMessage(
+        accepted.acceptanceEvidence?.evidence
+          ? "Recorded: " + accepted.acceptanceEvidence.evidence
+          : "Recorded acceptance with no evidence note.",
+      );
       await state.refresh();
     }),
   );

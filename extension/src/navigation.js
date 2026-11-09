@@ -253,16 +253,25 @@ function candidateResources(entry, uuid) {
 }
 
 function facadeHealth(manifest) {
-  const address = manifest.clients?.editor?.address || manifest.url;
+  const client = manifest.clients?.editor || {};
+  const address = client.address || manifest.url;
   let url;
   try {
-    url = new URL(address.replace(/^ws/, "http"));
+    url = new URL(String(address).replace(/^ws/, "http"));
   } catch {
     return Promise.resolve(null);
   }
   url.pathname = "/health";
+  // The facade authenticates every request, including diagnostics. Without
+  // the token every verification would come back empty and each navigation
+  // would be reported as unverifiable.
+  const token =
+    client.connectionToken ||
+    (url.searchParams.get("tkn") ?? url.searchParams.get("token"));
+  url.search = "";
+  const headers = token ? { Authorization: "Bearer " + token } : {};
   return new Promise((resolve) => {
-    const req = http.request(url, { method: "GET" }, (res) => {
+    const req = http.request(url, { method: "GET", headers }, (res) => {
       let data = "";
       res.setEncoding("utf8");
       res.on("data", (chunk) => (data += chunk));

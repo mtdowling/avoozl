@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { fixture } from "./fixtures.mjs";
+import { fixture, markdown } from "./fixtures.mjs";
 import { RunManager } from "../manager.mjs";
 import { Operations } from "../operations.mjs";
 import { handleMcp } from "../mcp.mjs";
@@ -231,4 +231,121 @@ test("web permission changes route to the durable agent host", async (t) => {
       input: { id: "run-on-host", approvalMode: "automatic" },
     },
   ]);
+});
+
+test("approval needs only the reviewed hashes, and records the operator", async (t) => {
+  const { store } = fixture(t);
+  const ops = new Operations(store, { operator: "Workspace operator" });
+  const plan = await ops.execute("plan.create", {
+    prompt: "A small plan",
+    text: markdown,
+  });
+  // Neither who approved nor an approval note is supplied.
+  const receipt = await ops.execute("plan.approve", {
+    id: plan.id,
+    expectedHash: plan.hash,
+    expectedRevision: store.read().revision,
+  });
+  assert.equal(receipt.taskIds.length, 2);
+  // Provenance comes from the workspace rather than from typing.
+  assert.equal(receipt.approvedBy, "Workspace operator");
+  assert.equal(
+    "evidence" in receipt,
+    false,
+    "an absent note is left off the receipt, not filled with boilerplate",
+  );
+  assert.equal(
+    "databaseRevision" in receipt,
+    false,
+    "the receipt no longer carries a field nothing reads",
+  );
+  assert.equal(store.get("plans", plan.id).state, "approved");
+  // The checks that keep the graph correct are untouched.
+  await assert.rejects(
+    ops.execute("plan.approve", {
+      id: plan.id,
+      expectedHash: "0".repeat(64),
+      expectedRevision: store.read().revision,
+    }),
+    /reviewed document hash changed/,
+  );
+  const retry = await ops.execute("plan.approve", {
+    id: plan.id,
+    expectedHash: plan.hash,
+    expectedRevision: store.read().revision,
+  });
+  assert.equal(retry.id, receipt.id);
+  assert.equal(retry.existing, true);
+  assert.equal(store.list("approvals").length, 1);
+  // A caller with something real to say still has the field.
+  const second = await ops.execute("plan.create", {
+    prompt: "Another plan",
+    text: markdown.replace(/foundation/g, "groundwork"),
+  });
+  const noted = await ops.execute("plan.approve", {
+    id: second.id,
+    expectedHash: second.hash,
+    expectedRevision: store.read().revision,
+    approvedBy: "A reviewer",
+    evidence: "Walked through the dependency order with the author.",
+  });
+  assert.equal(noted.approvedBy, "A reviewer");
+  assert.match(noted.evidence, /dependency order/);
+});
+
+test("acceptance derives its evidence from a validated run, or records none", async (t) => {
+  const { store } = fixture(t);
+  const ops = new Operations(store, { operator: "Workspace operator" });
+  // Component acceptance with nothing recorded: allowed, and honest about it.
+  const bare = await ops.execute("task.accept", {
+    id: "sample-task",
+    componentOnly: true,
+  });
+  assert.equal(bare.status, "implemented");
+  assert.equal(bare.acceptanceEvidence.evidence, null);
+  assert.equal(bare.acceptanceEvidence.acceptedBy, "Workspace operator");
+  assert.equal(bare.acceptanceEvidence.derivedFrom, undefined);
+
+  // With a validated run, the commands it passed are the evidence.
+  store.put("evidence", {
+    id: "evidence-1",
+    taskId: "sample-task",
+    runId: "run-1",
+    kind: "command",
+    commit: "abcdef0123456789",
+    argv: ["node", "check.mjs"],
+    exitCode: 0,
+  });
+  const derived = await ops.execute("task.accept", {
+    id: "sample-task",
+    componentOnly: true,
+  });
+  assert.match(
+    derived.acceptanceEvidence.evidence,
+    /^Validation at abcdef0123/,
+  );
+  assert.match(derived.acceptanceEvidence.evidence, /node check\.mjs/);
+  assert.deepEqual(derived.acceptanceEvidence.derivedFrom, ["evidence-1"]);
+
+  // A failing check is not acceptance evidence.
+  store.put("evidence", {
+    id: "evidence-2",
+    taskId: "sample-task",
+    runId: "run-2",
+    kind: "command",
+    commit: "abcdef0123456789",
+    argv: ["node", "check.mjs"],
+    exitCode: 1,
+  });
+  const failed = await ops.execute("task.accept", {
+    id: "sample-task",
+    componentOnly: true,
+  });
+  assert.equal(failed.acceptanceEvidence.evidence, null);
+
+  // Whole-head acceptance still requires an integration receipt.
+  await assert.rejects(
+    ops.execute("task.accept", { id: "sample-task" }),
+    /Record integration before whole-head acceptance/,
+  );
 });

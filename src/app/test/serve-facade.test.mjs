@@ -114,12 +114,16 @@ test("serve --ahp brings up the site and a loopback-only authenticated facade", 
     "editor",
     "observer",
   ]);
+  // The credential is its own field. The address stays clean, because the
+  // editor derives a session's identity from it and a query string forces an
+  // opaque encoding.
+  assert.equal(manifest.clients.editor.address, facade);
+  assert.match(manifest.clients.editor.connectionToken, /^[0-9a-f-]{30,}$/);
   const authorized = await fetch(
     facade.replace("ws://", "http://") + "/health",
     {
       headers: {
-        Authorization:
-          "Bearer " + manifest.clients.editor.address.split("token=")[1],
+        Authorization: "Bearer " + manifest.clients.editor.connectionToken,
       },
     },
   ).then((r) => r.json());

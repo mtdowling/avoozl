@@ -180,10 +180,8 @@ try {
     },
   });
   await facade.listening;
-  const editorAddress = (() => {
-    const manifest = JSON.parse(fs.readFileSync(facadeManifest, "utf8"));
-    return manifest.clients.editor.address;
-  })();
+  const editorClient = JSON.parse(fs.readFileSync(facadeManifest, "utf8"))
+    .clients.editor;
 
   // The packaged extension, in a profile of its own.
   execFileSync(
@@ -218,7 +216,11 @@ try {
         "aicommander.facadeManifest": facadeManifest,
         "chat.remoteAgentHostsEnabled": true,
         "chat.remoteAgentHosts": [
-          { address: editorAddress, name: "AICommander native check" },
+          {
+            address: editorClient.address,
+            name: "AICommander native check",
+            connectionToken: editorClient.connectionToken,
+          },
         ],
         "chat.remoteAgentHostsAutoConnect": true,
         "telemetry.telemetryLevel": "off",
