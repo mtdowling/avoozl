@@ -341,7 +341,7 @@ test("approval shows the reviewed revision and the exact set it would create", a
   const opened = [];
   // Review, then approve, with the authorizing name and evidence.
   queue.warnings.push("Review the details, then approve");
-  queue.inputs.push("Reviewer", "Read the design and the task blocks.");
+  queue.inputs.push("Read the design and the task blocks.");
   const logged = [];
   await reviewApproval(client, plan.id, (line) => logged.push(line));
   const review = calls.messages.find((entry) => entry.kind === "warning");
@@ -349,13 +349,18 @@ test("approval shows the reviewed revision and the exact set it would create", a
   assert.match(review.message, /creates 2 task\(s\)/);
   const approvals = store.list("approvals");
   assert.equal(approvals.length, 1);
-  assert.equal(approvals[0].approvedBy, "Reviewer");
+  assert.equal(
+    approvals[0].evidence,
+    "Read the design and the task blocks.",
+    "a note the caller actually wrote is kept",
+  );
   assert.equal(approvals[0].hash, plan.hash);
   assert.equal(approvals[0].taskIds.length, 2);
   assert.equal(store.get("plans", plan.id).state, "approved");
   // Approving the same reviewed revision again returns the first receipt.
+  // An empty note is skipped rather than stored as a sentence saying nothing.
   queue.warnings.push("Review the details, then approve");
-  queue.inputs.push("Reviewer", "Retrying the same revision.");
+  queue.inputs.push("");
   await reviewApproval(client, plan.id, (line) => logged.push(line));
   assert.equal(store.list("approvals").length, 1);
   assert.ok(

@@ -135,12 +135,14 @@ export function savePlan(store, { id, text, expectedHash }) {
     return plan;
   });
 }
+// The two inputs that keep the graph correct are the hashes. Who approved is
+// recorded from the workspace's operator when the caller does not say, and
+// approval notes are kept only when a caller has something real to add: a
+// required field containing a fixed sentence carries less than an absent one.
 export function approvePlan(
   store,
-  { id, expectedHash, expectedRevision, approvedBy, evidence },
+  { id, expectedHash, expectedRevision, approvedBy, evidence, operator },
 ) {
-  if (!approvedBy?.trim() || !evidence?.trim())
-    fail("Record who authorized this revision and the approval evidence.");
   return store.transaction(() => {
     const plan = store.get("plans", id);
     if (!plan) fail("Plan not found.", 404);
@@ -371,12 +373,16 @@ export function approvePlan(
       planId: id,
       hash: plan.hash,
       source: plan.text,
-      approvedBy,
-      evidence,
+      // Provenance of which workspace minted these tasks, which is useful if
+      // planning records are ever brought together from more than one source.
+      approvedBy: approvedBy?.trim() || operator?.trim() || null,
+      // Only a caller's own words. What is informative at approval time — the
+      // reviewed hash, the revision, the proposals — is already on this
+      // receipt and in the database it commits.
+      ...(evidence?.trim() ? { evidence: evidence.trim() } : {}),
       at: now,
       mapping,
       taskIds: Object.values(mapping),
-      databaseRevision: data.revision + 1,
     };
     store.put("approvals", receipt);
     plan.state = "approved";

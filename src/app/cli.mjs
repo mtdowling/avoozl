@@ -69,7 +69,9 @@ try {
       return request(operation, input);
     const store = new Store(dbPath);
     try {
-      const result = await new Operations(store).execute(operation, input);
+      const result = await new Operations(store, {
+        operator: config.operator,
+      }).execute(operation, input);
       flushOutbox(store, config.plansRoot);
       return result;
     } finally {
@@ -88,7 +90,8 @@ try {
         grant.name,
         {
           scope: grant.scope,
-          address: facade.url + "/?token=" + encodeURIComponent(token),
+          address: facade.url,
+          connectionToken: token,
         },
       ]),
     ),
@@ -119,6 +122,7 @@ try {
     const server = startServer({
       dbPath,
       workspaceName: config.name,
+      operator: config.operator,
       port: config.port,
       projectionRoot: config.plansRoot,
       sourceRoot: config.plansRoot,
@@ -298,7 +302,7 @@ try {
     try {
       manifest = JSON.parse(fs.readFileSync(config.ahp.manifest, "utf8"));
     } catch {}
-    const editorAddress = manifest?.clients?.editor?.address;
+    const editorClient = manifest?.clients?.editor;
     // A running facade records the endpoint it was pointed at, which is the
     // live server even when the saved port is not.
     const liveEndpoint = manifest?.workspaceEndpoint || endpoint;
@@ -316,11 +320,15 @@ try {
           settings: {
             "aicommander.endpoint": liveEndpoint,
             "aicommander.facadeManifest": config.ahp.manifest,
-            ...(editorAddress
+            ...(editorClient
               ? {
                   "chat.remoteAgentHostsEnabled": true,
                   "chat.remoteAgentHosts": [
-                    { address: editorAddress, name: config.name },
+                    {
+                      address: editorClient.address,
+                      name: config.name,
+                      connectionToken: editorClient.connectionToken,
+                    },
                   ],
                   "chat.remoteAgentHostsAutoConnect": true,
                 }

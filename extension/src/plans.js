@@ -209,7 +209,7 @@ async function reviewApproval(client, planId, log) {
       "**, hash `" +
       preview.reviewedHash +
       "`.",
-    "Database revision **" + preview.databaseRevision + "**.",
+    "Database revision **" + preview.expectedRevision + "**.",
     "",
     preview.approved
       ? "> This exact revision is already approved. Approving again returns the original receipt."
@@ -262,24 +262,23 @@ async function reviewApproval(client, planId, log) {
     "Review the details, then approve",
   );
   if (!confirm) return;
-  const approvedBy = await vscode.window.showInputBox({
-    title: "Who authorized this revision?",
-    prompt: "Recorded on the approval receipt.",
+  // Only the two hashes are required. Who approved is recorded from the
+  // workspace's operator, and a note is kept only if there is one worth
+  // keeping: an empty answer leaves the field off the receipt rather than
+  // filling it with a sentence that says nothing.
+  const note = await vscode.window.showInputBox({
+    title: "Approval note (optional)",
+    prompt:
+      "Anything worth recording beyond the reviewed revision. Leave empty to skip.",
+    placeHolder: "Optional",
     ignoreFocusOut: true,
   });
-  if (!approvedBy?.trim()) return;
-  const evidence = await vscode.window.showInputBox({
-    title: "Approval evidence",
-    prompt: "What was reviewed, and how. Recorded on the receipt.",
-    ignoreFocusOut: true,
-  });
-  if (!evidence?.trim()) return;
+  if (note === undefined) return;
   const receipt = await client.call("plan.approve", {
     id: planId,
     expectedHash: preview.reviewedHash,
-    expectedRevision: preview.databaseRevision,
-    approvedBy,
-    evidence,
+    expectedRevision: preview.expectedRevision,
+    ...(note.trim() ? { evidence: note.trim() } : {}),
   });
   log(
     "Approved plan " +

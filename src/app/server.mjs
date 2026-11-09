@@ -95,6 +95,7 @@ export function startServer({
     path.join(appRoot, ".state/documents"),
   sourceRoot,
   workspaceName,
+  operator,
   factories,
   manager: providedManager,
   mode,
@@ -126,7 +127,7 @@ export function startServer({
   const manager =
       providedManager ||
       new RunManager(store, { factories, baseUrl: "http://127.0.0.1:" + port }),
-    ops = new Operations(store, { manager });
+    ops = new Operations(store, { manager, operator });
   let draining = false;
   const clients = new Set();
   const stopSourceWatch = sourceRoot

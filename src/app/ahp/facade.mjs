@@ -202,7 +202,10 @@ export function startAhpFacade({
     }
     try {
       const url = new URL(req.url || "/", "http://localhost");
-      const supplied = url.searchParams.get("token");
+      // `tkn` is the editor's own convention for a connection token; `token`
+      // is accepted for a hand-written address.
+      const supplied =
+        url.searchParams.get("tkn") || url.searchParams.get("token");
       if (!supplied) return null;
       for (const key of grants.keys())
         if (constantTimeEqual(key, supplied)) return key;
@@ -978,6 +981,13 @@ export function startAhpFacade({
     projection,
     httpServer,
     tokens: [...grants.keys()],
+    // The token for a named client, so a caller can authenticate to the
+    // facade's own diagnostics without re-reading the manifest.
+    tokenFor(name) {
+      for (const [token, grant] of grants)
+        if (grant.name === name) return token;
+      return null;
+    },
     grants,
     url: null,
     port: null,
@@ -1052,7 +1062,8 @@ export function startAhpFacade({
               grant.name,
               {
                 scope: grant.scope,
-                address: facade.url + "/?token=" + encodeURIComponent(token),
+                address: facade.url,
+                connectionToken: token,
               },
             ]),
           ),

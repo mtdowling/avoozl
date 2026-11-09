@@ -1,10 +1,35 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 export const applicationRoot = fileURLToPath(
   new URL("../../", import.meta.url),
 );
+
+let resolvedOperator;
+// Who is working in this workspace. Recorded on approval and acceptance
+// receipts so a record says where it came from without anyone typing it.
+// Git's configured name first, because that is the identity the repository
+// already uses; the OS account otherwise.
+export function operatorIdentity() {
+  if (resolvedOperator !== undefined) return resolvedOperator;
+  resolvedOperator = null;
+  try {
+    const name = execFileSync("git", ["config", "user.name"], {
+      encoding: "utf8",
+      timeout: 2000,
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    if (name) resolvedOperator = name;
+  } catch {}
+  if (!resolvedOperator)
+    try {
+      resolvedOperator = os.userInfo().username || null;
+    } catch {}
+  return resolvedOperator;
+}
 export function workspaceConfig(options = {}) {
   const workspaceRoot = path.resolve(
     options.workspace || process.env.AICOMMANDER_WORKSPACE || process.cwd(),
@@ -35,6 +60,11 @@ export function workspaceConfig(options = {}) {
     filename,
     configured: fs.existsSync(filename),
     name: saved.name || "My workspace",
+    operator:
+      options.operator ||
+      process.env.AICOMMANDER_OPERATOR ||
+      saved.operator ||
+      operatorIdentity(),
     dbPath,
     plansRoot,
     port,
