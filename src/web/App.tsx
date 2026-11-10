@@ -1173,6 +1173,9 @@ function GitHubSettings({ workspace, refresh }: { workspace: Workspace; refresh:
   const [provider, setProvider] = useState(workspace.providers[0]?.id || workspace.providers[0]?.name || "");
   const [allowedActors, setAllowedActors] = useState("");
   const [autoStart, setAutoStart] = useState(false);
+  const [workspaceRoot, setWorkspaceRoot] = useState("");
+  const [workspaceBranch, setWorkspaceBranch] = useState("avoozl-workspace");
+  const [workspaceDirectory, setWorkspaceDirectory] = useState(".avoozl");
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -1207,6 +1210,15 @@ function GitHubSettings({ workspace, refresh }: { workspace: Workspace; refresh:
       provider: provider || undefined,
       autoStart,
       allowedActors: allowedActors.split(",").map((value) => value.trim()).filter(Boolean),
+    });
+  }
+
+  async function configureWorkspace(event: React.FormEvent) {
+    event.preventDefault();
+    await act("Workspace registration", "workspace.repository.configure", {
+      root: workspaceRoot.trim(),
+      branch: workspaceBranch.trim(),
+      directory: workspaceDirectory.trim(),
     });
   }
 
@@ -1253,6 +1265,27 @@ function GitHubSettings({ workspace, refresh }: { workspace: Workspace; refresh:
       <div className="form-actions"><button className="button primary" disabled={Boolean(busy) || !repository.trim() || !projectId}>{busy === "Registration" ? "Registering…" : "Register repository"}</button></div>
     </form>
     <p className="form-note">Credentials are read from <code>gh auth</code> or process environment and are never stored in the workspace or projected to Git.</p>
+    <h3>Portable planning repository</h3>
+    {workspace.workspaceRepository?.configuration
+      ? <>
+          <ReadOnlyRows rows={[
+            ["Repository", workspace.workspaceRepository.configuration.repository || workspace.workspaceRepository.configuration.root],
+            ["Location", `${workspace.workspaceRepository.configuration.branch}:${workspace.workspaceRepository.configuration.directory}`],
+            ["Last published", workspace.workspaceRepository.publication?.commit?.slice(0, 12) || "Never"],
+            ["Last synchronized", workspace.workspaceRepository.import?.commit?.slice(0, 12) || "Never"],
+          ]} />
+          <div className="settings-actions">
+            <button className="button" disabled={Boolean(busy)} onClick={() => void act("Publication", "workspace.repository.publish")}>Publish</button>
+            <button className="button" disabled={Boolean(busy)} onClick={() => void act("Synchronization", "workspace.repository.sync")}>Pull and hydrate</button>
+          </div>
+        </>
+      : <p className="form-note">Not configured. This may be a separate private repository or a dedicated branch/directory in a private code repository.</p>}
+    <form className="settings-form" onSubmit={configureWorkspace}>
+      <label>Local Git checkout root<input value={workspaceRoot} onChange={(event) => setWorkspaceRoot(event.target.value)} placeholder="/path/to/private/workspace-checkout" required /></label>
+      <label>Workspace branch<input value={workspaceBranch} onChange={(event) => setWorkspaceBranch(event.target.value)} /></label>
+      <label>Managed directory<input value={workspaceDirectory} onChange={(event) => setWorkspaceDirectory(event.target.value)} /></label>
+      <div className="form-actions"><button className="button primary" disabled={Boolean(busy) || !workspaceRoot.trim()}>{busy === "Workspace registration" ? "Registering…" : "Register planning repository"}</button></div>
+    </form>
   </div>;
 }
 

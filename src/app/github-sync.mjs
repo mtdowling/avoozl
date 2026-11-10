@@ -294,6 +294,11 @@ export async function configureGitHubRepository(store, github, input) {
     github.repository(repository),
     github.currentUser(),
   ]);
+  if (!remote.private)
+    fail(
+      "Avoozl refuses public repositories. Register a private GitHub repository.",
+      403,
+    );
   const label = input.label || "avoozl:ready";
   await github.ensureLabel(repository, {
     name: label,

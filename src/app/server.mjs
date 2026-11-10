@@ -670,6 +670,7 @@ export function startServer({
         return;
       githubSyncing = true;
       try {
+        await ops.execute("planning.reconcile");
         await ops.execute("github.sync", { autoStart: true });
       } catch (error) {
         store.event(null, "github.sync.error", { message: error.message });

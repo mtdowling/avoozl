@@ -6,6 +6,7 @@ const MODE_WRITES = Object.freeze({
     "plans_visualize",
     "plans_present",
     "plans_activate_visualization",
+    "plans_submit_review",
   ]),
   plan: new Set(["plans_propose_work"]),
   implement: new Set(["plans_activity", "plans_propose_work"]),

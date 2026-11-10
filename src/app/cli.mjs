@@ -508,6 +508,57 @@ try {
     } else throw Error("Choose github status, configure, sync, project, or start.");
     console.log(JSON.stringify(await localOrRequest(operation, value), null, 2));
   }
+  else if (command === "workspace-repo") {
+    const action = positionals[0] || "status";
+    let operation, value;
+    if (action === "status") {
+      operation = "workspace.repository.status";
+      value = {};
+    } else if (action === "configure") {
+      operation = "workspace.repository.configure";
+      value = {
+        root: options.root || positionals[1],
+        remote: options.remote,
+        branch: options.branch,
+        directory: options.directory,
+      };
+    } else if (action === "publish") {
+      operation = "workspace.repository.publish";
+      value = {
+        dryRun: options["dry-run"],
+        message: options.message,
+      };
+    } else if (action === "sync") {
+      operation = "workspace.repository.sync";
+      value = {};
+    } else
+      throw Error(
+        "Choose workspace-repo status, configure, publish, or sync.",
+      );
+    console.log(JSON.stringify(await localOrRequest(operation, value), null, 2));
+  }
+  else if (command === "planning") {
+    const action = positionals[0];
+    if (action === "publish")
+      console.log(
+        JSON.stringify(
+          await localOrRequest("planning.publish", {
+            planId: options.plan || positionals[1],
+          }),
+          null,
+          2,
+        ),
+      );
+    else if (action === "reconcile")
+      console.log(
+        JSON.stringify(
+          await localOrRequest("planning.reconcile"),
+          null,
+          2,
+        ),
+      );
+    else throw Error("Choose planning publish or reconcile.");
+  }
   else if (command === "generate")
     console.log(JSON.stringify(generate(config).stats, null, 2));
   else if (command === "check") {
@@ -621,6 +672,12 @@ try {
   github project PLAN_ID --repository OWNER/REPO
   github start TASK_ID [--provider openhands]
   github status                          Show repository and machine registration
+  workspace-repo configure PATH [--branch avoozl-workspace] [--directory .avoozl]
+  workspace-repo publish [--dry-run]     Safely publish portable planning state
+  workspace-repo sync                    Hydrate from the configured private repo
+  workspace-repo status                  Show portable repository revisions
+  planning publish PLAN_ID               Open a private planning pull request
+  planning reconcile                     Project tasks from merged planning PRs
   query [--q QUERY] | show TASK_ID | update TASK_ID --status STATUS
   activity TASK_ID --action start|heartbeat|pause|finish ...
   skill --workspace PATH                Print the portable workflow skill

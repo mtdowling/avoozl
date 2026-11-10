@@ -57,6 +57,17 @@ export type Workspace = {
     }>;
     lastSync?: { repositories?: Array<{ id: string; syncedAt: string }> };
   };
+  workspaceRepository?: {
+    configuration?: {
+      root: string;
+      remote: string;
+      branch: string;
+      directory: string;
+      repository?: string;
+    } | null;
+    publication?: { commit: string; at: string } | null;
+    import?: { commit: string; at: string } | null;
+  };
   providers: Provider[];
   agentHost?: { connected?: boolean; draining?: boolean };
   publication?: { pending?: unknown[]; last?: unknown[] };
@@ -163,6 +174,31 @@ export type Plan = PlanSummary & {
   text: string;
   prompt?: string;
   approvals?: Array<{ hash?: string; approvedAt?: string; approvedBy?: string }>;
+  reviews?: ReviewThread[];
+  reviewPipelines?: Array<{
+    id: string;
+    state: string;
+    currentRunId?: string | null;
+    rounds?: Array<{ provider: string; comments: number }>;
+    stopReason?: string;
+    error?: string;
+  }>;
+};
+
+export type ReviewThread = {
+  id: string;
+  revisionHash: string;
+  quote: string;
+  comment: string;
+  suggestion?: string;
+  severity: string;
+  state: string;
+  disposition?: string;
+  author?: string;
+  provider?: string | null;
+  model?: string | null;
+  stale?: boolean;
+  replies?: Array<{ id: string; author: string; text: string; at: string }>;
 };
 
 export type RunEvent = {
