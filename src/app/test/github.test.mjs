@@ -194,6 +194,60 @@ test("public repositories are refused before labels or issue mutations", async (
   assert.equal(store.list("github_repositories").length, 0);
 });
 
+test("a repository made public after registration is refused before polling", async (t) => {
+  const { store } = fixture(t),
+    github = new FakeGitHub(),
+    ops = await configure(store, github);
+  let polled = false;
+  github.repository = async () => ({
+    node_id: "repo-node",
+    full_name: "example/code",
+    private: false,
+  });
+  github.listReadyIssues = async () => {
+    polled = true;
+    return [];
+  };
+  await assert.rejects(ops.execute("github.sync"), /must remain private/);
+  assert.equal(polled, false);
+});
+
+test("a repository made public after authorization cannot dispatch work", async (t) => {
+  const { store } = fixture(t),
+    github = new FakeGitHub(),
+    starts = [],
+    manager = {
+      remote: true,
+      start(input) {
+        starts.push(input);
+        return Promise.resolve({ id: "must-not-start", ...input });
+      },
+    };
+  github.permissions.set("maintainer", "write");
+  github.issues = [readyIssue()];
+  github.events.set(7, [
+    {
+      id: 99,
+      event: "labeled",
+      label: { name: "avoozl:ready" },
+      actor: { login: "maintainer" },
+      created_at: "2026-11-10T12:00:00Z",
+    },
+  ]);
+  const ops = await configure(store, github, manager);
+  const synced = await ops.execute("github.sync");
+  github.repository = async () => ({
+    node_id: "repo-node",
+    full_name: "example/code",
+    private: false,
+  });
+  await assert.rejects(
+    ops.execute("github.start", { taskId: synced.authorized[0].taskId }),
+    /must remain private/,
+  );
+  assert.equal(starts.length, 0);
+});
+
 test("untrusted label actors cannot dispatch and withdrawal does not erase the task", async (t) => {
   const { store } = fixture(t),
     github = new FakeGitHub();

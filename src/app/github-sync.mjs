@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import os from "node:os";
 import { digest, queryTasks } from "../model.mjs";
 import { fail } from "./store.mjs";
-import { parseRepository } from "./github.mjs";
+import { parseRepository, requirePrivateRepository } from "./github.mjs";
 
 const permissionRank = new Map([
   ["none", 0],
@@ -338,6 +338,7 @@ export async function syncGitHubIssues(store, github, { repository, authorize } 
     : store.list("github_repositories");
   const result = { repositories: [], authorized: [], quarantined: [], pending: [] };
   for (const config of configs) {
+    await requirePrivateRepository(github, config);
     const issues = await github.listReadyIssues(config, {
       label: config.label,
       assignee: config.assignee,
@@ -464,6 +465,7 @@ export async function projectPlanIssues(store, github, { planId, repository }) {
           .find((entry) => entry.projectId === (task.projectId || plan.context?.projectId));
     if (!config)
       fail(`No GitHub repository is registered for task ${task.id}.`);
+    await requirePrivateRepository(github, config);
     const managed = managedIssueBody(
       {
         ...task,
@@ -550,6 +552,7 @@ export async function startAuthorizedIssue(ops, input) {
     fail(task.dispatch?.reason || "This GitHub task is not authorized.", 409);
   const config = ops.store.get("github_repositories", task.github.repository);
   if (!config) fail("The GitHub repository is not registered.", 409);
+  await requirePrivateRepository(ops.github, config);
   const machine = machineIdentity(ops.store);
   if (config.activeMachine && config.activeMachine !== machine.id)
     fail("This Avoozl machine is not active for the repository.", 409);

@@ -138,6 +138,31 @@ test("publication refuses secrets and absolute machine paths before writing Git 
   );
 });
 
+test("a configured GitHub workspace repository must remain private before publication", async (t) => {
+  const repo = repository(t),
+    { store } = fixture(t),
+    github = {
+      available: () => true,
+      repository: async () => ({
+        node_id: "public-plans",
+        full_name: "example/plans",
+        private: false,
+      }),
+    },
+    ops = new Operations(store, { github });
+  await ops.execute("workspace.repository.configure", {
+    root: repo.root,
+    branch: "avoozl-workspace",
+  });
+  const config = store.getMeta("workspaceRepository");
+  config.repository = "example/plans";
+  store.setMeta("workspaceRepository", config);
+  await assert.rejects(
+    ops.execute("workspace.repository.publish", { dryRun: true }),
+    /must remain private/,
+  );
+});
+
 test("an approved design publishes to a review branch before task projection", async (t) => {
   const repo = repository(t),
     { store } = fixture(t),

@@ -125,7 +125,23 @@ Use `plan.create`, `plan.save`, and `plan.get` to work on the draft. Approval id
 
 An agent that discovers adjacent work while implementing appends one proposal with `plan.propose` instead of creating a task: `{"id":"PLAN_ID","proposal":{"id":"local-id","title":"...","acceptance":["Observable check."]}}`. The appended block is validated by the same rules as approval and stays non-executable. The amended plan no longer matches its approval receipt, so it reads as having unapproved changes and its tasks are flagged for review until the next approval converts the proposal.
 
-Configure a Git checkout, base branch, worktree directory, and acceptance commands in Settings before managed execution. Claude and Codex use their own harnesses and authentication. OpenHands can instead use a separately running, loopback-only Agent Server and embeds its conversation, terminal, files, and browser surface in the Avoozl session page; see [the OpenHands setup](docs/openhands.md). Implementation runs own isolated worktrees; acceptance checks run against a clean committed head. Integration rebases, revalidates, and fast-forwards the configured checkout. Integration does not push. Scoped implementation, integration, and whole-head acceptance remain separate.
+Configure a Git checkout, base branch, worktree directory, and acceptance commands in Settings before managed execution. Claude and Codex use their own harnesses and authentication. OpenHands can instead use a separately running, loopback-only Agent Server. Install the Avoozl Canvas App with `node cli.mjs openhands install-app`; it puts planning, work authorization, and acceptance inside Canvas while terminal, files, browser, chat, and steering stay native to OpenHands. The standalone Avoozl site retains the embedded surface as a compatibility client. See [the OpenHands setup](docs/openhands.md). Implementation runs own isolated worktrees; acceptance checks run against a clean committed head. Integration rebases, revalidates, and fast-forwards the configured checkout. Integration does not push. Scoped implementation, integration, and whole-head acceptance remain separate.
+
+## Private GitHub planning and work intake
+
+Avoozl can publish sanitized planning state to a Git branch, open a planning pull request, project merged design tasks into issues, and accept assigned issues labeled `avoozl:ready` through the same execution path. Repository registration verifies that GitHub reports the repository as private. Every later poll, issue projection, and planning pull-request operation repeats that check and fails before mutation if visibility changes.
+
+```sh
+gh auth login
+node cli.mjs project configure code --workspace ../my-plans --json '{"root":"/path/to/code","baseBranch":"main","worktreeRoot":"/path/to/worktrees","checks":[["npm","test"]]}'
+node cli.mjs github configure OWNER/CODE --workspace ../my-plans --project code --assignee YOUR_LOGIN --allowed-actors YOUR_LOGIN
+node cli.mjs workspace-repo configure /path/to/private-planning-checkout --workspace ../my-plans --branch avoozl-workspace --directory .avoozl
+node cli.mjs planning publish PLAN_ID --workspace ../my-plans
+node cli.mjs planning reconcile --workspace ../my-plans
+node cli.mjs github sync --workspace ../my-plans
+```
+
+The publication allowlist contains Markdown designs, exact approval receipts, task definitions, and structured review threads. SQLite, provider credentials, environment files, transcripts, terminal output, local repository roots, and absolute user paths are rejected. A second computer configures its own checkout and credentials, then runs `workspace-repo sync`; it does not copy the first computer's execution database.
 
 ```sh
 node cli.mjs query --workspace ../my-plans --q 'ready:true'
