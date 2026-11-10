@@ -5668,9 +5668,6 @@ body {
 .task-tree-window {
   overflow-x: auto;
 }
-.task-tree-window .virtual-table {
-  min-width: 1040px;
-}
 .tree-table-heading > th {
   font-size: 10px;
   color: #b2b2b2;
@@ -5783,9 +5780,6 @@ body {
   padding-top: 16px;
   gap: 9px;
 }
-.task-tree-window .virtual-table {
-  min-width: 960px;
-}
 .tree-task > th,
 .tree-task > td {
   padding: 7px 8px;
@@ -5835,7 +5829,7 @@ body {
    border-collapse stays separate so the sticky header keeps its borders. */
 .task-tree-window .virtual-table {
   width: 100%;
-  min-width: 1080px;
+  min-width: var(--tree-min-width, 940px);
   table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
@@ -5845,23 +5839,23 @@ body {
   top: 0;
   z-index: 2;
 }
+/* Proportional columns, so the table tracks the pane instead of sitting at a
+   fixed width. Below each breakpoint the least useful column is dropped
+   rather than everything being squeezed or pushed behind a scrollbar. */
 .task-tree-window .tree-table-heading > th:nth-child(1) {
-  width: 32%;
+  width: 36%;
 }
 .task-tree-window .tree-table-heading > th:nth-child(2) {
-  width: 120px;
+  width: 13%;
 }
 .task-tree-window .tree-table-heading > th:nth-child(3) {
-  width: 140px;
+  width: 14%;
 }
 .task-tree-window .tree-table-heading > th:nth-child(4) {
-  width: 24%;
+  width: 22%;
 }
 .task-tree-window .tree-table-heading > th:nth-child(5) {
-  width: 20%;
-}
-.task-tree-window .tree-table-heading > th:nth-child(6) {
-  width: 40px;
+  width: 15%;
 }
 .task-tree-window .tree-task > th,
 .task-tree-window .tree-task > td,
@@ -5893,9 +5887,56 @@ body {
   padding: 0;
   border: 0;
 }
-@media (max-width: 900px) {
-  .task-tree-window .tree-table-heading > th:nth-child(1) {
-    width: 240px;
+/* The connections control lives in the title cell, next to the name it acts
+   on, rather than holding a column open across the whole table. */
+.tree-title-cell > .tree-graph {
+  margin-left: 6px;
+  min-width: 0;
+  padding: 0 2px;
+  color: #9a9a9a;
+  font-size: 10px;
+  line-height: 1;
+  vertical-align: middle;
+}
+/* The name truncates, the control does not: a long title must not push the
+   connections arrow out of a cell that clips its overflow. */
+.tree-title-cell > .tree-task-open {
+  max-width: calc(100% - 26px);
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: middle;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tree-title-cell > .tree-graph:hover,
+.tree-title-cell > .tree-graph:focus-visible {
+  color: var(--accent);
+}
+@media (max-width: 1180px) {
+  .task-tree-window {
+    --tree-min-width: 720px;
+  }
+  .task-tree-window .tree-table-heading > th:nth-child(5),
+  .task-tree-window .tree-task > .tree-blocker-cell {
+    display: none;
+  }
+}
+@media (max-width: 940px) {
+  .task-tree-window {
+    --tree-min-width: 520px;
+  }
+  .task-tree-window .tree-table-heading > th:nth-child(3),
+  .task-tree-window .tree-task > .tree-owner-cell {
+    display: none;
+  }
+}
+@media (max-width: 700px) {
+  .task-tree-window {
+    --tree-min-width: 0px;
+  }
+  .task-tree-window .tree-table-heading > th:nth-child(4),
+  .task-tree-window .tree-task > .tree-next-cell {
+    display: none;
   }
 }
 @media (min-width: 1000px) {

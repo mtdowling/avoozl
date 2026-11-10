@@ -425,7 +425,9 @@ select { min-height: 32px; padding: 0 8px; font-size: 10px; }
 .proposal-row b { font-size: 11px; font-weight: 500; }
 .proposal-row > span { color: var(--muted); font-size: 9px; text-transform: capitalize; }
 .inspector-backdrop { position: fixed; inset: 0; z-index: 60; display: flex; justify-content: flex-end; background: #0008; }
-.document-inspector { width: min(920px, calc(100vw - 44px)); height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr); border-left: 1px solid #4a4a4a; background: #181818; box-shadow: -20px 0 60px #0008; }
+/* A chosen width wins in both states; until one is chosen these are the
+   reading and editing defaults the panel has always used. */
+.document-inspector { width: min(var(--inspector-width, 920px), calc(100vw - 44px)); height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr); border-left: 1px solid #4a4a4a; background: #181818; box-shadow: -20px 0 60px #0008; }
 .document-heading { min-height: 66px; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; gap: 14px; border-bottom: 1px solid var(--line); }
 .document-heading h1 { margin: 2px 0; font-size: 16px; }
 .document-heading small { color: var(--muted); font-size: 9px; }
@@ -434,7 +436,7 @@ select { min-height: 32px; padding: 0 8px; font-size: 10px; }
 .document-page > .markdown-preview { max-width: 76ch; margin: auto; padding: 34px 24px 80px; border: 0; background: transparent; }
 .doc-links { max-width: 76ch; margin: 18px auto 0; padding: 9px 12px; border: 1px solid var(--line); color: var(--muted); font-size: 9px; }
 .doc-links code { display: block; margin-top: 6px; }
-.document-inspector.editing { width: min(1400px, calc(100vw - 44px)); }
+.document-inspector.editing { width: min(var(--inspector-width, 1400px), calc(100vw - 44px)); }
 .document-inspector.editing > .editor-screen { min-height: 0; }
 
 .delivery-strip { min-width: 940px; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(190px, 1fr); border: 1px solid var(--line); overflow: auto; }
@@ -495,7 +497,9 @@ select { min-height: 32px; padding: 0 8px; font-size: 10px; }
 .settings-grid p { padding: 7px 0; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 9px; }
 
 .drawer-backdrop { position: fixed; inset: 0; z-index: 40; display: flex; justify-content: flex-end; background: #0008; }
-.task-drawer { width: min(344px, 100%); padding: 18px; border-left: 1px solid var(--line); background: #1b1b1b; overflow-y: auto; }
+.task-drawer { width: min(var(--drawer-width, 344px), 100%); padding: 18px; border-left: 1px solid var(--line); background: #1b1b1b; overflow-y: auto; }
+/* The panels slide in from the right, so their left edge is the grab handle. */
+.drawer-resize-handle, .inspector-resize-handle { flex: none; align-self: stretch; }
 .task-drawer header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
 .task-drawer h2 { margin: 4px 0; color: var(--bright); font-size: 18px; }
 .task-drawer > code { color: var(--muted); font-size: 9px; }
@@ -540,7 +544,7 @@ select { min-height: 32px; padding: 0 8px; font-size: 10px; }
   .task-table { overflow-x: auto; }
   .task-table-head, .task-table-row { min-width: 720px; }
   .split-screen { display: block; }
-  .split-screen > .resize-handle, .nav-resize-handle { display: none; }
+  .split-screen > .resize-handle, .nav-resize-handle, .drawer-resize-handle, .inspector-resize-handle { display: none; }
   .collection-sidebar { height: 188px; padding: 7px; border-right: 0; border-bottom: 1px solid var(--line); }
   .collection-list, .conversations-screen .collection-list { height: 134px; display: flex; gap: 5px; overflow-x: auto; overflow-y: hidden; }
   .conversations-screen .collection-sidebar { height: 224px; }
