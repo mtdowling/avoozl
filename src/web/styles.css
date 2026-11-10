@@ -165,10 +165,16 @@ body.resizing-panels { cursor: col-resize; user-select: none; }
 .card-grid p { color: #c5c5c5; font-size: 9px; line-height: 1.5; }
 .card-grid button { min-height: 24px; margin: 2px; padding: 0 6px; border: 1px solid #464646; border-radius: 4px; background: #272727; font-size: 8px; }
 
-.faceted-screen { height: calc(100vh - 40px); display: grid; grid-template-columns: 260px minmax(0, 1fr); overflow: hidden; }
+.faceted-screen { height: calc(100vh - 40px); display: grid; grid-template-columns: var(--facet-width, 260px) 5px minmax(0, 1fr); overflow: hidden; }
 .faceted-main { min-width: 0; min-height: 0; overflow: hidden; }
 .faceted-main > .screen { height: 100%; }
-.facet-sidebar { min-width: 0; padding: 18px 14px; border-right: 1px solid var(--line); background: #181818; overflow: auto; }
+.facet-sidebar { min-width: 0; padding: 18px 14px; background: #181818; overflow: auto; }
+.facet-resize-handle { height: 100%; background: #181818; }
+.recent-tree { height: 100%; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); }
+.tree-group-control { min-height: 38px; padding: 3px 10px; display: flex; justify-content: flex-end; align-items: center; border-bottom: 1px solid var(--line); background: #151515; }
+.tree-group-control label { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 9px; }
+.tree-group-control select { min-height: 28px; }
+#tasks-view { min-height: 0; overflow: hidden; }
 .search-label { display: block; margin-bottom: 7px; color: #c5c5c5; font-size: 11px; }
 .query-box { padding: 7px; border: 1px solid #505050; border-radius: 7px; background: #151515; }
 .query-box textarea { width: 100%; min-height: 42px; padding: 5px; resize: vertical; border: 0; outline: 0; background: transparent; font-size: 11px; line-height: 1.4; }
@@ -485,6 +491,7 @@ select { min-height: 32px; padding: 0 8px; font-size: 10px; }
   .approval-preview { max-height: 48vh; }
   .faceted-screen { height: calc(100vh - 52px); display: block; overflow: auto; }
   .facet-sidebar { max-height: 42vh; border-right: 0; border-bottom: 1px solid var(--line); }
+  .facet-resize-handle { display: none; }
   .faceted-main { overflow: visible; }
   .faceted-main > .screen { height: auto; min-height: 58vh; overflow: visible; }
   .plans-screen { height: calc(100vh - 52px); padding-inline: 10px; }
