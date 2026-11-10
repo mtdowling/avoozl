@@ -355,6 +355,86 @@ export class ClaudeAdapter {
     this.query?.close();
   }
 }
+// The windows the plan reports, in the order an operator cares about: the
+// short rolling window first, then the weekly ones, then per-model buckets.
+function planWindows(limits) {
+  const named = [
+    ["five_hour", "5-hour"],
+    ["seven_day", "7-day"],
+    ["seven_day_opus", "7-day Opus"],
+    ["seven_day_sonnet", "7-day Sonnet"],
+    ["seven_day_oauth_apps", "7-day apps"],
+  ];
+  const windows = [];
+  for (const [key, label] of named) {
+    const window = limits[key];
+    if (window && typeof window.utilization === "number")
+      windows.push({
+        id: key,
+        label,
+        utilization: window.utilization,
+        resetsAt: window.resets_at || null,
+      });
+  }
+  for (const window of limits.model_scoped || [])
+    if (typeof window?.utilization === "number")
+      windows.push({
+        id: "model:" + window.display_name,
+        label: window.display_name,
+        utilization: window.utilization,
+        resetsAt: window.resets_at || null,
+      });
+  return windows;
+}
+// Plan usage comes from the SDK's /usage control request. Its method name says
+// it may change or disappear in any release, so a missing method or a failed
+// call is reported as unavailable rather than failing the caller.
+export async function claudeUsage({ query: queryFactory } = {}) {
+  const query =
+      queryFactory || (await import("@anthropic-ai/claude-agent-sdk")).query,
+    queue = new InputQueue();
+  const session = query({
+    prompt: queue,
+    options: { permissionMode: "plan", settingSources: [] },
+  });
+  try {
+    const read =
+      session.usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET;
+    if (typeof read !== "function")
+      return {
+        provider: "claude",
+        available: false,
+        reason: "This Claude Agent SDK build does not report plan usage.",
+      };
+    const result = await read.call(session, { skipBehaviors: true });
+    const subscription = result?.subscription_type || null;
+    if (!result?.rate_limits_available || !result.rate_limits)
+      return {
+        provider: "claude",
+        available: false,
+        subscription,
+        reason:
+          "This Claude session has no plan limits: API key, Bedrock and Vertex sessions are billed per request.",
+      };
+    return {
+      provider: "claude",
+      available: true,
+      subscription,
+      windows: planWindows(result.rate_limits),
+      extraUsage: result.rate_limits.extra_usage?.is_enabled
+        ? {
+            utilization: result.rate_limits.extra_usage.utilization ?? null,
+            monthlyLimit: result.rate_limits.extra_usage.monthly_limit ?? null,
+            usedCredits: result.rate_limits.extra_usage.used_credits ?? null,
+            currency: result.rate_limits.extra_usage.currency || null,
+          }
+        : null,
+    };
+  } finally {
+    queue.end();
+    session.close();
+  }
+}
 export async function claudeModels({ query: queryFactory } = {}) {
   const query =
       queryFactory || (await import("@anthropic-ai/claude-agent-sdk")).query,

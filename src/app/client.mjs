@@ -57,6 +57,7 @@ export const CLIENT_OPERATIONS = Object.freeze([
   "models",
   "handoff",
   "metrics",
+  "usage.limits",
   "project.configure",
 ]);
 

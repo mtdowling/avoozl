@@ -477,6 +477,16 @@ select { min-height: 32px; padding: 0 8px; font-size: 10px; }
 .settings-form textarea { resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; line-height: 1.5; }
 .settings-form small { color: var(--muted); font-size: 10px; line-height: 1.55; }
 .form-actions { display: flex; gap: 10px; }
+.usage-meters { display: flex; flex-direction: column; gap: 14px; align-items: flex-start; }
+.usage-meter { width: 100%; }
+.usage-meter-head { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 6px; color: #d2d2d2; font-size: 12px; }
+.usage-meter-head strong { color: var(--text); font-weight: 600; }
+.usage-meter-track { height: 6px; overflow: hidden; border-radius: 3px; background: #2f2f2f; }
+.usage-meter-track i { display: block; height: 100%; background: var(--on); transition: width .2s ease; }
+.usage-meter-track i.warning { background: var(--warning); }
+.usage-meter-track i.critical { background: var(--danger); }
+.usage-meter small { display: block; margin-top: 5px; color: var(--muted); font-size: 10px; }
+@media (prefers-reduced-motion: reduce) { .usage-meter-track i { transition: none; } }
 .settings-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .settings-grid .panel { padding: 14px; }
 .settings-grid h2 { margin: 10px 0; }

@@ -16,6 +16,10 @@ const operations = {
     "metrics",
     "Query measured run/task wall time and provider-reported token/cache usage, grouped by task, model, provider or day. Costs are estimates; missing history is not reconstructed.",
   ],
+  plans_usage: [
+    "usage.limits",
+    "Report an agent account's remaining plan allowance. Claude reports plan rate-limit windows; Codex reports none.",
+  ],
   plans_models: [
     "models",
     "List the chosen provider’s model catalog for explicit run model selection.",
@@ -167,6 +171,7 @@ export const WORKSPACE_TOOLS = Object.entries(operations).map(
         "workspace.examples",
         "workspace",
         "models",
+        "usage.limits",
         "metrics",
         "plan.get",
         "run.get",

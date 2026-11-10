@@ -1065,6 +1065,50 @@ function ReadOnlyRows({ rows }: { rows: Array<[string, React.ReactNode]> }) {
   return <dl className="form-rows">{rows.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>;
 }
 
+type PlanUsage = {
+  provider: string;
+  available: boolean;
+  subscription?: string | null;
+  reason?: string;
+  windows?: Array<{ id: string; label: string; utilization: number; resetsAt: string | null }>;
+  extraUsage?: { utilization: number | null; monthlyLimit: number | null; usedCredits: number | null; currency: string | null } | null;
+};
+
+function resetLabel(at: string | null) {
+  if (!at) return "";
+  const seconds = Math.round((Date.parse(at) - Date.now()) / 1000);
+  if (!Number.isFinite(seconds)) return "";
+  if (seconds <= 0) return "resets now";
+  if (seconds < 3600) return `resets in ${Math.max(1, Math.round(seconds / 60))}m`;
+  if (seconds < 86400) return `resets in ${Math.round(seconds / 3600)}h`;
+  return `resets in ${Math.round(seconds / 86400)}d`;
+}
+
+// Utilization is what the plan reports, so remaining is its complement. A
+// window with no utilization is omitted upstream rather than shown as zero.
+function UsageMeter() {
+  const remote = useRemote(() => command<PlanUsage>("usage.limits", { provider: "claude" }), []);
+  if (remote.loading) return <p className="form-note">Reading plan usage…</p>;
+  if (remote.error) return <p className="form-note">Plan usage unavailable: {remote.error.message}</p>;
+  const usage = remote.data;
+  if (!usage?.available) return <p className="form-note">{usage?.reason || "Plan usage unavailable."}</p>;
+  return <div className="usage-meters">
+    <p className="form-note">{usage.subscription ? `Claude ${usage.subscription} plan` : "Claude plan"} · {Math.max(0, 100 - Math.max(...usage.windows!.map((w) => w.utilization), 0)).toFixed(0)}% left in the tightest window</p>
+    {usage.windows!.map((window) => {
+      const used = Math.max(0, Math.min(100, window.utilization));
+      return <div className="usage-meter" key={window.id}>
+        <div className="usage-meter-head"><span>{window.label}</span><strong>{(100 - used).toFixed(0)}% left</strong></div>
+        <div className="usage-meter-track" role="meter" aria-label={`${window.label} plan usage`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(used)}>
+          <i className={used >= 90 ? "critical" : used >= 75 ? "warning" : ""} style={{ width: `${used}%` }} />
+        </div>
+        <small>{used.toFixed(0)}% used{window.resetsAt ? ` · ${resetLabel(window.resetsAt)}` : ""}</small>
+      </div>;
+    })}
+    {usage.extraUsage && <p className="form-note">Extra usage enabled{usage.extraUsage.utilization !== null ? ` · ${usage.extraUsage.utilization.toFixed(0)}% of the monthly limit used` : ""}.</p>}
+    <button className="button" onClick={() => void remote.reload()}>Refresh</button>
+  </div>;
+}
+
 function ProjectForm({ onSaved }: { onSaved: () => void }) {
   const [id, setId] = useState("");
   const [root, setRoot] = useState("");
@@ -1132,6 +1176,8 @@ function SettingsView({ workspace, state, refresh }: { workspace: Workspace; sta
         ? <ReadOnlyRows rows={workspace.providers.map((provider) => [provider.label || provider.name || provider.id || "Agent", `${provider.models?.length || 0} models`] as [string, React.ReactNode])} />
         : <p className="form-note">No agents are configured for this workspace.</p>}
       <p className="form-note">Agent credentials live with each agent's own CLI, never in this workspace.</p>
+      <h3>Plan usage</h3>
+      <UsageMeter />
     </div>}
     {tab === "projects" && <div className="settings-panel" role="tabpanel" id="settings-panel-projects" aria-labelledby="settings-tab-projects">
       <h2>Execution projects</h2>
