@@ -8,6 +8,7 @@
     "build:web": "vite build",
     "build:canvas": "vite build --config vite.canvas.config.ts",
     "build": "npm run build:web && npm run build:canvas",
+    "package:canvas-backend": "node scripts/package-canvas-backend.mjs",
     "dev:web": "vite",
     "prepack": "npm run build",
     "prestart": "npm run build",

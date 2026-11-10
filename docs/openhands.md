@@ -34,9 +34,16 @@ python3 -m venv .openhands
 
 OH_SESSION_API_KEYS_0="$(openssl rand -hex 32)" \
 OH_SECRET_KEY="$(openssl rand -hex 32)" \
+OH_APP_BACKEND_PUBLIC_URL=http://localhost:38100 \
 OH_CONVERSATIONS_PATH=/absolute/path/to/openhands-state \
 .openhands/bin/agent-server --host 127.0.0.1 --port 38100
 ```
+
+The backend ingress deliberately uses `localhost` while the Canvas control
+connection uses `127.0.0.1`. They reach the same loopback listener but are
+different browser origins. OpenHands places the Avoozl backend behind a
+short-lived HttpOnly, app-scoped session instead of exposing its loopback port
+or a reusable credential to extension JavaScript.
 
 Persist the generated keys in a permission-restricted machine-local secret store
 if conversations must survive restarts. Changing `OH_SECRET_KEY` without retaining
@@ -80,19 +87,26 @@ node cli.mjs openhands status
 ```
 
 Installation copies the self-contained package through the Agent Server's
-Canvas Extensions API and explicitly enables it. Open **Avoozl** in Canvas and
-enter the loopback address printed by `avoozl serve`. That address is stored in
-Canvas browser storage for the selected backend; no Avoozl, GitHub, or provider
-credential is copied into the App.
+Canvas Extensions API and explicitly enables it. On Linux amd64 and arm64,
+enabling also approves the exact declared artifact revision. OpenHands verifies
+the checksum, allocates a loopback port and durable data directory, starts
+`avoozl openhands serve-backend`, waits for `/api/health`, and owns the process
+group and bounded logs. The launcher initializes an empty workspace only once
+and requires the `avoozl` executable on the Agent Server's `PATH`.
 
-On macOS, Windows, and Linux, Avoozl remains a separately started local service.
-The App mounts Avoozl's React application directly into the OpenHands page. It
-does not use an iframe, guess a port, read Canvas credentials, or proxy arbitrary
-requests through the Agent Server. A Shadow DOM isolates Avoozl's styles while
-the surface inherits OpenHands theme variables. Opening an OpenHands-owned run
-navigates to Canvas's native conversation page, so terminal, files, browser,
-chat, and steering remain OpenHands-owned rather than being duplicated inside
-Avoozl.
+Open **Avoozl** in Canvas. When the owned backend is supported, Canvas mounts it
+through OpenHands' separate-origin, sandboxed App backend view. This secure view
+is intentionally an iframe: the isolation boundary is what keeps its HttpOnly
+session and backend origin out of the trusted extension's JavaScript realm.
+Opening an OpenHands-owned run still navigates to Canvas's native conversation
+page, so terminal, files, browser, chat, and steering remain OpenHands-owned.
+
+OpenHands Agent Server 1.61.0 only manages Canvas App backend artifacts on
+Linux. On macOS and Windows, Avoozl retains the existing native React fallback:
+start `avoozl serve` separately with the exact Canvas origin allowed, then enter
+its loopback address once. That path uses exact-origin CORS and never receives an
+OpenHands or provider credential. Remove the fallback when OpenHands adds
+managed backend support for those platforms.
 
 The App package lives in `canvas-app/` and is included in the npm package.
 Canvas Apps execute as trusted same-realm code after enablement, so installation
@@ -101,6 +115,10 @@ must remain an explicit operator action.
 ## Authority and network boundary
 
 - The local executor accepts only a loopback Agent Server URL.
+- The managed Avoozl backend binds only the OpenHands-assigned loopback port.
+- Backend artifacts are checksum-pinned to the exact enabled App revision.
+- The secure App view uses a short-lived HttpOnly cookie scoped to Avoozl's
+  ingress path; the URL contains no credential.
 - The Avoozl HTTP server accepts cross-origin Canvas requests only from exact,
   configured origins.
 - The reusable Agent Server key remains in the Avoozl server process.

@@ -13,13 +13,23 @@ type CanvasHost = {
   apiVersion: string;
   extension: { name: string; version: string };
   backend: { id: string; orgId?: string | null };
+  agentServer?: {
+    request: <T>(input: {
+      method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+      path: string;
+      body?: unknown;
+    }) => Promise<T>;
+  };
+  appBackendView?: {
+    mount: (input: { container: HTMLElement }) => () => void;
+  };
   registerPage: (
     id: string,
     mount: (input: {
       container: HTMLElement;
       path: string;
       navigate: (path: string) => void;
-    }) => void | (() => void),
+    }) => void | (() => void) | Promise<void | (() => void)>,
   ) => () => void;
 };
 
@@ -137,15 +147,9 @@ const shellStyles = `
 function canvasStyles() {
   return appStyles
     .replace(":root {", ".avoozl-canvas-root {")
-    .replace(
-      "html, body, #root {",
-      ".avoozl-canvas-root {",
-    )
+    .replace("html, body, #root {", ".avoozl-canvas-root {")
     .replace("body {", ".avoozl-canvas-root {")
-    .replaceAll(
-      "body.resizing-panels",
-      ".avoozl-canvas-root.resizing-panels",
-    );
+    .replaceAll("body.resizing-panels", ".avoozl-canvas-root.resizing-panels");
 }
 
 function storageKey(host: CanvasHost) {
@@ -249,8 +253,7 @@ function workspaceView(
     if (disposed) return;
     localStorage.setItem(storageKey(host), url);
     const style = document.createElement("style");
-    style.textContent =
-      canvasStyles() + bundledDependencyStyles + shellStyles;
+    style.textContent = canvasStyles() + bundledDependencyStyles + shellStyles;
     const mount = element("div", "", "avoozl-canvas-root");
     surface.shadow.replaceChildren(style, mount);
     root = createRoot(mount);
@@ -279,13 +282,41 @@ function workspaceView(
   };
 }
 
+type OwnedBackendStatus = {
+  state?:
+    | "missing"
+    | "stopped"
+    | "starting"
+    | "ready"
+    | "unhealthy"
+    | "unsupported";
+};
+
+async function canvasWorkspaceView(
+  host: CanvasHost,
+  container: HTMLElement,
+  navigate: (path: string) => void,
+) {
+  if (host.appBackendView && host.agentServer) {
+    const status = await host.agentServer
+      .request<OwnedBackendStatus>({
+        path: `/api/canvas-extensions/installed/${encodeURIComponent(host.extension.name)}/backend`,
+      })
+      .catch(() => null);
+    if (status && !["missing", "unsupported"].includes(status.state || "")) {
+      return host.appBackendView.mount({ container });
+    }
+  }
+  return workspaceView(host, container, navigate);
+}
+
 export function activate(host: CanvasHost) {
   if (host.apiVersion !== "1")
     throw new Error(
       `Avoozl requires Canvas host API 1; found ${host.apiVersion}.`,
     );
   return host.registerPage("workspace", ({ container, navigate }) =>
-    workspaceView(host, container, navigate),
+    canvasWorkspaceView(host, container, navigate),
   );
 }
 

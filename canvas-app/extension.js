@@ -107529,8 +107529,15 @@ function aRe(e, t, n) {
 		r = !0, i?.unmount(), t.replaceChildren();
 	};
 }
-function oRe(e) {
-	if (e.apiVersion !== "1") throw Error(`Avoozl requires Canvas host API 1; found ${e.apiVersion}.`);
-	return e.registerPage("workspace", ({ container: t, navigate: n }) => aRe(e, t, n));
+async function oRe(e, t, n) {
+	if (e.appBackendView && e.agentServer) {
+		let n = await e.agentServer.request({ path: `/api/canvas-extensions/installed/${encodeURIComponent(e.extension.name)}/backend` }).catch(() => null);
+		if (n && !["missing", "unsupported"].includes(n.state || "")) return e.appBackendView.mount({ container: t });
+	}
+	return aRe(e, t, n);
 }
-export { QLe as APP_VERSION, oRe as activate };
+function sRe(e) {
+	if (e.apiVersion !== "1") throw Error(`Avoozl requires Canvas host API 1; found ${e.apiVersion}.`);
+	return e.registerPage("workspace", ({ container: t, navigate: n }) => oRe(e, t, n));
+}
+export { QLe as APP_VERSION, sRe as activate };

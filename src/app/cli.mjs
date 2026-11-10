@@ -28,9 +28,7 @@ try {
   for (let i = 0; i < args.length; i++) {
     if (args[i].startsWith("--")) {
       const key = args[i].slice(2);
-      if (
-        ["dry-run", "final", "ahp", "auto-start", "inactive"].includes(key)
-      )
+      if (["dry-run", "final", "ahp", "auto-start", "inactive"].includes(key))
         options[key] = true;
       else {
         if (args[i + 1] === undefined || args[i + 1].startsWith("--"))
@@ -70,7 +68,7 @@ try {
     if (
       options.url ||
       process.env.AVOOZL_URL ||
-        process.env.AICOMMANDER_URL ||
+      process.env.AICOMMANDER_URL ||
       process.env.NUPP_WORKSPACE_URL ||
       !fs.existsSync(dbPath)
     )
@@ -510,14 +508,15 @@ try {
         projectId: options.project,
         approvalMode: options.approvals,
       };
-    } else throw Error("Choose github status, configure, sync, project, or start.");
-    console.log(JSON.stringify(await localOrRequest(operation, value), null, 2));
-  }
-  else if (command === "project") {
+    } else
+      throw Error("Choose github status, configure, sync, project, or start.");
+    console.log(
+      JSON.stringify(await localOrRequest(operation, value), null, 2),
+    );
+  } else if (command === "project") {
     const action = positionals[0],
       provided = input();
-    if (action !== "configure")
-      throw Error("Choose project configure.");
+    if (action !== "configure") throw Error("Choose project configure.");
     console.log(
       JSON.stringify(
         await localOrRequest("project.configure", {
@@ -531,8 +530,7 @@ try {
         2,
       ),
     );
-  }
-  else if (command === "workspace-repo") {
+  } else if (command === "workspace-repo") {
     const action = positionals[0] || "status";
     let operation, value;
     if (action === "status") {
@@ -556,12 +554,11 @@ try {
       operation = "workspace.repository.sync";
       value = {};
     } else
-      throw Error(
-        "Choose workspace-repo status, configure, publish, or sync.",
-      );
-    console.log(JSON.stringify(await localOrRequest(operation, value), null, 2));
-  }
-  else if (command === "planning") {
+      throw Error("Choose workspace-repo status, configure, publish, or sync.");
+    console.log(
+      JSON.stringify(await localOrRequest(operation, value), null, 2),
+    );
+  } else if (command === "planning") {
     const action = positionals[0];
     if (action === "publish")
       console.log(
@@ -575,17 +572,44 @@ try {
       );
     else if (action === "reconcile")
       console.log(
-        JSON.stringify(
-          await localOrRequest("planning.reconcile"),
-          null,
-          2,
-        ),
+        JSON.stringify(await localOrRequest("planning.reconcile"), null, 2),
       );
     else throw Error("Choose planning publish or reconcile.");
-  }
-  else if (command === "openhands") {
+  } else if (command === "openhands") {
     const action = positionals[0] || "status";
-    if (action === "install-app")
+    if (action === "serve-backend") {
+      if (!config.configured)
+        initializeWorkspace(config.workspaceRoot, {
+          name: options.name || "Avoozl",
+          port: config.port,
+        });
+      const child = spawn(
+        process.execPath,
+        [
+          fileURLToPath(import.meta.url),
+          "serve",
+          "--workspace",
+          config.workspaceRoot,
+          "--host",
+          "127.0.0.1",
+          "--port",
+          String(config.port),
+        ],
+        { stdio: "inherit" },
+      );
+      const forward = (signal) => {
+        if (!child.killed) child.kill(signal);
+      };
+      process.once("SIGINT", () => forward("SIGINT"));
+      process.once("SIGTERM", () => forward("SIGTERM"));
+      const code = await new Promise((resolve, reject) => {
+        child.once("error", reject);
+        child.once("exit", (status, signal) =>
+          resolve(status ?? (signal ? 1 : 0)),
+        );
+      });
+      process.exitCode = code;
+    } else if (action === "install-app")
       console.log(
         JSON.stringify(
           await installOpenHandsCanvasApp({ source: options.source }),
@@ -595,9 +619,8 @@ try {
       );
     else if (action === "status")
       console.log(JSON.stringify(await openHandsCanvasAppStatus(), null, 2));
-    else throw Error("Choose openhands status or install-app.");
-  }
-  else if (command === "generate")
+    else throw Error("Choose openhands status, install-app, or serve-backend.");
+  } else if (command === "generate")
     console.log(JSON.stringify(generate(config).stats, null, 2));
   else if (command === "check") {
     requireDatabase();
@@ -719,6 +742,7 @@ try {
   planning reconcile                     Project tasks from merged planning PRs
   openhands install-app                  Install and enable Avoozl inside Canvas
   openhands status                       Show Canvas App installation status
+  openhands serve-backend                Run an OpenHands-owned Avoozl workspace
   serve --canvas-origin URL              Allow the exact OpenHands Canvas origin
   query [--q QUERY] | show TASK_ID | update TASK_ID --status STATUS
   activity TASK_ID --action start|heartbeat|pause|finish ...
