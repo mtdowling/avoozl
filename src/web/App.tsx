@@ -67,6 +67,8 @@ const pageDescriptions: Partial<Record<View, string>> = {
   insights: "Review agent activity and reported usage over time.",
 };
 
+const PROGRESS_PROMPT = "How is the work going? Summarise what is in flight, what is blocked and why, what is waiting on review, and anything that needs a decision from me.";
+
 function initialLocation() {
   const query = new URLSearchParams(location.search);
   const rawView = query.get("view");
@@ -228,8 +230,8 @@ function Overview({ workspace, state, openRun, openTask }: { workspace: Workspac
   );
 }
 
-function NewConversation({ workspace, onCreated }: { workspace: Workspace; onCreated: (id: string) => void }) {
-  const [prompt, setPrompt] = useState("");
+function NewConversation({ workspace, onCreated, initialPrompt = "" }: { workspace: Workspace; onCreated: (id: string) => void; initialPrompt?: string }) {
+  const [prompt, setPrompt] = useState(initialPrompt);
   const [provider, setProvider] = useState(workspace.providers[0]?.id || workspace.providers[0]?.name || "codex");
   const [projectId, setProjectId] = useState(workspace.projects[0]?.id || "");
   const [action, setAction] = useState<"ask" | "run" | "draft">("ask");
@@ -561,7 +563,7 @@ function RecentTree({ state, tasks, openTask }: { state: State; tasks: Task[]; o
   </section>;
 }
 
-function Conversations({ workspace, selected, select, refresh }: { workspace: Workspace; selected: string | null; select: (id: string | null) => void; refresh: () => void }) {
+function Conversations({ workspace, selected, select, refresh, initialPrompt = "" }: { workspace: Workspace; selected: string | null; select: (id: string | null) => void; refresh: () => void; initialPrompt?: string }) {
   const [query, setQuery] = useState("");
   const runs = workspace.runs.filter((run) => !query || (run.title || run.id).toLowerCase().includes(query.toLowerCase()));
   return (
@@ -574,7 +576,7 @@ function Conversations({ workspace, selected, select, refresh }: { workspace: Wo
         </div>
       </aside>
     }>
-      {selected ? <Suspense fallback={<LoadingSurface label="Opening conversation…" />}><Conversation runId={selected} onRefresh={refresh} /></Suspense> : <NewConversation workspace={workspace} onCreated={(id) => { select(id); refresh(); }} />}
+      {selected ? <Suspense fallback={<LoadingSurface label="Opening conversation…" />}><Conversation runId={selected} onRefresh={refresh} /></Suspense> : <NewConversation key={initialPrompt} workspace={workspace} initialPrompt={initialPrompt} onCreated={(id) => { select(id); refresh(); }} />}
     </SplitScreen>
   );
 }
@@ -1048,8 +1050,96 @@ function Insights() {
   </section>;
 }
 
-function SettingsView({ workspace, state }: { workspace: Workspace; state: State }) {
-  return <section className="screen settings-screen"><header className="screen-heading"><div><h1>Settings</h1><p>Workspace, provider, and execution configuration.</p></div></header><div className="settings-grid"><article className="panel"><Boxes size={18} /><h2>{state.project?.workspaceName || state.project?.title || state.project?.name || "Avoozl"}</h2><dl><dt>Storage revision</dt><dd>{workspace.revision}</dd><dt>Mode</dt><dd>{workspace.mode || "local"}</dd><dt>Agent host</dt><dd>{workspace.agentHost?.connected ? "Connected" : "Offline"}</dd><dt>Publication queue</dt><dd>{workspace.publication?.pending?.length || 0}</dd></dl></article><article className="panel"><Bot size={18} /><h2>Providers</h2>{workspace.providers.map((provider) => <p key={provider.id || provider.name}><strong>{provider.label || provider.name || provider.id}</strong></p>)}</article><article className="panel"><GitBranch size={18} /><h2>Execution projects</h2>{workspace.projects.map((project) => <p key={project.id}><strong>{project.name || project.id}</strong><br /><small>{project.root || project.path}</small></p>)}</article></div></section>;
+const SETTINGS_TABS = [
+  { id: "workspace", label: "Workspace", icon: Boxes },
+  { id: "agents", label: "Agents", icon: Bot },
+  { id: "projects", label: "Projects", icon: GitBranch },
+] as const;
+type SettingsTab = (typeof SETTINGS_TABS)[number]["id"];
+
+// Read-only rows are stated as text. A disabled input that can never be filled
+// in reads as a broken field, so only a real write operation gets a control.
+function ReadOnlyRows({ rows }: { rows: Array<[string, React.ReactNode]> }) {
+  return <dl className="form-rows">{rows.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>;
+}
+
+function ProjectForm({ onSaved }: { onSaved: () => void }) {
+  const [id, setId] = useState("");
+  const [root, setRoot] = useState("");
+  const [baseBranch, setBaseBranch] = useState("main");
+  const [worktreeRoot, setWorktreeRoot] = useState("");
+  const [checks, setChecks] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [saved, setSaved] = useState("");
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    setSaved("");
+    try {
+      // One command per line, split on whitespace: `project.configure` wants
+      // arrays of arguments, never a string it would have to shell out to run.
+      const parsed = checks.split("\n").map((line) => line.trim()).filter(Boolean).map((line) => line.split(/\s+/));
+      await command("project.configure", { id: id.trim(), root: root.trim(), baseBranch: baseBranch.trim() || "main", worktreeRoot: worktreeRoot.trim() || undefined, checks: parsed });
+      setSaved(`Saved ${id.trim()}.`);
+      onSaved();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return <form className="settings-form" onSubmit={submit}>
+    <label>Project ID<input value={id} onChange={(event) => setId(event.target.value)} placeholder="avoozl" required /><small>Lower case letters, digits and dashes. Stable: runs reference it.</small></label>
+    <label>Git checkout root<input value={root} onChange={(event) => setRoot(event.target.value)} placeholder="/Users/you/projects/avoozl" required /><small>Must be the root of the checkout, not a subdirectory.</small></label>
+    <label>Base branch<input value={baseBranch} onChange={(event) => setBaseBranch(event.target.value)} placeholder="main" /></label>
+    <label>Worktree root<input value={worktreeRoot} onChange={(event) => setWorktreeRoot(event.target.value)} placeholder="Defaults to .avoozl-worktrees beside the checkout" /><small>Kept outside the checkout so worktree adds never write into it.</small></label>
+    <label>Checks<textarea value={checks} onChange={(event) => setChecks(event.target.value)} rows={3} placeholder={"npm test\nnpm run format:check"} /><small>One command per line. Run against a task worktree before integration.</small></label>
+    {error && <p className="error">{error}</p>}
+    {saved && <p className="form-note">{saved}</p>}
+    <div className="form-actions"><button className="button primary" disabled={busy || !id.trim() || !root.trim()}>{busy ? "Saving…" : "Save project"}</button></div>
+  </form>;
+}
+
+function SettingsView({ workspace, state, refresh }: { workspace: Workspace; state: State; refresh: () => void }) {
+  const [tab, setTab] = useState<SettingsTab>("workspace");
+  const workspaceName = state.project?.workspaceName || state.project?.title || state.project?.name || "Avoozl";
+  return <section className="screen settings-screen">
+    <header className="screen-heading"><div><h1>Settings</h1><p>Workspace, agent, and execution configuration.</p></div></header>
+    <div className="settings-tabs" role="tablist" aria-label="Settings sections">
+      {SETTINGS_TABS.map(({ id, label, icon: Icon }) => (
+        <button key={id} role="tab" id={`settings-tab-${id}`} aria-selected={tab === id} aria-controls={`settings-panel-${id}`} className={tab === id ? "settings-tab active" : "settings-tab"} onClick={() => setTab(id)}><Icon size={15} />{label}</button>
+      ))}
+    </div>
+    {tab === "workspace" && <div className="settings-panel" role="tabpanel" id="settings-panel-workspace" aria-labelledby="settings-tab-workspace">
+      <h2>{workspaceName}</h2>
+      <ReadOnlyRows rows={[
+        ["Storage revision", workspace.revision],
+        ["Mode", workspace.mode || "local"],
+        ["Agent host", workspace.agentHost?.draining ? "Draining" : workspace.agentHost?.connected ? "Connected" : "Offline"],
+        ["Publication queue", workspace.publication?.pending?.length || 0],
+      ]} />
+      <p className="form-note">These describe the running workspace. Change them through the CLI or the workspace configuration file.</p>
+    </div>}
+    {tab === "agents" && <div className="settings-panel" role="tabpanel" id="settings-panel-agents" aria-labelledby="settings-tab-agents">
+      <h2>Configured agents</h2>
+      {workspace.providers.length
+        ? <ReadOnlyRows rows={workspace.providers.map((provider) => [provider.label || provider.name || provider.id || "Agent", `${provider.models?.length || 0} models`] as [string, React.ReactNode])} />
+        : <p className="form-note">No agents are configured for this workspace.</p>}
+      <p className="form-note">Agent credentials live with each agent's own CLI, never in this workspace.</p>
+    </div>}
+    {tab === "projects" && <div className="settings-panel" role="tabpanel" id="settings-panel-projects" aria-labelledby="settings-tab-projects">
+      <h2>Execution projects</h2>
+      {workspace.projects.length
+        ? <ReadOnlyRows rows={workspace.projects.map((project) => [project.name || project.id, project.root || project.path || ""] as [string, React.ReactNode])} />
+        : <p className="form-note">No execution repository is configured yet.</p>}
+      <h3>Add or update a project</h3>
+      <ProjectForm onSaved={refresh} />
+    </div>}
+  </section>;
 }
 
 export function App() {
@@ -1059,6 +1149,7 @@ export function App() {
   const [planId, setPlanId] = useState<string | null>(initial.planId);
   const [documentId, setDocumentId] = useState<string | null>(initial.documentId);
   const [drawerTask, setDrawerTask] = useState<Task | null>(null);
+  const [draftPrompt, setDraftPrompt] = useState("");
   const [workbenchFilters, setWorkbenchFilters] = useState<TaskFilters>(emptyTaskFilters);
   const [filtersOpen, setFiltersOpen] = useState(() => {
     try { return localStorage.getItem("avoozl-filters-open") !== "false"; } catch { return true; }
@@ -1127,6 +1218,9 @@ export function App() {
   }, [workspace.data]);
 
   function navigate(next: View) { setView(next); setNavOpen(false); }
+  // Opens the composer holding the question rather than submitting it, so the
+  // agent and project are still the operator's to choose before a run starts.
+  function askAgent(prompt: string) { setDraftPrompt(prompt); setRunId(null); navigate("conversations"); }
   function openRun(id: string) { setRunId(id); navigate("conversations"); }
   function openPlan(id: string) { setPlanId(id); navigate("plans"); }
   function openDocument(id: string) { setDocumentId(id); navigate("documents"); }
@@ -1200,8 +1294,9 @@ export function App() {
       </aside>
       {navOpen && <button className="nav-scrim" aria-label="Close navigation" onClick={() => setNavOpen(false)} />}
       <main className="app-main">
-        <header className="app-toolbar"><button className="mobile-menu" onClick={toggleNavigation}><Menu size={18} /></button><strong>{currentView.label}</strong>{pageDescriptions[view] && <button className="page-help" aria-label={`About ${currentView.label}`} title={pageDescriptions[view]}>?</button>}<span className="toolbar-rule" /><span>{toolbarCount}</span><div className="toolbar-spacer" />
+        <header className="app-toolbar"><button className="mobile-menu" onClick={toggleNavigation}><Menu size={18} /></button><strong>{currentView.label}</strong>{pageDescriptions[view] && <span className="page-help" tabIndex={0} aria-label={`About ${currentView.label}`} aria-describedby="page-help-tip">?<span className="page-help-tip" id="page-help-tip" role="tooltip">{pageDescriptions[view]}</span></span>}<span className="toolbar-rule" /><span>{toolbarCount}</span><div className="toolbar-spacer" />
           {facetedView && <button className={filtersOpen ? "toolbar-action active" : "toolbar-action"} onClick={toggleFilters} title={filtersOpen ? "Collapse filters" : "Show filters"} aria-expanded={filtersOpen}><Filter size={17} /></button>}
+          <button className="toolbar-action" onClick={() => askAgent(PROGRESS_PROMPT)} title="Ask an agent about progress"><MessageSquare size={17} /></button>
           <button className="toolbar-action" onClick={() => { setRunId(null); navigate("conversations"); }} title="New task"><Plus size={17} /></button>
           <button className="toolbar-action" onClick={() => document.fullscreenElement ? void document.exitFullscreen() : void document.documentElement.requestFullscreen()} title="Full screen"><Maximize2 size={17} /></button>
           <button className="toolbar-action" onClick={() => setWorkbenchFilters({ ...emptyTaskFilters })} title="Reset filters"><RotateCcw size={17} /></button>
@@ -1209,13 +1304,13 @@ export function App() {
         {view === "overview" && <FacetedWorkbench workspace={workspaceData} state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters} filtersOpen={filtersOpen} applyPromptView={applyVisualization}>{(tasks) => <RecentNow state={stateData} matchingTasks={tasks} openTask={setDrawerTask} />}</FacetedWorkbench>}
         {view === "tasks" && <FacetedWorkbench workspace={workspaceData} state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters} filtersOpen={filtersOpen} applyPromptView={applyVisualization}>{(tasks) => <RecentTree state={stateData} tasks={tasks} openTask={setDrawerTask} />}</FacetedWorkbench>}
         {view === "epics" && <FacetedWorkbench workspace={workspaceData} state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters} filtersOpen={filtersOpen} applyPromptView={applyVisualization}>{(tasks) => <EpicProgress state={stateData} matchingTasks={tasks} openTask={setDrawerTask} />}</FacetedWorkbench>}
-        {view === "conversations" && <Conversations workspace={workspaceData} selected={runId} select={setRunId} refresh={refresh} />}
+        {view === "conversations" && <Conversations workspace={workspaceData} selected={runId} select={setRunId} refresh={refresh} initialPrompt={draftPrompt} />}
         {view === "plans" && <Plans workspace={workspaceData} selected={planId} select={openPlan} refresh={refresh} />}
         {view === "documents" && <Documents workspace={workspaceData} state={stateData} selected={documentId} select={(id) => id ? openDocument(id) : setDocumentId(null)} selectedPlan={planId} selectPlan={setPlanId} refresh={refresh} />}
         {view === "graph" && <FacetedWorkbench workspace={workspaceData} state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters} filtersOpen={filtersOpen} applyPromptView={applyVisualization}>{(tasks) => <Graph state={stateData} matchingTasks={tasks} openTask={setDrawerTask} />}</FacetedWorkbench>}
         {view === "visualizations" && <Visualizations state={stateData} applyView={applyVisualization} refresh={refresh} />}
         {view === "insights" && <Insights />}
-        {view === "settings" && <SettingsView workspace={workspaceData} state={stateData} />}
+        {view === "settings" && <SettingsView workspace={workspaceData} state={stateData} refresh={refresh} />}
       </main>
       {drawerTask && <TaskDrawer task={drawerTask} state={stateData} close={() => setDrawerTask(null)} refresh={refresh} />}
     </div>
