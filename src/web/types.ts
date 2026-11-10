@@ -42,13 +42,22 @@ export type Task = {
   title: string;
   summary?: string;
   status: string;
+  scope?: string;
   epic?: string;
   track?: string;
   owner?: string;
   nextAction?: string;
   tags?: string[];
   acceptance?: string[];
-  activity?: { owner?: string; status?: string };
+  dependencies?: string[];
+  activity?: {
+    owner?: string;
+    status?: string;
+    summary?: string;
+    heartbeatAt?: string;
+    sessionId?: string;
+    branch?: string;
+  };
 };
 
 export type State = {
@@ -66,6 +75,10 @@ export type DocumentRecord = {
   id: string;
   path: string;
   title: string;
+  status?: string;
+  kind?: string;
+  summary?: string;
+  links?: string[];
   text?: string;
   hash?: string;
   modifiedAt?: string;
