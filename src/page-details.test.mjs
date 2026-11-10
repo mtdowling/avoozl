@@ -18,3 +18,27 @@ test("every top-level page has a concise description", () => {
     assert.ok(description.length < 100);
   }
 });
+
+test("page controls precede the shared controls pinned to the right", () => {
+  const html = fs.readFileSync(
+      new URL("./index.html", import.meta.url),
+      "utf8",
+    ),
+    ids = [
+      'class="toolbar-page-actions"',
+      'id="show-toc"',
+      'class="toolbar-dropdowns"',
+      'class="toolbar-common-actions"',
+      'id="toggle-left"',
+      'id="quick-task"',
+      'id="fullscreen"',
+      'id="clear-filters"',
+    ],
+    positions = ids.map((id) => html.indexOf(id));
+
+  assert.ok(positions.every((position) => position >= 0));
+  assert.deepEqual(
+    positions,
+    [...positions].sort((a, b) => a - b),
+  );
+});
