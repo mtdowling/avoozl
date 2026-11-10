@@ -18336,7 +18336,7 @@ function zp(e, t) {
 	return Math.hypot(e.x - t.x, e.y - t.y);
 }
 function Bp({ state: e, matchingTasks: t, openTask: n }) {
-	let [r, i] = (0, O.useState)("overview"), [a, o] = (0, O.useState)("epic"), [s, c] = (0, O.useState)(""), [l, u] = (0, O.useState)(""), [d, f] = (0, O.useState)(""), p = (0, O.useMemo)(() => new Set(e.statuses.filter((e) => e.complete).map((e) => e.id)), [e.statuses]), m = (0, O.useMemo)(() => e.epics.flatMap((e) => {
+	let [r, i] = (0, O.useState)("overview"), [a, o] = (0, O.useState)("epic"), [s, c] = (0, O.useState)(""), [l, u] = (0, O.useState)(""), [d, f] = (0, O.useState)("whole"), p = (0, O.useMemo)(() => new Set(e.statuses.filter((e) => e.complete).map((e) => e.id)), [e.statuses]), m = (0, O.useMemo)(() => e.epics.flatMap((e) => {
 		let n = t.filter((t) => t.epic === e.id);
 		if (!n.length) return [];
 		let r = n.filter((e) => !p.has(e.status));
@@ -18375,7 +18375,7 @@ function Bp({ state: e, matchingTasks: t, openTask: n }) {
 		e.epicEdges
 	]), v = (0, O.useMemo)(() => {
 		let e = /* @__PURE__ */ new Set();
-		if (!l || !d) return e;
+		if (!l || d === "whole" || d === "immediate") return e;
 		let t = [l];
 		for (e.add(l); t.length;) {
 			let n = t.shift();
@@ -18389,7 +18389,11 @@ function Bp({ state: e, matchingTasks: t, openTask: n }) {
 		_,
 		d,
 		l
-	]), y = (0, O.useMemo)(() => d && l ? g.filter((e) => v.has(e.id)) : g, [
+	]), y = (0, O.useMemo)(() => l && [
+		"upstream",
+		"downstream",
+		"both"
+	].includes(d) ? g.filter((e) => v.has(e.id)) : g, [
 		g,
 		v,
 		d,
@@ -18535,8 +18539,9 @@ function Bp({ state: e, matchingTasks: t, openTask: n }) {
 		C.current.delete(e.pointerId), w.current = null, oe(null);
 	}
 	function be(e) {
-		u(e.id), e.graphKind === "workstream" ? (c(e.epic || ""), i("tasks"), f(""), u("")) : n(e);
+		e.graphKind === "workstream" ? (c(e.epic || ""), i("tasks"), f("whole"), u("")) : d === "whole" ? n(e) : u(e.id);
 	}
+	let xe = g.find((e) => e.id === l);
 	return /* @__PURE__ */ (0, k.jsxs)("section", {
 		className: "graph-view enhanced-graph",
 		children: [
@@ -18549,14 +18554,14 @@ function Bp({ state: e, matchingTasks: t, openTask: n }) {
 							/* @__PURE__ */ (0, k.jsx)("button", {
 								className: r === "overview" ? "active" : "",
 								onClick: () => {
-									i("overview"), c(""), f(""), u("");
+									i("overview"), c(""), f("whole"), u("");
 								},
 								children: "Workstreams"
 							}),
 							/* @__PURE__ */ (0, k.jsx)("button", {
 								className: r === "tasks" ? "active" : "",
 								onClick: () => {
-									i("tasks"), c(""), f(""), u("");
+									i("tasks"), c(""), f("whole"), u("");
 								},
 								children: "Tasks"
 							}),
@@ -18591,13 +18596,19 @@ function Bp({ state: e, matchingTasks: t, openTask: n }) {
 						" supports / sequence"
 					] }),
 					/* @__PURE__ */ (0, k.jsxs)("select", {
-						"aria-label": "Explore selected task relationships",
+						"aria-label": "Choose dependency graph scope",
 						value: d,
-						disabled: !l,
-						onChange: (e) => f(e.target.value),
+						onChange: (e) => {
+							let t = e.target.value;
+							f(t), t === "whole" && u("");
+						},
 						children: [
 							/* @__PURE__ */ (0, k.jsx)("option", {
-								value: "",
+								value: "whole",
+								children: "Whole matching graph"
+							}),
+							/* @__PURE__ */ (0, k.jsx)("option", {
+								value: "immediate",
 								children: "Immediate context"
 							}),
 							/* @__PURE__ */ (0, k.jsx)("option", {
@@ -18616,17 +18627,21 @@ function Bp({ state: e, matchingTasks: t, openTask: n }) {
 					})
 				]
 			}),
-			(l || s) && /* @__PURE__ */ (0, k.jsxs)("div", {
+			(d !== "whole" || l || s) && /* @__PURE__ */ (0, k.jsxs)("div", {
 				className: "graph-focus-bar",
 				children: [
-					/* @__PURE__ */ (0, k.jsxs)("span", { children: [/* @__PURE__ */ (0, k.jsx)("b", { children: s ? e.epics.find((e) => e.id === s)?.title : y.find((e) => e.id === l)?.title }), l && !d ? " · immediate connections highlighted" : ""] }),
-					l && /* @__PURE__ */ (0, k.jsx)("button", {
+					/* @__PURE__ */ (0, k.jsx)("span", { children: xe ? /* @__PURE__ */ (0, k.jsxs)(k.Fragment, { children: [/* @__PURE__ */ (0, k.jsx)("b", { children: xe.title }), d === "immediate" ? " · immediate connections highlighted" : ""] }) : s && d === "whole" ? /* @__PURE__ */ (0, k.jsx)("b", { children: e.epics.find((e) => e.id === s)?.title }) : d === "immediate" ? "Click a task to show its immediate context." : d === "upstream" ? "Click a task to show all of its prerequisites." : d === "downstream" ? "Click a task to show everything it unblocks." : d === "both" ? "Click a task to show all connected work." : "" }),
+					xe && /* @__PURE__ */ (0, k.jsx)("button", {
+						onClick: () => n(xe),
+						children: "Open task"
+					}),
+					xe && d === "immediate" && /* @__PURE__ */ (0, k.jsx)("button", {
 						onClick: () => f("both"),
 						children: "Expand connected work"
 					}),
 					/* @__PURE__ */ (0, k.jsx)("button", {
 						onClick: () => {
-							u(""), f(""), c("");
+							u(""), f("whole"), c("");
 						},
 						children: "Whole collection"
 					})
@@ -18684,7 +18699,7 @@ function Bp({ state: e, matchingTasks: t, openTask: n }) {
 						children: y.map((t) => {
 							let n = pe[t.id];
 							if (!n) return null;
-							let r = e.statuses.find((e) => e.id === t.status), i = e.tracks.find((e) => e.id === t.track), a = t.graphKind === "workstream" ? "WORKSTREAM" : t.epic?.startsWith("doc:") ? "PLAN" : t.epic || "TASK", o = l && !d && !x.has(t.id);
+							let r = e.statuses.find((e) => e.id === t.status), i = e.tracks.find((e) => e.id === t.track), a = t.graphKind === "workstream" ? "WORKSTREAM" : t.epic?.startsWith("doc:") ? "PLAN" : t.epic || "TASK", o = l && d === "immediate" && !x.has(t.id);
 							return /* @__PURE__ */ (0, k.jsxs)("button", {
 								className: `graph-html-node ${l === t.id ? "selected" : ""} ${o ? "dim" : ""} ${t.graphKind === "workstream" ? "workstream" : ""}`,
 								style: {
