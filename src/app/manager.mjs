@@ -1,8 +1,6 @@
 import { resolveTaskId } from "../task-identity.mjs";
-import { execFile } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
 import { activityState } from "../activity.mjs";
 import { applyActivity } from "../activity.mjs";
@@ -11,22 +9,20 @@ import { fail, canonical } from "./store.mjs";
 import { digest } from "../model.mjs";
 import { PLAN_FORMAT } from "./plans.mjs";
 import { createWorktree, assertProjectAvailable } from "./git.mjs";
-import { CodexAdapter, CODEX_CAPABILITIES } from "./providers/codex.mjs";
+import { providerModels, providerRegistry } from "./providers/executor.mjs";
+import { claudeUsage } from "./providers/claude.mjs";
 import {
-  ClaudeAdapter,
-  claudeModels,
-  claudeUsage,
-  CLAUDE_CAPABILITIES,
-} from "./providers/claude.mjs";
+  mintRunCapability,
+  revokeRunCapabilities,
+} from "./run-capabilities.mjs";
 import { approvalMode } from "./approvals.mjs";
 import { recordUsage } from "./telemetry.mjs";
-const exec = promisify(execFile),
-  ACTIVE = new Set([
-    "starting",
-    "running",
-    "waiting-input",
-    "waiting-approval",
-  ]);
+const ACTIVE = new Set([
+  "starting",
+  "running",
+  "waiting-input",
+  "waiting-approval",
+]);
 // Provider permission scopes we do not implement yet. Recording them keeps
 // "allow once or deny" honest instead of pretending the provider offered
 // nothing else.
@@ -44,11 +40,10 @@ export class RunManager {
   ) {
     this.store = store;
     this.baseUrl = baseUrl;
-    this.factories = {
-      codex: (opts) => new CodexAdapter(opts),
-      claude: (opts) => new ClaudeAdapter(opts),
-      ...factories,
-    };
+    this.registry = providerRegistry(factories);
+    this.factories = Object.fromEntries(
+      [...this.registry].map(([id, spec]) => [id, spec.create]),
+    );
     this.live = new Map();
     this.tails = new Map();
     this.activityTimer = setInterval(
@@ -161,61 +156,30 @@ export class RunManager {
   }
   async providers() {
     return Promise.all(
-      ["codex", "claude"].map(async (id) => {
+      [...this.registry.values()].map(async (spec) => {
         try {
-          if (id === "codex") {
-            const version = (
-              await exec("codex", ["--version"], { timeout: 5000 })
-            ).stdout.trim();
-            return {
-              id,
-              available: true,
-              version,
-              capabilities: CODEX_CAPABILITIES,
-              authentication: "Checked when starting a session",
-            };
-          }
-          const sdk = await import("@anthropic-ai/claude-agent-sdk");
-          return {
-            id,
-            available: true,
-            version: sdk.version || null,
-            capabilities: CLAUDE_CAPABILITIES,
-            authentication: "Checked when starting a session",
-          };
+          return await spec.inspect();
         } catch (error) {
           return {
-            id,
+            id: spec.id,
+            label: spec.label,
             available: false,
-            reason:
-              id === "claude"
-                ? "Install the official Claude Agent SDK."
-                : "Install Codex CLI.",
+            capabilities: spec.capabilities,
+            reason: error.message,
           };
         }
       }),
     );
   }
   async models(provider) {
-    if (!["codex", "claude"].includes(provider))
-      fail("Choose Claude or Codex.");
+    const spec = this.registry.get(provider);
+    if (!spec) fail("Choose an available executor.");
     this.modelCatalogs ??= new Map();
     const cached = this.modelCatalogs.get(provider);
     if (cached && Date.now() - cached.at < 300000) return cached.value;
     // Read the catalog through the same factory that will run the session, so
     // a model offered to a client is one that session could actually use.
-    const adapter = this.factories[provider]({
-      emit: () => {},
-      onRequest: () => {},
-    });
-    let models;
-    try {
-      models = await adapter.start({ cwd: process.cwd(), catalogOnly: true });
-    } finally {
-      await adapter.close();
-    }
-    if (!Array.isArray(models))
-      fail("This provider connection does not expose a model catalog.", 409);
+    const models = await providerModels(spec);
     const value = {
       provider,
       models,
@@ -315,7 +279,8 @@ export class RunManager {
         fail("Run ID already belongs to another request.", 409);
       return existing;
     }
-    if (!this.factories[input.provider]) fail("Choose Claude or Codex.");
+    if (!this.registry.has(input.provider))
+      fail("Choose an available executor.");
     const project = this.store.get("projects", input.projectId);
     if (!project) fail("Configure a project before starting an agent.");
     const task = this.store
@@ -356,6 +321,7 @@ export class RunManager {
       planId: plan?.id,
       projectId: project.id,
       provider: input.provider,
+      executor: input.provider,
       approvalMode: selectedApprovalMode,
       model: input.model || undefined,
       requestedModel: input.model || null,
@@ -411,6 +377,7 @@ export class RunManager {
       } catch (error) {
         run.state = "failed";
         run.error = error.message;
+        revokeRunCapabilities(this.store, run.id);
         this.reportActivity(run, "finish");
         this.store.put("runs", run);
         this.checkpoint(run);
@@ -431,6 +398,13 @@ export class RunManager {
     });
     this.live.set(run.id, adapter);
     try {
+      const { token, capability } = mintRunCapability(this.store, run);
+      run.mcpCapability = {
+        id: capability.id,
+        mode: capability.mode,
+        expiresAt: capability.expiresAt,
+      };
+      this.store.put("runs", run);
       await adapter.start({
         cwd: run.worktree,
         mode: run.mode,
@@ -439,6 +413,7 @@ export class RunManager {
         prompt,
         resumeId: run.providerSessionId,
         mcpUrl: this.baseUrl + "/mcp?run=" + encodeURIComponent(run.id),
+        mcpToken: token,
       });
       const latest = this.store.get("runs", run.id);
       if (latest.state === "starting") {
@@ -453,6 +428,21 @@ export class RunManager {
     }
   }
   receive(id, kind, body) {
+    if (!this.store.get("runs", id)) return;
+    if (body?.providerEventId) {
+      return this.store.transaction(() => {
+        const inserted = this.store.db
+          .prepare(
+            "INSERT OR IGNORE INTO provider_events(run_id,provider_event_id,at) VALUES (?,?,?)",
+          )
+          .run(id, body.providerEventId, new Date().toISOString());
+        if (!inserted.changes) return;
+        return this.receiveRecorded(id, kind, body);
+      });
+    }
+    return this.receiveRecorded(id, kind, body);
+  }
+  receiveRecorded(id, kind, body) {
     const run = this.store.get("runs", id);
     if (!run) return;
     run.lastObservedAt = new Date().toISOString();
@@ -585,9 +575,13 @@ export class RunManager {
       if (!["queue", "steer"].includes(mode)) fail("Choose queue or steer.");
       if (mode === "steer" && this.draining)
         fail("Agent host is draining. Retry steering after the update.", 503);
-      if (mode === "steer" && run.provider !== "codex")
+      if (
+        mode === "steer" &&
+        this.registry.get(run.provider)?.capabilities?.steer !== true
+      )
         fail(
-          "Claude follow-ups queue; use Interrupt, then send, to redirect immediately.",
+          this.registry.get(run.provider)?.capabilities?.steerReason ||
+            "This executor cannot steer an active turn.",
         );
       const delivery = {
         id: input.submissionId,
@@ -912,6 +906,7 @@ export class RunManager {
     if (run) {
       run.state = "integrated";
       this.store.put("runs", run);
+      revokeRunCapabilities(this.store, id);
     }
   }
 }

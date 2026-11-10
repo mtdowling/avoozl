@@ -113,7 +113,19 @@ export class ClaudeAdapter {
         includePartialMessages: true,
         ...(options.mcpUrl
           ? {
-              mcpServers: { nupp_plans: { type: "http", url: options.mcpUrl } },
+              mcpServers: {
+                nupp_plans: {
+                  type: "http",
+                  url: options.mcpUrl,
+                  ...(options.mcpToken
+                    ? {
+                        headers: {
+                          Authorization: "Bearer " + options.mcpToken,
+                        },
+                      }
+                    : {}),
+                },
+              },
             }
           : {}),
         canUseTool: async (tool, input, context) => {

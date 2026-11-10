@@ -1,4 +1,8 @@
 import { MCP_TOOLS, validateMcpRequest } from "../mcp.mjs";
+import {
+  authorizeRunCapability,
+  toolAllowedForRun,
+} from "./run-capabilities.mjs";
 const operations = {
   plans_examples: [
     "workspace.examples",
@@ -189,7 +193,7 @@ export const WORKSPACE_TOOLS = Object.entries(operations).map(
 export async function handleMcp(
   message,
   ops,
-  { base, runId, versionHeader } = {},
+  { base, runId, runCapability, versionHeader } = {},
 ) {
   const invalid = validateMcpRequest(message, { versionHeader });
   if (invalid) return invalid;
@@ -198,14 +202,23 @@ export async function handleMcp(
     status: 200,
     body: { jsonrpc: "2.0", id, result },
   });
-  const search =
-    runId &&
-    ops.store.get("runs", runId)?.prompt?.startsWith("NUPP_PROMPT_SEARCH");
+  const capability = runId
+      ? authorizeRunCapability(ops.store, runId, runCapability)
+      : null,
+    search =
+      runId &&
+      ops.store.get("runs", runId)?.prompt?.startsWith("NUPP_PROMPT_SEARCH");
   const tools = [...MCP_TOOLS, ...WORKSPACE_TOOLS],
     readOnly = (name) =>
       tools.find((t) => t.name === name)?.annotations?.readOnlyHint === true;
-  if (search && message?.method === "tools/list")
-    return ok({ tools: tools.filter((t) => readOnly(t.name)) });
+  if (runId && message?.method === "tools/list")
+    return ok({
+      tools: tools.filter(
+        (tool) =>
+          toolAllowedForRun(capability, tool) &&
+          (!search || readOnly(tool.name)),
+      ),
+    });
   if (
     search &&
     message?.method === "tools/call" &&
@@ -220,46 +233,27 @@ export async function handleMcp(
         },
       ],
     });
-  if (message?.method === "tools/list")
+  if (message?.method === "tools/list") return ok({ tools });
+  if (
+    runId &&
+    message?.method === "tools/call" &&
+    !toolAllowedForRun(
+      capability,
+      tools.find((tool) => tool.name === message.params?.name),
+    )
+  )
     return ok({
-      tools: [...MCP_TOOLS, ...WORKSPACE_TOOLS].filter(
-        (t) =>
-          !runId ||
-          ![
-            "plans_seed_example",
-            "plans_approve_plan",
-            "plans_integrate",
-            "plans_accept_task",
-            "plans_set_run_approvals",
-            "plans_start_run",
-            "plans_start_batch",
-          ].includes(t.name),
-      ),
+      isError: true,
+      content: [
+        {
+          type: "text",
+          text: "This run capability does not authorize that operation.",
+        },
+      ],
     });
   if (message?.method === "tools/call" && operations[message.params?.name]) {
     const [operation] = operations[message.params.name],
       args = message.params.arguments || {};
-    if (
-      runId &&
-      [
-        "workspace.seed",
-        "plan.approve",
-        "integration.merge",
-        "task.accept",
-        "run.approvals",
-        "run.start",
-        "batch.start",
-      ].includes(operation)
-    )
-      return ok({
-        isError: true,
-        content: [
-          {
-            type: "text",
-            text: "This operation requires user authorization through the workspace UI or CLI.",
-          },
-        ],
-      });
     try {
       const result = await ops.execute(
         operation,

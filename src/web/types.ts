@@ -5,6 +5,7 @@ export type RunSummary = {
   state: string;
   mode?: string;
   provider?: string;
+  providerSessionId?: string;
   projectId?: string;
   model?: string;
   error?: string | { message?: string };

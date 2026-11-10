@@ -12,6 +12,7 @@ import { Operations } from "../operations.mjs";
 import { handleMcp } from "../mcp.mjs";
 import { startServer } from "../server.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
+import { mintRunCapability } from "../run-capabilities.mjs";
 const exec = promisify(execFile);
 function temporary(t) {
   return temporaryDirectory();
@@ -182,14 +183,26 @@ test("CLI, MCP, and HTTP use the same seed receipt and publish example Markdown"
     (await (await fetch(url + "/api/health")).json()).application,
     "avoozl",
   );
+  const ownedRun = {
+      id: "owned-run",
+      taskId: "sample-task",
+      provider: "codex",
+      mode: "implement",
+      state: "running",
+    },
+    ownedToken = mintRunCapability(
+      server.workspace.store,
+      server.workspace.store.put("runs", ownedRun),
+    ).token;
   const denied = await handleMcp(message, server.workspace.ops, {
     runId: "owned-run",
+    runCapability: ownedToken,
   });
   assert.equal(denied.body.result.isError, true);
   const list = await handleMcp(
     { jsonrpc: "2.0", id: 2, method: "tools/list" },
     server.workspace.ops,
-    { runId: "owned-run" },
+    { runId: "owned-run", runCapability: ownedToken },
   );
   assert(!list.body.result.tools.some((t) => t.name === "plans_seed_example"));
 });

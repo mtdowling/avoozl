@@ -6,7 +6,7 @@ import fs from "node:fs";
 import { startServer } from "../server.mjs";
 import { handleMcp } from "../mcp.mjs";
 import { Operations } from "../operations.mjs";
-import { fixture, markdown } from "./fixtures.mjs";
+import { fixture, markdown, runCapability } from "./fixtures.mjs";
 
 test("React UI and editing APIs run on SQLite; HTTP and MCP share task mutations", async (t) => {
   const { root, store } = fixture(t),
@@ -186,7 +186,11 @@ test("MCP approval checks exact revision and owned agent connections cannot appr
       },
     },
   };
-  const denied = await handleMcp(message, ops, { runId: "run-test" });
+  const token = runCapability(store, "run-test");
+  const denied = await handleMcp(message, ops, {
+    runId: "run-test",
+    runCapability: token,
+  });
   assert.equal(denied.body.result.isError, true);
   assert.equal(store.read().tasks.length, 1);
   const result = await handleMcp(message, ops, {});
@@ -194,13 +198,15 @@ test("MCP approval checks exact revision and owned agent connections cannot appr
   const tools = await handleMcp(
     { jsonrpc: "2.0", id: 3, method: "tools/list" },
     ops,
-    { runId: "run-test" },
+    { runId: "run-test", runCapability: token },
   );
   assert.equal(
     tools.body.result.tools.some((t) => t.name === "plans_approve_plan"),
     false,
   );
-  assert.ok(tools.body.result.tools.some((t) => t.name === "plans_visualize"));
+  assert.ok(
+    tools.body.result.tools.some((t) => t.name === "plans_propose_work"),
+  );
 });
 test("events replay by durable cursor across database connections", async (t) => {
   const { store } = fixture(t);

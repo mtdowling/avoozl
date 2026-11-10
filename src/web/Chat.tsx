@@ -9,12 +9,13 @@ import {
 } from "@assistant-ui/react";
 import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown";
 import { Archive, ArrowDown, Bot, ChevronUp, CircleStop, Download, Play, Send, UserRound } from "lucide-react";
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { command, submissionId } from "./api";
 import { useRemote, useWorkspaceEvents } from "./hooks";
 import type { RequestRecord, Run, RunEvent } from "./types";
 
 const activeStates = new Set(["starting", "running", "waiting-input", "waiting-approval"]);
+const OpenHandsSurface = lazy(() => import("./OpenHandsSurface"));
 
 function eventMessages(run: Run): ThreadMessageLike[] {
   const result: ThreadMessageLike[] = [];
@@ -341,6 +342,7 @@ export function Conversation({
   const remote = useRemote(() => command<Run>("run.get", { id: runId, compact: true, limit: 200 }), [runId]);
   const [actionError, setActionError] = useState("");
   const [actionBusy, setActionBusy] = useState(false);
+  const [surface, setSurface] = useState<"chat" | "workspace">("chat");
   useWorkspaceEvents(() => {
     void remote.reload().then(onRefresh).catch(() => {});
   }, runId);
@@ -407,6 +409,12 @@ export function Conversation({
           <span>{status}</span>
         </div>
         <div className="conversation-actions">
+          {run.provider === "openhands" && run.providerSessionId && (
+            <span className="segmented conversation-surface-switch">
+              <button className={surface === "chat" ? "active" : ""} onClick={() => setSurface("chat")}>Chat</button>
+              <button className={surface === "workspace" ? "active" : ""} onClick={() => setSurface("workspace")}>Workspace</button>
+            </span>
+          )}
           {!run.external && (
             <select
               aria-label="Conversation approval mode"
@@ -425,7 +433,13 @@ export function Conversation({
         </div>
       </header>
       {actionError && <p className="conversation-error">{actionError}</p>}
-      <ConversationRuntime run={run} reload={remote.reload} loadEarlier={loadEarlier} />
+      {surface === "workspace" && run.provider === "openhands" ? (
+        <Suspense fallback={<div className="center-state">Loading workspace UI…</div>}>
+          <OpenHandsSurface runId={run.id} />
+        </Suspense>
+      ) : (
+        <ConversationRuntime run={run} reload={remote.reload} loadEarlier={loadEarlier} />
+      )}
     </section>
   );
 }

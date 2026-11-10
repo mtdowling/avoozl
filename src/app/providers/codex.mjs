@@ -46,12 +46,30 @@ export class CodexAdapter {
   async start(options) {
     this.options = options;
     const config = options.mcpUrl
-      ? ["-c", `mcp_servers.nupp_plans.url=${JSON.stringify(options.mcpUrl)}`]
+      ? [
+          "-c",
+          `mcp_servers.nupp_plans.url=${JSON.stringify(options.mcpUrl)}`,
+          ...(options.mcpToken
+            ? [
+                "-c",
+                'mcp_servers.nupp_plans.bearer_token_env_var="AVOOZL_RUN_CAPABILITY"',
+              ]
+            : []),
+        ]
       : [];
     this.proc = spawn(
       this.command,
       [...this.args, "app-server", "--listen", "stdio://", ...config],
-      { cwd: options.cwd, stdio: ["pipe", "pipe", "pipe"] },
+      {
+        cwd: options.cwd,
+        stdio: ["pipe", "pipe", "pipe"],
+        env: {
+          ...process.env,
+          ...(options.mcpToken
+            ? { AVOOZL_RUN_CAPABILITY: options.mcpToken }
+            : {}),
+        },
+      },
     );
     this.proc.on("error", (error) => this.crash(error));
     // A closed adapter must stop emitting. The child's pipes can deliver

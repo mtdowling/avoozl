@@ -53,7 +53,7 @@ export class RemoteManager {
     try {
       return await this.command("providers");
     } catch (error) {
-      return ["codex", "claude"].map((id) => ({
+      return ["codex", "claude", "openhands"].map((id) => ({
         id,
         available: false,
         reason: error.message,

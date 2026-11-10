@@ -49,6 +49,11 @@ export class Store {
    CREATE TABLE IF NOT EXISTS usage_counters(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS usage_samples(id TEXT PRIMARY KEY,run_id TEXT NOT NULL,task_id TEXT NOT NULL,at TEXT NOT NULL,body TEXT NOT NULL);
    CREATE INDEX IF NOT EXISTS usage_samples_task ON usage_samples(task_id,at);
+   CREATE TABLE IF NOT EXISTS run_capabilities(id TEXT PRIMARY KEY,run_id TEXT NOT NULL,token_hash BLOB NOT NULL,expires_at TEXT NOT NULL,revoked_at TEXT,body TEXT NOT NULL);
+   CREATE INDEX IF NOT EXISTS run_capabilities_run ON run_capabilities(run_id,revoked_at);
+   CREATE TABLE IF NOT EXISTS provider_events(run_id TEXT NOT NULL,provider_event_id TEXT NOT NULL,at TEXT NOT NULL,PRIMARY KEY(run_id,provider_event_id));
+   CREATE TABLE IF NOT EXISTS surface_capabilities(id TEXT PRIMARY KEY,run_id TEXT NOT NULL,conversation_id TEXT NOT NULL,token_hash BLOB NOT NULL,expires_at TEXT NOT NULL,body TEXT NOT NULL);
+   CREATE INDEX IF NOT EXISTS surface_capabilities_run ON surface_capabilities(run_id,expires_at);
   `);
   }
   transaction(fn) {

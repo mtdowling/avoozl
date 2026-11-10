@@ -13,6 +13,11 @@ import { digest } from "../model.mjs";
 import { watchSources } from "./source-sync.mjs";
 import { randomUUID } from "node:crypto";
 import { applicationRoot } from "./config.mjs";
+import {
+  installOpenHandsWebSocketProxy,
+  mintOpenHandsSurface,
+  proxyOpenHandsSurface,
+} from "./openhands-surface.mjs";
 export const appRoot = path.dirname(fileURLToPath(import.meta.url)),
   legacyRoot = path.dirname(appRoot),
   webRoot = path.join(appRoot, "ui-dist");
@@ -203,6 +208,10 @@ export function startServer({
       const url = new URL(req.url, "http://" + req.headers.host),
         route = url.pathname,
         base = url.origin;
+      if (route.startsWith("/openhands/")) {
+        await proxyOpenHandsSurface(req, res, store, url);
+        return;
+      }
       if (draining && req.method !== "GET" && req.method !== "HEAD") {
         json(
           res,
@@ -226,6 +235,7 @@ export function startServer({
         const result = await handleMcp(await body(req), ops, {
           base,
           runId: url.searchParams.get("run"),
+          runCapability: req.headers.authorization?.replace(/^Bearer\s+/i, ""),
           versionHeader: req.headers["mcp-protocol-version"],
         });
         flushOutbox(store, projectionRoot);
@@ -452,6 +462,17 @@ export function startServer({
         });
         return;
       }
+      if (req.method === "POST" && route === "/api/openhands-surface") {
+        mutation(req);
+        const surface = mintOpenHandsSurface(store, (await body(req)).runId);
+        json(res, 200, {
+          host: base + "/openhands/" + encodeURIComponent(surface.runId),
+          apiKey: surface.token,
+          conversationId: surface.conversationId,
+          expiresAt: surface.expiresAt,
+        });
+        return;
+      }
       const compat = {
         "POST /api/task/prompt": "task.capture",
         "PATCH /api/task": "task.update",
@@ -629,6 +650,7 @@ export function startServer({
       else res.end();
     }
   });
+  installOpenHandsWebSocketProxy(server, store);
   server.listen(port, host, () => {
     manager.baseUrl = "http://127.0.0.1:" + server.address().port;
     console.log(
