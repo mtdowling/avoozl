@@ -15,4 +15,6 @@ export function createWorkbench(options: {
   trackName(id: string): string;
   refresh(): void;
   setCount(text: string, note?: string): void;
+  canLinkSession?: boolean;
+  rowHeights?: { group: number; task: number; taskWithBlockers: number };
 }): WorkbenchController;

@@ -18,6 +18,8 @@ const esc = (value) =>
   );
 // Now keeps one queue on screen at a time. Decisions stay pinned above the
 // tabs: a pending question is never hidden behind a tab the operator must find.
+// Task / status / owner / next action / blocked by / connections.
+const TREE_COLUMNS = 6;
 const NOW_TABS = [
   { id: "working", label: "In flight" },
   { id: "ready", label: "Up next" },
@@ -37,6 +39,8 @@ export function createWorkbench({
   // Attaching an external transcript is Claude-only and needs a host that
   // installs the session picker. Callers without one must not be offered it.
   canLinkSession = false,
+  // Defaults match the legacy page, whose cells clamp to two or three lines.
+  rowHeights = { group: 52, task: 62, taskWithBlockers: 74 },
 }) {
   const prefs = { completed: false, inventory: false, nowTab: "working" };
   try {
@@ -108,10 +112,19 @@ export function createWorkbench({
   function taskRow(task) {
     const signals = taskSignals(current.data, task),
       owner = task.activity?.owner || task.owner;
-    return `<article class="tree-task" data-workbench-task="${esc(task.id)}"><div class="tree-title-cell"><button class="tree-task-open" title="${esc(task.title)}" data-task="${esc(task.id)}"><span class="tree-task-title">${esc(task.title)}</span></button><small title="${esc(task.id)}">${esc(epicName(task.epic))} · ${esc(trackName(task.track))}</small></div><div class="tree-state-cell">${badge(task.status)}${signals.activity === "active" ? '<small class="tree-live">● In flight</small>' : signals.ready ? "<small>Ready</small>" : ""}</div><div class="tree-owner-cell">${esc(owner || "—")}</div><div class="tree-next-cell" title="${esc(task.nextAction || task.summary || "")}">${esc(task.nextAction || task.summary || "—")}</div><div class="tree-blocker-cell">${blockers(task) || '<span class="muted">—</span>'}</div><button class="tree-graph" data-focus-task="${esc(task.id)}" aria-label="Connections for ${esc(task.title)}" title="Connections">↗</button></article>`;
+    return `<tr class="tree-task" data-workbench-task="${esc(task.id)}"><th class="tree-title-cell" scope="row"><button class="tree-task-open" title="${esc(task.title)}" data-task="${esc(task.id)}"><span class="tree-task-title">${esc(task.title)}</span></button><small title="${esc(task.id)}">${esc(epicName(task.epic))} · ${esc(trackName(task.track))}</small></th><td class="tree-state-cell">${badge(task.status)}${signals.activity === "active" ? '<small class="tree-live">● In flight</small>' : signals.ready ? "<small>Ready</small>" : ""}</td><td class="tree-owner-cell">${esc(owner || "—")}</td><td class="tree-next-cell" title="${esc(task.nextAction || task.summary || "")}">${esc(task.nextAction || task.summary || "—")}</td><td class="tree-blocker-cell">${blockers(task) || '<span class="muted">—</span>'}</td><td class="tree-graph-cell"><button class="tree-graph" data-focus-task="${esc(task.id)}" aria-label="Connections for ${esc(task.title)}" title="Connections">↗</button></td></tr>`;
   }
+  function groupRow(row, group) {
+    return `<tr class="tree-group-row"><th class="tree-group-cell" colspan="${TREE_COLUMNS}" scope="rowgroup"><button class="tree-group-toggle" data-tree-group="${esc(row.key)}" aria-expanded="${expanded.get(row.key)}"><span class="tree-chevron">${expanded.get(row.key) ? "⌄" : "›"}</span><span><strong>${esc(groupName(row.root.key, group))}</strong><small>${row.root.tasks.length} tasks · ${row.root.complete} / ${row.root.total} complete</small></span><span class="tree-percent">${Math.round((row.root.complete / row.root.total) * 100)}%</span></button></th></tr>`;
+  }
+  // Windowing reserves each row's height before it is painted, so these must
+  // match whatever CSS is in play. The compact single-line table and the
+  // legacy page's clamped multi-line rows size differently, so the caller
+  // states which it is rather than the two silently drifting apart.
   function taskHeight(task) {
-    return taskSignals(current.data, task).blockers.length > 1 ? 74 : 62;
+    return taskSignals(current.data, task).blockers.length > 1
+      ? rowHeights.taskWithBlockers
+      : rowHeights.task;
   }
 
   function flattened(roots) {
@@ -126,7 +139,13 @@ export function createWorkbench({
             root.tasks.some((t) => t.id === current.selected),
           ),
         );
-      rows.push({ id: "root:" + key, type: "root", root, key, height: 52 });
+      rows.push({
+        id: "root:" + key,
+        type: "root",
+        root,
+        key,
+        height: rowHeights.group,
+      });
       if (expanded.get(key))
         for (const child of root.children) {
           for (const task of child.tasks)
@@ -155,25 +174,19 @@ export function createWorkbench({
     treeScroll =
       tasksElement.querySelector(".task-tree-window")?.scrollTop ?? treeScroll;
     virtual?.destroy();
-    tasksElement.innerHTML = `<div class="workbench-controls"><label><input type="checkbox" aria-label="Show completed tasks" data-workbench-pref="completed" ${prefs.completed ? "checked" : ""}> Completed</label><label><input type="checkbox" aria-label="Include imported tasks" data-workbench-pref="inventory" ${prefs.inventory ? "checked" : ""}> Imported</label><button class="icon-button" data-tree-expand aria-label="Expand all groups" title="Expand all groups"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m6 6 6 5 6-5m-12 7 6 5 6-5"/></svg></button><button class="icon-button" data-tree-collapse aria-label="Collapse all groups" title="Collapse all groups"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m6 11 6-5 6 5m-12 7 6-5 6 5"/></svg></button></div><div class="task-tree-window"></div>`;
+    tasksElement.innerHTML = `<div class="workbench-controls"><label><input type="checkbox" aria-label="Show completed tasks" data-workbench-pref="completed" ${prefs.completed ? "checked" : ""}> Completed</label><label><input type="checkbox" aria-label="Include imported tasks" data-workbench-pref="inventory" ${prefs.inventory ? "checked" : ""}> Imported</label><button class="icon-button" data-tree-expand aria-label="Expand all groups" title="Expand all groups"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m6 6 6 5 6-5m-12 7 6 5 6-5"/></svg></button><button class="icon-button" data-tree-collapse aria-label="Collapse all groups" title="Collapse all groups"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m6 11 6-5 6 5m-12 7 6-5 6 5"/></svg></button></div><p class="tree-scroll-heading">${visible.toLocaleString()} tasks · select a task for its plan and evidence.</p><div class="task-tree-window"></div>`;
     const viewport = tasksElement.querySelector(".task-tree-window");
     virtual = createVirtualList(viewport, {
-      items: [
-        { id: "tree-heading", type: "heading", height: 34 },
-        { id: "tree-columns", type: "columns", height: 32 },
-        ...flattened(roots),
-      ],
+      items: flattened(roots),
       height: (r) => r.height,
       key: (r) => r.id,
-      label: "Task tree rows",
-      render: (r) =>
-        r.type === "heading"
-          ? `<header class="tree-scroll-heading"><p>${visible.toLocaleString()} tasks · select a task for its plan and evidence.</p></header>`
-          : r.type === "columns"
-            ? '<div class="tree-table-heading"><span>Task / epic / track</span><span>Status</span><span>Owner / agent</span><span>Next action</span><span>Blocked by</span><span></span></div>'
-            : r.type === "task"
-              ? taskRow(r.task)
-              : `<button class="tree-group-toggle" data-tree-group="${esc(r.key)}" aria-expanded="${expanded.get(r.key)}"><span class="tree-chevron">${expanded.get(r.key) ? "⌄" : "›"}</span><span><strong>${esc(groupName(r.root.key, input.group))}</strong><small>${r.root.tasks.length} tasks · ${r.root.complete} / ${r.root.total} complete</small></span><span class="tree-percent">${Math.round((r.root.complete / r.root.total) * 100)}%</span></button>`,
+      label: "Task tree",
+      table: {
+        className: "tree-table",
+        columns: TREE_COLUMNS,
+        head: '<tr class="tree-table-heading"><th scope="col">Task / epic / track</th><th scope="col">Status</th><th scope="col">Owner / agent</th><th scope="col">Next action</th><th scope="col">Blocked by</th><th scope="col"><span class="sr-only">Connections</span></th></tr>',
+      },
+      render: (r) => (r.type === "task" ? taskRow(r.task) : groupRow(r, input.group)),
     });
     viewport.scrollTop = treeScroll;
   }
@@ -264,6 +277,13 @@ export function createWorkbench({
     if (!current || current.view !== "now") return;
     const task = taskIndex(current.data).tasks.get(id);
     if (!task) return;
+    // A second click on an open entry closes it, the same as its Close button.
+    if (nowExpanded.has("session:" + id)) {
+      nowExpanded.delete("session:" + id);
+      sessionStates.delete(id);
+      paintNow();
+      return;
+    }
     const linked = taskSession(nowPayload?.runs || [], task);
     if (linked) {
       window.dispatchEvent(
