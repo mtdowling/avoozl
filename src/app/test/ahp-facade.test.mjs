@@ -9,7 +9,7 @@ import {
   SUPPORTED_PROTOCOL_VERSIONS,
   AhpErrorCodes,
 } from "@microsoft/agent-host-protocol";
-import { fixture } from "./fixtures.mjs";
+import { fixture, urisFor } from "./fixtures.mjs";
 import { Operations } from "../operations.mjs";
 import { RunManager } from "../manager.mjs";
 import { localClient } from "../client.mjs";
@@ -245,7 +245,7 @@ test("an unimplemented method is refused by name rather than answered as a no-op
 test("sessions and chats are listed, snapshotted, and tied to the owning run", async (t) => {
   const { facade, ops, store } = await harness(t);
   const run = await startRun(ops);
-  const uris = runUris(workspaceIdentity(store), run.id);
+  const uris = urisFor(store, run);
   const { client } = await connect(facade, EDITOR_TOKEN, [ROOT_CHANNEL]);
   t.after(() => client.shutdown());
   const listed = await until(async () => {
@@ -268,6 +268,23 @@ test("sessions and chats are listed, snapshotted, and tied to the owning run", a
     "stub-model",
     "other-model",
   ]);
+  // Subscribing records this client on the session. The entry has to be a
+  // well-formed client: an action naming the field wrongly reduced to an
+  // undefined entry here, which serialised as null and crashed the editor's
+  // own URI mapping, so the session silently never opened.
+  const withClient = await until(async () => {
+    const state = facade.projection.channelState(uris.session);
+    return state?.activeClients?.length ? state : null;
+  });
+  assert.equal(
+    withClient.activeClients.every(
+      (entry) => entry && typeof entry.clientId === "string",
+    ),
+    true,
+    "every active client is a client object, never a hole in the list",
+  );
+  assert.deepEqual(withClient.activeClients[0].tools, []);
+  assert.equal(typeof withClient.activeClients[0].displayName, "string");
   const chat = (await client.subscribe(uris.chat)).result.snapshot.state;
   assert.equal(chat.activeTurn.message.text, "What needs my decision?");
   assert.equal(chat._meta["avoozl.runId"], run.id);
@@ -282,7 +299,7 @@ test("a client turn delivers exactly once however many times it is dispatched", 
   const run = await startRun(ops);
   // Finish the opening turn so a follow-up is delivered rather than queued.
   manager.receive(run.id, "turn.completed", { state: "completed" });
-  const uris = runUris(workspaceIdentity(store), run.id);
+  const uris = urisFor(store, run);
   const first = await connect(facade, EDITOR_TOKEN, [uris.chat]);
   const second = await connect(facade, EDITOR_TOKEN, [uris.chat]);
   t.after(() =>
@@ -326,7 +343,7 @@ test("two clients answering one approval produce one provider answer and a clear
       input: { command: "node check.mjs" },
     },
   });
-  const uris = runUris(workspaceIdentity(store), run.id);
+  const uris = urisFor(store, run);
   const pending = store.list("requests").find((r) => r.state === "pending");
   const { client } = await connect(facade, EDITOR_TOKEN, [uris.chat]);
   t.after(() => client.shutdown());
@@ -374,7 +391,7 @@ test("an approval invalidated by a host restart cannot be answered", async (t) =
     method: "Bash",
     payload: { tool: "Bash", toolUseId: "toolu_2", input: { command: "ls" } },
   });
-  const uris = runUris(workspaceIdentity(store), run.id);
+  const uris = urisFor(store, run);
   await until(() => facade.projection.channelState(uris.chat)?.activeTurn);
   const pending = store.list("requests").find((r) => r.state === "pending");
   // What a host restart does to a pending approval.
@@ -396,7 +413,7 @@ test("an approval invalidated by a host restart cannot be answered", async (t) =
 test("cancellation reaches the provider and the refusal of an impossible cancel is honest", async (t) => {
   const { facade, ops, store, stub, manager } = await harness(t);
   const run = await startRun(ops);
-  const uris = runUris(workspaceIdentity(store), run.id);
+  const uris = urisFor(store, run);
   const { client } = await connect(facade, EDITOR_TOKEN, [uris.chat]);
   t.after(() => client.shutdown());
   await until(() => facade.projection.channelState(uris.chat)?.activeTurn);
@@ -439,7 +456,7 @@ test("cancellation reaches the provider and the refusal of an impossible cancel 
 test("a refused send corrects the optimistic client instead of leaving a phantom turn", async (t) => {
   const { facade, ops, store, manager } = await harness(t);
   const run = await startRun(ops);
-  const uris = runUris(workspaceIdentity(store), run.id);
+  const uris = urisFor(store, run);
   await until(() => facade.projection.channelState(uris.chat)?.activeTurn);
   // An integrated worktree refuses follow-ups.
   store.put("runs", { ...store.get("runs", run.id), state: "integrated" });
@@ -476,7 +493,7 @@ test("a refused send corrects the optimistic client instead of leaving a phantom
 test("a read-only client observes but cannot change a session", async (t) => {
   const { facade, ops, store, stub } = await harness(t);
   const run = await startRun(ops);
-  const uris = runUris(workspaceIdentity(store), run.id);
+  const uris = urisFor(store, run);
   const { client, result } = await connect(facade, OBSERVER_TOKEN, [uris.chat]);
   t.after(() => client.shutdown());
   assert.equal(result._meta["avoozl.scope"], "read");
@@ -499,7 +516,7 @@ test("a read-only client observes but cannot change a session", async (t) => {
 test("concurrent clients see the same actions in the same order", async (t) => {
   const { facade, ops, store, manager } = await harness(t);
   const run = await startRun(ops);
-  const uris = runUris(workspaceIdentity(store), run.id);
+  const uris = urisFor(store, run);
   const a = await connect(facade, EDITOR_TOKEN, [uris.chat]);
   const b = await connect(facade, OBSERVER_TOKEN, [uris.chat]);
   t.after(() => Promise.all([a.client.shutdown(), b.client.shutdown()]));
@@ -538,7 +555,7 @@ test("concurrent clients see the same actions in the same order", async (t) => {
 test("reconnect replays the exact gap, or admits it must resend a snapshot", async (t) => {
   const { facade, ops, store, manager } = await harness(t);
   const run = await startRun(ops);
-  const uris = runUris(workspaceIdentity(store), run.id);
+  const uris = urisFor(store, run);
   const { client } = await connect(facade, EDITOR_TOKEN, [uris.chat]);
   t.after(() => client.shutdown());
   await until(() => facade.projection.channelState(uris.chat)?.activeTurn);
@@ -586,7 +603,7 @@ test("a model change is a host operation recorded at a turn boundary", async (t)
     providerSessionId: "provider-session",
     model: "stub-model",
   });
-  const uris = runUris(workspaceIdentity(store), run.id);
+  const uris = urisFor(store, run);
   const { client } = await connect(facade, EDITOR_TOKEN, [uris.session]);
   t.after(() => client.shutdown());
   // A model that the provider catalog does not list is refused.
@@ -635,7 +652,7 @@ test("a model change is a host operation recorded at a turn boundary", async (t)
 test("queue controls the editor offers are carried out or refused for a stated reason", async (t) => {
   const { facade, ops, store, manager, stub } = await harness(t);
   const run = await startRun(ops);
-  const uris = runUris(workspaceIdentity(store), run.id);
+  const uris = urisFor(store, run);
   await until(() => facade.projection.channelState(uris.chat)?.activeTurn);
   for (const id of ["q1", "q2"])
     await ops.execute("run.send", {
@@ -683,7 +700,7 @@ test("queue controls the editor offers are carried out or refused for a stated r
 test("draining the host refuses new turns while existing work continues", async (t) => {
   const { facade, ops, store, manager } = await harness(t);
   const run = await startRun(ops);
-  const uris = runUris(workspaceIdentity(store), run.id);
+  const uris = urisFor(store, run);
   await until(() => facade.projection.channelState(uris.chat)?.activeTurn);
   manager.draining = true;
   const steer = await rawDispatch(facade, uris.chat, {
@@ -766,7 +783,7 @@ test("the audit trail names the client behind every dispatch, accepted or refuse
   const { facade, ops, store, manager } = await harness(t);
   const run = await startRun(ops);
   manager.receive(run.id, "turn.completed", { state: "completed" });
-  const uris = runUris(workspaceIdentity(store), run.id);
+  const uris = urisFor(store, run);
   const editor = await connect(facade, EDITOR_TOKEN, [uris.chat]);
   t.after(() => editor.client.shutdown());
   editor.client.dispatch(uris.chat, {

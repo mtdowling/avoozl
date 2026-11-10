@@ -24,7 +24,10 @@ import { workspaceIdentity } from "../identity.mjs";
 import { fail } from "../store.mjs";
 import { pathToFileURL } from "node:url";
 
-export const PROJECTION_SCHEMA_VERSION = 5;
+// 6: channel identifiers carry the agent provider in their scheme, so a
+// projection built before this rebuilds rather than serving URIs the editor
+// cannot resolve.
+export const PROJECTION_SCHEMA_VERSION = 6;
 // The projection always folds at the newest protocol version it knows, so the
 // action log is complete. Delivery to a client is filtered by the version that
 // client negotiated.
@@ -173,7 +176,12 @@ export class Projection {
   }
 
   ensureRun(run) {
-    const uris = runUris(this.workspaceId, run.id);
+    // The channel scheme carries the advertised provider: see uris.mjs.
+    const uris = runUris(
+      this.workspaceId,
+      run.id,
+      agentProviderId(run.provider),
+    );
     for (const [kind, resource] of Object.entries(uris))
       this.db
         .prepare(

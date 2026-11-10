@@ -29,24 +29,59 @@ export function channelUuid(workspaceId, kind, id) {
   ].join("-");
 }
 
-export function sessionUri(workspaceId, runId) {
-  return "ahp-session:/" + channelUuid(workspaceId, "session", runId);
+// The scheme carries the agent provider, because that is how the editor
+// derives one: it reads a session URI's scheme and registers the chat-session
+// provider `agent-host-<scheme>` (`_toAgentHostSessionResource` on 1.138.0).
+// A session whose scheme is not one of the providers this host advertised
+// therefore belongs to a provider nothing registered, and the editor drops it
+// from the session list and cannot open it. The protocol's own examples use
+// `ahp-session:/<uuid>`, and the identifier is host-chosen, so encoding the
+// provider here is conformant and is what makes the session reachable.
+export function sessionUri(workspaceId, runId, provider) {
+  return (
+    providerScheme(provider) +
+    ":/s-" +
+    channelUuid(workspaceId, "session", runId)
+  );
 }
-export function chatUri(workspaceId, runId) {
-  return "ahp-chat:/" + channelUuid(workspaceId, "chat", runId);
+export function chatUri(workspaceId, runId, provider) {
+  return (
+    providerScheme(provider) + ":/c-" + channelUuid(workspaceId, "chat", runId)
+  );
+}
+function providerScheme(provider) {
+  // A URI scheme admits letters, digits, `+`, `-` and `.`, and the editor
+  // appends it to its own prefix, so anything else would produce a resource
+  // neither side could parse.
+  const scheme = String(provider || "avoozl").toLowerCase();
+  if (!/^[a-z][a-z0-9+.-]*$/.test(scheme))
+    throw Error("An agent provider identifier must be usable as a URI scheme.");
+  return scheme;
 }
 // Only channels this host actually serves. A changeset channel is not among
 // them: a run's diff is read through `run.changes` and shown with the editor's
 // own diff view, so advertising a changeset URI here would promise a
 // subscription that does not exist.
-export function runUris(workspaceId, runId) {
+export function runUris(workspaceId, run, provider) {
+  // Accepts a run record or a run identifier with its provider, because
+  // callers hold one or the other.
+  const runId = typeof run === "string" ? run : run.id;
+  const agentProvider =
+    provider ?? (typeof run === "string" ? undefined : run.agentProvider);
   return {
-    session: sessionUri(workspaceId, runId),
-    chat: chatUri(workspaceId, runId),
+    session: sessionUri(workspaceId, runId, agentProvider),
+    chat: chatUri(workspaceId, runId, agentProvider),
   };
 }
+// Session and chat channels now share a scheme, so the kind lives in the
+// identifier rather than in the scheme. The projection's mapping table stays
+// authoritative; this is for callers holding only a string.
 export function channelKind(resource) {
   if (resource === ROOT_CHANNEL) return "root";
-  const match = /^ahp-([a-z-]+):\//.exec(resource || "");
-  return match ? match[1] : null;
+  const match = /^[a-z][a-z0-9+.-]*:\/(s|c)-/.exec(resource || "");
+  if (match) return match[1] === "s" ? "session" : "chat";
+  // Older identifiers, kept readable so a stored projection or a client that
+  // remembers a URI from a previous version still resolves.
+  const legacy = /^ahp-([a-z-]+):\//.exec(resource || "");
+  return legacy ? legacy[1] : null;
 }

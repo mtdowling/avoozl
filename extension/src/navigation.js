@@ -91,6 +91,27 @@ class ChatNavigator {
     if (!worktree) return { known: false };
     const folders = vscode.workspace.workspaceFolders || [];
     const target = vscode.Uri.file(worktree).fsPath.replace(/\/+$/, "");
+    // A window with no folder open skips the check entirely, which is the one
+    // configuration a remote or browser window can satisfy.
+    if (folders.length === 0)
+      return { known: true, contains: true, worktree: target, folders: 0 };
+    // The comparison includes scheme and authority. A remote or browser
+    // window's folders are `vscode-remote:` URIs while a session's working
+    // directories are `file:` URIs, and nothing remaps one onto the other, so
+    // no directory can match there however the paths line up. Saying "open
+    // that folder" would send the user somewhere that cannot help.
+    const remote = folders.some(
+      (folder) => (folder.uri.scheme || "file") !== "file",
+    );
+    if (remote)
+      return {
+        known: true,
+        contains: false,
+        unsatisfiable: true,
+        worktree: target,
+        reason:
+          "this window's folders are remote URIs and a session's working directories are local ones, which never match",
+      };
     const contains = folders.some((folder) => {
       const open = folder.uri.fsPath.replace(/\/+$/, "");
       return open === target || open.startsWith(target + "/");
@@ -148,13 +169,20 @@ class ChatNavigator {
     const containment = this.containment(channels.worktree);
     report.containment = containment;
     if (containment.known && !containment.contains) {
-      const choice = await vscode.window.showWarningMessage(
-        "This conversation works in " +
-          containment.worktree +
-          ", which is outside the folders open here. VS Code lists a conversation only when its working directory is open, so the native view will not show it.",
-        "Open that folder",
-        "Open in the website",
-      );
+      const choice = containment.unsatisfiable
+        ? await vscode.window.showWarningMessage(
+            "This window cannot list this conversation: " +
+              containment.reason +
+              ". Closing the folder, or using a local window, makes it listable.",
+            "Open in the website",
+          )
+        : await vscode.window.showWarningMessage(
+            "This conversation works in " +
+              containment.worktree +
+              ", which is outside the folders open here. VS Code lists a conversation only when its working directory is open, so the native view will not show it.",
+            "Open that folder",
+            "Open in the website",
+          );
       if (choice === "Open that folder") {
         report.used = "open-folder";
         report.verification =
