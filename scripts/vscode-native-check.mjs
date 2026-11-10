@@ -232,6 +232,10 @@ try {
           },
         ],
         "chat.remoteAgentHostsAutoConnect": true,
+        // The sessions a host owns are listed in the Agent Sessions viewer,
+        // which is off by default: an empty chat panel otherwise looks like a
+        // host that advertised nothing.
+        "chat.viewSessions.enabled": true,
         "telemetry.telemetryLevel": "off",
         "update.mode": "none",
         "extensions.autoUpdate": false,
