@@ -1,0 +1,93 @@
+{
+  "at": "2026-11-10T03:36:35.012Z",
+  "acceptance": "Emulated phone viewport comparison. NOT the VSC-08 phone gate, which needs a physical phone on an outside network.",
+  "viewport": {
+    "width": 393,
+    "height": 852,
+    "deviceScaleFactor": 3,
+    "mobile": true
+  },
+  "minimumTargetPx": 44,
+  "method": "Touch events only — no mouse and no keyboard — against both surfaces at the same viewport, with the same fixture work. Assertions are made against the durable records and the real child process.",
+  "surfaces": {
+    "website": {
+      "surface": "website",
+      "steps": [
+        {
+          "step": "work needing a decision is listed",
+          "reached": true
+        },
+        {
+          "step": "the control that opens that conversation",
+          "reached": true
+        },
+        {
+          "step": "the approve control",
+          "reached": true
+        },
+        {
+          "step": "the stop control",
+          "reached": true
+        }
+      ],
+      "controls": {
+        "work needing a decision is listed": {
+          "width": 325,
+          "height": 176,
+          "hittable": true,
+          "reachable": true
+        },
+        "the control that opens that conversation": {
+          "width": 131,
+          "height": 40,
+          "hittable": false,
+          "reachable": true
+        },
+        "the approve control": {
+          "width": 57,
+          "height": 42,
+          "hittable": false,
+          "reachable": true
+        },
+        "the stop control": {
+          "width": 34,
+          "height": 28,
+          "hittable": false,
+          "reachable": true
+        }
+      },
+      "firstPaint": "<disposable-fixture>/shots/phone-website-01.png",
+      "transcript": "<disposable-fixture>/shots/phone-website-02.png",
+      "approved": true,
+      "processStarted": true,
+      "interrupted": true,
+      "processStopped": true,
+      "plan": false,
+      "lastPaint": "<disposable-fixture>/shots/phone-website-03.png"
+    },
+    "editor": {
+      "surface": "bridged-editor",
+      "steps": [
+        {
+          "step": "the sessions list, by touch alone",
+          "reached": false
+        },
+        {
+          "step": "the conversation in the list",
+          "reached": false
+        }
+      ],
+      "controls": {
+        "the sessions list, by touch alone": {
+          "reachable": false
+        },
+        "the conversation in the list": {
+          "reachable": false
+        }
+      },
+      "firstPaint": "<disposable-fixture>/shots/phone-editor-01.png",
+      "sessionsListNeedsKeyboard": true,
+      "lastPaint": "<disposable-fixture>/shots/phone-editor-03.png"
+    }
+  }
+}

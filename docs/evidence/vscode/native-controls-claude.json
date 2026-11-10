@@ -1,0 +1,180 @@
+{
+  "at": "2026-11-10T01:16:25.889Z",
+  "acceptance": "VSC-05 native clicked controls",
+  "scope": "Isolated VS Code profile and extensions directory, disposable workspace, fixture provider running real child processes, loopback facade. No personal profile, no provider account.",
+  "operator": "Real mouse presses at the editor's own controls, dispatched into Chrome by scripts/vscode-drive.mjs. No protocol action was dispatched by the check and no DOM event was synthesised: the editor interpreted each click.",
+  "drivenControls": [
+    {
+      "control": "the session in the list",
+      "label": "agent-host-avoozl-claude session Native control check (Needs Input), created 11/9/2026, 7:15:47 PM",
+      "at": {
+        "x": 1344,
+        "y": 192
+      },
+      "size": {
+        "width": 284,
+        "height": 52
+      }
+    },
+    {
+      "control": "Allow once",
+      "at": {
+        "x": 811,
+        "y": 700
+      },
+      "size": {
+        "width": 71,
+        "height": 22
+      }
+    },
+    {
+      "control": "Cancel",
+      "label": "Cancel (⌘Escape)",
+      "at": {
+        "x": 1163,
+        "y": 780
+      },
+      "size": {
+        "width": 22,
+        "height": 22
+      }
+    }
+  ],
+  "editor": {
+    "version": "1.138.0",
+    "commit": "7debcd0e2acdea1c52de81bf9ee1620444407dda"
+  },
+  "versions": {
+    "node": "v26.13.0",
+    "clientApi": "1.0.0"
+  },
+  "nativeDispatches": [
+    {
+      "at": "2026-11-10T01:16:16.314Z",
+      "action": "chat/toolCallConfirmed",
+      "clientName": "vscode-editor-window",
+      "grant": "editor",
+      "accepted": true
+    },
+    {
+      "at": "2026-11-10T01:16:21.869Z",
+      "action": "chat/turnCancelled",
+      "clientName": "vscode-editor-window",
+      "grant": "editor",
+      "accepted": true
+    }
+  ],
+  "observedClientNames": [
+    "vscode-editor-window"
+  ],
+  "run": {
+    "provider": "claude",
+    "requestedModel": "fixture-fast",
+    "state": "interrupted",
+    "error": null,
+    "providerDiagnostic": "child exited 0",
+    "cancellation": {
+      "source": "client",
+      "requested": true,
+      "requestedAt": "2026-11-10T01:16:21.867Z",
+      "acknowledgedAt": "2026-11-10T01:16:21.867Z",
+      "reason": "client-cancel:06a3f392-d394-4667-aa81-c700382ea1ac",
+      "providerConfirmed": false,
+      "completionRace": "no",
+      "contract": 1,
+      "spawnedWork": "unknown"
+    }
+  },
+  "request": {
+    "providerRequestId": "bbbb646c-12f5-4459-8e51-2de053d34e83",
+    "toolUseId": "tool-f0c9e592",
+    "offered": [
+      "allow-once",
+      "deny"
+    ],
+    "state": "allowed",
+    "answeredBy": "06a3f392-d394-4667-aa81-c700382ea1ac",
+    "optionId": "allow-once"
+  },
+  "actualExecution": {
+    "pid": 6967,
+    "at": "2026-11-10T01:16:16.500Z"
+  },
+  "processOutcome": {
+    "stopped": true,
+    "signalRecordedByCommand": "SIGTERM",
+    "normalCompletionMarker": false
+  },
+  "transcript": {
+    "turnState": "cancelled",
+    "toolStatus": "completed",
+    "toolSuccess": false,
+    "toolPastTense": "Stopped by cancellation after it had started running. Any partial effects remain."
+  },
+  "checks": [
+    {
+      "name": "the approval came from a connected editor client",
+      "passed": true,
+      "detail": "client 06a3f392-d394-4667-aa81-c700382ea1ac (vscode-editor-window)"
+    },
+    {
+      "name": "the cancellation came from the same editor client",
+      "passed": true,
+      "detail": "06a3f392-d394-4667-aa81-c700382ea1ac"
+    },
+    {
+      "name": "the approval was recorded as allowed",
+      "passed": true
+    },
+    {
+      "name": "an actual process ran",
+      "passed": true,
+      "detail": "pid 6967"
+    },
+    {
+      "name": "that actual process stopped",
+      "passed": true
+    },
+    {
+      "name": "the command did not reach normal completion",
+      "passed": true
+    },
+    {
+      "name": "the command recorded the signal it received",
+      "passed": true,
+      "detail": "SIGTERM"
+    },
+    {
+      "name": "the turn is cancelled",
+      "passed": true
+    },
+    {
+      "name": "a tool that ran is completed, not skipped",
+      "passed": true,
+      "detail": "status completed"
+    },
+    {
+      "name": "its result is unsuccessful",
+      "passed": true
+    },
+    {
+      "name": "the result says it had started before it was stopped",
+      "passed": true,
+      "detail": "\"Stopped by cancellation after it had started running. Any partial effects remain.\""
+    },
+    {
+      "name": "the run is interrupted, not failed",
+      "passed": true,
+      "detail": "state interrupted"
+    },
+    {
+      "name": "an intentional stop records no error",
+      "passed": true
+    },
+    {
+      "name": "the provider's diagnostic is preserved separately",
+      "passed": true,
+      "detail": "child exited 0"
+    }
+  ]
+}

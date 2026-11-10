@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
-import { fixture } from "./fixtures.mjs";
+import { fixture, waitFor } from "./fixtures.mjs";
 import { RunManager } from "../manager.mjs";
 import { Operations } from "../operations.mjs";
 import { git } from "../git.mjs";

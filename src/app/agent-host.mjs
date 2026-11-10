@@ -12,6 +12,7 @@ export function startAgentHost({
   manifestPath,
   port = 0,
   factories,
+  operator,
 } = {}) {
   const store = new Store(dbPath),
     instanceId = randomUUID(),
@@ -34,7 +35,7 @@ export function startAgentHost({
     });
   });
   const manager = new RunManager(store, { factories }),
-    ops = new Operations(store, { manager });
+    ops = new Operations(store, { manager, operator });
   const json = (res, status, value) => {
     res.writeHead(status, {
       "Content-Type": "application/json",
@@ -119,6 +120,9 @@ export function startAgentHost({
             "run.resume",
             "run.approvals",
             "run.answer",
+            "run.model",
+            "run.unsend",
+            "run.queue",
             "run.validate",
             "integration.merge",
             "batch.start",

@@ -19,13 +19,25 @@ import {
   compactEvent,
   recentIntegrations,
 } from "./views.mjs";
-import { createPlan, savePlan, proposeWork, approvePlan } from "./plans.mjs";
-import { projectConfig, validateRun, integrateRun } from "./git.mjs";
+import {
+  createPlan,
+  savePlan,
+  proposeWork,
+  approvePlan,
+  extractPlan,
+} from "./plans.mjs";
+import {
+  projectConfig,
+  validateRun,
+  integrateRun,
+  runChanges,
+} from "./git.mjs";
 import { Batches } from "./batches.mjs";
 import { metrics } from "./telemetry.mjs";
 import { taskSignals, isPlanInventory } from "../workbench-model.mjs";
 import { ExternalSessions } from "./external-sessions.mjs";
 import { listExamples, seedExample } from "./examples.mjs";
+import { describeWorkspace } from "./client.mjs";
 
 // Acceptance evidence a caller did not type, when validateRun already recorded
 // passing checks for the commit being accepted. A failed or absent validation
@@ -96,6 +108,31 @@ export class Operations {
       evidenceRecords: this.store
         .list("evidence")
         .filter((e) => resolveTaskId(data, e.taskId) === id),
+    };
+  }
+  // The commands a validated run actually passed, summarised for an
+  // acceptance receipt. Returns null when no validation produced evidence, so
+  // acceptance is recorded without inventing a justification.
+  acceptanceFromValidation(taskId) {
+    const resolved = resolveTaskId(this.read(), taskId);
+    const records = this.store
+      .list("evidence")
+      .filter(
+        (entry) =>
+          entry.kind === "command" &&
+          resolveTaskId(this.read(), entry.taskId) === resolved,
+      );
+    if (!records.length) return null;
+    const commit = records[0].commit;
+    const latest = records.filter((entry) => entry.commit === commit);
+    if (latest.some((entry) => entry.exitCode !== 0)) return null;
+    return {
+      summary:
+        "Validation at " +
+        String(commit).slice(0, 10) +
+        " passed: " +
+        latest.map((entry) => entry.argv.join(" ")).join("; "),
+      evidenceIds: latest.map((entry) => entry.id),
     };
   }
   intentResult(receipt) {
@@ -224,7 +261,9 @@ export class Operations {
         approvalMode: saved.approvalMode,
         prompt: saved.prompt,
         context: saved.context,
-        title: saved.prompt.split("\n")[0].slice(0, 160),
+        // A caller-supplied title names the conversation in a client's list;
+        // without one the first prompt line stands in.
+        title: saved.title || saved.prompt.split("\n")[0].slice(0, 160),
         background: true,
       });
       receipt.acceptedAt = new Date().toISOString();
@@ -247,6 +286,8 @@ export class Operations {
   }
   async execute(name, input = {}, expectedRevision) {
     const store = this.store;
+    if (name === "client.describe")
+      return describeWorkspace(store, { manager: this.manager });
     if (name === "workspace.examples") return listExamples();
     if (name === "workspace.seed")
       return seedExample(store, input, expectedRevision);
@@ -279,6 +320,9 @@ export class Operations {
         "run.resume",
         "run.approvals",
         "run.answer",
+        "run.model",
+        "run.unsend",
+        "run.queue",
         "run.validate",
         "integration.merge",
       ].includes(name)
@@ -307,6 +351,9 @@ export class Operations {
         "run.resume",
         "run.approvals",
         "run.answer",
+        "run.model",
+        "run.unsend",
+        "run.queue",
         "run.validate",
         "integration.merge",
         "batch.start",
@@ -822,10 +869,61 @@ export class Operations {
         approvals: store.list("approvals").filter((a) => a.planId === plan.id),
       };
     }
+    if (name === "plan.preview") {
+      const plan = store.get("plans", input.id);
+      if (!plan) fail("Plan not found.", 404);
+      const text = input.text ?? plan.text;
+      // Read-only: show exactly what approving this revision would extract,
+      // without creating anything. Approval remains a separate operation.
+      const data = this.read(),
+        proposals = extractPlan(text),
+        mapping = Object.fromEntries(
+          proposals.map((p) => [
+            p.id,
+            resolveTaskId(
+              data,
+              p.taskId || plan.mapping?.[p.id] || `${plan.id}-${p.id}`,
+            ),
+          ]),
+        );
+      const existing = new Set(data.tasks.map((t) => t.id));
+      return {
+        planId: plan.id,
+        reviewedHash: digest(text),
+        currentHash: plan.hash,
+        state: plan.state,
+        // Send this back as expectedRevision when approving.
+        expectedRevision: data.revision,
+        approved: store
+          .list("approvals")
+          .some((a) => a.planId === plan.id && a.hash === digest(text)),
+        tasks: proposals.map((p) => ({
+          localId: p.id,
+          taskId: mapping[p.id],
+          title: p.title,
+          acceptance: p.acceptance,
+          existing: existing.has(mapping[p.id]),
+          lineStart: p.lineStart,
+          lineEnd: p.lineEnd,
+        })),
+        dependencies: proposals.flatMap((p) =>
+          ["requires", "sequence", "supports"].flatMap((kind) =>
+            (p[kind] || []).map((ref) => ({
+              kind,
+              from: mapping[ref] || ref,
+              to: mapping[p.id],
+              known: existing.has(mapping[ref] || ref) || Boolean(mapping[ref]),
+            })),
+          ),
+        ),
+        retiring: Object.keys(plan.mapping || {}).filter((id) => !mapping[id]),
+      };
+    }
     if (name === "plan.approve")
       return approvePlan(store, {
         ...input,
         approvedBy: input.approvedBy?.trim() || this.operator,
+        operator: input.operator || this.operator,
         expectedRevision: input.expectedRevision ?? expectedRevision,
       });
     if (name === "project.configure") {
@@ -834,10 +932,14 @@ export class Operations {
     }
     if (name === "run.start") return this.manager.start(input);
     if (name === "run.send") return this.manager.send(input);
-    if (name === "run.interrupt") return this.manager.interrupt(input.id);
+    if (name === "run.interrupt")
+      return this.manager.interrupt(input.id, { reason: input.reason });
     if (name === "run.resume") return this.manager.resume(input);
     if (name === "run.approvals") return this.manager.approvals(input);
     if (name === "run.answer") return this.manager.answer(input);
+    if (name === "run.model") return this.manager.setModel(input);
+    if (name === "run.unsend") return this.manager.cancelDelivery(input);
+    if (name === "run.queue") return this.manager.reorderQueue(input);
     if (name === "run.event") {
       const row = store.db
         .prepare("SELECT * FROM events WHERE seq=? AND run_id=?")
@@ -887,6 +989,7 @@ export class Operations {
           .map((r) => JSON.parse(r.body)),
       };
     }
+    if (name === "run.changes") return runChanges(store, input);
     if (name === "run.validate") return validateRun(store, input.id);
     if (name === "batch.start") return this.batches.start(input);
     if (name === "batch.control") return this.batches.control(input);
@@ -895,7 +998,13 @@ export class Operations {
       await this.manager?.landed(entry.runId);
       return entry;
     }
-    if (name === "task.accept")
+    if (name === "task.accept") {
+      // Acceptance evidence that already exists should not have to be retyped:
+      // a validated run recorded what ran, against which commit, and with
+      // what exit code. A caller with something further to say still can.
+      const recorded = input.evidence?.trim()
+        ? null
+        : this.acceptanceFromValidation(input.id);
       return store.mutate(
         "Accept " + input.id,
         (data) => {
@@ -907,6 +1016,8 @@ export class Operations {
             at: new Date().toISOString(),
             evidence:
               input.evidence?.trim() || validatedEvidence(store, data, task),
+            ...(recorded ? { derivedFrom: recorded.evidenceIds } : {}),
+            ...(this.operator ? { acceptedBy: this.operator } : {}),
             componentOnly: Boolean(input.componentOnly),
           };
           task.status = input.componentOnly ? "implemented" : "accepted";
@@ -914,6 +1025,7 @@ export class Operations {
         },
         expectedRevision,
       );
+    }
     if (name === "handoff") {
       const run = store.get("runs", input.id);
       if (run)
