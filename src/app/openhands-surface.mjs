@@ -85,16 +85,57 @@ function routeParts(pathname) {
     : null;
 }
 
+export function openHandsSurfaceSocketRoute(
+  pathname,
+  searchParams = new URLSearchParams(),
+) {
+  const parts = routeParts(pathname),
+    match = parts?.upstreamPath.match(
+      /^\/sockets\/(events|session)\/([^/]+)$/,
+    );
+  if (!parts || !match) return null;
+  const kind = match[1],
+    entries = [...searchParams.entries()];
+  if (
+    (kind === "events" && entries.length !== 0) ||
+    (kind === "session" &&
+      (entries.length > 1 ||
+        (entries.length === 1 &&
+          (entries[0][0] !== "after_seq" ||
+            !/^(?:-1|0|[1-9]\d*)$/.test(entries[0][1])))))
+  )
+    return null;
+  try {
+    return {
+      ...parts,
+      kind,
+      conversationId: decodeURIComponent(match[2]),
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function openHandsSurfaceRouteAllowed(
   pathname,
   conversationId,
   method,
   mode,
+  searchParams = new URLSearchParams(),
 ) {
   if (method === "GET" && ["/health", "/server_info"].includes(pathname))
     return true;
   if (pathname === "/api/auth/workspace-session")
     return method === "POST" || method === "DELETE";
+  if (pathname === "/api/conversations") {
+    const entries = [...searchParams.entries()];
+    return (
+      method === "GET" &&
+      entries.length === 1 &&
+      entries[0][0] === "ids" &&
+      entries[0][1] === conversationId
+    );
+  }
   const prefix = "/api/conversations/" + encodeURIComponent(conversationId);
   if (!pathname.startsWith(prefix)) return false;
   const tail = pathname.slice(prefix.length);
@@ -178,6 +219,7 @@ export async function proxyOpenHandsSurface(req, res, store, url) {
       capability.conversationId,
       method,
       run.mode,
+      url.searchParams,
     )
   )
     fail("OpenHands surface route refused.", 403);
@@ -223,18 +265,16 @@ export async function proxyOpenHandsSurface(req, res, store, url) {
 export function installOpenHandsWebSocketProxy(server, store) {
   const sockets = new WebSocketServer({ noServer: true });
   server.on("upgrade", (req, socket, head) => {
-    let url, parts, conversationId;
+    let url, parts;
     try {
       url = new URL(req.url, "http://" + req.headers.host);
-      parts = routeParts(url.pathname);
-      const match = parts?.upstreamPath.match(/^\/sockets\/events\/([^/]+)$/);
-      if (!parts || !match) return socket.destroy();
-      conversationId = decodeURIComponent(match[1]);
+      parts = openHandsSurfaceSocketRoute(url.pathname, url.searchParams);
+      if (!parts) return socket.destroy();
       const run = store.get("runs", parts.runId);
       if (
         !run ||
         run.provider !== "openhands" ||
-        run.providerSessionId !== conversationId
+        run.providerSessionId !== parts.conversationId
       )
         return socket.destroy();
     } catch {
@@ -258,10 +298,7 @@ export function installOpenHandsWebSocketProxy(server, store) {
           authorized = true;
           clearTimeout(timer);
           const settings = openHandsSettings(),
-            target = new URL(
-              "/sockets/events/" + encodeURIComponent(conversationId),
-              settings.host,
-            );
+            target = new URL(parts.upstreamPath + url.search, settings.host);
           target.protocol = target.protocol === "https:" ? "wss:" : "ws:";
           upstream = new WebSocket(target);
           upstream.on("open", () => {

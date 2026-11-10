@@ -10,6 +10,7 @@ import {
   authorizeOpenHandsSurface,
   mintOpenHandsSurface,
   openHandsSurfaceRouteAllowed,
+  openHandsSurfaceSocketRoute,
 } from "../openhands-surface.mjs";
 import { Operations } from "../operations.mjs";
 import { fixture } from "./fixtures.mjs";
@@ -244,12 +245,13 @@ test("OpenHands surface capabilities bind one run and one conversation", (t) => 
 
 test("OpenHands surface routes deny server authority and read-only workspace mutation", () => {
   const conversation = "conversation-one",
-    route = (tail, method, mode = "implement") =>
+    route = (tail, method, mode = "implement", query = "") =>
       openHandsSurfaceRouteAllowed(
         `/api/conversations/${conversation}${tail}`,
         conversation,
         method,
         mode,
+        new URLSearchParams(query),
       );
   assert.equal(route("", "GET"), true);
   assert.equal(route("/events", "POST", "ask"), true);
@@ -266,11 +268,89 @@ test("OpenHands surface routes deny server authority and read-only workspace mut
   assert.equal(route("/../other", "GET"), false);
   assert.equal(
     openHandsSurfaceRouteAllowed(
+      "/api/conversations",
+      conversation,
+      "GET",
+      "implement",
+      new URLSearchParams({ ids: conversation }),
+    ),
+    true,
+  );
+  assert.equal(
+    openHandsSurfaceRouteAllowed(
+      "/api/conversations",
+      conversation,
+      "GET",
+      "implement",
+      new URLSearchParams({ ids: "conversation-two" }),
+    ),
+    false,
+  );
+  assert.equal(
+    openHandsSurfaceRouteAllowed(
+      "/api/conversations",
+      conversation,
+      "GET",
+      "implement",
+      new URLSearchParams({
+        ids: conversation,
+        limit: "100",
+      }),
+    ),
+    false,
+  );
+  assert.equal(
+    openHandsSurfaceRouteAllowed(
       `/api/conversations/${conversation}-other`,
       conversation,
       "GET",
       "implement",
     ),
     false,
+  );
+});
+
+test("OpenHands surface sockets allow only one bound session cursor", () => {
+  const path =
+    "/openhands/run-surface/sockets/session/conversation-one";
+  assert.deepEqual(
+    openHandsSurfaceSocketRoute(path, new URLSearchParams({ after_seq: "8" })),
+    {
+      runId: "run-surface",
+      upstreamPath: "/sockets/session/conversation-one",
+      kind: "session",
+      conversationId: "conversation-one",
+    },
+  );
+  assert.ok(
+    openHandsSurfaceSocketRoute(
+      path,
+      new URLSearchParams({ after_seq: "-1" }),
+    ),
+  );
+  assert.equal(
+    openHandsSurfaceSocketRoute(
+      path,
+      new URLSearchParams({ after_seq: "8", session_api_key: "server-key" }),
+    ),
+    null,
+  );
+  assert.equal(
+    openHandsSurfaceSocketRoute(
+      path.replace("conversation-one", "conversation-one/extra"),
+    ),
+    null,
+  );
+  assert.ok(
+    openHandsSurfaceSocketRoute(
+      path.replace("/session/", "/events/"),
+    ),
+  );
+  assert.equal(
+    openHandsSurfaceSocketRoute(
+      path.replace("/session/", "/events/"),
+      new URLSearchParams({ after_seq: "8" }),
+    ),
+    null,
   );
 });

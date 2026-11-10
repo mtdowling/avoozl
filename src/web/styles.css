@@ -1040,6 +1040,11 @@ select { min-height: 32px; padding: 0 8px; font-size: 10px; }
 .conversation-surface-switch { margin-right: 4px; }
 .openhands-surface { min-height: 0; flex: 1; overflow: hidden; }
 .openhands-surface > * { height: 100%; min-height: 0; }
+.openhands-surface > [data-agent-server-ui] > [data-theme] {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
 
 @media (max-width: 760px) {
   .faceted-screen.filters-hidden {
