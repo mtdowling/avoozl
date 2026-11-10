@@ -267,6 +267,12 @@ try {
     .list("requests")
     .find((r) => r.runId === runId && r.state === "pending");
   const channels = facade.projection.resourcesFor(runId);
+  // The editor lists a host's sessions only where one of the session's working
+  // directories is, or contains, an open folder (_matchesAnyFolder in the
+  // workbench's agent-host session list). A run works in its own Git worktree,
+  // a sibling of the repository, so opening the repository hides the very
+  // session this check is about. Open the run's worktree.
+  const editorFolder = store.get("runs", runId)?.worktree || fixture.repository;
 
   // Launch the application binary rather than the `code` launcher. The
   // launcher asks macOS to open the app, which activates an already-running
@@ -335,7 +341,7 @@ try {
         String(facade.port),
         "--agent-host-bridge-connection-token",
         editorClient.connectionToken,
-        fixture.repository,
+        editorFolder,
       ],
       { stdio: ["ignore", "pipe", "pipe"] },
     );
@@ -355,7 +361,7 @@ try {
         "/?tkn=" +
         browserToken +
         "&folder=" +
-        encodeURIComponent(fixture.repository),
+        encodeURIComponent(editorFolder),
     );
   } else if (!launchEditor) {
     say("");
@@ -368,7 +374,7 @@ try {
         " --extensions-dir " +
         extensions +
         " --disable-workspace-trust " +
-        fixture.repository,
+        editorFolder,
     );
   }
   editor = editor
@@ -382,7 +388,7 @@ try {
             "--extensions-dir",
             extensions,
             "--disable-workspace-trust",
-            fixture.repository,
+            editorFolder,
           ],
           { stdio: ["ignore", "pipe", "pipe"], detached: false },
         )

@@ -182,6 +182,11 @@ export function startAhpFacade({
                     // registers this session's chat under.
                     agentProvider: agentProviderId(r.provider),
                     state: r.state,
+                    // The editor lists a session only where one of its working
+                    // directories is, or contains, an open folder. A client
+                    // needs this to explain an absent session rather than
+                    // reporting the host as having advertised nothing.
+                    ...(r.worktree ? { worktree: r.worktree } : {}),
                     ...projection.transaction(() => projection.ensureRun(r)),
                   })),
               }
