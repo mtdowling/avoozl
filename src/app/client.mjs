@@ -98,7 +98,7 @@ export const CLIENT_CONTRACT = Object.freeze({
     "observing",
   ]),
   cancellation:
-    "run.interrupt records intent, asks the provider, and waits for its acknowledgement. The terminal state comes from the provider's turn end: interrupted keeps the provider diagnostic separately from error, and a genuine failure stays failed.",
+    "run.interrupt records intent, asks the provider, and waits for its acknowledgment. The terminal state comes from the provider's turn end: interrupted keeps the provider diagnostic separately from error, and a genuine failure stays failed.",
 });
 
 export function describeWorkspace(store, { manager } = {}) {

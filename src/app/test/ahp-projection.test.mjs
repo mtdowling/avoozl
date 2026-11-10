@@ -51,7 +51,7 @@ function toolCalls(state) {
   return parts.filter((p) => p.kind === "toolCall").map((p) => p.toolCall);
 }
 
-test("an approved tool that ran, then was cancelled, stays a completed unsuccessful tool", async (t) => {
+test("an approved tool that ran, then was canceled, stays a completed unsuccessful tool", async (t) => {
   const { store } = fixture(t);
   const run = seedRun(store);
   store.event(run.id, "run.created", { run });
@@ -152,7 +152,7 @@ test("an approved tool that ran, then was cancelled, stays a completed unsuccess
   );
 });
 
-test("a tool cancelled before its decision is recorded as never executed", async (t) => {
+test("a tool canceled before its decision is recorded as never executed", async (t) => {
   const { store } = fixture(t);
   const run = seedRun(store, { id: "run-before" });
   store.event(run.id, "run.created", { run });
@@ -176,7 +176,7 @@ test("a tool cancelled before its decision is recorded as never executed", async
     providerRequestId: "p-b",
     toolUseId: "toolu_b",
     executed: false,
-    reason: "cancelled-before-acquisition",
+    reason: "canceled-before-acquisition",
   });
   store.event(run.id, "turn.completed", {
     state: "interrupted",
@@ -219,7 +219,7 @@ test("a genuine provider failure stays an error with its own message", async (t)
   projection.catchUp();
   const state = chat(projection, store, run.id);
   const call = toolCalls(state)[0];
-  // A tool that ran and failed is completed-with-error, not cancelled.
+  // A tool that ran and failed is completed-with-error, not canceled.
   assert.equal(call.status, "completed");
   assert.equal(call.success, false);
   assert.match(call.error.message, /ENOENT/);
@@ -444,8 +444,8 @@ test("a question reaches the session channel and its answer converges", async (t
       input: {
         questions: [
           {
-            header: "Colour",
-            question: "Which colour should the banner use?",
+            header: "Color",
+            question: "Which color should the banner use?",
             options: [
               { label: "Blue", description: "Calm" },
               { label: "Green", description: "Fresh" },
@@ -477,7 +477,7 @@ test("a question reaches the session channel and its answer converges", async (t
     request: {
       ...request,
       state: "allowed",
-      answers: { Colour: { answers: ["Blue"] } },
+      answers: { Color: { answers: ["Blue"] } },
     },
   });
   projection.catchUp();
@@ -486,7 +486,7 @@ test("a question reaches the session channel and its answer converges", async (t
     (p) => p.kind === "inputRequest",
   );
   assert.equal(answered.request.response ?? "accept", "accept");
-  assert.equal(answered.request.answers.Colour.value.value, "Blue");
+  assert.equal(answered.request.answers.Color.value.value, "Blue");
   assert.equal(
     (session(projection, store, run.id).inputNeeded || []).length,
     0,
@@ -621,7 +621,7 @@ test("history stays bounded and older turns page back in without gaps", async (t
       turnsNextCursor: "ordinal:3",
     });
     projection.loadOlderTurns(uris.chat, "ordinal:nonsense");
-  }, /Unrecognised history cursor/);
+  }, /Unrecognized history cursor/);
 });
 
 test("channel identifiers are namespaced by workspace and stable across titles", async (t) => {

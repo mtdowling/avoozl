@@ -61,7 +61,7 @@ export function fixture(t) {
 }
 // Wait for a condition rather than for a duration. A fixed sleep turns a
 // slower machine, or a busier test run, into a failure that says nothing
-// about the behaviour under test.
+// about the behavior under test.
 export async function waitFor(predicate, { timeoutMs = 20000, label } = {}) {
   const deadline = Date.now() + timeoutMs;
   for (;;) {

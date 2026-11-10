@@ -52,7 +52,7 @@ export function createSingleStrip(
     showLandings = localStorage.getItem("avoozl-strip-landings") !== "false";
   } catch {}
   let gesture;
-  root.innerHTML = `<div class="strip-heading"><div><div class="strip-level" aria-live="polite"></div><div class="strip-progress-summary" hidden></div></div><div class="strip-zoom"><div class="strip-orders" role="group" aria-label="Strip ordering"><button class="button" data-strip-order="chronological">Chronological</button><button class="button" data-strip-order="progress">Done first</button></div><button class="button" data-focus-workers>In flight</button><button class="button" data-strip-fit>All</button><button class="button" data-strip-matches aria-label="Focus matches"><span class="strip-match-full">Focus matches</span><span class="strip-match-short">Matches</span></button><div class="strip-magnification"><button class="button" data-strip-out aria-label="Zoom strip out">−</button><input type="range" min="0" max="16" step="0.01" value="0" aria-label="Strip zoom"><button class="button" data-strip-in aria-label="Zoom strip in">＋</button></div></div></div><div class="strip-stage" tabindex="0" role="group" aria-label="All tasks in one strip. Pinch or Ctrl-scroll to zoom, drag sideways to pan, double-click to zoom. Plus and minus zoom; arrow keys pan; Home fits all."><canvas class="strip-canvas" aria-hidden="true"></canvas><div class="strip-labels"></div><div class="strip-workers" aria-label="Agents working on this strip"></div><div class="strip-empty" hidden>No tasks in this collection.</div></div><div class="strip-bottom"><div class="strip-legend"><span><i></i>Complete</span><span><i></i>Remaining</span><span>Filters fade tasks; positions and scope stay fixed.</span></div><div class="strip-minimap" tabindex="0" role="slider" aria-label="Position within all tasks" aria-valuemin="0" aria-valuemax="100"><canvas aria-hidden="true"></canvas><div class="strip-window"></div></div><div class="strip-help"><span class="strip-location"></span><span>Pinch / Ctrl-scroll to zoom · drag sideways to pan · click an epic to zoom into it · click a task for context</span></div></div>`;
+  root.innerHTML = `<div class="strip-heading"><div class="strip-scope"><div class="strip-level" aria-live="polite" title="Strip zoom"><svg class="strip-level-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16.4 16.4 4.1 4.1"/></svg><span class="strip-level-scale"></span></div><div class="strip-progress-summary" hidden></div></div><div class="strip-zoom"><div class="strip-orders" role="group" aria-label="Strip ordering"><button class="button" data-strip-order="chronological">Chronological</button><button class="button" data-strip-order="progress">Done first</button></div><button class="button" data-focus-workers>In flight</button><button class="button" data-strip-fit>All</button><button class="button" data-strip-matches aria-label="Focus matches"><span class="strip-match-full">Focus matches</span><span class="strip-match-short">Matches</span></button><div class="strip-magnification"><button class="button" data-strip-out aria-label="Zoom strip out">−</button><input type="range" min="0" max="16" step="0.01" value="0" aria-label="Strip zoom"><button class="button" data-strip-in aria-label="Zoom strip in">＋</button></div></div></div><div class="strip-stage" tabindex="0" role="group" aria-label="All tasks in one strip. Pinch or Ctrl-scroll to zoom, drag sideways to pan, double-click to zoom. Plus and minus zoom; arrow keys pan; Home fits all."><canvas class="strip-canvas" aria-hidden="true"></canvas><div class="strip-labels"></div><div class="strip-workers" aria-label="Agents working on this strip"></div><div class="strip-empty" hidden>No tasks in this collection.</div></div><div class="strip-bottom"><div class="strip-legend"><span><i></i>Complete</span><span><i></i>Remaining</span><span>Filters fade tasks; positions and scope stay fixed.</span></div><div class="strip-minimap" tabindex="0" role="slider" aria-label="Position within all tasks" aria-valuemin="0" aria-valuemax="100"><canvas aria-hidden="true"></canvas><div class="strip-window"></div></div><div class="strip-help"><span class="strip-location"></span><span>Pinch / Ctrl-scroll to zoom · drag sideways to pan · click an epic to zoom into it · click a task for context</span></div></div>`;
   const landedToggle = document.createElement("button");
   landedToggle.className = "button";
   landedToggle.dataset.toggleLandings = "";
@@ -77,7 +77,8 @@ export function createSingleStrip(
     miniCanvas = minimap.querySelector("canvas"),
     windowBox = minimap.querySelector(".strip-window"),
     slider = root.querySelector("input"),
-    level = root.querySelector(".strip-level");
+    level = root.querySelector(".strip-level"),
+    levelScale = root.querySelector(".strip-level-scale");
   const momentum = createPanMomentum({
     move(dx) {
       if (!input || root.hidden) return false;
@@ -363,7 +364,12 @@ export function createSingleStrip(
         : scale > 1.1
           ? "Epic neighborhoods"
           : "All plans";
-    level.textContent = `${name} · ${scale < 10 ? scale.toFixed(1) : Math.round(scale)}×`;
+    // The badge reads as a zoom control, so the scope name is its label rather
+    // than text that changes under the operator as they zoom.
+    const factor = `${scale < 10 ? scale.toFixed(1) : Math.round(scale)}×`;
+    levelScale.textContent = factor;
+    level.title = `${name} · ${factor}`;
+    level.setAttribute("aria-label", `Strip zoom: ${name} · ${factor}`);
     const mw = minimap.clientWidth,
       mh = 32,
       mctx = context(miniCanvas, mw, mh);

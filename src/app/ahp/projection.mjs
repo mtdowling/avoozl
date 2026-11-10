@@ -410,7 +410,7 @@ export class Projection {
   }
   // Which protocol methods a client actually called, and how each answered.
   // This is the diagnostic that tells an operator whether a client probed a
-  // capability at all, rather than leaving it to be guessed from behaviour.
+  // capability at all, rather than leaving it to be guessed from behavior.
   recordCall(entry) {
     this.calls ??= [];
     this.calls.push({
@@ -657,12 +657,12 @@ export class Projection {
     if (row?.kind !== "chat") fail("Not a chat channel.", 404);
     const state = row.state;
     if (!state.turnsNextCursor) return null;
-    // An unrecognised cursor is rejected rather than silently reinterpreted,
+    // An unrecognized cursor is rejected rather than silently reinterpreted,
     // so a client never receives a page it did not ask for.
     if (cursor && cursor !== state.turnsNextCursor)
-      fail("Unrecognised history cursor.", 400);
+      fail("Unrecognized history cursor.", 400);
     const ceiling = Number(state.turnsNextCursor.replace("ordinal:", ""));
-    if (!Number.isFinite(ceiling)) fail("Unrecognised history cursor.", 400);
+    if (!Number.isFinite(ceiling)) fail("Unrecognized history cursor.", 400);
     const page = this.db
       .prepare(
         "SELECT * FROM archived_turns WHERE channel=? AND ordinal <= ? ORDER BY ordinal DESC LIMIT ?",

@@ -110,7 +110,7 @@ export class Operations {
         .filter((e) => resolveTaskId(data, e.taskId) === id),
     };
   }
-  // The commands a validated run actually passed, summarised for an
+  // The commands a validated run actually passed, summarized for an
   // acceptance receipt. Returns null when no validation produced evidence, so
   // acceptance is recorded without inventing a justification.
   acceptanceFromValidation(taskId) {

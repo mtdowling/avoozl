@@ -22,7 +22,7 @@ export const CODEX_CAPABILITIES = Object.freeze({
   modelChangeApplies: "next-turn",
   // Observed on Codex 0.167.0: `turn/interrupt` is acknowledged and the turn
   // ends, but a command the provider already spawned keeps running. It only
-  // stopped when the app-server process itself was stopped. Cancelling must
+  // stopped when the app-server process itself was stopped. Canceling must
   // therefore not be presented as having stopped that work.
   interruptStopsSpawnedWork: false,
   subagents: false,

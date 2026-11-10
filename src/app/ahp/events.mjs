@@ -155,8 +155,8 @@ export function applyEvent(event, context) {
           approved: false,
           reason: "skipped",
           reasonMessage:
-            event.reason === "cancelled-before-acquisition"
-              ? "Cancelled before the decision reached the provider. The tool did not run."
+            event.reason === "canceled-before-acquisition"
+              ? "Canceled before the decision reached the provider. The tool did not run."
               : "The provider withdrew this request before a decision was delivered. The tool did not run.",
         });
         tracked.status = "cancelled";
@@ -227,7 +227,7 @@ export function applyEvent(event, context) {
           t.startTurn(DELIVERY_TURN(delivery.id), delivery.text, {
             queuedMessageId: delivery.id,
           });
-      } else if (delivery.state === "cancelled") {
+      } else if (delivery.state === "canceled") {
         t.chat({
           type: "chat/pendingMessageRemoved",
           kind,

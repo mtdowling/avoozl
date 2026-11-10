@@ -64,10 +64,10 @@ is refused, your buffer is kept, and you choose to compare, discard, or
 explicitly save over the current revision.
 
 **Stopping a conversation is not a failure.** Cancellation records intent, asks
-the provider, and waits for its acknowledgement; the terminal state comes from
+the provider, and waits for its acknowledgment; the terminal state comes from
 the provider's own turn end. An interrupted run keeps any provider diagnostic
 separately from an error, so a stopped process is never shown as a defect and a
-real failure is never relabelled as a cancellation.
+real failure is never relabeled as a cancellation.
 
 **Opening a task's exact conversation uses an unpublished command.** There is
 no supported extension API for opening one specific native chat. The command

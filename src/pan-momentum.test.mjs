@@ -97,7 +97,7 @@ test("only the blocked axis stops in a two-dimensional pan", () => {
   assert.equal(f.state.x, first.x);
   assert.ok(f.state.y > first.y);
 });
-test("reduced motion, cancelled gestures and background delays do not coast", () => {
+test("reduced motion, canceled gestures and background delays do not coast", () => {
   const f = fixture({ reducedMotion: () => true });
   assert.equal(f.fling(), false);
   const g = fixture();

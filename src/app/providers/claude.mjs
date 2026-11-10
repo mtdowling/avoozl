@@ -141,7 +141,7 @@ export class ClaudeAdapter {
                   toolUseId: context.toolUseID,
                   executed: false,
                   reason: this.interruption
-                    ? "cancelled-before-acquisition"
+                    ? "canceled-before-acquisition"
                     : "provider-aborted-acquisition",
                 });
                 this.emit("request.resolved", { providerRequestId });
@@ -303,7 +303,7 @@ export class ClaudeAdapter {
     this.interruption = interruption;
     await this.query.interrupt();
     // The SDK resolves once it has asked the session to stop. Record that
-    // acknowledgement; the truthful terminal state still comes from the turn.
+    // acknowledgment; the truthful terminal state still comes from the turn.
     acknowledgeInterruption(interruption, { api: "Claude SDK interrupt" });
     return {
       requested: true,

@@ -44,7 +44,7 @@ Measured, in `native-controls-claude.json` and `native-controls-codex.json`
 (14 of 14 checks each, driven by real clicks):
 
 - A real chat transcript for an owned session, with the editor's own **Allow
-  once** and **Cancel** controls driving our run. Cancelling stopped the real
+  once** and **Cancel** controls driving our run. Canceling stopped the real
   child process with `SIGTERM`, kept the tool `completed` and unsuccessful
   rather than skipped, and left the run `interrupted` with no error.
 - The code context an operator at a keyboard actually wants: the run's
@@ -76,7 +76,7 @@ width to place the list beside the chat, and there are 393. The workbench does
 not reflow at that size — it renders activity bar, editor and chat at once,
 with text wrapping to two or three words a line.
 
-The website also costs nothing to reach: no 646 MB download, no licence to
+The website also costs nothing to reach: no 646 MB download, no license to
 accept, no second server to keep running.
 
 This is emulation, not the physical-phone gate (VSC-08, still open), and it
@@ -102,7 +102,7 @@ are ours and are fixable. The React rewrite sets interactive controls to a
 44px minimum on the phone layout, addressing the concrete touch-target defect
 found in the measurement.
 
-## The proposed division of labour
+## The proposed division of labor
 
 - **Website — the complete operator application.** Triage, the full task
   inventory, conversations, durable history paging, queue versus steer,
@@ -183,7 +183,7 @@ that owns sessions, providers, permissions, plugins and application state.
 The checked documentation does not document iframe embedding or an installable
 web UI component. Sources:
 
-- Source licence:
+- Source license:
   `https://github.com/anomalyco/opencode/blob/dev/LICENSE`
 - V1 server and web:
   `https://opencode.ai/docs/server/`,
