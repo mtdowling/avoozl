@@ -1529,6 +1529,7 @@ export function App() {
     view === "visualizations" ? `${(stateData.presentation?.views?.length || 0) + (stateData.presentation?.tours?.length || 0)} saved views` :
     view === "insights" ? "Usage trends" :
     `${stateData.tasks.length} tasks`;
+  const canvasServer = window.location.origin;
   return (
     <div className={`app-shell ${canvasHost ? "canvas-host " : ""}${navCollapsed ? "nav-collapsed" : ""}`} style={{ "--nav-width": `${navCollapsed ? 44 : navWidth}px` } as React.CSSProperties}>
       <aside className={navOpen ? "app-nav open" : "app-nav"}>
@@ -1541,7 +1542,9 @@ export function App() {
       <main className="app-main">
         <header className="app-toolbar"><button className="mobile-menu" onClick={toggleNavigation}><Menu size={18} /></button>
           {canvasHost ? <nav className="canvas-view-tabs" aria-label="Avoozl views">{visibleViews.map(({ id, label }) => <button key={id} className={view === id ? "active" : ""} onClick={() => navigate(id)} aria-current={view === id ? "page" : undefined}>{label}</button>)}</nav> : <><strong>{currentView.label}</strong>{pageDescriptions[view] && <span className="page-help" tabIndex={0} aria-label={`About ${currentView.label}`} aria-describedby="page-help-tip">?<span className="page-help-tip" id="page-help-tip" role="tooltip">{pageDescriptions[view]}</span></span>}</>}
-          <span className="toolbar-rule" /><span>{toolbarCount}</span><div className="toolbar-spacer" />
+          {(!canvasHost || view !== "insights") && <><span className="toolbar-rule" /><span>{toolbarCount}</span></>}
+          <div className="toolbar-spacer" />
+          {canvasHost && <span className="canvas-connection" tabIndex={0} aria-label="Avoozl instance is live" aria-describedby="canvas-connection-tip"><i aria-hidden="true" /><span className="canvas-connection-tip" id="canvas-connection-tip" role="tooltip"><strong>Avoozl is live</strong><span>Avoozl server <code>{canvasServer}</code></span><span>MCP server <code>{canvasServer}/mcp</code></span><span>Workspace <code>{workspaceName}</code></span><span>Surface <code>OpenHands Canvas</code></span></span></span>}
           {facetedView && <button className={filtersOpen ? "toolbar-action active" : "toolbar-action"} onClick={toggleFilters} title={filtersOpen ? "Collapse filters" : "Show filters"} aria-expanded={filtersOpen}><Filter size={17} /></button>}
           {!canvasHost && <button className="toolbar-action" onClick={() => askAgent(PROGRESS_PROMPT)} title="Ask an agent about progress"><MessageSquare size={17} /></button>}
           {!canvasHost && <button className="toolbar-action" onClick={() => { setRunId(null); navigate("conversations"); }} title="New task"><Plus size={17} /></button>}

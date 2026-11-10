@@ -109,6 +109,39 @@ body.resizing-panels { cursor: col-resize; user-select: none; }
 .mobile-menu { display: none !important; }
 .toolbar-rule { height: 17px; border-left: 1px solid var(--line); }
 .toolbar-spacer { flex: 1; }
+.canvas-connection { position: relative; width: 28px; height: 28px; flex: none; display: grid; place-items: center; border-radius: 5px; }
+.canvas-connection > i { width: 8px; height: 8px; border-radius: 50%; background: var(--on); box-shadow: 0 0 0 3px color-mix(in srgb, var(--on) 15%, transparent); }
+.canvas-connection:hover, .canvas-connection:focus-visible { background: var(--panel-2); outline: 0; }
+.canvas-connection-tip { position: absolute; top: calc(100% + 6px); right: 0; z-index: 80; width: 310px; padding: 11px 12px; display: grid; gap: 7px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel-2); color: var(--muted); font-size: 11px; line-height: 1.45; box-shadow: 0 12px 32px #000b; opacity: 0; visibility: hidden; pointer-events: none; }
+.canvas-connection:hover .canvas-connection-tip, .canvas-connection:focus-visible .canvas-connection-tip { opacity: 1; visibility: visible; }
+.canvas-connection-tip strong { color: var(--bright); font-size: 12px; }
+.canvas-connection-tip span { min-width: 0; display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 8px; }
+.canvas-connection-tip code { overflow: hidden; color: #d7d7d7; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Canvas has roomier host typography than Avoozl's direct, high-density view.
+   Lift only the compact embedded controls; primary content already matches. */
+.canvas-host .app-toolbar { font-size: 11px; }
+.canvas-host .app-toolbar .canvas-view-tabs button { font-size: 12px; }
+.canvas-host .search-label,
+.canvas-host .shopping-facet summary { font-size: 12px; }
+.canvas-host .search-label span,
+.canvas-host .facet-option small,
+.canvas-host .facet-empty,
+.canvas-host .facet-result-count { font-size: 10px; }
+.canvas-host .query-box textarea,
+.canvas-host .facet-option,
+.canvas-host .facet-find { font-size: 11px; }
+.canvas-host .button { font-size: 10px; }
+.canvas-host .strip-epic span,
+.canvas-host .strip-task small,
+.canvas-host .strip-legend,
+.canvas-host .strip-help { font-size: 9px; }
+.canvas-host .strip-epic strong,
+.canvas-host .strip-task strong,
+.canvas-host .strip-level { font-size: 11px; }
+.canvas-host .recent-tree .tree-task .tree-task-title { font-size: 12px; }
+.canvas-host .recent-tree .tree-task .badge,
+.canvas-host .recent-tree .tree-blocker-cell .task-blockers { font-size: 10px; }
 
 .screen { height: calc(100vh - 40px); padding: 16px; overflow: auto; }
 .view-heading, .screen-heading { min-height: 54px; margin-bottom: 12px; display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--line); }
@@ -569,6 +602,7 @@ select { min-height: 32px; padding: 0 8px; font-size: 10px; }
   .app-toolbar .mobile-menu { display: grid !important; }
   .nav-scrim { position: fixed; inset: 0; z-index: 25; display: block; background: #0008; }
   .toolbar-rule, .app-toolbar > span:not(.live-light), .app-toolbar .live-light { display: none; }
+  .canvas-host .app-toolbar .canvas-connection { display: grid; }
   .screen, .split-screen { height: calc(100vh - 52px); }
   .screen { padding: 12px; }
   .metric-grid { grid-template-columns: repeat(2, 1fr); }
