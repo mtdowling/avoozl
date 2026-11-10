@@ -355,6 +355,14 @@ export function installEpicGestures(
   });
   function pointerEnd(e) {
     if (!pointers.has(e.pointerId)) return;
+    const viewport = getViewport();
+    // Touch capture moves from the pressed task to the viewport when dragging
+    // starts. The task's bubbling lostpointercapture does not end that drag.
+    if (
+      e.type === "lostpointercapture" &&
+      (e.target !== viewport || viewport?.hasPointerCapture(e.pointerId))
+    )
+      return;
     const moved = pan?.moved;
     pointers.delete(e.pointerId);
     getViewport()?.classList.remove("panning");

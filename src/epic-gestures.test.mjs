@@ -134,6 +134,57 @@ test("single-finger taps still select, and single-finger drags retain momentum",
   assert.equal(f.gestures.consumeClick(), false);
   assert.equal(f.calls.filter((c) => c[0] === "release").length, 1);
 });
+test("taking touch capture from a task keeps the drag and release velocity", () => {
+  const f = fixture(),
+    task = { closest: () => f.viewport };
+  f.fire("pointerdown", { target: task, pointerType: "touch" });
+  f.fire("pointermove", {
+    target: task,
+    pointerType: "touch",
+    clientY: 290,
+    timeStamp: 110,
+  });
+  assert.equal(f.viewport.scrollTop, 110);
+  assert.ok(f.captured.has(1));
+  // Touch implicitly captures the pressed task. Transferring capture to the
+  // viewport sends this event from that task before the next pointermove.
+  f.fire("lostpointercapture", { target: task, pointerType: "touch" });
+  f.fire("pointermove", { clientY: 200, timeStamp: 140 });
+  assert.equal(f.viewport.scrollTop, 200);
+  f.fire("pointerup", { timeStamp: 150 });
+  assert.deepEqual(
+    f.calls.filter((c) => c[0] === "sample").map((c) => c[2]),
+    [290, 200],
+  );
+  assert.equal(f.calls.filter((c) => c[0] === "release").length, 1);
+  assert.ok(f.gestures.consumeClick());
+});
+test("losing viewport capture cancels a drag without momentum", () => {
+  const f = fixture();
+  f.fire("pointerdown");
+  f.fire("pointermove", { clientY: 290, timeStamp: 110 });
+  f.captured.delete(1);
+  f.fire("lostpointercapture", { target: f.viewport });
+  f.fire("pointermove", { clientY: 200, timeStamp: 140 });
+  f.fire("pointerup", { timeStamp: 150 });
+  assert.equal(f.viewport.scrollTop, 110);
+  assert.equal(f.calls.filter((c) => c[0] === "release").length, 0);
+  assert.ok(f.gestures.consumeClick());
+});
+test("touch capture handoffs preserve both fingers during a pinch", () => {
+  const f = fixture(),
+    task = { closest: () => f.viewport };
+  f.fire("pointerdown", { target: task });
+  f.fire("pointerdown", { pointerId: 2, target: task, clientX: 500 });
+  for (const pointerId of [1, 2])
+    f.fire("lostpointercapture", { pointerId, target: task });
+  f.fire("pointermove", { pointerId: 2, clientX: 600 });
+  assert.equal(f.zoom, 150);
+  f.fire("pointerup", { pointerId: 2 });
+  f.fire("pointerup");
+  assert.equal(f.calls.filter((c) => c[0] === "release").length, 0);
+  assert.ok(f.gestures.consumeClick());
+});
 test("cancellation and view resets clear every tracked finger", () => {
   const f = fixture();
   f.fire("pointerdown");
