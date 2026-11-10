@@ -27,7 +27,7 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createEpicProgress } from "../progress.mjs";
 import { createSingleStrip } from "../strip.mjs";
 import { createWorkbench } from "../workbench.mjs";
@@ -188,6 +188,13 @@ function Empty({ icon: Icon, title, children }: { icon: typeof Bot; title: strin
 
 function LoadingSurface({ label }: { label: string }) {
   return <div className="center-state"><RefreshCw className="spin" size={22} /><p>{label}</p></div>;
+}
+
+function AvoozlLoading({ label, className = "" }: { label: string; className?: string }) {
+  return <div className={`center-state avoozl-loading ${className}`} role="status">
+    <div className="avoozl-loader" aria-hidden="true"><span>A</span></div>
+    <p>{label}</p>
+  </div>;
 }
 
 function Overview({ workspace, state, openRun, openTask }: { workspace: Workspace; state: State; openRun: (id: string, run?: Run) => void; openTask: (task: Task) => void }) {
@@ -365,6 +372,25 @@ function TaskFacets({ workspace, state, filters, setFilters, count, applyPromptV
   applyPromptView: (view: SavedView) => void;
 }) {
   const complete = new Set(state.statuses.filter((item) => item.complete).map((item) => item.id));
+  const facetCounts = useMemo(() => {
+    const counts = {
+      scope: new Map<string, number>(),
+      status: new Map<string, number>(),
+      epic: new Map<string, number>(),
+      track: new Map<string, number>(),
+      tag: new Map<string, number>(),
+    };
+    const add = (key: keyof typeof counts, value: string) =>
+      counts[key].set(value, (counts[key].get(value) || 0) + 1);
+    for (const task of state.tasks) {
+      add("scope", task.scope || "runtime");
+      add("status", task.status);
+      add("epic", task.epic || "");
+      add("track", task.track || "");
+      for (const tag of task.tags || []) add("tag", tag);
+    }
+    return counts;
+  }, [state.tasks]);
   const savedPromptConfiguration = useMemo(() => {
     try { return JSON.parse(sessionStorage.getItem("nupp-workspace-session-v1") || "{}"); }
     catch { return {}; }
@@ -374,8 +400,7 @@ function TaskFacets({ workspace, state, filters, setFilters, count, applyPromptV
   const [promptPending, setPromptPending] = useState(false);
   const [promptFeedback, setPromptFeedback] = useState("");
   const promptMode = /^\/prompt(?:\s|$)/.test(filters.query);
-  const countFor = (key: "scope" | "status" | "epic" | "track" | "tag", value: string) =>
-    state.tasks.filter((task) => key === "tag" ? task.tags?.includes(value) : (task[key] || (key === "scope" ? "runtime" : "")) === value).length;
+  const countFor = (key: keyof typeof facetCounts, value: string) => facetCounts[key].get(value) || 0;
   const toggle = (key: TaskArrayFilterKey, value: string, exclusive = false) =>
     setFilters((current) => ({ ...current, [key]: exclusive ? (current[key].includes(value) ? [] : [value]) : current[key].includes(value) ? current[key].filter((item) => item !== value) : [...current[key], value] }));
   const chips = ([
@@ -475,7 +500,7 @@ function TaskFacets({ workspace, state, filters, setFilters, count, applyPromptV
       <FacetGroup title="Status" open selected={filters.statuses} toggle={(value) => toggle("statuses", value)} values={state.statuses.map((item) => ({ id: item.id, label: item.label, count: countFor("status", item.id) }))} />
       <FacetGroup title="Epic" open searchable selected={filters.epics} toggle={(value) => toggle("epics", value)} values={state.epics.map((item) => ({ id: item.id, label: item.title, count: countFor("epic", item.id) }))} />
       <FacetGroup title="Track" searchable selected={filters.tracks} toggle={(value) => toggle("tracks", value)} values={state.tracks.map((item) => ({ id: item.id, label: item.label, count: countFor("track", item.id) }))} />
-      <FacetGroup title="Tags" searchable selected={filters.tags} toggle={(value) => toggle("tags", value)} values={[...new Set(state.tasks.flatMap((task) => task.tags || []))].sort().map((tag) => ({ id: tag, label: tag, count: countFor("tag", tag) }))} />
+      <FacetGroup title="Tags" searchable selected={filters.tags} toggle={(value) => toggle("tags", value)} values={[...facetCounts.tag.keys()].sort().map((tag) => ({ id: tag, label: tag, count: countFor("tag", tag) }))} />
       <FacetGroup title="Check-in" selected={filters.activity} toggle={(value) => toggle("activity", value)} values={[
         { id: "active", label: "Fresh", count: state.tasks.filter((task) => task.activity?.status === "active").length },
         { id: "stale", label: "Expired", count: state.tasks.filter((task) => task.activity?.status === "stale").length },
@@ -681,7 +706,7 @@ function Documents({ workspace, state, selected, select, selectedPlan, selectPla
         </details>
       </div>}
     </header>
-    {section === "library" ? <div className="library-window">
+    {section === "library" ? !docs.data ? <AvoozlLoading className="plans-loading" label={docs.error?.message || "Loading plans…"} /> : <div className="library-window">
       <div className="library-scroll-heading"><h2>Plan library</h2><p>{filtered.length} plans{query ? ` matching “${query}”` : ""}</p></div>
       {grouped.map((item) => <section className="library-group" key={item.name}><h3 className="virtual-group-heading">{item.name} <span>{item.docs.length}</span></h3>{item.docs.map((doc) => {
         const linked = doc.taskIds?.length || 0;
@@ -868,17 +893,32 @@ function Graph({ state, matchingTasks, openTask }: { state: State; matchingTasks
     const ids = new Set(tasks.map((task) => task.id));
     return baseLinks.filter((edge) => ids.has(edge.from) && ids.has(edge.to));
   }, [baseLinks, tasks]);
-  const positions = useMemo(() => dependencyLayout(tasks, links, (task: Task) => task.epic || ""), [links, tasks]);
   const stage = useRef<HTMLDivElement>(null);
+  const [positions, setPositions] = useState<Record<string, { x: number; y: number }> | null>(null);
+  const [layoutReady, setLayoutReady] = useState(false);
   const [stageSize, setStageSize] = useState({ width: 1, height: 1 });
   const [camera, setCamera] = useState({ x: 0, y: 0, scale: 1 });
   const [drag, setDrag] = useState<{ x: number; y: number; cameraX: number; cameraY: number } | null>(null);
   const [manualPositions, setManualPositions] = useState<Record<string, { x: number; y: number }>>({});
   const [nodeDrag, setNodeDrag] = useState<{ id: string; x: number; y: number; startX: number; startY: number } | null>(null);
   const movedNode = useRef(false);
-  const displayPositions = useMemo(() => ({ ...positions, ...manualPositions }), [manualPositions, positions]);
+  useEffect(() => {
+    let cancelled = false;
+    setPositions(null);
+    setLayoutReady(false);
+    setManualPositions({});
+    const timer = window.setTimeout(() => {
+      const next = dependencyLayout(tasks, links, (task: Task) => task.epic || "");
+      if (!cancelled) setPositions(next);
+    }, 0);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [links, tasks]);
+  const displayPositions = useMemo(() => ({ ...(positions || {}), ...manualPositions }), [manualPositions, positions]);
   const bounds = useMemo(() => {
-    const points = Object.values(positions);
+    const points = Object.values(positions || {});
     const minX = Math.min(0, ...points.map((point) => point.x)) - 110;
     const minY = Math.min(0, ...points.map((point) => point.y)) - 55;
     const maxX = Math.max(NODE_W, ...points.map((point) => point.x + NODE_W)) + 110;
@@ -886,6 +926,7 @@ function Graph({ state, matchingTasks, openTask }: { state: State; matchingTasks
     return { minX, minY, maxX, maxY, width: maxX - minX, height: maxY - minY };
   }, [positions]);
   const fit = useCallback(() => {
+    if (!positions) return;
     const box = stage.current?.getBoundingClientRect();
     if (!box) return;
     const scale = Math.max(.05, Math.min(1.25, box.width / bounds.width, box.height / bounds.height));
@@ -894,8 +935,12 @@ function Graph({ state, matchingTasks, openTask }: { state: State; matchingTasks
       x: (box.width - bounds.width * scale) / 2 - bounds.minX * scale,
       y: (box.height - bounds.height * scale) / 2 - bounds.minY * scale,
     });
-  }, [bounds]);
-  useEffect(() => { fit(); }, [fit]);
+  }, [bounds, positions]);
+  useLayoutEffect(() => {
+    if (!positions) return;
+    fit();
+    setLayoutReady(true);
+  }, [fit, positions]);
   useEffect(() => {
     const element = stage.current;
     if (!element) return;
@@ -920,7 +965,7 @@ function Graph({ state, matchingTasks, openTask }: { state: State; matchingTasks
   return (
     <section className="graph-view">
       <div className="graph-top"><span><i className="legend-line" /> prerequisite → dependent <i className="legend-line dashed" /> supports / sequence</span><select aria-label="Explore selected task relationships" value={relation} onChange={(event) => setRelation(event.target.value)}><option value="">Whole matching graph</option><option value="upstream">All prerequisites of selected</option><option value="downstream">Everything selected unblocks</option><option value="both">Connected to selected</option></select></div>
-      <div id="graph-stage" className={drag ? "dragging" : ""} ref={stage} tabIndex={0}
+      <div id="graph-stage" className={!layoutReady ? "loading" : drag ? "dragging" : ""} ref={stage} tabIndex={0}
         onPointerDown={(event) => {
           if ((event.target as Element).closest(".graph-controls, .graph-html-node")) return;
           event.currentTarget.setPointerCapture(event.pointerId);
@@ -931,7 +976,7 @@ function Graph({ state, matchingTasks, openTask }: { state: State; matchingTasks
         onPointerCancel={() => setDrag(null)}
         onWheel={(event) => { event.preventDefault(); zoom(Math.exp(-Math.max(-120, Math.min(120, event.deltaY)) * .003), event.clientX, event.clientY); }}
         onKeyDown={(event) => { if (event.key === "+" || event.key === "=") zoom(1.2); else if (event.key === "-") zoom(1 / 1.2); else if (event.key === "0") fit(); }}>
-        <svg id="graph" role="group" aria-label="Task dependency graph"
+        {!layoutReady ? <AvoozlLoading className="graph-loading" label="Laying out task graph…" /> : <><svg id="graph" role="group" aria-label="Task dependency graph"
           viewBox={`${-camera.x / camera.scale} ${-camera.y / camera.scale} ${stageSize.width / camera.scale} ${stageSize.height / camera.scale}`}>
           <defs>
             <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,4 L0,8" fill="currentColor" /></marker>
@@ -988,8 +1033,9 @@ function Graph({ state, matchingTasks, openTask }: { state: State; matchingTasks
         </div>
         <div className="graph-controls"><button onClick={() => zoom(.8)} aria-label="Zoom out">−</button><output>{Math.round(camera.scale * 100)}%</output><button onClick={() => zoom(1.25)} aria-label="Zoom in">＋</button><button onClick={fit}>Fit</button><button onClick={() => { setManualPositions({}); requestAnimationFrame(fit); }}>Reset layout</button></div>
         <div className="graph-instructions">Drag nodes to arrange · drag canvas to pan · scroll / pinch to zoom · click to inspect</div>
+        </>}
       </div>
-      <div className="graph-footer"><span>{tasks.length} matching tasks · {links.length} connections</span><span>Positions stay in this browser. Task data comes from the workspace.</span></div>
+      {layoutReady && <div className="graph-footer"><span>{tasks.length} matching tasks · {links.length} connections</span><span>Positions stay in this browser. Task data comes from the workspace.</span></div>}
     </section>
   );
 }
