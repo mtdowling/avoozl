@@ -7,6 +7,10 @@
   --muted: #a0a0a0;
   --accent: #6ba5ff;
   --on: #8edabb;
+  /* Work in flight breathes in purple; green is reserved for landed work. */
+  --working: #ab7df5;
+  --working-ink: #1d1030;
+  --landed: #8edabb;
   --selected: #8ab8ff;
   font-family:
     Inter,
@@ -183,6 +187,11 @@ h3 {
 .connection button {
   font-size: 19px;
   padding: 8px;
+}
+.connection button svg {
+  display: block;
+  width: 19px;
+  height: 19px;
 }
 .projectbar {
   display: flex;
@@ -1009,27 +1018,61 @@ dialog .dialog-heading button {
   font-size: 24px;
   color: var(--muted);
 }
-#visualizations-dialog {
-  width: min(520px, 94vw);
+/* Visualizations are a destination: a readable list you can prune in place. */
+#visualizations-view {
+  overflow: auto;
 }
 .visualization-list {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  max-width: 720px;
+  padding: 18px 20px 28px;
 }
-.visualization-list > button {
+.visualization-note {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 0 0 6px;
+}
+.visualization-rows {
   display: flex;
   flex-direction: column;
+  gap: 4px;
+}
+.visualization-row {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+.visualization-row > button:first-child {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
   gap: 5px;
-  width: 100%;
   min-height: 44px;
   padding: 10px 12px;
   border-radius: 6px;
   text-align: left;
 }
-.visualization-list > button:hover,
-.visualization-list > button[aria-current] {
+.visualization-row > button:first-child:hover,
+.visualization-row > button:first-child[aria-current] {
   background: #303030;
+}
+.visualization-remove {
+  flex: none;
+  width: 36px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 17px;
+  line-height: 1;
+}
+.visualization-remove:hover {
+  color: #f2b1b1;
+  border-color: #7c4a4a;
+  background: #2e2020;
 }
 .visualization-list strong {
   font-size: 13px;
@@ -1043,7 +1086,7 @@ dialog .dialog-heading button {
 .visualization-list h3 {
   font-size: 12px;
   color: var(--muted);
-  margin: 16px 12px 4px;
+  margin: 16px 0 4px;
 }
 dialog label {
   display: flex;
@@ -2220,17 +2263,20 @@ dialog textarea {
 .strip-task.complete .strip-task-progress b {
   background: #323232;
 }
+/* The zoom level reads in the heading; the stage stays clear for the work. */
 .strip-level {
-  position: absolute;
-  bottom: 15px;
-  left: 20px;
-  padding: 6px 10px;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 9px;
   background: #242424;
   border: 1px solid #454545;
   border-radius: 5px;
   color: #cacaca;
   font-size: 9px;
-  pointer-events: none;
+  white-space: nowrap;
+}
+.strip-level:empty {
+  display: none;
 }
 .strip-empty {
   padding: 100px 20px;
@@ -2472,9 +2518,6 @@ dialog textarea {
 .strip-bottom {
   padding-top: 10px;
   padding-bottom: 10px;
-}
-.strip-level {
-  bottom: 10px;
 }
 .workspace.theater .inspector {
   top: calc(58px + var(--presentation-height, 0px));
@@ -4626,13 +4669,11 @@ body {
   font-size: 11px;
   color: #9a9a9a;
 }
-.overview-heading h2,
-.library-heading h2 {
+.overview-heading h2 {
   margin: 0;
   font-size: 25px;
 }
-.overview-heading p,
-.library-heading p {
+.overview-heading p {
   margin: 6px 0;
   color: #ababab;
   font-size: 12px;
@@ -5044,6 +5085,65 @@ body {
   margin: 0 0 28px;
   scroll-margin-top: 20px;
 }
+/* One queue at a time, with its size on the tab so nothing hides. */
+.hub-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 0 0 18px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid #3b3b3b;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.hub-tabs::-webkit-scrollbar {
+  display: none;
+}
+.hub-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  padding: 10px 14px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 6px 6px 0 0;
+  background: none;
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.hub-tabs button span {
+  min-width: 20px;
+  padding: 2px 6px;
+  border-radius: 9px;
+  background: #313131;
+  color: #cfcfcf;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.hub-tabs button:hover {
+  color: var(--text);
+  background: #232323;
+}
+.hub-tabs button[aria-selected="true"] {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+.hub-tabs button[aria-selected="true"] span {
+  background: #35425c;
+  color: #e7eeff;
+}
+.hub-tabs button[data-now-tab="working"][aria-selected="true"] {
+  border-bottom-color: var(--working);
+}
+.hub-tabs button[data-now-tab="working"][aria-selected="true"] span {
+  background: #3b2a55;
+  color: #e9dcff;
+}
+.hub-panel:focus {
+  outline: none;
+}
 .section-heading {
   display: flex;
   justify-content: space-between;
@@ -5439,24 +5539,65 @@ body {
   font-size: 10px;
   cursor: pointer;
 }
+/* A true overlay: fixed to the viewport, above the strip, scrolling itself. */
 .strip-worker-popover {
-  position: absolute;
-  z-index: 10;
-  right: 16px;
-  bottom: 45px;
+  position: fixed;
+  z-index: 400;
+  left: 0;
+  top: 0;
   width: 340px;
-  max-width: calc(100% - 32px);
-  max-height: 70%;
+  max-width: calc(100vw - 16px);
+  max-height: min(70vh, 460px);
   overflow: auto;
+  overscroll-behavior: contain;
   background: #272727;
   border: 1px solid #858585;
   border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 15px 60px #00000099;
+  box-shadow: 0 15px 60px #000000b3;
   box-sizing: border-box;
 }
-.strip-worker-popover[hidden] {
+.strip-worker-popover[hidden],
+.strip-pin-hover[hidden] {
   display: none;
+}
+/* Hover reads the pin; it never takes the pointer away from the strip. */
+.strip-pin-hover {
+  position: fixed;
+  z-index: 401;
+  left: 0;
+  top: 0;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 16px));
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 11px;
+  background: #1d1d1d;
+  border: 1px solid #6f6f6f;
+  border-radius: 8px;
+  box-shadow: 0 10px 28px #000000a6;
+  pointer-events: none;
+}
+.strip-pin-hover small {
+  font-size: 8px;
+  letter-spacing: 0.6px;
+  color: #a9a9a9;
+}
+.strip-pin-hover strong {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.strip-pin-hover span {
+  font-size: 10px;
+  line-height: 1.5;
+  color: #bdbdbd;
+}
+.strip-pin-hover em {
+  font-size: 9px;
+  font-style: normal;
+  color: #9a9a9a;
 }
 .strip-worker-popover h3 {
   font-size: 16px;
@@ -5884,11 +6025,7 @@ body {
   align-items: center;
   gap: 14px;
   flex-wrap: wrap;
-  margin: 0;
-}
-.library-heading h2 {
-  font-size: 23px;
-  margin: 0;
+  margin: 0 0 12px;
 }
 .library-heading > .button {
   font-size: 11px;
@@ -6308,10 +6445,13 @@ body {
 .strip-heading > div:first-child {
   flex: 1;
   min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
-.strip-heading .strip-summary {
-  font-size: 10px;
-  max-width: none;
+.strip-heading .strip-progress-summary {
+  margin-top: 0;
 }
 .strip-zoom {
   min-width: 0;
@@ -6384,10 +6524,8 @@ body {
   fill: #d9d9d9;
 }
 .strip-worker-popover {
-  right: auto;
-  bottom: auto;
   width: 330px;
-  max-height: 230px;
+  max-height: min(70vh, 260px);
   font-size: 11px;
   padding: 14px;
 }
@@ -6477,7 +6615,7 @@ body {
   min-height: 240px;
 }
 .strip-worker-popover {
-  max-height: min(230px, calc(100% - 16px));
+  max-height: min(260px, calc(100vh - 16px));
 }
 .hub-session-note {
   margin: 9px 0 0;
@@ -6810,9 +6948,6 @@ body .workspace.theater {
   .library-heading {
     gap: 10px;
   }
-  .library-heading h2 {
-    font-size: 23px;
-  }
   .library-heading > .button {
     margin-left: auto;
   }
@@ -6955,7 +7090,11 @@ body .workspace.theater {
     padding: 8px 12px !important;
     gap: 7px !important;
   }
+  /* Compact keeps the zoom level readable and drops the section chips. */
   .strip-heading > div:first-child {
+    gap: 6px;
+  }
+  .strip-heading .strip-progress-summary {
     display: none;
   }
   .strip-zoom {
@@ -7000,8 +7139,8 @@ body .workspace.theater {
     font-size: 11px;
   }
   .strip-worker-popover {
-    max-width: calc(100% - 16px);
-    max-height: 50%;
+    max-width: calc(100vw - 16px);
+    max-height: 60vh;
   }
   .epic-heading {
     padding: 12px;
@@ -7272,9 +7411,19 @@ body .workspace.theater {
 a {
   color: var(--accent);
 }
+/* Avoozl's sigil: a black seal, a purple ward, and blood in the letter. */
 .brandmark {
-  background: #eeeeee;
-  color: #111111;
+  background: #07060a;
+  color: #a81427;
+  border: 1px solid #7b3fc4;
+  box-shadow:
+    inset 0 0 8px #3a1160,
+    0 0 0 1px #1b0b2b;
+  text-shadow: 0 0 7px #a8142799;
+}
+.brand:hover .brandmark {
+  border-color: #a263e8;
+  color: #c4162c;
 }
 .button.primary {
   color: #101010;
@@ -7309,10 +7458,6 @@ a {
   background: #192a23;
   border-color: #47705c;
 }
-.hub-work-marker.is-working {
-  background: var(--on);
-  box-shadow: 0 0 0 4px #8edabb14;
-}
 .hub-clear > span {
   color: var(--on);
 }
@@ -7325,17 +7470,56 @@ button[aria-pressed="true"] {
   border-color: #47705c;
   background: #192a23;
 }
+/* In-flight work breathes so a glance separates it from landed work. */
+@keyframes work-breathe {
+  0%,
+  100% {
+    box-shadow:
+      0 3px 9px #13131399,
+      0 0 0 0 #ab7df500;
+  }
+  50% {
+    box-shadow:
+      0 3px 9px #13131399,
+      0 0 0 7px #ab7df526;
+  }
+}
+@keyframes work-breathe-dot {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px #ab7df51f;
+  }
+  50% {
+    box-shadow: 0 0 0 8px #ab7df500;
+  }
+}
 .strip-workers .agent-pin > span,
 .strip-workers .agent-pin > span:before {
-  background: var(--on);
-  border-color: #a7e5c8;
-  color: #14251b;
+  background: var(--working);
+  border-color: #c9adfb;
+  color: var(--working-ink);
+}
+.strip-workers .agent-pin.working > span {
+  animation: work-breathe 2.4s ease-in-out infinite;
 }
 .agent-pin-stems path {
-  stroke: var(--on);
+  stroke: var(--working);
 }
 .agent-pin-stems circle {
-  fill: var(--on);
+  fill: var(--working);
+}
+.hub-work-marker.is-working {
+  background: var(--working);
+  animation: work-breathe-dot 2.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .strip-workers .agent-pin.working > span,
+  .hub-work-marker.is-working {
+    animation: none;
+  }
+  .hub-work-marker.is-working {
+    box-shadow: 0 0 0 4px #ab7df524;
+  }
 }
 
 /* One Plans destination for authored documents and proposals. */
@@ -7435,12 +7619,6 @@ button[aria-pressed="true"] {
   padding: 8px;
   margin: 0;
 }
-.tree-scroll-heading h2 {
-  font-size: 20px;
-  line-height: 26px;
-  margin: 0 0 3px;
-  letter-spacing: -0.4px;
-}
 .tree-scroll-heading p {
   font-size: 11px;
   line-height: 17px;
@@ -7524,16 +7702,10 @@ button[aria-pressed="true"] {
 .epic-scroll-heading {
   position: absolute;
   top: 0;
-  height: 64px;
+  height: 34px;
   padding: 8px 12px;
   box-sizing: border-box;
   background: var(--bg);
-}
-.epic-scroll-heading h2 {
-  font-size: 20px;
-  line-height: 26px;
-  letter-spacing: -0.4px;
-  margin: 0 0 3px;
 }
 .epic-scroll-heading p {
   font-size: 11px;
@@ -7543,7 +7715,7 @@ button[aria-pressed="true"] {
 }
 .epic-chart-window > .epic-axis {
   position: absolute;
-  top: 64px;
+  top: 34px;
   height: 24px;
   min-height: 24px;
   max-height: 24px;
@@ -7673,6 +7845,15 @@ body > .site-navigation.header {
   color: var(--text);
   box-shadow: inset 2px 0 var(--accent);
 }
+/* Now is the live view: it reads as an "on" lamp in the rail. */
+.site-navigation.header #nav button[data-view="activity"],
+.site-navigation.header #nav button[data-view="activity"]:hover,
+.site-navigation.header #nav button[data-view="activity"].active {
+  color: var(--on);
+}
+.site-navigation.header #nav button[data-view="activity"].active {
+  box-shadow: inset 2px 0 var(--on);
+}
 .site-navigation #open-usage {
   margin-top: 20px;
 }
@@ -7695,6 +7876,25 @@ body > .site-navigation.header {
   height: 28px;
   padding: 3px 6px;
   font-size: 13px;
+}
+/* Settings is a real target, not a glyph: it sizes with the nav icons. */
+.site-navigation .connection #site-settings {
+  display: grid;
+  place-items: center;
+  min-width: 34px;
+  width: 34px;
+  height: 32px;
+  padding: 0;
+  border-radius: 6px;
+  color: var(--muted);
+}
+.site-navigation .connection #site-settings svg {
+  width: 20px;
+  height: 20px;
+}
+.site-navigation .connection #site-settings:hover {
+  background: #252525;
+  color: var(--text);
 }
 .site-navigation .connection .mcp-connect {
   font-size: 10px;
@@ -8021,11 +8221,6 @@ body:has(.workspace.theater) > .site-topbar {
 }
 .library-scroll-heading {
   padding: 8px 0;
-}
-.library-scroll-heading h2 {
-  font-size: 20px;
-  line-height: 26px;
-  margin: 0 0 3px;
 }
 .library-scroll-heading p {
   font-size: 11px;
@@ -8428,22 +8623,21 @@ body.app-shell:has(> .workspace.theater) > .site-navigation.header {
 #activity-view .strip-zoom {
   flex-wrap: wrap;
 }
+/* A landed receipt is settled work: the completed green check, never a pulse. */
 .strip-workers .agent-pin.landed > span,
 .strip-workers .agent-pin.landed > span:before {
-  background: #d8ad67;
-  border-color: #f0ca8a;
-  color: #30210c;
+  background: var(--landed);
+  border-color: #b6ead2;
+  color: #14251b;
+}
+.strip-workers .agent-pin.landed > span {
+  animation: none;
 }
 .agent-pin-stems path.landed {
-  stroke: #d8ad67;
+  stroke: var(--landed);
 }
 .agent-pin-stems circle.landed {
-  fill: #d8ad67;
-}
-.strip-zoom [data-toggle-landings][aria-pressed="true"] {
-  color: #f0ca8a;
-  border-color: #7a6039;
-  background: #30271a;
+  fill: var(--landed);
 }
 @media (max-width: 900px) {
   #now-content {
@@ -8456,10 +8650,6 @@ body.app-shell:has(> .workspace.theater) > .site-navigation.header {
   #activity-view .strip-stage {
     height: 200px;
     flex: none;
-  }
-  #activity-view .strip-level {
-    left: auto;
-    right: 8px;
   }
   #activity-view .strip-zoom {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -8474,8 +8664,5 @@ body.app-shell:has(> .workspace.theater) > .site-navigation.header {
   #activity-view .strip-zoom .button {
     min-height: 30px;
     font-size: 10px;
-  }
-  #activity-view .strip-worker-popover {
-    max-height: calc(100% - 16px);
   }
 }

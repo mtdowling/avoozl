@@ -320,27 +320,40 @@ function applyVisualization(view) {
   state.stripFocusToken = String(Date.now());
   $("inspector").classList.toggle("open", Boolean(state.selected));
 }
+// Deleting a saved visualization removes display configuration only; tasks,
+// plans and their evidence are never touched.
+function removeRow(kind, id, title) {
+  return `<button class="icon-button visualization-remove" data-remove-visualization="${esc(id)}" data-remove-kind="${kind}" title="Delete ${esc(title)}" aria-label="Delete ${esc(title)}">×</button>`;
+}
 function presentSavedViews() {
   const views = data.presentation?.views || [],
-    tours = data.presentation?.tours || [];
-  $("saved-views").innerHTML =
-    views
-      .map(
-        (v) =>
-          `<button data-visualization="${esc(v.id)}" ${!tour && state.visualization === v.id ? 'aria-current="true"' : ""}><strong>${esc(v.title)}</strong>${v.caption ? `<span>${esc(v.caption)}</span>` : ""}</button>`,
-      )
-      .join("") +
+    tours = data.presentation?.tours || [],
+    saved = $("saved-views");
+  if (!saved) return;
+  saved.innerHTML =
+    '<p class="visualization-note">Saved views restore a filter, camera and layout. Deleting one removes the saved configuration only, never tasks or plans.</p>' +
+    (views.length
+      ? '<h3>Saved views</h3><div class="visualization-rows">' +
+        views
+          .map(
+            (v) =>
+              `<div class="visualization-row"><button data-visualization="${esc(v.id)}" ${!tour && state.visualization === v.id ? 'aria-current="true"' : ""}><strong>${esc(v.title)}</strong>${v.caption ? `<span>${esc(v.caption)}</span>` : ""}</button>${removeRow("view", v.id, v.title)}</div>`,
+          )
+          .join("") +
+        "</div>"
+      : "") +
     (tours.length
-      ? "<h3>Presentations</h3>" +
+      ? '<h3>Presentations</h3><div class="visualization-rows">' +
         tours
           .map(
             (t) =>
-              `<button data-presentation="${esc(t.id)}" ${tour?.id === t.id ? 'aria-current="true"' : ""}><strong>${esc(t.title)}</strong></button>`,
+              `<div class="visualization-row"><button data-presentation="${esc(t.id)}" ${tour?.id === t.id ? 'aria-current="true"' : ""}><strong>${esc(t.title)}</strong></button>${removeRow("tour", t.id, t.title)}</div>`,
           )
-          .join("")
+          .join("") +
+        "</div>"
       : "") +
     (!views.length && !tours.length
-      ? '<p class="muted">No saved visualizations yet.</p>'
+      ? '<p class="muted">No saved visualizations yet. Agents create them through the plans MCP tools.</p>'
       : "");
 }
 try {
@@ -565,15 +578,28 @@ function refreshViews({ fit = false } = {}) {
     );
     rows = rows.filter((t) => connected.has("epic:" + t.epic));
   }
+  const savedViewCount =
+    (data.presentation?.views?.length || 0) +
+    (data.presentation?.tours?.length || 0);
   $("result-count").textContent =
     state.view === "documents"
       ? Object.values(data.documents).filter((d) => !d.removed).length +
         " documents"
-      : rows.length + " matching " + (rows.length === 1 ? "task" : "tasks");
+      : state.view === "visualizations"
+        ? savedViewCount +
+          (savedViewCount === 1 ? " saved view" : " saved views")
+        : rows.length + " matching " + (rows.length === 1 ? "task" : "tasks");
   $("filter-note").textContent = includeHistorical(state)
     ? "Historical records included"
     : "Historical records hidden";
-  for (const view of ["epics", "graph", "tasks", "activity", "documents"])
+  for (const view of [
+    "epics",
+    "graph",
+    "tasks",
+    "activity",
+    "documents",
+    "visualizations",
+  ])
     $(view + "-view").hidden = state.view !== view;
   syncNavigation();
   $("group-control").hidden = !["graph", "tasks"].includes(state.view);
@@ -610,13 +636,14 @@ function refreshViews({ fit = false } = {}) {
       selected: state.selected,
       narrow: Boolean(
         state.q ||
-          state.epic ||
-          state.track ||
-          state.tag ||
-          state.status ||
-          state.activity,
+        state.epic ||
+        state.track ||
+        state.tag ||
+        state.status ||
+        state.activity,
       ),
     });
+  else if (state.view === "visualizations") presentSavedViews();
   else renderDocuments();
   renderInspector();
   renderTour();
@@ -974,7 +1001,7 @@ async function renderProposals(target) {
     if (target.dataset.proposalKey !== key) {
       target.dataset.proposalKey = key;
       target.innerHTML =
-        '<div class="library-heading"><h2>Proposals</h2><button class="button subtle" data-proposal-write>＋ Write plan</button><button class="button subtle" data-proposal-agent>Plan with agent</button></div><div class="proposal-list">' +
+        '<div class="library-heading"><button class="button subtle" data-proposal-write>＋ Write plan</button><button class="button subtle" data-proposal-agent>Plan with agent</button></div><div class="proposal-list">' +
         page.items
           .map(
             (p) =>
@@ -1800,7 +1827,8 @@ $("nav").onclick = (e) => {
       $("inspector").classList.remove("open");
       state.selected = "";
     }
-    state.visualization = "";
+    // Opening the Visualizations page keeps whichever view is applied marked.
+    if (v !== "visualizations") state.visualization = "";
     if (v !== "documents") state.document = "";
     state.view = v;
     controls();
@@ -2035,15 +2063,49 @@ document.addEventListener("visibilitychange", () => {
 window.addEventListener("online", () => poll(true));
 poll();
 
-$("open-visualizations").onclick = () => {
-  if (data) presentSavedViews();
-  $("visualizations-dialog").showModal();
-};
-$("visualizations-close").onclick = () => $("visualizations-dialog").close();
-$("saved-views").addEventListener("click", (e) => {
+$("saved-views").addEventListener("click", async (e) => {
   const button = e.target.closest("button");
   if (!button || !data) return;
-  $("visualizations-dialog").close();
+  const remove = button.dataset.removeVisualization;
+  if (remove) {
+    const kind = button.dataset.removeKind === "tour" ? "tour" : "view",
+      label =
+        kind === "tour"
+          ? data.presentation?.tours?.find((t) => t.id === remove)?.title
+          : data.presentation?.views?.find((v) => v.id === remove)?.title;
+    if (
+      !confirm(
+        "Delete the saved " +
+          (kind === "tour" ? "presentation" : "view") +
+          " “" +
+          (label || remove) +
+          "”? Tasks and plans are not affected.",
+      )
+    )
+      return;
+    button.disabled = true;
+    try {
+      const response = await fetch("/api/command", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            operation: "visualization.delete",
+            input: { id: remove, kind },
+          }),
+        }),
+        body = await response.json();
+      if (!response.ok) throw Error(body.error || "Delete failed");
+      if (kind === "tour" && tour?.id === remove) stopTour();
+      if (kind === "view" && state.visualization === remove)
+        state.visualization = "";
+      await poll(true);
+      toast("Deleted the saved " + (kind === "tour" ? "presentation" : "view"));
+    } catch (error) {
+      button.disabled = false;
+      toast(error.message);
+    }
+    return;
+  }
   if (button.dataset.presentation) {
     const saved = data.presentation?.tours?.find(
       (t) => t.id === button.dataset.presentation,
@@ -2624,7 +2686,7 @@ function renderPlanLibrary(target) {
     items: list,
     height: (item) =>
       item.type === "heading"
-        ? 64
+        ? 34
         : item.type === "group"
           ? 36
           : compactLayout.matches
@@ -2633,7 +2695,7 @@ function renderPlanLibrary(target) {
     label: "Plan library",
     render: (p) =>
       p.type === "heading"
-        ? '<div class="library-scroll-heading"><h2>Plan library</h2><p role="status">' +
+        ? '<div class="library-scroll-heading"><p role="status">' +
           p.count +
           " plans" +
           (planSearch ? " matching “" + esc(planSearch) + "”" : "") +
@@ -2773,7 +2835,8 @@ $("detail-dialog").addEventListener("click", (e) => {
   }
 });
 function applyPanels() {
-  const available = state.view !== "activity";
+  // Now and Visualizations have nothing the task filters apply to.
+  const available = !["activity", "visualizations"].includes(state.view);
   $("toggle-left").hidden = !available;
   const w = document.querySelector(".workspace"),
     left = available && panelPrefs.left;

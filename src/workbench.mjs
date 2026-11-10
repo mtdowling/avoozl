@@ -16,6 +16,14 @@ const esc = (value) =>
         c
       ],
   );
+// Now keeps one queue on screen at a time. Decisions stay pinned above the
+// tabs: a pending question is never hidden behind a tab the operator must find.
+const NOW_TABS = [
+  { id: "working", label: "In flight" },
+  { id: "ready", label: "Up next" },
+  { id: "blocked", label: "Blocked" },
+  { id: "review", label: "Review" },
+];
 export function createWorkbench({
   tasksElement,
   nowElement,
@@ -27,13 +35,14 @@ export function createWorkbench({
   refresh,
   setCount,
 }) {
-  const prefs = { completed: false, inventory: false };
+  const prefs = { completed: false, inventory: false, nowTab: "working" };
   try {
     Object.assign(
       prefs,
       JSON.parse(localStorage.getItem("nupp-plans-workbench-v1") || "{}"),
     );
   } catch {}
+  if (!NOW_TABS.some((t) => t.id === prefs.nowTab)) prefs.nowTab = "working";
   const expanded = new Map(),
     nowExpanded = new Set(),
     pages = new Map(),
@@ -111,7 +120,7 @@ export function createWorkbench({
           key,
           Boolean(
             (current.narrow && roots.length < 8) ||
-              root.tasks.some((t) => t.id === current.selected),
+            root.tasks.some((t) => t.id === current.selected),
           ),
         );
       rows.push({ id: "root:" + key, type: "root", root, key, height: 52 });
@@ -147,7 +156,7 @@ export function createWorkbench({
     const viewport = tasksElement.querySelector(".task-tree-window");
     virtual = createVirtualList(viewport, {
       items: [
-        { id: "tree-heading", type: "heading", height: 64 },
+        { id: "tree-heading", type: "heading", height: 34 },
         { id: "tree-columns", type: "columns", height: 32 },
         ...flattened(roots),
       ],
@@ -156,7 +165,7 @@ export function createWorkbench({
       label: "Task tree rows",
       render: (r) =>
         r.type === "heading"
-          ? `<header class="tree-scroll-heading"><h2>Task tree</h2><p>${visible.toLocaleString()} tasks · select a task for its plan and evidence.</p></header>`
+          ? `<header class="tree-scroll-heading"><p>${visible.toLocaleString()} tasks · select a task for its plan and evidence.</p></header>`
           : r.type === "columns"
             ? '<div class="tree-table-heading"><span>Task / epic / track</span><span>Status</span><span>Owner / agent</span><span>Next action</span><span>Blocked by</span><span></span></div>'
             : r.type === "task"
@@ -267,6 +276,17 @@ export function createWorkbench({
   function fold(key, title, tasks, render) {
     return `<details class="hub-fold" data-now-fold="${key}" ${nowExpanded.has(key) ? "open" : ""}><summary>${title}<span>${tasks.length}</span></summary><div>${nowExpanded.has(key) ? paged(tasks, key, render) : ""}</div></details>`;
   }
+  function selectNowTab(id, { focus = false } = {}) {
+    if (!NOW_TABS.some((t) => t.id === id)) return;
+    if (prefs.nowTab !== id) {
+      prefs.nowTab = id;
+      save();
+    }
+    paintNow();
+    const button = nowElement.querySelector('[data-now-tab="' + id + '"]');
+    if (focus) button?.focus({ preventScroll: true });
+    button?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }
   function paintNow() {
     if (!current || current.view !== "now" || nowScrollElement.hidden) return;
     const { data, rows } = current,
@@ -275,7 +295,6 @@ export function createWorkbench({
       active = w.runs.filter((r) => activeRunStates.has(r.state)),
       external = lanes.reported.filter((t) => !taskSession(active, t)),
       requests = w.requests || [],
-      index = taskIndex(data),
       ready = [...lanes.ready].sort(
         (a, b) =>
           taskSignals(data, b).dependents.length -
@@ -284,12 +303,29 @@ export function createWorkbench({
       inProgress = active.length + external.length,
       landings = recentLandings(data, rows, w.recentIntegrations || []);
     setCount(
-      inProgress + " in progress",
+      inProgress + " in flight",
       requests.length ? requests.length + " waiting for you" : "",
     );
     nowScroll = nowScrollElement.scrollTop;
     nowChanged({ runs: w.runs, landings });
-    nowElement.innerHTML = `<header class="hub-heading"><div><span class="hub-date">${new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</span><h1>Now</h1><p>A clear view of the work. A place to change its direction.</p></div><button class="button primary" data-ask-blockers>Ask about blockers</button></header><div class="hub-pulse" style="--hub-pulse-columns:${requests.length ? 4 : 3}"><button data-jump-hub="working"><strong>${inProgress}</strong><span>In progress</span></button>${requests.length ? `<button data-jump-hub="decisions"><strong>${requests.length}</strong><span>Need your input</span></button>` : ""}<button data-jump-hub="blocked"><strong>${lanes.blocked.length}</strong><span>Blocked</span></button><button data-jump-hub="ready"><strong>${ready.length}</strong><span>Ready next</span></button></div>
+    const counts = {
+        working: inProgress,
+        ready: ready.length,
+        blocked: lanes.blocked.length,
+        review: lanes.attention.length,
+      },
+      tab = NOW_TABS.some((t) => t.id === prefs.nowTab)
+        ? prefs.nowTab
+        : "working",
+      panel =
+        tab === "ready"
+          ? `<div class="section-heading"><h2>Up next</h2><span>Ready work with the most dependent tasks first</span></div>${paged(ready, "ready", (t) => taskSummary(t)) || '<p class="hub-empty">No matching tasks are ready.</p>'}`
+          : tab === "blocked"
+            ? `<div class="section-heading"><h2>Blocked work</h2><span>Prerequisites first</span></div>${paged(lanes.blocked, "blocked", (t) => taskSummary(t)) || '<p class="hub-empty">Nothing matching is blocked.</p>'}`
+            : tab === "review"
+              ? `<div class="section-heading"><h2>Check-ins &amp; context to review</h2><span>Reported progress and changed plan prose</span></div>${paged(lanes.attention, "checkins", (t) => taskSummary(t)) || '<p class="hub-empty">Nothing is waiting on a review.</p>'}${fold("completed", "Recently updated completed work", lanes.completed, (t) => taskSummary(t))}${conversations().length ? fold("conversations", "Recent conversations", conversations(), conversationSummary) : ""}`
+              : `<div class="section-heading"><h2>In flight</h2><span>${nowPayload ? "Updated " + age(new Date(nowAt).toISOString()) : "Loading connected sessions…"}</span></div>${active.map(runSummary).join("")}${paged(external, "working", (t) => taskSummary(t, { running: true }))}${!inProgress ? '<p class="hub-empty">No work is currently reported. Unreported external work may still be running.</p>' : ""}`;
+    nowElement.innerHTML = `<header class="hub-heading"><div><span class="hub-date">${new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</span><h1>Now</h1><p>A clear view of the work. A place to change its direction.</p></div><button class="button primary" data-ask-blockers>Ask about blockers</button></header><div class="hub-pulse" style="--hub-pulse-columns:${requests.length ? 4 : 3}"><button data-jump-hub="working"><strong>${inProgress}</strong><span>In flight</span></button>${requests.length ? `<button data-jump-hub="decisions"><strong>${requests.length}</strong><span>Need your input</span></button>` : ""}<button data-jump-hub="blocked"><strong>${lanes.blocked.length}</strong><span>Blocked</span></button><button data-jump-hub="ready"><strong>${ready.length}</strong><span>Ready next</span></button></div>
  <section class="hub-section hub-decisions" id="hub-decisions" ${requests.length || (w.integrations || []).length ? "" : "hidden"}>${requests.length ? `<div class="section-heading"><h2>Needs your input</h2><span>${requests.length} pending</span></div>` : ""}${
    requests.length
      ? requests
@@ -301,9 +337,8 @@ export function createWorkbench({
          .join("")
      : ""
  }${(w.integrations || []).length ? `<button class="hub-integration-link" data-open-integration>${w.integrations.length} validated ${w.integrations.length === 1 ? "branch is" : "branches are"} ready to review and integrate →</button>` : ""}</section>
- <section class="hub-section" id="hub-working"><div class="section-heading"><h2>In progress</h2><span>${nowPayload ? "Updated " + age(new Date(nowAt).toISOString()) : "Loading connected sessions…"}</span></div>${active.map(runSummary).join("")}${paged(external, "working", (t) => taskSummary(t, { running: true }))}${!inProgress ? '<p class="hub-empty">No work is currently reported. Unreported external work may still be running.</p>' : ""}</section>
- <section class="hub-section" id="hub-ready"><div class="section-heading"><h2>Up next</h2><span>Ready work with the most dependent tasks first</span></div>${paged(ready, "ready", (t) => taskSummary(t)) || '<p class="hub-empty">No matching tasks are ready.</p>'}</section>
- <section class="hub-section" id="hub-blocked">${fold("blocked", "Blocked work", lanes.blocked, (t) => taskSummary(t))}${fold("checkins", "Check-ins & context to review", lanes.attention, (t) => taskSummary(t))}${fold("completed", "Recently updated completed work", lanes.completed, (t) => taskSummary(t))}${conversations().length ? fold("conversations", "Recent conversations", conversations(), conversationSummary) : ""}</section>`;
+ <div class="hub-tabs" role="tablist" aria-label="Work queues">${NOW_TABS.map((t) => `<button role="tab" id="hub-tab-${t.id}" data-now-tab="${t.id}" aria-controls="hub-panel" aria-selected="${t.id === tab}" tabindex="${t.id === tab ? 0 : -1}">${t.label}<span>${counts[t.id]}</span></button>`).join("")}</div>
+ <section class="hub-section hub-panel" id="hub-panel" role="tabpanel" aria-labelledby="hub-tab-${tab}" tabindex="-1">${panel}</section>`;
     nowScrollElement.scrollTop = nowScroll;
   }
   async function updateNow() {
@@ -379,9 +414,7 @@ export function createWorkbench({
       const tasks =
         key === "conversations"
           ? conversations()
-          : nowBoard(current.data, current.rows, prefs)[
-              key === "checkins" ? "attention" : key
-            ];
+          : nowBoard(current.data, current.rows, prefs)[key];
       e.target.querySelector("div").innerHTML = e.target.open
         ? paged(
             tasks,
@@ -394,6 +427,27 @@ export function createWorkbench({
     },
     true,
   );
+  nowElement.addEventListener("keydown", (e) => {
+    const tab = e.target.closest("[data-now-tab]");
+    if (!tab) return;
+    const step =
+      e.key === "ArrowRight" || e.key === "ArrowDown"
+        ? 1
+        : e.key === "ArrowLeft" || e.key === "ArrowUp"
+          ? -1
+          : e.key === "Home"
+            ? -NOW_TABS.length
+            : e.key === "End"
+              ? NOW_TABS.length
+              : 0;
+    if (!step) return;
+    e.preventDefault();
+    const at = NOW_TABS.findIndex((t) => t.id === tab.dataset.nowTab);
+    selectNowTab(
+      NOW_TABS[Math.max(0, Math.min(NOW_TABS.length - 1, at + step))].id,
+      { focus: true },
+    );
+  });
   nowElement.addEventListener("click", (e) => {
     const link = e.target.closest("[data-link-session]");
     if (link) {
@@ -408,7 +462,8 @@ export function createWorkbench({
       reported = e.target.closest("[data-reported-task]"),
       close = e.target.closest("[data-reported-close]"),
       page = e.target.closest("[data-now-page]"),
-      jump = e.target.closest("[data-jump-hub]");
+      jump = e.target.closest("[data-jump-hub]"),
+      pick = e.target.closest("[data-now-tab]");
     if (close) {
       nowExpanded.delete("session:" + close.dataset.reportedClose);
       paintNow();
@@ -427,14 +482,14 @@ export function createWorkbench({
       pages.set(page.dataset.nowPage, Number(page.dataset.page));
       paintNow();
     }
-    if (jump) {
-      const target = nowElement.querySelector("#hub-" + jump.dataset.jumpHub);
-      if (jump.dataset.jumpHub === "blocked") {
-        nowExpanded.add("blocked");
-        paintNow();
-      }
-      target?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
+    if (pick) selectNowTab(pick.dataset.nowTab);
+    // Pending decisions keep their own pinned section; the rest are tabs.
+    if (jump)
+      if (jump.dataset.jumpHub === "decisions")
+        nowElement
+          .querySelector("#hub-decisions")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      else selectNowTab(jump.dataset.jumpHub);
     const ask = e.target.closest("[data-ask-task]");
     if (ask)
       window.dispatchEvent(
