@@ -11,6 +11,18 @@ export function parseRepository(value) {
   return { id: `${match[1]}/${match[2]}`, owner: match[1], repo: match[2] };
 }
 
+export async function requirePrivateRepository(github, value) {
+  const repository =
+      typeof value === "string" ? parseRepository(value) : value,
+    remote = await github.repository(repository);
+  if (remote.private !== true)
+    fail(
+      `Avoozl refuses public repositories. ${repository.id} must remain private.`,
+      403,
+    );
+  return remote;
+}
+
 function localToken() {
   const configured =
     process.env.AVOOZL_GITHUB_TOKEN ||

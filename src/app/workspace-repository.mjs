@@ -5,6 +5,7 @@ import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import { digest } from "../model.mjs";
 import { fail } from "./store.mjs";
+import { requirePrivateRepository } from "./github.mjs";
 
 const exec = promisify(execFile);
 const allowedPath =
@@ -508,6 +509,7 @@ export async function publishPlanningPullRequest(store, github, { planId }) {
     fail("Approve the exact design revision before requesting team review.", 409);
   if (!config?.repository)
     fail("Planning pull requests require a configured private GitHub workspace repository.");
+  await requirePrivateRepository(github, config.repository);
   const head = `avoozl/design-${plan.id}-${plan.hash.slice(0, 10)}`;
   const existing = await github.listPullRequests(config.repository, {
     state: "all",

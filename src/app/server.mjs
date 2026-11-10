@@ -665,7 +665,14 @@ export function startServer({
       if (
         draining ||
         githubSyncing ||
-        !store.list("github_repositories").length
+        (!store.list("github_repositories").length &&
+          !store
+            .list("receipts")
+            .some(
+              (receipt) =>
+                receipt.id.startsWith("planning-pr:") &&
+                !["projected", "closed"].includes(receipt.state),
+            ))
       )
         return;
       githubSyncing = true;

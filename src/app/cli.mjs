@@ -14,6 +14,10 @@ import { initializeWorkspace } from "./workspace.mjs";
 import { Operations } from "./operations.mjs";
 import { validate } from "../model.mjs";
 import { generate } from "./compat-server.mjs";
+import {
+  installOpenHandsCanvasApp,
+  openHandsCanvasAppStatus,
+} from "./openhands-app.mjs";
 
 const args = process.argv.slice(2),
   options = {},
@@ -508,6 +512,25 @@ try {
     } else throw Error("Choose github status, configure, sync, project, or start.");
     console.log(JSON.stringify(await localOrRequest(operation, value), null, 2));
   }
+  else if (command === "project") {
+    const action = positionals[0],
+      provided = input();
+    if (action !== "configure")
+      throw Error("Choose project configure.");
+    console.log(
+      JSON.stringify(
+        await localOrRequest("project.configure", {
+          ...provided,
+          id: options.id || positionals[1] || provided.id,
+          root: options.root || provided.root,
+          baseBranch: options.branch || provided.baseBranch,
+          worktreeRoot: options.worktrees || provided.worktreeRoot,
+        }),
+        null,
+        2,
+      ),
+    );
+  }
   else if (command === "workspace-repo") {
     const action = positionals[0] || "status";
     let operation, value;
@@ -558,6 +581,20 @@ try {
         ),
       );
     else throw Error("Choose planning publish or reconcile.");
+  }
+  else if (command === "openhands") {
+    const action = positionals[0] || "status";
+    if (action === "install-app")
+      console.log(
+        JSON.stringify(
+          await installOpenHandsCanvasApp({ source: options.source }),
+          null,
+          2,
+        ),
+      );
+    else if (action === "status")
+      console.log(JSON.stringify(await openHandsCanvasAppStatus(), null, 2));
+    else throw Error("Choose openhands status or install-app.");
   }
   else if (command === "generate")
     console.log(JSON.stringify(generate(config).stats, null, 2));
@@ -667,6 +704,7 @@ try {
   editor --workspace PATH [--ssh HOST]  Print editor client settings
   seed --workspace PATH [--example product-launch]
   examples --workspace PATH             List available example packs
+  project configure ID --root PATH [--branch main] [--worktrees PATH] [--json CONFIG]
   github configure OWNER/REPO --project ID [--assignee LOGIN] [--allowed-actors LOGINS]
   github sync [--repository OWNER/REPO]  Import assigned ready issues
   github project PLAN_ID --repository OWNER/REPO
@@ -678,6 +716,8 @@ try {
   workspace-repo status                  Show portable repository revisions
   planning publish PLAN_ID               Open a private planning pull request
   planning reconcile                     Project tasks from merged planning PRs
+  openhands install-app                  Install and enable Avoozl inside Canvas
+  openhands status                       Show Canvas App installation status
   query [--q QUERY] | show TASK_ID | update TASK_ID --status STATUS
   activity TASK_ID --action start|heartbeat|pause|finish ...
   skill --workspace PATH                Print the portable workflow skill

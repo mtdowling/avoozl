@@ -35,7 +35,7 @@ import { dependencyLayout, dependencyPath, NODE_H, NODE_W } from "../graph-layou
 import { renderUsage } from "../app/ui/usage-charts.mjs";
 import { command, get, submissionId } from "./api";
 import { loadState, loadWorkspace, useRemote, useWorkspaceEvents } from "./hooks";
-import type { DocumentRecord, PlanSummary, RunSummary, SavedView, State, Task, Workspace } from "./types";
+import type { DocumentRecord, PlanSummary, Run, RunSummary, SavedView, State, Task, Workspace } from "./types";
 
 const Conversation = lazy(() => import("./Chat").then((module) => ({ default: module.Conversation })));
 const PlanEditor = lazy(() => import("./Editors").then((module) => ({ default: module.PlanEditor })));
@@ -50,7 +50,6 @@ const views: Array<{ id: View; label: string; icon: typeof LayoutDashboard }> = 
   { id: "epics", label: "Epics", icon: Boxes },
   { id: "graph", label: "Graph", icon: Network },
   { id: "documents", label: "Plans", icon: FileText },
-  { id: "visualizations", label: "Visualizations", icon: GitBranch },
   { id: "conversations", label: "Steer", icon: MessageSquare },
   { id: "insights", label: "Insights", icon: BarChart3 },
 ];
@@ -62,7 +61,6 @@ const pageDescriptions: Partial<Record<View, string>> = {
   epics: "Compare completed and remaining work across epics.",
   graph: "Explore dependencies and focus on connected tasks and epics.",
   documents: "Read, search, and manage the Markdown plans that define the work.",
-  visualizations: "Build and revisit focused views of the project.",
   conversations: "Chat with agents to explore, plan, and carry out work.",
   insights: "Review agent activity and reported usage over time.",
 };
@@ -73,8 +71,12 @@ function initialLocation() {
   const query = new URLSearchParams(location.search);
   const rawView = query.get("view");
   const requested = (rawView === "activity" ? "overview" : rawView) as View | null;
+  const canvasHost = query.get("canvas") === "1";
+  let view = (views.some((item) => item.id === requested) || (requested && internalViews.has(requested))) ? requested! : (query.get("run") ? "conversations" : query.get("plan") ? "plans" : query.get("document") ? "documents" : "overview");
+  if (canvasHost && view === "conversations") view = "overview";
   return {
-    view: (views.some((item) => item.id === requested) || (requested && internalViews.has(requested))) ? requested! : (query.get("run") ? "conversations" : query.get("plan") ? "plans" : query.get("document") ? "documents" : "overview"),
+    canvasHost,
+    view,
     runId: query.get("run"),
     planId: query.get("plan"),
     documentId: query.get("document"),
@@ -184,7 +186,7 @@ function LoadingSurface({ label }: { label: string }) {
   return <div className="center-state"><RefreshCw className="spin" size={22} /><p>{label}</p></div>;
 }
 
-function Overview({ workspace, state, openRun, openTask }: { workspace: Workspace; state: State; openRun: (id: string) => void; openTask: (task: Task) => void }) {
+function Overview({ workspace, state, openRun, openTask }: { workspace: Workspace; state: State; openRun: (id: string, run?: Run) => void; openTask: (task: Task) => void }) {
   const [asking, setAsking] = useState(false);
   const activeStates = new Set(["starting", "running", "waiting-input", "waiting-approval"]);
   const activeRuns = workspace.runs.filter((run) => activeStates.has(run.state));
@@ -216,7 +218,7 @@ function Overview({ workspace, state, openRun, openTask }: { workspace: Workspac
         runId: "run-" + id,
         context: {},
       });
-      if (result.run?.id) openRun(result.run.id);
+      if (result.run?.id) openRun(result.run.id, result.run);
     } finally {
       setAsking(false);
     }
@@ -1166,7 +1168,7 @@ function ProjectForm({ onSaved }: { onSaved: () => void }) {
   </form>;
 }
 
-function GitHubSettings({ workspace, refresh }: { workspace: Workspace; refresh: () => void }) {
+function GitHubSettings({ workspace, refresh, openRun }: { workspace: Workspace; refresh: () => void; openRun: (id: string, run?: Run) => void }) {
   const [repository, setRepository] = useState("");
   const [projectId, setProjectId] = useState(workspace.projects[0]?.id || "");
   const [assignee, setAssignee] = useState("");
@@ -1224,7 +1226,7 @@ function GitHubSettings({ workspace, refresh }: { workspace: Workspace; refresh:
 
   async function start(taskId: string) {
     const run = await act("Start", "github.start", { taskId });
-    if (run?.id) location.href = `/?view=conversations&run=${encodeURIComponent(run.id)}`;
+    if (run?.id) openRun(run.id, run);
   }
 
   const github = workspace.github;
@@ -1289,7 +1291,7 @@ function GitHubSettings({ workspace, refresh }: { workspace: Workspace; refresh:
   </div>;
 }
 
-function SettingsView({ workspace, state, refresh }: { workspace: Workspace; state: State; refresh: () => void }) {
+function SettingsView({ workspace, state, refresh, openRun }: { workspace: Workspace; state: State; refresh: () => void; openRun: (id: string, run?: Run) => void }) {
   const [tab, setTab] = useState<SettingsTab>("workspace");
   const workspaceName = state.project?.workspaceName || state.project?.title || state.project?.name || "Avoozl";
   return <section className="screen settings-screen">
@@ -1328,13 +1330,14 @@ function SettingsView({ workspace, state, refresh }: { workspace: Workspace; sta
     </div>}
     {tab === "github" && <div className="settings-panel" role="tabpanel" id="settings-panel-github" aria-labelledby="settings-tab-github">
       <h2>GitHub work intake</h2>
-      <GitHubSettings workspace={workspace} refresh={refresh} />
+      <GitHubSettings workspace={workspace} refresh={refresh} openRun={openRun} />
     </div>}
   </section>;
 }
 
 export function App() {
   const initial = useMemo(initialLocation, []);
+  const canvasHost = initial.canvasHost;
   const [view, setView] = useState<View>(initial.view);
   const [runId, setRunId] = useState<string | null>(initial.runId);
   const [planId, setPlanId] = useState<string | null>(initial.planId);
@@ -1357,6 +1360,7 @@ export function App() {
 
   useEffect(() => {
     const query = new URLSearchParams();
+    if (canvasHost) query.set("canvas", "1");
     query.set("view", view === "overview" ? "activity" : view);
     if (view === "conversations" && runId) query.set("run", runId);
     if (view === "plans" && planId) query.set("plan", planId);
@@ -1365,7 +1369,7 @@ export function App() {
       if (planId) query.set("plan", planId);
     }
     history.replaceState(null, "", "?" + query);
-  }, [view, runId, planId, documentId]);
+  }, [canvasHost, view, runId, planId, documentId]);
 
   useEffect(() => {
     const shortcut = (event: KeyboardEvent) => {
@@ -1398,7 +1402,7 @@ export function App() {
         runId: "run-" + id,
         context: {},
       });
-      if (result.run?.id) openRun(result.run.id);
+      if (result.run?.id) openRun(result.run.id, result.run);
     };
     window.addEventListener("nupp-open-session", openSession);
     window.addEventListener("nupp-ask-context", askContext);
@@ -1412,7 +1416,37 @@ export function App() {
   // Opens the composer holding the question rather than submitting it, so the
   // agent and project are still the operator's to choose before a run starts.
   function askAgent(prompt: string) { setDraftPrompt(prompt); setRunId(null); navigate("conversations"); }
-  function openRun(id: string) { setRunId(id); navigate("conversations"); }
+  async function openRun(id: string, startedRun?: Run) {
+    let run: Run | RunSummary | undefined = startedRun || workspace.data?.runs.find((candidate) => candidate.id === id);
+    if (canvasHost && (!run?.provider || run.provider === "openhands")) {
+      for (let attempt = 0; attempt < 40 && !run?.providerSessionId && run?.state !== "failed"; attempt++) {
+        if (attempt) await new Promise((resolve) => window.setTimeout(resolve, 250));
+        try {
+          run = await command<Run>("run.get", { id, compact: true, limit: 1 });
+        } catch {
+          break;
+        }
+      }
+      if (run?.provider === "openhands" && run.providerSessionId) {
+        let target = "*";
+        try {
+          if (document.referrer) target = new URL(document.referrer).origin;
+        } catch {}
+        window.parent.postMessage({
+          type: "avoozl:openhands-conversation",
+          conversationId: run.providerSessionId,
+        }, target);
+        return;
+      }
+      if (run?.provider === "openhands") {
+        window.alert(typeof run.error === "string" ? run.error : run.error?.message || "The OpenHands conversation is still starting. Try opening it again in a moment.");
+        refresh();
+        return;
+      }
+    }
+    setRunId(id);
+    navigate("conversations");
+  }
   function openPlan(id: string) { setPlanId(id); navigate("plans"); }
   function openDocument(id: string) { setDocumentId(id); navigate("documents"); }
   function toggleNavigation() {
@@ -1454,6 +1488,8 @@ export function App() {
   if (!workspace.data || !state.data) return <div className="boot-screen"><div className="brand-mark"><Sparkles /></div><h1>Avoozl</h1><p>{workspace.error?.message || state.error?.message || "Opening workspace…"}</p></div>;
   const workspaceData = workspace.data;
   const stateData = state.data;
+  const selectedRun = workspaceData.runs.find((run) => run.id === runId);
+  const visibleViews = canvasHost ? views.filter((item) => item.id !== "conversations") : views;
   const workspaceName = stateData.project?.workspaceName || stateData.project?.title || stateData.project?.name || "Avoozl";
   const currentView = views.find((item) => item.id === view) || {
     id: view,
@@ -1478,8 +1514,8 @@ export function App() {
   return (
     <div className={`app-shell ${navCollapsed ? "nav-collapsed" : ""}`} style={{ "--nav-width": `${navCollapsed ? 44 : navWidth}px` } as React.CSSProperties}>
       <aside className={navOpen ? "app-nav open" : "app-nav"}>
-        <div className="site-brand-row"><a className="brand" href="/" aria-label="Avoozl home"><div className="brand-mark">A</div><span className="brand-label"><strong title={workspaceName}>{workspaceName}</strong><small>Live delivery map</small></span></a><button className="nav-toggle" onClick={toggleNavigation} aria-expanded={!navCollapsed} aria-label={navCollapsed ? "Expand navigation" : "Collapse navigation"} title={navCollapsed ? "Expand navigation" : "Collapse navigation"}><Menu size={18} /></button></div>
-        <nav>{views.map(({ id, label, icon: Icon }) => <button key={id} className={`${view === id ? "active " : ""}${id === "overview" ? "live-view" : ""}`.trim()} onClick={() => navigate(id)}><Icon size={16} /><span>{label}</span>{id === "overview" && activeTaskCount > 0 && <b aria-label={`${activeTaskCount} ${activeTaskCount === 1 ? "task" : "tasks"} in flight`}>{activeTaskCount}</b>}{id === "conversations" && workspaceData.requests.length > 0 && <b>{workspaceData.requests.length}</b>}</button>)}</nav>
+        <div className="site-brand-row"><a className="brand" href={canvasHost ? "/?canvas=1" : "/"} aria-label="Avoozl home"><div className="brand-mark">A</div><span className="brand-label"><strong title={workspaceName}>{workspaceName}</strong><small>Live delivery map</small></span></a><button className="nav-toggle" onClick={toggleNavigation} aria-expanded={!navCollapsed} aria-label={navCollapsed ? "Expand navigation" : "Collapse navigation"} title={navCollapsed ? "Expand navigation" : "Collapse navigation"}><Menu size={18} /></button></div>
+        <nav>{visibleViews.map(({ id, label, icon: Icon }) => <button key={id} className={`${view === id ? "active " : ""}${id === "overview" ? "live-view" : ""}`.trim()} onClick={() => navigate(id)}><Icon size={16} /><span>{label}</span>{id === "overview" && activeTaskCount > 0 && <b aria-label={`${activeTaskCount} ${activeTaskCount === 1 ? "task" : "tasks"} in flight`}>{activeTaskCount}</b>}</button>)}</nav>
         <div className="nav-foot"><button className="mcp-button">MCP</button><button onClick={() => navigate("settings")} title="Settings"><Settings size={14} /></button><button onClick={refresh} title="Check for updates"><RefreshCw size={14} /></button></div>
         {!navCollapsed && <ResizeHandle value={navWidth} setValue={setNavWidth} min={160} max={360} label="Resize navigation" className="nav-resize-handle" />}
       </aside>
@@ -1487,21 +1523,20 @@ export function App() {
       <main className="app-main">
         <header className="app-toolbar"><button className="mobile-menu" onClick={toggleNavigation}><Menu size={18} /></button><strong>{currentView.label}</strong>{pageDescriptions[view] && <span className="page-help" tabIndex={0} aria-label={`About ${currentView.label}`} aria-describedby="page-help-tip">?<span className="page-help-tip" id="page-help-tip" role="tooltip">{pageDescriptions[view]}</span></span>}<span className="toolbar-rule" /><span>{toolbarCount}</span><div className="toolbar-spacer" />
           {facetedView && <button className={filtersOpen ? "toolbar-action active" : "toolbar-action"} onClick={toggleFilters} title={filtersOpen ? "Collapse filters" : "Show filters"} aria-expanded={filtersOpen}><Filter size={17} /></button>}
-          <button className="toolbar-action" onClick={() => askAgent(PROGRESS_PROMPT)} title="Ask an agent about progress"><MessageSquare size={17} /></button>
-          <button className="toolbar-action" onClick={() => { setRunId(null); navigate("conversations"); }} title="New task"><Plus size={17} /></button>
+          {!canvasHost && <button className="toolbar-action" onClick={() => askAgent(PROGRESS_PROMPT)} title="Ask an agent about progress"><MessageSquare size={17} /></button>}
+          {!canvasHost && <button className="toolbar-action" onClick={() => { setRunId(null); navigate("conversations"); }} title="New task"><Plus size={17} /></button>}
           <button className="toolbar-action" onClick={() => document.fullscreenElement ? void document.exitFullscreen() : void document.documentElement.requestFullscreen()} title="Full screen"><Maximize2 size={17} /></button>
           <button className="toolbar-action" onClick={() => setWorkbenchFilters({ ...emptyTaskFilters })} title="Reset filters"><RotateCcw size={17} /></button>
         </header>
         {view === "overview" && <FacetedWorkbench workspace={workspaceData} state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters} filtersOpen={filtersOpen} applyPromptView={applyVisualization}>{(tasks) => <RecentNow state={stateData} matchingTasks={tasks} openTask={setDrawerTask} />}</FacetedWorkbench>}
         {view === "tasks" && <FacetedWorkbench workspace={workspaceData} state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters} filtersOpen={filtersOpen} applyPromptView={applyVisualization}>{(tasks) => <RecentTree state={stateData} tasks={tasks} openTask={setDrawerTask} />}</FacetedWorkbench>}
         {view === "epics" && <FacetedWorkbench workspace={workspaceData} state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters} filtersOpen={filtersOpen} applyPromptView={applyVisualization}>{(tasks) => <EpicProgress state={stateData} matchingTasks={tasks} openTask={setDrawerTask} />}</FacetedWorkbench>}
-        {view === "conversations" && <Conversations workspace={workspaceData} selected={runId} select={setRunId} refresh={refresh} initialPrompt={draftPrompt} />}
+        {view === "conversations" && (!canvasHost || selectedRun?.provider !== "openhands") && <Conversations workspace={workspaceData} selected={runId} select={setRunId} refresh={refresh} initialPrompt={draftPrompt} />}
         {view === "plans" && <Plans workspace={workspaceData} selected={planId} select={openPlan} refresh={refresh} />}
         {view === "documents" && <Documents workspace={workspaceData} state={stateData} selected={documentId} select={(id) => id ? openDocument(id) : setDocumentId(null)} selectedPlan={planId} selectPlan={setPlanId} refresh={refresh} />}
         {view === "graph" && <FacetedWorkbench workspace={workspaceData} state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters} filtersOpen={filtersOpen} applyPromptView={applyVisualization}>{(tasks) => <Graph state={stateData} matchingTasks={tasks} openTask={setDrawerTask} />}</FacetedWorkbench>}
-        {view === "visualizations" && <Visualizations state={stateData} applyView={applyVisualization} refresh={refresh} />}
         {view === "insights" && <Insights />}
-        {view === "settings" && <SettingsView workspace={workspaceData} state={stateData} refresh={refresh} />}
+        {view === "settings" && <SettingsView workspace={workspaceData} state={stateData} refresh={refresh} openRun={openRun} />}
       </main>
       {drawerTask && <TaskDrawer task={drawerTask} state={stateData} close={() => setDrawerTask(null)} refresh={refresh} />}
     </div>

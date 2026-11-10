@@ -13,8 +13,8 @@
     "start": "node cli.mjs serve",
     "workspace": "node cli.mjs",
     "test": "node --test --test-timeout=60000 src/*.test.mjs src/app/test/*.test.mjs",
-    "format": "prettier --write cli.mjs src examples scripts extension README.md AGENTS.md package.json .github",
-    "format:check": "prettier --check cli.mjs src examples scripts extension README.md AGENTS.md package.json .github",
+    "format": "prettier --write cli.mjs src examples scripts extension canvas-app/*.js canvas-app/*.json README.md AGENTS.md package.json .github",
+    "format:check": "prettier --check cli.mjs src examples scripts extension canvas-app/*.js canvas-app/*.json README.md AGENTS.md package.json .github",
     "package:extension": "node scripts/package-extension.mjs",
     "fixture": "node scripts/vscode-fixture.mjs",
     "evidence": "node scripts/vscode-evidence.mjs"
@@ -46,6 +46,7 @@
     "cli.mjs",
     "src/",
     "examples/",
+    "canvas-app/",
     "README.md",
     "LICENSE",
     "docs/example-workspace.png",

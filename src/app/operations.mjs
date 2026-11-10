@@ -38,7 +38,10 @@ import { taskSignals, isPlanInventory } from "../workbench-model.mjs";
 import { ExternalSessions } from "./external-sessions.mjs";
 import { listExamples, seedExample } from "./examples.mjs";
 import { describeWorkspace } from "./client.mjs";
-import { defaultGitHubClient } from "./github.mjs";
+import {
+  defaultGitHubClient,
+  requirePrivateRepository,
+} from "./github.mjs";
 import {
   configureGitHubRepository,
   machineIdentity,
@@ -335,6 +338,7 @@ export class Operations {
       );
     const result = [];
     for (const receipt of receipts) {
+      await requirePrivateRepository(this.github, receipt.repository);
       const pull = await this.github.pullRequest(
         receipt.repository,
         receipt.number,
@@ -1274,10 +1278,18 @@ export class Operations {
       return configureWorkspaceRepository(store, input, this.github);
     if (name === "workspace.repository.status")
       return workspaceRepositoryStatus(store);
-    if (name === "workspace.repository.publish")
+    if (name === "workspace.repository.publish") {
+      const config = store.getMeta("workspaceRepository");
+      if (config?.repository)
+        await requirePrivateRepository(this.github, config.repository);
       return publishWorkspaceRepository(store, input);
-    if (name === "workspace.repository.sync")
+    }
+    if (name === "workspace.repository.sync") {
+      const config = store.getMeta("workspaceRepository");
+      if (config?.repository)
+        await requirePrivateRepository(this.github, config.repository);
       return syncWorkspaceRepository(store);
+    }
     if (name === "planning.publish")
       return publishPlanningPullRequest(store, this.github, input);
     if (name === "planning.reconcile")
