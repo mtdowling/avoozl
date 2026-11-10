@@ -108,6 +108,18 @@ function useStoredSize(key: string, fallback: number, min: number, max: number) 
   return [size, setSize] as const;
 }
 
+// 0 means the operator has not chosen a width yet, so the stylesheet's own
+// default still applies -- which matters where that default differs by state.
+function useOptionalStoredSize(key: string, min: number, max: number) {
+  const [size, setRawSize] = useState(() => storedNumber(key, 0));
+  const setSize = useCallback((value: number) => {
+    const next = Math.max(min, Math.min(max, value));
+    setRawSize(next);
+    try { localStorage.setItem(key, String(next)); } catch {}
+  }, [key, max, min]);
+  return [size, setSize] as const;
+}
+
 function ResizeHandle({ value, setValue, min, max, label, invert = false, className = "" }: {
   value: number;
   setValue: (value: number) => void;
@@ -597,7 +609,9 @@ function Plans({ workspace, selected, select, refresh }: { workspace: Workspace;
 function DocumentDetail({ id, close, refresh }: { id: string; close: () => void; refresh: () => void }) {
   const remote = useRemote(() => command<DocumentRecord>("document.get", { id }), [id]);
   const [editing, setEditing] = useState(false);
-  return <div className="inspector-backdrop" onMouseDown={(event) => event.target === event.currentTarget && close()}>
+  const [width, setWidth] = useOptionalStoredSize("avoozl-document-inspector-width", 420, 2000);
+  return <div className="inspector-backdrop" style={width ? ({ "--inspector-width": `${width}px` } as React.CSSProperties) : undefined} onMouseDown={(event) => event.target === event.currentTarget && close()}>
+    <ResizeHandle value={width || (editing ? 1400 : 920)} setValue={setWidth} min={420} max={2000} invert label="Resize plan panel" className="inspector-resize-handle" />
     <aside className={`document-inspector ${editing ? "editing" : ""}`}>
       <header className="document-heading">
         <div><span className="eyebrow">Plan</span><h1>{remote.data?.title || id}</h1><small>{remote.data?.path || id}</small></div>
@@ -1017,12 +1031,13 @@ function TaskDrawer({ task, state, close, refresh }: { task: Task; state: State;
   const [status, setStatus] = useState(task.status);
   const [nextAction, setNextAction] = useState(task.nextAction || "");
   const [busy, setBusy] = useState(false);
+  const [width, setWidth] = useStoredSize("avoozl-task-drawer-width", 344, 280, 760);
   async function save() {
     setBusy(true);
     try { await command("task.update", { id: task.id, status, nextAction }, state.revision); refresh(); close(); }
     finally { setBusy(false); }
   }
-  return <div className="drawer-backdrop" onMouseDown={(e) => e.target === e.currentTarget && close()}><aside className="task-drawer"><header><div><span className="eyebrow">Task</span><h2>{task.title}</h2></div><button className="icon-button" onClick={close}><X size={20} /></button></header><code>{task.id}</code><p>{task.summary || "No summary recorded."}</p><label>Status<select value={status} onChange={(e) => setStatus(e.target.value)}>{state.statuses.map((item) => <option value={item.id} key={item.id}>{item.label}</option>)}</select></label><label>Next action<textarea value={nextAction} onChange={(e) => setNextAction(e.target.value)} /></label>{!!task.acceptance?.length && <section><h3>Acceptance</h3><ul>{task.acceptance.map((item) => <li key={item}>{item}</li>)}</ul></section>}<button className="button primary" disabled={busy} onClick={save}>Save task</button></aside></div>;
+  return <div className="drawer-backdrop" style={{ "--drawer-width": `${width}px` } as React.CSSProperties} onMouseDown={(e) => e.target === e.currentTarget && close()}><ResizeHandle value={width} setValue={setWidth} min={280} max={760} invert label="Resize task panel" className="drawer-resize-handle" /><aside className="task-drawer"><header><div><span className="eyebrow">Task</span><h2>{task.title}</h2></div><button className="icon-button" onClick={close}><X size={20} /></button></header><code>{task.id}</code><p>{task.summary || "No summary recorded."}</p><label>Status<select value={status} onChange={(e) => setStatus(e.target.value)}>{state.statuses.map((item) => <option value={item.id} key={item.id}>{item.label}</option>)}</select></label><label>Next action<textarea value={nextAction} onChange={(e) => setNextAction(e.target.value)} /></label>{!!task.acceptance?.length && <section><h3>Acceptance</h3><ul>{task.acceptance.map((item) => <li key={item}>{item}</li>)}</ul></section>}<button className="button primary" disabled={busy} onClick={save}>Save task</button></aside></div>;
 }
 
 function Insights() {

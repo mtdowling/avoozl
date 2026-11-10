@@ -18,8 +18,9 @@ const esc = (value) =>
   );
 // Now keeps one queue on screen at a time. Decisions stay pinned above the
 // tabs: a pending question is never hidden behind a tab the operator must find.
-// Task / status / owner / next action / blocked by / connections.
-const TREE_COLUMNS = 6;
+// Task / status / owner / next action / blocked by. The connections control
+// rides in the title cell rather than owning a column of its own.
+const TREE_COLUMNS = 5;
 const NOW_TABS = [
   { id: "working", label: "In flight" },
   { id: "ready", label: "Up next" },
@@ -112,7 +113,7 @@ export function createWorkbench({
   function taskRow(task) {
     const signals = taskSignals(current.data, task),
       owner = task.activity?.owner || task.owner;
-    return `<tr class="tree-task" data-workbench-task="${esc(task.id)}"><th class="tree-title-cell" scope="row"><button class="tree-task-open" title="${esc(task.title)}" data-task="${esc(task.id)}"><span class="tree-task-title">${esc(task.title)}</span></button><small title="${esc(task.id)}">${esc(epicName(task.epic))} · ${esc(trackName(task.track))}</small></th><td class="tree-state-cell">${badge(task.status)}${signals.activity === "active" ? '<small class="tree-live">● In flight</small>' : signals.ready ? "<small>Ready</small>" : ""}</td><td class="tree-owner-cell">${esc(owner || "—")}</td><td class="tree-next-cell" title="${esc(task.nextAction || task.summary || "")}">${esc(task.nextAction || task.summary || "—")}</td><td class="tree-blocker-cell">${blockers(task) || '<span class="muted">—</span>'}</td><td class="tree-graph-cell"><button class="tree-graph" data-focus-task="${esc(task.id)}" aria-label="Connections for ${esc(task.title)}" title="Connections">↗</button></td></tr>`;
+    return `<tr class="tree-task" data-workbench-task="${esc(task.id)}"><th class="tree-title-cell" scope="row"><button class="tree-task-open" title="${esc(task.title)}" data-task="${esc(task.id)}"><span class="tree-task-title">${esc(task.title)}</span></button><button class="tree-graph" data-focus-task="${esc(task.id)}" aria-label="Connections for ${esc(task.title)}" title="Connections">↗</button><small title="${esc(task.id)}">${esc(epicName(task.epic))} · ${esc(trackName(task.track))}</small></th><td class="tree-state-cell">${badge(task.status)}${signals.activity === "active" ? '<small class="tree-live">● In flight</small>' : signals.ready ? "<small>Ready</small>" : ""}</td><td class="tree-owner-cell">${esc(owner || "—")}</td><td class="tree-next-cell" title="${esc(task.nextAction || task.summary || "")}">${esc(task.nextAction || task.summary || "—")}</td><td class="tree-blocker-cell">${blockers(task) || '<span class="muted">—</span>'}</td></tr>`;
   }
   function groupRow(row, group) {
     return `<tr class="tree-group-row"><th class="tree-group-cell" colspan="${TREE_COLUMNS}" scope="rowgroup"><button class="tree-group-toggle" data-tree-group="${esc(row.key)}" aria-expanded="${expanded.get(row.key)}"><span class="tree-chevron">${expanded.get(row.key) ? "⌄" : "›"}</span><span><strong>${esc(groupName(row.root.key, group))}</strong><small>${row.root.tasks.length} tasks · ${row.root.complete} / ${row.root.total} complete</small></span><span class="tree-percent">${Math.round((row.root.complete / row.root.total) * 100)}%</span></button></th></tr>`;
@@ -184,7 +185,7 @@ export function createWorkbench({
       table: {
         className: "tree-table",
         columns: TREE_COLUMNS,
-        head: '<tr class="tree-table-heading"><th scope="col">Task / epic / track</th><th scope="col">Status</th><th scope="col">Owner / agent</th><th scope="col">Next action</th><th scope="col">Blocked by</th><th scope="col"><span class="sr-only">Connections</span></th></tr>',
+        head: '<tr class="tree-table-heading"><th scope="col">Task / epic / track</th><th scope="col">Status</th><th scope="col">Owner / agent</th><th scope="col">Next action</th><th scope="col">Blocked by</th></tr>',
       },
       render: (r) => (r.type === "task" ? taskRow(r.task) : groupRow(r, input.group)),
     });
