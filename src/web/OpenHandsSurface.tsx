@@ -1,18 +1,50 @@
-import { useEffect, useState } from "react";
-import { MemoryRouter, Route, Routes } from "react-router";
-import { AgentServerUIProviders } from "@openhands/agent-canvas";
-import { ConversationView } from "@openhands/agent-canvas/conversation";
-import "@openhands/agent-canvas/styles.css";
+import {
+  Component,
+  lazy,
+  Suspense,
+  useEffect,
+  useState,
+  type ErrorInfo,
+  type ReactNode,
+} from "react";
 
-type Surface = {
+export type OpenHandsSurfaceCapability = {
   host: string;
   apiKey: string;
   conversationId: string;
   expiresAt: string;
 };
 
+const OpenHandsCanvas = lazy(() => import("./OpenHandsCanvas"));
+
+class OpenHandsErrorBoundary extends Component<
+  { children: ReactNode },
+  { error: string }
+> {
+  state = { error: "" };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error: error.message || "OpenHands workspace failed." };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("OpenHands workspace failed", error, info);
+  }
+
+  render() {
+    if (this.state.error)
+      return (
+        <div className="center-state error">
+          OpenHands workspace unavailable: {this.state.error}
+        </div>
+      );
+    return this.props.children;
+  }
+}
+
 export default function OpenHandsSurface({ runId }: { runId: string }) {
-  const [surface, setSurface] = useState<Surface | null>(null);
+  const [surface, setSurface] =
+    useState<OpenHandsSurfaceCapability | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -29,7 +61,7 @@ export default function OpenHandsSurface({ runId }: { runId: string }) {
         const value = await response.json();
         if (!response.ok)
           throw Error(value.error || "OpenHands surface failed.");
-        return value as Surface;
+        return value as OpenHandsSurfaceCapability;
       })
       .then((value) => {
         const backend = {
@@ -88,23 +120,15 @@ export default function OpenHandsSurface({ runId }: { runId: string }) {
     return <div className="center-state">Opening OpenHands workspace…</div>;
   return (
     <div className="openhands-surface">
-      <AgentServerUIProviders
-        analytics={false}
-        resolveCloudOrganization={false}
-      >
-        <MemoryRouter
-          initialEntries={[
-            `/conversations/${encodeURIComponent(surface.conversationId)}`,
-          ]}
+      <OpenHandsErrorBoundary key={surface.conversationId}>
+        <Suspense
+          fallback={
+            <div className="center-state">Opening OpenHands workspace…</div>
+          }
         >
-          <Routes>
-            <Route
-              path="/conversations/:conversationId"
-              element={<ConversationView />}
-            />
-          </Routes>
-        </MemoryRouter>
-      </AgentServerUIProviders>
+          <OpenHandsCanvas surface={surface} />
+        </Suspense>
+      </OpenHandsErrorBoundary>
     </div>
   );
 }
