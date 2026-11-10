@@ -532,6 +532,8 @@ function RecentTree({ state, tasks, openTask }: { state: State; tasks: Task[]; o
         repaint((value) => value + 1);
       },
       setCount() {},
+      // This skin keeps every cell on one line, so rows are a fixed height.
+      rowHeights: { group: 46, task: 38, taskWithBlockers: 38 },
     });
     const click = (event: MouseEvent) => {
       const target = event.target as Element;
@@ -1158,7 +1160,7 @@ export function App() {
   const [navCollapsed, setNavCollapsed] = useState(() => {
     try { return localStorage.getItem("nupp-navigation-collapsed") === "true"; } catch { return false; }
   });
-  const [navWidth, setNavWidth] = useStoredSize("avoozl-navigation-width", 196, 160, 360);
+  const [navWidth, setNavWidth] = useStoredSize("avoozl-navigation-width", 176, 160, 360);
   const workspace = useRemote(loadWorkspace, []);
   const state = useRemote(loadState, []);
   const refresh = () => { void Promise.all([workspace.reload(), state.reload()]); };

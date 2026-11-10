@@ -41,7 +41,7 @@ a { color: #c5c5c5; }
 code, pre { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; }
 h1, h2, h3, p { margin-top: 0; }
 
-.app-shell { min-height: 100vh; display: grid; grid-template-columns: var(--nav-width, 196px) minmax(0, 1fr); }
+.app-shell { min-height: 100vh; display: grid; grid-template-columns: var(--nav-width, 176px) minmax(0, 1fr); }
 .app-nav { height: 100vh; position: sticky; top: 0; padding: 0 10px 10px; display: flex; flex-direction: column; border-right: 1px solid var(--line); background: #181818; z-index: 30; }
 .site-brand-row { height: 40px; min-width: 0; display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--line); }
 .brand { height: 40px; min-width: 0; flex: 1; display: flex; align-items: center; gap: 8px; color: inherit; text-decoration: none; }
@@ -733,7 +733,7 @@ select { min-height: 32px; padding: 0 8px; font-size: 10px; }
 .recent-now .hub-work-row:has(.hub-work-marker.is-working) {
   border-bottom-color: transparent;
   border-radius: 9px;
-  background: #221a33;
+  background: var(--panel);
 }
 .recent-now .hub-work-row:has(.hub-work-marker.is-working) + .hub-work-row {
   border-top: 1px solid #3b3b3b;
@@ -783,53 +783,42 @@ select { min-height: 32px; padding: 0 8px; font-size: 10px; }
   height: 100%;
   padding-top: 0;
 }
+/* One line per cell, so a row is exactly the 38px the windowing reserves for
+   it (46px for a group header). Keep these in step with the rowHeights this
+   view passes to createWorkbench. */
 .recent-tree .tree-group-toggle {
   width: 100%;
+  height: 46px;
+  display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
 }
 .recent-tree .tree-percent {
   min-width: 48px;
-  margin-left: auto;
   justify-self: end;
   color: #d0d0d0;
   font-size: 11px;
   text-align: right;
 }
-.recent-tree .tree-table-heading,
-.recent-tree .tree-task {
-  grid-template-columns:
-    minmax(280px, 1.45fr) 110px 130px minmax(180px, .9fr)
-    minmax(160px, .8fr) 24px;
-  align-items: center;
-}
-.recent-tree .tree-table-heading {
+.recent-tree .tree-table-heading > th {
   height: 34px;
-  min-height: 34px;
   padding-block: 0;
+  vertical-align: middle;
 }
-.recent-tree .tree-task {
+.recent-tree .tree-task > th,
+.recent-tree .tree-task > td {
   height: 38px;
-  min-height: 38px;
   padding-block: 0;
-  line-height: 38px;
-}
-.recent-tree .tree-task > *,
-.recent-tree .tree-title-cell,
-.recent-tree .tree-state-cell,
-.recent-tree .tree-owner-cell,
-.recent-tree .tree-next-cell,
-.recent-tree .tree-blocker-cell {
-  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  line-height: 38px;
+  vertical-align: middle;
+  line-height: 1.4;
 }
 .recent-tree .tree-task .tree-task-title {
   display: inline;
   overflow: hidden;
   font-size: 11px;
-  line-height: 38px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -842,14 +831,11 @@ select { min-height: 32px; padding: 0 8px; font-size: 10px; }
   display: inline;
   overflow: hidden;
   font-size: 9px;
-  line-height: 38px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.recent-tree .tree-group-toggle {
+.recent-tree .tree-group-cell {
   height: 46px;
-  min-height: 46px;
-  padding-block: 0;
 }
 
 .graph-view {
