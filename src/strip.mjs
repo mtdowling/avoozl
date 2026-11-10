@@ -332,7 +332,7 @@ export function createSingleStrip(
               ? p.items.length
               : p.kind === "landed"
                 ? "✓"
-                : "a") +
+                : "A") +
             "</span></button>",
         )
         .join("");

@@ -325,36 +325,69 @@ function applyVisualization(view) {
 function removeRow(kind, id, title) {
   return `<button class="icon-button visualization-remove" data-remove-visualization="${esc(id)}" data-remove-kind="${kind}" title="Delete ${esc(title)}" aria-label="Delete ${esc(title)}">×</button>`;
 }
+const VISUALIZATION_TABS = [
+  { id: "views", label: "Saved views" },
+  { id: "tours", label: "Presentations" },
+];
+let visualizationTab = "views";
+try {
+  const stored = localStorage.getItem("avoozl-visualization-tab");
+  if (VISUALIZATION_TABS.some((t) => t.id === stored))
+    visualizationTab = stored;
+} catch {}
 function presentSavedViews() {
   const views = data.presentation?.views || [],
     tours = data.presentation?.tours || [],
     saved = $("saved-views");
   if (!saved) return;
+  const counts = { views: views.length, tours: tours.length },
+    tab = VISUALIZATION_TABS.some((t) => t.id === visualizationTab)
+      ? visualizationTab
+      : "views",
+    rows =
+      tab === "tours"
+        ? tours
+            .map(
+              (t) =>
+                `<div class="visualization-row"><button data-presentation="${esc(t.id)}" ${tour?.id === t.id ? 'aria-current="true"' : ""}><strong>${esc(t.title)}</strong>${t.steps?.length ? `<span>${t.steps.length} ${t.steps.length === 1 ? "step" : "steps"}</span>` : ""}</button>${removeRow("tour", t.id, t.title)}</div>`,
+            )
+            .join("")
+        : views
+            .map(
+              (v) =>
+                `<div class="visualization-row"><button data-visualization="${esc(v.id)}" ${!tour && state.visualization === v.id ? 'aria-current="true"' : ""}><strong>${esc(v.title)}</strong>${v.caption ? `<span>${esc(v.caption)}</span>` : ""}</button>${removeRow("view", v.id, v.title)}</div>`,
+            )
+            .join("");
   saved.innerHTML =
-    '<p class="visualization-note">Saved views restore a filter, camera and layout. Deleting one removes the saved configuration only, never tasks or plans.</p>' +
-    (views.length
-      ? '<h3>Saved views</h3><div class="visualization-rows">' +
-        views
-          .map(
-            (v) =>
-              `<div class="visualization-row"><button data-visualization="${esc(v.id)}" ${!tour && state.visualization === v.id ? 'aria-current="true"' : ""}><strong>${esc(v.title)}</strong>${v.caption ? `<span>${esc(v.caption)}</span>` : ""}</button>${removeRow("view", v.id, v.title)}</div>`,
-          )
-          .join("") +
-        "</div>"
-      : "") +
-    (tours.length
-      ? '<h3>Presentations</h3><div class="visualization-rows">' +
-        tours
-          .map(
-            (t) =>
-              `<div class="visualization-row"><button data-presentation="${esc(t.id)}" ${tour?.id === t.id ? 'aria-current="true"' : ""}><strong>${esc(t.title)}</strong></button>${removeRow("tour", t.id, t.title)}</div>`,
-          )
-          .join("") +
-        "</div>"
-      : "") +
-    (!views.length && !tours.length
-      ? '<p class="muted">No saved visualizations yet. Agents create them through the plans MCP tools.</p>'
-      : "");
+    '<div class="hub-tabs" role="tablist" aria-label="Saved visualizations">' +
+    VISUALIZATION_TABS.map(
+      (t) =>
+        `<button role="tab" id="visualization-tab-${t.id}" data-visualization-tab="${t.id}" aria-controls="visualization-panel" aria-selected="${t.id === tab}" tabindex="${t.id === tab ? 0 : -1}">${t.label}<span>${counts[t.id]}</span></button>`,
+    ).join("") +
+    `</div><section id="visualization-panel" role="tabpanel" aria-labelledby="visualization-tab-${tab}">` +
+    '<p class="visualization-note">' +
+    (tab === "tours"
+      ? "A presentation plays a narrated sequence of saved views. Deleting one removes the sequence; the views it points at stay."
+      : "Saved views restore a filter, camera and layout. Deleting one removes the saved configuration only, never tasks or plans.") +
+    "</p>" +
+    (rows
+      ? '<div class="visualization-rows">' + rows + "</div>"
+      : '<p class="muted">' +
+        (tab === "tours" ? "No presentations yet." : "No saved views yet.") +
+        " Agents create them through the plans MCP tools.</p>") +
+    "</section>";
+}
+function selectVisualizationTab(id, { focus = false } = {}) {
+  if (!VISUALIZATION_TABS.some((t) => t.id === id)) return;
+  visualizationTab = id;
+  try {
+    localStorage.setItem("avoozl-visualization-tab", id);
+  } catch {}
+  presentSavedViews();
+  if (focus)
+    $("saved-views")
+      .querySelector('[data-visualization-tab="' + id + '"]')
+      ?.focus();
 }
 try {
   positionLayouts = JSON.parse(
@@ -2063,9 +2096,38 @@ document.addEventListener("visibilitychange", () => {
 window.addEventListener("online", () => poll(true));
 poll();
 
+$("saved-views").addEventListener("keydown", (e) => {
+  const tab = e.target.closest("[data-visualization-tab]");
+  if (!tab) return;
+  const step =
+    e.key === "ArrowRight" || e.key === "ArrowDown"
+      ? 1
+      : e.key === "ArrowLeft" || e.key === "ArrowUp"
+        ? -1
+        : e.key === "Home"
+          ? -VISUALIZATION_TABS.length
+          : e.key === "End"
+            ? VISUALIZATION_TABS.length
+            : 0;
+  if (!step) return;
+  e.preventDefault();
+  const at = VISUALIZATION_TABS.findIndex(
+    (t) => t.id === tab.dataset.visualizationTab,
+  );
+  selectVisualizationTab(
+    VISUALIZATION_TABS[
+      Math.max(0, Math.min(VISUALIZATION_TABS.length - 1, at + step))
+    ].id,
+    { focus: true },
+  );
+});
 $("saved-views").addEventListener("click", async (e) => {
   const button = e.target.closest("button");
   if (!button || !data) return;
+  if (button.dataset.visualizationTab) {
+    selectVisualizationTab(button.dataset.visualizationTab);
+    return;
+  }
   const remove = button.dataset.removeVisualization;
   if (remove) {
     const kind = button.dataset.removeKind === "tour" ? "tour" : "view",
@@ -3069,35 +3131,20 @@ function activityDetails(t) {
     "</div></section>"
   );
 }
-function openActivity() {
-  stopTour();
-  Object.assign(state, {
-    view: "activity",
-    scope: "all",
-    q: "",
-    status: "",
-    activity: "",
-    epic: "",
-    track: "",
-    tag: "",
-    relation: "",
-    selected: "",
-    document: "",
-    taskIds: [],
-    visualization: "",
-  });
-  $("inspector").classList.remove("open");
-  controls();
-  refreshViews();
-}
-$("inflight").onclick = openActivity;
 function updateActivityPresence() {
   clearTimeout(activityExpiryTimer);
   if (!data) return;
   const now = Date.now(),
     active = data.tasks.filter((t) => activityState(t, now) === "active");
-  $("inflight-count").textContent = active.length;
-  $("inflight").classList.toggle("has-active", active.length > 0);
+  // The count rides the Now entry in the rail; zero reports nothing at all.
+  const badge = $("inflight-count");
+  badge.textContent = active.length;
+  badge.hidden = !active.length;
+  badge.setAttribute(
+    "aria-label",
+    active.length +
+      (active.length === 1 ? " task in flight" : " tasks in flight"),
+  );
   const next = Math.min(...active.map((t) => Date.parse(t.activity.expiresAt)));
   if (Number.isFinite(next) && !document.hidden)
     activityExpiryTimer = setTimeout(

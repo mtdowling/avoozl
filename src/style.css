@@ -5,13 +5,13 @@
   --border: #343434;
   --text: #eeeeee;
   --muted: #a0a0a0;
-  --accent: #6ba5ff;
-  --on: #8edabb;
+  --accent: #8be9fd;
+  --on: #50fa7b;
   /* Work in flight breathes in purple; green is reserved for landed work. */
-  --working: #ab7df5;
-  --working-ink: #1d1030;
-  --landed: #8edabb;
-  --selected: #8ab8ff;
+  --working: #bd93f9;
+  --working-ink: #1b1030;
+  --landed: #50fa7b;
+  --selected: #ff79c6;
   font-family:
     Inter,
     -apple-system,
@@ -132,7 +132,7 @@ h3 {
   height: 33px;
   background: #c8c8c8;
   color: #191919;
-  font-size: 30px;
+  font-size: 21px;
   font-weight: 800;
   border-radius: 9px;
   line-height: 1;
@@ -182,7 +182,7 @@ h3 {
   background: var(--accent);
 }
 #live-dot.error {
-  background: #eda076;
+  background: #ff5555;
 }
 .connection button {
   font-size: 19px;
@@ -1070,9 +1070,9 @@ dialog .dialog-heading button {
   line-height: 1;
 }
 .visualization-remove:hover {
-  color: #f2b1b1;
-  border-color: #7c4a4a;
-  background: #2e2020;
+  color: #ff8f8f;
+  border-color: #7d3b4a;
+  background: #2e1d22;
 }
 .visualization-list strong {
   font-size: 13px;
@@ -1455,7 +1455,7 @@ dialog textarea {
   .brandmark {
     width: 28px;
     height: 28px;
-    font-size: 24px;
+    font-size: 18px;
   }
   .brand b {
     font-size: 12px;
@@ -3221,23 +3221,6 @@ dialog textarea {
 .tour-active .toolbar-actions {
   flex-wrap: nowrap;
 }
-.activity-shortcut {
-  white-space: nowrap;
-  color: #bdbdbd;
-}
-.activity-shortcut b {
-  display: inline-block;
-  font-size: 9px;
-  padding: 1px 4px;
-  margin-left: 5px;
-  background: #363636;
-  border-radius: 4px;
-  color: #dfdfdf;
-}
-.activity-shortcut.has-active {
-  border-color: #6c6c6c;
-  color: #d3d3d3;
-}
 .activity-badge {
   display: inline-block;
   font-size: 8px;
@@ -3252,9 +3235,9 @@ dialog textarea {
   white-space: nowrap;
 }
 .activity-badge.stale {
-  color: #e6c592;
-  background: #3b3022;
-  border-color: #685039;
+  color: #ffb86c;
+  background: #3a2d1d;
+  border-color: #6d5133;
 }
 .activity-total {
   font-size: 15px;
@@ -3387,24 +3370,11 @@ dialog textarea {
   .header nav button {
     font-size: 9px;
   }
-  .activity-shortcut {
-    font-size: 9px;
-  }
   .flight-grid {
     grid-template-columns: 1fr;
   }
 }
 @media (max-width: 650px) {
-  .tour-active .activity-shortcut {
-    font-size: 0;
-  }
-  .tour-active .activity-shortcut:before {
-    content: "●";
-    font-size: 9px;
-  }
-  .tour-active .activity-shortcut b {
-    font-size: 9px;
-  }
   .flight-card {
     padding: 15px;
   }
@@ -5026,7 +4996,7 @@ body {
 #prompt-search-state:empty {
   display: none;
 }
-/* Now is an operational hub, with work and decisions in vertical groups. */
+/* Now is an operational queue: one tabbed lane of work at a time. */
 .hub-heading {
   display: flex;
   align-items: flex-end;
@@ -5048,38 +5018,6 @@ body {
 .hub-date {
   font-size: 11px;
   color: #a9a9a9;
-}
-.hub-pulse {
-  display: grid;
-  grid-template-columns: repeat(var(--hub-pulse-columns, 4), minmax(0, 1fr));
-  border: 1px solid #434343;
-  border-radius: 10px;
-  overflow: hidden;
-  margin-bottom: 26px;
-}
-.hub-pulse button {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 7px;
-  padding: 18px;
-  border: 0;
-  border-right: 1px solid #434343;
-  background: #252525;
-  color: #e3e3e3;
-  text-align: left;
-  cursor: pointer;
-}
-.hub-pulse button:last-child {
-  border-right: 0;
-}
-.hub-pulse strong {
-  font-size: 29px;
-  font-weight: 600;
-}
-.hub-pulse span {
-  font-size: 11px;
-  color: #b0b0b0;
 }
 .hub-section {
   margin: 0 0 28px;
@@ -5131,15 +5069,15 @@ body {
   border-bottom-color: var(--accent);
 }
 .hub-tabs button[aria-selected="true"] span {
-  background: #35425c;
-  color: #e7eeff;
+  background: #1f4753;
+  color: #d9f8ff;
 }
 .hub-tabs button[data-now-tab="working"][aria-selected="true"] {
   border-bottom-color: var(--working);
 }
 .hub-tabs button[data-now-tab="working"][aria-selected="true"] span {
-  background: #3b2a55;
-  color: #e9dcff;
+  background: #3a2857;
+  color: #efe2ff;
 }
 .hub-panel:focus {
   outline: none;
@@ -5176,13 +5114,13 @@ body {
   justify-content: space-between;
   gap: 20px;
   padding: 18px;
-  border: 1px solid #6a5b40;
-  background: #2b2b24;
+  border: 1px solid #6c6436;
+  background: #2b2a1e;
   border-radius: 9px;
   margin: 10px 0;
 }
 .hub-decision small {
-  color: #d2bb8b;
+  color: #f1fa8c;
   font-size: 11px;
 }
 .hub-decision h3 {
@@ -5215,7 +5153,7 @@ body {
   box-shadow: 0 0 0 4px #c8c8c814;
 }
 .hub-work-marker.is-blocked {
-  background: #caa56a;
+  background: #ffb86c;
 }
 .hub-work-copy {
   min-width: 0;
@@ -5461,15 +5399,6 @@ body {
   .hub-heading h1 {
     font-size: 33px;
   }
-  .hub-pulse button {
-    padding: 13px 10px;
-  }
-  .hub-pulse strong {
-    font-size: 24px;
-  }
-  .hub-pulse span {
-    font-size: 10px;
-  }
   .hub-row-actions {
     grid-column: 2;
     justify-content: flex-start;
@@ -5711,19 +5640,6 @@ body {
 }
 .icon-button:hover {
   background: #393939;
-}
-.icon-button #inflight-count {
-  position: absolute;
-  right: -3px;
-  top: -4px;
-  font-size: 8px;
-  line-height: 14px;
-  min-width: 14px;
-  background: #464646;
-  border-radius: 7px;
-  color: #e2e2e2;
-  padding: 0 2px;
-  box-sizing: border-box;
 }
 .toolbar-divider {
   color: #5f5f5f;
@@ -6896,29 +6812,6 @@ body .workspace.theater {
   .hub-heading .button {
     min-height: 40px;
   }
-  .hub-pulse {
-    display: flex;
-    flex-direction: column;
-  }
-  .hub-pulse button {
-    min-height: 44px;
-    padding: 8px 12px;
-    flex-direction: row;
-    align-items: center;
-    gap: 12px;
-    border-right: 0;
-    border-bottom: 1px solid #414141;
-  }
-  .hub-pulse button:last-child {
-    border-bottom: 0;
-  }
-  .hub-pulse strong {
-    min-width: 2ch;
-    font-size: 22px;
-  }
-  .hub-pulse span {
-    font-size: 12px;
-  }
   .hub-work-row {
     gap: 10px;
     padding: 16px 0;
@@ -7415,14 +7308,14 @@ a {
 .brandmark {
   background: #07060a;
   color: #a81427;
-  border: 1px solid #7b3fc4;
+  border: 1px solid #bd93f9;
   box-shadow:
-    inset 0 0 8px #3a1160,
+    inset 0 0 9px #3b2159,
     0 0 0 1px #1b0b2b;
   text-shadow: 0 0 7px #a8142799;
 }
 .brand:hover .brandmark {
-  border-color: #a263e8;
+  border-color: #dcc6ff;
   color: #c4162c;
 }
 .button.primary {
@@ -7445,7 +7338,7 @@ a {
   outline-color: var(--selected);
 }
 ::selection {
-  background: #31568c;
+  background: #44475a;
   color: #fff;
 }
 
@@ -7455,8 +7348,8 @@ a {
 }
 .connection:has(#live-dot.live) .mcp-connect {
   color: var(--on);
-  background: #192a23;
-  border-color: #47705c;
+  background: #12291a;
+  border-color: #2f6b40;
 }
 .hub-clear > span {
   color: var(--on);
@@ -7467,40 +7360,61 @@ input[type="radio"] {
 }
 button[aria-pressed="true"] {
   color: var(--on);
-  border-color: #47705c;
-  background: #192a23;
+  border-color: #2f6b40;
+  background: #12291a;
 }
-/* In-flight work breathes so a glance separates it from landed work. */
+/* In-flight work breathes so a glance separates it from landed work. The
+   fill carries the pulse; the letter keeps one ink so it stays readable. */
 @keyframes work-breathe {
   0%,
   100% {
+    background: #6a3fb5;
+    border-color: #9a6ce0;
     box-shadow:
       0 3px 9px #13131399,
-      0 0 0 0 #ab7df500;
+      0 0 0 0 #bd93f900;
   }
   50% {
+    background: #dcc6ff;
+    border-color: #efe2ff;
     box-shadow:
       0 3px 9px #13131399,
-      0 0 0 7px #ab7df526;
+      0 0 0 10px #bd93f94d;
+  }
+}
+@keyframes work-breathe-arrow {
+  0%,
+  100% {
+    background: #6a3fb5;
+    border-color: #9a6ce0;
+  }
+  50% {
+    background: #dcc6ff;
+    border-color: #efe2ff;
   }
 }
 @keyframes work-breathe-dot {
   0%,
   100% {
-    box-shadow: 0 0 0 3px #ab7df51f;
+    background: #6a3fb5;
+    box-shadow: 0 0 0 1px #bd93f930;
   }
   50% {
-    box-shadow: 0 0 0 8px #ab7df500;
+    background: #dcc6ff;
+    box-shadow: 0 0 0 7px #bd93f900;
   }
 }
 .strip-workers .agent-pin > span,
 .strip-workers .agent-pin > span:before {
   background: var(--working);
-  border-color: #c9adfb;
+  border-color: #d9c2ff;
   color: var(--working-ink);
 }
 .strip-workers .agent-pin.working > span {
-  animation: work-breathe 2.4s ease-in-out infinite;
+  animation: work-breathe 1.8s ease-in-out infinite;
+}
+.strip-workers .agent-pin.working > span:before {
+  animation: work-breathe-arrow 1.8s ease-in-out infinite;
 }
 .agent-pin-stems path {
   stroke: var(--working);
@@ -7510,15 +7424,16 @@ button[aria-pressed="true"] {
 }
 .hub-work-marker.is-working {
   background: var(--working);
-  animation: work-breathe-dot 2.4s ease-in-out infinite;
+  animation: work-breathe-dot 1.8s ease-in-out infinite;
 }
 @media (prefers-reduced-motion: reduce) {
   .strip-workers .agent-pin.working > span,
+  .strip-workers .agent-pin.working > span:before,
   .hub-work-marker.is-working {
     animation: none;
   }
   .hub-work-marker.is-working {
-    box-shadow: 0 0 0 4px #ab7df524;
+    box-shadow: 0 0 0 4px #bd93f92e;
   }
 }
 
@@ -7793,7 +7708,7 @@ body > .site-navigation.header {
   width: 30px;
   height: 30px;
   min-width: 30px;
-  font-size: 27px;
+  font-size: 19px;
   border-radius: 7px;
 }
 .site-navigation .brand b {
@@ -7844,6 +7759,31 @@ body > .site-navigation.header {
   background: #242424;
   color: var(--text);
   box-shadow: inset 2px 0 var(--accent);
+}
+/* The in-flight count rides the Now entry instead of the page toolbar. */
+.site-navigation.header #nav button .nav-count {
+  margin-left: auto;
+  min-width: 18px;
+  padding: 1px 5px;
+  border-radius: 9px;
+  background: #3a2857;
+  color: #efe2ff;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 15px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.site-navigation.header #nav button .nav-count[hidden] {
+  display: none;
+}
+.nav-collapsed .site-navigation.header #nav button .nav-count {
+  position: absolute;
+  margin: 0;
+  transform: translate(11px, -11px);
+}
+.nav-collapsed .site-navigation.header #nav button {
+  position: relative;
 }
 /* Now is the live view: it reads as an "on" lamp in the rail. */
 .site-navigation.header #nav button[data-view="activity"],
@@ -8335,7 +8275,6 @@ body:has(.workspace.theater) > .site-topbar {
     font-size: 10px;
   }
   #page-tools .toolbar #clear-filters,
-  #page-tools .toolbar #inflight,
   #page-tools .toolbar-divider {
     display: none;
   }
@@ -8420,7 +8359,7 @@ body.app-shell > .site-navigation.header {
   height: 24px;
   width: 24px;
   min-width: 24px;
-  font-size: 22px;
+  font-size: 15px;
   border-radius: 5px;
 }
 .site-brand-row .brand b {
@@ -8627,7 +8566,7 @@ body.app-shell:has(> .workspace.theater) > .site-navigation.header {
 .strip-workers .agent-pin.landed > span,
 .strip-workers .agent-pin.landed > span:before {
   background: var(--landed);
-  border-color: #b6ead2;
+  border-color: #9af7b4;
   color: #14251b;
 }
 .strip-workers .agent-pin.landed > span {

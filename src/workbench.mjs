@@ -325,7 +325,7 @@ export function createWorkbench({
             : tab === "review"
               ? `<div class="section-heading"><h2>Check-ins &amp; context to review</h2><span>Reported progress and changed plan prose</span></div>${paged(lanes.attention, "checkins", (t) => taskSummary(t)) || '<p class="hub-empty">Nothing is waiting on a review.</p>'}${fold("completed", "Recently updated completed work", lanes.completed, (t) => taskSummary(t))}${conversations().length ? fold("conversations", "Recent conversations", conversations(), conversationSummary) : ""}`
               : `<div class="section-heading"><h2>In flight</h2><span>${nowPayload ? "Updated " + age(new Date(nowAt).toISOString()) : "Loading connected sessions…"}</span></div>${active.map(runSummary).join("")}${paged(external, "working", (t) => taskSummary(t, { running: true }))}${!inProgress ? '<p class="hub-empty">No work is currently reported. Unreported external work may still be running.</p>' : ""}`;
-    nowElement.innerHTML = `<header class="hub-heading"><div><span class="hub-date">${new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</span><h1>Now</h1><p>A clear view of the work. A place to change its direction.</p></div><button class="button primary" data-ask-blockers>Ask about blockers</button></header><div class="hub-pulse" style="--hub-pulse-columns:${requests.length ? 4 : 3}"><button data-jump-hub="working"><strong>${inProgress}</strong><span>In flight</span></button>${requests.length ? `<button data-jump-hub="decisions"><strong>${requests.length}</strong><span>Need your input</span></button>` : ""}<button data-jump-hub="blocked"><strong>${lanes.blocked.length}</strong><span>Blocked</span></button><button data-jump-hub="ready"><strong>${ready.length}</strong><span>Ready next</span></button></div>
+    nowElement.innerHTML = `<header class="hub-heading"><div><span class="hub-date">${new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</span><h1>Now</h1><p>A clear view of the work. A place to change its direction.</p></div><button class="button primary" data-ask-blockers>Ask about blockers</button></header>
  <section class="hub-section hub-decisions" id="hub-decisions" ${requests.length || (w.integrations || []).length ? "" : "hidden"}>${requests.length ? `<div class="section-heading"><h2>Needs your input</h2><span>${requests.length} pending</span></div>` : ""}${
    requests.length
      ? requests
@@ -462,7 +462,6 @@ export function createWorkbench({
       reported = e.target.closest("[data-reported-task]"),
       close = e.target.closest("[data-reported-close]"),
       page = e.target.closest("[data-now-page]"),
-      jump = e.target.closest("[data-jump-hub]"),
       pick = e.target.closest("[data-now-tab]");
     if (close) {
       nowExpanded.delete("session:" + close.dataset.reportedClose);
@@ -483,13 +482,6 @@ export function createWorkbench({
       paintNow();
     }
     if (pick) selectNowTab(pick.dataset.nowTab);
-    // Pending decisions keep their own pinned section; the rest are tabs.
-    if (jump)
-      if (jump.dataset.jumpHub === "decisions")
-        nowElement
-          .querySelector("#hub-decisions")
-          ?.scrollIntoView({ behavior: "smooth", block: "start" });
-      else selectNowTab(jump.dataset.jumpHub);
     const ask = e.target.closest("[data-ask-task]");
     if (ask)
       window.dispatchEvent(

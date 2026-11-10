@@ -293,7 +293,7 @@ function updateAgentLabel() {
       selectedModels[provider] || $("intent-model").value || "Default model";
   for (const b of shell.querySelectorAll("[data-agent-settings]")) {
     if (currentRun && b.classList.contains("chat-model")) {
-      b.textContent = currentRun.provider === "claude" ? "✳" : "a";
+      b.textContent = currentRun.provider === "claude" ? "✳" : "A";
       b.title =
         currentRun.provider +
         " · " +
@@ -304,7 +304,7 @@ function updateAgentLabel() {
     b.textContent = b.classList.contains("chat-model")
       ? provider === "claude"
         ? "✳"
-        : "a"
+        : "A"
       : provider[0].toUpperCase() + provider.slice(1) + " · " + model + " ▾";
     b.title = provider + " · " + model;
     b.setAttribute("aria-label", "Agent settings: " + b.title);
@@ -809,7 +809,7 @@ function renderEmptyChat() {
   currentRun = null;
   historyMode = false;
   $("chat-pane").innerHTML =
-    `<header class="chat-heading empty-chat-heading"><h2>New conversation</h2></header><div class="chat-welcome"><span class="chat-avatar">a</span><h2>What would you like to explore?</h2><p>Ask about progress, blockers, or the plan. Questions stay conversations.</p><button class="chat-suggestion" data-question="What tasks are blocked and do I need to weigh in to unblock them?">What’s blocked, and where do you need me?</button></div>${composer()}`;
+    `<header class="chat-heading empty-chat-heading"><h2>New conversation</h2></header><div class="chat-welcome"><span class="chat-avatar">A</span><h2>What would you like to explore?</h2><p>Ask about progress, blockers, or the plan. Questions stay conversations.</p><button class="chat-suggestion" data-question="What tasks are blocked and do I need to weigh in to unblock them?">What’s blocked, and where do you need me?</button></div>${composer()}`;
   updateAgentLabel();
   sizeComposer();
 }
@@ -985,7 +985,7 @@ function messageMarkup(event) {
       messageCache.delete(messageCache.keys().next().value);
     return html;
   }
-  const html = `<article class="chat-message assistant"><span class="chat-avatar">${currentRun.provider === "claude" ? "✳" : "a"}</span><div class="chat-prose">${chatMarkdown(text.slice(0, 60000))}${text.length > 60000 ? '<p class="muted">Long response; download the handoff to inspect the complete record.</p>' : ""}</div>${messageCopy(event.seq)}</article>`;
+  const html = `<article class="chat-message assistant"><span class="chat-avatar">${currentRun.provider === "claude" ? "✳" : "A"}</span><div class="chat-prose">${chatMarkdown(text.slice(0, 60000))}${text.length > 60000 ? '<p class="muted">Long response; download the handoff to inspect the complete record.</p>' : ""}</div>${messageCopy(event.seq)}</article>`;
   messageCache.set(event.seq, html);
   if (messageCache.size > 160)
     messageCache.delete(messageCache.keys().next().value);
@@ -1033,7 +1033,7 @@ function paintMessages() {
   }
   flushTools();
   if (stream)
-    html += `<article class="chat-message assistant streaming"><span class="chat-avatar">${currentRun.provider === "claude" ? "✳" : "a"}</span><div class="chat-prose">${chatMarkdown(stream)}</div>${messageCopy("stream")}</article>`;
+    html += `<article class="chat-message assistant streaming"><span class="chat-avatar">${currentRun.provider === "claude" ? "✳" : "A"}</span><div class="chat-prose">${chatMarkdown(stream)}</div>${messageCopy("stream")}</article>`;
   const opened = new Set(
     [...target.querySelectorAll("details[open]")].map(
       (el) => el.dataset.toolEvent || el.querySelector("summary")?.textContent,
