@@ -56,7 +56,7 @@
             <path d="M3 12h4l3-7 4 14 3-7h4" /></svg
           ><span class="nav-label">Now</span
           ><b id="inflight-count" class="nav-count" hidden>0</b></button
-        ><button data-view="tasks" title="Task tree" aria-label="Task tree">
+        ><button data-view="tasks" title="Tree" aria-label="Tree">
           <svg
             viewBox="0 0 24 24"
             aria-hidden="true"
@@ -69,12 +69,8 @@
             <path d="M6 4v16m0-12h13M6 16h13" />
             <circle cx="19" cy="8" r="2" />
             <circle cx="19" cy="16" r="2" /></svg
-          ><span class="nav-label">Task tree</span></button
-        ><button
-          data-view="epics"
-          title="Epic progress"
-          aria-label="Epic progress"
-        >
+          ><span class="nav-label">Tree</span></button
+        ><button data-view="epics" title="Epics" aria-label="Epics">
           <svg
             viewBox="0 0 24 24"
             aria-hidden="true"
@@ -85,12 +81,8 @@
             stroke-linejoin="round"
           >
             <path d="M3 5h18M3 12h12M3 19h16" /></svg
-          ><span class="nav-label">Epic progress</span></button
-        ><button
-          data-view="graph"
-          title="Dependency graph"
-          aria-label="Dependency graph"
-        >
+          ><span class="nav-label">Epics</span></button
+        ><button data-view="graph" title="Graph" aria-label="Graph">
           <svg
             viewBox="0 0 24 24"
             aria-hidden="true"
@@ -104,7 +96,7 @@
             <circle cx="19" cy="6" r="2" />
             <circle cx="12" cy="18" r="2" />
             <path d="m7 6 10 0M6 8l5 8m7-8-5 8" /></svg
-          ><span class="nav-label">Dependency graph</span></button
+          ><span class="nav-label">Graph</span></button
         ><button data-view="documents" title="Plans" aria-label="Plans">
           <svg
             viewBox="0 0 24 24"
@@ -178,7 +170,23 @@
       hidden
     ></button>
     <header id="site-topbar" class="site-topbar" aria-label="Page controls">
-      <span id="page-title"></span>
+      <div class="page-heading">
+        <span id="page-title"></span>
+        <button
+          id="page-help"
+          class="page-help"
+          type="button"
+          aria-label="About this page"
+          aria-describedby="page-help-description"
+        >
+          ?
+        </button>
+        <span
+          id="page-help-description"
+          class="page-help-description"
+          role="tooltip"
+        ></span>
+      </div>
       <div id="page-tools"></div>
     </header>
     <div class="workspace">

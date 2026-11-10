@@ -33,6 +33,7 @@ const LEGACY_ASSETS = new Set([
   "progress.mjs",
   "progress-model.mjs",
   "plan-model.mjs",
+  "page-details.mjs",
   "style.css",
   "schema.json",
   "README.md",

@@ -321,22 +321,21 @@ export function createWorkbench({
         tab === "ready"
           ? `<div class="section-heading"><h2>Up next</h2><span>Ready work with the most dependent tasks first</span></div>${paged(ready, "ready", (t) => taskSummary(t)) || '<p class="hub-empty">No matching tasks are ready.</p>'}`
           : tab === "blocked"
-            ? `<div class="section-heading"><h2>Blocked work</h2><span>Prerequisites first</span></div>${paged(lanes.blocked, "blocked", (t) => taskSummary(t)) || '<p class="hub-empty">Nothing matching is blocked.</p>'}`
+            ? `<div class="section-heading"><h2>Blocked work</h2><button class="button primary" data-ask-blockers>Ask about blockers</button></div>${paged(lanes.blocked, "blocked", (t) => taskSummary(t)) || '<p class="hub-empty">Nothing matching is blocked.</p>'}`
             : tab === "review"
               ? `<div class="section-heading"><h2>Check-ins &amp; context to review</h2><span>Reported progress and changed plan prose</span></div>${paged(lanes.attention, "checkins", (t) => taskSummary(t)) || '<p class="hub-empty">Nothing is waiting on a review.</p>'}${fold("completed", "Recently updated completed work", lanes.completed, (t) => taskSummary(t))}${conversations().length ? fold("conversations", "Recent conversations", conversations(), conversationSummary) : ""}`
               : `<div class="section-heading"><h2>In flight</h2><span>${nowPayload ? "Updated " + age(new Date(nowAt).toISOString()) : "Loading connected sessions…"}</span></div>${active.map(runSummary).join("")}${paged(external, "working", (t) => taskSummary(t, { running: true }))}${!inProgress ? '<p class="hub-empty">No work is currently reported. Unreported external work may still be running.</p>' : ""}`;
-    nowElement.innerHTML = `<header class="hub-heading"><div><span class="hub-date">${new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</span><h1>Now</h1><p>A clear view of the work. A place to change its direction.</p></div><button class="button primary" data-ask-blockers>Ask about blockers</button></header>
- <section class="hub-section hub-decisions" id="hub-decisions" ${requests.length || (w.integrations || []).length ? "" : "hidden"}>${requests.length ? `<div class="section-heading"><h2>Needs your input</h2><span>${requests.length} pending</span></div>` : ""}${
-   requests.length
-     ? requests
-         .slice(0, 12)
-         .map((q) => {
-           const run = w.runs.find((r) => r.id === q.runId);
-           return `<article class="hub-decision"><div><small>${q.kind === "input" ? "Question" : "Approval"} · ${esc(run?.provider || "Agent")}</small><h3>${esc(run?.title || q.method)}</h3><p>${q.kind === "input" ? "The agent needs an answer to continue." : "Review the requested action before the agent continues."}</p></div><button class="button primary" data-open-run="${esc(q.runId)}">Review & respond</button></article>`;
-         })
-         .join("")
-     : ""
- }${(w.integrations || []).length ? `<button class="hub-integration-link" data-open-integration>${w.integrations.length} validated ${w.integrations.length === 1 ? "branch is" : "branches are"} ready to review and integrate →</button>` : ""}</section>
+    nowElement.innerHTML = `<section class="hub-section hub-decisions" id="hub-decisions" ${requests.length || (w.integrations || []).length ? "" : "hidden"}>${requests.length ? `<div class="section-heading"><h2>Needs your input</h2><span>${requests.length} pending</span></div>` : ""}${
+      requests.length
+        ? requests
+            .slice(0, 12)
+            .map((q) => {
+              const run = w.runs.find((r) => r.id === q.runId);
+              return `<article class="hub-decision"><div><small>${q.kind === "input" ? "Question" : "Approval"} · ${esc(run?.provider || "Agent")}</small><h3>${esc(run?.title || q.method)}</h3><p>${q.kind === "input" ? "The agent needs an answer to continue." : "Review the requested action before the agent continues."}</p></div><button class="button primary" data-open-run="${esc(q.runId)}">Review & respond</button></article>`;
+            })
+            .join("")
+        : ""
+    }${(w.integrations || []).length ? `<button class="hub-integration-link" data-open-integration>${w.integrations.length} validated ${w.integrations.length === 1 ? "branch is" : "branches are"} ready to review and integrate →</button>` : ""}</section>
  <div class="hub-tabs" role="tablist" aria-label="Work queues">${NOW_TABS.map((t) => `<button role="tab" id="hub-tab-${t.id}" data-now-tab="${t.id}" aria-controls="hub-panel" aria-selected="${t.id === tab}" tabindex="${t.id === tab ? 0 : -1}">${t.label}<span>${counts[t.id]}</span></button>`).join("")}</div>
  <section class="hub-section hub-panel" id="hub-panel" role="tabpanel" aria-labelledby="hub-tab-${tab}" tabindex="-1">${panel}</section>`;
     nowScrollElement.scrollTop = nowScroll;

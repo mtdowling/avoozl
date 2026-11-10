@@ -31,6 +31,7 @@ test("legacy UI and editing APIs run on SQLite; HTTP and MCP share task mutation
     "strip.mjs",
     "progress.mjs",
     "workbench.mjs",
+    "page-details.mjs",
   ])
     assert.equal((await fetch(base + "/" + asset)).status, 200);
   fs.mkdirSync(path.join(root, "docs/evidence"), { recursive: true });
