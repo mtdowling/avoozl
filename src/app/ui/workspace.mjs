@@ -534,7 +534,8 @@ usageButton.onclick = async (e) => {
   await open();
 };
 function leaveView(e) {
-  if (!e.target.closest("[data-view],[data-mobile-view]")) return;
+  if (!e.target.closest("[data-view],[data-mobile-view],#open-visualizations"))
+    return;
   if (planDraft?.dirty && !confirm("Leave this unsaved plan draft?")) {
     e.preventDefault();
     e.stopImmediatePropagation();

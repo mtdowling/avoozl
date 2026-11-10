@@ -321,31 +321,27 @@ function applyVisualization(view) {
   $("inspector").classList.toggle("open", Boolean(state.selected));
 }
 function presentSavedViews() {
+  const views = data.presentation?.views || [],
+    tours = data.presentation?.tours || [];
   $("saved-views").innerHTML =
-    '<option value="">Saved visualizations</option>' +
-    (data.presentation?.views || [])
+    views
       .map(
         (v) =>
-          '<option value="' + esc(v.id) + '">' + esc(v.title) + "</option>",
+          `<button data-visualization="${esc(v.id)}" ${!tour && state.visualization === v.id ? 'aria-current="true"' : ""}><strong>${esc(v.title)}</strong>${v.caption ? `<span>${esc(v.caption)}</span>` : ""}</button>`,
       )
       .join("") +
-    ((data.presentation?.tours || []).length
-      ? '<optgroup label="Presentations">' +
-        data.presentation.tours
+    (tours.length
+      ? "<h3>Presentations</h3>" +
+        tours
           .map(
             (t) =>
-              '<option value="tour:' +
-              esc(t.id) +
-              '">' +
-              esc(t.title) +
-              "</option>",
+              `<button data-presentation="${esc(t.id)}" ${tour?.id === t.id ? 'aria-current="true"' : ""}><strong>${esc(t.title)}</strong></button>`,
           )
-          .join("") +
-        "</optgroup>"
+          .join("")
+      : "") +
+    (!views.length && !tours.length
+      ? '<p class="muted">No saved visualizations yet.</p>'
       : "");
-  $("saved-views").value = tour ? "tour:" + tour.id : state.visualization;
-  const v = data.presentation?.views?.find((v) => v.id === state.visualization);
-  $("saved-views").title = v?.caption || "Saved JSON-backed visualizations";
 }
 try {
   positionLayouts = JSON.parse(
@@ -2045,16 +2041,24 @@ document.addEventListener("visibilitychange", () => {
 window.addEventListener("online", () => poll(true));
 poll();
 
-$("saved-views").addEventListener("change", () => {
-  if ($("saved-views").value.startsWith("tour:")) {
+$("open-visualizations").onclick = () => {
+  if (data) presentSavedViews();
+  $("visualizations-dialog").showModal();
+};
+$("visualizations-close").onclick = () => $("visualizations-dialog").close();
+$("saved-views").addEventListener("click", (e) => {
+  const button = e.target.closest("button");
+  if (!button || !data) return;
+  $("visualizations-dialog").close();
+  if (button.dataset.presentation) {
     const saved = data.presentation?.tours?.find(
-      (t) => "tour:" + t.id === $("saved-views").value,
+      (t) => t.id === button.dataset.presentation,
     );
     if (saved) startTour(saved);
     return;
   }
   const view = data.presentation?.views?.find(
-    (v) => v.id === $("saved-views").value,
+    (v) => v.id === button.dataset.visualization,
   );
   if (view) {
     stopTour();
