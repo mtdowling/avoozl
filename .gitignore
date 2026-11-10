@@ -10,3 +10,4 @@ workspace.local.json
 
 # Packaged extension artifacts are built on demand.
 build/
+src/app/ui-dist/

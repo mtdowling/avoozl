@@ -6,11 +6,17 @@ Plans, tasks, and agents in one local workspace. Use the website, CLI, or MCP to
 git clone https://github.com/mtdowling/avoozl.git
 cd avoozl
 npm ci --ignore-scripts
+npm run build:web
 node cli.mjs init ../my-plans --name "My plans"
 node cli.mjs serve --workspace ../my-plans
 ```
 
 Open [localhost:9428](http://127.0.0.1:9428/). Node 22.13 or later is required for its built-in SQLite support; Node 26 is tested. Planning and browsing work without an agent account. Managed agents use your installed provider and its own authentication.
+
+The website is a React application. assistant-ui renders conversations over
+the same durable HTTP/SSE operations used by the extension, while Monaco edits
+plan and workspace Markdown with preview and revision-safe saves. The production
+assets are built locally; Monaco and its worker are not loaded from a CDN.
 
 ![An example product launch in Avoozl](docs/example-workspace.png)
 
