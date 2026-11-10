@@ -202,6 +202,33 @@ export class GitHubClient {
       { body: { assignees } },
     );
   }
+
+  createPullRequest(value, input) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    return this.request("POST", `/repos/${owner}/${repo}/pulls`, {
+      body: input,
+    });
+  }
+
+  pullRequest(value, number) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    return this.request("GET", `/repos/${owner}/${repo}/pulls/${number}`);
+  }
+
+  listPullRequests(value, input = {}) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    return this.request("GET", `/repos/${owner}/${repo}/pulls`, {
+      query: {
+        state: input.state || "all",
+        head: input.head,
+        base: input.base,
+        per_page: 100,
+      },
+    });
+  }
 }
 
 export function defaultGitHubClient() {

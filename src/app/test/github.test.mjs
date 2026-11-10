@@ -167,6 +167,33 @@ test("authorized assigned issues become exact ready tasks and body changes quara
   );
 });
 
+test("public repositories are refused before labels or issue mutations", async (t) => {
+  const { store } = fixture(t),
+    github = new FakeGitHub();
+  github.repository = async () => ({
+    node_id: "public-repo",
+    full_name: "example/public",
+    private: false,
+  });
+  store.put("projects", {
+    id: "code",
+    root: "/tmp/code",
+    baseBranch: "main",
+    worktreeRoot: "/tmp/worktrees",
+    checks: [],
+  });
+  const ops = new Operations(store, { github });
+  await assert.rejects(
+    ops.execute("github.configure", {
+      repository: "example/public",
+      projectId: "code",
+    }),
+    /refuses public repositories/,
+  );
+  assert.equal(github.labels.length, 0);
+  assert.equal(store.list("github_repositories").length, 0);
+});
+
 test("untrusted label actors cannot dispatch and withdrawal does not erase the task", async (t) => {
   const { store } = fixture(t),
     github = new FakeGitHub();

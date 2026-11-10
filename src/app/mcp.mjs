@@ -72,6 +72,10 @@ const operations = {
     "plan.get",
     "Read a draft, its immutable revision history and approval receipts.",
   ],
+  plans_submit_review: [
+    "plan.review.submit",
+    "Submit substantive, exact-revision design review comments with unique quoted anchors. This records feedback only; it cannot edit or approve the plan.",
+  ],
   plans_approve_plan: [
     "plan.approve",
     "Extract an explicitly authorized revision into tasks atomically. Requires expectedHash and expectedRevision; the reviewed document hash and database revision are the authorization. approvedBy and evidence are optional: approvedBy defaults to the workspace operator, and evidence records a real statement when there is one.",
@@ -257,7 +261,9 @@ export async function handleMcp(
     try {
       const result = await ops.execute(
         operation,
-        args.input || {},
+        operation === "plan.review.submit" && runId
+          ? { ...(args.input || {}), runId }
+          : args.input || {},
         args.expectedRevision,
       );
       return ok({

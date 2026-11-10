@@ -46,6 +46,21 @@ import {
   startAuthorizedIssue,
   syncGitHubIssues,
 } from "./github-sync.mjs";
+import {
+  configureWorkspaceRepository,
+  publishPlanningPullRequest,
+  publishWorkspaceRepository,
+  syncWorkspaceRepository,
+  workspaceRepositoryStatus,
+} from "./workspace-repository.mjs";
+import {
+  applyReviewSuggestion,
+  createReviewThreads,
+  disposeReview,
+  listReviewThreads,
+  replyToReview,
+  reviewPrompt,
+} from "./plan-reviews.mjs";
 
 // Acceptance evidence a caller did not type, when validateRun already recorded
 // passing checks for the commit being accepted. A failed or absent validation
@@ -88,6 +103,7 @@ export class Operations {
     this.batches =
       manager && !manager.remote ? new Batches(store, manager) : null;
     this.pendingIntents = new Map();
+    this.reviewPipelines = new Set();
   }
   read() {
     return this.store.read();
@@ -146,6 +162,211 @@ export class Operations {
         latest.map((entry) => entry.argv.join(" ")).join("; "),
       evidenceIds: latest.map((entry) => entry.id),
     };
+  }
+  async waitForReviewRun(id, timeoutMs = 30 * 60 * 1000) {
+    const terminal = new Set([
+      "completed",
+      "interrupted",
+      "failed",
+      "integrated",
+      "disconnected",
+    ]);
+    const deadline = Date.now() + timeoutMs;
+    for (;;) {
+      const run = this.store.get("runs", id);
+      if (run && terminal.has(run.state)) return run;
+      if (Date.now() > deadline)
+        fail("Design review timed out; the run remains inspectable.", 504);
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+  }
+  async runReviewPipeline(id) {
+    if (this.reviewPipelines.has(id)) return;
+    this.reviewPipelines.add(id);
+    try {
+      let pipeline = this.store.get("review_rounds", id);
+      for (
+        let index = pipeline.nextIndex || 0;
+        index < pipeline.sequence.length;
+        index++
+      ) {
+        pipeline = this.store.get("review_rounds", id);
+        if (pipeline.state !== "running") return;
+        const plan = this.store.get("plans", pipeline.planId);
+        if (!plan || plan.hash !== pipeline.revisionHash) {
+          pipeline.state = "stale";
+          pipeline.error = "The design changed while its review pipeline was running.";
+          pipeline.endedAt = new Date().toISOString();
+          this.store.put("review_rounds", pipeline);
+          return;
+        }
+        const step = { ...pipeline.sequence[index], index },
+          existing = listReviewThreads(this.store, {
+            planId: plan.id,
+          }).items,
+          runId = `run-review-${digest(id + ":" + index).slice(0, 20)}`;
+        pipeline.currentIndex = index;
+        pipeline.nextIndex = index;
+        pipeline.currentRunId = runId;
+        pipeline.updatedAt = new Date().toISOString();
+        this.store.put("review_rounds", pipeline);
+        await this.execute("run.start", {
+          id: runId,
+          mode: "ask",
+          planId: plan.id,
+          projectId: pipeline.projectId,
+          provider: step.provider,
+          model: step.model || undefined,
+          approvalMode: "manual",
+          prompt: reviewPrompt({ plan, pipeline, step, existing }),
+          title: `Review ${plan.title} · ${step.provider}`,
+          review: {
+            pipelineId: id,
+            planId: plan.id,
+            revisionHash: plan.hash,
+            round: index + 1,
+          },
+          background: true,
+        });
+        const run = await this.waitForReviewRun(runId);
+        pipeline = this.store.get("review_rounds", id);
+        pipeline.runs = [...(pipeline.runs || []), runId];
+        pipeline.nextIndex = index + 1;
+        pipeline.currentRunId = null;
+        if (run.state !== "completed") {
+          pipeline.state = "stopped";
+          pipeline.error = `Review run ${runId} ended ${run.state}.`;
+          pipeline.endedAt = new Date().toISOString();
+          this.store.put("review_rounds", pipeline);
+          return;
+        }
+        const newComments = this.store
+          .list("review_threads")
+          .filter((thread) => thread.runId === runId).length;
+        pipeline.rounds = [
+          ...(pipeline.rounds || []),
+          {
+            index: index + 1,
+            provider: step.provider,
+            model: step.model || null,
+            runId,
+            comments: newComments,
+            completedAt: new Date().toISOString(),
+          },
+        ];
+        this.store.put("review_rounds", pipeline);
+        if (!newComments) {
+          pipeline.state = "completed";
+          pipeline.stopReason = "A reviewer found no new material issues.";
+          pipeline.endedAt = new Date().toISOString();
+          this.store.put("review_rounds", pipeline);
+          return;
+        }
+      }
+      pipeline = this.store.get("review_rounds", id);
+      pipeline.state = "completed";
+      pipeline.stopReason = "Configured review rounds completed.";
+      pipeline.endedAt = new Date().toISOString();
+      this.store.put("review_rounds", pipeline);
+    } catch (error) {
+      const pipeline = this.store.get("review_rounds", id);
+      if (pipeline) {
+        pipeline.state = "failed";
+        pipeline.error = error.message;
+        pipeline.endedAt = new Date().toISOString();
+        this.store.put("review_rounds", pipeline);
+      }
+    } finally {
+      this.reviewPipelines.delete(id);
+    }
+  }
+  startReviewPipeline(input) {
+    const plan = this.store.get("plans", input.planId);
+    if (!plan) fail("Plan not found.", 404);
+    if (!this.manager) fail("Start the Avoozl agent host first.", 503);
+    if (!this.store.get("projects", input.projectId))
+      fail("Choose a configured project for read-only review.");
+    const maxRounds = Number(input.maxRounds ?? 3);
+    if (!Number.isInteger(maxRounds) || maxRounds < 1 || maxRounds > 10)
+      fail("Choose 1–10 review rounds.");
+    const requested =
+      input.sequence ||
+      (input.provider ? [{ provider: input.provider, model: input.model }] : []);
+    if (
+      !Array.isArray(requested) ||
+      !requested.length ||
+      requested.some(
+        (step) =>
+          !step ||
+          typeof step.provider !== "string" ||
+          !step.provider.trim() ||
+          (step.model !== undefined && typeof step.model !== "string"),
+      )
+    )
+      fail("Choose at least one provider/model review step.");
+    const sequence = Array.from(
+      { length: maxRounds },
+      (_, index) => requested[index % requested.length],
+    );
+    const pipeline = {
+      id: input.id || "review-round-" + randomUUID(),
+      planId: plan.id,
+      revisionHash: plan.hash,
+      projectId: input.projectId,
+      sequence,
+      maxRounds,
+      state: "running",
+      nextIndex: 0,
+      rounds: [],
+      runs: [],
+      createdAt: new Date().toISOString(),
+    };
+    this.store.put("review_rounds", pipeline);
+    queueMicrotask(() => this.runReviewPipeline(pipeline.id));
+    return pipeline;
+  }
+  async reconcilePlanningPullRequests() {
+    const receipts = this.store
+      .list("receipts")
+      .filter(
+        (receipt) =>
+          receipt.id.startsWith("planning-pr:") &&
+          !["projected", "closed"].includes(receipt.state),
+      );
+    const result = [];
+    for (const receipt of receipts) {
+      const pull = await this.github.pullRequest(
+        receipt.repository,
+        receipt.number,
+      );
+      receipt.observedAt = new Date().toISOString();
+      if (!pull.merged_at) {
+        receipt.state = pull.state;
+        this.store.put("receipts", receipt);
+        result.push(receipt);
+        continue;
+      }
+      receipt.state = "merged";
+      receipt.mergedAt = pull.merged_at;
+      receipt.mergeCommit = pull.merge_commit_sha;
+      this.store.put("receipts", receipt);
+      await syncWorkspaceRepository(this.store);
+      const plan = this.store.get("plans", receipt.planId);
+      if (!plan || plan.hash !== receipt.planHash || plan.state !== "approved")
+        fail(
+          "Merged planning revision did not hydrate as the approved design.",
+          409,
+        );
+      const projection = await projectPlanIssues(this.store, this.github, {
+        planId: receipt.planId,
+      });
+      receipt.state = "projected";
+      receipt.projectedAt = new Date().toISOString();
+      receipt.issueIds = projection.issues.map((issue) => issue.id);
+      this.store.put("receipts", receipt);
+      result.push(receipt);
+    }
+    return { items: result };
   }
   intentResult(receipt) {
     const run = receipt.runId ? this.store.get("runs", receipt.runId) : null,
@@ -665,6 +886,7 @@ export class Operations {
           issues: store.list("github_issues").slice(0, 100),
           lastSync: store.getMeta("githubSync"),
         },
+        workspaceRepository: workspaceRepositoryStatus(store),
         agentHost: this.manager?.remote
           ? await this.manager.status()
           : { connected: true },
@@ -888,6 +1110,10 @@ export class Operations {
       return {
         ...plan,
         approvals: store.list("approvals").filter((a) => a.planId === plan.id),
+        reviews: listReviewThreads(store, { planId: plan.id }).items,
+        reviewPipelines: store
+          .list("review_rounds")
+          .filter((round) => round.planId === plan.id),
       };
     }
     if (name === "plan.preview") {
@@ -947,6 +1173,45 @@ export class Operations {
         operator: input.operator || this.operator,
         expectedRevision: input.expectedRevision ?? expectedRevision,
       });
+    if (name === "plan.review.list")
+      return listReviewThreads(store, input);
+    if (name === "plan.review.submit") {
+      const run = input.runId ? store.get("runs", input.runId) : null;
+      if (
+        run &&
+        (run.review?.planId !== input.planId ||
+          run.review?.revisionHash !== input.revisionHash)
+      )
+        fail("This run is not authorized to review that plan revision.", 403);
+      return createReviewThreads(store, {
+        ...input,
+        author: input.author || run?.provider || this.operator,
+        provider: input.provider || run?.provider,
+        model: input.model || run?.actualModel || run?.model,
+      });
+    }
+    if (name === "plan.review.reply")
+      return replyToReview(store, {
+        ...input,
+        author: input.author || this.operator,
+      });
+    if (name === "plan.review.dispose")
+      return disposeReview(store, {
+        ...input,
+        author: input.author || this.operator,
+      });
+    if (name === "plan.review.apply")
+      return applyReviewSuggestion(store, {
+        ...input,
+        author: input.author || this.operator,
+      });
+    if (name === "plan.review.pipeline")
+      return this.startReviewPipeline(input);
+    if (name === "plan.review.pipeline.get") {
+      const round = store.get("review_rounds", input.id);
+      if (!round) fail("Review pipeline not found.", 404);
+      return round;
+    }
     if (name === "github.configure")
       return configureGitHubRepository(store, this.github, input);
     if (name === "github.repositories")
@@ -1005,6 +1270,18 @@ export class Operations {
       if (!this.manager) fail("Start the Avoozl agent host first.", 503);
       return startAuthorizedIssue(this, input);
     }
+    if (name === "workspace.repository.configure")
+      return configureWorkspaceRepository(store, input, this.github);
+    if (name === "workspace.repository.status")
+      return workspaceRepositoryStatus(store);
+    if (name === "workspace.repository.publish")
+      return publishWorkspaceRepository(store, input);
+    if (name === "workspace.repository.sync")
+      return syncWorkspaceRepository(store);
+    if (name === "planning.publish")
+      return publishPlanningPullRequest(store, this.github, input);
+    if (name === "planning.reconcile")
+      return this.reconcilePlanningPullRequests();
     if (name === "project.configure") {
       const project = await projectConfig(input);
       return store.put("projects", project);

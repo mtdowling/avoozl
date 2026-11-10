@@ -35,6 +35,13 @@ export const CLIENT_OPERATIONS = Object.freeze([
   "plan.preview",
   "plan.approve",
   "plan.classify",
+  "plan.review.list",
+  "plan.review.submit",
+  "plan.review.reply",
+  "plan.review.dispose",
+  "plan.review.apply",
+  "plan.review.pipeline",
+  "plan.review.pipeline.get",
   "run.list",
   "run.get",
   "run.event",
@@ -66,6 +73,12 @@ export const CLIENT_OPERATIONS = Object.freeze([
   "github.authorize",
   "github.project",
   "github.start",
+  "workspace.repository.configure",
+  "workspace.repository.status",
+  "workspace.repository.publish",
+  "workspace.repository.sync",
+  "planning.publish",
+  "planning.reconcile",
 ]);
 
 // Rules a client must follow. Published through `client.describe` so a client

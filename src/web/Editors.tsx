@@ -2,12 +2,12 @@ import Editor, { DiffEditor, loader, type BeforeMount } from "@monaco-editor/rea
 import * as monaco from "monaco-editor/editor/editor.api";
 import "monaco-editor/languages/definitions/markdown/register";
 import EditorWorker from "monaco-editor/editor/editor.worker?worker";
-import { Columns2, Eye, FileText, GitCompare, Save, ShieldCheck } from "lucide-react";
+import { Columns2, Eye, FileText, GitCompare, MessageSquareText, Save, ShieldCheck, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { command } from "./api";
 import { useRemote } from "./hooks";
-import type { DocumentRecord, Plan } from "./types";
+import type { DocumentRecord, Plan, Workspace } from "./types";
 
 loader.config({ monaco });
 self.MonacoEnvironment = {
@@ -125,6 +125,7 @@ function MarkdownWorkspace({ mode, text, baseline, setText, diffSideBySide = fal
 
 export function PlanEditor({ id, onSaved }: { id: string; onSaved: () => void }) {
   const remote = useRemote(() => command<Plan>("plan.get", { id }), [id]);
+  const workspace = useRemote(() => command<Workspace>("workspace"), []);
   const [text, setText] = useState("");
   const [baseline, setBaseline] = useState("");
   const [hash, setHash] = useState("");
@@ -132,6 +133,7 @@ export function PlanEditor({ id, onSaved }: { id: string; onSaved: () => void })
   const [preview, setPreview] = useState<any>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [replies, setReplies] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!remote.data) return;
@@ -206,6 +208,87 @@ export function PlanEditor({ id, onSaved }: { id: string; onSaved: () => void })
     }
   }
 
+  async function aiReview() {
+    setBusy(true);
+    setMessage("");
+    try {
+      const current = dirty ? await persistDraft() : await command<Plan>("plan.get", { id });
+      const providers = (workspace.data?.providers || [])
+        .map((provider) => provider.id || provider.name)
+        .filter((provider): provider is string => Boolean(provider))
+        .slice(0, 2);
+      const projectId = workspace.data?.projects[0]?.id;
+      if (!providers.length || !projectId)
+        throw Error("Configure an agent and execution project before automated review.");
+      const pipeline = await command<any>("plan.review.pipeline", {
+        planId: id,
+        projectId,
+        maxRounds: 3,
+        sequence: providers.map((provider) => ({ provider })),
+      });
+      setMessage(`Started up to ${pipeline.maxRounds} substantive review rounds. Feedback appears here as reviewers finish.`);
+      await remote.reload();
+    } catch (cause) {
+      setMessage((cause as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function applySuggestion(reviewId: string) {
+    setBusy(true);
+    try {
+      await command("plan.review.apply", { id: reviewId, expectedHash: hash });
+      await remote.reload();
+      onSaved();
+      setMessage("Applied the suggested change as a new draft revision.");
+    } catch (cause) {
+      setMessage((cause as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function reply(reviewId: string) {
+    const value = replies[reviewId]?.trim();
+    if (!value) return;
+    setBusy(true);
+    try {
+      await command("plan.review.reply", { id: reviewId, text: value });
+      setReplies((current) => ({ ...current, [reviewId]: "" }));
+      await remote.reload();
+    } catch (cause) {
+      setMessage((cause as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function dispose(reviewId: string, disposition: string) {
+    setBusy(true);
+    try {
+      await command("plan.review.dispose", { id: reviewId, disposition });
+      await remote.reload();
+    } catch (cause) {
+      setMessage((cause as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function publishForReview() {
+    setBusy(true);
+    setMessage("");
+    try {
+      const receipt = await command<any>("planning.publish", { planId: id });
+      setMessage(`Planning pull request #${receipt.number} is ${receipt.state}. Task issues will project only after merge.`);
+    } catch (cause) {
+      setMessage((cause as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!remote.data) return <div className="center-state">{remote.error?.message || "Opening plan…"}</div>;
   return (
     <section className="editor-screen">
@@ -219,7 +302,11 @@ export function PlanEditor({ id, onSaved }: { id: string; onSaved: () => void })
         dirty={dirty}
         busy={busy}
         onSave={save}
-        extra={<button className="button quiet" disabled={busy} onClick={review}><ShieldCheck size={16} /> Review for approval</button>}
+        extra={<>
+          <button className="button quiet" disabled={busy} onClick={aiReview}><Sparkles size={16} /> AI design review</button>
+          {remote.data.state === "approved" && <button className="button quiet" disabled={busy} onClick={publishForReview}><GitCompare size={16} /> Publish for team review</button>}
+          <button className="button quiet" disabled={busy} onClick={review}><ShieldCheck size={16} /> Review for approval</button>
+        </>}
       />
       <MarkdownWorkspace mode={mode} text={text} baseline={baseline} setText={setText} diffSideBySide />
       {message && <p className={message.includes("changed") || message.includes("required") ? "error notice" : "notice"}>{message}</p>}
@@ -242,6 +329,25 @@ export function PlanEditor({ id, onSaved }: { id: string; onSaved: () => void })
           <button className="button primary" disabled={busy} onClick={approve}><ShieldCheck size={16} /> Approve this exact revision</button>
         </aside>
       )}
+      {!!remote.data.reviews?.length && <aside className="design-reviews">
+        <header><div><span className="eyebrow">Design feedback</span><h2>{remote.data.reviews.filter((item) => item.state === "open").length} open review comments</h2></div><button className="button quiet" disabled={busy} onClick={() => void remote.reload()}>Refresh</button></header>
+        <div className="review-thread-list">
+          {remote.data.reviews.map((item) => <article key={item.id} className={`review-thread severity-${item.severity} ${item.state}`}>
+            <div className="review-meta"><strong>{item.severity}</strong><span>{item.author || item.provider || "Reviewer"}{item.model ? ` · ${item.model}` : ""}</span>{item.stale && <span>older revision</span>}</div>
+            <blockquote>{item.quote}</blockquote>
+            <p>{item.comment}</p>
+            {item.suggestion !== undefined && <pre>{item.suggestion}</pre>}
+            {!!item.replies?.length && <div className="review-replies">{item.replies.map((entry) => <p key={entry.id}><strong>{entry.author}</strong> {entry.text}</p>)}</div>}
+            {item.state === "open" && <div className="review-actions">
+              {item.suggestion !== undefined && !item.stale && <button className="button" disabled={busy} onClick={() => void applySuggestion(item.id)}>Apply suggestion</button>}
+              <button className="button" disabled={busy} onClick={() => void dispose(item.id, "resolved")}>Resolve</button>
+              <button className="button" disabled={busy} onClick={() => void dispose(item.id, "rejected")}>Reject</button>
+              <label><MessageSquareText size={13} /><input value={replies[item.id] || ""} onChange={(event) => setReplies((current) => ({ ...current, [item.id]: event.target.value }))} placeholder="Reply…" /><button className="button" disabled={busy || !replies[item.id]?.trim()} onClick={() => void reply(item.id)}>Send</button></label>
+            </div>}
+            {item.disposition && <small>Closed: {item.disposition}</small>}
+          </article>)}
+        </div>
+      </aside>}
     </section>
   );
 }

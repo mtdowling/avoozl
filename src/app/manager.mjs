@@ -333,6 +333,7 @@ export class RunManager {
         task?.title ||
         plan?.title,
       context: input.context || {},
+      review: input.review || undefined,
       resources,
       state: "starting",
       createdAt: new Date().toISOString(),
