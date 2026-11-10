@@ -64,6 +64,7 @@ import {
   replyToReview,
   reviewPrompt,
 } from "./plan-reviews.mjs";
+import { lintPlan } from "./plan-quality.mjs";
 
 // Acceptance evidence a caller did not type, when validateRun already recorded
 // passing checks for the commit being accepted. A failed or absent validation
@@ -1113,12 +1114,29 @@ export class Operations {
       if (!plan) fail("Plan not found.", 404);
       return {
         ...plan,
+        quality: lintPlan({
+          text: plan.text,
+          plan,
+          data: { ...this.read(), projects: store.list("projects") },
+        }),
         approvals: store.list("approvals").filter((a) => a.planId === plan.id),
         reviews: listReviewThreads(store, { planId: plan.id }).items,
         reviewPipelines: store
           .list("review_rounds")
           .filter((round) => round.planId === plan.id),
       };
+    }
+    if (name === "plan.lint") {
+      const plan = store.get("plans", input.id);
+      if (!plan) fail("Plan not found.", 404);
+      const text = input.text ?? plan.text;
+      if (typeof text !== "string" || text.length > 1000000)
+        fail("Plan text is required.");
+      return lintPlan({
+        text,
+        plan,
+        data: { ...this.read(), projects: store.list("projects") },
+      });
     }
     if (name === "plan.preview") {
       const plan = store.get("plans", input.id);
@@ -1138,11 +1156,17 @@ export class Operations {
           ]),
         );
       const existing = new Set(data.tasks.map((t) => t.id));
+      const quality = lintPlan({
+        text,
+        plan,
+        data: { ...data, projects: store.list("projects") },
+      });
       return {
         planId: plan.id,
         reviewedHash: digest(text),
         currentHash: plan.hash,
         state: plan.state,
+        quality,
         // Send this back as expectedRevision when approving.
         expectedRevision: data.revision,
         approved: store
@@ -1170,13 +1194,31 @@ export class Operations {
         retiring: Object.keys(plan.mapping || {}).filter((id) => !mapping[id]),
       };
     }
-    if (name === "plan.approve")
+    if (name === "plan.approve") {
+      const plan = store.get("plans", input.id);
+      if (!plan) fail("Plan not found.", 404);
+      if (plan.hash !== input.expectedHash)
+        fail("The reviewed document hash changed.", 409);
+      const quality = lintPlan({
+        text: plan.text,
+        plan,
+        data: { ...this.read(), projects: store.list("projects") },
+      });
+      const blocking = quality.diagnostics.find(
+        (diagnostic) => diagnostic.severity === "error",
+      );
+      if (blocking)
+        fail(
+          `Resolve plan diagnostic ${blocking.code} before approval: ${blocking.message}`,
+          409,
+        );
       return approvePlan(store, {
         ...input,
         approvedBy: input.approvedBy?.trim() || this.operator,
         operator: input.operator || this.operator,
         expectedRevision: input.expectedRevision ?? expectedRevision,
       });
+    }
     if (name === "plan.review.list")
       return listReviewThreads(store, input);
     if (name === "plan.review.submit") {

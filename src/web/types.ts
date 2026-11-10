@@ -173,6 +173,7 @@ export type PlanSummary = {
 export type Plan = PlanSummary & {
   text: string;
   prompt?: string;
+  quality?: PlanQuality;
   approvals?: Array<{ hash?: string; approvedAt?: string; approvedBy?: string }>;
   reviews?: ReviewThread[];
   reviewPipelines?: Array<{
@@ -183,6 +184,24 @@ export type Plan = PlanSummary & {
     stopReason?: string;
     error?: string;
   }>;
+};
+
+export type PlanDiagnostic = {
+  id: string;
+  code: string;
+  severity: "error" | "warning" | "info";
+  message: string;
+  lineStart: number;
+  lineEnd: number;
+  taskId?: string;
+  relatedTaskId?: string;
+};
+
+export type PlanQuality = {
+  canApprove: boolean;
+  counts: { error: number; warning: number; info: number };
+  taskCount: number;
+  diagnostics: PlanDiagnostic[];
 };
 
 export type ReviewThread = {

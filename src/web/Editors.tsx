@@ -2,12 +2,12 @@ import Editor, { DiffEditor, loader, type BeforeMount } from "@monaco-editor/rea
 import * as monaco from "monaco-editor/editor/editor.api";
 import "monaco-editor/languages/definitions/markdown/register";
 import EditorWorker from "monaco-editor/editor/editor.worker?worker";
-import { Columns2, Eye, FileText, GitCompare, MessageSquareText, Save, ShieldCheck, Sparkles } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Columns2, Eye, FileText, GitCompare, Info, MessageSquareText, Save, ShieldCheck, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { command } from "./api";
 import { useRemote } from "./hooks";
-import type { DocumentRecord, Plan, Workspace } from "./types";
+import type { DocumentRecord, Plan, PlanDiagnostic, PlanQuality, Workspace } from "./types";
 
 loader.config({ monaco });
 self.MonacoEnvironment = {
@@ -75,14 +75,17 @@ function EditorToolbar({
   );
 }
 
-function MarkdownWorkspace({ mode, text, baseline, setText, diffSideBySide = false }: {
+function MarkdownWorkspace({ mode, text, baseline, setText, diffSideBySide = false, diagnostics, focusLine }: {
   mode: "split" | "preview" | "diff";
   text: string;
   baseline: string;
   setText: (text: string) => void;
   diffSideBySide?: boolean;
+  diagnostics?: PlanDiagnostic[];
+  focusLine?: number | null;
 }) {
   const root = useRef<HTMLDivElement>(null);
+  const editor = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const [width, setWidth] = useState(0);
   const [sourceWidth, setSourceWidth] = useState(0);
   useEffect(() => {
@@ -95,6 +98,34 @@ function MarkdownWorkspace({ mode, text, baseline, setText, diffSideBySide = fal
     observer.observe(root.current);
     return () => observer.disconnect();
   }, []);
+  useEffect(() => {
+    const model = editor.current?.getModel();
+    if (!model) return;
+    const severity = {
+      error: monaco.MarkerSeverity.Error,
+      warning: monaco.MarkerSeverity.Warning,
+      info: monaco.MarkerSeverity.Info,
+    };
+    monaco.editor.setModelMarkers(model, "avoozl-plan-quality", (diagnostics || []).map((item) => {
+      const startLineNumber = Math.min(item.lineStart, model.getLineCount());
+      const endLineNumber = Math.min(Math.max(item.lineEnd, startLineNumber), model.getLineCount());
+      return {
+        startLineNumber,
+        startColumn: 1,
+        endLineNumber,
+        endColumn: model.getLineMaxColumn(endLineNumber),
+        severity: severity[item.severity],
+        message: item.message,
+        code: item.code,
+      };
+    }));
+  }, [diagnostics, mode, text]);
+  useEffect(() => {
+    if (!focusLine || mode !== "split") return;
+    editor.current?.revealLineInCenter(focusLine);
+    editor.current?.setPosition({ lineNumber: focusLine, column: 1 });
+    editor.current?.focus();
+  }, [focusLine, mode]);
   const showAutomaticPreview = mode === "split" && width >= 1200;
   const clampedSourceWidth = Math.max(440, Math.min(Math.max(440, width - 440), sourceWidth || width * .56));
   function beginResize(event: React.PointerEvent<HTMLDivElement>) {
@@ -114,7 +145,7 @@ function MarkdownWorkspace({ mode, text, baseline, setText, diffSideBySide = fal
   return <div ref={root} className={`editor-workspace mode-${mode} ${showAutomaticPreview ? "has-preview" : ""}`} style={showAutomaticPreview ? { "--editor-source-width": `${clampedSourceWidth}px` } as React.CSSProperties : undefined}>
     {mode === "diff" ? <DiffEditor original={baseline} modified={text} language="markdown" theme="avoozl-dark" beforeMount={beforeMount} options={{ automaticLayout: true, minimap: { enabled: false }, renderSideBySide: diffSideBySide, wordWrap: "on" }} /> :
       mode === "preview" ? <MarkdownPreview text={text} /> : <>
-        <Editor value={text} onChange={(value) => setText(value || "")} language="markdown" theme="avoozl-dark" beforeMount={beforeMount} options={{ automaticLayout: true, minimap: { enabled: false }, wordWrap: "on", fontSize: 14, lineHeight: 23, padding: { top: 18, bottom: 18 }, scrollBeyondLastLine: false }} />
+        <Editor value={text} onChange={(value) => setText(value || "")} onMount={(mounted) => { editor.current = mounted; }} language="markdown" theme="avoozl-dark" beforeMount={beforeMount} options={{ automaticLayout: true, minimap: { enabled: false }, wordWrap: "on", fontSize: 14, lineHeight: 23, padding: { top: 18, bottom: 18 }, scrollBeyondLastLine: false }} />
         {showAutomaticPreview && <><div className="editor-resize-handle" role="separator" aria-label="Resize Markdown preview" aria-orientation="vertical" tabIndex={0} onPointerDown={beginResize} onKeyDown={(event) => {
           if (event.key === "ArrowLeft") setSourceWidth(clampedSourceWidth - 16);
           if (event.key === "ArrowRight") setSourceWidth(clampedSourceWidth + 16);
@@ -131,6 +162,8 @@ export function PlanEditor({ id, onSaved }: { id: string; onSaved: () => void })
   const [hash, setHash] = useState("");
   const [mode, setMode] = useState<"split" | "preview" | "diff">("split");
   const [preview, setPreview] = useState<any>(null);
+  const [quality, setQuality] = useState<PlanQuality | null>(null);
+  const [diagnosticLine, setDiagnosticLine] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [replies, setReplies] = useState<Record<string, string>>({});
@@ -140,11 +173,29 @@ export function PlanEditor({ id, onSaved }: { id: string; onSaved: () => void })
     setText(remote.data.text);
     setBaseline(remote.data.text);
     setHash(remote.data.hash || "");
+    setQuality(remote.data.quality || null);
     setPreview(null);
     setMessage("");
   }, [remote.data]);
 
   const dirty = text !== baseline;
+  useEffect(() => {
+    if (!remote.data) return;
+    let current = true;
+    const timer = window.setTimeout(async () => {
+      try {
+        const result = await command<PlanQuality>("plan.lint", { id, text });
+        if (current) setQuality(result);
+      } catch {
+        // Saving and approval still validate on the server. Keep the last
+        // complete result while a transient live-check request fails.
+      }
+    }, 350);
+    return () => {
+      current = false;
+      window.clearTimeout(timer);
+    };
+  }, [id, remote.data, text]);
 
   async function persistDraft() {
     const saved = await command<Plan>("plan.save", { id, text, expectedHash: hash });
@@ -176,6 +227,7 @@ export function PlanEditor({ id, onSaved }: { id: string; onSaved: () => void })
       const current = dirty ? await persistDraft() : await command<Plan>("plan.get", { id });
       const result = await command<any>("plan.preview", { id, text: current.text });
       setPreview(result);
+      setQuality(result.quality);
       setHash(current.hash || "");
       setText(current.text);
       setBaseline(current.text);
@@ -308,8 +360,29 @@ export function PlanEditor({ id, onSaved }: { id: string; onSaved: () => void })
           <button className="button quiet" disabled={busy} onClick={review}><ShieldCheck size={16} /> Review for approval</button>
         </>}
       />
-      <MarkdownWorkspace mode={mode} text={text} baseline={baseline} setText={setText} diffSideBySide />
+      <MarkdownWorkspace mode={mode} text={text} baseline={baseline} setText={setText} diffSideBySide diagnostics={quality?.diagnostics} focusLine={diagnosticLine} />
       {message && <p className={message.includes("changed") || message.includes("required") ? "error notice" : "notice"}>{message}</p>}
+      {quality && <aside className={`plan-diagnostics ${quality.canApprove ? "passing" : "blocking"}`}>
+        <header>
+          <div>
+            <span className="eyebrow">Deterministic plan checks</span>
+            <h2>{quality.canApprove ? "Schema and dependency checks pass" : `${quality.counts.error} blocking diagnostic${quality.counts.error === 1 ? "" : "s"}`}</h2>
+          </div>
+          <span className="quality-counts">
+            {quality.counts.error > 0 && <><AlertTriangle size={13} /> {quality.counts.error}</>}
+            {quality.counts.warning > 0 && <><AlertTriangle size={13} /> {quality.counts.warning}</>}
+            {quality.counts.info > 0 && <><Info size={13} /> {quality.counts.info}</>}
+            {!quality.diagnostics.length && <><CheckCircle2 size={13} /> Clear</>}
+          </span>
+        </header>
+        {!!quality.diagnostics.length && <div className="diagnostic-list">
+          {quality.diagnostics.map((item) => <button key={item.id} className={`diagnostic-row severity-${item.severity}`} onClick={() => { setMode("split"); setDiagnosticLine(item.lineStart); }}>
+            {item.severity === "info" ? <Info size={13} /> : <AlertTriangle size={13} />}
+            <span><strong>{item.code}</strong>{item.message}</span>
+            <code>L{item.lineStart}</code>
+          </button>)}
+        </div>}
+      </aside>}
       {preview && (
         <aside className="approval-preview">
           <div>
@@ -326,7 +399,7 @@ export function PlanEditor({ id, onSaved }: { id: string; onSaved: () => void })
             ))}
           </div>
           {!!preview.dependencies.length && <p>{preview.dependencies.length} dependency edge{preview.dependencies.length === 1 ? "" : "s"} will be recorded.</p>}
-          <button className="button primary" disabled={busy} onClick={approve}><ShieldCheck size={16} /> Approve this exact revision</button>
+          <button className="button primary" disabled={busy || !preview.quality?.canApprove} onClick={approve}><ShieldCheck size={16} /> Approve this exact revision</button>
         </aside>
       )}
       {!!remote.data.reviews?.length && <aside className="design-reviews">
