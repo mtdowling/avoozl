@@ -736,9 +736,18 @@ export function startAhpFacade({
         ) {
           const envelope = projection.echo(params.channel, {
             type: "session/activeClientSet",
-            client: {
+            // The field is `activeClient`. Naming it anything else reduces to
+            // an undefined entry in `activeClients`, which serialises as null
+            // and then crashes the editor's own URI mapping
+            // ("Cannot read properties of null (reading 'customizations')"),
+            // so the session never opens.
+            activeClient: {
               clientId: connection.clientId,
-              name: connection.clientInfo?.name || "client",
+              displayName: connection.clientInfo?.name || "client",
+              // A client contributes no tools to the session: the provider
+              // runs its own. The field is required, so it is sent empty
+              // rather than omitted.
+              tools: [],
             },
           });
           broadcast([envelope]);

@@ -476,7 +476,7 @@ test("a conversation whose worktree is not open explains itself", async (t) => {
   // the repository lists none of them. Reporting that as an empty host, or
   // attempting the command anyway and calling the absence unverified, would
   // both misattribute a containment rule to the host.
-  const { calls, queue } = installVscodeStub(t, {
+  const { calls, queue, stub } = installVscodeStub(t, {
     version: "1.138.0",
     commands: ["workbench.action.chat.openSessionInEditorGroup"],
     configuration: { nativeChatNavigation: "auto" },
@@ -555,6 +555,39 @@ test("a conversation whose worktree is not open explains itself", async (t) => {
   const native = await inside.open("run-outside");
   assert.equal(native.used, "native");
   assert.equal(native.verified, true);
+
+  // A remote or browser window cannot satisfy the check at all: its folders
+  // are `vscode-remote:` URIs and a session's working directories are `file:`
+  // ones, and nothing remaps one onto the other. Offering "open that folder"
+  // there would send the user somewhere that cannot help, so the offer is
+  // withheld and the reason is given instead.
+  stub.workspace.workspaceFolders = [
+    { uri: { scheme: "vscode-remote", fsPath: "/tmp/project/repository" } },
+  ];
+  const verdict = navigator.containment("/tmp/project/worktrees/run-outside");
+  assert.equal(verdict.contains, false);
+  assert.equal(verdict.unsatisfiable, true);
+  assert.match(verdict.reason, /remote URIs/);
+  queue.warnings.push("Open in the website");
+  queue.picks.push(undefined);
+  const unsatisfiable = await navigator.open("run-outside");
+  assert.equal(unsatisfiable.used, "picker");
+  assert.match(
+    calls.messages.at(-1)?.message || "",
+    /cannot list this conversation/,
+  );
+  assert.equal(
+    (calls.messages.at(-1)?.rest || []).includes("Open that folder"),
+    false,
+    "no offer to open a folder that cannot make the session listable",
+  );
+
+  // With no folder open the editor skips the check altogether.
+  stub.workspace.workspaceFolders = [];
+  assert.equal(
+    navigator.containment("/tmp/project/worktrees/run-outside").contains,
+    true,
+  );
 });
 
 test("the task graph webview is bounded by its page and reuses workspace models", async (t) => {

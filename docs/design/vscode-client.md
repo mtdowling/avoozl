@@ -126,7 +126,9 @@ The `agent-host-${provider}` form is confirmed in the 1.138.0 bundle, but no API
 - Three real defects were found on the way, all now fixed, and each worth knowing independently: the command takes a `Uri` and calls `.with()` on it, so a string fails with `o.with is not a function`; advertising a provider named `claude` collides with the editor's built-in `claude` provider, so `agent-host-claude:/<id>` resolves against the built-in host and reports `Session not found on backend`; and a token carried in the address's query string is wrong on two counts — the editor has a `connectionToken` field for it, and `fb()` derives a session's authority from the address, so a query string forces an opaque `hex-` encoding of it.
 - The research's working observation came from the other shape: a VS Code **Server** started with `--agent-host-bridge-port`, which makes the facade the editor's _own_ agent host rather than an additional remote one. The desktop application exposes no such flag; the string does not appear in its bundle.
 
-So native chat for owned sessions needs the bridge shape, which means the standalone server package rather than the desktop app. Until that is exercised, the honest position is that the session list works, the editor does not, and the extension's verified-candidate-then-fallback behaviour reports exactly that.
+So native chat for owned sessions needs the bridge shape, which means the standalone server package rather than the desktop app. **That route now passes**: with the facade bridged in as the editor's own agent host, the session opens in a real chat editor and its Allow and Cancel controls drive the run. Through `chat.remoteAgentHosts` it still cannot, on this build, and the extension's verified-candidate-then-fallback behaviour reports exactly that rather than implying otherwise.
+
+The clicks are driven rather than hand-performed, by `scripts/vscode-drive.mjs`: a real mouse press at each control's own coordinates through the Chrome DevTools Protocol, with nothing dispatched to the facade and no DOM event synthesised, so the editor still decides what every click means. That makes the acceptance repeatable instead of a one-off anecdote, and the receipt says plainly that a driver, not a person, pressed the buttons. A person clicking instead is the same check without `--drive`.
 
 **A second constraint, found while exercising the bridge shape: the editor lists only those of a host's sessions whose working directory is, or contains, an open folder.** The workbench's session list drops everything else before any UI sees it:
 
@@ -323,6 +325,29 @@ corrected here rather than left for the next reader to rediscover.
   Confirmed in the 1.138.0 bundle. There is still no API to ask for the
   registered form, so the extension derives candidates from the host's own
   channel list, tries them in order, and verifies each attempt.
+- **The provider comes from the channel's scheme, not from the `provider`
+  field.** `_toAgentHostSessionResource` reads `cu.provider(sessionUri)`,
+  which is the URI's scheme, and registers `agent-host-<scheme>`. Our channels
+  were `ahp-session:/<uuid>` — the protocol documentation's own example — so
+  every session mapped to a provider named `agent-host-ahp-session` that
+  nothing had registered: the session was dropped from the list and could not
+  be opened, while `listSessions` was answered correctly every time. Channel
+  identifiers now carry the advertised provider (`avoozl-claude:/s-<uuid>`),
+  with the kind in the identifier rather than the scheme, and the projection
+  schema is bumped so an older derived database rebuilds.
+- **A malformed action is not rejected, it crashes the client.** Our
+  `session/activeClientSet` named the client `client` instead of
+  `activeClient`, so the reducer stored `undefined`, which serialised as
+  `null`, which made the editor throw `Cannot read properties of null (reading
+  'customizations')` inside its own URI mapping. The session simply never
+  opened, with nothing on the wire to suggest why. The active client is now a
+  conformant `SessionActiveClient` with its required `tools`, and a test
+  rejects a hole in `activeClients`.
+- **The sessions list is in a sidebar that is hidden by default.** With
+  `chat.viewSessions.enabled` on, the list still has zero width until
+  `agentSessions.showAgentSessionsSidebar` runs. An empty chat panel therefore
+  looks the same as a host advertising nothing, which is why this took several
+  rounds to find; the driven check now reveals the sidebar by name first.
 - **Node version.** Unflagged `node:sqlite` needs Node 22.13 or 23.4 and
   later. This machine began on 23.3.0, which required
   `NODE_OPTIONS=--experimental-sqlite`, and was upgraded to 26.13.0 mid-work,
@@ -337,7 +362,7 @@ corrected here rather than left for the next reader to rediscover.
 | VSC-02 | Done         | `src/app/client.mjs` publishes `CLIENT_API_VERSION`, the operation allowlist, and the idempotency and conflict rules through `client.describe`. The extension refuses a mismatched major version.                                                                                                                   |
 | VSC-03 | Done         | `src/app/ahp/` with version negotiation, per-client authorization, durable replay, rebuild-from-zero, bounded history, and honest tool lifecycle. 29 tests in `ahp-projection.test.mjs` and `ahp-facade.test.mjs`, the latter driven by the protocol library's own client over real WebSocket traffic.              |
 | VSC-04 | Done         | `extension/src/plans.js` and `trees.js`. A conflicting save cannot overwrite another revision, saving never approves, and approval shows the reviewed hash with the exact task and dependency set it would create.                                                                                                  |
-| VSC-05 | **Blocked**  | Protocol and process behaviour proven end to end. Clicked-control acceptance is blocked by the editor: a host configured through `chat.remoteAgentHosts` gets a session list but no chat editor on 1.138.0, so there is no Allow or Cancel control to click. Three real defects were found and fixed getting there. |
+| VSC-05 | Done         | Clicked-control acceptance passes through the bridge route: `scripts/vscode-native-check.mjs --server DIR --drive` opens the session from the editor's sessions list, clicks **Allow once**, waits for the real child process, and clicks **Cancel** — 14 of 14 checks, receipt in `docs/evidence/vscode/native-controls.json`. The approval and the cancellation are attributed to the same editor client in the facade's dispatch trail, the process died of `SIGTERM`, the tool stayed `completed` and unsuccessful, and the run is `interrupted` with no error. Six defects were found and fixed getting there, four of them ours. |
 | VSC-06 | Done         | `extension/src/webviews.js` with graph, progress, and timeline. Rendering reuses the workspace's own model modules over a CSP limited to that one origin; the payload is paged, hidden panels receive nothing, and keyboard navigation works.                                                                       |
 | VSC-07 | **Blocked**  | A tunnel was attempted and the GitHub device login succeeded, but this network does not resolve Microsoft's relay hostnames, so no tunnel could register and nothing was published. The SSH route needs no relay and is now emitted by `avoozl editor --ssh HOST`, unexercised.                                     |
 | VSC-08 | **Blocked**  | Depended on an off-network route to this machine, which the relay block prevents. Nothing about phone behaviour is claimed.                                                                                                                                                                                         |

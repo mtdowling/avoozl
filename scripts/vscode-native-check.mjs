@@ -29,6 +29,7 @@ import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
 import { createFixture } from "./vscode-fixture.mjs";
+import { driveNativeControls, DRIVER_NOTE } from "./vscode-drive.mjs";
 import { startServer } from "../src/app/server.mjs";
 import { ensureAgentHost } from "../src/app/remote-manager.mjs";
 import { startAhpFacade } from "../src/app/ahp/facade.mjs";
@@ -50,6 +51,10 @@ const timeoutSeconds = Number(argv[argv.indexOf("--timeout") + 1] || 1800);
 // With --no-launch the operator opens the editor themselves; the script still
 // prints the profile and the settings it prepared.
 const launchEditor = !argv.includes("--no-launch");
+// Drive the editor's own controls instead of waiting for a person to click
+// them. Either way the clicks are real presses on real controls and this
+// script dispatches nothing itself.
+const drive = argv.includes("--drive");
 // With --server DIR the browser editor from an extracted VS Code Server
 // package is used, bridged so this facade becomes the editor's own agent host
 // rather than an additional remote one. On the desktop application a remote
@@ -236,6 +241,11 @@ try {
         // which is off by default: an empty chat panel otherwise looks like a
         // host that advertised nothing.
         "chat.viewSessions.enabled": true,
+        // The editor's own record of the protocol traffic and of what it did
+        // with it. Without this, a session the host returned and the editor
+        // discarded looks identical to a host that advertised nothing.
+        "chat.agentHost.ahpJsonlLoggingEnabled": true,
+        "window.logLevel": "trace",
         "telemetry.telemetryLevel": "off",
         "update.mode": "none",
         "extensions.autoUpdate": false,
@@ -261,6 +271,10 @@ try {
     context: { selected: ready[0]?.id },
   });
   const runId = submitted.run.id;
+  const sessionTitle = "Native control check";
+  let driven = null;
+  let driving = null;
+  let editorUrl = null;
   while (store.get("runs", runId)?.state !== "waiting-approval")
     await delay(50);
   const requestRecord = store
@@ -341,7 +355,6 @@ try {
         String(facade.port),
         "--agent-host-bridge-connection-token",
         editorClient.connectionToken,
-        editorFolder,
       ],
       { stdio: ["ignore", "pipe", "pipe"] },
     );
@@ -355,14 +368,20 @@ try {
     );
     say("");
     say("Open this in a browser:");
-    say(
-      "  http://127.0.0.1:" +
-        webPort +
-        "/?tkn=" +
-        browserToken +
-        "&folder=" +
-        encodeURIComponent(editorFolder),
-    );
+    // Deliberately no folder. A browser window's folders are `vscode-remote:`
+    // URIs, while a session's working directories arrive as `file:` URIs: the
+    // session list compares them with extUri, which compares scheme and
+    // authority too, and the bridge's own converter only decodes its wrapper
+    // scheme rather than remapping `file:` to the window's authority. So in a
+    // browser window with any folder open, no session can ever match, whatever
+    // directory it advertises. A window with no folder open skips the check
+    // entirely (`folders.length === 0` is treated as containment), which is
+    // the only configuration where a bridged session is listable.
+    editorUrl = "http://127.0.0.1:" + webPort + "/?tkn=" + browserToken;
+    say("  " + editorUrl);
+    say("");
+    say("Open no folder in this window. A browser window with a folder open");
+    say("cannot list a bridged session; the design document records why.");
   } else if (!launchEditor) {
     say("");
     say("Editor not launched (--no-launch). Open it yourself with:");
@@ -416,19 +435,57 @@ try {
       " minutes.",
   );
   say("");
-  say("Please click, in this order:");
-  step(1, "Open the Agents or Chat view and pick the conversation named");
-  say('     "' + (store.get("runs", runId).title || runId) + '".');
-  say("     The Avoozl sidebar also lists it under Conversations, where");
-  say('     "Open This Task\'s Conversation" will try the native command.');
-  step(2, 'The agent is asking to run a command. Click "Allow once".');
-  step(3, "Wait until its output shows FIXTURE_SLOW_COMMAND_STARTED.");
-  step(4, "Click the chat's Cancel or Stop control.");
+  if (drive) {
+    say("The controls are driven for you: a real mouse press at each one, in");
+    say("the editor's own UI. Nothing is dispatched to the facade.");
+    step(1, 'Reveal the sessions list and open "' + sessionTitle + '".');
+    step(2, 'Click "Allow once" on the command approval.');
+    step(3, "Wait for the real process to start.");
+    step(4, "Click the chat's Cancel control.");
+  } else {
+    say("Please click, in this order:");
+    step(1, "Open the Agents or Chat view and pick the conversation named");
+    say('     "' + sessionTitle + '".');
+    say("     The Avoozl sidebar also lists it under Conversations, where");
+    say('     "Open This Task\'s Conversation" will try the native command.');
+    step(2, 'The agent is asking to run a command. Click "Allow once".');
+    step(3, "Wait until its output shows FIXTURE_SLOW_COMMAND_STARTED.");
+    step(4, "Click the chat's Cancel or Stop control.");
+  }
   say("");
   say("This script dispatches nothing. It is watching the facade's audit");
   say("trail, the real process, and the durable records.");
   say("─".repeat(72));
   say("");
+
+  if (drive) {
+    if (!editorUrl)
+      throw Error(
+        "Driving the controls needs the browser editor: pass --server DIR.",
+      );
+    // Started, not awaited: the checks below watch the facade and the real
+    // process while the driver clicks.
+    driving = driveNativeControls({
+      url: editorUrl,
+      sessionTitle,
+      log: (line) => say("  · " + line),
+      screenshotDir: path.join(fixture.root, "shots"),
+      commandStarted: async () =>
+        fs
+          .readdirSync(fixture.markers)
+          .some((name) => name.endsWith(".started")),
+      timeoutMs: timeoutSeconds * 1000,
+    }).then(
+      (result) => {
+        driven = result;
+        return result;
+      },
+      (error) => {
+        say("  ! driving the controls failed: " + error.message);
+        throw error;
+      },
+    );
+  }
 
   const deadline = Date.now() + timeoutSeconds * 1000;
   const waitUntil = async (label, predicate) => {
@@ -519,6 +576,10 @@ try {
     return state?.turns.length ? state : null;
   });
 
+  // The driver has nothing left to click by now; collect its record of what
+  // it pressed, and let a driver failure surface rather than pass silently.
+  if (driving) await driving;
+
   // ── Verify the records, not just the UI ──────────────────────────────────
   const checks = [];
   const check = (name, condition, detail) => {
@@ -599,8 +660,10 @@ try {
     acceptance: "VSC-05 native clicked controls",
     scope:
       "Isolated VS Code profile and extensions directory, disposable workspace, fixture provider running real child processes, loopback facade. No personal profile, no provider account.",
-    operator:
-      "A person clicked Allow once and then Cancel in the editor's own chat UI. This script dispatched no protocol action.",
+    operator: drive
+      ? DRIVER_NOTE
+      : "A person clicked Allow once and then Cancel in the editor's own chat UI. This script dispatched no protocol action.",
+    ...(driven ? { drivenControls: driven.clicked } : {}),
     editor: (() => {
       try {
         const lines = execFileSync("code", ["--version"], {

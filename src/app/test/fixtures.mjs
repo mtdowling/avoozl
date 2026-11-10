@@ -1,6 +1,9 @@
 import path from "node:path";
 import { Store } from "../store.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
+import { runUris } from "../ahp/uris.mjs";
+import { agentProviderId } from "../ahp/projection.mjs";
+import { workspaceIdentity } from "../identity.mjs";
 export function snapshot() {
   return {
     schemaVersion: 1,
@@ -70,3 +73,16 @@ export async function waitFor(predicate, { timeoutMs = 20000, label } = {}) {
   }
 }
 export const markdown = `# A small plan\n\n## Design\n\nKeep the design in one document.\n\n\`\`\`task\n{"id":"foundation","title":"Build foundation","acceptance":["Foundation passes"],"epic":"sample"}\n\`\`\`\n\n\`\`\`task\n{"id":"delivery","title":"Deliver feature","acceptance":["Feature passes"],"requires":["foundation"],"epic":"sample"}\n\`\`\`\n`;
+
+// The channel identifiers for a run, with the scheme the projection uses: the
+// advertised agent provider. Resolved from the stored run so a test cannot
+// drift from what the host actually serves.
+export function urisFor(store, run) {
+  const id = typeof run === "string" ? run : run.id;
+  const record = store.get("runs", id) || (typeof run === "object" ? run : {});
+  return runUris(
+    workspaceIdentity(store),
+    id,
+    agentProviderId(record.provider),
+  );
+}

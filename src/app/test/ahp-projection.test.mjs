@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
-import { fixture } from "./fixtures.mjs";
+import { fixture, urisFor } from "./fixtures.mjs";
 import { Projection, PROJECTION_SCHEMA_VERSION } from "../ahp/projection.mjs";
-import { runUris } from "../ahp/uris.mjs";
+import { runUris, channelKind } from "../ahp/uris.mjs";
 import { workspaceIdentity } from "../identity.mjs";
 
 function seedRun(store, overrides = {}) {
@@ -36,11 +36,11 @@ function open(t, store, file) {
 }
 
 function chat(projection, store, runId = "run-demo") {
-  const uris = runUris(workspaceIdentity(store), runId);
+  const uris = urisFor(store, runId);
   return projection.channelState(uris.chat);
 }
 function session(projection, store, runId = "run-demo") {
-  const uris = runUris(workspaceIdentity(store), runId);
+  const uris = urisFor(store, runId);
   return projection.channelState(uris.session);
 }
 function toolCalls(state) {
@@ -583,7 +583,7 @@ test("history stays bounded and older turns page back in without gaps", async (t
   });
   t.after(() => projection.close());
   projection.catchUp();
-  const uris = runUris(workspaceIdentity(store), run.id);
+  const uris = urisFor(store, run);
   let state = projection.channelState(uris.chat);
   assert.equal(state.turns.length, 5, "the live window is bounded");
   assert.equal(state.turns.at(-1).id, "turn-24");
@@ -627,14 +627,32 @@ test("history stays bounded and older turns page back in without gaps", async (t
 test("channel identifiers are namespaced by workspace and stable across titles", async (t) => {
   const { store } = fixture(t);
   const workspaceId = workspaceIdentity(store);
-  const first = runUris(workspaceId, "run-demo");
-  const renamed = runUris(workspaceId, "run-demo");
+  const first = runUris(workspaceId, "run-demo", "avoozl-claude");
+  const renamed = runUris(workspaceId, "run-demo", "avoozl-claude");
   assert.deepEqual(first, renamed);
-  const other = runUris("a-different-workspace", "run-demo");
+  const other = runUris("a-different-workspace", "run-demo", "avoozl-claude");
   assert.notEqual(first.chat, other.chat);
   assert.notEqual(first.session, other.session);
-  assert.match(first.chat, /^ahp-chat:\/[0-9a-f-]{36}$/);
-  assert.match(first.session, /^ahp-session:\/[0-9a-f-]{36}$/);
+  // The scheme is the advertised provider, because the editor derives the
+  // chat-session provider from it; the kind lives in the identifier.
+  assert.match(first.chat, /^avoozl-claude:\/c-[0-9a-f-]{36}$/);
+  assert.match(first.session, /^avoozl-claude:\/s-[0-9a-f-]{36}$/);
+  assert.equal(channelKind(first.chat), "chat");
+  assert.equal(channelKind(first.session), "session");
+  // Two providers never share a session identifier.
+  assert.notEqual(
+    runUris(workspaceId, "run-demo", "avoozl-codex").session,
+    first.session,
+  );
+  // A provider that cannot be a URI scheme is refused rather than producing a
+  // resource neither side can parse.
+  assert.throws(
+    () => runUris(workspaceId, "run-demo", "not a scheme"),
+    /URI scheme/,
+  );
+  // Identifiers minted before the scheme carried the provider still resolve.
+  assert.equal(channelKind("ahp-chat:/" + "a".repeat(36)), "chat");
+  assert.equal(channelKind("ahp-session:/" + "a".repeat(36)), "session");
   // Identity is persisted, so a reopened workspace keeps its mappings.
   assert.equal(workspaceIdentity(store), workspaceId);
 });
