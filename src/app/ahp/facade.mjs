@@ -56,6 +56,7 @@ const DISPATCH = new Set([
   "session/activeClientSet",
   "session/activeClientRemoved",
   "session/configChanged",
+  "root/configChanged",
 ]);
 const UNSUPPORTED_REASON = {
   "chat/truncated":
@@ -169,6 +170,7 @@ export function startAhpFacade({
                 // conversation's channel from here rather than constructing a
                 // scheme, because editor registrations differ by surface.
                 dispatches: projection.dispatches({ limit: 50 }),
+                calls: projection.callLog({ limit: 80 }),
                 sessions: store
                   .list("runs")
                   .filter((r) => !r.deletedAt)
@@ -358,6 +360,16 @@ export function startAhpFacade({
   }
 
   async function perform(connection, channel, action) {
+    if (channel === ROOT_CHANNEL) {
+      if (action.type === "root/configChanged") {
+        projection.setRootConfigValues(action.config || {}, action.replace);
+        return { echo: true };
+      }
+      throw new AhpError(
+        JSON_RPC.invalidParams,
+        "This host does not implement " + action.type + " on the root channel.",
+      );
+    }
     const runId = runIdFor(channel);
     const kind = channelKind(channel);
     switch (action.type) {
@@ -572,9 +584,22 @@ export function startAhpFacade({
       }
       try {
         const result = await handle(connection, message);
+        if (message.method)
+          projection.recordCall({
+            clientName: connection.clientInfo?.name || null,
+            method: message.method,
+            ok: true,
+          });
         if (message.id !== undefined && result !== undefined)
           send(connection, { jsonrpc: "2.0", id: message.id, result });
       } catch (error) {
+        if (message.method)
+          projection.recordCall({
+            clientName: connection.clientInfo?.name || null,
+            method: message.method,
+            ok: false,
+            detail: error.message,
+          });
         const code = Number.isInteger(error.code)
           ? error.code
           : JSON_RPC.internalError;
@@ -1006,6 +1031,9 @@ export function startAhpFacade({
     // Which clients dispatched which actions, and whether each was accepted.
     dispatches(options) {
       return projection.dispatches(options);
+    },
+    calls(options) {
+      return projection.callLog(options);
     },
     // Evidence helper: which clients subscribed to a channel, and when.
     subscribers(resource, since) {

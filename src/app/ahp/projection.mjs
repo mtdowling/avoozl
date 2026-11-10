@@ -400,6 +400,23 @@ export class Projection {
         "DELETE FROM dispatches WHERE seq <= (SELECT MAX(seq)-5000 FROM dispatches)",
       );
   }
+  // Which protocol methods a client actually called, and how each answered.
+  // This is the diagnostic that tells an operator whether a client probed a
+  // capability at all, rather than leaving it to be guessed from behaviour.
+  recordCall(entry) {
+    this.calls ??= [];
+    this.calls.push({
+      at: new Date().toISOString(),
+      clientName: entry.clientName || null,
+      method: entry.method,
+      ok: Boolean(entry.ok),
+      ...(entry.detail ? { detail: String(entry.detail).slice(0, 200) } : {}),
+    });
+    if (this.calls.length > 500) this.calls.splice(0, 250);
+  }
+  callLog({ limit = 120 } = {}) {
+    return (this.calls || []).slice(-limit);
+  }
   dispatches({ limit = 200, since } = {}) {
     const rows = since
       ? this.db
@@ -679,12 +696,29 @@ export class Projection {
     return changed;
   }
 
+  // Host-side configuration the editor stores through `root/configChanged`.
+  // It is the client's own preference state, so it is kept rather than
+  // refused, and it lives in the projection because it is derived client
+  // state, not workspace state.
+  rootConfigValues() {
+    return this.meta("rootConfig") || {};
+  }
+  setRootConfigValues(values, replace) {
+    const next = replace
+      ? { ...values }
+      : { ...this.rootConfigValues(), ...values };
+    this.transaction(() => this.setMeta("rootConfig", next));
+    return next;
+  }
   rootState() {
     const runs = this.store.list("runs").filter((r) => !r.deletedAt);
     return {
       agents: this.agents,
       activeSessions: runs.length,
-      config: { schema: { type: "object", properties: {} }, values: {} },
+      config: {
+        schema: { type: "object", properties: {} },
+        values: this.rootConfigValues(),
+      },
       _meta: {
         "avoozl.workspaceId": this.workspaceId,
         "avoozl.authority": path.resolve(this.store.filename),
