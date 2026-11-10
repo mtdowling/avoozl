@@ -58,6 +58,16 @@ export function workspaceConfig(options = {}) {
   const plansRoot = relative(
     options.documents || options["plans-root"] || saved.documents || "plans",
   );
+  const canvasOrigins = String(
+    options["canvas-origin"] ||
+      process.env.AVOOZL_CANVAS_ORIGINS ||
+      saved.canvasOrigins ||
+      "",
+  )
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .map((value) => new URL(value).origin);
   return {
     workspaceRoot,
     filename,
@@ -75,6 +85,7 @@ export function workspaceConfig(options = {}) {
     plansRoot,
     port,
     host: options.host || saved.host || "127.0.0.1",
+    canvasOrigins,
     agentManifest: relative(
       options["agent-manifest"] ||
         saved.agentManifest ||

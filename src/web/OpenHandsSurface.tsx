@@ -7,6 +7,7 @@ import {
   type ErrorInfo,
   type ReactNode,
 } from "react";
+import { apiUrl } from "./api";
 
 export type OpenHandsSurfaceCapability = {
   host: string;
@@ -51,7 +52,7 @@ export default function OpenHandsSurface({ runId }: { runId: string }) {
     const controller = new AbortController();
     setSurface(null);
     setError("");
-    fetch("/api/openhands-surface", {
+    fetch(apiUrl("/api/openhands-surface"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ runId }),

@@ -35,6 +35,28 @@ test("private network access allows local interface hosts and refuses rebinding 
     ),
     /Same-origin/,
   );
+  const canvas = networkPolicy({
+    allowedOrigins: ["http://127.0.0.1:38400"],
+  });
+  assert.equal(
+    canvas(
+      request("127.0.0.1:9417", "::ffff:127.0.0.1", {
+        origin: "http://127.0.0.1:38400",
+        "sec-fetch-site": "same-site",
+      }),
+      9417,
+    ),
+    null,
+  );
+  assert.match(
+    canvas(
+      request("127.0.0.1:9417", "::ffff:127.0.0.1", {
+        origin: "http://127.0.0.1:38401",
+      }),
+      9417,
+    ),
+    /Same-origin/,
+  );
   assert.match(
     access(
       request("192.168.1.25:9417", "192.168.1.4", {

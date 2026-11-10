@@ -12,6 +12,28 @@ export class ApiError extends Error {
   }
 }
 
+let apiBaseUrl = "";
+
+export function configureApiBaseUrl(value = "") {
+  if (!value) {
+    apiBaseUrl = "";
+    return;
+  }
+  const url = new URL(value);
+  if (!["http:", "https:"].includes(url.protocol))
+    throw new Error("Use an HTTP or HTTPS Avoozl address.");
+  if (url.username || url.password)
+    throw new Error("Do not put credentials in the Avoozl address.");
+  url.hash = "";
+  url.search = "";
+  apiBaseUrl = url.href.replace(/\/$/, "");
+}
+
+export function apiUrl(path: string) {
+  if (!path.startsWith("/")) throw new Error("Avoozl API paths must be absolute.");
+  return apiBaseUrl + path;
+}
+
 async function read<T>(response: Response): Promise<T> {
   const value = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -22,7 +44,9 @@ async function read<T>(response: Response): Promise<T> {
 }
 
 export async function get<T>(path: string): Promise<T> {
-  return read<T>(await fetch(path, { headers: { Accept: "application/json" } }));
+  return read<T>(
+    await fetch(apiUrl(path), { headers: { Accept: "application/json" } }),
+  );
 }
 
 export async function command<T>(
@@ -30,7 +54,7 @@ export async function command<T>(
   input: Record<string, unknown> = {},
   expectedRevision?: number,
 ): Promise<T> {
-  const response = await fetch("/api/command", {
+  const response = await fetch(apiUrl("/api/command"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ operation, input, expectedRevision }),

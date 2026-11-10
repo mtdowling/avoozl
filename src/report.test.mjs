@@ -140,7 +140,7 @@ test("queries search full context and follow only prerequisite directions", () =
     fs.rmSync(f.root, { recursive: true, force: true });
   }
 });
-async function startFixture() {
+async function startFixture(options = {}) {
   const f = fixture(),
     { Store } = await import("./app/store.mjs"),
     { startServer } = await import("./app/server.mjs");
@@ -152,6 +152,7 @@ async function startFixture() {
     projectionRoot: f.root,
     sourceRoot: f.root,
     port: 0,
+    ...options,
   });
   await new Promise((resolve) => server.once("listening", resolve));
   return {
@@ -163,6 +164,45 @@ async function startFixture() {
     },
   };
 }
+test("Canvas uses an exact-origin CORS grant without weakening local origin checks", async () => {
+  const origin = "http://127.0.0.1:38400";
+  const f = await startFixture({ canvasOrigins: [origin] });
+  try {
+    let response = await fetch(f.base + "/api/health", {
+      headers: { Origin: origin },
+    });
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("access-control-allow-origin"), origin);
+    response = await fetch(f.base + "/api/command", {
+      method: "OPTIONS",
+      headers: {
+        Origin: origin,
+        "Access-Control-Request-Method": "POST",
+        "Access-Control-Request-Headers": "content-type",
+      },
+    });
+    assert.equal(response.status, 204);
+    assert.match(
+      response.headers.get("access-control-allow-methods"),
+      /POST/,
+    );
+    response = await fetch(f.base + "/api/command", {
+      method: "POST",
+      headers: {
+        Origin: origin,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ operation: "query", input: {} }),
+    });
+    assert.equal(response.status, 200);
+    response = await fetch(f.base + "/api/health", {
+      headers: { Origin: "http://127.0.0.1:38401" },
+    });
+    assert.equal(response.status, 403);
+  } finally {
+    await f.close();
+  }
+});
 async function waitFor(fn) {
   const deadline = Date.now() + 5000;
   while (Date.now() < deadline) {

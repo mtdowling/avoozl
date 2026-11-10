@@ -135,6 +135,7 @@ try {
       projectionRoot: config.plansRoot,
       sourceRoot: config.plansRoot,
       host: config.host,
+      canvasOrigins: config.canvasOrigins,
       manager,
     });
     let facade = null;
@@ -718,6 +719,7 @@ try {
   planning reconcile                     Project tasks from merged planning PRs
   openhands install-app                  Install and enable Avoozl inside Canvas
   openhands status                       Show Canvas App installation status
+  serve --canvas-origin URL              Allow the exact OpenHands Canvas origin
   query [--q QUERY] | show TASK_ID | update TASK_ID --status STATUS
   activity TASK_ID --action start|heartbeat|pause|finish ...
   skill --workspace PATH                Print the portable workflow skill

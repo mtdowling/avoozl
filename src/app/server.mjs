@@ -114,6 +114,7 @@ export function startServer({
   mode,
   host = process.env.NUPP_WORKSPACE_HOST || "127.0.0.1",
   allowedHosts = [],
+  canvasOrigins = [],
   githubPollMs = 30000,
 } = {}) {
   const store = new Store(dbPath);
@@ -159,7 +160,25 @@ export function startServer({
     });
     res.end(JSON.stringify(value));
   };
-  const access = networkPolicy({ host, allowedHosts });
+  const normalizedCanvasOrigins = new Set(
+      canvasOrigins.map((value) => new URL(value).origin),
+    ),
+    access = networkPolicy({
+      host,
+      allowedHosts,
+      allowedOrigins: [...normalizedCanvasOrigins],
+    });
+  const canvasOrigin = (req) =>
+    req.headers.origin && normalizedCanvasOrigins.has(req.headers.origin)
+      ? req.headers.origin
+      : null;
+  const allowCanvasRequest = (req, res) => {
+    const origin = canvasOrigin(req);
+    if (!origin) return false;
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+    return true;
+  };
   const etag = () => '"workspace-' + store.read().revision + '"';
   async function body(req) {
     let size = 0,
@@ -180,7 +199,8 @@ export function startServer({
       fail("JSON required.", 415);
     if (
       req.headers.origin &&
-      req.headers.origin !== "http://" + req.headers.host
+      req.headers.origin !== "http://" + req.headers.host &&
+      !canvasOrigin(req)
     )
       fail("Same-origin request required.", 403);
   }
@@ -208,6 +228,18 @@ export function startServer({
     try {
       const denied = access(req, server.address().port);
       if (denied) fail(denied, 403);
+      allowCanvasRequest(req, res);
+      if (req.method === "OPTIONS") {
+        if (!canvasOrigin(req)) fail("Same-origin request required.", 403);
+        res.writeHead(204, {
+          "Access-Control-Allow-Methods": "GET, HEAD, POST, PUT, PATCH, OPTIONS",
+          "Access-Control-Allow-Headers":
+            "Accept, Content-Type, If-Match, Last-Event-ID",
+          "Access-Control-Max-Age": "600",
+        });
+        res.end();
+        return;
+      }
       const url = new URL(req.url, "http://" + req.headers.host),
         route = url.pathname,
         base = url.origin;

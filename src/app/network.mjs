@@ -18,10 +18,21 @@ export function privateAddress(value = "") {
 export function networkPolicy({
   host = "127.0.0.1",
   allowedHosts = [],
+  allowedOrigins = [],
   interfaces = os.networkInterfaces(),
   hostname = os.hostname(),
 } = {}) {
-  const names = new Set(["localhost", "127.0.0.1", "[::1]", ...allowedHosts]);
+  const names = new Set(["localhost", "127.0.0.1", "[::1]", ...allowedHosts]),
+    origins = new Set(
+      allowedOrigins.map((value) => {
+        try {
+          return new URL(value).origin;
+        } catch {
+          return "";
+        }
+      }),
+    );
+  origins.delete("");
   if (host !== "127.0.0.1" && host !== "::1") {
     names.add(hostname.toLowerCase());
     names.add(hostname.toLowerCase().replace(/\.local$/, "") + ".local");
@@ -48,9 +59,12 @@ export function networkPolicy({
       Number(url.port || 80) !== port
     )
       return "Site address is not allowed.";
-    if (req.headers.origin && req.headers.origin !== url.origin)
+    const trustedOrigin =
+      req.headers.origin &&
+      (req.headers.origin === url.origin || origins.has(req.headers.origin));
+    if (req.headers.origin && !trustedOrigin)
       return "Same-origin request required.";
-    if (req.headers["sec-fetch-site"] === "cross-site")
+    if (req.headers["sec-fetch-site"] === "cross-site" && !trustedOrigin)
       return "Same-origin request required.";
     return null;
   };
