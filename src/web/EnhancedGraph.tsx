@@ -5,6 +5,7 @@ import type { State, Task } from "./types";
 type Point = { x: number; y: number };
 type Camera = { x: number; y: number; scale: number };
 type GraphNode = Task & { graphKind?: "workstream" | "task"; childCount?: number };
+type GraphRelation = "whole" | "immediate" | "upstream" | "downstream" | "both";
 
 function loadPositions(key: string) {
   try {
@@ -38,7 +39,7 @@ export function EnhancedGraph({
   const [group, setGroup] = useState<"epic" | "track" | "status" | "tag">("epic");
   const [focusedEpic, setFocusedEpic] = useState("");
   const [selected, setSelected] = useState("");
-  const [relation, setRelation] = useState("");
+  const [relation, setRelation] = useState<GraphRelation>("whole");
   const complete = useMemo(() => new Set(state.statuses.filter((item) => item.complete).map((item) => item.id)), [state.statuses]);
   const overviewNodes = useMemo<GraphNode[]>(() => state.epics.flatMap((epic) => {
     const children = matchingTasks.filter((task) => task.epic === epic.id);
@@ -74,7 +75,7 @@ export function EnhancedGraph({
   }, [baseNodes, mode, state.edges, state.epicEdges]);
   const connected = useMemo(() => {
     const ids = new Set<string>();
-    if (!selected || !relation) return ids;
+    if (!selected || relation === "whole" || relation === "immediate") return ids;
     const queue = [selected];
     ids.add(selected);
     while (queue.length) {
@@ -92,7 +93,9 @@ export function EnhancedGraph({
     return ids;
   }, [baseLinks, relation, selected]);
   const nodes = useMemo(
-    () => relation && selected ? baseNodes.filter((task) => connected.has(task.id)) : baseNodes,
+    () => selected && ["upstream", "downstream", "both"].includes(relation)
+      ? baseNodes.filter((task) => connected.has(task.id))
+      : baseNodes,
     [baseNodes, connected, relation, selected],
   );
   const links = useMemo(() => {
@@ -231,29 +234,64 @@ export function EnhancedGraph({
   }
 
   function chooseNode(node: GraphNode) {
-    setSelected(node.id);
     if (node.graphKind === "workstream") {
       setFocusedEpic(node.epic || "");
       setMode("tasks");
-      setRelation("");
+      setRelation("whole");
       setSelected("");
       return;
     }
-    openTask(node);
+    if (relation === "whole") {
+      openTask(node);
+      return;
+    }
+    setSelected(node.id);
   }
+
+  const selectedTask = baseNodes.find((item) => item.id === selected);
+  const relationPrompt =
+    relation === "immediate" ? "Click a task to show its immediate context." :
+    relation === "upstream" ? "Click a task to show all of its prerequisites." :
+    relation === "downstream" ? "Click a task to show everything it unblocks." :
+    relation === "both" ? "Click a task to show all connected work." : "";
 
   return (
     <section className="graph-view enhanced-graph">
       <div className="graph-top">
         <div className="graph-mode-controls">
-          <button className={mode === "overview" ? "active" : ""} onClick={() => { setMode("overview"); setFocusedEpic(""); setRelation(""); setSelected(""); }}>Workstreams</button>
-          <button className={mode === "tasks" ? "active" : ""} onClick={() => { setMode("tasks"); setFocusedEpic(""); setRelation(""); setSelected(""); }}>Tasks</button>
+          <button className={mode === "overview" ? "active" : ""} onClick={() => { setMode("overview"); setFocusedEpic(""); setRelation("whole"); setSelected(""); }}>Workstreams</button>
+          <button className={mode === "tasks" ? "active" : ""} onClick={() => { setMode("tasks"); setFocusedEpic(""); setRelation("whole"); setSelected(""); }}>Tasks</button>
           <label>Group <select value={group} onChange={(event) => setGroup(event.target.value as typeof group)}><option value="epic">Epic</option><option value="track">Track</option><option value="status">Status</option><option value="tag">Tag</option></select></label>
         </div>
         <span><i className="legend-line" /> prerequisite → dependent <i className="legend-line dashed" /> supports / sequence</span>
-        <select aria-label="Explore selected task relationships" value={relation} disabled={!selected} onChange={(event) => setRelation(event.target.value)}><option value="">Immediate context</option><option value="upstream">All prerequisites of selected</option><option value="downstream">Everything selected unblocks</option><option value="both">All connected work</option></select>
+        <select
+          aria-label="Choose dependency graph scope"
+          value={relation}
+          onChange={(event) => {
+            const next = event.target.value as GraphRelation;
+            setRelation(next);
+            if (next === "whole") setSelected("");
+          }}
+        >
+          <option value="whole">Whole matching graph</option>
+          <option value="immediate">Immediate context</option>
+          <option value="upstream">All prerequisites of selected</option>
+          <option value="downstream">Everything selected unblocks</option>
+          <option value="both">All connected work</option>
+        </select>
       </div>
-      {(selected || focusedEpic) && <div className="graph-focus-bar"><span><b>{focusedEpic ? state.epics.find((item) => item.id === focusedEpic)?.title : nodes.find((item) => item.id === selected)?.title}</b>{selected && !relation ? " · immediate connections highlighted" : ""}</span>{selected && <button onClick={() => setRelation("both")}>Expand connected work</button>}<button onClick={() => { setSelected(""); setRelation(""); setFocusedEpic(""); }}>Whole collection</button></div>}
+      {(relation !== "whole" || selected || focusedEpic) && <div className="graph-focus-bar">
+        <span>
+          {selectedTask
+            ? <><b>{selectedTask.title}</b>{relation === "immediate" ? " · immediate connections highlighted" : ""}</>
+            : focusedEpic && relation === "whole"
+              ? <b>{state.epics.find((item) => item.id === focusedEpic)?.title}</b>
+              : relationPrompt}
+        </span>
+        {selectedTask && <button onClick={() => openTask(selectedTask)}>Open task</button>}
+        {selectedTask && relation === "immediate" && <button onClick={() => setRelation("both")}>Expand connected work</button>}
+        <button onClick={() => { setSelected(""); setRelation("whole"); setFocusedEpic(""); }}>Whole collection</button>
+      </div>}
       <div
         id="graph-stage"
         className={!layoutReady ? "loading" : drag ? "dragging" : ""}
@@ -285,7 +323,7 @@ export function EnhancedGraph({
               const status = state.statuses.find((item) => item.id === node.status);
               const track = state.tracks.find((item) => item.id === node.track);
               const label = node.graphKind === "workstream" ? "WORKSTREAM" : node.epic?.startsWith("doc:") ? "PLAN" : node.epic || "TASK";
-              const dim = selected && !relation && !neighbors.has(node.id);
+              const dim = selected && relation === "immediate" && !neighbors.has(node.id);
               return <button className={`graph-html-node ${selected === node.id ? "selected" : ""} ${dim ? "dim" : ""} ${node.graphKind === "workstream" ? "workstream" : ""}`} key={node.id}
                 style={{ left: camera.x + point.x * camera.scale, top: camera.y + point.y * camera.scale, width: NODE_W * camera.scale, height: NODE_H * camera.scale, "--track-color": track?.color || "#8899aa", "--node-scale": camera.scale } as React.CSSProperties}
                 title={`${node.title} — ${node.graphKind === "workstream" ? node.summary : status?.label || node.status}. ${node.summary || ""}`}
