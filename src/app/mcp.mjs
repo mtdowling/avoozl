@@ -72,6 +72,10 @@ const operations = {
     "plan.get",
     "Read a draft, its immutable revision history and approval receipts.",
   ],
+  plans_lint_plan: [
+    "plan.lint",
+    "Run deterministic design, task schema, project and dependency checks against a saved or supplied Markdown revision. Returns line-addressable diagnostics and never edits or approves the plan.",
+  ],
   plans_submit_review: [
     "plan.review.submit",
     "Submit substantive, exact-revision design review comments with unique quoted anchors. This records feedback only; it cannot edit or approve the plan.",
@@ -182,6 +186,7 @@ export const WORKSPACE_TOOLS = Object.entries(operations).map(
         "usage.limits",
         "metrics",
         "plan.get",
+        "plan.lint",
         "run.get",
         "run.list",
         "task.sessions",
