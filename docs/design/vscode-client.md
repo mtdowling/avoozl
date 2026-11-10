@@ -153,6 +153,50 @@ This is also a product constraint, not only a test detail: an editor window open
 
 If the internal command changes, provide a graceful session-picker/manual-open fallback. Proposed `chatSessionsProvider` APIs are another possible fallback for a private installation with explicit opt-in. They are not generally usable for a Marketplace release; a single-user opt-in is possible, with compatibility maintenance. Do not call the approach impossible merely because a proposal is involved.
 
+## The website decision, measured
+
+The earlier version of this section argued from architecture. That argument was
+partly wrong — the desktop application's lack of a bridge says nothing about
+replacing a *web* app, because the bridged route is itself served to a browser.
+So the question was measured instead, by
+`scripts/vscode-phone-viewport.mjs`: both surfaces, the same fixture work, an
+iPhone 15 viewport (393×852 at DPR 3), touch events only — no mouse, no
+keyboard, because a phone has neither. Receipt:
+`docs/evidence/vscode/phone-viewport.json`.
+
+**The website completed the whole flow by thumb.** It found the blocked work
+("Needs your input · 2 pending"), opened that conversation, approved the tool,
+and cancelled it — and the real child process stopped. It also laid itself out
+for the viewport: a single column, an icon rail, large cards.
+
+**The bridged editor could not reach its own session list by touch at all.**
+The sessions list is behind `agentSessions.showAgentSessionsSidebar`, a command
+with no toolbar control on this build, so the only way in is the command
+palette — a keyboard. Given the keyboard, the list still did not render: the
+command wants roughly 600px of width to place the list beside the chat, and
+there are 393. At that width the workbench does not reflow; it renders every
+part at once — activity bar, editor, chat — with the welcome text wrapping to
+two or three words per line.
+
+So, for the two surfaces as they exist today:
+
+| Phone, touch only                     | Website | Bridged editor                      |
+| ------------------------------------- | ------- | ----------------------------------- |
+| Find work needing a decision          | yes     | not reachable without a keyboard    |
+| Open that conversation                | yes     | no                                  |
+| Approve a tool                        | yes     | not reached                         |
+| Cancel, and stop the real process     | yes     | not reached                         |
+| Layout adapts to the viewport         | yes     | no                                  |
+
+Two honest caveats. This is emulation, so it is not the VSC-08 gate: a physical
+phone on an outside network can still behave worse, never better, than this.
+And the website is not flattered by the measurement either — its own controls
+came in at 131×40, 57×42 and 34×28 CSS pixels against the 44px minimum, so the
+flow it completes is completed on targets that are too small. That is a defect
+in our own surface, and it is fixable in our own code, which is the point: the
+editor's limits are upstream in VS Code's layout and command surface, and ours
+are not.
+
 ## Remote access and the website decision
 
 There are three different questions:

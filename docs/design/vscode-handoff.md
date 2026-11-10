@@ -140,9 +140,22 @@ registration path calls only `registerChatSessionItemController` and never
 flag at all — the string is absent from its bundle.
 
 So native chat for owned sessions is a server-and-browser capability, not a
-desktop one, and a phone reaches it only through that same server. The
-website remains the only surface that covers the desktop application and the
-phone. The recommendation at handoff is that no website surface is retired
-and the extension is treated as an addition; if the decision goes the other
-way, it needs the parity matrix in the design document filled in from passing
-gates, not from intent.
+desktop one. That alone does not settle the web question, because the bridged
+route is itself served to a browser — so it was measured.
+`scripts/vscode-phone-viewport.mjs` puts both surfaces at an iPhone viewport
+and drives them with touch events only. The website completes the whole flow
+by thumb: find blocked work, open the conversation, approve, cancel, and the
+real process stops. The bridged editor cannot reach its own session list by
+touch (the command has no toolbar control), and given a keyboard the list
+still does not render, because the command wants about 600px of width against
+393 available; the workbench does not reflow at that size. Receipt:
+`docs/evidence/vscode/phone-viewport.json`.
+
+The recommendation at handoff is therefore that no website surface is retired
+and the extension is treated as an addition. Two things would change that,
+and both are checkable rather than matters of taste: VS Code gaining a
+touch-reachable sessions control and a layout that reflows below ~600px, or a
+decision that phone use is not required. The same measurement also found our
+own website's controls at 131×40, 57×42 and 34×28 CSS pixels against a 44px
+minimum — small enough to be worth fixing whatever is decided, and fixable in
+our own code.
