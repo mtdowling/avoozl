@@ -1,5 +1,6 @@
 import {
   Activity,
+  BarChart3,
   BookOpen,
   Bot,
   Boxes,
@@ -12,12 +13,14 @@ import {
   GitBranch,
   LayoutDashboard,
   ListTodo,
+  Maximize2,
   Menu,
   MessageSquare,
   Network,
   Pencil,
   Plus,
   RefreshCw,
+  RotateCcw,
   Search,
   Settings,
   ShieldAlert,
@@ -29,16 +32,17 @@ import { createEpicProgress } from "../progress.mjs";
 import { createSingleStrip } from "../strip.mjs";
 import { createWorkbench } from "../workbench.mjs";
 import { dependencyLayout, dependencyPath, NODE_H, NODE_W } from "../graph-layout.mjs";
+import { renderUsage } from "../app/ui/usage-charts.mjs";
 import { command, get, submissionId } from "./api";
 import { loadState, loadWorkspace, useRemote, useWorkspaceEvents } from "./hooks";
-import type { DocumentRecord, PlanSummary, RunSummary, State, Task, Workspace } from "./types";
+import type { DocumentRecord, PlanSummary, RunSummary, SavedView, State, Task, Workspace } from "./types";
 
 const Conversation = lazy(() => import("./Chat").then((module) => ({ default: module.Conversation })));
 const PlanEditor = lazy(() => import("./Editors").then((module) => ({ default: module.PlanEditor })));
 const DocumentEditor = lazy(() => import("./Editors").then((module) => ({ default: module.DocumentEditor })));
 const MarkdownPreview = lazy(() => import("./Editors").then((module) => ({ default: module.MarkdownPreview })));
 
-type View = "overview" | "tasks" | "epics" | "graph" | "documents" | "visualizations" | "conversations" | "plans" | "settings";
+type View = "overview" | "tasks" | "epics" | "graph" | "documents" | "visualizations" | "conversations" | "insights" | "plans" | "settings";
 
 const views: Array<{ id: View; label: string; icon: typeof LayoutDashboard }> = [
   { id: "overview", label: "Now", icon: Activity },
@@ -47,9 +51,21 @@ const views: Array<{ id: View; label: string; icon: typeof LayoutDashboard }> = 
   { id: "graph", label: "Graph", icon: Network },
   { id: "documents", label: "Plans", icon: FileText },
   { id: "visualizations", label: "Visualizations", icon: GitBranch },
+  { id: "conversations", label: "Steer", icon: MessageSquare },
+  { id: "insights", label: "Insights", icon: BarChart3 },
 ];
 
 const internalViews = new Set<View>(["conversations", "plans", "settings"]);
+const pageDescriptions: Partial<Record<View, string>> = {
+  overview: "See work in flight, up next, blocked, and waiting for review.",
+  tasks: "Browse the task hierarchy with status, ownership, next actions, and blockers.",
+  epics: "Compare completed and remaining work across epics.",
+  graph: "Explore dependencies and focus on connected tasks and epics.",
+  documents: "Read, search, and manage the Markdown plans that define the work.",
+  visualizations: "Build and revisit focused views of the project.",
+  conversations: "Chat with agents to explore, plan, and carry out work.",
+  insights: "Review agent activity and reported usage over time.",
+};
 
 function initialLocation() {
   const query = new URLSearchParams(location.search);
@@ -310,8 +326,8 @@ function FacetGroup({ title, values, selected, toggle, searchable = false, open 
     <div className="facet-body">
       {searchable && <input className="facet-find" type="search" value={find} onChange={(event) => setFind(event.target.value)} placeholder={`Find ${title.toLowerCase()}…`} />}
       <div className="facet-options">
-        {shown.map((item) => <label className={`facet-option ${selected.includes(item.id) ? "selected" : ""}`} key={item.id}>
-          <input type="checkbox" checked={selected.includes(item.id)} onChange={() => toggle(item.id)} />
+        {shown.map((item) => <label className={`facet-option ${selected.includes(item.id) ? "selected" : ""} ${item.count === 0 ? "disabled" : ""}`} key={item.id}>
+          <input type="checkbox" checked={selected.includes(item.id)} disabled={item.count === 0} onChange={() => toggle(item.id)} />
           <span>{item.label}</span><small>{item.count}</small>
         </label>)}
         {!shown.length && <p className="facet-empty">No matching values.</p>}
@@ -320,13 +336,24 @@ function FacetGroup({ title, values, selected, toggle, searchable = false, open 
   </details>;
 }
 
-function TaskFacets({ state, filters, setFilters, count }: {
+function TaskFacets({ workspace, state, filters, setFilters, count, applyPromptView }: {
+  workspace: Workspace;
   state: State;
   filters: TaskFilters;
   setFilters: React.Dispatch<React.SetStateAction<TaskFilters>>;
   count: number;
+  applyPromptView: (view: SavedView) => void;
 }) {
   const complete = new Set(state.statuses.filter((item) => item.complete).map((item) => item.id));
+  const savedPromptConfiguration = useMemo(() => {
+    try { return JSON.parse(sessionStorage.getItem("nupp-workspace-session-v1") || "{}"); }
+    catch { return {}; }
+  }, []);
+  const [promptProvider, setPromptProvider] = useState(savedPromptConfiguration.provider || workspace.providers[0]?.id || workspace.providers[0]?.name || "codex");
+  const [promptProject, setPromptProject] = useState(savedPromptConfiguration.project || workspace.projects[0]?.id || "");
+  const [promptPending, setPromptPending] = useState(false);
+  const [promptFeedback, setPromptFeedback] = useState("");
+  const promptMode = /^\/prompt(?:\s|$)/.test(filters.query);
   const countFor = (key: "scope" | "status" | "epic" | "track" | "tag", value: string) =>
     state.tasks.filter((task) => key === "tag" ? task.tags?.includes(value) : (task[key] || (key === "scope" ? "runtime" : "")) === value).length;
   const toggle = (key: TaskArrayFilterKey, value: string, exclusive = false) =>
@@ -340,19 +367,87 @@ function TaskFacets({ state, filters, setFilters, count }: {
     ["tags", "Tag"],
     ["activity", "Check-in"],
   ] as const).flatMap(([key, label]) => filters[key].map((value) => ({ key, label, value })));
-  return <aside className="facet-sidebar" aria-label="Filters">
-    <label className="search-label" htmlFor="task-search">Search tasks</label>
-    <div className="query-box"><textarea id="task-search" rows={2} value={filters.query} onChange={(event) => setFilters((current) => ({ ...current, query: event.target.value }))} placeholder="Search title, ID, summary, or tag…" /></div>
+
+  async function submitPrompt() {
+    if (promptPending) return;
+    const prompt = filters.query.replace(/^\/prompt\s*/, "").trim();
+    if (!prompt) {
+      setPromptFeedback("Describe the tasks you want to find.");
+      return;
+    }
+    setPromptPending(true);
+    setPromptFeedback(`Searching with ${promptProvider}…`);
+    try {
+      const run = await command<{ id: string }>("search.prompt", {
+        prompt,
+        provider: promptProvider,
+        projectId: promptProject,
+        model: savedPromptConfiguration.models?.[promptProvider],
+        submissionId: submissionId(),
+        context: {
+          view: "activity",
+          group: "epic",
+          filters: { scope: filters.scopes[0] || "all", q: filters.query },
+        },
+      });
+      for (;;) {
+        await new Promise((resolve) => window.setTimeout(resolve, 1500));
+        const result = await command<{ pending?: boolean; view?: SavedView; explanation?: string }>("search.result", { id: run.id });
+        if (result.pending) continue;
+        if (!result.view) throw new Error("Prompt search returned no view.");
+        applyPromptView(result.view);
+        setPromptFeedback(result.explanation || "Prompt search applied.");
+        break;
+      }
+    } catch (error) {
+      setPromptFeedback(error instanceof Error ? error.message : String(error));
+    } finally {
+      setPromptPending(false);
+    }
+  }
+
+  return <aside className={`facet-sidebar ${promptMode ? "prompt-search" : ""}`} aria-label="Filters">
+    <label className="search-label" htmlFor="task-search">Search or /prompt <span>⌘ K</span></label>
+    <div className="query-box"><textarea
+      id="task-search"
+      rows={promptMode ? 2 : 1}
+      value={filters.query}
+      onChange={(event) => {
+        setPromptFeedback("");
+        setFilters((current) => ({ ...current, query: event.target.value }));
+      }}
+      onKeyDown={(event) => {
+        if (event.key !== "Enter" || event.shiftKey) return;
+        event.preventDefault();
+        if (promptMode) void submitPrompt();
+        else event.currentTarget.blur();
+      }}
+      placeholder="Search tasks or type /prompt…"
+      aria-label="Search tasks or enter /prompt"
+    /></div>
+    {promptMode && <div className="prompt-search-controls">
+      <label>Agent<select value={promptProvider} onChange={(event) => setPromptProvider(event.target.value)}>
+        {workspace.providers.map((provider) => {
+          const id = provider.id || provider.name || "";
+          return <option value={id} key={id}>{provider.label || provider.name || id}</option>;
+        })}
+      </select></label>
+      <label>Project<select value={promptProject} onChange={(event) => setPromptProject(event.target.value)}>
+        {workspace.projects.length ? workspace.projects.map((project) => <option value={project.id} key={project.id}>{project.id}</option>) : <option value="">Configure a project</option>}
+      </select></label>
+      <button className="button primary" disabled={promptPending} onClick={() => void submitPrompt()}>{promptPending ? "Searching…" : "Find tasks"}</button>
+      {!!promptFeedback && <p className="prompt-search-state" role="status">{promptFeedback}</p>}
+    </div>}
     {!!chips.length && <div className="applied-filters">
       <div className="applied-heading"><span>Applied filters</span><button onClick={() => setFilters(emptyTaskFilters)}>Clear all</button></div>
       {chips.map((chip) => <button className="applied-filter" key={`${chip.key}:${chip.value}`} onClick={() => toggle(chip.key, chip.value)}><span>{chip.label}:</span> {chip.value} ×</button>)}
     </div>}
     <div className="facet-bank">
-      <FacetGroup title="Collection" open selected={filters.scopes} toggle={(value) => toggle("scopes", value, true)} values={[
+      <FacetGroup title="Collection" open selected={filters.scopes.length ? filters.scopes : ["all"]} toggle={(value) => toggle("scopes", value, true)} values={[
         { id: "all", label: "All plans", count: state.tasks.length },
-        { id: "runtime", label: "Runtime delivery", count: state.tasks.filter((task) => !task.scope || task.scope === "runtime").length },
+        { id: "runtime", label: "Runtime tasks", count: state.tasks.filter((task) => !task.scope || task.scope === "runtime").length },
       ]} />
-      <FacetGroup title="Work state" open selected={filters.work} toggle={(value) => toggle("work", value)} values={[
+      <FacetGroup title="Work state" selected={filters.work} toggle={(value) => toggle("work", value)} values={[
         { id: "ready", label: "Ready to start", count: state.tasks.filter((task) => !complete.has(task.status) && task.status !== "blocked" && task.activity?.status !== "active").length },
         { id: "inflight", label: "In progress", count: state.tasks.filter((task) => task.activity?.status === "active" || task.status === "in-progress").length },
         { id: "review", label: "Needs review", count: state.tasks.filter((task) => task.status.includes("review")).length },
@@ -376,7 +471,7 @@ function filteredTasks(state: State, filters: TaskFilters) {
   const complete = new Set(state.statuses.filter((item) => item.complete).map((item) => item.id));
   return state.tasks.filter((task) => {
     const text = `${task.id} ${task.title} ${task.summary || ""} ${(task.tags || []).join(" ")}`.toLowerCase();
-    if (filters.query && !text.includes(filters.query.toLowerCase())) return false;
+    if (filters.query && !/^\/prompt(?:\s|$)/.test(filters.query) && !text.includes(filters.query.toLowerCase())) return false;
     if (filters.scopes.length && !filters.scopes.includes("all") && !filters.scopes.includes(task.scope || "runtime")) return false;
     if (filters.statuses.length && !filters.statuses.includes(task.status)) return false;
     if (filters.epics.length && !filters.epics.includes(task.epic || "")) return false;
@@ -391,15 +486,18 @@ function filteredTasks(state: State, filters: TaskFilters) {
   });
 }
 
-function FacetedWorkbench({ state, filters, setFilters, children }: {
+function FacetedWorkbench({ workspace, state, filters, setFilters, filtersOpen = true, applyPromptView, children }: {
+  workspace: Workspace;
   state: State;
   filters: TaskFilters;
   setFilters: React.Dispatch<React.SetStateAction<TaskFilters>>;
+  filtersOpen?: boolean;
+  applyPromptView: (view: SavedView) => void;
   children: (tasks: Task[]) => React.ReactNode;
 }) {
   const tasks = filteredTasks(state, filters);
   const [width, setWidth] = useStoredSize("avoozl-facet-width", 260, 210, 480);
-  return <section className="faceted-screen" style={{ "--facet-width": `${width}px` } as React.CSSProperties}><TaskFacets state={state} filters={filters} setFilters={setFilters} count={tasks.length} /><ResizeHandle value={width} setValue={setWidth} min={210} max={480} label="Resize filters" className="facet-resize-handle" /><div className="faceted-main">{children(tasks)}</div></section>;
+  return <section className={`faceted-screen ${filtersOpen ? "" : "filters-hidden"}`} style={{ "--facet-width": `${width}px` } as React.CSSProperties}><TaskFacets workspace={workspace} state={state} filters={filters} setFilters={setFilters} count={tasks.length} applyPromptView={applyPromptView} /><ResizeHandle value={width} setValue={setWidth} min={210} max={480} label="Resize filters" className="facet-resize-handle" /><div className="faceted-main">{children(tasks)}</div></section>;
 }
 
 function RecentTree({ state, tasks, openTask }: { state: State; tasks: Task[]; openTask: (task: Task) => void }) {
@@ -411,7 +509,7 @@ function RecentTree({ state, tasks, openTask }: { state: State; tasks: Task[]; o
   const openTaskRef = useRef(openTask);
   openTaskRef.current = openTask;
   const [group, setGroup] = useState("epic");
-  const [, repaint] = useState(0);
+  const [renderVersion, repaint] = useState(0);
 
   useEffect(() => {
     if (!root.current || !nowSink.current || controller.current) return;
@@ -454,7 +552,7 @@ function RecentTree({ state, tasks, openTask }: { state: State; tasks: Task[]; o
       selected: "",
       narrow: tasks.length !== state.tasks.length,
     });
-  }, [group, state, tasks]);
+  }, [group, renderVersion, state, tasks]);
 
   return <section className="recent-tree">
     <div className="tree-group-control"><label>Group by <select value={group} onChange={(event) => setGroup(event.target.value)}><option value="epic">Epic</option><option value="track">Track</option><option value="status">Status</option><option value="tag">Tag</option></select></label></div>
@@ -565,13 +663,19 @@ function Documents({ workspace, state, selected, select, selectedPlan, selectPla
         const linked = doc.taskIds?.length || 0;
         const done = doc.taskIds?.filter((id) => state.statuses.find((status) => status.id === state.tasks.find((task) => task.id === id)?.status)?.complete).length || 0;
         const percent = linked ? Math.round(done / linked * 100) : 0;
-        return <button className="doc-card" key={doc.id} onClick={() => select(doc.id)}><div><b>{doc.title}</b><small>{(doc as any).targetBranch || doc.path}</small></div><div className="doc-card-progress"><span>{doc.status || "Active"} · {percent}%</span><div className="plan-meter"><i style={{ width: `${percent}%` }} /></div></div></button>;
+        return <button className="plan-table-row" key={doc.id} onClick={() => select(doc.id)}>
+          <b title={doc.title}>{doc.title}</b>
+          <span title={(doc as any).targetBranch || doc.path}>{(doc as any).targetBranch || doc.path}</span>
+          <span className={`plan-state state-${doc.status || "active"}`}>{doc.status || "Active"}</span>
+          <span>{done} / {linked} tasks</span>
+          <span className="plan-percent">{percent}%<i><em style={{ width: `${percent}%` }} /></i></span>
+        </button>;
       })}</section>)}
       {!filtered.length && <Empty icon={BookOpen} title="No matching plans">Change the search or plan filters.</Empty>}
     </div> : <div className="proposal-browser">
       {selectedPlan ? <Suspense fallback={<LoadingSurface label="Loading Monaco…" />}><PlanEditor id={selectedPlan} onSaved={refresh} /></Suspense> : <>
         <div className="library-heading"><h2>Proposals</h2><button className="button subtle"><Plus size={14} /> Write plan</button></div>
-        <div className="proposal-list">{workspace.plans.map((plan) => <button className="proposal-row" key={plan.id} onClick={() => selectPlan(plan.id)}><span><b>{plan.title}</b><small>Revision {plan.revision || 1}</small></span><span>{plan.state || "draft"}</span></button>)}</div>
+        <div className="proposal-list">{workspace.plans.map((plan) => <button className="proposal-row" key={plan.id} onClick={() => selectPlan(plan.id)}><b>{plan.title}</b><span>Revision {plan.revision || 1}</span><span>{plan.state || "draft"}</span></button>)}</div>
         {!workspace.plans.length && <p className="muted">No proposals yet.</p>}
       </>}
     </div>}
@@ -676,7 +780,7 @@ function RecentNow({ state, matchingTasks, openTask }: { state: State; matchingT
 function EpicProgress({ state, matchingTasks, openTask }: { state: State; matchingTasks: Task[]; openTask: (task: Task) => void }) {
   const root = useRef<HTMLDivElement>(null);
   const controller = useRef<EpicController | null>(null);
-  const [zoom, setZoom] = useState(100);
+  const zoom = useRef(100);
   const matchingIds = useMemo(() => new Set(matchingTasks.map((task) => task.id)), [matchingTasks]);
   const openTaskRef = useRef(openTask);
   openTaskRef.current = openTask;
@@ -688,7 +792,9 @@ function EpicProgress({ state, matchingTasks, openTask }: { state: State; matchi
         const task = state.tasks.find((item) => item.id === id);
         if (task) openTaskRef.current(task);
       },
-      changeZoom: setZoom,
+      changeZoom(next: number) {
+        zoom.current = next;
+      },
     });
     return () => controller.current?.suspend();
   }, [state.tasks]);
@@ -699,15 +805,15 @@ function EpicProgress({ state, matchingTasks, openTask }: { state: State; matchi
       matchingIds,
       scope: "all",
       selected: "",
-      zoom,
+      zoom: zoom.current,
     });
-  }, [matchingIds, state, zoom]);
+  }, [matchingIds, state]);
 
   return <div className="legacy-visualization epic-view" ref={root} />;
 }
 
 function Graph({ state, matchingTasks, openTask }: { state: State; matchingTasks: Task[]; openTask: (task: Task) => void }) {
-  const baseTasks = matchingTasks.slice(0, 180);
+  const baseTasks = useMemo(() => matchingTasks.slice(0, 180), [matchingTasks]);
   const [selected, setSelected] = useState("");
   const [relation, setRelation] = useState("");
   const baseLinks = useMemo(() => {
@@ -733,15 +839,20 @@ function Graph({ state, matchingTasks, openTask }: { state: State; matchingTasks
     }
     return ids;
   }, [baseLinks, relation, selected]);
-  const tasks = relation && selected ? baseTasks.filter((task) => connected.has(task.id)) : baseTasks;
+  const tasks = useMemo(() => relation && selected ? baseTasks.filter((task) => connected.has(task.id)) : baseTasks, [baseTasks, connected, relation, selected]);
   const links = useMemo(() => {
     const ids = new Set(tasks.map((task) => task.id));
     return baseLinks.filter((edge) => ids.has(edge.from) && ids.has(edge.to));
   }, [baseLinks, tasks]);
   const positions = useMemo(() => dependencyLayout(tasks, links, (task: Task) => task.epic || ""), [links, tasks]);
   const stage = useRef<HTMLDivElement>(null);
+  const [stageSize, setStageSize] = useState({ width: 1, height: 1 });
   const [camera, setCamera] = useState({ x: 0, y: 0, scale: 1 });
   const [drag, setDrag] = useState<{ x: number; y: number; cameraX: number; cameraY: number } | null>(null);
+  const [manualPositions, setManualPositions] = useState<Record<string, { x: number; y: number }>>({});
+  const [nodeDrag, setNodeDrag] = useState<{ id: string; x: number; y: number; startX: number; startY: number } | null>(null);
+  const movedNode = useRef(false);
+  const displayPositions = useMemo(() => ({ ...positions, ...manualPositions }), [manualPositions, positions]);
   const bounds = useMemo(() => {
     const points = Object.values(positions);
     const minX = Math.min(0, ...points.map((point) => point.x)) - 110;
@@ -761,6 +872,16 @@ function Graph({ state, matchingTasks, openTask }: { state: State; matchingTasks
     });
   }, [bounds]);
   useEffect(() => { fit(); }, [fit]);
+  useEffect(() => {
+    const element = stage.current;
+    if (!element) return;
+    const observer = new ResizeObserver(([entry]) => {
+      setStageSize({ width: Math.max(1, entry.contentRect.width), height: Math.max(1, entry.contentRect.height) });
+      fit();
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [fit]);
   function zoom(factor: number, clientX?: number, clientY?: number) {
     const box = stage.current?.getBoundingClientRect();
     if (!box) return;
@@ -777,7 +898,7 @@ function Graph({ state, matchingTasks, openTask }: { state: State; matchingTasks
       <div className="graph-top"><span><i className="legend-line" /> prerequisite → dependent <i className="legend-line dashed" /> supports / sequence</span><select aria-label="Explore selected task relationships" value={relation} onChange={(event) => setRelation(event.target.value)}><option value="">Whole matching graph</option><option value="upstream">All prerequisites of selected</option><option value="downstream">Everything selected unblocks</option><option value="both">Connected to selected</option></select></div>
       <div id="graph-stage" className={drag ? "dragging" : ""} ref={stage} tabIndex={0}
         onPointerDown={(event) => {
-          if ((event.target as Element).closest(".graph-controls, .graph-node-group")) return;
+          if ((event.target as Element).closest(".graph-controls, .graph-html-node")) return;
           event.currentTarget.setPointerCapture(event.pointerId);
           setDrag({ x: event.clientX, y: event.clientY, cameraX: camera.x, cameraY: camera.y });
         }}
@@ -786,53 +907,104 @@ function Graph({ state, matchingTasks, openTask }: { state: State; matchingTasks
         onPointerCancel={() => setDrag(null)}
         onWheel={(event) => { event.preventDefault(); zoom(Math.exp(-Math.max(-120, Math.min(120, event.deltaY)) * .003), event.clientX, event.clientY); }}
         onKeyDown={(event) => { if (event.key === "+" || event.key === "=") zoom(1.2); else if (event.key === "-") zoom(1 / 1.2); else if (event.key === "0") fit(); }}>
-        <svg id="graph" role="group" aria-label="Task dependency graph">
+        <svg id="graph" role="group" aria-label="Task dependency graph"
+          viewBox={`${-camera.x / camera.scale} ${-camera.y / camera.scale} ${stageSize.width / camera.scale} ${stageSize.height / camera.scale}`}>
           <defs>
             <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,4 L0,8" fill="currentColor" /></marker>
-            <pattern id="grid" width="28" height="28" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r=".8" fill="#333d51" /></pattern>
           </defs>
-          <rect width="100%" height="100%" fill="url(#grid)" />
-          <g transform={`translate(${camera.x},${camera.y}) scale(${camera.scale})`}>
-            {links.map((edge, index) => <path key={edge.id || index} className={`edge ${edge.kind}`} d={dependencyPath(edge, positions, links)}><title>{edge.kind}: {edge.reason}</title></path>)}
-            {tasks.map((task) => {
-              const point = positions[task.id];
-              const status = state.statuses.find((item) => item.id === task.status);
-              const track = state.tracks.find((item) => item.id === task.track);
-              const title = task.title.length > 30 ? task.title.slice(0, 29) + "…" : task.title;
-              return <g className={`graph-node graph-node-group ${selected === task.id ? "selected" : ""}`} key={task.id} transform={`translate(${point.x},${point.y})`} onClick={() => { setSelected(task.id); openTask(task); }} role="button" tabIndex={0}>
-                <title>{task.title} — {status?.label || task.status}. {task.summary}</title>
-                <rect className="node-bg" width={NODE_W} height={NODE_H} rx="8" />
-                <rect x="0" y="16" width="3" height="74" fill={track?.color || "#8899aa"} rx="2" />
-                <text className="node-track" x="16" y="20">{task.epic?.startsWith("doc:") ? "PLAN" : task.epic} · {track?.label?.toUpperCase() || "TASK"}</text>
-                <text className="node-title" x="16" y="47">{title}</text>
-                <circle cx="20" cy="84" r="3" fill={status?.color || "#8899aa"} />
-                <text className="node-status" x="29" y="87" fill={status?.color || "#8899aa"}>{status?.label || task.status}</text>
-                <text className="node-badge" x="232" y="86" textAnchor="end">↗</text>
-              </g>;
-            })}
+          <g>
+            {links.map((edge, index) => <path key={edge.id || index} className={`edge ${edge.kind}`} d={dependencyPath(edge, displayPositions, links)}><title>{edge.kind}: {edge.reason}</title></path>)}
           </g>
         </svg>
-        <div className="graph-controls"><button onClick={() => zoom(.8)} aria-label="Zoom out">−</button><output>{Math.round(camera.scale * 100)}%</output><button onClick={() => zoom(1.25)} aria-label="Zoom in">＋</button><button onClick={fit}>Fit</button><button onClick={fit}>Reset layout</button></div>
-        <div className="graph-instructions">Drag canvas to pan · scroll / pinch to zoom · click to inspect</div>
+        <div className="graph-node-layer">
+          {tasks.map((task) => {
+            const point = displayPositions[task.id];
+            const status = state.statuses.find((item) => item.id === task.status);
+            const track = state.tracks.find((item) => item.id === task.track);
+            const group = task.epic?.startsWith("doc:") ? "PLAN" : task.epic || "TASK";
+            return <button className={`graph-html-node ${selected === task.id ? "selected" : ""}`} key={task.id}
+              style={{
+                left: camera.x + point.x * camera.scale,
+                top: camera.y + point.y * camera.scale,
+                width: NODE_W * camera.scale,
+                height: NODE_H * camera.scale,
+                "--track-color": track?.color || "#8899aa",
+                "--node-scale": camera.scale,
+              } as React.CSSProperties}
+              title={`${task.title} — ${status?.label || task.status}. ${task.summary}`}
+              onPointerDown={(event) => {
+                event.stopPropagation();
+                movedNode.current = false;
+                event.currentTarget.setPointerCapture(event.pointerId);
+                setNodeDrag({ id: task.id, x: event.clientX, y: event.clientY, startX: point.x, startY: point.y });
+              }}
+              onPointerMove={(event) => {
+                if (!nodeDrag || nodeDrag.id !== task.id) return;
+                const dx = (event.clientX - nodeDrag.x) / camera.scale;
+                const dy = (event.clientY - nodeDrag.y) / camera.scale;
+                if (Math.abs(dx) + Math.abs(dy) > 3) movedNode.current = true;
+                setManualPositions((current) => ({ ...current, [task.id]: { x: nodeDrag.startX + dx, y: nodeDrag.startY + dy } }));
+              }}
+              onPointerUp={() => setNodeDrag(null)}
+              onPointerCancel={() => setNodeDrag(null)}
+              onClick={() => {
+                if (movedNode.current) {
+                  movedNode.current = false;
+                  return;
+                }
+                setSelected(task.id);
+                openTask(task);
+              }}>
+              <span className="graph-html-track">{group} · {track?.label?.toUpperCase() || "TASK"}</span>
+              <strong>{task.title}</strong>
+              <span className="graph-html-status" style={{ color: status?.color || "#8899aa" }}><i style={{ background: status?.color || "#8899aa" }} />{status?.label || task.status}</span>
+              <span className="graph-html-open">↗</span>
+            </button>;
+          })}
+        </div>
+        <div className="graph-controls"><button onClick={() => zoom(.8)} aria-label="Zoom out">−</button><output>{Math.round(camera.scale * 100)}%</output><button onClick={() => zoom(1.25)} aria-label="Zoom in">＋</button><button onClick={fit}>Fit</button><button onClick={() => { setManualPositions({}); requestAnimationFrame(fit); }}>Reset layout</button></div>
+        <div className="graph-instructions">Drag nodes to arrange · drag canvas to pan · scroll / pinch to zoom · click to inspect</div>
       </div>
       <div className="graph-footer"><span>{tasks.length} matching tasks · {links.length} connections</span><span>Positions stay in this browser. Task data comes from the workspace.</span></div>
     </section>
   );
 }
 
-function Visualizations({ state }: { state: State }) {
-  const [tab, setTab] = useState<"views" | "tours">("views");
+function Visualizations({ state, applyView, refresh }: { state: State; applyView: (view: SavedView) => void; refresh: () => void }) {
+  const [tab, setTab] = useState<"views" | "tours">(() => {
+    try { return localStorage.getItem("avoozl-visualization-tab") === "tours" ? "tours" : "views"; } catch { return "views"; }
+  });
   const views = state.presentation?.views || [];
   const tours = state.presentation?.tours || [];
   const rows = tab === "views" ? views : tours;
+  const changeTab = (next: "views" | "tours") => {
+    setTab(next);
+    try { localStorage.setItem("avoozl-visualization-tab", next); } catch {}
+  };
+  async function remove(kind: "view" | "tour", id: string, title: string) {
+    if (!confirm(`Delete the saved ${kind === "tour" ? "presentation" : "view"} “${title}”? Tasks and plans are not affected.`)) return;
+    await command("visualization.delete", { id, kind });
+    refresh();
+  }
   return <section className="screen visualization-list">
     <div className="hub-tabs" role="tablist" aria-label="Saved visualizations">
-      <button role="tab" aria-selected={tab === "views"} onClick={() => setTab("views")}>Saved views <span>{views.length}</span></button>
-      <button role="tab" aria-selected={tab === "tours"} onClick={() => setTab("tours")}>Presentations <span>{tours.length}</span></button>
+      <button role="tab" aria-selected={tab === "views"} onClick={() => changeTab("views")}>Saved views <span>{views.length}</span></button>
+      <button role="tab" aria-selected={tab === "tours"} onClick={() => changeTab("tours")}>Presentations <span>{tours.length}</span></button>
     </div>
     <section role="tabpanel">
       <p className="visualization-note">{tab === "views" ? "Saved views restore a filter, camera and layout. Deleting one removes the saved configuration only, never tasks or plans." : "A presentation plays a narrated sequence of saved views. Deleting one removes the sequence; the views it points at stay."}</p>
-      {rows.length ? <div className="visualization-rows">{rows.map((item) => <div className="visualization-row" key={item.id}><button><strong>{item.title}</strong>{"caption" in item && item.caption ? <span>{item.caption}</span> : "steps" in item && item.steps?.length ? <span>{item.steps.length} {item.steps.length === 1 ? "step" : "steps"}</span> : null}</button></div>)}</div> : <p className="muted">{tab === "views" ? "No saved views yet." : "No presentations yet."} Agents create them through the plans MCP tools.</p>}
+      {rows.length ? <div className="visualization-rows">{rows.map((item) => <div className="visualization-row" key={item.id}>
+        <button onClick={() => {
+          if (tab === "views") applyView(item as SavedView);
+          else {
+            const step = "steps" in item ? item.steps?.[0] : undefined;
+            const id = step?.view || step?.visualization || step?.visualizationId;
+            const view = views.find((candidate) => candidate.id === id);
+            if (view) applyView(view);
+          }
+        }}><strong>{item.title}</strong>{"caption" in item && item.caption ? <span>{item.caption}</span> : "steps" in item && item.steps?.length ? <span>{item.steps.length} {item.steps.length === 1 ? "step" : "steps"}</span> : null}</button>
+        <button className="visualization-remove" aria-label={`Delete ${item.title}`} title={`Delete ${item.title}`} onClick={() => void remove(tab === "views" ? "view" : "tour", item.id, item.title)}>×</button>
+      </div>)}</div> : <p className="muted">{tab === "views" ? "No saved views yet." : "No presentations yet."} Agents create them through the plans MCP tools.</p>}
     </section>
   </section>;
 }
@@ -849,6 +1021,33 @@ function TaskDrawer({ task, state, close, refresh }: { task: Task; state: State;
   return <div className="drawer-backdrop" onMouseDown={(e) => e.target === e.currentTarget && close()}><aside className="task-drawer"><header><div><span className="eyebrow">Task</span><h2>{task.title}</h2></div><button className="icon-button" onClick={close}><X size={20} /></button></header><code>{task.id}</code><p>{task.summary || "No summary recorded."}</p><label>Status<select value={status} onChange={(e) => setStatus(e.target.value)}>{state.statuses.map((item) => <option value={item.id} key={item.id}>{item.label}</option>)}</select></label><label>Next action<textarea value={nextAction} onChange={(e) => setNextAction(e.target.value)} /></label>{!!task.acceptance?.length && <section><h3>Acceptance</h3><ul>{task.acceptance.map((item) => <li key={item}>{item}</li>)}</ul></section>}<button className="button primary" disabled={busy} onClick={save}>Save task</button></aside></div>;
 }
 
+function Insights() {
+  const [days, setDays] = useState(30);
+  const [provider, setProvider] = useState("");
+  const [result, setResult] = useState<any>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let current = true;
+    setError("");
+    void command<any>("metrics", { groupBy: "provider", days, provider: provider || undefined })
+      .then((value) => { if (current) setResult(value); })
+      .catch((reason) => { if (current) setError(reason instanceof Error ? reason.message : String(reason)); });
+    return () => { current = false; };
+  }, [days, provider]);
+
+  return <section className="screen insights-screen">
+    <section className="usage-heading">
+      <p>Agent activity and reported usage over time.</p>
+      <div>
+        <label>Period<select value={days} onChange={(event) => setDays(Number(event.target.value))}><option value={7}>7 days</option><option value={30}>30 days</option><option value={90}>90 days</option></select></label>
+        <label>Agent<select value={provider} onChange={(event) => setProvider(event.target.value)}><option value="">All agents</option><option value="codex">Codex</option><option value="claude">Claude</option></select></label>
+      </div>
+    </section>
+    {error ? <p className="muted">{error}</p> : result ? <div className="usage-charts" dangerouslySetInnerHTML={{ __html: renderUsage(result) }} /> : <LoadingSurface label="Loading usage…" />}
+  </section>;
+}
+
 function SettingsView({ workspace, state }: { workspace: Workspace; state: State }) {
   return <section className="screen settings-screen"><header className="screen-heading"><div><h1>Settings</h1><p>Workspace, provider, and execution configuration.</p></div></header><div className="settings-grid"><article className="panel"><Boxes size={18} /><h2>{state.project?.workspaceName || state.project?.title || state.project?.name || "Avoozl"}</h2><dl><dt>Storage revision</dt><dd>{workspace.revision}</dd><dt>Mode</dt><dd>{workspace.mode || "local"}</dd><dt>Agent host</dt><dd>{workspace.agentHost?.connected ? "Connected" : "Offline"}</dd><dt>Publication queue</dt><dd>{workspace.publication?.pending?.length || 0}</dd></dl></article><article className="panel"><Bot size={18} /><h2>Providers</h2>{workspace.providers.map((provider) => <p key={provider.id || provider.name}><strong>{provider.label || provider.name || provider.id}</strong></p>)}</article><article className="panel"><GitBranch size={18} /><h2>Execution projects</h2>{workspace.projects.map((project) => <p key={project.id}><strong>{project.name || project.id}</strong><br /><small>{project.root || project.path}</small></p>)}</article></div></section>;
 }
@@ -861,6 +1060,9 @@ export function App() {
   const [documentId, setDocumentId] = useState<string | null>(initial.documentId);
   const [drawerTask, setDrawerTask] = useState<Task | null>(null);
   const [workbenchFilters, setWorkbenchFilters] = useState<TaskFilters>(emptyTaskFilters);
+  const [filtersOpen, setFiltersOpen] = useState(() => {
+    try { return localStorage.getItem("avoozl-filters-open") !== "false"; } catch { return true; }
+  });
   const [navOpen, setNavOpen] = useState(false);
   const [navCollapsed, setNavCollapsed] = useState(() => {
     try { return localStorage.getItem("nupp-navigation-collapsed") === "true"; } catch { return false; }
@@ -882,6 +1084,18 @@ export function App() {
     }
     history.replaceState(null, "", "?" + query);
   }, [view, runId, planId, documentId]);
+
+  useEffect(() => {
+    const shortcut = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "k") return;
+      event.preventDefault();
+      if (!(view === "overview" || view === "tasks" || view === "epics" || view === "graph")) navigate("overview");
+      setFiltersOpen(true);
+      requestAnimationFrame(() => document.getElementById("task-search")?.focus());
+    };
+    window.addEventListener("keydown", shortcut);
+    return () => window.removeEventListener("keydown", shortcut);
+  }, [view]);
 
   useEffect(() => {
     const openSession = (event: Event) => {
@@ -924,6 +1138,33 @@ export function App() {
       return next;
     });
   }
+  function toggleFilters() {
+    setFiltersOpen((value) => {
+      const next = !value;
+      try { localStorage.setItem("avoozl-filters-open", String(next)); } catch {}
+      return next;
+    });
+  }
+  function applyVisualization(view: SavedView) {
+    const split = (value?: string) => value ? value.split(",").map((item) => item.trim()).filter(Boolean) : [];
+    setWorkbenchFilters({
+      query: view.filters?.q || "",
+      scopes: view.filters?.scope && view.filters.scope !== "all" ? split(view.filters.scope) : [],
+      work: [],
+      statuses: split(view.filters?.status),
+      epics: split(view.filters?.epic),
+      tracks: split(view.filters?.track),
+      tags: split(view.filters?.tag),
+      activity: split(view.filters?.activity),
+      historical: false,
+    });
+    const next = view.view === "strip" || view.view === "report" || view.view === "activity" ? "overview" :
+      view.view === "tree" ? "tasks" :
+      view.view === "epic" ? "epics" :
+      view.view === "documents" ? "documents" :
+      view.view === "graph" ? "graph" : "overview";
+    navigate(next);
+  }
 
   if (!workspace.data || !state.data) return <div className="boot-screen"><div className="brand-mark"><Sparkles /></div><h1>Avoozl</h1><p>{workspace.error?.message || state.error?.message || "Opening workspace…"}</p></div>;
   const workspaceData = workspace.data;
@@ -934,25 +1175,46 @@ export function App() {
     icon: LayoutDashboard,
     label: view === "conversations" ? "Conversation" : view === "plans" ? "Proposal" : "Settings",
   };
+  const facetedView = view === "overview" || view === "tasks" || view === "epics" || view === "graph";
+  const activeRunStates = new Set(["starting", "running", "waiting-input", "waiting-approval"]);
+  const activeRuns = workspaceData.runs.filter((run) => activeRunStates.has(run.state));
+  const activeTaskCount = stateData.tasks.filter((task) => task.activity?.status === "active").length;
+  const externalActiveCount = stateData.tasks.filter((task) =>
+    task.activity?.status === "active" && !activeRuns.some((run) => run.taskId === task.id)).length;
+  const inFlightCount = activeRuns.length + externalActiveCount;
+  const matchingCount = filteredTasks(stateData, workbenchFilters).length;
+  const toolbarCount = view === "overview" ? `${inFlightCount} in flight` :
+    facetedView ? `${matchingCount} ${matchingCount === 1 ? "task" : "tasks"}` :
+    view === "conversations" ? `${workspaceData.runTotal} ${workspaceData.runTotal === 1 ? "session" : "sessions"}` :
+    view === "documents" ? `${Object.keys(stateData.documents).length} plans` :
+    view === "visualizations" ? `${(stateData.presentation?.views?.length || 0) + (stateData.presentation?.tours?.length || 0)} saved views` :
+    view === "insights" ? "Usage trends" :
+    `${stateData.tasks.length} tasks`;
   return (
     <div className={`app-shell ${navCollapsed ? "nav-collapsed" : ""}`} style={{ "--nav-width": `${navCollapsed ? 44 : navWidth}px` } as React.CSSProperties}>
       <aside className={navOpen ? "app-nav open" : "app-nav"}>
         <div className="site-brand-row"><a className="brand" href="/" aria-label="Avoozl home"><div className="brand-mark">a</div><span className="brand-label"><strong title={workspaceName}>{workspaceName}</strong><small>Live delivery map</small></span></a><button className="nav-toggle" onClick={toggleNavigation} aria-expanded={!navCollapsed} aria-label={navCollapsed ? "Expand navigation" : "Collapse navigation"} title={navCollapsed ? "Expand navigation" : "Collapse navigation"}><Menu size={18} /></button></div>
-        <nav>{views.map(({ id, label, icon: Icon }) => <button key={id} className={view === id ? "active" : ""} onClick={() => navigate(id)}><Icon size={16} /><span>{label}</span>{id === "conversations" && workspaceData.requests.length > 0 && <b>{workspaceData.requests.length}</b>}</button>)}</nav>
-        <div className="nav-foot"><span className={workspaceData.agentHost?.connected ? "live-light connected" : "live-light"} title={workspaceData.agentHost?.connected ? "Agent host connected" : "Agent host offline"} /><span className="connection-label">{workspaceData.agentHost?.connected ? "Live" : "Offline"}</span><button className="mcp-button">MCP</button><button onClick={() => navigate("settings")} title="Settings"><Settings size={14} /></button><button onClick={refresh} title="Check for updates"><RefreshCw size={14} /></button></div>
+        <nav>{views.map(({ id, label, icon: Icon }) => <button key={id} className={`${view === id ? "active " : ""}${id === "overview" ? "live-view" : ""}`.trim()} onClick={() => navigate(id)}><Icon size={16} /><span>{label}</span>{id === "overview" && activeTaskCount > 0 && <b aria-label={`${activeTaskCount} ${activeTaskCount === 1 ? "task" : "tasks"} in flight`}>{activeTaskCount}</b>}{id === "conversations" && workspaceData.requests.length > 0 && <b>{workspaceData.requests.length}</b>}</button>)}</nav>
+        <div className="nav-foot"><button className="mcp-button">MCP</button><button onClick={() => navigate("settings")} title="Settings"><Settings size={14} /></button><button onClick={refresh} title="Check for updates"><RefreshCw size={14} /></button></div>
         {!navCollapsed && <ResizeHandle value={navWidth} setValue={setNavWidth} min={160} max={360} label="Resize navigation" className="nav-resize-handle" />}
       </aside>
       {navOpen && <button className="nav-scrim" aria-label="Close navigation" onClick={() => setNavOpen(false)} />}
       <main className="app-main">
-        <header className="app-toolbar"><button className="mobile-menu" onClick={toggleNavigation}><Menu size={18} /></button><strong>{currentView.label}</strong><span className="toolbar-rule" /><span>{stateData.tasks.length} tasks</span><div className="toolbar-spacer" /><span className={workspaceData.agentHost?.connected ? "live-light connected" : "live-light"} /><span>{workspaceData.agentHost?.connected ? "Connected" : "Offline"}</span><button onClick={refresh} title="Refresh"><RefreshCw size={14} /></button></header>
-        {view === "overview" && <FacetedWorkbench state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters}>{(tasks) => <RecentNow state={stateData} matchingTasks={tasks} openTask={setDrawerTask} />}</FacetedWorkbench>}
-        {view === "tasks" && <FacetedWorkbench state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters}>{(tasks) => <RecentTree state={stateData} tasks={tasks} openTask={setDrawerTask} />}</FacetedWorkbench>}
-        {view === "epics" && <FacetedWorkbench state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters}>{(tasks) => <EpicProgress state={stateData} matchingTasks={tasks} openTask={setDrawerTask} />}</FacetedWorkbench>}
+        <header className="app-toolbar"><button className="mobile-menu" onClick={toggleNavigation}><Menu size={18} /></button><strong>{currentView.label}</strong>{pageDescriptions[view] && <button className="page-help" aria-label={`About ${currentView.label}`} title={pageDescriptions[view]}>?</button>}<span className="toolbar-rule" /><span>{toolbarCount}</span><div className="toolbar-spacer" />
+          {facetedView && <button className={filtersOpen ? "toolbar-action active" : "toolbar-action"} onClick={toggleFilters} title={filtersOpen ? "Collapse filters" : "Show filters"} aria-expanded={filtersOpen}><Filter size={17} /></button>}
+          <button className="toolbar-action" onClick={() => navigate("conversations")} title="New task"><Plus size={17} /></button>
+          <button className="toolbar-action" onClick={() => document.fullscreenElement ? void document.exitFullscreen() : void document.documentElement.requestFullscreen()} title="Full screen"><Maximize2 size={17} /></button>
+          <button className="toolbar-action" onClick={() => setWorkbenchFilters({ ...emptyTaskFilters })} title="Reset filters"><RotateCcw size={17} /></button>
+        </header>
+        {view === "overview" && <FacetedWorkbench workspace={workspaceData} state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters} filtersOpen={filtersOpen} applyPromptView={applyVisualization}>{(tasks) => <RecentNow state={stateData} matchingTasks={tasks} openTask={setDrawerTask} />}</FacetedWorkbench>}
+        {view === "tasks" && <FacetedWorkbench workspace={workspaceData} state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters} filtersOpen={filtersOpen} applyPromptView={applyVisualization}>{(tasks) => <RecentTree state={stateData} tasks={tasks} openTask={setDrawerTask} />}</FacetedWorkbench>}
+        {view === "epics" && <FacetedWorkbench workspace={workspaceData} state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters} filtersOpen={filtersOpen} applyPromptView={applyVisualization}>{(tasks) => <EpicProgress state={stateData} matchingTasks={tasks} openTask={setDrawerTask} />}</FacetedWorkbench>}
         {view === "conversations" && <Conversations workspace={workspaceData} selected={runId} select={setRunId} refresh={refresh} />}
         {view === "plans" && <Plans workspace={workspaceData} selected={planId} select={openPlan} refresh={refresh} />}
         {view === "documents" && <Documents workspace={workspaceData} state={stateData} selected={documentId} select={(id) => id ? openDocument(id) : setDocumentId(null)} selectedPlan={planId} selectPlan={setPlanId} refresh={refresh} />}
-        {view === "graph" && <FacetedWorkbench state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters}>{(tasks) => <Graph state={stateData} matchingTasks={tasks} openTask={setDrawerTask} />}</FacetedWorkbench>}
-        {view === "visualizations" && <Visualizations state={stateData} />}
+        {view === "graph" && <FacetedWorkbench workspace={workspaceData} state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters} filtersOpen={filtersOpen} applyPromptView={applyVisualization}>{(tasks) => <Graph state={stateData} matchingTasks={tasks} openTask={setDrawerTask} />}</FacetedWorkbench>}
+        {view === "visualizations" && <Visualizations state={stateData} applyView={applyVisualization} refresh={refresh} />}
+        {view === "insights" && <Insights />}
         {view === "settings" && <SettingsView workspace={workspaceData} state={stateData} />}
       </main>
       {drawerTask && <TaskDrawer task={drawerTask} state={stateData} close={() => setDrawerTask(null)} refresh={refresh} />}
