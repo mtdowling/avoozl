@@ -67,8 +67,6 @@ const pageDescriptions: Partial<Record<View, string>> = {
   insights: "Review agent activity and reported usage over time.",
 };
 
-const PROGRESS_PROMPT = "How is the work going? Summarize what is in flight, what is blocked and why, what is waiting on review, and anything that needs a decision from me.";
-
 function initialLocation() {
   const query = new URLSearchParams(location.search);
   const rawView = query.get("view");
@@ -1645,6 +1643,20 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
     setView(next);
     setNavOpen(false);
   }
+  function openOpenHandsChat() {
+    if (canvas) {
+      canvas.navigate("/conversations");
+      return;
+    }
+    let target = "*";
+    try {
+      if (document.referrer) target = new URL(document.referrer).origin;
+    } catch {}
+    window.parent.postMessage(
+      { type: "avoozl:openhands-route", path: "/conversations" },
+      target,
+    );
+  }
   async function startOpenHandsIntent(action: "ask" | "draft", prompt: string) {
     const projectId = workspace.data?.projects[0]?.id;
     if (!projectId) {
@@ -1836,7 +1848,7 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
           <div className="toolbar-spacer" />
           {canvasHost && <button className="canvas-connection" onClick={() => setMcpOpen(true)} aria-label="Avoozl instance is live" aria-describedby="canvas-connection-tip"><i aria-hidden="true" /><span className="canvas-connection-tip" id="canvas-connection-tip" role="tooltip"><strong>Avoozl is live</strong><span>Avoozl server <code>{canvasServer}</code></span><span>MCP server <code>{canvasServer}/mcp</code></span><span>Workspace <code>{workspaceName}</code></span><span>Surface <code>OpenHands Canvas</code></span></span></button>}
           {facetedView && <button className={filtersOpen ? "toolbar-action active" : "toolbar-action"} onClick={toggleFilters} title={filtersOpen ? "Collapse filters" : "Show filters"} aria-expanded={filtersOpen}><Filter size={17} /></button>}
-          <button className="toolbar-action" onClick={() => void startOpenHandsIntent("ask", PROGRESS_PROMPT)} title="Ask OpenHands about progress"><MessageSquare size={17} /></button>
+          <button className="toolbar-action" onClick={openOpenHandsChat} title="Open OpenHands chat"><MessageSquare size={17} /></button>
           <button className="toolbar-action" onClick={() => setCaptureOpen(true)} title="Capture a task from this view"><Plus size={17} /></button>
           <button className="toolbar-action" onClick={() => navigate("settings")} title="Avoozl settings"><Settings size={17} /></button>
           <button className="toolbar-action" onClick={() => document.fullscreenElement ? void document.exitFullscreen() : void document.documentElement.requestFullscreen()} title="Full screen"><Maximize2 size={17} /></button>

@@ -83,6 +83,8 @@ test("the packaged Canvas App registers its declared Avoozl page", async () => {
   assert.doesNotMatch(source, /<iframe|createElement\(["']iframe/);
   assert.match(source, /attachShadow/);
   assert.match(source, /createRoot/);
+  assert.match(source, /avoozl:openhands-route/);
+  assert.match(source, /\/conversations/);
   assert.doesNotMatch(source, /process\.env\.NODE_ENV/);
   assert.equal(registered.id, "workspace");
   assert.equal(typeof registered.mount, "function");
