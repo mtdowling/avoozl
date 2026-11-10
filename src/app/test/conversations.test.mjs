@@ -35,7 +35,11 @@ test("context chat works without a repository and carries the selected plan", as
     prompt: "Attach to this Avoozl context.",
     submissionId: "context-chat",
     provider: "openhands",
-    context: { view: "documents", planId: plan.id },
+    context: {
+      view: "documents",
+      planId: plan.id,
+      conversationPurpose: "new-task",
+    },
   });
   for (let attempt = 0; attempt < 20 && !started; attempt++)
     await new Promise((resolve) => setImmediate(resolve));
@@ -45,6 +49,7 @@ test("context chat works without a repository and carries the selected plan", as
   assert.equal(run.contextOnly, true);
   assert.equal(run.projectId, undefined);
   assert.equal(run.readOnly, true);
+  assert.equal(run.capabilityMode, "new-task");
   assert.equal(
     run.worktree.startsWith(
       path.join(os.tmpdir(), "avoozl-context-workspaces") + path.sep,
@@ -54,6 +59,8 @@ test("context chat works without a repository and carries the selected plan", as
   assert.equal(fs.statSync(run.worktree).mode & 0o077, 0);
   assert.equal(started.cwd, run.worktree);
   assert.match(started.prompt, /No code repository is mounted/);
+  assert.match(started.prompt, /Help the user define one concrete task/);
+  assert.match(started.prompt, /plans_capture/);
   assert.match(started.prompt, /Contextual chat/);
   assert.match(started.prompt, /"view":"documents"/);
   assert.equal(planPage(store).items[0].projectId, "future-project");

@@ -21,7 +21,7 @@ import {
 import { Operations } from "../operations.mjs";
 import { fixture } from "./fixtures.mjs";
 
-function fakeOpenHands() {
+function fakeOpenHands({ activeProfile = true } = {}) {
   const calls = [],
     client = {
       async createConversation(payload) {
@@ -81,6 +81,21 @@ function fakeOpenHands() {
     http = {
       async get(url) {
         calls.push(["http.get", url]);
+        if (url === "/api/agent-profiles")
+          return {
+            data: {
+              profiles: activeProfile
+                ? [
+                    {
+                      id: "profile-test",
+                      name: "avoozl-claude-code",
+                      agent_kind: "acp",
+                    },
+                  ]
+                : [],
+              active_agent_profile_id: activeProfile ? "profile-test" : null,
+            },
+          };
         return { data: { version: "1.61.0" } };
       },
       async post(url, body) {
@@ -150,8 +165,6 @@ test("OpenHands binds one Avoozl worktree, plugin and run-scoped MCP secret", as
       settings: {
         host: "http://127.0.0.1:38100",
         apiKey: "server-key",
-        model: "test-model",
-        llmApiKey: "model-key",
         pluginSource: "/application/openhands-plugin",
       },
       clientFactory: () => fake.client,
@@ -172,10 +185,8 @@ test("OpenHands binds one Avoozl worktree, plugin and run-scoped MCP secret", as
     working_dir: "/worktrees/run-test",
   });
   assert.equal(create.plugins[0].source, "/application/openhands-plugin");
-  assert.deepEqual(
-    create.agent.tools.map((tool) => tool.name),
-    ["terminal", "file_editor", "browser_tool_set"],
-  );
+  assert.equal(create.agent_profile_id, "profile-test");
+  assert.equal(create.agent, undefined);
   assert.equal(
     create.secrets.AVOOZL_MCP_URL.value,
     "http://127.0.0.1:9428/mcp?run=run-test",
@@ -199,6 +210,45 @@ test("OpenHands binds one Avoozl worktree, plugin and run-scoped MCP secret", as
     ),
   );
   assert.ok(fake.calls.some(([kind]) => kind === "send"));
+  await adapter.setModel("next-model");
+  assert.ok(
+    fake.calls.some(
+      ([kind, pathname, body]) =>
+        kind === "http.post" &&
+        pathname === "/api/conversations/conversation-test/switch_acp_model" &&
+        body.model === "next-model",
+    ),
+  );
+  await adapter.close();
+});
+
+test("OpenHands retains direct model launch as a compatibility fallback", async () => {
+  const fake = fakeOpenHands({ activeProfile: false }),
+    adapter = new OpenHandsAdapter({
+      emit: () => {},
+      onRequest: () => {},
+      settings: {
+        host: "http://127.0.0.1:38100",
+        model: "test-model",
+        llmApiKey: "model-key",
+        pluginSource: "/application/openhands-plugin",
+      },
+      clientFactory: () => fake.client,
+      httpFactory: () => fake.http,
+      socketFactory: () => fake.socket,
+    });
+  await adapter.start({
+    cwd: "/worktrees/run-test",
+    mode: "implement",
+    approvalMode: "manual",
+    prompt: "Implement the task.",
+  });
+  const create = fake.calls.find(([kind]) => kind === "create")[1];
+  assert.deepEqual(
+    create.agent.tools.map((tool) => tool.name),
+    ["terminal", "file_editor", "browser_tool_set"],
+  );
+  assert.equal(create.agent_profile_id, undefined);
   await adapter.close();
 });
 
@@ -274,6 +324,31 @@ test("run capabilities fail closed and cannot be widened by a tool call", async 
   );
   assert.equal(denied.body.result.isError, true);
   assert.match(denied.body.result.content[0].text, /does not authorize/);
+});
+
+test("new-task conversations can record requests but cannot authorize them", async (t) => {
+  const { store } = fixture(t),
+    run = store.put("runs", {
+      id: "run-new-task",
+      taskId: "conversation:run-new-task",
+      provider: "openhands",
+      mode: "ask",
+      capabilityMode: "new-task",
+      state: "running",
+    }),
+    { token } = mintRunCapability(store, run),
+    ops = new Operations(store);
+  const list = await handleMcp(
+    { jsonrpc: "2.0", id: 1, method: "tools/list" },
+    ops,
+    { runId: run.id, runCapability: token },
+  );
+  const names = list.body.result.tools.map((tool) => tool.name);
+  assert.ok(names.includes("plans_capture"));
+  assert.ok(names.includes("plans_propose_work"));
+  assert.ok(!names.includes("plans_approve_plan"));
+  assert.ok(!names.includes("plans_start_run"));
+  assert.ok(!names.includes("plans_accept_task"));
 });
 
 test("OpenHands surface capabilities bind one run and one conversation", (t) => {

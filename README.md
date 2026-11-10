@@ -1,6 +1,8 @@
 # Avoozl
 
-Plans, tasks, and agents in one local workspace. Use the website, CLI, or MCP to work with the same plans and execution state.
+Plans, tasks, and agents in one local workspace. Use the Avoozl page in
+OpenHands Canvas, the CLI, or MCP to work with the same plans and execution
+state.
 
 ```sh
 git clone https://github.com/mtdowling/avoozl.git
@@ -11,11 +13,14 @@ node cli.mjs init ../my-plans --name "My plans"
 node cli.mjs serve --workspace ../my-plans
 ```
 
-Open [localhost:9428](http://127.0.0.1:9428/). Node 22.13 or later is required for its built-in SQLite support; Node 26 is tested. Planning and browsing work without an agent account. Managed agents use your installed provider and its own authentication.
+Install the Canvas App as described in [the OpenHands setup](docs/openhands.md),
+then open **Avoozl** inside OpenHands. The loopback Avoozl address is a backend
+and recovery handoff, not a second product UI. Node 22.13 or later is required
+for its built-in SQLite support; Node 26 is tested.
 
-The website is a React application. assistant-ui renders conversations over
-the same durable HTTP/SSE operations used by the extension, while Monaco edits
-plan and workspace Markdown with preview and revision-safe saves. The production
+The Canvas App is a React application. OpenHands owns conversations and their
+terminal, files, browser, attachment, and steering surfaces. Avoozl uses Monaco
+for plan and workspace Markdown with preview and revision-safe saves. Production
 assets are built locally; Monaco and its worker are not loaded from a CDN.
 
 ![An example product launch in Avoozl](docs/example-workspace.png)
@@ -164,7 +169,11 @@ node cli.mjs reload --workspace ../my-plans
 
 Back up the Markdown directory and configuration alongside the SQLite backup. Use the backup command rather than copying an active database file by itself: SQLite also uses a WAL file. The JSON export contains task and document state; a SQLite backup also preserves conversations, approvals, receipts, and other execution history.
 
-The web process and agent host are separate. Reloading the website leaves agents running. Before updating host code, use `host drain`, let active work finish, then use `host stop`. Start `serve` after the update to launch its replacement. Do not launch replacement workers because a check-in is stale; inspect durable session and delivery records before resuming.
+The control-plane process and agent host are separate. Reloading the Canvas App
+leaves agents running. Before updating host code, use `host drain`, let active
+work finish, then use `host stop`. Start `serve` after the update to launch its
+replacement. Do not launch replacement workers because a check-in is stale;
+inspect durable session and delivery records before resuming.
 
 The default listener is loopback. Private LAN/VPN listening is available with `--host 0.0.0.0`. This is a trusted local workspace, without per-user authentication or public-internet hosting support. Do not expose an OpenHands-enabled workspace remotely until Avoozl has authenticated users and project-level authorization; terminal, files, browser state, and transcripts are all sensitive.
 
@@ -192,4 +201,7 @@ node scripts/package-extension.mjs                 # build an installable .vsix
 
 The editor facade translates owned sessions into Microsoft's Agent Host Protocol so they appear as native chat. It binds loopback only and requires a bearer token on every connection; the address `editor` prints contains that token, so treat it as a credential. Reach it from another machine through an authenticated tunnel or an SSH local port forward, never by publishing the listener.
 
-The [implementation plan](docs/design/vscode-client.md) records what is built, what the implementation changed about its own assumptions, and which acceptance gates remain open: native clicked controls, a real-provider run, remote routing, and physical-phone parity. [The evidence](docs/evidence/vscode/README.md) is reproducible with `node scripts/vscode-evidence.mjs`. The website remains the phone companion, and no website feature has been retired. The [research handoff](docs/research/vscode/README.md) records the original investigation and which of its conclusions have since been corrected.
+The [implementation plan](docs/design/vscode-client.md) and
+[research handoff](docs/research/vscode/README.md) preserve the earlier VS Code
+experiment. The OpenHands Canvas product direction supersedes its recommendation
+to retain a standalone website.

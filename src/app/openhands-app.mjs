@@ -17,6 +17,24 @@ export const OPENHANDS_CANVAS_APP = Object.freeze({
   ),
 });
 
+const OPENHANDS_AGENT_PRESETS = Object.freeze({
+  "claude-code": Object.freeze({
+    label: "Claude Code",
+    profile: "avoozl-claude-code",
+    secretRefs: ["AVOOZL_MCP_URL", "AVOOZL_MCP_TOKEN", "ANTHROPIC_API_KEY"],
+  }),
+  codex: Object.freeze({
+    label: "Codex",
+    profile: "avoozl-codex",
+    secretRefs: [
+      "AVOOZL_MCP_URL",
+      "AVOOZL_MCP_TOKEN",
+      "OPENAI_API_KEY",
+      "CODEX_AUTH_JSON",
+    ],
+  }),
+});
+
 function localAgentServerUrl(value) {
   let url;
   try {
@@ -71,6 +89,151 @@ async function backendStatus(client, manifest) {
   if (!manifest.backend) return null;
   const pathname = `/api/canvas-extensions/installed/${encodeURIComponent(manifest.name)}/backend`;
   return client.get(pathname);
+}
+
+function selectedAgentIds(value) {
+  const ids = Array.isArray(value)
+    ? value
+    : String(value || "claude-code,codex").split(",");
+  const selected = [...new Set(ids.map((id) => id.trim()).filter(Boolean))];
+  if (!selected.length) fail("Choose at least one OpenHands agent.", 409);
+  const unsupported = selected.filter((id) => !OPENHANDS_AGENT_PRESETS[id]);
+  if (unsupported.length)
+    fail(`Unsupported OpenHands agent: ${unsupported.join(", ")}.`, 409);
+  return selected;
+}
+
+function safeDiscoveryError(error) {
+  return error?.code || "unavailable";
+}
+
+export async function setupOpenHandsAgents({
+  agents,
+  defaultAgent,
+  verify = true,
+  settings = openHandsSettings(),
+  client,
+} = {}) {
+  const selected = selectedAgentIds(agents),
+    own = !client,
+    active = client || ownedClient(settings);
+  if (defaultAgent && !selected.includes(defaultAgent))
+    fail("The default OpenHands agent must be included in --agents.", 409);
+  try {
+    const server = await compatible(active);
+    let listing = await active.get("/api/agent-profiles");
+    const priorActive = listing.active_agent_profile_id;
+    const results = [];
+    for (const id of selected) {
+      const preset = OPENHANDS_AGENT_PRESETS[id],
+        summary = (listing.profiles || []).find(
+          (entry) => entry.name === preset.profile,
+        );
+      let existing = null;
+      if (summary) {
+        const response = await active.get(
+          `/api/agent-profiles/${encodeURIComponent(preset.profile)}`,
+        );
+        existing = response.profile;
+        if (existing.agent_kind !== "acp" || existing.acp_server !== id)
+          fail(
+            `${preset.profile} exists but is not the expected ${preset.label} profile.`,
+            409,
+          );
+      }
+      const profile = {
+        agent_kind: "acp",
+        acp_server: id,
+        acp_model: existing?.acp_model ?? null,
+        acp_session_mode: existing?.acp_session_mode ?? null,
+        acp_prompt_timeout: existing?.acp_prompt_timeout ?? 300,
+        acp_startup_timeout: existing?.acp_startup_timeout ?? 60,
+        acp_command: existing?.acp_command ?? null,
+        acp_args: existing?.acp_args ?? null,
+        mcp_server_refs: existing?.mcp_server_refs ?? [],
+        integration_refs: existing?.integration_refs ?? [],
+        secret_refs: preset.secretRefs,
+      };
+      await active.post(
+        `/api/agent-profiles/${encodeURIComponent(preset.profile)}`,
+        profile,
+      );
+      const diagnostics = await active.post(
+        `/api/agent-profiles/${encodeURIComponent(preset.profile)}/materialize`,
+        {},
+      );
+      let discovery = null;
+      if (verify && diagnostics.valid)
+        try {
+          discovery = await active.post("/api/acp/models", {
+            agent_settings: { agent_kind: "acp", acp_server: id },
+            secrets: {},
+            refresh: true,
+          });
+        } catch (error) {
+          discovery = { error: { code: safeDiscoveryError(error) } };
+        }
+      const ready =
+        diagnostics.valid && (!verify || (discovery && !discovery.error));
+      results.push({
+        agent: id,
+        label: preset.label,
+        profile: preset.profile,
+        ready,
+        valid: Boolean(diagnostics.valid),
+        verified: verify ? Boolean(discovery && !discovery.error) : null,
+        defaultModel: discovery?.current_model_id || null,
+        modelCount: discovery?.available_models?.length || 0,
+        errorCode: diagnostics.valid
+          ? discovery?.error
+            ? safeDiscoveryError(discovery.error)
+            : null
+          : "invalid-profile",
+      });
+    }
+    listing = await active.get("/api/agent-profiles");
+    const wantedDefault =
+      defaultAgent ||
+      selected.find((id) => {
+        const preset = OPENHANDS_AGENT_PRESETS[id];
+        return (listing.profiles || []).some(
+          (entry) => entry.id === priorActive && entry.name === preset.profile,
+        );
+      }) ||
+      results.find((entry) => entry.ready)?.agent ||
+      (!verify ? selected[0] : null);
+    let activeProfile = null;
+    if (wantedDefault) {
+      const preset = OPENHANDS_AGENT_PRESETS[wantedDefault],
+        profile = (listing.profiles || []).find(
+          (entry) => entry.name === preset.profile,
+        );
+      if (!profile?.id)
+        fail("OpenHands did not return the configured agent profile.", 409);
+      const result = results.find((entry) => entry.agent === wantedDefault);
+      if (verify && !result?.ready)
+        fail(
+          `${preset.label} could not be verified. Authenticate its agent CLI or configure its credentials in OpenHands, then retry.`,
+          409,
+        );
+      await active.post(
+        `/api/agent-profiles/${encodeURIComponent(profile.id)}/activate`,
+        {},
+      );
+      activeProfile = preset.profile;
+    }
+    return {
+      configured: results,
+      activeProfile,
+      agentServer: settings.host,
+      serverVersion: server.version,
+      note: results.every((entry) => entry.ready || !verify)
+        ? "OpenHands agents are ready for Avoozl conversations."
+        : "Some profiles were installed but could not be verified. Authenticate the corresponding agent CLI or configure credentials in OpenHands, then retry.",
+    };
+  } finally {
+    if (own) active.close();
+  }
 }
 
 export async function installOpenHandsCanvasApp({

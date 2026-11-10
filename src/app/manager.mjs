@@ -263,7 +263,9 @@ export class RunManager {
         : run.prompt?.startsWith("NUPP_PROMPT_SEARCH")
           ? "Interpret the search using read-only plans tools. Do not create visualizations or change records. Return only the requested JSON search object."
           : run.mode === "ask"
-            ? `Answer the question from the supplied context${run.contextOnly ? ". No code repository is mounted for this conversation; use the Avoozl MCP tools for plans and task state" : " and read-only repository inspection"}. Use plans_visualize or plans_present to show useful breakouts in the UI. Do not change source or task acceptance.`
+            ? run.context?.conversationPurpose === "new-task"
+              ? `Help the user define one concrete task from the supplied context${run.contextOnly ? ". No code repository is mounted for this conversation; use the Avoozl MCP tools for plans and task state" : " and read-only repository inspection"}. Clarify scope and acceptance without inventing work or nitpicking. After the user explicitly agrees, record their request with plans_capture. If they explicitly ask to add it to a selected design instead, use plans_propose_work. Do not approve, dispatch, integrate, or accept work, and do not change source.`
+              : `Answer the question from the supplied context${run.contextOnly ? ". No code repository is mounted for this conversation; use the Avoozl MCP tools for plans and task state" : " and read-only repository inspection"}. Use plans_visualize or plans_present to show useful breakouts in the UI. Do not change source or task acceptance.`
             : "Implement the task, run the relevant checks, format and commit changes using repository conventions. Do not merge or push; validation and integration are separate workspace actions.",
       JSON.stringify({
         viewContext: run.context,
@@ -342,6 +344,11 @@ export class RunManager {
       model: input.model || undefined,
       requestedModel: input.model || null,
       mode: input.mode === "ask" ? "ask" : plan ? "plan" : "implement",
+      capabilityMode:
+        input.mode === "ask" &&
+        input.context?.conversationPurpose === "new-task"
+          ? "new-task"
+          : undefined,
       prompt: input.prompt || "",
       title:
         input.title ||

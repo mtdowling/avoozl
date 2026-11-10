@@ -26,20 +26,14 @@ test("React UI and editing APIs run on SQLite; HTTP and MCP share task mutations
   const asset = html.match(/src="(\/assets\/[^"]+\.js)"/)?.[1];
   assert.ok(asset);
   assert.equal((await fetch(base + asset)).status, 200);
-  const legacy = await (await fetch(base + "/legacy")).text();
-  assert.match(legacy, /workspace.mjs/);
-  assert.match(legacy, /strip-view/);
-  for (const asset of [
-    "app.mjs",
-    "graph-layout.mjs",
-    "workspace.mjs",
-    "workspace.css",
-    "strip.mjs",
-    "progress.mjs",
-    "workbench.mjs",
-    "page-details.mjs",
+  for (const legacyPath of [
+    "/legacy",
+    "/app.mjs",
+    "/workspace.mjs",
+    "/workspace.css",
+    "/session-links.mjs",
   ])
-    assert.equal((await fetch(base + "/" + asset)).status, 200);
+    assert.equal((await fetch(base + legacyPath)).status, 404);
   fs.mkdirSync(path.join(root, "docs/evidence"), { recursive: true });
   fs.writeFileSync(
     path.join(root, "docs/evidence/proof.log"),

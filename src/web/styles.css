@@ -106,6 +106,15 @@ body.resizing-panels { cursor: col-resize; user-select: none; }
 @media (prefers-reduced-motion: reduce) { .page-help-tip { transition: none; } }
 .app-toolbar .toolbar-action { color: #bcbcbc; }
 .app-toolbar .toolbar-action.active { color: var(--accent); background: #242424; }
+.toolbar-new-menu { position: relative; }
+.app-toolbar .toolbar-new-trigger { min-width: 66px; min-height: 28px; padding: 0 7px; display: flex; align-items: center; gap: 5px; list-style: none; border-radius: 4px; color: #bcbcbc; cursor: pointer; }
+.toolbar-new-trigger::-webkit-details-marker { display: none; }
+.toolbar-new-menu[open] .toolbar-new-trigger, .toolbar-new-trigger:hover, .toolbar-new-trigger:focus-visible { color: var(--bright); background: #292929; }
+.toolbar-new-options { position: absolute; z-index: 120; top: calc(100% + 6px); right: 0; width: 240px; padding: 6px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel-2); box-shadow: 0 12px 32px #000b; }
+.app-toolbar .toolbar-new-options button { width: 100%; min-height: 0; padding: 8px 9px; display: block; text-align: left; }
+.toolbar-new-options button strong, .toolbar-new-options button small { display: block; }
+.toolbar-new-options button strong { color: var(--bright); font-size: 12px; }
+.toolbar-new-options button small { margin-top: 3px; color: var(--muted); font-size: 10px; line-height: 1.35; }
 .mobile-menu { display: none !important; }
 .toolbar-rule { height: 17px; border-left: 1px solid var(--line); }
 .toolbar-spacer { flex: 1; }
@@ -1467,7 +1476,7 @@ select { min-height: 32px; padding: 0 8px; font-size: 10px; }
   padding: 20px;
   background: #000b;
 }
-.capture-dialog, .mcp-dialog {
+.mcp-dialog {
   width: min(620px, 100%);
   padding: 18px;
   border: 1px solid #4b4b4b;
@@ -1475,11 +1484,8 @@ select { min-height: 32px; padding: 0 8px; font-size: 10px; }
   background: #1b1b1b;
   box-shadow: 0 24px 80px #000d;
 }
-.capture-dialog header, .mcp-dialog header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-.capture-dialog h2, .mcp-dialog h2 { margin: 3px 0 0; font-size: 18px; }
-.capture-dialog textarea { width: 100%; min-height: 180px; padding: 11px; resize: vertical; }
-.capture-context { padding: 8px 10px; border: 1px solid var(--line); color: var(--muted); background: #161616; font-size: 10px; }
-.capture-dialog footer { margin-top: 12px; display: flex; justify-content: flex-end; gap: 8px; }
+.mcp-dialog header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.mcp-dialog h2 { margin: 3px 0 0; font-size: 18px; }
 .mcp-dialog dl { margin: 18px 0; display: grid; gap: 1px; background: var(--line); }
 .mcp-dialog dl > div { padding: 10px; display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; background: #1b1b1b; }
 .mcp-dialog dt { color: var(--muted); font-size: 10px; }

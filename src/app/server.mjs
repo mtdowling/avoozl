@@ -19,38 +19,7 @@ import {
   proxyOpenHandsSurface,
 } from "./openhands-surface.mjs";
 export const appRoot = path.dirname(fileURLToPath(import.meta.url)),
-  legacyRoot = path.dirname(appRoot),
   webRoot = path.join(appRoot, "ui-dist");
-const LEGACY_ASSETS = new Set([
-  "index.html",
-  "app.mjs",
-  "graph-layout.mjs",
-  "facets.mjs",
-  "workbench.mjs",
-  "workbench-model.mjs",
-  "activity.mjs",
-  "highlight.mjs",
-  "markdown.mjs",
-  "marked.mjs",
-  "query.mjs",
-  "strip.mjs",
-  "pan-momentum.mjs",
-  "strip-model.mjs",
-  "progress.mjs",
-  "progress-model.mjs",
-  "plan-model.mjs",
-  "page-details.mjs",
-  "style.css",
-  "schema.json",
-  "README.md",
-  "virtual-list.mjs",
-  "browse-model.mjs",
-  "document-pages.mjs",
-  "band-paint.mjs",
-  "agent-pins.mjs",
-  "task-identity.mjs",
-  "onboarding.mjs",
-]);
 const MIME = {
   ".html": "text/html; charset=utf-8",
   ".mjs": "text/javascript; charset=utf-8",
@@ -232,7 +201,8 @@ export function startServer({
       if (req.method === "OPTIONS") {
         if (!canvasOrigin(req)) fail("Same-origin request required.", 403);
         res.writeHead(204, {
-          "Access-Control-Allow-Methods": "GET, HEAD, POST, PUT, PATCH, OPTIONS",
+          "Access-Control-Allow-Methods":
+            "GET, HEAD, POST, PUT, PATCH, OPTIONS",
           "Access-Control-Allow-Headers":
             "Accept, Content-Type, If-Match, Last-Event-ID",
           "Access-Control-Max-Age": "600",
@@ -627,55 +597,7 @@ export function startServer({
             .pipe(res);
         return;
       }
-      const legacy = route === "/legacy",
-        name =
-          legacy || route === "/" || route === "/workspace"
-            ? "index.html"
-            : route.slice(1);
-      let content, mime;
-      if (LEGACY_ASSETS.has(name)) {
-        content = fs.readFileSync(
-          name === "README.md"
-            ? path.join(applicationRoot, "README.md")
-            : path.join(legacyRoot, name),
-        );
-        mime = MIME[path.extname(name)];
-        if (name === "index.html")
-          content = content
-            .toString()
-            .replaceAll(
-              "Task data stays in database.json",
-              "Task data stays in SQLite; /database.json is an export",
-            )
-            .replaceAll(
-              "Status maintained in JSON",
-              "Status maintained in SQLite",
-            )
-            .replace(
-              "</head>",
-              '<link rel="stylesheet" href="/workspace.css"></head>',
-            )
-            .replace(
-              "</body>",
-              '<script type="module" src="/workspace.mjs"></script></body>',
-            );
-      } else if (
-        [
-          "workspace.mjs",
-          "workspace.css",
-          "usage-charts.mjs",
-          "session-links.mjs",
-        ].includes(name)
-      ) {
-        content = fs.readFileSync(path.join(appRoot, "ui", name));
-        mime = MIME[path.extname(name)];
-      } else fail("Not found.", 404);
-      res.writeHead(200, {
-        "Content-Type": mime || "application/octet-stream",
-        "Cache-Control": "no-cache",
-        "X-Content-Type-Options": "nosniff",
-      });
-      res.end(req.method === "HEAD" ? "" : content);
+      fail("Not found.", 404);
     } catch (error) {
       if (!res.headersSent)
         json(res, error.status || 400, {

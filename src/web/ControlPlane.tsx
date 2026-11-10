@@ -12,7 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
-import { apiUrl, command, get, submissionId } from "./api";
+import { apiUrl, command, get } from "./api";
 import { useRemote } from "./hooks";
 import type {
   EvidenceRecord,
@@ -615,56 +615,8 @@ export type CaptureContext = {
   taskIds?: string[];
   filters: Record<string, string>;
   url?: string;
+  conversationPurpose?: "new-task" | "project-chat";
 };
-
-export function TaskCaptureDialog({
-  context,
-  close,
-  created,
-}: {
-  context: CaptureContext;
-  close: () => void;
-  created: (task: Task) => void;
-}) {
-  const [prompt, setPrompt] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState("");
-
-  async function submit(event: React.FormEvent) {
-    event.preventDefault();
-    setBusy(true);
-    setMessage("");
-    try {
-      const result = await command<{ task: Task }>(
-        "task.capture",
-        { submissionId: submissionId(), prompt, context },
-        context.revision,
-      );
-      created(result.task);
-    } catch (cause) {
-      setMessage((cause as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className="modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && close()}>
-      <form className="capture-dialog" onSubmit={submit}>
-        <header><div><span className="eyebrow">Quick task</span><h2>Capture work from this view</h2></div><button type="button" className="icon-button" onClick={close}><X size={18} /></button></header>
-        <p className="capture-context">
-          {context.view} view
-          {context.selected ? ` · ${context.selected}` : ""}
-          {context.document ? ` · ${context.document}` : ""}
-          {context.taskIds?.length ? ` · ${context.taskIds.length} visible tasks` : ""}
-        </p>
-        <textarea autoFocus value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder="Describe the task or request…" required maxLength={20000} />
-        {message && <p className="error" role="status">{message}</p>}
-        <footer><button type="button" className="button subtle" onClick={close}>Cancel</button><button className="button primary" disabled={busy || !prompt.trim()}>{busy ? "Capturing…" : "Add task"}</button></footer>
-      </form>
-    </div>
-  );
-}
 
 export function McpDialog({
   serverUrl,

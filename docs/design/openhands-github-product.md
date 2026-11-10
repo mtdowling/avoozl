@@ -1191,8 +1191,8 @@ publication.
   agent UI;
 - saved visualization, presentation, and tour features.
 
-A minimal recovery/admin page may remain available if OpenHands cannot start,
-but it is not a second full product UI.
+The Avoozl HTTP root may show a recovery handoff when opened outside Canvas, but
+it does not expose the product pages or a second full UI.
 
 ## Traceability model
 

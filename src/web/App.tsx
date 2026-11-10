@@ -18,7 +18,6 @@ import {
   MessageSquare,
   Network,
   Pencil,
-  Plus,
   RefreshCw,
   RotateCcw,
   Search,
@@ -34,7 +33,7 @@ import { createWorkbench } from "../workbench.mjs";
 import { dependencyLayout, dependencyPath, NODE_H, NODE_W } from "../graph-layout.mjs";
 import { renderUsage } from "../app/ui/usage-charts.mjs";
 import { apiUrl, command, get, submissionId } from "./api";
-import { McpDialog, TaskCaptureDialog, TaskInspector, type CaptureContext } from "./ControlPlane";
+import { McpDialog, TaskInspector, type CaptureContext } from "./ControlPlane";
 import { EnhancedGraph } from "./EnhancedGraph";
 import { loadState, loadWorkspace, useRemote, useWorkspaceEvents } from "./hooks";
 import type { DocumentPlanSummary, DocumentRecord, PlanSummary, Run, RunSummary, SavedSearch, SavedView, State, Task, Workspace } from "./types";
@@ -68,6 +67,8 @@ const pageDescriptions: Partial<Record<View, string>> = {
 };
 
 const CONTEXT_CHAT_PROMPT = "You are attached to the current Avoozl workspace context. Briefly identify the selected plan or task, the active filters, and the repository context available to you, then wait for my questions.";
+const PROJECT_CHAT_PROMPT = "You are attached to this Avoozl project. Briefly identify the repository and planning context available to you, then wait for my questions.";
+const NEW_TASK_PROMPT = "Help me define one concrete new task. Ask focused questions about the outcome, scope, and acceptance criteria. Do not invent extra work or nitpick. Once we agree, record the request for review.";
 
 function initialLocation() {
   const query = new URLSearchParams(location.search);
@@ -1548,7 +1549,6 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
   const [planId, setPlanId] = useState<string | null>(initial.planId);
   const [documentId, setDocumentId] = useState<string | null>(initial.documentId);
   const [drawerTask, setDrawerTask] = useState<Task | null>(null);
-  const [captureOpen, setCaptureOpen] = useState(false);
   const [mcpOpen, setMcpOpen] = useState(false);
   const [workbenchFilters, setWorkbenchFilters] = useState<TaskFilters>(emptyTaskFilters);
   const [reportSourceView, setReportSourceView] = useState<SavedSearch["view"]>(() =>
@@ -1626,7 +1626,7 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
     const askContext = async (event: Event) => {
       const prompt = (event as CustomEvent<{ prompt?: string }>).detail?.prompt;
       if (!prompt) return;
-      await startOpenHandsIntent("ask", prompt);
+      await startOpenHandsIntent("ask", prompt, { purpose: "project-chat", scoped: true });
     };
     window.addEventListener("nupp-open-session", openSession);
     window.addEventListener("nupp-ask-context", askContext);
@@ -1645,11 +1645,12 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
     setView(next);
     setNavOpen(false);
   }
-  function openOpenHandsChat() {
-    void startOpenHandsIntent("ask", CONTEXT_CHAT_PROMPT);
-  }
-  async function startOpenHandsIntent(action: "ask" | "draft", prompt: string) {
-    const context = captureContext();
+  async function startOpenHandsIntent(
+    action: "ask" | "draft",
+    prompt: string,
+    { purpose, scoped = true }: { purpose?: "new-task" | "project-chat"; scoped?: boolean } = {},
+  ) {
+    const context = captureContext({ purpose, scoped });
     const projectId = context.projectId;
     if (action === "draft" && !projectId) {
       window.alert("Configure an execution project before opening OpenHands.");
@@ -1742,7 +1743,9 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
     setDrawerTask(null);
     navigate("graph");
   }
-  function captureContext(): CaptureContext {
+  function captureContext(
+    { purpose, scoped = true }: { purpose?: "new-task" | "project-chat"; scoped?: boolean } = {},
+  ): CaptureContext {
     const visibleTasks = filteredTasks(stateData, workbenchFilters);
     const configuredProjectIds = new Set(
       workspaceData.projects.map((project) => project.id),
@@ -1783,14 +1786,15 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
     };
     return {
       revision: stateData.revision,
-      view: view === "overview" ? "activity" : view === "epics" ? "epics" : ["tasks", "graph", "documents"].includes(view) ? view : "tasks",
-      selected: drawerTask?.id,
-      document: documentId,
-      planId,
+      view: scoped ? (view === "overview" ? "activity" : view === "epics" ? "epics" : ["tasks", "graph", "documents"].includes(view) ? view : "tasks") : "project",
+      selected: scoped ? drawerTask?.id : undefined,
+      document: scoped ? documentId : null,
+      planId: scoped ? planId : null,
       projectId,
-      taskIds: visibleTasks.slice(0, 500).map((task) => task.id),
-      filters: Object.fromEntries(Object.entries(filterStrings).filter(([, value]) => value)),
-      url: `/?view=${encodeURIComponent(view === "overview" ? "activity" : view)}${drawerTask ? `&task=${encodeURIComponent(drawerTask.id)}` : ""}${documentId ? `&document=${encodeURIComponent(documentId)}` : ""}`,
+      taskIds: scoped ? visibleTasks.slice(0, 500).map((task) => task.id) : [],
+      filters: scoped ? Object.fromEntries(Object.entries(filterStrings).filter(([, value]) => value)) : {},
+      url: scoped ? `/?view=${encodeURIComponent(view === "overview" ? "activity" : view)}${drawerTask ? `&task=${encodeURIComponent(drawerTask.id)}` : ""}${documentId ? `&document=${encodeURIComponent(documentId)}` : ""}` : "/",
+      conversationPurpose: purpose,
     };
   }
   function toggleNavigation() {
@@ -1871,8 +1875,15 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
           <div className="toolbar-spacer" />
           {canvasHost && <button className="canvas-connection" onClick={() => setMcpOpen(true)} aria-label="Avoozl instance is live" aria-describedby="canvas-connection-tip"><i aria-hidden="true" /><span className="canvas-connection-tip" id="canvas-connection-tip" role="tooltip"><strong>Avoozl is live</strong><span>Avoozl server <code>{canvasServer}</code></span><span>MCP server <code>{canvasServer}/mcp</code></span><span>Workspace <code>{workspaceName}</code></span><span>Surface <code>OpenHands Canvas</code></span></span></button>}
           {facetedView && <button className={filtersOpen ? "toolbar-action active" : "toolbar-action"} onClick={toggleFilters} title={filtersOpen ? "Collapse filters" : "Show filters"} aria-expanded={filtersOpen}><Filter size={17} /></button>}
-          <button className="toolbar-action" onClick={openOpenHandsChat} title="Open OpenHands chat"><MessageSquare size={17} /></button>
-          <button className="toolbar-action" onClick={() => setCaptureOpen(true)} title="Capture a task from this view"><Plus size={17} /></button>
+          <details className="toolbar-new-menu">
+            <summary className="toolbar-new-trigger" title="Start with OpenHands"><MessageSquare size={16} /><span>New</span><ChevronDown size={13} /></summary>
+            <div className="toolbar-new-options">
+              <button onClick={() => void startOpenHandsIntent("ask", NEW_TASK_PROMPT, { purpose: "new-task", scoped: false })}><strong>New task</strong><small>Shape work from project context</small></button>
+              <button onClick={() => void startOpenHandsIntent("ask", NEW_TASK_PROMPT, { purpose: "new-task", scoped: true })}><strong>New scoped task</strong><small>Include this view and selection</small></button>
+              <button onClick={() => void startOpenHandsIntent("ask", PROJECT_CHAT_PROMPT, { purpose: "project-chat", scoped: false })}><strong>Project chat</strong><small>Discuss the repository and plans</small></button>
+              <button onClick={() => void startOpenHandsIntent("ask", CONTEXT_CHAT_PROMPT, { purpose: "project-chat", scoped: true })}><strong>Scoped chat</strong><small>Include this view and selection</small></button>
+            </div>
+          </details>
           <button className="toolbar-action" onClick={() => navigate("settings")} title="Avoozl settings"><Settings size={17} /></button>
           <button className="toolbar-action" onClick={() => document.fullscreenElement ? void document.exitFullscreen() : void document.documentElement.requestFullscreen()} title="Full screen"><Maximize2 size={17} /></button>
           <button className="toolbar-action" onClick={() => setWorkbenchFilters({ ...emptyTaskFilters })} title="Reset filters"><RotateCcw size={17} /></button>
@@ -1881,14 +1892,13 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
         {view === "tasks" && <FacetedWorkbench workspace={workspaceData} state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters} filtersOpen={filtersOpen} applyPromptView={applyVisualization}>{(tasks) => <RecentTree state={stateData} tasks={tasks} openTask={openTask} />}</FacetedWorkbench>}
         {view === "epics" && <FacetedWorkbench workspace={workspaceData} state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters} filtersOpen={filtersOpen} applyPromptView={applyVisualization}>{(tasks) => <EpicProgress state={stateData} matchingTasks={tasks} openTask={openTask} />}</FacetedWorkbench>}
         {view === "plans" && <Plans workspace={workspaceData} selected={planId} select={openPlan} refresh={refresh} />}
-        {view === "documents" && <Documents workspace={workspaceData} state={stateData} filters={workbenchFilters} clearTaskFilters={() => setWorkbenchFilters({ ...emptyTaskFilters })} selected={documentId} select={(id) => id ? openDocument(id) : setDocumentId(null)} selectedPlan={planId} selectPlan={setPlanId} refresh={refresh} openTask={openTask} planWithAgent={() => void startOpenHandsIntent("draft", "Develop a design plan for the outcome below. Ask clarifying questions where needed, then produce a reviewable Markdown plan with explicit deliverables and acceptance criteria.")} />}
+        {view === "documents" && <Documents workspace={workspaceData} state={stateData} filters={workbenchFilters} clearTaskFilters={() => setWorkbenchFilters({ ...emptyTaskFilters })} selected={documentId} select={(id) => id ? openDocument(id) : setDocumentId(null)} selectedPlan={planId} selectPlan={setPlanId} refresh={refresh} openTask={openTask} planWithAgent={() => void startOpenHandsIntent("draft", "Develop a design plan for the outcome below. Ask clarifying questions where needed, then produce a reviewable Markdown plan with explicit deliverables and acceptance criteria.", { scoped: true })} />}
         {view === "graph" && <FacetedWorkbench workspace={workspaceData} state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters} filtersOpen={filtersOpen} applyPromptView={applyVisualization}>{(tasks) => <EnhancedGraph state={stateData} matchingTasks={tasks} openTask={openTask} />}</FacetedWorkbench>}
         {view === "reports" && <FacetedWorkbench workspace={workspaceData} state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters} filtersOpen={filtersOpen} applyPromptView={applyVisualization}>{() => <Reports state={stateData} filters={workbenchFilters} sourceView={reportSourceView} apply={(report) => { setWorkbenchFilters(reportFilters(report.filters)); navigate(report.view); }} openTask={openTask} refresh={refresh} />}</FacetedWorkbench>}
         {view === "insights" && <Insights />}
         {view === "settings" && <SettingsView workspace={workspaceData} state={stateData} refresh={refresh} openRun={openRun} />}
       </main>
       {drawerTask && <TaskInspector key={drawerTask.id} task={drawerTask} state={stateData} close={() => setDrawerTask(null)} refresh={refresh} openDocument={(id) => { setDrawerTask(null); openDocument(id); }} openRun={(id) => { setDrawerTask(null); void openRun(id); }} startRun={startTaskInOpenHands} exploreGraph={exploreTask} filterTag={(tag) => { setWorkbenchFilters({ ...emptyTaskFilters, tags: [tag] }); setDrawerTask(null); navigate("tasks"); }} />}
-      {captureOpen && <TaskCaptureDialog context={captureContext()} close={() => setCaptureOpen(false)} created={(task) => { setCaptureOpen(false); refresh(); openTask(task); }} />}
       {mcpOpen && <McpDialog serverUrl={canvasServer} workspace={workspaceData} close={() => setMcpOpen(false)} />}
     </div>
   );
