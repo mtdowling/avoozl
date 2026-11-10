@@ -1202,7 +1202,7 @@ export function App() {
       <main className="app-main">
         <header className="app-toolbar"><button className="mobile-menu" onClick={toggleNavigation}><Menu size={18} /></button><strong>{currentView.label}</strong>{pageDescriptions[view] && <button className="page-help" aria-label={`About ${currentView.label}`} title={pageDescriptions[view]}>?</button>}<span className="toolbar-rule" /><span>{toolbarCount}</span><div className="toolbar-spacer" />
           {facetedView && <button className={filtersOpen ? "toolbar-action active" : "toolbar-action"} onClick={toggleFilters} title={filtersOpen ? "Collapse filters" : "Show filters"} aria-expanded={filtersOpen}><Filter size={17} /></button>}
-          <button className="toolbar-action" onClick={() => navigate("conversations")} title="New task"><Plus size={17} /></button>
+          <button className="toolbar-action" onClick={() => { setRunId(null); navigate("conversations"); }} title="New task"><Plus size={17} /></button>
           <button className="toolbar-action" onClick={() => document.fullscreenElement ? void document.exitFullscreen() : void document.documentElement.requestFullscreen()} title="Full screen"><Maximize2 size={17} /></button>
           <button className="toolbar-action" onClick={() => setWorkbenchFilters({ ...emptyTaskFilters })} title="Reset filters"><RotateCcw size={17} /></button>
         </header>
