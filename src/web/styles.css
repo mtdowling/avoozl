@@ -189,7 +189,9 @@ body.resizing-panels { cursor: col-resize; user-select: none; }
 .recent-tree > .tree-group-control { display: none; }
 .tree-group-control label { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 9px; }
 .tree-group-control select { min-height: 28px; }
-#tasks-view { min-height: 0; overflow: hidden; }
+/* The controls row stays put and the windowed tree takes the rest, so the
+   tree scrolls itself instead of growing past the clipped screen. */
+#tasks-view { min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
 .search-label { display: flex; justify-content: space-between; margin-bottom: 7px; color: #c5c5c5; font-size: 11px; }
 .search-label span { color: var(--muted); font-size: 9px; }
 .query-box { padding: 7px; border: 1px solid #505050; border-radius: 7px; background: #151515; }
