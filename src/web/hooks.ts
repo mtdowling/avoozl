@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { command, get } from "./api";
+import { apiUrl, command, get } from "./api";
 
 export function useRemote<T>(loader: () => Promise<T>, dependencies: unknown[] = []) {
   const [data, setData] = useState<T | null>(null);
@@ -39,7 +39,7 @@ export function useWorkspaceEvents(onEvent: () => void, runId?: string) {
   useEffect(() => {
     let timer: number | undefined;
     const query = runId ? `?run=${encodeURIComponent(runId)}&compact=true` : "?compact=true";
-    const source = new EventSource("/api/events" + query);
+    const source = new EventSource(apiUrl("/api/events" + query));
     source.onmessage = () => {
       window.clearTimeout(timer);
       timer = window.setTimeout(() => callback.current(), 80);

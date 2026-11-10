@@ -133,15 +133,19 @@ function ResizeHandle({ value, setValue, min, max, label, invert = false, classN
 }) {
   function start(event: React.PointerEvent<HTMLDivElement>) {
     event.preventDefault();
+    const root = event.currentTarget.getRootNode();
+    const resizeOwner = root instanceof ShadowRoot
+      ? root.querySelector<HTMLElement>(".avoozl-canvas-root")
+      : document.body;
     const startX = event.clientX;
     const startValue = value;
     const move = (next: PointerEvent) => setValue(startValue + (next.clientX - startX) * (invert ? -1 : 1));
     const stop = () => {
-      document.body.classList.remove("resizing-panels");
+      resizeOwner?.classList.remove("resizing-panels");
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", stop);
     };
-    document.body.classList.add("resizing-panels");
+    resizeOwner?.classList.add("resizing-panels");
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", stop, { once: true });
   }
@@ -244,7 +248,7 @@ function Overview({ workspace, state, openRun, openTask }: { workspace: Workspac
   );
 }
 
-function NewConversation({ workspace, onCreated, initialPrompt = "" }: { workspace: Workspace; onCreated: (id: string) => void; initialPrompt?: string }) {
+function NewConversation({ workspace, onCreated, onPlanCreated, initialPrompt = "" }: { workspace: Workspace; onCreated: (id: string) => void; onPlanCreated: (id: string) => void; initialPrompt?: string }) {
   const [prompt, setPrompt] = useState(initialPrompt);
   const [provider, setProvider] = useState(workspace.providers[0]?.id || workspace.providers[0]?.name || "codex");
   const [projectId, setProjectId] = useState(workspace.projects[0]?.id || "");
@@ -269,7 +273,7 @@ function NewConversation({ workspace, onCreated, initialPrompt = "" }: { workspa
         context: {},
       });
       if (result.run) onCreated(result.run.id);
-      else if (result.plan) location.href = `/?view=plans&plan=${encodeURIComponent(result.plan.id)}`;
+      else if (result.plan) onPlanCreated(result.plan.id);
     } catch (cause) {
       setError((cause as Error).message);
     } finally {
@@ -579,7 +583,7 @@ function RecentTree({ state, tasks, openTask }: { state: State; tasks: Task[]; o
   </section>;
 }
 
-function Conversations({ workspace, selected, select, refresh, initialPrompt = "" }: { workspace: Workspace; selected: string | null; select: (id: string | null) => void; refresh: () => void; initialPrompt?: string }) {
+function Conversations({ workspace, selected, select, openPlan, refresh, initialPrompt = "" }: { workspace: Workspace; selected: string | null; select: (id: string | null) => void; openPlan: (id: string) => void; refresh: () => void; initialPrompt?: string }) {
   const [query, setQuery] = useState("");
   const runs = workspace.runs.filter((run) => !query || (run.title || run.id).toLowerCase().includes(query.toLowerCase()));
   return (
@@ -592,7 +596,7 @@ function Conversations({ workspace, selected, select, refresh, initialPrompt = "
         </div>
       </aside>
     }>
-      {selected ? <Suspense fallback={<LoadingSurface label="Opening conversation…" />}><Conversation runId={selected} onRefresh={refresh} /></Suspense> : <NewConversation key={initialPrompt} workspace={workspace} initialPrompt={initialPrompt} onCreated={(id) => { select(id); refresh(); }} />}
+      {selected ? <Suspense fallback={<LoadingSurface label="Opening conversation…" />}><Conversation runId={selected} onRefresh={refresh} /></Suspense> : <NewConversation key={initialPrompt} workspace={workspace} initialPrompt={initialPrompt} onCreated={(id) => { select(id); refresh(); }} onPlanCreated={openPlan} />}
     </SplitScreen>
   );
 }
@@ -1335,9 +1339,26 @@ function SettingsView({ workspace, state, refresh, openRun }: { workspace: Works
   </section>;
 }
 
-export function App() {
-  const initial = useMemo(initialLocation, []);
-  const canvasHost = initial.canvasHost;
+export type CanvasHost = {
+  serverUrl: string;
+  navigate: (path: string) => void;
+};
+
+export function App({ canvas }: { canvas?: CanvasHost } = {}) {
+  const initial = useMemo(
+    () =>
+      canvas
+        ? {
+            canvasHost: true,
+            view: "overview" as View,
+            runId: null,
+            planId: null,
+            documentId: null,
+          }
+        : initialLocation(),
+    [canvas],
+  );
+  const canvasHost = Boolean(canvas) || initial.canvasHost;
   const [view, setView] = useState<View>(initial.view);
   const [runId, setRunId] = useState<string | null>(initial.runId);
   const [planId, setPlanId] = useState<string | null>(initial.planId);
@@ -1359,6 +1380,7 @@ export function App() {
   useWorkspaceEvents(refresh);
 
   useEffect(() => {
+    if (canvas) return;
     const query = new URLSearchParams();
     if (canvasHost) query.set("canvas", "1");
     query.set("view", view === "overview" ? "activity" : view);
@@ -1369,7 +1391,7 @@ export function App() {
       if (planId) query.set("plan", planId);
     }
     history.replaceState(null, "", "?" + query);
-  }, [canvasHost, view, runId, planId, documentId]);
+  }, [canvas, canvasHost, view, runId, planId, documentId]);
 
   useEffect(() => {
     const shortcut = (event: KeyboardEvent) => {
@@ -1384,7 +1406,7 @@ export function App() {
   }, [view]);
 
   useEffect(() => {
-    if (!canvasHost) return;
+    if (!canvasHost || canvas) return;
     const allowed = new Set([
       "--bg", "--panel", "--panel-2", "--panel-3", "--line", "--border", "--muted", "--text",
       "--bright", "--accent", "--accent-2", "--selected", "--danger", "--on", "--landed",
@@ -1399,7 +1421,7 @@ export function App() {
     };
     window.addEventListener("message", applyCanvasTheme);
     return () => window.removeEventListener("message", applyCanvasTheme);
-  }, [canvasHost]);
+  }, [canvas, canvasHost]);
 
   useEffect(() => {
     const openSession = (event: Event) => {
@@ -1446,6 +1468,12 @@ export function App() {
         }
       }
       if (run?.provider === "openhands" && run.providerSessionId) {
+        if (canvas) {
+          canvas.navigate(
+            `/conversations/${encodeURIComponent(run.providerSessionId)}`,
+          );
+          return;
+        }
         let target = "*";
         try {
           if (document.referrer) target = new URL(document.referrer).origin;
@@ -1529,11 +1557,11 @@ export function App() {
     view === "visualizations" ? `${(stateData.presentation?.views?.length || 0) + (stateData.presentation?.tours?.length || 0)} saved views` :
     view === "insights" ? "Usage trends" :
     `${stateData.tasks.length} tasks`;
-  const canvasServer = window.location.origin;
+  const canvasServer = canvas?.serverUrl || window.location.origin;
   return (
     <div className={`app-shell ${canvasHost ? "canvas-host " : ""}${navCollapsed ? "nav-collapsed" : ""}`} style={{ "--nav-width": `${navCollapsed ? 44 : navWidth}px` } as React.CSSProperties}>
       <aside className={navOpen ? "app-nav open" : "app-nav"}>
-        <div className="site-brand-row"><a className="brand" href={canvasHost ? "/?canvas=1" : "/"} aria-label="Avoozl home"><div className="brand-mark">A</div><span className="brand-label"><strong title={workspaceName}>{workspaceName}</strong><small>Live delivery map</small></span></a><button className="nav-toggle" onClick={toggleNavigation} aria-expanded={!navCollapsed} aria-label={navCollapsed ? "Expand navigation" : "Collapse navigation"} title={navCollapsed ? "Expand navigation" : "Collapse navigation"}><Menu size={18} /></button></div>
+        <div className="site-brand-row">{canvas ? <button className="brand" onClick={() => navigate("overview")} aria-label="Avoozl home"><div className="brand-mark">A</div><span className="brand-label"><strong title={workspaceName}>{workspaceName}</strong><small>Live delivery map</small></span></button> : <a className="brand" href={canvasHost ? "/?canvas=1" : "/"} aria-label="Avoozl home"><div className="brand-mark">A</div><span className="brand-label"><strong title={workspaceName}>{workspaceName}</strong><small>Live delivery map</small></span></a>}<button className="nav-toggle" onClick={toggleNavigation} aria-expanded={!navCollapsed} aria-label={navCollapsed ? "Expand navigation" : "Collapse navigation"} title={navCollapsed ? "Expand navigation" : "Collapse navigation"}><Menu size={18} /></button></div>
         <nav>{visibleViews.map(({ id, label, icon: Icon }) => <button key={id} className={`${view === id ? "active " : ""}${id === "overview" ? "live-view" : ""}`.trim()} onClick={() => navigate(id)}><Icon size={16} /><span>{label}</span>{id === "overview" && activeTaskCount > 0 && <b aria-label={`${activeTaskCount} ${activeTaskCount === 1 ? "task" : "tasks"} in flight`}>{activeTaskCount}</b>}</button>)}</nav>
         <div className="nav-foot"><button className="mcp-button">MCP</button><button onClick={() => navigate("settings")} title="Settings"><Settings size={14} /></button><button onClick={refresh} title="Check for updates"><RefreshCw size={14} /></button></div>
         {!navCollapsed && <ResizeHandle value={navWidth} setValue={setNavWidth} min={160} max={360} label="Resize navigation" className="nav-resize-handle" />}
@@ -1554,7 +1582,7 @@ export function App() {
         {view === "overview" && <FacetedWorkbench workspace={workspaceData} state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters} filtersOpen={filtersOpen} applyPromptView={applyVisualization}>{(tasks) => <RecentNow state={stateData} matchingTasks={tasks} openTask={setDrawerTask} />}</FacetedWorkbench>}
         {view === "tasks" && <FacetedWorkbench workspace={workspaceData} state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters} filtersOpen={filtersOpen} applyPromptView={applyVisualization}>{(tasks) => <RecentTree state={stateData} tasks={tasks} openTask={setDrawerTask} />}</FacetedWorkbench>}
         {view === "epics" && <FacetedWorkbench workspace={workspaceData} state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters} filtersOpen={filtersOpen} applyPromptView={applyVisualization}>{(tasks) => <EpicProgress state={stateData} matchingTasks={tasks} openTask={setDrawerTask} />}</FacetedWorkbench>}
-        {view === "conversations" && (!canvasHost || selectedRun?.provider !== "openhands") && <Conversations workspace={workspaceData} selected={runId} select={setRunId} refresh={refresh} initialPrompt={draftPrompt} />}
+        {view === "conversations" && (!canvasHost || selectedRun?.provider !== "openhands") && <Conversations workspace={workspaceData} selected={runId} select={setRunId} openPlan={openPlan} refresh={refresh} initialPrompt={draftPrompt} />}
         {view === "plans" && <Plans workspace={workspaceData} selected={planId} select={openPlan} refresh={refresh} />}
         {view === "documents" && <Documents workspace={workspaceData} state={stateData} selected={documentId} select={(id) => id ? openDocument(id) : setDocumentId(null)} selectedPlan={planId} selectPlan={setPlanId} refresh={refresh} />}
         {view === "graph" && <FacetedWorkbench workspace={workspaceData} state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters} filtersOpen={filtersOpen} applyPromptView={applyVisualization}>{(tasks) => <Graph state={stateData} matchingTasks={tasks} openTask={setDrawerTask} />}</FacetedWorkbench>}

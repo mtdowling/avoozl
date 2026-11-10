@@ -45,11 +45,14 @@ test("the packaged Canvas App registers its declared Avoozl page", async () => {
     },
   });
   assert.equal(manifest.schema_version, 1);
-  assert.equal(manifest.version, "0.1.3");
+  assert.equal(manifest.version, "0.1.4");
   assert.equal(manifest.contributes.pages[0].path, "/workspace");
   assert.match(icon, /fill="#ff5555"/);
   assert.match(source, /var\(--oh-color-primary/);
-  assert.match(source, /avoozl:canvas-theme/);
+  assert.doesNotMatch(source, /<iframe|createElement\(["']iframe/);
+  assert.match(source, /attachShadow/);
+  assert.match(source, /createRoot/);
+  assert.doesNotMatch(source, /process\.env\.NODE_ENV/);
   assert.equal(registered.id, "workspace");
   assert.equal(typeof registered.mount, "function");
   dispose();

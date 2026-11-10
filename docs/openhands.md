@@ -18,7 +18,7 @@ The integration is pinned and checked as one compatibility set:
 | OpenHands Agent Server         | `1.61.0` |
 | `@openhands/typescript-client` | `1.61.0` |
 | `@openhands/agent-canvas`      | `1.38.0` |
-| Avoozl OpenHands plugin        | `1.0.0`  |
+| Avoozl OpenHands App           | `0.1.4`  |
 
 Avoozl refuses a different Agent Server version before creating a conversation.
 Upgrades must test the client, plugin, and embedded Canvas together.
@@ -49,12 +49,16 @@ export AVOOZL_OPENHANDS_URL=http://127.0.0.1:38100
 export AVOOZL_OPENHANDS_API_KEY=the-session-api-key
 export AVOOZL_OPENHANDS_MODEL=anthropic/claude-sonnet-4-5
 export AVOOZL_OPENHANDS_LLM_API_KEY=the-provider-key
-node cli.mjs serve --workspace /path/to/workspace
+node cli.mjs serve \
+  --workspace /path/to/workspace \
+  --canvas-origin http://127.0.0.1:38400
 ```
 
 `AVOOZL_OPENHANDS_LLM_BASE_URL` optionally selects an OpenAI-compatible endpoint.
 The existing `AICOMMANDER_OPENHANDS_*` and `NUPP_WORKSPACE_OPENHANDS_*` prefixes
-remain aliases.
+remain aliases. Instead of the CLI flag, the exact Canvas web origin can be set
+with `AVOOZL_CANVAS_ORIGINS` or the workspace's `canvasOrigins` array. This is an
+explicit browser-origin allowlist, not a wildcard CORS switch.
 
 ## Install the Canvas App
 
@@ -72,13 +76,14 @@ enter the loopback address printed by `avoozl serve`. That address is stored in
 Canvas browser storage for the selected backend; no Avoozl, GitHub, or provider
 credential is copied into the App.
 
-On macOS and Windows, Avoozl remains a separately started local service because
-the current managed Canvas backend artifact contract is Linux-only. The App
-uses a direct loopback iframe deliberately: it does not guess a port, read
-Canvas credentials, or proxy arbitrary requests through the Agent Server.
-Opening an OpenHands-owned run sends only its conversation ID to the trusted
-parent App, which navigates to Canvas's native conversation page. This prevents
-a nested Canvas and leaves terminal, files, browser, chat, and steering native.
+On macOS, Windows, and Linux, Avoozl remains a separately started local service.
+The App mounts Avoozl's React application directly into the OpenHands page. It
+does not use an iframe, guess a port, read Canvas credentials, or proxy arbitrary
+requests through the Agent Server. A Shadow DOM isolates Avoozl's styles while
+the surface inherits OpenHands theme variables. Opening an OpenHands-owned run
+navigates to Canvas's native conversation page, so terminal, files, browser,
+chat, and steering remain OpenHands-owned rather than being duplicated inside
+Avoozl.
 
 The App package lives in `canvas-app/` and is included in the npm package.
 Canvas Apps execute as trusted same-realm code after enablement, so installation
@@ -87,6 +92,8 @@ must remain an explicit operator action.
 ## Authority and network boundary
 
 - The local executor accepts only a loopback Agent Server URL.
+- The Avoozl HTTP server accepts cross-origin Canvas requests only from exact,
+  configured origins.
 - The reusable Agent Server key remains in the Avoozl server process.
 - The browser receives an expiring capability bound to one Avoozl run and one
   OpenHands conversation. The proxy refuses general Agent Server settings,

@@ -101,7 +101,7 @@ export async function installOpenHandsCanvasApp({
       route: OPENHANDS_CANVAS_APP.route,
       agentServer: settings.host,
       serverVersion: server.version,
-      note: "Start Avoozl separately, then enter its loopback address on the App page. The address is browser-local and no credentials are copied into Canvas.",
+      note: "Start Avoozl with the Canvas web origin explicitly allowed, then enter its loopback address on the App page. The address is browser-local and no credentials are copied into Canvas.",
     };
   } finally {
     if (own) active.close();
