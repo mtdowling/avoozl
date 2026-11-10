@@ -1,8 +1,10 @@
 # Keeping the website, or going VS Code only
 
-A self-contained comparison for the VSC-10 decision. Everything asserted here
-was measured on this machine; where it was not, that is said. Receipts are in
-`docs/evidence/vscode/`.
+A self-contained comparison for the VSC-10 decision. Editor and browser
+observations were measured on this machine; where they were not, that is said.
+Receipts are in `docs/evidence/vscode/`. The OpenCode comparison is research
+against the versioned upstream documentation cited in that section, not a local
+integration measurement.
 
 ## What each surface is, concretely
 
@@ -36,7 +38,7 @@ Measured, in `native-controls-claude.json` and `native-controls-codex.json`
 - The code context an operator at a keyboard actually wants: the run's
   worktree open, diffs in the editor's diff view, file navigation.
 
-## What only the website can do
+## What only the website passed at a phone viewport
 
 Measured, in `phone-viewport.json` — both surfaces at an iPhone 15 viewport
 (393×852 at DPR 3) driven with **touch events only**, because a phone has
@@ -60,8 +62,13 @@ with text wrapping to two or three words a line.
 The website also costs nothing to reach: no 646 MB download, no licence to
 accept, no second server to keep running.
 
-This is emulation, not the physical-phone gate (VSC-08, still open). Real
-hardware can only be worse than this, never better.
+This is emulation, not the physical-phone gate (VSC-08, still open), and it
+does not prove the remote route (VSC-07, also open). It establishes that the
+website's layout and the measured controls can complete the flow with touch at
+this viewport, while the bridged editor cannot reach its session. Physical
+hardware, its browser chrome and its network route can behave differently in
+either direction, so end-to-end phone readiness remains conditional on those
+two gates.
 
 ## So is the VS Code client worth keeping?
 
@@ -80,17 +87,24 @@ whatever is decided here.
 
 ## The proposed division of labour
 
-- **Website — the operator's remote control, everywhere.** Triage, what needs
-  a decision, approve or deny, answer a question, cancel, read a plan, read a
-  graph. It stays a full participant, not a viewer: it is the only surface that
-  works on a phone, and the phone case is exactly when a decision is blocking
-  an agent.
+- **Website — the operator's remote-control surface and complete fallback.**
+  Triage, what needs a decision, allow or deny a provider request, answer a
+  question, cancel, read a plan and read a graph. It stays a full participant,
+  not a viewer: it is the only surface that passed the phone-viewport touch
+  test, and the phone case is exactly when a decision is blocking an agent.
+  Calling it ready for an actual phone still depends on VSC-07 and VSC-08.
+  Existing plan drafting, revision approval, validation, integration and
+  acceptance remain available here unless a separate decision retires them.
 - **VS Code client — depth at a keyboard.** The live transcript with native
-  controls, plan editing against a reviewed hash, diffs, worktrees,
-  validation and integration.
-- **Not duplicated:** whichever surface owns a flow owns it. The parity matrix
-  in `vscode-client.md` is where that is recorded, filled in from passing
-  gates rather than intent.
+  provider controls, plan editing and revision approval against a reviewed
+  hash, diffs, worktrees, validation and integration.
+- **Shared operations, intentional surface overlap.** "Ownership" here means
+  the primary experience for a context, not exclusive capability. Safety-
+  critical remote actions and existing workflows may remain on both surfaces;
+  they still use the same operations and canonical state rather than
+  independent implementations or writers. The parity matrix in
+  `vscode-client.md` records the capabilities that actually pass, not the
+  intended division alone.
 
 Turning the website into a minor-editing surface only is the one option the
 measurement argues against: it would put the phone case behind a surface that
@@ -131,34 +145,61 @@ Considered, because it would be attractive if our website had no chat. It
 does: `src/app/ui/workspace.mjs` already renders the transcript with history
 paging, a composer with send, a queue-versus-steer choice where the provider
 supports steering, a Stop control, the approvals mode, and request answering
-with option buttons and a free-text field. The phone measurement drove exactly
-those controls by thumb.
+with option buttons and a free-text field. The phone receipt drove the path
+into the conversation, the provider approval and Stop by touch. The source and
+automated tests establish that the other controls exist; they do not constitute
+touch acceptance for history paging, composing, queue or steer, approval-mode
+changes, or option and free-text answers.
 
-What OpenCode actually offers (checked against its own documentation, MIT
-licensed): `opencode serve` is an HTTP server with server-sent events, session
-and message endpoints, `POST /session/:id/permissions/:permissionID` for a
-permission response and `POST /session/:id/abort` to stop a turn. `opencode
-web` is a browser interface **served by that same server**; its documentation
-describes no iframe embedding and no npm component, and a `--cors` flag is
-offered for "custom frontends" without documenting how to build one.
+The interface must be named by version. OpenCode's source is MIT licensed. The
+V1 documentation checked on 2026-11-10 describes `opencode serve` as an HTTP
+and server-sent-events server, including session and message endpoints,
+`POST /session/:id/permissions/:permissionID` for a permission response and
+`POST /session/:id/abort` to stop a turn. Its web documentation describes a
+browser interface served by that server and a `--cors` option for custom
+frontends. The separately published V2 documentation describes
+`opencode pair`, `opencode service`, REST under `/api`, and a background server
+that owns sessions, providers, permissions, plugins and application state.
+The checked documentation does not document iframe embedding or an installable
+web UI component. Sources:
 
-So "embed their UI" is really "serve our data through their API": their front
-end talks to their server's session model, so we would implement a second
-protocol facade beside the Agent Host Protocol one, and their model would have
-to express the semantics this project spent its effort on — interrupted
-distinct from failed, queued distinct from delivered, approval options by
-identifier, unsend, model choice at a turn boundary, and one writer per
-session. Their V1 and V2 documentation already live at different URLs, so that
-facade would be tracking a moving target. Their server also runs its own agent
-loop, which is the one thing we must not have: the host owns the provider
-process.
+- Source licence:
+  `https://github.com/anomalyco/opencode/blob/dev/LICENSE`
+- V1 server and web:
+  `https://opencode.ai/docs/server/`,
+  `https://opencode.ai/docs/web/`
+- V2 client/server and plugin system:
+  `https://v2.opencode.ai/docs/client-server/`,
+  `https://v2.opencode.ai/docs/plugin-system/`
 
-The version of this idea that does fit is the opposite direction — **OpenCode
-as a provider**, a `src/app/providers/opencode.mjs` alongside `claude.mjs` and
-`codex.mjs`, using its SSE stream, its permission endpoint and its abort
-endpoint behind the existing adapter interface and the cancellation contract.
-That adds a provider without adopting a second UI or a second session store,
-and it is the shape the architecture already has room for.
+There are therefore two materially different proposals:
+
+1. **Use OpenCode's web UI and server as another operator surface.** Its front
+   end speaks its server's session model, so showing Avoozl runs there would
+   require a second protocol facade beside the Agent Host Protocol one, or
+   would make OpenCode the execution and session authority for those runs.
+   Either route introduces a second operator-facing session model and must map
+   interrupted versus failed, queued versus delivered, approval option
+   identifiers, unsend, model choice at a turn boundary and one-writer
+   ownership. That conflicts with the decision that SQLite and the Avoozl
+   agent host remain canonical. The V1 and V2 interfaces also differ, so an
+   integration would have to pin and test one rather than follow an
+   unversioned moving target.
+2. **Run OpenCode as a supervised provider.** This could fit as a pinned
+   `src/app/providers/opencode.mjs` alongside `claude.mjs` and `codex.mjs`.
+   The agent host would launch, monitor and stop one OpenCode process; Avoozl
+   would retain the canonical run, delivery, request and lifecycle records;
+   and an OpenCode session identifier would be provider-internal state, like
+   the existing provider session identifiers. OpenCode would still own an
+   internal agent loop and session storage. The adapter does not make those
+   disappear; it prevents them from becoming a second canonical or
+   operator-facing store.
+
+The second option is an architecture fit, not yet an implementation claim.
+Before adding it, a spike must choose and pin V1 or V2 and prove process
+supervision, reconnect, cleanup, permission-option mapping, cancellation,
+interrupted-versus-failed classification, queued delivery and model changes at
+turn boundaries through the existing adapter contract.
 
 If the goal is a better chat on a phone, the cheapest real improvement is not
 a foreign UI: it is raising our own touch targets from the measured 131×40,

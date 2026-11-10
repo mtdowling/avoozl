@@ -465,7 +465,7 @@ will eventually decide, not a recommendation to remove anything.
 | Usage charts                        | yes     | no        | Not ported.                                                                     |
 | Trash and restore                   | yes     | no        | Not ported.                                                                     |
 | Example pack installation           | yes     | yes       |                                                                                 |
-| Phone use                           | yes     | unproven  | The website stays the phone companion.                                          |
+| Phone-viewport touch flow           | yes     | no        | Emulation only; physical-phone and remote-route gates remain open.               |
 
 ### Real providers, and a finding that changes a plan assumption
 
