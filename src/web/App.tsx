@@ -18,6 +18,7 @@ import {
   MessageSquare,
   Network,
   Pencil,
+  Plus,
   RefreshCw,
   RotateCcw,
   Search,
@@ -66,8 +67,8 @@ const pageDescriptions: Partial<Record<View, string>> = {
   insights: "Review agent activity and reported usage over time.",
 };
 
-const CONTEXT_CHAT_PROMPT = "You are attached to the current Avoozl workspace context. Briefly identify the selected plan or task, the active filters, and the repository context available to you, then wait for my questions.";
-const PROJECT_CHAT_PROMPT = "You are attached to this Avoozl project. Briefly identify the repository and planning context available to you, then wait for my questions.";
+const CONTEXT_CHAT_PROMPT = "Help with the current Avoozl context. Start with one brief, useful question or response. Do not inventory the workspace, repeat the attached context, or narrate setup and tool use unless I ask.";
+const PROJECT_CHAT_PROMPT = "Help with this Avoozl project. Start with one brief, useful question or response. Do not inventory the repository or plans, repeat the attached context, or narrate setup and tool use unless I ask.";
 const NEW_TASK_PROMPT = "Help me define one concrete new task. Ask focused questions about the outcome, scope, and acceptance criteria. Do not invent extra work or nitpick. Once we agree, record the request for review.";
 
 function initialLocation() {
@@ -1844,7 +1845,7 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
     icon: LayoutDashboard,
     label: view === "plans" ? "Proposal" : "Settings",
   };
-  const facetedView = view === "overview" || view === "tasks" || view === "epics" || view === "graph" || view === "reports";
+  const facetedView = view === "overview" || view === "tasks" || view === "epics" || view === "graph";
   const activeRunStates = new Set(["starting", "running", "waiting-input", "waiting-approval"]);
   const activeRuns = workspaceData.runs.filter((run) => activeRunStates.has(run.state));
   const activeTaskCount = stateData.tasks.filter((task) => task.activity?.status === "active").length;
