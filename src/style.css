@@ -4245,8 +4245,8 @@ body .sidebar #search {
   background: transparent;
   outline: 0;
   box-shadow: none;
-  resize: vertical;
-  min-height: 44px;
+  resize: none;
+  min-height: 0;
   font: 13px/1.6 inherit;
   padding: 7px 2px;
   color: #ebebeb;
@@ -4314,9 +4314,6 @@ body .sidebar #search {
 .sidebar:has(.prompt-search) {
   width: 340px;
   min-width: 340px;
-}
-.prompt-search #search {
-  min-height: 130px !important;
 }
 body .sidebar {
   width: 260px;
@@ -4864,7 +4861,7 @@ body {
 .query-box textarea {
   font-size: 13px;
   padding: 6px;
-  min-height: 42px;
+  min-height: 0;
 }
 .applied-heading {
   display: flex;
