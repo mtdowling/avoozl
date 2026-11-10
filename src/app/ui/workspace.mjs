@@ -40,8 +40,8 @@ button.title = "Steer";
 button.setAttribute("aria-label", "Steer");
 button.innerHTML =
   '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4h16v12H9l-5 4z"/></svg><span class="nav-label">Steer</span>';
-// Steering sits with the authored plans it acts on, below the Plans entry.
-document.querySelector("#nav [data-view=documents]").after(button);
+// Steering sits below the read-only destinations it acts on.
+document.querySelector("#nav [data-view=visualizations]").after(button);
 const shell = document.createElement("section");
 shell.id = "execution-workspace";
 shell.hidden = true;

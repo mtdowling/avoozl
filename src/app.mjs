@@ -227,6 +227,9 @@ let captureDraft = null,
   tourWasFullscreen = false,
   tourTransition = 0;
 const compactLayout = matchMedia("(max-width:900px)");
+// Compact layouts stack the filters above the content instead of beside it,
+// so there the panel stays shut until asked for and never persists open.
+let compactFilters = false;
 const panelPrefs = { left: true, right: true };
 try {
   Object.assign(
@@ -1889,6 +1892,7 @@ document.addEventListener("keydown", (e) => {
       refreshViews();
     }
     panelPrefs.left = true;
+    compactFilters = true;
     savePanels();
     applyPanels();
     $("search").focus();
@@ -2897,11 +2901,13 @@ $("detail-dialog").addEventListener("click", (e) => {
   }
 });
 function applyPanels() {
-  // Now and Visualizations have nothing the task filters apply to.
-  const available = !["activity", "visualizations"].includes(state.view);
+  // Now and Plans both read the filtered task set, so both offer the filters.
+  // Visualizations lists saved configuration and has nothing to filter.
+  const available = state.view !== "visualizations";
   $("toggle-left").hidden = !available;
   const w = document.querySelector(".workspace"),
-    left = available && panelPrefs.left;
+    left =
+      available && (compactLayout.matches ? compactFilters : panelPrefs.left);
   w.classList.toggle("left-collapsed", !left);
   w.classList.toggle("left-expanded", left);
   $("toggle-left").title = left ? "Collapse filters" : "Expand filters";
@@ -2916,8 +2922,11 @@ function applyPanels() {
   if (tour) requestAnimationFrame(positionTourCue);
 }
 function closeMobileFilters() {
-  panelPrefs.left = false;
-  savePanels();
+  compactFilters = false;
+  if (!compactLayout.matches) {
+    panelPrefs.left = false;
+    savePanels();
+  }
   applyPanels();
   $("toggle-left").focus();
 }
@@ -2925,21 +2934,27 @@ $("close-filters").onclick = closeMobileFilters;
 $("filter-scrim").onclick = closeMobileFilters;
 $("apply-mobile-filters").onclick = closeMobileFilters;
 $("filters-panel").addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && compactLayout.matches && panelPrefs.left) {
+  if (e.key === "Escape" && compactLayout.matches && compactFilters) {
     e.preventDefault();
     e.stopPropagation();
     closeMobileFilters();
   }
 });
 compactLayout.addEventListener("change", () => {
+  compactFilters = false;
   applyPanels();
   if (data) refreshViews();
 });
 $("toggle-left").onclick = () => {
+  if (compactLayout.matches) {
+    compactFilters = !compactFilters;
+    applyPanels();
+    if (compactFilters) $("close-filters").focus();
+    return;
+  }
   panelPrefs.left = !panelPrefs.left;
   applyPanels();
   savePanels();
-  if (compactLayout.matches && panelPrefs.left) $("close-filters").focus();
 };
 $("show-toc").onclick = () => {
   detailOpen = true;
