@@ -63,12 +63,16 @@ export type Task = {
 export type State = {
   revision: number;
   project?: { name?: string; title?: string; workspaceName?: string };
-  statuses: Array<{ id: string; label: string; complete?: boolean }>;
+  statuses: Array<{ id: string; label: string; color?: string; complete?: boolean }>;
   epics: Array<{ id: string; title: string }>;
-  tracks: Array<{ id: string; label: string }>;
+  tracks: Array<{ id: string; label: string; color?: string }>;
   tasks: Task[];
   edges: Array<{ id?: string; from: string; to: string; kind: string; reason?: string }>;
   documents: Record<string, DocumentRecord>;
+  presentation?: {
+    views?: Array<{ id: string; title: string; caption?: string }>;
+    tours?: Array<{ id: string; title: string; steps?: unknown[] }>;
+  };
 };
 
 export type DocumentRecord = {

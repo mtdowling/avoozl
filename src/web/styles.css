@@ -1,3 +1,4 @@
+@import "../style.css";
 @import "@assistant-ui/react-markdown/styles/dot.css";
 
 :root {
@@ -12,13 +13,17 @@
   --panel-2: #202020;
   --panel-3: #272727;
   --line: #343434;
+  --border: #343434;
   --muted: #a0a0a0;
   --text: #eeeeee;
   --bright: #eeeeee;
-  --accent: #6ba5ff;
-  --accent-2: #8ab8ff;
-  --selected: #8ab8ff;
-  --on: #8edabb;
+  --accent: #8be9fd;
+  --accent-2: #8be9fd;
+  --selected: #ff79c6;
+  --on: #50fa7b;
+  --working: #bd93f9;
+  --working-ink: #1b1030;
+  --landed: #50fa7b;
   --danger: #eda076;
   --warning: #d7bd78;
 }

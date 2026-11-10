@@ -24,7 +24,11 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createEpicProgress } from "../progress.mjs";
+import { createSingleStrip } from "../strip.mjs";
+import { createWorkbench } from "../workbench.mjs";
+import { dependencyLayout, dependencyPath, NODE_H, NODE_W } from "../graph-layout.mjs";
 import { command, get, submissionId } from "./api";
 import { loadState, loadWorkspace, useRemote, useWorkspaceEvents } from "./hooks";
 import type { DocumentRecord, PlanSummary, RunSummary, State, Task, Workspace } from "./types";
@@ -34,22 +38,23 @@ const PlanEditor = lazy(() => import("./Editors").then((module) => ({ default: m
 const DocumentEditor = lazy(() => import("./Editors").then((module) => ({ default: module.DocumentEditor })));
 const MarkdownPreview = lazy(() => import("./Editors").then((module) => ({ default: module.MarkdownPreview })));
 
-type View = "overview" | "tasks" | "strip" | "epics" | "graph" | "documents" | "conversations" | "plans" | "settings";
+type View = "overview" | "tasks" | "epics" | "graph" | "documents" | "visualizations" | "conversations" | "plans" | "settings";
 
 const views: Array<{ id: View; label: string; icon: typeof LayoutDashboard }> = [
   { id: "overview", label: "Now", icon: Activity },
-  { id: "tasks", label: "Task tree", icon: ListTodo },
-  { id: "strip", label: "Single strip", icon: GitBranch },
-  { id: "epics", label: "Epic progress", icon: Boxes },
-  { id: "graph", label: "Dependency graph", icon: Network },
+  { id: "tasks", label: "Tree", icon: ListTodo },
+  { id: "epics", label: "Epics", icon: Boxes },
+  { id: "graph", label: "Graph", icon: Network },
   { id: "documents", label: "Plans", icon: FileText },
+  { id: "visualizations", label: "Visualizations", icon: GitBranch },
 ];
 
 const internalViews = new Set<View>(["conversations", "plans", "settings"]);
 
 function initialLocation() {
   const query = new URLSearchParams(location.search);
-  const requested = query.get("view") as View | null;
+  const rawView = query.get("view");
+  const requested = (rawView === "activity" ? "overview" : rawView) as View | null;
   return {
     view: (views.some((item) => item.id === requested) || (requested && internalViews.has(requested))) ? requested! : (query.get("run") ? "conversations" : query.get("plan") ? "plans" : query.get("document") ? "documents" : "overview"),
     runId: query.get("run"),
@@ -535,46 +540,262 @@ function Documents({ workspace, state, selected, select, selectedPlan, selectPla
   </section>;
 }
 
-function SingleStrip({ state, openTask }: { state: State; openTask: (task: Task) => void }) {
-  const statusOrder = state.statuses.map((status) => status.id);
-  return <section className="screen strip-screen">
-    <header className="screen-heading"><div><h1>Single strip</h1><p>Work arranged across delivery stages.</p></div><span>{state.tasks.length} tasks</span></header>
-    <div className="delivery-strip">{state.statuses.map((status) => {
-      const tasks = state.tasks.filter((task) => task.status === status.id);
-      return <section className="strip-stage-column" key={status.id}><header><span className={`status-dot status-${status.id}`} /><strong>{status.label}</strong><small>{tasks.length}</small></header><div>{tasks.map((task) => <button key={task.id} onClick={() => openTask(task)}><strong>{task.title}</strong><small>{task.id}</small></button>)}</div></section>;
-    })}</div>
-    {!statusOrder.length && <Empty icon={GitBranch} title="No delivery stages">Configure task statuses to populate the strip.</Empty>}
+type StripController = ReturnType<typeof createSingleStrip>;
+type EpicController = ReturnType<typeof createEpicProgress>;
+type WorkbenchController = ReturnType<typeof createWorkbench>;
+
+function RecentNow({ state, matchingTasks, openTask }: { state: State; matchingTasks: Task[]; openTask: (task: Task) => void }) {
+  const root = useRef<HTMLElement>(null);
+  const stripRoot = useRef<HTMLDivElement>(null);
+  const nowRoot = useRef<HTMLDivElement>(null);
+  const taskSink = useRef<HTMLDivElement>(null);
+  const strip = useRef<StripController | null>(null);
+  const workbench = useRef<WorkbenchController | null>(null);
+  const camera = useRef({ scale: 1, center: 0.5 });
+  const [order, setOrder] = useState("chronological");
+  const [, repaint] = useState(0);
+  const matchingIds = useMemo(() => new Set(matchingTasks.map((task) => task.id)), [matchingTasks]);
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  const openTaskRef = useRef(openTask);
+  openTaskRef.current = openTask;
+
+  useEffect(() => {
+    if (!root.current || !stripRoot.current || !nowRoot.current || !taskSink.current || strip.current) return;
+    strip.current = createSingleStrip(stripRoot.current, {
+      select(id: string) {
+        const task = stateRef.current.tasks.find((item) => item.id === id);
+        if (task) openTaskRef.current(task);
+      },
+      changeOrder(next: string) {
+        camera.current = { scale: 1, center: 0.5 };
+        setOrder(next);
+      },
+      changeCamera(next: { scale: number; center: number }) {
+        camera.current = next;
+      },
+    });
+    workbench.current = createWorkbench({
+      tasksElement: taskSink.current,
+      nowElement: nowRoot.current,
+      nowScrollElement: root.current,
+      nowChanged(snapshot: unknown) {
+        strip.current?.updateActivity?.(snapshot);
+      },
+      badge(id: string) {
+        const status = stateRef.current.statuses.find((item) => item.id === id);
+        return `<span class="badge" style="--status:${status?.color || "#aabbcc"}"><span>●</span>${status?.label || id}</span>`;
+      },
+      epicName(id: string) {
+        return stateRef.current.epics.find((item) => item.id === id)?.title || stateRef.current.documents[id?.replace(/^doc:/, "")]?.title || id || "Unassigned";
+      },
+      trackName(id: string) {
+        return stateRef.current.tracks.find((item) => item.id === id)?.label || id;
+      },
+      refresh() {
+        repaint((value) => value + 1);
+      },
+      setCount() {},
+    });
+    const click = (event: MouseEvent) => {
+      const target = event.target as Element;
+      const taskTarget = target.closest<HTMLElement>("[data-task],[data-edit]");
+      const id = taskTarget?.dataset.task || taskTarget?.dataset.edit;
+      const task = id ? stateRef.current.tasks.find((item) => item.id === id) : undefined;
+      if (task) openTaskRef.current(task);
+    };
+    nowRoot.current.addEventListener("click", click);
+    return () => {
+      nowRoot.current?.removeEventListener("click", click);
+      workbench.current?.suspend();
+      strip.current?.suspend();
+    };
+  }, []);
+
+  useEffect(() => {
+    strip.current?.render({
+      data: state,
+      historical: true,
+      matchingIds,
+      scope: "all",
+      selected: "",
+      order,
+      ...camera.current,
+      focusMatches: false,
+      focusToken: "",
+    });
+    workbench.current?.renderNow({ data: state, rows: matchingTasks, selected: "" });
+  }, [matchingIds, order, state]);
+
+  return <section className="content-view recent-now" id="activity-view" ref={root}>
+    <div className="strip-view" id="strip-view" aria-label="Work across the plans" ref={stripRoot} />
+    <div id="now-content" ref={nowRoot} />
+    <div hidden ref={taskSink} />
   </section>;
 }
 
-function EpicProgress({ state, openTask }: { state: State; openTask: (task: Task) => void }) {
-  const complete = new Set(state.statuses.filter((status) => status.complete).map((status) => status.id));
-  return <section className="screen epics-screen">
-    <header className="screen-heading"><div><h1>Epic progress</h1><p>Completion and remaining work by epic.</p></div><span>{state.epics.length} epics</span></header>
-    <div className="epic-list">{state.epics.map((epic) => {
-      const tasks = state.tasks.filter((task) => task.epic === epic.id);
-      const done = tasks.filter((task) => complete.has(task.status)).length;
-      const percent = tasks.length ? Math.round(done / tasks.length * 100) : 0;
-      return <details className="epic-progress-card" key={epic.id}><summary><div><small>{epic.id}</small><h2>{epic.title}</h2><span>{tasks.length - done} remaining · {tasks.length} total tasks</span></div><div className="epic-meter"><strong>{percent}%</strong><div className="plan-meter"><i style={{ width: `${percent}%` }} /></div></div></summary><div className="epic-task-list">{tasks.map((task) => <button key={task.id} onClick={() => openTask(task)}><span>{task.title}</span><small>{state.statuses.find((status) => status.id === task.status)?.label || task.status}</small></button>)}</div></details>;
-    })}</div>
-  </section>;
+function EpicProgress({ state, matchingTasks, openTask }: { state: State; matchingTasks: Task[]; openTask: (task: Task) => void }) {
+  const root = useRef<HTMLDivElement>(null);
+  const controller = useRef<EpicController | null>(null);
+  const [zoom, setZoom] = useState(100);
+  const matchingIds = useMemo(() => new Set(matchingTasks.map((task) => task.id)), [matchingTasks]);
+  const openTaskRef = useRef(openTask);
+  openTaskRef.current = openTask;
+
+  useEffect(() => {
+    if (!root.current || controller.current) return;
+    controller.current = createEpicProgress(root.current, {
+      select(id: string) {
+        const task = state.tasks.find((item) => item.id === id);
+        if (task) openTaskRef.current(task);
+      },
+      changeZoom: setZoom,
+    });
+    return () => controller.current?.suspend();
+  }, [state.tasks]);
+
+  useEffect(() => {
+    controller.current?.render({
+      data: state,
+      matchingIds,
+      scope: "all",
+      selected: "",
+      zoom,
+    });
+  }, [matchingIds, state, zoom]);
+
+  return <div className="legacy-visualization epic-view" ref={root} />;
 }
 
-function Graph({ state, openTask }: { state: State; openTask: (task: Task) => void }) {
-  const tasks = state.tasks.slice(0, 80);
-  const positions = useMemo(() => new Map(tasks.map((task, index) => [task.id, { x: 110 + (index % 4) * 250, y: 90 + Math.floor(index / 4) * 120 }])), [tasks]);
-  const width = Math.max(1000, 110 + Math.min(4, tasks.length) * 250);
-  const height = Math.max(620, 150 + Math.ceil(tasks.length / 4) * 120);
+function Graph({ state, matchingTasks, openTask }: { state: State; matchingTasks: Task[]; openTask: (task: Task) => void }) {
+  const baseTasks = matchingTasks.slice(0, 180);
+  const [selected, setSelected] = useState("");
+  const [relation, setRelation] = useState("");
+  const baseLinks = useMemo(() => {
+    const ids = new Set(baseTasks.map((task) => task.id));
+    return state.edges.filter((edge) => ids.has(edge.from) && ids.has(edge.to));
+  }, [baseTasks, state.edges]);
+  const connected = useMemo(() => {
+    const ids = new Set<string>();
+    if (!selected || !relation) return ids;
+    const queue = [selected];
+    ids.add(selected);
+    while (queue.length) {
+      const id = queue.shift()!;
+      for (const edge of baseLinks) {
+        const next =
+          (relation === "downstream" || relation === "both") && edge.from === id ? edge.to :
+          (relation === "upstream" || relation === "both") && edge.to === id ? edge.from : "";
+        if (next && !ids.has(next)) {
+          ids.add(next);
+          queue.push(next);
+        }
+      }
+    }
+    return ids;
+  }, [baseLinks, relation, selected]);
+  const tasks = relation && selected ? baseTasks.filter((task) => connected.has(task.id)) : baseTasks;
+  const links = useMemo(() => {
+    const ids = new Set(tasks.map((task) => task.id));
+    return baseLinks.filter((edge) => ids.has(edge.from) && ids.has(edge.to));
+  }, [baseLinks, tasks]);
+  const positions = useMemo(() => dependencyLayout(tasks, links, (task: Task) => task.epic || ""), [links, tasks]);
+  const stage = useRef<HTMLDivElement>(null);
+  const [camera, setCamera] = useState({ x: 0, y: 0, scale: 1 });
+  const [drag, setDrag] = useState<{ x: number; y: number; cameraX: number; cameraY: number } | null>(null);
+  const bounds = useMemo(() => {
+    const points = Object.values(positions);
+    const minX = Math.min(0, ...points.map((point) => point.x)) - 110;
+    const minY = Math.min(0, ...points.map((point) => point.y)) - 55;
+    const maxX = Math.max(NODE_W, ...points.map((point) => point.x + NODE_W)) + 110;
+    const maxY = Math.max(NODE_H, ...points.map((point) => point.y + NODE_H)) + 55;
+    return { minX, minY, maxX, maxY, width: maxX - minX, height: maxY - minY };
+  }, [positions]);
+  const fit = useCallback(() => {
+    const box = stage.current?.getBoundingClientRect();
+    if (!box) return;
+    const scale = Math.max(.05, Math.min(1.25, box.width / bounds.width, box.height / bounds.height));
+    setCamera({
+      scale,
+      x: (box.width - bounds.width * scale) / 2 - bounds.minX * scale,
+      y: (box.height - bounds.height * scale) / 2 - bounds.minY * scale,
+    });
+  }, [bounds]);
+  useEffect(() => { fit(); }, [fit]);
+  function zoom(factor: number, clientX?: number, clientY?: number) {
+    const box = stage.current?.getBoundingClientRect();
+    if (!box) return;
+    const anchorX = clientX == null ? box.width / 2 : clientX - box.left;
+    const anchorY = clientY == null ? box.height / 2 : clientY - box.top;
+    setCamera((current) => {
+      const scale = Math.max(.05, Math.min(3, current.scale * factor));
+      const ratio = scale / current.scale;
+      return { scale, x: anchorX - (anchorX - current.x) * ratio, y: anchorY - (anchorY - current.y) * ratio };
+    });
+  }
   return (
-    <section className="screen graph-screen">
-      <header className="screen-heading"><div><h1>Dependency graph</h1><p>Prerequisite and sequencing relationships.</p></div><span>{tasks.length} tasks · {state.edges.length} relationships</span></header>
-      <div className="graph-canvas"><svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Task dependency graph">
-        <defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" /></marker></defs>
-        {state.edges.map((edge, index) => { const from = positions.get(edge.from), to = positions.get(edge.to); return from && to ? <line key={edge.id || index} x1={from.x + 82} y1={from.y} x2={to.x - 82} y2={to.y} markerEnd="url(#arrow)" className={`edge edge-${edge.kind}`} /> : null; })}
-        {tasks.map((task) => { const point = positions.get(task.id)!; return <g key={task.id} transform={`translate(${point.x - 82} ${point.y - 32})`} onClick={() => openTask(task)} role="button" tabIndex={0}><rect width="164" height="64" rx="12" className={`graph-node status-${task.status}`} /><text x="12" y="24">{task.title.slice(0, 22)}</text><text x="12" y="45" className="node-meta">{task.status} · {task.id.slice(0, 18)}</text></g>; })}
-      </svg></div>
+    <section className="graph-view">
+      <div className="graph-top"><span><i className="legend-line" /> prerequisite → dependent <i className="legend-line dashed" /> supports / sequence</span><select aria-label="Explore selected task relationships" value={relation} onChange={(event) => setRelation(event.target.value)}><option value="">Whole matching graph</option><option value="upstream">All prerequisites of selected</option><option value="downstream">Everything selected unblocks</option><option value="both">Connected to selected</option></select></div>
+      <div id="graph-stage" className={drag ? "dragging" : ""} ref={stage} tabIndex={0}
+        onPointerDown={(event) => {
+          if ((event.target as Element).closest(".graph-controls, .graph-node-group")) return;
+          event.currentTarget.setPointerCapture(event.pointerId);
+          setDrag({ x: event.clientX, y: event.clientY, cameraX: camera.x, cameraY: camera.y });
+        }}
+        onPointerMove={(event) => drag && setCamera((current) => ({ ...current, x: drag.cameraX + event.clientX - drag.x, y: drag.cameraY + event.clientY - drag.y }))}
+        onPointerUp={() => setDrag(null)}
+        onPointerCancel={() => setDrag(null)}
+        onWheel={(event) => { event.preventDefault(); zoom(Math.exp(-Math.max(-120, Math.min(120, event.deltaY)) * .003), event.clientX, event.clientY); }}
+        onKeyDown={(event) => { if (event.key === "+" || event.key === "=") zoom(1.2); else if (event.key === "-") zoom(1 / 1.2); else if (event.key === "0") fit(); }}>
+        <svg id="graph" role="group" aria-label="Task dependency graph">
+          <defs>
+            <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,4 L0,8" fill="currentColor" /></marker>
+            <pattern id="grid" width="28" height="28" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r=".8" fill="#333d51" /></pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#grid)" />
+          <g transform={`translate(${camera.x},${camera.y}) scale(${camera.scale})`}>
+            {links.map((edge, index) => <path key={edge.id || index} className={`edge ${edge.kind}`} d={dependencyPath(edge, positions, links)}><title>{edge.kind}: {edge.reason}</title></path>)}
+            {tasks.map((task) => {
+              const point = positions[task.id];
+              const status = state.statuses.find((item) => item.id === task.status);
+              const track = state.tracks.find((item) => item.id === task.track);
+              const title = task.title.length > 30 ? task.title.slice(0, 29) + "…" : task.title;
+              return <g className={`graph-node graph-node-group ${selected === task.id ? "selected" : ""}`} key={task.id} transform={`translate(${point.x},${point.y})`} onClick={() => { setSelected(task.id); openTask(task); }} role="button" tabIndex={0}>
+                <title>{task.title} — {status?.label || task.status}. {task.summary}</title>
+                <rect className="node-bg" width={NODE_W} height={NODE_H} rx="8" />
+                <rect x="0" y="16" width="3" height="74" fill={track?.color || "#8899aa"} rx="2" />
+                <text className="node-track" x="16" y="20">{task.epic?.startsWith("doc:") ? "PLAN" : task.epic} · {track?.label?.toUpperCase() || "TASK"}</text>
+                <text className="node-title" x="16" y="47">{title}</text>
+                <circle cx="20" cy="84" r="3" fill={status?.color || "#8899aa"} />
+                <text className="node-status" x="29" y="87" fill={status?.color || "#8899aa"}>{status?.label || task.status}</text>
+                <text className="node-badge" x="232" y="86" textAnchor="end">↗</text>
+              </g>;
+            })}
+          </g>
+        </svg>
+        <div className="graph-controls"><button onClick={() => zoom(.8)} aria-label="Zoom out">−</button><output>{Math.round(camera.scale * 100)}%</output><button onClick={() => zoom(1.25)} aria-label="Zoom in">＋</button><button onClick={fit}>Fit</button><button onClick={fit}>Reset layout</button></div>
+        <div className="graph-instructions">Drag canvas to pan · scroll / pinch to zoom · click to inspect</div>
+      </div>
+      <div className="graph-footer"><span>{tasks.length} matching tasks · {links.length} connections</span><span>Positions stay in this browser. Task data comes from the workspace.</span></div>
     </section>
   );
+}
+
+function Visualizations({ state }: { state: State }) {
+  const [tab, setTab] = useState<"views" | "tours">("views");
+  const views = state.presentation?.views || [];
+  const tours = state.presentation?.tours || [];
+  const rows = tab === "views" ? views : tours;
+  return <section className="screen visualization-list">
+    <div className="hub-tabs" role="tablist" aria-label="Saved visualizations">
+      <button role="tab" aria-selected={tab === "views"} onClick={() => setTab("views")}>Saved views <span>{views.length}</span></button>
+      <button role="tab" aria-selected={tab === "tours"} onClick={() => setTab("tours")}>Presentations <span>{tours.length}</span></button>
+    </div>
+    <section role="tabpanel">
+      <p className="visualization-note">{tab === "views" ? "Saved views restore a filter, camera and layout. Deleting one removes the saved configuration only, never tasks or plans." : "A presentation plays a narrated sequence of saved views. Deleting one removes the sequence; the views it points at stay."}</p>
+      {rows.length ? <div className="visualization-rows">{rows.map((item) => <div className="visualization-row" key={item.id}><button><strong>{item.title}</strong>{"caption" in item && item.caption ? <span>{item.caption}</span> : "steps" in item && item.steps?.length ? <span>{item.steps.length} {item.steps.length === 1 ? "step" : "steps"}</span> : null}</button></div>)}</div> : <p className="muted">{tab === "views" ? "No saved views yet." : "No presentations yet."} Agents create them through the plans MCP tools.</p>}
+    </section>
+  </section>;
 }
 
 function TaskDrawer({ task, state, close, refresh }: { task: Task; state: State; close: () => void; refresh: () => void }) {
@@ -613,7 +834,7 @@ export function App() {
 
   useEffect(() => {
     const query = new URLSearchParams();
-    query.set("view", view);
+    query.set("view", view === "overview" ? "activity" : view);
     if (view === "conversations" && runId) query.set("run", runId);
     if (view === "plans" && planId) query.set("plan", planId);
     if (view === "documents") {
@@ -622,6 +843,35 @@ export function App() {
     }
     history.replaceState(null, "", "?" + query);
   }, [view, runId, planId, documentId]);
+
+  useEffect(() => {
+    const openSession = (event: Event) => {
+      const id = (event as CustomEvent<{ id?: string }>).detail?.id;
+      if (id) openRun(id);
+    };
+    const askContext = async (event: Event) => {
+      const prompt = (event as CustomEvent<{ prompt?: string }>).detail?.prompt;
+      if (!prompt) return;
+      const id = submissionId();
+      const provider = workspace.data?.providers[0];
+      const result = await command<any>("intent.submit", {
+        action: "ask",
+        prompt,
+        provider: provider?.id || provider?.name,
+        approvalMode: "manual",
+        submissionId: id,
+        runId: "run-" + id,
+        context: {},
+      });
+      if (result.run?.id) openRun(result.run.id);
+    };
+    window.addEventListener("nupp-open-session", openSession);
+    window.addEventListener("nupp-ask-context", askContext);
+    return () => {
+      window.removeEventListener("nupp-open-session", openSession);
+      window.removeEventListener("nupp-ask-context", askContext);
+    };
+  }, [workspace.data]);
 
   function navigate(next: View) { setView(next); setNavOpen(false); }
   function openRun(id: string) { setRunId(id); navigate("conversations"); }
@@ -656,14 +906,14 @@ export function App() {
       {navOpen && <button className="nav-scrim" aria-label="Close navigation" onClick={() => setNavOpen(false)} />}
       <main className="app-main">
         <header className="app-toolbar"><button className="mobile-menu" onClick={toggleNavigation}><Menu size={18} /></button><strong>{currentView.label}</strong><span className="toolbar-rule" /><span>{stateData.tasks.length} tasks</span><div className="toolbar-spacer" /><span className={workspaceData.agentHost?.connected ? "live-light connected" : "live-light"} /><span>{workspaceData.agentHost?.connected ? "Connected" : "Offline"}</span><button onClick={refresh} title="Refresh"><RefreshCw size={14} /></button></header>
-        {view === "overview" && <Overview workspace={workspaceData} state={stateData} openRun={openRun} openTask={setDrawerTask} />}
+        {view === "overview" && <FacetedWorkbench state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters}>{(tasks) => <RecentNow state={stateData} matchingTasks={tasks} openTask={setDrawerTask} />}</FacetedWorkbench>}
         {view === "tasks" && <FacetedWorkbench state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters}>{(tasks) => <Tasks state={stateData} tasks={tasks} openTask={setDrawerTask} />}</FacetedWorkbench>}
-        {view === "strip" && <FacetedWorkbench state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters}>{(tasks) => <SingleStrip state={{ ...stateData, tasks }} openTask={setDrawerTask} />}</FacetedWorkbench>}
-        {view === "epics" && <FacetedWorkbench state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters}>{(tasks) => <EpicProgress state={{ ...stateData, tasks }} openTask={setDrawerTask} />}</FacetedWorkbench>}
+        {view === "epics" && <FacetedWorkbench state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters}>{(tasks) => <EpicProgress state={stateData} matchingTasks={tasks} openTask={setDrawerTask} />}</FacetedWorkbench>}
         {view === "conversations" && <Conversations workspace={workspaceData} selected={runId} select={setRunId} refresh={refresh} />}
         {view === "plans" && <Plans workspace={workspaceData} selected={planId} select={openPlan} refresh={refresh} />}
         {view === "documents" && <Documents workspace={workspaceData} state={stateData} selected={documentId} select={(id) => id ? openDocument(id) : setDocumentId(null)} selectedPlan={planId} selectPlan={setPlanId} refresh={refresh} />}
-        {view === "graph" && <FacetedWorkbench state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters}>{(tasks) => <Graph state={{ ...stateData, tasks }} openTask={setDrawerTask} />}</FacetedWorkbench>}
+        {view === "graph" && <FacetedWorkbench state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters}>{(tasks) => <Graph state={stateData} matchingTasks={tasks} openTask={setDrawerTask} />}</FacetedWorkbench>}
+        {view === "visualizations" && <Visualizations state={stateData} />}
         {view === "settings" && <SettingsView workspace={workspaceData} state={stateData} />}
       </main>
       {drawerTask && <TaskDrawer task={drawerTask} state={stateData} close={() => setDrawerTask(null)} refresh={refresh} />}

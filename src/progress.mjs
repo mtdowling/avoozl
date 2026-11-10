@@ -30,7 +30,7 @@ export function createEpicProgress(root, { select, changeZoom }) {
     },
   });
   const rowHeight = 144,
-    axisHeight = 88; // Scrolling title (64px) and axis (24px).
+    axisHeight = 58; // Scrolling caption (34px) and axis (24px).
   function schedule() {
     if (!frame) frame = requestAnimationFrame(paint);
   }
@@ -151,7 +151,7 @@ export function createEpicProgress(root, { select, changeZoom }) {
       }),
     }));
     observer?.disconnect();
-    root.innerHTML = `<div class="epic-controls" role="group" aria-label="Epic zoom controls"><div class="epic-zoom"><button class="button subtle" data-epic-zoom="100">Fit</button><div class="epic-scale"><button data-epic-factor=".8" aria-label="Zoom epic bars out">−</button><input type="range" min="0" max="14" step="0.01" value="${Math.log2(zoom)}" aria-label="Epic zoom"><button data-epic-factor="1.25" aria-label="Zoom epic bars in">＋</button><output>${zoom < 1000 ? zoom.toFixed(1) : Math.round(zoom)}%</output></div></div></div><div class="epic-scroll" tabindex="0" aria-label="Epic progress chart. Pinch to zoom; drag in any direction."><div class="epic-chart-window"><header class="epic-scroll-heading"><h2>Progress by epic</h2><p>${rows.length} epics · pinch to zoom, drag in any direction.</p></header><div class="epic-axis"><span>0% · plan order →</span><span>100% of scope</span></div></div></div>`;
+    root.innerHTML = `<div class="epic-controls" role="group" aria-label="Epic zoom controls"><div class="epic-zoom"><button class="button subtle" data-epic-zoom="100">Fit</button><div class="epic-scale"><button data-epic-factor=".8" aria-label="Zoom epic bars out">−</button><input type="range" min="0" max="14" step="0.01" value="${Math.log2(zoom)}" aria-label="Epic zoom"><button data-epic-factor="1.25" aria-label="Zoom epic bars in">＋</button><output>${zoom < 1000 ? zoom.toFixed(1) : Math.round(zoom)}%</output></div></div></div><div class="epic-scroll" tabindex="0" aria-label="Epic progress chart. Pinch to zoom; drag in any direction."><div class="epic-chart-window"><header class="epic-scroll-heading"><p>${rows.length} epics · pinch to zoom, drag in any direction.</p></header><div class="epic-axis"><span>0% · plan order →</span><span>100% of scope</span></div></div></div>`;
     viewport = root.querySelector(".epic-scroll");
     chart = root.querySelector(".epic-chart-window");
     const labelWidth = viewport.clientWidth < 600 ? 150 : 220,
@@ -355,6 +355,14 @@ export function installEpicGestures(
   });
   function pointerEnd(e) {
     if (!pointers.has(e.pointerId)) return;
+    const viewport = getViewport();
+    // Touch capture moves from the pressed task to the viewport when dragging
+    // starts. The task's bubbling lostpointercapture does not end that drag.
+    if (
+      e.type === "lostpointercapture" &&
+      (e.target !== viewport || viewport?.hasPointerCapture(e.pointerId))
+    )
+      return;
     const moved = pan?.moved;
     pointers.delete(e.pointerId);
     getViewport()?.classList.remove("panning");
