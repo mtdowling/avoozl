@@ -315,6 +315,7 @@ export type PlanSummary = {
   revision?: number;
   hash?: string;
   updatedAt?: string;
+  projectId?: string;
 };
 
 export type Plan = PlanSummary & {

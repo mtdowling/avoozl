@@ -67,6 +67,8 @@ const pageDescriptions: Partial<Record<View, string>> = {
   insights: "Review agent activity and reported usage over time.",
 };
 
+const CONTEXT_CHAT_PROMPT = "You are attached to the current Avoozl workspace context. Briefly identify the selected plan or task, the active filters, and the repository context available to you, then wait for my questions.";
+
 function initialLocation() {
   const query = new URLSearchParams(location.search);
   const rawView = query.get("view");
@@ -1644,22 +1646,12 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
     setNavOpen(false);
   }
   function openOpenHandsChat() {
-    if (canvas) {
-      canvas.navigate("/conversations");
-      return;
-    }
-    let target = "*";
-    try {
-      if (document.referrer) target = new URL(document.referrer).origin;
-    } catch {}
-    window.parent.postMessage(
-      { type: "avoozl:openhands-route", path: "/conversations" },
-      target,
-    );
+    void startOpenHandsIntent("ask", CONTEXT_CHAT_PROMPT);
   }
   async function startOpenHandsIntent(action: "ask" | "draft", prompt: string) {
-    const projectId = workspace.data?.projects[0]?.id;
-    if (!projectId) {
+    const context = captureContext();
+    const projectId = context.projectId;
+    if (action === "draft" && !projectId) {
       window.alert("Configure an execution project before opening OpenHands.");
       return;
     }
@@ -1673,7 +1665,8 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
         approvalMode: "manual",
         submissionId: id,
         runId: "run-" + id,
-        context: {},
+        context,
+        title: `Avoozl · ${drawerTask?.title || workspace.data?.plans.find((plan) => plan.id === planId)?.title || views.find((item) => item.id === view)?.label || "Workspace"}`,
       });
       if (result.run?.id) await openRun(result.run.id, result.run);
       else if (result.plan?.id) openPlan(result.plan.id);
@@ -1750,6 +1743,34 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
     navigate("graph");
   }
   function captureContext(): CaptureContext {
+    const visibleTasks = filteredTasks(stateData, workbenchFilters);
+    const configuredProjectIds = new Set(
+      workspaceData.projects.map((project) => project.id),
+    );
+    const visibleProjectIds = [
+      ...new Set(
+        visibleTasks
+          .map((task) => task.projectId)
+          .filter(
+            (projectId): projectId is string =>
+              Boolean(projectId && configuredProjectIds.has(projectId)),
+          ),
+      ),
+    ] as string[];
+    const selectedPlan = workspaceData.plans.find((plan) => plan.id === planId);
+    const projectId =
+      (drawerTask?.projectId &&
+      configuredProjectIds.has(drawerTask.projectId)
+        ? drawerTask.projectId
+        : undefined) ||
+      (selectedPlan?.projectId &&
+      configuredProjectIds.has(selectedPlan.projectId)
+        ? selectedPlan.projectId
+        : undefined) ||
+      (visibleProjectIds.length === 1 ? visibleProjectIds[0] : undefined) ||
+      (workspaceData.projects.length === 1
+        ? workspaceData.projects[0].id
+        : undefined);
     const filterStrings = {
       scope: workbenchFilters.scopes.join(","),
       q: workbenchFilters.query,
@@ -1765,7 +1786,9 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
       view: view === "overview" ? "activity" : view === "epics" ? "epics" : ["tasks", "graph", "documents"].includes(view) ? view : "tasks",
       selected: drawerTask?.id,
       document: documentId,
-      taskIds: filteredTasks(stateData, workbenchFilters).slice(0, 500).map((task) => task.id),
+      planId,
+      projectId,
+      taskIds: visibleTasks.slice(0, 500).map((task) => task.id),
       filters: Object.fromEntries(Object.entries(filterStrings).filter(([, value]) => value)),
       url: `/?view=${encodeURIComponent(view === "overview" ? "activity" : view)}${drawerTask ? `&task=${encodeURIComponent(drawerTask.id)}` : ""}${documentId ? `&document=${encodeURIComponent(documentId)}` : ""}`,
     };
