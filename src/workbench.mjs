@@ -116,8 +116,14 @@ export function createWorkbench({
     return `<tr class="tree-task" data-workbench-task="${esc(task.id)}"><th class="tree-title-cell" scope="row"><button class="tree-task-open" title="${esc(task.title)}" data-task="${esc(task.id)}"><span class="tree-task-title">${esc(task.title)}</span></button><button class="tree-graph" data-focus-task="${esc(task.id)}" aria-label="Connections for ${esc(task.title)}" title="Connections">↗</button><small title="${esc(task.id)}">${esc(epicName(task.epic))} · ${esc(trackName(task.track))}</small></th><td class="tree-state-cell">${badge(task.status)}${signals.activity === "active" ? '<small class="tree-live">● In flight</small>' : signals.ready ? "<small>Ready</small>" : ""}</td><td class="tree-owner-cell">${esc(owner || "—")}</td><td class="tree-next-cell" title="${esc(task.nextAction || task.summary || "")}">${esc(task.nextAction || task.summary || "—")}</td><td class="tree-blocker-cell">${blockers(task) || '<span class="muted">—</span>'}</td></tr>`;
   }
   function groupRow(row, group) {
-    const percent = Math.round((row.root.complete / row.root.total) * 100);
-    return `<tr class="tree-group-row"><th class="tree-group-cell" colspan="${TREE_COLUMNS}" scope="rowgroup"><button class="tree-group-toggle" data-tree-group="${esc(row.key)}" aria-expanded="${expanded.get(row.key)}"><span class="tree-chevron">${expanded.get(row.key) ? "⌄" : "›"}</span><span><strong>${esc(groupName(row.root.key, group))}</strong><small>${row.root.tasks.length} tasks · ${row.root.complete} / ${row.root.total} complete</small></span><span class="tree-percent">${percent}%<i><em style="width:${percent}%"></em></i></span></button></th></tr>`;
+    const percent = Math.round((row.root.complete / row.root.total) * 100),
+      active = row.root.tasks.filter(
+        (task) => taskSignals(current.data, task).activity === "active",
+      ).length,
+      live = active
+        ? `<span class="active-session-beacon" title="${active} active ${active === 1 ? "session" : "sessions"}" aria-label="${active} active ${active === 1 ? "session" : "sessions"}" data-tooltip="${active} active ${active === 1 ? "session" : "sessions"}"></span>`
+        : "";
+    return `<tr class="tree-group-row"><th class="tree-group-cell" colspan="${TREE_COLUMNS}" scope="rowgroup"><button class="tree-group-toggle" data-tree-group="${esc(row.key)}" aria-expanded="${expanded.get(row.key)}"><span class="tree-chevron">${expanded.get(row.key) ? "⌄" : "›"}</span><span><strong>${esc(groupName(row.root.key, group))}${live}</strong><small>${row.root.tasks.length} tasks · ${row.root.complete} / ${row.root.total} complete</small></span><span class="tree-percent">${percent}%<i><em style="width:${percent}%"></em></i></span></button></th></tr>`;
   }
   // Windowing reserves each row's height before it is painted, so these must
   // match whatever CSS is in play. The compact single-line table and the

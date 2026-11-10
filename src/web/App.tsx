@@ -1,6 +1,5 @@
 import {
   Activity,
-  Archive,
   BarChart3,
   BookOpen,
   Bot,
@@ -40,13 +39,12 @@ import { EnhancedGraph } from "./EnhancedGraph";
 import { loadState, loadWorkspace, useRemote, useWorkspaceEvents } from "./hooks";
 import type { DocumentPlanSummary, DocumentRecord, PlanSummary, Run, RunSummary, SavedSearch, SavedView, State, Task, Workspace } from "./types";
 
-const Conversation = lazy(() => import("./Chat").then((module) => ({ default: module.Conversation })));
 const PlanEditor = lazy(() => import("./Editors").then((module) => ({ default: module.PlanEditor })));
 const DocumentEditor = lazy(() => import("./Editors").then((module) => ({ default: module.DocumentEditor })));
 const MarkdownPreview = lazy(() => import("./Editors").then((module) => ({ default: module.MarkdownPreview })));
 const MarkdownContent = lazy(() => import("./MarkdownContent"));
 
-type View = "overview" | "tasks" | "epics" | "graph" | "documents" | "reports" | "conversations" | "insights" | "plans" | "settings";
+type View = "overview" | "tasks" | "epics" | "graph" | "documents" | "reports" | "insights" | "plans" | "settings";
 
 const views: Array<{ id: View; label: string; icon: typeof LayoutDashboard }> = [
   { id: "overview", label: "Now", icon: Activity },
@@ -55,11 +53,10 @@ const views: Array<{ id: View; label: string; icon: typeof LayoutDashboard }> = 
   { id: "graph", label: "Graph", icon: Network },
   { id: "documents", label: "Plans", icon: FileText },
   { id: "reports", label: "Reports", icon: BarChart3 },
-  { id: "conversations", label: "Steer", icon: MessageSquare },
   { id: "insights", label: "Insights", icon: BarChart3 },
 ];
 
-const internalViews = new Set<View>(["conversations", "plans", "settings"]);
+const internalViews = new Set<View>(["plans", "settings"]);
 const pageDescriptions: Partial<Record<View, string>> = {
   overview: "See work in flight, up next, blocked, and waiting for review.",
   tasks: "Browse the task hierarchy with status, ownership, next actions, and blockers.",
@@ -67,7 +64,6 @@ const pageDescriptions: Partial<Record<View, string>> = {
   graph: "Explore dependencies and focus on connected tasks and epics.",
   documents: "Read, search, and manage the Markdown plans that define the work.",
   reports: "Save named searches and reopen a live report of matching work.",
-  conversations: "Chat with agents to explore, plan, and carry out work.",
   insights: "Review agent activity and reported usage over time.",
 };
 
@@ -77,13 +73,12 @@ function initialLocation() {
   const query = new URLSearchParams(location.search);
   const rawView = query.get("view");
   const requested = (rawView === "activity" ? "overview" : rawView) as View | null;
-  const canvasHost = query.get("canvas") === "1";
-  let view = (views.some((item) => item.id === requested) || (requested && internalViews.has(requested))) ? requested! : (query.get("run") ? "conversations" : query.get("plan") ? "plans" : query.get("document") ? "documents" : "overview");
-  if (canvasHost && view === "conversations") view = "overview";
+  const canvasHost =
+    query.get("canvas") === "1" || window.self !== window.top;
+  const view = (views.some((item) => item.id === requested) || (requested && internalViews.has(requested))) ? requested! : (query.get("plan") ? "plans" : query.get("document") ? "documents" : "overview");
   return {
     canvasHost,
     view,
-    runId: query.get("run"),
     planId: query.get("plan"),
     documentId: query.get("document"),
     taskId: query.get("task"),
@@ -259,78 +254,6 @@ function Overview({ workspace, state, openRun, openTask }: { workspace: Workspac
       <details className="hub-fold" id="hub-blocked" open={blocked.length > 0 || undefined}><summary><span><span className="hub-kicker">Blocked</span><strong>Blocked work</strong></span><small>{blocked.length}</small><ChevronDown size={15} /></summary><div>{blocked.map(taskRow)}{!blocked.length && <p className="hub-empty">No blocked work.</p>}</div></details>
       {!!completed.length && <details className="hub-fold"><summary><span><span className="hub-kicker">Completed</span><strong>Recently updated completed work</strong></span><small>{completed.length}</small><ChevronDown size={15} /></summary><div>{completed.map(taskRow)}</div></details>}
     </section>
-  );
-}
-
-function NewConversation({ workspace, onCreated, onPlanCreated, onTaskCreated, initialPrompt = "" }: { workspace: Workspace; onCreated: (id: string, run?: Run) => void; onPlanCreated: (id: string) => void; onTaskCreated: (task: Task) => void; initialPrompt?: string }) {
-  const [prompt, setPrompt] = useState(initialPrompt);
-  const [provider, setProvider] = useState(workspace.providers[0]?.id || workspace.providers[0]?.name || "codex");
-  const [projectId, setProjectId] = useState(workspace.projects[0]?.id || "");
-  const [model, setModel] = useState("");
-  const [approvalMode, setApprovalMode] = useState("manual");
-  const [action, setAction] = useState<"ask" | "task" | "run" | "draft">("ask");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const selectedProvider = workspace.providers.find((item) => (item.id || item.name) === provider);
-  const models = (selectedProvider?.models || []).map((item) => typeof item === "string" ? { id: item, name: item } : item);
-
-  async function submit(event: React.FormEvent) {
-    event.preventDefault();
-    setBusy(true);
-    setError("");
-    try {
-      const id = submissionId();
-      const result = await command<any>("intent.submit", {
-        action,
-        prompt,
-        provider: provider || undefined,
-        projectId: projectId || undefined,
-        model: model || undefined,
-        approvalMode,
-        submissionId: id,
-        runId: "run-" + id,
-        context: {},
-      });
-      if (result.run) onCreated(result.run.id, result.run);
-      else if (result.plan) onPlanCreated(result.plan.id);
-      else if (result.task) onTaskCreated(result.task);
-    } catch (cause) {
-      setError((cause as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className="new-conversation">
-      <h1>Start a conversation</h1>
-      <p>Ask a question, implement scoped work, or draft a plan.</p>
-      <form onSubmit={submit}>
-        <textarea autoFocus value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Describe the outcome, question, or decision…" required maxLength={20000} />
-        <div className="new-conversation-controls">
-          <select value={action} onChange={(e) => setAction(e.target.value as typeof action)}>
-            <option value="ask">Ask</option><option value="task">Capture task</option><option value="run">Implement</option><option value="draft">Draft plan</option>
-          </select>
-          <select value={provider} onChange={(e) => { setProvider(e.target.value); setModel(""); }} disabled={action === "task"}>
-            {workspace.providers.map((item) => { const id = item.id || item.name || ""; return <option value={id} key={id}>{item.label || item.name || id}</option>; })}
-          </select>
-          <select value={projectId} onChange={(e) => setProjectId(e.target.value)} disabled={action === "task"}>
-            <option value="">No execution project</option>
-            {workspace.projects.map((item) => <option value={item.id} key={item.id}>{item.name || item.id}</option>)}
-          </select>
-          <select value={model} onChange={(e) => setModel(e.target.value)} disabled={action === "task" || !models.length}>
-            <option value="">Default model</option>
-            {models.map((item) => <option value={item.id} key={item.id}>{item.name || item.id}</option>)}
-          </select>
-          <select value={approvalMode} onChange={(e) => setApprovalMode(e.target.value)} disabled={action === "task"}>
-            <option value="manual">Ask before tools</option>
-            <option value="auto">Approve allowed tools</option>
-          </select>
-          <button className="button primary" disabled={busy || !prompt.trim()}><Sparkles size={17} /> Start</button>
-        </div>
-        {error && <p className="error">{error}</p>}
-      </form>
-    </div>
   );
 }
 
@@ -627,35 +550,6 @@ function RecentTree({ state, tasks, openTask }: { state: State; tasks: Task[]; o
     <div id="tasks-view" ref={root} />
     <div hidden ref={nowSink} />
   </section>;
-}
-
-function Conversations({ workspace, selected, select, openRun, openPlan, openTask, refresh, initialPrompt = "" }: { workspace: Workspace; selected: string | null; select: (id: string | null) => void; openRun: (id: string, run?: Run) => void; openPlan: (id: string) => void; openTask: (task: Task) => void; refresh: () => void; initialPrompt?: string }) {
-  const [query, setQuery] = useState("");
-  const [archived, setArchived] = useState(false);
-  const [offset, setOffset] = useState(0);
-  const [tick, setTick] = useState(0);
-  const page = useRemote(() => command<{ items: RunSummary[]; total: number; offset: number; limit: number }>("run.list", { offset, limit: 40, archived }), [offset, archived, tick, workspace.revision]);
-  useEffect(() => {
-    const timer = window.setInterval(() => setTick((value) => value + 1), 15000);
-    return () => window.clearInterval(timer);
-  }, []);
-  const runs = (page.data?.items || []).filter((run) => !query || (run.title || run.id).toLowerCase().includes(query.toLowerCase()));
-  return (
-    <SplitScreen storageKey="avoozl-conversation-list-width" className="conversations-screen" sidebar={
-      <aside className="collection-sidebar">
-        <header><h2>Conversations</h2><button className="icon-button" onClick={() => select(null)} title="New conversation"><Plus size={19} /></button></header>
-        <label className="search-box"><Search size={16} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a conversation" /></label>
-        <label className="archive-toggle"><input type="checkbox" checked={archived} onChange={(event) => { setArchived(event.target.checked); setOffset(0); select(null); }} /><Archive size={13} /> Archived</label>
-        <div className="collection-list">
-          {runs.map((run) => <button key={run.id} className={selected === run.id ? "collection-item selected" : "collection-item"} onClick={() => run.provider === "openhands" ? void openRun(run.id, run as Run) : select(run.id)}><span className={`status-dot state-${run.state}`} /><span><strong>{run.title || run.id}</strong><small>{stateLabel(run)} · {run.provider || "agent"}</small></span></button>)}
-          {!page.data && <p className="muted">{page.error?.message || "Loading conversations…"}</p>}
-        </div>
-        {page.data && page.data.total > page.data.limit && <div className="collection-pager"><button disabled={!offset} onClick={() => setOffset(Math.max(0, offset - page.data!.limit))}>Previous</button><span>{offset + 1}–{Math.min(page.data.total, offset + page.data.limit)} of {page.data.total}</span><button disabled={offset + page.data.limit >= page.data.total} onClick={() => setOffset(offset + page.data!.limit)}>Next</button></div>}
-      </aside>
-    }>
-      {selected ? <Suspense fallback={<LoadingSurface label="Opening conversation…" />}><Conversation runId={selected} onRefresh={refresh} /></Suspense> : <NewConversation key={initialPrompt} workspace={workspace} initialPrompt={initialPrompt} onCreated={(id, run) => { void openRun(id, run); refresh(); }} onPlanCreated={openPlan} onTaskCreated={(task) => { openTask(task); refresh(); }} />}
-    </SplitScreen>
-  );
 }
 
 function Plans({ workspace, selected, select, refresh }: { workspace: Workspace; selected: string | null; select: (id: string) => void; refresh: () => void }) {
@@ -1642,7 +1536,6 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
         ? {
             canvasHost: true,
             view: "overview" as View,
-            runId: null,
             planId: null,
             documentId: null,
             taskId: null,
@@ -1652,13 +1545,11 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
   );
   const canvasHost = Boolean(canvas) || initial.canvasHost;
   const [view, setView] = useState<View>(initial.view);
-  const [runId, setRunId] = useState<string | null>(initial.runId);
   const [planId, setPlanId] = useState<string | null>(initial.planId);
   const [documentId, setDocumentId] = useState<string | null>(initial.documentId);
   const [drawerTask, setDrawerTask] = useState<Task | null>(null);
   const [captureOpen, setCaptureOpen] = useState(false);
   const [mcpOpen, setMcpOpen] = useState(false);
-  const [draftPrompt, setDraftPrompt] = useState("");
   const [workbenchFilters, setWorkbenchFilters] = useState<TaskFilters>(emptyTaskFilters);
   const [reportSourceView, setReportSourceView] = useState<SavedSearch["view"]>(() =>
     ["overview", "tasks", "epics", "graph", "documents"].includes(initial.view)
@@ -1688,7 +1579,6 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
     const query = new URLSearchParams();
     if (canvasHost) query.set("canvas", "1");
     query.set("view", view === "overview" ? "activity" : view);
-    if (view === "conversations" && runId) query.set("run", runId);
     if (view === "plans" && planId) query.set("plan", planId);
     if (view === "documents") {
       if (documentId) query.set("document", documentId);
@@ -1696,7 +1586,7 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
     }
     if (drawerTask) query.set("task", drawerTask.id);
     history.replaceState(null, "", "?" + query);
-  }, [canvas, canvasHost, view, runId, planId, documentId, drawerTask]);
+  }, [canvas, canvasHost, view, planId, documentId, drawerTask]);
 
   useEffect(() => {
     const shortcut = (event: KeyboardEvent) => {
@@ -1731,23 +1621,12 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
   useEffect(() => {
     const openSession = (event: Event) => {
       const id = (event as CustomEvent<{ id?: string }>).detail?.id;
-      if (id) openRun(id);
+      if (id) void openRun(id);
     };
     const askContext = async (event: Event) => {
       const prompt = (event as CustomEvent<{ prompt?: string }>).detail?.prompt;
       if (!prompt) return;
-      const id = submissionId();
-      const provider = workspace.data?.providers[0];
-      const result = await command<any>("intent.submit", {
-        action: "ask",
-        prompt,
-        provider: provider?.id || provider?.name,
-        approvalMode: "manual",
-        submissionId: id,
-        runId: "run-" + id,
-        context: {},
-      });
-      if (result.run?.id) openRun(result.run.id, result.run);
+      await startOpenHandsIntent("ask", prompt);
     };
     window.addEventListener("nupp-open-session", openSession);
     window.addEventListener("nupp-ask-context", askContext);
@@ -1766,12 +1645,57 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
     setView(next);
     setNavOpen(false);
   }
-  // Opens the composer holding the question rather than submitting it, so the
-  // agent and project are still the operator's to choose before a run starts.
-  function askAgent(prompt: string) { setDraftPrompt(prompt); setRunId(null); navigate("conversations"); }
+  async function startOpenHandsIntent(action: "ask" | "draft", prompt: string) {
+    const projectId = workspace.data?.projects[0]?.id;
+    if (!projectId) {
+      window.alert("Configure an execution project before opening OpenHands.");
+      return;
+    }
+    const id = submissionId();
+    try {
+      const result = await command<any>("intent.submit", {
+        action,
+        prompt,
+        provider: "openhands",
+        projectId,
+        approvalMode: "manual",
+        submissionId: id,
+        runId: "run-" + id,
+        context: {},
+      });
+      if (result.run?.id) await openRun(result.run.id, result.run);
+      else if (result.plan?.id) openPlan(result.plan.id);
+    } catch (error) {
+      window.alert((error as Error).message);
+    }
+  }
+  async function startTaskInOpenHands(task: Task) {
+    const projectId =
+      task.projectId ||
+      workspace.data?.runs.find((run) => run.taskId === task.id)?.projectId ||
+      workspace.data?.projects[0]?.id;
+    if (!projectId) {
+      window.alert("Configure an execution project before starting this task.");
+      return;
+    }
+    try {
+      const run = await command<Run>("run.start", {
+        taskId: task.id,
+        provider: "openhands",
+        projectId,
+        mode: "implement",
+        approvalMode: "manual",
+      });
+      setDrawerTask(null);
+      refresh();
+      await openRun(run.id, run);
+    } catch (error) {
+      window.alert((error as Error).message);
+    }
+  }
   async function openRun(id: string, startedRun?: Run) {
     let run: Run | RunSummary | undefined = startedRun || workspace.data?.runs.find((candidate) => candidate.id === id);
-    if (canvasHost && (!run?.provider || run.provider === "openhands")) {
+    if (!run || run.provider === "openhands") {
       for (let attempt = 0; attempt < 40 && !run?.providerSessionId && run?.state !== "failed"; attempt++) {
         if (attempt) await new Promise((resolve) => window.setTimeout(resolve, 250));
         try {
@@ -1803,8 +1727,7 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
         return;
       }
     }
-    setRunId(id);
-    navigate("conversations");
+    window.alert("This is not an OpenHands conversation. Avoozl no longer renders provider chat.");
   }
   function openPlan(id: string) { setPlanId(id); navigate("plans"); }
   function openDocument(id: string) { setDocumentId(id); navigate("documents"); }
@@ -1871,18 +1794,18 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
     navigate(next);
   }
 
+  if (!canvasHost) return <div className="boot-screen embedded-only"><div className="brand-mark">A</div><h1>Avoozl runs in OpenHands</h1><p>Open the Avoozl Canvas extension to plan, route, and inspect work. OpenHands owns conversations, terminals, files, and browsers.</p></div>;
   if (!workspace.data || !state.data) return <div className="boot-screen"><div className="brand-mark"><Sparkles /></div><h1>Avoozl</h1><p>{workspace.error?.message || state.error?.message || "Opening workspace…"}</p></div>;
   const workspaceData = workspace.data;
   const stateData = state.data;
-  const selectedRun = workspaceData.runs.find((run) => run.id === runId);
   const visibleViews = views;
   const workspaceName = stateData.project?.workspaceName || stateData.project?.title || stateData.project?.name || "Avoozl";
   const currentView = views.find((item) => item.id === view) || {
     id: view,
     icon: LayoutDashboard,
-    label: view === "conversations" ? "Conversation" : view === "plans" ? "Proposal" : "Settings",
+    label: view === "plans" ? "Proposal" : "Settings",
   };
-  const facetedView = view === "overview" || view === "tasks" || view === "epics" || view === "graph";
+  const facetedView = view === "overview" || view === "tasks" || view === "epics" || view === "graph" || view === "reports";
   const activeRunStates = new Set(["starting", "running", "waiting-input", "waiting-approval"]);
   const activeRuns = workspaceData.runs.filter((run) => activeRunStates.has(run.state));
   const activeTaskCount = stateData.tasks.filter((task) => task.activity?.status === "active").length;
@@ -1892,7 +1815,6 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
   const matchingCount = filteredTasks(stateData, workbenchFilters).length;
   const toolbarCount = view === "overview" ? `${inFlightCount} in flight` :
     facetedView ? `${matchingCount} ${matchingCount === 1 ? "task" : "tasks"}` :
-    view === "conversations" ? `${workspaceData.runTotal} ${workspaceData.runTotal === 1 ? "session" : "sessions"}` :
     view === "documents" ? `${Object.keys(stateData.documents).length} plans` :
     view === "reports" ? `${stateData.savedSearches?.length || 0} saved reports` :
     view === "insights" ? "Usage trends" :
@@ -1914,7 +1836,7 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
           <div className="toolbar-spacer" />
           {canvasHost && <button className="canvas-connection" onClick={() => setMcpOpen(true)} aria-label="Avoozl instance is live" aria-describedby="canvas-connection-tip"><i aria-hidden="true" /><span className="canvas-connection-tip" id="canvas-connection-tip" role="tooltip"><strong>Avoozl is live</strong><span>Avoozl server <code>{canvasServer}</code></span><span>MCP server <code>{canvasServer}/mcp</code></span><span>Workspace <code>{workspaceName}</code></span><span>Surface <code>OpenHands Canvas</code></span></span></button>}
           {facetedView && <button className={filtersOpen ? "toolbar-action active" : "toolbar-action"} onClick={toggleFilters} title={filtersOpen ? "Collapse filters" : "Show filters"} aria-expanded={filtersOpen}><Filter size={17} /></button>}
-          <button className="toolbar-action" onClick={() => askAgent(PROGRESS_PROMPT)} title="Ask an agent about progress"><MessageSquare size={17} /></button>
+          <button className="toolbar-action" onClick={() => void startOpenHandsIntent("ask", PROGRESS_PROMPT)} title="Ask OpenHands about progress"><MessageSquare size={17} /></button>
           <button className="toolbar-action" onClick={() => setCaptureOpen(true)} title="Capture a task from this view"><Plus size={17} /></button>
           <button className="toolbar-action" onClick={() => navigate("settings")} title="Avoozl settings"><Settings size={17} /></button>
           <button className="toolbar-action" onClick={() => document.fullscreenElement ? void document.exitFullscreen() : void document.documentElement.requestFullscreen()} title="Full screen"><Maximize2 size={17} /></button>
@@ -1923,15 +1845,14 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
         {view === "overview" && <FacetedWorkbench workspace={workspaceData} state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters} filtersOpen={filtersOpen} applyPromptView={applyVisualization}>{(tasks) => <RecentNow state={stateData} matchingTasks={tasks} openTask={openTask} />}</FacetedWorkbench>}
         {view === "tasks" && <FacetedWorkbench workspace={workspaceData} state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters} filtersOpen={filtersOpen} applyPromptView={applyVisualization}>{(tasks) => <RecentTree state={stateData} tasks={tasks} openTask={openTask} />}</FacetedWorkbench>}
         {view === "epics" && <FacetedWorkbench workspace={workspaceData} state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters} filtersOpen={filtersOpen} applyPromptView={applyVisualization}>{(tasks) => <EpicProgress state={stateData} matchingTasks={tasks} openTask={openTask} />}</FacetedWorkbench>}
-        {view === "conversations" && (!selectedRun || selectedRun.provider !== "openhands") && <Conversations workspace={workspaceData} selected={runId} select={setRunId} openRun={openRun} openPlan={openPlan} openTask={openTask} refresh={refresh} initialPrompt={draftPrompt} />}
         {view === "plans" && <Plans workspace={workspaceData} selected={planId} select={openPlan} refresh={refresh} />}
-        {view === "documents" && <Documents workspace={workspaceData} state={stateData} filters={workbenchFilters} clearTaskFilters={() => setWorkbenchFilters({ ...emptyTaskFilters })} selected={documentId} select={(id) => id ? openDocument(id) : setDocumentId(null)} selectedPlan={planId} selectPlan={setPlanId} refresh={refresh} openTask={openTask} planWithAgent={() => { setDraftPrompt("Develop a design plan for the outcome below. Ask clarifying questions where needed, then produce a reviewable Markdown plan with explicit deliverables and acceptance criteria.\\n\\n"); setRunId(null); navigate("conversations"); }} />}
+        {view === "documents" && <Documents workspace={workspaceData} state={stateData} filters={workbenchFilters} clearTaskFilters={() => setWorkbenchFilters({ ...emptyTaskFilters })} selected={documentId} select={(id) => id ? openDocument(id) : setDocumentId(null)} selectedPlan={planId} selectPlan={setPlanId} refresh={refresh} openTask={openTask} planWithAgent={() => void startOpenHandsIntent("draft", "Develop a design plan for the outcome below. Ask clarifying questions where needed, then produce a reviewable Markdown plan with explicit deliverables and acceptance criteria.")} />}
         {view === "graph" && <FacetedWorkbench workspace={workspaceData} state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters} filtersOpen={filtersOpen} applyPromptView={applyVisualization}>{(tasks) => <EnhancedGraph state={stateData} matchingTasks={tasks} openTask={openTask} />}</FacetedWorkbench>}
-        {view === "reports" && <Reports state={stateData} filters={workbenchFilters} sourceView={reportSourceView} apply={(report) => { setWorkbenchFilters(reportFilters(report.filters)); navigate(report.view); }} openTask={openTask} refresh={refresh} />}
+        {view === "reports" && <FacetedWorkbench workspace={workspaceData} state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters} filtersOpen={filtersOpen} applyPromptView={applyVisualization}>{() => <Reports state={stateData} filters={workbenchFilters} sourceView={reportSourceView} apply={(report) => { setWorkbenchFilters(reportFilters(report.filters)); navigate(report.view); }} openTask={openTask} refresh={refresh} />}</FacetedWorkbench>}
         {view === "insights" && <Insights />}
         {view === "settings" && <SettingsView workspace={workspaceData} state={stateData} refresh={refresh} openRun={openRun} />}
       </main>
-      {drawerTask && <TaskInspector key={drawerTask.id} task={drawerTask} state={stateData} close={() => setDrawerTask(null)} refresh={refresh} openDocument={(id) => { setDrawerTask(null); openDocument(id); }} openRun={(id) => { setDrawerTask(null); void openRun(id); }} exploreGraph={exploreTask} filterTag={(tag) => { setWorkbenchFilters({ ...emptyTaskFilters, tags: [tag] }); setDrawerTask(null); navigate("tasks"); }} />}
+      {drawerTask && <TaskInspector key={drawerTask.id} task={drawerTask} state={stateData} close={() => setDrawerTask(null)} refresh={refresh} openDocument={(id) => { setDrawerTask(null); openDocument(id); }} openRun={(id) => { setDrawerTask(null); void openRun(id); }} startRun={startTaskInOpenHands} exploreGraph={exploreTask} filterTag={(tag) => { setWorkbenchFilters({ ...emptyTaskFilters, tags: [tag] }); setDrawerTask(null); navigate("tasks"); }} />}
       {captureOpen && <TaskCaptureDialog context={captureContext()} close={() => setCaptureOpen(false)} created={(task) => { setCaptureOpen(false); refresh(); openTask(task); }} />}
       {mcpOpen && <McpDialog serverUrl={canvasServer} workspace={workspaceData} close={() => setMcpOpen(false)} />}
     </div>

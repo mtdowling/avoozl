@@ -15,6 +15,35 @@ const permissionRank = new Map([
 
 const taskFence = () => /^```task\s*\r?\n([\s\S]*?)^```\s*$/gm;
 
+function linkedPullRequests(events, repository) {
+  return [
+    ...new Map(
+      events
+        .filter(
+          (event) =>
+            event.event === "cross-referenced" &&
+            event.source?.issue?.pull_request &&
+            typeof event.source.issue.html_url === "string",
+        )
+        .map((event) => {
+          const issue = event.source.issue;
+          const value = {
+            nodeId: issue.node_id || null,
+            number: issue.number || null,
+            url: issue.html_url,
+            title: issue.title || "",
+            state: issue.state || "",
+            repository:
+              issue.repository?.full_name ||
+              event.source?.repository?.full_name ||
+              repository,
+          };
+          return [value.nodeId || value.url, value];
+        }),
+    ).values(),
+  ];
+}
+
 function textList(value, name, { required = false } = {}) {
   if (value === undefined && !required) return [];
   if (
@@ -257,6 +286,7 @@ function applyIssueTask(data, record, parsed, config, marker) {
     origin: marker ? "design" : "issue",
     labelEventId: record.labelEventId,
     bodyHash: record.bodyHash,
+    pullRequests: record.pullRequests || [],
   };
   task.dispatch = {
     ready: record.state === "authorized",
@@ -347,7 +377,12 @@ export async function syncGitHubIssues(store, github, { repository, authorize } 
     for (const issue of issues) {
       const id = issueRecordId(config, issue);
       seen.add(id);
-      const events = await github.issueEvents(config, issue.number),
+      const [events, timeline] = await Promise.all([
+          github.issueEvents(config, issue.number),
+          github.issueTimeline
+            ? github.issueTimeline(config, issue.number)
+            : Promise.resolve([]),
+        ]),
         labelEvent = events
           .filter(
             (event) =>
@@ -398,6 +433,7 @@ export async function syncGitHubIssues(store, github, { repository, authorize } 
           labelActor: labelEvent?.actor?.login || "",
           labelAt: labelEvent?.created_at || "",
           permission: auth.permission || null,
+          pullRequests: linkedPullRequests(timeline, config.id),
           parser: parsed.parser,
           state,
           reason,

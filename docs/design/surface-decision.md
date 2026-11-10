@@ -158,18 +158,18 @@ workspace, and the extension acts on it when it next connects — the same
 mechanism as `intent.submit`, read by the client rather than pushed to it.
 That is a real option, not something to assume works; nothing of it is built.
 
-## Embedding someone else's chat UI instead (OpenCode)
+## Conversation ownership after the OpenHands pivot
 
-Considered, because it would be attractive if our website had no chat. It
-does: `src/web/Chat.tsx` composes assistant-ui primitives over the existing
-run API and renders durable history paging, send, queue-versus-steer where the
-provider supports it, Stop, approval mode, request options and free-text
-answers. assistant-ui is a rendering/runtime adapter here; SQLite and the
-Avoozl agent host remain canonical. The phone receipt drove the path into the
-conversation, the provider approval and Stop by touch. The source and
-automated tests establish that the other controls exist; they do not
-constitute physical-phone acceptance for history paging, composing, queue or
-steer, approval-mode changes, or option and free-text answers.
+This decision is superseded for the product UI. Avoozl no longer renders chat
+or reconstructs another provider's conversation interface. The embedded
+Avoozl Canvas extension selects and authorizes work, records the task-to-run
+binding, and navigates to the exact native OpenHands conversation. OpenHands
+owns chat, steering, terminal, files, browser, and conversation attachment.
+Avoozl retains durable task, design, validation, integration, acceptance, and
+audit state.
+
+The older OpenCode investigation below remains historical research rather than
+the selected UI architecture.
 
 The interface must be named by version. OpenCode's source is MIT licensed. The
 V1 documentation checked on 2026-11-10 describes `opencode serve` as an HTTP

@@ -5,9 +5,11 @@ ownership of tasks, worktrees, validation, integration, and acceptance. The Agen
 Server stays separate from the web process, so an Avoozl web reload does not
 replace active work.
 
-The normal UI direction is now an installable Avoozl page inside Agent Canvas.
-The standalone site remains useful for compatibility, CLI-adjacent setup, and
-providers other than OpenHands.
+The product UI is the installable Avoozl page inside Agent Canvas. OpenHands
+owns conversations, attachment to a running conversation, terminal, files, and
+browser. Avoozl's HTTP process remains the extension backend and control plane;
+opening it directly shows only an embedded-surface handoff, not a second app.
+CLI and MCP remain available for setup, automation, and recovery.
 
 ## Supported versions
 

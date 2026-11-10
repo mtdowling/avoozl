@@ -93,6 +93,84 @@ function validatedEvidence(store, data, task) {
     checks.join("; ")
   ).slice(0, 2000);
 }
+
+function repositoryBase(task) {
+  if (typeof task.github?.url === "string") {
+    try {
+      const url = new URL(task.github.url);
+      const marker = url.pathname.match(/\/(?:issues|pull)\/\d+(?:\/|$)/);
+      if (marker) {
+        url.pathname = url.pathname.slice(0, marker.index);
+        url.search = "";
+        url.hash = "";
+        return url.href.replace(/\/$/, "");
+      }
+    } catch {}
+  }
+  return /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(
+    task.github?.repository || "",
+  )
+    ? `https://github.com/${task.github.repository}`
+    : "";
+}
+
+function taskCodeChanges(store, data, task, runs, evidenceRecords) {
+  const base = repositoryBase(task),
+    commits = new Map(),
+    pulls = new Map();
+  const addCommit = (sha, source) => {
+    if (typeof sha !== "string" || !/^[a-f0-9]{7,64}$/i.test(sha)) return;
+    const existing = commits.get(sha);
+    commits.set(sha, {
+      sha,
+      source: existing?.source || source,
+      url: existing?.url || (base ? `${base}/commit/${sha}` : ""),
+    });
+  };
+  const addPull = (value) => {
+    if (typeof value === "string") value = { url: value };
+    if (!value || typeof value.url !== "string" || !value.url) return;
+    pulls.set(value.nodeId || value.url, {
+      nodeId: value.nodeId || null,
+      number: Number(value.number) || null,
+      url: value.url,
+      title: typeof value.title === "string" ? value.title : "",
+      state: typeof value.state === "string" ? value.state : "",
+      repository:
+        typeof value.repository === "string"
+          ? value.repository
+          : task.github?.repository || "",
+    });
+  };
+  addCommit(task.integration?.commit, "Integrated");
+  for (const evidence of evidenceRecords)
+    addCommit(
+      evidence.commit,
+      evidence.kind === "command" ? "Validated" : "Evidence",
+    );
+  for (const run of runs) {
+    addCommit(run.expectedCommit, "Run output");
+    addCommit(run.integratedCommit, "Integrated");
+    addPull(run.pullRequest);
+    for (const pull of run.pullRequests || []) addPull(pull);
+  }
+  for (const pull of task.github?.pullRequests || []) addPull(pull);
+  for (const pull of task.pullRequests || []) addPull(pull);
+  for (const receipt of store.list("receipts")) {
+    if (
+      typeof receipt.taskId === "string" &&
+      resolveTaskId(data, receipt.taskId) === task.id &&
+      typeof receipt.url === "string" &&
+      /\/pull\/\d+(?:\/|$)/.test(receipt.url)
+    )
+      addPull(receipt);
+  }
+  return {
+    commits: [...commits.values()],
+    pullRequests: [...pulls.values()],
+  };
+}
+
 export class Operations {
   constructor(
     store,
@@ -118,7 +196,19 @@ export class Operations {
     id = resolveTaskId(data, id);
     const task = data.tasks.find((t) => t.id === id);
     if (!task) fail("Task not found.", 404);
-    const doc = data.documents[task.source?.document];
+    const doc = data.documents[task.source?.document],
+      runs = this.store
+        .list("runs")
+        .filter((r) => resolveTaskId(data, r.taskId) === id),
+      evidenceRecords = this.store
+        .list("evidence")
+        .filter((e) => resolveTaskId(data, e.taskId) === id),
+      activeRun =
+        runs.find((run) =>
+          ["starting", "running", "waiting-input", "waiting-approval"].includes(
+            run.state,
+          ),
+        ) || runs.at(-1);
     return {
       ...task,
       ...(requestedId !== id ? { requestedId } : {}),
@@ -134,12 +224,23 @@ export class Operations {
       documents: (task.contextDocuments || [])
         .map((id) => data.documents[id])
         .filter(Boolean),
-      runs: this.store
-        .list("runs")
-        .filter((r) => resolveTaskId(data, r.taskId) === id),
-      evidenceRecords: this.store
-        .list("evidence")
-        .filter((e) => resolveTaskId(data, e.taskId) === id),
+      runs,
+      evidenceRecords,
+      executionLocation: {
+        branch:
+          task.activity?.branch ||
+          activeRun?.branch ||
+          task.integration?.branch ||
+          null,
+        worktree: task.activity?.worktree || activeRun?.worktree || null,
+      },
+      codeChanges: taskCodeChanges(
+        this.store,
+        data,
+        task,
+        runs,
+        evidenceRecords,
+      ),
     };
   }
   // The commands a validated run actually passed, summarized for an

@@ -304,7 +304,27 @@ async function canvasWorkspaceView(
       })
       .catch(() => null);
     if (status && !["missing", "unsupported"].includes(status.state || "")) {
-      return host.appBackendView.mount({ container });
+      const disposeView = host.appBackendView.mount({ container });
+      const openConversation = (event: MessageEvent) => {
+        const conversationId = event.data?.conversationId;
+        const frame = container.querySelector("iframe");
+        if (
+          event.data?.type !== "avoozl:openhands-conversation" ||
+          typeof conversationId !== "string" ||
+          conversationId.length === 0 ||
+          conversationId.length > 240 ||
+          event.source !== frame?.contentWindow
+        )
+          return;
+        navigate(`/conversations/${encodeURIComponent(conversationId)}`);
+      };
+      if (typeof window !== "undefined")
+        window.addEventListener("message", openConversation);
+      return () => {
+        if (typeof window !== "undefined")
+          window.removeEventListener("message", openConversation);
+        disposeView();
+      };
     }
   }
   return workspaceView(host, container, navigate);
