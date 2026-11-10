@@ -23,6 +23,7 @@ import { planSummaries, PLAN_STATUSES } from "./plan-model.mjs";
 import { createSingleStrip } from "./strip.mjs";
 import { createEpicProgress } from "./progress.mjs";
 import { queryTasks, graphNeighbors, statusComplete } from "./query.mjs";
+import { PAGE_DESCRIPTIONS } from "./page-details.mjs";
 const $ = (id) => document.getElementById(id),
   esc = (value) =>
     String(value ?? "").replace(
@@ -538,8 +539,13 @@ function syncNavigation() {
     else b.removeAttribute("aria-current");
   }
   const active = document.querySelector("#nav [aria-current=page]");
-  $("page-title").textContent =
-    active?.getAttribute("aria-label") || active?.textContent || "Avoozl";
+  const title =
+      active?.getAttribute("aria-label") || active?.textContent || "Avoozl",
+    description = PAGE_DESCRIPTIONS[active?.dataset.view || active?.id] || "";
+  $("page-title").textContent = title;
+  $("page-help").hidden = !description;
+  $("page-help").setAttribute("aria-label", "About " + title);
+  $("page-help-description").textContent = description;
 }
 window.addEventListener("nupp-workspace-navigation", () => {
   if (document.body.classList.contains("execution-open")) {

@@ -48,7 +48,7 @@ shell.hidden = true;
 shell.setAttribute("aria-label", "Planning and agent workspace");
 shell.innerHTML = `<aside class="execution-nav"><div><span class="eyebrow">AVOOZL</span><h2>From intent<br>to delivery.</h2><p id="execution-mode"></p></div><nav aria-label="Workspace sections">${[
   ["sessions", "Agent sessions"],
-  ["metrics", "Usage trends"],
+  ["metrics", "Trends"],
 ]
   .map(([id, label]) => `<button data-workspace-tab="${id}">${label}</button>`)
   .join(
@@ -57,10 +57,10 @@ shell.innerHTML = `<aside class="execution-nav"><div><span class="eyebrow">AVOOZ
 document.body.append(shell);
 const usageButton = document.createElement("button");
 usageButton.id = "open-usage";
-usageButton.title = "Usage trends";
-usageButton.setAttribute("aria-label", "Usage trends");
+usageButton.title = "Trends";
+usageButton.setAttribute("aria-label", "Trends");
 usageButton.innerHTML =
-  '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 3v17h17M8 16V9m5 7V5m5 11v-5"/></svg><span class="nav-label">Usage trends</span>';
+  '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 3v17h17M8 16V9m5 7V5m5 11v-5"/></svg><span class="nav-label">Trends</span>';
 document.getElementById("nav")?.append(usageButton);
 const settings = document.createElement("dialog");
 settings.id = "agent-settings";
@@ -187,7 +187,7 @@ const labels = {
   review: "Review plan",
   sessions: "Agent sessions",
   integration: "Integration",
-  metrics: "Usage trends",
+  metrics: "Trends",
 };
 const intentModes = {
   ask: {
@@ -631,7 +631,7 @@ function renderSessions() {
   const old = $("run-message");
   if (old) chatDraft = old.value;
   $("execution-content").innerHTML =
-    '<div class="sessions-layout"><button class="session-history-toggle" data-toggle-history aria-expanded="false" aria-controls="session-history" aria-label="Show conversations" title="Show conversations">☰</button><aside id="session-history" class="session-history" aria-label="Conversations"><div class="section-heading"><h2 id="conversation-list-title">Conversations</h2><div class="session-list-actions"><button id="toggle-archived" type="button" class="session-icon" aria-label="Show archived conversations" title="Show archived conversations" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18v4H3zM5 8v12h14V8m-10 4h6"/></svg></button><button class="button subtle" data-new-chat aria-label="New conversation" title="New conversation">＋</button></div></div><div id="session-workers"></div><div id="session-list"></div></aside><div class="session-resizer" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Resize conversation list" aria-controls="session-history chat-pane" aria-valuemin="150" aria-valuemax="520" aria-valuenow="220" title="Drag to resize conversations. Arrow keys resize; Home and End use the limits."></div><section id="chat-pane" class="chat-pane" aria-label="Agent chat"></section></div>';
+    '<div class="sessions-layout"><button class="session-history-toggle" data-toggle-history aria-expanded="false" aria-controls="session-history" aria-label="Show conversations" title="Show conversations">☰</button><aside id="session-history" class="session-history" aria-label="Conversations"><div class="section-heading"><h2 id="conversation-list-title">Conversations</h2><div class="session-list-actions"><button id="toggle-archived" type="button" class="session-icon" aria-label="Show archived conversations" title="Show archived conversations" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18v4H3zM5 8v12h14V8m-10 4h6"/></svg></button><button class="button subtle" data-new-chat aria-label="Chat" title="Chat">＋</button></div></div><div id="session-workers"></div><div id="session-list"></div></aside><div class="session-resizer" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Resize conversation list" aria-controls="session-history chat-pane" aria-valuemin="150" aria-valuemax="520" aria-valuenow="220" title="Drag to resize conversations. Arrow keys resize; Home and End use the limits."></div><section id="chat-pane" class="chat-pane" aria-label="Agent chat"></section></div>';
   setHistoryWidth(historyWidth);
   setConversationHistory(!matchMedia("(max-width:900px)").matches);
 }
@@ -809,7 +809,7 @@ function renderEmptyChat() {
   currentRun = null;
   historyMode = false;
   $("chat-pane").innerHTML =
-    `<header class="chat-heading empty-chat-heading"><h2>New conversation</h2></header><div class="chat-welcome"><span class="chat-avatar">A</span><h2>What would you like to explore?</h2><p>Ask about progress, blockers, or the plan. Questions stay conversations.</p><button class="chat-suggestion" data-question="What tasks are blocked and do I need to weigh in to unblock them?">What’s blocked, and where do you need me?</button></div>${composer()}`;
+    `<header class="chat-heading empty-chat-heading"><h2>Chat</h2></header><div class="chat-welcome"><span class="chat-avatar">A</span><h2>What would you like to explore?</h2><p>Ask about progress, blockers, or the plan. Questions stay conversations.</p><button class="chat-suggestion" data-question="What tasks are blocked and do I need to weigh in to unblock them?">What’s blocked, and where do you need me?</button></div>${composer()}`;
   updateAgentLabel();
   sizeComposer();
 }
@@ -832,7 +832,7 @@ function setConversationHistory(open) {
 }
 function renderChatFrame(run) {
   $("chat-pane").innerHTML =
-    `<header class="chat-heading"><div><h2>${esc(run.title || run.prompt?.split("\n")[0] || "Conversation")}</h2><small id="chat-status" role="status"></small></div><details class="chat-options" ><summary aria-label="Conversation options">⋯</summary><div class="chat-options-menu">${run.external ? "" : `<select data-run-approvals aria-label="Session approvals"><option value="automatic" ${(run.approvalMode || "manual") === "automatic" ? "selected" : ""}>Automatic review</option><option value="manual" ${(run.approvalMode || "manual") === "manual" ? "selected" : ""}>Ask when needed</option></select>`}<div class="chat-option-actions"><button type="button" class="session-icon" data-new-chat aria-label="New conversation" title="New conversation"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5v14"/></svg></button>${archiveButton(run)}<button type="button" class="session-icon" data-delete-run="${esc(run.id)}" aria-label="Delete conversation" title="Delete conversation"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/></svg></button></div></div></details></header><div id="run-transcript" class="chat-log" aria-label="Agent conversation" role="log"><div id="chat-history-controls"></div><div id="chat-messages"></div><div id="chat-progress" role="status"></div></div><div id="run-requests"></div><button id="chat-new-messages" class="button subtle" hidden>New messages · Jump to latest ↓</button>${composer()}<dialog id="chat-details" class="chat-details-dialog" aria-label="Session details and actions"><header class="dialog-heading"><h2>Session details</h2><button type="button" data-close-session-details aria-label="Close session details">×</button></header><p>${esc(run.provider)} · ${esc(run.actualModel || run.model || "Default model")}<br><code>${esc(run.id)}</code></p><p>${esc(run.worktree || "Connecting…")}</p><div id="run-actions"></div><div id="run-deliveries"></div></dialog>`;
+    `<header class="chat-heading"><div><h2>${esc(run.title || run.prompt?.split("\n")[0] || "Conversation")}</h2><small id="chat-status" role="status"></small></div><details class="chat-options" ><summary aria-label="Conversation options">⋯</summary><div class="chat-options-menu">${run.external ? "" : `<select data-run-approvals aria-label="Session approvals"><option value="automatic" ${(run.approvalMode || "manual") === "automatic" ? "selected" : ""}>Automatic review</option><option value="manual" ${(run.approvalMode || "manual") === "manual" ? "selected" : ""}>Ask when needed</option></select>`}<div class="chat-option-actions"><button type="button" class="session-icon" data-new-chat aria-label="Chat" title="Chat"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5v14"/></svg></button>${archiveButton(run)}<button type="button" class="session-icon" data-delete-run="${esc(run.id)}" aria-label="Delete conversation" title="Delete conversation"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/></svg></button></div></div></details></header><div id="run-transcript" class="chat-log" aria-label="Agent conversation" role="log"><div id="chat-history-controls"></div><div id="chat-messages"></div><div id="chat-progress" role="status"></div></div><div id="run-requests"></div><button id="chat-new-messages" class="button subtle" hidden>New messages · Jump to latest ↓</button>${composer()}<dialog id="chat-details" class="chat-details-dialog" aria-label="Session details and actions"><header class="dialog-heading"><h2>Session details</h2><button type="button" data-close-session-details aria-label="Close session details">×</button></header><p>${esc(run.provider)} · ${esc(run.actualModel || run.model || "Default model")}<br><code>${esc(run.id)}</code></p><p>${esc(run.worktree || "Connecting…")}</p><div id="run-actions"></div><div id="run-deliveries"></div></dialog>`;
   updateAgentLabel();
   sizeComposer();
 }
