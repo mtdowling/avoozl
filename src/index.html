@@ -18,7 +18,7 @@
     >
       <div class="site-brand-row">
         <a class="brand" href="/" aria-label="Avoozl home"
-          ><span class="brandmark">a</span
+          ><span class="brandmark">A</span
           ><span class="brand-label"
             ><b id="brand-title">Avoozl</b
             ><small id="brand-subtitle">Live delivery map</small></span
@@ -54,7 +54,8 @@
             stroke-linejoin="round"
           >
             <path d="M3 12h4l3-7 4 14 3-7h4" /></svg
-          ><span class="nav-label">Now</span></button
+          ><span class="nav-label">Now</span
+          ><b id="inflight-count" class="nav-count" hidden>0</b></button
         ><button data-view="tasks" title="Task tree" aria-label="Task tree">
           <svg
             viewBox="0 0 24 24"
@@ -303,23 +304,6 @@
                 <path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5" />
               </svg></button
             ><button
-              id="inflight"
-              class="button activity-shortcut icon-button"
-              title="In flight"
-              aria-label="In-flight tasks"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.7"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path d="M2 12h5l3-8 4 16 3-8h5" /></svg
-              ><b id="inflight-count">0</b></button
-            ><button
               id="clear-filters"
               class="button subtle icon-button"
               title="Reset filters"
@@ -514,7 +498,7 @@
               refY="4"
               orient="auto"
             >
-              <path d="M0,0 L7,4 L0,8" fill="#8edabb" />
+              <path d="M0,0 L7,4 L0,8" fill="#50fa7b" />
             </marker>
           </defs>
           <path id="tour-arrow-path" />
