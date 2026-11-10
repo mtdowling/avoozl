@@ -94,16 +94,9 @@ export function createWorkbench({
   function taskRow(task) {
     const signals = taskSignals(current.data, task),
       owner = task.activity?.owner || task.owner;
-    return `<article class="tree-task" data-workbench-task="${esc(task.id)}"><div class="tree-title-cell"><button class="tree-task-open" title="${esc(task.title)}" data-task="${esc(task.id)}"><span class="tree-task-title">${esc(task.title)}</span></button><small>${esc(trackName(task.track))} · ${esc(task.id)}</small></div><div class="tree-state-cell">${badge(task.status)}${signals.activity === "active" ? '<small class="tree-live">● In flight</small>' : signals.ready ? "<small>Ready</small>" : ""}</div><div class="tree-owner-cell" data-label="Owner">${esc(owner || "—")}</div><div class="tree-next-cell" data-label="Next" title="${esc(task.nextAction || task.summary || "")}">${esc(task.nextAction || task.summary || "—")}</div><div class="tree-blocker-cell" data-label="Blocked by">${blockers(task) || '<span class="muted">—</span>'}</div><button class="tree-graph" data-focus-task="${esc(task.id)}" aria-label="Connections for ${esc(task.title)}" title="Connections">↗</button></article>`;
+    return `<article class="tree-task" data-workbench-task="${esc(task.id)}"><div class="tree-title-cell"><button class="tree-task-open" title="${esc(task.title)}" data-task="${esc(task.id)}"><span class="tree-task-title">${esc(task.title)}</span></button><small title="${esc(task.id)}">${esc(epicName(task.epic))} · ${esc(trackName(task.track))}</small></div><div class="tree-state-cell">${badge(task.status)}${signals.activity === "active" ? '<small class="tree-live">● In flight</small>' : signals.ready ? "<small>Ready</small>" : ""}</div><div class="tree-owner-cell">${esc(owner || "—")}</div><div class="tree-next-cell" title="${esc(task.nextAction || task.summary || "")}">${esc(task.nextAction || task.summary || "—")}</div><div class="tree-blocker-cell">${blockers(task) || '<span class="muted">—</span>'}</div><button class="tree-graph" data-focus-task="${esc(task.id)}" aria-label="Connections for ${esc(task.title)}" title="Connections">↗</button></article>`;
   }
   function taskHeight(task) {
-    if (matchMedia("(min-width:600px) and (max-width:900px)").matches)
-      return 176;
-    if (matchMedia("(max-width:900px)").matches)
-      return taskSignals(current.data, task).blockers.length ||
-        task.status === "blocked"
-        ? 252
-        : 210;
     return taskSignals(current.data, task).blockers.length > 1 ? 74 : 62;
   }
 
@@ -122,12 +115,6 @@ export function createWorkbench({
       rows.push({ id: "root:" + key, type: "root", root, key, height: 52 });
       if (expanded.get(key))
         for (const child of root.children) {
-          rows.push({
-            id: "group:" + key + ":" + child.key,
-            type: "group",
-            child,
-            height: 28,
-          });
           for (const task of child.tasks)
             rows.push({
               id: key + ":" + task.id,
@@ -159,9 +146,7 @@ export function createWorkbench({
     virtual = createVirtualList(viewport, {
       items: [
         { id: "tree-heading", type: "heading", height: 64 },
-        ...(!matchMedia("(max-width:900px)").matches
-          ? [{ id: "tree-columns", type: "columns", height: 32 }]
-          : []),
+        { id: "tree-columns", type: "columns", height: 32 },
         ...flattened(roots),
       ],
       height: (r) => r.height,
@@ -171,12 +156,10 @@ export function createWorkbench({
         r.type === "heading"
           ? `<header class="tree-scroll-heading"><h2>Task tree</h2><p>${visible.toLocaleString()} tasks · select a task for its plan and evidence.</p></header>`
           : r.type === "columns"
-            ? '<div class="tree-table-heading"><span>Task / track</span><span>Status</span><span>Owner / agent</span><span>Next action</span><span>Blocked by</span><span></span></div>'
+            ? '<div class="tree-table-heading"><span>Task / epic / track</span><span>Status</span><span>Owner / agent</span><span>Next action</span><span>Blocked by</span><span></span></div>'
             : r.type === "task"
               ? taskRow(r.task)
-              : r.type === "group"
-                ? `<h4 class="tree-track-heading">${esc(input.group === "track" ? epicName(r.child.key) : trackName(r.child.key))}<span>${r.child.tasks.length}</span></h4>`
-                : `<button class="tree-group-toggle" data-tree-group="${esc(r.key)}" aria-expanded="${expanded.get(r.key)}"><span class="tree-chevron">${expanded.get(r.key) ? "⌄" : "›"}</span><span><strong>${esc(groupName(r.root.key, input.group))}</strong><small>${r.root.tasks.length} tasks · ${r.root.complete} / ${r.root.total} complete</small></span><span class="tree-percent">${Math.round((r.root.complete / r.root.total) * 100)}%</span></button>`,
+              : `<button class="tree-group-toggle" data-tree-group="${esc(r.key)}" aria-expanded="${expanded.get(r.key)}"><span class="tree-chevron">${expanded.get(r.key) ? "⌄" : "›"}</span><span><strong>${esc(groupName(r.root.key, input.group))}</strong><small>${r.root.tasks.length} tasks · ${r.root.complete} / ${r.root.total} complete</small></span><span class="tree-percent">${Math.round((r.root.complete / r.root.total) * 100)}%</span></button>`,
     });
     viewport.scrollTop = treeScroll;
   }
