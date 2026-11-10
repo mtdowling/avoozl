@@ -24,6 +24,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fork, execFileSync, spawn } from "node:child_process";
+import net from "node:net";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
@@ -290,7 +291,18 @@ try {
     const tokenFile = path.join(editorRoot, "connection-token");
     const browserToken = randomUUID();
     fs.writeFileSync(tokenFile, browserToken, { mode: 0o600 });
-    const webPort = 9443;
+    // A fresh port per run, not a fixed one. The browser stores the
+    // connection token against the origin, so reusing a port makes the next
+    // run fail with "auth mismatch" against a stale cookie while still
+    // showing the previous session's cached UI.
+    const webPort = await new Promise((resolve, reject) => {
+      const probe = net.createServer();
+      probe.once("error", reject);
+      probe.listen(0, "127.0.0.1", () => {
+        const { port } = probe.address();
+        probe.close(() => resolve(port));
+      });
+    });
     say("");
     say("Starting the bridged browser editor. Its license terms are accepted");
     say("by this run, as agreed. It listens on loopback and requires the");
