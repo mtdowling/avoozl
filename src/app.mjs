@@ -227,10 +227,7 @@ let captureDraft = null,
   tourWasFullscreen = false,
   tourTransition = 0;
 const compactLayout = matchMedia("(max-width:900px)");
-let panelView = null;
-let mobileFiltersOpen = false;
-let fullLeftOpen = false;
-const panelPrefs = { left: false, right: true };
+const panelPrefs = { left: true, right: true };
 try {
   Object.assign(
     panelPrefs,
@@ -476,18 +473,6 @@ function controls() {
       "</option>";
   for (const id of ["group", "detail", "relation"]) $(id).value = state[id];
   facetSearch.render();
-  $("track-list").replaceChildren();
-  $("updated-at").textContent =
-    "Database revision " +
-    data.revision +
-    " · " +
-    new Date(data.updatedAt).toLocaleString("en-US", {
-      timeZone: data.project.timezone,
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
 }
 function syncNavigation() {
   const managed = document.body.classList.contains("execution-open"),
@@ -1814,7 +1799,6 @@ $("clear-filters").onclick = () => {
   controls();
   refreshViews({ fit: true });
 };
-$("new-task").onclick = openPrompt;
 $("quick-task").onclick = openPrompt;
 $("refresh").onclick = () => poll(true);
 $("nav").onclick = (e) => {
@@ -1833,8 +1817,6 @@ $("nav").onclick = (e) => {
     refreshViews({ fit: true });
   }
 };
-$("about-button").onclick = () =>
-  window.open("/README.md", "_blank", "noopener");
 document.addEventListener("keydown", (e) => {
   if (
     (e.metaKey || e.ctrlKey) &&
@@ -1855,9 +1837,8 @@ document.addEventListener("keydown", (e) => {
       controls();
       refreshViews();
     }
-    if (workspace.classList.contains("theater")) fullLeftOpen = true;
-    else panelPrefs.left = true;
-    if (compactLayout.matches) mobileFiltersOpen = true;
+    panelPrefs.left = true;
+    savePanels();
     applyPanels();
     $("search").focus();
   }
@@ -2795,20 +2776,9 @@ $("detail-dialog").addEventListener("click", (e) => {
 });
 function applyPanels() {
   const available = state.view !== "activity";
-  if (panelView !== state.view) {
-    panelView = state.view;
-    mobileFiltersOpen =
-      fullLeftOpen =
-      panelPrefs.left =
-        ["tasks", "strip", "graph", "epics"].includes(state.view);
-  }
   $("toggle-left").hidden = !available;
   const w = document.querySelector(".workspace"),
-    full = w.classList.contains("theater"),
-    mobile = compactLayout.matches,
-    left =
-      available &&
-      (mobile ? mobileFiltersOpen : full ? fullLeftOpen : panelPrefs.left);
+    left = available && panelPrefs.left;
   w.classList.toggle("left-collapsed", !left);
   w.classList.toggle("left-expanded", left);
   $("toggle-left").title = left ? "Collapse filters" : "Expand filters";
@@ -2823,7 +2793,8 @@ function applyPanels() {
   if (tour) requestAnimationFrame(positionTourCue);
 }
 function closeMobileFilters() {
-  mobileFiltersOpen = false;
+  panelPrefs.left = false;
+  savePanels();
   applyPanels();
   $("toggle-left").focus();
 }
@@ -2831,29 +2802,21 @@ $("close-filters").onclick = closeMobileFilters;
 $("filter-scrim").onclick = closeMobileFilters;
 $("apply-mobile-filters").onclick = closeMobileFilters;
 $("filters-panel").addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && compactLayout.matches && mobileFiltersOpen) {
+  if (e.key === "Escape" && compactLayout.matches && panelPrefs.left) {
     e.preventDefault();
     e.stopPropagation();
     closeMobileFilters();
   }
 });
 compactLayout.addEventListener("change", () => {
-  mobileFiltersOpen = state.view !== "activity";
   applyPanels();
   if (data) refreshViews();
 });
 $("toggle-left").onclick = () => {
-  if (compactLayout.matches) {
-    mobileFiltersOpen = !mobileFiltersOpen;
-    applyPanels();
-    if (mobileFiltersOpen) $("close-filters").focus();
-    return;
-  }
-  const full = workspace.classList.contains("theater");
-  if (full) fullLeftOpen = !fullLeftOpen;
-  else panelPrefs.left = !panelPrefs.left;
+  panelPrefs.left = !panelPrefs.left;
   applyPanels();
   savePanels();
+  if (compactLayout.matches && panelPrefs.left) $("close-filters").focus();
 };
 $("show-toc").onclick = () => {
   detailOpen = true;

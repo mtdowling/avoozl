@@ -412,7 +412,6 @@ export function createFacetSearch({ state, getData, change, promptResult }) {
     clearTimeout(timer);
     const isPrompt = /^\/prompt(?:\s|$)/.test(input.value);
     root.classList.toggle("prompt-search", isPrompt);
-    input.rows = isPrompt ? 5 : 2;
     document.getElementById("prompt-search-controls").hidden = !isPrompt;
     if (isPrompt) {
       promptDraft = input.value;
@@ -433,7 +432,13 @@ export function createFacetSearch({ state, getData, change, promptResult }) {
       200,
     );
   });
-  input.addEventListener("blur", render);
+  input.addEventListener("focus", () => {
+    input.rows = 2;
+  });
+  input.addEventListener("blur", () => {
+    input.rows = 1;
+    render();
+  });
   input.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -533,7 +538,6 @@ export function createFacetSearch({ state, getData, change, promptResult }) {
         if (result.pending) continue;
         promptDraft = "";
         input.value = "";
-        input.rows = 2;
         root.classList.remove("prompt-search");
         document.getElementById("prompt-search-controls").hidden = true;
         promptResult(result.view);
