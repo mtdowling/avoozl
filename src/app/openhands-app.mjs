@@ -67,6 +67,12 @@ async function compatible(client) {
   return info;
 }
 
+async function backendStatus(client, manifest) {
+  if (!manifest.backend) return null;
+  const pathname = `/api/canvas-extensions/installed/${encodeURIComponent(manifest.name)}/backend`;
+  return client.get(pathname);
+}
+
 export async function installOpenHandsCanvasApp({
   source = OPENHANDS_CANVAS_APP.source,
   force = true,
@@ -84,13 +90,23 @@ export async function installOpenHandsCanvasApp({
       source,
       force: Boolean(force),
     });
-    let enabled = installed.enabled;
+    let enabled = installed.enabled,
+      backend = await backendStatus(active, manifest);
     if (enable && !enabled) {
+      const consent =
+        backend &&
+        backend.state !== "unsupported" &&
+        backend.state !== "missing"
+          ? { revision: backend.revision }
+          : {};
+      if ("revision" in consent && !consent.revision)
+        fail("OpenHands did not return an Avoozl backend revision.", 409);
       const state = await active.patch(
         `/api/canvas-extensions/installed/${encodeURIComponent(manifest.name)}`,
-        { enabled: true },
+        { enabled: true, ...consent },
       );
       enabled = state.enabled;
+      backend = await backendStatus(active, manifest);
     }
     return {
       name: manifest.name,
@@ -101,7 +117,11 @@ export async function installOpenHandsCanvasApp({
       route: OPENHANDS_CANVAS_APP.route,
       agentServer: settings.host,
       serverVersion: server.version,
-      note: "Start Avoozl with the Canvas web origin explicitly allowed, then enter its loopback address on the App page. The address is browser-local and no credentials are copied into Canvas.",
+      backend,
+      note:
+        backend?.state === "ready"
+          ? "OpenHands owns the Avoozl process and exposes it to Canvas through a short-lived authenticated backend session."
+          : "This OpenHands platform cannot own the Avoozl backend yet. Start avoozl serve separately; Canvas will use the exact-origin local fallback.",
     };
   } finally {
     if (own) active.close();
@@ -124,6 +144,13 @@ export async function openHandsCanvasAppStatus({
       installed: Boolean(installed),
       enabled: Boolean(installed?.enabled),
       app: installed || null,
+      backend: installed
+        ? await active
+            .get(
+              `/api/canvas-extensions/installed/${encodeURIComponent(OPENHANDS_CANVAS_APP.name)}/backend`,
+            )
+            .catch(() => null)
+        : null,
       route: OPENHANDS_CANVAS_APP.route,
       agentServer: settings.host,
       serverVersion: server.version,
