@@ -41,4 +41,5 @@ test("page controls precede the shared controls pinned to the right", () => {
     positions,
     [...positions].sort((a, b) => a - b),
   );
+  assert.ok(!html.includes("toolbar-divider"));
 });
