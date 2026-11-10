@@ -55,6 +55,12 @@ const launchEditor = !argv.includes("--no-launch");
 // them. Either way the clicks are real presses on real controls and this
 // script dispatches nothing itself.
 const drive = argv.includes("--drive");
+// Which provider owns the session under test. The clicked controls are the
+// editor's, but the session is a provider's, and the two providers advertise
+// different capabilities, so the acceptance is run for each.
+const provider = ["claude", "codex"].includes(argv[argv.indexOf("--provider") + 1])
+  ? argv[argv.indexOf("--provider") + 1]
+  : "claude";
 // With --server DIR the browser editor from an extracted VS Code Server
 // package is used, bridged so this facade becomes the editor's own agent host
 // rather than an additional remote one. On the desktop application a remote
@@ -62,9 +68,10 @@ const drive = argv.includes("--drive");
 // the bridge is the shape that registers one.
 const serverIndex = argv.indexOf("--server");
 const serverRoot = serverIndex === -1 ? null : argv[serverIndex + 1];
+// One receipt per provider, so running the second does not erase the first.
 const outFile = path.join(
   repositoryRoot,
-  "docs/evidence/vscode/native-controls.json",
+  "docs/evidence/vscode/native-controls-" + provider + ".json",
 );
 
 const say = (text) => process.stdout.write(text + "\n");
@@ -179,14 +186,14 @@ try {
     ),
     manifestPath: facadeManifest,
     models: async () => {
-      const catalog = await ops.execute("models", { provider: "claude" });
-      return ["claude", "codex"].map((provider) => ({
-        provider: agentProviderId(provider),
-        displayName: "Avoozl " + provider,
+      const catalog = await ops.execute("models", { provider });
+      return ["claude", "codex"].map((offered) => ({
+        provider: agentProviderId(offered),
+        displayName: "Avoozl " + offered,
         description: "Fixture provider; real child processes.",
         models: catalog.models.map((m) => ({
           id: m.id,
-          provider: agentProviderId(provider),
+          provider: agentProviderId(offered),
           name: m.label || m.id,
         })),
         protectedResources: [],
@@ -264,7 +271,7 @@ try {
       "Run the authored fixture command and wait for its result. Do not retry if it is cancelled.",
     submissionId: "native-check-1",
     title: "Native control check",
-    provider: "claude",
+    provider,
     projectId: fixture.projectId,
     model: "fixture-fast",
     approvalMode: "manual",
@@ -658,6 +665,7 @@ try {
   const receipt = {
     at: new Date().toISOString(),
     acceptance: "VSC-05 native clicked controls",
+    provider,
     scope:
       "Isolated VS Code profile and extensions directory, disposable workspace, fixture provider running real child processes, loopback facade. No personal profile, no provider account.",
     operator: drive
