@@ -1,5 +1,6 @@
 const STORAGE_PREFIX = "avoozl.canvas.url";
 const DEFAULT_URL = "http://127.0.0.1:9428";
+const APP_VERSION = "0.1.3";
 const STYLE_MARKER = "avoozl";
 const STYLES = `
 .avoozl-canvas {
@@ -92,48 +93,12 @@ const STYLES = `
   height: 100dvh;
   min-height: 680px;
   width: 100%;
-  display: flex;
-  flex-direction: column;
   background: var(--oh-color-base, #0b0e14);
-}
-.avoozl-canvas__toolbar {
-  min-height: 36px;
-  flex: 0 0 36px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 0 12px;
-  border-bottom: 1px solid var(--oh-border-subtle, #383f50);
-  background: var(--oh-color-base-secondary, #21252f);
-  color: var(--oh-muted, #a3b0c4);
-  font-size: 12px;
-}
-.avoozl-canvas__location {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.avoozl-canvas__change {
-  flex: none;
-  min-height: 28px;
-  padding: 0 8px;
-  border: 1px solid transparent;
-  border-radius: 7px;
-  background: transparent;
-  color: var(--oh-contrast, #fff);
-  font: inherit;
-  cursor: pointer;
-}
-.avoozl-canvas__change:hover {
-  background: var(--oh-surface-raised, #2c313f);
 }
 .avoozl-canvas__frame {
   display: block;
-  min-height: 0;
+  height: 100%;
   width: 100%;
-  flex: 1;
   border: 0;
   background: var(--oh-color-base, #0b0e14);
 }
@@ -267,20 +232,11 @@ function workspaceView(host, container) {
     if (disposed) return;
     const root = element("div", "", "avoozl-canvas");
     const shell = element("div", "", "avoozl-canvas__workspace");
-    const toolbar = element("div", "", "avoozl-canvas__toolbar");
-    const location = element("span", url, "avoozl-canvas__location");
-    const change = element(
-      "button",
-      "Change connection",
-      "avoozl-canvas__change",
-    );
-    change.type = "button";
-    change.addEventListener("click", () => setupView(host, container, connect));
-    toolbar.append(location, change);
     frame = element("iframe", "", "avoozl-canvas__frame");
     frame.title = "Avoozl workspace";
     const target = new URL(url);
     target.searchParams.set("canvas", "1");
+    target.searchParams.set("avoozlCanvasVersion", APP_VERSION);
     frame.src = target.href;
     frame.referrerPolicy = "no-referrer";
     frame.addEventListener("load", () => {
@@ -289,7 +245,7 @@ function workspaceView(host, container) {
         target.origin,
       );
     });
-    shell.append(toolbar, frame);
+    shell.append(frame);
     root.append(shell);
     container.replaceChildren(root);
   };

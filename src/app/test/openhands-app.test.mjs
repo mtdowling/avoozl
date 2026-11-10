@@ -45,7 +45,7 @@ test("the packaged Canvas App registers its declared Avoozl page", async () => {
     },
   });
   assert.equal(manifest.schema_version, 1);
-  assert.equal(manifest.version, "0.1.1");
+  assert.equal(manifest.version, "0.1.3");
   assert.equal(manifest.contributes.pages[0].path, "/workspace");
   assert.match(icon, /fill="#ff5555"/);
   assert.match(source, /var\(--oh-color-primary/);
