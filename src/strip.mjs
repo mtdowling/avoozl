@@ -1,7 +1,6 @@
 import { createPanMomentum } from "./pan-momentum.mjs";
 import { taskSession } from "./workbench-model.mjs";
-import { agentPins } from "./agent-pins.mjs";
-import { activityState } from "./activity.mjs";
+import { agentPins, stripActivityMarkers } from "./agent-pins.mjs";
 import { opacityPrefix, paintBand } from "./band-paint.mjs";
 import {
   stripLayout,
@@ -37,14 +36,28 @@ export function createSingleStrip(
     focusToken = "",
     scope = "",
     activeItems = [],
+    markers = [],
+    activity = { runs: [], landings: [] },
+    showLandings = true,
+    landedClusters = new Map(),
     workerClusters = new Map(),
     activityTask = "",
     workerRequest = 0,
     bandTop = 66,
     bandHeight = 72;
   const pointers = new Map();
+  try {
+    showLandings = localStorage.getItem("avoozl-strip-landings") !== "false";
+  } catch {}
   let gesture;
-  root.innerHTML = `<div class="strip-heading"><div><p class="strip-summary"></p><div class="strip-progress-summary" hidden></div></div><div class="strip-zoom"><div class="strip-orders" role="group" aria-label="Strip ordering"><button class="button" data-strip-order="chronological">Chronological</button><button class="button" data-strip-order="progress">Done first</button></div><button class="button" data-focus-workers>In flight</button><button class="button" data-strip-fit>All</button><button class="button" data-strip-matches aria-label="Focus matches"><span class="strip-match-full">Focus matches</span><span class="strip-match-short">Matches</span></button><div class="strip-magnification"><button class="button" data-strip-out aria-label="Zoom strip out">−</button><input type="range" min="0" max="16" step="0.01" value="0" aria-label="Strip zoom"><button class="button" data-strip-in aria-label="Zoom strip in">＋</button></div></div></div><div class="strip-stage" tabindex="0" role="group" aria-label="All tasks in one strip. Scroll to zoom at the pointer, drag to pan, double-click to zoom. Plus and minus zoom; arrow keys pan; Home fits all."><canvas class="strip-canvas" aria-hidden="true"></canvas><div class="strip-labels"></div><div class="strip-workers" aria-label="Agents working on this strip"></div><div class="strip-worker-popover" hidden></div><div class="strip-level" aria-live="polite"></div><div class="strip-empty" hidden>No tasks in this collection.</div></div><div class="strip-bottom"><div class="strip-legend"><span><i></i>Complete</span><span><i></i>Remaining</span><span>Filters fade tasks; positions and scope stay fixed.</span></div><div class="strip-minimap" tabindex="0" role="slider" aria-label="Position within all tasks" aria-valuemin="0" aria-valuemax="100"><canvas aria-hidden="true"></canvas><div class="strip-window"></div></div><div class="strip-help"><span class="strip-location"></span><span>Scroll / pinch to zoom · drag to pan · click an epic to zoom into it · click a task for context</span></div></div>`;
+  root.innerHTML = `<div class="strip-heading"><div><p class="strip-summary"></p><div class="strip-progress-summary" hidden></div></div><div class="strip-zoom"><div class="strip-orders" role="group" aria-label="Strip ordering"><button class="button" data-strip-order="chronological">Chronological</button><button class="button" data-strip-order="progress">Done first</button></div><button class="button" data-focus-workers>In flight</button><button class="button" data-strip-fit>All</button><button class="button" data-strip-matches aria-label="Focus matches"><span class="strip-match-full">Focus matches</span><span class="strip-match-short">Matches</span></button><div class="strip-magnification"><button class="button" data-strip-out aria-label="Zoom strip out">−</button><input type="range" min="0" max="16" step="0.01" value="0" aria-label="Strip zoom"><button class="button" data-strip-in aria-label="Zoom strip in">＋</button></div></div></div><div class="strip-stage" tabindex="0" role="group" aria-label="All tasks in one strip. Pinch or Ctrl-scroll to zoom, drag sideways to pan, double-click to zoom. Plus and minus zoom; arrow keys pan; Home fits all."><canvas class="strip-canvas" aria-hidden="true"></canvas><div class="strip-labels"></div><div class="strip-workers" aria-label="Agents working on this strip"></div><div class="strip-worker-popover" hidden></div><div class="strip-level" aria-live="polite"></div><div class="strip-empty" hidden>No tasks in this collection.</div></div><div class="strip-bottom"><div class="strip-legend"><span><i></i>Complete</span><span><i></i>Remaining</span><span>Filters fade tasks; positions and scope stay fixed.</span></div><div class="strip-minimap" tabindex="0" role="slider" aria-label="Position within all tasks" aria-valuemin="0" aria-valuemax="100"><canvas aria-hidden="true"></canvas><div class="strip-window"></div></div><div class="strip-help"><span class="strip-location"></span><span>Pinch / Ctrl-scroll to zoom · drag sideways to pan · click an epic to zoom into it · click a task for context</span></div></div>`;
+  const landedToggle = document.createElement("button");
+  landedToggle.className = "button";
+  landedToggle.dataset.toggleLandings = "";
+  landedToggle.title = "Show recently landed work from the last 30 days";
+  root
+    .querySelector(".strip-zoom")
+    .insertBefore(landedToggle, root.querySelector(".strip-magnification"));
   const stage = root.querySelector(".strip-stage"),
     canvas = root.querySelector(".strip-canvas"),
     labels = root.querySelector(".strip-labels"),
@@ -177,12 +190,11 @@ export function createSingleStrip(
       pinRows = Math.min(
         maxPinRows,
         Math.ceil(
-          activeItems.filter(
-            (i) => i.index >= range.start && i.index < range.end,
-          ).length / Math.max(1, Math.floor(width / 38)),
+          markers.filter((i) => i.index >= range.start && i.index < range.end)
+            .length / Math.max(1, Math.floor(width / 38)),
         ),
       ),
-      pinSpace = activeItems.length ? 55 + Math.max(0, pinRows - 1) * 42 : 15,
+      pinSpace = markers.length ? 55 + Math.max(0, pinRows - 1) * 42 : 15,
       bandH = detail
         ? Math.max(32, Math.min(190, height - bandY - pinSpace))
         : Math.max(26, Math.min(72, height - bandY - pinSpace));
@@ -238,13 +250,24 @@ export function createSingleStrip(
         html += `<button class="strip-task ${detail ? "strip-task-detail" : ""} ${done ? "complete" : ""} ${match ? "" : "filtered"} ${input.selected === task.id ? "selected" : ""}" data-strip-task="${esc(task.id)}" style="left:${x}px;top:${bandY}px;width:${Math.max(1, unit - 2)}px;height:${bandH}px;--epic-color:${color(group.color)}" aria-label="${esc(task.title)}. ${esc(status)}${match ? "" : ". Outside filters"}" title="${esc(task.title)} · ${esc(status)}"><small>${i + 1} · ${esc(group.id.startsWith("doc:") ? "PLAN" : group.id)}</small><strong>${esc(task.title)}</strong>${detail ? `<span>${esc(status)}</span><p>${esc((task.nextAction || task.summary || "Click for full plan context.").slice(0, 180))}</p><i class="strip-task-progress"><b style="width:${taskProgress(input.data, task) * 100}%"></b></i>` : ""}</button>`;
       }
     }
-    const pins = agentPins(activeItems, {
+    const pins = agentPins(markers, {
       start: range.start,
       end: range.end,
       width,
       maxRows: maxPinRows,
     });
-    workerClusters = new Map(pins.map((p) => [p.task.id, p.items || [p]]));
+    workerClusters = new Map(
+      pins
+        .filter((p) => p.kind === "working")
+        .map((p) => [p.task.id, p.items || [p]]),
+    );
+    landedClusters = new Map(
+      pins
+        .filter((p) => p.kind === "landed")
+        .flatMap((p) =>
+          (p.items || [p]).map((item) => [item.task.id, p.items || [p]]),
+        ),
+    );
     const workerLayer = root.querySelector(".strip-workers");
     workerLayer.style.top = bandY + bandH + 5 + "px";
     workerLayer.style.height =
@@ -256,13 +279,17 @@ export function createSingleStrip(
       pins
         .map(
           (p) =>
-            '<path d="M' +
+            '<path class="' +
+            p.kind +
+            '" d="M' +
             p.anchor +
             " 0 L" +
             p.x +
             " " +
             p.y +
-            '"/><circle cx="' +
+            '"/><circle class="' +
+            p.kind +
+            '" cx="' +
             p.anchor +
             '" cy="0" r="2"/>',
         )
@@ -271,17 +298,35 @@ export function createSingleStrip(
       pins
         .map(
           (p) =>
-            '<button class="agent-pin" data-strip-worker="' +
+            '<button class="agent-pin ' +
+            p.kind +
+            '" data-strip-' +
+            (p.kind === "landed" ? "landed" : "worker") +
+            '="' +
             esc(p.task.id) +
             '" style="left:' +
             (p.x - 14) +
             "px;top:" +
             p.y +
             'px" aria-label="' +
-            esc(p.task.activity.owner + " working on " + p.task.title) +
+            esc(
+              p.kind === "landed"
+                ? "Recently landed: " + p.task.title
+                : p.owner + " working on " + p.task.title,
+            ) +
             '" title="' +
-            esc(p.task.activity.owner + " · " + p.task.title) +
-            '"><span>N</span></button>',
+            esc(
+              p.kind === "landed"
+                ? "Recently landed · " + p.task.title
+                : p.owner + " · " + p.task.title,
+            ) +
+            '"><span>' +
+            (p.items?.length > 1
+              ? p.items.length
+              : p.kind === "landed"
+                ? "✓"
+                : "N") +
+            "</span></button>",
         )
         .join("");
 
@@ -325,16 +370,9 @@ export function createSingleStrip(
       : "";
     root.querySelector(".strip-empty").hidden = Boolean(layout.total);
   }
-  async function awaitWorker(id) {
-    const request = ++workerRequest;
-    activityTask = id;
-    const item = layout.tasks.find((i) => i.task.id === id);
-    if (!item) return;
-    const task = item.task,
-      popover = root.querySelector(".strip-worker-popover");
-    const pin = root.querySelector(
-        '[data-strip-worker="' + CSS.escape(id) + '"]',
-      ),
+  function openPopover(selector) {
+    const popover = root.querySelector(".strip-worker-popover"),
+      pin = root.querySelector(selector),
       pinBox = pin?.getBoundingClientRect(),
       stageBox = stage.getBoundingClientRect();
     popover.style.left =
@@ -354,13 +392,61 @@ export function createSingleStrip(
         ),
       ) + "px";
     popover.hidden = false;
+    return popover;
+  }
+  function showLanding(id) {
+    const cluster = landedClusters.get(id);
+    if (!cluster) return;
+    workerRequest++;
+    activityTask = "";
+    const { task, receipt } =
+        cluster.find((p) => p.task.id === id) || cluster[0],
+      popover = openPopover(
+        '.agent-pin[data-strip-landed="' + CSS.escape(id) + '"]',
+      ),
+      acceptance =
+        receipt.acceptance === "accepted"
+          ? "Accepted"
+          : receipt.acceptance === "component"
+            ? "Component accepted"
+            : "Acceptance pending";
+    popover.innerHTML = `<button class="worker-close" data-close-worker aria-label="Close landing details">×</button><small>RECENTLY LANDED</small><h3>${esc(task.title)}</h3><p><code>${esc(receipt.commit.slice(0, 9))}</code>${receipt.branch ? " · " + esc(receipt.branch) : ""} · ${esc(new Date(receipt.at).toLocaleString())}</p><p>${acceptance}</p>${
+      cluster.length > 1
+        ? '<div class="worker-neighbors"><small>Also landed in this area</small>' +
+          cluster
+            .filter((p) => p.task.id !== id)
+            .map(
+              (p) =>
+                `<button class="button subtle" data-strip-landed="${esc(p.task.id)}">${esc(p.task.title)}</button>`,
+            )
+            .join("") +
+          "</div>"
+        : ""
+    }<button class="button subtle" data-worker-task="${esc(task.id)}">Task & evidence</button>${receipt.runId ? `<button class="button subtle" data-worker-run="${esc(receipt.runId)}">Open landing session</button>` : ""}`;
+  }
+  async function awaitWorker(id) {
+    const request = ++workerRequest;
+    activityTask = id;
+    const item = activeItems.find((i) => i.task.id === id);
+    if (!item) return;
+    if (item.run) {
+      popoverClose();
+      window.dispatchEvent(
+        new CustomEvent("nupp-open-session", {
+          detail: { id: item.run.id, steer: false },
+        }),
+      );
+      return;
+    }
+    const task = item.task,
+      popover = openPopover('[data-strip-worker="' + CSS.escape(id) + '"]');
     popover.innerHTML =
       '<button class="worker-close" data-close-worker aria-label="Close agent activity">×</button><small>IN FLIGHT</small><h3>' +
       esc(task.title) +
       "</h3><p>" +
-      esc(task.activity.owner) +
+      esc(item.owner) +
       "</p><p>" +
-      esc(task.activity.summary || "No check-in summary.") +
+      esc(item.summary) +
       "</p>" +
       (workerClusters.get(id)?.length > 1
         ? '<div class="worker-neighbors"><small>Also working in this area</small>' +
@@ -373,7 +459,7 @@ export function createSingleStrip(
                 '<button class="button subtle" data-strip-worker="' +
                 esc(i.task.id) +
                 '">' +
-                esc(i.task.activity.owner) +
+                esc(i.owner) +
                 " · " +
                 esc(i.task.title) +
                 "</button>",
@@ -435,6 +521,21 @@ export function createSingleStrip(
     interact();
     const b = e.target.closest("button");
     if (!b) return;
+    if (b.hasAttribute("data-toggle-landings")) {
+      showLandings = !showLandings;
+      try {
+        localStorage.setItem("avoozl-strip-landings", String(showLandings));
+      } catch {}
+      refreshMarkers();
+      workerRequest++;
+      popoverClose();
+      schedule();
+      return;
+    }
+    if (b.dataset.stripLanded) {
+      showLanding(b.dataset.stripLanded);
+      return;
+    }
     if (b.dataset.stripWorker) {
       awaitWorker(b.dataset.stripWorker);
       return;
@@ -505,6 +606,8 @@ export function createSingleStrip(
   stage.addEventListener(
     "wheel",
     (e) => {
+      if (!e.ctrlKey && !e.metaKey && Math.abs(e.deltaY) >= Math.abs(e.deltaX))
+        return;
       interact();
       e.preventDefault();
       const box = stage.getBoundingClientRect();
@@ -609,6 +712,7 @@ export function createSingleStrip(
     dragged = false;
   });
   stage.addEventListener("lostpointercapture", (e) => {
+    if (e.target !== stage || stage.hasPointerCapture(e.pointerId)) return;
     if (pointers.has(e.pointerId)) {
       pointerEnd(e);
       dragged = false;
@@ -670,7 +774,25 @@ export function createSingleStrip(
     }
   });
   new ResizeObserver(() => schedule()).observe(stage);
+  function refreshMarkers() {
+    const all = stripActivityMarkers(layout.tasks, activity);
+    activeItems = all.filter((p) => p.kind === "working");
+    markers = all.filter((p) => p.kind !== "landed" || showLandings);
+    landedToggle.textContent =
+      "Recently landed · " + all.filter((p) => p.kind === "landed").length;
+    landedToggle.setAttribute("aria-pressed", String(showLandings));
+    const workers = root.querySelector("[data-focus-workers]");
+    workers.textContent = "In flight · " + activeItems.length;
+    workers.disabled = !activeItems.length;
+  }
   return {
+    updateActivity(next) {
+      activity = next;
+      if (input) {
+        refreshMarkers();
+        schedule();
+      }
+    },
     render(next) {
       input = next;
       layout = stripLayout(next.data, {
@@ -678,12 +800,7 @@ export function createSingleStrip(
         matchingIds: next.matchingIds,
         order: next.order,
       });
-      activeItems = layout.tasks.filter(
-        (i) => activityState(i.task) === "active",
-      );
-      const workers = root.querySelector("[data-focus-workers]");
-      workers.textContent = "In flight · " + activeItems.length;
-      workers.disabled = !activeItems.length;
+      refreshMarkers();
       for (const group of layout.groups)
         group.prefix = opacityPrefix(next.data, group.tasks, next.matchingIds);
       const summary = root.querySelector(".strip-progress-summary");
@@ -727,6 +844,7 @@ export function createSingleStrip(
       raf = 0;
       input = null;
       activeItems = [];
+      markers = [];
       workerRequest++;
       activityTask = "";
       root.querySelector(".strip-workers").replaceChildren();

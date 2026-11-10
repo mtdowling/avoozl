@@ -2448,29 +2448,6 @@ dialog textarea {
     min-height: 235px;
   }
 }
-body.strip-active {
-  height: 100dvh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-.strip-active .header,
-.strip-active .projectbar {
-  flex-shrink: 0;
-}
-.strip-active .projectbar {
-  padding-top: 14px;
-  padding-bottom: 14px;
-}
-.strip-active .workspace {
-  height: auto;
-  min-height: 0;
-  flex: 1;
-}
-.strip-active .workspace.theater {
-  height: 100dvh;
-  min-height: 100dvh;
-}
 .strip-heading {
   padding: 16px 20px;
 }
@@ -8425,68 +8402,80 @@ body.app-shell:has(> .workspace.theater) > .site-navigation.header {
   }
 }
 
-/* Compact, evidence-based landings on Now. */
-.hub-landing-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  border-bottom: 1px solid var(--border);
-  padding: 10px 0;
-}
-.hub-landing-copy {
-  min-width: 0;
-}
-.hub-landing-copy .hub-task-name {
-  font-size: 13px;
-}
-.hub-landing-copy > small {
-  display: block;
-  margin-top: 4px;
-  color: var(--muted, #aaa);
-  font-size: 10px;
-  line-height: 1.6;
-  overflow-wrap: anywhere;
-}
-.hub-landing-copy code {
-  font-size: 10px;
-  background: transparent;
+/* Now keeps the plan context above its operational details. */
+#activity-view {
   padding: 0;
 }
-.hub-landing-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
+#now-content {
+  padding: 24px;
 }
-.hub-landing-state {
-  font-size: 10px;
-  color: var(--muted, #aaa);
+#activity-view > #strip-view {
+  height: 330px;
+  min-height: 330px;
+  border-bottom: 1px solid var(--border);
 }
-.hub-landing-state.is-accepted {
-  color: #69c795;
+#activity-view .strip-stage {
+  min-height: 200px;
+  touch-action: pan-y;
 }
-.hub-landing-actions .icon-button {
-  width: 28px;
-  height: 28px;
-  padding: 3px;
+#activity-view .strip-legend,
+#activity-view .strip-help {
+  display: none;
 }
-.hub-landings .section-heading {
-  margin-bottom: 5px;
+#activity-view .strip-bottom {
+  padding: 8px 18px;
 }
-@media (max-width: 650px) {
-  .hub-landing-row {
-    align-items: flex-start;
-    gap: 8px;
+#activity-view .strip-zoom {
+  flex-wrap: wrap;
+}
+.strip-workers .agent-pin.landed > span,
+.strip-workers .agent-pin.landed > span:before {
+  background: #d8ad67;
+  border-color: #f0ca8a;
+  color: #30210c;
+}
+.agent-pin-stems path.landed {
+  stroke: #d8ad67;
+}
+.agent-pin-stems circle.landed {
+  fill: #d8ad67;
+}
+.strip-zoom [data-toggle-landings][aria-pressed="true"] {
+  color: #f0ca8a;
+  border-color: #7a6039;
+  background: #30271a;
+}
+@media (max-width: 900px) {
+  #now-content {
+    padding: 18px 12px;
   }
-  .hub-landing-actions {
-    gap: 3px;
+  #activity-view > #strip-view {
+    height: auto;
+    min-height: 0;
   }
-  .hub-landing-state {
-    max-width: 72px;
-    line-height: 1.5;
+  #activity-view .strip-stage {
+    height: 200px;
+    flex: none;
   }
-  .hub-landings .section-heading > span {
+  #activity-view .strip-level {
+    left: auto;
+    right: 8px;
+  }
+  #activity-view .strip-zoom {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  #activity-view .strip-zoom [data-strip-matches] {
+    grid-column: auto;
+  }
+  #activity-view .strip-magnification {
+    grid-column: 1 / -1;
+    justify-content: center;
+  }
+  #activity-view .strip-zoom .button {
+    min-height: 30px;
     font-size: 10px;
+  }
+  #activity-view .strip-worker-popover {
+    max-height: calc(100% - 16px);
   }
 }
