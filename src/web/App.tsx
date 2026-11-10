@@ -33,12 +33,12 @@ const DocumentEditor = lazy(() => import("./Editors").then((module) => ({ defaul
 type View = "overview" | "tasks" | "conversations" | "plans" | "documents" | "graph" | "settings";
 
 const views: Array<{ id: View; label: string; icon: typeof LayoutDashboard }> = [
-  { id: "overview", label: "Command", icon: LayoutDashboard },
-  { id: "tasks", label: "Tasks", icon: ListTodo },
-  { id: "conversations", label: "Conversations", icon: MessageSquare },
-  { id: "plans", label: "Plans", icon: FileCode2 },
+  { id: "overview", label: "Now", icon: Activity },
+  { id: "tasks", label: "Task tree", icon: ListTodo },
+  { id: "conversations", label: "Steer", icon: MessageSquare },
+  { id: "plans", label: "Plan drafts", icon: FileCode2 },
   { id: "documents", label: "Documents", icon: FileText },
-  { id: "graph", label: "Graph", icon: Network },
+  { id: "graph", label: "Dependency graph", icon: Network },
   { id: "settings", label: "Settings", icon: Settings },
 ];
 
@@ -74,26 +74,19 @@ function Overview({ workspace, state, openRun, openTask }: { workspace: Workspac
   const attention = workspace.runs.filter((run) => ["waiting-input", "waiting-approval", "failed", "disconnected"].includes(run.state));
   return (
     <section className="screen">
-      <header className="hero">
-        <div>
-          <span className="eyebrow">Operator command surface</span>
-          <h1>See the work.<br /><em>Move it forward.</em></h1>
-          <p>One durable workspace for plans, tasks, agent conversations, approvals, and delivery.</p>
-        </div>
-        <div className="hero-status">
-          <span className={workspace.agentHost?.connected ? "live-light connected" : "live-light"} />
-          Agent host {workspace.agentHost?.connected ? "connected" : "offline"}
-        </div>
+      <header className="view-heading">
+        <div><h1>Now</h1><p>Work that needs attention or can move next.</p></div>
+        <span>{state.tasks.length} tasks</span>
       </header>
       <div className="metric-grid">
-        <article><span>Ready</span><strong>{queue.data?.summary?.ready ?? "—"}</strong><small>tasks can move now</small></article>
-        <article><span>Blocked</span><strong>{queue.data?.summary?.blocked ?? "—"}</strong><small>need a dependency or decision</small></article>
-        <article><span>Active</span><strong>{queue.data?.summary?.active ?? workspace.runs.filter((r) => ["starting", "running"].includes(r.state)).length}</strong><small>agent sessions working</small></article>
-        <article><span>Plans</span><strong>{workspace.planTotal}</strong><small>design records retained</small></article>
+        <article><span>Ready</span><strong>{queue.data?.summary?.ready ?? "—"}</strong></article>
+        <article><span>Blocked</span><strong>{queue.data?.summary?.blocked ?? "—"}</strong></article>
+        <article><span>Active</span><strong>{queue.data?.summary?.active ?? workspace.runs.filter((r) => ["starting", "running"].includes(r.state)).length}</strong></article>
+        <article><span>Plans</span><strong>{workspace.planTotal}</strong></article>
       </div>
       <div className="dashboard-grid">
         <section className="panel attention-panel">
-          <header><div><span className="eyebrow">Your move</span><h2>Attention queue</h2></div><ShieldAlert size={20} /></header>
+          <header><h2>Needs attention</h2><ShieldAlert size={16} /></header>
           {attention.length ? attention.slice(0, 8).map((run) => (
             <button className="attention-row" key={run.id} onClick={() => openRun(run.id)}>
               <span className={`status-dot state-${run.state}`} />
@@ -103,7 +96,7 @@ function Overview({ workspace, state, openRun, openTask }: { workspace: Workspac
           )) : <Empty icon={CheckCircle2} title="Nothing is waiting">Agents can continue without an operator decision.</Empty>}
         </section>
         <section className="panel">
-          <header><div><span className="eyebrow">Execution</span><h2>Ready work</h2></div><Activity size={20} /></header>
+          <header><h2>Ready work</h2><Activity size={16} /></header>
           {(queue.data?.ready || []).slice(0, 8).map((task: Task) => (
             <button className="task-row" key={task.id} onClick={() => openTask(task)}>
               <span><strong>{task.title}</strong><small>{task.id} · {task.status}</small></span>
@@ -115,7 +108,7 @@ function Overview({ workspace, state, openRun, openTask }: { workspace: Workspac
       </div>
       {!!queue.data?.blocked?.length && (
         <section className="panel blocked-panel">
-          <header><div><span className="eyebrow">Dependency pressure</span><h2>Blocked work</h2></div><GitBranch size={20} /></header>
+          <header><h2>Blocked work</h2><GitBranch size={16} /></header>
           <div className="card-grid">
             {queue.data.blocked.slice(0, 6).map((item: any) => (
               <article key={item.id}><strong>{item.title}</strong><small>{item.id}</small><p>{item.nextAction || item.summary || "Waiting on prerequisites."}</p><div>{item.blockers.map((b: any) => <button key={b.id} onClick={() => openTask(state.tasks.find((t) => t.id === b.id)!)}>{b.title}</button>)}</div></article>
@@ -162,10 +155,8 @@ function NewConversation({ workspace, onCreated }: { workspace: Workspace; onCre
 
   return (
     <div className="new-conversation">
-      <div className="spark"><Sparkles size={28} /></div>
-      <span className="eyebrow">New conversation</span>
-      <h1>What should the agent do?</h1>
-      <p>Ask a question, implement scoped work, or draft a plan. The durable run remains available here and in the editor.</p>
+      <h1>Start a conversation</h1>
+      <p>Ask a question, implement scoped work, or draft a plan.</p>
       <form onSubmit={submit}>
         <textarea autoFocus value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Describe the outcome, question, or decision…" required maxLength={20000} />
         <div className="new-conversation-controls">
@@ -199,7 +190,7 @@ function Tasks({ state, openTask }: { state: State; openTask: (task: Task) => vo
   return (
     <section className="screen tasks-screen">
       <header className="screen-heading">
-        <div><span className="eyebrow">Canonical work inventory</span><h1>Tasks</h1></div>
+        <div><h1>Task tree</h1><p>Workspace tasks and their current delivery state.</p></div>
         <span>{tasks.length} of {state.tasks.length}</span>
       </header>
       <div className="task-filters">
@@ -277,7 +268,7 @@ function Graph({ state, openTask }: { state: State; openTask: (task: Task) => vo
   const height = Math.max(620, 150 + Math.ceil(tasks.length / 4) * 120);
   return (
     <section className="screen graph-screen">
-      <header className="screen-heading"><div><span className="eyebrow">Execution topology</span><h1>Task graph</h1></div><span>{tasks.length} tasks · {state.edges.length} relationships</span></header>
+      <header className="screen-heading"><div><h1>Dependency graph</h1><p>Prerequisite and sequencing relationships.</p></div><span>{tasks.length} tasks · {state.edges.length} relationships</span></header>
       <div className="graph-canvas"><svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Task dependency graph">
         <defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" /></marker></defs>
         {state.edges.map((edge, index) => { const from = positions.get(edge.from), to = positions.get(edge.to); return from && to ? <line key={edge.id || index} x1={from.x + 82} y1={from.y} x2={to.x - 82} y2={to.y} markerEnd="url(#arrow)" className={`edge edge-${edge.kind}`} /> : null; })}
@@ -300,7 +291,7 @@ function TaskDrawer({ task, state, close, refresh }: { task: Task; state: State;
 }
 
 function SettingsView({ workspace, state }: { workspace: Workspace; state: State }) {
-  return <section className="screen settings-screen"><header className="screen-heading"><div><span className="eyebrow">Workspace</span><h1>System & connections</h1></div></header><div className="settings-grid"><article className="panel"><Boxes size={22} /><h2>{state.project?.workspaceName || state.project?.title || state.project?.name || "Avoozl"}</h2><dl><dt>Storage revision</dt><dd>{workspace.revision}</dd><dt>Mode</dt><dd>{workspace.mode || "local"}</dd><dt>Agent host</dt><dd>{workspace.agentHost?.connected ? "Connected" : "Offline"}</dd><dt>Publication queue</dt><dd>{workspace.publication?.pending?.length || 0}</dd></dl></article><article className="panel"><Bot size={22} /><h2>Providers</h2>{workspace.providers.map((provider) => <p key={provider.id || provider.name}><strong>{provider.label || provider.name || provider.id}</strong></p>)}</article><article className="panel"><GitBranch size={22} /><h2>Execution projects</h2>{workspace.projects.map((project) => <p key={project.id}><strong>{project.name || project.id}</strong><br /><small>{project.root || project.path}</small></p>)}</article></div></section>;
+  return <section className="screen settings-screen"><header className="screen-heading"><div><h1>Settings</h1><p>Workspace, provider, and execution configuration.</p></div></header><div className="settings-grid"><article className="panel"><Boxes size={18} /><h2>{state.project?.workspaceName || state.project?.title || state.project?.name || "Avoozl"}</h2><dl><dt>Storage revision</dt><dd>{workspace.revision}</dd><dt>Mode</dt><dd>{workspace.mode || "local"}</dd><dt>Agent host</dt><dd>{workspace.agentHost?.connected ? "Connected" : "Offline"}</dd><dt>Publication queue</dt><dd>{workspace.publication?.pending?.length || 0}</dd></dl></article><article className="panel"><Bot size={18} /><h2>Providers</h2>{workspace.providers.map((provider) => <p key={provider.id || provider.name}><strong>{provider.label || provider.name || provider.id}</strong></p>)}</article><article className="panel"><GitBranch size={18} /><h2>Execution projects</h2>{workspace.projects.map((project) => <p key={project.id}><strong>{project.name || project.id}</strong><br /><small>{project.root || project.path}</small></p>)}</article></div></section>;
 }
 
 export function App() {
@@ -333,15 +324,17 @@ export function App() {
   if (!workspace.data || !state.data) return <div className="boot-screen"><div className="brand-mark"><Sparkles /></div><h1>Avoozl</h1><p>{workspace.error?.message || state.error?.message || "Opening workspace…"}</p></div>;
   const workspaceData = workspace.data;
   const stateData = state.data;
+  const workspaceName = stateData.project?.workspaceName || stateData.project?.title || stateData.project?.name || "Avoozl";
+  const currentView = views.find((item) => item.id === view)!;
   return (
     <div className="app-shell">
       <aside className={navOpen ? "app-nav open" : "app-nav"}>
-        <div className="brand"><div className="brand-mark"><Sparkles size={20} /></div><div><strong>Avoozl</strong><small>operator console</small></div><button className="mobile-close" onClick={() => setNavOpen(false)}><PanelLeftClose /></button></div>
-        <nav>{views.map(({ id, label, icon: Icon }) => <button key={id} className={view === id ? "active" : ""} onClick={() => navigate(id)}><Icon size={19} /><span>{label}</span>{id === "conversations" && workspaceData.requests.length > 0 && <b>{workspaceData.requests.length}</b>}</button>)}</nav>
-        <div className="nav-foot"><span className={workspaceData.agentHost?.connected ? "live-light connected" : "live-light"} /><span><strong>{workspaceData.agentHost?.connected ? "Agent host live" : "Agent host offline"}</strong><small>{workspaceData.mode || "local"} workspace</small></span></div>
+        <div className="brand"><div className="brand-mark">a</div><strong title={workspaceName}>{workspaceName}</strong><button className="mobile-close" onClick={() => setNavOpen(false)}><PanelLeftClose size={17} /></button></div>
+        <nav>{views.map(({ id, label, icon: Icon }) => <button key={id} className={view === id ? "active" : ""} onClick={() => navigate(id)}><Icon size={16} /><span>{label}</span>{id === "conversations" && workspaceData.requests.length > 0 && <b>{workspaceData.requests.length}</b>}</button>)}</nav>
+        <div className="nav-foot"><button className="mcp-button">MCP</button><span className={workspaceData.agentHost?.connected ? "live-light connected" : "live-light"} title={workspaceData.agentHost?.connected ? "Agent host connected" : "Agent host offline"} /><button onClick={refresh} title="Refresh"><RefreshCw size={14} /></button></div>
       </aside>
       <main className="app-main">
-        <header className="mobile-bar"><button onClick={() => setNavOpen(true)}><Menu /></button><strong>Avoozl</strong><button onClick={refresh}><RefreshCw /></button></header>
+        <header className="app-toolbar"><button className="mobile-menu" onClick={() => setNavOpen(true)}><Menu size={18} /></button><strong>{currentView.label}</strong><span className="toolbar-rule" /><span>{stateData.tasks.length} tasks</span><div className="toolbar-spacer" /><span className={workspaceData.agentHost?.connected ? "live-light connected" : "live-light"} /><span>{workspaceData.agentHost?.connected ? "Connected" : "Offline"}</span><button onClick={refresh} title="Refresh"><RefreshCw size={14} /></button></header>
         {view === "overview" && <Overview workspace={workspaceData} state={stateData} openRun={openRun} openTask={setDrawerTask} />}
         {view === "tasks" && <Tasks state={stateData} openTask={setDrawerTask} />}
         {view === "conversations" && <Conversations workspace={workspaceData} selected={runId} select={setRunId} refresh={refresh} />}
