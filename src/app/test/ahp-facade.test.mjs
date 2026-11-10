@@ -817,3 +817,56 @@ test("the audit trail names the client behind every dispatch, accepted or refuse
     [...seqs].sort((a, b) => a - b),
   );
 });
+
+test("the host stores the editor's own root configuration instead of refusing it", async (t) => {
+  // The editor dispatches root/configChanged to keep preferences on the host.
+  // Refusing it left a real editor retrying the same action and never
+  // listing the sessions this host owns.
+  const { facade } = await harness(t);
+  const { client } = await connect(facade, EDITOR_TOKEN, [ROOT_CHANNEL]);
+  t.after(() => client.shutdown());
+  const accepted = await rawDispatch(facade, ROOT_CHANNEL, {
+    type: "root/configChanged",
+    config: { "some.editor.preference": "kept" },
+  });
+  assert.equal(accepted.error, undefined);
+  assert.deepEqual(facade.projection.rootConfigValues(), {
+    "some.editor.preference": "kept",
+  });
+  // Merging by default, replacing on request.
+  await rawDispatch(facade, ROOT_CHANNEL, {
+    type: "root/configChanged",
+    config: { another: 1 },
+  });
+  assert.equal(facade.projection.rootConfigValues().another, 1);
+  assert.equal(
+    facade.projection.rootConfigValues()["some.editor.preference"],
+    "kept",
+  );
+  await rawDispatch(facade, ROOT_CHANNEL, {
+    type: "root/configChanged",
+    config: { only: true },
+    replace: true,
+  });
+  assert.deepEqual(facade.projection.rootConfigValues(), { only: true });
+  // It reaches the root state a client reads.
+  assert.deepEqual(facade.projection.rootState().config.values, {
+    only: true,
+  });
+  // A server action is still refused: a client cannot claim to change the
+  // agents this host advertises.
+  const serverAction = await rawDispatch(facade, ROOT_CHANNEL, {
+    type: "root/agentsChanged",
+    agents: [],
+  });
+  assert.ok(serverAction.error);
+  assert.match(serverAction.error.message, /server action/);
+  // And a client-dispatchable action with no meaning on the root channel is
+  // refused by name rather than silently accepted.
+  const wrongChannel = await rawDispatch(facade, ROOT_CHANNEL, {
+    type: "chat/isReadChanged",
+    isRead: true,
+  });
+  assert.ok(wrongChannel.error);
+  assert.match(wrongChannel.error.message, /root channel/);
+});
