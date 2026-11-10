@@ -19,6 +19,8 @@ const esc = (value) =>
 export function createWorkbench({
   tasksElement,
   nowElement,
+  nowScrollElement = nowElement,
+  nowChanged = () => {},
   badge,
   epicName,
   trackName,
@@ -240,22 +242,12 @@ export function createWorkbench({
       paintNow();
     }
   }
-  function landingSummary(row) {
-    const { task } = row,
-      label =
-        row.acceptance === "accepted"
-          ? "Accepted"
-          : row.acceptance === "component"
-            ? "Component accepted"
-            : "Acceptance pending",
-      date = new Date(row.at).toLocaleString("en-US", {
-        month: "short",
-        day: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-      });
-    return `<article class="hub-landing-row"><div class="hub-landing-copy"><button class="hub-task-name" data-task="${esc(task.id)}">${esc(task.title)}</button><small>${esc(epicName(task.epic))} · <time datetime="${esc(row.at)}" title="${esc(date)}">${age(row.at)}</time> · <code title="${esc(row.commit)}">${esc(row.commit.slice(0, 9))}</code>${row.branch ? " · " + esc(row.branch) : ""}</small></div><div class="hub-landing-actions"><span class="hub-landing-state ${row.acceptance === "accepted" ? "is-accepted" : ""}">${label}</span><button class="icon-button" data-task="${esc(task.id)}" aria-label="Review ${esc(task.title)} and its evidence" title="Review task and evidence">↗</button>${row.runId ? '<button class="icon-button" data-open-run="' + esc(row.runId) + '" aria-label="Open landing session" title="Open session">◷</button>' : ""}</div></article>`;
-  }
+  const conversations = () =>
+    (nowPayload?.runs || [])
+      .filter((r) => r.state === "completed" && r.mode === "ask")
+      .slice(0, 4);
+  const conversationSummary = (r) =>
+    `<button class="hub-conversation" data-open-run="${esc(r.id)}">${esc(r.title || r.taskId)}<span>Open chat →</span></button>`;
   function paged(tasks, key, render, size = 8) {
     const page = Math.min(
         pages.get(key) || 0,
@@ -276,7 +268,7 @@ export function createWorkbench({
     return `<details class="hub-fold" data-now-fold="${key}" ${nowExpanded.has(key) ? "open" : ""}><summary>${title}<span>${tasks.length}</span></summary><div>${nowExpanded.has(key) ? paged(tasks, key, render) : ""}</div></details>`;
   }
   function paintNow() {
-    if (!current || current.view !== "now" || nowElement.hidden) return;
+    if (!current || current.view !== "now" || nowScrollElement.hidden) return;
     const { data, rows } = current,
       lanes = nowBoard(data, rows, prefs),
       w = nowPayload || { runs: [], requests: [], integrations: [] },
@@ -295,7 +287,8 @@ export function createWorkbench({
       inProgress + " in progress",
       requests.length ? requests.length + " waiting for you" : "",
     );
-    nowScroll = nowElement.scrollTop;
+    nowScroll = nowScrollElement.scrollTop;
+    nowChanged({ runs: w.runs, landings });
     nowElement.innerHTML = `<header class="hub-heading"><div><span class="hub-date">${new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</span><h1>Now</h1><p>A clear view of the work. A place to change its direction.</p></div><button class="button primary" data-ask-blockers>Ask about blockers</button></header><div class="hub-pulse" style="--hub-pulse-columns:${requests.length ? 4 : 3}"><button data-jump-hub="working"><strong>${inProgress}</strong><span>In progress</span></button>${requests.length ? `<button data-jump-hub="decisions"><strong>${requests.length}</strong><span>Need your input</span></button>` : ""}<button data-jump-hub="blocked"><strong>${lanes.blocked.length}</strong><span>Blocked</span></button><button data-jump-hub="ready"><strong>${ready.length}</strong><span>Ready next</span></button></div>
  <section class="hub-section hub-decisions" id="hub-decisions" ${requests.length || (w.integrations || []).length ? "" : "hidden"}>${requests.length ? `<div class="section-heading"><h2>Needs your input</h2><span>${requests.length} pending</span></div>` : ""}${
    requests.length
@@ -309,30 +302,15 @@ export function createWorkbench({
      : ""
  }${(w.integrations || []).length ? `<button class="hub-integration-link" data-open-integration>${w.integrations.length} validated ${w.integrations.length === 1 ? "branch is" : "branches are"} ready to review and integrate →</button>` : ""}</section>
  <section class="hub-section" id="hub-working"><div class="section-heading"><h2>In progress</h2><span>${nowPayload ? "Updated " + age(new Date(nowAt).toISOString()) : "Loading connected sessions…"}</span></div>${active.map(runSummary).join("")}${paged(external, "working", (t) => taskSummary(t, { running: true }))}${!inProgress ? '<p class="hub-empty">No work is currently reported. Unreported external work may still be running.</p>' : ""}</section>
- ${landings.length ? '<section class="hub-section hub-landings" id="hub-landed"><div class="section-heading"><h2>Recently landed</h2><span>Last 30 days · current filters</span></div>' + paged(landings, "landed", landingSummary, 5) + "</section>" : ""}
  <section class="hub-section" id="hub-ready"><div class="section-heading"><h2>Up next</h2><span>Ready work with the most dependent tasks first</span></div>${paged(ready, "ready", (t) => taskSummary(t)) || '<p class="hub-empty">No matching tasks are ready.</p>'}</section>
- <section class="hub-section" id="hub-blocked">${fold("blocked", "Blocked work", lanes.blocked, (t) => taskSummary(t))}${fold("checkins", "Check-ins & context to review", lanes.attention, (t) => taskSummary(t))}${fold("completed", "Recently updated completed work", lanes.completed, (t) => taskSummary(t))}</section>
- ${
-   w.runs.some((r) => r.state === "completed" && r.mode === "ask")
-     ? '<section class="hub-section"><div class="section-heading"><h2>Recent conversations</h2></div>' +
-       w.runs
-         .filter((r) => r.state === "completed" && r.mode === "ask")
-         .slice(0, 4)
-         .map(
-           (r) =>
-             `<button class="hub-conversation" data-open-run="${esc(r.id)}">${esc(r.title || r.taskId)}<span>Open chat →</span></button>`,
-         )
-         .join("") +
-       "</section>"
-     : ""
- }`;
-    nowElement.scrollTop = nowScroll;
+ <section class="hub-section" id="hub-blocked">${fold("blocked", "Blocked work", lanes.blocked, (t) => taskSummary(t))}${fold("checkins", "Check-ins & context to review", lanes.attention, (t) => taskSummary(t))}${fold("completed", "Recently updated completed work", lanes.completed, (t) => taskSummary(t))}${conversations().length ? fold("conversations", "Recent conversations", conversations(), conversationSummary) : ""}</section>`;
+    nowScrollElement.scrollTop = nowScroll;
   }
   async function updateNow() {
     if (
       nowRequest ||
       current?.view !== "now" ||
-      nowElement.hidden ||
+      nowScrollElement.hidden ||
       document.hidden
     )
       return;
@@ -398,11 +376,20 @@ export function createWorkbench({
       if (!key || !e.target.isConnected) return;
       if (e.target.open) nowExpanded.add(key);
       else nowExpanded.delete(key);
-      const tasks = nowBoard(current.data, current.rows, prefs)[
-        key === "checkins" ? "attention" : key
-      ];
+      const tasks =
+        key === "conversations"
+          ? conversations()
+          : nowBoard(current.data, current.rows, prefs)[
+              key === "checkins" ? "attention" : key
+            ];
       e.target.querySelector("div").innerHTML = e.target.open
-        ? paged(tasks, key, (t) => taskSummary(t))
+        ? paged(
+            tasks,
+            key,
+            key === "conversations"
+              ? conversationSummary
+              : (t) => taskSummary(t),
+          )
         : "";
     },
     true,

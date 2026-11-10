@@ -67,7 +67,8 @@ const params = new URLSearchParams(location.search),
     taskIds: [],
     visualization: params.get("visualization") || "",
   };
-if (["report", "home", "queue"].includes(state.view)) state.view = "activity";
+if (["report", "home", "queue", "strip"].includes(state.view))
+  state.view = "activity";
 let planSearch = params.get("planSearch") || "",
   planSearchIds = null,
   planSearchTimer,
@@ -207,8 +208,7 @@ function clearInactiveView() {
   workbench.suspend();
   singleStrip.suspend?.();
   epicChart.suspend?.();
-  for (const id of ["tasks", "activity", "documents"])
-    $(id + "-view").replaceChildren();
+  for (const id of ["tasks", "documents"]) $(id + "-view").replaceChildren();
   $("nodes").replaceChildren();
   $("edges").replaceChildren();
   $("lanes").replaceChildren();
@@ -305,7 +305,7 @@ function applyVisualization(view) {
   ])
     state[key] = view.filters?.[key] || "";
   state.scope = view.filters?.scope || "all";
-  state.view = view.view === "report" ? "activity" : view.view;
+  state.view = ["report", "strip"].includes(view.view) ? "activity" : view.view;
   state.selected = view.selected || view.filters?.node || "";
   state.document = "";
   state.group = view.group || "epic";
@@ -363,7 +363,9 @@ const epicName = (id) =>
 const trackName = (id) => lookup().tracks.get(id)?.label || id;
 const workbench = createWorkbench({
   tasksElement: $("tasks-view"),
-  nowElement: $("activity-view"),
+  nowElement: $("now-content"),
+  nowScrollElement: $("activity-view"),
+  nowChanged: (snapshot) => singleStrip.updateActivity(snapshot),
   badge,
   epicName,
   trackName,
@@ -409,7 +411,7 @@ function urlState() {
     )
       p.set(key, state[key]);
   if (state.epicZoom !== 100) p.set("epicZoom", state.epicZoom);
-  if (state.view === "strip") {
+  if (state.view === "activity") {
     if (state.stripOrder === "progress") p.set("stripOrder", "progress");
     if (state.stripScale > 1.001 || state.visualization)
       p.set("stripZoom", Number(state.stripScale.toFixed(4)));
@@ -502,6 +504,7 @@ window.addEventListener("nupp-workspace-navigation", () => {
 });
 function refreshViews({ fit = false } = {}) {
   if (!data) return;
+  if (state.view === "strip") state.view = "activity";
   state.selected = resolveTaskId(data, state.selected);
   state.focusTask = resolveTaskId(data, state.focusTask);
   state.taskIds = [
@@ -521,7 +524,6 @@ function refreshViews({ fit = false } = {}) {
       historical: includeHistorical(state),
     }),
     viewData = { ...data, tasks: visibleTasks };
-  document.body.classList.toggle("strip-active", state.view === "strip");
   document.body.classList.toggle(
     "documents-active",
     state.view === "documents",
@@ -571,20 +573,13 @@ function refreshViews({ fit = false } = {}) {
   $("filter-note").textContent = includeHistorical(state)
     ? "Historical records included"
     : "Historical records hidden";
-  for (const view of [
-    "strip",
-    "epics",
-    "graph",
-    "tasks",
-    "activity",
-    "documents",
-  ])
+  for (const view of ["epics", "graph", "tasks", "activity", "documents"])
     $(view + "-view").hidden = state.view !== view;
   syncNavigation();
   $("group-control").hidden = !["graph", "tasks"].includes(state.view);
   $("detail-control").hidden = state.view !== "graph";
   $("fullscreen").hidden = false;
-  if (state.view === "strip")
+  if (state.view === "activity") {
     singleStrip.render({
       data: viewData,
       historical: includeHistorical(state),
@@ -597,7 +592,8 @@ function refreshViews({ fit = false } = {}) {
       focusMatches: state.stripFocus === "matches",
       focusToken: state.stripFocusToken,
     });
-  else if (state.view === "epics")
+    workbench.renderNow({ data, rows, selected: state.selected });
+  } else if (state.view === "epics")
     epicChart.render({
       data: viewData,
       matchingIds: new Set(rows.map((t) => t.id)),
@@ -621,8 +617,6 @@ function refreshViews({ fit = false } = {}) {
           state.activity,
       ),
     });
-  else if (state.view === "activity")
-    workbench.renderNow({ data, rows, selected: state.selected });
   else renderDocuments();
   renderInspector();
   renderTour();
@@ -2200,7 +2194,7 @@ function positionTourCue() {
     chart:
       state.view === "graph"
         ? $("graph-stage")
-        : state.view === "strip"
+        : state.view === "activity"
           ? document.querySelector(".strip-stage")
           : document.querySelector(".epic-scroll"),
     tasks: $("tasks-view"),
