@@ -48,7 +48,7 @@ shell.hidden = true;
 shell.setAttribute("aria-label", "Planning and agent workspace");
 shell.innerHTML = `<aside class="execution-nav"><div><span class="eyebrow">AVOOZL</span><h2>From intent<br>to delivery.</h2><p id="execution-mode"></p></div><nav aria-label="Workspace sections">${[
   ["sessions", "Agent sessions"],
-  ["metrics", "Trends"],
+  ["metrics", "Insights"],
 ]
   .map(([id, label]) => `<button data-workspace-tab="${id}">${label}</button>`)
   .join(
@@ -57,10 +57,10 @@ shell.innerHTML = `<aside class="execution-nav"><div><span class="eyebrow">AVOOZ
 document.body.append(shell);
 const usageButton = document.createElement("button");
 usageButton.id = "open-usage";
-usageButton.title = "Trends";
-usageButton.setAttribute("aria-label", "Trends");
+usageButton.title = "Insights";
+usageButton.setAttribute("aria-label", "Insights");
 usageButton.innerHTML =
-  '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 3v17h17M8 16V9m5 7V5m5 11v-5"/></svg><span class="nav-label">Trends</span>';
+  '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 3v17h17M8 16V9m5 7V5m5 11v-5"/></svg><span class="nav-label">Insights</span>';
 document.getElementById("nav")?.append(usageButton);
 const settings = document.createElement("dialog");
 settings.id = "agent-settings";
@@ -187,7 +187,7 @@ const labels = {
   review: "Review plan",
   sessions: "Agent sessions",
   integration: "Integration",
-  metrics: "Trends",
+  metrics: "Insights",
 };
 const intentModes = {
   ask: {
