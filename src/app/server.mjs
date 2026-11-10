@@ -14,7 +14,8 @@ import { watchSources } from "./source-sync.mjs";
 import { randomUUID } from "node:crypto";
 import { applicationRoot } from "./config.mjs";
 export const appRoot = path.dirname(fileURLToPath(import.meta.url)),
-  legacyRoot = path.dirname(appRoot);
+  legacyRoot = path.dirname(appRoot),
+  webRoot = path.join(appRoot, "ui-dist");
 const LEGACY_ASSETS = new Set([
   "index.html",
   "app.mjs",
@@ -49,6 +50,11 @@ const MIME = {
   ".css": "text/css; charset=utf-8",
   ".json": "application/json; charset=utf-8",
   ".md": "text/plain; charset=utf-8",
+  ".js": "text/javascript; charset=utf-8",
+  ".map": "application/json; charset=utf-8",
+  ".svg": "image/svg+xml",
+  ".png": "image/png",
+  ".woff2": "font/woff2",
 };
 export function flushOutbox(store, root) {
   fs.mkdirSync(root, { recursive: true });
@@ -528,8 +534,46 @@ export function startServer({
         res.end();
         return;
       }
-      const name =
-        route === "/" || route === "/workspace" ? "index.html" : route.slice(1);
+      const reactIndex = path.join(webRoot, "index.html");
+      if (
+        (route === "/" || route === "/workspace") &&
+        fs.existsSync(reactIndex)
+      ) {
+        const content = fs.readFileSync(reactIndex);
+        res.writeHead(200, {
+          "Content-Type": MIME[".html"],
+          "Cache-Control": "no-cache",
+          "X-Content-Type-Options": "nosniff",
+        });
+        res.end(req.method === "HEAD" ? "" : content);
+        return;
+      }
+      if (route.startsWith("/assets/") && fs.existsSync(webRoot)) {
+        const root = fs.realpathSync(webRoot),
+          candidate = path.resolve(webRoot, "." + route);
+        if (!candidate.startsWith(root + path.sep) || !fs.existsSync(candidate))
+          fail("Not found.", 404);
+        const full = fs.realpathSync(candidate);
+        if (!full.startsWith(root + path.sep) || !fs.statSync(full).isFile())
+          fail("Not found.", 404);
+        res.writeHead(200, {
+          "Content-Type":
+            MIME[path.extname(full)] || "application/octet-stream",
+          "Cache-Control": "public, max-age=31536000, immutable",
+          "X-Content-Type-Options": "nosniff",
+        });
+        if (req.method === "HEAD") res.end();
+        else
+          fs.createReadStream(full)
+            .on("error", () => res.destroy())
+            .pipe(res);
+        return;
+      }
+      const legacy = route === "/legacy",
+        name =
+          legacy || route === "/" || route === "/workspace"
+            ? "index.html"
+            : route.slice(1);
       let content, mime;
       if (LEGACY_ASSETS.has(name)) {
         content = fs.readFileSync(

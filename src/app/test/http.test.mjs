@@ -8,7 +8,7 @@ import { handleMcp } from "../mcp.mjs";
 import { Operations } from "../operations.mjs";
 import { fixture, markdown } from "./fixtures.mjs";
 
-test("legacy UI and editing APIs run on SQLite; HTTP and MCP share task mutations", async (t) => {
+test("React UI and editing APIs run on SQLite; HTTP and MCP share task mutations", async (t) => {
   const { root, store } = fixture(t),
     server = startServer({
       dbPath: store.filename,
@@ -21,8 +21,14 @@ test("legacy UI and editing APIs run on SQLite; HTTP and MCP share task mutation
   const home = await fetch(base);
   assert.equal(home.status, 200);
   const html = await home.text();
-  assert.match(html, /workspace.mjs/);
-  assert.match(html, /strip-view/);
+  assert.match(html, /<div id="root"><\/div>/);
+  assert.match(html, /\/assets\/.*\.js/);
+  const asset = html.match(/src="(\/assets\/[^"]+\.js)"/)?.[1];
+  assert.ok(asset);
+  assert.equal((await fetch(base + asset)).status, 200);
+  const legacy = await (await fetch(base + "/legacy")).text();
+  assert.match(legacy, /workspace.mjs/);
+  assert.match(legacy, /strip-view/);
   for (const asset of [
     "app.mjs",
     "workspace.mjs",

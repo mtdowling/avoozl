@@ -1,5 +1,13 @@
 # Keeping the website, or going VS Code only
 
+Implementation update, 2026-11-10: the website is now a React application.
+Conversations use assistant-ui over Avoozl's existing durable run and delivery
+operations; Monaco edits plan and workspace Markdown with rendered preview,
+saved-revision diff and hash-safe saves. This changes the capability boundary
+described by the original measurement: rich plan and document editing is no
+longer editor-only. VS Code remains valuable for codebase context, native
+provider controls, worktrees and its own diff/file navigation.
+
 A self-contained comparison for the VSC-10 decision. Editor and browser
 observations were measured on this machine; where they were not, that is said.
 Receipts are in `docs/evidence/vscode/`. The OpenCode comparison is research
@@ -13,8 +21,12 @@ Both talk to the same workspace through the same operations
 provider process. Neither is a second writer. They differ in how they reach
 the user.
 
-- **The website** is ours: `src/*.mjs` served by `src/app/server.mjs`. One
-  process, no external runtime, responsive layout, reachable by any browser.
+- **The website** is ours: a Vite-built React application under `src/web/`,
+  served by `src/app/server.mjs`. assistant-ui renders conversations while the
+  existing Avoozl HTTP/SSE operations remain the only run and session
+  authority. Monaco is bundled locally rather than fetched from a CDN. One
+  Avoozl process, no external web runtime, responsive layout, reachable by any
+  browser.
 - **The VS Code client** is an extension plus an Agent Host Protocol facade
   (`src/app/ahp/`). For native chat it needs the facade bridged into a **VS
   Code Server** started with `--agent-host-bridge-port`. That server is a
@@ -33,10 +45,13 @@ Measured, in `native-controls-claude.json` and `native-controls-codex.json`
   once** and **Cancel** controls driving our run. Cancelling stopped the real
   child process with `SIGTERM`, kept the tool `completed` and unsuccessful
   rather than skipped, and left the run `interrupted` with no error.
-- Plan editing in a real text editor with conflict-safe saves, where saving
-  records a revision and never approves (`desktop-flow.json`).
 - The code context an operator at a keyboard actually wants: the run's
   worktree open, diffs in the editor's diff view, file navigation.
+
+The editor also retains its native plan filesystem and approval flow. That is
+still useful in context, but is no longer an exclusive capability: the website
+now provides Monaco source editing, Markdown preview, unsaved diff, exact
+revision review and separate approval.
 
 ## What only the website passed at a phone viewport
 
@@ -81,23 +96,25 @@ that operator is there. The case against going editor-only: it cannot be
 reached by thumb, it needs a large proprietary server to have chat at all, and
 its limits — the hidden sessions command, the non-reflowing layout — are
 upstream in VS Code, so we cannot fix them. The website's equivalent faults
-are ours and are fixable; the measurement found its own controls at 131×40,
-57×42 and 34×28 CSS pixels against a 44px minimum, which is worth fixing
-whatever is decided here.
+are ours and are fixable. The React rewrite sets interactive controls to a
+44px minimum on the phone layout, addressing the concrete touch-target defect
+found in the measurement.
 
 ## The proposed division of labour
 
-- **Website — the operator's remote-control surface and complete fallback.**
-  Triage, what needs a decision, allow or deny a provider request, answer a
-  question, cancel, read a plan and read a graph. It stays a full participant,
-  not a viewer: it is the only surface that passed the phone-viewport touch
-  test, and the phone case is exactly when a decision is blocking an agent.
-  Calling it ready for an actual phone still depends on VSC-07 and VSC-08.
-  Existing plan drafting, revision approval, validation, integration and
-  acceptance remain available here unless a separate decision retires them.
-- **VS Code client — depth at a keyboard.** The live transcript with native
-  provider controls, plan editing and revision approval against a reviewed
-  hash, diffs, worktrees, validation and integration.
+- **Website — the complete operator application.** Triage, the full task
+  inventory, conversations, durable history paging, queue versus steer,
+  allow/deny and free-text answers, cancellation, approval mode, handoff,
+  plan and document editing in Monaco, exact-revision plan approval and task
+  graph navigation. It is the only surface that passed the phone-viewport
+  touch test, and the phone case is exactly when a decision is blocking an
+  agent. Calling it ready for an actual phone still depends on VSC-07 and
+  VSC-08.
+- **VS Code client — contextual depth at a keyboard.** The native transcript
+  and provider controls beside the code, direct worktree opening, native file
+  navigation and editor diff integration. It overlaps with website plan and
+  conversation controls because both call the same operations; it does not
+  own separate run state.
 - **Shared operations, intentional surface overlap.** "Ownership" here means
   the primary experience for a context, not exclusive capability. Safety-
   critical remote actions and existing workflows may remain on both surfaces;
@@ -142,14 +159,15 @@ That is a real option, not something to assume works; nothing of it is built.
 ## Embedding someone else's chat UI instead (OpenCode)
 
 Considered, because it would be attractive if our website had no chat. It
-does: `src/app/ui/workspace.mjs` already renders the transcript with history
-paging, a composer with send, a queue-versus-steer choice where the provider
-supports steering, a Stop control, the approvals mode, and request answering
-with option buttons and a free-text field. The phone receipt drove the path
-into the conversation, the provider approval and Stop by touch. The source and
-automated tests establish that the other controls exist; they do not constitute
-touch acceptance for history paging, composing, queue or steer, approval-mode
-changes, or option and free-text answers.
+does: `src/web/Chat.tsx` composes assistant-ui primitives over the existing
+run API and renders durable history paging, send, queue-versus-steer where the
+provider supports it, Stop, approval mode, request options and free-text
+answers. assistant-ui is a rendering/runtime adapter here; SQLite and the
+Avoozl agent host remain canonical. The phone receipt drove the path into the
+conversation, the provider approval and Stop by touch. The source and
+automated tests establish that the other controls exist; they do not
+constitute physical-phone acceptance for history paging, composing, queue or
+steer, approval-mode changes, or option and free-text answers.
 
 The interface must be named by version. OpenCode's source is MIT licensed. The
 V1 documentation checked on 2026-11-10 describes `opencode serve` as an HTTP
@@ -201,9 +219,9 @@ supervision, reconnect, cleanup, permission-option mapping, cancellation,
 interrupted-versus-failed classification, queued delivery and model changes at
 turn boundaries through the existing adapter contract.
 
-If the goal is a better chat on a phone, the cheapest real improvement is not
-a foreign UI: it is raising our own touch targets from the measured 131×40,
-57×42 and 34×28 to the 44px minimum.
+If the goal is a better chat on a phone, the React/assistant-ui implementation
+keeps the fix on our side of the boundary and uses 44px minimum controls. It
+does not introduce another session protocol or agent loop.
 
 ## What is still unknown
 
