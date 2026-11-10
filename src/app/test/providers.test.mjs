@@ -6,7 +6,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { CodexAdapter } from "../providers/codex.mjs";
 import { ClaudeAdapter, claudeModels } from "../providers/claude.mjs";
 import { RunManager } from "../manager.mjs";
-import { fixture } from "./fixtures.mjs";
+import { fixture, waitFor } from "./fixtures.mjs";
 
 test("provider catalogs load without inference and selected models reach adapters", async (t) => {
   const { root } = fixture(t),
@@ -75,7 +75,7 @@ test("Codex adapter handles the actual JSON-lines transport, steering, approval 
     });
   t.after(() => adapter.close());
   await adapter.start({ cwd: root, prompt: "Start", mode: "implement" });
-  await delay(30);
+  await waitFor(() => requests.length, { label: "the approval request" });
   assert.equal(adapter.threadId, "thread-test");
   assert.equal(requests[0].kind, "approval");
   assert.equal(
@@ -84,7 +84,12 @@ test("Codex adapter handles the actual JSON-lines transport, steering, approval 
   );
   await adapter.answer({ providerRequestId: "900", decision: "allow" });
   await adapter.interrupt();
-  await delay(30);
+  await waitFor(
+    () =>
+      events.some((e) => e.kind === "message.delta" && e.text === "Approved") &&
+      events.some((e) => e.kind === "turn.completed"),
+    { label: "the approved output and the interrupted turn" },
+  );
   assert.ok(
     events.some((e) => e.kind === "message.delta" && e.text === "Approved"),
   );

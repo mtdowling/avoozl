@@ -216,9 +216,13 @@ export function proposeWork(store, { id, proposal, expectedHash }) {
     };
   });
 }
+// The two inputs that keep the graph correct are the hashes. Who approved is
+// recorded from the workspace's operator when the caller does not say, and
+// approval notes are kept only when a caller has something real to add: a
+// required field containing a fixed sentence carries less than an absent one.
 export function approvePlan(
   store,
-  { id, expectedHash, expectedRevision, approvedBy, evidence },
+  { id, expectedHash, expectedRevision, approvedBy, evidence, operator },
 ) {
   // Authorization is the reviewed hash and database revision below. Who
   // approved and why are recorded when supplied; typing them proves nothing.
@@ -449,7 +453,7 @@ export function approvePlan(
       planId: id,
       hash: plan.hash,
       source: plan.text,
-      approvedBy: approvedBy?.trim() || "",
+      approvedBy: approvedBy?.trim() || operator?.trim() || "",
       evidence: evidence?.trim() || "",
       at: now,
       mapping,

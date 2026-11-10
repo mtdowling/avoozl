@@ -24,3 +24,10 @@ integration, and whole-head acceptance distinct.
 The Nupp plans workspace uses this same application. Its own rules and data remain
 outside this repo. Existing `plans_*` MCP names and NUPP_WORKSPACE environment
 aliases are compatibility interfaces; preserve them when changing public surfaces.
+
+This application was renamed from AICommander to Avoozl. `AVOOZL_*` is the
+current environment prefix, and `AICOMMANDER_*`, `NUPP_WORKSPACE_*`, the
+`aicommander` command name, and the `aicommander.*` editor settings remain
+accepted for the same reason. Research under `docs/research/` and generated
+receipts under `docs/evidence/` record what was observed at the time: do not
+rewrite their contents to match a later name; regenerate a receipt instead.

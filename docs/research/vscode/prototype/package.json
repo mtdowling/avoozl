@@ -1,0 +1,12 @@
+{
+  "name": "aicommander-vscode-research",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "dependencies": {
+    "@microsoft/agent-host-protocol": "1.0.0",
+    "ws": "8.22.2"
+  }
+}

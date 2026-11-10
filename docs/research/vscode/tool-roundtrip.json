@@ -1,0 +1,169 @@
+{
+  "at": "2026-11-09T19:55:08.222Z",
+  "applicationCommit": "3b8c60967a03d8d3351c649dee9ea091e659c612",
+  "versions": {
+    "desktop": "1.142.0",
+    "localBrowserEditor": "1.142.0",
+    "publicBrowserClient": "1.145.2",
+    "ahp": "1.0.0",
+    "claudeSdk": "0.3.319",
+    "codexCli": "0.163.0-alpha.11"
+  },
+  "checks": {
+    "claude": {
+      "providerSessionId": "2d1ff211-e709-47aa-9fca-06322d2f8280",
+      "request": {
+        "providerRequestId": "13a0ddfc-416f-45ba-971f-43611dea674c",
+        "kind": "approval",
+        "method": "Bash",
+        "payload": {
+          "tool": "Bash",
+          "input": {
+            "command": "node slow-tool.mjs <disposable-fixture>/markers/claude",
+            "timeout": 240000,
+            "description": "Run the disposable slow-tool fixture command"
+          },
+          "toolUseId": "toolu_01PyiosHYW8paoZWEdmWCX5Q"
+        },
+        "id": "request-55a5ea7b-e2e1-4979-ada4-9632f1ec075f",
+        "runId": "run-tool-claude",
+        "state": "allowed",
+        "createdAt": "2026-11-09T19:55:18.335Z",
+        "answeredAt": "2026-11-09T19:57:28.540Z"
+      },
+      "approvedThroughNativeUI": true,
+      "actualExecution": {
+        "pid": 95301,
+        "at": "2026-11-09T19:57:28.780Z"
+      },
+      "nativeCancel": {
+        "at": "2026-11-09T19:57:39.990Z",
+        "method": "dispatchAction",
+        "action": "chat/turnCancelled",
+        "channel": "ahp-chat:/377c8465-8a1d-ea00-b1d5-3467afdcdd79",
+        "turnId": "initial-run-tool-claude"
+      },
+      "processStopped": true,
+      "normalCompletionMarker": false,
+      "signal": "SIGTERM",
+      "sourceTerminal": {
+        "seq": 50,
+        "runId": "run-tool-claude",
+        "kind": "turn.completed",
+        "at": "2026-11-09T19:57:40.060Z",
+        "state": "failed",
+        "error": "[ede_diagnostic] result_type=user last_content_type=n/a stop_reason=tool_use"
+      },
+      "runState": "failed",
+      "cleanCancellationStatus": false
+    },
+    "codex": {
+      "providerSessionId": "01a1c1e0-fa65-7d10-9926-5f4b05090ac3",
+      "request": {
+        "providerRequestId": "0",
+        "kind": "approval",
+        "method": "item/commandExecution/requestApproval",
+        "payload": {
+          "kind": "command",
+          "threadId": "01a1c1e0-fa65-7d10-9926-5f4b05090ac3",
+          "turnId": "01a1c1e0-fb56-7fb0-a31e-554b22e1ca2f",
+          "itemId": "exec-28ca59fd-772e-4fe4-aa88-3fd6f6f66e4c",
+          "startedAtMs": 1794254114842,
+          "environmentId": "local",
+          "reason": "May I run this harmless disposable permission/cancellation probe command?",
+          "command": "/bin/zsh -lc 'node slow-tool.mjs <disposable-fixture>/markers/codex'",
+          "cwd": "<disposable-fixture>/.aicommander-worktrees/run-tool-codex",
+          "commandActions": [
+            {
+              "type": "unknown",
+              "command": "node slow-tool.mjs <disposable-fixture>/markers/codex"
+            }
+          ],
+          "proposedExecpolicyAmendment": [
+            "node",
+            "slow-tool.mjs",
+            "<disposable-fixture>/markers/codex"
+          ],
+          "availableDecisions": [
+            "accept",
+            {
+              "acceptWithExecpolicyAmendment": {
+                "execpolicy_amendment": [
+                  "node",
+                  "slow-tool.mjs",
+                  "<disposable-fixture>/markers/codex"
+                ]
+              }
+            },
+            "cancel"
+          ]
+        },
+        "id": "request-57ec4a09-ec43-469f-9c1f-f04e3241a437",
+        "runId": "run-tool-codex",
+        "state": "allowed",
+        "createdAt": "2026-11-09T19:55:14.854Z",
+        "answeredAt": "2026-11-09T19:58:41.726Z"
+      },
+      "approvedThroughNativeUI": true,
+      "actualExecution": {
+        "pid": 96995,
+        "at": "2026-11-09T19:58:41.827Z"
+      },
+      "nativeCancel": {
+        "at": "2026-11-09T19:58:51.781Z",
+        "method": "dispatchAction",
+        "action": "chat/turnCancelled",
+        "channel": "ahp-chat:/e4932608-17d3-efd5-5b17-05514008db77",
+        "turnId": "initial-run-tool-codex"
+      },
+      "processStopped": true,
+      "normalCompletionMarker": false,
+      "signal": null,
+      "sourceTerminal": {
+        "seq": 61,
+        "runId": "run-tool-codex",
+        "kind": "turn.completed",
+        "at": "2026-11-09T19:58:51.812Z",
+        "state": "interrupted",
+        "error": null
+      },
+      "runState": "interrupted",
+      "cleanCancellationStatus": true
+    }
+  },
+  "nativeActions": [
+    {
+      "at": "2026-11-09T19:57:28.492Z",
+      "method": "dispatchAction",
+      "action": "chat/toolCallConfirmed",
+      "channel": "ahp-chat:/377c8465-8a1d-ea00-b1d5-3467afdcdd79",
+      "toolCallId": "request-55a5ea7b-e2e1-4979-ada4-9632f1ec075f",
+      "approved": true,
+      "turnId": "initial-run-tool-claude"
+    },
+    {
+      "at": "2026-11-09T19:57:39.990Z",
+      "method": "dispatchAction",
+      "action": "chat/turnCancelled",
+      "channel": "ahp-chat:/377c8465-8a1d-ea00-b1d5-3467afdcdd79",
+      "turnId": "initial-run-tool-claude"
+    },
+    {
+      "at": "2026-11-09T19:58:41.716Z",
+      "method": "dispatchAction",
+      "action": "chat/toolCallConfirmed",
+      "channel": "ahp-chat:/e4932608-17d3-efd5-5b17-05514008db77",
+      "toolCallId": "request-57ec4a09-ec43-469f-9c1f-f04e3241a437",
+      "approved": true,
+      "turnId": "initial-run-tool-codex"
+    },
+    {
+      "at": "2026-11-09T19:58:51.781Z",
+      "method": "dispatchAction",
+      "action": "chat/turnCancelled",
+      "channel": "ahp-chat:/e4932608-17d3-efd5-5b17-05514008db77",
+      "turnId": "initial-run-tool-codex"
+    }
+  ],
+  "sqliteIntegrity": "ok"
+}

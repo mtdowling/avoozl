@@ -1,0 +1,280 @@
+{
+  "name": "avoozl",
+  "displayName": "Avoozl",
+  "description": "Plans, tasks, and owned agent sessions from an Avoozl workspace.",
+  "version": "0.1.0",
+  "license": "MIT",
+  "publisher": "mtdowling",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mtdowling/avoozl.git"
+  },
+  "engines": {
+    "vscode": "^1.138.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./src/extension.js",
+  "activationEvents": [
+    "onStartupFinished",
+    "onUri"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "The extension drives agent sessions that execute commands in a configured repository."
+    }
+  },
+  "contributes": {
+    "configuration": {
+      "title": "Avoozl",
+      "properties": {
+        "avoozl.endpoint": {
+          "type": "string",
+          "default": "http://127.0.0.1:9428",
+          "markdownDescription": "Workspace server to drive. The extension resolves repository files on the machine that owns them, so this may be a different path from the open folder."
+        },
+        "avoozl.facadeManifest": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Optional path to the agent host facade manifest (`ahp-facade.json`). Used only to report connection diagnostics and to verify which conversation an editor opened. Leave empty if the facade is not running."
+        },
+        "avoozl.refreshSeconds": {
+          "type": "number",
+          "default": 5,
+          "minimum": 1,
+          "maximum": 120,
+          "description": "Fallback refresh interval used when the workspace event stream is unavailable."
+        },
+        "avoozl.nativeChatNavigation": {
+          "type": "string",
+          "default": "auto",
+          "enum": [
+            "auto",
+            "always",
+            "never"
+          ],
+          "markdownEnumDescriptions": [
+            "Use the native conversation command when this VS Code build offers it, and fall back to a session picker otherwise.",
+            "Always attempt the native command, even on an untested build.",
+            "Never use the native command; always use the fallback."
+          ],
+          "description": "Opening a task's exact conversation relies on a VS Code command that is not a published extension API."
+        }
+      }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "avoozl",
+          "title": "Avoozl",
+          "icon": "media/activity.svg"
+        }
+      ]
+    },
+    "views": {
+      "avoozl": [
+        {
+          "id": "avoozl.now",
+          "name": "Now",
+          "icon": "media/activity.svg"
+        },
+        {
+          "id": "avoozl.tasks",
+          "name": "Tasks"
+        },
+        {
+          "id": "avoozl.plans",
+          "name": "Plans"
+        },
+        {
+          "id": "avoozl.sessions",
+          "name": "Conversations"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "avoozl.now",
+        "contents": "No workspace server is answering at the configured endpoint.\n[Open settings](command:avoozl.openSettings)\n[Run diagnostics](command:avoozl.diagnostics)"
+      }
+    ],
+    "commands": [
+      {
+        "command": "avoozl.refresh",
+        "title": "Avoozl: Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "avoozl.diagnostics",
+        "title": "Avoozl: Show Diagnostics"
+      },
+      {
+        "command": "avoozl.openSettings",
+        "title": "Avoozl: Open Settings"
+      },
+      {
+        "command": "avoozl.openTask",
+        "title": "Avoozl: Open Task Details"
+      },
+      {
+        "command": "avoozl.openTaskSource",
+        "title": "Avoozl: Open Task Source Context"
+      },
+      {
+        "command": "avoozl.openConversation",
+        "title": "Avoozl: Open This Task's Conversation",
+        "icon": "$(comment-discussion)"
+      },
+      {
+        "command": "avoozl.openPlan",
+        "title": "Avoozl: Open Plan Draft",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "avoozl.previewApproval",
+        "title": "Avoozl: Review Plan Approval"
+      },
+      {
+        "command": "avoozl.approvePlan",
+        "title": "Avoozl: Approve Plan Revision"
+      },
+      {
+        "command": "avoozl.comparePlan",
+        "title": "Avoozl: Compare Plan With Saved Revision"
+      },
+      {
+        "command": "avoozl.reloadPlan",
+        "title": "Avoozl: Discard Local Plan Edits"
+      },
+      {
+        "command": "avoozl.graph",
+        "title": "Avoozl: Open Task Graph",
+        "icon": "$(type-hierarchy)"
+      },
+      {
+        "command": "avoozl.progress",
+        "title": "Avoozl: Open Epic Progress"
+      },
+      {
+        "command": "avoozl.strip",
+        "title": "Avoozl: Open Timeline Strip"
+      },
+      {
+        "command": "avoozl.validate",
+        "title": "Avoozl: Validate This Conversation's Work"
+      },
+      {
+        "command": "avoozl.integrate",
+        "title": "Avoozl: Integrate Validated Work"
+      },
+      {
+        "command": "avoozl.acceptTask",
+        "title": "Avoozl: Record Task Acceptance"
+      },
+      {
+        "command": "avoozl.cancelSession",
+        "title": "Avoozl: Stop This Conversation",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "avoozl.resumeSession",
+        "title": "Avoozl: Resume This Conversation"
+      },
+      {
+        "command": "avoozl.setModel",
+        "title": "Avoozl: Change This Conversation's Model"
+      },
+      {
+        "command": "avoozl.answerRequest",
+        "title": "Avoozl: Answer Pending Request"
+      },
+      {
+        "command": "avoozl.installExample",
+        "title": "Avoozl: Install Example Pack"
+      },
+      {
+        "command": "avoozl.openChanges",
+        "title": "Avoozl: Open This Conversation's Changes",
+        "icon": "$(git-compare)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "avoozl.refresh",
+          "when": "view =~ /^avoozl\\./",
+          "group": "navigation"
+        },
+        {
+          "command": "avoozl.graph",
+          "when": "view == avoozl.tasks",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "avoozl.openConversation",
+          "when": "viewItem =~ /avoozl.task|avoozl.session/",
+          "group": "inline"
+        },
+        {
+          "command": "avoozl.openTaskSource",
+          "when": "viewItem =~ /avoozl.task/"
+        },
+        {
+          "command": "avoozl.acceptTask",
+          "when": "viewItem =~ /avoozl.task/"
+        },
+        {
+          "command": "avoozl.openPlan",
+          "when": "viewItem =~ /avoozl.plan/",
+          "group": "inline"
+        },
+        {
+          "command": "avoozl.previewApproval",
+          "when": "viewItem =~ /avoozl.plan/"
+        },
+        {
+          "command": "avoozl.cancelSession",
+          "when": "viewItem =~ /avoozl.session.active/",
+          "group": "inline"
+        },
+        {
+          "command": "avoozl.resumeSession",
+          "when": "viewItem =~ /avoozl.session.disconnected/"
+        },
+        {
+          "command": "avoozl.setModel",
+          "when": "viewItem =~ /avoozl.session/"
+        },
+        {
+          "command": "avoozl.validate",
+          "when": "viewItem =~ /avoozl.session/"
+        },
+        {
+          "command": "avoozl.openChanges",
+          "when": "viewItem =~ /avoozl.session/"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "avoozl.previewApproval",
+          "when": "resourceScheme == avoozl-plan",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "avoozl.openSettings",
+          "when": "false"
+        }
+      ]
+    },
+    "uriHandler": {
+      "scheme": "vscode",
+      "authority": "mtdowling.avoozl"
+    }
+  }
+}

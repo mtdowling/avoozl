@@ -28,7 +28,13 @@ export function operatorName({ configured, workspaceRoot } = {}) {
 }
 export function workspaceConfig(options = {}) {
   const workspaceRoot = path.resolve(
-    options.workspace || process.env.AVOOZL_WORKSPACE || process.cwd(),
+    // AVOOZL_* is the current form. AICOMMANDER_* and NUPP_WORKSPACE_* stay
+    // accepted: they are compatibility interfaces, not names to drop because
+    // the product was renamed.
+    options.workspace ||
+      process.env.AVOOZL_WORKSPACE ||
+      process.env.AICOMMANDER_WORKSPACE ||
+      process.cwd(),
   );
   const filename = path.join(workspaceRoot, "workspace.json");
   let saved = {};
@@ -44,6 +50,7 @@ export function workspaceConfig(options = {}) {
   const dbPath = relative(
     options.db ||
       process.env.AVOOZL_DB ||
+      process.env.AICOMMANDER_DB ||
       process.env.NUPP_WORKSPACE_DB ||
       saved.dbPath ||
       "state/workspace.sqlite",
@@ -58,7 +65,10 @@ export function workspaceConfig(options = {}) {
     name: saved.name || "My workspace",
     operator: operatorName({
       configured:
-        options.operator || process.env.AVOOZL_OPERATOR || saved.operator,
+        options.operator ||
+        process.env.AVOOZL_OPERATOR ||
+        process.env.AICOMMANDER_OPERATOR ||
+        saved.operator,
       workspaceRoot,
     }),
     dbPath,
@@ -73,8 +83,30 @@ export function workspaceConfig(options = {}) {
     endpoint:
       options.url ||
       process.env.AVOOZL_URL ||
+      process.env.AICOMMANDER_URL ||
       process.env.NUPP_WORKSPACE_URL ||
       saved.url ||
       "http://127.0.0.1:" + port,
+    // Editor client surface. The agent host facade is opt-in, binds loopback,
+    // and keeps its derived projection and client tokens beside the database.
+    ahp: {
+      port: Number(options["ahp-port"] ?? saved.ahpPort ?? 9496),
+      host: options["ahp-host"] || saved.ahpHost || "127.0.0.1",
+      projection: relative(
+        options["ahp-projection"] ||
+          saved.ahpProjection ||
+          path.join(path.dirname(dbPath), "ahp.sqlite"),
+      ),
+      tokens: relative(
+        options["ahp-tokens"] ||
+          saved.ahpTokens ||
+          path.join(path.dirname(dbPath), "ahp-tokens.json"),
+      ),
+      manifest: relative(
+        options["ahp-manifest"] ||
+          saved.ahpManifest ||
+          path.join(path.dirname(dbPath), "ahp-facade.json"),
+      ),
+    },
   };
 }

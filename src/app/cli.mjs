@@ -24,7 +24,7 @@ try {
   for (let i = 0; i < args.length; i++) {
     if (args[i].startsWith("--")) {
       const key = args[i].slice(2);
-      if (["dry-run", "final"].includes(key)) options[key] = true;
+      if (["dry-run", "final", "ahp"].includes(key)) options[key] = true;
       else {
         if (args[i + 1] === undefined || args[i + 1].startsWith("--"))
           throw Error("Missing value for --" + key);
@@ -63,6 +63,7 @@ try {
     if (
       options.url ||
       process.env.AVOOZL_URL ||
+        process.env.AICOMMANDER_URL ||
       process.env.NUPP_WORKSPACE_URL ||
       !fs.existsSync(dbPath)
     )
@@ -78,6 +79,25 @@ try {
       store.close();
     }
   };
+  // The facade is a client of the running workspace. Starting it never creates
+  // a second writer and never changes which process owns a provider session.
+  const describeFacade = (facade) => ({
+    url: facade.url,
+    host: config.ahp.host,
+    port: facade.port,
+    workspaceId: facade.projection.workspaceId,
+    clients: Object.fromEntries(
+      [...facade.grants.entries()].map(([token, grant]) => [
+        grant.name,
+        {
+          scope: grant.scope,
+          address: facade.url,
+          connectionToken: token,
+        },
+      ]),
+    ),
+    note: "Loopback only. Reach it remotely through an authenticated tunnel or an SSH port forward; never publish this listener.",
+  });
   if (command === "init") {
     if (!positionals[0])
       throw Error("Choose a workspace directory: avoozl init PATH.");
@@ -110,8 +130,94 @@ try {
       host: config.host,
       manager,
     });
-    process.once("SIGTERM", () => server.drain());
-    process.once("SIGINT", () => server.drain());
+    let facade = null;
+    if (options.ahp) {
+      const { startAhpFacade } = await import("./ahp/facade.mjs");
+      const { agentProviderId } = await import("./ahp/projection.mjs");
+      const { loadTokens } = await import("./ahp/main.mjs");
+      const { localClient } = await import("./client.mjs");
+      // The facade records the endpoint it serves, so wait until the site is
+      // actually listening and its port is known.
+      if (!server.listening)
+        await new Promise((resolve, reject) => {
+          server.once("listening", resolve);
+          server.once("error", reject);
+        });
+      const { store } = server.workspace;
+      facade = startAhpFacade({
+        store,
+        client: localClient(server.workspace.ops),
+        file: config.ahp.projection,
+        host: config.ahp.host,
+        port: config.ahp.port,
+        tokens: loadTokens(config.ahp.tokens),
+        manifestPath: config.ahp.manifest,
+        workspaceEndpoint: "http://127.0.0.1:" + server.address().port,
+        models: async () => {
+          const agents = [];
+          for (const provider of ["claude", "codex"])
+            try {
+              const catalog = await server.workspace.ops.execute("models", {
+                provider,
+              });
+              agents.push({
+                provider: agentProviderId(provider),
+                displayName: "Avoozl " + provider,
+                description: "Sessions owned by this workspace's agent host.",
+                models: catalog.models.map((m) => ({
+                  id: m.id,
+                  provider: agentProviderId(provider),
+                  name: m.label || m.id,
+                })),
+                protectedResources: [],
+              });
+            } catch (error) {
+              agents.push({
+                provider: agentProviderId(provider),
+                displayName: "Avoozl " + provider,
+                description: "Unavailable: " + error.message,
+                models: [],
+                protectedResources: [],
+              });
+            }
+          return agents;
+        },
+      });
+      await facade.listening;
+      console.log(
+        "Agent host facade: " +
+          facade.url +
+          " (addresses in " +
+          config.ahp.manifest +
+          ")",
+      );
+    }
+    const stop = async () => {
+      if (facade) await facade.close();
+      server.drain();
+    };
+    process.once("SIGTERM", stop);
+    process.once("SIGINT", stop);
+  } else if (command === "ahp") {
+    requireDatabase();
+    const { startFacadeForWorkspace } = await import("./ahp/main.mjs");
+    const facade = await startFacadeForWorkspace({
+      dbPath,
+      endpoint,
+      manifestPath: config.ahp.manifest,
+      projectionPath: config.ahp.projection,
+      tokenFile: config.ahp.tokens,
+      host: config.ahp.host,
+      port: config.ahp.port,
+    });
+    console.log(JSON.stringify(describeFacade(facade), null, 2));
+    const stop = async () => {
+      await facade.close();
+      facade.store.close();
+      process.exit(0);
+    };
+    process.once("SIGTERM", stop);
+    process.once("SIGINT", stop);
   } else if (command === "reload") {
     const before = await (await fetch(endpoint + "/api/health")).json();
     await request("server.drain");
@@ -192,6 +298,87 @@ try {
         );
     }
     console.log(JSON.stringify(result, null, 2));
+  } else if (command === "editor") {
+    let manifest = null;
+    try {
+      manifest = JSON.parse(fs.readFileSync(config.ahp.manifest, "utf8"));
+    } catch {}
+    const editorClient = manifest?.clients?.editor;
+    // A running facade records the endpoint it was pointed at, which is the
+    // live server even when the saved port is not.
+    const liveEndpoint = manifest?.workspaceEndpoint || endpoint;
+    console.log(
+      JSON.stringify(
+        {
+          endpoint: liveEndpoint,
+          workspace: config.workspaceRoot,
+          facade: manifest
+            ? { url: manifest.url, startedAt: manifest.startedAt }
+            : null,
+          // Paste these into the VS Code profile that should drive this
+          // workspace. `connectionToken` is a credential: never commit or
+          // publish it.
+          //
+          // With --ssh HOST the editor reaches this machine's loopback facade
+          // over SSH, so an editor on another machine needs no relay and the
+          // facade is still never published. HOST is an entry in the client's
+          // own ~/.ssh/config.
+          settings: {
+            "avoozl.endpoint": liveEndpoint,
+            "avoozl.facadeManifest": config.ahp.manifest,
+            ...(editorClient
+              ? {
+                  "chat.remoteAgentHostsEnabled": true,
+                  "chat.remoteAgentHosts": [
+                    {
+                      address: editorClient.address,
+                      name: config.name,
+                      connectionToken: editorClient.connectionToken,
+                      ...(options.ssh
+                        ? {
+                            sshConfigHost: options.ssh,
+                            ...(options["ssh-user"]
+                              ? { sshUser: options["ssh-user"] }
+                              : {}),
+                            ...(options["ssh-port"]
+                              ? { sshPort: Number(options["ssh-port"]) }
+                              : {}),
+                            sshServerType: "standalone",
+                          }
+                        : {}),
+                    },
+                  ],
+                  "chat.remoteAgentHostsAutoConnect": true,
+                }
+              : {}),
+          },
+          remote: options.ssh
+            ? {
+                route: "ssh",
+                host: options.ssh,
+                note: "The editor connects over SSH and reaches this machine's loopback facade, so nothing is published and no relay is involved. The editor's SSH fields are not a documented extension contract: confirm the session list appears before relying on it.",
+              }
+            : {
+                route: "loopback only",
+                note:
+                  "To reach this facade from another machine, pass --ssh HOST, or set up an SSH local port forward to " +
+                  (editorClient?.address || "the facade's port") +
+                  ". Do not publish the listener.",
+              },
+          ...(manifest
+            ? {}
+            : {
+                note:
+                  "No facade manifest at " +
+                  config.ahp.manifest +
+                  ". Start one with: avoozl serve --ahp --workspace " +
+                  config.workspaceRoot,
+              }),
+        },
+        null,
+        2,
+      ),
+    );
   } else if (command === "import") {
     const snapshot = JSON.parse(fs.readFileSync(positionals[0], "utf8"));
     const store = new Store(dbPath);
@@ -358,10 +545,12 @@ try {
       taskId:
         options.task ||
         process.env.AVOOZL_TASK ||
+        process.env.AICOMMANDER_TASK ||
         process.env.NUPP_WORKSPACE_TASK,
       leaseId:
         options.lease ||
         process.env.AVOOZL_LEASE ||
+        process.env.AICOMMANDER_LEASE ||
         process.env.NUPP_WORKSPACE_LEASE,
       provider: options.provider || "claude",
       providerSessionId: options.session || hook.session_id,
@@ -372,7 +561,9 @@ try {
   } else if (command === "help")
     console.log(`Avoozl — plans, tasks, and agents in one local workspace.
   init PATH [--name NAME] [--port 9428]   Create an empty workspace
-  serve --workspace PATH                Start the site and agent host
+  serve --workspace PATH [--ahp]        Start the site and agent host
+  ahp --workspace PATH                  Start the editor agent-host facade
+  editor --workspace PATH [--ssh HOST]  Print editor client settings
   seed --workspace PATH [--example product-launch]
   examples --workspace PATH             List available example packs
   query [--q QUERY] | show TASK_ID | update TASK_ID --status STATUS

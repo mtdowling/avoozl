@@ -1,0 +1,48 @@
+{
+  "at": "2026-11-09T20:25:18.932Z",
+  "scope": "Temporary authenticated tunnel, disposable repository; no production workspace sharing",
+  "authentication": {
+    "host": "GitHub device flow succeeded",
+    "embeddedBrowser": "Both hosted clients failed with No auth flow succeeded",
+    "safari": "GitHub OAuth succeeded after popup Retry"
+  },
+  "fullEditor": {
+    "connected": true,
+    "freshFileRead": "REMOTE_TUNNEL_LIVE_2026_11_09",
+    "fileCreatedAfterAgentsConnected": true
+  },
+  "browserAgents": {
+    "connected": true,
+    "registeredHost": "native VS Code host, not custom facade",
+    "visibleManagedChats": 0
+  },
+  "concurrency": {
+    "fullRemoteEditorAndBrowserAgentsConnectedTogether": true,
+    "localDesktopAHPClientStayedOpen": true,
+    "sameManagedAgentSteeringTested": false
+  },
+  "mobileEmulation": {
+    "browser": "Safari responsive mode",
+    "width": 390,
+    "height": 844,
+    "userAgent": "Safari iOS 26.4 iPhone",
+    "reloadRequired": true,
+    "compactLayoutObserved": true,
+    "controls": [
+      "Open sessions",
+      "Connected host picker",
+      "Workspace picker",
+      "Single-column prompt",
+      "Collapsible session options"
+    ],
+    "rawTemporaryRepositoryPathSearch": "No workspaces match",
+    "physicalDevice": false
+  },
+  "notEstablished": [
+    "Custom managed host routing through the tunnel selection gateway",
+    "Remote same-session tool approval/cancellation/steering",
+    "Physical phone soft keyboard and gestures",
+    "Outside-home cellular route",
+    "Final website retirement decision"
+  ]
+}

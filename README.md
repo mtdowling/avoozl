@@ -6,11 +6,17 @@ Plans, tasks, and agents in one local workspace. Use the website, CLI, or MCP to
 git clone https://github.com/mtdowling/avoozl.git
 cd avoozl
 npm ci --ignore-scripts
+npm run build:web
 node cli.mjs init ../my-plans --name "My plans"
 node cli.mjs serve --workspace ../my-plans
 ```
 
 Open [localhost:9428](http://127.0.0.1:9428/). Node 22.13 or later is required for its built-in SQLite support; Node 26 is tested. Planning and browsing work without an agent account. Managed agents use your installed provider and its own authentication.
+
+The website is a React application. assistant-ui renders conversations over
+the same durable HTTP/SSE operations used by the extension, while Monaco edits
+plan and workspace Markdown with preview and revision-safe saves. The production
+assets are built locally; Monaco and its worker are not loaded from a CDN.
 
 ![An example product launch in Avoozl](docs/example-workspace.png)
 
@@ -61,7 +67,7 @@ node /opt/avoozl/cli.mjs serve --workspace /srv/team-state
 
 Then configure a working repository such as `/home/you/projects/product` in Settings. Its code stays in that repository; plans stay in `/srv/team-plans`; the application stays in `/opt/avoozl`. Use `init --db PATH` to place SQLite independently too.
 
-`--db`, `--documents`, `--host`, `--port`, and `--url` override configuration. `AVOOZL_URL` selects an endpoint for CLI and MCP clients. `operator` in the workspace configuration, `AVOOZL_OPERATOR`, or `--operator` names the person this workspace acts for, defaulting to `git config user.name` and then the OS user; it is recorded on approval receipts as provenance, not as an authorization. Repository checkout paths, worktree directories, and provider authentication are machine-specific; configure those on each machine. Each workspace has one agent host and web server.
+`--db`, `--documents`, `--host`, `--port`, and `--url` override configuration. `AVOOZL_URL` selects an endpoint for CLI and MCP clients. The earlier `AICOMMANDER_*` and `NUPP_WORKSPACE_*` names still work. `operator` in the workspace configuration, `AVOOZL_OPERATOR`, `AICOMMANDER_OPERATOR`, or `--operator` names the person this workspace acts for, defaulting to `git config user.name` and then the OS user; it is recorded on approval receipts as provenance, not as an authorization. Repository checkout paths, worktree directories, and provider authentication are machine-specific; configure those on each machine. Each workspace has one agent host and web server.
 
 To adopt an existing SQLite workspace, write a configuration pointing to its existing database and Markdown directory, then start Avoozl with that workspace. Do not import a stale JSON export over a live database. Stop the previous web server before replacing it. Drain and stop the previous agent host only after its active work finishes; web reloads can preserve a compatible existing host.
 
@@ -157,3 +163,17 @@ Run `npm test` before sharing changes. Tests use disposable workspaces and provi
 ## License
 
 MIT. The bundled Marked renderer retains its own license in [src/MARKED-LICENSE.md](src/MARKED-LICENSE.md).
+
+## VS Code client
+
+An extension in [`extension/`](extension/README.md) brings plans, tasks, and the conversations this workspace owns into the editor. It is a client: it never starts a provider process and never opens a second writer for a conversation that already has an owner. Saving a plan records a draft revision and never approves it, a conflicting save cannot overwrite another client's revision, and stopping a conversation is reported as a cancellation rather than a failure.
+
+```sh
+node cli.mjs serve --workspace ../my-plans --ahp   # site, agent host, and the editor facade
+node cli.mjs editor --workspace ../my-plans        # the editor settings to paste
+node scripts/package-extension.mjs                 # build an installable .vsix
+```
+
+The editor facade translates owned sessions into Microsoft's Agent Host Protocol so they appear as native chat. It binds loopback only and requires a bearer token on every connection; the address `editor` prints contains that token, so treat it as a credential. Reach it from another machine through an authenticated tunnel or an SSH local port forward, never by publishing the listener.
+
+The [implementation plan](docs/design/vscode-client.md) records what is built, what the implementation changed about its own assumptions, and which acceptance gates remain open: native clicked controls, a real-provider run, remote routing, and physical-phone parity. [The evidence](docs/evidence/vscode/README.md) is reproducible with `node scripts/vscode-evidence.mjs`. The website remains the phone companion, and no website feature has been retired. The [research handoff](docs/research/vscode/README.md) records the original investigation and which of its conclusions have since been corrected.
