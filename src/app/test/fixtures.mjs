@@ -4,6 +4,7 @@ import { temporaryDirectory } from "./temporary.mjs";
 import { runUris } from "../ahp/uris.mjs";
 import { agentProviderId } from "../ahp/projection.mjs";
 import { workspaceIdentity } from "../identity.mjs";
+import { mintRunCapability } from "../run-capabilities.mjs";
 export function snapshot() {
   return {
     schemaVersion: 1,
@@ -58,6 +59,21 @@ export function fixture(t) {
     } catch {}
   });
   return { root, store };
+}
+export function runCapability(store, id, mode = "implement") {
+  const run =
+    store.get("runs", id) ||
+    store.put("runs", {
+      id,
+      taskId: "sample-task",
+      provider: "codex",
+      mode,
+      state: "running",
+    });
+  return mintRunCapability(store, {
+    ...run,
+    mode: run.mode || mode,
+  }).token;
 }
 // Wait for a condition rather than for a duration. A fixed sleep turns a
 // slower machine, or a busier test run, into a failure that says nothing

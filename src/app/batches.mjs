@@ -43,9 +43,9 @@ export class Batches {
     const providers = input.providers || [input.provider || "codex"];
     if (
       !providers.length ||
-      providers.some((p) => !["codex", "claude"].includes(p))
+      providers.some((provider) => !this.manager.registry?.has(provider))
     )
-      fail("Choose Claude or Codex.");
+      fail("Choose an available executor.");
     if (providers.length > 1 && input.model)
       fail("Use models keyed by provider for a mixed-provider batch.");
     const models = input.models || {};

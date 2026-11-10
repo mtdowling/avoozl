@@ -125,7 +125,7 @@ Use `plan.create`, `plan.save`, and `plan.get` to work on the draft. Approval id
 
 An agent that discovers adjacent work while implementing appends one proposal with `plan.propose` instead of creating a task: `{"id":"PLAN_ID","proposal":{"id":"local-id","title":"...","acceptance":["Observable check."]}}`. The appended block is validated by the same rules as approval and stays non-executable. The amended plan no longer matches its approval receipt, so it reads as having unapproved changes and its tasks are flagged for review until the next approval converts the proposal.
 
-Configure a Git checkout, base branch, worktree directory, and acceptance commands in Settings before managed execution. Claude and Codex use their own harnesses and authentication. Implementation runs own isolated worktrees; acceptance checks run against a clean committed head. Integration rebases, revalidates, and fast-forwards the configured checkout. Integration does not push. Scoped implementation, integration, and whole-head acceptance remain separate.
+Configure a Git checkout, base branch, worktree directory, and acceptance commands in Settings before managed execution. Claude and Codex use their own harnesses and authentication. OpenHands can instead use a separately running, loopback-only Agent Server and embeds its conversation, terminal, files, and browser surface in the Avoozl session page; see [the OpenHands setup](docs/openhands.md). Implementation runs own isolated worktrees; acceptance checks run against a clean committed head. Integration rebases, revalidates, and fast-forwards the configured checkout. Integration does not push. Scoped implementation, integration, and whole-head acceptance remain separate.
 
 ```sh
 node cli.mjs query --workspace ../my-plans --q 'ready:true'
@@ -150,7 +150,7 @@ Back up the Markdown directory and configuration alongside the SQLite backup. Us
 
 The web process and agent host are separate. Reloading the website leaves agents running. Before updating host code, use `host drain`, let active work finish, then use `host stop`. Start `serve` after the update to launch its replacement. Do not launch replacement workers because a check-in is stale; inspect durable session and delivery records before resuming.
 
-The default listener is loopback. Private LAN/VPN listening is available with `--host 0.0.0.0`. This is a trusted local workspace, without per-user authentication or public-internet hosting support.
+The default listener is loopback. Private LAN/VPN listening is available with `--host 0.0.0.0`. This is a trusted local workspace, without per-user authentication or public-internet hosting support. Do not expose an OpenHands-enabled workspace remotely until Avoozl has authenticated users and project-level authorization; terminal, files, browser state, and transcripts are all sensitive.
 
 ## Fork and customize
 

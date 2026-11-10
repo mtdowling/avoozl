@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { fixture } from "./fixtures.mjs";
+import { fixture, runCapability } from "./fixtures.mjs";
 import { Operations } from "../operations.mjs";
 import { handleMcp } from "../mcp.mjs";
 import { addQueryFacet, removeQueryFacet } from "../../facets.mjs";
@@ -39,10 +39,11 @@ test("prompt search is read-only, preserves the current view, and saves validate
     projectId: "fixture",
     context: { view: "activity", group: "status" },
   });
+  const token = runCapability(store, run.id, "ask");
   const tools = await handleMcp(
     { jsonrpc: "2.0", id: 1, method: "tools/list" },
     ops,
-    { runId: run.id },
+    { runId: run.id, runCapability: token },
   );
   assert.ok(tools.body.result.tools.every((t) => t.annotations.readOnlyHint));
   const denied = await handleMcp(
@@ -56,7 +57,7 @@ test("prompt search is read-only, preserves the current view, and saves validate
       },
     },
     ops,
-    { runId: run.id },
+    { runId: run.id, runCapability: token },
   );
   assert.equal(denied.body.result.isError, true);
   assert.equal(store.read().presentation, undefined);

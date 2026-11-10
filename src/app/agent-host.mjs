@@ -90,6 +90,7 @@ export function startAgentHost({
         const result = await handleMcp(input, ops, {
           base: "http://" + req.headers.host,
           runId: url.searchParams.get("run"),
+          runCapability: req.headers.authorization?.replace(/^Bearer\s+/i, ""),
           versionHeader: req.headers["mcp-protocol-version"],
         });
         res.writeHead(result.status, { "Content-Type": "application/json" });

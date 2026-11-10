@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { fixture, markdown } from "./fixtures.mjs";
+import { fixture, markdown, runCapability } from "./fixtures.mjs";
 import { RunManager } from "../manager.mjs";
 import { Operations } from "../operations.mjs";
 import { handleMcp } from "../mcp.mjs";
@@ -196,13 +196,17 @@ test("owned agent MCP connections cannot grant themselves different approval pol
       arguments: { input: { id: "run-worker", approvalMode: "automatic" } },
     },
   };
-  const result = await handleMcp(message, ops, { runId: "run-worker" });
+  const token = runCapability(store, "run-worker");
+  const result = await handleMcp(message, ops, {
+    runId: "run-worker",
+    runCapability: token,
+  });
   assert.equal(result.body.result.isError, true);
-  assert.match(result.body.result.content[0].text, /user authorization/);
+  assert.match(result.body.result.content[0].text, /does not authorize/);
   const listed = await handleMcp(
     { jsonrpc: "2.0", id: 2, method: "tools/list" },
     ops,
-    { runId: "run-worker" },
+    { runId: "run-worker", runCapability: token },
   );
   assert(
     !listed.body.result.tools.some((t) => t.name === "plans_set_run_approvals"),

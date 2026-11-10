@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { fixture, markdown } from "./fixtures.mjs";
+import { fixture, markdown, runCapability } from "./fixtures.mjs";
 import { Operations } from "../operations.mjs";
 import { handleMcp } from "../mcp.mjs";
 import { extractPlan } from "../plans.mjs";
@@ -253,15 +253,12 @@ test("the agent-facing surfaces route discoveries away from capture", async (t) 
   const tools = (
     await handleMcp({ jsonrpc: "2.0", id: 1, method: "tools/list" }, ops, {
       runId: "run-worker",
+      runCapability: runCapability(store, "run-worker"),
     })
   ).body.result.tools;
   const capture = tools.find((x) => x.name === "plans_capture"),
     propose = tools.find((x) => x.name === "plans_propose_work");
-  assert(capture, "plans_capture remains available");
-  assert.match(
-    capture.description,
-    /Not a channel for work an agent discovered/,
-  );
+  assert.equal(capture, undefined);
   assert.match(propose.description, /not executable/);
   assert.equal(propose.annotations.readOnlyHint, false);
 });
