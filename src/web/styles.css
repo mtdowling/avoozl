@@ -492,6 +492,39 @@ select { min-height: 32px; padding: 0 8px; font-size: 10px; }
 .plan-percent em { display: block; height: 100%; background: var(--on); }
 .plan-meter { height: 3px; margin-top: 7px; overflow: hidden; background: #343434; }
 .plan-meter i { height: 100%; display: block; background: var(--on); }
+.plans-loading { min-height: calc(100vh - 79px); }
+.avoozl-loader {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #503036;
+  border-radius: 10px;
+  background: #21191b;
+}
+.avoozl-loader::before {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  border: 2px solid transparent;
+  border-top-color: #ff5555;
+  border-right-color: #ff555580;
+  border-radius: 50%;
+  animation: avoozl-loader-spin 1.1s linear infinite;
+}
+.avoozl-loader span {
+  position: relative;
+  z-index: 1;
+  color: #ff5555;
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1;
+}
+.plans-loading p { margin-top: 12px; font-size: 10px; }
+@keyframes avoozl-loader-spin {
+  to { transform: rotate(360deg); }
+}
 .library-heading { min-height: 58px; display: flex; align-items: center; justify-content: space-between; }
 .proposal-list { display: flex; flex-direction: column; }
 .proposal-row { min-height: 42px; padding: 0 8px; display: grid; grid-template-columns: minmax(260px, 1fr) 110px 100px; align-items: center; gap: 20px; border-bottom: 1px solid var(--line); text-align: left; }
@@ -903,11 +936,25 @@ select { min-height: 32px; padding: 0 8px; font-size: 10px; }
   align-items: center;
 }
 .recent-tree .tree-percent {
-  min-width: 48px;
+  min-width: 126px;
+  display: grid;
+  grid-template-columns: 35px minmax(70px, 1fr);
+  align-items: center;
+  gap: 8px;
   justify-self: end;
   color: #d0d0d0;
   font-size: 11px;
   text-align: right;
+}
+.recent-tree .tree-percent i {
+  height: 3px;
+  overflow: hidden;
+  background: #343434;
+}
+.recent-tree .tree-percent em {
+  display: block;
+  height: 100%;
+  background: var(--on);
 }
 .recent-tree .tree-table-heading > th {
   height: 34px;
@@ -958,6 +1005,18 @@ select { min-height: 32px; padding: 0 8px; font-size: 10px; }
   background-color: #151515;
   background-image: radial-gradient(circle, #333d51 1px, transparent 1.1px);
   background-size: 28px 28px;
+}
+.graph-view #graph-stage.loading {
+  cursor: default;
+  background-image: none;
+}
+.graph-loading {
+  position: absolute;
+  inset: 0;
+  min-height: 0;
+}
+.epic-window-label .epic-mini i {
+  background: var(--on);
 }
 .graph-view .graph-top {
   flex: none;

@@ -20,6 +20,10 @@ const esc = (s) =>
       ],
   );
 const color = (c) => (/^#[\da-f]{6}$/i.test(c || "") ? c : "#8edabb");
+export function stripOverlayParent(root) {
+  const treeRoot = root.getRootNode?.();
+  return treeRoot?.nodeType === 11 ? treeRoot : root.ownerDocument.body;
+}
 export function createSingleStrip(
   root,
   { select, changeCamera, interact = () => {}, changeOrder = () => {} },
@@ -60,8 +64,9 @@ export function createSingleStrip(
   root
     .querySelector(".strip-zoom")
     .insertBefore(landedToggle, root.querySelector(".strip-magnification"));
-  // The popover and hover card live on the body: a stage that clips and
-  // captures gestures must not clip or swallow the detail it anchors.
+  // Keep overlays outside the clipping stage but inside the UI's style root.
+  // Canvas mounts Avoozl in a ShadowRoot, so document.body would leave these
+  // elements unstyled and allow their contents to shift the host page.
   const popover = document.createElement("div");
   popover.className = "strip-worker-popover";
   popover.hidden = true;
@@ -69,7 +74,7 @@ export function createSingleStrip(
   hoverCard.className = "strip-pin-hover";
   hoverCard.hidden = true;
   hoverCard.setAttribute("aria-hidden", "true");
-  document.body.append(popover, hoverCard);
+  stripOverlayParent(root).append(popover, hoverCard);
   const stage = root.querySelector(".strip-stage"),
     canvas = root.querySelector(".strip-canvas"),
     labels = root.querySelector(".strip-labels"),
@@ -677,10 +682,11 @@ export function createSingleStrip(
   root.addEventListener("pointerdown", () => hideHover(), { capture: true });
   // Closing on an outside press keeps the overlay from trapping the page.
   document.addEventListener("pointerdown", (e) => {
+    const path = e.composedPath?.() || [e.target];
     if (
       !popover.hidden &&
-      !popover.contains(e.target) &&
-      !e.target.closest?.(".agent-pin")
+      !path.includes(popover) &&
+      !path.some((target) => target?.classList?.contains("agent-pin"))
     ) {
       workerRequest++;
       popoverClose();

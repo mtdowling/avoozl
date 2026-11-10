@@ -6,7 +6,8 @@ const ROW = 210;
 // Collapse cycles before assigning depth. Cycle members remain individually
 // visible, with their return edges routed outside the dependency layers.
 export function dependencyLayout(nodes, links, group = () => "") {
-  const ids = new Set(nodes.map((n) => n.id));
+  const nodeById = new Map(nodes.map((n) => [n.id, n]));
+  const ids = new Set(nodeById.keys());
   const next = new Map(nodes.map((n) => [n.id, []]));
   const parents = new Map(nodes.map((n) => [n.id, []]));
   for (const e of links) {
@@ -60,7 +61,7 @@ export function dependencyLayout(nodes, links, group = () => "") {
   const layers = [];
   components.forEach((members, c) =>
     members.forEach((id, i) => {
-      (layers[depth(c) + i] ??= []).push(nodes.find((n) => n.id === id));
+      (layers[depth(c) + i] ??= []).push(nodeById.get(id));
     }),
   );
   const order = new Map();
