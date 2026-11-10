@@ -134,6 +134,28 @@
             <path d="M6 3h9l4 4v14H6zM14 3v5h5M9 12h7m-7 4h7" /></svg
           ><span class="nav-label">Plans</span>
         </button>
+        <button
+          id="open-visualizations"
+          title="Visualizations"
+          aria-label="Visualizations"
+          aria-haspopup="dialog"
+          aria-controls="visualizations-dialog"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              d="M12 3v18M3 12h18m-12-6 3-3 3 3m-6 12 3 3 3-3M6 9l-3 3 3 3m12-6 3 3-3 3"
+            />
+          </svg>
+          <span class="nav-label">Visualizations</span>
+        </button>
       </nav>
       <div class="connection">
         <span id="live-dot"></span><span id="sync-state">Connecting</span
@@ -337,10 +359,7 @@
                   <option value="overview">Delivery overview</option>
                   <option value="all">All matching tasks</option>
                 </select></label
-              ><span class="toolbar-divider" aria-hidden="true">|</span
-              ><select id="saved-views" aria-label="Saved visualizations">
-                <option value="">Saved visualizations</option>
-              </select>
+              >
             </div>
           </div>
         </div>
@@ -653,6 +672,15 @@
           ><button type="submit" class="button primary">Save plan</button>
         </div>
       </form>
+    </dialog>
+    <dialog id="visualizations-dialog" aria-labelledby="visualizations-title">
+      <div class="dialog-heading">
+        <h2 id="visualizations-title">Visualizations</h2>
+        <button id="visualizations-close" aria-label="Close visualizations">
+          ×
+        </button>
+      </div>
+      <div id="saved-views" class="visualization-list"></div>
     </dialog>
     <dialog id="mcp-dialog">
       <div class="dialog-heading">

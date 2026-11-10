@@ -1009,6 +1009,42 @@ dialog .dialog-heading button {
   font-size: 24px;
   color: var(--muted);
 }
+#visualizations-dialog {
+  width: min(520px, 94vw);
+}
+.visualization-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.visualization-list > button {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  text-align: left;
+}
+.visualization-list > button:hover,
+.visualization-list > button[aria-current] {
+  background: #303030;
+}
+.visualization-list strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+.visualization-list span {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.visualization-list h3 {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 16px 12px 4px;
+}
 dialog label {
   display: flex;
   flex-direction: column;
@@ -1818,11 +1854,6 @@ dialog textarea {
 .epic-task.is-filtered .epic-task-meter {
   opacity: 0.17;
 }
-#saved-views {
-  font-size: 10px;
-  max-width: 200px;
-  padding: 6px;
-}
 #fullscreen {
   white-space: nowrap;
   font-size: 10px;
@@ -1997,10 +2028,6 @@ dialog textarea {
   }
   .epic-footnote {
     font-size: 7px;
-  }
-  #saved-views {
-    max-width: 125px;
-    font-size: 8px;
   }
   #fullscreen {
     font-size: 8px;
@@ -2791,9 +2818,6 @@ body.strip-active {
   .tour-active #result-count {
     display: none;
   }
-  .tour-active #saved-views {
-    max-width: 100px;
-  }
   #tour-cue {
     top: auto;
   }
@@ -3082,9 +3106,6 @@ body.strip-active {
     padding-top: 0;
     padding-bottom: 0;
     flex-wrap: nowrap;
-  }
-  .tour-active #saved-views {
-    max-width: 130px;
   }
   .tour-active #toggle-right {
     font-size: 0;
@@ -5625,9 +5646,6 @@ body {
 .toolbar-dropdowns select {
   font-size: 10px;
 }
-.toolbar #saved-views {
-  max-width: 210px;
-}
 .toolbar-actions > label {
   display: flex;
 }
@@ -6606,16 +6624,10 @@ body .workspace.theater {
     gap: 6px;
     font-size: 12px;
   }
-  .toolbar-dropdowns select,
-  .toolbar #saved-views {
+  .toolbar-dropdowns select {
     min-height: 36px;
     max-width: 100%;
     font-size: 12px;
-  }
-  .toolbar #saved-views {
-    flex: 1;
-    width: 0;
-    min-width: 0;
   }
   .toolbar #show-toc {
     min-height: 42px;
@@ -6847,16 +6859,24 @@ body .workspace.theater {
     min-height: 40px;
   }
   .hub-pulse {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: flex;
+    flex-direction: column;
   }
   .hub-pulse button {
-    min-height: 72px;
-    padding: 12px;
+    min-height: 44px;
+    padding: 8px 12px;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    border-right: 0;
     border-bottom: 1px solid #414141;
   }
-  .hub-pulse button:nth-child(2) {
-    border-right: 0;
+  .hub-pulse button:last-child {
+    border-bottom: 0;
+  }
+  .hub-pulse strong {
+    min-width: 2ch;
+    font-size: 22px;
   }
   .hub-pulse span {
     font-size: 12px;
@@ -7160,9 +7180,6 @@ body .workspace.theater {
     flex: 1;
     justify-content: flex-end;
     padding: 0;
-  }
-  .toolbar #saved-views {
-    display: none;
   }
   .strip-stage,
   #graph-stage {
@@ -8246,12 +8263,6 @@ body:has(.workspace.theater) > .site-topbar {
   #page-tools .toolbar-dropdowns select {
     max-width: 100px;
     font-size: 10px;
-  }
-  #page-tools .toolbar #saved-views {
-    display: block;
-    min-width: 70px;
-    width: 110px;
-    max-width: 110px;
   }
   #page-tools .toolbar #clear-filters,
   #page-tools .toolbar #inflight,
