@@ -42,17 +42,26 @@ Persist the generated keys in a permission-restricted machine-local secret store
 if conversations must survive restarts. Changing `OH_SECRET_KEY` without retaining
 the previous key can make stored OpenHands secrets unreadable.
 
-Configure Avoozl in the environment of both the web process and its agent host:
+Agent Canvas persists its generated session key at
+`~/.openhands/agent-canvas/api-key.txt` with owner-only permissions. For the
+standard loopback Agent Canvas backend on port `38100`, Avoozl discovers that
+file automatically. No secret is copied into a workspace or repository.
+
+Configure only the model credentials in the environment of both the web process
+and its agent host:
 
 ```sh
-export AVOOZL_OPENHANDS_URL=http://127.0.0.1:38100
-export AVOOZL_OPENHANDS_API_KEY=the-session-api-key
 export AVOOZL_OPENHANDS_MODEL=anthropic/claude-sonnet-4-5
 export AVOOZL_OPENHANDS_LLM_API_KEY=the-provider-key
 node cli.mjs serve \
   --workspace /path/to/workspace \
   --canvas-origin http://127.0.0.1:38400
 ```
+
+For a separately managed Agent Server, set `AVOOZL_OPENHANDS_URL` and either
+`AVOOZL_OPENHANDS_API_KEY` or `AVOOZL_OPENHANDS_API_KEY_FILE`. An explicitly
+configured key always wins. Avoozl refuses symlinked, non-regular, empty, or
+group/world-accessible key files.
 
 `AVOOZL_OPENHANDS_LLM_BASE_URL` optionally selects an OpenAI-compatible endpoint.
 The existing `AICOMMANDER_OPENHANDS_*` and `NUPP_WORKSPACE_OPENHANDS_*` prefixes

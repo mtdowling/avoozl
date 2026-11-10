@@ -1,6 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { OpenHandsAdapter } from "../providers/openhands.mjs";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import {
+  OpenHandsAdapter,
+  openHandsSettings,
+} from "../providers/openhands.mjs";
 import { handleMcp } from "../mcp.mjs";
 import {
   authorizeRunCapability,
@@ -84,6 +90,56 @@ function fakeOpenHands() {
     };
   return { calls, client, socket, http };
 }
+
+test("OpenHands discovers the permission-restricted Agent Canvas key", (t) => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-openhands-key-"));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
+  const keyDir = path.join(home, ".openhands", "agent-canvas"),
+    keyFile = path.join(keyDir, "api-key.txt");
+  fs.mkdirSync(keyDir, { recursive: true });
+  fs.writeFileSync(keyFile, "local-canvas-key\n", { mode: 0o600 });
+
+  const settings = openHandsSettings({ env: {}, home, platform: "darwin" });
+
+  assert.equal(settings.host, "http://127.0.0.1:38100");
+  assert.equal(settings.apiKey, "local-canvas-key");
+});
+
+test("explicit OpenHands credentials win over local discovery", (t) => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-openhands-key-"));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
+  const keyDir = path.join(home, ".openhands", "agent-canvas");
+  fs.mkdirSync(keyDir, { recursive: true });
+  fs.writeFileSync(path.join(keyDir, "api-key.txt"), "local-canvas-key\n", {
+    mode: 0o600,
+  });
+
+  const settings = openHandsSettings({
+    env: {
+      AVOOZL_OPENHANDS_URL: "http://localhost:38100/",
+      AVOOZL_OPENHANDS_API_KEY: "explicit-key",
+    },
+    home,
+    platform: "darwin",
+  });
+
+  assert.equal(settings.host, "http://localhost:38100");
+  assert.equal(settings.apiKey, "explicit-key");
+});
+
+test("OpenHands refuses an exposed local key file", (t) => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "avoozl-openhands-key-"));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
+  const keyDir = path.join(home, ".openhands", "agent-canvas"),
+    keyFile = path.join(keyDir, "api-key.txt");
+  fs.mkdirSync(keyDir, { recursive: true });
+  fs.writeFileSync(keyFile, "exposed-key\n", { mode: 0o644 });
+
+  assert.throws(
+    () => openHandsSettings({ env: {}, home, platform: "darwin" }),
+    /accessible to other users/,
+  );
+});
 
 test("OpenHands binds one Avoozl worktree, plugin and run-scoped MCP secret", async () => {
   const fake = fakeOpenHands(),
@@ -311,8 +367,7 @@ test("OpenHands surface routes deny server authority and read-only workspace mut
 });
 
 test("OpenHands surface sockets allow only one bound session cursor", () => {
-  const path =
-    "/openhands/run-surface/sockets/session/conversation-one";
+  const path = "/openhands/run-surface/sockets/session/conversation-one";
   assert.deepEqual(
     openHandsSurfaceSocketRoute(path, new URLSearchParams({ after_seq: "8" })),
     {
@@ -323,10 +378,7 @@ test("OpenHands surface sockets allow only one bound session cursor", () => {
     },
   );
   assert.ok(
-    openHandsSurfaceSocketRoute(
-      path,
-      new URLSearchParams({ after_seq: "-1" }),
-    ),
+    openHandsSurfaceSocketRoute(path, new URLSearchParams({ after_seq: "-1" })),
   );
   assert.equal(
     openHandsSurfaceSocketRoute(
@@ -341,11 +393,7 @@ test("OpenHands surface sockets allow only one bound session cursor", () => {
     ),
     null,
   );
-  assert.ok(
-    openHandsSurfaceSocketRoute(
-      path.replace("/session/", "/events/"),
-    ),
-  );
+  assert.ok(openHandsSurfaceSocketRoute(path.replace("/session/", "/events/")));
   assert.equal(
     openHandsSurfaceSocketRoute(
       path.replace("/session/", "/events/"),

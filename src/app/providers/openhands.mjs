@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -38,13 +40,56 @@ const pluginRoot = path.join(
   "openhands-plugin",
 );
 
-function setting(name, fallback = "") {
+function setting(name, fallback = "", env = process.env) {
   return (
-    process.env["AVOOZL_OPENHANDS_" + name] ||
-    process.env["AICOMMANDER_OPENHANDS_" + name] ||
-    process.env["NUPP_WORKSPACE_OPENHANDS_" + name] ||
+    env["AVOOZL_OPENHANDS_" + name] ||
+    env["AICOMMANDER_OPENHANDS_" + name] ||
+    env["NUPP_WORKSPACE_OPENHANDS_" + name] ||
     fallback
   );
+}
+
+function readSessionApiKey(file, { platform, required }) {
+  let descriptor;
+  try {
+    const noFollow = platform === "win32" ? 0 : fs.constants.O_NOFOLLOW || 0;
+    descriptor = fs.openSync(file, fs.constants.O_RDONLY | noFollow);
+  } catch (error) {
+    if (error.code === "ENOENT" && !required) return undefined;
+    if (error.code === "ELOOP")
+      fail("Refusing a symlinked OpenHands API key file.", 409);
+    fail(
+      `Cannot read the configured OpenHands API key file: ${error.message}`,
+      409,
+    );
+  }
+  try {
+    const stat = fs.fstatSync(descriptor);
+    if (!stat.isFile())
+      fail("The configured OpenHands API key path is not a regular file.", 409);
+    if (platform !== "win32" && (stat.mode & 0o077) !== 0)
+      fail(
+        "Refusing an OpenHands API key file accessible to other users.",
+        409,
+      );
+    const key = fs.readFileSync(descriptor, "utf8").trim();
+    if (!key) fail("The configured OpenHands API key file is empty.", 409);
+    return key;
+  } finally {
+    fs.closeSync(descriptor);
+  }
+}
+
+function isStandardCanvasServer(host) {
+  try {
+    const url = new URL(host);
+    return (
+      url.port === "38100" &&
+      ["127.0.0.1", "::1", "localhost"].includes(url.hostname)
+    );
+  } catch {
+    return false;
+  }
 }
 
 function assertLocalAgentServer(host) {
@@ -72,14 +117,33 @@ function assertServerVersion(version) {
     );
 }
 
-export function openHandsSettings() {
+export function openHandsSettings({
+  env = process.env,
+  home = os.homedir(),
+  platform = process.platform,
+} = {}) {
+  const host = setting("URL", "http://127.0.0.1:38100", env).replace(/\/$/, ""),
+    explicitKey = setting("API_KEY", "", env),
+    configuredKeyFile = setting("API_KEY_FILE", "", env),
+    keyFile =
+      configuredKeyFile ||
+      (isStandardCanvasServer(host)
+        ? path.join(home, ".openhands", "agent-canvas", "api-key.txt")
+        : "");
   return {
-    host: setting("URL", "http://127.0.0.1:38100").replace(/\/$/, ""),
-    apiKey: setting("API_KEY") || undefined,
-    model: setting("MODEL"),
-    llmApiKey: setting("LLM_API_KEY") || undefined,
-    llmBaseUrl: setting("LLM_BASE_URL") || undefined,
-    pluginSource: setting("PLUGIN", pluginRoot),
+    host,
+    apiKey:
+      explicitKey ||
+      (keyFile
+        ? readSessionApiKey(keyFile, {
+            platform,
+            required: Boolean(configuredKeyFile),
+          })
+        : undefined),
+    model: setting("MODEL", "", env),
+    llmApiKey: setting("LLM_API_KEY", "", env) || undefined,
+    llmBaseUrl: setting("LLM_BASE_URL", "", env) || undefined,
+    pluginSource: setting("PLUGIN", pluginRoot, env),
   };
 }
 
@@ -116,7 +180,7 @@ export async function openHandsProviderInfo() {
       label: "OpenHands",
       available: false,
       reason:
-        "Start a compatible OpenHands Agent Server and configure AVOOZL_OPENHANDS_URL and AVOOZL_OPENHANDS_API_KEY. " +
+        "Start a compatible OpenHands Agent Server. Avoozl discovers the standard local Agent Canvas key, or accepts AVOOZL_OPENHANDS_API_KEY or AVOOZL_OPENHANDS_API_KEY_FILE. " +
         error.message,
       capabilities: OPENHANDS_CAPABILITIES,
       compatibility: OPENHANDS_VERSIONS,
