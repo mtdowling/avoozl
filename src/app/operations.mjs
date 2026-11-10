@@ -740,6 +740,102 @@ export class Operations {
       return { view, explanation: view.caption };
     }
     if (name === "task.get") return this.detail(input.id);
+    if (name === "report.save")
+      return store.mutate(
+        "Save report " + (input.title || ""),
+        (data) => {
+          if (
+            input.id !== undefined &&
+            (typeof input.id !== "string" ||
+              !/^report-[a-z0-9-]{4,80}$/.test(input.id))
+          )
+            fail("Invalid report id.");
+          if (
+            typeof input.title !== "string" ||
+            !input.title.trim() ||
+            input.title.length > 160
+          )
+            fail("Report title must contain 1–160 characters.");
+          if (
+            input.view !== undefined &&
+            !["overview", "tasks", "epics", "graph", "documents"].includes(
+              input.view,
+            )
+          )
+            fail("Unknown report view.");
+          if (
+            input.filters !== undefined &&
+            (!input.filters ||
+              typeof input.filters !== "object" ||
+              Array.isArray(input.filters))
+          )
+            fail("Report filters must be an object.");
+          const filters = {};
+          for (const key of [
+            "query",
+            "scopes",
+            "work",
+            "statuses",
+            "epics",
+            "tracks",
+            "tags",
+            "activity",
+            "historical",
+          ]) {
+            if (!Object.hasOwn(input.filters || {}, key)) continue;
+            const value = input.filters[key];
+            if (
+              key === "historical"
+                ? typeof value !== "boolean"
+                : key === "query"
+                  ? typeof value !== "string" || value.length > 2000
+                  : !Array.isArray(value) ||
+                    value.length > 500 ||
+                    value.some(
+                      (item) =>
+                        typeof item !== "string" || item.length > 2000,
+                    )
+            )
+              fail("Invalid report filter " + key + ".");
+            filters[key] = structuredClone(value);
+          }
+          data.savedSearches ??= [];
+          const now = new Date().toISOString(),
+            existing = input.id
+              ? data.savedSearches.find((item) => item.id === input.id)
+              : null,
+            record = {
+              id: existing?.id || "report-" + randomUUID().slice(0, 12),
+              title: input.title.trim(),
+              view: input.view || existing?.view || "tasks",
+              filters,
+              createdAt: existing?.createdAt || now,
+              updatedAt: now,
+            };
+          if (input.id && !existing) fail("Saved report not found.", 404);
+          if (existing)
+            data.savedSearches[data.savedSearches.indexOf(existing)] = record;
+          else data.savedSearches.push(record);
+          return record;
+        },
+        expectedRevision,
+      );
+    if (name === "report.delete")
+      return store.mutate(
+        "Delete report " + input.id,
+        (data) => {
+          if (typeof input.id !== "string") fail("Invalid report id.");
+          const existing = data.savedSearches?.find(
+            (item) => item.id === input.id,
+          );
+          if (!existing) fail("Saved report not found.", 404);
+          data.savedSearches = data.savedSearches.filter(
+            (item) => item.id !== input.id,
+          );
+          return existing;
+        },
+        expectedRevision,
+      );
     if (["run.archive", "run.unarchive"].includes(name))
       return store.transaction(() => {
         const run = store.get("runs", input.id);

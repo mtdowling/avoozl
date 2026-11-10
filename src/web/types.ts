@@ -79,15 +79,51 @@ export type Task = {
   id: string;
   title: string;
   summary?: string;
+  notes?: string;
+  overview?: string;
   status: string;
   scope?: string;
+  kind?: string;
   epic?: string;
   track?: string;
   owner?: string;
   nextAction?: string;
   tags?: string[];
   acceptance?: string[];
+  evidence?: string[];
+  resources?: string[];
   dependencies?: string[];
+  needsReview?: boolean;
+  progressPercent?: number;
+  prompt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  source?: TaskSource;
+  approvedSource?: TaskSource & { text?: string };
+  sourceReferences?: TaskSource[];
+  contextDocuments?: string[];
+  mergeReceipts?: string[];
+  integration?: {
+    commit?: string;
+    at?: string;
+    branch?: string;
+    repo?: string;
+    evidence?: string[];
+    recordedAt?: string;
+  };
+  capture?: {
+    submissionId?: string;
+    at?: string;
+    context?: {
+      revision?: number;
+      view?: string;
+      selected?: string;
+      document?: string | null;
+      taskIds?: string[];
+      filters?: Record<string, string>;
+      url?: string;
+    };
+  };
   activity?: {
     owner?: string;
     status?: string;
@@ -95,22 +131,77 @@ export type Task = {
     heartbeatAt?: string;
     sessionId?: string;
     branch?: string;
+    connection?: { runId?: string };
   };
+};
+
+export type TaskSource = {
+  document?: string;
+  lineStart?: number;
+  lineEnd?: number;
+  key?: string;
+  removed?: boolean;
+  statusAtMerge?: string;
+  progressAtMerge?: number;
+};
+
+export type EvidenceRecord = {
+  id: string;
+  kind?: string;
+  taskId?: string;
+  runId?: string;
+  commit?: string;
+  argv?: string[];
+  exitCode?: number;
+  at?: string;
+  [key: string]: unknown;
+};
+
+export type TaskDetail = Task & {
+  requestedId?: string;
+  context?: string;
+  relationships?: State["edges"];
+  documents?: DocumentRecord[];
+  runs?: RunSummary[];
+  evidenceRecords?: EvidenceRecord[];
 };
 
 export type State = {
   revision: number;
   project?: { name?: string; title?: string; workspaceName?: string };
   statuses: Array<{ id: string; label: string; color?: string; complete?: boolean }>;
-  epics: Array<{ id: string; title: string }>;
+  epics: Array<{ id: string; title: string; summary?: string; scope?: string; color?: string; context?: string }>;
   tracks: Array<{ id: string; label: string; color?: string }>;
   tasks: Task[];
   edges: Array<{ id?: string; from: string; to: string; kind: string; reason?: string }>;
+  epicEdges?: Array<{ id?: string; from: string; to: string; kind: string; reason?: string }>;
   documents: Record<string, DocumentRecord>;
+  taskAliases?: Record<string, string>;
+  updatedAt?: string;
+  savedSearches?: SavedSearch[];
   presentation?: {
     views?: SavedView[];
     tours?: SavedTour[];
   };
+};
+
+export type SavedSearch = {
+  id: string;
+  title: string;
+  view: "overview" | "tasks" | "epics" | "graph" | "documents";
+  filters: {
+    query?: string;
+    scopes?: string[];
+    work?: string[];
+    statuses?: string[];
+    epics?: string[];
+    tracks?: string[];
+    tags?: string[];
+    activity?: string[];
+    historical?: boolean;
+  };
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type SavedView = {
@@ -158,6 +249,28 @@ export type DocumentRecord = {
   textLength?: number;
   taskIds?: string[];
   backlinks?: string[];
+  removed?: boolean;
+  historical?: boolean;
+  plan?: {
+    status?: "done" | "not-started" | "started" | "abandoned";
+    progressPercent?: number;
+    category?: string;
+    targetBranch?: string;
+    taskIds?: string[];
+    taskQuery?: string;
+  };
+};
+
+export type DocumentPlanSummary = {
+  id: string;
+  title: string;
+  total: number;
+  done: number;
+  status: "done" | "not-started" | "started" | "abandoned";
+  percent: number;
+  category: string;
+  branch: string;
+  basis: string;
 };
 
 export type PlanSummary = {
