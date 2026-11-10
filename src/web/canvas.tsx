@@ -305,31 +305,23 @@ async function canvasWorkspaceView(
       .catch(() => null);
     if (status && !["missing", "unsupported"].includes(status.state || "")) {
       const disposeView = host.appBackendView.mount({ container });
-      const openOpenHandsRoute = (event: MessageEvent) => {
+      const openConversation = (event: MessageEvent) => {
         const conversationId = event.data?.conversationId;
-        const requestedPath = event.data?.path;
         const frame = container.querySelector("iframe");
-        if (event.source !== frame?.contentWindow) return;
         if (
           event.data?.type === "avoozl:openhands-conversation" &&
           typeof conversationId === "string" &&
           conversationId.length > 0 &&
-          conversationId.length <= 240
-        ) {
-          navigate(`/conversations/${encodeURIComponent(conversationId)}`);
-          return;
-        }
-        if (
-          event.data?.type === "avoozl:openhands-route" &&
-          requestedPath === "/conversations"
+          conversationId.length <= 240 &&
+          event.source === frame?.contentWindow
         )
-          navigate(requestedPath);
+          navigate(`/conversations/${encodeURIComponent(conversationId)}`);
       };
       if (typeof window !== "undefined")
-        window.addEventListener("message", openOpenHandsRoute);
+        window.addEventListener("message", openConversation);
       return () => {
         if (typeof window !== "undefined")
-          window.removeEventListener("message", openOpenHandsRoute);
+          window.removeEventListener("message", openConversation);
         disposeView();
       };
     }

@@ -1,10 +1,63 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { fixture } from "./fixtures.mjs";
 import { Operations } from "../operations.mjs";
 import { RunManager } from "../manager.mjs";
 import { createPlan, approvePlan } from "../plans.mjs";
 import { runPage, planPage, viewSnapshot } from "../views.mjs";
+
+test("context chat works without a repository and carries the selected plan", async (t) => {
+  const { store } = fixture(t);
+  const plan = createPlan(store, {
+    prompt: "Design contextual chat",
+    text: "# Contextual chat\n\nUse the current Avoozl plan.",
+    context: { projectId: "future-project" },
+  });
+  let started;
+  const manager = new RunManager(store, {
+    factories: {
+      openhands: ({ emit }) => ({
+        async start(options) {
+          started = options;
+          emit("session", { providerSessionId: "context-conversation" });
+        },
+        async close() {},
+      }),
+    },
+  });
+  t.after(() => manager.close());
+  const ops = new Operations(store, { manager });
+  const result = await ops.execute("intent.submit", {
+    action: "ask",
+    prompt: "Attach to this Avoozl context.",
+    submissionId: "context-chat",
+    provider: "openhands",
+    context: { view: "documents", planId: plan.id },
+  });
+  for (let attempt = 0; attempt < 20 && !started; attempt++)
+    await new Promise((resolve) => setImmediate(resolve));
+
+  const run = store.get("runs", result.run.id);
+  assert.equal(run.planId, plan.id);
+  assert.equal(run.contextOnly, true);
+  assert.equal(run.projectId, undefined);
+  assert.equal(run.readOnly, true);
+  assert.equal(
+    run.worktree.startsWith(
+      path.join(os.tmpdir(), "avoozl-context-workspaces") + path.sep,
+    ),
+    true,
+  );
+  assert.equal(fs.statSync(run.worktree).mode & 0o077, 0);
+  assert.equal(started.cwd, run.worktree);
+  assert.match(started.prompt, /No code repository is mounted/);
+  assert.match(started.prompt, /Contextual chat/);
+  assert.match(started.prompt, /"view":"documents"/);
+  assert.equal(planPage(store).items[0].projectId, "future-project");
+});
 
 test("Ask acknowledges a conversation before the provider connects and retries retain the original context", async (t) => {
   const { store, root } = fixture(t);

@@ -610,6 +610,8 @@ export type CaptureContext = {
   view: string;
   selected?: string;
   document?: string | null;
+  planId?: string | null;
+  projectId?: string;
   taskIds?: string[];
   filters: Record<string, string>;
   url?: string;

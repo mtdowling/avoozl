@@ -1,5 +1,6 @@
 import { resolveTaskId } from "../task-identity.mjs";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { activityState } from "../activity.mjs";
@@ -23,6 +24,17 @@ const ACTIVE = new Set([
   "waiting-input",
   "waiting-approval",
 ]);
+
+function contextWorkspace(store, runId) {
+  const workspace = path.join(
+    os.tmpdir(),
+    "avoozl-context-workspaces",
+    digest(path.resolve(store.filename)).slice(0, 16),
+    runId,
+  );
+  fs.mkdirSync(workspace, { recursive: true, mode: 0o700 });
+  return workspace;
+}
 // Provider permission scopes we do not implement yet. Recording them keeps
 // "allow once or deny" honest instead of pretending the provider offered
 // nothing else.
@@ -251,7 +263,7 @@ export class RunManager {
         : run.prompt?.startsWith("NUPP_PROMPT_SEARCH")
           ? "Interpret the search using read-only plans tools. Do not create visualizations or change records. Return only the requested JSON search object."
           : run.mode === "ask"
-            ? "Answer the question from the supplied context and read-only repository inspection. Use plans_visualize or plans_present to show useful breakouts in the UI. Do not change source or task acceptance."
+            ? `Answer the question from the supplied context${run.contextOnly ? ". No code repository is mounted for this conversation; use the Avoozl MCP tools for plans and task state" : " and read-only repository inspection"}. Use plans_visualize or plans_present to show useful breakouts in the UI. Do not change source or task acceptance.`
             : "Implement the task, run the relevant checks, format and commit changes using repository conventions. Do not merge or push; validation and integration are separate workspace actions.",
       JSON.stringify({
         viewContext: run.context,
@@ -281,8 +293,12 @@ export class RunManager {
     }
     if (!this.registry.has(input.provider))
       fail("Choose an available executor.");
-    const project = this.store.get("projects", input.projectId);
-    if (!project) fail("Configure a project before starting an agent.");
+    const project = input.projectId
+      ? this.store.get("projects", input.projectId)
+      : null;
+    if (input.projectId && !project) fail("Choose a configured project.");
+    if (!project && input.mode !== "ask")
+      fail("Configure a project before starting an agent.");
     const task = this.store
         .read()
         .tasks.find(
@@ -319,7 +335,7 @@ export class RunManager {
       requestHash,
       taskId: task?.id || (plan ? "plan:" + plan.id : "conversation:" + id),
       planId: plan?.id,
-      projectId: project.id,
+      projectId: project?.id,
       provider: input.provider,
       executor: input.provider,
       approvalMode: selectedApprovalMode,
@@ -340,7 +356,7 @@ export class RunManager {
     };
     // Claim under a database lock before creating a worktree or launching a process.
     this.store.transaction(() => {
-      assertProjectAvailable(this.store, project.id);
+      if (project) assertProjectAvailable(this.store, project.id);
       const conflict =
         run.mode !== "ask" &&
         this.store
@@ -350,7 +366,8 @@ export class RunManager {
               r.mode !== "ask" &&
               [...ACTIVE, "disconnected"].includes(r.state) &&
               (resolveTaskId(this.store.read(), r.taskId) === run.taskId ||
-                (r.projectId === project.id &&
+                (project &&
+                  r.projectId === project.id &&
                   (r.resources || []).some((x) => resources.includes(x)))),
           );
       if (conflict) fail("Conflicts with active run " + conflict.id, 409);
@@ -362,7 +379,11 @@ export class RunManager {
         Object.assign(
           run,
           run.mode === "ask"
-            ? { worktree: project.root, readOnly: true }
+            ? {
+                worktree: project?.root || contextWorkspace(this.store, id),
+                readOnly: true,
+                contextOnly: !project,
+              }
             : await createWorktree(this.store, project, id),
         );
         run.handoffPath = path.join(

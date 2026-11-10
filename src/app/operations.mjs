@@ -578,6 +578,12 @@ export class Operations {
       }
       let taskId = resolveTaskId(this.read(), saved.context?.selected);
       if (!this.read().tasks.some((t) => t.id === taskId)) taskId = undefined;
+      const contextPlanId =
+        action === "ask" && typeof saved.context?.planId === "string"
+          ? saved.context.planId
+          : undefined;
+      if (contextPlanId && !this.store.get("plans", contextPlanId))
+        fail("Selected plan not found.", 404);
       if (action === "run" && !taskId) {
         const { task } = await this.execute(
           "task.capture",
@@ -590,7 +596,9 @@ export class Operations {
       }
       const run = await this.manager.start({
         id: receipt.runId,
-        ...(receipt.planId ? { planId: receipt.planId } : {}),
+        ...(receipt.planId || contextPlanId
+          ? { planId: receipt.planId || contextPlanId }
+          : {}),
         ...(taskId ? { taskId } : {}),
         mode:
           action === "ask" ? "ask" : action === "draft" ? "plan" : "implement",
