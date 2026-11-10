@@ -398,30 +398,69 @@ function FacetedWorkbench({ state, filters, setFilters, children }: {
   children: (tasks: Task[]) => React.ReactNode;
 }) {
   const tasks = filteredTasks(state, filters);
-  return <section className="faceted-screen"><TaskFacets state={state} filters={filters} setFilters={setFilters} count={tasks.length} /><div className="faceted-main">{children(tasks)}</div></section>;
+  const [width, setWidth] = useStoredSize("avoozl-facet-width", 260, 210, 480);
+  return <section className="faceted-screen" style={{ "--facet-width": `${width}px` } as React.CSSProperties}><TaskFacets state={state} filters={filters} setFilters={setFilters} count={tasks.length} /><ResizeHandle value={width} setValue={setWidth} min={210} max={480} label="Resize filters" className="facet-resize-handle" /><div className="faceted-main">{children(tasks)}</div></section>;
 }
 
-function Tasks({ state, tasks, openTask }: { state: State; tasks: Task[]; openTask: (task: Task) => void }) {
-  return (
-      <section className="screen tasks-screen">
-        <header className="screen-heading">
-          <div><h1>Task tree</h1><p>Workspace tasks and their current delivery state.</p></div>
-          <span>{tasks.length} of {state.tasks.length}</span>
-        </header>
-        <div className="task-table" role="table" aria-label="Workspace tasks">
-          <div className="task-table-head" role="row"><span>Task</span><span>Status</span><span>Area</span><span>Next action</span></div>
-          {tasks.map((task) => (
-            <button className="task-table-row" role="row" key={task.id} onClick={() => openTask(task)}>
-              <span><strong>{task.title}</strong><small>{task.id}</small></span>
-              <span><i className={`status-dot status-${task.status}`} /> {state.statuses.find((item) => item.id === task.status)?.label || task.status}</span>
-              <span>{state.epics.find((item) => item.id === task.epic)?.title || task.epic || "—"}</span>
-              <span>{task.nextAction || task.summary || "Inspect task"}</span>
-            </button>
-          ))}
-          {!tasks.length && <Empty icon={ListTodo} title="No matching tasks">Change or clear the filters.</Empty>}
-        </div>
-      </section>
-  );
+function RecentTree({ state, tasks, openTask }: { state: State; tasks: Task[]; openTask: (task: Task) => void }) {
+  const root = useRef<HTMLDivElement>(null);
+  const nowSink = useRef<HTMLDivElement>(null);
+  const controller = useRef<WorkbenchController | null>(null);
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  const openTaskRef = useRef(openTask);
+  openTaskRef.current = openTask;
+  const [group, setGroup] = useState("epic");
+  const [, repaint] = useState(0);
+
+  useEffect(() => {
+    if (!root.current || !nowSink.current || controller.current) return;
+    controller.current = createWorkbench({
+      tasksElement: root.current,
+      nowElement: nowSink.current,
+      badge(id: string) {
+        const status = stateRef.current.statuses.find((item) => item.id === id);
+        return `<span class="badge" style="--status:${status?.color || "#aabbcc"}"><span>●</span>${status?.label || id}</span>`;
+      },
+      epicName(id: string) {
+        return stateRef.current.epics.find((item) => item.id === id)?.title || stateRef.current.documents[id?.replace(/^doc:/, "")]?.title || id || "Unassigned";
+      },
+      trackName(id: string) {
+        return stateRef.current.tracks.find((item) => item.id === id)?.label || id;
+      },
+      refresh() {
+        repaint((value) => value + 1);
+      },
+      setCount() {},
+    });
+    const click = (event: MouseEvent) => {
+      const target = event.target as Element;
+      const id = target.closest<HTMLElement>("[data-task]")?.dataset.task || target.closest<HTMLElement>("[data-focus-task]")?.dataset.focusTask;
+      const task = id ? stateRef.current.tasks.find((item) => item.id === id) : undefined;
+      if (task) openTaskRef.current(task);
+    };
+    root.current.addEventListener("click", click);
+    return () => {
+      root.current?.removeEventListener("click", click);
+      controller.current?.suspend();
+    };
+  }, []);
+
+  useEffect(() => {
+    controller.current?.renderTasks({
+      data: state,
+      rows: tasks,
+      group,
+      selected: "",
+      narrow: tasks.length !== state.tasks.length,
+    });
+  }, [group, state, tasks]);
+
+  return <section className="recent-tree">
+    <div className="tree-group-control"><label>Group by <select value={group} onChange={(event) => setGroup(event.target.value)}><option value="epic">Epic</option><option value="track">Track</option><option value="status">Status</option><option value="tag">Tag</option></select></label></div>
+    <div id="tasks-view" ref={root} />
+    <div hidden ref={nowSink} />
+  </section>;
 }
 
 function Conversations({ workspace, selected, select, refresh }: { workspace: Workspace; selected: string | null; select: (id: string | null) => void; refresh: () => void }) {
@@ -907,7 +946,7 @@ export function App() {
       <main className="app-main">
         <header className="app-toolbar"><button className="mobile-menu" onClick={toggleNavigation}><Menu size={18} /></button><strong>{currentView.label}</strong><span className="toolbar-rule" /><span>{stateData.tasks.length} tasks</span><div className="toolbar-spacer" /><span className={workspaceData.agentHost?.connected ? "live-light connected" : "live-light"} /><span>{workspaceData.agentHost?.connected ? "Connected" : "Offline"}</span><button onClick={refresh} title="Refresh"><RefreshCw size={14} /></button></header>
         {view === "overview" && <FacetedWorkbench state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters}>{(tasks) => <RecentNow state={stateData} matchingTasks={tasks} openTask={setDrawerTask} />}</FacetedWorkbench>}
-        {view === "tasks" && <FacetedWorkbench state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters}>{(tasks) => <Tasks state={stateData} tasks={tasks} openTask={setDrawerTask} />}</FacetedWorkbench>}
+        {view === "tasks" && <FacetedWorkbench state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters}>{(tasks) => <RecentTree state={stateData} tasks={tasks} openTask={setDrawerTask} />}</FacetedWorkbench>}
         {view === "epics" && <FacetedWorkbench state={stateData} filters={workbenchFilters} setFilters={setWorkbenchFilters}>{(tasks) => <EpicProgress state={stateData} matchingTasks={tasks} openTask={setDrawerTask} />}</FacetedWorkbench>}
         {view === "conversations" && <Conversations workspace={workspaceData} selected={runId} select={setRunId} refresh={refresh} />}
         {view === "plans" && <Plans workspace={workspaceData} selected={planId} select={openPlan} refresh={refresh} />}
