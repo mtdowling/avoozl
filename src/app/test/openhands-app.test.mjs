@@ -20,6 +20,14 @@ test("the packaged Canvas App registers its declared Avoozl page", async () => {
     module = await import(
       pathToFileURL(path.join(OPENHANDS_CANVAS_APP.source, "extension.js")).href
     );
+  const source = fs.readFileSync(
+    path.join(OPENHANDS_CANVAS_APP.source, "extension.js"),
+    "utf8",
+  );
+  const icon = fs.readFileSync(
+    path.join(OPENHANDS_CANVAS_APP.source, manifest.icon),
+    "utf8",
+  );
   let registered;
   const dispose = module.activate({
     apiVersion: "1",
@@ -37,7 +45,11 @@ test("the packaged Canvas App registers its declared Avoozl page", async () => {
     },
   });
   assert.equal(manifest.schema_version, 1);
+  assert.equal(manifest.version, "0.1.1");
   assert.equal(manifest.contributes.pages[0].path, "/workspace");
+  assert.match(icon, /fill="#ff5555"/);
+  assert.match(source, /var\(--oh-color-primary/);
+  assert.match(source, /avoozl:canvas-theme/);
   assert.equal(registered.id, "workspace");
   assert.equal(typeof registered.mount, "function");
   dispose();

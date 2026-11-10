@@ -2,10 +2,10 @@
   "schema_version": 1,
   "name": "avoozl",
   "display_name": "Avoozl",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Design review, GitHub work authorization, and acceptance for OpenHands.",
   "entrypoint": "extension.js",
-  "icon": "icon.svg",
+  "icon": "icon-red.svg",
   "contributes": {
     "pages": [
       {

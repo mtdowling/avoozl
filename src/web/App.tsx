@@ -1384,6 +1384,24 @@ export function App() {
   }, [view]);
 
   useEffect(() => {
+    if (!canvasHost) return;
+    const allowed = new Set([
+      "--bg", "--panel", "--panel-2", "--panel-3", "--line", "--border", "--muted", "--text",
+      "--bright", "--accent", "--accent-2", "--selected", "--danger", "--on", "--landed",
+    ]);
+    const applyCanvasTheme = (event: MessageEvent) => {
+      if (event.source !== window.parent || event.data?.type !== "avoozl:canvas-theme" || !event.data.theme || typeof event.data.theme !== "object") return;
+      for (const [name, value] of Object.entries(event.data.theme)) {
+        if (allowed.has(name) && typeof value === "string" && CSS.supports("color", value)) {
+          document.documentElement.style.setProperty(name, value);
+        }
+      }
+    };
+    window.addEventListener("message", applyCanvasTheme);
+    return () => window.removeEventListener("message", applyCanvasTheme);
+  }, [canvasHost]);
+
+  useEffect(() => {
     const openSession = (event: Event) => {
       const id = (event as CustomEvent<{ id?: string }>).detail?.id;
       if (id) openRun(id);
@@ -1512,7 +1530,7 @@ export function App() {
     view === "insights" ? "Usage trends" :
     `${stateData.tasks.length} tasks`;
   return (
-    <div className={`app-shell ${navCollapsed ? "nav-collapsed" : ""}`} style={{ "--nav-width": `${navCollapsed ? 44 : navWidth}px` } as React.CSSProperties}>
+    <div className={`app-shell ${canvasHost ? "canvas-host " : ""}${navCollapsed ? "nav-collapsed" : ""}`} style={{ "--nav-width": `${navCollapsed ? 44 : navWidth}px` } as React.CSSProperties}>
       <aside className={navOpen ? "app-nav open" : "app-nav"}>
         <div className="site-brand-row"><a className="brand" href={canvasHost ? "/?canvas=1" : "/"} aria-label="Avoozl home"><div className="brand-mark">A</div><span className="brand-label"><strong title={workspaceName}>{workspaceName}</strong><small>Live delivery map</small></span></a><button className="nav-toggle" onClick={toggleNavigation} aria-expanded={!navCollapsed} aria-label={navCollapsed ? "Expand navigation" : "Collapse navigation"} title={navCollapsed ? "Expand navigation" : "Collapse navigation"}><Menu size={18} /></button></div>
         <nav>{visibleViews.map(({ id, label, icon: Icon }) => <button key={id} className={`${view === id ? "active " : ""}${id === "overview" ? "live-view" : ""}`.trim()} onClick={() => navigate(id)}><Icon size={16} /><span>{label}</span>{id === "overview" && activeTaskCount > 0 && <b aria-label={`${activeTaskCount} ${activeTaskCount === 1 ? "task" : "tasks"} in flight`}>{activeTaskCount}</b>}</button>)}</nav>
@@ -1521,7 +1539,9 @@ export function App() {
       </aside>
       {navOpen && <button className="nav-scrim" aria-label="Close navigation" onClick={() => setNavOpen(false)} />}
       <main className="app-main">
-        <header className="app-toolbar"><button className="mobile-menu" onClick={toggleNavigation}><Menu size={18} /></button><strong>{currentView.label}</strong>{pageDescriptions[view] && <span className="page-help" tabIndex={0} aria-label={`About ${currentView.label}`} aria-describedby="page-help-tip">?<span className="page-help-tip" id="page-help-tip" role="tooltip">{pageDescriptions[view]}</span></span>}<span className="toolbar-rule" /><span>{toolbarCount}</span><div className="toolbar-spacer" />
+        <header className="app-toolbar"><button className="mobile-menu" onClick={toggleNavigation}><Menu size={18} /></button>
+          {canvasHost ? <nav className="canvas-view-tabs" aria-label="Avoozl views">{visibleViews.map(({ id, label }) => <button key={id} className={view === id ? "active" : ""} onClick={() => navigate(id)} aria-current={view === id ? "page" : undefined}>{label}</button>)}</nav> : <><strong>{currentView.label}</strong>{pageDescriptions[view] && <span className="page-help" tabIndex={0} aria-label={`About ${currentView.label}`} aria-describedby="page-help-tip">?<span className="page-help-tip" id="page-help-tip" role="tooltip">{pageDescriptions[view]}</span></span>}</>}
+          <span className="toolbar-rule" /><span>{toolbarCount}</span><div className="toolbar-spacer" />
           {facetedView && <button className={filtersOpen ? "toolbar-action active" : "toolbar-action"} onClick={toggleFilters} title={filtersOpen ? "Collapse filters" : "Show filters"} aria-expanded={filtersOpen}><Filter size={17} /></button>}
           {!canvasHost && <button className="toolbar-action" onClick={() => askAgent(PROGRESS_PROMPT)} title="Ask an agent about progress"><MessageSquare size={17} /></button>}
           {!canvasHost && <button className="toolbar-action" onClick={() => { setRunId(null); navigate("conversations"); }} title="New task"><Plus size={17} /></button>}
