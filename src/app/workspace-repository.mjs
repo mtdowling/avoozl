@@ -155,6 +155,14 @@ export function workspacePublication(store) {
             repository: repo.id,
             label: repo.label,
           })),
+          reports: (store.read().savedSearches || []).map((report) => ({
+            id: report.id,
+            title: report.title,
+            view: report.view,
+            filters: report.filters,
+            createdAt: report.createdAt,
+            updatedAt: report.updatedAt,
+          })),
           generatedAt: new Date().toISOString(),
         },
         null,
@@ -394,6 +402,58 @@ function importedTask(value) {
   };
 }
 
+function importedReport(value) {
+  if (
+    !value ||
+    typeof value !== "object" ||
+    !/^report-[a-z0-9-]{4,80}$/.test(value.id || "") ||
+    typeof value.title !== "string" ||
+    !value.title.trim() ||
+    value.title.length > 160 ||
+    !["overview", "tasks", "epics", "graph", "documents"].includes(value.view) ||
+    !value.filters ||
+    typeof value.filters !== "object" ||
+    Array.isArray(value.filters)
+  )
+    fail("Invalid portable report record.");
+  const filters = {};
+  for (const key of [
+    "query",
+    "scopes",
+    "work",
+    "statuses",
+    "epics",
+    "tracks",
+    "tags",
+    "activity",
+    "historical",
+  ]) {
+    if (!Object.hasOwn(value.filters, key)) continue;
+    const filter = value.filters[key];
+    if (
+      key === "historical"
+        ? typeof filter !== "boolean"
+        : key === "query"
+          ? typeof filter !== "string" || filter.length > 2000
+          : !Array.isArray(filter) ||
+            filter.length > 500 ||
+            filter.some(
+              (item) => typeof item !== "string" || item.length > 2000,
+            )
+    )
+      fail("Invalid portable report filter " + key + ".");
+    filters[key] = structuredClone(filter);
+  }
+  return {
+    id: value.id,
+    title: value.title.trim(),
+    view: value.view,
+    filters,
+    createdAt: value.createdAt || undefined,
+    updatedAt: value.updatedAt || undefined,
+  };
+}
+
 export async function syncWorkspaceRepository(store) {
   const config = store.getMeta("workspaceRepository");
   if (!config) fail("Configure a workspace repository first.", 409);
@@ -410,6 +470,11 @@ export async function syncWorkspaceRepository(store) {
     conflicts = [];
   store.transaction(() => {
     const data = structuredClone(store.read());
+    if (manifest.reports !== undefined) {
+      if (!Array.isArray(manifest.reports))
+        fail("Invalid portable reports collection.");
+      data.savedSearches = manifest.reports.map(importedReport);
+    }
     for (const [name, text] of Object.entries(files)) {
       const design = name.match(/^designs\/([a-z][a-z0-9-]{2,80})\.md$/);
       if (!design) continue;

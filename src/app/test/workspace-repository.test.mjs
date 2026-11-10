@@ -61,6 +61,16 @@ test("portable publication uses an isolated Git tree and hydrates another local 
     createdAt: "2026-11-10T00:00:00Z",
     updatedAt: "2026-11-10T00:00:00Z",
   });
+  first.store.mutate("Save portable report", (data) => {
+    data.savedSearches = [{
+      id: "report-blocked-runtime",
+      title: "Blocked runtime work",
+      view: "graph",
+      filters: { statuses: ["blocked"], scopes: ["runtime"] },
+      createdAt: "2026-11-10T00:00:00Z",
+      updatedAt: "2026-11-10T00:00:00Z",
+    }];
+  });
   await ops.execute("workspace.repository.configure", {
     root: repo.root,
     branch: "avoozl-workspace",
@@ -97,6 +107,14 @@ test("portable publication uses an isolated Git tree and hydrates another local 
   assert.equal(synced.commit, published.commit);
   assert.equal(second.store.get("plans", "plan-portable").text, "# Portable design\n\nShared prose.\n");
   assert.equal(second.store.read().tasks.some((task) => task.id === "sample-task"), true);
+  assert.deepEqual(second.store.read().savedSearches, [{
+    id: "report-blocked-runtime",
+    title: "Blocked runtime work",
+    view: "graph",
+    filters: { statuses: ["blocked"], scopes: ["runtime"] },
+    createdAt: "2026-11-10T00:00:00Z",
+    updatedAt: "2026-11-10T00:00:00Z",
+  }]);
 });
 
 test("publication refuses secrets and absolute machine paths before writing Git objects", async (t) => {

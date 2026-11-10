@@ -26,6 +26,8 @@ export const CLIENT_OPERATIONS = Object.freeze([
   "task.accept",
   "task.duplicates",
   "activity",
+  "report.save",
+  "report.delete",
   "document.get",
   "document.update",
   "plan.list",
