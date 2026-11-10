@@ -270,7 +270,7 @@ test("sessions and chats are listed, snapshotted, and tied to the owning run", a
   ]);
   // Subscribing records this client on the session. The entry has to be a
   // well-formed client: an action naming the field wrongly reduced to an
-  // undefined entry here, which serialised as null and crashed the editor's
+  // undefined entry here, which serialized as null and crashed the editor's
   // own URI mapping, so the session silently never opened.
   const withClient = await until(async () => {
     const state = facade.projection.channelState(uris.session);
@@ -441,7 +441,7 @@ test("cancellation reaches the provider and the refusal of an impossible cancel 
   assert.equal(store.get("runs", run.id).state, "interrupted");
   assert.equal(store.get("runs", run.id).error, undefined);
 
-  // Cancelling a disconnected run cannot work, and says so.
+  // Canceling a disconnected run cannot work, and says so.
   store.put("runs", { ...store.get("runs", run.id), state: "disconnected" });
   await manager.close();
   const raw = await rawDispatch(facade, uris.chat, {
@@ -682,7 +682,7 @@ test("queue controls the editor offers are carried out or refused for a stated r
     id: "q1",
   });
   assert.equal(removed.error, undefined);
-  assert.equal(store.get("deliveries", "ahp:q1").state, "cancelled");
+  assert.equal(store.get("deliveries", "ahp:q1").state, "canceled");
   await until(() => {
     const state = facade.projection.channelState(uris.chat);
     return (

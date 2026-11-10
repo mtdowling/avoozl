@@ -1,7 +1,7 @@
 // Intentional-interruption contract shared by the provider adapters.
 //
 // A provider turn can end for unrelated reasons that look alike on the wire:
-// the user cancelled it, the provider failed, or the provider finished just as
+// the user canceled it, the provider failed, or the provider finished just as
 // the cancellation arrived. Clicking Cancel must never relabel a genuine
 // provider failure, and a stopped process must never be reported as a failure.
 //
@@ -24,14 +24,14 @@ export function requestInterruption(observation, reason = "client-cancel") {
     observation,
     requestedAt: new Date().toISOString(),
     acknowledgedAt: null,
-    acknowledgement: null,
+    acknowledgment: null,
   };
 }
 
-export function acknowledgeInterruption(interruption, acknowledgement = {}) {
+export function acknowledgeInterruption(interruption, acknowledgment = {}) {
   if (!interruption) return interruption;
   interruption.acknowledgedAt = new Date().toISOString();
-  interruption.acknowledgement = acknowledgement;
+  interruption.acknowledgment = acknowledgment;
   return interruption;
 }
 

@@ -2264,9 +2264,19 @@ dialog textarea {
   background: #323232;
 }
 /* The zoom level reads in the heading; the stage stays clear for the work. */
+/* The zoom badge and the Done-first section badges share one row, so the
+   sections sit beside the zoom rather than dropping underneath it. */
+.strip-scope {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
 .strip-level {
   display: inline-flex;
   align-items: center;
+  gap: 5px;
   padding: 4px 9px;
   background: #242424;
   border: 1px solid #454545;
@@ -2274,6 +2284,11 @@ dialog textarea {
   color: #cacaca;
   font-size: 9px;
   white-space: nowrap;
+}
+.strip-level-icon {
+  width: 12px;
+  height: 12px;
+  flex: none;
 }
 .strip-level:empty {
   display: none;
@@ -3174,8 +3189,10 @@ dialog textarea {
 .strip-progress-summary {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 10px;
+  gap: 6px;
+}
+.strip-progress-summary[hidden] {
+  display: none;
 }
 .strip-progress-summary button {
   font-size: 9px;
@@ -6539,7 +6556,7 @@ body {
   font-size: 11px;
 }
 /* Session IDs and branch names are long and get read character by character,
-   so they get their own labelled rows instead of running into the controls. */
+   so they get their own labeled rows instead of running into the controls. */
 .hub-session-facts {
   margin: 0;
   display: grid;

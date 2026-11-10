@@ -67,7 +67,7 @@ const pageDescriptions: Partial<Record<View, string>> = {
   insights: "Review agent activity and reported usage over time.",
 };
 
-const PROGRESS_PROMPT = "How is the work going? Summarise what is in flight, what is blocked and why, what is waiting on review, and anything that needs a decision from me.";
+const PROGRESS_PROMPT = "How is the work going? Summarize what is in flight, what is blocked and why, what is waiting on review, and anything that needs a decision from me.";
 
 function initialLocation() {
   const query = new URLSearchParams(location.search);

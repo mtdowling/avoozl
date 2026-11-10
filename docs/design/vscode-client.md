@@ -79,7 +79,7 @@ Use one stable mapping per workspace, run, and chat. Include a workspace namespa
 | List/open a conversation    | Runs plus events                    | Resolve its exact run; never start a replacement implicitly.                                                                                                                                                                                                          |
 | Send a turn                 | `run.send`                          | Carry a stable submission ID. Reconnecting/retrying must not send twice.                                                                                                                                                                                              |
 | Answer an approval/question | `run.answer`                        | Match the exact pending request, allowed option, workspace, and run. Reject stale answers. Because `dispatchAction` is a notification with no reply channel, a rejection must also push a corrective action, or the client keeps showing a decision the host refused. |
-| Interrupt                   | `run.interrupt`                     | Record intent, request provider interruption, wait for its acknowledgement, and show truthful terminal state.                                                                                                                                                         |
+| Interrupt                   | `run.interrupt`                     | Record intent, request provider interruption, wait for its acknowledgment, and show truthful terminal state.                                                                                                                                                         |
 | Explicit resume             | `run.resume`                        | Resume through the owner; do not quietly create another provider session.                                                                                                                                                                                             |
 | Validate/integrate          | `run.validate`, `integration.merge` | Retain existing expected-commit checks and acceptance distinctions.                                                                                                                                                                                                   |
 | Plan read/save/approve      | Existing plan operations            | Retain expected Markdown hash and immutable approval/extraction receipt.                                                                                                                                                                                              |
@@ -88,7 +88,7 @@ Order events by a durable server sequence, not arrival timestamps. Replay requir
 
 Implement full tool lifecycle from the provider tool ID. Permission request IDs are different identifiers. Preserve their correlation, command/input, confirmation scope, streamed output, exit result, and cancellation. A tool that ran must not become a skipped/never-executed tool in the UI. The prototype needs this correction; do not copy its reducer plumbing as a finished implementation.
 
-The mechanism behind that requirement is the protocol reducer itself: ending a turn rewrites every tool call that has not reached a terminal state as cancelled with reason `skipped`. So the correction is about ordering, not labelling — give each open tool call a truthful terminal transition before the turn ends. Whichever of the provider's tool item or its permission request arrives first must create the tool call, because the two providers disagree on that order.
+The mechanism behind that requirement is the protocol reducer itself: ending a turn rewrites every tool call that has not reached a terminal state as canceled with reason `skipped`. So the correction is about ordering, not labeling — give each open tool call a truthful terminal transition before the turn ends. Whichever of the provider's tool item or its permission request arrives first must create the tool call, because the two providers disagree on that order.
 
 Normalize Claude's cancellation result in its provider adapter only when supported by a tested intentional-interruption contract. The observed SDK result had `is_error` and a diagnostic ending in `stop_reason=tool_use`; the adapter checks `is_error` before its own interruption flag. Do not match that exact diagnostic text as a permanent API. Test interrupted commands, actual tool failures, interrupted acquisition, and errors racing with Cancel separately.
 
@@ -126,7 +126,7 @@ The `agent-host-${provider}` form is confirmed in the 1.138.0 bundle, but no API
 - Three real defects were found on the way, all now fixed, and each worth knowing independently: the command takes a `Uri` and calls `.with()` on it, so a string fails with `o.with is not a function`; advertising a provider named `claude` collides with the editor's built-in `claude` provider, so `agent-host-claude:/<id>` resolves against the built-in host and reports `Session not found on backend`; and a token carried in the address's query string is wrong on two counts — the editor has a `connectionToken` field for it, and `fb()` derives a session's authority from the address, so a query string forces an opaque `hex-` encoding of it.
 - The research's working observation came from the other shape: a VS Code **Server** started with `--agent-host-bridge-port`, which makes the facade the editor's _own_ agent host rather than an additional remote one. The desktop application exposes no such flag; the string does not appear in its bundle.
 
-So native chat for owned sessions needs the bridge shape, which means the standalone server package rather than the desktop app. **That route now passes**: with the facade bridged in as the editor's own agent host, the session opens in a real chat editor and its Allow and Cancel controls drive the run. Through `chat.remoteAgentHosts` it still cannot, on this build, and the extension's verified-candidate-then-fallback behaviour reports exactly that rather than implying otherwise.
+So native chat for owned sessions needs the bridge shape, which means the standalone server package rather than the desktop app. **That route now passes**: with the facade bridged in as the editor's own agent host, the session opens in a real chat editor and its Allow and Cancel controls drive the run. Through `chat.remoteAgentHosts` it still cannot, on this build, and the extension's verified-candidate-then-fallback behavior reports exactly that rather than implying otherwise.
 
 Both providers pass this acceptance: `native-controls-claude.json` and `native-controls-codex.json`.
 
@@ -166,7 +166,7 @@ keyboard, because a phone has neither. Receipt:
 
 **The website completed the whole flow by thumb.** It found the blocked work
 ("Needs your input · 2 pending"), opened that conversation, approved the tool,
-and cancelled it — and the real child process stopped. It also laid itself out
+and canceled it — and the real child process stopped. It also laid itself out
 for the viewport: a single column, an icon rail, large cards.
 
 **The bridged editor could not reach its own session list by touch at all.**
@@ -294,7 +294,7 @@ node scripts/package-extension.mjs               # an installable .vsix
 
 Use protocol fixtures for routine CI. Add opt-in real-provider tests for the contracts fixtures cannot prove. Record requested/actual model, provider/session/run/request/tool/turn IDs, source commit, client/server versions, and exact assertions. Redact credentials and personal paths before publishing evidence. A single successful run is a point in a compatibility matrix, not a promise that every newer version works.
 
-Essential automated tests include duplicate and racing answers, permissions that expire during reconnect, cancel-before-acquisition, cancel while executing, provider errors racing with cancellation, facade crash before/after command acknowledgement, projection rebuild, out-of-order/replayed events, concurrent Markdown saves, review-hash approval retry, model changes at turn boundaries, and host drain with active work. Exercise both clients against the same fixture. Large transcript/graph tests must measure bounded rendering/history, not merely load a large JSON object into memory.
+Essential automated tests include duplicate and racing answers, permissions that expire during reconnect, cancel-before-acquisition, cancel while executing, provider errors racing with cancellation, facade crash before/after command acknowledgment, projection rebuild, out-of-order/replayed events, concurrent Markdown saves, review-hash approval retry, model changes at turn boundaries, and host drain with active work. Exercise both clients against the same fixture. Large transcript/graph tests must measure bounded rendering/history, not merely load a large JSON object into memory.
 
 Pin the AHP package used for the implementation and record VS Code desktop/web/server and provider versions in diagnostics. Negotiate supported protocol versions and reject incompatible contracts clearly. The package version is not the wire version: the pinned 1.0.0 package speaks `["1.0.0","0.9.0"]`, while VS Code 1.138.0 offers `0.9.0` and below. A host that answers with its own preferred version instead of one the client offered is refused by a real editor. Probe optional methods/capabilities instead of advertising an unsupported feature or converting unknown actions into successful no-ops. Re-run native navigation and approval/cancel smoke tests on upgrades.
 
@@ -334,9 +334,9 @@ corrected here rather than left for the next reader to rediscover.
   `cancelled`/`ToolCallCancellationReason.Skipped`. The fix is ordering: give
   every open tool call a truthful terminal transition _before_ ending the
   turn. A call that was confirmed and therefore executed is completed with an
-  unsuccessful result; a call that was never confirmed is cancelled, which is
+  unsuccessful result; a call that was never confirmed is canceled, which is
   accurate. When the provider supplies its own tool result during a pending
-  stop, that result is kept and relabelled as stopped rather than failed.
+  stop, that result is kept and relabeled as stopped rather than failed.
 - **A rebuildable projection has to be deterministic.** Turn timing taken from
   the host clock made a replay produce different state from the original fold.
   All timing now comes from the durable event's own timestamp, and the rebuild
@@ -385,7 +385,7 @@ corrected here rather than left for the next reader to rediscover.
   schema is bumped so an older derived database rebuilds.
 - **A malformed action is not rejected, it crashes the client.** Our
   `session/activeClientSet` named the client `client` instead of
-  `activeClient`, so the reducer stored `undefined`, which serialised as
+  `activeClient`, so the reducer stored `undefined`, which serialized as
   `null`, which made the editor throw `Cannot read properties of null (reading
   'customizations')` inside its own URI mapping. The session simply never
   opened, with nothing on the wire to suggest why. The active client is now a
@@ -413,7 +413,7 @@ corrected here rather than left for the next reader to rediscover.
 | VSC-05 | Done         | Clicked-control acceptance passes through the bridge route: `scripts/vscode-native-check.mjs --server DIR --drive` opens the session from the editor's sessions list, clicks **Allow once**, waits for the real child process, and clicks **Cancel** — 14 of 14 checks, receipt in `docs/evidence/vscode/native-controls.json`. The approval and the cancellation are attributed to the same editor client in the facade's dispatch trail, the process died of `SIGTERM`, the tool stayed `completed` and unsuccessful, and the run is `interrupted` with no error. Six defects were found and fixed getting there, four of them ours. |
 | VSC-06 | Done         | `extension/src/webviews.js` with graph, progress, and timeline. Rendering reuses the workspace's own model modules over a CSP limited to that one origin; the payload is paged, hidden panels receive nothing, and keyboard navigation works.                                                                       |
 | VSC-07 | **Blocked**  | A tunnel was attempted and the GitHub device login succeeded, but this network does not resolve Microsoft's relay hostnames, so no tunnel could register and nothing was published. The SSH route needs no relay and is now emitted by `avoozl editor --ssh HOST`, unexercised.                                     |
-| VSC-08 | **Blocked**  | Depended on an off-network route to this machine, which the relay block prevents. Nothing about phone behaviour is claimed.                                                                                                                                                                                         |
+| VSC-08 | **Blocked**  | Depended on an off-network route to this machine, which the relay block prevents. Nothing about phone behavior is claimed.                                                                                                                                                                                         |
 | VSC-09 | **Partial**  | `scripts/package-extension.mjs` produces an installable `.vsix` with no build dependency. `scripts/vscode-desktop-check.mjs` accepts a real-work flow in the desktop application, driven through its own view and editor: the extension activates, the Avoozl view lists this workspace's attention-needed work and plans, a plan draft opens, saving it records a new revision and records no approval, the pending request is surfaced, and diagnostics read. 10 of 10 attempted checks pass; receipt in `docs/evidence/vscode/desktop-flow.json`. Three steps are recorded as **not attempted**, not as passes: answering the modal decision dialog from an automated click, the command it would have started, and stopping it. The desktop application also has no agent-host bridge, so an owned session has no native chat there at all. |
 | VSC-10 | **Not done** | No website surface has been retired, and none should be until VSC-08 passes.                                                                                                                                                                                                                                        |
 
@@ -485,7 +485,7 @@ tested providers' commands":
 > received a signal: its `.interrupted` marker was never written.
 
 A user who clicks Cancel would otherwise be told the work stopped when it had
-not. So the host now records what an acknowledgement actually covers —
+not. So the host now records what an acknowledgment actually covers —
 `interrupt.acknowledged` carries `scope: "turn"` and
 `spawnedWork: "stopped" | "keeps-running" | "unknown"`, taken from the
 provider's declared capability — and the transcript says plainly that a command

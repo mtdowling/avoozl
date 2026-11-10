@@ -36,21 +36,21 @@ test("the interruption contract separates cancellation from genuine failure", ()
   // The run is interrupted, and the provider's wording is preserved rather
   // than being dropped or presented as a failure.
   const interruption = requestInterruption(3, "client-cancel");
-  const cancelled = classifyTurnEnd({
+  const canceled = classifyTurnEnd({
     interruption,
     isError: true,
     diagnostic: "[diagnostic] result_type=user stop_reason=tool_use",
     observation: 7,
   });
-  assert.equal(cancelled.state, "interrupted");
-  assert.equal(cancelled.error, undefined);
+  assert.equal(canceled.state, "interrupted");
+  assert.equal(canceled.error, undefined);
   assert.equal(
-    cancelled.providerDiagnostic,
+    canceled.providerDiagnostic,
     "[diagnostic] result_type=user stop_reason=tool_use",
   );
-  assert.equal(cancelled.diagnosticDuringInterruption, true);
-  assert.equal(cancelled.cancellation.completionRace, "no");
-  assert.equal(cancelled.cancellation.contract, INTERRUPTION_CONTRACT_VERSION);
+  assert.equal(canceled.diagnosticDuringInterruption, true);
+  assert.equal(canceled.cancellation.completionRace, "no");
+  assert.equal(canceled.cancellation.contract, INTERRUPTION_CONTRACT_VERSION);
 
   // A failure the adapter had already observed before the stop was requested
   // cannot be explained by that stop, so it stays a failure.
@@ -105,9 +105,9 @@ test("Claude reports an interrupted turn as interrupted and keeps its diagnostic
   await waitFor(() => events.some((e) => e.kind === "session"), {
     label: "the session to be reported",
   });
-  const acknowledgement = await adapter.interrupt();
-  assert.equal(acknowledgement.acknowledged, true);
-  assert.ok(acknowledgement.requestedAt);
+  const acknowledgment = await adapter.interrupt();
+  assert.equal(acknowledgment.acknowledged, true);
+  assert.ok(acknowledgment.requestedAt);
   await waitFor(() => events.some((e) => e.kind === "turn.completed"), {
     label: "the terminal turn event",
   });
@@ -121,7 +121,7 @@ test("Claude reports an interrupted turn as interrupted and keeps its diagnostic
   assert.equal(completed.cancellation.source, "client");
 });
 
-test("Claude keeps an uncancelled provider error as a failure and reports tool results honestly", async (t) => {
+test("Claude keeps an uncanceled provider error as a failure and reports tool results honestly", async (t) => {
   const events = [];
   const query = () => {
     const iterator = (async function* () {
@@ -220,7 +220,7 @@ test("Claude records an interrupted permission acquisition as never executed", a
   );
   const interrupted = events.find((e) => e.kind === "request.interrupted");
   assert.equal(interrupted.executed, false);
-  assert.equal(interrupted.reason, "cancelled-before-acquisition");
+  assert.equal(interrupted.reason, "canceled-before-acquisition");
   assert.equal(interrupted.toolUseId, "toolu_slow");
   const completed = events.find((e) => e.kind === "turn.completed");
   assert.equal(completed.state, "interrupted");
@@ -267,7 +267,7 @@ for await (const line of readline.createInterface({input:process.stdin})) {
   assert.equal(noop.noActiveTurn, true);
 });
 
-test("interrupt records intent, waits for acknowledgement, and reports it", async (t) => {
+test("interrupt records intent, waits for acknowledgment, and reports it", async (t) => {
   const { store, root } = fixture(t);
   store.put("projects", {
     id: "fixture",
@@ -327,7 +327,7 @@ test("interrupt records intent, waits for acknowledgement, and reports it", asyn
   );
 });
 
-test("a turn ending while a stop is in flight still reports the acknowledgement", async (t) => {
+test("a turn ending while a stop is in flight still reports the acknowledgment", async (t) => {
   // The provider can end the turn before `interrupt` returns. The reply must
   // still describe what was requested rather than failing on a record the
   // terminal event has already cleared.
@@ -355,10 +355,10 @@ test("a turn ending while a stop is in flight still reports the acknowledgement"
   t.after(() => adapter.close());
   await adapter.start({ cwd: ".", mode: "implement" });
   await waitFor(() => events.some((e) => e.kind === "session"));
-  const acknowledgement = await adapter.interrupt();
-  assert.equal(acknowledgement.acknowledged, true);
-  assert.ok(acknowledgement.requestedAt);
-  assert.ok(acknowledgement.acknowledgedAt);
+  const acknowledgment = await adapter.interrupt();
+  assert.equal(acknowledgment.acknowledged, true);
+  assert.ok(acknowledgment.requestedAt);
+  assert.ok(acknowledgment.acknowledgedAt);
   await waitFor(() => events.some((e) => e.kind === "turn.completed"));
   assert.equal(
     events.find((e) => e.kind === "turn.completed").state,
@@ -409,7 +409,7 @@ for await (const line of readline.createInterface({input:process.stdin})) {
   );
 });
 
-test("cancelling says whether work the provider spawned actually stopped", async (t) => {
+test("canceling says whether work the provider spawned actually stopped", async (t) => {
   const { store, root } = fixture(t);
   store.put("projects", {
     id: "fixture",
@@ -447,7 +447,7 @@ test("cancelling says whether work the provider spawned actually stopped", async
   const acknowledged = store
     .events({ runId: run.id })
     .find((event) => event.kind === "interrupt.acknowledged");
-  // The acknowledgement names what it covers, rather than implying both.
+  // The acknowledgment names what it covers, rather than implying both.
   assert.equal(acknowledged.scope, "turn");
   assert.equal(acknowledged.spawnedWork, "keeps-running");
 

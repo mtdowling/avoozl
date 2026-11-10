@@ -1,4 +1,4 @@
-/* Dense rows, small controls, and the editor's own colours. */
+/* Dense rows, small controls, and the editor's own colors. */
 :root {
   color-scheme: light dark;
 }
@@ -134,7 +134,7 @@ time {
 .chip {
   border-left: 3px solid var(--vscode-panel-border);
 }
-/* Status is carried by a border and a label, never by colour alone. */
+/* Status is carried by a border and a label, never by color alone. */
 .status-accepted,
 .status-implemented {
   border-left-color: var(--vscode-charts-green, #4caf50);

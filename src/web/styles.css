@@ -201,6 +201,8 @@ body.resizing-panels { cursor: col-resize; user-select: none; }
 .search-label { display: flex; justify-content: space-between; margin-bottom: 7px; color: #c5c5c5; font-size: 11px; }
 .search-label span { color: var(--muted); font-size: 9px; }
 .query-box { padding: 7px; border: 1px solid #505050; border-radius: 7px; background: #151515; }
+.query-box:focus-within { border-color: var(--selected); outline: 1px solid var(--selected); }
+.query-box textarea:focus { border: 0; outline: 0; }
 /* Grow with the query instead of scrolling a 25px-tall transparent box, and
    never scroll sideways: a wrapping textarea has nothing to reach for. */
 .query-box textarea { width: 100%; min-height: 0; padding: 5px; resize: none; border: 0; outline: 0; background: transparent; font-size: 11px; line-height: 16px; field-sizing: content; max-height: 112px; overflow-x: hidden; overflow-y: auto; overflow-wrap: break-word; }
@@ -286,7 +288,11 @@ select { min-height: 32px; padding: 0 8px; font-size: 10px; }
 .message-body pre, .prose pre { max-width: 100%; padding: 10px; border: 1px solid var(--line); border-radius: 5px; overflow: auto; background: #101010; }
 .message-body code, .prose code { color: #c5c5c5; }
 .composer { width: min(860px, calc(100% - 24px)); margin: 0 auto 10px; padding: 7px 8px 6px; border: 1px solid #464646; border-radius: 8px; background: #202020; }
-.composer:focus-within { border-color: var(--selected); }
+/* The wrapper is the field as far as the operator is concerned, so only its
+   edge lights up. Without this the global textarea:focus rule draws a second
+   border and outline inside the one that already moved. */
+.composer:focus-within { border-color: var(--selected); outline: 1px solid var(--selected); }
+.composer-input:focus { border: 0; outline: 0; }
 /* The autosize textarea sets its own height, so max-height is what clamps a
    long draft: scroll it vertically only, and wrap long tokens rather than
    offering a sideways scrollbar nothing needs. */
@@ -578,10 +584,15 @@ select { min-height: 32px; padding: 0 8px; font-size: 10px; }
 .recent-now .strip-help { display: none; }
 .recent-now .strip-bottom { padding: 8px 18px; }
 .recent-now .strip-zoom { flex-wrap: wrap; }
+/* A row, not a stack: the Done-first section badges belong beside the zoom
+   badge, which is what the shared stylesheet already does. */
 .recent-now .strip-heading > div:first-child {
-  display: block;
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
 }
 .recent-now .strip-level {
   position: static;

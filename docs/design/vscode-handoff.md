@@ -12,7 +12,7 @@ Repository `https://github.com/mtdowling/avoozl`, branch `vscode-client`
 - `AGENTS.md` — the rules that bind this repository.
 - `docs/design/vscode-client.md` — the plan and, at the end, a long
   "Implementation status" section with the delivered table, the corrections
-  the implementation forced on the plan, and the editor behaviours discovered
+  the implementation forced on the plan, and the editor behaviors discovered
   by experiment. Read the corrections before writing code: several plan
   assumptions are wrong and are marked as such.
 - `docs/evidence/vscode/` — receipts. `native-controls-claude.json` and
@@ -127,7 +127,7 @@ guards. Assume every keystroke reaches something.
 
 ## 5. VSC-10 — the website decision (needs a human)
 
-This is a judgement call, not a task. The parity picture changed during
+This is a judgment call, not a task. The parity picture changed during
 implementation, so state it plainly to whoever decides:
 
 There are two integration shapes. A **bridged** host — the facade passed to

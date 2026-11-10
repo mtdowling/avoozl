@@ -360,7 +360,7 @@ export function startAhpFacade({
       AhpErrorCodes.Conflict,
       "No pending permission request is correlated with tool call " +
         toolCallId +
-        ". It may already have been answered, cancelled, or invalidated by a host restart.",
+        ". It may already have been answered, canceled, or invalidated by a host restart.",
     );
   }
 
@@ -437,7 +437,7 @@ export function startAhpFacade({
         return { echo: false };
       }
       case "chat/turnCancelled": {
-        // Record the intent, ask the provider, and wait for acknowledgement.
+        // Record the intent, ask the provider, and wait for acknowledgment.
         // The turn's terminal state still comes from the provider.
         await client.interrupt(runId, "client-cancel:" + connection.clientId);
         return { echo: false };
@@ -737,7 +737,7 @@ export function startAhpFacade({
           const envelope = projection.echo(params.channel, {
             type: "session/activeClientSet",
             // The field is `activeClient`. Naming it anything else reduces to
-            // an undefined entry in `activeClients`, which serialises as null
+            // an undefined entry in `activeClients`, which serializes as null
             // and then crashes the editor's own URI mapping
             // ("Cannot read properties of null (reading 'customizations')"),
             // so the session never opens.

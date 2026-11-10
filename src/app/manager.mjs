@@ -659,8 +659,8 @@ export class RunManager {
             " and cannot be withdrawn.",
           409,
         );
-      delivery.state = "cancelled";
-      delivery.cancelledAt = new Date().toISOString();
+      delivery.state = "canceled";
+      delivery.canceledAt = new Date().toISOString();
       this.store.put("deliveries", delivery);
       this.store.event(id, "delivery.updated", { delivery });
       return delivery;
@@ -729,21 +729,21 @@ export class RunManager {
       reason,
       state: run.state,
     });
-    let acknowledgement;
+    let acknowledgment;
     try {
-      acknowledgement = (await adapter.interrupt(reason)) || {
+      acknowledgment = (await adapter.interrupt(reason)) || {
         requested: true,
       };
     } catch (error) {
       this.store.event(id, "interrupt.failed", { message: error.message });
       throw error;
     }
-    // What the acknowledgement covers. A provider can end its turn without
+    // What the acknowledgment covers. A provider can end its turn without
     // stopping a command it already spawned, so the record says which of the
     // two actually happened rather than implying both.
     const capabilities = adapter.capabilities || {};
     this.store.event(id, "interrupt.acknowledged", {
-      ...acknowledgement,
+      ...acknowledgment,
       requestedAt,
       scope: "turn",
       spawnedWork:
@@ -754,7 +754,7 @@ export class RunManager {
             : "unknown",
     });
     // The run's terminal state still comes from the provider's own turn end.
-    return { ...acknowledgement, requestedAt, runId: id };
+    return { ...acknowledgment, requestedAt, runId: id };
   }
   async setModel(input) {
     return this.serialize(input.id, async () => {

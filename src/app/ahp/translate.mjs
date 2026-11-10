@@ -209,7 +209,7 @@ export class Translator {
         continue;
       }
       // It did run. Complete it with an unsuccessful result instead of
-      // cancelling it, so the transcript keeps the fact that it executed.
+      // canceling it, so the transcript keeps the fact that it executed.
       this.chat({
         type: "chat/toolCallComplete",
         turnId: turn.id,
@@ -234,7 +234,7 @@ export class Translator {
     if (outcome.state === "interrupted")
       this.terminateOpenTools({
         notExecuted:
-          "Cancelled before this tool was confirmed; it did not run.",
+          "Canceled before this tool was confirmed; it did not run.",
         executed:
           "Stopped by cancellation after it had started running. Any partial effects remain.",
         code: "interrupted",
@@ -271,7 +271,7 @@ export class Translator {
     if (outcome.state === "interrupted") {
       // An intentional stop is a cancellation, not an error. The provider's
       // own wording is kept as a visible notification so a reader can see what
-      // the provider said without the run being labelled a failure.
+      // the provider said without the run being labeled a failure.
       if (outcome.providerDiagnostic)
         this.chat({
           type: "chat/responsePart",
@@ -280,7 +280,7 @@ export class Translator {
             kind: "systemNotification",
             content: {
               markdown:
-                "Cancelled at your request. The provider additionally reported: `" +
+                "Canceled at your request. The provider additionally reported: `" +
                 clamp(outcome.providerDiagnostic, 600) +
                 "`",
             },
