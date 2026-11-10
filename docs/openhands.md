@@ -164,6 +164,12 @@ must remain an explicit operator action.
 An OpenHands `finished` event completes the conversation turn only. It does not
 approve, validate, integrate, or accept the task.
 
+OpenHands child conversations are normalized into durable Avoozl child runs.
+They inherit the parent task and project association, retain their own
+conversation ID and workspace, and open in Canvas's native conversation UI.
+Nested children retain the full parent-run chain. Child completion is
+observational only: it never integrates or accepts the parent task.
+
 ## Recovery and updates
 
 Web reloads preserve the separate Avoozl agent host. Before changing host or

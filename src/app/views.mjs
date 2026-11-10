@@ -28,6 +28,7 @@ export function runPage(
     .prepare(
       `SELECT id,task_id AS taskId,state,json_extract(body,'$.planId') AS planId,json_extract(body,'$.providerSessionId') AS providerSessionId,
  json_extract(body,'$.mode') AS mode,json_extract(body,'$.provider') AS provider,json_extract(body,'$.projectId') AS projectId,
+ json_extract(body,'$.parentRunId') AS parentRunId,json_extract(body,'$.parentProviderSessionId') AS parentProviderSessionId,
  json_extract(body,'$.model') AS model,json_extract(body,'$.error') AS error,json_extract(body,'$.createdAt') AS createdAt,
  json_extract(archive.value,'$') AS archivedAt,json_extract(body,'$.updatedAt') AS updatedAt,json_extract(body,'$.lastObservedAt') AS lastObservedAt,
  COALESCE(json_extract(body,'$.title'),json_extract(body,'$.searchPrompt'),substr(json_extract(body,'$.prompt'),1,160),task_id) AS title
@@ -73,6 +74,8 @@ export function taskSessions(store, { taskId, sessionId } = {}) {
       provider: run.provider,
       model: run.model,
       projectId: run.projectId,
+      parentRunId: run.parentRunId,
+      parentProviderSessionId: run.parentProviderSessionId,
       mode: run.mode,
       createdAt: run.createdAt,
       lastObservedAt: run.lastObservedAt,

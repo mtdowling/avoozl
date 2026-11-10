@@ -7,6 +7,7 @@ import {
   OpenHandsAdapter,
   openHandsSettings,
 } from "../providers/openhands.mjs";
+import { RunManager } from "../manager.mjs";
 import { handleMcp } from "../mcp.mjs";
 import {
   authorizeRunCapability,
@@ -21,7 +22,8 @@ import {
 import { Operations } from "../operations.mjs";
 import { fixture } from "./fixtures.mjs";
 
-function fakeOpenHands({ activeProfile = true } = {}) {
+function fakeOpenHands({ activeProfile = true, children = [] } = {}) {
+  const byId = new Map(children.map((child) => [child.id, child]));
   const calls = [],
     client = {
       async createConversation(payload) {
@@ -30,7 +32,21 @@ function fakeOpenHands({ activeProfile = true } = {}) {
       },
       async getConversation(id) {
         calls.push(["get", id]);
-        return { id, execution_status: "paused" };
+        return (
+          byId.get(id) || {
+            id,
+            execution_status: "paused",
+            sub_conversation_ids: children
+              .filter(
+                (child) => child.parent_conversation_id === "conversation-test",
+              )
+              .map((child) => child.id),
+          }
+        );
+      },
+      async getConversations(ids) {
+        calls.push(["get-many", ids]);
+        return ids.map((id) => byId.get(id) || null);
       },
       async updateSecrets(id, secrets) {
         calls.push(["secrets", id, secrets]);
@@ -220,6 +236,139 @@ test("OpenHands binds one Avoozl worktree, plugin and run-scoped MCP secret", as
     ),
   );
   await adapter.close();
+});
+
+test("OpenHands reports its persisted child-conversation tree", async () => {
+  const fake = fakeOpenHands({
+      children: [
+        {
+          id: "conversation-child",
+          parent_conversation_id: "conversation-test",
+          execution_status: "running",
+          title: "Inspect the parser",
+          workspace: { working_dir: "/worktrees/child" },
+          selected_branch: "avoozl/child",
+          sub_conversation_ids: ["conversation-grandchild"],
+        },
+        {
+          id: "conversation-grandchild",
+          parent_conversation_id: "conversation-child",
+          execution_status: "finished",
+          title: "Compare fixtures",
+          workspace: { working_dir: "/worktrees/grandchild" },
+          sub_conversation_ids: [],
+        },
+      ],
+    }),
+    events = [],
+    adapter = new OpenHandsAdapter({
+      emit: (kind, body) => events.push({ kind, ...body }),
+      onRequest: () => {},
+      settings: {
+        host: "http://127.0.0.1:38100",
+        apiKey: "server-key",
+        pluginSource: "/application/openhands-plugin",
+      },
+      clientFactory: () => fake.client,
+      httpFactory: () => fake.http,
+      socketFactory: () => fake.socket,
+    });
+  await adapter.start({
+    cwd: "/worktrees/run-test",
+    mode: "implement",
+    approvalMode: "manual",
+    prompt: "Implement the task.",
+  });
+
+  const children = events.find((event) => event.kind === "children");
+  assert.equal(adapter.capabilities.subagents, true);
+  assert.equal(adapter.capabilities.subagentMode, "child-conversations");
+  assert.deepEqual(
+    children.children.map((child) => ({
+      id: child.providerSessionId,
+      parent: child.parentProviderSessionId,
+      state: child.state,
+      worktree: child.worktree,
+    })),
+    [
+      {
+        id: "conversation-child",
+        parent: "conversation-test",
+        state: "running",
+        worktree: "/worktrees/child",
+      },
+      {
+        id: "conversation-grandchild",
+        parent: "conversation-child",
+        state: "completed",
+        worktree: "/worktrees/grandchild",
+      },
+    ],
+  );
+  await adapter.close();
+});
+
+test("OpenHands children become durable attachable runs without changing acceptance", async (t) => {
+  const { store } = fixture(t),
+    parent = store.put("runs", {
+      id: "run-parent",
+      taskId: "sample-task",
+      projectId: "fixture",
+      provider: "openhands",
+      providerSessionId: "conversation-parent",
+      mode: "implement",
+      state: "running",
+      title: "Parent implementation",
+      branch: "avoozl/parent",
+      worktree: "/worktrees/parent",
+      createdAt: "2026-11-10T20:00:00.000Z",
+    }),
+    manager = new RunManager(store, { recover: false });
+  t.after(() => manager.close());
+
+  manager.receive(parent.id, "children", {
+    children: [
+      {
+        providerSessionId: "conversation-child",
+        parentProviderSessionId: "conversation-parent",
+        title: "Inspect the parser",
+        state: "running",
+        worktree: "/worktrees/child",
+        branch: "avoozl/child",
+      },
+      {
+        providerSessionId: "conversation-grandchild",
+        parentProviderSessionId: "conversation-child",
+        title: "Compare fixtures",
+        state: "completed",
+        worktree: "/worktrees/grandchild",
+      },
+    ],
+  });
+
+  const runs = store.list("runs"),
+    child = runs.find((run) => run.providerSessionId === "conversation-child"),
+    grandchild = runs.find(
+      (run) => run.providerSessionId === "conversation-grandchild",
+    ),
+    detail = new Operations(store, { manager }).detail("sample-task");
+  assert.equal(child.parentRunId, parent.id);
+  assert.equal(child.taskId, parent.taskId);
+  assert.equal(child.projectId, parent.projectId);
+  assert.equal(child.worktree, "/worktrees/child");
+  assert.equal(grandchild.parentRunId, child.id);
+  assert.ok(detail.runs.some((run) => run.id === child.id));
+  assert.ok(detail.runs.some((run) => run.id === grandchild.id));
+  assert.equal(store.read().tasks[0].status, "planned");
+  assert.equal(store.read().tasks[0].integration, undefined);
+  await assert.rejects(
+    manager.send({
+      id: child.id,
+      text: "Do something else.",
+      submissionId: "child-send",
+    }),
+    /Open this child conversation in OpenHands/,
+  );
 });
 
 test("OpenHands retains direct model launch as a compatibility fallback", async () => {
