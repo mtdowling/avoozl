@@ -85,7 +85,7 @@ test("the packaged Canvas App registers its declared Avoozl page", async () => {
   assert.match(source, /attachShadow/);
   assert.match(source, /createRoot/);
   assert.match(source, /\/conversations/);
-  assert.match(source, /attached to the current Avoozl workspace context/);
+  assert.match(source, /Do not inventory the workspace/);
   assert.doesNotMatch(source, /avoozl:openhands-route/);
   assert.doesNotMatch(source, /process\.env\.NODE_ENV/);
   assert.equal(registered.id, "workspace");

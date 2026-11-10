@@ -60,6 +60,8 @@ test("context chat works without a repository and carries the selected plan", as
   assert.equal(started.cwd, run.worktree);
   assert.match(started.prompt, /No code repository is mounted/);
   assert.match(started.prompt, /Help the user define one concrete task/);
+  assert.match(started.prompt, /Do not narrate setup, skill loading, or tool calls/);
+  assert.match(started.prompt, /do not dump repository, planning, policy, runtime, or metric inventories/);
   assert.match(started.prompt, /plans_capture/);
   assert.match(started.prompt, /Contextual chat/);
   assert.match(started.prompt, /"view":"documents"/);
