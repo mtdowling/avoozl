@@ -15,6 +15,7 @@ import { CodexAdapter, CODEX_CAPABILITIES } from "./providers/codex.mjs";
 import {
   ClaudeAdapter,
   claudeModels,
+  claudeUsage,
   CLAUDE_CAPABILITIES,
 } from "./providers/claude.mjs";
 import { approvalMode } from "./approvals.mjs";
@@ -222,6 +223,34 @@ export class RunManager {
       access: "Model access is checked by the provider when the run starts.",
     };
     this.modelCatalogs.set(provider, { at: Date.now(), value });
+    return value;
+  }
+  // Reading plan usage starts a provider session, so it is cached briefly. Only
+  // Claude reports a remaining plan allowance; Codex's app-server gives per
+  // thread token counts, which is spend, not what is left.
+  async usage(provider = "claude") {
+    if (!["codex", "claude"].includes(provider)) fail("Choose Claude or Codex.");
+    if (provider === "codex")
+      return {
+        provider: "codex",
+        available: false,
+        reason:
+          "Codex does not report a remaining plan allowance. Its token counts appear under Insights.",
+      };
+    this.usageReports ??= new Map();
+    const cached = this.usageReports.get(provider);
+    if (cached && Date.now() - cached.at < 120000) return cached.value;
+    let value;
+    try {
+      value = await claudeUsage();
+    } catch (error) {
+      value = {
+        provider,
+        available: false,
+        reason: error?.message || "Plan usage could not be read.",
+      };
+    }
+    this.usageReports.set(provider, { at: Date.now(), value });
     return value;
   }
   serialize(id, fn) {

@@ -345,6 +345,7 @@ export class Operations {
       this.manager?.remote &&
       [
         "models",
+        "usage.limits",
         "run.start",
         "run.send",
         "run.interrupt",
@@ -365,6 +366,7 @@ export class Operations {
     if (name === "publication.retry") return { retryRequested: true };
     if (name === "metrics") return metrics(store, input);
     if (name === "models") return this.manager.models(input.provider);
+    if (name === "usage.limits") return this.manager.usage(input.provider);
     if (name === "query")
       return queryTasks(this.read(), { scope: "all", ...input });
     if (name === "search.prompt") {

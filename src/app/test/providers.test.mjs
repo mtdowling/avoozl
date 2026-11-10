@@ -4,7 +4,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { CodexAdapter } from "../providers/codex.mjs";
-import { ClaudeAdapter, claudeModels } from "../providers/claude.mjs";
+import {
+  ClaudeAdapter,
+  claudeModels,
+  claudeUsage,
+} from "../providers/claude.mjs";
 import { RunManager } from "../manager.mjs";
 import { fixture, waitFor } from "./fixtures.mjs";
 
@@ -231,4 +235,63 @@ test("follow-ups are idempotent, queued in order, and uncertain sends are not au
     manager.send({ ...first, text: "Different" }),
     /belongs to another/,
   );
+});
+
+test("plan usage reports remaining windows, and says so when a plan has none", async () => {
+  let closed = 0,
+    asked;
+  const session = (report) => ({
+    usage_EXPERIMENTAL_MAY_CHANGE_DO_NOT_RELY_ON_THIS_API_YET: async (opts) => {
+      asked = opts;
+      return report;
+    },
+    close() {
+      closed++;
+    },
+  });
+  const full = await claudeUsage({
+    query: () =>
+      session({
+        subscription_type: "max",
+        rate_limits_available: true,
+        rate_limits: {
+          five_hour: { utilization: 42, resets_at: "2026-11-10T12:00:00.000Z" },
+          seven_day: { utilization: 71.4, resets_at: null },
+          // Absent utilization is unknown, not zero, so it is not a window.
+          seven_day_opus: { utilization: null, resets_at: null },
+          model_scoped: [
+            { display_name: "Fable", utilization: 12, resets_at: null },
+            { display_name: "Unknown", utilization: null, resets_at: null },
+          ],
+          extra_usage: { is_enabled: true, utilization: 9, monthly_limit: 50 },
+        },
+      }),
+  });
+  // The scan of local transcripts is skipped: a meter only needs the limits.
+  assert.equal(asked.skipBehaviors, true);
+  assert.equal(full.available, true);
+  assert.equal(full.subscription, "max");
+  assert.deepEqual(
+    full.windows.map((w) => [w.label, w.utilization]),
+    [
+      ["5-hour", 42],
+      ["7-day", 71.4],
+      ["Fable", 12],
+    ],
+  );
+  assert.equal(full.windows[0].resetsAt, "2026-11-10T12:00:00.000Z");
+  assert.equal(full.extraUsage.utilization, 9);
+
+  const none = await claudeUsage({
+    query: () =>
+      session({ subscription_type: null, rate_limits_available: false }),
+  });
+  assert.equal(none.available, false);
+  assert.match(none.reason, /no plan limits/);
+
+  // A build without the experimental method is reported, never thrown.
+  const missing = await claudeUsage({ query: () => ({ close() { closed++; } }) });
+  assert.equal(missing.available, false);
+  assert.match(missing.reason, /does not report plan usage/);
+  assert.equal(closed, 3);
 });
