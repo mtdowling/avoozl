@@ -6,7 +6,9 @@ operations; Monaco edits plan and workspace Markdown with rendered preview,
 saved-revision diff and hash-safe saves. This changes the capability boundary
 described by the original measurement: rich plan and document editing is no
 longer editor-only. VS Code remains valuable for codebase context, native
-provider controls, worktrees and its own diff/file navigation.
+provider controls, worktrees and its own diff/file navigation. The React shell
+retains the existing website's compact navigation, charcoal palette, typography
+and data-first layout; the framework change is not a product redesign.
 
 A self-contained comparison for the VSC-10 decision. Editor and browser
 observations were measured on this machine; where they were not, that is said.
