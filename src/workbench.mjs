@@ -194,7 +194,39 @@ export function createWorkbench({
     return `<article class="hub-work-row" data-workbench-task="${esc(task.id)}" ${running && !linked ? 'data-reported-task="' + esc(task.id) + '"' : ""}><div class="hub-work-marker ${running ? "is-working" : signals.blockers.length ? "is-blocked" : ""}"></div><div class="hub-work-copy"><button class="hub-task-name" ${open}>${esc(task.title)}</button><p>${esc(running ? task.activity?.summary || task.nextAction || "Work reported" : task.nextAction || task.summary || "Open the task for context.")}</p>${blockers(task)}<small>${esc(person(task))} · ${esc(epicName(task.epic))}${task.activity ? " · " + age(task.activity.heartbeatAt) : ""}${running && !linked ? " · External check-in" : ""}</small>${running && !linked ? sessionNote(task) : ""}</div><div class="hub-row-actions">${linked ? '<button class="button subtle" data-open-run="' + esc(linked.id) + '">Open session</button>' : '<button class="button subtle" data-edit="' + esc(task.id) + '">Update direction</button>'}${signals.blockers.length ? '<button class="text-button" data-ask-task="' + esc(task.id) + '">Help unblock</button>' : ""}<button class="text-button" data-task="${esc(task.id)}">Details ↗</button></div></article>`;
   }
   function runSummary(run) {
-    return `<article class="hub-work-row" data-open-run="${esc(run.id)}"><div class="hub-work-marker is-working"></div><div class="hub-work-copy"><button class="hub-task-name" data-open-run="${esc(run.id)}">${esc(run.title || run.taskId)}</button><p>${run.state === "starting" ? "Connecting to the agent…" : run.state === "waiting-approval" ? "Waiting for approval" : run.state === "waiting-input" ? "Waiting for your answer" : "Agent is working"} · Live transcript and message queue</p><small>${esc(run.provider)}${run.model ? " · " + esc(run.model) : ""} · ${esc(run.projectId)} · ${age(run.lastObservedAt || run.createdAt)}</small></div><div class="hub-row-actions"><button class="button" data-open-run="${esc(run.id)}">Open session</button></div></article>`;
+    const task = run.taskId
+        ? taskIndex(current.data).tasks.get(run.taskId)
+        : null,
+      title = task?.title || run.title || run.taskId || "Untitled session",
+      direction = task?.nextAction || task?.summary,
+      state =
+        run.state === "starting"
+          ? "Connecting to the agent…"
+          : run.state === "waiting-approval"
+            ? "Waiting for approval"
+            : run.state === "waiting-input"
+              ? "Waiting for your answer"
+              : "Agent is working",
+      metadata = [
+        run.provider || "Agent",
+        run.model,
+        run.projectId,
+        age(run.lastObservedAt || run.updatedAt || run.createdAt),
+      ].filter(Boolean);
+    return `<article class="hub-work-row hub-session-row" data-open-run="${esc(run.id)}"><div class="hub-work-marker is-working" aria-label="Active session"></div><div class="hub-work-copy"><button class="hub-task-name" data-open-run="${esc(run.id)}">${esc(title)}</button><p><strong>${esc(state)}</strong>${direction ? " · " + esc(direction) : " · Live transcript and message queue"}</p><small>${esc(metadata.join(" · "))}${task ? " · Working on " + esc(task.id) : ""}</small></div><div class="hub-row-actions"><button class="button" data-open-run="${esc(run.id)}">Open session</button>${task ? '<button class="text-button" data-task="' + esc(task.id) + '">Task ↗</button>' : ""}</div></article>`;
+  }
+  function completedRunSummary(run) {
+    const task = run.taskId
+        ? taskIndex(current.data).tasks.get(run.taskId)
+        : null,
+      title = task?.title || run.title || run.taskId || "Completed session",
+      metadata = [
+        run.provider || "Agent",
+        run.model,
+        run.projectId,
+        "Completed " + age(run.updatedAt || run.lastObservedAt || run.createdAt),
+      ].filter(Boolean);
+    return `<article class="hub-work-row hub-session-row is-complete" data-open-run="${esc(run.id)}"><div class="hub-work-marker is-complete" aria-label="Completed session">✓</div><div class="hub-work-copy"><button class="hub-task-name" data-open-run="${esc(run.id)}">${esc(title)}</button><p>Session completed${task?.nextAction ? " · " + esc(task.nextAction) : " · Transcript and results are available"}</p><small>${esc(metadata.join(" · "))}${task ? " · " + esc(task.id) : ""}</small></div><div class="hub-row-actions"><button class="button subtle" data-open-run="${esc(run.id)}">Open session</button>${task ? '<button class="text-button" data-task="' + esc(task.id) + '">Task ↗</button>' : ""}</div></article>`;
   }
   async function openReportedSession(id) {
     if (!current || current.view !== "now") return;
@@ -293,6 +325,14 @@ export function createWorkbench({
       lanes = nowBoard(data, rows, prefs),
       w = nowPayload || { runs: [], requests: [], integrations: [] },
       active = w.runs.filter((r) => activeRunStates.has(r.state)),
+      completed = w.runs
+        .filter((r) => r.state === "completed")
+        .sort(
+          (a, b) =>
+            new Date(b.updatedAt || b.lastObservedAt || b.createdAt || 0) -
+            new Date(a.updatedAt || a.lastObservedAt || a.createdAt || 0),
+        )
+        .slice(0, 6),
       external = lanes.reported.filter((t) => !taskSession(active, t)),
       requests = w.requests || [],
       ready = [...lanes.ready].sort(
@@ -324,7 +364,7 @@ export function createWorkbench({
             ? `<div class="section-heading"><h2>Blocked work</h2><button class="button primary" data-ask-blockers>Ask about blockers</button></div>${paged(lanes.blocked, "blocked", (t) => taskSummary(t)) || '<p class="hub-empty">Nothing matching is blocked.</p>'}`
             : tab === "review"
               ? `<div class="section-heading"><h2>Check-ins &amp; context to review</h2><span>Reported progress and changed plan prose</span></div>${paged(lanes.attention, "checkins", (t) => taskSummary(t)) || '<p class="hub-empty">Nothing is waiting on a review.</p>'}${fold("completed", "Recently updated completed work", lanes.completed, (t) => taskSummary(t))}${conversations().length ? fold("conversations", "Recent conversations", conversations(), conversationSummary) : ""}`
-              : `<div class="section-heading"><h2>In flight</h2><span>${nowPayload ? "Updated " + age(new Date(nowAt).toISOString()) : "Loading connected sessions…"}</span></div>${active.map(runSummary).join("")}${paged(external, "working", (t) => taskSummary(t, { running: true }))}${!inProgress ? '<p class="hub-empty">No work is currently reported. Unreported external work may still be running.</p>' : ""}`;
+              : `<div class="section-heading"><h2>In flight</h2><span>${nowPayload ? "Updated " + age(new Date(nowAt).toISOString()) : "Loading connected sessions…"}</span></div>${active.map(runSummary).join("")}${paged(external, "working", (t) => taskSummary(t, { running: true }))}${!inProgress ? '<p class="hub-empty">No work is currently reported. Unreported external work may still be running.</p>' : ""}${completed.length ? `<div class="hub-completed-sessions"><div class="section-heading"><h2>Recently completed</h2><span>Latest finished sessions</span></div>${completed.map(completedRunSummary).join("")}</div>` : ""}`;
     nowElement.innerHTML = `<section class="hub-section hub-decisions" id="hub-decisions" ${requests.length || (w.integrations || []).length ? "" : "hidden"}>${requests.length ? `<div class="section-heading"><h2>Needs your input</h2><span>${requests.length} pending</span></div>` : ""}${
       requests.length
         ? requests
