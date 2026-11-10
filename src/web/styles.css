@@ -89,7 +89,13 @@ body.resizing-panels { cursor: col-resize; user-select: none; }
 .app-toolbar strong { color: var(--bright); font-size: 11px; font-weight: 600; }
 .app-toolbar button { min-width: 28px; min-height: 28px; display: grid; place-items: center; border-radius: 4px; }
 .app-toolbar button:hover { background: #292929; }
-.app-toolbar .page-help { min-width: 22px; min-height: 22px; border: 1px solid #555; border-radius: 50%; color: #aaa; font-size: 10px; }
+/* The page hint explains, it does not act: no button, and a styled tooltip on
+   hover or keyboard focus rather than the user agent's delayed title bubble. */
+.app-toolbar .page-help { position: relative; min-width: 22px; min-height: 22px; display: grid; place-items: center; border: 1px solid #555; border-radius: 50%; color: #aaa; font-size: 10px; cursor: help; }
+.app-toolbar .page-help:hover, .app-toolbar .page-help:focus-visible { border-color: #7a7a7a; color: #dcdcdc; }
+.page-help-tip { position: absolute; top: calc(100% + 7px); left: -6px; z-index: 50; width: max-content; max-width: min(340px, calc(100vw - 32px)); padding: 9px 11px; border: 1px solid #4d4d4d; border-radius: 6px; background: #232323; color: #dcdcdc; font-size: 11px; line-height: 1.55; text-align: left; white-space: normal; box-shadow: 0 10px 28px #000a; opacity: 0; visibility: hidden; transition: opacity .12s ease; pointer-events: none; }
+.page-help:hover .page-help-tip, .page-help:focus-visible .page-help-tip { opacity: 1; visibility: visible; }
+@media (prefers-reduced-motion: reduce) { .page-help-tip { transition: none; } }
 .app-toolbar .toolbar-action { color: #bcbcbc; }
 .app-toolbar .toolbar-action.active { color: var(--accent); background: #242424; }
 .mobile-menu { display: none !important; }
@@ -446,6 +452,25 @@ select { min-height: 32px; padding: 0 8px; font-size: 10px; }
 .epic-task-list button { width: 100%; min-height: 38px; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #292929; text-align: left; font-size: 9px; }
 .epic-task-list small { color: var(--muted); }
 
+.settings-tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid var(--line); }
+.settings-tab { min-height: 38px; padding: 0 13px; display: flex; align-items: center; gap: 7px; border-bottom: 2px solid transparent; color: var(--muted); font-size: 12px; }
+.settings-tab:hover { color: #dcdcdc; }
+.settings-tab.active { color: var(--text); border-bottom-color: var(--accent); }
+.settings-panel { max-width: 620px; }
+.settings-panel h2 { margin: 0 0 14px; font-size: 17px; }
+.settings-panel h3 { margin: 26px 0 12px; padding-top: 18px; border-top: 1px solid var(--line); font-size: 13px; }
+.form-rows { margin: 0; display: grid; grid-template-columns: minmax(130px, max-content) minmax(0, 1fr); gap: 0; font-size: 12px; }
+.form-rows > div { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; gap: 16px; padding: 9px 0; border-bottom: 1px solid #2d2d2d; }
+.form-rows > div:last-child { border-bottom: 0; }
+.form-rows dt { color: var(--muted); }
+.form-rows dd { margin: 0; color: var(--text); overflow-wrap: anywhere; }
+.form-note { margin: 14px 0 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.settings-form { display: flex; flex-direction: column; gap: 16px; }
+.settings-form label { display: grid; gap: 6px; color: #d2d2d2; font-size: 12px; }
+.settings-form input, .settings-form textarea { width: 100%; padding: 8px 10px; font-size: 12px; }
+.settings-form textarea { resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; line-height: 1.5; }
+.settings-form small { color: var(--muted); font-size: 10px; line-height: 1.55; }
+.form-actions { display: flex; gap: 10px; }
 .settings-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .settings-grid .panel { padding: 14px; }
 .settings-grid h2 { margin: 10px 0; }
@@ -615,7 +640,7 @@ select { min-height: 32px; padding: 0 8px; font-size: 10px; }
 }
 .recent-now .hub-work-row {
   width: 100%;
-  padding: 18px 0;
+  padding: 18px 14px;
   display: grid;
   grid-template-columns: 18px minmax(0, 1fr) auto;
   gap: 14px;
@@ -666,9 +691,16 @@ select { min-height: 32px; padding: 0 8px; font-size: 10px; }
   color: var(--working-ink);
   background: var(--working);
 }
+/* The badge carries the motion inside its own box: a purple sheen crossing
+   behind the initial plus a small lift. Nothing pulses outward, so the stem
+   and its diamond stay still and neighbouring pins are never overlapped. */
 .recent-now .agent-pin.working > span {
-  box-shadow: 0 0 0 0 #bd93f966, 0 3px 9px #13131399;
-  animation: avoozl-pin-pulse 1.8s ease-out infinite;
+  box-shadow: 0 3px 9px #13131399;
+  background: linear-gradient(118deg, var(--working) 18%, #e3cdff 46%, var(--working) 74%) 100% 0 / 280% 100% no-repeat;
+  animation: avoozl-pin-sheen 2.6s ease-in-out infinite;
+}
+.recent-now .agent-pin.working > span::before {
+  animation: none;
 }
 .recent-now .agent-pin.landed > span,
 .recent-now .agent-pin.landed > span::before {
@@ -684,15 +716,27 @@ select { min-height: 32px; padding: 0 8px; font-size: 10px; }
   0% { box-shadow: 0 0 0 0 #bd93f980; }
   65%, 100% { box-shadow: 0 0 0 8px #bd93f900; }
 }
-@keyframes avoozl-pin-pulse {
-  0% { box-shadow: 0 0 0 0 #bd93f980, 0 3px 9px #13131399; }
-  65%, 100% { box-shadow: 0 0 0 7px #bd93f900, 0 3px 9px #13131399; }
+@keyframes avoozl-pin-sheen {
+  0%, 100% { background-position: 100% 0; transform: translateY(0); }
+  50% { background-position: 0 0; transform: translateY(-1.5px); }
 }
 @media (prefers-reduced-motion: reduce) {
   .recent-now .hub-work-marker.is-working,
   .recent-now .agent-pin.working > span {
     animation: none;
   }
+  .recent-now .agent-pin.working > span { background: var(--working); }
+}
+/* Active rows are tinted. Every row carries the same inset so titles stay on
+   one line whether or not the row is tinted. The marker keeps its pulse: that
+   is the one place the in-flight list should be moving. */
+.recent-now .hub-work-row:has(.hub-work-marker.is-working) {
+  border-bottom-color: transparent;
+  border-radius: 9px;
+  background: #221a33;
+}
+.recent-now .hub-work-row:has(.hub-work-marker.is-working) + .hub-work-row {
+  border-top: 1px solid #3b3b3b;
 }
 .recent-now .hub-task-name {
   padding: 0;
