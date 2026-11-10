@@ -6,6 +6,8 @@ export type RunSummary = {
   mode?: string;
   provider?: string;
   providerSessionId?: string;
+  parentRunId?: string;
+  parentProviderSessionId?: string;
   projectId?: string;
   model?: string;
   error?: string | { message?: string };

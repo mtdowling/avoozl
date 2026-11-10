@@ -18173,7 +18173,7 @@ function kee({ task: e, state: t, close: n, refresh: r, openDocument: i, openRun
 					children: m.runs.filter((e) => e.provider === "openhands").map((e) => /* @__PURE__ */ (0, A.jsxs)("button", {
 						className: "task-detail-link",
 						onClick: () => a(e.id),
-						children: [/* @__PURE__ */ (0, A.jsx)(Xt, { size: 13 }), /* @__PURE__ */ (0, A.jsxs)("span", { children: [/* @__PURE__ */ (0, A.jsx)("strong", { children: e.title || e.id }), /* @__PURE__ */ (0, A.jsx)("small", { children: e.state })] })]
+						children: [/* @__PURE__ */ (0, A.jsx)(Xt, { size: 13 }), /* @__PURE__ */ (0, A.jsxs)("span", { children: [/* @__PURE__ */ (0, A.jsxs)("strong", { children: [e.parentRunId ? "Subagent · " : "", e.title || e.id] }), /* @__PURE__ */ (0, A.jsxs)("small", { children: [e.state, e.worktree ? ` · ${e.worktree}` : ""] })] })]
 					}, e.id))
 				}),
 				/* @__PURE__ */ (0, A.jsxs)(Ap, {

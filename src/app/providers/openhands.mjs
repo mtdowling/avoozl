@@ -28,9 +28,8 @@ export const OPENHANDS_CAPABILITIES = Object.freeze({
   liveModelChange: true,
   modelChangeApplies: "next-turn",
   interruptStopsSpawnedWork: "unknown",
-  subagents: false,
-  subagentReason:
-    "Child conversation ownership is not normalized into Avoozl runs yet.",
+  subagents: true,
+  subagentMode: "child-conversations",
   toolOutput: "structured-events",
   surfaces: ["conversation", "terminal", "files", "browser"],
 });
@@ -228,6 +227,34 @@ function normalizedState(value) {
   }[value];
 }
 
+function conversationWorkspace(info) {
+  if (typeof info.workspace === "string") return info.workspace;
+  return (
+    info.workspace?.working_dir ||
+    info.working_dir ||
+    info.selected_workspace ||
+    null
+  );
+}
+
+function childConversation(info, fallbackParentId) {
+  return {
+    providerSessionId: info.id,
+    parentProviderSessionId: info.parent_conversation_id || fallbackParentId,
+    title: info.title || null,
+    state: normalizedState(info.execution_status || info.status) || "observing",
+    worktree: conversationWorkspace(info),
+    branch: info.selected_branch || null,
+    model:
+      info.llm_model ||
+      info.model ||
+      info.launched_agent_profile?.agent_profile_id ||
+      null,
+    createdAt: info.created_at || null,
+    updatedAt: info.updated_at || null,
+  };
+}
+
 function agentForMode(adapter, mode, model) {
   const readOnly =
       mode === "ask"
@@ -268,6 +295,8 @@ export class OpenHandsAdapter {
     this.socketFactory = socketFactory;
     this.capabilities = OPENHANDS_CAPABILITIES;
     this.seen = new Set();
+    this.childLaunchActions = new Set();
+    this.childReconcile = null;
     this.active = false;
     this.interruption = null;
   }
@@ -411,6 +440,7 @@ export class OpenHandsAdapter {
       versions: { ...OPENHANDS_VERSIONS, server: this.serverVersion },
     });
     await this.reconcile();
+    await this.reconcileChildren();
     this.socket = this.socketFactory({
       host: this.settings.host,
       conversationId: this.conversationId,
@@ -430,6 +460,44 @@ export class OpenHandsAdapter {
       if (state) this.emit("state", { state });
     }
     return this;
+  }
+  async reconcileChildren() {
+    const root = await this.client.getConversation(this.conversationId),
+      pending = [...new Set(root.sub_conversation_ids || [])],
+      seen = new Set([this.conversationId]),
+      children = [];
+    while (pending.length && children.length < 200) {
+      const ids = pending
+        .splice(0, 50)
+        .filter((id) => typeof id === "string" && id && !seen.has(id));
+      for (const id of ids) seen.add(id);
+      if (!ids.length) continue;
+      const infos = await this.client.getConversations(ids);
+      for (let index = 0; index < ids.length; index++) {
+        const info = infos[index];
+        if (!info?.id) continue;
+        children.push(childConversation(info, this.conversationId));
+        for (const id of info.sub_conversation_ids || [])
+          if (typeof id === "string" && id && !seen.has(id)) pending.push(id);
+      }
+    }
+    this.emit("children", {
+      children,
+      truncated: pending.length > 0,
+    });
+  }
+  queueChildReconcile() {
+    if (this.childReconcile) return;
+    this.childReconcile = Promise.resolve()
+      .then(() => this.reconcileChildren())
+      .catch((error) =>
+        this.emit("provider.log", {
+          text: "OpenHands child conversations: " + error.message,
+        }),
+      )
+      .finally(() => {
+        this.childReconcile = null;
+      });
   }
   async reconcile() {
     let pageId;
@@ -482,6 +550,12 @@ export class OpenHandsAdapter {
         event.tool_name ||
         event.tool_kind ||
         "tool";
+      if (
+        event.id &&
+        (tool === "launch_child_conversation" ||
+          /ChildConversation|Delegate/.test(tool))
+      )
+        this.childLaunchActions.add(event.id);
       this.emit("tool.started", {
         ...common,
         id: event.id,
@@ -494,6 +568,11 @@ export class OpenHandsAdapter {
       event.kind === "ObservationEvent" ||
       event.kind === "UserRejectObservation"
     ) {
+      const childLaunch =
+        this.childLaunchActions.delete(event.action_id) ||
+        JSON.stringify(event.observation || event).includes(
+          "[child-conversation]",
+        );
       this.emit("tool.finished", {
         ...common,
         id: event.action_id || event.id,
@@ -502,6 +581,7 @@ export class OpenHandsAdapter {
           event.observation?.is_error === true,
         content: JSON.stringify(event.observation || event.error || event),
       });
+      if (childLaunch) this.queueChildReconcile();
       return;
     }
     if (event.kind === "TokenEvent") {
@@ -543,6 +623,7 @@ export class OpenHandsAdapter {
             }
           : {}),
       });
+      this.queueChildReconcile();
       this.interruption = null;
     } else
       this.emit("provider.event", {
@@ -605,6 +686,7 @@ export class OpenHandsAdapter {
   }
   async close() {
     this.socket?.stop();
+    await this.childReconcile;
     this.http?.close();
   }
 }

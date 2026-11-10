@@ -471,6 +471,95 @@ export class RunManager {
     }
     return this.receiveRecorded(id, kind, body);
   }
+  recordChildren(parent, body) {
+    const children = Array.isArray(body?.children) ? body.children : [],
+      runs = this.store.list("runs"),
+      bySession = new Map(
+        runs
+          .filter(
+            (run) =>
+              run.provider === "openhands" &&
+              typeof run.providerSessionId === "string",
+          )
+          .map((run) => [run.providerSessionId, run]),
+      ),
+      childRunIds = new Set(parent.childRunIds || []),
+      now = new Date().toISOString();
+    for (const child of children) {
+      if (
+        typeof child?.providerSessionId !== "string" ||
+        !child.providerSessionId ||
+        child.providerSessionId === parent.providerSessionId
+      )
+        continue;
+      let existing = bySession.get(child.providerSessionId);
+      const parentRun = bySession.get(child.parentProviderSessionId) || parent;
+      if (existing && !existing.parentRunId) {
+        this.store.event(parent.id, "child.conflict", {
+          providerSessionId: child.providerSessionId,
+          runId: existing.id,
+          message:
+            "OpenHands reported an existing top-level Avoozl run as a child conversation.",
+        });
+        continue;
+      }
+      const id =
+          existing?.id ||
+          "run-oh-child-" + digest(child.providerSessionId).slice(0, 24),
+        next = {
+          ...(existing || {}),
+          id,
+          taskId: parent.taskId,
+          planId: parent.planId,
+          projectId: parent.projectId,
+          provider: "openhands",
+          executor: "openhands",
+          providerSessionId: child.providerSessionId,
+          parentRunId: parentRun.id,
+          parentProviderSessionId: child.parentProviderSessionId,
+          mode: "child",
+          state: child.state || "observing",
+          title:
+            child.title?.slice(0, 240) ||
+            "Subagent · " + (parent.title || parent.taskId),
+          worktree: child.worktree || parent.worktree,
+          branch: child.branch || parent.branch,
+          model: child.model || parent.model,
+          managedBy: "openhands",
+          createdAt: existing?.createdAt || child.createdAt || now,
+          lastObservedAt: now,
+        },
+        changed =
+          !existing ||
+          [
+            "taskId",
+            "planId",
+            "projectId",
+            "providerSessionId",
+            "parentRunId",
+            "parentProviderSessionId",
+            "state",
+            "title",
+            "worktree",
+            "branch",
+            "model",
+          ].some((key) => existing[key] !== next[key]);
+      if (changed) {
+        next.updatedAt = child.updatedAt || now;
+        this.store.put("runs", next);
+        this.store.event(id, existing ? "child.updated" : "child.discovered", {
+          parentRunId: parentRun.id,
+          providerSessionId: child.providerSessionId,
+          state: next.state,
+        });
+      }
+      existing = changed ? next : existing;
+      bySession.set(child.providerSessionId, existing);
+      childRunIds.add(id);
+    }
+    parent.childRunIds = [...childRunIds];
+    parent.childrenTruncated = body?.truncated === true;
+  }
   receiveRecorded(id, kind, body) {
     const run = this.store.get("runs", id);
     if (!run) return;
@@ -479,6 +568,7 @@ export class RunManager {
       run.providerSessionId = body.providerSessionId;
       if (body.model) run.actualModel = body.model;
     }
+    if (kind === "children") this.recordChildren(run, body);
     if (kind === "usage") recordUsage(this.store, run, body);
     if (kind === "approvals.status") {
       run.effectiveApprovalMode = body.effectiveApprovalMode;
@@ -581,6 +671,11 @@ export class RunManager {
     return this.serialize(input.id, async () => {
       const run = this.store.get("runs", input.id);
       if (!run) fail("Run not found.", 404);
+      if (run.parentRunId)
+        fail(
+          "Open this child conversation in OpenHands to observe or steer it.",
+          409,
+        );
       if (
         typeof input.text !== "string" ||
         !input.text.trim() ||
@@ -769,6 +864,8 @@ export class RunManager {
   async interrupt(id, { reason = "client-cancel" } = {}) {
     const run = this.store.get("runs", id);
     if (!run) fail("Run not found.", 404);
+    if (run.parentRunId)
+      fail("Interrupt child conversations through OpenHands.", 409);
     const adapter = this.live.get(id);
     if (!adapter) fail("Run is disconnected.", 409);
     // Record the intent before asking the provider, so a crash between the
@@ -812,6 +909,8 @@ export class RunManager {
     return this.serialize(input.id, async () => {
       const run = this.store.get("runs", input.id);
       if (!run) fail("Run not found.", 404);
+      if (run.parentRunId)
+        fail("Change child-conversation models through OpenHands.", 409);
       if (typeof input.model !== "string" || !input.model.trim())
         fail("Choose a model.");
       const catalog = await this.models(run.provider);
@@ -848,6 +947,8 @@ export class RunManager {
     return this.serialize(input.id, async () => {
       const run = this.store.get("runs", input.id);
       if (!run) fail("Run not found.", 404);
+      if (run.parentRunId)
+        fail("Resume child conversations through OpenHands.", 409);
       if (this.live.has(run.id)) return run;
       if (!run.providerSessionId)
         fail(
@@ -877,6 +978,9 @@ export class RunManager {
   async answer(input) {
     const request = this.store.get("requests", input.id);
     if (!request) fail("Request not found.", 404);
+    const run = this.store.get("runs", request.runId);
+    if (run?.parentRunId)
+      fail("Answer child-conversation requests through OpenHands.", 409);
     // A client may hold a stale view: the request can already be answered,
     // interrupted by a cancellation, or invalidated by a host restart.
     if (request.state !== "pending")

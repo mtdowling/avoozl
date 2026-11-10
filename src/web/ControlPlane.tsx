@@ -575,7 +575,10 @@ export function TaskInspector({
                 {detail.runs.filter((run) => run.provider === "openhands").map((run) => (
                   <button className="task-detail-link" key={run.id} onClick={() => openRun(run.id)}>
                     <Play size={13} />
-                    <span><strong>{run.title || run.id}</strong><small>{run.state}</small></span>
+                    <span>
+                      <strong>{run.parentRunId ? "Subagent · " : ""}{run.title || run.id}</strong>
+                      <small>{run.state}{run.worktree ? ` · ${run.worktree}` : ""}</small>
+                    </span>
                   </button>
                 ))}
               </DetailSection>
