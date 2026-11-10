@@ -31,6 +31,32 @@ export type Workspace = {
   planTotal: number;
   requests: Array<{ id: string; runId: string; kind: string; method?: string }>;
   projects: Array<{ id: string; name?: string; root?: string; path?: string }>;
+  github?: {
+    available: boolean;
+    machine?: { id: string; name: string };
+    repositories: Array<{
+      id: string;
+      projectId: string;
+      assignee: string;
+      label: string;
+      autoStart?: boolean;
+      provider?: string | null;
+      activeMachine?: string | null;
+    }>;
+    issues: Array<{
+      id: string;
+      repository: string;
+      taskId: string;
+      number: number;
+      title: string;
+      state: string;
+      reason?: string;
+      url?: string;
+      bodyHash?: string;
+      labelEventId?: string;
+    }>;
+    lastSync?: { repositories?: Array<{ id: string; syncedAt: string }> };
+  };
   providers: Provider[];
   agentHost?: { connected?: boolean; draining?: boolean };
   publication?: { pending?: unknown[]; last?: unknown[] };

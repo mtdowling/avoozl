@@ -38,6 +38,14 @@ import { taskSignals, isPlanInventory } from "../workbench-model.mjs";
 import { ExternalSessions } from "./external-sessions.mjs";
 import { listExamples, seedExample } from "./examples.mjs";
 import { describeWorkspace } from "./client.mjs";
+import { defaultGitHubClient } from "./github.mjs";
+import {
+  configureGitHubRepository,
+  machineIdentity,
+  projectPlanIssues,
+  startAuthorizedIssue,
+  syncGitHubIssues,
+} from "./github-sync.mjs";
 
 // Acceptance evidence a caller did not type, when validateRun already recorded
 // passing checks for the commit being accepted. A failed or absent validation
@@ -67,11 +75,15 @@ function validatedEvidence(store, data, task) {
   ).slice(0, 2000);
 }
 export class Operations {
-  constructor(store, { manager = null, externalSessions, operator } = {}) {
+  constructor(
+    store,
+    { manager = null, externalSessions, operator, github } = {},
+  ) {
     this.store = store;
     this.manager = manager;
     // Provenance for records this workspace mints; never an authorization.
     this.operator = operator || "";
+    this.github = github || defaultGitHubClient();
     this.externalSessions = externalSessions || new ExternalSessions(store);
     this.batches =
       manager && !manager.remote ? new Batches(store, manager) : null;
@@ -646,6 +658,13 @@ export class Operations {
           .slice(0, 40),
         recentIntegrations: recentIntegrations(store),
         projects: store.list("projects"),
+        github: {
+          available: this.github.available(),
+          machine: machineIdentity(store),
+          repositories: store.list("github_repositories"),
+          issues: store.list("github_issues").slice(0, 100),
+          lastSync: store.getMeta("githubSync"),
+        },
         agentHost: this.manager?.remote
           ? await this.manager.status()
           : { connected: true },
@@ -928,6 +947,64 @@ export class Operations {
         operator: input.operator || this.operator,
         expectedRevision: input.expectedRevision ?? expectedRevision,
       });
+    if (name === "github.configure")
+      return configureGitHubRepository(store, this.github, input);
+    if (name === "github.repositories")
+      return {
+        available: this.github.available(),
+        machine: machineIdentity(store),
+        items: store.list("github_repositories"),
+      };
+    if (name === "github.issues")
+      return {
+        items: store.list("github_issues"),
+        lastSync: store.getMeta("githubSync"),
+      };
+    if (name === "github.sync") {
+      const result = await syncGitHubIssues(store, this.github, input);
+      const starts = [];
+      if (input.autoStart) {
+        for (const record of result.authorized) {
+          const config = store.get("github_repositories", record.repository);
+          if (!config?.autoStart || !config.provider || !this.manager) continue;
+          const active = store
+            .list("runs")
+            .some(
+              (run) =>
+                run.taskId === record.taskId &&
+                ![
+                  "completed",
+                  "interrupted",
+                  "failed",
+                  "integrated",
+                ].includes(run.state),
+            );
+          if (!active)
+            starts.push(
+              await startAuthorizedIssue(this, {
+                taskId: record.taskId,
+                background: true,
+              }),
+            );
+        }
+      }
+      return { ...result, starts };
+    }
+    if (name === "github.authorize")
+      return syncGitHubIssues(store, this.github, {
+        repository: input.repository,
+        authorize: {
+          id: input.id,
+          bodyHash: input.bodyHash,
+          labelEventId: input.labelEventId,
+        },
+      });
+    if (name === "github.project")
+      return projectPlanIssues(store, this.github, input);
+    if (name === "github.start") {
+      if (!this.manager) fail("Start the Avoozl agent host first.", 503);
+      return startAuthorizedIssue(this, input);
+    }
     if (name === "project.configure") {
       const project = await projectConfig(input);
       return store.put("projects", project);

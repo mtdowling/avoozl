@@ -205,6 +205,7 @@ export function queryTasks(data, options = {}) {
             !["blocked", "deferred", "review"].includes(t.status) &&
             !t.needsReview &&
             !t.source?.removed &&
+            t.dispatch?.ready !== false &&
             (index.prerequisites.get(t.id) || []).every((id) =>
               index.complete.has(index.byId.get(id)?.status),
             )) ===

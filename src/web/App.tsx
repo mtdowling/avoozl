@@ -1071,6 +1071,7 @@ const SETTINGS_TABS = [
   { id: "workspace", label: "Workspace", icon: Boxes },
   { id: "agents", label: "Agents", icon: Bot },
   { id: "projects", label: "Projects", icon: GitBranch },
+  { id: "github", label: "GitHub", icon: CircleDot },
 ] as const;
 type SettingsTab = (typeof SETTINGS_TABS)[number]["id"];
 
@@ -1165,6 +1166,96 @@ function ProjectForm({ onSaved }: { onSaved: () => void }) {
   </form>;
 }
 
+function GitHubSettings({ workspace, refresh }: { workspace: Workspace; refresh: () => void }) {
+  const [repository, setRepository] = useState("");
+  const [projectId, setProjectId] = useState(workspace.projects[0]?.id || "");
+  const [assignee, setAssignee] = useState("");
+  const [provider, setProvider] = useState(workspace.providers[0]?.id || workspace.providers[0]?.name || "");
+  const [allowedActors, setAllowedActors] = useState("");
+  const [autoStart, setAutoStart] = useState(false);
+  const [busy, setBusy] = useState("");
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  async function act(label: string, operation: string, input: Record<string, unknown> = {}) {
+    setBusy(label);
+    setError("");
+    setMessage("");
+    try {
+      const result = await command<any>(operation, input);
+      setMessage(
+        operation === "github.sync"
+          ? `Synchronized ${result.repositories?.length || 0} repositories; ${result.authorized?.length || 0} ready, ${result.quarantined?.length || 0} quarantined.`
+          : `${label} complete.`,
+      );
+      refresh();
+      return result;
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+      return null;
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function configure(event: React.FormEvent) {
+    event.preventDefault();
+    await act("Registration", "github.configure", {
+      repository: repository.trim(),
+      projectId,
+      assignee: assignee.trim() || undefined,
+      provider: provider || undefined,
+      autoStart,
+      allowedActors: allowedActors.split(",").map((value) => value.trim()).filter(Boolean),
+    });
+  }
+
+  async function start(taskId: string) {
+    const run = await act("Start", "github.start", { taskId });
+    if (run?.id) location.href = `/?view=conversations&run=${encodeURIComponent(run.id)}`;
+  }
+
+  const github = workspace.github;
+  return <div className="github-settings">
+    <div className="settings-actions">
+      <button className="button" disabled={Boolean(busy)} onClick={() => void act("Sync", "github.sync")}>
+        <RefreshCw size={14} />{busy === "Sync" ? "Syncing…" : "Sync now"}
+      </button>
+      <span>{github?.machine ? `${github.machine.name} · ${github.machine.id}` : "Machine identity unavailable"}</span>
+    </div>
+    {error && <p className="error">{error}</p>}
+    {message && <p className="form-note">{message}</p>}
+    <h3>Registered repositories</h3>
+    {github?.repositories?.length
+      ? <ReadOnlyRows rows={github.repositories.map((repo) => [
+          repo.id,
+          `${repo.projectId} · ${repo.assignee} · ${repo.label}${repo.autoStart ? ` · auto-start via ${repo.provider}` : ""}`,
+        ])} />
+      : <p className="form-note">No GitHub repository is registered.</p>}
+    <h3>Ready and quarantined issues</h3>
+    {github?.issues?.length
+      ? <div className="github-issue-list">{github.issues.map((issue) => <article key={issue.id}>
+          <div><strong>{issue.repository}#{issue.number} · {issue.title}</strong><small>{issue.state}{issue.reason ? ` — ${issue.reason}` : ""}</small></div>
+          <div>
+            {issue.state === "authorized" && <button className="button" disabled={Boolean(busy)} onClick={() => void start(issue.taskId)}>Start</button>}
+            {(issue.state === "pending" || issue.state === "quarantined") && <button className="button" disabled={Boolean(busy)} onClick={() => void act("Confirmation", "github.authorize", { repository: issue.repository, id: issue.id, bodyHash: issue.bodyHash, labelEventId: issue.labelEventId })}>Confirm exact snapshot</button>}
+          </div>
+        </article>)}</div>
+      : <p className="form-note">No matching issues have been observed.</p>}
+    <h3>Register a repository</h3>
+    <form className="settings-form" onSubmit={configure}>
+      <label>Repository<input value={repository} onChange={(event) => setRepository(event.target.value)} placeholder="owner/repository" required /></label>
+      <label>Execution project<select value={projectId} onChange={(event) => setProjectId(event.target.value)} required><option value="">Choose a project</option>{workspace.projects.map((project) => <option key={project.id} value={project.id}>{project.name || project.id}</option>)}</select></label>
+      <label>Assignee<input value={assignee} onChange={(event) => setAssignee(event.target.value)} placeholder="Defaults to the authenticated GitHub user" /></label>
+      <label>Allowed label actors<input value={allowedActors} onChange={(event) => setAllowedActors(event.target.value)} placeholder="comma,separated,logins" /><small>Empty permits any collaborator with write permission or above.</small></label>
+      <label>Agent<select value={provider} onChange={(event) => setProvider(event.target.value)}><option value="">Choose at start</option>{workspace.providers.map((item) => { const id = item.id || item.name || ""; return <option key={id} value={id}>{item.label || id}</option>; })}</select></label>
+      <label className="checkbox-row"><input type="checkbox" checked={autoStart} onChange={(event) => setAutoStart(event.target.checked)} />Start newly authorized issues automatically on this active machine</label>
+      <div className="form-actions"><button className="button primary" disabled={Boolean(busy) || !repository.trim() || !projectId}>{busy === "Registration" ? "Registering…" : "Register repository"}</button></div>
+    </form>
+    <p className="form-note">Credentials are read from <code>gh auth</code> or process environment and are never stored in the workspace or projected to Git.</p>
+  </div>;
+}
+
 function SettingsView({ workspace, state, refresh }: { workspace: Workspace; state: State; refresh: () => void }) {
   const [tab, setTab] = useState<SettingsTab>("workspace");
   const workspaceName = state.project?.workspaceName || state.project?.title || state.project?.name || "Avoozl";
@@ -1201,6 +1292,10 @@ function SettingsView({ workspace, state, refresh }: { workspace: Workspace; sta
         : <p className="form-note">No execution repository is configured yet.</p>}
       <h3>Add or update a project</h3>
       <ProjectForm onSaved={refresh} />
+    </div>}
+    {tab === "github" && <div className="settings-panel" role="tabpanel" id="settings-panel-github" aria-labelledby="settings-tab-github">
+      <h2>GitHub work intake</h2>
+      <GitHubSettings workspace={workspace} refresh={refresh} />
     </div>}
   </section>;
 }

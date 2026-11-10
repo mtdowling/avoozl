@@ -54,6 +54,10 @@ export class Store {
    CREATE TABLE IF NOT EXISTS provider_events(run_id TEXT NOT NULL,provider_event_id TEXT NOT NULL,at TEXT NOT NULL,PRIMARY KEY(run_id,provider_event_id));
    CREATE TABLE IF NOT EXISTS surface_capabilities(id TEXT PRIMARY KEY,run_id TEXT NOT NULL,conversation_id TEXT NOT NULL,token_hash BLOB NOT NULL,expires_at TEXT NOT NULL,body TEXT NOT NULL);
    CREATE INDEX IF NOT EXISTS surface_capabilities_run ON surface_capabilities(run_id,expires_at);
+   CREATE TABLE IF NOT EXISTS github_repositories(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS github_issues(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS review_threads(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS review_rounds(id TEXT PRIMARY KEY,body TEXT NOT NULL);
   `);
   }
   transaction(fn) {
@@ -307,6 +311,10 @@ export class Store {
         "projects",
         "receipts",
         "batches",
+        "github_repositories",
+        "github_issues",
+        "review_threads",
+        "review_rounds",
       ].includes(table)
     )
       fail("Unknown record type");
@@ -326,6 +334,10 @@ export class Store {
         "projects",
         "receipts",
         "batches",
+        "github_repositories",
+        "github_issues",
+        "review_threads",
+        "review_rounds",
       ].includes(table)
     )
       fail("Unknown record type");
@@ -337,7 +349,17 @@ export class Store {
   put(table, item) {
     const body = JSON.stringify(item);
     if (
-      ["plans", "requests", "projects", "receipts", "batches"].includes(table)
+      [
+        "plans",
+        "requests",
+        "projects",
+        "receipts",
+        "batches",
+        "github_repositories",
+        "github_issues",
+        "review_threads",
+        "review_rounds",
+      ].includes(table)
     )
       this.db
         .prepare(

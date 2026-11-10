@@ -114,6 +114,7 @@ export function startServer({
   mode,
   host = process.env.NUPP_WORKSPACE_HOST || "127.0.0.1",
   allowedHosts = [],
+  githubPollMs = 30000,
 } = {}) {
   const store = new Store(dbPath);
   if (!store.initialized()) fail("Initialize a workspace before serving.");
@@ -147,6 +148,8 @@ export function startServer({
     ? watchSources(store, sourceRoot)
     : () => {};
   let eventTimer = null;
+  let githubTimer = null,
+    githubSyncing = false;
   const json = (res, status, value, headers = {}) => {
     res.writeHead(status, {
       "Content-Type": "application/json; charset=utf-8",
@@ -657,6 +660,25 @@ export function startServer({
       "Avoozl: " + manager.baseUrl + " (SQLite " + store.getMeta("mode") + ")",
     );
   });
+  if (githubPollMs > 0) {
+    githubTimer = setInterval(async () => {
+      if (
+        draining ||
+        githubSyncing ||
+        !store.list("github_repositories").length
+      )
+        return;
+      githubSyncing = true;
+      try {
+        await ops.execute("github.sync", { autoStart: true });
+      } catch (error) {
+        store.event(null, "github.sync.error", { message: error.message });
+      } finally {
+        githubSyncing = false;
+      }
+    }, githubPollMs);
+    githubTimer.unref();
+  }
   const release = () => {
     try {
       if (store.getMeta(ownerKey)?.id === runtimeId)
@@ -668,6 +690,7 @@ export function startServer({
   server.on("close", () => {
     stopSourceWatch();
     clearInterval(eventTimer);
+    clearInterval(githubTimer);
     for (const c of clients) c.res.end();
     manager.close().then(release);
   });

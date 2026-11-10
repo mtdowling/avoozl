@@ -59,6 +59,13 @@ export const CLIENT_OPERATIONS = Object.freeze([
   "metrics",
   "usage.limits",
   "project.configure",
+  "github.configure",
+  "github.repositories",
+  "github.issues",
+  "github.sync",
+  "github.authorize",
+  "github.project",
+  "github.start",
 ]);
 
 // Rules a client must follow. Published through `client.describe` so a client
