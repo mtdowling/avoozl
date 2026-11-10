@@ -4812,15 +4812,6 @@ body {
   display: block;
   margin-top: 5px;
 }
-.tree-track-heading {
-  margin: 0;
-  padding: 8px 12px 0 26px;
-  color: #a6a6a6;
-  font-size: 11px;
-}
-.tree-track-heading span {
-  margin-left: 12px;
-}
 .task-blockers {
   font-size: 11px;
   line-height: 1.6;
@@ -5757,10 +5748,6 @@ body {
   margin-top: 1px;
   font-size: 9px;
 }
-.tree-track-heading {
-  font-size: 10px;
-  padding: 4px 10px 0 24px;
-}
 .workbench-heading h2 {
   font-size: 21px;
 }
@@ -5839,6 +5826,52 @@ body {
 }
 .tree-task:hover {
   background: #272727;
+}
+.task-tree-window {
+  --tree-columns: minmax(320px, 1.35fr) 120px 140px minmax(240px, 1fr)
+    minmax(220px, 0.9fr) 40px;
+}
+.task-tree-window .virtual-content {
+  min-width: 1080px;
+}
+.task-tree-window .virtual-row {
+  padding: 0;
+}
+.task-tree-window .tree-task,
+.task-tree-window .tree-table-heading {
+  display: grid;
+  grid-template-columns: var(--tree-columns);
+  gap: 0;
+  align-items: stretch;
+  min-width: 1080px;
+  padding: 0;
+}
+.task-tree-window .tree-task > *,
+.task-tree-window .tree-table-heading > span {
+  min-width: 0;
+  padding: 7px 10px;
+  border-right: 1px solid #333;
+}
+.task-tree-window .tree-task {
+  border-width: 0 0 1px;
+}
+.task-tree-window .tree-task > :last-child,
+.task-tree-window .tree-table-heading > :last-child {
+  border-right: 0;
+}
+.task-tree-window .tree-table-heading > span {
+  padding-block: 6px;
+  background: #252525;
+}
+.task-tree-window .tree-group-toggle {
+  background: #202020;
+  border-block: 1px solid #3a3a3a;
+}
+@media (max-width: 900px) {
+  .task-tree-window {
+    --tree-columns: 240px 120px 140px minmax(240px, 1fr) minmax(220px, 0.9fr)
+      40px;
+  }
 }
 @media (min-width: 1000px) {
   #detail-dialog #inspector-body.document-detail {
@@ -6735,116 +6768,6 @@ body .workspace.theater {
     align-items: center;
     gap: 7px;
   }
-  .tree-table-heading {
-    display: none;
-  }
-  .task-tree-window {
-    overflow-x: hidden;
-  }
-  .task-tree-window .virtual-content {
-    min-width: 0;
-  }
-  .tree-group-toggle {
-    padding: 8px;
-    min-height: 48px;
-  }
-  .tree-group-toggle strong {
-    font-size: 14px;
-  }
-  .tree-group-toggle small {
-    font-size: 11px;
-  }
-  .tree-task {
-    grid-template-columns: minmax(0, 1fr) 40px;
-    grid-template-areas: "title title" "state graph" "owner owner" "next next" "blocker blocker";
-    grid-template-rows: 60px 24px 20px 42px 40px;
-    row-gap: 4px;
-    column-gap: 8px;
-    height: calc(100% - 4px);
-    padding: 10px;
-    align-content: start;
-    font-size: 12px;
-    border-bottom: 1px solid var(--border);
-  }
-  .tree-title-cell {
-    grid-area: title;
-  }
-  .tree-task-open {
-    display: block;
-    width: 100%;
-    text-align: left;
-    min-height: 40px;
-    padding: 0;
-  }
-  .tree-task .tree-task-title {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    overflow: hidden;
-    font-size: 14px;
-    line-height: 20px;
-  }
-  .tree-title-cell > small {
-    font-size: 10px;
-    margin-top: 2px;
-  }
-  .tree-state-cell {
-    grid-area: state;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .tree-task .badge {
-    font-size: 11px;
-    margin: 0;
-    max-width: none;
-  }
-  .tree-task .tree-state-cell small {
-    font-size: 10px;
-  }
-  .tree-owner-cell {
-    grid-area: owner;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    overflow: hidden;
-  }
-  .tree-next-cell {
-    grid-area: next;
-    white-space: normal;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    overflow: hidden;
-    line-height: 20px;
-  }
-  .tree-blocker-cell {
-    grid-area: blocker;
-    overflow: hidden;
-  }
-  .tree-owner-cell:before,
-  .tree-next-cell:before {
-    content: attr(data-label) " · ";
-    color: #9b9b9b;
-    font-size: 11px;
-  }
-  .tree-blocker-cell .task-blockers {
-    font-size: 11px;
-    line-height: 18px;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    overflow: hidden;
-  }
-  .tree-blocker-cell .task-blockers > span:first-child {
-    display: inline;
-    color: #b2b2b2;
-  }
-  .tree-task .tree-graph {
-    grid-area: graph;
-    min-height: 32px;
-    margin-top: -4px;
-    padding: 4px;
-  }
   .hub-heading {
     gap: 12px;
     margin-bottom: 18px;
@@ -7164,12 +7087,6 @@ body .workspace.theater {
   .activity-active .toolbar-dropdowns {
     display: none;
   }
-  .tree-task:not(:has(.task-blockers)) {
-    grid-template-rows: 60px 24px 20px 42px 0;
-  }
-  .tree-blocker-cell:has(> .muted) {
-    display: none;
-  }
 }
 @media (max-width: 900px) and (max-height: 600px) {
   .toolbar-actions {
@@ -7250,25 +7167,6 @@ body .workspace.theater {
     display: flex;
     flex-wrap: wrap;
     gap: 8px 20px;
-  }
-  .tree-task,
-  .tree-task:not(:has(.task-blockers)) {
-    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 40px;
-    grid-template-areas: "title state graph" "next owner owner" "next blocker blocker";
-    grid-template-rows: 56px 36px 52px;
-  }
-  .tree-next-cell {
-    -webkit-line-clamp: 4;
-  }
-  .tree-owner-cell {
-    white-space: normal;
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-  }
-  .tree-state-cell {
-    flex-wrap: wrap;
-    align-content: start;
   }
 }
 @media (max-width: 900px) {
@@ -7574,7 +7472,7 @@ button[aria-pressed="true"] {
 }
 .task-tree-window .tree-table-heading {
   height: 100%;
-  padding: 6px 8px;
+  padding: 0;
 }
 #tasks-view .task-tree-window {
   min-height: 0;
