@@ -6,7 +6,7 @@ import { fail } from "./store.mjs";
 export const PLAN_TEMPLATE = (prompt) =>
   `# ${prompt.split("\n")[0].slice(0, 140)}\n\n## Intent\n\n${prompt}\n\n## Design\n\nDescribe the outcome, scope, alternatives, and decisions here.\n\n## Proposed work\n\nAdd one task block per deliverable. These remain proposals until this document revision is approved.\n\n\`\`\`task\n${JSON.stringify({ id: "first-deliverable", title: "Define the first deliverable", summary: "Describe the resulting behavior.", acceptance: ["Define an observable acceptance check."], requires: [], tags: [] }, null, 2)}\n\`\`\`\n`;
 export const PLAN_FORMAT =
-  "Write one Markdown plan, including design and proposed work. Describe each proposed task in a fenced task block containing a JSON object: {id,title,summary,acceptance:[strings],requires:[local IDs or existing global task IDs],sequence:[IDs],supports:[IDs],tags:[strings],resources:[shared resource names],epic,track,taskId:optional existing canonical ID,distinctReason:optional separate-scope explanation}. Only id,title,acceptance are required. No tasks are executable before revision approval. Never approve your own plan. Return the Markdown plan as your final response.";
+  "Write one Markdown plan, including design and proposed work. Describe each proposed task in a fenced task block containing a JSON object: {id,title,summary,acceptance:[strings],requires:[local IDs or existing global task IDs],sequence:[IDs],supports:[IDs],tags:[strings],resources:[shared resource names],epic,track,projectId:logical execution project,taskId:optional existing canonical ID,distinctReason:optional separate-scope explanation}. Only id,title,acceptance are required. No tasks are executable before revision approval. Never approve your own plan. Return the Markdown plan as your final response.";
 // One fenced task block. A fresh instance per use keeps /g state local.
 const taskBlocks = () => /^```task\s*\r?\n([\s\S]*?)^```\s*$/gm;
 export function extractPlan(markdown) {
@@ -52,6 +52,7 @@ export function extractPlan(markdown) {
       "nextAction",
       "epic",
       "track",
+      "projectId",
       "taskId",
       "distinctReason",
     ])
@@ -316,6 +317,7 @@ export function approvePlan(
         track,
         tags: proposal.tags || [],
         resources: proposal.resources || [],
+        projectId: proposal.projectId || plan.context.projectId,
         planId: id,
         planHash: plan.hash,
         contextDocuments: [documentId],

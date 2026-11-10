@@ -24,7 +24,10 @@ try {
   for (let i = 0; i < args.length; i++) {
     if (args[i].startsWith("--")) {
       const key = args[i].slice(2);
-      if (["dry-run", "final", "ahp"].includes(key)) options[key] = true;
+      if (
+        ["dry-run", "final", "ahp", "auto-start", "inactive"].includes(key)
+      )
+        options[key] = true;
       else {
         if (args[i + 1] === undefined || args[i + 1].startsWith("--"))
           throw Error("Missing value for --" + key);
@@ -458,6 +461,53 @@ try {
     console.log(
       JSON.stringify(await localOrRequest("workspace.examples"), null, 2),
     );
+  else if (command === "github") {
+    const action = positionals[0] || "status";
+    let operation, value;
+    if (action === "status") {
+      operation = "github.repositories";
+      value = {};
+    } else if (action === "sync") {
+      operation = "github.sync";
+      value = {
+        repository: options.repository || positionals[1],
+        autoStart: options["auto-start"],
+      };
+    } else if (action === "configure") {
+      operation = "github.configure";
+      value = {
+        repository: options.repository || positionals[1],
+        projectId: options.project,
+        assignee: options.assignee,
+        label: options.label,
+        provider: options.provider,
+        model: options.model,
+        autoStart: options["auto-start"],
+        active: !options.inactive,
+        minimumPermission: options.permission,
+        allowedActors: options["allowed-actors"]
+          ?.split(",")
+          .map((entry) => entry.trim())
+          .filter(Boolean),
+      };
+    } else if (action === "project") {
+      operation = "github.project";
+      value = {
+        planId: options.plan || positionals[1],
+        repository: options.repository,
+      };
+    } else if (action === "start") {
+      operation = "github.start";
+      value = {
+        taskId: options.task || positionals[1],
+        provider: options.provider,
+        model: options.model,
+        projectId: options.project,
+        approvalMode: options.approvals,
+      };
+    } else throw Error("Choose github status, configure, sync, project, or start.");
+    console.log(JSON.stringify(await localOrRequest(operation, value), null, 2));
+  }
   else if (command === "generate")
     console.log(JSON.stringify(generate(config).stats, null, 2));
   else if (command === "check") {
@@ -566,6 +616,11 @@ try {
   editor --workspace PATH [--ssh HOST]  Print editor client settings
   seed --workspace PATH [--example product-launch]
   examples --workspace PATH             List available example packs
+  github configure OWNER/REPO --project ID [--assignee LOGIN] [--allowed-actors LOGINS]
+  github sync [--repository OWNER/REPO]  Import assigned ready issues
+  github project PLAN_ID --repository OWNER/REPO
+  github start TASK_ID [--provider openhands]
+  github status                          Show repository and machine registration
   query [--q QUERY] | show TASK_ID | update TASK_ID --status STATUS
   activity TASK_ID --action start|heartbeat|pause|finish ...
   skill --workspace PATH                Print the portable workflow skill

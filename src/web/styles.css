@@ -475,9 +475,18 @@ select { min-height: 32px; padding: 0 8px; font-size: 10px; }
 .form-note { margin: 14px 0 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
 .settings-form { display: flex; flex-direction: column; gap: 16px; }
 .settings-form label { display: grid; gap: 6px; color: #d2d2d2; font-size: 12px; }
-.settings-form input, .settings-form textarea { width: 100%; padding: 8px 10px; font-size: 12px; }
+.settings-form input, .settings-form textarea, .settings-form select { width: 100%; padding: 8px 10px; font-size: 12px; }
 .settings-form textarea { resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; line-height: 1.5; }
 .settings-form small { color: var(--muted); font-size: 10px; line-height: 1.55; }
+.settings-form .checkbox-row { display: flex; align-items: center; gap: 8px; }
+.settings-form .checkbox-row input { width: auto; }
+.settings-actions { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 10px; }
+.settings-actions .button { display: inline-flex; align-items: center; gap: 6px; }
+.github-issue-list { display: grid; gap: 8px; }
+.github-issue-list article { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px; border: 1px solid var(--line); border-radius: 6px; }
+.github-issue-list article > div:first-child { display: grid; gap: 4px; min-width: 0; }
+.github-issue-list strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+.github-issue-list small { color: var(--muted); font-size: 9px; line-height: 1.4; }
 .form-actions { display: flex; gap: 10px; }
 .usage-meters { display: flex; flex-direction: column; gap: 14px; align-items: flex-start; }
 .usage-meter { width: 100%; }
