@@ -70,9 +70,40 @@ export type State = {
   edges: Array<{ id?: string; from: string; to: string; kind: string; reason?: string }>;
   documents: Record<string, DocumentRecord>;
   presentation?: {
-    views?: Array<{ id: string; title: string; caption?: string }>;
-    tours?: Array<{ id: string; title: string; steps?: unknown[] }>;
+    views?: SavedView[];
+    tours?: SavedTour[];
   };
+};
+
+export type SavedView = {
+  id: string;
+  title: string;
+  caption?: string;
+  view?: string;
+  filters?: {
+    q?: string;
+    scope?: string;
+    status?: string;
+    activity?: string;
+    epic?: string;
+    track?: string;
+    tag?: string;
+  };
+  group?: string;
+  detail?: string;
+  selected?: string;
+  zoom?: number;
+  taskIds?: string[];
+  stripOrder?: string;
+  stripZoom?: number;
+  stripAt?: number;
+  focus?: string;
+};
+
+export type SavedTour = {
+  id: string;
+  title: string;
+  steps?: Array<{ view?: string; visualization?: string; visualizationId?: string }>;
 };
 
 export type DocumentRecord = {
