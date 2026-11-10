@@ -259,93 +259,100 @@
       <main id="main">
         <div class="toolbar">
           <div class="toolbar-actions">
-            <button
-              id="toggle-left"
-              class="button subtle icon-button"
-              aria-controls="filters-panel"
-              title="Filters"
-              aria-label="Toggle filters"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.7"
-                stroke-linecap="round"
-                stroke-linejoin="round"
+            <div class="toolbar-page-actions">
+              <button id="show-toc" class="button subtle" hidden>
+                Contents
+              </button>
+              <div class="toolbar-dropdowns">
+                <label id="group-control"
+                  >Group
+                  <select id="group">
+                    <option value="status">Status</option>
+                    <option value="epic">Epic</option>
+                    <option value="track">Track</option>
+                    <option value="tag">Tags</option>
+                  </select></label
+                ><label id="detail-control"
+                  ><select id="detail">
+                    <option value="overview">Delivery overview</option>
+                    <option value="all">All matching tasks</option>
+                  </select></label
+                >
+              </div>
+              <span class="toolbar-divider" aria-hidden="true">|</span
+              ><span id="result-count"></span><span id="filter-note"></span>
+            </div>
+            <div class="toolbar-common-actions">
+              <button
+                id="toggle-left"
+                class="button subtle icon-button"
+                aria-controls="filters-panel"
+                title="Filters"
+                aria-label="Toggle filters"
               >
-                <path d="M3 5h18l-7 8v6l-4 2v-8z" />
-              </svg></button
-            ><button
-              id="quick-task"
-              class="button subtle icon-button"
-              title="New task"
-              aria-label="New task"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.7"
-                stroke-linecap="round"
-                stroke-linejoin="round"
+                <svg
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M3 5h18l-7 8v6l-4 2v-8z" />
+                </svg></button
+              ><button
+                id="quick-task"
+                class="button subtle icon-button"
+                title="New task"
+                aria-label="New task"
               >
-                <path d="M12 5v14M5 12h14" />
-              </svg></button
-            ><button
-              id="fullscreen"
-              class="button subtle icon-button"
-              title="Full screen"
-              aria-label="Full screen"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.7"
-                stroke-linecap="round"
-                stroke-linejoin="round"
+                <svg
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M12 5v14M5 12h14" />
+                </svg></button
+              ><button
+                id="fullscreen"
+                class="button subtle icon-button"
+                title="Full screen"
+                aria-label="Full screen"
               >
-                <path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5" />
-              </svg></button
-            ><button
-              id="clear-filters"
-              class="button subtle icon-button"
-              title="Reset filters"
-              aria-label="Reset filters"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.7"
-                stroke-linecap="round"
-                stroke-linejoin="round"
+                <svg
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5" />
+                </svg></button
+              ><button
+                id="clear-filters"
+                class="button subtle icon-button"
+                title="Reset filters"
+                aria-label="Reset filters"
               >
-                <path d="M3 10a9 9 0 1 1 2 8M3 4v6h6" />
-              </svg></button
-            ><button id="show-toc" class="button subtle" hidden>Contents</button
-            ><span class="toolbar-divider" aria-hidden="true">|</span
-            ><span id="result-count"></span><span id="filter-note"></span>
-            <div class="toolbar-dropdowns">
-              <label id="group-control"
-                >Group
-                <select id="group">
-                  <option value="status">Status</option>
-                  <option value="epic">Epic</option>
-                  <option value="track">Track</option>
-                  <option value="tag">Tags</option>
-                </select></label
-              ><label id="detail-control"
-                ><select id="detail">
-                  <option value="overview">Delivery overview</option>
-                  <option value="all">All matching tasks</option>
-                </select></label
-              >
+                <svg
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M3 10a9 9 0 1 1 2 8M3 4v6h6" />
+                </svg>
+              </button>
             </div>
           </div>
         </div>

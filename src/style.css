@@ -7876,9 +7876,7 @@ body > .site-navigation.header {
   display: flex;
   align-items: center;
   gap: 5px;
-  flex: 0 0 112px;
-  width: 112px;
-  min-width: 112px;
+  flex: none;
 }
 .page-help {
   display: grid;
@@ -7958,6 +7956,20 @@ body > .site-navigation.header {
   gap: 4px;
   margin: 0;
 }
+#page-tools .toolbar-page-actions,
+#page-tools .toolbar-common-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+#page-tools .toolbar-page-actions {
+  flex: 1;
+  min-width: 0;
+}
+#page-tools .toolbar-common-actions {
+  flex: none;
+  margin-left: auto;
+}
 #page-tools .toolbar .icon-button {
   width: 28px;
   min-width: 28px;
@@ -7972,9 +7984,9 @@ body > .site-navigation.header {
 #page-tools .toolbar-dropdowns {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: flex-start;
   width: auto;
-  margin-left: auto;
+  margin-left: 0;
   gap: 8px;
   padding: 0;
   min-width: 0;
@@ -8286,8 +8298,16 @@ body:has(.workspace.theater) > .site-topbar {
   }
   #page-tools .toolbar-actions {
     gap: 2px;
+  }
+  #page-tools .toolbar-page-actions {
     overflow-x: auto;
     scrollbar-width: none;
+  }
+  #page-tools .toolbar-page-actions::-webkit-scrollbar {
+    display: none;
+  }
+  #page-tools .toolbar-common-actions {
+    padding-left: 2px;
   }
   #page-tools .toolbar .icon-button {
     min-width: 28px;
