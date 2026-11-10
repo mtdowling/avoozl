@@ -125,6 +125,45 @@ workspace, and the extension acts on it when it next connects — the same
 mechanism as `intent.submit`, read by the client rather than pushed to it.
 That is a real option, not something to assume works; nothing of it is built.
 
+## Embedding someone else's chat UI instead (OpenCode)
+
+Considered, because it would be attractive if our website had no chat. It
+does: `src/app/ui/workspace.mjs` already renders the transcript with history
+paging, a composer with send, a queue-versus-steer choice where the provider
+supports steering, a Stop control, the approvals mode, and request answering
+with option buttons and a free-text field. The phone measurement drove exactly
+those controls by thumb.
+
+What OpenCode actually offers (checked against its own documentation, MIT
+licensed): `opencode serve` is an HTTP server with server-sent events, session
+and message endpoints, `POST /session/:id/permissions/:permissionID` for a
+permission response and `POST /session/:id/abort` to stop a turn. `opencode
+web` is a browser interface **served by that same server**; its documentation
+describes no iframe embedding and no npm component, and a `--cors` flag is
+offered for "custom frontends" without documenting how to build one.
+
+So "embed their UI" is really "serve our data through their API": their front
+end talks to their server's session model, so we would implement a second
+protocol facade beside the Agent Host Protocol one, and their model would have
+to express the semantics this project spent its effort on — interrupted
+distinct from failed, queued distinct from delivered, approval options by
+identifier, unsend, model choice at a turn boundary, and one writer per
+session. Their V1 and V2 documentation already live at different URLs, so that
+facade would be tracking a moving target. Their server also runs its own agent
+loop, which is the one thing we must not have: the host owns the provider
+process.
+
+The version of this idea that does fit is the opposite direction — **OpenCode
+as a provider**, a `src/app/providers/opencode.mjs` alongside `claude.mjs` and
+`codex.mjs`, using its SSE stream, its permission endpoint and its abort
+endpoint behind the existing adapter interface and the cancellation contract.
+That adds a provider without adopting a second UI or a second session store,
+and it is the shape the architecture already has room for.
+
+If the goal is a better chat on a phone, the cheapest real improvement is not
+a foreign UI: it is raising our own touch targets from the measured 131×40,
+57×42 and 34×28 to the 44px minimum.
+
 ## What is still unknown
 
 - The physical-phone gate (VSC-08) and the remote route (VSC-07) are open; the
