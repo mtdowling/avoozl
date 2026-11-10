@@ -6,7 +6,7 @@ import appStyles from "./styles.css?inline";
 
 const STORAGE_PREFIX = "avoozl.canvas.url";
 const DEFAULT_URL = "http://127.0.0.1:9428";
-const APP_VERSION = "0.1.4";
+const APP_VERSION = "0.1.5";
 const bundledDependencyStyles = "__AVOOZL_BUNDLED_CSS__";
 
 type CanvasHost = {

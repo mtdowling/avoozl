@@ -141,6 +141,7 @@ export function openHandsSettings({
           })
         : undefined),
     model: setting("MODEL", "", env),
+    agentProfile: setting("AGENT_PROFILE", "", env) || undefined,
     llmApiKey: setting("LLM_API_KEY", "", env) || undefined,
     llmBaseUrl: setting("LLM_BASE_URL", "", env) || undefined,
     pluginSource: setting("PLUGIN", pluginRoot, env),
@@ -287,6 +288,24 @@ export class OpenHandsAdapter {
         : {}),
     };
   }
+  async agentProfile() {
+    const { data: listing } = await this.http.get("/api/agent-profiles"),
+      selected = this.settings.agentProfile
+        ? (listing.profiles || []).find(
+            (profile) =>
+              profile.id === this.settings.agentProfile ||
+              profile.name === this.settings.agentProfile,
+          )
+        : (listing.profiles || []).find(
+            (profile) => profile.id === listing.active_agent_profile_id,
+          );
+    if (this.settings.agentProfile && !selected)
+      fail(
+        `OpenHands agent profile ${this.settings.agentProfile} was not found.`,
+        409,
+      );
+    return selected || null;
+  }
   async start(options) {
     this.options = options;
     if (options.catalogOnly) {
@@ -309,6 +328,12 @@ export class OpenHandsAdapter {
     if (options.resumeId) {
       const info = await this.client.getConversation(options.resumeId);
       this.conversationId = info.id;
+      this.agentKind =
+        info.agent?.acp_server || info.agent?.kind === "ACPAgent"
+          ? "acp"
+          : "openhands";
+      this.agentProfileId =
+        info.launched_agent_profile?.agent_profile_id || null;
       if (options.mcpUrl)
         await this.client.updateSecrets(this.conversationId, {
           secrets: {
@@ -329,10 +354,19 @@ export class OpenHandsAdapter {
           },
         });
     } else {
-      const agent = agentForMode(this, options.mode, options.model),
+      const profile = await this.agentProfile(),
+        agent =
+          profile || options.model || this.settings.model
+            ? profile
+              ? null
+              : agentForMode(this, options.mode, options.model)
+            : fail(
+                "No OpenHands agent is configured. Run `avoozl openhands setup-agents`, or configure an OpenHands LLM profile.",
+                409,
+              ),
         info = await this.client.createConversation({
           conversation_id: options.conversationId,
-          agent,
+          ...(profile ? { agent_profile_id: profile.id } : { agent }),
           max_iterations: 500,
           stuck_detection: true,
           conversation_runtime: "local",
@@ -359,10 +393,18 @@ export class OpenHandsAdapter {
           tags: { executor: "avoozl" },
         });
       this.conversationId = info.id;
+      this.agentKind = profile?.agent_kind || "openhands";
+      this.agentProfileId = profile?.id || null;
     }
     this.emit("session", {
       providerSessionId: this.conversationId,
-      model: options.model || this.settings.model,
+      model:
+        options.model ||
+        this.settings.model ||
+        this.settings.agentProfile ||
+        this.agentProfileId,
+      agentProfileId: this.agentProfileId,
+      agentKind: this.agentKind,
       workspace: options.cwd,
       executor: "openhands",
       server: this.settings.host,
@@ -537,12 +579,18 @@ export class OpenHandsAdapter {
     return { applies: "immediately" };
   }
   async setModel(model) {
-    await this.http.post(
-      `/api/conversations/${this.conversationId}/switch_llm`,
-      {
-        llm: this.modelConfig(model),
-      },
-    );
+    if (this.agentKind === "acp")
+      await this.http.post(
+        `/api/conversations/${this.conversationId}/switch_acp_model`,
+        { model },
+      );
+    else
+      await this.http.post(
+        `/api/conversations/${this.conversationId}/switch_llm`,
+        {
+          llm: this.modelConfig(model),
+        },
+      );
     this.options.model = model;
     return { applies: "next-turn", model };
   }

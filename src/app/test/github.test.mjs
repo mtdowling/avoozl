@@ -191,6 +191,21 @@ test("authorized assigned issues become exact ready tasks and body changes quara
     "https://example.test/example/code/commit/abcdef0123456789",
   );
   assert.equal(detail.codeChanges.pullRequests[0].number, 12);
+  const localData = store.read(),
+    localTask = localData.tasks.find((item) => !item.github);
+  localTask.projectId = "code";
+  localTask.integration = {
+    commit: "1234567890abcdef",
+    branch: "main",
+    repo: "/tmp/code",
+    at: "2026-11-10T12:35:00Z",
+  };
+  store.commit(localData, "Record local code link");
+  const linkedLocal = await ops.execute("task.get", { id: localTask.id });
+  assert.equal(
+    linkedLocal.codeChanges.commits[0].url,
+    "https://github.com/example/code/commit/1234567890abcdef",
+  );
 
   github.issues[0].body += "\n\nNew unreviewed scope.";
   const changed = await ops.execute("github.sync");

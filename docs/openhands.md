@@ -20,7 +20,7 @@ The integration is pinned and checked as one compatibility set:
 | OpenHands Agent Server         | `1.61.0` |
 | `@openhands/typescript-client` | `1.61.0` |
 | `@openhands/agent-canvas`      | `1.38.0` |
-| Avoozl OpenHands App           | `0.1.4`  |
+| Avoozl OpenHands App           | `0.1.5`  |
 
 Avoozl refuses a different Agent Server version before creating a conversation.
 Upgrades must test the client, plugin, and embedded Canvas together.
@@ -56,23 +56,44 @@ Agent Canvas persists its generated session key at
 standard loopback Agent Canvas backend on port `38100`, Avoozl discovers that
 file automatically. No secret is copied into a workspace or repository.
 
-Configure only the model credentials in the environment of both the web process
-and its agent host:
+Authenticate the Claude Code or Codex CLI normally, or configure its credentials
+through OpenHands. Then let Avoozl create restricted, reusable Agent Profiles:
 
 ```sh
-export AVOOZL_OPENHANDS_MODEL=anthropic/claude-sonnet-4-5
-export AVOOZL_OPENHANDS_LLM_API_KEY=the-provider-key
+node cli.mjs openhands setup-agents
+node cli.mjs openhands setup-agents --default codex
+```
+
+The command verifies both agents by default, activates the first working
+profile, and prints no credential values. Limit setup with
+`--agents claude-code` or `--agents codex`. Use `--skip-verify` only when
+installing profiles before the agent CLI is authenticated.
+
+The managed profiles expose only the provider's standard credential names and
+the two run-scoped Avoozl MCP capabilities. They do not encode a particular
+credential source, cloud, company environment, or login workflow. Teammates can
+therefore use personal API keys, CLI login, or their organization's supported
+credential mechanism without changing Avoozl.
+
+Start Avoozl after the profiles are ready:
+
+```sh
 node cli.mjs serve \
   --workspace /path/to/workspace \
   --canvas-origin http://127.0.0.1:38400
 ```
+
+`AVOOZL_OPENHANDS_AGENT_PROFILE` can select a profile by name or stable ID.
+Without it, Avoozl uses OpenHands' active Agent Profile. The older
+`AVOOZL_OPENHANDS_MODEL`, `AVOOZL_OPENHANDS_LLM_API_KEY`, and
+`AVOOZL_OPENHANDS_LLM_BASE_URL` settings remain a direct-agent compatibility
+path when no Agent Profile is active.
 
 For a separately managed Agent Server, set `AVOOZL_OPENHANDS_URL` and either
 `AVOOZL_OPENHANDS_API_KEY` or `AVOOZL_OPENHANDS_API_KEY_FILE`. An explicitly
 configured key always wins. Avoozl refuses symlinked, non-regular, empty, or
 group/world-accessible key files.
 
-`AVOOZL_OPENHANDS_LLM_BASE_URL` optionally selects an OpenAI-compatible endpoint.
 The existing `AICOMMANDER_OPENHANDS_*` and `NUPP_WORKSPACE_OPENHANDS_*` prefixes
 remain aliases. Instead of the CLI flag, the exact Canvas web origin can be set
 with `AVOOZL_CANVAS_ORIGINS` or the workspace's `canvasOrigins` array. This is an
@@ -128,8 +149,10 @@ must remain an explicit operator action.
   OpenHands conversation. The proxy refuses general Agent Server settings,
   another conversation, secret changes, forks, children, and runtime
   reprovisioning.
-- Ask and plan sessions have no OpenHands terminal, file-editor, or browser tools.
-  Their embedded workspace proxy also refuses mutating runtime routes.
+- Ask and plan conversations receive only their narrow run-scoped Avoozl MCP
+  capability. The embedded workspace proxy refuses mutating runtime routes.
+- New-task conversations may record the user's agreed request or append a
+  proposal. They cannot approve, dispatch, integrate, or accept work.
 - Implement sessions receive terminal, file-editor, and browser tools inside the
   exact Avoozl-created worktree.
 - Each managed agent receives a separate expiring MCP bearer token. Only its hash
@@ -157,5 +180,6 @@ Avoozl records an active run as disconnected rather than inferring failure,
 completion, or permission to create a replacement. Resume reattaches to the
 recorded conversation and rotates its run-scoped MCP capability.
 
-OpenHands is an additional executor during migration. Codex and Claude remain
-available, and existing run records are not converted.
+OpenHands is the product execution surface. Existing Codex and Claude run
+records remain readable, but Avoozl does not present a second chat or execution
+UI for them.

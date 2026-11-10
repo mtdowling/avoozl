@@ -8,6 +8,7 @@ const MODE_WRITES = Object.freeze({
     "plans_activate_visualization",
     "plans_submit_review",
   ]),
+  "new-task": new Set(["plans_capture", "plans_propose_work"]),
   plan: new Set(["plans_propose_work"]),
   implement: new Set(["plans_activity", "plans_propose_work"]),
 });
@@ -32,7 +33,7 @@ export function mintRunCapability(
       id,
       runId: run.id,
       taskId: run.taskId,
-      mode: run.mode,
+      mode: run.capabilityMode || run.mode,
       createdAt: now.toISOString(),
       expiresAt: new Date(now.getTime() + lifetimeMs).toISOString(),
     };

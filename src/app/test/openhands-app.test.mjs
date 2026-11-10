@@ -8,6 +8,7 @@ import {
   installOpenHandsCanvasApp,
   OPENHANDS_CANVAS_APP,
   openHandsCanvasAppStatus,
+  setupOpenHandsAgents,
 } from "../openhands-app.mjs";
 import { OPENHANDS_VERSIONS } from "../providers/openhands.mjs";
 
@@ -65,7 +66,7 @@ test("the packaged Canvas App registers its declared Avoozl page", async () => {
     },
   });
   assert.equal(manifest.schema_version, 1);
-  assert.equal(manifest.version, "0.1.4");
+  assert.equal(manifest.version, "0.1.5");
   assert.equal(manifest.backend.schema_version, 1);
   assert.equal(manifest.backend.health.path, "/api/health");
   for (const artifact of Object.values(manifest.backend.artifacts)) {
@@ -201,4 +202,137 @@ test("unsupported hosts enable the native exact-origin fallback without backend 
   ]);
   assert.equal(result.backend.state, "unsupported");
   assert.match(result.note, /cannot own/);
+});
+
+test("agent setup installs provider-neutral profiles and activates a verified default", async () => {
+  const calls = [],
+    saved = new Map(),
+    ids = {
+      "avoozl-claude-code": "profile-claude",
+      "avoozl-codex": "profile-codex",
+    },
+    client = {
+      server: {
+        getServerInfo: async () => ({ version: OPENHANDS_VERSIONS.server }),
+      },
+      async get(pathname) {
+        calls.push(["get", pathname]);
+        if (pathname === "/api/agent-profiles")
+          return {
+            profiles: [...saved.entries()].map(([name, profile]) => ({
+              id: ids[name],
+              name,
+              agent_kind: profile.agent_kind,
+            })),
+            active_agent_profile_id: null,
+          };
+        const name = decodeURIComponent(pathname.split("/").at(-1));
+        return { name, profile: saved.get(name) };
+      },
+      async post(pathname, body) {
+        calls.push(["post", pathname, body]);
+        if (pathname === "/api/acp/models")
+          return {
+            current_model_id: "default",
+            available_models: [{ model_id: "default" }],
+            error: null,
+          };
+        if (pathname.endsWith("/materialize"))
+          return { valid: true, errors: [] };
+        if (pathname.endsWith("/activate")) return { id: "activated" };
+        const name = decodeURIComponent(pathname.split("/").at(-1));
+        saved.set(name, body);
+        return { name };
+      },
+    };
+
+  const result = await setupOpenHandsAgents({
+    client,
+    settings: { host: "http://127.0.0.1:38100" },
+    defaultAgent: "codex",
+  });
+
+  assert.equal(result.activeProfile, "avoozl-codex");
+  assert.deepEqual(
+    result.configured.map((entry) => entry.ready),
+    [true, true],
+  );
+  assert.deepEqual(saved.get("avoozl-claude-code").secret_refs, [
+    "AVOOZL_MCP_URL",
+    "AVOOZL_MCP_TOKEN",
+    "ANTHROPIC_API_KEY",
+  ]);
+  assert.deepEqual(saved.get("avoozl-codex").secret_refs, [
+    "AVOOZL_MCP_URL",
+    "AVOOZL_MCP_TOKEN",
+    "OPENAI_API_KEY",
+    "CODEX_AUTH_JSON",
+  ]);
+  assert.ok(
+    calls.some(
+      ([kind, pathname]) =>
+        kind === "post" &&
+        pathname === "/api/agent-profiles/profile-codex/activate",
+    ),
+  );
+  assert.doesNotMatch(JSON.stringify({ calls, result }), /aws|bedrock|asbx/i);
+});
+
+test("agent setup preserves managed profile customization on retries", async () => {
+  const existing = {
+      id: "profile-claude",
+      revision: 4,
+      name: "avoozl-claude-code",
+      agent_kind: "acp",
+      acp_server: "claude-code",
+      acp_model: "preferred",
+      acp_session_mode: "isolated",
+      acp_prompt_timeout: 99,
+      acp_startup_timeout: 44,
+      acp_command: "custom-command",
+      acp_args: ["--flag"],
+      mcp_server_refs: ["team-tools"],
+      integration_refs: ["source-control"],
+      secret_refs: ["UNSAFE_EXTRA"],
+    },
+    saved = [],
+    client = {
+      server: {
+        getServerInfo: async () => ({ version: OPENHANDS_VERSIONS.server }),
+      },
+      async get(pathname) {
+        if (pathname === "/api/agent-profiles")
+          return {
+            profiles: [
+              {
+                id: existing.id,
+                name: existing.name,
+                agent_kind: existing.agent_kind,
+              },
+            ],
+            active_agent_profile_id: existing.id,
+          };
+        return { name: existing.name, profile: existing };
+      },
+      async post(pathname, body) {
+        if (pathname.endsWith("/materialize"))
+          return { valid: true, errors: [] };
+        if (pathname.endsWith("/activate")) return {};
+        saved.push(body);
+        return {};
+      },
+    };
+
+  const result = await setupOpenHandsAgents({
+    agents: ["claude-code"],
+    verify: false,
+    client,
+    settings: { host: "http://127.0.0.1:38100" },
+  });
+
+  assert.equal(result.activeProfile, "avoozl-claude-code");
+  assert.equal(saved[0].acp_model, "preferred");
+  assert.equal(saved[0].acp_command, "custom-command");
+  assert.deepEqual(saved[0].mcp_server_refs, ["team-tools"]);
+  assert.ok(!saved[0].secret_refs.includes("UNSAFE_EXTRA"));
 });

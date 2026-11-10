@@ -94,7 +94,7 @@ function validatedEvidence(store, data, task) {
   ).slice(0, 2000);
 }
 
-function repositoryBase(task) {
+function repositoryBase(store, task) {
   if (typeof task.github?.url === "string") {
     try {
       const url = new URL(task.github.url);
@@ -107,15 +107,19 @@ function repositoryBase(task) {
       }
     } catch {}
   }
-  return /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(
-    task.github?.repository || "",
-  )
-    ? `https://github.com/${task.github.repository}`
+  const repository =
+    task.github?.repository ||
+    store
+      .list("github_repositories")
+      .find((entry) => entry.projectId === task.projectId)?.id ||
+    "";
+  return /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)
+    ? `https://github.com/${repository}`
     : "";
 }
 
 function taskCodeChanges(store, data, task, runs, evidenceRecords) {
-  const base = repositoryBase(task),
+  const base = repositoryBase(store, task),
     commits = new Map(),
     pulls = new Map();
   const addCommit = (sha, source) => {

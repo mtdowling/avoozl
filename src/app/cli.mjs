@@ -17,6 +17,7 @@ import { generate } from "./compat-server.mjs";
 import {
   installOpenHandsCanvasApp,
   openHandsCanvasAppStatus,
+  setupOpenHandsAgents,
 } from "./openhands-app.mjs";
 
 const args = process.argv.slice(2),
@@ -28,7 +29,16 @@ try {
   for (let i = 0; i < args.length; i++) {
     if (args[i].startsWith("--")) {
       const key = args[i].slice(2);
-      if (["dry-run", "final", "ahp", "auto-start", "inactive"].includes(key))
+      if (
+        [
+          "dry-run",
+          "final",
+          "ahp",
+          "auto-start",
+          "inactive",
+          "skip-verify",
+        ].includes(key)
+      )
         options[key] = true;
       else {
         if (args[i + 1] === undefined || args[i + 1].startsWith("--"))
@@ -617,9 +627,24 @@ try {
           2,
         ),
       );
+    else if (action === "setup-agents")
+      console.log(
+        JSON.stringify(
+          await setupOpenHandsAgents({
+            agents: options.agents,
+            defaultAgent: options.default,
+            verify: !options["skip-verify"],
+          }),
+          null,
+          2,
+        ),
+      );
     else if (action === "status")
       console.log(JSON.stringify(await openHandsCanvasAppStatus(), null, 2));
-    else throw Error("Choose openhands status, install-app, or serve-backend.");
+    else
+      throw Error(
+        "Choose openhands status, setup-agents, install-app, or serve-backend.",
+      );
   } else if (command === "generate")
     console.log(JSON.stringify(generate(config).stats, null, 2));
   else if (command === "check") {
@@ -741,6 +766,8 @@ try {
   planning publish PLAN_ID               Open a private planning pull request
   planning reconcile                     Project tasks from merged planning PRs
   openhands install-app                  Install and enable Avoozl inside Canvas
+  openhands setup-agents [--agents claude-code,codex] [--default AGENT]
+                                         Configure agent CLIs for Avoozl chats
   openhands status                       Show Canvas App installation status
   openhands serve-backend                Run an OpenHands-owned Avoozl workspace
   serve --canvas-origin URL              Allow the exact OpenHands Canvas origin
