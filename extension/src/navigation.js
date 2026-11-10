@@ -78,8 +78,24 @@ class ChatNavigator {
       session: entry.session,
       chat: entry.chat,
       provider: entry.provider,
+      worktree: entry.worktree || null,
       candidates: candidateResources(entry, uuid),
     };
+  }
+  // The editor's session list keeps only sessions whose working directory is,
+  // or contains, one of the open folders. Every run works in its own worktree,
+  // a sibling of the repository, so a session is routinely absent from an
+  // editor opened on the repository. That is not a host or protocol fault and
+  // must not be reported as one.
+  containment(worktree) {
+    if (!worktree) return { known: false };
+    const folders = vscode.workspace.workspaceFolders || [];
+    const target = vscode.Uri.file(worktree).fsPath.replace(/\/+$/, "");
+    const contains = folders.some((folder) => {
+      const open = folder.uri.fsPath.replace(/\/+$/, "");
+      return open === target || open.startsWith(target + "/");
+    });
+    return { known: true, contains, worktree: target };
   }
   async open(runId) {
     const capability = await this.probe();
@@ -129,6 +145,35 @@ class ChatNavigator {
       return report;
     }
     report.chat = channels.chat;
+    const containment = this.containment(channels.worktree);
+    report.containment = containment;
+    if (containment.known && !containment.contains) {
+      const choice = await vscode.window.showWarningMessage(
+        "This conversation works in " +
+          containment.worktree +
+          ", which is outside the folders open here. VS Code lists a conversation only when its working directory is open, so the native view will not show it.",
+        "Open that folder",
+        "Open in the website",
+      );
+      if (choice === "Open that folder") {
+        report.used = "open-folder";
+        report.verification =
+          "the conversation's worktree is not an open folder; opened it so the editor can list the conversation";
+        this.log(JSON.stringify(report));
+        await vscode.commands.executeCommand(
+          "vscode.openFolder",
+          vscode.Uri.file(containment.worktree),
+          { forceNewWindow: true },
+        );
+        return report;
+      }
+      report.used = "picker";
+      report.verification =
+        "the conversation's worktree is not an open folder, so the editor cannot list it";
+      await this.fallback(runId, report.verification);
+      this.log(JSON.stringify(report));
+      return report;
+    }
     report.tried = [];
     for (const resource of channels.candidates) {
       let failure = null;

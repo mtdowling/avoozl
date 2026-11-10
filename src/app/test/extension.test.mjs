@@ -104,6 +104,9 @@ function installVscodeStub(t, overrides = {}) {
     },
     workspace: {
       textDocuments: [],
+      workspaceFolders: (overrides.folders || []).map((value) => ({
+        uri: { fsPath: value, toString: () => "file://" + value },
+      })),
       getConfiguration: () => ({
         get: (key, fallback) =>
           overrides.configuration?.[key] !== undefined
@@ -464,6 +467,94 @@ test("native conversation navigation is gated, verified, and falls back", async 
   assert.equal(unverified.used, "picker");
   assert.equal(unverified.verified, false);
   assert.match(unverified.verification, /no connected agent host/);
+});
+
+test("a conversation whose worktree is not open explains itself", async (t) => {
+  // Observed on 1.138.0: the editor keeps only those of a host's sessions
+  // whose working directory is, or contains, an open folder. Every run works
+  // in its own worktree, a sibling of the repository, so an editor opened on
+  // the repository lists none of them. Reporting that as an empty host, or
+  // attempting the command anyway and calling the absence unverified, would
+  // both misattribute a containment rule to the host.
+  const { calls, queue } = installVscodeStub(t, {
+    version: "1.138.0",
+    commands: ["workbench.action.chat.openSessionInEditorGroup"],
+    configuration: { nativeChatNavigation: "auto" },
+    folders: ["/tmp/project/repository"],
+  });
+  const { endpoint, store } = await serve(t);
+  const { WorkspaceClient } = loadExtensionModule("client.js");
+  const { ChatNavigator, NATIVE_COMMAND } =
+    loadExtensionModule("navigation.js");
+  store.put("runs", {
+    id: "run-outside",
+    taskId: "sample-task",
+    state: "waiting-approval",
+    mode: "implement",
+    provider: "claude",
+    prompt: "Needs a decision",
+  });
+  const navigator = new ChatNavigator({
+    client: new WorkspaceClient(endpoint),
+    log: () => {},
+  });
+  navigator.manifest = () => ({ url: "ws://127.0.0.1:1" });
+  navigator.channels = async () => ({
+    session: "ahp-session:/abc",
+    chat: "ahp-chat:/def",
+    provider: "claude",
+    worktree: "/tmp/project/worktrees/run-outside",
+    candidates: ["agent-host-claude:/abc"],
+  });
+
+  // Declining the offer falls back without ever invoking the command.
+  queue.warnings.push("Open in the website");
+  queue.picks.push(undefined);
+  const declined = await navigator.open("run-outside");
+  assert.equal(declined.used, "picker");
+  assert.equal(declined.containment.contains, false);
+  assert.match(declined.verification, /not an open folder/);
+  assert.equal(
+    calls.commands.some((entry) => entry.name === NATIVE_COMMAND),
+    false,
+    "the command is not attempted where the editor cannot list the session",
+  );
+  assert.match(
+    calls.messages.at(-1)?.message || calls.messages[0].message,
+    /outside the folders open here/,
+  );
+
+  // Accepting opens that folder, which is what makes the session listable.
+  queue.warnings.push("Open that folder");
+  const opened = await navigator.open("run-outside");
+  assert.equal(opened.used, "open-folder");
+  const folderCommand = calls.commands.find(
+    (entry) => entry.name === "vscode.openFolder",
+  );
+  assert.equal(
+    folderCommand.args[0].fsPath,
+    "/tmp/project/worktrees/run-outside",
+  );
+
+  // With that folder open, navigation proceeds normally.
+  const inside = new ChatNavigator({
+    client: new WorkspaceClient(endpoint),
+    log: () => {},
+  });
+  inside.manifest = () => ({ url: "ws://127.0.0.1:1" });
+  inside.channels = navigator.channels;
+  inside.confirmSubscription = async () => ({
+    confirmed: true,
+    detail: "a connected client subscribed to ahp-chat:/def",
+  });
+  inside.containment = () => ({
+    known: true,
+    contains: true,
+    worktree: "/tmp/project/worktrees/run-outside",
+  });
+  const native = await inside.open("run-outside");
+  assert.equal(native.used, "native");
+  assert.equal(native.verified, true);
 });
 
 test("the task graph webview is bounded by its page and reuses workspace models", async (t) => {

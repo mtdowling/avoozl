@@ -128,6 +128,23 @@ The `agent-host-${provider}` form is confirmed in the 1.138.0 bundle, but no API
 
 So native chat for owned sessions needs the bridge shape, which means the standalone server package rather than the desktop app. Until that is exercised, the honest position is that the session list works, the editor does not, and the extension's verified-candidate-then-fallback behaviour reports exactly that.
 
+**A second constraint, found while exercising the bridge shape: the editor lists only those of a host's sessions whose working directory is, or contains, an open folder.** The workbench's session list drops everything else before any UI sees it:
+
+```js
+_matchesAnyFolder(candidates, folders) {
+  return candidates.some(c => folders.some(f => isEqualOrParent(c, f.uri)));
+}
+```
+
+The candidates are the session's `workingDirectories` (plus a `project.uri`, and a `_meta.multiRoot.workspaceFile` match for multi-root windows). Every run here works in its own Git worktree, which is a **sibling** of the repository, not a child — so an editor opened on the repository lists none of its runs, and the symptom is indistinguishable from a host that advertised nothing. This cost three rounds of clicking to find, because `listSessions` was answered correctly every time; the facade's call log is what eventually showed the host returning the session and the editor discarding it.
+
+Two consequences, both now implemented:
+
+- The clicked-control check opens the run's worktree, not the fixture repository.
+- `ChatNavigator` checks containment before attempting the command, and offers to open the worktree instead of reporting an unverified attempt. A containment rule in the editor must not be reported as a host or protocol fault. `/health` carries each session's worktree so a client can make that distinction.
+
+This is also a product constraint, not only a test detail: an editor window opened on the repository will never list worktree-based runs, so the task-to-conversation path has to open the worktree window. It is a further reason the website's steering remains the general surface.
+
 If the internal command changes, provide a graceful session-picker/manual-open fallback. Proposed `chatSessionsProvider` APIs are another possible fallback for a private installation with explicit opt-in. They are not generally usable for a Marketplace release; a single-user opt-in is possible, with compatibility maintenance. Do not call the approach impossible merely because a proposal is involved.
 
 ## Remote access and the website decision
