@@ -6499,6 +6499,9 @@ body {
 .hub-session-note {
   margin: 9px 0 0;
   padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   background: #282828;
   border-left: 2px solid #929292;
   border-radius: 0 5px 5px 0;
@@ -6507,7 +6510,7 @@ body {
   line-height: 1.65;
 }
 .hub-session-note p {
-  margin: 0 0 8px;
+  margin: 0;
 }
 .hub-session-note code {
   font-size: 10px;
@@ -6516,6 +6519,47 @@ body {
 .hub-session-note .button {
   font-size: 10px;
   padding: 5px 9px;
+}
+.hub-session-title strong {
+  color: #e4e4e4;
+}
+.hub-session-hint {
+  color: #9d9d9d;
+  font-size: 11px;
+}
+/* Session IDs and branch names are long and get read character by character,
+   so they get their own labelled rows instead of running into the controls. */
+.hub-session-facts {
+  margin: 0;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 4px 14px;
+  font-size: 11px;
+}
+.hub-session-facts > div {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+}
+.hub-session-facts dt {
+  color: #969696;
+}
+.hub-session-facts dd {
+  margin: 0;
+  color: #d2d2d2;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+.hub-session-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.hub-session-actions .text-button {
+  margin-left: auto;
+  padding: 4px 0;
+  font-size: 11px;
 }
 .strip-stage {
   min-height: 180px;

@@ -195,7 +195,9 @@ body.resizing-panels { cursor: col-resize; user-select: none; }
 .search-label { display: flex; justify-content: space-between; margin-bottom: 7px; color: #c5c5c5; font-size: 11px; }
 .search-label span { color: var(--muted); font-size: 9px; }
 .query-box { padding: 7px; border: 1px solid #505050; border-radius: 7px; background: #151515; }
-.query-box textarea { width: 100%; min-height: 0; padding: 5px; resize: none; border: 0; outline: 0; background: transparent; font-size: 11px; line-height: 1.4; }
+/* Grow with the query instead of scrolling a 25px-tall transparent box, and
+   never scroll sideways: a wrapping textarea has nothing to reach for. */
+.query-box textarea { width: 100%; min-height: 0; padding: 5px; resize: none; border: 0; outline: 0; background: transparent; font-size: 11px; line-height: 16px; field-sizing: content; max-height: 112px; overflow-x: hidden; overflow-y: auto; overflow-wrap: break-word; }
 .faceted-screen:has(.facet-sidebar.prompt-search) { --facet-width: 340px !important; }
 .prompt-search-controls { margin-top: 10px; display: flex; flex-direction: column; gap: 10px; }
 .prompt-search-controls label { display: flex; flex-direction: column; gap: 5px; color: #c5c5c5; font-size: 11px; }
@@ -279,7 +281,10 @@ select { min-height: 32px; padding: 0 8px; font-size: 10px; }
 .message-body code, .prose code { color: #c5c5c5; }
 .composer { width: min(860px, calc(100% - 24px)); margin: 0 auto 10px; padding: 7px 8px 6px; border: 1px solid #464646; border-radius: 8px; background: #202020; }
 .composer:focus-within { border-color: var(--selected); }
-.composer-input { width: 100%; min-height: 40px; max-height: 180px; padding: 6px; border: 0; resize: none; outline: 0; color: var(--bright); background: transparent; font-size: 11px; line-height: 1.5; }
+/* The autosize textarea sets its own height, so max-height is what clamps a
+   long draft: scroll it vertically only, and wrap long tokens rather than
+   offering a sideways scrollbar nothing needs. */
+.composer-input { width: 100%; min-height: 40px; max-height: 180px; padding: 6px; border: 0; resize: none; outline: 0; color: var(--bright); background: transparent; font-size: 11px; line-height: 1.5; overflow-x: hidden; overflow-y: auto; overflow-wrap: break-word; }
 .composer-controls { min-height: 30px; display: flex; align-items: center; gap: 7px; }
 .composer-spacer, .toolbar-spacer { flex: 1; }
 .steer-toggle { display: flex; align-items: center; gap: 6px; color: #c5c5c5; font-size: 9px; }

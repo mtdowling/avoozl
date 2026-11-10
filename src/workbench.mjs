@@ -34,6 +34,9 @@ export function createWorkbench({
   trackName,
   refresh,
   setCount,
+  // Attaching an external transcript is Claude-only and needs a host that
+  // installs the session picker. Callers without one must not be offered it.
+  canLinkSession = false,
 }) {
   const prefs = { completed: false, inventory: false, nowTab: "working" };
   try {
@@ -177,11 +180,40 @@ export function createWorkbench({
   function person(task) {
     return task.activity?.owner || task.owner || "Unassigned";
   }
+  // An activity check-in records an owner and a session ID, never an agent
+  // brand. The provider is only known once a transcript has been attached, so
+  // an unattached worker is described by who reported it.
+  function reportedAgent(task) {
+    const id = task.activity?.connection?.provider;
+    return id ? { claude: "Claude", codex: "Codex" }[id] || id : "";
+  }
   function sessionNote(task) {
     if (!nowExpanded.has("session:" + task.id)) return "";
     const state = sessionStates.get(task.id),
-      loading = state?.status === "loading";
-    return `<div class="hub-session-note" role="status"><p><strong>${loading ? "Checking connected sessions…" : state?.error ? "Could not check this session" : "External check-in · transcript not connected"}</strong></p>${loading ? "" : state?.error ? "<p>" + esc(state.error) + "</p>" : "<p>This worker reports progress from outside the site’s agent host. Link its existing Claude session to read the transcript here. Direction changes do not send a message to the external worker.</p>"}<button class="button subtle" data-link-session="${esc(task.id)}">Link Claude session</button><small>Session: ${esc(task.activity?.sessionId || "Not reported")}${task.activity?.branch ? " · Branch: " + esc(task.activity.branch) : ""}</small><button class="text-button" data-reported-close="${esc(task.id)}" aria-label="Close session explanation">Close</button></div>`;
+      loading = state?.status === "loading",
+      agent = reportedAgent(task),
+      facts = [
+        ["Reported by", person(task)],
+        ["Session", task.activity?.sessionId || "Not reported"],
+        ...(task.activity?.branch ? [["Branch", task.activity.branch]] : []),
+        ...(agent ? [["Agent", agent]] : []),
+      ],
+      body = loading
+        ? ""
+        : state?.error
+          ? "<p>" + esc(state.error) + "</p>"
+          : "<p>This worker reports progress from outside this site’s agent host, so there is no transcript to read here. Updating the direction records it on the task; it does not send the worker a message.</p>" +
+            (canLinkSession
+              ? ""
+              : "<p class=\"hub-session-hint\">Attaching an existing transcript is supported for Claude sessions, through the CLI or MCP.</p>");
+    return `<div class="hub-session-note" role="status"><p class="hub-session-title"><strong>${loading ? "Checking connected sessions…" : state?.error ? "Could not check this session" : "External check-in · transcript not connected"}</strong></p>${body}<dl class="hub-session-facts">${facts
+      .map(
+        ([label, value]) =>
+          `<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`,
+      )
+      .join(
+        "",
+      )}</dl><div class="hub-session-actions">${canLinkSession ? `<button class="button subtle" data-link-session="${esc(task.id)}">Attach Claude transcript</button>` : ""}<button class="text-button" data-reported-close="${esc(task.id)}" aria-label="Close session explanation">Close</button></div></div>`;
   }
   function taskSummary(task, { running = false } = {}) {
     const signals = taskSignals(current.data, task),
