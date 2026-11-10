@@ -149,6 +149,19 @@ export class GitHubClient {
     );
   }
 
+  issueTimeline(value, number) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    return this.request(
+      "GET",
+      `/repos/${owner}/${repo}/issues/${number}/timeline`,
+      {
+        query: { per_page: 100 },
+        accept: "application/vnd.github+json",
+      },
+    );
+  }
+
   issue(value, number) {
     const { owner, repo } =
       typeof value === "string" ? parseRepository(value) : value;

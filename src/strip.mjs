@@ -288,7 +288,9 @@ export function createSingleStrip(
     );
     pinIndex = new Map(pins.map((p) => [p.kind + ":" + p.task.id, p]));
     const workerLayer = root.querySelector(".strip-workers");
-    workerLayer.style.top = bandY + bandH + 5 + "px";
+    // Stems begin on the task band itself. Leaving a gap here made an active
+    // worker look like a detached pointer even though its SVG path existed.
+    workerLayer.style.top = bandY + bandH + "px";
     workerLayer.style.height =
       Math.max(1, ...pins.map((p) => p.row + 1)) * 42 + 35 + "px";
     workerLayer.innerHTML =

@@ -1,6 +1,7 @@
 import { createPanMomentum } from "./pan-momentum.mjs";
 import { epicProgress, taskProgress } from "./progress-model.mjs";
 import { statusComplete } from "./query.mjs";
+import { activityState } from "./activity.mjs";
 import { opacityPrefix, paintBand } from "./band-paint.mjs";
 const esc = (s) =>
   String(s ?? "").replace(
@@ -69,7 +70,13 @@ export function createEpicProgress(root, { select, changeZoom }) {
         el.className = "epic-window-row";
         el.dataset.virtualEpic = id;
         el.style.top = axisHeight + index * rowHeight + "px";
-        el.innerHTML = `<div class="epic-window-label"><button data-progress-epic="${esc(row.id)}"><small>${esc(row.id.startsWith("doc:") ? "PLAN" : row.id)}</small><strong>${esc(row.title)}</strong></button><span>${row.complete} / ${row.total} · <b>${row.percent}%</b></span><div class="epic-mini"><i style="width:${row.percent}%"></i></div></div><div class="epic-window-band"><canvas></canvas><div class="epic-window-tasks"></div></div>`;
+        const active = row.tasks.filter(
+            (task) => activityState(task) === "active",
+          ).length,
+          live = active
+            ? `<span class="active-session-beacon" title="${active} active ${active === 1 ? "session" : "sessions"}" aria-label="${active} active ${active === 1 ? "session" : "sessions"}" data-tooltip="${active} active ${active === 1 ? "session" : "sessions"}"></span>`
+            : "";
+        el.innerHTML = `<div class="epic-window-label"><button data-progress-epic="${esc(row.id)}"><small>${esc(row.id.startsWith("doc:") ? "PLAN" : row.id)}</small><strong>${esc(row.title)}${live}</strong></button><span>${row.complete} / ${row.total} · <b>${row.percent}%</b></span><div class="epic-mini"><i style="width:${row.percent}%"></i></div></div><div class="epic-window-band"><canvas></canvas><div class="epic-window-tasks"></div></div>`;
         chart.append(el);
       }
       el.style.width = bandWidth + labelWidth + "px";

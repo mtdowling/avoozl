@@ -70,6 +70,7 @@ export function TaskInspector({
   refresh,
   openDocument,
   openRun,
+  startRun,
   exploreGraph,
   filterTag,
 }: {
@@ -79,6 +80,7 @@ export function TaskInspector({
   refresh: () => void;
   openDocument: (id: string) => void;
   openRun: (id: string) => void;
+  startRun: (task: Task) => Promise<void>;
   exploreGraph: (task: Task) => void;
   filterTag: (tag: string) => void;
 }) {
@@ -193,6 +195,21 @@ export function TaskInspector({
   }
 
   const relationships = detail?.relationships || [];
+  const connectedSessionId =
+    detail?.activity?.connection?.runId || detail?.activity?.sessionId;
+  const sessionRun =
+    detail?.runs?.find(
+      (run) =>
+        run.provider === "openhands" &&
+        (run.id === connectedSessionId ||
+          run.providerSessionId === connectedSessionId),
+    ) ||
+    detail?.runs?.find((run) =>
+      run.provider === "openhands" &&
+      ["starting", "running", "waiting-input", "waiting-approval"].includes(
+        run.state,
+      ),
+    );
   const sources = useMemo(() => {
     if (!detail) return [];
     const values = [detail.source, ...(detail.sourceReferences || [])].filter(
@@ -286,6 +303,19 @@ export function TaskInspector({
               </div>
             </dl>
 
+            <dl className="task-workspace-location">
+              <div>
+                <dt>Branch</dt>
+                <dd><code>{detail.executionLocation?.branch || "Not created yet"}</code></dd>
+              </div>
+              <div>
+                <dt>Worktree</dt>
+                <dd title={detail.executionLocation?.worktree || "Not created yet"}>
+                  <code>{detail.executionLocation?.worktree || "Not created yet"}</code>
+                </dd>
+              </div>
+            </dl>
+
             <p className="task-summary">{detail.summary || "No summary recorded."}</p>
 
             {!!detail.tags?.length && (
@@ -299,6 +329,21 @@ export function TaskInspector({
             )}
 
             <div className="inspector-actions">
+              {sessionRun ? (
+                <button className="button primary" onClick={() => openRun(sessionRun.id)}>
+                  <Play size={14} /> Open in OpenHands
+                </button>
+              ) : detail.activity?.status === "active" ? (
+                <span className="task-session-note">Active outside OpenHands</span>
+              ) : (
+                <button
+                  className="button primary"
+                  disabled={busy}
+                  onClick={() => void startRun(detail)}
+                >
+                  <Play size={14} /> Start in OpenHands
+                </button>
+              )}
               <button className="button primary" onClick={() => setEditing((value) => !value)}>
                 {editing ? "Close editor" : "Edit task"}
               </button>
@@ -489,12 +534,48 @@ export function TaskInspector({
               </DetailSection>
             )}
 
-            {!!detail.runs?.length && (
-              <DetailSection title="Agent sessions">
-                {detail.runs.map((run) => (
+            <DetailSection title="Code changes" open>
+              {detail.github?.url && (
+                <a className="task-detail-link" href={detail.github.url} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink size={13} />
+                  <span><strong>GitHub issue #{detail.github.number}</strong><small>{detail.github.repository}</small></span>
+                </a>
+              )}
+              {detail.codeChanges?.commits.map((commit) =>
+                commit.url ? (
+                  <a className="task-detail-link" key={commit.sha} href={commit.url} target="_blank" rel="noopener noreferrer">
+                    <GitBranch size={13} />
+                    <span><strong>Commit {commit.sha.slice(0, 12)}</strong><small>{commit.source || "Associated commit"}</small></span>
+                  </a>
+                ) : (
+                  <div className="task-detail-link" key={commit.sha}>
+                    <GitBranch size={13} />
+                    <span><strong>Commit {commit.sha.slice(0, 12)}</strong><small>{commit.source || "Associated commit"} · repository URL unavailable</small></span>
+                  </div>
+                ),
+              )}
+              {detail.codeChanges?.pullRequests.map((pull) => (
+                <a className="task-detail-link" key={pull.nodeId || pull.url} href={pull.url} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink size={13} />
+                  <span>
+                    <strong>{pull.number ? `PR #${pull.number}` : "Pull request"}{pull.title ? ` · ${pull.title}` : ""}</strong>
+                    <small>{[pull.repository, pull.state].filter(Boolean).join(" · ") || "Associated pull request"}</small>
+                  </span>
+                </a>
+              ))}
+              {!detail.github?.url &&
+                !detail.codeChanges?.commits.length &&
+                !detail.codeChanges?.pullRequests.length && (
+                  <p>No commits or pull requests are associated yet.</p>
+                )}
+            </DetailSection>
+
+            {!!detail.runs?.some((run) => run.provider === "openhands") && (
+              <DetailSection title="OpenHands conversations">
+                {detail.runs.filter((run) => run.provider === "openhands").map((run) => (
                   <button className="task-detail-link" key={run.id} onClick={() => openRun(run.id)}>
                     <Play size={13} />
-                    <span><strong>{run.title || run.id}</strong><small>{run.state} · {run.provider || "agent"}</small></span>
+                    <span><strong>{run.title || run.id}</strong><small>{run.state}</small></span>
                   </button>
                 ))}
               </DetailSection>

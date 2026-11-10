@@ -13,6 +13,12 @@ export type RunSummary = {
   updatedAt?: string;
   title?: string;
   archivedAt?: string | null;
+  branch?: string;
+  worktree?: string;
+  expectedCommit?: string;
+  integratedCommit?: string;
+  pullRequest?: PullRequestLink | string;
+  pullRequests?: Array<PullRequestLink | string>;
 };
 
 export type Provider = {
@@ -131,8 +137,28 @@ export type Task = {
     heartbeatAt?: string;
     sessionId?: string;
     branch?: string;
+    worktree?: string;
     connection?: { runId?: string };
   };
+  projectId?: string;
+  github?: {
+    repository?: string;
+    nodeId?: string;
+    number?: number;
+    url?: string;
+    origin?: string;
+    pullRequests?: PullRequestLink[];
+  };
+  pullRequests?: PullRequestLink[];
+};
+
+export type PullRequestLink = {
+  nodeId?: string | null;
+  number?: number | null;
+  url: string;
+  title?: string;
+  state?: string;
+  repository?: string;
 };
 
 export type TaskSource = {
@@ -164,6 +190,14 @@ export type TaskDetail = Task & {
   documents?: DocumentRecord[];
   runs?: RunSummary[];
   evidenceRecords?: EvidenceRecord[];
+  executionLocation?: {
+    branch?: string | null;
+    worktree?: string | null;
+  };
+  codeChanges?: {
+    commits: Array<{ sha: string; source?: string; url?: string }>;
+    pullRequests: PullRequestLink[];
+  };
 };
 
 export type State = {

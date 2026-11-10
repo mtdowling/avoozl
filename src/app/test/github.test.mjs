@@ -9,6 +9,7 @@ class FakeGitHub {
     this.login = "worker";
     this.issues = [];
     this.events = new Map();
+    this.timelines = new Map();
     this.permissions = new Map();
     this.created = [];
     this.updated = [];
@@ -37,6 +38,11 @@ class FakeGitHub {
   issueEvents(_repository, number) {
     return Promise.resolve(
       structuredClone(this.events.get(number) || []),
+    );
+  }
+  issueTimeline(_repository, number) {
+    return Promise.resolve(
+      structuredClone(this.timelines.get(number) || []),
     );
   }
   issue(_repository, number) {
@@ -130,11 +136,27 @@ test("authorized assigned issues become exact ready tasks and body changes quara
       created_at: "2026-11-10T12:00:00Z",
     },
   ]);
+  github.timelines.set(7, [
+    {
+      event: "cross-referenced",
+      source: {
+        issue: {
+          node_id: "pull-node-12",
+          number: 12,
+          title: "Implement the GitHub path",
+          state: "open",
+          html_url: "https://example.test/example/code/pull/12",
+          pull_request: {},
+        },
+      },
+    },
+  ]);
   const ops = await configure(store, github);
   const first = await ops.execute("github.sync");
   assert.equal(first.authorized.length, 1);
   const task = store.read().tasks.find((item) => item.github?.number === 7);
   assert.equal(task.github.origin, "issue");
+  assert.equal(task.github.pullRequests[0].number, 12);
   assert.equal(task.dispatch.state, "authorized");
   assert.deepEqual(task.acceptance, ["It works"]);
   assert.equal(task.approvedSource.hash, first.authorized[0].bodyHash);
@@ -144,6 +166,31 @@ test("authorized assigned issues become exact ready tasks and body changes quara
     ),
     true,
   );
+  const withExecution = structuredClone(store.read()),
+    linkedTask = withExecution.tasks.find((item) => item.id === task.id);
+  linkedTask.integration = {
+    commit: "abcdef0123456789",
+    branch: "main",
+    repo: "/tmp/code",
+    at: "2026-11-10T12:30:00Z",
+  };
+  store.commit(withExecution, "Record linked code");
+  store.put("runs", {
+    id: "run-linked",
+    taskId: task.id,
+    provider: "openhands",
+    state: "running",
+    branch: "avoozl/run-linked",
+    worktree: "/tmp/worktrees/run-linked",
+  });
+  const detail = await ops.execute("task.get", { id: task.id });
+  assert.equal(detail.executionLocation.branch, "avoozl/run-linked");
+  assert.equal(detail.executionLocation.worktree, "/tmp/worktrees/run-linked");
+  assert.equal(
+    detail.codeChanges.commits[0].url,
+    "https://example.test/example/code/commit/abcdef0123456789",
+  );
+  assert.equal(detail.codeChanges.pullRequests[0].number, 12);
 
   github.issues[0].body += "\n\nNew unreviewed scope.";
   const changed = await ops.execute("github.sync");
