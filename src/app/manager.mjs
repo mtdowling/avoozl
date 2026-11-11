@@ -39,7 +39,8 @@ const ACTIVE = new Set([
   "waiting-approval",
 ]);
 const DRIVER_INSTRUCTIONS =
-  "You are the persistent Avoozl Driver for this project workspace. Before answering context-sensitive project chat, call plans_run_context to read the current selected Avoozl context. Answer directly and concisely. Treat planning state as context, not authority to approve, dispatch, integrate, accept, or merge work. Child conversations perform scoped planning, review, and implementation; do not copy this Driver role or its conversation history into them.";
+  "You are the persistent Avoozl Driver for this project workspace. Load and follow the installed Avoozl skill for Driver context, task creation, delegation, and tracking. Do not approve plans, accept tasks, integrate, or merge on the user's behalf. Skill instructions do not expand the server-enforced capability allowlist.";
+export const DRIVER_INSTRUCTION_VERSION = 2;
 const DRIVER_CONTEXT_TASK_LIMIT = 12;
 
 function driverChoice(value) {
@@ -567,6 +568,7 @@ export class RunManager {
     const project = this.driverProject(input.projectId);
     return this.serialize("driver-lifecycle:" + project.id, async () => {
       const existing = this.activeDriver(project.id),
+        title = driverConversationTitle(project),
         context =
           input.context === undefined
             ? existing?.context || {}
@@ -587,15 +589,21 @@ export class RunManager {
             : driverChoice(existing?.requestedModel ?? existing?.model)),
         automaticHandoff =
           input.automaticHandoffFrom === existing?.id && Boolean(existing),
+        instructionHandoff =
+          Boolean(existing) &&
+          existing.driverInstructionVersion !== DRIVER_INSTRUCTION_VERSION,
         configurationChanged =
           existing &&
           (automaticHandoff ||
+            instructionHandoff ||
             (profileSpecified &&
               requestedProfile !== previousProfileOverride) ||
             (modelSpecified && requestedModel !== previousModelOverride));
       if (existing && !configurationChanged) {
         if (input.provider && input.provider !== existing.provider)
           fail("This project Driver already belongs to another provider.", 409);
+        existing.title = title;
+        this.store.put("runs", existing);
         if (input.context !== undefined)
           this.updateDriverContext({
             projectId: project.id,
@@ -668,7 +676,10 @@ export class RunManager {
           driverPredecessorId: existing?.id,
           driverHandoffReason: automaticHandoff
             ? "context-threshold"
-            : undefined,
+            : instructionHandoff
+              ? "instruction-update"
+              : undefined,
+          driverInstructionVersion: DRIVER_INSTRUCTION_VERSION,
           provider: input.provider || existing?.provider || "openhands",
           projectId: project.id,
           model: automaticHandoff
@@ -685,7 +696,7 @@ export class RunManager {
             ? existing.contextRemainingPercent
             : undefined,
           mode: "ask",
-          title: driverConversationTitle(project),
+          title,
           context,
           approvalMode: "manual",
         });
@@ -976,6 +987,9 @@ export class RunManager {
       driverGeneration: input.driver ? input.driverGeneration || 1 : undefined,
       driverPredecessorId: input.driver ? input.driverPredecessorId : undefined,
       driverHandoffReason: input.driver ? input.driverHandoffReason : undefined,
+      driverInstructionVersion: input.driver
+        ? input.driverInstructionVersion || DRIVER_INSTRUCTION_VERSION
+        : undefined,
       logicalConversationId: input.driver ? id : undefined,
       taskId: task?.id || (plan ? "plan:" + plan.id : "conversation:" + id),
       planId: plan?.id,
@@ -988,9 +1002,10 @@ export class RunManager {
       requestedModel: routingDecision.selected.model,
       routingDecision,
       mode: input.mode === "ask" ? "ask" : plan ? "plan" : "implement",
-      capabilityMode:
-        input.mode === "ask" &&
-        ["new-task", "review"].includes(input.context?.conversationPurpose)
+      capabilityMode: input.driver
+        ? "driver"
+        : input.mode === "ask" &&
+            ["new-task", "review"].includes(input.context?.conversationPurpose)
           ? input.context.conversationPurpose
           : undefined,
       prompt: input.prompt || "",

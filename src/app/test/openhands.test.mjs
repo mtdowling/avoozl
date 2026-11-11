@@ -966,6 +966,32 @@ test("new-task conversations can record requests but cannot authorize them", asy
   assert.ok(!names.includes("plans_accept_task"));
 });
 
+test("Driver can create tracked child work without gaining acceptance authority", async (t) => {
+  const { store } = fixture(t),
+    run = store.put("runs", {
+      id: "run-driver",
+      taskId: "conversation:run-driver",
+      provider: "openhands",
+      mode: "ask",
+      capabilityMode: "driver",
+      state: "completed",
+    }),
+    { token } = mintRunCapability(store, run),
+    ops = new Operations(store);
+  const list = await handleMcp(
+    { jsonrpc: "2.0", id: 1, method: "tools/list" },
+    ops,
+    { runId: run.id, runCapability: token },
+  );
+  const names = list.body.result.tools.map((tool) => tool.name);
+  assert.ok(names.includes("plans_capture"));
+  assert.ok(names.includes("plans_start_run"));
+  assert.ok(names.includes("plans_propose_work"));
+  assert.ok(!names.includes("plans_approve_plan"));
+  assert.ok(!names.includes("plans_integrate"));
+  assert.ok(!names.includes("plans_accept_task"));
+});
+
 test("OpenHands surface capabilities bind one run and one conversation", (t) => {
   const { store } = fixture(t);
   store.put("runs", {

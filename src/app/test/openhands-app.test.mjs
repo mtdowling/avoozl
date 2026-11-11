@@ -111,6 +111,8 @@ test("the packaged Canvas App registers its declared Avoozl page", async () => {
       "utf8",
     );
   assert.equal(pluginManifest.name, "avoozl");
+  assert.match(skill, /Before acting on a request to change, build, fix/);
+  assert.match(skill, /Never\s+launch untracked work/);
   assert.equal(pluginManifest.version, OPENHANDS_VERSIONS.plugin);
   assert.equal(
     pluginManifest.automation.schema_version,
