@@ -201,7 +201,13 @@ function proxyHeaders(req, settings, target) {
   return headers;
 }
 
-export async function proxyOpenHandsSurface(req, res, store, url) {
+export async function proxyOpenHandsSurface(
+  req,
+  res,
+  store,
+  url,
+  { mountPath = "/openhands" } = {},
+) {
   const parts = routeParts(url.pathname);
   if (!parts) return false;
   const capability = authorizeOpenHandsSurface(
@@ -222,7 +228,7 @@ export async function proxyOpenHandsSurface(req, res, store, url) {
   )
     fail("OpenHands surface route refused.", 403);
   if (parts.upstreamPath === "/api/auth/workspace-session") {
-    const path = "/openhands/" + encodeURIComponent(parts.runId) + "/",
+    const path = mountPath + "/" + encodeURIComponent(parts.runId) + "/",
       cookie =
         method === "POST"
           ? "avoozl_oh_surface=" +
@@ -259,15 +265,27 @@ export async function proxyOpenHandsSurface(req, res, store, url) {
   return true;
 }
 
-export function installOpenHandsWebSocketProxy(server, store) {
+export function installOpenHandsWebSocketProxy(
+  server,
+  store,
+  { resolve } = {},
+) {
   const sockets = new WebSocketServer({ noServer: true });
   server.on("upgrade", (req, socket, head) => {
-    let url, parts;
+    let url,
+      parts,
+      selectedStore = store;
     try {
       url = new URL(req.url, "http://" + req.headers.host);
+      if (resolve) {
+        const selected = resolve(url);
+        if (!selected) return socket.destroy();
+        selectedStore = selected.store;
+        url = selected.url || url;
+      }
       parts = openHandsSurfaceSocketRoute(url.pathname, url.searchParams);
       if (!parts) return socket.destroy();
-      const run = store.get("runs", parts.runId);
+      const run = selectedStore.get("runs", parts.runId);
       if (
         !run ||
         run.provider !== "openhands" ||
@@ -288,7 +306,7 @@ export function installOpenHandsWebSocketProxy(server, store) {
         try {
           const message = JSON.parse(data.toString());
           authorizeOpenHandsSurface(
-            store,
+            selectedStore,
             parts.runId,
             message.session_api_key,
           );

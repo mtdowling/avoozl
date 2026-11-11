@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://avoozl.dev/schema/host-config-v1.json",
+  "title": "Avoozl machine host configuration",
+  "description": "Machine-local, non-secret registration for the workspaces served by one Avoozl host.",
+  "type": "object",
+  "required": ["version"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "const": 1
+    },
+    "host": {
+      "type": "string",
+      "minLength": 1
+    },
+    "port": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 65535
+    },
+    "defaultWorkspace": {
+      "type": ["string", "null"],
+      "pattern": "^[a-z][a-z0-9-]{0,60}$"
+    },
+    "maxConcurrentRuns": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 256,
+      "default": 4
+    },
+    "workspaces": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9-]{0,60}$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/workspace"
+      }
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "workspace": {
+      "type": "object",
+      "required": ["root"],
+      "properties": {
+        "root": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "maxConcurrentRuns": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 64,
+          "default": 2,
+          "description": "Maximum new runs in this workspace. Zero pauses dispatch without stopping active runs."
+        },
+        "repositories": {
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^[a-z][a-z0-9-]{0,60}$"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

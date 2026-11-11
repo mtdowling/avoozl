@@ -140,6 +140,8 @@ export class RunManager {
       baseUrl = "http://127.0.0.1:9428",
       recover = true,
       routingCatalog = null,
+      scheduler = null,
+      workspaceId = null,
     } = {},
   ) {
     this.store = store;
@@ -150,9 +152,13 @@ export class RunManager {
     );
     this.routingCatalog =
       routingCatalog || (factories.openhands ? null : openHandsAgentProfiles);
+    this.scheduler = scheduler;
+    this.workspaceId = workspaceId || workspaceIdentity(store);
     this.live = new Map();
     this.tails = new Map();
     this.driverHandoffs = new Set();
+    this.pendingAdmissions = new Set();
+    this.closing = false;
     this.activityTimer = setInterval(
       () => {
         for (const run of store
@@ -167,7 +173,7 @@ export class RunManager {
     this.activityTimer.unref();
     if (recover)
       for (const run of store.list("runs"))
-        if (ACTIVE.has(run.state)) {
+        if (ACTIVE.has(run.state) || run.state === "queued") {
           run.state = "disconnected";
           run.disconnectedAt = new Date().toISOString();
           store.put("runs", run);
@@ -332,6 +338,73 @@ export class RunManager {
     return next.finally(() => {
       if (this.tails.get(id) === next) this.tails.delete(id);
     });
+  }
+  concurrencyStatus() {
+    return this.scheduler
+      ? this.scheduler.status(this.workspaceId)
+      : {
+          maxConcurrentRuns: null,
+          running: this.store
+            .list("runs")
+            .filter((run) => ACTIVE.has(run.state)).length,
+          waiting: 0,
+          available: null,
+          workspace: {
+            id: this.workspaceId,
+            maxConcurrentRuns: null,
+            running: this.store
+              .list("runs")
+              .filter((run) => ACTIVE.has(run.state)).length,
+            waiting: 0,
+          },
+          managed: false,
+        };
+  }
+  async acquireRunSlot(run, { priority = "normal" } = {}) {
+    if (!this.scheduler || this.scheduler.owns(this.workspaceId, run.id))
+      return;
+    if (this.closing) fail("Agent host is stopping.", 503);
+    const admission = this.scheduler.acquire(this.workspaceId, run.id, {
+      priority,
+    });
+    this.pendingAdmissions.add(admission);
+    let lease;
+    try {
+      lease = await admission;
+    } finally {
+      this.pendingAdmissions.delete(admission);
+    }
+    if (this.closing) {
+      this.scheduler.release(this.workspaceId, run.id);
+      fail("Agent host is stopping.", 503);
+    }
+    const latest = this.store.get("runs", run.id);
+    if (!latest) {
+      this.scheduler.release(this.workspaceId, run.id);
+      fail("Run was removed while waiting for a host slot.", 409);
+    }
+    latest.schedulerLease = lease;
+    latest.state = "starting";
+    latest.admittedAt = lease.admittedAt;
+    this.store.put("runs", latest);
+    this.store.event(run.id, "run.admitted", {
+      workspaceId: this.workspaceId,
+      lease,
+    });
+    Object.assign(run, latest);
+  }
+  releaseRunSlot(run) {
+    if (!this.scheduler || !this.scheduler.release(this.workspaceId, run.id))
+      return false;
+    delete run.schedulerLease;
+    run.releasedAt = new Date().toISOString();
+    const latest = this.store.get("runs", run.id);
+    if (latest) {
+      delete latest.schedulerLease;
+      latest.releasedAt = run.releasedAt;
+      this.store.put("runs", latest);
+    }
+    return true;
   }
   context(run) {
     const data = this.store.read(),
@@ -886,8 +959,9 @@ export class RunManager {
         input.provider === "openhands" ? parent?.providerSessionId : undefined,
       review: input.review || undefined,
       resources,
-      state: "starting",
+      state: this.scheduler ? "queued" : "starting",
       createdAt: new Date().toISOString(),
+      workspaceId: this.workspaceId,
     };
     // Claim under a database lock before creating a worktree or launching a process.
     this.store.transaction(() => {
@@ -899,7 +973,7 @@ export class RunManager {
           .find(
             (r) =>
               r.mode !== "ask" &&
-              [...ACTIVE, "disconnected"].includes(r.state) &&
+              [...ACTIVE, "queued", "disconnected"].includes(r.state) &&
               (resolveTaskId(this.store.read(), r.taskId) === run.taskId ||
                 (project &&
                   r.projectId === project.id &&
@@ -908,9 +982,18 @@ export class RunManager {
       if (conflict) fail("Conflicts with active run " + conflict.id, 409);
       this.store.put("runs", run);
       this.store.event(id, "run.created", { run });
+      if (this.scheduler)
+        this.store.event(id, "run.queued", {
+          workspaceId: this.workspaceId,
+          concurrency: this.concurrencyStatus(),
+        });
     });
     const launch = async () => {
       try {
+        if (this.scheduler)
+          await this.acquireRunSlot(run, {
+            priority: input.priority === "user" ? "user" : "normal",
+          });
         Object.assign(
           run,
           run.mode === "ask"
@@ -931,6 +1014,8 @@ export class RunManager {
         await this.connect(run, run.driver ? undefined : this.context(run));
         return this.store.get("runs", id);
       } catch (error) {
+        this.scheduler?.cancel(this.workspaceId, run.id);
+        this.releaseRunSlot(run);
         run.state = "failed";
         run.error = error.message;
         revokeRunCapabilities(this.store, run.id);
@@ -1242,6 +1327,8 @@ export class RunManager {
         this.store.put("requests", r);
       }
     this.store.put("runs", run);
+    if (kind === "turn.completed" || kind === "disconnected")
+      this.releaseRunSlot(run);
     if (kind === "turn.completed") autoArchiveCompletedRun(this.store, run);
     this.store.event(id, kind, body);
     if (["session", "turn.completed", "disconnected"].includes(kind))
@@ -1340,6 +1427,21 @@ export class RunManager {
   }
   async deliver(run, delivery) {
     let adapter = this.live.get(run.id);
+    if (
+      this.scheduler &&
+      !this.scheduler.owns(this.workspaceId, run.id) &&
+      !this.draining
+    ) {
+      try {
+        await this.acquireRunSlot(run, { priority: "user" });
+        if (!adapter && run.providerSessionId) {
+          await this.connect(run, undefined);
+          adapter = this.live.get(run.id);
+        }
+      } catch (error) {
+        delivery.error = error.message;
+      }
+    }
     if (!adapter && run.providerSessionId && !this.draining) {
       try {
         await this.connect(run, undefined);
@@ -1367,6 +1469,7 @@ export class RunManager {
       run.state = "running";
       this.store.put("runs", run);
     } catch (error) {
+      this.releaseRunSlot(run);
       delivery.state = "uncertain";
       delivery.error = error.message;
     }
@@ -1581,14 +1684,24 @@ export class RunManager {
         fail(
           "Switch providers by starting a new run with the task handoff; provider session IDs are not interchangeable.",
         );
-      run.state = "starting";
+      run.state = this.scheduler ? "queued" : "starting";
       this.store.put("runs", run);
-      await this.connect(
-        run,
-        input.text ||
-          "Continue from the saved session. Inspect the current task and worktree before changing anything.",
-      );
-      return this.store.get("runs", run.id);
+      try {
+        await this.acquireRunSlot(run, { priority: "user" });
+        await this.connect(
+          run,
+          input.text ||
+            "Continue from the saved session. Inspect the current task and worktree before changing anything.",
+        );
+        return this.store.get("runs", run.id);
+      } catch (error) {
+        this.scheduler?.cancel(this.workspaceId, run.id);
+        this.releaseRunSlot(run);
+        run.state = "disconnected";
+        run.error = error.message;
+        this.store.put("runs", run);
+        throw error;
+      }
     });
   }
   async answer(input) {
@@ -1643,8 +1756,24 @@ export class RunManager {
     });
   }
   async close() {
+    if (this.closed) return;
+    this.closed = true;
+    this.closing = true;
     clearInterval(this.activityTimer);
+    if (this.scheduler) {
+      for (const run of this.store.list("runs"))
+        if (run.state === "queued")
+          this.scheduler.cancel(
+            this.workspaceId,
+            run.id,
+            "Agent host stopped before admission.",
+          );
+      await Promise.allSettled([...this.pendingAdmissions]);
+    }
     for (const adapter of this.live.values()) await adapter.close();
+    if (this.scheduler)
+      for (const run of this.store.list("runs"))
+        if (run.schedulerLease) this.releaseRunSlot(run);
     this.live.clear();
   }
   async landed(id) {
@@ -1653,6 +1782,7 @@ export class RunManager {
     this.live.delete(id);
     const run = this.store.get("runs", id);
     if (run) {
+      this.releaseRunSlot(run);
       run.state = "integrated";
       this.store.put("runs", run);
       revokeRunCapabilities(this.store, id);

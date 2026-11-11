@@ -1,7 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { App } from "./App";
-import { configureApiBaseUrl, get } from "./api";
+import { configureApiBaseUrl, configureWorkspaceScope, get } from "./api";
 import appStyles from "./styles.css?inline";
 
 const STORAGE_PREFIX = "avoozl.canvas.url";
@@ -249,6 +249,7 @@ function workspaceView(
   const surface = createSurface(container);
   const connect = async (url: string) => {
     configureApiBaseUrl(url);
+    configureWorkspaceScope("");
     await get("/api/health");
     if (disposed) return;
     localStorage.setItem(storageKey(host), url);

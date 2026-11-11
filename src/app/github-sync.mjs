@@ -323,9 +323,12 @@ function applyIssueTask(data, record, parsed, config, marker) {
   return task;
 }
 
-export async function configureGitHubRepository(store, github, input) {
+export async function prepareGitHubRepository(store, github, input) {
   const repository = parseRepository(input.repository || input.id);
-  if (!store.get("projects", input.projectId))
+  if (
+    !store.get("projects", input.projectId) &&
+    input.project?.id !== input.projectId
+  )
     fail("Configure the execution project before its GitHub repository.");
   const [remote, user] = await Promise.all([
     github.repository(repository),
@@ -347,6 +350,9 @@ export async function configureGitHubRepository(store, github, input) {
     nodeId: remote.node_id,
     private: Boolean(remote.private),
     projectId: input.projectId,
+    ...(input.workspaceRepositoryId
+      ? { workspaceRepositoryId: input.workspaceRepositoryId }
+      : {}),
     label,
     assignee: input.assignee || user.login,
     allowedActors: [...new Set(input.allowedActors || [])],
@@ -360,6 +366,11 @@ export async function configureGitHubRepository(store, github, input) {
   };
   if (!["write", "maintain", "admin"].includes(record.minimumPermission))
     fail("Minimum label permission must be write, maintain, or admin.");
+  return record;
+}
+
+export async function configureGitHubRepository(store, github, input) {
+  const record = await prepareGitHubRepository(store, github, input);
   store.put("github_repositories", record);
   store.event(null, "github.repository.configured", {
     repository: record.id,

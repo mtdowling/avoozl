@@ -243,6 +243,73 @@ export type WorkspaceProject = {
   repository?: string | null;
 };
 
+export type WorkspaceRepository = {
+  id: string;
+  name: string;
+  github?: string | null;
+  localCheckout?: string | null;
+  worktreeRoot?: string | null;
+  planning: boolean;
+  editable: boolean;
+  baseBranch: string;
+  checks: string[][];
+  queue: {
+    enabled: boolean;
+    issues: boolean;
+    pullRequests: boolean;
+    visibility: "private" | "public" | null;
+  };
+  issueAuthorization: {
+    enabled: boolean;
+    assignee?: string;
+    readyLabel?: string;
+    allowedActors?: string[];
+    minimumPermission?: "write" | "maintain" | "admin";
+    autoStart?: boolean;
+    provider?: string | null;
+    model?: string | null;
+  };
+  labels: GitHubLabelBehaviors;
+};
+
+export type HostWorkspaceSummary = {
+  id: string;
+  name: string;
+  root?: string;
+  enabled: boolean;
+  state:
+    | "closed"
+    | "opening"
+    | "ready"
+    | "draining"
+    | "stopped"
+    | "degraded"
+    | "quarantined";
+  revision?: number | null;
+  instanceEpoch?: string | number | null;
+  counts: {
+    running: number;
+    blocked: number;
+    review: number;
+    queue: number;
+  };
+  concurrency: {
+    limit: number;
+    active: number;
+    queued?: number;
+  };
+};
+
+export type HostWorkspaceList = {
+  hostInstanceId: string;
+  defaultWorkspace: string | null;
+  hostConcurrency?: {
+    limit: number;
+    active: number;
+  };
+  items: HostWorkspaceSummary[];
+};
+
 export type Workspace = {
   mode?: string;
   revision: number;

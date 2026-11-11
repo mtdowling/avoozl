@@ -19,6 +19,9 @@ import {
   openHandsCanvasAppStatus,
   setupOpenHandsAgents,
 } from "./openhands-app.mjs";
+import { loadHostConfig, WorkspaceRegistry } from "./host-config.mjs";
+import { WorkspaceManager } from "./workspace-manager.mjs";
+import { startWorkspaceHostServer } from "./workspace-host-server.mjs";
 
 const args = process.argv.slice(2),
   options = {},
@@ -50,7 +53,27 @@ try {
       hasCommand = true;
     } else positionals.push(args[i]);
   }
-  const config = workspaceConfig(options),
+  const env = options.env || process.env;
+  const requestedWorkspace =
+    options.workspace ||
+    env.AVOOZL_WORKSPACE ||
+    env.AICOMMANDER_WORKSPACE ||
+    env.NUPP_WORKSPACE;
+  let registeredWorkspaceId = null,
+    machineHost = null,
+    configOptions = options;
+  if (
+    typeof requestedWorkspace === "string" &&
+    /^[a-z][a-z0-9-]{0,60}$/.test(requestedWorkspace)
+  ) {
+    machineHost = loadHostConfig({ env }).config;
+    const registered = machineHost.workspaces[requestedWorkspace];
+    if (registered) {
+      registeredWorkspaceId = requestedWorkspace;
+      configOptions = { ...options, workspace: registered.root };
+    }
+  }
+  const config = workspaceConfig(configOptions),
     { dbPath, endpoint } = config;
   const requireDatabase = () => {
     if (!fs.existsSync(dbPath))
@@ -58,12 +81,35 @@ try {
         "Initialize a workspace first: avoozl init PATH, then use --workspace PATH.",
       );
   };
+  const requireLocalMaintenancePath = (action) => {
+    if (!registeredWorkspaceId) return;
+    throw Error(
+      `${action} is a local-only maintenance operation and cannot use registered workspace ID ${registeredWorkspaceId}. Stop the Avoozl host, then pass the workspace root path explicitly.`,
+    );
+  };
   const request = async (operation, input = {}, expectedRevision) => {
-    const response = await fetch(endpoint + "/api/command", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ operation, input, expectedRevision }),
-    });
+    const hostEndpoint = registeredWorkspaceId
+      ? machineHost.url ||
+        `http://127.0.0.1:${machineHost.port || config.port || 9428}`
+      : endpoint;
+    const response = await fetch(
+      registeredWorkspaceId
+        ? hostEndpoint +
+            "/api/workspaces/" +
+            encodeURIComponent(registeredWorkspaceId) +
+            "/operations/" +
+            encodeURIComponent(operation)
+        : hostEndpoint + "/api/command",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          registeredWorkspaceId
+            ? { input, expectedRevision }
+            : { operation, input, expectedRevision },
+        ),
+      },
+    );
     const result = await response.json();
     if (!response.ok) throw Error(result.error);
     return result.result;
@@ -76,6 +122,7 @@ try {
         : {};
   const localOrRequest = async (operation, input = {}) => {
     if (
+      registeredWorkspaceId ||
       options.url ||
       process.env.AVOOZL_URL ||
       process.env.AICOMMANDER_URL ||
@@ -129,7 +176,54 @@ try {
       ),
     );
   } else if (command === "skill") process.stdout.write(workflowSkill(config));
-  else if (command === "serve") {
+  else if (
+    command === "serve" &&
+    !options.workspace &&
+    !process.env.AVOOZL_WORKSPACE &&
+    !process.env.AICOMMANDER_WORKSPACE &&
+    !process.env.NUPP_WORKSPACE
+  ) {
+    const registry = new WorkspaceRegistry({
+        ...(options["host-config"]
+          ? { configPath: options["host-config"] }
+          : {}),
+        ...(options.catalog ? { catalogPath: options.catalog } : {}),
+      }),
+      workspaceManager = new WorkspaceManager({ registry });
+    await workspaceManager.startEnabled();
+    const configuredOrigins = registry.config.canvasOrigins;
+    const server = startWorkspaceHostServer({
+      workspaceManager,
+      host: options.host || registry.config.host,
+      port: Number(options.port ?? registry.config.port),
+      canvasOrigins: [
+        ...(Array.isArray(configuredOrigins)
+          ? configuredOrigins
+          : configuredOrigins
+            ? String(configuredOrigins).split(",")
+            : []),
+        ...(options["canvas-origin"] ? [options["canvas-origin"]] : []),
+      ],
+    });
+    if (!server.listening)
+      await new Promise((resolve, reject) => {
+        server.once("listening", resolve);
+        server.once("error", reject);
+      });
+    console.log(
+      "Avoozl host: http://127.0.0.1:" +
+        server.address().port +
+        " (" +
+        (await workspaceManager.list()).length +
+        " workspaces)",
+    );
+    const stop = async () => {
+      server.close();
+      await workspaceManager.close();
+    };
+    process.once("SIGTERM", stop);
+    process.once("SIGINT", stop);
+  } else if (command === "serve") {
     requireDatabase();
     const manager = await ensureAgentHost({
       dbPath,
@@ -400,6 +494,7 @@ try {
       ),
     );
   } else if (command === "import") {
+    requireLocalMaintenancePath("Import");
     const snapshot = JSON.parse(fs.readFileSync(positionals[0], "utf8"));
     const store = new Store(dbPath);
     try {
@@ -417,6 +512,7 @@ try {
       store.close();
     }
   } else if (command === "backup" || command === "export") {
+    requireLocalMaintenancePath(command === "backup" ? "Backup" : "Export");
     requireDatabase();
     const store = new Store(dbPath);
     try {
@@ -434,12 +530,19 @@ try {
       store.close();
     }
   } else if (command === "mcp") {
+    const mcpEndpoint = registeredWorkspaceId
+      ? (machineHost.url ||
+          `http://127.0.0.1:${machineHost.port || config.port || 9428}`) +
+        "/api/workspaces/" +
+        encodeURIComponent(registeredWorkspaceId) +
+        "/mcp"
+      : endpoint + "/mcp";
     const lines = readline.createInterface({ input: process.stdin });
     for await (const line of lines) {
       let message;
       try {
         message = JSON.parse(line);
-        const response = await fetch(endpoint + "/mcp", {
+        const response = await fetch(mcpEndpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(message),
@@ -459,7 +562,19 @@ try {
   } else if (command === "health")
     console.log(
       JSON.stringify(
-        await (await fetch(endpoint + "/api/health")).json(),
+        await (
+          await fetch(
+            registeredWorkspaceId
+              ? (machineHost.url ||
+                  `http://127.0.0.1:${
+                    machineHost.port || config.port || 9428
+                  }`) +
+                  "/api/workspaces/" +
+                  encodeURIComponent(registeredWorkspaceId) +
+                  "/health"
+              : endpoint + "/api/health",
+          )
+        ).json(),
         null,
         2,
       ),
@@ -544,6 +659,138 @@ try {
         2,
       ),
     );
+  } else if (command === "workspace" || command === "status") {
+    const action = command === "status" ? "status" : positionals[0] || "list";
+    const registry = new WorkspaceRegistry({
+      env: options.env || process.env,
+      ...(options["host-config"] ? { configPath: options["host-config"] } : {}),
+      ...(options.catalog ? { catalogPath: options.catalog } : {}),
+    });
+    const hostUrl =
+      registry.config.url || `http://127.0.0.1:${registry.config.port || 9428}`;
+    const live = async (pathname, { method = "GET", body } = {}) => {
+      if (registry.config.port === 0 && !registry.config.url) return null;
+      let response;
+      try {
+        response = await fetch(hostUrl + pathname, {
+          method,
+          ...(body === undefined
+            ? {}
+            : {
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body),
+              }),
+          signal: AbortSignal.timeout(1000),
+        });
+      } catch {
+        return null;
+      }
+      let payload = {};
+      try {
+        payload = await response.json();
+      } catch {}
+      if (!response.ok)
+        throw Error(
+          payload.error ||
+            `The running Avoozl host rejected ${method} ${pathname}.`,
+        );
+      return Object.hasOwn(payload, "result") ? payload.result : payload;
+    };
+    try {
+      let result;
+      if (action === "list" || action === "status")
+        result = (await live("/api/workspaces")) || registry.describe();
+      else if (action === "add") {
+        const provided = input();
+        const repositories =
+          provided.repositories ||
+          (options.repositories ? JSON.parse(options.repositories) : {});
+        const id = options.id || positionals[1] || provided.id;
+        const registration = {
+          id,
+          root: options.root || provided.root,
+          name: options.name || provided.name,
+          enabled:
+            options.inactive === true
+              ? false
+              : provided.enabled === undefined
+                ? true
+                : provided.enabled,
+          maxConcurrentRuns: Number(
+            options["max-concurrent-runs"] ?? provided.maxConcurrentRuns ?? 2,
+          ),
+          repositories,
+        };
+        result =
+          (await live("/api/workspaces", {
+            method: "POST",
+            body: registration,
+          })) || registry.add(id, registration);
+      } else if (action === "adopt") {
+        if (await live("/api/workspaces"))
+          throw Error(
+            "Workspace adoption is local-only. Stop the running Avoozl host before adopting an existing workspace.",
+          );
+        const provided = input(),
+          id = options.id || positionals[1] || provided.id;
+        result = registry.adopt(id, {
+          root: options.root || provided.root,
+          name: options.name || provided.name,
+          enabled:
+            options.inactive === true
+              ? false
+              : provided.enabled === undefined
+                ? true
+                : provided.enabled,
+          maxConcurrentRuns: Number(
+            options["max-concurrent-runs"] ?? provided.maxConcurrentRuns ?? 2,
+          ),
+          repositories:
+            provided.repositories ||
+            (options.repositories ? JSON.parse(options.repositories) : {}),
+        });
+      } else if (
+        ["remove", "start", "drain", "resume", "stop"].includes(action)
+      ) {
+        const id = options.id || positionals[1];
+        result = await live(
+          `/api/workspaces/${encodeURIComponent(id)}/lifecycle`,
+          { method: "POST", body: { action } },
+        );
+        if (!result) {
+          if (action === "remove") result = registry.remove(id);
+          else if (action === "drain") result = registry.drain(id);
+          else result = registry.setEnabled(id, action !== "stop");
+        }
+      } else if (action === "set-default") {
+        const id = options.id || positionals[1];
+        result =
+          (await live("/api/workspaces/default", {
+            method: "POST",
+            body: { workspaceId: id },
+          })) || registry.setDefault(id);
+      } else if (action === "concurrency") {
+        const id = options.id || positionals[1],
+          limit = Number(options.limit ?? positionals[2]);
+        result =
+          (await live(
+            `/api/workspaces/${encodeURIComponent(
+              id,
+            )}/operations/workspace.concurrency.configure`,
+            {
+              method: "POST",
+              body: { input: { limit } },
+            },
+          )) || registry.setConcurrency(id, limit);
+      } else if (action === "rebuild") result = registry.rebuild();
+      else
+        throw Error(
+          "Choose workspace list, add, adopt, remove, start, drain, resume, stop, set-default, concurrency, or rebuild.",
+        );
+      console.log(JSON.stringify(result, null, 2));
+    } finally {
+      registry.close();
+    }
   } else if (command === "workspace-repo") {
     const action = positionals[0] || "status";
     let operation, value;
@@ -757,6 +1004,13 @@ try {
   editor --workspace PATH [--ssh HOST]  Print editor client settings
   seed --workspace PATH [--example product-launch]
   examples --workspace PATH             List available example packs
+  status                                Show the machine host and workspaces
+  workspace list
+  workspace add ID --root PATH [--max-concurrent-runs 2]
+  workspace adopt ID --root PATH         Adopt an existing stopped workspace in place
+  workspace remove|start|drain|resume|stop|set-default ID
+  workspace concurrency ID LIMIT        Zero pauses new dispatch
+  workspace rebuild                     Rebuild the catalog from configuration
   project configure ID --root PATH [--branch main] [--worktrees PATH] [--json CONFIG]
   github configure OWNER/REPO --project ID [--assignee LOGIN] [--allowed-actors LOGINS]
   github sync [--repository OWNER/REPO]  Import assigned ready issues
@@ -781,9 +1035,9 @@ try {
   mcp --workspace PATH                  Stdio bridge to the running server
   reload --workspace PATH               Restart the web server, preserving agents
   host [drain|resume|stop] --workspace PATH
-  backup --workspace PATH --output FILE
-  export --workspace PATH [--output FILE]
-  import SNAPSHOT.json --workspace PATH [--dry-run]
+  backup --workspace PATH --output FILE  Local-only; registered IDs are refused
+  export --workspace PATH [--output FILE] Local-only; registered IDs are refused
+  import SNAPSHOT.json --workspace PATH [--dry-run] Local-only; registered IDs are refused
   generate | check | health --workspace PATH
   OPERATION --json JSON [--revision N] --workspace PATH
   OPERATION --input FILE --workspace PATH

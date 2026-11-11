@@ -15,6 +15,7 @@ export const CLIENT_API_VERSION = "1.0.0";
 export const CLIENT_OPERATIONS = Object.freeze([
   "client.describe",
   "workspace",
+  "concurrency.status",
   "workspace.examples",
   "workspace.seed",
   "configuration.get",
@@ -111,6 +112,9 @@ export const CLIENT_OPERATIONS = Object.freeze([
   "github.authorize",
   "github.project",
   "github.start",
+  "repositories.list",
+  "repositories.configure",
+  "repositories.remove",
   "workspace.repository.configure",
   "workspace.repository.status",
   "workspace.repository.publish",
@@ -187,24 +191,38 @@ export function localTransport(ops) {
 // Transport over a running workspace server's shared command endpoint.
 export function httpTransport({
   endpoint,
+  workspaceId,
   fetch: fetchImpl = globalThis.fetch,
   headers = {},
   timeoutMs = 30000,
 }) {
   if (!endpoint) fail("A workspace endpoint is required.");
   const base = endpoint.replace(/\/$/, "");
+  const scopedBase = workspaceId
+    ? base + "/api/workspaces/" + encodeURIComponent(workspaceId)
+    : base;
   return {
     kind: "http",
-    endpoint: base,
+    endpoint: scopedBase,
+    workspaceId: workspaceId || null,
     async call(operation, input, expectedRevision) {
       let response;
       try {
-        response = await fetchImpl(base + "/api/command", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...headers },
-          body: JSON.stringify({ operation, input, expectedRevision }),
-          signal: AbortSignal.timeout(timeoutMs),
-        });
+        response = await fetchImpl(
+          workspaceId
+            ? scopedBase + "/operations/" + encodeURIComponent(operation)
+            : base + "/api/command",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...headers },
+            body: JSON.stringify(
+              workspaceId
+                ? { input, expectedRevision }
+                : { operation, input, expectedRevision },
+            ),
+            signal: AbortSignal.timeout(timeoutMs),
+          },
+        );
       } catch (error) {
         fail(
           "The workspace server is unreachable at " +
@@ -219,9 +237,11 @@ export function httpTransport({
       if (!response.ok) fail(body.error || "Request failed.", response.status);
       return body.result;
     },
-    async events({ after = 0, runId, limit } = {}) {
-      const url = new URL(base + "/api/events");
-      url.searchParams.set("after", String(after));
+    async events({ after = 0, cursor, runId, limit } = {}) {
+      const url = new URL(
+        workspaceId ? scopedBase + "/events" : base + "/api/events",
+      );
+      url.searchParams.set("after", String(cursor ?? after));
       if (runId) url.searchParams.set("run", runId);
       if (limit) url.searchParams.set("limit", String(limit));
       const response = await fetchImpl(url, {

@@ -406,6 +406,34 @@ body.resizing-panels {
 .app-toolbar button:hover {
   background: #292929;
 }
+.host-workspace-switcher {
+  min-width: 148px;
+  max-width: 230px;
+  height: 30px;
+  padding: 0 7px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  color: var(--muted);
+}
+.host-workspace-switcher > span {
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.45px;
+}
+.host-workspace-switcher select {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--bright);
+  font-size: 10px;
+}
+.host-workspace-switcher select:focus {
+  outline: 0;
+}
 /* The page hint explains, it does not act: no button, and a styled tooltip on
    hover or keyboard focus rather than the user agent's delayed title bubble. */
 .app-toolbar .page-help {
@@ -622,6 +650,128 @@ body.resizing-panels {
   visibility: hidden;
   pointer-events: none;
   text-align: left;
+}
+
+.host-workspaces-screen {
+  overflow: auto;
+}
+.host-summary {
+  margin-bottom: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel);
+}
+.host-summary span {
+  padding: 10px 14px;
+  border-right: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+}
+.host-summary strong {
+  color: var(--bright);
+}
+.host-workspace-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+.host-workspace-card {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+.host-workspace-card > header,
+.host-workspace-card > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.host-workspace-card > header > div {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.host-workspace-card > header i {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--on);
+}
+.host-workspace-card.state-degraded > header i,
+.host-workspace-card.state-draining > header i {
+  background: var(--warning);
+}
+.host-workspace-card.state-quarantined > header i,
+.host-workspace-card.state-stopped > header i {
+  background: var(--danger);
+}
+.host-workspace-card > header code {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+}
+.host-workspace-card > header > span {
+  color: var(--muted);
+  font-size: 9px;
+  text-transform: uppercase;
+}
+.host-workspace-card dl {
+  margin: 14px 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-block: 1px solid var(--line);
+}
+.host-workspace-card dl div {
+  padding: 10px 6px;
+  text-align: center;
+}
+.host-workspace-card dt {
+  color: var(--muted);
+  font-size: 8px;
+  text-transform: uppercase;
+}
+.host-workspace-card dd {
+  margin: 4px 0 0;
+  color: var(--bright);
+  font-size: 15px;
+}
+.host-workspace-card > footer span {
+  color: var(--muted);
+  font-size: 9px;
+}
+.workspace-concurrency-settings {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.workspace-concurrency-row {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+}
+.workspace-concurrency-row label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.workspace-concurrency-row input {
+  width: 112px;
+}
+.workspace-concurrency-row > span {
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 10px;
+}
+.workspace-concurrency-row button {
+  margin-left: auto;
 }
 .canvas-connection:hover .canvas-connection-tip,
 .canvas-connection:focus-visible .canvas-connection-tip {
@@ -4263,6 +4413,116 @@ select {
   font-size: 9px;
   line-height: 1.5;
 }
+.repositories-settings {
+  display: grid;
+  gap: 16px;
+}
+.repositories-settings .section-heading {
+  align-items: flex-start;
+}
+.workspace-repository-list {
+  display: grid;
+  gap: 8px;
+}
+.workspace-repository-list > article {
+  padding: 13px 14px;
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #1a1a1a;
+}
+.workspace-repository-list > article > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+.workspace-repository-list > article > header > div {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.workspace-repository-list > article > header > div:last-child {
+  flex: none;
+}
+.workspace-repository-list strong {
+  color: var(--bright);
+  font-size: 12px;
+}
+.workspace-repository-list code {
+  color: var(--muted);
+  font-size: 9px;
+}
+.workspace-repository-list p {
+  margin: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font:
+    10px/1.5 ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.repository-capabilities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.repository-capabilities span {
+  padding: 2px 6px;
+  border: 1px solid #35523e;
+  border-radius: 10px;
+  color: #a9d4b4;
+  background: #19241c;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.repository-settings-modal {
+  width: min(760px, calc(100vw - 32px));
+}
+.repository-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.repository-capability-options {
+  margin: 0;
+  padding: 12px;
+  display: grid;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.repository-capability-options legend {
+  padding: 0 5px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.repository-capability-options .checkbox-row,
+.repository-form-grid .checkbox-row {
+  justify-content: space-between;
+}
+.settings-advanced {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.settings-advanced > summary {
+  padding: 11px 12px;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 11px;
+}
+.settings-advanced > .settings-form {
+  padding: 4px 12px 12px;
+}
 
 .settings-tabs {
   display: flex;
@@ -5314,6 +5574,24 @@ select {
     min-width: 36px;
     min-height: 36px;
   }
+  .host-workspace-switcher {
+    position: relative;
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+    padding: 0;
+    justify-content: center;
+  }
+  .host-workspace-switcher > span {
+    display: none;
+  }
+  .host-workspace-switcher select {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    opacity: 0.01;
+    cursor: pointer;
+  }
   .app-toolbar .toolbar-fullscreen,
   .app-toolbar .toolbar-reset,
   .app-toolbar .toolbar-divider {
@@ -5342,6 +5620,20 @@ select {
   }
   .screen {
     padding: 12px;
+  }
+  .host-workspace-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .host-workspace-card dl {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .host-workspace-card > footer,
+  .workspace-concurrency-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .workspace-concurrency-row button {
+    margin-left: 0;
   }
   .metric-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -7307,5 +7599,18 @@ select {
   .automation-intake-blockers li {
     grid-template-columns: 1fr;
     gap: 2px;
+  }
+  .repositories-settings .section-heading,
+  .workspace-repository-list > article > header {
+    display: grid;
+  }
+  .repositories-settings .section-heading .button {
+    width: 100%;
+  }
+  .workspace-repository-list > article > header > div {
+    flex-wrap: wrap;
+  }
+  .repository-form-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

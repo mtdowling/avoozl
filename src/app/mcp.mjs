@@ -3,6 +3,7 @@ import {
   authorizeRunCapability,
   toolAllowedForRun,
 } from "./run-capabilities.mjs";
+import { workspaceIdentity } from "./identity.mjs";
 const operations = {
   plans_examples: [
     "workspace.examples",
@@ -207,7 +208,7 @@ export const WORKSPACE_TOOLS = Object.entries(operations).map(
 export async function handleMcp(
   message,
   ops,
-  { base, runId, runCapability, versionHeader } = {},
+  { base, runId, runCapability, versionHeader, workspaceId } = {},
 ) {
   const invalid = validateMcpRequest(message, { versionHeader });
   if (invalid) return invalid;
@@ -216,6 +217,16 @@ export async function handleMcp(
     status: 200,
     body: { jsonrpc: "2.0", id, result },
   });
+  if (workspaceId && workspaceIdentity(ops.store) !== workspaceId)
+    return ok({
+      isError: true,
+      content: [
+        {
+          type: "text",
+          text: "This MCP connection is bound to another workspace.",
+        },
+      ],
+    });
   const capability = runId
       ? authorizeRunCapability(ops.store, runId, runCapability)
       : null,

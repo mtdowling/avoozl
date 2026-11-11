@@ -149,12 +149,10 @@ function operations(t) {
 
 test("Queue monitoring is private, read-only configuration separate from dispatch", async (t) => {
   const { store, github, ops } = operations(t);
-  await assert.rejects(
-    ops.execute("github.queue.configure", {
-      repository: "example/unbound",
-    }),
-    /Choose an execution project/,
-  );
+  const remoteOnly = await ops.execute("github.queue.configure", {
+    repository: "example/unbound",
+  });
+  assert.equal(remoteOnly.projectId, null);
   const configured = await ops.execute("github.queue.configure", {
     repository: "example/code",
     projectId: "code",
@@ -180,7 +178,7 @@ test("Queue monitoring is private, read-only configuration separate from dispatc
   assert.equal(store.list("github_repositories").length, 0);
   assert.deepEqual(
     github.calls.map((call) => call[0]),
-    ["repository"],
+    ["repository", "repository"],
   );
 
   github.private = false;

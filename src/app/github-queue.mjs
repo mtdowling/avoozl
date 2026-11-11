@@ -102,8 +102,12 @@ function queuePullRequest(repository, config, pull, observedAt) {
   };
 }
 
-function validateProject(store, projectId) {
-  if (projectId && !store.get("projects", projectId))
+function validateProject(store, projectId, proposedProject) {
+  if (
+    projectId &&
+    !store.get("projects", projectId) &&
+    proposedProject?.id !== projectId
+  )
     fail("Configure the execution project before monitoring its repository.");
 }
 
@@ -130,15 +134,13 @@ async function requireQueueRepository(github, repository, visibility) {
   return remote;
 }
 
-export async function configureGitHubQueueRepository(store, github, input) {
+export async function prepareGitHubQueueRepository(store, github, input) {
   const repository = parseRepository(input.repository || input.id),
     existing = store.get("github_queue_repositories", repository.id),
     projectId = input.projectId ?? existing?.projectId ?? null,
     enabled = input.enabled ?? existing?.enabled ?? true,
     visibility = requestedVisibility(input, existing);
-  if (enabled && !projectId)
-    fail("Choose an execution project for this monitored repository.");
-  validateProject(store, projectId);
+  validateProject(store, projectId, input.project);
   const disabling = existing && input.enabled === false,
     remote = disabling
       ? { node_id: existing.nodeId, private: existing.visibility !== "public" }
@@ -163,11 +165,22 @@ export async function configureGitHubQueueRepository(store, github, input) {
       input.labelBehaviors,
       existing?.labelBehaviors,
     ),
+    ...(input.workspaceRepositoryId || existing?.workspaceRepositoryId
+      ? {
+          workspaceRepositoryId:
+            input.workspaceRepositoryId || existing.workspaceRepositoryId,
+        }
+      : {}),
     projectId,
     configuredBy,
     configuredAt: existing?.configuredAt || now(),
     updatedAt: now(),
   };
+  return record;
+}
+
+export async function configureGitHubQueueRepository(store, github, input) {
+  const record = await prepareGitHubQueueRepository(store, github, input);
   store.put("github_queue_repositories", record);
   store.event(null, "github.queue.repository.configured", {
     repository: record.id,

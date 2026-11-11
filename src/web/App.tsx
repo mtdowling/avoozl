@@ -58,11 +58,18 @@ import {
   NODE_W,
 } from "../graph-layout.mjs";
 import { renderUsage } from "../app/ui/usage-charts.mjs";
-import { apiUrl, command, get, submissionId } from "./api";
+import {
+  command,
+  configureWorkspaceScope,
+  get,
+  submissionId,
+  workspaceApiUrl,
+} from "./api";
 import { McpDialog, TaskInspector, type CaptureContext } from "./ControlPlane";
 import { EnhancedGraph } from "./EnhancedGraph";
 import {
   loadState,
+  loadHostWorkspaces,
   loadWorkspace,
   useRemote,
   useWorkspaceEvents,
@@ -75,6 +82,8 @@ import type {
   DriverOpenResult,
   GitHubLabelBehavior,
   GitHubLabelBehaviors,
+  HostWorkspaceList,
+  HostWorkspaceSummary,
   OpenHandsAutomationCapabilities,
   OpenHandsAutomationControlPlane,
   OpenHandsAutomationCoverage,
@@ -98,6 +107,7 @@ import type {
   Task,
   Workspace,
   WorkspaceProject,
+  WorkspaceRepository,
 } from "./types";
 
 const PlanEditor = lazy(() =>
@@ -120,6 +130,7 @@ const MarkdownSourceViewer = lazy(() =>
 const MarkdownContent = lazy(() => import("./MarkdownContent"));
 
 type View =
+  | "workspaces"
   | "overview"
   | "queue"
   | "tasks"
@@ -143,8 +154,10 @@ const views: Array<{ id: View; label: string; icon: typeof LayoutDashboard }> =
     { id: "insights", label: "Insights", icon: BarChart3 },
   ];
 
-const internalViews = new Set<View>(["plans", "settings"]);
+const internalViews = new Set<View>(["workspaces", "plans", "settings"]);
 const pageDescriptions: Partial<Record<View, string>> = {
+  workspaces:
+    "See local workspace health and attention counts without combining their task graphs.",
   overview: "See work in flight, up next, blocked, and waiting for review.",
   queue:
     "Review open work across GitHub and Avoozl, then hand it to an agent or turn it into a governed task.",
@@ -208,6 +221,7 @@ function initialLocation() {
   return {
     canvasHost,
     view,
+    workspaceId: query.get("workspace") || "",
     planId: query.get("plan"),
     documentId: query.get("document"),
     taskId: query.get("task"),
@@ -223,6 +237,7 @@ function canvasInitialLocation() {
       planId?: string | null;
       documentId?: string | null;
       taskId?: string | null;
+      workspaceId?: string | null;
     };
     const view =
       saved.view &&
@@ -236,6 +251,7 @@ function canvasInitialLocation() {
       planId: saved.planId || null,
       documentId: saved.documentId || null,
       taskId: saved.taskId || null,
+      workspaceId: saved.workspaceId || "",
     };
   } catch {
     return {
@@ -244,7 +260,34 @@ function canvasInitialLocation() {
       planId: null,
       documentId: null,
       taskId: null,
+      workspaceId: "",
     };
+  }
+}
+
+type StoredWorkspaceLocation = {
+  view?: View;
+  planId?: string | null;
+  documentId?: string | null;
+  taskId?: string | null;
+  filters?: TaskFilters;
+};
+
+function workspaceLocationKey(workspaceId: string) {
+  return `avoozl-workspace-location:${workspaceId || "default"}`;
+}
+
+function driverProjectKey(workspaceId: string) {
+  return `avoozl-driver-project:${workspaceId || "default"}`;
+}
+
+function readWorkspaceLocation(workspaceId: string) {
+  try {
+    return JSON.parse(
+      sessionStorage.getItem(workspaceLocationKey(workspaceId)) || "{}",
+    ) as StoredWorkspaceLocation;
+  } catch {
+    return {} as StoredWorkspaceLocation;
   }
 }
 
@@ -1314,7 +1357,7 @@ function RecentTree({
         repaint((value) => value + 1);
       },
       setCount() {},
-      apiPath: apiUrl,
+      apiPath: workspaceApiUrl,
       // This skin keeps every cell on one line, so rows are a fixed height.
       rowHeights: { group: 46, task: 38, taskWithBlockers: 38 },
     });
@@ -1655,7 +1698,7 @@ function DocumentDetail({
             {remote.data && (
               <a
                 className="button subtle"
-                href={apiUrl(
+                href={workspaceApiUrl(
                   `/source?path=${encodeURIComponent(remote.data.id)}`,
                 )}
                 target="_blank"
@@ -2407,7 +2450,7 @@ function RecentNow({
         repaint((value) => value + 1);
       },
       setCount() {},
-      apiPath: apiUrl,
+      apiPath: workspaceApiUrl,
     });
     const click = (event: MouseEvent) => {
       const target = event.target as Element;
@@ -4652,8 +4695,7 @@ const SETTINGS_TABS = [
   { id: "workspace", label: "Workspace", icon: Boxes },
   { id: "agents", label: "Agents", icon: Bot },
   { id: "conversations", label: "Conversations", icon: MessageSquare },
-  { id: "projects", label: "Projects", icon: GitBranch },
-  { id: "github", label: "GitHub", icon: CircleDot },
+  { id: "repositories", label: "Repositories", icon: GitBranch },
 ] as const;
 type SettingsTab = (typeof SETTINGS_TABS)[number]["id"];
 
@@ -5244,6 +5286,490 @@ function ProjectForm({
         </button>
       </div>
     </form>
+  );
+}
+
+function RepositoriesSettings({
+  workspace,
+  refresh,
+}: {
+  workspace: Workspace;
+  refresh: () => void;
+}) {
+  const remote = useRemote(
+    () =>
+      command<{ items: WorkspaceRepository[] }>("repositories.list").then(
+        (result) => result.items,
+      ),
+    [workspace.revision],
+  );
+  const [editing, setEditing] = useState<WorkspaceRepository | null>(null);
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState("");
+  const [message, setMessage] = useState("");
+  const defaults: GitHubLabelBehaviors = {
+    ready: ["avoozl:ready"],
+    blocked: ["avoozl:blocked"],
+    review: ["avoozl:review"],
+    quarantined: ["avoozl:quarantined"],
+  };
+  const [form, setForm] = useState({
+    id: "",
+    name: "",
+    github: "",
+    localCheckout: "",
+    worktreeRoot: "",
+    planning: false,
+    editable: true,
+    monitorIssues: true,
+    monitorPullRequests: true,
+    issueAuthorization: false,
+    visibility: "private" as "private" | "public",
+    baseBranch: "main",
+    checks: "",
+    assignee: "",
+    allowedActors: "",
+    minimumPermission: "write" as "write" | "maintain" | "admin",
+    autoStart: false,
+    ready: "avoozl:ready",
+    blocked: "avoozl:blocked",
+    review: "avoozl:review",
+    quarantined: "avoozl:quarantined",
+  });
+  const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) =>
+    setForm((current) => ({ ...current, [key]: value }));
+  function show(item?: WorkspaceRepository) {
+    setEditing(item || null);
+    setForm({
+      id: item?.id || "",
+      name: item?.name || "",
+      github: item?.github || "",
+      localCheckout: item?.localCheckout || "",
+      worktreeRoot: item?.worktreeRoot || "",
+      planning: item?.planning || false,
+      editable: item?.editable !== false,
+      monitorIssues: item?.queue.issues ?? true,
+      monitorPullRequests: item?.queue.pullRequests ?? true,
+      issueAuthorization: item?.issueAuthorization.enabled || false,
+      visibility: item?.queue.visibility || "private",
+      baseBranch: item?.baseBranch || "main",
+      checks: (item?.checks || [])
+        .map((command) => command.join(" "))
+        .join("\n"),
+      assignee: item?.issueAuthorization.assignee || "",
+      allowedActors: (item?.issueAuthorization.allowedActors || []).join(", "),
+      minimumPermission: item?.issueAuthorization.minimumPermission || "write",
+      autoStart: item?.issueAuthorization.autoStart || false,
+      ready: (item?.labels.ready || defaults.ready).join(", "),
+      blocked: (item?.labels.blocked || defaults.blocked).join(", "),
+      review: (item?.labels.review || defaults.review).join(", "),
+      quarantined: (item?.labels.quarantined || defaults.quarantined).join(
+        ", ",
+      ),
+    });
+    setMessage("");
+    setOpen(true);
+  }
+  const split = (value: string) => [
+    ...new Set(
+      value
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  ];
+  async function save(event: React.FormEvent) {
+    event.preventDefault();
+    setBusy("save");
+    setMessage("");
+    try {
+      await command("repositories.configure", {
+        id: form.id.trim(),
+        name: form.name.trim() || undefined,
+        github: form.github.trim() || undefined,
+        localCheckout: form.localCheckout.trim() || undefined,
+        worktreeRoot: form.worktreeRoot.trim() || undefined,
+        planning: form.planning,
+        editable: form.editable,
+        monitorIssues: Boolean(form.github.trim()) && form.monitorIssues,
+        monitorPullRequests:
+          Boolean(form.github.trim()) && form.monitorPullRequests,
+        issueAuthorization:
+          Boolean(form.github.trim()) && form.issueAuthorization,
+        visibility: form.visibility,
+        baseBranch: form.baseBranch.trim() || "main",
+        checks: form.checks
+          .split("\n")
+          .map((line) => line.trim())
+          .filter(Boolean)
+          .map((line) => line.split(/\s+/)),
+        assignee: form.assignee.trim() || undefined,
+        allowedActors: split(form.allowedActors),
+        minimumPermission: form.minimumPermission,
+        autoStart: form.autoStart,
+        labelBehaviors: {
+          ready: split(form.ready),
+          blocked: split(form.blocked),
+          review: split(form.review),
+          quarantined: split(form.quarantined),
+        },
+        provisionAutomation:
+          Boolean(form.github.trim()) &&
+          (form.monitorIssues || form.monitorPullRequests),
+        enableAutomation: true,
+      });
+      setOpen(false);
+      await remote.reload();
+      refresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setBusy("");
+    }
+  }
+  async function remove(item: WorkspaceRepository) {
+    if (
+      !window.confirm(
+        `Remove ${item.name} from this workspace?\n\nIts checkout and GitHub repository will not be deleted.`,
+      )
+    )
+      return;
+    setBusy(item.id);
+    setMessage("");
+    try {
+      await command("repositories.remove", { id: item.id });
+      await remote.reload();
+      refresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setBusy("");
+    }
+  }
+  return (
+    <section className="repositories-settings">
+      <div className="section-heading">
+        <div>
+          <h2>Repositories</h2>
+          <p className="form-note settings-lead">
+            Connect local checkouts and GitHub work sources once, then choose
+            what each repository contributes to this workspace.
+          </p>
+        </div>
+        <button className="button primary" onClick={() => show()}>
+          <Plus size={14} />
+          Add repository
+        </button>
+      </div>
+      {remote.loading ? (
+        <LoadingSurface label="Loading repositories…" />
+      ) : remote.data?.length ? (
+        <div className="workspace-repository-list">
+          {remote.data.map((item) => (
+            <article key={item.id}>
+              <header>
+                <div>
+                  <strong>{item.name}</strong>
+                  <code>{item.id}</code>
+                </div>
+                <div>
+                  <button
+                    className="button"
+                    disabled={Boolean(busy)}
+                    onClick={() => show(item)}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="button danger"
+                    disabled={Boolean(busy)}
+                    onClick={() => void remove(item)}
+                  >
+                    {busy === item.id ? "Removing…" : "Delete"}
+                  </button>
+                </div>
+              </header>
+              <p>
+                {item.localCheckout || "Remote-only"}
+                {item.github ? ` · ${item.github}` : " · local-only"}
+              </p>
+              <div className="repository-capabilities">
+                {item.planning && <span>Plans</span>}
+                {item.editable && <span>Editable</span>}
+                {item.queue.issues && <span>Issues</span>}
+                {item.queue.pullRequests && <span>Pull requests</span>}
+                {item.issueAuthorization.enabled && (
+                  <span>Label-authorized</span>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <InfoCallout>
+          No repositories are connected to this workspace.
+        </InfoCallout>
+      )}
+      {message && !open && <p className="error">{message}</p>}
+      {open && (
+        <div
+          className="modal-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !busy) setOpen(false);
+          }}
+        >
+          <section
+            className="project-settings-modal repository-settings-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="repository-settings-title"
+          >
+            <header>
+              <div>
+                <h2 id="repository-settings-title">
+                  {editing ? "Edit repository" : "Add repository"}
+                </h2>
+                <p>
+                  Local-only and remote-only repositories are supported. A local
+                  checkout is required before an agent can edit code.
+                </p>
+              </div>
+            </header>
+            <form className="settings-form" onSubmit={save}>
+              <div className="repository-form-grid">
+                <label>
+                  Repository ID
+                  <input
+                    value={form.id}
+                    readOnly={Boolean(editing)}
+                    required
+                    onChange={(event) => set("id", event.target.value)}
+                    placeholder="compiler"
+                  />
+                </label>
+                <label>
+                  Display name
+                  <input
+                    value={form.name}
+                    onChange={(event) => set("name", event.target.value)}
+                    placeholder="Compiler"
+                  />
+                </label>
+                <label>
+                  Local checkout
+                  <input
+                    value={form.localCheckout}
+                    onChange={(event) =>
+                      set("localCheckout", event.target.value)
+                    }
+                    placeholder="/path/to/checkout (optional)"
+                  />
+                </label>
+                <label>
+                  GitHub repository
+                  <input
+                    value={form.github}
+                    onChange={(event) => set("github", event.target.value)}
+                    placeholder="owner/repository (optional)"
+                  />
+                </label>
+                <label>
+                  Base branch
+                  <input
+                    value={form.baseBranch}
+                    onChange={(event) => set("baseBranch", event.target.value)}
+                  />
+                </label>
+                <label>
+                  Worktree root
+                  <input
+                    value={form.worktreeRoot}
+                    onChange={(event) =>
+                      set("worktreeRoot", event.target.value)
+                    }
+                    placeholder="Automatic"
+                  />
+                </label>
+              </div>
+              <label>
+                Required checks
+                <textarea
+                  rows={3}
+                  value={form.checks}
+                  onChange={(event) => set("checks", event.target.value)}
+                  placeholder={"npm test\nnpm run typecheck"}
+                />
+                <small>One argument-separated command per line.</small>
+              </label>
+              <fieldset className="repository-capability-options">
+                <legend>Capabilities</legend>
+                <label className="checkbox-row">
+                  Contributes planning documents
+                  <input
+                    type="checkbox"
+                    checked={form.planning}
+                    onChange={(event) => set("planning", event.target.checked)}
+                  />
+                </label>
+                <label className="checkbox-row">
+                  Editable by agents
+                  <input
+                    type="checkbox"
+                    checked={form.editable}
+                    disabled={!form.localCheckout}
+                    onChange={(event) => set("editable", event.target.checked)}
+                  />
+                </label>
+                <label className="checkbox-row">
+                  Monitor issues
+                  <input
+                    type="checkbox"
+                    checked={form.monitorIssues}
+                    disabled={!form.github}
+                    onChange={(event) =>
+                      set("monitorIssues", event.target.checked)
+                    }
+                  />
+                </label>
+                <label className="checkbox-row">
+                  Monitor pull requests
+                  <input
+                    type="checkbox"
+                    checked={form.monitorPullRequests}
+                    disabled={!form.github}
+                    onChange={(event) =>
+                      set("monitorPullRequests", event.target.checked)
+                    }
+                  />
+                </label>
+                <label className="checkbox-row">
+                  Permit label-authorized work
+                  <input
+                    type="checkbox"
+                    checked={form.issueAuthorization}
+                    disabled={!form.github || !form.localCheckout}
+                    onChange={(event) =>
+                      set("issueAuthorization", event.target.checked)
+                    }
+                  />
+                </label>
+              </fieldset>
+              {form.github && (
+                <details className="settings-advanced">
+                  <summary>GitHub labels and authorization</summary>
+                  <div className="settings-form repository-form-grid">
+                    <label>
+                      Visibility
+                      <select
+                        value={form.visibility}
+                        onChange={(event) =>
+                          set(
+                            "visibility",
+                            event.target.value as "private" | "public",
+                          )
+                        }
+                      >
+                        <option value="private">Private</option>
+                        <option value="public">Public observation-only</option>
+                      </select>
+                    </label>
+                    <label>
+                      Assignee
+                      <input
+                        value={form.assignee}
+                        onChange={(event) =>
+                          set("assignee", event.target.value)
+                        }
+                        placeholder="Authenticated user"
+                      />
+                    </label>
+                    <label>
+                      Allowed label actors
+                      <input
+                        value={form.allowedActors}
+                        onChange={(event) =>
+                          set("allowedActors", event.target.value)
+                        }
+                        placeholder="comma, separated"
+                      />
+                    </label>
+                    <label>
+                      Minimum permission
+                      <select
+                        value={form.minimumPermission}
+                        onChange={(event) =>
+                          set(
+                            "minimumPermission",
+                            event.target.value as
+                              | "write"
+                              | "maintain"
+                              | "admin",
+                          )
+                        }
+                      >
+                        <option value="write">Write</option>
+                        <option value="maintain">Maintain</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </label>
+                    {(
+                      [
+                        "ready",
+                        "blocked",
+                        "review",
+                        "quarantined",
+                      ] as GitHubLabelBehavior[]
+                    ).map((behavior) => (
+                      <label key={behavior}>
+                        {behavior} labels
+                        <input
+                          value={form[behavior]}
+                          onChange={(event) =>
+                            set(behavior, event.target.value)
+                          }
+                        />
+                      </label>
+                    ))}
+                    <label className="checkbox-row">
+                      Automatically start authorized issues
+                      <input
+                        type="checkbox"
+                        checked={form.autoStart}
+                        disabled={!form.issueAuthorization}
+                        onChange={(event) =>
+                          set("autoStart", event.target.checked)
+                        }
+                      />
+                    </label>
+                  </div>
+                </details>
+              )}
+              {message && <p className="error">{message}</p>}
+              <div className="form-actions">
+                <button
+                  className="button primary"
+                  disabled={
+                    Boolean(busy) ||
+                    !form.id.trim() ||
+                    (!form.github.trim() && !form.localCheckout.trim())
+                  }
+                >
+                  {busy === "save" ? "Saving…" : "Save repository"}
+                </button>
+                <button
+                  type="button"
+                  className="button"
+                  disabled={Boolean(busy)}
+                  onClick={() => setOpen(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -7423,65 +7949,238 @@ function ConversationSettings({
   );
 }
 
+function WorkspaceSwitcher({
+  host,
+  activeWorkspaceId,
+  showAll,
+  select,
+}: {
+  host: HostWorkspaceList | null;
+  activeWorkspaceId: string;
+  showAll: boolean;
+  select: (workspaceId: string) => void;
+}) {
+  if (!host?.items.length) return null;
+  return (
+    <label className="host-workspace-switcher">
+      <Boxes size={15} aria-hidden="true" />
+      <span>Workspace</span>
+      <select
+        aria-label="Avoozl workspace"
+        value={showAll ? "__all__" : activeWorkspaceId}
+        onChange={(event) => select(event.target.value)}
+      >
+        <option value="__all__">All workspaces</option>
+        {host.items.map((item) => (
+          <option key={item.id} value={item.id} disabled={!item.enabled}>
+            {item.name}
+            {item.counts.running ? ` · ${item.counts.running} running` : ""}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function AllWorkspaces({
+  host,
+  open,
+}: {
+  host: HostWorkspaceList;
+  open: (workspaceId: string) => void;
+}) {
+  const totalRunning = host.items.reduce(
+    (total, item) => total + item.counts.running,
+    0,
+  );
+  const totalReview = host.items.reduce(
+    (total, item) => total + item.counts.review,
+    0,
+  );
+  const totalBlocked = host.items.reduce(
+    (total, item) => total + item.counts.blocked,
+    0,
+  );
+  return (
+    <section className="screen host-workspaces-screen">
+      <header className="screen-heading">
+        <div>
+          <h1>All workspaces</h1>
+          <p>
+            Local status only; each workspace keeps its own plans and state.
+          </p>
+        </div>
+      </header>
+      <div className="host-summary" aria-label="Host summary">
+        <span>
+          <strong>{totalRunning}</strong> running
+        </span>
+        <span>
+          <strong>{totalReview}</strong> review
+        </span>
+        <span>
+          <strong>{totalBlocked}</strong> blocked
+        </span>
+        {host.hostConcurrency && (
+          <span>
+            <strong>
+              {host.hostConcurrency.active}/{host.hostConcurrency.limit}
+            </strong>{" "}
+            machine slots
+          </span>
+        )}
+      </div>
+      <div className="host-workspace-grid">
+        {host.items.map((item) => (
+          <article
+            key={item.id}
+            className={`host-workspace-card state-${item.state}`}
+          >
+            <header>
+              <div>
+                <i aria-hidden="true" />
+                <strong>{item.name}</strong>
+                <code>{item.id}</code>
+              </div>
+              <span>{item.state}</span>
+            </header>
+            <dl>
+              <div>
+                <dt>Running</dt>
+                <dd>{item.counts.running}</dd>
+              </div>
+              <div>
+                <dt>Review</dt>
+                <dd>{item.counts.review}</dd>
+              </div>
+              <div>
+                <dt>Blocked</dt>
+                <dd>{item.counts.blocked}</dd>
+              </div>
+              <div>
+                <dt>Queue</dt>
+                <dd>{item.counts.queue}</dd>
+              </div>
+            </dl>
+            <footer>
+              <span>
+                {item.concurrency.active}/{item.concurrency.limit} workspace
+                slots
+              </span>
+              <button
+                className="button"
+                disabled={!item.enabled || item.state === "quarantined"}
+                onClick={() => open(item.id)}
+              >
+                Open workspace
+              </button>
+            </footer>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function WorkspaceConcurrencySettings({
+  workspace,
+  refresh,
+}: {
+  workspace: HostWorkspaceSummary;
+  refresh: () => void;
+}) {
+  const [limit, setLimit] = useState(workspace.concurrency.limit);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  useEffect(
+    () => setLimit(workspace.concurrency.limit),
+    [workspace.concurrency.limit],
+  );
+  async function save() {
+    setBusy(true);
+    setMessage("");
+    try {
+      await command("workspace.concurrency.configure", { limit });
+      setMessage(
+        limit === 0
+          ? "New dispatch is paused. Running sessions continue."
+          : `Workspace concurrency set to ${limit}.`,
+      );
+      refresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : String(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <section className="workspace-concurrency-settings">
+      <h3>Concurrency</h3>
+      <p className="form-note">
+        Limit new agent runs in this workspace. Existing sessions are never
+        stopped when this changes.
+      </p>
+      <div className="workspace-concurrency-row">
+        <label>
+          Maximum concurrent runs
+          <input
+            type="number"
+            min="0"
+            max="64"
+            step="1"
+            value={limit}
+            onChange={(event) =>
+              setLimit(Math.max(0, Math.min(64, Number(event.target.value))))
+            }
+          />
+        </label>
+        <span>
+          {workspace.concurrency.active} active
+          {workspace.concurrency.queued
+            ? ` · ${workspace.concurrency.queued} queued`
+            : ""}
+        </span>
+        <button
+          className="button primary"
+          disabled={busy || limit === workspace.concurrency.limit}
+          onClick={() => void save()}
+        >
+          {busy ? "Saving…" : "Save"}
+        </button>
+      </div>
+      <p className="form-note">Set zero to pause new dispatch.</p>
+      {message && (
+        <p className="form-note" role="status">
+          {message}
+        </p>
+      )}
+    </section>
+  );
+}
+
 function SettingsView({
   workspace,
   state,
+  hostWorkspace,
+  refreshHost,
   refresh,
-  startGitHubTask,
   openOpenHandsPath,
-  launchPending = false,
 }: {
   workspace: Workspace;
   state: State;
+  hostWorkspace?: HostWorkspaceSummary | null;
+  refreshHost?: () => void;
   refresh: () => void;
   startGitHubTask: (taskId: string) => Promise<void>;
   openOpenHandsPath: (path: string) => void;
   launchPending?: boolean;
 }) {
   const [tab, setTab] = useState<SettingsTab>("workspace");
-  const [editingProjectId, setEditingProjectId] = useState("");
-  const [projectModalOpen, setProjectModalOpen] = useState(false);
-  const [projectActionBusy, setProjectActionBusy] = useState("");
-  const [projectActionMessage, setProjectActionMessage] = useState("");
   const workspaceName =
     state.project?.workspaceName ||
     state.project?.title ||
     state.project?.name ||
     "Avoozl";
-
-  async function removeProject(project: WorkspaceProject) {
-    const label = project.name || project.id;
-    if (
-      !window.confirm(
-        `Remove ${label} from Avoozl?\n\nExisting task and conversation history will remain, but Avoozl will no longer start work in this checkout.`,
-      )
-    )
-      return;
-    setProjectActionBusy(project.id);
-    setProjectActionMessage("");
-    try {
-      await command("project.remove", { id: project.id });
-      if (editingProjectId === project.id) setEditingProjectId("");
-      setProjectActionMessage(`Removed ${label}.`);
-      refresh();
-    } catch (reason) {
-      setProjectActionMessage(
-        reason instanceof Error ? reason.message : String(reason),
-      );
-    } finally {
-      setProjectActionBusy("");
-    }
-  }
-
-  function openProjectModal(projectId = "") {
-    setEditingProjectId(projectId);
-    setProjectModalOpen(true);
-  }
-
-  function closeProjectModal() {
-    setProjectModalOpen(false);
-    setEditingProjectId("");
-  }
 
   return (
     <section className="screen settings-screen">
@@ -7542,6 +8241,12 @@ function SettingsView({
             configuration.
           </p>
           <ConfigurationStatus workspace={workspace} />
+          {hostWorkspace && (
+            <WorkspaceConcurrencySettings
+              workspace={hostWorkspace}
+              refresh={refreshHost || refresh}
+            />
+          )}
         </div>
       )}
       {tab === "agents" && (
@@ -7566,145 +8271,15 @@ function SettingsView({
           <ConversationSettings workspace={workspace} refresh={refresh} />
         </div>
       )}
-      {tab === "projects" && (
+      {tab === "repositories" && (
         <div
           className="settings-panel"
           role="tabpanel"
-          id="settings-panel-projects"
-          aria-labelledby="settings-tab-projects"
+          id="settings-panel-repositories"
+          aria-labelledby="settings-tab-repositories"
         >
-          <div className="section-heading project-settings-heading">
-            <div>
-              <h2>Execution projects</h2>
-              <p className="form-note settings-lead">
-                Execution projects are local Git checkouts where OpenHands
-                creates task worktrees, runs checks, and prepares changes. They
-                are persisted in this Avoozl workspace and reused by Driver and
-                Queue.
-              </p>
-            </div>
-            <button
-              type="button"
-              className="button primary add-project-button"
-              onClick={() => openProjectModal()}
-            >
-              <Plus size={14} />
-              Add project
-            </button>
-          </div>
-          {workspace.projects.length ? (
-            <div className="project-settings-list">
-              {workspace.projects.map((project) => (
-                <article key={project.id}>
-                  <header>
-                    <div>
-                      <strong>{project.name || project.id}</strong>
-                      {project.name && project.name !== project.id && (
-                        <code>{project.id}</code>
-                      )}
-                    </div>
-                    <div className="project-settings-actions">
-                      <button
-                        type="button"
-                        className="button"
-                        disabled={Boolean(projectActionBusy)}
-                        onClick={() => openProjectModal(project.id)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        className="button danger"
-                        disabled={Boolean(projectActionBusy)}
-                        onClick={() => void removeProject(project)}
-                      >
-                        {projectActionBusy === project.id
-                          ? "Removing…"
-                          : "Delete"}
-                      </button>
-                    </div>
-                  </header>
-                  <span>
-                    {project.root || project.path || "Path unavailable"}
-                  </span>
-                  <small>
-                    Base {project.baseBranch || "main"}
-                    {project.repository
-                      ? ` · GitHub ${project.repository}`
-                      : " · no detected GitHub origin"}
-                  </small>
-                </article>
-              ))}
-            </div>
-          ) : (
-            <p className="form-note">
-              No execution repository is configured yet.
-            </p>
-          )}
-          {projectActionMessage && (
-            <p className="form-note" role="status">
-              {projectActionMessage}
-            </p>
-          )}
-          {projectModalOpen && (
-            <div
-              className="modal-backdrop"
-              onMouseDown={(event) => {
-                if (event.target === event.currentTarget) closeProjectModal();
-              }}
-            >
-              <section
-                className="project-settings-modal"
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby="project-settings-modal-title"
-              >
-                <header>
-                  <div>
-                    <h2 id="project-settings-modal-title">
-                      {editingProjectId ? "Edit project" : "Add project"}
-                    </h2>
-                    <p>
-                      Configure the local checkout OpenHands will use for tasks,
-                      worktrees, and validation.
-                    </p>
-                  </div>
-                </header>
-                <ProjectForm
-                  projects={workspace.projects}
-                  editingId={editingProjectId}
-                  onCancel={closeProjectModal}
-                  onSaved={() => {
-                    closeProjectModal();
-                    refresh();
-                  }}
-                />
-              </section>
-            </div>
-          )}
-        </div>
-      )}
-      {tab === "github" && (
-        <div
-          className="settings-panel"
-          role="tabpanel"
-          id="settings-panel-github"
-          aria-labelledby="settings-tab-github"
-        >
-          <h2>GitHub work intake</h2>
-          <p className="form-note settings-lead">
-            GitHub repositories are remote work sources; execution projects are
-            local checkouts. Connect the two, synchronize Queue, then explicitly
-            review or authorize work before an agent starts.
-          </p>
-          <GitHubSettings
-            workspace={workspace}
-            refresh={refresh}
-            startTask={startGitHubTask}
-            openProjects={() => setTab("projects")}
-            openOpenHandsPath={openOpenHandsPath}
-            launchPending={launchPending}
-          />
+          <RepositoriesSettings workspace={workspace} refresh={refresh} />
+          <OpenHandsAutomationSettings openOpenHandsPath={openOpenHandsPath} />
         </div>
       )}
     </section>
@@ -7722,6 +8297,10 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
     [canvas],
   );
   const canvasHost = Boolean(canvas) || initial.canvasHost;
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState(
+    initial.workspaceId,
+  );
+  configureWorkspaceScope(activeWorkspaceId);
   const [view, setView] = useState<View>(initial.view);
   const [planId, setPlanId] = useState<string | null>(initial.planId);
   const [documentId, setDocumentId] = useState<string | null>(
@@ -7757,6 +8336,7 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
   const [driverProjectId, setDriverProjectId] = useState(() => {
     try {
       return (
+        localStorage.getItem(driverProjectKey(initial.workspaceId)) ||
         localStorage.getItem("avoozl-driver-project") ||
         localStorage.getItem("avoozl-chat-project") ||
         ""
@@ -7773,16 +8353,32 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
   );
   const launchLock = useRef(false);
   const newMenu = useRef<HTMLDetailsElement>(null);
-  const initialTaskRestored = useRef(false);
+  const restoredTaskScope = useRef("");
+  const pendingTaskId = useRef<string | null>(initial.taskId);
   const [launchPending, setLaunchPending] = useState(false);
   const [newMenuOpen, setNewMenuOpen] = useState(false);
-  const workspace = useRemote(loadWorkspace, []);
-  const state = useRemote(loadState, []);
-  const driver = useRemote(() => command<DriverList>("driver.list"), []);
+  const hostWorkspaces = useRemote(loadHostWorkspaces, []);
+  const workspace = useRemote(loadWorkspace, [activeWorkspaceId]);
+  const state = useRemote(loadState, [activeWorkspaceId]);
+  const driver = useRemote(
+    () => command<DriverList>("driver.list"),
+    [activeWorkspaceId],
+  );
   const refresh = () => {
-    void Promise.all([workspace.reload(), state.reload(), driver.reload()]);
+    void Promise.all([
+      workspace.reload(),
+      state.reload(),
+      driver.reload(),
+      hostWorkspaces.reload().catch(() => null),
+    ]);
   };
-  useWorkspaceEvents(refresh);
+  useWorkspaceEvents(refresh, undefined, activeWorkspaceId);
+  useEffect(() => {
+    if (activeWorkspaceId || !hostWorkspaces.data?.items.length) return;
+    const next =
+      hostWorkspaces.data.defaultWorkspace || hostWorkspaces.data.items[0].id;
+    setActiveWorkspaceId(next);
+  }, [activeWorkspaceId, hostWorkspaces.data]);
   useEffect(() => {
     if (!newMenuOpen) return;
     const dismiss = (event: PointerEvent) => {
@@ -7803,6 +8399,15 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
     };
   }, [newMenuOpen]);
   useEffect(() => {
+    try {
+      setDriverProjectId(
+        localStorage.getItem(driverProjectKey(activeWorkspaceId)) || "",
+      );
+    } catch {
+      setDriverProjectId("");
+    }
+  }, [activeWorkspaceId]);
+  useEffect(() => {
     const projects = workspace.data?.projects || [];
     if (
       !projects.length ||
@@ -7816,25 +8421,30 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
         : projects[0].id;
     setDriverProjectId(next);
     try {
-      localStorage.setItem("avoozl-driver-project", next);
+      localStorage.setItem(driverProjectKey(activeWorkspaceId), next);
     } catch {}
   }, [
     driver.data?.defaultProjectId,
+    activeWorkspaceId,
     driverProjectId,
     workspace.data?.projects,
   ]);
   useEffect(() => {
-    if (initialTaskRestored.current || !state.data) return;
-    initialTaskRestored.current = true;
-    if (!initial.taskId) return;
-    const task = state.data.tasks.find((item) => item.id === initial.taskId);
+    const scope = activeWorkspaceId || "default";
+    if (restoredTaskScope.current === scope || !state.data) return;
+    restoredTaskScope.current = scope;
+    const taskId = pendingTaskId.current;
+    pendingTaskId.current = null;
+    if (!taskId) return;
+    const task = state.data.tasks.find((item) => item.id === taskId);
     if (task) setDrawerTask(task);
-  }, [initial.taskId, state.data]);
+  }, [activeWorkspaceId, state.data]);
 
   useEffect(() => {
     if (canvas) return;
     const query = new URLSearchParams();
     if (canvasHost) query.set("canvas", "1");
+    if (activeWorkspaceId) query.set("workspace", activeWorkspaceId);
     query.set("view", view === "overview" ? "activity" : view);
     if (view === "plans" && planId) query.set("plan", planId);
     if (view === "documents") {
@@ -7843,7 +8453,15 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
     }
     if (drawerTask) query.set("task", drawerTask.id);
     history.replaceState(null, "", "?" + query);
-  }, [canvas, canvasHost, view, planId, documentId, drawerTask]);
+  }, [
+    activeWorkspaceId,
+    canvas,
+    canvasHost,
+    view,
+    planId,
+    documentId,
+    drawerTask,
+  ]);
 
   useEffect(() => {
     if (!canvas) return;
@@ -7855,10 +8473,11 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
           planId,
           documentId,
           taskId: drawerTask?.id || null,
+          workspaceId: activeWorkspaceId || null,
         }),
       );
     } catch {}
-  }, [canvas, view, planId, documentId, drawerTask]);
+  }, [activeWorkspaceId, canvas, view, planId, documentId, drawerTask]);
 
   useEffect(() => {
     if (!canvasHost || canvas) return;
@@ -7931,6 +8550,46 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
     setView(next);
     setNavOpen(false);
   }
+  function rememberWorkspaceLocation() {
+    try {
+      sessionStorage.setItem(
+        workspaceLocationKey(activeWorkspaceId),
+        JSON.stringify({
+          view: view === "workspaces" ? "overview" : view,
+          planId,
+          documentId,
+          taskId: drawerTask?.id || null,
+          filters: workbenchFilters,
+        } satisfies StoredWorkspaceLocation),
+      );
+    } catch {}
+  }
+  function selectWorkspace(nextWorkspaceId: string) {
+    if (!nextWorkspaceId || nextWorkspaceId === activeWorkspaceId) {
+      if (view === "workspaces") setView("overview");
+      return;
+    }
+    rememberWorkspaceLocation();
+    const saved = readWorkspaceLocation(nextWorkspaceId);
+    configureWorkspaceScope(nextWorkspaceId);
+    setActiveWorkspaceId(nextWorkspaceId);
+    setView(
+      saved.view && saved.view !== "workspaces" ? saved.view : "overview",
+    );
+    setPlanId(saved.planId || null);
+    setDocumentId(saved.documentId || null);
+    setDrawerTask(null);
+    setWorkbenchFilters(saved.filters || { ...emptyTaskFilters });
+    pendingTaskId.current = saved.taskId || null;
+    restoredTaskScope.current = "";
+    setNavOpen(false);
+  }
+  function showAllWorkspaces() {
+    rememberWorkspaceLocation();
+    setDrawerTask(null);
+    setView("workspaces");
+    setNavOpen(false);
+  }
   function rememberCanvasLocation() {
     if (!canvas) return;
     try {
@@ -7941,6 +8600,7 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
           planId,
           documentId,
           taskId: drawerTask?.id || null,
+          workspaceId: activeWorkspaceId || null,
         }),
       );
     } catch {}
@@ -8397,6 +9057,41 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
         </p>
       </div>
     );
+  if ((!workspace.data || !state.data) && hostWorkspaces.data)
+    return (
+      <div className="app-shell canvas-host">
+        <main className="app-main">
+          <header className="app-toolbar">
+            <WorkspaceSwitcher
+              host={hostWorkspaces.data}
+              activeWorkspaceId={activeWorkspaceId}
+              showAll={view === "workspaces"}
+              select={(workspaceId) =>
+                workspaceId === "__all__"
+                  ? showAllWorkspaces()
+                  : selectWorkspace(workspaceId)
+              }
+            />
+          </header>
+          {view === "workspaces" ? (
+            <AllWorkspaces host={hostWorkspaces.data} open={selectWorkspace} />
+          ) : (
+            <section className="boot-screen workspace-unavailable">
+              <ShieldAlert />
+              <h1>Workspace unavailable</h1>
+              <p>
+                {workspace.error?.message ||
+                  state.error?.message ||
+                  "Opening workspace…"}
+              </p>
+              <button className="button" onClick={showAllWorkspaces}>
+                View all workspaces
+              </button>
+            </section>
+          )}
+        </main>
+      </div>
+    );
   if (!workspace.data || !state.data)
     return (
       <div className="boot-screen">
@@ -8414,6 +9109,9 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
   const workspaceData = workspace.data;
   const stateData = state.data;
   const visibleViews = views;
+  const activeHostWorkspace =
+    hostWorkspaces.data?.items.find((item) => item.id === activeWorkspaceId) ||
+    null;
   const workspaceName =
     stateData.project?.workspaceName ||
     stateData.project?.title ||
@@ -8422,7 +9120,12 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
   const currentView = views.find((item) => item.id === view) || {
     id: view,
     icon: LayoutDashboard,
-    label: view === "plans" ? "Proposal" : "Settings",
+    label:
+      view === "workspaces"
+        ? "All workspaces"
+        : view === "plans"
+          ? "Proposal"
+          : "Settings",
   };
   const selectedDriver = driver.data?.projects.find(
     (item) => item.projectId === driverProjectId,
@@ -8583,6 +9286,16 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
           >
             <Menu size={18} />
           </button>
+          <WorkspaceSwitcher
+            host={hostWorkspaces.data}
+            activeWorkspaceId={activeWorkspaceId}
+            showAll={view === "workspaces"}
+            select={(workspaceId) =>
+              workspaceId === "__all__"
+                ? showAllWorkspaces()
+                : selectWorkspace(workspaceId)
+            }
+          />
           {canvasHost ? (
             <nav className="canvas-view-tabs" aria-label="Avoozl views">
               {visibleViews.map(({ id, label, icon: Icon }) => (
@@ -8664,7 +9377,7 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
                     setDriverProjectId(event.target.value);
                     try {
                       localStorage.setItem(
-                        "avoozl-driver-project",
+                        driverProjectKey(activeWorkspaceId),
                         event.target.value,
                       );
                     } catch {}
@@ -8825,6 +9538,9 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
             </>
           )}
         </header>
+        {view === "workspaces" && hostWorkspaces.data && (
+          <AllWorkspaces host={hostWorkspaces.data} open={selectWorkspace} />
+        )}
         {view === "overview" && (
           <FacetedWorkbench
             workspace={workspaceData}
@@ -8991,6 +9707,8 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
           <SettingsView
             workspace={workspaceData}
             state={stateData}
+            hostWorkspace={activeHostWorkspace}
+            refreshHost={() => void hostWorkspaces.reload()}
             refresh={refresh}
             startGitHubTask={startGitHubTaskInOpenHands}
             openOpenHandsPath={(path) => {
