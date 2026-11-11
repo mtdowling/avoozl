@@ -91,8 +91,9 @@ test("the packaged Canvas App registers its declared Avoozl page", async () => {
   assert.match(source, /\/conversations/);
   assert.match(source, /avoozl:openhands-conversation/);
   assert.match(canvasSource, /event\.source === frame\?\.contentWindow/);
-  assert.match(source, /Open the persistent project Driver/);
-  assert.match(source, /Shape work from project context/);
+  assert.match(source, /Chat with Avoozl/);
+  assert.match(source, /Open or return to the persistent Avoozl Driver/);
+  assert.doesNotMatch(source, /Shape work from project context/);
   assert.doesNotMatch(source, /avoozl:openhands-route/);
   assert.doesNotMatch(source, /process\.env\.NODE_ENV/);
   const pluginRoot = path.resolve(

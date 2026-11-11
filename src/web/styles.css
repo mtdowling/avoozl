@@ -492,105 +492,19 @@ body.resizing-panels {
   color: var(--accent);
   background: #242424;
 }
-.toolbar-new-menu {
-  position: relative;
-  display: flex;
-  align-self: center;
-  align-items: center;
-}
-.app-toolbar .toolbar-new-trigger {
-  width: 32px;
-  min-width: 32px;
+.app-toolbar .toolbar-chat-control {
+  width: auto;
+  min-width: 0;
   min-height: 28px;
   margin: 0;
-  padding: 0 7px;
+  padding: 0 9px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  list-style: none;
+  gap: 6px;
   border-radius: 4px;
   color: #bcbcbc;
-  cursor: pointer;
-}
-.toolbar-new-trigger::-webkit-details-marker {
-  display: none;
-}
-.toolbar-new-menu[open] .toolbar-new-trigger,
-.toolbar-new-trigger:hover,
-.toolbar-new-trigger:focus-visible {
-  color: var(--bright);
-  background: #292929;
-}
-.toolbar-new-options {
-  position: absolute;
-  z-index: 120;
-  top: calc(100% + 6px);
-  right: 0;
-  width: 240px;
-  padding: 6px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  background: var(--panel-2);
-  box-shadow: 0 12px 32px #000b;
-}
-.toolbar-workspace-picker {
-  margin-bottom: 5px;
-  padding: 4px 7px 9px;
-  display: grid;
-  gap: 5px;
-  border-bottom: 1px solid var(--line);
-  color: var(--muted);
-  font-size: 8px;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-}
-.toolbar-workspace-picker select {
-  width: 100%;
-  color: #d5d5d5;
-  font-size: 10px;
-  text-transform: none;
-  letter-spacing: 0;
-}
-.app-toolbar .toolbar-new-options button {
-  width: 100%;
-  min-height: 0;
-  padding: 8px 9px;
-  display: grid;
-  grid-template-columns: 20px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-  text-align: left;
-}
-.app-toolbar .toolbar-new-options button > svg {
-  justify-self: center;
-}
-.toolbar-new-option-copy,
-.toolbar-new-option-copy strong,
-.toolbar-new-option-copy small {
-  display: block;
-  min-width: 0;
-  text-align: left;
-}
-.toolbar-new-option-copy {
-  width: 100%;
-  justify-self: stretch;
-}
-.toolbar-new-option-copy strong {
-  color: var(--bright);
   font-size: 12px;
-}
-.toolbar-new-option-copy small {
-  margin-top: 3px;
-  color: var(--muted);
-  font-size: 10px;
-  line-height: 1.35;
-}
-.toolbar-driver-state {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--on);
-  box-shadow: 0 0 7px color-mix(in srgb, var(--on) 65%, transparent);
+  white-space: nowrap;
 }
 .mobile-menu {
   display: none !important;
@@ -5597,19 +5511,9 @@ select {
   .app-toolbar .toolbar-divider {
     display: none;
   }
-  .toolbar-new-menu {
-    flex: none;
-  }
-  .app-toolbar .toolbar-new-trigger {
-    width: 36px;
-    min-width: 36px;
+  .app-toolbar .toolbar-chat-control {
     min-height: 36px;
-    padding: 0;
-    justify-content: center;
-  }
-  .toolbar-new-trigger > span,
-  .toolbar-new-trigger > svg:last-child {
-    display: none;
+    padding-inline: 8px;
   }
   .canvas-connection-tip {
     width: min(310px, calc(100vw - 12px));
