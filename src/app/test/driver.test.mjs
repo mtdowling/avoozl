@@ -320,10 +320,13 @@ test("child launches require the same-project top-level OpenHands Driver", async
     provider: "openhands",
     projectId: "fixture",
     parentRunId: driver.run.id,
+    context: { conversationPurpose: "project-chat" },
   });
   assert.equal(child.parentRunId, driver.run.id);
   assert.equal(child.parentProviderSessionId, driver.run.providerSessionId);
+  assert.equal(child.capabilityMode, "driver-chat");
   assert.equal(starts[1].parentConversationId, driver.run.providerSessionId);
+  assert.match(starts[1].systemInstructions, /fresh user-facing Avoozl/);
   assert.equal(child.worktree, root);
 
   await assert.rejects(

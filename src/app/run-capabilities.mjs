@@ -16,6 +16,15 @@ const MODE_WRITES = Object.freeze({
     "plans_activate_visualization",
     "plans_submit_review",
   ]),
+  "driver-chat": new Set([
+    "plans_capture",
+    "plans_propose_work",
+    "plans_start_run",
+    "plans_visualize",
+    "plans_present",
+    "plans_activate_visualization",
+    "plans_submit_review",
+  ]),
   ask: new Set([
     "plans_visualize",
     "plans_present",

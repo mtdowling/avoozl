@@ -277,6 +277,14 @@ function driverProjectKey(workspaceId: string) {
   return `avoozl-driver-project:${workspaceId || "default"}`;
 }
 
+function avoozlChatTitle(prompt: string) {
+  const firstSentence = prompt
+    .trim()
+    .split(/\n|[.!?](?:\s|$)/, 1)[0]
+    .trim();
+  return (firstSentence || "Chat with Avoozl").slice(0, 160);
+}
+
 function readWorkspaceLocation(workspaceId: string) {
   try {
     return JSON.parse(
@@ -8361,6 +8369,8 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
   const restoredTaskScope = useRef("");
   const pendingTaskId = useRef<string | null>(initial.taskId);
   const [launchPending, setLaunchPending] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatDraft, setChatDraft] = useState("");
   const hostWorkspaces = useRemote(loadHostWorkspaces, []);
   const workspace = useRemote(loadWorkspace, [activeWorkspaceId]);
   const state = useRemote(loadState, [activeWorkspaceId]);
@@ -8613,46 +8623,6 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
     void driver.reload().catch(() => {});
     return result;
   }
-  async function openDriver(scoped: boolean) {
-    const configuredProjectId = workspace.data?.projects.some(
-      (project) => project.id === driverProjectId,
-    )
-      ? driverProjectId
-      : driver.data?.defaultProjectId;
-    const existing = driver.data?.projects.find(
-      (project) => project.projectId === configuredProjectId,
-    )?.run;
-    if (existing) {
-      await openRun(existing.id);
-      return;
-    }
-    const captured = captureContext({ purpose: "project-chat", scoped });
-    const projectId = configuredProjectId || captured.projectId;
-    const context = { ...captured, projectId };
-    if (!projectId) {
-      window.alert("Configure an execution project before opening Driver.");
-      navigate("settings");
-      return;
-    }
-    await withOpenHandsLaunch(async () => {
-      try {
-        const result = await ensureDriver(projectId, context);
-        try {
-          sessionStorage.setItem(
-            "avoozl-driver-return",
-            JSON.stringify({
-              projectId,
-              context,
-              at: new Date().toISOString(),
-            }),
-          );
-        } catch {}
-        await openRun(result.run.id, result.run);
-      } catch (error) {
-        window.alert((error as Error).message);
-      }
-    });
-  }
   async function startOpenHandsIntent(
     action: "ask" | "draft",
     prompt: string,
@@ -8660,7 +8630,7 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
       purpose,
       scoped = true,
     }: { purpose?: "new-task" | "project-chat"; scoped?: boolean } = {},
-  ) {
+  ): Promise<boolean> {
     const context = captureContext({ purpose, scoped });
     const projectId = context.projectId;
     if (!projectId) {
@@ -8668,12 +8638,9 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
         "Configure an execution project before opening an OpenHands workspace.",
       );
       navigate("settings");
-      return;
+      return false;
     }
-    if (purpose === "project-chat") {
-      await openDriver(scoped);
-      return;
-    }
+    let started = false;
     await withOpenHandsLaunch(async () => {
       const id = submissionId();
       try {
@@ -8688,14 +8655,32 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
           runId: "run-" + id,
           parentRunId: parent.run.id,
           context,
-          title: `Avoozl · ${drawerTask?.title || workspace.data?.plans.find((plan) => plan.id === planId)?.title || views.find((item) => item.id === view)?.label || "Workspace"}`,
+          title:
+            purpose === "project-chat"
+              ? avoozlChatTitle(prompt)
+              : `Avoozl · ${drawerTask?.title || workspace.data?.plans.find((plan) => plan.id === planId)?.title || views.find((item) => item.id === view)?.label || "Workspace"}`,
         });
         if (result.run?.id) await openRun(result.run.id, result.run);
         else if (result.plan?.id) openPlan(result.plan.id);
+        started = true;
       } catch (error) {
         window.alert((error as Error).message);
       }
     });
+    return started;
+  }
+  async function submitAvoozlChat() {
+    const prompt = chatDraft.trim();
+    if (!prompt || launchPending) return;
+    if (
+      await startOpenHandsIntent("ask", prompt, {
+        purpose: "project-chat",
+        scoped: true,
+      })
+    ) {
+      setChatDraft("");
+      setChatOpen(false);
+    }
   }
   async function startTaskInOpenHands(task: Task) {
     const review = Boolean(
@@ -9336,12 +9321,12 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
             type="button"
             className="toolbar-action toolbar-chat-control"
             disabled={launchPending}
-            onClick={() => void openDriver(true)}
-            title="Open or return to the persistent Avoozl Driver"
+            onClick={() => setChatOpen(true)}
+            title="Start a fresh Avoozl chat"
             aria-label="Chat with Avoozl"
           >
             <MessageSquare size={16} aria-hidden="true" />
-            <span>{launchPending ? "Opening…" : "Chat with Avoozl"}</span>
+            <span>Chat with Avoozl</span>
           </button>
           <span className="toolbar-divider" aria-hidden="true">
             |
@@ -9619,6 +9604,85 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
           workspace={workspaceData}
           close={() => setMcpOpen(false)}
         />
+      )}
+      {chatOpen && (
+        <div
+          className="modal-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !launchPending)
+              setChatOpen(false);
+          }}
+        >
+          <form
+            className="avoozl-chat-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="avoozl-chat-title"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void submitAvoozlChat();
+            }}
+          >
+            <header>
+              <div>
+                <span className="eyebrow">New conversation</span>
+                <h2 id="avoozl-chat-title">Chat with Avoozl</h2>
+              </div>
+              <button
+                type="button"
+                className="icon-button"
+                disabled={launchPending}
+                onClick={() => setChatOpen(false)}
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </header>
+            <p>
+              Starts a fresh project chat. Previous conversations remain
+              available in OpenHands.
+            </p>
+            <textarea
+              autoFocus
+              rows={5}
+              value={chatDraft}
+              disabled={launchPending}
+              placeholder="What would you like Avoozl to do?"
+              aria-label="Message Avoozl"
+              onChange={(event) => setChatDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Escape" && !launchPending) {
+                  event.preventDefault();
+                  setChatOpen(false);
+                } else if (
+                  event.key === "Enter" &&
+                  !event.shiftKey &&
+                  !event.nativeEvent.isComposing
+                ) {
+                  event.preventDefault();
+                  event.currentTarget.form?.requestSubmit();
+                }
+              }}
+            />
+            <div className="form-actions">
+              <button
+                type="submit"
+                className="button primary"
+                disabled={launchPending || !chatDraft.trim()}
+              >
+                {launchPending ? "Starting…" : "Start chat"}
+              </button>
+              <button
+                type="button"
+                className="button"
+                disabled={launchPending}
+                onClick={() => setChatOpen(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
       )}
     </div>
   );

@@ -92,7 +92,8 @@ test("the packaged Canvas App registers its declared Avoozl page", async () => {
   assert.match(source, /avoozl:openhands-conversation/);
   assert.match(canvasSource, /event\.source === frame\?\.contentWindow/);
   assert.match(source, /Chat with Avoozl/);
-  assert.match(source, /Open or return to the persistent Avoozl Driver/);
+  assert.match(source, /Start a fresh Avoozl chat/);
+  assert.match(source, /What would you like Avoozl to do/);
   assert.doesNotMatch(source, /Shape work from project context/);
   assert.doesNotMatch(source, /avoozl:openhands-route/);
   assert.doesNotMatch(source, /process\.env\.NODE_ENV/);
@@ -115,8 +116,10 @@ test("the packaged Canvas App registers its declared Avoozl page", async () => {
       "utf8",
     );
   assert.equal(pluginManifest.name, "avoozl");
-  assert.match(skill, /Before acting on a request to change, build, fix/);
-  assert.match(skill, /Never\s+launch untracked work/);
+  assert.match(skill, /If they ask a question[\s\S]*answer immediately/);
+  assert.match(skill, /always create an Avoozl task with\s+`plans_capture`/);
+  assert.match(skill, /Immediately call `plans_start_run`/);
+  assert.match(skill, /Do not stop after capturing the task/);
   assert.match(uiSkill, /^name:\s*avoozl-ui$/m);
   assert.match(uiSkill, /Pure Canvas UI changes do not require stopping/);
   assert.match(uiSkill, /drain every enabled workspace/);
