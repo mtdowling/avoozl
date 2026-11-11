@@ -27,7 +27,10 @@ test("the Canvas toolbar keeps essential phone controls without overflowing labe
     /@media \(max-width: 1120px\)[\s\S]*?\.canvas-host \.canvas-view-tabs button span \{\s*display: none;/,
   );
   assert.match(styles, /\.canvas-host > \.app-nav \{\s*display: flex;\s*\}/);
-  assert.match(styles, /\.toolbar-new-trigger > span,[\s\S]*?display: none;/);
+  assert.match(
+    styles,
+    /@media \(max-width: 760px\)[\s\S]*?\.app-toolbar \.toolbar-chat-control \{[\s\S]*?min-height: 36px;/,
+  );
   assert.match(
     styles,
     /\.app-toolbar \.toolbar-fullscreen,[\s\S]*?\.app-toolbar \.toolbar-reset,[\s\S]*?display: none;/,
@@ -35,7 +38,7 @@ test("the Canvas toolbar keeps essential phone controls without overflowing labe
   assert.match(app, /\{ id: "reports", label: "Saved", icon: Glasses \}/);
   assert.match(
     app,
-    /className="toolbar-new-trigger"[\s\S]*?<Plus size=\{16\} \/>[\s\S]*?<\/summary>/,
+    /className="toolbar-action toolbar-chat-control"[\s\S]*?<MessageSquare size=\{16\}[\s\S]*?Chat with Avoozl/,
   );
   assert.doesNotMatch(app, /<Plus size=\{16\} \/>\s*<span>New<\/span>/);
 });
@@ -102,19 +105,13 @@ test("plan reading and live service details keep usable alignment and scrolling"
   );
 });
 
-test("the New menu owns persistent Driver chat and keeps task launches as children", () => {
+test("the toolbar exposes one persistent Avoozl Driver chat control", () => {
   const app = fs.readFileSync(path.join(root, "src/web/App.tsx"), "utf8");
   const styles = fs.readFileSync(path.join(root, "src/web/styles.css"), "utf8");
 
-  assert.doesNotMatch(app, /className="toolbar-driver-control"/);
-  assert.match(app, /className="toolbar-workspace-picker"/);
   assert.match(
     app,
-    /<strong>\{launchPending \? "Opening…" : "Chat"\}<\/strong>[\s\S]*?void startOpenHandsIntent\("ask", NEW_TASK_PROMPT/,
-  );
-  assert.match(
-    app,
-    /void startOpenHandsIntent\("draft", NEW_PLAN_PROMPT,[\s\S]*?<strong>\{launchPending \? "Starting…" : "New plan"\}<\/strong>/,
+    /className="toolbar-action toolbar-chat-control"[\s\S]*?aria-label="Chat with Avoozl"[\s\S]*?<MessageSquare[\s\S]*?Chat with Avoozl/,
   );
   assert.match(app, /void openDriver\(true\)/);
   assert.match(
@@ -125,22 +122,14 @@ test("the New menu owns persistent Driver chat and keeps task launches as childr
     app,
     /const captured = captureContext\(\{ purpose: "project-chat", scoped \}\);/,
   );
-  assert.match(app, /title="Open or return to the persistent Driver"/);
+  assert.match(app, /title="Open or return to the persistent Avoozl Driver"/);
   assert.match(app, /parentRunId: parent\.run\.id/);
   assert.match(
     styles,
-    /\.toolbar-new-menu \{[\s\S]*?display: flex;[\s\S]*?align-self: center;[\s\S]*?align-items: center;/,
+    /\.app-toolbar \.toolbar-chat-control \{[\s\S]*?display: flex;[\s\S]*?gap: 6px;/,
   );
-  assert.match(
-    styles,
-    /\.app-toolbar \.toolbar-new-options button > svg \{\s*justify-self: center;/,
-  );
-  assert.match(
-    styles,
-    /\.toolbar-new-option-copy,[\s\S]*?text-align: left;[\s\S]*?\.toolbar-new-option-copy \{[\s\S]*?justify-self: stretch;/,
-  );
-  assert.doesNotMatch(app, />Project chat</);
-  assert.doesNotMatch(app, />Scoped chat</);
+  assert.doesNotMatch(app, /toolbar-new-menu|toolbar-workspace-picker/);
+  assert.doesNotMatch(app, /NEW_TASK_PROMPT|NEW_PLAN_PROMPT/);
   assert.doesNotMatch(app, /"Work intake"/);
 });
 

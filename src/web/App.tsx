@@ -171,10 +171,6 @@ const pageDescriptions: Partial<Record<View, string>> = {
   insights: "Review agent activity and reported usage over time.",
 };
 
-const NEW_TASK_PROMPT =
-  "Help me define one concrete new task. Ask focused questions about the outcome, scope, and acceptance criteria. Do not invent extra work or nitpick. Once we agree, record the request for review.";
-const NEW_PLAN_PROMPT =
-  "Draft a new plan for this project. Start by clarifying the desired outcome, scope, constraints, and acceptance criteria. Then create a coherent Markdown design with concrete proposed task blocks. Do not approve or dispatch the plan.";
 const NEW_PLAN_TEMPLATE = `# Untitled plan
 
 ## Outcome
@@ -8362,11 +8358,9 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
     360,
   );
   const launchLock = useRef(false);
-  const newMenu = useRef<HTMLDetailsElement>(null);
   const restoredTaskScope = useRef("");
   const pendingTaskId = useRef<string | null>(initial.taskId);
   const [launchPending, setLaunchPending] = useState(false);
-  const [newMenuOpen, setNewMenuOpen] = useState(false);
   const hostWorkspaces = useRemote(loadHostWorkspaces, []);
   const workspace = useRemote(loadWorkspace, [activeWorkspaceId]);
   const state = useRemote(loadState, [activeWorkspaceId]);
@@ -8389,25 +8383,6 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
       hostWorkspaces.data.defaultWorkspace || hostWorkspaces.data.items[0].id;
     setActiveWorkspaceId(next);
   }, [activeWorkspaceId, hostWorkspaces.data]);
-  useEffect(() => {
-    if (!newMenuOpen) return;
-    const dismiss = (event: PointerEvent) => {
-      if (!newMenu.current?.contains(event.target as Node))
-        setNewMenuOpen(false);
-    };
-    const escape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setNewMenuOpen(false);
-        newMenu.current?.querySelector<HTMLElement>("summary")?.focus();
-      }
-    };
-    document.addEventListener("pointerdown", dismiss);
-    document.addEventListener("keydown", escape);
-    return () => {
-      document.removeEventListener("pointerdown", dismiss);
-      document.removeEventListener("keydown", escape);
-    };
-  }, [newMenuOpen]);
   useEffect(() => {
     try {
       setDriverProjectId(
@@ -9137,14 +9112,6 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
           ? "Proposal"
           : "Settings",
   };
-  const selectedDriver = driver.data?.projects.find(
-    (item) => item.projectId === driverProjectId,
-  );
-  const driverChildCount = selectedDriver?.run
-    ? workspaceData.runs.filter(
-        (run) => run.parentRunId === selectedDriver.run?.id && !run.archivedAt,
-      ).length
-    : 0;
   const facetedView =
     view === "overview" ||
     view === "tasks" ||
@@ -9365,123 +9332,17 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
               <Filter size={17} />
             </button>
           )}
-          <details
-            ref={newMenu}
-            className="toolbar-new-menu"
-            open={newMenuOpen}
-            onToggle={(event) => setNewMenuOpen(event.currentTarget.open)}
+          <button
+            type="button"
+            className="toolbar-action toolbar-chat-control"
+            disabled={launchPending}
+            onClick={() => void openDriver(true)}
+            title="Open or return to the persistent Avoozl Driver"
+            aria-label="Chat with Avoozl"
           >
-            <summary
-              className="toolbar-new-trigger"
-              title="Chat or start work with OpenHands"
-              aria-label="Chat or start work with OpenHands"
-            >
-              <Plus size={16} />
-            </summary>
-            <div className="toolbar-new-options">
-              <label className="toolbar-workspace-picker">
-                Workspace
-                <select
-                  value={driverProjectId}
-                  onChange={(event) => {
-                    setDriverProjectId(event.target.value);
-                    try {
-                      localStorage.setItem(
-                        driverProjectKey(activeWorkspaceId),
-                        event.target.value,
-                      );
-                    } catch {}
-                  }}
-                  aria-label="OpenHands workspace"
-                  disabled={!workspaceData.projects.length}
-                >
-                  {!workspaceData.projects.length && (
-                    <option value="">No workspace configured</option>
-                  )}
-                  {workspaceData.projects.map((project) => (
-                    <option key={project.id} value={project.id}>
-                      {project.name || project.id}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <button
-                disabled={launchPending}
-                onClick={() => {
-                  setNewMenuOpen(false);
-                  void openDriver(true);
-                }}
-                aria-label={`Chat with the persistent Driver${selectedDriver?.title ? ` for ${selectedDriver.title}` : ""}`}
-                title="Open or return to the persistent Driver"
-              >
-                <MessageSquare size={16} aria-hidden="true" />
-                <span className="toolbar-new-option-copy">
-                  <strong>{launchPending ? "Opening…" : "Chat"}</strong>
-                  <small>
-                    {selectedDriver?.run
-                      ? `Return to Driver${driverChildCount ? ` · ${driverChildCount} active ${driverChildCount === 1 ? "child" : "children"}` : ""}`
-                      : "Open the persistent project Driver"}
-                  </small>
-                </span>
-                {selectedDriver?.run && (
-                  <i
-                    className="toolbar-driver-state"
-                    aria-label="Driver conversation exists"
-                  />
-                )}
-              </button>
-              <button
-                disabled={launchPending}
-                onClick={() => {
-                  setNewMenuOpen(false);
-                  void startOpenHandsIntent("draft", NEW_PLAN_PROMPT, {
-                    scoped: false,
-                  });
-                }}
-                title="Draft a new project plan with the Driver"
-              >
-                <FileText size={16} aria-hidden="true" />
-                <span className="toolbar-new-option-copy">
-                  <strong>{launchPending ? "Starting…" : "New plan"}</strong>
-                  <small>Draft a reviewed Markdown design</small>
-                </span>
-              </button>
-              <button
-                disabled={launchPending}
-                onClick={() => {
-                  setNewMenuOpen(false);
-                  void startOpenHandsIntent("ask", NEW_TASK_PROMPT, {
-                    purpose: "new-task",
-                    scoped: false,
-                  });
-                }}
-                title="Shape work from project context"
-              >
-                <ListTodo size={16} aria-hidden="true" />
-                <span className="toolbar-new-option-copy">
-                  <strong>{launchPending ? "Starting…" : "New task"}</strong>
-                  <small>Shape work from project context</small>
-                </span>
-              </button>
-              <button
-                disabled={launchPending}
-                onClick={() => {
-                  setNewMenuOpen(false);
-                  void startOpenHandsIntent("ask", NEW_TASK_PROMPT, {
-                    purpose: "new-task",
-                    scoped: true,
-                  });
-                }}
-                title="Create a task with this view and selection"
-              >
-                <CircleDot size={16} aria-hidden="true" />
-                <span className="toolbar-new-option-copy">
-                  <strong>New scoped task</strong>
-                  <small>Include this view and selection</small>
-                </span>
-              </button>
-            </div>
-          </details>
+            <MessageSquare size={16} aria-hidden="true" />
+            <span>{launchPending ? "Opening…" : "Chat with Avoozl"}</span>
+          </button>
           <span className="toolbar-divider" aria-hidden="true">
             |
           </span>
