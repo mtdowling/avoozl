@@ -105,7 +105,7 @@ test("plan reading and live service details keep usable alignment and scrolling"
   );
 });
 
-test("the toolbar starts a fresh lazy Avoozl Driver child chat", () => {
+test("the toolbar opens the durable Avoozl Driver directly", () => {
   const app = fs.readFileSync(path.join(root, "src/web/App.tsx"), "utf8");
   const styles = fs.readFileSync(path.join(root, "src/web/styles.css"), "utf8");
 
@@ -113,18 +113,17 @@ test("the toolbar starts a fresh lazy Avoozl Driver child chat", () => {
     app,
     /className="toolbar-action toolbar-chat-control"[\s\S]*?aria-label="Chat with Avoozl"[\s\S]*?<MessageSquare[\s\S]*?Chat with Avoozl/,
   );
-  assert.match(app, /onClick=\{\(\) => setChatOpen\(true\)\}/);
-  assert.match(app, /title="Start a fresh Avoozl chat"/);
-  assert.match(app, /<h2 id="avoozl-chat-title">Chat with Avoozl<\/h2>/);
-  assert.match(app, /placeholder="What would you like Avoozl to do\?"/);
-  assert.match(app, /purpose: "project-chat"/);
-  assert.match(app, /parentRunId: parent\.run\.id/);
-  assert.doesNotMatch(app, /async function openDriver/);
+  assert.match(app, /onClick=\{\(\) => void openAvoozlDriver\(\)\}/);
+  assert.match(app, /title="Open the Avoozl Driver"/);
+  assert.match(app, /async function openAvoozlDriver\(\)/);
+  assert.match(app, /existing\?\.providerSessionId/);
+  assert.match(app, /await openRun\(existing\.id, existing\)/);
+  assert.doesNotMatch(app, /avoozl-chat-dialog/);
+  assert.doesNotMatch(app, /setChatOpen/);
   assert.match(
     styles,
     /\.app-toolbar \.toolbar-chat-control \{[\s\S]*?display: flex;[\s\S]*?gap: 6px;/,
   );
-  assert.match(styles, /\.avoozl-chat-dialog \{/);
   assert.doesNotMatch(app, /toolbar-new-menu|toolbar-workspace-picker/);
   assert.doesNotMatch(app, /NEW_TASK_PROMPT|NEW_PLAN_PROMPT/);
   assert.doesNotMatch(app, /"Work intake"/);
@@ -144,7 +143,10 @@ test("completed tasks start read-only OpenHands reviews instead of implementatio
   assert.match(app, /conversationPurpose: review \? \("review" as const\)/);
   assert.match(app, /mode: review \? "ask" : "implement"/);
   assert.match(controlPlane, /complete\s+\?\s+"Review with agent"/);
-  assert.match(controlPlane, /:\s+"Start in OpenHands"/);
+  assert.match(controlPlane, /:\s+"Start agent"/);
+  assert.match(controlPlane, /detail\.activity\?\.state === "active"/);
+  assert.doesNotMatch(controlPlane, /detail\.activity\?\.status/);
+  assert.match(controlPlane, /Boolean\(run\.providerSessionId\)/);
 });
 
 test("pending external-session checks render no indefinite loading message", () => {

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { once } from "node:events";
@@ -351,6 +352,52 @@ test("child launches require the same-project top-level OpenHands Driver", async
   assert.equal(logicalChild.parentRunId, driver.run.id);
   assert.equal(logicalChild.parentProviderSessionId, undefined);
   assert.equal(starts[2].parentConversationId, undefined);
+});
+
+test("task worktrees keep logical Driver ownership without an invalid OpenHands parent", async (t) => {
+  const { store, root } = fixture(t);
+  const { execFileSync } = await import("node:child_process");
+  execFileSync("git", ["init", "-b", "main"], { cwd: root });
+  execFileSync("git", ["config", "user.name", "Avoozl test"], { cwd: root });
+  execFileSync("git", ["config", "user.email", "avoozl@example.test"], {
+    cwd: root,
+  });
+  fs.writeFileSync(path.join(root, "README.md"), "fixture\n");
+  execFileSync("git", ["add", "README.md"], { cwd: root });
+  execFileSync("git", ["commit", "-m", "Initialize"], { cwd: root });
+  configureProject(store, root);
+  store.read().tasks[0].projectId = "fixture";
+  store.write(store.read(), "Bind task to project");
+  const starts = [];
+  let sequence = 0;
+  const manager = new RunManager(store, {
+    factories: {
+      openhands: ({ emit }) => ({
+        async start(options) {
+          starts.push(options);
+          emit("session", {
+            providerSessionId: `conversation-${++sequence}`,
+          });
+        },
+        async close() {},
+      }),
+    },
+  });
+  t.after(() => manager.close());
+
+  const driver = await manager.openDriver({ projectId: "fixture" });
+  const child = await manager.start({
+    id: "run-task-child",
+    taskId: "sample-task",
+    provider: "openhands",
+    projectId: "fixture",
+    parentRunId: driver.run.id,
+  });
+
+  assert.equal(child.parentRunId, driver.run.id);
+  assert.equal(child.parentProviderSessionId, undefined);
+  assert.notEqual(child.worktree, driver.run.worktree);
+  assert.equal(starts[1].parentConversationId, undefined);
 });
 
 test("changing Driver agent or model safely hands off and retains history", async (t) => {

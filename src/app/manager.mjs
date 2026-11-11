@@ -1024,8 +1024,7 @@ export class RunManager {
         plan?.title,
       context: input.context || {},
       parentRunId: parent?.id,
-      parentProviderSessionId:
-        input.provider === "openhands" ? parent?.providerSessionId : undefined,
+      parentProviderSessionId: undefined,
       review: input.review || undefined,
       resources,
       state: this.scheduler ? "queued" : "starting",
@@ -1072,6 +1071,13 @@ export class RunManager {
               }
             : await createWorktree(this.store, project, id),
         );
+        run.parentProviderSessionId =
+          input.provider === "openhands" &&
+          parent?.providerSessionId &&
+          parent.worktree &&
+          path.resolve(parent.worktree) === path.resolve(run.worktree)
+            ? parent.providerSessionId
+            : undefined;
         run.handoffPath = path.join(
           path.dirname(path.resolve(this.store.filename)),
           "handoffs",

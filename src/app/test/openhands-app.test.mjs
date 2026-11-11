@@ -92,8 +92,9 @@ test("the packaged Canvas App registers its declared Avoozl page", async () => {
   assert.match(source, /avoozl:openhands-conversation/);
   assert.match(canvasSource, /event\.source === frame\?\.contentWindow/);
   assert.match(source, /Chat with Avoozl/);
-  assert.match(source, /Start a fresh Avoozl chat/);
-  assert.match(source, /What would you like Avoozl to do/);
+  assert.match(source, /Open the Avoozl Driver/);
+  assert.doesNotMatch(source, /Start a fresh Avoozl chat/);
+  assert.doesNotMatch(source, /What would you like Avoozl to do/);
   assert.doesNotMatch(source, /Shape work from project context/);
   assert.doesNotMatch(source, /avoozl:openhands-route/);
   assert.doesNotMatch(source, /process\.env\.NODE_ENV/);
