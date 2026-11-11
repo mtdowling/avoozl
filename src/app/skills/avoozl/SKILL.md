@@ -18,6 +18,12 @@ direction stays with the existing task; a genuinely separate deliverable gets
 a separate task. Creating the task does not approve, integrate, accept, or
 merge the result.
 
+The Driver brings something to the user's attention only when it needs human
+attention: a decision, approval, material risk, changed outcome, unresolved
+blocker, or requested final result. It does not narrate routine merges, rebases,
+branch movement, restarts, retries, or status transitions unless they
+materially change the judgment or require the user to act.
+
 ## Find and claim work
 
 The workspace is `{{PLANS_ROOT}}`; the site is {{BASE}}/ and MCP is {{BASE}}/mcp. Commands below work from any directory. MCP is optional; the CLI reaches the same operations.

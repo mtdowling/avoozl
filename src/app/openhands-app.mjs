@@ -80,9 +80,12 @@ function assertPluginPackage(source) {
   source = path.resolve(source);
   const manifestPath = path.join(source, ".plugin", "plugin.json"),
     mcpPath = path.join(source, ".mcp.json"),
-    skillPath = path.join(source, "skills", "avoozl", "SKILL.md"),
+    skillNames = ["avoozl", "avoozl-ui"],
+    skillPaths = skillNames.map((name) =>
+      path.join(source, "skills", name, "SKILL.md"),
+    ),
     intakePath = path.join(source, "scripts", "avoozl_github_intake.py");
-  for (const file of [manifestPath, mcpPath, skillPath, intakePath]) {
+  for (const file of [manifestPath, mcpPath, ...skillPaths, intakePath]) {
     let stat;
     try {
       stat = fs.lstatSync(file);
@@ -94,7 +97,7 @@ function assertPluginPackage(source) {
   }
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")),
     mcp = JSON.parse(fs.readFileSync(mcpPath, "utf8")),
-    skill = fs.readFileSync(skillPath, "utf8"),
+    skills = skillPaths.map((skillPath) => fs.readFileSync(skillPath, "utf8")),
     server = mcp?.mcpServers?.avoozl,
     automation = manifest.automation;
   if (
@@ -108,7 +111,11 @@ function assertPluginPackage(source) {
     automation.runtime?.llm_profile ||
     !automation.config_schema?.required?.includes("callback_url") ||
     !automation.config_schema?.required?.includes("ingest_secret_name") ||
-    !/^---\s*\nname:\s*avoozl\b/m.test(skill) ||
+    !skills.every((skill, index) =>
+      new RegExp(`^---\\s*\\nname:\\s*${skillNames[index]}\\b`, "m").test(
+        skill,
+      ),
+    ) ||
     server?.type !== "http" ||
     server.url !== "${AVOOZL_MCP_URL}" ||
     server.headers?.Authorization !== "Bearer ${AVOOZL_MCP_TOKEN}"
@@ -118,7 +125,7 @@ function assertPluginPackage(source) {
     name: manifest.name,
     version: manifest.version,
     source,
-    skills: ["avoozl"],
+    skills: skillNames,
     automations: [
       {
         id: "avoozl-github-intake",

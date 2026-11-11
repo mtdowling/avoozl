@@ -109,10 +109,17 @@ test("the packaged Canvas App registers its declared Avoozl page", async () => {
     skill = fs.readFileSync(
       path.join(pluginRoot, "skills/avoozl/SKILL.md"),
       "utf8",
+    ),
+    uiSkill = fs.readFileSync(
+      path.join(pluginRoot, "skills/avoozl-ui/SKILL.md"),
+      "utf8",
     );
   assert.equal(pluginManifest.name, "avoozl");
   assert.match(skill, /Before acting on a request to change, build, fix/);
   assert.match(skill, /Never\s+launch untracked work/);
+  assert.match(uiSkill, /^name:\s*avoozl-ui$/m);
+  assert.match(uiSkill, /Pure Canvas UI changes do not require stopping/);
+  assert.match(uiSkill, /drain every enabled workspace/);
   assert.equal(pluginManifest.version, OPENHANDS_VERSIONS.plugin);
   assert.equal(
     pluginManifest.automation.schema_version,
@@ -238,7 +245,7 @@ test("Canvas App installation is explicit, local, and enables the copied package
   ]);
   assert.equal(result.backend.state, "ready");
   assert.equal(result.integration.enabled, true);
-  assert.deepEqual(result.integration.skills, ["avoozl"]);
+  assert.deepEqual(result.integration.skills, ["avoozl", "avoozl-ui"]);
   assert.equal(
     result.integration.mcpServers.avoozl.bearerSecret,
     "AVOOZL_MCP_TOKEN",

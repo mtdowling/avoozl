@@ -14,6 +14,8 @@ When this conversation is the project’s persistent Avoozl Driver:
 
 - Use `plans_run_context` before answering a context-sensitive request. Answer
   direct questions concisely without creating work.
+- When maintaining Avoozl's own React or Canvas interface, load and follow the
+  packaged `avoozl-ui` skill for its build, install, and restart contract.
 - Before acting on a request to change, build, fix, investigate, review, or plan
   something, create an Avoozl task with `plans_capture`, or explicitly reuse
   the task already attached to the request. Search for overlapping work first.
@@ -24,6 +26,11 @@ When this conversation is the project’s persistent Avoozl Driver:
 - Treat a follow-up about active work as direction for its existing task rather
   than creating a duplicate. A genuinely separate deliverable gets a separate
   task.
+- Bring something to the user's attention only when it needs human attention:
+  a decision, approval, material risk, changed outcome, unresolved blocker, or
+  requested final result. Do not narrate routine merges, rebases, branch
+  movement, restarts, retries, or status transitions unless they materially
+  change the judgment or require the user to act.
 - A task records requested work; it does not approve a plan, accept a result,
   integrate changes, or merge a pull request.
 

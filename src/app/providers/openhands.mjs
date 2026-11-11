@@ -14,7 +14,7 @@ export const OPENHANDS_VERSIONS = Object.freeze({
   client: "1.61.0",
   server: "1.61.0",
   canvas: "1.38.0",
-  plugin: "1.2.0",
+  plugin: "1.3.0",
 });
 
 export const OPENHANDS_CAPABILITIES = Object.freeze({
@@ -36,7 +36,7 @@ export const OPENHANDS_CAPABILITIES = Object.freeze({
 
 export const OPENHANDS_PLUGIN = Object.freeze({
   name: "avoozl",
-  version: "1.2.0",
+  version: "1.3.0",
   source: path.join(
     path.dirname(fileURLToPath(import.meta.url)),
     "openhands-plugin",
