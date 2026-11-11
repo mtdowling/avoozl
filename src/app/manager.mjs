@@ -50,7 +50,7 @@ export function driverConversationTitle(project = {}) {
   const name = String(project.name || project.title || project.id || "Project")
     .trim()
     .replace(/\s+/g, " ");
-  return `Avoozl Driver · ${name}`.slice(0, 160);
+  return `Chat with Avoozl · ${name}`.slice(0, 160);
 }
 
 export function openHandsDriverConversationId(runId) {
