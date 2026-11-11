@@ -992,6 +992,33 @@ test("Driver can create tracked child work without gaining acceptance authority"
   assert.ok(!names.includes("plans_accept_task"));
 });
 
+test("legacy Driver records receive Driver capabilities when reconnected", async (t) => {
+  const { store } = fixture(t),
+    run = store.put("runs", {
+      id: "run-legacy-driver",
+      taskId: "conversation:run-legacy-driver",
+      provider: "openhands",
+      driver: true,
+      driverRole: "project",
+      mode: "ask",
+      state: "completed",
+    }),
+    { token, capability } = mintRunCapability(store, run),
+    ops = new Operations(store);
+  assert.equal(capability.mode, "driver");
+  const list = await handleMcp(
+    { jsonrpc: "2.0", id: 1, method: "tools/list" },
+    ops,
+    { runId: run.id, runCapability: token },
+  );
+  const names = list.body.result.tools.map((tool) => tool.name);
+  assert.ok(names.includes("plans_capture"));
+  assert.ok(names.includes("plans_propose_work"));
+  assert.ok(!names.includes("plans_approve_plan"));
+  assert.ok(!names.includes("plans_integrate"));
+  assert.ok(!names.includes("plans_accept_task"));
+});
+
 test("OpenHands surface capabilities bind one run and one conversation", (t) => {
   const { store } = fixture(t);
   store.put("runs", {
