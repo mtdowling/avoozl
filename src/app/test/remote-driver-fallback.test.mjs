@@ -60,7 +60,7 @@ test("an older remote host falls back from driver.open to run.start", async (t) 
   );
   assert.equal(calls[1].input.agentProfile, "profile-driver");
   assert.equal(calls[1].input.model, "anthropic/claude-sonnet");
-  assert.match(calls[1].input.prompt, /persistent Avoozl Driver/);
+  assert.equal(calls[1].input.prompt, undefined);
 
   const reopened = await ops.execute("driver.open", {
     projectId: "fixture",

@@ -572,14 +572,14 @@ test("OpenHands creates an idle parented conversation with invisible instruction
     cwd: "/worktrees/run-test",
     mode: "ask",
     title: "Avoozl Driver",
-    conversationId: "avoozl-driver-test",
+    conversationId: "b3d8cf56-ff1f-5d61-9d7f-b108e7bf1d90",
     parentConversationId: "conversation-parent",
     systemInstructions: "Remain the project Driver.",
     approvalMode: "manual",
   });
 
   const create = fake.calls.find(([kind]) => kind === "create")[1];
-  assert.equal(create.conversation_id, "avoozl-driver-test");
+  assert.equal(create.conversation_id, "b3d8cf56-ff1f-5d61-9d7f-b108e7bf1d90");
   assert.equal(create.parent_conversation_id, "conversation-parent");
   assert.equal(create.worktree, false);
   assert.deepEqual(create.agent_launch_additions, {

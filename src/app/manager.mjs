@@ -2,7 +2,7 @@ import { resolveTaskId } from "../task-identity.mjs";
 import { workspaceIdentity } from "./identity.mjs";
 import fs from "node:fs";
 import path from "node:path";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { activityState } from "../activity.mjs";
 import { applyActivity } from "../activity.mjs";
 import { queryTasks } from "../query.mjs";
@@ -51,6 +51,21 @@ export function driverConversationTitle(project = {}) {
     .trim()
     .replace(/\s+/g, " ");
   return `Avoozl Driver · ${name}`.slice(0, 160);
+}
+
+export function openHandsDriverConversationId(runId) {
+  const hex = createHash("sha256")
+    .update("avoozl:openhands-driver:" + runId)
+    .digest("hex")
+    .slice(0, 32);
+  const variant = ((Number.parseInt(hex[16], 16) & 0x3) | 0x8).toString(16);
+  return [
+    hex.slice(0, 8),
+    hex.slice(8, 12),
+    "5" + hex.slice(13, 16),
+    variant + hex.slice(17, 20),
+    hex.slice(20, 32),
+  ].join("-");
 }
 
 export function compactDriverContext(context = {}) {
@@ -586,8 +601,30 @@ export class RunManager {
             projectId: project.id,
             context: input.context,
           });
-        if (existing.providerSessionId && !this.live.has(existing.id))
-          await this.connect(this.store.get("runs", existing.id), undefined);
+        if (!this.live.has(existing.id)) {
+          const reconnecting = this.store.get("runs", existing.id),
+            retryingCreation = !reconnecting.providerSessionId;
+          if (retryingCreation) {
+            reconnecting.state = "starting";
+            reconnecting.error = undefined;
+            this.store.put("runs", reconnecting);
+            this.store.event(reconnecting.id, "driver.creation.retried", {});
+          }
+          try {
+            await this.connect(reconnecting, undefined);
+          } catch (error) {
+            if (retryingCreation) {
+              const failed = this.store.get("runs", reconnecting.id);
+              failed.state = "failed";
+              failed.error = error.message;
+              this.store.put("runs", failed);
+              this.store.event(failed.id, "run.failed", {
+                message: error.message,
+              });
+            }
+            throw error;
+          }
+        }
         return {
           project: {
             projectId: project.id,
@@ -1063,7 +1100,9 @@ export class RunManager {
         agentProfile: run.agentProfile,
         approvalMode: approvalMode(run.approvalMode, "manual"),
         prompt,
-        conversationId: run.driver ? "avoozl-" + run.id : undefined,
+        conversationId: run.driver
+          ? openHandsDriverConversationId(run.id)
+          : undefined,
         parentConversationId: run.parentProviderSessionId,
         systemInstructions: run.driver ? DRIVER_INSTRUCTIONS : undefined,
         resumeId: run.providerSessionId,
