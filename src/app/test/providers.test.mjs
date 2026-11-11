@@ -290,7 +290,13 @@ test("plan usage reports remaining windows, and says so when a plan has none", a
   assert.match(none.reason, /no plan limits/);
 
   // A build without the experimental method is reported, never thrown.
-  const missing = await claudeUsage({ query: () => ({ close() { closed++; } }) });
+  const missing = await claudeUsage({
+    query: () => ({
+      close() {
+        closed++;
+      },
+    }),
+  });
   assert.equal(missing.available, false);
   assert.match(missing.reason, /does not report plan usage/);
   assert.equal(closed, 3);

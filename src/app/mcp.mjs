@@ -136,6 +136,10 @@ const operations = {
     "run.get",
     "Read a run, messages, requests and delivery receipts.",
   ],
+  plans_run_context: [
+    "run.context",
+    "Read the current project, title, and selected Avoozl view context for this authenticated run. The run identity is supplied by the server.",
+  ],
   plans_ready_queue: [
     "queue",
     "Find ready work, active resource conflicts, unblocking value and queued integration.",
@@ -188,6 +192,7 @@ export const WORKSPACE_TOOLS = Object.entries(operations).map(
         "plan.get",
         "plan.lint",
         "run.get",
+        "run.context",
         "run.list",
         "task.sessions",
         "task.duplicates",
@@ -266,7 +271,7 @@ export async function handleMcp(
     try {
       const result = await ops.execute(
         operation,
-        operation === "plan.review.submit" && runId
+        runId && ["plan.review.submit", "run.context"].includes(operation)
           ? { ...(args.input || {}), runId }
           : args.input || {},
         args.expectedRevision,

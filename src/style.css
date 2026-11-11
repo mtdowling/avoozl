@@ -7,9 +7,9 @@
   --muted: #a0a0a0;
   --accent: #8be9fd;
   --on: #50fa7b;
-  /* Work in flight breathes in purple; green is reserved for landed work. */
-  --working: #bd93f9;
-  --working-ink: #1b1030;
+  /* Match OpenHands' native running status, with a standalone fallback. */
+  --working: #1fbd53;
+  --working-ink: #071b0e;
   --landed: #50fa7b;
   --selected: #ff79c6;
   font-family:
@@ -5082,8 +5082,8 @@ body {
   border-bottom-color: var(--working);
 }
 .hub-tabs button[data-now-tab="working"][aria-selected="true"] span {
-  background: #3a2857;
-  color: #efe2ff;
+  background: #123b20;
+  color: #baf5cc;
 }
 .hub-panel:focus {
   outline: none;
@@ -5147,6 +5147,9 @@ body {
   padding: 18px 0;
   border-bottom: 1px solid #3b3b3b;
 }
+.hub-work-row[data-task] {
+  cursor: pointer;
+}
 .hub-work-marker {
   width: 7px;
   height: 7px;
@@ -5202,6 +5205,32 @@ body {
 }
 .hub-row-actions .text-button {
   font-size: 11px;
+}
+.hub-session-open {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  color: #d4d4d4;
+  background: #242424;
+  border: 1px solid #484848;
+  border-radius: 6px;
+}
+.hub-session-open svg {
+  width: 18px;
+  height: 18px;
+}
+.hub-session-open:hover {
+  color: #ffffff;
+  background: #333333;
+  border-color: #6b6b6b;
+}
+.hub-session-open:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 .hub-empty {
   font-size: 13px;
@@ -6633,11 +6662,6 @@ body {
 .strip-stage {
   min-height: 180px;
 }
-.hub-work-row[data-open-run],
-.hub-work-row[data-reported-task] {
-  cursor: pointer;
-}
-
 /* Compact layouts share one viewport and use drawers instead of narrow columns. */
 :root {
   --header-height: 64px;
@@ -7425,58 +7449,85 @@ button[aria-pressed="true"] {
   border-color: #2f6b40;
   background: #12291a;
 }
-/* In-flight work breathes so a glance separates it from landed work. The
-   fill carries the pulse; the letter keeps one ink so it stays readable. */
+/* Only the small row status dot breathes. Timeline markers stay still while
+   their centered loader rotates. */
 @keyframes work-breathe {
   0%,
   100% {
-    background: #6a3fb5;
-    border-color: #9a6ce0;
+    background: var(--working);
+    border-color: var(--working);
     box-shadow:
       0 3px 9px #13131399,
-      0 0 0 0 #bd93f900;
+      0 0 7px color-mix(in srgb, var(--working) 55%, transparent);
   }
   50% {
-    background: #dcc6ff;
-    border-color: #efe2ff;
+    background: #11682e;
+    border-color: #11682e;
     box-shadow:
       0 3px 9px #13131399,
-      0 0 0 10px #bd93f94d;
+      0 0 3px color-mix(in srgb, var(--working) 28%, transparent);
   }
 }
 @keyframes work-breathe-arrow {
   0%,
   100% {
-    background: #6a3fb5;
-    border-color: #9a6ce0;
+    background: var(--working);
+    border-color: var(--working);
   }
   50% {
-    background: #dcc6ff;
-    border-color: #efe2ff;
+    background: #11682e;
+    border-color: #11682e;
   }
 }
 @keyframes work-breathe-dot {
   0%,
   100% {
-    background: #6a3fb5;
-    box-shadow: 0 0 0 1px #bd93f930;
+    background: var(--working);
+    box-shadow: 0 0 7px color-mix(in srgb, var(--working) 70%, transparent);
   }
   50% {
-    background: #dcc6ff;
-    box-shadow: 0 0 0 7px #bd93f900;
+    background: #11682e;
+    box-shadow: 0 0 3px color-mix(in srgb, var(--working) 35%, transparent);
   }
 }
 .strip-workers .agent-pin > span,
 .strip-workers .agent-pin > span:before {
-  background: var(--working);
-  border-color: #d9c2ff;
-  color: var(--working-ink);
+  background: transparent;
+  border-color: var(--working);
+  color: var(--working);
+}
+.strip-workers .agent-pin > span:before {
+  display: none;
 }
 .strip-workers .agent-pin.working > span {
-  animation: work-breathe 1.8s ease-in-out infinite;
+  border-radius: 8px;
+  border-color: var(--oh-status-success, var(--working)) !important;
+  background: transparent !important;
+  box-shadow: 0 3px 9px #13131399;
 }
-.strip-workers .agent-pin.working > span:before {
-  animation: work-breathe-arrow 1.8s ease-in-out infinite;
+.agent-pin > span > i.agent-pin-loader {
+  position: static;
+  inset: auto;
+  width: 12px;
+  height: 12px;
+  display: block;
+  padding: 0;
+  border: 2px solid
+    color-mix(
+      in srgb,
+      var(--oh-status-success, var(--working)) 28%,
+      transparent
+    );
+  border-top-color: var(--oh-status-success, var(--working));
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  animation: agent-pin-loader-spin 0.85s linear infinite;
+}
+@keyframes agent-pin-loader-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 .agent-pin-stems path {
   stroke: var(--working);
@@ -7485,17 +7536,23 @@ button[aria-pressed="true"] {
   fill: var(--working);
 }
 .hub-work-marker.is-working {
-  background: var(--working);
-  animation: work-breathe-dot 1.8s ease-in-out infinite;
+  width: 8px;
+  height: 8px;
+  background: var(--oh-status-success, var(--working));
+  animation: openhands-running-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes openhands-running-pulse {
+  50% {
+    opacity: 0.5;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .strip-workers .agent-pin.working > span,
-  .strip-workers .agent-pin.working > span:before,
-  .hub-work-marker.is-working {
+  .hub-work-marker.is-working,
+  .agent-pin-loader {
     animation: none;
   }
   .hub-work-marker.is-working {
-    box-shadow: 0 0 0 4px #bd93f92e;
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--working) 18%, transparent);
   }
 }
 
@@ -7825,8 +7882,8 @@ body > .site-navigation.header {
   min-width: 18px;
   padding: 1px 5px;
   border-radius: 9px;
-  background: #3a2857;
-  color: #efe2ff;
+  background: #123b20;
+  color: #baf5cc;
   font-size: 9px;
   font-weight: 600;
   line-height: 15px;

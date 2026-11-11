@@ -87,9 +87,22 @@ test("multi-provider review stops when a round adds no new material feedback", a
     checks: [],
   });
   let starts = 0;
+  const startedInputs = [];
+  store.put("runs", {
+    id: "driver-code",
+    taskId: "conversation:driver-code",
+    projectId: "code",
+    provider: "openhands",
+    providerSessionId: "conversation-driver",
+    driver: true,
+    driverRole: "project",
+    mode: "ask",
+    state: "completed",
+  });
   const manager = {
       async start(input) {
         starts++;
+        startedInputs.push(input);
         const run = {
           id: input.id,
           taskId: "plan:" + input.planId,
@@ -124,6 +137,7 @@ test("multi-provider review stops when a round adds no new material feedback", a
   const pipeline = ops.startReviewPipeline({
     planId: design.id,
     projectId: "code",
+    parentRunId: "driver-code",
     maxRounds: 3,
     sequence: [
       { provider: "claude", model: "reviewer-a" },
@@ -141,6 +155,10 @@ test("multi-provider review stops when a round adds no new material feedback", a
   assert.equal(complete.rounds.length, 2);
   assert.equal(complete.stopReason, "A reviewer found no new material issues.");
   assert.equal(starts, 2);
+  assert.deepEqual(
+    startedInputs.map((input) => input.parentRunId),
+    ["driver-code", "driver-code"],
+  );
 });
 
 test("a review run cannot submit feedback against another revision", async (t) => {

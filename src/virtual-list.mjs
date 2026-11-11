@@ -68,7 +68,8 @@ export function createVirtualList(
       .filter(Boolean)
       .join(" ");
     element.innerHTML =
-      (table.head ? "<thead>" + table.head + "</thead>" : "") + "<tbody></tbody>";
+      (table.head ? "<thead>" + table.head + "</thead>" : "") +
+      "<tbody></tbody>";
     content = element.querySelector("tbody");
     lead = spacer();
     trail = spacer();

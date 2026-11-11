@@ -61,6 +61,13 @@ function chart(series, { id, title, keys, format = number }) {
 }
 export function renderUsage(result) {
   const series = result.series || [],
+    coverage = result.usageCoverage || {},
+    groupLabel =
+      result.groupBy === "model"
+        ? "model"
+        : result.groupBy === "provider"
+          ? "agent"
+          : result.groupBy || "task",
     tokens = chart(series, {
       id: "tokens",
       title: "Tokens over time",
@@ -97,6 +104,6 @@ export function renderUsage(result) {
   return (
     tokens +
     time +
-    `<p class="usage-coverage">UTC days. Session wall time is observed activity, not human effort; concurrent sessions add together. Historical usage is not reconstructed. Costs are shown only when the provider reports them.</p><details class="usage-data"><summary>Daily data & provider totals</summary><div class="usage-table"><table><thead><tr><th>Day</th><th>Input</th><th>Output</th><th>Agent minutes</th><th>Waiting minutes</th><th>Reported cost</th></tr></thead><tbody>${series.map((r) => `<tr><td>${r.day}</td><td>${number(r.inputTokens)}</td><td>${number(r.outputTokens)}</td><td>${(r.agentMs / 60000).toFixed(1)}</td><td>${(r.waitingMs / 60000).toFixed(1)}</td><td>${r.estimatedCostUsd == null ? "—" : "$" + r.estimatedCostUsd.toFixed(3)}</td></tr>`).join("")}</tbody></table></div>${result.groups.map((g) => `<p>${esc(g.key)} · ${number(g.totalTokens)} tokens · ${g.estimatedCostUsd == null ? "Cost unreported" : "$" + g.estimatedCostUsd.toFixed(3) + " reported"}</p>`).join("")}</details>`
+    `<p class="usage-coverage">UTC days. ${number(coverage.reportedRuns || 0)} conversations reported usage; ${number(coverage.unreportedRuns || 0)} did not report it and remain unknown, not zero. Session wall time is observed activity, not human effort; concurrent sessions add together. Historical usage is not reconstructed. Costs are shown only when the provider reports them.</p><details class="usage-data"><summary>Daily data & ${esc(groupLabel)} totals</summary><div class="usage-table"><table><thead><tr><th>Day</th><th>Input</th><th>Output</th><th>Agent minutes</th><th>Waiting minutes</th><th>Reported cost</th></tr></thead><tbody>${series.map((r) => `<tr><td>${r.day}</td><td>${number(r.inputTokens)}</td><td>${number(r.outputTokens)}</td><td>${(r.agentMs / 60000).toFixed(1)}</td><td>${(r.waitingMs / 60000).toFixed(1)}</td><td>${r.estimatedCostUsd == null ? "—" : "$" + r.estimatedCostUsd.toFixed(3)}</td></tr>`).join("")}</tbody></table></div>${result.groups.map((g) => `<p>${esc(g.key)} · ${g.tokenCoverage === "not-reported" ? "Tokens unreported" : number(g.totalTokens) + " tokens" + (g.tokenCoverage === "partial" ? " (partial)" : "")} · ${g.estimatedCostUsd == null ? "Cost unreported" : "$" + g.estimatedCostUsd.toFixed(3) + " reported"}</p>`).join("")}</details>`
   );
 }

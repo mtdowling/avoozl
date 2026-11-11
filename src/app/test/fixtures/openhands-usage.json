@@ -1,0 +1,78 @@
+{
+  "parent": {
+    "id": "conversation-usage-parent",
+    "execution_status": "finished",
+    "agent": {
+      "kind": "Agent",
+      "llm": {
+        "model": "anthropic/claude-sonnet-4-5"
+      }
+    },
+    "stats": {
+      "usage_to_metrics": {
+        "avoozl": {
+          "model_name": "anthropic/claude-sonnet-4-5",
+          "accumulated_cost": 0.42,
+          "accumulated_token_usage": {
+            "model": "anthropic/claude-sonnet-4-5",
+            "prompt_tokens": 1200,
+            "completion_tokens": 300,
+            "cache_read_tokens": 700,
+            "cache_write_tokens": 80,
+            "reasoning_tokens": 50
+          }
+        }
+      }
+    }
+  },
+  "child": {
+    "id": "conversation-usage-child",
+    "parent_conversation_id": "conversation-usage-parent",
+    "execution_status": "finished",
+    "current_model_id": "codex/default",
+    "agent": {
+      "kind": "ACPAgent"
+    },
+    "stats": {
+      "usage_to_metrics": {
+        "child": {
+          "model_name": "openai/gpt-6.1-sol",
+          "accumulated_token_usage": {
+            "prompt_tokens": 500,
+            "completion_tokens": 125
+          }
+        }
+      }
+    }
+  },
+  "unreported": {
+    "id": "conversation-usage-unreported",
+    "execution_status": "finished",
+    "agent": {
+      "kind": "ACPAgent"
+    }
+  },
+  "events": [
+    {
+      "id": "token-one",
+      "kind": "TokenEvent",
+      "source": "agent",
+      "prompt_token_ids": [1, 2, 3],
+      "response_token_ids": [4, 5]
+    },
+    {
+      "id": "token-two",
+      "kind": "TokenEvent",
+      "source": "agent",
+      "prompt_token_ids": [6],
+      "response_token_ids": [7]
+    },
+    {
+      "id": "usage-finished",
+      "kind": "ConversationStateUpdateEvent",
+      "source": "environment",
+      "key": "execution_status",
+      "value": "finished"
+    }
+  ]
+}

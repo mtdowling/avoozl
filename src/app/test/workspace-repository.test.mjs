@@ -62,14 +62,16 @@ test("portable publication uses an isolated Git tree and hydrates another local 
     updatedAt: "2026-11-10T00:00:00Z",
   });
   first.store.mutate("Save portable report", (data) => {
-    data.savedSearches = [{
-      id: "report-blocked-runtime",
-      title: "Blocked runtime work",
-      view: "graph",
-      filters: { statuses: ["blocked"], scopes: ["runtime"] },
-      createdAt: "2026-11-10T00:00:00Z",
-      updatedAt: "2026-11-10T00:00:00Z",
-    }];
+    data.savedSearches = [
+      {
+        id: "report-blocked-runtime",
+        title: "Blocked runtime work",
+        view: "graph",
+        filters: { statuses: ["blocked"], scopes: ["runtime"] },
+        createdAt: "2026-11-10T00:00:00Z",
+        updatedAt: "2026-11-10T00:00:00Z",
+      },
+    ];
   });
   await ops.execute("workspace.repository.configure", {
     root: repo.root,
@@ -105,16 +107,149 @@ test("portable publication uses an isolated Git tree and hydrates another local 
   });
   const synced = await secondOps.execute("workspace.repository.sync");
   assert.equal(synced.commit, published.commit);
-  assert.equal(second.store.get("plans", "plan-portable").text, "# Portable design\n\nShared prose.\n");
-  assert.equal(second.store.read().tasks.some((task) => task.id === "sample-task"), true);
-  assert.deepEqual(second.store.read().savedSearches, [{
-    id: "report-blocked-runtime",
-    title: "Blocked runtime work",
-    view: "graph",
-    filters: { statuses: ["blocked"], scopes: ["runtime"] },
-    createdAt: "2026-11-10T00:00:00Z",
-    updatedAt: "2026-11-10T00:00:00Z",
-  }]);
+  assert.equal(
+    second.store.get("plans", "plan-portable").text,
+    "# Portable design\n\nShared prose.\n",
+  );
+  assert.equal(
+    second.store.read().tasks.some((task) => task.id === "sample-task"),
+    true,
+  );
+  assert.deepEqual(second.store.read().savedSearches, [
+    {
+      id: "report-blocked-runtime",
+      title: "Blocked runtime work",
+      view: "graph",
+      filters: { statuses: ["blocked"], scopes: ["runtime"] },
+      createdAt: "2026-11-10T00:00:00Z",
+      updatedAt: "2026-11-10T00:00:00Z",
+    },
+  ]);
+});
+
+test("portable Queue links omit imported bodies and reject association tampering", async (t) => {
+  const repo = repository(t),
+    first = fixture(t),
+    firstOps = new Operations(first.store, { github: localGitHub });
+  first.store.put("github_queue_associations", {
+    id: "github-queue-association:8da16f104a33d26fd564a889",
+    queueItemId: "github-queue:example/code:issue:issue-node-7",
+    repository: "example/code",
+    kind: "issue",
+    nodeId: "issue-node-7",
+    number: 7,
+    bodyHash: "a".repeat(64),
+    targetKind: "task",
+    targetId: "sample-task",
+    title: "Untrusted imported title",
+    url: "https://github.com/example/code/issues/7",
+    body: "DO NOT PUBLISH ISSUE BODY",
+    confirmedBy: "reviewer",
+    confirmedAt: "2026-11-10T12:00:00.000Z",
+    source: "operator-confirmed",
+  });
+  await firstOps.execute("workspace.repository.configure", {
+    root: repo.root,
+    branch: "avoozl-workspace",
+    directory: ".avoozl",
+  });
+  await firstOps.execute("workspace.repository.publish");
+  git(repo.root, "fetch", "origin", "avoozl-workspace");
+  const associationPath = git(
+      repo.root,
+      "ls-tree",
+      "-r",
+      "--name-only",
+      "origin/avoozl-workspace",
+      ".avoozl/associations",
+    ),
+    portableText = git(
+      repo.root,
+      "show",
+      `origin/avoozl-workspace:${associationPath}`,
+    ),
+    portable = JSON.parse(portableText);
+  assert.equal(portable.repository, "example/code");
+  assert.equal(portable.targetId, "sample-task");
+  assert.equal(portable.bodyHash, "a".repeat(64));
+  assert.equal(Object.hasOwn(portable, "body"), false);
+  assert.equal(Object.hasOwn(portable, "title"), false);
+  assert.equal(Object.hasOwn(portable, "url"), false);
+  assert.equal(portableText.includes("DO NOT PUBLISH ISSUE BODY"), false);
+
+  const second = fixture(t),
+    secondOps = new Operations(second.store, { github: localGitHub });
+  await secondOps.execute("workspace.repository.configure", {
+    root: repo.root,
+    branch: "avoozl-workspace",
+    directory: ".avoozl",
+  });
+  await secondOps.execute("workspace.repository.sync");
+  const imported = second.store.list("github_queue_associations");
+  assert.equal(imported.length, 1);
+  assert.equal(imported[0].targetId, "sample-task");
+  assert.equal(imported[0].portable, true);
+
+  git(repo.root, "checkout", "-B", "tampered", "origin/avoozl-workspace");
+  const fullPath = path.join(repo.root, associationPath),
+    tampered = JSON.parse(fs.readFileSync(fullPath, "utf8"));
+  tampered.body = "Injected raw issue body";
+  fs.writeFileSync(fullPath, JSON.stringify(tampered, null, 2) + "\n");
+  git(repo.root, "add", associationPath);
+  git(repo.root, "commit", "-m", "Tamper association");
+  git(repo.root, "push", "origin", "HEAD:avoozl-workspace");
+  await assert.rejects(
+    secondOps.execute("workspace.repository.sync"),
+    /Invalid portable Queue association record/,
+  );
+});
+
+test("planning repository AGENTS.md supplies shared agent rules while enablement stays local", async (t) => {
+  const repo = repository(t),
+    policy = `# Team guidance
+
+## Avoozl
+
+### Agent instructions
+
+#### Record required cleanup
+- ID: \`record-required-cleanup\`
+- Applies to: \`task.implement\`
+- Filter: \`all\`
+
+Propose required follow-up work with plans_propose_work.
+`;
+  fs.writeFileSync(path.join(repo.root, "AGENTS.md"), policy);
+  git(repo.root, "add", "AGENTS.md");
+  git(repo.root, "commit", "-m", "Add team policy");
+  git(repo.root, "push", "origin", "main");
+  const first = fixture(t),
+    firstOps = new Operations(first.store, { github: localGitHub });
+  await firstOps.execute("workspace.repository.configure", {
+    root: repo.root,
+    branch: "main",
+    directory: ".avoozl",
+  });
+  await firstOps.execute("workspace.repository.publish");
+  const second = fixture(t),
+    secondOps = new Operations(second.store, { github: localGitHub });
+  await secondOps.execute("workspace.repository.configure", {
+    root: repo.root,
+    branch: "main",
+    directory: ".avoozl",
+  });
+  await secondOps.execute("workspace.repository.sync");
+  assert.equal(second.store.read().agentInstructions.length, 1);
+  assert.equal(
+    second.store.read().agentInstructions[0].instruction,
+    "Propose required follow-up work with plans_propose_work.",
+  );
+  await secondOps.execute("agent.instructions.toggle", {
+    id: "record-required-cleanup",
+    enabled: false,
+  });
+  await secondOps.execute("workspace.repository.sync");
+  assert.equal(second.store.read().agentInstructions[0].enabled, false);
 });
 
 test("publication refuses secrets and absolute machine paths before writing Git objects", async (t) => {

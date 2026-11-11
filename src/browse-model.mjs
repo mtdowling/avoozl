@@ -1,6 +1,7 @@
 export function isArchivedTask(data, task) {
   return Boolean(
-    data.statuses?.some((s) => s.archived && s.id === task.status),
+    task.archivedAt ||
+      data.statuses?.some((s) => s.archived && s.id === task.status),
   );
 }
 export function isHistoricalTask(data, task) {

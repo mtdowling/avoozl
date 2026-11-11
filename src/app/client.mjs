@@ -20,14 +20,25 @@ export const CLIENT_OPERATIONS = Object.freeze([
   "state",
   "query",
   "queue",
+  "queue.items",
+  "queue.sync",
+  "queue.createTask",
+  "queue.confirmLink",
+  "conversations.settings.get",
+  "conversations.settings.update",
+  "openhands.automations.capabilities",
+  "openhands.automations.setup",
   "task.get",
   "task.update",
+  "task.archive",
+  "task.unarchive",
   "task.sessions",
   "task.accept",
   "task.duplicates",
   "activity",
   "report.save",
   "report.delete",
+  "agent.instructions.toggle",
   "document.get",
   "document.update",
   "plan.list",
@@ -45,8 +56,12 @@ export const CLIENT_OPERATIONS = Object.freeze([
   "plan.review.apply",
   "plan.review.pipeline",
   "plan.review.pipeline.get",
+  "driver.list",
+  "driver.open",
+  "driver.context",
   "run.list",
   "run.get",
+  "run.context",
   "run.event",
   "run.start",
   "run.send",
@@ -70,6 +85,8 @@ export const CLIENT_OPERATIONS = Object.freeze([
   "usage.limits",
   "project.configure",
   "github.configure",
+  "github.queue.configure",
+  "github.queue.remove",
   "github.repositories",
   "github.issues",
   "github.sync",
@@ -240,6 +257,30 @@ export class WorkspaceClient {
   queue(input = {}) {
     return this.call("queue", input);
   }
+  queueItems(input = {}) {
+    return this.call("queue.items", input);
+  }
+  syncQueue(input = {}) {
+    return this.call("queue.sync", input);
+  }
+  createTaskFromQueue(input, expectedRevision) {
+    return this.call("queue.createTask", input, expectedRevision);
+  }
+  confirmQueueLink(input, expectedRevision) {
+    return this.call("queue.confirmLink", input, expectedRevision);
+  }
+  conversationSettings() {
+    return this.call("conversations.settings.get");
+  }
+  updateConversationSettings(input) {
+    return this.call("conversations.settings.update", input);
+  }
+  configureQueueRepository(input) {
+    return this.call("github.queue.configure", input);
+  }
+  removeQueueRepository(repository) {
+    return this.call("github.queue.remove", { repository });
+  }
   updateTask(input, expectedRevision) {
     return this.call("task.update", input, expectedRevision);
   }
@@ -283,8 +324,26 @@ export class WorkspaceClient {
   runs(input = {}) {
     return this.call("run.list", input);
   }
+  drivers() {
+    return this.call("driver.list");
+  }
+  openDriver(input = {}) {
+    return this.call("driver.open", input);
+  }
+  updateDriverContext(input) {
+    return this.call("driver.context", input);
+  }
+  openHandsAutomationCapabilities() {
+    return this.call("openhands.automations.capabilities");
+  }
+  startOpenHandsAutomationSetup(templateId) {
+    return this.call("openhands.automations.setup", { templateId });
+  }
   run(id, options = {}) {
     return this.call("run.get", { id, ...options });
+  }
+  runContext(runId) {
+    return this.call("run.context", { runId });
   }
   // Durable sequence cursors, never arrival timestamps.
   history(id, { before, after, limit = 200, compact = false } = {}) {

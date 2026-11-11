@@ -336,11 +336,11 @@ export function createSingleStrip(
                 : p.owner + " working on " + p.task.title,
             ) +
             '"><span>' +
-            (p.items?.length > 1
-              ? p.items.length
-              : p.kind === "landed"
-                ? "✓"
-                : "A") +
+            (p.kind === "landed"
+              ? p.items?.length > 1
+                ? p.items.length
+                : "✓"
+              : '<i class="agent-pin-loader" aria-hidden="true"></i>') +
             "</span></button>",
         )
         .join("");

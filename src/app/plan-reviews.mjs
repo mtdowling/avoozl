@@ -43,7 +43,9 @@ export function createReviewThreads(
       fail("Each review comment needs an exact quote and explanation.");
     const anchor = lineFor(plan.text, comment.quote);
     if (!anchor || anchor === "ambiguous")
-      fail("Each review quote must identify one exact passage in the revision.");
+      fail(
+        "Each review quote must identify one exact passage in the revision.",
+      );
     const severity = comment.severity || "important";
     if (!severities.has(severity))
       fail("Choose blocking, important, suggestion, or question severity.");
@@ -53,9 +55,13 @@ export function createReviewThreads(
     )
       fail("A review suggestion must be replacement text.");
     const fingerprint = digest(
-      [planId, revisionHash, comment.quote, comment.comment, comment.suggestion || ""].join(
-        "\0",
-      ),
+      [
+        planId,
+        revisionHash,
+        comment.quote,
+        comment.comment,
+        comment.suggestion || "",
+      ].join("\0"),
     );
     const existing = store
       .list("review_threads")
@@ -98,7 +104,11 @@ export function listReviewThreads(store, { planId, state } = {}) {
   const plan = planId ? store.get("plans", planId) : null;
   const items = store
     .list("review_threads")
-    .filter((thread) => (!planId || thread.planId === planId) && (!state || thread.state === state))
+    .filter(
+      (thread) =>
+        (!planId || thread.planId === planId) &&
+        (!state || thread.state === state),
+    )
     .map((thread) => {
       if (!plan || thread.revisionHash === plan.hash)
         return { ...thread, stale: false };
@@ -164,7 +174,8 @@ export function applyReviewSuggestion(store, { id, expectedHash, author }) {
   disposeReview(store, {
     id,
     disposition: "accepted",
-    note: "Applied the suggested replacement to plan revision " + saved.hash + ".",
+    note:
+      "Applied the suggested replacement to plan revision " + saved.hash + ".",
     author,
   });
   return { plan: saved, thread: store.get("review_threads", id) };

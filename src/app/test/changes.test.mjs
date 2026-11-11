@@ -52,6 +52,10 @@ test("a conversation's changes are readable, bounded, and never alter the worktr
   await git(run.worktree, ["add", "."]);
   await git(run.worktree, ["commit", "-m", "Change the value"]);
   fs.writeFileSync(path.join(run.worktree, "notes.md"), "Work in progress\n");
+  fs.writeFileSync(
+    path.join(run.worktree, "app.mjs"),
+    "export const value = 3;\n",
+  );
   const before = await git(run.worktree, ["rev-parse", "HEAD"]);
 
   const changes = await ops.execute("run.changes", { id: run.id });
@@ -64,8 +68,9 @@ test("a conversation's changes are readable, bounded, and never alter the worktr
   assert.equal(changes.files[0].deletions, 1);
   assert.deepEqual(
     changes.uncommitted.map((file) => file.path),
-    ["notes.md"],
+    ["app.mjs", "notes.md"],
   );
+  assert.equal(changes.uncommitted[0].status, "M");
   assert.equal(changes.truncated, false);
 
   // The base revision is readable so a client can show a real diff.
@@ -73,7 +78,16 @@ test("a conversation's changes are readable, bounded, and never alter the worktr
     id: run.id,
     path: "app.mjs",
   });
-  assert.equal(file.before, "export const value = 1;");
+  assert.equal(file.before, "export const value = 1;\n");
+  assert.equal(file.after, "export const value = 3;\n");
+  assert.equal(file.binary, false);
+  assert.equal(file.truncated, false);
+  const added = await ops.execute("run.changes", {
+    id: run.id,
+    path: "notes.md",
+  });
+  assert.equal(added.before, "");
+  assert.equal(added.after, "Work in progress\n");
 
   // Reading changes must not touch the worktree.
   assert.equal(await git(run.worktree, ["rev-parse", "HEAD"]), before);
@@ -83,6 +97,18 @@ test("a conversation's changes are readable, bounded, and never alter the worktr
     ops.execute("run.changes", { id: run.id, path: "../escape" }),
     /repository-relative/,
   );
+  fs.writeFileSync(path.join(root, "outside.txt"), "outside\n");
+  fs.symlinkSync(
+    path.join(root, "outside.txt"),
+    path.join(run.worktree, "link.txt"),
+  );
+  await assert.rejects(
+    ops.execute("run.changes", { id: run.id, path: "link.txt" }),
+    /repository-relative/,
+  );
+  const detail = await ops.execute("task.get", { id: "sample-task" });
+  assert.equal(detail.codeChanges.local.diffRunId, run.id);
+  assert.equal(detail.codeChanges.local.worktree, run.worktree);
   store.put("runs", { ...store.get("runs", run.id), readOnly: true });
   await assert.rejects(
     ops.execute("run.changes", { id: run.id }),

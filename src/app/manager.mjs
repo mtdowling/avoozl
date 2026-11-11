@@ -1,6 +1,6 @@
 import { resolveTaskId } from "../task-identity.mjs";
+import { workspaceIdentity } from "./identity.mjs";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { activityState } from "../activity.mjs";
@@ -10,6 +10,10 @@ import { fail, canonical } from "./store.mjs";
 import { digest } from "../model.mjs";
 import { PLAN_FORMAT } from "./plans.mjs";
 import { createWorktree, assertProjectAvailable } from "./git.mjs";
+import {
+  matchingAgentInstructions,
+  workflowCategory,
+} from "./agent-instructions.mjs";
 import { providerModels, providerRegistry } from "./providers/executor.mjs";
 import { claudeUsage } from "./providers/claude.mjs";
 import {
@@ -17,6 +21,8 @@ import {
   revokeRunCapabilities,
 } from "./run-capabilities.mjs";
 import { approvalMode } from "./approvals.mjs";
+import { autoArchiveCompletedRun } from "./conversation-settings.mjs";
+import { taskReviewContext } from "./task-review.mjs";
 import { recordUsage } from "./telemetry.mjs";
 const ACTIVE = new Set([
   "starting",
@@ -24,17 +30,90 @@ const ACTIVE = new Set([
   "waiting-input",
   "waiting-approval",
 ]);
+const DRIVER_INSTRUCTIONS =
+  "You are the persistent Avoozl Driver for this project workspace. Before answering context-sensitive project chat, call plans_run_context to read the current selected Avoozl context. Answer directly and concisely. Treat planning state as context, not authority to approve, dispatch, integrate, accept, or merge work. Child conversations perform scoped planning, review, and implementation; do not copy this Driver role or its conversation history into them.";
+const DRIVER_CONTEXT_TASK_LIMIT = 12;
 
-function contextWorkspace(store, runId) {
-  const workspace = path.join(
-    os.tmpdir(),
-    "avoozl-context-workspaces",
-    digest(path.resolve(store.filename)).slice(0, 16),
-    runId,
-  );
-  fs.mkdirSync(workspace, { recursive: true, mode: 0o700 });
-  return workspace;
+function driverChoice(value) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
 }
+
+export function driverConversationTitle(project = {}) {
+  const name = String(project.name || project.title || project.id || "Project")
+    .trim()
+    .replace(/\s+/g, " ");
+  return `Avoozl Driver · ${name}`.slice(0, 160);
+}
+
+export function compactDriverContext(context = {}) {
+  if (!context || typeof context !== "object" || Array.isArray(context))
+    fail("Driver context must be an object.");
+  const compact = {};
+  for (const key of [
+    "revision",
+    "view",
+    "selected",
+    "document",
+    "planId",
+    "projectId",
+    "url",
+    "conversationPurpose",
+    "scoped",
+    "queueItem",
+  ])
+    if (context[key] !== undefined)
+      compact[key] = structuredClone(context[key]);
+  if (context.filters && typeof context.filters === "object")
+    compact.filters = Object.fromEntries(
+      Object.entries(context.filters)
+        .filter(
+          ([key, value]) =>
+            typeof key === "string" &&
+            key.length <= 80 &&
+            typeof value === "string" &&
+            value.length <= 1000,
+        )
+        .slice(0, 20),
+    );
+  const explicitlyScoped =
+      context.scoped === true &&
+      Boolean(context.selected || context.document || context.planId),
+    suppliedTaskIds = Array.isArray(context.taskIds)
+      ? context.taskIds.filter(
+          (id) => typeof id === "string" && id.length <= 240,
+        )
+      : [];
+  if (explicitlyScoped && suppliedTaskIds.length) {
+    compact.taskIds = [
+      ...new Set(
+        [
+          typeof context.selected === "string" ? context.selected : null,
+          ...suppliedTaskIds,
+        ].filter(Boolean),
+      ),
+    ].slice(0, DRIVER_CONTEXT_TASK_LIMIT);
+    const reportedProvided = Number(
+      context.contextTruncation?.taskIds?.provided,
+    );
+    const provided = Math.max(
+      suppliedTaskIds.length,
+      Number.isSafeInteger(reportedProvided) && reportedProvided >= 0
+        ? reportedProvided
+        : 0,
+    );
+    compact.contextTruncation = {
+      taskIds: {
+        provided,
+        retained: compact.taskIds.length,
+        truncated: provided > compact.taskIds.length,
+      },
+    };
+  }
+  if (JSON.stringify(compact).length > 16000)
+    fail("Driver context must be smaller than 16 KB after compaction.");
+  return compact;
+}
+
 // Provider permission scopes we do not implement yet. Recording them keeps
 // "allow once or deny" honest instead of pretending the provider offered
 // nothing else.
@@ -205,7 +284,8 @@ export class RunManager {
   // Claude reports a remaining plan allowance; Codex's app-server gives per
   // thread token counts, which is spend, not what is left.
   async usage(provider = "claude") {
-    if (!["codex", "claude"].includes(provider)) fail("Choose Claude or Codex.");
+    if (!["codex", "claude"].includes(provider))
+      fail("Choose Claude or Codex.");
     if (provider === "codex")
       return {
         provider: "codex",
@@ -240,7 +320,13 @@ export class RunManager {
   context(run) {
     const data = this.store.read(),
       task = data.tasks.find((t) => t.id === resolveTaskId(data, run.taskId)),
-      plan = run.planId ? this.store.get("plans", run.planId) : null;
+      plan = run.planId ? this.store.get("plans", run.planId) : null,
+      instructionCategory = workflowCategory(run),
+      agentInstructions = matchingAgentInstructions(
+        data,
+        instructionCategory,
+        task,
+      );
     const docIds = new Set([
         task?.source?.document,
         ...(task?.contextDocuments || []),
@@ -263,10 +349,21 @@ export class RunManager {
         : run.prompt?.startsWith("NUPP_PROMPT_SEARCH")
           ? "Interpret the search using read-only plans tools. Do not create visualizations or change records. Return only the requested JSON search object."
           : run.mode === "ask"
-            ? run.context?.conversationPurpose === "new-task"
-              ? `Help the user define one concrete task from the supplied context${run.contextOnly ? ". No code repository is mounted for this conversation; use the Avoozl MCP tools for plans and task state" : " and read-only repository inspection"}. Be concise. Do not narrate setup, skill loading, or tool calls, and do not dump repository, planning, policy, runtime, or metric inventories unless the user asks. Clarify scope and acceptance without inventing work or nitpicking. After the user explicitly agrees, record their request with plans_capture. If they explicitly ask to add it to a selected design instead, use plans_propose_work. Do not approve, dispatch, integrate, or accept work, and do not change source.`
-              : `Answer the user directly and concisely from the supplied context${run.contextOnly ? ". No code repository is mounted for this conversation; use the Avoozl MCP tools for plans and task state" : " and read-only repository inspection"}. Do not narrate setup, skill loading, or tool calls, and do not dump repository, planning, policy, runtime, or metric inventories unless the user asks. Use plans_visualize or plans_present only when a visual materially helps answer the question. Do not change source or task acceptance.`
+            ? run.context?.conversationPurpose === "review"
+              ? `Review the finished work on the supplied task against its recorded commits, checks and evidence using read-only repository inspection. The task is already complete: do not reimplement it, resume implementation, edit source, or create a worktree or branch. Judge each acceptance criterion against the evidence that exists, name criteria the receipts do not cover, and say plainly when a judgement cannot be made. Be concise and do not narrate setup or dump inventories. Record follow-up work with plans_propose_work; do not change task status, acceptance, integration, plans, or source.`
+              : run.context?.conversationPurpose === "new-task"
+                ? `Help the user define one concrete task from the supplied context and read-only repository inspection. Be concise. Do not narrate setup, skill loading, or tool calls, and do not dump repository, planning, policy, runtime, or metric inventories unless the user asks. Clarify scope and acceptance without inventing work or nitpicking. After the user explicitly agrees, record their request with plans_capture. If they explicitly ask to add it to a selected design instead, use plans_propose_work. Do not approve, dispatch, integrate, or accept work, and do not change source.`
+                : `Answer the user directly and concisely from the supplied context and read-only repository inspection. Do not narrate setup, skill loading, or tool calls, and do not dump repository, planning, policy, runtime, or metric inventories unless the user asks. Use plans_visualize or plans_present only when a visual materially helps answer the question. Do not change source or task acceptance.`
             : "Implement the task, run the relevant checks, format and commit changes using repository conventions. Do not merge or push; validation and integration are separate workspace actions.",
+      agentInstructions.length
+        ? [
+            `Workspace agent instructions for ${instructionCategory}:`,
+            ...agentInstructions.map(
+              (rule) => `- ${rule.title}: ${rule.instruction}`,
+            ),
+            "These instructions are guidance only. They do not expand the run-scoped MCP capability allowlist or authorize approval, integration, acceptance, or unrelated work.",
+          ].join("\n")
+        : "",
       JSON.stringify({
         viewContext: run.context,
         task,
@@ -275,10 +372,233 @@ export class RunManager {
         dependencies: task
           ? data.edges.filter((e) => e.from === task.id || e.to === task.id)
           : [],
+        ...(run.context?.conversationPurpose === "review" && task
+          ? { review: taskReviewContext(this.store, data, task) }
+          : {}),
         handoff: run.handoff || null,
+        instructionCategory,
+        agentInstructions: agentInstructions.map((rule) => ({
+          id: rule.id,
+          title: rule.title,
+          instruction: rule.instruction,
+        })),
       }),
       run.prompt || "",
     ].join("\n\n");
+  }
+  driverProject(projectId) {
+    const projects = this.store.list("projects"),
+      selected = projectId || (projects.length === 1 ? projects[0].id : null),
+      project = selected ? this.store.get("projects", selected) : null;
+    if (!project)
+      fail(
+        projects.length
+          ? "Choose which configured project should own this Driver."
+          : "Configure a project workspace before opening Driver.",
+      );
+    return project;
+  }
+  driverRunId(projectId) {
+    return (
+      "driver-" +
+      digest(workspaceIdentity(this.store) + ":" + projectId).slice(0, 24)
+    );
+  }
+  activeDriver(projectId) {
+    return (
+      this.store
+        .list("runs")
+        .filter(
+          (run) =>
+            run.driver === true &&
+            run.projectId === projectId &&
+            run.driverActive !== false &&
+            !run.deletedAt,
+        )
+        .sort(
+          (left, right) =>
+            (right.driverGeneration || 1) - (left.driverGeneration || 1) ||
+            String(right.createdAt || "").localeCompare(
+              String(left.createdAt || ""),
+            ),
+        )[0] || null
+    );
+  }
+  nextDriverIdentity(projectId) {
+    const base = this.driverRunId(projectId),
+      runs = this.store
+        .list("runs")
+        .filter((run) => run.driver && run.projectId === projectId),
+      generation =
+        Math.max(0, ...runs.map((run) => run.driverGeneration || 1)) + 1;
+    return {
+      id: generation === 1 ? base : `${base}-g${generation}`,
+      generation,
+    };
+  }
+  listDrivers() {
+    return {
+      projects: this.store.list("projects").map((project) => ({
+        projectId: project.id,
+        title: project.name || project.title || project.id,
+        root: project.root,
+        run: this.activeDriver(project.id),
+      })),
+      defaultProjectId:
+        this.store.list("projects").length === 1
+          ? this.store.list("projects")[0].id
+          : null,
+    };
+  }
+  async openDriver(input = {}) {
+    const project = this.driverProject(input.projectId);
+    return this.serialize("driver-lifecycle:" + project.id, async () => {
+      const existing = this.activeDriver(project.id),
+        context =
+          input.context === undefined
+            ? existing?.context || {}
+            : compactDriverContext(input.context),
+        profileSpecified = Object.hasOwn(input, "agentProfile"),
+        modelSpecified = Object.hasOwn(input, "model"),
+        requestedProfile = driverChoice(input.agentProfile),
+        requestedModel = driverChoice(input.model),
+        configurationChanged =
+          existing &&
+          ((profileSpecified &&
+            requestedProfile !== driverChoice(existing.agentProfile)) ||
+            (modelSpecified &&
+              requestedModel !==
+                driverChoice(existing.requestedModel ?? existing.model)));
+      if (existing && !configurationChanged) {
+        if (input.provider && input.provider !== existing.provider)
+          fail("This project Driver already belongs to another provider.", 409);
+        if (input.context !== undefined)
+          this.updateDriverContext({
+            projectId: project.id,
+            context: input.context,
+          });
+        if (existing.providerSessionId && !this.live.has(existing.id))
+          await this.connect(this.store.get("runs", existing.id), undefined);
+        return {
+          project: {
+            projectId: project.id,
+            title: project.name || project.title || project.id,
+            root: project.root,
+          },
+          run: this.store.get("runs", existing.id),
+          created: false,
+        };
+      }
+      if (
+        existing &&
+        (ACTIVE.has(existing.state) ||
+          this.store
+            .list("requests")
+            .some(
+              (request) =>
+                request.runId === existing.id && request.state === "pending",
+            ) ||
+          this.store
+            .list("deliveries")
+            .some(
+              (delivery) =>
+                delivery.runId === existing.id &&
+                ["queued", "sending", "awaiting-resume"].includes(
+                  delivery.state,
+                ),
+            ))
+      )
+        fail(
+          "Wait for the current Driver turn and pending requests to finish before changing its agent or model.",
+          409,
+        );
+      const identity = this.nextDriverIdentity(project.id),
+        run = await this.start({
+          id: identity.id,
+          driver: true,
+          driverRole: "project",
+          driverActive: true,
+          driverGeneration: identity.generation,
+          driverPredecessorId: existing?.id,
+          provider: input.provider || existing?.provider || "openhands",
+          projectId: project.id,
+          model: modelSpecified
+            ? requestedModel
+            : (existing?.requestedModel ?? existing?.model),
+          agentProfile: profileSpecified
+            ? requestedProfile
+            : existing?.agentProfile,
+          mode: "ask",
+          title: driverConversationTitle(project),
+          context,
+          approvalMode: "manual",
+        });
+      if (existing) {
+        const adapter = this.live.get(existing.id);
+        if (adapter) await adapter.close().catch(() => {});
+        this.live.delete(existing.id);
+        revokeRunCapabilities(this.store, existing.id);
+        this.store.transaction(() => {
+          const previous = this.store.get("runs", existing.id),
+            successor = this.store.get("runs", run.id),
+            retiredAt = new Date().toISOString();
+          previous.driverActive = false;
+          previous.driverRetiredAt = retiredAt;
+          previous.driverSuccessorId = successor.id;
+          successor.driverActive = true;
+          successor.driverPredecessorId = previous.id;
+          this.store.put("runs", previous);
+          this.store.put("runs", successor);
+          this.store.setMeta("runArchive:" + previous.id, retiredAt);
+          this.store.event(previous.id, "driver.retired", {
+            successorRunId: successor.id,
+            retiredAt,
+          });
+          this.store.event(successor.id, "driver.handoff.completed", {
+            previousRunId: previous.id,
+            retiredAt,
+          });
+        });
+      }
+      return {
+        project: {
+          projectId: project.id,
+          title: project.name || project.title || project.id,
+          root: project.root,
+        },
+        run: this.store.get("runs", run.id),
+        created: true,
+        handedOff: Boolean(existing),
+        previousRunId: existing?.id,
+      };
+    });
+  }
+  updateDriverContext(input = {}) {
+    const project = this.driverProject(input.projectId),
+      run = this.activeDriver(project.id);
+    if (!run?.driver) fail("Open this project Driver first.", 404);
+    if (
+      !input.context ||
+      typeof input.context !== "object" ||
+      Array.isArray(input.context) ||
+      JSON.stringify(input.context).length > 100000
+    )
+      fail("Driver context must be an object smaller than 100 KB.");
+    run.context = compactDriverContext(input.context);
+    run.driverContextUpdatedAt = new Date().toISOString();
+    this.store.put("runs", run);
+    this.store.event(run.id, "driver.context.updated", {
+      projectId: project.id,
+      context: run.context,
+    });
+    return {
+      project: {
+        projectId: project.id,
+        title: project.name || project.title || project.id,
+        root: project.root,
+      },
+      run,
+    };
   }
   async start(input) {
     if (this.draining)
@@ -295,20 +615,61 @@ export class RunManager {
     }
     if (!this.registry.has(input.provider))
       fail("Choose an available executor.");
-    const project = input.projectId
-      ? this.store.get("projects", input.projectId)
-      : null;
-    if (input.projectId && !project) fail("Choose a configured project.");
-    if (!project && input.mode !== "ask")
-      fail("Configure a project before starting an agent.");
     const task = this.store
         .read()
         .tasks.find(
           (t) => t.id === resolveTaskId(this.store.read(), input.taskId),
         ),
-      plan = input.planId ? this.store.get("plans", input.planId) : null;
-    if (!task && !plan && !(input.mode === "ask" && input.prompt?.trim()))
+      plan = input.planId ? this.store.get("plans", input.planId) : null,
+      projects = this.store.list("projects"),
+      associatedProjectId =
+        task?.projectId || plan?.context?.projectId || plan?.projectId,
+      projectId =
+        input.projectId ||
+        associatedProjectId ||
+        (projects.length === 1 ? projects[0].id : null),
+      project = projectId ? this.store.get("projects", projectId) : null;
+    if (projectId && !project) fail("Choose a configured project.");
+    if (!project)
+      fail(
+        projects.length
+          ? "Choose which configured project workspace this conversation should use."
+          : "Configure a project workspace before starting an agent.",
+      );
+    if (
+      !task &&
+      !plan &&
+      !input.driver &&
+      !(input.mode === "ask" && input.prompt?.trim())
+    )
       fail("Select a task or draft plan.");
+    if (input.driver && (input.parentRunId || input.provider !== "openhands"))
+      fail("A Driver must be a top-level OpenHands conversation.", 409);
+    let parent;
+    if (input.parentRunId) {
+      parent = this.store.get("runs", input.parentRunId);
+      if (
+        !parent?.driver ||
+        parent.driverActive === false ||
+        parent.driverRole !== "project" ||
+        parent.parentRunId ||
+        parent.provider !== "openhands"
+      )
+        fail(
+          "The parent must be this project’s top-level OpenHands Driver.",
+          409,
+        );
+      if (parent.projectId !== project.id)
+        fail(
+          "The Driver and child conversation must use the same project.",
+          409,
+        );
+      if (input.provider === "openhands" && !parent.providerSessionId)
+        fail(
+          "The project Driver is still starting. Retry after it connects.",
+          409,
+        );
+    }
     if (
       task &&
       input.mode !== "ask" &&
@@ -335,6 +696,12 @@ export class RunManager {
     const run = {
       id,
       requestHash,
+      driver: input.driver === true,
+      driverRole: input.driver ? input.driverRole || "project" : undefined,
+      driverActive: input.driver ? input.driverActive !== false : undefined,
+      driverGeneration: input.driver ? input.driverGeneration || 1 : undefined,
+      driverPredecessorId: input.driver ? input.driverPredecessorId : undefined,
+      logicalConversationId: input.driver ? id : undefined,
       taskId: task?.id || (plan ? "plan:" + plan.id : "conversation:" + id),
       planId: plan?.id,
       projectId: project?.id,
@@ -342,12 +709,13 @@ export class RunManager {
       executor: input.provider,
       approvalMode: selectedApprovalMode,
       model: input.model || undefined,
+      agentProfile: input.agentProfile || undefined,
       requestedModel: input.model || null,
       mode: input.mode === "ask" ? "ask" : plan ? "plan" : "implement",
       capabilityMode:
         input.mode === "ask" &&
-        input.context?.conversationPurpose === "new-task"
-          ? "new-task"
+        ["new-task", "review"].includes(input.context?.conversationPurpose)
+          ? input.context.conversationPurpose
           : undefined,
       prompt: input.prompt || "",
       title:
@@ -356,6 +724,9 @@ export class RunManager {
         task?.title ||
         plan?.title,
       context: input.context || {},
+      parentRunId: parent?.id,
+      parentProviderSessionId:
+        input.provider === "openhands" ? parent?.providerSessionId : undefined,
       review: input.review || undefined,
       resources,
       state: "starting",
@@ -387,9 +758,8 @@ export class RunManager {
           run,
           run.mode === "ask"
             ? {
-                worktree: project?.root || contextWorkspace(this.store, id),
+                worktree: project.root,
                 readOnly: true,
-                contextOnly: !project,
               }
             : await createWorktree(this.store, project, id),
         );
@@ -401,7 +771,7 @@ export class RunManager {
         this.reportActivity(run, "start");
         this.checkpoint(run);
         this.store.put("runs", run);
-        await this.connect(run, this.context(run));
+        await this.connect(run, run.driver ? undefined : this.context(run));
         return this.store.get("runs", id);
       } catch (error) {
         run.state = "failed";
@@ -437,16 +807,21 @@ export class RunManager {
       await adapter.start({
         cwd: run.worktree,
         mode: run.mode,
+        title: run.title,
         model: run.model,
+        agentProfile: run.agentProfile,
         approvalMode: approvalMode(run.approvalMode, "manual"),
         prompt,
+        conversationId: run.driver ? "avoozl-" + run.id : undefined,
+        parentConversationId: run.parentProviderSessionId,
+        systemInstructions: run.driver ? DRIVER_INSTRUCTIONS : undefined,
         resumeId: run.providerSessionId,
         mcpUrl: this.baseUrl + "/mcp?run=" + encodeURIComponent(run.id),
         mcpToken: token,
       });
       const latest = this.store.get("runs", run.id);
       if (latest.state === "starting") {
-        latest.state = "running";
+        latest.state = run.driver ? "completed" : "running";
         this.store.put("runs", latest);
       }
       return adapter;
@@ -525,6 +900,23 @@ export class RunManager {
           worktree: child.worktree || parent.worktree,
           branch: child.branch || parent.branch,
           model: child.model || parent.model,
+          actualModel:
+            child.usage?.model ||
+            child.model ||
+            existing?.actualModel ||
+            parent.actualModel ||
+            undefined,
+          usageStatus: child.usage
+            ? {
+                availability: "reported",
+                source: child.usage.source,
+                coverage: child.usage.coverage,
+              }
+            : existing?.usageStatus,
+          providerAvailability:
+            child.providerAvailability || existing?.providerAvailability,
+          providerDiagnostic:
+            child.providerDiagnostic || existing?.providerDiagnostic,
           managedBy: "openhands",
           createdAt: existing?.createdAt || child.createdAt || now,
           lastObservedAt: now,
@@ -543,7 +935,12 @@ export class RunManager {
             "worktree",
             "branch",
             "model",
-          ].some((key) => existing[key] !== next[key]);
+            "actualModel",
+            "providerAvailability",
+            "providerDiagnostic",
+          ].some((key) => existing[key] !== next[key]) ||
+          (Boolean(child.usage) &&
+            existing?.usageStatus?.availability !== "reported");
       if (changed) {
         next.updatedAt = child.updatedAt || now;
         this.store.put("runs", next);
@@ -553,6 +950,9 @@ export class RunManager {
           state: next.state,
         });
       }
+      if (child.usage) recordUsage(this.store, next, child.usage);
+      if (next.state === "completed")
+        autoArchiveCompletedRun(this.store, next, next.updatedAt || now);
       existing = changed ? next : existing;
       bySession.set(child.providerSessionId, existing);
       childRunIds.add(id);
@@ -567,14 +967,41 @@ export class RunManager {
     if (kind === "session") {
       run.providerSessionId = body.providerSessionId;
       if (body.model) run.actualModel = body.model;
+      run.providerAvailability = "available";
+      run.providerDiagnostic = undefined;
+      if (run.state === "starting") run.error = undefined;
     }
     if (kind === "children") this.recordChildren(run, body);
-    if (kind === "usage") recordUsage(this.store, run, body);
+    if (kind === "usage") {
+      recordUsage(this.store, run, body);
+      const reportedModel =
+        body.model ||
+        (Array.isArray(body.usage) && body.usage.length === 1
+          ? body.usage[0]?.model
+          : null);
+      if (reportedModel) run.actualModel = reportedModel;
+      run.usageStatus = {
+        availability: "reported",
+        source: body.source || "provider",
+        coverage: body.coverage || "Usage reported by the provider.",
+      };
+    }
+    if (kind === "usage.status" && run.usageStatus?.availability !== "reported")
+      run.usageStatus = {
+        availability: body.availability || "unavailable",
+        reason: body.reason || "The provider did not report usage.",
+        model: body.model || run.actualModel || run.model || null,
+      };
     if (kind === "approvals.status") {
       run.effectiveApprovalMode = body.effectiveApprovalMode;
       run.approvalNotice = body.approvalNotice;
     }
-    if (kind === "state") run.state = body.state;
+    if (kind === "state") {
+      run.state = body.state;
+      run.providerAvailability = "available";
+      run.providerDiagnostic = undefined;
+      run.error = undefined;
+    }
     if (kind === "turn.completed") {
       run.state = body.state;
       // Only a genuine failure carries an error. An intentional interruption
@@ -599,8 +1026,12 @@ export class RunManager {
       this.reportActivity(run, "finish");
     }
     if (kind === "disconnected") {
-      run.state = "disconnected";
-      run.error = body.message;
+      const wasActive = ACTIVE.has(run.state);
+      if (wasActive) run.state = "disconnected";
+      if (wasActive) run.error = body.message;
+      run.providerAvailability = body.providerAvailability || "unavailable";
+      run.providerDiagnostic = body.providerDiagnostic || undefined;
+      run.updatedAt = new Date().toISOString();
       this.live.delete(id);
     }
     if (kind === "request.interrupted")
@@ -633,6 +1064,7 @@ export class RunManager {
         this.store.put("requests", r);
       }
     this.store.put("runs", run);
+    if (kind === "turn.completed") autoArchiveCompletedRun(this.store, run);
     this.store.event(id, kind, body);
     if (["session", "turn.completed", "disconnected"].includes(kind))
       this.checkpoint(run);
@@ -671,7 +1103,7 @@ export class RunManager {
     return this.serialize(input.id, async () => {
       const run = this.store.get("runs", input.id);
       if (!run) fail("Run not found.", 404);
-      if (run.parentRunId)
+      if (run.parentProviderSessionId)
         fail(
           "Open this child conversation in OpenHands to observe or steer it.",
           409,
@@ -864,7 +1296,7 @@ export class RunManager {
   async interrupt(id, { reason = "client-cancel" } = {}) {
     const run = this.store.get("runs", id);
     if (!run) fail("Run not found.", 404);
-    if (run.parentRunId)
+    if (run.parentProviderSessionId)
       fail("Interrupt child conversations through OpenHands.", 409);
     const adapter = this.live.get(id);
     if (!adapter) fail("Run is disconnected.", 409);
@@ -909,7 +1341,7 @@ export class RunManager {
     return this.serialize(input.id, async () => {
       const run = this.store.get("runs", input.id);
       if (!run) fail("Run not found.", 404);
-      if (run.parentRunId)
+      if (run.parentProviderSessionId)
         fail("Change child-conversation models through OpenHands.", 409);
       if (typeof input.model !== "string" || !input.model.trim())
         fail("Choose a model.");
@@ -947,7 +1379,7 @@ export class RunManager {
     return this.serialize(input.id, async () => {
       const run = this.store.get("runs", input.id);
       if (!run) fail("Run not found.", 404);
-      if (run.parentRunId)
+      if (run.parentProviderSessionId)
         fail("Resume child conversations through OpenHands.", 409);
       if (this.live.has(run.id)) return run;
       if (!run.providerSessionId)

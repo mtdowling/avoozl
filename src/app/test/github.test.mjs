@@ -36,14 +36,10 @@ class FakeGitHub {
     return Promise.resolve(this.issues.map((issue) => structuredClone(issue)));
   }
   issueEvents(_repository, number) {
-    return Promise.resolve(
-      structuredClone(this.events.get(number) || []),
-    );
+    return Promise.resolve(structuredClone(this.events.get(number) || []));
   }
   issueTimeline(_repository, number) {
-    return Promise.resolve(
-      structuredClone(this.timelines.get(number) || []),
-    );
+    return Promise.resolve(structuredClone(this.timelines.get(number) || []));
   }
   issue(_repository, number) {
     const issue = this.created.find((item) => item.number === number);
@@ -381,8 +377,14 @@ test("approved design tasks project once, preserve human issue text, and enter t
   });
   assert.equal(projected.issues.length, approved.taskIds.length);
   assert.equal(github.created.length, approved.taskIds.length);
-  assert.equal(github.labels.some(([kind]) => kind === "add"), true);
-  assert.equal(github.labels.some(([kind]) => kind === "remove"), true);
+  assert.equal(
+    github.labels.some(([kind]) => kind === "add"),
+    true,
+  );
+  assert.equal(
+    github.labels.some(([kind]) => kind === "remove"),
+    true,
+  );
 
   github.created[0].body += "\n\nHuman coordination note.";
   const projectedAgain = await ops.execute("github.project", {
@@ -390,9 +392,14 @@ test("approved design tasks project once, preserve human issue text, and enter t
     repository: "example/code",
   });
   assert.equal(github.created.length, approved.taskIds.length);
-  assert.equal(projectedAgain.issues[0].body.includes("Human coordination note."), true);
+  assert.equal(
+    projectedAgain.issues[0].body.includes("Human coordination note."),
+    true,
+  );
 
-  const task = store.read().tasks.find((item) => item.id === approved.taskIds[0]);
+  const task = store
+    .read()
+    .tasks.find((item) => item.id === approved.taskIds[0]);
   store.mutate("Make projected task ready", (data) => {
     const local = data.tasks.find((item) => item.id === task.id);
     local.dispatch = { ...local.dispatch, ready: true, state: "authorized" };
@@ -402,8 +409,12 @@ test("approved design tasks project once, preserve human issue text, and enter t
     store.read().tasks.find((item) => item.id === task.id).dispatch.state,
     "authorized",
   );
-  const run = await ops.execute("github.start", { taskId: task.id });
+  const run = await ops.execute("github.start", {
+    taskId: task.id,
+    parentRunId: "driver-code",
+  });
   assert.equal(run.id, "run-from-issue");
   assert.equal(starts[0].projectId, "code");
   assert.equal(starts[0].provider, "openhands");
+  assert.equal(starts[0].parentRunId, "driver-code");
 });

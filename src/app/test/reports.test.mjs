@@ -39,11 +39,7 @@ test("saved reports retain named task filters without changing task state", asyn
   assert.equal(updated.id, report.id);
   assert.equal(store.read().savedSearches.length, 1);
 
-  await ops.execute(
-    "report.delete",
-    { id: report.id },
-    store.read().revision,
-  );
+  await ops.execute("report.delete", { id: report.id }, store.read().revision);
   assert.deepEqual(store.read().savedSearches, []);
 });
 
@@ -64,11 +60,7 @@ test("saved reports reject malformed filters and stale writes", async (t) => {
     filters: { tags: ["release"] },
   });
   await assert.rejects(
-    ops.execute(
-      "report.save",
-      { title: "Stale", filters: {} },
-      revision,
-    ),
+    ops.execute("report.save", { title: "Stale", filters: {} }, revision),
     /Database changed/,
   );
 });

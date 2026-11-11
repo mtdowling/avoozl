@@ -20,7 +20,7 @@ The integration is pinned and checked as one compatibility set:
 | OpenHands Agent Server         | `1.61.0` |
 | `@openhands/typescript-client` | `1.61.0` |
 | `@openhands/agent-canvas`      | `1.38.0` |
-| Avoozl OpenHands App           | `0.1.5`  |
+| Avoozl OpenHands App           | `0.1.9`  |
 
 Avoozl refuses a different Agent Server version before creating a conversation.
 Upgrades must test the client, plugin, and embedded Canvas together.
@@ -64,8 +64,10 @@ node cli.mjs openhands setup-agents
 node cli.mjs openhands setup-agents --default codex
 ```
 
-The command verifies both agents by default, activates the first working
-profile, and prints no credential values. Limit setup with
+The command installs and enables the pinned Avoozl OpenHands plugin, verifies
+both agents by default, activates the first working profile, and prints no
+credential values. The plugin contains the Avoozl skill and a run-scoped MCP
+template; it contains variable names, not credentials. Limit setup with
 `--agents claude-code` or `--agents codex`. Use `--skip-verify` only when
 installing profiles before the agent CLI is authenticated.
 
@@ -110,7 +112,11 @@ node cli.mjs openhands status
 ```
 
 Installation copies the self-contained package through the Agent Server's
-Canvas Extensions API and explicitly enables it. On Linux amd64 and arm64,
+Canvas Extensions API, installs the same pinned Avoozl skill/plugin used by
+conversations, and explicitly enables both. Running either installation command
+again refreshes Avoozl's plugin while preserving each agent profile's model,
+command, arguments, MCP references, and integration references. On Linux amd64
+and arm64,
 enabling also approves the exact declared artifact revision. OpenHands verifies
 the checksum, allocates a loopback port and durable data directory, starts
 `avoozl openhands serve-backend`, waits for `/api/health`, and owns the process
@@ -151,6 +157,15 @@ must remain an explicit operator action.
   reprovisioning.
 - Ask and plan conversations receive only their narrow run-scoped Avoozl MCP
   capability. The embedded workspace proxy refuses mutating runtime routes.
+- Avoozl registers no reusable privileged MCP endpoint in OpenHands settings.
+  Each created or resumed conversation loads the pinned Avoozl plugin and
+  receives a separately minted `AVOOZL_MCP_URL` and `AVOOZL_MCP_TOKEN`. The URL
+  identifies one run; only the token hash is persisted by Avoozl.
+- Every Avoozl-started conversation has a configured project workspace.
+  Implementation receives an isolated task worktree. Ask conversations inspect
+  the configured project checkout read-only and never receive an empty
+  temporary workspace. Task and plan project associations are inherited; when
+  multiple configured projects remain possible, the caller must choose one.
 - New-task conversations may record the user's agreed request or append a
   proposal. They cannot approve, dispatch, integrate, or accept work.
 - Implement sessions receive terminal, file-editor, and browser tools inside the

@@ -9,6 +9,7 @@ import {
   conversationSignal,
   recentLandings,
 } from "./workbench-model.mjs";
+import { createWorkbench } from "./workbench.mjs";
 import { queryTasks } from "./query.mjs";
 
 const now = Date.parse("2026-11-09T01:00:00Z");
@@ -288,4 +289,222 @@ test("Recently landed excludes historical, malformed, future and undated receipt
   };
   data.tasks[4].integration = { commit: 1234567, at };
   assert.deepEqual(recentLandings(data, data.tasks, [], { now }), []);
+});
+
+test("Now keeps task navigation on rows and session attachment on explicit accessible controls", async () => {
+  const original = Object.fromEntries(
+      ["document", "fetch", "localStorage", "window"].map((key) => [
+        key,
+        Object.getOwnPropertyDescriptor(globalThis, key),
+      ]),
+    ),
+    install = (key, value) =>
+      Object.defineProperty(globalThis, key, {
+        configurable: true,
+        writable: true,
+        value,
+      }),
+    restore = (key) =>
+      original[key]
+        ? Object.defineProperty(globalThis, key, original[key])
+        : delete globalThis[key],
+    element = () => ({
+      hidden: false,
+      innerHTML: "",
+      scrollTop: 0,
+      addEventListener() {},
+      querySelector() {
+        return null;
+      },
+      replaceChildren() {
+        this.innerHTML = "";
+      },
+    }),
+    tasksElement = element(),
+    nowElement = element(),
+    data = fixture();
+  let workbench,
+    fetches = 0;
+  data.tasks.push({
+    id: "external",
+    title: "External task",
+    epic: "W1",
+    track: "core",
+    scope: "runtime",
+    status: "planned",
+    tags: [],
+    activity: {
+      state: "active",
+      owner: "Claude",
+      sessionId: "external-session",
+      heartbeatAt: new Date(now).toISOString(),
+      expiresAt: "2099-01-01T00:00:00Z",
+    },
+  });
+  try {
+    install("localStorage", {
+      getItem() {
+        return null;
+      },
+      setItem() {},
+    });
+    install("document", {
+      hidden: false,
+      querySelectorAll() {
+        return [];
+      },
+    });
+    install("window", { dispatchEvent() {} });
+    install("fetch", async () => {
+      fetches++;
+      return {
+        ok: true,
+        async json() {
+          return {
+            requests: [],
+            integrations: [],
+            runs: [
+              {
+                id: "run-ready",
+                taskId: "ready",
+                title: "Ready task session",
+                state: "running",
+                provider: "OpenHands",
+                createdAt: new Date(now).toISOString(),
+              },
+              {
+                id: "run-unlinked",
+                title: "Unlinked session",
+                state: "running",
+                provider: "OpenHands",
+                createdAt: new Date(now).toISOString(),
+              },
+              {
+                id: "run-done",
+                taskId: "done",
+                state: "completed",
+                provider: "OpenHands",
+                updatedAt: new Date(now).toISOString(),
+              },
+            ],
+          };
+        },
+      };
+    });
+    workbench = createWorkbench({
+      tasksElement,
+      nowElement,
+      badge: (id) => id,
+      epicName: (id) => id,
+      trackName: (id) => id,
+      refresh() {},
+      setCount() {},
+    });
+    const workspace = await fetch().then((response) => response.json());
+    fetches = 0;
+    workbench.renderNow({ data, rows: data.tasks, workspace });
+    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
+    const html = nowElement.innerHTML;
+    assert.equal(
+      fetches,
+      0,
+      "A supplied live workspace snapshot avoids an independent stale session poll.",
+    );
+    assert.match(
+      html,
+      /<article class="hub-work-row hub-session-row" data-task="ready"/,
+    );
+    assert.doesNotMatch(
+      html,
+      /<article class="hub-work-row hub-session-row" data-open-run=/,
+    );
+    assert.match(
+      html,
+      /<button class="hub-task-name" data-task="ready">ready<\/button>/,
+    );
+    assert.equal(
+      html.match(/data-open-run="run-ready"/g)?.length,
+      1,
+      "A linked run is opened only by its session control.",
+    );
+    assert.match(
+      html,
+      /class="hub-session-open" data-session-control data-open-run="run-ready" aria-label="Open active session: ready"/,
+    );
+    assert.match(
+      html,
+      /<article class="hub-work-row" data-workbench-task="external" data-task="external"/,
+    );
+    assert.equal(
+      html.match(/data-reported-task="external"/g)?.length,
+      1,
+      "An external check-in exposes one explicit attach control.",
+    );
+    assert.match(
+      html,
+      /class="hub-session-open" data-session-control data-reported-task="external" aria-label="Find or attach a session for External task"/,
+    );
+    assert.match(
+      html,
+      /class="hub-session-open" data-session-control data-open-run="run-unlinked" aria-label="Open active session: Unlinked session"/,
+    );
+    assert.match(
+      html,
+      /class="hub-session-open" data-session-control data-open-run="run-done" aria-label="Open completed session: done"/,
+    );
+    const readyRow = html.slice(
+      html.indexOf(
+        '<article class="hub-work-row hub-session-row" data-task="ready"',
+      ),
+      html.indexOf(
+        "</article>",
+        html.indexOf(
+          '<article class="hub-work-row hub-session-row" data-task="ready"',
+        ),
+      ),
+    );
+    assert.ok(
+      readyRow.indexOf("Task ↗") < readyRow.indexOf("hub-session-open"),
+      "The session control is the rightmost action in an active row.",
+    );
+    const externalRow = html.slice(
+      html.indexOf(
+        '<article class="hub-work-row" data-workbench-task="external"',
+      ),
+      html.indexOf(
+        "</article>",
+        html.indexOf(
+          '<article class="hub-work-row" data-workbench-task="external"',
+        ),
+      ),
+    );
+    assert.ok(
+      externalRow.indexOf("Details ↗") <
+        externalRow.indexOf("hub-session-open"),
+      "The attach control is the rightmost action in a task row.",
+    );
+    const completedRow = html.slice(
+      html.indexOf(
+        '<article class="hub-work-row hub-session-row is-complete" data-task="done"',
+      ),
+      html.indexOf(
+        "</article>",
+        html.indexOf(
+          '<article class="hub-work-row hub-session-row is-complete" data-task="done"',
+        ),
+      ),
+    );
+    assert.ok(
+      completedRow.indexOf("Task ↗") <
+        completedRow.indexOf("hub-session-open"),
+      "The session control is the rightmost action in a completed row.",
+    );
+  } finally {
+    workbench?.suspend();
+    restore("document");
+    restore("fetch");
+    restore("localStorage");
+    restore("window");
+  }
 });

@@ -93,6 +93,84 @@ test("Claude accounts for model totals including caches, excludes reasoning doub
   assert.equal(result.estimatedCostUsd, 0.7);
   assert.equal(metrics(store).samples, 2);
 });
+test("OpenHands retains reported cumulative tokens, cache counters, model and cost", (t) => {
+  const { store } = fixture(t),
+    run = {
+      id: "openhands-usage",
+      taskId: "sample-task",
+      provider: "openhands",
+      providerSessionId: "conversation-usage",
+      createdAt: new Date().toISOString(),
+      state: "completed",
+    },
+    report = {
+      source: "conversation-stats",
+      coverage: "OpenHands cumulative conversation metrics.",
+      model: "anthropic/claude-sonnet-4-5",
+      usage: [
+        {
+          model: "anthropic/claude-sonnet-4-5",
+          promptTokens: 1200,
+          completionTokens: 300,
+          cacheReadTokens: 700,
+          cacheWriteTokens: 80,
+          reasoningTokens: 50,
+          costUsd: 0.42,
+        },
+      ],
+    };
+  store.put("runs", run);
+  recordUsage(store, run, report);
+  recordUsage(store, run, report);
+  const result = metrics(store, { provider: "openhands", groupBy: "model" });
+  assert.equal(result.samples, 1);
+  assert.equal(result.groups[0].key, "anthropic/claude-sonnet-4-5");
+  assert.equal(result.groups[0].inputTokens, 1200);
+  assert.equal(result.groups[0].outputTokens, 300);
+  assert.equal(result.groups[0].totalTokens, 1500);
+  assert.equal(result.groups[0].uncachedInputTokens, null);
+  assert.equal(result.groups[0].cacheReadTokens, 700);
+  assert.equal(result.groups[0].cacheWriteTokens, 80);
+  assert.equal(result.groups[0].reasoningTokens, 50);
+  assert.equal(result.groups[0].estimatedCostUsd, 0.42);
+  assert.deepEqual(result.usageCoverage, {
+    reportedRuns: 1,
+    unreportedRuns: 0,
+  });
+});
+
+test("OpenHands does not turn omitted token counters into zero", (t) => {
+  const { store } = fixture(t),
+    run = store.put("runs", {
+      id: "run-openhands-cost-only",
+      taskId: "sample-task",
+      provider: "openhands",
+      providerSessionId: "conversation-cost-only",
+      state: "completed",
+      createdAt: "2026-11-10T12:00:00.000Z",
+    });
+  recordUsage(store, run, {
+    provider: "openhands",
+    source: "conversation-stats",
+    usage: [{ model: "provider/model", costUsd: 0.25 }],
+  });
+  const result = metrics(store, {
+    runId: run.id,
+    groupBy: "model",
+    now: Date.parse("2026-11-10T13:00:00.000Z"),
+  });
+  assert.equal(result.groups[0].inputTokens, 0);
+  assert.equal(result.groups[0].outputTokens, 0);
+  assert.equal(result.groups[0].totalTokens, 0);
+  assert.equal(result.groups[0].tokenCoverage, "not-reported");
+  assert.equal(result.groups[0].estimatedCostUsd, 0.25);
+  const sample = store.db
+    .prepare("SELECT body FROM usage_samples WHERE run_id=?")
+    .get(run.id);
+  assert.equal(JSON.parse(sample.body).totals.inputTokens, null);
+  assert.equal(JSON.parse(sample.body).totals.outputTokens, null);
+  assert.equal(JSON.parse(sample.body).totals.totalTokens, null);
+});
 test("time measurements distinguish approvals, execution and idle; tool time is overlapping", (t) => {
   const { store } = fixture(t),
     start = Date.parse("2026-11-09T00:00:00Z"),

@@ -12,7 +12,7 @@ const esc = (s) =>
       ],
   );
 const color = (c) => (/^#[\da-f]{6}$/i.test(c || "") ? c : "#a7b8ff");
-export function createEpicProgress(root, { select, changeZoom }) {
+export function createEpicProgress(root, { select, changeZoom, controlsRoot }) {
   let current,
     rows = [],
     zoom = 100,
@@ -158,7 +158,9 @@ export function createEpicProgress(root, { select, changeZoom }) {
       }),
     }));
     observer?.disconnect();
-    root.innerHTML = `<div class="epic-controls" role="group" aria-label="Epic zoom controls"><div class="epic-zoom"><button class="button subtle" data-epic-zoom="100">Fit</button><div class="epic-scale"><button data-epic-factor=".8" aria-label="Zoom epic bars out">−</button><input type="range" min="0" max="14" step="0.01" value="${Math.log2(zoom)}" aria-label="Epic zoom"><button data-epic-factor="1.25" aria-label="Zoom epic bars in">＋</button><output>${zoom < 1000 ? zoom.toFixed(1) : Math.round(zoom)}%</output></div></div></div><div class="epic-scroll" tabindex="0" aria-label="Epic progress chart. Pinch to zoom; drag in any direction."><div class="epic-chart-window"><header class="epic-scroll-heading"><p>${rows.length} epics · pinch to zoom, drag in any direction.</p></header><div class="epic-axis"><span>0% · plan order →</span><span>100% of scope</span></div></div></div>`;
+    const controls = `<div class="epic-controls" role="group" aria-label="Epic zoom controls"><div class="epic-zoom"><button class="button subtle" data-epic-zoom="100">Fit</button><div class="epic-scale"><button data-epic-factor=".8" aria-label="Zoom epic bars out">−</button><input type="range" min="0" max="14" step="0.01" value="${Math.log2(zoom)}" aria-label="Epic zoom"><button data-epic-factor="1.25" aria-label="Zoom epic bars in">＋</button><output>${zoom < 1000 ? zoom.toFixed(1) : Math.round(zoom)}%</output></div></div></div>`;
+    if (controlsRoot) controlsRoot.innerHTML = controls;
+    root.innerHTML = `${controlsRoot ? "" : controls}<div class="epic-scroll" tabindex="0" aria-label="Epic progress chart. Pinch to zoom; drag in any direction."><div class="epic-chart-window"><header class="epic-scroll-heading"><p>${rows.length} epics · pinch to zoom, drag in any direction.</p></header><div class="epic-axis"><span>0% · plan order →</span><span>100% of scope</span></div></div></div>`;
     viewport = root.querySelector(".epic-scroll");
     chart = root.querySelector(".epic-chart-window");
     const labelWidth = viewport.clientWidth < 600 ? 150 : 220,
@@ -207,8 +209,9 @@ export function createEpicProgress(root, { select, changeZoom }) {
     zoom = next.zoom;
     changeZoom(zoom);
     current.zoom = zoom;
-    root.querySelector("input[type=range]").value = Math.log2(zoom);
-    root.querySelector("output").textContent =
+    const controls = controlsRoot || root;
+    controls.querySelector("input[type=range]").value = Math.log2(zoom);
+    controls.querySelector("output").textContent =
       (zoom < 1000 ? zoom.toFixed(1) : Math.round(zoom)) + "%";
     chart.style.width =
       Math.max(bandView, (bandView * zoom) / 100) + labelWidth + "px";
@@ -223,7 +226,7 @@ export function createEpicProgress(root, { select, changeZoom }) {
     momentum,
   });
 
-  root.addEventListener("click", (e) => {
+  const handleClick = (e) => {
     if (gestures.consumeClick(e)) return;
     const b = e.target.closest("button");
     if (b?.dataset.progressTask) select(b.dataset.progressTask);
@@ -241,11 +244,15 @@ export function createEpicProgress(root, { select, changeZoom }) {
         );
       if (row.tasks[i]) select(row.tasks[i].id);
     }
-  });
-  root.addEventListener("input", (e) => {
+  };
+  const handleInput = (e) => {
     if (e.target.matches("input[type=range]"))
       setZoom(2 ** Number(e.target.value));
-  });
+  };
+  root.addEventListener("click", handleClick);
+  root.addEventListener("input", handleInput);
+  controlsRoot?.addEventListener("click", handleClick);
+  controlsRoot?.addEventListener("input", handleInput);
 
   return {
     render,
@@ -259,6 +266,9 @@ export function createEpicProgress(root, { select, changeZoom }) {
       cancelAnimationFrame(frame);
       frame = 0;
       observer?.disconnect();
+      controlsRoot?.removeEventListener("click", handleClick);
+      controlsRoot?.removeEventListener("input", handleInput);
+      controlsRoot?.replaceChildren();
       current = null;
       rows = [];
       root.replaceChildren();

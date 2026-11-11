@@ -72,7 +72,11 @@ const redact = (value) =>
 let host, server, app, page, store, ops;
 const checks = [];
 const check = (name, condition, detail) => {
-  checks.push({ name, passed: Boolean(condition), ...(detail ? { detail } : {}) });
+  checks.push({
+    name,
+    passed: Boolean(condition),
+    ...(detail ? { detail } : {}),
+  });
   say((condition ? "  ✓ " : "  ✗ ") + name + (detail ? " — " + detail : ""));
   return condition;
 };
@@ -258,7 +262,9 @@ try {
   const shot = async (name) => {
     try {
       await page.send("Page.enable");
-      const image = await page.send("Page.captureScreenshot", { format: "png" });
+      const image = await page.send("Page.captureScreenshot", {
+        format: "png",
+      });
       fs.mkdirSync(shots, { recursive: true });
       fs.writeFileSync(
         path.join(shots, name + ".png"),
@@ -272,7 +278,10 @@ try {
     "__avoozlFind('Avoozl', '.activitybar .action-item, .statusbar-item') ? true : false",
     { label: "the extension to appear in the application", timeoutMs: 120000 },
   );
-  check("the packaged extension activates in the desktop application", activated);
+  check(
+    "the packaged extension activates in the desktop application",
+    activated,
+  );
   // The sidebar, not the palette: a conversation and a plan are acted on from
   // the extension's own tree, which is how the work is actually done.
   // Clicking the activity bar item is not enough on its own: the bar is still
@@ -452,16 +461,18 @@ try {
 
   // ── Stopping the conversation stops the real work ────────────────────────
   const runRow = await page
-    .waitFor(
-      "__avoozlFind('Desktop flow check', '.pane .monaco-list-row')",
-      { label: "the conversation in the sidebar", timeoutMs: 20000 },
-    )
+    .waitFor("__avoozlFind('Desktop flow check', '.pane .monaco-list-row')", {
+      label: "the conversation in the sidebar",
+      timeoutMs: 20000,
+    })
     .catch(() => null);
   if (runRow) await page.clickCentre(runRow);
   await delay(1500);
   const stopDriven = started
     ? await attempt("stopping the conversation", async () => {
-        await page.command("Avoozl: Stop This Conversation", { settleMs: 2500 });
+        await page.command("Avoozl: Stop This Conversation", {
+          settleMs: 2500,
+        });
         await pick("Desktop flow check", "the conversation to stop");
         return true;
       })
@@ -527,9 +538,9 @@ try {
     check("diagnostics are available in the application", diagnostics);
 
   // ── No native chat on the desktop, stated rather than implied ────────────
-  const nativeChat = await page.eval(
-    "(await vscode) === undefined ? false : false",
-  ).catch(() => false);
+  const nativeChat = await page
+    .eval("(await vscode) === undefined ? false : false")
+    .catch(() => false);
   check(
     "the desktop application offers no native chat for an owned session",
     nativeChat === false,
@@ -547,7 +558,11 @@ try {
       "The desktop build exposes no agent-host bridge, so an owned session has no native chat editor there. This flow accepts the desktop work that does not depend on it; native clicked controls are accepted on the bridged route in native-controls-*.json.",
     editor: { version: null },
     versions: { node: process.version, clientApi: CLIENT_API_VERSION },
-    plan: { id: plan.id, revisionBefore: before.revision, revisionAfter: after.revision },
+    plan: {
+      id: plan.id,
+      revisionBefore: before.revision,
+      revisionAfter: after.revision,
+    },
     run: {
       state: stopped?.state ?? null,
       error: stopped?.error ?? null,

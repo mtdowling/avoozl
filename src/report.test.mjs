@@ -182,10 +182,7 @@ test("Canvas uses an exact-origin CORS grant without weakening local origin chec
       },
     });
     assert.equal(response.status, 204);
-    assert.match(
-      response.headers.get("access-control-allow-methods"),
-      /POST/,
-    );
+    assert.match(response.headers.get("access-control-allow-methods"), /POST/);
     response = await fetch(f.base + "/api/command", {
       method: "POST",
       headers: {

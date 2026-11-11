@@ -4,6 +4,7 @@ import {
   duplicateCandidates,
   mergeTasks,
 } from "./task-dedup.mjs";
+import fs from "node:fs";
 import { randomUUID } from "node:crypto";
 import { queryTasks, statusComplete, digest, validate } from "../model.mjs";
 import { captureTask } from "../capture.mjs";
@@ -28,20 +29,21 @@ import {
 } from "./plans.mjs";
 import {
   projectConfig,
+  projectGitHubRepository,
   validateRun,
   integrateRun,
   runChanges,
+  WORKING_STATES,
 } from "./git.mjs";
+import { workspaceIdentity } from "./identity.mjs";
+import { compactDriverContext, driverConversationTitle } from "./manager.mjs";
 import { Batches } from "./batches.mjs";
 import { metrics } from "./telemetry.mjs";
 import { taskSignals, isPlanInventory } from "../workbench-model.mjs";
 import { ExternalSessions } from "./external-sessions.mjs";
 import { listExamples, seedExample } from "./examples.mjs";
 import { describeWorkspace } from "./client.mjs";
-import {
-  defaultGitHubClient,
-  requirePrivateRepository,
-} from "./github.mjs";
+import { defaultGitHubClient, requirePrivateRepository } from "./github.mjs";
 import {
   configureGitHubRepository,
   machineIdentity,
@@ -49,6 +51,14 @@ import {
   startAuthorizedIssue,
   syncGitHubIssues,
 } from "./github-sync.mjs";
+import {
+  configureGitHubQueueRepository,
+  createTaskFromQueueItem,
+  githubQueueItems,
+  removeGitHubQueueRepository,
+  syncGitHubQueue,
+} from "./github-queue.mjs";
+import { confirmQueueItemLink } from "./github-overlap.mjs";
 import {
   configureWorkspaceRepository,
   publishPlanningPullRequest,
@@ -65,6 +75,17 @@ import {
   reviewPrompt,
 } from "./plan-reviews.mjs";
 import { lintPlan } from "./plan-quality.mjs";
+import {
+  matchingAgentInstructions,
+  toggleAgentInstruction,
+} from "./agent-instructions.mjs";
+import {
+  autoArchiveCompletedRun,
+  conversationSettings,
+  updateConversationSettings,
+} from "./conversation-settings.mjs";
+import { openHandsAgentProfiles } from "./providers/openhands.mjs";
+import { OpenHandsAutomations } from "./openhands-automations.mjs";
 
 // Acceptance evidence a caller did not type, when validateRun already recorded
 // passing checks for the commit being accepted. A failed or absent validation
@@ -94,7 +115,7 @@ function validatedEvidence(store, data, task) {
   ).slice(0, 2000);
 }
 
-function repositoryBase(store, task) {
+function repositoryBase(store, task, projectId) {
   if (typeof task.github?.url === "string") {
     try {
       const url = new URL(task.github.url);
@@ -111,15 +132,36 @@ function repositoryBase(store, task) {
     task.github?.repository ||
     store
       .list("github_repositories")
-      .find((entry) => entry.projectId === task.projectId)?.id ||
+      .find((entry) => entry.projectId === projectId)?.id ||
+    store.get("projects", projectId)?.repository ||
     "";
   return /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)
     ? `https://github.com/${repository}`
     : "";
 }
 
+function taskLocalChanges(store, task, runs, projectId, repositoryUrl) {
+  const worktreeRuns = runs.filter((run) => run.worktree && !run.readOnly),
+    diffRun =
+      worktreeRuns.find((run) => WORKING_STATES.includes(run.state)) ||
+      worktreeRuns.at(-1),
+    diffAvailable = Boolean(diffRun && fs.existsSync(diffRun.worktree)),
+    project = store.get("projects", projectId);
+  if (!project && !diffAvailable) return null;
+  return {
+    projectId,
+    root: project?.root || "",
+    branch: diffRun?.branch || task.integration?.branch || "",
+    worktree: diffRun?.worktree || "",
+    diffRunId: diffAvailable ? diffRun.id : "",
+    repositoryUrl,
+  };
+}
+
 function taskCodeChanges(store, data, task, runs, evidenceRecords) {
-  const base = repositoryBase(store, task),
+  const projectId =
+      task.projectId || runs.map((run) => run.projectId).find(Boolean) || "",
+    base = repositoryBase(store, task, projectId),
     commits = new Map(),
     pulls = new Map();
   const addCommit = (sha, source) => {
@@ -169,22 +211,43 @@ function taskCodeChanges(store, data, task, runs, evidenceRecords) {
     )
       addPull(receipt);
   }
+  const issueNumber = Number(task.github?.number) || null,
+    issue = issueNumber
+      ? {
+          number: issueNumber,
+          repository: task.github?.repository || "",
+          url:
+            task.github?.url || (base ? `${base}/issues/${issueNumber}` : ""),
+        }
+      : null;
   return {
+    issue,
     commits: [...commits.values()],
     pullRequests: [...pulls.values()],
+    local: taskLocalChanges(store, task, runs, projectId, base),
   };
 }
 
 export class Operations {
   constructor(
     store,
-    { manager = null, externalSessions, operator, github } = {},
+    {
+      manager = null,
+      externalSessions,
+      operator,
+      github,
+      configuration = null,
+      openhandsAutomations = null,
+    } = {},
   ) {
     this.store = store;
     this.manager = manager;
     // Provenance for records this workspace mints; never an authorization.
     this.operator = operator || "";
     this.github = github || defaultGitHubClient();
+    this.configuration = configuration;
+    this.openhandsAutomations =
+      openhandsAutomations || new OpenHandsAutomations();
     this.externalSessions = externalSessions || new ExternalSessions(store);
     this.batches =
       manager && !manager.remote ? new Batches(store, manager) : null;
@@ -193,6 +256,175 @@ export class Operations {
   }
   read() {
     return this.store.read();
+  }
+  async openRemoteDriver(input = {}) {
+    try {
+      return await this.manager.command("driver.open", input);
+    } catch (error) {
+      if (!/Unsupported agent-host operation/i.test(error.message)) throw error;
+    }
+    const projects = this.store.list("projects"),
+      projectId =
+        input.projectId || (projects.length === 1 ? projects[0].id : null),
+      project = projectId ? this.store.get("projects", projectId) : null;
+    if (!project)
+      fail(
+        projects.length
+          ? "Choose which configured project should own this Driver."
+          : "Configure a project workspace before opening Driver.",
+      );
+    const baseId =
+        "driver-" +
+        digest(workspaceIdentity(this.store) + ":" + project.id).slice(0, 24),
+      drivers = this.store
+        .list("runs")
+        .filter(
+          (run) =>
+            run.driver === true &&
+            run.projectId === project.id &&
+            run.driverActive !== false &&
+            !run.deletedAt,
+        ),
+      existing = drivers[0] || this.store.get("runs", baseId),
+      profileSpecified = Object.hasOwn(input, "agentProfile"),
+      modelSpecified = Object.hasOwn(input, "model"),
+      choice = (value) =>
+        typeof value === "string" && value.trim() ? value.trim() : null,
+      configurationChanged =
+        existing &&
+        ((profileSpecified &&
+          choice(input.agentProfile) !== choice(existing.agentProfile)) ||
+          (modelSpecified &&
+            choice(input.model) !==
+              choice(existing.requestedModel ?? existing.model))),
+      generation =
+        Math.max(
+          0,
+          ...this.store
+            .list("runs")
+            .filter((run) => run.driver && run.projectId === project.id)
+            .map((run) => run.driverGeneration || 1),
+        ) + 1,
+      id = !existing && generation === 1 ? baseId : `${baseId}-g${generation}`,
+      context =
+        input.context === undefined
+          ? existing?.context || {}
+          : compactDriverContext(input.context);
+    if (existing && !configurationChanged) {
+      if (input.provider && input.provider !== existing.provider)
+        fail("This project Driver already belongs to another provider.", 409);
+      existing.driver = true;
+      existing.driverActive = true;
+      existing.driverRole = "project";
+      existing.logicalConversationId =
+        existing.logicalConversationId || existing.id;
+      if (input.context !== undefined) {
+        existing.context = context;
+        existing.driverContextUpdatedAt = new Date().toISOString();
+      }
+      this.store.put("runs", existing);
+      return {
+        project: {
+          projectId: project.id,
+          title: project.name || project.title || project.id,
+          root: project.root,
+        },
+        run: existing,
+        created: false,
+        compatibilityMode: true,
+      };
+    }
+    if (
+      existing &&
+      (["starting", "running", "waiting-input", "waiting-approval"].includes(
+        existing.state,
+      ) ||
+        this.store
+          .list("requests")
+          .some(
+            (request) =>
+              request.runId === existing.id && request.state === "pending",
+          ) ||
+        this.store
+          .list("deliveries")
+          .some(
+            (delivery) =>
+              delivery.runId === existing.id &&
+              ["queued", "sending", "awaiting-resume"].includes(delivery.state),
+          ))
+    )
+      fail(
+        "Wait for the current Driver turn and pending requests to finish before changing its agent or model.",
+        409,
+      );
+    const run = await this.manager.command("run.start", {
+      id,
+      driver: true,
+      driverRole: "project",
+      driverActive: true,
+      driverGeneration: generation,
+      driverPredecessorId: existing?.id,
+      provider: input.provider || "openhands",
+      projectId: project.id,
+      model: modelSpecified
+        ? choice(input.model)
+        : (existing?.requestedModel ?? existing?.model),
+      agentProfile: profileSpecified
+        ? choice(input.agentProfile)
+        : existing?.agentProfile,
+      mode: "ask",
+      title: driverConversationTitle(project),
+      prompt:
+        "Act as this project's persistent Avoozl Driver. Keep replies concise, use the mounted project and Avoozl context when asked, and reply only “Ready” to this initialization message.",
+      context,
+      approvalMode: "manual",
+    });
+    const durable = {
+      ...(this.store.get("runs", id) || run),
+      driver: true,
+      driverActive: true,
+      driverGeneration: generation,
+      driverPredecessorId: existing?.id,
+      driverRole: "project",
+      logicalConversationId: id,
+      agentProfile: profileSpecified
+        ? choice(input.agentProfile) || undefined
+        : existing?.agentProfile,
+      requestedModel: modelSpecified
+        ? choice(input.model)
+        : (existing?.requestedModel ?? existing?.model ?? null),
+      context,
+      driverContextUpdatedAt: new Date().toISOString(),
+    };
+    this.store.put("runs", durable);
+    if (existing) {
+      const retiredAt = new Date().toISOString();
+      existing.driverActive = false;
+      existing.driverRetiredAt = retiredAt;
+      existing.driverSuccessorId = durable.id;
+      this.store.put("runs", existing);
+      this.store.setMeta("runArchive:" + existing.id, retiredAt);
+      this.store.event(existing.id, "driver.retired", {
+        successorRunId: durable.id,
+        retiredAt,
+        compatibilityMode: true,
+      });
+    }
+    this.store.event(id, "driver.compatibility.started", {
+      projectId: project.id,
+    });
+    return {
+      project: {
+        projectId: project.id,
+        title: project.name || project.title || project.id,
+        root: project.root,
+      },
+      run: durable,
+      created: true,
+      handedOff: Boolean(existing),
+      previousRunId: existing?.id,
+      compatibilityMode: true,
+    };
   }
   detail(id) {
     const data = this.read(),
@@ -208,11 +440,7 @@ export class Operations {
         .list("evidence")
         .filter((e) => resolveTaskId(data, e.taskId) === id),
       activeRun =
-        runs.find((run) =>
-          ["starting", "running", "waiting-input", "waiting-approval"].includes(
-            run.state,
-          ),
-        ) || runs.at(-1);
+        runs.find((run) => WORKING_STATES.includes(run.state)) || runs.at(-1);
     return {
       ...task,
       ...(requestedId !== id ? { requestedId } : {}),
@@ -304,7 +532,8 @@ export class Operations {
         const plan = this.store.get("plans", pipeline.planId);
         if (!plan || plan.hash !== pipeline.revisionHash) {
           pipeline.state = "stale";
-          pipeline.error = "The design changed while its review pipeline was running.";
+          pipeline.error =
+            "The design changed while its review pipeline was running.";
           pipeline.endedAt = new Date().toISOString();
           this.store.put("review_rounds", pipeline);
           return;
@@ -335,6 +564,7 @@ export class Operations {
             revisionHash: plan.hash,
             round: index + 1,
           },
+          parentRunId: pipeline.parentRunId || undefined,
           background: true,
         });
         const run = await this.waitForReviewRun(runId);
@@ -395,12 +625,28 @@ export class Operations {
     if (!this.manager) fail("Start the Avoozl agent host first.", 503);
     if (!this.store.get("projects", input.projectId))
       fail("Choose a configured project for read-only review.");
+    if (input.parentRunId) {
+      const parent = this.store.get("runs", input.parentRunId);
+      if (
+        !parent?.driver ||
+        parent.driverRole !== "project" ||
+        parent.parentRunId ||
+        parent.provider !== "openhands" ||
+        parent.projectId !== input.projectId
+      )
+        fail(
+          "The review parent must be this project’s top-level OpenHands Driver.",
+          409,
+        );
+    }
     const maxRounds = Number(input.maxRounds ?? 3);
     if (!Number.isInteger(maxRounds) || maxRounds < 1 || maxRounds > 10)
       fail("Choose 1–10 review rounds.");
     const requested =
       input.sequence ||
-      (input.provider ? [{ provider: input.provider, model: input.model }] : []);
+      (input.provider
+        ? [{ provider: input.provider, model: input.model }]
+        : []);
     if (
       !Array.isArray(requested) ||
       !requested.length ||
@@ -422,6 +668,7 @@ export class Operations {
       planId: plan.id,
       revisionHash: plan.hash,
       projectId: input.projectId,
+      parentRunId: input.parentRunId || null,
       sequence,
       maxRounds,
       state: "running",
@@ -525,6 +772,7 @@ export class Operations {
           projectId: input.projectId,
           model: input.model,
           approvalMode: input.approvalMode,
+          parentRunId: input.parentRunId,
         }),
       );
     let receipt = this.store.get("receipts", id);
@@ -612,6 +860,7 @@ export class Operations {
         approvalMode: saved.approvalMode,
         prompt: saved.prompt,
         context: saved.context,
+        parentRunId: saved.parentRunId,
         // A caller-supplied title names the conversation in a client's list;
         // without one the first prompt line stands in.
         title: saved.title || saved.prompt.split("\n")[0].slice(0, 160),
@@ -643,7 +892,14 @@ export class Operations {
     if (name === "workspace.seed")
       return seedExample(store, input, expectedRevision);
     if (
-      ["task.update", "activity", "task.accept", "task.sessions"].includes(name)
+      [
+        "task.update",
+        "activity",
+        "task.accept",
+        "task.archive",
+        "task.unarchive",
+        "task.sessions",
+      ].includes(name)
     )
       input = { ...input, id: resolveTaskId(this.read(), input.id) };
     if (input.taskId)
@@ -692,11 +948,14 @@ export class Operations {
       return this.externalSessions.discover(input);
     if (name === "session.register")
       return this.externalSessions.register(input);
+    if (this.manager?.remote && name === "driver.open")
+      return this.openRemoteDriver(input);
     if (
       this.manager?.remote &&
       [
         "models",
         "usage.limits",
+        "driver.context",
         "run.start",
         "run.send",
         "run.interrupt",
@@ -716,6 +975,17 @@ export class Operations {
     if (name === "state") return this.read();
     if (name === "publication.retry") return { retryRequested: true };
     if (name === "metrics") return metrics(store, input);
+    if (name === "conversations.settings.get")
+      return conversationSettings(store);
+    if (name === "conversations.settings.update")
+      return this.configuration
+        ? this.configuration.updateConversationSettings(input).settings
+        : store.transaction(() => updateConversationSettings(store, input));
+    if (name === "openhands.profiles") return openHandsAgentProfiles();
+    if (name === "openhands.automations.capabilities")
+      return this.openhandsAutomations.capabilities();
+    if (name === "openhands.automations.setup")
+      return this.openhandsAutomations.setup(input);
     if (name === "models") return this.manager.models(input.provider);
     if (name === "usage.limits") return this.manager.usage(input.provider);
     if (name === "query")
@@ -905,8 +1175,7 @@ export class Operations {
                   : !Array.isArray(value) ||
                     value.length > 500 ||
                     value.some(
-                      (item) =>
-                        typeof item !== "string" || item.length > 2000,
+                      (item) => typeof item !== "string" || item.length > 2000,
                     )
             )
               fail("Invalid report filter " + key + ".");
@@ -946,6 +1215,30 @@ export class Operations {
             (item) => item.id !== input.id,
           );
           return existing;
+        },
+        expectedRevision,
+      );
+    if (name === "agent.instructions.toggle")
+      return store.mutate(
+        (input.enabled ? "Enable " : "Disable ") +
+          "agent instruction " +
+          input.id,
+        (data) =>
+          toggleAgentInstruction(data, input.id, Boolean(input.enabled)),
+        expectedRevision,
+      );
+    if (["task.archive", "task.unarchive"].includes(name))
+      return store.mutate(
+        (name === "task.archive" ? "Archive " : "Restore ") + input.id,
+        (data) => {
+          const task = data.tasks.find((item) => item.id === input.id);
+          if (!task) fail("Task not found.", 404);
+          task.archivedAt =
+            name === "task.archive"
+              ? task.archivedAt || new Date().toISOString()
+              : null;
+          task.updatedAt = new Date().toISOString();
+          return task;
         },
         expectedRevision,
       );
@@ -1052,6 +1345,38 @@ export class Operations {
           .map((p) => ({ id: p.id, title: p.title })),
       };
     if (name === "run.list") return runPage(store, input);
+    if (name === "driver.list") {
+      const projects = store.list("projects"),
+        runs = store.list("runs");
+      return {
+        projects: projects.map((project) => ({
+          projectId: project.id,
+          title: project.name || project.title || project.id,
+          root: project.root,
+          run:
+            runs
+              .filter(
+                (run) =>
+                  run.driver === true &&
+                  run.projectId === project.id &&
+                  run.driverActive !== false &&
+                  !run.deletedAt,
+              )
+              .sort(
+                (left, right) =>
+                  (right.driverGeneration || 1) -
+                    (left.driverGeneration || 1) ||
+                  String(right.createdAt || "").localeCompare(
+                    String(left.createdAt || ""),
+                  ),
+              )[0] || null,
+        })),
+        defaultProjectId: projects.length === 1 ? projects[0].id : null,
+      };
+    }
+    if (name === "driver.open") return this.manager.openDriver(input);
+    if (name === "driver.context")
+      return this.manager.updateDriverContext(input);
     if (name === "task.sessions") {
       const task = this.read().tasks.find((t) => t.id === input.id);
       if (!task) fail("Task not found.", 404);
@@ -1092,6 +1417,8 @@ export class Operations {
           .filter((i) => i.state === "ready")
           .slice(0, 40),
         recentIntegrations: recentIntegrations(store),
+        conversationSettings: conversationSettings(store),
+        configuration: this.configuration?.metadata() || null,
         projects: store.list("projects"),
         github: {
           available: this.github.available(),
@@ -1099,6 +1426,10 @@ export class Operations {
           repositories: store.list("github_repositories"),
           issues: store.list("github_issues").slice(0, 100),
           lastSync: store.getMeta("githubSync"),
+          queue: {
+            repositories: store.list("github_queue_repositories"),
+            lastSync: store.getMeta("githubQueueSync"),
+          },
         },
         workspaceRepository: workspaceRepositoryStatus(store),
         agentHost: this.manager?.remote
@@ -1428,8 +1759,7 @@ export class Operations {
         expectedRevision: input.expectedRevision ?? expectedRevision,
       });
     }
-    if (name === "plan.review.list")
-      return listReviewThreads(store, input);
+    if (name === "plan.review.list") return listReviewThreads(store, input);
     if (name === "plan.review.submit") {
       const run = input.runId ? store.get("runs", input.runId) : null;
       if (
@@ -1460,26 +1790,97 @@ export class Operations {
         ...input,
         author: input.author || this.operator,
       });
-    if (name === "plan.review.pipeline")
-      return this.startReviewPipeline(input);
+    if (name === "plan.review.pipeline") return this.startReviewPipeline(input);
     if (name === "plan.review.pipeline.get") {
       const round = store.get("review_rounds", input.id);
       if (!round) fail("Review pipeline not found.", 404);
       return round;
     }
-    if (name === "github.configure")
-      return configureGitHubRepository(store, this.github, input);
+    if (name === "github.project.detect")
+      return projectGitHubRepository(store, input);
+    if (name === "github.project.connect") {
+      this.configuration?.assertWritable();
+      const detected = input.repository
+          ? { projectId: input.projectId, repository: input.repository }
+          : await projectGitHubRepository(store, input),
+        configuration = {
+          ...input,
+          repository: detected.repository,
+          projectId: detected.projectId,
+        },
+        execution = await configureGitHubRepository(
+          store,
+          this.github,
+          configuration,
+        ),
+        queue = await configureGitHubQueueRepository(
+          store,
+          this.github,
+          configuration,
+        );
+      this.configuration?.updateGitHubProjectConnection(execution, queue);
+      return { repository: detected.repository, execution, queue };
+    }
+    if (name === "github.configure") {
+      this.configuration?.assertWritable();
+      const configured = await configureGitHubRepository(
+        store,
+        this.github,
+        input,
+      );
+      this.configuration?.updateGitHubIssueIntake(configured);
+      return configured;
+    }
     if (name === "github.repositories")
       return {
         available: this.github.available(),
         machine: machineIdentity(store),
         items: store.list("github_repositories"),
       };
+    if (name === "github.queue.configure") {
+      this.configuration?.assertWritable();
+      const configured = await configureGitHubQueueRepository(
+        store,
+        this.github,
+        input,
+      );
+      this.configuration?.updateGitHubQueue(configured);
+      return configured;
+    }
+    if (name === "github.queue.remove") {
+      this.configuration?.assertWritable();
+      const removed = removeGitHubQueueRepository(store, input);
+      this.configuration?.removeGitHubQueue(removed.id);
+      return removed;
+    }
     if (name === "github.issues")
       return {
         items: store.list("github_issues"),
         lastSync: store.getMeta("githubSync"),
       };
+    if (name === "queue.items")
+      return githubQueueItems(store, this.github, input);
+    if (name === "queue.sync")
+      return {
+        ...(await syncGitHubQueue(store, this.github, input)),
+        queue: githubQueueItems(store, this.github, input),
+      };
+    if (name === "queue.createTask")
+      return createTaskFromQueueItem(
+        store,
+        this.github,
+        input,
+        expectedRevision,
+      );
+    if (name === "queue.confirmLink")
+      return confirmQueueItemLink(
+        store,
+        {
+          ...input,
+          confirmedBy: this.operator || undefined,
+        },
+        expectedRevision,
+      );
     if (name === "github.sync") {
       const result = await syncGitHubIssues(store, this.github, input);
       const starts = [];
@@ -1492,12 +1893,9 @@ export class Operations {
             .some(
               (run) =>
                 run.taskId === record.taskId &&
-                ![
-                  "completed",
-                  "interrupted",
-                  "failed",
-                  "integrated",
-                ].includes(run.state),
+                !["completed", "interrupted", "failed", "integrated"].includes(
+                  run.state,
+                ),
             );
           if (!active)
             starts.push(
@@ -1525,8 +1923,16 @@ export class Operations {
       if (!this.manager) fail("Start the Avoozl agent host first.", 503);
       return startAuthorizedIssue(this, input);
     }
-    if (name === "workspace.repository.configure")
-      return configureWorkspaceRepository(store, input, this.github);
+    if (name === "workspace.repository.configure") {
+      this.configuration?.assertWritable();
+      const configured = await configureWorkspaceRepository(
+        store,
+        input,
+        this.github,
+      );
+      this.configuration?.updatePlanningRepository(configured);
+      return configured;
+    }
     if (name === "workspace.repository.status")
       return workspaceRepositoryStatus(store);
     if (name === "workspace.repository.publish") {
@@ -1547,9 +1953,33 @@ export class Operations {
       return this.reconcilePlanningPullRequests();
     if (name === "project.configure") {
       const project = await projectConfig(input);
-      return store.put("projects", project);
+      this.configuration?.assertWritable();
+      const configured = store.put("projects", project);
+      this.configuration?.updateExecutionProject(configured);
+      return configured;
     }
     if (name === "run.start") return this.manager.start(input);
+    if (name === "run.context") {
+      const run = store.get("runs", input.runId);
+      if (!run) fail("Run not found.", 404);
+      const project = run.projectId
+        ? store.get("projects", run.projectId)
+        : null;
+      return {
+        runId: run.id,
+        title: run.title || null,
+        context: run.context || {},
+        project: project
+          ? {
+              id: project.id,
+              title: project.name || project.title || project.id,
+              root: project.root,
+            }
+          : null,
+        timestamp:
+          run.driverContextUpdatedAt || run.updatedAt || run.createdAt || null,
+      };
+    }
     if (name === "run.send") return this.manager.send(input);
     if (name === "run.interrupt")
       return this.manager.interrupt(input.id, { reason: input.reason });
@@ -1589,9 +2019,9 @@ export class Operations {
         events: input.compact ? events.map(compactEvent) : events,
         hasEarlier: Boolean(
           first &&
-          store.db
-            .prepare("SELECT 1 FROM events WHERE run_id=? AND seq<? LIMIT 1")
-            .get(run.id, first),
+            store.db
+              .prepare("SELECT 1 FROM events WHERE run_id=? AND seq<? LIMIT 1")
+              .get(run.id, first),
         ),
         deliveries: store.db
           .prepare(
@@ -1624,26 +2054,39 @@ export class Operations {
       const recorded = input.evidence?.trim()
         ? null
         : this.acceptanceFromValidation(input.id);
-      return store.mutate(
-        "Accept " + input.id,
-        (data) => {
-          const task = data.tasks.find((t) => t.id === input.id);
-          if (!task) fail("Task not found.", 404);
-          if (!task.integration && !input.componentOnly)
-            fail("Record integration before whole-head acceptance.");
-          task.acceptanceEvidence = {
-            at: new Date().toISOString(),
-            evidence:
-              input.evidence?.trim() || validatedEvidence(store, data, task),
-            ...(recorded ? { derivedFrom: recorded.evidenceIds } : {}),
-            ...(this.operator ? { acceptedBy: this.operator } : {}),
-            componentOnly: Boolean(input.componentOnly),
-          };
-          task.status = input.componentOnly ? "implemented" : "accepted";
-          return task;
-        },
-        expectedRevision,
-      );
+      const autoArchive = conversationSettings(store).autoArchiveCompleted,
+        task = store.mutate(
+          "Accept " + input.id,
+          (data) => {
+            const task = data.tasks.find((t) => t.id === input.id);
+            if (!task) fail("Task not found.", 404);
+            if (!task.integration && !input.componentOnly)
+              fail("Record integration before whole-head acceptance.");
+            task.acceptanceEvidence = {
+              at: new Date().toISOString(),
+              evidence:
+                input.evidence?.trim() || validatedEvidence(store, data, task),
+              ...(recorded ? { derivedFrom: recorded.evidenceIds } : {}),
+              ...(this.operator ? { acceptedBy: this.operator } : {}),
+              componentOnly: Boolean(input.componentOnly),
+            };
+            task.status = input.componentOnly ? "implemented" : "accepted";
+            if (!input.componentOnly && autoArchive)
+              task.archivedAt = task.archivedAt || task.acceptanceEvidence.at;
+            return task;
+          },
+          expectedRevision,
+        );
+      if (autoArchive && !input.componentOnly)
+        for (const run of store
+          .list("runs")
+          .filter(
+            (run) =>
+              resolveTaskId(this.read(), run.taskId) === task.id &&
+              run.state === "completed",
+          ))
+          autoArchiveCompletedRun(store, run, task.acceptanceEvidence.at);
+      return task;
     }
     if (name === "handoff") {
       const run = store.get("runs", input.id);
@@ -1670,6 +2113,11 @@ export class Operations {
         runs: task.runs,
         evidence: task.evidenceRecords,
         nextAction: task.nextAction,
+        agentInstructions: matchingAgentInstructions(
+          this.read(),
+          "task.implement",
+          task,
+        ),
         policy:
           "Task evidence, integration and acceptance are separate. Preserve existing worktrees and do not open GitHub issues. Work discovered while implementing has three dispositions: in scope for this task, do it and record the evidence here, which is the normal case; related to this plan but out of scope, append one proposed task block with plan.propose, which makes this plan read as changed until its next approval; needing a different design, write a new plan draft and tell the user. Filing anything is the exception; do not capture discoveries as new request tasks.",
       };

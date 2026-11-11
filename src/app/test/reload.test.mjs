@@ -63,6 +63,9 @@ test("web reload preserves agent session, pending approval, subagent ownership a
     });
   servers.push(web1);
   await once(web1, "listening");
+  const usage = await remote.command("usage.limits", { provider: "codex" });
+  assert.equal(usage.available, false);
+  assert.match(usage.reason, /Insights/);
   const ops = web1.workspace.ops;
   await ops.execute("project.configure", { id: "fixture", root: repo });
   const { run } = await ops.execute("intent.submit", {

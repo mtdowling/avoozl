@@ -66,6 +66,33 @@ async function project(t, { extraTask = "dependent-task" } = {}) {
   return { store, repo, check, manager, ops, commit };
 }
 
+test("run worktrees inherit the execution repository Git identity", async (t) => {
+  const { store } = await project(t);
+  const worktree = await createWorktree(
+    store,
+    store.get("projects", "fixture"),
+    "run-identity",
+  );
+  assert.equal(
+    await git(worktree.worktree, [
+      "config",
+      "--worktree",
+      "--get",
+      "user.name",
+    ]),
+    "Fixture",
+  );
+  assert.equal(
+    await git(worktree.worktree, [
+      "config",
+      "--worktree",
+      "--get",
+      "user.email",
+    ]),
+    "fixture@example.invalid",
+  );
+});
+
 test("integration lands while another run on the project is still working", async (t) => {
   const { store, repo, manager, ops, commit } = await project(t);
   const working = await manager.start({
