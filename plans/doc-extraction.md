@@ -29,6 +29,7 @@ list of derived facts with their sources, and a comment back to GitHub.
 | Required heading names | Ten diagnostics fire on heading spelling (`src/app/plan-quality.mjs:116`) |
 | "Add at least one fenced task block" | A hard error that blocks approval (`src/app/plan-quality.mjs:200`) |
 | Duplicate conflicts raised at approval | `requireDistinctTask` throws a 409 mid-approval (`src/task-identity.mjs:84`) |
+| Skill guidance to write blocks and justify near-duplicates | `src/app/skills/avoozl/SKILL.md:85` and `:66` teach both |
 
 Nothing replaces these with a stricter version of itself. A document with no
 headings, no sections, and no JSON is a valid input.
@@ -51,6 +52,8 @@ headings, no sections, and no JSON is a valid input.
 9. Avoozl comments the derivation back to GitHub as a best-effort pointer.
 10. A repository tells the extractor how its designs work through the existing
     checked-in agent instructions, not through a hand-edited prompt.
+11. Extraction is part of the bundled skill, so the Driver can run it when
+    asked, through the CLI and MCP rather than the web interface.
 
 ## Goals
 
@@ -402,6 +405,38 @@ was extracted.
 
 Existing `plans_*` names and behavior are unchanged.
 
+## Driver skill
+
+The Driver learns Avoozl's workflow from the bundled skill
+(`src/app/skills/avoozl/SKILL.md`), templated and printed by `{{CLI}} skill`
+(`src/app/skill.mjs:4`). Extraction belongs there, so that asking the Driver to
+"pull the tasks out of this design" finds a documented path instead of an
+improvised one.
+
+This extends the existing skill rather than adding a second one. Its frontmatter
+`description` is what makes an agent reach for it, so that line has to name
+design documents and extraction alongside the planning and task workflow it
+already names.
+
+A new section covers starting an extraction, reading the facts and their
+coverage, disposing a fact, and approving a revision — all through the CLI and
+MCP, because the Driver does not use the web interface.
+
+Three passages become wrong and are corrected in the same change:
+
+- "Draft a new plan in one Markdown document with design, proposed fenced
+  `task` blocks" (`src/app/skills/avoozl/SKILL.md:85`) — blocks are no longer
+  how work is proposed.
+- The duplicate guidance to "supply `distinctReason` explaining the difference"
+  (`src/app/skills/avoozl/SKILL.md:66`) — coverage is advisory and asks the
+  agent for nothing.
+- The mid-implementation disposition that appends a proposed block
+  (`src/app/skills/avoozl/SKILL.md:54`) — that becomes the fact-shaped
+  `plan.propose`.
+
+Installed copies refresh the way they already do, by replacing `SKILL.md` with
+the output of `{{CLI}} skill`.
+
 ## Storage
 
 Two tables, following the single-body convention in `src/app/store.mjs:42`:
@@ -494,6 +529,9 @@ Every increment must run:
   second approval updating the same comment;
 - a compatibility test proving fenced-block plans approve and project
   unchanged;
+- a skill test proving the printed skill names extraction and no longer
+  instructs an agent to write fenced blocks or supply a near-duplicate
+  justification;
 - `npm test`;
 - `git diff --check`.
 
@@ -605,7 +643,9 @@ extracted by the mechanism it describes.
     "Each task records the fact and passage that produced it, and editing the document still marks it for review.",
     "Approving an extracted design writes nothing to the planning root and inserts no outbox row.",
     "Fenced-block plans still approve with their projected document unchanged.",
-    "Cycle, unknown-reference, self-dependency, and placeholder-acceptance diagnostics still fire."
+    "Cycle, unknown-reference, self-dependency, and placeholder-acceptance diagnostics still fire.",
+    "The bundled skill describes extraction in its description and its body, and no longer instructs an agent to write fenced blocks or justify a near-duplicate.",
+    "An agent can triage a design, extract, read facts and coverage, dispose a fact, and approve entirely through the CLI and MCP."
   ],
   "requires": ["doc-extraction-coverage"]
 }
