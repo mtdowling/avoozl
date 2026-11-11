@@ -201,76 +201,6 @@ function readJson(filename) {
   return value;
 }
 
-const LEGACY_REPOSITORY_PATH_FIELDS = new Set([
-  "agentManifest",
-  "ahp.manifest",
-  "ahp.projection",
-  "ahp.tokens",
-  "db",
-  "dbPath",
-  "documents",
-  "plansRoot",
-  "planningRepository.root",
-]);
-
-function migrateLegacyRepositoryValue(value, oldBase, newBase, trail = []) {
-  if (Array.isArray(value))
-    return value.map((item, index) =>
-      migrateLegacyRepositoryValue(item, oldBase, newBase, [
-        ...trail,
-        String(index),
-      ]),
-    );
-  if (record(value))
-    return Object.fromEntries(
-      Object.entries(value).map(([key, child]) => [
-        key,
-        migrateLegacyRepositoryValue(child, oldBase, newBase, [...trail, key]),
-      ]),
-    );
-  const field = trail.join("."),
-    key = trail.at(-1) || "",
-    pathField =
-      LEGACY_REPOSITORY_PATH_FIELDS.has(field) ||
-      (trail[0] === "projects" && ["root", "worktreeRoot"].includes(key));
-  if (
-    typeof value !== "string" ||
-    !value ||
-    !pathField ||
-    path.isAbsolute(value) ||
-    path.win32.isAbsolute(value)
-  )
-    return value;
-  return path.relative(newBase, path.resolve(oldBase, value)) || ".";
-}
-
-function absoluteMachinePath(value) {
-  return (
-    typeof value === "string" &&
-    (path.isAbsolute(value) || path.win32.isAbsolute(value))
-  );
-}
-
-function omitLegacyMachinePaths(value) {
-  const next = structuredClone(value);
-  for (const key of ["agentManifest", "db", "dbPath", "documents", "plansRoot"])
-    if (absoluteMachinePath(next[key])) delete next[key];
-  for (const key of ["manifest", "projection", "tokens"])
-    if (absoluteMachinePath(next.ahp?.[key])) delete next.ahp[key];
-  if (record(next.ahp) && !Object.keys(next.ahp).length) delete next.ahp;
-  for (const [id, project] of Object.entries(next.projects || {}))
-    if (
-      absoluteMachinePath(project?.root) ||
-      absoluteMachinePath(project?.worktreeRoot)
-    )
-      delete next.projects[id];
-  if (record(next.projects) && !Object.keys(next.projects).length)
-    delete next.projects;
-  if (absoluteMachinePath(next.planningRepository?.root))
-    delete next.planningRepository;
-  return next;
-}
-
 export function normalizeHostConfig(
   value,
   source = "Avoozl host configuration",
@@ -347,29 +277,19 @@ function validateWorkspaceFiles(
   safeDirectory(localDirectory, `Workspace ${id} configuration directory`, {
     mustExist: false,
   });
-  const filename = path.join(root, ".avoozl.json"),
-    legacyFilename = path.join(localDirectory, "config.json"),
-    sourceFilename = fs.existsSync(filename) ? filename : legacyFilename;
+  const filename = path.join(root, ".avoozl.json");
   let saved = null;
-  if (fs.existsSync(sourceFilename)) {
-    regularFile(sourceFilename, `Workspace ${id} configuration`);
+  if (fs.existsSync(filename)) {
+    regularFile(filename, `Workspace ${id} configuration`);
     try {
-      saved = JSON.parse(fs.readFileSync(sourceFilename, "utf8"));
+      saved = JSON.parse(fs.readFileSync(filename, "utf8"));
     } catch (error) {
       throw Error(
-        `Could not parse workspace configuration at ${sourceFilename}: ${error.message}`,
+        `Could not parse workspace configuration at ${filename}: ${error.message}`,
       );
     }
     if (!record(saved))
-      throw Error(
-        `Workspace configuration at ${sourceFilename} must be an object.`,
-      );
-    if (sourceFilename === legacyFilename)
-      saved = migrateLegacyRepositoryValue(
-        omitLegacyMachinePaths(saved),
-        path.dirname(legacyFilename),
-        root,
-      );
+      throw Error(`Workspace configuration at ${filename} must be an object.`);
     if (!allowIdentityMismatch && saved.workspaceId && saved.workspaceId !== id)
       throw Error(
         `Workspace ${id} has portable identity ${saved.workspaceId}; registration refused.`,
@@ -427,7 +347,6 @@ function validateWorkspaceFiles(
   return {
     root,
     filename,
-    legacyFilename,
     config: saved,
     database: resolved.dbPath,
     initialized: fs.existsSync(resolved.dbPath),

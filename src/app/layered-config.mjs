@@ -296,13 +296,11 @@ export function loadLayeredConfig({
   const files = {
     global: globalAvoozlConfigPath({ env, home }),
     legacy: path.join(workspaceRoot, "workspace.json"),
-    legacyRepository: path.join(workspaceRoot, ".avoozl", "config.json"),
     repository: path.join(workspaceRoot, ".avoozl.json"),
   };
   const fileLayers = [
     readLayer(files.global, "global Avoozl configuration"),
     readLayer(files.legacy, "legacy workspace configuration"),
-    readLayer(files.legacyRepository, "legacy repository Avoozl configuration"),
     readLayer(files.repository, "repository Avoozl configuration", {
       portable: true,
     }),
@@ -331,10 +329,7 @@ export function loadLayeredConfig({
   return {
     config: mergeLayers(layers),
     configWithoutRepository: mergeLayers(
-      layers.filter(
-        ({ filename }) =>
-          filename !== files.repository && filename !== files.legacyRepository,
-      ),
+      layers.filter(({ filename }) => filename !== files.repository),
     ),
     files,
     sources: layers.map(({ label, filename }) => ({ label, filename })),
