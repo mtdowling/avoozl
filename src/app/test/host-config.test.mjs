@@ -154,7 +154,7 @@ test("registry adds isolated workspaces and persists concurrency controls", () =
   }
 });
 
-test("legacy registration never copies absolute machine paths into .avoozl.json", () => {
+test("workspace registration ignores .avoozl/config.json", () => {
   const { env } = machineEnvironment(),
     workspace = initializedWorkspace("Legacy paths"),
     current = path.join(workspace, ".avoozl.json"),

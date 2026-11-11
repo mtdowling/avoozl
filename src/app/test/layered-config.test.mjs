@@ -152,7 +152,7 @@ test("workspaceConfig preserves legacy workspace.json compatibility", () => {
   );
 });
 
-test("legacy .avoozl/config.json remains readable and root config wins", () => {
+test(".avoozl/config.json is ignored", () => {
   const workspaceRoot = temporaryDirectory("avoozl-config-repository-legacy-"),
     legacyRepository = path.join(workspaceRoot, ".avoozl", "config.json"),
     repository = path.join(workspaceRoot, ".avoozl.json"),
@@ -164,12 +164,10 @@ test("legacy .avoozl/config.json remains readable and root config wins", () => {
     documents: "../plans",
   });
   let loaded = loadLayeredConfig({ workspaceRoot, env });
-  assert.equal(loaded.config.name, "Legacy repository");
-  assert.equal(
-    loaded.config.dbPath,
-    path.join(workspaceRoot, ".avoozl", "local", "workspace.sqlite"),
-  );
-  assert.equal(loaded.files.legacyRepository, legacyRepository);
+  assert.equal(loaded.config.name, undefined);
+  assert.equal(loaded.config.dbPath, undefined);
+  assert.equal(Object.hasOwn(loaded.files, "legacyRepository"), false);
+  assert.deepEqual(loaded.sources, []);
 
   writeJson(repository, {
     version: 1,
@@ -179,10 +177,7 @@ test("legacy .avoozl/config.json remains readable and root config wins", () => {
   loaded = loadLayeredConfig({ workspaceRoot, env });
   assert.equal(loaded.config.name, "Root repository");
   assert.equal(loaded.config.documents, path.join(workspaceRoot, "designs"));
-  assert.equal(
-    loaded.config.dbPath,
-    path.join(workspaceRoot, ".avoozl", "local", "workspace.sqlite"),
-  );
+  assert.equal(loaded.config.dbPath, undefined);
 });
 
 test("root repository configuration rejects absolute portable paths", () => {

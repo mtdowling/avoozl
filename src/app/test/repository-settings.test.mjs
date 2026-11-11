@@ -133,7 +133,7 @@ test("repository settings use a file hash to avoid clobbering direct edits", (t)
   );
 });
 
-test("first repository edit migrates legacy configuration without changing path meaning", (t) => {
+test("repository settings ignore .avoozl/config.json", (t) => {
   const { root, store } = fixture(t),
     legacy = path.join(root, ".avoozl", "config.json"),
     current = path.join(root, ".avoozl.json"),
@@ -157,27 +157,26 @@ test("first repository edit migrates legacy configuration without changing path 
   });
 
   configuration.reload();
-  assert.deepEqual(configuration.metadata().legacyRepository, {
-    filename: legacy,
-    migrationRequired: true,
-  });
+  assert.equal(
+    Object.hasOwn(configuration.metadata(), "legacyRepository"),
+    false,
+  );
   const editable = configuration.readConfiguration("repository");
-  assert.equal(editable.legacy, true);
   assert.equal(editable.exists, false);
-  assert.match(editable.text, /"dbPath": ".avoozl\/local\/workspace.sqlite"/);
+  assert.equal(Object.hasOwn(editable, "legacy"), false);
+  assert.deepEqual(JSON.parse(editable.text), { version: 1 });
   configuration.updateConversationSettings({ driverModel: "reviewer" });
 
-  const migrated = JSON.parse(fs.readFileSync(current, "utf8"));
+  const saved = JSON.parse(fs.readFileSync(current, "utf8"));
   assert.equal(
-    migrated.$schema,
+    saved.$schema,
     "https://avoozl.dev/schema/repository-config-v1.json",
   );
-  assert.equal(migrated.dbPath, ".avoozl/local/workspace.sqlite");
-  assert.equal(migrated.documents, "plans");
-  assert.equal(migrated.projects.code.root, "code");
-  assert.equal(migrated.projects.code.worktreeRoot, "worktrees");
-  assert.equal(migrated.projects.machine, undefined);
-  assert.equal(migrated.ahp, undefined);
+  assert.equal(saved.dbPath, undefined);
+  assert.equal(saved.documents, undefined);
+  assert.equal(saved.projects, undefined);
+  assert.equal(saved.ahp, undefined);
+  assert.equal(saved.conversations.driver.model, "reviewer");
   assert.equal(fs.existsSync(legacy), true);
 });
 

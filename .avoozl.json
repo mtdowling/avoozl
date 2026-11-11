@@ -1,6 +1,7 @@
 {
   "$schema": "./src/avoozl-config.schema.json",
   "version": 1,
+  "workspaceId": "avoozl",
   "repository": {
     "id": "avoozl",
     "roles": ["planning", "code"],
