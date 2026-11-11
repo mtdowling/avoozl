@@ -186,19 +186,22 @@ test("In Flight rows open tasks only through their explicit controls", () => {
   );
 });
 
-test("Settings distinguishes local execution projects and supports updating them", () => {
+test("Settings unifies local execution and GitHub repositories", () => {
   const app = fs.readFileSync(path.join(root, "src/web/App.tsx"), "utf8");
 
   assert.match(
     app,
-    /Execution projects are local Git checkouts where OpenHands\s+creates/,
+    /Connect local checkouts and GitHub work sources once, then choose\s+what each repository contributes/,
   );
-  assert.match(app, /onClick=\{\(\) => openProjectModal\(\)\}/);
-  assert.match(app, /Add project/);
-  assert.match(app, /onClick=\{\(\) => openProjectModal\(project\.id\)\}/);
+  assert.match(
+    app,
+    /command<\{ items: WorkspaceRepository\[\] \}>\("repositories\.list"\)/,
+  );
+  assert.match(app, /Add repository/);
+  assert.match(app, /onClick=\{\(\) => show\(item\)\}/);
   assert.match(app, />\s*Edit\s*</);
-  assert.match(app, /editingProjectId \? "Edit project" : "Add project"/);
-  assert.match(app, /onCancel=\{closeProjectModal\}/);
+  assert.match(app, /editing \? "Edit repository" : "Add repository"/);
+  assert.match(app, /Local-only and remote-only repositories are supported/);
 });
 
 test("Settings can register or change the portable planning repository", () => {
@@ -451,7 +454,7 @@ test("GitHub setup empty states use informational callouts", () => {
   );
   assert.equal(
     app.match(/className="button primary add-project-button"/g)?.length,
-    3,
+    2,
   );
   assert.match(
     styles,

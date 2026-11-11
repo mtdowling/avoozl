@@ -12,6 +12,11 @@
     "version": {
       "const": 1
     },
+    "workspaceId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,60}$",
+      "description": "Stable portable identity used when this workspace is registered with a machine host."
+    },
     "name": {
       "type": "string",
       "minLength": 1,
@@ -328,6 +333,16 @@
               "type": "string"
             }
           }
+        },
+        "planning": {
+          "type": "boolean",
+          "default": false,
+          "description": "This repository contributes Markdown planning documents."
+        },
+        "editable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Agents may create worktrees and prepare changes in this checkout."
         }
       },
       "additionalProperties": false
@@ -364,6 +379,11 @@
         "projectId": {
           "type": "string",
           "minLength": 1
+        },
+        "workspaceRepositoryId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable ID used by the unified Repositories settings surface."
         },
         "assignee": {
           "type": "string",
@@ -408,6 +428,11 @@
       "properties": {
         "projectId": {
           "type": ["string", "null"]
+        },
+        "workspaceRepositoryId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Stable ID used by the unified Repositories settings surface."
         },
         "enabled": {
           "type": "boolean",

@@ -19,6 +19,7 @@ export class ApiError extends Error {
 }
 
 let apiBaseUrl = "";
+let activeWorkspaceId = "";
 
 export function configureApiBaseUrl(value = "") {
   if (!value) {
@@ -41,6 +42,19 @@ export function apiUrl(path: string) {
   return apiBaseUrl + path;
 }
 
+export function configureWorkspaceScope(value = "") {
+  activeWorkspaceId = value.trim();
+}
+
+export function workspaceApiUrl(path: string) {
+  if (!activeWorkspaceId) return apiUrl(path);
+  const base = `/api/workspaces/${encodeURIComponent(activeWorkspaceId)}`;
+  if (path === "/database.json") return apiUrl(base + "/database.json");
+  if (path.startsWith("/source")) return apiUrl(base + path);
+  if (path.startsWith("/api/")) return apiUrl(base + path.slice("/api".length));
+  return apiUrl(path);
+}
+
 async function read<T>(response: Response): Promise<T> {
   const value = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -56,6 +70,14 @@ async function read<T>(response: Response): Promise<T> {
 
 export async function get<T>(path: string): Promise<T> {
   return read<T>(
+    await fetch(workspaceApiUrl(path), {
+      headers: { Accept: "application/json" },
+    }),
+  );
+}
+
+export async function getHost<T>(path: string): Promise<T> {
+  return read<T>(
     await fetch(apiUrl(path), { headers: { Accept: "application/json" } }),
   );
 }
@@ -65,13 +87,27 @@ export async function command<T>(
   input: Record<string, unknown> = {},
   expectedRevision?: number,
 ): Promise<T> {
-  const response = await fetch(apiUrl("/api/command"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ operation, input, expectedRevision }),
-  });
-  const body = await read<{ result: T }>(response);
-  return body.result;
+  const qualified = Boolean(activeWorkspaceId);
+  const response = await fetch(
+    qualified
+      ? apiUrl(
+          `/api/workspaces/${encodeURIComponent(activeWorkspaceId)}/operations/${encodeURIComponent(operation)}`,
+        )
+      : apiUrl("/api/command"),
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(
+        qualified
+          ? { input, expectedRevision }
+          : { operation, input, expectedRevision },
+      ),
+    },
+  );
+  const body = await read<{ result?: T } & T>(response);
+  return Object.prototype.hasOwnProperty.call(body, "result")
+    ? (body.result as T)
+    : (body as T);
 }
 
 export function submissionId() {

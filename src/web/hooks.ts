@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { apiUrl, command, get } from "./api";
+import { command, get, getHost, workspaceApiUrl } from "./api";
 
 export function useRemote<T>(
   loader: () => Promise<T>,
@@ -35,7 +35,11 @@ export function useRemote<T>(
   return { data, setData, error, loading, reload };
 }
 
-export function useWorkspaceEvents(onEvent: () => void, runId?: string) {
+export function useWorkspaceEvents(
+  onEvent: () => void,
+  runId?: string,
+  workspaceId?: string,
+) {
   const callback = useRef(onEvent);
   callback.current = onEvent;
 
@@ -44,7 +48,7 @@ export function useWorkspaceEvents(onEvent: () => void, runId?: string) {
     const query = runId
       ? `?run=${encodeURIComponent(runId)}&compact=true`
       : "?compact=true";
-    const source = new EventSource(apiUrl("/api/events" + query));
+    const source = new EventSource(workspaceApiUrl("/api/events" + query));
     source.onmessage = () => {
       window.clearTimeout(timer);
       timer = window.setTimeout(() => callback.current(), 80);
@@ -57,12 +61,14 @@ export function useWorkspaceEvents(onEvent: () => void, runId?: string) {
       window.clearTimeout(timer);
       source.close();
     };
-  }, [runId]);
+  }, [runId, workspaceId]);
 }
 
 export const loadWorkspace = () =>
   get<import("./types").Workspace>("/api/workspace");
 export const loadState = () => get<import("./types").State>("/api/view-state");
+export const loadHostWorkspaces = () =>
+  getHost<import("./types").HostWorkspaceList>("/api/workspaces");
 export const loadRun = (id: string, before?: number) =>
   command<import("./types").Run>("run.get", {
     id,

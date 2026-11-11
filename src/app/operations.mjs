@@ -51,6 +51,7 @@ import {
 import {
   configureGitHubRepository,
   machineIdentity,
+  prepareGitHubRepository,
   projectPlanIssues,
   startAuthorizedIssue,
   syncGitHubIssues,
@@ -67,9 +68,15 @@ import {
   githubQueueComments,
   githubQueuePullRequestDiff,
   githubQueueItems,
+  prepareGitHubQueueRepository,
   removeGitHubQueueRepository,
   syncGitHubQueue,
 } from "./github-queue.mjs";
+import {
+  assertRepositoryRemovable,
+  removeWorkspaceRepositoryRecords,
+  workspaceRepositories,
+} from "./workspace-repositories.mjs";
 import {
   ensureGlobalLocalIgnore,
   globalLocalIgnoreStatus,
@@ -277,6 +284,7 @@ export class Operations {
       github,
       configuration = null,
       openhandsAutomations = null,
+      repositoryBindingGuard = null,
     } = {},
   ) {
     this.store = store;
@@ -285,6 +293,7 @@ export class Operations {
     this.operator = operator || "";
     this.github = github || defaultGitHubClient();
     this.configuration = configuration;
+    this.repositoryBindingGuard = repositoryBindingGuard;
     this.openhandsAutomations =
       openhandsAutomations || new OpenHandsAutomations();
     this.externalSessions = externalSessions || new ExternalSessions(store);
@@ -1677,7 +1686,8 @@ export class Operations {
     }
     if (name === "workspace") {
       const runs = runPage(store, { archived: "all" }),
-        plans = planPage(store);
+        plans = planPage(store),
+        concurrencyStatus = this.manager?.concurrencyStatus?.() || null;
       return {
         mode: store.getMeta("mode"),
         import: store.getMeta("import"),
@@ -1702,6 +1712,16 @@ export class Operations {
           .slice(0, 40),
         recentIntegrations: recentIntegrations(store),
         conversationSettings: conversationSettings(store),
+        concurrency: concurrencyStatus
+          ? {
+              limit: concurrencyStatus.workspace?.maxConcurrentRuns ?? null,
+              active: concurrencyStatus.workspace?.running ?? 0,
+              queued: concurrencyStatus.workspace?.waiting ?? 0,
+              hostLimit: concurrencyStatus.maxConcurrentRuns ?? null,
+              hostActive: concurrencyStatus.running ?? 0,
+              managed: concurrencyStatus.managed !== false,
+            }
+          : null,
         configuration: this.configuration?.metadata() || null,
         projects: store.list("projects"),
         github: {
@@ -1726,6 +1746,13 @@ export class Operations {
           .get().seq,
       };
     }
+    if (name === "concurrency.status")
+      return (
+        this.manager?.concurrencyStatus?.() || {
+          managed: false,
+          reason: "This workspace is not running through the machine host.",
+        }
+      );
     if (name === "configuration.get") {
       if (!this.configuration)
         fail("Configuration editing is unavailable from this server.", 404);
@@ -2094,6 +2121,178 @@ export class Operations {
     }
     if (name === "github.project.detect")
       return projectGitHubRepository(store, input);
+    if (name === "repositories.list")
+      return { items: workspaceRepositories(store) };
+    if (name === "repositories.configure") {
+      this.configuration?.assertWritable();
+      const id = String(input.id || "").trim();
+      if (!/^[a-z][a-z0-9-]{1,60}$/.test(id))
+        fail("Choose a stable repository ID.");
+      const repositories = workspaceRepositories(store),
+        existing = repositories.find((entry) => entry.id === id) || null,
+        localCheckout = String(input.localCheckout || "").trim(),
+        githubRepository = String(input.github || "").trim(),
+        monitorIssues = input.monitorIssues === true,
+        monitorPullRequests = input.monitorPullRequests === true,
+        authorizeIssues = input.issueAuthorization === true;
+      if (
+        (monitorIssues || monitorPullRequests || authorizeIssues) &&
+        !githubRepository
+      )
+        fail("Choose a GitHub repository for remote capabilities.");
+      if (input.planning === true && !localCheckout)
+        fail("Planning documents require a local checkout.");
+      if (authorizeIssues && !localCheckout)
+        fail("Label-authorized work requires a local checkout.");
+      let project = null;
+      if (localCheckout) {
+        project = await projectConfig({
+          id,
+          root: localCheckout,
+          baseBranch: String(input.baseBranch || "main").trim() || "main",
+          worktreeRoot: input.worktreeRoot || undefined,
+          checks: Array.isArray(input.checks) ? input.checks : [],
+        });
+        project = {
+          ...project,
+          ...(String(input.name || "").trim()
+            ? { name: String(input.name).trim() }
+            : {}),
+          planning: input.planning === true,
+          editable: input.editable !== false,
+        };
+      }
+      if (
+        existing?.localCheckout &&
+        (!project || existing.localCheckout !== project.root)
+      )
+        assertRepositoryRemovable(store, existing);
+      const binding = this.repositoryBindingGuard?.({
+        repositoryId: id,
+        root: project?.root || null,
+        editable: Boolean(project?.editable),
+      });
+      try {
+        const labels = input.labelBehaviors,
+          queue =
+            githubRepository && (monitorIssues || monitorPullRequests)
+              ? await prepareGitHubQueueRepository(store, this.github, {
+                  repository: githubRepository,
+                  workspaceRepositoryId: id,
+                  projectId: project?.id || null,
+                  project,
+                  enabled: true,
+                  visibility: input.visibility || "private",
+                  includeIssues: monitorIssues,
+                  includePullRequests: monitorPullRequests,
+                  labelBehaviors: labels,
+                })
+              : null,
+          issueIntake =
+            githubRepository && authorizeIssues
+              ? await prepareGitHubRepository(store, this.github, {
+                  repository: githubRepository,
+                  workspaceRepositoryId: id,
+                  projectId: project.id,
+                  project,
+                  assignee: input.assignee,
+                  label:
+                    input.readyLabel || labels?.ready?.[0] || "avoozl:ready",
+                  allowedActors: input.allowedActors,
+                  minimumPermission: input.minimumPermission,
+                  provider: input.provider,
+                  model: input.model,
+                  autoStart: input.autoStart,
+                })
+              : null;
+        this.configuration?.updateUnifiedRepository({
+          id,
+          previousRepository: existing?.github,
+          project,
+          queue,
+          issueIntake,
+        });
+        store.transaction(() => {
+          if (existing?.github && existing.github !== githubRepository) {
+            store.db
+              .prepare(
+                "DELETE FROM github_queue_items WHERE json_extract(body,'$.repository')=?",
+              )
+              .run(existing.github);
+            store.db
+              .prepare("DELETE FROM github_queue_repositories WHERE id=?")
+              .run(existing.github);
+            store.db
+              .prepare("DELETE FROM github_repositories WHERE id=?")
+              .run(existing.github);
+          }
+          if (project) store.put("projects", project);
+          else store.db.prepare("DELETE FROM projects WHERE id=?").run(id);
+          if (queue) store.put("github_queue_repositories", queue);
+          else if (existing?.github) {
+            store.db
+              .prepare(
+                "DELETE FROM github_queue_items WHERE json_extract(body,'$.repository')=?",
+              )
+              .run(existing.github);
+            store.db
+              .prepare("DELETE FROM github_queue_repositories WHERE id=?")
+              .run(existing.github);
+          }
+          if (issueIntake) store.put("github_repositories", issueIntake);
+          else if (existing?.github)
+            store.db
+              .prepare("DELETE FROM github_repositories WHERE id=?")
+              .run(existing.github);
+          store.event(null, "workspace.repository.configured", {
+            repositoryId: id,
+            github: githubRepository || null,
+            planning: Boolean(project?.planning),
+            editable: Boolean(project?.editable),
+            monitorIssues,
+            monitorPullRequests,
+            issueAuthorization: authorizeIssues,
+          });
+        });
+        await binding?.commit?.();
+        this.configuration?.reload();
+        const configured = workspaceRepositories(store).find(
+          (entry) => entry.id === id,
+        );
+        const automationProvisioning =
+          queue && input.provisionAutomation === true
+            ? await this.provisionGitHubIntake(queue.id, {
+                enable: input.enableAutomation !== false,
+              })
+            : null;
+        return { ...configured, automationProvisioning };
+      } finally {
+        binding?.release?.();
+      }
+    }
+    if (name === "repositories.remove") {
+      this.configuration?.assertWritable();
+      const id = String(input.id || "").trim(),
+        repository = workspaceRepositories(store).find(
+          (entry) => entry.id === id,
+        );
+      if (!repository) fail("Repository not found.", 404);
+      assertRepositoryRemovable(store, repository);
+      const binding = this.repositoryBindingGuard?.({
+        repositoryId: id,
+        root: null,
+        editable: false,
+      });
+      try {
+        this.configuration?.removeUnifiedRepository(repository);
+        const removed = removeWorkspaceRepositoryRecords(store, repository);
+        await binding?.commit?.();
+        this.configuration?.reload();
+        return removed;
+      } finally {
+        binding?.release?.();
+      }
+    }
     if (name === "github.project.connect") {
       this.configuration?.assertWritable();
       const detected = input.repository

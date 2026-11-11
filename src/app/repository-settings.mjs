@@ -62,6 +62,8 @@ function projectInput(value, id, base) {
     "baseBranch",
     "worktreeRoot",
     "checks",
+    "planning",
+    "editable",
   ]);
   for (const key of Object.keys(value))
     if (!allowed.has(key))
@@ -93,6 +95,8 @@ function projectInput(value, id, base) {
           ),
         }),
     checks: structuredClone(checks),
+    planning: Boolean(value.planning),
+    editable: value.editable !== false,
   };
 }
 
@@ -122,6 +126,7 @@ function githubIssueInput(value, repository) {
     fail(`GitHub issue intake ${repository} must contain a JSON object.`);
   const allowed = new Set([
     "projectId",
+    "workspaceRepositoryId",
     "assignee",
     "label",
     "enabled",
@@ -148,6 +153,14 @@ function githubIssueInput(value, repository) {
       value.projectId,
       `GitHub issue intake ${repository} project`,
     ),
+    ...(value.workspaceRepositoryId === undefined
+      ? {}
+      : {
+          workspaceRepositoryId: text(
+            value.workspaceRepositoryId,
+            `GitHub issue intake ${repository} workspace repository`,
+          ),
+        }),
     assignee: text(
       value.assignee,
       `GitHub issue intake ${repository} assignee`,
@@ -172,6 +185,7 @@ function githubQueueInput(value, repository) {
     fail(`GitHub Queue ${repository} must contain a JSON object.`);
   const allowed = new Set([
     "projectId",
+    "workspaceRepositoryId",
     "enabled",
     "includeIssues",
     "includePullRequests",
@@ -188,6 +202,14 @@ function githubQueueInput(value, repository) {
     projectId: text(value.projectId, `GitHub Queue ${repository} project`, {
       nullable: true,
     }),
+    ...(value.workspaceRepositoryId === undefined
+      ? {}
+      : {
+          workspaceRepositoryId: text(
+            value.workspaceRepositoryId,
+            `GitHub Queue ${repository} workspace repository`,
+          ),
+        }),
     enabled: value.enabled !== false,
     includeIssues: value.includeIssues !== false,
     includePullRequests: value.includePullRequests !== false,
@@ -263,6 +285,8 @@ function appliedActions(store) {
             ? { worktreeRoot: project.worktreeRoot }
             : {}),
           checks: structuredClone(project.checks || []),
+          planning: Boolean(project.planning),
+          editable: project.editable !== false,
         },
       ]),
     ),
@@ -271,6 +295,9 @@ function appliedActions(store) {
         entry.id,
         {
           projectId: entry.projectId,
+          ...(entry.workspaceRepositoryId
+            ? { workspaceRepositoryId: entry.workspaceRepositoryId }
+            : {}),
           assignee: entry.assignee,
           label: entry.label || "avoozl:ready",
           enabled: true,
@@ -287,6 +314,9 @@ function appliedActions(store) {
         entry.id,
         {
           projectId: entry.projectId || null,
+          ...(entry.workspaceRepositoryId
+            ? { workspaceRepositoryId: entry.workspaceRepositoryId }
+            : {}),
           enabled: entry.enabled !== false,
           includeIssues: entry.includeIssues !== false,
           includePullRequests: entry.includePullRequests !== false,
@@ -731,6 +761,8 @@ export class RepositorySettings {
         ? { worktreeRoot: this.portablePath(project.worktreeRoot) }
         : {}),
       checks: structuredClone(project.checks || []),
+      planning: Boolean(project.planning),
+      editable: project.editable !== false,
     };
     return this.writeApplied(value, before.hash, ["projects"]);
   }
@@ -756,6 +788,9 @@ export class RepositorySettings {
       : {};
     value.github.issueIntake[entry.id] = {
       projectId: entry.projectId,
+      ...(entry.workspaceRepositoryId
+        ? { workspaceRepositoryId: entry.workspaceRepositoryId }
+        : {}),
       assignee: entry.assignee,
       label: entry.label || "avoozl:ready",
       enabled: true,
@@ -779,6 +814,9 @@ export class RepositorySettings {
     value.github.queue = record(value.github.queue) ? value.github.queue : {};
     value.github.issueIntake[issueIntake.id] = {
       projectId: issueIntake.projectId,
+      ...(issueIntake.workspaceRepositoryId
+        ? { workspaceRepositoryId: issueIntake.workspaceRepositoryId }
+        : {}),
       assignee: issueIntake.assignee,
       label: issueIntake.label || "avoozl:ready",
       enabled: true,
@@ -790,6 +828,9 @@ export class RepositorySettings {
     };
     value.github.queue[queue.id] = {
       projectId: queue.projectId || null,
+      ...(queue.workspaceRepositoryId
+        ? { workspaceRepositoryId: queue.workspaceRepositoryId }
+        : {}),
       enabled: queue.enabled !== false,
       includeIssues: queue.includeIssues !== false,
       includePullRequests: queue.includePullRequests !== false,
@@ -808,6 +849,9 @@ export class RepositorySettings {
     value.github.queue = record(value.github.queue) ? value.github.queue : {};
     value.github.queue[entry.id] = {
       projectId: entry.projectId || null,
+      ...(entry.workspaceRepositoryId
+        ? { workspaceRepositoryId: entry.workspaceRepositoryId }
+        : {}),
       enabled: entry.enabled !== false,
       includeIssues: entry.includeIssues !== false,
       includePullRequests: entry.includePullRequests !== false,
@@ -828,6 +872,87 @@ export class RepositorySettings {
       if (!Object.keys(value.github).length) delete value.github;
     }
     return this.writeApplied(value, before.hash, ["github"]);
+  }
+
+  updateUnifiedRepository({
+    id,
+    previousRepository,
+    project,
+    queue,
+    issueIntake,
+  }) {
+    const before = this.readFile(),
+      value = this.updateValue(before);
+    value.version = 1;
+    if (record(value.projects)) delete value.projects[id];
+    if (project) {
+      value.projects = record(value.projects) ? value.projects : {};
+      value.projects[id] = {
+        ...(project.name ? { name: project.name } : {}),
+        root: this.portablePath(project.root),
+        baseBranch: project.baseBranch || "main",
+        ...(project.worktreeRoot
+          ? { worktreeRoot: this.portablePath(project.worktreeRoot) }
+          : {}),
+        checks: structuredClone(project.checks || []),
+        planning: Boolean(project.planning),
+        editable: project.editable !== false,
+      };
+    }
+    value.github = record(value.github) ? value.github : {};
+    value.github.queue = record(value.github.queue) ? value.github.queue : {};
+    value.github.issueIntake = record(value.github.issueIntake)
+      ? value.github.issueIntake
+      : {};
+    for (const repository of [previousRepository, queue?.id, issueIntake?.id])
+      if (repository) {
+        delete value.github.queue[repository];
+        delete value.github.issueIntake[repository];
+      }
+    if (queue)
+      value.github.queue[queue.id] = {
+        projectId: queue.projectId || null,
+        ...(queue.workspaceRepositoryId
+          ? { workspaceRepositoryId: queue.workspaceRepositoryId }
+          : {}),
+        enabled: queue.enabled !== false,
+        includeIssues: queue.includeIssues !== false,
+        includePullRequests: queue.includePullRequests !== false,
+        labelBehaviors: normalizeGitHubLabelBehaviors(queue.labelBehaviors),
+        visibility:
+          queue.visibility || (queue.private === false ? "public" : "private"),
+      };
+    if (issueIntake)
+      value.github.issueIntake[issueIntake.id] = {
+        projectId: issueIntake.projectId,
+        ...(issueIntake.workspaceRepositoryId
+          ? { workspaceRepositoryId: issueIntake.workspaceRepositoryId }
+          : {}),
+        assignee: issueIntake.assignee,
+        label: issueIntake.label || "avoozl:ready",
+        enabled: true,
+        autoStart: Boolean(issueIntake.autoStart),
+        provider: issueIntake.provider || null,
+        model: issueIntake.model || null,
+        allowedActors: [...new Set(issueIntake.allowedActors || [])].sort(),
+        minimumPermission: issueIntake.minimumPermission || "write",
+      };
+    if (!Object.keys(value.projects || {}).length) delete value.projects;
+    if (!Object.keys(value.github.queue).length) delete value.github.queue;
+    if (!Object.keys(value.github.issueIntake).length)
+      delete value.github.issueIntake;
+    if (!Object.keys(value.github).length) delete value.github;
+    return this.writeApplied(value, before.hash, ["projects", "github"]);
+  }
+
+  removeUnifiedRepository(repository) {
+    return this.updateUnifiedRepository({
+      id: repository.id,
+      previousRepository: repository.github,
+      project: null,
+      queue: null,
+      issueIntake: null,
+    });
   }
 
   updatePlanningRepository(configuration) {

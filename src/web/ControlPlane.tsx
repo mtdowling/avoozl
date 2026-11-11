@@ -16,7 +16,7 @@ import {
   X,
 } from "lucide-react";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
-import { apiUrl, command, get } from "./api";
+import { command, get, workspaceApiUrl } from "./api";
 import { useRemote } from "./hooks";
 import type {
   EvidenceRecord,
@@ -764,7 +764,9 @@ export function TaskInspector({
                     <a
                       className="task-detail-link"
                       key={item}
-                      href={apiUrl(`/source?path=${encodeURIComponent(item)}`)}
+                      href={workspaceApiUrl(
+                        `/source?path=${encodeURIComponent(item)}`,
+                      )}
                       target="_blank"
                       rel="noopener"
                     >
