@@ -59,6 +59,7 @@ import {
 } from "../graph-layout.mjs";
 import { renderUsage } from "../app/ui/usage-charts.mjs";
 import {
+  ApiError,
   command,
   configureWorkspaceScope,
   get,
@@ -7719,12 +7720,116 @@ type OpenHandsAgentModels = {
   }>;
 };
 
+function boundedOpenHandsText(value: unknown, limit = 500) {
+  return typeof value === "string" && value.trim() && value.length <= limit
+    ? value.trim()
+    : null;
+}
+
+async function readOpenHandsResponse<T>(response: Response) {
+  const value = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const detail =
+      typeof value?.detail === "string"
+        ? value.detail
+        : typeof value?.error === "string"
+          ? value.error
+          : `OpenHands request failed (${response.status}).`;
+    throw new Error(detail);
+  }
+  return value as T;
+}
+
+async function loadOpenHandsAgentModels(
+  profileId: string,
+  nativeCanvas: boolean,
+): Promise<OpenHandsAgentModels> {
+  try {
+    return await command("openhands.models", { profileId });
+  } catch (reason) {
+    if (!nativeCanvas || !(reason instanceof ApiError) || reason.status !== 404)
+      throw reason;
+  }
+
+  const response = await readOpenHandsResponse<Record<string, any>>(
+      await fetch(`/api/agent-profiles/${encodeURIComponent(profileId)}`, {
+        headers: { Accept: "application/json" },
+      }),
+    ),
+    profile = response.profile || response,
+    agentKind = boundedOpenHandsText(profile.agent_kind, 100);
+  if (agentKind !== "acp")
+    return {
+      profileId,
+      agentKind,
+      currentModelId: boundedOpenHandsText(profile.llm_profile_ref),
+      models: [],
+    };
+  const acpServer = boundedOpenHandsText(profile.acp_server, 240);
+  if (!acpServer)
+    throw new Error("The selected ACP agent profile has no agent server.");
+  const discovery = await readOpenHandsResponse<Record<string, any>>(
+    await fetch("/api/acp/models", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        agent_settings: {
+          agent_kind: "acp",
+          acp_server: acpServer,
+          ...(boundedOpenHandsText(profile.acp_command, 1000)
+            ? { acp_command: profile.acp_command.trim() }
+            : {}),
+          ...(Array.isArray(profile.acp_args)
+            ? {
+                acp_args: profile.acp_args.filter(
+                  (value: unknown) =>
+                    typeof value === "string" &&
+                    value.length > 0 &&
+                    value.length <= 1000,
+                ),
+              }
+            : {}),
+        },
+        secrets: {},
+        refresh: false,
+      }),
+    }),
+  );
+  if (discovery.error)
+    throw new Error("OpenHands could not discover models for this agent.");
+  return {
+    profileId,
+    agentKind,
+    acpServer,
+    currentModelId: boundedOpenHandsText(discovery.current_model_id),
+    models: Array.isArray(discovery.available_models)
+      ? discovery.available_models.flatMap((model: Record<string, unknown>) => {
+          const id = boundedOpenHandsText(model.model_id);
+          return id
+            ? [
+                {
+                  id,
+                  name: boundedOpenHandsText(model.name) || id,
+                  description: boundedOpenHandsText(model.description, 2000),
+                },
+              ]
+            : [];
+        })
+      : [],
+  };
+}
+
 function ConversationSettings({
   workspace,
   refresh,
+  nativeCanvas,
 }: {
   workspace: Workspace;
   refresh: () => void;
+  nativeCanvas: boolean;
 }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -7756,16 +7861,14 @@ function ConversationSettings({
   const agentModels = useRemote<OpenHandsAgentModels>(
     () =>
       selectedAgentProfileId && selectedAgent?.agentKind === "acp"
-        ? command("openhands.models", {
-            profileId: selectedAgentProfileId,
-          })
+        ? loadOpenHandsAgentModels(selectedAgentProfileId, nativeCanvas)
         : Promise.resolve({
             profileId: selectedAgentProfileId,
             agentKind: selectedAgent?.agentKind || null,
             currentModelId: null,
             models: [],
           }),
-    [selectedAgentProfileId, selectedAgent?.agentKind],
+    [selectedAgentProfileId, selectedAgent?.agentKind, nativeCanvas],
   );
   useEffect(
     () => setAutoArchiveCompleted(configuredAutoArchive),
@@ -8245,6 +8348,7 @@ function SettingsView({
   refreshHost,
   refresh,
   openOpenHandsPath,
+  nativeCanvas,
 }: {
   workspace: Workspace;
   state: State;
@@ -8253,6 +8357,7 @@ function SettingsView({
   refresh: () => void;
   startGitHubTask: (taskId: string) => Promise<void>;
   openOpenHandsPath: (path: string) => void;
+  nativeCanvas: boolean;
   launchPending?: boolean;
 }) {
   const [tab, setTab] = useState<SettingsTab>("workspace");
@@ -8348,7 +8453,11 @@ function SettingsView({
           id="settings-panel-conversations"
           aria-labelledby="settings-tab-conversations"
         >
-          <ConversationSettings workspace={workspace} refresh={refresh} />
+          <ConversationSettings
+            workspace={workspace}
+            refresh={refresh}
+            nativeCanvas={nativeCanvas}
+          />
         </div>
       )}
       {tab === "repositories" && (
@@ -9649,6 +9758,7 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
               if (canvas) canvas.navigate(path);
               else window.location.assign(path);
             }}
+            nativeCanvas={Boolean(canvas)}
             launchPending={launchPending}
           />
         )}
