@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://avoozl.dev/schema/config-v1.json",
-  "title": "Avoozl configuration",
-  "description": "Shareable, non-secret configuration for an Avoozl installation or workspace.",
+  "$id": "https://avoozl.dev/schema/repository-config-v1.json",
+  "title": "Avoozl repository configuration",
+  "description": "Shareable, non-secret policy stored as .avoozl.json at a repository root. Machine host configuration remains in ~/.config/avoozl/config.json and machine state remains under .avoozl/local.",
   "type": "object",
   "required": ["version"],
   "properties": {
@@ -21,6 +21,15 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 160
+    },
+    "repository": {
+      "$ref": "#/$defs/repository"
+    },
+    "planning": {
+      "$ref": "#/$defs/planning"
+    },
+    "agentInstructions": {
+      "$ref": "#/$defs/agentInstructions"
     },
     "operator": {
       "type": "string",
@@ -156,6 +165,163 @@
           }
         }
       ]
+    },
+    "portablePath": {
+      "type": "string",
+      "minLength": 1,
+      "not": {
+        "pattern": "^(?:/|\\\\\\\\|[A-Za-z]:[\\\\/])"
+      },
+      "description": "A path relative to the repository root. Absolute machine paths belong in ~/.config/avoozl/config.json."
+    },
+    "repository": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{0,60}$"
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "enum": ["planning", "code"]
+          },
+          "uniqueItems": true
+        },
+        "baseBranch": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "planning": {
+      "type": "object",
+      "properties": {
+        "documents": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/portablePath"
+          },
+          "uniqueItems": true
+        },
+        "exclude": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/portablePath"
+          },
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "agentInstructions": {
+      "type": "object",
+      "required": ["rules"],
+      "properties": {
+        "rules": {
+          "type": "array",
+          "maxItems": 500,
+          "items": {
+            "$ref": "#/$defs/agentInstructionRule"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "agentInstructionRule": {
+      "type": "object",
+      "required": ["id", "title", "appliesTo", "instruction"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{2,79}$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "appliesTo": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "all",
+              "chat",
+              "chat.project",
+              "chat.scoped",
+              "plan",
+              "plan.create",
+              "plan.edit",
+              "plan.review",
+              "plan.publish",
+              "task",
+              "task.create",
+              "task.create.scoped",
+              "task.implement",
+              "task.review",
+              "task.complete",
+              "github",
+              "github.issue",
+              "github.issue.triage",
+              "github.issue.implement",
+              "github.pr",
+              "github.pr.review"
+            ]
+          }
+        },
+        "when": {
+          "$ref": "#/$defs/agentInstructionWhen"
+        },
+        "instruction": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 10000
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "agentInstructionWhen": {
+      "type": "object",
+      "properties": {
+        "scopes": {
+          "$ref": "#/$defs/uniqueStrings"
+        },
+        "epics": {
+          "$ref": "#/$defs/uniqueStrings"
+        },
+        "tracks": {
+          "$ref": "#/$defs/uniqueStrings"
+        },
+        "tagsAny": {
+          "$ref": "#/$defs/uniqueStrings"
+        },
+        "tagsAll": {
+          "$ref": "#/$defs/uniqueStrings"
+        },
+        "tagsNone": {
+          "$ref": "#/$defs/uniqueStrings"
+        }
+      },
+      "additionalProperties": false
+    },
+    "uniqueStrings": {
+      "type": "array",
+      "maxItems": 100,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 160
+      }
     },
     "ahp": {
       "type": "object",

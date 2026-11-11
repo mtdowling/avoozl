@@ -107,9 +107,8 @@ test("registry adds isolated workspaces and persists concurrency controls", () =
     assert.equal(added.state, "closed");
     assert.equal(registry.describe().defaultWorkspace, "first");
     assert.equal(
-      JSON.parse(
-        fs.readFileSync(path.join(first, ".avoozl", "config.json"), "utf8"),
-      ).workspaceId,
+      JSON.parse(fs.readFileSync(path.join(first, ".avoozl.json"), "utf8"))
+        .workspaceId,
       "first",
     );
 
@@ -150,6 +149,46 @@ test("registry adds isolated workspaces and persists concurrency controls", () =
     assert.equal(registry.get("first").maxConcurrentRuns, 0);
     assert.equal(registry.get("first").state, "draining");
     assert.equal(registry.describe().defaultWorkspace, "second");
+  } finally {
+    registry.close();
+  }
+});
+
+test("legacy registration never copies absolute machine paths into .avoozl.json", () => {
+  const { env } = machineEnvironment(),
+    workspace = initializedWorkspace("Legacy paths"),
+    current = path.join(workspace, ".avoozl.json"),
+    legacy = path.join(workspace, ".avoozl", "config.json"),
+    database = workspaceConfig({ workspace }).dbPath,
+    saved = JSON.parse(fs.readFileSync(current, "utf8"));
+  fs.renameSync(current, legacy);
+  fs.writeFileSync(
+    legacy,
+    JSON.stringify(
+      {
+        ...saved,
+        dbPath: database,
+        projects: {
+          machine: {
+            root: "/machine/checkout",
+            checks: [],
+          },
+        },
+      },
+      null,
+      2,
+    ) + "\n",
+  );
+
+  const registry = new WorkspaceRegistry({ env, home: "/unused" });
+  try {
+    registry.add("legacy-paths", { root: workspace });
+    const portable = JSON.parse(fs.readFileSync(current, "utf8"));
+    assert.equal(portable.workspaceId, "legacy-paths");
+    assert.equal(portable.dbPath, undefined);
+    assert.equal(portable.projects, undefined);
+    assert.equal(JSON.parse(fs.readFileSync(legacy, "utf8")).dbPath, database);
+    assert.equal(workspaceConfig({ workspace }).dbPath, database);
   } finally {
     registry.close();
   }
@@ -221,9 +260,8 @@ test("registry adopts an existing workspace in place and retries idempotently", 
       staleOwnersCleared: 1,
     });
     assert.equal(
-      JSON.parse(
-        fs.readFileSync(path.join(workspace, ".avoozl", "config.json"), "utf8"),
-      ).workspaceId,
+      JSON.parse(fs.readFileSync(path.join(workspace, ".avoozl.json"), "utf8"))
+        .workspaceId,
       "legacy",
     );
     const migrated = new Store(database);
@@ -321,9 +359,8 @@ test("workspace adoption refuses active runs and live owners", () => {
     );
     assert.equal(registry.list().length, 0);
     assert.equal(
-      JSON.parse(
-        fs.readFileSync(path.join(workspace, ".avoozl", "config.json"), "utf8"),
-      ).workspaceId,
+      JSON.parse(fs.readFileSync(path.join(workspace, ".avoozl.json"), "utf8"))
+        .workspaceId,
       undefined,
     );
   } finally {
@@ -396,7 +433,7 @@ test("duplicate roots, checkout bindings, symlinks, and identity mismatches fail
     );
 
     const mismatched = initializedWorkspace("Mismatched");
-    const mismatchConfig = path.join(mismatched, ".avoozl", "config.json");
+    const mismatchConfig = path.join(mismatched, ".avoozl.json");
     const saved = JSON.parse(fs.readFileSync(mismatchConfig, "utf8"));
     fs.writeFileSync(
       mismatchConfig,

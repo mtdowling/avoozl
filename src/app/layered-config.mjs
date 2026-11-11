@@ -76,6 +76,41 @@ function pathField(trail) {
   );
 }
 
+function absolutePortablePath(value) {
+  return (
+    path.isAbsolute(value) ||
+    path.win32.isAbsolute(value) ||
+    /^[a-zA-Z]:[\\/]/.test(value)
+  );
+}
+
+export function assertPortableRepositoryConfig(
+  value,
+  source = "repository Avoozl configuration",
+  trail = [],
+) {
+  if (Array.isArray(value)) {
+    value.forEach((item, index) =>
+      assertPortableRepositoryConfig(item, source, [...trail, String(index)]),
+    );
+    return;
+  }
+  if (isRecord(value)) {
+    for (const [key, child] of Object.entries(value))
+      assertPortableRepositoryConfig(child, source, [...trail, key]);
+    return;
+  }
+  if (
+    typeof value === "string" &&
+    value &&
+    pathField(trail) &&
+    absolutePortablePath(value)
+  )
+    throw Error(
+      `${source} contains absolute path ${trail.join(".")}. Put machine-local paths in ~/.config/avoozl/config.json.`,
+    );
+}
+
 function resolveLayerPaths(value, base, trail = []) {
   if (Array.isArray(value))
     return value.map((item, index) =>
@@ -126,7 +161,7 @@ function normalizeAliases(value) {
   return config;
 }
 
-function readLayer(filename, label) {
+function readLayer(filename, label, { portable = false } = {}) {
   if (!fs.existsSync(filename)) return null;
   let value;
   try {
@@ -139,6 +174,8 @@ function readLayer(filename, label) {
   if (value.version !== 1)
     throw Error(`Unsupported ${label} version at ${filename}.`);
   assertSafeConfig(value, `${label} at ${filename}`);
+  if (portable)
+    assertPortableRepositoryConfig(value, `${label} at ${filename}`);
   return {
     label,
     filename,
@@ -259,12 +296,16 @@ export function loadLayeredConfig({
   const files = {
     global: globalAvoozlConfigPath({ env, home }),
     legacy: path.join(workspaceRoot, "workspace.json"),
-    repository: path.join(workspaceRoot, ".avoozl", "config.json"),
+    legacyRepository: path.join(workspaceRoot, ".avoozl", "config.json"),
+    repository: path.join(workspaceRoot, ".avoozl.json"),
   };
   const fileLayers = [
     readLayer(files.global, "global Avoozl configuration"),
     readLayer(files.legacy, "legacy workspace configuration"),
-    readLayer(files.repository, "workspace Avoozl configuration"),
+    readLayer(files.legacyRepository, "legacy repository Avoozl configuration"),
+    readLayer(files.repository, "repository Avoozl configuration", {
+      portable: true,
+    }),
   ].filter(Boolean);
   const volatileLayers = [
     {
@@ -290,7 +331,10 @@ export function loadLayeredConfig({
   return {
     config: mergeLayers(layers),
     configWithoutRepository: mergeLayers(
-      layers.filter(({ filename }) => filename !== files.repository),
+      layers.filter(
+        ({ filename }) =>
+          filename !== files.repository && filename !== files.legacyRepository,
+      ),
     ),
     files,
     sources: layers.map(({ label, filename }) => ({ label, filename })),

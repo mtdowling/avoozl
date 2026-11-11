@@ -7,7 +7,12 @@ import { digest } from "../model.mjs";
 import { fail } from "./store.mjs";
 import { requirePrivateRepository } from "./github.mjs";
 import { synchronizeAgentInstructions } from "./agent-instructions.mjs";
+import { configuredRepositoryInstructionSources } from "./source-sync.mjs";
 import { queueAssociationId } from "./github-overlap.mjs";
+import {
+  assertPortableRepositoryConfig,
+  assertSafeConfig,
+} from "./layered-config.mjs";
 
 const exec = promisify(execFile);
 const allowedPath =
@@ -437,17 +442,32 @@ async function readRemoteFiles(config, commit) {
   return files;
 }
 
-async function readRemoteAgentInstructions(config, commit) {
-  const entry = await git(config.root, ["ls-tree", commit, "--", "AGENTS.md"]);
-  if (!entry) return "";
+async function readRemoteAvoozlPolicy(config, commit) {
+  const filename = ".avoozl.json",
+    entry = await git(config.root, ["ls-tree", commit, "--", filename]);
+  if (!entry) return { text: "", value: {} };
   if (!/^100(?:644|755) blob /.test(entry))
-    fail("The planning repository AGENTS.md must be a regular file.");
-  const text = await git(config.root, ["show", `${commit}:AGENTS.md`], {
+    fail("The planning repository .avoozl.json must be a regular file.");
+  const text = await git(config.root, ["show", `${commit}:${filename}`], {
     raw: true,
   });
   if (Buffer.byteLength(text) > 512 * 1024)
-    fail("The planning repository AGENTS.md is too large.");
-  return text;
+    fail("The planning repository .avoozl.json is too large.");
+  let value;
+  try {
+    value = JSON.parse(text);
+  } catch (error) {
+    fail(
+      `Could not parse the planning repository .avoozl.json: ${error.message}`,
+    );
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    fail("The planning repository .avoozl.json must contain a JSON object.");
+  if (value.version !== 1)
+    fail("Unsupported planning repository .avoozl.json version.");
+  assertSafeConfig(value, "planning repository .avoozl.json");
+  assertPortableRepositoryConfig(value, "planning repository .avoozl.json");
+  return { text, value };
 }
 
 function importedTask(value) {
@@ -623,7 +643,10 @@ export async function syncWorkspaceRepository(store) {
   const commit = await remoteHead(config);
   if (!commit) fail("The workspace branch does not exist yet.", 404);
   const files = await readRemoteFiles(config, commit),
-    agentsText = await readRemoteAgentInstructions(config, commit),
+    policy = await readRemoteAvoozlPolicy(config, commit),
+    projectPolicies = configuredRepositoryInstructionSources(store, {
+      exclude: [path.join(config.root, ".avoozl.json")],
+    }),
     manifest = JSON.parse(files["workspace.json"] || "{}");
   if (manifest.schemaVersion !== 1)
     fail("Unsupported portable workspace schema.");
@@ -639,9 +662,21 @@ export async function syncWorkspaceRepository(store) {
         fail("Invalid portable reports collection.");
       data.savedSearches = manifest.reports.map(importedReport);
     }
-    synchronizeAgentInstructions(data, agentsText, {
-      path: "AGENTS.md",
-      revision: commit,
+    synchronizeAgentInstructions(data, null, {
+      sources: [
+        {
+          value: policy.value,
+          path: ".avoozl.json",
+          repositoryId: null,
+          revision: commit,
+        },
+        ...projectPolicies.map((source) => ({
+          value: source.value,
+          path: source.path,
+          repositoryId: source.repositoryId,
+          revision: source.revision,
+        })),
+      ],
     });
     for (const [name, text] of Object.entries(files)) {
       const design = name.match(/^designs\/([a-z][a-z0-9-]{2,80})\.md$/);
@@ -748,10 +783,31 @@ export async function syncWorkspaceRepository(store) {
       fileHashes: hashes,
     });
     store.setMeta("agentInstructionSourceSnapshot", {
-      path: "AGENTS.md",
-      hash: digest(agentsText),
+      path: ".avoozl.json",
+      hash: data.agentInstructionSource.hash,
       revision: commit,
-      text: agentsText,
+      text: policy.text,
+      value: policy.value,
+      sources: [
+        {
+          path: ".avoozl.json",
+          repositoryId: null,
+          hash: digest(JSON.stringify(policy.value)),
+          revision: commit,
+          text: policy.text,
+          value: policy.value,
+        },
+        ...projectPolicies.map(
+          ({ path, repositoryId, revision, text, value }) => ({
+            path,
+            repositoryId,
+            hash: digest(JSON.stringify(value)),
+            revision,
+            text,
+            value,
+          }),
+        ),
+      ],
     });
   });
   store.event(null, "workspace.repository.synchronized", {

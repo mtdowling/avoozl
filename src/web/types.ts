@@ -755,6 +755,13 @@ export type State = {
     revision?: string | null;
     synchronizedAt: string;
     ruleCount: number;
+    sources?: Array<{
+      path: string;
+      hash: string;
+      revision?: string | null;
+      repositoryId?: string | null;
+      ruleCount?: number;
+    }>;
   };
   presentation?: {
     views?: SavedView[];
@@ -765,14 +772,23 @@ export type State = {
 export type AgentInstruction = {
   id: string;
   title: string;
-  category: string;
-  selector: {
-    kind: "all" | "scope" | "epic" | "track" | "tag";
-    value?: string;
+  appliesTo: string[];
+  when?: {
+    scopes?: string[];
+    epics?: string[];
+    tracks?: string[];
+    tagsAny?: string[];
+    tagsAll?: string[];
+    tagsNone?: string[];
   };
   instruction: string;
   enabled: boolean;
-  source?: { path: string; line?: number; hash?: string };
+  source?: {
+    path: string;
+    repositoryId?: string | null;
+    pointer?: string;
+    hash?: string;
+  };
 };
 
 export type SavedSearch = {

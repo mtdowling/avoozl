@@ -21,7 +21,7 @@ function writeJson(filename, value) {
 
 test("repository settings preserve unrelated JSON and expose canonical metadata", async (t) => {
   const { root, store } = fixture(t),
-    filename = path.join(root, ".avoozl", "config.json");
+    filename = path.join(root, ".avoozl.json");
   writeJson(filename, {
     version: 1,
     projects: {
@@ -109,7 +109,7 @@ test("repository settings use a file hash to avoid clobbering direct edits", (t)
   const first = configuration.updateConversationSettings({
     driverModel: "model-one",
   });
-  writeJson(path.join(root, ".avoozl", "config.json"), {
+  writeJson(path.join(root, ".avoozl.json"), {
     version: 1,
     notes: { editedBy: "person" },
     conversations: {
@@ -127,11 +127,58 @@ test("repository settings use a file hash to avoid clobbering direct edits", (t)
     /changed; reload before saving/,
   );
   assert.equal(
-    JSON.parse(
-      fs.readFileSync(path.join(root, ".avoozl", "config.json"), "utf8"),
-    ).conversations.driver.model,
+    JSON.parse(fs.readFileSync(path.join(root, ".avoozl.json"), "utf8"))
+      .conversations.driver.model,
     "model-two",
   );
+});
+
+test("first repository edit migrates legacy configuration without changing path meaning", (t) => {
+  const { root, store } = fixture(t),
+    legacy = path.join(root, ".avoozl", "config.json"),
+    current = path.join(root, ".avoozl.json"),
+    configuration = new RepositorySettings(store, { workspaceRoot: root });
+  writeJson(legacy, {
+    version: 1,
+    dbPath: "local/workspace.sqlite",
+    documents: "../plans",
+    projects: {
+      code: {
+        root: "../code",
+        worktreeRoot: "../worktrees",
+        checks: [],
+      },
+      machine: {
+        root: "/machine/checkout",
+        checks: [],
+      },
+    },
+    ahp: { tokens: "/machine/secret-state/ahp-tokens.json" },
+  });
+
+  configuration.reload();
+  assert.deepEqual(configuration.metadata().legacyRepository, {
+    filename: legacy,
+    migrationRequired: true,
+  });
+  const editable = configuration.readConfiguration("repository");
+  assert.equal(editable.legacy, true);
+  assert.equal(editable.exists, false);
+  assert.match(editable.text, /"dbPath": ".avoozl\/local\/workspace.sqlite"/);
+  configuration.updateConversationSettings({ driverModel: "reviewer" });
+
+  const migrated = JSON.parse(fs.readFileSync(current, "utf8"));
+  assert.equal(
+    migrated.$schema,
+    "https://avoozl.dev/schema/repository-config-v1.json",
+  );
+  assert.equal(migrated.dbPath, ".avoozl/local/workspace.sqlite");
+  assert.equal(migrated.documents, "plans");
+  assert.equal(migrated.projects.code.root, "code");
+  assert.equal(migrated.projects.code.worktreeRoot, "worktrees");
+  assert.equal(migrated.projects.machine, undefined);
+  assert.equal(migrated.ahp, undefined);
+  assert.equal(fs.existsSync(legacy), true);
 });
 
 test("configuration editor reads, formats, and conflict-checks repository and global JSON", async (t) => {
@@ -211,9 +258,8 @@ test("configuration editor reads, formats, and conflict-checks repository and gl
 test("repository settings refuse symbolic and non-regular paths", (t) => {
   const { root, store } = fixture(t),
     outside = temporaryDirectory("avoozl-settings-outside-"),
-    directory = path.join(root, ".avoozl"),
-    filename = path.join(directory, "config.json");
-  fs.mkdirSync(directory);
+    directory = root,
+    filename = path.join(root, ".avoozl.json");
   writeJson(path.join(outside, "config.json"), { version: 1 });
   fs.symlinkSync(path.join(outside, "config.json"), filename);
   const linkedFile = new RepositorySettings(store, { workspaceRoot: root });
@@ -233,16 +279,6 @@ test("repository settings refuse symbolic and non-regular paths", (t) => {
   );
 
   fs.unlinkSync(filename);
-  fs.rmdirSync(directory);
-  fs.symlinkSync(outside, directory);
-  const linkedParent = new RepositorySettings(store, { workspaceRoot: root });
-  assert.throws(
-    () => linkedParent.updateConversationSettings({ driverModel: "model" }),
-    /real directory/,
-  );
-
-  fs.unlinkSync(directory);
-  fs.mkdirSync(directory);
   fs.mkdirSync(filename);
   const directoryTarget = new RepositorySettings(store, {
     workspaceRoot: root,
@@ -255,7 +291,7 @@ test("repository settings refuse symbolic and non-regular paths", (t) => {
 
 test("watcher reloads typed direct edits, leaves privileged desired state inert, and retains last good settings", async (t) => {
   const { root, store } = fixture(t),
-    filename = path.join(root, ".avoozl", "config.json"),
+    filename = path.join(root, ".avoozl.json"),
     watch = {},
     configuration = new RepositorySettings(store, {
       workspaceRoot: root,
@@ -271,7 +307,7 @@ test("watcher reloads typed direct edits, leaves privileged desired state inert,
     version: 1,
     projects: {
       privileged: {
-        root: "/tmp/should-not-be-activated",
+        root: "should-not-be-activated",
         checks: [["false"]],
       },
     },
@@ -283,7 +319,7 @@ test("watcher reloads typed direct edits, leaves privileged desired state inert,
       },
     },
   });
-  watch.listener("rename", "config.json");
+  watch.listener("rename", ".avoozl.json");
   await waitFor(
     () => store.getMeta("conversationSettings")?.driverModel === "direct-model",
     { label: "direct repository settings reload" },
@@ -308,7 +344,7 @@ test("watcher reloads typed direct edits, leaves privileged desired state inert,
       },
     },
   });
-  watch.listener("change", "config.json");
+  watch.listener("change", ".avoozl.json");
   await waitFor(() => configuration.metadata().repository.error, {
     label: "invalid settings error",
   });
@@ -326,7 +362,7 @@ test("watcher reloads typed direct edits, leaves privileged desired state inert,
 
 test("direct conversation settings reject unknown keys without applying them", (t) => {
   const { root, store } = fixture(t),
-    filename = path.join(root, ".avoozl", "config.json"),
+    filename = path.join(root, ".avoozl.json"),
     configuration = new RepositorySettings(store, { workspaceRoot: root });
   writeJson(filename, {
     version: 1,
@@ -347,7 +383,7 @@ test("direct conversation settings reject unknown keys without applying them", (
 
 test("repository conversation settings validate and persist agent routing policy", (t) => {
   const { root, store } = fixture(t),
-    filename = path.join(root, ".avoozl", "config.json"),
+    filename = path.join(root, ".avoozl.json"),
     configuration = new RepositorySettings(store, { workspaceRoot: root });
   writeJson(filename, {
     version: 1,
@@ -410,7 +446,7 @@ test("repository conversation settings validate and persist agent routing policy
 
 test("repository conversation settings override and fall back to global defaults", (t) => {
   const { root, store } = fixture(t),
-    filename = path.join(root, ".avoozl", "config.json"),
+    filename = path.join(root, ".avoozl.json"),
     configuration = new RepositorySettings(store, {
       workspaceRoot: root,
       baseConfig: {
@@ -539,10 +575,10 @@ test("explicit Settings operations persist typed desired state without changing 
   );
   assert.equal(workspaceRepository.root, fs.realpathSync(planning));
 
-  const filename = path.join(root, ".avoozl", "config.json"),
+  const filename = path.join(root, ".avoozl.json"),
     saved = JSON.parse(fs.readFileSync(filename, "utf8"));
-  assert.equal(saved.projects.code.root, "../code");
-  assert.equal(saved.projects.code.worktreeRoot, "../.avoozl-worktrees");
+  assert.equal(saved.projects.code.root, "code");
+  assert.equal(saved.projects.code.worktreeRoot, ".avoozl-worktrees");
   assert.deepEqual(saved.projects.code.checks, [["npm", "run", "test"]]);
   assert.deepEqual(saved.github.issueIntake["Example/Code"], {
     projectId: "code",
@@ -568,7 +604,7 @@ test("explicit Settings operations persist typed desired state without changing 
     },
     visibility: "private",
   });
-  assert.equal(saved.planningRepository.root, "../planning");
+  assert.equal(saved.planningRepository.root, "planning");
   assert.deepEqual(configuration.metadata().pending, []);
   assert.deepEqual(configuration.metadata().applyRequired, []);
   assert.deepEqual(configuration.metadata().restartRequired, []);
@@ -619,9 +655,9 @@ test("direct privileged edits are validated and reported as inert apply or resta
   configuration.updateConversationSettings({
     autoArchiveCompleted: false,
   });
-  const filename = path.join(root, ".avoozl", "config.json"),
+  const filename = path.join(root, ".avoozl.json"),
     direct = JSON.parse(fs.readFileSync(filename, "utf8"));
-  assert.equal(direct.projects.code.root, "../code");
+  assert.equal(direct.projects.code.root, "code");
   direct.projects.code.baseBranch = "next";
   direct.port = 9999;
   writeJson(filename, direct);
@@ -671,12 +707,12 @@ test("creating repository JSON materializes already-applied non-secret settings"
   configuration.updateConversationSettings({ driverModel: "driver-model" });
 
   const saved = JSON.parse(
-    fs.readFileSync(path.join(root, ".avoozl", "config.json"), "utf8"),
+    fs.readFileSync(path.join(root, ".avoozl.json"), "utf8"),
   );
-  assert.equal(saved.projects.code.root, "../code");
+  assert.equal(saved.projects.code.root, "code");
   assert.equal(saved.github.issueIntake["example/code"].assignee, "operator");
   assert.equal(saved.github.queue["example/code"].projectId, "code");
-  assert.equal(saved.planningRepository.root, "../planning");
+  assert.equal(saved.planningRepository.root, "planning");
   assert.equal(saved.conversations.driver.model, "driver-model");
   assert.deepEqual(configuration.metadata().pending, []);
 });
@@ -706,9 +742,8 @@ test("project removal clears persisted configuration and records the action", as
   assert.equal(removed.removed, true);
   assert.equal(store.get("projects", project.id), null);
   assert.equal(
-    JSON.parse(
-      fs.readFileSync(path.join(root, ".avoozl", "config.json"), "utf8"),
-    ).projects,
+    JSON.parse(fs.readFileSync(path.join(root, ".avoozl.json"), "utf8"))
+      .projects,
     undefined,
   );
   assert.ok(

@@ -385,7 +385,9 @@ export class WorkspaceManager {
         ops,
         configuration,
         stopSources: this.watch
-          ? watchSources(store, config.plansRoot)
+          ? watchSources(store, config.plansRoot, {
+              policyFile: config.configFiles?.repository,
+            })
           : () => {},
         stopConfiguration: this.watch ? configuration.watch() : () => {},
         aggregate: aggregate(store),

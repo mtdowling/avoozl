@@ -10,55 +10,71 @@ import {
   synchronizeAgentInstructions,
   workflowCategory,
 } from "../agent-instructions.mjs";
-import { reconcileAgentInstructions } from "../source-sync.mjs";
+import {
+  reconcileAgentInstructions,
+  reconcileSource,
+} from "../source-sync.mjs";
 import { fixture, snapshot } from "./fixtures.mjs";
 
-const agents = `# Working here
+const policy = {
+  version: 1,
+  agentInstructions: {
+    rules: [
+      {
+        id: "shared-task-policy",
+        title: "Keep work scoped",
+        appliesTo: ["task"],
+        instruction:
+          "Do not turn incidental observations into unrelated edits.",
+      },
+      {
+        id: "record-required-cleanup",
+        title: "Record required cleanup",
+        appliesTo: ["task.implement"],
+        when: {
+          tracks: ["catalog"],
+          tagsNone: ["skip-follow-up"],
+        },
+        instruction:
+          "Propose clearly required cleanup with plans_propose_work.",
+      },
+    ],
+  },
+};
 
-Ordinary repository instructions.
+function writePolicy(filename, value = policy) {
+  fs.writeFileSync(
+    filename,
+    JSON.stringify({ version: 1, ...value }, null, 2) + "\n",
+  );
+}
 
-## Avoozl
-
-### Agent instructions
-
-#### Shared task policy
-- ID: \`shared-task-policy\`
-- Applies to: \`task\`
-- Filter: \`all\`
-
-Do not turn incidental observations into unrelated edits.
-
-#### Record required cleanup
-- ID: \`record-required-cleanup\`
-- Applies to: \`task.implement\`
-- Filter: \`track:catalog\`
-
-Propose clearly required cleanup with plans_propose_work.
-
-## Other policy
-
-This is not part of the Avoozl section.
-`;
-
-test("AGENTS.md Avoozl sections parse workflow categories and filters", () => {
-  const rules = parseAgentInstructions(agents);
+test(".avoozl.json rules parse workflow categories and selectors", () => {
+  const rules = parseAgentInstructions(policy, {
+    path: ".avoozl.json",
+    repositoryId: "plans",
+  });
   assert.deepEqual(
     rules.map((rule) => rule.id),
     ["shared-task-policy", "record-required-cleanup"],
   );
-  assert.equal(rules[1].category, "task.implement");
-  assert.deepEqual(rules[1].selector, {
-    kind: "track",
-    value: "catalog",
+  assert.deepEqual(rules[1].appliesTo, ["task.implement"]);
+  assert.deepEqual(rules[1].when, {
+    tracks: ["catalog"],
+    tagsNone: ["skip-follow-up"],
   });
-  assert.equal(rules[1].source.path, "AGENTS.md");
-  assert.equal(rules[1].source.line, 16);
+  assert.deepEqual(rules[1].source, {
+    path: ".avoozl.json",
+    repositoryId: "plans",
+    pointer: "/agentInstructions/rules/1",
+    hash: rules[1].source.hash,
+  });
 });
 
-test("workflow instruction categories inherit and local overrides only disable parsed rules", async (t) => {
+test("workflow categories inherit and local overrides only disable configured rules", async (t) => {
   const { store } = fixture(t),
     data = store.read();
-  synchronizeAgentInstructions(data, agents);
+  synchronizeAgentInstructions(data, policy);
   store.write(data);
   const task = store.read().tasks[0];
   assert.deepEqual(
@@ -67,24 +83,25 @@ test("workflow instruction categories inherit and local overrides only disable p
     ),
     ["shared-task-policy", "record-required-cleanup"],
   );
-  const ops = new Operations(store);
-  await ops.execute("agent.instructions.toggle", {
-    id: "record-required-cleanup",
-    enabled: false,
-  });
+  task.tags.push("skip-follow-up");
   assert.deepEqual(
     matchingAgentInstructions(store.read(), "task.implement", task).map(
       (item) => item.id,
     ),
     ["shared-task-policy"],
   );
+  const ops = new Operations(store);
+  await ops.execute("agent.instructions.toggle", {
+    id: "shared-task-policy",
+    enabled: false,
+  });
   const refreshed = structuredClone(store.read());
-  synchronizeAgentInstructions(refreshed, agents);
+  synchronizeAgentInstructions(refreshed, policy);
   store.write(refreshed);
   assert.equal(
     store
       .read()
-      .agentInstructions.find((item) => item.id === "record-required-cleanup")
+      .agentInstructions.find((item) => item.id === "shared-task-policy")
       .enabled,
     false,
   );
@@ -95,30 +112,60 @@ test("workflow instruction categories inherit and local overrides only disable p
     }),
     "task.create.scoped",
   );
+  assert.equal(
+    workflowCategory({
+      mode: "ask",
+      context: { conversationPurpose: "pull-request-review" },
+    }),
+    "github.pr.review",
+  );
+  assert.equal(
+    workflowCategory({
+      mode: "ask",
+      context: { conversationPurpose: "review" },
+    }),
+    "task.review",
+  );
 });
 
-test("the planning source watcher re-syncs AGENTS.md without indexing it as a design", async (t) => {
+test("source sync reads .avoozl.json and never interprets AGENTS.md as policy", async (t) => {
   const { root, store } = fixture(t),
-    file = path.join(root, "AGENTS.md");
-  fs.writeFileSync(file, agents);
-  const result = reconcileAgentInstructions(store, root);
+    filename = path.join(root, ".avoozl.json"),
+    agentsFilename = path.join(root, "AGENTS.md");
+  writePolicy(filename);
+  fs.writeFileSync(
+    agentsFilename,
+    "# Instructions\n\n## Avoozl\n\nPretend this is a structured policy.\n",
+  );
+  store.mutate("Seed legacy index", (data) => {
+    data.documents["AGENTS.md"] = {
+      path: "AGENTS.md",
+      text: "Legacy indexed instructions",
+      hash: "legacy",
+    };
+  });
+  const result = reconcileAgentInstructions(store, filename);
   assert.equal(result.instructions, 2);
   assert.equal(store.read().documents["AGENTS.md"], undefined);
-  assert.equal(store.read().agentInstructionSource.path, "AGENTS.md");
-  assert.equal(store.getMeta("agentInstructionSourceSnapshot").text, agents);
+  assert.equal(store.read().agentInstructionSource.path, filename);
+  assert.match(
+    store.getMeta("agentInstructionSourceSnapshot").text,
+    /shared-task-policy/,
+  );
+  assert.deepEqual(reconcileSource(store, root, "AGENTS.md"), {
+    changed: false,
+  });
   const source = await new Operations(store).execute(
     "agent.instructions.source",
   );
-  assert.equal(source.path, "AGENTS.md");
-  assert.equal(source.text, agents);
-  fs.writeFileSync(
-    file,
-    agents.replace(
-      "Propose clearly required cleanup with plans_propose_work.",
-      "Record required cleanup as proposed work.",
-    ),
-  );
-  reconcileAgentInstructions(store, root);
+  assert.equal(source.path, filename);
+  assert.match(source.text, /record-required-cleanup/);
+
+  const changed = structuredClone(policy);
+  changed.agentInstructions.rules[1].instruction =
+    "Record required cleanup as proposed work.";
+  writePolicy(filename, changed);
+  reconcileAgentInstructions(store, filename);
   assert.match(
     store
       .read()
@@ -126,16 +173,98 @@ test("the planning source watcher re-syncs AGENTS.md without indexing it as a de
       .instruction,
     /proposed work/,
   );
-  fs.unlinkSync(file);
-  reconcileAgentInstructions(store, root);
+
+  fs.unlinkSync(filename);
+  reconcileAgentInstructions(store, filename);
   assert.deepEqual(store.read().agentInstructions, []);
   assert.equal(store.getMeta("agentInstructionSourceSnapshot").text, "");
 });
 
-test("matching AGENTS.md instructions are injected without changing capabilities", async (t) => {
+test("planning and code repositories contribute repository-scoped rules", async (t) => {
+  const { root, store } = fixture(t),
+    planningPolicy = path.join(root, ".avoozl.json"),
+    codeRoot = path.join(root, "code"),
+    codePolicy = path.join(codeRoot, ".avoozl.json");
+  fs.mkdirSync(codeRoot);
+  writePolicy(planningPolicy, {
+    agentInstructions: { rules: [policy.agentInstructions.rules[0]] },
+  });
+  writePolicy(codePolicy, {
+    agentInstructions: {
+      rules: [
+        {
+          ...policy.agentInstructions.rules[1],
+          appliesTo: ["task.implement", "chat.project"],
+          when: {},
+        },
+      ],
+    },
+  });
+  store.put("projects", {
+    id: "code-project",
+    title: "Code project",
+    root: codeRoot,
+  });
+  const result = reconcileAgentInstructions(store, planningPolicy);
+  assert.equal(result.sources, 2);
+  assert.deepEqual(
+    store
+      .read()
+      .agentInstructions.map((rule) => [rule.id, rule.source.repositoryId]),
+    [
+      ["shared-task-policy", null],
+      ["record-required-cleanup", "code-project"],
+    ],
+  );
+  assert.deepEqual(
+    matchingAgentInstructions(
+      store.read(),
+      "task.implement",
+      store.read().tasks[0],
+    ).map((rule) => rule.id),
+    ["shared-task-policy"],
+  );
+  assert.deepEqual(
+    matchingAgentInstructions(store.read(), "task.implement", {
+      ...store.read().tasks[0],
+      projectId: "code-project",
+    }).map((rule) => rule.id),
+    ["shared-task-policy", "record-required-cleanup"],
+  );
+  const manager = new RunManager(store, { recover: false });
+  t.after(() => manager.close());
+  assert.match(
+    manager.context({
+      id: "run-code-project-chat",
+      mode: "ask",
+      projectId: "code-project",
+      context: { conversationPurpose: "project-chat", scoped: false },
+      handoffPath: "/tmp/handoff.json",
+    }),
+    /Record required cleanup/,
+  );
+  assert.doesNotMatch(
+    manager.context({
+      id: "run-other-project-chat",
+      mode: "ask",
+      projectId: "other-project",
+      context: { conversationPurpose: "project-chat", scoped: false },
+      handoffPath: "/tmp/handoff.json",
+    }),
+    /Record required cleanup/,
+  );
+  const codeSource = await new Operations(store).execute(
+    "agent.instructions.source",
+    { repositoryId: "code-project" },
+  );
+  assert.equal(codeSource.path, codePolicy);
+  assert.match(codeSource.text, /record-required-cleanup/);
+});
+
+test("matching .avoozl.json instructions are injected without changing capabilities", async (t) => {
   const { store } = fixture(t),
     data = store.read();
-  synchronizeAgentInstructions(data, agents);
+  synchronizeAgentInstructions(data, policy);
   store.write(data);
   const manager = new RunManager(store, { recover: false });
   t.after(() => manager.close());
@@ -154,21 +283,63 @@ test("matching AGENTS.md instructions are injected without changing capabilities
   );
 });
 
-test("invalid or duplicate Avoozl rules fail closed", () => {
+test("invalid, unknown, or duplicate Avoozl rules fail closed", () => {
   assert.throws(
     () =>
-      parseAgentInstructions(
-        agents.replace("track:catalog", "project:unknown"),
-      ),
-    /Invalid filter/,
+      parseAgentInstructions({
+        agentInstructions: {
+          rules: [
+            {
+              ...policy.agentInstructions.rules[0],
+              appliesTo: ["task.unknown"],
+            },
+          ],
+        },
+      }),
+    /Unknown Avoozl instruction workflow/,
   );
   assert.throws(
     () =>
-      parseAgentInstructions(
-        agents.replace("record-required-cleanup", "shared-task-policy"),
-      ),
+      parseAgentInstructions({
+        agentInstructions: {
+          rules: [
+            {
+              ...policy.agentInstructions.rules[0],
+              undocumented: true,
+            },
+          ],
+        },
+      }),
+    /Unknown Avoozl instruction/,
+  );
+  assert.throws(
+    () =>
+      parseAgentInstructions({
+        agentInstructions: {
+          rules: [
+            policy.agentInstructions.rules[0],
+            policy.agentInstructions.rules[0],
+          ],
+        },
+      }),
     /Duplicate/,
   );
-  assert.deepEqual(parseAgentInstructions("# No Avoozl policy\n"), []);
+  assert.deepEqual(parseAgentInstructions({}), []);
   assert.deepEqual(snapshot().agentInstructions, undefined);
+});
+
+test("repository policy source rejects secret-like keys before synchronization", (t) => {
+  const { root, store } = fixture(t),
+    filename = path.join(root, ".avoozl.json");
+  writePolicy(filename, {
+    version: 1,
+    providerToken: "must-not-enter-the-workspace",
+    agentInstructions: { rules: [] },
+  });
+  assert.throws(
+    () => reconcileAgentInstructions(store, filename),
+    /secret-like key providerToken/,
+  );
+  assert.equal(store.read().agentInstructionSource, undefined);
+  assert.equal(store.getMeta("agentInstructionSourceSnapshot"), null);
 });

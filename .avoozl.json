@@ -1,0 +1,31 @@
+{
+  "$schema": "./src/avoozl-config.schema.json",
+  "version": 1,
+  "repository": {
+    "id": "avoozl",
+    "roles": ["planning", "code"],
+    "baseBranch": "main"
+  },
+  "agentInstructions": {
+    "rules": [
+      {
+        "id": "record-required-follow-up",
+        "title": "Record required follow-up",
+        "appliesTo": ["task.implement", "github.issue.implement"],
+        "instruction": "When required work falls outside the authorized scope, record it through Avoozl instead of only mentioning it. Do not silently broaden the current task."
+      },
+      {
+        "id": "review-substantive-risks",
+        "title": "Review substantive risks",
+        "appliesTo": ["plan.review", "github.pr.review", "task.review"],
+        "instruction": "Prioritize correctness, feasibility, security, and missing acceptance coverage. Do not prolong review with purely stylistic nitpicks."
+      },
+      {
+        "id": "complete-with-evidence",
+        "title": "Complete with evidence",
+        "appliesTo": ["task.complete"],
+        "instruction": "Record the commit and relevant check results. Keep agent completion, integration, and acceptance as separate states."
+      }
+    ]
+  }
+}

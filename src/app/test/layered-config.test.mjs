@@ -25,7 +25,7 @@ test("configuration layers merge deterministically and resolve their own paths",
     },
     globalFile = globalAvoozlConfigPath({ env, home: "/unused" }),
     legacyFile = path.join(workspaceRoot, "workspace.json"),
-    repositoryFile = path.join(workspaceRoot, ".avoozl", "config.json");
+    repositoryFile = path.join(workspaceRoot, ".avoozl.json");
   writeJson(globalFile, {
     version: 1,
     name: "Global",
@@ -42,7 +42,7 @@ test("configuration layers merge deterministically and resolve their own paths",
   writeJson(repositoryFile, {
     version: 1,
     name: "Repository",
-    documents: "../repository-plans",
+    documents: "repository-plans",
     behavior: { repository: true, winner: "repository" },
   });
 
@@ -91,7 +91,7 @@ test("configuration layers merge deterministically and resolve their own paths",
     [
       "global Avoozl configuration",
       "legacy workspace configuration",
-      "workspace Avoozl configuration",
+      "repository Avoozl configuration",
       "environment configuration",
       "command-line configuration",
     ],
@@ -99,16 +99,16 @@ test("configuration layers merge deterministically and resolve their own paths",
   assert.equal(loaded.localConfigured, true);
 });
 
-test("repository configuration paths are owned by its .avoozl directory", () => {
+test("repository configuration paths are owned by its repository root", () => {
   const workspaceRoot = temporaryDirectory("avoozl-config-owner-"),
-    repositoryFile = path.join(workspaceRoot, ".avoozl", "config.json");
+    repositoryFile = path.join(workspaceRoot, ".avoozl.json");
   writeJson(repositoryFile, {
     version: 1,
-    dbPath: "state/workspace.sqlite",
+    dbPath: ".avoozl/local/workspace.sqlite",
     projects: {
       code: {
-        root: "../code",
-        worktreeRoot: "worktrees",
+        root: "code",
+        worktreeRoot: ".avoozl/local/worktrees",
       },
     },
   });
@@ -118,12 +118,12 @@ test("repository configuration paths are owned by its .avoozl directory", () => 
   });
   assert.equal(
     config.dbPath,
-    path.join(workspaceRoot, ".avoozl", "state", "workspace.sqlite"),
+    path.join(workspaceRoot, ".avoozl", "local", "workspace.sqlite"),
   );
   assert.equal(config.projects.code.root, path.join(workspaceRoot, "code"));
   assert.equal(
     config.projects.code.worktreeRoot,
-    path.join(workspaceRoot, ".avoozl", "worktrees"),
+    path.join(workspaceRoot, ".avoozl", "local", "worktrees"),
   );
 });
 
@@ -152,9 +152,58 @@ test("workspaceConfig preserves legacy workspace.json compatibility", () => {
   );
 });
 
+test("legacy .avoozl/config.json remains readable and root config wins", () => {
+  const workspaceRoot = temporaryDirectory("avoozl-config-repository-legacy-"),
+    legacyRepository = path.join(workspaceRoot, ".avoozl", "config.json"),
+    repository = path.join(workspaceRoot, ".avoozl.json"),
+    env = { XDG_CONFIG_HOME: temporaryDirectory("avoozl-empty-xdg-") };
+  writeJson(legacyRepository, {
+    version: 1,
+    name: "Legacy repository",
+    dbPath: "local/workspace.sqlite",
+    documents: "../plans",
+  });
+  let loaded = loadLayeredConfig({ workspaceRoot, env });
+  assert.equal(loaded.config.name, "Legacy repository");
+  assert.equal(
+    loaded.config.dbPath,
+    path.join(workspaceRoot, ".avoozl", "local", "workspace.sqlite"),
+  );
+  assert.equal(loaded.files.legacyRepository, legacyRepository);
+
+  writeJson(repository, {
+    version: 1,
+    name: "Root repository",
+    documents: "designs",
+  });
+  loaded = loadLayeredConfig({ workspaceRoot, env });
+  assert.equal(loaded.config.name, "Root repository");
+  assert.equal(loaded.config.documents, path.join(workspaceRoot, "designs"));
+  assert.equal(
+    loaded.config.dbPath,
+    path.join(workspaceRoot, ".avoozl", "local", "workspace.sqlite"),
+  );
+});
+
+test("root repository configuration rejects absolute portable paths", () => {
+  const workspaceRoot = temporaryDirectory("avoozl-config-absolute-");
+  writeJson(path.join(workspaceRoot, ".avoozl.json"), {
+    version: 1,
+    projects: { code: { root: "/machine-specific/checkout" } },
+  });
+  assert.throws(
+    () =>
+      loadLayeredConfig({
+        workspaceRoot,
+        env: { XDG_CONFIG_HOME: temporaryDirectory("avoozl-empty-xdg-") },
+      }),
+    /absolute path projects\.code\.root/,
+  );
+});
+
 test("secret-like keys are rejected recursively", () => {
   const workspaceRoot = temporaryDirectory("avoozl-config-secrets-"),
-    repositoryFile = path.join(workspaceRoot, ".avoozl", "config.json");
+    repositoryFile = path.join(workspaceRoot, ".avoozl.json");
   writeJson(repositoryFile, {
     version: 1,
     integrations: {
@@ -178,8 +227,19 @@ test("secret-like keys are rejected recursively", () => {
 test("the shipped JSON Schema describes versioned non-secret config", () => {
   const schema = JSON.parse(fs.readFileSync(avoozlConfigSchemaPath, "utf8"));
   assert.equal(schema.$schema, "https://json-schema.org/draft/2020-12/schema");
+  assert.equal(
+    schema.$id,
+    "https://avoozl.dev/schema/repository-config-v1.json",
+  );
   assert.deepEqual(schema.required, ["version"]);
   assert.equal(schema.properties.version.const, 1);
+  assert.deepEqual(schema.$defs.agentInstructionRule.required, [
+    "id",
+    "title",
+    "appliesTo",
+    "instruction",
+  ]);
+  assert.equal(schema.$defs.agentInstructionRule.additionalProperties, false);
   assert(schema.$defs.safePropertyName);
   assert(schema.$defs.safeValue);
 });

@@ -258,6 +258,45 @@ export function MarkdownSourceViewer({
   );
 }
 
+export function JsonSourceViewer({
+  text,
+  filename,
+  ariaLabel,
+}: {
+  text: string;
+  filename: string;
+  ariaLabel: string;
+}) {
+  return (
+    <Editor
+      height="100%"
+      path={filename}
+      language="json"
+      theme="avoozl-dark"
+      beforeMount={beforeMount}
+      value={text}
+      options={{
+        ariaLabel,
+        automaticLayout: true,
+        bracketPairColorization: { enabled: true },
+        contextmenu: true,
+        folding: true,
+        fontFamily:
+          "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+        fontSize: 11,
+        lineHeight: 18,
+        minimap: { enabled: false },
+        padding: { top: 12, bottom: 12 },
+        readOnly: true,
+        renderWhitespace: "selection",
+        scrollBeyondLastLine: false,
+        tabSize: 2,
+        wordWrap: "on",
+      }}
+    />
+  );
+}
+
 function EditorToolbar({
   mode,
   setMode,

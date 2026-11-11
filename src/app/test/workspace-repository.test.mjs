@@ -204,23 +204,31 @@ test("portable Queue links omit imported bodies and reject association tampering
   );
 });
 
-test("planning repository AGENTS.md supplies shared agent rules while enablement stays local", async (t) => {
+test("planning repository .avoozl.json supplies shared agent rules while enablement stays local", async (t) => {
   const repo = repository(t),
-    policy = `# Team guidance
-
-## Avoozl
-
-### Agent instructions
-
-#### Record required cleanup
-- ID: \`record-required-cleanup\`
-- Applies to: \`task.implement\`
-- Filter: \`all\`
-
-Propose required follow-up work with plans_propose_work.
-`;
-  fs.writeFileSync(path.join(repo.root, "AGENTS.md"), policy);
-  git(repo.root, "add", "AGENTS.md");
+    policy = {
+      version: 1,
+      agentInstructions: {
+        rules: [
+          {
+            id: "record-required-cleanup",
+            title: "Record required cleanup",
+            appliesTo: ["task.implement"],
+            instruction:
+              "Propose required follow-up work with plans_propose_work.",
+          },
+        ],
+      },
+    };
+  fs.writeFileSync(
+    path.join(repo.root, ".avoozl.json"),
+    JSON.stringify(policy, null, 2) + "\n",
+  );
+  fs.writeFileSync(
+    path.join(repo.root, "AGENTS.md"),
+    "# Agent guidance\n\nAvoozl does not parse this file as policy.\n",
+  );
+  git(repo.root, "add", ".avoozl.json", "AGENTS.md");
   git(repo.root, "commit", "-m", "Add team policy");
   git(repo.root, "push", "origin", "main");
   const first = fixture(t),
@@ -232,24 +240,67 @@ Propose required follow-up work with plans_propose_work.
   });
   await firstOps.execute("workspace.repository.publish");
   const second = fixture(t),
+    codeRoot = temporaryDirectory(),
     secondOps = new Operations(second.store, { github: localGitHub });
+  t.after(() => fs.rmSync(codeRoot, { recursive: true, force: true }));
+  fs.writeFileSync(
+    path.join(codeRoot, ".avoozl.json"),
+    JSON.stringify(
+      {
+        version: 1,
+        agentInstructions: {
+          rules: [
+            {
+              id: "code-repository-policy",
+              title: "Code repository policy",
+              appliesTo: ["task.implement"],
+              instruction: "Keep code repository changes scoped.",
+            },
+          ],
+        },
+      },
+      null,
+      2,
+    ) + "\n",
+  );
+  second.store.put("projects", {
+    id: "code-project",
+    title: "Code project",
+    root: codeRoot,
+  });
   await secondOps.execute("workspace.repository.configure", {
     root: repo.root,
     branch: "main",
     directory: ".avoozl",
   });
   await secondOps.execute("workspace.repository.sync");
-  assert.equal(second.store.read().agentInstructions.length, 1);
+  assert.equal(second.store.read().agentInstructions.length, 2);
   assert.equal(
-    second.store.read().agentInstructions[0].instruction,
+    second.store
+      .read()
+      .agentInstructions.find((rule) => rule.id === "record-required-cleanup")
+      .instruction,
     "Propose required follow-up work with plans_propose_work.",
+  );
+  assert.equal(
+    second.store
+      .read()
+      .agentInstructions.find((rule) => rule.id === "code-repository-policy")
+      .source.repositoryId,
+    "code-project",
   );
   await secondOps.execute("agent.instructions.toggle", {
     id: "record-required-cleanup",
     enabled: false,
   });
   await secondOps.execute("workspace.repository.sync");
-  assert.equal(second.store.read().agentInstructions[0].enabled, false);
+  assert.equal(
+    second.store
+      .read()
+      .agentInstructions.find((rule) => rule.id === "record-required-cleanup")
+      .enabled,
+    false,
+  );
 });
 
 test("publication refuses secrets and absolute machine paths before writing Git objects", async (t) => {
