@@ -422,8 +422,6 @@ export class Operations {
         : existing?.agentProfile,
       mode: "ask",
       title: driverConversationTitle(project),
-      prompt:
-        "Act as this project's persistent Avoozl Driver. Keep replies concise, use the mounted project and Avoozl context when asked, and reply only “Ready” to this initialization message.",
       context,
       approvalMode: "manual",
     });

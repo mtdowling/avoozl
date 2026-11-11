@@ -3,7 +3,11 @@ import path from "node:path";
 import test from "node:test";
 import { once } from "node:events";
 import { startAgentHost } from "../agent-host.mjs";
-import { driverConversationTitle, RunManager } from "../manager.mjs";
+import {
+  driverConversationTitle,
+  openHandsDriverConversationId,
+  RunManager,
+} from "../manager.mjs";
 import { Operations } from "../operations.mjs";
 import { updateConversationSettings } from "../conversation-settings.mjs";
 import { RemoteManager } from "../remote-manager.mjs";
@@ -73,7 +77,14 @@ test("Driver is one durable idle OpenHands conversation per project", async (t) 
   assert.equal(starts[0].prompt, undefined);
   assert.match(starts[0].systemInstructions, /persistent Avoozl Driver/);
   assert.match(starts[0].systemInstructions, /plans_run_context/);
-  assert.match(starts[0].conversationId, /^avoozl-driver-/);
+  assert.match(
+    starts[0].conversationId,
+    /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+  );
+  assert.equal(
+    starts[0].conversationId,
+    openHandsDriverConversationId(first.run.id),
+  );
 
   const reopened = await ops.execute("driver.open", {
     projectId: "fixture",
@@ -126,6 +137,51 @@ test("Driver is one durable idle OpenHands conversation per project", async (t) 
   assert.equal(intent.run.parentRunId, first.run.id);
   assert.equal(intent.run.parentProviderSessionId, first.run.providerSessionId);
   assert.equal(starts[1].parentConversationId, first.run.providerSessionId);
+});
+
+test("Driver creation retries the same idle OpenHands UUID after rejection", async (t) => {
+  const { store, root } = fixture(t);
+  configureProject(store, root);
+  const starts = [];
+  let attempt = 0;
+  const manager = new RunManager(store, {
+    factories: {
+      openhands: ({ emit }) => ({
+        async start(options) {
+          starts.push(options);
+          attempt += 1;
+          if (attempt === 1)
+            throw Error("OpenHands rejected the conversation.");
+          emit("session", { providerSessionId: options.conversationId });
+        },
+        async close() {},
+      }),
+    },
+  });
+  t.after(() => manager.close());
+  const ops = new Operations(store, { manager });
+
+  await assert.rejects(
+    ops.execute("driver.open", {
+      projectId: "fixture",
+      provider: "openhands",
+    }),
+    /rejected the conversation/,
+  );
+  const failed = manager.activeDriver("fixture");
+  assert.equal(failed.state, "failed");
+  assert.equal(failed.providerSessionId, undefined);
+
+  const retried = await ops.execute("driver.open", {
+    projectId: "fixture",
+    provider: "openhands",
+  });
+  assert.equal(retried.created, false);
+  assert.equal(retried.run.state, "completed");
+  assert.equal(retried.run.providerSessionId, starts[0].conversationId);
+  assert.equal(starts[1].conversationId, starts[0].conversationId);
+  assert.equal(starts[0].prompt, undefined);
+  assert.equal(starts[1].prompt, undefined);
 });
 
 test("the managed agent host accepts driver.open over RPC", async (t) => {
