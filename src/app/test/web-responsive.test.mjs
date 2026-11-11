@@ -147,6 +147,12 @@ test("completed tasks start read-only OpenHands reviews instead of implementatio
   assert.match(controlPlane, /detail\.activity\?\.state === "active"/);
   assert.doesNotMatch(controlPlane, /detail\.activity\?\.status/);
   assert.match(controlPlane, /Boolean\(run\.providerSessionId\)/);
+  const taskStart = app.slice(
+    app.indexOf("async function startTaskInOpenHands"),
+    app.indexOf("async function openQueueItemWithAgent"),
+  );
+  assert.match(taskStart, /await command<Run>\("run\.start"/);
+  assert.doesNotMatch(taskStart, /openRun\(/);
 });
 
 test("pending external-session checks render no indefinite loading message", () => {
