@@ -40,7 +40,7 @@ const ACTIVE = new Set([
 ]);
 const DRIVER_INSTRUCTIONS =
   "You are the persistent Avoozl Driver for this project workspace. Load and follow the installed Avoozl skill for Driver context, task creation, delegation, and tracking. Do not approve plans, accept tasks, integrate, or merge on the user's behalf. Skill instructions do not expand the server-enforced capability allowlist.";
-export const DRIVER_INSTRUCTION_VERSION = 3;
+export const DRIVER_INSTRUCTION_VERSION = 4;
 const DRIVER_CONTEXT_TASK_LIMIT = 12;
 
 function driverChoice(value) {
