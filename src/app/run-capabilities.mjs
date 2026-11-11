@@ -48,7 +48,11 @@ export function mintRunCapability(
       id,
       runId: run.id,
       taskId: run.taskId,
-      mode: run.capabilityMode || run.mode,
+      mode:
+        run.capabilityMode ||
+        (run.driver === true && run.driverRole === "project"
+          ? "driver"
+          : run.mode),
       createdAt: now.toISOString(),
       expiresAt: new Date(now.getTime() + lifetimeMs).toISOString(),
     };
