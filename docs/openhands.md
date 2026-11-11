@@ -65,11 +65,12 @@ node cli.mjs openhands setup-agents --default codex
 ```
 
 The command installs and enables the pinned Avoozl OpenHands plugin, verifies
-both agents by default, activates the first working profile, and prints no
-credential values. The plugin contains the Avoozl skill and a run-scoped MCP
-template; it contains variable names, not credentials. Limit setup with
-`--agents claude-code` or `--agents codex`. Use `--skip-verify` only when
-installing profiles before the agent CLI is authenticated.
+both agents by default, prefers Codex when both work, and prints no credential
+values. When Codex advertises GPT-6.1 Sol, new Avoozl installations select it
+instead of an older Codex default. The plugin contains the Avoozl skill and a
+run-scoped MCP template; it contains variable names, not credentials. Limit
+setup with `--agents claude-code` or `--agents codex`. Use `--skip-verify` only
+when installing profiles before the agent CLI is authenticated.
 
 The managed profiles expose only the provider's standard credential names and
 the two run-scoped Avoozl MCP capabilities. They do not encode a particular

@@ -341,7 +341,10 @@ test("agent setup installs provider-neutral profiles and activates a verified de
         if (pathname === "/api/acp/models")
           return {
             current_model_id: "default",
-            available_models: [{ model_id: "default" }],
+            available_models: [
+              { model_id: "default" },
+              { model_id: "openai.gpt-6.1-sol" },
+            ],
             error: null,
           };
         if (pathname.endsWith("/materialize"))
@@ -356,10 +359,10 @@ test("agent setup installs provider-neutral profiles and activates a verified de
   const result = await setupOpenHandsAgents({
     client,
     settings: { host: "http://127.0.0.1:38100" },
-    defaultAgent: "codex",
   });
 
   assert.equal(result.activeProfile, "avoozl-codex");
+  assert.equal(saved.get("avoozl-codex").acp_model, "openai.gpt-6.1-sol");
   assert.deepEqual(
     result.configured.map((entry) => entry.ready),
     [true, true],

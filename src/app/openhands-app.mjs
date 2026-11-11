@@ -27,6 +27,7 @@ const OPENHANDS_AGENT_PRESETS = Object.freeze({
   codex: Object.freeze({
     label: "Codex",
     profile: "avoozl-codex",
+    defaultModel: "openai.gpt-6.1-sol",
     secretRefs: ["AVOOZL_MCP_URL", "AVOOZL_MCP_TOKEN"],
   }),
 });
@@ -262,6 +263,19 @@ export async function setupOpenHandsAgents({
         } catch (error) {
           discovery = { error: { code: safeDiscoveryError(error) } };
         }
+      if (
+        !profile.acp_model &&
+        preset.defaultModel &&
+        discovery?.available_models?.some(
+          (model) => model.model_id === preset.defaultModel,
+        )
+      ) {
+        profile.acp_model = preset.defaultModel;
+        await active.post(
+          `/api/agent-profiles/${encodeURIComponent(preset.profile)}`,
+          profile,
+        );
+      }
       const ready =
         diagnostics.valid && (!verify || (discovery && !discovery.error));
       results.push({
@@ -271,7 +285,7 @@ export async function setupOpenHandsAgents({
         ready,
         valid: Boolean(diagnostics.valid),
         verified: verify ? Boolean(discovery && !discovery.error) : null,
-        defaultModel: discovery?.current_model_id || null,
+        defaultModel: profile.acp_model || discovery?.current_model_id || null,
         modelCount: discovery?.available_models?.length || 0,
         errorCode: diagnostics.valid
           ? discovery?.error
@@ -289,6 +303,7 @@ export async function setupOpenHandsAgents({
           (entry) => entry.id === priorActive && entry.name === preset.profile,
         );
       }) ||
+      results.find((entry) => entry.agent === "codex" && entry.ready)?.agent ||
       results.find((entry) => entry.ready)?.agent ||
       (!verify ? selected[0] : null);
     let activeProfile = null;

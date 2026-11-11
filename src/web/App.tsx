@@ -7707,6 +7707,18 @@ type OpenHandsProfiles = {
   }>;
 };
 
+type OpenHandsAgentModels = {
+  profileId: string;
+  agentKind?: string | null;
+  acpServer?: string | null;
+  currentModelId?: string | null;
+  models: Array<{
+    id: string;
+    name: string;
+    description?: string | null;
+  }>;
+};
+
 function ConversationSettings({
   workspace,
   refresh,
@@ -7736,8 +7748,24 @@ function ConversationSettings({
   const [driverModel, setDriverModel] = useState(
     workspace.conversationSettings?.driverModel || "",
   );
+  const selectedAgentProfileId =
+    driverAgentProfile || profiles.data?.activeAgentProfileId || "";
   const selectedAgent = profiles.data?.profiles.find(
-    (profile) => profile.id === driverAgentProfile,
+    (profile) => profile.id === selectedAgentProfileId,
+  );
+  const agentModels = useRemote<OpenHandsAgentModels>(
+    () =>
+      selectedAgentProfileId && selectedAgent?.agentKind === "acp"
+        ? command("openhands.models", {
+            profileId: selectedAgentProfileId,
+          })
+        : Promise.resolve({
+            profileId: selectedAgentProfileId,
+            agentKind: selectedAgent?.agentKind || null,
+            currentModelId: null,
+            models: [],
+          }),
+    [selectedAgentProfileId, selectedAgent?.agentKind],
   );
   useEffect(
     () => setAutoArchiveCompleted(configuredAutoArchive),
@@ -7890,7 +7918,10 @@ function ConversationSettings({
           <select
             value={driverAgentProfile}
             disabled={busy || profiles.loading}
-            onChange={(event) => setDriverAgentProfile(event.target.value)}
+            onChange={(event) => {
+              setDriverAgentProfile(event.target.value);
+              setDriverModel("");
+            }}
           >
             <option value="">
               {profiles.loading ? "Loading agents…" : "OpenHands active agent"}
@@ -7912,11 +7943,33 @@ function ConversationSettings({
             ? "ACP model override"
             : "LLM profile"}
           {selectedAgent?.agentKind === "acp" ? (
-            <input
+            <select
               value={driverModel}
+              disabled={busy || agentModels.loading}
               onChange={(event) => setDriverModel(event.target.value)}
-              placeholder="Use the agent profile default"
-            />
+            >
+              <option value="">
+                {agentModels.loading
+                  ? "Loading models…"
+                  : agentModels.data?.currentModelId
+                    ? `Agent default · ${agentModels.data.currentModelId}`
+                    : "Agent default"}
+              </option>
+              {driverModel &&
+                !agentModels.data?.models.some(
+                  (model) => model.id === driverModel,
+                ) && <option value={driverModel}>{driverModel}</option>}
+              {(agentModels.data?.models || []).map((model) => (
+                <option
+                  key={model.id}
+                  value={model.id}
+                  title={model.description || undefined}
+                >
+                  {model.name}
+                  {model.name !== model.id ? ` · ${model.id}` : ""}
+                </option>
+              ))}
+            </select>
           ) : (
             <select
               value={driverModel}
@@ -7934,7 +7987,8 @@ function ConversationSettings({
           )}
           <small>
             {selectedAgent?.agentKind === "acp"
-              ? "Optional ACP model ID. Leave blank to use the selected agent profile’s default."
+              ? agentModels.error?.message ||
+                "Models are reported directly by the selected agent. Leave blank to use its default."
               : `Optional OpenHands LLM profile. Leave blank to use ${profiles.data?.activeLlmProfile || "the selected agent profile’s default"}.`}
           </small>
         </label>

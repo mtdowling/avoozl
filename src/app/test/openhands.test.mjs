@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import {
   OpenHandsAdapter,
+  openHandsAgentModels,
   openHandsContextWindowReport,
   openHandsConversationModel,
   openHandsSettings,
@@ -33,6 +34,64 @@ const usageFixture = JSON.parse(
     "utf8",
   ),
 );
+
+test("OpenHands reports the selected ACP agent model catalog", async () => {
+  const calls = [],
+    client = {
+      async get(pathname) {
+        calls.push(["get", pathname]);
+        if (pathname === "/server_info") return { data: { version: "1.61.0" } };
+        return {
+          data: {
+            profile: {
+              id: "profile-codex",
+              agent_kind: "acp",
+              acp_server: "codex",
+            },
+          },
+        };
+      },
+      async post(pathname, body) {
+        calls.push(["post", pathname, body]);
+        return {
+          data: {
+            current_model_id: "openai.gpt-6.1-sol",
+            available_models: [
+              {
+                model_id: "openai.gpt-6.1-sol",
+                name: "6.1 Sol",
+                description: "Latest workhorse model.",
+              },
+              { model_id: "", name: "Invalid" },
+            ],
+          },
+        };
+      },
+    };
+  const result = await openHandsAgentModels("profile-codex", { client });
+  assert.deepEqual(result, {
+    profileId: "profile-codex",
+    agentKind: "acp",
+    acpServer: "codex",
+    currentModelId: "openai.gpt-6.1-sol",
+    models: [
+      {
+        id: "openai.gpt-6.1-sol",
+        name: "6.1 Sol",
+        description: "Latest workhorse model.",
+      },
+    ],
+  });
+  assert.deepEqual(calls.at(-1), [
+    "post",
+    "/api/acp/models",
+    {
+      agent_settings: { agent_kind: "acp", acp_server: "codex" },
+      secrets: {},
+      refresh: false,
+    },
+  ]);
+});
 
 function fakeOpenHands({
   activeProfile = true,

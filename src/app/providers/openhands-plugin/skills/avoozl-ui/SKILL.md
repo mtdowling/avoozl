@@ -34,12 +34,19 @@ After the change is ready:
 3. Verify `avoozl openhands status` and the Avoozl health endpoint, then refresh
    the OpenHands page.
 
-Pure Canvas UI changes do not require stopping Avoozl or its agent host.
+Pure Canvas UI changes do not require stopping Avoozl, its agent host, or the
+OpenHands Agent Server. Reinstall the extension and refresh Canvas while active
+conversations continue. Do not hold a UI fix merely because an unrelated
+OpenHands configuration change still needs a later restart.
 
 ## Reload safely
 
 Restart only when server-side code or served standalone assets require it.
 
+- Keep the layers separate. Reloading Avoozl's web/API server preserves its
+  agent host; reinstalling the Canvas extension preserves OpenHands
+  conversations. Restarting the OpenHands Agent Server can interrupt active
+  turns and tool calls.
 - Inspect `avoozl status` first. Do not replace or stop a host with active or
   queued work.
 - For a single-workspace server, prefer
@@ -50,6 +57,9 @@ Restart only when server-side code or served standalone assets require it.
   checkout, and resume the workspaces. Never use a force kill to bypass drain.
 - If agent-host code changed, follow the stricter repository drain/stop
   contract. A disconnected or stale worker is not permission to replace it.
+- If an OpenHands startup setting changed, wait until its active turns drain
+  before restarting the Agent Server. Stored conversations survive, but that is
+  not permission to interrupt work merely to apply configuration sooner.
 - Verify health, workspace readiness, concurrency limits, and OpenHands app
   status after restart. If recovery is incomplete, leave intake drained and
   report the exact failing check.
