@@ -97,7 +97,7 @@ test("workflow instruction categories inherit and local overrides only disable p
   );
 });
 
-test("the planning source watcher re-syncs AGENTS.md without indexing it as a design", (t) => {
+test("the planning source watcher re-syncs AGENTS.md without indexing it as a design", async (t) => {
   const { root, store } = fixture(t),
     file = path.join(root, "AGENTS.md");
   fs.writeFileSync(file, agents);
@@ -105,6 +105,12 @@ test("the planning source watcher re-syncs AGENTS.md without indexing it as a de
   assert.equal(result.instructions, 2);
   assert.equal(store.read().documents["AGENTS.md"], undefined);
   assert.equal(store.read().agentInstructionSource.path, "AGENTS.md");
+  assert.equal(store.getMeta("agentInstructionSourceSnapshot").text, agents);
+  const source = await new Operations(store).execute(
+    "agent.instructions.source",
+  );
+  assert.equal(source.path, "AGENTS.md");
+  assert.equal(source.text, agents);
   fs.writeFileSync(
     file,
     agents.replace(
@@ -123,6 +129,7 @@ test("the planning source watcher re-syncs AGENTS.md without indexing it as a de
   fs.unlinkSync(file);
   reconcileAgentInstructions(store, root);
   assert.deepEqual(store.read().agentInstructions, []);
+  assert.equal(store.getMeta("agentInstructionSourceSnapshot").text, "");
 });
 
 test("matching AGENTS.md instructions are injected without changing capabilities", async (t) => {

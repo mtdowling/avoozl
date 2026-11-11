@@ -8,6 +8,12 @@ import { RepositorySettings } from "../repository-settings.mjs";
 import { fixture, waitFor } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
+const routingOff = {
+  enabled: false,
+  fallback: { agentProfile: null, model: null },
+  rules: [],
+};
+
 function writeJson(filename, value) {
   fs.mkdirSync(path.dirname(filename), { recursive: true });
   fs.writeFileSync(filename, JSON.stringify(value, null, 2) + "\n");
@@ -44,6 +50,7 @@ test("repository settings preserve unrelated JSON and expose canonical metadata"
     autoArchiveCompleted: false,
     driverAgentProfile: "reviewer",
     driverModel: "model-before",
+    routing: routingOff,
   });
   assert.deepEqual(
     await ops.execute("conversations.settings.update", {
@@ -53,6 +60,7 @@ test("repository settings preserve unrelated JSON and expose canonical metadata"
       autoArchiveCompleted: false,
       driverAgentProfile: "reviewer",
       driverModel: "model-after",
+      routing: routingOff,
     },
   );
 
@@ -69,6 +77,7 @@ test("repository settings preserve unrelated JSON and expose canonical metadata"
       agentProfile: "reviewer",
       model: "model-after",
     },
+    routing: routingOff,
   });
   assert.equal(
     fs
@@ -122,6 +131,80 @@ test("repository settings use a file hash to avoid clobbering direct edits", (t)
       fs.readFileSync(path.join(root, ".avoozl", "config.json"), "utf8"),
     ).conversations.driver.model,
     "model-two",
+  );
+});
+
+test("configuration editor reads, formats, and conflict-checks repository and global JSON", async (t) => {
+  const { root, store } = fixture(t),
+    global = path.join(root, "global", "config.json"),
+    configuration = new RepositorySettings(store, {
+      workspaceRoot: root,
+      files: { global },
+    }),
+    ops = new Operations(store, { configuration });
+
+  const emptyRepository = await ops.execute("configuration.get", {
+    scope: "repository",
+  });
+  assert.equal(emptyRepository.exists, false);
+  assert.equal(emptyRepository.hash, null);
+  assert.equal(emptyRepository.text, '{\n  "version": 1\n}\n');
+
+  const savedRepository = await ops.execute("configuration.update", {
+    scope: "repository",
+    expectedHash: emptyRepository.hash,
+    text: '{"version":1,"conversations":{"autoArchiveCompleted":false}}',
+  });
+  assert.equal(savedRepository.exists, true);
+  assert.match(savedRepository.hash, /^[a-f0-9]{64}$/);
+  assert.equal(
+    savedRepository.text,
+    '{\n  "version": 1,\n  "conversations": {\n    "autoArchiveCompleted": false\n  }\n}\n',
+  );
+  assert.deepEqual(await ops.execute("conversations.settings.get"), {
+    autoArchiveCompleted: false,
+    driverAgentProfile: null,
+    driverModel: null,
+    routing: routingOff,
+  });
+
+  await assert.rejects(
+    ops.execute("configuration.update", {
+      scope: "repository",
+      expectedHash: null,
+      text: '{"version":1}',
+    }),
+    (error) => error.status === 409 && /changed; reload/.test(error.message),
+  );
+  await assert.rejects(
+    ops.execute("configuration.update", {
+      scope: "repository",
+      expectedHash: savedRepository.hash,
+      text: '{"version":1,"github":{"token":"nope"}}',
+    }),
+    /secret-like key github\.token/,
+  );
+  assert.equal(
+    fs.readFileSync(savedRepository.filename, "utf8"),
+    savedRepository.text,
+  );
+
+  const emptyGlobal = await ops.execute("configuration.get", {
+    scope: "global",
+  });
+  const savedGlobal = await ops.execute("configuration.update", {
+    scope: "global",
+    expectedHash: emptyGlobal.hash,
+    text: '{"version":1,"name":"Shared defaults"}',
+  });
+  assert.equal(savedGlobal.filename, global);
+  assert.equal(savedGlobal.exists, true);
+  assert.deepEqual(savedGlobal.restartRequired, [
+    "Restart Avoozl to apply global configuration changes",
+  ]);
+  assert.equal(
+    fs.readFileSync(global, "utf8"),
+    '{\n  "version": 1,\n  "name": "Shared defaults"\n}\n',
   );
 });
 
@@ -233,6 +316,7 @@ test("watcher reloads typed direct edits, leaves privileged desired state inert,
     autoArchiveCompleted: false,
     driverAgentProfile: "direct-profile",
     driverModel: "direct-model",
+    routing: routingOff,
   });
   assert.match(
     configuration.metadata().repository.error.message,
@@ -261,6 +345,69 @@ test("direct conversation settings reject unknown keys without applying them", (
   assert.equal(store.getMeta("conversationSettings"), null);
 });
 
+test("repository conversation settings validate and persist agent routing policy", (t) => {
+  const { root, store } = fixture(t),
+    filename = path.join(root, ".avoozl", "config.json"),
+    configuration = new RepositorySettings(store, { workspaceRoot: root });
+  writeJson(filename, {
+    version: 1,
+    conversations: {
+      routing: {
+        enabled: true,
+        fallback: { agentProfile: "balanced", model: null },
+        rules: [
+          {
+            id: "runtime-risk",
+            priority: 20,
+            categories: ["task.implement"],
+            scopes: ["runtime"],
+            risks: ["high"],
+            agentProfile: "careful",
+            model: "deep",
+          },
+        ],
+      },
+    },
+  });
+
+  configuration.reload();
+  assert.deepEqual(store.getMeta("conversationSettings")?.routing, {
+    enabled: true,
+    fallback: { agentProfile: "balanced", model: null },
+    rules: [
+      {
+        id: "runtime-risk",
+        priority: 20,
+        categories: ["task.implement"],
+        scopes: ["runtime"],
+        risks: ["high"],
+        contextRemainingAtMost: null,
+        agentProfile: "careful",
+        model: "deep",
+      },
+    ],
+  });
+
+  writeJson(filename, {
+    version: 1,
+    conversations: {
+      routing: {
+        enabled: true,
+        rules: [{ id: "invalid", contextRemainingAtMost: 10 }],
+      },
+    },
+  });
+  configuration.reload();
+  assert.match(
+    configuration.metadata().repository.error.message,
+    /must choose an agent profile or model/,
+  );
+  assert.equal(
+    store.getMeta("conversationSettings").routing.rules[0].id,
+    "runtime-risk",
+  );
+});
+
 test("repository conversation settings override and fall back to global defaults", (t) => {
   const { root, store } = fixture(t),
     filename = path.join(root, ".avoozl", "config.json"),
@@ -285,6 +432,7 @@ test("repository conversation settings override and fall back to global defaults
     autoArchiveCompleted: false,
     driverAgentProfile: "global-agent",
     driverModel: "repository-model",
+    routing: routingOff,
   });
 
   writeJson(filename, { version: 1 });
@@ -293,6 +441,7 @@ test("repository conversation settings override and fall back to global defaults
     autoArchiveCompleted: false,
     driverAgentProfile: "global-agent",
     driverModel: "global-model",
+    routing: routingOff,
   });
 });
 
@@ -370,6 +519,12 @@ test("explicit Settings operations persist typed desired state without changing 
     repository: "Example/Code",
     projectId: "code",
     includePullRequests: false,
+    labelBehaviors: {
+      ready: ["ship-it"],
+      blocked: ["stalled"],
+      review: ["needs-review"],
+      quarantined: ["hold"],
+    },
   });
   assert.equal(queue.includePullRequests, false);
 
@@ -405,6 +560,12 @@ test("explicit Settings operations persist typed desired state without changing 
     enabled: true,
     includeIssues: true,
     includePullRequests: false,
+    labelBehaviors: {
+      ready: ["ship-it"],
+      blocked: ["stalled"],
+      review: ["needs-review"],
+      quarantined: ["hold"],
+    },
     visibility: "private",
   });
   assert.equal(saved.planningRepository.root, "../planning");
@@ -518,4 +679,89 @@ test("creating repository JSON materializes already-applied non-secret settings"
   assert.equal(saved.planningRepository.root, "../planning");
   assert.equal(saved.conversations.driver.model, "driver-model");
   assert.deepEqual(configuration.metadata().pending, []);
+});
+
+test("project removal clears persisted configuration and records the action", async (t) => {
+  const { root, store } = fixture(t),
+    configuration = new RepositorySettings(store, { workspaceRoot: root }),
+    ops = new Operations(store, { configuration }),
+    project = {
+      id: "removable",
+      root: path.join(root, "code"),
+      baseBranch: "main",
+      worktreeRoot: path.join(root, "worktrees"),
+      checks: [],
+    };
+  store.put("projects", project);
+  configuration.updateExecutionProject(project);
+  store.put("runs", {
+    id: "completed-run",
+    taskId: "sample-task",
+    projectId: project.id,
+    state: "complete",
+  });
+
+  const removed = await ops.execute("project.remove", { id: project.id });
+
+  assert.equal(removed.removed, true);
+  assert.equal(store.get("projects", project.id), null);
+  assert.equal(
+    JSON.parse(
+      fs.readFileSync(path.join(root, ".avoozl", "config.json"), "utf8"),
+    ).projects,
+    undefined,
+  );
+  assert.ok(
+    store
+      .events({ latest: true })
+      .some(
+        (event) =>
+          event.kind === "project.removed" && event.projectId === project.id,
+      ),
+  );
+});
+
+test("project removal refuses active work, locks, and GitHub connections", async (t) => {
+  const { root, store } = fixture(t),
+    configuration = new RepositorySettings(store, { workspaceRoot: root }),
+    ops = new Operations(store, { configuration });
+  for (const id of ["active", "locked", "authorized", "monitored"])
+    store.put("projects", {
+      id,
+      root: path.join(root, id),
+      baseBranch: "main",
+      worktreeRoot: path.join(root, "worktrees", id),
+      checks: [],
+    });
+  store.put("runs", {
+    id: "active-run",
+    taskId: "sample-task",
+    projectId: "active",
+    state: "waiting-input",
+  });
+  store.db
+    .prepare("INSERT INTO work_locks VALUES (?,?,?,?,?)")
+    .run("lock", "locked", "integration", process.pid, "token");
+  store.put("github_repositories", {
+    id: "owner/authorized",
+    projectId: "authorized",
+  });
+  store.put("github_queue_repositories", {
+    id: "owner/monitored",
+    projectId: "monitored",
+  });
+
+  for (const [id, message] of [
+    ["active", /active conversation/],
+    ["locked", /currently locked/],
+    ["authorized", /still connected to GitHub/],
+    ["monitored", /still connected to GitHub/],
+  ])
+    await assert.rejects(
+      ops.execute("project.remove", { id }),
+      (error) => error.status === 409 && message.test(error.message),
+    );
+
+  for (const id of ["active", "locked", "authorized", "monitored"])
+    assert.ok(store.get("projects", id));
 });

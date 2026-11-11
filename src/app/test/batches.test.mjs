@@ -84,6 +84,62 @@ test("authorized batches integrate prerequisites before dispatching dependent wo
   await ops.execute("batch.control", { id: batch.id, action: "pause" });
   assert.equal(store.get("batches", batch.id).state, "paused");
 });
+test("a batch adopts an existing substantive task conversation", async (t) => {
+  const { store, root } = fixture(t),
+    repo = path.join(root, "repo");
+  fs.mkdirSync(repo);
+  await git(repo, ["init", "-b", "main"]);
+  await git(repo, ["config", "user.name", "Fixture"]);
+  await git(repo, ["config", "user.email", "fixture@example.invalid"]);
+  fs.writeFileSync(path.join(repo, "check.mjs"), "process.exit(0)");
+  await git(repo, ["add", "."]);
+  await git(repo, ["commit", "-m", "Prepare fixture"]);
+  let starts = 0;
+  const manager = new RunManager(store, {
+      factories: {
+        codex: ({ emit }) => ({
+          async start() {
+            starts++;
+            emit("session", { providerSessionId: "existing-conversation" });
+            emit("state", { state: "running" });
+          },
+          async close() {},
+        }),
+      },
+    }),
+    ops = new Operations(store, { manager });
+  t.after(() => manager.close());
+  await ops.execute("project.configure", {
+    id: "fixture",
+    root: repo,
+    checks: [[process.execPath, "check.mjs"]],
+  });
+  const existing = await manager.start({
+    id: "run-existing-task",
+    taskId: "sample-task",
+    projectId: "fixture",
+    provider: "codex",
+  });
+  manager.receive(existing.id, "disconnected", {
+    message: "Provider connection closed.",
+  });
+
+  const batch = await ops.execute("batch.start", {
+    taskIds: ["sample-task"],
+    projectId: "fixture",
+    provider: "codex",
+  });
+
+  assert.deepEqual(batch.runIds, [existing.id]);
+  assert.equal(batch.state, "attention");
+  assert.match(batch.reason, new RegExp(existing.id));
+  assert.equal(starts, 1);
+  assert.ok(
+    store
+      .events({ runId: existing.id })
+      .some((event) => event.kind === "batch.run.reused"),
+  );
+});
 test("new Markdown is draft context, and edits flag existing tasks without resetting status", (t) => {
   const { root, store } = fixture(t),
     file = path.join(root, "draft.md");

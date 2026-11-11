@@ -747,6 +747,12 @@ export async function syncWorkspaceRepository(store) {
       at: new Date().toISOString(),
       fileHashes: hashes,
     });
+    store.setMeta("agentInstructionSourceSnapshot", {
+      path: "AGENTS.md",
+      hash: digest(agentsText),
+      revision: commit,
+      text: agentsText,
+    });
   });
   store.event(null, "workspace.repository.synchronized", {
     commit,

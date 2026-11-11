@@ -221,8 +221,13 @@ test("Confirming an overlap records a neutral link without changing provenance",
   assert.equal(store.get("plans", plan.id).hash, "immutable-plan-hash");
   assert.equal(store.list("github_queue_associations").length, 1);
 
-  const after = await ops.execute("queue.items"),
+  const hidden = await ops.execute("queue.items"),
+    after = await ops.execute("queue.items", { showProcessed: true }),
     afterItem = after.items.find((entry) => entry.id === item.id);
+  assert.equal(
+    hidden.items.some((entry) => entry.id === item.id),
+    false,
+  );
   assert.equal(
     afterItem.overlapCandidates.some(
       (candidate) => candidate.targetId === plan.id,
@@ -252,11 +257,16 @@ test("A task created from a Queue item is already a confirmed origin association
       targetKind: "task",
       targetId: created.task.id,
     }),
-    refreshed = (await ops.execute("queue.items")).items.find(
-      (entry) => entry.id === item.id,
-    );
+    hidden = await ops.execute("queue.items"),
+    refreshed = (
+      await ops.execute("queue.items", { showProcessed: true })
+    ).items.find((entry) => entry.id === item.id);
   assert.equal(linked.existing, true);
   assert.equal(linked.association.source, "task-origin");
+  assert.equal(
+    hidden.items.some((entry) => entry.id === item.id),
+    false,
+  );
   assert.equal(
     refreshed.overlapCandidates.some(
       (candidate) => candidate.targetId === created.task.id,

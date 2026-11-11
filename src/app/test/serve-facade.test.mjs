@@ -6,6 +6,7 @@ import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { temporaryDirectory } from "./temporary.mjs";
 import { waitFor } from "./fixtures.mjs";
+import { workspaceConfig } from "../config.mjs";
 import { initializeWorkspace } from "../workspace.mjs";
 
 const cli = path.join(
@@ -20,6 +21,7 @@ test("serve --ahp brings up the site and a loopback-only authenticated facade", 
   const root = temporaryDirectory("avoozl-serve-");
   const workspace = path.join(root, "workspace");
   initializeWorkspace(workspace, { name: "Serve fixture", port: 0 });
+  const config = workspaceConfig({ workspace });
   const log = path.join(root, "serve.log");
   const child = spawn(
     process.execPath,
@@ -41,7 +43,7 @@ test("serve --ahp brings up the site and a loopback-only authenticated facade", 
     await new Promise((resolve) => child.once("exit", resolve));
     // The agent host is deliberately detached so it outlives a web reload.
     // A test must still stop the one it caused to start.
-    const hostManifest = path.join(workspace, "state", "agent-host.json");
+    const hostManifest = config.agentManifest;
     if (!fs.existsSync(hostManifest)) return;
     const host = JSON.parse(fs.readFileSync(hostManifest, "utf8"));
     try {
@@ -96,7 +98,7 @@ test("serve --ahp brings up the site and a loopback-only authenticated facade", 
   const anonymous = await fetch(facade.replace("ws://", "http://") + "/health");
   assert.equal(anonymous.status, 401);
 
-  const manifestPath = path.join(workspace, "state", "ahp-facade.json");
+  const manifestPath = config.ahp.manifest;
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
   assert.equal(manifest.workspaceEndpoint, site);
   assert.equal(
@@ -105,9 +107,7 @@ test("serve --ahp brings up the site and a loopback-only authenticated facade", 
     "the manifest holds client credentials",
   );
   assert.equal(
-    (
-      fs.statSync(path.join(workspace, "state", "ahp-tokens.json")).mode & 0o777
-    ).toString(8),
+    (fs.statSync(config.ahp.tokens).mode & 0o777).toString(8),
     "600",
   );
   assert.deepEqual(Object.keys(manifest.clients).sort(), [

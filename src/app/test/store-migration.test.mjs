@@ -14,6 +14,9 @@ const postMainTables = [
   "github_queue_repositories",
   "github_queue_items",
   "github_queue_associations",
+  "github_intake_capabilities",
+  "github_intake_generations",
+  "github_intake_deliveries",
   "review_threads",
   "review_rounds",
 ];

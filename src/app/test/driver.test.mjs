@@ -5,6 +5,7 @@ import { once } from "node:events";
 import { startAgentHost } from "../agent-host.mjs";
 import { driverConversationTitle, RunManager } from "../manager.mjs";
 import { Operations } from "../operations.mjs";
+import { updateConversationSettings } from "../conversation-settings.mjs";
 import { RemoteManager } from "../remote-manager.mjs";
 import { handleMcp } from "../mcp.mjs";
 import { mintRunCapability } from "../run-capabilities.mjs";
@@ -18,6 +19,14 @@ function configureProject(store, root, id = "fixture") {
     worktreeRoot: root + "/worktrees",
     checks: [],
   });
+}
+
+async function waitFor(check, timeout = 1000) {
+  const started = Date.now();
+  while (!check()) {
+    if (Date.now() - started > timeout) throw Error("Timed out waiting.");
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
 }
 
 test("Driver titles and persisted view context stay compact", () => {
@@ -376,6 +385,109 @@ test("changing Driver agent or model safely hands off and retains history", asyn
   );
   assert.equal(starts.length, 3);
   assert.equal(manager.listDrivers().projects[0].run.id, replacement.run.id);
+});
+
+test("reported low context hands off Driver only after the active turn completes", async (t) => {
+  const { store, root } = fixture(t);
+  configureProject(store, root);
+  updateConversationSettings(store, {
+    routing: {
+      enabled: true,
+      fallback: { agentProfile: "baseline-agent" },
+      rules: [
+        {
+          id: "low-driver-context",
+          priority: 100,
+          categories: ["chat.project"],
+          contextRemainingAtMost: 20,
+          agentProfile: "fresh-agent",
+          model: "fresh-model",
+        },
+      ],
+    },
+  });
+  let sequence = 0;
+  const starts = [];
+  const manager = new RunManager(store, {
+    routingCatalog: async () => ({
+      profiles: [
+        { id: "baseline-agent", name: "Baseline" },
+        { id: "fresh-agent", name: "Fresh" },
+      ],
+    }),
+    factories: {
+      openhands: ({ emit }) => ({
+        async start(options) {
+          starts.push(options);
+          emit("session", {
+            providerSessionId: `driver-context-${++sequence}`,
+            model: options.model,
+            agentProfileId: options.agentProfile,
+          });
+        },
+        async close() {},
+      }),
+    },
+  });
+  t.after(() => manager.close());
+
+  const first = await manager.openDriver({ projectId: "fixture" });
+  manager.receive(first.run.id, "state", { state: "running" });
+  manager.receive(first.run.id, "context", {
+    source: "conversation-state",
+    model: "baseline-model",
+    contextWindow: 200000,
+    perTurnToken: 180000,
+    usedPercent: 90,
+    remainingPercent: 10,
+    coverage: "OpenHands-reported context capacity.",
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(starts.length, 1);
+  assert.equal(manager.activeDriver("fixture").id, first.run.id);
+
+  manager.receive(first.run.id, "turn.completed", { state: "completed" });
+  await waitFor(() => manager.activeDriver("fixture")?.id !== first.run.id);
+
+  const replacement = manager.activeDriver("fixture"),
+    retired = store.get("runs", first.run.id);
+  assert.equal(starts.length, 2);
+  assert.equal(replacement.driverGeneration, 2);
+  assert.equal(replacement.driverPredecessorId, first.run.id);
+  assert.equal(replacement.driverHandoffReason, "context-threshold");
+  assert.equal(replacement.agentProfile, "fresh-agent");
+  assert.equal(replacement.model, "fresh-model");
+  assert.equal(replacement.routingDecision.ruleId, "low-driver-context");
+  assert.equal(retired.driverActive, false);
+  assert.equal(retired.contextRemainingPercent, 10);
+  assert.equal(retired.contextTelemetry.contextWindow, 200000);
+  assert.equal(retired.automaticHandoffRuleId, "low-driver-context");
+
+  configureProject(store, root, "pinned");
+  const pinned = await manager.openDriver({
+    projectId: "pinned",
+    agentProfile: "baseline-agent",
+  });
+  manager.receive(pinned.run.id, "state", { state: "running" });
+  manager.receive(pinned.run.id, "context", {
+    source: "conversation-state",
+    contextWindow: 200000,
+    perTurnToken: 190000,
+    usedPercent: 95,
+    remainingPercent: 5,
+  });
+  manager.receive(pinned.run.id, "turn.completed", { state: "completed" });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(manager.activeDriver("pinned").id, pinned.run.id);
+  assert.ok(
+    store
+      .events({ runId: pinned.run.id })
+      .some(
+        (event) =>
+          event.kind === "driver.handoff.skipped" &&
+          event.reason === "explicit-override",
+      ),
+  );
 });
 
 test("Driver bootstrap omits inventories and scoped context stays bounded", async (t) => {

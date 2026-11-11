@@ -7,6 +7,13 @@ import { RunManager } from "./manager.mjs";
 import { Operations } from "./operations.mjs";
 import { handleMcp } from "./mcp.mjs";
 
+const ACTIVE_STATES = new Set([
+  "starting",
+  "running",
+  "waiting-input",
+  "waiting-approval",
+]);
+
 export function startAgentHost({
   dbPath,
   manifestPath,
@@ -36,6 +43,24 @@ export function startAgentHost({
   });
   const manager = new RunManager(store, { factories }),
     ops = new Operations(store, { manager, operator });
+  const activeRuns = () =>
+    store
+      .list("runs")
+      .filter((run) => ACTIVE_STATES.has(run.state))
+      .map((run) => ({
+        id: run.id,
+        taskId: run.taskId,
+        projectId: run.projectId,
+        provider: run.provider,
+        state: run.state,
+        title: run.title,
+        startedAt: run.createdAt,
+        updatedAt: run.updatedAt || run.lastObservedAt || run.createdAt,
+      }));
+  const protectedOperations = () =>
+    store.db
+      .prepare("SELECT COUNT(*) count FROM work_locks WHERE pid=?")
+      .get(process.pid).count;
   const json = (res, status, value) => {
     res.writeHead(status, {
       "Content-Type": "application/json",
@@ -54,22 +79,16 @@ export function startAgentHost({
         fail("Same-origin request required.", 403);
       const url = new URL(req.url, "http://" + req.headers.host);
       if (req.method === "GET" && url.pathname === "/health") {
+        const active = activeRuns();
         json(res, 200, {
           ok: true,
           instanceId,
           pid: process.pid,
           dbPath,
           draining,
-          active: store
-            .list("runs")
-            .filter((r) =>
-              [
-                "starting",
-                "running",
-                "waiting-input",
-                "waiting-approval",
-              ].includes(r.state),
-            ).length,
+          active: active.length,
+          activeRuns: active,
+          protectedOperations: protectedOperations(),
         });
         return;
       }
@@ -154,8 +173,14 @@ export function startAgentHost({
           );
           for (const b of batches)
             await ops.execute("batch.control", { id: b.id, action: "pause" });
-          store.event(null, "host.draining", { instanceId });
-          json(res, 200, { draining: true });
+          const state = {
+            draining: true,
+            activeRuns: activeRuns(),
+            pausedBatchIds: batches.map((batch) => batch.id),
+            protectedOperations: protectedOperations(),
+          };
+          store.event(null, "host.draining", { instanceId, ...state });
+          json(res, 200, state);
           return;
         }
         if (input.action === "resume") {
@@ -169,21 +194,8 @@ export function startAgentHost({
           return;
         }
         if (input.action === "stop") {
-          const active = store
-            .list("runs")
-            .filter((r) =>
-              [
-                "starting",
-                "running",
-                "waiting-input",
-                "waiting-approval",
-              ].includes(r.state),
-            );
-          if (
-            store.db
-              .prepare("SELECT COUNT(*) count FROM work_locks WHERE pid=?")
-              .get(process.pid).count
-          )
+          const active = activeRuns();
+          if (protectedOperations())
             fail(
               "Wait for validation or integration to finish before stopping the host.",
               409,

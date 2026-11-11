@@ -43,7 +43,11 @@ import { taskSignals, isPlanInventory } from "../workbench-model.mjs";
 import { ExternalSessions } from "./external-sessions.mjs";
 import { listExamples, seedExample } from "./examples.mjs";
 import { describeWorkspace } from "./client.mjs";
-import { defaultGitHubClient, requirePrivateRepository } from "./github.mjs";
+import {
+  defaultGitHubClient,
+  parseRepository,
+  requirePrivateRepository,
+} from "./github.mjs";
 import {
   configureGitHubRepository,
   machineIdentity,
@@ -52,12 +56,24 @@ import {
   syncGitHubIssues,
 } from "./github-sync.mjs";
 import {
+  listGitHubIntakeCapabilities,
+  mintGitHubIntakeCapability,
+  revokeGitHubIntakeCapability,
+} from "./github-intake.mjs";
+import {
   configureGitHubQueueRepository,
+  claimGitHubQueueIssue,
   createTaskFromQueueItem,
+  githubQueueComments,
+  githubQueuePullRequestDiff,
   githubQueueItems,
   removeGitHubQueueRepository,
   syncGitHubQueue,
 } from "./github-queue.mjs";
+import {
+  ensureGlobalLocalIgnore,
+  globalLocalIgnoreStatus,
+} from "./local-ignore.mjs";
 import { confirmQueueItemLink } from "./github-overlap.mjs";
 import {
   configureWorkspaceRepository,
@@ -84,6 +100,10 @@ import {
   conversationSettings,
   updateConversationSettings,
 } from "./conversation-settings.mjs";
+import {
+  openHandsRoutingAvailability,
+  selectAgentRoute,
+} from "./agent-routing.mjs";
 import { openHandsAgentProfiles } from "./providers/openhands.mjs";
 import { OpenHandsAutomations } from "./openhands-automations.mjs";
 
@@ -226,6 +246,25 @@ function taskCodeChanges(store, data, task, runs, evidenceRecords) {
     pullRequests: [...pulls.values()],
     local: taskLocalChanges(store, task, runs, projectId, base),
   };
+}
+
+function monitoredAutomationRepositories(store, input = {}) {
+  const requested = input.repository
+      ? parseRepository(input.repository).id
+      : null,
+    records = requested
+      ? [store.get("github_queue_repositories", requested)].filter(Boolean)
+      : store
+          .list("github_queue_repositories")
+          .filter((repository) => repository.enabled);
+  if (requested && !records.length)
+    fail("Monitored GitHub repository not found.", 404);
+  return records.map((repository) => ({
+    ...repository,
+    project: repository.projectId
+      ? store.get("projects", repository.projectId)
+      : null,
+  }));
 }
 
 export class Operations {
@@ -884,6 +923,36 @@ export class Operations {
         this.pendingIntents.delete(id);
     }
   }
+  async provisionGitHubIntake(repository, { enable = true } = {}) {
+    try {
+      const prepared = await this.execute(
+          "openhands.automations.intake.prepare",
+          { repository },
+        ),
+        automation = prepared.automation;
+      if (enable && automation?.id && !automation.enabled) {
+        const activated = await this.execute(
+          "openhands.automations.intake.state",
+          { id: automation.id, enabled: true },
+        );
+        return {
+          state: activated.enabled ? "active" : "inactive",
+          prepared,
+          automation: activated,
+        };
+      }
+      return {
+        state: automation?.enabled ? "active" : "inactive",
+        prepared,
+        automation,
+      };
+    } catch (error) {
+      return {
+        state: "blocked",
+        reason: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
   async execute(name, input = {}, expectedRevision) {
     const store = this.store;
     if (name === "client.describe")
@@ -981,11 +1050,210 @@ export class Operations {
       return this.configuration
         ? this.configuration.updateConversationSettings(input).settings
         : store.transaction(() => updateConversationSettings(store, input));
+    if (name === "conversations.routing.preview") {
+      const task = input.taskId
+          ? this.read().tasks.find(
+              (candidate) =>
+                candidate.id === resolveTaskId(this.read(), input.taskId),
+            )
+          : null,
+        parent = input.parentRunId
+          ? store.get("runs", input.parentRunId)
+          : null;
+      if (input.taskId && !task) fail("Task not found.", 404);
+      if (input.parentRunId && !parent) fail("Parent run not found.", 404);
+      let availability = null;
+      if (
+        conversationSettings(store).routing.enabled &&
+        (!input.provider || input.provider === "openhands")
+      )
+        try {
+          availability = openHandsRoutingAvailability(
+            await openHandsAgentProfiles(),
+          );
+        } catch (error) {
+          availability = {
+            provider: "openhands",
+            state: "unavailable",
+            reason:
+              "OpenHands profile discovery failed: " +
+              (error?.message || "unknown error"),
+            agentProfiles: [],
+          };
+        }
+      return selectAgentRoute({
+        settings: conversationSettings(store).routing,
+        input,
+        task,
+        parent,
+        availability,
+      });
+    }
     if (name === "openhands.profiles") return openHandsAgentProfiles();
     if (name === "openhands.automations.capabilities")
       return this.openhandsAutomations.capabilities();
-    if (name === "openhands.automations.setup")
-      return this.openhandsAutomations.setup(input);
+    if (name === "openhands.automations.recommendations")
+      return this.openhandsAutomations.recommendations({
+        repositories: monitoredAutomationRepositories(store, input),
+      });
+    if (name === "openhands.automations.coverage")
+      return this.openhandsAutomations.coverage({
+        repositories: monitoredAutomationRepositories(store, input),
+      });
+    if (name === "openhands.automations.intake.preflight") {
+      const repositories = monitoredAutomationRepositories(store, input),
+        repository = repositories[0] || null,
+        issueIntake = repository
+          ? store.get("github_repositories", repository.id)
+          : null;
+      return this.openhandsAutomations.intakePreflight({
+        repositories,
+        workspaceId: workspaceIdentity(store),
+        intake: {
+          callbackPath: "/api/github-intake",
+          callbackUrl: this.manager?.baseUrl
+            ? this.manager.baseUrl + "/api/github-intake"
+            : null,
+          capabilities: listGitHubIntakeCapabilities(store, input),
+          canMint: this.github.available(),
+          issueAuthorization: Boolean(issueIntake),
+          assignee: issueIntake?.assignee || null,
+        },
+      });
+    }
+    if (name === "openhands.automations.intake.prepare") {
+      const [repository] = monitoredAutomationRepositories(store, input);
+      if (!repository.enabled)
+        fail("Enable this monitored repository before preparing automation.");
+      const issueIntake = store.get("github_repositories", repository.id),
+        callbackUrl = this.manager?.baseUrl
+          ? this.manager.baseUrl + "/api/github-intake"
+          : null;
+      if (issueIntake && repository.visibility === "public")
+        fail("Public repositories cannot authorize issue execution.", 403);
+      if (!callbackUrl)
+        fail(
+          "Start the local Avoozl server before preparing OpenHands intake.",
+          409,
+        );
+      let active = listGitHubIntakeCapabilities(store, {
+          repository: repository.id,
+        }).find((capability) => capability.state === "active"),
+        minted = null,
+        repair = input.repair === true,
+        replacedCapability = null;
+      const coverage = await this.openhandsAutomations.coverage({
+          repositories: [repository],
+        }),
+        installed = coverage.repositories?.[0]?.controlPlane?.automations || [];
+      if (active && !installed.length) {
+        revokeGitHubIntakeCapability(store, { id: active.id });
+        active = null;
+      }
+      if (!active && installed.length && !repair)
+        fail(
+          "The installed OpenHands watcher no longer has an active Avoozl capability. Use Repair to rotate it deliberately.",
+          409,
+        );
+      if (active && installed.length && repair) {
+        replacedCapability = active;
+        revokeGitHubIntakeCapability(store, { id: active.id });
+        active = null;
+      }
+      if (!active) {
+        minted = await mintGitHubIntakeCapability(store, this.github, {
+          repository: repository.id,
+        });
+        active = { ...minted.capability, state: "active" };
+      }
+      try {
+        const result = await this.openhandsAutomations.prepareIntake({
+          repository: repository.id,
+          workspaceId: workspaceIdentity(store),
+          callbackUrl,
+          capability: active,
+          capabilityToken: minted?.token,
+          ingestSecretName: active.suggestedSecretName,
+          githubSecretName:
+            input.githubSecretName || "GITHUB_PERSONAL_ACCESS_TOKEN",
+          mode: active.mode,
+          assignee: issueIntake?.assignee || "",
+          readyLabel: issueIntake?.label || "avoozl:ready",
+          schedule: input.schedule,
+          timezone: input.timezone,
+          repair,
+        });
+        if (minted && !result.created)
+          if (!repair) revokeGitHubIntakeCapability(store, { id: active.id });
+        return {
+          ...result,
+          ...(replacedCapability
+            ? { replacedCapabilityId: replacedCapability.id }
+            : {}),
+          coverage: await this.openhandsAutomations.coverage({
+            repositories: [repository],
+          }),
+        };
+      } catch (error) {
+        if (minted) revokeGitHubIntakeCapability(store, { id: active.id });
+        throw error;
+      }
+    }
+    if (name === "openhands.automations.intake.state")
+      return this.openhandsAutomations.setIntakeState(input, {
+        authorizeEnable: async ({ repository, mode }) => {
+          const monitored = store.get(
+            "github_queue_repositories",
+            parseRepository(repository).id,
+          );
+          if (!monitored?.enabled)
+            fail(
+              `Enable this ${
+                monitored?.visibility || "monitored"
+              } monitored repository before activating its watcher.`,
+              409,
+            );
+          const issueIntake = store.get("github_repositories", monitored.id),
+            expectedMode = issueIntake ? "authorization" : "observation-only";
+          if (mode !== expectedMode)
+            fail(
+              "The installed watcher mode no longer matches this repository configuration. Repair it before enabling.",
+              409,
+            );
+          const remote = await this.github.repository(
+              parseRepository(repository),
+            ),
+            actualVisibility = remote.private === true ? "private" : "public",
+            expectedVisibility =
+              monitored.visibility ||
+              (monitored.private === true ? "private" : "public");
+          if (actualVisibility !== expectedVisibility)
+            fail(
+              `The monitored GitHub repository must remain ${expectedVisibility}.`,
+              409,
+            );
+          if (issueIntake && actualVisibility !== "private")
+            fail("Public repositories cannot authorize issue execution.", 403);
+          if (monitored.nodeId && remote.node_id !== monitored.nodeId)
+            fail("The monitored GitHub repository identity changed.", 409);
+        },
+      });
+    if (name === "openhands.automations.setup") {
+      if (!input.repository) return this.openhandsAutomations.setup(input);
+      const [repository] = monitoredAutomationRepositories(store, input);
+      if (!repository.enabled)
+        fail("Enable this monitored repository before preparing automation.");
+      if (repository.visibility !== "private" && repository.private !== true)
+        fail(
+          "Avoozl only prepares native OpenHands automations for private monitored repositories.",
+          403,
+        );
+      return this.openhandsAutomations.setup({
+        ...input,
+        repository: repository.id,
+        baseBranch: repository.project?.baseBranch || "main",
+      });
+    }
     if (name === "models") return this.manager.models(input.provider);
     if (name === "usage.limits") return this.manager.usage(input.provider);
     if (name === "query")
@@ -1218,6 +1486,22 @@ export class Operations {
         },
         expectedRevision,
       );
+    if (name === "agent.instructions.source") {
+      const source = store.read().agentInstructionSource,
+        snapshot = store.getMeta("agentInstructionSourceSnapshot");
+      if (!source)
+        fail("No AGENTS.md instructions have been synchronized.", 404);
+      if (
+        !snapshot ||
+        snapshot.path !== source.path ||
+        snapshot.hash !== source.hash
+      )
+        fail(
+          "The synchronized AGENTS.md snapshot is unavailable. Sync it again.",
+          409,
+        );
+      return snapshot;
+    }
     if (name === "agent.instructions.toggle")
       return store.mutate(
         (input.enabled ? "Enable " : "Disable ") +
@@ -1442,6 +1726,18 @@ export class Operations {
           .get().seq,
       };
     }
+    if (name === "configuration.get") {
+      if (!this.configuration)
+        fail("Configuration editing is unavailable from this server.", 404);
+      return this.configuration.readConfiguration(input.scope);
+    }
+    if (name === "configuration.update") {
+      if (!this.configuration)
+        fail("Configuration editing is unavailable from this server.", 404);
+      return this.configuration.updateConfiguration(input);
+    }
+    if (name === "local.ignore.status") return globalLocalIgnoreStatus();
+    if (name === "local.ignore.fix") return ensureGlobalLocalIgnore();
     if (name === "task.capture")
       return store.mutate(
         "Capture prompt",
@@ -1819,7 +2115,18 @@ export class Operations {
           configuration,
         );
       this.configuration?.updateGitHubProjectConnection(execution, queue);
-      return { repository: detected.repository, execution, queue };
+      const automationProvisioning =
+        input.provisionAutomation === true
+          ? await this.provisionGitHubIntake(queue.id, {
+              enable: input.enableAutomation !== false,
+            })
+          : null;
+      return {
+        repository: detected.repository,
+        execution,
+        queue,
+        automationProvisioning,
+      };
     }
     if (name === "github.configure") {
       this.configuration?.assertWritable();
@@ -1837,6 +2144,15 @@ export class Operations {
         machine: machineIdentity(store),
         items: store.list("github_repositories"),
       };
+    if (name === "github.intake.capabilities")
+      return {
+        callbackPath: "/api/github-intake",
+        items: listGitHubIntakeCapabilities(store, input),
+      };
+    if (name === "github.intake.capability.create")
+      return mintGitHubIntakeCapability(store, this.github, input);
+    if (name === "github.intake.capability.revoke")
+      return revokeGitHubIntakeCapability(store, input);
     if (name === "github.queue.configure") {
       this.configuration?.assertWritable();
       const configured = await configureGitHubQueueRepository(
@@ -1845,7 +2161,21 @@ export class Operations {
         input,
       );
       this.configuration?.updateGitHubQueue(configured);
-      return configured;
+      const automation =
+        typeof this.openhandsAutomations.recommendations === "function"
+          ? this.openhandsAutomations.recommendations({
+              repositories: monitoredAutomationRepositories(store, {
+                repository: configured.id,
+              }),
+            }).repositories[0] || null
+          : null;
+      const automationProvisioning =
+        input.provisionAutomation === true && configured.enabled
+          ? await this.provisionGitHubIntake(configured.id, {
+              enable: input.enableAutomation !== false,
+            })
+          : null;
+      return { ...configured, automation, automationProvisioning };
     }
     if (name === "github.queue.remove") {
       this.configuration?.assertWritable();
@@ -1860,6 +2190,10 @@ export class Operations {
       };
     if (name === "queue.items")
       return githubQueueItems(store, this.github, input);
+    if (name === "queue.comments")
+      return githubQueueComments(store, this.github, input);
+    if (name === "queue.diff")
+      return githubQueuePullRequestDiff(store, this.github, input);
     if (name === "queue.sync")
       return {
         ...(await syncGitHubQueue(store, this.github, input)),
@@ -1872,6 +2206,8 @@ export class Operations {
         input,
         expectedRevision,
       );
+    if (name === "queue.claim")
+      return claimGitHubQueueIssue(store, this.github, input);
     if (name === "queue.confirmLink")
       return confirmQueueItemLink(
         store,
@@ -1957,6 +2293,53 @@ export class Operations {
       const configured = store.put("projects", project);
       this.configuration?.updateExecutionProject(configured);
       return configured;
+    }
+    if (name === "project.remove") {
+      const id = String(input.id || "").trim(),
+        project = id ? store.get("projects", id) : null;
+      if (!project) fail("Project not found.", 404);
+      const activeRun = store
+        .list("runs")
+        .find(
+          (run) =>
+            run.projectId === id &&
+            [
+              "starting",
+              "running",
+              "waiting-input",
+              "waiting-approval",
+            ].includes(run.state),
+        );
+      if (activeRun)
+        fail(
+          `Project ${id} still has an active conversation. Stop it before removing the project.`,
+          409,
+        );
+      const locked = store.db
+        .prepare("SELECT id FROM work_locks WHERE project_id=? LIMIT 1")
+        .get(id);
+      if (locked)
+        fail(
+          `Project ${id} is currently locked by active work. Wait for it to finish before removing the project.`,
+          409,
+        );
+      const authorization = store
+          .list("github_repositories")
+          .find((entry) => entry.projectId === id),
+        monitoring = store
+          .list("github_queue_repositories")
+          .find((entry) => entry.projectId === id);
+      if (authorization || monitoring)
+        fail(
+          `Project ${id} is still connected to GitHub. Remove or reassign its monitored and label-authorized repositories first.`,
+          409,
+        );
+      this.configuration?.assertWritable();
+      this.configuration?.removeExecutionProject(id);
+      store.remove("projects", id);
+      this.configuration?.reload();
+      store.event(null, "project.removed", { projectId: id });
+      return { ...project, removed: true };
     }
     if (name === "run.start") return this.manager.start(input);
     if (name === "run.context") {

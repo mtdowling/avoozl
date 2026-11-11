@@ -12,10 +12,15 @@ const esc = (s) =>
       ],
   );
 const color = (c) => (/^#[\da-f]{6}$/i.test(c || "") ? c : "#a7b8ff");
+export function resolveEpicLabelWidth(viewportWidth, preferredWidth = 220) {
+  if (viewportWidth <= 760) return 150;
+  return Math.max(150, Math.min(480, Number(preferredWidth) || 220));
+}
 export function createEpicProgress(root, { select, changeZoom, controlsRoot }) {
   let current,
     rows = [],
     zoom = 100,
+    preferredLabelWidth = 220,
     frame = 0,
     viewport,
     chart,
@@ -38,7 +43,10 @@ export function createEpicProgress(root, { select, changeZoom, controlsRoot }) {
   function paint() {
     frame = 0;
     if (!current || root.hidden || !viewport) return;
-    const labelWidth = viewport.clientWidth < 600 ? 150 : 220,
+    const labelWidth = resolveEpicLabelWidth(
+        viewport.clientWidth,
+        preferredLabelWidth,
+      ),
       bandView = Math.max(120, viewport.clientWidth - labelWidth),
       maxTasks = rows.reduce((max, r) => Math.max(max, r.total), 0),
       bandWidth = (bandView * zoom) / 100,
@@ -163,7 +171,10 @@ export function createEpicProgress(root, { select, changeZoom, controlsRoot }) {
     root.innerHTML = `${controlsRoot ? "" : controls}<div class="epic-scroll" tabindex="0" aria-label="Epic progress chart. Pinch to zoom; drag in any direction."><div class="epic-chart-window"><header class="epic-scroll-heading"><p>${rows.length} epics · pinch to zoom, drag in any direction.</p></header><div class="epic-axis"><span>0% · plan order →</span><span>100% of scope</span></div></div></div>`;
     viewport = root.querySelector(".epic-scroll");
     chart = root.querySelector(".epic-chart-window");
-    const labelWidth = viewport.clientWidth < 600 ? 150 : 220,
+    const labelWidth = resolveEpicLabelWidth(
+        viewport.clientWidth,
+        preferredLabelWidth,
+      ),
       bandView = Math.max(120, viewport.clientWidth - labelWidth);
     chart.style.width =
       Math.max(bandView, (bandView * zoom) / 100) + labelWidth + "px";
@@ -176,7 +187,10 @@ export function createEpicProgress(root, { select, changeZoom, controlsRoot }) {
     schedule();
   }
   function captureCamera(clientX) {
-    const labelWidth = viewport.clientWidth < 600 ? 150 : 220,
+    const labelWidth = resolveEpicLabelWidth(
+        viewport.clientWidth,
+        preferredLabelWidth,
+      ),
       bandView = Math.max(120, viewport.clientWidth - labelWidth),
       anchor =
         clientX == null
@@ -256,6 +270,10 @@ export function createEpicProgress(root, { select, changeZoom, controlsRoot }) {
 
   return {
     render,
+    setLabelWidth(width) {
+      preferredLabelWidth = Math.max(150, Math.min(480, Number(width) || 220));
+      schedule();
+    },
     setSelection(id) {
       if (current) current.selected = id;
       schedule();

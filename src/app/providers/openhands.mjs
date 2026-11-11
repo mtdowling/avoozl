@@ -14,7 +14,7 @@ export const OPENHANDS_VERSIONS = Object.freeze({
   client: "1.61.0",
   server: "1.61.0",
   canvas: "1.38.0",
-  plugin: "1.0.0",
+  plugin: "1.2.0",
 });
 
 export const OPENHANDS_CAPABILITIES = Object.freeze({
@@ -36,7 +36,7 @@ export const OPENHANDS_CAPABILITIES = Object.freeze({
 
 export const OPENHANDS_PLUGIN = Object.freeze({
   name: "avoozl",
-  version: "1.0.0",
+  version: "1.2.0",
   source: path.join(
     path.dirname(fileURLToPath(import.meta.url)),
     "openhands-plugin",
@@ -247,6 +247,11 @@ function executionState(event) {
     event.key === "execution_status"
   )
     return event.value;
+  if (
+    event.kind === "ConversationStateUpdateEvent" &&
+    event.key === "full_state"
+  )
+    return event.value?.execution_status;
   return (
     event.execution_status ||
     event.agent_status ||
@@ -379,6 +384,48 @@ export function openHandsUsageReport(
     usage,
     coverage:
       "OpenHands cumulative conversation metrics. Prompt, completion, cache, reasoning, and cost fields are retained only when the selected LLM backend reports them.",
+  };
+}
+
+export function openHandsContextWindowReport(
+  info,
+  { providerSessionId = info?.id, source = "conversation-stats" } = {},
+) {
+  const candidates = metricSnapshots(info)
+    .flatMap(([usageId, metric]) => {
+      const tokens = metric?.accumulated_token_usage,
+        contextWindow = reportedNumber(tokens?.context_window),
+        perTurnToken = reportedNumber(tokens?.per_turn_token);
+      if (contextWindow === null || contextWindow <= 0 || perTurnToken === null)
+        return [];
+      const usedPercent = Math.min(100, (perTurnToken / contextWindow) * 100);
+      return [
+        {
+          usageId,
+          model:
+            metric?.model_name ||
+            tokens?.model ||
+            openHandsConversationModel(info),
+          contextWindow,
+          perTurnToken,
+          usedPercent,
+          remainingPercent: Math.max(0, 100 - usedPercent),
+        },
+      ];
+    })
+    .sort(
+      (left, right) =>
+        right.usedPercent - left.usedPercent ||
+        String(left.usageId).localeCompare(String(right.usageId)),
+    );
+  if (!candidates.length) return null;
+  return {
+    provider: "openhands",
+    providerSessionId: providerSessionId || null,
+    source,
+    ...candidates[0],
+    coverage:
+      "OpenHands-reported per-turn tokens divided by its reported model context window. This is context capacity, not cumulative spend or plan allowance.",
   };
 }
 
@@ -753,6 +800,7 @@ export class OpenHandsAdapter {
         marker = `${providerState || "unknown"}:${info.updated_at || ""}`,
         authoritative = marker !== this.authoritativeStateMarker;
       this.authoritativeStateMarker = marker;
+      this.emitUsageFromInfo(info, "conversation-state");
       this.observeState(
         providerState,
         {
@@ -803,6 +851,11 @@ export class OpenHandsAdapter {
   emitUsageFromInfo(info, source = "conversation-stats") {
     const model = openHandsConversationModel(info, this.currentModel);
     if (model) this.currentModel = model;
+    const context = openHandsContextWindowReport(info, {
+      providerSessionId: this.conversationId,
+      source,
+    });
+    if (context) this.emit("context", context);
     const report = openHandsUsageReport(info, {
       providerSessionId: this.conversationId,
       fallbackModel: this.currentModel,
@@ -1001,21 +1054,27 @@ export class OpenHandsAdapter {
     }
     if (
       event.kind === "ConversationStateUpdateEvent" &&
-      ["stats", "conversation_stats", "metrics", "usage_to_metrics"].includes(
-        event.key,
-      )
+      [
+        "full_state",
+        "stats",
+        "conversation_stats",
+        "metrics",
+        "usage_to_metrics",
+      ].includes(event.key)
     ) {
       const info =
-        event.key === "metrics"
-          ? { id: this.conversationId, metrics: event.value }
-          : event.key === "usage_to_metrics"
-            ? {
-                id: this.conversationId,
-                stats: { usage_to_metrics: event.value },
-              }
-            : { id: this.conversationId, [event.key]: event.value };
+        event.key === "full_state"
+          ? { id: this.conversationId, ...event.value }
+          : event.key === "metrics"
+            ? { id: this.conversationId, metrics: event.value }
+            : event.key === "usage_to_metrics"
+              ? {
+                  id: this.conversationId,
+                  stats: { usage_to_metrics: event.value },
+                }
+              : { id: this.conversationId, [event.key]: event.value };
       this.emitUsageFromInfo(info, "conversation-state");
-      return;
+      if (event.key !== "full_state") return;
     }
     if (
       event.kind === "ConversationErrorEvent" ||

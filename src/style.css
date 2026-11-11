@@ -5085,6 +5085,15 @@ body {
   background: #123b20;
   color: #baf5cc;
 }
+.hub-subtabs {
+  margin-top: -4px;
+  margin-bottom: 16px;
+  border-bottom-color: #303030;
+}
+.hub-subtabs button {
+  padding: 8px 12px;
+  font-size: 12px;
+}
 .hub-panel:focus {
   outline: none;
 }
@@ -5102,6 +5111,17 @@ body {
 .section-heading > span {
   font-size: 11px;
   color: #a5a5a5;
+}
+.section-heading-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+.section-heading-actions > span {
+  color: #a5a5a5;
+  font-size: 11px;
+  text-align: right;
 }
 .hub-clear {
   color: #c3c3c3;
@@ -5206,7 +5226,8 @@ body {
 .hub-row-actions .text-button {
   font-size: 11px;
 }
-.hub-session-open {
+.hub-session-open,
+.hub-task-action {
   width: 32px;
   height: 32px;
   min-width: 32px;
@@ -5219,16 +5240,19 @@ body {
   border: 1px solid #484848;
   border-radius: 6px;
 }
-.hub-session-open svg {
+.hub-session-open svg,
+.hub-task-action svg {
   width: 18px;
   height: 18px;
 }
-.hub-session-open:hover {
+.hub-session-open:hover,
+.hub-task-action:hover {
   color: #ffffff;
   background: #333333;
   border-color: #6b6b6b;
 }
-.hub-session-open:focus-visible {
+.hub-session-open:focus-visible,
+.hub-task-action:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -5441,6 +5465,15 @@ body {
   .section-heading > span {
     max-width: 145px;
     text-align: right;
+    font-size: 10px;
+  }
+  .section-heading-actions {
+    align-items: flex-end;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .section-heading-actions > span {
+    max-width: 180px;
     font-size: 10px;
   }
   .tree-task .badge {

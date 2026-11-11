@@ -44,7 +44,7 @@ The application checkout contains reusable software and example fixtures. Each w
 ```text
 my-plans/
   .avoozl/config.json
-  state/workspace.sqlite
+  .avoozl/local/workspace.sqlite
   plans/
 ```
 
@@ -57,7 +57,7 @@ Choose a workspace with `--workspace PATH` or `AVOOZL_WORKSPACE`. Avoozl reads s
   "$schema": "https://avoozl.dev/schema/config-v1.json",
   "version": 1,
   "name": "My plans",
-  "dbPath": "../state/workspace.sqlite",
+  "dbPath": "local/workspace.sqlite",
   "documents": "../plans",
   "port": 9428,
   "host": "127.0.0.1",
@@ -66,12 +66,45 @@ Choose a workspace with `--workspace PATH` or `AVOOZL_WORKSPACE`. Avoozl reads s
     "driver": {
       "agentProfile": "avoozl-codex",
       "model": null
+    },
+    "routing": {
+      "enabled": true,
+      "fallback": {
+        "agentProfile": "avoozl-codex",
+        "model": null
+      },
+      "rules": [
+        {
+          "id": "high-risk-runtime",
+          "priority": 50,
+          "categories": ["task.implement"],
+          "scopes": ["runtime"],
+          "risks": ["high"],
+          "agentProfile": "avoozl-claude"
+        }
+      ]
     }
   }
 }
 ```
 
 Settings is a validated façade over these JSON files, so the Driver can also edit ordinary preferences directly. Avoozl watches the workspace file and keeps the last valid configuration if an edit is incomplete or invalid. Startup topology changes such as database paths, listeners, and manifests require a restart. Actions with external effects—installing OpenHands automation, registering GitHub intake, or applying repository setup—remain explicit Settings actions.
+
+Conversation routing selects an OpenHands agent profile and model
+deterministically from workflow category, task scope, `risk:low`,
+`risk:medium`, or `risk:high` tags, and a reported remaining-context
+percentage. Higher-priority matching rules win, then the fallback applies.
+An explicit per-run agent or model choice always wins. Every run records its
+routing decision and the signals that produced it. When OpenHands reports both
+`per_turn_token` and `context_window`, Avoozl records their ratio as remaining
+context capacity. A `contextRemainingAtMost` rule is skipped when either value
+is absent; cumulative or billed tokens are never substituted. At a completed
+Driver turn, a matching context-threshold rule creates a linked successor
+Driver and preserves the prior conversation. Before launch, Avoozl checks
+selected agent profiles against the profiles advertised by OpenHands and skips
+policy rules that name a missing profile. Model access remains validated by
+OpenHands when the conversation starts because its profile catalog is not a
+complete provider entitlement list.
 
 Configuration is intentionally non-secret. The loader and schema reject secret-like fields. Keep provider credentials, GitHub authentication, session tokens, transcripts, approvals, leases, and execution state in their owning credential store or SQLite, never in either Avoozl JSON file.
 
@@ -153,7 +186,7 @@ unambiguous default; with several, choose one before opening chat.
 
 ## Private GitHub planning and work intake
 
-Avoozl can publish sanitized planning state to a Git branch, open a planning pull request, project merged design tasks into issues, and accept assigned issues labeled `avoozl:ready` through the same execution path. Repository registration verifies that GitHub reports the repository as private. Every later poll, issue projection, and planning pull-request operation repeats that check and fails before mutation if visibility changes.
+Avoozl can publish sanitized planning state to a Git branch, open a planning pull request, project merged design tasks into issues, and accept assigned issues labeled `avoozl:ready` through the same execution path. Repository registration verifies that GitHub reports the repository as private. OpenHands Automations own scheduled GitHub observation and submit exact snapshots through a repository-scoped Avoozl intake capability; Avoozl rechecks repository visibility and current GitHub state before any authorization transition. Issue projection, planning pull-request operations, and explicit Queue reconciliation also fail before mutation if visibility changes.
 
 ```sh
 gh auth login
@@ -162,7 +195,7 @@ node cli.mjs github configure OWNER/CODE --workspace ../my-plans --project code 
 node cli.mjs workspace-repo configure /path/to/private-planning-checkout --workspace ../my-plans --branch avoozl-workspace --directory .avoozl
 node cli.mjs planning publish PLAN_ID --workspace ../my-plans
 node cli.mjs planning reconcile --workspace ../my-plans
-node cli.mjs github sync --workspace ../my-plans
+node cli.mjs github sync --workspace ../my-plans # explicit recovery/reconciliation
 ```
 
 The publication allowlist contains Markdown designs, exact approval receipts, task definitions, and structured review threads. SQLite, provider credentials, environment files, transcripts, terminal output, local repository roots, and absolute user paths are rejected. A second computer configures its own checkout and credentials, then runs `workspace-repo sync`; it does not copy the first computer's execution database.

@@ -75,7 +75,129 @@ export type OpenHandsAutomationSetup = {
   path: string;
   template: OpenHandsAutomationTemplate;
   createsAutomation: false;
+  createsDraft?: false;
   requiresUserReview: true;
+};
+
+export type OpenHandsAutomationCoverageState =
+  | "active"
+  | "inactive"
+  | "draft"
+  | "recommended";
+
+export type OpenHandsAutomationCoverage = {
+  available: boolean;
+  state?: "missing-control-plane-intake" | "covered";
+  reason?: string;
+  ownership: {
+    continuousGitHubOwner: string;
+    authorizationAndExecutionOwner: string;
+    reconciliationOwner: string;
+    reconciliationOperation: string;
+    directIngest: {
+      available: boolean;
+      required: boolean;
+      reason: string;
+      safeFutureContract?: {
+        implemented?: boolean;
+      };
+    };
+  };
+  repositories: Array<{
+    repository: string;
+    projectId?: string | null;
+    eligible: boolean;
+    reason?: string;
+    controlPlane: OpenHandsAutomationControlPlane;
+    recommendations: OpenHandsAutomationRecommendation[];
+    relatedAutomations: OpenHandsAutomationRecommendation[];
+    coverage?: Array<{
+      role: string;
+      templateId: string;
+      satisfiesAvoozlIntake?: false;
+      state: OpenHandsAutomationCoverageState;
+      automations: Array<{
+        id?: string | null;
+        name?: string | null;
+        state?: string | null;
+      }>;
+      drafts: Array<{
+        id?: string | null;
+        name?: string | null;
+        dispatchable?: boolean;
+      }>;
+    }>;
+  }>;
+};
+
+export type OpenHandsAutomationControlPlane = {
+  id: string;
+  role: "control-plane-intake";
+  required: boolean;
+  state: string;
+  available: boolean;
+  satisfiesAvoozlIntake: boolean;
+  reason: string;
+  handoff: null;
+  automations?: Array<{
+    id: string;
+    name?: string | null;
+    enabled?: boolean;
+    state?: string | null;
+    detailPath?: string | null;
+  }>;
+};
+
+export type OpenHandsAutomationRecommendation = {
+  role: string;
+  summary: string;
+  relationship?: "competing" | "supplemental";
+  satisfiesAvoozlIntake?: false;
+  warning?: string;
+  effects?: string[];
+  template: OpenHandsAutomationTemplate;
+  handoff: OpenHandsAutomationSetup & {
+    prefill?: {
+      repository?: string;
+      repositories?: string[];
+      ref?: string;
+    };
+  };
+};
+
+export type OpenHandsIntakePreflight = {
+  id: string;
+  version?: string;
+  repository?: string;
+  readyToPrepareDraft?: boolean;
+  readyToPrepare?: boolean;
+  createsAutomation: boolean;
+  createsDraft: false;
+  enablesAutomation: false;
+  prerequisites: Record<
+    string,
+    {
+      status: string;
+      reason?: string;
+      [key: string]: unknown;
+    }
+  >;
+  next?: string;
+};
+
+export type OpenHandsIntakePrepareResult = {
+  repository: string;
+  created: boolean;
+  repaired?: boolean;
+  replacedCapabilityId?: string;
+  automation: {
+    id: string;
+    name?: string;
+    enabled?: boolean;
+    state?: string;
+  };
+  coverage?: OpenHandsAutomationCoverage;
+  prerequisites?: OpenHandsIntakePreflight["prerequisites"];
 };
 
 export type Provider = {
@@ -170,6 +292,7 @@ export type Workspace = {
         visibility?: "private" | "public";
         accessMode?: "private-read-only" | "public-read-only";
         canAuthorizeExecution?: boolean;
+        labelBehaviors?: GitHubLabelBehaviors;
       }>;
       synchronizedAt?: string | null;
     };
@@ -186,11 +309,43 @@ export type Workspace = {
     import?: { commit: string; at: string } | null;
   };
   providers: Provider[];
-  agentHost?: { connected?: boolean; draining?: boolean };
+  agentHost?: {
+    connected?: boolean;
+    draining?: boolean;
+    active?: number;
+    activeRuns?: Array<{
+      id: string;
+      taskId?: string;
+      projectId?: string;
+      provider?: string;
+      state: string;
+      title?: string;
+      startedAt?: string;
+      updatedAt?: string;
+    }>;
+    protectedOperations?: number;
+  };
   conversationSettings?: {
     autoArchiveCompleted: boolean;
     driverAgentProfile?: string | null;
     driverModel?: string | null;
+    routing?: {
+      enabled: boolean;
+      fallback: {
+        agentProfile?: string | null;
+        model?: string | null;
+      };
+      rules: Array<{
+        id: string;
+        priority: number;
+        categories: string[];
+        scopes: string[];
+        risks: string[];
+        contextRemainingAtMost?: number | null;
+        agentProfile?: string | null;
+        model?: string | null;
+      }>;
+    };
   };
   configuration?: ConfigurationMetadata | null;
   publication?: { pending?: unknown[]; last?: unknown[] };
@@ -203,6 +358,7 @@ export type QueueItem = {
   kind: "issue" | "pull-request" | "task";
   title: string;
   summary?: string;
+  body?: string;
   repository?: string;
   projectId?: string;
   number?: number;
@@ -211,14 +367,108 @@ export type QueueItem = {
   assignees?: string[];
   assigned?: boolean;
   labels?: string[];
+  normalizedState?: GitHubLabelBehavior | "unclassified";
+  normalizedStates?: GitHubLabelBehavior[];
   state?: string;
+  createdAt?: string;
   updatedAt?: string;
+  attention?: "approval" | "ready";
+  processed?: boolean;
+  processedAt?: string;
+  disposition?: string;
   taskId?: string;
   task?: Task;
   headBranch?: string;
   baseBranch?: string;
   overlapCandidates?: QueueOverlapCandidate[];
   associations?: QueueAssociation[];
+  claim?: {
+    login: string;
+    claimedAt: string;
+  };
+};
+
+export type GitHubLabelBehavior =
+  | "ready"
+  | "blocked"
+  | "review"
+  | "quarantined";
+
+export type GitHubLabelBehaviors = Record<GitHubLabelBehavior, string[]>;
+
+export type QueueComment = {
+  id: string;
+  body: string;
+  author: string | null;
+  authorUrl?: string | null;
+  authorAssociation?: string | null;
+  createdAt: string | null;
+  updatedAt?: string | null;
+  url?: string | null;
+  kind?: "issue-comment" | "review-comment";
+  nodeId?: string | null;
+  databaseId?: number | null;
+  threadId?: string | null;
+  replyToId?: string | null;
+  path?: string | null;
+  line?: number | null;
+  originalLine?: number | null;
+  startLine?: number | null;
+  side?: string | null;
+  startSide?: string | null;
+  commitId?: string | null;
+  originalCommitId?: string | null;
+  pullRequestReviewId?: number | null;
+  diffHunk?: string | null;
+  reactions?: Record<string, number>;
+};
+
+export type QueueComments = {
+  item?: Pick<
+    QueueItem,
+    "id" | "kind" | "repository" | "number" | "title" | "url"
+  >;
+  available?: boolean;
+  reason?: string | null;
+  comments: QueueComment[];
+  counts?: {
+    issue: number;
+    review: number;
+    total: number;
+  };
+  fetchedAt?: string;
+};
+
+export type QueueDiffFile = {
+  sha?: string | null;
+  filename: string;
+  previousFilename?: string | null;
+  status: string;
+  additions: number;
+  deletions: number;
+  changes: number;
+  blobUrl?: string | null;
+  rawUrl?: string | null;
+  patch?: string | null;
+  patchUnavailable?: boolean;
+  patchTruncated?: boolean;
+};
+
+export type QueuePullRequestDiff = {
+  item?: Pick<QueueItem, "id" | "repository" | "number" | "title" | "url">;
+  files: QueueDiffFile[];
+  counts: {
+    files: number;
+    additions: number;
+    deletions: number;
+  };
+  truncated?: boolean;
+  limits?: {
+    files: number;
+    patchCharacters: number;
+    filePatchCharacters: number;
+  };
+  fetchedAt?: string;
 };
 
 export type QueueOverlapCandidate = {
@@ -268,6 +518,7 @@ export type QueueSnapshot = {
     visibility?: "private" | "public";
     accessMode?: "private-read-only" | "public-read-only";
     canAuthorizeExecution?: boolean;
+    labelBehaviors?: GitHubLabelBehaviors;
   }>;
   items: QueueItem[];
 };
@@ -400,6 +651,7 @@ export type State = {
     label: string;
     color?: string;
     complete?: boolean;
+    archived?: boolean;
   }>;
   epics: Array<{
     id: string;

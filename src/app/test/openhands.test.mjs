@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import {
   OpenHandsAdapter,
+  openHandsContextWindowReport,
   openHandsConversationModel,
   openHandsSettings,
   openHandsTokenUsageReport,
@@ -167,6 +168,20 @@ test("OpenHands normalizes cumulative conversation metrics without inventing mis
     },
   ]);
   assert.equal(openHandsUsageReport(usageFixture.unreported), null);
+  assert.deepEqual(openHandsContextWindowReport(usageFixture.parent), {
+    provider: "openhands",
+    providerSessionId: "conversation-usage-parent",
+    source: "conversation-stats",
+    usageId: "avoozl",
+    model: "anthropic/claude-sonnet-4-5",
+    contextWindow: 200000,
+    perTurnToken: 150000,
+    usedPercent: 75,
+    remainingPercent: 25,
+    coverage:
+      "OpenHands-reported per-turn tokens divided by its reported model context window. This is context capacity, not cumulative spend or plan allowance.",
+  });
+  assert.equal(openHandsContextWindowReport(usageFixture.unreported), null);
 });
 
 test("OpenHands token events are an exact fallback with explicit limitations", () => {
@@ -216,6 +231,9 @@ test("OpenHands adapter prefers cumulative metrics and falls back to TokenEvent 
   assert.ok(canonicalUsage.length);
   assert.ok(canonicalUsage.every((event) => event.source !== "token-events"));
   assert.equal(canonicalUsage.at(-1).model, "anthropic/claude-sonnet-4-5");
+  const context = canonicalEvents.filter((event) => event.kind === "context");
+  assert.ok(context.length);
+  assert.equal(context.at(-1).remainingPercent, 25);
   await canonicalAdapter.close();
 
   const fallback = fakeOpenHands({

@@ -19,8 +19,73 @@ import {
   proxyOpenHandsSurface,
 } from "./openhands-surface.mjs";
 import { RepositorySettings } from "./repository-settings.mjs";
+import { ingestGitHubSnapshot } from "./github-intake.mjs";
+import { OpenHandsAutomations } from "./openhands-automations.mjs";
+import { openHandsSettings } from "./providers/openhands.mjs";
 export const appRoot = path.dirname(fileURLToPath(import.meta.url)),
   webRoot = path.join(appRoot, "ui-dist");
+const CANVAS_APP_ROUTE = "/extensions/avoozl/workspace";
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function recoveryHandoff({ canvasUrl, name }) {
+  const destination = canvasUrl
+    ? `<a class="primary" href="${escapeHtml(canvasUrl)}">Open Avoozl in OpenHands</a>`
+    : `<p class="next">Open OpenHands Canvas, install or enable the Avoozl extension, then return there to use this workspace.</p>`;
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Avoozl backend</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+    * { box-sizing: border-box; }
+    body { min-height: 100vh; margin: 0; display: grid; place-items: center; background: #111; color: #eee; padding: 24px; }
+    main { width: min(520px, 100%); border: 1px solid #343434; background: #181818; padding: 28px; }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .logo { display: grid; place-items: center; width: 34px; height: 34px; color: #ff5555; font: 800 24px/1 ui-monospace, monospace; }
+    h1 { margin: 0; font-size: 20px; }
+    p { color: #aaa; line-height: 1.55; }
+    .status { display: flex; align-items: center; gap: 8px; color: #c8f6d3; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: #55d17e; box-shadow: 0 0 10px #55d17e80; }
+    .primary { display: inline-flex; margin-top: 10px; padding: 10px 14px; border-radius: 5px; background: #eee; color: #151515; font-weight: 700; text-decoration: none; }
+    .next { margin-bottom: 0; }
+    footer { margin-top: 24px; padding-top: 16px; border-top: 1px solid #2c2c2c; font-size: 13px; color: #777; }
+    footer a { color: #aaa; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="brand"><span class="logo" aria-hidden="true">A</span><h1>${escapeHtml(name || "Avoozl")}</h1></div>
+    <p class="status"><span class="dot" aria-hidden="true"></span>Avoozl backend is running</p>
+    <p>The product interface lives inside OpenHands. This address is only the local control plane and recovery handoff.</p>
+    ${destination}
+    <footer><a href="/api/health">View backend health</a> · CLI and MCP remain available for recovery.</footer>
+  </main>
+</body>
+</html>`;
+}
+
+function loopbackCanvasOrigin(origins = []) {
+  for (const value of origins)
+    try {
+      const url = new URL(value);
+      if (
+        ["http:", "https:"].includes(url.protocol) &&
+        ["127.0.0.1", "::1", "localhost"].includes(url.hostname)
+      )
+        return url.origin;
+    } catch {}
+  return undefined;
+}
 const MIME = {
   ".html": "text/html; charset=utf-8",
   ".mjs": "text/javascript; charset=utf-8",
@@ -90,6 +155,8 @@ export function startServer({
   configFiles,
   configSources,
   configWithoutRepository,
+  github,
+  openhandsAutomations,
 } = {}) {
   const store = new Store(dbPath);
   if (!store.initialized()) fail("Initialize a workspace before serving.");
@@ -124,7 +191,25 @@ export function startServer({
   const manager =
       providedManager ||
       new RunManager(store, { factories, baseUrl: "http://127.0.0.1:" + port }),
-    ops = new Operations(store, { manager, operator, configuration });
+    canvasAutomationHost = loopbackCanvasOrigin(canvasOrigins),
+    automations =
+      openhandsAutomations ||
+      new OpenHandsAutomations({
+        settings: () => {
+          const settings = openHandsSettings();
+          return {
+            ...settings,
+            automationHost: settings.automationHost || canvasAutomationHost,
+          };
+        },
+      }),
+    ops = new Operations(store, {
+      manager,
+      operator,
+      configuration,
+      github,
+      openhandsAutomations: automations,
+    });
   let draining = false;
   const clients = new Set();
   const stopSourceWatch = sourceRoot
@@ -148,6 +233,7 @@ export function startServer({
   const normalizedCanvasOrigins = new Set(
       canvasOrigins.map((value) => new URL(value).origin),
     ),
+    configuredCanvasOrigin = normalizedCanvasOrigins.values().next().value,
     access = networkPolicy({
       host,
       allowedHosts,
@@ -165,12 +251,12 @@ export function startServer({
     return true;
   };
   const etag = () => '"workspace-' + store.read().revision + '"';
-  async function body(req) {
+  async function body(req, limit = 16 * 1024 * 1024) {
     let size = 0,
       chunks = [];
     for await (const chunk of req) {
       size += chunk.length;
-      if (size > 16 * 1024 * 1024) fail("Request too large.", 413);
+      if (size > limit) fail("Request too large.", 413);
       chunks.push(chunk);
     }
     try {
@@ -272,6 +358,20 @@ export function startServer({
           "Cache-Control": "no-cache",
         });
         res.end(result.body === null ? "" : JSON.stringify(result.body));
+        return;
+      }
+      if (req.method === "POST" && route === "/api/github-intake") {
+        mutation(req);
+        if (req.headers["x-avoozl-intake-version"] !== "2")
+          fail("Unsupported GitHub intake protocol version.", 400);
+        const token = req.headers.authorization?.replace(/^Bearer\s+/i, "");
+        const result = await ingestGitHubSnapshot(
+          store,
+          ops.github,
+          token,
+          await body(req, 2 * 1024 * 1024),
+        );
+        json(res, 200, result);
         return;
       }
       if (
@@ -580,22 +680,31 @@ export function startServer({
       if (route.startsWith("/plans/")) {
         const id = decodeURIComponent(route.slice(7));
         if (!store.read().documents[id]) fail("Document not found.", 404);
+        const query = "?view=documents&document=" + encodeURIComponent(id);
         res.writeHead(302, {
-          Location: "/?view=documents&document=" + encodeURIComponent(id),
+          Location: configuredCanvasOrigin
+            ? configuredCanvasOrigin + CANVAS_APP_ROUTE + query
+            : "/" + query,
         });
         res.end();
         return;
       }
-      const reactIndex = path.join(webRoot, "index.html");
-      if (
-        (route === "/" || route === "/workspace") &&
-        fs.existsSync(reactIndex)
-      ) {
-        const content = fs.readFileSync(reactIndex);
+      if (route === "/" || route === "/workspace") {
+        const canvasUrl = configuredCanvasOrigin
+          ? configuredCanvasOrigin + CANVAS_APP_ROUTE + url.search
+          : null;
+        const content = recoveryHandoff({
+          canvasUrl,
+          name: workspaceName,
+        });
         res.writeHead(200, {
           "Content-Type": MIME[".html"],
           "Cache-Control": "no-cache",
           "X-Content-Type-Options": "nosniff",
+          "Content-Security-Policy":
+            "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+          "Referrer-Policy": "no-referrer",
+          "X-Frame-Options": "DENY",
         });
         res.end(req.method === "HEAD" ? "" : content);
         return;
@@ -643,22 +752,22 @@ export function startServer({
       if (
         draining ||
         githubSyncing ||
-        (!store.list("github_repositories").length &&
-          !store
-            .list("receipts")
-            .some(
-              (receipt) =>
-                receipt.id.startsWith("planning-pr:") &&
-                !["projected", "closed"].includes(receipt.state),
-            ))
+        !store
+          .list("receipts")
+          .some(
+            (receipt) =>
+              receipt.id.startsWith("planning-pr:") &&
+              !["projected", "closed"].includes(receipt.state),
+          )
       )
         return;
       githubSyncing = true;
       try {
         await ops.execute("planning.reconcile");
-        await ops.execute("github.sync", { autoStart: true });
       } catch (error) {
-        store.event(null, "github.sync.error", { message: error.message });
+        store.event(null, "planning.reconcile.error", {
+          message: error.message,
+        });
       } finally {
         githubSyncing = false;
       }

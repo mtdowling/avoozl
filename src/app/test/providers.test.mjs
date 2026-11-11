@@ -287,7 +287,7 @@ test("plan usage reports remaining windows, and says so when a plan has none", a
       session({ subscription_type: null, rate_limits_available: false }),
   });
   assert.equal(none.available, false);
-  assert.match(none.reason, /no plan limits/);
+  assert.match(none.reason, /does not expose subscription plan limits/);
 
   // A build without the experimental method is reported, never thrown.
   const missing = await claudeUsage({

@@ -1,10 +1,15 @@
 import { resolveTaskId } from "../task-identity.mjs";
 import { fail } from "./store.mjs";
+import {
+  AGENT_ROUTING_DEFAULTS,
+  normalizeAgentRouting,
+} from "./agent-routing.mjs";
 
 export const CONVERSATION_SETTINGS_DEFAULTS = Object.freeze({
   autoArchiveCompleted: true,
   driverAgentProfile: null,
   driverModel: null,
+  routing: AGENT_ROUTING_DEFAULTS,
 });
 
 export function conversationSettings(store) {
@@ -34,6 +39,10 @@ export function normalizeConversationSettings(current, input = {}) {
       "driverModel" in input
         ? input.driverModel?.trim() || null
         : current.driverModel,
+    routing:
+      "routing" in input
+        ? normalizeAgentRouting(input.routing)
+        : normalizeAgentRouting(current.routing || AGENT_ROUTING_DEFAULTS),
   };
   return settings;
 }

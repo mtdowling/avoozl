@@ -1,6 +1,7 @@
 export type EpicProgressController = {
   render(input: Record<string, unknown>): void;
   suspend(): void;
+  setLabelWidth(width: number): void;
   setSelection(id: string): void;
 };
 

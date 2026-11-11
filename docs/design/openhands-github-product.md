@@ -1,7 +1,7 @@
 # Avoozl as the planning control plane for OpenHands and GitHub
 
 **Status:** Product direction and implementation design
-**Date:** November 10, 2026
+**Date:** November 11, 2026
 **Audience:** Avoozl maintainers and early team adopters
 
 ## Summary
@@ -111,6 +111,8 @@ units:
 - Forking OpenHands or depending on unpublished OpenHands internals when a
   supported extension or server API exists.
 - Using Git as a live message queue, lock service, or agent event transport.
+- Using every Avoozl service as a continuous GitHub issue and pull-request
+  poller.
 - Sharing a SQLite file between computers.
 - Synchronizing provider credentials, environment files, cookies, raw terminal
   output, worktrees, or complete OpenHands transcripts through GitHub.
@@ -129,15 +131,15 @@ units:
 
 ## Product boundaries
 
-| System | Owns |
-|---|---|
-| OpenHands | Conversation, terminal, files, browser, live tool execution, provider interaction, and agent steering |
-| GitHub | Team identity, repositories, branches, pull requests, human review, issue assignment, code integration, notifications, and protected-branch policy |
-| Avoozl | Design workflow, exact-revision approval, task derivation, dependency policy, issue projection, execution authorization, workspace selection, validation, integration evidence, acceptance, and traceability |
-| Git planning repository | Markdown designs, task definitions, review records, approval receipts, sanitized evidence, and durable product history |
-| Per-user Avoozl SQLite database | That user's local execution state, indexes, event cursors, outbox state, and materialized views |
-| Optional workspace coordinator | Atomic task claims, ownership epochs, fencing tokens, explicit handoffs, and protected-operation leases |
-| Local credential stores | GitHub credentials, OpenHands provider credentials, Avoozl pairing secrets, and other machine-specific secrets |
+| System                          | Owns                                                                                                                                                                                                         |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| OpenHands                       | Conversation, terminal, files, browser, live tool execution, provider interaction, agent steering, and reviewed scheduled GitHub automations                                                                 |
+| GitHub                          | Team identity, repositories, branches, pull requests, human review, issue assignment, code integration, notifications, and protected-branch policy                                                           |
+| Avoozl                          | Design workflow, exact-revision approval, task derivation, dependency policy, issue projection, execution authorization, workspace selection, validation, integration evidence, acceptance, and traceability |
+| Git planning repository         | Markdown designs, task definitions, review records, approval receipts, sanitized evidence, and durable product history                                                                                       |
+| Per-user Avoozl SQLite database | That user's local execution state, indexes, event cursors, outbox state, and materialized views                                                                                                              |
+| Optional workspace coordinator  | Atomic task claims, ownership epochs, fencing tokens, explicit handoffs, and protected-operation leases                                                                                                      |
+| Local credential stores         | GitHub credentials, OpenHands provider credentials, Avoozl pairing secrets, and other machine-specific secrets                                                                                               |
 
 SQLite continues to own live execution state and Markdown continues to own design
 prose. Git synchronization does not turn the database into a portable file, and
@@ -150,6 +152,7 @@ flowchart LR
     U[Person] --> C[OpenHands Canvas]
     C --> X[Avoozl Canvas extension]
     C --> O[OpenHands Agent Server]
+    O --> M[OpenHands Automations]
     X --> A[Avoozl service]
 
     A --> D[(Local SQLite)]
@@ -161,6 +164,8 @@ flowchart LR
 
     G --> PI[Planning PRs and issues]
     G --> CR[Code repositories, issues, and PRs]
+    M --> G
+    M --> A
     O --> W[Isolated code worktree]
 
     P <--> PI
@@ -195,7 +200,8 @@ The service:
 - performs all policy-bearing operations;
 - synchronizes and validates the planning repository;
 - records exact revisions and approvals;
-- reconciles GitHub state;
+- explicitly reconciles GitHub Queue state and recovers missed automation
+  events;
 - starts and associates OpenHands conversations;
 - manages worktrees and validation;
 - keeps durable outbox and event cursor state;
@@ -210,6 +216,8 @@ Avoozl must not depend on the lifetime of an individual OpenHands process.
 The integration must use pinned, supported OpenHands surfaces:
 
 - Canvas extension APIs for UI integration;
+- native Automations for reviewed scheduled GitHub watching and agent-launch
+  triggers;
 - Agent Server APIs for conversation creation, observation, steering, stop, and
   resume;
 - bind-mounted or otherwise explicitly selected Avoozl worktrees;
@@ -369,13 +377,13 @@ When a canonical document changes, Avoozl computes and displays:
 
 The state transitions are deliberately conservative:
 
-| Change | Result |
-|---|---|
-| Add a task | Create a proposed task; do not start it |
-| Modify an unstarted task | Mark it as requiring review |
-| Remove an unstarted task | Propose retirement |
+| Change                          | Result                                                                     |
+| ------------------------------- | -------------------------------------------------------------------------- |
+| Add a task                      | Create a proposed task; do not start it                                    |
+| Modify an unstarted task        | Mark it as requiring review                                                |
+| Remove an unstarted task        | Propose retirement                                                         |
 | Modify or remove an active task | Keep the active run unchanged and require an explicit stop/replan decision |
-| Modify a completed task | Flag design drift; do not silently reopen or rewrite history |
+| Modify a completed task         | Flag design drift; do not silently reopen or rewrite history               |
 
 ## Task provenance
 
@@ -566,6 +574,100 @@ Planning repository checks should include:
 - secret scanning;
 - annotations on the affected document and task blocks.
 
+## Workflow stories
+
+These stories describe the same control path for two operating models. The
+three coordination signals must remain distinct:
+
+- **label or design approval = authorization:** the work is permitted to run;
+- **GitHub assignee = routing:** this person's Avoozl instances should consider
+  the work;
+- **activation lease = machine ownership:** one registered computer may create
+  the worktree and act on the task.
+
+The activation lease and Avoozl's local task lease are the execution locks.
+GitHub is the durable collaboration, review, and audit record; labels,
+assignments, comments, and commits are not a live distributed lock.
+
+### Solo maintainer
+
+1. The maintainer registers a local execution project and chooses which GitHub
+   repositories Queue monitors. Avoozl Settings reports whether each repository
+   has native OpenHands Automation coverage and opens the reviewed native setup
+   flow; it never silently enables an automation that can launch an agent.
+2. Connecting an eligible monitored repository installs and enables the
+   reviewed, deterministic Avoozl intake Automation when its OpenHands
+   credentials are ready. OpenHands schedules the read-only GitHub observation
+   and submits complete repository snapshots to Queue. Public repositories use
+   an explicit observation-only capability that cannot carry label
+   authorization or mutate GitHub. **Sync** is the explicit recovery
+   path when coverage is missing or a snapshot was missed. The maintainer
+   reviews the item, its discussion, and Avoozl's unconfirmed overlap
+   suggestions, then links it to existing work or creates a neutral task.
+3. The maintainer authorizes bounded issue-origin work with the configured
+   ready label. Design-origin work remains authorized by its exact reviewed
+   design revision; its ready label is only the projected dispatch signal.
+   Assignment routes the task to the maintainer.
+4. The intake snapshot wakes Avoozl's normal authorization path; the watcher
+   cannot launch an agent itself. Avoozl re-reads the issue, verifies the exact
+   authorization and assignee, and only then dispatches eligible work. If two of
+   the maintainer's computers can see the assignment, the workspace activation
+   lease selects one machine. That Avoozl instance acquires its durable local
+   task lease, creates the isolated worktree, and starts the task-bound
+   OpenHands conversation.
+5. The maintainer watches, steers, interrupts, resumes, and reviews the native
+   OpenHands session. Finishing the agent turn does not complete the task.
+6. Avoozl validates the committed worktree head, associates commits and the
+   implementation pull request with the task, and preserves failures as
+   evidence rather than calling them success.
+7. GitHub owns pull-request discussion, required checks, approval, and merge.
+   Avoozl records the merged commit as integration evidence, evaluates the
+   task's acceptance criteria separately, and archives completed conversations
+   without losing their transcripts or task links.
+
+### Multi-user team
+
+1. The team reviews and merges a design in the protected planning repository,
+   or an authorized maintainer labels a bounded issue-origin task. Avoozl
+   projects design tasks into the appropriate code repositories. Connecting an
+   eligible monitored repository provisions its deterministic OpenHands intake
+   Automation when credentials are ready; public repositories are
+   observation-only. Avoozl Settings reports coverage and exposes repair,
+   enable, and disable controls.
+2. OpenHands continuously submits complete repository snapshots to each user's
+   Avoozl intake. Team members review Queue items and overlap suggestions before
+   confirming a link or creating a task. **Sync** remains recovery, not the
+   normal observation loop. Nobody gains execution permission merely by opening
+   an issue or pull request.
+3. The ready signal identifies dispatchable work and GitHub assignment routes
+   it to a person. Unassigning prevents a new claim but never kills or transfers
+   an active run.
+4. The deterministic watcher only submits the candidate snapshot. Avoozl
+   applies authorization and routing checks before launch. That person's
+   registered instances compete for the activation lease. One machine receives
+   the fenced claim, creates the worktree, and owns the OpenHands conversation;
+   every other instance observes it without acting.
+5. The assignee and reviewers can follow progress and steer through OpenHands.
+   Scope changes return to the design or issue review path instead of silently
+   redirecting active work.
+6. Avoozl validates the result and links commits and the pull request. GitHub
+   handles team review and protected merge; Avoozl then records integration,
+   requires an explicit acceptance decision, archives the completed session,
+   and reconciles the task and parent design across collaborators.
+
+### Pull-request review intake
+
+A monitored open pull request enters Queue from the deterministic OpenHands
+snapshot as review work, not as authorized implementation work. A separate
+native OpenHands review automation may launch a configured review agent, but it
+does not satisfy Avoozl intake or grant merge authority. A user can read the
+discussion and checks, review possible task or design overlaps, confirm a link,
+or create a neutral review task. **Review with agent** opens a repository-bound
+OpenHands conversation for inspection. GitHub remains authoritative for review
+decisions and merge. Avoozl retains the confirmed task association, review
+evidence, commits, and merged revision, while integration and acceptance still
+require their own transitions.
+
 ## GitHub issue projection
 
 The desired team workflow is intentionally GitHub-native:
@@ -577,8 +679,8 @@ The desired team workflow is intentionally GitHub-native:
    `avoozl:ready`.
 5. Team members self-assign or are assigned according to normal repository
    policy.
-6. Each user's Avoozl service polls for ready issues assigned to that user's
-   GitHub identity.
+6. A reviewed native OpenHands Automation watches for ready issues assigned to
+   that user's GitHub identity and initiates the launch path.
 7. One permitted computer claims the task and starts its native OpenHands
    conversation.
 8. The user watches, steers, interrupts, and reviews the work in Canvas.
@@ -587,7 +689,7 @@ The desired team workflow is intentionally GitHub-native:
 10. Merge records integration and an explicit acceptance decision completes the
     task.
 11. Avoozl reconciles the issue and evaluates design-level
-   acceptance.
+    acceptance.
 
 This is a Glorp-shaped workflow implemented directly by Avoozl; Glorp is not a
 runtime dependency.
@@ -634,9 +736,10 @@ repository may opt into issue-origin work:
 2. An authorized person applies `avoozl:ready`.
 3. The issue is assigned to at least one GitHub identity mapped to an Avoozl
    user.
-4. A matching user's Avoozl service discovers it by polling.
-5. Avoozl verifies the authorization event, snapshots the issue, derives the
-   task, and claims it before starting OpenHands.
+4. A reviewed native OpenHands Automation observes the configured GitHub event
+   and initiates the launch path for the matching user.
+5. Avoozl verifies the authorization event and current assignment, snapshots
+   the issue, derives the task, and claims it before starting OpenHands.
 
 The project key is resolved from the repository containing the issue.
 `baseBranch`, required checks, worktree policy, and validation commands come
@@ -647,12 +750,12 @@ registration, but not another per-issue execution configuration.
 
 These are four distinct decisions:
 
-| Signal | Meaning |
-|---|---|
-| `avoozl:ready` | The work is authorized or, for design-origin issues, projected as dispatchable |
-| GitHub assignee | Which user's Avoozl instances should consider the work |
+| Signal            | Meaning                                                                                    |
+| ----------------- | ------------------------------------------------------------------------------------------ |
+| `avoozl:ready`    | The work is authorized or, for design-origin issues, projected as dispatchable             |
+| GitHub assignee   | Which user's Avoozl instances should consider the work                                     |
 | Coordinator claim | Which user and computer owns the task across instances when strict coordination is enabled |
-| Local task lease | Which local run may act inside the owning Avoozl service |
+| Local task lease  | Which local run may act inside the owning Avoozl service                                   |
 
 Assignment identifies a person, not a computer, and is never the execution
 lock. If the same person has two active computers, both may observe the same
@@ -681,11 +784,12 @@ The receipt records:
 - derived task schema version.
 
 The task may start only if Avoozl can prove that the body being hashed has not
-changed since the authorizing label event. A webhook payload may provide the
-event snapshot. A polling client must compare available edit metadata and
-repeat reads as necessary. If it cannot establish that the current body is the
-authorized body, the label becomes a request requiring explicit confirmation
-of the displayed hash.
+changed since the authorizing label event. A native automation trigger may
+provide the event snapshot, but Avoozl must re-read and verify the issue before
+a policy-bearing transition. If it cannot establish that the current body is
+the authorized body, the label becomes a request requiring explicit
+confirmation of the displayed hash. A Queue reconciliation result alone is
+never an authorization receipt.
 
 Later body edits do not rewrite the receipt:
 
@@ -726,25 +830,70 @@ Arbitrary checklists elsewhere in the issue do not become acceptance criteria.
 Markdown never becomes executable configuration, and commands suggested by the
 issue remain subject to the registered project's execution policy.
 
-### Polling and cursors
+### Scheduled watching and explicit reconciliation
 
-A loopback-only Avoozl service polls GitHub rather than requiring inbound
-webhooks. It records durable issue-event cursors, deduplicates label and
-assignment events, and revalidates the current issue before every transition.
-A reachable GitHub App or coordinator may consume webhooks as an optimization,
-but polling and reconciliation remain sufficient for personal operation.
+Native OpenHands Automations own scheduled GitHub watching and agent-launch
+triggers for monitored repositories. Enabling such an automation is a
+code-execution decision: Avoozl Settings reports missing, partial, or healthy
+coverage. Connecting a private repository with **continuous tracking** selected
+is the explicit authorization to install and enable the deterministic watcher.
+If credentials or runtime connectivity are missing, repository registration
+still succeeds, coverage reports the blocker, and **Prepare watcher** or
+**Repair watcher** completes the idempotent setup later. Loading configuration
+files alone never mutates OpenHands.
+
+The pinned OpenHands catalog's `github-issue-to-pr` and
+`github-repo-monitor` templates launch their own agents and bypass Avoozl's
+authorization, lease, provenance, validation, integration, and acceptance
+boundaries. Avoozl therefore packages its own deterministic watcher and reports
+the built-ins as related coverage only. The packaged watcher reads monitored
+GitHub repositories, submits complete issue and pull-request generations, and
+cannot launch an agent or mutate GitHub. Its repository-scoped capability is
+bound to the repository node identity, expected visibility, and either
+`authorization` or `observation-only` mode. Public repositories are always
+observation-only, and the intake endpoint rejects authorization metadata from
+that mode.
+
+`queue.sync` remains an explicit operator action that lists and reconciles
+issues, pull requests, discussions, checks, assignments, and associations for
+Queue review and recovery. It does not continuously poll, launch agents, or
+turn imported items into authorized work. The normal continuous path is the
+packaged OpenHands watcher.
+
+The integration uses a custom deterministic Avoozl intake Automation rather
+than OpenHands' generic issue-to-pull-request automation. The intake action
+submits the GitHub event snapshot to one narrow Avoozl endpoint with an
+ingest-only credential. That credential can submit a candidate event and read
+its receipt; it cannot approve a design, authorize a changed issue, acquire a
+lease, start a run, mutate a task, accept work, integrate, merge, or call the
+general Avoozl API.
+
+Avoozl re-reads GitHub state, verifies authorization and assignee routing, and
+then applies the activation and local task leases before asking OpenHands to
+create the conversation. The supported installation must prove that this
+intake endpoint is reachable from the actual OpenHands Automation runtime,
+including its local or container network boundary, without exposing the
+general Avoozl service beyond the authenticated local integration.
+
+Avoozl records durable import cursors and trigger receipts, deduplicates
+observations, and revalidates current GitHub state before every policy-bearing
+transition. Missing Automation coverage leaves manual Queue review usable but
+does not imply scheduled launching is active.
 
 ### Relationship to label-driven agent tools
 
-Avoozl intentionally implements the common lower-level loop:
+Avoozl and native OpenHands Automations compose the common lower-level loop:
 
 ```text
-poll issue
+OpenHands Automation watches GitHub
   -> filter label and assignee
-  -> claim
+  -> submit event snapshot with ingest-only authority
+  -> Avoozl re-verifies authorization and routing
+  -> acquire activation and local task leases
   -> create worktree
-  -> run agent
+  -> OpenHands runs the steerable agent
   -> open pull request
+  -> Avoozl validates, integrates, and records explicit acceptance
 ```
 
 That loop is an intake and projection adapter, not Avoozl's product identity.
@@ -781,6 +930,62 @@ These states remain distinct:
 
 Closing an issue must not manufacture missing validation or acceptance evidence.
 
+## Work pickup, conversation reuse, and drain
+
+Pickup is one policy transition, not a periodic instruction to create another
+agent. A task is eligible only when its exact design or issue revision is
+authorized, its dependencies and review state permit dispatch, its GitHub
+assignment routes it to the current user when assignment applies, an activation
+claim selects this machine, its execution project is configured, and no current
+task or resource lease conflicts. An expired activity heartbeat is diagnostic;
+it never proves that a live or disconnected worker may be replaced.
+
+An explicit batch narrows the eligible set and supplies a concurrency ceiling.
+The scheduler honors prerequisite integration, shared-resource exclusions, and
+the configured per-project and batch limits before using a slot. Within those
+constraints, an explicit user rank wins, then work that became ready earlier,
+then the stable task ID. A batch restart pauses dispatch until a person resumes
+the already authorized batch.
+
+Before creating a run, pickup searches the task's canonical run history for the
+newest substantive run in the selected project:
+
+- an active run is adopted and observed; it is not duplicated;
+- a completed run proceeds to validation without another agent turn;
+- a disconnected run keeps its worktree and provider conversation, places the
+  batch in attention, and resumes only through an explicit resume action;
+- an interrupted or failed run remains visible evidence and requires an
+  explicit retry or handoff decision;
+- an integrated run is terminal for that worktree; follow-up work needs a new
+  task or a separately authorized review conversation.
+
+Archiving is presentation state, not deletion. Auto-archive may hide a completed
+task or child conversation from the default list, but its task link, transcript,
+worktree, commits, validation, and acceptance evidence remain addressable.
+Acceptance may archive implementation conversations, but it does not archive or
+compact the project Driver. Driver model or agent handoff creates a new Driver
+generation and retains the predecessor; Driver condensation policy is
+independent of child-conversation retention and task auto-archive.
+
+The agent host has these lifecycle states:
+
+| Host state | New pickup                            | Existing turns                           | Queued messages                                              | Batch behavior                                   | Stop                                                                       |
+| ---------- | ------------------------------------- | ---------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------ | -------------------------------------------------------------------------- |
+| Running    | Allowed after policy and lease checks | Continue                                 | Delivered in order                                           | May dispatch within limits                       | Refused while runs or protected operations are active                      |
+| Draining   | Refused before any wait begins        | Continue to a provider-reported boundary | Persisted but not delivered; steering and resume are refused | Running batches pause and their IDs are reported | Allowed only after active runs and validation/integration locks reach zero |
+| Stopped    | Impossible                            | None                                     | Preserved in SQLite                                          | Preserved as paused                              | Already stopped                                                            |
+
+Entering drain first flips the host gate, then pauses running batches, then
+returns the exact active run summaries, paused batch IDs, and protected-operation
+count. This ordering closes the race in which another claim could start while
+the operator was waiting. Health reports the same remaining work. Resume reopens
+the gate, resumes only the batches paused by that drain, reconnects durable
+deliveries, and never synthesizes success or replaces a disconnected worker.
+
+The Settings and diagnostics surfaces should explain this as **Drain for
+update**, show the remaining run titles and states, and keep **Stop** unavailable
+until the reported active and protected-operation counts are zero.
+
 ## OpenHands execution
 
 Starting an implementation task causes Avoozl to:
@@ -798,6 +1003,27 @@ Starting an implementation task causes Avoozl to:
 The agent uses the OpenHands provider configuration on the executing computer.
 Avoozl does not copy those credentials into the planning repository or the
 workspace coordinator.
+
+Agent/model routing is a deterministic policy applied when a Driver generation
+or child conversation is created. A rule may select by workflow category, task
+scope, declared risk, and an actually reported remaining-context percentage.
+Explicit operator choices override policy. Each run records the selected rule,
+inputs, and fallback source so a team can explain why a model was chosen.
+Avoozl reads the non-secret agent-profile catalog from OpenHands before launch
+and skips policy rules that name a missing profile. OpenHands still validates
+the selected model when the conversation starts because its profile catalog is
+not a complete provider entitlement list and credentials and usable profiles
+are deliberately not synchronized.
+
+Routing must preserve an honest unknown state. OpenHands conversation stats
+report `per_turn_token` and `context_window` for supported agents; Avoozl uses
+their ratio as context capacity and records both source values. Cumulative
+prompt and completion tokens do not reveal remaining capacity or plan allowance
+and are never substituted. If either context field is absent, threshold rules
+do not match and the configured fallback applies. At a completed Driver turn, a
+matching context-threshold rule creates a linked successor Driver and retains
+the predecessor conversation. It never changes models or conversations during
+an active turn, while an approval is pending, or while a message is queued.
 
 Run-scoped Avoozl MCP access is deny-by-default. An implementation agent may:
 
@@ -1144,11 +1370,13 @@ It checks the remote planning repository:
 - before editing, approval, and publication;
 - when Canvas regains focus;
 - on configurable polling;
-- through an explicit **Sync now** action.
+- through an explicit **Sync** action.
 
-A reachable coordinator or GitHub App webhook endpoint may additionally receive
-GitHub webhooks. A loopback-only personal service uses polling and fetches; it
-must not require an inbound public webhook.
+This polling is Git fetch synchronization for the planning repository, not
+continuous GitHub issue or pull-request watching. Native OpenHands Automations
+own scheduled GitHub triggers. Avoozl's explicit `queue.sync` operation remains
+the manual Queue reconciliation and recovery path, so a loopback-only personal
+service does not require an inbound public webhook.
 
 Remote commits are not trusted merely because Git accepted them. Imports use the
 same validation, secret-safety, schema, identity, and approval rules as local
@@ -1281,7 +1509,9 @@ The major migrations are:
 
 1. move Avoozl product pages into a Canvas extension;
 2. replace the embedded Canvas proxy with native OpenHands navigation;
-3. add issue-origin provenance and the ready-label/assignee intake adapter;
+3. add issue-origin provenance, explicit Queue reconciliation, and the
+   ready-label/assignee launch adapter for reviewed native OpenHands
+   Automations;
 4. introduce the portable workspace repository schema and safe publisher;
 5. make Git revision identity first-class in approval and reconciliation;
 6. add structured design review and multi-provider review pipelines;
@@ -1290,7 +1520,7 @@ The major migrations are:
 9. add per-user team operation and the optional workspace coordinator;
 10. add per-user registered-worker dispatch;
 11. retire duplicated execution UIs and provider harnesses after parity is
-   verified.
+    verified.
 
 Compatibility names such as the existing `plans_*` MCP methods and
 `NUPP_WORKSPACE` environment aliases remain supported while public surfaces
@@ -1301,33 +1531,34 @@ evolve.
 Each increment must leave the existing application usable and must include
 isolated temporary-workspace tests.
 
-| Increment | Outcome | Depends on |
-|---|---|---|
-| 0. Boundary spike | Prove a pinned Canvas extension can securely pair with a separately running Avoozl service and deep-link to a native conversation on macOS, Linux, and Windows | — |
-| 1. Issue-work vertical slice | In one registered repository, poll for an authorized `avoozl:ready` issue assigned to the current user, bind an exact issue snapshot, start a native steerable OpenHands run, validate it, and require explicit acceptance | 0 |
-| 2. Portable workspace | Add repository modes, logical project registry, portable schemas, allowlist serialization, import validation, and secret-safety tests | 0 |
-| 3. Git synchronization | Add fast-forward activation, compare-and-swap publication, divergence handling, and local materialized-state hydration | 2 |
-| 4. Canvas planning extension | Move designs, editor, preview, diff, diagnostics, and synchronization status into Canvas | 0, 3 |
-| 5. Plan quality | Add deterministic design guidance, task coverage checks, cross-project dependency validation, and GitHub annotations | 2, 4 |
-| 6. Structured review | Add revision-bound comments, suggestions, re-anchoring, replies, dispositions, and review sidecars | 4 |
-| 7. AI review pipelines | Add provider/model review sequences, default three-round limit, budgets, anti-nitpick rubric, deduplication, and stop conditions | 6 |
-| 8. Planning publication | Add draft publication, planning pull requests, request-review state, protected merge receipts, and required checks | 3, 5 |
-| 9. GitHub App | Install with minimum permissions, map identities, manage webhooks/polling, and prove cross-repository access | 1, 8 |
-| 10. Design issue projection | Create parent and cross-repository task issues, apply readiness, preserve human text, reconcile assignment and PR links, and enforce stable mappings | 9 |
-| 11. Unified execution | Run design-origin and issue-origin tasks through the same OpenHands, worktree, validation, integration, acceptance, and provenance machinery | 1, 4, 10 |
-| 12. Personal multi-computer | Add activation ownership, safe synchronization, durable handoff, and different-local-provider support | 3, 11 |
-| 13. Per-user team mode | Add GitHub-backed identity, roles, project authorization, audit, conflict surfacing, and reconciliation across independent user services | 9, 11 |
-| 14. Optional coordinator | Add atomic claims, fencing tokens, explicit handoff and takeover, integration leases, outage behavior, and minimum-permission GitHub identity checks | 13 |
-| 15. Registered workers | Add per-user outbound worker registration, capabilities, fenced worker leases, event/evidence return, and disconnected-worker safety | 12, 14 |
-| 16. UI retirement | Remove duplicate execution surfaces, provider harnesses, and embedded Canvas after migration and recovery coverage | 11, 15 |
+| Increment                    | Outcome                                                                                                                                                                                                                                                                                                                      | Depends on |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| 0. Boundary spike            | Prove a pinned Canvas extension can securely pair with a separately running Avoozl service, deep-link to a native conversation, and reach an ingest-only Avoozl endpoint from the supported local or container Automation runtime on macOS, Linux, and Windows                                                               | —          |
+| 1. Issue-work vertical slice | In one registered repository, review and enable the deterministic Avoozl intake Automation for an authorized `avoozl:ready` issue assigned to the current user, submit an exact event snapshot with ingest-only authority, enforce Avoozl leases, start a native steerable run, validate it, and require explicit acceptance | 0          |
+| 2. Portable workspace        | Add repository modes, logical project registry, portable schemas, allowlist serialization, import validation, and secret-safety tests                                                                                                                                                                                        | 0          |
+| 3. Git synchronization       | Add fast-forward activation, compare-and-swap publication, divergence handling, and local materialized-state hydration                                                                                                                                                                                                       | 2          |
+| 4. Canvas planning extension | Move designs, editor, preview, diff, diagnostics, and synchronization status into Canvas                                                                                                                                                                                                                                     | 0, 3       |
+| 5. Plan quality              | Add deterministic design guidance, task coverage checks, cross-project dependency validation, and GitHub annotations                                                                                                                                                                                                         | 2, 4       |
+| 6. Structured review         | Add revision-bound comments, suggestions, re-anchoring, replies, dispositions, and review sidecars                                                                                                                                                                                                                           | 4          |
+| 7. AI review pipelines       | Add provider/model review sequences, default three-round limit, budgets, anti-nitpick rubric, deduplication, and stop conditions                                                                                                                                                                                             | 6          |
+| 8. Planning publication      | Add draft publication, planning pull requests, request-review state, protected merge receipts, and required checks                                                                                                                                                                                                           | 3, 5       |
+| 9. GitHub App                | Install with minimum permissions, map identities, support cross-repository projection and explicit reconciliation, and prove cross-repository access                                                                                                                                                                         | 1, 8       |
+| 10. Design issue projection  | Create parent and cross-repository task issues, apply readiness, preserve human text, reconcile assignment and PR links, and enforce stable mappings                                                                                                                                                                         | 9          |
+| 11. Unified execution        | Run design-origin and issue-origin tasks through the same OpenHands, worktree, validation, integration, acceptance, and provenance machinery                                                                                                                                                                                 | 1, 4, 10   |
+| 12. Personal multi-computer  | Add activation ownership, safe synchronization, durable handoff, and different-local-provider support                                                                                                                                                                                                                        | 3, 11      |
+| 13. Per-user team mode       | Add GitHub-backed identity, roles, project authorization, audit, conflict surfacing, and reconciliation across independent user services                                                                                                                                                                                     | 9, 11      |
+| 14. Optional coordinator     | Add atomic claims, fencing tokens, explicit handoff and takeover, integration leases, outage behavior, and minimum-permission GitHub identity checks                                                                                                                                                                         | 13         |
+| 15. Registered workers       | Add per-user outbound worker registration, capabilities, fenced worker leases, event/evidence return, and disconnected-worker safety                                                                                                                                                                                         | 12, 14     |
+| 16. UI retirement            | Remove duplicate execution surfaces, provider harnesses, and embedded Canvas after migration and recovery coverage                                                                                                                                                                                                           | 11, 15     |
 
 The first two go/no-go proofs are:
 
 1. a Canvas extension can reliably and securely call the independent Avoozl
    service across supported platforms; and
-2. a ready issue assigned to the current user can produce a native, steerable
-   OpenHands conversation in an Avoozl-selected worktree without weakening
-   validation, integration, acceptance, or restart recovery.
+2. a reviewed native Automation can reach the ingest-only Avoozl endpoint and a
+   ready issue assigned to the current user can produce a native, steerable
+   OpenHands conversation in an Avoozl-selected worktree without giving the
+   Automation start, approval, lease, integration, or acceptance authority.
 
 If either fails against supported OpenHands APIs, the product must revisit the
 integration boundary before building later increments.
@@ -1346,6 +1577,10 @@ The pivot is successful when:
   several code repositories;
 - a registered repository issue can independently authorize bounded work through
   an exact body snapshot, trusted label event, and matching assignee;
+- the packaged OpenHands watcher can be prepared inactive, explicitly enabled,
+  disabled from Avoozl, and can initiate scheduled work for an authorized
+  assigned issue while explicit Queue reconciliation remains a usable recovery
+  path;
 - design-origin and issue-origin tasks converge on the same steerable execution,
   validation, integration, and explicit acceptance lifecycle without confusing
   their authority;

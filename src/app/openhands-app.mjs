@@ -80,8 +80,9 @@ function assertPluginPackage(source) {
   source = path.resolve(source);
   const manifestPath = path.join(source, ".plugin", "plugin.json"),
     mcpPath = path.join(source, ".mcp.json"),
-    skillPath = path.join(source, "skills", "avoozl", "SKILL.md");
-  for (const file of [manifestPath, mcpPath, skillPath]) {
+    skillPath = path.join(source, "skills", "avoozl", "SKILL.md"),
+    intakePath = path.join(source, "scripts", "avoozl_github_intake.py");
+  for (const file of [manifestPath, mcpPath, skillPath, intakePath]) {
     let stat;
     try {
       stat = fs.lstatSync(file);
@@ -94,10 +95,19 @@ function assertPluginPackage(source) {
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")),
     mcp = JSON.parse(fs.readFileSync(mcpPath, "utf8")),
     skill = fs.readFileSync(skillPath, "utf8"),
-    server = mcp?.mcpServers?.avoozl;
+    server = mcp?.mcpServers?.avoozl,
+    automation = manifest.automation;
   if (
     manifest.name !== OPENHANDS_PLUGIN.name ||
     manifest.version !== OPENHANDS_PLUGIN.version ||
+    automation?.schema_version !== "openhands.automation.plugin.v1" ||
+    automation.entrypoint?.runner !== "script" ||
+    automation.entrypoint?.working_dir !== "scripts" ||
+    automation.entrypoint?.command !== "python3 avoozl_github_intake.py" ||
+    automation.runtime?.agent_profile ||
+    automation.runtime?.llm_profile ||
+    !automation.config_schema?.required?.includes("callback_url") ||
+    !automation.config_schema?.required?.includes("ingest_secret_name") ||
     !/^---\s*\nname:\s*avoozl\b/m.test(skill) ||
     server?.type !== "http" ||
     server.url !== "${AVOOZL_MCP_URL}" ||
@@ -109,6 +119,14 @@ function assertPluginPackage(source) {
     version: manifest.version,
     source,
     skills: ["avoozl"],
+    automations: [
+      {
+        id: "avoozl-github-intake",
+        version: manifest.version,
+        runner: "script",
+        enabled: false,
+      },
+    ],
     mcpServers: {
       avoozl: {
         scope: "conversation",
@@ -356,7 +374,7 @@ export async function installOpenHandsCanvasApp({
       note:
         backend?.state === "ready"
           ? "OpenHands owns the Avoozl process and exposes it to Canvas through a short-lived authenticated backend session."
-          : "This OpenHands platform cannot own the Avoozl backend yet. Start avoozl serve separately; Canvas will use the exact-origin local fallback.",
+          : "This OpenHands platform cannot own the Avoozl backend yet. Start avoozl serve separately; Canvas will use that exact-origin local backend.",
     };
   } finally {
     if (own) active.close();

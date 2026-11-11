@@ -7,6 +7,8 @@ import {
   normalizeConversationSettings,
   updateConversationSettings,
 } from "./conversation-settings.mjs";
+import { normalizeAgentRouting } from "./agent-routing.mjs";
+import { normalizeGitHubLabelBehaviors } from "./github-label-behaviors.mjs";
 import { assertSafeConfig, avoozlConfigSchemaPath } from "./layered-config.mjs";
 import { fail } from "./store.mjs";
 
@@ -174,6 +176,7 @@ function githubQueueInput(value, repository) {
     "includeIssues",
     "includePullRequests",
     "visibility",
+    "labelBehaviors",
   ]);
   for (const key of Object.keys(value))
     if (!allowed.has(key))
@@ -188,6 +191,7 @@ function githubQueueInput(value, repository) {
     enabled: value.enabled !== false,
     includeIssues: value.includeIssues !== false,
     includePullRequests: value.includePullRequests !== false,
+    labelBehaviors: normalizeGitHubLabelBehaviors(value.labelBehaviors),
     visibility,
   };
 }
@@ -286,6 +290,7 @@ function appliedActions(store) {
           enabled: entry.enabled !== false,
           includeIssues: entry.includeIssues !== false,
           includePullRequests: entry.includePullRequests !== false,
+          labelBehaviors: normalizeGitHubLabelBehaviors(entry.labelBehaviors),
           visibility:
             entry.visibility ||
             (entry.private === false ? "public" : "private"),
@@ -368,7 +373,7 @@ function conversationInput(value) {
   if (value === undefined) return null;
   if (!record(value))
     fail("Conversation configuration must contain a JSON object.");
-  const allowed = new Set(["autoArchiveCompleted", "driver"]);
+  const allowed = new Set(["autoArchiveCompleted", "driver", "routing"]);
   for (const key of Object.keys(value))
     if (!allowed.has(key))
       fail(`Unknown conversation configuration setting ${key}.`);
@@ -386,6 +391,9 @@ function conversationInput(value) {
       ? { driverAgentProfile: driver.agentProfile }
       : {}),
     ...(driver && "model" in driver ? { driverModel: driver.model } : {}),
+    ...(value.routing === undefined
+      ? {}
+      : { routing: normalizeAgentRouting(value.routing) }),
   };
 }
 
@@ -396,6 +404,7 @@ function canonicalConversations(settings) {
       agentProfile: settings.driverAgentProfile,
       model: settings.driverModel,
     },
+    routing: settings.routing,
   };
 }
 
@@ -468,6 +477,87 @@ export class RepositorySettings {
       text,
       hash: hash(text),
       exists: true,
+    };
+  }
+
+  readConfiguration(scope) {
+    if (!["global", "repository"].includes(scope))
+      fail("Choose the global or repository Avoozl configuration.");
+    if (scope === "repository") {
+      const file = this.readFile();
+      return {
+        scope,
+        filename: this.filename,
+        exists: file.exists,
+        hash: file.hash,
+        text: file.text || JSON.stringify({ version: 1 }, null, 2) + "\n",
+      };
+    }
+    const filename = this.files.global;
+    if (!filename) fail("Global Avoozl configuration is unavailable.", 404);
+    if (!entryStat(filename))
+      return {
+        scope,
+        filename,
+        exists: false,
+        hash: null,
+        text: JSON.stringify({ version: 1 }, null, 2) + "\n",
+      };
+    const text = readText(filename);
+    parse(text, filename);
+    return {
+      scope,
+      filename,
+      exists: true,
+      hash: hash(text),
+      text,
+    };
+  }
+
+  updateConfiguration({ scope, text, expectedHash }) {
+    if (typeof text !== "string") fail("Configuration JSON is required.");
+    if (Buffer.byteLength(text) > MAX_CONFIG_BYTES)
+      fail("Avoozl configuration is too large.");
+    const current = this.readConfiguration(scope);
+    if (expectedHash !== current.hash)
+      fail("Avoozl configuration changed; reload before saving.", 409);
+    const value = parse(text, current.filename);
+    if (scope === "repository") {
+      this.write(value, { expectedHash });
+      this.reload();
+      return {
+        ...this.readConfiguration(scope),
+        restartRequired: this.metadata().restartRequired,
+      };
+    }
+    const directory = path.dirname(current.filename);
+    fs.mkdirSync(directory, { recursive: true, mode: 0o755 });
+    assertDirectory(directory, "Global Avoozl configuration directory");
+    if (entryStat(current.filename)) assertFile(current.filename);
+    const formatted = JSON.stringify(value, null, 2) + "\n",
+      pending = path.join(
+        directory,
+        `.config.json.${process.pid}.${randomUUID()}.pending`,
+      ),
+      mode = current.exists
+        ? fs.statSync(current.filename).mode & 0o777
+        : 0o644;
+    let descriptor;
+    try {
+      descriptor = fs.openSync(pending, "wx", mode);
+      fs.writeFileSync(descriptor, formatted);
+      fs.fsyncSync(descriptor);
+      fs.closeSync(descriptor);
+      descriptor = undefined;
+      if (entryStat(current.filename)) assertFile(current.filename);
+      fs.renameSync(pending, current.filename);
+    } finally {
+      if (descriptor !== undefined) fs.closeSync(descriptor);
+      if (entryStat(pending)) fs.unlinkSync(pending);
+    }
+    return {
+      ...this.readConfiguration(scope),
+      restartRequired: ["Restart Avoozl to apply global configuration changes"],
     };
   }
 
@@ -645,6 +735,17 @@ export class RepositorySettings {
     return this.writeApplied(value, before.hash, ["projects"]);
   }
 
+  removeExecutionProject(id) {
+    const before = this.readFile(),
+      value = this.updateValue(before);
+    value.version = 1;
+    if (record(value.projects)) {
+      delete value.projects[id];
+      if (!Object.keys(value.projects).length) delete value.projects;
+    }
+    return this.writeApplied(value, before.hash, ["projects"]);
+  }
+
   updateGitHubIssueIntake(entry) {
     const before = this.readFile(),
       value = this.updateValue(before);
@@ -692,6 +793,7 @@ export class RepositorySettings {
       enabled: queue.enabled !== false,
       includeIssues: queue.includeIssues !== false,
       includePullRequests: queue.includePullRequests !== false,
+      labelBehaviors: normalizeGitHubLabelBehaviors(queue.labelBehaviors),
       visibility:
         queue.visibility || (queue.private === false ? "public" : "private"),
     };
@@ -709,6 +811,7 @@ export class RepositorySettings {
       enabled: entry.enabled !== false,
       includeIssues: entry.includeIssues !== false,
       includePullRequests: entry.includePullRequests !== false,
+      labelBehaviors: normalizeGitHubLabelBehaviors(entry.labelBehaviors),
       visibility:
         entry.visibility || (entry.private === false ? "public" : "private"),
     };
