@@ -145,6 +145,10 @@ try {
       host: config.host,
       canvasOrigins: config.canvasOrigins,
       manager,
+      workspaceRoot: config.workspaceRoot,
+      configFiles: config.configFiles,
+      configSources: config.configSources,
+      configWithoutRepository: config.configWithoutRepository,
     });
     let facade = null;
     if (options.ahp) {

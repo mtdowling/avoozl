@@ -7,6 +7,7 @@ export type EpicProgressController = {
 export function createEpicProgress(
   root: HTMLElement,
   callbacks: {
+    controlsRoot?: HTMLElement;
     select(id: string): void;
     changeZoom(value: number): void;
   },

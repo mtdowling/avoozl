@@ -56,6 +56,9 @@ export class Store {
    CREATE INDEX IF NOT EXISTS surface_capabilities_run ON surface_capabilities(run_id,expires_at);
    CREATE TABLE IF NOT EXISTS github_repositories(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS github_issues(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS github_queue_repositories(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS github_queue_items(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS github_queue_associations(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS review_threads(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS review_rounds(id TEXT PRIMARY KEY,body TEXT NOT NULL);
   `);
@@ -313,6 +316,9 @@ export class Store {
         "batches",
         "github_repositories",
         "github_issues",
+        "github_queue_repositories",
+        "github_queue_items",
+        "github_queue_associations",
         "review_threads",
         "review_rounds",
       ].includes(table)
@@ -336,6 +342,9 @@ export class Store {
         "batches",
         "github_repositories",
         "github_issues",
+        "github_queue_repositories",
+        "github_queue_items",
+        "github_queue_associations",
         "review_threads",
         "review_rounds",
       ].includes(table)
@@ -357,6 +366,9 @@ export class Store {
         "batches",
         "github_repositories",
         "github_issues",
+        "github_queue_repositories",
+        "github_queue_items",
+        "github_queue_associations",
         "review_threads",
         "review_rounds",
       ].includes(table)

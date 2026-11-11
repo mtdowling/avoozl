@@ -16,6 +16,12 @@ const esc = (value) =>
         c
       ],
   );
+function sessionAction({ runId, taskId, label }) {
+  const target = runId
+    ? `data-open-run="${esc(runId)}"`
+    : `data-reported-task="${esc(taskId)}"`;
+  return `<button class="hub-session-open" data-session-control ${target} aria-label="${esc(label)}" title="${esc(label)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H8l-4.5 2 1.4-4.2A7.5 7.5 0 1 1 20 11.5Z"/><path d="M8 10h8M8 14h5"/></svg></button>`;
+}
 // Now keeps one queue on screen at a time. Decisions stay pinned above the
 // tabs: a pending question is never hidden behind a tab the operator must find.
 // Task / status / owner / next action / blocked by. The connections control
@@ -37,6 +43,7 @@ export function createWorkbench({
   trackName,
   refresh,
   setCount,
+  apiPath = (pathname) => pathname,
   // Attaching an external transcript is Claude-only and needs a host that
   // installs the session picker. Callers without one must not be offered it.
   canLinkSession = false,
@@ -144,7 +151,7 @@ export function createWorkbench({
           key,
           Boolean(
             (current.narrow && roots.length < 8) ||
-            root.tasks.some((t) => t.id === current.selected),
+              root.tasks.some((t) => t.id === current.selected),
           ),
         );
       rows.push({
@@ -194,7 +201,8 @@ export function createWorkbench({
         columns: TREE_COLUMNS,
         head: '<tr class="tree-table-heading"><th scope="col">Task / epic / track</th><th scope="col">Status</th><th scope="col">Owner / agent</th><th scope="col">Next action</th><th scope="col">Blocked by</th></tr>',
       },
-      render: (r) => (r.type === "task" ? taskRow(r.task) : groupRow(r, input.group)),
+      render: (r) =>
+        r.type === "task" ? taskRow(r.task) : groupRow(r, input.group),
     });
     viewport.scrollTop = treeScroll;
   }
@@ -226,7 +234,7 @@ export function createWorkbench({
           : "<p>This worker reports progress from outside this site’s agent host, so there is no transcript to read here. Updating the direction records it on the task; it does not send the worker a message.</p>" +
             (canLinkSession
               ? ""
-              : "<p class=\"hub-session-hint\">Attaching an existing transcript is supported for Claude sessions, through the CLI or MCP.</p>");
+              : '<p class="hub-session-hint">Attaching an existing transcript is supported for Claude sessions, through the CLI or MCP.</p>');
     return `<div class="hub-session-note" role="status"><p class="hub-session-title"><strong>${loading ? "Checking connected sessions…" : state?.error ? "Could not check this session" : "External check-in · transcript not connected"}</strong></p>${body}<dl class="hub-session-facts">${facts
       .map(
         ([label, value]) =>
@@ -239,12 +247,18 @@ export function createWorkbench({
   function taskSummary(task, { running = false } = {}) {
     const signals = taskSignals(current.data, task),
       linked = running ? taskSession(nowPayload?.runs || [], task) : null,
-      open = linked
-        ? 'data-open-run="' + esc(linked.id) + '"'
+      session = linked
+        ? sessionAction({
+            runId: linked.id,
+            label: `Open session for ${task.title}`,
+          })
         : running
-          ? 'data-reported-task="' + esc(task.id) + '"'
-          : 'data-task="' + esc(task.id) + '"';
-    return `<article class="hub-work-row" data-workbench-task="${esc(task.id)}" ${running && !linked ? 'data-reported-task="' + esc(task.id) + '"' : ""}><div class="hub-work-marker ${running ? "is-working" : signals.blockers.length ? "is-blocked" : ""}"></div><div class="hub-work-copy"><button class="hub-task-name" ${open}>${esc(task.title)}</button><p>${esc(running ? task.activity?.summary || task.nextAction || "Work reported" : task.nextAction || task.summary || "Open the task for context.")}</p>${blockers(task)}<small>${esc(person(task))} · ${esc(epicName(task.epic))}${task.activity ? " · " + age(task.activity.heartbeatAt) : ""}${running && !linked ? " · External check-in" : ""}</small>${running && !linked ? sessionNote(task) : ""}</div><div class="hub-row-actions">${linked ? '<button class="button subtle" data-open-run="' + esc(linked.id) + '">Open session</button>' : '<button class="button subtle" data-edit="' + esc(task.id) + '">Update direction</button>'}${signals.blockers.length ? '<button class="text-button" data-ask-task="' + esc(task.id) + '">Help unblock</button>' : ""}<button class="text-button" data-task="${esc(task.id)}">Details ↗</button></div></article>`;
+          ? sessionAction({
+              taskId: task.id,
+              label: `Find or attach a session for ${task.title}`,
+            })
+          : "";
+    return `<article class="hub-work-row" data-workbench-task="${esc(task.id)}" data-task="${esc(task.id)}"><div class="hub-work-marker ${running ? "is-working" : signals.blockers.length ? "is-blocked" : ""}"></div><div class="hub-work-copy"><button class="hub-task-name" data-task="${esc(task.id)}">${esc(task.title)}</button><p>${esc(running ? task.activity?.summary || task.nextAction || "Work reported" : task.nextAction || task.summary || "Open the task for context.")}</p>${blockers(task)}<small>${esc(person(task))} · ${esc(epicName(task.epic))}${task.activity ? " · " + age(task.activity.heartbeatAt) : ""}${running && !linked ? " · External check-in" : ""}</small>${running && !linked ? sessionNote(task) : ""}</div><div class="hub-row-actions">${!linked ? '<button class="button subtle" data-edit="' + esc(task.id) + '">Update direction</button>' : ""}${signals.blockers.length ? '<button class="text-button" data-ask-task="' + esc(task.id) + '">Help unblock</button>' : ""}<button class="text-button" data-task="${esc(task.id)}">Details ↗</button>${session}</div></article>`;
   }
   function runSummary(run) {
     const task = run.taskId
@@ -266,7 +280,7 @@ export function createWorkbench({
         run.projectId,
         age(run.lastObservedAt || run.updatedAt || run.createdAt),
       ].filter(Boolean);
-    return `<article class="hub-work-row hub-session-row" data-open-run="${esc(run.id)}"><div class="hub-work-marker is-working" aria-label="Active session"></div><div class="hub-work-copy"><button class="hub-task-name" data-open-run="${esc(run.id)}">${esc(title)}</button><p><strong>${esc(state)}</strong>${direction ? " · " + esc(direction) : " · Live transcript and message queue"}</p><small>${esc(metadata.join(" · "))}${task ? " · Working on " + esc(task.id) : ""}</small></div><div class="hub-row-actions"><button class="button" data-open-run="${esc(run.id)}">Open session</button>${task ? '<button class="text-button" data-task="' + esc(task.id) + '">Task ↗</button>' : ""}</div></article>`;
+    return `<article class="hub-work-row hub-session-row" ${task ? 'data-task="' + esc(task.id) + '" data-workbench-task="' + esc(task.id) + '"' : ""}><div class="hub-work-marker is-working" aria-label="Active session"></div><div class="hub-work-copy">${task ? '<button class="hub-task-name" data-task="' + esc(task.id) + '">' + esc(title) + "</button>" : '<strong class="hub-task-name">' + esc(title) + "</strong>"}<p><strong>${esc(state)}</strong>${direction ? " · " + esc(direction) : " · Live transcript and message queue"}</p><small>${esc(metadata.join(" · "))}${task ? " · Working on " + esc(task.id) : ""}</small></div><div class="hub-row-actions">${task ? '<button class="text-button" data-task="' + esc(task.id) + '">Task ↗</button>' : ""}${sessionAction({ runId: run.id, label: `Open active session: ${title}` })}</div></article>`;
   }
   function completedRunSummary(run) {
     const task = run.taskId
@@ -277,9 +291,10 @@ export function createWorkbench({
         run.provider || "Agent",
         run.model,
         run.projectId,
-        "Completed " + age(run.updatedAt || run.lastObservedAt || run.createdAt),
+        "Completed " +
+          age(run.updatedAt || run.lastObservedAt || run.createdAt),
       ].filter(Boolean);
-    return `<article class="hub-work-row hub-session-row is-complete" data-open-run="${esc(run.id)}"><div class="hub-work-marker is-complete" aria-label="Completed session">✓</div><div class="hub-work-copy"><button class="hub-task-name" data-open-run="${esc(run.id)}">${esc(title)}</button><p>Session completed${task?.nextAction ? " · " + esc(task.nextAction) : " · Transcript and results are available"}</p><small>${esc(metadata.join(" · "))}${task ? " · " + esc(task.id) : ""}</small></div><div class="hub-row-actions"><button class="button subtle" data-open-run="${esc(run.id)}">Open session</button>${task ? '<button class="text-button" data-task="' + esc(task.id) + '">Task ↗</button>' : ""}</div></article>`;
+    return `<article class="hub-work-row hub-session-row is-complete" ${task ? 'data-task="' + esc(task.id) + '" data-workbench-task="' + esc(task.id) + '"' : ""}><div class="hub-work-marker is-complete" aria-label="Completed session">✓</div><div class="hub-work-copy">${task ? '<button class="hub-task-name" data-task="' + esc(task.id) + '">' + esc(title) + "</button>" : '<strong class="hub-task-name">' + esc(title) + "</strong>"}<p>Session completed${task?.nextAction ? " · " + esc(task.nextAction) : " · Transcript and results are available"}</p><small>${esc(metadata.join(" · "))}${task ? " · " + esc(task.id) : ""}</small></div><div class="hub-row-actions">${task ? '<button class="text-button" data-task="' + esc(task.id) + '">Task ↗</button>' : ""}${sessionAction({ runId: run.id, label: `Open completed session: ${title}` })}</div></article>`;
   }
   async function openReportedSession(id) {
     if (!current || current.view !== "now") return;
@@ -314,13 +329,17 @@ export function createWorkbench({
     nowExpanded.add("session:" + id);
     paintNow();
     try {
-      const r = await fetch("/api/command", {
+      const r = await fetch(apiPath("/api/command"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ operation: "task.sessions", input: { id } }),
         }),
         body = await r.json();
-      if (!r.ok) throw Error(body.error || "Sessions unavailable. Try again.");
+      if (!r.ok)
+        throw Error(
+          body.error ||
+            "Avoozl could not refresh this session link. No session was removed.",
+        );
       const run = taskSession(body.result || [], task);
       sessionStates.set(id, {
         sessionId: task.activity?.sessionId,
@@ -424,7 +443,7 @@ export function createWorkbench({
             ? `<div class="section-heading"><h2>Blocked work</h2><button class="button primary" data-ask-blockers>Ask about blockers</button></div>${paged(lanes.blocked, "blocked", (t) => taskSummary(t)) || '<p class="hub-empty">Nothing matching is blocked.</p>'}`
             : tab === "review"
               ? `<div class="section-heading"><h2>Check-ins &amp; context to review</h2><span>Reported progress and changed plan prose</span></div>${paged(lanes.attention, "checkins", (t) => taskSummary(t)) || '<p class="hub-empty">Nothing is waiting on a review.</p>'}${fold("completed", "Recently updated completed work", lanes.completed, (t) => taskSummary(t))}${conversations().length ? fold("conversations", "Recent conversations", conversations(), conversationSummary) : ""}`
-              : `<div class="section-heading"><h2>In flight</h2><span>${nowPayload ? "Updated " + age(new Date(nowAt).toISOString()) : "Loading connected sessions…"}</span></div>${active.map(runSummary).join("")}${paged(external, "working", (t) => taskSummary(t, { running: true }))}${!inProgress ? '<p class="hub-empty">No work is currently reported. Unreported external work may still be running.</p>' : ""}${completed.length ? `<div class="hub-completed-sessions"><div class="section-heading"><h2>Recently completed</h2><span>Latest finished sessions</span></div>${completed.map(completedRunSummary).join("")}</div>` : ""}`;
+              : `<div class="section-heading"><h2>In flight</h2>${nowPayload ? "<span>Updated " + age(new Date(nowAt).toISOString()) + "</span>" : ""}</div>${active.map(runSummary).join("")}${paged(external, "working", (t) => taskSummary(t, { running: true }))}${!inProgress ? '<p class="hub-empty">No work is currently reported. Unreported external work may still be running.</p>' : ""}${completed.length ? `<div class="hub-completed-sessions"><div class="section-heading"><h2>Recently completed</h2><span>Latest finished sessions</span></div>${completed.map(completedRunSummary).join("")}</div>` : ""}`;
     nowElement.innerHTML = `<section class="hub-section hub-decisions" id="hub-decisions" ${requests.length || (w.integrations || []).length ? "" : "hidden"}>${requests.length ? `<div class="section-heading"><h2>Needs your input</h2><span>${requests.length} pending</span></div>` : ""}${
       requests.length
         ? requests
@@ -449,7 +468,9 @@ export function createWorkbench({
     )
       return;
     requestController = new AbortController();
-    nowRequest = fetch("/api/workspace", { signal: requestController.signal })
+    nowRequest = fetch(apiPath("/api/workspace"), {
+      signal: requestController.signal,
+    })
       .then((r) => {
         if (!r.ok) throw Error("Sessions unavailable");
         return r.json();
@@ -472,8 +493,12 @@ export function createWorkbench({
     virtual?.destroy();
     virtual = null;
     current = { ...input, view: "now" };
+    if (input.workspace) {
+      nowPayload = input.workspace;
+      nowAt = Date.now();
+    }
     paintNow();
-    if (Date.now() - nowAt > 5000) updateNow();
+    if (!input.workspace && Date.now() - nowAt > 5000) updateNow();
   }
   tasksElement.addEventListener("click", (e) => {
     const group = e.target.closest("[data-tree-group]");
@@ -550,6 +575,7 @@ export function createWorkbench({
   nowElement.addEventListener("click", (e) => {
     const link = e.target.closest("[data-link-session]");
     if (link) {
+      e.stopImmediatePropagation();
       window.dispatchEvent(
         new CustomEvent("nupp-link-session", {
           detail: { taskId: link.dataset.linkSession },
@@ -563,26 +589,29 @@ export function createWorkbench({
       page = e.target.closest("[data-now-page]"),
       pick = e.target.closest("[data-now-tab]");
     if (close) {
+      e.stopImmediatePropagation();
       nowExpanded.delete("session:" + close.dataset.reportedClose);
       paintNow();
-    } else if (
-      reported &&
-      !e.target.closest("[data-task],[data-edit],.hub-session-note")
-    )
+    } else if (reported) {
+      e.stopImmediatePropagation();
       openReportedSession(reported.dataset.reportedTask);
-    if (open)
+    }
+    if (open) {
+      e.stopImmediatePropagation();
       window.dispatchEvent(
         new CustomEvent("nupp-open-session", {
           detail: { id: open.dataset.openRun, steer: false },
         }),
       );
+    }
     if (page) {
       pages.set(page.dataset.nowPage, Number(page.dataset.page));
       paintNow();
     }
     if (pick) selectNowTab(pick.dataset.nowTab);
     const ask = e.target.closest("[data-ask-task]");
-    if (ask)
+    if (ask) {
+      e.stopImmediatePropagation();
       window.dispatchEvent(
         new CustomEvent("nupp-ask-context", {
           detail: {
@@ -592,6 +621,7 @@ export function createWorkbench({
           },
         }),
       );
+    }
     if (e.target.closest("[data-ask-blockers]"))
       window.dispatchEvent(
         new CustomEvent("nupp-ask-context", {

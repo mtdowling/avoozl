@@ -23,6 +23,13 @@ test("initialization starts empty, refuses replacement, and paths survive moving
     original = path.join(root, "original"),
     moved = path.join(root, "moved workspace");
   initializeWorkspace(original, { name: "A team project", port: 9477 });
+  const repositoryConfig = path.join(original, ".avoozl", "config.json");
+  assert.equal(fs.existsSync(repositoryConfig), true);
+  assert.equal(fs.existsSync(path.join(original, "workspace.json")), false);
+  const savedConfig = JSON.parse(fs.readFileSync(repositoryConfig, "utf8"));
+  assert.equal(savedConfig.$schema, "https://avoozl.dev/schema/config-v1.json");
+  assert.equal(savedConfig.dbPath, "../state/workspace.sqlite");
+  assert.equal(savedConfig.documents, "../plans");
   let config = workspaceConfig({ workspace: original }),
     store = new Store(config.dbPath);
   assert.deepEqual(store.read().tasks, []);

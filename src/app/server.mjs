@@ -18,6 +18,7 @@ import {
   mintOpenHandsSurface,
   proxyOpenHandsSurface,
 } from "./openhands-surface.mjs";
+import { RepositorySettings } from "./repository-settings.mjs";
 export const appRoot = path.dirname(fileURLToPath(import.meta.url)),
   webRoot = path.join(appRoot, "ui-dist");
 const MIME = {
@@ -85,6 +86,10 @@ export function startServer({
   allowedHosts = [],
   canvasOrigins = [],
   githubPollMs = 30000,
+  workspaceRoot,
+  configFiles,
+  configSources,
+  configWithoutRepository,
 } = {}) {
   const store = new Store(dbPath);
   if (!store.initialized()) fail("Initialize a workspace before serving.");
@@ -108,14 +113,25 @@ export function startServer({
     });
   });
   if (mode) store.setMeta("mode", mode);
+  const configuration = workspaceRoot
+    ? new RepositorySettings(store, {
+        workspaceRoot,
+        files: configFiles,
+        sources: configSources,
+        baseConfig: configWithoutRepository,
+      })
+    : null;
   const manager =
       providedManager ||
       new RunManager(store, { factories, baseUrl: "http://127.0.0.1:" + port }),
-    ops = new Operations(store, { manager, operator });
+    ops = new Operations(store, { manager, operator, configuration });
   let draining = false;
   const clients = new Set();
   const stopSourceWatch = sourceRoot
     ? watchSources(store, sourceRoot)
+    : () => {};
+  const stopConfigurationWatch = configuration
+    ? configuration.watch()
     : () => {};
   let eventTimer = null;
   let githubTimer = null,
@@ -179,6 +195,7 @@ export function startServer({
     return store.read().revision;
   }
   function pump() {
+    const currentRevision = store.read().revision;
     for (const client of clients) {
       const events = store.events({ after: client.after, runId: client.runId });
       for (const event of events) {
@@ -186,6 +203,12 @@ export function startServer({
           `id: ${event.seq}\ndata: ${JSON.stringify(client.compact ? compactEvent(event) : event)}\n\n`,
         );
         client.after = event.seq;
+      }
+      if (!client.runId && client.revision !== currentRevision) {
+        client.res.write(
+          `data: ${JSON.stringify({ kind: "workspace.revision", revision: currentRevision })}\n\n`,
+        );
+        client.revision = currentRevision;
       }
       if (Date.now() - client.ping > 15000) {
         client.res.write(": keepalive\n\n");
@@ -419,12 +442,13 @@ export function startServer({
           after,
           runId: url.searchParams.get("run"),
           compact: url.searchParams.get("compact") === "true",
+          revision: store.read().revision,
           ping: Date.now(),
         };
         clients.add(client);
         pump();
         if (!eventTimer) eventTimer = setInterval(pump, 1000);
-        req.on("close", () => {
+        res.on("close", () => {
           clients.delete(client);
           if (!clients.size) {
             clearInterval(eventTimer);
@@ -651,6 +675,7 @@ export function startServer({
   };
   server.on("close", () => {
     stopSourceWatch();
+    stopConfigurationWatch();
     clearInterval(eventTimer);
     clearInterval(githubTimer);
     for (const c of clients) c.res.end();
@@ -658,9 +683,10 @@ export function startServer({
   });
   server.on("error", () => {
     stopSourceWatch();
+    stopConfigurationWatch();
     manager.close().then(release);
   });
-  server.workspace = { store, ops, manager };
+  server.workspace = { store, ops, manager, configuration };
   server.drain = () => {
     draining = true;
     store.setMeta(ownerKey, { ...store.getMeta(ownerKey), draining: true });

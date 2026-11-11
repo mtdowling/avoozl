@@ -12,8 +12,7 @@ export function parseRepository(value) {
 }
 
 export async function requirePrivateRepository(github, value) {
-  const repository =
-      typeof value === "string" ? parseRepository(value) : value,
+  const repository = typeof value === "string" ? parseRepository(value) : value,
     remote = await github.repository(repository);
   if (remote.private !== true)
     fail(
@@ -119,7 +118,8 @@ export class GitHubClient {
       "GET",
       `/repos/${owner}/${repo}/collaborators/${encodeURIComponent(actor)}/permission`,
     ).catch((error) => {
-      if (error.status === 404) return { permission: "none", user: { login: actor } };
+      if (error.status === 404)
+        return { permission: "none", user: { login: actor } };
       throw error;
     });
   }
@@ -134,6 +134,19 @@ export class GitHubClient {
         assignee,
         sort: "updated",
         direction: "asc",
+        per_page: 100,
+      },
+    }).then((items) => items.filter((item) => !item.pull_request));
+  }
+
+  listOpenIssues(value) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    return this.request("GET", `/repos/${owner}/${repo}/issues`, {
+      query: {
+        state: "open",
+        sort: "updated",
+        direction: "desc",
         per_page: 100,
       },
     }).then((items) => items.filter((item) => !item.pull_request));
@@ -171,13 +184,15 @@ export class GitHubClient {
   ensureLabel(value, { name, color = "1d76db", description = "" }) {
     const { owner, repo } =
       typeof value === "string" ? parseRepository(value) : value;
-    return this.request("GET", `/repos/${owner}/${repo}/labels/${encodeURIComponent(name)}`)
-      .catch((error) => {
-        if (error.status !== 404) throw error;
-        return this.request("POST", `/repos/${owner}/${repo}/labels`, {
-          body: { name, color, description },
-        });
+    return this.request(
+      "GET",
+      `/repos/${owner}/${repo}/labels/${encodeURIComponent(name)}`,
+    ).catch((error) => {
+      if (error.status !== 404) throw error;
+      return this.request("POST", `/repos/${owner}/${repo}/labels`, {
+        body: { name, color, description },
       });
+    });
   }
 
   createIssue(value, input) {

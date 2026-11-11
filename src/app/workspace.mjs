@@ -48,14 +48,16 @@ export function initializeWorkspace(
     );
   fs.mkdirSync(config.workspaceRoot, { recursive: true });
   const saved = {
+    $schema: "https://avoozl.dev/schema/config-v1.json",
     version: 1,
     name,
-    dbPath: db,
-    documents,
+    dbPath: path.relative(path.dirname(config.filename), config.dbPath),
+    documents: path.relative(path.dirname(config.filename), config.plansRoot),
     port: config.port,
     host: "127.0.0.1",
   };
   // Reserve the configuration before creating state, so concurrent initializers cannot overwrite it.
+  fs.mkdirSync(path.dirname(config.filename), { recursive: true });
   fs.writeFileSync(config.filename, JSON.stringify(saved, null, 2) + "\n", {
     flag: "wx",
   });

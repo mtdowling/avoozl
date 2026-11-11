@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { AgentServerClient } from "@openhands/typescript-client/clients";
 import { fail } from "./store.mjs";
 import {
+  OPENHANDS_PLUGIN,
   OPENHANDS_VERSIONS,
   openHandsSettings,
 } from "./providers/openhands.mjs";
@@ -75,6 +76,73 @@ function assertPackage(source) {
   return manifest;
 }
 
+function assertPluginPackage(source) {
+  source = path.resolve(source);
+  const manifestPath = path.join(source, ".plugin", "plugin.json"),
+    mcpPath = path.join(source, ".mcp.json"),
+    skillPath = path.join(source, "skills", "avoozl", "SKILL.md");
+  for (const file of [manifestPath, mcpPath, skillPath]) {
+    let stat;
+    try {
+      stat = fs.lstatSync(file);
+    } catch {
+      fail("The packaged Avoozl OpenHands plugin is incomplete.", 500);
+    }
+    if (!stat.isFile() || stat.isSymbolicLink())
+      fail("The packaged Avoozl OpenHands plugin is invalid.", 500);
+  }
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8")),
+    mcp = JSON.parse(fs.readFileSync(mcpPath, "utf8")),
+    skill = fs.readFileSync(skillPath, "utf8"),
+    server = mcp?.mcpServers?.avoozl;
+  if (
+    manifest.name !== OPENHANDS_PLUGIN.name ||
+    manifest.version !== OPENHANDS_PLUGIN.version ||
+    !/^---\s*\nname:\s*avoozl\b/m.test(skill) ||
+    server?.type !== "http" ||
+    server.url !== "${AVOOZL_MCP_URL}" ||
+    server.headers?.Authorization !== "Bearer ${AVOOZL_MCP_TOKEN}"
+  )
+    fail("The packaged Avoozl OpenHands plugin is invalid.", 500);
+  return {
+    name: manifest.name,
+    version: manifest.version,
+    source,
+    skills: ["avoozl"],
+    mcpServers: {
+      avoozl: {
+        scope: "conversation",
+        urlSecret: "AVOOZL_MCP_URL",
+        bearerSecret: "AVOOZL_MCP_TOKEN",
+      },
+    },
+  };
+}
+
+async function installOpenHandsPlugin(client, settings) {
+  const registration = assertPluginPackage(
+      settings.pluginSource || OPENHANDS_PLUGIN.source,
+    ),
+    installed = await client.post("/api/plugins/install", {
+      source: registration.source,
+      force: true,
+    });
+  let enabled = installed.enabled;
+  if (!enabled) {
+    const state = await client.patch(
+      `/api/plugins/installed/${encodeURIComponent(registration.name)}`,
+      { enabled: true },
+    );
+    enabled = state.enabled;
+  }
+  if (!enabled) fail("OpenHands did not enable the Avoozl plugin.", 409);
+  return {
+    ...registration,
+    installed: true,
+    enabled: true,
+  };
+}
+
 async function compatible(client) {
   const info = await client.server.getServerInfo();
   if (info.version !== OPENHANDS_VERSIONS.server)
@@ -121,6 +189,7 @@ export async function setupOpenHandsAgents({
     fail("The default OpenHands agent must be included in --agents.", 409);
   try {
     const server = await compatible(active);
+    const integration = await installOpenHandsPlugin(active, settings);
     let listing = await active.get("/api/agent-profiles");
     const priorActive = listing.active_agent_profile_id;
     const results = [];
@@ -227,6 +296,7 @@ export async function setupOpenHandsAgents({
       activeProfile,
       agentServer: settings.host,
       serverVersion: server.version,
+      integration,
       note: results.every((entry) => entry.ready || !verify)
         ? "OpenHands agents are ready for Avoozl conversations."
         : "Some profiles were installed but could not be verified. Authenticate the corresponding agent CLI or configure credentials in OpenHands, then retry.",
@@ -249,6 +319,7 @@ export async function installOpenHandsCanvasApp({
     active = client || ownedClient(settings);
   try {
     const server = await compatible(active);
+    const integration = await installOpenHandsPlugin(active, settings);
     const installed = await active.post("/api/canvas-extensions/install", {
       source,
       force: Boolean(force),
@@ -280,6 +351,7 @@ export async function installOpenHandsCanvasApp({
       route: OPENHANDS_CANVAS_APP.route,
       agentServer: settings.host,
       serverVersion: server.version,
+      integration,
       backend,
       note:
         backend?.state === "ready"

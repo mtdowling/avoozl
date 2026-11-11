@@ -6,10 +6,12 @@ import { promisify } from "node:util";
 import { digest } from "../model.mjs";
 import { fail } from "./store.mjs";
 import { requirePrivateRepository } from "./github.mjs";
+import { synchronizeAgentInstructions } from "./agent-instructions.mjs";
+import { queueAssociationId } from "./github-overlap.mjs";
 
 const exec = promisify(execFile);
 const allowedPath =
-  /^(workspace\.json|designs\/[a-z][a-z0-9-]{2,80}\.(md|approval\.json)|tasks\/[a-z][a-z0-9-]{2,80}\.json|reviews\/[a-zA-Z0-9_.-]+\.json)$/;
+  /^(workspace\.json|designs\/[a-z][a-z0-9-]{2,80}\.(md|approval\.json)|tasks\/[a-z][a-z0-9-]{2,80}\.json|reviews\/[a-zA-Z0-9_.-]+\.json|associations\/github-[a-f0-9]{24}\.json)$/;
 
 async function git(root, args, options = {}) {
   const { raw = false, ...execOptions } = options;
@@ -24,8 +26,12 @@ async function git(root, args, options = {}) {
     ).stdout;
     return raw ? stdout : stdout.trim();
   } catch (error) {
-    error.message =
-      (error.stderr || error.stdout || error.message || "Git failed.").trim();
+    error.message = (
+      error.stderr ||
+      error.stdout ||
+      error.message ||
+      "Git failed."
+    ).trim();
     throw error;
   }
 }
@@ -53,7 +59,9 @@ async function gitInput(root, args, input, options = {}) {
 }
 
 function cleanDirectory(value = ".avoozl") {
-  const normalized = String(value).replaceAll("\\", "/").replace(/^\/+|\/+$/g, "");
+  const normalized = String(value)
+    .replaceAll("\\", "/")
+    .replace(/^\/+|\/+$/g, "");
   if (
     !normalized ||
     normalized === "." ||
@@ -67,20 +75,31 @@ function cleanDirectory(value = ".avoozl") {
 }
 
 function relativeFile(directory, name) {
-  if (!allowedPath.test(name)) fail("Unexpected workspace publication path " + name + ".");
+  if (!allowedPath.test(name))
+    fail("Unexpected workspace publication path " + name + ".");
   return directory + "/" + name;
 }
 
 function secretReason(text) {
   const patterns = [
     ["private key", /-----BEGIN (?:RSA |EC |OPENSSH |PGP )?PRIVATE KEY-----/i],
-    ["provider or GitHub token", /\b(?:github_pat_|gh[pousr]_|sk-ant-|sk-proj-|xox[baprs]-)[A-Za-z0-9_-]{12,}/],
-    ["credential assignment", /\b(?:api[_-]?key|access[_-]?token|secret|password)\s*[:=]\s*["']?[^\s"'`]{8,}/i],
+    [
+      "provider or GitHub token",
+      /\b(?:github_pat_|gh[pousr]_|sk-ant-|sk-proj-|xox[baprs]-)[A-Za-z0-9_-]{12,}/,
+    ],
+    [
+      "credential assignment",
+      /\b(?:api[_-]?key|access[_-]?token|secret|password)\s*[:=]\s*["']?[^\s"'`]{8,}/i,
+    ],
     ["authorization header", /\bAuthorization\s*:\s*(?:Bearer|Basic)\s+\S+/i],
     ["credential-bearing URL", /https?:\/\/[^/\s:@]+:[^/\s@]+@/i],
-    ["absolute user path", /(?:\/Users\/[^/\s]+\/|\/home\/[^/\s]+\/|[A-Za-z]:\\Users\\[^\\\s]+\\)/],
+    [
+      "absolute user path",
+      /(?:\/Users\/[^/\s]+\/|\/home\/[^/\s]+\/|[A-Za-z]:\\Users\\[^\\\s]+\\)/,
+    ],
   ];
-  for (const [reason, pattern] of patterns) if (pattern.test(text)) return reason;
+  for (const [reason, pattern] of patterns)
+    if (pattern.test(text)) return reason;
   for (const token of text.match(/[A-Za-z0-9+/=_-]{48,}/g) || []) {
     if (/^[a-f0-9]{64}$/i.test(token)) continue;
     const classes = [
@@ -96,16 +115,22 @@ function secretReason(text) {
 
 export function scanWorkspacePublication(files) {
   for (const [name, text] of Object.entries(files)) {
-    if (!allowedPath.test(name)) fail("Unexpected workspace publication path " + name + ".");
+    if (!allowedPath.test(name))
+      fail("Unexpected workspace publication path " + name + ".");
     if (typeof text !== "string" || text.includes("\0"))
       fail("Workspace publications must contain text only.");
     if (Buffer.byteLength(text) > 2 * 1024 * 1024)
       fail("Workspace publication file is too large: " + name + ".");
     const reason = secretReason(text);
-    if (reason)
-      fail(`Refusing to publish ${name}: detected ${reason}.`, 422);
+    if (reason) fail(`Refusing to publish ${name}: detected ${reason}.`, 422);
   }
-  return { files: Object.keys(files).length, bytes: Object.values(files).reduce((n, text) => n + Buffer.byteLength(text), 0) };
+  return {
+    files: Object.keys(files).length,
+    bytes: Object.values(files).reduce(
+      (n, text) => n + Buffer.byteLength(text),
+      0,
+    ),
+  };
 }
 
 function taskForPublication(store, task) {
@@ -125,6 +150,7 @@ function taskForPublication(store, task) {
     projectId: task.projectId || null,
     planId: task.planId || null,
     planHash: task.planHash || null,
+    archivedAt: task.archivedAt || null,
     approvedSource: task.approvedSource || null,
     github: task.github
       ? {
@@ -138,6 +164,22 @@ function taskForPublication(store, task) {
     requires: data.edges
       .filter((edge) => edge.to === task.id && edge.kind === "requires")
       .map((edge) => edge.from),
+  };
+}
+
+function queueAssociationForPublication(association) {
+  return {
+    schemaVersion: 1,
+    repository: association.repository,
+    kind: association.kind,
+    nodeId: association.nodeId || null,
+    number: association.number,
+    bodyHash: association.bodyHash || null,
+    targetKind: association.targetKind,
+    targetId: association.targetId,
+    confirmedBy: association.confirmedBy || null,
+    confirmedAt: association.confirmedAt,
+    source: "operator-confirmed",
   };
 }
 
@@ -196,8 +238,19 @@ export function workspacePublication(store) {
     files[`tasks/${task.id}.json`] =
       JSON.stringify(taskForPublication(store, task), null, 2) + "\n";
   for (const thread of store.list("review_threads"))
-    files[`reviews/${thread.id}.json`] =
-      JSON.stringify(thread, null, 2) + "\n";
+    files[`reviews/${thread.id}.json`] = JSON.stringify(thread, null, 2) + "\n";
+  for (const association of store
+    .list("github_queue_associations")
+    .filter((item) => item.source === "operator-confirmed")) {
+    const portable = queueAssociationForPublication(association),
+      id = queueAssociationId(
+        portable,
+        portable.targetKind,
+        portable.targetId,
+      ).slice("github-queue-association:".length);
+    files[`associations/github-${id}.json`] =
+      JSON.stringify(portable, null, 2) + "\n";
+  }
   scanWorkspacePublication(files);
   return files;
 }
@@ -253,7 +306,8 @@ async function remoteHead(config, { fetch = true } = {}) {
       config.remote,
       `+refs/heads/${config.branch}:refs/remotes/${config.remote}/${config.branch}`,
     ]).catch((error) => {
-      if (!/couldn't find remote ref|not found/i.test(error.message)) throw error;
+      if (!/couldn't find remote ref|not found/i.test(error.message))
+        throw error;
     });
   return git(config.root, [
     "rev-parse",
@@ -267,7 +321,8 @@ export async function publishWorkspaceRepository(store, input = {}) {
   if (!config) fail("Configure a workspace repository first.", 409);
   const files = workspacePublication(store),
     report = scanWorkspacePublication(files);
-  if (input.dryRun) return { ...report, dryRun: true, files: Object.keys(files) };
+  if (input.dryRun)
+    return { ...report, dryRun: true, files: Object.keys(files) };
   const base = await remoteHead(config),
     targetBranch = input.targetBranch || config.branch,
     index = path.join(
@@ -315,7 +370,12 @@ export async function publishWorkspaceRepository(store, input = {}) {
         ? await git(config.root, ["rev-parse", `${base}^{tree}`])
         : "";
     if (tree === baseTree)
-      return { ...report, unchanged: true, commit: base, files: Object.keys(files) };
+      return {
+        ...report,
+        unchanged: true,
+        commit: base,
+        files: Object.keys(files),
+      };
     const args = ["commit-tree", tree];
     if (base) args.push("-p", base);
     args.push("-m", input.message || "Publish Avoozl workspace");
@@ -340,7 +400,12 @@ export async function publishWorkspaceRepository(store, input = {}) {
       branch: targetBranch,
       files: report.files,
     });
-    return { ...report, commit, branch: targetBranch, files: Object.keys(files) };
+    return {
+      ...report,
+      commit,
+      branch: targetBranch,
+      files: Object.keys(files),
+    };
   } finally {
     try {
       fs.unlinkSync(index);
@@ -372,6 +437,19 @@ async function readRemoteFiles(config, commit) {
   return files;
 }
 
+async function readRemoteAgentInstructions(config, commit) {
+  const entry = await git(config.root, ["ls-tree", commit, "--", "AGENTS.md"]);
+  if (!entry) return "";
+  if (!/^100(?:644|755) blob /.test(entry))
+    fail("The planning repository AGENTS.md must be a regular file.");
+  const text = await git(config.root, ["show", `${commit}:AGENTS.md`], {
+    raw: true,
+  });
+  if (Buffer.byteLength(text) > 512 * 1024)
+    fail("The planning repository AGENTS.md is too large.");
+  return text;
+}
+
 function importedTask(value) {
   if (
     value?.schemaVersion !== 1 ||
@@ -396,6 +474,7 @@ function importedTask(value) {
     planHash: value.planHash || undefined,
     approvedSource: value.approvedSource || undefined,
     github: value.github || undefined,
+    archivedAt: value.archivedAt || null,
     statusAuthority: "database",
     needsReview: false,
     portable: true,
@@ -410,7 +489,9 @@ function importedReport(value) {
     typeof value.title !== "string" ||
     !value.title.trim() ||
     value.title.length > 160 ||
-    !["overview", "tasks", "epics", "graph", "documents"].includes(value.view) ||
+    !["overview", "tasks", "epics", "graph", "documents"].includes(
+      value.view,
+    ) ||
     !value.filters ||
     typeof value.filters !== "object" ||
     Array.isArray(value.filters)
@@ -454,12 +535,95 @@ function importedReport(value) {
   };
 }
 
+function importedQueueAssociation(value, filename, commit, store, data) {
+  const allowedKeys = new Set([
+      "schemaVersion",
+      "repository",
+      "kind",
+      "nodeId",
+      "number",
+      "bodyHash",
+      "targetKind",
+      "targetId",
+      "confirmedBy",
+      "confirmedAt",
+      "source",
+    ]),
+    keys = value && typeof value === "object" ? Object.keys(value) : [],
+    validRepository =
+      typeof value?.repository === "string" &&
+      /^[^/\s]+\/[^/\s]+$/.test(value.repository) &&
+      value.repository.length <= 200,
+    validNode =
+      value?.nodeId === null ||
+      (typeof value?.nodeId === "string" &&
+        value.nodeId.length > 0 &&
+        value.nodeId.length <= 300),
+    validHash =
+      value?.bodyHash === null ||
+      (typeof value?.bodyHash === "string" &&
+        /^[a-f0-9]{64}$/i.test(value.bodyHash)),
+    validActor =
+      value?.confirmedBy === null ||
+      (typeof value?.confirmedBy === "string" &&
+        value.confirmedBy.length > 0 &&
+        value.confirmedBy.length <= 200),
+    validTimestamp =
+      typeof value?.confirmedAt === "string" &&
+      value.confirmedAt.length <= 40 &&
+      Number.isFinite(Date.parse(value.confirmedAt));
+  if (
+    value?.schemaVersion !== 1 ||
+    keys.some((key) => !allowedKeys.has(key)) ||
+    !validRepository ||
+    !["issue", "pull-request"].includes(value.kind) ||
+    !validNode ||
+    !Number.isInteger(value.number) ||
+    value.number < 1 ||
+    !validHash ||
+    !["task", "plan"].includes(value.targetKind) ||
+    !/^[a-z][a-z0-9-]{2,80}$/.test(value.targetId || "") ||
+    !validActor ||
+    !validTimestamp ||
+    value.source !== "operator-confirmed"
+  )
+    fail("Invalid portable Queue association record.");
+  const id = queueAssociationId(value, value.targetKind, value.targetId),
+    suffix = id.slice("github-queue-association:".length);
+  if (filename !== `associations/github-${suffix}.json`)
+    fail("Portable Queue association identity does not match its path.");
+  const target =
+    value.targetKind === "task"
+      ? data.tasks.find((task) => task.id === value.targetId)
+      : store.get("plans", value.targetId);
+  if (!target || (value.targetKind === "plan" && target.deletedAt))
+    fail("Portable Queue association target does not exist.");
+  return {
+    id,
+    queueItemId: `github-queue:${value.repository}:${value.kind}:${value.nodeId || value.number}`,
+    repository: value.repository,
+    kind: value.kind,
+    nodeId: value.nodeId,
+    number: value.number,
+    bodyHash: value.bodyHash,
+    targetKind: value.targetKind,
+    targetId: value.targetId,
+    title: target.title,
+    confirmedBy: value.confirmedBy || undefined,
+    confirmedAt: value.confirmedAt,
+    source: "operator-confirmed",
+    portable: true,
+    portableCommit: commit,
+  };
+}
+
 export async function syncWorkspaceRepository(store) {
   const config = store.getMeta("workspaceRepository");
   if (!config) fail("Configure a workspace repository first.", 409);
   const commit = await remoteHead(config);
   if (!commit) fail("The workspace branch does not exist yet.", 404);
   const files = await readRemoteFiles(config, commit),
+    agentsText = await readRemoteAgentInstructions(config, commit),
     manifest = JSON.parse(files["workspace.json"] || "{}");
   if (manifest.schemaVersion !== 1)
     fail("Unsupported portable workspace schema.");
@@ -475,6 +639,10 @@ export async function syncWorkspaceRepository(store) {
         fail("Invalid portable reports collection.");
       data.savedSearches = manifest.reports.map(importedReport);
     }
+    synchronizeAgentInstructions(data, agentsText, {
+      path: "AGENTS.md",
+      revision: commit,
+    });
     for (const [name, text] of Object.entries(files)) {
       const design = name.match(/^designs\/([a-z][a-z0-9-]{2,80})\.md$/);
       if (!design) continue;
@@ -516,7 +684,9 @@ export async function syncWorkspaceRepository(store) {
       if (
         local &&
         last &&
-        digest(JSON.stringify(taskForPublication(store, local), null, 2) + "\n") !== last &&
+        digest(
+          JSON.stringify(taskForPublication(store, local), null, 2) + "\n",
+        ) !== last &&
         hashes[name] !== last
       ) {
         conflicts.push(name);
@@ -540,11 +710,37 @@ export async function syncWorkspaceRepository(store) {
             to: next.id,
             kind: "requires",
             portableWorkspace: true,
-            reason: "Imported from portable workspace revision " + commit.slice(0, 12),
+            reason:
+              "Imported from portable workspace revision " +
+              commit.slice(0, 12),
           });
     }
+    for (const [name, text] of Object.entries(files)) {
+      if (!name.startsWith("associations/")) continue;
+      const next = importedQueueAssociation(
+          JSON.parse(text),
+          name,
+          commit,
+          store,
+          data,
+        ),
+        local = store.get("github_queue_associations", next.id);
+      if (
+        local &&
+        JSON.stringify(queueAssociationForPublication(local)) !==
+          JSON.stringify(queueAssociationForPublication(next))
+      ) {
+        conflicts.push(name);
+        continue;
+      }
+      store.put("github_queue_associations", next);
+    }
     if (conflicts.length)
-      fail("Workspace repository conflicts require review: " + conflicts.join(", "), 409);
+      fail(
+        "Workspace repository conflicts require review: " +
+          conflicts.join(", "),
+        409,
+      );
     store.commit(data, "Synchronize portable workspace");
     store.setMeta("workspaceImport", {
       commit,
@@ -571,9 +767,14 @@ export async function publishPlanningPullRequest(store, github, { planId }) {
   const plan = store.get("plans", planId),
     config = store.getMeta("workspaceRepository");
   if (!plan || plan.state !== "approved")
-    fail("Approve the exact design revision before requesting team review.", 409);
+    fail(
+      "Approve the exact design revision before requesting team review.",
+      409,
+    );
   if (!config?.repository)
-    fail("Planning pull requests require a configured private GitHub workspace repository.");
+    fail(
+      "Planning pull requests require a configured private GitHub workspace repository.",
+    );
   await requirePrivateRepository(github, config.repository);
   const head = `avoozl/design-${plan.id}-${plan.hash.slice(0, 10)}`;
   const existing = await github.listPullRequests(config.repository, {

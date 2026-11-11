@@ -4,6 +4,13 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { fail } from "./store.mjs";
 const exec = promisify(execFile);
+const DIFF_TEXT_LIMIT = 2 * 1024 * 1024;
+export const WORKING_STATES = [
+  "starting",
+  "running",
+  "waiting-input",
+  "waiting-approval",
+];
 function liveLocks(store, projectId) {
   const rows = store.db
     .prepare("SELECT * FROM work_locks WHERE project_id=?")
@@ -60,6 +67,76 @@ export async function git(cwd, args) {
     await exec("git", args, { cwd, maxBuffer: 8 * 1024 * 1024 })
   ).stdout.trim();
 }
+async function gitFile(cwd, args) {
+  return (
+    await exec("git", args, {
+      cwd,
+      maxBuffer: 8 * 1024 * 1024,
+      encoding: "buffer",
+    })
+  ).stdout;
+}
+export function githubRepositoryFromRemote(value) {
+  const match = String(value || "")
+    .trim()
+    .match(
+      /^(?:git@github\.com:|https:\/\/github\.com\/|ssh:\/\/git@github\.com\/)([^/]+)\/([^/]+?)(?:\.git)?$/,
+    );
+  return match ? `${match[1]}/${match[2]}` : null;
+}
+export async function projectGitHubRepository(store, input = {}) {
+  const project = store.get("projects", input.projectId);
+  if (!project) fail("Choose a configured execution project.");
+  const remote = input.remote || "origin";
+  let remoteUrl;
+  try {
+    remoteUrl = await git(project.root, ["remote", "get-url", remote]);
+  } catch {
+    fail(`Project ${project.id} has no ${remote} Git remote.`);
+  }
+  const repository = githubRepositoryFromRemote(remoteUrl);
+  if (!repository)
+    fail(
+      `Project ${project.id}'s ${remote} remote is not a GitHub repository.`,
+    );
+  return {
+    projectId: project.id,
+    projectRoot: project.root,
+    remote,
+    remoteUrl,
+    repository,
+  };
+}
+async function remoteRepository(root, remote = "origin") {
+  try {
+    return githubRepositoryFromRemote(
+      await git(root, ["remote", "get-url", remote]),
+    );
+  } catch {
+    return null;
+  }
+}
+async function effectiveGitIdentity(root) {
+  try {
+    const [name, email] = await Promise.all([
+      git(root, ["config", "--get", "user.name"]),
+      git(root, ["config", "--get", "user.email"]),
+    ]);
+    return name && email ? { name, email } : null;
+  } catch {
+    return null;
+  }
+}
+async function configureWorktreeIdentity(root, worktree) {
+  const identity = await effectiveGitIdentity(root);
+  if (!identity) return;
+  // OpenHands may isolate its process-level Git configuration. Preserve the
+  // repository's effective identity in this run only instead of copying it
+  // into Avoozl state or changing the user's other checkouts.
+  await git(root, ["config", "extensions.worktreeConfig", "true"]);
+  await git(worktree, ["config", "--worktree", "user.name", identity.name]);
+  await git(worktree, ["config", "--worktree", "user.email", identity.email]);
+}
 export async function projectConfig({
   id,
   root,
@@ -98,6 +175,7 @@ export async function projectConfig({
     baseBranch,
     worktreeRoot,
     checks,
+    repository: await remoteRepository(root),
     createdAt: new Date().toISOString(),
   };
 }
@@ -129,6 +207,7 @@ export async function createWorktree(store, project, runId) {
           worktree,
           project.baseBranch,
         ]);
+      await configureWorktreeIdentity(project.root, worktree);
       return {
         branch,
         worktree,
@@ -176,6 +255,23 @@ export async function commandEvidence(
     };
   }
 }
+function diffText(contents) {
+  if (contents.length > DIFF_TEXT_LIMIT)
+    return { text: "", truncated: true, binary: false };
+  if (contents.includes(0)) return { text: "", truncated: false, binary: true };
+  return { text: contents.toString("utf8"), truncated: false, binary: false };
+}
+function worktreeFile(worktree, file) {
+  const root = fs.realpathSync(worktree),
+    candidate = path.resolve(root, file);
+  if (candidate !== root && !candidate.startsWith(root + path.sep))
+    fail("Use a repository-relative path.");
+  if (!fs.existsSync(candidate)) return Buffer.alloc(0);
+  const full = fs.realpathSync(candidate);
+  if (!full.startsWith(root + path.sep) || !fs.statSync(full).isFile())
+    fail("Use a repository-relative path.");
+  return fs.readFileSync(full);
+}
 // The changes a run has made in its own worktree, bounded so a large branch
 // cannot produce an unbounded response. Read-only: it never checks out,
 // rebases, or stages anything.
@@ -193,13 +289,24 @@ export async function runChanges(store, { id, path: file, limit = 400 }) {
     // the revision the run started from.
     if (file.includes("..") || path.isAbsolute(file))
       fail("Use a repository-relative path.");
-    let before = "";
+    let previous = Buffer.alloc(0);
     try {
-      before = await git(run.worktree, ["show", base + ":" + file]);
+      previous = await gitFile(run.worktree, ["show", base + ":" + file]);
     } catch {
-      before = "";
+      previous = Buffer.alloc(0);
     }
-    return { id, path: file, base, head, before };
+    const before = diffText(previous),
+      after = diffText(worktreeFile(run.worktree, file));
+    return {
+      id,
+      path: file,
+      base,
+      head,
+      before: before.text,
+      after: after.text,
+      binary: before.binary || after.binary,
+      truncated: before.truncated || after.truncated,
+    };
   }
   const committed = await git(run.worktree, [
     "diff",
@@ -208,7 +315,9 @@ export async function runChanges(store, { id, path: file, limit = 400 }) {
     base,
     "HEAD",
   ]);
-  const uncommitted = await git(run.worktree, ["status", "--porcelain"]);
+  const uncommitted = (
+    await gitFile(run.worktree, ["status", "--porcelain"])
+  ).toString("utf8");
   const files = committed
     .split("\n")
     .filter(Boolean)

@@ -233,8 +233,7 @@ export class Translator {
     const turnId = turn.id;
     if (outcome.state === "interrupted")
       this.terminateOpenTools({
-        notExecuted:
-          "Canceled before this tool was confirmed; it did not run.",
+        notExecuted: "Canceled before this tool was confirmed; it did not run.",
         executed:
           "Stopped by cancellation after it had started running. Any partial effects remain.",
         code: "interrupted",

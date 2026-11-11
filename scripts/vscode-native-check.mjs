@@ -58,7 +58,9 @@ const drive = argv.includes("--drive");
 // Which provider owns the session under test. The clicked controls are the
 // editor's, but the session is a provider's, and the two providers advertise
 // different capabilities, so the acceptance is run for each.
-const provider = ["claude", "codex"].includes(argv[argv.indexOf("--provider") + 1])
+const provider = ["claude", "codex"].includes(
+  argv[argv.indexOf("--provider") + 1],
+)
   ? argv[argv.indexOf("--provider") + 1]
   : "claude";
 // With --server DIR the browser editor from an extracted VS Code Server

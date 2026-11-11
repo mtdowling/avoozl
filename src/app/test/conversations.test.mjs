@@ -1,16 +1,20 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
 import { fixture } from "./fixtures.mjs";
 import { Operations } from "../operations.mjs";
 import { RunManager } from "../manager.mjs";
 import { createPlan, approvePlan } from "../plans.mjs";
 import { runPage, planPage, viewSnapshot } from "../views.mjs";
 
-test("context chat works without a repository and carries the selected plan", async (t) => {
-  const { store } = fixture(t);
+test("context chat uses a configured repository workspace and carries the selected plan", async (t) => {
+  const { store, root } = fixture(t);
+  store.put("projects", {
+    id: "fixture",
+    root,
+    baseBranch: "main",
+    worktreeRoot: root + "/worktrees",
+    checks: [],
+  });
   const plan = createPlan(store, {
     prompt: "Design contextual chat",
     text: "# Contextual chat\n\nUse the current Avoozl plan.",
@@ -35,6 +39,7 @@ test("context chat works without a repository and carries the selected plan", as
     prompt: "Attach to this Avoozl context.",
     submissionId: "context-chat",
     provider: "openhands",
+    projectId: "fixture",
     context: {
       view: "documents",
       planId: plan.id,
@@ -46,26 +51,120 @@ test("context chat works without a repository and carries the selected plan", as
 
   const run = store.get("runs", result.run.id);
   assert.equal(run.planId, plan.id);
-  assert.equal(run.contextOnly, true);
-  assert.equal(run.projectId, undefined);
+  assert.equal(run.contextOnly, undefined);
+  assert.equal(run.projectId, "fixture");
   assert.equal(run.readOnly, true);
   assert.equal(run.capabilityMode, "new-task");
-  assert.equal(
-    run.worktree.startsWith(
-      path.join(os.tmpdir(), "avoozl-context-workspaces") + path.sep,
-    ),
-    true,
-  );
-  assert.equal(fs.statSync(run.worktree).mode & 0o077, 0);
+  assert.equal(run.worktree, root);
   assert.equal(started.cwd, run.worktree);
-  assert.match(started.prompt, /No code repository is mounted/);
+  assert.match(started.prompt, /read-only repository inspection/);
   assert.match(started.prompt, /Help the user define one concrete task/);
-  assert.match(started.prompt, /Do not narrate setup, skill loading, or tool calls/);
-  assert.match(started.prompt, /do not dump repository, planning, policy, runtime, or metric inventories/);
+  assert.match(
+    started.prompt,
+    /Do not narrate setup, skill loading, or tool calls/,
+  );
+  assert.match(
+    started.prompt,
+    /do not dump repository, planning, policy, runtime, or metric inventories/,
+  );
   assert.match(started.prompt, /plans_capture/);
   assert.match(started.prompt, /Contextual chat/);
   assert.match(started.prompt, /"view":"documents"/);
   assert.equal(planPage(store).items[0].projectId, "future-project");
+});
+
+test("Avoozl refuses to start a repository-less OpenHands chat", async (t) => {
+  const { store } = fixture(t);
+  const manager = new RunManager(store, {
+    factories: {
+      openhands: () => ({
+        async start() {
+          assert.fail("A repository-less chat must not reach the provider.");
+        },
+        async close() {},
+      }),
+    },
+  });
+  t.after(() => manager.close());
+  const ops = new Operations(store, { manager });
+  await assert.rejects(
+    ops.execute("intent.submit", {
+      action: "ask",
+      prompt: "Open a project chat.",
+      submissionId: "missing-chat-workspace",
+      provider: "openhands",
+      context: { conversationPurpose: "project-chat" },
+    }),
+    /Configure a project workspace before starting an agent/,
+  );
+  assert.equal(store.list("runs").length, 0);
+});
+
+test("chat inherits its task project and refuses an ambiguous workspace", async (t) => {
+  const { store, root } = fixture(t);
+  store.put("projects", {
+    id: "fixture",
+    root,
+    baseBranch: "main",
+    worktreeRoot: root + "/worktrees",
+    checks: [],
+  });
+  const data = structuredClone(store.read());
+  data.tasks[0].projectId = "fixture";
+  store.commit(data, "Associate fixture project");
+  let started;
+  const manager = new RunManager(store, {
+    factories: {
+      openhands: () => ({
+        async start(options) {
+          started = options;
+        },
+        async close() {},
+      }),
+    },
+  });
+  t.after(() => manager.close());
+  const run = await manager.start({
+    id: "run-inherited-project",
+    taskId: "sample-task",
+    mode: "ask",
+    provider: "openhands",
+    prompt: "Review this task.",
+  });
+  assert.equal(run.projectId, "fixture");
+  assert.equal(run.worktree, root);
+  assert.equal(run.readOnly, true);
+  assert.equal(started.cwd, root);
+
+  const withoutAssociation = structuredClone(store.read());
+  delete withoutAssociation.tasks[0].projectId;
+  store.commit(withoutAssociation, "Remove fixture project association");
+  const defaulted = await manager.start({
+    id: "run-default-project",
+    mode: "ask",
+    provider: "openhands",
+    prompt: "Open the only configured project.",
+  });
+  assert.equal(defaulted.projectId, "fixture");
+  assert.equal(defaulted.worktree, root);
+
+  store.put("projects", {
+    id: "second",
+    root: root + "/second",
+    baseBranch: "main",
+    worktreeRoot: root + "/second-worktrees",
+    checks: [],
+  });
+  await assert.rejects(
+    manager.start({
+      id: "run-ambiguous-project",
+      mode: "ask",
+      provider: "openhands",
+      prompt: "Open a project chat.",
+    }),
+    /Choose which configured project workspace/,
+  );
+  assert.equal(store.get("runs", "run-ambiguous-project"), null);
 });
 
 test("Ask acknowledges a conversation before the provider connects and retries retain the original context", async (t) => {

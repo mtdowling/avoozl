@@ -80,7 +80,8 @@ function headingChecklist(markdown, heading) {
 export function parseIssueTask(issue) {
   const body = String(issue.body || ""),
     matches = [...body.matchAll(taskFence())];
-  if (matches.length > 1) fail("An issue may contain only one fenced task block.");
+  if (matches.length > 1)
+    fail("An issue may contain only one fenced task block.");
   if (matches.length) {
     let item;
     try {
@@ -131,7 +132,10 @@ export function parseIssueTask(issue) {
     summary: body.slice(0, 4000),
     acceptance: checklist.length
       ? checklist
-      : ["Configured required checks pass.", "A human explicitly accepts the result."],
+      : [
+          "Configured required checks pass.",
+          "A human explicitly accepts the result.",
+        ],
     requires: [],
     tags: [],
     resources: [],
@@ -179,8 +183,8 @@ ${requires ? `\n## Dependencies\n\n${requires}\n` : ""}
 function replaceManagedBody(current, managed) {
   const nextMarker = managed.match(/<!--\s*avoozl-task\s*\n[\s\S]*?\n-->/)?.[0],
     next = managed.match(
-    /<!-- avoozl:managed:start -->[\s\S]*<!-- avoozl:managed:end -->/,
-  )?.[0];
+      /<!-- avoozl:managed:start -->[\s\S]*<!-- avoozl:managed:end -->/,
+    )?.[0];
   if (!next || !nextMarker) return managed;
   if (!current?.includes("<!-- avoozl:managed:start -->")) return managed;
   return current
@@ -210,7 +214,11 @@ function authorization(labelEvent, permission, config) {
     return { authorized: false, reason: "The ready label event has no actor." };
   const allowlist = config.allowedActors || [];
   if (allowlist.length && !allowlist.includes(actor))
-    return { authorized: false, actor, reason: "The label actor is not on the allowlist." };
+    return {
+      authorized: false,
+      actor,
+      reason: "The label actor is not on the allowlist.",
+    };
   const required = permissionRank.get(config.minimumPermission || "write") ?? 3;
   const actual = permissionRank.get(permission?.permission || "none") ?? 0;
   if (actual < required)
@@ -250,17 +258,15 @@ function applyIssueTask(data, record, parsed, config, marker) {
     : data.tasks.find((task) => task.id === record.taskId);
   if (marker && !existing)
     fail("Projected issue refers to a task that is not present locally.");
-  const task =
-    existing ||
-    {
-      id: record.taskId,
-      scope: "runtime",
-      kind: "task",
-      status: "planned",
-      epic: parsed.epic || "inbox",
-      track: parsed.track || "catalog",
-      createdAt: new Date().toISOString(),
-    };
+  const task = existing || {
+    id: record.taskId,
+    scope: "runtime",
+    kind: "task",
+    status: "planned",
+    epic: parsed.epic || "inbox",
+    track: parsed.track || "catalog",
+    createdAt: new Date().toISOString(),
+  };
   if (!marker) {
     Object.assign(task, {
       title: parsed.title,
@@ -300,7 +306,8 @@ function applyIssueTask(data, record, parsed, config, marker) {
   if (!existing) data.tasks.push(task);
   if (!marker) {
     data.edges = data.edges.filter(
-      (edge) => edge.to !== task.id || edge.kind !== "requires" || edge.githubIssue,
+      (edge) =>
+        edge.to !== task.id || edge.kind !== "requires" || edge.githubIssue,
     );
     for (const from of parsed.requires || [])
       if (data.tasks.some((candidate) => candidate.id === from))
@@ -362,11 +369,22 @@ export async function configureGitHubRepository(store, github, input) {
   return record;
 }
 
-export async function syncGitHubIssues(store, github, { repository, authorize } = {}) {
+export async function syncGitHubIssues(
+  store,
+  github,
+  { repository, authorize } = {},
+) {
   const configs = repository
-    ? [store.get("github_repositories", parseRepository(repository).id)].filter(Boolean)
+    ? [store.get("github_repositories", parseRepository(repository).id)].filter(
+        Boolean,
+      )
     : store.list("github_repositories");
-  const result = { repositories: [], authorized: [], quarantined: [], pending: [] };
+  const result = {
+    repositories: [],
+    authorized: [],
+    quarantined: [],
+    pending: [],
+  };
   for (const config of configs) {
     await requirePrivateRepository(github, config);
     const issues = await github.listReadyIssues(config, {
@@ -393,16 +411,23 @@ export async function syncGitHubIssues(store, github, { repository, authorize } 
         body = String(issue.body || ""),
         bodyHash = digest(body),
         marker = projectedMarker(body);
-      let auth = { authorized: false, reason: "No ready label event was found." };
+      let auth = {
+        authorized: false,
+        reason: "No ready label event was found.",
+      };
       if (labelEvent) {
-        const permission = await github.permission(config, labelEvent.actor?.login || "");
+        const permission = await github.permission(
+          config,
+          labelEvent.actor?.login || "",
+        );
         auth = authorization(labelEvent, permission, config);
       }
       let state = auth.authorized ? "authorized" : "pending",
         reason = auth.reason || "";
       if (
         previous &&
-        previous.labelEventId === String(labelEvent?.node_id || labelEvent?.id) &&
+        previous.labelEventId ===
+          String(labelEvent?.node_id || labelEvent?.id) &&
         previous.bodyHash !== bodyHash
       ) {
         state = "quarantined";
@@ -456,7 +481,8 @@ export async function syncGitHubIssues(store, github, { repository, authorize } 
           !seen.has(entry.id),
       )) {
       previous.state = "withdrawn";
-      previous.reason = "The ready label or matching assignee is no longer present.";
+      previous.reason =
+        "The ready label or matching assignee is no longer present.";
       store.transaction(() => {
         store.put("github_issues", previous);
         const data = structuredClone(store.read()),
@@ -490,7 +516,9 @@ export async function projectPlanIssues(store, github, { planId, repository }) {
   const data = store.read(),
     tasks = data.tasks.filter((task) => task.planId === plan.id),
     ready = new Set(
-      queryTasks(data, { scope: "all", q: "ready:true" }).map((task) => task.id),
+      queryTasks(data, { scope: "all", q: "ready:true" }).map(
+        (task) => task.id,
+      ),
     ),
     results = [];
   for (const task of tasks) {
@@ -498,7 +526,10 @@ export async function projectPlanIssues(store, github, { planId, repository }) {
       ? store.get("github_repositories", parseRepository(repository).id)
       : store
           .list("github_repositories")
-          .find((entry) => entry.projectId === (task.projectId || plan.context?.projectId));
+          .find(
+            (entry) =>
+              entry.projectId === (task.projectId || plan.context?.projectId),
+          );
     if (!config)
       fail(`No GitHub repository is registered for task ${task.id}.`);
     await requirePrivateRepository(github, config);
@@ -512,7 +543,10 @@ export async function projectPlanIssues(store, github, { planId, repository }) {
       plan,
     );
     let issue;
-    if (task.github?.origin === "design" && task.github.repository === config.id) {
+    if (
+      task.github?.origin === "design" &&
+      task.github.repository === config.id
+    ) {
       const current = await github.issue(config, task.github.number);
       issue = await github.updateIssue(config, task.github.number, {
         title: task.title,
@@ -525,9 +559,11 @@ export async function projectPlanIssues(store, github, { planId, repository }) {
         assignees: config.assignee ? [config.assignee] : undefined,
       });
     }
-    if (ready.has(task.id)) await github.addLabels(config, issue.number, [config.label]);
+    if (ready.has(task.id))
+      await github.addLabels(config, issue.number, [config.label]);
     else await github.removeLabel(config, issue.number, config.label);
-    if (config.assignee) await github.addAssignees(config, issue.number, [config.assignee]);
+    if (config.assignee)
+      await github.addAssignees(config, issue.number, [config.assignee]);
     const bodyHash = digest(String(issue.body || managed)),
       record = {
         id: issueRecordId(config, issue),
@@ -604,6 +640,7 @@ export async function startAuthorizedIssue(ops, input) {
       input.prompt ||
       `Implement GitHub issue ${config.id}#${task.github.number}. Stay within the authorized issue snapshot and acceptance criteria.`,
     title: task.title,
+    parentRunId: input.parentRunId,
     background: input.background ?? true,
   });
 }

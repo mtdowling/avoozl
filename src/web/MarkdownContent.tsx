@@ -26,7 +26,9 @@ export default function MarkdownContent({
     ({ children, ...props }: HTMLAttributes<HTMLHeadingElement>) =>
       createElement(
         `h${level}`,
-        anchored ? { ...props, id: headingId(String(children), counts) } : props,
+        anchored
+          ? { ...props, id: headingId(String(children), counts) }
+          : props,
         children,
       );
   return (

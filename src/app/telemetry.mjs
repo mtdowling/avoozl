@@ -33,6 +33,50 @@ export function normalizeUsage(provider, report) {
       },
     ];
   }
+  if (provider === "openhands") {
+    return (Array.isArray(report.usage) ? report.usage : []).map((usage) => {
+      const input = Number.isFinite(usage.promptTokens)
+          ? numeric(usage.promptTokens)
+          : null,
+        output = Number.isFinite(usage.completionTokens)
+          ? numeric(usage.completionTokens)
+          : null,
+        cacheRead = Number.isFinite(usage.cacheReadTokens)
+          ? numeric(usage.cacheReadTokens)
+          : null,
+        cacheWrite = Number.isFinite(usage.cacheWriteTokens)
+          ? numeric(usage.cacheWriteTokens)
+          : null;
+      return {
+        model:
+          typeof usage.model === "string" && usage.model
+            ? usage.model
+            : "unknown",
+        inputTokens: input,
+        // OpenHands reports prompt and cache counters independently without
+        // promising whether cached tokens are a subset of prompt_tokens across
+        // every LLM backend. Preserve the exact counters and leave the derived
+        // uncached number unknown instead of guessing.
+        uncachedInputTokens: null,
+        cacheReadTokens: cacheRead,
+        cacheWriteTokens: cacheWrite,
+        outputTokens: output,
+        reasoningTokens: Number.isFinite(usage.reasoningTokens)
+          ? numeric(usage.reasoningTokens)
+          : null,
+        totalTokens: input === null || output === null ? null : input + output,
+        estimatedCostUsd: Number.isFinite(usage.costUsd)
+          ? numeric(usage.costUsd)
+          : null,
+        coverage:
+          report.coverage ||
+          "OpenHands reported cumulative conversation usage.",
+        costBasis: Number.isFinite(usage.costUsd)
+          ? "provider-reported"
+          : "not-reported",
+      };
+    });
+  }
   // modelUsage includes subagents and compaction; message.usage is main-loop-only.
   return Object.entries(report.modelUsage || {}).map(([model, t]) => {
     const input = numeric(t.inputTokens),
@@ -314,14 +358,16 @@ export function metrics(
       row = {
         key,
         inputTokens: 0,
-        uncachedInputTokens: 0,
-        cacheReadTokens: 0,
+        uncachedInputTokens: null,
+        cacheReadTokens: null,
         cacheWriteTokens: null,
         outputTokens: 0,
-        reasoningTokens: 0,
+        reasoningTokens: null,
         totalTokens: 0,
         estimatedCostUsd: null,
         reports: 0,
+        tokenReports: 0,
+        completeTokenReports: 0,
         costReports: 0,
       };
       groups.set(key, row);
@@ -330,8 +376,21 @@ export function metrics(
       if (sample.delta[field] !== null)
         row[field] = (row[field] || 0) + sample.delta[field];
     }
+    const reportedTokenFields = [
+      "inputTokens",
+      "outputTokens",
+      "totalTokens",
+    ].filter((field) => sample.delta[field] !== null).length;
+    if (reportedTokenFields) row.tokenReports++;
+    if (reportedTokenFields === 3) row.completeTokenReports++;
     if (sample.delta.estimatedCostUsd !== null) row.costReports++;
     row.reports++;
+    row.tokenCoverage =
+      row.completeTokenReports === row.reports
+        ? "reported"
+        : row.tokenReports
+          ? "partial"
+          : "not-reported";
     row.costCoverage =
       row.costReports === row.reports
         ? "reported"
@@ -348,24 +407,34 @@ export function metrics(
         (!runId || r.id === runId) &&
         (!provider || r.provider === provider),
     )
-    .map((r) => ({
-      id: r.id,
-      taskId: r.taskId,
-      provider: r.provider,
-      state: r.state,
-      createdAt: r.createdAt,
-      time: runTime(store, r, now, observe),
-      usage: samples
-        .filter((s) => s.runId === r.id)
-        .reduce(
+    .map((r) => {
+      const runSamples = samples.filter((s) => s.runId === r.id),
+        usage = runSamples.reduce(
           (a, s) => {
             a.totalTokens += s.delta.totalTokens;
             a.outputTokens += s.delta.outputTokens;
             return a;
           },
           { totalTokens: 0, outputTokens: 0 },
-        ),
-    }));
+        );
+      return {
+        id: r.id,
+        taskId: r.taskId,
+        provider: r.provider,
+        model: r.actualModel || r.model || null,
+        state: r.state,
+        createdAt: r.createdAt,
+        time: runTime(store, r, now, observe),
+        usage: {
+          ...usage,
+          availability: runSamples.length ? "reported" : "not-reported",
+          reason: runSamples.length
+            ? null
+            : r.usageStatus?.reason ||
+              "This provider conversation has not reported usage.",
+        },
+      };
+    });
   for (const run of runs) {
     const row = buckets.get(run.createdAt?.slice(0, 10));
     if (row) row.sessions++;
@@ -381,6 +450,13 @@ export function metrics(
     groups: [...groups.values()],
     runs,
     samples: samples.length,
+    usageCoverage: {
+      reportedRuns: runs.filter((run) => run.usage.availability === "reported")
+        .length,
+      unreportedRuns: runs.filter(
+        (run) => run.usage.availability !== "reported",
+      ).length,
+    },
     coverage:
       "Only usage reported after instrumentation is counted. Legacy tasks and disconnected gaps have no reconstructed token or effort history. Costs are provider estimates, not bills. Reasoning tokens are already included in output.",
   };

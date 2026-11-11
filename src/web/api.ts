@@ -1,4 +1,10 @@
-export type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
+export type Json =
+  | null
+  | boolean
+  | number
+  | string
+  | Json[]
+  | { [key: string]: Json };
 
 export class ApiError extends Error {
   status: number;
@@ -30,7 +36,8 @@ export function configureApiBaseUrl(value = "") {
 }
 
 export function apiUrl(path: string) {
-  if (!path.startsWith("/")) throw new Error("Avoozl API paths must be absolute.");
+  if (!path.startsWith("/"))
+    throw new Error("Avoozl API paths must be absolute.");
   return apiBaseUrl + path;
 }
 
@@ -38,7 +45,11 @@ async function read<T>(response: Response): Promise<T> {
   const value = await response.json().catch(() => ({}));
   if (!response.ok) {
     const body = value as { error?: string; details?: unknown };
-    throw new ApiError(body.error || `Request failed (${response.status})`, response.status, body.details);
+    throw new ApiError(
+      body.error || `Request failed (${response.status})`,
+      response.status,
+      body.details,
+    );
   }
   return value as T;
 }

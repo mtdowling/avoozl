@@ -23,9 +23,13 @@ test("the packaged Canvas App registers its declared Avoozl page", async () => {
       pathToFileURL(path.join(OPENHANDS_CANVAS_APP.source, "extension.js")).href
     );
   const source = fs.readFileSync(
-    path.join(OPENHANDS_CANVAS_APP.source, "extension.js"),
-    "utf8",
-  );
+      path.join(OPENHANDS_CANVAS_APP.source, "extension.js"),
+      "utf8",
+    ),
+    canvasSource = fs.readFileSync(
+      path.join(OPENHANDS_CANVAS_APP.source, "../src/web/canvas.tsx"),
+      "utf8",
+    );
   const icon = fs.readFileSync(
     path.join(OPENHANDS_CANVAS_APP.source, manifest.icon),
     "utf8",
@@ -66,7 +70,7 @@ test("the packaged Canvas App registers its declared Avoozl page", async () => {
     },
   });
   assert.equal(manifest.schema_version, 1);
-  assert.equal(manifest.version, "0.1.5");
+  assert.equal(manifest.version, "0.1.17");
   assert.equal(manifest.backend.schema_version, 1);
   assert.equal(manifest.backend.health.path, "/api/health");
   for (const artifact of Object.values(manifest.backend.artifacts)) {
@@ -85,9 +89,34 @@ test("the packaged Canvas App registers its declared Avoozl page", async () => {
   assert.match(source, /attachShadow/);
   assert.match(source, /createRoot/);
   assert.match(source, /\/conversations/);
-  assert.match(source, /Do not inventory the workspace/);
+  assert.match(source, /avoozl:openhands-conversation/);
+  assert.match(canvasSource, /event\.source === frame\?\.contentWindow/);
+  assert.match(source, /Open Driver with project context/);
+  assert.match(source, /Shape work from project context/);
   assert.doesNotMatch(source, /avoozl:openhands-route/);
   assert.doesNotMatch(source, /process\.env\.NODE_ENV/);
+  const pluginRoot = path.resolve(
+      OPENHANDS_CANVAS_APP.source,
+      "../src/app/providers/openhands-plugin",
+    ),
+    pluginManifest = JSON.parse(
+      fs.readFileSync(path.join(pluginRoot, ".plugin/plugin.json"), "utf8"),
+    ),
+    mcp = JSON.parse(
+      fs.readFileSync(path.join(pluginRoot, ".mcp.json"), "utf8"),
+    ),
+    skill = fs.readFileSync(
+      path.join(pluginRoot, "skills/avoozl/SKILL.md"),
+      "utf8",
+    );
+  assert.equal(pluginManifest.name, "avoozl");
+  assert.equal(pluginManifest.version, OPENHANDS_VERSIONS.plugin);
+  assert.match(skill, /^---\nname: avoozl\b/);
+  assert.equal(mcp.mcpServers.avoozl.url, "${AVOOZL_MCP_URL}");
+  assert.equal(
+    mcp.mcpServers.avoozl.headers.Authorization,
+    "Bearer ${AVOOZL_MCP_TOKEN}",
+  );
   assert.equal(registered.id, "workspace");
   assert.equal(typeof registered.mount, "function");
   const disposeBackend = await registered.mount({
@@ -121,10 +150,14 @@ test("Canvas App installation is explicit, local, and enables the copied package
     },
     post: async (pathname, body) => {
       calls.push(["post", pathname, body]);
+      if (pathname === "/api/plugins/install")
+        return { name: "avoozl", enabled: false };
       return { name: "avoozl", enabled: false };
     },
     patch: async (pathname, body) => {
       calls.push(["patch", pathname, body]);
+      if (pathname === "/api/plugins/installed/avoozl")
+        return { name: "avoozl", enabled: true };
       enabled = true;
       return { name: "avoozl", enabled: true };
     },
@@ -137,23 +170,48 @@ test("Canvas App installation is explicit, local, and enables the copied package
   assert.equal(result.route, "/extensions/avoozl/workspace");
   assert.deepEqual(calls[0], [
     "post",
-    "/api/canvas-extensions/install",
-    { source: OPENHANDS_CANVAS_APP.source, force: true },
+    "/api/plugins/install",
+    {
+      source: path.resolve(
+        OPENHANDS_CANVAS_APP.source,
+        "../src/app/providers/openhands-plugin",
+      ),
+      force: true,
+    },
   ]);
   assert.deepEqual(calls[1], [
-    "get",
-    "/api/canvas-extensions/installed/avoozl/backend",
+    "patch",
+    "/api/plugins/installed/avoozl",
+    { enabled: true },
   ]);
   assert.deepEqual(calls[2], [
-    "patch",
-    "/api/canvas-extensions/installed/avoozl",
-    { enabled: true, revision: "sha256:backend-revision" },
+    "post",
+    "/api/canvas-extensions/install",
+    { source: OPENHANDS_CANVAS_APP.source, force: true },
   ]);
   assert.deepEqual(calls[3], [
     "get",
     "/api/canvas-extensions/installed/avoozl/backend",
   ]);
+  assert.deepEqual(calls[4], [
+    "patch",
+    "/api/canvas-extensions/installed/avoozl",
+    { enabled: true, revision: "sha256:backend-revision" },
+  ]);
+  assert.deepEqual(calls[5], [
+    "get",
+    "/api/canvas-extensions/installed/avoozl/backend",
+  ]);
   assert.equal(result.backend.state, "ready");
+  assert.equal(result.integration.enabled, true);
+  assert.deepEqual(result.integration.skills, ["avoozl"]);
+  assert.equal(
+    result.integration.mcpServers.avoozl.bearerSecret,
+    "AVOOZL_MCP_TOKEN",
+  );
+  assert.ok(
+    !calls.some(([, pathname]) => pathname.startsWith("/api/settings/mcp")),
+  );
 });
 
 test("Canvas App status is read from the selected OpenHands backend", async () => {
@@ -184,6 +242,8 @@ test("unsupported hosts enable the native exact-origin fallback without backend 
     get: async () => ({ name: "avoozl", state: "unsupported" }),
     post: async (pathname, body) => {
       calls.push(["post", pathname, body]);
+      if (pathname === "/api/plugins/install")
+        return { name: "avoozl", enabled: true };
       return { name: "avoozl", enabled: false };
     },
     patch: async (pathname, body) => {
@@ -231,6 +291,8 @@ test("agent setup installs provider-neutral profiles and activates a verified de
       },
       async post(pathname, body) {
         calls.push(["post", pathname, body]);
+        if (pathname === "/api/plugins/install")
+          return { name: "avoozl", enabled: true };
         if (pathname === "/api/acp/models")
           return {
             current_model_id: "default",
@@ -257,6 +319,7 @@ test("agent setup installs provider-neutral profiles and activates a verified de
     result.configured.map((entry) => entry.ready),
     [true, true],
   );
+  assert.equal(result.integration.enabled, true);
   assert.deepEqual(saved.get("avoozl-claude-code").secret_refs, [
     "AVOOZL_MCP_URL",
     "AVOOZL_MCP_TOKEN",
@@ -274,6 +337,9 @@ test("agent setup installs provider-neutral profiles and activates a verified de
         kind === "post" &&
         pathname === "/api/agent-profiles/profile-codex/activate",
     ),
+  );
+  assert.ok(
+    !calls.some(([, pathname]) => pathname.startsWith("/api/settings/mcp")),
   );
   assert.doesNotMatch(JSON.stringify({ calls, result }), /aws|bedrock|asbx/i);
 });
@@ -315,6 +381,8 @@ test("agent setup preserves managed profile customization on retries", async () 
         return { name: existing.name, profile: existing };
       },
       async post(pathname, body) {
+        if (pathname === "/api/plugins/install")
+          return { name: "avoozl", enabled: true };
         if (pathname.endsWith("/materialize"))
           return { valid: true, errors: [] };
         if (pathname.endsWith("/activate")) return {};

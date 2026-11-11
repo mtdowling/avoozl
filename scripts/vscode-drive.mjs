@@ -51,7 +51,11 @@ export async function driveNativeControls({
   const clicked = [];
   const click = async (text, selector, label) => {
     const box = await page.waitFor(
-      "__avoozlFind(" + JSON.stringify(text) + ", " + JSON.stringify(selector) + ")",
+      "__avoozlFind(" +
+        JSON.stringify(text) +
+        ", " +
+        JSON.stringify(selector) +
+        ")",
       { label: label || text, timeoutMs },
     );
     const at = await page.clickCentre(box);

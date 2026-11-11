@@ -1,4 +1,9 @@
-import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
+import {
+  createHash,
+  randomBytes,
+  randomUUID,
+  timingSafeEqual,
+} from "node:crypto";
 import { fail } from "./store.mjs";
 
 const MODE_WRITES = Object.freeze({
@@ -9,6 +14,7 @@ const MODE_WRITES = Object.freeze({
     "plans_submit_review",
   ]),
   "new-task": new Set(["plans_capture", "plans_propose_work"]),
+  review: new Set(["plans_propose_work"]),
   plan: new Set(["plans_propose_work"]),
   implement: new Set(["plans_activity", "plans_propose_work"]),
 });

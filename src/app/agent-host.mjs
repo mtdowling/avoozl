@@ -102,7 +102,7 @@ export function startAgentHost({
       if (url.pathname === "/rpc") {
         if (
           draining &&
-          ["run.start", "batch.start"].includes(input.operation)
+          ["driver.open", "run.start", "batch.start"].includes(input.operation)
         ) {
           json(res, 503, {
             error:
@@ -115,6 +115,9 @@ export function startAgentHost({
           ![
             "providers",
             "models",
+            "usage.limits",
+            "driver.open",
+            "driver.context",
             "run.start",
             "run.send",
             "run.interrupt",

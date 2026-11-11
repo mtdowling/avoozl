@@ -16,5 +16,8 @@ test("dependency relationship scope can be chosen before selecting a task", () =
   assert.match(selector, /value="whole">Whole matching graph/);
   assert.match(selector, /value="immediate">Immediate context/);
   assert.match(source, /Click a task to show its immediate context/);
-  assert.match(source, /selectedTask && <button onClick=\{\(\) => openTask\(selectedTask\)\}>Open task/);
+  assert.match(
+    source,
+    /selectedTask && \(\s*<button onClick=\{\(\) => openTask\(selectedTask\)\}>Open task<\/button>/,
+  );
 });

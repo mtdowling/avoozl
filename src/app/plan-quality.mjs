@@ -307,9 +307,7 @@ export function lintPlan({ text, plan = {}, data = {} }) {
     if (!task.taskId) {
       const duplicates = duplicateCandidates(data, {
         ...task,
-        id:
-          plan.mapping?.[task.id] ||
-          `${plan.id || "plan"}-${task.id}`,
+        id: plan.mapping?.[task.id] || `${plan.id || "plan"}-${task.id}`,
       });
       if (duplicates.length && !task.distinctReason?.trim())
         diagnostics.push(

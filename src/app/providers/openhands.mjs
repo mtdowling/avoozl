@@ -34,10 +34,14 @@ export const OPENHANDS_CAPABILITIES = Object.freeze({
   surfaces: ["conversation", "terminal", "files", "browser"],
 });
 
-const pluginRoot = path.join(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "openhands-plugin",
-);
+export const OPENHANDS_PLUGIN = Object.freeze({
+  name: "avoozl",
+  version: "1.0.0",
+  source: path.join(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "openhands-plugin",
+  ),
+});
 
 function setting(name, fallback = "", env = process.env) {
   return (
@@ -131,6 +135,8 @@ export function openHandsSettings({
         : "");
   return {
     host,
+    automationHost:
+      setting("AUTOMATION_URL", "", env).replace(/\/$/, "") || undefined,
     apiKey:
       explicitKey ||
       (keyFile
@@ -143,7 +149,7 @@ export function openHandsSettings({
     agentProfile: setting("AGENT_PROFILE", "", env) || undefined,
     llmApiKey: setting("LLM_API_KEY", "", env) || undefined,
     llmBaseUrl: setting("LLM_BASE_URL", "", env) || undefined,
-    pluginSource: setting("PLUGIN", pluginRoot, env),
+    pluginSource: setting("PLUGIN", OPENHANDS_PLUGIN.source, env),
   };
 }
 
@@ -188,6 +194,41 @@ export async function openHandsProviderInfo() {
   }
 }
 
+export async function openHandsAgentProfiles() {
+  const config = openHandsSettings(),
+    client = new HttpClient({
+      baseUrl: config.host,
+      apiKey: config.apiKey,
+      timeout: 5000,
+    });
+  try {
+    assertLocalAgentServer(config.host);
+    const [{ data: listing }, { data: llmListing }, { data: info }] =
+      await Promise.all([
+        client.get("/api/agent-profiles"),
+        client.get("/api/profiles"),
+        client.get("/server_info"),
+      ]);
+    assertServerVersion(info.version);
+    return {
+      activeAgentProfileId: listing.active_agent_profile_id || null,
+      profiles: (listing.profiles || []).map((profile) => ({
+        id: profile.id,
+        name: profile.name || profile.id,
+        description: profile.description || null,
+        agentKind: profile.agent_kind || null,
+      })),
+      activeLlmProfile: llmListing.active_profile || null,
+      llmProfiles: (llmListing.profiles || []).map((profile) => ({
+        name: profile.name,
+        model: profile.model || null,
+      })),
+    };
+  } finally {
+    client.close();
+  }
+}
+
 function textContent(event) {
   if (typeof event.message === "string") return event.message;
   if (typeof event.text === "string") return event.text;
@@ -227,6 +268,153 @@ function normalizedState(value) {
   }[value];
 }
 
+function missingConversation(error) {
+  const status =
+    error?.status ||
+    error?.statusCode ||
+    error?.response?.status ||
+    error?.cause?.status;
+  return (
+    status === 404 ||
+    /\b404\b|conversation (?:was )?not found|no such conversation/i.test(
+      error?.message || "",
+    )
+  );
+}
+
+function reportedNumber(value) {
+  return Number.isFinite(value) && value >= 0 ? value : null;
+}
+
+function conversationStats(info) {
+  if (!info || typeof info !== "object") return null;
+  return info.stats || info.conversation_stats || null;
+}
+
+function metricSnapshots(info) {
+  const stats = conversationStats(info),
+    mapped =
+      stats?.usage_to_metrics &&
+      typeof stats.usage_to_metrics === "object" &&
+      !Array.isArray(stats.usage_to_metrics)
+        ? Object.entries(stats.usage_to_metrics)
+        : [];
+  if (mapped.length) return mapped;
+  return info?.metrics && typeof info.metrics === "object"
+    ? [["conversation", info.metrics]]
+    : [];
+}
+
+export function openHandsConversationModel(info, fallback = null) {
+  const metricModels = metricSnapshots(info)
+      .map(([, metric]) => metric?.model_name)
+      .filter((model) => typeof model === "string" && model),
+    candidates = [
+      info?.current_model_id,
+      info?.agent?.llm?.model,
+      info?.llm_model,
+      info?.model,
+      metricModels.length === 1 ? metricModels[0] : null,
+      fallback,
+    ];
+  return candidates.find((model) => typeof model === "string" && model) || null;
+}
+
+export function openHandsUsageReport(
+  info,
+  {
+    providerSessionId = info?.id,
+    fallbackModel = null,
+    source = "conversation-stats",
+    reportId = null,
+  } = {},
+) {
+  const snapshots = metricSnapshots(info),
+    byModel = new Map();
+  for (const [usageId, metric] of snapshots) {
+    if (!metric || typeof metric !== "object") continue;
+    const tokens = metric.accumulated_token_usage,
+      cost = reportedNumber(metric.accumulated_cost);
+    if ((!tokens || typeof tokens !== "object") && cost === null) continue;
+    const model =
+        (typeof metric.model_name === "string" && metric.model_name) ||
+        (typeof tokens?.model === "string" && tokens.model) ||
+        openHandsConversationModel(info, fallbackModel) ||
+        "unknown",
+      current = byModel.get(model) || {
+        model,
+        promptTokens: null,
+        completionTokens: null,
+        cacheReadTokens: null,
+        cacheWriteTokens: null,
+        reasoningTokens: null,
+        costUsd: null,
+        usageIds: [],
+      },
+      add = (field, value) => {
+        const number = reportedNumber(value);
+        if (number === null) return;
+        current[field] = (current[field] || 0) + number;
+      };
+    add("promptTokens", tokens?.prompt_tokens);
+    add("completionTokens", tokens?.completion_tokens);
+    add("cacheReadTokens", tokens?.cache_read_tokens);
+    add("cacheWriteTokens", tokens?.cache_write_tokens);
+    add("reasoningTokens", tokens?.reasoning_tokens);
+    add("costUsd", cost);
+    current.usageIds.push(usageId);
+    byModel.set(model, current);
+  }
+  if (!byModel.size) return null;
+  const usage = [...byModel.values()],
+    models = usage.map((entry) => entry.model);
+  return {
+    reportId:
+      reportId ||
+      `openhands:${providerSessionId || "unknown"}:${source}:cumulative`,
+    providerSessionId: providerSessionId || null,
+    provider: "openhands",
+    source,
+    model: models.length === 1 ? models[0] : null,
+    usage,
+    coverage:
+      "OpenHands cumulative conversation metrics. Prompt, completion, cache, reasoning, and cost fields are retained only when the selected LLM backend reports them.",
+  };
+}
+
+export function openHandsTokenUsageReport(
+  totals,
+  { providerSessionId = null, model = null, reportId = null } = {},
+) {
+  const promptTokens = reportedNumber(totals?.promptTokens),
+    completionTokens = reportedNumber(totals?.completionTokens),
+    events = reportedNumber(totals?.events);
+  if (!events || (promptTokens === null && completionTokens === null))
+    return null;
+  return {
+    reportId:
+      reportId ||
+      `openhands:${providerSessionId || "unknown"}:token-events:cumulative`,
+    providerSessionId,
+    provider: "openhands",
+    source: "token-events",
+    model: model || null,
+    usage: [
+      {
+        model: model || "unknown",
+        promptTokens: promptTokens || 0,
+        completionTokens: completionTokens || 0,
+        cacheReadTokens: null,
+        cacheWriteTokens: null,
+        reasoningTokens: null,
+        costUsd: null,
+      },
+    ],
+    coverage:
+      "Exact OpenHands TokenEvent prompt and response ID counts. The event does not report cache usage, reasoning-token attribution, cost, or a model name.",
+  };
+}
+
 function conversationWorkspace(info) {
   if (typeof info.workspace === "string") return info.workspace;
   return (
@@ -238,6 +426,12 @@ function conversationWorkspace(info) {
 }
 
 function childConversation(info, fallbackParentId) {
+  const model = openHandsConversationModel(info),
+    usage = openHandsUsageReport(info, {
+      providerSessionId: info.id,
+      fallbackModel: model,
+      source: "child-conversation-stats",
+    });
   return {
     providerSessionId: info.id,
     parentProviderSessionId: info.parent_conversation_id || fallbackParentId,
@@ -245,17 +439,14 @@ function childConversation(info, fallbackParentId) {
     state: normalizedState(info.execution_status || info.status) || "observing",
     worktree: conversationWorkspace(info),
     branch: info.selected_branch || null,
-    model:
-      info.llm_model ||
-      info.model ||
-      info.launched_agent_profile?.agent_profile_id ||
-      null,
+    model,
+    usage,
     createdAt: info.created_at || null,
     updatedAt: info.updated_at || null,
   };
 }
 
-function agentForMode(adapter, mode, model) {
+function agentForMode(adapter, mode, model, systemInstructions) {
   const readOnly =
       mode === "ask"
         ? "Answer from the provided repository and planning context. Do not modify source, Git state, plans, tasks, or execution state."
@@ -266,7 +457,7 @@ function agentForMode(adapter, mode, model) {
         : readOnly;
   return new Agent({
     llm: adapter.modelConfig(model),
-    persona,
+    persona: [persona, systemInstructions].filter(Boolean).join("\n\n"),
     tools:
       mode === "implement"
         ? [
@@ -297,8 +488,20 @@ export class OpenHandsAdapter {
     this.seen = new Set();
     this.childLaunchActions = new Set();
     this.childReconcile = null;
+    this.usageRefresh = null;
+    this.metricUsageObserved = false;
+    this.tokenUsage = {
+      promptTokens: 0,
+      completionTokens: 0,
+      events: 0,
+    };
     this.active = false;
     this.interruption = null;
+    this.providerState = null;
+    this.authoritativeStateMarker = null;
+    this.stateFailures = 0;
+    this.stateRefresh = null;
+    this.stateTimer = null;
   }
   modelConfig(model) {
     const selected = model || this.settings.model;
@@ -317,22 +520,20 @@ export class OpenHandsAdapter {
         : {}),
     };
   }
-  async agentProfile() {
+  async agentProfile(requestedProfile) {
     const { data: listing } = await this.http.get("/api/agent-profiles"),
-      selected = this.settings.agentProfile
+      selectedProfile = requestedProfile || this.settings.agentProfile,
+      selected = selectedProfile
         ? (listing.profiles || []).find(
             (profile) =>
-              profile.id === this.settings.agentProfile ||
-              profile.name === this.settings.agentProfile,
+              profile.id === selectedProfile ||
+              profile.name === selectedProfile,
           )
         : (listing.profiles || []).find(
             (profile) => profile.id === listing.active_agent_profile_id,
           );
-    if (this.settings.agentProfile && !selected)
-      fail(
-        `OpenHands agent profile ${this.settings.agentProfile} was not found.`,
-        409,
-      );
+    if (selectedProfile && !selected)
+      fail(`OpenHands agent profile ${selectedProfile} was not found.`, 409);
     return selected || null;
   }
   async start(options) {
@@ -354,8 +555,10 @@ export class OpenHandsAdapter {
     const { data: serverInfo } = await this.http.get("/server_info");
     assertServerVersion(serverInfo.version);
     this.serverVersion = serverInfo.version;
+    let conversationInfo;
     if (options.resumeId) {
       const info = await this.client.getConversation(options.resumeId);
+      conversationInfo = info;
       this.conversationId = info.id;
       this.agentKind =
         info.agent?.acp_server || info.agent?.kind === "ACPAgent"
@@ -382,13 +585,22 @@ export class OpenHandsAdapter {
               : {}),
           },
         });
+      if (options.title)
+        await this.client.updateConversation(this.conversationId, {
+          title: options.title.slice(0, 200),
+        });
     } else {
-      const profile = await this.agentProfile(),
+      const profile = await this.agentProfile(options.agentProfile),
         agent =
           profile || options.model || this.settings.model
             ? profile
               ? null
-              : agentForMode(this, options.mode, options.model)
+              : agentForMode(
+                  this,
+                  options.mode,
+                  options.model,
+                  options.systemInstructions,
+                )
             : fail(
                 "No OpenHands agent is configured. Run `avoozl openhands setup-agents`, or configure an OpenHands LLM profile.",
                 409,
@@ -396,9 +608,29 @@ export class OpenHandsAdapter {
         info = await this.client.createConversation({
           conversation_id: options.conversationId,
           ...(profile ? { agent_profile_id: profile.id } : { agent }),
+          ...(options.parentConversationId
+            ? { parent_conversation_id: options.parentConversationId }
+            : {}),
+          ...(profile && (options.systemInstructions || options.model)
+            ? {
+                agent_launch_additions: {
+                  ...(profile.agent_kind === "openhands" && options.model
+                    ? { llm_profile_ref: options.model }
+                    : {}),
+                  ...(options.systemInstructions
+                    ? {
+                        system_message_suffix_append:
+                          options.systemInstructions,
+                      }
+                    : {}),
+                },
+              }
+            : {}),
           max_iterations: 500,
           stuck_detection: true,
+          autotitle: false,
           conversation_runtime: "local",
+          worktree: false,
           workspace: { type: "local", working_dir: options.cwd },
           plugins: [{ source: this.settings.pluginSource }],
           secrets: options.mcpUrl
@@ -421,17 +653,34 @@ export class OpenHandsAdapter {
             : {},
           tags: { executor: "avoozl" },
         });
+      conversationInfo = info;
       this.conversationId = info.id;
+      if (
+        profile?.agent_kind === "acp" &&
+        typeof options.model === "string" &&
+        options.model.trim()
+      )
+        await this.http.post(
+          `/api/conversations/${encodeURIComponent(this.conversationId)}/switch_acp_model`,
+          { model: options.model.trim() },
+        );
+      if (options.title)
+        await this.client.updateConversation(this.conversationId, {
+          title: options.title.slice(0, 200),
+        });
       this.agentKind = profile?.agent_kind || "openhands";
       this.agentProfileId = profile?.id || null;
     }
-    this.emit("session", {
-      providerSessionId: this.conversationId,
-      model:
-        options.model ||
+    this.currentModel = openHandsConversationModel(
+      conversationInfo,
+      options.model ||
         this.settings.model ||
         this.settings.agentProfile ||
         this.agentProfileId,
+    );
+    this.emit("session", {
+      providerSessionId: this.conversationId,
+      model: this.currentModel,
       agentProfileId: this.agentProfileId,
       agentKind: this.agentKind,
       workspace: options.cwd,
@@ -440,6 +689,7 @@ export class OpenHandsAdapter {
       versions: { ...OPENHANDS_VERSIONS, server: this.serverVersion },
     });
     await this.reconcile();
+    await this.refreshUsage();
     await this.reconcileChildren();
     this.socket = this.socketFactory({
       host: this.settings.host,
@@ -452,14 +702,157 @@ export class OpenHandsAdapter {
         }),
     });
     this.socket.start();
+    const statePollMs = Number(this.settings.statePollMs ?? 15000);
+    if (Number.isFinite(statePollMs) && statePollMs > 0) {
+      this.stateTimer = setInterval(
+        () => this.queueStateRefresh(),
+        Math.max(1000, statePollMs),
+      );
+      this.stateTimer.unref?.();
+    }
     await this.setApprovalMode(options.approvalMode);
     if (options.prompt) await this.send(options.prompt, "start");
-    else {
-      const info = await this.client.getConversation(this.conversationId);
-      const state = normalizedState(info.execution_status);
-      if (state) this.emit("state", { state });
-    }
+    else await this.refreshState();
     return this;
+  }
+  observeState(providerState, details = {}, { authoritative = false } = {}) {
+    const state = normalizedState(providerState);
+    if (!state) return false;
+    const previous = this.providerState;
+    this.providerState = providerState;
+    if (["running", "waiting-approval"].includes(state)) {
+      this.active = true;
+      this.emit("state", { state, providerState, ...details });
+      return true;
+    }
+    if (!authoritative && !this.active && previous === providerState)
+      return true;
+    const interrupted = state === "interrupted" || Boolean(this.interruption);
+    this.active = false;
+    this.emit("turn.completed", {
+      state:
+        state === "failed"
+          ? "failed"
+          : interrupted
+            ? "interrupted"
+            : "completed",
+      providerStatus: providerState,
+      ...details,
+      ...(state === "failed" && details.error ? { error: details.error } : {}),
+    });
+    this.queueChildReconcile();
+    this.queueUsageRefresh();
+    this.interruption = null;
+    return true;
+  }
+  async refreshState() {
+    try {
+      const info = await this.client.getConversation(this.conversationId);
+      this.stateFailures = 0;
+      const providerState = info.execution_status || info.status,
+        marker = `${providerState || "unknown"}:${info.updated_at || ""}`,
+        authoritative = marker !== this.authoritativeStateMarker;
+      this.authoritativeStateMarker = marker;
+      this.observeState(
+        providerState,
+        {
+          providerObservedAt: info.updated_at || new Date().toISOString(),
+        },
+        { authoritative },
+      );
+      return info;
+    } catch (error) {
+      this.stateFailures++;
+      if (missingConversation(error) || this.stateFailures >= 3) {
+        clearInterval(this.stateTimer);
+        this.stateTimer = null;
+        this.socket?.stop();
+        this.emit("disconnected", {
+          message: missingConversation(error)
+            ? "OpenHands no longer exposes this conversation. Its Avoozl run and transcript link were preserved."
+            : "OpenHands could not be reached after three lifecycle checks. Its Avoozl run and transcript link were preserved.",
+          providerAvailability: missingConversation(error)
+            ? "not-found"
+            : "unavailable",
+          providerDiagnostic: error.message,
+        });
+      } else
+        this.emit("provider.log", {
+          text:
+            "OpenHands lifecycle check failed (" +
+            this.stateFailures +
+            "/3): " +
+            error.message,
+        });
+      return null;
+    }
+  }
+  queueStateRefresh() {
+    if (this.stateRefresh) return this.stateRefresh;
+    this.stateRefresh = Promise.resolve()
+      .then(() => this.refreshState())
+      .then((info) => {
+        if (info?.sub_conversation_ids?.length) this.queueChildReconcile();
+        return info;
+      })
+      .finally(() => {
+        this.stateRefresh = null;
+      });
+    return this.stateRefresh;
+  }
+  emitUsageFromInfo(info, source = "conversation-stats") {
+    const model = openHandsConversationModel(info, this.currentModel);
+    if (model) this.currentModel = model;
+    const report = openHandsUsageReport(info, {
+      providerSessionId: this.conversationId,
+      fallbackModel: this.currentModel,
+      source,
+    });
+    if (!report) return false;
+    this.metricUsageObserved = true;
+    this.emit("usage", report);
+    return true;
+  }
+  async refreshUsage() {
+    const info = await this.client.getConversation(this.conversationId);
+    const model = openHandsConversationModel(info, this.currentModel);
+    if (model) this.currentModel = model;
+    if (this.emitUsageFromInfo(info, "conversation-stats")) return;
+    if (!this.metricUsageObserved) {
+      const fallback = openHandsTokenUsageReport(this.tokenUsage, {
+        providerSessionId: this.conversationId,
+        model: this.currentModel,
+      });
+      if (fallback) {
+        this.emit("usage", fallback);
+        return;
+      }
+    }
+    this.emit("usage.status", {
+      availability: "not-reported",
+      provider: "openhands",
+      providerSessionId: this.conversationId,
+      model: this.currentModel,
+      reason:
+        "OpenHands has not reported cumulative token metrics or TokenEvent counts for this conversation.",
+    });
+  }
+  queueUsageRefresh() {
+    if (this.usageRefresh) return;
+    this.usageRefresh = Promise.resolve()
+      .then(() => this.refreshUsage())
+      .catch((error) =>
+        this.emit("usage.status", {
+          availability: "unavailable",
+          provider: "openhands",
+          providerSessionId: this.conversationId,
+          model: this.currentModel,
+          reason: "OpenHands usage could not be read: " + error.message,
+        }),
+      )
+      .finally(() => {
+        this.usageRefresh = null;
+      });
   }
   async reconcileChildren() {
     const root = await this.client.getConversation(this.conversationId),
@@ -475,7 +868,17 @@ export class OpenHandsAdapter {
       const infos = await this.client.getConversations(ids);
       for (let index = 0; index < ids.length; index++) {
         const info = infos[index];
-        if (!info?.id) continue;
+        if (!info?.id) {
+          children.push({
+            providerSessionId: ids[index],
+            parentProviderSessionId: this.conversationId,
+            state: "disconnected",
+            providerAvailability: "not-found",
+            providerDiagnostic:
+              "OpenHands listed this child conversation but did not return it.",
+          });
+          continue;
+        }
         children.push(childConversation(info, this.conversationId));
         for (const id of info.sub_conversation_ids || [])
           if (typeof id === "string" && id && !seen.has(id)) pending.push(id);
@@ -585,7 +988,33 @@ export class OpenHandsAdapter {
       return;
     }
     if (event.kind === "TokenEvent") {
-      this.emit("usage", { ...common, ...event });
+      this.tokenUsage.promptTokens += Array.isArray(event.prompt_token_ids)
+        ? event.prompt_token_ids.length
+        : 0;
+      this.tokenUsage.completionTokens += Array.isArray(
+        event.response_token_ids,
+      )
+        ? event.response_token_ids.length
+        : 0;
+      this.tokenUsage.events++;
+      return;
+    }
+    if (
+      event.kind === "ConversationStateUpdateEvent" &&
+      ["stats", "conversation_stats", "metrics", "usage_to_metrics"].includes(
+        event.key,
+      )
+    ) {
+      const info =
+        event.key === "metrics"
+          ? { id: this.conversationId, metrics: event.value }
+          : event.key === "usage_to_metrics"
+            ? {
+                id: this.conversationId,
+                stats: { usage_to_metrics: event.value },
+              }
+            : { id: this.conversationId, [event.key]: event.value };
+      this.emitUsageFromInfo(info, "conversation-state");
       return;
     }
     if (
@@ -596,36 +1025,17 @@ export class OpenHandsAdapter {
         ...common,
         message: event.message || event.error || JSON.stringify(event),
       });
-    const providerState = executionState(event),
-      state = normalizedState(providerState);
-    if (state === "running") {
-      this.active = true;
-      this.emit("state", { ...common, state, providerState });
-    } else if (
-      state &&
-      (this.active ||
-        ["paused", "finished", "error", "stopped"].includes(providerState))
-    ) {
-      const interrupted = state === "interrupted" || Boolean(this.interruption);
-      this.active = false;
-      this.emit("turn.completed", {
+    const providerState = executionState(event);
+    if (
+      !this.observeState(providerState, {
         ...common,
-        state:
-          state === "failed"
-            ? "failed"
-            : interrupted
-              ? "interrupted"
-              : "completed",
-        providerStatus: providerState,
-        ...(state === "failed"
+        ...(normalizedState(providerState) === "failed"
           ? {
               error: event.message || event.error || "OpenHands run failed.",
             }
           : {}),
-      });
-      this.queueChildReconcile();
-      this.interruption = null;
-    } else
+      })
+    )
       this.emit("provider.event", {
         ...common,
         providerKind: event.kind || "unknown",
@@ -643,6 +1053,8 @@ export class OpenHandsAdapter {
       { run: true },
     );
     this.active = true;
+    this.providerState = "running";
+    this.authoritativeStateMarker = null;
     return { conversationId: this.conversationId, accepted: true };
   }
   async interrupt(reason = "client-cancel") {
@@ -673,6 +1085,7 @@ export class OpenHandsAdapter {
         },
       );
     this.options.model = model;
+    this.currentModel = model;
     return { applies: "next-turn", model };
   }
   async answer(request) {
@@ -685,8 +1098,12 @@ export class OpenHandsAdapter {
     });
   }
   async close() {
+    clearInterval(this.stateTimer);
+    this.stateTimer = null;
     this.socket?.stop();
+    await this.stateRefresh;
     await this.childReconcile;
+    await this.usageRefresh;
     this.http?.close();
   }
 }

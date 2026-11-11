@@ -90,9 +90,7 @@ export function openHandsSurfaceSocketRoute(
   searchParams = new URLSearchParams(),
 ) {
   const parts = routeParts(pathname),
-    match = parts?.upstreamPath.match(
-      /^\/sockets\/(events|session)\/([^/]+)$/,
-    );
+    match = parts?.upstreamPath.match(/^\/sockets\/(events|session)\/([^/]+)$/);
   if (!parts || !match) return null;
   const kind = match[1],
     entries = [...searchParams.entries()];
@@ -224,8 +222,7 @@ export async function proxyOpenHandsSurface(req, res, store, url) {
   )
     fail("OpenHands surface route refused.", 403);
   if (parts.upstreamPath === "/api/auth/workspace-session") {
-    const path =
-        "/openhands/" + encodeURIComponent(parts.runId) + "/",
+    const path = "/openhands/" + encodeURIComponent(parts.runId) + "/",
       cookie =
         method === "POST"
           ? "avoozl_oh_surface=" +

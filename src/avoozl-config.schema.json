@@ -1,0 +1,369 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://avoozl.dev/schema/config-v1.json",
+  "title": "Avoozl configuration",
+  "description": "Shareable, non-secret configuration for an Avoozl installation or workspace.",
+  "type": "object",
+  "required": ["version"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "const": 1
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "operator": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "dbPath": {
+      "type": "string",
+      "minLength": 1
+    },
+    "documents": {
+      "type": "string",
+      "minLength": 1
+    },
+    "port": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 65535
+    },
+    "host": {
+      "type": "string",
+      "minLength": 1
+    },
+    "canvasOrigins": {
+      "oneOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uri"
+          },
+          "uniqueItems": true
+        }
+      ]
+    },
+    "agentManifest": {
+      "type": "string",
+      "minLength": 1
+    },
+    "url": {
+      "type": "string",
+      "format": "uri"
+    },
+    "ahp": {
+      "$ref": "#/$defs/ahp"
+    },
+    "conversations": {
+      "$ref": "#/$defs/conversations"
+    },
+    "projects": {
+      "description": "Machine-local execution repositories keyed by a stable project ID.",
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9-]{1,60}$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/project"
+      }
+    },
+    "github": {
+      "$ref": "#/$defs/github"
+    },
+    "planningRepository": {
+      "$ref": "#/$defs/planningRepository"
+    },
+    "ahpPort": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 65535,
+      "deprecated": true
+    },
+    "ahpHost": {
+      "type": "string",
+      "minLength": 1,
+      "deprecated": true
+    },
+    "ahpProjection": {
+      "type": "string",
+      "minLength": 1,
+      "deprecated": true
+    },
+    "ahpTokens": {
+      "type": "string",
+      "minLength": 1,
+      "deprecated": true
+    },
+    "ahpManifest": {
+      "type": "string",
+      "minLength": 1,
+      "deprecated": true
+    }
+  },
+  "propertyNames": {
+    "$ref": "#/$defs/safePropertyName"
+  },
+  "additionalProperties": {
+    "$ref": "#/$defs/safeValue"
+  },
+  "$defs": {
+    "safePropertyName": {
+      "anyOf": [
+        {
+          "enum": ["ahpTokens"]
+        },
+        {
+          "not": {
+            "pattern": "(^|[-_])(api[-_]?key|access[-_]?key|private[-_]?key|client[-_]?secret|secret|password|passwd|token|credential)s?($|[-_])"
+          }
+        }
+      ]
+    },
+    "safeValue": {
+      "anyOf": [
+        {
+          "type": ["string", "number", "integer", "boolean", "null"]
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/safeValue"
+          }
+        },
+        {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "#/$defs/safePropertyName"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/safeValue"
+          }
+        }
+      ]
+    },
+    "ahp": {
+      "type": "object",
+      "properties": {
+        "port": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "host": {
+          "type": "string",
+          "minLength": 1
+        },
+        "projection": {
+          "type": "string",
+          "minLength": 1
+        },
+        "tokens": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Path to the generated AHP token file; never an inline token."
+        },
+        "manifest": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/safeValue"
+      }
+    },
+    "conversations": {
+      "type": "object",
+      "properties": {
+        "autoArchiveCompleted": {
+          "type": "boolean",
+          "default": true,
+          "description": "Archive completed child and task conversations while retaining their task and transcript links."
+        },
+        "driver": {
+          "type": "object",
+          "properties": {
+            "agentProfile": {
+              "type": ["string", "null"],
+              "minLength": 1,
+              "description": "OpenHands agent profile used when a new Driver conversation is created."
+            },
+            "model": {
+              "type": ["string", "null"],
+              "minLength": 1,
+              "description": "OpenHands LLM profile or ACP model override used for a new Driver conversation."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "project": {
+      "type": "object",
+      "required": ["root"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "root": {
+          "type": "string",
+          "minLength": 1
+        },
+        "baseBranch": {
+          "type": "string",
+          "minLength": 1
+        },
+        "worktreeRoot": {
+          "type": "string",
+          "minLength": 1
+        },
+        "checks": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "github": {
+      "type": "object",
+      "description": "Desired non-secret GitHub intake and Queue configuration. Remote setup remains an explicit action.",
+      "properties": {
+        "issueIntake": {
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^[^/]+/[^/]+$"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/githubIssueIntake"
+          }
+        },
+        "queue": {
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^[^/]+/[^/]+$"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/githubQueueRepository"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "githubIssueIntake": {
+      "type": "object",
+      "required": ["projectId", "assignee"],
+      "properties": {
+        "projectId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "assignee": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "default": "avoozl:ready"
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "autoStart": {
+          "type": "boolean",
+          "default": false
+        },
+        "provider": {
+          "type": ["string", "null"]
+        },
+        "model": {
+          "type": ["string", "null"]
+        },
+        "allowedActors": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "minimumPermission": {
+          "enum": ["write", "maintain", "admin"],
+          "default": "write"
+        }
+      },
+      "additionalProperties": false
+    },
+    "githubQueueRepository": {
+      "type": "object",
+      "properties": {
+        "projectId": {
+          "type": ["string", "null"]
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "includeIssues": {
+          "type": "boolean",
+          "default": true
+        },
+        "includePullRequests": {
+          "type": "boolean",
+          "default": true
+        },
+        "visibility": {
+          "enum": ["private", "public"],
+          "default": "private",
+          "description": "Public Queue sources are metadata-only and never authorize or mutate GitHub."
+        }
+      },
+      "additionalProperties": false
+    },
+    "planningRepository": {
+      "type": "object",
+      "required": ["root", "remote"],
+      "properties": {
+        "root": {
+          "type": "string",
+          "minLength": 1
+        },
+        "remote": {
+          "type": "string",
+          "minLength": 1
+        },
+        "branch": {
+          "type": "string",
+          "minLength": 1,
+          "default": "main"
+        },
+        "directory": {
+          "type": "string",
+          "minLength": 1,
+          "default": "."
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -246,7 +246,8 @@ try {
   {
     const page = await attach(
       browser.port,
-      (target) => target.type === "page" && /about:blank|127\.0\.0\.1/.test(target.url),
+      (target) =>
+        target.type === "page" && /about:blank|127\.0\.0\.1/.test(target.url),
     );
     await phone(page);
     // The hub is where blocked work appears; a conversation is opened from it
@@ -263,9 +264,7 @@ try {
       const box = await page
         .waitFor(expression, { label: what, timeoutMs: 25000 })
         .catch(() => null);
-      record.controls[what] = box
-        ? measure(box)
-        : { reachable: false };
+      record.controls[what] = box ? measure(box) : { reachable: false };
       if (box) record.controls[what].reachable = true;
       record.steps.push({
         step: what,
@@ -279,7 +278,9 @@ try {
               record.controls[what].width +
               "×" +
               record.controls[what].height +
-              (record.controls[what].hittable ? "" : " (below " + MINIMUM_TARGET + "px)")
+              (record.controls[what].hittable
+                ? ""
+                : " (below " + MINIMUM_TARGET + "px)")
             : ""),
       );
       return box;
@@ -422,12 +423,11 @@ try {
     editorProc.stderr.pipe(log);
     await delay(12000);
 
-    const page = await attach(
-      browser.port,
-      (target) => target.type === "page",
-    );
+    const page = await attach(browser.port, (target) => target.type === "page");
     await phone(page);
-    await page.navigate("http://127.0.0.1:" + webPort + "/?tkn=" + browserToken);
+    await page.navigate(
+      "http://127.0.0.1:" + webPort + "/?tkn=" + browserToken,
+    );
     await page.waitFor("!!document.querySelector('.monaco-workbench')", {
       label: "the editor workbench",
       timeoutMs: 120000,

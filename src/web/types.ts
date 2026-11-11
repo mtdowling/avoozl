@@ -23,11 +23,102 @@ export type RunSummary = {
   pullRequests?: Array<PullRequestLink | string>;
 };
 
+export type DriverProject = {
+  projectId: string;
+  title?: string;
+  root?: string;
+  run?: RunSummary | null;
+};
+
+export type DriverList = {
+  projects: DriverProject[];
+  defaultProjectId?: string | null;
+};
+
+export type DriverOpenResult = {
+  project: DriverProject;
+  run: Run;
+  created: boolean;
+  handedOff?: boolean;
+  previousRunId?: string;
+};
+
+export type OpenHandsAutomationTemplate = {
+  id: string;
+  name: string;
+  description: string;
+  version: string;
+  estimatedSetupMinutes: number | null;
+  path: string;
+  requiresUserInput: true;
+};
+
+export type OpenHandsAutomationCapabilities = {
+  available: boolean;
+  reason?: string;
+  endpoint?: string;
+  nativeSetup: {
+    templatesPath: string;
+    listPath: string;
+    templates: OpenHandsAutomationTemplate[];
+  };
+  installation: {
+    mode: "native-setup";
+    directInstall: false;
+    reason: string;
+  };
+};
+
+export type OpenHandsAutomationSetup = {
+  action: "navigate";
+  surface: "openhands";
+  path: string;
+  template: OpenHandsAutomationTemplate;
+  createsAutomation: false;
+  requiresUserReview: true;
+};
+
 export type Provider = {
   id?: string;
   name?: string;
   label?: string;
   models?: Array<{ id: string; name?: string } | string>;
+};
+
+export type ConfigurationMetadata = {
+  version: number;
+  schemaPath: string;
+  files: {
+    global: string;
+    legacy?: string;
+    repository: string;
+  };
+  sources: Array<{
+    label: string;
+    filename?: string | null;
+  }>;
+  repository: {
+    filename: string;
+    exists: boolean;
+    hash?: string | null;
+    loadedAt?: string | null;
+    error?: {
+      message: string;
+      at: string;
+    } | null;
+  };
+  restartRequired: string[];
+};
+
+export type WorkspaceProject = {
+  id: string;
+  name?: string;
+  root?: string;
+  path?: string;
+  baseBranch?: string;
+  worktreeRoot?: string;
+  checks?: string[][];
+  repository?: string | null;
 };
 
 export type Workspace = {
@@ -38,7 +129,7 @@ export type Workspace = {
   plans: PlanSummary[];
   planTotal: number;
   requests: Array<{ id: string; runId: string; kind: string; method?: string }>;
-  projects: Array<{ id: string; name?: string; root?: string; path?: string }>;
+  projects: WorkspaceProject[];
   github?: {
     available: boolean;
     machine?: { id: string; name: string };
@@ -49,6 +140,9 @@ export type Workspace = {
       label: string;
       autoStart?: boolean;
       provider?: string | null;
+      model?: string | null;
+      allowedActors?: string[];
+      minimumPermission?: string;
       activeMachine?: string | null;
     }>;
     issues: Array<{
@@ -64,6 +158,21 @@ export type Workspace = {
       labelEventId?: string;
     }>;
     lastSync?: { repositories?: Array<{ id: string; syncedAt: string }> };
+    queue?: {
+      enabled?: boolean;
+      repositories?: Array<{
+        id: string;
+        repository?: string;
+        projectId?: string | null;
+        enabled?: boolean;
+        includeIssues?: boolean;
+        includePullRequests?: boolean;
+        visibility?: "private" | "public";
+        accessMode?: "private-read-only" | "public-read-only";
+        canAuthorizeExecution?: boolean;
+      }>;
+      synchronizedAt?: string | null;
+    };
   };
   workspaceRepository?: {
     configuration?: {
@@ -78,9 +187,89 @@ export type Workspace = {
   };
   providers: Provider[];
   agentHost?: { connected?: boolean; draining?: boolean };
+  conversationSettings?: {
+    autoArchiveCompleted: boolean;
+    driverAgentProfile?: string | null;
+    driverModel?: string | null;
+  };
+  configuration?: ConfigurationMetadata | null;
   publication?: { pending?: unknown[]; last?: unknown[] };
   integrations?: unknown[];
   recentIntegrations?: unknown[];
+};
+
+export type QueueItem = {
+  id: string;
+  kind: "issue" | "pull-request" | "task";
+  title: string;
+  summary?: string;
+  repository?: string;
+  projectId?: string;
+  number?: number;
+  url?: string;
+  author?: string;
+  assignees?: string[];
+  assigned?: boolean;
+  labels?: string[];
+  state?: string;
+  updatedAt?: string;
+  taskId?: string;
+  task?: Task;
+  headBranch?: string;
+  baseBranch?: string;
+  overlapCandidates?: QueueOverlapCandidate[];
+  associations?: QueueAssociation[];
+};
+
+export type QueueOverlapCandidate = {
+  targetKind: "task" | "plan";
+  targetId: string;
+  projectId?: string | null;
+  title: string;
+  score: number;
+  reasons: Array<{
+    code: string;
+    detail: string;
+    weight: number;
+  }>;
+  unconfirmed: true;
+};
+
+export type QueueAssociation = {
+  id?: string;
+  targetKind: "task" | "plan";
+  targetId: string;
+  title: string;
+  confirmedAt: string;
+  confirmedBy?: string;
+  queueItemId: string;
+  repository?: string;
+  kind?: "issue" | "pull-request";
+  number?: number;
+  url?: string;
+  nodeId?: string | null;
+  bodyHash?: string | null;
+  source?: "task-origin" | "operator-confirmed";
+};
+
+export type QueueSnapshot = {
+  available: boolean;
+  enabled?: boolean;
+  reason?: string;
+  lastSync?: string | null;
+  synchronizedAt?: string | null;
+  repositories?: Array<{
+    id: string;
+    repository?: string;
+    projectId?: string | null;
+    enabled?: boolean;
+    includeIssues?: boolean;
+    includePullRequests?: boolean;
+    visibility?: "private" | "public";
+    accessMode?: "private-read-only" | "public-read-only";
+    canAuthorizeExecution?: boolean;
+  }>;
+  items: QueueItem[];
 };
 
 export type Task = {
@@ -106,6 +295,7 @@ export type Task = {
   prompt?: string;
   createdAt?: string;
   updatedAt?: string;
+  archivedAt?: string | null;
   source?: TaskSource;
   approvedSource?: TaskSource & { text?: string };
   sourceReferences?: TaskSource[];
@@ -205,20 +395,65 @@ export type TaskDetail = Task & {
 export type State = {
   revision: number;
   project?: { name?: string; title?: string; workspaceName?: string };
-  statuses: Array<{ id: string; label: string; color?: string; complete?: boolean }>;
-  epics: Array<{ id: string; title: string; summary?: string; scope?: string; color?: string; context?: string }>;
+  statuses: Array<{
+    id: string;
+    label: string;
+    color?: string;
+    complete?: boolean;
+  }>;
+  epics: Array<{
+    id: string;
+    title: string;
+    summary?: string;
+    scope?: string;
+    color?: string;
+    context?: string;
+  }>;
   tracks: Array<{ id: string; label: string; color?: string }>;
   tasks: Task[];
-  edges: Array<{ id?: string; from: string; to: string; kind: string; reason?: string }>;
-  epicEdges?: Array<{ id?: string; from: string; to: string; kind: string; reason?: string }>;
+  edges: Array<{
+    id?: string;
+    from: string;
+    to: string;
+    kind: string;
+    reason?: string;
+  }>;
+  epicEdges?: Array<{
+    id?: string;
+    from: string;
+    to: string;
+    kind: string;
+    reason?: string;
+  }>;
   documents: Record<string, DocumentRecord>;
   taskAliases?: Record<string, string>;
   updatedAt?: string;
   savedSearches?: SavedSearch[];
+  agentInstructions?: AgentInstruction[];
+  agentInstructionSource?: {
+    path: string;
+    hash: string;
+    revision?: string | null;
+    synchronizedAt: string;
+    ruleCount: number;
+  };
   presentation?: {
     views?: SavedView[];
     tours?: SavedTour[];
   };
+};
+
+export type AgentInstruction = {
+  id: string;
+  title: string;
+  category: string;
+  selector: {
+    kind: "all" | "scope" | "epic" | "track" | "tag";
+    value?: string;
+  };
+  instruction: string;
+  enabled: boolean;
+  source?: { path: string; line?: number; hash?: string };
 };
 
 export type SavedSearch = {
@@ -268,7 +503,11 @@ export type SavedView = {
 export type SavedTour = {
   id: string;
   title: string;
-  steps?: Array<{ view?: string; visualization?: string; visualizationId?: string }>;
+  steps?: Array<{
+    view?: string;
+    visualization?: string;
+    visualizationId?: string;
+  }>;
 };
 
 export type DocumentRecord = {
@@ -324,7 +563,11 @@ export type Plan = PlanSummary & {
   text: string;
   prompt?: string;
   quality?: PlanQuality;
-  approvals?: Array<{ hash?: string; approvedAt?: string; approvedBy?: string }>;
+  approvals?: Array<{
+    hash?: string;
+    approvedAt?: string;
+    approvedBy?: string;
+  }>;
   reviews?: ReviewThread[];
   reviewPipelines?: Array<{
     id: string;
@@ -399,6 +642,11 @@ export type Run = RunSummary & {
   worktree?: string;
   events: RunEvent[];
   hasEarlier?: boolean;
-  deliveries: Array<{ id: string; text: string; state: string; error?: string }>;
+  deliveries: Array<{
+    id: string;
+    text: string;
+    state: string;
+    error?: string;
+  }>;
   requests: RequestRecord[];
 };

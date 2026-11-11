@@ -3,8 +3,36 @@ import path from "node:path";
 import { readDocument } from "../catalog.mjs";
 import { blocks, digest } from "../model.mjs";
 import { taskSourceRefs } from "../task-identity.mjs";
+import { synchronizeAgentInstructions } from "./agent-instructions.mjs";
+
+export function reconcileAgentInstructions(store, root) {
+  const full = path.resolve(root, "AGENTS.md"),
+    exists = fs.existsSync(full),
+    text = exists ? fs.readFileSync(full, "utf8") : "",
+    current = store.read().agentInstructionSource;
+  if (current?.hash === digest(text) && !store.read().documents["AGENTS.md"])
+    return { changed: false };
+  if (
+    !exists &&
+    !current &&
+    !(store.read().agentInstructions || []).length &&
+    !store.read().documents["AGENTS.md"]
+  )
+    return { changed: false };
+  store.mutate("Synchronize Avoozl policy from AGENTS.md", (data) => {
+    synchronizeAgentInstructions(data, text, { path: "AGENTS.md" });
+    delete data.documents["AGENTS.md"];
+  });
+  return {
+    changed: true,
+    instructions: store.read().agentInstructions?.length || 0,
+    removed: !exists,
+  };
+}
+
 export function reconcileSource(store, root, relative) {
   relative = relative.replaceAll("\\", "/");
+  if (relative === "AGENTS.md") return reconcileAgentInstructions(store, root);
   if (
     relative
       .split("/")
@@ -79,6 +107,14 @@ export function reconcileSource(store, root, relative) {
 export function watchSources(store, root) {
   let timer;
   const dirty = new Set();
+  try {
+    reconcileAgentInstructions(store, root);
+  } catch (error) {
+    store.event(null, "source.error", {
+      path: "AGENTS.md",
+      message: error.message,
+    });
+  }
   const watcher = fs.watch(root, { recursive: true }, (_kind, name) => {
     if (!name) return;
     const file = String(name).replaceAll("\\", "/");
