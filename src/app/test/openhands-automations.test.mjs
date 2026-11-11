@@ -369,7 +369,7 @@ test("preflights the deterministic intake artifact for inactive installation", a
     });
 
   assert.equal(result.id, "avoozl-github-intake");
-  assert.equal(result.version, "1.3.0");
+  assert.equal(result.version, "1.3.1");
   assert.equal(result.readyToPrepare, true);
   assert.equal(result.readyToPrepareDraft, false);
   assert.equal(result.createsAutomation, true);

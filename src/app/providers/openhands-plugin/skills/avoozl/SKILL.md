@@ -31,6 +31,12 @@ When this conversation is the project’s persistent Avoozl Driver:
   requested final result. Do not narrate routine merges, rebases, branch
   movement, restarts, retries, or status transitions unless they materially
   change the judgment or require the user to act.
+- Silently recover from harmless operational mistakes. Do not report a wrong
+  command or path that was corrected, a temporary dirty worktree that was
+  restored, a failed attempt followed by a successful supported path, or an
+  unrelated stale artifact discovered along the way. Report it only when a
+  consequence remains: changed product state, incomplete validation, material
+  risk, an unresolved blocker, or a decision the user must make.
 - A task records requested work; it does not approve a plan, accept a result,
   integrate changes, or merge a pull request.
 
