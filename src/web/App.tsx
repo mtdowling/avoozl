@@ -277,6 +277,18 @@ function driverProjectKey(workspaceId: string) {
   return `avoozl-driver-project:${workspaceId || "default"}`;
 }
 
+function taskActivityState(task: Task) {
+  const activity = task.activity;
+  if (!activity?.state) return "";
+  if (
+    activity.state === "active" &&
+    activity.expiresAt &&
+    Date.parse(activity.expiresAt) <= Date.now()
+  )
+    return "stale";
+  return activity.state;
+}
+
 function avoozlChatTitle(prompt: string) {
   const firstSentence = prompt
     .trim()
@@ -529,7 +541,7 @@ function Overview({
   );
   const reported = state.tasks.filter(
     (task) =>
-      task.activity?.status === "active" &&
+      taskActivityState(task) === "active" &&
       !activeRuns.some((run) => run.taskId === task.id),
   );
   const completed = state.tasks
@@ -1099,7 +1111,7 @@ function TaskFacets({
                 (task) =>
                   !complete.has(task.status) &&
                   task.status !== "blocked" &&
-                  task.activity?.status !== "active",
+                  taskActivityState(task) !== "active",
               ).length,
             },
             {
@@ -1107,7 +1119,7 @@ function TaskFacets({
               label: "In progress",
               count: state.tasks.filter(
                 (task) =>
-                  task.activity?.status === "active" ||
+                  taskActivityState(task) === "active" ||
                   task.status === "in-progress",
               ).length,
             },
@@ -1174,21 +1186,21 @@ function TaskFacets({
               id: "active",
               label: "Fresh",
               count: state.tasks.filter(
-                (task) => task.activity?.status === "active",
+                (task) => taskActivityState(task) === "active",
               ).length,
             },
             {
               id: "stale",
               label: "Expired",
               count: state.tasks.filter(
-                (task) => task.activity?.status === "stale",
+                (task) => taskActivityState(task) === "stale",
               ).length,
             },
             {
               id: "paused",
               label: "Paused",
               count: state.tasks.filter(
-                (task) => task.activity?.status === "paused",
+                (task) => taskActivityState(task) === "paused",
               ).length,
             },
           ]}
@@ -1245,7 +1257,7 @@ function filteredTasks(state: State, filters: TaskFilters) {
       return false;
     if (
       filters.activity.length &&
-      !filters.activity.includes(task.activity?.status || "")
+      !filters.activity.includes(taskActivityState(task))
     )
       return false;
     if (
@@ -1255,7 +1267,7 @@ function filteredTasks(state: State, filters: TaskFilters) {
       return false;
     if (
       filters.work.includes("inflight") &&
-      !(task.activity?.status === "active" || task.status === "in-progress")
+      !(taskActivityState(task) === "active" || task.status === "in-progress")
     )
       return false;
     if (filters.work.includes("review") && !task.status.includes("review"))
@@ -1264,7 +1276,7 @@ function filteredTasks(state: State, filters: TaskFilters) {
       filters.work.includes("ready") &&
       (complete.has(task.status) ||
         task.status === "blocked" ||
-        task.activity?.status === "active")
+        taskActivityState(task) === "active")
     )
       return false;
     return true;
@@ -8369,8 +8381,6 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
   const restoredTaskScope = useRef("");
   const pendingTaskId = useRef<string | null>(initial.taskId);
   const [launchPending, setLaunchPending] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false);
-  const [chatDraft, setChatDraft] = useState("");
   const hostWorkspaces = useRemote(loadHostWorkspaces, []);
   const workspace = useRemote(loadWorkspace, [activeWorkspaceId]);
   const state = useRemote(loadState, [activeWorkspaceId]);
@@ -8611,17 +8621,44 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
       setLaunchPending(false);
     }
   }
-  async function ensureDriver(projectId: string, context: CaptureContext) {
+  async function ensureDriver(projectId: string, context?: CaptureContext) {
     const settings = workspace.data?.conversationSettings;
     const result = await command<DriverOpenResult>("driver.open", {
       projectId,
       provider: "openhands",
       agentProfile: settings?.driverAgentProfile ?? null,
       model: settings?.driverModel ?? null,
-      context,
+      ...(context ? { context } : {}),
     });
     void driver.reload().catch(() => {});
     return result;
+  }
+  async function openAvoozlDriver() {
+    const projects = workspace.data?.projects || [];
+    const projectId =
+      (projects.some((project) => project.id === driverProjectId)
+        ? driverProjectId
+        : driver.data?.defaultProjectId) || projects[0]?.id;
+    if (!projectId) {
+      window.alert("Configure an execution project before opening Avoozl.");
+      navigate("settings");
+      return;
+    }
+    const existing = driver.data?.projects.find(
+      (project) => project.projectId === projectId,
+    )?.run;
+    if (existing?.providerSessionId) {
+      await openRun(existing.id, existing);
+      return;
+    }
+    await withOpenHandsLaunch(async () => {
+      try {
+        const opened = await ensureDriver(projectId);
+        await openRun(opened.run.id, opened.run);
+      } catch (error) {
+        window.alert((error as Error).message);
+      }
+    });
   }
   async function startOpenHandsIntent(
     action: "ask" | "draft",
@@ -8668,19 +8705,6 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
       }
     });
     return started;
-  }
-  async function submitAvoozlChat() {
-    const prompt = chatDraft.trim();
-    if (!prompt || launchPending) return;
-    if (
-      await startOpenHandsIntent("ask", prompt, {
-        purpose: "project-chat",
-        scoped: true,
-      })
-    ) {
-      setChatDraft("");
-      setChatOpen(false);
-    }
   }
   async function startTaskInOpenHands(task: Task) {
     const review = Boolean(
@@ -8798,7 +8822,7 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
       }
     });
   }
-  async function openRun(id: string, startedRun?: Run) {
+  async function openRun(id: string, startedRun?: Run | RunSummary) {
     let run: Run | RunSummary | undefined;
     try {
       run = await resolveSessionRun<Run | RunSummary>({
@@ -9112,11 +9136,11 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
     activeRunStates.has(run.state),
   );
   const activeTaskCount = stateData.tasks.filter(
-    (task) => task.activity?.status === "active",
+    (task) => taskActivityState(task) === "active",
   ).length;
   const externalActiveCount = stateData.tasks.filter(
     (task) =>
-      task.activity?.status === "active" &&
+      taskActivityState(task) === "active" &&
       !activeRuns.some((run) => run.taskId === task.id),
   ).length;
   const inFlightCount = activeRuns.length + externalActiveCount;
@@ -9321,8 +9345,8 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
             type="button"
             className="toolbar-action toolbar-chat-control"
             disabled={launchPending}
-            onClick={() => setChatOpen(true)}
-            title="Start a fresh Avoozl chat"
+            onClick={() => void openAvoozlDriver()}
+            title="Open the Avoozl Driver"
             aria-label="Chat with Avoozl"
           >
             <MessageSquare size={16} aria-hidden="true" />
@@ -9604,85 +9628,6 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
           workspace={workspaceData}
           close={() => setMcpOpen(false)}
         />
-      )}
-      {chatOpen && (
-        <div
-          className="modal-backdrop"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget && !launchPending)
-              setChatOpen(false);
-          }}
-        >
-          <form
-            className="avoozl-chat-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="avoozl-chat-title"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void submitAvoozlChat();
-            }}
-          >
-            <header>
-              <div>
-                <span className="eyebrow">New conversation</span>
-                <h2 id="avoozl-chat-title">Chat with Avoozl</h2>
-              </div>
-              <button
-                type="button"
-                className="icon-button"
-                disabled={launchPending}
-                onClick={() => setChatOpen(false)}
-                aria-label="Close"
-              >
-                <X size={18} />
-              </button>
-            </header>
-            <p>
-              Starts a fresh project chat. Previous conversations remain
-              available in OpenHands.
-            </p>
-            <textarea
-              autoFocus
-              rows={5}
-              value={chatDraft}
-              disabled={launchPending}
-              placeholder="What would you like Avoozl to do?"
-              aria-label="Message Avoozl"
-              onChange={(event) => setChatDraft(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Escape" && !launchPending) {
-                  event.preventDefault();
-                  setChatOpen(false);
-                } else if (
-                  event.key === "Enter" &&
-                  !event.shiftKey &&
-                  !event.nativeEvent.isComposing
-                ) {
-                  event.preventDefault();
-                  event.currentTarget.form?.requestSubmit();
-                }
-              }}
-            />
-            <div className="form-actions">
-              <button
-                type="submit"
-                className="button primary"
-                disabled={launchPending || !chatDraft.trim()}
-              >
-                {launchPending ? "Starting…" : "Start chat"}
-              </button>
-              <button
-                type="button"
-                className="button"
-                disabled={launchPending}
-                onClick={() => setChatOpen(false)}
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
       )}
     </div>
   );

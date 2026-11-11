@@ -248,12 +248,22 @@ export function TaskInspector({
         (Number.isFinite(leftTime) ? leftTime : 0)
       );
     });
+  const attachableRuns = openHandsRuns.filter((run) =>
+    Boolean(run.providerSessionId),
+  );
   const sessionRun =
-    openHandsRuns.find(
+    attachableRuns.find(
       (run) =>
         run.id === connectedSessionId ||
         run.providerSessionId === connectedSessionId,
-    ) || openHandsRuns[0];
+    ) || attachableRuns[0];
+  const connectingRun = openHandsRuns.find(
+    (run) =>
+      !run.providerSessionId &&
+      ["starting", "running", "waiting-input", "waiting-approval"].includes(
+        run.state,
+      ),
+  );
   const sessionTone = sessionRun
     ? ["failed", "disconnected"].includes(sessionRun.state)
       ? "failed"
@@ -434,7 +444,11 @@ export function TaskInspector({
                   <MessageSquare size={15} aria-hidden="true" />
                   Attach
                 </button>
-              ) : detail.activity?.status === "active" ? (
+              ) : connectingRun ? (
+                <span className="task-session-note">
+                  Connecting to OpenHands…
+                </span>
+              ) : detail.activity?.state === "active" ? (
                 <span className="task-session-note">
                   Active outside OpenHands
                 </span>
@@ -451,7 +465,7 @@ export function TaskInspector({
                       : "Starting…"
                     : complete
                       ? "Review with agent"
-                      : "Start in OpenHands"}
+                      : "Start agent"}
                 </button>
               )}
               <button
@@ -597,9 +611,9 @@ export function TaskInspector({
 
             {(detail.activity || detail.nextAction) && (
               <DetailSection title="Current activity" open>
-                {detail.activity?.status && (
+                {detail.activity?.state && (
                   <p>
-                    <strong>{detail.activity.status}</strong>
+                    <strong>{detail.activity.state}</strong>
                   </p>
                 )}
                 {detail.activity?.summary && <p>{detail.activity.summary}</p>}

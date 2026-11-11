@@ -642,9 +642,10 @@ export type Task = {
   };
   activity?: {
     owner?: string;
-    status?: string;
+    state?: string;
     summary?: string;
     heartbeatAt?: string;
+    expiresAt?: string;
     sessionId?: string;
     branch?: string;
     worktree?: string;
