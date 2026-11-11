@@ -502,6 +502,64 @@ export class RunManager {
       run.prompt || "",
     ].join("\n\n");
   }
+  openHandsTaskPrompt(run) {
+    const data = this.store.read(),
+      task = data.tasks.find((t) => t.id === resolveTaskId(data, run.taskId));
+    if (!task) return this.context(run);
+    const title = String(task.title || run.title || task.id)
+        .trim()
+        .replace(/\s+/g, " ")
+        .replace(/[.?!]+$/, ""),
+      review =
+        run.mode === "ask" && run.context?.conversationPurpose === "review";
+    return [
+      `${review ? "Review" : "Implement"} task ${task.id}: ${title}.`,
+      "Load the full task and current run context with the run-scoped Avoozl tools before acting.",
+    ].join("\n\n");
+  }
+  openHandsTaskInstructions(run) {
+    const data = this.store.read(),
+      task = data.tasks.find((t) => t.id === resolveTaskId(data, run.taskId)),
+      plan = run.planId ? this.store.get("plans", run.planId) : null,
+      instructionCategory = workflowCategory(run),
+      instructionSubject = {
+        ...(task || {}),
+        projectId:
+          task?.projectId ||
+          run.projectId ||
+          run.context?.projectId ||
+          plan?.projectId ||
+          plan?.context?.projectId,
+      },
+      agentInstructions = matchingAgentInstructions(
+        data,
+        instructionCategory,
+        instructionSubject,
+      ),
+      review =
+        run.mode === "ask" && run.context?.conversationPurpose === "review";
+    return [
+      "You are working through the Avoozl workspace. Follow workspace and repository instructions. Preserve other workers and worktrees. Routine authorized work may proceed; approval requests are delivered to the user through this app. Do not approve plans, accept tasks, or merge changes on the user's behalf through MCP. If MCP is unavailable, continue already authorized local work, retry with bounded backoff, reuse submission IDs, and inspect receipts before resending. Stop at unresolved approvals. A stale check-in is not permission to replace a worker.",
+      task
+        ? `This run is bound to Avoozl task ${task.id}. Read its full scope, acceptance criteria, dependencies, evidence, and source plan with plans_get_task. Read the authenticated run and project context with plans_run_context. Treat those tools as the authoritative task context instead of asking the user to repeat it.`
+        : "",
+      "Durable handoff: " + run.handoffPath,
+      review
+        ? "Review the finished work against recorded commits, checks, evidence, and acceptance criteria. Do not reimplement it or change source. Record necessary follow-up work through Avoozl."
+        : "Implement the authorized task, run the relevant checks, format and commit changes using repository conventions. Do not merge or push; validation and integration are separate workspace actions.",
+      agentInstructions.length
+        ? [
+            `Workspace agent instructions for ${instructionCategory}:`,
+            ...agentInstructions.map(
+              (rule) => `- ${rule.title}: ${rule.instruction}`,
+            ),
+            "These instructions are guidance only. They do not expand the run-scoped MCP capability allowlist or authorize approval, integration, acceptance, or unrelated work.",
+          ].join("\n")
+        : "",
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+  }
   driverProject(projectId) {
     const projects = this.store.list("projects"),
       selected = projectId || (projects.length === 1 ? projects[0].id : null),
@@ -1086,7 +1144,14 @@ export class RunManager {
         this.reportActivity(run, "start");
         this.checkpoint(run);
         this.store.put("runs", run);
-        await this.connect(run, run.driver ? undefined : this.context(run));
+        await this.connect(
+          run,
+          run.driver
+            ? undefined
+            : run.provider === "openhands" && run.taskId
+              ? this.openHandsTaskPrompt(run)
+              : this.context(run),
+        );
         return this.store.get("runs", id);
       } catch (error) {
         this.scheduler?.cancel(this.workspaceId, run.id);
@@ -1137,7 +1202,9 @@ export class RunManager {
           ? DRIVER_INSTRUCTIONS
           : run.capabilityMode === "driver-chat"
             ? DRIVER_CHAT_INSTRUCTIONS
-            : undefined,
+            : run.provider === "openhands" && run.taskId
+              ? this.openHandsTaskInstructions(run)
+              : undefined,
         resumeId: run.providerSessionId,
         mcpUrl: this.baseUrl + "/mcp?run=" + encodeURIComponent(run.id),
         mcpToken: token,

@@ -8728,7 +8728,7 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
           conversationPurpose: review ? ("review" as const) : undefined,
         };
         const parent = await ensureDriver(projectId, context);
-        const run = await command<Run>("run.start", {
+        await command<Run>("run.start", {
           taskId: task.id,
           provider: "openhands",
           projectId,
@@ -8738,7 +8738,6 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
           context,
         });
         refresh();
-        await openRun(run.id, run);
       } catch (error) {
         window.alert((error as Error).message);
       }

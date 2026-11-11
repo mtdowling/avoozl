@@ -398,6 +398,21 @@ test("task worktrees keep logical Driver ownership without an invalid OpenHands 
   assert.equal(child.parentProviderSessionId, undefined);
   assert.notEqual(child.worktree, driver.run.worktree);
   assert.equal(starts[1].parentConversationId, undefined);
+  assert.equal(
+    starts[1].prompt,
+    "Implement task sample-task: Implement fixture.\n\n" +
+      "Load the full task and current run context with the run-scoped Avoozl tools before acting.",
+  );
+  assert.doesNotMatch(
+    starts[1].prompt,
+    /viewContext|activityHistory|documents/,
+  );
+  assert.match(starts[1].systemInstructions, /plans_get_task/);
+  assert.match(starts[1].systemInstructions, /plans_run_context/);
+  assert.doesNotMatch(
+    starts[1].systemInstructions,
+    /"viewContext"|"activityHistory"/,
+  );
 });
 
 test("changing Driver agent or model safely hands off and retains history", async (t) => {
