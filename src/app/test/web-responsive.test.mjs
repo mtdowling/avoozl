@@ -278,7 +278,7 @@ test("Conversation settings expose automatic agent routing without inventing con
 
   assert.match(app, /Automatic agent routing/);
   assert.match(app, /Apply agent and model policy/);
-  assert.match(app, /\.avoozl\/config\.json/);
+  assert.match(app, /\.avoozl\.json/);
   assert.match(app, /records “unknown” instead of\s+estimating it/);
   assert.match(routing, /contextTelemetry:/);
   assert.match(routing, /"unavailable"/);
@@ -296,8 +296,9 @@ test("Agent instructions keep source context without a scrolling source column",
   assert.match(app, /className="agent-instruction-source"/);
   assert.match(
     app,
-    /agent-instruction-source[\s\S]*?rule\.source\?\.path \|\| "AGENTS\.md"/,
+    /agent-instruction-source[\s\S]*?rule\.source\?\.path \|\| "\.avoozl\.json"/,
   );
+  assert.match(app, /rule\.source\?\.pointer \|\| ""/);
   assert.match(
     styles,
     /\.agent-instruction-table-wrap \{[\s\S]*?overflow: hidden;/,
@@ -313,7 +314,7 @@ test("Agent instructions keep source context without a scrolling source column",
   assert.doesNotMatch(styles, /\.agent-instruction-table \{[^}]*min-width:/);
 });
 
-test("synced Agent instructions open the complete AGENTS.md source", () => {
+test("synced Agent instructions open the complete .avoozl.json source", () => {
   const app = fs.readFileSync(path.join(root, "src/web/App.tsx"), "utf8");
   const styles = fs.readFileSync(path.join(root, "src/web/styles.css"), "utf8");
 
@@ -323,30 +324,45 @@ test("synced Agent instructions open the complete AGENTS.md source", () => {
   assert.match(app, /"agent\.instructions\.source"/);
   assert.match(
     app,
-    /The complete file synchronized from the planning repository/,
+    /The complete policy file synchronized from the planning\s+repository/,
   );
   assert.match(app, /className="agent-instruction-source-file"/);
-  assert.match(app, /<MarkdownSourceViewer/);
+  assert.match(app, /<JsonSourceViewer/);
   assert.match(app, /text=\{sourceFile\.text\}/);
   assert.match(app, /filename=\{sourceFile\.path\}/);
+  assert.match(app, /Opening \.avoozl\.json…/);
   assert.doesNotMatch(app, /<pre>\{rule\.instruction\}<\/pre>/);
+  assert.doesNotMatch(app, /AGENTS\.md format/);
+  assert.doesNotMatch(app, /planning repository’s AGENTS\.md/);
   assert.match(
     styles,
     /\.agent-instruction-source-file,[\s\S]*?overflow: auto;/,
   );
 });
 
-test("the complete AGENTS.md source uses a read-only highlighted Markdown editor", () => {
+test("the complete .avoozl.json source uses a read-only highlighted JSON editor", () => {
   const editors = fs.readFileSync(
     path.join(root, "src/web/Editors.tsx"),
     "utf8",
   );
 
-  assert.match(editors, /export function MarkdownSourceViewer/);
-  assert.match(editors, /language="markdown"/);
-  assert.match(editors, /theme="avoozl-dark"/);
-  assert.match(editors, /readOnly: true/);
-  assert.match(editors, /value=\{text\}/);
+  assert.match(editors, /export function JsonSourceViewer/);
+  assert.match(
+    editors,
+    /export function JsonSourceViewer[\s\S]*?language="json"/,
+  );
+  assert.match(
+    editors,
+    /export function JsonSourceViewer[\s\S]*?theme="avoozl-dark"/,
+  );
+  assert.match(
+    editors,
+    /export function JsonSourceViewer[\s\S]*?readOnly: true/,
+  );
+  assert.match(
+    editors,
+    /export function JsonSourceViewer[\s\S]*?value=\{text\}/,
+  );
 });
 
 test("Queue exposes repository and execution-project filters with manual sync", () => {
@@ -486,7 +502,7 @@ test("Configuration guidance uses an informational callout before Git safety", (
     callout,
     /Settings edits shared, non-secret choices in the repository/,
   );
-  assert.match(callout, /\.avoozl\/config\.json/);
+  assert.match(callout, /\.avoozl\.json/);
   assert.match(callout, /Commit that file to share policy with/);
   assert.match(callout, /collaborators\. Provider credentials/);
   assert.match(callout, /GitHub authentication, tokens, and/);

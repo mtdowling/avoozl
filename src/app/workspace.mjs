@@ -48,7 +48,7 @@ export function initializeWorkspace(
     );
   fs.mkdirSync(config.workspaceRoot, { recursive: true });
   const saved = {
-    $schema: "https://avoozl.dev/schema/config-v1.json",
+    $schema: "https://avoozl.dev/schema/repository-config-v1.json",
     version: 1,
     name,
     dbPath: path.relative(path.dirname(config.filename), config.dbPath),

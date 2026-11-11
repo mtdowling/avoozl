@@ -1499,16 +1499,27 @@ export class Operations {
       const source = store.read().agentInstructionSource,
         snapshot = store.getMeta("agentInstructionSourceSnapshot");
       if (!source)
-        fail("No AGENTS.md instructions have been synchronized.", 404);
+        fail("No .avoozl.json instructions have been synchronized.", 404);
       if (
         !snapshot ||
         snapshot.path !== source.path ||
         snapshot.hash !== source.hash
       )
         fail(
-          "The synchronized AGENTS.md snapshot is unavailable. Sync it again.",
+          "The synchronized .avoozl.json snapshot is unavailable. Sync it again.",
           409,
         );
+      if (input.repositoryId !== undefined) {
+        const selected = snapshot.sources?.find(
+          (entry) => entry.repositoryId === input.repositoryId,
+        );
+        if (!selected)
+          fail(
+            "No .avoozl.json instructions were synchronized for that repository.",
+            404,
+          );
+        return selected;
+      }
       return snapshot;
     }
     if (name === "agent.instructions.toggle")

@@ -102,7 +102,7 @@ test("unified repositories preserve legacy execution and GitHub records", async 
   assert.deepEqual(github.labels, ["team:ready"]);
 
   const saved = JSON.parse(
-    fs.readFileSync(path.join(root, ".avoozl", "config.json"), "utf8"),
+    fs.readFileSync(path.join(root, ".avoozl.json"), "utf8"),
   );
   assert.equal(saved.projects.compiler.planning, true);
   assert.equal(

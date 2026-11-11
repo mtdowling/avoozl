@@ -4,47 +4,156 @@ import { readDocument } from "../catalog.mjs";
 import { blocks, digest } from "../model.mjs";
 import { taskSourceRefs } from "../task-identity.mjs";
 import { synchronizeAgentInstructions } from "./agent-instructions.mjs";
+import {
+  assertPortableRepositoryConfig,
+  assertSafeConfig,
+} from "./layered-config.mjs";
 
-export function reconcileAgentInstructions(store, root) {
-  const full = path.resolve(root, "AGENTS.md"),
-    exists = fs.existsSync(full),
-    text = exists ? fs.readFileSync(full, "utf8") : "",
-    current = store.read().agentInstructionSource,
-    snapshot = store.getMeta("agentInstructionSourceSnapshot"),
-    hash = digest(text);
+function policyFilename(rootOrFilename) {
+  const selected = path.resolve(rootOrFilename);
+  return selected.endsWith(".json")
+    ? selected
+    : path.join(selected, ".avoozl.json");
+}
+
+function readPolicy(filename, repositoryId = null) {
+  if (!fs.existsSync(filename)) return null;
   if (
-    current?.hash === hash &&
-    snapshot?.hash === hash &&
-    !store.read().documents["AGENTS.md"]
+    fs.lstatSync(filename).isSymbolicLink() ||
+    !fs.statSync(filename).isFile()
   )
-    return { changed: false };
-  if (
-    !exists &&
-    !current &&
-    !(store.read().agentInstructions || []).length &&
-    !store.read().documents["AGENTS.md"]
-  )
-    return { changed: false };
-  store.mutate("Synchronize Avoozl policy from AGENTS.md", (data) => {
-    synchronizeAgentInstructions(data, text, { path: "AGENTS.md" });
-    delete data.documents["AGENTS.md"];
-  });
-  store.setMeta("agentInstructionSourceSnapshot", {
-    path: "AGENTS.md",
-    hash,
-    revision: null,
+    throw Error(`Avoozl policy must be a regular file: ${filename}`);
+  const text = fs.readFileSync(filename, "utf8");
+  if (Buffer.byteLength(text) > 512 * 1024)
+    throw Error(`Avoozl policy is too large: ${filename}`);
+  let value;
+  try {
+    value = JSON.parse(text);
+  } catch (error) {
+    throw Error(`Could not parse ${filename}: ${error.message}`);
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw Error(`Avoozl policy must contain a JSON object: ${filename}`);
+  if (value.version !== 1)
+    throw Error(`Unsupported Avoozl policy version: ${filename}`);
+  assertSafeConfig(value, `Avoozl policy at ${filename}`);
+  assertPortableRepositoryConfig(value, `Avoozl policy at ${filename}`);
+  return {
+    path: filename,
+    repositoryId,
+    value,
     text,
+    revision: null,
+    hash: digest(text),
+  };
+}
+
+export function configuredRepositoryInstructionSources(
+  store,
+  { exclude = [] } = {},
+) {
+  const excluded = new Set(exclude.map((filename) => path.resolve(filename))),
+    candidates = store
+      .list("projects")
+      .filter((project) => project.root)
+      .map((project) => ({
+        filename: path.join(path.resolve(project.root), ".avoozl.json"),
+        repositoryId: project.id,
+        primary: false,
+      })),
+    seen = new Set(),
+    sources = [];
+  for (const candidate of candidates) {
+    const key = path.resolve(candidate.filename);
+    if (seen.has(key) || excluded.has(key)) continue;
+    seen.add(key);
+    const source = readPolicy(key, candidate.repositoryId);
+    if (source) sources.push({ ...source, primary: candidate.primary });
+  }
+  return sources;
+}
+
+function instructionSources(store, primary) {
+  const filename = policyFilename(primary),
+    source = readPolicy(filename);
+  return [
+    ...(source ? [{ ...source, primary: true }] : []),
+    ...configuredRepositoryInstructionSources(store, {
+      exclude: [filename],
+    }),
+  ];
+}
+
+export function reconcileAgentInstructions(store, rootOrFilename) {
+  const sources = instructionSources(store, rootOrFilename),
+    sourceRecords = sources.map(({ path, repositoryId, hash, revision }) => ({
+      path,
+      repositoryId,
+      hash,
+      revision,
+    })),
+    hash = digest(JSON.stringify(sourceRecords)),
+    current = store.read().agentInstructionSource,
+    snapshot = store.getMeta("agentInstructionSourceSnapshot");
+  if (current?.hash === hash && snapshot?.hash === hash)
+    return { changed: false };
+  if (
+    !sources.length &&
+    !current &&
+    !(store.read().agentInstructions || []).length
+  )
+    return { changed: false };
+  store.mutate("Synchronize Avoozl policy from .avoozl.json", (data) => {
+    synchronizeAgentInstructions(data, null, {
+      sources: sources.map((source) => ({
+        value: source.value,
+        path: source.path,
+        repositoryId: source.repositoryId,
+        revision: source.revision,
+      })),
+    });
+    for (const name of Object.keys(data.documents))
+      if (path.basename(name).toLowerCase() === "agents.md")
+        delete data.documents[name];
+    data.agentInstructionSource.hash = hash;
+  });
+  const primary = sources.find((source) => source.primary) || sources[0];
+  store.setMeta("agentInstructionSourceSnapshot", {
+    path: primary?.path || policyFilename(rootOrFilename),
+    hash,
+    revision: primary?.revision || null,
+    text: primary?.text || "",
+    sources: sources.map(
+      ({ path, repositoryId, hash, revision, text, value }) => ({
+        path,
+        repositoryId,
+        hash,
+        revision,
+        text,
+        value,
+      }),
+    ),
   });
   return {
     changed: true,
     instructions: store.read().agentInstructions?.length || 0,
-    removed: !exists,
+    removed: !sources.length,
+    sources: sources.length,
   };
 }
 
 export function reconcileSource(store, root, relative) {
   relative = relative.replaceAll("\\", "/");
-  if (relative === "AGENTS.md") return reconcileAgentInstructions(store, root);
+  if (path.basename(relative).toLowerCase() === "agents.md") {
+    if (!store.read().documents[relative]) return { changed: false };
+    store.mutate(
+      "Stop indexing repository instructions " + relative,
+      (data) => {
+        delete data.documents[relative];
+      },
+    );
+    return { changed: true, ignored: true };
+  }
   if (
     relative
       .split("/")
@@ -116,14 +225,15 @@ export function reconcileSource(store, root, relative) {
   });
   return { changed: true };
 }
-export function watchSources(store, root) {
+export function watchSources(store, root, { policyFile } = {}) {
   let timer;
   const dirty = new Set();
+  const selectedPolicy = policyFile || path.join(root, ".avoozl.json");
   try {
-    reconcileAgentInstructions(store, root);
+    reconcileAgentInstructions(store, selectedPolicy);
   } catch (error) {
     store.event(null, "source.error", {
-      path: "AGENTS.md",
+      path: ".avoozl.json",
       message: error.message,
     });
   }
@@ -155,8 +265,44 @@ export function watchSources(store, root) {
       dirty.clear();
     }, 350);
   });
+  let policySignature = "";
+  const checkPolicies = () => {
+    const candidates = [
+        policyFilename(selectedPolicy),
+        ...store
+          .list("projects")
+          .filter((project) => project.root)
+          .map((project) =>
+            path.join(path.resolve(project.root), ".avoozl.json"),
+          ),
+      ],
+      signature = candidates
+        .map((filename) => {
+          try {
+            const stat = fs.statSync(filename);
+            return `${filename}:${stat.dev}:${stat.ino}:${stat.size}:${stat.mtimeMs}`;
+          } catch {
+            return filename + ":missing";
+          }
+        })
+        .join("\n");
+    if (signature === policySignature) return;
+    policySignature = signature;
+    try {
+      reconcileAgentInstructions(store, selectedPolicy);
+    } catch (error) {
+      store.event(null, "source.error", {
+        path: ".avoozl.json",
+        message: error.message,
+      });
+    }
+  };
+  checkPolicies();
+  const policyTimer = setInterval(checkPolicies, 2000);
+  policyTimer.unref?.();
   return () => {
     clearTimeout(timer);
+    clearInterval(policyTimer);
     watcher.close();
   };
 }

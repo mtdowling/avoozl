@@ -307,7 +307,7 @@ or project fields into normalized states:
 The issue detail view always shows the original GitHub labels and fields.
 Grouping, policy, and automation use normalized states.
 
-Mappings are stored per repository in shared `.avoozl/config.json`. Defaults
+Mappings are stored per repository in shared `.avoozl.json`. Defaults
 work without configuration. Unknown labels remain visible but do not silently
 grant authority.
 

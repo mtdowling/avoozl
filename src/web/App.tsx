@@ -122,9 +122,9 @@ const MarkdownPreview = lazy(() =>
 const JsonEditor = lazy(() =>
   import("./Editors").then((module) => ({ default: module.JsonEditor })),
 );
-const MarkdownSourceViewer = lazy(() =>
+const JsonSourceViewer = lazy(() =>
   import("./Editors").then((module) => ({
-    default: module.MarkdownSourceViewer,
+    default: module.JsonSourceViewer,
   })),
 );
 const MarkdownContent = lazy(() => import("./MarkdownContent"));
@@ -4820,7 +4820,7 @@ function ConfigurationPolicyCallout() {
   return (
     <InfoCallout>
       Settings edits shared, non-secret choices in the repository{" "}
-      <code>.avoozl/config.json</code>. Commit that file to share policy with
+      <code>.avoozl.json</code>. Commit that file to share policy with
       collaborators. Provider credentials, GitHub authentication, tokens, and
       other secrets stay in their owning tools or process environment and are
       never written there.
@@ -4885,7 +4885,7 @@ function ConfigurationStatus({ workspace }: { workspace: Workspace }) {
         <p className="form-note">
           Configuration metadata is unavailable from this running Avoozl server.
           Shared settings may still be managed through its repository{" "}
-          <code>.avoozl/config.json</code>.
+          <code>.avoozl.json</code>.
         </p>
         <ConfigurationPolicyCallout />
       </section>
@@ -7453,6 +7453,18 @@ function AgentInstructionSettings({
   const [sourceError, setSourceError] = useState("");
   const [message, setMessage] = useState("");
   const rules = state.agentInstructions || [];
+  const describeInstructionFilter = (rule: AgentInstruction) => {
+    const when = rule.when || {};
+    const filters = [
+      when.scopes?.length ? `scope: ${when.scopes.join(", ")}` : "",
+      when.epics?.length ? `epic: ${when.epics.join(", ")}` : "",
+      when.tracks?.length ? `track: ${when.tracks.join(", ")}` : "",
+      when.tagsAny?.length ? `any tag: ${when.tagsAny.join(", ")}` : "",
+      when.tagsAll?.length ? `all tags: ${when.tagsAll.join(", ")}` : "",
+      when.tagsNone?.length ? `without tags: ${when.tagsNone.join(", ")}` : "",
+    ].filter(Boolean);
+    return filters.length ? filters.join(" · ") : "All matching work";
+  };
 
   async function toggle(rule: AgentInstruction) {
     setBusy(rule.id);
@@ -7501,9 +7513,9 @@ function AgentInstructionSettings({
         <div>
           <h3>Agent instructions</h3>
           <p className="form-note">
-            Shared policy is parsed from the planning repository’s{" "}
-            <code>AGENTS.md</code>. Edit and review it through Git; this screen
-            only controls local enablement.
+            Shared policy comes from <code>agentInstructions.rules</code> in the
+            planning repository’s <code>.avoozl.json</code>. Edit and review it
+            through Git; this screen only controls local enablement.
           </p>
         </div>
       </header>
@@ -7544,18 +7556,14 @@ function AgentInstructionSettings({
                     <small className="agent-instruction-source">
                       Source{" "}
                       <code>
-                        {rule.source?.path || "AGENTS.md"}
-                        {rule.source?.line ? `:${rule.source.line}` : ""}
+                        {rule.source?.path || ".avoozl.json"}
+                        {rule.source?.pointer || ""}
                       </code>
                     </small>
                   </td>
                   <td>
-                    <span>{rule.category}</span>
-                    <small>
-                      {rule.selector.kind === "all"
-                        ? "All matching work"
-                        : `${rule.selector.kind}:${rule.selector.value}`}
-                    </small>
+                    <span>{rule.appliesTo.join(", ")}</span>
+                    <small>{describeInstructionFilter(rule)}</small>
                   </td>
                   <td className="agent-instruction-enabled">
                     <input
@@ -7573,24 +7581,25 @@ function AgentInstructionSettings({
         </div>
       ) : (
         <p className="form-note">
-          No Avoozl rules were found. Add an <code>## Avoozl</code> →{" "}
-          <code>### Agent instructions</code> section to the planning
-          repository’s <code>AGENTS.md</code>.
+          No Avoozl rules were found. Add rules under{" "}
+          <code>agentInstructions.rules</code> in the planning repository’s{" "}
+          <code>.avoozl.json</code>.
         </p>
       )}
       <details className="agent-instruction-format">
-        <summary>AGENTS.md format</summary>
-        <pre>{`## Avoozl
-
-### Agent instructions
-
-#### Record required cleanup
-- ID: \`record-required-cleanup\`
-- Applies to: \`task.implement\`
-- Filter: \`all\`
-
-If clearly required cleanup is outside the authorized task,
-propose follow-up work with plans_propose_work.`}</pre>
+        <summary>.avoozl.json format</summary>
+        <pre>{`{
+  "agentInstructions": {
+    "rules": [
+      {
+        "id": "record-required-cleanup",
+        "title": "Record required cleanup",
+        "appliesTo": ["task.implement"],
+        "instruction": "Propose clearly required follow-up work instead of only mentioning it."
+      }
+    ]
+  }
+}`}</pre>
       </details>
       {message && (
         <p className="form-note" role="status">
@@ -7616,7 +7625,8 @@ propose follow-up work with plans_propose_work.`}</pre>
                   {state.agentInstructionSource.path}
                 </h2>
                 <p>
-                  The complete file synchronized from the planning repository
+                  The complete policy file synchronized from the planning
+                  repository
                   {state.agentInstructionSource.revision
                     ? ` at ${state.agentInstructionSource.revision}.`
                     : ""}
@@ -7634,9 +7644,9 @@ propose follow-up work with plans_propose_work.`}</pre>
             {sourceFile ? (
               <div className="agent-instruction-source-file">
                 <Suspense
-                  fallback={<LoadingSurface label="Loading Markdown source…" />}
+                  fallback={<LoadingSurface label="Loading JSON source…" />}
                 >
-                  <MarkdownSourceViewer
+                  <JsonSourceViewer
                     text={sourceFile.text}
                     filename={sourceFile.path}
                     ariaLabel={`Read-only source for ${sourceFile.path}`}
@@ -7648,7 +7658,7 @@ propose follow-up work with plans_propose_work.`}</pre>
                 {sourceError}
               </div>
             ) : (
-              <LoadingSurface label="Opening AGENTS.md…" />
+              <LoadingSurface label="Opening .avoozl.json…" />
             )}
             <div className="form-actions">
               <button
@@ -7845,9 +7855,9 @@ function ConversationSettings({
         ]}
       />
       <InfoCallout>
-        Edit routing rules in <code>.avoozl/config.json</code>. OpenHands
-        reports per-turn tokens and the model context window for supported
-        agents. Context-threshold rules only match when both are present, and a
+        Edit routing rules in <code>.avoozl.json</code>. OpenHands reports
+        per-turn tokens and the model context window for supported agents.
+        Context-threshold rules only match when both are present, and a
         completed Driver turn can hand off to a linked successor. Avoozl{" "}
         {"records “unknown” instead of estimating it"} from cumulative tokens.
       </InfoCallout>

@@ -222,43 +222,35 @@ event streams.
 
 ### Workspace configuration
 
-Each planning root may contain committed `.avoozl/config.json`:
+Each planning root may contain a committed `.avoozl.json`:
 
 ```json
 {
-  "$schema": "https://avoozl.dev/schema/config-v2.json",
-  "version": 2,
-  "workspaceId": "language",
-  "name": "Language",
-  "documents": "plans",
-  "repositories": {
-    "planning": {
-      "github": "example/language-plans",
-      "planning": true
-    },
-    "compiler": {
-      "github": "example/compiler",
-      "editable": true,
-      "queue": {
-        "issues": true,
-        "pullRequests": true
-      }
-    }
+  "$schema": "https://avoozl.dev/schema/repository-config-v1.json",
+  "version": 1,
+  "repository": {
+    "id": "language-plans",
+    "roles": ["planning"],
+    "baseBranch": "main"
+  },
+  "planning": {
+    "documents": ["plans/**/*.md"]
   }
 }
 ```
 
 This file contains shareable, non-secret choices:
 
-- stable workspace and repository IDs;
-- GitHub repository identities;
+- stable repository IDs and roles;
 - planning directories;
 - normalized label behavior;
 - validation commands;
 - review and acceptance policy;
 - portable conversation and automation policy.
 
-Local checkout paths never appear in it.
+Each code repository may carry its own `.avoozl.json`. The machine host binds
+those repositories into a workspace and records local checkout paths outside
+the committed files.
 
 ### Workspace state
 
@@ -284,7 +276,7 @@ Configuration resolves in this order:
 1. explicit CLI arguments;
 2. process environment;
 3. machine registry and local repository bindings;
-4. workspace `.avoozl/config.json`;
+4. workspace `.avoozl.json`;
 5. global non-secret defaults;
 6. application defaults.
 
@@ -395,7 +387,7 @@ cannot create duplicate managers or agent hosts.
 On registration and every open, the host verifies:
 
 - the root exists and is a directory;
-- `.avoozl/config.json` is a regular file when present;
+- `.avoozl.json` is a regular file when present;
 - the portable workspace ID matches the registry;
 - local repository bindings resolve to expected Git repositories;
 - no editable checkout is bound to another active workspace;
@@ -730,7 +722,7 @@ revoked.
 The first machine-host startup:
 
 1. discovers an explicitly supplied current workspace;
-2. reads its existing `.avoozl/config.json`;
+2. reads its existing `.avoozl.json`;
 3. adds a stable `workspaceId` if absent through an explicit reviewed edit;
 4. registers the root and current repository bindings globally;
 5. leaves the existing SQLite database in place;

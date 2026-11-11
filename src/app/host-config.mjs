@@ -4,7 +4,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { assertSafeConfig } from "./layered-config.mjs";
+import {
+  assertPortableRepositoryConfig,
+  assertSafeConfig,
+} from "./layered-config.mjs";
 import { workspaceConfig } from "./config.mjs";
 import { CatalogStore } from "./catalog-store.mjs";
 import { Store } from "./store.mjs";
@@ -198,6 +201,76 @@ function readJson(filename) {
   return value;
 }
 
+const LEGACY_REPOSITORY_PATH_FIELDS = new Set([
+  "agentManifest",
+  "ahp.manifest",
+  "ahp.projection",
+  "ahp.tokens",
+  "db",
+  "dbPath",
+  "documents",
+  "plansRoot",
+  "planningRepository.root",
+]);
+
+function migrateLegacyRepositoryValue(value, oldBase, newBase, trail = []) {
+  if (Array.isArray(value))
+    return value.map((item, index) =>
+      migrateLegacyRepositoryValue(item, oldBase, newBase, [
+        ...trail,
+        String(index),
+      ]),
+    );
+  if (record(value))
+    return Object.fromEntries(
+      Object.entries(value).map(([key, child]) => [
+        key,
+        migrateLegacyRepositoryValue(child, oldBase, newBase, [...trail, key]),
+      ]),
+    );
+  const field = trail.join("."),
+    key = trail.at(-1) || "",
+    pathField =
+      LEGACY_REPOSITORY_PATH_FIELDS.has(field) ||
+      (trail[0] === "projects" && ["root", "worktreeRoot"].includes(key));
+  if (
+    typeof value !== "string" ||
+    !value ||
+    !pathField ||
+    path.isAbsolute(value) ||
+    path.win32.isAbsolute(value)
+  )
+    return value;
+  return path.relative(newBase, path.resolve(oldBase, value)) || ".";
+}
+
+function absoluteMachinePath(value) {
+  return (
+    typeof value === "string" &&
+    (path.isAbsolute(value) || path.win32.isAbsolute(value))
+  );
+}
+
+function omitLegacyMachinePaths(value) {
+  const next = structuredClone(value);
+  for (const key of ["agentManifest", "db", "dbPath", "documents", "plansRoot"])
+    if (absoluteMachinePath(next[key])) delete next[key];
+  for (const key of ["manifest", "projection", "tokens"])
+    if (absoluteMachinePath(next.ahp?.[key])) delete next.ahp[key];
+  if (record(next.ahp) && !Object.keys(next.ahp).length) delete next.ahp;
+  for (const [id, project] of Object.entries(next.projects || {}))
+    if (
+      absoluteMachinePath(project?.root) ||
+      absoluteMachinePath(project?.worktreeRoot)
+    )
+      delete next.projects[id];
+  if (record(next.projects) && !Object.keys(next.projects).length)
+    delete next.projects;
+  if (absoluteMachinePath(next.planningRepository?.root))
+    delete next.planningRepository;
+  return next;
+}
+
 export function normalizeHostConfig(
   value,
   source = "Avoozl host configuration",
@@ -274,19 +347,29 @@ function validateWorkspaceFiles(
   safeDirectory(localDirectory, `Workspace ${id} configuration directory`, {
     mustExist: false,
   });
-  const filename = path.join(localDirectory, "config.json");
+  const filename = path.join(root, ".avoozl.json"),
+    legacyFilename = path.join(localDirectory, "config.json"),
+    sourceFilename = fs.existsSync(filename) ? filename : legacyFilename;
   let saved = null;
-  if (fs.existsSync(filename)) {
-    regularFile(filename, `Workspace ${id} configuration`);
+  if (fs.existsSync(sourceFilename)) {
+    regularFile(sourceFilename, `Workspace ${id} configuration`);
     try {
-      saved = JSON.parse(fs.readFileSync(filename, "utf8"));
+      saved = JSON.parse(fs.readFileSync(sourceFilename, "utf8"));
     } catch (error) {
       throw Error(
-        `Could not parse workspace configuration at ${filename}: ${error.message}`,
+        `Could not parse workspace configuration at ${sourceFilename}: ${error.message}`,
       );
     }
     if (!record(saved))
-      throw Error(`Workspace configuration at ${filename} must be an object.`);
+      throw Error(
+        `Workspace configuration at ${sourceFilename} must be an object.`,
+      );
+    if (sourceFilename === legacyFilename)
+      saved = migrateLegacyRepositoryValue(
+        omitLegacyMachinePaths(saved),
+        path.dirname(legacyFilename),
+        root,
+      );
     if (!allowIdentityMismatch && saved.workspaceId && saved.workspaceId !== id)
       throw Error(
         `Workspace ${id} has portable identity ${saved.workspaceId}; registration refused.`,
@@ -320,13 +403,18 @@ function validateWorkspaceFiles(
   if (writeIdentity && (!saved || !saved.workspaceId)) {
     const next = {
       ...(saved || {
-        $schema: "https://avoozl.dev/schema/config-v1.json",
+        $schema: "https://avoozl.dev/schema/repository-config-v1.json",
         version: 1,
         name: path.basename(root),
       }),
+      $schema: "https://avoozl.dev/schema/repository-config-v1.json",
       workspaceId: id,
     };
     assertSafeConfig(next, `workspace configuration at ${filename}`);
+    assertPortableRepositoryConfig(
+      next,
+      `repository Avoozl configuration at ${filename}`,
+    );
     fs.mkdirSync(localDirectory, { recursive: true });
     const temporary = `${filename}.pending-${process.pid}-${randomUUID()}`;
     fs.writeFileSync(temporary, JSON.stringify(next, null, 2) + "\n", {
@@ -337,7 +425,9 @@ function validateWorkspaceFiles(
     saved = next;
   }
   return {
+    root,
     filename,
+    legacyFilename,
     config: saved,
     database: resolved.dbPath,
     initialized: fs.existsSync(resolved.dbPath),
@@ -361,12 +451,20 @@ function atomicWrite(filename, value) {
 
 function writePortableWorkspaceIdentity(files, id) {
   const current = files.config || {
-      $schema: "https://avoozl.dev/schema/config-v1.json",
+      $schema: "https://avoozl.dev/schema/repository-config-v1.json",
       version: 1,
-      name: path.basename(path.dirname(path.dirname(files.filename))),
+      name: path.basename(files.root),
     },
-    next = { ...current, workspaceId: id };
+    next = {
+      ...current,
+      $schema: "https://avoozl.dev/schema/repository-config-v1.json",
+      workspaceId: id,
+    };
   assertSafeConfig(next, `workspace configuration at ${files.filename}`);
+  assertPortableRepositoryConfig(
+    next,
+    `repository Avoozl configuration at ${files.filename}`,
+  );
   atomicWrite(files.filename, next);
   return {
     previousWorkspaceId: current.workspaceId || null,

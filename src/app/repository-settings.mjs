@@ -9,7 +9,11 @@ import {
 } from "./conversation-settings.mjs";
 import { normalizeAgentRouting } from "./agent-routing.mjs";
 import { normalizeGitHubLabelBehaviors } from "./github-label-behaviors.mjs";
-import { assertSafeConfig, avoozlConfigSchemaPath } from "./layered-config.mjs";
+import {
+  assertPortableRepositoryConfig,
+  assertSafeConfig,
+  avoozlConfigSchemaPath,
+} from "./layered-config.mjs";
 import { fail } from "./store.mjs";
 
 const MAX_CONFIG_BYTES = 1024 * 1024;
@@ -382,7 +386,7 @@ function readText(filename) {
   return fs.readFileSync(filename, "utf8");
 }
 
-function parse(text, filename) {
+function parse(text, filename, { portable = false } = {}) {
   let value;
   try {
     value = JSON.parse(text);
@@ -396,6 +400,11 @@ function parse(text, filename) {
   if (value.version !== 1)
     fail("Unsupported workspace Avoozl configuration version.");
   assertSafeConfig(value, `workspace Avoozl configuration at ${filename}`);
+  if (portable)
+    assertPortableRepositoryConfig(
+      value,
+      `repository Avoozl configuration at ${filename}`,
+    );
   return value;
 }
 
@@ -438,6 +447,77 @@ function canonicalConversations(settings) {
   };
 }
 
+const LEGACY_PATH_FIELDS = new Set([
+  "agentManifest",
+  "ahp.manifest",
+  "ahp.projection",
+  "ahp.tokens",
+  "db",
+  "dbPath",
+  "documents",
+  "plansRoot",
+  "planningRepository.root",
+]);
+
+function legacyPathField(trail) {
+  const field = trail.join("."),
+    key = trail.at(-1) || "";
+  return (
+    LEGACY_PATH_FIELDS.has(field) ||
+    (trail[0] === "projects" && ["root", "worktreeRoot"].includes(key))
+  );
+}
+
+function migrateLegacyValue(value, oldBase, newBase, trail = []) {
+  if (Array.isArray(value))
+    return value.map((item, index) =>
+      migrateLegacyValue(item, oldBase, newBase, [...trail, String(index)]),
+    );
+  if (record(value))
+    return Object.fromEntries(
+      Object.entries(value).map(([key, child]) => [
+        key,
+        migrateLegacyValue(child, oldBase, newBase, [...trail, key]),
+      ]),
+    );
+  if (
+    typeof value !== "string" ||
+    !value ||
+    !legacyPathField(trail) ||
+    path.isAbsolute(value) ||
+    path.win32.isAbsolute(value)
+  )
+    return value;
+  return path.relative(newBase, path.resolve(oldBase, value)) || ".";
+}
+
+function absoluteMachinePath(value) {
+  return (
+    typeof value === "string" &&
+    (path.isAbsolute(value) || path.win32.isAbsolute(value))
+  );
+}
+
+function omitLegacyMachinePaths(value) {
+  const next = structuredClone(value);
+  for (const key of ["agentManifest", "db", "dbPath", "documents", "plansRoot"])
+    if (absoluteMachinePath(next[key])) delete next[key];
+  for (const key of ["manifest", "projection", "tokens"])
+    if (absoluteMachinePath(next.ahp?.[key])) delete next.ahp[key];
+  if (record(next.ahp) && !Object.keys(next.ahp).length) delete next.ahp;
+  for (const [id, project] of Object.entries(next.projects || {}))
+    if (
+      absoluteMachinePath(project?.root) ||
+      absoluteMachinePath(project?.worktreeRoot)
+    )
+      delete next.projects[id];
+  if (record(next.projects) && !Object.keys(next.projects).length)
+    delete next.projects;
+  if (absoluteMachinePath(next.planningRepository?.root))
+    delete next.planningRepository;
+  return next;
+}
+
 export class RepositorySettings {
   constructor(
     store,
@@ -454,11 +534,16 @@ export class RepositorySettings {
     this.store = store;
     this.workspaceRoot = path.resolve(workspaceRoot);
     this.realWorkspaceRoot = fs.realpathSync(this.workspaceRoot);
-    this.directory = path.join(this.workspaceRoot, ".avoozl");
-    this.filename = path.join(this.directory, "config.json");
+    this.filename =
+      files.repository || path.join(this.workspaceRoot, ".avoozl.json");
+    this.directory = path.dirname(this.filename);
+    this.legacyFilename =
+      files.legacyRepository ||
+      path.join(this.workspaceRoot, ".avoozl", "config.json");
     this.files = {
       ...files,
-      repository: files.repository || this.filename,
+      legacyRepository: this.legacyFilename,
+      repository: this.filename,
     };
     this.sources = sources;
     this.baseConversationConfigured = baseConfig.conversations !== undefined;
@@ -489,24 +574,43 @@ export class RepositorySettings {
       if (!create) return false;
       fs.mkdirSync(this.directory, { mode: 0o755 });
     }
-    assertDirectory(this.directory, "Workspace .avoozl directory");
+    assertDirectory(this.directory, "Repository configuration directory");
     return true;
   }
 
-  readFile() {
-    if (!this.assertParents() || !entryStat(this.filename))
+  readFile({ includeLegacy = false } = {}) {
+    if (!this.assertParents() || !entryStat(this.filename)) {
+      if (includeLegacy && entryStat(this.legacyFilename)) {
+        const text = readText(this.legacyFilename);
+        const value = migrateLegacyValue(
+          omitLegacyMachinePaths(parse(text, this.legacyFilename)),
+          path.dirname(this.legacyFilename),
+          this.workspaceRoot,
+        );
+        value.$schema = "https://avoozl.dev/schema/repository-config-v1.json";
+        return {
+          value,
+          text,
+          hash: hash(text),
+          exists: false,
+          legacy: true,
+        };
+      }
       return {
         value: { version: 1 },
         text: null,
         hash: null,
         exists: false,
+        legacy: false,
       };
+    }
     const text = readText(this.filename);
     return {
-      value: parse(text, this.filename),
+      value: parse(text, this.filename, { portable: true }),
       text,
       hash: hash(text),
       exists: true,
+      legacy: false,
     };
   }
 
@@ -514,13 +618,16 @@ export class RepositorySettings {
     if (!["global", "repository"].includes(scope))
       fail("Choose the global or repository Avoozl configuration.");
     if (scope === "repository") {
-      const file = this.readFile();
+      const file = this.readFile({ includeLegacy: true });
       return {
         scope,
         filename: this.filename,
         exists: file.exists,
         hash: file.hash,
-        text: file.text || JSON.stringify({ version: 1 }, null, 2) + "\n",
+        text: file.legacy
+          ? JSON.stringify(file.value, null, 2) + "\n"
+          : file.text || JSON.stringify({ version: 1 }, null, 2) + "\n",
+        legacy: file.legacy,
       };
     }
     const filename = this.files.global;
@@ -551,7 +658,9 @@ export class RepositorySettings {
     const current = this.readConfiguration(scope);
     if (expectedHash !== current.hash)
       fail("Avoozl configuration changed; reload before saving.", 409);
-    const value = parse(text, current.filename);
+    const value = parse(text, current.filename, {
+      portable: scope === "repository",
+    });
     if (scope === "repository") {
       this.write(value, { expectedHash });
       this.reload();
@@ -603,7 +712,7 @@ export class RepositorySettings {
       !sources.some(({ filename }) => filename === this.filename)
     )
       sources.push({
-        label: "workspace Avoozl configuration",
+        label: "repository Avoozl configuration",
         filename: this.filename,
       });
     return {
@@ -612,6 +721,10 @@ export class RepositorySettings {
       files: structuredClone(this.files),
       sources,
       repository: structuredClone(this.state),
+      legacyRepository:
+        !this.state.exists && entryStat(this.legacyFilename)
+          ? { filename: this.legacyFilename, migrationRequired: true }
+          : null,
       pending: [...new Set([...this.applyRequired, ...this.restartRequired])],
       applyRequired: [...this.applyRequired],
       restartRequired: [...this.restartRequired],
@@ -624,10 +737,7 @@ export class RepositorySettings {
       const file = this.readFile(),
         input = conversationInput(file.value.conversations),
         privileged = privilegedConfiguration(file.value),
-        desired = desiredActions(
-          file.value,
-          path.join(this.realWorkspaceRoot, ".avoozl"),
-        ),
+        desired = desiredActions(file.value, this.realWorkspaceRoot),
         applied = appliedActions(this.store),
         restartDesired = withoutKeys(privileged, APPLY_KEYS);
       if (this.restartBaseline === null)
@@ -680,8 +790,15 @@ export class RepositorySettings {
 
   write(value, { expectedHash } = {}) {
     this.assertParents({ create: true });
-    const before = this.readFile();
-    if (expectedHash !== undefined && expectedHash !== before.hash)
+    const before = this.readFile(),
+      inherited = before.exists
+        ? before
+        : this.readFile({ includeLegacy: true });
+    if (
+      expectedHash !== undefined &&
+      expectedHash !== before.hash &&
+      expectedHash !== inherited.hash
+    )
       fail(
         "Workspace Avoozl configuration changed; reload before saving.",
         409,
@@ -690,12 +807,16 @@ export class RepositorySettings {
       value,
       `workspace Avoozl configuration at ${this.filename}`,
     );
+    assertPortableRepositoryConfig(
+      value,
+      `repository Avoozl configuration at ${this.filename}`,
+    );
     const text = JSON.stringify(value, null, 2) + "\n";
     if (Buffer.byteLength(text) > MAX_CONFIG_BYTES)
       fail("Workspace Avoozl configuration is too large.");
     const pending = path.join(
       this.directory,
-      `.config.json.${process.pid}.${randomUUID()}.pending`,
+      `.${path.basename(this.filename)}.${process.pid}.${randomUUID()}.pending`,
     );
     const mode = before.exists
       ? fs.statSync(this.filename).mode & 0o777
@@ -724,7 +845,7 @@ export class RepositorySettings {
   }
 
   updateConversationSettings(input = {}) {
-    const before = this.readFile(),
+    const before = this.readFile({ includeLegacy: true }),
       current = {
         ...CONVERSATION_SETTINGS_DEFAULTS,
         ...(this.store.getMeta("conversationSettings") || {}),
@@ -749,7 +870,7 @@ export class RepositorySettings {
   }
 
   updateExecutionProject(project) {
-    const before = this.readFile(),
+    const before = this.readFile({ includeLegacy: true }),
       value = this.updateValue(before);
     value.version = 1;
     value.projects = record(value.projects) ? value.projects : {};
@@ -768,7 +889,7 @@ export class RepositorySettings {
   }
 
   removeExecutionProject(id) {
-    const before = this.readFile(),
+    const before = this.readFile({ includeLegacy: true }),
       value = this.updateValue(before);
     value.version = 1;
     if (record(value.projects)) {
@@ -779,7 +900,7 @@ export class RepositorySettings {
   }
 
   updateGitHubIssueIntake(entry) {
-    const before = this.readFile(),
+    const before = this.readFile({ includeLegacy: true }),
       value = this.updateValue(before);
     value.version = 1;
     value.github = record(value.github) ? value.github : {};
@@ -804,7 +925,7 @@ export class RepositorySettings {
   }
 
   updateGitHubProjectConnection(issueIntake, queue) {
-    const before = this.readFile(),
+    const before = this.readFile({ includeLegacy: true }),
       value = this.updateValue(before);
     value.version = 1;
     value.github = record(value.github) ? value.github : {};
@@ -842,7 +963,7 @@ export class RepositorySettings {
   }
 
   updateGitHubQueue(entry) {
-    const before = this.readFile(),
+    const before = this.readFile({ includeLegacy: true }),
       value = this.updateValue(before);
     value.version = 1;
     value.github = record(value.github) ? value.github : {};
@@ -863,7 +984,7 @@ export class RepositorySettings {
   }
 
   removeGitHubQueue(repository) {
-    const before = this.readFile(),
+    const before = this.readFile({ includeLegacy: true }),
       value = this.updateValue(before);
     value.version = 1;
     if (record(value.github?.queue)) {
@@ -881,7 +1002,7 @@ export class RepositorySettings {
     queue,
     issueIntake,
   }) {
-    const before = this.readFile(),
+    const before = this.readFile({ includeLegacy: true }),
       value = this.updateValue(before);
     value.version = 1;
     if (record(value.projects)) delete value.projects[id];
@@ -956,7 +1077,7 @@ export class RepositorySettings {
   }
 
   updatePlanningRepository(configuration) {
-    const before = this.readFile(),
+    const before = this.readFile({ includeLegacy: true }),
       value = this.updateValue(before);
     value.version = 1;
     value.planningRepository = {
@@ -1000,17 +1121,19 @@ export class RepositorySettings {
       absolute =
         this.realWorkspaceRoot + absolute.slice(this.workspaceRoot.length);
     else if (entryStat(absolute)) absolute = fs.realpathSync(absolute);
-    const relative = path.relative(
-      path.join(this.realWorkspaceRoot, ".avoozl"),
-      absolute,
-    );
-    return relative && !path.isAbsolute(relative) ? relative : absolute;
+    const relative = path.relative(this.realWorkspaceRoot, absolute);
+    if (path.isAbsolute(relative))
+      fail(
+        "Repository configuration cannot contain an absolute machine path. Put machine-local paths in ~/.config/avoozl/config.json.",
+      );
+    return relative || ".";
   }
 
   updateValue(before) {
     const value = structuredClone(before.value);
     value.version = 1;
-    if (before.exists) return value;
+    value.$schema = "https://avoozl.dev/schema/repository-config-v1.json";
+    if (before.exists || before.legacy) return value;
     const applied = appliedActions(this.store);
     if (Object.keys(applied.projects).length)
       value.projects = Object.fromEntries(
@@ -1043,7 +1166,7 @@ export class RepositorySettings {
     this.assertParents({ create: true });
     this.reload();
     this.watcher = this.watchFactory(this.directory, (_kind, name) => {
-      if (String(name || "") !== "config.json") return;
+      if (String(name || "") !== path.basename(this.filename)) return;
       clearTimeout(this.timer);
       this.timer = setTimeout(() => this.reload(), this.debounceMs);
       this.timer.unref?.();

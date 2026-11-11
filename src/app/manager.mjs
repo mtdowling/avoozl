@@ -411,10 +411,19 @@ export class RunManager {
       task = data.tasks.find((t) => t.id === resolveTaskId(data, run.taskId)),
       plan = run.planId ? this.store.get("plans", run.planId) : null,
       instructionCategory = workflowCategory(run),
+      instructionSubject = {
+        ...(task || {}),
+        projectId:
+          task?.projectId ||
+          run.projectId ||
+          run.context?.projectId ||
+          plan?.projectId ||
+          plan?.context?.projectId,
+      },
       agentInstructions = matchingAgentInstructions(
         data,
         instructionCategory,
-        task,
+        instructionSubject,
       );
     const docIds = new Set([
         task?.source?.document,

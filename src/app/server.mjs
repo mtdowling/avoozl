@@ -213,7 +213,9 @@ export function startServer({
   let draining = false;
   const clients = new Set();
   const stopSourceWatch = sourceRoot
-    ? watchSources(store, sourceRoot)
+    ? watchSources(store, sourceRoot, {
+        policyFile: configFiles?.repository,
+      })
     : () => {};
   const stopConfigurationWatch = configuration
     ? configuration.watch()

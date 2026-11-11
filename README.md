@@ -43,24 +43,39 @@ The application checkout contains reusable software and example fixtures. Each w
 
 ```text
 my-plans/
-  .avoozl/config.json
+  .avoozl.json
   .avoozl/local/workspace.sqlite
   plans/
 ```
 
 SQLite owns live tasks, dependencies, evidence, approvals, conversations, and agent state. Markdown owns design prose. `/database.json` is an export of current state, not a file to edit.
 
-Choose a workspace with `--workspace PATH` or `AVOOZL_WORKSPACE`. Avoozl reads shareable defaults from `~/.config/avoozl/config.json`, then workspace settings from `.avoozl/config.json`. Existing `workspace.json` files remain supported between those layers. Environment variables and command-line options have the final say. Paths in a JSON file are relative to the directory containing that file.
+Choose a workspace with `--workspace PATH` or `AVOOZL_WORKSPACE`.
+`~/.config/avoozl/config.json` owns machine-host registration, local checkout
+roots, and concurrency. The repository-root `.avoozl.json` owns portable,
+reviewable policy. Environment variables and command-line options have the
+final say. Paths in `.avoozl.json` are relative to the repository root.
 
 ```json
 {
-  "$schema": "https://avoozl.dev/schema/config-v1.json",
+  "$schema": "https://avoozl.dev/schema/repository-config-v1.json",
   "version": 1,
-  "name": "My plans",
-  "dbPath": "local/workspace.sqlite",
-  "documents": "../plans",
-  "port": 9428,
-  "host": "127.0.0.1",
+  "repository": {
+    "id": "my-plans",
+    "roles": ["planning"],
+    "baseBranch": "main"
+  },
+  "documents": "plans",
+  "agentInstructions": {
+    "rules": [
+      {
+        "id": "record-required-cleanup",
+        "title": "Record required cleanup",
+        "appliesTo": ["task.implement"],
+        "instruction": "Propose clearly required follow-up work instead of only mentioning it."
+      }
+    ]
+  },
   "conversations": {
     "autoArchiveCompleted": true,
     "driver": {
@@ -88,7 +103,11 @@ Choose a workspace with `--workspace PATH` or `AVOOZL_WORKSPACE`. Avoozl reads s
 }
 ```
 
-Settings is a validated façade over these JSON files, so the Driver can also edit ordinary preferences directly. Avoozl watches the workspace file and keeps the last valid configuration if an edit is incomplete or invalid. Startup topology changes such as database paths, listeners, and manifests require a restart. Actions with external effects—installing OpenHands automation, registering GitHub intake, or applying repository setup—remain explicit Settings actions.
+Settings is a validated façade over these JSON files, so the Driver can also
+edit ordinary preferences directly. Avoozl watches `.avoozl.json` and keeps
+the last valid configuration if an edit is incomplete or invalid. Actions
+with external effects—installing OpenHands automation, registering GitHub
+intake, or applying repository setup—remain explicit Settings actions.
 
 Conversation routing selects an OpenHands agent profile and model
 deterministically from workflow category, task scope, `risk:low`,
@@ -106,7 +125,12 @@ policy rules that name a missing profile. Model access remains validated by
 OpenHands when the conversation starts because its profile catalog is not a
 complete provider entitlement list.
 
-Configuration is intentionally non-secret. The loader and schema reject secret-like fields. Keep provider credentials, GitHub authentication, session tokens, transcripts, approvals, leases, and execution state in their owning credential store or SQLite, never in either Avoozl JSON file.
+Configuration is intentionally non-secret. The loader and schema reject
+secret-like fields and absolute paths in the new portable policy sections;
+those sections also reject unknown properties. Keep provider credentials,
+GitHub authentication, session tokens, transcripts, approvals, leases, and
+execution state in their owning credential store, `.avoozl/local/`, or
+SQLite—never in `.avoozl.json`.
 
 The application checkout, plan directory, and repositories being worked on can all live in different locations. For example:
 
@@ -200,32 +224,18 @@ node cli.mjs github sync --workspace ../my-plans # explicit recovery/reconciliat
 
 The publication allowlist contains Markdown designs, exact approval receipts, task definitions, and structured review threads. SQLite, provider credentials, environment files, transcripts, terminal output, local repository roots, and absolute user paths are rejected. A second computer configures its own checkout and credentials, then runs `workspace-repo sync`; it does not copy the first computer's execution database.
 
-Shared agent policy belongs in the planning repository's `AGENTS.md`, under an
-`Avoozl` heading. Avoozl watches the local file and reads the same file from the
-configured planning branch during repository sync. The app shows the parsed
-rules and permits each local instance to enable or disable them; it does not
-create or edit policy outside Git.
+Shared agent policy belongs in `agentInstructions.rules` in the planning
+repository's `.avoozl.json`. Avoozl does not parse `AGENTS.md`; OpenHands and
+other agents may still read it normally as repository guidance. The app shows
+the structured `.avoozl.json` rules and permits each local instance to enable
+or disable them without rewriting committed policy.
 
-```md
-## Avoozl
-
-### Agent instructions
-
-#### Record required cleanup
-
-- ID: `record-required-cleanup`
-- Applies to: `task.implement`
-- Filter: `all`
-
-If clearly required cleanup is outside the authorized task, propose follow-up
-work with `plans_propose_work` instead of only mentioning it.
-```
-
-`Applies to` supports `all`, `chat`, `chat.project`, `chat.scoped`, `plan`,
-`plan.create`, `plan.edit`, `plan.review`, `task`, `task.create`,
-`task.create.scoped`, `task.implement`, and `task.review`. `Filter` is `all` or
-one of `scope:value`, `epic:value`, `track:value`, and `tag:value`. More-specific
-categories inherit matching parent rules. Rule IDs are stable keys, so a local
+`appliesTo` supports inherited workflow categories including `chat.project`,
+`chat.scoped`, `plan.create`, `plan.edit`, `plan.review`, `plan.publish`,
+`task.create`, `task.create.scoped`, `task.implement`, `task.review`,
+`task.complete`, `github.issue.triage`, `github.issue.implement`, and
+`github.pr.review`. Optional `when` filters support scopes, epics, tracks, and
+`tagsAny`, `tagsAll`, or `tagsNone`. Rule IDs are stable keys, so a local
 disable remains effective when the team edits or reorders the policy.
 
 ```sh
