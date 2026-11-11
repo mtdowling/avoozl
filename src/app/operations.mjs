@@ -111,7 +111,10 @@ import {
   openHandsRoutingAvailability,
   selectAgentRoute,
 } from "./agent-routing.mjs";
-import { openHandsAgentProfiles } from "./providers/openhands.mjs";
+import {
+  openHandsAgentModels,
+  openHandsAgentProfiles,
+} from "./providers/openhands.mjs";
 import { OpenHandsAutomations } from "./openhands-automations.mjs";
 
 // Acceptance evidence a caller did not type, when validateRun already recorded
@@ -1097,6 +1100,10 @@ export class Operations {
       });
     }
     if (name === "openhands.profiles") return openHandsAgentProfiles();
+    if (name === "openhands.models")
+      return openHandsAgentModels(input.profileId, {
+        refresh: input.refresh === true,
+      });
     if (name === "openhands.automations.capabilities")
       return this.openhandsAutomations.capabilities();
     if (name === "openhands.automations.recommendations")

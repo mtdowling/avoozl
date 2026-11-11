@@ -229,6 +229,92 @@ export async function openHandsAgentProfiles() {
   }
 }
 
+function boundedText(value, limit = 500) {
+  return typeof value === "string" && value.trim() && value.length <= limit
+    ? value.trim()
+    : null;
+}
+
+export async function openHandsAgentModels(
+  profileId,
+  { refresh = false, client } = {},
+) {
+  profileId = boundedText(profileId, 240);
+  if (!profileId) fail("Choose an OpenHands agent profile.", 400);
+  const config = openHandsSettings(),
+    own = !client,
+    active =
+      client ||
+      new HttpClient({
+        baseUrl: config.host,
+        apiKey: config.apiKey,
+        timeout: 30000,
+      });
+  try {
+    assertLocalAgentServer(config.host);
+    const [{ data: response }, { data: info }] = await Promise.all([
+      active.get(`/api/agent-profiles/${encodeURIComponent(profileId)}`),
+      active.get("/server_info"),
+    ]);
+    assertServerVersion(info.version);
+    const profile = response?.profile || response;
+    if (!profile || typeof profile !== "object")
+      fail("OpenHands did not return the selected agent profile.", 502);
+    if (profile.agent_kind !== "acp")
+      return {
+        profileId,
+        agentKind: profile.agent_kind || null,
+        currentModelId: profile.llm_profile_ref || null,
+        models: [],
+      };
+    const acpServer = boundedText(profile.acp_server, 240);
+    if (!acpServer)
+      fail("The selected ACP agent profile has no agent server.", 409);
+    const { data: discovery } = await active.post("/api/acp/models", {
+      agent_settings: {
+        agent_kind: "acp",
+        acp_server: acpServer,
+        ...(boundedText(profile.acp_command, 1000)
+          ? { acp_command: profile.acp_command.trim() }
+          : {}),
+        ...(Array.isArray(profile.acp_args)
+          ? {
+              acp_args: profile.acp_args.filter(
+                (value) =>
+                  typeof value === "string" &&
+                  value.length > 0 &&
+                  value.length <= 1000,
+              ),
+            }
+          : {}),
+      },
+      secrets: {},
+      refresh: Boolean(refresh),
+    });
+    if (discovery?.error)
+      fail("OpenHands could not discover models for this agent profile.", 502);
+    return {
+      profileId,
+      agentKind: "acp",
+      acpServer,
+      currentModelId: boundedText(discovery?.current_model_id, 500),
+      models: (discovery?.available_models || []).flatMap((model) => {
+        const id = boundedText(model?.model_id, 500);
+        if (!id) return [];
+        return [
+          {
+            id,
+            name: boundedText(model?.name, 500) || id,
+            description: boundedText(model?.description, 2000),
+          },
+        ];
+      }),
+    };
+  } finally {
+    if (own) active.close();
+  }
+}
+
 function textContent(event) {
   if (typeof event.message === "string") return event.message;
   if (typeof event.text === "string") return event.text;

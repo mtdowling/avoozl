@@ -113381,11 +113381,16 @@ function oKe({ workspace: e, refresh: t }) {
 			model: null
 		},
 		rules: []
-	}, [c, l] = (0, A.useState)(o), u = ki(() => Ci("openhands.profiles"), []), [d, f] = (0, A.useState)(e.conversationSettings?.driverAgentProfile || ""), [p, m] = (0, A.useState)(e.conversationSettings?.driverModel || ""), h = u.data?.profiles.find((e) => e.id === d);
+	}, [c, l] = (0, A.useState)(o), u = ki(() => Ci("openhands.profiles"), []), [d, f] = (0, A.useState)(e.conversationSettings?.driverAgentProfile || ""), [p, m] = (0, A.useState)(e.conversationSettings?.driverModel || ""), h = d || u.data?.activeAgentProfileId || "", g = u.data?.profiles.find((e) => e.id === h), _ = ki(() => h && g?.agentKind === "acp" ? Ci("openhands.models", { profileId: h }) : Promise.resolve({
+		profileId: h,
+		agentKind: g?.agentKind || null,
+		currentModelId: null,
+		models: []
+	}), [h, g?.agentKind]);
 	(0, A.useEffect)(() => l(o), [o]), (0, A.useEffect)(() => {
 		f(e.conversationSettings?.driverAgentProfile || ""), m(e.conversationSettings?.driverModel || "");
 	}, [e.conversationSettings?.driverAgentProfile, e.conversationSettings?.driverModel]);
-	async function g(e) {
+	async function v(e) {
 		if (!n) {
 			r(!0), a("");
 			try {
@@ -113398,7 +113403,7 @@ function oKe({ workspace: e, refresh: t }) {
 			}
 		}
 	}
-	async function _() {
+	async function y() {
 		if (!n) {
 			r(!0), a("");
 			try {
@@ -113413,7 +113418,7 @@ function oKe({ workspace: e, refresh: t }) {
 			}
 		}
 	}
-	async function v(e) {
+	async function b(e) {
 		if (!n) {
 			r(!0), a("");
 			try {
@@ -113438,7 +113443,7 @@ function oKe({ workspace: e, refresh: t }) {
 					type: "checkbox",
 					checked: c,
 					disabled: n,
-					onChange: (e) => void g(e.target.checked),
+					onChange: (e) => void v(e.target.checked),
 					"aria-describedby": "auto-archive-explanation"
 				})]
 			}),
@@ -113454,7 +113459,7 @@ function oKe({ workspace: e, refresh: t }) {
 					type: "checkbox",
 					checked: s.enabled,
 					disabled: n,
-					onChange: (e) => void v(e.target.checked),
+					onChange: (e) => void b(e.target.checked),
 					"aria-label": "Apply automatic agent routing policy"
 				})]
 			}),
@@ -113484,7 +113489,9 @@ function oKe({ workspace: e, refresh: t }) {
 						/* @__PURE__ */ (0, j.jsxs)("select", {
 							value: d,
 							disabled: n || u.loading,
-							onChange: (e) => f(e.target.value),
+							onChange: (e) => {
+								f(e.target.value), m("");
+							},
 							children: [/* @__PURE__ */ (0, j.jsx)("option", {
 								value: "",
 								children: u.loading ? "Loading agents…" : "OpenHands active agent"
@@ -113496,11 +113503,26 @@ function oKe({ workspace: e, refresh: t }) {
 						/* @__PURE__ */ (0, j.jsx)("small", { children: u.error?.message || "The default follows the active OpenHands agent profile." })
 					] }),
 					/* @__PURE__ */ (0, j.jsxs)("label", { children: [
-						h?.agentKind === "acp" ? "ACP model override" : "LLM profile",
-						h?.agentKind === "acp" ? /* @__PURE__ */ (0, j.jsx)("input", {
+						g?.agentKind === "acp" ? "ACP model override" : "LLM profile",
+						g?.agentKind === "acp" ? /* @__PURE__ */ (0, j.jsxs)("select", {
 							value: p,
+							disabled: n || _.loading,
 							onChange: (e) => m(e.target.value),
-							placeholder: "Use the agent profile default"
+							children: [
+								/* @__PURE__ */ (0, j.jsx)("option", {
+									value: "",
+									children: _.loading ? "Loading models…" : _.data?.currentModelId ? `Agent default · ${_.data.currentModelId}` : "Agent default"
+								}),
+								p && !_.data?.models.some((e) => e.id === p) && /* @__PURE__ */ (0, j.jsx)("option", {
+									value: p,
+									children: p
+								}),
+								(_.data?.models || []).map((e) => /* @__PURE__ */ (0, j.jsxs)("option", {
+									value: e.id,
+									title: e.description || void 0,
+									children: [e.name, e.name === e.id ? "" : ` · ${e.id}`]
+								}, e.id))
+							]
 						}) : /* @__PURE__ */ (0, j.jsxs)("select", {
 							value: p,
 							disabled: n || u.loading,
@@ -113513,14 +113535,14 @@ function oKe({ workspace: e, refresh: t }) {
 								children: [e.name, e.model ? ` · ${e.model}` : ""]
 							}, e.name))]
 						}),
-						/* @__PURE__ */ (0, j.jsx)("small", { children: h?.agentKind === "acp" ? "Optional ACP model ID. Leave blank to use the selected agent profile’s default." : `Optional OpenHands LLM profile. Leave blank to use ${u.data?.activeLlmProfile || "the selected agent profile’s default"}.` })
+						/* @__PURE__ */ (0, j.jsx)("small", { children: g?.agentKind === "acp" ? _.error?.message || "Models are reported directly by the selected agent. Leave blank to use its default." : `Optional OpenHands LLM profile. Leave blank to use ${u.data?.activeLlmProfile || "the selected agent profile’s default"}.` })
 					] }),
 					/* @__PURE__ */ (0, j.jsx)("div", {
 						className: "form-actions",
 						children: /* @__PURE__ */ (0, j.jsx)("button", {
 							className: "button",
 							disabled: n,
-							onClick: () => void _(),
+							onClick: () => void y(),
 							children: n ? "Saving…" : "Save Driver defaults"
 						})
 					})
