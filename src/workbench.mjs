@@ -5,7 +5,6 @@ import {
   taskIndex,
   taskSession,
   activeRunStates,
-  recentLandings,
 } from "./workbench-model.mjs";
 import { createVirtualList } from "./virtual-list.mjs";
 const esc = (value) =>
@@ -22,6 +21,19 @@ function sessionAction({ runId, taskId, label }) {
     : `data-reported-task="${esc(taskId)}"`;
   return `<button class="hub-session-open" data-session-control ${target} aria-label="${esc(label)}" title="${esc(label)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H8l-4.5 2 1.4-4.2A7.5 7.5 0 1 1 20 11.5Z"/><path d="M8 10h8M8 14h5"/></svg></button>`;
 }
+function taskTrayAction({ task, action }) {
+  const details = action === "details",
+    label = details
+      ? `View task details for ${task.title}`
+      : `Update direction for ${task.title}`,
+    target = details
+      ? `data-task="${esc(task.id)}"`
+      : `data-edit="${esc(task.id)}"`,
+    icon = details
+      ? '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>'
+      : '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/>';
+  return `<button class="hub-task-action is-${action}" ${target} aria-label="${esc(label)}" title="${esc(label)}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icon}</svg></button>`;
+}
 // Now keeps one queue on screen at a time. Decisions stay pinned above the
 // tabs: a pending question is never hidden behind a tab the operator must find.
 // Task / status / owner / next action / blocked by. The connections control
@@ -32,6 +44,11 @@ const NOW_TABS = [
   { id: "ready", label: "Up next" },
   { id: "blocked", label: "Blocked" },
   { id: "review", label: "Review" },
+];
+const REVIEW_TABS = [
+  { id: "attention", label: "Needs review" },
+  { id: "completed", label: "Completed" },
+  { id: "conversations", label: "Conversations" },
 ];
 export function createWorkbench({
   tasksElement,
@@ -50,7 +67,12 @@ export function createWorkbench({
   // Defaults match the legacy page, whose cells clamp to two or three lines.
   rowHeights = { group: 52, task: 62, taskWithBlockers: 74 },
 }) {
-  const prefs = { completed: false, inventory: false, nowTab: "working" };
+  const prefs = {
+    completed: false,
+    inventory: false,
+    nowTab: "working",
+    reviewTab: "attention",
+  };
   try {
     Object.assign(
       prefs,
@@ -58,6 +80,8 @@ export function createWorkbench({
     );
   } catch {}
   if (!NOW_TABS.some((t) => t.id === prefs.nowTab)) prefs.nowTab = "working";
+  if (!REVIEW_TABS.some((t) => t.id === prefs.reviewTab))
+    prefs.reviewTab = "attention";
   const expanded = new Map(),
     nowExpanded = new Set(),
     pages = new Map(),
@@ -220,22 +244,21 @@ export function createWorkbench({
     if (!nowExpanded.has("session:" + task.id)) return "";
     const state = sessionStates.get(task.id),
       loading = state?.status === "loading",
-      agent = reportedAgent(task),
-      facts = [
+      agent = reportedAgent(task);
+    if (loading) return "";
+    const facts = [
         ["Reported by", person(task)],
         ["Session", task.activity?.sessionId || "Not reported"],
         ...(task.activity?.branch ? [["Branch", task.activity.branch]] : []),
         ...(agent ? [["Agent", agent]] : []),
       ],
-      body = loading
-        ? ""
-        : state?.error
-          ? "<p>" + esc(state.error) + "</p>"
-          : "<p>This worker reports progress from outside this site’s agent host, so there is no transcript to read here. Updating the direction records it on the task; it does not send the worker a message.</p>" +
-            (canLinkSession
-              ? ""
-              : '<p class="hub-session-hint">Attaching an existing transcript is supported for Claude sessions, through the CLI or MCP.</p>');
-    return `<div class="hub-session-note" role="status"><p class="hub-session-title"><strong>${loading ? "Checking connected sessions…" : state?.error ? "Could not check this session" : "External check-in · transcript not connected"}</strong></p>${body}<dl class="hub-session-facts">${facts
+      body = state?.error
+        ? "<p>" + esc(state.error) + "</p>"
+        : "<p>This worker reports progress from outside this site’s agent host, so there is no transcript to read here. Updating the direction records it on the task; it does not send the worker a message.</p>" +
+          (canLinkSession
+            ? ""
+            : '<p class="hub-session-hint">Attaching an existing transcript is supported for Claude sessions, through the CLI or MCP.</p>');
+    return `<div class="hub-session-note" role="status"><p class="hub-session-title"><strong>${state?.error ? "Could not check this session" : "External check-in · transcript not connected"}</strong></p>${body}<dl class="hub-session-facts">${facts
       .map(
         ([label, value]) =>
           `<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`,
@@ -244,7 +267,7 @@ export function createWorkbench({
         "",
       )}</dl><div class="hub-session-actions">${canLinkSession ? `<button class="button subtle" data-link-session="${esc(task.id)}">Attach Claude transcript</button>` : ""}<button class="text-button" data-reported-close="${esc(task.id)}" aria-label="Close session explanation">Close</button></div></div>`;
   }
-  function taskSummary(task, { running = false } = {}) {
+  function taskSummary(task, { running = false, completed = false } = {}) {
     const signals = taskSignals(current.data, task),
       linked = running ? taskSession(nowPayload?.runs || [], task) : null,
       session = linked
@@ -258,7 +281,21 @@ export function createWorkbench({
               label: `Find or attach a session for ${task.title}`,
             })
           : "";
-    return `<article class="hub-work-row" data-workbench-task="${esc(task.id)}" data-task="${esc(task.id)}"><div class="hub-work-marker ${running ? "is-working" : signals.blockers.length ? "is-blocked" : ""}"></div><div class="hub-work-copy"><button class="hub-task-name" data-task="${esc(task.id)}">${esc(task.title)}</button><p>${esc(running ? task.activity?.summary || task.nextAction || "Work reported" : task.nextAction || task.summary || "Open the task for context.")}</p>${blockers(task)}<small>${esc(person(task))} · ${esc(epicName(task.epic))}${task.activity ? " · " + age(task.activity.heartbeatAt) : ""}${running && !linked ? " · External check-in" : ""}</small>${running && !linked ? sessionNote(task) : ""}</div><div class="hub-row-actions">${!linked ? '<button class="button subtle" data-edit="' + esc(task.id) + '">Update direction</button>' : ""}${signals.blockers.length ? '<button class="text-button" data-ask-task="' + esc(task.id) + '">Help unblock</button>' : ""}<button class="text-button" data-task="${esc(task.id)}">Details ↗</button>${session}</div></article>`;
+    const markerClass = completed
+        ? "is-complete"
+        : running
+          ? "is-working"
+          : signals.blockers.length
+            ? "is-blocked"
+            : "",
+      marker = completed
+        ? '<div class="hub-work-marker is-complete" aria-label="Completed task">✓</div>'
+        : `<div class="hub-work-marker ${markerClass}"></div>`,
+      rowTaskTarget = running ? "" : ` data-task="${esc(task.id)}"`,
+      title = running
+        ? `<strong class="hub-task-name">${esc(task.title)}</strong>`
+        : `<button class="hub-task-name" data-task="${esc(task.id)}">${esc(task.title)}</button>`;
+    return `<article class="hub-work-row${completed ? " is-complete" : ""}" data-workbench-task="${esc(task.id)}"${rowTaskTarget}>${marker}<div class="hub-work-copy">${title}<p>${esc(running ? task.activity?.summary || task.nextAction || "Work reported" : task.nextAction || task.summary || "Open the task for context.")}</p>${blockers(task)}<small>${esc(person(task))} · ${esc(epicName(task.epic))}${task.activity ? " · " + age(task.activity.heartbeatAt) : ""}${running && !linked ? " · External check-in" : ""}</small>${running && !linked ? sessionNote(task) : ""}</div><div class="hub-row-actions">${signals.blockers.length ? '<button class="text-button" data-ask-task="' + esc(task.id) + '">Help unblock</button>' : ""}${taskTrayAction({ task, action: "details" })}${!linked ? taskTrayAction({ task, action: "direction" }) : ""}${session}</div></article>`;
   }
   function runSummary(run) {
     const task = run.taskId
@@ -280,21 +317,7 @@ export function createWorkbench({
         run.projectId,
         age(run.lastObservedAt || run.updatedAt || run.createdAt),
       ].filter(Boolean);
-    return `<article class="hub-work-row hub-session-row" ${task ? 'data-task="' + esc(task.id) + '" data-workbench-task="' + esc(task.id) + '"' : ""}><div class="hub-work-marker is-working" aria-label="Active session"></div><div class="hub-work-copy">${task ? '<button class="hub-task-name" data-task="' + esc(task.id) + '">' + esc(title) + "</button>" : '<strong class="hub-task-name">' + esc(title) + "</strong>"}<p><strong>${esc(state)}</strong>${direction ? " · " + esc(direction) : " · Live transcript and message queue"}</p><small>${esc(metadata.join(" · "))}${task ? " · Working on " + esc(task.id) : ""}</small></div><div class="hub-row-actions">${task ? '<button class="text-button" data-task="' + esc(task.id) + '">Task ↗</button>' : ""}${sessionAction({ runId: run.id, label: `Open active session: ${title}` })}</div></article>`;
-  }
-  function completedRunSummary(run) {
-    const task = run.taskId
-        ? taskIndex(current.data).tasks.get(run.taskId)
-        : null,
-      title = task?.title || run.title || run.taskId || "Completed session",
-      metadata = [
-        run.provider || "Agent",
-        run.model,
-        run.projectId,
-        "Completed " +
-          age(run.updatedAt || run.lastObservedAt || run.createdAt),
-      ].filter(Boolean);
-    return `<article class="hub-work-row hub-session-row is-complete" ${task ? 'data-task="' + esc(task.id) + '" data-workbench-task="' + esc(task.id) + '"' : ""}><div class="hub-work-marker is-complete" aria-label="Completed session">✓</div><div class="hub-work-copy">${task ? '<button class="hub-task-name" data-task="' + esc(task.id) + '">' + esc(title) + "</button>" : '<strong class="hub-task-name">' + esc(title) + "</strong>"}<p>Session completed${task?.nextAction ? " · " + esc(task.nextAction) : " · Transcript and results are available"}</p><small>${esc(metadata.join(" · "))}${task ? " · " + esc(task.id) : ""}</small></div><div class="hub-row-actions">${task ? '<button class="text-button" data-task="' + esc(task.id) + '">Task ↗</button>' : ""}${sessionAction({ runId: run.id, label: `Open completed session: ${title}` })}</div></article>`;
+    return `<article class="hub-work-row hub-session-row"${task ? ' data-workbench-task="' + esc(task.id) + '"' : ""}><div class="hub-work-marker is-working" aria-label="Active session"></div><div class="hub-work-copy"><strong class="hub-task-name">${esc(title)}</strong><p><strong>${esc(state)}</strong>${direction ? " · " + esc(direction) : " · Live transcript and message queue"}</p><small>${esc(metadata.join(" · "))}${task ? " · Working on " + esc(task.id) : ""}</small></div><div class="hub-row-actions">${task ? taskTrayAction({ task, action: "details" }) : ""}${sessionAction({ runId: run.id, label: `Open active session: ${title}` })}</div></article>`;
   }
   async function openReportedSession(id) {
     if (!current || current.view !== "now") return;
@@ -384,9 +407,6 @@ export function createWorkbench({
         : "")
     );
   }
-  function fold(key, title, tasks, render) {
-    return `<details class="hub-fold" data-now-fold="${key}" ${nowExpanded.has(key) ? "open" : ""}><summary>${title}<span>${tasks.length}</span></summary><div>${nowExpanded.has(key) ? paged(tasks, key, render) : ""}</div></details>`;
-  }
   function selectNowTab(id, { focus = false } = {}) {
     if (!NOW_TABS.some((t) => t.id === id)) return;
     if (prefs.nowTab !== id) {
@@ -398,52 +418,82 @@ export function createWorkbench({
     if (focus) button?.focus({ preventScroll: true });
     button?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }
+  function selectReviewTab(id, { focus = false } = {}) {
+    if (!REVIEW_TABS.some((t) => t.id === id)) return;
+    if (prefs.reviewTab !== id) {
+      prefs.reviewTab = id;
+      save();
+    }
+    paintNow();
+    const button = nowElement.querySelector('[data-review-tab="' + id + '"]');
+    if (focus) button?.focus({ preventScroll: true });
+    button?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }
   function paintNow() {
     if (!current || current.view !== "now" || nowScrollElement.hidden) return;
     const { data, rows } = current,
       lanes = nowBoard(data, rows, prefs),
       w = nowPayload || { runs: [], requests: [], integrations: [] },
       active = w.runs.filter((r) => activeRunStates.has(r.state)),
-      completed = w.runs
-        .filter((r) => r.state === "completed")
-        .sort(
-          (a, b) =>
-            new Date(b.updatedAt || b.lastObservedAt || b.createdAt || 0) -
-            new Date(a.updatedAt || a.lastObservedAt || a.createdAt || 0),
-        )
-        .slice(0, 6),
       external = lanes.reported.filter((t) => !taskSession(active, t)),
       requests = w.requests || [],
+      reviewConversations = conversations(),
       ready = [...lanes.ready].sort(
         (a, b) =>
           taskSignals(data, b).dependents.length -
           taskSignals(data, a).dependents.length,
       ),
-      inProgress = active.length + external.length,
-      landings = recentLandings(data, rows, w.recentIntegrations || []);
+      inProgress = active.length + external.length;
     setCount(
       inProgress + " in flight",
       requests.length ? requests.length + " waiting for you" : "",
     );
     nowScroll = nowScrollElement.scrollTop;
-    nowChanged({ runs: w.runs, landings });
+    // The Now strip is a live-work surface. Completed runs and landing
+    // receipts belong in Review, so only active sessions reach its markers.
+    nowChanged({ runs: active, landings: [] });
     const counts = {
         working: inProgress,
         ready: ready.length,
         blocked: lanes.blocked.length,
-        review: lanes.attention.length,
+        review:
+          lanes.attention.length +
+          lanes.completed.length +
+          reviewConversations.length,
       },
       tab = NOW_TABS.some((t) => t.id === prefs.nowTab)
         ? prefs.nowTab
         : "working",
+      reviewTab = REVIEW_TABS.some((t) => t.id === prefs.reviewTab)
+        ? prefs.reviewTab
+        : "attention",
+      reviewCounts = {
+        attention: lanes.attention.length,
+        completed: lanes.completed.length,
+        conversations: reviewConversations.length,
+      },
+      reviewPanel =
+        reviewTab === "completed"
+          ? paged(lanes.completed, "completed", (t) =>
+              taskSummary(t, { completed: true }),
+            ) || '<p class="hub-empty">No completed work matches this view.</p>'
+          : reviewTab === "conversations"
+            ? paged(
+                reviewConversations,
+                "conversations",
+                conversationSummary,
+              ) ||
+              '<p class="hub-empty">No completed conversations to review.</p>'
+            : paged(lanes.attention, "checkins", (t) => taskSummary(t)) ||
+              '<p class="hub-empty">Nothing is waiting on a review.</p>',
       panel =
         tab === "ready"
           ? `<div class="section-heading"><h2>Up next</h2><span>Ready work with the most dependent tasks first</span></div>${paged(ready, "ready", (t) => taskSummary(t)) || '<p class="hub-empty">No matching tasks are ready.</p>'}`
           : tab === "blocked"
-            ? `<div class="section-heading"><h2>Blocked work</h2><button class="button primary" data-ask-blockers>Ask about blockers</button></div>${paged(lanes.blocked, "blocked", (t) => taskSummary(t)) || '<p class="hub-empty">Nothing matching is blocked.</p>'}`
+            ? `<div class="section-heading"><h2>Blocked work</h2><div class="section-heading-actions"><span>Tasks waiting for a prerequisite or required decision.</span><button class="button primary" data-ask-blockers>Ask about blockers</button></div></div>${paged(lanes.blocked, "blocked", (t) => taskSummary(t)) || '<p class="hub-empty">Nothing matching is blocked.</p>'}`
             : tab === "review"
-              ? `<div class="section-heading"><h2>Check-ins &amp; context to review</h2><span>Reported progress and changed plan prose</span></div>${paged(lanes.attention, "checkins", (t) => taskSummary(t)) || '<p class="hub-empty">Nothing is waiting on a review.</p>'}${fold("completed", "Recently updated completed work", lanes.completed, (t) => taskSummary(t))}${conversations().length ? fold("conversations", "Recent conversations", conversations(), conversationSummary) : ""}`
-              : `<div class="section-heading"><h2>In flight</h2>${nowPayload ? "<span>Updated " + age(new Date(nowAt).toISOString()) + "</span>" : ""}</div>${active.map(runSummary).join("")}${paged(external, "working", (t) => taskSummary(t, { running: true }))}${!inProgress ? '<p class="hub-empty">No work is currently reported. Unreported external work may still be running.</p>' : ""}${completed.length ? `<div class="hub-completed-sessions"><div class="section-heading"><h2>Recently completed</h2><span>Latest finished sessions</span></div>${completed.map(completedRunSummary).join("")}</div>` : ""}`;
+              ? `<div class="section-heading"><h2>Review</h2><span>Work and conversations that may need inspection or follow-up.</span></div><div class="hub-tabs hub-subtabs" role="tablist" aria-label="Review queues">${REVIEW_TABS.map((t) => `<button role="tab" id="hub-review-tab-${t.id}" data-review-tab="${t.id}" aria-controls="hub-review-panel" aria-selected="${t.id === reviewTab}" tabindex="${t.id === reviewTab ? 0 : -1}">${t.label}<span>${reviewCounts[t.id]}</span></button>`).join("")}</div><section id="hub-review-panel" role="tabpanel" aria-labelledby="hub-review-tab-${reviewTab}" tabindex="-1">${reviewPanel}</section>`
+              : `<div class="section-heading"><h2>In flight</h2>${nowPayload ? "<span>Updated " + age(new Date(nowAt).toISOString()) + "</span>" : ""}</div>${active.map(runSummary).join("")}${paged(external, "working", (t) => taskSummary(t, { running: true }))}${!inProgress ? '<p class="hub-empty">No work is currently reported. Unreported external work may still be running.</p>' : ""}`;
     nowElement.innerHTML = `<section class="hub-section hub-decisions" id="hub-decisions" ${requests.length || (w.integrations || []).length ? "" : "hidden"}>${requests.length ? `<div class="section-heading"><h2>Needs your input</h2><span>${requests.length} pending</span></div>` : ""}${
       requests.length
         ? requests
@@ -528,49 +578,28 @@ export function createWorkbench({
         refresh();
       }
     });
-  nowElement.addEventListener(
-    "toggle",
-    (e) => {
-      const key = e.target.dataset.nowFold;
-      if (!key || !e.target.isConnected) return;
-      if (e.target.open) nowExpanded.add(key);
-      else nowExpanded.delete(key);
-      const tasks =
-        key === "conversations"
-          ? conversations()
-          : nowBoard(current.data, current.rows, prefs)[key];
-      e.target.querySelector("div").innerHTML = e.target.open
-        ? paged(
-            tasks,
-            key,
-            key === "conversations"
-              ? conversationSummary
-              : (t) => taskSummary(t),
-          )
-        : "";
-    },
-    true,
-  );
   nowElement.addEventListener("keydown", (e) => {
-    const tab = e.target.closest("[data-now-tab]");
+    const tab = e.target.closest("[data-now-tab],[data-review-tab]");
     if (!tab) return;
+    const nested = Boolean(tab.dataset.reviewTab),
+      tabs = nested ? REVIEW_TABS : NOW_TABS,
+      selected = nested ? tab.dataset.reviewTab : tab.dataset.nowTab;
     const step =
       e.key === "ArrowRight" || e.key === "ArrowDown"
         ? 1
         : e.key === "ArrowLeft" || e.key === "ArrowUp"
           ? -1
           : e.key === "Home"
-            ? -NOW_TABS.length
+            ? -tabs.length
             : e.key === "End"
-              ? NOW_TABS.length
+              ? tabs.length
               : 0;
     if (!step) return;
     e.preventDefault();
-    const at = NOW_TABS.findIndex((t) => t.id === tab.dataset.nowTab);
-    selectNowTab(
-      NOW_TABS[Math.max(0, Math.min(NOW_TABS.length - 1, at + step))].id,
-      { focus: true },
-    );
+    const at = tabs.findIndex((t) => t.id === selected),
+      next = tabs[Math.max(0, Math.min(tabs.length - 1, at + step))].id;
+    if (nested) selectReviewTab(next, { focus: true });
+    else selectNowTab(next, { focus: true });
   });
   nowElement.addEventListener("click", (e) => {
     const link = e.target.closest("[data-link-session]");
@@ -587,7 +616,8 @@ export function createWorkbench({
       reported = e.target.closest("[data-reported-task]"),
       close = e.target.closest("[data-reported-close]"),
       page = e.target.closest("[data-now-page]"),
-      pick = e.target.closest("[data-now-tab]");
+      pick = e.target.closest("[data-now-tab]"),
+      reviewPick = e.target.closest("[data-review-tab]");
     if (close) {
       e.stopImmediatePropagation();
       nowExpanded.delete("session:" + close.dataset.reportedClose);
@@ -609,6 +639,7 @@ export function createWorkbench({
       paintNow();
     }
     if (pick) selectNowTab(pick.dataset.nowTab);
+    if (reviewPick) selectReviewTab(reviewPick.dataset.reviewTab);
     const ask = e.target.closest("[data-ask-task]");
     if (ask) {
       e.stopImmediatePropagation();

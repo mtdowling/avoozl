@@ -4,6 +4,12 @@ import { RunManager } from "../manager.mjs";
 import { Operations } from "../operations.mjs";
 import { fixture } from "./fixtures.mjs";
 
+const disabledRouting = {
+  enabled: false,
+  fallback: { agentProfile: null, model: null },
+  rules: [],
+};
+
 test("completed task and child conversations auto-archive but Driver does not", (t) => {
   const { store } = fixture(t),
     manager = new RunManager(store, { recover: false });
@@ -51,6 +57,7 @@ test("conversation auto-archive can be disabled without disabling manual archive
     autoArchiveCompleted: true,
     driverAgentProfile: null,
     driverModel: null,
+    routing: disabledRouting,
   });
   assert.deepEqual(
     await ops.execute("conversations.settings.update", {
@@ -60,6 +67,7 @@ test("conversation auto-archive can be disabled without disabling manual archive
       autoArchiveCompleted: false,
       driverAgentProfile: null,
       driverModel: null,
+      routing: disabledRouting,
     },
   );
   const run = store.put("runs", {
@@ -118,6 +126,7 @@ test("Driver profile and model settings persist, trim, clear, and preserve omitt
       autoArchiveCompleted: true,
       driverAgentProfile: "profile-reviewer",
       driverModel: "anthropic/claude-sonnet",
+      routing: disabledRouting,
     },
   );
   assert.deepEqual(
@@ -126,6 +135,7 @@ test("Driver profile and model settings persist, trim, clear, and preserve omitt
       autoArchiveCompleted: true,
       driverAgentProfile: "profile-reviewer",
       driverModel: "anthropic/claude-sonnet",
+      routing: disabledRouting,
     },
   );
   assert.deepEqual(
@@ -137,6 +147,7 @@ test("Driver profile and model settings persist, trim, clear, and preserve omitt
       autoArchiveCompleted: false,
       driverAgentProfile: "profile-reviewer",
       driverModel: null,
+      routing: disabledRouting,
     },
   );
   assert.deepEqual(
@@ -147,6 +158,7 @@ test("Driver profile and model settings persist, trim, clear, and preserve omitt
       autoArchiveCompleted: false,
       driverAgentProfile: null,
       driverModel: null,
+      routing: disabledRouting,
     },
   );
 });
@@ -173,5 +185,6 @@ test("Driver profile and model settings reject non-text values atomically", asyn
     autoArchiveCompleted: true,
     driverAgentProfile: "profile-stable",
     driverModel: "model-stable",
+    routing: disabledRouting,
   });
 });

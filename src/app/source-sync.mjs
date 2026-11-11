@@ -9,8 +9,14 @@ export function reconcileAgentInstructions(store, root) {
   const full = path.resolve(root, "AGENTS.md"),
     exists = fs.existsSync(full),
     text = exists ? fs.readFileSync(full, "utf8") : "",
-    current = store.read().agentInstructionSource;
-  if (current?.hash === digest(text) && !store.read().documents["AGENTS.md"])
+    current = store.read().agentInstructionSource,
+    snapshot = store.getMeta("agentInstructionSourceSnapshot"),
+    hash = digest(text);
+  if (
+    current?.hash === hash &&
+    snapshot?.hash === hash &&
+    !store.read().documents["AGENTS.md"]
+  )
     return { changed: false };
   if (
     !exists &&
@@ -22,6 +28,12 @@ export function reconcileAgentInstructions(store, root) {
   store.mutate("Synchronize Avoozl policy from AGENTS.md", (data) => {
     synchronizeAgentInstructions(data, text, { path: "AGENTS.md" });
     delete data.documents["AGENTS.md"];
+  });
+  store.setMeta("agentInstructionSourceSnapshot", {
+    path: "AGENTS.md",
+    hash,
+    revision: null,
+    text,
   });
   return {
     changed: true,

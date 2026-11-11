@@ -1,7 +1,7 @@
 node_modules/
 .state/
 state/
-plans/
+.avoozl/local/
 workspace.json
 workspace.local.json
 *.sqlite*

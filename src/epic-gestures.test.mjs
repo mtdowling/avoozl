@@ -4,6 +4,7 @@ import {
   installEpicGestures,
   zoomEpicCamera,
   createEpicProgress,
+  resolveEpicLabelWidth,
 } from "./progress.mjs";
 function fixture() {
   const listeners = new Map(),
@@ -278,6 +279,14 @@ test("an unrendered chart can be suspended and suspended again during app startu
     chart = createEpicProgress(root, { select() {}, changeZoom() {} });
   assert.doesNotThrow(() => chart.suspend());
   assert.doesNotThrow(() => chart.suspend());
+});
+
+test("Epic labels respect persisted bounds and use a compact responsive fallback", () => {
+  assert.equal(resolveEpicLabelWidth(1200, 360), 360);
+  assert.equal(resolveEpicLabelWidth(1200, 50), 150);
+  assert.equal(resolveEpicLabelWidth(1200, 900), 480);
+  assert.equal(resolveEpicLabelWidth(760, 360), 150);
+  assert.equal(resolveEpicLabelWidth(420, 480), 150);
 });
 
 test("a drag does not swallow the next zoom-control or keyboard click", () => {

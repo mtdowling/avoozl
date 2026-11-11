@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { queryTasks, statusComplete } from "../query.mjs";
+import { resolveTaskId } from "../task-identity.mjs";
 import { validateRun, integrateRun } from "./git.mjs";
 import { approvalMode } from "./approvals.mjs";
 import { fail } from "./store.mjs";
@@ -77,6 +78,8 @@ export class Batches {
     const batch = this.store.get("batches", id);
     if (!batch) fail("Batch not found.", 404);
     if (!["pause", "resume"].includes(action)) fail("Choose pause or resume.");
+    if (action === "resume" && this.manager.draining)
+      fail("Agent host is draining. Retry after the update.", 503);
     batch.state = action === "pause" ? "paused" : "running";
     delete batch.reason;
     this.store.put("batches", batch);
@@ -85,6 +88,50 @@ export class Batches {
   }
   retry(id, delayMs = 250) {
     setTimeout(() => this.advance(id), delayMs).unref?.();
+  }
+  adoptExistingRuns(batch) {
+    const data = this.store.read(),
+      batchRuns = batch.runIds
+        .map((id) => this.store.get("runs", id))
+        .filter(Boolean),
+      adopted = [];
+    for (const taskId of batch.taskIds) {
+      const canonicalTaskId = resolveTaskId(data, taskId);
+      if (
+        batchRuns.some(
+          (run) => resolveTaskId(data, run.taskId) === canonicalTaskId,
+        )
+      )
+        continue;
+      const existing = this.store
+        .list("runs")
+        .filter(
+          (run) =>
+            !run.driver &&
+            run.mode !== "ask" &&
+            !run.deletedAt &&
+            run.state !== "integrated" &&
+            run.projectId === batch.projectId &&
+            resolveTaskId(data, run.taskId) === canonicalTaskId &&
+            (ACTIVE.has(run.state) || (run.worktree && run.providerSessionId)),
+        )
+        .sort((left, right) =>
+          String(right.updatedAt || right.createdAt || "").localeCompare(
+            String(left.updatedAt || left.createdAt || ""),
+          ),
+        )[0];
+      if (!existing) continue;
+      batch.runIds.push(existing.id);
+      batchRuns.push(existing);
+      adopted.push(existing.id);
+      this.store.event(existing.id, "batch.run.reused", {
+        batchId: batch.id,
+        taskId: canonicalTaskId,
+        state: existing.state,
+      });
+    }
+    if (adopted.length) this.store.put("batches", batch);
+    return adopted;
   }
   async advance(id) {
     if (this.working.has(id)) {
@@ -95,6 +142,8 @@ export class Batches {
     try {
       let batch = this.store.get("batches", id);
       if (batch.state !== "running") return;
+      this.adoptExistingRuns(batch);
+      batch = this.store.get("batches", id);
       for (const runId of batch.runIds) {
         const run = this.store.get("runs", runId);
         if (["failed", "disconnected", "interrupted"].includes(run.state)) {

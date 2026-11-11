@@ -372,7 +372,7 @@ export async function configureGitHubRepository(store, github, input) {
 export async function syncGitHubIssues(
   store,
   github,
-  { repository, authorize } = {},
+  { repository, authorize, issueNumber } = {},
 ) {
   const configs = repository
     ? [store.get("github_repositories", parseRepository(repository).id)].filter(
@@ -384,13 +384,29 @@ export async function syncGitHubIssues(
     authorized: [],
     quarantined: [],
     pending: [],
+    withdrawn: [],
   };
   for (const config of configs) {
     await requirePrivateRepository(github, config);
-    const issues = await github.listReadyIssues(config, {
-      label: config.label,
-      assignee: config.assignee,
-    });
+    const issues = issueNumber
+      ? [await github.issue(config, issueNumber)].filter(
+          (issue) =>
+            issue &&
+            !issue.pull_request &&
+            issue.state === "open" &&
+            (issue.labels || []).some(
+              (label) =>
+                (typeof label === "string" ? label : label?.name) ===
+                config.label,
+            ) &&
+            (issue.assignees || []).some(
+              (assignee) => assignee?.login === config.assignee,
+            ),
+        )
+      : await github.listReadyIssues(config, {
+          label: config.label,
+          assignee: config.assignee,
+        });
     const seen = new Set();
     for (const issue of issues) {
       const id = issueRecordId(config, issue);
@@ -478,6 +494,7 @@ export async function syncGitHubIssues(
         (entry) =>
           entry.repository === config.id &&
           entry.state === "authorized" &&
+          (!issueNumber || entry.number === issueNumber) &&
           !seen.has(entry.id),
       )) {
       previous.state = "withdrawn";
@@ -497,6 +514,7 @@ export async function syncGitHubIssues(
           store.commit(data, "Withdraw " + previous.id);
         }
       });
+      result.withdrawn.push(previous);
     }
     result.repositories.push({
       id: config.id,

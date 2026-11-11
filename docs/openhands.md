@@ -20,7 +20,7 @@ The integration is pinned and checked as one compatibility set:
 | OpenHands Agent Server         | `1.61.0` |
 | `@openhands/typescript-client` | `1.61.0` |
 | `@openhands/agent-canvas`      | `1.38.0` |
-| Avoozl OpenHands App           | `0.1.9`  |
+| Avoozl OpenHands App           | `0.1.18` |
 
 Avoozl refuses a different Agent Server version before creating a conversation.
 Upgrades must test the client, plugin, and embedded Canvas together.
@@ -131,11 +131,12 @@ Opening an OpenHands-owned run still navigates to Canvas's native conversation
 page, so terminal, files, browser, chat, and steering remain OpenHands-owned.
 
 OpenHands Agent Server 1.61.0 only manages Canvas App backend artifacts on
-Linux. On macOS and Windows, Avoozl retains the existing native React fallback:
-start `avoozl serve` separately with the exact Canvas origin allowed, then enter
-its loopback address once. That path uses exact-origin CORS and never receives an
-OpenHands or provider credential. Remove the fallback when OpenHands adds
-managed backend support for those platforms.
+Linux. On macOS and Windows, start `avoozl serve` separately with the exact
+Canvas origin allowed, then enter its loopback address once. Canvas still owns
+the product UI; the separate process supplies only the API, MCP endpoint, and a
+small recovery handoff. That path uses exact-origin CORS and never receives an
+OpenHands or provider credential. Remove the separately managed backend when
+OpenHands adds managed backend support for those platforms.
 
 The App package lives in `canvas-app/` and is included in the npm package.
 Canvas Apps execute as trusted same-realm code after enablement, so installation

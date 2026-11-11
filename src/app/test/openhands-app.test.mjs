@@ -70,7 +70,7 @@ test("the packaged Canvas App registers its declared Avoozl page", async () => {
     },
   });
   assert.equal(manifest.schema_version, 1);
-  assert.equal(manifest.version, "0.1.17");
+  assert.equal(manifest.version, "0.1.18");
   assert.equal(manifest.backend.schema_version, 1);
   assert.equal(manifest.backend.health.path, "/api/health");
   for (const artifact of Object.values(manifest.backend.artifacts)) {
@@ -91,7 +91,7 @@ test("the packaged Canvas App registers its declared Avoozl page", async () => {
   assert.match(source, /\/conversations/);
   assert.match(source, /avoozl:openhands-conversation/);
   assert.match(canvasSource, /event\.source === frame\?\.contentWindow/);
-  assert.match(source, /Open Driver with project context/);
+  assert.match(source, /Open the persistent project Driver/);
   assert.match(source, /Shape work from project context/);
   assert.doesNotMatch(source, /avoozl:openhands-route/);
   assert.doesNotMatch(source, /process\.env\.NODE_ENV/);
@@ -111,6 +111,37 @@ test("the packaged Canvas App registers its declared Avoozl page", async () => {
     );
   assert.equal(pluginManifest.name, "avoozl");
   assert.equal(pluginManifest.version, OPENHANDS_VERSIONS.plugin);
+  assert.equal(
+    pluginManifest.automation.schema_version,
+    "openhands.automation.plugin.v1",
+  );
+  assert.equal(pluginManifest.automation.entrypoint.runner, "script");
+  assert.equal(
+    pluginManifest.automation.entrypoint.command,
+    "python3 avoozl_github_intake.py",
+  );
+  assert.equal(pluginManifest.automation.runtime.agent_profile, undefined);
+  assert.equal(pluginManifest.automation.runtime.llm_profile, undefined);
+  assert.ok(
+    pluginManifest.automation.config_schema.required.includes("callback_url"),
+  );
+  assert.ok(
+    pluginManifest.automation.config_schema.required.includes(
+      "ingest_secret_name",
+    ),
+  );
+  const intakeWorker = fs.readFileSync(
+    path.join(pluginRoot, "scripts", "avoozl_github_intake.py"),
+    "utf8",
+  );
+  assert.match(intakeWorker, /launches an agent/);
+  assert.match(intakeWorker, /method="GET"/);
+  assert.match(intakeWorker, /"X-Avoozl-Intake-Version": "2"/);
+  assert.match(intakeWorker, /"avoozl.github-intake.v2"/);
+  assert.match(intakeWorker, /"observation-only"/);
+  assert.match(intakeWorker, /repository_private/);
+  assert.match(intakeWorker, /"repository-complete"/);
+  assert.match(intakeWorker, /"pull-request"/);
   assert.match(skill, /^---\nname: avoozl\b/);
   assert.equal(mcp.mcpServers.avoozl.url, "${AVOOZL_MCP_URL}");
   assert.equal(
@@ -233,7 +264,7 @@ test("Canvas App status is read from the selected OpenHands backend", async () =
   assert.equal(status.backend.state, "ready");
 });
 
-test("unsupported hosts enable the native exact-origin fallback without backend consent", async () => {
+test("unsupported hosts enable the separately managed exact-origin backend", async () => {
   const calls = [];
   const client = {
     server: {

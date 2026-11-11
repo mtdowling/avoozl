@@ -8,12 +8,14 @@ import { handleMcp } from "../mcp.mjs";
 import { Operations } from "../operations.mjs";
 import { fixture, markdown, runCapability } from "./fixtures.mjs";
 
-test("React UI and editing APIs run on SQLite; HTTP and MCP share task mutations", async (t) => {
+test("recovery handoff and editing APIs run on SQLite; HTTP and MCP share task mutations", async (t) => {
   const { root, store } = fixture(t),
     server = startServer({
       dbPath: store.filename,
       port: 0,
       projectionRoot: path.join(root, "docs"),
+      workspaceName: "Fixture workspace",
+      canvasOrigins: ["http://127.0.0.1:38400"],
     });
   await once(server, "listening");
   const base = "http://127.0.0.1:" + server.address().port;
@@ -21,11 +23,25 @@ test("React UI and editing APIs run on SQLite; HTTP and MCP share task mutations
   const home = await fetch(base);
   assert.equal(home.status, 200);
   const html = await home.text();
-  assert.match(html, /<div id="root"><\/div>/);
-  assert.match(html, /\/assets\/.*\.js/);
-  const asset = html.match(/src="(\/assets\/[^"]+\.js)"/)?.[1];
-  assert.ok(asset);
-  assert.equal((await fetch(base + asset)).status, 200);
+  assert.match(html, /Avoozl backend is running/);
+  assert.match(html, /Fixture workspace/);
+  assert.match(
+    html,
+    /href="http:\/\/127\.0\.0\.1:38400\/extensions\/avoozl\/workspace"/,
+  );
+  assert.doesNotMatch(html, /<script|<div id="root"/);
+  assert.match(
+    home.headers.get("content-security-policy"),
+    /default-src 'none'/,
+  );
+  const contextual = await (await fetch(base + "/workspace?view=queue")).text();
+  assert.match(
+    contextual,
+    /href="http:\/\/127\.0\.0\.1:38400\/extensions\/avoozl\/workspace\?view=queue"/,
+  );
+  const head = await fetch(base, { method: "HEAD" });
+  assert.equal(head.status, 200);
+  assert.equal(await head.text(), "");
   for (const legacyPath of [
     "/legacy",
     "/app.mjs",
@@ -139,6 +155,15 @@ test("React UI and editing APIs run on SQLite; HTTP and MCP share task mutations
   );
   const documents = await (await fetch(base + "/api/documents")).json();
   assert.equal(documents.total, 1);
+  const documentId = documents.documents[0].id,
+    deepLink = await fetch(base + "/plans/" + documentId, {
+      redirect: "manual",
+    });
+  assert.equal(deepLink.status, 302);
+  assert.equal(
+    deepLink.headers.get("location"),
+    `http://127.0.0.1:38400/extensions/avoozl/workspace?view=documents&document=${encodeURIComponent(documentId)}`,
+  );
   assert.equal(documents.documents[0].text, undefined);
   assert.ok(Array.isArray(documents.documents[0].taskIds));
   assert.ok(
@@ -156,6 +181,21 @@ test("React UI and editing APIs run on SQLite; HTTP and MCP share task mutations
   assert.equal(crossOrigin.status, 403);
   assert.equal((await fetch(base + "/../store.mjs")).status, 404);
 });
+
+test("recovery handoff explains how to open Canvas when no origin is configured", async (t) => {
+  const { store } = fixture(t),
+    server = startServer({ dbPath: store.filename, port: 0 });
+  await once(server, "listening");
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  const response = await fetch(
+      "http://127.0.0.1:" + server.address().port + "/workspace",
+    ),
+    html = await response.text();
+  assert.equal(response.status, 200);
+  assert.match(html, /install or enable the Avoozl extension/);
+  assert.doesNotMatch(html, /Open Avoozl in OpenHands/);
+});
+
 test("MCP approval checks exact revision and owned agent connections cannot approve or merge", async (t) => {
   const { store } = fixture(t),
     ops = new Operations(store),

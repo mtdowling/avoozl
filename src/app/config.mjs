@@ -50,7 +50,9 @@ export function workspaceConfig(options = {}) {
   const port = Number(options.port ?? saved.port ?? 9428);
   if (!Number.isInteger(port) || port < 0 || port > 65535)
     throw Error("Choose a port from 0 to 65535.");
-  const dbPath = relative(saved.dbPath || "state/workspace.sqlite");
+  const dbPath = relative(
+    saved.dbPath || path.join(".avoozl", "local", "workspace.sqlite"),
+  );
   const plansRoot = relative(saved.documents || "plans");
   const canvasOrigins = String(saved.canvasOrigins || "")
     .split(",")

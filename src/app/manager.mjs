@@ -21,7 +21,15 @@ import {
   revokeRunCapabilities,
 } from "./run-capabilities.mjs";
 import { approvalMode } from "./approvals.mjs";
-import { autoArchiveCompletedRun } from "./conversation-settings.mjs";
+import {
+  autoArchiveCompletedRun,
+  conversationSettings,
+} from "./conversation-settings.mjs";
+import {
+  openHandsRoutingAvailability,
+  selectAgentRoute,
+} from "./agent-routing.mjs";
+import { openHandsAgentProfiles } from "./providers/openhands.mjs";
 import { taskReviewContext } from "./task-review.mjs";
 import { recordUsage } from "./telemetry.mjs";
 const ACTIVE = new Set([
@@ -127,7 +135,12 @@ function providerDecisions(request) {
 export class RunManager {
   constructor(
     store,
-    { factories = {}, baseUrl = "http://127.0.0.1:9428", recover = true } = {},
+    {
+      factories = {},
+      baseUrl = "http://127.0.0.1:9428",
+      recover = true,
+      routingCatalog = null,
+    } = {},
   ) {
     this.store = store;
     this.baseUrl = baseUrl;
@@ -135,8 +148,11 @@ export class RunManager {
     this.factories = Object.fromEntries(
       [...this.registry].map(([id, spec]) => [id, spec.create]),
     );
+    this.routingCatalog =
+      routingCatalog || (factories.openhands ? null : openHandsAgentProfiles);
     this.live = new Map();
     this.tails = new Map();
+    this.driverHandoffs = new Set();
     this.activityTimer = setInterval(
       () => {
         for (const run of store
@@ -462,13 +478,24 @@ export class RunManager {
         modelSpecified = Object.hasOwn(input, "model"),
         requestedProfile = driverChoice(input.agentProfile),
         requestedModel = driverChoice(input.model),
+        previousProfileOverride =
+          existing?.routingDecision?.overrides?.agentProfile ??
+          (existing?.routingDecision
+            ? null
+            : driverChoice(existing?.agentProfile)),
+        previousModelOverride =
+          existing?.routingDecision?.overrides?.model ??
+          (existing?.routingDecision
+            ? null
+            : driverChoice(existing?.requestedModel ?? existing?.model)),
+        automaticHandoff =
+          input.automaticHandoffFrom === existing?.id && Boolean(existing),
         configurationChanged =
           existing &&
-          ((profileSpecified &&
-            requestedProfile !== driverChoice(existing.agentProfile)) ||
-            (modelSpecified &&
-              requestedModel !==
-                driverChoice(existing.requestedModel ?? existing.model)));
+          (automaticHandoff ||
+            (profileSpecified &&
+              requestedProfile !== previousProfileOverride) ||
+            (modelSpecified && requestedModel !== previousModelOverride));
       if (existing && !configurationChanged) {
         if (input.provider && input.provider !== existing.provider)
           fail("This project Driver already belongs to another provider.", 409);
@@ -520,14 +547,24 @@ export class RunManager {
           driverActive: true,
           driverGeneration: identity.generation,
           driverPredecessorId: existing?.id,
+          driverHandoffReason: automaticHandoff
+            ? "context-threshold"
+            : undefined,
           provider: input.provider || existing?.provider || "openhands",
           projectId: project.id,
-          model: modelSpecified
-            ? requestedModel
-            : (existing?.requestedModel ?? existing?.model),
-          agentProfile: profileSpecified
-            ? requestedProfile
-            : existing?.agentProfile,
+          model: automaticHandoff
+            ? undefined
+            : modelSpecified
+              ? requestedModel
+              : previousModelOverride,
+          agentProfile: automaticHandoff
+            ? undefined
+            : profileSpecified
+              ? requestedProfile
+              : previousProfileOverride,
+          contextRemainingPercent: automaticHandoff
+            ? existing.contextRemainingPercent
+            : undefined,
           mode: "ask",
           title: driverConversationTitle(project),
           context,
@@ -572,6 +609,96 @@ export class RunManager {
         previousRunId: existing?.id,
       };
     });
+  }
+  scheduleAutomaticDriverHandoff(runId) {
+    if (this.driverHandoffs.has(runId)) return;
+    this.driverHandoffs.add(runId);
+    Promise.resolve()
+      .then(async () => {
+        const run = this.store.get("runs", runId),
+          settings = conversationSettings(this.store);
+        if (
+          !run?.driver ||
+          run.driverActive === false ||
+          run.state !== "completed" ||
+          run.contextTelemetry?.availability !== "reported" ||
+          !settings.routing.enabled
+        )
+          return;
+        if (
+          run.routingDecision?.overrides?.agentProfile ||
+          run.routingDecision?.overrides?.model
+        ) {
+          this.store.event(run.id, "driver.handoff.skipped", {
+            reason: "explicit-override",
+            message:
+              "The Driver agent or model is explicitly pinned, so automatic routing did not replace it.",
+          });
+          return;
+        }
+        const decision = selectAgentRoute({
+            settings: settings.routing,
+            input: {
+              driver: true,
+              mode: "ask",
+              contextRemainingPercent: run.contextRemainingPercent,
+            },
+            parent: run,
+          }),
+          rule = settings.routing.rules.find(
+            (candidate) => candidate.id === decision.ruleId,
+          );
+        if (
+          decision.source !== "policy-rule" ||
+          rule?.contextRemainingAtMost === null ||
+          rule?.contextRemainingAtMost === undefined
+        )
+          return;
+        const pendingRequest = this.store
+            .list("requests")
+            .some(
+              (request) =>
+                request.runId === run.id && request.state === "pending",
+            ),
+          pendingDelivery = this.store
+            .list("deliveries")
+            .some(
+              (delivery) =>
+                delivery.runId === run.id &&
+                ["queued", "sending", "awaiting-resume"].includes(
+                  delivery.state,
+                ),
+            );
+        if (pendingRequest || pendingDelivery) {
+          this.store.event(run.id, "driver.handoff.deferred", {
+            reason: pendingRequest ? "pending-request" : "pending-delivery",
+            contextRemainingPercent: run.contextRemainingPercent,
+            ruleId: decision.ruleId,
+          });
+          return;
+        }
+        run.automaticHandoffRequestedAt = new Date().toISOString();
+        run.automaticHandoffRuleId = decision.ruleId;
+        this.store.put("runs", run);
+        this.store.event(run.id, "driver.handoff.requested", {
+          reason: "context-threshold",
+          contextRemainingPercent: run.contextRemainingPercent,
+          ruleId: decision.ruleId,
+          selected: decision.selected,
+        });
+        await this.openDriver({
+          projectId: run.projectId,
+          provider: run.provider,
+          context: run.context,
+          automaticHandoffFrom: run.id,
+        });
+      })
+      .catch((error) =>
+        this.store.event(runId, "driver.handoff.failed", {
+          message: error.message,
+        }),
+      )
+      .finally(() => this.driverHandoffs.delete(runId));
   }
   updateDriverContext(input = {}) {
     const project = this.driverProject(input.projectId),
@@ -670,6 +797,34 @@ export class RunManager {
           409,
         );
     }
+    const routingSettings = conversationSettings(this.store).routing;
+    let routingAvailability = null;
+    if (
+      routingSettings.enabled &&
+      input.provider === "openhands" &&
+      this.routingCatalog
+    )
+      try {
+        routingAvailability = openHandsRoutingAvailability(
+          await this.routingCatalog(),
+        );
+      } catch (error) {
+        routingAvailability = {
+          provider: "openhands",
+          state: "unavailable",
+          reason:
+            "OpenHands profile discovery failed: " +
+            (error?.message || "unknown error"),
+          agentProfiles: [],
+        };
+      }
+    const routingDecision = selectAgentRoute({
+      settings: routingSettings,
+      input,
+      task,
+      parent,
+      availability: routingAvailability,
+    });
     if (
       task &&
       input.mode !== "ask" &&
@@ -701,6 +856,7 @@ export class RunManager {
       driverActive: input.driver ? input.driverActive !== false : undefined,
       driverGeneration: input.driver ? input.driverGeneration || 1 : undefined,
       driverPredecessorId: input.driver ? input.driverPredecessorId : undefined,
+      driverHandoffReason: input.driver ? input.driverHandoffReason : undefined,
       logicalConversationId: input.driver ? id : undefined,
       taskId: task?.id || (plan ? "plan:" + plan.id : "conversation:" + id),
       planId: plan?.id,
@@ -708,9 +864,10 @@ export class RunManager {
       provider: input.provider,
       executor: input.provider,
       approvalMode: selectedApprovalMode,
-      model: input.model || undefined,
-      agentProfile: input.agentProfile || undefined,
-      requestedModel: input.model || null,
+      model: routingDecision.selected.model || undefined,
+      agentProfile: routingDecision.selected.agentProfile || undefined,
+      requestedModel: routingDecision.selected.model,
+      routingDecision,
       mode: input.mode === "ask" ? "ask" : plan ? "plan" : "implement",
       capabilityMode:
         input.mode === "ask" &&
@@ -967,6 +1124,15 @@ export class RunManager {
     if (kind === "session") {
       run.providerSessionId = body.providerSessionId;
       if (body.model) run.actualModel = body.model;
+      if (run.routingDecision)
+        run.routingDecision.availability = {
+          state: "confirmed-on-start",
+          actualModel: body.model || null,
+          agentProfile: body.agentProfileId || run.agentProfile || null,
+          agentKind: body.agentKind || null,
+          reason:
+            "OpenHands created the conversation with this effective agent and model.",
+        };
       run.providerAvailability = "available";
       run.providerDiagnostic = undefined;
       if (run.state === "starting") run.error = undefined;
@@ -992,6 +1158,18 @@ export class RunManager {
         reason: body.reason || "The provider did not report usage.",
         model: body.model || run.actualModel || run.model || null,
       };
+    if (kind === "context") {
+      run.contextRemainingPercent = body.remainingPercent;
+      run.contextTelemetry = {
+        availability: "reported",
+        source: body.source || "provider",
+        model: body.model || run.actualModel || run.model || null,
+        contextWindow: body.contextWindow,
+        perTurnToken: body.perTurnToken,
+        usedPercent: body.usedPercent,
+        coverage: body.coverage,
+      };
+    }
     if (kind === "approvals.status") {
       run.effectiveApprovalMode = body.effectiveApprovalMode;
       run.approvalNotice = body.approvalNotice;
@@ -1069,6 +1247,12 @@ export class RunManager {
     if (["session", "turn.completed", "disconnected"].includes(kind))
       this.checkpoint(run);
     this.onEvent?.(id, kind, body);
+    if (
+      run.driver &&
+      run.driverActive !== false &&
+      ["context", "turn.completed"].includes(kind)
+    )
+      this.scheduleAutomaticDriverHandoff(id);
     if (kind === "turn.completed")
       this.drain(id).catch((error) =>
         this.store.event(id, "delivery.error", { message: error.message }),

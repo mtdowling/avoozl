@@ -263,6 +263,9 @@ export function TaskInspector({
         ? "active"
         : "finished"
     : "";
+  const complete = Boolean(
+    state.statuses.find((item) => item.id === detail?.status)?.complete,
+  );
   const sources = useMemo(() => {
     if (!detail) return [];
     const values = [detail.source, ...(detail.sourceReferences || [])].filter(
@@ -441,8 +444,14 @@ export function TaskInspector({
                   disabled={busy || launchPending}
                   onClick={() => void startRun(detail)}
                 >
-                  <Play size={14} />{" "}
-                  {launchPending ? "Starting…" : "Start in OpenHands"}
+                  {complete ? <MessageSquare size={14} /> : <Play size={14} />}{" "}
+                  {launchPending
+                    ? complete
+                      ? "Opening…"
+                      : "Starting…"
+                    : complete
+                      ? "Review with agent"
+                      : "Start in OpenHands"}
                 </button>
               )}
               <button
@@ -959,7 +968,7 @@ export type CaptureContext = {
   };
   filters: Record<string, string>;
   url?: string;
-  conversationPurpose?: "new-task" | "project-chat";
+  conversationPurpose?: "new-task" | "project-chat" | "review";
   scoped?: boolean;
 };
 
@@ -1021,10 +1030,27 @@ export function McpDialog({
             <dt>Agent host</dt>
             <dd>
               {workspace.agentHost?.draining
-                ? "Draining"
+                ? `Draining · ${workspace.agentHost.active || 0} active`
                 : workspace.agentHost?.connected
                   ? "Connected"
                   : "Offline"}
+            </dd>
+          </div>
+          <div>
+            <dt>Active work</dt>
+            <dd
+              title={(workspace.agentHost?.activeRuns || [])
+                .map(
+                  (run) =>
+                    `${run.title || run.taskId || run.id} · ${run.state}`,
+                )
+                .join("\n")}
+            >
+              {workspace.agentHost?.active || 0} conversation
+              {workspace.agentHost?.active === 1 ? "" : "s"}
+              {(workspace.agentHost?.protectedOperations || 0) > 0
+                ? ` · ${workspace.agentHost?.protectedOperations} protected operation`
+                : ""}
             </dd>
           </div>
           <div>
@@ -1036,6 +1062,14 @@ export function McpDialog({
           Clients should connect to the MCP endpoint over HTTP. Credentials and
           provider secrets remain outside the planning workspace.
         </p>
+        {workspace.agentHost?.draining && (
+          <p>
+            Drain has stopped new pickup. Existing turns continue to their next
+            provider boundary; queued messages and resumable sessions stay
+            durable. Stop is safe only when active work and protected operations
+            both reach zero.
+          </p>
+        )}
         {copied && <p className="success">{copied} copied.</p>}
       </section>
     </div>

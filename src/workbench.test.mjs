@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import {
   nowBoard,
   taskTree,
@@ -324,7 +325,8 @@ test("Now keeps task navigation on rows and session attachment on explicit acces
     nowElement = element(),
     data = fixture();
   let workbench,
-    fetches = 0;
+    fetches = 0,
+    activitySnapshot;
   data.tasks.push({
     id: "external",
     title: "External task",
@@ -399,6 +401,9 @@ test("Now keeps task navigation on rows and session attachment on explicit acces
       trackName: (id) => id,
       refresh() {},
       setCount() {},
+      nowChanged(snapshot) {
+        activitySnapshot = snapshot;
+      },
     });
     const workspace = await fetch().then((response) => response.json());
     fetches = 0;
@@ -413,16 +418,13 @@ test("Now keeps task navigation on rows and session attachment on explicit acces
     );
     assert.match(
       html,
-      /<article class="hub-work-row hub-session-row" data-task="ready"/,
+      /<article class="hub-work-row hub-session-row" data-workbench-task="ready"/,
     );
     assert.doesNotMatch(
       html,
       /<article class="hub-work-row hub-session-row" data-open-run=/,
     );
-    assert.match(
-      html,
-      /<button class="hub-task-name" data-task="ready">ready<\/button>/,
-    );
+    assert.match(html, /<strong class="hub-task-name">ready<\/strong>/);
     assert.equal(
       html.match(/data-open-run="run-ready"/g)?.length,
       1,
@@ -434,7 +436,7 @@ test("Now keeps task navigation on rows and session attachment on explicit acces
     );
     assert.match(
       html,
-      /<article class="hub-work-row" data-workbench-task="external" data-task="external"/,
+      /<article class="hub-work-row" data-workbench-task="external">/,
     );
     assert.equal(
       html.match(/data-reported-task="external"/g)?.length,
@@ -449,23 +451,37 @@ test("Now keeps task navigation on rows and session attachment on explicit acces
       html,
       /class="hub-session-open" data-session-control data-open-run="run-unlinked" aria-label="Open active session: Unlinked session"/,
     );
-    assert.match(
+    assert.doesNotMatch(
       html,
-      /class="hub-session-open" data-session-control data-open-run="run-done" aria-label="Open completed session: done"/,
+      /run-done|Recently completed|hub-completed-sessions/,
+    );
+    assert.deepEqual(
+      activitySnapshot,
+      {
+        runs: [workspace.runs[0], workspace.runs[1]],
+        landings: [],
+      },
+      "The Now timeline only receives active work; completed markers live in Review.",
     );
     const readyRow = html.slice(
       html.indexOf(
-        '<article class="hub-work-row hub-session-row" data-task="ready"',
+        '<article class="hub-work-row hub-session-row" data-workbench-task="ready"',
       ),
       html.indexOf(
         "</article>",
         html.indexOf(
-          '<article class="hub-work-row hub-session-row" data-task="ready"',
+          '<article class="hub-work-row hub-session-row" data-workbench-task="ready"',
         ),
       ),
     );
+    assert.equal(
+      readyRow.match(/data-task="ready"/g)?.length,
+      1,
+      "Only the Details control targets the task in an active managed row.",
+    );
     assert.ok(
-      readyRow.indexOf("Task ↗") < readyRow.indexOf("hub-session-open"),
+      readyRow.indexOf("hub-task-action is-details") <
+        readyRow.indexOf("hub-session-open"),
       "The session control is the rightmost action in an active row.",
     );
     const externalRow = html.slice(
@@ -479,27 +495,21 @@ test("Now keeps task navigation on rows and session attachment on explicit acces
         ),
       ),
     );
+    assert.match(
+      externalRow,
+      /class="hub-task-action is-details" data-task="external" aria-label="View task details for External task" title="View task details for External task"[\s\S]*?class="hub-task-action is-direction" data-edit="external" aria-label="Update direction for External task" title="Update direction for External task"/,
+    );
+    assert.equal(
+      externalRow.match(/data-task="external"/g)?.length,
+      1,
+      "Only the Details control targets the task in an active external row.",
+    );
     assert.ok(
-      externalRow.indexOf("Details ↗") <
+      externalRow.indexOf("hub-task-action is-direction") <
         externalRow.indexOf("hub-session-open"),
-      "The attach control is the rightmost action in a task row.",
+      "The attach control remains the rightmost action in a task row.",
     );
-    const completedRow = html.slice(
-      html.indexOf(
-        '<article class="hub-work-row hub-session-row is-complete" data-task="done"',
-      ),
-      html.indexOf(
-        "</article>",
-        html.indexOf(
-          '<article class="hub-work-row hub-session-row is-complete" data-task="done"',
-        ),
-      ),
-    );
-    assert.ok(
-      completedRow.indexOf("Task ↗") <
-        completedRow.indexOf("hub-session-open"),
-      "The session control is the rightmost action in a completed row.",
-    );
+    assert.doesNotMatch(externalRow, /Details ↗|>Update direction</);
   } finally {
     workbench?.suspend();
     restore("document");
@@ -507,4 +517,38 @@ test("Now keeps task navigation on rows and session attachment on explicit acces
     restore("localStorage");
     restore("window");
   }
+});
+
+test("Review owns nested queues and renders completed work with an accessible green check", () => {
+  const source = fs.readFileSync(
+    new URL("./workbench.mjs", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(
+    source,
+    /const REVIEW_TABS = \[[\s\S]*?Needs review[\s\S]*?Completed[\s\S]*?Conversations/,
+  );
+  assert.match(
+    source,
+    /class="hub-tabs hub-subtabs" role="tablist" aria-label="Review queues"/,
+  );
+  assert.match(
+    source,
+    /reviewTab === "completed"[\s\S]*?taskSummary\(t, \{ completed: true \}\)/,
+  );
+  assert.match(
+    source,
+    /class="hub-work-marker is-complete" aria-label="Completed task">✓<\/div>/,
+  );
+  assert.match(
+    source,
+    /Tasks waiting for a prerequisite or required decision\./,
+  );
+  assert.match(
+    source,
+    /Work and conversations that may need inspection or follow-up\./,
+  );
+  assert.match(source, /selectReviewTab\(next, \{ focus: true \}\)/);
+  assert.doesNotMatch(source, /hub-completed-sessions|Recently completed/);
 });

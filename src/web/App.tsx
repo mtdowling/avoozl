@@ -1,5 +1,7 @@
 import {
   Activity,
+  ArrowLeft,
+  ArrowUpDown,
   BarChart3,
   BookOpen,
   Bot,
@@ -13,6 +15,7 @@ import {
   Filter,
   GitBranch,
   GitPullRequest,
+  Glasses,
   Inbox,
   LayoutDashboard,
   ListTodo,
@@ -41,6 +44,7 @@ import {
   useState,
 } from "react";
 import { createEpicProgress } from "../progress.mjs";
+import { queueItemProcessed, queueTriageItems } from "../queue-triage.mjs";
 import { createSingleStrip } from "../strip.mjs";
 import { createWorkbench } from "../workbench.mjs";
 import {
@@ -69,11 +73,22 @@ import type {
   DocumentRecord,
   DriverList,
   DriverOpenResult,
+  GitHubLabelBehavior,
+  GitHubLabelBehaviors,
   OpenHandsAutomationCapabilities,
+  OpenHandsAutomationControlPlane,
+  OpenHandsAutomationCoverage,
+  OpenHandsAutomationCoverageState,
   OpenHandsAutomationSetup,
+  OpenHandsIntakePreflight,
+  OpenHandsIntakePrepareResult,
   PlanSummary,
+  QueueComment,
+  QueueComments,
+  QueueDiffFile,
   QueueItem,
   QueueOverlapCandidate,
+  QueuePullRequestDiff,
   QueueSnapshot,
   Run,
   RunSummary,
@@ -93,6 +108,14 @@ const DocumentEditor = lazy(() =>
 );
 const MarkdownPreview = lazy(() =>
   import("./Editors").then((module) => ({ default: module.MarkdownPreview })),
+);
+const JsonEditor = lazy(() =>
+  import("./Editors").then((module) => ({ default: module.JsonEditor })),
+);
+const MarkdownSourceViewer = lazy(() =>
+  import("./Editors").then((module) => ({
+    default: module.MarkdownSourceViewer,
+  })),
 );
 const MarkdownContent = lazy(() => import("./MarkdownContent"));
 
@@ -116,7 +139,7 @@ const views: Array<{ id: View; label: string; icon: typeof LayoutDashboard }> =
     { id: "epics", label: "Epics", icon: Boxes },
     { id: "graph", label: "Graph", icon: Network },
     { id: "documents", label: "Plans", icon: FileText },
-    { id: "reports", label: "Saved", icon: BarChart3 },
+    { id: "reports", label: "Saved", icon: Glasses },
     { id: "insights", label: "Insights", icon: BarChart3 },
   ];
 
@@ -137,6 +160,8 @@ const pageDescriptions: Partial<Record<View, string>> = {
 
 const NEW_TASK_PROMPT =
   "Help me define one concrete new task. Ask focused questions about the outcome, scope, and acceptance criteria. Do not invent extra work or nitpick. Once we agree, record the request for review.";
+const NEW_PLAN_PROMPT =
+  "Draft a new plan for this project. Start by clarifying the desired outcome, scope, constraints, and acceptance criteria. Then create a coherent Markdown design with concrete proposed task blocks. Do not approve or dispatch the plan.";
 const NEW_PLAN_TEMPLATE = `# Untitled plan
 
 ## Outcome
@@ -383,6 +408,15 @@ function Empty({
       <Icon size={26} />
       <h3>{title}</h3>
       <p>{children}</p>
+    </div>
+  );
+}
+
+function InfoCallout({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="info-callout" role="note">
+      <CircleDot size={16} aria-hidden="true" />
+      <div>{children}</div>
     </div>
   );
 }
@@ -1112,29 +1146,6 @@ function TaskFacets({
             },
           ]}
         />
-        <section className="history-facet">
-          <label className="facet-option">
-            <input
-              type="checkbox"
-              checked={filters.historical}
-              onChange={(event) =>
-                setFilters((current) => ({
-                  ...current,
-                  historical: event.target.checked,
-                }))
-              }
-            />
-            <span>Include archived and historical</span>
-            <small>
-              {
-                state.tasks.filter(
-                  (task) =>
-                    task.archivedAt || task.tags?.includes("historical"),
-                ).length
-              }
-            </small>
-          </label>
-        </section>
       </div>
       <p className="facet-result-count">{count} matching tasks</p>
     </aside>
@@ -1145,6 +1156,13 @@ function filteredTasks(state: State, filters: TaskFilters) {
   const complete = new Set(
     state.statuses.filter((item) => item.complete).map((item) => item.id),
   );
+  const archivedStatuses = new Set(
+    state.statuses.filter((item) => item.archived).map((item) => item.id),
+  );
+  const includeHistorical =
+    filters.historical ||
+    filters.statuses.includes("recorded") ||
+    filters.statuses.some((status) => archivedStatuses.has(status));
   return state.tasks.filter((task) => {
     const text =
       `${task.id} ${task.title} ${task.summary || ""} ${(task.tags || []).join(" ")}`.toLowerCase();
@@ -1160,7 +1178,14 @@ function filteredTasks(state: State, filters: TaskFilters) {
       !filters.scopes.includes(task.scope || "runtime")
     )
       return false;
-    if (filters.statuses.length && !filters.statuses.includes(task.status))
+    if (
+      filters.statuses.length &&
+      !filters.statuses.includes(task.status) &&
+      !(
+        task.archivedAt &&
+        filters.statuses.some((status) => archivedStatuses.has(status))
+      )
+    )
       return false;
     if (filters.epics.length && !filters.epics.includes(task.epic || ""))
       return false;
@@ -1177,7 +1202,7 @@ function filteredTasks(state: State, filters: TaskFilters) {
     )
       return false;
     if (
-      !filters.historical &&
+      !includeHistorical &&
       (task.archivedAt || task.tags?.includes("historical"))
     )
       return false;
@@ -1466,11 +1491,17 @@ function markdownPages(text: string, maxLines = 350) {
   }));
 }
 
-function DocumentMarkdown({ text }: { text: string }) {
+function DocumentMarkdown({
+  text,
+  headingIds,
+}: {
+  text: string;
+  headingIds?: string[];
+}) {
   return (
     <article className="markdown-preview prose">
       <Suspense fallback={<p className="muted">Rendering Markdown…</p>}>
-        <MarkdownContent text={text} anchored />
+        <MarkdownContent text={text} anchored headingIds={headingIds} />
       </Suspense>
     </article>
   );
@@ -1501,6 +1532,7 @@ function DocumentDetail({
   const [page, setPage] = useState(0);
   const [message, setMessage] = useState("");
   const [savingClass, setSavingClass] = useState(false);
+  const readingRef = useRef<HTMLDivElement>(null);
   const [classification, setClassification] = useState({
     status: "",
     progressPercent: "",
@@ -1566,9 +1598,19 @@ function DocumentDetail({
     );
     setPage(Math.max(0, nextPage));
     requestAnimationFrame(() =>
-      requestAnimationFrame(() =>
-        document.getElementById(item.id)?.scrollIntoView({ block: "start" }),
-      ),
+      requestAnimationFrame(() => {
+        const reader = readingRef.current;
+        const heading = [
+          ...(readingRef.current?.querySelectorAll("[id]") || []),
+        ].find((candidate) => candidate.id === item.id);
+        if (!reader || !heading) return;
+        const top =
+          heading.getBoundingClientRect().top -
+          reader.getBoundingClientRect().top +
+          reader.scrollTop -
+          12;
+        reader.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+      }),
     );
   }
   return (
@@ -1653,7 +1695,7 @@ function DocumentDetail({
           </Suspense>
         ) : (
           <div className="document-page rich-document-page">
-            <div className="document-reading">
+            <div className="document-reading" ref={readingRef}>
               <section className="plan-summary-card">
                 <div>
                   <span
@@ -1790,6 +1832,13 @@ function DocumentDetail({
               )}
               <DocumentMarkdown
                 text={pages[page]?.text || remote.data.text || ""}
+                headingIds={headings
+                  .filter(
+                    (heading) =>
+                      heading.line >= (pages[page]?.start || 0) &&
+                      heading.line < (pages[page]?.end ?? Number.MAX_VALUE),
+                  )
+                  .map((heading) => heading.id)}
               />
               {!![
                 ...(remote.data.backlinks || []),
@@ -2369,26 +2418,8 @@ function RecentNow({
         : undefined;
       if (task) openTaskRef.current(task);
     };
-    const openTaskInsteadOfSession = (event: MouseEvent) => {
-      const target = event.target as Element;
-      const row = target.closest<HTMLElement>("[data-workbench-task]");
-      if (!row || target.closest("[data-session-control]")) return;
-      const task = stateRef.current.tasks.find(
-        (item) => item.id === row.dataset.workbenchTask,
-      );
-      if (!task) return;
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      openTaskRef.current(task);
-    };
-    nowRoot.current.addEventListener("click", openTaskInsteadOfSession, true);
     nowRoot.current.addEventListener("click", click);
     return () => {
-      nowRoot.current?.removeEventListener(
-        "click",
-        openTaskInsteadOfSession,
-        true,
-      );
       nowRoot.current?.removeEventListener("click", click);
       workbench.current?.suspend();
       strip.current?.suspend();
@@ -2479,6 +2510,12 @@ function EpicProgress({
   const controlsRoot = useRef<HTMLDivElement>(null);
   const controller = useRef<EpicController | null>(null);
   const zoom = useRef(100);
+  const [labelWidth, setLabelWidth] = useStoredSize(
+    "avoozl-epic-label-width",
+    220,
+    150,
+    480,
+  );
   const matchingIds = useMemo(
     () => new Set(matchingTasks.map((task) => task.id)),
     [matchingTasks],
@@ -2498,11 +2535,16 @@ function EpicProgress({
         zoom.current = next;
       },
     });
+    controller.current.setLabelWidth(labelWidth);
     return () => {
       controller.current?.suspend();
       controller.current = null;
     };
   }, [state.tasks]);
+
+  useEffect(() => {
+    controller.current?.setLabelWidth(labelWidth);
+  }, [labelWidth]);
 
   useEffect(() => {
     controller.current?.render({
@@ -2523,7 +2565,22 @@ function EpicProgress({
         </div>
         <div className="epic-heading-controls" ref={controlsRoot} />
       </header>
-      <div className="legacy-visualization epic-view" ref={root} />
+      <div
+        className="epic-progress-shell"
+        style={
+          { "--epic-label-width": `${labelWidth}px` } as React.CSSProperties
+        }
+      >
+        <div className="legacy-visualization epic-view" ref={root} />
+        <ResizeHandle
+          value={labelWidth}
+          setValue={setLabelWidth}
+          min={150}
+          max={480}
+          label="Resize Epic label column"
+          className="epic-label-resize-handle"
+        />
+      </div>
     </section>
   );
 }
@@ -3012,6 +3069,48 @@ function reportFilters(value: SavedSearch["filters"]): TaskFilters {
   };
 }
 
+function savedFilterSummary(
+  state: State,
+  value: SavedSearch["filters"],
+): Array<{ label: string; value: string }> {
+  const named = (
+    ids: string[] | undefined,
+    options: Array<{ id: string; label?: string; title?: string }>,
+  ) =>
+    (ids || [])
+      .map((id) => {
+        const option = options.find((candidate) => candidate.id === id);
+        return option?.label || option?.title || id;
+      })
+      .join(", ");
+  return [
+    value.query ? { label: "Query", value: value.query } : null,
+    value.scopes?.length
+      ? { label: "Scope", value: value.scopes.join(", ") }
+      : null,
+    value.work?.length ? { label: "Work", value: value.work.join(", ") } : null,
+    value.statuses?.length
+      ? {
+          label: "Status",
+          value: named(value.statuses, state.statuses),
+        }
+      : null,
+    value.epics?.length
+      ? { label: "Epic", value: named(value.epics, state.epics) }
+      : null,
+    value.tracks?.length
+      ? { label: "Track", value: named(value.tracks, state.tracks) }
+      : null,
+    value.tags?.length ? { label: "Tags", value: value.tags.join(", ") } : null,
+    value.activity?.length
+      ? { label: "Activity", value: value.activity.join(", ") }
+      : null,
+    value.historical
+      ? { label: "History", value: "Archived and historical included" }
+      : null,
+  ].filter((item): item is { label: string; value: string } => item !== null);
+}
+
 function Reports({
   state,
   filters,
@@ -3098,6 +3197,7 @@ function Reports({
       <div className="report-grid">
         {reports.map((report) => {
           const matching = filteredTasks(state, reportFilters(report.filters));
+          const filterSummary = savedFilterSummary(state, report.filters);
           const counts = state.statuses
             .map((status) => ({
               status,
@@ -3121,6 +3221,24 @@ function Reports({
                     {status.label} {count}
                   </span>
                 ))}
+              </div>
+              <div
+                className="report-filter-summary"
+                aria-label={`${report.title} filters`}
+              >
+                {filterSummary.length ? (
+                  filterSummary.map((filter) => (
+                    <span key={filter.label}>
+                      <strong>{filter.label}</strong>
+                      <span>{filter.value}</span>
+                    </span>
+                  ))
+                ) : (
+                  <span>
+                    <strong>Filters</strong>
+                    <span>All tasks</span>
+                  </span>
+                )}
               </div>
               <div className="report-preview">
                 {matching.slice(0, 5).map((task) => (
@@ -3150,7 +3268,7 @@ function Reports({
         })}
       </div>
       {!reports.length && (
-        <Empty icon={BarChart3} title="No saved searches">
+        <Empty icon={Glasses} title="No saved searches">
           Set task filters in Now, Tree, Epics, or Graph, then save them here.
         </Empty>
       )}
@@ -3164,6 +3282,315 @@ function queueKindLabel(kind: QueueItem["kind"]) {
     : kind === "issue"
       ? "Issue"
       : "Avoozl task";
+}
+
+function queueKindClass(item: QueueItem) {
+  if (item.kind !== "pull-request") return `queue-kind kind-${item.kind}`;
+  const state = (item.state || "open").toLowerCase();
+  return `queue-kind kind-pull-request ${
+    state.includes("merged")
+      ? "is-merged"
+      : state.includes("closed")
+        ? "is-closed"
+        : "is-open"
+  }`;
+}
+
+function queueItemState(item: QueueItem) {
+  return item.kind === "task"
+    ? item.task?.status || item.state || "unknown"
+    : item.normalizedState || "unclassified";
+}
+
+function queueCommentLocation(comment: QueueComment) {
+  if (!comment.path) return "";
+  const start = comment.startLine,
+    end = comment.line ?? comment.originalLine,
+    original = comment.line == null && comment.originalLine != null,
+    lines =
+      start && end && start !== end
+        ? `lines ${start}–${end}`
+        : end
+          ? `${original ? "original line" : "line"} ${end}`
+          : start
+            ? `line ${start}`
+            : "";
+  return [
+    comment.path,
+    lines,
+    (comment.side || comment.startSide)?.toLowerCase(),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+function queuePatchLineClass(line: string) {
+  if (line.startsWith("@@")) return "is-hunk";
+  if (line.startsWith("+") && !line.startsWith("+++")) return "is-added";
+  if (line.startsWith("-") && !line.startsWith("---")) return "is-removed";
+  return "is-context";
+}
+
+function QueueDiffFileView({
+  file,
+  index,
+}: {
+  file: QueueDiffFile;
+  index: number;
+}) {
+  const fileId = `queue-diff-file-${index}`;
+  return (
+    <article className="queue-diff-file" id={fileId}>
+      <header>
+        <div>
+          <FileCode2 size={14} />
+          <strong>{file.filename}</strong>
+          {file.previousFilename && file.previousFilename !== file.filename && (
+            <small>from {file.previousFilename}</small>
+          )}
+        </div>
+        <span className={`queue-diff-status is-${file.status}`}>
+          {file.status}
+        </span>
+        <span className="queue-diff-totals">
+          <b>+{file.additions}</b>
+          <i>−{file.deletions}</i>
+        </span>
+        {file.blobUrl && (
+          <a href={file.blobUrl} target="_blank" rel="noreferrer">
+            View file <ExternalLink size={11} />
+          </a>
+        )}
+      </header>
+      {file.patch ? (
+        <pre className="queue-patch" aria-label={`Diff for ${file.filename}`}>
+          {file.patch.split("\n").map((line, lineIndex) => (
+            <code
+              className={queuePatchLineClass(line)}
+              key={`${lineIndex}:${line}`}
+            >
+              <span>{lineIndex + 1}</span>
+              {line || " "}
+            </code>
+          ))}
+        </pre>
+      ) : (
+        <p className="queue-diff-fallback">
+          {file.patchTruncated
+            ? "This patch exceeds Avoozl’s safe display bound."
+            : file.patchUnavailable
+              ? "GitHub did not provide a text patch. This may be a binary file or a change too large for the API."
+              : "No textual changes were returned."}{" "}
+          {file.blobUrl && (
+            <a href={file.blobUrl} target="_blank" rel="noreferrer">
+              View it on GitHub.
+            </a>
+          )}
+        </p>
+      )}
+      {file.patchTruncated && file.patch && (
+        <p className="queue-diff-fallback">
+          Patch display stopped at the safe per-file limit.{" "}
+          {file.blobUrl && (
+            <a href={file.blobUrl} target="_blank" rel="noreferrer">
+              Continue on GitHub.
+            </a>
+          )}
+        </p>
+      )}
+    </article>
+  );
+}
+
+function QueuePullRequestDiffView({ item }: { item: QueueItem }) {
+  const diff = useRemote<QueuePullRequestDiff>(
+    () => command<QueuePullRequestDiff>("queue.diff", { itemId: item.id }),
+    [item.id],
+  );
+  return (
+    <section className="queue-diff" aria-labelledby="queue-diff-title">
+      <header>
+        <div>
+          <h3 id="queue-diff-title">Files changed</h3>
+          <p>
+            Read-only patches loaded from GitHub with bounded file and text
+            limits.
+          </p>
+        </div>
+        {diff.data && (
+          <span>
+            {diff.data.counts.files}{" "}
+            {diff.data.counts.files === 1 ? "file" : "files"} ·{" "}
+            <b>+{diff.data.counts.additions}</b> ·{" "}
+            <i>−{diff.data.counts.deletions}</i>
+          </span>
+        )}
+      </header>
+      {diff.loading && !diff.data ? (
+        <p className="queue-diff-state">Loading changed files…</p>
+      ) : diff.error ? (
+        <p className="queue-diff-state is-error">
+          Diff unavailable: {diff.error.message}
+        </p>
+      ) : !diff.data?.files.length ? (
+        <p className="queue-diff-state">No changed files were returned.</p>
+      ) : (
+        <>
+          <nav className="queue-diff-files" aria-label="Changed files">
+            {diff.data.files.map((file, index) => (
+              <button
+                key={`${file.sha || file.filename}:${index}`}
+                type="button"
+                onClick={() =>
+                  document
+                    .getElementById(`queue-diff-file-${index}`)
+                    ?.scrollIntoView({ behavior: "smooth", block: "start" })
+                }
+              >
+                <span>{file.filename}</span>
+                <small>
+                  +{file.additions} −{file.deletions}
+                </small>
+              </button>
+            ))}
+          </nav>
+          {diff.data.truncated && (
+            <p className="queue-diff-warning">
+              Avoozl stopped loading or rendering this diff at its safe display
+              limit.{" "}
+              {item.url && (
+                <a href={`${item.url}/files`} target="_blank" rel="noreferrer">
+                  View the complete diff on GitHub.
+                </a>
+              )}
+            </p>
+          )}
+          <div className="queue-diff-list">
+            {diff.data.files.map((file, index) => (
+              <QueueDiffFileView
+                file={file}
+                index={index}
+                key={`${file.sha || file.filename}:${index}`}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+function QueueCommentsThread({ item }: { item: QueueItem }) {
+  const thread = useRemote<QueueComments | QueueComment[]>(
+      () =>
+        command<QueueComments | QueueComment[]>("queue.comments", {
+          itemId: item.id,
+        }),
+      [item.id],
+    ),
+    data = thread.data,
+    comments = Array.isArray(data) ? data : data?.comments || [],
+    available = Array.isArray(data) ? true : data?.available !== false;
+  return (
+    <section className="queue-comments" aria-labelledby="queue-comments-title">
+      <header>
+        <div>
+          <h3 id="queue-comments-title">Comments</h3>
+          <p>
+            Discussion synchronized from GitHub. Review comments retain their
+            file and line context.
+          </p>
+        </div>
+        {!thread.loading && (
+          <span>
+            {Array.isArray(data) ? comments.length : (data?.counts?.total ?? 0)}
+          </span>
+        )}
+      </header>
+      {thread.loading && !thread.data ? (
+        <p className="queue-comments-status">Loading comments…</p>
+      ) : thread.error ? (
+        <p className="queue-comments-status is-error">
+          Comments unavailable: {thread.error.message}
+        </p>
+      ) : !available ? (
+        <p className="queue-comments-status">
+          {Array.isArray(data) ? "Comments unavailable." : data?.reason}
+        </p>
+      ) : !comments.length ? (
+        <p className="queue-comments-status">No comments yet.</p>
+      ) : (
+        <div className="queue-comment-list">
+          {comments.map((comment) => {
+            const location = queueCommentLocation(comment),
+              timestamp = comment.createdAt
+                ? new Date(comment.createdAt)
+                : null,
+              author = comment.author || "Unknown author",
+              authorUrl =
+                comment.authorUrl ||
+                (comment.author &&
+                /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/.test(comment.author)
+                  ? `https://github.com/${comment.author}`
+                  : null);
+            return (
+              <article
+                key={comment.id}
+                className={
+                  comment.replyToId
+                    ? "queue-comment queue-comment-reply"
+                    : "queue-comment"
+                }
+              >
+                <header>
+                  <div>
+                    {authorUrl ? (
+                      <a href={authorUrl} target="_blank" rel="noreferrer">
+                        {author}
+                      </a>
+                    ) : (
+                      <strong>{author}</strong>
+                    )}
+                    {comment.createdAt && (
+                      <time dateTime={comment.createdAt}>
+                        {!timestamp || Number.isNaN(timestamp.getTime())
+                          ? comment.createdAt
+                          : timestamp.toLocaleString()}
+                      </time>
+                    )}
+                  </div>
+                  {comment.url && (
+                    <a
+                      className="queue-comment-link"
+                      href={comment.url}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Open comment
+                      <ExternalLink size={11} />
+                    </a>
+                  )}
+                </header>
+                {location && (
+                  <p className="queue-comment-location">
+                    <FileCode2 size={12} />
+                    {location}
+                  </p>
+                )}
+                <div className="queue-comment-body prose">
+                  <Suspense
+                    fallback={<p className="muted">Rendering Markdown…</p>}
+                  >
+                    <MarkdownContent text={comment.body} />
+                  </Suspense>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
 }
 
 function QueueView({
@@ -3187,6 +3614,9 @@ function QueueView({
   revision: number;
   launchPending?: boolean;
 }) {
+  const [queueTab, setQueueTab] = useState<"triage" | "github" | "all">(
+    "triage",
+  );
   const [assignment, setAssignment] = useState<
     "available" | "all" | "unassigned" | "assigned"
   >("available");
@@ -3194,15 +3624,22 @@ function QueueView({
   const [repository, setRepository] = useState("all");
   const [projectId, setProjectId] = useState("all");
   const [status, setStatus] = useState("all");
+  const [showProcessed, setShowProcessed] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [sort, setSort] = useState<{
+    key: "work" | "repository" | "project" | "assignees" | "updated";
+    direction: "ascending" | "descending";
+  }>({ key: "updated", direction: "descending" });
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
   const queue = useRemote(
     () =>
       command<QueueSnapshot>("queue.items", {
         showAssigned: assignment !== "available",
+        showProcessed,
       }),
-    [assignment],
+    [assignment, showProcessed],
   );
   const repositoryRecords = queue.data?.repositories?.length
     ? queue.data.repositories
@@ -3242,7 +3679,7 @@ function QueueView({
   const statuses = [
     ...new Set(
       (queue.data?.items || [])
-        .map((item) => item.state || item.task?.status)
+        .map(queueItemState)
         .filter((value): value is string => Boolean(value)),
     ),
   ].sort();
@@ -3252,27 +3689,95 @@ function QueueView({
     item.projectId ||
     (item.repository ? repositoryProjects.get(item.repository) : "") ||
     "";
-  const items = (queue.data?.items || []).filter(
+  const queueItems = queue.data?.items || [];
+  const tabItems =
+    queueTab === "triage"
+      ? queueTriageItems(queueItems)
+      : queueTab === "github"
+        ? queueItems.filter((item) => item.kind !== "task")
+        : queueItems;
+  const items = tabItems.filter(
     (item) =>
       (kind === "all" || item.kind === kind) &&
       (repository === "all" || item.repository === repository) &&
       (projectId === "all" || itemProjectId(item) === projectId) &&
-      (status === "all" ||
-        (item.state || item.task?.status || "unknown") === status) &&
+      (status === "all" || queueItemState(item) === status) &&
       (assignment === "available" ||
         assignment === "all" ||
         (assignment === "assigned" ? isAssigned(item) : !isAssigned(item))),
   );
-  const selected = items.find((item) => item.id === selectedId) || items[0];
+  const collator = new Intl.Collator(undefined, {
+    numeric: true,
+    sensitivity: "base",
+  });
+  const sortValue = (
+    item: QueueItem,
+    key: typeof sort.key,
+  ): string | number => {
+    if (key === "work") return item.title || item.summary || item.id;
+    if (key === "repository")
+      return `${item.repository || ""}\0${item.number ?? ""}`;
+    if (key === "project")
+      return projectNames.get(itemProjectId(item)) || itemProjectId(item);
+    if (key === "assignees") return item.assignees?.join(", ") || "Unassigned";
+    const updated = item.updatedAt ? Date.parse(item.updatedAt) : 0;
+    return Number.isNaN(updated) ? 0 : updated;
+  };
+  const sortedItems = [...items].sort((left, right) => {
+    const leftValue = sortValue(left, sort.key);
+    const rightValue = sortValue(right, sort.key);
+    const compared =
+      typeof leftValue === "number" && typeof rightValue === "number"
+        ? leftValue - rightValue
+        : collator.compare(String(leftValue), String(rightValue));
+    const directed = sort.direction === "ascending" ? compared : -compared;
+    return directed || collator.compare(left.id, right.id);
+  });
+  const selected = selectedId
+      ? items.find((item) => item.id === selectedId) || null
+      : null,
+    pageSize = 25,
+    totalPages = Math.max(1, Math.ceil(items.length / pageSize)),
+    visiblePage = Math.min(page, totalPages),
+    pageItems = sortedItems.slice(
+      (visiblePage - 1) * pageSize,
+      visiblePage * pageSize,
+    ),
+    triageGitHubItems = sortedItems.filter((item) => item.kind !== "task"),
+    triageApprovalItems = sortedItems.filter(
+      (item) => item.kind === "task" && item.attention === "approval",
+    );
 
   useEffect(() => {
     if (status !== "all" && !statuses.includes(status)) setStatus("all");
   }, [status, statuses.join("\0")]);
 
   useEffect(() => {
-    if (!items.some((item) => item.id === selectedId))
-      setSelectedId(items[0]?.id || null);
+    if (queueTab === "triage" && queue.data && !queue.data.available)
+      setQueueTab("all");
+  }, [queue.data?.available, queueTab]);
+
+  useEffect(() => {
+    if (selectedId && !items.some((item) => item.id === selectedId))
+      setSelectedId(null);
   }, [items, selectedId]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [
+    assignment,
+    kind,
+    projectId,
+    queueTab,
+    repository,
+    showProcessed,
+    sort,
+    status,
+  ]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   async function sync() {
     setBusy("sync");
@@ -3303,6 +3808,29 @@ function QueueView({
       await queue.reload();
       refreshWorkspace();
       if (task?.id) openTask(task);
+    } catch (reason) {
+      setMessage((reason as Error).message);
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function claimIssue(item: QueueItem) {
+    const key = `claim:${item.id}`;
+    setBusy(key);
+    setMessage("");
+    try {
+      const result = await command<{
+        task: Task;
+        claim: { login: string };
+        existing: boolean;
+      }>("queue.claim", { itemId: item.id });
+      setMessage(
+        `${result.existing ? "Kept" : "Claimed"} ${item.repository}#${item.number} for ${result.claim.login}. The issue is assigned and the Avoozl task is routed, but work is not authorized or started.`,
+      );
+      await queue.reload();
+      refreshWorkspace();
+      openTask(result.task);
     } catch (reason) {
       setMessage((reason as Error).message);
     } finally {
@@ -3345,6 +3873,78 @@ function QueueView({
     }
   }
 
+  function changeSort(key: typeof sort.key) {
+    setSort((current) => ({
+      key,
+      direction:
+        current.key === key && current.direction === "ascending"
+          ? "descending"
+          : "ascending",
+    }));
+  }
+
+  function sortHeader(key: typeof sort.key, label: string) {
+    const active = sort.key === key;
+    return (
+      <span role="columnheader" aria-sort={active ? sort.direction : "none"}>
+        <button
+          type="button"
+          className={active ? "queue-sort active" : "queue-sort"}
+          onClick={() => changeSort(key)}
+          aria-label={`Sort by ${label}${active ? `, currently ${sort.direction}` : ""}`}
+        >
+          {label}
+          {active ? (
+            <ChevronDown
+              size={11}
+              className={sort.direction}
+              aria-hidden="true"
+            />
+          ) : (
+            <ArrowUpDown size={11} aria-hidden="true" />
+          )}
+        </button>
+      </span>
+    );
+  }
+
+  function triageRow(item: QueueItem) {
+    const updated = item.updatedAt ? new Date(item.updatedAt) : null;
+    return (
+      <button
+        type="button"
+        className="queue-triage-row"
+        key={item.id}
+        onClick={() => setSelectedId(item.id)}
+      >
+        <span className={queueKindClass(item)}>
+          {item.kind === "pull-request" ? (
+            <GitPullRequest size={13} />
+          ) : item.kind === "issue" ? (
+            <CircleDot size={13} />
+          ) : (
+            <ListTodo size={13} />
+          )}
+          {queueKindLabel(item.kind)}
+        </span>
+        {queueItemProcessed(item) && (
+          <span className="queue-processed">Processed</span>
+        )}
+        <strong>{item.title}</strong>
+        <small>
+          {item.repository
+            ? `${item.repository}${item.number ? ` #${item.number}` : ""}`
+            : item.taskId || item.id}
+          {" · "}
+          {queueItemState(item)}
+          {updated && !Number.isNaN(updated.getTime())
+            ? ` · ${updated.toLocaleDateString()}`
+            : ""}
+        </small>
+      </button>
+    );
+  }
+
   if (queue.loading && !queue.data)
     return (
       <section className="screen queue-screen">
@@ -3363,10 +3963,21 @@ function QueueView({
     <section className="screen queue-screen">
       <header className="screen-heading queue-heading">
         <div>
+          {selected && (
+            <button
+              type="button"
+              className="queue-back"
+              onClick={() => setSelectedId(null)}
+            >
+              <ArrowLeft size={13} />
+              Back to Queue
+            </button>
+          )}
           <h1>Queue</h1>
           <p>
-            Review work before you claim it, automate it, or turn it into an
-            Avoozl task.
+            {selected
+              ? `Viewing ${queueKindLabel(selected.kind).toLowerCase()} details.`
+              : "Review work before you claim it, automate it, or turn it into an Avoozl task."}
           </p>
         </div>
         <button
@@ -3375,7 +3986,7 @@ function QueueView({
           onClick={() => void sync()}
         >
           <RefreshCw className={busy === "sync" ? "spin" : ""} size={14} />
-          {busy === "sync" ? "Syncing…" : "Sync now"}
+          {busy === "sync" ? "Syncing…" : "Sync"}
         </button>
       </header>
       {!queue.data?.available && (
@@ -3391,88 +4002,464 @@ function QueueView({
           </button>
         </div>
       )}
-      <div className="queue-filters" aria-label="Queue filters">
-        <label>
-          Type
-          <select
-            value={kind}
-            onChange={(event) => setKind(event.target.value as typeof kind)}
+      {!selected && (
+        <nav className="queue-tabs" role="tablist" aria-label="Queue sections">
+          {queue.data?.available && (
+            <button
+              type="button"
+              role="tab"
+              aria-selected={queueTab === "triage"}
+              onClick={() => setQueueTab("triage")}
+            >
+              Triage
+            </button>
+          )}
+          <button
+            type="button"
+            role="tab"
+            aria-selected={queueTab === "github"}
+            onClick={() => setQueueTab("github")}
           >
-            <option value="all">All work</option>
-            <option value="issue">Issues</option>
-            <option value="pull-request">Pull requests</option>
-            <option value="task">Avoozl tasks</option>
-          </select>
-        </label>
-        <label>
-          Repository
-          <select
-            value={repository}
-            onChange={(event) => setRepository(event.target.value)}
+            GitHub
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={queueTab === "all"}
+            onClick={() => setQueueTab("all")}
           >
-            <option value="all">All repositories</option>
-            {repositories.map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Execution project
-          <select
-            value={projectId}
-            onChange={(event) => setProjectId(event.target.value)}
-          >
-            <option value="all">All local projects</option>
-            {[...projectNames].map(([id, label]) => (
-              <option key={id} value={id}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Status
-          <select
-            value={status}
-            onChange={(event) => setStatus(event.target.value)}
-          >
-            <option value="all">All statuses</option>
-            {statuses.map((value) => (
-              <option key={value} value={value}>
-                {value}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Assignment
-          <select
-            value={assignment}
-            onChange={(event) =>
-              setAssignment(event.target.value as typeof assignment)
-            }
-          >
-            <option value="available">Available work</option>
-            <option value="all">All assignments</option>
-            <option value="unassigned">Unassigned only</option>
-            <option value="assigned">Assigned only</option>
-          </select>
-        </label>
-        <span>
-          {items.length} {items.length === 1 ? "item" : "items"}
-          {queue.data?.lastSync
-            ? ` · synced ${new Date(queue.data.lastSync).toLocaleString()}`
-            : ""}
-        </span>
-      </div>
+            All
+          </button>
+        </nav>
+      )}
+      {!selected && (
+        <div className="queue-filters" aria-label="Queue filters">
+          <label>
+            Type
+            <select
+              value={kind}
+              onChange={(event) => setKind(event.target.value as typeof kind)}
+            >
+              <option value="all">All work</option>
+              <option value="issue">Issues</option>
+              <option value="pull-request">Pull requests</option>
+              <option value="task">Avoozl tasks</option>
+            </select>
+          </label>
+          <label>
+            Repository
+            <select
+              value={repository}
+              onChange={(event) => setRepository(event.target.value)}
+            >
+              <option value="all">All repositories</option>
+              {repositories.map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Execution project
+            <select
+              value={projectId}
+              onChange={(event) => setProjectId(event.target.value)}
+            >
+              <option value="all">All local projects</option>
+              {[...projectNames].map(([id, label]) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Status
+            <select
+              value={status}
+              onChange={(event) => setStatus(event.target.value)}
+            >
+              <option value="all">All statuses</option>
+              {statuses.map((value) => (
+                <option key={value} value={value}>
+                  {value}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Assignment
+            <select
+              value={assignment}
+              onChange={(event) =>
+                setAssignment(event.target.value as typeof assignment)
+              }
+            >
+              <option value="available">Available work</option>
+              <option value="all">All assignments</option>
+              <option value="unassigned">Unassigned only</option>
+              <option value="assigned">Assigned only</option>
+            </select>
+          </label>
+          <label className="queue-checkbox">
+            <span>Show processed</span>
+            <input
+              type="checkbox"
+              checked={showProcessed}
+              onChange={(event) => setShowProcessed(event.target.checked)}
+            />
+          </label>
+          <span>
+            {items.length} {items.length === 1 ? "item" : "items"}
+            {queue.data?.lastSync
+              ? ` · synced ${new Date(queue.data.lastSync).toLocaleString()}`
+              : ""}
+          </span>
+        </div>
+      )}
       {message && (
         <p className="queue-message" role="status">
           {message}
         </p>
       )}
-      {!items.length ? (
+      {selected ? (
+        <article className="queue-detail">
+          <header>
+            <span className={queueKindClass(selected)}>
+              {selected.kind === "pull-request" ? (
+                <GitPullRequest size={15} />
+              ) : selected.kind === "issue" ? (
+                <CircleDot size={15} />
+              ) : (
+                <ListTodo size={15} />
+              )}
+              {queueKindLabel(selected.kind)}
+            </span>
+            <h2>{selected.title}</h2>
+            <p className="queue-origin-links">
+              {selected.repository &&
+              /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(selected.repository) ? (
+                <a
+                  href={`https://github.com/${selected.repository}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {selected.repository}
+                </a>
+              ) : (
+                selected.repository
+              )}
+              {selected.number &&
+                (selected.url ? (
+                  <>
+                    {" "}
+                    <a href={selected.url} target="_blank" rel="noreferrer">
+                      #{selected.number}
+                    </a>
+                  </>
+                ) : (
+                  ` #${selected.number}`
+                ))}
+              {selected.author && (
+                <>
+                  {" "}
+                  · opened by{" "}
+                  <a
+                    href={`https://github.com/${encodeURIComponent(selected.author)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {selected.author}
+                  </a>
+                </>
+              )}
+            </p>
+          </header>
+          {(selected.body || selected.summary) && (
+            <div className="queue-summary prose">
+              <Suspense fallback={<p className="muted">Rendering Markdown…</p>}>
+                <MarkdownContent
+                  text={selected.body || selected.summary || ""}
+                />
+              </Suspense>
+            </div>
+          )}
+          <dl className="queue-metadata">
+            {selected.state && (
+              <div>
+                <dt>GitHub status</dt>
+                <dd>{selected.state}</dd>
+              </div>
+            )}
+            {selected.kind !== "task" && (
+              <div>
+                <dt>Avoozl state</dt>
+                <dd>{queueItemState(selected)}</dd>
+              </div>
+            )}
+            {!!selected.assignees?.length && (
+              <div>
+                <dt>Assigned</dt>
+                <dd>{selected.assignees.join(", ")}</dd>
+              </div>
+            )}
+            {!!selected.labels?.length && (
+              <div>
+                <dt>Labels</dt>
+                <dd>{selected.labels.join(", ")}</dd>
+              </div>
+            )}
+            {selected.headBranch && (
+              <div>
+                <dt>Branch</dt>
+                <dd>
+                  {selected.headBranch}
+                  {selected.baseBranch ? ` → ${selected.baseBranch}` : ""}
+                </dd>
+              </div>
+            )}
+            {selected.updatedAt && (
+              <div>
+                <dt>Updated</dt>
+                <dd>{new Date(selected.updatedAt).toLocaleString()}</dd>
+              </div>
+            )}
+          </dl>
+          {selected.kind === "pull-request" && (
+            <QueuePullRequestDiffView key={selected.id} item={selected} />
+          )}
+          {selected.kind !== "task" && (
+            <QueueCommentsThread key={selected.id} item={selected} />
+          )}
+          {selected.kind !== "task" &&
+            (!!selected.overlapCandidates?.length ||
+              !!selected.associations?.length) && (
+              <section className="queue-overlaps">
+                <header>
+                  <div>
+                    <h3>Possible existing work</h3>
+                    <p>
+                      Ranked suggestions for review. Similar wording or scope
+                      does not prove these are the same work.
+                    </p>
+                  </div>
+                </header>
+                {!!selected.associations?.length && (
+                  <div className="queue-associations">
+                    <h4>Recorded links</h4>
+                    {selected.associations.map((association) => (
+                      <article
+                        key={`${association.targetKind}:${association.targetId}`}
+                      >
+                        <span className="queue-overlap-kind">
+                          {association.targetKind}
+                        </span>
+                        <div>
+                          <strong>{association.title}</strong>
+                          <small>
+                            {association.source === "task-origin"
+                              ? "Task created from this Queue item"
+                              : `Linked ${new Date(association.confirmedAt).toLocaleString()}${association.confirmedBy ? ` by ${association.confirmedBy}` : ""}`}
+                          </small>
+                        </div>
+                        <button
+                          className="button subtle"
+                          onClick={() => openCandidate(association)}
+                        >
+                          Open
+                        </button>
+                      </article>
+                    ))}
+                  </div>
+                )}
+                {!!selected.overlapCandidates?.length && (
+                  <div className="queue-overlap-list">
+                    {selected.overlapCandidates.map((candidate, index) => {
+                      const linked = selected.associations?.some(
+                        (association) =>
+                          association.targetKind === candidate.targetKind &&
+                          association.targetId === candidate.targetId,
+                      );
+                      const key = `link:${selected.id}:${candidate.targetKind}:${candidate.targetId}`;
+                      return (
+                        <article
+                          key={`${candidate.targetKind}:${candidate.targetId}`}
+                        >
+                          <span
+                            className="queue-overlap-rank"
+                            aria-label={`Rank ${index + 1}`}
+                          >
+                            {index + 1}
+                          </span>
+                          <div>
+                            <span className="queue-overlap-kind">
+                              {candidate.targetKind}
+                            </span>
+                            <strong>{candidate.title}</strong>
+                            <small>
+                              {candidate.reasons
+                                .slice(0, 2)
+                                .map((reason) => reason.detail)
+                                .join(" · ") ||
+                                "Potentially related title or scope"}{" "}
+                              · rank score {candidate.score}
+                            </small>
+                          </div>
+                          <div className="queue-overlap-actions">
+                            <button
+                              className="button subtle"
+                              onClick={() => openCandidate(candidate)}
+                            >
+                              Open
+                            </button>
+                            {linked ? (
+                              <span className="queue-link-confirmed">
+                                Linked
+                              </span>
+                            ) : (
+                              <button
+                                className="button"
+                                disabled={Boolean(busy)}
+                                onClick={() =>
+                                  void confirmLink(selected, candidate)
+                                }
+                              >
+                                {busy === key ? "Linking…" : "Link"}
+                              </button>
+                            )}
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+            )}
+          <div className="queue-actions">
+            {selected.kind === "task" && selected.task && (
+              <button
+                className="button"
+                onClick={() => openTask(selected.task!)}
+              >
+                Open task
+              </button>
+            )}
+            {selected.kind !== "task" && (
+              <button
+                className="button primary"
+                disabled={launchPending}
+                onClick={() => openWithAgent(selected, "inspect")}
+              >
+                {launchPending ? "Starting…" : "Open in OpenHands"}
+              </button>
+            )}
+            {selected.kind !== "task" && (
+              <button
+                className="button"
+                disabled={launchPending}
+                onClick={() => openWithAgent(selected, "review")}
+              >
+                Review with agent
+              </button>
+            )}
+            {selected.kind === "issue" && (
+              <button
+                className="button"
+                disabled={Boolean(busy)}
+                onClick={() => void claimIssue(selected)}
+              >
+                {busy === `claim:${selected.id}` ? "Claiming…" : "Claim issue"}
+              </button>
+            )}
+            {selected.kind !== "task" && (
+              <button
+                className="button"
+                disabled={busy === selected.id}
+                onClick={() => void createTask(selected)}
+              >
+                {busy === selected.id ? "Creating…" : "Create Avoozl task"}
+              </button>
+            )}
+            {selected.url && (
+              <a
+                className="button subtle"
+                href={selected.url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                View in repository <ExternalLink size={13} />
+              </a>
+            )}
+          </div>
+          <p className="form-note">
+            OpenHands owns the conversation, repository files, terminal, and
+            browser. Claiming an issue assigns it to the GitHub user behind your
+            configured credential and routes its Avoozl task. Creating or
+            claiming a task does not authorize execution or acquire a machine
+            lease.
+          </p>
+        </article>
+      ) : queueTab === "triage" ? (
+        <section className="queue-triage">
+          <header className="queue-triage-intro">
+            <div>
+              <h2>Needs attention</h2>
+              <p>Recent GitHub work and Avoozl decisions that need a person.</p>
+            </div>
+          </header>
+          <div className="queue-triage-grid">
+            <section className="queue-triage-panel">
+              <header>
+                <div>
+                  <h3>Recent GitHub</h3>
+                  <p>
+                    Quiet repositories automatically look farther back for
+                    useful work.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="button subtle"
+                  onClick={() => setQueueTab("github")}
+                >
+                  See all
+                </button>
+              </header>
+              <div className="queue-triage-list">
+                {triageGitHubItems.length ? (
+                  triageGitHubItems.map(triageRow)
+                ) : (
+                  <p className="queue-triage-empty">
+                    No recent GitHub work matches these filters.
+                  </p>
+                )}
+              </div>
+            </section>
+            <section className="queue-triage-panel">
+              <header>
+                <div>
+                  <h3>Approvals</h3>
+                  <p>
+                    Tasks waiting for review, plan approval, or manual
+                    acceptance.
+                  </p>
+                </div>
+                <span>{triageApprovalItems.length}</span>
+              </header>
+              <div className="queue-triage-list">
+                {triageApprovalItems.length ? (
+                  triageApprovalItems.map(triageRow)
+                ) : (
+                  <p className="queue-triage-empty">
+                    No Avoozl decisions match these filters.
+                  </p>
+                )}
+              </div>
+            </section>
+          </div>
+        </section>
+      ) : !items.length ? (
         <Empty icon={Inbox} title="Nothing is waiting">
           {queue.data?.available
             ? assignment === "available"
@@ -3481,275 +4468,98 @@ function QueueView({
             : "Connect GitHub to add issues and pull requests, or make an Avoozl task ready."}
         </Empty>
       ) : (
-        <SplitScreen
-          storageKey="avoozl-queue-width"
-          className="queue-workbench"
-          sidebar={
-            <aside className="queue-list">
-              {items.map((item) => (
+        <section className="queue-table-shell">
+          <div className="queue-table" role="table" aria-label="Queue items">
+            <div className="queue-table-header" role="row">
+              {sortHeader("work", "Work")}
+              {sortHeader("repository", "Repository")}
+              {sortHeader("project", "Project")}
+              {sortHeader("assignees", "Assignees")}
+              {sortHeader("updated", "Updated")}
+            </div>
+            {pageItems.map((item) => {
+              const updated = item.updatedAt ? new Date(item.updatedAt) : null;
+              return (
                 <button
                   key={item.id}
-                  className={
-                    selected?.id === item.id ? "queue-row active" : "queue-row"
-                  }
+                  type="button"
+                  className="queue-table-row"
+                  role="row"
                   onClick={() => setSelectedId(item.id)}
                 >
-                  <span
-                    className={`queue-kind kind-${item.kind}`}
-                    aria-hidden="true"
-                  >
-                    {item.kind === "pull-request" ? (
-                      <GitPullRequest size={14} />
-                    ) : item.kind === "issue" ? (
-                      <CircleDot size={14} />
-                    ) : (
-                      <ListTodo size={14} />
-                    )}
-                  </span>
-                  <span>
+                  <span className="queue-work-cell" role="cell">
+                    <span className={queueKindClass(item)}>
+                      {item.kind === "pull-request" ? (
+                        <GitPullRequest size={14} />
+                      ) : item.kind === "issue" ? (
+                        <CircleDot size={14} />
+                      ) : (
+                        <ListTodo size={14} />
+                      )}
+                      {queueKindLabel(item.kind)}
+                    </span>
+                    <span className="queue-row-status">
+                      {queueItemState(item)}
+                    </span>
                     <strong>{item.title}</strong>
-                    <small>
-                      {item.repository
-                        ? `${item.repository}${item.number ? `#${item.number}` : ""}`
-                        : item.taskId || item.id}
-                    </small>
+                    {!!item.overlapCandidates?.length && (
+                      <small>
+                        Possible {item.overlapCandidates[0].targetKind}:{" "}
+                        {item.overlapCandidates[0].title}
+                        {item.overlapCandidates.length > 1
+                          ? ` · +${item.overlapCandidates.length - 1} more`
+                          : ""}
+                      </small>
+                    )}
                   </span>
-                  {!!item.overlapCandidates?.length && (
-                    <small className="queue-overlap-count">
-                      Possible {item.overlapCandidates[0].targetKind}:{" "}
-                      {item.overlapCandidates[0].title}
-                      {item.overlapCandidates.length > 1
-                        ? ` · +${item.overlapCandidates.length - 1} more`
-                        : ""}
-                    </small>
-                  )}
-                  {!!item.assignees?.length && (
-                    <small className="queue-assignees">
-                      {item.assignees.join(", ")}
-                    </small>
-                  )}
+                  <span role="cell" data-label="Repository">
+                    {item.repository
+                      ? `${item.repository}${item.number ? ` #${item.number}` : ""}`
+                      : item.taskId || item.id}
+                  </span>
+                  <span role="cell" data-label="Project">
+                    {projectNames.get(itemProjectId(item)) ||
+                      itemProjectId(item) ||
+                      "—"}
+                  </span>
+                  <span role="cell" data-label="Assignees">
+                    {item.assignees?.length
+                      ? item.assignees.join(", ")
+                      : "Unassigned"}
+                  </span>
+                  <span role="cell" data-label="Updated">
+                    {updated && !Number.isNaN(updated.getTime())
+                      ? updated.toLocaleString()
+                      : "—"}
+                  </span>
                 </button>
-              ))}
-            </aside>
-          }
-        >
-          {selected && (
-            <article className="queue-detail">
-              <header>
-                <span className={`queue-kind kind-${selected.kind}`}>
-                  {selected.kind === "pull-request" ? (
-                    <GitPullRequest size={15} />
-                  ) : selected.kind === "issue" ? (
-                    <CircleDot size={15} />
-                  ) : (
-                    <ListTodo size={15} />
-                  )}
-                  {queueKindLabel(selected.kind)}
-                </span>
-                <h2>{selected.title}</h2>
-                <p>
-                  {selected.repository}
-                  {selected.number ? ` #${selected.number}` : ""}
-                  {selected.author ? ` · opened by ${selected.author}` : ""}
-                </p>
-              </header>
-              {selected.summary && (
-                <div className="queue-summary">{selected.summary}</div>
-              )}
-              <dl className="queue-metadata">
-                {selected.state && (
-                  <div>
-                    <dt>Status</dt>
-                    <dd>{selected.state}</dd>
-                  </div>
-                )}
-                {!!selected.assignees?.length && (
-                  <div>
-                    <dt>Assigned</dt>
-                    <dd>{selected.assignees.join(", ")}</dd>
-                  </div>
-                )}
-                {!!selected.labels?.length && (
-                  <div>
-                    <dt>Labels</dt>
-                    <dd>{selected.labels.join(", ")}</dd>
-                  </div>
-                )}
-                {selected.headBranch && (
-                  <div>
-                    <dt>Branch</dt>
-                    <dd>
-                      {selected.headBranch}
-                      {selected.baseBranch ? ` → ${selected.baseBranch}` : ""}
-                    </dd>
-                  </div>
-                )}
-                {selected.updatedAt && (
-                  <div>
-                    <dt>Updated</dt>
-                    <dd>{new Date(selected.updatedAt).toLocaleString()}</dd>
-                  </div>
-                )}
-              </dl>
-              {selected.kind !== "task" &&
-                (!!selected.overlapCandidates?.length ||
-                  !!selected.associations?.length) && (
-                  <section className="queue-overlaps">
-                    <header>
-                      <div>
-                        <h3>Possible existing work</h3>
-                        <p>
-                          Ranked suggestions for review. Similar wording or
-                          scope does not prove these are the same work.
-                        </p>
-                      </div>
-                    </header>
-                    {!!selected.associations?.length && (
-                      <div className="queue-associations">
-                        <h4>Recorded links</h4>
-                        {selected.associations.map((association) => (
-                          <article
-                            key={`${association.targetKind}:${association.targetId}`}
-                          >
-                            <span className="queue-overlap-kind">
-                              {association.targetKind}
-                            </span>
-                            <div>
-                              <strong>{association.title}</strong>
-                              <small>
-                                {association.source === "task-origin"
-                                  ? "Task created from this Queue item"
-                                  : `Linked ${new Date(association.confirmedAt).toLocaleString()}${association.confirmedBy ? ` by ${association.confirmedBy}` : ""}`}
-                              </small>
-                            </div>
-                            <button
-                              className="button subtle"
-                              onClick={() => openCandidate(association)}
-                            >
-                              Open
-                            </button>
-                          </article>
-                        ))}
-                      </div>
-                    )}
-                    {!!selected.overlapCandidates?.length && (
-                      <div className="queue-overlap-list">
-                        {selected.overlapCandidates.map((candidate, index) => {
-                          const linked = selected.associations?.some(
-                            (association) =>
-                              association.targetKind === candidate.targetKind &&
-                              association.targetId === candidate.targetId,
-                          );
-                          const key = `link:${selected.id}:${candidate.targetKind}:${candidate.targetId}`;
-                          return (
-                            <article
-                              key={`${candidate.targetKind}:${candidate.targetId}`}
-                            >
-                              <span
-                                className="queue-overlap-rank"
-                                aria-label={`Rank ${index + 1}`}
-                              >
-                                {index + 1}
-                              </span>
-                              <div>
-                                <span className="queue-overlap-kind">
-                                  {candidate.targetKind}
-                                </span>
-                                <strong>{candidate.title}</strong>
-                                <small>
-                                  {candidate.reasons
-                                    .slice(0, 2)
-                                    .map((reason) => reason.detail)
-                                    .join(" · ") ||
-                                    "Potentially related title or scope"}{" "}
-                                  · rank score {candidate.score}
-                                </small>
-                              </div>
-                              <div className="queue-overlap-actions">
-                                <button
-                                  className="button subtle"
-                                  onClick={() => openCandidate(candidate)}
-                                >
-                                  Open
-                                </button>
-                                {linked ? (
-                                  <span className="queue-link-confirmed">
-                                    Linked
-                                  </span>
-                                ) : (
-                                  <button
-                                    className="button"
-                                    disabled={Boolean(busy)}
-                                    onClick={() =>
-                                      void confirmLink(selected, candidate)
-                                    }
-                                  >
-                                    {busy === key ? "Linking…" : "Link"}
-                                  </button>
-                                )}
-                              </div>
-                            </article>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </section>
-                )}
-              <div className="queue-actions">
-                {selected.kind === "task" && selected.task && (
-                  <button
-                    className="button"
-                    onClick={() => openTask(selected.task!)}
-                  >
-                    Open task
-                  </button>
-                )}
-                {selected.kind !== "task" && (
-                  <button
-                    className="button primary"
-                    disabled={launchPending}
-                    onClick={() => openWithAgent(selected, "inspect")}
-                  >
-                    {launchPending ? "Starting…" : "Open in OpenHands"}
-                  </button>
-                )}
-                {selected.kind !== "task" && (
-                  <button
-                    className="button"
-                    disabled={launchPending}
-                    onClick={() => openWithAgent(selected, "review")}
-                  >
-                    Review with agent
-                  </button>
-                )}
-                {selected.kind !== "task" && (
-                  <button
-                    className="button"
-                    disabled={busy === selected.id}
-                    onClick={() => void createTask(selected)}
-                  >
-                    {busy === selected.id ? "Creating…" : "Create Avoozl task"}
-                  </button>
-                )}
-                {selected.url && (
-                  <a
-                    className="button subtle"
-                    href={selected.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    View in repository <ExternalLink size={13} />
-                  </a>
-                )}
-              </div>
-              <p className="form-note">
-                OpenHands owns the conversation, repository files, terminal, and
-                browser. Creating a task captures this work for review; it does
-                not authorize execution.
-              </p>
-            </article>
-          )}
-        </SplitScreen>
+              );
+            })}
+          </div>
+          <nav className="queue-pagination" aria-label="Queue pages">
+            <button
+              type="button"
+              className="button"
+              disabled={visiblePage <= 1}
+              onClick={() => setPage((current) => Math.max(1, current - 1))}
+            >
+              Previous
+            </button>
+            <span aria-live="polite">
+              Page {visiblePage} of {totalPages}
+            </span>
+            <button
+              type="button"
+              className="button"
+              disabled={visiblePage >= totalPages}
+              onClick={() =>
+                setPage((current) => Math.min(totalPages, current + 1))
+              }
+            >
+              Next
+            </button>
+          </nav>
+        </section>
       )}
     </section>
   );
@@ -3862,8 +4672,170 @@ function ReadOnlyRows({ rows }: { rows: Array<[string, React.ReactNode]> }) {
   );
 }
 
+type ConfigurationDocument = {
+  scope: "global" | "repository";
+  filename: string;
+  exists: boolean;
+  hash: string | null;
+  text: string;
+  restartRequired?: string[];
+};
+
+type LocalIgnoreStatus = {
+  pattern: string;
+  filename: string;
+  configured: boolean;
+  ignored: boolean;
+  safeToWrite?: boolean;
+  unsafeReason?: string | null;
+};
+
+function MachineLocalIgnoreStatus() {
+  const remote = useRemote(
+    () => command<LocalIgnoreStatus>("local.ignore.status"),
+    [],
+  );
+  const [fixing, setFixing] = useState(false);
+  const [message, setMessage] = useState("");
+
+  async function fix() {
+    if (fixing) return;
+    setFixing(true);
+    setMessage("");
+    try {
+      const status = await command<LocalIgnoreStatus>("local.ignore.fix");
+      setMessage(
+        status.ignored
+          ? `Git now ignores ${status.pattern} through ${status.filename}.`
+          : `Git did not accept the ignore rule in ${status.filename}.`,
+      );
+      await remote.reload();
+    } catch (reason) {
+      setMessage(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setFixing(false);
+    }
+  }
+
+  if (remote.loading)
+    return <p className="form-note">Checking machine-local Git safety…</p>;
+  if (remote.error)
+    return (
+      <div className="configuration-warning" role="alert">
+        <strong>Could not check the global Git ignore</strong>
+        <span>{remote.error.message}</span>
+      </div>
+    );
+
+  const status = remote.data;
+  if (!status) return null;
+  return (
+    <>
+      <div
+        className={
+          status.ignored
+            ? "configuration-local-ignore ready"
+            : "configuration-local-ignore warning"
+        }
+        role={status.ignored ? "status" : "alert"}
+      >
+        <div>
+          <strong>
+            {status.ignored
+              ? "Machine-local state is excluded from Git"
+              : "Machine-local state could be committed"}
+          </strong>
+          <span>
+            <code>{status.pattern}</code>{" "}
+            {status.ignored ? "is ignored by" : "is missing from"}{" "}
+            <code>{status.filename}</code>.
+            {!status.ignored && status.unsafeReason
+              ? ` ${status.unsafeReason}`
+              : ""}
+          </span>
+        </div>
+        {!status.ignored && status.safeToWrite !== false && (
+          <button
+            type="button"
+            className="button primary"
+            disabled={fixing}
+            onClick={() => void fix()}
+          >
+            {fixing ? "Fixing…" : "Fix global ignore"}
+          </button>
+        )}
+      </div>
+      {message && (
+        <p className="form-note" role="status">
+          {message}
+        </p>
+      )}
+    </>
+  );
+}
+
+function ConfigurationPolicyCallout() {
+  return (
+    <InfoCallout>
+      Settings edits shared, non-secret choices in the repository{" "}
+      <code>.avoozl/config.json</code>. Commit that file to share policy with
+      collaborators. Provider credentials, GitHub authentication, tokens, and
+      other secrets stay in their owning tools or process environment and are
+      never written there.
+    </InfoCallout>
+  );
+}
+
 function ConfigurationStatus({ workspace }: { workspace: Workspace }) {
   const configuration = workspace.configuration;
+  const [editing, setEditing] = useState<ConfigurationDocument | null>(null);
+  const [draft, setDraft] = useState("");
+  const [busy, setBusy] = useState("");
+  const [message, setMessage] = useState("");
+
+  async function edit(scope: "global" | "repository") {
+    setBusy(scope);
+    setMessage("");
+    try {
+      const document = await command<ConfigurationDocument>(
+        "configuration.get",
+        { scope },
+      );
+      setEditing(document);
+      setDraft(document.text);
+    } catch (reason) {
+      setMessage(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function saveConfiguration() {
+    if (!editing || busy) return;
+    setBusy("save");
+    setMessage("");
+    try {
+      const saved = await command<ConfigurationDocument>(
+        "configuration.update",
+        {
+          scope: editing.scope,
+          text: draft,
+          expectedHash: editing.hash,
+        },
+      );
+      setEditing(null);
+      setMessage(
+        saved.restartRequired?.length
+          ? `Saved ${saved.filename}. Restart Avoozl to apply startup settings.`
+          : `Saved ${saved.filename}.`,
+      );
+    } catch (reason) {
+      setMessage(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setBusy("");
+    }
+  }
+
   if (!configuration)
     return (
       <section className="configuration-status">
@@ -3873,23 +4845,15 @@ function ConfigurationStatus({ workspace }: { workspace: Workspace }) {
           Shared settings may still be managed through its repository{" "}
           <code>.avoozl/config.json</code>.
         </p>
-        <p className="form-note">
-          Settings edits shared, non-secret choices in the repository JSON.
-          Provider credentials, GitHub authentication, and other secrets stay in
-          their owning tools or process environment.
-        </p>
+        <ConfigurationPolicyCallout />
       </section>
     );
 
   const activeSources = configuration.sources.length
-    ? configuration.sources
-        .map((source) =>
-          source.filename
-            ? `${source.label} — ${source.filename}`
-            : source.label,
-        )
-        .join("\n")
-    : "Built-in defaults only";
+    ? configuration.sources.map((source) =>
+        source.filename ? `${source.label} — ${source.filename}` : source.label,
+      )
+    : ["Built-in defaults only"];
   const repositoryError = configuration.repository.error;
   const repositoryStatus = repositoryError
     ? "Invalid changes ignored; using the last-good effective configuration"
@@ -3905,17 +4869,46 @@ function ConfigurationStatus({ workspace }: { workspace: Workspace }) {
       <h3>Configuration files</h3>
       <ReadOnlyRows
         rows={[
-          ["Global configuration", <code>{configuration.files.global}</code>],
+          [
+            "Global configuration",
+            <span className="configuration-file-row">
+              <code>{configuration.files.global}</code>
+              <button
+                type="button"
+                className="button"
+                disabled={Boolean(busy)}
+                onClick={() => void edit("global")}
+              >
+                <Pencil size={12} />
+                Edit
+              </button>
+            </span>,
+          ],
           [
             "Repository configuration",
-            <code>
-              {configuration.repository.filename ||
-                configuration.files.repository}
-            </code>,
+            <span className="configuration-file-row">
+              <code>
+                {configuration.repository.filename ||
+                  configuration.files.repository}
+              </code>
+              <button
+                type="button"
+                className="button"
+                disabled={Boolean(busy)}
+                onClick={() => void edit("repository")}
+              >
+                <Pencil size={12} />
+                Edit
+              </button>
+            </span>,
           ],
           [
             "Active sources",
-            <span className="configuration-sources">{activeSources}</span>,
+            <ul className="configuration-sources">
+              {activeSources.map((source) => (
+                <li key={source}>{source}</li>
+              ))}
+            </ul>,
           ],
           ["JSON schema", <code>{configuration.schemaPath}</code>],
           ["Repository status", repositoryStatus],
@@ -3933,13 +4926,70 @@ function ConfigurationStatus({ workspace }: { workspace: Workspace }) {
           </small>
         </div>
       )}
-      <p className="form-note">
-        Settings edits shared, non-secret choices in the repository{" "}
-        <code>.avoozl/config.json</code>. Commit that file to share policy with
-        collaborators. Provider credentials, GitHub authentication, tokens, and
-        other secrets stay in their owning tools or process environment and are
-        never written there.
-      </p>
+      {message && (
+        <p className="form-note" role="status">
+          {message}
+        </p>
+      )}
+      <ConfigurationPolicyCallout />
+      <hr className="configuration-section-divider" />
+      <MachineLocalIgnoreStatus />
+      {editing && (
+        <div
+          className="modal-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !busy) setEditing(null);
+          }}
+        >
+          <section
+            className="configuration-editor-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="configuration-editor-title"
+          >
+            <header>
+              <div>
+                <h2 id="configuration-editor-title">
+                  Edit {editing.scope} configuration
+                </h2>
+                <code>{editing.filename}</code>
+              </div>
+            </header>
+            <div className="configuration-json-editor">
+              <Suspense fallback={<LoadingSurface label="Loading editor…" />}>
+                <JsonEditor
+                  text={draft}
+                  filename={editing.filename}
+                  ariaLabel={`${editing.scope} Avoozl configuration JSON`}
+                  onChange={setDraft}
+                />
+              </Suspense>
+            </div>
+            <p>
+              Secrets and unsupported fields are rejected. Concurrent file
+              changes must be reloaded before saving.
+            </p>
+            <div className="form-actions">
+              <button
+                type="button"
+                className="button primary"
+                disabled={Boolean(busy)}
+                onClick={() => void saveConfiguration()}
+              >
+                {busy === "save" ? "Saving…" : "Save"}
+              </button>
+              <button
+                type="button"
+                className="button"
+                disabled={Boolean(busy)}
+                onClick={() => setEditing(null)}
+              >
+                Cancel
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </section>
   );
 }
@@ -4054,12 +5104,15 @@ function UsageMeter() {
 
 function ProjectForm({
   projects,
+  editingId,
+  onCancel,
   onSaved,
 }: {
   projects: WorkspaceProject[];
+  editingId: string;
+  onCancel: () => void;
   onSaved: () => void;
 }) {
-  const [editingId, setEditingId] = useState("");
   const [id, setId] = useState("");
   const [root, setRoot] = useState("");
   const [baseBranch, setBaseBranch] = useState("main");
@@ -4067,11 +5120,9 @@ function ProjectForm({
   const [checks, setChecks] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [saved, setSaved] = useState("");
 
   function selectProject(projectId: string) {
     const project = projects.find((candidate) => candidate.id === projectId);
-    setEditingId(project?.id || "");
     setId(project?.id || "");
     setRoot(project?.root || project?.path || "");
     setBaseBranch(project?.baseBranch || "main");
@@ -4080,8 +5131,11 @@ function ProjectForm({
       (project?.checks || []).map((command) => command.join(" ")).join("\n"),
     );
     setError("");
-    setSaved("");
   }
+
+  useEffect(() => {
+    selectProject(editingId);
+  }, [editingId, projects]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -4093,7 +5147,6 @@ function ProjectForm({
     }
     setBusy(true);
     setError("");
-    setSaved("");
     try {
       // One command per line, split on whitespace: `project.configure` wants
       // arrays of arguments, never a string it would have to shell out to run.
@@ -4109,9 +5162,6 @@ function ProjectForm({
         worktreeRoot: worktreeRoot.trim() || undefined,
         checks: parsed,
       });
-      const savedId = id.trim();
-      selectProject("");
-      setSaved(`${editingId ? "Updated" : "Added"} ${savedId}.`);
       onSaved();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
@@ -4122,26 +5172,6 @@ function ProjectForm({
 
   return (
     <form className="settings-form project-settings-form" onSubmit={submit}>
-      {!!projects.length && (
-        <label>
-          Configure
-          <select
-            value={editingId}
-            onChange={(event) => selectProject(event.target.value)}
-          >
-            <option value="">Add a new execution project</option>
-            {projects.map((project) => (
-              <option key={project.id} value={project.id}>
-                Update {project.name || project.id}
-              </option>
-            ))}
-          </select>
-          <small>
-            Select an existing checkout to update its branch, worktree location,
-            or validation commands.
-          </small>
-        </label>
-      )}
       <label>
         Project ID
         <input
@@ -4197,7 +5227,6 @@ function ProjectForm({
         </small>
       </label>
       {error && <p className="error">{error}</p>}
-      {saved && <p className="form-note">{saved}</p>}
       <div className="form-actions">
         <button
           className="button primary"
@@ -4205,16 +5234,14 @@ function ProjectForm({
         >
           {busy ? "Saving…" : editingId ? "Update project" : "Add project"}
         </button>
-        {editingId && (
-          <button
-            className="button subtle"
-            type="button"
-            disabled={busy}
-            onClick={() => selectProject("")}
-          >
-            Cancel
-          </button>
-        )}
+        <button
+          className="button"
+          type="button"
+          disabled={busy}
+          onClick={onCancel}
+        >
+          Cancel
+        </button>
       </div>
     </form>
   );
@@ -4224,16 +5251,49 @@ function GitHubQueueSettings({
   workspace,
   refresh,
   showAddForm = true,
+  connectOpen = false,
+  onConnect,
 }: {
   workspace: Workspace;
   refresh: () => void;
   showAddForm?: boolean;
+  connectOpen?: boolean;
+  onConnect?: () => void;
 }) {
+  const defaultLabelBehaviors: GitHubLabelBehaviors = {
+    ready: ["avoozl:ready"],
+    blocked: ["avoozl:blocked"],
+    review: ["avoozl:review"],
+    quarantined: ["avoozl:quarantined"],
+  };
+  const labelDraft = (behaviors?: GitHubLabelBehaviors) =>
+    Object.fromEntries(
+      (
+        ["ready", "blocked", "review", "quarantined"] as GitHubLabelBehavior[]
+      ).map((behavior) => [
+        behavior,
+        (behaviors?.[behavior] || defaultLabelBehaviors[behavior]).join(", "),
+      ]),
+    ) as Record<GitHubLabelBehavior, string>;
+  const parsedLabels = (value: string) => [
+    ...new Set(
+      value
+        .split(",")
+        .map((label) => label.trim())
+        .filter(Boolean),
+    ),
+  ];
   const [repository, setRepository] = useState("");
   const [projectId, setProjectId] = useState(workspace.projects[0]?.id || "");
   const [visibility, setVisibility] = useState<"private" | "public">("private");
   const [includeIssues, setIncludeIssues] = useState(true);
   const [includePullRequests, setIncludePullRequests] = useState(true);
+  const [continuousTracking, setContinuousTracking] = useState(true);
+  const [labelBehaviors, setLabelBehaviors] = useState(() => labelDraft());
+  const [editingLabels, setEditingLabels] = useState<{
+    repository: string;
+    values: Record<GitHubLabelBehavior, string>;
+  } | null>(null);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
   const queue = useRemote(
@@ -4246,18 +5306,35 @@ function GitHubQueueSettings({
     setBusy("configure");
     setMessage("");
     try {
-      await command("github.queue.configure", {
+      const result = await command<{
+        automationProvisioning?: { state: string; reason?: string } | null;
+      }>("github.queue.configure", {
         repository: repository.trim(),
         projectId: projectId || undefined,
         enabled: true,
         visibility,
         includeIssues,
         includePullRequests,
+        labelBehaviors: Object.fromEntries(
+          Object.entries(labelBehaviors).map(([behavior, value]) => [
+            behavior,
+            parsedLabels(value),
+          ]),
+        ),
+        provisionAutomation: continuousTracking,
+        enableAutomation: true,
       });
       setRepository("");
+      setLabelBehaviors(labelDraft());
       await queue.reload();
       refresh();
-      setMessage("Repository added to the queue.");
+      setMessage(
+        result.automationProvisioning?.state === "active"
+          ? "Repository added. OpenHands is tracking it continuously."
+          : result.automationProvisioning?.state === "blocked"
+            ? `Repository added. Continuous tracking needs attention: ${result.automationProvisioning.reason}`
+            : "Repository added to the queue.",
+      );
     } catch (reason) {
       setMessage((reason as Error).message);
     } finally {
@@ -4280,9 +5357,45 @@ function GitHubQueueSettings({
         visibility: item.visibility || "private",
         includeIssues: item.includeIssues !== false,
         includePullRequests: item.includePullRequests !== false,
+        labelBehaviors: item.labelBehaviors,
+        provisionAutomation: enabled,
+        enableAutomation: true,
       });
       await queue.reload();
       refresh();
+    } catch (reason) {
+      setMessage((reason as Error).message);
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function saveLabelBehaviors(
+    item: NonNullable<QueueSnapshot["repositories"]>[number],
+  ) {
+    if (!editingLabels) return;
+    const id = item.repository || item.id;
+    setBusy(`labels:${id}`);
+    setMessage("");
+    try {
+      await command("github.queue.configure", {
+        repository: id,
+        projectId: item.projectId || undefined,
+        enabled: item.enabled !== false,
+        visibility: item.visibility || "private",
+        includeIssues: item.includeIssues !== false,
+        includePullRequests: item.includePullRequests !== false,
+        labelBehaviors: Object.fromEntries(
+          Object.entries(editingLabels.values).map(([behavior, value]) => [
+            behavior,
+            parsedLabels(value),
+          ]),
+        ),
+      });
+      setEditingLabels(null);
+      await queue.reload();
+      refresh();
+      setMessage(`${id} label behavior updated.`);
     } catch (reason) {
       setMessage((reason as Error).message);
     } finally {
@@ -4337,15 +5450,27 @@ function GitHubQueueSettings({
             create a worktree and make changes.
           </p>
         </div>
-        <button
-          type="button"
-          className="button"
-          disabled={busy === "sync"}
-          onClick={() => void sync()}
-        >
-          <RefreshCw className={busy === "sync" ? "spin" : ""} size={14} />
-          {busy === "sync" ? "Syncing…" : "Sync now"}
-        </button>
+        <div className="section-heading-actions">
+          {onConnect && (
+            <button
+              type="button"
+              className={connectOpen ? "button" : "button primary"}
+              onClick={onConnect}
+            >
+              <Plus size={14} />
+              {connectOpen ? "Cancel" : "Connect project"}
+            </button>
+          )}
+          <button
+            type="button"
+            className="button"
+            disabled={busy === "sync"}
+            onClick={() => void sync()}
+          >
+            <RefreshCw className={busy === "sync" ? "spin" : ""} size={14} />
+            {busy === "sync" ? "Syncing…" : "Sync"}
+          </button>
+        </div>
       </div>
       {!queue.data?.available && !queue.loading && (
         <p className="form-note">
@@ -4378,14 +5503,18 @@ function GitHubQueueSettings({
                     </small>
                   </div>
                   <span
-                    className={
+                    className={`repository-status-dot ${item.enabled === false ? "disabled" : "enabled"}`}
+                    aria-label={
                       item.enabled === false
-                        ? "queue-disabled"
-                        : "queue-enabled"
+                        ? "Repository monitoring disabled"
+                        : "Repository monitoring enabled"
                     }
-                  >
-                    {item.enabled === false ? "Off" : "On"}
-                  </span>
+                    title={
+                      item.enabled === false
+                        ? "Repository monitoring disabled"
+                        : "Repository monitoring enabled"
+                    }
+                  />
                   <button
                     className="button subtle"
                     disabled={Boolean(busy)}
@@ -4396,19 +5525,91 @@ function GitHubQueueSettings({
                   <button
                     className="button subtle"
                     disabled={Boolean(busy)}
+                    onClick={() =>
+                      setEditingLabels(
+                        editingLabels?.repository === id
+                          ? null
+                          : {
+                              repository: id,
+                              values: labelDraft(item.labelBehaviors),
+                            },
+                      )
+                    }
+                  >
+                    Labels
+                  </button>
+                  <button
+                    className="button danger"
+                    disabled={Boolean(busy)}
                     onClick={() => void remove(item)}
                   >
                     Remove
                   </button>
+                  {editingLabels?.repository === id && (
+                    <form
+                      className="queue-label-editor"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        void saveLabelBehaviors(item);
+                      }}
+                    >
+                      <p>
+                        Map this repository’s labels to Avoozl Queue states.
+                      </p>
+                      {(
+                        [
+                          "ready",
+                          "blocked",
+                          "review",
+                          "quarantined",
+                        ] as GitHubLabelBehavior[]
+                      ).map((behavior) => (
+                        <label key={behavior}>
+                          {behavior}
+                          <input
+                            value={editingLabels.values[behavior]}
+                            onChange={(event) =>
+                              setEditingLabels((current) =>
+                                current
+                                  ? {
+                                      ...current,
+                                      values: {
+                                        ...current.values,
+                                        [behavior]: event.target.value,
+                                      },
+                                    }
+                                  : current,
+                              )
+                            }
+                          />
+                        </label>
+                      ))}
+                      <div className="form-actions">
+                        <button
+                          className="button primary"
+                          disabled={busy === `labels:${id}`}
+                        >
+                          {busy === `labels:${id}` ? "Saving…" : "Save"}
+                        </button>
+                        <button
+                          type="button"
+                          className="button"
+                          onClick={() => setEditingLabels(null)}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  )}
                 </article>
               );
             })}
           </div>
         ) : (
-          <p className="form-note">
+          <InfoCallout>
             No repositories are monitored. Add a private repository or an
             explicitly read-only public repository to populate Queue.
-          </p>
+          </InfoCallout>
         )}
         {showAddForm && queue.data?.available && (
           <form
@@ -4469,6 +5670,53 @@ function GitHubQueueSettings({
               />
               Include open pull requests
             </label>
+            <label className="checkbox-row">
+              <input
+                type="checkbox"
+                checked={continuousTracking}
+                disabled={visibility === "public"}
+                onChange={(event) =>
+                  setContinuousTracking(event.target.checked)
+                }
+              />
+              Install and enable continuous tracking in OpenHands
+            </label>
+            <small>
+              Private repositories only. OpenHands runs the scheduled, read-only
+              watcher; Avoozl receives authenticated snapshots instead of
+              polling GitHub itself.
+            </small>
+            <details className="queue-label-behaviors">
+              <summary>Label behavior</summary>
+              <p className="form-note">
+                Defaults work without setup. Override them when a repository
+                uses different label names.
+              </p>
+              <div className="queue-label-fields">
+                {(
+                  [
+                    "ready",
+                    "blocked",
+                    "review",
+                    "quarantined",
+                  ] as GitHubLabelBehavior[]
+                ).map((behavior) => (
+                  <label key={behavior}>
+                    {behavior}
+                    <input
+                      value={labelBehaviors[behavior]}
+                      onChange={(event) =>
+                        setLabelBehaviors((current) => ({
+                          ...current,
+                          [behavior]: event.target.value,
+                        }))
+                      }
+                      placeholder={defaultLabelBehaviors[behavior].join(", ")}
+                    />
+                  </label>
+                ))}
+              </div>
+            </details>
             <div className="form-actions">
               <button
                 className="button primary"
@@ -4487,10 +5735,12 @@ function GitHubQueueSettings({
       </>
       <p className="form-note">
         Monitoring imports work metadata only; it does not authorize execution.
-        Public repositories are always read-only: Avoozl never labels, assigns,
-        comments on, or otherwise changes them. Disabling a repository stops
-        Queue synchronization and excludes it from Avoozl-started OpenHands work
-        without removing GitHub credentials or the local execution project.
+        Scheduled monitoring is always read-only, including for public
+        repositories. Avoozl changes GitHub only after an explicit user action,
+        such as claiming an issue for the authenticated GitHub user. Disabling a
+        repository stops Queue synchronization and excludes it from
+        Avoozl-started OpenHands work without removing GitHub credentials or the
+        local execution project.
       </p>
       {message && (
         <p className="form-note" role="status">
@@ -4510,6 +5760,247 @@ type OpenHandsAutomation = {
   repositories?: Array<{ url: string; ref?: string }>;
 };
 
+function GitHubWorkflowSummary() {
+  return (
+    <div className="settings-explainer">
+      <strong>How GitHub work reaches an agent</strong>
+      <span>
+        Monitor repositories to show issues and pull requests in Queue. Link
+        existing work or create an Avoozl task.
+      </span>
+      <span>
+        A ready label allows work to run. Claiming assigns the issue to you, and
+        Avoozl ensures only one computer executes it.
+      </span>
+      <span>
+        OpenHands runs the agent session. GitHub keeps review and merge; Avoozl
+        keeps checks, acceptance, and history.
+      </span>
+    </div>
+  );
+}
+
+type AutomationCoverageSummary =
+  | "missing"
+  | "partial"
+  | "healthy"
+  | "inactive"
+  | "not-required";
+
+function summarizeRelatedAutomationCoverage(
+  states: OpenHandsAutomationCoverageState[],
+): AutomationCoverageSummary {
+  if (!states.length || states.every((state) => state === "recommended"))
+    return "missing";
+  if (states.every((state) => state === "active")) return "healthy";
+  if (states.every((state) => state === "inactive")) return "inactive";
+  return "partial";
+}
+
+function automationRoleLabel(role: string) {
+  return (
+    {
+      "issue-implementation": "Issue implementation",
+      "pull-request-review": "Pull-request review",
+      "comment-response": "Comment response",
+    }[role] || role.replaceAll("-", " ")
+  );
+}
+
+function controlPlaneStatusClass(state: string): AutomationCoverageSummary {
+  if (state === "healthy" || state === "active") return "healthy";
+  if (state === "partial") return "partial";
+  if (state === "inactive" || state === "unhealthy") return "inactive";
+  if (state === "not-required") return "not-required";
+  return "missing";
+}
+
+function OpenHandsIntakeControlPlane({
+  repository,
+  eligible,
+  controlPlane,
+  reloadCoverage,
+  openOpenHandsPath,
+}: {
+  repository: string;
+  eligible: boolean;
+  controlPlane: OpenHandsAutomationControlPlane;
+  reloadCoverage: () => void | Promise<unknown>;
+  openOpenHandsPath: (path: string) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const preflight = useRemote(
+    () =>
+      command<OpenHandsIntakePreflight>(
+        "openhands.automations.intake.preflight",
+        { repository },
+      ),
+    [repository],
+  );
+  const state = controlPlane.state || "missing";
+  const statusClass = controlPlaneStatusClass(state);
+  const capabilityReady =
+    preflight.data?.prerequisites.credential.status === "configured";
+  const needsRepair =
+    ["partial", "unhealthy"].includes(state) ||
+    Boolean(
+      controlPlane.automations?.length && preflight.data && !capabilityReady,
+    );
+  const canPrepare =
+    eligible &&
+    controlPlane.required &&
+    (preflight.data?.readyToPrepare === true ||
+      preflight.data?.readyToPrepareDraft === true);
+  const githubCredential =
+    preflight.data?.prerequisites.githubCredential ||
+    preflight.data?.prerequisites.githubcredential;
+  const githubCredentialsMissing =
+    githubCredential?.status === "missing" ||
+    (preflight.error?.message || message)
+      .toLowerCase()
+      .includes("github_personal_access_token");
+  const blockers = preflight.data
+    ? Object.entries(preflight.data.prerequisites)
+        .filter(
+          ([name, prerequisite]) =>
+            !["githubCredential", "githubcredential"].includes(name) &&
+            ![
+              "ready",
+              "healthy",
+              "available",
+              "configured",
+              "complete",
+            ].includes(prerequisite.status),
+        )
+        .map(([name, prerequisite]) => ({
+          name,
+          reason: prerequisite.reason || prerequisite.status,
+        }))
+    : [];
+
+  async function prepare() {
+    if (busy || !canPrepare) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      const result = await command<OpenHandsIntakePrepareResult>(
+        "openhands.automations.intake.prepare",
+        { repository, repair: needsRepair },
+      );
+      setMessage(
+        result.automation.enabled
+          ? `${result.automation.name || "Avoozl intake watcher"} is active in OpenHands.`
+          : result.created
+            ? "Watcher prepared in OpenHands and left disabled. Review it there, then enable it explicitly."
+            : "Existing watcher found and left unchanged. Enablement remains an explicit OpenHands action.",
+      );
+      await Promise.all([preflight.reload(), reloadCoverage()]);
+    } catch (reason) {
+      setMessage(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function setWatcherEnabled(enabled: boolean) {
+    const automation = controlPlane.automations?.[0];
+    if (!automation?.id || busy) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      await command("openhands.automations.intake.state", {
+        id: automation.id,
+        enabled,
+      });
+      setMessage(
+        enabled
+          ? "Watcher enabled. OpenHands now owns scheduled GitHub observation."
+          : "Watcher disabled. Manual Sync remains available for recovery.",
+      );
+      await Promise.all([preflight.reload(), reloadCoverage()]);
+    } catch (reason) {
+      setMessage(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="automation-coverage-boundary">
+      <div>
+        <span>Required Avoozl intake</span>
+        <strong>Scheduled exact-snapshot watcher</strong>
+        <small>OpenHands keeps this repository’s Queue up to date.</small>
+        {preflight.error && !githubCredentialsMissing && (
+          <small>
+            Preparation check unavailable: {preflight.error.message}
+          </small>
+        )}
+        {githubCredentialsMissing && (
+          <div className="automation-credential-fix" role="status">
+            <span>
+              <strong>Missing GitHub credentials</strong>
+              Add <code>GITHUB_PERSONAL_ACCESS_TOKEN</code> to OpenHands Secrets
+              so its watcher can read this repository.
+            </span>
+            <button
+              className="button primary"
+              onClick={() => openOpenHandsPath("/settings/secrets")}
+            >
+              Fix
+            </button>
+          </div>
+        )}
+        {!canPrepare && blockers.length > 0 && (
+          <ul className="automation-intake-blockers">
+            {blockers.map((blocker) => (
+              <li key={blocker.name}>
+                <strong>{blocker.name.replaceAll("-", " ")}</strong>
+                <span>{blocker.reason}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {message && (
+          <small className="automation-intake-message" role="status">
+            {message}
+          </small>
+        )}
+      </div>
+      <div className="automation-intake-action">
+        <span className={`coverage-status status-${statusClass}`}>
+          {state === "missing"
+            ? "Needs setup"
+            : state === "not-required"
+              ? "Not needed"
+              : state.replaceAll("-", " ")}
+        </span>
+        {canPrepare &&
+          (needsRepair || (state !== "healthy" && state !== "active")) && (
+            <button
+              className="button primary"
+              disabled={busy}
+              onClick={() => void prepare()}
+            >
+              {busy ? "Fixing…" : "Fix"}
+            </button>
+          )}
+        {controlPlane.automations?.[0] && (
+          <button
+            className="button"
+            disabled={busy}
+            onClick={() => void setWatcherEnabled(state !== "active")}
+          >
+            {state === "active" ? "Disable watcher" : "Enable watcher"}
+          </button>
+        )}
+        {preflight.loading && <small>Checking prerequisites…</small>}
+      </div>
+    </section>
+  );
+}
+
 function OpenHandsAutomationSettings({
   openOpenHandsPath,
 }: {
@@ -4524,6 +6015,11 @@ function OpenHandsAutomationSettings({
       command<OpenHandsAutomationCapabilities>(
         "openhands.automations.capabilities",
       ),
+    [],
+  );
+  const coverage = useRemote(
+    () =>
+      command<OpenHandsAutomationCoverage>("openhands.automations.coverage"),
     [],
   );
 
@@ -4577,20 +6073,25 @@ function OpenHandsAutomationSettings({
     }
   }
 
-  async function setupIssueAutomation() {
+  async function reviewAutomationSetup(
+    templateId: string,
+    repository?: string,
+  ) {
     if (busy || !capabilities.data?.available) return;
-    setBusy("setup");
+    const busyId = repository ? `${repository}:${templateId}` : "setup";
+    setBusy(busyId);
     setMessage("");
     try {
       const result = await command<OpenHandsAutomationSetup>(
         "openhands.automations.setup",
-        { templateId: "github-issue-to-pr" },
+        { templateId, ...(repository ? { repository } : {}) },
       );
       if (
         result.action !== "navigate" ||
         result.surface !== "openhands" ||
         !result.requiresUserReview ||
         result.createsAutomation ||
+        result.createsDraft ||
         !result.path.startsWith("/")
       )
         throw new Error("OpenHands returned an unsafe automation handoff.");
@@ -4612,124 +6113,254 @@ function OpenHandsAutomationSettings({
     <section className="openhands-automation-settings">
       <h3>OpenHands automations</h3>
       <p className="form-note">
-        OpenHands can independently watch GitHub mentions, implement labelled
-        issues, or review pull requests. Avoozl only controls automations
-        explicitly tagged <code>avoozl</code>; disabling one here disables that
-        same automation in OpenHands.
+        OpenHands keeps Queue current; <strong>Sync</strong> refreshes it once.
       </p>
-      <p className="form-note">
-        Setup and enablement are deliberate actions. Loading Avoozl
-        configuration never creates, enables, or changes an OpenHands automation
-        on its own.
-      </p>
-      <div className="automation-setup-card">
-        <div>
-          {capabilities.loading ? (
-            <span className="automation-capability">
-              Checking native setup…
-            </span>
-          ) : capabilities.data?.available ? (
-            <span className="automation-capability available">
-              Native setup available
-            </span>
-          ) : (
-            <span className="automation-capability unavailable">
-              Native setup unavailable
-            </span>
-          )}
-          <strong>{issueTemplate?.name || "GitHub issue to PR"}</strong>
-          <p>
-            {issueTemplate?.description ||
-              "Let OpenHands respond to selected GitHub issues with reviewed pull requests."}
-            {issueTemplate?.estimatedSetupMinutes
-              ? ` About ${issueTemplate.estimatedSetupMinutes} minutes to configure.`
-              : ""}
+      <div className="automation-coverage">
+        <div className="section-heading">
+          <div>
+            <h4>Automation coverage by repository</h4>
+            <p className="form-note">
+              Required Avoozl intake is shown separately from useful OpenHands
+              built-ins. A healthy built-in automation does not preserve Avoozl
+              authorization, leases, provenance, validation, integration, or
+              acceptance.
+            </p>
+          </div>
+          <button
+            className="button subtle"
+            disabled={coverage.loading}
+            onClick={() => void coverage.reload()}
+            aria-label="Refresh automation coverage"
+            title="Refresh automation coverage"
+          >
+            <RefreshCw className={coverage.loading ? "spin" : ""} size={14} />
+            Refresh
+          </button>
+        </div>
+        {coverage.loading && !coverage.data ? (
+          <p className="form-note">Checking automation coverage…</p>
+        ) : coverage.error ? (
+          <p className="form-note">
+            Automation coverage unavailable: {coverage.error.message}
           </p>
-          {!capabilities.loading && !capabilities.data?.available && (
-            <small>
-              {capabilities.data?.reason ||
-                capabilities.error?.message ||
-                "This OpenHands deployment does not expose native automation setup."}
-            </small>
-          )}
-        </div>
-        <button
-          className="button primary"
-          disabled={
-            Boolean(busy) ||
-            capabilities.loading ||
-            !capabilities.data?.available
-          }
-          onClick={() => void setupIssueAutomation()}
-        >
-          {busy === "setup" ? "Opening…" : "Set up issue automation"}
-        </button>
+        ) : coverage.data?.repositories.length ? (
+          <div className="automation-coverage-list">
+            {coverage.data.repositories.map((repository) => {
+              const coverageByRole = new Map(
+                (repository.coverage || []).map((item) => [item.role, item]),
+              );
+              const relatedStatus = summarizeRelatedAutomationCoverage(
+                repository.relatedAutomations.map(
+                  (recommendation) =>
+                    coverageByRole.get(recommendation.role)?.state ||
+                    "recommended",
+                ),
+              );
+              return (
+                <article key={repository.repository}>
+                  <header>
+                    <div>
+                      <strong>{repository.repository}</strong>
+                      <small>
+                        {repository.projectId || "No execution project"}
+                      </small>
+                    </div>
+                    {!repository.eligible && (
+                      <span className="coverage-status status-inactive">
+                        Not eligible
+                      </span>
+                    )}
+                  </header>
+                  <OpenHandsIntakeControlPlane
+                    repository={repository.repository}
+                    eligible={repository.eligible}
+                    controlPlane={repository.controlPlane}
+                    reloadCoverage={coverage.reload}
+                    openOpenHandsPath={openOpenHandsPath}
+                  />
+                  {!!repository.relatedAutomations.length && (
+                    <section className="automation-related">
+                      <header>
+                        <span>Optional automations</span>
+                        <span
+                          className={`coverage-status status-${relatedStatus}`}
+                        >
+                          {relatedStatus === "missing"
+                            ? "Not set up"
+                            : relatedStatus}
+                        </span>
+                      </header>
+                      <div className="automation-role-list">
+                        {repository.relatedAutomations.map((recommendation) => {
+                          const item = coverageByRole.get(recommendation.role);
+                          const state = item?.state || "recommended";
+                          const actionId = `${repository.repository}:${recommendation.template.id}`;
+                          return (
+                            <div key={recommendation.role}>
+                              <div>
+                                <strong>
+                                  {automationRoleLabel(recommendation.role)}
+                                </strong>
+                                <small>{recommendation.summary}</small>
+                                {recommendation.warning && (
+                                  <small className="automation-role-warning">
+                                    {recommendation.warning}
+                                  </small>
+                                )}
+                              </div>
+                              <span
+                                className={`automation-role-state state-${state}`}
+                              >
+                                {state}
+                              </span>
+                              {state === "recommended" &&
+                                repository.eligible && (
+                                  <button
+                                    className="button subtle"
+                                    disabled={
+                                      Boolean(busy) ||
+                                      !capabilities.data?.available
+                                    }
+                                    onClick={() =>
+                                      void reviewAutomationSetup(
+                                        recommendation.template.id,
+                                        repository.repository,
+                                      )
+                                    }
+                                  >
+                                    {busy === actionId
+                                      ? "Opening…"
+                                      : "Review setup"}
+                                  </button>
+                                )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  )}
+                </article>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="form-note">
+            No enabled monitored repositories have automation coverage yet.
+          </p>
+        )}
       </div>
-      <p className="form-note">
-        This opens OpenHands’ native review form. Nothing is created or enabled
-        until you choose the repositories, saved-secret name, agent profile, and
-        triggers, then confirm the setup in OpenHands.
-      </p>
-      {listAvailable === null ? (
-        <p className="form-note">Checking OpenHands automations…</p>
-      ) : listAvailable === false ? (
-        <p className="form-note">
-          OpenHands automation service is unavailable in this deployment.
-        </p>
-      ) : automations.length ? (
-        <div className="queue-repository-list">
-          {automations.map((automation) => (
-            <article key={automation.id}>
-              <div>
-                <strong>{automation.name}</strong>
-                <small>
-                  {automation.repositories
-                    ?.map((repo) => repo.url)
-                    .join(", ") ||
-                    automation.state ||
-                    "OpenHands managed"}
-                </small>
-              </div>
-              <span
-                className={
-                  automation.enabled ? "queue-enabled" : "queue-disabled"
-                }
-              >
-                {automation.enabled ? "On" : "Off"}
+      <section className="native-automation-section">
+        <header>
+          <h4>Native OpenHands automations</h4>
+          <p>Optional GitHub workflows managed by OpenHands.</p>
+        </header>
+        <div className="automation-setup-card">
+          <div>
+            {capabilities.loading ? (
+              <span className="automation-capability">
+                Checking native setup…
               </span>
-              <button
-                className="button subtle"
-                disabled={Boolean(busy)}
-                onClick={() => void toggle(automation)}
-              >
-                {busy === automation.id
-                  ? "Updating…"
-                  : automation.enabled
-                    ? "Disable"
-                    : "Enable"}
-              </button>
-            </article>
-          ))}
+            ) : capabilities.data?.available ? (
+              <span className="automation-capability available">
+                Native setup available
+              </span>
+            ) : (
+              <span className="automation-capability unavailable">
+                Native setup unavailable
+              </span>
+            )}
+            <strong>{issueTemplate?.name || "GitHub issue to PR"}</strong>
+            <p>
+              {issueTemplate?.description ||
+                "Let OpenHands respond to selected GitHub issues with reviewed pull requests."}
+              {issueTemplate?.estimatedSetupMinutes
+                ? ` About ${issueTemplate.estimatedSetupMinutes} minutes to configure.`
+                : ""}
+            </p>
+            {!capabilities.loading && !capabilities.data?.available && (
+              <small>
+                {capabilities.data?.reason ||
+                  capabilities.error?.message ||
+                  "This OpenHands deployment does not expose native automation setup."}
+              </small>
+            )}
+          </div>
+          <button
+            className="button primary"
+            disabled={
+              Boolean(busy) ||
+              capabilities.loading ||
+              !capabilities.data?.available
+            }
+            onClick={() => void reviewAutomationSetup("github-issue-to-pr")}
+          >
+            {busy === "setup" ? "Opening…" : "Set up issue automation"}
+          </button>
         </div>
-      ) : (
         <p className="form-note">
-          No Avoozl-managed automations yet. Create one from an OpenHands GitHub
-          template and tag it <code>avoozl</code> to manage it here.
+          Review and confirm setup in OpenHands before anything is enabled.
         </p>
-      )}
-      <div className="settings-actions">
-        <a className="button subtle" href={templatesPath}>
-          Open automation templates
-        </a>
-        <a className="button subtle" href={listPath}>
-          Open automation dashboard
-        </a>
-      </div>
-      {message && (
-        <p className="form-note" role="status">
-          {message}
-        </p>
-      )}
+        {listAvailable === null ? (
+          <p className="form-note">Checking OpenHands automations…</p>
+        ) : listAvailable === false ? (
+          <p className="form-note">
+            OpenHands automation service is unavailable in this deployment.
+          </p>
+        ) : automations.length ? (
+          <div className="queue-repository-list">
+            {automations.map((automation) => (
+              <article key={automation.id}>
+                <div>
+                  <strong>{automation.name}</strong>
+                  <small>
+                    {automation.repositories
+                      ?.map((repo) => repo.url)
+                      .join(", ") ||
+                      automation.state ||
+                      "OpenHands managed"}
+                  </small>
+                </div>
+                <span
+                  className={
+                    automation.enabled ? "queue-enabled" : "queue-disabled"
+                  }
+                >
+                  {automation.enabled ? "On" : "Off"}
+                </span>
+                <button
+                  className="button subtle"
+                  disabled={Boolean(busy)}
+                  onClick={() => void toggle(automation)}
+                >
+                  {busy === automation.id
+                    ? "Updating…"
+                    : automation.enabled
+                      ? "Disable"
+                      : "Enable"}
+                </button>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="form-note">
+            No Avoozl-managed automations yet. Create one from an OpenHands
+            GitHub template and tag it <code>avoozl</code> to manage it here.
+          </p>
+        )}
+        <div className="settings-actions">
+          <a className="button subtle" href={templatesPath}>
+            Open automation templates
+          </a>
+          <a className="button subtle" href={listPath}>
+            Open automation dashboard
+          </a>
+        </div>
+        {message && (
+          <p className="form-note" role="status">
+            {message}
+          </p>
+        )}
+      </section>
     </section>
   );
 }
@@ -4762,9 +6393,11 @@ function GitHubSettings({
   const [workspaceRoot, setWorkspaceRoot] = useState("");
   const [workspaceBranch, setWorkspaceBranch] = useState("avoozl-workspace");
   const [workspaceDirectory, setWorkspaceDirectory] = useState(".avoozl");
+  const [planningRepositoryOpen, setPlanningRepositoryOpen] = useState(false);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [connectOpen, setConnectOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -4838,34 +6471,55 @@ function GitHubSettings({
         .filter(Boolean),
       includeIssues: true,
       includePullRequests: true,
+      provisionAutomation: true,
+      enableAutomation: true,
     });
     if (result) {
       setRepository("");
       setDetectedRepository(result.repository || detectedRepository);
+      if (result.automationProvisioning?.state === "blocked")
+        setMessage(
+          `Project connected. Continuous tracking needs attention: ${result.automationProvisioning.reason}`,
+        );
+      else if (result.automationProvisioning?.state === "active")
+        setMessage(
+          "Project connected. OpenHands is tracking its GitHub repository.",
+        );
     }
   }
 
   async function configureWorkspace(event: React.FormEvent) {
     event.preventDefault();
-    await act("Workspace registration", "workspace.repository.configure", {
-      root: workspaceRoot.trim(),
-      branch: workspaceBranch.trim(),
-      directory: workspaceDirectory.trim(),
-    });
+    const result = await act(
+      "Workspace registration",
+      "workspace.repository.configure",
+      {
+        root: workspaceRoot.trim(),
+        branch: workspaceBranch.trim(),
+        directory: workspaceDirectory.trim(),
+      },
+    );
+    if (result) setPlanningRepositoryOpen(false);
+  }
+
+  function openPlanningRepository() {
+    const configuration = workspace.workspaceRepository?.configuration;
+    setWorkspaceRoot(configuration?.root || "");
+    setWorkspaceBranch(configuration?.branch || "avoozl-workspace");
+    setWorkspaceDirectory(configuration?.directory || ".avoozl");
+    setPlanningRepositoryOpen(true);
+  }
+
+  function cancelPlanningRepository() {
+    setPlanningRepositoryOpen(false);
+    setError("");
+    setMessage("");
   }
 
   const github = workspace.github;
   return (
     <div className="github-settings">
-      <div className="settings-explainer">
-        <strong>How GitHub work reaches an agent</strong>
-        <span>
-          A local execution project is a Git checkout on this computer. A
-          monitored repository is its GitHub source. Monitoring adds issues and
-          pull requests to Queue; choosing or authorizing work is a separate
-          action.
-        </span>
-      </div>
+      <GitHubWorkflowSummary />
       <div className="settings-actions">
         <button
           className="button"
@@ -4873,7 +6527,7 @@ function GitHubSettings({
           onClick={() => void act("Sync", "github.sync")}
         >
           <RefreshCw size={14} />
-          {busy === "Sync" ? "Syncing…" : "Sync now"}
+          {busy === "Sync" ? "Syncing…" : "Sync"}
         </button>
         <span>
           {github?.machine
@@ -4895,154 +6549,163 @@ function GitHubSettings({
             ])}
           />
         ) : (
-          <p className="form-note">
-            No local execution projects are configured.
-          </p>
-        )}
-      </section>
-      <section className="github-project-connect">
-        <div className="section-heading">
-          <div>
-            <h3>Connect a project</h3>
-            <p className="form-note">
-              Map a saved local checkout to its GitHub remote. Avoozl detects
-              the <code>origin</code> remote, then saves the repository routing
-              and labelled-work authorization settings.
-            </p>
-          </div>
-          <button
-            type="button"
-            className="button add-project-button"
-            onClick={openProjects}
-          >
-            <Plus size={14} />
-            Add project
-          </button>
-        </div>
-        {workspace.projects.length ? (
-          <form className="settings-form" onSubmit={configure}>
-            <label>
-              Project
-              <select
-                value={projectId}
-                onChange={(event) => setProjectId(event.target.value)}
-                required
-              >
-                <option value="">Choose a project</option>
-                {workspace.projects.map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.name || project.id}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="detected-repository">
-              <span>GitHub repository</span>
-              <strong>
-                {repository.trim() ||
-                  detectedRepository ||
-                  "Detecting from origin…"}
-              </strong>
-              {detectionMessage && <small>{detectionMessage}</small>}
-            </div>
-            <details className="settings-advanced">
-              <summary>Advanced routing and security</summary>
-              <div className="settings-form">
-                <label>
-                  Repository override
-                  <input
-                    value={repository}
-                    onChange={(event) => setRepository(event.target.value)}
-                    placeholder={detectedRepository || "owner/repository"}
-                  />
-                  <small>
-                    Normally detected from the project’s <code>origin</code>{" "}
-                    remote.
-                  </small>
-                </label>
-                <label>
-                  Assignee
-                  <input
-                    value={assignee}
-                    onChange={(event) => setAssignee(event.target.value)}
-                    placeholder="Authenticated GitHub user"
-                  />
-                </label>
-                <label>
-                  Allowed label actors
-                  <input
-                    value={allowedActors}
-                    onChange={(event) => setAllowedActors(event.target.value)}
-                    placeholder="comma,separated,logins"
-                  />
-                  <small>
-                    Empty permits any collaborator with write permission or
-                    above.
-                  </small>
-                </label>
-                <label>
-                  Agent
-                  <select
-                    value={provider}
-                    onChange={(event) => setProvider(event.target.value)}
-                  >
-                    <option value="">Choose when starting</option>
-                    {workspace.providers.map((item) => {
-                      const id = item.id || item.name || "";
-                      return (
-                        <option key={id} value={id}>
-                          {item.label || id}
-                        </option>
-                      );
-                    })}
-                  </select>
-                </label>
-                <label className="checkbox-row">
-                  <input
-                    type="checkbox"
-                    checked={autoStart}
-                    onChange={(event) => setAutoStart(event.target.checked)}
-                  />
-                  Automatically start newly authorized issues on this machine
-                </label>
-              </div>
-            </details>
-            <div className="form-actions">
-              <button
-                className="button primary"
-                disabled={
-                  Boolean(busy) ||
-                  !projectId ||
-                  (!repository.trim() && !detectedRepository)
-                }
-              >
-                {busy === "Connection" ? "Connecting…" : "Connect project"}
-              </button>
-            </div>
-          </form>
-        ) : (
-          <div className="settings-empty-action">
-            <p className="form-note">
-              Add a local project before connecting GitHub.
-            </p>
-            <button
-              type="button"
-              className="button add-project-button"
-              onClick={openProjects}
-            >
-              <Plus size={14} />
-              Add project
-            </button>
-          </div>
+          <InfoCallout>No local execution projects are configured.</InfoCallout>
         )}
       </section>
       <GitHubQueueSettings
         workspace={workspace}
         refresh={refresh}
         showAddForm={false}
+        connectOpen={connectOpen}
+        onConnect={() => setConnectOpen((open) => !open)}
       />
+      {connectOpen && (
+        <section className="github-project-connect">
+          <div className="section-heading">
+            <div>
+              <h3>Add a monitored repository</h3>
+              <p className="form-note">
+                Map a saved local checkout to its GitHub remote. Avoozl detects
+                the <code>origin</code> remote, adds its issues and pull
+                requests to Queue, and saves its labelled-work authorization
+                settings.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="button primary add-project-button"
+              onClick={openProjects}
+            >
+              <Plus size={14} />
+              Add project
+            </button>
+          </div>
+          {workspace.projects.length ? (
+            <form className="settings-form" onSubmit={configure}>
+              <label>
+                Project
+                <select
+                  value={projectId}
+                  onChange={(event) => setProjectId(event.target.value)}
+                  required
+                >
+                  <option value="">Choose a project</option>
+                  {workspace.projects.map((project) => (
+                    <option key={project.id} value={project.id}>
+                      {project.name || project.id}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="detected-repository">
+                <span>GitHub repository</span>
+                <strong>
+                  {repository.trim() ||
+                    detectedRepository ||
+                    "Detecting from origin…"}
+                </strong>
+                {detectionMessage && <small>{detectionMessage}</small>}
+              </div>
+              <details className="settings-advanced">
+                <summary>Advanced routing and security</summary>
+                <div className="settings-form">
+                  <label>
+                    Repository override
+                    <input
+                      value={repository}
+                      onChange={(event) => setRepository(event.target.value)}
+                      placeholder={detectedRepository || "owner/repository"}
+                    />
+                    <small>
+                      Normally detected from the project’s <code>origin</code>{" "}
+                      remote.
+                    </small>
+                  </label>
+                  <label>
+                    Assignee
+                    <input
+                      value={assignee}
+                      onChange={(event) => setAssignee(event.target.value)}
+                      placeholder="Authenticated GitHub user"
+                    />
+                  </label>
+                  <label>
+                    Allowed label actors
+                    <input
+                      value={allowedActors}
+                      onChange={(event) => setAllowedActors(event.target.value)}
+                      placeholder="comma,separated,logins"
+                    />
+                    <small>
+                      Empty permits any collaborator with write permission or
+                      above.
+                    </small>
+                  </label>
+                  <label>
+                    Agent
+                    <select
+                      value={provider}
+                      onChange={(event) => setProvider(event.target.value)}
+                    >
+                      <option value="">Choose when starting</option>
+                      {workspace.providers.map((item) => {
+                        const id = item.id || item.name || "";
+                        return (
+                          <option key={id} value={id}>
+                            {item.label || id}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </label>
+                  <label className="checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={autoStart}
+                      onChange={(event) => setAutoStart(event.target.checked)}
+                    />
+                    Automatically start newly authorized issues on this machine
+                  </label>
+                </div>
+              </details>
+              <div className="form-actions">
+                <button
+                  className="button primary"
+                  disabled={
+                    Boolean(busy) ||
+                    !projectId ||
+                    (!repository.trim() && !detectedRepository)
+                  }
+                >
+                  {busy === "Connection" ? "Connecting…" : "Connect project"}
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div className="settings-empty-action">
+              <p className="form-note">
+                Add a local project before connecting GitHub.
+              </p>
+              <button
+                type="button"
+                className="button primary add-project-button"
+                onClick={openProjects}
+              >
+                <Plus size={14} />
+                Add project
+              </button>
+            </div>
+          )}
+        </section>
+      )}
       <OpenHandsAutomationSettings openOpenHandsPath={openOpenHandsPath} />
       <h3>Label-authorized repositories</h3>
+      <p className="form-note">
+        This is the execution gate, not the Queue monitoring list. In a
+        configured repository, an allowed actor can apply the ready label to an
+        assigned issue. Avoozl verifies the actor, assignment, and exact issue
+        snapshot before allowing work to start.
+      </p>
       {github?.repositories?.length ? (
         <ReadOnlyRows
           rows={github.repositories.map((repo) => [
@@ -5051,11 +6714,19 @@ function GitHubSettings({
           ])}
         />
       ) : (
-        <p className="form-note">
-          No repository is configured for labelled issue authorization.
-        </p>
+        <InfoCallout>
+          No repository can authorize work through issue labels yet. Connect a
+          local project above to configure its repository, assignee, ready
+          label, and allowed actors.
+        </InfoCallout>
       )}
       <h3>Ready and quarantined issues</h3>
+      <p className="form-note">
+        Ready issues passed the configured label, assignment, actor-permission,
+        and snapshot checks. Quarantined issues were observed but cannot run
+        automatically until you confirm their exact contents or correct their
+        GitHub metadata.
+      </p>
       {github?.issues?.length ? (
         <div className="github-issue-list">
           {github.issues.map((issue) => (
@@ -5107,96 +6778,133 @@ function GitHubSettings({
         Credentials are read from <code>gh auth</code> or process environment
         and are never stored in the workspace or projected to Git.
       </p>
-      <h3>Portable planning repository</h3>
-      {workspace.workspaceRepository?.configuration ? (
-        <>
-          <ReadOnlyRows
-            rows={[
-              [
-                "Repository",
-                workspace.workspaceRepository.configuration.repository ||
-                  workspace.workspaceRepository.configuration.root,
-              ],
-              [
-                "Location",
-                `${workspace.workspaceRepository.configuration.branch}:${workspace.workspaceRepository.configuration.directory}`,
-              ],
-              [
-                "Last published",
-                workspace.workspaceRepository.publication?.commit?.slice(
-                  0,
-                  12,
-                ) || "Never",
-              ],
-              [
-                "Last synchronized",
-                workspace.workspaceRepository.import?.commit?.slice(0, 12) ||
-                  "Never",
-              ],
-            ]}
-          />
-          <div className="settings-actions">
+      <section className="planning-repository-section">
+        <header>
+          <h3>Planning repository</h3>
+          <p>
+            Share plans, tasks, approvals, and review threads through private
+            Git. Machine-local state and credentials stay local.
+          </p>
+        </header>
+        {workspace.workspaceRepository?.configuration ? (
+          <>
+            <ReadOnlyRows
+              rows={[
+                [
+                  "Repository",
+                  workspace.workspaceRepository.configuration.repository ||
+                    workspace.workspaceRepository.configuration.root,
+                ],
+                [
+                  "Location",
+                  `${workspace.workspaceRepository.configuration.branch}:${workspace.workspaceRepository.configuration.directory}`,
+                ],
+                [
+                  "Last published",
+                  workspace.workspaceRepository.publication?.commit?.slice(
+                    0,
+                    12,
+                  ) || "Never",
+                ],
+                [
+                  "Last synchronized",
+                  workspace.workspaceRepository.import?.commit?.slice(0, 12) ||
+                    "Never",
+                ],
+              ]}
+            />
+            <div className="settings-actions">
+              <button
+                className="button"
+                disabled={Boolean(busy)}
+                onClick={() =>
+                  void act("Publication", "workspace.repository.publish")
+                }
+              >
+                Publish
+              </button>
+              <button
+                className="button"
+                disabled={Boolean(busy)}
+                onClick={() =>
+                  void act("Synchronization", "workspace.repository.sync")
+                }
+              >
+                Pull and hydrate
+              </button>
+            </div>
+          </>
+        ) : (
+          <p className="form-note">
+            Not configured. This may be a separate private repository or a
+            dedicated branch/directory in a private code repository.
+          </p>
+        )}
+        {!planningRepositoryOpen && (
+          <div className="settings-actions planning-repository-actions">
             <button
-              className="button"
+              type="button"
+              className="button primary"
               disabled={Boolean(busy)}
-              onClick={() =>
-                void act("Publication", "workspace.repository.publish")
-              }
+              onClick={openPlanningRepository}
             >
-              Publish
-            </button>
-            <button
-              className="button"
-              disabled={Boolean(busy)}
-              onClick={() =>
-                void act("Synchronization", "workspace.repository.sync")
-              }
-            >
-              Pull and hydrate
+              {workspace.workspaceRepository?.configuration
+                ? "Change planning repository"
+                : "Register planning repository"}
             </button>
           </div>
-        </>
-      ) : (
-        <p className="form-note">
-          Not configured. This may be a separate private repository or a
-          dedicated branch/directory in a private code repository.
-        </p>
-      )}
-      <form className="settings-form" onSubmit={configureWorkspace}>
-        <label>
-          Local Git checkout root
-          <input
-            value={workspaceRoot}
-            onChange={(event) => setWorkspaceRoot(event.target.value)}
-            placeholder="/path/to/private/workspace-checkout"
-            required
-          />
-        </label>
-        <label>
-          Workspace branch
-          <input
-            value={workspaceBranch}
-            onChange={(event) => setWorkspaceBranch(event.target.value)}
-          />
-        </label>
-        <label>
-          Managed directory
-          <input
-            value={workspaceDirectory}
-            onChange={(event) => setWorkspaceDirectory(event.target.value)}
-          />
-        </label>
-        <div className="form-actions">
-          <button
-            className="button primary"
-            disabled={Boolean(busy) || !workspaceRoot.trim()}
+        )}
+        {planningRepositoryOpen && (
+          <form
+            className="settings-form planning-repository-form"
+            onSubmit={configureWorkspace}
           >
-            {busy === "Workspace registration"
-              ? "Registering…"
-              : "Register planning repository"}
-          </button>
-        </div>
-      </form>
+            <label>
+              Local Git checkout root
+              <input
+                value={workspaceRoot}
+                onChange={(event) => setWorkspaceRoot(event.target.value)}
+                placeholder="/path/to/private/workspace-checkout"
+                required
+              />
+            </label>
+            <label>
+              Workspace branch
+              <input
+                value={workspaceBranch}
+                onChange={(event) => setWorkspaceBranch(event.target.value)}
+              />
+            </label>
+            <label>
+              Managed directory
+              <input
+                value={workspaceDirectory}
+                onChange={(event) => setWorkspaceDirectory(event.target.value)}
+              />
+            </label>
+            <div className="form-actions">
+              <button
+                className="button primary"
+                disabled={Boolean(busy) || !workspaceRoot.trim()}
+              >
+                {busy === "Workspace registration"
+                  ? "Saving…"
+                  : workspace.workspaceRepository?.configuration
+                    ? "Update planning repository"
+                    : "Register planning repository"}
+              </button>
+              <button
+                type="button"
+                className="button"
+                disabled={Boolean(busy)}
+                onClick={cancelPlanningRepository}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        )}
+      </section>
     </div>
   );
 }
@@ -5209,6 +6917,14 @@ function AgentInstructionSettings({
   refresh: () => void;
 }) {
   const [busy, setBusy] = useState("");
+  const [sourceOpen, setSourceOpen] = useState(false);
+  const [sourceFile, setSourceFile] = useState<{
+    path: string;
+    hash: string;
+    revision?: string | null;
+    text: string;
+  } | null>(null);
+  const [sourceError, setSourceError] = useState("");
   const [message, setMessage] = useState("");
   const rules = state.agentInstructions || [];
 
@@ -5235,6 +6951,24 @@ function AgentInstructionSettings({
     }
   }
 
+  async function openSource() {
+    setSourceOpen(true);
+    setSourceFile(null);
+    setSourceError("");
+    try {
+      setSourceFile(
+        await command<{
+          path: string;
+          hash: string;
+          revision?: string | null;
+          text: string;
+        }>("agent.instructions.source"),
+      );
+    } catch (reason) {
+      setSourceError((reason as Error).message);
+    }
+  }
+
   return (
     <section className="agent-instructions-settings">
       <header>
@@ -5248,24 +6982,28 @@ function AgentInstructionSettings({
         </div>
       </header>
       {state.agentInstructionSource && (
-        <p className="form-note">
+        <button
+          type="button"
+          className="agent-instruction-source-summary"
+          aria-haspopup="dialog"
+          onClick={() => void openSource()}
+        >
           Synced {state.agentInstructionSource.ruleCount} rules from{" "}
           <code>{state.agentInstructionSource.path}</code>
           {state.agentInstructionSource.revision
             ? ` at ${state.agentInstructionSource.revision.slice(0, 12)}`
             : ""}
           .
-        </p>
+        </button>
       )}
       {!!rules.length ? (
         <div className="agent-instruction-table-wrap">
           <table className="agent-instruction-table">
             <thead>
               <tr>
-                <th>Enabled</th>
                 <th>Instruction</th>
                 <th>Applies to</th>
-                <th>Source</th>
+                <th>Enabled</th>
               </tr>
             </thead>
             <tbody>
@@ -5274,18 +7012,16 @@ function AgentInstructionSettings({
                   key={rule.id}
                   className={rule.enabled === false ? "disabled" : ""}
                 >
-                  <td className="agent-instruction-enabled">
-                    <input
-                      type="checkbox"
-                      checked={rule.enabled !== false}
-                      disabled={busy === rule.id}
-                      aria-label={`${rule.enabled === false ? "Enable" : "Disable"} ${rule.title}`}
-                      onChange={() => void toggle(rule)}
-                    />
-                  </td>
                   <td>
                     <strong>{rule.title}</strong>
                     <p>{rule.instruction}</p>
+                    <small className="agent-instruction-source">
+                      Source{" "}
+                      <code>
+                        {rule.source?.path || "AGENTS.md"}
+                        {rule.source?.line ? `:${rule.source.line}` : ""}
+                      </code>
+                    </small>
                   </td>
                   <td>
                     <span>{rule.category}</span>
@@ -5295,11 +7031,14 @@ function AgentInstructionSettings({
                         : `${rule.selector.kind}:${rule.selector.value}`}
                     </small>
                   </td>
-                  <td>
-                    <code>
-                      {rule.source?.path || "AGENTS.md"}
-                      {rule.source?.line ? `:${rule.source.line}` : ""}
-                    </code>
+                  <td className="agent-instruction-enabled">
+                    <input
+                      type="checkbox"
+                      checked={rule.enabled !== false}
+                      disabled={busy === rule.id}
+                      aria-label={`${rule.enabled === false ? "Enable" : "Disable"} ${rule.title}`}
+                      onChange={() => void toggle(rule)}
+                    />
                   </td>
                 </tr>
               ))}
@@ -5332,6 +7071,71 @@ propose follow-up work with plans_propose_work.`}</pre>
           {message}
         </p>
       )}
+      {sourceOpen && state.agentInstructionSource && (
+        <div
+          className="modal-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setSourceOpen(false);
+          }}
+        >
+          <section
+            className="agent-instruction-source-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="agent-instruction-source-title"
+          >
+            <header>
+              <div>
+                <h2 id="agent-instruction-source-title">
+                  {state.agentInstructionSource.path}
+                </h2>
+                <p>
+                  The complete file synchronized from the planning repository
+                  {state.agentInstructionSource.revision
+                    ? ` at ${state.agentInstructionSource.revision}.`
+                    : ""}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="Close synced agent instructions"
+                onClick={() => setSourceOpen(false)}
+              >
+                <X size={15} />
+              </button>
+            </header>
+            {sourceFile ? (
+              <div className="agent-instruction-source-file">
+                <Suspense
+                  fallback={<LoadingSurface label="Loading Markdown source…" />}
+                >
+                  <MarkdownSourceViewer
+                    text={sourceFile.text}
+                    filename={sourceFile.path}
+                    ariaLabel={`Read-only source for ${sourceFile.path}`}
+                  />
+                </Suspense>
+              </div>
+            ) : sourceError ? (
+              <div className="agent-instruction-source-error" role="alert">
+                {sourceError}
+              </div>
+            ) : (
+              <LoadingSurface label="Opening AGENTS.md…" />
+            )}
+            <div className="form-actions">
+              <button
+                type="button"
+                className="button"
+                onClick={() => setSourceOpen(false)}
+              >
+                Close
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </section>
   );
 }
@@ -5351,64 +7155,6 @@ type OpenHandsProfiles = {
   }>;
 };
 
-type ModelCatalog = {
-  provider: string;
-  models: Array<unknown>;
-};
-
-function AgentCatalogRows({
-  providers,
-}: {
-  providers: Workspace["providers"];
-}) {
-  const providerKey = providers.map((provider) => provider.id).join(",");
-  const catalogs = useRemote(async () => {
-    const profiles = await command<OpenHandsProfiles>(
-      "openhands.profiles",
-    ).catch(() => null);
-    return Promise.all(
-      providers.map(async (provider) => {
-        if (provider.id === "openhands")
-          return {
-            id: provider.id,
-            count: profiles?.llmProfiles.length ?? null,
-            noun: "LLM profiles",
-          };
-        try {
-          const catalog = await command<ModelCatalog>("models", {
-            provider: provider.id,
-          });
-          return {
-            id: provider.id,
-            count: catalog.models.length,
-            noun: "models",
-          };
-        } catch {
-          return { id: provider.id, count: null, noun: "models" };
-        }
-      }),
-    );
-  }, [providerKey]);
-  const counts = new Map(
-    (catalogs.data || []).map((catalog) => [catalog.id, catalog]),
-  );
-  return (
-    <ReadOnlyRows
-      rows={providers.map((provider) => {
-        const catalog = counts.get(provider.id);
-        return [
-          provider.label || provider.name || provider.id || "Agent",
-          catalogs.loading
-            ? "Loading models…"
-            : catalog?.count == null
-              ? "Model catalog unavailable"
-              : `${catalog.count} ${catalog.noun}`,
-        ];
-      })}
-    />
-  );
-}
-
 function ConversationSettings({
   workspace,
   refresh,
@@ -5420,6 +7166,11 @@ function ConversationSettings({
   const [message, setMessage] = useState("");
   const configuredAutoArchive =
     workspace.conversationSettings?.autoArchiveCompleted !== false;
+  const routing = workspace.conversationSettings?.routing || {
+    enabled: false,
+    fallback: { agentProfile: null, model: null },
+    rules: [],
+  };
   const [autoArchiveCompleted, setAutoArchiveCompleted] = useState(
     configuredAutoArchive,
   );
@@ -5495,6 +7246,27 @@ function ConversationSettings({
     }
   }
 
+  async function updateRouting(enabled: boolean) {
+    if (busy) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      await command("conversations.settings.update", {
+        routing: { ...routing, enabled },
+      });
+      refresh();
+      setMessage(
+        enabled
+          ? "Automatic agent routing is enabled."
+          : "Automatic agent routing is disabled; explicit choices and OpenHands defaults apply.",
+      );
+    } catch (reason) {
+      setMessage((reason as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <section className="conversation-settings">
       <h2>Conversation lifecycle</h2>
@@ -5518,7 +7290,48 @@ function ConversationSettings({
       <p className="form-note" id="auto-archive-explanation">
         On by default. Driver itself is never auto-archived.
       </p>
+      <h3>Automatic agent routing</h3>
+      <label className="conversation-setting-row">
+        <span>
+          <strong>Apply agent and model policy</strong>
+          <small>
+            Choose an OpenHands agent profile and model from workflow category,
+            task scope, risk, and reported remaining context. Explicit per-run
+            choices always win.
+          </small>
+        </span>
+        <input
+          type="checkbox"
+          checked={routing.enabled}
+          disabled={busy}
+          onChange={(event) => void updateRouting(event.target.checked)}
+          aria-label="Apply automatic agent routing policy"
+        />
+      </label>
+      <ReadOnlyRows
+        rows={[
+          ["Configured rules", String(routing.rules.length)],
+          [
+            "Fallback agent",
+            routing.fallback.agentProfile || "OpenHands default",
+          ],
+          ["Fallback model", routing.fallback.model || "Agent default"],
+        ]}
+      />
+      <InfoCallout>
+        Edit routing rules in <code>.avoozl/config.json</code>. OpenHands
+        reports per-turn tokens and the model context window for supported
+        agents. Context-threshold rules only match when both are present, and a
+        completed Driver turn can hand off to a linked successor. Avoozl{" "}
+        {"records “unknown” instead of estimating it"} from cumulative tokens.
+      </InfoCallout>
       <h3>Driver agent</h3>
+      <p className="form-note">
+        Driver is the persistent, project-level OpenHands conversation behind
+        Avoozl chat. It stays mostly idle until you talk to it, keeps the
+        project context, and can launch scoped child conversations for work.
+        Background synchronization and automation run separately.
+      </p>
       <div className="settings-form driver-agent-settings">
         <label>
           OpenHands agent
@@ -5595,12 +7408,12 @@ function ConversationSettings({
           ["Compaction", "Managed by OpenHands when explicitly requested"],
         ]}
       />
-      <p className="form-note">
+      <InfoCallout>
         Avoozl does not currently expose a Driver compaction preference or
         silently condense Driver history. The pinned OpenHands API can
         explicitly condense a conversation, but no Avoozl policy or threshold
         has been defined yet.
-      </p>
+      </InfoCallout>
       {message && (
         <p className="form-note" role="status">
           {message}
@@ -5626,11 +7439,50 @@ function SettingsView({
   launchPending?: boolean;
 }) {
   const [tab, setTab] = useState<SettingsTab>("workspace");
+  const [editingProjectId, setEditingProjectId] = useState("");
+  const [projectModalOpen, setProjectModalOpen] = useState(false);
+  const [projectActionBusy, setProjectActionBusy] = useState("");
+  const [projectActionMessage, setProjectActionMessage] = useState("");
   const workspaceName =
     state.project?.workspaceName ||
     state.project?.title ||
     state.project?.name ||
     "Avoozl";
+
+  async function removeProject(project: WorkspaceProject) {
+    const label = project.name || project.id;
+    if (
+      !window.confirm(
+        `Remove ${label} from Avoozl?\n\nExisting task and conversation history will remain, but Avoozl will no longer start work in this checkout.`,
+      )
+    )
+      return;
+    setProjectActionBusy(project.id);
+    setProjectActionMessage("");
+    try {
+      await command("project.remove", { id: project.id });
+      if (editingProjectId === project.id) setEditingProjectId("");
+      setProjectActionMessage(`Removed ${label}.`);
+      refresh();
+    } catch (reason) {
+      setProjectActionMessage(
+        reason instanceof Error ? reason.message : String(reason),
+      );
+    } finally {
+      setProjectActionBusy("");
+    }
+  }
+
+  function openProjectModal(projectId = "") {
+    setEditingProjectId(projectId);
+    setProjectModalOpen(true);
+  }
+
+  function closeProjectModal() {
+    setProjectModalOpen(false);
+    setEditingProjectId("");
+  }
+
   return (
     <section className="screen settings-screen">
       <header className="screen-heading">
@@ -5699,18 +7551,6 @@ function SettingsView({
           id="settings-panel-agents"
           aria-labelledby="settings-tab-agents"
         >
-          <h2>Configured agents</h2>
-          {workspace.providers.length ? (
-            <AgentCatalogRows providers={workspace.providers} />
-          ) : (
-            <p className="form-note">
-              No agents are configured for this workspace.
-            </p>
-          )}
-          <p className="form-note">
-            Agent credentials live with each agent's own CLI, never in this
-            workspace.
-          </p>
           <AgentInstructionSettings state={state} refresh={refresh} />
           <h3>Plan usage</h3>
           <UsageMeter />
@@ -5733,21 +7573,56 @@ function SettingsView({
           id="settings-panel-projects"
           aria-labelledby="settings-tab-projects"
         >
-          <h2>Execution projects</h2>
-          <p className="form-note settings-lead">
-            Execution projects are local Git checkouts where OpenHands creates
-            task worktrees, runs checks, and prepares changes. They are
-            persisted in this Avoozl workspace and reused by Driver and Queue.
-          </p>
+          <div className="section-heading project-settings-heading">
+            <div>
+              <h2>Execution projects</h2>
+              <p className="form-note settings-lead">
+                Execution projects are local Git checkouts where OpenHands
+                creates task worktrees, runs checks, and prepares changes. They
+                are persisted in this Avoozl workspace and reused by Driver and
+                Queue.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="button primary add-project-button"
+              onClick={() => openProjectModal()}
+            >
+              <Plus size={14} />
+              Add project
+            </button>
+          </div>
           {workspace.projects.length ? (
             <div className="project-settings-list">
               {workspace.projects.map((project) => (
                 <article key={project.id}>
                   <header>
-                    <strong>{project.name || project.id}</strong>
-                    {project.name && project.name !== project.id && (
-                      <code>{project.id}</code>
-                    )}
+                    <div>
+                      <strong>{project.name || project.id}</strong>
+                      {project.name && project.name !== project.id && (
+                        <code>{project.id}</code>
+                      )}
+                    </div>
+                    <div className="project-settings-actions">
+                      <button
+                        type="button"
+                        className="button"
+                        disabled={Boolean(projectActionBusy)}
+                        onClick={() => openProjectModal(project.id)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="button danger"
+                        disabled={Boolean(projectActionBusy)}
+                        onClick={() => void removeProject(project)}
+                      >
+                        {projectActionBusy === project.id
+                          ? "Removing…"
+                          : "Delete"}
+                      </button>
+                    </div>
                   </header>
                   <span>
                     {project.root || project.path || "Path unavailable"}
@@ -5766,13 +7641,47 @@ function SettingsView({
               No execution repository is configured yet.
             </p>
           )}
-          <h3>Add or update a project</h3>
-          <p className="form-note">
-            Register another local checkout or select a configured project to
-            update it. This does not monitor its GitHub repository; connect that
-            separately under GitHub after the project is saved.
-          </p>
-          <ProjectForm projects={workspace.projects} onSaved={refresh} />
+          {projectActionMessage && (
+            <p className="form-note" role="status">
+              {projectActionMessage}
+            </p>
+          )}
+          {projectModalOpen && (
+            <div
+              className="modal-backdrop"
+              onMouseDown={(event) => {
+                if (event.target === event.currentTarget) closeProjectModal();
+              }}
+            >
+              <section
+                className="project-settings-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="project-settings-modal-title"
+              >
+                <header>
+                  <div>
+                    <h2 id="project-settings-modal-title">
+                      {editingProjectId ? "Edit project" : "Add project"}
+                    </h2>
+                    <p>
+                      Configure the local checkout OpenHands will use for tasks,
+                      worktrees, and validation.
+                    </p>
+                  </div>
+                </header>
+                <ProjectForm
+                  projects={workspace.projects}
+                  editingId={editingProjectId}
+                  onCancel={closeProjectModal}
+                  onSaved={() => {
+                    closeProjectModal();
+                    refresh();
+                  }}
+                />
+              </section>
+            </div>
+          )}
         </div>
       )}
       {tab === "github" && (
@@ -6060,13 +7969,20 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
     return result;
   }
   async function openDriver(scoped: boolean) {
+    const configuredProjectId = workspace.data?.projects.some(
+      (project) => project.id === driverProjectId,
+    )
+      ? driverProjectId
+      : driver.data?.defaultProjectId;
+    const existing = driver.data?.projects.find(
+      (project) => project.projectId === configuredProjectId,
+    )?.run;
+    if (existing) {
+      await openRun(existing.id);
+      return;
+    }
     const captured = captureContext({ purpose: "project-chat", scoped });
-    const projectId =
-      (workspace.data?.projects.some(
-        (project) => project.id === driverProjectId,
-      )
-        ? driverProjectId
-        : undefined) || captured.projectId;
+    const projectId = configuredProjectId || captured.projectId;
     const context = { ...captured, projectId };
     if (!projectId) {
       window.alert("Configure an execution project before opening Driver.");
@@ -6137,6 +8053,9 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
     });
   }
   async function startTaskInOpenHands(task: Task) {
+    const review = Boolean(
+      stateData.statuses.find((status) => status.id === task.status)?.complete,
+    );
     const projectId =
       task.projectId ||
       workspace.data?.runs.find((run) => run.taskId === task.id)?.projectId ||
@@ -6148,13 +8067,18 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
     }
     await withOpenHandsLaunch(async () => {
       try {
-        const context = captureContext({ scoped: true });
+        const context = {
+          ...captureContext({ scoped: true }),
+          selected: task.id,
+          taskIds: [task.id],
+          conversationPurpose: review ? ("review" as const) : undefined,
+        };
         const parent = await ensureDriver(projectId, context);
         const run = await command<Run>("run.start", {
           taskId: task.id,
           provider: "openhands",
           projectId,
-          mode: "implement",
+          mode: review ? "ask" : "implement",
           approvalMode: "manual",
           parentRunId: parent.run.id,
           context,
@@ -6533,19 +8457,17 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
   const inFlightCount = activeRuns.length + externalActiveCount;
   const matchingCount = filteredTasks(stateData, workbenchFilters).length;
   const toolbarCount =
-    view === "overview"
+    view === "overview" || view === "queue"
       ? null
-      : view === "queue"
-        ? "Work intake"
-        : facetedView
-          ? `${matchingCount} ${matchingCount === 1 ? "task" : "tasks"}`
-          : view === "documents"
-            ? `${Object.keys(stateData.documents).length} plans`
-            : view === "reports"
-              ? `${stateData.savedSearches?.length || 0} saved searches`
-              : view === "insights"
-                ? "Usage trends"
-                : `${stateData.tasks.length} tasks`;
+      : facetedView
+        ? `${matchingCount} ${matchingCount === 1 ? "task" : "tasks"}`
+        : view === "documents"
+          ? `${Object.keys(stateData.documents).length} plans`
+          : view === "reports"
+            ? `${stateData.savedSearches?.length || 0} saved searches`
+            : view === "insights"
+              ? "Usage trends"
+              : `${stateData.tasks.length} tasks`;
   const canvasServer = canvas?.serverUrl || window.location.origin;
   return (
     <div
@@ -6663,14 +8585,17 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
           </button>
           {canvasHost ? (
             <nav className="canvas-view-tabs" aria-label="Avoozl views">
-              {visibleViews.map(({ id, label }) => (
+              {visibleViews.map(({ id, label, icon: Icon }) => (
                 <button
                   key={id}
                   className={view === id ? "active" : ""}
                   onClick={() => navigate(id)}
                   aria-current={view === id ? "page" : undefined}
+                  aria-label={label}
+                  title={label}
                 >
-                  {label}
+                  <Icon size={15} aria-hidden="true" />
+                  <span>{label}</span>
                 </button>
               ))}
             </nav>
@@ -6696,7 +8621,7 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
               )}
             </>
           )}
-          {toolbarCount && (!canvasHost || view !== "insights") && (
+          {toolbarCount && !canvasHost && (
             <>
               <span className="toolbar-rule" />
               <span>{toolbarCount}</span>
@@ -6717,52 +8642,6 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
               <Filter size={17} />
             </button>
           )}
-          <div className="toolbar-driver-control">
-            <select
-              value={driverProjectId}
-              onChange={(event) => {
-                setDriverProjectId(event.target.value);
-                try {
-                  localStorage.setItem(
-                    "avoozl-driver-project",
-                    event.target.value,
-                  );
-                } catch {}
-              }}
-              aria-label="Driver workspace"
-              title="Driver workspace"
-              disabled={!workspaceData.projects.length}
-            >
-              {!workspaceData.projects.length && (
-                <option value="">No workspace</option>
-              )}
-              {workspaceData.projects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.name || project.id}
-                </option>
-              ))}
-            </select>
-            <button
-              className="toolbar-driver-button"
-              disabled={launchPending || !workspaceData.projects.length}
-              onClick={() => void openDriver(true)}
-              aria-label={`Open Driver${selectedDriver?.title ? ` for ${selectedDriver.title}` : ""}`}
-              title="Open or return to the persistent Driver conversation with this Avoozl context"
-            >
-              <MessageSquare size={15} aria-hidden="true" />
-              <span>{launchPending ? "Opening…" : "Driver"}</span>
-              {driverChildCount > 0 && (
-                <b
-                  aria-label={`${driverChildCount} Driver child ${driverChildCount === 1 ? "conversation" : "conversations"}`}
-                >
-                  {driverChildCount}
-                </b>
-              )}
-              {selectedDriver?.run && (
-                <i aria-label="Driver conversation exists" />
-              )}
-            </button>
-          </div>
           <details
             ref={newMenu}
             className="toolbar-new-menu"
@@ -6771,13 +8650,79 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
           >
             <summary
               className="toolbar-new-trigger"
-              title="Start with OpenHands"
+              title="Chat or start work with OpenHands"
+              aria-label="Chat or start work with OpenHands"
             >
               <Plus size={16} />
-              <span>New</span>
-              <ChevronDown size={13} />
             </summary>
             <div className="toolbar-new-options">
+              <label className="toolbar-workspace-picker">
+                Workspace
+                <select
+                  value={driverProjectId}
+                  onChange={(event) => {
+                    setDriverProjectId(event.target.value);
+                    try {
+                      localStorage.setItem(
+                        "avoozl-driver-project",
+                        event.target.value,
+                      );
+                    } catch {}
+                  }}
+                  aria-label="OpenHands workspace"
+                  disabled={!workspaceData.projects.length}
+                >
+                  {!workspaceData.projects.length && (
+                    <option value="">No workspace configured</option>
+                  )}
+                  {workspaceData.projects.map((project) => (
+                    <option key={project.id} value={project.id}>
+                      {project.name || project.id}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                disabled={launchPending}
+                onClick={() => {
+                  setNewMenuOpen(false);
+                  void openDriver(true);
+                }}
+                aria-label={`Chat with the persistent Driver${selectedDriver?.title ? ` for ${selectedDriver.title}` : ""}`}
+                title="Open or return to the persistent Driver"
+              >
+                <MessageSquare size={16} aria-hidden="true" />
+                <span className="toolbar-new-option-copy">
+                  <strong>{launchPending ? "Opening…" : "Chat"}</strong>
+                  <small>
+                    {selectedDriver?.run
+                      ? `Return to Driver${driverChildCount ? ` · ${driverChildCount} active ${driverChildCount === 1 ? "child" : "children"}` : ""}`
+                      : "Open the persistent project Driver"}
+                  </small>
+                </span>
+                {selectedDriver?.run && (
+                  <i
+                    className="toolbar-driver-state"
+                    aria-label="Driver conversation exists"
+                  />
+                )}
+              </button>
+              <button
+                disabled={launchPending}
+                onClick={() => {
+                  setNewMenuOpen(false);
+                  void startOpenHandsIntent("draft", NEW_PLAN_PROMPT, {
+                    scoped: false,
+                  });
+                }}
+                title="Draft a new project plan with the Driver"
+              >
+                <FileText size={16} aria-hidden="true" />
+                <span className="toolbar-new-option-copy">
+                  <strong>{launchPending ? "Starting…" : "New plan"}</strong>
+                  <small>Draft a reviewed Markdown design</small>
+                </span>
+              </button>
               <button
                 disabled={launchPending}
                 onClick={() => {
@@ -6787,9 +8732,13 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
                     scoped: false,
                   });
                 }}
+                title="Shape work from project context"
               >
-                <strong>{launchPending ? "Starting…" : "New task"}</strong>
-                <small>Shape work from project context</small>
+                <ListTodo size={16} aria-hidden="true" />
+                <span className="toolbar-new-option-copy">
+                  <strong>{launchPending ? "Starting…" : "New task"}</strong>
+                  <small>Shape work from project context</small>
+                </span>
               </button>
               <button
                 disabled={launchPending}
@@ -6800,29 +8749,13 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
                     scoped: true,
                   });
                 }}
+                title="Create a task with this view and selection"
               >
-                <strong>New scoped task</strong>
-                <small>Include this view and selection</small>
-              </button>
-              <button
-                disabled={launchPending}
-                onClick={() => {
-                  setNewMenuOpen(false);
-                  void openDriver(false);
-                }}
-              >
-                <strong>Project chat</strong>
-                <small>Open Driver with project context</small>
-              </button>
-              <button
-                disabled={launchPending}
-                onClick={() => {
-                  setNewMenuOpen(false);
-                  void openDriver(true);
-                }}
-              >
-                <strong>Scoped chat</strong>
-                <small>Open Driver with this view and selection</small>
+                <CircleDot size={16} aria-hidden="true" />
+                <span className="toolbar-new-option-copy">
+                  <strong>New scoped task</strong>
+                  <small>Include this view and selection</small>
+                </span>
               </button>
             </div>
           </details>
@@ -6844,6 +8777,7 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
                 ? void document.exitFullscreen()
                 : void document.documentElement.requestFullscreen()
             }
+            aria-label="Full screen"
             title="Full screen"
           >
             <Maximize2 size={17} />
@@ -6851,6 +8785,7 @@ export function App({ canvas }: { canvas?: CanvasHost } = {}) {
           <button
             className="toolbar-action toolbar-reset"
             onClick={() => setWorkbenchFilters({ ...emptyTaskFilters })}
+            aria-label="Reset filters"
             title="Reset filters"
           >
             <RotateCcw size={17} />

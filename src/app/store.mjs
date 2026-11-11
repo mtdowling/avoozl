@@ -59,6 +59,12 @@ export class Store {
    CREATE TABLE IF NOT EXISTS github_queue_repositories(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS github_queue_items(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS github_queue_associations(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS github_intake_capabilities(id TEXT PRIMARY KEY,repository TEXT NOT NULL,token_hash BLOB NOT NULL,expires_at TEXT NOT NULL,revoked_at TEXT,body TEXT NOT NULL);
+   CREATE INDEX IF NOT EXISTS github_intake_capabilities_repository ON github_intake_capabilities(repository,revoked_at,expires_at);
+   CREATE TABLE IF NOT EXISTS github_intake_generations(id TEXT PRIMARY KEY,capability_id TEXT NOT NULL,repository TEXT NOT NULL,state TEXT NOT NULL,started_at TEXT NOT NULL,body TEXT NOT NULL);
+   CREATE INDEX IF NOT EXISTS github_intake_generations_repository ON github_intake_generations(repository,started_at);
+   CREATE TABLE IF NOT EXISTS github_intake_deliveries(id TEXT PRIMARY KEY,capability_id TEXT NOT NULL,repository TEXT NOT NULL,state TEXT NOT NULL,received_at TEXT NOT NULL,body TEXT NOT NULL);
+   CREATE INDEX IF NOT EXISTS github_intake_deliveries_repository ON github_intake_deliveries(repository,received_at);
    CREATE TABLE IF NOT EXISTS review_threads(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS review_rounds(id TEXT PRIMARY KEY,body TEXT NOT NULL);
   `);
@@ -400,6 +406,27 @@ export class Store {
         .run(item.id, item.taskId, body);
     else fail("Unknown record type");
     return item;
+  }
+  remove(table, id) {
+    if (
+      ![
+        "plans",
+        "projects",
+        "receipts",
+        "batches",
+        "github_repositories",
+        "github_issues",
+        "github_queue_repositories",
+        "github_queue_items",
+        "github_queue_associations",
+        "review_threads",
+        "review_rounds",
+      ].includes(table)
+    )
+      fail("Unknown record type");
+    return (
+      this.db.prepare(`DELETE FROM ${table} WHERE id=?`).run(id).changes > 0
+    );
   }
   close() {
     this.db.close();

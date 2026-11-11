@@ -426,7 +426,7 @@ export async function claudeUsage({ query: queryFactory } = {}) {
         available: false,
         subscription,
         reason:
-          "This Claude session has no plan limits: API key, Bedrock and Vertex sessions are billed per request.",
+          "This Claude session does not expose subscription plan limits. API-key, cloud-provider, and managed enterprise sessions report usage and billing through their owning account instead.",
       };
     return {
       provider: "claude",

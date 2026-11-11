@@ -205,6 +205,95 @@
             }
           },
           "additionalProperties": false
+        },
+        "routing": {
+          "$ref": "#/$defs/agentRouting"
+        }
+      },
+      "additionalProperties": false
+    },
+    "agentRouting": {
+      "type": "object",
+      "description": "Deterministic agent and model selection policy. Explicit per-run choices always win.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "fallback": {
+          "$ref": "#/$defs/agentRouteChoice"
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/agentRouteRule"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "agentRouteChoice": {
+      "type": "object",
+      "properties": {
+        "agentProfile": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "model": {
+          "type": ["string", "null"],
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "agentRouteRule": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{1,60}$"
+        },
+        "priority": {
+          "type": "integer",
+          "minimum": -1000,
+          "maximum": 1000
+        },
+        "categories": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "scopes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "risks": {
+          "type": "array",
+          "items": {
+            "enum": ["low", "medium", "high", "unspecified"]
+          },
+          "uniqueItems": true
+        },
+        "contextRemainingAtMost": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 100
+        },
+        "agentProfile": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "model": {
+          "type": ["string", "null"],
+          "minLength": 1
         }
       },
       "additionalProperties": false
@@ -332,6 +421,9 @@
           "type": "boolean",
           "default": true
         },
+        "labelBehaviors": {
+          "$ref": "#/$defs/githubLabelBehaviors"
+        },
         "visibility": {
           "enum": ["private", "public"],
           "default": "private",
@@ -339,6 +431,33 @@
         }
       },
       "additionalProperties": false
+    },
+    "githubLabelBehaviors": {
+      "type": "object",
+      "description": "Repository-specific GitHub labels mapped to normalized Avoozl Queue states. Omitted behaviors use the avoozl:* defaults.",
+      "properties": {
+        "ready": {
+          "$ref": "#/$defs/githubLabelList"
+        },
+        "blocked": {
+          "$ref": "#/$defs/githubLabelList"
+        },
+        "review": {
+          "$ref": "#/$defs/githubLabelList"
+        },
+        "quarantined": {
+          "$ref": "#/$defs/githubLabelList"
+        }
+      },
+      "additionalProperties": false
+    },
+    "githubLabelList": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
     },
     "planningRepository": {
       "type": "object",

@@ -8,6 +8,8 @@ import "monaco-editor/languages/definitions/markdown/register";
 import EditorWorker from "monaco-editor/editor/editor.worker?worker";
 import {
   AlertTriangle,
+  ArrowDown,
+  ArrowUp,
   CheckCircle2,
   Columns2,
   Eye,
@@ -16,15 +18,17 @@ import {
   Info,
   ListChecks,
   MessageSquareText,
+  Plus,
   Save,
   ShieldCheck,
   Sparkles,
+  Trash2,
   WrapText,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import ReactMarkdown from "react-markdown";
 import { command } from "./api";
 import { useRemote } from "./hooks";
+import MarkdownContent from "./MarkdownContent";
 import type {
   DocumentRecord,
   DriverOpenResult,
@@ -40,6 +44,26 @@ self.MonacoEnvironment = {
 };
 
 const beforeMount: BeforeMount = (monaco) => {
+  if (
+    !monaco.languages
+      .getLanguages()
+      .some((language: { id: string }) => language.id === "json")
+  ) {
+    monaco.languages.register({ id: "json" });
+    monaco.languages.setMonarchTokensProvider("json", {
+      tokenizer: {
+        root: [
+          [/[{}[\]]/, "@brackets"],
+          [/[,:]/, "delimiter"],
+          [/"(?:[^"\\]|\\.)*"(?=\s*:)/, "string.key"],
+          [/"(?:[^"\\]|\\.)*"/, "string.value"],
+          [/-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/, "number"],
+          [/\b(?:true|false|null)\b/, "keyword"],
+          [/\s+/, "white"],
+        ],
+      },
+    });
+  }
   monaco.editor.defineTheme("avoozl-dark", {
     base: "vs-dark",
     inherit: true,
@@ -50,6 +74,10 @@ const beforeMount: BeforeMount = (monaco) => {
         fontStyle: "bold",
       },
       { token: "string", foreground: "D7BD78" },
+      { token: "string.key.json", foreground: "8BE9FD" },
+      { token: "string.value.json", foreground: "D7BD78" },
+      { token: "number.json", foreground: "BD93F9" },
+      { token: "keyword.json", foreground: "FF79C6" },
     ],
     colors: {
       "editor.background": "#101010",
@@ -68,6 +96,71 @@ const beforeMount: BeforeMount = (monaco) => {
 
 type EditorMode = "split" | "preview" | "diff" | "checks";
 
+type PlanReviewStep = {
+  provider: string;
+  model: string;
+};
+
+type PlanReviewPreferences = {
+  maxRounds: number;
+  sequence: PlanReviewStep[];
+};
+
+const PLAN_REVIEW_PREFERENCES_KEY = "avoozl-plan-review-pipeline";
+
+function providerId(provider: Workspace["providers"][number]) {
+  return provider.id || provider.name || "";
+}
+
+function defaultPlanReviewPreferences(
+  providers: Workspace["providers"],
+): PlanReviewPreferences {
+  return {
+    maxRounds: 3,
+    sequence: providers
+      .map((provider) => providerId(provider))
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((provider) => ({ provider, model: "" })),
+  };
+}
+
+function readPlanReviewPreferences(
+  providers: Workspace["providers"],
+): PlanReviewPreferences {
+  const fallback = defaultPlanReviewPreferences(providers);
+  try {
+    const saved = JSON.parse(
+      localStorage.getItem(PLAN_REVIEW_PREFERENCES_KEY) || "null",
+    );
+    if (
+      !saved ||
+      !Number.isInteger(saved.maxRounds) ||
+      saved.maxRounds < 1 ||
+      saved.maxRounds > 10 ||
+      !Array.isArray(saved.sequence)
+    )
+      return fallback;
+    const sequence = saved.sequence
+      .filter(
+        (step: unknown): step is PlanReviewStep =>
+          Boolean(step) &&
+          typeof (step as PlanReviewStep).provider === "string" &&
+          typeof (step as PlanReviewStep).model === "string",
+      )
+      .map((step: PlanReviewStep) => ({
+        provider: step.provider.trim(),
+        model: step.model.trim(),
+      }))
+      .filter((step: PlanReviewStep) => step.provider);
+    return sequence.length
+      ? { maxRounds: saved.maxRounds, sequence }
+      : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export function MarkdownPreview({
   text,
   containerRef,
@@ -83,8 +176,85 @@ export function MarkdownPreview({
       ref={containerRef}
       onScroll={onScroll}
     >
-      <ReactMarkdown>{text}</ReactMarkdown>
+      <MarkdownContent text={text} />
     </article>
+  );
+}
+
+export function JsonEditor({
+  text,
+  filename,
+  ariaLabel,
+  onChange,
+}: {
+  text: string;
+  filename: string;
+  ariaLabel: string;
+  onChange: (text: string) => void;
+}) {
+  return (
+    <Editor
+      height="100%"
+      path={filename}
+      language="json"
+      theme="avoozl-dark"
+      beforeMount={beforeMount}
+      value={text}
+      onChange={(value) => onChange(value ?? "")}
+      options={{
+        ariaLabel,
+        automaticLayout: true,
+        bracketPairColorization: { enabled: true },
+        folding: true,
+        fontFamily:
+          "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+        fontSize: 11,
+        formatOnPaste: true,
+        lineHeight: 17,
+        minimap: { enabled: false },
+        padding: { top: 10, bottom: 10 },
+        scrollBeyondLastLine: false,
+        tabSize: 2,
+        wordWrap: "on",
+      }}
+    />
+  );
+}
+
+export function MarkdownSourceViewer({
+  text,
+  filename,
+  ariaLabel,
+}: {
+  text: string;
+  filename: string;
+  ariaLabel: string;
+}) {
+  return (
+    <Editor
+      height="100%"
+      path={filename}
+      language="markdown"
+      theme="avoozl-dark"
+      beforeMount={beforeMount}
+      value={text}
+      options={{
+        ariaLabel,
+        automaticLayout: true,
+        contextmenu: true,
+        folding: true,
+        fontFamily:
+          "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+        fontSize: 11,
+        lineHeight: 18,
+        minimap: { enabled: false },
+        padding: { top: 12, bottom: 12 },
+        readOnly: true,
+        renderWhitespace: "selection",
+        scrollBeyondLastLine: false,
+        wordWrap: "on",
+      }}
+    />
   );
 }
 
@@ -532,7 +702,11 @@ export function PlanEditor({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [replies, setReplies] = useState<Record<string, string>>({});
+  const [reviewSettingsOpen, setReviewSettingsOpen] = useState(false);
+  const [reviewMaxRounds, setReviewMaxRounds] = useState(3);
+  const [reviewSequence, setReviewSequence] = useState<PlanReviewStep[]>([]);
   const reviewLaunchLock = useRef(false);
+  const reviewPreferencesLoaded = useRef(false);
   const display = useEditorDisplay();
 
   useEffect(() => {
@@ -544,6 +718,31 @@ export function PlanEditor({
     setPreview(null);
     setMessage("");
   }, [remote.data]);
+
+  useEffect(() => {
+    if (reviewPreferencesLoaded.current || !workspace.data?.providers?.length)
+      return;
+    const preferences = readPlanReviewPreferences(workspace.data.providers);
+    setReviewMaxRounds(preferences.maxRounds);
+    setReviewSequence(preferences.sequence);
+    reviewPreferencesLoaded.current = true;
+  }, [workspace.data?.providers]);
+
+  useEffect(() => {
+    if (!reviewPreferencesLoaded.current || !reviewSequence.length) return;
+    try {
+      localStorage.setItem(
+        PLAN_REVIEW_PREFERENCES_KEY,
+        JSON.stringify({
+          maxRounds: reviewMaxRounds,
+          sequence: reviewSequence,
+        }),
+      );
+    } catch {
+      // Browser storage is a convenience for non-secret editor preferences.
+      // A blocked store must not prevent a review from running.
+    }
+  }, [reviewMaxRounds, reviewSequence]);
 
   const dirty = text !== baseline;
   useEffect(() => {
@@ -647,15 +846,23 @@ export function PlanEditor({
       const current = dirty
         ? await persistDraft()
         : await command<Plan>("plan.get", { id });
-      const providers = (workspace.data?.providers || [])
-        .map((provider) => provider.id || provider.name)
-        .filter((provider): provider is string => Boolean(provider))
-        .slice(0, 2);
       const projectId = workspace.data?.projects[0]?.id;
-      if (!providers.length || !projectId)
+      const sequence = reviewSequence
+        .map((step) => ({
+          provider: step.provider.trim(),
+          ...(step.model.trim() ? { model: step.model.trim() } : {}),
+        }))
+        .filter((step) => step.provider);
+      if (!sequence.length || !projectId)
         throw Error(
           "Configure an agent and execution project before automated review.",
         );
+      if (
+        !Number.isInteger(reviewMaxRounds) ||
+        reviewMaxRounds < 1 ||
+        reviewMaxRounds > 10
+      )
+        throw Error("Choose 1–10 review rounds.");
       const driver = await command<DriverOpenResult>("driver.open", {
         projectId,
         provider: "openhands",
@@ -671,12 +878,13 @@ export function PlanEditor({
         planId: id,
         projectId,
         parentRunId: driver.run.id,
-        maxRounds: 3,
-        sequence: providers.map((provider) => ({ provider })),
+        maxRounds: reviewMaxRounds,
+        sequence,
       });
       setMessage(
         `Started up to ${pipeline.maxRounds} substantive review rounds. Feedback appears here as reviewers finish.`,
       );
+      setReviewSettingsOpen(false);
       await remote.reload();
     } catch (cause) {
       setMessage((cause as Error).message);
@@ -684,6 +892,32 @@ export function PlanEditor({
       reviewLaunchLock.current = false;
       setBusy(false);
     }
+  }
+
+  function updateReviewStep(index: number, value: Partial<PlanReviewStep>) {
+    setReviewSequence((current) =>
+      current.map((step, stepIndex) =>
+        stepIndex === index ? { ...step, ...value } : step,
+      ),
+    );
+  }
+
+  function moveReviewStep(index: number, offset: number) {
+    setReviewSequence((current) => {
+      const target = index + offset;
+      if (target < 0 || target >= current.length) return current;
+      const next = [...current];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  }
+
+  function addReviewStep() {
+    const firstProvider = providerId(workspace.data?.providers?.[0] || {});
+    setReviewSequence((current) => [
+      ...current,
+      { provider: firstProvider, model: "" },
+    ]);
   }
 
   async function applySuggestion(reviewId: string) {
@@ -769,7 +1003,12 @@ export function PlanEditor({
         {...display}
         extra={
           <>
-            <button className="button quiet" disabled={busy} onClick={aiReview}>
+            <button
+              className={`button quiet ${reviewSettingsOpen ? "selected" : ""}`}
+              disabled={busy}
+              aria-expanded={reviewSettingsOpen}
+              onClick={() => setReviewSettingsOpen((open) => !open)}
+            >
               <Sparkles size={16} /> AI design review
             </button>
             {remote.data.state === "approved" && (
@@ -787,6 +1026,139 @@ export function PlanEditor({
           </>
         }
       />
+      {reviewSettingsOpen && (
+        <aside className="plan-review-config">
+          <header>
+            <div>
+              <span className="eyebrow">Automated design review</span>
+              <h2>Review pipeline</h2>
+            </div>
+            <label>
+              Maximum rounds
+              <input
+                type="number"
+                min={1}
+                max={10}
+                value={reviewMaxRounds}
+                onChange={(event) =>
+                  setReviewMaxRounds(Number(event.target.value))
+                }
+              />
+            </label>
+          </header>
+          <p>
+            Reviewers run in this order and repeat until the round limit or
+            until a reviewer finds no new material issue. They are instructed to
+            find substantive gaps, not wording or style nitpicks.
+          </p>
+          <div className="plan-review-sequence">
+            {reviewSequence.map((step, index) => {
+              const provider = workspace.data?.providers.find(
+                (candidate) => providerId(candidate) === step.provider,
+              );
+              const models = (provider?.models || []).map((model) =>
+                typeof model === "string" ? model : model.id,
+              );
+              const modelListId = `plan-review-models-${index}`;
+              return (
+                <div
+                  className="plan-review-step"
+                  key={`${index}-${step.provider}`}
+                >
+                  <span className="plan-review-order">{index + 1}</span>
+                  <label>
+                    Provider
+                    <select
+                      value={step.provider}
+                      onChange={(event) =>
+                        updateReviewStep(index, {
+                          provider: event.target.value,
+                          model: "",
+                        })
+                      }
+                    >
+                      {(workspace.data?.providers || []).map((candidate) => {
+                        const value = providerId(candidate);
+                        return (
+                          <option value={value} key={value}>
+                            {candidate.label || candidate.name || value}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </label>
+                  <label>
+                    Model <span>optional</span>
+                    <input
+                      value={step.model}
+                      list={models.length ? modelListId : undefined}
+                      placeholder="Provider default"
+                      onChange={(event) =>
+                        updateReviewStep(index, { model: event.target.value })
+                      }
+                    />
+                    {!!models.length && (
+                      <datalist id={modelListId}>
+                        {models.map((model) => (
+                          <option value={model} key={model} />
+                        ))}
+                      </datalist>
+                    )}
+                  </label>
+                  <div className="plan-review-step-actions">
+                    <button
+                      className="icon-button"
+                      disabled={index === 0}
+                      aria-label={`Move reviewer ${index + 1} earlier`}
+                      onClick={() => moveReviewStep(index, -1)}
+                    >
+                      <ArrowUp size={14} />
+                    </button>
+                    <button
+                      className="icon-button"
+                      disabled={index === reviewSequence.length - 1}
+                      aria-label={`Move reviewer ${index + 1} later`}
+                      onClick={() => moveReviewStep(index, 1)}
+                    >
+                      <ArrowDown size={14} />
+                    </button>
+                    <button
+                      className="icon-button danger"
+                      disabled={reviewSequence.length === 1}
+                      aria-label={`Remove reviewer ${index + 1}`}
+                      onClick={() =>
+                        setReviewSequence((current) =>
+                          current.filter((_, stepIndex) => stepIndex !== index),
+                        )
+                      }
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <footer>
+            <button className="button quiet" onClick={addReviewStep}>
+              <Plus size={15} /> Add reviewer
+            </button>
+            <button
+              className="button primary"
+              disabled={
+                busy ||
+                !reviewSequence.some((step) => step.provider.trim()) ||
+                !Number.isInteger(reviewMaxRounds) ||
+                reviewMaxRounds < 1 ||
+                reviewMaxRounds > 10
+              }
+              onClick={aiReview}
+            >
+              <Sparkles size={15} /> Start review
+            </button>
+          </footer>
+        </aside>
+      )}
       <MarkdownWorkspace
         mode={mode}
         text={text}

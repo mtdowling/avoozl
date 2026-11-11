@@ -2,6 +2,8 @@ import { execFileSync } from "node:child_process";
 import { fail } from "./store.mjs";
 
 const API_VERSION = "2022-11-28";
+const PAGE_SIZE = 100;
+const MAX_PAGES = 20;
 
 export function parseRepository(value) {
   const match = String(value || "")
@@ -101,6 +103,29 @@ export class GitHubClient {
     return value;
   }
 
+  async paginate(pathname, { query, accept } = {}) {
+    const items = [];
+    for (let page = 1; page <= MAX_PAGES + 1; page += 1) {
+      const batch = await this.request("GET", pathname, {
+        query: { ...query, per_page: PAGE_SIZE, page },
+        accept,
+      });
+      if (!Array.isArray(batch))
+        fail("GitHub returned an invalid paginated response.", 502);
+      if (page > MAX_PAGES) {
+        if (batch.length)
+          fail(
+            `GitHub returned more than ${MAX_PAGES * PAGE_SIZE} items. Narrow the monitored repository before retrying.`,
+            413,
+          );
+        return items;
+      }
+      items.push(...batch);
+      if (batch.length < PAGE_SIZE) return items;
+    }
+    return items;
+  }
+
   currentUser() {
     return this.request("GET", "/user");
   }
@@ -127,14 +152,13 @@ export class GitHubClient {
   listReadyIssues(value, { label = "avoozl:ready", assignee } = {}) {
     const { owner, repo } =
       typeof value === "string" ? parseRepository(value) : value;
-    return this.request("GET", `/repos/${owner}/${repo}/issues`, {
+    return this.paginate(`/repos/${owner}/${repo}/issues`, {
       query: {
         state: "open",
         labels: label,
         assignee,
         sort: "updated",
         direction: "asc",
-        per_page: 100,
       },
     }).then((items) => items.filter((item) => !item.pull_request));
   }
@@ -142,14 +166,19 @@ export class GitHubClient {
   listOpenIssues(value) {
     const { owner, repo } =
       typeof value === "string" ? parseRepository(value) : value;
-    return this.request("GET", `/repos/${owner}/${repo}/issues`, {
+    return this.paginate(`/repos/${owner}/${repo}/issues`, {
       query: {
         state: "open",
         sort: "updated",
         direction: "desc",
-        per_page: 100,
       },
     }).then((items) => items.filter((item) => !item.pull_request));
+  }
+
+  listIssueComments(value, number) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    return this.paginate(`/repos/${owner}/${repo}/issues/${number}/comments`);
   }
 
   issueEvents(value, number) {
@@ -260,14 +289,40 @@ export class GitHubClient {
   listPullRequests(value, input = {}) {
     const { owner, repo } =
       typeof value === "string" ? parseRepository(value) : value;
-    return this.request("GET", `/repos/${owner}/${repo}/pulls`, {
+    return this.paginate(`/repos/${owner}/${repo}/pulls`, {
       query: {
         state: input.state || "all",
         head: input.head,
         base: input.base,
-        per_page: 100,
       },
     });
+  }
+
+  listPullRequestReviewComments(value, number) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    return this.paginate(`/repos/${owner}/${repo}/pulls/${number}/comments`);
+  }
+
+  async listPullRequestFiles(value, number, { maxFiles = 300 } = {}) {
+    const { owner, repo } =
+        typeof value === "string" ? parseRepository(value) : value,
+      limit = Math.max(1, Math.min(Number(maxFiles) || 300, 300)),
+      items = [];
+    for (let page = 1; items.length < limit; page += 1) {
+      const remaining = limit - items.length,
+        batch = await this.request(
+          "GET",
+          `/repos/${owner}/${repo}/pulls/${number}/files`,
+          { query: { per_page: Math.min(PAGE_SIZE, remaining), page } },
+        );
+      if (!Array.isArray(batch))
+        fail("GitHub returned an invalid pull-request file response.", 502);
+      items.push(...batch);
+      if (batch.length < Math.min(PAGE_SIZE, remaining))
+        return { files: items, truncated: false };
+    }
+    return { files: items, truncated: true };
   }
 }
 

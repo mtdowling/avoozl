@@ -35,7 +35,7 @@ export function initializeWorkspace(
     name = "My workspace",
     port = 9428,
     documents = "plans",
-    db = "state/workspace.sqlite",
+    db = ".avoozl/local/workspace.sqlite",
   } = {},
 ) {
   if (typeof name !== "string" || !name.trim() || name.length > 160)

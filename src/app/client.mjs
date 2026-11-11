@@ -17,16 +17,32 @@ export const CLIENT_OPERATIONS = Object.freeze([
   "workspace",
   "workspace.examples",
   "workspace.seed",
+  "configuration.get",
+  "configuration.update",
+  "local.ignore.status",
+  "local.ignore.fix",
   "state",
   "query",
   "queue",
   "queue.items",
+  "queue.comments",
+  "queue.diff",
   "queue.sync",
+  "queue.claim",
   "queue.createTask",
   "queue.confirmLink",
+  "github.intake.capabilities",
+  "github.intake.capability.create",
+  "github.intake.capability.revoke",
   "conversations.settings.get",
   "conversations.settings.update",
+  "conversations.routing.preview",
   "openhands.automations.capabilities",
+  "openhands.automations.recommendations",
+  "openhands.automations.coverage",
+  "openhands.automations.intake.preflight",
+  "openhands.automations.intake.prepare",
+  "openhands.automations.intake.state",
   "openhands.automations.setup",
   "task.get",
   "task.update",
@@ -38,6 +54,7 @@ export const CLIENT_OPERATIONS = Object.freeze([
   "activity",
   "report.save",
   "report.delete",
+  "agent.instructions.source",
   "agent.instructions.toggle",
   "document.get",
   "document.update",
@@ -84,6 +101,7 @@ export const CLIENT_OPERATIONS = Object.freeze([
   "metrics",
   "usage.limits",
   "project.configure",
+  "project.remove",
   "github.configure",
   "github.queue.configure",
   "github.queue.remove",
@@ -260,8 +278,17 @@ export class WorkspaceClient {
   queueItems(input = {}) {
     return this.call("queue.items", input);
   }
+  queueComments(input) {
+    return this.call("queue.comments", input);
+  }
+  queueDiff(input) {
+    return this.call("queue.diff", input);
+  }
   syncQueue(input = {}) {
     return this.call("queue.sync", input);
+  }
+  claimQueueIssue(input) {
+    return this.call("queue.claim", input);
   }
   createTaskFromQueue(input, expectedRevision) {
     return this.call("queue.createTask", input, expectedRevision);
@@ -269,11 +296,23 @@ export class WorkspaceClient {
   confirmQueueLink(input, expectedRevision) {
     return this.call("queue.confirmLink", input, expectedRevision);
   }
+  githubIntakeCapabilities(input = {}) {
+    return this.call("github.intake.capabilities", input);
+  }
+  createGitHubIntakeCapability(input) {
+    return this.call("github.intake.capability.create", input);
+  }
+  revokeGitHubIntakeCapability(input) {
+    return this.call("github.intake.capability.revoke", input);
+  }
   conversationSettings() {
     return this.call("conversations.settings.get");
   }
   updateConversationSettings(input) {
     return this.call("conversations.settings.update", input);
+  }
+  previewConversationRouting(input = {}) {
+    return this.call("conversations.routing.preview", input);
   }
   configureQueueRepository(input) {
     return this.call("github.queue.configure", input);
@@ -336,8 +375,23 @@ export class WorkspaceClient {
   openHandsAutomationCapabilities() {
     return this.call("openhands.automations.capabilities");
   }
-  startOpenHandsAutomationSetup(templateId) {
-    return this.call("openhands.automations.setup", { templateId });
+  openHandsAutomationRecommendations(input = {}) {
+    return this.call("openhands.automations.recommendations", input);
+  }
+  openHandsAutomationCoverage(input = {}) {
+    return this.call("openhands.automations.coverage", input);
+  }
+  openHandsIntakeAutomationPreflight(input = {}) {
+    return this.call("openhands.automations.intake.preflight", input);
+  }
+  prepareOpenHandsIntakeAutomation(input = {}) {
+    return this.call("openhands.automations.intake.prepare", input);
+  }
+  setOpenHandsIntakeAutomationState(input = {}) {
+    return this.call("openhands.automations.intake.state", input);
+  }
+  startOpenHandsAutomationSetup(templateId, input = {}) {
+    return this.call("openhands.automations.setup", { templateId, ...input });
   }
   run(id, options = {}) {
     return this.call("run.get", { id, ...options });
