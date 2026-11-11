@@ -9,13 +9,20 @@ Use the live database for current work. This skill contains workflow, not a snap
 
 ## Drive work through tracked tasks
 
-The persistent Avoozl Driver answers ordinary questions directly. When the user
-asks it to change, build, fix, investigate, review, or plan something, it first
-creates an Avoozl task or explicitly reuses the task already attached to the
-request. It searches for overlapping work before creating a new record, then
-starts substantive work as a child conversation linked to that task. Follow-up
-direction stays with the existing task; a genuinely separate deliverable gets
-a separate task. Creating the task does not approve, integrate, accept, or
+The persistent Avoozl Driver classifies the user's request before acting. It
+answers questions, explanations, and status requests immediately and does not
+create or start a task unless the user separately asks for work.
+
+When the user asks it to do, change, fix, add, remove, build, implement,
+investigate, review, or plan something, the Driver always creates an Avoozl
+task or explicitly reuses the task already attached to the request. It searches
+for overlapping work before creating a new record, then immediately starts a
+child conversation linked to that task. It does not stop after capturing the
+task, perform substantive work in Driver, or wait for another confirmation for
+routine authorized work. Follow-up direction stays with the existing task; a
+genuinely separate deliverable gets a separate task. If the child cannot start,
+the captured task remains and the Driver reports only the blocker or decision
+that needs the user. Creating the task does not approve, integrate, accept, or
 merge the result.
 
 The Driver brings something to the user's attention only when it needs human

@@ -992,6 +992,32 @@ test("Driver can create tracked child work without gaining acceptance authority"
   assert.ok(!names.includes("plans_accept_task"));
 });
 
+test("fresh Driver chats can create work without gaining acceptance authority", async (t) => {
+  const { store } = fixture(t),
+    run = store.put("runs", {
+      id: "run-driver-chat",
+      taskId: "conversation:run-driver-chat",
+      provider: "openhands",
+      mode: "ask",
+      capabilityMode: "driver-chat",
+      state: "completed",
+    }),
+    { token } = mintRunCapability(store, run),
+    ops = new Operations(store);
+  const list = await handleMcp(
+    { jsonrpc: "2.0", id: 1, method: "tools/list" },
+    ops,
+    { runId: run.id, runCapability: token },
+  );
+  const names = list.body.result.tools.map((tool) => tool.name);
+  assert.ok(names.includes("plans_capture"));
+  assert.ok(names.includes("plans_start_run"));
+  assert.ok(names.includes("plans_propose_work"));
+  assert.ok(!names.includes("plans_approve_plan"));
+  assert.ok(!names.includes("plans_integrate"));
+  assert.ok(!names.includes("plans_accept_task"));
+});
+
 test("legacy Driver records receive Driver capabilities when reconnected", async (t) => {
   const { store } = fixture(t),
     run = store.put("runs", {

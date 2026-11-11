@@ -7187,6 +7187,37 @@ select {
   padding: 20px;
   background: #000b;
 }
+.avoozl-chat-dialog {
+  width: min(560px, 100%);
+  padding: 18px;
+  border: 1px solid #4b4b4b;
+  border-radius: 8px;
+  background: #1b1b1b;
+  box-shadow: 0 24px 80px #000d;
+}
+.avoozl-chat-dialog header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.avoozl-chat-dialog h2 {
+  margin: 3px 0 0;
+  font-size: 18px;
+}
+.avoozl-chat-dialog > p {
+  margin: 16px 0 10px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.avoozl-chat-dialog textarea {
+  width: 100%;
+  min-height: 120px;
+  resize: vertical;
+}
+.avoozl-chat-dialog .form-actions {
+  margin-top: 12px;
+}
 .mcp-dialog {
   width: min(620px, 100%);
   padding: 18px;

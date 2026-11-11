@@ -40,7 +40,9 @@ const ACTIVE = new Set([
 ]);
 const DRIVER_INSTRUCTIONS =
   "You are the persistent Avoozl Driver for this project workspace. Load and follow the installed Avoozl skill for Driver context, task creation, delegation, and tracking. Do not approve plans, accept tasks, integrate, or merge on the user's behalf. Skill instructions do not expand the server-enforced capability allowlist.";
-export const DRIVER_INSTRUCTION_VERSION = 4;
+const DRIVER_CHAT_INSTRUCTIONS =
+  "You are a fresh user-facing Avoozl project chat attached to the persistent Driver. Load and follow the installed Avoozl skill for task creation, delegation, and tracking. Do not assume the user has seen the Driver transcript. Do not approve plans, accept tasks, integrate, or merge on the user's behalf. Skill instructions do not expand the server-enforced capability allowlist.";
+export const DRIVER_INSTRUCTION_VERSION = 5;
 const DRIVER_CONTEXT_TASK_LIMIT = 12;
 
 function driverChoice(value) {
@@ -1005,9 +1007,15 @@ export class RunManager {
       capabilityMode: input.driver
         ? "driver"
         : input.mode === "ask" &&
-            ["new-task", "review"].includes(input.context?.conversationPurpose)
-          ? input.context.conversationPurpose
-          : undefined,
+            input.context?.conversationPurpose === "project-chat" &&
+            parent?.driver
+          ? "driver-chat"
+          : input.mode === "ask" &&
+              ["new-task", "review"].includes(
+                input.context?.conversationPurpose,
+              )
+            ? input.context.conversationPurpose
+            : undefined,
       prompt: input.prompt || "",
       title:
         input.title ||
@@ -1119,7 +1127,11 @@ export class RunManager {
           ? openHandsDriverConversationId(run.id)
           : undefined,
         parentConversationId: run.parentProviderSessionId,
-        systemInstructions: run.driver ? DRIVER_INSTRUCTIONS : undefined,
+        systemInstructions: run.driver
+          ? DRIVER_INSTRUCTIONS
+          : run.capabilityMode === "driver-chat"
+            ? DRIVER_CHAT_INSTRUCTIONS
+            : undefined,
         resumeId: run.providerSessionId,
         mcpUrl: this.baseUrl + "/mcp?run=" + encodeURIComponent(run.id),
         mcpToken: token,

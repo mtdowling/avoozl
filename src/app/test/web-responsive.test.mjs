@@ -105,7 +105,7 @@ test("plan reading and live service details keep usable alignment and scrolling"
   );
 });
 
-test("the toolbar exposes one persistent Avoozl Driver chat control", () => {
+test("the toolbar starts a fresh lazy Avoozl Driver child chat", () => {
   const app = fs.readFileSync(path.join(root, "src/web/App.tsx"), "utf8");
   const styles = fs.readFileSync(path.join(root, "src/web/styles.css"), "utf8");
 
@@ -113,21 +113,18 @@ test("the toolbar exposes one persistent Avoozl Driver chat control", () => {
     app,
     /className="toolbar-action toolbar-chat-control"[\s\S]*?aria-label="Chat with Avoozl"[\s\S]*?<MessageSquare[\s\S]*?Chat with Avoozl/,
   );
-  assert.match(app, /void openDriver\(true\)/);
-  assert.match(
-    app,
-    /const existing = driver\.data\?\.projects\.find\([\s\S]*?if \(existing\) \{\s*await openRun\(existing\.id\);\s*return;\s*\}/,
-  );
-  assert.match(
-    app,
-    /const captured = captureContext\(\{ purpose: "project-chat", scoped \}\);/,
-  );
-  assert.match(app, /title="Open or return to the persistent Avoozl Driver"/);
+  assert.match(app, /onClick=\{\(\) => setChatOpen\(true\)\}/);
+  assert.match(app, /title="Start a fresh Avoozl chat"/);
+  assert.match(app, /<h2 id="avoozl-chat-title">Chat with Avoozl<\/h2>/);
+  assert.match(app, /placeholder="What would you like Avoozl to do\?"/);
+  assert.match(app, /purpose: "project-chat"/);
   assert.match(app, /parentRunId: parent\.run\.id/);
+  assert.doesNotMatch(app, /async function openDriver/);
   assert.match(
     styles,
     /\.app-toolbar \.toolbar-chat-control \{[\s\S]*?display: flex;[\s\S]*?gap: 6px;/,
   );
+  assert.match(styles, /\.avoozl-chat-dialog \{/);
   assert.doesNotMatch(app, /toolbar-new-menu|toolbar-workspace-picker/);
   assert.doesNotMatch(app, /NEW_TASK_PROMPT|NEW_PLAN_PROMPT/);
   assert.doesNotMatch(app, /"Work intake"/);
