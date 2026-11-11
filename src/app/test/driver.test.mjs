@@ -37,7 +37,7 @@ test("Driver titles and persisted view context stay compact", () => {
   const title = driverConversationTitle({
     name: "  A project   with a deliberately long name ".repeat(12),
   });
-  assert.match(title, /^Avoozl Driver · A project with a deliberately/);
+  assert.match(title, /^Chat with Avoozl · A project with a deliberately/);
   assert.ok(title.length <= 160);
 });
 
