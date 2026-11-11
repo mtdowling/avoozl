@@ -4,6 +4,7 @@ import test from "node:test";
 import { once } from "node:events";
 import { startAgentHost } from "../agent-host.mjs";
 import {
+  DRIVER_INSTRUCTION_VERSION,
   driverConversationTitle,
   openHandsDriverConversationId,
   RunManager,
@@ -67,6 +68,8 @@ test("Driver is one durable idle OpenHands conversation per project", async (t) 
   assert.equal(first.created, true);
   assert.equal(first.run.driver, true);
   assert.equal(first.run.driverRole, "project");
+  assert.equal(first.run.driverInstructionVersion, DRIVER_INSTRUCTION_VERSION);
+  assert.equal(first.run.capabilityMode, "driver");
   assert.equal(first.run.logicalConversationId, first.run.id);
   assert.equal(first.run.projectId, "fixture");
   assert.equal(first.run.providerSessionId, "driver-conversation");
@@ -76,7 +79,7 @@ test("Driver is one durable idle OpenHands conversation per project", async (t) 
   assert.equal(starts.length, 1);
   assert.equal(starts[0].prompt, undefined);
   assert.match(starts[0].systemInstructions, /persistent Avoozl Driver/);
-  assert.match(starts[0].systemInstructions, /plans_run_context/);
+  assert.match(starts[0].systemInstructions, /installed Avoozl skill/);
   assert.match(
     starts[0].conversationId,
     /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
@@ -262,6 +265,8 @@ test("reopening Driver after a host restart reconnects without sending a turn", 
     providerSessionId: "conversation-existing",
     driver: true,
     driverRole: "project",
+    driverInstructionVersion: DRIVER_INSTRUCTION_VERSION,
+    title: "Avoozl Driver · Fixture",
     mode: "ask",
     state: "completed",
     context: {},
@@ -273,6 +278,8 @@ test("reopening Driver after a host restart reconnects without sending a turn", 
   assert.equal(options.length, 1);
   assert.equal(options[0].resumeId, "conversation-existing");
   assert.equal(options[0].prompt, undefined);
+  assert.equal(options[0].title, "Chat with Avoozl · fixture");
+  assert.equal(opened.run.title, "Chat with Avoozl · fixture");
 });
 
 test("child launches require the same-project top-level OpenHands Driver", async (t) => {
@@ -441,6 +448,42 @@ test("changing Driver agent or model safely hands off and retains history", asyn
   );
   assert.equal(starts.length, 3);
   assert.equal(manager.listDrivers().projects[0].run.id, replacement.run.id);
+});
+
+test("updating Driver instructions hands off to a fresh skilled conversation", async (t) => {
+  const { store, root } = fixture(t);
+  configureProject(store, root);
+  const starts = [];
+  const manager = new RunManager(store, {
+    factories: {
+      openhands: ({ emit }) => ({
+        async start(options) {
+          starts.push(options);
+          emit("session", {
+            providerSessionId: `driver-instructions-${starts.length}`,
+          });
+        },
+        async close() {},
+      }),
+    },
+  });
+  t.after(() => manager.close());
+
+  const first = await manager.openDriver({ projectId: "fixture" });
+  const stale = store.get("runs", first.run.id);
+  stale.driverInstructionVersion = DRIVER_INSTRUCTION_VERSION - 1;
+  store.put("runs", stale);
+
+  const replacement = await manager.openDriver({ projectId: "fixture" });
+  assert.equal(replacement.handedOff, true);
+  assert.equal(replacement.previousRunId, first.run.id);
+  assert.equal(replacement.run.driverHandoffReason, "instruction-update");
+  assert.equal(
+    replacement.run.driverInstructionVersion,
+    DRIVER_INSTRUCTION_VERSION,
+  );
+  assert.equal(store.get("runs", first.run.id).driverActive, false);
+  assert.equal(starts.length, 2);
 });
 
 test("reported low context hands off Driver only after the active turn completes", async (t) => {

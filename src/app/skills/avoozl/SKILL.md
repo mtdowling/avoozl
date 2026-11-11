@@ -7,6 +7,17 @@ description: Find, claim, plan and maintain work in the Avoozl workspace through
 
 Use the live database for current work. This skill contains workflow, not a snapshot of task status or priorities. Read workspace guidance at `{{PLANS_ROOT}}/AGENTS.md` when present, and the assigned repository's guidance before making changes.
 
+## Drive work through tracked tasks
+
+The persistent Avoozl Driver answers ordinary questions directly. When the user
+asks it to change, build, fix, investigate, review, or plan something, it first
+creates an Avoozl task or explicitly reuses the task already attached to the
+request. It searches for overlapping work before creating a new record, then
+starts substantive work as a child conversation linked to that task. Follow-up
+direction stays with the existing task; a genuinely separate deliverable gets
+a separate task. Creating the task does not approve, integrate, accept, or
+merge the result.
+
 ## Find and claim work
 
 The workspace is `{{PLANS_ROOT}}`; the site is {{BASE}}/ and MCP is {{BASE}}/mcp. Commands below work from any directory. MCP is optional; the CLI reaches the same operations.
