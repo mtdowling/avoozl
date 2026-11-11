@@ -22,17 +22,12 @@ const OPENHANDS_AGENT_PRESETS = Object.freeze({
   "claude-code": Object.freeze({
     label: "Claude Code",
     profile: "avoozl-claude-code",
-    secretRefs: ["AVOOZL_MCP_URL", "AVOOZL_MCP_TOKEN", "ANTHROPIC_API_KEY"],
+    secretRefs: ["AVOOZL_MCP_URL", "AVOOZL_MCP_TOKEN"],
   }),
   codex: Object.freeze({
     label: "Codex",
     profile: "avoozl-codex",
-    secretRefs: [
-      "AVOOZL_MCP_URL",
-      "AVOOZL_MCP_TOKEN",
-      "OPENAI_API_KEY",
-      "CODEX_AUTH_JSON",
-    ],
+    secretRefs: ["AVOOZL_MCP_URL", "AVOOZL_MCP_TOKEN"],
   }),
 });
 

@@ -367,13 +367,10 @@ test("agent setup installs provider-neutral profiles and activates a verified de
   assert.deepEqual(saved.get("avoozl-claude-code").secret_refs, [
     "AVOOZL_MCP_URL",
     "AVOOZL_MCP_TOKEN",
-    "ANTHROPIC_API_KEY",
   ]);
   assert.deepEqual(saved.get("avoozl-codex").secret_refs, [
     "AVOOZL_MCP_URL",
     "AVOOZL_MCP_TOKEN",
-    "OPENAI_API_KEY",
-    "CODEX_AUTH_JSON",
   ]);
   assert.ok(
     calls.some(
