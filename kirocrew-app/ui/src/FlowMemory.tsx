@@ -193,7 +193,7 @@ export function ProposalsView({ workspaceId }: { workspaceId: string | null }) {
         <SectionHeading title="Prompt and skill proposals" />
         <p className="text-xs text-muted">A retro may propose a change to what agents are told. Nothing changes until you approve it.</p>
         {!changes.length ? (
-          <p className="text-sm text-muted">No prompt, skill or lesson proposals yet. Settings and plan proposals are under Overview.</p>
+          <p className="text-sm text-muted">No prompt, skill or lesson proposals yet. Settings and spec proposals are under Overview.</p>
         ) : (
           <ul className="flex flex-col gap-3">
             {changes.map((p) => (
