@@ -338,6 +338,9 @@ export function placeOne(store, data, ctx, state, input) {
   const byId = new Map(ctx.crews.map((c) => [c.id, c])),
     removed = [...evaluation.removed];
   let allowed = [...evaluation.allowed];
+  // The hard rules left no crew: say so, not that an agent is missing.
+  if (!allowed.length)
+    return { wait: true, noFit: true, why: "no crew fits", removed, evaluation };
   // The session (R53): after the hard rules, before the scorer.
   const hasAgent = (crew, agent) =>
     !agent || !crew.agents || crew.agents.includes(agent);
@@ -455,6 +458,18 @@ export function placeOne(store, data, ctx, state, input) {
     },
     crewInfo: picked.crew,
   };
+}
+
+// Whether the hard rules alone let `task`'s worker run on `crewId`: a batch
+// member runs in its leader's session, so it must fit the leader's crew
+// (R46.4) without a placement of its own.
+export function rulesAllow(data, ctx, task, crewId) {
+  return evaluatePlacement(
+    subjectOf(task, data, "worker"),
+    ctx.config.rules,
+    ctx.crews,
+    { remoteDispatch: true },
+  ).allowed.includes(crewId);
 }
 
 // ---------------------------------------------------------------------------

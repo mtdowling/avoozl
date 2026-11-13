@@ -65,7 +65,7 @@ export function planBatches(
   store,
   leaves,
   candidates,
-  { workspaceRoot = null, data = store.read(), policy } = {},
+  { workspaceRoot = null, data = store.read(), policy, fits = null } = {},
 ) {
   const flow = readFlowPolicy(workspaceRoot),
     edges = data.edges.filter((e) => BLOCKING.has(e.kind)),
@@ -82,7 +82,12 @@ export function planBatches(
     const repo = leaf.project.id,
       { batch } = flow.for(repo),
       by = batch.by;
-    if (batch.max <= 1 || !batchable(store, leaf.task) || leaf.attempt > 1) {
+    if (
+      batch.max <= 1 ||
+      !batchable(store, leaf.task) ||
+      leaf.attempt > 1 ||
+      (fits && !fits(leaf, leaf.task))
+    ) {
       out.push(leaf);
       taken.add(leaf.task.id);
       continue;
@@ -117,6 +122,8 @@ export function planBatches(
       )
         continue;
       if (group.some((g) => linked(g, task))) continue;
+      // Every task in a batch runs on the leader's crew (R46.4).
+      if (fits && !fits(leaf, task)) continue;
       group.push(task);
     }
     for (const task of group) taken.add(task.id);

@@ -244,3 +244,35 @@ test("the CLI pulls and resumes as the person at the command line", async () => 
   const { stop: resumed } = run("flow", "resume", stop.id);
   assert.equal(resumed.resumedBy.by, "cli");
 });
+
+test("a blocked report stops the line only when a dependent names its blocker", (t) => {
+  const { store } = setup(t);
+  store.mutate("integrate a1", (data) => {
+    data.tasks.find((x) => x.id === "a1").integration = {
+      commit: "a".repeat(40),
+      at: "2026-11-12T00:00:00Z",
+    };
+  });
+  const blocked = (taskId, text) =>
+    store.put("session_bindings", {
+      id: "w-" + taskId,
+      slot: "w-" + taskId,
+      taskId,
+      role: "worker",
+      attempt: 1,
+      source: "tick",
+      status: "working",
+      boundAt: "2026-11-12T00:00:00Z",
+      report: { kind: "blocked", text, at: "2026-11-12T01:00:00Z" },
+    });
+  // a3 does not depend on a1.
+  blocked("a3", "a1 broke the build");
+  blockedNaming(store, {});
+  assert.deepEqual(openStops(store), []);
+  blocked("a2", "a1 broke the build");
+  blockedNaming(store, {});
+  assert.deepEqual(
+    openStops(store).map((s) => s.culprit),
+    ["a1"],
+  );
+});

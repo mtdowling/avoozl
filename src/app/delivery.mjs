@@ -36,7 +36,7 @@ import { queryTasks, statusComplete } from "../query.mjs";
 import { resolveTaskId } from "../task-identity.mjs";
 import { pausedTaskIds } from "./github-project.mjs";
 import { LOCAL } from "./crews.mjs";
-import { machineRouting, placeOne, routingOn } from "./routing.mjs";
+import { machineRouting, placeOne, routingOn, rulesAllow } from "./routing.mjs";
 import { handbackFetch, pushedFetch } from "./handback.mjs";
 import { routeResultNotes, submittedTaskIds } from "./routes.mjs";
 import {
@@ -781,8 +781,13 @@ export async function reportSession(
   if (pushing && declaredHere.length) {
     const project = taskProject(store, task),
       declared = declaredHere,
-      pushed = checkDoneList(checks, declared),
-      pass = await localPass(project.root, pushed, declared);
+      pushed = checkDoneList(checks, declared);
+    if (pushed !== input.commit)
+      fail(
+        `Local checks first: the check list is for ${pushed.slice(0, 12)}, but you reported ${input.commit.slice(0, 12)}. Run the checks on the commit you report.`,
+        409,
+      );
+    const pass = await localPass(project.root, pushed, declared);
     if (!pass.ok)
       fail(`Local checks first: ${pass.cause}. Run \`avoozl checks run --task ${task.id}\` in your worktree, then push.`, 409);
   }
@@ -1814,11 +1819,17 @@ export function planReadyDispatches(store, policy, options = {}) {
           return true;
         }
       : null,
+    // A batch runs in its leader's local session (the batch brief is local
+    // only), so the leader must be placed on local and every member's rules
+    // must allow local (R46.4).
+    batchFits = (leader, task) =>
+      placed.get(leader.task.id)?.crew === LOCAL &&
+      rulesAllow(data, routing, task, LOCAL),
     leaves = planBatches(
       store,
       readyLeaves(store, policy, { ...options, skip, place }),
       candidates.filter((task) => !skip.has(task.id)),
-      { workspaceRoot, data, policy },
+      { workspaceRoot, data, policy, fits: routing ? batchFits : null },
     );
   return leaves.flatMap((leaf) => {
     const where = placed.get(leaf.task.id),
@@ -2004,7 +2015,10 @@ const roleFailures = (delivery, roleId, commit) =>
 // The model the writer of the delivery's newest done attempt was opened on.
 function writerModel(store, delivery) {
   const done = delivery.attempts.findLast((a) => a.outcome === "done");
-  return done ? store.get("session_bindings", done.slot)?.model || null : null;
+  // An attempt recorded without its slot has no binding to read.
+  return done?.slot
+    ? store.get("session_bindings", done.slot)?.model || null
+    : null;
 }
 
 // Null when the review role may run against this writer, else why not

@@ -495,6 +495,16 @@ test(
       push: true,
       stdin: push,
     });
+    // A check list for another commit is not a local pass of this one.
+    await assert.rejects(
+      report("w-g1", {
+        taskId: "g1",
+        kind: "done",
+        commit: git(gWt, "rev-parse", "HEAD~1"),
+        checks: local.checks,
+      }),
+      /Local checks first: the check list is for/,
+    );
     await report("w-g1", {
       taskId: "g1",
       kind: "done",
