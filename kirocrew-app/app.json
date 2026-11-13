@@ -6,7 +6,7 @@
   "author": "mtdowling",
   "license": "MIT",
   "iconPath": "assets/icon.png",
-  "skills": ["skills/avoozl", "skills/avoozl-plugin"],
+  "skills": ["skills/avoozl", "skills/avoozl-plugin", "skills/avoozl-rules"],
   "agents": [
     "agents/avoozl-planner.json",
     "agents/avoozl-verifier.json",

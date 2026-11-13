@@ -30,8 +30,10 @@ export interface ReaderTarget {
 const PREFIX = 'avoozl-reader'
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])'
 
-export function DocumentReader(props: { workspaceId: string; target: ReaderTarget; onClose: () => void }) {
-  const { workspaceId, target, onClose } = props
+// `text` shows a file bundled with the app (the Plugin guide) instead of
+// reading a workspace file; it has no folder to reveal.
+export function DocumentReader(props: { workspaceId: string; target: ReaderTarget; onClose: () => void; text?: string }) {
+  const { workspaceId, target, onClose, text } = props
   const api = useAppApi()
   const tasks = useMemo(() => taskClient(api), [api])
   const reveal = useReveal()
@@ -46,7 +48,8 @@ export function DocumentReader(props: { workspaceId: string; target: ReaderTarge
 
   useEffect(() => {
     let live = true
-    tasks.document(workspaceId, target.document).then(
+    if (text !== undefined) setDoc({ text, error: null })
+    else tasks.document(workspaceId, target.document).then(
       (value) => live && setDoc({ text: value.text, error: null }),
       (caught: unknown) => live && setDoc({ text: null, error: errorMessage(caught) }),
     )
@@ -63,7 +66,7 @@ export function DocumentReader(props: { workspaceId: string; target: ReaderTarge
     return () => {
       live = false
     }
-  }, [api, tasks, workspaceId, target.document])
+  }, [api, tasks, workspaceId, target.document, text])
 
   // Scroll to the cited lines and mark them for good (CitedFile's mark),
   // the same blocks the drawer marks. Under reduced motion the jump is
@@ -173,7 +176,7 @@ export function DocumentReader(props: { workspaceId: string; target: ReaderTarge
               )}
             </div>
             <IconBtn icon={Copy} label="Copy path" tooltip={`Copy ${target.document}`} onClick={() => void copy()} />
-            <IconBtn icon={FolderOpen} label="Reveal in Finder" tooltip="Show this file in Finder" onClick={() => void revealFile()} />
+            {text === undefined && <IconBtn icon={FolderOpen} label="Reveal in Finder" tooltip="Show this file in Finder" onClick={() => void revealFile()} />}
             <IconLabel icon={X} onClick={onClose} aria-label="Close the file">
               Close
             </IconLabel>
