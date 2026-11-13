@@ -158,7 +158,7 @@ function PreviewBlock({ preview }: { preview: ChangePreview }) {
           </pre>
         </div>
       )}
-      <p className="text-xs text-muted">Nothing was written. Approving the changed plan stays your step.</p>
+      <p className="text-xs text-muted">Nothing was written. Approving the changed spec stays your step.</p>
     </div>
   )
 }
@@ -283,7 +283,7 @@ export default function TaskForm(props: {
       {preview && <PreviewBlock preview={preview} />}
       <div className="flex flex-wrap gap-2">
         <Btn type="submit" primary disabled={busy || !valid}>
-          {locked ? 'Draft the plan change' : detail ? 'Save changes' : 'Add draft task'}
+          {locked ? 'Draft the spec change' : detail ? 'Save changes' : 'Add draft task'}
         </Btn>
         <Btn type="button" onClick={props.onCancel} disabled={busy}>
           Cancel

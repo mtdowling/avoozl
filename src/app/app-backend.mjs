@@ -12,7 +12,7 @@ import { Operations } from "./operations.mjs";
 import { CLIENT_OPERATIONS } from "./client.mjs";
 import { classifyOperation } from "./operation-kinds.mjs";
 import { workspaceConfig } from "./config.mjs";
-import { WorkspaceRegistry } from "./host-config.mjs";
+import { machineAvoozlPaths, WorkspaceRegistry } from "./host-config.mjs";
 import { initializeWorkspace } from "./workspace.mjs";
 import { gatewayPusher } from "./notifications.mjs";
 import {
@@ -155,6 +155,10 @@ const APP_OPERATIONS = new Set([
   "intake.plan",
   "intake.source.add",
   "intake.source.remove",
+  "idea.capture",
+  "idea.append",
+  "idea.archive",
+  "idea.restore",
   "flow.view",
   "untriaged.crews",
   "untriaged.handoff",
@@ -216,6 +220,13 @@ const APP_OPERATIONS = new Set([
   "flow.instructions.update",
   "flow.retro.decide",
   "flow.retro.start",
+  "flow.proposals",
+  "lessons.view",
+  "plugin.lessons.preview",
+  "prompt.override.revert",
+  "prompt.override.rebase",
+  "plugin.lessons.import",
+  "lessons.export",
   "github.settings.get",
   "github.trigger.preview",
   "github.settings.validate",
@@ -372,6 +383,7 @@ export function startAppBackend({
           operator: target.operator,
           workspaceRoot: target.workspaceRoot,
           plansRoot: target.plansRoot,
+          configDirectory: machineAvoozlPaths().configDirectory,
           notifier,
           crewReader,
         }),

@@ -28,12 +28,16 @@ import { fail } from "./store.mjs";
 
 // `intake` screens incoming items (design §4.12) and runs only for a set
 // that names it, so GitHub intake is unchanged unless the owner asks.
+// `proposal` screens retro proposals and `lesson` the lessons shared across
+// workspaces (design §4.18); every set covers them unless it narrows.
 export const BOUNDARIES = Object.freeze([
   "plan",
   "github",
   "brief",
   "diff",
   "intake",
+  "proposal",
+  "lesson",
 ]);
 const OPT_IN = new Set(["intake"]);
 export const ACTIONS = Object.freeze(["block", "report"]);

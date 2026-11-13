@@ -76,7 +76,7 @@ test('a Plans row, its name and Open docs open the plan in view', () => {
   assert.match(plans, /<tr[\s\S]{0,120}onClick=\{\(\) => props\.onOpen\(row\)\}/)
   assert.match(plans, /onClick=\{stop\(\(\) => props\.onOpen\(row\)\)\}\s*>\s*\{row\.name\}/)
   assert.match(plans, /onOpen=\{\(\) => props\.onOpen\(row\)\}/)
-  assert.match(plans, /<IconBtn icon=\{DetailsIcon\} label=\{`Open docs for \$\{row\.name\}`\} tooltip="Open this plan's documents and tasks"/)
+  assert.match(plans, /<IconBtn icon=\{DetailsIcon\} label=\{`Open docs for \$\{row\.name\}`\} tooltip="Open this spec's documents and tasks"/)
   // Opening sets the row at once, with no reload first, and scrolls to it.
   assert.match(plans, /const open = \(next: PlanRow\) => openPlan\(next\.key\)/)
   assert.match(plans, /detailTop\.current\?\.scrollIntoView/)
@@ -85,11 +85,11 @@ test('a Plans row, its name and Open docs open the plan in view', () => {
   assert.match(plans, /props\.onScope\?\.\(target, \{ plan: rowPlanKey\(next\) \}\)/)
   // App sets the tabs' shared filter, then opens the tab.
   const app = source('App.tsx')
-  assert.match(app, /<PlansView workspaceId=\{active\} onScope=\{scopeTo\} onDrill=\{openDrill\} newPlanRequest=\{planGoal\} \/>/)
+  assert.match(app, /<PlansView\s+workspaceId=\{active\}\s+onScope=\{scopeTo\}\s+onDrill=\{openDrill\}\s+newPlanRequest=\{planGoal\}/)
   // Plan a goal opens the same New plan drawer on the Plans tab, not a chat.
-  assert.match(app, /setPlanGoal\(\(count\) => count \+ 1\)\s*go\(\{ focus: null, drill: null, tab: 'plans' \}\)/)
+  assert.match(app, /setPlanGoal\(\(request\) => \(\{ n: request\.n \+ 1 \}\)\)\s*go\(\{ focus: null, drill: null, tab: 'plans' \}\)/)
   assert.doesNotMatch(app, /openChat/)
-  assert.match(plans, /if \(props\.newPlanRequest\) setCreating\(true\)/)
+  assert.match(plans, /if \(props\.newPlanRequest\?\.n\) setCreating\(\{ seed: props\.newPlanRequest\.seed \}\)/)
   assert.match(app, /if \(active\) setSharedFilter\(active, filter\)/)
   assert.match(app, /<GraphView workspaceId=\{active\} focus=\{focus\} drill=\{drill\} onDrill=\{setDrill\} \/>/)
 })

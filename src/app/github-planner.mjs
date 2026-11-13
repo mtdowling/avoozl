@@ -7,6 +7,7 @@
 // server repeat the dispatch only until the session is bound, and Kiro Crew
 // hands back the same session for the same title. The preview and publishing
 // flow (github-breakdown.mjs) then runs from the spec folder.
+import { withSeed } from "./retro-memory.mjs";
 import { FINAL_STATUSES, listSessionBindings } from "./session-bindings.mjs";
 import { sessionTitle } from "./delivery.mjs";
 import { parseMarker } from "./github-marker.mjs";
@@ -203,11 +204,15 @@ export function plannerStep(store, workspaceRoot, { open = true } = {}) {
         folder: rules.folder || `Avoozl/${checkout.id}`,
         agent: PLANNER_AGENT,
         checkout: checkout.localCheckout,
-        brief: (planner.mode === "critique" ? critiqueBrief : breakdownBrief)(
-          row,
-          planner,
-          checkout,
-          repositories,
+        brief: withSeed(
+          store,
+          (planner.mode === "critique" ? critiqueBrief : breakdownBrief)(
+            row,
+            planner,
+            checkout,
+            repositories,
+          ),
+          "agent.planner",
         ),
       });
     }

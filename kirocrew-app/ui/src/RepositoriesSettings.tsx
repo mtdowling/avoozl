@@ -109,7 +109,7 @@ export function RepositoryList(props: {
                   row.checkout
                     ? {
                         title: `Remove ${row.name} from this workspace?`,
-                        body: `Avoozl stops using ${row.folder ?? 'this checkout'}: tasks that name ${row.checkout.id} wait until it is added again, and its entry leaves .avoozl.json. The folder${row.github ? `, the GitHub repository ${row.github}` : ''} and your plans are not touched. Avoozl refuses while a run or lock still uses it.`,
+                        body: `Avoozl stops using ${row.folder ?? 'this checkout'}: tasks that name ${row.checkout.id} wait until it is added again, and its entry leaves .avoozl.json. The folder${row.github ? `, the GitHub repository ${row.github}` : ''} and your specs are not touched. Avoozl refuses while a run or lock still uses it.`,
                         action: 'Remove',
                       }
                     : {

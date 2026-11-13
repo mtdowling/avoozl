@@ -91,7 +91,7 @@ export const LOCAL_TAB_BLURB = 'The mode for this workspace. Save only writes .a
 
 export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
   workspaces:
-    'The Avoozl workspaces on this machine, each a folder with its own task database. Add one for each set of plans you keep apart.',
+    'The Avoozl workspaces on this machine, each a folder with its own task database. Add one for each set of specs you keep apart.',
   repositories:
     'The code checkouts tasks change and land in, with their GitHub settings. Save only writes .avoozl.json.',
   github:
@@ -99,7 +99,7 @@ export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
   plugins:
     'A plugin can bring a team’s settings pack, content rules, a tracker, an intake source or a delivery route. Each one runs or imports only after you approve it on this machine.',
   content:
-    'Terms Avoozl must never write: in plan files, issues, comments, briefs and diffs. A match stops the write and asks you.',
+    'Terms Avoozl must never write: in spec files, issues, comments, briefs and diffs. A match stops the write and asks you.',
   flow: 'How Avoozl measures delivery time and reacts to slow or broken work. Every group applies in each mode.',
   delivery:
     'Which agent and model write each task by default, and whether pull request feedback goes back to the writer. Crews and per-task picks are on the Routing tab.',
@@ -1047,7 +1047,7 @@ function RepositoriesTab(props: {
         <Card>
           <Section title={`${row.name} settings`} blurb="A local-only repository: no GitHub remote, so the GitHub tabs do not apply.">
             <p className="text-sm" data-local-checks>
-              Required checks apply only to GitHub pull requests. Here Avoozl runs each task&apos;s own checks from the plan manifest, or this
+              Required checks apply only to GitHub pull requests. Here Avoozl runs each task&apos;s own checks from the spec manifest, or this
               repository&apos;s checks when a task names none.
             </p>
           </Section>
@@ -1098,7 +1098,7 @@ function LocalRepository(props: { row: RepositoryRow; review: ReviewSettings | u
           <dd>Avoozl worker chats</dd>
         </dl>
         <p className="text-sm" data-local-checks>
-          Avoozl runs each task&apos;s own checks from the plan manifest, or this repository&apos;s checks when a task names none.
+          Avoozl runs each task&apos;s own checks from the spec manifest, or this repository&apos;s checks when a task names none.
         </p>
         {props.kept && <p className="text-xs text-muted">Its GitHub settings are kept, not used. They apply again if you pick a GitHub mode.</p>}
       </Section>

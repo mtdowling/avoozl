@@ -11,6 +11,8 @@ import UntriagedView from './UntriagedView.tsx'
 import FlowView from './FlowView.tsx'
 import RoutingView from './RoutingView.tsx'
 import { untriagedClient } from './untriaged-api.ts'
+import { specSeed } from './ideas-api.ts'
+import type { NewPlanForm } from './new-plan-api.ts'
 import SettingsView, { SETTINGS_TABS, type SettingsTab } from './SettingsView'
 import { SETTINGS_HOME, settingsTabOnEnter } from './settings-api.ts'
 import { TaskDrawerProvider } from './TaskDrawer'
@@ -33,7 +35,7 @@ import {
 
 const TABS = [
   { key: 'dashboard', label: 'Dashboard' },
-  { key: 'plans', label: 'Plans' },
+  { key: 'plans', label: 'Specs' },
   { key: 'graph', label: 'Graph' },
   { key: 'delivery', label: 'Delivery' },
   { key: 'flow', label: 'Flow' },
@@ -113,11 +115,13 @@ function AvoozlPage() {
   const [drill, setDrill] = useState<Drill | null>(null)
   // Open conflicts, for the yellow count after the Conflicts tab's label.
   const [conflicts, setConflicts] = useState(0)
-  // Each Plan a goal press opens the New plan drawer once.
-  const [planGoal, setPlanGoal] = useState(0)
-  // Untriaged items in Intake (§8.5): null hides the tab, as in Local only
-  // mode with no intake source.
+  // Each Plan a goal or Make it a spec press opens the New plan drawer
+  // once, with an idea's fields for Make it a spec (R63.9).
+  const [planGoal, setPlanGoal] = useState<{ n: number; seed?: Partial<NewPlanForm> }>({ n: 0 })
+  // Untriaged items in Intake (§8.5): null in Local only mode with no
+  // intake source, which hides the count. The tab stays for ideas (R63.7).
   const [untriaged, setUntriaged] = useState<number | null>(null)
+  const [openIdeas, setOpenIdeas] = useState<number | null>(null)
   const views = useMemo(() => viewsClient(api), [api])
   const untriagedReads = useMemo(() => untriagedClient(api), [api])
   const [workspaceId, setWorkspaceId] = useState<string | null>(saved.workspaceId)
@@ -194,7 +198,11 @@ function AvoozlPage() {
     let live = true
     const read = () =>
       untriagedReads.view(active).then(
-        (list) => live && setUntriaged(list.enabled ? list.total : null),
+        (list) => {
+          if (!live) return
+          setUntriaged(list.enabled ? list.total : null)
+          setOpenIdeas((list.ideas ?? []).filter((idea) => idea.state === 'open').length)
+        },
         () => undefined,
       )
     void read()
@@ -204,10 +212,6 @@ function AvoozlPage() {
       clearInterval(timer)
     }
   }, [active, untriagedReads, tab])
-  // Leaving a GitHub mode hides the tab; don't strand the page on it.
-  useEffect(() => {
-    if (untriaged === null && tab === 'untriaged') setTab('dashboard')
-  }, [untriaged, tab])
 
   return (
     <div {...{ [APP_ATTR]: '' }} style={{ display: 'contents' }}>
@@ -230,7 +234,7 @@ function AvoozlPage() {
               primary
               onClick={() => {
                 // The same New plan drawer, opened on the Plans tab.
-                setPlanGoal((count) => count + 1)
+                setPlanGoal((request) => ({ n: request.n + 1 }))
                 go({ focus: null, drill: null, tab: 'plans' })
               }}
             >
@@ -243,7 +247,7 @@ function AvoozlPage() {
         <SegmentedControl
           layoutId="avoozl-views"
           ariaLabel="Avoozl views"
-          segments={TABS.filter((t) => t.key !== 'untriaged' || untriaged !== null).map((t) => ({
+          segments={TABS.map((t) => ({
             key: t.key,
             label:
               t.key === 'untriaged' && untriaged ? (
@@ -295,7 +299,18 @@ function AvoozlPage() {
         ) : tab === 'dashboard' ? (
           <DashboardView workspaceId={active} untriaged={untriaged} onNavigate={navigate} onScope={scopeTo} onDrill={openDrill} />
         ) : tab === 'plans' ? (
-          <PlansView workspaceId={active} onScope={scopeTo} onDrill={openDrill} newPlanRequest={planGoal} />
+          <PlansView
+            workspaceId={active}
+            onScope={scopeTo}
+            onDrill={openDrill}
+            newPlanRequest={planGoal}
+            ideas={openIdeas}
+            onOpenIdeas={() => {
+              // The Intake tab opens on its Ideas view (UntriagedView's key).
+              nav.memory.set('untriaged-show', 'ideas')
+              go({ focus: null, drill: null, tab: 'untriaged' })
+            }}
+          />
         ) : tab === 'graph' ? (
           <GraphView workspaceId={active} focus={focus} drill={drill} onDrill={setDrill} />
         ) : tab === 'delivery' ? (
@@ -307,7 +322,13 @@ function AvoozlPage() {
         ) : tab === 'routing' ? (
           <RoutingView workspaceId={active} />
         ) : tab === 'untriaged' ? (
-          <UntriagedView workspaceId={active} />
+          <UntriagedView
+            workspaceId={active}
+            onMakeSpec={(idea) => {
+              setPlanGoal((request) => ({ n: request.n + 1, seed: specSeed(idea) }))
+              go({ focus: null, drill: null, tab: 'plans' })
+            }}
+          />
         ) : (
           <SettingsView
             workspaceId={active}

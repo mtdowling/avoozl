@@ -19,9 +19,11 @@ export interface NewPlanForm {
   repositories: string[]
   goal: string
   context: string
+  // The idea this spec comes from (Make it a spec, R63.9), or blank.
+  idea: string
 }
 
-export const EMPTY_NEW_PLAN: NewPlanForm = { name: '', category: '', epic: '', phases: '', repositories: [], goal: '', context: '' }
+export const EMPTY_NEW_PLAN: NewPlanForm = { name: '', category: '', epic: '', phases: '', repositories: [], goal: '', context: '', idea: '' }
 
 // The planner chat fallback.
 export interface NewPlanResult {
@@ -34,7 +36,7 @@ export interface NewPlanResult {
 // Whether the target repository has Avoozl's steering file.
 export interface SteeringStatus {
   path: string
-  state: 'missing' | 'current' | 'changed'
+  state: 'missing' | 'current' | 'older' | 'changed'
   text?: string
 }
 
@@ -65,12 +67,12 @@ export function suggestName(text: string): string {
 // a plan or a spec folder.
 export function nameProblem(name: string, taken: Iterable<string>): string | null {
   const value = name.trim()
-  if (!value) return 'Name the plan.'
+  if (!value) return 'Name the spec.'
   if (!SPEC_NAME.test(value)) {
     const hint = suggestName(value)
     return `Use lowercase letters, digits and hyphens, up to 80 characters${hint && hint !== value ? `, like ${hint}` : ''}.`
   }
-  for (const used of taken) if (used === value) return `${value} is already used by a plan or spec folder.`
+  for (const used of taken) if (used === value) return `${value} is already used by a spec or its folder.`
   return null
 }
 
@@ -102,6 +104,7 @@ const fields = (form: NewPlanForm) => ({
   repositories: form.repositories,
   goal: form.goal,
   context: form.context,
+  ...(form.idea ? { idea: form.idea } : {}),
 })
 
 export function newPlanClient(api: AppApi) {

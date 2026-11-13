@@ -139,12 +139,12 @@ export function ConflictActions(props: {
           </DangerBtn>
           <IconLabel
             icon={Check}
-            tooltip="Keep GitHub's edit until the plan changes this field"
+            tooltip="Keep GitHub's edit until the spec changes this field"
             disabled={busy || item.resolution === 'github'}
             onClick={() =>
               run(async () => {
                 await views.resolveConflict(workspaceId, item.taskId!, item.field!, 'github')
-                return { ok: true, text: 'GitHub’s value stays until the plan changes this field.' }
+                return { ok: true, text: 'GitHub’s value stays until the spec changes this field.' }
               })
             }
           >
@@ -321,7 +321,7 @@ function ItemHistory({ item, workspaceId }: { item: ConflictItem; workspaceId: s
       {detail && (
         <>
           <p className="text-xs text-muted">
-            Plan: {detail.plan ? `${detail.plan.title} (${detail.plan.approved ? 'approved' : (detail.plan.state ?? 'draft')})` : 'none'}
+            Spec: {detail.plan ? `${detail.plan.title} (${detail.plan.approved ? 'approved' : (detail.plan.state ?? 'draft')})` : 'none'}
             {detail.task.epicTitle ? ` · Epic: ${detail.task.epicTitle}` : ''} · State: {detail.task.state ?? 'unknown'}
           </p>
           {detail.timeline.length ? (
@@ -389,7 +389,7 @@ function ConflictRow(props: {
         )}
         {item.taskId && <span className="text-xs text-muted">{item.taskId}</span>}
         <Authority owner={item} />
-        {props.plan && <span className="text-xs text-muted">· plan {props.plan}</span>}
+        {props.plan && <span className="text-xs text-muted">· spec {props.plan}</span>}
         {time && (
           <Tooltip text={time}>
             <span className="text-xs text-muted">· {relativeTime(time)}</span>
@@ -568,7 +568,7 @@ export default function ConflictsView({ workspaceId }: { workspaceId: string | n
             fields={[
               { kind: 'search', key: 'q', label: 'Search', value: filter.q ?? '', placeholder: 'Task, ID or detail', onChange: (q) => setField({ q }) },
               { kind: 'select', key: 'kind', label: 'Kind', value: filter.kind ?? '', options: choices.kinds, onChange: (kind) => setField({ kind }) },
-              { kind: 'select', key: 'plan', label: 'Plan', value: filter.plan ?? '', options: choices.plans, onChange: (plan) => setField({ plan }) },
+              { kind: 'select', key: 'plan', label: 'Spec', value: filter.plan ?? '', options: choices.plans, onChange: (plan) => setField({ plan }) },
               { kind: 'select', key: 'epic', label: 'Epic', value: filter.epic ?? '', options: choices.epics, onChange: (epic) => setField({ epic }) },
               {
                 kind: 'select',

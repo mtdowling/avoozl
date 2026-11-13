@@ -188,6 +188,20 @@ import {
   switchBudgetToStop,
 } from "./budget.mjs";
 
+import {
+  RETRO_READS,
+  RETRO_WRITES,
+  retroOperation,
+} from "./retro-operations.mjs";
+import {
+  bindRetroMemory,
+  isSkillPath,
+  roleTarget,
+  promptVersions,
+  skillHashes,
+} from "./retro-memory.mjs";
+import { deliverRetroSkill } from "./intake.mjs";
+
 const PLUGIN_OPERATIONS = new Set([
   "plugins.list",
   "plugin.add",
@@ -263,6 +277,15 @@ import {
 } from "./intake.mjs";
 import { highlightLanguages } from "./highlight-languages.mjs";
 import { importNewPlans, requestNewPlan } from "./new-plan.mjs";
+import {
+  appendIdea,
+  captureIdea,
+  graduateIdea,
+  ideaView,
+  openIdea,
+  riffMessage,
+  setIdeaState,
+} from "./ideas.mjs";
 import { writeSpecManifest } from "./spec-manifest.mjs";
 import {
   callerSlot,
@@ -734,6 +757,14 @@ export class Operations {
       plugins = workspaceRoot
         ? pluginHost({ workspaceRoot, settingsFile: pluginSettingsFile })
         : null,
+      // This machine's Avoozl settings folder for prompt overrides and the
+      // lessons store (design §4.18). Unset (most tests) leaves retros as
+      // before Phase 28; the app, MCP server and CLI pass it.
+      configDirectory = null,
+      // Tests replace the shipped prompts to model an Avoozl update.
+      shippedPrompts = null,
+      // () => model IDs Kiro Crew lists, or null when unknown.
+      models = null,
     } = {},
   ) {
     this.store = store;
@@ -766,6 +797,32 @@ export class Operations {
       bindContentRules(store, {
         workspaceRoot,
         pluginSettingsFile,
+      });
+    if (workspaceRoot && configDirectory)
+      bindRetroMemory(store, {
+        configDirectory,
+        workspaceRoot,
+        shipped: shippedPrompts,
+        models:
+          models ||
+          (() => {
+            const cached = store.getMeta("kirocrew.models");
+            return cached && Date.now() - Date.parse(cached.at) < 24 * 3600_000
+              ? cached.models
+              : null;
+          }),
+        loadPluginFolders: () =>
+          inspectPlugins(this.pluginOptions)
+            .filter(
+              (p) =>
+                p.location && p.state !== "invalid" && p.state !== "missing",
+            )
+            .map((p) => ({
+              id: p.id,
+              location: p.location,
+              provides: p.provides || [],
+              state: p.state,
+            })),
       });
   }
   read() {
@@ -1934,7 +1991,8 @@ export class Operations {
           409,
         );
     }
-    if (name === "session.bind") return bindSession(store, input);
+    if (name === "session.bind")
+      return stampPrompts(store, bindSession(store, input));
     if (name === "session.rediscover") return rediscoverSessions(store, input);
     if (name === "session.request")
       return requestSession(store, input, workspaceRepositories(store));
@@ -1943,12 +2001,41 @@ export class Operations {
       return postReply(store, this.github, input, context.caller, {
         roots: machineRoots(store, this.workspaceRoot),
       });
-    if (name === "session.report")
-      return reportSession(store, input, context.caller, {
+    if (name === "session.report") {
+      // The skill files a session says it loaded (R68.12): absolute paths,
+      // hashed here; skills read through tool calls win.
+      const { skills, ...report } = input || {};
+      if (
+        skills !== undefined &&
+        (!Array.isArray(skills) ||
+          skills.length > 20 ||
+          !skills.every(
+            (f) =>
+              typeof f === "string" &&
+              f.length <= 1000 &&
+              path.isAbsolute(f) &&
+              isSkillPath(f),
+          ))
+      )
+        fail(
+          "skills lists up to 20 absolute paths of SKILL.md files you loaded.",
+        );
+      const result = await reportSession(store, report, context.caller, {
         placement: this.placement,
         local: context.local === true,
         flow: readFlowPolicy(this.workspaceRoot),
       });
+      if (skills?.length && result.binding) {
+        const hashes = skillHashes(store, skills, result.binding.taskId),
+          current = store.get("session_bindings", result.binding.slot);
+        if (current && Object.keys(hashes).length)
+          store.put("session_bindings", {
+            ...current,
+            skills: { ...hashes, ...(current.skills || {}) },
+          });
+      }
+      return result;
+    }
     // Local checks first (R45): run the declared checks in a worktree and
     // record the pass the pre-push hook and the done report read.
     if (name === "flow.checks.run") {
@@ -1973,12 +2060,15 @@ export class Operations {
         github: readGitHubPolicyOrNull(this.workspaceRoot),
       });
     if (name === "runner.claim")
-      return claimTask(store, input, {
-        caller: context.caller,
-        local: context.local === true,
-        policy: readDeliveryPolicy(this.workspaceRoot),
-        github: readGitHubPolicyOrNull(this.workspaceRoot),
-      });
+      return stampPrompts(
+        store,
+        await claimTask(store, input, {
+          caller: context.caller,
+          local: context.local === true,
+          policy: readDeliveryPolicy(this.workspaceRoot),
+          github: readGitHubPolicyOrNull(this.workspaceRoot),
+        }),
+      );
     // Routing (§4.10, §8.3): one view, a read-only Preview, and the edits.
     if (name === "routing.view")
       return {
@@ -2074,6 +2164,12 @@ export class Operations {
       return cancelSubmission(store, this.plugins.open(), input);
     }
     if (name === "route.resubmit") return resubmit(store, input);
+    // Proposals and Lessons (design §4.18).
+    if (RETRO_READS.has(name) || RETRO_WRITES.has(name))
+      return retroOperation(store, name, input, context, {
+        by: context.local ? "cli" : "dashboard",
+        config: readFlowConfig(this.workspaceRoot),
+      });
     if (PLUGIN_OPERATIONS.has(name)) {
       const result = await this.pluginOperation(name, input, context);
       // A plugin change reloads rules plugins on the next operation.
@@ -2097,6 +2193,16 @@ export class Operations {
         github: readGitHubPolicyOrNull(this.workspaceRoot),
       });
     if (name === "chat.context") {
+      // Riff on this (R63.8): the idea as data; the chat may only append.
+      if (input.purpose === "riff-idea")
+        return {
+          message: riffMessage(
+            ideaView(
+              store.get("incoming_items", `local\0${input.idea}`) ??
+                fail(`No idea ${input.idea}.`, 404),
+            ),
+          ),
+        };
       // A plan's seed carries its row and its spec documents.
       let planRow = null,
         documents = null;
@@ -2258,6 +2364,17 @@ export class Operations {
       const settings = this.settingsFile();
       return decideProposal(store, input, {
         config: readFlowConfig(this.workspaceRoot),
+        by: context.local ? "cli" : "dashboard",
+        // A repository skill change is one leaf through Deliver this
+        // (R68.10, R50.15).
+        skill: async (change) =>
+          withWorkLock(store, WORKSPACE_LOCK, async () =>
+            deliverRetroSkill(
+              store,
+              readGitHubPolicyOrNull(this.workspaceRoot),
+              change,
+            ),
+          ),
         apply: async (proposal, expectedHash) => {
           if (proposal.key.startsWith("delivery."))
             return settings.updateDeliveryKey({
@@ -2354,6 +2471,30 @@ export class Operations {
         queueNotifications(store, notify);
         return result;
       });
+    // Ideas (R63): anyone captures and appends; a session is named.
+    if (name === "idea.capture" || name === "idea.append") {
+      const by =
+        context.caller || context.mcp
+          ? {
+              kind: "agent",
+              name: `session:${context.caller?.sessionKey || context.caller || "mcp"}`,
+            }
+          : { kind: "person", name: context.local ? "cli" : "person" };
+      return name === "idea.capture"
+        ? captureIdea(store, input, { by })
+        : appendIdea(store, input, { by });
+    }
+    if (name === "idea.archive" || name === "idea.restore") {
+      if (context.caller || context.mcp)
+        fail(
+          "Only a person archives or restores an idea, in the Avoozl page or the CLI.",
+          403,
+        );
+      return setIdeaState(store, {
+        id: input.id,
+        state: name === "idea.archive" ? "archived" : "open",
+      });
+    }
     if (name === "intake.list") return listItems(store, input);
     if (name === "intake.view") return viewItem(store, input);
     if (name === "intake.sources")
@@ -3482,13 +3623,23 @@ export class Operations {
     if (name === "plan.new") {
       if (context.caller || context.mcp)
         fail("Only a person starts a new plan, from the Avoozl page.", 403);
-      return requestNewPlan(store, input, {
+      // Make it a spec (R63.9): the idea must be open, and it graduates
+      // only once the request is recorded.
+      const idea =
+        typeof input.idea === "string" && input.idea
+          ? openIdea(store, input.idea)
+          : null;
+      const { idea: _idea, ...fields } = input;
+      const result = requestNewPlan(store, fields, {
         readSpec: (spec) => this.readSpec(spec),
         repositories: workspaceRepositories(store).filter(
           (repo) => !repo.planning,
         ),
         specRoot: this.specRoots()[0] || null,
       });
+      if (idea && input.preview !== true)
+        result.idea = graduateIdea(store, idea.itemId, result.name);
+      return result;
     }
     if (name === "plan.create") {
       if (input.spec === undefined) return createPlan(store, input);
@@ -3684,7 +3835,7 @@ export class Operations {
       if (!plan) fail("Plan not found.", 404);
       // New tasks from an archived plan would start; unarchive it first.
       if (plan.archivedAt)
-        fail("This plan is archived. Unarchive it before approving.", 409);
+        fail("This spec is archived. Unarchive it before approving.", 409);
       if (plan.hash !== input.expectedHash)
         fail("The reviewed document hash changed.", 409);
       // Approval is of the stored revision, and only while the folder on
@@ -4569,4 +4720,16 @@ function flowBudget(store, data) {
   } catch {
     return { over: [], warning: [], stopped: [], paused: [] };
   }
+}
+
+// The built-in prompt version a newly bound session runs on (R68.12), kept
+// on its binding so its attempt records it.
+function stampPrompts(store, result) {
+  const binding = result?.binding,
+    target = binding && roleTarget(binding.role);
+  if (!target || !result.changed || binding.prompts) return result;
+  const version = promptVersions(store)[target],
+    next = { ...binding, prompts: { [target]: version } };
+  store.put("session_bindings", next);
+  return { ...result, binding: next };
 }
