@@ -3265,10 +3265,13 @@ export class Operations {
           // Authority changes only through projection or taking a task back.
           if (Object.hasOwn(input, "authority"))
             fail("Authority changes only through projection.", 409);
+          // A title is checked when it is set. A row imported before the
+          // limit keeps its long title through edits of other fields.
           if (
-            typeof task.title !== "string" ||
-            !task.title.trim() ||
-            task.title.length > 240
+            (Object.hasOwn(input, "title") || input.create) &&
+            (typeof task.title !== "string" ||
+              !task.title.trim() ||
+              task.title.length > 240)
           )
             fail("Title must contain 1–240 characters.");
           for (const key of [

@@ -244,4 +244,10 @@ test("a task names no epic, and its phase is {id, title}", async (t) => {
   assert.equal(ops.read().tasks.find((entry) => entry.id === "sample-task").archivedReason, "plan removed");
   await ops.execute("task.unarchive", { id: "sample-task" });
   assert.equal(ops.read().tasks.find((entry) => entry.id === "sample-task").archivedReason, undefined);
+  // A long title imported before the limit does not block another field.
+  ops.store.mutate("Long title", (data) => {
+    data.tasks.find((entry) => entry.id === "sample-task").title = "x".repeat(300);
+  });
+  await ops.execute("task.update", { id: "sample-task", phase: { id: "w2", title: "W2" } });
+  await assert.rejects(ops.execute("task.update", { id: "sample-task", title: "y".repeat(241) }), /1–240/);
 });
