@@ -1783,7 +1783,11 @@ export function withRules(store, brief, target) {
 }
 
 export function leafBrief(store, data, leaf, options = {}) {
-  return withRules(store, composeLeafBrief(store, data, leaf, options), "brief.worker");
+  return withRules(
+    store,
+    composeLeafBrief(store, data, leaf, options),
+    "brief.worker",
+  );
 }
 
 function composeLeafBrief(

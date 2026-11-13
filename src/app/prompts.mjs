@@ -209,7 +209,8 @@ export function promptState(file, shipped = shippedPrompts()) {
       drift = [];
     const effective = sections.map((s) => {
       const own = active?.sections?.[s.name];
-      if (!own || s.locked) return { ...s, shippedSha: s.sha256, override: false };
+      if (!own || s.locked)
+        return { ...s, shippedSha: s.sha256, override: false };
       if (own.shippedSha !== s.sha256) {
         const rebased = merge3(own.shippedText, own.text, s.body);
         drift.push({
@@ -362,12 +363,17 @@ export function approveSection(
 
 // Revert: back one step to the version that was active before this one (or
 // the shipped text), recorded as a version of its own.
-export function revertPrompt(file, { target, by, at }, shipped = shippedPrompts()) {
+export function revertPrompt(
+  file,
+  { target, by, at },
+  shipped = shippedPrompts(),
+) {
   if (!PROMPT_TARGETS.includes(target)) fail("Choose a prompt target.", 400);
   const value = readOverrides(file),
     entry = value.targets[target],
     active = activeVersion(entry);
-  if (!active) fail(`${target} uses the shipped text; there is nothing to revert.`, 409);
+  if (!active)
+    fail(`${target} uses the shipped text; there is nothing to revert.`, 409);
   const back = active.previous
       ? entry.versions.find((v) => v.n === active.previous)
       : null,

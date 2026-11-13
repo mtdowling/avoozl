@@ -188,7 +188,11 @@ import {
   switchBudgetToStop,
 } from "./budget.mjs";
 
-import { RETRO_READS, RETRO_WRITES, retroOperation } from "./retro-operations.mjs";
+import {
+  RETRO_READS,
+  RETRO_WRITES,
+  retroOperation,
+} from "./retro-operations.mjs";
 import {
   bindRetroMemory,
   isSkillPath,
@@ -809,8 +813,16 @@ export class Operations {
           }),
         loadPluginFolders: () =>
           inspectPlugins(this.pluginOptions)
-            .filter((p) => p.location && p.state !== "invalid" && p.state !== "missing")
-            .map((p) => ({ id: p.id, location: p.location, provides: p.provides || [], state: p.state })),
+            .filter(
+              (p) =>
+                p.location && p.state !== "invalid" && p.state !== "missing",
+            )
+            .map((p) => ({
+              id: p.id,
+              location: p.location,
+              provides: p.provides || [],
+              state: p.state,
+            })),
       });
   }
   read() {
@@ -1979,7 +1991,8 @@ export class Operations {
           409,
         );
     }
-    if (name === "session.bind") return stampPrompts(store, bindSession(store, input));
+    if (name === "session.bind")
+      return stampPrompts(store, bindSession(store, input));
     if (name === "session.rediscover") return rediscoverSessions(store, input);
     if (name === "session.request")
       return requestSession(store, input, workspaceRepositories(store));
@@ -1996,9 +2009,17 @@ export class Operations {
         skills !== undefined &&
         (!Array.isArray(skills) ||
           skills.length > 20 ||
-          !skills.every((f) => typeof f === "string" && f.length <= 1000 && path.isAbsolute(f) && isSkillPath(f)))
+          !skills.every(
+            (f) =>
+              typeof f === "string" &&
+              f.length <= 1000 &&
+              path.isAbsolute(f) &&
+              isSkillPath(f),
+          ))
       )
-        fail("skills lists up to 20 absolute paths of SKILL.md files you loaded.");
+        fail(
+          "skills lists up to 20 absolute paths of SKILL.md files you loaded.",
+        );
       const result = await reportSession(store, report, context.caller, {
         placement: this.placement,
         local: context.local === true,
@@ -2008,7 +2029,10 @@ export class Operations {
         const hashes = skillHashes(store, skills, result.binding.taskId),
           current = store.get("session_bindings", result.binding.slot);
         if (current && Object.keys(hashes).length)
-          store.put("session_bindings", { ...current, skills: { ...hashes, ...(current.skills || {}) } });
+          store.put("session_bindings", {
+            ...current,
+            skills: { ...hashes, ...(current.skills || {}) },
+          });
       }
       return result;
     }
@@ -2345,7 +2369,11 @@ export class Operations {
         // (R68.10, R50.15).
         skill: async (change) =>
           withWorkLock(store, WORKSPACE_LOCK, async () =>
-            deliverRetroSkill(store, readGitHubPolicyOrNull(this.workspaceRoot), change),
+            deliverRetroSkill(
+              store,
+              readGitHubPolicyOrNull(this.workspaceRoot),
+              change,
+            ),
           ),
         apply: async (proposal, expectedHash) => {
           if (proposal.key.startsWith("delivery."))

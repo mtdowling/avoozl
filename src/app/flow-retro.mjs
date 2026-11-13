@@ -233,7 +233,13 @@ function listSpansSafe(store) {
 // "did not work" list, and on every `reviewEvery`th retro the lessons to
 // review. `seen` keeps the hashes and IDs shown, so a reply can only build
 // on them. Null without a bound memory.
-export function memoryBrief(store, data, retro, config, { now = Date.now() } = {}) {
+export function memoryBrief(
+  store,
+  data,
+  retro,
+  config,
+  { now = Date.now() } = {},
+) {
   const m = retroMemory(store);
   if (!m) return null;
   const prompts = currentPrompts(store),
@@ -242,7 +248,9 @@ export function memoryBrief(store, data, retro, config, { now = Date.now() } = {
     stage = view.bottleneck?.stage ?? null,
     id = workspaceId(store),
     traits = workspaceTraits(store),
-    finished = new Set(view.tasks.filter((t) => t.finishedAt).map((t) => t.taskId)),
+    finished = new Set(
+      view.tasks.filter((t) => t.finishedAt).map((t) => t.taskId),
+    ),
     counts = new Map();
   for (const d of listOr(store, "task_deliveries"))
     if (finished.has(d.taskId))
@@ -260,7 +268,8 @@ export function memoryBrief(store, data, retro, config, { now = Date.now() } = {
       text: read.text.slice(0, SKILL_TEXT_MAX),
       ...(read.text.length > SKILL_TEXT_MAX ? { truncated: true } : {}),
     }));
-  const allow = (l) => !contentBlocks(store, "lesson", `lesson:${l.id}`, lessonText(l)).length,
+  const allow = (l) =>
+      !contentBlocks(store, "lesson", `lesson:${l.id}`, lessonText(l)).length,
     { lessons, didNotWork } = lessonsForBrief(m.lessons, {
       workspaceId: id,
       traits,
@@ -272,7 +281,10 @@ export function memoryBrief(store, data, retro, config, { now = Date.now() } = {
     }),
     review =
       retro.n % settings.reviewEvery === 0
-        ? reviewLessons(m.lessons, { workspaceId: id, read: settings.read }).filter(allow)
+        ? reviewLessons(m.lessons, {
+            workspaceId: id,
+            read: settings.read,
+          }).filter(allow)
         : null;
   const payload = {
     prompts: Object.values(prompts).map((p) => ({
@@ -294,7 +306,9 @@ export function memoryBrief(store, data, retro, config, { now = Date.now() } = {
       prompts: Object.fromEntries(
         Object.values(prompts).map((p) => [
           p.target,
-          Object.fromEntries(p.sections.filter((s) => !s.locked).map((s) => [s.name, s.sha256])),
+          Object.fromEntries(
+            p.sections.filter((s) => !s.locked).map((s) => [s.name, s.sha256]),
+          ),
         ]),
       ),
       skills: Object.fromEntries(skills.map((s) => [s.target, s.sha256])),
@@ -444,7 +458,10 @@ export function retroStep(
                 data,
                 listed.id,
                 proposal.id,
-                versioned || newestFirst(store, data).slice(0, p.window).map((t) => t.id),
+                versioned ||
+                  newestFirst(store, data)
+                    .slice(0, p.window)
+                    .map((t) => t.id),
               )
             : false;
       const next = {
@@ -572,8 +589,7 @@ function usedVersion(store, taskId, { kind, target }) {
   return kind === "prompt" ? last?.prompts?.[target] : last?.skills?.[target];
 }
 
-const newestFirst = (store, data) =>
-  finishedTasks(store, data).reverse();
+const newestFirst = (store, data) => finishedTasks(store, data).reverse();
 
 // Finished tasks, newest first, that ran on the old version of a change
 // (`from`), up to `n`.
@@ -600,7 +616,11 @@ function versionWindow(store, data, pdca) {
 
 function metricOn(store, data, ids, metric, n) {
   const only = new Set(ids),
-    view = flowView(store, { ...data, tasks: data.tasks.filter((t) => only.has(t.id)) }, { window: n });
+    view = flowView(
+      store,
+      { ...data, tasks: data.tasks.filter((t) => only.has(t.id)) },
+      { window: n },
+    );
   return view.metrics[METRIC_KEY[metric]] ?? null;
 }
 
@@ -608,8 +628,14 @@ function metricOn(store, data, ids, metric, n) {
 function otherChangeIn(store, data, retroId, proposalId, ids) {
   const tasks = data.tasks.filter((t) => ids.includes(t.id));
   if (!tasks.length) return false;
-  const starts = tasks.map((t) => taskTiming(store, t).startedAt).filter(Boolean).sort(),
-    ends = tasks.map((t) => finishedAt(t)).filter(Boolean).sort(),
+  const starts = tasks
+      .map((t) => taskTiming(store, t).startedAt)
+      .filter(Boolean)
+      .sort(),
+    ends = tasks
+      .map((t) => finishedAt(t))
+      .filter(Boolean)
+      .sort(),
     from = starts[0],
     to = ends.at(-1);
   return listOr(store, "flow_retros").some((r) =>
@@ -630,7 +656,8 @@ function lessonResult(store, proposal, result, after, now) {
   const m = retroMemory(store),
     lesson = m && proposal.lessonId ? m.lessons.get(proposal.lessonId) : null;
   if (!lesson) return;
-  if (result === "helped") setOutcome(m.lessons, lesson.id, "kept", { now, after });
+  if (result === "helped")
+    setOutcome(m.lessons, lesson.id, "kept", { now, after });
   const outcome = result === "helped" ? "kept" : "undone";
   for (const other of contradicted(m.lessons, lesson, outcome))
     disagree(m.lessons, other.id, {
@@ -641,7 +668,9 @@ function lessonResult(store, proposal, result, after, now) {
 
 // The tools the declared checks run: each command's first word.
 const checkTools = (checks) => [
-  ...new Set(checks.map((c) => String(c).trim().split(/\s+/)[0]).filter(Boolean)),
+  ...new Set(
+    checks.map((c) => String(c).trim().split(/\s+/)[0]).filter(Boolean),
+  ),
 ];
 
 // Drift checks when lessons are read (R70.2): the Lessons view.
@@ -664,7 +693,14 @@ function healAt(store, data, config, now) {
   checkPacks(store, { now });
   healLessons(
     m.lessons,
-    { workspaceId: id, models: Array.isArray(models) ? models : null, versions, checks, tools, traits },
+    {
+      workspaceId: id,
+      models: Array.isArray(models) ? models : null,
+      versions,
+      checks,
+      tools,
+      traits,
+    },
     { now, confirmDays: settings.confirmDays },
   );
   // A window confirms a lesson when its change is in effect here and the
@@ -676,19 +712,28 @@ function healAt(store, data, config, now) {
   const oldest = recent.map((t) => finishedAt(t)).sort()[0],
     prompts = currentPrompts(store);
   for (const lesson of m.lessons.list()) {
-    if (lesson.source !== id || lesson.outcome !== "kept" || lesson.state === "retired") continue;
+    if (
+      lesson.source !== id ||
+      lesson.outcome !== "kept" ||
+      lesson.state === "retired"
+    )
+      continue;
     if ((lesson.confirmedAt || lesson.date) >= oldest) continue;
     const c = lesson.change || {},
       inEffect =
         c.type === "prompt"
-          ? prompts[c.target]?.sections.find((x) => x.name === c.section)?.sha256 === c.resultSha
+          ? prompts[c.target]?.sections.find((x) => x.name === c.section)
+              ?.sha256 === c.resultSha
           : c.type === "settings" && String(c.key).startsWith("flow.")
-            ? JSON.stringify(readKey(policy.workspace, c.key.slice(5))) === JSON.stringify(c.to)
+            ? JSON.stringify(readKey(policy.workspace, c.key.slice(5))) ===
+              JSON.stringify(c.to)
             : false;
     if (!inEffect) continue;
     const metric = lesson.evidence?.metric,
       after = lesson.evidence?.after,
-      value = METRICS.includes(metric) ? metricOver(store, data, metric, every) : null;
+      value = METRICS.includes(metric)
+        ? metricOver(store, data, metric, every)
+        : null;
     if (value === null || typeof after !== "number") continue;
     if (Math.abs(value - after) > 0.1 * (Math.abs(after) || 1)) continue;
     confirmLesson(m.lessons, lesson.id, {
@@ -697,8 +742,17 @@ function healAt(store, data, config, now) {
         checks,
         tools,
         traits,
-        ...(Array.isArray(models) ? { models: (lesson.context?.models || []).filter((x) => models.includes(x)) } : {}),
-        versions: c.target && versions[c.target] ? { [c.target]: versions[c.target] } : lesson.context?.versions || {},
+        ...(Array.isArray(models)
+          ? {
+              models: (lesson.context?.models || []).filter((x) =>
+                models.includes(x),
+              ),
+            }
+          : {}),
+        versions:
+          c.target && versions[c.target]
+            ? { [c.target]: versions[c.target] }
+            : lesson.context?.versions || {},
       },
     });
   }
@@ -706,14 +760,26 @@ function healAt(store, data, config, now) {
 
 // The lesson a person's approval writes (R69.3): `untested`, with the
 // context it was learned in (R70.1). Returns {lessonId} or {lessonRefused}.
-function writeApprovedLesson(store, data, proposal, pdca, config, { by, now, override }) {
+function writeApprovedLesson(
+  store,
+  data,
+  proposal,
+  pdca,
+  config,
+  { by, now, override },
+) {
   const m = retroMemory(store);
   if (!m || !proposal.lesson) return {};
   const settings = lessonSettings(flowPolicy(config || {})),
     known = knownNames(store),
     change =
       proposal.type === "settings"
-        ? { type: "settings", key: proposal.key, to: proposal.to, summary: `${proposal.key} ${JSON.stringify(proposal.from)} to ${JSON.stringify(proposal.to)}` }
+        ? {
+            type: "settings",
+            key: proposal.key,
+            to: proposal.to,
+            summary: `${proposal.key} ${JSON.stringify(proposal.from)} to ${JSON.stringify(proposal.to)}`,
+          }
         : proposal.type === "prompt"
           ? {
               type: "prompt",
@@ -723,11 +789,23 @@ function writeApprovedLesson(store, data, proposal, pdca, config, { by, now, ove
               summary: `${proposal.target} section ${proposal.section}`,
             }
           : proposal.type === "skill"
-            ? { type: "skill", target: "skill", summary: "a skill file the workers load" }
+            ? {
+                type: "skill",
+                target: "skill",
+                summary: "a skill file the workers load",
+              }
             : { type: "plan", summary: "a plan change" },
-    blocks = contentBlocks(store, "lesson", `lesson:${proposal.id}`, [proposal.lesson.finding, change.summary].join("\n"));
-  if (blocks.length) return { lessonRefused: `content rules: ${blocks.join("; ")}` };
-  const ids = newestFirst(store, data).slice(0, pdca?.window || 10).map((t) => t.id),
+    blocks = contentBlocks(
+      store,
+      "lesson",
+      `lesson:${proposal.id}`,
+      [proposal.lesson.finding, change.summary].join("\n"),
+    );
+  if (blocks.length)
+    return { lessonRefused: `content rules: ${blocks.join("; ")}` };
+  const ids = newestFirst(store, data)
+      .slice(0, pdca?.window || 10)
+      .map((t) => t.id),
     models = [
       ...new Set(
         listOr(store, "session_bindings")
@@ -736,32 +814,38 @@ function writeApprovedLesson(store, data, proposal, pdca, config, { by, now, ove
       ),
     ],
     traits = workspaceTraits(store),
-    written = writeLessonImpl(m.lessons, {
-      pattern: { ...proposal.lesson.pattern, traits },
-      finding: proposal.lesson.finding,
-      change,
-      evidence: {
-        tasks: proposal.evidence?.runs?.length ?? pdca?.window ?? null,
-        runs: proposal.evidence?.runs?.length ?? null,
-        metric: proposal.metric,
-        before: pdca?.before ?? null,
-        after: null,
+    written = writeLessonImpl(
+      m.lessons,
+      {
+        pattern: { ...proposal.lesson.pattern, traits },
+        finding: proposal.lesson.finding,
+        change,
+        evidence: {
+          tasks: proposal.evidence?.runs?.length ?? pdca?.window ?? null,
+          runs: proposal.evidence?.runs?.length ?? null,
+          metric: proposal.metric,
+          before: pdca?.before ?? null,
+          after: null,
+        },
+        context: {
+          avoozl: AVOOZL_VERSION,
+          models,
+          versions: override?.to ? { [proposal.target]: override.to } : {},
+          checks: workspaceChecks(store),
+          tools: checkTools(workspaceChecks(store)),
+          traits,
+          baseline: pdca?.before ?? null,
+        },
+        source: workspaceId(store),
+        shared: settings.share,
+        by,
+        now,
       },
-      context: {
-        avoozl: AVOOZL_VERSION,
-        models,
-        versions: override?.to ? { [proposal.target]: override.to } : {},
-        checks: workspaceChecks(store),
-        tools: checkTools(workspaceChecks(store)),
-        traits,
-        baseline: pdca?.before ?? null,
-      },
-      source: workspaceId(store),
-      shared: settings.share,
-      by,
-      now,
-    }, { known });
-  return written.refused ? { lessonRefused: written.refused } : { lessonId: written.lesson.id };
+      { known },
+    );
+  return written.refused
+    ? { lessonRefused: written.refused }
+    : { lessonId: written.lesson.id };
 }
 
 function revertOf(retro, proposal) {
@@ -770,7 +854,9 @@ function revertOf(retro, proposal) {
       type: proposal.type,
       target: proposal.target,
       ...(proposal.section ? { section: proposal.section } : {}),
-      ...(proposal.type === "skill" ? { diff: reverseDiff(proposal.diff) } : {}),
+      ...(proposal.type === "skill"
+        ? { diff: reverseDiff(proposal.diff) }
+        : {}),
       revert: true,
       metric: proposal.metric,
       direction: proposal.direction,
@@ -860,31 +946,50 @@ function changeProblem(p, retro, store) {
     return null;
   }
   const e = p.evidence;
-  if (!e || typeof e !== "object" || Array.isArray(e)) return "evidence is missing";
-  if (!Array.isArray(e.runs) || e.runs.length < 3 || e.runs.length > 50 || !e.runs.every((r) => typeof r === "string" && RUN.test(r)))
+  if (!e || typeof e !== "object" || Array.isArray(e))
+    return "evidence is missing";
+  if (
+    !Array.isArray(e.runs) ||
+    e.runs.length < 3 ||
+    e.runs.length > 50 ||
+    !e.runs.every((r) => typeof r === "string" && RUN.test(r))
+  )
     return "evidence names at least 3 runs as task#attempt";
-  if (!(typeof e.value === "number" || shortText(e.value, 100))) return "evidence gives the metric's current value";
+  if (!(typeof e.value === "number" || shortText(e.value, 100)))
+    return "evidence gives the metric's current value";
   if (!shortText(e.effect, 300)) return "evidence gives the expected effect";
-  if (typeof p.diff !== "string" || !p.diff.trim()) return "the diff is missing";
-  if (typeof p.base !== "string" || !/^[0-9a-f]{64}$/.test(p.base)) return "base is the sha256 of the text the diff is against";
-  if (p.lessons !== undefined && (!Array.isArray(p.lessons) || p.lessons.length > 10))
+  if (typeof p.diff !== "string" || !p.diff.trim())
+    return "the diff is missing";
+  if (typeof p.base !== "string" || !/^[0-9a-f]{64}$/.test(p.base))
+    return "base is the sha256 of the text the diff is against";
+  if (
+    p.lessons !== undefined &&
+    (!Array.isArray(p.lessons) || p.lessons.length > 10)
+  )
     return "lessons lists up to 10 lesson IDs";
-  if (!store || !retroMemory(store)) return `${p.type} proposals need this machine's Avoozl settings folder`;
+  if (!store || !retroMemory(store))
+    return `${p.type} proposals need this machine's Avoozl settings folder`;
   if (p.type === "prompt") {
-    if (typeof p.section !== "string") return "a prompt proposal names one section";
+    if (typeof p.section !== "string")
+      return "a prompt proposal names one section";
     const seen = retro?.seen?.prompts?.[p.target]?.[p.section];
     const problem = sectionDiffProblem(currentPrompts(store), p);
     if (problem) return problem;
-    if (seen !== p.base) return `base is not the text of ${p.target} § ${p.section} this retro saw`;
+    if (seen !== p.base)
+      return `base is not the text of ${p.target} § ${p.section} this retro saw`;
     return null;
   }
   if (p.section !== undefined) return "a skill proposal names no section";
-  if (typeof p.target !== "string" || !SKILL_TARGET.test(p.target)) return "target is repo:<repository>:<path> or external:<source>:<path>";
-  if (retro?.seen?.skills?.[p.target] !== p.base) return `base is not the text of ${p.target} this retro saw`;
+  if (typeof p.target !== "string" || !SKILL_TARGET.test(p.target))
+    return "target is repo:<repository>:<path> or external:<source>:<path>";
+  if (retro?.seen?.skills?.[p.target] !== p.base)
+    return `base is not the text of ${p.target} this retro saw`;
   const current = skillText(store, p.target);
   if (!current) return `${p.target} cannot be read now`;
-  if (current.sha256 !== p.base) return `base is not the current text of ${p.target}`;
-  if (applyDiff(current.text, p.diff) === null) return `the diff does not apply to ${p.target}`;
+  if (current.sha256 !== p.base)
+    return `base is not the current text of ${p.target}`;
+  if (applyDiff(current.text, p.diff) === null)
+    return `the diff does not apply to ${p.target}`;
   return null;
 }
 
@@ -895,7 +1000,8 @@ export function proposalProblem(p, retro = null, store = null) {
     return `metric must be one of ${METRICS.join(", ")}`;
   if (!["up", "down"].includes(p.direction))
     return "direction must be up or down";
-  if (p.type === "prompt" || p.type === "skill") return changeProblem(p, retro, store);
+  if (p.type === "prompt" || p.type === "skill")
+    return changeProblem(p, retro, store);
   if (!shortText(p.evidence)) return "evidence is missing";
   if (p.type === "plan") {
     if (Object.keys(p).some((k) => !PLAN_FIELDS.includes(k)))
@@ -1011,8 +1117,17 @@ export function recordRetroReply(
       for (const [i, edit] of reply.lessonEdits.slice(0, 5).entries()) {
         const made = makeLessonEdit(store, retro, edit);
         if (made.problem)
-          dropped.push({ index: `lessonEdits.${i}`, type: "lesson", reason: made.problem });
-        else proposals.push({ ...made.proposal, id: `p${proposals.length + 1}`, status: "open" });
+          dropped.push({
+            index: `lessonEdits.${i}`,
+            type: "lesson",
+            reason: made.problem,
+          });
+        else
+          proposals.push({
+            ...made.proposal,
+            id: `p${proposals.length + 1}`,
+            status: "open",
+          });
       }
     const valid = bottleneck || proposals.length,
       next = {
@@ -1039,13 +1154,22 @@ function blockedProposal(store, retroId, index, p) {
     p.diff,
     p.change,
     p.key,
-    typeof p.evidence === "string" ? p.evidence : JSON.stringify(p.evidence ?? null),
+    typeof p.evidence === "string"
+      ? p.evidence
+      : JSON.stringify(p.evidence ?? null),
     p.lesson?.finding,
   ]
     .filter((v) => typeof v === "string")
     .join("\n");
-  const blocks = contentBlocks(store, "proposal", `proposal:${retroId}:${index}`, text);
-  return blocks.length ? `content rules blocked it: ${blocks.join("; ")}` : null;
+  const blocks = contentBlocks(
+    store,
+    "proposal",
+    `proposal:${retroId}:${index}`,
+    text,
+  );
+  return blocks.length
+    ? `content rules blocked it: ${blocks.join("; ")}`
+    : null;
 }
 
 // A proposal's cited lessons (only those its brief showed) and its own
@@ -1063,7 +1187,12 @@ function lessonFields(store, retro, p) {
     const problem =
       lessonProblem(p.lesson, { known: knownNames(store) }) ||
       (() => {
-        const blocks = contentBlocks(store, "lesson", `lesson:${retro.id}`, String(p.lesson?.finding ?? ""));
+        const blocks = contentBlocks(
+          store,
+          "lesson",
+          `lesson:${retro.id}`,
+          String(p.lesson?.finding ?? ""),
+        );
         return blocks.length ? `content rules: ${blocks.join("; ")}` : null;
       })();
     if (problem) {
@@ -1082,17 +1211,25 @@ function makeLessonEdit(store, retro, edit) {
   const m = retroMemory(store);
   if (!m) return { problem: "no lessons store" };
   if (!edit || typeof edit !== "object") return { problem: "not an object" };
-  if (!EDIT_KINDS.includes(edit.kind)) return { problem: "kind must be rewrite, merge or retire" };
+  if (!EDIT_KINDS.includes(edit.kind))
+    return { problem: "kind must be rewrite, merge or retire" };
   const ids = Array.isArray(edit.lessons) ? edit.lessons.map(String) : [];
   if (!ids.length || ids.some((id) => !retro.seen.review.includes(id)))
     return { problem: "name lessons from the review" };
-  if (edit.kind === "rewrite" && ids.length !== 1) return { problem: "a rewrite names one lesson" };
-  if (edit.kind === "merge" && ids.length < 2) return { problem: "a merge names the lesson to keep, then the others" };
-  if (!shortText(edit.evidence, 1000)) return { problem: "evidence is missing" };
+  if (edit.kind === "rewrite" && ids.length !== 1)
+    return { problem: "a rewrite names one lesson" };
+  if (edit.kind === "merge" && ids.length < 2)
+    return { problem: "a merge names the lesson to keep, then the others" };
+  if (!shortText(edit.evidence, 1000))
+    return { problem: "evidence is missing" };
   if (edit.kind === "rewrite" || edit.finding !== undefined) {
-    const problem = lessonTextProblem(edit.finding, { known: knownNames(store) });
+    const problem = lessonTextProblem(edit.finding, {
+      known: knownNames(store),
+    });
     if (problem) return { problem: `the new finding ${problem}` };
-    if (contentBlocks(store, "lesson", `lesson:${retro.id}`, edit.finding).length)
+    if (
+      contentBlocks(store, "lesson", `lesson:${retro.id}`, edit.finding).length
+    )
       return { problem: "the new finding matched a content rule" };
   }
   const lessons = ids.map((id) => m.lessons.get(id));
@@ -1140,7 +1277,16 @@ function parseReply(text) {
 export async function decideProposal(
   store,
   input = {},
-  { apply, draft, prompt, skill, lessonEdit, config, by = "person", now = Date.now() } = {},
+  {
+    apply,
+    draft,
+    prompt,
+    skill,
+    lessonEdit,
+    config,
+    by = "person",
+    now = Date.now(),
+  } = {},
 ) {
   const retro = store.get("flow_retros", input.retroId);
   if (!retro) fail("Retro not found.", 404);
@@ -1180,31 +1326,48 @@ export async function decideProposal(
     else if (proposal.type === "plan")
       update = { draft: (await draft(proposal)) ?? null };
     else if (proposal.type === "prompt") {
-      const override = await (prompt || promptChange(store, retro, { by, at }))(proposal);
+      const override = await (prompt || promptChange(store, retro, { by, at }))(
+        proposal,
+      );
       update = { override };
       // Worker briefs and skills are measured on the tasks that ran each
       // version; the other prompts on the next window of finished tasks.
       pdca = proposal.revert
         ? null
         : proposal.target === "brief.worker"
-          ? versionedPdca(store, data, pdca, {
-              kind: "prompt",
-              target: proposal.target,
-              from: override.from,
-              to: override.to,
-            }, proposal)
+          ? versionedPdca(
+              store,
+              data,
+              pdca,
+              {
+                kind: "prompt",
+                target: proposal.target,
+                from: override.from,
+                to: override.to,
+              },
+              proposal,
+            )
           : { ...pdca, versions: { from: override.from, to: override.to } };
     } else if (proposal.type === "skill") {
-      const landed = await skillChange(store, retro, proposal, { deliver: skill, at });
+      const landed = await skillChange(store, retro, proposal, {
+        deliver: skill,
+        at,
+      });
       if (proposal.revert) pdca = null;
       update = { ...landed };
       if (!proposal.revert)
-        pdca = versionedPdca(store, data, pdca, {
-          kind: "skill",
-          target: proposal.target,
-          from: proposal.base,
-          to: landed.note ? null : landed.resultSha,
-        }, proposal);
+        pdca = versionedPdca(
+          store,
+          data,
+          pdca,
+          {
+            kind: "skill",
+            target: proposal.target,
+            from: proposal.base,
+            to: landed.note ? null : landed.resultSha,
+          },
+          proposal,
+        );
     } else if (proposal.type === "lesson")
       update = {
         edited: await (
@@ -1214,35 +1377,62 @@ export async function decideProposal(
             if (!m) fail("This machine has no lessons store.", 409);
             return editLesson(
               m.lessons,
-              { kind: p.kind, lessons: p.lessons, finding: p.finding, reason: p.evidence },
+              {
+                kind: p.kind,
+                lessons: p.lessons,
+                finding: p.finding,
+                reason: p.evidence,
+              },
               { by, now, known: knownNames(store) },
             ).map((l) => l.id);
           })
         )(proposal),
       };
     else fail("Unknown proposal type.", 400);
-    update = { ...(update || {}), status: "approved", decidedAt: at, decidedBy: by, ...(pdca ? { pdca } : {}) };
+    update = {
+      ...(update || {}),
+      status: "approved",
+      decidedAt: at,
+      decidedBy: by,
+      ...(pdca ? { pdca } : {}),
+    };
     // A revert approved after a change did not help undoes its lesson.
     const m = retroMemory(store);
     if (proposal.revertOf && m) {
       const [rid, pid] = proposal.revertOf.split(":"),
-        original = store.get("flow_retros", rid)?.proposals?.find((q) => q.id === pid);
+        original = store
+          .get("flow_retros", rid)
+          ?.proposals?.find((q) => q.id === pid);
       const lessonId = proposal.lessonId || original?.lessonId;
       if (lessonId) {
         setOutcome(m.lessons, lessonId, "undone", { now, by });
         const lesson = m.lessons.get(lessonId);
         if (lesson)
           for (const other of contradicted(m.lessons, lesson, "undone"))
-            disagree(m.lessons, other.id, { now, reason: "a newer result for the same change did not help" });
+            disagree(m.lessons, other.id, {
+              now,
+              reason: "a newer result for the same change did not help",
+            });
       }
-    } else if (changes || proposal.type === "settings" || proposal.type === "plan")
+    } else if (
+      changes ||
+      proposal.type === "settings" ||
+      proposal.type === "plan"
+    )
       Object.assign(
         update,
-        writeApprovedLesson(store, data, { ...proposal, ...update }, pdca, config, {
-          by,
-          now,
-          override: update.override,
-        }),
+        writeApprovedLesson(
+          store,
+          data,
+          { ...proposal, ...update },
+          pdca,
+          config,
+          {
+            by,
+            now,
+            override: update.override,
+          },
+        ),
       );
   } else fail("Choose decision approve or reject.");
   const latest = store.get("flow_retros", retro.id),
@@ -1262,12 +1452,25 @@ function promptChange(store, retro, { by, at }) {
   return async (p) => {
     const m = retroMemory(store),
       file = overridesFile(store);
-    if (!m || !file) fail("This machine has no Avoozl settings folder for prompt overrides.", 409);
+    if (!m || !file)
+      fail(
+        "This machine has no Avoozl settings folder for prompt overrides.",
+        409,
+      );
     const shipped = m.shipped || shippedPrompts();
-    if (p.revert) return revertPrompt(file, { target: p.target, by, at }, shipped);
+    if (p.revert)
+      return revertPrompt(file, { target: p.target, by, at }, shipped);
     return approveSection(
       file,
-      { target: p.target, section: p.section, base: p.base, diff: p.diff, proposal: { retro: retro.id, id: p.id }, by, at },
+      {
+        target: p.target,
+        section: p.section,
+        base: p.base,
+        diff: p.diff,
+        proposal: { retro: retro.id, id: p.id },
+        by,
+        at,
+      },
       shipped,
     );
   };
@@ -1282,17 +1485,29 @@ async function skillChange(store, retro, p, { deliver, at }) {
     file = rest.join(":");
   if (!current && !p.revert) fail(`${p.target} cannot be read now.`, 409);
   if (!p.revert && current.sha256 !== p.base)
-    fail(`${p.target} changed since the retro saw it; this proposal is stale.`, 409);
+    fail(
+      `${p.target} changed since the retro saw it; this proposal is stale.`,
+      409,
+    );
   const text = current ? applyDiff(current.text, p.diff) : null;
-  if (text === null && !p.revert) fail(`The diff no longer applies to ${p.target}.`, 409);
+  if (text === null && !p.revert)
+    fail(`The diff no longer applies to ${p.target}.`, 409);
   const resultSha = text === null ? null : sha256(text),
     summary =
       typeof p.evidence === "string"
         ? p.evidence
         : `${p.metric} ${p.evidence?.value ?? ""}, expected ${p.direction}: ${p.evidence?.effect ?? ""} (${(p.evidence?.runs || []).length} runs)`;
   if (kind === "repo") {
-    if (!deliver) fail("Repository skill changes need the Deliver this path.", 409);
-    const leaf = await deliver({ retro: retro.id, proposal: p.id, repository: owner, file, diff: p.diff, summary });
+    if (!deliver)
+      fail("Repository skill changes need the Deliver this path.", 409);
+    const leaf = await deliver({
+      retro: retro.id,
+      proposal: p.id,
+      repository: owner,
+      file,
+      diff: p.diff,
+      summary,
+    });
     return { leaf, resultSha };
   }
   return {
@@ -1315,7 +1530,9 @@ function versionedPdca(store, data, pdca, version, proposal) {
   return {
     ...pdca,
     version,
-    before: old.length ? metricOn(store, data, old, proposal.metric, pdca.window) : pdca.before,
+    before: old.length
+      ? metricOn(store, data, old, proposal.metric, pdca.window)
+      : pdca.before,
     beforeTasks: old.length,
   };
 }

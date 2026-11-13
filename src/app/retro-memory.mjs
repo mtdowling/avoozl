@@ -33,12 +33,23 @@ export const BRIEF_SKILLS = 3;
 
 export function bindRetroMemory(
   store,
-  { configDirectory, workspaceRoot = null, loadPluginFolders = null, shipped = null, models = null } = {},
+  {
+    configDirectory,
+    workspaceRoot = null,
+    loadPluginFolders = null,
+    shipped = null,
+    models = null,
+  } = {},
 ) {
   if (!configDirectory) return null;
   const previous = bound.get(store);
   if (previous?.configDirectory === configDirectory) {
-    Object.assign(previous, { workspaceRoot, loadPluginFolders, ...(shipped ? { shipped } : {}), ...(models ? { models } : {}) });
+    Object.assign(previous, {
+      workspaceRoot,
+      loadPluginFolders,
+      ...(shipped ? { shipped } : {}),
+      ...(models ? { models } : {}),
+    });
     return previous;
   }
   previous?.lessons.close();
@@ -77,7 +88,10 @@ export function currentPrompts(store) {
 
 export function promptVersions(store) {
   return Object.fromEntries(
-    Object.entries(currentPrompts(store)).map(([target, s]) => [target, s.version]),
+    Object.entries(currentPrompts(store)).map(([target, s]) => [
+      target,
+      s.version,
+    ]),
   );
 }
 
@@ -95,16 +109,19 @@ export function steeringOptions(store) {
     text = currentPrompts(store)["steering.specs"].text;
   return {
     text,
-    older: historicTexts(m ? overridesFile(store) : null, "steering.specs", shipped).filter(
-      (t) => t !== text,
-    ),
+    older: historicTexts(
+      m ? overridesFile(store) : null,
+      "steering.specs",
+      shipped,
+    ).filter((t) => t !== text),
   };
 }
 
 // Which built-in prompt a session role runs on.
 export function roleTarget(role) {
   if (role === "worker") return "brief.worker";
-  if (typeof role === "string" && role.startsWith("review:")) return "brief.review";
+  if (typeof role === "string" && role.startsWith("review:"))
+    return "brief.review";
   if (role === "planner") return "agent.planner";
   if (role === "retro") return "agent.retro";
   return null;
@@ -113,12 +130,15 @@ export function roleTarget(role) {
 // --------------------------------------------------------------- skills
 
 const SKILL_FILE = /(?:^|\/)SKILL\.md$|\/skills\/[^/]+\.md$/;
-export const isSkillPath = (file) => typeof file === "string" && SKILL_FILE.test(file);
+export const isSkillPath = (file) =>
+  typeof file === "string" && SKILL_FILE.test(file);
 
 const inside = (root, file) => {
   if (!root) return null;
   const rel = path.relative(root, file);
-  return rel && !rel.startsWith("..") && !path.isAbsolute(rel) ? rel.split(path.sep).join("/") : null;
+  return rel && !rel.startsWith("..") && !path.isAbsolute(rel)
+    ? rel.split(path.sep).join("/")
+    : null;
 };
 
 function pluginFolders(store) {
@@ -140,7 +160,9 @@ export function skillTarget(store, file, taskId = null) {
     worktree = taskId ? store.get("task_worktrees", taskId) : null;
   if (worktree?.path) {
     const rel = inside(worktree.path, file),
-      project = projects.find((p) => p.id === worktree.projectId) || projects.find((p) => worktree.path.includes(p.id));
+      project =
+        projects.find((p) => p.id === worktree.projectId) ||
+        projects.find((p) => worktree.path.includes(p.id));
     if (rel && project) return `repo:${project.id}:${rel}`;
   }
   for (const project of projects) {
@@ -153,7 +175,8 @@ export function skillTarget(store, file, taskId = null) {
   }
   const target = `external:local:${path.basename(path.dirname(file))}/${path.basename(file)}`;
   const paths = store.getMeta("skills.paths") || {};
-  if (paths[target] !== file) store.setMeta("skills.paths", { ...paths, [target]: file });
+  if (paths[target] !== file)
+    store.setMeta("skills.paths", { ...paths, [target]: file });
   return target;
 }
 
@@ -202,7 +225,9 @@ export function workspaceTraits(store) {
     mode = "local";
   }
   const traits = new Set();
-  for (const project of store.list("projects").filter((p) => p.root && !p.planning))
+  for (const project of store
+    .list("projects")
+    .filter((p) => p.root && !p.planning))
     for (const t of repositoryTraits(project.root, { mode })) traits.add(t);
   if (!traits.size) traits.add(`mode:${mode}`);
   return [...traits].sort();
@@ -210,7 +235,11 @@ export function workspaceTraits(store) {
 
 // Declared checks of every repository with a checkout.
 export const workspaceChecks = (store) => [
-  ...new Set(store.list("projects").flatMap((p) => (Array.isArray(p.checks) ? p.checks : []))),
+  ...new Set(
+    store
+      .list("projects")
+      .flatMap((p) => (Array.isArray(p.checks) ? p.checks : [])),
+  ),
 ];
 
 // Names a lesson must not hold (R69.4): task IDs and repository names.
@@ -218,11 +247,16 @@ export function knownNames(store) {
   const data = store.read();
   return [
     ...data.tasks.map((t) => t.id),
-    ...store.list("projects").flatMap((p) => [p.id, p.github, p.github?.split("/").at(-1)]),
+    ...store
+      .list("projects")
+      .flatMap((p) => [p.id, p.github, p.github?.split("/").at(-1)]),
   ].filter((v) => typeof v === "string" && v.length > 2);
 }
 
-export const lessonSettings = (policy) => ({ ...LESSON_DEFAULTS, ...(policy?.workspace?.lessons || {}) });
+export const lessonSettings = (policy) => ({
+  ...LESSON_DEFAULTS,
+  ...(policy?.workspace?.lessons || {}),
+});
 
 // Content rules on a proposal or lesson (R68.6, R69.4): the rules that
 // block it, named without the matched text, or [] when it may stand. An
@@ -243,7 +277,9 @@ export const lessonText = (l) =>
 export function readLessonsPack(store, folder) {
   let value;
   try {
-    value = JSON.parse(fs.readFileSync(path.join(folder.location, LESSONS_FILE), "utf8"));
+    value = JSON.parse(
+      fs.readFileSync(path.join(folder.location, LESSONS_FILE), "utf8"),
+    );
   } catch (error) {
     fail(
       error.code === "ENOENT"
@@ -254,9 +290,17 @@ export function readLessonsPack(store, folder) {
   }
   const pack = validateLessonsPack(value, { known: knownNames(store) });
   for (const l of pack.lessons) {
-    const blocks = contentBlocks(store, "lesson", `pack:${folder.id}:${l.id}`, lessonText(l));
+    const blocks = contentBlocks(
+      store,
+      "lesson",
+      `pack:${folder.id}:${l.id}`,
+      lessonText(l),
+    );
     if (blocks.length)
-      fail(`Lesson ${l.id} of the pack matched a content rule: ${blocks.join("; ")}.`, 422);
+      fail(
+        `Lesson ${l.id} of the pack matched a content rule: ${blocks.join("; ")}.`,
+        422,
+      );
   }
   return pack;
 }
@@ -267,12 +311,22 @@ export function readLessonsPack(store, folder) {
 export function checkPacks(store, { now = Date.now() } = {}) {
   const m = retroMemory(store);
   if (!m) return [];
-  const imported = new Set(m.lessons.list().map((l) => l.pack?.plugin).filter(Boolean)),
+  const imported = new Set(
+      m.lessons
+        .list()
+        .map((l) => l.pack?.plugin)
+        .filter(Boolean),
+    ),
     changed = [];
   for (const folder of m.loadPluginFolders?.() || []) {
-    if (!imported.has(folder.id) || !folder.provides?.includes("lessons")) continue;
+    if (!imported.has(folder.id) || !folder.provides?.includes("lessons"))
+      continue;
     try {
-      changed.push(...packChanged(m.lessons, folder.id, readLessonsPack(store, folder), { now }));
+      changed.push(
+        ...packChanged(m.lessons, folder.id, readLessonsPack(store, folder), {
+          now,
+        }),
+      );
     } catch {
       // Reported when a person previews the pack.
     }

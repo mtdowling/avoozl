@@ -106,8 +106,20 @@ export function newPlanBrief(request) {
 // What New plan hands Spec Builder as the user's first words. Spec Builder
 // appends it to its own seed prompt. The rules come from the steering file
 // when it is there; otherwise they ride along here.
+<<<<<<< HEAD
 export function specBuilderDescription(request, steering, rules = STEERING_TEXT) {
   const { category, epic, phases, repositories, goal, context } = request;
+||||||| parent of aba0f9b (Add the Proposals and Lessons views and Settings for lessons)
+export function specBuilderDescription(request, steering, rules = STEERING_TEXT) {
+  const { category, epic, epics, repositories, goal, context } = request;
+=======
+export function specBuilderDescription(
+  request,
+  steering,
+  rules = STEERING_TEXT,
+) {
+  const { category, epic, epics, repositories, goal, context } = request;
+>>>>>>> aba0f9b (Add the Proposals and Lessons views and Settings for lessons)
   const front = [
     category && `category: ${category}`,
     epic && `epic: ${epic}`,

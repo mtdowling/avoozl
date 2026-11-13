@@ -78,14 +78,8 @@ export const PERSON_ONLY = new Map([
   ["flow.instructions.update", person("Only a person changes flow settings.")],
   ["flow.retro.start", person("Only a person starts a retro.")],
   ["flow.retro.decide", person("Only a person decides retro proposals.")],
-  [
-    "prompt.override.revert",
-    person("Only a person changes prompt overrides."),
-  ],
-  [
-    "prompt.override.rebase",
-    person("Only a person changes prompt overrides."),
-  ],
+  ["prompt.override.revert", person("Only a person changes prompt overrides.")],
+  ["prompt.override.rebase", person("Only a person changes prompt overrides.")],
   ["plugin.lessons.import", person("Only a person imports a lessons pack.")],
   ["lessons.export", person("Only a person exports lessons.")],
   ["flow.runAnyway", person("Only a person presses Run anyway.")],
@@ -151,7 +145,10 @@ const page = "App page rendering only.";
 export const NOT_ON_MCP = new Map([
   ["flow.proposals", lessonsPage],
   ["lessons.view", lessonsPage],
-  ["plugin.lessons.preview", "Settings reads a lessons pack before a person imports it."],
+  [
+    "plugin.lessons.preview",
+    "Settings reads a lessons pack before a person imports it.",
+  ],
   ["legacy.mcp", "The MCP server's own fallback for the legacy plans_* tools."],
   [
     "state",

@@ -56,7 +56,7 @@ export function createAppMcp({ fallback = null, env = process.env } = {}) {
           operator: config.operator,
           workspaceRoot: config.workspaceRoot,
           plansRoot: config.plansRoot,
-      configDirectory: machineAvoozlPaths().configDirectory,
+          configDirectory: machineAvoozlPaths().configDirectory,
         }),
       };
       opened.set(key, entry);

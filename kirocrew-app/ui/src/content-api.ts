@@ -57,6 +57,8 @@ export const BOUNDARY_HINTS: Record<string, string> = {
   brief: 'The brief a worker session starts with.',
   diff: 'Lines a worker adds, checked before a push.',
   intake: 'Items that come in from a plugin source or MCP. Only checked when you tick it.',
+  proposal: "A retro's proposals, their diffs and evidence.",
+  lesson: 'Lessons shared across workspaces, when written, used and exported.',
 }
 
 export const BOUNDARIES = Object.keys(BOUNDARY_LABELS)
@@ -67,7 +69,7 @@ export const DEFAULT_BOUNDARIES = BOUNDARIES.filter((b) => b !== 'intake')
 export const SET_FIELDS: { key: string; required: boolean; text: string }[] = [
   { key: 'id', required: true, text: 'Names the set and its terms file, .avoozl/local/content-rules/<id>.txt.' },
   { key: 'action', required: false, text: 'block (the default) stops the write; report lets it through and records the match.' },
-  { key: 'boundaries', required: false, text: 'Some of plan, github, brief, diff, intake. Blank means all but intake.' },
+  { key: 'boundaries', required: false, text: 'Some of plan, github, brief, diff, intake, proposal, lesson. Blank means all but intake.' },
   { key: 'repositories', required: false, text: 'Registered repositories it applies to. Blank means all.' },
   { key: 'plugin', required: false, text: 'A plugins entry of kind rules that supplies this set instead of a terms file.' },
 ]

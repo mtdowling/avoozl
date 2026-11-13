@@ -1192,7 +1192,10 @@ export function deliverRetroSkill(
     },
     key = itemKey("retro", item.id);
   if (store.get("incoming_items", key)?.taskId)
-    fail(`This change already has task ${store.get("incoming_items", key).taskId}.`, 409);
+    fail(
+      `This change already has task ${store.get("incoming_items", key).taskId}.`,
+      409,
+    );
   const row = {
     id: key,
     source: "retro",
@@ -1209,7 +1212,12 @@ export function deliverRetroSkill(
   };
   store.transaction(() => store.put("incoming_items", row));
   const bound = withPolicy(
-      { id: "retro", repository, project: project.id, github: project.github || null },
+      {
+        id: "retro",
+        repository,
+        project: project.id,
+        github: project.github || null,
+      },
       githubPolicy,
     ),
     reason = "A person approved this skill change from a retrospective.",
@@ -1217,7 +1225,14 @@ export function deliverRetroSkill(
   const next = {
     ...row,
     taskId,
-    route: { state: "delivered", rule: null, action: "deliver", by: "person", reason, at: now },
+    route: {
+      state: "delivered",
+      rule: null,
+      action: "deliver",
+      by: "person",
+      reason,
+      at: now,
+    },
   };
   remember(next, { at: now, result: "deliver", state: "delivered" });
   store.transaction(() => store.put("incoming_items", next));

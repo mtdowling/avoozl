@@ -146,6 +146,7 @@ export const PLUGIN_PARTS: Record<string, { title: string; line: string }> = {
   tracker: { title: 'Tracker', line: 'Keeps task records in another system.' },
   intake: { title: 'Intake source', line: 'Brings outside work in, read on each tick.' },
   route: { title: 'Delivery route', line: 'Delivers tasks somewhere other than a local worker.' },
+  lessons: { title: 'Lessons pack', line: 'Retro lessons you preview and import as read-only. Runs no code.' },
 }
 
 // A row's parts; a plugin from before `provides` has one part per kind.
@@ -304,6 +305,9 @@ export function pluginsClient(api: AppApi) {
   }
   return {
     list: (workspaceId: string) => run<PluginList>('plugins.list', {}, workspaceId),
+    // A plugin's lessons pack (design §4.18): preview reads; import is a person's.
+    lessonsPreview: (workspaceId: string, id: string) => run<LessonsPackPreview>('plugin.lessons.preview', { id }, workspaceId),
+    lessonsImport: (workspaceId: string, id: string, previewHash: string) => run<LessonsPackPreview>('plugin.lessons.import', { id, previewHash }, workspaceId),
     // What a source holds, before anything is declared. Reads only.
     preview: (workspaceId: string, input: Record<string, unknown>) => run<PluginPreview>('plugin.preview', input, workspaceId),
     add: (workspaceId: string, input: Record<string, unknown>) => run<PluginRow>('plugin.add', input, workspaceId),
@@ -385,4 +389,17 @@ export function intakeClient(api: AppApi) {
     remove: (workspaceId: string, row: IntakeSourceRow) =>
       run<{ sources: IntakeSourceRow[] }>('intake.source.remove', { id: row.id, scope: row.scope }, workspaceId),
   }
+}
+
+export interface LessonsPackPreview {
+  plugin: string
+  version: string
+  hash: string
+  rows: { id: string; packId: string; finding: string; action: 'add' | 'change' | 'keep' | 'retire' }[]
+}
+
+// One line for a lessons pack preview: how many lessons each action touches.
+export function lessonsPackText(preview: LessonsPackPreview): string {
+  const count = (action: string) => preview.rows.filter((r) => r.action === action).length
+  return `Version ${preview.version}: ${count('add')} new, ${count('change')} changed, ${count('keep')} unchanged, ${count('retire')} retired.`
 }

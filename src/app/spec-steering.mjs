@@ -72,7 +72,10 @@ Avoozl.
 // current text, an `older` text Avoozl wrote before (offered again), or a
 // changed copy. `text` is this workspace's current text (a local override
 // may replace the one above, design §4.18); `older` lists earlier ones.
-export function steeringStatus(root, { text: current = STEERING_TEXT, older = [] } = {}) {
+export function steeringStatus(
+  root,
+  { text: current = STEERING_TEXT, older = [] } = {},
+) {
   const file = path.join(root, STEERING_FILE);
   let text;
   try {
