@@ -8,7 +8,7 @@
 // done report. On the cron it also reads and writes GitHub: completion,
 // issue intake, planner sessions for matched issues, broad-issue publishing,
 // re-projection, crew labels and the Project board.
-import { recordTickActivity } from "./activity-log.mjs";
+import { recordActivity, recordTickActivity } from "./activity-log.mjs";
 import fs from "node:fs";
 import { validateTrackedRouting } from "./placement.mjs";
 import { crewSnapshot } from "./crews.mjs";
@@ -20,6 +20,7 @@ import {
   routingFacts,
 } from "./routing.mjs";
 import { expireRouter, openRouter, spendRouter } from "./router.mjs";
+import { dropQueued, relayHeldTasks, relayStep } from "./relay.mjs";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { git, withWorkLock } from "./git.mjs";
@@ -35,6 +36,7 @@ import {
 } from "./budget.mjs";
 import { blockedNaming, judgeBaseFailures, watchLine } from "./flow-line.mjs";
 import { retroStep } from "./flow-retro.mjs";
+import { queueCheckRuns } from "./check-runs.mjs";
 import {
   claimedTaskIds,
   completeParents,
@@ -42,6 +44,7 @@ import {
   holdUnprovenReviews,
   integrateVerified,
   liveAttempt,
+  planCheckRuns,
   planReadyDispatches,
   briefAllowed,
   planVerifierDispatches,
@@ -870,7 +873,8 @@ export async function tick(
             .map((i) => i.id),
         ),
         unobserved = bindings
-          .filter((b) => b.source === "tick" && liveAttempt(b))
+          // A relayed worker is on a crew no roster here lists (relay.mjs).
+          .filter((b) => b.source === "tick" && !b.relay && liveAttempt(b))
           .filter((b) => !(b.crew && unreachable.has(b.crew)))
           .filter((b) => !observed(b))
           .map((b) => b.slot);
@@ -924,6 +928,7 @@ export async function tick(
           });
           await fetchAll(store, routing, { fetch: script });
           routing.routerQueue = [];
+          routing.onlyOne = [];
           expireRouter(store, routing, bindings);
         } catch (error) {
           routing = null;
@@ -951,6 +956,8 @@ export async function tick(
                   ...requested.map((d) => d.task),
                   ...(pluginResult?.held || []),
                   ...held,
+                  // A request queued for the Remote relay holds its task.
+                  ...relayHeldTasks(store),
                 ]),
                 github: readGitHubPolicyOrNull(workspaceRoot),
                 routing,
@@ -965,6 +972,16 @@ export async function tick(
                 routing,
                 placementState,
               });
+      // Command-only bars are checked by Avoozl itself, off this path: the
+      // cron queues each run here and the app backend runs the queue
+      // (check-runs.mjs). A spec driven elsewhere queues nothing.
+      if (script && delivery)
+        queueCheckRuns(
+          store,
+          planCheckRuns(store, delivery).filter(
+            (run) => !readOnly.has(run.task.planId),
+          ),
+        );
       // One routing call for every worker waiting on a pick (§4.10). An
       // answer read this tick is spent first, so the next call carries this
       // tick's facts, not the last one's.
@@ -1047,10 +1064,21 @@ export async function tick(
         ),
         open = (d) =>
           ![d.task, ...(d.batch?.tasks || [])].some((id) => budgetHeld.has(id)),
-        dispatched = dispatch.filter(open),
-        messages = planned.messages.filter(
+        allDispatches = dispatch.filter(open),
+        sendable = planned.messages.filter(
           (m) => m.budget || !heldSlots.has(m.slot),
         );
+      // The Remote relay (relay.mjs, R41.17): a remote pick and any message
+      // for a relayed worker are queued for the relay chat, which only the
+      // person's turn wakes. Off, or MC-10 landed: queued requests go.
+      const relayed = allDispatches.filter((d) => d.relay),
+        dispatched = allDispatches.filter((d) => !d.relay);
+      if (routing && !routing.relayActive) dropQueued(store);
+      const messages = relayStep(store, {
+        dispatches: relayed,
+        messages: sendable,
+        now: routing?.now ?? Date.now(),
+      });
       // MC-1: a session takes its project from its chat folder, and only a
       // person can set a folder's project directory. The cron reads its
       // folders first; a dispatch whose folder has none waits, and the
@@ -1076,6 +1104,18 @@ export async function tick(
       // The cron's tick queues each notice once for the app's notification
       // channels; the app backend pushes it (notifications.mjs).
       if (script) queueNotifications(store, notices);
+      // A worker the router did not judge, because one choice was left.
+      if (script)
+        for (const one of routing?.onlyOne || [])
+          if (dispatched.some((d) => d.task === one.taskId))
+            recordActivity(store, {
+              source: "local",
+              actor: "avoozl",
+              kind: "routing.only-one",
+              summary: `Only one choice for ${one.taskId}: ${one.crew}${one.model ? " on " + one.model : ""}; no router call`,
+              targetId: one.taskId,
+              key: `routing.only-one:${one.taskId}:${one.attempt}`,
+            });
       // The activity log (§4.19): what GitHub and plugin sync changed since
       // the last tick, once each, then rows past the retention go.
       recordTickActivity(store, memory.value || {});
