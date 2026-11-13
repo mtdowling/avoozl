@@ -34,24 +34,50 @@ export function normalizedTaskTitle(title) {
     .trim()
     .toLowerCase();
 }
+// Each task's normalized title, kept while its title stays the same. Lint
+// checks every proposal against every task, so normalizing each task's title
+// once per check made a large workspace's Plans list take seconds.
+const normalizedTitles = new WeakMap();
+function taskTitleKey(task) {
+  const known = normalizedTitles.get(task);
+  if (known?.title === task.title) return known.normalized;
+  const normalized = normalizedTaskTitle(task.title);
+  normalizedTitles.set(task, { title: task.title, normalized });
+  return normalized;
+}
+// Tasks by normalized title, for checking many titles against one task list
+// (duplicateCandidates' `index`). Build it once per check, after the list
+// stops changing.
+export function titleIndex(tasks) {
+  const index = new Map();
+  for (const task of tasks) {
+    const key = taskTitleKey(task);
+    if (!index.has(key)) index.set(key, []);
+    index.get(key).push(task);
+  }
+  return index;
+}
 export function duplicateCandidates(
   data,
   input,
-  { limit = 8, similar = false } = {},
+  { limit = 8, similar = false, index = null } = {},
 ) {
   const title = normalizedTaskTitle(input.title),
     own = resolveTaskId(data, input.id),
     tokens = new Set(title.match(/[\p{L}\p{N}]{4,}/gu) || []),
     result = [];
   if (title.length < 16) return result;
-  for (const task of data.tasks) {
+  // Only an exact match counts without `similar`, so an index lookup finds
+  // the same tasks as the full scan.
+  const candidates = index && !similar ? index.get(title) || [] : data.tasks;
+  for (const task of candidates) {
     if (
       task.id === own ||
       task.distinctFrom?.[own] ||
       input.distinctFrom?.[task.id]
     )
       continue;
-    const other = normalizedTaskTitle(task.title),
+    const other = taskTitleKey(task),
       exact = title === other;
     if (!exact && !similar) continue;
     let score = 1;
