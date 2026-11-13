@@ -18,6 +18,7 @@ import {
 } from './task-api.ts'
 import type { Graph } from './views-api.ts'
 import { errorMessage } from './workspace-api.ts'
+import { linkHref } from './views-api.ts'
 
 const fieldStyle = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }
 
@@ -133,7 +134,7 @@ function PreviewBlock({ preview }: { preview: ChangePreview }) {
     <div className="flex flex-col gap-2 rounded border p-2 text-sm" style={{ borderColor: 'var(--border)' }}>
       <p>{preview.message}</p>
       {preview.link && (
-        <a href={preview.link} target="_blank" rel="noreferrer" className="underline">
+        <a href={linkHref(preview.link)} target="_blank" rel="noreferrer" className="underline">
           Open the issue
         </a>
       )}

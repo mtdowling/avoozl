@@ -46,6 +46,7 @@ import {
   type UntriagedItem,
   type UntriagedList,
 } from './untriaged-api.ts'
+import { linkHref } from './views-api.ts'
 
 const HEAD: CSSProperties = { textAlign: 'left', fontWeight: 500, fontSize: 12, color: 'var(--muted)', padding: '4px 8px', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }
 const CELL: CSSProperties = { padding: '6px 8px', borderTop: '1px solid var(--border)', verticalAlign: 'top' }
@@ -61,13 +62,13 @@ const LINK_BUTTON: CSSProperties = {
 
 // A link styled as the page's icon button. Kiro Crew pages open in the
 // dashboard itself (target _top); GitHub opens in a new tab.
-function IconLink(props: { icon: LucideIcon; label: string; tooltip: string; href: string; external?: boolean; children?: ReactNode }) {
+function IconLink(props: { icon: LucideIcon; label: string; tooltip: string; href: string | undefined; external?: boolean; children?: ReactNode }) {
   const Icon = props.icon
   return (
     <Tooltip text={props.tooltip}>
       {(describedBy) => (
         <a
-          href={props.href}
+          href={linkHref(props.href)}
           aria-label={props.label}
           aria-describedby={describedBy}
           {...(props.external ? { target: '_blank', rel: 'noopener noreferrer' } : { target: '_top' })}
@@ -132,7 +133,7 @@ function Actions({ item, onSend, onReview, onStart }: { item: UntriagedItem; onS
   if (sourceOf(item) !== 'github')
     return (
       <span className="inline-flex gap-1.5">
-        {item.links.review && <IconLink icon={ScanSearch} label={`Code review for ${name}`} tooltip={item.links.review.tooltip} href={item.links.review.url} />}
+        {item.links.review && <IconLink icon={ScanSearch} label={`Code review for ${name}`} tooltip={item.links.review.tooltip} href={linkHref(item.links.review.url)} />}
         {onStart && item.start?.plan && (
           <IconBtn icon={FileText} label={`Plan this: ${name}`} tooltip="Plan this: a planner turns it into a task in the Inbox." onClick={() => onStart(item, 'plan')} />
         )}
@@ -150,13 +151,13 @@ function Actions({ item, onSend, onReview, onStart }: { item: UntriagedItem; onS
           // Crews work issues only; the gap keeps the columns lined up.
           <span aria-hidden="true" style={{ display: 'inline-block', width: 28 }} />
         ))}
-      {item.links.issueRadar && <IconLink icon={Radar} label={`Open ${name} in Issue Radar`} tooltip={item.links.issueRadar.tooltip} href={item.links.issueRadar.url} />}
+      {item.links.issueRadar && <IconLink icon={Radar} label={`Open ${name} in Issue Radar`} tooltip={item.links.issueRadar.tooltip} href={linkHref(item.links.issueRadar.url)} />}
       {item.links.review && onReview && (
         <IconBtn icon={ScanSearch} label={`Code review for ${name}`} tooltip={item.links.review.tooltip} onClick={() => onReview(item)} />
       )}
       {item.reviewChat?.link ? (
         <Tooltip text="Open this pull request's code review chat">
-          <a href={item.reviewChat.link} target="_top" className="self-center text-sm underline" aria-label={`Attach to the code review chat for ${name}`} data-review-attach>
+          <a href={linkHref(item.reviewChat.link)} target="_top" className="self-center text-sm underline" aria-label={`Attach to the code review chat for ${name}`} data-review-attach>
             Attach
           </a>
         </Tooltip>
@@ -174,7 +175,7 @@ function Actions({ item, onSend, onReview, onStart }: { item: UntriagedItem; onS
 // The repository and author as links to GitHub, opening in a new tab.
 function RepoLink({ item }: { item: UntriagedItem }) {
   return (
-    <a href={repositoryHref(item)} target="_blank" rel="noopener noreferrer" className="underline" data-repository-link>
+    <a href={linkHref(repositoryHref(item))} target="_blank" rel="noopener noreferrer" className="underline" data-repository-link>
       {item.repository}
     </a>
   )
@@ -185,7 +186,7 @@ function AuthorLink({ item, fallback = '' }: { item: UntriagedItem; fallback?: s
   const href = sourceOf(item) === 'github' ? authorHref(item) : null
   if (!href) return <>{item.author ?? fallback}</>
   return (
-    <a href={href} target="_blank" rel="noopener noreferrer" className="underline" data-author-link>
+    <a href={linkHref(href)} target="_blank" rel="noopener noreferrer" className="underline" data-author-link>
       {item.author}
     </a>
   )
@@ -194,7 +195,7 @@ function AuthorLink({ item, fallback = '' }: { item: UntriagedItem; fallback?: s
 function Title({ item }: { item: UntriagedItem }) {
   const github = sourceOf(item) === 'github'
   return (
-    <a href={item.links.github ?? item.links.item ?? item.url} target="_blank" rel="noopener noreferrer" className="min-w-0" style={{ overflowWrap: 'anywhere' }}>
+    <a href={linkHref(item.links.github ?? item.links.item ?? item.url)} target="_blank" rel="noopener noreferrer" className="min-w-0" style={{ overflowWrap: 'anywhere' }}>
       <span className="text-muted tabular-nums">{github ? `#${item.number}` : item.id}</span> <span className="underline">{item.title}</span>
     </a>
   )
@@ -592,7 +593,7 @@ export default function UntriagedView({ workspaceId }: { workspaceId: string | n
               <Tooltip text={bulk.tooltip}>
                 {(describedBy) => (
                   <a
-                    href={chosen.length ? bulk.url : undefined}
+                    href={linkHref(chosen.length ? bulk.url : undefined)}
                     target="_top"
                     role="button"
                     aria-disabled={!chosen.length || undefined}

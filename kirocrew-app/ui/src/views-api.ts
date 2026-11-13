@@ -342,6 +342,16 @@ export function safeHref(value: unknown): string | null {
   }
 }
 
+// Kiro Crew's own pages and chats: the only relative links the app makes.
+const APP_PATH = /^\/(?:chat\?sid=|apps\/|issue-radar(?:$|[/?#])|code-review-sage(?:$|[/?#]))[^\s\\]*$/
+
+// Every href in the UI: an http(s) URL (safeHref) or one of Kiro Crew's own
+// pages. Anything else is undefined, so the anchor renders as plain text.
+export function linkHref(value: unknown): string | undefined {
+  if (typeof value === 'string' && APP_PATH.test(value)) return value
+  return safeHref(value) ?? undefined
+}
+
 export function sessionLabel(session: DeliverySession): string {
   return [
     `${session.role} #${session.attempt}`,

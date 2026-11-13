@@ -22,6 +22,7 @@ import { chatClient, itemRef, type ActivityItem } from './chat-api.ts'
 import type { TaskFilter } from './filters.ts'
 import type { Drill } from './graph-layout.ts'
 import { documentEpic } from './graph-layout.ts'
+import { linkHref } from './views-api.ts'
 
 // Recent activity reads up to the backend's cap (activity.recent allows 200).
 const ACTIVITY_LIMIT = 200
@@ -113,13 +114,13 @@ function AttentionRow({
       </span>
       <span className="flex gap-1.5">
         {item.href && (
-          <a href={item.href} target="_blank" rel="noreferrer" className="self-center text-sm underline">
+          <a href={linkHref(item.href)} target="_blank" rel="noreferrer" className="self-center text-sm underline">
             Issue
           </a>
         )}
         {attach && (
           <Tooltip text="Open the task's running chat">
-            <a href={attach} className="self-center text-sm underline" aria-label={`Attach to the chat for ${item.title}`}>
+            <a href={linkHref(attach)} className="self-center text-sm underline" aria-label={`Attach to the chat for ${item.title}`}>
               Attach
             </a>
           </Tooltip>
@@ -179,7 +180,7 @@ function InFlightRow({ row, now, onInfo, onPickAgain }: { row: InFlight; now: nu
           <span className="self-center text-xs text-muted">Attach waits on Kiro Crew</span>
         ) : (
         <a
-          href={href}
+          href={linkHref(href)}
           className="self-center text-sm underline"
           aria-label={`Attach to the ${row.role} chat for ${row.title}`}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
@@ -565,12 +566,12 @@ export default function DashboardView(props: {
                       <td style={CELL} className="whitespace-nowrap">
                         <span className="flex gap-2 text-xs">
                           {item.issue && (
-                            <a href={item.issue} target="_blank" rel="noreferrer" className="underline">
+                            <a href={linkHref(item.issue)} target="_blank" rel="noreferrer" className="underline">
                               issue
                             </a>
                           )}
                           {item.pulls.map((pull) => (
-                            <a key={pull.href} href={pull.href} target="_blank" rel="noreferrer" className="underline">
+                            <a key={pull.href} href={linkHref(pull.href)} target="_blank" rel="noreferrer" className="underline">
                               PR{pull.number ? ` #${pull.number}` : ''}
                             </a>
                           ))}

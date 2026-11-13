@@ -55,7 +55,7 @@ test('In flight rows have Info and an Attach link to their session', () => {
   assert.match(dashboard, /<IconBtn icon=\{DetailsIcon\} label=\{`Details for \$\{row\.title\}`\} tooltip="Open the task drawer" onClick=\{onInfo\} \/>/)
   // A remote chat attaches only through Kiro Crew's MC-10 (R41.14).
   assert.match(dashboard, /const href = attachHref\(row\.session\)/)
-  assert.match(dashboard, /href=\{href\}/)
+  assert.match(dashboard, /href=\{linkHref\(href\)\}/)
   // In flight comes first in reading order, Needs you beside it.
   assert.ok(dashboard.indexOf('In flight (') < dashboard.indexOf('Needs you ('))
 })

@@ -13,6 +13,7 @@ import { ExternalLink, FolderOpen, Pencil, Plus } from './icons.ts'
 import { errorMessage, workspaceClient, type DetectedCheckout, type Repository } from './workspace-api.ts'
 import { githubHref, type RepositoryRow } from './repository-rows.ts'
 import { Modal } from './Modal.tsx'
+import { linkHref } from './views-api.ts'
 export { repositoryRows, type RepositoryRow } from './repository-rows.ts'
 
 export const REPOSITORIES_LINE =
@@ -93,7 +94,7 @@ export function RepositoryList(props: {
                 Edit
               </IconLabel>
               {row.folder && <IconBtn icon={FolderOpen} label={`Open ${row.name} in Finder`} onClick={() => props.onReveal(row.folder!)} />}
-              {href && <GitHubLink href={href} name={row.name} />}
+              {href && <GitHubLink href={linkHref(href)} name={row.name} />}
               <DangerBtn
                 label={`Remove ${row.name}`}
                 tooltip={
@@ -180,21 +181,21 @@ export function RepositoryDialog(props: {
   )
 }
 
-function GitHubLink({ href, name }: { href: string; name: string }) {
+function GitHubLink({ href, name }: { href: string | undefined; name: string }) {
   return (
-    <TipLink href={href} tip="Open on GitHub">
+    <TipLink href={linkHref(href)} tip="Open on GitHub">
       <ExternalLink size={14} aria-hidden="true" />
       <span className="sr-only">Open {name} on GitHub</span>
     </TipLink>
   )
 }
 
-function TipLink(props: { href: string; tip: string; children: ReactNode }) {
+function TipLink(props: { href: string | undefined; tip: string; children: ReactNode }) {
   // A link styled like the icon buttons, with the shared tooltip.
   return (
     <Tooltip text={props.tip}>
       <a
-        href={props.href}
+        href={linkHref(props.href)}
         target="_blank"
         rel="noopener noreferrer"
         className="inline-flex items-center rounded border"

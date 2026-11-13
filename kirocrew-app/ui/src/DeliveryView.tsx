@@ -35,6 +35,7 @@ import { DetailsIcon, Pause, Play, RefreshCw, RotateCcw } from './icons.ts'
 import { chatClient } from './chat-api.ts'
 import { DEFER_TIP, RESUME_TIP, RETRY_TIP, START_TIP } from './delivery-api.ts'
 import { routingClient } from './routing-api.ts'
+import { linkHref } from './views-api.ts'
 
 function LaneCardView(props: {
   card: LaneCard
@@ -103,7 +104,7 @@ function LaneCardView(props: {
               {card.sessions.map((session) => (
                 <li key={session.slot}>
                   {session.link ? (
-                    <a href={session.link} className="underline">
+                    <a href={linkHref(session.link)} className="underline">
                       {sessionLabel(session)}
                     </a>
                   ) : (
@@ -151,7 +152,7 @@ function LaneCardView(props: {
             )}
             {!done && !local && issue && (
               <Tooltip text="Open the issue; move its Project card to Deferred to pause it">
-                <a href={issue} target="_blank" rel="noreferrer" className="self-center text-xs underline">
+                <a href={linkHref(issue)} target="_blank" rel="noreferrer" className="self-center text-xs underline">
                   Defer on the board
                 </a>
               </Tooltip>

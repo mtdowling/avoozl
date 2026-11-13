@@ -11,6 +11,7 @@ import { doneStatus, resumeStatus } from './delivery-api.ts'
 import { IconBtn, IconLabel, useAskChat } from './controls.tsx'
 import { Check, DetailsIcon, ExternalLink, MessageSquare, RotateCcw } from './icons.ts'
 import { errorMessage } from './workspace-api.ts'
+import { linkHref } from './views-api.ts'
 
 const model = (requested: string | null, served: string | null) =>
   `asked ${requested ?? 'agent default'}${served ? `, ran ${served}` : ''}`
@@ -34,7 +35,7 @@ export function ReviewRuns(props: { item: DeliveryItem | null; onInfo?: () => vo
           <span className="ml-auto flex items-center gap-1.5">
             {run.link && (
               <a
-                href={run.link}
+                href={linkHref(run.link)}
                 className="inline-flex items-center gap-1 underline"
                 aria-label={`Attach to the ${run.role} chat, round ${run.round}`}
               >

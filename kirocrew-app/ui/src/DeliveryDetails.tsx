@@ -16,6 +16,7 @@ import {
   type ReviewRound,
 } from './views-api.ts'
 import { errorMessage } from './workspace-api.ts'
+import { linkHref } from './views-api.ts'
 
 // A delivery's record, shared by the Delivery cards and the task drawer:
 // runs, integration, pull requests, reviews, evidence, Project notes, and
@@ -23,7 +24,7 @@ import { errorMessage } from './workspace-api.ts'
 function Link({ text }: { text: string }) {
   const href = safeHref(text)
   return href ? (
-    <a href={href} target="_blank" rel="noreferrer" className="underline">
+    <a href={linkHref(href)} target="_blank" rel="noreferrer" className="underline">
       {text}
     </a>
   ) : (
@@ -64,7 +65,7 @@ function Rounds({ rounds }: { rounds: ReviewRound[] }) {
               {round.verdicts.map((verdict) => (
                 <li key={`${verdict.role}-${verdict.attempt}`}>
                   {verdict.link ? (
-                    <a href={verdict.link} className="underline">
+                    <a href={linkHref(verdict.link)} className="underline">
                       {verdictLabel(verdict)}
                     </a>
                   ) : (
@@ -106,7 +107,7 @@ function GitHubReviewsBlock({ reviews }: { reviews: GitHubReviews }) {
       {reviews.approvals} of {reviews.needed} approvals on <code>{reviews.headSha?.slice(0, 12) ?? 'unknown head'}</code>
       {' · '}
       {href ? (
-        <a href={href} target="_blank" rel="noreferrer" className="underline">
+        <a href={linkHref(href)} target="_blank" rel="noreferrer" className="underline">
           {name}
         </a>
       ) : (
@@ -137,7 +138,7 @@ function PrFeedbackBlock({ feedback }: { feedback: PrFeedback }) {
       {href && (
         <>
           {' · '}
-          <a href={href} target="_blank" rel="noreferrer" className="underline">
+          <a href={linkHref(href)} target="_blank" rel="noreferrer" className="underline">
             PR
           </a>
         </>
@@ -152,7 +153,7 @@ function PrFeedbackBlock({ feedback }: { feedback: PrFeedback }) {
               <span key={i}>
                 {i > 0 && ', '}
                 {link ? (
-                  <a href={link} target="_blank" rel="noreferrer" className="underline">
+                  <a href={linkHref(link)} target="_blank" rel="noreferrer" className="underline">
                     {entry.login}
                   </a>
                 ) : (
@@ -326,7 +327,7 @@ export function ItemDetails({ item, onSupersede }: { item: DeliveryItem; onSuper
             return (
               <li key={i}>
                 {href ? (
-                  <a href={href} target="_blank" rel="noreferrer" className="underline">
+                  <a href={linkHref(href)} target="_blank" rel="noreferrer" className="underline">
                     {label}
                   </a>
                 ) : (

@@ -162,7 +162,7 @@ test('rows link the repository and the author to GitHub, in a new tab', async ()
   assert.equal(repositoryHref(enterprise), 'https://git.example.com/octo/app')
   const view = (await import('node:fs')).readFileSync(new URL('../src/UntriagedView.tsx', import.meta.url), 'utf8')
   for (const part of ['RepoLink', 'AuthorLink'])
-    assert.match(view, new RegExp(`function ${part}[\\s\\S]{0,300}target="_blank" rel="noopener noreferrer"`))
+    assert.match(view, new RegExp(`function ${part}[\\s\\S]{0,340}target="_blank" rel="noopener noreferrer"`))
   assert.doesNotMatch(view, />\{item\.repository\}<\/td>|>\{item\.author \?\? ''\}<\/td>/)
 })
 
