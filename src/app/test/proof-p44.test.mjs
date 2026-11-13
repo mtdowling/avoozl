@@ -432,7 +432,7 @@ test("P44 actions 9-11: the manual switch previews, refuses a stale hash, marks 
       assert.equal(principalAllows({ kind }, name), false, `${kind} ${name}`);
     assert.equal(principalAllows({ kind: "owner-session" }, name), true);
   }
-  for (const name of ["providers.view", "provider.switch.preview"])
+  for (const name of ["providers.view"])
     assert.equal(principalAllows({ kind: "app-token" }, name), true);
   assert.ok(await ops.execute("providers.view", {}, undefined, { mcp: true }));
 
@@ -444,9 +444,15 @@ test("P44 actions 9-11: the manual switch previews, refuses a stale hash, marks 
     }),
     (error) => error.status === 409,
   );
+  // The preview names its choices: Also new tasks is part of what it covers.
+  const withNew = await ops.execute("provider.switch.preview", {
+    ...input,
+    alsoNewTasks: true,
+  });
+  assert.notEqual(withNew.previewHash, preview.previewHash);
   const queued = await ops.execute("provider.switch", {
     ...input,
-    previewHash: preview.previewHash,
+    previewHash: withNew.previewHash,
     alsoNewTasks: true,
   });
   assert.equal(queued.queued, preview.chats.length);

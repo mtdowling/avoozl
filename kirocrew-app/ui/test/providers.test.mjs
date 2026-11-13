@@ -8,7 +8,9 @@ import {
   fromInput,
   fromOptions,
   markText,
+  previewDiff,
   switchText,
+  toOptions,
   toProvidersForm,
   toProvidersSection,
 } from '../src/providers-api.ts'
@@ -23,13 +25,32 @@ test('From becomes the operation input only when it names something', () => {
   assert.equal(fromInput('tasks', 'x', []), null)
 })
 
-test('From lists the providers, models and tasks the running chats use', () => {
+test('From lists the providers, models and tasks the running chats use, plus health marks', () => {
   const chats = [
     { slot: 'a', taskId: 't2', role: 'worker', model: 'beta-1', provider: 'beta', level: 'ok' },
     { slot: 'b', taskId: 't1', role: 'worker', model: 'alpha-1', provider: 'alpha', level: 'out' },
     { slot: 'c', taskId: 't1', role: 'review:x', model: null, provider: null, level: 'ok' },
   ]
   assert.deepEqual(fromOptions(chats), { providers: ['alpha', 'beta'], models: ['alpha-1', 'beta-1'], tasks: ['t1', 't2'] })
+  const marks = [
+    { id: 'p', scope: 'provider', name: 'gamma', level: 'low', source: 'usage', kind: 'usage', since: '' },
+    { id: 'm', scope: 'model', name: 'delta-1', level: 'out', source: 'error', kind: 'credits', since: '' },
+    { id: 'k', scope: 'key', name: 'alpha-1', level: 'low', source: 'usage', kind: 'usage', since: '' },
+  ]
+  assert.deepEqual(fromOptions(chats, marks), { providers: ['alpha', 'beta', 'gamma'], models: ['alpha-1', 'beta-1', 'delta-1'], tasks: ['t1', 't2'] })
+})
+
+test('To offers auto and Kiro Crew models; a changed preview says what moved in and out', () => {
+  assert.deepEqual(toOptions([{ value: 'm1', label: 'Model one' }]), [
+    { value: 'auto', label: 'auto (Kiro Crew picks)' },
+    { value: 'm1', label: 'Model one' },
+  ])
+  const chat = (slot, model = 'a-1') => ({ slot, taskId: `t-${slot}`, title: null, spec: null, role: 'worker', model, to: 'b-1', where: 'local', agent: null })
+  const preview = (chats, newTasks = []) => ({ chats, skipped: [], newTasks, counts: { move: chats.length, stay: 0, newTasks: newTasks.length }, previewHash: 'h' })
+  const before = preview([chat('s1'), chat('s2')], [{ taskId: 'q1', title: null, model: 'a-1' }])
+  const after = preview([chat('s2'), chat('s3')], [])
+  assert.deepEqual(previewDiff(before, after), { added: ['t-s3 worker'], removed: ['t-s1 worker', 'q1 (new task)'] })
+  assert.deepEqual(previewDiff(before, before), { added: [], removed: [] })
 })
 
 test('marks read as one line; only a person mark has Undo', () => {
@@ -74,11 +95,12 @@ test('Switch model sits in the Dashboard header and on In flight; Providers is a
   const flight = dashboard.slice(dashboard.indexOf('title={`In flight'), dashboard.indexOf("pages.take('flight'"))
   assert.match(flight, /<SwitchModelButton[\s\S]*tasks=\{/)
   const dialog = source('SwitchModel.tsx')
-  // Switch needs a preview first, and sends its hash.
+  // Dry run, then confirm: Switch needs a preview and sends its hash.
   assert.match(dialog, /disabled=\{busy \|\| !preview/)
   assert.match(dialog, /previewHash: preview\.previewHash/)
   assert.match(dialog, /Also new tasks/)
   assert.match(dialog, /client\.models\(\)/)
+  assert.doesNotMatch(dialog, /<datalist/)
   const settings = source('SettingsView.tsx')
   assert.match(settings, /tab === 'providers' \? \(\s*<ProvidersSettings/)
   assert.match(source('views-api.ts'), /'provider-out': 'Provider out'/)

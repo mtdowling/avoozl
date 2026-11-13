@@ -649,17 +649,23 @@ export async function applySwitches(store, switcher, options = {}) {
 
 // ------------------------------------------------------- manual switches
 
-// The live chats a manual switch reaches (R72.12): {chats, skipped, hash}.
+// The dry run of a manual switch (R72.12): the live chats it moves, the
+// chats or chosen tasks that stay and why, and with alsoNewTasks the queued
+// tasks the new-task rule moves off From. Writes nothing. Options:
+// `taskInfo(id)` {title, spec}, `pinnedModel(binding)`, `issueRadar(id)`,
+// and `queued` [{taskId, title, model}] (routing's next picks).
 export function switchPreview(store, input = {}, options = {}) {
   const from = record(input.from) ? input.from : fail("Choose From.");
-  const to = modelName(input.to, "To");
+  const to = input.to === "auto" ? "auto" : modelName(input.to, "To");
+  const alsoNewTasks = input.alsoNewTasks === true;
   const settings = options.settings ?? readProviders(store, options).settings,
-    reviewRoles = options.reviewRoles ?? (() => []);
-  let match;
+    reviewRoles = options.reviewRoles ?? (() => []),
+    info = (id) => options.taskInfo?.(id) ?? { title: null, spec: null };
+  let match, onModel;
   if (typeof from.provider === "string" && from.provider)
-    match = (b) => providerOf(b.model, settings) === from.provider;
+    onModel = (m) => providerOf(m, settings) === from.provider;
   else if (typeof from.model === "string" && from.model)
-    match = (b) => b.model === from.model;
+    onModel = (m) => m === from.model;
   else if (
     Array.isArray(from.tasks) &&
     from.tasks.length &&
@@ -668,18 +674,45 @@ export function switchPreview(store, input = {}, options = {}) {
   )
     match = (b) => from.tasks.includes(b.taskId);
   else fail("From is a provider, a model, or a list of tasks.");
+  match ??= (b) => onModel(b.model);
   const chats = [],
-    skipped = [];
-  for (const b of listSessionBindings(store)) {
-    if (!liveTick(b) || !match(b)) continue;
+    skipped = [],
+    live = listSessionBindings(store).filter((b) => match(b));
+  for (const b of live) {
+    const { title, spec } = info(b.taskId);
     const row = {
       slot: b.slot,
       taskId: b.taskId,
+      title,
+      spec,
       role: b.role,
       model: b.model ?? null,
+      to,
+      where: b.crew || "local",
+      agent: b.agent ?? null,
     };
-    if (!b.model) skipped.push({ ...row, why: "runs on auto" });
+    const pinned = options.pinnedModel?.(b) ?? null;
+    if (!liveTick(b)) {
+      if (
+        ["closed", "lost", "gone"].includes(b.status) ||
+        ["done", "blocked"].includes(b.report?.kind)
+      )
+        continue;
+      skipped.push({
+        ...row,
+        why:
+          b.source === "conductor"
+            ? "a Crew Mode chat; its conductor picks the model"
+            : "Avoozl did not open this chat",
+      });
+    } else if (!b.model) skipped.push({ ...row, why: "runs on auto" });
     else if (b.model === to) skipped.push({ ...row, why: `already on ${to}` });
+    else if (b.crew)
+      skipped.push({
+        ...row,
+        why: `runs on ${b.crew}; a remote chat's model is not changed from here`,
+      });
+    else if (pinned) skipped.push({ ...row, why: `its task pins ${pinned}` });
     else if (forbidden(store, b, reviewRoles(b)).includes(to))
       skipped.push({
         ...row,
@@ -690,11 +723,63 @@ export function switchPreview(store, input = {}, options = {}) {
       });
     else chats.push(row);
   }
+  // A chosen task with no live chat Avoozl opened.
+  if (from.tasks)
+    for (const id of from.tasks)
+      if (!live.some((b) => b.taskId === id && liveTick(b)))
+        skipped.push({
+          slot: null,
+          taskId: id,
+          ...info(id),
+          role: null,
+          model: null,
+          to,
+          where: null,
+          agent: null,
+          why: options.issueRadar?.(id)
+            ? "Issue Radar codes it; Avoozl cannot change its chat"
+            : "no running chat",
+        });
   chats.sort((a, b) => a.slot.localeCompare(b.slot));
+  // The models the new-task rule marks out (as queueSwitch marks them).
+  const marked = new Set(
+    [...chats, ...skipped].map((c) => c.model).filter((m) => m && m !== to),
+  );
+  const rule = onModel ?? ((m) => marked.has(m));
+  const newTasks = alsoNewTasks
+    ? (options.queued || [])
+        .filter((q) => q.model && q.model !== to && rule(q.model))
+        .map((q) => ({
+          taskId: q.taskId,
+          title: q.title ?? null,
+          model: q.model,
+        }))
+    : [];
   const hash = createHash("sha256")
-    .update(JSON.stringify({ from, to, chats }))
+    .update(
+      JSON.stringify({
+        from,
+        to,
+        alsoNewTasks,
+        chats: chats.map((c) => [c.slot, c.model]),
+        newTasks: newTasks.map((q) => [q.taskId, q.model]),
+      }),
+    )
     .digest("hex");
-  return { from, to, chats, skipped, previewHash: hash };
+  return {
+    from,
+    to,
+    alsoNewTasks,
+    chats,
+    skipped,
+    newTasks,
+    counts: {
+      move: chats.length,
+      stay: skipped.length,
+      newTasks: newTasks.length,
+    },
+    previewHash: hash,
+  };
 }
 
 // A person's switch (R72.13, R72.14): one pending record per chat, applied

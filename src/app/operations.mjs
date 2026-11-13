@@ -259,6 +259,7 @@ import {
   ownership,
   plansTableView,
   epicView,
+  specOf,
   taskDetailView,
 } from "./page-views.mjs";
 import { frontMatter, frontMatterCategory } from "../front-matter.mjs";
@@ -883,6 +884,13 @@ export class Operations {
   providerOptions() {
     const policy = readDeliveryPolicy(this.workspaceRoot).delivery,
       tasks = new Map(this.read().tasks.map((t) => [t.id, t]));
+    let github;
+    const radar = () =>
+      (github ??= new Set(
+        issueRadarCrews(readGitHubPolicyOrNull(this.workspaceRoot)).map(
+          (c) => c.repository,
+        ),
+      ));
     return {
       ...(this.placement.now ? { now: this.placement.now() } : {}),
       reviewRoles: (binding) =>
@@ -892,6 +900,48 @@ export class Operations {
               taskRepository(tasks.get(binding.taskId)),
             )
           : [],
+      // The Switch model dry run's words: a task's title and spec, the
+      // model its own spec pins for a writer, and whether Issue Radar
+      // codes it.
+      taskInfo: (id) => {
+        const task = tasks.get(id);
+        return { title: task?.title ?? null, spec: task ? specOf(task) : null };
+      },
+      pinnedModel: (binding) => {
+        const session = tasks.get(binding.taskId)?.session;
+        return binding.role === "worker" &&
+          session?.model &&
+          !session.choices &&
+          binding.model === session.model
+          ? session.model
+          : null;
+      },
+      issueRadar: (id) => {
+        const task = tasks.get(id);
+        return Boolean(task && radar().has(taskRepository(task)));
+      },
+    };
+  }
+  // The dry run's queued tasks: routing's next worker pick for each ready
+  // task, read only when Also new tasks is on.
+  async switchOptions(store, input) {
+    const options = this.providerOptions();
+    if (input?.alsoNewTasks !== true) return options;
+    const github = readGitHubPolicyOrNull(this.workspaceRoot);
+    const preview = await routingPreview(store, this.read(), {
+      workspaceRoot: this.workspaceRoot,
+      policy: readDeliveryPolicy(this.workspaceRoot).delivery,
+      github,
+      readyCandidates: () => readyCandidates(store, { github }),
+      ...this.routingHooks(),
+    });
+    return {
+      ...options,
+      queued: preview.items.map((i) => ({
+        taskId: i.taskId,
+        title: i.title,
+        model: i.model,
+      })),
     };
   }
   // Tracker plugin tasks rebuilt from each approved tracker's `list` and the
@@ -2156,9 +2206,13 @@ export class Operations {
     if (name === "providers.view")
       return providersView(store, this.providerOptions());
     if (name === "provider.switch.preview")
-      return switchPreview(store, input, this.providerOptions());
+      return switchPreview(
+        store,
+        input,
+        await this.switchOptions(store, input),
+      );
     if (name === "provider.switch")
-      return queueSwitch(store, input, this.providerOptions());
+      return queueSwitch(store, input, await this.switchOptions(store, input));
     if (name === "provider.health.clear") return clearMark(store, input);
     if (name === "providers.settings.update")
       return updateProviders(store, input);
