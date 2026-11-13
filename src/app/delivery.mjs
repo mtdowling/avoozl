@@ -37,11 +37,16 @@ import { resolveTaskId } from "../task-identity.mjs";
 import { pausedTaskIds } from "./github-project.mjs";
 import { budgetHeldTaskIds, budgetStopSlots } from "./budget.mjs";
 import { LOCAL } from "./crews.mjs";
-import { machineRouting, placeOne, routingOn, rulesAllow } from "./routing.mjs";
+import {
+  crewAllowed,
+  machineRouting,
+  placeOne,
+  routingOn,
+} from "./routing.mjs";
 import { handbackFetch, pushedFetch } from "./handback.mjs";
 import { currentPrompts } from "./retro-memory.mjs";
 import { routeResultNotes, submittedTaskIds } from "./routes.mjs";
-import { healthContext, healthyChoices, modelsOf } from "./provider-health.mjs";
+import { healthContext, modelsOf } from "./provider-health.mjs";
 import {
   findPlanningLeak,
   isLinkedBranchLeaf,
@@ -1945,11 +1950,11 @@ export function planReadyDispatches(store, policy, options = {}) {
         }
       : null,
     // A batch runs in its leader's local session (the batch brief is local
-    // only), so the leader must be placed on local and every member's rules
-    // must allow local (R46.4).
+    // only), so the leader must be placed on local and every member's pin
+    // and needs must allow local (R46.4).
     batchFits = (leader, task) =>
       placed.get(leader.task.id)?.crew === LOCAL &&
-      rulesAllow(data, routing, task, LOCAL),
+      crewAllowed(routing, task, LOCAL),
     leaves = planBatches(
       store,
       readyLeaves(store, policy, { ...options, skip, place }),
@@ -1986,21 +1991,16 @@ export function planReadyDispatches(store, policy, options = {}) {
     )
       return [];
     let model = where ? where.model : keptModel(store, leaf.task.id, policy);
-    // Without routing the delivery model is the one choice; an out model
-    // takes a replacement or fallback, else the task waits (R72.5).
+    // Without placement the delivery model is the one choice: an out model
+    // is never offered (R72.5). A person's replacement for it is taken;
+    // else the task waits, and Needs you says the provider is out.
     if (!where && model) {
       health ??= healthContext(store);
-      const healthy = healthyChoices(
-        [{ agent: null, model, weight: 1 }],
-        health,
-        {
-          skipModels: reviewRoles(policy, leaf.project.id)
-            .filter((r) => r.distinctFrom === "model" && r.model)
-            .map((r) => r.model),
-        },
-      );
-      if (healthy.wait) return [];
-      model = healthy.pool[0].model;
+      if (health.level(model) === "out") {
+        const to = health.replacement(model);
+        if (!to || health.level(to) === "out") return [];
+        model = to;
+      }
     }
     const agent = where
       ? where.agent || policy.agent
