@@ -1,20 +1,31 @@
 // Settings › Budgets and Settings › Prices (design §4.17, R67.2, R67.5).
 // Budgets write `budget` and `projects.<id>.budget` in .avoozl.json through
-// budget.settings.update with the file's hash. Prices are this computer's
-// only: prices.save writes ~/.config/avoozl/config.json and a new version.
-import { useCallback, useEffect, useMemo, useState } from "react";
+// budget.settings.update with the file's hash. Prices are built in; this
+// computer's optional overrides go through prices.save to
+// ~/.config/avoozl/config.json and get a new version.
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useAppApi } from "@kirocrew/app-sdk";
 import { Btn, Card, Input } from "@kirocrew/app-sdk/ui";
 import Badge from "./Badge.tsx";
 import { Marker, Section } from "./SettingsView.tsx";
+import { RadioFold, type RadioSection } from "./RadioFold.tsx";
+import { Fold } from "./controls.tsx";
+import { AskForHelp } from "./AskForHelp.tsx";
+import { FieldBox } from "./FieldBox.tsx";
 import { useRead } from "./useRead.ts";
 import { COMMAND_PATH, errorMessage } from "./workspace-api.ts";
 import { parseModels } from "./flow-api.ts";
+import { linkHref } from "./views-api.ts";
+import { COSTS_DOCS, COSTS_SKILL } from "./help-chat.ts";
 import {
   MODE_TEXT,
+  MODE_TITLE,
   budgetApi,
   fromBudgetForm,
   fromPricesForm,
+  inheritText,
+  modelsInUse,
+  pricesUpdatedText,
   toBudgetForm,
   toPricesForm,
   type BudgetForm,
@@ -24,6 +35,9 @@ import {
 } from "./budget-api.ts";
 
 const OPTIONAL = { required: false } as const;
+const DEFAULT_TOKENS = 2000000;
+const DEFAULT_CREDITS = 200;
+const n = (value: number) => value.toLocaleString("en-US");
 
 interface BudgetSettingsView {
   hash: string | null;
@@ -31,70 +45,150 @@ interface BudgetSettingsView {
   repositories: Record<string, BudgetValue>;
 }
 
-// The four cap fields and the mode, for one level. Blank means the level
-// above applies; placeholders show what that is.
+// One number field: label, marker, the default it falls back to, and the
+// raw key.
+function NumberField(props: {
+  id: string;
+  label: string;
+  value: string;
+  fallback: string;
+  // A short placeholder; the full fallback is the line under the field.
+  placeholder: string;
+  raw: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div
+      className="flex min-w-0 flex-col gap-1 text-sm"
+      style={{ width: "100%", maxWidth: "16rem" }}
+    >
+      <label htmlFor={props.id} className="flex flex-wrap items-baseline gap-x-2">
+        <span className="font-medium">{props.label}</span>
+        <Marker rule={OPTIONAL} />
+      </label>
+      <Input
+        id={props.id}
+        inputMode="decimal"
+        value={props.value}
+        placeholder={props.placeholder}
+        aria-describedby={`${props.id}-blank`}
+        onChange={(e) => props.onChange(e.target.value)}
+      />
+      <span id={`${props.id}-blank`} className="text-xs text-muted">
+        Blank: {props.fallback}
+      </span>
+      <code className="text-[11px] text-muted">{props.raw}</code>
+    </div>
+  );
+}
+
+// What a level falls back to when a field is blank.
+interface Fallback {
+  // "workspace default" or "built-in default".
+  from: string;
+  usd: string;
+  tokens: string;
+  credits: string;
+  mode: BudgetMode;
+  // Short placeholders for the fields.
+  short: { usd: string; tokens: string; credits: string };
+}
+
+// One level's caps and mode. The workspace has no "inherit" choice; a
+// repository's says where its value comes from and what it is.
 function CapFields(props: {
   id: string;
   form: BudgetForm;
   onChange: (form: BudgetForm) => void;
-  placeholder: { usd: string; tokens: string; credits: string; mode: string };
+  fallback: Fallback;
+  inherit: boolean;
+  warnFields?: ReactNode;
 }) {
-  const { id, form } = props;
+  const { id, form, fallback } = props;
   const set = (change: Partial<BudgetForm>) =>
     props.onChange({ ...form, ...change });
-  const field = (key: "usd" | "tokens" | "credits", label: string) => (
-    <div
-      className="flex min-w-0 flex-col gap-1 text-sm"
-      style={{ maxWidth: "12rem" }}
-    >
-      <label
-        htmlFor={`${id}-${key}`}
-        className="flex flex-wrap items-baseline gap-x-2"
-      >
-        <span className="font-medium">{label}</span>
-        <Marker rule={OPTIONAL} />
-      </label>
-      <Input
-        id={`${id}-${key}`}
-        inputMode="decimal"
-        value={form[key]}
-        placeholder={props.placeholder[key]}
-        onChange={(e) => set({ [key]: e.target.value })}
-      />
-      <code className="text-[11px] text-muted">{`budget.${key}`}</code>
-    </div>
-  );
+  type Choice = "" | BudgetMode;
+  const modeSection = (key: BudgetMode): RadioSection<Choice> => ({
+    key,
+    title: MODE_TITLE[key],
+    line: MODE_TEXT[key],
+    ...(key === "warn" && props.warnFields ? { fields: props.warnFields } : {}),
+  });
+  const sections: RadioSection<Choice>[] = [
+    ...(props.inherit
+      ? [
+          {
+            key: "" as Choice,
+            title: inheritText(fallback.from, MODE_TITLE[fallback.mode]),
+            line: `It follows the ${fallback.from}, and changes when that changes.`,
+          },
+        ]
+      : []),
+    modeSection("stop"),
+    modeSection("warn"),
+  ];
+  const mode: Choice = props.inherit ? form.mode : form.mode || fallback.mode;
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap gap-3">
-        {field("usd", "Dollar cap per task")}
-        {field("tokens", "Token cap for unpriced turns")}
-        {field("credits", "Credit cap for unpriced turns")}
-      </div>
-      <fieldset className="flex flex-col gap-1 text-sm">
-        <legend className="font-medium">
-          At the cap <Marker rule={OPTIONAL} />
-        </legend>
-        {(["", "stop", "warn"] as const).map((mode) => (
-          <label key={mode || "inherit"} className="flex items-start gap-2">
-            <input
-              type="radio"
-              name={`${id}-mode`}
-              checked={form.mode === mode}
-              onChange={() => set({ mode })}
-              style={{ marginTop: 3 }}
-            />
-            <span>
-              {mode
-                ? MODE_TEXT[mode as BudgetMode]
-                : `Same as above (${props.placeholder.mode}).`}
-            </span>
-          </label>
-        ))}
+      <FieldBox title="Dollar cap">
+        <NumberField
+          id={`${id}-usd`}
+          label="Dollar cap per task"
+          value={form.usd}
+          fallback={fallback.usd}
+          placeholder={fallback.short.usd}
+          raw="budget.usd"
+          onChange={(usd) => set({ usd })}
+        />
+      </FieldBox>
+      <FieldBox title="When a task reaches its cap">
+        <RadioFold
+          name={`${id}-mode`}
+          label="When a task reaches its cap"
+          value={mode}
+          onChange={(next) => set({ mode: next })}
+          sections={sections}
+        />
         <code className="text-[11px] text-muted">budget.mode</code>
-      </fieldset>
+      </FieldBox>
+      <Fold title="Advanced: caps for turns not counted in dollars" id={`${id}-advanced`}>
+        <FieldBox
+          title="Caps for turns not counted in dollars"
+          blurb="Avoozl counts most turns in dollars. A model Kiro Crew bills in credits counts against the credit cap. A model with no known price counts against the token cap."
+        >
+          <div className="flex flex-wrap gap-3">
+            <NumberField
+              id={`${id}-tokens`}
+              label="Token cap per task"
+              value={form.tokens}
+              fallback={fallback.tokens}
+              placeholder={fallback.short.tokens}
+              raw="budget.tokens"
+              onChange={(tokens) => set({ tokens })}
+            />
+            <NumberField
+              id={`${id}-credits`}
+              label="Credit cap per task"
+              value={form.credits}
+              fallback={fallback.credits}
+              placeholder={fallback.short.credits}
+              raw="budget.credits"
+              onChange={(credits) => set({ credits })}
+            />
+          </div>
+        </FieldBox>
+      </Fold>
     </div>
   );
+}
+
+// "$8, Warn" for a repository's summary line.
+function levelSummary(value: BudgetValue | undefined) {
+  const parts = [
+    value?.usd != null ? `$${value.usd}` : null,
+    value?.mode ? MODE_TITLE[value.mode] : null,
+  ].filter(Boolean);
+  return parts.length ? parts.join(", ") : "uses the workspace default";
 }
 
 export function BudgetSettings({ workspaceId }: { workspaceId: string }) {
@@ -135,11 +229,25 @@ export function BudgetSettings({ workspaceId }: { workspaceId: string }) {
   if (error) return <p className="text-sm text-muted">{error}</p>;
   if (!value) return <p className="text-sm text-muted">Loading…</p>;
   const workspace = forms[""] ?? toBudgetForm(null);
-  const above = {
-    usd: workspace.usd ? `$${workspace.usd} (workspace)` : "no cap",
-    tokens: workspace.tokens || "2000000",
-    credits: workspace.credits || "200",
+  const builtIn: Fallback = {
+    from: "built-in default",
+    usd: "no dollar cap",
+    tokens: `${n(DEFAULT_TOKENS)} tokens`,
+    credits: `${n(DEFAULT_CREDITS)} credits`,
+    mode: "stop",
+    short: { usd: "no cap", tokens: n(DEFAULT_TOKENS), credits: n(DEFAULT_CREDITS) },
+  };
+  const fromWorkspace: Fallback = {
+    from: "workspace default",
+    usd: workspace.usd ? `the workspace default ($${workspace.usd})` : "the workspace default (no dollar cap)",
+    tokens: `the workspace default (${n(Number(workspace.tokens) || DEFAULT_TOKENS)} tokens)`,
+    credits: `the workspace default (${n(Number(workspace.credits) || DEFAULT_CREDITS)} credits)`,
     mode: workspace.mode || "stop",
+    short: {
+      usd: workspace.usd ? `$${workspace.usd}` : "no cap",
+      tokens: n(Number(workspace.tokens) || DEFAULT_TOKENS),
+      credits: n(Number(workspace.credits) || DEFAULT_CREDITS),
+    },
   };
   const save = async (repository: string) => {
     const built = fromBudgetForm(forms[repository] ?? toBudgetForm(null));
@@ -171,40 +279,58 @@ export function BudgetSettings({ workspaceId }: { workspaceId: string }) {
         {message[key].error ?? message[key].ok}
       </p>
     );
+  const help = () => ({
+    page: "Settings > Budgets",
+    purpose:
+      "It sets a spending cap per task for the workspace and for each repository, and what happens at the cap.",
+    settings: {
+      workspace: { ...(fromBudgetForm(workspace).budget ?? {}), notify },
+      repositories: Object.fromEntries(
+        Object.keys(value.repositories).map((id) => [
+          id,
+          fromBudgetForm(forms[id] ?? toBudgetForm(null)).budget ?? {},
+        ]),
+      ),
+      defaults: { usd: null, mode: "stop", tokens: DEFAULT_TOKENS, credits: DEFAULT_CREDITS, notify: false },
+    },
+    skill: COSTS_SKILL,
+    docs: COSTS_DOCS,
+  });
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4" data-budget-settings>
+      <div className="flex flex-wrap items-center gap-2">
+        <AskForHelp context={help} />
+      </div>
       <Card className="flex flex-col gap-3">
         <Section
           title="Workspace default"
-          blurb="Each task's cap unless its repository, spec or task sets one. Retries, checks and reviews share the task's cap. With no dollar cap, receipts are still kept."
+          blurb="Each task's cap, unless its repository, spec or task sets its own. Retries, checks and reviews share the task's cap. Receipts are kept even with no cap."
         >
           <CapFields
             id="budget-workspace"
             form={workspace}
             onChange={(form) => setForms({ ...forms, "": form })}
-            placeholder={{
-              usd: "no cap",
-              tokens: "2000000",
-              credits: "200",
-              mode: "stop",
-            }}
+            fallback={builtIn}
+            inherit={false}
+            warnFields={
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={notify}
+                  onChange={(e) => setNotify(e.target.checked)}
+                  style={{ marginTop: 3 }}
+                />
+                <span>
+                  Also send a Kiro Crew notice when a task goes over budget{" "}
+                  <Marker rule={OPTIONAL} />
+                  <code className="block text-[11px] text-muted">
+                    budget.notify
+                  </code>
+                </span>
+              </label>
+            }
           />
-          <label className="flex items-start gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={notify}
-              onChange={(e) => setNotify(e.target.checked)}
-              style={{ marginTop: 3 }}
-            />
-            <span>
-              Send a Kiro Crew notice when a warn-mode task goes over budget{" "}
-              <Marker rule={OPTIONAL} />
-              <code className="block text-[11px] text-muted">
-                budget.notify
-              </code>
-            </span>
-          </label>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Btn type="button" primary onClick={() => void save("")}>
               Save
             </Btn>
@@ -215,7 +341,7 @@ export function BudgetSettings({ workspaceId }: { workspaceId: string }) {
       <Card className="flex flex-col gap-3">
         <Section
           title="Repositories"
-          blurb="A repository's cap replaces the workspace default for its tasks. A spec's manifest and a task can set their own."
+          blurb="A repository can set its own cap for its tasks. A blank field uses the workspace default."
         >
           {Object.keys(value.repositories).length === 0 ? (
             <p className="text-sm text-muted">
@@ -225,29 +351,34 @@ export function BudgetSettings({ workspaceId }: { workspaceId: string }) {
             Object.keys(value.repositories)
               .sort()
               .map((id) => (
-                <details
+                <Fold
                   key={id}
-                  className="border-t pt-2"
-                  style={{ borderColor: "var(--border)" }}
+                  id={`budget-repo-${id}`}
+                  title={
+                    <span className="flex flex-wrap items-baseline gap-x-2">
+                      <span>{id}</span>
+                      <span className="text-xs font-normal text-muted">
+                        {levelSummary(value.repositories[id])}
+                      </span>
+                    </span>
+                  }
                 >
-                  <summary className="cursor-pointer text-sm font-semibold">
-                    {id}
-                  </summary>
-                  <div className="mt-2 flex flex-col gap-2">
+                  <div className="flex flex-col gap-3">
                     <CapFields
                       id={`budget-${id}`}
                       form={forms[id] ?? toBudgetForm(null)}
                       onChange={(form) => setForms({ ...forms, [id]: form })}
-                      placeholder={above}
+                      fallback={fromWorkspace}
+                      inherit
                     />
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <Btn type="button" primary onClick={() => void save(id)}>
                         Save {id}
                       </Btn>
                       {status(id)}
                     </div>
                   </div>
-                </details>
+                </Fold>
               ))
           )}
         </Section>
@@ -255,6 +386,13 @@ export function BudgetSettings({ workspaceId }: { workspaceId: string }) {
     </div>
   );
 }
+
+const KIND_BADGE = {
+  override: "Your price",
+  default: "Built-in price",
+  credits: "Credits",
+  none: "No price",
+} as const;
 
 export function PricesSettings({ workspaceId }: { workspaceId: string }) {
   const app = useAppApi();
@@ -299,121 +437,176 @@ export function PricesSettings({ workspaceId }: { workspaceId: string }) {
       ...form,
       rows: form.rows.map((row, j) => (j === i ? { ...row, ...change } : row)),
     });
+  const models = modelsInUse(value, offered);
+  const overrides = Object.keys(value.models).length + (value.creditUsd != null ? 1 : 0);
+  const help = () => ({
+    page: "Settings > Prices",
+    purpose:
+      "Avoozl prices models with a built-in list on its own; this page shows how each model is budgeted and holds optional price overrides for this computer.",
+    settings: {
+      pricesUpdated: value.defaults?.updated ?? null,
+      overrides: { creditUsd: value.creditUsd, models: value.models },
+      models: models.map((m) => ({ model: m.model, budgeted: m.kind })),
+      caps: value.caps ?? null,
+    },
+    skill: COSTS_SKILL,
+    docs: COSTS_DOCS,
+  });
   return (
-    <Card className="flex flex-col gap-3">
-      <Section
-        title="Prices"
-        blurb="Dollars per million input and output tokens for each model, and per Kiro credit. Budgets turn usage into dollars with these. Avoozl ships no prices."
-        actions={<Badge>This computer only</Badge>}
-      >
-        {value.error && (
-          <p
-            role="alert"
-            className="text-sm"
-            style={{ color: "var(--danger)" }}
-          >
-            {value.error}
-          </p>
-        )}
-        <p className="text-xs text-muted">
-          {value.version
-            ? `Version ${value.version}${value.savedAt ? `, saved ${new Date(value.savedAt).toLocaleString()}` : ""}.`
-            : "No prices yet. Until a model has a price, its turns count against the token and credit caps."}
-        </p>
-        <div
-          className="flex min-w-0 flex-col gap-1 text-sm"
-          style={{ maxWidth: "12rem" }}
+    <div className="flex flex-col gap-4" data-prices-settings>
+      <div className="flex flex-wrap items-center gap-2">
+        <AskForHelp context={help} />
+      </div>
+      <Card className="flex flex-col gap-3">
+        <Section
+          title="Prices"
+          blurb="Avoozl turns each model's use into dollars with a built-in list of public prices. You do not need to enter any."
         >
-          <label
-            htmlFor="price-credit"
-            className="flex flex-wrap items-baseline gap-x-2"
-          >
-            <span className="font-medium">Dollars per credit</span>
-            <Marker rule={OPTIONAL} />
-          </label>
-          <Input
-            id="price-credit"
-            inputMode="decimal"
-            value={form.creditUsd}
-            placeholder="none"
-            onChange={(e) => setForm({ ...form, creditUsd: e.target.value })}
-          />
-          <code className="text-[11px] text-muted">prices.creditUsd</code>
-        </div>
-        {form.rows.length === 0 ? (
-          <p className="text-sm text-muted">
-            No models yet. They appear here once Kiro Crew lists them or a task
-            uses one.
-          </p>
-        ) : (
-          <table
-            className="w-full text-sm"
-            style={{ borderCollapse: "collapse" }}
-          >
-            <thead>
-              <tr className="text-left text-xs text-muted">
-                <th scope="col">Model</th>
-                <th scope="col">$ per M input</th>
-                <th scope="col">$ per M output</th>
-              </tr>
-            </thead>
-            <tbody>
-              {form.rows.map((row, i) => (
-                <tr
-                  key={row.model}
-                  style={{ borderTop: "1px solid var(--border)" }}
-                >
-                  <th
-                    scope="row"
-                    className="break-all py-1 pr-2 text-left font-normal"
-                  >
-                    {row.model}
-                    {row.unpricedTurns > 0 && !row.input && (
-                      <span className="block text-xs text-muted">
-                        {row.unpricedTurns} turns with no price
-                      </span>
-                    )}
-                  </th>
-                  <td className="py-1 pr-2">
-                    <Input
-                      aria-label={`${row.model} dollars per million input tokens`}
-                      inputMode="decimal"
-                      value={row.input}
-                      placeholder="none"
-                      onChange={(e) => setRow(i, { input: e.target.value })}
-                      style={{ maxWidth: "8rem" }}
-                    />
-                  </td>
-                  <td className="py-1">
-                    <Input
-                      aria-label={`${row.model} dollars per million output tokens`}
-                      inputMode="decimal"
-                      value={row.output}
-                      placeholder="none"
-                      onChange={(e) => setRow(i, { output: e.target.value })}
-                      style={{ maxWidth: "8rem" }}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-        <div className="flex items-center gap-2">
-          <Btn type="button" primary onClick={() => void save()}>
-            Save
-          </Btn>
-          {message && (
-            <p
-              role={message.error ? "alert" : "status"}
-              className="text-sm"
-              style={message.error ? { color: "var(--danger)" } : undefined}
-            >
-              {message.error ?? message.ok}
+          {value.error && (
+            <p role="alert" className="text-sm" style={{ color: "var(--danger)" }}>
+              {value.error}
             </p>
           )}
-        </div>
-      </Section>
-    </Card>
+          <p className="text-sm" data-prices-updated>
+            {pricesUpdatedText(value)}
+            {value.defaults?.sources[0] && (
+              <>
+                {" "}
+                <a
+                  href={linkHref(value.defaults.sources[0])}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: "var(--accent)" }}
+                >
+                  Source
+                </a>
+              </>
+            )}
+          </p>
+          <FieldBox title="Models in use" blurb="How each model's use counts toward a task's budget.">
+            {models.length === 0 ? (
+              <p className="text-sm text-muted">
+                No models yet. They show here once Kiro Crew lists them or a task uses one.
+              </p>
+            ) : (
+              <ul className="flex flex-col gap-2" aria-label="Models in use">
+                {models.map((row) => (
+                  <li
+                    key={row.model}
+                    data-model-row={row.kind}
+                    className="flex min-w-0 flex-col gap-0.5 border-t pt-2 text-sm"
+                    style={{ borderColor: "var(--border)" }}
+                  >
+                    <span className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium" style={{ overflowWrap: "anywhere" }}>
+                        {row.model}
+                      </span>
+                      <Badge variant={row.kind === "none" ? "warning" : undefined}>
+                        {KIND_BADGE[row.kind]}
+                      </Badge>
+                    </span>
+                    <span className="text-xs text-muted">{row.text}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </FieldBox>
+          <Fold
+            id="price-overrides"
+            title={
+              <span className="flex flex-wrap items-baseline gap-x-2">
+                <span>Override prices</span>
+                <span className="text-xs font-normal text-muted">
+                  {overrides ? `${overrides} set` : "optional"}
+                </span>
+              </span>
+            }
+          >
+            <div className="flex flex-col gap-3">
+              <p className="text-xs text-muted">
+                Only if you pay a different price than the list price. A blank field uses the built-in price.
+                Overrides stay on this computer.{" "}
+                {value.version
+                  ? `Version ${value.version}${value.savedAt ? `, saved ${new Date(value.savedAt).toLocaleString()}` : ""}.`
+                  : ""}
+              </p>
+              <div>
+                <Badge>This computer only</Badge>
+              </div>
+              <FieldBox
+                title="Kiro credits"
+                blurb="Kiro Crew bills some models in credits. With no price here, those turns count against the credit cap in Settings › Budgets."
+              >
+                <div className="flex min-w-0 flex-col gap-1 text-sm" style={{ maxWidth: "16rem" }}>
+                  <label htmlFor="price-credit" className="flex flex-wrap items-baseline gap-x-2">
+                    <span className="font-medium">Dollars per credit</span>
+                    <Marker rule={OPTIONAL} />
+                  </label>
+                  <Input
+                    id="price-credit"
+                    inputMode="decimal"
+                    value={form.creditUsd}
+                    placeholder="count in credits"
+                    onChange={(e) => setForm({ ...form, creditUsd: e.target.value })}
+                  />
+                  <code className="text-[11px] text-muted">prices.creditUsd</code>
+                </div>
+              </FieldBox>
+              {form.rows.length > 0 && (
+                <FieldBox title="Token prices" blurb="Dollars per million tokens.">
+                  <ul className="flex flex-col gap-2" aria-label="Token price overrides">
+                    {form.rows.map((row, i) => (
+                      <li
+                        key={row.model}
+                        className="flex flex-wrap items-end gap-2 border-t pt-2 text-sm"
+                        style={{ borderColor: "var(--border)" }}
+                      >
+                        <span className="font-medium" style={{ flex: "1 1 12rem", minWidth: 0, overflowWrap: "anywhere" }}>
+                          {row.model}
+                        </span>
+                        <label className="flex flex-col gap-0.5 text-xs" style={{ width: "8rem" }}>
+                          Input
+                          <Input
+                            aria-label={`${row.model} dollars per million input tokens`}
+                            inputMode="decimal"
+                            value={row.input}
+                            placeholder={row.defaultInput ? `$${row.defaultInput} built-in` : "no price"}
+                            onChange={(e) => setRow(i, { input: e.target.value })}
+                          />
+                        </label>
+                        <label className="flex flex-col gap-0.5 text-xs" style={{ width: "8rem" }}>
+                          Output
+                          <Input
+                            aria-label={`${row.model} dollars per million output tokens`}
+                            inputMode="decimal"
+                            value={row.output}
+                            placeholder={row.defaultOutput ? `$${row.defaultOutput} built-in` : "no price"}
+                            onChange={(e) => setRow(i, { output: e.target.value })}
+                          />
+                        </label>
+                      </li>
+                    ))}
+                  </ul>
+                </FieldBox>
+              )}
+              <div className="flex flex-wrap items-center gap-2">
+                <Btn type="button" primary onClick={() => void save()}>
+                  Save overrides
+                </Btn>
+                {message && (
+                  <p
+                    role={message.error ? "alert" : "status"}
+                    className="text-sm"
+                    style={message.error ? { color: "var(--danger)" } : undefined}
+                  >
+                    {message.error ?? message.ok}
+                  </p>
+                )}
+              </div>
+            </div>
+          </Fold>
+        </Section>
+      </Card>
+    </div>
   );
 }

@@ -24,6 +24,8 @@ import { SwitchModelButton } from '../../src/SwitchModel.tsx'
 import { setupForm } from '../../src/settings-api.ts'
 import { toRuleForm } from '../../src/routing-api.ts'
 import { LAYER } from '../../src/layers.ts'
+import { BudgetSettings, PricesSettings } from '../../src/BudgetSettings.tsx'
+import ProvidersSettings from '../../src/ProvidersSettings.tsx'
 
 const query = new URLSearchParams(location.search)
 document.documentElement.dataset.theme = query.get('theme') === 'dark' ? 'dark' : 'light'
@@ -163,4 +165,53 @@ function Page() {
   )
 }
 
-createRoot(document.getElementById('root')!).render(<Page />)
+// Settings pages with sample data (?page=budgets|prices|providers), for the
+// settings screenshots. Prices and models here are made up.
+answer('budget.settings.get', () => ({
+  hash: 'h1',
+  budget: { usd: 5, mode: 'stop' },
+  repositories: { avoozl: { usd: 8, mode: 'warn' }, docs: {} },
+}))
+answer('prices.get', () => ({
+  version: 0,
+  sha256: 'x',
+  savedAt: null,
+  hash: 'h2',
+  creditUsd: null,
+  models: {},
+  defaults: {
+    updated: '2026-11-13',
+    sources: ['https://example.com/pricing'],
+    models: { 'claude-sonnet-5.5': { inputPerMTokUsd: 2, outputPerMTokUsd: 10 } },
+  },
+  caps: { tokens: 2000000, credits: 200 },
+  seen: [
+    { model: 'claude-sonnet-5.5', turns: 12, unpricedTurns: 0, creditTurns: 0, priced: 'default' },
+    { model: 'kiro-auto', turns: 4, unpricedTurns: 4, creditTurns: 4, priced: 'credits' },
+    { model: 'local-model-x', turns: 3, unpricedTurns: 3, creditTurns: 0, priced: 'none' },
+  ],
+}))
+answer('providers.view', () => ({
+  settings: { lowPercent: 75, limits: { claude: { credits: 500 } }, fallback: ['claude-haiku-5.5'] },
+  hash: 'h3',
+  defaults: { lowPercent: 80, cooldownMinutes: 30, windowHours: 5 },
+  marks: [],
+  switches: [],
+  chats: [],
+}))
+const PAGES: Record<string, () => ReactNode> = {
+  budgets: () => <BudgetSettings workspaceId="w" />,
+  prices: () => <PricesSettings workspaceId="w" />,
+  providers: () => <ProvidersSettings workspaceId="w" />,
+}
+function SettingsPage({ name }: { name: string }) {
+  const render = PAGES[name]
+  return (
+    <div {...{ [APP_ATTR]: '' }} data-settings-page={name} style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)', minHeight: '100vh', boxSizing: 'border-box' }}>
+      <ConfirmProvider>{render ? render() : <p>Unknown page {name}</p>}</ConfirmProvider>
+    </div>
+  )
+}
+
+const page = query.get('page')
+createRoot(document.getElementById('root')!).render(page ? <SettingsPage name={page} /> : <Page />)

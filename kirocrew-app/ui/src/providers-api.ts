@@ -162,15 +162,23 @@ export function switchText(entry: SwitchRecord): string {
   }
 }
 
-// Settings › Providers form: text fields, as typed.
+// Settings › Providers form: text fields, as typed. Limits are rows, one
+// per provider or model.
+export interface LimitRow {
+  name: string
+  unit: 'credits' | 'tokens'
+  amount: string
+}
 export interface ProvidersForm {
   lowPercent: string
   cooldownMinutes: string
   windowHours: string
-  limits: string
+  limits: LimitRow[]
   groups: string
   fallback: string
 }
+
+export const emptyLimit = (): LimitRow => ({ name: '', unit: 'credits', amount: '' })
 
 const list = (text: string) =>
   text
@@ -178,22 +186,27 @@ const list = (text: string) =>
     .map((s) => s.trim())
     .filter(Boolean)
 
-// Limits as "key credits 500" or "key tokens 2000000" lines; groups as
-// "id: pattern, pattern" lines.
+// Groups as "id: pattern, pattern" lines.
 export function toProvidersForm(settings: ProviderSettings = {}): ProvidersForm {
   return {
     lowPercent: settings.lowPercent === undefined ? '' : String(settings.lowPercent),
     cooldownMinutes: settings.cooldownMinutes === undefined ? '' : String(settings.cooldownMinutes),
     windowHours: settings.windowHours === undefined ? '' : String(settings.windowHours),
-    limits: Object.entries(settings.limits ?? {})
-      .flatMap(([key, limit]) => Object.entries(limit).map(([field, n]) => `${key} ${field} ${n}`))
-      .join('\n'),
+    limits: Object.entries(settings.limits ?? {}).flatMap(([name, limit]) =>
+      (['credits', 'tokens'] as const).filter((unit) => limit[unit] !== undefined).map((unit) => ({ name, unit, amount: String(limit[unit]) })),
+    ),
     groups: Object.entries(settings.groups ?? {})
       .map(([id, patterns]) => `${id}: ${patterns.join(', ')}`)
       .join('\n'),
     fallback: (settings.fallback ?? []).join(', '),
   }
 }
+
+const LABELS = {
+  lowPercent: 'Low at',
+  cooldownMinutes: 'Error cooldown',
+  windowHours: 'Usage window',
+} as const
 
 // The form as the `providers` key, or the first problem. The backend checks
 // again (providersInput).
@@ -205,21 +218,18 @@ export function toProvidersSection(form: ProvidersForm): {
   for (const key of ['lowPercent', 'cooldownMinutes', 'windowHours'] as const) {
     const text = form[key].trim()
     if (!text) continue
-    if (!/^\d+$/.test(text)) return { error: `${key} must be a whole number.` }
+    if (!/^\d+$/.test(text)) return { error: `${LABELS[key]} must be a whole number.` }
     out[key] = Number(text)
   }
   const limits: NonNullable<ProviderSettings['limits']> = {}
-  for (const line of form.limits
-    .split('\n')
-    .map((l) => l.trim())
-    .filter(Boolean)) {
-    const [key, field, amount, ...rest] = line.split(/\s+/)
+  for (const row of form.limits) {
+    const name = row.name.trim(),
+      amount = row.amount.trim()
+    if (!name && !amount) continue
     const n = Number(amount)
-    if (rest.length || !key || (field !== 'credits' && field !== 'tokens') || !Number.isFinite(n) || n <= 0)
-      return {
-        error: `Limit "${line}" must read: <provider or model> credits|tokens <amount>.`,
-      }
-    limits[key] = { ...limits[key], [field]: n }
+    if (!name) return { error: 'Each limit needs a provider or model name.' }
+    if (!amount || !Number.isFinite(n) || n <= 0) return { error: `The limit for ${name} needs an amount above 0.` }
+    limits[name] = { ...limits[name], [row.unit]: n }
   }
   if (Object.keys(limits).length) out.limits = limits
   const groups: NonNullable<ProviderSettings['groups']> = {}

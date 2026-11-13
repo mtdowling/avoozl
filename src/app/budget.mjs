@@ -2,8 +2,9 @@
 //
 // Kiro Crew's usage read (flow-usage.mjs) stores each turn's raw tokens and
 // credits. This module prices them on read from a price table that lives
-// only on this machine (`~/.config/avoozl/config.json` key `prices`, every
-// saved version kept in SQLite `price_versions`), resolves each task's cap
+// on this machine: Avoozl's built-in list prices (default-prices.mjs), with
+// this machine's own overrides in `~/.config/avoozl/config.json` key
+// `prices` (every saved version kept in SQLite `price_versions`). It resolves each task's cap
 // from four levels (workspace, repository, spec, task; the most specific key
 // wins), and acts at the cap. In `stop` mode nothing new is dispatched for
 // the task and each live session gets one stop message; in `warn` mode the
@@ -20,6 +21,7 @@ import { canonical, fail } from "./store.mjs";
 import { contentBinding } from "./content-rules.mjs";
 import { machineFile, writeMachineFile } from "./crews.mjs";
 import { listUsage, turnStage } from "./flow-usage.mjs";
+import { DEFAULT_PRICES, defaultPrice } from "./default-prices.mjs";
 import { listSpans } from "./flow.mjs";
 import { FINAL_STATUSES, listSessionBindings } from "./session-bindings.mjs";
 import { taskRepository, taskRoute } from "../work-model.mjs";
@@ -110,8 +112,9 @@ export function validateManifestBudget(manifest) {
   return budgetInput(manifest.budget, "budget");
 }
 
-// The price table (R67.2): {creditUsd?, models: {id: {inputPerMTokUsd,
-// outputPerMTokUsd}}}. A new table is empty; Avoozl ships no prices.
+// This machine's price overrides (R67.2): {creditUsd?, models: {id:
+// {inputPerMTokUsd, outputPerMTokUsd}}}. A new table is empty; the built-in
+// prices apply until a model is overridden here.
 export function pricesInput(value) {
   if (value === undefined || value === null) return { models: {} };
   if (!record(value)) fail("prices must be an object.");
@@ -156,10 +159,16 @@ export function pricesInput(value) {
 const machinePath = (store, options = {}) =>
   options.machineFile ?? contentBinding(store)?.configFile ?? null;
 
+// The hash names the overrides and the built-in table's date, so a receipt
+// can tell which prices made its dollars.
 const tableHash = (table) =>
   createHash("sha256")
     .update(
-      canonical({ creditUsd: table.creditUsd ?? null, models: table.models }),
+      canonical({
+        creditUsd: table.creditUsd ?? null,
+        models: table.models,
+        defaults: DEFAULT_PRICES.updated,
+      }),
     )
     .digest("hex");
 
@@ -177,9 +186,10 @@ function versionRow(store, version) {
     : null;
 }
 
-// The current table on this machine: {version, sha256, creditUsd, models,
-// savedAt, hash}. A missing file or key is the empty table, version 0. A
-// broken table prices nothing and says why.
+// The current table on this machine: {version, sha256, creditUsd, models
+// (the overrides), defaults (the built-in table), savedAt, hash}. A missing
+// file or key is no overrides, version 0. A broken override table prices
+// nothing and says why.
 export function readPrices(store, options = {}) {
   const file = machinePath(store, options);
   let value = {},
@@ -206,6 +216,7 @@ export function readPrices(store, options = {}) {
     version,
     sha256,
     ...table,
+    defaults: error ? null : DEFAULT_PRICES,
     savedAt: saved?.sha256 === sha256 ? saved.savedAt : null,
     hash,
     file,
@@ -249,12 +260,20 @@ function tableAt(store, prices, version) {
   return row ? { version, sha256: row.sha256, ...row.table } : null;
 }
 
-// Dollars for one turn, or null when it cannot be priced (R67.4): credits
-// first when a credit price is set, then tokens at the model's prices.
+// Dollars for one turn, or null when it cannot be priced (R67.4). A turn
+// Kiro Crew bills in credits is priced only by a credit price, so with none
+// it counts against the credit cap: a list price for its tokens is not what
+// it cost. Otherwise tokens at this machine's price for the model, then the
+// built-in one.
 export function priceTurn(turn, table) {
-  if (turn.credits > 0 && typeof table.creditUsd === "number")
-    return turn.credits * table.creditUsd;
-  const model = turn.model ? table.models?.[turn.model] : null;
+  if (turn.credits > 0)
+    return typeof table.creditUsd === "number"
+      ? turn.credits * table.creditUsd
+      : null;
+  const model = turn.model
+    ? (table.models?.[turn.model] ??
+      (table.defaults ? defaultPrice(turn.model, table.defaults) : null))
+    : null;
   if (model && (turn.input > 0 || turn.output > 0))
     return (
       (turn.input * model.inputPerMTokUsd) / 1e6 +
@@ -455,11 +474,14 @@ function spendOf(store, task, turns, prices, spans) {
     byStage = new Map(),
     byModel = new Map(),
     byAttempt = new Map(),
-    unpricedModels = new Set();
+    unpricedModels = new Set(),
+    creditModels = new Set();
   let shared = false;
   for (const turn of turns) {
     const usd = priceTurn(turn, prices);
     if (usd === null) unpricedModels.add(turn.model || "unknown");
+    if (usd === null && turn.credits > 0)
+      creditModels.add(turn.model || "unknown");
     if (turn.shared) shared = true;
     addTurn(total, turn, usd);
     for (const [map, key] of [
@@ -483,6 +505,7 @@ function spendOf(store, task, turns, prices, spans) {
     byModel: rows(byModel, "model"),
     byAttempt: rows(byAttempt, "attempt"),
     unpricedModels: [...unpricedModels],
+    creditModels: [...creditModels],
     shared,
   };
 }
@@ -777,7 +800,9 @@ export function budgetStep(store, data = store.read(), options = {}) {
           channel: "failure",
           task: id,
           title: `${id} used a model with no price`,
-          text: `Turns on ${model} count against the token and credit caps instead of dollars. Add its price in Settings › Prices.`,
+          text: s.spend.creditModels.includes(model)
+            ? `Kiro Crew bills ${model} in credits, so its turns count against the credit cap (${s.cap.credits ?? DEFAULT_CAPS.credits} credits) instead of dollars.`
+            : `Avoozl has no price for ${model}, so it cannot turn its use into dollars. Its turns count against the token cap (${s.cap.tokens ?? DEFAULT_CAPS.tokens} tokens) instead.`,
         });
       hold.unpricedPending = [];
       if (hold.unknownPending)
@@ -1100,18 +1125,36 @@ export function retroReceipts(store, data, taskIds, options = {}) {
     }));
 }
 
-// Settings › Prices: the table, its version, and the models seen in usage,
-// each with whether it has a price.
+// How Settings › Prices budgets one model: "override" (this machine's
+// price), "default" (the built-in price), "credits" (Kiro Crew bills it in
+// credits and there is no credit price) or "none" (no known price).
+export function pricedBy(model, prices, { credits = false } = {}) {
+  if (credits && typeof prices.creditUsd !== "number") return "credits";
+  if (prices.models?.[model]) return "override";
+  if (prices.defaults && defaultPrice(model, prices.defaults)) return "default";
+  return "none";
+}
+
+// Settings › Prices: the overrides and their version, the built-in table
+// with its date and sources, the workspace fallback caps, and the models
+// seen in usage, each with how it is budgeted.
 export function pricesView(store, options = {}) {
   const prices = readPrices(store, options),
     seen = new Map();
   for (const turn of listUsage(store)) {
     const id = turn.model || "unknown",
-      row = seen.get(id) || { model: id, turns: 0, unpricedTurns: 0 };
+      row = seen.get(id) || {
+        model: id,
+        turns: 0,
+        unpricedTurns: 0,
+        creditTurns: 0,
+      };
     row.turns += 1;
     if (priceTurn(turn, prices) === null) row.unpricedTurns += 1;
+    if (turn.credits > 0) row.creditTurns += 1;
     seen.set(id, row);
   }
+  const budget = trackedConfig(store).budget;
   return {
     version: prices.version,
     sha256: prices.sha256,
@@ -1119,7 +1162,15 @@ export function pricesView(store, options = {}) {
     hash: prices.hash,
     creditUsd: prices.creditUsd ?? null,
     models: prices.models,
-    seen: [...seen.values()],
+    defaults: prices.defaults,
+    caps: {
+      tokens: budget?.tokens ?? DEFAULT_CAPS.tokens,
+      credits: budget?.credits ?? DEFAULT_CAPS.credits,
+    },
+    seen: [...seen.values()].map((row) => ({
+      ...row,
+      priced: pricedBy(row.model, prices, { credits: row.creditTurns > 0 }),
+    })),
     ...(prices.error ? { error: prices.error } : {}),
   };
 }
