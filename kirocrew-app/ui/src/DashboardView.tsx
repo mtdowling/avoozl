@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { Tooltip } from './Tooltip.tsx'
 import { useAppApi } from '@kirocrew/app-sdk'
-import { Btn, Card, CardTitle, EmptyState } from '@kirocrew/app-sdk/ui'
+import { Btn, Card, EmptyState } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
-import { SMALL, countsLayout, countsStyles, summarize, type Attention, type CountsLayout, type InFlight } from './dashboard-api.ts'
+import { SMALL, attentionTarget, attentionTip, countsLayout, countsStyles, summarize, type Attention, type CountsLayout, type InFlight } from './dashboard-api.ts'
 import { attachHref, duration, relativeTime, sessionHref } from './task-api.ts'
 import { routingClient } from './routing-api.ts'
 import { useTaskDrawer } from './drawer-context.ts'
@@ -16,7 +16,7 @@ import { LineBanner } from './FlowView.tsx'
 import { StopLineButton } from './StopLine.tsx'
 import { flowClient } from './flow-api.ts'
 import Logo from './Logo'
-import { IconBtn, IconLabel, ShowMore, ViewHeading, useAskChat, usePages } from './controls.tsx'
+import { IconBtn, IconLabel, SectionHeading, ShowMore, ViewHeading, useAskChat, usePages } from './controls.tsx'
 import { Activity, DetailsIcon, ExternalLink, Inbox, MessageSquare, Network, RefreshCw, Check } from './icons.ts'
 import { chatClient, itemRef, type ActivityItem } from './chat-api.ts'
 import type { TaskFilter } from './filters.ts'
@@ -59,7 +59,7 @@ function Pair({ height, children }: { height: string; children: ReactNode }) {
 function Section({ title, children, empty }: { title: string; children: ReactNode; empty?: string | false }) {
   return (
     <Card className="flex h-full min-h-0 flex-col">
-      <CardTitle>{title}</CardTitle>
+      <SectionHeading title={title} className="mb-2" />
       <div data-scroll className="min-h-0 flex-1 overflow-y-auto">
         {empty ? <p className="mt-2 text-sm text-muted">{empty}</p> : children}
       </div>
@@ -86,12 +86,14 @@ function AttentionRow({
   onOpen,
   onInfo,
   onAsk,
+  onTitle,
 }: {
   item: Attention
   attach: string | null
   onOpen: () => void
   onInfo: () => void
   onAsk: () => void
+  onTitle: () => void
 }) {
   return (
     <li className="flex flex-wrap items-start gap-2 border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)' }}>
@@ -99,7 +101,14 @@ function AttentionRow({
         {KIND_LABEL[item.kind] ?? item.kind}
       </Badge>
       <span className="min-w-0 flex-1">
-        <span className="font-medium">{item.title}</span> <span className="text-xs text-muted">{item.taskId}</span>
+        <Tooltip text={attentionTip(item)}>
+          {(describedBy) => (
+            <button type="button" className="text-left font-medium underline" onClick={onTitle} aria-describedby={describedBy} data-attention-title>
+              {item.title}
+            </button>
+          )}
+        </Tooltip>{' '}
+        <span className="text-xs text-muted">{item.taskId}</span>
         <span className="block text-sm text-muted">{item.detail}</span>
       </span>
       <span className="flex gap-1.5">
@@ -355,34 +364,42 @@ export default function DashboardView(props: {
 
   return (
     <section aria-labelledby="avoozl-dashboard-title" className="flex flex-col gap-3.5">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2" data-dashboard-header>
-        <ViewHeading id="avoozl-dashboard-title" view="dashboard">
-          Dashboard
-        </ViewHeading>
-        {summary && value.total > 0 && <span className="whitespace-nowrap text-xs text-muted tabular-nums">{value.total} tasks</span>}
-        {layout === 'small' ? (
-          <IconBtn icon={RefreshCw} label="Refresh" tooltip="Read the Dashboard again" onClick={() => void reload()} disabled={busy} />
-        ) : (
-          <IconLabel icon={RefreshCw} onClick={() => void reload()} disabled={busy}>
-            Refresh
-          </IconLabel>
-        )}
-        {/* Kept in the tree for announcements; out of the flow while empty so
-            its gap doesn't push the state buttons off the 1024 px line. */}
-        <span role="status" className={busy || value?.failed ? 'text-xs text-muted' : 'sr-only'}>
-          {busy ? 'Loading…' : value?.failed ? `${value.failed} of 5 reads failed; those sections are empty.` : ''}
-        </span>
-        {props.untriaged !== null && props.untriaged !== undefined && (
-          <UntriagedStat count={props.untriaged} onOpen={() => onNavigate('untriaged')} />
-        )}
-        {summary && value.total > 0 && (
-          <StateCounts counts={summary.counts} total={value.total} layout={layout} onPick={(state) => props.onScope?.('delivery', { state })} />
-        )}
-        {/* Pull the Andon cord (R64): at the header's end, red. */}
-        <span className="ml-auto">
-          <StopLineButton workspaceId={workspaceId} onPulled={() => void flow.reload()} />
-        </span>
-      </div>
+      <ViewHeading
+        id="avoozl-dashboard-title"
+        view="dashboard"
+        meta={
+          <>
+            {summary && value.total > 0 && <span className="whitespace-nowrap text-xs text-muted tabular-nums">{value.total} tasks</span>}
+            {layout === 'small' ? (
+              <IconBtn icon={RefreshCw} label="Refresh" tooltip="Read the Dashboard again" onClick={() => void reload()} disabled={busy} />
+            ) : (
+              <IconLabel icon={RefreshCw} onClick={() => void reload()} disabled={busy}>
+                Refresh
+              </IconLabel>
+            )}
+            {/* Kept in the tree for announcements; out of the flow while empty so
+                its gap doesn't push the state buttons off the 1024 px line. */}
+            <span role="status" className={busy || value?.failed ? 'text-xs text-muted' : 'sr-only'}>
+              {busy ? 'Loading…' : value?.failed ? `${value.failed} of 5 reads failed; those sections are empty.` : ''}
+            </span>
+            {props.untriaged !== null && props.untriaged !== undefined && (
+              <UntriagedStat count={props.untriaged} onOpen={() => onNavigate('untriaged')} />
+            )}
+          </>
+        }
+        wideActions={layout !== 'wide'}
+        actions={
+          <>
+            {summary && value.total > 0 && (
+              <StateCounts counts={summary.counts} total={value.total} layout={layout} onPick={(state) => props.onScope?.('delivery', { state })} />
+            )}
+            {/* Pull the Andon cord (R64): at the header's end, red. */}
+            <StopLineButton workspaceId={workspaceId} onPulled={() => void flow.reload()} />
+          </>
+        }
+      >
+        Dashboard
+      </ViewHeading>
       {/* Line stopped (R44.9, R48.5): above every other section. */}
       <LineBanner stops={flow.value?.line ?? []} workspaceId={workspaceId} onChanged={() => void flow.reload()} />
       {(error || chat.error) && (
@@ -488,6 +505,12 @@ export default function DashboardView(props: {
                     onOpen={() => onNavigate(item.tab, item.taskId ?? undefined)}
                     onInfo={() => (item.group ? drawer.openReview(item.group, () => void reload()) : item.taskId && drawer.openTask(item.taskId))}
                     onAsk={() => askAbout(item)}
+                    onTitle={() => {
+                      const target = attentionTarget(item)
+                      if (target.kind === 'review' && item.group) drawer.openReview(item.group, () => void reload())
+                      else if (target.kind === 'task') drawer.openTask(target.id)
+                      else if (target.kind === 'tab') onNavigate(target.tab)
+                    }}
                   />
                 ))}
               </ul>

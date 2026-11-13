@@ -18,7 +18,7 @@ import { Markdown } from './Markdown.tsx'
 import TaskForm from './TaskForm.tsx'
 import { Authority } from './Authority.tsx'
 import { errorMessage } from './workspace-api.ts'
-import { Fold, IconLabel, ShowMore, TipBtn, useAskChat, usePages } from './controls.tsx'
+import { Fold, IconLabel, SectionHeading, ShowMore, TipBtn, useAskChat, usePages } from './controls.tsx'
 import { resultMessage, settleTargets, whyLine } from './conflicts-api.ts'
 import { documentEpic } from './graph-layout.ts'
 import { itemRef } from './chat-api.ts'
@@ -279,9 +279,7 @@ function TaskPanel(props: {
   return (
     <div className="flex flex-col gap-3">
       <div>
-        <h3 id="avoozl-drawer-title" className="text-lg font-semibold leading-snug">
-          {task.title}
-        </h3>
+        <SectionHeading level={2} id="avoozl-drawer-title" title={task.title} />
         <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted">
           <span>{task.id}</span>
           <Authority owner={task} />
@@ -634,9 +632,7 @@ function ReviewPanel(props: { workspaceId: string; group: ConflictItem; open: (i
   }
   return (
     <div className="flex flex-col gap-3">
-      <h3 id="avoozl-drawer-title" className="text-lg font-semibold">
-        {group?.title ?? props.group.title}
-      </h3>
+      <SectionHeading level={2} id="avoozl-drawer-title" title={group?.title ?? props.group.title} />
       <p className="text-sm text-muted">
         Avoozl re-reads a plan when its file changes. A task waits here when its own section changed, or when it is new. Moving a
         plan or fixing its links does not count. Read each task, then mark them reviewed so they may start.
@@ -888,9 +884,7 @@ export function TaskDrawerProvider({
               />
             ) : (
               <>
-                <h3 id="avoozl-drawer-title" className="mb-2 text-lg font-semibold">
-                  Add a task
-                </h3>
+                <SectionHeading level={2} id="avoozl-drawer-title" title="Add a task" className="mb-2" />
                 <TaskForm
                   workspaceId={workspaceId}
                   graph={graph}

@@ -24,11 +24,13 @@ test('the Dashboard has a one-line state header, then three paired rows in the o
   ])
   // The state buttons sit in the Dashboard heading row; countsStyles lays
   // them out by width. There is no separate Tasks by state title or card.
-  const header = dashboard.match(/<div className="flex flex-wrap items-center gap-x-3 gap-y-2" data-dashboard-header>([\s\S]*?)\n {6}<\/div>/)
+  // It is the shared heading: the total, Refresh and Untriaged beside the
+  // title, the state buttons as its right-aligned actions.
+  const header = dashboard.match(/<ViewHeading\s+id="avoozl-dashboard-title"\s+view="dashboard"([\s\S]*?)>\s*Dashboard\s*<\/ViewHeading>/)
   assert.ok(header, 'the heading row exists')
-  assert.match(header[1], /<ViewHeading id="avoozl-dashboard-title" view="dashboard">/)
-  assert.match(header[1], /<StateCounts counts=\{summary\.counts\}/)
-  assert.ok(header[1].indexOf("<ViewHeading") < header[1].indexOf("<StateCounts"))
+  assert.match(header[1], /actions=\{[\s\S]*<StateCounts counts=\{summary\.counts\}/)
+  assert.match(header[1], /wideActions=\{layout !== 'wide'\}/)
+  assert.ok(header[1].indexOf('meta=') < header[1].indexOf('<StateCounts'))
   assert.equal(dashboard.match(/<StateCounts\b/g).length, 1)
   assert.doesNotMatch(dashboard, /Tasks by state \(/)
   assert.doesNotMatch(dashboard, /<h3[^>]*>Tasks by state/)

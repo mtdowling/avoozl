@@ -515,16 +515,19 @@ export default function ConflictsView({ workspaceId }: { workspaceId: string | n
 
   return (
     <section aria-labelledby="avoozl-conflicts-title" className="flex flex-col gap-3.5">
-      <div className="flex flex-wrap items-center gap-3">
-        <ViewHeading id="avoozl-conflicts-title" view="conflicts">
-          Conflicts
-        </ViewHeading>
-        {workspaceId && (
-          <IconLabel icon={RefreshCw} onClick={() => void reload()} disabled={busy || acting}>
-            Refresh
-          </IconLabel>
-        )}
-      </div>
+      <ViewHeading
+        id="avoozl-conflicts-title"
+        view="conflicts"
+        actions={
+          workspaceId && (
+            <IconLabel icon={RefreshCw} onClick={() => void reload()} disabled={busy || acting}>
+              Refresh
+            </IconLabel>
+          )
+        }
+      >
+        Conflicts
+      </ViewHeading>
       <p className="text-sm text-muted">
         Edits to what Avoozl manages on an issue, decisions, tasks waiting on you, and sessions that ended. Board drags are orders, not
         conflicts.

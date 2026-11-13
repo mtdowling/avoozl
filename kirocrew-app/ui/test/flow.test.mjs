@@ -119,5 +119,5 @@ test('charts and usage use theme colors and no yellow', async () => {
   assert.match(charts, /minmax\(min\(100%, 16rem\), 1fr\)/, 'one column at 320px')
   assert.equal(usageText({ input: 12000, output: 800, credits: 0, turns: 3 }), '12k in · 800 out')
   assert.equal(usageText({ input: 0, output: 0, credits: 1.5, turns: 1 }), '1.50 credits')
-  assert.match(source('FlowCharts.tsx'), /Not available:/)
+  assert.match(source('flow-api.ts'), /Not available:/)
 })

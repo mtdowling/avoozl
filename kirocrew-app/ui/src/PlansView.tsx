@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Tooltip } from './Tooltip.tsx'
 import { useAppApi, useChatLauncher } from '@kirocrew/app-sdk'
-import { Btn, Card, CardTitle } from '@kirocrew/app-sdk/ui'
+import { Btn, Card } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { Markdown } from './Markdown.tsx'
 import { useTaskDrawer } from './drawer-context.ts'
@@ -10,7 +10,7 @@ import { errorMessage } from './workspace-api'
 import { relativeTime } from './task-api.ts'
 import { Authority } from './Authority.tsx'
 import NewPlanDrawer from './NewPlanDrawer.tsx'
-import { IconBtn, IconLabel, ShowMore, TipBtn, ViewHeading, dangerStyle, useAskChat, usePages } from './controls.tsx'
+import { IconBtn, IconLabel, SectionHeading, ShowMore, TipBtn, ViewHeading, dangerStyle, useAskChat, usePages } from './controls.tsx'
 import { Archive, ArchiveRestore, ArrowLeft, ChevronRight, ClipboardCheck, DetailsIcon, Download, FolderOpen, LayoutGrid, MessagesSquare, Network, Pencil, Plus, RefreshCw, Trash2, X } from './icons.ts'
 import { FilterPanel } from './FilterPanel.tsx'
 import { STATES, documentEpic, nodeState, type Drill, type NodeState } from './graph-layout.ts'
@@ -102,7 +102,7 @@ function Documents({ docs, error }: { docs: SpecDocuments | null; error: string 
   const tabs = documentTabs(docs)
   return (
     <Card>
-      <CardTitle>Documents</CardTitle>
+      <SectionHeading title="Documents" className="mb-2" />
       {error ? (
         <p className="mt-2 text-sm text-danger">{error}</p>
       ) : !docs ? (
@@ -134,13 +134,15 @@ function GitHubPreview(props: { projection: ProjectionPreview | null; busy: bool
   const { projection, busy } = props
   return (
     <Card>
-      <CardTitle>GitHub preview</CardTitle>
-      <p className="mt-1 text-sm text-muted">Lists every write a projection would make. Nothing is written.</p>
-      <div className="mt-2">
-        <TipBtn tooltip="List every GitHub write this plan would make. Makes none." onClick={props.onPreview} disabled={busy}>
-          {projection ? 'Preview again' : 'Preview GitHub writes'}
-        </TipBtn>
-      </div>
+      <SectionHeading
+        title="GitHub preview"
+        blurb="Lists every write a projection would make. Nothing is written."
+        actions={
+          <TipBtn tooltip="List every GitHub write this plan would make. Makes none." onClick={props.onPreview} disabled={busy}>
+            {projection ? 'Preview again' : 'Preview GitHub writes'}
+          </TipBtn>
+        }
+      />
       {projection && (
         <div className="mt-3 flex flex-col gap-2 text-sm">
           {projection.previewOnly.length > 0 && (
@@ -205,7 +207,7 @@ function SpecDetail(props: {
   return (
     <div className="flex min-w-0 flex-col gap-3.5">
       <Card>
-        <CardTitle>{plan ? `Revision ${plan.revision}` : 'Not imported'}</CardTitle>
+        <SectionHeading title={plan ? `Revision ${plan.revision}` : 'Not imported'} className="mb-2" />
         <p className="mt-1 text-sm text-muted">
           {spec.folder} · {spec.files.join(', ') || 'no files'}
         </p>
@@ -242,7 +244,7 @@ function SpecDetail(props: {
       <Documents key={spec.name} docs={props.docs} error={props.docsError} />
 
       <Card>
-        <CardTitle>Diagnostics</CardTitle>
+        <SectionHeading title="Diagnostics" className="mb-2" />
         {!plan ? (
           <p className="mt-2 text-sm text-muted">
             {spec.counts.error} errors, {spec.counts.warning} warnings in the folder on disk.
@@ -262,7 +264,7 @@ function SpecDetail(props: {
       </Card>
 
       <Card>
-        <CardTitle>Critique</CardTitle>
+        <SectionHeading title="Critique" className="mb-2" />
         {!critique ? (
           <p className="mt-2 text-sm text-muted">No avoozl/critique.md yet.</p>
         ) : (
@@ -287,7 +289,7 @@ function SpecDetail(props: {
 
       {preview && (
         <Card>
-          <CardTitle>Manifest</CardTitle>
+          <SectionHeading title="Manifest" className="mb-2" />
           {preview.baseline?.text && <p className="mt-1 text-sm text-muted">{preview.baseline.text}.</p>}
           <ul className="mt-2 flex flex-col gap-1 text-sm">
             {preview.tasks.map((task) => {
@@ -308,7 +310,7 @@ function SpecDetail(props: {
 
       {plan && plan.approvals.length > 0 && (
         <Card>
-          <CardTitle>Approvals</CardTitle>
+          <SectionHeading title="Approvals" className="mb-2" />
           <ul className="mt-2 flex flex-col gap-1 text-sm">
             {plan.approvals.map((approval) => (
               <li key={approval.id}>
@@ -482,6 +484,24 @@ function PlanFilters(props: { filter: PlanListFilter; rows: PlanRow[]; onChange:
 
 const ARCHIVE_TIP = 'Archive this plan: its tasks stop starting and it is hidden. You can undo it.'
 const UNARCHIVE_TIP = 'Unarchive this plan: its tasks may start again and it shows everywhere.'
+
+// The Plans heading buttons, in the owner's order: New plan, New task, then
+// Refresh last. Refresh re-reads plan.table (the spec folders on disk and
+// the stored plans); it imports nothing.
+export const REFRESH_PLANS_TIP = 'Reload plans from disk. Imports nothing.'
+function PlansActions(props: { onNewPlan: () => void; onNewTask: () => void; onRefresh: () => void; busy: boolean }) {
+  return (
+    <>
+      <IconLabel icon={Plus} primary tooltip="Describe a plan idea. Spec Builder drafts its spec folder; nothing is approved." onClick={props.onNewPlan}>
+        New plan
+      </IconLabel>
+      <IconLabel icon={Plus} tooltip="Add a draft task. It waits for your review." onClick={props.onNewTask}>
+        New task
+      </IconLabel>
+      <IconBtn icon={RefreshCw} label="Refresh plans" tooltip={REFRESH_PLANS_TIP} onClick={props.onRefresh} disabled={props.busy} />
+    </>
+  )
+}
 
 // The row's icon buttons, shared by the table and the plan view's header.
 function RowButtons(props: {
@@ -1202,27 +1222,21 @@ export default function PlansView(props: {
       {notice && <p role="status" className="text-sm text-muted">{notice}</p>}
       <div ref={detailTop} className="flex flex-wrap items-center gap-3">
         {row && <IconLabel icon={ArrowLeft} onClick={() => openPlan(null)}>All plans</IconLabel>}
-        <ViewHeading id="avoozl-plans-title" view="plans">
-          {row ? row.name : 'Plans'}
-        </ViewHeading>
-        {workspace && !row && (
-          <>
-            <IconLabel icon={Plus} primary tooltip="Describe a plan idea. Spec Builder drafts its spec folder; nothing is approved." onClick={() => setCreating(true)}>
-              New plan
-            </IconLabel>
-            <IconLabel icon={RefreshCw} onClick={() => void load(workspace)} disabled={busy}>
-              Refresh
-            </IconLabel>
-            <IconLabel icon={Plus} tooltip="Add a draft task. It waits for your review." onClick={() => drawer.addTask()}>
-              Add task
-            </IconLabel>
-          </>
-        )}
-        {row && (
-          <span className="ml-auto">
-            <RowButtons row={row} onScope={(target) => scope(target, row)} onReview={() => jump('avoozl-plan-main')} />
-          </span>
-        )}
+        <div className="min-w-0 flex-1">
+          <ViewHeading
+            id="avoozl-plans-title"
+            view="plans"
+            actions={
+              workspace && !row ? (
+                <PlansActions onNewPlan={() => setCreating(true)} onNewTask={() => drawer.addTask()} onRefresh={() => void load(workspace)} busy={busy} />
+              ) : row ? (
+                <RowButtons row={row} onScope={(target) => scope(target, row)} onReview={() => jump('avoozl-plan-main')} />
+              ) : null
+            }
+          >
+            {row ? row.name : 'Plans'}
+          </ViewHeading>
+        </div>
       </div>
       {(error || chat.error) && (
         <p role="alert" className="text-sm text-danger">
@@ -1315,7 +1329,7 @@ export default function PlansView(props: {
               />
             ) : (
               <Card>
-                <CardTitle>{row.name}</CardTitle>
+                <SectionHeading title={row.name} className="mb-2" />
                 <p className="mt-1 text-xs text-muted">
                   <code>{row.planId}</code> · written before the spec layout, so it has no folder. Its tasks show in Graph and Delivery.
                 </p>

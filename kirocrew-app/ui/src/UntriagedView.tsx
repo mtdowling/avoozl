@@ -506,14 +506,17 @@ export default function UntriagedView({ workspaceId }: { workspaceId: string | n
 
   return (
     <section aria-labelledby="avoozl-untriaged-title" className="flex flex-col gap-3.5">
-      <div className="flex flex-wrap items-center gap-3">
-        <ViewHeading id="avoozl-untriaged-title" view="untriaged">
-          Intake
-        </ViewHeading>
-        <IconLabel icon={RefreshCw} onClick={() => void checkNow()} disabled={busy || checking || !list?.enabled} tooltip="Read GitHub and poll each plugin source now instead of waiting for the next check">
-          {checking ? 'Checking…' : 'Check now'}
-        </IconLabel>
-      </div>
+      <ViewHeading
+        id="avoozl-untriaged-title"
+        view="untriaged"
+        actions={
+          <IconLabel icon={RefreshCw} onClick={() => void checkNow()} disabled={busy || checking || !list?.enabled} tooltip="Read GitHub and poll each plugin source now instead of waiting for the next check">
+            {checking ? 'Checking…' : 'Check now'}
+          </IconLabel>
+        }
+      >
+        Intake
+      </ViewHeading>
       <p className="text-sm text-muted">
         Work that comes in from GitHub and your intake sources. Untriaged shows the items no trigger rule, triage label or Avoozl task covers. Send GitHub issues to an Issue Radar crew or start a code review chat on a pull request; plan or deliver an item from another source.
       </p>

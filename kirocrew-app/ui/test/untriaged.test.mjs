@@ -102,7 +102,7 @@ test('the tab is hidden outside GitHub modes and its badge is not yellow', () =>
   assert.match(source('icons.ts'), /untriaged: Inbox/)
   const view = source('UntriagedView.tsx')
   assert.match(view, /rel: 'noopener noreferrer'/)
-  assert.match(view, /<ViewHeading id="avoozl-untriaged-title" view="untriaged">/)
+  assert.match(view, /<ViewHeading\s+id="avoozl-untriaged-title"\s+view="untriaged"/)
 })
 
 test('Send to Issue Radar takes issues from one repository only', async () => {
@@ -173,7 +173,7 @@ test('Intake: the tab is renamed, lists every source, and filters by source', as
   assert.match(app, /<ViewLabel view="untriaged">Intake<\/ViewLabel>/)
   assert.doesNotMatch(app, />Untriaged</)
   const view = source('UntriagedView.tsx')
-  assert.match(view, /<ViewHeading id="avoozl-untriaged-title" view="untriaged">\s*Intake\s*</)
+  assert.match(view, /<ViewHeading\s+id="avoozl-untriaged-title"\s+view="untriaged"[\s\S]*?>\s*Intake\s*<\/ViewHeading>/)
   // Untriaged stays as the tab's default filter.
   assert.match(view, /\{ key: 'untriaged', label: `Untriaged \(\$\{list\.items\.length\}\)` \}/)
   assert.match(view, /<th style=\{HEAD\}>Source<\/th>/)

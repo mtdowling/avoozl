@@ -3,7 +3,7 @@
 // before step 3's button and nothing runs before step 4's approval. Cancel
 // is on every step; on step 4 it also removes the entry step 3 declared.
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import { Btn, Card, CardTitle, Input } from '@kirocrew/app-sdk/ui'
+import { Btn, Card, Input } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import {
   addInput,
@@ -29,7 +29,7 @@ import {
 } from './plugins-api.ts'
 import { PackChanges } from './PackImport.tsx'
 import { errorMessage } from './workspace-api.ts'
-import { IconLabel } from './controls.tsx'
+import { IconLabel, SectionHeading } from './controls.tsx'
 import { RadioFold } from './RadioFold.tsx'
 import { Folder, GitBranch, Laptop, Package, Plus, Users } from './icons.ts'
 import { Facts, Parts } from './PluginsSettings.tsx'
@@ -424,7 +424,7 @@ export default function AddPlugin(props: { workspaceId: string; client: Client; 
   }, [])
   return (
     <Card>
-      <CardTitle>Add plugin</CardTitle>
+      <SectionHeading title="Add plugin" className="mb-2" />
       <p className="mt-1 text-xs text-muted">Four steps. Nothing runs or imports until you approve its exact version.</p>
       <ol className="mt-2 flex flex-col gap-1 text-xs">
         {PLUGIN_STEPS.map(([title, line], i) => (

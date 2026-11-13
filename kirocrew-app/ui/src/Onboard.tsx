@@ -7,9 +7,9 @@
 // first, and the flow never approves a plan, starts an agent or pushes.
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { useAppApi } from '@kirocrew/app-sdk'
-import { Btn, Card, CardTitle, Input } from '@kirocrew/app-sdk/ui'
+import { Btn, Card, Input } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
-import { IconLabel, useConfirm } from './controls.tsx'
+import { IconLabel, SectionHeading, useConfirm } from './controls.tsx'
 import { Check, GitBranch, Laptop, Lock, Workflow } from './icons.ts'
 import { RadioFold } from './RadioFold.tsx'
 import { MODE_CARDS, groupWrites, writeBadge, type GitHubSettings, type SetupResult } from './settings-api.ts'
@@ -661,7 +661,7 @@ export default function Onboard(props: { workspaceId: string; disabled: string |
   }, [])
   return (
     <Card>
-      <CardTitle>Onboard a repository</CardTitle>
+      <SectionHeading title="Onboard a repository" className="mb-2" />
       <p className="mt-1 text-xs text-muted">From a folder to plans ready to approve: mode, GitHub setup, spec import and an issue preview. Each GitHub write asks first.</p>
       <ol className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted">
         {ONBOARD_STEPS.map((s, i) => (

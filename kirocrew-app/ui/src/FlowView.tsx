@@ -4,17 +4,17 @@
 // Radar and GitHub; this tab shows graph and delivery timing only.
 import { useCallback, useMemo, useState, type CSSProperties } from 'react'
 import { useAppApi } from '@kirocrew/app-sdk'
-import { Btn, Card, CardTitle, EmptyState } from '@kirocrew/app-sdk/ui'
+import { Btn, Card, EmptyState } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import { FilterPanel, useStoredFilter } from './FilterPanel.tsx'
-import { ICON, IconLabel, ShowMore, ViewHeading, dangerStyle, useConfirm, usePages } from './controls.tsx'
+import { ICON, IconLabel, SectionHeading, ShowMore, ViewHeading, dangerStyle, useConfirm, usePages } from './controls.tsx'
 import { useTaskDrawer } from './drawer-context.ts'
 import { useMedia } from './TaskDrawer.tsx'
 import { CircleAlert, DetailsIcon, Gauge, Play } from './icons.ts'
 import { relativeTime } from './task-api.ts'
 import { useRead } from './useRead.ts'
-import { FlowCharts, UsagePanel } from './FlowCharts.tsx'
+import { FlowCharts, UsagePanel, type Unit } from './FlowCharts.tsx'
 import { errorMessage } from './workspace-api.ts'
 import {
   FLOW_FILTER_STORE,
@@ -195,7 +195,7 @@ function TaskBars({ tasks }: { tasks: TaskTiming[] }) {
   const shown = pages.take('flow-bars', tasks)
   return (
     <Card className="flex flex-col gap-2">
-      <CardTitle>Time per task</CardTitle>
+      <SectionHeading title="Time per task" />
       <StageLegend />
       <ul className="flex flex-col gap-1.5">
         {shown.map((task) => {
@@ -333,12 +333,14 @@ function Retros({ view, workspaceId, onChanged }: { view: FlowViewModel; workspa
   const running = view.retros.some((r) => r.state === 'running')
   return (
     <Card className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-3">
-        <CardTitle>Retros</CardTitle>
-        <IconLabel icon={Play} disabled={running || queued} tooltip="Start a retro at the next tick instead of waiting for its trigger" onClick={() => void start()}>
-          {queued ? 'Starts at the next tick' : 'Run a retro now'}
-        </IconLabel>
-      </div>
+      <SectionHeading
+        title="Retros"
+        actions={
+          <IconLabel icon={Play} disabled={running || queued} tooltip="Start a retro at the next tick instead of waiting for its trigger" onClick={() => void start()}>
+            {queued ? 'Starts at the next tick' : 'Run a retro now'}
+          </IconLabel>
+        }
+      />
       {error && (
         <p role="alert" className="text-sm text-danger">
           {error}
@@ -381,7 +383,7 @@ function Records({ view }: { view: FlowViewModel }) {
   if (!view.flaky.length && !view.ciOnly.length) return null
   return (
     <Card className="flex flex-col gap-1 text-sm">
-      <CardTitle>Checks that disagree</CardTitle>
+      <SectionHeading title="Checks that disagree" />
       {view.ciOnly.slice(0, 10).map((r) => (
         <span key={r.id}>
           CI only: {r.checks.join(', ')} failed in CI on {r.taskId} ({r.commit.slice(0, 7)}) after passing here.
@@ -404,6 +406,7 @@ export default function FlowView({ workspaceId }: { workspaceId: string | null }
   const load = useCallback((id: string) => client.view(id, JSON.parse(key)), [client, key])
   const { value: view, error, busy, reload } = useRead(workspaceId, load)
   const setField = (change: Partial<FlowFilter>) => setFilter({ ...filter, ...change })
+  const [unit, setUnit] = useState<Unit>('day')
   return (
     <section aria-labelledby="avoozl-flow-title" className="flex flex-col gap-3.5">
       <ViewHeading id="avoozl-flow-title" view="flow">
@@ -447,8 +450,8 @@ export default function FlowView({ workspaceId }: { workspaceId: string | null }
           ) : (
             <EmptyState icon={<Gauge size={36} aria-hidden="true" />} title="No timing yet" subtitle="Avoozl records where each task's time goes as soon as a task is dispatched." />
           )}
-          <FlowCharts view={view} />
-          <UsagePanel view={view} />
+          <FlowCharts view={view} unit={unit} onUnit={setUnit} />
+          <UsagePanel view={view} unit={unit} />
           <Records view={view} />
           <Retros view={view} workspaceId={workspaceId} onChanged={() => void reload()} />
         </>

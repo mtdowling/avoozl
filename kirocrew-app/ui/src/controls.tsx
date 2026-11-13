@@ -352,16 +352,62 @@ export function TipBtn({ tooltip, ...rest }: { tooltip?: string | null; children
   return <Tooltip text={tooltip}>{(describedBy) => <Btn {...rest} aria-describedby={describedBy} />}</Tooltip>
 }
 
+// Title sizes by heading level: a view (h2), a card or section (h3), and a
+// part inside one (h4).
+export const HEADING_SIZE = { 2: 'text-lg', 3: 'text-base', 4: 'text-sm' } as const
+
+// The one section heading: the title, then its buttons on the same row,
+// centered on one line, buttons pushed right. On a narrow screen the buttons
+// wrap onto their own right-aligned row. The title has no margin of its own
+// (the host's CardTitle does, which put titles above their buttons' center),
+// so the parent's gap spaces it. `meta` sits beside the title (a count, a
+// badge); `blurb` is one muted line under the row.
+export function SectionHeading(props: {
+  title: ReactNode
+  level?: 2 | 3 | 4
+  id?: string
+  view?: keyof typeof VIEW_ICONS
+  icon?: LucideIcon
+  meta?: ReactNode
+  actions?: ReactNode
+  // The buttons take the whole width of their row (the Dashboard's state
+  // buttons on a medium or small screen).
+  wideActions?: boolean
+  blurb?: ReactNode
+  className?: string
+}) {
+  const level = props.level ?? 3
+  const H = `h${level}` as 'h2' | 'h3' | 'h4'
+  const Icon = props.view ? VIEW_ICONS[props.view] : props.icon
+  return (
+    <div className={props.className} data-section-heading={level}>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1" data-heading-title>
+          <H id={props.id} className={`m-0 flex min-w-0 items-center gap-2 font-semibold leading-snug ${HEADING_SIZE[level]}`} style={{ overflowWrap: 'anywhere' }}>
+            {Icon && <Icon size={level === 2 ? 18 : 16} aria-hidden="true" style={{ color: 'var(--muted)', flexShrink: 0 }} />}
+            {props.title}
+          </H>
+          {props.meta}
+        </div>
+        {props.actions && (
+          <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2" style={props.wideActions ? { width: '100%' } : undefined} data-heading-actions>
+            {props.actions}
+          </div>
+        )}
+      </div>
+      {props.blurb && (
+        <p className="mt-0.5 text-xs text-muted" data-blurb>
+          {props.blurb}
+        </p>
+      )}
+    </div>
+  )
+}
+
 // A top-level view's page heading: its icon, then its word. The icon is the
 // same one its nav tab shows, sized to the text and hidden from readers.
-export function ViewHeading(props: { id: string; view: keyof typeof VIEW_ICONS; children: ReactNode; className?: string }) {
-  const Icon = VIEW_ICONS[props.view]
-  return (
-    <h2 id={props.id} className={props.className ?? 'flex items-center gap-2 text-lg font-semibold'}>
-      <Icon size={18} aria-hidden="true" style={{ color: 'var(--muted)', flexShrink: 0 }} />
-      {props.children}
-    </h2>
-  )
+export function ViewHeading(props: { id: string; view: keyof typeof VIEW_ICONS; children: ReactNode; actions?: ReactNode; meta?: ReactNode; wideActions?: boolean }) {
+  return <SectionHeading level={2} id={props.id} view={props.view} title={props.children} meta={props.meta} actions={props.actions} wideActions={props.wideActions} />
 }
 
 // The nav tab label: the view's icon, then its word.

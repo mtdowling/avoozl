@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Tooltip } from './Tooltip.tsx'
 import { useAppApi } from '@kirocrew/app-sdk'
-import { Btn, Card, CardTitle } from '@kirocrew/app-sdk/ui'
+import { Btn, Card } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { safeHref, sessionLabel, viewsClient, type ContentReport } from './views-api.ts'
 import { errorMessage } from './workspace-api.ts'
@@ -30,7 +30,7 @@ import { HandSetReview, ReviewRuns } from './ReviewState.tsx'
 import type { Graph } from './views-api.ts'
 import { FilterBar, useSharedFilter } from './FilterBar.tsx'
 import { filterChoices } from './filters.ts'
-import { IconLabel, ShowMore, ViewHeading, usePages } from './controls.tsx'
+import { IconLabel, SectionHeading, ShowMore, ViewHeading, usePages } from './controls.tsx'
 import { DetailsIcon, Pause, Play, RefreshCw, RotateCcw } from './icons.ts'
 import { chatClient } from './chat-api.ts'
 import { DEFER_TIP, RESUME_TIP, RETRY_TIP, START_TIP } from './delivery-api.ts'
@@ -380,19 +380,24 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
 
   return (
     <section aria-labelledby="avoozl-delivery-title" className="flex flex-col gap-3.5">
-      <div className="flex flex-wrap items-center gap-3">
-        <ViewHeading id="avoozl-delivery-title" view="delivery">
-          Delivery
-        </ViewHeading>
-        {workspaceId && (
-          <IconLabel icon={RefreshCw} onClick={() => void reload()} disabled={busy || acting}>
-            Refresh
-          </IconLabel>
-        )}
-        <span role="status" className="text-xs text-muted">
-          {acting ? 'Working…' : ''}
-        </span>
-      </div>
+      <ViewHeading
+        id="avoozl-delivery-title"
+        view="delivery"
+        meta={
+          <span role="status" className="text-xs text-muted">
+            {acting ? 'Working…' : ''}
+          </span>
+        }
+        actions={
+          workspaceId && (
+            <IconLabel icon={RefreshCw} onClick={() => void reload()} disabled={busy || acting}>
+              Refresh
+            </IconLabel>
+          )
+        }
+      >
+        Delivery
+      </ViewHeading>
       {(error || message) && (
         <p role={error || !message?.ok ? 'alert' : 'status'} className={`text-sm ${error || !message?.ok ? 'text-danger' : 'text-muted'}`}>
           {error ?? message?.text}
@@ -441,9 +446,7 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
               {superseded.map((item) => (
                 <li key={item.id}>
                   <Card>
-                    <CardTitle>
-                      {item.title} <span className="text-sm text-muted">{item.id}</span>
-                    </CardTitle>
+                    <SectionHeading title={item.title} meta={<span className="text-sm text-muted">{item.id}</span>} className="mb-2" />
                     <ItemDetails item={item} onSupersede={onSupersede} />
                   </Card>
                 </li>
@@ -461,7 +464,7 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
 function ContentReports({ reports }: { reports: ContentReport[] }) {
   return (
     <Card>
-      <CardTitle>Content rule reports</CardTitle>
+      <SectionHeading title="Content rule reports" className="mb-2" />
       <p className="mt-1 text-xs text-muted">
         A rule set whose action is report lets the content through and records the match here. Change the set to block once
         its rules are right.

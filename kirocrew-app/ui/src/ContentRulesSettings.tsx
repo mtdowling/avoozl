@@ -34,7 +34,7 @@ import {
   type TermRow,
   type TermsFile,
 } from './content-api.ts'
-import { ChoiceCards, DangerBtn, IconBtn, IconLabel, ICON } from './controls.tsx'
+import { ChoiceCards, DangerBtn, ICON, IconBtn, IconLabel, SectionHeading } from './controls.tsx'
 import { BookOpen, Ban, Eye, Lock, MessagesSquare, Plus, ShieldCheck, Trash2, X } from './icons.ts'
 import { DESIGN_RULES_TIP, rulesDesignMessage } from './design-chat.ts'
 import { useRead } from './useRead.ts'
@@ -182,14 +182,7 @@ function BuiltinDetails({ id, appliesAt, mode }: { id: string; appliesAt: string
   const used = builtinUsed(id, mode)
   return (
     <div className="flex flex-col gap-3" data-rule-details={id}>
-      <div>
-        <h3 className="flex items-center gap-2 text-base font-semibold">
-          <Lock size={ICON} aria-hidden="true" style={{ color: 'var(--muted)' }} />
-          {builtinName(id)}
-          {used ? <Badge>Always on</Badge> : <Badge>Not used</Badge>}
-        </h3>
-        <code className="text-[11px] text-muted">{id}</code>
-      </div>
+      <SectionHeading icon={Lock} title={builtinName(id)} meta={used ? <Badge>Always on</Badge> : <Badge>Not used</Badge>} blurb={<code className="text-[11px]">{id}</code>} />
       {!used && <p className="text-sm text-muted">Not used in this mode: there is no planning repository to keep private. It runs in Plans repository mode.</p>}
       <Facts
         rows={[
@@ -734,16 +727,18 @@ function SetDetails(props: {
   }
   return (
     <div className="flex flex-col gap-4" data-rule-details={set?.id ?? 'new'}>
-      <div className="flex flex-wrap items-start gap-2">
-        <div className="min-w-0 flex-1">
-          <h3 className="flex flex-wrap items-center gap-2 text-base font-semibold">
-            {set ? set.id : 'New rule set'}
-            {set && <Badge variant={set.available ? 'success' : 'warning'}>{set.available ? 'Available' : 'Unavailable'}</Badge>}
-            {set && <Badge>{set.action === 'report' ? 'Reports' : 'Blocks'}</Badge>}
-          </h3>
-          <p className="text-xs text-muted">{set ? 'Your words to keep out of what Avoozl writes.' : 'Name it and pick where it checks. Add its words after you save.'}</p>
-        </div>
-        {set && (
+      <SectionHeading
+        title={set ? set.id : 'New rule set'}
+        meta={
+          set && (
+            <>
+              <Badge variant={set.available ? 'success' : 'warning'}>{set.available ? 'Available' : 'Unavailable'}</Badge>
+              <Badge>{set.action === 'report' ? 'Reports' : 'Blocks'}</Badge>
+            </>
+          )
+        }
+        blurb={set ? 'Your words to keep out of what Avoozl writes.' : 'Name it and pick where it checks. Add its words after you save.'}
+        actions={set && (
           <DangerBtn
             icon={Trash2}
             disabled={busy}
@@ -757,7 +752,7 @@ function SetDetails(props: {
             Delete set
           </DangerBtn>
         )}
-      </div>
+      />
       {set && (
         <Facts
           rows={[
