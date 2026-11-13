@@ -32,7 +32,9 @@ import { canonical, fail } from "./store.mjs";
 import { CODE_REVIEW_SAGE_PATH } from "./untriaged.mjs";
 import { listIdeas } from "./ideas.mjs";
 
-export const RESERVED_SOURCES = Object.freeze(["github", "local"]);
+// `retro` holds the skill changes a person approved from a retrospective
+// (design §4.18).
+export const RESERVED_SOURCES = Object.freeze(["github", "local", "retro"]);
 export const POLL_LIMIT = 500;
 export const SUBMIT_LIMIT = 100;
 export const KEEP_CLOSED_MS = 30 * 24 * 60 * 60 * 1000;
@@ -1148,6 +1150,78 @@ export function startByPerson(
   });
   store.transaction(() => store.put("incoming_items", next));
   return { source: id, id: itemId, taskId, route: next.route };
+}
+
+// A repository skill change a person approved from a retrospective (R68.10):
+// an incoming item with source `retro` whose snapshot is the diff, then one
+// leaf through the same path as Deliver this. Returns the task ID.
+export function deliverRetroSkill(
+  store,
+  githubPolicy,
+  { retro, proposal, repository, file, diff, summary },
+) {
+  const project = store.get("projects", repository);
+  if (!project?.root)
+    fail(
+      `Repository ${repository} has no local checkout, so Avoozl cannot code it.`,
+      409,
+    );
+  const now = new Date().toISOString(),
+    item = {
+      source: "retro",
+      id: `${retro}-${proposal}`,
+      title: `Apply a retro skill change to ${file}`.slice(0, 200),
+      body: [
+        String(summary || "").slice(0, 1000),
+        `Apply this unified diff to ${file}, and change nothing else:`,
+        "```diff",
+        diff,
+        "```",
+      ].join("\n\n"),
+      link: `avoozl:retro/${retro}/${proposal}`,
+      kind: "task",
+      labels: [],
+      author: null,
+      assignees: [],
+      state: "open",
+      closeReason: null,
+      closedBy: null,
+      closedAt: null,
+      updatedAt: now,
+      trigger: null,
+    },
+    key = itemKey("retro", item.id);
+  if (store.get("incoming_items", key)?.taskId)
+    fail(`This change already has task ${store.get("incoming_items", key).taskId}.`, 409);
+  const row = {
+    id: key,
+    source: "retro",
+    itemId: item.id,
+    record: item,
+    hash: hashOf(item),
+    via: "retro",
+    firstSeenAt: now,
+    seenAt: now,
+    taskId: null,
+    route: null,
+    findings: [],
+    history: [],
+  };
+  store.transaction(() => store.put("incoming_items", row));
+  const bound = withPolicy(
+      { id: "retro", repository, project: project.id, github: project.github || null },
+      githubPolicy,
+    ),
+    reason = "A person approved this skill change from a retrospective.",
+    taskId = startTask(store, row, bound, "deliver", { by: "person", reason });
+  const next = {
+    ...row,
+    taskId,
+    route: { state: "delivered", rule: null, action: "deliver", by: "person", reason, at: now },
+  };
+  remember(next, { at: now, result: "deliver", state: "delivered" });
+  store.transaction(() => store.put("incoming_items", next));
+  return taskId;
 }
 
 // ---------------------------------------------------------------------------
