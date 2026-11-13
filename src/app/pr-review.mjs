@@ -17,6 +17,9 @@ import { readCache, untriagedView } from "./untriaged.mjs";
 
 export const REVIEW_KIND = "pr-review";
 export const REVIEW_ROLE = "pr-review";
+// Read-only: files, and a shell Kiro Crew limits to `gh` reads of one pull
+// request (kirocrew-app/agents/avoozl-code-review.json). No write, no post.
+export const REVIEW_AGENT = "avoozl-code-review";
 
 const lower = (value) => String(value).toLocaleLowerCase();
 export const reviewId = (repository, number) =>
@@ -193,6 +196,7 @@ export function reviewDispatches(store) {
       title: `Code review: ${receipt.repository}#${receipt.number}`,
       folder: "",
       project: false,
+      agent: REVIEW_AGENT,
       brief: receipt.seed,
     }));
 }
