@@ -139,6 +139,7 @@ export function validateMarker(marker, { planningRepository } = {}) {
       "edges",
       "applied",
       "order",
+      "claim",
     ],
     "",
   );
@@ -157,6 +158,10 @@ export function validateMarker(marker, { planningRepository } = {}) {
   check(NAMESPACE.test(marker.namespace || ""), "namespace");
   // An epic or plan issue (Requirement 59.8) carries kind epic or plan.
   check([...TASK_KINDS, ...PARENT_KINDS].includes(marker.kind), "kind");
+  if (marker.claim !== undefined) {
+    check(marker.kind === "plan", "only a plan issue holds a claim");
+    validateClaim(marker.claim);
+  }
   check(marker.parent === undefined || TASK_ID.test(marker.parent), "parent");
   onlyKeys(marker.source, ["commit", "manifest"], "source");
   check(
@@ -220,6 +225,53 @@ export function validateMarker(marker, { planningRepository } = {}) {
   }
   if (marker.order !== undefined) validateOrder(marker.order);
   return marker;
+}
+
+export const MACHINE_ID = /^mch_[a-z2-7]{16}$/;
+const TIME = (value) =>
+  typeof value === "string" && !Number.isNaN(Date.parse(value));
+const LABEL = (value) =>
+  value === null || (typeof value === "string" && value.length <= 40);
+
+// The driver's machine claim (§6.10): IDs, a label, a login and times.
+// Never a path, host name or token; the string screen above covers those.
+function validateClaim(claim) {
+  onlyKeys(
+    claim,
+    [
+      "machine",
+      "label",
+      "login",
+      "takenAt",
+      "heartbeatAt",
+      "from",
+      "forced",
+      "export",
+    ],
+    "claim",
+  );
+  check(MACHINE_ID.test(claim.machine || ""), "claim.machine");
+  check(LABEL(claim.label ?? null), "claim.label");
+  check(LOGIN.test(claim.login || ""), "claim.login");
+  check(TIME(claim.takenAt), "claim.takenAt");
+  check(TIME(claim.heartbeatAt), "claim.heartbeatAt");
+  check(typeof claim.forced === "boolean", "claim.forced");
+  check(
+    claim.export === null || SHA256.test(claim.export || ""),
+    "claim.export",
+  );
+  if (claim.from !== null) {
+    onlyKeys(claim.from, ["machine", "label", "login"], "claim.from");
+    check(
+      claim.from.machine === null || MACHINE_ID.test(claim.from.machine || ""),
+      "claim.from.machine",
+    );
+    check(LABEL(claim.from.label ?? null), "claim.from.label");
+    check(
+      claim.from.login === null || LOGIN.test(claim.from.login || ""),
+      "claim.from.login",
+    );
+  }
 }
 
 function validateOrder(order) {

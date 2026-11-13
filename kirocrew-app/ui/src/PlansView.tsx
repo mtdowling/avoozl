@@ -5,13 +5,15 @@ import { Btn, Card } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { Markdown } from './Markdown.tsx'
 import { useTaskDrawer } from './drawer-context.ts'
-import { useMedia } from './TaskDrawer.tsx'
+import { useMedia } from './use-media.ts'
 import { errorMessage } from './workspace-api'
 import { relativeTime } from './task-api.ts'
 import { Authority } from './Authority.tsx'
 import NewPlanDrawer from './NewPlanDrawer.tsx'
 import { NewIdeaButton, NewIdeaDialog } from './Ideas.tsx'
 import type { NewPlanForm } from './new-plan-api.ts'
+import { DriverBanner, DriverChip, HandOffButton, SetupList, useDriver } from './Driver.tsx'
+import type { DriverSpec } from './driver-api.ts'
 import { IconBtn, IconLabel, SectionHeading, ShowMore, TipBtn, ViewHeading, dangerStyle, useAskChat, usePages } from './controls.tsx'
 import { Archive, ArchiveRestore, ArrowLeft, ChevronRight, ClipboardCheck, DetailsIcon, Download, FolderOpen, LayoutGrid, Lightbulb, MessagesSquare, Network, Pencil, Plus, RefreshCw, Trash2, X } from './icons.ts'
 import { FilterPanel } from './FilterPanel.tsx'
@@ -21,7 +23,9 @@ import { outline } from './markdown.ts'
 import { registerLanguages } from './highlight.ts'
 import { scrollParent, stickyHeight } from './sticky-column.ts'
 import { viewsClient, type Graph } from './views-api.ts'
-import { useBackStep, useSteppedState } from './NavHistory.tsx'
+import { useSteppedState } from './NavHistory.tsx'
+import { Modal } from './Modal.tsx'
+import { LAYER } from './layers.ts'
 import {
   UNCATEGORIZED,
   approveBlocker,
@@ -708,6 +712,9 @@ function PlanAside(props: {
   onUnarchive?: () => void
   onDrill: (drill: Drill) => void
   onOpenTask: (id: string) => void
+  workspaceId: string | null
+  driver: DriverSpec | null
+  onDriverChanged: () => void
 }) {
   const { row, graph, docs } = props
   const leaves = (graph?.tasks ?? []).filter((t) => t.kind === 'leaf')
@@ -735,6 +742,7 @@ function PlanAside(props: {
         <IconLabel icon={MessagesSquare} tooltip="Start a chat about this spec. It makes no edits." onClick={props.onDiscuss}>
           Discuss spec
         </IconLabel>
+        {props.workspaceId && <HandOffButton workspaceId={props.workspaceId} spec={props.driver} onChanged={props.onDriverChanged} />}
         {(props.onDelete || props.onArchive || props.onUnarchive) && (
           <span className="ml-auto flex gap-1.5">
             {props.onArchive && <IconBtn icon={Archive} label={`Archive ${row.name}`} tooltip={ARCHIVE_TIP} onClick={props.onArchive} />}
@@ -888,12 +896,11 @@ function PlanAside(props: {
 
 
 // Archive plan: a plain confirm, not red, because Unarchive undoes it.
-function ArchivePlanDialog(props: { workspaceId: string; row: PlanRow; client: PlansClient; onDone: (text: string | null) => void }) {
+export function ArchivePlanDialog(props: { workspaceId: string; row: PlanRow; client: PlansClient; onDone: (text: string | null) => void }) {
   const { row, client, workspaceId } = props
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const cancel = useRef<HTMLButtonElement>(null)
-  useBackStep('modal', true, 'Cancel', () => props.onDone(null))
   useEffect(() => {
     cancel.current?.focus()
   }, [])
@@ -912,35 +919,26 @@ function ArchivePlanDialog(props: { workspaceId: string; row: PlanRow; client: P
     }
   }
   return (
-    <div className="fixed inset-0" style={{ zIndex: 70, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div aria-hidden="true" className="absolute inset-0" onClick={() => props.onDone(null)} style={{ background: 'color-mix(in srgb, var(--text) 30%, transparent)' }} />
-      <div
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="avoozl-archive-plan-title"
-        data-archive-plan
-        className="relative flex flex-col gap-3 rounded-lg border p-4 shadow-lg"
-        style={{ width: 'min(32rem, 94vw)', background: 'var(--card, var(--bg))', color: 'var(--text)', borderColor: 'var(--border)' }}
-      >
-        <h3 id="avoozl-archive-plan-title" className="text-base font-semibold">
-          Archive the spec {row.name}?
-        </h3>
-        <ul className="flex flex-col gap-1 pl-5 text-sm" style={{ listStyle: 'disc' }}>
-          {ARCHIVE_LINES.map((line) => (
-            <li key={line}>{line}</li>
-          ))}
-        </ul>
-        {error && <p role="alert" className="text-sm text-danger">{error}</p>}
-        <div className="flex justify-end gap-2">
-          <Btn ref={cancel} type="button" onClick={() => props.onDone(null)}>
-            Cancel
-          </Btn>
-          <Btn type="button" primary data-archive-confirm disabled={busy} onClick={() => void run()}>
-            Archive spec
-          </Btn>
-        </div>
+    // Esc, Back and a click outside do what Cancel does.
+    <Modal id="avoozl-archive-plan" role="alertdialog" width="32rem" backLabel="Cancel" attrs={{ 'data-archive-plan': true }} onDismiss={() => props.onDone(null)}>
+      <h3 id="avoozl-archive-plan-title" className="text-base font-semibold">
+        Archive the spec {row.name}?
+      </h3>
+      <ul className="flex flex-col gap-1 pl-5 text-sm" style={{ listStyle: 'disc' }}>
+        {ARCHIVE_LINES.map((line) => (
+          <li key={line}>{line}</li>
+        ))}
+      </ul>
+      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+      <div className="flex justify-end gap-2">
+        <Btn ref={cancel} type="button" onClick={() => props.onDone(null)}>
+          Cancel
+        </Btn>
+        <Btn type="button" primary data-archive-confirm disabled={busy} onClick={() => void run()}>
+          Archive spec
+        </Btn>
       </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -973,7 +971,7 @@ function ArchivedBanner(props: { row: PlanRow; busy: boolean; onUnarchive: () =>
 // Delete plan: the confirm names the plan, counts its tasks and says what
 // happens to each. The spec folder checkbox is off by default and removes
 // the folder from the working tree only, never committing or pushing.
-function DeletePlanDialog(props: { workspaceId: string; row: PlanRow; client: PlansClient; onDone: (text: string | null) => void }) {
+export function DeletePlanDialog(props: { workspaceId: string; row: PlanRow; client: PlansClient; onDone: (text: string | null) => void }) {
   const { row, client, workspaceId } = props
   const [preview, setPreview] = useState<DeletePreview | null>(null)
   const [folder, setFolder] = useState(false)
@@ -983,7 +981,6 @@ function DeletePlanDialog(props: { workspaceId: string; row: PlanRow; client: Pl
   useEffect(() => {
     client.deletePreview(workspaceId, row.planId!).then(setPreview, (caught) => setError(errorMessage(caught)))
   }, [client, workspaceId, row.planId])
-  useBackStep('modal', true, 'Cancel', () => props.onDone(null))
   useEffect(() => {
     cancel.current?.focus()
   }, [])
@@ -1006,49 +1003,40 @@ function DeletePlanDialog(props: { workspaceId: string; row: PlanRow; client: Pl
   }
   const blocked = Boolean(folder && preview?.folder?.dirty)
   return (
-    <div className="fixed inset-0" style={{ zIndex: 70, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div aria-hidden="true" className="absolute inset-0" onClick={() => props.onDone(null)} style={{ background: 'color-mix(in srgb, var(--text) 30%, transparent)' }} />
-      <div
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="avoozl-delete-plan-title"
-        data-delete-plan={preview?.retire ? 'retire' : 'draft'}
-        className="relative flex flex-col gap-3 rounded-lg border p-4 shadow-lg"
-        style={{ width: 'min(32rem, 94vw)', background: 'var(--card, var(--bg))', color: 'var(--text)', borderColor: 'var(--border)' }}
-      >
-        <h3 id="avoozl-delete-plan-title" className="text-base font-semibold">
-          Delete the spec {preview?.title ?? row.name}?
-        </h3>
-        {!preview && !error && <p className="text-sm text-muted">Counting its tasks…</p>}
-        {preview && (
-          <ul className="flex flex-col gap-1 pl-5 text-sm" style={{ listStyle: 'disc' }}>
-            {deleteLines(preview).map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
-        )}
-        {preview?.folder?.exists && (
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="flex items-center gap-2">
-              <input type="checkbox" checked={folder} onChange={(event) => setFolder(event.target.checked)} />
-              Also delete the spec folder (.kiro/specs/{preview.spec}/) from the repo.
-            </span>
-            <code className="pl-6 text-xs text-muted" style={{ overflowWrap: 'anywhere' }}>{preview.folder.path}</code>
-            <span className="pl-6 text-xs text-muted">Only the working tree. Avoozl never commits or pushes this.</span>
-            {folder && preview.folder.dirty && <span role="alert" className="pl-6 text-xs text-danger">{preview.folder.reason}</span>}
-          </label>
-        )}
-        {error && <p role="alert" className="text-sm text-danger">{error}</p>}
-        <div className="flex justify-end gap-2">
-          <Btn ref={cancel} type="button" onClick={() => props.onDone(null)}>
-            Cancel
-          </Btn>
-          <Btn type="button" data-danger disabled={!preview || busy || blocked} onClick={() => void run()} style={{ background: 'var(--danger)', borderColor: 'var(--danger)', color: '#fff' }}>
-            Delete spec
-          </Btn>
-        </div>
+    // Esc, Back and a click outside do what Cancel does.
+    <Modal id="avoozl-delete-plan" role="alertdialog" width="32rem" backLabel="Cancel" attrs={{ 'data-delete-plan': preview?.retire ? 'retire' : 'draft' }} onDismiss={() => props.onDone(null)}>
+      <h3 id="avoozl-delete-plan-title" className="text-base font-semibold">
+        Delete the spec {preview?.title ?? row.name}?
+      </h3>
+      {!preview && !error && <p className="text-sm text-muted">Counting its tasks…</p>}
+      {preview && (
+        <ul className="flex flex-col gap-1 pl-5 text-sm" style={{ listStyle: 'disc' }}>
+          {deleteLines(preview).map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      )}
+      {preview?.folder?.exists && (
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="flex items-center gap-2">
+            <input type="checkbox" checked={folder} onChange={(event) => setFolder(event.target.checked)} />
+            Also delete the spec folder (.kiro/specs/{preview.spec}/) from the repo.
+          </span>
+          <code className="pl-6 text-xs text-muted" style={{ overflowWrap: 'anywhere' }}>{preview.folder.path}</code>
+          <span className="pl-6 text-xs text-muted">Only the working tree. Avoozl never commits or pushes this.</span>
+          {folder && preview.folder.dirty && <span role="alert" className="pl-6 text-xs text-danger">{preview.folder.reason}</span>}
+        </label>
+      )}
+      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+      <div className="flex justify-end gap-2">
+        <Btn ref={cancel} type="button" onClick={() => props.onDone(null)}>
+          Cancel
+        </Btn>
+        <Btn type="button" data-danger disabled={!preview || busy || blocked} onClick={() => void run()} style={{ background: 'var(--danger)', borderColor: 'var(--danger)', color: '#fff' }}>
+          Delete spec
+        </Btn>
       </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -1134,6 +1122,8 @@ export default function PlansView(props: {
   }, [workspace, load, plans])
 
   const row = table?.items.find((item) => item.key === selected) ?? null
+  // Who drives the open spec (§6.10): the chip, banner and Hand off.
+  const driver = useDriver(workspace, row?.planId ?? null)
   const spec: SpecSummary | null = row?.spec ? (table?.specs.find((item) => item.name === row.spec) ?? null) : null
 
   // The opened row's stored plan, preview, documents and tasks. Opening is
@@ -1274,7 +1264,10 @@ export default function PlansView(props: {
               workspace && !row ? (
                 <PlansActions onNewPlan={() => setCreating({})} onNewIdea={() => setNewIdea(true)} onOpenIdeas={props.onOpenIdeas} ideas={props.ideas ?? null} onNewTask={() => drawer.addTask()} onRefresh={() => void load(workspace)} busy={busy} />
               ) : row ? (
-                <RowButtons row={row} onScope={(target) => scope(target, row)} onReview={() => jump('avoozl-plan-main')} />
+                <span className="flex flex-wrap items-center gap-2">
+                  <DriverChip spec={driver.spec} />
+                  <RowButtons row={row} onScope={(target) => scope(target, row)} onReview={() => jump('avoozl-plan-main')} />
+                </span>
               ) : null
             }
           >
@@ -1333,7 +1326,7 @@ export default function PlansView(props: {
             ref={asideRef}
             aria-label="Spec summary"
             data-plan-aside-scroll
-            style={stack ? undefined : { position: 'sticky', top: 8, maxHeight: asideHeight ?? 'calc(100vh - 2rem)', overflowY: 'auto', overscrollBehavior: 'contain' }}
+            style={stack ? undefined : { position: 'sticky', top: 8, zIndex: LAYER.sticky, maxHeight: asideHeight ?? 'calc(100vh - 2rem)', overflowY: 'auto', overscrollBehavior: 'contain' }}
           >
             <Card>
               <PlanAside
@@ -1347,11 +1340,16 @@ export default function PlansView(props: {
                 onUnarchive={rowActions(row).unarchivable ? () => unarchive(row) : undefined}
                 onDrill={(drill) => props.onDrill?.(drill)}
                 onOpenTask={(id) => drawer.openTask(id)}
+                workspaceId={workspace}
+                driver={driver.spec}
+                onDriverChanged={driver.reload}
               />
             </Card>
           </aside>
           <div id="avoozl-plan-main" className="min-w-0">
             <ArchivedBanner row={row} busy={busy} onUnarchive={() => unarchive(row)} />
+            {workspace && <DriverBanner workspaceId={workspace} spec={driver.spec} onChanged={driver.reload} />}
+            <SetupList spec={driver.spec} />
             {row.categoryProblem && (
               <p className="mb-3 text-sm text-muted">
                 <Badge variant="warning">front-matter</Badge> {row.categoryProblem}

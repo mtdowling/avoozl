@@ -1,0 +1,70 @@
+/* The host's theme variables and the few layout utilities the modals use,
+   so the harness works without the host's stylesheet. */
+[data-theme='light'] {
+  --bg: #fafafa;
+  --bg-elevated: #fff;
+  --card: #fff;
+  --text: #1a1a1a;
+  --muted: #666;
+  --border: #ddd;
+  --accent: #2563eb;
+  --danger: #c62828;
+  --ok: #2e7d32;
+  color-scheme: light;
+}
+[data-theme='dark'] {
+  --bg: #12141a;
+  --bg-elevated: #1c1f27;
+  --card: #1c1f27;
+  --text: #e6e6e6;
+  --muted: #9aa0aa;
+  --border: #333844;
+  --accent: #60a5fa;
+  --danger: #ef5350;
+  --ok: #66bb6a;
+  color-scheme: dark;
+}
+html,
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+.fixed { position: fixed; }
+.absolute { position: absolute; }
+.relative { position: relative; }
+.inset-0 { inset: 0; }
+.inset-y-0 { top: 0; bottom: 0; }
+.flex { display: flex; }
+.inline-flex { display: inline-flex; }
+.flex-col { flex-direction: column; }
+.flex-wrap { flex-wrap: wrap; }
+.flex-1 { flex: 1 1 0%; }
+.items-center { align-items: center; }
+.justify-end { justify-content: flex-end; }
+.min-h-0 { min-height: 0; }
+.h-full { height: 100%; }
+.overflow-hidden { overflow: hidden; }
+.overflow-y-auto { overflow-y: auto; }
+.gap-1 { gap: 4px; }
+.gap-2 { gap: 8px; }
+.gap-3 { gap: 12px; }
+.p-4 { padding: 16px; }
+.px-4 { padding-left: 16px; padding-right: 16px; }
+.py-3 { padding-top: 12px; padding-bottom: 12px; }
+.border { border: 1px solid var(--border); }
+.border-b { border-bottom: 1px solid var(--border); }
+.border-t { border-top: 1px solid var(--border); }
+.rounded, .rounded-lg { border-radius: 8px; }
+.text-xs { font-size: 12px; }
+.text-sm { font-size: 14px; }
+.text-base { font-size: 16px; }
+.text-lg { font-size: 18px; }
+.font-semibold { font-weight: 600; }
+.text-muted { color: var(--muted); }
+.text-danger { color: var(--danger); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+button { color: inherit; background: var(--bg-elevated); border: 1px solid var(--border); }
+button[data-primary] { background: var(--accent); color: #fff; border-color: var(--accent); }
+input, select, textarea { color: inherit; background: var(--bg); border: 1px solid var(--border); }

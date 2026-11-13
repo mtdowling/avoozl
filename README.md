@@ -125,7 +125,8 @@ node cli.mjs project configure code --workspace ~/plans \
 ```
 
 Checkout paths are per machine, so they are kept out of `.avoozl.json`. Then
-turn on delivery in `.avoozl.json`:
+turn on Autopilot, Avoozl's name for delivery, with the `delivery` block in
+`.avoozl.json`:
 
 ```json
 { "delivery": { "concurrency": 1 } }
@@ -191,6 +192,40 @@ With nobody named, that is anyone with `write` permission. See
 Other delivery routes, task trackers, intake sources, content rules, and
 settings packs plug in as separate packages that you approve on each
 machine. See [writing a plugin](docs/plugins.md).
+
+## One driver per spec
+
+Only one Avoozl drives each approved spec: it alone starts work, writes
+GitHub, and merges for it. Every other workspace reads only for that spec
+and says why.
+
+- In a GitHub mode, the spec's plan issue names the driver. Its one
+  assignee says which person, and a machine claim in Avoozl's marker says
+  which of that person's machines. With no assignee, the epic issue's
+  assignee counts. With none or several, every workspace reads only and
+  one decision opens.
+- **Hand off driver** on the spec's page stops new work, lets running chats
+  finish, writes an export file to a folder you pick, and links the plan
+  issue for you to reassign. Avoozl never reassigns it. The file may hold
+  private notes; Avoozl never uploads, commits, or pushes it.
+- **Take over** on the other machine takes the export, or rebuilds from
+  GitHub when the old machine is gone, and lists what a rebuild loses
+  first. **Force take over** assigns the plan issue to you, and asks you to
+  type the spec name first. An old driver that comes back reads only.
+- Nothing moves the role because a machine went quiet. A task that was
+  running on the old driver is "away": it completes from GitHub when its
+  pull request merges, or waits for you to start it here.
+- Plugin approvals, terms files, router and retro instructions, crews and
+  SSH host keys stay on each machine. After a take-over the page lists
+  what to set up again.
+
+Limits: assignment is not atomic, so work the old driver started after its
+last check, at most one tick's worth, can overlap; it shows as away on the
+new driver. In Local only mode the lock is a row in the workspace database:
+it guards only instances that open that file or a copy, cannot see another
+machine, and has no forced take-over. CLI: `avoozl driver status`,
+`avoozl driver handoff`, `avoozl driver takeover --file PATH` or
+`--rebuild`, and `--force --confirm SPEC`.
 
 ## Flow
 
@@ -332,6 +367,7 @@ tests with a fake GitHub, fake sessions, or fake crews, run by `npm test`.
 | Andon cord                                           | Fakes only                                            |
 | Routing, model router, agent and model per task      | Fakes only (P29, P33); remote crews wait on Kiro Crew |
 | Provider health and Switch model                     | Fakes only (P44); Kiro Crew's model change not called |
+| One driver per spec, hand off and take over          | Fakes only (P40)                                      |
 | Pull request feedback                                | Fakes only (P34)                                      |
 | Spec Builder hand-off                                | Fakes only                                            |
 | Stacked pull requests, comment steering, Discussions | Fakes only                                            |

@@ -33,7 +33,7 @@ import { IconLabel, SectionHeading } from './controls.tsx'
 import { RadioFold } from './RadioFold.tsx'
 import { Folder, GitBranch, Laptop, Package, Plus, Users } from './icons.ts'
 import { Facts, Parts } from './PluginsSettings.tsx'
-import { useBackStep } from './NavHistory.tsx'
+import { Modal } from './Modal.tsx'
 
 type Client = ReturnType<typeof pluginsClient>
 
@@ -260,8 +260,6 @@ function AddPluginDialog(props: { workspaceId: string; client: Client; supported
       .then(() => onChanged())
       .finally(() => onClose(`Cancelled. ${id} was removed again; nothing ran.`))
   }, [added, client, workspaceId, onClose, onChanged])
-  // Esc and Back do what Cancel does.
-  useBackStep('modal', true, 'Cancel', cancel)
   useEffect(() => {
     box.current?.querySelector<HTMLElement>('summary, input:not([disabled]), button')?.focus()
   }, [step])
@@ -310,107 +308,106 @@ function AddPluginDialog(props: { workspaceId: string; client: Client; supported
     })
   const problem = step === 1 ? previewProblem(form, preview, supported) : null
   return (
-    <div className="fixed inset-0" style={{ zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div aria-hidden="true" className="absolute inset-0" onClick={cancel} style={{ background: 'color-mix(in srgb, var(--text) 30%, transparent)' }} />
-      <div
-        ref={box}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="avoozl-plugin-title"
-        aria-describedby="avoozl-plugin-line"
-        data-plugin-dialog={step}
-        className="relative flex flex-col gap-3 rounded-lg border p-4 shadow-lg"
-        style={{ width: 'min(40rem, 94vw)', maxHeight: '88vh', overflow: 'auto', background: 'var(--card, var(--bg))', color: 'var(--text)', borderColor: 'var(--border)' }}
-      >
-        <ol className="flex flex-wrap gap-2 text-xs" aria-label="Steps">
-          {PLUGIN_STEPS.map(([title], i) => (
-            <li key={title} aria-current={i === step ? 'step' : undefined} className={i === step ? 'font-semibold' : 'text-muted'}>
-              {i + 1}. {title}
-            </li>
-          ))}
-        </ol>
-        <div>
-          <h3 id="avoozl-plugin-title" className="text-base font-semibold">
-            {PLUGIN_STEPS[step][0]}
-          </h3>
-          <p id="avoozl-plugin-line" className="text-sm text-muted">
-            {PLUGIN_STEPS[step][1]}
-          </p>
-        </div>
-        {step === 0 && <SourceFields form={form} set={set} />}
-        {step === 1 && preview && <WhatStep form={form} preview={preview} supported={supported} set={set} problem={problem} />}
-        {step === 2 && <ScopeStep form={form} set={set} confirmPublic={confirmPublic} setConfirmPublic={setConfirmPublic} />}
-        {step === 3 && added && (
-          <div className="flex flex-col gap-2 text-sm" data-plugin-review>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="font-semibold">{added.id}</span>
-              <Badge variant={stateLabel(added).attention ? 'warning' : undefined}>{stateLabel(added).label}</Badge>
-            </div>
-            {added.reason && <p className="text-xs text-muted">{added.reason}</p>}
-            <Parts row={added} />
-            <Facts row={added} />
-            {pack && (
-              <div className="flex flex-col gap-1">
-                <h4 className="text-sm font-semibold">Settings pack</h4>
-                <PackChanges preview={pack} />
-                <p className="text-xs text-muted">After you approve, import these from the plugin’s card. Nothing is imported now.</p>
-              </div>
-            )}
-            <p className="text-xs text-muted">Cancel removes the entry just added. Nothing has run.</p>
-          </div>
-        )}
-        {error && (
-          <p role="alert" className="text-sm text-danger">
-            {error}
-          </p>
-        )}
-        <div className="flex flex-wrap justify-end gap-2">
-          <Btn type="button" onClick={cancel} disabled={busy}>
-            Cancel
-          </Btn>
-          {(step === 1 || step === 2) && (
-            <Btn type="button" onClick={() => setStep(step - 1)} disabled={busy}>
-              Back
-            </Btn>
-          )}
-          {step === 0 && (
-            <Btn type="button" primary onClick={() => void look()} disabled={busy}>
-              {form.where === 'git' ? 'Find the commit' : 'Next'}
-            </Btn>
-          )}
-          {step === 1 && (
-            <Btn
-              type="button"
-              primary
-              disabled={busy || Boolean(problem)}
-              onClick={() => {
-                const checked = addInput(form)
-                if (checked.error) return setError(checked.error)
-                setStep(2)
-              }}
-            >
-              Next
-            </Btn>
-          )}
-          {step === 2 && (
-            <Btn type="button" primary onClick={() => void add()} disabled={busy || (form.scope === 'repository' && !confirmPublic)}>
-              {form.where === 'git' ? 'Fetch and review' : 'Add and review'}
-            </Btn>
-          )}
-          {step === 3 && added && canApprove(added) && (
-            <Btn type="button" primary onClick={() => void approve()} disabled={busy}>
-              Approve version {added.version}
-              {added.commit ? ` at ${added.commit.slice(0, 12)}` : ''}
-            </Btn>
-          )}
-          {step === 3 && added && !canApprove(added) && (
-            <Btn type="button" primary onClick={() => onClose(`Added ${added.id}. It can't be approved yet: ${added.reason ?? stateLabel(added).label}.`)}>
-              Keep it unapproved
-            </Btn>
-          )}
-        </div>
+    // Esc, Back and a click outside do what Cancel does, asking first once
+    // something was entered or added.
+    <Modal
+      id="avoozl-plugin"
+      width="40rem"
+      backLabel="Cancel"
+      describedBy="avoozl-plugin-line"
+      boxRef={box}
+      attrs={{ 'data-plugin-dialog': step }}
+      unsaved={(Boolean(added) || step > 0 || JSON.stringify(form) !== JSON.stringify(emptyPluginForm())) && { title: 'Stop adding this plugin?', body: added ? `${added.id} is removed again. Nothing ran.` : 'What you entered is lost.', action: 'Stop' }}
+      onDismiss={cancel}
+    >
+      <ol className="flex flex-wrap gap-2 text-xs" aria-label="Steps">
+        {PLUGIN_STEPS.map(([title], i) => (
+          <li key={title} aria-current={i === step ? 'step' : undefined} className={i === step ? 'font-semibold' : 'text-muted'}>
+            {i + 1}. {title}
+          </li>
+        ))}
+      </ol>
+      <div>
+        <h3 id="avoozl-plugin-title" className="text-base font-semibold">
+          {PLUGIN_STEPS[step][0]}
+        </h3>
+        <p id="avoozl-plugin-line" className="text-sm text-muted">
+          {PLUGIN_STEPS[step][1]}
+        </p>
       </div>
-    </div>
+      {step === 0 && <SourceFields form={form} set={set} />}
+      {step === 1 && preview && <WhatStep form={form} preview={preview} supported={supported} set={set} problem={problem} />}
+      {step === 2 && <ScopeStep form={form} set={set} confirmPublic={confirmPublic} setConfirmPublic={setConfirmPublic} />}
+      {step === 3 && added && (
+        <div className="flex flex-col gap-2 text-sm" data-plugin-review>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-semibold">{added.id}</span>
+            <Badge variant={stateLabel(added).attention ? 'warning' : undefined}>{stateLabel(added).label}</Badge>
+          </div>
+          {added.reason && <p className="text-xs text-muted">{added.reason}</p>}
+          <Parts row={added} />
+          <Facts row={added} />
+          {pack && (
+            <div className="flex flex-col gap-1">
+              <h4 className="text-sm font-semibold">Settings pack</h4>
+              <PackChanges preview={pack} />
+              <p className="text-xs text-muted">After you approve, import these from the plugin’s card. Nothing is imported now.</p>
+            </div>
+          )}
+          <p className="text-xs text-muted">Cancel removes the entry just added. Nothing has run.</p>
+        </div>
+      )}
+      {error && (
+        <p role="alert" className="text-sm text-danger">
+          {error}
+        </p>
+      )}
+      <div className="flex flex-wrap justify-end gap-2">
+        <Btn type="button" onClick={cancel} disabled={busy}>
+          Cancel
+        </Btn>
+        {(step === 1 || step === 2) && (
+          <Btn type="button" onClick={() => setStep(step - 1)} disabled={busy}>
+            Back
+          </Btn>
+        )}
+        {step === 0 && (
+          <Btn type="button" primary onClick={() => void look()} disabled={busy}>
+            {form.where === 'git' ? 'Find the commit' : 'Next'}
+          </Btn>
+        )}
+        {step === 1 && (
+          <Btn
+            type="button"
+            primary
+            disabled={busy || Boolean(problem)}
+            onClick={() => {
+              const checked = addInput(form)
+              if (checked.error) return setError(checked.error)
+              setStep(2)
+            }}
+          >
+            Next
+          </Btn>
+        )}
+        {step === 2 && (
+          <Btn type="button" primary onClick={() => void add()} disabled={busy || (form.scope === 'repository' && !confirmPublic)}>
+            {form.where === 'git' ? 'Fetch and review' : 'Add and review'}
+          </Btn>
+        )}
+        {step === 3 && added && canApprove(added) && (
+          <Btn type="button" primary onClick={() => void approve()} disabled={busy}>
+            Approve version {added.version}
+            {added.commit ? ` at ${added.commit.slice(0, 12)}` : ''}
+          </Btn>
+        )}
+        {step === 3 && added && !canApprove(added) && (
+          <Btn type="button" primary onClick={() => onClose(`Added ${added.id}. It can't be approved yet: ${added.reason ?? stateLabel(added).label}.`)}>
+            Keep it unapproved
+          </Btn>
+        )}
+      </div>
+    </Modal>
   )
 }
 

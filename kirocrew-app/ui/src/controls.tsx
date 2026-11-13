@@ -22,7 +22,7 @@ import { chatClient, type ChatSeed } from './chat-api.ts'
 import { errorMessage } from './workspace-api.ts'
 import { moreLabel, visibleCount } from './paging.ts'
 import { Tooltip } from './Tooltip.tsx'
-import { useBackStep } from './NavHistory.tsx'
+import { Modal } from './Modal.tsx'
 
 export const ICON = 14
 
@@ -116,47 +116,39 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     pending?.resolve(yes)
     setPending(null)
   }
-  // Esc and Back say no, like Cancel.
-  useBackStep('confirm', pending !== null, 'Cancel', () => answer(false))
   useEffect(() => {
     if (pending) cancel.current?.focus()
   }, [pending])
   return (
     <ConfirmContext.Provider value={ask}>
       {children}
+      {/* Esc, Back and a click outside say no, like Cancel. */}
       {pending && (
-        <div className="fixed inset-0" style={{ zIndex: 70, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div
-            aria-hidden="true"
-            className="absolute inset-0"
-            onClick={() => answer(false)}
-            style={{ background: 'color-mix(in srgb, var(--text) 30%, transparent)' }}
-          />
-          <div
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="avoozl-confirm-title"
-            aria-describedby="avoozl-confirm-body"
-            data-confirm-dialog
-            className="relative rounded-lg border p-4 shadow-lg"
-            style={{ width: 'min(28rem, 92vw)', background: 'var(--card, var(--bg))', color: 'var(--text)', borderColor: 'var(--border)' }}
-          >
-            <h3 id="avoozl-confirm-title" className="text-base font-semibold">
-              {pending.title}
-            </h3>
-            <p id="avoozl-confirm-body" className="mt-2 text-sm text-muted">
-              {pending.body}
-            </p>
-            <div className="mt-4 flex justify-end gap-2">
-              <Btn ref={cancel} type="button" onClick={() => answer(false)}>
-                Cancel
-              </Btn>
-              <Btn type="button" data-danger onClick={() => answer(true)} style={dangerFill}>
-                {pending.action}
-              </Btn>
-            </div>
+        <Modal
+          id="avoozl-confirm"
+          kind="confirm"
+          role="alertdialog"
+          backLabel="Cancel"
+          width="28rem"
+          describedBy="avoozl-confirm-body"
+          attrs={{ 'data-confirm-dialog': true }}
+          onDismiss={() => answer(false)}
+        >
+          <h3 id="avoozl-confirm-title" className="text-base font-semibold">
+            {pending.title}
+          </h3>
+          <p id="avoozl-confirm-body" className="text-sm text-muted">
+            {pending.body}
+          </p>
+          <div className="flex justify-end gap-2">
+            <Btn ref={cancel} type="button" onClick={() => answer(false)}>
+              Cancel
+            </Btn>
+            <Btn type="button" data-danger onClick={() => answer(true)} style={dangerFill}>
+              {pending.action}
+            </Btn>
           </div>
-        </div>
+        </Modal>
       )}
     </ConfirmContext.Provider>
   )

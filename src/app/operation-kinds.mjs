@@ -79,7 +79,10 @@ const OBSERVE = new Set([
   "prices.get",
   "flow.proposals",
   "lessons.view",
+  "lessons.share.preview",
   "plugin.lessons.preview",
+  "driver.status",
+  "driver.takeover.preview",
   "routing.view",
   "routing.preview",
   "providers.view",
@@ -186,6 +189,7 @@ const EXECUTE = new Set([
   "prompt.override.rebase",
   "plugin.lessons.import",
   "lessons.export",
+  "lessons.share",
   "runner.claim",
   "notifications.deliver",
   "batch.start",
@@ -201,6 +205,11 @@ const EXECUTE = new Set([
 ]);
 
 const PROTECT = new Set([
+  "driver.settings.update",
+  "driver.handoff",
+  "driver.takeover",
+  "driver.forceTakeover",
+  "driver.away.decide",
   "routing.update",
   "crews.update",
   "provider.switch",

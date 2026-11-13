@@ -129,7 +129,8 @@ export function roleTarget(role) {
 
 // --------------------------------------------------------------- skills
 
-const SKILL_FILE = /(?:^|\/)SKILL\.md$|\/skills\/[^/]+\.md$/;
+// Either separator, so a Windows path reads the same (P42 on Windows).
+const SKILL_FILE = /(?:^|[\\/])SKILL\.md$|[\\/]skills[\\/][^\\/]+\.md$/;
 export const isSkillPath = (file) =>
   typeof file === "string" && SKILL_FILE.test(file);
 
@@ -249,7 +250,12 @@ export function knownNames(store) {
     ...data.tasks.map((t) => t.id),
     ...store
       .list("projects")
-      .flatMap((p) => [p.id, p.github, p.github?.split("/").at(-1)]),
+      .flatMap((p) => [
+        p.id,
+        p.repository,
+        p.repository?.split("/").at(-1),
+        p.github,
+      ]),
   ].filter((v) => typeof v === "string" && v.length > 2);
 }
 
