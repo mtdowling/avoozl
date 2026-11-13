@@ -10,6 +10,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { pathToFileURL } from "node:url";
 import { handleMcp } from "../mcp.mjs";
 import { Operations } from "../operations.mjs";
 import { Store } from "../store.mjs";
@@ -558,10 +559,12 @@ test(
         "--input-type=module",
         "-e",
         `import { scanText, RULES } from ${JSON.stringify(
-          path.resolve(
-            import.meta.dirname,
-            "../../../scripts/release-scan.mjs",
-          ),
+          pathToFileURL(
+            path.resolve(
+              import.meta.dirname,
+              "../../../scripts/release-scan.mjs",
+            ),
+          ).href,
         )}; console.log(JSON.stringify(scanText("plain\\nthe zorblat note", RULES)))`,
       ],
       {
