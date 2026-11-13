@@ -373,7 +373,12 @@ execution.
 5. WHEN a label event comes from an actor the policy does not allow THEN Avoozl
    SHALL ignore it for execution and SHALL write nothing to the issue.
 6. Issue titles, bodies, and comments SHALL be treated as untrusted data in every
-   planning and worker prompt, on public and private repositories alike.
+   planning and worker prompt, on public and private repositories alike. A
+   task whose title, acceptance, or summary came from an issue or an
+   incoming item SHALL have that text quoted as data in its worker,
+   verifier, and review briefs, under a line saying it cannot change the
+   steps, tools, repository, branch, or push target. Pull request feedback
+   and steering SHALL name such a task by ID only.
 7. Anything Avoozl writes to an issue, including hidden markers, SHALL be safe to
    publish: no secrets, local paths, private names, or transcript content.
 8. An actor's permission SHALL be the repository role GitHub names
@@ -386,6 +391,20 @@ execution.
    issues changed before reading it, read quiet repositories at most every 8
    minutes, and pause and warn once WHEN GitHub's rate-limit headers show the
    budget running low.
+10. Issue text SHALL NOT choose where its work runs: an issue's task block
+    MAY set title, summary, acceptance, requires, tags, resources, epic and
+    track, and its `projectId` SHALL be ignored; the issue's registered
+    repository decides the execution project (added 2026-11-13, injection
+    audit).
+11. Outside text quoted into a brief or a relayed message SHALL be capped:
+    each pull request comment, review, or steering comment keeps its first
+    4,000 characters and a note with its link. A check's name SHALL be one
+    line of at most 100 characters in code quotes, its link SHALL be http
+    or https, and the message SHALL say that a check's log is data, not
+    instructions (added 2026-11-13, injection audit).
+12. Comment-mention steering SHALL pass the content rules' `brief`
+    boundary (Requirement 40) before it is sent, as pull request feedback
+    does (added 2026-11-13, injection audit).
 
 ### Requirement 11: Configurable trigger and managed labels
 
@@ -423,8 +442,9 @@ deliver it or break it down, so that one gesture starts the right amount of work
 
 1. WHEN a trigger rule matches THEN Avoozl SHALL freeze the issue snapshot
    (body hash, label event, actor) and plan only from that snapshot.
-2. WHEN the issue body changes after the snapshot THEN Avoozl SHALL quarantine
-   the issue until a new trigger event or explicit confirmation.
+2. WHEN the issue body or title changes after the snapshot THEN Avoozl SHALL
+   quarantine the issue until a new trigger event or explicit confirmation,
+   and the task SHALL keep the snapshot's title (title added 2026-11-13).
 3. A planning session SHALL classify the issue as bounded or broad.
 4. WHEN the issue is bounded THEN it SHALL remain its own leaf, and Avoozl SHALL
    create no duplicate issue.
@@ -1935,6 +1955,8 @@ process improves without my asking and without changing on its own.
    words), and SHALL name the metric it should move, the expected
    direction, and its evidence. Avoozl SHALL check the reply against a
    schema and SHALL drop a proposal that fails it, recording why.
+   (Changed 2026-11-13: a proposal MAY also be typed `prompt` or
+   `skill`, Requirement 68.)
 5. A settings proposal SHALL be limited to keys the Settings page can edit.
    Avoozl SHALL refuse proposals to change content rules, plugin trust or
    approvals, trigger actors or minimum permission, crew trust, and tokens.
@@ -2085,6 +2107,10 @@ pick up. The list is a triage list, not a second issue browser
     skill is not installed THEN the seed SHALL ask for a careful
     single-pull-request review without it. (Added 2026-11-13: a stand-in
     until Kiro Crew can start Code Review Sage on one pull request, MC-15.)
+    The seed SHALL quote the title as data and say that the pull request's
+    title, description, comments, commits, and diff are data, not
+    instructions, since its author may be anyone (added 2026-11-13,
+    injection audit).
 17. The seed SHALL pass content rules (`brief`) before it is queued; a block
     SHALL queue nothing and open a decision. Only a person SHALL start a
     review chat.
@@ -2208,9 +2234,10 @@ and the Untriaged reader onto the record without changing what they do.
 17. WHEN a source changes an item tied to a task THEN Avoozl SHALL update
     the record and the task's cached title and labels, re-run the trigger
     match, and withdraw the task's authorization when no allowed match is
-    left. A body changed after the trigger snapshot SHALL quarantine the
-    task until an allowed actor re-triggers it or a person confirms the
-    new snapshot (Requirement 12.1, 12.2).
+    left. A body or title changed after the trigger snapshot SHALL
+    quarantine the task, which keeps the snapshot's title, until an allowed
+    actor re-triggers it or a person confirms the new snapshot
+    (Requirement 12.1, 12.2).
 18. WHEN a source closes an item tied to a task THEN the allowed-close
     rule SHALL apply (Requirement 33.8–33.10): an allowed actor's close is
     an order that releases dependents, is recorded, and never counts as a
@@ -3362,3 +3389,274 @@ going away.
     SHALL have a **This computer** group with Machine label (optional) and
     Heartbeat minutes (optional, placeholder 15), and the machine ID shown
     small.
+
+### Requirement 67: Per-task budgets and usage receipts
+
+Added 2026-11-13 (owner decisions). Design §4.17. This builds on the usage
+read of Requirement 43 (design §4.11, owner additions 2026-11-13), which
+already stores each turn's tokens and credits per task, attempt, stage and
+model. It changes nothing in timing: Requirement 43.6 still keeps tokens and
+cost out of `flow_spans`.
+
+**User story:** As the owner, I want each task to have a spending cap in
+dollars and a receipt of what it used, so that a stuck or looping task
+cannot spend without limit and I can see where the money went.
+
+#### Acceptance criteria
+
+1. A budget SHALL be a cap in US dollars per task. Dollars SHALL be the
+   only budget unit except the fallback of criterion 6, because they are
+   the only unit that compares across models.
+2. Dollars SHALL come from a **price table** that lives only on this
+   machine, in machine-local settings (`~/.config/avoozl/config.json` key
+   `prices`). It SHALL hold, per model ID, a dollar price per million input
+   tokens and per million output tokens, and one dollar price per Kiro
+   credit. Validation SHALL refuse a `prices` key in `.avoozl.json`, a
+   plugin pack, or a spec. The owner SHALL be able to edit it in Settings.
+   Avoozl SHALL ship no prices: a new table is empty.
+3. Each save of the price table SHALL get the next version number and a
+   sha256 of its contents, and Avoozl SHALL keep every saved version in
+   SQLite so an old receipt can name the one it used.
+4. Avoozl SHALL store raw counts only: each turn's input tokens, output
+   tokens and credits, as Requirement 43 already does. Dollars SHALL be
+   computed on read from the raw counts and a price table version. A turn
+   with credits SHALL be priced by the credit price; a turn with only
+   tokens by its model's token prices.
+5. A budget SHALL be set at four levels, the most specific winning: the
+   workspace default (`budget` in `.avoozl.json`), the repository
+   (`projects.<id>.budget`), the spec (top-level `budget` in
+   `avoozl/manifest.json`), and the task (a leaf's `budget` in the
+   manifest). Each level SHALL take `usd` and, for criterion 6, `tokens`
+   and `credits`. With no level set, a task SHALL have no cap, and its
+   receipt SHALL still be kept.
+6. WHEN a turn cannot be priced (its model has no price, or it has credits
+   and there is no credit price) THEN the dollar cap SHALL NOT be enforced
+   for that turn. Avoozl SHALL warn once per task and model on the task and
+   in Settings › Prices, and SHALL count unpriced turns against the token
+   cap (input plus output) and the credit cap instead. Where no level sets
+   them, these caps SHALL default to 2,000,000 tokens and 200 credits per
+   task.
+7. A task's spend SHALL include every session bound to it: each attempt
+   and retry, the verifier, each review round, and pull request feedback
+   rounds (Requirement 54). A fix task (Requirement 44.7) SHALL have its
+   own cap. A batch session (Requirement 46) SHALL have the sum of its
+   tasks' caps, and each task's receipt SHALL show an equal share of the
+   batch's turns, marked shared.
+8. Avoozl SHALL check spend after each usage read and before it dispatches
+   any session for the task. WHEN spend reaches the cap THEN Avoozl SHALL
+   NOT dispatch a new session for the task, and SHALL ask each live session
+   bound to it to stop at its next turn boundary. Avoozl SHALL NOT
+   interrupt a turn, end a tool call, or close or stop a session. Spend MAY
+   pass the cap by the turns that ran before the read; the receipt SHALL
+   show by how much.
+9. A task stopped by its budget SHALL go to **Needs you** with two
+   actions, both a person's only: **Raise budget**, which takes a new cap,
+   records who raised it, from what, to what, and when, and lets the task
+   go on (the same session if it is still live, else the next attempt);
+   and **Stop**, which pauses the task the way Deferred does (Requirement
+   29), leaves its session and worktree alone, and holds its dependents.
+   Agent, MCP, app-token and plugin callers SHALL be refused with 403. A
+   budget stop SHALL NOT cost the task an attempt.
+10. The task drawer, the Delivery card and the In flight card SHALL show
+    spend so far against the cap (for example `$1.20 / $5.00`), the token
+    and credit totals, and the time of the last usage read.
+11. Each task SHALL have a **receipt**: its turns totaled by Flow stage, by
+    model and by attempt, each line with input tokens, output tokens,
+    credits, dollars, and whether it was priced; the cap and its level;
+    every raise; and the price table version and hash used. The drawer
+    SHALL show it and SHALL export it as JSON. The receipt SHALL be read
+    through `budget.receipt` on the page, `avoozl budget receipt TASK
+    --json` on the CLI, and `plans_view` action `receipt` on MCP. It SHALL
+    hold counts, dollars, model IDs, stage names and times only: no
+    prompts, transcript text or tool output.
+12. A receipt SHALL show dollars from the current price table and, for a
+    budget stop or raise, the dollars and version that applied then. WHEN
+    the price table changes THEN receipts SHALL recompute from the raw
+    counts on the next read.
+13. The retro (Requirement 47) SHALL receive each finished task's receipt
+    totals by stage and model in its payload.
+14. WHERE usage cannot be read THEN spend is unknown, and Avoozl SHALL say
+    so on the task: a Crew Mode worker (Avoozl reads only sessions its tick
+    opened), a remote chat (no usage read reaches another crew), an Issue
+    Radar route (Avoozl opens no session), or a usage read that fails. The
+    receipt SHALL be marked incomplete with the reason. Avoozl SHALL warn
+    once per task, SHALL NOT stop the task for unknown spend, and SHALL keep
+    the last known spend with its time. Known spend SHALL still count
+    against the cap.
+15. A budget SHALL be a cap and never a permission. Raising or having a
+    budget SHALL NOT change who counts, content rules (Requirement 40),
+    checks, reviews, approval, or proofs, and SHALL NOT start, approve or
+    finish any task.
+16. An incoming item (Requirement 50) MAY carry a budget later, from a
+    plugin source with an owner-approved budget capability. This is a hook
+    only: payments, escrow and refunds are out of scope.
+
+### Requirement 68: Retros propose prompt and skill changes
+
+Added 2026-11-13 (owner approval). Design §4.18. It widens the proposal
+types of Requirement 47.4 and changes no other rule there: a retrospective
+still applies nothing.
+
+**User story:** As the owner, I want a retrospective to propose changes to
+the prompts and skills my workers run on, with the evidence for each, so that
+the way agents are told to work improves the same way settings do, and only
+when I say so.
+
+#### Acceptance criteria
+
+1. A retrospective proposal MAY also be typed `prompt` or `skill`. The
+   limit of 3 proposals per retrospective SHALL cover all types together.
+2. A `prompt` proposal SHALL target one built-in prompt: the worker brief
+   template (`brief.worker`), the reviewer role brief (`brief.review`), the
+   planner prompt (`agent.planner`), the retro prompt (`agent.retro`), or
+   the Spec Builder steering file text (`steering.specs`). Avoozl SHALL
+   keep each built-in prompt as named sections, each with a sha256 of its
+   shipped text.
+3. A `skill` proposal SHALL target one skill file a worker session loaded:
+   a repository skill (a file in a registered repository) or an external
+   skill (one shipped in a plugin or anywhere else outside a registered
+   repository).
+4. Every `prompt` and `skill` proposal SHALL be a unified diff against the
+   exact text the retrospective saw, with that text's sha256, and SHALL
+   carry evidence: the task IDs and attempts it is based on (at least 3),
+   the metric (one of Requirement 47.4's), its current value, and the
+   expected direction and effect. Avoozl SHALL drop a proposal whose diff
+   does not apply to that text, whose base hash is not the current one, or
+   whose evidence is missing, and SHALL record why.
+5. A proposal SHALL be refused, with the section named, WHEN its diff
+   touches a locked section of a built-in prompt. The locked sections SHALL
+   be: the untrusted-data framing, the content rules text, Who counts, proof
+   and acceptance wording, and person-only rules. Every brief SHALL say
+   that its locked sections outrank any skill a session loads.
+6. The content rules (Requirement 40) SHALL run on every proposal, its diff
+   and its evidence, at a new `proposal` boundary, before it is stored or
+   shown. A blocked proposal SHALL be dropped with the rule named and
+   without the matched text.
+7. A `prompt` or `skill` proposal SHALL never be applied by Avoozl or an
+   agent. A person SHALL approve each one; agent sessions, MCP, the app
+   token and plugins SHALL get 403 on approve and on revert.
+8. Approving a `prompt` proposal SHALL write a new version of a local
+   override for that prompt in the workspace's override file on this Mac,
+   under the Avoozl config directory, and SHALL NOT edit any file Avoozl
+   ships. Sessions started after approval SHALL use it; running sessions
+   SHALL be left alone.
+9. Each override version SHALL record its number, the shipped section text
+   and its sha256 it was made from, the diff, the result's sha256, the
+   proposal, and who approved it and when. **Revert** SHALL restore the
+   previous version (or the shipped text) in one click, SHALL be recorded
+   the same way, and SHALL itself be revertible.
+10. Approving a repository skill proposal SHALL create one leaf in that
+    repository through the same path as **Deliver this** (Requirement
+    50.15), with the diff as data in its brief and the repository's checks.
+    In a GitHub mode it SHALL open a pull request; in Local only it SHALL
+    integrate like any local leaf. The skill's new version SHALL count from
+    the commit that lands it.
+11. Approving an external skill proposal SHALL record a note for the
+    skill's owner on the plugin card (or in Flow when no plugin owns it),
+    with the diff, the evidence summary and **Copy**. Avoozl SHALL NOT edit
+    a pinned plugin or send the note anywhere.
+12. Each delivery attempt SHALL record which version of each built-in
+    prompt it used and the sha256 of each skill file it loaded (from tool
+    calls where Avoozl can read them, else from the worker's report). The
+    receipt and the Timing section SHALL show them.
+13. The PDCA check (Requirement 47.7) SHALL compare a `prompt` or `skill`
+    change's metric over the last `flow.retro.everyTasks` finished tasks
+    that used the previous version with the same number that used the new
+    one, and SHALL mark a window "mixed" when another change took effect in
+    it. WHEN it did not help THEN the next retrospective SHALL include a
+    typed proposal to revert it.
+14. The Flow tab SHALL have a **Proposals** view listing every proposal
+    with its type, target, base version, diff, evidence, cited lessons
+    (Requirement 69), **Approve** and **Reject**, and per prompt the
+    versions in use with **Revert**.
+
+### Requirement 69: Retro memory across workspaces
+
+Added 2026-11-13 (owner approval). Design §4.18.
+
+**User story:** As the owner, I want what one workspace's retrospectives
+learned to inform retrospectives in my other workspaces on this Mac, so
+that a fix proven once is suggested again where it fits, and a change that
+failed is not tried again.
+
+#### Acceptance criteria
+
+1. Avoozl SHALL keep one lessons store on this Mac, under the Avoozl
+   config directory, and SHALL NOT write lessons to any repository,
+   tracked file, GitHub, or driver export.
+2. A lesson SHALL hold: a pattern (stage, check kind, tool, and
+   repository traits such as languages and build files), a finding, the
+   change made (type, target, and a summary), the PDCA outcome (`kept`,
+   `undone`, or `untested`), evidence counts (tasks and runs, metric before
+   and after), the source workspace's random ID, and the date.
+3. Approving a proposal SHALL write a lesson with outcome `untested`. The
+   PDCA result SHALL set it to `kept` (helped) or `undone` (a revert was
+   approved after it did not help).
+4. A lesson SHALL hold summaries only. Validation SHALL refuse a lesson
+   whose text holds a task ID, file path, issue or pull request number,
+   repository name, URL, or more than 300 characters per field, and the
+   content rules SHALL run at a new `lesson` boundary when a lesson is
+   written and again, with the reading workspace's rules, when it is used.
+5. A retrospective's brief SHALL hold up to 10 lessons whose pattern
+   matches its workspace's traits and stage, ranked `kept` first, then by
+   confidence (Requirement 70), then by evidence count, then by date, and
+   SHALL list `undone` and retired lessons as "did not work" so they are
+   not proposed again. A proposal MAY cite lesson IDs, and Avoozl SHALL
+   drop a cited ID that was not in the brief.
+6. Each workspace SHALL have `flow.lessons.share` (write its lessons to the
+   store) and `flow.lessons.read` (use other workspaces' lessons), both
+   default `true`. A workspace always reads its own lessons.
+7. A plugin bundle MAY ship a lessons pack. Import SHALL show a preview
+   first and SHALL be a person's act with the preview hash, like a
+   settings pack (Requirement 55). Imported lessons SHALL be read-only and
+   name the plugin and its version as their source.
+8. Exporting lessons to a pack file SHALL be person-only; other callers
+   SHALL get 403. The export SHALL pass the content rules.
+9. An `untested` lesson SHALL expire after `flow.lessons.untestedDays`
+   (default 90) and no longer be used. An `undone` lesson SHALL be kept as
+   "did not work" with no expiry.
+10. The Flow tab SHALL have a **Lessons** view with filters for pattern,
+    outcome, source, and state, and Settings › Flow SHALL have a
+    **Lessons** sub-group with the two sharing switches and the ages.
+
+### Requirement 70: Lessons and overrides heal as things change
+
+Added 2026-11-13 (owner steer). Design §4.18.
+
+**User story:** As the owner, I want stored lessons and local prompt
+overrides to notice when the things they were learned on change, so that
+stale advice stops being used without my clearing it by hand.
+
+#### Acceptance criteria
+
+1. Each lesson SHALL record the context it was learned in: Avoozl version,
+   model IDs, the prompt and skill versions in use, check and tool names,
+   repository traits, and the metric's baseline.
+2. Avoozl SHALL re-check a lesson WHEN a model it names is retired (no
+   longer listed by Kiro Crew) or replaced in that stage, a prompt or skill
+   version it relies on changed, a check or tool it names was renamed or
+   removed, the matching repositories' traits changed, a newer PDCA result
+   for the same pattern and change contradicts it, or it was not confirmed
+   within `flow.lessons.confirmDays` (default 180).
+3. Without approval, Avoozl SHALL re-score a lesson's confidence from fresh
+   runs, mark it `stale` or `needs re-check` with the reason, and stop
+   offering it in briefs for proposals until fresh runs confirm it. Each of
+   these marks SHALL be undone by itself when its cause clears, and SHALL
+   be recorded in the lesson's history.
+4. Rewriting a lesson's text, merging duplicates, and retiring a lesson
+   SHALL need a person. A lessons review SHALL run inside every
+   `flow.lessons.reviewEvery` retrospectives (default 5) and propose these
+   as diffs with evidence in the Proposals view. Avoozl SHALL NOT delete a
+   lesson; a retired one SHALL stay as history and count as "did not work".
+5. WHEN an Avoozl update changes a built-in prompt section under a local
+   override THEN Avoozl SHALL flag the override, show a three-way diff (old
+   built-in, new built-in, override), and propose a rebased override. Until
+   a person approves it, sessions SHALL keep using the override and the
+   Flow tab and Settings SHALL warn. A locked section SHALL always use the
+   new built-in text.
+6. WHEN a plugin's lessons pack changes version THEN Avoozl SHALL re-check
+   its imported lessons: changed ones become `needs re-check` until the new
+   pack is imported, and removed ones are retired with that reason. Rules
+   1–4 SHALL apply to pack lessons as to local ones.
+7. The Lessons view SHALL show each lesson's confidence, last confirmed
+   date, state and stale reason, and its history.

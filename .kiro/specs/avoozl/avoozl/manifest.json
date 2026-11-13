@@ -5171,6 +5171,266 @@
         "26.3",
         "26.4"
       ]
+    },
+    "27.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 27 (Budgets and receipts). See R67.1–R67.5; §4.17.",
+      "acceptance": [
+        "Price table and budget levels, after 12.12",
+        "A machine-local, versioned price table with no shipped prices, refused in tracked files, packs and manifests; budget usd, tokens and credits at workspace, repository, spec and task, most specific key winning; fallback caps of 2,000,000 tokens and 200 credits; the driver export leaves prices out."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "12.12"
+      ]
+    },
+    "27.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 27 (Budgets and receipts). See R67.4, R67.7, R67.11–R67.14; §4.17.",
+      "acceptance": [
+        "Spend and receipts, after 27.1 and 12.9",
+        "Turns are priced on read from raw counts; budget.receipt gives totals by stage, model and attempt with priced flags, cap and level, raises, stops, price version and hash, and missing reasons; the CLI, plans_view action receipt and the retro payload carry it; no prompt or text is held."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "27.1",
+        "12.9"
+      ]
+    },
+    "27.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 27 (Budgets and receipts). See R67.6–R67.9, R67.14, R67.15; §4.17.",
+      "acceptance": [
+        "Stop at the cap, Raise budget and Stop, after 27.2, 12.8 and 15.4",
+        "At a cap nothing new is dispatched for the task, each live session gets one stop message and budget_reached on its Avoozl calls, and no session is stopped, interrupted or closed; Raise budget and Stop are person only and cost no attempt; unpriced turns use the token and credit caps; unknown spend warns and never stops; no gate reads the budget."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "27.2",
+        "12.8",
+        "15.4"
+      ]
+    },
+    "27.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 27 (Budgets and receipts). See R67.2, R67.10, R67.11; §4.17.",
+      "acceptance": [
+        "Spend on the page and Settings › Prices, after 27.3 and 12.11",
+        "The drawer Budget fold with Export JSON, the spend chip on the Delivery and In flight cards, Settings › Prices marked this computer only, and the budget fields work at 375 and 1280 px in light and dark."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "27.3",
+        "12.11"
+      ]
+    },
+    "avoozl-p41": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 27 (Budgets and receipts). Proof. See R67; §4.17.",
+      "acceptance": [
+        "Proof: budgets and receipts",
+        "Expected: caps resolve by level; a capped task gets no new session and a stop message only after its running turn, with no session stopped; retries, verifier and review rounds share one cap; a batch shares the sum of its caps; unpriced turns stop at the token or credit cap; Raise budget and Stop are person only; a price change recomputes the receipt and keeps the stop's old dollars; unknown spend warns without stopping; export, CLI and MCP agree with no text; no budget opens a gate."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "27.1",
+        "27.2",
+        "27.3",
+        "27.4"
+      ]
+    },
+    "28.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 28 (Retro prompt and skill proposals, and lessons). See R68.2, R68.5, R68.8, R68.9; §4.18.",
+      "acceptance": [
+        "Prompt registry and override store, after 12.9",
+        "The five built-in prompts are named sections with shipped hashes and locked sections; overrides live in the workspace's file under the Avoozl config directory with full version records; person-only revert; briefs, seeds and the steering template use the override; no shipped file changes."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "12.9"
+      ]
+    },
+    "28.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 28 (Retro prompt and skill proposals, and lessons). See R68.1, R68.3–R68.6; §4.18.",
+      "acceptance": [
+        "Prompt and skill proposals in the retro, after 28.1",
+        "The retro brief holds unlocked sections and up to 3 skill texts; prompt and skill proposals carry a base hash, a diff and evidence from 3 or more runs; bad diffs, stale bases, missing evidence and locked sections are dropped with reasons; the `proposal` content-rule boundary runs on each."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "28.1"
+      ]
+    },
+    "28.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 28 (Retro prompt and skill proposals, and lessons). See R68.7–R68.11; §4.18.",
+      "acceptance": [
+        "Approve and where each change lands, after 28.2 and 14.10",
+        "Only a person approves; a prompt change writes an override version, a repository skill change makes one leaf through Deliver this, and an external skill change writes a note on the plugin card; nothing edits a shipped file or a pinned plugin."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "28.2",
+        "14.10"
+      ]
+    },
+    "28.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 28 (Retro prompt and skill proposals, and lessons). See R68.12, R68.13; §4.18.",
+      "acceptance": [
+        "Prompt and skill versions on attempts and PDCA, after 28.3 and 12.10",
+        "Each attempt records prompt versions and skill hashes, shown in the receipt and Timing; PDCA compares old and new versions and marks mixed windows; a change that did not help gets a revert proposal."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "28.3",
+        "12.10"
+      ]
+    },
+    "28.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 28 (Retro prompt and skill proposals, and lessons). See R69.1–R69.6, R69.9, R70.1; §4.18.",
+      "acceptance": [
+        "Lessons store, write and read, after 28.2 and 12.10",
+        "One lessons SQLite file on this Mac with pattern, finding, change, outcome, evidence, context and source; summary-only validation and the `lesson` boundary on write and use; ranked matching lessons and a did-not-work list in the brief; share and read switches; untested expiry."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "28.2",
+        "12.10"
+      ]
+    },
+    "28.6": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 28 (Retro prompt and skill proposals, and lessons). See R69.7, R69.8, R70.6; §4.18.",
+      "acceptance": [
+        "Lessons packs and export, after 28.5 and 16.3",
+        "A bundle's lessons pack imports read-only after a preview by a person; a new pack version re-checks changed lessons and retires removed ones; export is person-only and passes the content rules."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "28.5",
+        "16.3"
+      ]
+    },
+    "28.7": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 28 (Retro prompt and skill proposals, and lessons). See R70.2–R70.5; §4.18.",
+      "acceptance": [
+        "Healing, after 28.5 and 28.4",
+        "Drift checks mark lessons stale or needs re-check with reasons and clear on confirmation, all recorded; marked lessons are not citable; a lessons review proposes rewrite, merge and retire for a person; nothing is deleted; a changed built-in under an override shows a three-way diff and a rebase proposal while the override stays in use, and locked sections use the new text."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "28.5",
+        "28.4"
+      ]
+    },
+    "28.8": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 28 (Retro prompt and skill proposals, and lessons). See R68.14, R69.10, R70.7; §4.18.",
+      "acceptance": [
+        "Proposals and Lessons views and Settings, after 28.7, 28.6, 12.11 and 12.12",
+        "Flow has Overview, Proposals and Lessons views with diffs, evidence, Approve, Reject, Revert, filters, confidence, last confirmed, stale reason and history; Settings › Flow › Lessons has the switches and ages; drawn at 375 and 1280 px in light and dark."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "28.7",
+        "28.6",
+        "12.11",
+        "12.12"
+      ]
+    },
+    "avoozl-p42": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 28 (Retro prompt and skill proposals, and lessons). Proof. See R68, R69, R70; §4.18.",
+      "acceptance": [
+        "Proof: prompt and skill proposals, and lessons",
+        "Expected: no prompt or skill change applies without a person; locked sections, stale bases and blocked text are refused; overrides stay outside shipped files and revert in one step; repository skill changes land as leaves and external ones as notes; PDCA compares versions; lessons reach another workspace with no source text, honor opt-out, and heal on drift; override drift keeps the override with a rebase proposal; packs and export are person-only."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "28.1",
+        "28.2",
+        "28.3",
+        "28.4",
+        "28.5",
+        "28.6",
+        "28.7",
+        "28.8"
+      ]
     }
   }
 }
