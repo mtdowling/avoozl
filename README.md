@@ -24,11 +24,19 @@ kirocrew app install "$PWD/kirocrew-app"
 The build writes the page bundle and copies the CLI into
 `kirocrew-app/bin/lib`, so the installed app does not depend on this checkout.
 Then open Kiro Crew's App Store, review Avoozl's trust request, and enable it.
-The trust request asks for two API grants: the app's own `/apps/avoozl/api/*`,
-and `/api/chat/slots/avoozl_*`, which lets the app backend read the status of
-the sessions its tick opened (Kiro Crew still refuses any session the app does
-not own). An update that adds a grant waits until you approve it.
-The **Avoozl** page appears in the sidebar.
+The trust request asks for these API grants:
+
+| Grant                          | Used for                                                   |
+| ------------------------------ | ---------------------------------------------------------- |
+| `/apps/avoozl/api/*`           | The app's own backend                                      |
+| `/api/chat/slots/avoozl_*`     | Status of the sessions the tick opened, and no others      |
+| `/api/usage/turns`             | Token and credit counts per flow stage, for those sessions |
+| `/api/models`                  | The model lists in Settings                                |
+| `/api/apps/spec-builder/specs` | Handing a new plan to Spec Builder                         |
+| `/api/reveal`                  | Showing a plan file in the file browser                    |
+
+An update that adds a grant waits until you approve it. The **Avoozl** page
+appears in the sidebar.
 
 To update, pull, rebuild, and run `kirocrew app update avoozl`. A second
 `kirocrew app install` is refused once the app is installed.
@@ -56,6 +64,22 @@ A new workspace has no tasks, no repositories, and no trigger rules. To add a
 fictional example, run
 `node cli.mjs seed --workspace ~/plans --example product-launch`. Loading
 examples never approves a plan, starts a session, or configures a repository.
+
+## Where tasks live
+
+**Settings > Where tasks live** picks one of three modes (`github.mode` in
+`.avoozl.json`):
+
+| Mode              | `github.mode` | Tasks live in                   | Pull requests     | Who closes issues |
+| ----------------- | ------------- | ------------------------------- | ----------------- | ----------------- |
+| Local only        | `local`       | The workspace database          | None; local merge | No issues         |
+| Plans repository  | `plans-repo`  | Issues in a planning repository | Code repositories | Avoozl            |
+| Single repository | `single-repo` | Issues in the code repository   | The same repo     | `Closes #N`       |
+
+Local only is the default. Switching to Local only keeps your GitHub settings
+in the file, unused, so switching back restores them. In plans-repo mode a
+leak screen keeps the planning repository's name out of branches, pull
+requests, and comments in the code repositories.
 
 ## Plan
 
@@ -120,26 +144,89 @@ checks durable session and delivery records first.
 
 ## Deliver through GitHub
 
-Choose **Set up GitHub** in Settings. The wizard previews every write (labels,
-Project fields, issue types) and applies them only after you confirm. Two
-modes are supported:
-
-- **Single-repo**: issues, specs, and pull requests live in one code
-  repository. A pull request that says `Closes #N` closes its issue.
-- **Plans-repo**: issues and specs live in a planning repository, and pull
-  requests go to the code repositories. Avoozl closes the issues.
-
-Approved plans become issues, sub-issues, and blocked-by links, with a
-Project board as the view. Public and private repositories both work.
+Pick a GitHub mode under **Settings > Where tasks live**, then use **Set up
+GitHub** there, or **Settings > Repositories > Onboard** for a new folder. Both
+read GitHub first and preview every write (labels, Project fields, issue
+types); nothing is written until you confirm. Approved plans become issues,
+sub-issues, and blocked-by links, with a Project board as the view. Public and
+private repositories both work.
 
 Avoozl ships with no trigger rule, so no label starts any work until you add
 one. Each rule names an action, a `match` line in GitHub's issue-search
-syntax (for example `label:agent:go -label:hold`), and who may trigger it. See
+syntax (for example `label:agent:go -label:hold`), and is checked against
+**Who counts**: who may give orders with a label, a board drag, or a close.
+With nobody named, that is anyone with `write` permission. See
 [trigger rules and example policies](docs/policies.md).
 
-Other delivery routes and task trackers plug in as separate packages that
-you approve on each machine. See
-[writing a route or tracker plugin](docs/plugins.md).
+Other delivery routes, task trackers, intake sources, content rules, and
+settings packs plug in as separate packages that you approve on each
+machine. See [writing a plugin](docs/plugins.md).
+
+## Flow
+
+**Settings > Flow** holds these, in `.avoozl.json` under `flow` (a repository
+can override them). The Flow view shows where the time went.
+
+- **Timing** is always on. It records each task's time per stage, and token
+  and credit counts per stage. It keeps no prompts or text.
+- **Stop the line** (`stopTheLine.scope`, default `dependents`; or `repo`,
+  `all`): when a check that passed on the base branch fails on a later commit
+  and again on one rerun, new dispatch in scope waits and a fix task goes
+  first. Running sessions keep going. It resumes when the check passes, or
+  when a person presses **Run anyway**.
+- **Local checks first** (`localChecksFirst`, default `true`): a session that
+  pushes runs the declared checks in its worktree before each push.
+- **Batching** (`batch.max`, default `3`; `batch.by`, `epic` or `files`):
+  ready leaves the plan marks `size: "small"` that share an epic (or files)
+  run in one session and one worktree, one commit per task. A failing batch
+  splits. `1` turns it off.
+- **Retro** (`retro.everyTasks`, default `10`; `retro.slowFactor`, default
+  `2`): a tool-less `avoozl-retro` session names the biggest slowdown and
+  proposes up to three changes. You approve or reject each, and an approved
+  change is measured afterward.
+
+The red **Stop the line** button on the Dashboard is the Andon cord: a
+person, or an agent through MCP, stops new work for everything, one
+repository, one spec, or one task, with a one-line reason. Running sessions
+keep going. Only a person presses **Resume**.
+
+## Routing
+
+The **Routing** page decides which crew, agent, and model run each worker,
+checks, and reviewer session. With no rule set, nothing changes: every
+session runs on this machine with the agent and model from **Settings >
+Delivery**.
+
+- **Rules** (`routing.rules`) match labels, kinds, roles, repositories,
+  categories, or paths, and can require or forbid crew tags, keep a task
+  local, or pick an agent and model. A tracked `.avoozl.json` cannot pin a
+  crew by name; that lives in this machine's settings.
+- **Smart pick** (`routing.pick`) scores the crews the rules allow:
+  `balanced`, `keep-local`, `spread-out`, or your own weights.
+- **Model router** (`routing.router`, off by default) asks a tool-less
+  `avoozl-router` session to rank the allowed crews. No answer in time falls
+  back to smart pick.
+- **Pick again** makes a task's next attempt choose its agent and model
+  afresh.
+- **Hand-back**: a remote crew's work comes back either by `push` to the
+  repository remote or by `handback`, where this machine fetches the branch
+  from the crew's folder over SSH, pinning the host key on first use.
+  Avoozl never pushes either way.
+
+Remote crews are not live yet. Until Kiro Crew can open a session on another
+instance (Kiro Crew issue #36335), every session runs on this machine;
+Preview still shows where tasks would go. Hand-back over SSH is tested only
+with a fake `ssh` command.
+
+## Pull request feedback
+
+For each leaf an Avoozl worker codes on a linked branch, the tick reads its
+open pull request and sends what is new to the worker that wrote it: failed
+checks, changes requested, comments by people Who counts allows, merge
+conflicts, and auto-merge turned off. One message per pull request per tick.
+Avoozl writes nothing to GitHub here. It is on by default, for at most 5
+rounds per leaf; set `delivery.prFeedback` and `delivery.feedbackRounds`, or
+use **Settings > Delivery**. Issue Radar's leaves are skipped.
 
 ## Agents and the CLI
 
@@ -176,9 +263,14 @@ operation: `plans_workspace` (read only), `plans_maintain`, `plans_view`,
 `{"action": "get", "input": {"id": "TASK_ID"}}`.
 
 Some actions belong to a person and are refused over MCP under any tool name,
-old or new: approving a plan or plugin, Allow once, choosing a conflict
-winner, content-rule terms, Who counts and other settings, adding or removing
-repositories, GitHub setup writes, and deletes. Do these in the Avoozl app.
+old or new: approving or starting a plan, deletes, plugin changes, Allow
+once and content-rule terms, choosing a conflict winner, GitHub setup writes
+and settings (including Who counts), adding or removing repositories or
+intake sources, workspace, flow, delivery, and routing settings, Pick again,
+Run anyway, resuming a pulled stop, starting or deciding a retro, Deliver
+this and Plan this on an incoming item, sending issues to Issue Radar, and
+opening a code review chat. Do these in the Avoozl app. An agent may pull
+the Andon cord (`plans_session`, action `stop_line`), but not resume it.
 
 The older one-tool-per-operation `plans_*` names stay listed and keep
 working. Each description starts with `Deprecated:` and names its
@@ -192,6 +284,26 @@ node cli.mjs tick --workspace ~/plans
 ```
 
 Choose a workspace with `--workspace PATH` or `AVOOZL_WORKSPACE`.
+
+## What is tested
+
+Receipts are in [docs/evidence/](docs/evidence/). "Fakes" means automated
+tests with a fake GitHub, fake sessions, or fake crews, run by `npm test`.
+
+| Feature                                              | Tested                                                |
+| ---------------------------------------------------- | ----------------------------------------------------- |
+| Local delivery with real Kiro Crew sessions          | Live (P4, P5, P6)                                     |
+| Single-repo mode end to end                          | Live, in a test repository (P19, P20)                 |
+| Cross-repository edges and rebuild from GitHub       | Live, in test repositories (P9)                       |
+| Plans-repo mode and its leak screen                  | Fakes, plus read-only live queries                    |
+| Intake list                                          | Fakes, plus a read-only live count (P31)              |
+| Plugins, packs, plugin and MCP intake sources        | Fakes only (P26, P32, P35)                            |
+| Flow: timing, stop the line, batching, retros        | Fakes only (P30)                                      |
+| Andon cord                                           | Fakes only                                            |
+| Routing, model router, agent and model per task      | Fakes only (P29, P33); remote crews wait on Kiro Crew |
+| Pull request feedback                                | Fakes only (P34)                                      |
+| Spec Builder hand-off                                | Fakes only                                            |
+| Stacked pull requests, comment steering, Discussions | Fakes only                                            |
 
 ## Configuration and secrets
 
