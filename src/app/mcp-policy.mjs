@@ -90,6 +90,10 @@ export const PERSON_ONLY = new Map([
     "intake.plan",
     person("Only a person presses Plan this on an incoming item."),
   ],
+  [
+    "intake.confirm",
+    person("Only a person confirms an incoming item's changed text."),
+  ],
   ["intake.source.add", person("Only a person changes intake sources.")],
   ["intake.source.remove", person("Only a person changes intake sources.")],
   [

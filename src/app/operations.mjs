@@ -244,6 +244,7 @@ import {
   sourceRow as sourceRowOf,
   sourceMap,
   startByPerson,
+  confirmSnapshot,
   submitItems,
   viewItem,
 } from "./intake.mjs";
@@ -2256,6 +2257,7 @@ export class Operations {
       [
         "intake.deliver",
         "intake.plan",
+        "intake.confirm",
         "intake.source.add",
         "intake.source.remove",
       ].includes(name) &&
@@ -2266,6 +2268,10 @@ export class Operations {
           ? "Only a person changes intake sources, in Settings or the CLI."
           : "Only a person starts work from an incoming item, in the Intake tab or the CLI.",
         403,
+      );
+    if (name === "intake.confirm")
+      return withWorkLock(store, WORKSPACE_LOCK, async () =>
+        confirmSnapshot(store, input),
       );
     if (name === "intake.deliver" || name === "intake.plan")
       return withWorkLock(store, WORKSPACE_LOCK, async () =>

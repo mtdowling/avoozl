@@ -772,28 +772,19 @@ export function takeItem(store, source, item, context = {}) {
           route.reason ||
             "No rule matches this item for an allowed actor any more.",
         );
-      else if (
-        !retriggered &&
-        snapshotTitle !== record.title &&
-        task.intake?.confirmedHash !== bodyHash
-      )
+      else if (!retriggered && snapshotTitle !== record.title)
         setDispatch(
           task,
           false,
           "quarantined",
-          "The item's title changed after its trigger snapshot. An allowed actor re-triggers it, or a person confirms the new text.",
+          "The item's title changed after its trigger snapshot. An allowed actor re-triggers it, or a person confirms the new text (intake.confirm).",
         );
-      else if (
-        snapshot &&
-        snapshot !== bodyHash &&
-        !retriggered &&
-        task.intake?.confirmedHash !== bodyHash
-      )
+      else if (snapshot && snapshot !== bodyHash && !retriggered)
         setDispatch(
           task,
           false,
           "quarantined",
-          "The item's body changed after its trigger snapshot. An allowed actor re-triggers it, or a person confirms the new text.",
+          "The item's body changed after its trigger snapshot. An allowed actor re-triggers it, or a person confirms the new text (intake.confirm).",
         );
       else if (waiting) setDispatch(task, false, "waiting", WAITING_REASON);
       else {
@@ -1050,7 +1041,52 @@ export function viewItem(store, input = {}) {
     claims: row.claims ?? null,
     findings: row.findings ?? [],
     history: row.history ?? [],
+    snapshotHash: snapshotDigest(row.record),
   };
+}
+
+// The text a person confirms: the item's title and body as they read them.
+export const snapshotDigest = (item) =>
+  digest(`${item.title}\n\n${item.body || ""}`);
+
+// intake.confirm (R50.17): a person confirms the changed title and body of
+// an item whose task is held for it, naming the snapshotHash intake.view
+// showed. The task's snapshot moves to that text and it may run again. The
+// caller refuses a session or MCP with 403.
+export function confirmSnapshot(store, { source, id, hash } = {}) {
+  if (typeof source !== "string" || typeof id !== "string")
+    fail("Name the item's source and id.");
+  const row = store.get("incoming_items", itemKey(source, id));
+  if (!row?.record) fail(`No item ${id} from source ${source}.`, 404);
+  const task =
+    row.taskId && store.read().tasks.find((entry) => entry.id === row.taskId);
+  if (!task?.intake || task.dispatch?.state !== "quarantined")
+    fail(`${id}'s task is not held for changed text.`, 409);
+  if (hash !== snapshotDigest(row.record))
+    fail(
+      `${id} changed since you read it. Read it again with intake.view, then confirm.`,
+      409,
+    );
+  const item = row.record,
+    at = new Date().toISOString();
+  patchTask(
+    store,
+    task.id,
+    `Confirm the new text of ${source} ${id}`,
+    (next) => {
+      next.title = item.title;
+      next.intake.snapshotHash = digest(item.body || "");
+      next.intake.snapshotTitle = item.title;
+      next.intake.confirmedHash = hash;
+      next.intake.confirmedAt = at;
+      next.approvedSource = {
+        hash: next.intake.snapshotHash,
+        text: item.body || "",
+      };
+      setDispatch(next, true, "authorized", "A person confirmed the new text.");
+    },
+  );
+  return { source, id, taskId: task.id, confirmedAt: at };
 }
 
 // Plan this and Deliver this (R50.15): a person's start for a non-GitHub

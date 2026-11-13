@@ -186,6 +186,7 @@ const PROTECT = new Set([
   "untriaged.handoff",
   "review.chat",
   "intake.deliver",
+  "intake.confirm",
   "intake.plan",
   "intake.source.add",
   "intake.source.remove",
