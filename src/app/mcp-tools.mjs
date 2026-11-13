@@ -23,6 +23,14 @@ const tools = {
         "activity.settings.get",
         "how many days the activity log keeps rows",
       ],
+      driver: [
+        "driver.status",
+        "which machine drives each spec, and why a spec reads only here",
+      ],
+      driver_takeover_preview: [
+        "driver.takeover.preview",
+        "what a take-over would lose and what to set up again",
+      ],
       delivery_settings: [
         "delivery.settings.get",
         "the writer agent and model and pull request feedback settings",
