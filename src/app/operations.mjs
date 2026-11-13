@@ -2259,6 +2259,9 @@ export class Operations {
       return retroOperation(store, name, input, context, {
         by: context.local ? "cli" : "dashboard",
         config: readFlowConfig(this.workspaceRoot),
+        github: this.github,
+        policy: readGitHubPolicyOrNull(this.workspaceRoot),
+        workspaceRoot: this.workspaceRoot,
       });
     if (PLUGIN_OPERATIONS.has(name)) {
       const result = await this.pluginOperation(name, input, context);

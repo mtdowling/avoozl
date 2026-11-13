@@ -26,6 +26,12 @@ import {
 } from "./retro-memory.mjs";
 import { rebasePrompt, revertPrompt, shippedPrompts } from "./prompts.mjs";
 import { healNow } from "./flow-retro.mjs";
+import {
+  shareCandidates,
+  shareLessons,
+  sharePreview,
+  shareTarget,
+} from "./lessons-share.mjs";
 
 export const RETRO_READS = new Set([
   "flow.proposals",
@@ -33,6 +39,8 @@ export const RETRO_READS = new Set([
   "plugin.lessons.preview",
 ]);
 export const RETRO_WRITES = new Set([
+  "lessons.share.preview",
+  "lessons.share",
   "prompt.override.revert",
   "prompt.override.rebase",
   "plugin.lessons.import",
@@ -109,10 +117,11 @@ const FILTERS = {
 
 // The Lessons view (R69.10, R70.7): every lesson this workspace may read,
 // with confidence, last confirmed, state, stale reason and history.
-function lessonsView(store, input = {}) {
+function lessonsView(store, input = {}, share = null) {
   const m = retroMemory(store);
   if (!m) return { lessons: [], available: false };
   const id = workspaceId(store),
+    candidates = shareCandidates(m.lessons, id),
     lessons = m.lessons
       .list()
       .filter((l) => l.source === id || l.shared !== false)
@@ -148,8 +157,24 @@ function lessonsView(store, input = {}) {
         readOnly: Boolean(l.readOnly),
         date: l.date,
         history: l.history || [],
+        ...(candidates.some((c) => c.id === l.id)
+          ? { candidate: candidates.find((c) => c.id === l.id) }
+          : {}),
       }));
-  return { lessons, available: true };
+  return {
+    lessons,
+    available: true,
+    // Share candidates best first (R69.11) and where Share writes (R69.14).
+    candidates,
+    share: share
+      ? {
+          mode: share.mode,
+          repository: share.repository ?? null,
+          file: share.file ?? null,
+          off: share.off ?? null,
+        }
+      : null,
+  };
 }
 
 function pluginFolder(m, id, { approved = false } = {}) {
@@ -175,12 +200,20 @@ export async function retroOperation(
   name,
   input = {},
   context = {},
-  { by = "dashboard", now = Date.now(), config = {} } = {},
+  {
+    by = "dashboard",
+    now = Date.now(),
+    config = {},
+    github = null,
+    policy = null,
+    workspaceRoot = null,
+  } = {},
 ) {
+  const target = () => shareTarget(store, policy, workspaceRoot, input);
   if (name === "flow.proposals") return proposalsView(store);
   if (name === "lessons.view") {
     if (retroMemory(store)) healNow(store, config, { now });
-    return lessonsView(store, input);
+    return lessonsView(store, input, target());
   }
   const m = memory(store);
   if (name === "plugin.lessons.preview") {
@@ -199,10 +232,47 @@ export async function retroOperation(
         ? "Only a person exports lessons, in the Avoozl page or the CLI."
         : name === "plugin.lessons.import"
           ? "Only a person imports a lessons pack, in Settings."
-          : "Only a person changes prompt overrides, in the Avoozl page.",
+          : name.startsWith("lessons.share")
+            ? "Only a person shares lessons, in the Lessons view."
+            : "Only a person changes prompt overrides, in the Avoozl page.",
       403,
     );
   const at = new Date(now).toISOString();
+  // Share chosen proven lessons (R69.12-R69.14): preview, then the exact
+  // text after the content rules.
+  if (name === "lessons.share.preview" || name === "lessons.share") {
+    const where = target(),
+      preview = await sharePreview(m.lessons, where, {
+        workspaceId: workspaceId(store),
+        ids: input.ids,
+      }),
+      blocks = [
+        ...contentBlocks(
+          store,
+          "lesson",
+          `share:${where.repository}`,
+          preview.text,
+        ),
+        ...contentBlocks(
+          store,
+          "github",
+          `share:${where.repository}`,
+          preview.text,
+        ),
+      ];
+    if (blocks.length)
+      fail(
+        `Content rules refused the share, nothing was written: ${[...new Set(blocks)].join("; ")}.`,
+        422,
+      );
+    if (name === "lessons.share.preview") return preview;
+    if (input.previewHash !== preview.hash)
+      fail(
+        "The lessons or the shared file changed since that preview. Preview again.",
+        409,
+      );
+    return shareLessons(where, preview, { github, now });
+  }
   if (name === "prompt.override.revert")
     return revertPrompt(
       overridesFile(store),
@@ -239,6 +309,22 @@ export async function retroOperation(
       !input.path.endsWith(".json")
     )
       fail("Choose an absolute path for the pack file, ending in .json.");
+    // The raw store, for the driver handoff export (R69.15, R66.12).
+    if (input.raw === true) {
+      const raw = {
+        version: 1,
+        raw: true,
+        lessons: m.lessons.list(),
+        workspaces: m.lessons.getMeta("workspaces") || {},
+      };
+      if (fs.existsSync(input.path) && input.replace !== true)
+        fail("That file exists. Choose another path, or confirm Replace.", 409);
+      fs.mkdirSync(path.dirname(input.path), { recursive: true });
+      fs.writeFileSync(input.path, JSON.stringify(raw, null, 2) + "\n", {
+        mode: 0o600,
+      });
+      return { path: input.path, lessons: raw.lessons.length, raw: true };
+    }
     const pack = exportPack(m.lessons, { workspaceId: workspaceId(store) }),
       blocks = pack.lessons.flatMap((l) =>
         contentBlocks(store, "lesson", `export:${l.id}`, lessonText(l)),
