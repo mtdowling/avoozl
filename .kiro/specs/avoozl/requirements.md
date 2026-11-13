@@ -317,7 +317,17 @@ before dependents start, so that later tasks build on accepted code.
 #### Acceptance criteria
 
 1. WHEN a worker reports done THEN Avoozl SHALL run the leaf's declared checks
-   against the exact commit and record the result.
+   against the exact commit and record the result. Avoozl SHALL run them
+   itself, with no model call: in a clean detached worktree at that commit,
+   each check as an argument list with no shell, each with its own time
+   limit, recording the exit code and a short redacted output tail, and
+   removing the worktree afterwards. The runs SHALL be queued off the tick,
+   one at a time per repository, and SHALL NOT start while all agents are
+   stopped or while a stopped line holds the commit. A check that is not
+   run, cannot start (exit 126 or 127), or times out SHALL fail the
+   checking, not the writer's attempt. A verifier session SHALL open only
+   for a bar that needs judgment: a prose acceptance with no declared
+   check, or `verify: agent` on the task.
 2. WHEN checks pass THEN Avoozl SHALL integrate the commit into the configured
    local integration branch and record the integrated commit.
 3. WHEN integration succeeds THEN Avoozl SHALL recompute readiness and dispatch
@@ -1699,7 +1709,9 @@ user-facing work never leaves this machine.
    back to `local` and SHALL be logged in Activity. The prompt SHALL live
    only in machine-local settings; validation SHALL refuse it, and the old
    `routing.rules`, `routing.pick` and `routing.router` keys, in a tracked
-   `.avoozl.json`. A task with one option SHALL take it without a call.
+   `.avoozl.json`. A task with one option SHALL take it without a call, and
+   Avoozl SHALL record "only one choice" in the Activity log; a tick whose
+   ready tasks all have one option SHALL make no routing call.
 8. WHEN no crew can ever pass a task's hard checks THEN the task SHALL wait
    and Avoozl SHALL open one decision naming the check that ruled each crew
    out. WHEN crews pass but none has room THEN the task SHALL wait without
@@ -1934,7 +1946,7 @@ and nobody waits on CI to learn about a failure.
    "CI only" failure with the check names, so that a difference between the
    two environments shows in the Flow tab.
 6. Local delivery, where nothing is pushed, SHALL be unchanged: the
-   verifier already runs the checks on this machine.
+   checks already run on this machine (Requirement 7.1).
 7. Avoozl SHALL NOT enforce this on sessions it does not open (for example
    Issue Radar's); the Flow tab SHALL show their CI wait like any other.
 
@@ -1984,7 +1996,7 @@ process improves without my asking and without changing on its own.
 
 1. Avoozl SHALL start a retrospective WHEN `flow.retro.everyTasks` tasks
    (default 10) have finished since the last one, WHEN a task's lead time
-   passes `flow.retro.slowFactor` (default 2) times the median lead time of
+   passes `flow.retro.slowFactor` (default 3) times the median lead time of
    that repository's last 20 finished tasks (with at least 5 of them), WHEN
    a task starts its third attempt, or WHEN one CI wait passes
    `flow.retro.slowFactor` times that repository's median CI wait (with at
@@ -4166,3 +4178,37 @@ step by hand when I want it.
 4. With `manual` in Local only mode, integration SHALL wait for a person's
    **Integrate** on the Ready to merge item.
 5. Avoozl SHALL still never merge a pull request itself.
+
+### Requirement 81: Review a task's changes in the drawer
+
+Added 2026-11-13 (owner request). Design §8.10.
+
+**User story:** As the owner, I want to see what a worker changed from the
+task drawer, so that I can review a task without leaving Avoozl.
+
+#### Acceptance criteria
+
+1. The task drawer SHALL have a Files section with a read-only tree of the
+   files the task's branch changed against where it left its base, each
+   with an added, modified, deleted or renamed badge and its line counts,
+   and the totals. A Show all files choice SHALL add every file in the
+   worktree or branch. Nothing in it SHALL write.
+2. A click on a file SHALL show its unified diff, colored with the page's
+   theme variables, with a Split choice that shows it side by side. A
+   binary file, a link, or a diff over the size cap SHALL be summarized,
+   not drawn.
+3. For a task whose worktree is on this machine, the section SHALL offer
+   Open in editor for the worktree and for the shown file, as a `kiro://`
+   or `vscode://` link. A choice on the page SHALL pick the editor,
+   default Kiro. For a task on another crew, or with no worktree, the
+   section SHALL link the task's branch on GitHub instead.
+4. `task.files` and `task.diff` SHALL be read-only operations that MCP may
+   call. They SHALL read with Git only, with fixed arguments, `--` before
+   every path, literal pathspecs and no shell, against the task's worktree
+   or branch.
+5. `task.diff` SHALL refuse a path that is absolute, has a `..`, `.` or
+   empty part, a backslash or NUL, or that Git does not list for the
+   task; it SHALL never follow a link out of the worktree. A ref from
+   settings that could read as an option SHALL never reach Git.
+6. File lists and diffs SHALL be capped in size, and tests SHALL show the
+   path and argument rules failing without them.

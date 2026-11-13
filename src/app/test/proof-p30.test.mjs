@@ -15,6 +15,7 @@ import {
   listSpans,
   taskTiming,
 } from "../flow.mjs";
+import { checkRuns } from "../check-runs.mjs";
 import { readyCandidates } from "../delivery.mjs";
 import { recordGitHubTiming, runLocalChecks } from "../flow-checks.mjs";
 import { recordRetroReply, retroStep } from "../flow-retro.mjs";
@@ -305,13 +306,16 @@ test(
     }
     clockTo(30);
     const verifyBatch = await tick();
+    assert.ok(!verifyBatch.dispatch.some((d) => d.role === "verifier"));
     assert.deepEqual(
-      verifyBatch.dispatch
-        .filter((d) => d.role === "verifier")
-        .map((d) => d.task),
+      checkRuns(store)
+        .map((r) => r.taskId)
+        .filter((id) => batch.batch.tasks.includes(id)),
       ["a3"],
       "checks once, on the head",
     );
+    // This proof plays the checks role with scripted verifier sessions, on
+    // its fake clock, instead of running the queued run.
     await verify("a3", "v-batch", shas[2], 1);
     clockTo(31);
     await tick();

@@ -9,7 +9,7 @@
 // issue intake, planner sessions for matched issues, broad-issue publishing,
 // re-projection, crew labels and the Project board.
 import { notesReprojectIds, notesReprojected } from "./task-notes.mjs";
-import { recordTickActivity } from "./activity-log.mjs";
+import { recordActivity, recordTickActivity } from "./activity-log.mjs";
 import fs from "node:fs";
 import { validateTrackedRouting } from "./placement.mjs";
 import { crewSnapshot } from "./crews.mjs";
@@ -36,6 +36,7 @@ import {
 } from "./budget.mjs";
 import { blockedNaming, judgeBaseFailures, watchLine } from "./flow-line.mjs";
 import { retroStep } from "./flow-retro.mjs";
+import { queueCheckRuns } from "./check-runs.mjs";
 import {
   claimedTaskIds,
   completeParents,
@@ -43,6 +44,7 @@ import {
   holdUnprovenReviews,
   integrateVerified,
   liveAttempt,
+  planCheckRuns,
   planReadyDispatches,
   briefAllowed,
   planVerifierDispatches,
@@ -931,6 +933,7 @@ export async function tick(
           });
           await fetchAll(store, routing, { fetch: script });
           routing.routerQueue = [];
+          routing.onlyOne = [];
           expireRouter(store, routing, bindings);
         } catch (error) {
           routing = null;
@@ -972,6 +975,16 @@ export async function tick(
                 routing,
                 placementState,
               });
+      // Command-only bars are checked by Avoozl itself, off this path: the
+      // cron queues each run here and the app backend runs the queue
+      // (check-runs.mjs). A spec driven elsewhere queues nothing.
+      if (script && delivery)
+        queueCheckRuns(
+          store,
+          planCheckRuns(store, delivery).filter(
+            (run) => !readOnly.has(run.task.planId),
+          ),
+        );
       // One routing call for every worker waiting on a pick (§4.10). An
       // answer read this tick is spent first, so the next call carries this
       // tick's facts, not the last one's.
@@ -1061,6 +1074,18 @@ export async function tick(
       // The cron's tick queues each notice once for the app's notification
       // channels; the app backend pushes it (notifications.mjs).
       if (script) queueNotifications(store, notices);
+      // A worker the router did not judge, because one choice was left.
+      if (script)
+        for (const one of routing?.onlyOne || [])
+          if (dispatched.some((d) => d.task === one.taskId))
+            recordActivity(store, {
+              source: "local",
+              actor: "avoozl",
+              kind: "routing.only-one",
+              summary: `Only one choice for ${one.taskId}: ${one.crew}${one.model ? " on " + one.model : ""}; no router call`,
+              targetId: one.taskId,
+              key: `routing.only-one:${one.taskId}:${one.attempt}`,
+            });
       // The activity log (§4.19): what GitHub and plugin sync changed since
       // the last tick, once each, then rows past the retention go.
       recordTickActivity(store, memory.value || {});

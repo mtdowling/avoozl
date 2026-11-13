@@ -114,6 +114,17 @@ const tick = (ops, slots = []) =>
 
 const passed = [{ command: "npm test", exitCode: 0 }];
 
+// A bar that needs judgment opens a verifier chat (§5.2 Checks); its done
+// report adds a verdict on the acceptance.
+const agent = { verify: "agent" };
+const judged = (ops, taskId, slot, commit, checks) =>
+  ops.execute(
+    "session.report",
+    { taskId, kind: "done", commit, checks, verdict: "approved" },
+    undefined,
+    as(slot),
+  );
+
 test("the verifier agent ships with tool refs on the server key Kiro Crew registers", () => {
   // Nearby inputs: a bare @avoozl ref, a ref to an unserved tool, write tools.
   const manifest = JSON.parse(
@@ -159,7 +170,7 @@ test("a done report opens one verifier; only the matching SHA with passing decla
   // without checks, a worker sending checks, a different SHA, a check missing,
   // a check exiting 1, a verifier closed without a verdict, verifier retries
   // past the bound, and a verdict repeated after it was recorded.
-  const { store, ops, checkout } = setup(t, { tasks: [leaf("a")] });
+  const { store, ops, checkout } = setup(t, { tasks: [leaf("a", agent)] });
   const commit = await workerDone(ops, "a", "w-1");
   const first = await tick(ops);
   assert.equal(store.get("task_deliveries", "a").state, "done");
@@ -184,7 +195,7 @@ test("a done report opens one verifier; only the matching SHA with passing decla
   );
 
   await assert.rejects(
-    verdict(ops, "a", "v-1", commit, undefined),
+    judged(ops, "a", "v-1", commit, undefined),
     (error) => error.status === 400,
     "a verifier's done lists checks",
   );
@@ -208,7 +219,7 @@ test("a done report opens one verifier; only the matching SHA with passing decla
 
   // A different SHA: rejected, and the worker retries with the cause.
   const base = git(checkout, "rev-parse", "main");
-  await verdict(ops, "a", "v-1", base, passed);
+  await judged(ops, "a", "v-1", base, passed);
   const rejected = await tick(ops);
   const delivery = store.get("task_deliveries", "a");
   assert.equal(delivery.state, "failed");
@@ -222,7 +233,7 @@ test("a done report opens one verifier; only the matching SHA with passing decla
   const second = await workerDone(ops, "a", "w-2", 2);
   await tick(ops);
   await bind(ops, "a", "v-2", "verifier", 2);
-  await verdict(ops, "a", "v-2", second, [
+  await judged(ops, "a", "v-2", second, [
     { command: "npm run lint", exitCode: 0 },
   ]);
   const rerun = await tick(ops);
@@ -238,9 +249,7 @@ test("a done report opens one verifier; only the matching SHA with passing decla
   );
   // Then a failing check: attempt 3 would be past retries 1, so a decision.
   await bind(ops, "a", "v-3", "verifier", 3);
-  await verdict(ops, "a", "v-3", second, [
-    { command: "npm test", exitCode: 1 },
-  ]);
+  await judged(ops, "a", "v-3", second, [{ command: "npm test", exitCode: 1 }]);
   const decided = await tick(ops);
   assert.equal(store.get("task_deliveries", "a").state, "decision");
   assert.match(
@@ -251,11 +260,11 @@ test("a done report opens one verifier; only the matching SHA with passing decla
   assert.deepEqual(decided.dispatch, []);
 
   // A failing check, and verifiers that end without a verdict.
-  const c = setup(t, { tasks: [leaf("c")] });
+  const c = setup(t, { tasks: [leaf("c", agent)] });
   const cCommit = await workerDone(c.ops, "c", "w-c");
   await tick(c.ops);
   await bind(c.ops, "c", "v-c1", "verifier", 1);
-  await verdict(c.ops, "c", "v-c1", cCommit, [
+  await judged(c.ops, "c", "v-c1", cCommit, [
     { command: "npm test", exitCode: 1 },
   ]);
   await tick(c.ops);
@@ -264,7 +273,7 @@ test("a done report opens one verifier; only the matching SHA with passing decla
     /check `npm test` exited 1/,
   );
 
-  const d = setup(t, { tasks: [leaf("d")] });
+  const d = setup(t, { tasks: [leaf("d", agent)] });
   const dCommit = await workerDone(d.ops, "d", "w-d");
   await tick(d.ops);
   await bind(d.ops, "d", "v-d1", "verifier", 1);
@@ -293,11 +302,11 @@ test("a done report opens one verifier; only the matching SHA with passing decla
   assert.ok(dCommit);
 
   // Accepted: matching SHA, every declared check 0.
-  const e = setup(t, { tasks: [leaf("e")] });
+  const e = setup(t, { tasks: [leaf("e", agent)] });
   const eCommit = await workerDone(e.ops, "e", "w-e");
   await e.ops.execute("workspace.tick", {});
   await bind(e.ops, "e", "v-e1", "verifier", 1);
-  await verdict(e.ops, "e", "v-e1", eCommit, passed);
+  await judged(e.ops, "e", "v-e1", eCommit, passed);
   await e.ops.execute("workspace.tick", {});
   const accepted = e.store.get("task_deliveries", "e");
   assert.equal(accepted.state, "verified", "a page tick does not integrate");
@@ -321,7 +330,7 @@ test("a quiet verifier is nudged, then failed and retried, so the graph never ha
   // Nearby inputs: idle for less than quietMinutes, a tick without a roster,
   // a verifier the roster does not list, a working verifier, one nudge per
   // interval, and the retry bound (a decision, not a hang).
-  const { store, ops, root } = setup(t, { tasks: [leaf("a")] });
+  const { store, ops, root } = setup(t, { tasks: [leaf("a", agent)] });
   fs.writeFileSync(
     path.join(root, ".avoozl.json"),
     JSON.stringify({
