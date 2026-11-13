@@ -95,6 +95,7 @@ const OBSERVE = new Set([
 
 const DRAFT = new Set([
   "task.capture",
+  "plan.new",
   "plan.create",
   "plan.save",
   "plan.propose",

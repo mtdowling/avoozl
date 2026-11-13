@@ -55,6 +55,7 @@ export {
   RefreshCw,
   RotateCcw,
   ScanSearch,
+  Send,
   Settings,
   Trash2,
   Users,

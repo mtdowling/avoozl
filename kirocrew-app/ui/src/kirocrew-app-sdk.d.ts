@@ -121,6 +121,7 @@ declare module 'lucide-react' {
   export const Gauge: LucideIcon
   export const Radar: LucideIcon
   export const ScanSearch: LucideIcon
+  export const Send: LucideIcon
   export const Check: LucideIcon
   export const ChevronRight: LucideIcon
   export const ClipboardCheck: LucideIcon

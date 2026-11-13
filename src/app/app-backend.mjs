@@ -152,6 +152,7 @@ const APP_OPERATIONS = new Set([
   "task.detail",
   "plan.spec.read",
   "plan.table",
+  "plan.new",
   "github.repository.inspect",
   "task.change.preview",
   "plugins.list",
