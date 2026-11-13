@@ -583,10 +583,6 @@ function ReviewRoles({ review, repository }: { review: ReviewSettings | undefine
 // The check names GitHub shows for this repository, one checkbox each;
 // saved names it no longer shows are kept and marked. Without GitHub, a
 // text box.
-// What the Required checks list is, in one line (design: github-close.mjs
-// verifies these on a task's PR before it counts as a verified completion).
-export const CHECKS_LINE = REPOSITORY_BLURBS.checks
-
 function ChecksEditor(props: {
   id: string
   value: string
