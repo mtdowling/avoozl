@@ -2,6 +2,7 @@
 // structured session binding a conductor reports, `next` buckets, one writer)
 // and decisions and failures on the app's notification channels with a link
 // to the session. One test per rule; each lists the nearby inputs it checks.
+import { checkRuns } from "../check-runs.mjs";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHmac } from "node:crypto";
@@ -218,7 +219,7 @@ test("a claimed task never appears ready twice and cannot be claimed twice", asy
 
 test("the tick leaves ready leaves to a Crew Mode conductor and still verifies its work", async (t) => {
   // Nearby inputs: runner crew-mode with ready leaves (no worker dispatch), a
-  // relayed done report (one verifier dispatch), and runner tick (dispatch).
+  // relayed done report (one check run), and runner tick (dispatch).
   const { ops } = setup(t, { tasks: [leaf("a"), leaf("b")] });
   const quiet = await ops.execute("workspace.tick", { sessions: [] });
   assert.deepEqual(quiet.dispatch, []);
@@ -239,9 +240,10 @@ test("the tick leaves ready leaves to a Crew Mode conductor and still verifies i
     local,
   );
   const verify = await ops.execute("workspace.tick", { sessions: [] });
+  assert.deepEqual(verify.dispatch, [], "Avoozl runs command checks itself");
   assert.deepEqual(
-    verify.dispatch.map((d) => [d.task, d.role]),
-    [["a", "verifier"]],
+    checkRuns(ops.store).map((r) => [r.taskId, r.state]),
+    [["a", "queued"]],
   );
   assert.equal(
     (await next(ops)).running.find((row) => row.id === "a").phase,

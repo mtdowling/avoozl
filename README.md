@@ -147,10 +147,13 @@ Two Kiro Crew steps only you can do, once:
    person can set it, and the tick opens no session there until it is set.
 
 Each minute the tick starts a Kiro Crew session for each ready leaf, in its
-own worktree. When a session reports done, Avoozl runs the checks on a clean
-committed head, rebases, fast-forwards the base branch, and releases the
-leaf's dependents. Avoozl never pushes. Implementation, integration, and
-acceptance stay separate steps, each with its own record.
+own worktree. When a session reports done, Avoozl runs the checks itself on
+the exact commit in a clean worktree, with no model call, then rebases,
+fast-forwards the base branch, and releases the leaf's dependents. A
+verifier session opens only when a task's bar needs judgment: prose
+acceptance with no checks, or `verify: "agent"`. Avoozl never pushes.
+Implementation, integration, and acceptance stay separate steps, each with
+its own record.
 
 To let a Crew Mode conductor claim leaves instead, set
 `"delivery": {"runner": "crew-mode"}` and follow
@@ -246,7 +249,7 @@ can override them). The Flow view shows where the time went.
   run in one session and one worktree, one commit per task. A failing batch
   splits. `1` turns it off.
 - **Retro** (`retro.everyTasks`, default `10`; `retro.slowFactor`, default
-  `2`): a tool-less `avoozl-retro` session names the biggest slowdown and
+  `3`): a tool-less `avoozl-retro` session names the biggest slowdown and
   proposes up to three changes. You approve or reject each, and an approved
   change is measured afterward.
 
@@ -267,7 +270,8 @@ from **Settings > Delivery**, as before.
   Prefer Kiro models when Claude is low, 70% Claude, 30% Kiro) and edit it.
   Each tick, one tool-less `avoozl-router` session ranks every ready task
   at once and picks a crew and a model for each. An answer is used in one
-  tick only, after the checks run again.
+  tick only, after the checks run again. A task with only one option left
+  takes it with no routing call, and Activity says "only one choice".
 - **Checks come first.** A crew must be online, approve tools on its own
   (so a chat cannot stall on an approval), reach the repository, and have
   the tags a task `needs` (such as `os:windows`). A model whose provider is
