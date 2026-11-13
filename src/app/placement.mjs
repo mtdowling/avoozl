@@ -70,8 +70,8 @@ export function validateNeeds(value, at = "needs") {
 }
 
 // `routing` from one source. Only this machine's settings hold the prompt
-// (R41.7): it may name private machines. A tracked file holds no routing
-// key of its own. Returns the value; throws one error naming each bad key.
+// (R41.7): it may name private machines. A tracked file holds only the
+// workspace's routing.remoteRelay. Returns the value; throws one error naming each bad key.
 export function validateRouting(
   value,
   { at = "routing", tracked = true } = {},
@@ -84,6 +84,17 @@ export function validateRouting(
     errors.push(`${at}.${old.join(", ")}: old routing keys; run ${MIGRATE}.`);
   for (const key of Object.keys(value)) {
     if (OLD_ROUTING_KEYS.includes(key)) continue;
+    // The Remote relay (R41.16) is one setting per workspace, in its tracked
+    // .avoozl.json; a repository or this machine cannot turn it on.
+    if (key === "remoteRelay") {
+      if (!tracked || at !== "routing")
+        errors.push(
+          `${at}.remoteRelay is a workspace setting; set routing.remoteRelay in the workspace's .avoozl.json.`,
+        );
+      else if (!["off", "on"].includes(value.remoteRelay))
+        errors.push(`${at}.remoteRelay must be off or on.`);
+      continue;
+    }
     if (tracked)
       errors.push(
         ["enabled", "prompt", "model"].includes(key)
@@ -116,8 +127,8 @@ export function validateRouting(
   return value;
 }
 
-// The tracked file's routing: no `routing`, no `projects.<id>.routing`, no
-// `providers`. Throws.
+// The tracked file's routing: only `routing.remoteRelay`, no
+// `projects.<id>.routing`, no `providers`. Throws.
 export function validateTrackedRouting(config) {
   refuseTrackedProviders(config);
   validateRouting(config?.routing, { at: "routing", tracked: true });
@@ -129,8 +140,8 @@ export function validateTrackedRouting(config) {
 }
 
 // This machine's routing settings, with defaults. Off unless turned on, and
-// on only with a prompt to follow.
-export function routingConfig({ machine = {} } = {}) {
+// on only with a prompt to follow. The Remote relay is the workspace's.
+export function routingConfig({ workspace = {}, machine = {} } = {}) {
   const own = machine.routing || {},
     prompt = typeof own.prompt === "string" ? own.prompt : "";
   return {
@@ -139,6 +150,8 @@ export function routingConfig({ machine = {} } = {}) {
     prompt,
     model: own.model ?? null,
     timeoutSeconds: ROUTER_TIMEOUT_SECONDS,
+    // Off unless the workspace turns it on (R41.16).
+    remoteRelay: workspace.routing?.remoteRelay === "on" ? "on" : "off",
   };
 }
 

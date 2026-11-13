@@ -175,6 +175,8 @@ const tools = {
     actions: {
       get: ["task.get", "one task"],
       detail: ["task.detail", "the task drawer's detail"],
+      files: ["task.files", "files its branch changed (all: every file)"],
+      diff: ["task.diff", "one changed file's diff"],
       sessions: ["task.sessions", "its Kiro Crew sessions"],
       handoff: ["handoff", "design, dependencies, runs and evidence"],
       duplicates: ["task.duplicates", "repeated-title candidates"],
@@ -220,6 +222,42 @@ const tools = {
         "pull the Andon cord: {scope: all|repo|spec|task, repository?, spec?, taskId?, reason}; only a person resumes",
       ],
       reply: ["reply.post", "post a responder's one reply"],
+    },
+  },
+  plans_relay: {
+    summary:
+      "The Remote relay chat's own calls (routing.remoteRelay on, until MC-10). Only the registered relay chat may call these, except register.",
+    actions: {
+      register: [
+        "relay.call",
+        "make this chat the one relay chat",
+        (input) => ({ ...input, step: "register" }),
+      ],
+      pending: [
+        "relay.call",
+        "queued requests, live relayed workers, and messages for them; call once per turn",
+        (input) => ({ ...input, step: "pending" }),
+      ],
+      brief: [
+        "relay.call",
+        "one request's brief, to send unchanged: {request}",
+        (input) => ({ ...input, step: "brief" }),
+      ],
+      opened: [
+        "relay.call",
+        "record the worker chat you opened: {request, slot}",
+        (input) => ({ ...input, step: "opened" }),
+      ],
+      refused: [
+        "relay.call",
+        "Kiro Crew refused crew=: {request, code, text?}",
+        (input) => ({ ...input, step: "refused" }),
+      ],
+      reply: [
+        "relay.call",
+        "hand back a worker's last reply, unchanged: {slot, text}",
+        (input) => ({ ...input, step: "reply" }),
+      ],
     },
   },
   plans_conflicts: {

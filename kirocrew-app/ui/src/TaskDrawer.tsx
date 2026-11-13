@@ -25,6 +25,7 @@ import { resultMessage, settleTargets, whyLine } from './conflicts-api.ts'
 import { itemRef } from './chat-api.ts'
 import { TimingFold } from './FlowView.tsx'
 import { EvidenceFold } from './Evidence.tsx'
+import { TaskFiles } from './TaskFiles.tsx'
 import { Crosshair, Eye, FileText, MessageSquare, Pause, Pencil, Play, Plus, RotateCcw, X } from './icons.ts'
 import { useBackStep } from './NavHistory.tsx'
 import { LAYER } from './layers.ts'
@@ -37,6 +38,7 @@ const SECTIONS = [
   { key: 'description', label: 'Description' },
   { key: 'links', label: 'Links' },
   { key: 'delivery', label: 'Delivery' },
+  { key: 'files', label: 'Files' },
   { key: 'timing', label: 'Timing' },
   { key: 'evidence', label: 'Evidence' },
   { key: 'budget', label: 'Budget' },
@@ -225,6 +227,9 @@ function TaskPanel(props: {
   const chat = useAskChat(workspaceId)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
+  // The Files fold reads only once it has been opened for this task.
+  const [filesOpened, setFilesOpened] = useState(false)
+  useEffect(() => setFilesOpened(false), [id])
   const load = useCallback(async () => {
     setError(null)
     try {
@@ -521,6 +526,9 @@ function TaskPanel(props: {
           ) : (
             <p className="text-sm text-muted">No delivery yet.</p>
           )}
+        </Fold>
+        <Fold id="files" group="task-drawer" title="Files" onToggle={(on) => on && setFilesOpened(true)}>
+          <TaskFiles workspaceId={workspaceId} taskId={task.id} active={filesOpened} />
         </Fold>
         <Fold id="timing" group="task-drawer" title="Timing">
           <TimingFold timing={detail.timing ?? null} />

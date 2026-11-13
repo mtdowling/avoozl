@@ -6,7 +6,7 @@
 // crews.update with the machine file's hash; all of it stays on this
 // machine.
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
-import { useAppApi } from '@kirocrew/app-sdk'
+import { useAppApi, useChatLauncher } from '@kirocrew/app-sdk'
 import { Btn, Card, Input } from '@kirocrew/app-sdk/ui'
 import { Modal } from './Modal.tsx'
 import { Marker, Section } from './SettingsView.tsx'
@@ -15,12 +15,17 @@ import { Pencil, Plus, Trash2 } from './icons.ts'
 import { modelOptions, parseModels } from './flow-api.ts'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
+import { sessionHref } from './task-api.ts'
+import { linkHref } from './views-api.ts'
 import {
   CHECK_LABELS,
   DEFAULT_STALE_SECONDS,
   MC10_LINE,
   OFF_LINE,
   PROMPT_LIMIT,
+  RELAY_AGENT,
+  RELAY_CATCHES,
+  RELAY_MESSAGE,
   chatPlaceholder,
   checkText,
   crewMap,
@@ -28,6 +33,7 @@ import {
   levelText,
   optionText,
   readingText,
+  relayLines,
   routingClient,
   toCrewEntry,
   toCrewForm,
@@ -365,6 +371,7 @@ function CrewsSection(props: { view: View; workspaceId: string; onSaved: () => P
                     <span className="font-medium">{crew.name}</span>
                     {crew.name !== crew.id && <span className="block text-xs text-muted">{crew.id}</span>}
                     <span className="block text-xs text-muted">{crew.trust}</span>
+                    {crew.trust !== 'local' && !props.view.mc10 && props.view.relay.active && <span className="block text-xs text-muted">Workers go through the relay chat.</span>}
                   </td>
                   <td style={cell}>{crew.tags.filter((t) => !t.startsWith('trust:')).join(' ') || <span className="text-muted">none</span>}</td>
                   <td style={cell}>
@@ -404,11 +411,12 @@ function CrewsSection(props: { view: View; workspaceId: string; onSaved: () => P
         </table>
       </div>
       {props.view.crews.length === 1 && <p className="text-xs text-muted">Only this machine. Connect another Kiro Crew instance to see it here.</p>}
-      {!props.view.mc10 && (
+      {!props.view.mc10 && !props.view.relay.active && (
         <p className="text-sm text-muted" data-mc10>
           {MC10_LINE}
         </p>
       )}
+      <RelayBlock view={props.view} workspaceId={props.workspaceId} onSaved={props.onSaved} />
       <Field id="avoozl-stale" label="Stale after (seconds)" raw="crewStaleSeconds" note="A crew whose reading is older is not online." width="22rem">
         <span className="flex items-center gap-2">
           <span style={{ width: '8rem' }}>
@@ -441,7 +449,75 @@ function CrewsSection(props: { view: View; workspaceId: string; onSaved: () => P
   )
 }
 
-function PreviewSection(props: { workspaceId: string }) {
+// The Remote relay (R41.16–R41.24): one workspace setting, the chat a
+// person opens, and the two catches. A stopgap until MC-10.
+function RelayBlock(props: { view: View; workspaceId: string; onSaved: () => Promise<void> }) {
+  const api = useAppApi()
+  const client = useMemo(() => routingClient(api), [api])
+  const { openChat } = useChatLauncher()
+  const relay = props.view.relay
+  const [message, setMessage] = useState<string | null>(null)
+  const act = async (run: () => Promise<unknown>) => {
+    setMessage(null)
+    try {
+      await run()
+      await props.onSaved()
+    } catch (caught) {
+      setMessage(errorMessage(caught))
+    }
+  }
+  return (
+    <div className="flex flex-col gap-2" data-relay>
+      <h3 className="text-sm font-medium">Remote relay</h3>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={relay.setting === 'on'} onChange={(e) => void act(() => client.saveRelay(props.workspaceId, e.target.checked, props.view.configHash))} />
+        <span>Place remote picks through one relay chat</span>
+        <Marker rule={OPTIONAL} />
+        <Raw name="routing.remoteRelay" />
+      </label>
+      <p className="text-xs text-muted">A stopgap until Kiro Crew ships MC-10. Off by default. Saved in the workspace's .avoozl.json.</p>
+      <ul className="text-xs text-muted" style={{ margin: 0, paddingLeft: '1.2rem' }} data-relay-catches>
+        {RELAY_CATCHES.map((line) => (
+          <li key={line}>{line}</li>
+        ))}
+      </ul>
+      {relayLines(relay).map((line) => (
+        <p key={line} className="text-sm" style={relay.queued && line.includes('wait') ? needsYou : undefined}>
+          {line}
+        </p>
+      ))}
+      {relay.active && (
+        <span className="flex flex-wrap gap-2">
+          {relay.slot ? (
+            <>
+              <a className="text-sm" href={linkHref(sessionHref({ slot: relay.slot, link: null }))}>
+                Go to relay chat
+              </a>
+              <DangerBtn
+                label="Forget relay chat"
+                confirm={{ title: 'Forget the relay chat?', body: 'Avoozl stops using it. Chats it opened keep reporting through it. Open a new relay chat next.', action: 'Forget' }}
+                onConfirm={() => void act(() => client.forgetRelay(props.workspaceId))}
+              >
+                Forget relay chat
+              </DangerBtn>
+            </>
+          ) : (
+            <Btn type="button" primary onClick={() => openChat({ message: RELAY_MESSAGE, agent: RELAY_AGENT, autoSend: true })}>
+              Open relay chat
+            </Btn>
+          )}
+        </span>
+      )}
+      {message && (
+        <p role="alert" className="text-sm text-danger">
+          {message}
+        </p>
+      )}
+    </div>
+  )
+}
+
+function PreviewSection(props: { workspaceId: string; mc10: boolean; relay: boolean }) {
   const api = useAppApi()
   const client = useMemo(() => routingClient(api), [api])
   const [preview, setPreview] = useState<Preview | null>(null)
@@ -492,6 +568,9 @@ function PreviewSection(props: { workspaceId: string }) {
           ))}
         </ul>
       )}
+      {!props.mc10 && preview?.items.some((i) => i.outcome.crew && i.outcome.crew !== 'local') && (
+        <p className="text-xs text-muted">{props.relay ? 'Remote picks go to the relay chat and wait for your next message there.' : 'Remote picks show where tasks would go; they run on local until Kiro Crew ships MC-10.'}</p>
+      )}
       {preview?.brief && (
         <details className="text-sm" data-brief>
           <summary>What the routing agent would get</summary>
@@ -541,7 +620,7 @@ export default function RoutingView({ workspaceId: given }: { workspaceId: strin
             <CrewsSection view={value} workspaceId={workspaceId} onSaved={saved} />
           </Card>
           <Card className="flex flex-col gap-4">
-            <PreviewSection workspaceId={workspaceId} />
+            <PreviewSection workspaceId={workspaceId} mc10={value.mc10} relay={value.relay.active} />
           </Card>
         </>
       )}

@@ -75,7 +75,10 @@ export async function observeSessions(store, read) {
   const errors = [];
   let observed = 0;
   for (const binding of listSessionBindings(store)) {
-    if (binding.source !== "tick" || !liveAttempt(binding)) continue;
+    // A worker the Remote relay opened lives on another crew this app cannot
+    // read; its relay hands its replies back (relay.mjs).
+    if (binding.source !== "tick" || binding.relay || !liveAttempt(binding))
+      continue;
     let status;
     try {
       status = await read(binding.slot);
