@@ -1584,6 +1584,41 @@ closedAt, resumedBy, time to fix ─▶ Flow stops, charts, retro
 - **CLI.** `avoozl flow stop --scope all|repo|spec|task [--repository ID]
   [--spec ID] [--task ID] --reason TEXT` and `avoozl flow resume STOP-ID`.
 
+#### Stop all agents
+
+Added 2026-11-13 (Requirement 64.12–64.16). The dialog's second choice is
+a full stop: nothing new starts anywhere, and every running chat Avoozl
+opened stops now.
+
+```text
+Stop all agents ─▶ confirm (replies in progress are lost; files are kept)
+   ▼ flow.stop {full: true, reason}   (person only; MCP refused)
+flow_stops row { manual, full, scope: all, by, reason, sessions: [] }
+   ▼ for each live binding the tick opened (any role)
+POST /api/chat/slots/<slot>/stop (app backend, app token)
+   ├─ ok ─▶ binding.interrupted { stop, at }; worker attempt recorded
+   │        { outcome: interrupted, cause: "Interrupted by stop" },
+   │        delivery state `interrupted`
+   └─ refused ─▶ sessions[i].error; the session runs on, unmarked
+Resume ─▶ flow.resume ─▶ each `interrupted` delivery of this stop ─▶ `failed`
+   ▼ next tick: same worktree and branch, same agent and model
+```
+
+- **Where the stop runs.** Only the app backend holds the app token, so
+  `flow.stop {full: true}` needs its session stopper. The CLI without the
+  backend is refused with nothing recorded.
+- **Attempts.** `interrupted` is its own outcome: it is not a failure for
+  the retry limit, and an interrupted session is not live, so it is not
+  nudged or counted against concurrency. Review and checks sessions are
+  stopped too; their verification is recorded `interrupted` and a new one
+  opens after Resume. While a full stop is open no checks or review
+  session opens.
+- **Same model.** The next worker attempt keeps the interrupted binding's
+  agent and model, whatever the policy says now.
+- **Brief.** The next brief says the attempt was interrupted by a stop and
+  tells the worker to read `git status` and `git log` in the kept worktree
+  first.
+
 #### Local checks first
 
 Default on. It applies wherever a session Avoozl opens pushes: plans-repo
@@ -2862,6 +2897,149 @@ rel="noopener noreferrer"` through `safeHref`. A redacted row says so.
 | Redact, not refuse | The row still shows something happened, without the text |
 | Diff snapshots in the tick | One place sees every GitHub and plugin change without touching each step |
 | `key` on derived rows | Two ticks, or two processes, record a change once |
+
+### 4.20 Provider health and switching models
+
+**Proposed**, owner request 2026-11-13 (Requirement 72). A rate limit or an
+empty credit balance stalls every chat on that provider, and today a new
+task still opens there. Avoozl already reads each session's usage turns and
+tool rows (§4.11). This section reads health from them, keeps new work off a
+weak provider, and moves running chats with Kiro Crew's own model change.
+
+```text
+GET /api/usage/turns ─▶ sums per provider and model in the window ─▶ limits?
+GET /api/chat/slots/<slot> rows ─▶ error kind (usage_limit, 429 …)    │
+                                                                       ▼
+                     provider_health: ok │ low │ out  (+ a person's marks)
+                         │                              │
+   new task / retry ◀────┘                              └──▶ running chat on out
+   skip low and out choices,                                POST /api/chat/slots/<slot>/model
+   else fallback, else wait                                 same session, next turn
+                                                                 │
+                                    provider_switches ◀──────────┘ ─▶ activity hook
+                                    Needs you: "<provider> is out"
+```
+
+#### Facts
+
+| ID | Fact | Where |
+|---|---|---|
+| F126 | **Verified from source, not called live.** `POST /api/chat/slots/{slot}/model` with `{model}` changes one chat's model in place (`session/set_model`) and answers `{ok, model}`; while a turn runs it answers `deferred: true` and applies the pick when that turn ends. An app may call it on a slot it owns: the slot checkpoint admits the owner app, and an app grant is a prefix match, so `/api/chat/slots/avoozl_*` already covers it. | Kiro Crew `dashboard/chat_api/slot_model.py` `api_chat_slot_model`, `dashboard/slot_ownership.py`, `dashboard/token_auth_app_scope.py` `_api_pattern_matches` |
+| F127 | **Verified from source.** A failed turn leaves a row with role `error` and `meta.kind`, among them `usage_limit` (a spent plan allowance), `model_unavailable` (capacity or rollout refusal after the retry ladder) and `transient_retry`. Plain error rows have no kind, so Avoozl also reads a few words of the text, and stores only the kind. | Kiro Crew `dashboard/chat_utils_injected_rows.py`, `dashboard/chat_turn/recovery.py` `_terminal_error_meta` |
+| F128 | **Verified from source.** `GET /api/models` lists `model_name`, `display_name` and `description`, with no provider. Providers therefore come from `providers.groups` or the model ID's first word. | Kiro Crew `dashboard/handlers/agents.py` `api_models` |
+
+#### Settings
+
+Machine-local, `~/.config/avoozl/config.json` key `providers`, because
+limits, credits and which models a machine reaches belong to that machine.
+`.avoozl.json` refuses the key (tick and settings validation):
+
+```json
+{
+  "providers": {
+    "lowPercent": 80,
+    "cooldownMinutes": 30,
+    "windowHours": 5,
+    "limits": { "claude": { "credits": 500 }, "model-a": { "tokens": 2000000 } },
+    "groups": { "anthropic": ["claude-*"] },
+    "fallback": ["model-b", "model-c"]
+  }
+}
+```
+
+Every key is optional. `groups` patterns take `*` only. A limit key names a
+provider or a model; both are checked.
+
+#### Health
+
+- **Record.** `provider_health` rows keyed `provider:<id>` or `model:<id>`:
+  `level`, `source` (`usage`, `error`, `person`), `kind`, `since`,
+  `lastErrorAt`, `until` (cooldown end), `to` (a person's replacement) and
+  `by`. A row at `ok` is deleted, so an empty table means no change
+  (R72.18).
+- **Usage.** After each usage read the backend sums the window per key and
+  writes or clears `usage` marks (R72.2). It never overrides a `person`
+  mark and never lowers an `error` `out`.
+- **Errors.** The backend's tool-row read for timing already fetches each
+  local worker session's new rows; it also hands them to the health check,
+  so no new request is made. Kind first, then the text's words (F127). The
+  model is the session's served model, else its requested one; a session on
+  `auto` marks nothing. `out of credits` marks the provider, since credits
+  are an account's; a rate limit marks the model (R72.3).
+- **Recovery.** On read, an `error` mark past `until` is dropped; a usage
+  turn on the model after `lastErrorAt` drops it too (R72.4).
+
+shortcut: errors are read from local worker sessions only (the rows the
+timing read already has); reviewer, remote and Crew Mode errors are missed
+until an app-scoped roster carries them. Their usage still counts.
+
+#### New tasks and retries
+
+`chooseSession` gets the health check. Weighted choices drop `out`, then
+`low` while an `ok` one remains, before the weights split the work (R72.5).
+With no rule, or nothing left, the pick is the person's replacement for the
+model, then the first healthy `fallback` that is not a review role's model.
+Without rules the dispatch path does the same with the delivery model. A
+retry keeps its model unless it is `out` (R72.6). The reason says which
+model was skipped and why, and Preview shows it (R72.7).
+
+#### Running chats
+
+After the reads, the backend looks at each live session the tick opened. On
+an `out` model it picks a target (R72.9) and calls F126. The binding's
+`model` becomes the target and its `switches` list gains `{from, to, at,
+by}`; the session, worktree and branch stay, so committed work is kept and
+the next turn runs on the new model (R72.8). A refusal is recorded on the
+binding and not retried for that model. The served-model gate reads
+`switches`: a chat Avoozl switched is judged by all its models (R72.11).
+
+#### Manual switch
+
+- `provider.switch.preview {from, to}` (observe): `from` is `{provider}`,
+  `{model}` or `{tasks: [...]}`. It lists the live chats it would move and
+  the ones it would skip with why (a reviewer whose writer runs on `to`),
+  and a hash of that list.
+- `provider.switch {from, to, alsoNewTasks, previewHash}` (person-only): 409
+  when the hash no longer matches; else it queues one `pending` switch per
+  chat (by the person) and, with `alsoNewTasks`, writes `person` marks with
+  `to` as the replacement. The backend applies pending switches on its next
+  pass, the same way as automatic ones (R72.14).
+- `provider.health.clear {id}` (person-only) undoes a mark.
+- `providers.view` (observe) gives settings, marks with levels, the last 50
+  switches and the live chats with their models.
+- `providers.settings.update {providers, expectedHash}` (person-only).
+
+#### Activity hook
+
+`provider-health.mjs` calls `onSwitchRecorded(store, entry)` once per
+finished switch record. It writes one activity row (§4.19) of kind
+`model.switch`, source `local`, actor `avoozl` or the person, the task as
+target, and the key `provider-switch:<id>` so a record is logged once. A
+row that cannot be written never loses the record in `provider_switches`
+(R72.10). `provider.switch`, `provider.health.clear` and
+`providers.settings.update` are recorded as local actions too.
+
+#### Page
+
+- **Switch model** in the Dashboard header and on the In flight card opens
+  one dialog: From (Provider, Model, or Tasks with a checkbox per running
+  task), To (models from `GET /api/models`), Also new tasks, the preview
+  list, and Switch. Health marks show above with Undo for a person's.
+- **Needs you** lists `out` marks from `conflicts.view` kind `provider-out`
+  (R72.16).
+- **Settings › Providers** edits the machine `providers` key and lists the
+  marks with Undo (R72.17).
+
+#### Why each choice
+
+| Choice | Why |
+|---|---|
+| Kiro Crew's model change, not a new session | The chat keeps its context, worktree and commits, and Kiro Crew waits for the turn to end |
+| Health from reads Avoozl already makes | No new request and no new grant |
+| Store the kind, not the text | Error text can hold prompts or paths |
+| Credits mark the provider, rate limits the model | Credits are an account's; a limit is often one model's |
+| Person marks stay until undone | The owner said so; a timer would undo a decision |
+| Settings on this machine | Limits and reachable models differ per machine |
 
 ## 5. Local workflow
 
@@ -4782,6 +4960,26 @@ the request. Avoozl adds no second path to Spec Builder.
 | Archive, restore, graduate are a person's | They change what the owner sees and decides |
 | Reuse the New spec entry point | One place owns spec rules and the Spec Builder hand-off |
 
+### 8.9 Searchable pickers
+
+Added 2026-11-13 (Requirement 73). `Picker.tsx` is one combobox for every
+task and spec choice: the Stop the line target, the filter panels' task
+and spec fields, Start now, and any later one. Repositories keep their
+short select.
+
+- **Items.** `{id, title, spec?, state?}`. The match is a lower-case
+  substring test on `id`, `title` and `spec`, run over a list built once
+  per item set; an ID that starts with the text sorts first. At most 50
+  results render, with "N more; type to narrow".
+- **Keys.** Down and Up move the highlight, Home and End jump, Enter picks,
+  Esc closes the list, and a second Esc clears the text. Tab leaves
+  without picking.
+- **ARIA.** The input is `role="combobox"` with `aria-expanded`,
+  `aria-controls`, `aria-autocomplete="list"` and
+  `aria-activedescendant`; the list is `role="listbox"` and each result is
+  `role="option"` with `aria-selected`. The state shows as a small badge
+  beside the title.
+
 ## 9. Current-code disposition
 
 Covers `feature/kirocrew-github-delivery` and the `main`-only modules (F19).
@@ -4969,6 +5167,7 @@ and next decision, are tasks in `tasks.md` (P1–P32). Summary:
 | P41 | Budgets and receipts in a temporary workspace with fake workers and fake usage rows: priced and unpriced turns, caps by level, retries and review rounds on one cap, a batch's shared cap, the stop message at the next turn with no session stopped, `budget_reached` on MCP, Raise budget and Stop as a person only, a price change recomputing a receipt with both versions shown, unknown spend for Crew Mode and a failed read, JSON export, the retro payload, and no budget changing a gate (Phase 27) |
 | P42 | Prompt and skill proposals and lessons with fake workers and a fake retro model in two temporary workspaces: locked sections, stale bases and blocked text dropped, person-only approve and revert, overrides outside shipped files, a repository skill change as a leaf and an external one as a note, PDCA per version with mixed windows, lessons shared with no source text, opt-out, refused lesson text, drift marks that clear on confirmation, the lessons review, override drift with a three-way diff, pack versions, and person-only export (Phase 28) |
 | P43 | The activity log in a temporary workspace with a fake GitHub and a fake plugin: every listed local action and tick event makes one row, a change seen twice makes one, a secret-shaped or rule-matched value is saved redacted, rows past retention go on the tick, and the tab and `plans_view` read the same rows (Phase 29) |
+| P44 | Provider health and switching with fake usage rows, fake error rows and a fake Kiro Crew model change in a temporary workspace: usage and error marks, recovery by success and cooldown, new tasks and weighted choices skipping low and out, retries keeping a model until it is out, running chats switched in the same session at the next turn, the review gate across a switch, the manual switch with preview hash and Also new tasks, person-only 403s, Needs you, and nothing changed with no settings (Phase 30) |
 
 A new server, shared database, or plugin mechanism other than the seam in §4.8
 requires a failed proof that a small Kiro Crew or GitHub contract cannot fix.
@@ -5003,6 +5202,7 @@ Detailed in `tasks.md`. **Proposed** order:
 | 27. Budgets and receipts | A machine-local, versioned price table; dollar caps per task from workspace, repository, spec and task, with token and credit fallbacks; the stop at the next turn and Raise budget or Stop in Needs you; receipts by stage, model and attempt with JSON export; spend on the drawer, Delivery and In flight (§4.17) | Starts after 12.12 and 12.9; P41 |
 | 28. Retro prompt and skill proposals, and lessons | Prompt and skill diffs with evidence from the retro, local per-workspace prompt overrides with revert, repository skill changes as leaves and external ones as notes, PDCA per version, a lessons store on this Mac shared across workspaces, lessons packs, and healing of lessons and overrides (§4.18) | Starts after 12.9 and 12.10; P42 |
 | 29. Activity log | One SQLite activity table, one `recordActivity` helper, local actions and the tick's GitHub and plugin events, screening and redaction, retention on the tick, the Activity tab and `plans_view` action `activity` (§4.19) | Starts after 10.4, 12.11 and 14.10; P43 |
+| 30. Provider health and switching | Health levels from usage reads and error rows, routing that skips low and out, running chats moved with Kiro Crew's model change, the manual Switch model dialog, Needs you, and Settings › Providers (§4.20) | Starts after 11.11 and 12.12; P44 |
 
 ### 12.1 Bootstrap: building Avoozl before Avoozl works
 

@@ -17,8 +17,8 @@ const SIZES = [
   [768, 1024],
   [1280, 800],
 ]
-const OPENERS = { 'add-plugin': 'Add plugin', onboard: 'Onboard', confirm: 'Remove', 'stop-line': 'Stop the line' }
-const ALL = ['add-plugin', 'onboard', 'repo-edit', 'setup-github', 'archive-plan', 'delete-plan', 'confirm', 'file-viewer', 'stop-line', 'pack-import', 'send-to-radar', 'crew', 'rule']
+const OPENERS = { 'add-plugin': 'Add plugin', onboard: 'Onboard', confirm: 'Remove', 'stop-line': 'Stop the line', 'switch-model': 'Switch model' }
+const ALL = ['add-plugin', 'onboard', 'repo-edit', 'setup-github', 'archive-plan', 'delete-plan', 'confirm', 'file-viewer', 'stop-line', 'pack-import', 'send-to-radar', 'crew', 'rule', 'switch-model']
 
 const [out, ...asked] = process.argv.slice(2)
 if (!out) {

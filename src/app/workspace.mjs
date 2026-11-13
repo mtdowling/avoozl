@@ -6,6 +6,8 @@ import { Operations } from "./operations.mjs";
 import { generateNamespace } from "./github-marker.mjs";
 import { SUPERSEDED_STATUS } from "./supersede.mjs";
 
+const portable = (relative) => relative.split(path.sep).join("/");
+
 export function emptySnapshot(name = "My workspace") {
   return {
     schemaVersion: 1,
@@ -77,8 +79,13 @@ export function initializeWorkspace(
     name,
     // Owns this workspace's GitHub task IDs (design §3.4); never changes.
     namespace: generateNamespace(),
-    dbPath: path.relative(path.dirname(config.filename), config.dbPath),
-    documents: path.relative(path.dirname(config.filename), config.plansRoot),
+    // Forward slashes: .avoozl.json is shared, and every platform reads them.
+    dbPath: portable(
+      path.relative(path.dirname(config.filename), config.dbPath),
+    ),
+    documents: portable(
+      path.relative(path.dirname(config.filename), config.plansRoot),
+    ),
     port: config.port,
     host: "127.0.0.1",
   };

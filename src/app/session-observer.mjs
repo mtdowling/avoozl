@@ -14,6 +14,7 @@
 import { liveAttempt } from "./delivery.mjs";
 import { gatewayClient } from "./gateway-client.mjs";
 import { ingestToolRows, toolCallsReadable } from "./flow.mjs";
+import { ingestProviderErrors } from "./provider-health.mjs";
 import { recordRetroReply } from "./flow-retro.mjs";
 import { recordRouterReply, routerBatch } from "./router.mjs";
 import {
@@ -43,6 +44,26 @@ export function gatewaySlotReader(env = process.env, request = fetch) {
     if (!response.ok)
       throw Error(`Kiro Crew refused the session read (${response.status}).`);
     return slotStatus(await response.json());
+  };
+}
+
+// Stop one session's turn for Stop all agents (R64.12): Kiro Crew's own
+// session stop, on the app token. The app manifest grants
+// /api/chat/slots/avoozl_*; any refusal throws, and the caller names it.
+export function gatewaySessionStopper(env = process.env, request = fetch) {
+  const client = gatewayClient(env, request);
+  if (!client) return null;
+  return async (slot) => {
+    const response = await client.call(
+      `/api/chat/slots/${encodeURIComponent(slot)}/stop`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      },
+    );
+    if (!response.ok)
+      throw Error(`Kiro Crew refused the session stop (${response.status}).`);
   };
 }
 
@@ -103,7 +124,7 @@ export function gatewaySlotRows(env = process.env, request = fetch) {
 }
 
 // Read each live worker session the tick opened and record its new tool
-// rows as timing spans. Writes only new spans. shortcut: one read per live
+// rows as timing spans, and its provider errors as health marks. Writes only new spans. shortcut: one read per live
 // session per tick, the same bound as the status read; batch it once Kiro
 // Crew offers an app-scoped roster.
 export async function observeToolRows(store, readRows, { checksFor } = {}) {
@@ -122,6 +143,8 @@ export async function observeToolRows(store, readRows, { checksFor } = {}) {
       rows += ingestToolRows(store, binding, read.rows, {
         checks: checksFor ? checksFor(binding) : [],
       });
+      // Provider errors (§4.20, R72.3) ride on the same read: no new request.
+      ingestProviderErrors(store, binding, read.rows);
       if (
         read.cursor &&
         JSON.stringify(read.cursor) !== JSON.stringify(store.getMeta(key))

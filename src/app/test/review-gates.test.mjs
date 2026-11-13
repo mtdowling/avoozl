@@ -71,7 +71,7 @@ function setup(t, { delivery = {}, tasks, edges } = {}) {
   });
   store.put("projects", {
     id: "app",
-    root: fs.realpathSync(checkout),
+    root: fs.realpathSync.native(checkout),
     baseBranch: "main",
     checks: [["git", "status"]],
   });
@@ -92,7 +92,7 @@ function setup(t, { delivery = {}, tasks, edges } = {}) {
   const ops = new Operations(store, { workspaceRoot: root });
   return {
     root,
-    checkout: fs.realpathSync(checkout),
+    checkout: fs.realpathSync.native(checkout),
     store,
     ops,
     slots,

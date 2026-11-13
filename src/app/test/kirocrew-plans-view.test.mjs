@@ -76,8 +76,8 @@ test("the Plans view lists, stores, and approves a spec folder", async (t) => {
   const listed = await call("plan.specs");
   assert.equal(listed.status, 200, JSON.stringify(listed.body));
   assert.equal(
-    fs.realpathSync(listed.body.result.root),
-    fs.realpathSync(served),
+    fs.realpathSync.native(listed.body.result.root),
+    fs.realpathSync.native(served),
   );
   assert.deepEqual(
     listed.body.result.items.map((item) => [item.name, item.plan]),

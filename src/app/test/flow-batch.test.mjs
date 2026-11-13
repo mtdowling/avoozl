@@ -43,7 +43,7 @@ function setup(t, tasks, { flow, routing, placement } = {}) {
   store.importSnapshot({ ...snapshot(), tasks, edges: [] });
   store.put("projects", {
     id: "app",
-    root: fs.realpathSync(checkout),
+    root: fs.realpathSync.native(checkout),
     baseBranch: "main",
     checks: [["git", "status"]],
   });

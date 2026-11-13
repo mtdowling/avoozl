@@ -22,17 +22,19 @@ test('every modal is the shared Modal and every z-index is a named layer', async
     assert.doesNotMatch(text, /zIndex: (?!LAYER\.)|\bz-\d|\bz-\[/, `${name} sets a z-index outside layers.ts`)
   }
   const { LAYER } = await import('../src/layers.ts')
-  assert.deepEqual(Object.keys(LAYER), ['raised', 'sticky', 'drawer', 'tooltip'])
-  assert.ok(LAYER.raised < LAYER.sticky && LAYER.sticky < LAYER.drawer && LAYER.drawer < LAYER.tooltip, 'the layers are in order')
+  const order = Object.values(LAYER)
+  assert.deepEqual(Object.keys(LAYER), ['raised', 'sticky', 'drawer', 'popover', 'tooltip'])
+  assert.deepEqual(order, [...order].sort((a, b) => a - b), 'the layers are in order')
 })
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the modal cover tests'
-const MODALS = ['add-plugin', 'onboard', 'repo-edit', 'setup-github', 'archive-plan', 'delete-plan', 'confirm', 'file-viewer', 'stop-line', 'pack-import', 'send-to-radar', 'crew', 'rule']
+const MODALS = ['add-plugin', 'onboard', 'repo-edit', 'setup-github', 'archive-plan', 'delete-plan', 'confirm', 'file-viewer', 'stop-line', 'pack-import', 'send-to-radar', 'crew', 'rule', 'switch-model']
 const OPENERS = {
   'add-plugin': 'Add plugin',
   onboard: 'Onboard',
   confirm: 'Remove',
   'stop-line': 'Stop the line',
+  'switch-model': 'Switch model',
 }
 
 let harness, browser, page

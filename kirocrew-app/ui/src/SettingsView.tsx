@@ -51,6 +51,7 @@ import PluginsSettings from './PluginsSettings.tsx'
 import ContentRulesSettings from './ContentRulesSettings.tsx'
 import FlowSettings from './FlowSettings.tsx'
 import DeliverySettings from './DeliverySettings.tsx'
+import ProvidersSettings from './ProvidersSettings.tsx'
 import { useSteppedState } from './NavHistory.tsx'
 import { useRead } from './useRead.ts'
 import { labelsClient, triageRows, type RepositoryLabels } from './untriaged-api.ts'
@@ -77,6 +78,7 @@ export const SETTINGS_TABS = [
   { key: 'content', label: 'Content rules' },
   { key: 'flow', label: 'Flow' },
   { key: 'delivery', label: 'Delivery' },
+  { key: 'providers', label: 'Providers' },
 ] as const
 export type SettingsTab = (typeof SETTINGS_TABS)[number]['key']
 
@@ -99,6 +101,8 @@ export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
   flow: 'How Avoozl measures delivery time and reacts to slow or broken work. Every group applies in each mode.',
   delivery:
     'Which agent and model write each task by default, and whether pull request feedback goes back to the writer. Crews and per-task picks are on the Routing tab.',
+  providers:
+    'When a provider or model counts as low or out, and the fallback models. New tasks skip low and out ones. Saved on this machine only.',
 }
 
 const REPOSITORY_TABS = [
@@ -1402,6 +1406,8 @@ export default function SettingsView(props: {
         <FlowSettings workspaceId={workspaceId} />
       ) : tab === 'delivery' ? (
         <DeliverySettings workspaceId={workspaceId} onOpenRouting={props.onOpenRouting} />
+      ) : tab === 'providers' ? (
+        <ProvidersSettings workspaceId={workspaceId} />
       ) : (
         <PolicyEditor workspaceId={workspaceId} tab={tab} onOpenPlans={props.onOpenPlans} />
       )}

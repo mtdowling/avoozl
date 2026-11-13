@@ -10,6 +10,8 @@ export const LAYER = {
   sticky: 10,
   // The task drawer and the New plan drawer, with their backdrops.
   drawer: 50,
+  // A dropdown list under its field (Picker), over a drawer it opens in.
+  popover: 60,
   // Page tooltips, above the host's own layers too.
   tooltip: 2147483000,
 } as const
