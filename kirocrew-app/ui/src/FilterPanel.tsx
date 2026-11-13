@@ -8,7 +8,7 @@ import { Picker } from './Picker.tsx'
 import type { PickItem } from './picker.ts'
 import { X } from './icons.ts'
 import { ICON, TipBtn } from './controls.tsx'
-import { useMedia } from './TaskDrawer.tsx'
+import { useMedia } from './use-media.ts'
 import type { Option } from './filters.ts'
 
 export type FilterField =

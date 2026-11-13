@@ -10,6 +10,7 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { appFile } from "./app-files.mjs";
 import { fail } from "./store.mjs";
 import { STEERING_TEXT } from "./spec-steering.mjs";
 import { addedLines, applyDiff, merge3, unifiedDiff } from "./text-diff.mjs";
@@ -87,12 +88,8 @@ Merging and changing Avoozl settings are a person's. ${OUTRANK_LINE}`;
 
 function agentPrompt(name) {
   try {
-    return JSON.parse(
-      fs.readFileSync(
-        new URL(`../../kirocrew-app/agents/${name}.json`, import.meta.url),
-        "utf8",
-      ),
-    ).prompt;
+    return JSON.parse(fs.readFileSync(appFile(`agents/${name}.json`), "utf8"))
+      .prompt;
   } catch {
     return "";
   }

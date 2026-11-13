@@ -10,6 +10,7 @@ import { workflowSkill } from "./skill.mjs";
 import { workspaceConfig, applicationRoot } from "./config.mjs";
 import { initializeWorkspace } from "./workspace.mjs";
 import { Operations } from "./operations.mjs";
+import { driverSettingsPath } from "./driver.mjs";
 import { handleMcp } from "./mcp.mjs";
 import { createAppMcp } from "./app-mcp.mjs";
 import { startAppBackend } from "./app-backend.mjs";
@@ -73,7 +74,14 @@ try {
           "full",
           "confirm-public",
           "untriaged",
-        ].includes(key)
+          "rebuild",
+          "force",
+          "unfinished",
+          "cancel",
+          "yes",
+        ].includes(key) &&
+        // `driver takeover --force --confirm SPEC` names the spec (R66.15).
+        !(key === "confirm" && command === "driver")
       )
         options[key] = true;
       // `avoozl budget receipt TASK --json` prints the receipt object.
@@ -172,6 +180,7 @@ try {
       workspaceRoot: config.workspaceRoot,
       plansRoot: config.plansRoot,
       configDirectory: machineAvoozlPaths().configDirectory,
+      driver: { settingsFile: driverSettingsPath() },
     });
   // Without a server, every CLI write goes through Operations in process.
   // `local` marks the caller as the person at this machine's command line.
@@ -698,7 +707,63 @@ try {
         2,
       ),
     );
-  else if (command === "claim")
+  else if (command === "driver") {
+    // The spec driver (§6.10). Hand off, take over and force take over are
+    // a person's: the CLI is the person at this machine's command line.
+    const action = positionals[0] || "status",
+      planId = options.spec || positionals[1];
+    let result;
+    if (action === "status")
+      result = await localOrRequest("driver.status", planId ? { planId } : {});
+    else if (action === "handoff") {
+      // Draining already: --folder writes the export now. Otherwise this
+      // starts the drain, and a --folder export is written once it drains.
+      const draining = options.cancel
+        ? false
+        : (await localOrRequest("driver.status", { planId })).specs?.[0]
+            ?.handoff?.state === "draining";
+      result = await localOrRequest("driver.handoff", {
+        planId,
+        action: options.cancel ? "cancel" : draining ? "export" : "start",
+        ...(options.folder ? { folder: path.resolve(options.folder) } : {}),
+        ...(options.unfinished ? { unfinished: true } : {}),
+      });
+    } else if (action === "takeover") {
+      const file = options.file ? path.resolve(options.file) : undefined;
+      if (options.force) {
+        if (typeof options.confirm !== "string")
+          throw Error("Force take over needs --confirm SPEC, the spec's name.");
+        result = await localOrRequest("driver.forceTakeover", {
+          planId,
+          confirm: options.confirm,
+          ...(file ? { file } : { acknowledgeLoss: options.yes === true }),
+        });
+      } else
+        result = await localOrRequest("driver.takeover", {
+          planId,
+          ...(file ? { file } : {}),
+          ...(options.rebuild
+            ? { rebuild: true, acknowledgeLoss: options.yes === true }
+            : {}),
+        });
+      // A rebuild shows what it loses first; --yes runs it.
+      if (result?.needs === "acknowledge")
+        result =
+          "A rebuild from GitHub loses:\n" +
+          result.lost.map((line) => "  - " + line).join("\n") +
+          "\nRun again with --yes to go on.";
+    } else if (action === "set")
+      result = await localOrRequest("driver.settings.update", {
+        ...(options.label !== undefined ? { label: options.label } : {}),
+        ...(options.heartbeat !== undefined
+          ? { heartbeatMinutes: Number(options.heartbeat) }
+          : {}),
+      });
+    else throw Error("Use driver status|handoff|takeover|set.");
+    console.log(
+      typeof result === "string" ? result : JSON.stringify(result, null, 2),
+    );
+  } else if (command === "claim")
     console.log(
       JSON.stringify(
         await localOrRequest("runner.claim", {
@@ -1324,6 +1389,14 @@ try {
   flow stop --full --reason TEXT        Stop all agents: also stop every running chat Avoozl opened (needs the app backend)
   flow resume STOP_ID                   Resume a pulled stop (a person only)
   checks run --task TASK_ID             Run the declared checks in this worktree and record the pass
+  driver status [SPEC]                  Which machine drives each spec, and why one reads only here
+  driver handoff SPEC [--folder DIR [--unfinished]] [--cancel]
+                                        Stop new work for SPEC; with --folder write the export (a person only)
+  driver takeover SPEC [--file EXPORT.json | --rebuild [--yes]]
+                                        Drive SPEC here once its plan issue names you (a person only)
+  driver takeover SPEC --force --confirm SPEC [--file EXPORT.json | --yes]
+                                        Assign the plan issue to you and take over by force (a person only)
+  driver set [--label LABEL] [--heartbeat MINUTES]  This computer's machine label and heartbeat
   claim TASK_ID --slot SESSION [--model MODEL] Claim a ready leaf for a Crew Mode worker session
   report TASK_ID --slot SESSION --kind done|blocked|question|progress [--commit SHA] [--text TEXT]
   retry TASK_ID [--dismiss FINDING --reason TEXT] Resume a leaf that stopped for a decision
