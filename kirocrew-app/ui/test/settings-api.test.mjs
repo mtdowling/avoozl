@@ -11,6 +11,7 @@ const POLICY = {
   defaultAuthority: 'github',
   epicIssueType: 'Epic',
   subIssues: { maxPerParent: 5 },
+  issues: { includeDone: true },
   project: {
     owner: 'example',
     number: 7,
@@ -158,6 +159,7 @@ test('an empty form clears every policy key', () => {
     defaultAuthority: null,
     epicIssueType: null,
     subIssues: null,
+    issues: null,
     project: null,
     repositories: null,
   })

@@ -1177,6 +1177,10 @@ function GeneralTab(props: {
                 <Text id="avoozl-settings-sub-issues" label="Sub-issues per parent" raw="subIssues.maxPerParent" rule={{ required: false, blank: SUB_ISSUE_LINE }} placeholder="100" type="number" width="sm" value={form.maxPerParent} onChange={(value) => set({ maxPerParent: value })} />
               )}
             </div>
+            <label className="flex items-center gap-1.5 text-sm">
+              <input type="checkbox" checked={form.includeDone} onChange={(event) => set({ includeDone: event.target.checked })} />
+              Make issues for tasks already done when a spec is approved <span className="text-xs text-muted">issues.includeDone</span>
+            </label>
             <ProjectFields form={form} choices={choices} set={set} />
             <Section level="sub" title="Set up GitHub" blurb="Creates the labels, Project and fields the settings above name. It reads GitHub first and shows every write before making one.">
               {props.setup}

@@ -350,6 +350,8 @@ export async function previewProjection(
       notes: projection.notes,
       // Children the sub-issue cap or GitHub leaves unlinked (R59.15).
       unlinked: projection.unlinked,
+      // Done tasks that get no issue (R74, github.issues.includeDone).
+      skippedDone: projection.skippedDone,
       previewOnly: projection.previewOnly,
       project,
     };
