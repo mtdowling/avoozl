@@ -13,6 +13,7 @@ import {
   inspectPlugins,
   listeningSockets,
   pluginHost,
+  procAddress,
   readPluginSettings,
   removePlugin,
   validateEntry,
@@ -279,6 +280,19 @@ test("a call that does not answer in its time limit stops the plugin", async () 
     (error) => /timed out/.test(error.reason),
   );
   await session.close();
+});
+
+test("a /proc/net/tcp address reads as lsof prints it", () => {
+  assert.equal(procAddress("0100007F:B215"), "127.0.0.1:45589");
+  assert.equal(procAddress("00000000:0050"), "0.0.0.0:80");
+  assert.equal(
+    procAddress("00000000000000000000000001000000:1F90"),
+    "[::1]:8080",
+  );
+  assert.equal(
+    procAddress("0000000000000000FFFF00000100007F:0016"),
+    "[::ffff:7f00:1]:22",
+  );
 });
 
 test("the socket check stops a plugin that listens past the guard", async () => {
