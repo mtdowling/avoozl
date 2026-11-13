@@ -214,7 +214,9 @@ function applyIssueTask(
       resources: parsed.resources || [],
       epic: parsed.epic || task.epic || "inbox",
       track: parsed.track || task.track || "catalog",
-      projectId: parsed.projectId || config.projectId,
+      // The issue's repository decides where its work runs: issue text
+      // cannot send it to another registered repository.
+      projectId: config.projectId,
       approvedSource: {
         hash: record.bodyHash,
         text: record.body,
@@ -560,6 +562,9 @@ export async function syncGitHubIssues(
             [previous?.labelEventId].filter(Boolean),
         ),
         snapshot = previous?.snapshotHash ?? previous?.bodyHash,
+        // The title is frozen with the body: an edit after the trigger
+        // must not change what the worker is told to build.
+        snapshotTitle = previous?.snapshotTitle ?? previous?.title,
         confirmed = allowed.some(
           (match) => match.action === "resume" && !frozen.has(match.eventId),
         );
@@ -571,12 +576,15 @@ export async function syncGitHubIssues(
       } else if (
         previous &&
         frozen.has(primary.eventId) &&
-        snapshot !== bodyHash &&
+        (snapshot !== bodyHash ||
+          (snapshotTitle !== undefined && snapshotTitle !== issue.title)) &&
         !confirmed
       ) {
         state = "quarantined";
         reason =
-          "The issue body changed after its trigger snapshot. Remove and reapply the trigger label, or confirm this exact body.";
+          snapshot !== bodyHash
+            ? "The issue body changed after its trigger snapshot. Remove and reapply the trigger label, or confirm this exact body."
+            : "The issue title changed after its trigger snapshot. Remove and reapply the trigger label, or confirm this exact issue.";
       }
       if (
         authorize?.id === id &&
@@ -600,6 +608,10 @@ export async function syncGitHubIssues(
           bodyHash,
           snapshotHash:
             state === "authorized" ? bodyHash : snapshot || bodyHash,
+          snapshotTitle:
+            state === "authorized"
+              ? issue.title
+              : (snapshotTitle ?? issue.title),
           assignees: (issue.assignees || []).map((entry) => entry.login),
           rule: primary.rule,
           action: primary.action,

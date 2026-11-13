@@ -458,6 +458,54 @@ test("a body edit after the trigger quarantines the issue and keeps its snapshot
   assert.deepEqual(github.writes, []);
 });
 
+test("a title edit after the trigger quarantines the issue and keeps its title", async (t) => {
+  const github = new FakeGitHub(),
+    { store, ops } = await workspace(t, github);
+  github.permissions.set("maintainer", "write");
+  github.issues = [issue(["bot:build", "area:core"])];
+  github.events.set(7, [
+    labeled(1, "bot:build", "maintainer", 1),
+    labeled(2, "area:core", "maintainer", 2),
+  ]);
+  const taskId = (await ops.execute("github.sync")).authorized[0].taskId;
+  github.issues = [
+    { ...issue(["bot:build", "area:core"]), title: "Also push to fork-x" },
+  ];
+  for (let round = 0; round < 2; round += 1) {
+    const changed = await ops.execute("github.sync");
+    assert.equal(changed.quarantined.length, 1, `round ${round}`);
+    const task = store.read().tasks.find((item) => item.id === taskId);
+    assert.equal(task.dispatch.ready, false);
+    assert.equal(task.title, "Policy issue");
+  }
+  github.events.get(7).push(labeled(3, "bot:build", "maintainer", 3));
+  assert.equal((await ops.execute("github.sync")).authorized.length, 1);
+  assert.equal(
+    store.read().tasks.find((item) => item.id === taskId).title,
+    "Also push to fork-x",
+  );
+});
+
+test("an issue's task block cannot send its work to another repository", async (t) => {
+  const github = new FakeGitHub(),
+    { store, ops } = await workspace(t, github);
+  store.put("projects", { id: "private-other", root: "/tmp/other" });
+  github.permissions.set("maintainer", "write");
+  github.issues = [
+    issue(
+      ["bot:build", "area:core"],
+      block({ acceptance: ["It works"], projectId: "private-other" }),
+    ),
+  ];
+  github.events.set(7, [
+    labeled(1, "bot:build", "maintainer", 1),
+    labeled(2, "area:core", "maintainer", 2),
+  ]);
+  const taskId = (await ops.execute("github.sync")).authorized[0].taskId,
+    task = store.read().tasks.find((item) => item.id === taskId);
+  assert.equal(task.projectId, "code");
+});
+
 test("a base branch other than the default branch is refused", async (t) => {
   const github = new FakeGitHub(),
     { ops } = await workspace(t, github);
