@@ -180,7 +180,7 @@ export async function observeRetroReplies(store, readRows) {
   return { errors };
 }
 
-// The model router's answer (§4.10): like a retro, one JSON reply from the
+// The routing agent's answer (§4.10): like a retro, one JSON reply from the
 // tool-less avoozl-router agent, read once the session is idle.
 export async function observeRouterReplies(store, readRows) {
   const errors = [],
