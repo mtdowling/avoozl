@@ -39,6 +39,7 @@ import { LOCAL } from "./crews.mjs";
 import { machineRouting, placeOne, routingOn, rulesAllow } from "./routing.mjs";
 import { handbackFetch, pushedFetch } from "./handback.mjs";
 import { routeResultNotes, submittedTaskIds } from "./routes.mjs";
+import { healthContext, healthyChoices, modelsOf } from "./provider-health.mjs";
 import {
   findPlanningLeak,
   isLinkedBranchLeaf,
@@ -1916,6 +1917,7 @@ export function planReadyDispatches(store, policy, options = {}) {
       candidates.filter((task) => !skip.has(task.id)),
       { workspaceRoot, data, policy, fits: routing ? batchFits : null },
     );
+  let health = null;
   return leaves.flatMap((leaf) => {
     const where = placed.get(leaf.task.id),
       remote = where && where.crew !== LOCAL ? where.crewInfo : null,
@@ -1944,10 +1946,26 @@ export function planReadyDispatches(store, policy, options = {}) {
       })
     )
       return [];
-    const model = where ? where.model : keptModel(store, leaf.task.id, policy),
-      agent = where
-        ? where.agent || policy.agent
-        : keptAgent(store, leaf.task.id, policy);
+    let model = where ? where.model : keptModel(store, leaf.task.id, policy);
+    // Without routing the delivery model is the one choice; an out model
+    // takes a replacement or fallback, else the task waits (R72.5).
+    if (!where && model) {
+      health ??= healthContext(store);
+      const healthy = healthyChoices(
+        [{ agent: null, model, weight: 1 }],
+        health,
+        {
+          skipModels: reviewRoles(policy, leaf.project.id)
+            .filter((r) => r.distinctFrom === "model" && r.model)
+            .map((r) => r.model),
+        },
+      );
+      if (healthy.wait) return [];
+      model = healthy.pool[0].model;
+    }
+    const agent = where
+      ? where.agent || policy.agent
+      : keptAgent(store, leaf.task.id, policy);
     return [
       {
         task: leaf.task.id,
@@ -2132,13 +2150,18 @@ export function distinctCause(role, writer) {
 // trusted (reported false). A reported model is trusted only when it is named,
 // not auto, and Kiro Crew neither withheld the requested model nor changed it
 // mid-session; otherwise `cause` says why not.
+// Whether Avoozl itself moved this chat to `model` (R72.11): Kiro Crew then
+// reports a mid-session change that is not a surprise.
+const switchedTo = (binding, model) =>
+  Boolean(model) && (binding?.switches || []).some((s) => s.to === model);
+
 export function servedModel(binding) {
   const served = binding?.served;
   if (!served)
     return { model: binding?.model || null, reported: false, cause: null };
   const cause = served.withheld
     ? `Kiro Crew withheld the requested model ${served.requested || binding.model || "(none)"} and ran ${served.model || "an unreported model"}`
-    : served.changed
+    : served.changed && !switchedTo(binding, served.model)
       ? `Kiro Crew changed its model mid-session (last ${served.model || "unreported"})`
       : unknownModel(served.model)
         ? `Kiro Crew reports its served model as ${served.model || "unknown"}`
@@ -2165,8 +2188,11 @@ function servedRefusal(store, delivery, role, reviewer) {
   if (unknownModel(w.model))
     return `the writer's model is ${w.model || "unknown"}, so review ${role.id} cannot be shown to run on a different model`;
   if (unknownModel(r.model)) return `review ${role.id} ran on no named model`;
-  if (r.model === w.model)
-    return `review ${role.id} ran on the writer's model ${w.model}`;
+  // A chat Avoozl switched is judged by every model it ran on (R72.11).
+  const shared = modelsOf({ ...reviewer, model: r.model }).find((m) =>
+    modelsOf({ ...writer, model: w.model }).includes(m),
+  );
+  if (shared) return `review ${role.id} ran on the writer's model ${shared}`;
   return null;
 }
 

@@ -1,4 +1,4 @@
-// Task 30.1: Stop all agents (design §4.11, Requirement 64.12-64.16). A
+// Task 31.1: Stop all agents (design §4.11, Requirement 64.12-64.16). A
 // person's full stop pauses everything, stops each running session Avoozl
 // opened, keeps worktrees, and marks each attempt "Interrupted by stop";
 // Resume starts each again on the same worktree, agent and model.

@@ -1183,14 +1183,39 @@ workspaces, a fake GitHub and a fake plugin.
   - Failure means: something that changed the workspace leaves no row, or the log can hold a secret or a private term.
   - Next decision: record from each step instead of a snapshot diff, or keep redacted rows out of the log.
 
-## Phase 30: Stop all agents and searchable pickers
+## Phase 30: Provider health and switching models
 
-Owner approval 2026-11-13 (Requirements 64.12–64.16 and 72, design §4.11
-and §8.9). Numbered after Phase 29 because task IDs never move.
+Owner request 2026-11-13 (Requirement 72, design §4.20). Numbered after
+Phase 29 because task IDs never move. It reads health from the usage and
+row reads Avoozl already makes and moves running chats with Kiro Crew's own
+per-chat model change (F126); everything proves with fakes for Kiro Crew.
 
-- [ ] 30.1 Stop all agents in the backend and CLI, after 24.1 [R64.12, R64.14–R64.16] (§4.11)
+- [x] 30.1 Provider health from usage and errors, after 12.12 [R72.1–R72.4, R72.17, R72.18] (§4.20, F127, F128)
+  - Machine-local `providers` settings (`lowPercent`, `cooldownMinutes`, `windowHours`, `limits`, `groups`, `fallback`) with validation, refused in `.avoozl.json`; `provider_health` rows; usage marks after each usage read; error marks from the timing row read (kind first, then words, kind stored only); recovery by a later turn or the cooldown; person marks until undone; `providers.view` and person-only `providers.settings.update` and `provider.health.clear`.
+- [x] 30.2 Routing skips low and out, after 30.1 and 11.11 [R72.5–R72.7] (§4.20)
+  - `chooseSession` drops `out` and then `low` choices; the replacement, then `fallback`, for no rule or nothing left; never a review role's model; wait with a reason when nothing is healthy; retries keep a model until it is out; the dispatch path without rules does the same; Preview shows it.
+- [x] 30.3 Switch running chats, after 30.1 [R72.8–R72.11] (§4.20, F126)
+  - The backend's pass over live tick sessions on an `out` model; target choice; `POST /api/chat/slots/<slot>/model`; `deferred` read as switching at the next turn; binding `model` and `switches`; `provider_switches` records and the `onSwitchRecorded` activity hook writing one `model.switch` row per record; a refusal not retried; the served-model gate across switches.
+- [x] 30.4 Manual Switch model, after 30.3 [R72.12–R72.15] (§4.20)
+  - `provider.switch.preview` with its hash; person-only `provider.switch` with `alsoNewTasks` marks and the replacement; MCP refusal and app-backend owner-only; pending switches applied by the backend pass.
+- [x] 30.5 Switch model dialog, Needs you, and Settings › Providers, after 30.4 [R72.12, R72.13, R72.16, R72.17] (§4.20, §8)
+  - The Switch model button in the Dashboard header and on In flight; the dialog with From, To from `GET /api/models`, Also new tasks, the preview and marks with Undo; `conflicts.view` kind `provider-out` in Needs you; the Providers settings tab.
+
+- [x] avoozl-p44 P44 Proof: provider health and switching [R72] (§4.20)
+  - Setup: an isolated temporary workspace with one repository and fake crews; machine `providers` with `limits` `alpha-1` 100 credits, `fallback` `gamma-1`, `cooldownMinutes` 30; a routing rule giving routine leaves weighted choices `alpha-1` (weight 2) and `beta-1`; a review role on `delta-1` with `distinctFrom: model`; a fake usage feed, fake session rows, and a fake Kiro Crew model change that answers `deferred` for a busy chat and 404 for one slot.
+  - Action: (1) with no `providers`, tick and preview; (2) feed `alpha-1` 85 credits; tick; (3) feed 20 more; read health; tick; (4) feed a session row of kind `usage_limit` from a `beta-1` chat, then a 429 row twice from an `alpha-2` chat; (5) let 31 minutes pass, and feed a later `beta-1` turn; (6) retry a task whose kept model is `alpha-1` while it is low, then while it is out; (7) run the backend pass with `alpha-1` out and chats on it, one busy and one whose slot answers 404; (8) review a switched writer; (9) preview and confirm Switch model from provider `alpha` to `gamma-1` with Also new tasks, then confirm with a stale hash; (10) call the switch, undo and settings save from MCP, an app token and an agent tool; (11) read Needs you; undo the mark.
+  - Expected: (1) picks match the earlier ticks exactly; (2) `alpha-1` is low and new tasks take `beta-1`; (3) `alpha-1` is out, no new session opens on it, and Preview says why; (4) provider `beta` is out and `alpha-2` goes low then out, with no row text stored; (5) both clear; (6) the retry keeps `alpha-1` while low and moves off it when out, saying so; (7) both chats are asked to switch to a healthy model not on the review role's model, the busy one is recorded `deferred`, the refused one `refused` once and never retried, the sessions and worktrees are untouched, and each switch reaches the activity hook; (8) the verdict counts and is refused only when a reviewer model equals one of the writer's; (9) preview writes nothing, the confirm queues one switch per chat and marks the provider out with `gamma-1` for new tasks, and the stale hash gets 409; (10) every call is refused, MCP with the person-only refusal; (11) one `provider-out` item per out mark shows the switched count, and Undo clears the person's mark.
+  - Failure means: a task can open on an out provider, a switch loses a chat's work, or a non-person can switch models.
+  - Next decision: switch by opening a new session on the same branch instead, or mark health only from errors.
+
+## Phase 31: Stop all agents and searchable pickers
+
+Owner approval 2026-11-13 (Requirements 64.12–64.16 and 73, design §4.11
+and §8.9). Numbered after Phase 30 because task IDs never move.
+
+- [ ] 31.1 Stop all agents in the backend and CLI, after 24.1 [R64.12, R64.14–R64.16] (§4.11)
   - `flow.stop {full: true}` is person only (MCP refused), needs the app backend's session stopper, records a full `all` stop with the sessions it stopped, stops each live tick-opened session, marks stopped bindings and attempts "Interrupted by stop" without spending a retry, holds checks and review sessions while open; Resume turns interrupted deliveries back to `failed` so the next tick re-dispatches on the same worktree, agent and model with a brief that says so; `avoozl flow stop --full`.
-- [ ] 30.2 Stop all agents in the dialog, after 30.1 and 24.2 [R64.12, R64.13] (§4.11)
+- [ ] 31.2 Stop all agents in the dialog, after 31.1 and 24.2 [R64.12, R64.13] (§4.11)
   - The dialog's two choices, the full stop's confirm warning that replies in progress are lost and saved files are kept, and the banner's count of stopped chats.
-- [ ] 30.3 One searchable picker for tasks and specs, after 24.2 [R72] (§8.9)
+- [ ] 31.3 One searchable picker for tasks and specs, after 24.2 [R73] (§8.9)
   - `Picker.tsx` combobox with ID, title and spec matching, state badges, the keys and ARIA of §8.9, and at most 50 rendered results; used in the Stop the line target, the filter panels and Start now; a test filters 5,000 tasks.

@@ -1,4 +1,4 @@
-// One searchable picker for every task and spec choice (design §8.9, R72):
+// One searchable picker for every task and spec choice (design §8.9, R73):
 // a WAI-ARIA combobox with a listbox popup. Type to match on ID, title and
 // spec; Down, Up, Home and End move; Enter picks; Esc closes, then clears.
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'

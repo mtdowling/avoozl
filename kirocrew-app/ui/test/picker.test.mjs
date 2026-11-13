@@ -1,4 +1,4 @@
-// One searchable picker for tasks and specs (design §8.9, R72): matching,
+// One searchable picker for tasks and specs (design §8.9, R73): matching,
 // keys, ARIA, where it is used, and speed at 5,000 tasks. Also the Stop all
 // agents choice in the Stop the line dialog (R64.12-R64.13).
 import assert from 'node:assert/strict'
