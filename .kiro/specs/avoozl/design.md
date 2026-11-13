@@ -1584,6 +1584,41 @@ closedAt, resumedBy, time to fix ─▶ Flow stops, charts, retro
 - **CLI.** `avoozl flow stop --scope all|repo|spec|task [--repository ID]
   [--spec ID] [--task ID] --reason TEXT` and `avoozl flow resume STOP-ID`.
 
+#### Stop all agents
+
+Added 2026-11-13 (Requirement 64.12–64.16). The dialog's second choice is
+a full stop: nothing new starts anywhere, and every running chat Avoozl
+opened stops now.
+
+```text
+Stop all agents ─▶ confirm (replies in progress are lost; files are kept)
+   ▼ flow.stop {full: true, reason}   (person only; MCP refused)
+flow_stops row { manual, full, scope: all, by, reason, sessions: [] }
+   ▼ for each live binding the tick opened (any role)
+POST /api/chat/slots/<slot>/stop (app backend, app token)
+   ├─ ok ─▶ binding.interrupted { stop, at }; worker attempt recorded
+   │        { outcome: interrupted, cause: "Interrupted by stop" },
+   │        delivery state `interrupted`
+   └─ refused ─▶ sessions[i].error; the session runs on, unmarked
+Resume ─▶ flow.resume ─▶ each `interrupted` delivery of this stop ─▶ `failed`
+   ▼ next tick: same worktree and branch, same agent and model
+```
+
+- **Where the stop runs.** Only the app backend holds the app token, so
+  `flow.stop {full: true}` needs its session stopper. The CLI without the
+  backend is refused with nothing recorded.
+- **Attempts.** `interrupted` is its own outcome: it is not a failure for
+  the retry limit, and an interrupted session is not live, so it is not
+  nudged or counted against concurrency. Review and checks sessions are
+  stopped too; their verification is recorded `interrupted` and a new one
+  opens after Resume. While a full stop is open no checks or review
+  session opens.
+- **Same model.** The next worker attempt keeps the interrupted binding's
+  agent and model, whatever the policy says now.
+- **Brief.** The next brief says the attempt was interrupted by a stop and
+  tells the worker to read `git status` and `git log` in the kept worktree
+  first.
+
 #### Local checks first
 
 Default on. It applies wherever a session Avoozl opens pushes: plans-repo
@@ -4676,6 +4711,26 @@ the request. Avoozl adds no second path to Spec Builder.
 | Agents may capture and append | Writing a note starts nothing; limits cap it; content rules screen it |
 | Archive, restore, graduate are a person's | They change what the owner sees and decides |
 | Reuse the New spec entry point | One place owns spec rules and the Spec Builder hand-off |
+
+### 8.9 Searchable pickers
+
+Added 2026-11-13 (Requirement 71). `Picker.tsx` is one combobox for every
+task and spec choice: the Stop the line target, the filter panels' task
+and spec fields, Start now, and any later one. Repositories keep their
+short select.
+
+- **Items.** `{id, title, spec?, state?}`. The match is a lower-case
+  substring test on `id`, `title` and `spec`, run over a list built once
+  per item set; an ID that starts with the text sorts first. At most 50
+  results render, with "N more; type to narrow".
+- **Keys.** Down and Up move the highlight, Home and End jump, Enter picks,
+  Esc closes the list, and a second Esc clears the text. Tab leaves
+  without picking.
+- **ARIA.** The input is `role="combobox"` with `aria-expanded`,
+  `aria-controls`, `aria-autocomplete="list"` and
+  `aria-activedescendant`; the list is `role="listbox"` and each result is
+  `role="option"` with `aria-selected`. The state shows as a small badge
+  beside the title.
 
 ## 9. Current-code disposition
 

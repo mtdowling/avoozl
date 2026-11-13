@@ -16,6 +16,7 @@ import { WorkspaceRegistry } from "./host-config.mjs";
 import { initializeWorkspace } from "./workspace.mjs";
 import { gatewayPusher } from "./notifications.mjs";
 import {
+  gatewaySessionStopper,
   gatewaySlotReader,
   gatewaySlotRows,
   gatewayUsageTurns,
@@ -320,6 +321,8 @@ export function startAppBackend({
   usageReader = gatewayUsageTurns(process.env),
   // Reads Issue Radar's crews for Send to Issue Radar (radar-handoff.mjs).
   crewReader = issueRadarReader(process.env),
+  // Stops a session for Stop all agents (session-observer.mjs).
+  sessionStopper = gatewaySessionStopper(process.env),
 }) {
   const replay = new ReplayCache();
   // One store and Operations per workspace root, opened on first use.
@@ -360,6 +363,7 @@ export function startAppBackend({
           plansRoot: target.plansRoot,
           notifier,
           crewReader,
+          sessionStopper,
         }),
       };
       opened.set(target.dbPath, entry);
