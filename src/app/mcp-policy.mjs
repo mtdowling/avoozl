@@ -73,6 +73,11 @@ export const NOT_ON_MCP = new Map([
   ["highlight.languages", page],
   ["chat.context", page],
   ["agent.instructions.source", page],
+  // The Onboard dialog's reads (onboarding.mjs); a session uses
+  // repositories, plans_view and the setup preview for the same facts.
+  ["onboarding.inspect", page],
+  ["onboarding.scan", page],
+  ["plan.issues.preview", page],
   ...[
     "run.model",
     "run.unsend",
