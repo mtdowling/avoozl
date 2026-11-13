@@ -118,6 +118,9 @@ const OBSERVE = new Set([
   "review.queue",
   "checkpoint.reconcile",
   "primary.liveState",
+  "task.notes.list",
+  "template.list",
+  "template.preview",
 ]);
 
 const DRAFT = new Set([
@@ -205,9 +208,15 @@ const EXECUTE = new Set([
   "jobs.dispatch",
   "jobs.redispatch",
   "work.take",
+  "task.notes.add",
 ]);
 
 const PROTECT = new Set([
+  "task.manual.complete",
+  "task.manual.reopen",
+  "task.notes.edit",
+  "task.notes.remove",
+  "task.notes.show",
   "driver.settings.update",
   "driver.handoff",
   "driver.takeover",

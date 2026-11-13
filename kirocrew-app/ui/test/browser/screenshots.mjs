@@ -29,7 +29,7 @@ const PANELS = {
   ],
 }
 const SCENARIO = { 'task-files-split': 'task-files' }
-const ALL = ['add-plugin', 'onboard', 'repo-edit', 'setup-github', 'archive-plan', 'delete-plan', 'confirm', 'file-viewer', 'stop-line', 'pack-import', 'send-to-radar', 'crew', 'switch-model']
+const ALL = ['add-plugin', 'onboard', 'repo-edit', 'setup-github', 'archive-plan', 'delete-plan', 'confirm', 'file-viewer', 'stop-line', 'pack-import', 'send-to-radar', 'crew', 'switch-model', 'task-drawer', 'mark-done', 'new-spec-template']
 
 const [out, ...asked] = process.argv.slice(2)
 if (!out) {
