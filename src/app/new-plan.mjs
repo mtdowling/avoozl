@@ -9,7 +9,12 @@
 import { fail } from "./store.mjs";
 import { digest } from "../model.mjs";
 import { contentBinding, enforce } from "./content-rules.mjs";
-import { createSpecPlan, isEpicFolder, MANIFEST, specName } from "./spec-plans.mjs";
+import {
+  createSpecPlan,
+  isEpicFolder,
+  MANIFEST,
+  specName,
+} from "./spec-plans.mjs";
 import { PLANNER_AGENT } from "./github-planner.mjs";
 import { draftManifest } from "./spec-manifest.mjs";
 import { steeringOptions, withSeed } from "./retro-memory.mjs";
@@ -106,20 +111,12 @@ export function newPlanBrief(request) {
 // What New plan hands Spec Builder as the user's first words. Spec Builder
 // appends it to its own seed prompt. The rules come from the steering file
 // when it is there; otherwise they ride along here.
-<<<<<<< HEAD
-export function specBuilderDescription(request, steering, rules = STEERING_TEXT) {
-  const { category, epic, phases, repositories, goal, context } = request;
-||||||| parent of aba0f9b (Add the Proposals and Lessons views and Settings for lessons)
-export function specBuilderDescription(request, steering, rules = STEERING_TEXT) {
-  const { category, epic, epics, repositories, goal, context } = request;
-=======
 export function specBuilderDescription(
   request,
   steering,
   rules = STEERING_TEXT,
 ) {
-  const { category, epic, epics, repositories, goal, context } = request;
->>>>>>> aba0f9b (Add the Proposals and Lessons views and Settings for lessons)
+  const { category, epic, phases, repositories, goal, context } = request;
   const front = [
     category && `category: ${category}`,
     epic && `epic: ${epic}`,
@@ -175,7 +172,10 @@ export function requestNewPlan(store, input = {}, deps) {
   if (epic) {
     const folder = deps.readSpec(epic);
     if (!folder.exists || !isEpicFolder(folder.files))
-      fail(`${epic} is not an epic folder. Pick an epic, or leave Epic empty.`, 404);
+      fail(
+        `${epic} is not an epic folder. Pick an epic, or leave Epic empty.`,
+        404,
+      );
   }
   const phasesInput = input.phases ?? [];
   if (!Array.isArray(phasesInput)) fail("Phases must be a list.");

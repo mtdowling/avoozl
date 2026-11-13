@@ -2848,7 +2848,12 @@ export class Operations {
             // Why it was archived, such as "plan removed" (Requirement 59.4:
             // a plan is done when each task is done or archived with a reason).
             if (input.reason !== undefined) {
-              if (typeof input.reason !== "string" || !input.reason.trim() || input.reason.length > 200 || /[\r\n]/.test(input.reason))
+              if (
+                typeof input.reason !== "string" ||
+                !input.reason.trim() ||
+                input.reason.length > 200 ||
+                /[\r\n]/.test(input.reason)
+              )
                 fail("reason is one line of 1–200 characters.");
               task.archivedReason = input.reason.trim();
             }
@@ -3069,7 +3074,9 @@ export class Operations {
         approved = crossPlanEpics(data),
         ids = [
           ...approved.map((epic) => epic.id),
-          ...folders.map((item) => item.name).filter((id) => !approved.some((epic) => epic.id === id)),
+          ...folders
+            .map((item) => item.name)
+            .filter((id) => !approved.some((epic) => epic.id === id)),
         ],
         view = (id) => {
           const folder = folders.find((item) => item.name === id);
@@ -3081,7 +3088,9 @@ export class Operations {
         };
       if (name === "epic.get") {
         if (typeof input.id !== "string" || !input.id)
-          fail("Name the epic: {id}, its spec folder name. plans_plan epics lists them.");
+          fail(
+            "Name the epic: {id}, its spec folder name. plans_plan epics lists them.",
+          );
         if (!ids.includes(input.id)) fail(`No epic ${input.id}.`, 404);
         return view(input.id);
       }
@@ -3386,7 +3395,9 @@ export class Operations {
           // value from before that rule may be cleared, with epic: null.
           if (Object.hasOwn(input, "epic")) {
             if (input.epic !== null)
-              fail("A task names no epic: its plan does. Send epic: null to clear an old value.");
+              fail(
+                "A task names no epic: its plan does. Send epic: null to clear an old value.",
+              );
             delete task.epic;
           }
           if (input.kind === "epic")
@@ -3401,7 +3412,9 @@ export class Operations {
               typeof task.phase.title !== "string" ||
               !task.phase.title.trim() ||
               task.phase.title.length > 240 ||
-              Object.keys(task.phase).some((key) => !["id", "title"].includes(key)))
+              Object.keys(task.phase).some(
+                (key) => !["id", "title"].includes(key),
+              ))
           )
             fail("phase is {id, title}, or null for No phase.");
           // Authority changes only through projection or taking a task back.
