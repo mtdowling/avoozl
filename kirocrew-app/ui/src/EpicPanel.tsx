@@ -38,7 +38,7 @@ export function EpicPanel(props: {
       <div className="mt-1 flex flex-wrap items-center gap-2">
         <Badge>{value.complete ? 'done' : value.approved ? 'approved' : 'draft'}</Badge>
         <span className="text-xs text-muted">
-          {value.progress.done} of {value.progress.total} tasks done across {value.members.length} plans
+          {value.progress.done} of {value.progress.total} tasks done across {value.members.length} specs
         </span>
       </div>
       <div className="mt-2 grid gap-4 text-sm" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(16rem, 1fr))' }}>
