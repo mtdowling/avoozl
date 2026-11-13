@@ -32,6 +32,7 @@ import {
   metricCards,
   pdcaText,
   proposalText,
+  scopeText,
   type FlowFilter,
   type FlowViewModel,
   type LineStop,
@@ -98,6 +99,22 @@ export function LineBanner({ stops, workspaceId, onChanged }: { stops: LineStop[
       setError(errorMessage(caught))
     }
   }
+  // A pulled stop closes only when a person presses Resume (R64.7).
+  const resume = async (stop: LineStop) => {
+    if (!workspaceId) return
+    const yes = await confirm({
+      title: 'Resume the line?',
+      body: `New work starts again in ${scopeText(stop)}. The stop was pulled for: ${stop.reason ?? ''}`,
+      action: 'Resume',
+    })
+    if (!yes) return
+    try {
+      await client.resume(workspaceId, stop.id)
+      onChanged?.()
+    } catch (caught) {
+      setError(errorMessage(caught))
+    }
+  }
   return (
     <div className="flex flex-col gap-2" data-line-banner>
       {stops.map((stop) => (
@@ -105,6 +122,11 @@ export function LineBanner({ stops, workspaceId, onChanged }: { stops: LineStop[
           <CircleAlert size={18} aria-hidden="true" style={{ color: 'var(--danger)', flex: 'none' }} />
           <div className="flex min-w-0 flex-1 flex-col gap-0.5" style={{ minWidth: '14rem' }}>
             <span style={{ overflowWrap: 'anywhere' }}>{bannerText(stop)}</span>
+            {stop.manual && (
+              <span className="text-xs text-muted" data-line-pulled>
+                Pulled by {stop.by?.name ?? 'someone'}, {relativeTime(stop.openedAt, Date.now())}. Only a person can resume it.
+              </span>
+            )}
             {stop.runAnyway && (
               <span className="text-xs text-muted">
                 Run anyway by {stop.runAnyway.by}, {relativeTime(stop.runAnyway.at, Date.now())}.
@@ -117,7 +139,12 @@ export function LineBanner({ stops, workspaceId, onChanged }: { stops: LineStop[
                 Open fix task
               </IconLabel>
             )}
-            {!stop.runAnyway && (
+            {stop.manual && (
+              <IconLabel icon={Play} tooltip="Start new work again in this scope; asks first" onClick={() => void resume(stop)}>
+                Resume
+              </IconLabel>
+            )}
+            {!stop.manual && !stop.runAnyway && (
               <IconLabel icon={Play} tooltip="Resume new work while the check still fails; asks first" onClick={() => void runAnyway(stop)} style={dangerStyle}>
                 Run anyway
               </IconLabel>

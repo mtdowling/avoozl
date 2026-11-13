@@ -172,7 +172,7 @@ import {
   retroInstructions,
   setRetroInstructions,
 } from "./flow-retro.mjs";
-import { lineBanner, runAnyway } from "./flow-line.mjs";
+import { lineBanner, pullCord, resumeStop, runAnyway } from "./flow-line.mjs";
 import { localCheckList, localPass, runLocalChecks } from "./flow-checks.mjs";
 import { queueNotifications } from "./notifications.mjs";
 
@@ -2112,6 +2112,20 @@ export class Operations {
       if (context.caller || context.mcp)
         fail("Only a person presses Run anyway, in the Avoozl page or the CLI.", 403);
       return runAnyway(store, input, { operator: context.local ? "cli" : "dashboard" });
+    }
+    // Pull the Andon cord (R64): a person or an agent session stops new
+    // dispatch in a scope; only a person resumes.
+    if (name === "flow.stop")
+      return pullCord(store, input, {
+        by:
+          context.caller || context.mcp
+            ? { kind: "agent", name: `session:${context.caller?.sessionKey || context.caller || "mcp"}` }
+            : { kind: "person", name: context.local ? "cli" : "dashboard" },
+      });
+    if (name === "flow.resume") {
+      if (context.caller || context.mcp)
+        fail("Only a person resumes a pulled stop, in the Avoozl page or the CLI.", 403);
+      return resumeStop(store, input, { by: context.local ? "cli" : "dashboard" });
     }
     // The Untriaged list (§8.5): cached GitHub items no rule, triage label,
     // or task covers. `refresh` reads GitHub first (Check now); read only.

@@ -75,8 +75,16 @@ export interface LineStop {
   fixTaskId: string | null
   runAnyway: { by: string; at: string } | null
   paused?: number
-  fixState?: string
+  fixState?: string | null
   needsYou?: boolean
+  // A stop pulled by hand (R64): who, why, and what it covers.
+  manual?: boolean
+  by?: { kind: 'person' | 'agent'; name: string }
+  reason?: string
+  scope?: string
+  planId?: string | null
+  taskId?: string | null
+  resumedBy?: { by: string; at: string }
 }
 
 export interface Proposal {
@@ -260,6 +268,8 @@ export function flowClient(api: AppApi) {
         ...(filter.stage ? { stage: filter.stage } : {}),
       }),
     runAnyway: (workspaceId: string, stopId: string) => run(workspaceId, 'flow.runAnyway', { stopId, confirm: true }),
+    stop: (workspaceId: string, input: PullInput) => run<{ stop: LineStop }>(workspaceId, 'flow.stop', { ...input }),
+    resume: (workspaceId: string, stopId: string) => run<{ stop: LineStop }>(workspaceId, 'flow.resume', { stopId }),
     startRetro: (workspaceId: string) => run(workspaceId, 'flow.retro.start'),
     decide: (workspaceId: string, input: Record<string, unknown>) => run(workspaceId, 'flow.retro.decide', input),
     settings: (workspaceId: string) => run<FlowSettings>(workspaceId, 'flow.settings.get'),
@@ -336,8 +346,57 @@ export function pdcaText(p: Proposal): string | null {
   return `PDCA: ${p.metric} ${fmt(p.pdca.before)} → ${fmt(p.pdca.after)}, ${verdict}.`
 }
 
+// What a pulled stop covers, in words.
+export function scopeText(stop: Pick<LineStop, 'scope' | 'projectId' | 'planId' | 'taskId'>): string {
+  if (stop.scope === 'repo') return `repository ${stop.projectId}`
+  if (stop.scope === 'spec') return `spec ${stop.planId}`
+  if (stop.scope === 'task') return `task ${stop.taskId} and its dependents`
+  return 'everything in this workspace'
+}
+
+// Pull the Andon cord (R64): the dialog's choices and its checks, which
+// match the backend's so a bad pull never leaves the page.
+export type PullScope = 'all' | 'repo' | 'spec' | 'task'
+export interface PullForm {
+  scope: PullScope
+  repository: string
+  spec: string
+  taskId: string
+  reason: string
+}
+export interface PullInput {
+  scope: PullScope
+  reason: string
+  repository?: string
+  spec?: string
+  taskId?: string
+}
+export const PULL_SCOPES: { value: PullScope; label: string; line: string }[] = [
+  { value: 'all', label: 'Everything', line: 'No new work starts anywhere in this workspace.' },
+  { value: 'repo', label: 'One repository', line: 'No new work starts in the repository you pick.' },
+  { value: 'spec', label: 'One spec', line: 'No new work starts for the tasks of the spec you pick.' },
+  { value: 'task', label: 'One task and its dependents', line: 'The task and everything that waits on it hold.' },
+]
+export const MAX_REASON = 200
+export const emptyPull = (): PullForm => ({ scope: 'all', repository: '', spec: '', taskId: '', reason: '' })
+
+export function toPull(form: PullForm): { input?: PullInput; error?: string } {
+  const reason = form.reason.trim()
+  if (!reason) return { error: 'Reason is required.' }
+  if (/[\r\n]/.test(reason)) return { error: 'Keep the reason to one line.' }
+  if (reason.length > MAX_REASON) return { error: `Keep the reason to ${MAX_REASON} characters or fewer.` }
+  if (form.scope === 'repo') return form.repository ? { input: { scope: 'repo', repository: form.repository, reason } } : { error: 'Pick a repository.' }
+  if (form.scope === 'spec') return form.spec ? { input: { scope: 'spec', spec: form.spec, reason } } : { error: 'Pick a spec.' }
+  if (form.scope === 'task') return form.taskId ? { input: { scope: 'task', taskId: form.taskId, reason } } : { error: 'Pick a task.' }
+  return { input: { scope: 'all', reason } }
+}
+
 // The banner's sentence (§8.4).
 export function bannerText(stop: LineStop): string {
+  if (stop.manual) {
+    const paused = ` ${stop.paused ?? 0} task${stop.paused === 1 ? '' : 's'} paused.`
+    return `Line stopped by ${stop.by?.name ?? 'someone'}: ${stop.reason ?? ''}. Scope: ${scopeText(stop)}.${paused}`
+  }
   const what = stop.check ? `\`${stop.check}\` fails on ${stop.branch}` : `a worker named ${stop.culprit} as the cause`
   const since = stop.commit ? ` since ${stop.commit.slice(0, 7)}` : ''
   const culprit = stop.culprit ? ` (task ${stop.culprit})` : ' (culprit unknown)'

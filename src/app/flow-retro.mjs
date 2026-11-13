@@ -218,6 +218,9 @@ export function retroBrief(store, data, retro) {
       lineStops: view.stops.map((s) => ({
         check: s.check,
         culprit: s.culprit,
+        ...(s.manual
+          ? { manual: true, scope: s.scope, reason: s.reason }
+          : {}),
         timeToFixMs: s.timeToFixMs ?? null,
       })),
       flaky: view.flaky.map((r) => ({ check: r.check, commit: r.commit })),

@@ -6,7 +6,12 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { check as checkContent, contentBinding } from "./content-rules.mjs";
+import {
+  check as checkContent,
+  contentBinding,
+  enforce,
+} from "./content-rules.mjs";
+import { queueNotifications } from "./notifications.mjs";
 import { commandEvidence, git } from "./git.mjs";
 import { flowPolicy, listOr, openStops, stopScope } from "./flow.mjs";
 import { fail } from "./store.mjs";
@@ -180,7 +185,7 @@ function openStop(
 ) {
   const at = new Date(now).toISOString(),
     reuse = openStops(store).find(
-      (s) => s.projectId === project.id && s.check === check,
+      (s) => !s.manual && s.projectId === project.id && s.check === check,
     );
   if (reuse) return reuse;
   const data = store.read(),
@@ -598,6 +603,8 @@ export function runAnyway(store, input = {}, { operator = "dashboard" } = {}) {
     const stop = store.get("flow_stops", input.stopId);
     if (!stop) fail("Line stop not found.", 404);
     if (stop.closedAt) fail("This stop is already closed.", 409);
+    if (stop.manual)
+      fail("A pulled stop resumes with Resume, not Run anyway.", 409);
     if (stop.runAnyway) return { stop, changed: false };
     const next = {
       ...stop,
@@ -605,6 +612,117 @@ export function runAnyway(store, input = {}, { operator = "dashboard" } = {}) {
     };
     store.put("flow_stops", next);
     return { stop: next, changed: true };
+  });
+}
+
+// flow.stop: pull the Andon cord (R64). A person, or an agent session over
+// MCP, stops new dispatch in a scope with a one-line reason. The stop has no
+// check and no fix task, so the line watch never closes it; only
+// flow.resume does.
+export const PULL_SCOPES = Object.freeze(["all", "repo", "spec", "task"]);
+const MAX_REASON = 200;
+
+export function pullCord(store, input = {}, { by, now = Date.now() } = {}) {
+  const reason = typeof input.reason === "string" ? input.reason.trim() : "";
+  if (!reason) fail("Give a reason for stopping the line.");
+  if (/[\r\n]/.test(reason)) fail("Keep the reason to one line.");
+  if (reason.length > MAX_REASON)
+    fail(`Keep the reason to ${MAX_REASON} characters or fewer.`);
+  if (!PULL_SCOPES.includes(input.scope))
+    fail(`Choose a scope: ${PULL_SCOPES.join(", ")}.`);
+  const data = store.read(),
+    target = {};
+  if (input.scope === "repo") {
+    if (!store.get("projects", String(input.repository || "")))
+      fail(`Repository ${input.repository ?? "(none)"} was not found.`, 404);
+    target.projectId = input.repository;
+  } else if (input.scope === "spec") {
+    const plan = listOr(store, "plans").find(
+      (p) => p.id === input.spec && !p.deletedAt,
+    );
+    if (!plan) fail(`Spec ${input.spec ?? "(none)"} was not found.`, 404);
+    target.planId = plan.id;
+    target.spec = plan.spec || null;
+  } else if (input.scope === "task") {
+    const task = data.tasks.find((t) => t.id === input.taskId);
+    if (!task) fail(`Task ${input.taskId ?? "(none)"} was not found.`, 404);
+    target.taskId = task.id;
+    target.projectId = taskRepository(task) || null;
+  }
+  // The reason shows on the banner and reaches the retro brief (R64.4).
+  if (contentBinding(store)?.workspaceRoot)
+    enforce(
+      store,
+      {
+        boundary: "brief",
+        repository: target.projectId || null,
+        target: "flow-stop",
+        text: reason,
+      },
+      { mode: "refuse" },
+    );
+  const at = new Date(now).toISOString(),
+    stop = {
+      id: `stop:pulled:${at}:${Math.random().toString(16).slice(2, 8)}`,
+      manual: true,
+      by,
+      reason,
+      scope: input.scope,
+      projectId: null,
+      planId: null,
+      spec: null,
+      taskId: null,
+      ...target,
+      check: null,
+      culprit: null,
+      fixTaskId: null,
+      openedAt: at,
+      closedAt: null,
+      runAnyway: null,
+    };
+  store.transaction(() => store.put("flow_stops", stop));
+  queueNotifications(store, [
+    {
+      channel: "failure",
+      task: stop.taskId,
+      title: `Line stopped by ${by.name}: ${reason}`,
+      text: `Scope ${stopTarget(stop)}. No new work starts there; running chats keep going.`,
+      resume: "Press Resume on the Dashboard banner when it is safe.",
+    },
+  ]);
+  return { stop };
+}
+
+const stopTarget = (stop) =>
+  stop.scope === "all"
+    ? "everything"
+    : stop.scope === "repo"
+      ? `repository ${stop.projectId}`
+      : stop.scope === "spec"
+        ? `spec ${stop.planId}`
+        : `task ${stop.taskId} and its dependents`;
+
+// flow.resume: a person closes a pulled stop (R64.7). Agents are refused
+// before this is called; an automatic stop keeps its own rules (R64.8).
+export function resumeStop(store, input = {}, { by, now = Date.now() } = {}) {
+  return store.transaction(() => {
+    const stop = store.get("flow_stops", input.stopId);
+    if (!stop) fail("Line stop not found.", 404);
+    if (!stop.manual)
+      fail(
+        "This is an automatic stop: it resumes when its check passes, or use Run anyway.",
+        409,
+      );
+    if (stop.closedAt) fail("This stop is already resumed.", 409);
+    const at = new Date(now).toISOString(),
+      closed = {
+        ...stop,
+        closedAt: at,
+        timeToFixMs: Math.max(0, now - Date.parse(stop.openedAt)),
+        resumedBy: { by, at },
+      };
+    store.put("flow_stops", closed);
+    return { stop: closed };
   });
 }
 
@@ -617,9 +735,11 @@ export function lineBanner(store, data = store.read()) {
     return {
       ...stop,
       paused: stop.runAnyway ? 0 : stopScope(store, data, stop).size,
-      fixState: fix?.integration
-        ? "integrated"
-        : delivery?.state || (fix ? "ready" : "missing"),
+      fixState: stop.manual
+        ? null
+        : fix?.integration
+          ? "integrated"
+          : delivery?.state || (fix ? "ready" : "missing"),
       needsYou:
         delivery?.state === "decision" ||
         ["question", "blocked"].includes(

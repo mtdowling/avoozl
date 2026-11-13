@@ -124,6 +124,10 @@ const tools = {
       claim: ["runner.claim", "claim a ready leaf for a worker"],
       worktree: ["worktree.prepare", "create or return the leaf's worktree"],
       checks: ["flow.checks.run", "run declared checks at HEAD"],
+      stop_line: [
+        "flow.stop",
+        "pull the Andon cord: {scope: all|repo|spec|task, repository?, spec?, taskId?, reason}; only a person resumes",
+      ],
       reply: ["reply.post", "post a responder's one reply"],
     },
   },
