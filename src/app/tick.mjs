@@ -8,6 +8,7 @@
 // done report. On the cron it also reads and writes GitHub: completion,
 // issue intake, planner sessions for matched issues, broad-issue publishing,
 // re-projection, crew labels and the Project board.
+import { recordTickActivity } from "./activity-log.mjs";
 import fs from "node:fs";
 import { validateTrackedRouting } from "./placement.mjs";
 import { crewSnapshot } from "./crews.mjs";
@@ -908,6 +909,9 @@ export async function tick(
       // The cron's tick queues each notice once for the app's notification
       // channels; the app backend pushes it (notifications.mjs).
       if (script) queueNotifications(store, notices);
+      // The activity log (§4.19): what GitHub and plugin sync changed since
+      // the last tick, once each, then rows past the retention go.
+      recordTickActivity(store, memory.value || {});
       return {
         policy,
         ...(githubResult
