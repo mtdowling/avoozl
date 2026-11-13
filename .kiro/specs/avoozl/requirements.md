@@ -3224,6 +3224,28 @@ something wrong, so that nothing new builds on it while it is looked at.
     automatic stops, counted in the charts over time, its open-to-resume
     time counted as time to fix, and sent to the retro with its scope and
     reason.
+12. Added 2026-11-13 (owner approval). The Stop the line dialog SHALL offer
+    two choices: **Stop the line**, which stops new work only (criteria
+    1–11), and **Stop all agents**, a full stop. A full stop SHALL pause
+    everything in the workspace like scope `all`, and SHALL also stop every
+    running session Avoozl opened (Kiro Crew session stop) at once. It
+    SHALL keep each worktree and branch, and SHALL mark each stopped attempt
+    "Interrupted by stop". An interrupted attempt SHALL NOT count as a
+    failure toward the retry limit, and SHALL NOT be nudged.
+13. The confirm for **Stop all agents** SHALL warn that replies in progress
+    are lost, and that committed and saved files are kept.
+14. Only a person SHALL pull or resume a full stop. An MCP call SHALL be
+    refused with the usual person-only refusal, and nothing SHALL be
+    recorded. A pull that cannot reach Kiro Crew to stop sessions (the CLI
+    without the app backend) SHALL be refused with nothing recorded. A
+    session Kiro Crew refuses to stop SHALL be named on the stop and left
+    running, and its attempt SHALL NOT be marked.
+15. WHEN a full stop is resumed THEN Avoozl SHALL re-dispatch each
+    interrupted task on the same worktree and branch, with the same agent
+    and model its interrupted attempt ran on. The new brief SHALL say the
+    attempt was interrupted by a stop and the worktree's files were kept.
+16. Each full stop SHALL be a stop in Flow like other pulls (criterion 11),
+    marked full, with the sessions it stopped.
 
 ### Requirement 65: New plan hands off to Spec Builder
 
@@ -3856,3 +3878,30 @@ hand.
     with Undo for a person's marks.
 18. With no `providers` settings, no error rows and no manual marks,
     routing and dispatch SHALL behave exactly as before.
+
+### Requirement 73: Searchable task and spec pickers
+
+Added 2026-11-13 (owner approval). Design §8.9.
+
+**User story:** As the owner, I want to type to find a task or spec
+wherever I pick one, so that I never scroll a long dropdown.
+
+#### Acceptance criteria
+
+1. Every place the page picks one task or one spec SHALL use one shared
+   combobox: the Stop the line scope, the filter panels, Start now, and
+   any other task or spec choice.
+2. Typing SHALL match on the ID, the title and the spec, ignoring case.
+   Each result SHALL show its state beside it.
+3. The picker SHALL work from the keyboard: Down and Up move through the
+   results, Enter picks the highlighted one, and Esc closes the list
+   (a second Esc clears the text). Home and End move to the first and
+   last result.
+4. The picker SHALL be a WAI-ARIA combobox with a listbox popup:
+   `role="combobox"`, `aria-expanded`, `aria-controls`,
+   `aria-activedescendant`, and `role="option"` with `aria-selected` on
+   each result.
+5. With 5,000 tasks, filtering on each key press SHALL stay fast: the
+   list SHALL show at most 50 results with a count of the rest, and a
+   test SHALL filter 5,000 tasks within the time a 1,000-task filter took
+   times 10.

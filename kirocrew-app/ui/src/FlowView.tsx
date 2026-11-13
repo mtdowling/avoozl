@@ -103,8 +103,10 @@ export function LineBanner({ stops, workspaceId, onChanged }: { stops: LineStop[
   const resume = async (stop: LineStop) => {
     if (!workspaceId) return
     const yes = await confirm({
-      title: 'Resume the line?',
-      body: `New work starts again in ${scopeText(stop)}. The stop was pulled for: ${stop.reason ?? ''}`,
+      title: stop.full ? 'Resume all agents?' : 'Resume the line?',
+      body: stop.full
+        ? `New work starts again everywhere, and each interrupted task starts again on its branch and model. The stop was pulled for: ${stop.reason ?? ''}`
+        : `New work starts again in ${scopeText(stop)}. The stop was pulled for: ${stop.reason ?? ''}`,
       action: 'Resume',
     })
     if (!yes) return
