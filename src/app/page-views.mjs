@@ -1259,6 +1259,12 @@ export function taskDetailView(
       issue: issueLink(detail),
       wave: wave(id),
       context: detail.context || "",
+      // A step only a person does (R61.9, R61.12): Mark done, and how it
+      // was marked.
+      manual: node?.manual ?? false,
+      manualDone: node?.manualDone ?? null,
+      // Show on the issue applies only to a task with an issue (R61.23).
+      onGitHub: Boolean(detail.github?.number),
     },
     origin: taskOrigin(detail, data, plan),
     plan: plan && {

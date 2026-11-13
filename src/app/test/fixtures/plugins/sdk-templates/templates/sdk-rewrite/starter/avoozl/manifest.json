@@ -1,0 +1,95 @@
+{
+  "tasks": {
+    "inventory-operations": {
+      "kind": "leaf",
+      "repository": "{{repository}}",
+      "size": "small",
+      "summary": "Write down every operation and feature the current {{sdk}} SDK has.",
+      "acceptance": [
+        "A list in the design names every operation and feature of the current {{sdk}} SDK"
+      ]
+    },
+    "inventory-gaps": {
+      "kind": "leaf",
+      "repository": "{{repository}}",
+      "size": "small",
+      "summary": "Turn each gap in the gap list into a task.",
+      "acceptance": ["Each gap in the gap list has a task in this spec"],
+      "requires": ["inventory-operations"]
+    },
+    "codegen-client": {
+      "kind": "leaf",
+      "repository": "{{repository}}",
+      "summary": "Generate the new client from the service models.",
+      "acceptance": ["The generated client builds"],
+      "requires": ["inventory-operations"]
+    },
+    "codegen-compare": {
+      "kind": "leaf",
+      "repository": "{{repository}}",
+      "summary": "Compare the generated client with the old one.",
+      "acceptance": [
+        "Every difference from the old client is listed and explained"
+      ],
+      "requires": ["codegen-client"]
+    },
+    "runtime-port": {
+      "kind": "leaf",
+      "repository": "{{repository}}",
+      "summary": "Port transport, auth, retries and paging to the new runtime.",
+      "acceptance": [
+        "Requests are sent, signed, retried and paged on the new runtime"
+      ],
+      "requires": ["codegen-client"]
+    },
+    "protocol-tests-run": {
+      "kind": "leaf",
+      "repository": "{{repository}}",
+      "summary": "Run the protocol test suite and fix what fails.",
+      "acceptance": ["The protocol test suite runs against the new client"],
+      "requires": ["runtime-port", "codegen-compare"]
+    },
+    "protocol-tests-proof": {
+      "kind": "leaf",
+      "repository": "{{repository}}",
+      "summary": "Proof: protocol tests pass.",
+      "acceptance": ["Every protocol test passes against the new client"],
+      "requires": ["protocol-tests-run"]
+    },
+    "team-review": {
+      "kind": "leaf",
+      "manual": true,
+      "repository": "{{repository}}",
+      "summary": "The team reviews the runtime and protocol results before cutover.",
+      "acceptance": [
+        "The team agreed the runtime and protocol results are good enough to cut over"
+      ],
+      "completion": "person",
+      "requires": ["protocol-tests-proof"]
+    },
+    "cutover-callers": {
+      "kind": "leaf",
+      "repository": "{{repository}}",
+      "summary": "Switch callers to the new client.",
+      "acceptance": ["Every caller uses the new client"],
+      "requires": ["team-review"]
+    },
+    "cutover-dry-run": {
+      "kind": "leaf",
+      "repository": "{{repository}}",
+      "summary": "Proof: cutover dry run.",
+      "acceptance": [
+        "The callers' own tests pass against the new client with no change to their code"
+      ],
+      "requires": ["cutover-callers"]
+    },
+    "cutover-notes": {
+      "kind": "leaf",
+      "repository": "{{repository}}",
+      "size": "small",
+      "summary": "Write the release notes for the cutover.",
+      "acceptance": ["The release notes list every change callers can see"],
+      "requires": ["team-review"]
+    }
+  }
+}

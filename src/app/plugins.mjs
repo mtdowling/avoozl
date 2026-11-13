@@ -29,6 +29,7 @@ import {
 } from "./plugin-git.mjs";
 import { pluginSession } from "./plugin-session.mjs";
 import { fail } from "./store.mjs";
+import { readTemplates } from "./templates.mjs";
 
 export const PLUGIN_MANIFEST = "avoozl-plugin.json";
 export const RESERVED_IDS = new Set(["local", "github"]);
@@ -42,7 +43,17 @@ export const CAPABILITIES = {
 // The parts one plugin may bundle (R55.1), and the code kind each runs as.
 // A pack is settings only and runs as nothing; intake is a tracker's `poll`.
 // `lessons` is a lessons pack (design §4.18), data only like a pack.
-export const PARTS = ["pack", "rules", "tracker", "intake", "route", "lessons"];
+// `template` is a workflow template (design §4.16): folders under
+// templates/, data only too.
+export const PARTS = [
+  "pack",
+  "rules",
+  "tracker",
+  "intake",
+  "route",
+  "lessons",
+  "template",
+];
 const PART_KIND = {
   rules: "rules",
   tracker: "tracker",
@@ -369,11 +380,12 @@ export function validateManifest(manifest, entry) {
       fail(`${PLUGIN_MANIFEST} pack must be a .json file inside the plugin.`);
   } else if (manifest.pack !== undefined)
     fail(`${PLUGIN_MANIFEST} pack goes with provides pack.`);
-  // A pack runs no code (R55.3): a plugin of settings only has no entry.
+  // A pack or a template runs no code (R55.3, R61.1): a plugin of data
+  // parts only has no entry.
   if (!kinds.length) {
     if (manifest.entry !== undefined)
       fail(
-        `${PLUGIN_MANIFEST} provides only a pack, which runs no code; remove entry.`,
+        `${PLUGIN_MANIFEST} provides only ${provides.join(", ")}, which run${provides.length === 1 ? "s" : ""} no code; remove entry.`,
       );
     return manifest;
   }
@@ -454,12 +466,16 @@ export function inspectPlugin(declared, options, settings) {
           : `${PLUGIN_MANIFEST} is unreadable: ${missing.message}`,
     };
   }
-  let pack = null;
+  let pack = null,
+    templates = null;
   try {
     validateManifest(manifest, entry);
     hash = contentHash(location);
     if (pluginParts(manifest).provides.includes("pack"))
       pack = readPack(location, manifest.pack ?? PACK_FILE);
+    // An invalid template makes its plugin invalid (R61.2, R61.4).
+    if (pluginParts(manifest).provides.includes("template"))
+      templates = readTemplates(location);
   } catch (invalid) {
     return { ...base, location, state: "invalid", reason: invalid.message };
   }
@@ -475,6 +491,7 @@ export function inspectPlugin(declared, options, settings) {
     hash,
     manifest,
     ...(pack ? { pack } : {}),
+    ...(templates ? { templates } : {}),
   };
   if (!SUPPORTED_CONTRACTS.includes(manifest.contract))
     return {
@@ -571,11 +588,17 @@ export async function previewPlugin(options, input = {}) {
           : `${PLUGIN_MANIFEST} is unreadable: ${error.message}`,
     };
   }
-  let pack = null;
+  let pack = null,
+    templates = null;
   try {
     validateManifest(manifest, { id: manifest?.id });
     if (pluginParts(manifest).provides.includes("pack"))
       pack = readPack(location, manifest.pack ?? PACK_FILE);
+    if (pluginParts(manifest).provides.includes("template"))
+      templates = readTemplates(location).map((t) => ({
+        id: t.id,
+        title: t.title,
+      }));
   } catch (error) {
     return { location, error: error.message };
   }
@@ -587,8 +610,40 @@ export async function previewPlugin(options, input = {}) {
     ...pluginParts(manifest),
     capabilities: manifest.capabilities ?? {},
     ...(pack ? { pack } : {}),
+    ...(templates ? { templates } : {}),
     supported: SUPPORTED_CONTRACTS.includes(manifest.contract),
   };
+}
+
+// Each template of each plugin approved on this computer (R61.1): only
+// these are offered.
+export function approvedTemplates(options) {
+  return inspectPlugins(options)
+    .filter((plugin) => plugin.state === "approved" && plugin.templates)
+    .flatMap((plugin) =>
+      plugin.templates.map((template) => ({ plugin, template })),
+    );
+}
+
+// One approved template by {plugin, template[, version]}. A version other
+// than the approved one is refused: the person saw that one.
+export function pickTemplate(options, { plugin, template, version } = {}) {
+  if (typeof plugin !== "string" || typeof template !== "string")
+    fail("Name the template: plugin and template.");
+  const found = approvedTemplates(options).find(
+    (entry) => entry.plugin.id === plugin && entry.template.id === template,
+  );
+  if (!found)
+    fail(
+      `Template ${template} of plugin ${plugin} is not offered: approve the plugin on this computer first.`,
+      404,
+    );
+  if (version !== undefined && version !== found.plugin.version)
+    fail(
+      `Plugin ${plugin} is now version ${found.plugin.version}. Pick the template again.`,
+      409,
+    );
+  return found;
 }
 
 export function inspectPlugins(options) {
@@ -1129,12 +1184,31 @@ export function repositoryPacks(workspaceRoot) {
 
 // A plugin's pack against this repository's `.avoozl.json` (R55.5). Reads
 // only. It works before approval, so a person can look before trusting it.
-function packPlugin(options, id) {
+// With `template`, the pack is that template's `pack` and `flow` (R61.6):
+// the same preview and person-only import as Settings.
+function packPlugin(options, id, template) {
   if (typeof id !== "string" || !id) fail("Name the plugin by its id.");
   const plugin = inspectPlugins(options).find((p) => p.id === id);
   if (!plugin) fail(`Plugin ${id} is not declared.`, 404);
   if (plugin.state === "invalid" || plugin.state === "missing")
     fail(`Plugin ${id} cannot be previewed: ${plugin.reason}`, 409);
+  if (template !== undefined) {
+    const found = plugin.templates?.find((t) => t.id === template);
+    if (!found) fail(`Plugin ${id} has no template ${template}.`, 404);
+    if (!found.pack && !found.flow)
+      fail(`Template ${template} sets no settings.`, 409);
+    const settings = {
+      ...(found.pack?.settings ?? {}),
+      ...(found.flow ? { flow: found.flow } : {}),
+    };
+    return {
+      ...plugin,
+      pack: {
+        description: found.pack?.description ?? `${found.title} settings`,
+        settings,
+      },
+    };
+  }
   if (!plugin.provides?.includes("pack"))
     fail(`Plugin ${id} provides no pack.`, 409);
   return plugin;
@@ -1158,10 +1232,13 @@ function previewFor(options, plugin, repositories) {
   });
 }
 
-export function previewPluginPack(options, { id, repositories } = {}) {
+export function previewPluginPack(
+  options,
+  { id, repositories, template } = {},
+) {
   const { next, ...preview } = previewFor(
     options,
-    packPlugin(options, id),
+    packPlugin(options, id, template),
     repositories,
   );
   return preview;
@@ -1179,10 +1256,11 @@ export function importPluginPack(
     previewHash,
     acceptLowered = false,
     confirmPublic = false,
+    template,
   } = {},
   importedBy = "",
 ) {
-  const plugin = packPlugin(options, id);
+  const plugin = packPlugin(options, id, template);
   if (plugin.state !== "approved")
     fail(
       `Approve plugin ${id} version ${plugin.version} before importing its pack.`,

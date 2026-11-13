@@ -217,7 +217,9 @@ export function queryTasks(data, options = {}) {
             ) &&
             !t.needsReview &&
             !t.source?.removed &&
-            t.dispatch?.ready !== false &&
+            // Projection's own verdict never holds a manual leaf: it is
+            // never ready for an agent, so projection always says no.
+            ((options.manual && isManual(t)) || t.dispatch?.ready !== false) &&
             // Held while its plan is archived (plan.archive).
             !t.planArchived &&
             taskKind(t) === "leaf" &&

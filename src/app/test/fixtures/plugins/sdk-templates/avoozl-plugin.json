@@ -1,0 +1,6 @@
+{
+  "id": "sdk-templates",
+  "version": "1.0.0",
+  "contract": 1,
+  "provides": ["template"]
+}

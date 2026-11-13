@@ -81,6 +81,7 @@ function LaneCardView(props: {
             {card.attempt !== null && <Badge>attempt {card.attempt}</Badge>}
             {card.reviewRounds > 0 && <Badge>{card.reviewRounds} review rounds</Badge>}
             {card.deliveryState && <Badge variant={card.deliveryState === 'decision' ? 'warning' : undefined}>{card.deliveryState}</Badge>}
+            {card.manual && <Badge variant="warning">Manual</Badge>}
             {card.deferred && <Badge>deferred</Badge>}
             {card.review && <Badge>review</Badge>}
             {card.planArchived && <Badge>Archived</Badge>}

@@ -5,6 +5,7 @@
 // containing block. ?theme=light|dark sets the host theme attribute.
 import { useState, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { createPortal } from 'react-dom'
 import { answer, Btn, Card } from './stubs.tsx'
 import { NavHistoryProvider, APP_ATTR } from '../../src/NavHistory.tsx'
 import { ConfirmProvider, DangerBtn } from '../../src/controls.tsx'
@@ -25,6 +26,9 @@ import { setupForm } from '../../src/settings-api.ts'
 import { toRuleForm } from '../../src/routing-api.ts'
 import { LAYER } from '../../src/layers.ts'
 import AvoozlApp from '../../src/App.tsx'
+import { MarkDoneDialog } from '../../src/TaskNotes.tsx'
+import NewPlanDrawer from '../../src/NewPlanDrawer.tsx'
+import { useTaskDrawer } from '../../src/drawer-context.ts'
 
 const query = new URLSearchParams(location.search)
 document.documentElement.dataset.theme = query.get('theme') === 'dark' ? 'dark' : 'light'
@@ -73,6 +77,60 @@ const row = { key: 'p1', kind: 'spec', name: 'Modal plan', spec: 'modal-plan', f
 const crew = { id: 'remote-1', name: 'Remote one', tags: ['linux'], trust: 'remote', gitHosts: ['github.com'], chatLimit: 2, chatLimitSet: false, delivery: 'handback', sshHost: null, worktreeRoot: null, configured: true, reading: null, ageSeconds: null, running: 0 }
 const text = ['# Guide', '', 'A short file for the viewer.', '', '## Part one', '', 'Some words.', '', '## Part two', '', 'More words.'].join('\n')
 
+// A manual task waiting for a person, with links and notes (R61).
+answer('task.detail', () => ({
+  revision: 1,
+  task: {
+    id: 'team-review', title: 'Review with team', summary: 'The team reviews the results before cutover.',
+    acceptance: ['The team agreed the runtime and protocol results are good enough to cut over'], checks: [],
+    epic: null, epicTitle: null, phase: { id: 'review', title: 'Review' }, kind: 'leaf', authority: 'github', route: 'github',
+    completion: 'person', repository: 'sdk', status: 'planned', state: 'needs-you', ready: false, needsReview: false, decision: null,
+    owner: null, issue: { number: 47, url: 'https://github.example.test/o/sdk/issues/47', repository: 'o/sdk' }, wave: 5, context: '',
+    manual: true, manualDone: null, onGitHub: true,
+  },
+  plan: null, locked: null, waitsOn: [], blocks: [], delivery: null, conflicts: [], timeline: [], timing: null,
+}))
+answer('task.notes.list', () => ({
+  taskId: 'team-review',
+  entries: [
+    { id: 'note-000000000002', taskId: 'team-review', kind: 'link', label: 'Protocol test results', url: 'https://docs.example.test/results', outcome: false, author: 'session:chat-1', at: '2026-11-13T10:05:00Z', onIssue: false },
+    { id: 'note-000000000001', taskId: 'team-review', kind: 'note', text: 'Agenda: runtime, protocol results, open gaps.\nInvite the runtime owners.', outcome: false, author: 'person', login: 'alice', at: '2026-11-13T09:00:00Z', onIssue: true },
+  ],
+}))
+answer('repositories.list', () => ({ items: [{ id: 'sdk', name: 'sdk', localCheckout: '/w/sdk', github: 'o/sdk', baseBranch: 'main' }] }))
+answer('template.list', () => ({
+  templates: [
+    {
+      plugin: 'sdk-templates', version: '1.0.0', id: 'sdk-rewrite', title: 'SDK rewrite',
+      description: 'Rewrite one SDK on the new runtime, phase by phase, with a team review before cutover.',
+      inputs: [
+        { id: 'sdk', label: 'Which SDK', type: 'text', required: true },
+        { id: 'repository', label: 'Target repository', type: 'repositories', required: true },
+        { id: 'gaps', label: 'Gap list', type: 'file', required: false },
+      ],
+      phases: ['Inventory', 'Codegen', 'Runtime', 'Protocol tests', 'Review', 'Cutover'].map((title) => ({ id: title.toLowerCase(), title })),
+      proofKinds: ['Protocol tests pass', 'Cutover dry run'], settings: true,
+    },
+  ],
+}))
+answer('plugin.pack.preview', () => ({
+  id: 'sdk-templates', version: '1.0.0', description: 'SDK rewrite settings', repositories: [], warnings: [], previewHash: 'h', imported: null,
+  changes: [
+    { setting: 'flow.batch', action: 'create', to: { by: 'phase', max: 3 } },
+    { setting: 'flow.retro.everyTasks', action: 'change', from: 20, to: 10 },
+    { setting: 'flow.localChecksFirst', action: 'keep', to: true },
+  ],
+}))
+
+function OpenTask() {
+  const drawer = useTaskDrawer()
+  return (
+    <Btn type="button" onClick={() => drawer.openTask('team-review')}>
+      Open the dialog
+    </Btn>
+  )
+}
+
 // Each modal: the label of the button that opens it, and what it renders.
 type Scenario = { opener: string; render: (open: boolean, setOpen: (open: boolean) => void, close: () => void) => ReactNode }
 const own = (opener: string, node: ReactNode): Scenario => ({ opener, render: () => node })
@@ -117,6 +175,10 @@ export const SCENARIOS: Record<string, Scenario> = {
   'send-to-radar': shown((close) => <SendToRadar workspaceId="w" client={idle} items={[]} repository="avoozl" onClose={close} onSent={close} />),
   crew: shown((close) => <CrewDialog crew={crew as never} onCancel={close} onSave={async () => null} />),
   'switch-model': own('Switch model', <SwitchModelButton workspaceId="w" />),
+  'task-drawer': own('Open the dialog', <OpenTask />),
+  'mark-done': shown((close) => <MarkDoneDialog workspaceId="w" taskId="team-review" title="Review with team" onIssue onClose={close} onDone={close} />),
+  // The real page shows New spec over the whole page, not inside a card.
+  'new-spec-template': shown((close) => createPortal(<div {...{ [APP_ATTR]: '' }}><NewPlanDrawer workspaceId="w" taken={[]} categories={[]} epics={[{ id: 'sdk-target', title: 'SDK target architecture' }]} start="template" onClose={close} /></div>, document.body)),
   rule: shown((close) => <RuleDialog view={{ crews: [], repositories: {}, labels: [] } as never} form={toRuleForm({ id: 'r1' } as never)} isNew={false} models={[]} onCancel={close} onSave={async () => null} onDelete={close} />),
 }
 

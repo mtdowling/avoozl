@@ -133,7 +133,9 @@ import {
   addPlugin,
   approvePlugin,
   disablePlugin,
+  approvedTemplates,
   inspectPlugins,
+  pickTemplate,
   pluginHost,
   importPluginPack,
   previewPlugin,
@@ -230,6 +232,8 @@ const PLUGIN_OPERATIONS = new Set([
   "plugin.update",
   "plugin.pack.preview",
   "plugin.pack.import",
+  "template.list",
+  "template.preview",
 ]);
 import {
   advanceGitHubBreakdowns,
@@ -400,6 +404,12 @@ import {
   movedOperation,
 } from "./moved-operations.mjs";
 import { completeManual, reopenManual } from "./manual-tasks.mjs";
+import {
+  checkInputs,
+  fill,
+  templateSeed,
+  templateSummary,
+} from "./templates.mjs";
 import {
   addNote,
   editNote,
@@ -1089,6 +1099,16 @@ export class Operations {
         packs = repositoryPacks(options.workspaceRoot),
         plugins = inspectPlugins(options).map(({ manifest, entry, ...p }) => ({
           ...p,
+          // Templates by name only; template.list reads the rest.
+          ...(p.templates
+            ? {
+                templates: p.templates.map((t) => ({
+                  id: t.id,
+                  title: t.title,
+                  description: t.description,
+                })),
+              }
+            : {}),
           // The pack's description and groups, and what was imported from
           // it; a newer version offers its diff again (R55.7).
           ...(p.pack
@@ -1131,6 +1151,27 @@ export class Operations {
     // What importing a plugin's pack would change. Reads only.
     if (name === "plugin.pack.preview")
       return previewPluginPack(options, input);
+    // Workflow templates of approved plugins only (R61.1, R61.6). Reads only.
+    if (name === "template.list")
+      return {
+        templates: approvedTemplates(options).map(({ plugin, template }) =>
+          templateSummary(plugin, template),
+        ),
+      };
+    if (name === "template.preview") {
+      const { plugin, template } = pickTemplate(options, input),
+        { text } = checkInputs(template, input.inputs ?? {});
+      return {
+        template: templateSummary(plugin, template),
+        starter: Object.fromEntries(
+          Object.entries(template.starterFiles).map(([file, body]) => [
+            file,
+            fill(body, text),
+          ]),
+        ),
+        seed: templateSeed(template, text),
+      };
+    }
     if (context.caller)
       fail("Only a person changes plugins, in Settings or the CLI.", 403);
     const strip = (plugin) => {
@@ -2227,6 +2268,19 @@ export class Operations {
       archiveEnded(store);
       // New plan folders that lint clean become draft plans (never approved).
       importNewPlans(store, {
+        // A picked epic's folder comes back as its own draft revision.
+        saveEpic: (epic) => {
+          const folder = this.readSpec(epic),
+            stored = store.get("plans", epic);
+          if (!folder.exists) return;
+          if (!stored) createSpecPlan(store, { id: epic }, folder);
+          else if (stored.hash !== folder.hash)
+            saveSpecPlan(
+              store,
+              { id: epic, expectedHash: stored.hash },
+              folder,
+            );
+        },
         readSpec: (spec) => this.readSpec(spec),
         writeManifest: (spec, text) =>
           writeSpecManifest(this.readSpec(spec), text),
@@ -3844,6 +3898,7 @@ export class Operations {
           (repo) => !repo.planning,
         ),
         specRoot: this.specRoots()[0] || null,
+        template: (ref) => pickTemplate(this.pluginOptions, ref),
       });
       if (idea && input.preview !== true)
         result.idea = graduateIdea(store, idea.itemId, result.name);

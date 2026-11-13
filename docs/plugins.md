@@ -4,13 +4,14 @@ A plugin adds to Avoozl without changing Avoozl itself. One plugin can
 bundle several parts, so a team installs one plugin and gets its settings,
 its content rules, its tracker and its intake source together:
 
-| Part      | What it is                                                                 | Runs code |
-| --------- | -------------------------------------------------------------------------- | --------- |
-| `pack`    | Settings a person previews and copies into `.avoozl.json` once             | No        |
-| `rules`   | Content rule sets supplied while Avoozl runs                               | Yes       |
-| `tracker` | A task tracker that keeps Avoozl's task records                            | Yes       |
-| `intake`  | An intake source: the tracker kind's `poll`, which brings outside work in | Yes       |
-| `route`   | A delivery route for tasks that are not run by a local worker              | Yes       |
+| Part       | What it is                                                                 | Runs code |
+| ---------- | -------------------------------------------------------------------------- | --------- |
+| `pack`     | Settings a person previews and copies into `.avoozl.json` once             | No        |
+| `rules`    | Content rule sets supplied while Avoozl runs                               | Yes       |
+| `tracker`  | A task tracker that keeps Avoozl's task records                            | Yes       |
+| `intake`   | An intake source: the tracker kind's `poll`, which brings outside work in | Yes       |
+| `route`    | A delivery route for tasks that are not run by a local worker              | Yes       |
+| `template` | A workflow template that starts a new spec from a reusable folder          | No        |
 
 Local and GitHub are the only built-in routes and trackers. Everything
 else, including any integration that must stay private, is a separate
@@ -18,8 +19,8 @@ package or folder that plugs in here.
 
 The examples on this page are the test-only plugins in Avoozl's own test
 tree: `src/app/test/fixtures/plugins/sdk-team/` bundles a pack, rules, a
-tracker and an intake source; `fake-route/`, `fake-tracker/` and
-`fake-rules/` each provide one part. Read them alongside this guide. These
+tracker and an intake source; `sdk-templates/` holds one workflow template;
+`fake-route/`, `fake-tracker/` and `fake-rules/` each provide one part. Read them alongside this guide. These
 fakes are the only plugins tested so far; no real plugin has run live.
 
 ## What a plugin is
@@ -46,8 +47,8 @@ for the parts that run code, and, with a pack, `avoozl-pack.json`:
   interface this plugin was built for. It is not the plugin's own version.
   Settings shows it as **Contract version**. This Avoozl supports contract
   version `1`.
-- `provides` lists the parts: `pack`, `rules`, `tracker`, `intake` and
-  `route`. `intake` runs as the `tracker` kind and needs the `poll`
+- `provides` lists the parts: `pack`, `rules`, `tracker`, `intake`,
+  `route`, `lessons` and `template`. `intake` runs as the `tracker` kind and needs the `poll`
   capability. A manifest written before `provides` lists `kinds` instead
   (`route`, `tracker`, `rules`), and each kind is its own part. With
   `provides`, leave `kinds` out; if you keep it, it must match.
@@ -56,8 +57,9 @@ for the parts that run code, and, with a pack, `avoozl-pack.json`:
 - `pack` names the pack file inside the folder; it defaults to
   `avoozl-pack.json`.
 - `entry` is a `.mjs` or `.js` file inside the folder. A plugin that provides
-  only a pack runs no code, so it has no `entry`; Avoozl refuses one that
-  names an entry, and never starts a process for it.
+  only data parts (`pack`, `lessons`, `template`) runs no code, so it has no
+  `entry`; Avoozl refuses one that names an entry, and never starts a
+  process for it.
 
 The entry module exports one object per kind: `route`, `tracker`, or
 `rules`. Each
@@ -339,6 +341,66 @@ avoozl plugins pack-preview sdk-team
 avoozl plugins pack-import sdk-team --preview HASH [--accept-lowered]
 ```
 
+## Template part
+
+A workflow template starts a new spec the same way each time, such as one
+SDK rewrite after another. It is data only. Each template is a folder under
+`templates/` in the plugin:
+
+```
+templates/sdk-rewrite/
+  avoozl-template.json
+  prompt.md
+  starter/requirements.md
+  starter/design.md
+  starter/tasks.md
+  starter/avoozl/manifest.json
+```
+
+`avoozl-template.json` holds:
+
+| Key                          | Holds                                                                                                                       |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `id`, `title`, `description` | What the New spec drawer shows                                                                                              |
+| `inputs`                     | Fields the person fills; each has `id`, `label`, `type` (`text`, `choice` with `options`, `file`, `repositories`, `epic`) and `required` |
+| `prompt`                     | The planner prompt, a Markdown file                                                                                         |
+| `starter`                    | A spec folder in the usual layout                                                                                           |
+| `phases`                     | Optional: the starter's phases, `{id, title}` in order                                                                      |
+| `proofKinds`                 | Optional: proof outlines the prompt asks the planner to fill in                                                             |
+| `pack`                       | Optional: a settings pack, as in the pack part                                                                              |
+| `flow`                       | Optional: flow defaults: `batch`, `stopTheLine`, `localChecksFirst`, `retro.everyTasks`                                     |
+
+The prompt and starter files may use `{{<input id>}}`. Avoozl puts in what
+the person typed, as plain text, once, and never runs it. A `file` input is
+read in the page, at most 200 KB of text; Avoozl never opens a path someone
+typed. The plugin shows as invalid, naming the key or file, when:
+
+- a key or input setting is unknown, or an input ID is used twice;
+- a file uses a placeholder that is no input ID;
+- the starter, with sample values put in, does not lint clean;
+- `phases` does not match the starter's headings or manifest `phase` values;
+- `pack` or `flow` fails its own check.
+
+A template is offered only while its plugin is approved on this computer.
+In **New spec**, choose **From template**, pick it, and fill its inputs
+beside Name, Category and Epic. Submit checks the inputs and runs content
+rules on the seed, then opens a planner chat with the prompt, the filled
+starter and the inputs. Picking a template changes no setting: with a `pack`
+or `flow`, the drawer shows the pack preview with **Import these settings**
+unticked, and only ticking it imports them, as Settings does. The folder
+comes back as a draft spec that records the template; with an epic picked,
+the epic's change comes back as its own draft. Nothing is approved, started
+or pushed.
+
+The sample `sdk-templates/` plugin has an **SDK rewrite** template: six
+phases (inventory, codegen, runtime, protocol tests, review, cutover), a
+manual **Review with team** task that cutover waits on, two proof kinds and
+flow defaults. Proof P37 runs it with a fake GitHub; no template has run
+live yet.
+
+A starter may hold manual tasks (`"manual": true`): steps only a person
+does. See [Manual tasks and links and notes](policies.md#manual-tasks-and-links-and-notes).
+
 ## Intake part
 
 An intake source is a tracker kind with the `poll` capability, listed in
@@ -418,6 +480,7 @@ show in the **Intake** tab with their source.
 
 Copy the fake plugins' approach: keep the remote system in a file or a local
 stand-in, declare the plugin in a temporary `plugins.json`, approve its hash,
-and run ticks. Avoozl's proof P26 does exactly this with the two fakes, and
-proof P35 installs, previews, imports and polls the `sdk-team` bundle.
+and run ticks. Avoozl's proof P26 does exactly this with the two fakes,
+proof P35 installs, previews, imports and polls the `sdk-team` bundle, and
+proof P37 starts a spec from the `sdk-templates` template.
 Proof P32 polls the fake tracker as an intake source.
