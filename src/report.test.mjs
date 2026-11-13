@@ -140,66 +140,6 @@ test("queries search full context and follow only prerequisite directions", () =
     fs.rmSync(f.root, { recursive: true, force: true });
   }
 });
-async function startFixture(options = {}) {
-  const f = fixture(),
-    { Store } = await import("./app/store.mjs"),
-    { startServer } = await import("./app/server.mjs");
-  const store = new Store(path.join(f.root, "workspace.sqlite"));
-  store.importSnapshot(f.data);
-  store.close();
-  const server = startServer({
-    dbPath: path.join(f.root, "workspace.sqlite"),
-    projectionRoot: f.root,
-    sourceRoot: f.root,
-    port: 0,
-    ...options,
-  });
-  await new Promise((resolve) => server.once("listening", resolve));
-  return {
-    ...f,
-    base: "http://127.0.0.1:" + server.address().port,
-    close: async () => {
-      await new Promise((resolve) => server.close(resolve));
-      fs.rmSync(f.root, { recursive: true, force: true });
-    },
-  };
-}
-test("Canvas uses an exact-origin CORS grant without weakening local origin checks", async () => {
-  const origin = "http://127.0.0.1:38400";
-  const f = await startFixture({ canvasOrigins: [origin] });
-  try {
-    let response = await fetch(f.base + "/api/health", {
-      headers: { Origin: origin },
-    });
-    assert.equal(response.status, 200);
-    assert.equal(response.headers.get("access-control-allow-origin"), origin);
-    response = await fetch(f.base + "/api/command", {
-      method: "OPTIONS",
-      headers: {
-        Origin: origin,
-        "Access-Control-Request-Method": "POST",
-        "Access-Control-Request-Headers": "content-type",
-      },
-    });
-    assert.equal(response.status, 204);
-    assert.match(response.headers.get("access-control-allow-methods"), /POST/);
-    response = await fetch(f.base + "/api/command", {
-      method: "POST",
-      headers: {
-        Origin: origin,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ operation: "query", input: {} }),
-    });
-    assert.equal(response.status, 200);
-    response = await fetch(f.base + "/api/health", {
-      headers: { Origin: "http://127.0.0.1:38401" },
-    });
-    assert.equal(response.status, 403);
-  } finally {
-    await f.close();
-  }
-});
 async function waitFor(fn) {
   const deadline = Date.now() + 5000;
   while (Date.now() < deadline) {
@@ -209,96 +149,6 @@ async function waitFor(fn) {
   }
   throw Error("Update not observed");
 }
-test("HTTP conditional polling, stale edits, cycle refusal, filesystem watch and document conflict", async () => {
-  const f = await startFixture();
-  try {
-    let response = await fetch(f.base + "/database.json"),
-      tag = response.headers.get("etag"),
-      d = await response.json();
-    assert.equal(
-      (
-        await fetch(f.base + "/database.json", {
-          headers: { "If-None-Match": tag },
-        })
-      ).status,
-      304,
-    );
-    const edit = async (body, version = tag, origin = f.base) =>
-      fetch(f.base + "/api/task", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          "If-Match": version,
-          Origin: origin,
-        },
-        body: JSON.stringify(body),
-      });
-    response = await edit({ id: "compiler", notes: "Stored from editor" });
-    assert.equal(response.status, 200);
-    assert.equal(
-      (await edit({ id: "compiler", notes: "Stale draft" })).status,
-      409,
-    );
-    response = await fetch(f.base + "/database.json");
-    tag = response.headers.get("etag");
-    d = await response.json();
-    assert.equal(d.tasks[0].notes, "Stored from editor");
-    assert.equal(
-      (await edit({ id: "compiler", status: "invented" })).status,
-      422,
-    );
-    assert.equal(
-      (await edit({ id: "compiler", requires: ["compiler"] })).status,
-      422,
-    );
-    assert.equal(
-      (await edit({ id: "compiler" }, tag, "https://unrelated.example")).status,
-      403,
-    );
-    const original = d.documents["todo/nupp-native-runtime.md"];
-    fs.appendFileSync(
-      path.join(f.root, original.id),
-      "\nExternal plan change\n",
-    );
-    d = await waitFor(async () => {
-      const r = await fetch(f.base + "/database.json"),
-        j = await r.json();
-      return j.documents[original.id].text.includes("External plan change")
-        ? j
-        : null;
-    });
-    assert.equal(d.tasks[0].notes, "Stored from editor");
-    assert.equal(d.tasks[0].status, "partial");
-    response = await fetch(f.base + "/database.json");
-    tag = response.headers.get("etag");
-    response = await fetch(f.base + "/api/document", {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "If-Match": tag,
-        Origin: f.base,
-      },
-      body: JSON.stringify({
-        id: original.id,
-        text: original.text,
-        expectedHash: original.hash,
-      }),
-    });
-    assert.equal(response.status, 409);
-    assert.ok(
-      fs
-        .readFileSync(path.join(f.root, original.id), "utf8")
-        .includes("External plan change"),
-    );
-    response = await fetch(
-      f.base + "/source?path=" + encodeURIComponent("../../outside"),
-    );
-    assert.equal(response.status, 404);
-  } finally {
-    await f.close();
-  }
-});
-
 import {
   epicProgress,
   taskProgress,
@@ -442,92 +292,6 @@ test("MCP visualization changes presentation only and rejects stale replacements
   );
   assert.deepEqual(d.tasks, original);
 });
-test("HTTP MCP serves legacy and modern clients, propagates a saved view and checks origin", async () => {
-  const f = await startFixture();
-  try {
-    const rpc = async (message, headers = {}) =>
-      fetch(f.base + "/mcp", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json, text/event-stream",
-          ...headers,
-        },
-        body: JSON.stringify(message),
-      });
-    let r = await rpc({
-      jsonrpc: "2.0",
-      id: 1,
-      method: "initialize",
-      params: {
-        protocolVersion: "2025-11-25",
-        capabilities: {},
-        clientInfo: { name: "test", version: "1" },
-      },
-    });
-    assert.equal((await r.json()).result.protocolVersion, "2025-11-25");
-    r = await rpc({ jsonrpc: "2.0", method: "notifications/initialized" });
-    assert.equal(r.status, 202);
-    const meta = {
-      "io.modelcontextprotocol/protocolVersion": "2026-07-28",
-      "io.modelcontextprotocol/clientInfo": { name: "test", version: "1" },
-      "io.modelcontextprotocol/clientCapabilities": {},
-    };
-    r = await rpc(
-      {
-        jsonrpc: "2.0",
-        id: 2,
-        method: "server/discover",
-        params: { _meta: meta },
-      },
-      { "MCP-Protocol-Version": "2026-07-28" },
-    );
-    const discovery = await r.json();
-    assert.equal(discovery.result.resultType, "complete");
-    assert.ok(discovery.result.capabilities.tools);
-    r = await rpc(
-      { jsonrpc: "2.0", id: 3, method: "tools/list", params: { _meta: meta } },
-      { "MCP-Protocol-Version": "2026-07-28" },
-    );
-    assert.ok(
-      (await r.json()).result.tools.some((t) => t.name === "plans_visualize"),
-    );
-    const before = await (await fetch(f.base + "/database.json")).json();
-    r = await rpc({
-      jsonrpc: "2.0",
-      id: 4,
-      method: "tools/call",
-      params: {
-        name: "plans_visualize",
-        arguments: {
-          title: "Current compiler",
-          view: "epics",
-          filters: { scope: "runtime" },
-          taskIds: ["compiler"],
-        },
-      },
-    });
-    assert.equal((await r.json()).result.isError, false);
-    const after = await (await fetch(f.base + "/database.json")).json();
-    assert.equal(after.revision, before.revision + 1);
-    assert.deepEqual(after.tasks, before.tasks);
-    assert.equal(after.presentation.views.length, 1);
-    r = await rpc(
-      { jsonrpc: "2.0", id: 5, method: "tools/list" },
-      { Origin: "https://unrelated.example" },
-    );
-    assert.equal(r.status, 403);
-    r = await rpc(
-      { jsonrpc: "2.0", id: 6, method: "tools/list", params: { _meta: meta } },
-      { "MCP-Protocol-Version": "2025-11-25" },
-    );
-    assert.equal(r.status, 400);
-    assert.equal((await fetch(f.base + "/mcp")).status, 405);
-  } finally {
-    await f.close();
-  }
-});
-
 import {
   stripLayout,
   cameraRange,
@@ -712,7 +476,11 @@ test("plan progress distinguishes owned tasks, supporting context, archives and 
     "todo/io.md": { id: "todo/io.md", title: "File APIs", text: "" },
     "abandoned/old.md": { id: "abandoned/old.md", title: "Old", text: "" },
     "done/design.md": { id: "done/design.md", title: "Design", text: "" },
-    "todo/empty.md": { id: "todo/empty.md", title: "New plan", text: "" },
+    "todo/empty.md": {
+      id: "todo/empty.md",
+      title: "New plan",
+      text: "---\ncategory: Runtime\n---\n# New plan\n",
+    },
   };
   d.tasks = [
     {
@@ -745,7 +513,12 @@ test("plan progress distinguishes owned tasks, supporting context, archives and 
   assert.equal(p.total, 2);
   assert.equal(p.percent, 60);
   assert.equal(p.status, "started");
-  assert.equal(p.category, "Concurrency & I/O");
+  // No authored category: none is guessed from the title ("File APIs").
+  assert.equal(p.category, null);
+  assert.equal(
+    planSummaries(d).find((p) => p.doc.id === "todo/empty.md").category,
+    "Runtime",
+  );
   assert.equal(
     planSummaries(d).find((p) => p.doc.id === "abandoned/old.md").status,
     "abandoned",
@@ -789,82 +562,6 @@ test("plan progress distinguishes owned tasks, supporting context, archives and 
     );
   } finally {
     fs.rmSync(f.root, { recursive: true, force: true });
-  }
-});
-test("HTTP prompt submission is idempotent and plan classification uses revision protection", async () => {
-  const f = await startFixture();
-  try {
-    let response = await fetch(f.base + "/database.json"),
-      tag = response.headers.get("etag");
-    const send = (route, body, version = tag, origin = f.base) =>
-      fetch(f.base + route, {
-        method: route === "/api/plan" ? "PATCH" : "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "If-Match": version,
-          Origin: origin,
-        },
-        body: JSON.stringify(body),
-      });
-    const input = {
-      submissionId: "browser-prompt-request",
-      prompt: "Add cancellation tests",
-      context: {
-        view: "strip",
-        selected: "compiler",
-        filters: { scope: "runtime" },
-      },
-    };
-    response = await send("/api/task/prompt", input);
-    assert.equal(response.status, 200);
-    const first = await response.json();
-    assert.equal(first.task.scope, "runtime");
-    assert.equal((await send("/api/task/prompt", input)).status, 409);
-    tag = (await fetch(f.base + "/database.json")).headers.get("etag");
-    response = await send("/api/task/prompt", input);
-    assert.equal(response.status, 200);
-    assert.equal((await response.json()).task.id, first.task.id);
-    tag = (await fetch(f.base + "/database.json")).headers.get("etag");
-    assert.equal(
-      (
-        await send("/api/task/prompt", {
-          ...input,
-          submissionId: "bad-prompt-request",
-          prompt: "",
-        })
-      ).status,
-      400,
-    );
-    assert.equal(
-      (await send("/api/task/prompt", input, tag, "https://elsewhere.example"))
-        .status,
-      403,
-    );
-    response = await send("/api/plan", {
-      id: "todo/nupp-native-runtime.md",
-      status: "abandoned",
-      category: "Runtime",
-      targetBranch: "rewrite",
-    });
-    assert.equal(response.status, 200);
-    assert.equal(
-      (
-        await send("/api/plan", {
-          id: "todo/nupp-native-runtime.md",
-          status: "done",
-        })
-      ).status,
-      409,
-    );
-    let summaries = await (await fetch(f.base + "/api/plan-summary")).json();
-    assert.equal(summaries.plans.length, 0);
-    summaries = await (
-      await fetch(f.base + "/api/plan-summary?abandoned=true")
-    ).json();
-    assert.equal(summaries.plans[0].branch, "rewrite");
-    assert.equal(summaries.plans[0].status, "abandoned");
-  } finally {
-    await f.close();
   }
 });
 test("MCP document queries share plan summaries and explicit plan ownership", () => {
@@ -1111,6 +808,22 @@ test("Done first groups complete, partial and remaining tasks without changing f
   ).body.result;
   assert.equal(result.isError, false);
   assert.equal(d.presentation.views[0].stripOrder, "progress");
+  const read = (uri) =>
+    dispatchMcp(
+      { jsonrpc: "2.0", id: 2, method: "resources/read", params: { uri } },
+      ctx,
+    ).body;
+  const listed = dispatchMcp(
+    { jsonrpc: "2.0", id: 3, method: "resources/list" },
+    ctx,
+  ).body.result.resources.map((r) => r.uri);
+  assert.deepEqual(listed, ["avoozl://status", "avoozl://visualizations"]);
+  // A client from before the rename still reads with its old scheme.
+  assert.equal(
+    read("old-scheme://visualizations").result.contents[0].text,
+    read("avoozl://visualizations").result.contents[0].text,
+  );
+  assert.equal(read("avoozl://missing").error.code, -32602);
 });
 
 import { applyActivity, activityState } from "./activity.mjs";
@@ -1278,66 +991,4 @@ test("MCP work sessions return lease ownership and live query fields", () => {
     false,
   );
   assert.equal(d.tasks[0].status, "planned");
-});
-test("HTTP activity enforces revision and lease checks, without changing task progress", async () => {
-  const f = await startFixture();
-  try {
-    let response = await fetch(f.base + "/database.json"),
-      tag = response.headers.get("etag");
-    const send = (input, version = tag) =>
-      fetch(f.base + "/api/activity", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "If-Match": version,
-          Origin: f.base,
-        },
-        body: JSON.stringify(input),
-      });
-    response = await send({
-      id: "compiler",
-      action: "start",
-      owner: "Agent A",
-      sessionId: "session-a",
-    });
-    assert.equal(response.status, 200);
-    const result = await response.json();
-    assert.equal(result.task.status, "partial");
-    assert.equal(
-      (
-        await send({
-          id: "compiler",
-          action: "finish",
-          leaseId: result.activity.leaseId,
-        })
-      ).status,
-      409,
-    );
-    tag = (await fetch(f.base + "/database.json")).headers.get("etag");
-    assert.equal(
-      (
-        await send({
-          id: "compiler",
-          action: "start",
-          owner: "Agent B",
-          sessionId: "session-b",
-        })
-      ).status,
-      409,
-    );
-    assert.equal(
-      (await send({ id: "compiler", action: "finish", leaseId: "old-lease" }))
-        .status,
-      409,
-    );
-    response = await send({
-      id: "compiler",
-      action: "finish",
-      leaseId: result.activity.leaseId,
-    });
-    assert.equal(response.status, 200);
-    assert.equal((await response.json()).task.status, "partial");
-  } finally {
-    await f.close();
-  }
 });

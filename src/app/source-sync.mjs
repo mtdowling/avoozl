@@ -1,7 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
 import { readDocument } from "../catalog.mjs";
-import { blocks, digest } from "../model.mjs";
+import {
+  blocks,
+  digest,
+  matchSection,
+  planOwned,
+  reviewSettled,
+} from "../model.mjs";
 import { taskSourceRefs } from "../task-identity.mjs";
 import { synchronizeAgentInstructions } from "./agent-instructions.mjs";
 import {
@@ -173,12 +179,11 @@ export function reconcileSource(store, root, relative) {
     if (!previous || previous.removed) return { changed: false };
     store.mutate("Review removed source " + relative, (data) => {
       data.documents[relative].removed = true;
-      for (const task of data.tasks.filter(
-        (t) =>
-          taskSourceRefs(t).some((r) => r.document === relative) ||
-          t.contextDocuments?.includes(relative),
+      // A task's own section is gone; a document it only cites is not its text.
+      for (const task of data.tasks.filter((t) =>
+        taskSourceRefs(t).some((r) => r.document === relative),
       )) {
-        task.needsReview = true;
+        if (!reviewSettled(data, task)) task.needsReview = true;
         for (const ref of taskSourceRefs(task).filter(
           (r) => r.document === relative,
         ))
@@ -196,30 +201,34 @@ export function reconcileSource(store, root, relative) {
     document.managed = previous?.managed;
     document.lifecycle = previous?.lifecycle || "draft";
     data.documents[relative] = document;
-    const byKey = new Map(blocks(document.text).map((b) => [b.key, b]));
-    for (const task of data.tasks.filter(
-      (t) =>
-        taskSourceRefs(t).some((r) => r.document === relative) ||
-        t.contextDocuments?.includes(relative),
+    const after = blocks(document.text),
+      before =
+        typeof previous?.text === "string" ? blocks(previous.text) : null;
+    // Only a task whose own section changed needs review: an edit elsewhere
+    // in the document, or to a document it only cites, leaves it alone.
+    for (const task of data.tasks.filter((t) =>
+      taskSourceRefs(t).some((r) => r.document === relative),
     )) {
-      task.needsReview = true;
+      let changed = false;
       for (const ref of taskSourceRefs(task).filter(
-        (r) =>
-          r.document === relative &&
-          !r.planId &&
-          !(r === task.source && task.planId),
+        (r) => r.document === relative,
       )) {
-        const block = byKey.get(ref.key);
-        if (block)
+        // A plan's own references move with its approval, not with indexing.
+        if (planOwned(task, ref)) continue;
+        const match = matchSection(ref, before, after);
+        changed ||= match.changed;
+        if (match.block)
           Object.assign(ref, {
-            lineStart: block.lineStart,
-            lineEnd: block.lineEnd,
-            hash: digest(block.context),
-            checked: block.checked,
+            key: match.block.key,
+            lineStart: match.block.lineStart,
+            lineEnd: match.block.lineEnd,
+            hash: digest(match.block.context),
+            checked: match.block.checked,
             removed: false,
           });
         else ref.removed = true;
       }
+      if (changed && !reviewSettled(data, task)) task.needsReview = true;
     }
     // New source files and checkboxes are proposals. Approval, not indexing, creates tasks.
   });

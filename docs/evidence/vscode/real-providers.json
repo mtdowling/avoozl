@@ -109,7 +109,7 @@
       "interrupt": {
         "requested": true,
         "acknowledged": true,
-        "turnId": "01a1c2bd-d040-7cb0-8b2d-077f51b1d3a8",
+        "turnId": "00000000-0000-0000-0000-000000000001",
         "requestedAt": "2026-11-09T23:56:27.548Z",
         "acknowledgedAt": "2026-11-09T23:56:27.561Z",
         "runId": "run-real-codex"

@@ -36,6 +36,7 @@ export function workspaceConfig(options = {}) {
     options.workspace ||
       env.AVOOZL_WORKSPACE ||
       env.AICOMMANDER_WORKSPACE ||
+      env.NUPP_WORKSPACE ||
       process.cwd(),
   );
   const loaded = loadLayeredConfig({
@@ -54,11 +55,6 @@ export function workspaceConfig(options = {}) {
     saved.dbPath || path.join(".avoozl", "local", "workspace.sqlite"),
   );
   const plansRoot = relative(saved.documents || "plans");
-  const canvasOrigins = String(saved.canvasOrigins || "")
-    .split(",")
-    .map((value) => value.trim())
-    .filter(Boolean)
-    .map((value) => new URL(value).origin);
   return {
     workspaceRoot,
     filename,
@@ -75,27 +71,7 @@ export function workspaceConfig(options = {}) {
     dbPath,
     plansRoot,
     port,
-    host: saved.host || "127.0.0.1",
-    canvasOrigins,
-    agentManifest: relative(
-      saved.agentManifest || path.join(path.dirname(dbPath), "agent-host.json"),
-    ),
+    safety: saved.safety || null,
     endpoint: saved.url || "http://127.0.0.1:" + port,
-    // Editor client surface. The agent host facade is opt-in, binds loopback,
-    // and keeps its derived projection and client tokens beside the database.
-    ahp: {
-      port: Number(saved.ahp?.port ?? 9496),
-      host: saved.ahp?.host || "127.0.0.1",
-      projection: relative(
-        saved.ahp?.projection || path.join(path.dirname(dbPath), "ahp.sqlite"),
-      ),
-      tokens: relative(
-        saved.ahp?.tokens || path.join(path.dirname(dbPath), "ahp-tokens.json"),
-      ),
-      manifest: relative(
-        saved.ahp?.manifest ||
-          path.join(path.dirname(dbPath), "ahp-facade.json"),
-      ),
-    },
   };
 }

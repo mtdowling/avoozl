@@ -87,14 +87,18 @@ export const MCP_TOOLS = [
   {
     name: "plans_documents",
     description:
-      "Query plan lifecycle, percent complete, feature area and target branch. Abandoned plans are hidden unless requested. Progress is task-count based or an authored estimate, not delivery acceptance.",
+      "Query plan lifecycle, percent complete, authored category and target branch. Abandoned plans are hidden unless requested. Progress is task-count based or an authored estimate, not delivery acceptance.",
     inputSchema: schema({
       q: { type: "string" },
       status: {
         type: "string",
         enum: ["done", "not-started", "started", "abandoned"],
       },
-      category: { type: "string" },
+      category: {
+        type: "string",
+        description:
+          "A category as authored in the plan's front-matter or metadata. Plans without one have none.",
+      },
       branch: { type: "string" },
       includeAbandoned: { type: "boolean" },
       limit: { type: "integer", minimum: 1, maximum: 200 },
@@ -379,7 +383,15 @@ function callTool(name, args, ctx) {
         (!args.category || p.category === args.category) &&
         (!args.branch || p.branch === args.branch) &&
         (!args.q ||
-          (p.doc.title + " " + p.doc.id + " " + p.category + " " + p.branch)
+          (
+            p.doc.title +
+            " " +
+            p.doc.id +
+            " " +
+            (p.category ?? "") +
+            " " +
+            p.branch
+          )
             .toLowerCase()
             .includes(args.q.toLowerCase())),
     );
@@ -666,12 +678,12 @@ export function dispatchMcp(message, ctx, { versionHeader } = {}) {
     result = {
       resources: [
         {
-          uri: "nupp-plans://status",
+          uri: "avoozl://status",
           name: "Workspace plan status",
           mimeType: "application/json",
         },
         {
-          uri: "nupp-plans://visualizations",
+          uri: "avoozl://visualizations",
           name: "Saved plan visualizations",
           mimeType: "application/json",
         },
@@ -680,10 +692,16 @@ export function dispatchMcp(message, ctx, { versionHeader } = {}) {
   else if (method === "resources/templates/list")
     result = { resourceTemplates: [] };
   else if (method === "resources/read") {
+    // Clients from before the rename may still send the old URI scheme, so
+    // only the part after "://" names the resource.
+    const resource = String(args.uri ?? "").replace(
+      /^[a-z][a-z0-9+.-]*:\/\//,
+      "",
+    );
     const name =
-      args.uri === "nupp-plans://status"
+      resource === "status"
         ? "plans_status"
-        : args.uri === "nupp-plans://visualizations"
+        : resource === "visualizations"
           ? "plans_list_visualizations"
           : null;
     if (!name) return error(-32602, "Unknown resource");

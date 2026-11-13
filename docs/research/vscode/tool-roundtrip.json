@@ -11,9 +11,9 @@
   },
   "checks": {
     "claude": {
-      "providerSessionId": "2d1ff211-e709-47aa-9fca-06322d2f8280",
+      "providerSessionId": "00000000-0000-0000-0000-000000000001",
       "request": {
-        "providerRequestId": "13a0ddfc-416f-45ba-971f-43611dea674c",
+        "providerRequestId": "00000000-0000-0000-0000-000000000002",
         "kind": "approval",
         "method": "Bash",
         "payload": {
@@ -25,7 +25,7 @@
           },
           "toolUseId": "toolu_01PyiosHYW8paoZWEdmWCX5Q"
         },
-        "id": "request-55a5ea7b-e2e1-4979-ada4-9632f1ec075f",
+        "id": "request-00000000-0000-0000-0000-000000000003",
         "runId": "run-tool-claude",
         "state": "allowed",
         "createdAt": "2026-11-09T19:55:18.335Z",
@@ -40,7 +40,7 @@
         "at": "2026-11-09T19:57:39.990Z",
         "method": "dispatchAction",
         "action": "chat/turnCancelled",
-        "channel": "ahp-chat:/377c8465-8a1d-ea00-b1d5-3467afdcdd79",
+        "channel": "ahp-chat:/00000000-0000-0000-0000-000000000004",
         "turnId": "initial-run-tool-claude"
       },
       "processStopped": true,
@@ -58,16 +58,16 @@
       "cleanCancellationStatus": false
     },
     "codex": {
-      "providerSessionId": "01a1c1e0-fa65-7d10-9926-5f4b05090ac3",
+      "providerSessionId": "00000000-0000-0000-0000-000000000005",
       "request": {
         "providerRequestId": "0",
         "kind": "approval",
         "method": "item/commandExecution/requestApproval",
         "payload": {
           "kind": "command",
-          "threadId": "01a1c1e0-fa65-7d10-9926-5f4b05090ac3",
-          "turnId": "01a1c1e0-fb56-7fb0-a31e-554b22e1ca2f",
-          "itemId": "exec-28ca59fd-772e-4fe4-aa88-3fd6f6f66e4c",
+          "threadId": "00000000-0000-0000-0000-000000000005",
+          "turnId": "00000000-0000-0000-0000-000000000006",
+          "itemId": "exec-00000000-0000-0000-0000-000000000007",
           "startedAtMs": 1794254114842,
           "environmentId": "local",
           "reason": "May I run this harmless disposable permission/cancellation probe command?",
@@ -98,7 +98,7 @@
             "cancel"
           ]
         },
-        "id": "request-57ec4a09-ec43-469f-9c1f-f04e3241a437",
+        "id": "request-00000000-0000-0000-0000-000000000008",
         "runId": "run-tool-codex",
         "state": "allowed",
         "createdAt": "2026-11-09T19:55:14.854Z",
@@ -113,7 +113,7 @@
         "at": "2026-11-09T19:58:51.781Z",
         "method": "dispatchAction",
         "action": "chat/turnCancelled",
-        "channel": "ahp-chat:/e4932608-17d3-efd5-5b17-05514008db77",
+        "channel": "ahp-chat:/00000000-0000-0000-0000-000000000009",
         "turnId": "initial-run-tool-codex"
       },
       "processStopped": true,
@@ -136,8 +136,8 @@
       "at": "2026-11-09T19:57:28.492Z",
       "method": "dispatchAction",
       "action": "chat/toolCallConfirmed",
-      "channel": "ahp-chat:/377c8465-8a1d-ea00-b1d5-3467afdcdd79",
-      "toolCallId": "request-55a5ea7b-e2e1-4979-ada4-9632f1ec075f",
+      "channel": "ahp-chat:/00000000-0000-0000-0000-000000000004",
+      "toolCallId": "request-00000000-0000-0000-0000-000000000003",
       "approved": true,
       "turnId": "initial-run-tool-claude"
     },
@@ -145,15 +145,15 @@
       "at": "2026-11-09T19:57:39.990Z",
       "method": "dispatchAction",
       "action": "chat/turnCancelled",
-      "channel": "ahp-chat:/377c8465-8a1d-ea00-b1d5-3467afdcdd79",
+      "channel": "ahp-chat:/00000000-0000-0000-0000-000000000004",
       "turnId": "initial-run-tool-claude"
     },
     {
       "at": "2026-11-09T19:58:41.716Z",
       "method": "dispatchAction",
       "action": "chat/toolCallConfirmed",
-      "channel": "ahp-chat:/e4932608-17d3-efd5-5b17-05514008db77",
-      "toolCallId": "request-57ec4a09-ec43-469f-9c1f-f04e3241a437",
+      "channel": "ahp-chat:/00000000-0000-0000-0000-000000000009",
+      "toolCallId": "request-00000000-0000-0000-0000-000000000008",
       "approved": true,
       "turnId": "initial-run-tool-codex"
     },
@@ -161,7 +161,7 @@
       "at": "2026-11-09T19:58:51.781Z",
       "method": "dispatchAction",
       "action": "chat/turnCancelled",
-      "channel": "ahp-chat:/e4932608-17d3-efd5-5b17-05514008db77",
+      "channel": "ahp-chat:/00000000-0000-0000-0000-000000000009",
       "turnId": "initial-run-tool-codex"
     }
   ],

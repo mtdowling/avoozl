@@ -5,23 +5,41 @@ import readline from "node:readline";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
-import { Store } from "./store.mjs";
-import { startServer, flushOutbox } from "./server.mjs";
-import { ensureAgentHost } from "./remote-manager.mjs";
+import { Store, fail } from "./store.mjs";
 import { workflowSkill } from "./skill.mjs";
 import { workspaceConfig, applicationRoot } from "./config.mjs";
 import { initializeWorkspace } from "./workspace.mjs";
 import { Operations } from "./operations.mjs";
+import { handleMcp } from "./mcp.mjs";
+import { createAppMcp } from "./app-mcp.mjs";
+import { startAppBackend } from "./app-backend.mjs";
+import { hookEvent, runnerHookBrief } from "./runner.mjs";
 import { validate } from "../model.mjs";
-import { generate } from "./compat-server.mjs";
-import {
-  installOpenHandsCanvasApp,
-  openHandsCanvasAppStatus,
-  setupOpenHandsAgents,
-} from "./openhands-app.mjs";
+import { planFiles } from "../catalog.mjs";
+import { reconcileSource } from "./source-sync.mjs";
 import { loadHostConfig, WorkspaceRegistry } from "./host-config.mjs";
-import { WorkspaceManager } from "./workspace-manager.mjs";
-import { startWorkspaceHostServer } from "./workspace-host-server.mjs";
+
+// Reindex every plan file and stored document from the plans root.
+function generate(config) {
+  if (!config.configured)
+    fail("Choose an initialized workspace before indexing Markdown.");
+  const store = new Store(config.dbPath),
+    stats = { added: 0, changed: 0, removed: 0, newTasks: 0 };
+  try {
+    for (const file of new Set([
+      ...planFiles(config.plansRoot),
+      ...Object.keys(store.read().documents).filter(
+        (id) => !store.read().documents[id].managed,
+      ),
+    ])) {
+      const result = reconcileSource(store, config.plansRoot, file);
+      if (result.changed) stats[result.removed ? "removed" : "changed"]++;
+    }
+    return { stats };
+  } finally {
+    store.close();
+  }
+}
 
 const args = process.argv.slice(2),
   options = {},
@@ -36,10 +54,18 @@ try {
         [
           "dry-run",
           "final",
-          "ahp",
           "auto-start",
           "inactive",
           "skip-verify",
+          "allow-remote",
+          "kirocrew",
+          "hook",
+          "confirm",
+          "iteration",
+          "table-by-wave",
+          "no-epic",
+          "push",
+          "accept-lowered",
         ].includes(key)
       )
         options[key] = true;
@@ -120,46 +146,34 @@ try {
       : options.json
         ? JSON.parse(options.json)
         : {};
+  // A running server is used only when one is named or there is no local
+  // database; otherwise commands and the stdio MCP server act in process.
+  const useServer = () =>
+    registeredWorkspaceId ||
+    options.url ||
+    process.env.AVOOZL_URL ||
+    process.env.AICOMMANDER_URL ||
+    process.env.NUPP_WORKSPACE_URL ||
+    !fs.existsSync(dbPath);
+  const localOperations = (store) =>
+    new Operations(store, {
+      operator: config.operator,
+      workspaceRoot: config.workspaceRoot,
+      plansRoot: config.plansRoot,
+    });
+  // Without a server, every CLI write goes through Operations in process.
+  // `local` marks the caller as the person at this machine's command line.
   const localOrRequest = async (operation, input = {}) => {
-    if (
-      registeredWorkspaceId ||
-      options.url ||
-      process.env.AVOOZL_URL ||
-      process.env.AICOMMANDER_URL ||
-      process.env.NUPP_WORKSPACE_URL ||
-      !fs.existsSync(dbPath)
-    )
-      return request(operation, input);
+    if (useServer()) return request(operation, input);
     const store = new Store(dbPath);
     try {
-      const result = await new Operations(store, {
-        operator: config.operator,
-      }).execute(operation, input);
-      flushOutbox(store, config.plansRoot);
-      return result;
+      return await localOperations(store).execute(operation, input, undefined, {
+        local: true,
+      });
     } finally {
       store.close();
     }
   };
-  // The facade is a client of the running workspace. Starting it never creates
-  // a second writer and never changes which process owns a provider session.
-  const describeFacade = (facade) => ({
-    url: facade.url,
-    host: config.ahp.host,
-    port: facade.port,
-    workspaceId: facade.projection.workspaceId,
-    clients: Object.fromEntries(
-      [...facade.grants.entries()].map(([token, grant]) => [
-        grant.name,
-        {
-          scope: grant.scope,
-          address: facade.url,
-          connectionToken: token,
-        },
-      ]),
-    ),
-    note: "Loopback only. Reach it remotely through an authenticated tunnel or an SSH port forward; never publish this listener.",
-  });
   if (command === "init") {
     if (!positionals[0])
       throw Error("Choose a workspace directory: avoozl init PATH.");
@@ -175,324 +189,8 @@ try {
         2,
       ),
     );
-  } else if (command === "skill") process.stdout.write(workflowSkill(config));
-  else if (
-    command === "serve" &&
-    !options.workspace &&
-    !process.env.AVOOZL_WORKSPACE &&
-    !process.env.AICOMMANDER_WORKSPACE &&
-    !process.env.NUPP_WORKSPACE
-  ) {
-    const registry = new WorkspaceRegistry({
-        ...(options["host-config"]
-          ? { configPath: options["host-config"] }
-          : {}),
-        ...(options.catalog ? { catalogPath: options.catalog } : {}),
-      }),
-      workspaceManager = new WorkspaceManager({ registry });
-    await workspaceManager.startEnabled();
-    const configuredOrigins = registry.config.canvasOrigins;
-    const server = startWorkspaceHostServer({
-      workspaceManager,
-      host: options.host || registry.config.host,
-      port: Number(options.port ?? registry.config.port),
-      canvasOrigins: [
-        ...(Array.isArray(configuredOrigins)
-          ? configuredOrigins
-          : configuredOrigins
-            ? String(configuredOrigins).split(",")
-            : []),
-        ...(options["canvas-origin"] ? [options["canvas-origin"]] : []),
-      ],
-    });
-    if (!server.listening)
-      await new Promise((resolve, reject) => {
-        server.once("listening", resolve);
-        server.once("error", reject);
-      });
-    console.log(
-      "Avoozl host: http://127.0.0.1:" +
-        server.address().port +
-        " (" +
-        (await workspaceManager.list()).length +
-        " workspaces)",
-    );
-    const stop = async () => {
-      server.close();
-      await workspaceManager.close();
-    };
-    process.once("SIGTERM", stop);
-    process.once("SIGINT", stop);
-  } else if (command === "serve") {
-    requireDatabase();
-    const manager = await ensureAgentHost({
-      dbPath,
-      manifestPath: config.agentManifest,
-    });
-    const server = startServer({
-      dbPath,
-      workspaceName: config.name,
-      operator: config.operator,
-      port: config.port,
-      projectionRoot: config.plansRoot,
-      sourceRoot: config.plansRoot,
-      host: config.host,
-      canvasOrigins: config.canvasOrigins,
-      manager,
-      workspaceRoot: config.workspaceRoot,
-      configFiles: config.configFiles,
-      configSources: config.configSources,
-      configWithoutRepository: config.configWithoutRepository,
-    });
-    let facade = null;
-    if (options.ahp) {
-      const { startAhpFacade } = await import("./ahp/facade.mjs");
-      const { agentProviderId } = await import("./ahp/projection.mjs");
-      const { loadTokens } = await import("./ahp/main.mjs");
-      const { localClient } = await import("./client.mjs");
-      // The facade records the endpoint it serves, so wait until the site is
-      // actually listening and its port is known.
-      if (!server.listening)
-        await new Promise((resolve, reject) => {
-          server.once("listening", resolve);
-          server.once("error", reject);
-        });
-      const { store } = server.workspace;
-      facade = startAhpFacade({
-        store,
-        client: localClient(server.workspace.ops),
-        file: config.ahp.projection,
-        host: config.ahp.host,
-        port: config.ahp.port,
-        tokens: loadTokens(config.ahp.tokens),
-        manifestPath: config.ahp.manifest,
-        workspaceEndpoint: "http://127.0.0.1:" + server.address().port,
-        models: async () => {
-          const agents = [];
-          for (const provider of ["claude", "codex"])
-            try {
-              const catalog = await server.workspace.ops.execute("models", {
-                provider,
-              });
-              agents.push({
-                provider: agentProviderId(provider),
-                displayName: "Avoozl " + provider,
-                description: "Sessions owned by this workspace's agent host.",
-                models: catalog.models.map((m) => ({
-                  id: m.id,
-                  provider: agentProviderId(provider),
-                  name: m.label || m.id,
-                })),
-                protectedResources: [],
-              });
-            } catch (error) {
-              agents.push({
-                provider: agentProviderId(provider),
-                displayName: "Avoozl " + provider,
-                description: "Unavailable: " + error.message,
-                models: [],
-                protectedResources: [],
-              });
-            }
-          return agents;
-        },
-      });
-      await facade.listening;
-      console.log(
-        "Agent host facade: " +
-          facade.url +
-          " (addresses in " +
-          config.ahp.manifest +
-          ")",
-      );
-    }
-    const stop = async () => {
-      if (facade) await facade.close();
-      server.drain();
-    };
-    process.once("SIGTERM", stop);
-    process.once("SIGINT", stop);
-  } else if (command === "ahp") {
-    requireDatabase();
-    const { startFacadeForWorkspace } = await import("./ahp/main.mjs");
-    const facade = await startFacadeForWorkspace({
-      dbPath,
-      endpoint,
-      manifestPath: config.ahp.manifest,
-      projectionPath: config.ahp.projection,
-      tokenFile: config.ahp.tokens,
-      host: config.ahp.host,
-      port: config.ahp.port,
-    });
-    console.log(JSON.stringify(describeFacade(facade), null, 2));
-    const stop = async () => {
-      await facade.close();
-      facade.store.close();
-      process.exit(0);
-    };
-    process.once("SIGTERM", stop);
-    process.once("SIGINT", stop);
-  } else if (command === "reload") {
-    const before = await (await fetch(endpoint + "/api/health")).json();
-    await request("server.drain");
-    const log = fs.openSync(
-      options.log || path.join(path.dirname(path.resolve(dbPath)), "web.log"),
-      "a",
-    );
-    const argv = [
-      fileURLToPath(import.meta.url),
-      "serve",
-      "--workspace",
-      config.workspaceRoot,
-      "--host",
-      options.host || before.listenHost || config.host,
-      "--db",
-      path.resolve(dbPath),
-      "--port",
-      options.port || new URL(endpoint).port || String(config.port),
-      "--documents",
-      config.plansRoot,
-      "--agent-manifest",
-      config.agentManifest,
-    ];
-    const child = spawn(process.execPath, argv, {
-      cwd: applicationRoot,
-      detached: true,
-      stdio: ["ignore", log, log],
-    });
-    child.unref();
-    fs.closeSync(log);
-    let healthy = false;
-    for (let i = 0; i < 100; i++) {
-      await delay(100);
-      try {
-        const next = await (
-          await fetch(endpoint + "/api/health", {
-            signal: AbortSignal.timeout(1000),
-          })
-        ).json();
-        if (
-          next.ok &&
-          next.instanceId !== before.instanceId &&
-          next.pid === child.pid
-        ) {
-          healthy = true;
-          break;
-        }
-      } catch {}
-    }
-    if (!healthy)
-      throw Error(
-        "Replacement web server did not become healthy. Inspect web.log; agent sessions remain in the separate host.",
-      );
-    console.log("Web server reloaded; agent sessions remain running.");
-  } else if (command === "host") {
-    requireDatabase();
-    const manager = await ensureAgentHost({
-        dbPath,
-        manifestPath: config.agentManifest,
-      }),
-      before = await manager.status(),
-      action = positionals[0],
-      result = action ? await manager.control(action) : before;
-    if (action === "stop") {
-      let alive = true;
-      for (let i = 0; i < 300; i++) {
-        try {
-          process.kill(before.pid, 0);
-        } catch {
-          alive = false;
-          break;
-        }
-        await delay(100);
-      }
-      if (alive)
-        throw Error(
-          "Agent host is still finishing shutdown. Wait before replacing its code.",
-        );
-    }
-    console.log(JSON.stringify(result, null, 2));
-  } else if (command === "editor") {
-    let manifest = null;
-    try {
-      manifest = JSON.parse(fs.readFileSync(config.ahp.manifest, "utf8"));
-    } catch {}
-    const editorClient = manifest?.clients?.editor;
-    // A running facade records the endpoint it was pointed at, which is the
-    // live server even when the saved port is not.
-    const liveEndpoint = manifest?.workspaceEndpoint || endpoint;
-    console.log(
-      JSON.stringify(
-        {
-          endpoint: liveEndpoint,
-          workspace: config.workspaceRoot,
-          facade: manifest
-            ? { url: manifest.url, startedAt: manifest.startedAt }
-            : null,
-          // Paste these into the VS Code profile that should drive this
-          // workspace. `connectionToken` is a credential: never commit or
-          // publish it.
-          //
-          // With --ssh HOST the editor reaches this machine's loopback facade
-          // over SSH, so an editor on another machine needs no relay and the
-          // facade is still never published. HOST is an entry in the client's
-          // own ~/.ssh/config.
-          settings: {
-            "avoozl.endpoint": liveEndpoint,
-            "avoozl.facadeManifest": config.ahp.manifest,
-            ...(editorClient
-              ? {
-                  "chat.remoteAgentHostsEnabled": true,
-                  "chat.remoteAgentHosts": [
-                    {
-                      address: editorClient.address,
-                      name: config.name,
-                      connectionToken: editorClient.connectionToken,
-                      ...(options.ssh
-                        ? {
-                            sshConfigHost: options.ssh,
-                            ...(options["ssh-user"]
-                              ? { sshUser: options["ssh-user"] }
-                              : {}),
-                            ...(options["ssh-port"]
-                              ? { sshPort: Number(options["ssh-port"]) }
-                              : {}),
-                            sshServerType: "standalone",
-                          }
-                        : {}),
-                    },
-                  ],
-                  "chat.remoteAgentHostsAutoConnect": true,
-                }
-              : {}),
-          },
-          remote: options.ssh
-            ? {
-                route: "ssh",
-                host: options.ssh,
-                note: "The editor connects over SSH and reaches this machine's loopback facade, so nothing is published and no relay is involved. The editor's SSH fields are not a documented extension contract: confirm the session list appears before relying on it.",
-              }
-            : {
-                route: "loopback only",
-                note:
-                  "To reach this facade from another machine, pass --ssh HOST, or set up an SSH local port forward to " +
-                  (editorClient?.address || "the facade's port") +
-                  ". Do not publish the listener.",
-              },
-          ...(manifest
-            ? {}
-            : {
-                note:
-                  "No facade manifest at " +
-                  config.ahp.manifest +
-                  ". Start one with: avoozl serve --ahp --workspace " +
-                  config.workspaceRoot,
-              }),
-        },
-        null,
-        2,
-      ),
-    );
+  } else if (command === "skill") {
+    process.stdout.write(workflowSkill(config));
   } else if (command === "import") {
     requireLocalMaintenancePath("Import");
     const snapshot = JSON.parse(fs.readFileSync(positionals[0], "utf8"));
@@ -500,7 +198,7 @@ try {
     try {
       console.log(
         JSON.stringify(
-          store.importSnapshot(snapshot, {
+          localOperations(store).importSnapshot(snapshot, {
             final: options.final,
             dryRun: options["dry-run"],
           }),
@@ -525,6 +223,87 @@ try {
         const value = JSON.stringify(store.read(), null, 2) + "\n";
         if (options.output) fs.writeFileSync(options.output, value);
         else process.stdout.write(value);
+      }
+    } finally {
+      store.close();
+    }
+  } else if (command === "mcp" && options.kirocrew) {
+    // The Kiro Crew app's stdio MCP server. Kiro Crew may share this process
+    // between sessions, so each request picks its own workspace (app-mcp.mjs);
+    // the working directory is never used.
+    const server = createAppMcp({
+        fallback: requestedWorkspace ? config : null,
+        env,
+      }),
+      lines = readline.createInterface({ input: process.stdin });
+    try {
+      for await (const line of lines) {
+        if (!line.trim()) continue;
+        let message;
+        try {
+          message = JSON.parse(line);
+        } catch {
+          process.stdout.write(
+            JSON.stringify({
+              jsonrpc: "2.0",
+              id: null,
+              error: { code: -32700, message: "Parse error" },
+            }) + "\n",
+          );
+          continue;
+        }
+        let reply;
+        try {
+          reply = await server.handle(message);
+        } catch (error) {
+          reply = {
+            jsonrpc: "2.0",
+            id: message?.id ?? null,
+            error: { code: -32603, message: error.message },
+          };
+        }
+        if (reply !== null) process.stdout.write(JSON.stringify(reply) + "\n");
+      }
+    } finally {
+      server.close();
+    }
+  } else if (command === "mcp" && !useServer()) {
+    // A stdio MCP server for one workspace: the same plans_* tools, served in
+    // process from the workspace database with no web server running.
+    const store = new Store(dbPath),
+      ops = localOperations(store),
+      lines = readline.createInterface({ input: process.stdin });
+    try {
+      for await (const line of lines) {
+        if (!line.trim()) continue;
+        let message;
+        try {
+          message = JSON.parse(line);
+        } catch {
+          process.stdout.write(
+            JSON.stringify({
+              jsonrpc: "2.0",
+              id: null,
+              error: { code: -32700, message: "Parse error" },
+            }) + "\n",
+          );
+          continue;
+        }
+        try {
+          // No gateway fronts this server, so a caller block here could come
+          // from any client and is not read; `--kirocrew` is the attested form.
+          const result = await handleMcp(message, ops, { base: endpoint });
+          if (result.body !== null)
+            process.stdout.write(JSON.stringify(result.body) + "\n");
+        } catch (error) {
+          process.stdout.write(
+            JSON.stringify({
+              jsonrpc: "2.0",
+              id: message?.id ?? null,
+              error: { code: -32603, message: error.message },
+            }) + "\n",
+          );
+        }
       }
     } finally {
       store.close();
@@ -559,7 +338,213 @@ try {
         );
       }
     }
-  } else if (command === "health")
+  } else if (command === "app-backend") {
+    const server = startAppBackend({
+      config,
+      port: Number(options.port ?? process.env.PORT ?? 0),
+    });
+    server.once("listening", () =>
+      console.log(
+        `Avoozl app backend listening on 127.0.0.1:${server.address().port}`,
+      ),
+    );
+  } else if (command === "plugins") {
+    // Settings' plugin actions at the command line (design §4.8). Approval
+    // names the hash `plugins list` showed, so a person approves what they saw.
+    const [action = "list", id] = positionals,
+      calls = {
+        list: () => ["plugins.list", {}],
+        approve: () => [
+          "plugin.approve",
+          {
+            id,
+            hash: options.hash,
+            ...(options.commit ? { commit: options.commit } : {}),
+          },
+        ],
+        // A git plugin: resolve its ref again and fetch that commit.
+        update: () => ["plugin.update", { id }],
+        disable: () => ["plugin.disable", { id, disabled: true }],
+        enable: () => ["plugin.disable", { id, disabled: false }],
+        remove: () => ["plugin.remove", { id }],
+        // A pack: what importing it would change, then the import of that
+        // exact preview (design §4.14).
+        "pack-preview": () => [
+          "plugin.pack.preview",
+          {
+            id,
+            ...(options.repo ? { repositories: [options.repo].flat() } : {}),
+          },
+        ],
+        "pack-import": () => [
+          "plugin.pack.import",
+          {
+            id,
+            previewHash: options.preview,
+            ...(options.repo ? { repositories: [options.repo].flat() } : {}),
+            acceptLowered: Boolean(options["accept-lowered"]),
+            confirmPublic: Boolean(options["confirm-public"]),
+          },
+        ],
+        add: () => [
+          "plugin.add",
+          {
+            scope: options.repository ? "repository" : "machine",
+            confirmPublic: Boolean(options["confirm-public"]),
+            entry: {
+              id,
+              ...(options.package ? { package: options.package } : {}),
+              ...(options.path ? { path: options.path } : {}),
+              ...(options.git ? { git: options.git, ref: options.ref } : {}),
+              ...(options.subdir ? { subdir: options.subdir } : {}),
+              contract: Number(options.contract ?? 1),
+              ...(options.config ? { config: JSON.parse(options.config) } : {}),
+            },
+          },
+        ],
+      };
+    if (!calls[action])
+      throw Error(
+        "Choose plugins list, add, update, approve, disable, enable, remove, pack-preview, or pack-import.",
+      );
+    console.log(
+      JSON.stringify(await localOrRequest(...calls[action]()), null, 2),
+    );
+  } else if (command === "content") {
+    // Content rules (design §4.9). `check --push` is the pre-push hook
+    // Avoozl installs in each worktree it prepares; it reads the refs Git
+    // passes on stdin and exits 1 on a match, naming set, rule, file and
+    // line, never the matched text.
+    const [action = "list", id] = positionals,
+      calls = {
+        list: () => ["content.rules", {}],
+        allow: () => ["content.allow", { id, reason: options.reason }],
+        show: () => ["content.show", { id }],
+        check: () => [
+          "content.check",
+          {
+            taskId: options.task,
+            push: Boolean(options.push),
+            ...(options.push ? { stdin: fs.readFileSync(0, "utf8") } : {}),
+            ...(options.head ? { head: options.head } : {}),
+          },
+        ],
+      };
+    if (!calls[action])
+      throw Error("Choose content list, allow, show, or check.");
+    console.log(
+      JSON.stringify(await localOrRequest(...calls[action]()), null, 2),
+    );
+  } else if (command === "tick")
+    console.log(
+      JSON.stringify(await localOrRequest("workspace.tick"), null, 2),
+    );
+  else if (command === "next" && options.hook) {
+    // An AgentSpawn hook: brief a Crew Mode conductor whose session starts in
+    // one of this workspace's checkouts while delivery.runner is crew-mode.
+    // Anything else prints nothing, and no failure ever blocks a session.
+    try {
+      const event = await hookEvent(process.stdin),
+        cwd =
+          typeof event?.cwd === "string" && path.isAbsolute(event.cwd)
+            ? event.cwd
+            : process.cwd();
+      if (fs.existsSync(dbPath)) {
+        const store = new Store(dbPath);
+        try {
+          const brief = runnerHookBrief(store, {
+            workspaceRoot: config.workspaceRoot,
+            cwd,
+            command: `node ${JSON.stringify(process.argv[1])}`,
+          });
+          if (brief) process.stdout.write(brief);
+        } finally {
+          store.close();
+        }
+      }
+    } catch {
+      // A hook that cannot brief stays silent; the session starts as usual.
+    }
+  } else if (command === "next")
+    console.log(JSON.stringify(await localOrRequest("runner.next"), null, 2));
+  else if (command === "checks" && positionals[0] === "run")
+    console.log(
+      JSON.stringify(
+        await localOrRequest("flow.checks.run", {
+          taskId: options.task,
+          cwd: process.cwd(),
+        }),
+        null,
+        2,
+      ),
+    );
+  else if (command === "flow" && positionals[0] === "run-anyway")
+    console.log(
+      JSON.stringify(
+        await localOrRequest("flow.runAnyway", {
+          stopId: positionals[1],
+          confirm: options.confirm === true,
+        }),
+        null,
+        2,
+      ),
+    );
+  else if (command === "flow")
+    console.log(
+      JSON.stringify(
+        await localOrRequest("flow.view", {
+          ...(options.repository ? { repository: options.repository } : {}),
+          ...(options.epic ? { epic: options.epic } : {}),
+          ...(options.window ? { window: Number(options.window) } : {}),
+          ...(options.stage ? { stage: options.stage } : {}),
+        }),
+        null,
+        2,
+      ),
+    );
+  else if (command === "claim")
+    console.log(
+      JSON.stringify(
+        await localOrRequest("runner.claim", {
+          taskId: positionals[0],
+          slot: options.slot,
+          ...(options.title ? { title: options.title } : {}),
+          ...(options.model ? { model: options.model } : {}),
+        }),
+        null,
+        2,
+      ),
+    );
+  else if (command === "report")
+    console.log(
+      JSON.stringify(
+        await localOrRequest("session.report", {
+          taskId: positionals[0],
+          slot: options.slot,
+          kind: options.kind,
+          ...(options.text !== undefined ? { text: options.text } : {}),
+          ...(options.commit !== undefined ? { commit: options.commit } : {}),
+        }),
+        null,
+        2,
+      ),
+    );
+  else if (command === "retry")
+    console.log(
+      JSON.stringify(
+        await localOrRequest("delivery.retry", {
+          taskId: positionals[0],
+          ...(options.dismiss
+            ? {
+                dismiss: [{ finding: options.dismiss, reason: options.reason }],
+              }
+            : {}),
+        }),
+        null,
+        2,
+      ),
+    );
+  else if (command === "health")
     console.log(
       JSON.stringify(
         await (
@@ -575,6 +560,16 @@ try {
               : endpoint + "/api/health",
           )
         ).json(),
+        null,
+        2,
+      ),
+    );
+  else if (command === "rebuild")
+    console.log(
+      JSON.stringify(
+        await localOrRequest("workspace.rebuild", {
+          repository: options.repository || positionals[0],
+        }),
         null,
         2,
       ),
@@ -612,6 +607,7 @@ try {
         projectId: options.project,
         assignee: options.assignee,
         label: options.label,
+        managedLabel: options["managed-label"],
         provider: options.provider,
         model: options.model,
         autoStart: options["auto-start"],
@@ -622,8 +618,9 @@ try {
           .map((entry) => entry.trim())
           .filter(Boolean),
       };
-    } else if (action === "project") {
-      operation = "github.project";
+    } else if (action === "project" || action === "preview") {
+      operation =
+        action === "project" ? "github.project" : "github.project.preview";
       value = {
         planId: options.plan || positionals[1],
         repository: options.repository,
@@ -637,8 +634,44 @@ try {
         projectId: options.project,
         approvalMode: options.approvals,
       };
+    } else if (action === "setup") {
+      // Preview first; rerun with --confirm --preview-hash HASH to write.
+      const list = (value) =>
+        value
+          ?.split(",")
+          .map((entry) => entry.trim())
+          .filter(Boolean);
+      const provided = input();
+      operation = "github.setup";
+      value = {
+        ...provided,
+        mode: options.mode ?? provided.mode,
+        planningRepository:
+          options["planning-repository"] ?? provided.planningRepository,
+        repositories: list(options.repositories) ?? provided.repositories,
+        project:
+          options["project-owner"] ||
+          options["project-number"] ||
+          options["project-title"]
+            ? {
+                owner: options["project-owner"],
+                number: options["project-number"]
+                  ? Number(options["project-number"])
+                  : undefined,
+                title: options["project-title"],
+              }
+            : provided.project,
+        releases: list(options.releases) ?? provided.releases,
+        iteration: options.iteration ?? provided.iteration,
+        tableByWave: options["table-by-wave"] ?? provided.tableByWave,
+        epic: options["no-epic"] ? false : provided.epic,
+        confirm: options.confirm ?? provided.confirm,
+        previewHash: options["preview-hash"] ?? provided.previewHash,
+      };
     } else
-      throw Error("Choose github status, configure, sync, project, or start.");
+      throw Error(
+        "Choose github status, configure, sync, project, preview, setup, or start.",
+      );
     console.log(
       JSON.stringify(await localOrRequest(operation, value), null, 2),
     );
@@ -791,6 +824,11 @@ try {
     } finally {
       registry.close();
     }
+  } else if (command === "andon") {
+    // The andon gate became repository rule actions; this answers with how.
+    console.log(
+      JSON.stringify(await localOrRequest("safety.status", {}), null, 2),
+    );
   } else if (command === "workspace-repo") {
     const action = positionals[0] || "status";
     let operation, value;
@@ -836,66 +874,6 @@ try {
         JSON.stringify(await localOrRequest("planning.reconcile"), null, 2),
       );
     else throw Error("Choose planning publish or reconcile.");
-  } else if (command === "openhands") {
-    const action = positionals[0] || "status";
-    if (action === "serve-backend") {
-      if (!config.configured)
-        initializeWorkspace(config.workspaceRoot, {
-          name: options.name || "Avoozl",
-          port: config.port,
-        });
-      const child = spawn(
-        process.execPath,
-        [
-          fileURLToPath(import.meta.url),
-          "serve",
-          "--workspace",
-          config.workspaceRoot,
-          "--host",
-          "127.0.0.1",
-          "--port",
-          String(config.port),
-        ],
-        { stdio: "inherit" },
-      );
-      const forward = (signal) => {
-        if (!child.killed) child.kill(signal);
-      };
-      process.once("SIGINT", () => forward("SIGINT"));
-      process.once("SIGTERM", () => forward("SIGTERM"));
-      const code = await new Promise((resolve, reject) => {
-        child.once("error", reject);
-        child.once("exit", (status, signal) =>
-          resolve(status ?? (signal ? 1 : 0)),
-        );
-      });
-      process.exitCode = code;
-    } else if (action === "install-app")
-      console.log(
-        JSON.stringify(
-          await installOpenHandsCanvasApp({ source: options.source }),
-          null,
-          2,
-        ),
-      );
-    else if (action === "setup-agents")
-      console.log(
-        JSON.stringify(
-          await setupOpenHandsAgents({
-            agents: options.agents,
-            defaultAgent: options.default,
-            verify: !options["skip-verify"],
-          }),
-          null,
-          2,
-        ),
-      );
-    else if (action === "status")
-      console.log(JSON.stringify(await openHandsCanvasAppStatus(), null, 2));
-    else
-      throw Error(
-        "Choose openhands status, setup-agents, install-app, or serve-backend.",
-      );
   } else if (command === "generate")
     console.log(JSON.stringify(generate(config).stats, null, 2));
   else if (command === "check") {
@@ -927,7 +905,28 @@ try {
         2,
       ),
     );
-  else if (command === "update") {
+  else if (command === "task" && positionals[0] === "supersede") {
+    const create = {};
+    if (options.id) create.id = options.id;
+    if (options.title) create.title = options.title;
+    if (options.summary) create.summary = options.summary;
+    if (options.requires !== undefined)
+      create.requires = options.requires
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean);
+    console.log(
+      JSON.stringify(
+        await localOrRequest("task.supersede", {
+          id: positionals[1],
+          create,
+          ...(options.reason ? { reason: options.reason } : {}),
+        }),
+        null,
+        2,
+      ),
+    );
+  } else if (command === "update") {
     const task = await localOrRequest("task.get", { id: positionals[0] }),
       value = { id: task.id };
     for (const key of [
@@ -999,9 +998,6 @@ try {
   } else if (command === "help")
     console.log(`Avoozl — plans, tasks, and agents in one local workspace.
   init PATH [--name NAME] [--port 9428]   Create an empty workspace
-  serve --workspace PATH [--ahp]        Start the site and agent host
-  ahp --workspace PATH                  Start the editor agent-host facade
-  editor --workspace PATH [--ssh HOST]  Print editor client settings
   seed --workspace PATH [--example product-launch]
   examples --workspace PATH             List available example packs
   status                                Show the machine host and workspaces
@@ -1015,26 +1011,48 @@ try {
   github configure OWNER/REPO --project ID [--assignee LOGIN] [--allowed-actors LOGINS]
   github sync [--repository OWNER/REPO]  Import assigned ready issues
   github project PLAN_ID --repository OWNER/REPO
-  github start TASK_ID [--provider openhands]
+  github preview PLAN_ID                 List projection writes, making none
   github status                          Show repository and machine registration
+  rebuild [--repository OWNER/REPO]      Rebuild GitHub tasks from their issues and tracker plugin tasks from their records
+  github setup --mode plans-repo|single-repo [--planning-repository OWNER/REPO]
+      [--repositories A,B] [--project-owner LOGIN] [--project-number N | --project-title T]
+      [--releases A,B] [--iteration] [--table-by-wave] [--no-epic]
+                                         Preview the GitHub setup; add --confirm --preview-hash HASH to apply
   workspace-repo configure PATH [--branch avoozl-workspace] [--directory .avoozl]
   workspace-repo publish [--dry-run]     Safely publish portable planning state
   workspace-repo sync                    Hydrate from the configured private repo
   workspace-repo status                  Show portable repository revisions
+  andon                                  Where pause and resume went (rule actions)
   planning publish PLAN_ID               Open a private planning pull request
   planning reconcile                     Project tasks from merged planning PRs
-  openhands install-app                  Install and enable Avoozl inside Canvas
-  openhands setup-agents [--agents claude-code,codex] [--default AGENT]
-                                         Configure agent CLIs for Avoozl chats
-  openhands status                       Show Canvas App installation status
-  openhands serve-backend                Run an OpenHands-owned Avoozl workspace
-  serve --canvas-origin URL              Allow the exact OpenHands Canvas origin
   query [--q QUERY] | show TASK_ID | update TASK_ID --status STATUS
+  task supersede TASK_ID [--id NEW_ID] [--title TITLE] [--requires A,B] [--reason TEXT]
+                                         Replace a local task; its dependents wait on the new one
   activity TASK_ID --action start|heartbeat|pause|finish ...
   skill --workspace PATH                Print the portable workflow skill
-  mcp --workspace PATH                  Stdio bridge to the running server
-  reload --workspace PATH               Restart the web server, preserving agents
-  host [drain|resume|stop] --workspace PATH
+  mcp --workspace PATH                  Stdio MCP server for the workspace database
+  mcp --url URL                         Stdio bridge to a running server
+  mcp --kirocrew                        Kiro Crew app server: workspace per caller
+  tick --workspace PATH                 Run one workspace tick and print its intents
+  content [list]                        Content rule sets, open decisions and report findings
+  content allow DECISION_ID --reason TEXT Allow one blocked write once (a person only)
+  content show DECISION_ID              Read the matched line again from its source
+  content check --push --task TASK_ID   The pre-push hook: refuse a push whose added lines match
+  plugins [list]                        Declared plugins, their approval and health
+  plugins add ID --path DIR|--package NAME|--git URL --ref REF [--subdir DIR] [--contract 1] [--config JSON] [--repository [--confirm-public]]
+  plugins update ID                     Resolve a git plugin's ref again and fetch that commit
+  plugins approve ID --hash HASH [--commit SHA] Approve the exact version, hash and commit \`plugins list\` shows
+  plugins disable|enable|remove ID      Stop, restart, or remove a plugin; its tasks park as needs you
+  plugins pack-preview ID [--repo OWNER/REPO]  What importing a plugin's pack would create, change, or keep
+  plugins pack-import ID --preview HASH [--repo OWNER/REPO] [--accept-lowered] [--confirm-public]  Import the exact preview
+  next [--hook]                         Crew Mode buckets: ready, running, waiting, needsYou, done
+  flow [--repository ID] [--epic ID] [--window N] [--stage STAGE] Where delivery time goes (§4.11)
+  flow run-anyway STOP_ID --confirm     Resume dispatch while a line stop stays open (a person only)
+  checks run --task TASK_ID             Run the declared checks in this worktree and record the pass
+  claim TASK_ID --slot SESSION [--model MODEL] Claim a ready leaf for a Crew Mode worker session
+  report TASK_ID --slot SESSION --kind done|blocked|question|progress [--commit SHA] [--text TEXT]
+  retry TASK_ID [--dismiss FINDING --reason TEXT] Resume a leaf that stopped for a decision
+  app-backend --workspace PATH          Kiro Crew app backend on 127.0.0.1 ($PORT)
   backup --workspace PATH --output FILE  Local-only; registered IDs are refused
   export --workspace PATH [--output FILE] Local-only; registered IDs are refused
   import SNAPSHOT.json --workspace PATH [--dry-run] Local-only; registered IDs are refused
@@ -1043,8 +1061,8 @@ try {
   OPERATION --input FILE --workspace PATH
 
 Use --workspace PATH or AVOOZL_WORKSPACE to choose data independently
-of the application checkout. --db, --documents, --host, --port, --operator and
---url override workspace configuration. UI, CLI and MCP share application operations.`);
+of the application checkout. --db, --documents, --port, --operator and --url
+override workspace configuration. UI, CLI and MCP share application operations.`);
   else
     console.log(
       JSON.stringify(
@@ -1059,5 +1077,6 @@ of the application checkout. --db, --documents, --host, --port, --operator and
     );
 } catch (error) {
   console.error(error.message);
-  process.exitCode = command === "session-hook" ? 0 : 1;
+  process.exitCode =
+    command === "session-hook" || (command === "next" && options.hook) ? 0 : 1;
 }

@@ -91,7 +91,8 @@ export function planPage(store, { offset = 0, limit = 40 } = {}) {
     .prepare(
       `SELECT id,json_extract(body,'$.title') AS title,json_extract(body,'$.state') AS state,
  json_extract(body,'$.kind') AS kind,json_extract(body,'$.revision') AS revision,json_extract(body,'$.hash') AS hash,
- json_extract(body,'$.updatedAt') AS updatedAt,json_extract(body,'$.context.projectId') AS projectId
+ json_extract(body,'$.updatedAt') AS updatedAt,json_extract(body,'$.context.projectId') AS projectId,
+ json_extract(body,'$.archivedAt') AS archivedAt
  FROM plans WHERE ${where} ORDER BY rowid DESC LIMIT ? OFFSET ?`,
     )
     .all(limit, offset);

@@ -1,0 +1,80 @@
+{
+  "name": "avoozl",
+  "version": "0.1.0",
+  "displayName": "Avoozl",
+  "description": "Local-first planning and GitHub delivery inside Kiro Crew.",
+  "author": "mtdowling",
+  "license": "MIT",
+  "iconPath": "assets/icon.png",
+  "skills": ["skills/avoozl", "skills/avoozl-plugin"],
+  "agents": [
+    "agents/avoozl-planner.json",
+    "agents/avoozl-verifier.json",
+    "agents/avoozl-reviewer.json",
+    "agents/avoozl-responder.json",
+    "agents/avoozl-retro.json"
+  ],
+  "mcpServers": {
+    "avoozl": {
+      "command": "python3",
+      "args": ["bin/avoozl_mcp.py"]
+    }
+  },
+  "backend": {
+    "type": "node",
+    "entryPoint": "bin/avoozl.mjs",
+    "healthCheck": "/health",
+    "signedPrincipal": true
+  },
+  "crons": [
+    {
+      "name": "avoozl-tick",
+      "every": 60,
+      "script": "crons/tick.py:run",
+      "silent": true,
+      "persistent_session": false,
+      "timeout": 120
+    }
+  ],
+  "notifications": {
+    "channels": [
+      {
+        "id": "decision",
+        "name": "Avoozl needs a decision",
+        "icon": "CircleHelp"
+      },
+      {
+        "id": "failure",
+        "name": "Avoozl delivery failed",
+        "icon": "CircleX"
+      },
+      {
+        "id": "untriaged",
+        "name": "New untriaged GitHub items",
+        "icon": "Inbox"
+      }
+    ]
+  },
+  "permissions": {
+    "api": ["/apps/avoozl/api/*", "/api/chat/slots/avoozl_*", "/api/reveal", "/api/usage/turns", "/api/models"],
+    "cron": true
+  },
+  "tags": ["planning", "github", "automation", "developer-tools"],
+  "ui": {
+    "entry": "dist/index.mjs",
+    "pages": [
+      {
+        "route": "/apps/avoozl",
+        "label": "Avoozl",
+        "icon": "Workflow"
+      }
+    ]
+  },
+  "dependencies": {
+    "commands": ["node", "git"],
+    "optionalCommands": ["gh"]
+  },
+  "platform": {
+    "os": ["macos", "linux", "windows"]
+  }
+}

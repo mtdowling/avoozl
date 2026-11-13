@@ -1,5 +1,4 @@
-// The stable client contract shared by the VS Code extension, the AHP facade,
-// and any other client of a workspace.
+// The stable client contract shared by any client of a workspace.
 //
 // Everything here delegates to the same operations the website, CLI, and MCP
 // use. The point of the layer is a named, versioned surface with one place to
@@ -18,6 +17,17 @@ export const CLIENT_OPERATIONS = Object.freeze([
   "concurrency.status",
   "workspace.examples",
   "workspace.seed",
+  "safety.status",
+  "safety.raise",
+  "safety.note",
+  "safety.interrupt.retry",
+  "safety.remediation.request",
+  "safety.remediation.grant",
+  "safety.remediation.revoke",
+  "safety.review",
+  "safety.resolve",
+  "safety.resume",
+  "safety.coordinator.ack",
   "configuration.get",
   "configuration.update",
   "local.ignore.status",
@@ -25,32 +35,17 @@ export const CLIENT_OPERATIONS = Object.freeze([
   "state",
   "query",
   "queue",
-  "queue.items",
-  "queue.comments",
-  "queue.diff",
-  "queue.sync",
-  "queue.claim",
-  "queue.createTask",
-  "queue.confirmLink",
-  "github.intake.capabilities",
-  "github.intake.capability.create",
-  "github.intake.capability.revoke",
+  "queue.design.triage",
   "conversations.settings.get",
   "conversations.settings.update",
   "conversations.routing.preview",
-  "openhands.automations.capabilities",
-  "openhands.automations.recommendations",
-  "openhands.automations.coverage",
-  "openhands.automations.intake.preflight",
-  "openhands.automations.intake.prepare",
-  "openhands.automations.intake.state",
-  "openhands.automations.setup",
   "task.get",
   "task.update",
   "task.archive",
   "task.unarchive",
   "task.sessions",
   "task.accept",
+  "task.supersede",
   "task.duplicates",
   "activity",
   "report.save",
@@ -60,12 +55,17 @@ export const CLIENT_OPERATIONS = Object.freeze([
   "document.get",
   "document.update",
   "plan.list",
+  "plan.specs",
   "plan.get",
   "plan.create",
   "plan.save",
   "plan.lint",
   "plan.preview",
   "plan.approve",
+  "plan.extract",
+  "plan.extract.get",
+  "plan.extraction.submit",
+  "plan.extraction.dispose",
   "plan.classify",
   "plan.review.list",
   "plan.review.submit",
@@ -104,15 +104,15 @@ export const CLIENT_OPERATIONS = Object.freeze([
   "project.configure",
   "project.remove",
   "github.configure",
-  "github.queue.configure",
-  "github.queue.remove",
   "github.repositories",
   "github.issues",
   "github.sync",
   "github.authorize",
   "github.project",
+  "github.project.preview",
   "github.start",
   "repositories.list",
+  "repositories.detect",
   "repositories.configure",
   "repositories.remove",
   "workspace.repository.configure",
@@ -160,11 +160,11 @@ export const CLIENT_CONTRACT = Object.freeze({
     "integrated",
     "observing",
   ]),
-  cancellation:
-    "run.interrupt records intent, asks the provider, and waits for its acknowledgment. The terminal state comes from the provider's turn end: interrupted keeps the provider diagnostic separately from error, and a genuine failure stays failed.",
+  moved:
+    "Run, safety, and team operations from the removed agent host answer with {moved: true, message, sessions?}: where the work went in Kiro Crew. Past runs stay readable.",
 });
 
-export function describeWorkspace(store, { manager } = {}) {
+export function describeWorkspace(store) {
   return {
     application: "avoozl",
     apiVersion: CLIENT_API_VERSION,
@@ -174,7 +174,6 @@ export function describeWorkspace(store, { manager } = {}) {
     authority: store.filename,
     operations: CLIENT_OPERATIONS,
     contract: CLIENT_CONTRACT,
-    agentHost: manager?.remote ? "separate process" : "in process",
   };
 }
 
@@ -295,36 +294,6 @@ export class WorkspaceClient {
   queue(input = {}) {
     return this.call("queue", input);
   }
-  queueItems(input = {}) {
-    return this.call("queue.items", input);
-  }
-  queueComments(input) {
-    return this.call("queue.comments", input);
-  }
-  queueDiff(input) {
-    return this.call("queue.diff", input);
-  }
-  syncQueue(input = {}) {
-    return this.call("queue.sync", input);
-  }
-  claimQueueIssue(input) {
-    return this.call("queue.claim", input);
-  }
-  createTaskFromQueue(input, expectedRevision) {
-    return this.call("queue.createTask", input, expectedRevision);
-  }
-  confirmQueueLink(input, expectedRevision) {
-    return this.call("queue.confirmLink", input, expectedRevision);
-  }
-  githubIntakeCapabilities(input = {}) {
-    return this.call("github.intake.capabilities", input);
-  }
-  createGitHubIntakeCapability(input) {
-    return this.call("github.intake.capability.create", input);
-  }
-  revokeGitHubIntakeCapability(input) {
-    return this.call("github.intake.capability.revoke", input);
-  }
   conversationSettings() {
     return this.call("conversations.settings.get");
   }
@@ -333,12 +302,6 @@ export class WorkspaceClient {
   }
   previewConversationRouting(input = {}) {
     return this.call("conversations.routing.preview", input);
-  }
-  configureQueueRepository(input) {
-    return this.call("github.queue.configure", input);
-  }
-  removeQueueRepository(repository) {
-    return this.call("github.queue.remove", { repository });
   }
   updateTask(input, expectedRevision) {
     return this.call("task.update", input, expectedRevision);
@@ -371,13 +334,21 @@ export class WorkspaceClient {
   }
   // Approval is a separate, explicit, transactional operation that names the
   // exact reviewed hash and database revision.
-  approvePlan({ id, expectedHash, expectedRevision, approvedBy, evidence }) {
+  approvePlan({
+    id,
+    expectedHash,
+    expectedRevision,
+    approvedBy,
+    evidence,
+    retitled,
+  }) {
     return this.call("plan.approve", {
       id,
       expectedHash,
       expectedRevision,
       approvedBy,
       evidence,
+      retitled,
     });
   }
   runs(input = {}) {
@@ -391,27 +362,6 @@ export class WorkspaceClient {
   }
   updateDriverContext(input) {
     return this.call("driver.context", input);
-  }
-  openHandsAutomationCapabilities() {
-    return this.call("openhands.automations.capabilities");
-  }
-  openHandsAutomationRecommendations(input = {}) {
-    return this.call("openhands.automations.recommendations", input);
-  }
-  openHandsAutomationCoverage(input = {}) {
-    return this.call("openhands.automations.coverage", input);
-  }
-  openHandsIntakeAutomationPreflight(input = {}) {
-    return this.call("openhands.automations.intake.preflight", input);
-  }
-  prepareOpenHandsIntakeAutomation(input = {}) {
-    return this.call("openhands.automations.intake.prepare", input);
-  }
-  setOpenHandsIntakeAutomationState(input = {}) {
-    return this.call("openhands.automations.intake.state", input);
-  }
-  startOpenHandsAutomationSetup(templateId, input = {}) {
-    return this.call("openhands.automations.setup", { templateId, ...input });
   }
   run(id, options = {}) {
     return this.call("run.get", { id, ...options });

@@ -1,4 +1,18 @@
-import { resolveTaskId, requireDistinctTask } from "../task-identity.mjs";
+import path from "node:path";
+import { mcpRefusal } from "./mcp-policy.mjs";
+import {
+  resolveTaskId,
+  requireDistinctTask,
+  taskSourceRefs,
+} from "../task-identity.mjs";
+import {
+  COMPLETIONS,
+  pluginId,
+  taskAuthority,
+  taskKind,
+  taskRepository,
+  taskRoute,
+} from "../work-model.mjs";
 import {
   duplicateAudit,
   duplicateCandidates,
@@ -6,7 +20,16 @@ import {
 } from "./task-dedup.mjs";
 import fs from "node:fs";
 import { randomUUID } from "node:crypto";
-import { queryTasks, statusComplete, digest, validate } from "../model.mjs";
+import {
+  blocks,
+  digest,
+  matchSection,
+  planOwned,
+  queryTasks,
+  reviewSettled,
+  statusComplete,
+  validate,
+} from "../model.mjs";
 import { captureTask } from "../capture.mjs";
 import { applyActivity } from "../activity.mjs";
 import { applyPlanMetadata, planSummaries } from "../plan-model.mjs";
@@ -25,22 +48,23 @@ import {
   savePlan,
   proposeWork,
   approvePlan,
+  baselineItems,
   extractPlan,
 } from "./plans.mjs";
 import {
   projectConfig,
+  originRepositorySync,
   projectGitHubRepository,
   validateRun,
   integrateRun,
   runChanges,
+  withWorkLock,
   WORKING_STATES,
+  detectCheckout,
+  git,
 } from "./git.mjs";
 import { workspaceIdentity } from "./identity.mjs";
-import { compactDriverContext, driverConversationTitle } from "./manager.mjs";
-import { Batches } from "./batches.mjs";
-import { metrics } from "./telemetry.mjs";
 import { taskSignals, isPlanInventory } from "../workbench-model.mjs";
-import { ExternalSessions } from "./external-sessions.mjs";
 import { listExamples, seedExample } from "./examples.mjs";
 import { describeWorkspace } from "./client.mjs";
 import {
@@ -52,26 +76,123 @@ import {
   configureGitHubRepository,
   machineIdentity,
   prepareGitHubRepository,
-  projectPlanIssues,
-  startAuthorizedIssue,
   syncGitHubIssues,
 } from "./github-sync.mjs";
+import { planningIdentity, requireNamespace } from "./github-marker.mjs";
 import {
-  listGitHubIntakeCapabilities,
-  mintGitHubIntakeCapability,
-  revokeGitHubIntakeCapability,
-} from "./github-intake.mjs";
+  CODERS,
+  CREW_LABEL_KEYS,
+  FIELD_KEYS,
+  issueRadarCrews,
+  MANAGED_LABEL_KEYS,
+  MODE_CHOICES,
+  newTaskAuthority,
+  normalizeGitHubPolicy,
+  PERMISSIONS,
+  policySection,
+  readGitHubPolicy,
+  readGitHubPolicyOrNull,
+  requireDefaultBranches,
+  RULE_ACTIONS,
+  STATUS_VALUE_KEYS,
+} from "./github-policy.mjs";
+import { syncProject } from "./github-project.mjs";
+import { cancelSetup, githubSetup } from "./github-setup.mjs";
 import {
-  configureGitHubQueueRepository,
-  claimGitHubQueueIssue,
-  createTaskFromQueueItem,
-  githubQueueComments,
-  githubQueuePullRequestDiff,
-  githubQueueItems,
-  prepareGitHubQueueRepository,
-  removeGitHubQueueRepository,
-  syncGitHubQueue,
-} from "./github-queue.mjs";
+  archiveEnded,
+  archiveTask,
+  deletePlan,
+  deletePreview,
+  specFolderState,
+} from "./plan-retire.mjs";
+import { archivePlan, unarchivePlan } from "./plan-archive.mjs";
+import {
+  conversationSettings,
+  RepositorySettings,
+} from "./repository-settings.mjs";
+import {
+  projectPlanIssues,
+  resolveProjectionConflict,
+} from "./github-projection.mjs";
+import { rebuildFromGitHub } from "./github-rebuild.mjs";
+import { cancelSubmission, resubmit } from "./routes.mjs";
+import {
+  addGitPlugin,
+  addPlugin,
+  approvePlugin,
+  disablePlugin,
+  inspectPlugins,
+  pluginHost,
+  importPluginPack,
+  previewPlugin,
+  previewPluginPack,
+  pluginSettingsPath,
+  removePlugin,
+  repositoryPacks,
+  updateGitPlugin,
+} from "./plugins.mjs";
+import { pluginHealth } from "./plugin-session.mjs";
+import { rebuiltRows } from "./trackers.mjs";
+import { SUPPORTED_CONTRACTS } from "./plugin-contract.mjs";
+import {
+  allowOnce,
+  bindContentRules,
+  check as checkContent,
+  contentBinding,
+  contentItems,
+  describeSets,
+  enforce as enforceContent,
+  enforceDiff,
+  enforceSpec,
+  guardGitHub,
+  loadRulePlugins,
+  pushedCommits,
+  readTermsFile,
+  rulePluginsStale,
+  showDecisionLine,
+  specContentDiagnostics,
+  writeTermsFile,
+} from "./content-rules.mjs";
+import { triggerPreview } from "./issue-match.mjs";
+import {
+  handoffReceipts,
+  radarNeedsYou,
+  readCache,
+  refreshUntriaged,
+  untriagedView,
+} from "./untriaged.mjs";
+import { handOff, readCrews } from "./radar-handoff.mjs";
+import { flowView, readFlowConfig, readFlowPolicy } from "./flow.mjs";
+import { usageView } from "./flow-usage.mjs";
+import {
+  applyToConfig,
+  decideProposal,
+  retroPrompt,
+  retroInstructions,
+  setRetroInstructions,
+} from "./flow-retro.mjs";
+import { lineBanner, runAnyway } from "./flow-line.mjs";
+import { localCheckList, localPass, runLocalChecks } from "./flow-checks.mjs";
+import { queueNotifications } from "./notifications.mjs";
+
+const PLUGIN_OPERATIONS = new Set([
+  "plugins.list",
+  "plugin.add",
+  "plugin.approve",
+  "plugin.disable",
+  "plugin.preview",
+  "plugin.remove",
+  "plugin.update",
+  "plugin.pack.preview",
+  "plugin.pack.import",
+]);
+import {
+  advanceGitHubBreakdowns,
+  breakdownHold,
+  classifyGitHubIssue,
+  draftGitHubChildren,
+} from "./github-breakdown.mjs";
+import { previewProjection } from "./github-preview.mjs";
 import {
   assertRepositoryRemovable,
   removeWorkspaceRepositoryRecords,
@@ -81,7 +202,60 @@ import {
   ensureGlobalLocalIgnore,
   globalLocalIgnoreStatus,
 } from "./local-ignore.mjs";
-import { confirmQueueItemLink } from "./github-overlap.mjs";
+import {
+  bindSession,
+  recordSessionStatus,
+  rediscoverSessions,
+  requestSession,
+} from "./session-bindings.mjs";
+import {
+  readDeliveryPolicy,
+  tick,
+  tickHealth,
+  tickLog,
+  WORKSPACE_LOCK,
+} from "./tick.mjs";
+import { machineRoots, postReply } from "./github-respond.mjs";
+import {
+  activityView,
+  chatContext,
+  conflictsView,
+  deliveryView,
+  graphView,
+  ownership,
+  plansTableView,
+  taskDetailView,
+} from "./page-views.mjs";
+import { frontMatter, frontMatterCategory } from "../front-matter.mjs";
+import {
+  branchReviewRule,
+  ruleBranch,
+  seenCheckNames,
+} from "./github-branch-rules.mjs";
+import { settleConflicts } from "./conflict-actions.mjs";
+import { highlightLanguages } from "./highlight-languages.mjs";
+import {
+  claimedTaskIds,
+  declaredChecks,
+  prepareWorktree,
+  reportSession,
+  retryDelivery,
+  startNow,
+} from "./delivery.mjs";
+import { claimTask, nextView } from "./runner.mjs";
+import { supersedeTask } from "./supersede.mjs";
+
+// Claimed leaves for a readiness query. A read-only database from before the
+// session tables reads as having no claims.
+function claimedOrNone(store) {
+  try {
+    return claimedTaskIds(store);
+  } catch {
+    return new Set();
+  }
+}
+import { deliverNotifications } from "./notifications.mjs";
+import { flushOutbox } from "./outbox.mjs";
 import {
   configureWorkspaceRepository,
   publishPlanningPullRequest,
@@ -95,54 +269,247 @@ import {
   disposeReview,
   listReviewThreads,
   replyToReview,
-  reviewPrompt,
 } from "./plan-reviews.mjs";
+import {
+  createExtraction,
+  disposeFact,
+  getExtraction,
+  proposalsFromFacts,
+  submitExtraction,
+} from "./design-extraction.mjs";
 import { lintPlan } from "./plan-quality.mjs";
+import {
+  createSpecPlan,
+  findSpecFolder,
+  lintSpec,
+  linkSpecPlan,
+  listSpecFolders,
+  parseSpec,
+  proposeSpecWork,
+  readCritique,
+  readSpecFolder,
+  saveSpecPlan,
+  specCategory,
+  specItems,
+  specModifiedAt,
+  specName,
+  specRoots,
+  specTitle,
+} from "./spec-plans.mjs";
 import {
   matchingAgentInstructions,
   toggleAgentInstruction,
 } from "./agent-instructions.mjs";
 import {
-  autoArchiveCompletedRun,
-  conversationSettings,
-  updateConversationSettings,
-} from "./conversation-settings.mjs";
-import {
-  openHandsRoutingAvailability,
-  selectAgentRoute,
-} from "./agent-routing.mjs";
-import {
-  openHandsAgentModels,
-  openHandsAgentProfiles,
-} from "./providers/openhands.mjs";
-import { OpenHandsAutomations } from "./openhands-automations.mjs";
+  MOVED_OPERATIONS,
+  kiroCrewSessions,
+  movedOperation,
+} from "./moved-operations.mjs";
 
-// Acceptance evidence a caller did not type, when validateRun already recorded
-// passing checks for the commit being accepted. A failed or absent validation
-// derives nothing: acceptance stays the operator's own statement.
-function validatedEvidence(store, data, task) {
-  const records = store
-      .list("evidence")
-      .filter(
-        (e) =>
-          e.kind === "command" &&
-          typeof e.commit === "string" &&
-          resolveTaskId(data, e.taskId) === task.id,
-      ),
-    commit = task.integration?.commit || records[0]?.commit;
-  if (!commit) return "";
-  const matching = records.filter((e) => e.commit === commit);
-  if (!matching.length || matching.some((e) => e.exitCode !== 0)) return "";
-  // Validation and integration revalidation record the same command twice.
-  // Report the distinct checks, not how many times they ran.
-  const checks = [
-    ...new Set(matching.map((e) => (e.argv || []).join(" ")).filter(Boolean)),
-  ];
-  if (!checks.length) return "";
-  return (
-    `${checks.length} configured check${checks.length === 1 ? "" : "s"} passed at commit ${commit.slice(0, 12)}: ` +
-    checks.join("; ")
-  ).slice(0, 2000);
+// Avoozl-recorded validation at a task's current commit (§5.2, R38.5): its
+// integrated commit, else its delivery's, else the newest validated commit.
+// Results come from validateRun records and checks-role verdicts at that
+// commit; the newest result per check counts. Returns null unless every
+// declared check passed there. With no declared checks, every check that ran
+// at the commit must have passed.
+function validationAt(store, data, task) {
+  const own = (table) => {
+      try {
+        return store.list(table);
+      } catch {
+        return [];
+      }
+    },
+    records = own("evidence").filter(
+      (e) =>
+        e.kind === "command" &&
+        typeof e.commit === "string" &&
+        resolveTaskId(data, e.taskId) === task.id,
+    ),
+    delivery = own("task_deliveries").find((d) => d.taskId === task.id),
+    commit =
+      task.integration?.commit || delivery?.commit || records.at(-1)?.commit;
+  if (!commit) return null;
+  const results = [];
+  records.forEach((e, index) => {
+    if (e.commit === commit && Array.isArray(e.argv))
+      results.push({
+        command: e.argv.join(" "),
+        exitCode: e.exitCode,
+        at: e.endedAt || e.startedAt || "",
+        index,
+        id: e.id,
+      });
+  });
+  for (const v of delivery?.verifications || [])
+    if (
+      (v.commit ?? delivery.commit) === commit &&
+      (!v.role || v.role === "checks")
+    )
+      for (const entry of Array.isArray(v.checks) ? v.checks : [])
+        if (typeof entry?.command === "string")
+          results.push({
+            command: entry.command,
+            exitCode: entry.notRun ? null : entry.exitCode,
+            at: v.at || "",
+            index: records.length,
+          });
+  results.sort((a, b) => a.at.localeCompare(b.at) || a.index - b.index);
+  const latest = new Map();
+  for (const result of results) latest.set(result.command, result);
+  const declared = declaredChecks(
+      task,
+      store.get("projects", taskRepository(task) || ""),
+    ),
+    checks = declared.length ? declared : [...latest.keys()];
+  if (!checks.length || checks.some((c) => latest.get(c)?.exitCode !== 0))
+    return null;
+  return {
+    commit,
+    checks,
+    evidenceIds: checks.map((c) => latest.get(c).id).filter(Boolean),
+    summary: (
+      `${checks.length} configured check${checks.length === 1 ? "" : "s"} passed at commit ${commit.slice(0, 12)}: ` +
+      checks.join("; ")
+    ).slice(0, 2000),
+  };
+}
+
+// Operations that write a task row directly. A row whose authority is GitHub
+// is a cache (design §3.2): its change goes to the issue through projection,
+// and the next sync overwrites the row.
+const DIRECT_TASK_EDITS = new Set([
+  "task.update",
+  "task.archive",
+  "task.unarchive",
+  "task.accept",
+  "task.merge",
+  "task.supersede",
+]);
+function refuseGitHubAuthority(data, name, input) {
+  const ids =
+    name === "task.merge"
+      ? [input.targetId, ...(input.duplicateIds || [])]
+      : [input.id];
+  for (const id of ids) {
+    const task = data.tasks.find((t) => t.id === resolveTaskId(data, id));
+    if (task && taskAuthority(task).startsWith("plugin:")) {
+      const error = Error(
+        `Task ${task.id} is owned by its record in ${taskAuthority(task)}${task.tracker?.link ? ` (${task.tracker.link})` : ""}. Change it through its plan: amend and approve the plan, and the tick projects it.`,
+      );
+      error.status = 409;
+      error.code = "authority-plugin";
+      error.route = "projection";
+      throw error;
+    }
+    if (!task || taskAuthority(task) !== "github") continue;
+    const issue = task.github?.number
+      ? ` issue ${task.github.repository}#${task.github.number}`
+      : " its GitHub issue";
+    const error = Error(
+      `Task ${task.id} is owned by${issue}. Change the issue through projection: ` +
+        (task.github?.origin === "design"
+          ? "amend and approve its plan, then project it."
+          : "edit the issue on GitHub, then sync."),
+    );
+    error.status = 409;
+    error.code = "authority-github";
+    error.route = "projection";
+    throw error;
+  }
+}
+
+// Refuse prerequisites that make `id` wait on itself through other tasks,
+// naming the path, so a page or agent sees which link to drop. The store's
+// validator still refuses a self edge and any cycle; this adds the path.
+// Only blocking kinds count.
+function refuseCycle(data, id) {
+  const next = new Map();
+  for (const edge of data.edges) {
+    if (edge.kind !== "requires" && edge.kind !== "sequence") continue;
+    if (edge.from === edge.to) continue;
+    if (!next.has(edge.from)) next.set(edge.from, []);
+    next.get(edge.from).push(edge.to);
+  }
+  // Breadth-first from id along "runs before"; reaching id again is a cycle.
+  const back = new Map(),
+    queue = [id];
+  while (queue.length) {
+    const at = queue.shift();
+    for (const to of next.get(at) || []) {
+      if (to === id) {
+        const path = [id];
+        for (let step = at; step !== id; step = back.get(step)) path.push(step);
+        path.push(id);
+        path.reverse();
+        const error = Error(
+          `That prerequisite makes a cycle: ${path.join(" → ")}. Drop one of these links.`,
+        );
+        error.status = 409;
+        error.code = "cycle";
+        error.path = path;
+        throw error;
+      }
+      if (!back.has(to)) {
+        back.set(to, at);
+        queue.push(to);
+      }
+    }
+  }
+}
+
+// Which repositories have review roles (§5.2 Policy, task 9.1): a repository's
+// own `reviewers` list replaces the workspace's. Takes readDeliveryPolicy's
+// {status, delivery} wrapper and returns a predicate over repository names.
+// Not delivery.mjs's reviewRoles(delivery, repository), which returns the list.
+function reviewRoles(policy) {
+  const delivery = policy?.delivery;
+  return (repository) => {
+    const own = repository
+        ? delivery?.repositories?.[repository]?.reviewers
+        : undefined,
+      list = own ?? delivery?.reviewers;
+    return Array.isArray(list) && list.length > 0;
+  };
+}
+
+// task.update must not skip the gates of §5.2 (R36.11, R38.4): a typed
+// integration receipt or a complete status would meet completion with no
+// verifier, review, or merge (F60).
+function refuseGateBypass(data, task, input, hasReviewers) {
+  if (Object.hasOwn(input, "acceptFrom"))
+    fail("acceptFrom changes only through plan approval.", 409);
+  const typedIntegration = Object.hasOwn(input, "integration"),
+    completes =
+      Object.hasOwn(input, "status") &&
+      input.status !== task.status &&
+      statusComplete(data, input.status);
+  if (task.acceptFrom === "validation") {
+    if (typedIntegration || completes)
+      fail(
+        `Task ${task.id} completes only through Avoozl's validation and integration; a typed integration or complete status is refused.`,
+        409,
+      );
+    if (
+      Object.hasOwn(input, "checks") &&
+      JSON.stringify(input.checks) !== JSON.stringify(task.checks)
+    )
+      fail(
+        `Task ${task.id} takes its checks from its approved plan; change them there.`,
+        409,
+      );
+  }
+  const leaf =
+      taskKind(Object.hasOwn(input, "kind") ? { kind: input.kind } : task) ===
+      "leaf",
+    repository = Object.hasOwn(input, "repository")
+      ? input.repository
+      : taskRepository(task);
+  if (leaf && (typedIntegration || completes) && hasReviewers(repository))
+    fail(
+      `Repository ${repository} has review roles; task ${task.id} completes only after its reviews and integration, not by a typed integration or complete status.`,
+      409,
+    );
 }
 
 function repositoryBase(store, task, projectId) {
@@ -258,221 +625,629 @@ function taskCodeChanges(store, data, task, runs, evidenceRecords) {
   };
 }
 
-function monitoredAutomationRepositories(store, input = {}) {
-  const requested = input.repository
-      ? parseRepository(input.repository).id
-      : null,
-    records = requested
-      ? [store.get("github_queue_repositories", requested)].filter(Boolean)
-      : store
-          .list("github_queue_repositories")
-          .filter((repository) => repository.enabled);
-  if (requested && !records.length)
-    fail("Monitored GitHub repository not found.", 404);
-  return records.map((repository) => ({
-    ...repository,
-    project: repository.projectId
-      ? store.get("projects", repository.projectId)
-      : null,
-  }));
+// The IDs an approval accepts new item text for (task.changed-text).
+function retitledInput(value) {
+  if (value === undefined) return [];
+  if (
+    !Array.isArray(value) ||
+    value.length > 1000 ||
+    value.some((id) => typeof id !== "string" || id.length > 200)
+  )
+    fail("retitled is a list of task IDs.");
+  return value;
+}
+
+// Old completed runs of an accepted task leave the conversation list, as
+// before; nothing new is started or stopped.
+function archiveCompletedRun(store, run, at) {
+  if (run.driver || store.getMeta("runArchive:" + run.id)) return;
+  store.setMeta("runArchive:" + run.id, at);
+  store.event(run.id, "run.auto-archived", {
+    id: run.id,
+    archivedAt: at,
+    reason: "completed-task",
+  });
+}
+
+// Review roles for the Settings page: the writer's model and each role, for
+// the workspace and per repository. An invalid `delivery` block reads as its
+// error, since Settings shows it rather than failing the page.
+function reviewSettings({ delivery, error = null } = {}) {
+  const role = ({ id, focus, agent, model, distinctFrom }) => ({
+    id,
+    focus,
+    agent,
+    model: model ?? null,
+    distinctFrom,
+  });
+  return {
+    error,
+    writerModel: delivery?.model ?? null,
+    reviewers: (delivery?.reviewers || []).map(role),
+    repositories: Object.fromEntries(
+      Object.entries(delivery?.repositories || {})
+        .filter(([, entry]) => entry.reviewers)
+        .map(([id, entry]) => [id, entry.reviewers.map(role)]),
+    ),
+  };
 }
 
 export class Operations {
   constructor(
     store,
     {
-      manager = null,
-      externalSessions,
       operator,
       github,
       configuration = null,
-      openhandsAutomations = null,
+      workspaceRoot = configuration?.workspaceRoot || null,
+      plansRoot = null,
       repositoryBindingGuard = null,
+      notifier = null,
+      crewReader = null,
+      pluginSettingsFile = pluginSettingsPath(),
+      plugins = workspaceRoot
+        ? pluginHost({ workspaceRoot, settingsFile: pluginSettingsFile })
+        : null,
     } = {},
   ) {
     this.store = store;
-    this.manager = manager;
+    // The plugin loader (plugins.mjs). It opens one plugin session per
+    // tick, and runs nothing unless a plugin is declared and approved.
+    this.plugins = plugins;
+    this.pluginOptions = { workspaceRoot, settingsFile: pluginSettingsFile };
+    // Pushes one notification to Kiro Crew (notifications.mjs gatewayPusher);
+    // only the app backend has one.
+    this.notifier = notifier;
+    // Reads Issue Radar's crews through the gateway (radar-handoff.mjs);
+    // only the app backend has one.
+    this.crewReader = crewReader;
     // Provenance for records this workspace mints; never an authorization.
     this.operator = operator || "";
-    this.github = github || defaultGitHubClient();
+    // Every GitHub text write passes content rules first (§4.9).
+    this.github = guardGitHub(github || defaultGitHubClient(), store);
     this.configuration = configuration;
+    this.workspaceRoot = workspaceRoot;
+    // Given a plans root, every operation publishes its pending Markdown
+    // projections before it returns, so no caller writes the outbox itself.
+    this.plansRoot = plansRoot;
+    this.tickPolicy = {};
     this.repositoryBindingGuard = repositoryBindingGuard;
-    this.openhandsAutomations =
-      openhandsAutomations || new OpenHandsAutomations();
-    this.externalSessions = externalSessions || new ExternalSessions(store);
-    this.batches =
-      manager && !manager.remote ? new Batches(store, manager) : null;
     this.pendingIntents = new Map();
-    this.reviewPipelines = new Set();
+    // Content rules (§4.9) read this workspace's `.avoozl.json` and terms.
+    if (workspaceRoot)
+      bindContentRules(store, {
+        workspaceRoot,
+        pluginSettingsFile,
+      });
   }
   read() {
     return this.store.read();
   }
-  async openRemoteDriver(input = {}) {
-    try {
-      return await this.manager.command("driver.open", input);
-    } catch (error) {
-      if (!/Unsupported agent-host operation/i.test(error.message)) throw error;
-    }
-    const projects = this.store.list("projects"),
-      projectId =
-        input.projectId || (projects.length === 1 ? projects[0].id : null),
-      project = projectId ? this.store.get("projects", projectId) : null;
-    if (!project)
-      fail(
-        projects.length
-          ? "Choose which configured project should own this Driver."
-          : "Configure a project workspace before opening Driver.",
+  // Tracker plugin tasks rebuilt from each approved tracker's `list` and the
+  // approved spec folders the records pin (§3.3, R35.7). A plan row is
+  // recreated only from a folder whose revision equals the pinned hash, the
+  // revision that was approved before. A second run writes nothing.
+  async rebuildTrackers() {
+    if (!this.plugins) return [];
+    const trackers = this.plugins
+      .inspect()
+      // An intake-only plugin is never asked to list (R50.7).
+      .filter(
+        (p) => p.state === "approved" && p.provides?.includes("tracker"),
       );
-    const baseId =
-        "driver-" +
-        digest(workspaceIdentity(this.store) + ":" + project.id).slice(0, 24),
-      drivers = this.store
-        .list("runs")
-        .filter(
-          (run) =>
-            run.driver === true &&
-            run.projectId === project.id &&
-            run.driverActive !== false &&
-            !run.deletedAt,
-        ),
-      existing = drivers[0] || this.store.get("runs", baseId),
-      profileSpecified = Object.hasOwn(input, "agentProfile"),
-      modelSpecified = Object.hasOwn(input, "model"),
-      choice = (value) =>
-        typeof value === "string" && value.trim() ? value.trim() : null,
-      configurationChanged =
-        existing &&
-        ((profileSpecified &&
-          choice(input.agentProfile) !== choice(existing.agentProfile)) ||
-          (modelSpecified &&
-            choice(input.model) !==
-              choice(existing.requestedModel ?? existing.model))),
-      generation =
-        Math.max(
-          0,
-          ...this.store
-            .list("runs")
-            .filter((run) => run.driver && run.projectId === project.id)
-            .map((run) => run.driverGeneration || 1),
-        ) + 1,
-      id = !existing && generation === 1 ? baseId : `${baseId}-g${generation}`,
-      context =
-        input.context === undefined
-          ? existing?.context || {}
-          : compactDriverContext(input.context);
-    if (existing && !configurationChanged) {
-      if (input.provider && input.provider !== existing.provider)
-        fail("This project Driver already belongs to another provider.", 409);
-      existing.driver = true;
-      existing.driverActive = true;
-      existing.driverRole = "project";
-      existing.logicalConversationId =
-        existing.logicalConversationId || existing.id;
-      if (input.context !== undefined) {
-        existing.context = context;
-        existing.driverContextUpdatedAt = new Date().toISOString();
+    if (!trackers.length) return [];
+    const namespace = requireNamespace(planningIdentity(this.workspaceRoot)),
+      session = this.plugins.open(),
+      results = [];
+    try {
+      for (const plugin of trackers) {
+        const notes = [];
+        let records;
+        try {
+          ({ records } = await session.call(plugin.id, "tracker", "list", {
+            namespace,
+          }));
+        } catch (error) {
+          results.push({
+            plugin: plugin.id,
+            error: error.reason || error.message,
+          });
+          continue;
+        }
+        const rows = rebuiltRows(plugin.id, records, namespace),
+          plans = new Map();
+        for (const row of rows)
+          plans.set(row.planId, [...(plans.get(row.planId) || []), row]);
+        for (const [planId, list] of plans) {
+          if (!planId) continue;
+          if (this.store.get("plans", planId)?.state === "approved") continue;
+          const hashes = new Set(list.map((row) => row.hash));
+          if (hashes.size !== 1) {
+            notes.push(
+              `Plan ${planId} is not rebuilt: its records pin more than one revision.`,
+            );
+            continue;
+          }
+          try {
+            await this.perform("plan.create", {
+              id: planId,
+              spec: list[0].spec,
+            });
+            const preview = await this.perform("plan.preview", { id: planId });
+            if (preview.reviewedHash !== list[0].hash) {
+              notes.push(
+                `Plan ${planId} is not rebuilt: its folder is at ${String(preview.reviewedHash).slice(0, 12)}, but its records pin ${String(list[0].hash).slice(0, 12)}. Reload and approve the folder.`,
+              );
+              continue;
+            }
+            await this.perform("plan.approve", {
+              id: planId,
+              expectedHash: preview.reviewedHash,
+              expectedRevision: preview.expectedRevision,
+              evidence: `Rebuilt from plugin:${plugin.id}: ${list.length} records pin this revision.`,
+            });
+          } catch (error) {
+            notes.push(`Plan ${planId} is not rebuilt: ${error.message}`);
+          }
+        }
+        const data = this.read(),
+          changes = [];
+        for (const row of rows) {
+          const task = data.tasks.find((t) => t.id === row.taskId);
+          if (!task) {
+            notes.push(
+              `Record ${row.tracker.id} names task ${row.taskId}, which no approved plan has.`,
+            );
+            continue;
+          }
+          if (taskAuthority(task) !== `plugin:${plugin.id}`) {
+            notes.push(
+              `Task ${row.taskId} is not owned by plugin:${plugin.id}; skipped.`,
+            );
+            continue;
+          }
+          // Conflicts are the tick's judgment; rebuild keeps them.
+          const next = {
+            ...task,
+            tracker: {
+              ...row.tracker,
+              conflicts: task.tracker?.conflicts ?? [],
+            },
+          };
+          if (row.verdict) {
+            next.trackerVerdict = row.verdict;
+            if (row.verdict.status) next.status = row.verdict.status;
+          }
+          if (canonical(next) !== canonical(task)) changes.push(next);
+        }
+        if (changes.length)
+          this.store.mutate(
+            `Rebuild ${changes.length} tasks from plugin:${plugin.id}`,
+            (draft) => {
+              for (const next of changes)
+                draft.tasks[draft.tasks.findIndex((t) => t.id === next.id)] =
+                  next;
+            },
+          );
+        results.push({
+          plugin: plugin.id,
+          tasks: rows.map((row) => row.taskId),
+          written: changes.length > 0,
+          notes,
+        });
       }
-      this.store.put("runs", existing);
+    } finally {
+      await session.close();
+    }
+    return results;
+  }
+  // "Take back local" (§3.2, R35.10): close the record as not planned and
+  // make SQLite the task's authority again. shortcut: the plan still names
+  // the plugin authority, so its next approval projects the task again;
+  // drop the authority from the manifest before re-approving.
+  async takeBackLocal(input) {
+    const data = this.read(),
+      task = data.tasks.find((t) => t.id === resolveTaskId(data, input.taskId));
+    if (!task) fail(`Task ${input.taskId} was not found.`, 404);
+    const id = pluginId(taskAuthority(task));
+    if (!id) fail(`Task ${task.id} is not owned by a tracker plugin.`, 409);
+    if (!this.plugins) fail("No plugin can run in this process.", 409);
+    if (task.tracker?.id && task.tracker.state === "open") {
+      const session = this.plugins.open();
+      try {
+        await session.call(id, "tracker", "close", {
+          id: task.tracker.id,
+          reason: "not_planned",
+        });
+      } finally {
+        await session.close();
+      }
+    }
+    this.store.mutate(
+      `Take ${task.id} back local from plugin:${id}`,
+      (draft) => {
+        const row = draft.tasks.find((t) => t.id === task.id);
+        row.authority = "local";
+        row.takenBack = {
+          from: `plugin:${id}`,
+          record: task.tracker ?? null,
+          at: new Date().toISOString(),
+        };
+        delete row.tracker;
+        delete row.trackerVerdict;
+        delete row.trackerHold;
+        delete row.trackerPaused;
+      },
+    );
+    return this.read().tasks.find((t) => t.id === task.id);
+  }
+  // Settings' plugin list and actions (§4.8, R34.9). Approval is a person's
+  // act in Settings or the CLI: an agent session cannot approve a plugin,
+  // and no MCP tool offers it.
+  async pluginOperation(name, input, context) {
+    const options = this.pluginOptions;
+    if (!options.workspaceRoot) fail("Plugins need a workspace root.", 409);
+    if (name === "plugins.list") {
+      const health = pluginHealth(this.store),
+        packs = repositoryPacks(options.workspaceRoot),
+        plugins = inspectPlugins(options).map(({ manifest, entry, ...p }) => ({
+          ...p,
+          // The pack's description and groups, and what was imported from
+          // it; a newer version offers its diff again (R55.7).
+          ...(p.pack
+            ? {
+                pack: {
+                  description: p.pack.description ?? null,
+                  groups: Object.keys(p.pack.settings),
+                  imported: packs[p.id] ?? null,
+                  offer: packs[p.id]?.version !== p.version,
+                },
+              }
+            : {}),
+          config: entry?.config ?? {},
+          ...(entry?.git !== undefined
+            ? {
+                git: {
+                  url: entry.git,
+                  ref: entry.ref,
+                  ...(entry.subdir !== undefined
+                    ? { subdir: entry.subdir }
+                    : {}),
+                },
+              }
+            : {}),
+          health: health.get(p.id) ?? null,
+        }));
       return {
-        project: {
-          projectId: project.id,
-          title: project.name || project.title || project.id,
-          root: project.root,
-        },
-        run: existing,
-        created: false,
-        compatibilityMode: true,
+        supportedContracts: SUPPORTED_CONTRACTS,
+        // Local and GitHub are built in; every other route is a plugin's.
+        routes: [
+          "local",
+          "github",
+          ...plugins
+            .filter((p) => p.kinds?.includes("route"))
+            .map((p) => `plugin:${p.id}`),
+        ],
+        plugins,
       };
     }
-    if (
-      existing &&
-      (["starting", "running", "waiting-input", "waiting-approval"].includes(
-        existing.state,
-      ) ||
-        this.store
-          .list("requests")
-          .some(
-            (request) =>
-              request.runId === existing.id && request.state === "pending",
-          ) ||
-        this.store
-          .list("deliveries")
-          .some(
-            (delivery) =>
-              delivery.runId === existing.id &&
-              ["queued", "sending", "awaiting-resume"].includes(delivery.state),
-          ))
-    )
-      fail(
-        "Wait for the current Driver turn and pending requests to finish before changing its agent or model.",
-        409,
-      );
-    const run = await this.manager.command("run.start", {
-      id,
-      driver: true,
-      driverRole: "project",
-      driverActive: true,
-      driverGeneration: generation,
-      driverPredecessorId: existing?.id,
-      provider: input.provider || "openhands",
-      projectId: project.id,
-      model: modelSpecified
-        ? choice(input.model)
-        : (existing?.requestedModel ?? existing?.model),
-      agentProfile: profileSpecified
-        ? choice(input.agentProfile)
-        : existing?.agentProfile,
-      mode: "ask",
-      title: driverConversationTitle(project),
-      context,
-      approvalMode: "manual",
-    });
-    const durable = {
-      ...(this.store.get("runs", id) || run),
-      driver: true,
-      driverActive: true,
-      driverGeneration: generation,
-      driverPredecessorId: existing?.id,
-      driverRole: "project",
-      logicalConversationId: id,
-      agentProfile: profileSpecified
-        ? choice(input.agentProfile) || undefined
-        : existing?.agentProfile,
-      requestedModel: modelSpecified
-        ? choice(input.model)
-        : (existing?.requestedModel ?? existing?.model ?? null),
-      context,
-      driverContextUpdatedAt: new Date().toISOString(),
+    // What importing a plugin's pack would change. Reads only.
+    if (name === "plugin.pack.preview")
+      return previewPluginPack(options, input);
+    if (context.caller)
+      fail("Only a person changes plugins, in Settings or the CLI.", 403);
+    const strip = (plugin) => {
+      if (!plugin) return plugin;
+      const { manifest, entry, pack, ...rest } = plugin;
+      return rest;
     };
-    this.store.put("runs", durable);
-    if (existing) {
-      const retiredAt = new Date().toISOString();
-      existing.driverActive = false;
-      existing.driverRetiredAt = retiredAt;
-      existing.driverSuccessorId = durable.id;
-      this.store.put("runs", existing);
-      this.store.setMeta("runArchive:" + existing.id, retiredAt);
-      this.store.event(existing.id, "driver.retired", {
-        successorRunId: durable.id,
-        retiredAt,
-        compatibilityMode: true,
-      });
+    if (name === "plugin.approve")
+      return strip(approvePlugin(options, input, this.operator));
+    if (name === "plugin.disable") return strip(disablePlugin(options, input));
+    // Add plugin's first step: what the source holds, before anything is
+    // declared. Reads only (a git source is resolved to a commit, not fetched).
+    if (name === "plugin.preview") return previewPlugin(options, input);
+    if (name === "plugin.add")
+      return strip(
+        input?.entry?.git !== undefined
+          ? await addGitPlugin(options, input)
+          : addPlugin(options, input),
+      );
+    if (name === "plugin.update")
+      return strip(await updateGitPlugin(options, input));
+    if (name === "plugin.remove") return removePlugin(options, input);
+    if (name === "plugin.pack.import") {
+      const result = importPluginPack(options, input, this.operator);
+      this.configuration?.reload();
+      return result;
     }
-    this.store.event(id, "driver.compatibility.started", {
-      projectId: project.id,
+    fail("Unknown operation " + name, 404);
+  }
+  // The mode Settings > Content rules shows, or null when it can't be read.
+  contentMode() {
+    try {
+      return this.githubMode();
+    } catch {
+      return null;
+    }
+  }
+  // `github.mode` from .avoozl.json. Absent means no GitHub mode.
+  githubMode() {
+    return this.githubPolicy().mode;
+  }
+  // Spec folders live where the mode keeps them (Requirement 30.3). In
+  // plans-repo mode `.avoozl.json` usually sits in the planning checkout
+  // itself, so the workspace root is the planning root when its origin is
+  // the policy's planning repository.
+  specRoots(mode = this.githubMode()) {
+    const projects = this.store.list("projects"),
+      planningRoot =
+        this.store.getMeta("workspaceRepository")?.root ||
+        projects.find((project) => project.planning && project.root)?.root ||
+        (mode === null || this.workspaceIsPlanningCheckout(mode)
+          ? this.workspaceRoot
+          : null);
+    return specRoots({
+      mode,
+      planningRoot,
+      codeRoots: projects
+        .filter((project) => !project.planning && project.root)
+        .sort((a, b) => a.id.localeCompare(b.id))
+        .map((project) => project.root),
     });
+  }
+  // Every spec folder the mode reads, linted, with its stored plan. Each
+  // item carries its title, its front-matter category (Requirement 30.9),
+  // and when its files last changed on disk.
+  specList() {
+    const store = this.store;
+    const roots = this.specRoots(),
+      data = { ...this.read(), projects: store.list("projects") },
+      plans = store
+        .list("plans")
+        .filter((plan) => plan.spec && !plan.deletedAt),
+      approvals = store.list("approvals");
     return {
-      project: {
-        projectId: project.id,
-        title: project.name || project.title || project.id,
-        root: project.root,
+      root: roots[0],
+      roots,
+      items: roots.flatMap((root) =>
+        listSpecFolders(root).map((name) => {
+          const disk = readSpecFolder(root, name),
+            plan = plans.find((entry) => entry.spec === name) || null,
+            quality = this.withContentDiagnostics(
+              lintSpec({
+                spec: disk,
+                plan: plan || { id: name },
+                data,
+                approved: plan && this.approvedSpec(plan),
+              }),
+              disk,
+            );
+          const front = frontMatter(
+            disk.files["requirements.md"] ?? disk.files["bugfix.md"],
+          );
+          return {
+            name,
+            root,
+            title: specTitle(disk),
+            category: front.category,
+            categoryProblem: front.problem?.message ?? null,
+            modifiedAt: specModifiedAt(root, name, Object.keys(disk.files)),
+            folder: disk.folder,
+            type: quality.type,
+            hash: disk.hash,
+            files: Object.keys(disk.files),
+            counts: quality.counts,
+            taskCount: quality.taskCount,
+            critique: readCritique(disk.critique, disk.hash),
+            plan: plan && {
+              id: plan.id,
+              state: plan.state,
+              hash: plan.hash,
+              revision: plan.revision,
+              changed: plan.hash !== disk.hash,
+              approved: approvals.some(
+                (a) => a.planId === plan.id && a.hash === plan.hash,
+              ),
+            },
+          };
+        }),
+      ),
+    };
+  }
+  readSpec(name) {
+    return findSpecFolder(this.specRoots(), specName(name));
+  }
+  workspaceIsPlanningCheckout(mode) {
+    if (mode !== "plans-repo" || !this.workspaceRoot) return false;
+    let wanted = null;
+    try {
+      wanted = this.githubPolicy().planningRepository;
+    } catch {
+      return false;
+    }
+    const origin = originRepositorySync(this.workspaceRoot);
+    return Boolean(
+      wanted && origin && origin.toLowerCase() === wanted.toLowerCase(),
+    );
+  }
+  // Whether a plan's current text is the one last approved.
+  planApproved(plan) {
+    return this.store
+      .list("approvals")
+      .some((a) => a.planId === plan.id && a.hash === plan.hash);
+  }
+  // One spec folder's documents for the Plans tab to read. readSpecFolder
+  // reads only regular files inside a planning root, so a symlink out of it
+  // reads as missing, and specName refuses a name with a path in it.
+  readSpecDocuments({ name } = {}) {
+    const spec = this.readSpec(name);
+    if (!spec.exists) fail(`No spec folder .kiro/specs/${name}/.`, 404);
+    const documents = {};
+    for (const file of [
+      "requirements.md",
+      "bugfix.md",
+      "design.md",
+      "tasks.md",
+    ])
+      if (typeof spec.files[file] === "string")
+        documents[file] = spec.files[file];
+    return { name: spec.name, folder: spec.folder, hash: spec.hash, documents };
+  }
+  // The plan change a page edit becomes when the page must not write the
+  // row: GitHub or a plugin owns it, or its approved plan does. Preview only:
+  // it writes nothing, and the owner approves the plan change as before.
+  previewTaskChange(input = {}) {
+    const data = this.read(),
+      task = data.tasks.find((t) => t.id === resolveTaskId(data, input.id));
+    if (!task) fail("Task not found.", 404);
+    const authority = taskAuthority(task),
+      plan = task.planId ? this.store.get("plans", task.planId) : null,
+      change = {};
+    for (const key of ["title", "summary", "acceptance", "checks", "requires"])
+      if (Object.hasOwn(input, key)) change[key] = input[key];
+    if (typeof change.title === "string" && /[\r\n]/.test(change.title))
+      fail("A title is one line.");
+    if (authority === "github" && task.github?.origin !== "design")
+      return {
+        route: "github",
+        message:
+          "GitHub owns this task. Edit the issue on GitHub; the next sync reads it.",
+        link: task.github?.url ?? null,
+        change,
+      };
+    if (!plan || plan.deletedAt)
+      return {
+        route: "none",
+        message: `${authority} owns this task and no plan here stands for it. Change it where ${authority} keeps it.`,
+        change,
+      };
+    if (!plan.spec)
+      return {
+        route: "plan",
+        planId: plan.id,
+        message:
+          "Edit this plan's text in Plans and approve it; the tick applies the change.",
+        change,
+      };
+    const spec = this.readSpec(plan.spec),
+      tasks = spec.files["tasks.md"] ?? "",
+      lines = tasks.split("\n"),
+      item = specItems(plan.spec, tasks).find(
+        (entry) =>
+          entry.id === task.id || (task.specKey && entry.key === task.specKey),
+      );
+    let manifest = {};
+    try {
+      manifest = JSON.parse(spec.files["avoozl/manifest.json"] ?? "{}");
+    } catch {
+      manifest = {};
+    }
+    const entry = item?.key ? (manifest.tasks?.[item.key] ?? {}) : {},
+      { title, ...fields } = change,
+      before = item ? lines[item.line - 1].replace(/\r$/, "") : null;
+    return {
+      route: "spec",
+      planId: plan.id,
+      spec: plan.spec,
+      folder: spec.folder,
+      message:
+        "Apply this change to the spec folder, then approve the plan. Only this task needs review again.",
+      tasks: item && {
+        line: item.line,
+        before,
+        after:
+          title === undefined || title === item.title
+            ? before
+            : before.replace(
+                /^(\s*[-*]\s+\[.\]\s+\S+\s+).*$/,
+                (_, head) => head + title,
+              ),
       },
-      run: durable,
-      created: true,
-      handedOff: Boolean(existing),
-      previousRunId: existing?.id,
-      compatibilityMode: true,
+      manifest: item?.key
+        ? { key: item.key, before: entry, after: { ...entry, ...fields } }
+        : null,
+      change,
+    };
+  }
+  // The receipt of the plan's last approval, whose tasks.md item text the
+  // current revision must keep for every approved ID.
+  approvedSpec(plan) {
+    const receipt = plan.approvalId
+      ? this.store.get("approvals", plan.approvalId)
+      : null;
+    return receipt?.files ? receipt : null;
+  }
+  lintSpecPlan(plan, retitled = [], { content = true } = {}) {
+    const spec = { name: plan.spec, exists: true, files: plan.files || {} },
+      quality = lintSpec({
+        spec,
+        plan,
+        data: { ...this.read(), projects: this.store.list("projects") },
+        approved: this.approvedSpec(plan),
+        retitled,
+      });
+    return content ? this.withContentDiagnostics(quality, spec) : quality;
+  }
+  // content.check (§4.9 `diff`): the pre-push hook's check. Each pushed
+  // commit's added lines over the task's base; a match refuses (exit 1 in
+  // the hook) and records the refusal, opening no decision.
+  async contentCheck(input = {}) {
+    const store = this.store,
+      task = store.read().tasks.find((t) => t.id === input.taskId);
+    if (!task) fail("Task not found.", 404);
+    const worktree = store.get("task_worktrees", task.id),
+      project = store.get(
+        "projects",
+        worktree?.repository || taskRepository(task),
+      );
+    if (!project?.root) fail(`Task ${task.id} names no local checkout.`, 409);
+    const heads = input.push
+      ? pushedCommits(input.stdin).map((p) => p.local)
+      : [input.head || "HEAD"];
+    const checked = [],
+      local =
+        input.push &&
+        taskRoute(task) === "github" &&
+        localCheckList(project).length > 0 &&
+        readFlowPolicy(this.workspaceRoot).for(project.id).localChecksFirst;
+    for (const head of heads) {
+      // Local checks first (R45.4): a recorded local pass, not a rerun.
+      if (local) {
+        const sha = /^[0-9a-f]{40}$/.test(head) ? head : await git(worktree?.path || project.root, ["rev-parse", head]);
+        const pass = await localPass(project.root, sha, localCheckList(project));
+        if (!pass.ok)
+          fail(`Local checks first: ${pass.cause}. Run \`avoozl checks run --task ${task.id}\` in this worktree, then push again.`, 409);
+      }
+      enforceDiff(store, {
+        project: { ...project, root: worktree?.path || project.root },
+        head,
+        taskId: task.id,
+        mode: "refuse",
+      });
+      checked.push(head);
+    }
+    return { ok: true, checked };
+  }
+  // `content.match` diagnostics (§4.9): what content rules would block.
+  withContentDiagnostics(quality, spec) {
+    const extra = specContentDiagnostics(this.store, spec);
+    if (!extra.length) return quality;
+    const diagnostics = [...quality.diagnostics, ...extra],
+      counts = { error: 0, warning: 0, info: 0 };
+    for (const item of diagnostics) counts[item.severity]++;
+    return { ...quality, diagnostics, counts, canApprove: counts.error === 0 };
+  }
+  // The folder on disk beside the stored revision: its hash, and the critique
+  // a planner session wrote for it.
+  specOnDisk(plan) {
+    const disk = this.readSpec(plan.spec);
+    return {
+      folder: disk.folder,
+      exists: disk.exists,
+      hash: disk.hash,
+      changed: disk.hash !== plan.hash,
+      critique: readCritique(disk.critique, plan.hash),
     };
   }
   detail(id) {
@@ -522,213 +1297,193 @@ export class Operations {
         runs,
         evidenceRecords,
       ),
+      team: {
+        jobs: this.store
+          .list("execution_jobs")
+          .filter((job) => job.taskId === task.id),
+        checkpoints: this.store
+          .list("team_checkpoints")
+          .filter((checkpoint) => checkpoint.taskId === task.id),
+        reviews: this.store
+          .list("review_requests")
+          .filter((review) => review.taskId === task.id),
+      },
     };
   }
-  // The commands a validated run actually passed, summarized for an
-  // acceptance receipt. Returns null when no validation produced evidence, so
-  // acceptance is recorded without inventing a justification.
-  acceptanceFromValidation(taskId) {
-    const resolved = resolveTaskId(this.read(), taskId);
-    const records = this.store
-      .list("evidence")
-      .filter(
-        (entry) =>
-          entry.kind === "command" &&
-          resolveTaskId(this.read(), entry.taskId) === resolved,
-      );
-    if (!records.length) return null;
-    const commit = records[0].commit;
-    const latest = records.filter((entry) => entry.commit === commit);
-    if (latest.some((entry) => entry.exitCode !== 0)) return null;
-    return {
-      summary:
-        "Validation at " +
-        String(commit).slice(0, 10) +
-        " passed: " +
-        latest.map((entry) => entry.argv.join(" ")).join("; "),
-      evidenceIds: latest.map((entry) => entry.id),
-    };
-  }
-  async waitForReviewRun(id, timeoutMs = 30 * 60 * 1000) {
-    const terminal = new Set([
-      "completed",
-      "interrupted",
-      "failed",
-      "integrated",
-      "disconnected",
-    ]);
-    const deadline = Date.now() + timeoutMs;
-    for (;;) {
-      const run = this.store.get("runs", id);
-      if (run && terminal.has(run.state)) return run;
-      if (Date.now() > deadline)
-        fail("Design review timed out; the run remains inspectable.", 504);
-      await new Promise((resolve) => setTimeout(resolve, 250));
-    }
-  }
-  async runReviewPipeline(id) {
-    if (this.reviewPipelines.has(id)) return;
-    this.reviewPipelines.add(id);
-    try {
-      let pipeline = this.store.get("review_rounds", id);
-      for (
-        let index = pipeline.nextIndex || 0;
-        index < pipeline.sequence.length;
-        index++
-      ) {
-        pipeline = this.store.get("review_rounds", id);
-        if (pipeline.state !== "running") return;
-        const plan = this.store.get("plans", pipeline.planId);
-        if (!plan || plan.hash !== pipeline.revisionHash) {
-          pipeline.state = "stale";
-          pipeline.error =
-            "The design changed while its review pipeline was running.";
-          pipeline.endedAt = new Date().toISOString();
-          this.store.put("review_rounds", pipeline);
-          return;
-        }
-        const step = { ...pipeline.sequence[index], index },
-          existing = listReviewThreads(this.store, {
-            planId: plan.id,
-          }).items,
-          runId = `run-review-${digest(id + ":" + index).slice(0, 20)}`;
-        pipeline.currentIndex = index;
-        pipeline.nextIndex = index;
-        pipeline.currentRunId = runId;
-        pipeline.updatedAt = new Date().toISOString();
-        this.store.put("review_rounds", pipeline);
-        await this.execute("run.start", {
-          id: runId,
-          mode: "ask",
-          planId: plan.id,
-          projectId: pipeline.projectId,
-          provider: step.provider,
-          model: step.model || undefined,
-          approvalMode: "manual",
-          prompt: reviewPrompt({ plan, pipeline, step, existing }),
-          title: `Review ${plan.title} · ${step.provider}`,
-          review: {
-            pipelineId: id,
-            planId: plan.id,
-            revisionHash: plan.hash,
-            round: index + 1,
-          },
-          parentRunId: pipeline.parentRunId || undefined,
-          background: true,
-        });
-        const run = await this.waitForReviewRun(runId);
-        pipeline = this.store.get("review_rounds", id);
-        pipeline.runs = [...(pipeline.runs || []), runId];
-        pipeline.nextIndex = index + 1;
-        pipeline.currentRunId = null;
-        if (run.state !== "completed") {
-          pipeline.state = "stopped";
-          pipeline.error = `Review run ${runId} ended ${run.state}.`;
-          pipeline.endedAt = new Date().toISOString();
-          this.store.put("review_rounds", pipeline);
-          return;
-        }
-        const newComments = this.store
-          .list("review_threads")
-          .filter((thread) => thread.runId === runId).length;
-        pipeline.rounds = [
-          ...(pipeline.rounds || []),
-          {
-            index: index + 1,
-            provider: step.provider,
-            model: step.model || null,
-            runId,
-            comments: newComments,
-            completedAt: new Date().toISOString(),
-          },
-        ];
-        this.store.put("review_rounds", pipeline);
-        if (!newComments) {
-          pipeline.state = "completed";
-          pipeline.stopReason = "A reviewer found no new material issues.";
-          pipeline.endedAt = new Date().toISOString();
-          this.store.put("review_rounds", pipeline);
-          return;
-        }
-      }
-      pipeline = this.store.get("review_rounds", id);
-      pipeline.state = "completed";
-      pipeline.stopReason = "Configured review rounds completed.";
-      pipeline.endedAt = new Date().toISOString();
-      this.store.put("review_rounds", pipeline);
-    } catch (error) {
-      const pipeline = this.store.get("review_rounds", id);
-      if (pipeline) {
-        pipeline.state = "failed";
-        pipeline.error = error.message;
-        pipeline.endedAt = new Date().toISOString();
-        this.store.put("review_rounds", pipeline);
-      }
-    } finally {
-      this.reviewPipelines.delete(id);
-    }
-  }
-  startReviewPipeline(input) {
+  startExtractionPipeline(input) {
     const plan = this.store.get("plans", input.planId);
     if (!plan) fail("Plan not found.", 404);
-    if (!this.manager) fail("Start the Avoozl agent host first.", 503);
-    if (!this.store.get("projects", input.projectId))
-      fail("Choose a configured project for read-only review.");
-    if (input.parentRunId) {
-      const parent = this.store.get("runs", input.parentRunId);
-      if (
-        !parent?.driver ||
-        parent.driverRole !== "project" ||
-        parent.parentRunId ||
-        parent.provider !== "openhands" ||
-        parent.projectId !== input.projectId
-      )
-        fail(
-          "The review parent must be this project’s top-level OpenHands Driver.",
-          409,
-        );
-    }
-    const maxRounds = Number(input.maxRounds ?? 3);
-    if (!Number.isInteger(maxRounds) || maxRounds < 1 || maxRounds > 10)
-      fail("Choose 1–10 review rounds.");
-    const requested =
-      input.sequence ||
-      (input.provider
-        ? [{ provider: input.provider, model: input.model }]
-        : []);
-    if (
-      !Array.isArray(requested) ||
-      !requested.length ||
-      requested.some(
-        (step) =>
-          !step ||
-          typeof step.provider !== "string" ||
-          !step.provider.trim() ||
-          (step.model !== undefined && typeof step.model !== "string"),
-      )
-    )
-      fail("Choose at least one provider/model review step.");
-    const sequence = Array.from(
-      { length: maxRounds },
-      (_, index) => requested[index % requested.length],
-    );
-    const pipeline = {
-      id: input.id || "review-round-" + randomUUID(),
+    // A Kiro Crew planner session submits the rounds with
+    // plan.extraction.submit; Avoozl starts no extraction agent.
+    return createExtraction(this.store, {
       planId: plan.id,
-      revisionHash: plan.hash,
-      projectId: input.projectId,
+      revisionHash: input.revisionHash || plan.hash,
+      projectId: input.projectId || plan.context?.projectId || null,
+      sequence: [],
       parentRunId: input.parentRunId || null,
-      sequence,
-      maxRounds,
-      state: "running",
-      nextIndex: 0,
-      rounds: [],
-      runs: [],
-      createdAt: new Date().toISOString(),
+    });
+  }
+  // The repository `.avoozl.json`. The app backend runs without a settings
+  // watcher, so it writes through a RepositorySettings of its own.
+  settingsFile() {
+    if (this.configuration) return this.configuration;
+    if (!this.workspaceRoot)
+      fail("GitHub settings need a workspace root.", 404);
+    return new RepositorySettings(this.store, {
+      workspaceRoot: this.workspaceRoot,
+    });
+  }
+  // The file's policy keys, the policy all layers produce, and the choices
+  // each setting accepts.
+  githubSettings() {
+    let effective = null,
+      error = null;
+    try {
+      effective = this.githubPolicy();
+    } catch (failure) {
+      error = failure.message;
+    }
+    return {
+      ...this.settingsFile().readGitHubSettings(),
+      effective,
+      error,
+      // Review roles from `delivery` in the same file, shown beside each
+      // repository's pull-request review settings. Read only here.
+      review: reviewSettings(readDeliveryPolicy(this.workspaceRoot)),
+      // The label each Issue Radar crew must scope to, from the policy in
+      // force, so it is exactly the label Avoozl applies (R17.4).
+      crews: issueRadarCrews(effective),
+      choices: {
+        modes: MODE_CHOICES,
+        authorities: ["github", "local"],
+        coders: CODERS,
+        permissions: PERMISSIONS,
+        actions: RULE_ACTIONS,
+        fields: FIELD_KEYS,
+        statusValues: STATUS_VALUE_KEYS,
+        managedLabels: MANAGED_LABEL_KEYS,
+        crewLabels: CREW_LABEL_KEYS,
+      },
     };
-    this.store.put("review_rounds", pipeline);
-    queueMicrotask(() => this.runReviewPipeline(pipeline.id));
-    return pipeline;
+  }
+  // Release options for the wizard: milestones in the mode's spec folders,
+  // then those of tasks already in the workspace, first seen first.
+  setupMilestones(mode) {
+    const names = [];
+    let roots = [];
+    try {
+      roots = this.specRoots(mode ?? undefined);
+    } catch {
+      // In plans-repo mode `.avoozl.json` sits in the planning checkout.
+      roots = this.workspaceRoot ? [this.workspaceRoot] : [];
+    }
+    for (const root of roots)
+      for (const spec of listSpecFolders(root))
+        for (const proposal of parseSpec(readSpecFolder(root, spec)).proposals)
+          if (proposal.milestone) names.push(proposal.milestone);
+    for (const task of this.store.read().tasks)
+      if (task.milestone) names.push(task.milestone);
+    return [...new Set(names)];
+  }
+  // The `.avoozl.json` GitHub policy, read on each use so an edit applies
+  // without a restart. Invalid policy refuses the operation that needs it.
+  githubPolicy() {
+    return readGitHubPolicy(this.workspaceRoot);
+  }
+  // Broad issues (§6.2): the child graph is a spec folder; approval stores it
+  // as an approved plan, without its root epic, which is the source issue.
+  // `locked`: the caller already holds the workspace tick lock.
+  breakdownHooks({ locked = false } = {}) {
+    const store = this.store,
+      policy = this.githubPolicy(),
+      identity = planningIdentity(this.workspaceRoot);
+    return {
+      policy,
+      identity,
+      readSpec: (name) => this.readSpec(name),
+      lint: (spec) =>
+        this.withContentDiagnostics(
+          lintSpec({
+            spec,
+            plan: { id: spec.name },
+            data: { ...this.read(), projects: store.list("projects") },
+          }),
+          spec,
+        ),
+      approveChildren: ({ spec, children, row, actor }) => {
+        const config = store.get("github_repositories", row.repository);
+        let plan = createSpecPlan(
+          store,
+          {
+            id: spec.name,
+            prompt: `Children of ${row.repository}#${row.number}`,
+            context: {
+              projectId: config.projectId,
+              issue: { repository: row.repository, number: row.number },
+            },
+          },
+          spec,
+        );
+        if (plan.hash !== spec.hash)
+          plan = saveSpecPlan(
+            store,
+            { id: plan.id, expectedHash: plan.hash },
+            spec,
+          );
+        approvePlan(store, {
+          id: plan.id,
+          expectedHash: plan.hash,
+          expectedRevision: store.read().revision,
+          approvedBy: actor,
+          operator: this.operator,
+          proposals: children.map(({ topLevel: _top, ...child }) => child),
+          githubPolicy: policy,
+        });
+        return store.get("plans", plan.id);
+      },
+      project: async (planId, repository) =>
+        this.withProjectSync(
+          await projectPlanIssues(store, this.github, {
+            planId,
+            repository,
+            identity,
+            locked,
+          }),
+        ),
+    };
+  }
+  // Projection adds its issues to the Project with the tick's own sync, so
+  // the two agree (§6.7). A Project failure never fails issue projection.
+  async withProjectSync(projection) {
+    try {
+      const policy = this.githubPolicy();
+      if (!policy.project) return projection;
+      // The tick's lock: one Project writer at a time.
+      const result = await withWorkLock(this.store, WORKSPACE_LOCK, () =>
+        syncProject(this.store, this.github, {
+          policy,
+          identity: planningIdentity(this.workspaceRoot),
+          claimed: claimedTaskIds(this.store),
+        }),
+      );
+      return {
+        ...projection,
+        project: {
+          status: result.status,
+          writes: result.writes,
+          problems: result.problems || [],
+          ...(result.reason ? { reason: result.reason, fix: result.fix } : {}),
+        },
+      };
+    } catch (error) {
+      // A tick holding the lock syncs the board itself.
+      return {
+        ...projection,
+        project: error.contention
+          ? { status: "locked" }
+          : { status: "error", reason: error.message },
+      };
+    }
   }
   async reconcilePlanningPullRequests() {
     const receipts = this.store
@@ -763,9 +1518,12 @@ export class Operations {
           "Merged planning revision did not hydrate as the approved design.",
           409,
         );
-      const projection = await projectPlanIssues(this.store, this.github, {
-        planId: receipt.planId,
-      });
+      const projection = await this.withProjectSync(
+        await projectPlanIssues(this.store, this.github, {
+          planId: receipt.planId,
+          identity: planningIdentity(this.workspaceRoot),
+        }),
+      );
       receipt.state = "projected";
       receipt.projectedAt = new Date().toISOString();
       receipt.issueIds = projection.issues.map((issue) => issue.id);
@@ -782,12 +1540,8 @@ export class Operations {
             (t) => t.id === resolveTaskId(this.read(), receipt.taskId),
           )
         : null,
-      needsRun =
-        receipt.input.action !== "task" &&
-        !(
-          receipt.input.action === "draft" &&
-          (!receipt.input.provider || !receipt.input.projectId)
-        );
+      // Only an old ask or run receipt named a run; a draft starts none.
+      needsRun = ["ask", "run"].includes(receipt.input.action);
     return {
       ...(run ? { run } : {}),
       ...(plan ? { plan } : {}),
@@ -834,6 +1588,12 @@ export class Operations {
       const result = this.intentResult(receipt);
       if (!result.pending) return result;
     }
+    // Asking or running an agent is a Kiro Crew session now.
+    if (action === "ask" || action === "run")
+      return {
+        ...movedOperation(this.store, "run.start", input),
+        operation: "intent.submit",
+      };
     if (this.pendingIntents.has(id)) return this.pendingIntents.get(id);
     const execute = async () => {
       if (!receipt) {
@@ -875,54 +1635,9 @@ export class Operations {
         });
         receipt.planId = plan.id;
         this.store.put("receipts", receipt);
-        if (!saved.provider || !saved.projectId) return { plan };
+        return { plan };
       }
-      let taskId = resolveTaskId(this.read(), saved.context?.selected);
-      if (!this.read().tasks.some((t) => t.id === taskId)) taskId = undefined;
-      const contextPlanId =
-        action === "ask" && typeof saved.context?.planId === "string"
-          ? saved.context.planId
-          : undefined;
-      if (contextPlanId && !this.store.get("plans", contextPlanId))
-        fail("Selected plan not found.", 404);
-      if (action === "run" && !taskId) {
-        const { task } = await this.execute(
-          "task.capture",
-          saved,
-          expectedRevision,
-        );
-        taskId = task.id;
-        receipt.taskId = taskId;
-        this.store.put("receipts", receipt);
-      }
-      const run = await this.manager.start({
-        id: receipt.runId,
-        ...(receipt.planId || contextPlanId
-          ? { planId: receipt.planId || contextPlanId }
-          : {}),
-        ...(taskId ? { taskId } : {}),
-        mode:
-          action === "ask" ? "ask" : action === "draft" ? "plan" : "implement",
-        provider: saved.provider,
-        projectId: saved.projectId,
-        model: saved.model,
-        approvalMode: saved.approvalMode,
-        prompt: saved.prompt,
-        context: saved.context,
-        parentRunId: saved.parentRunId,
-        // A caller-supplied title names the conversation in a client's list;
-        // without one the first prompt line stands in.
-        title: saved.title || saved.prompt.split("\n")[0].slice(0, 160),
-        background: true,
-      });
-      receipt.acceptedAt = new Date().toISOString();
-      this.store.put("receipts", receipt);
-      return {
-        ...(receipt.planId
-          ? { plan: this.store.get("plans", receipt.planId) }
-          : {}),
-        run,
-      };
+      fail("Choose task or draft.");
     };
     const pending = execute();
     this.pendingIntents.set(id, pending);
@@ -933,40 +1648,62 @@ export class Operations {
         this.pendingIntents.delete(id);
     }
   }
-  async provisionGitHubIntake(repository, { enable = true } = {}) {
-    try {
-      const prepared = await this.execute(
-          "openhands.automations.intake.prepare",
-          { repository },
-        ),
-        automation = prepared.automation;
-      if (enable && automation?.id && !automation.enabled) {
-        const activated = await this.execute(
-          "openhands.automations.intake.state",
-          { id: automation.id, enabled: true },
-        );
-        return {
-          state: activated.enabled ? "active" : "inactive",
-          prepared,
-          automation: activated,
-        };
-      }
-      return {
-        state: automation?.enabled ? "active" : "inactive",
-        prepared,
-        automation,
-      };
-    } catch (error) {
-      return {
-        state: "blocked",
-        reason: error instanceof Error ? error.message : String(error),
-      };
-    }
+  // The one SQLite write path for the app backend, the stdio MCP server, the
+  // tick cron (through that MCP server), and the CLI. Callers hold a store
+  // only to open it, read it, or close it.
+  // `context.caller` is the gateway-attested Kiro Crew session calling through
+  // the app's stdio MCP server, and nothing else sets it (see mcp.mjs).
+  async execute(name, input = {}, expectedRevision, context = {}) {
+    const result = await this.perform(name, input, expectedRevision, context);
+    if (this.plansRoot) flushOutbox(this.store, this.plansRoot);
+    return result;
   }
-  async execute(name, input = {}, expectedRevision) {
+  // Create the first snapshot of a new workspace database.
+  initialize(snapshot) {
+    this.store.transaction(() => {
+      this.store.write(snapshot);
+      this.store.setMeta("mode", "active");
+    });
+  }
+  // Local-only maintenance: replace or check the database from a snapshot.
+  importSnapshot(snapshot, options) {
+    return this.store.importSnapshot(snapshot, options);
+  }
+  async perform(name, input = {}, expectedRevision, context = {}) {
     const store = this.store;
-    if (name === "client.describe")
-      return describeWorkspace(store, { manager: this.manager });
+    // A person-only operation is refused for any MCP call, under any tool
+    // name (mcp-policy.mjs, R56.2).
+    if (context.caller || context.mcp) {
+      const refusal = mcpRefusal(name, input);
+      if (refusal) fail(refusal, 403);
+    }
+    // Rules plugins' sets live in memory (§4.9); reload them when stale so a
+    // boundary in this process never checks with sets it has not loaded.
+    if (this.workspaceRoot && rulePluginsStale(store))
+      await loadRulePlugins(store, this.plugins);
+    // Run-era operations keep their names and answer with where the work
+    // went (moved-operations.mjs). A run start that names a task, repository,
+    // and agent is a dispatch request, and an extraction without provider
+    // rounds still opens a record for a planner session to fill.
+    if (name === "run.start" && input.taskId && input.repository && input.agent)
+      return requestSession(
+        store,
+        {
+          taskId: resolveTaskId(this.read(), input.taskId),
+          repository: input.repository,
+          agent: input.agent,
+          role: input.role,
+        },
+        workspaceRepositories(store),
+      );
+    if (
+      name === "plan.extract" &&
+      !input.provider &&
+      !(Array.isArray(input.sequence) && input.sequence.length)
+    )
+      return this.startExtractionPipeline(input);
+    if (MOVED_OPERATIONS.has(name)) return movedOperation(store, name, input);
+    if (name === "client.describe") return describeWorkspace(store);
     if (name === "workspace.examples") return listExamples();
     if (name === "workspace.seed")
       return seedExample(store, input, expectedRevision);
@@ -983,6 +1720,8 @@ export class Operations {
       input = { ...input, id: resolveTaskId(this.read(), input.id) };
     if (input.taskId)
       input = { ...input, taskId: resolveTaskId(this.read(), input.taskId) };
+    if (DIRECT_TASK_EDITS.has(name) && store.initialized())
+      refuseGitHubAuthority(this.read(), name, input);
     if (name === "task.duplicates")
       return input.title
         ? {
@@ -994,338 +1733,346 @@ export class Operations {
         : duplicateAudit(this.read(), input);
     if (name === "task.merge")
       return mergeTasks(store, input, expectedRevision);
+    if (name === "task.supersede")
+      return store.mutate(
+        "Supersede " + input.id,
+        (data) => supersedeTask(data, input, { operator: this.operator }),
+        expectedRevision,
+      );
     if (name === "task.merge.get") {
       const receipt = store.get("evidence", input.id);
       if (receipt?.kind !== "task-merge") fail("Merge receipt not found.", 404);
       return receipt;
     }
-    if (
-      [
-        "run.send",
-        "run.interrupt",
-        "run.resume",
-        "run.approvals",
-        "run.answer",
-        "run.model",
-        "run.unsend",
-        "run.queue",
-        "run.validate",
-        "integration.merge",
-      ].includes(name)
-    ) {
-      const id =
-        name === "run.answer"
-          ? store.get("requests", input.id)?.runId
-          : input.id;
+    if (["run.validate", "integration.merge"].includes(name)) {
+      const id = input.id;
       if (id && store.get("runs", id)?.external)
         fail(
           "This is a read-only external transcript. Continue or steer it in its original Claude session; no duplicate agent will be launched.",
           409,
         );
     }
-    if (name === "session.discover")
-      return this.externalSessions.discover(input);
-    if (name === "session.register")
-      return this.externalSessions.register(input);
-    if (this.manager?.remote && name === "driver.open")
-      return this.openRemoteDriver(input);
+    if (name === "session.bind") return bindSession(store, input);
+    if (name === "session.rediscover") return rediscoverSessions(store, input);
+    if (name === "session.request")
+      return requestSession(store, input, workspaceRepositories(store));
+    if (name === "session.status") return recordSessionStatus(store, input);
+    if (name === "reply.post")
+      return postReply(store, this.github, input, context.caller, {
+        roots: machineRoots(store, this.workspaceRoot),
+      });
+    if (name === "session.report")
+      return reportSession(store, input, context.caller, {
+        local: context.local === true,
+        flow: readFlowPolicy(this.workspaceRoot),
+      });
+    // Local checks first (R45): run the declared checks in a worktree and
+    // record the pass the pre-push hook and the done report read.
+    if (name === "flow.checks.run") {
+      const task = this.read().tasks.find((t) => t.id === input.taskId);
+      if (!task) fail("Task not found.", 404);
+      const project = store.get("projects", taskRepository(task) || "");
+      if (!project?.root) fail(`Task ${task.id} names no local checkout.`, 409);
+      if (typeof input.cwd !== "string" || !path.isAbsolute(input.cwd))
+        fail("Name the worktree folder to run the checks in.");
+      return runLocalChecks({
+        cwd: input.cwd,
+        root: project.root,
+        checks: taskRoute(task) === "github" ? localCheckList(project) : declaredChecks(task, project),
+      });
+    }
+    if (name === "runner.next")
+      return nextView(store, {
+        policy: readDeliveryPolicy(this.workspaceRoot),
+        github: readGitHubPolicyOrNull(this.workspaceRoot),
+      });
+    if (name === "runner.claim")
+      return claimTask(store, input, {
+        caller: context.caller,
+        local: context.local === true,
+        policy: readDeliveryPolicy(this.workspaceRoot),
+        github: readGitHubPolicyOrNull(this.workspaceRoot),
+      });
+    if (name === "delivery.retry")
+      return retryDelivery(store, input, {
+        caller: context.caller,
+        local: context.local === true,
+      });
+    if (name === "notifications.deliver")
+      return deliverNotifications(store, this.notifier);
+    if (name === "worktree.prepare") return prepareWorktree(store, input);
+    if (name === "workspace.tick") {
+      const result = await tick(store, {
+        workspaceRoot: this.workspaceRoot,
+        memory: this.tickPolicy,
+        sessions: input.sessions,
+        cron: input.cron === true,
+        github: this.github,
+        breakdownHooks: () => this.breakdownHooks({ locked: true }),
+        plugins: this.plugins,
+      });
+      // A deleted plan's tasks whose chats have ended are archived now.
+      archiveEnded(store);
+      return result;
+    }
+    if (name === "route.cancel") {
+      if (!this.plugins) fail("No plugin can run in this process.", 409);
+      return cancelSubmission(store, this.plugins.open(), input);
+    }
+    if (name === "route.resubmit") return resubmit(store, input);
+    if (PLUGIN_OPERATIONS.has(name)) {
+      const result = await this.pluginOperation(name, input, context);
+      // A plugin change reloads rules plugins on the next operation.
+      if (
+        !["plugins.list", "plugin.preview", "plugin.pack.preview"].includes(
+          name,
+        )
+      )
+        contentBinding(store)?.plugins.clear();
+      return result;
+    }
+    if (name === "workspace.tick.health") return tickHealth(store);
+    if (name === "workspace.tick.log") return tickLog(store, input);
+    if (name === "highlight.languages") return highlightLanguages(this.workspaceRoot);
+    if (name === "activity.recent") return activityView(store, this.read(), input);
+    if (name === "task.start")
+      return startNow(store, input, {
+        policy: readDeliveryPolicy(this.workspaceRoot),
+        github: readGitHubPolicyOrNull(this.workspaceRoot),
+      });
+    if (name === "chat.context") {
+      // A plan's seed carries its row and its spec documents.
+      let planRow = null,
+        documents = null;
+      if (typeof input.plan === "string" && input.plan) {
+        const table = await this.perform("plan.table", {}, undefined, context);
+        planRow = table.items.find((row) => row.key === input.plan) || null;
+        if (!planRow) fail("Plan not found.", 404);
+        if (planRow.spec)
+          try {
+            documents = this.readSpecDocuments({ name: planRow.spec });
+          } catch {
+            documents = null;
+          }
+        else if (planRow.planId) {
+          const stored = store.get("plans", planRow.planId);
+          documents = stored?.text ? { documents: { "plan.md": stored.text } } : null;
+        }
+      }
+      return chatContext(store, this.read(), input, { planRow, documents });
+    }
+    if (name === "content.rules") {
+      let configHash = null;
+      try {
+        configHash = this.settingsFile().readFile().hash;
+      } catch {}
+      return {
+        ...describeSets(store),
+        ...contentItems(store),
+        configHash,
+        mode: this.contentMode(),
+      };
+    }
+    // Settings > Content rules editing: a person only. Terms are private, so
+    // a session can neither read nor write them.
     if (
-      this.manager?.remote &&
+      name === "content.terms.get" ||
+      name === "content.terms.update" ||
+      name === "content.sets.update"
+    ) {
+      if (context.caller || context.mcp)
+        fail("Only a person edits content rules, in the Avoozl page.", 403);
+      if (name === "content.terms.get") return readTermsFile(store, input);
+      if (name === "content.terms.update") return writeTermsFile(store, input);
+      const written = this.settingsFile().updateContentRules(input, {
+        pluginIds: inspectPlugins(this.pluginOptions)
+          .map((p) => p.id)
+          .filter(Boolean),
+      });
+      this.configuration?.reload();
+      return {
+        ...describeSets(store),
+        ...contentItems(store),
+        configHash: written.hash,
+        mode: this.contentMode(),
+      };
+    }
+    if (name === "content.allow")
+      return allowOnce(store, input, {
+        operator: this.operator,
+        caller: context.caller || context.mcp ? context.caller || "mcp" : null,
+      });
+    if (name === "content.show") {
+      if (context.caller || context.mcp)
+        fail(
+          "Only a person reads a matched line, in the Avoozl page or the CLI.",
+          403,
+        );
+      return showDecisionLine(store, input.id);
+    }
+    if (name === "content.check") return this.contentCheck(input, context);
+    if (name === "graph.view") return graphView(store, this.read(), input);
+    if (name === "delivery.view") return deliveryView(store, this.read());
+    if (name === "conflicts.view") {
+      const data = this.read(),
+        view = conflictsView(store, data),
+        policy = readGitHubPolicyOrNull(this.workspaceRoot);
+      // Crews that asked for a person on issues no task owns (R52.10).
+      view.items.push(
+        ...radarNeedsYou(
+          untriagedView(policy, data.tasks, readCache(store), Date.now(), handoffReceipts(store)),
+        ),
+      );
+      return view;
+    }
+    if (name === "flow.view") {
+      const data = this.read(),
+        view = flowView(store, data, input),
+        filtered = input.repository || input.epic;
+      return {
+        ...view,
+        line: lineBanner(store, data),
+        // Tokens and credits per task, plan, stage and model (§4.11).
+        usage: usageView(store, data, {
+          tasks: filtered ? view.tasks.map((t) => t.taskId) : null,
+        }),
+      };
+    }
+    // Settings > Flow (§8.4) and the retros (§4.11).
+    if (name === "flow.settings.get")
+      return {
+        ...this.settingsFile().readFlowSettings(),
+        // The built-in retro prompt, shown read-only above the owner's own.
+        retroPrompt: retroPrompt(),
+        instructions: context.caller || context.mcp ? null : retroInstructions(store),
+      };
+    if (
       [
-        "models",
-        "usage.limits",
-        "driver.context",
-        "run.start",
-        "run.send",
-        "run.interrupt",
-        "run.resume",
-        "run.approvals",
-        "run.answer",
-        "run.model",
-        "run.unsend",
-        "run.queue",
-        "run.validate",
-        "integration.merge",
-        "batch.start",
-        "batch.control",
-      ].includes(name)
+        "flow.settings.update",
+        "flow.instructions.update",
+        "flow.retro.decide",
+        "flow.retro.start",
+      ].includes(name) &&
+      (context.caller || context.mcp)
     )
-      return this.manager.command(name, input);
+      fail("Only a person changes flow settings and decides retro proposals, in the Avoozl page.", 403);
+    if (name === "flow.settings.update") {
+      const written = this.settingsFile().updateFlowSettings(input);
+      this.configuration?.reload();
+      return written;
+    }
+    if (name === "flow.instructions.update")
+      return setRetroInstructions(store, input.instructions);
+    if (name === "flow.retro.start") {
+      const s = store.getMeta("flow.retro.state") || { seen: [], pending: [], reverts: [] };
+      if (!s.pending.some((t) => t.kind === "manual"))
+        store.setMeta("flow.retro.state", {
+          ...s,
+          pending: [...s.pending, { kind: "manual", key: "manual:" + Date.now(), detail: "started by hand", at: new Date().toISOString() }],
+        });
+      return { queued: true };
+    }
+    if (name === "flow.retro.decide") {
+      const settings = this.settingsFile();
+      return decideProposal(store, input, {
+        config: readFlowConfig(this.workspaceRoot),
+        apply: async (proposal, expectedHash) => {
+          if (proposal.key.startsWith("delivery."))
+            return settings.updateDeliveryKey({ key: proposal.key, from: proposal.from, to: proposal.to, expectedHash });
+          const file = settings.readFlowSettings(),
+            flow = applyToConfig(file, proposal);
+          return settings.updateFlowSettings({
+            flow,
+            repository: proposal.file === "repository" ? proposal.repository : null,
+            expectedHash,
+          });
+        },
+        draft: async (proposal) =>
+          createPlan(store, {
+            prompt: `Retro ${input.retroId} proposal for spec ${proposal.spec}: ${proposal.change}\n\nWhy: ${proposal.evidence}`,
+            context: { retro: input.retroId, spec: proposal.spec },
+          }).id,
+      });
+    }
+    // Run anyway (R44.10): a person only, confirmed and recorded.
+    if (name === "flow.runAnyway") {
+      if (context.caller || context.mcp)
+        fail("Only a person presses Run anyway, in the Avoozl page or the CLI.", 403);
+      return runAnyway(store, input, { operator: context.local ? "cli" : "dashboard" });
+    }
+    // The Untriaged list (§8.5): cached GitHub items no rule, triage label,
+    // or task covers. `refresh` reads GitHub first (Check now); read only.
+    if (name === "untriaged.view") {
+      const policy = readGitHubPolicyOrNull(this.workspaceRoot),
+        tasks = this.read().tasks;
+      if (input.refresh === true && policy?.mode && this.github?.available?.())
+        await refreshUntriaged(store, this.github, policy, tasks, { force: true });
+      return untriagedView(
+        policy,
+        tasks,
+        readCache(store),
+        Date.now(),
+        handoffReceipts(store),
+      );
+    }
+    // Send to Issue Radar (§8.5, R52): the repository's crews, then the
+    // label write. The app backend lets only an owner session hand off.
+    if (name === "untriaged.crews") {
+      const policy = readGitHubPolicyOrNull(this.workspaceRoot),
+        repository = Object.keys(policy?.repositories || {}).find(
+          (entry) => entry === input.repository,
+        );
+      if (!repository) fail(`${input.repository} is not a registered repository.`, 404);
+      return readCrews(this.crewReader, repository);
+    }
+    if (name === "untriaged.handoff") {
+      if (context.caller || context.mcp)
+        fail("Only a person sends issues to Issue Radar, from the Avoozl page.", 403);
+      return handOff(
+        store,
+        this.github,
+        readGitHubPolicyOrNull(this.workspaceRoot),
+        this.read().tasks,
+        input,
+        { reader: this.crewReader },
+      );
+    }
+    if (name === "task.detail") {
+      const data = this.read(),
+        detail = this.detail(input.id),
+        plan = detail.planId ? store.get("plans", detail.planId) : null;
+      return taskDetailView(store, data, detail, {
+        plan: plan && !plan.deletedAt ? plan : null,
+        approved: Boolean(plan && this.planApproved(plan)),
+      });
+    }
+    if (name === "plan.spec.read") return this.readSpecDocuments(input);
+    if (name === "task.change.preview") return this.previewTaskChange(input);
+    if (name === "conflicts.settle")
+      return settleConflicts(store, input, expectedRevision);
     if (name === "state") return this.read();
-    if (name === "publication.retry") return { retryRequested: true };
-    if (name === "metrics") return metrics(store, input);
+    // The one conversation setting still in effect: auto-archive on acceptance.
     if (name === "conversations.settings.get")
       return conversationSettings(store);
     if (name === "conversations.settings.update")
       return this.configuration
         ? this.configuration.updateConversationSettings(input).settings
-        : store.transaction(() => updateConversationSettings(store, input));
-    if (name === "conversations.routing.preview") {
-      const task = input.taskId
-          ? this.read().tasks.find(
-              (candidate) =>
-                candidate.id === resolveTaskId(this.read(), input.taskId),
-            )
-          : null,
-        parent = input.parentRunId
-          ? store.get("runs", input.parentRunId)
-          : null;
-      if (input.taskId && !task) fail("Task not found.", 404);
-      if (input.parentRunId && !parent) fail("Parent run not found.", 404);
-      let availability = null;
-      if (
-        conversationSettings(store).routing.enabled &&
-        (!input.provider || input.provider === "openhands")
-      )
-        try {
-          availability = openHandsRoutingAvailability(
-            await openHandsAgentProfiles(),
-          );
-        } catch (error) {
-          availability = {
-            provider: "openhands",
-            state: "unavailable",
-            reason:
-              "OpenHands profile discovery failed: " +
-              (error?.message || "unknown error"),
-            agentProfiles: [],
-          };
-        }
-      return selectAgentRoute({
-        settings: conversationSettings(store).routing,
-        input,
-        task,
-        parent,
-        availability,
-      });
-    }
-    if (name === "openhands.profiles") return openHandsAgentProfiles();
-    if (name === "openhands.models")
-      return openHandsAgentModels(input.profileId, {
-        refresh: input.refresh === true,
-      });
-    if (name === "openhands.automations.capabilities")
-      return this.openhandsAutomations.capabilities();
-    if (name === "openhands.automations.recommendations")
-      return this.openhandsAutomations.recommendations({
-        repositories: monitoredAutomationRepositories(store, input),
-      });
-    if (name === "openhands.automations.coverage")
-      return this.openhandsAutomations.coverage({
-        repositories: monitoredAutomationRepositories(store, input),
-      });
-    if (name === "openhands.automations.intake.preflight") {
-      const repositories = monitoredAutomationRepositories(store, input),
-        repository = repositories[0] || null,
-        issueIntake = repository
-          ? store.get("github_repositories", repository.id)
-          : null;
-      return this.openhandsAutomations.intakePreflight({
-        repositories,
-        workspaceId: workspaceIdentity(store),
-        intake: {
-          callbackPath: "/api/github-intake",
-          callbackUrl: this.manager?.baseUrl
-            ? this.manager.baseUrl + "/api/github-intake"
-            : null,
-          capabilities: listGitHubIntakeCapabilities(store, input),
-          canMint: this.github.available(),
-          issueAuthorization: Boolean(issueIntake),
-          assignee: issueIntake?.assignee || null,
-        },
-      });
-    }
-    if (name === "openhands.automations.intake.prepare") {
-      const [repository] = monitoredAutomationRepositories(store, input);
-      if (!repository.enabled)
-        fail("Enable this monitored repository before preparing automation.");
-      const issueIntake = store.get("github_repositories", repository.id),
-        callbackUrl = this.manager?.baseUrl
-          ? this.manager.baseUrl + "/api/github-intake"
-          : null;
-      if (issueIntake && repository.visibility === "public")
-        fail("Public repositories cannot authorize issue execution.", 403);
-      if (!callbackUrl)
-        fail(
-          "Start the local Avoozl server before preparing OpenHands intake.",
-          409,
-        );
-      let active = listGitHubIntakeCapabilities(store, {
-          repository: repository.id,
-        }).find((capability) => capability.state === "active"),
-        minted = null,
-        repair = input.repair === true,
-        replacedCapability = null;
-      const coverage = await this.openhandsAutomations.coverage({
-          repositories: [repository],
-        }),
-        installed = coverage.repositories?.[0]?.controlPlane?.automations || [];
-      if (active && !installed.length) {
-        revokeGitHubIntakeCapability(store, { id: active.id });
-        active = null;
-      }
-      if (!active && installed.length && !repair)
-        fail(
-          "The installed OpenHands watcher no longer has an active Avoozl capability. Use Repair to rotate it deliberately.",
-          409,
-        );
-      if (active && installed.length && repair) {
-        replacedCapability = active;
-        revokeGitHubIntakeCapability(store, { id: active.id });
-        active = null;
-      }
-      if (!active) {
-        minted = await mintGitHubIntakeCapability(store, this.github, {
-          repository: repository.id,
-        });
-        active = { ...minted.capability, state: "active" };
-      }
-      try {
-        const result = await this.openhandsAutomations.prepareIntake({
-          repository: repository.id,
-          workspaceId: workspaceIdentity(store),
-          callbackUrl,
-          capability: active,
-          capabilityToken: minted?.token,
-          ingestSecretName: active.suggestedSecretName,
-          githubSecretName:
-            input.githubSecretName || "GITHUB_PERSONAL_ACCESS_TOKEN",
-          mode: active.mode,
-          assignee: issueIntake?.assignee || "",
-          readyLabel: issueIntake?.label || "avoozl:ready",
-          schedule: input.schedule,
-          timezone: input.timezone,
-          repair,
-        });
-        if (minted && !result.created)
-          if (!repair) revokeGitHubIntakeCapability(store, { id: active.id });
-        return {
-          ...result,
-          ...(replacedCapability
-            ? { replacedCapabilityId: replacedCapability.id }
-            : {}),
-          coverage: await this.openhandsAutomations.coverage({
-            repositories: [repository],
-          }),
-        };
-      } catch (error) {
-        if (minted) revokeGitHubIntakeCapability(store, { id: active.id });
-        throw error;
-      }
-    }
-    if (name === "openhands.automations.intake.state")
-      return this.openhandsAutomations.setIntakeState(input, {
-        authorizeEnable: async ({ repository, mode }) => {
-          const monitored = store.get(
-            "github_queue_repositories",
-            parseRepository(repository).id,
-          );
-          if (!monitored?.enabled)
-            fail(
-              `Enable this ${
-                monitored?.visibility || "monitored"
-              } monitored repository before activating its watcher.`,
-              409,
-            );
-          const issueIntake = store.get("github_repositories", monitored.id),
-            expectedMode = issueIntake ? "authorization" : "observation-only";
-          if (mode !== expectedMode)
-            fail(
-              "The installed watcher mode no longer matches this repository configuration. Repair it before enabling.",
-              409,
-            );
-          const remote = await this.github.repository(
-              parseRepository(repository),
-            ),
-            actualVisibility = remote.private === true ? "private" : "public",
-            expectedVisibility =
-              monitored.visibility ||
-              (monitored.private === true ? "private" : "public");
-          if (actualVisibility !== expectedVisibility)
-            fail(
-              `The monitored GitHub repository must remain ${expectedVisibility}.`,
-              409,
-            );
-          if (issueIntake && actualVisibility !== "private")
-            fail("Public repositories cannot authorize issue execution.", 403);
-          if (monitored.nodeId && remote.node_id !== monitored.nodeId)
-            fail("The monitored GitHub repository identity changed.", 409);
-        },
-      });
-    if (name === "openhands.automations.setup") {
-      if (!input.repository) return this.openhandsAutomations.setup(input);
-      const [repository] = monitoredAutomationRepositories(store, input);
-      if (!repository.enabled)
-        fail("Enable this monitored repository before preparing automation.");
-      if (repository.visibility !== "private" && repository.private !== true)
-        fail(
-          "Avoozl only prepares native OpenHands automations for private monitored repositories.",
-          403,
-        );
-      return this.openhandsAutomations.setup({
-        ...input,
-        repository: repository.id,
-        baseBranch: repository.project?.baseBranch || "main",
-      });
-    }
-    if (name === "models") return this.manager.models(input.provider);
-    if (name === "usage.limits") return this.manager.usage(input.provider);
+        : store.transaction(() => {
+            if (typeof input.autoArchiveCompleted !== "boolean")
+              fail("Choose whether completed conversations auto-archive.");
+            const settings = {
+              autoArchiveCompleted: input.autoArchiveCompleted,
+            };
+            store.setMeta("conversationSettings", settings);
+            return settings;
+          });
+    if (name === "publication.retry") return { retryRequested: true };
     if (name === "query")
-      return queryTasks(this.read(), { scope: "all", ...input });
-    if (name === "search.prompt") {
-      if (
-        typeof input.prompt !== "string" ||
-        !input.prompt.trim() ||
-        input.prompt.length > 20000
-      )
-        fail("Describe the tasks to find.");
-      if (!input.submissionId) fail("A search submission ID is required.");
-      const data = this.read(),
-        vocabulary = {
-          statuses: data.statuses.map((s) => ({
-            id: s.id,
-            label: s.label,
-            complete: s.complete,
-          })),
-          epics: data.epics.map((e) => ({ id: e.id, title: e.title })),
-          tracks: data.tracks.map((t) => ({ id: t.id, label: t.label })),
-          queryKeys: [
-            "status",
-            "scope",
-            "epic",
-            "track",
-            "tag",
-            "id",
-            "kind",
-            "ready",
-            "inflight",
-            "activity",
-            "owner",
-            "depends",
-            "unblocks",
-            "neighbors",
-          ],
-        };
-      const prompt =
-        'NUPP_PROMPT_SEARCH\nInterpret this task search using current evidence. Use read-only plans query/context tools as needed. Do not change tasks, plans, files or presentations. Return ONLY a JSON object {"query":"supported query terms","scope":"all or runtime","explanation":"brief interpretation"}. For a union that cannot be expressed by the AND query grammar, return {"query":"","scope":"all","ids":["exact existing task IDs"],"explanation":"..."}; at most 500 IDs. Empty ids means no results. Plain words match text. status:remaining excludes complete statuses. Repeated tags mean all those tags. Do not invent task IDs or statuses.\nVocabulary: ' +
-        JSON.stringify(vocabulary) +
-        "\nCurrent context: " +
-        JSON.stringify(input.context || {}) +
-        "\nUser search: " +
-        input.prompt;
-      const result = await this.execute("intent.submit", {
+      return queryTasks(this.read(), {
+        scope: "all",
         ...input,
-        action: "ask",
-        prompt,
-        context: {},
-        runId: "run-search-" + digest(input.submissionId).slice(0, 12),
+        claimed: claimedOrNone(store),
       });
-      const run = store.get("runs", result.run.id);
-      run.searchContext = input.context;
-      run.searchPrompt = input.prompt;
-      store.put("runs", run);
-      return run;
-    }
     if (name === "search.result") {
       const run = store.get("runs", input.id);
       if (!run || !run.prompt?.startsWith("NUPP_PROMPT_SEARCH"))
@@ -1542,10 +2289,8 @@ export class Operations {
         (data) => {
           const task = data.tasks.find((item) => item.id === input.id);
           if (!task) fail("Task not found.", 404);
-          task.archivedAt =
-            name === "task.archive"
-              ? task.archivedAt || new Date().toISOString()
-              : null;
+          if (name === "task.archive") return archiveTask(task);
+          task.archivedAt = null;
           task.updatedAt = new Date().toISOString();
           return task;
         },
@@ -1565,8 +2310,44 @@ export class Operations {
         }
         return { id: run.id, archivedAt };
       });
+    // Archive or unarchive a plan (plan-archive.mjs): a session may too
+    // (R56.4), and either one undoes the other. Delete below is the one-way path.
+    if (name === "plan.archive" || name === "plan.unarchive") {
+      const plan = store.get("plans", input.id);
+      if (!plan || plan.deletedAt) fail("Plan not found.", 404);
+      return (name === "plan.archive" ? archivePlan : unarchivePlan)(store, plan, {
+        // A session is recorded as itself, never as the operator.
+        by:
+          context.caller || context.mcp
+            ? `session:${context.caller?.sessionKey || context.caller || "mcp"}`
+            : this.operator || null,
+      });
+    }
+    // Delete a plan (plan-retire.mjs): only a person, from the page or the
+    // CLI. A plan with an approved revision needs {retire: true}.
+    if (name === "plan.delete.preview" || name === "plan.delete") {
+      if (name === "plan.delete" && (context.caller || context.mcp))
+        fail("Only a person deletes a plan, from the Avoozl page or the CLI.", 403);
+      const plan = store.get("plans", input.id);
+      if (!plan || plan.deletedAt) fail("Plan not found.", 404);
+      let folder = null;
+      if (plan.spec)
+        try {
+          const spec = this.readSpec(plan.spec);
+          folder = spec.exists ? specFolderState(spec.root, plan.spec) : null;
+        } catch {
+          folder = null;
+        }
+      if (name === "plan.delete.preview")
+        return deletePreview(store, this.read(), plan, folder);
+      return deletePlan(store, plan, {
+        retire: input.retire === true,
+        deleteSpecFolder: input.deleteSpecFolder === true,
+        folder,
+      });
+    }
     if (
-      ["run.delete", "plan.delete", "run.restore", "plan.restore"].includes(
+      ["run.delete", "run.restore", "plan.restore"].includes(
         name,
       )
     )
@@ -1683,18 +2464,59 @@ export class Operations {
         defaultProjectId: projects.length === 1 ? projects[0].id : null,
       };
     }
-    if (name === "driver.open") return this.manager.openDriver(input);
-    if (name === "driver.context")
-      return this.manager.updateDriverContext(input);
     if (name === "task.sessions") {
       const task = this.read().tasks.find((t) => t.id === input.id);
       if (!task) fail("Task not found.", 404);
-      return taskSessions(store, {
-        taskId: task.id,
-        sessionId: task.activity?.connection?.runId || task.activity?.sessionId,
-      });
+      // Past runs first, then the task's Kiro Crew sessions, which own the
+      // work now.
+      return [
+        ...taskSessions(store, {
+          taskId: task.id,
+          sessionId:
+            task.activity?.connection?.runId || task.activity?.sessionId,
+        }),
+        ...kiroCrewSessions(store, task.id).map((session) => ({
+          id: session.slot,
+          taskId: task.id,
+          title: `${session.role} attempt ${session.attempt}`,
+          state: session.status,
+          provider: "kiro-crew",
+          url: session.url,
+        })),
+      ];
     }
     if (name === "plan.list") return planPage(store, input);
+    if (name === "plan.specs") return this.specList();
+    if (name === "plan.table") {
+      const specs = (() => {
+        // A workspace with no spec folders for its mode still has stored
+        // plans; the table shows those, and the folder problem with them.
+        try {
+          return { ...this.specList(), problem: null };
+        } catch (error) {
+          return { root: null, items: [], problem: error.message };
+        }
+      })();
+      const stored = store
+        .list("plans")
+        .filter(
+          (plan) => !plan.deletedAt && (plan.kind || "plan") !== "conversation",
+        );
+      return {
+        root: specs.root,
+        problem: specs.problem,
+        // The folders' own summaries, for the detail a row opens.
+        specs: specs.items,
+        ...plansTableView(store, this.read(), {
+          specs: specs.items,
+          stored,
+          categoryOf: (plan) =>
+            plan.spec
+              ? specCategory(plan.files)
+              : frontMatterCategory(plan.text),
+        }),
+      };
+    }
     if (name === "document.get") {
       const doc = this.read().documents[input.id];
       if (!doc) fail("Document not found.", 404);
@@ -1702,8 +2524,7 @@ export class Operations {
     }
     if (name === "workspace") {
       const runs = runPage(store, { archived: "all" }),
-        plans = planPage(store),
-        concurrencyStatus = this.manager?.concurrencyStatus?.() || null;
+        plans = planPage(store);
       return {
         mode: store.getMeta("mode"),
         import: store.getMeta("import"),
@@ -1727,17 +2548,6 @@ export class Operations {
           .filter((i) => i.state === "ready")
           .slice(0, 40),
         recentIntegrations: recentIntegrations(store),
-        conversationSettings: conversationSettings(store),
-        concurrency: concurrencyStatus
-          ? {
-              limit: concurrencyStatus.workspace?.maxConcurrentRuns ?? null,
-              active: concurrencyStatus.workspace?.running ?? 0,
-              queued: concurrencyStatus.workspace?.waiting ?? 0,
-              hostLimit: concurrencyStatus.maxConcurrentRuns ?? null,
-              hostActive: concurrencyStatus.running ?? 0,
-              managed: concurrencyStatus.managed !== false,
-            }
-          : null,
         configuration: this.configuration?.metadata() || null,
         projects: store.list("projects"),
         github: {
@@ -1752,23 +2562,120 @@ export class Operations {
           },
         },
         workspaceRepository: workspaceRepositoryStatus(store),
-        agentHost: this.manager?.remote
-          ? await this.manager.status()
-          : { connected: true },
-        providers: (await this.manager?.providers()) || [],
         audit: auditPlans(this.read()),
         lastEvent: store.db
           .prepare("SELECT COALESCE(MAX(seq),0) seq FROM events")
           .get().seq,
       };
     }
-    if (name === "concurrency.status")
-      return (
-        this.manager?.concurrencyStatus?.() || {
-          managed: false,
-          reason: "This workspace is not running through the machine host.",
-        }
+    // Settings view (§8): the GitHub policy in `.avoozl.json`. Creates no
+    // GitHub object; the Set up GitHub wizard (task 3.18) does that. With a
+    // GitHub client, a validate or save also reads each repository's default
+    // branch, because GitHub closes issues only from merges into it (R16.5).
+    if (name === "github.settings.get") return this.githubSettings();
+    // Settings > Triggers: what one `match` line means, and the open issues
+    // it matches now. Read only.
+    if (name === "github.trigger.preview")
+      return triggerPreview(this.github, input);
+    // Settings > Untriaged: the repository's label names, for the triage
+    // label checkboxes. Read only.
+    if (name === "github.repository.labels") {
+      const repository = input.repository;
+      if (typeof repository !== "string" || !/^[\w.-]+\/[\w.-]+$/.test(repository))
+        fail("Name one repository as owner/repository.");
+      if (!this.github?.available?.())
+        return { repository, labels: null, error: "GitHub is not signed in." };
+      try {
+        const labels = await this.github.listLabels(repository);
+        return { repository, labels: labels.map((label) => label.name).sort((a, b) => a.localeCompare(b)), error: null };
+      } catch (error) {
+        return { repository, labels: null, error: `GitHub could not be read: ${error.message}` };
+      }
+    }
+    // Read only: a repository's base-branch review rule and the check names
+    // GitHub shows for it, for the Settings Reviews and Checks tabs.
+    if (name === "github.repository.inspect") {
+      const repository = input.repository;
+      if (typeof repository !== "string" || !/^[\w.-]+\/[\w.-]+$/.test(repository))
+        fail("Name one repository as owner/repository.");
+      const signedIn = this.github?.signedIn
+        ? this.github.signedIn()
+        : this.github?.available?.();
+      if (!signedIn)
+        return {
+          repository,
+          branch: null,
+          reviewRule: null,
+          checks: null,
+          error:
+            "GitHub is not signed in for Avoozl (no GH_TOKEN, and gh auth token gave none), so its rules and checks cannot be read.",
+        };
+      try {
+        const branch = await ruleBranch(this.github, repository, {
+          baseBranch: input.baseBranch || null,
+        });
+        // Each part stands alone: a review rule GitHub refuses to show must
+        // not hide the check names, or the other way round.
+        const [reviewRule, checks] = await Promise.allSettled([
+          branchReviewRule(this.github, repository, branch),
+          seenCheckNames(this.github, repository, branch),
+        ]);
+        const why = (part) =>
+          part.status === "rejected"
+            ? `GitHub could not be read: ${part.reason?.message || part.reason}`
+            : null;
+        return {
+          repository,
+          branch,
+          reviewRule: reviewRule.status === "fulfilled" ? reviewRule.value : null,
+          checks: checks.status === "fulfilled" ? checks.value : null,
+          error: why(reviewRule) && why(checks) ? why(checks) : null,
+          reviewError: why(reviewRule),
+          checksError: why(checks),
+        };
+      } catch (error) {
+        return {
+          repository,
+          branch: null,
+          reviewRule: null,
+          checks: null,
+          error: `GitHub could not be read: ${error.message}`,
+        };
+      }
+    }
+    if (name === "github.settings.validate") {
+      try {
+        const policy = normalizeGitHubPolicy(policySection(input.github));
+        if (this.github?.available?.())
+          await requireDefaultBranches(policy, this.github);
+        return { valid: true, error: null, policy };
+      } catch (error) {
+        return { valid: false, error: error.message, policy: null };
+      }
+    }
+    // Set up GitHub wizard (§8.2): a preview, or with {confirm, previewHash}
+    // the writes it previewed. `.avoozl.json` is saved by settings.update.
+    if (name === "github.setup")
+      return githubSetup(
+        {
+          github: this.github,
+          settings: this.settingsFile().readGitHubSettings(),
+          milestones: this.setupMilestones(input.mode),
+        },
+        input,
       );
+    // Stop a running Set up GitHub apply before its next write.
+    if (name === "github.setup.cancel") return cancelSetup(input.previewHash);
+    if (name === "github.settings.update") {
+      if (this.github?.available?.())
+        await requireDefaultBranches(
+          normalizeGitHubPolicy(policySection(input.github)),
+          this.github,
+        );
+      this.settingsFile().updateGitHubSettings(input);
+      this.configuration?.reload();
+      return this.githubSettings();
+    }
     if (name === "configuration.get") {
       if (!this.configuration)
         fail("Configuration editing is unavailable from this server.", 404);
@@ -1794,7 +2701,8 @@ export class Operations {
       if (!receipt) fail("Submission not found.", 404);
       return this.intentResult(receipt);
     }
-    if (name === "task.update")
+    if (name === "task.update") {
+      const reviewers = reviewRoles(readDeliveryPolicy(this.workspaceRoot));
       return store.mutate(
         "Update " + input.id,
         (data) => {
@@ -1820,6 +2728,7 @@ export class Operations {
               });
             data.tasks.push(task);
           }
+          refuseGateBypass(data, task, input, reviewers);
           if (
             input.title &&
             (input.title !== task.title || input.distinctReason)
@@ -1852,18 +2761,40 @@ export class Operations {
             "needsReview",
             "evidence",
             "resources",
+            "kind",
+            "route",
+            "completion",
+            "repository",
+            "checks",
+            "parent",
           ])
             if (Object.hasOwn(input, key)) task[key] = input[key];
+          // Authority changes only through projection or taking a task back.
+          if (Object.hasOwn(input, "authority"))
+            fail("Authority changes only through projection.", 409);
           if (
             typeof task.title !== "string" ||
             !task.title.trim() ||
             task.title.length > 240
           )
             fail("Title must contain 1–240 characters.");
-          for (const key of ["summary", "notes", "nextAction", "owner"])
+          for (const key of [
+            "summary",
+            "notes",
+            "nextAction",
+            "owner",
+            "repository",
+            "parent",
+          ])
             if (task[key] !== undefined && typeof task[key] !== "string")
               fail(key + " must be text.");
-          for (const key of ["tags", "acceptance", "evidence", "resources"])
+          for (const key of [
+            "tags",
+            "acceptance",
+            "evidence",
+            "resources",
+            "checks",
+          ])
             if (
               task[key] !== undefined &&
               (!Array.isArray(task[key]) ||
@@ -1878,25 +2809,68 @@ export class Operations {
           )
             fail("Unknown epic.");
           if (input.requires !== undefined) {
+            // Each entry is a task ID, or {task, condition} naming the
+            // completion level the dependency must reach (design §4.3).
             if (
               !Array.isArray(input.requires) ||
-              input.requires.some((x) => typeof x !== "string")
+              input.requires.some(
+                (x) =>
+                  typeof x !== "string" &&
+                  (typeof x?.task !== "string" ||
+                    !COMPLETIONS.includes(x.condition)),
+              )
             )
-              fail("Requires must contain task IDs.");
+              fail(
+                "Requires must contain task IDs or {task, condition} with a known completion.",
+              );
             data.edges = data.edges.filter(
               (e) => e.to !== task.id || e.kind !== "requires",
             );
-            for (const from of new Set(
-              input.requires.map((id) => resolveTaskId(data, id)),
-            ))
+            const conditions = new Map();
+            for (const entry of input.requires) {
+              const from = resolveTaskId(
+                data,
+                typeof entry === "string" ? entry : entry.task,
+              );
+              if (!conditions.has(from) || typeof entry !== "string")
+                conditions.set(
+                  from,
+                  typeof entry === "string" ? undefined : entry.condition,
+                );
+            }
+            for (const [from, condition] of conditions)
               data.edges.push({
                 id: `${from}:requires:${task.id}`,
                 from,
                 to: task.id,
                 kind: "requires",
+                ...(condition ? { condition } : {}),
                 reason: "Authored task dependency.",
               });
           }
+          if (input.sequence !== undefined) {
+            // Order-only prerequisites: task IDs this task runs after.
+            if (
+              !Array.isArray(input.sequence) ||
+              input.sequence.some((x) => typeof x !== "string")
+            )
+              fail("Sequence must contain task IDs.");
+            data.edges = data.edges.filter(
+              (e) => e.to !== task.id || e.kind !== "sequence",
+            );
+            for (const from of new Set(
+              input.sequence.map((x) => resolveTaskId(data, x)),
+            ))
+              data.edges.push({
+                id: `${from}:sequence:${task.id}`,
+                from,
+                to: task.id,
+                kind: "sequence",
+                reason: "Authored task order.",
+              });
+          }
+          if (input.requires !== undefined || input.sequence !== undefined)
+            refuseCycle(data, task.id);
           if (Object.hasOwn(input, "integration")) {
             const receipt = input.integration;
             if (
@@ -1942,6 +2916,7 @@ export class Operations {
         },
         expectedRevision,
       );
+    }
     if (name === "activity")
       return store.mutate(
         "Report activity",
@@ -1966,14 +2941,22 @@ export class Operations {
           if (doc.hash !== input.expectedHash) fail("Document changed.", 409);
           if (typeof input.text !== "string" || input.text.length > 1000000)
             fail("Document text is required.");
-          const oldHash = doc.hash;
+          const oldHash = doc.hash,
+            before = blocks(doc.text || ""),
+            after = blocks(input.text);
           doc.text = input.text;
           doc.hash = digest(input.text);
           doc.modifiedAt = new Date().toISOString();
+          // Only tasks whose own section changed need review.
           for (const task of data.tasks.filter(
             (t) =>
-              t.source?.document === doc.id ||
-              t.contextDocuments?.includes(doc.id),
+              !reviewSettled(data, t) &&
+              taskSourceRefs(t).some(
+                (ref) =>
+                  ref.document === doc.id &&
+                  !planOwned(t, ref) &&
+                  matchSection(ref, before, after).changed,
+              ),
           ))
             task.needsReview = true;
           store.db
@@ -1985,29 +2968,76 @@ export class Operations {
         },
         expectedRevision,
       );
-    if (name === "plan.create") return createPlan(store, input);
-    if (name === "plan.save") return savePlan(store, input);
-    if (name === "plan.propose") return proposeWork(store, input);
+    // A session's draft is checked before it is stored; a match refuses the
+    // call in-call, naming set, rule, file and line (§4.9 `plan`). A
+    // person's save is checked at approval, which opens a decision.
+    const agent = Boolean(context.caller || context.mcp);
+    if (name === "plan.create") {
+      if (input.spec === undefined) return createPlan(store, input);
+      const spec = this.readSpec(input.spec);
+      if (spec.exists && agent) enforceSpec(store, spec, { mode: "refuse" });
+      return createSpecPlan(store, input, spec);
+    }
+    if (name === "plan.save") {
+      const plan = store.get("plans", input.id);
+      if (plan?.spec && input.text === undefined) {
+        const spec = this.readSpec(plan.spec);
+        if (spec.exists && agent) enforceSpec(store, spec, { mode: "refuse" });
+        return saveSpecPlan(store, input, spec);
+      }
+      // An old-style plan whose spec folder now exists: link it as a draft.
+      if (plan && !plan.spec && input.spec !== undefined) {
+        const spec = this.readSpec(input.spec);
+        if (spec.exists && agent) enforceSpec(store, spec, { mode: "refuse" });
+        return linkSpecPlan(store, input, spec);
+      }
+      return savePlan(store, input);
+    }
+    if (name === "plan.propose") {
+      const plan = store.get("plans", input.id);
+      if (plan?.spec && !input.fact) {
+        if (agent && input.proposal && typeof input.proposal === "object")
+          enforceContent(
+            store,
+            {
+              boundary: "plan",
+              target: `${plan.spec}/tasks.md`,
+              text: JSON.stringify(input.proposal, null, 1),
+            },
+            { mode: "refuse" },
+          );
+        return proposeSpecWork(store, input, (spec) => this.readSpec(spec));
+      }
+      return proposeWork(store, input);
+    }
     if (name === "plan.get") {
       const plan = store.get("plans", input.id);
       if (!plan) fail("Plan not found.", 404);
       return {
         ...plan,
-        quality: lintPlan({
-          text: plan.text,
-          plan,
-          data: { ...this.read(), projects: store.list("projects") },
-        }),
+        quality: plan.spec
+          ? this.lintSpecPlan(plan)
+          : lintPlan({
+              text: plan.text,
+              plan,
+              data: { ...this.read(), projects: store.list("projects") },
+            }),
+        ...(plan.spec ? { disk: this.specOnDisk(plan) } : {}),
         approvals: store.list("approvals").filter((a) => a.planId === plan.id),
         reviews: listReviewThreads(store, { planId: plan.id }).items,
         reviewPipelines: store
           .list("review_rounds")
           .filter((round) => round.planId === plan.id),
+        extractions: store
+          .list("extractions")
+          .filter((extraction) => extraction.planId === plan.id)
+          .map((extraction) => getExtraction(store, extraction.id)),
       };
     }
     if (name === "plan.lint") {
       const plan = store.get("plans", input.id);
       if (!plan) fail("Plan not found.", 404);
+      if (plan.spec) return this.lintSpecPlan(plan);
       const text = input.text ?? plan.text;
       if (typeof text !== "string" || text.length > 1000000)
         fail("Plan text is required.");
@@ -2020,29 +3050,46 @@ export class Operations {
     if (name === "plan.preview") {
       const plan = store.get("plans", input.id);
       if (!plan) fail("Plan not found.", 404);
-      const text = input.text ?? plan.text;
+      if (plan.spec && input.text !== undefined)
+        fail("A spec plan is previewed from its stored revision.");
+      const text = input.text ?? plan.text,
+        specQuality = plan.spec ? this.lintSpecPlan(plan) : null;
       // Read-only: show exactly what approving this revision would extract,
       // without creating anything. Approval remains a separate operation.
       const data = this.read(),
-        proposals = extractPlan(text),
+        extraction = input.extractionId
+          ? getExtraction(store, input.extractionId)
+          : null,
+        proposals = extraction
+          ? proposalsFromFacts(store, extraction.id)
+          : specQuality
+            ? specQuality.proposals
+            : extractPlan(text),
         mapping = Object.fromEntries(
           proposals.map((p) => [
             p.id,
             resolveTaskId(
               data,
-              p.taskId || plan.mapping?.[p.id] || `${plan.id}-${p.id}`,
+              p.taskId ||
+                plan.mapping?.[p.id] ||
+                (plan.spec ? p.id : `${plan.id}-${p.id}`),
             ),
           ]),
         );
       const existing = new Set(data.tasks.map((t) => t.id));
-      const quality = lintPlan({
-        text,
-        plan,
-        data: { ...data, projects: store.list("projects") },
-      });
+      const rows = new Map(data.tasks.map((t) => [t.id, t]));
+      const githubPolicy = this.githubPolicy();
+      const quality =
+        specQuality ||
+        lintPlan({
+          text,
+          plan,
+          data: { ...data, projects: store.list("projects") },
+          ...(extraction ? { proposals } : {}),
+        });
       return {
         planId: plan.id,
-        reviewedHash: digest(text),
+        reviewedHash: plan.spec ? plan.hash : digest(text),
         currentHash: plan.hash,
         state: plan.state,
         quality,
@@ -2050,13 +3097,24 @@ export class Operations {
         expectedRevision: data.revision,
         approved: store
           .list("approvals")
-          .some((a) => a.planId === plan.id && a.hash === digest(text)),
+          .some(
+            (a) =>
+              a.planId === plan.id &&
+              a.hash === (plan.spec ? plan.hash : digest(text)),
+          ),
         tasks: proposals.map((p) => ({
           localId: p.id,
           taskId: mapping[p.id],
           title: p.title,
           acceptance: p.acceptance,
           existing: existing.has(mapping[p.id]),
+          // The stored row's owner, else the one approval would give it.
+          ...(rows.has(mapping[p.id])
+            ? ownership(rows.get(mapping[p.id]))
+            : {
+                authority: newTaskAuthority(githubPolicy, p.authority),
+                issue: null,
+              }),
           lineStart: p.lineStart,
           lineEnd: p.lineEnd,
         })),
@@ -2071,18 +3129,81 @@ export class Operations {
           ),
         ),
         retiring: Object.keys(plan.mapping || {}).filter((id) => !mapping[id]),
+        // Checked [x] items approval creates as accepted (plans.mjs).
+        baseline: (() => {
+          if (!specQuality) return { count: 0, taskIds: [], text: "" };
+          const checked = baselineItems(plan.spec, plan.text, proposals),
+            taskIds = proposals
+              .filter((p) => checked.has(p.id) && !existing.has(mapping[p.id]))
+              .map((p) => mapping[p.id]);
+          return {
+            count: taskIds.length,
+            taskIds,
+            text: taskIds.length
+              ? `${taskIds.length} ${taskIds.length === 1 ? "task starts" : "tasks start"} as done from tasks.md marks`
+              : "",
+          };
+        })(),
+        extractionId: extraction?.id || null,
+        facts: extraction?.facts || [],
+        gaps: extraction?.gaps || [],
       };
     }
     if (name === "plan.approve") {
       const plan = store.get("plans", input.id);
       if (!plan) fail("Plan not found.", 404);
+      // New tasks from an archived plan would start; unarchive it first.
+      if (plan.archivedAt)
+        fail("This plan is archived. Unarchive it before approving.", 409);
       if (plan.hash !== input.expectedHash)
         fail("The reviewed document hash changed.", 409);
-      const quality = lintPlan({
-        text: plan.text,
-        plan,
-        data: { ...this.read(), projects: store.list("projects") },
-      });
+      // Approval is of the stored revision, and only while the folder on
+      // disk still matches it.
+      if (plan.spec && this.readSpec(plan.spec).hash !== plan.hash)
+        fail(
+          "The spec folder changed on disk. Reload it before approving.",
+          409,
+        );
+      const extraction = input.extractionId
+        ? getExtraction(store, input.extractionId)
+        : null;
+      // Every spec file and the manifest at the approved hash (§4.9): a
+      // match refuses approval and opens a decision; an allowance for the
+      // exact content passes once.
+      if (plan.spec && !extraction) {
+        const spec = { ...this.readSpec(plan.spec), files: plan.files || {} },
+          content = enforceSpec(store, spec, { mode: "decide" });
+        queueNotifications(store, content.notify);
+        if (!content.ok) {
+          const first = this.withContentDiagnostics(
+            { diagnostics: [], counts: {} },
+            spec,
+          ).diagnostics[0];
+          fail(
+            `Resolve plan diagnostic ${first?.code || "content.match"} before approval: ${first?.message || "a content rule blocks this plan."}`,
+            409,
+          );
+        }
+      }
+      const specQuality =
+          plan.spec && !extraction
+            ? this.lintSpecPlan(plan, retitledInput(input.retitled), {
+                content: false,
+              })
+            : null,
+        proposals = extraction
+          ? proposalsFromFacts(store, extraction.id)
+          : specQuality?.proposals,
+        quality =
+          specQuality ||
+          lintPlan({
+            text: plan.text,
+            plan,
+            data: { ...this.read(), projects: store.list("projects") },
+            ...(extraction ? { proposals } : {}),
+          });
+      if (extraction && !proposals.length)
+        fail("The extraction contains no accepted task facts to approve.", 409);
       const blocking = quality.diagnostics.find(
         (diagnostic) => diagnostic.severity === "error",
       );
@@ -2093,11 +3214,34 @@ export class Operations {
         );
       return approvePlan(store, {
         ...input,
+        githubPolicy: this.githubPolicy(),
+        ...(extraction ? { extraction, proposals } : {}),
+        ...(specQuality ? { proposals, baseline: true } : {}),
         approvedBy: input.approvedBy?.trim() || this.operator,
         operator: input.operator || this.operator,
         expectedRevision: input.expectedRevision ?? expectedRevision,
       });
     }
+    if (name === "plan.extract.get")
+      return getExtraction(store, input.id || input.extractionId);
+    if (name === "plan.extraction.submit") {
+      const run = input.runId ? store.get("runs", input.runId) : null;
+      if (
+        run &&
+        (run.extraction?.extractionId !== input.extractionId ||
+          run.extraction?.revisionHash !== input.revisionHash)
+      )
+        fail(
+          "This run is not authorized to submit that extraction revision.",
+          403,
+        );
+      return submitExtraction(store, {
+        ...input,
+        provider: input.provider || run?.provider,
+        model: input.model || run?.actualModel || run?.model,
+      });
+    }
+    if (name === "plan.extraction.dispose") return disposeFact(store, input);
     if (name === "plan.review.list") return listReviewThreads(store, input);
     if (name === "plan.review.submit") {
       const run = input.runId ? store.get("runs", input.runId) : null;
@@ -2129,7 +3273,6 @@ export class Operations {
         ...input,
         author: input.author || this.operator,
       });
-    if (name === "plan.review.pipeline") return this.startReviewPipeline(input);
     if (name === "plan.review.pipeline.get") {
       const round = store.get("review_rounds", input.id);
       if (!round) fail("Review pipeline not found.", 404);
@@ -2139,6 +3282,8 @@ export class Operations {
       return projectGitHubRepository(store, input);
     if (name === "repositories.list")
       return { items: workspaceRepositories(store) };
+    // Read only: what the Add repository form would register for a folder.
+    if (name === "repositories.detect") return detectCheckout(input.folder);
     if (name === "repositories.configure") {
       this.configuration?.assertWritable();
       const id = String(input.id || "").trim();
@@ -2148,13 +3293,8 @@ export class Operations {
         existing = repositories.find((entry) => entry.id === id) || null,
         localCheckout = String(input.localCheckout || "").trim(),
         githubRepository = String(input.github || "").trim(),
-        monitorIssues = input.monitorIssues === true,
-        monitorPullRequests = input.monitorPullRequests === true,
         authorizeIssues = input.issueAuthorization === true;
-      if (
-        (monitorIssues || monitorPullRequests || authorizeIssues) &&
-        !githubRepository
-      )
+      if (authorizeIssues && !githubRepository)
         fail("Choose a GitHub repository for remote capabilities.");
       if (input.planning === true && !localCheckout)
         fail("Planning documents require a local checkout.");
@@ -2190,20 +3330,6 @@ export class Operations {
       });
       try {
         const labels = input.labelBehaviors,
-          queue =
-            githubRepository && (monitorIssues || monitorPullRequests)
-              ? await prepareGitHubQueueRepository(store, this.github, {
-                  repository: githubRepository,
-                  workspaceRepositoryId: id,
-                  projectId: project?.id || null,
-                  project,
-                  enabled: true,
-                  visibility: input.visibility || "private",
-                  includeIssues: monitorIssues,
-                  includePullRequests: monitorPullRequests,
-                  labelBehaviors: labels,
-                })
-              : null,
           issueIntake =
             githubRepository && authorizeIssues
               ? await prepareGitHubRepository(store, this.github, {
@@ -2214,6 +3340,7 @@ export class Operations {
                   assignee: input.assignee,
                   label:
                     input.readyLabel || labels?.ready?.[0] || "avoozl:ready",
+                  managedLabel: input.managedLabel,
                   allowedActors: input.allowedActors,
                   minimumPermission: input.minimumPermission,
                   provider: input.provider,
@@ -2225,7 +3352,6 @@ export class Operations {
           id,
           previousRepository: existing?.github,
           project,
-          queue,
           issueIntake,
         });
         store.transaction(() => {
@@ -2244,8 +3370,7 @@ export class Operations {
           }
           if (project) store.put("projects", project);
           else store.db.prepare("DELETE FROM projects WHERE id=?").run(id);
-          if (queue) store.put("github_queue_repositories", queue);
-          else if (existing?.github) {
+          if (existing?.github) {
             store.db
               .prepare(
                 "DELETE FROM github_queue_items WHERE json_extract(body,'$.repository')=?",
@@ -2265,23 +3390,12 @@ export class Operations {
             github: githubRepository || null,
             planning: Boolean(project?.planning),
             editable: Boolean(project?.editable),
-            monitorIssues,
-            monitorPullRequests,
             issueAuthorization: authorizeIssues,
           });
         });
         await binding?.commit?.();
         this.configuration?.reload();
-        const configured = workspaceRepositories(store).find(
-          (entry) => entry.id === id,
-        );
-        const automationProvisioning =
-          queue && input.provisionAutomation === true
-            ? await this.provisionGitHubIntake(queue.id, {
-                enable: input.enableAutomation !== false,
-              })
-            : null;
-        return { ...configured, automationProvisioning };
+        return workspaceRepositories(store).find((entry) => entry.id === id);
       } finally {
         binding?.release?.();
       }
@@ -2323,25 +3437,9 @@ export class Operations {
           store,
           this.github,
           configuration,
-        ),
-        queue = await configureGitHubQueueRepository(
-          store,
-          this.github,
-          configuration,
         );
-      this.configuration?.updateGitHubProjectConnection(execution, queue);
-      const automationProvisioning =
-        input.provisionAutomation === true
-          ? await this.provisionGitHubIntake(queue.id, {
-              enable: input.enableAutomation !== false,
-            })
-          : null;
-      return {
-        repository: detected.repository,
-        execution,
-        queue,
-        automationProvisioning,
-      };
+      this.configuration?.updateGitHubIssueIntake(execution);
+      return { repository: detected.repository, execution };
     }
     if (name === "github.configure") {
       this.configuration?.assertWritable();
@@ -2359,108 +3457,121 @@ export class Operations {
         machine: machineIdentity(store),
         items: store.list("github_repositories"),
       };
-    if (name === "github.intake.capabilities")
-      return {
-        callbackPath: "/api/github-intake",
-        items: listGitHubIntakeCapabilities(store, input),
-      };
-    if (name === "github.intake.capability.create")
-      return mintGitHubIntakeCapability(store, this.github, input);
-    if (name === "github.intake.capability.revoke")
-      return revokeGitHubIntakeCapability(store, input);
-    if (name === "github.queue.configure") {
-      this.configuration?.assertWritable();
-      const configured = await configureGitHubQueueRepository(
-        store,
-        this.github,
-        input,
-      );
-      this.configuration?.updateGitHubQueue(configured);
-      const automation =
-        typeof this.openhandsAutomations.recommendations === "function"
-          ? this.openhandsAutomations.recommendations({
-              repositories: monitoredAutomationRepositories(store, {
-                repository: configured.id,
-              }),
-            }).repositories[0] || null
-          : null;
-      const automationProvisioning =
-        input.provisionAutomation === true && configured.enabled
-          ? await this.provisionGitHubIntake(configured.id, {
-              enable: input.enableAutomation !== false,
-            })
-          : null;
-      return { ...configured, automation, automationProvisioning };
-    }
-    if (name === "github.queue.remove") {
-      this.configuration?.assertWritable();
-      const removed = removeGitHubQueueRepository(store, input);
-      this.configuration?.removeGitHubQueue(removed.id);
-      return removed;
-    }
     if (name === "github.issues")
       return {
         items: store.list("github_issues"),
         lastSync: store.getMeta("githubSync"),
       };
-    if (name === "queue.items")
-      return githubQueueItems(store, this.github, input);
-    if (name === "queue.comments")
-      return githubQueueComments(store, this.github, input);
-    if (name === "queue.diff")
-      return githubQueuePullRequestDiff(store, this.github, input);
-    if (name === "queue.sync")
-      return {
-        ...(await syncGitHubQueue(store, this.github, input)),
-        queue: githubQueueItems(store, this.github, input),
-      };
-    if (name === "queue.createTask")
-      return createTaskFromQueueItem(
-        store,
-        this.github,
-        input,
-        expectedRevision,
-      );
-    if (name === "queue.claim")
-      return claimGitHubQueueIssue(store, this.github, input);
-    if (name === "queue.confirmLink")
-      return confirmQueueItemLink(
-        store,
-        {
-          ...input,
-          confirmedBy: this.operator || undefined,
-        },
-        expectedRevision,
-      );
-    if (name === "github.sync") {
-      const result = await syncGitHubIssues(store, this.github, input);
-      const starts = [];
-      if (input.autoStart) {
-        for (const record of result.authorized) {
-          const config = store.get("github_repositories", record.repository);
-          if (!config?.autoStart || !config.provider || !this.manager) continue;
-          const active = store
-            .list("runs")
-            .some(
-              (run) =>
-                run.taskId === record.taskId &&
-                !["completed", "interrupted", "failed", "integrated"].includes(
-                  run.state,
-                ),
-            );
-          if (!active)
-            starts.push(
-              await startAuthorizedIssue(this, {
-                taskId: record.taskId,
-                background: true,
-              }),
-            );
-        }
+    if (name === "queue.design.triage") {
+      const plan = store.get("plans", input.planId);
+      if (!plan) fail("Plan not found.", 404);
+      if (!["extract", "context"].includes(input.action))
+        fail("Choose extract or context.");
+      if (input.action === "context") {
+        plan.triage = {
+          state: "context",
+          at: new Date().toISOString(),
+          by: this.operator || null,
+        };
+        store.put("plans", plan);
+        store.event(null, "queue.design.triaged", {
+          planId: plan.id,
+          action: "context",
+        });
+        return { plan, extraction: null };
       }
-      return { ...result, starts };
+      const extraction = this.startExtractionPipeline({
+        ...input,
+        planId: plan.id,
+        revisionHash: plan.hash,
+      });
+      plan.triage = {
+        state: "extracting",
+        extractionId: extraction.id,
+        at: new Date().toISOString(),
+        by: this.operator || null,
+      };
+      store.put("plans", plan);
+      store.event(null, "queue.design.triaged", {
+        planId: plan.id,
+        action: "extract",
+        extractionId: extraction.id,
+      });
+      return { plan, extraction };
     }
+    if (name === "work.release") {
+      const task = this.read().tasks.find(
+          (candidate) =>
+            candidate.id === resolveTaskId(this.read(), input.taskId),
+        ),
+        claim = task?.githubClaim;
+      if (!task) fail("Task not found.", 404);
+      if (!claim?.repository || !claim.number || !claim.login)
+        fail("This task is not owned through a GitHub claim.", 409);
+      if (
+        store
+          .list("execution_jobs")
+          .some(
+            (job) =>
+              job.taskId === task.id &&
+              ["pending", "dispatched", "active", "stopping"].includes(
+                job.state,
+              ),
+          )
+      )
+        fail("Stop active execution jobs before releasing this work.", 409);
+      await this.github.removeAssignees(
+        parseRepository(claim.repository),
+        claim.number,
+        [claim.login],
+      );
+      return store.mutate(`Release ${task.id}`, (data) => {
+        const current = data.tasks.find(
+          (candidate) => candidate.id === task.id,
+        );
+        current.owner = "";
+        current.githubClaim = {
+          ...current.githubClaim,
+          releasedAt: new Date().toISOString(),
+        };
+        current.updatedAt = new Date().toISOString();
+        return current;
+      });
+    }
+    if (name === "github.sync") {
+      const result = await syncGitHubIssues(store, this.github, {
+        ...input,
+        policy: this.githubPolicy(),
+      });
+      // Previews, approvals and publishing for issues with a proposal.
+      if (store.list("github_issues").some((row) => row.breakdown))
+        result.breakdown = await advanceGitHubBreakdowns(
+          store,
+          this.github,
+          this.breakdownHooks(),
+        );
+      // Kiro Crew sessions start from the tick; a sync starts nothing.
+      return { ...result, starts: [] };
+    }
+    if (name === "github.breakdown.classify")
+      return classifyGitHubIssue(
+        store,
+        this.githubPolicy(),
+        input,
+        context.caller,
+      );
+    if (name === "github.breakdown.draft")
+      return draftGitHubChildren(
+        store,
+        input,
+        this.breakdownHooks(),
+        context.caller,
+      );
+    if (name === "github.breakdown.advance")
+      return advanceGitHubBreakdowns(store, this.github, this.breakdownHooks());
     if (name === "github.authorize")
       return syncGitHubIssues(store, this.github, {
+        policy: this.githubPolicy(),
         repository: input.repository,
         authorize: {
           id: input.id,
@@ -2468,11 +3579,47 @@ export class Operations {
           labelEventId: input.labelEventId,
         },
       });
+    if (name === "github.conflict.resolve")
+      return resolveProjectionConflict(store, input);
+    // `avoozl rebuild`: GitHub tasks from their issues when repositories are
+    // registered, and tracker plugin tasks from their records (§3.3).
+    if (name === "workspace.rebuild") {
+      const github = store.list("github_repositories").length
+        ? await this.perform("github.rebuild", input, undefined, context)
+        : null;
+      return { ...(github || {}), trackers: await this.rebuildTrackers() };
+    }
+    if (name === "tracker.takeBack") return this.takeBackLocal(input);
+    if (name === "github.rebuild")
+      return rebuildFromGitHub(store, this.github, {
+        repository: input.repository,
+        identity: planningIdentity(this.workspaceRoot),
+        policy: this.githubPolicy(),
+        readSpec: (spec) => this.readSpec(spec),
+      });
     if (name === "github.project")
-      return projectPlanIssues(store, this.github, input);
-    if (name === "github.start") {
-      if (!this.manager) fail("Start the Avoozl agent host first.", 503);
-      return startAuthorizedIssue(this, input);
+      return this.withProjectSync(
+        await projectPlanIssues(store, this.github, {
+          ...input,
+          identity: planningIdentity(this.workspaceRoot),
+        }),
+      );
+    if (name === "github.project.preview") {
+      // Like `withProjectSync`, a bad Project policy never hides the issue
+      // preview; the projection reads its own identity.
+      let policy = null;
+      try {
+        policy = this.githubPolicy();
+      } catch {
+        policy = null;
+      }
+      return previewProjection(store, this.github, {
+        planId: input.planId,
+        repository: input.repository,
+        identity: planningIdentity(this.workspaceRoot),
+        policy,
+        claimed: claimedTaskIds(store),
+      });
     }
     if (name === "workspace.repository.configure") {
       this.configuration?.assertWritable();
@@ -2498,8 +3645,17 @@ export class Operations {
         await requirePrivateRepository(this.github, config.repository);
       return syncWorkspaceRepository(store);
     }
-    if (name === "planning.publish")
+    if (name === "planning.publish") {
+      const plan = input.planId ? store.get("plans", input.planId) : null;
+      if (plan?.extractionId)
+        return this.withProjectSync(
+          await projectPlanIssues(store, this.github, {
+            ...input,
+            identity: planningIdentity(this.workspaceRoot),
+          }),
+        );
       return publishPlanningPullRequest(store, this.github, input);
+    }
     if (name === "planning.reconcile")
       return this.reconcilePlanningPullRequests();
     if (name === "project.configure") {
@@ -2556,37 +3712,6 @@ export class Operations {
       store.event(null, "project.removed", { projectId: id });
       return { ...project, removed: true };
     }
-    if (name === "run.start") return this.manager.start(input);
-    if (name === "run.context") {
-      const run = store.get("runs", input.runId);
-      if (!run) fail("Run not found.", 404);
-      const project = run.projectId
-        ? store.get("projects", run.projectId)
-        : null;
-      return {
-        runId: run.id,
-        title: run.title || null,
-        context: run.context || {},
-        project: project
-          ? {
-              id: project.id,
-              title: project.name || project.title || project.id,
-              root: project.root,
-            }
-          : null,
-        timestamp:
-          run.driverContextUpdatedAt || run.updatedAt || run.createdAt || null,
-      };
-    }
-    if (name === "run.send") return this.manager.send(input);
-    if (name === "run.interrupt")
-      return this.manager.interrupt(input.id, { reason: input.reason });
-    if (name === "run.resume") return this.manager.resume(input);
-    if (name === "run.approvals") return this.manager.approvals(input);
-    if (name === "run.answer") return this.manager.answer(input);
-    if (name === "run.model") return this.manager.setModel(input);
-    if (name === "run.unsend") return this.manager.cancelDelivery(input);
-    if (name === "run.queue") return this.manager.reorderQueue(input);
     if (name === "run.event") {
       const row = store.db
         .prepare("SELECT * FROM events WHERE seq=? AND run_id=?")
@@ -2603,7 +3728,6 @@ export class Operations {
       const run = store.get("runs", input.id);
       if (!run) fail("Run not found.", 404);
       run.archivedAt = store.getMeta("runArchive:" + run.id);
-      if (run.external) return this.externalSessions.get(run, input);
       const events = store.events({
           runId: run.id,
           after: input.after || 0,
@@ -2638,33 +3762,49 @@ export class Operations {
     }
     if (name === "run.changes") return runChanges(store, input);
     if (name === "run.validate") return validateRun(store, input.id);
-    if (name === "batch.start") return this.batches.start(input);
-    if (name === "batch.control") return this.batches.control(input);
     if (name === "integration.merge") {
-      const entry = await integrateRun(store, input);
-      await this.manager?.landed(entry.runId);
-      return entry;
+      return integrateRun(store, input);
     }
     if (name === "task.accept") {
       // Acceptance evidence that already exists should not have to be retyped:
       // a validated run recorded what ran, against which commit, and with
       // what exit code. A caller with something further to say still can.
-      const recorded = input.evidence?.trim()
-        ? null
-        : this.acceptanceFromValidation(input.id);
       const autoArchive = conversationSettings(store).autoArchiveCompleted,
         task = store.mutate(
           "Accept " + input.id,
           (data) => {
             const task = data.tasks.find((t) => t.id === input.id);
             if (!task) fail("Task not found.", 404);
+            // A validation-gated leaf is accepted only from checks Avoozl
+            // recorded at its integrated commit, never from typed text (R38.4).
+            if (task.acceptFrom === "validation") {
+              if (input.evidence?.trim() || input.componentOnly)
+                fail(
+                  `Task ${task.id} is accepted only from validation Avoozl recorded; typed evidence and component-only acceptance are refused.`,
+                  409,
+                );
+              if (!task.integration?.commit)
+                fail(
+                  `Task ${task.id} has no integrated commit; it is accepted after Avoozl integrates it.`,
+                  409,
+                );
+            }
             if (!task.integration && !input.componentOnly)
               fail("Record integration before whole-head acceptance.");
+            const recorded = input.evidence?.trim()
+              ? null
+              : validationAt(store, data, task);
+            if (task.acceptFrom === "validation" && !recorded)
+              fail(
+                `Task ${task.id} has no passing validation of every declared check at commit ${task.integration.commit.slice(0, 12)}.`,
+                409,
+              );
             task.acceptanceEvidence = {
               at: new Date().toISOString(),
-              evidence:
-                input.evidence?.trim() || validatedEvidence(store, data, task),
-              ...(recorded ? { derivedFrom: recorded.evidenceIds } : {}),
+              evidence: input.evidence?.trim() || recorded?.summary || "",
+              ...(recorded?.evidenceIds.length
+                ? { derivedFrom: recorded.evidenceIds }
+                : {}),
               ...(this.operator ? { acceptedBy: this.operator } : {}),
               componentOnly: Boolean(input.componentOnly),
             };
@@ -2683,7 +3823,7 @@ export class Operations {
               resolveTaskId(this.read(), run.taskId) === task.id &&
               run.state === "completed",
           ))
-          autoArchiveCompletedRun(store, run, task.acceptanceEvidence.at);
+          archiveCompletedRun(store, run, task.acceptanceEvidence.at);
       return task;
     }
     if (name === "handoff") {
@@ -2717,7 +3857,7 @@ export class Operations {
           task,
         ),
         policy:
-          "Task evidence, integration and acceptance are separate. Preserve existing worktrees and do not open GitHub issues. Work discovered while implementing has three dispositions: in scope for this task, do it and record the evidence here, which is the normal case; related to this plan but out of scope, append one proposed task block with plan.propose, which makes this plan read as changed until its next approval; needing a different design, write a new plan draft and tell the user. Filing anything is the exception; do not capture discoveries as new request tasks.",
+          "Task evidence, integration and acceptance are separate. Preserve existing worktrees and do not open GitHub issues. Work discovered while implementing has three dispositions: in scope for this task, do it and record the evidence here, which is the normal case; related to this plan but out of scope, record one cited proposed fact with plan.propose for extraction review; needing a different design, write a new plan draft and tell the user. Filing anything is the exception; do not capture discoveries as new request tasks.",
       };
     }
     if (name === "queue") {
@@ -2735,6 +3875,8 @@ export class Operations {
         ready = queryTasks(data, {
           scope: "all",
           ...input,
+          repositories: workspaceRepositories(store).map((entry) => entry.id),
+          claimed: claimedOrNone(store),
           q: [input.q, "ready:true"].filter(Boolean).join(" "),
         });
       const ranked = ready

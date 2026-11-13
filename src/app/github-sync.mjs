@@ -1,17 +1,16 @@
 import { randomUUID } from "node:crypto";
 import os from "node:os";
-import { digest, queryTasks } from "../model.mjs";
+import { digest } from "../model.mjs";
 import { fail } from "./store.mjs";
-import { parseRepository, requirePrivateRepository } from "./github.mjs";
-
-const permissionRank = new Map([
-  ["none", 0],
-  ["read", 1],
-  ["triage", 2],
-  ["write", 3],
-  ["maintain", 4],
-  ["admin", 5],
-]);
+import { parseRepository } from "./github.mjs";
+import { parseMarker } from "./github-marker.mjs";
+import {
+  evaluateRules,
+  legacyRepositoryPolicy,
+  matchingRules,
+  requireDefaultBranch,
+} from "./github-policy.mjs";
+import { breakdownHold, nextBreakdown } from "./github-breakdown.mjs";
 
 const taskFence = () => /^```task\s*\r?\n([\s\S]*?)^```\s*$/gm;
 
@@ -144,55 +143,7 @@ export function parseIssueTask(issue) {
 }
 
 export function projectedMarker(body) {
-  const match = String(body || "").match(
-    /<!--\s*avoozl-task\s*\n([\s\S]*?)\n-->/,
-  );
-  if (!match) return null;
-  try {
-    const value = JSON.parse(match[1]);
-    return value?.version === 1 ? value : null;
-  } catch {
-    return null;
-  }
-}
-
-function managedIssueBody(task, plan) {
-  const marker = {
-    version: 1,
-    taskId: task.id,
-    planId: plan.id,
-    planHash: plan.hash,
-    sourceHash: task.approvedSource?.hash || task.source?.hash || null,
-  };
-  const requires = (task.requires || []).map((id) => `- ${id}`).join("\n");
-  return `<!-- avoozl-task
-${JSON.stringify(marker)}
--->
-<!-- avoozl:managed:start -->
-This issue is projected from approved design \`${plan.id}\` at \`${plan.hash.slice(0, 12)}\`.
-
-${task.summary || task.nextAction || ""}
-
-## Acceptance criteria
-
-${(task.acceptance || []).map((item) => `- [ ] ${item}`).join("\n")}
-${requires ? `\n## Dependencies\n\n${requires}\n` : ""}
-<!-- avoozl:managed:end -->`;
-}
-
-function replaceManagedBody(current, managed) {
-  const nextMarker = managed.match(/<!--\s*avoozl-task\s*\n[\s\S]*?\n-->/)?.[0],
-    next = managed.match(
-      /<!-- avoozl:managed:start -->[\s\S]*<!-- avoozl:managed:end -->/,
-    )?.[0];
-  if (!next || !nextMarker) return managed;
-  if (!current?.includes("<!-- avoozl:managed:start -->")) return managed;
-  return current
-    .replace(/<!--\s*avoozl-task\s*\n[\s\S]*?\n-->/, nextMarker)
-    .replace(
-      /<!-- avoozl:managed:start -->[\s\S]*?<!-- avoozl:managed:end -->/,
-      next,
-    );
+  return parseMarker(body);
 }
 
 export function machineIdentity(store) {
@@ -208,30 +159,7 @@ export function machineIdentity(store) {
   return identity;
 }
 
-function authorization(labelEvent, permission, config) {
-  const actor = labelEvent?.actor?.login || "";
-  if (!actor)
-    return { authorized: false, reason: "The ready label event has no actor." };
-  const allowlist = config.allowedActors || [];
-  if (allowlist.length && !allowlist.includes(actor))
-    return {
-      authorized: false,
-      actor,
-      reason: "The label actor is not on the allowlist.",
-    };
-  const required = permissionRank.get(config.minimumPermission || "write") ?? 3;
-  const actual = permissionRank.get(permission?.permission || "none") ?? 0;
-  if (actual < required)
-    return {
-      authorized: false,
-      actor,
-      permission: permission?.permission || "none",
-      reason: `The label actor needs ${config.minimumPermission || "write"} permission.`,
-    };
-  return { authorized: true, actor, permission: permission.permission };
-}
-
-function issueRecordId(repository, issue) {
+export function issueRecordId(repository, issue) {
   return "github:" + repository.id + ":" + (issue.node_id || issue.number);
 }
 
@@ -239,7 +167,7 @@ function taskIdFor(issue) {
   return "github-" + digest(issue.node_id || String(issue.id)).slice(0, 20);
 }
 
-function ensureInbox(data) {
+export function ensureInbox(data) {
   if (!data.epics.some((epic) => epic.id === "inbox"))
     data.epics.push({
       id: "inbox",
@@ -267,7 +195,9 @@ function applyIssueTask(data, record, parsed, config, marker) {
     track: parsed.track || "catalog",
     createdAt: new Date().toISOString(),
   };
-  if (!marker) {
+  // A quarantined issue keeps the task planned from its frozen snapshot.
+  const fresh = !marker && !(existing && record.state === "quarantined");
+  if (fresh) {
     Object.assign(task, {
       title: parsed.title,
       summary: parsed.summary,
@@ -294,17 +224,19 @@ function applyIssueTask(data, record, parsed, config, marker) {
     bodyHash: record.bodyHash,
     pullRequests: record.pullRequests || [],
   };
+  // A broad issue, or one whose dependency text awaits approval, is held.
+  const hold = record.state === "authorized" && breakdownHold(record.breakdown);
   task.dispatch = {
-    ready: record.state === "authorized",
-    state: record.state,
-    reason: record.reason,
+    ready: record.state === "authorized" && !hold,
+    state: hold ? hold.state : record.state,
+    reason: hold ? hold.reason : record.reason,
     assignee: record.assignees,
     machineId: config.activeMachine || null,
   };
   if (!marker) task.needsReview = record.state !== "authorized";
   task.updatedAt = new Date().toISOString();
   if (!existing) data.tasks.push(task);
-  if (!marker) {
+  if (fresh) {
     data.edges = data.edges.filter(
       (edge) =>
         edge.to !== task.id || edge.kind !== "requires" || edge.githubIssue,
@@ -334,15 +266,15 @@ export async function prepareGitHubRepository(store, github, input) {
     github.repository(repository),
     github.currentUser(),
   ]);
-  if (!remote.private)
-    fail(
-      "Avoozl refuses public repositories. Register a private GitHub repository.",
-      403,
-    );
-  const label = input.label || "avoozl:ready";
+  const label = input.label || "avoozl:ready",
+    managedLabel = input.managedLabel || "avoozl:managed";
   await github.ensureLabel(repository, {
     name: label,
     description: "Authorized for Avoozl execution",
+  });
+  await github.ensureLabel(repository, {
+    name: managedLabel,
+    description: "Managed by Avoozl projection",
   });
   const record = {
     ...repository,
@@ -354,6 +286,7 @@ export async function prepareGitHubRepository(store, github, input) {
       ? { workspaceRepositoryId: input.workspaceRepositoryId }
       : {}),
     label,
+    managedLabel,
     assignee: input.assignee || user.login,
     allowedActors: [...new Set(input.allowedActors || [])],
     minimumPermission: input.minimumPermission || "write",
@@ -380,10 +313,105 @@ export async function configureGitHubRepository(store, github, input) {
   return record;
 }
 
+// One search per repository lists every open issue carrying a positive
+// label of any rule (a rule's first all-label, or each of its any-labels).
+// Only issues whose labels, assignee and author already match a rule have
+// their events read; the matcher then checks the actor. Issues authorized
+// before but missing from the search are read directly, because the search
+// index can lag behind GitHub, and a lag must not withdraw them.
+async function candidateIssues(github, config, policy, issueNumber, store) {
+  if (issueNumber) {
+    const issue = await github.issue(config, issueNumber);
+    return issue && !issue.pull_request && issue.state === "open"
+      ? [issue]
+      : [];
+  }
+  const labels = policy.rules.flatMap((rule) =>
+    rule.labelsAll.length ? rule.labelsAll.slice(0, 1) : rule.labelsAny,
+  );
+  const found = new Map();
+  if (labels.length)
+    for (const issue of await github.searchIssuesWithAnyLabel(config, labels))
+      found.set(issue.number, issue);
+  for (const previous of store.list("github_issues"))
+    if (
+      previous.repository === config.id &&
+      previous.state === "authorized" &&
+      !previous.projectedPlanId &&
+      !found.has(previous.number)
+    ) {
+      const issue = await github.issue(config, previous.number);
+      if (issue && !issue.pull_request && issue.state === "open")
+        found.set(issue.number, issue);
+    }
+  return [...found.values()].filter(
+    (issue) => matchingRules(policy, issue, []).length,
+  );
+}
+
+// Pacing for the tick (not a manual sync). Each tick asks GitHub whether
+// the repository's issues changed, conditionally, so a quiet repository
+// costs no rate limit (`issueActivity`, a 304). A change reads now and once
+// more on the next tick, because the search index can lag. Unchanged reads
+// still happen after 2, 4, then 8 minutes, so a missed change waits at most
+// that long. A client without `issueActivity` uses the timer alone.
+export const PACE_BASE_MS = 60 * 1000;
+export const PACE_MAX_MS = 8 * 60 * 1000;
+const PACE_META = "githubIntakePace";
+
+// Low means under a tenth of the limit (at least 100 calls) for core, or
+// under 2 searches left this minute. Past `resetAt` it is full again.
+function lowBudget(github, now) {
+  for (const [resource, floor] of [
+    ["core", (limit) => Math.max(100, limit / 10)],
+    ["search", () => 2],
+  ]) {
+    const limit = github.rateLimit?.(resource);
+    if (
+      limit &&
+      Number.isFinite(limit.remaining) &&
+      Date.parse(limit.resetAt) > now &&
+      limit.remaining < floor(limit.limit)
+    )
+      return { resource, ...limit };
+  }
+  return null;
+}
+
+// What a repository's candidates look like now: any edit GitHub makes to
+// an issue moves `updated_at`, and the body, labels and assignees are
+// compared too, since the search already returned them.
+const fingerprint = (issues) =>
+  digest(
+    JSON.stringify(
+      issues
+        .map((issue) => [
+          issue.number,
+          issue.updated_at || "",
+          digest(String(issue.body || "")),
+          (issue.labels || []).map((label) => label?.name ?? label).sort(),
+          (issue.assignees || []).map((entry) => entry?.login).sort(),
+        ])
+        .sort((a, b) => a[0] - b[0]),
+    ),
+  );
+
+const DELIVERING = new Set(["deliver", "execute"]);
+const PRECEDENCE = [
+  "quarantine",
+  "pause",
+  "deliver",
+  "execute",
+  "plan",
+  "respond",
+];
+
+// `policy` is the normalized `.avoozl.json` GitHub policy. A registered
+// repository it does not name keeps its single ready label as one rule.
 export async function syncGitHubIssues(
   store,
   github,
-  { repository, authorize, issueNumber } = {},
+  { repository, authorize, issueNumber, policy, pace } = {},
 ) {
   const configs = repository
     ? [store.get("github_repositories", parseRepository(repository).id)].filter(
@@ -393,83 +421,158 @@ export async function syncGitHubIssues(
   const result = {
     repositories: [],
     authorized: [],
+    matched: [],
     quarantined: [],
-    pending: [],
+    paused: [],
+    ignored: [],
     withdrawn: [],
+    // Issues a rule matched whose actor GitHub would not show the
+    // permission of (no push access): nothing runs for them.
+    unchecked: [],
+    // Set when paced intake stopped early for a low GitHub call budget.
+    throttled: null,
   };
+  const paceState = pace ? { ...(store.getMeta(PACE_META) || {}) } : null;
   for (const config of configs) {
-    await requirePrivateRepository(github, config);
-    const issues = issueNumber
-      ? [await github.issue(config, issueNumber)].filter(
-          (issue) =>
-            issue &&
-            !issue.pull_request &&
-            issue.state === "open" &&
-            (issue.labels || []).some(
-              (label) =>
-                (typeof label === "string" ? label : label?.name) ===
-                config.label,
-            ) &&
-            (issue.assignees || []).some(
-              (assignee) => assignee?.login === config.assignee,
-            ),
-        )
-      : await github.listReadyIssues(config, {
-          label: config.label,
-          assignee: config.assignee,
+    const configured = policy?.repositories?.[config.id],
+      rules = configured || legacyRepositoryPolicy(config),
+      rulesHash = digest(JSON.stringify(rules.rules || [])),
+      paced = paceState?.[config.id];
+    let etag = null,
+      woken = false;
+    if (pace) {
+      result.throttled = lowBudget(github, pace.now);
+      if (result.throttled) break;
+      const due =
+        paced?.rulesHash !== rulesHash ||
+        paced.settle ||
+        pace.now >= paced.nextAt;
+      if (github.issueActivity) {
+        const probe = await github.issueActivity(
+          config,
+          due ? null : paced.etag,
+        );
+        etag = probe.etag;
+        woken = !due && probe.changed;
+      }
+      if (!due && !woken) {
+        result.repositories.push({
+          id: config.id,
+          skipped: true,
+          nextAt: new Date(paced.nextAt).toISOString(),
         });
-    const seen = new Set();
+        continue;
+      }
+    }
+    const remote = await github.repository(config);
+    if (configured) requireDefaultBranch(configured, remote, config.id);
+    const issues = await candidateIssues(
+      github,
+      config,
+      rules,
+      issueNumber,
+      store,
+    );
+    if (pace) {
+      const print = fingerprint(issues),
+        quiet =
+          paced?.rulesHash === rulesHash && paced.fingerprint === print
+            ? (paced.quiet || 0) + 1
+            : 0;
+      paceState[config.id] = {
+        rulesHash,
+        fingerprint: print,
+        etag,
+        settle: woken,
+        quiet,
+        nextAt: quiet
+          ? pace.now + Math.min(PACE_BASE_MS * 2 ** quiet, PACE_MAX_MS)
+          : pace.now,
+      };
+    }
+    const seen = new Set(),
+      unchecked = new Map();
     for (const issue of issues) {
       const id = issueRecordId(config, issue);
-      seen.add(id);
       const [events, timeline] = await Promise.all([
           github.issueEvents(config, issue.number),
           github.issueTimeline
             ? github.issueTimeline(config, issue.number)
             : Promise.resolve([]),
         ]),
-        labelEvent = events
-          .filter(
-            (event) =>
-              event.event === "labeled" && event.label?.name === config.label,
-          )
-          .at(-1),
-        previous = store.get("github_issues", id),
+        matches = await evaluateRules(
+          rules,
+          issue,
+          events,
+          async (login) =>
+            (await github.permission(config, login))?.permission || "none",
+        ),
+        allowed = matches.filter((match) => match.allowed),
+        primary = PRECEDENCE.map((action) =>
+          allowed.find((match) => match.action === action),
+        ).find(Boolean);
+      if (!primary) {
+        const blind = matches.find((match) => match.unchecked);
+        if (blind) {
+          unchecked.set(id, blind.reason);
+          result.unchecked.push({
+            id,
+            repository: config.id,
+            number: issue.number,
+            actor: blind.actor,
+            reason: blind.reason,
+          });
+          continue;
+        }
+        // Ignored for execution: nothing is written to the issue or graph.
+        if (matches.length)
+          result.ignored.push({
+            id,
+            repository: config.id,
+            number: issue.number,
+            matches,
+          });
+        continue;
+      }
+      seen.add(id);
+      const previous = store.get("github_issues", id),
         body = String(issue.body || ""),
         bodyHash = digest(body),
-        marker = projectedMarker(body);
-      let auth = {
-        authorized: false,
-        reason: "No ready label event was found.",
-      };
-      if (labelEvent) {
-        const permission = await github.permission(
-          config,
-          labelEvent.actor?.login || "",
+        marker = projectedMarker(body),
+        // The trigger events whose snapshot the previous sync froze.
+        frozen = new Set(
+          previous?.matches?.map((match) => match.eventId) ??
+            [previous?.labelEventId].filter(Boolean),
+        ),
+        snapshot = previous?.snapshotHash ?? previous?.bodyHash,
+        confirmed = allowed.some(
+          (match) => match.action === "resume" && !frozen.has(match.eventId),
         );
-        auth = authorization(labelEvent, permission, config);
-      }
-      let state = auth.authorized ? "authorized" : "pending",
-        reason = auth.reason || "";
-      if (
+      let state = "authorized",
+        reason = "";
+      if (primary.action === "quarantine" || primary.action === "pause") {
+        state = primary.action === "pause" ? "paused" : "quarantined";
+        reason = `Rule ${primary.rule} ${primary.action}s this issue.`;
+      } else if (
         previous &&
-        previous.labelEventId ===
-          String(labelEvent?.node_id || labelEvent?.id) &&
-        previous.bodyHash !== bodyHash
+        frozen.has(primary.eventId) &&
+        snapshot !== bodyHash &&
+        !confirmed
       ) {
         state = "quarantined";
         reason =
-          "The issue body changed after its authorization receipt. Remove and reapply the ready label, or confirm this exact body.";
+          "The issue body changed after its trigger snapshot. Remove and reapply the trigger label, or confirm this exact body.";
       }
       if (
         authorize?.id === id &&
         authorize.bodyHash === bodyHash &&
-        authorize.labelEventId === String(labelEvent?.node_id || labelEvent?.id)
+        authorize.labelEventId === primary.eventId
       ) {
         state = "authorized";
         reason = "Confirmed locally for this exact issue snapshot.";
       }
       const parsed = parseIssueTask(issue),
+        delivers = allowed.some((match) => DELIVERING.has(match.action)),
         record = {
           id,
           repository: config.id,
@@ -480,37 +583,74 @@ export async function syncGitHubIssues(
           title: issue.title,
           body,
           bodyHash,
+          snapshotHash:
+            state === "authorized" ? bodyHash : snapshot || bodyHash,
           assignees: (issue.assignees || []).map((entry) => entry.login),
-          labelEventId: String(labelEvent?.node_id || labelEvent?.id || ""),
-          labelActor: labelEvent?.actor?.login || "",
-          labelAt: labelEvent?.created_at || "",
-          permission: auth.permission || null,
+          rule: primary.rule,
+          action: primary.action,
+          matches: allowed.map(
+            ({ rule, action, eventId, actor, at, permission }) => ({
+              rule,
+              action,
+              eventId,
+              actor,
+              at,
+              permission,
+            }),
+          ),
+          labelEventId: primary.eventId,
+          labelActor: primary.actor,
+          labelAt: primary.at,
+          permission: primary.permission,
           pullRequests: linkedPullRequests(timeline, config.id),
           parser: parsed.parser,
           state,
           reason,
           observedAt: new Date().toISOString(),
         };
+      // Dependency text is read only from an authorized snapshot, and only
+      // when the repository policy turns it on (R27.8).
+      const breakdown = delivers
+        ? nextBreakdown(previous?.breakdown, {
+            bodyHash,
+            body,
+            repository: config.id,
+            number: issue.number,
+            dependencyText: configured?.dependencyText === true,
+            authorized: state === "authorized",
+          })
+        : previous?.breakdown;
+      if (breakdown) record.breakdown = breakdown;
       store.transaction(() => {
         store.put("github_issues", record);
         const data = structuredClone(store.read());
-        applyIssueTask(data, record, parsed, config, marker);
-        store.commit(data, "Synchronize " + config.id + "#" + issue.number);
+        if (
+          delivers ||
+          marker ||
+          data.tasks.some((task) => task.id === record.taskId)
+        ) {
+          applyIssueTask(data, record, parsed, config, marker);
+          store.commit(data, "Synchronize " + config.id + "#" + issue.number);
+        }
       });
-      result[state].push(record);
+      result[
+        state === "authorized" && !delivers && !marker ? "matched" : state
+      ].push(record);
     }
-    for (const previous of store
-      .list("github_issues")
-      .filter(
-        (entry) =>
-          entry.repository === config.id &&
-          entry.state === "authorized" &&
-          (!issueNumber || entry.number === issueNumber) &&
-          !seen.has(entry.id),
-      )) {
+    for (const previous of store.list("github_issues").filter(
+      (entry) =>
+        entry.repository === config.id &&
+        entry.state === "authorized" &&
+        // A projected plan issue is authorized by its approved plan, not
+        // by a trigger label, so intake never withdraws it.
+        !entry.projectedPlanId &&
+        (!issueNumber || entry.number === issueNumber) &&
+        !seen.has(entry.id),
+    )) {
       previous.state = "withdrawn";
       previous.reason =
-        "The ready label or matching assignee is no longer present.";
+        unchecked.get(previous.id) ||
+        "No rule matches this issue for an allowed actor any more.";
       store.transaction(() => {
         store.put("github_issues", previous);
         const data = structuredClone(store.read()),
@@ -533,143 +673,44 @@ export async function syncGitHubIssues(
       syncedAt: new Date().toISOString(),
     });
   }
+  if (paceState) store.setMeta(PACE_META, paceState);
   store.setMeta("githubSync", result);
   store.event(null, "github.sync.completed", result);
   return result;
 }
 
-export async function projectPlanIssues(store, github, { planId, repository }) {
-  const plan = store.get("plans", planId);
-  if (!plan || plan.state !== "approved")
-    fail("Approve the design revision before projecting issues.", 409);
-  const data = store.read(),
-    tasks = data.tasks.filter((task) => task.planId === plan.id),
-    ready = new Set(
-      queryTasks(data, { scope: "all", q: "ready:true" }).map(
-        (task) => task.id,
-      ),
-    ),
-    results = [];
-  for (const task of tasks) {
-    const config = repository
-      ? store.get("github_repositories", parseRepository(repository).id)
-      : store
-          .list("github_repositories")
-          .find(
-            (entry) =>
-              entry.projectId === (task.projectId || plan.context?.projectId),
-          );
-    if (!config)
-      fail(`No GitHub repository is registered for task ${task.id}.`);
-    await requirePrivateRepository(github, config);
-    const managed = managedIssueBody(
-      {
-        ...task,
-        requires: data.edges
-          .filter((edge) => edge.to === task.id && edge.kind === "requires")
-          .map((edge) => edge.from),
-      },
-      plan,
-    );
-    let issue;
-    if (
-      task.github?.origin === "design" &&
-      task.github.repository === config.id
-    ) {
-      const current = await github.issue(config, task.github.number);
-      issue = await github.updateIssue(config, task.github.number, {
-        title: task.title,
-        body: replaceManagedBody(current.body, managed),
-      });
-    } else {
-      issue = await github.createIssue(config, {
-        title: task.title,
-        body: managed,
-        assignees: config.assignee ? [config.assignee] : undefined,
-      });
-    }
-    if (ready.has(task.id))
-      await github.addLabels(config, issue.number, [config.label]);
-    else await github.removeLabel(config, issue.number, config.label);
-    if (config.assignee)
-      await github.addAssignees(config, issue.number, [config.assignee]);
-    const bodyHash = digest(String(issue.body || managed)),
-      record = {
-        id: issueRecordId(config, issue),
-        repository: config.id,
-        taskId: task.id,
-        nodeId: issue.node_id,
-        number: issue.number,
-        url: issue.html_url,
-        body: issue.body || managed,
-        bodyHash,
-        assignees: (issue.assignees || []).map((entry) => entry.login),
-        state: ready.has(task.id) ? "authorized" : "blocked",
-        projectedPlanId: plan.id,
-        projectedPlanHash: plan.hash,
-        observedAt: new Date().toISOString(),
-      };
-    store.transaction(() => {
-      store.put("github_issues", record);
-      const next = structuredClone(store.read()),
-        local = next.tasks.find((item) => item.id === task.id);
-      local.github = {
-        repository: config.id,
-        nodeId: issue.node_id,
-        number: issue.number,
-        url: issue.html_url,
-        origin: "design",
-        bodyHash,
-      };
-      local.projectId ||= config.projectId;
-      local.dispatch = {
-        ready: ready.has(task.id),
-        state: ready.has(task.id) ? "authorized" : "blocked",
-        assignee: record.assignees,
-        machineId: config.activeMachine || null,
-      };
-      store.commit(next, "Project " + task.id);
-    });
-    results.push(record);
-  }
-  store.event(null, "github.plan.projected", {
-    planId: plan.id,
-    planHash: plan.hash,
-    issues: results.map((entry) => entry.id),
-  });
-  return { planId: plan.id, planHash: plan.hash, issues: results };
+// One decision notice when the set of issues intake cannot check changes
+// (not every tick): who counts there needs a person to grant access or
+// name the actors.
+export function uncheckedNotice(previous, result) {
+  const key = (sync) =>
+    (sync?.unchecked || [])
+      .map((entry) => entry.id)
+      .sort()
+      .join(" ");
+  if (!result?.unchecked?.length || key(previous) === key(result)) return [];
+  const repositories = [
+    ...new Set(result.unchecked.map((entry) => entry.repository)),
+  ];
+  return [
+    {
+      channel: "decision",
+      title: `Avoozl can't check who counts on ${repositories.join(", ")}`,
+      text: `${result.unchecked.length} matched issue${result.unchecked.length === 1 ? "" : "s"} wait, and nothing runs for them. ${result.unchecked[0].reason}`,
+    },
+  ];
 }
 
-export async function startAuthorizedIssue(ops, input) {
-  const task = ops
-    .read()
-    .tasks.find(
-      (item) =>
-        (input.taskId && item.id === input.taskId) ||
-        (input.nodeId && item.github?.nodeId === input.nodeId),
-    );
-  if (!task) fail("GitHub task not found.", 404);
-  if (task.dispatch?.state !== "authorized" || task.dispatch?.ready !== true)
-    fail(task.dispatch?.reason || "This GitHub task is not authorized.", 409);
-  const config = ops.store.get("github_repositories", task.github.repository);
-  if (!config) fail("The GitHub repository is not registered.", 409);
-  await requirePrivateRepository(ops.github, config);
-  const machine = machineIdentity(ops.store);
-  if (config.activeMachine && config.activeMachine !== machine.id)
-    fail("This Avoozl machine is not active for the repository.", 409);
-  const provider = input.provider || config.provider;
-  if (!provider) fail("Choose an agent provider for GitHub dispatch.");
-  return ops.manager.start({
-    taskId: task.id,
-    projectId: input.projectId || task.projectId || config.projectId,
-    provider,
-    model: input.model || config.model || undefined,
-    approvalMode: input.approvalMode || "manual",
-    prompt:
-      input.prompt ||
-      `Implement GitHub issue ${config.id}#${task.github.number}. Stay within the authorized issue snapshot and acceptance criteria.`,
-    title: task.title,
-    parentRunId: input.parentRunId,
-    background: input.background ?? true,
-  });
+// The tick's intake notices: who-counts holds, and one warning per GitHub
+// rate-limit window when paced intake slowed down for a low budget.
+export function intakeNotices(previous, result) {
+  const notices = uncheckedNotice(previous, result),
+    low = result?.throttled;
+  if (low && previous?.throttled?.resetAt !== low.resetAt)
+    notices.push({
+      channel: "failure",
+      title: "Avoozl is slowing GitHub reads",
+      text: `Only ${low.remaining} of ${low.limit} GitHub ${low.resource} calls are left until ${low.resetAt}. Issue intake waits until then; watch fewer repositories or fewer rules to stay under the limit.`,
+    });
+  return notices;
 }

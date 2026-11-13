@@ -5,18 +5,35 @@ import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import { digest } from "../model.mjs";
 import { fail } from "./store.mjs";
+import { secretReason } from "./content-rules.mjs";
 import { requirePrivateRepository } from "./github.mjs";
 import { synchronizeAgentInstructions } from "./agent-instructions.mjs";
 import { configuredRepositoryInstructionSources } from "./source-sync.mjs";
-import { queueAssociationId } from "./github-overlap.mjs";
 import {
   assertPortableRepositoryConfig,
   assertSafeConfig,
 } from "./layered-config.mjs";
 
+// Older workspaces published operator-confirmed Queue links; their portable
+// files keep this identity so publication and hydration still match them.
+function queueAssociationId(item, targetKind, targetId) {
+  return (
+    "github-queue-association:" +
+    digest(
+      [
+        item.repository,
+        item.kind,
+        item.nodeId || `#${item.number}`,
+        targetKind,
+        targetId,
+      ].join("\0"),
+    ).slice(0, 24)
+  );
+}
+
 const exec = promisify(execFile);
 const allowedPath =
-  /^(workspace\.json|designs\/[a-z][a-z0-9-]{2,80}\.(md|approval\.json)|tasks\/[a-z][a-z0-9-]{2,80}\.json|reviews\/[a-zA-Z0-9_.-]+\.json|associations\/github-[a-f0-9]{24}\.json)$/;
+  /^(workspace\.json|designs\/[a-z][a-z0-9-]{2,80}\.(md|approval\.json)|tasks\/[a-z][a-z0-9-]{2,80}\.json|reviews\/[a-zA-Z0-9_.-]+\.json|associations\/github-[a-f0-9]{24}\.json|incidents\/andon-[A-Za-z0-9-]{8,100}\.json)$/;
 
 async function git(root, args, options = {}) {
   const { raw = false, ...execOptions } = options;
@@ -85,38 +102,9 @@ function relativeFile(directory, name) {
   return directory + "/" + name;
 }
 
-function secretReason(text) {
-  const patterns = [
-    ["private key", /-----BEGIN (?:RSA |EC |OPENSSH |PGP )?PRIVATE KEY-----/i],
-    [
-      "provider or GitHub token",
-      /\b(?:github_pat_|gh[pousr]_|sk-ant-|sk-proj-|xox[baprs]-)[A-Za-z0-9_-]{12,}/,
-    ],
-    [
-      "credential assignment",
-      /\b(?:api[_-]?key|access[_-]?token|secret|password)\s*[:=]\s*["']?[^\s"'`]{8,}/i,
-    ],
-    ["authorization header", /\bAuthorization\s*:\s*(?:Bearer|Basic)\s+\S+/i],
-    ["credential-bearing URL", /https?:\/\/[^/\s:@]+:[^/\s@]+@/i],
-    [
-      "absolute user path",
-      /(?:\/Users\/[^/\s]+\/|\/home\/[^/\s]+\/|[A-Za-z]:\\Users\\[^\\\s]+\\)/,
-    ],
-  ];
-  for (const [reason, pattern] of patterns)
-    if (pattern.test(text)) return reason;
-  for (const token of text.match(/[A-Za-z0-9+/=_-]{48,}/g) || []) {
-    if (/^[a-f0-9]{64}$/i.test(token)) continue;
-    const classes = [
-      /[a-z]/.test(token),
-      /[A-Z]/.test(token),
-      /\d/.test(token),
-      /[+/=_-]/.test(token),
-    ].filter(Boolean).length;
-    if (classes >= 3) return "high-entropy value";
-  }
-  return null;
-}
+// The published-secrets screen is the built-in rule set
+// builtin:published-secrets of content-rules.mjs (design §4.9).
+export { secretReason };
 
 export function scanWorkspacePublication(files) {
   for (const [name, text] of Object.entries(files)) {
@@ -256,6 +244,11 @@ export function workspacePublication(store) {
     files[`associations/github-${id}.json`] =
       JSON.stringify(portable, null, 2) + "\n";
   }
+  // Andon incidents from before the rule actions stay published as read-only
+  // history; nothing raises a new one.
+  for (const incident of store.list("safety_incidents"))
+    files[`incidents/${incident.id}.json`] =
+      JSON.stringify(portableIncident(incident), null, 2) + "\n";
   scanWorkspacePublication(files);
   return files;
 }
@@ -655,6 +648,8 @@ export async function syncWorkspaceRepository(store) {
       Object.entries(files).map(([name, text]) => [name, digest(text)]),
     ),
     conflicts = [];
+  // A published andon incident file is old history. The andon gate is gone, so
+  // an incoming incident is not imported; local history stays as it was.
   store.transaction(() => {
     const data = structuredClone(store.read());
     if (manifest.reports !== undefined) {
@@ -878,4 +873,38 @@ Requests team review of the exact Avoozl design revision \`${plan.hash}\`. Mergi
   store.put("receipts", receipt);
   store.event(null, "planning.pull-request", receipt);
   return receipt;
+}
+
+function portableIncident(incident) {
+  return {
+    schemaVersion: 1,
+    id: incident.id,
+    revision: incident.revision,
+    safetyEpoch: incident.safetyEpoch,
+    state: incident.state,
+    scope: incident.scope,
+    mode: incident.mode,
+    reason: incident.reason,
+    category: incident.category,
+    severity: incident.severity,
+    raisedBy: incident.raisedBy,
+    raisedPrincipal: incident.raisedPrincipal || null,
+    authorityReceipt: incident.authorityReceipt || null,
+    raisedAt: incident.raisedAt,
+    resolvedBy: incident.resolvedBy || null,
+    resolvedAt: incident.resolvedAt || null,
+    resumedBy: incident.resumedBy || null,
+    resumedAt: incident.resumedAt || null,
+    reviews: incident.reviews || [],
+    coordinator: incident.coordinator || null,
+    recurrenceOf: incident.recurrenceOf || null,
+    notes: (incident.notes || []).map((note) => ({
+      id: note.id,
+      text: note.text,
+      actor: note.actor,
+      at: note.at,
+      evidence: note.evidence || [],
+    })),
+    transitions: incident.transitions || [],
+  };
 }

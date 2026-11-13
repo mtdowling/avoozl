@@ -1,6 +1,6 @@
 ---
 name: avoozl
-description: Find, claim, plan and maintain work in the Avoozl workspace through its shared CLI or MCP. Use for tracked tasks, plan drafting and approval, progress updates, evidence and agent handoffs.
+description: Find, claim, plan and maintain work in the Avoozl workspace through its shared CLI or MCP. Use for tracked tasks, design documents and work extraction, plan drafting and approval, progress updates, evidence and agent handoffs.
 ---
 
 # Avoozl workflow
@@ -24,6 +24,13 @@ genuinely separate deliverable gets a separate task. If the child cannot start,
 the captured task remains and the Driver reports only the blocker or decision
 that needs the user. Creating the task does not approve, integrate, accept, or
 merge the result.
+
+The Driver may identify tasks that appear ready to close, but it asks the user
+for explicit permission before closing each identified task. Only after
+receiving that permission may it archive the task. Closure is archival: it does
+not change task status or evidence, approve a plan, accept a result, integrate
+changes, or merge work. The Driver does not infer permission from task state,
+prior acceptance, silence, or a general request to tidy the workspace.
 
 The Driver brings something to the user's attention only when it needs human
 attention: a decision, approval, material risk, changed outcome, unresolved
@@ -82,13 +89,10 @@ SQLite owns live tasks, status, relationships, evidence and agent state. Markdow
 Work you find mid-task has three dispositions. Normally the first applies:
 
 1. **In scope for the task you are doing.** Do it, and record the result as evidence on that task. Filing anything is the exception.
-2. **Related to the task's plan, but not this task.** Append one proposed `task` block to that plan. The proposal is not executable, and the amended plan no longer matches its approval receipt, so the plan itself reads as having unapproved changes and its tasks are flagged for review. The discovery is resolved the next time a person approves that plan — there is no separate queue to groom.
-
-   ```sh
-   {{CLI}} plan.propose --json '{"id":"PLAN_ID","proposal":{"id":"local-id","title":"...","acceptance":["Observable check."]}}'
-   ```
-
-   Pass the plan's current `hash` as `expectedHash` to refuse a concurrent edit instead of appending to a changed document. MCP exposes this as `plans_propose_work`.
+2. **Related to the task's plan, but not this task.** Record a cited proposed
+   fact on that design through `plan.propose` / `plans_propose_work`. The
+   proposal stays in extraction review and never rewrites the author's prose or
+   becomes executable until an authorized extraction approval.
 
 3. **Needs a different design.** Draft a new plan and tell the user; a design decision is theirs.
 
@@ -97,12 +101,11 @@ Do not use capture as a discovery channel. `task.capture` / `plans_capture` is a
 ## Avoid duplicate tasks
 
 Search current tasks and use `task.duplicates` / MCP `plans_duplicates`
-before creating work. Reuse an existing task ID when another plan describes the
-same deliverable: set `taskId` in its proposed task block. This adds document
-context without replacing the canonical task's status or acceptance. Capture
-can set `reuseTaskId`; identical captured prompts reuse their existing task.
-When matching names describe separate work, supply `distinctReason` explaining
-the difference rather than renaming to evade the check.
+before creating work. Reuse an existing task when extraction coverage shows
+that it already describes the same deliverable. This adds document context
+without replacing the canonical task's status or acceptance. Capture can set
+`reuseTaskId`; identical captured prompts reuse their existing task. Similar
+wording is advisory and never requires a justification to proceed.
 
 Consolidation requires reviewing scope and source contexts, choosing the current
 canonical record and supplying task hashes and a reason through `task.merge`
@@ -113,17 +116,29 @@ promote acceptance or rewrite frozen Markdown checkboxes during cleanup.
 
 ## Draft and approve plans
 
-Draft a new plan in one Markdown document with design, proposed fenced `task` blocks, metadata, acceptance criteria and dependencies. Review that complete proposal before extracting live tasks. Draft indexing never approves work or enters it in the ready queue.
+Write the design as ordinary Markdown. Fenced `task` blocks remain compatible
+but are not required. Use `plan.extract` / `plans_extract` to bind a read-only
+extraction to the exact revision, `plan.extract.get` / `plans_extraction` to
+inspect rounds, cited facts, gaps and advisory coverage, and
+`plan.extraction.dispose` / `plans_dispose_fact` to reject, edit, or reuse a
+fact. Every stated or inferred fact must cite one exact passage; missing
+decisions are gaps, not invented work.
 
-Approval must identify the exact document revision and come from explicit authorization; a design request or silence is not approval. Use shared `plan.create`, `plan.save`, `plan.get` and `plan.approve` operations. Approval records an immutable receipt and atomically extracts tasks with recoverable Markdown publication. Review amendments before extracting changed scope; preserve existing task identities and evidence.
+Approval must identify the exact document revision and extraction and come from
+explicit authorization; a design request or silence is not approval. Preview
+with `plan.preview` and its `extractionId`, then use `plan.approve` with the same
+ID. Approval records an immutable receipt and atomically extracts accepted
+facts without rewriting or publishing the design document. Review amendments
+before extracting changed scope; preserve existing task identities and
+evidence.
 
 After a plan edit, reconcile affected task records and design links in the same work. The running server watches source changes. If it is stopped, run `{{CLI}} generate`. Source-review flags require review, not automatic clearing.
 
-## Managed agents and reconnects
+## Agent sessions and reconnects
 
-Use configured projects and selected provider models for authorized managed execution. Implementation runs own isolated worktrees. Ask uses read-only inspection and opens a conversation without creating tasks or plan drafts. Both Claude and Codex use the same task workflow. Do not start additional agents or batches merely because the tools exist.
+Agent sessions run in Kiro Crew; Avoozl starts none. The tick opens a session for a ready leaf, or ask for one with `plans_request_session`. Crew Mode conductors use `plans_next` and `plans_claim_task`. Run-era tools such as `plans_start_run`, `plans_send_message` and `plans_andon_raise` keep their names and answer with a pointer to the task's Kiro Crew session; steer, answer, or stop the work there. Do not start additional sessions merely because the tools exist.
 
-Web reloads leave the separate agent host running. During a disconnect, continue already authorized local work and retry reads with bounded backoff. Inspect the recorded run, handoff, pending requests and delivery receipts before resuming; preserve provider session IDs and submission IDs. Never automatically resend an uncertain message or bypass a pending approval. Codex supports active steering; interrupt Claude before redirecting an active turn.
+During a disconnect, continue already authorized local work and retry reads with bounded backoff. Inspect the session binding, handoff, and recorded evidence before resuming. Never launch a replacement worker because a check-in is stale.
 
 For operation arguments, task-block examples, validation/integration, models and backups, read `{{APP_ROOT}}/README.md` and use:
 
@@ -133,7 +148,12 @@ For operation arguments, task-block examples, validation/integration, models and
 {{WORKSPACE_CLI}} handoff --json '{"id":"TASK_ID"}'
 ```
 
-MCP exposes the same workflow through tools including `plans_query`, `plans_activity`, `plans_update_task`, `plans_get_plan`, `plans_approve_plan`, `plans_handoff`, `plans_get_run`, `plans_validate_run` and `plans_integrate`. Inspect `tools/list` for each tool's current input schema. Approval and integration remain subject to the user's authorization.
+MCP exposes the same workflow through tools including `plans_query`,
+`plans_activity`, `plans_update_task`, `plans_get_plan`, `plans_extract`,
+`plans_extraction`, `plans_submit_extraction`, `plans_dispose_fact`,
+`plans_approve_plan`, `plans_handoff`, `plans_get_run`, `plans_validate_run`
+and `plans_integrate`. Inspect `tools/list` for each tool's current input
+schema. Approval and integration remain subject to the user's authorization.
 
 To refresh an installed copy, print the maintained skill with `{{CLI}} skill` and replace the installed `SKILL.md` with that output.
 

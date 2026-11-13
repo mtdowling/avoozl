@@ -8,12 +8,6 @@ import { RepositorySettings } from "../repository-settings.mjs";
 import { fixture, waitFor } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
-const routingOff = {
-  enabled: false,
-  fallback: { agentProfile: null, model: null },
-  rules: [],
-};
-
 function writeJson(filename, value) {
   fs.mkdirSync(path.dirname(filename), { recursive: true });
   fs.writeFileSync(filename, JSON.stringify(value, null, 2) + "\n");
@@ -46,22 +40,15 @@ test("repository settings preserve unrelated JSON and expose canonical metadata"
   configuration.reload();
   const ops = new Operations(store, { configuration });
 
+  // An old file's Driver choice still loads; only auto-archive acts.
   assert.deepEqual(await ops.execute("conversations.settings.get"), {
     autoArchiveCompleted: false,
-    driverAgentProfile: "reviewer",
-    driverModel: "model-before",
-    routing: routingOff,
   });
   assert.deepEqual(
     await ops.execute("conversations.settings.update", {
-      driverModel: " model-after ",
+      autoArchiveCompleted: true,
     }),
-    {
-      autoArchiveCompleted: false,
-      driverAgentProfile: "reviewer",
-      driverModel: "model-after",
-      routing: routingOff,
-    },
+    { autoArchiveCompleted: true },
   );
 
   const saved = JSON.parse(fs.readFileSync(filename, "utf8"));
@@ -71,14 +58,7 @@ test("repository settings preserve unrelated JSON and expose canonical metadata"
       checks: [["npm", "test"]],
     },
   });
-  assert.deepEqual(saved.conversations, {
-    autoArchiveCompleted: false,
-    driver: {
-      agentProfile: "reviewer",
-      model: "model-after",
-    },
-    routing: routingOff,
-  });
+  assert.deepEqual(saved.conversations, { autoArchiveCompleted: true });
   assert.equal(
     fs
       .readdirSync(path.dirname(filename))
@@ -107,29 +87,26 @@ test("repository settings use a file hash to avoid clobbering direct edits", (t)
   const { root, store } = fixture(t),
     configuration = new RepositorySettings(store, { workspaceRoot: root });
   const first = configuration.updateConversationSettings({
-    driverModel: "model-one",
+    autoArchiveCompleted: false,
   });
   writeJson(path.join(root, ".avoozl.json"), {
     version: 1,
     notes: { editedBy: "person" },
-    conversations: {
-      autoArchiveCompleted: true,
-      driver: { agentProfile: null, model: "model-two" },
-    },
+    conversations: { autoArchiveCompleted: true },
   });
 
   assert.throws(
     () =>
       configuration.updateConversationSettings({
-        driverModel: "model-three",
+        autoArchiveCompleted: false,
         expectedHash: first.configuration.hash,
       }),
     /changed; reload before saving/,
   );
   assert.equal(
     JSON.parse(fs.readFileSync(path.join(root, ".avoozl.json"), "utf8"))
-      .conversations.driver.model,
-    "model-two",
+      .conversations.autoArchiveCompleted,
+    true,
   );
 });
 
@@ -165,7 +142,7 @@ test("repository settings ignore .avoozl/config.json", (t) => {
   assert.equal(editable.exists, false);
   assert.equal(Object.hasOwn(editable, "legacy"), false);
   assert.deepEqual(JSON.parse(editable.text), { version: 1 });
-  configuration.updateConversationSettings({ driverModel: "reviewer" });
+  configuration.updateConversationSettings({ autoArchiveCompleted: false });
 
   const saved = JSON.parse(fs.readFileSync(current, "utf8"));
   assert.equal(
@@ -176,7 +153,7 @@ test("repository settings ignore .avoozl/config.json", (t) => {
   assert.equal(saved.documents, undefined);
   assert.equal(saved.projects, undefined);
   assert.equal(saved.ahp, undefined);
-  assert.equal(saved.conversations.driver.model, "reviewer");
+  assert.equal(saved.conversations.autoArchiveCompleted, false);
   assert.equal(fs.existsSync(legacy), true);
 });
 
@@ -209,9 +186,6 @@ test("configuration editor reads, formats, and conflict-checks repository and gl
   );
   assert.deepEqual(await ops.execute("conversations.settings.get"), {
     autoArchiveCompleted: false,
-    driverAgentProfile: null,
-    driverModel: null,
-    routing: routingOff,
   });
 
   await assert.rejects(
@@ -263,7 +237,8 @@ test("repository settings refuse symbolic and non-regular paths", (t) => {
   fs.symlinkSync(path.join(outside, "config.json"), filename);
   const linkedFile = new RepositorySettings(store, { workspaceRoot: root });
   assert.throws(
-    () => linkedFile.updateConversationSettings({ driverModel: "model" }),
+    () =>
+      linkedFile.updateConversationSettings({ autoArchiveCompleted: false }),
     /regular file/,
   );
 
@@ -273,7 +248,10 @@ test("repository settings refuse symbolic and non-regular paths", (t) => {
     workspaceRoot: root,
   });
   assert.throws(
-    () => brokenLinkedFile.updateConversationSettings({ driverModel: "model" }),
+    () =>
+      brokenLinkedFile.updateConversationSettings({
+        autoArchiveCompleted: false,
+      }),
     /regular file/,
   );
 
@@ -283,7 +261,10 @@ test("repository settings refuse symbolic and non-regular paths", (t) => {
     workspaceRoot: root,
   });
   assert.throws(
-    () => directoryTarget.updateConversationSettings({ driverModel: "model" }),
+    () =>
+      directoryTarget.updateConversationSettings({
+        autoArchiveCompleted: false,
+      }),
     /regular file/,
   );
 });
@@ -320,7 +301,7 @@ test("watcher reloads typed direct edits, leaves privileged desired state inert,
   });
   watch.listener("rename", ".avoozl.json");
   await waitFor(
-    () => store.getMeta("conversationSettings")?.driverModel === "direct-model",
+    () => store.getMeta("conversationSettings")?.autoArchiveCompleted === false,
     { label: "direct repository settings reload" },
   );
   assert.equal(store.get("projects", "privileged"), null);
@@ -349,9 +330,6 @@ test("watcher reloads typed direct edits, leaves privileged desired state inert,
   });
   assert.deepEqual(store.getMeta("conversationSettings"), {
     autoArchiveCompleted: false,
-    driverAgentProfile: "direct-profile",
-    driverModel: "direct-model",
-    routing: routingOff,
   });
   assert.match(
     configuration.metadata().repository.error.message,
@@ -380,69 +358,6 @@ test("direct conversation settings reject unknown keys without applying them", (
   assert.equal(store.getMeta("conversationSettings"), null);
 });
 
-test("repository conversation settings validate and persist agent routing policy", (t) => {
-  const { root, store } = fixture(t),
-    filename = path.join(root, ".avoozl.json"),
-    configuration = new RepositorySettings(store, { workspaceRoot: root });
-  writeJson(filename, {
-    version: 1,
-    conversations: {
-      routing: {
-        enabled: true,
-        fallback: { agentProfile: "balanced", model: null },
-        rules: [
-          {
-            id: "runtime-risk",
-            priority: 20,
-            categories: ["task.implement"],
-            scopes: ["runtime"],
-            risks: ["high"],
-            agentProfile: "careful",
-            model: "deep",
-          },
-        ],
-      },
-    },
-  });
-
-  configuration.reload();
-  assert.deepEqual(store.getMeta("conversationSettings")?.routing, {
-    enabled: true,
-    fallback: { agentProfile: "balanced", model: null },
-    rules: [
-      {
-        id: "runtime-risk",
-        priority: 20,
-        categories: ["task.implement"],
-        scopes: ["runtime"],
-        risks: ["high"],
-        contextRemainingAtMost: null,
-        agentProfile: "careful",
-        model: "deep",
-      },
-    ],
-  });
-
-  writeJson(filename, {
-    version: 1,
-    conversations: {
-      routing: {
-        enabled: true,
-        rules: [{ id: "invalid", contextRemainingAtMost: 10 }],
-      },
-    },
-  });
-  configuration.reload();
-  assert.match(
-    configuration.metadata().repository.error.message,
-    /must choose an agent profile or model/,
-  );
-  assert.equal(
-    store.getMeta("conversationSettings").routing.rules[0].id,
-    "runtime-risk",
-  );
-});
-
 test("repository conversation settings override and fall back to global defaults", (t) => {
   const { root, store } = fixture(t),
     filename = path.join(root, ".avoozl.json"),
@@ -457,26 +372,18 @@ test("repository conversation settings override and fall back to global defaults
     });
   writeJson(filename, {
     version: 1,
-    conversations: {
-      driver: { model: "repository-model" },
-    },
+    conversations: { autoArchiveCompleted: true },
   });
 
   configuration.reload();
   assert.deepEqual(store.getMeta("conversationSettings"), {
-    autoArchiveCompleted: false,
-    driverAgentProfile: "global-agent",
-    driverModel: "repository-model",
-    routing: routingOff,
+    autoArchiveCompleted: true,
   });
 
   writeJson(filename, { version: 1 });
   configuration.reload();
   assert.deepEqual(store.getMeta("conversationSettings"), {
     autoArchiveCompleted: false,
-    driverAgentProfile: "global-agent",
-    driverModel: "global-model",
-    routing: routingOff,
   });
 });
 
@@ -546,22 +453,10 @@ test("explicit Settings operations persist typed desired state without changing 
     repository: "Example/Code",
     projectId: "code",
     label: "ready",
+    managedLabel: "projected",
     allowedActors: ["maintainer"],
   });
   assert.equal(issue.id, "Example/Code");
-
-  const queue = await ops.execute("github.queue.configure", {
-    repository: "Example/Code",
-    projectId: "code",
-    includePullRequests: false,
-    labelBehaviors: {
-      ready: ["ship-it"],
-      blocked: ["stalled"],
-      review: ["needs-review"],
-      quarantined: ["hold"],
-    },
-  });
-  assert.equal(queue.includePullRequests, false);
 
   const workspaceRepository = await ops.execute(
     "workspace.repository.configure",
@@ -583,6 +478,7 @@ test("explicit Settings operations persist typed desired state without changing 
     projectId: "code",
     assignee: "operator",
     label: "ready",
+    managedLabel: "projected",
     enabled: true,
     autoStart: false,
     provider: null,
@@ -590,19 +486,7 @@ test("explicit Settings operations persist typed desired state without changing 
     allowedActors: ["maintainer"],
     minimumPermission: "write",
   });
-  assert.deepEqual(saved.github.queue["Example/Code"], {
-    projectId: "code",
-    enabled: true,
-    includeIssues: true,
-    includePullRequests: false,
-    labelBehaviors: {
-      ready: ["ship-it"],
-      blocked: ["stalled"],
-      review: ["needs-review"],
-      quarantined: ["hold"],
-    },
-    visibility: "private",
-  });
+  assert.equal(saved.github.queue, undefined);
   assert.equal(saved.planningRepository.root, "planning");
   assert.deepEqual(configuration.metadata().pending, []);
   assert.deepEqual(configuration.metadata().applyRequired, []);
@@ -611,27 +495,19 @@ test("explicit Settings operations persist typed desired state without changing 
     "planningRepository",
   ]);
 
-  const removed = await ops.execute("github.queue.remove", {
-    repository: "Example/Code",
-  });
-  assert.deepEqual(removed, { id: "Example/Code", removed: true });
-  const afterRemove = JSON.parse(fs.readFileSync(filename, "utf8"));
-  assert.equal(afterRemove.github.queue, undefined);
-  assert.deepEqual(configuration.metadata().pending, []);
-
   const connected = await ops.execute("github.project.connect", {
     repository: "Example/Code",
     projectId: "code",
     assignee: "operator",
   });
   assert.equal(connected.execution.id, "Example/Code");
-  assert.equal(connected.queue.id, "Example/Code");
+  assert.equal(connected.queue, undefined);
   const afterConnect = JSON.parse(fs.readFileSync(filename, "utf8"));
   assert.equal(
     afterConnect.github.issueIntake["Example/Code"].projectId,
     "code",
   );
-  assert.equal(afterConnect.github.queue["Example/Code"].projectId, "code");
+  assert.equal(afterConnect.github.queue, undefined);
   const reopened = new RepositorySettings(store, { workspaceRoot: root });
   assert.equal(
     reopened.metadata().lastApplied.hash,
@@ -703,7 +579,7 @@ test("creating repository JSON materializes already-applied non-secret settings"
     directory: "workspace",
   });
 
-  configuration.updateConversationSettings({ driverModel: "driver-model" });
+  configuration.updateConversationSettings({ autoArchiveCompleted: false });
 
   const saved = JSON.parse(
     fs.readFileSync(path.join(root, ".avoozl.json"), "utf8"),
@@ -712,7 +588,7 @@ test("creating repository JSON materializes already-applied non-secret settings"
   assert.equal(saved.github.issueIntake["example/code"].assignee, "operator");
   assert.equal(saved.github.queue["example/code"].projectId, "code");
   assert.equal(saved.planningRepository.root, "planning");
-  assert.equal(saved.conversations.driver.model, "driver-model");
+  assert.equal(saved.conversations.autoArchiveCompleted, false);
   assert.deepEqual(configuration.metadata().pending, []);
 });
 

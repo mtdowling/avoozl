@@ -1,6 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
-import { digest, blocks } from "./model.mjs";
+import {
+  digest,
+  blocks,
+  matchSection,
+  planOwned,
+  reviewSettled,
+} from "./model.mjs";
 const SKIP = new Set([
   "evidence",
   "native-runtime",
@@ -120,24 +126,35 @@ export function syncPlans(
     data.documents[relative] = document;
     stats[previous ? "changed" : "added"]++;
     const currentBlocks = blocks(document.text),
-      byKey = new Map(currentBlocks.map((b) => [b.key, b]));
+      before =
+        typeof previous?.text === "string" ? blocks(previous.text) : null;
     const existing = data.tasks.filter((t) => t.source?.document === relative),
       claimed = new Set();
     for (const task of existing) {
-      const b = byKey.get(task.source.key);
+      const { block: b, changed } = matchSection(
+        task.source,
+        before,
+        currentBlocks,
+      );
       if (!b) {
         if (!task.source.removed) {
           task.source.removed = true;
-          task.needsReview = true;
+          if (!reviewSettled(data, task)) task.needsReview = true;
         }
         continue;
       }
       claimed.add(b.key);
       const hash = digest(b.context);
-      if (!initial && task.source.hash && task.source.hash !== hash)
+      if (
+        !initial &&
+        changed &&
+        !planOwned(task, task.source) &&
+        !reviewSettled(data, task)
+      )
         task.needsReview = true;
       task.source = {
         ...task.source,
+        key: b.key,
         lineStart: b.lineStart,
         lineEnd: b.lineEnd,
         hash,
@@ -162,7 +179,7 @@ export function syncPlans(
       stats.removed++;
       for (const task of data.tasks.filter((t) => t.source?.document === id)) {
         task.source.removed = true;
-        task.needsReview = true;
+        if (!reviewSettled(data, task)) task.needsReview = true;
       }
     }
   }

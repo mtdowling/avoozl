@@ -1,0 +1,8 @@
+{
+  "id": "fake-route",
+  "version": "1.0.0",
+  "contract": 1,
+  "kinds": ["route"],
+  "capabilities": { "route": [] },
+  "entry": "index.mjs"
+}

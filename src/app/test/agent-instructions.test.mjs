@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { Operations } from "../operations.mjs";
-import { RunManager } from "../manager.mjs";
 import {
   matchingAgentInstructions,
   parseAgentInstructions,
@@ -126,6 +125,55 @@ test("workflow categories inherit and local overrides only disable configured ru
     }),
     "task.review",
   );
+  assert.equal(
+    workflowCategory({
+      mode: "ask",
+      extraction: { planId: "design" },
+      context: {},
+    }),
+    "plan.extract",
+  );
+});
+
+test("extraction instructions inherit plan policy and honor repository paths", () => {
+  const data = { agentInstructions: [] };
+  synchronizeAgentInstructions(data, {
+    agentInstructions: {
+      rules: [
+        {
+          id: "all-design-guidance",
+          title: "All design guidance",
+          appliesTo: ["all"],
+          instruction: "Keep citations exact.",
+        },
+        {
+          id: "plan-design-guidance",
+          title: "Plan design guidance",
+          appliesTo: ["plan"],
+          instruction: "Report missing decisions as gaps.",
+        },
+        {
+          id: "rfc-extraction-guidance",
+          title: "RFC extraction guidance",
+          appliesTo: ["plan.extract"],
+          when: { paths: ["docs/rfc/**"] },
+          instruction: "Treat the Checks table as acceptance.",
+        },
+      ],
+    },
+  });
+  assert.deepEqual(
+    matchingAgentInstructions(data, "plan.extract", {
+      path: "docs/rfc/imports.md",
+    }).map((rule) => rule.id),
+    ["all-design-guidance", "plan-design-guidance", "rfc-extraction-guidance"],
+  );
+  assert.deepEqual(
+    matchingAgentInstructions(data, "plan.extract", {
+      path: "docs/research/imports.md",
+    }).map((rule) => rule.id),
+    ["all-design-guidance", "plan-design-guidance"],
+  );
 });
 
 test("source sync reads .avoozl.json and never interprets AGENTS.md as policy", async (t) => {
@@ -231,56 +279,12 @@ test("planning and code repositories contribute repository-scoped rules", async 
     }).map((rule) => rule.id),
     ["shared-task-policy", "record-required-cleanup"],
   );
-  const manager = new RunManager(store, { recover: false });
-  t.after(() => manager.close());
-  assert.match(
-    manager.context({
-      id: "run-code-project-chat",
-      mode: "ask",
-      projectId: "code-project",
-      context: { conversationPurpose: "project-chat", scoped: false },
-      handoffPath: "/tmp/handoff.json",
-    }),
-    /Record required cleanup/,
-  );
-  assert.doesNotMatch(
-    manager.context({
-      id: "run-other-project-chat",
-      mode: "ask",
-      projectId: "other-project",
-      context: { conversationPurpose: "project-chat", scoped: false },
-      handoffPath: "/tmp/handoff.json",
-    }),
-    /Record required cleanup/,
-  );
   const codeSource = await new Operations(store).execute(
     "agent.instructions.source",
     { repositoryId: "code-project" },
   );
   assert.equal(codeSource.path, codePolicy);
   assert.match(codeSource.text, /record-required-cleanup/);
-});
-
-test("matching .avoozl.json instructions are injected without changing capabilities", async (t) => {
-  const { store } = fixture(t),
-    data = store.read();
-  synchronizeAgentInstructions(data, policy);
-  store.write(data);
-  const manager = new RunManager(store, { recover: false });
-  t.after(() => manager.close());
-  const prompt = manager.context({
-    id: "run-instructions",
-    taskId: "sample-task",
-    mode: "implement",
-    context: {},
-    handoffPath: "/tmp/handoff.json",
-  });
-  assert.match(prompt, /Workspace agent instructions for task\.implement/);
-  assert.match(prompt, /plans_propose_work/);
-  assert.match(
-    prompt,
-    /do not expand the run-scoped MCP capability allowlist/i,
-  );
 });
 
 test("invalid, unknown, or duplicate Avoozl rules fail closed", () => {

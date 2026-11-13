@@ -221,7 +221,7 @@ test("capture reuses identical requests and requires explicit scope for same-nam
   assert(distinct.task.distinctFrom["sample-task"]);
   assert.equal(store.read().tasks.length, 5);
 });
-test("approved plans link canonical work without overwriting it or creating duplicate tasks", async (t) => {
+test("approved plans link explicit reuse and keep possible duplicates advisory", async (t) => {
   const { store, ops } = prepare(t),
     title = store.read().tasks[0].title,
     proposal = JSON.stringify({
@@ -229,6 +229,7 @@ test("approved plans link canonical work without overwriting it or creating dupl
       title,
       taskId: "copied-task",
       acceptance: ["New document context, not new task acceptance"],
+      checks: ["npm test"],
     });
   await ops.execute("task.merge", input(store));
   const before = store.read().tasks[0],
@@ -258,20 +259,19 @@ test("approved plans link canonical work without overwriting it or creating dupl
         id: "copy-existing",
         title,
         acceptance: ["Same work"],
+        checks: ["npm test"],
       }) +
       "\n```\n",
   });
-  await assert.rejects(
-    ops.execute("plan.approve", {
-      id: duplicate.id,
-      expectedHash: duplicate.hash,
-      expectedRevision: store.read().revision,
-      approvedBy: "User",
-      evidence: "Review",
-    }),
-    /Possible existing task/,
-  );
-  assert.equal(store.read().tasks.length, 2);
+  const duplicateReceipt = await ops.execute("plan.approve", {
+    id: duplicate.id,
+    expectedHash: duplicate.hash,
+    expectedRevision: store.read().revision,
+    approvedBy: "User",
+    evidence: "Review",
+  });
+  assert.equal(duplicateReceipt.taskIds.length, 1);
+  assert.equal(store.read().tasks.length, 3);
 });
 
 test("archived source progress retains its pre-merge status without promoting the canonical task", async (t) => {

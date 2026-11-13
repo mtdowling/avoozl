@@ -135,3 +135,104 @@ test("GitHub pagination fails instead of silently truncating at its safe cap", a
   );
   assert.equal(requests, 21);
 });
+
+test("GitHub dependency clients use issue database IDs", async () => {
+  const requests = [],
+    github = new GitHubClient({
+      token: "test-token",
+      apiUrl: "https://api.example.test",
+      fetch: async (url, options) => {
+        requests.push({
+          url: String(url),
+          method: options.method,
+          body: options.body ? JSON.parse(options.body) : null,
+        });
+        return new Response(options.method === "GET" ? "[]" : "{}", {
+          status: 200,
+        });
+      },
+    });
+
+  assert.deepEqual(await github.listIssueBlockers("example/code", 7), []);
+  await github.addIssueBlocker("example/code", 7, 123456);
+  await github.removeIssueBlocker("example/code", 7, 123456);
+
+  assert.deepEqual(requests, [
+    {
+      method: "GET",
+      url: "https://api.example.test/repos/example/code/issues/7/dependencies/blocked_by?per_page=100&page=1",
+      body: null,
+    },
+    {
+      method: "POST",
+      url: "https://api.example.test/repos/example/code/issues/7/dependencies/blocked_by",
+      body: { issue_id: 123456 },
+    },
+    {
+      method: "DELETE",
+      url: "https://api.example.test/repos/example/code/issues/7/dependencies/blocked_by/123456",
+      body: null,
+    },
+  ]);
+});
+
+test("GitHub completion clients read closing pull requests and exact checks", async () => {
+  const requests = [],
+    github = new GitHubClient({
+      token: "test-token",
+      apiUrl: "https://api.example.test",
+      fetch: async (url, options) => {
+        const parsed = new URL(url),
+          body = options.body ? JSON.parse(options.body) : null;
+        requests.push({
+          pathname: parsed.pathname,
+          method: options.method,
+          body,
+        });
+        if (parsed.pathname === "/graphql")
+          return new Response(
+            JSON.stringify({
+              data: {
+                repository: {
+                  issue: {
+                    closedByPullRequestsReferences: {
+                      nodes: [{ number: 12, merged: true }],
+                    },
+                  },
+                },
+              },
+            }),
+            { status: 200 },
+          );
+        if (parsed.pathname.endsWith("/check-runs"))
+          return new Response(JSON.stringify({ check_runs: [] }), {
+            status: 200,
+          });
+        return new Response(JSON.stringify({ statuses: [] }), { status: 200 });
+      },
+    });
+
+  assert.equal(
+    (await github.closingPullRequests("example/code", 7))[0].number,
+    12,
+  );
+  assert.deepEqual(await github.checkRuns("example/code", "a".repeat(40)), []);
+  assert.deepEqual(
+    (await github.commitStatus("example/code", "a".repeat(40))).statuses,
+    [],
+  );
+  await github.createCommitStatus("example/code", "a".repeat(40), {
+    state: "success",
+    context: "proof",
+  });
+  assert.deepEqual(
+    requests.map(({ pathname, method }) => [method, pathname]),
+    [
+      ["POST", "/graphql"],
+      ["GET", `/repos/example/code/commits/${"a".repeat(40)}/check-runs`],
+      ["GET", `/repos/example/code/commits/${"a".repeat(40)}/status`],
+      ["POST", `/repos/example/code/statuses/${"a".repeat(40)}`],
+    ],
+  );
+  assert.equal(requests[0].body.variables.number, 7);
+});

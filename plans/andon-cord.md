@@ -7,12 +7,14 @@
 
 ## Summary
 
-Avoozl needs a durable andon cord: a safety incident that immediately prevents
-unsafe work from advancing while preserving enough execution state for agents
-and people to diagnose, repair, review, and resume deliberately.
+Avoozl needs a durable andon cord: a way to stop work that should not continue
+yet, while keeping enough execution state for agents and people to see what
+happened, repair it, review the repair, and resume deliberately.
 
-The cord is not a process kill switch and it is not a decorative UI flag. It is
-a server-enforced state transition with task, project, and workspace scopes.
+Like the cord on an assembly line, it is ordinary operational equipment rather
+than an emergency, and pulling it is a routine part of doing the work. It is
+not a process kill switch and it is not a decorative UI flag. It is a
+server-enforced state transition with task, project, and workspace scopes.
 Raising it closes the relevant pickup and protected-operation gates before any
 interrupt requests or remote synchronization begin. It survives application,
 agent-host, and computer restarts. It never treats a missing heartbeat,
@@ -21,14 +23,14 @@ stopped.
 
 Development of the Avoozl repository is operated as an all-AI project. For this
 repository, AI agents author plans, decompose work, implement changes, run
-tests, review results, maintain the system, detect unsafe conditions, pull the
-cord, diagnose incidents, and propose remediation under human direction.
+tests, review results, maintain the system, notice when work should stop, pull
+the cord, look into incidents, and propose remediation under human direction.
 
 That is a convention of the Avoozl project, not a requirement imposed by the
 Avoozl product. Other workspaces may be human-only, human-led, mixed, or highly
 autonomous. The product models explicit roles and policy instead of assuming
 who performs the work. Resolve and resume authority is configurable, but no
-participant may infer that authority from an ability to raise or investigate an
+participant may infer that authority from being able to raise or look into an
 incident.
 
 The first implementation is local and SQLite-backed. The portable workspace
@@ -39,9 +41,10 @@ agent host, transcript store, or credentials service.
 
 ## Product intent
 
-Long-running and parallel AI work changes the safety problem. An agent may find:
+Long-running and parallel AI work changes when stopping is the right move. An
+agent may find:
 
-- a test that proves the design assumption is wrong;
+- a test that shows the design assumption does not hold;
 - unexpected changes in a shared checkout;
 - evidence that another worker owns the same task or resource;
 - a repository, branch, dependency, or credential mismatch;
@@ -50,20 +53,20 @@ Long-running and parallel AI work changes the safety problem. An agent may find:
 - a systemic validation failure affecting work already in flight;
 - a provider or tool that is behaving differently from its declared policy.
 
-The correct response is often neither "keep going" nor "kill everything."
+The useful response is usually neither "keep going" nor "shut everything down."
 Avoozl needs one visible, auditable mechanism that can:
 
-1. stop new unsafe transitions immediately;
+1. hold new transitions in the affected scope immediately;
 2. distinguish freezing pickup from interrupting active turns;
-3. preserve all evidence and ownership;
+3. keep all evidence and ownership;
 4. leave a bounded diagnostic path available;
 5. authorize remediation without reopening unrelated work;
 6. require an explicit resolution decision;
 7. require a separate explicit resume decision.
 
-The cord should make the safe action easy for an agent. Raising an incident is
-not a failure and must not be punished by automatically failing or replacing
-the reporting agent.
+Stopping should be the easy thing to do. Raising an incident is a normal,
+expected action: it is not a failure, and it never costs the reporting agent
+its run, its session, or its ownership.
 
 ## Configurable operating model
 
@@ -73,7 +76,7 @@ be an AI agent. A workspace may use these example assignments:
 
 | Activity                             | Eligible actor                                              | Required authority                                      |
 | ------------------------------------ | ----------------------------------------------------------- | ------------------------------------------------------- |
-| Detect anomaly and raise incident    | Human, managed agent, Driver, or automation                 | Run-scoped callers are limited to their task or project |
+| Notice a problem and raise incident  | Human, managed agent, Driver, or automation                 | Run-scoped callers are limited to their task or project |
 | Collect evidence and diagnose        | Human reviewer, diagnostic Driver, or incident-scoped agent | Read-only incident capability                           |
 | Propose remediation and task changes | Human or agent                                              | Append-only proposal or draft-plan authority            |
 | Implement an approved remediation    | Human or agent                                              | Explicit incident remediation permit                    |
@@ -120,19 +123,22 @@ Drain assumes the work is safe to finish.
 ### Stop
 
 Stop ends the agent-host process after drain has left no active runs or
-protected operations. It does not express a safety judgment and does not
+protected operations. It makes no judgment about the work itself and does not
 persist as workspace policy.
 
 ### Andon
 
-Andon means work may be unsafe:
+Andon means work should wait:
 
 - close policy-bearing gates in the affected scope;
-- prevent integration, merge, and acceptance even if execution has stopped;
+- hold integration, merge, and acceptance even if execution has stopped;
 - optionally request bounded interruption of active turns;
-- preserve ownership, sessions, worktrees, messages, and receipts;
+- keep ownership, sessions, worktrees, messages, and receipts;
 - allow observation and incident-scoped diagnosis;
 - remain effective across restart until separately resolved and resumed.
+
+The difference from drain is the question being answered. Drain asks whether
+the host is free to stop; andon asks whether the work should advance yet.
 
 Drain and andon can coexist. A host may be draining for an update while a
 project-scoped incident is open. Resuming the host must not clear or bypass the
@@ -182,25 +188,29 @@ scope."
 
 ## Modes
 
+There are two ways to stop, and they differ only in what happens to a turn that
+is already running.
+
 ### Freeze
 
-Freeze closes new pickup and protected transitions immediately. Existing
-provider turns may reach their next normal boundary, but:
+Freeze means "stop when you can." It closes new pickup and protected
+transitions immediately. Existing provider turns may reach their next normal
+boundary, but:
 
 - queued user or automation turns are held;
-- steering and resume are refused;
-- validation, integration, merge, and acceptance are refused;
+- steering and resume are declined;
+- validation, integration, merge, and acceptance are declined;
 - batches stop dispatching and enter `incident-held`;
-- completed work remains unintegrated.
+- completed work waits rather than integrating.
 
-Freeze is appropriate when finishing the current tool or model turn is safer
-than interruption.
+Freeze fits when letting the current tool or model turn finish is tidier than
+cutting it off.
 
 ### Safe interrupt
 
-Safe interrupt applies every freeze rule and records a durable interrupt intent
-for each affected active run. Avoozl asks the provider to interrupt and records
-the acknowledgement or uncertainty.
+Safe interrupt means "stop now." It applies every freeze rule and records a
+durable interrupt intent for each affected active run. Avoozl asks the provider
+to interrupt and records the acknowledgement or uncertainty.
 
 An interrupt request is not proof of interruption. Until the provider
 acknowledges a boundary, the run remains active or `interrupt-uncertain`.
@@ -208,8 +218,8 @@ Avoozl never releases its task, worktree, activation, or coordinator claim
 merely because the request timed out.
 
 Safe interrupt is the default for a newly raised project- or workspace-scoped
-incident. The raiser may deliberately choose freeze when the reason explains
-why interruption is riskier.
+incident. The raiser may choose freeze instead when the reason explains why
+letting the turn finish is the better stop.
 
 ## Incident state machine
 
@@ -297,25 +307,25 @@ Every operation is classified as one of:
 - `protect`: validate, integrate, merge, publish, approve, accept, handoff,
   takeover, or change authorization/configuration.
 
-While an incident is effective, unrecognized operations are denied. Adding a
-new operation therefore cannot accidentally bypass the cord. A deterministic
-test inventories public operation names and fails until each name is
-classified.
+While an incident is effective, unrecognized operations are held. Adding a new
+operation therefore cannot accidentally bypass the cord. A deterministic test
+inventories public operation names and fails until each name is classified.
 
 ### Operation behavior
 
-| Operation class | Open incident behavior                                                                                                                         |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| Observe         | Allowed and recorded normally                                                                                                                  |
-| Diagnose        | Allowed through an incident-scoped read-only capability                                                                                        |
-| Draft           | Allowed, but cannot approve, publish, project readiness, or redirect active work                                                               |
-| Incident        | Allowed according to incident role and transition rules                                                                                        |
-| Execute         | Denied unless an exact remediation permit allows it                                                                                            |
-| Protect         | Denied unless an exact remediation permit explicitly allows the named step; acceptance and ordinary publication remain denied until resolution |
+| Operation class | Open incident behavior                                                                                                                   |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Observe         | Allowed and recorded normally                                                                                                            |
+| Diagnose        | Allowed through an incident-scoped read-only capability                                                                                  |
+| Draft           | Allowed, but cannot approve, publish, project readiness, or redirect active work                                                         |
+| Incident        | Allowed according to incident role and transition rules                                                                                  |
+| Execute         | Held unless an exact remediation permit allows it                                                                                        |
+| Protect         | Held unless an exact remediation permit explicitly allows the named step; acceptance and ordinary publication stay held until resolution |
 
-The refusal includes the incident ID, scope, state, reason summary, safety
-epoch, and the action the caller may take next. It does not dump secrets,
-transcripts, or unrelated incident evidence.
+A declined operation explains itself. The response names the incident ID,
+scope, state, reason summary, safety epoch, and the action the caller may take
+next, so the answer is "not yet, and here is why" rather than an opaque error.
+It does not include secrets, transcripts, or unrelated incident evidence.
 
 ### Coverage
 
@@ -342,7 +352,7 @@ incident is resumed and the event is revalidated against current policy.
 
 ## Active runs, sessions, and messages
 
-The cord does not delete or archive active runs.
+Stopping is not losing work. The cord does not delete or archive active runs.
 
 - OpenHands remains the owner of chat, terminal, files, browser, and session
   attachment.
@@ -383,8 +393,8 @@ receiving an inventory dump.
 
 ### Remediation permits
 
-Repairing the unsafe condition may require code changes while the cord remains
-open. A remediation permit is the only bypass.
+Fixing what prompted the stop may require code changes while the cord remains
+open. A remediation permit is the one way through the gate.
 
 A permit binds:
 
@@ -413,9 +423,9 @@ does not resolve or resume it.
 
 ## Resolution and resume
 
-Resolution answers: "Has the stated unsafe condition been addressed or
-accepted?" Resume answers: "May ordinary policy-bearing work start advancing
-again?" They are separate operations and receipts.
+Resolution answers: "Has the stated reason been addressed or accepted?" Resume
+answers: "May ordinary policy-bearing work start advancing again?" They are
+separate operations and receipts.
 
 ### Resolve preconditions
 
@@ -446,8 +456,8 @@ pending revalidation rather than dispatching from stale snapshots.
 
 ## Permissions and prompt-injection boundary
 
-Pulling a cord should be easier than bypassing it, but an untrusted issue body
-must not be able to freeze an entire organization through prompt injection.
+Pulling the cord should be easier than bypassing it, while an untrusted issue
+body stays unable to freeze an entire organization through prompt injection.
 
 - A local authenticated human may raise any scope.
 - The persistent Driver may raise any scope configured for its workspace role.
@@ -596,8 +606,8 @@ credentials, complete plans, source code, worktrees, or transcripts.
 
 In strict mode, inability to verify the coordinator's current safety epoch
 blocks new claims, handoffs, takeovers, integration, and merge. Existing local
-execution follows the last effective incident state and does not get killed
-merely because the coordinator is unreachable.
+execution follows the last effective incident state and is not stopped merely
+because the coordinator is unreachable.
 
 ## API and operations
 
@@ -681,11 +691,13 @@ dialog with:
 - affected active runs and protected operations;
 - a clear statement of what will continue and what will stop.
 
-The final button says `Raise andon` rather than `Stop everything`.
+The dialog reads as a choice about scope and mode, not a warning. Its final
+button says `Raise andon` rather than `Stop everything`.
 
 ### Effective incident banner
 
-An effective incident produces a persistent, non-dismissible banner:
+An effective incident produces a persistent, non-dismissible banner that states
+the situation plainly:
 
 - red theme with icon and text, never color alone;
 - reason summary, scope, state, raiser, and age;
@@ -760,6 +772,9 @@ while an incident is effective.
 
 ## Failure cases
 
+In every case below the answer is the same: stay stopped, keep the evidence,
+and say so.
+
 - **Provider interrupt times out:** keep run active/uncertain and ownership
   intact; allow idempotent retry.
 - **Agent host crashes after gate commit:** startup restores the gate before
@@ -776,7 +791,7 @@ while an incident is effective.
   or is revoked; incident returns to held.
 - **A task changes while permit is active:** hash mismatch revokes use of the
   permit before the next operation.
-- **A new operation lacks classification:** deny it while incidents are
+- **A new operation lacks classification:** hold it while incidents are
   effective and fail deterministic coverage tests.
 - **GitHub merge bypass occurs:** record the observed override and keep Avoozl
   acceptance blocked.
@@ -790,7 +805,7 @@ Because AI agents will implement and maintain this feature, completion must not
 depend on an agent's confidence statement. Required checks include:
 
 - every public operation appears in the operation classification matrix;
-- an unclassified operation is denied under an effective incident;
+- an unclassified operation is held under an effective incident;
 - raise closes gates before provider, Git, coordinator, or UI side effects;
 - all state transitions reject stale expected revisions and safety epochs;
 - interrupt delivery is idempotent and uncertainty is preserved;
@@ -806,7 +821,7 @@ depend on an agent's confidence statement. Required checks include:
 - portable import rejects traversal, symlinks, malformed JSON, secrets, stale
   epochs, deletion-as-resolution, and unauthorized transitions;
 - coordinator fencing rejects an older safety epoch;
-- Canvas, CLI, HTTP, MCP, and agent-host paths receive the same refusal;
+- Canvas, CLI, HTTP, MCP, and agent-host paths receive the same answer;
 - accessibility tests cover focus, labels, status announcements, contrast, and
   phone layout;
 - `npm test` and `git diff --check` pass from an isolated task worktree.

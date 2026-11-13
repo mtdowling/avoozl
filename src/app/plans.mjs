@@ -1,14 +1,26 @@
-import { resolveTaskId, requireDistinctTask } from "../task-identity.mjs";
+import { duplicateCandidates, resolveTaskId } from "../task-identity.mjs";
 import { randomUUID } from "node:crypto";
 import { digest } from "../model.mjs";
+import { COMPLETIONS, TASK_KINDS, isSource } from "../work-model.mjs";
 import { fail } from "./store.mjs";
+import { frontMatterCategory } from "../front-matter.mjs";
+import { newTaskAuthority } from "./github-policy.mjs";
+import { checkedItems } from "./spec-plans.mjs";
+import {
+  createExtraction,
+  factIdentity,
+  submitExtraction,
+} from "./design-extraction.mjs";
 
 export const PLAN_TEMPLATE = (prompt) =>
-  `# ${prompt.split("\n")[0].slice(0, 140)}\n\n## Intent\n\n${prompt}\n\n## Design\n\nDescribe the outcome, scope, alternatives, and decisions here.\n\n## Proposed work\n\nAdd one task block per deliverable. These remain proposals until this document revision is approved.\n\n\`\`\`task\n${JSON.stringify({ id: "first-deliverable", title: "Define the first deliverable", summary: "Describe the resulting behavior.", acceptance: ["Define an observable acceptance check."], requires: [], tags: [] }, null, 2)}\n\`\`\`\n`;
+  `# ${prompt.split("\n")[0].slice(0, 140)}\n\n${prompt}\n\nDescribe the outcome, scope, alternatives, decisions, validation, and rollout in the structure that best fits this design.\n`;
 export const PLAN_FORMAT =
-  "Write one Markdown plan, including design and proposed work. Describe each proposed task in a fenced task block containing a JSON object: {id,title,summary,acceptance:[strings],requires:[local IDs or existing global task IDs],sequence:[IDs],supports:[IDs],tags:[strings],resources:[shared resource names],epic,track,projectId:logical execution project,taskId:optional existing canonical ID,distinctReason:optional separate-scope explanation}. Only id,title,acceptance are required. No tasks are executable before revision approval. Never approve your own plan. Return the Markdown plan as your final response.";
+  "Write one design as ordinary Markdown. Explain the intended outcome, boundaries, decisions, dependencies, observable acceptance, validation, and rollout where they are material. Use whatever headings and structure fit the design. Do not embed machine bookkeeping merely to make work executable: Avoozl derives cited facts in a separate extraction. No work is executable before explicit extraction approval. Never approve your own design. Return the Markdown design as your final response.";
 // One fenced task block. A fresh instance per use keeps /g state local.
 const taskBlocks = () => /^```task\s*\r?\n([\s\S]*?)^```\s*$/gm;
+// Migration read path only (Requirement 30.8): old workspaces such as Nupp
+// keep plan files with fenced task blocks. Avoozl never writes them; new
+// plans are Kiro spec folders read by spec-plans.mjs.
 export function extractPlan(markdown) {
   const proposals = [];
   let match;
@@ -20,44 +32,9 @@ export function extractPlan(markdown) {
     } catch {
       fail("A task block contains invalid JSON.");
     }
-    if (!/^[a-z][a-z0-9-]{2,60}$/.test(item.id || ""))
+    if (!/^[a-z][a-z0-9-]{2,60}$/.test(item?.id || ""))
       fail("Each task needs a stable lowercase local ID.");
-    if (
-      typeof item.title !== "string" ||
-      !item.title.trim() ||
-      item.title.length > 240
-    )
-      fail("Each task needs a title of 1–240 characters.");
-    if (
-      !Array.isArray(item.acceptance) ||
-      !item.acceptance.length ||
-      item.acceptance.some((x) => typeof x !== "string" || !x.trim())
-    )
-      fail("Each proposed task needs observable acceptance criteria.");
-    for (const field of [
-      "requires",
-      "sequence",
-      "supports",
-      "tags",
-      "resources",
-    ])
-      if (
-        item[field] !== undefined &&
-        (!Array.isArray(item[field]) ||
-          item[field].some((x) => typeof x !== "string"))
-      )
-        fail(field + " must be a list of strings.");
-    for (const field of [
-      "summary",
-      "nextAction",
-      "epic",
-      "track",
-      "projectId",
-      "taskId",
-      "distinctReason",
-    ])
-      if (item[field] !== undefined && typeof item[field] !== "string")
-        fail(field + " must be text.");
+    validateProposal(item);
     if (proposals.some((x) => x.id === item.id))
       fail("Repeated local task ID " + item.id);
     proposals.push({
@@ -69,6 +46,99 @@ export function extractPlan(markdown) {
   if (!proposals.length)
     fail("Add at least one fenced task block before approval.");
   return proposals;
+}
+// The field rules every proposed task meets, whichever file it came from.
+// Normalizes `requires` conditions in place.
+export function validateProposal(item) {
+  if (!item || typeof item !== "object" || Array.isArray(item))
+    fail("Describe each task as a JSON object.");
+  if (
+    typeof item.title !== "string" ||
+    !item.title.trim() ||
+    item.title.length > 240
+  )
+    fail("Each task needs a title of 1–240 characters.");
+  if (item.kind !== undefined && !TASK_KINDS.includes(item.kind))
+    fail("kind must be epic, package or leaf.");
+  // Local is opt-in per task; github comes only from projection (§3.2). A
+  // tracker plugin's authority is named in the plan and projected (R35.10).
+  if (
+    item.authority !== undefined &&
+    item.authority !== "local" &&
+    !(isSource(item.authority) && item.authority.startsWith("plugin:"))
+  )
+    fail(
+      'authority may only be "local" or "plugin:<id>"; a task becomes github through projection.',
+    );
+  if (item.route !== undefined && !isSource(item.route))
+    fail("route must be local, github or plugin:<id>.");
+  if (item.completion !== undefined && !COMPLETIONS.includes(item.completion))
+    fail("completion must be one of " + COMPLETIONS.join(", ") + ".");
+  // Accept only from Avoozl-recorded validation (§5.2, R38.4).
+  if (item.acceptFrom !== undefined && item.acceptFrom !== "validation")
+    fail('acceptFrom may only be "validation".');
+  // Epics and packages complete from their children; leaves are checked.
+  const parent = ["epic", "package"].includes(item.kind);
+  if (
+    (!parent || item.acceptance !== undefined) &&
+    (!Array.isArray(item.acceptance) ||
+      !item.acceptance.length ||
+      item.acceptance.some((x) => typeof x !== "string" || !x.trim()))
+  )
+    fail("Each proposed task needs observable acceptance criteria.");
+  // A requires entry may name the completion level it waits for.
+  if (Array.isArray(item.requires)) {
+    const conditions = {};
+    item.requires = item.requires.map((entry) => {
+      if (typeof entry === "string" || entry === null) return entry;
+      if (
+        typeof entry?.task !== "string" ||
+        !COMPLETIONS.includes(entry.condition)
+      )
+        fail("A requires condition needs a task and a known completion.");
+      conditions[entry.task] = entry.condition;
+      return entry.task;
+    });
+    if (Object.keys(conditions).length) item.conditions = conditions;
+  }
+  for (const field of [
+    "requires",
+    "sequence",
+    "supports",
+    "tags",
+    "resources",
+    "checks",
+  ])
+    if (
+      item[field] !== undefined &&
+      (!Array.isArray(item[field]) ||
+        item[field].some((x) => typeof x !== "string"))
+    )
+      fail(field + " must be a list of strings.");
+  for (const field of [
+    "summary",
+    "nextAction",
+    "epic",
+    "track",
+    "projectId",
+    "taskId",
+    "distinctReason",
+    "repository",
+    // The Project's Release and Iteration values for this task (§6.7).
+    "milestone",
+    "iteration",
+  ])
+    if (item[field] !== undefined && typeof item[field] !== "string")
+      fail(field + " must be text.");
+  // Batching (§4.11): only the planner knows a task is small in advance.
+  if (item.size !== undefined && item.size !== "small")
+    fail('size may only be "small".');
+  if (
+    item.paths !== undefined &&
+    (!Array.isArray(item.paths) || item.paths.some((x) => typeof x !== "string"))
+  )
+    fail("paths must be a list of strings.");
+  return item;
 }
 export function createPlan(
   store,
@@ -108,26 +178,34 @@ export function createPlan(
 }
 // One revision of the design document. An amended approved plan no longer
 // matches its approval receipt, so its tasks require review until the next
-// explicit approval.
-function writeRevision(store, plan, text, summary) {
+// explicit approval. A spec plan's revision is its folder's files and hash.
+export function writeRevision(store, plan, text, summary, spec = null) {
   plan.history.push({
     revision: plan.revision,
     hash: plan.hash,
     text: plan.text,
+    ...(plan.files ? { files: plan.files } : {}),
     at: plan.updatedAt,
     state: plan.state,
   });
   plan.revision++;
   plan.text = text;
-  plan.hash = digest(text);
-  plan.title = text.match(/^# (.+)$/m)?.[1] || plan.title;
+  plan.hash = spec ? spec.hash : digest(text);
+  if (spec) plan.files = spec.files;
+  plan.title = spec?.title || text.match(/^# (.+)$/m)?.[1] || plan.title;
   plan.state = "draft";
   plan.updatedAt = new Date().toISOString();
   store.put("plans", plan);
   if (plan.documentId) {
-    const data = structuredClone(store.read());
-    for (const task of data.tasks.filter((t) => t.planId === plan.id))
+    const data = structuredClone(store.read()),
+      held = new Set(plan.reviewHeld || []);
+    for (const task of data.tasks.filter((t) => t.planId === plan.id)) {
+      if (!task.needsReview) held.add(task.id);
       task.needsReview = true;
+    }
+    // Approval releases the tasks this draft held if their entry is unchanged.
+    plan.reviewHeld = [...held];
+    store.put("plans", plan);
     store.commit(data, summary + plan.title);
   }
   store.event(null, "plan.changed", { planId: plan.id, hash: plan.hash });
@@ -137,6 +215,8 @@ export function savePlan(store, { id, text, expectedHash }) {
   return store.transaction(() => {
     const plan = store.get("plans", id);
     if (!plan) fail("Plan not found.", 404);
+    if (plan.spec)
+      fail("A spec plan is read from its folder; save it without text.", 409);
     if (plan.hash !== expectedHash)
       fail("This draft changed. Reload before saving.", 409);
     if (typeof text !== "string" || text.length > 1000000)
@@ -144,57 +224,11 @@ export function savePlan(store, { id, text, expectedHash }) {
     return writeRevision(store, plan, text, "Review amended design: ");
   });
 }
-// Place the rendered block where extractPlan and the reader both expect
-// proposals: after the last existing block, otherwise inside the proposed-work
-// section, otherwise under a new one. Surrounding prose is never rewritten.
-function insertBlock(text, at, block, eol) {
-  const head = text.slice(0, at).replace(/(?:\r?\n)+$/, ""),
-    tail = text.slice(at).replace(/^(?:\r?\n)+/, "");
-  return (head ? head + eol + eol : "") + block + (tail ? eol + tail : "");
-}
-export function appendProposal(text, proposal) {
-  if (!proposal || typeof proposal !== "object" || Array.isArray(proposal))
-    fail("Describe one proposed task as a JSON object.");
-  let json;
-  try {
-    json = JSON.stringify(proposal, null, 2);
-  } catch {
-    fail("A task block contains invalid JSON.");
-  }
-  if (typeof json !== "string" || !json.startsWith("{"))
-    fail("Describe one proposed task as a JSON object.");
-  const lines = json.split("\n");
-  if (lines.some((line) => line.startsWith("```")))
-    fail("A proposed task may not contain a code fence.");
-  const eol = text.includes("\r\n") ? "\r\n" : "\n",
-    block = ["```task", ...lines, "```"].join(eol) + eol;
-  // Validate the new block alone first so its own fields report their errors.
-  extractPlan(block);
-  const existing = [...text.matchAll(taskBlocks())];
-  if (existing.length) {
-    const last = existing[existing.length - 1];
-    return insertBlock(text, last.index + last[0].length, block, eol);
-  }
-  const headings = [...text.matchAll(/^(#{1,6})[ \t]+(\S.*)$/gm)],
-    section = headings.find((h) => /proposed work/i.test(h[2]));
-  if (section) {
-    const next = headings.find(
-      (h) => h.index > section.index && h[1].length <= section[1].length,
-    );
-    return insertBlock(text, next ? next.index : text.length, block, eol);
-  }
-  return insertBlock(
-    text,
-    text.length,
-    "## Proposed work" + eol + eol + block,
-    eol,
-  );
-}
 // Append-only amendment for an agent that discovered adjacent work. This is a
 // proposal: it never mints a canonical task ID, approves a plan or touches an
 // approval receipt.
-export function proposeWork(store, { id, proposal, expectedHash }) {
-  return store.transaction(() => {
+export function proposeWork(store, { id, proposal, fact, expectedHash }) {
+  if (fact) {
     const plan = store.get("plans", id);
     if (!plan || plan.deletedAt) fail("Plan not found.", 404);
     if (plan.kind === "conversation")
@@ -203,19 +237,87 @@ export function proposeWork(store, { id, proposal, expectedHash }) {
       );
     if (expectedHash !== undefined && plan.hash !== expectedHash)
       fail("This plan changed. Reload before proposing work.", 409);
-    const text = appendProposal(plan.text, proposal);
-    if (text.length > 1000000) fail("Plan text is too large.");
-    // Same rules as approval, including rejection of a repeated local ID.
-    const proposals = extractPlan(text);
+    if (!fact || typeof fact !== "object" || Array.isArray(fact))
+      fail("Describe one cited proposed fact.");
+    const latest = store
+        .list("extractions")
+        .find(
+          (entry) =>
+            entry.planId === id &&
+            entry.revisionHash === plan.hash &&
+            entry.state !== "stale",
+        ),
+      extraction =
+        latest ||
+        createExtraction(store, {
+          planId: id,
+          revisionHash: plan.hash,
+          projectId: plan.context?.projectId || null,
+        }),
+      taskFact = {
+        ...fact,
+        kind: fact.kind || "task",
+        derivation: fact.derivation || "stated",
+      },
+      taskFactId = factIdentity(taskFact),
+      acceptance = Array.isArray(fact.acceptance)
+        ? fact.acceptance.map((text) => ({
+            kind: "acceptance",
+            text,
+            quote: fact.quote,
+            derivation: fact.derivation || "stated",
+            reasoning: fact.reasoning,
+            relatesTo: taskFactId,
+          }))
+        : [],
+      submitted = submitExtraction(store, {
+        extractionId: extraction.id,
+        revisionHash: plan.hash,
+        facts: [taskFact, ...acceptance],
+      });
     return {
-      ...writeRevision(store, plan, text, "Review proposed work: "),
-      proposalId: proposal.id,
-      proposalCount: proposals.length,
+      ...plan,
+      extractionId: extraction.id,
+      factId: taskFactId,
+      facts: submitted.facts,
       approved: false,
       policy:
-        "Proposed work is not executable. This plan no longer matches its approval receipt and its tasks need review; an authorized plan.approve converts this proposal alongside the existing ones.",
+        "Proposed facts are not executable and do not rewrite the design. An authorized extraction approval materializes accepted work.",
     };
-  });
+  }
+  // A task proposal on a spec plan adds a tasks.md item and a manifest
+  // entry (spec-plans.mjs). Avoozl no longer writes fenced task blocks.
+  const plan = store.get("plans", id);
+  if (!plan || plan.deletedAt) fail("Plan not found.", 404);
+  fail(
+    "This plan is not a Kiro spec folder, and Avoozl no longer writes fenced task blocks. Propose a cited fact, or move the plan to .kiro/specs/<name>/.",
+    409,
+  );
+}
+// The checked items approval would start as accepted: [x] in tasks.md, and
+// not gated on Avoozl-recorded validation (R38.4), which no mark can meet.
+export function baselineItems(name, text, proposals) {
+  const checked = checkedItems(name, text),
+    gated = new Set(
+      proposals.filter((p) => p.acceptFrom === "validation").map((p) => p.id),
+    );
+  for (const id of gated) checked.delete(id);
+  return checked;
+}
+function baselineAcceptance(item, hash, { at, approver }) {
+  return {
+    status: "accepted",
+    acceptanceEvidence: {
+      at,
+      evidence:
+        `tasks.md line ${item.line} marks ${item.key} [x] at approved revision ${hash}` +
+        (item.built ? `. Built: ${item.built}` : ""),
+      baseline: { file: "tasks.md", line: item.line, mark: "[x]", hash },
+      ...(item.built ? { built: item.built } : {}),
+      ...(approver ? { acceptedBy: approver } : {}),
+      componentOnly: false,
+    },
+  };
 }
 // The two inputs that keep the graph correct are the hashes. Who approved is
 // recorded from the workspace's operator when the caller does not say, and
@@ -223,7 +325,18 @@ export function proposeWork(store, { id, proposal, expectedHash }) {
 // required field containing a fixed sentence carries less than an absent one.
 export function approvePlan(
   store,
-  { id, expectedHash, expectedRevision, approvedBy, evidence, operator },
+  {
+    id,
+    expectedHash,
+    expectedRevision,
+    approvedBy,
+    evidence,
+    operator,
+    proposals: suppliedProposals,
+    extraction,
+    githubPolicy,
+    baseline = false,
+  },
 ) {
   // Authorization is the reviewed hash and database revision below. Who
   // approved and why are recorded when supplied; typing them proves nothing.
@@ -246,13 +359,16 @@ export function approvePlan(
         "Database changed. Review extraction against the current revision.",
         409,
       );
-    const proposals = extractPlan(plan.text),
+    // A spec plan's tasks keep their tasks.md IDs; its tasks.md is plan.text.
+    const extracted = Boolean(extraction),
+      spec = plan.spec || null,
+      proposals = suppliedProposals || extractPlan(plan.text),
       mapping = Object.fromEntries(
         proposals.map((t) => [
           t.id,
           resolveTaskId(
             data,
-            t.taskId || plan.mapping?.[t.id] || `${id}-${t.id}`,
+            t.taskId || plan.mapping?.[t.id] || (spec ? t.id : `${id}-${t.id}`),
           ),
         ]),
       );
@@ -260,18 +376,68 @@ export function approvePlan(
       fail(
         "Use one task block per canonical deliverable; combine repeated references.",
       );
-    const documentId = `workspace/plans/${id}.md`,
+    const documentId = spec
+        ? `spec:${spec}`
+        : extracted
+          ? `plan:${id}`
+          : `workspace/plans/${id}.md`,
       now = new Date().toISOString(),
       known = new Set([
         ...data.tasks.map((t) => t.id),
         ...Object.values(mapping),
-      ]);
+      ]),
+      // Work a person already checked off: the [x] items of the stored
+      // tasks.md this approval covers. Only the plan.approve operation asks
+      // for it, and only a task this approval creates starts accepted.
+      checked =
+        baseline && spec && !extracted
+          ? baselineItems(spec, plan.text, proposals)
+          : new Map(),
+      baselined = [],
+      approver = approvedBy?.trim() || operator?.trim() || "";
     const oldMapping = plan.mapping || {};
     for (const oldId of Object.keys(oldMapping))
       if (!mapping[oldId])
         fail(
           "Removing an approved task requires explicitly retiring it before this amendment.",
         );
+    // What review covers for one task: its entry and its incoming plan edges.
+    // Line numbers are left out, since editing another entry shifts them.
+    const entry = (task) =>
+        JSON.stringify([
+          ...[
+            "title",
+            "summary",
+            "acceptance",
+            "nextAction",
+            "epic",
+            "track",
+            "tags",
+            "resources",
+            "projectId",
+            "kind",
+            "route",
+            "completion",
+            "repository",
+            "checks",
+            "acceptFrom",
+            "milestone",
+            "iteration",
+            "authority",
+            "parent",
+          ].map((key) => task[key] ?? null),
+          task.source?.hash ?? null,
+          data.edges
+            .filter((e) => e.to === task.id && e.planId === id)
+            .map((e) => `${e.from}:${e.kind}:${e.condition ?? ""}`)
+            .sort(),
+        ]),
+      before = new Map(
+        data.tasks
+          .filter((t) => t.planId === id)
+          .map((t) => [t.id, { entry: entry(t), needsReview: t.needsReview }]),
+      ),
+      held = new Set(plan.reviewHeld || []);
     for (const proposal of proposals) {
       if (
         proposal.taskId &&
@@ -318,6 +484,20 @@ export function approvePlan(
         tags: proposal.tags || [],
         resources: proposal.resources || [],
         projectId: proposal.projectId || plan.context.projectId,
+        ...Object.fromEntries(
+          [
+            "kind",
+            "route",
+            "completion",
+            "repository",
+            "checks",
+            "acceptFrom",
+            "milestone",
+            "iteration",
+          ]
+            .filter((key) => proposal[key] !== undefined)
+            .map((key) => [key, proposal[key]]),
+        ),
         planId: id,
         planHash: plan.hash,
         contextDocuments: [documentId],
@@ -327,15 +507,39 @@ export function approvePlan(
           lineStart: proposal.lineStart,
           lineEnd: proposal.lineEnd,
           hash: digest(
-            plan.text
-              .split("\n")
-              .slice(proposal.lineStart - 1, proposal.lineEnd)
-              .join("\n"),
+            proposal.fact?.quote ||
+              plan.text
+                .split("\n")
+                .slice(proposal.lineStart - 1, proposal.lineEnd)
+                .join("\n"),
           ),
+          ...(proposal.fact
+            ? {
+                factId: proposal.fact.id,
+                derivation: proposal.fact.derivation,
+              }
+            : {}),
         },
         statusAuthority: "database",
         updatedAt: now,
       };
+      // A spec plan names parents by nesting in tasks.md (spec-plans.mjs);
+      // the parent is in the same plan, so it is in mapping.
+      if (spec && proposal.parent) design.parent = mapping[proposal.parent];
+      // With a GitHub mode a task defaults to github and shows as pending
+      // projection until its issue exists; local stays opt-in (R28.2–R28.3).
+      const authority = newTaskAuthority(githubPolicy, proposal.authority);
+      if (authority !== "local" || proposal.authority === "local")
+        design.authority = authority;
+      if (
+        existing?.planId === id &&
+        authority === "local" &&
+        (existing.github?.number || existing.github?.nodeId)
+      )
+        fail(
+          `Task ${taskId} already has a GitHub issue. Take it back local explicitly instead of marking it local in the plan.`,
+          409,
+        );
       if (existing && existing.planId !== id) {
         existing.contextDocuments = [
           ...new Set([...(existing.contextDocuments || []), documentId]),
@@ -356,10 +560,18 @@ export function approvePlan(
             },
           },
         ];
-      } else if (existing)
+      } else if (existing) {
+        if (!design.authority) delete existing.authority;
+        // A manifest that drops a milestone moves the task out of it, and
+        // one that drops acceptFrom lifts the validation gate.
+        for (const key of ["milestone", "iteration", "acceptFrom"])
+          if (design[key] === undefined) delete existing[key];
+        // An item moved out from under its epic loses that parent.
+        if (spec && design.parent === undefined) delete existing.parent;
         Object.assign(existing, design, { needsReview: true });
-      else {
-        const candidates = requireDistinctTask(data, {
+      } else {
+        if (checked.has(proposal.id)) baselined.push(taskId);
+        const candidates = duplicateCandidates(data, {
           ...proposal,
           id: taskId,
         });
@@ -367,11 +579,17 @@ export function approvePlan(
           ...design,
           scope:
             plan.context.filters?.scope === "runtime" ? "runtime" : "catalog",
-          kind: "task",
+          kind: proposal.kind || "task",
           status: "planned",
           createdAt: now,
           needsReview: false,
-          ...(proposal.distinctReason
+          ...(checked.has(proposal.id)
+            ? baselineAcceptance(checked.get(proposal.id), plan.hash, {
+                at: now,
+                approver,
+              })
+            : {}),
+          ...(proposal.distinctReason && candidates.length
             ? {
                 distinctFrom: Object.fromEntries(
                   candidates.map((t) => [t.id, proposal.distinctReason]),
@@ -392,6 +610,9 @@ export function approvePlan(
             from,
             to: taskId,
             kind,
+            ...(kind === "requires" && proposal.conditions?.[ref]
+              ? { condition: proposal.conditions[ref] }
+              : {}),
             planId: id,
             reason: "Approved plan revision " + plan.hash.slice(0, 12),
           });
@@ -416,67 +637,132 @@ export function approvePlan(
       seen.add(id);
     };
     for (const task of data.tasks) visit(task.id);
+    // Only a changed entry needs review again. An unchanged task keeps
+    // the state it had before this draft and so keeps its ready label.
+    for (const task of data.tasks) {
+      const prior = before.get(task.id);
+      if (!prior || task.planId !== id) continue;
+      task.needsReview =
+        entry(task) !== prior.entry ||
+        (prior.needsReview && !held.has(task.id));
+    }
+    delete plan.reviewHeld;
     const previousDesignHash = data.documents[documentId]?.hash || null;
-    const designText = plan.text.replace(taskBlocks(), (_, json) => {
-      const p = JSON.parse(json);
-      return `<!-- task:${mapping[p.id]} -->\n[${p.title}](/?view=tasks&node=${mapping[p.id]})`;
-    });
-    data.documents[documentId] = {
-      id: documentId,
-      path: documentId,
-      title: plan.title,
-      text: designText,
-      hash: digest(designText),
-      modifiedAt: now,
-      links: [],
-      rawLinks: [],
-      managed: true,
-      plan: {
-        status: "started",
-        category: "Approved plans",
-        taskIds: Object.values(mapping),
-      },
-    };
-    // Excerpts refer to the immutable receipt. Operational links live in the design projection.
+    // The category the approved revision's own front-matter names, if any
+    // (Requirement 30.9): requirements.md or bugfix.md for a spec, the plan
+    // text otherwise. Avoozl never makes one up.
+    const category = frontMatterCategory(
+      spec
+        ? (plan.files?.["requirements.md"] ?? plan.files?.["bugfix.md"])
+        : plan.text,
+    );
+    const designText =
+      extracted || spec
+        ? null
+        : plan.text.replace(taskBlocks(), (_, json) => {
+            const p = JSON.parse(json);
+            return `<!-- task:${mapping[p.id]} -->\n[${p.title}](/?view=tasks&node=${mapping[p.id]})`;
+          });
+    if (!extracted && !spec) {
+      data.documents[documentId] = {
+        id: documentId,
+        path: documentId,
+        title: plan.title,
+        text: designText,
+        hash: digest(designText),
+        modifiedAt: now,
+        links: [],
+        rawLinks: [],
+        managed: true,
+        plan: {
+          status: "started",
+          ...(category ? { category } : {}),
+          taskIds: Object.values(mapping),
+        },
+      };
+    } else {
+      data.documents[documentId] = {
+        id: documentId,
+        path: documentId,
+        title: plan.title,
+        text: plan.text,
+        hash: plan.hash,
+        modifiedAt: now,
+        links: [],
+        rawLinks: [],
+        managed: false,
+        virtual: true,
+        plan: {
+          status: "started",
+          ...(category ? { category } : {}),
+          taskIds: Object.values(mapping),
+        },
+      };
+    }
+    // Excerpts refer to the immutable receipt. Operational links live in the
+    // fenced-plan projection; extracted plans retain their exact fact anchor.
     for (const t of data.tasks.filter((t) => t.planId === id)) {
+      const proposal = proposals.find((item) => mapping[item.id] === t.id);
       t.approvedSource = {
         hash: plan.hash,
-        text: plan.text
-          .split("\n")
-          .slice(t.source.lineStart - 1, t.source.lineEnd)
-          .join("\n"),
+        text:
+          proposal?.fact?.quote ||
+          plan.text
+            .split("\n")
+            .slice(t.source.lineStart - 1, t.source.lineEnd)
+            .join("\n"),
+        ...(proposal?.fact
+          ? {
+              factId: proposal.fact.id,
+              derivation: proposal.fact.derivation,
+              reasoning: proposal.fact.reasoning,
+            }
+          : {}),
       };
-      t.source.lineStart = 1;
-      t.source.lineEnd = designText.split("\n").length;
-      t.source.hash = digest(designText);
+      if (!extracted && !spec) {
+        t.source.lineStart = 1;
+        t.source.lineEnd = designText.split("\n").length;
+        t.source.hash = digest(designText);
+      }
     }
     const receipt = {
       id: "approval-" + randomUUID(),
       planId: id,
       hash: plan.hash,
       source: plan.text,
-      approvedBy: approvedBy?.trim() || operator?.trim() || "",
+      approvedBy: approver,
       evidence: evidence?.trim() || "",
+      ...(baselined.length ? { baseline: baselined } : {}),
       at: now,
       mapping,
       taskIds: Object.values(mapping),
+      ...(spec ? { spec, files: plan.files } : {}),
+      ...(extracted
+        ? {
+            extractionId: extraction.id,
+            facts: proposals.map((proposal) => proposal.fact).filter(Boolean),
+          }
+        : {}),
     };
     store.put("approvals", receipt);
     plan.state = "approved";
-    plan.documentId = documentId;
+    if (!extracted) plan.documentId = documentId;
+    else plan.extractionId = extraction.id;
     plan.mapping = mapping;
     plan.approvalId = receipt.id;
     store.put("plans", plan);
-    store.db
-      .prepare(
-        "INSERT INTO outbox(id,path,text,expected_hash) VALUES (?,?,?,?)",
-      )
-      .run(receipt.id, documentId, designText, previousDesignHash);
+    if (!extracted && !spec)
+      store.db
+        .prepare(
+          "INSERT INTO outbox(id,path,text,expected_hash) VALUES (?,?,?,?)",
+        )
+        .run(receipt.id, documentId, designText, previousDesignHash);
     store.commit(data, "Approve " + plan.title, expectedRevision);
     store.event(null, "plan.approved", {
       planId: id,
       receiptId: receipt.id,
       taskIds: receipt.taskIds,
+      extractionId: extraction?.id || null,
     });
     return receipt;
   });

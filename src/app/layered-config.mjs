@@ -55,6 +55,9 @@ export function assertSafeConfig(value, source = "configuration", trail = []) {
       throw Error(`${source} contains unsafe key ${field}.`);
     if (
       secretLikeKey(key) &&
+      // A plugin's config names the environment variable that holds its
+      // credential (design §4.8); plugins.mjs checks the value is a name.
+      !/^plugins\.\d+\.config\.(?:.+\.)?[A-Za-z0-9]+Env$/.test(field) &&
       !SAFE_SECRET_LIKE_PATH_KEYS.has(field) &&
       !SAFE_SECRET_LIKE_PATH_KEYS.has(key)
     )

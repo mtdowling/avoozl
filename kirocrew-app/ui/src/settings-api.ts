@@ -1,0 +1,844 @@
+// Calls and pure helpers for the Settings view: the GitHub policy in
+// `.avoozl.json` (design §4.4). The backend validates and writes; this module
+// only turns the policy into form fields and back. Keep it free of JSX and
+// runtime imports so node can test it directly.
+import { relativeTime } from './task-api.ts'
+import type { AppApi } from '@kirocrew/app-sdk'
+import { COMMAND_PATH } from './workspace-api.ts'
+
+export type Policy = Record<string, unknown>
+
+export interface SettingsChoices {
+  modes: string[]
+  authorities: string[]
+  coders: string[]
+  permissions: string[]
+  actions: string[]
+  fields: string[]
+  statusValues: string[]
+  managedLabels: string[]
+  crewLabels: string[]
+}
+
+// An Issue Radar crew the user must configure: scope it to `label` (R17.4).
+export interface CrewScope {
+  repository: string
+  label: string | null
+  link: string
+}
+
+export interface ReviewRole {
+  id: string
+  focus: string
+  agent: string
+  model: string | null
+  distinctFrom: string
+}
+
+// Review roles from `.avoozl.json` `delivery`; read only on this page.
+export interface ReviewSettings {
+  error: string | null
+  writerModel: string | null
+  reviewers: ReviewRole[]
+  repositories: Record<string, ReviewRole[]>
+}
+
+export interface GitHubSettings {
+  filename: string
+  exists: boolean
+  hash: string | null
+  github: Policy
+  effective: Policy | null
+  error: string | null
+  crews: CrewScope[]
+  review?: ReviewSettings
+  choices: SettingsChoices
+}
+
+export interface Validation {
+  valid: boolean
+  error: string | null
+}
+
+export function settingsClient(api: AppApi) {
+  const run = async <T>(operation: string, input: Record<string, unknown>, workspaceId: string) => {
+    const reply = await api.post<{ result: T }>(COMMAND_PATH, { operation, input, workspaceId })
+    return reply.result
+  }
+  return {
+    get: (workspaceId: string) => run<GitHubSettings>('github.settings.get', {}, workspaceId),
+    validate: (workspaceId: string, github: Policy) =>
+      run<Validation>('github.settings.validate', { github }, workspaceId),
+    save: (workspaceId: string, github: Policy, expectedHash: string | null) =>
+      run<GitHubSettings>('github.settings.update', { github, expectedHash }, workspaceId),
+    setup: (workspaceId: string, input: SetupInput) => run<SetupResult>('github.setup', { ...input }, workspaceId),
+    // Stops a running apply before its next write.
+    cancelSetup: (workspaceId: string, previewHash: string) => run<{ cancelled: boolean }>('github.setup.cancel', { previewHash }, workspaceId),
+  }
+}
+
+// Set up GitHub wizard (design §8.2). The backend reads GitHub, previews
+// every write, and writes only on confirm with the preview's hash.
+export interface SetupInput {
+  mode: string
+  planningRepository?: string
+  repositories?: string[]
+  project?: { owner?: string; number?: number; title?: string }
+  releases?: string[]
+  iteration?: boolean
+  tableByWave?: boolean
+  epic?: boolean
+  confirm?: boolean
+  previewHash?: string
+}
+
+export interface SetupWrite {
+  step: string
+  action: string
+  object: string
+  owner: string
+  name: string
+  visibility: string | null
+  detail: string
+}
+
+export interface SetupStep {
+  id: string
+  title: string
+  status: string
+  notes: string[]
+  reason: string | null
+  fix: string | null
+}
+
+export interface SetupResult {
+  writes: SetupWrite[]
+  previewHash: string
+  nothingToChange: boolean
+  applied: boolean
+  results?: (SetupWrite & { status: string; reason?: string })[]
+  steps: SetupStep[]
+  checklist: { id: string; text: string; link: string | null }[]
+  settings: {
+    github: Policy
+    expectedHash: string | null
+    changed: boolean
+    diff: string
+    error: string | null
+  }
+}
+
+export interface SetupForm {
+  mode: string
+  planningRepository: string
+  repositories: string
+  projectOwner: string
+  projectNumber: string
+  projectTitle: string
+  releases: string
+  iteration: boolean
+  tableByWave: boolean
+  epic: boolean
+}
+
+// Wizard defaults from the saved settings.
+export function setupForm(github: Policy): SetupForm {
+  const project = record(github.project)
+  return {
+    mode: str(github.mode) || 'plans-repo',
+    planningRepository: str(github.planningRepository),
+    repositories: Object.keys(record(github.repositories)).join(', '),
+    projectOwner: str(project.owner),
+    projectNumber: str(project.number),
+    projectTitle: '',
+    releases: '',
+    iteration: Boolean(record(project.fields).iteration),
+    tableByWave: false,
+    epic: true,
+  }
+}
+
+// The operation input; a number picks a Project, else a title finds or makes one.
+export function setupInput(form: SetupForm): SetupInput {
+  const number = /^\d+$/.test(form.projectNumber.trim()) ? Number(form.projectNumber.trim()) : undefined
+  const project = compact({
+    owner: blank(form.projectOwner),
+    number,
+    title: number === undefined ? blank(form.projectTitle) : undefined,
+  })
+  return compact({
+    mode: form.mode,
+    planningRepository: form.mode === 'plans-repo' ? blank(form.planningRepository) : undefined,
+    repositories: splitList(form.repositories),
+    project: Object.keys(project).length ? project : undefined,
+    releases: splitList(form.releases),
+    iteration: form.iteration,
+    tableByWave: form.tableByWave,
+    epic: form.epic,
+  }) as unknown as SetupInput
+}
+
+// The `match` line for a legacy rule, written as the backend's formatMatch
+// does, so Settings saves `match` from now on.
+// shortcut: a label containing a double quote cannot be written in `match`;
+// it is kept as typed and the backend refuses it on save. Rare on GitHub.
+const quoteTerm = (value: string) => (/[\s,"]/.test(value) ? `"${value}"` : value)
+export function legacyMatch(rule: Record<string, unknown>): string {
+  const list = (value: unknown) => (Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string' && item.trim() !== '').map((item) => item.trim()) : [])
+  const all = list(rule.labelsAll),
+    any = list(rule.labelsAny),
+    none = list(rule.labelsNone),
+    assignee = typeof rule.assignee === 'string' ? rule.assignee.trim() : ''
+  return [
+    ...all.map((value) => `label:${quoteTerm(value)}`),
+    ...(any.length ? [`label:${any.map(quoteTerm).join(',')}`] : []),
+    ...(none.length ? [`-label:${none.map(quoteTerm).join(',')}`] : []),
+    ...(assignee ? [`assignee:${assignee}`] : []),
+  ].join(' ')
+}
+
+// What one `match` line means, and the open issues it matches now
+// (`github.trigger.preview`, read only).
+export interface MatchPreview {
+  repository: string | null
+  match: string
+  parsed: { labelsAll: string[]; labelsAny: string[]; labelsNone: string[]; assignee: string | null; unassigned: boolean } | null
+  error: string | null
+  total: number | null
+  issues: { number: number; title: string; url: string }[]
+  searchError: string | null
+}
+
+export const MATCH_HELP = "Same syntax as GitHub's issue search. Supported: label:, -label:, assignee:, no:assignee."
+
+// `untriaged` previews an Untriaged filter: no label: term needed, and pull
+// requests count too.
+export const matchClient = (api: AppApi) => (workspaceId: string, repository: string, match: string, untriaged = false) =>
+  api
+    .post<{ result: MatchPreview }>(COMMAND_PATH, {
+      operation: 'github.trigger.preview',
+      input: { match, ...(repository.trim() ? { repository: repository.trim() } : {}), ...(untriaged ? { untriaged: true } : {}) },
+      workspaceId,
+    })
+    .then((reply) => reply.result)
+
+// The parsed terms as chip groups, in the order the line reads them.
+export function matchChips(parsed: MatchPreview['parsed']): { kind: 'all' | 'any' | 'none' | 'assignee'; values: string[] }[] {
+  if (!parsed) return []
+  return [
+    { kind: 'all' as const, values: parsed.labelsAll },
+    { kind: 'any' as const, values: parsed.labelsAny },
+    { kind: 'none' as const, values: parsed.labelsNone },
+    { kind: 'assignee' as const, values: parsed.unassigned ? ['nobody'] : parsed.assignee ? [parsed.assignee] : [] },
+  ].filter((group) => group.values.length > 0)
+}
+
+export interface RuleForm {
+  id: string
+  action: string
+  // One GitHub issue-search line (src/app/issue-match.mjs). A legacy rule's
+  // labelsAll/labelsAny/labelsNone/assignee are converted into it on load.
+  match: string
+  author: string
+  autoPublishChildren: boolean
+}
+
+export interface RepositoryForm {
+  name: string
+  baseBranch: string
+  coder: string
+  allowedActors: string
+  minimumPermission: string
+  requiredChecks: string
+  concurrency: string
+  priority: string
+  // GitHub pull-request reviews as the review verdict (task 9.10): on, and how
+  // many approvals from people the repository policy allows (1 to 10).
+  pullRequestReviews: boolean
+  reviewApprovals: string
+  managedLabels: Record<string, string>
+  crewLabels: Record<string, string>
+  rules: RuleForm[]
+  // The Untriaged list (design §8.5), each optional.
+  untriaged: UntriagedForm
+  // Settings this form does not show (checkout, folder, dependencyText),
+  // written back unchanged.
+  rest: Record<string, unknown>
+}
+
+export interface UntriagedForm {
+  filter: string
+  triageLabels: string[]
+  ignoreOlderThanDays: string
+  notify: boolean
+}
+
+export const emptyUntriaged = (): UntriagedForm => ({ filter: '', triageLabels: [], ignoreOlderThanDays: '', notify: false })
+
+// The line a blank Untriaged filter stands for (src/app/untriaged.mjs
+// defaultFilter): one -label: term per triage label.
+export const untriagedDefault = (labels: string[]) => labels.map((label) => `-label:${quoteTerm(label)}`).join(' ')
+
+function untriagedPolicy(form: UntriagedForm) {
+  const kept = compact({
+    filter: blank(form.filter),
+    triageLabels: form.triageLabels.length ? form.triageLabels : undefined,
+    ignoreOlderThanDays: count(form.ignoreOlderThanDays),
+    notify: form.notify || undefined,
+  })
+  return Object.keys(kept).length ? kept : undefined
+}
+
+export interface SettingsForm {
+  mode: string
+  planningRepository: string
+  defaultAuthority: string
+  epicIssueType: string
+  projectOwner: string
+  projectNumber: string
+  fields: Record<string, string>
+  statusValues: Record<string, string>
+  repositories: RepositoryForm[]
+}
+
+const record = (value: unknown): Record<string, unknown> =>
+  value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {}
+const str = (value: unknown) => (typeof value === 'string' ? value : typeof value === 'number' ? String(value) : '')
+const joined = (value: unknown) => (Array.isArray(value) ? value.map(str).join(', ') : '')
+const strings = (value: unknown) =>
+  Object.fromEntries(Object.entries(record(value)).map(([key, entry]) => [key, str(entry)]))
+
+// "a, b\nc" -> ["a", "b", "c"]; empty -> undefined so the key is left out.
+export function splitList(text: string): string[] | undefined {
+  const items = text
+    .split(/[,\n]/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+  return items.length ? items : undefined
+}
+
+const blank = (text: string) => (text.trim() ? text.trim() : undefined)
+
+// A whole number stays a number; anything else is sent as typed so the
+// backend's validation names the setting.
+function count(text: string): number | string | undefined {
+  const trimmed = text.trim()
+  if (!trimmed) return undefined
+  return /^\d+$/.test(trimmed) ? Number(trimmed) : trimmed
+}
+
+const SHOWN = new Set([
+  'baseBranch',
+  'coder',
+  'allowedActors',
+  'minimumPermission',
+  'requiredChecks',
+  'concurrency',
+  'priority',
+  'pullRequestReviews',
+  'managedLabels',
+  'crewLabels',
+  'rules',
+  'untriaged',
+])
+
+export function emptyRule(): RuleForm {
+  return {
+    id: '',
+    action: 'deliver',
+    match: '',
+    author: '',
+    autoPublishChildren: false,
+  }
+}
+
+export function emptyRepository(name = ''): RepositoryForm {
+  return {
+    name,
+    baseBranch: 'main',
+    coder: '',
+    allowedActors: '',
+    minimumPermission: '',
+    requiredChecks: '',
+    concurrency: '',
+    priority: '',
+    pullRequestReviews: false,
+    reviewApprovals: '',
+    managedLabels: {},
+    crewLabels: {},
+    rules: [],
+    untriaged: emptyUntriaged(),
+    rest: {},
+  }
+}
+
+export function toForm(github: Policy): SettingsForm {
+  const project = record(github.project)
+  return {
+    mode: str(github.mode),
+    planningRepository: str(github.planningRepository),
+    defaultAuthority: str(github.defaultAuthority),
+    epicIssueType: str(github.epicIssueType),
+    projectOwner: str(project.owner),
+    projectNumber: str(project.number),
+    fields: strings(project.fields),
+    statusValues: strings(project.statusValues),
+    repositories: Object.entries(record(github.repositories)).map(([name, value]) => {
+      const entry = record(value)
+      const reviews = entry.pullRequestReviews
+      return {
+        name,
+        baseBranch: str(entry.baseBranch),
+        coder: str(entry.coder),
+        allowedActors: joined(entry.allowedActors),
+        minimumPermission: str(entry.minimumPermission),
+        requiredChecks: joined(entry.requiredChecks),
+        concurrency: str(entry.concurrency),
+        priority: joined(entry.priority),
+        pullRequestReviews: reviews !== undefined && reviews !== null,
+        reviewApprovals: str(record(reviews).approvals),
+        managedLabels: strings(entry.managedLabels),
+        crewLabels: strings(entry.crewLabels),
+        rules: (Array.isArray(entry.rules) ? entry.rules : []).map((item) => {
+          const rule = record(item)
+          return {
+            id: str(rule.id),
+            action: str(rule.action),
+            match: typeof rule.match === 'string' ? rule.match : legacyMatch(rule),
+            author: str(rule.author),
+            autoPublishChildren: rule.autoPublishChildren === true,
+          }
+        }),
+        untriaged: (() => {
+          const untriaged = record(entry.untriaged)
+          return {
+            filter: str(untriaged.filter),
+            triageLabels: Array.isArray(untriaged.triageLabels) ? untriaged.triageLabels.map(str).filter(Boolean) : [],
+            ignoreOlderThanDays: str(untriaged.ignoreOlderThanDays),
+            notify: untriaged.notify === true,
+          }
+        })(),
+        rest: Object.fromEntries(Object.entries(entry).filter(([key]) => !SHOWN.has(key))),
+      }
+    }),
+  }
+}
+
+// Drop keys whose value is undefined, so a cleared field leaves the file.
+function compact(value: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined))
+}
+
+function named(values: Record<string, string>) {
+  const kept = compact(Object.fromEntries(Object.entries(values).map(([key, text]) => [key, blank(text)])))
+  return Object.keys(kept).length ? kept : undefined
+}
+
+// Every top-level policy key is present; null clears it on save.
+export function toPolicy(form: SettingsForm): Policy {
+  const fields = named(form.fields),
+    statusValues = named(form.statusValues),
+    hasProject = Boolean(form.projectOwner.trim() || form.projectNumber.trim() || fields || statusValues)
+  return {
+    mode: blank(form.mode) ?? null,
+    planningRepository: blank(form.planningRepository) ?? null,
+    defaultAuthority: blank(form.defaultAuthority) ?? null,
+    epicIssueType: blank(form.epicIssueType) ?? null,
+    project: hasProject
+      ? compact({
+          owner: blank(form.projectOwner),
+          number: count(form.projectNumber),
+          fields,
+          statusValues,
+        })
+      : null,
+    repositories: form.repositories.length
+      ? Object.fromEntries(
+          form.repositories.map((repository) => [
+            repository.name.trim(),
+            compact({
+              ...repository.rest,
+              baseBranch: blank(repository.baseBranch),
+              coder: blank(repository.coder),
+              allowedActors: splitList(repository.allowedActors),
+              minimumPermission: blank(repository.minimumPermission),
+              requiredChecks: splitList(repository.requiredChecks),
+              concurrency: count(repository.concurrency),
+              priority: splitList(repository.priority),
+              // Present means on; a blank count leaves the backend's default (1).
+              pullRequestReviews: repository.pullRequestReviews
+                ? compact({ approvals: count(repository.reviewApprovals) })
+                : undefined,
+              managedLabels: named(repository.managedLabels),
+              crewLabels: named(repository.crewLabels),
+              rules: repository.rules.map((rule) =>
+                compact({
+                  id: rule.id.trim(),
+                  action: rule.action,
+                  match: blank(rule.match),
+                  author: blank(rule.author),
+                  autoPublishChildren: rule.autoPublishChildren || undefined,
+                }),
+              ),
+              untriaged: untriagedPolicy(repository.untriaged),
+            }),
+          ]),
+        )
+      : null,
+  }
+}
+
+// Required or optional, and what a blank field means, as the validator
+// (src/app/github-policy.mjs) and Project sync (src/app/github-project.mjs)
+// treat it. `when` names the condition a "required" holds under.
+export interface FieldRule {
+  required: boolean
+  when?: string
+  blank?: string
+}
+
+export const PROJECT_FIELD_RULES: Record<string, FieldRule> = {
+  owner: { required: true, when: 'to use a Project' },
+  number: { required: true, when: 'to use a Project' },
+  status: { required: false, blank: 'blank: uses the field named Status' },
+  release: { required: false, blank: 'blank: uses the field named Release' },
+  wave: { required: false, blank: 'blank: uses the field named Wave' },
+  iteration: { required: false, blank: 'blank: Avoozl skips Iteration' },
+  todo: { required: false, blank: 'blank: Todo' },
+  inProgress: { required: false, blank: 'blank: In progress' },
+  done: { required: false, blank: 'blank: Done' },
+  deferred: { required: false, blank: 'blank: Deferred' },
+}
+
+// The default each Project field falls back to, shown as its placeholder.
+export const PROJECT_DEFAULTS: Record<string, string> = {
+  status: 'Status',
+  release: 'Release',
+  wave: 'Wave',
+  iteration: '',
+  todo: 'Todo',
+  inProgress: 'In progress',
+  done: 'Done',
+  deferred: 'Deferred',
+}
+
+export const REPOSITORY_FIELD_RULES: Record<string, FieldRule> = {
+  name: { required: true },
+  baseBranch: { required: true, when: 'with a GitHub mode' },
+  coder: { required: false, blank: 'blank: Issue Radar in single-repo mode, worker sessions otherwise' },
+  concurrency: { required: false, blank: 'blank: 1 at a time' },
+  allowedActors: { required: false, blank: 'blank: anyone with the minimum permission' },
+  minimumPermission: { required: false, blank: 'blank: write, unless actors are named' },
+  managed: { required: true, when: 'to create issues' },
+  ready: { required: true, when: 'to create issues' },
+  responding: { required: false, blank: 'needed only for a respond rule' },
+  planning: { required: false, blank: 'blank: Avoozl adds none' },
+  stale: { required: false, blank: 'blank: Avoozl adds none' },
+  decision: { required: false, blank: 'blank: Avoozl adds none' },
+}
+
+// What managed label each state shows, in plain words.
+export const MANAGED_LABEL_TEXT: Record<string, string> = {
+  managed: 'Managed issue',
+  ready: 'Ready to code',
+  responding: 'Responding',
+  planning: 'Planning',
+  stale: 'Stale claim',
+  decision: 'Needs a decision',
+}
+
+// The first required setting the form leaves blank, as a sentence, or null.
+// Save is blocked while one is missing, so the message names what to fill.
+export function missingRequired(form: SettingsForm): string | null {
+  if (form.mode === 'plans-repo' && !form.planningRepository.trim())
+    return 'Plans repository mode needs its planning repository (Where tasks live).'
+  // Local only reads no Project or repository GitHub setting.
+  if (!isGitHubMode(form.mode)) return null
+  const project =
+    form.projectOwner.trim() ||
+    form.projectNumber.trim() ||
+    Object.values(form.fields).some((v) => v.trim()) ||
+    Object.values(form.statusValues).some((v) => v.trim())
+  if (project && !form.projectOwner.trim()) return 'The Project needs its owner (Where tasks live › Project fields).'
+  if (project && !form.projectNumber.trim()) return 'The Project needs its number (Where tasks live › Project fields).'
+  for (const [index, repository] of form.repositories.entries()) {
+    const name = repository.name.trim() || `Repository ${index + 1}`
+    if (!repository.name.trim()) return `${name} needs its owner/name (Repositories › Mode and branch).`
+    if (isGitHubMode(form.mode) && !repository.baseBranch.trim())
+      return `${name} needs its default branch (Repositories › Mode and branch).`
+  }
+  return null
+}
+
+// The Checks tab's rows: every check GitHub shows for the repository, plus
+// saved names it no longer shows, each with whether it is required here.
+export interface CheckRow {
+  name: string
+  // In Avoozl's own list, or required by GitHub's branch rule (shown
+  // checked and read-only: GitHub already enforces it on merge).
+  checked: boolean
+  seen: boolean
+  branchRule: boolean
+  // Where GitHub showed it, for the line under the checkbox.
+  where: string
+}
+
+export type CheckSources = Record<string, { source: string; at: string | null }>
+
+// "GitHub Actions · last run 2 days ago", "Required by GitHub branch rule",
+// or "Not seen on recent commits or open pull requests".
+export function checkWhere(name: string, sources: CheckSources, rule: boolean, now = Date.now()): string {
+  const seen = sources[name]
+  const parts = []
+  if (rule) parts.push('Required by GitHub branch rule')
+  if (seen) parts.push(seen.at ? `${seen.source} · last run ${relativeTime(seen.at, now)}` : seen.source)
+  return parts.join(' · ') || 'Not seen on recent commits or open pull requests'
+}
+
+export function checkRows(
+  saved: string,
+  inspect: { seen: string[]; required: string[]; sources?: CheckSources } | null,
+  now = Date.now(),
+): CheckRow[] {
+  const chosen = splitList(saved) ?? []
+  const sources = inspect?.sources ?? {}
+  const seen = new Set(inspect?.seen ?? [])
+  const rule = new Set(inspect?.required ?? [])
+  const names = [...new Set([...(inspect?.seen ?? []), ...chosen])]
+  return names
+    .map((name) => ({
+      name,
+      checked: rule.has(name) || chosen.includes(name),
+      seen: seen.has(name),
+      branchRule: rule.has(name),
+      where: checkWhere(name, sources, rule.has(name), now),
+    }))
+    .sort((a, b) => Number(b.branchRule) - Number(a.branchRule) || Number(b.seen) - Number(a.seen) || a.name.localeCompare(b.name))
+}
+
+// The saved list with one check turned on or off, order kept.
+export function toggleCheck(saved: string, name: string, on: boolean): string {
+  const chosen = splitList(saved) ?? []
+  const next = on ? [...new Set([...chosen, name])] : chosen.filter((item) => item !== name)
+  return next.join(', ')
+}
+
+// What the base branch's rules on GitHub say about reviews
+// (`github.repository.inspect`).
+export interface RepositoryInspect {
+  repository: string
+  branch: string | null
+  // `hidden`: classic protection is on but GitHub shows it only to admins,
+  // so `approvals` is a floor and the real count is unknown.
+  reviewRule: { approvals: number; dismissStale: boolean; sources: string[]; url: string; hidden?: boolean; hiddenReason?: string | null } | null
+  checks: { branch: string; seen: string[]; required: string[]; sources?: CheckSources; url?: string } | null
+  error: string | null
+  // Set when only that part could not be read; the other part still shows.
+  reviewError?: string | null
+  checksError?: string | null
+}
+
+export const inspectClient = (api: AppApi) => (workspaceId: string, repository: string, baseBranch: string) =>
+  api
+    .post<{ result: RepositoryInspect }>(COMMAND_PATH, {
+      operation: 'github.repository.inspect',
+      input: { repository, ...(baseBranch.trim() ? { baseBranch: baseBranch.trim() } : {}) },
+      workspaceId,
+    })
+    .then((reply) => reply.result)
+
+// One line for the Reviews tab.
+export function reviewRuleText(inspect: RepositoryInspect | null): string {
+  if (!inspect) return 'Reading the branch rules…'
+  if (inspect.error || !inspect.reviewRule) return inspect.reviewError ?? inspect.error ?? 'The branch rules could not be read.'
+  const rule = inspect.reviewRule
+  if (rule.hidden)
+    return `${rule.hiddenReason ?? 'GitHub hides the classic protection rule from this account.'} The approval count is unknown${
+      rule.approvals ? `, at least ${rule.approvals} from a ruleset` : ''
+    }. GitHub still enforces it on merge. ${
+      rule.approvals
+        ? `Avoozl waits for ${rule.approvals} approval${rule.approvals === 1 ? '' : 's'} meanwhile.`
+        : "Avoozl's reviewer chats stay the review gate."
+    }`
+  if (!rule.approvals) return "No branch rule asks for approvals; Avoozl's reviewer chats are the review gate."
+  return `${inspect.branch} needs ${rule.approvals} approving review${rule.approvals === 1 ? '' : 's'} (${rule.sources.join(' and ')})${
+    rule.dismissStale ? ', and a new push dismisses old approvals' : ''
+  }. Avoozl waits for that many from allowed people on the pull request's head commit.`
+}
+
+// The three modes, as the mode panes explain them, in the order they show.
+// Each claim matches the code and design: github-policy.mjs (`local` is no
+// GitHub mode and keeps the stored GitHub settings unused; default coder;
+// issue-radar refused in plans-repo; planning repository required),
+// github-linked-branches.mjs (the linked branch closes the planning issue),
+// delivery.mjs (local delivery merges verified work into the landing
+// branch; no closing keyword in plans-repo pull requests), and design §6.6.
+export const MODE_CARDS = [
+  {
+    mode: 'local',
+    title: 'Local only',
+    line: "Tasks stay in this workspace's database on this Mac. Nothing goes to GitHub.",
+    useWhen: ['You work alone or offline', 'No GitHub issues or board wanted', 'Trying Avoozl out'],
+    facts: [
+      ['Who closes tasks', 'Avoozl, once checks and reviewer chats pass and the work merges into the landing branch'],
+      ['Pull request text', 'None: work lands on the branch in your checkout'],
+      ['Default coder', 'Avoozl worker chats'],
+      ['Limit', 'No issues, labels, Project board or GitHub checks'],
+    ],
+  },
+  {
+    mode: 'plans-repo',
+    title: 'Plans repository',
+    line: 'Specs and their related issues live in a private planning repository; code and pull requests live in the code repositories.',
+    useWhen: ['Planning stays private', 'Code repositories are public or shared', 'One plan spans several code repositories'],
+    facts: [
+      ['Who closes issues', 'GitHub, when the pull request from the linked branch Avoozl made merges'],
+      ['Pull request text', 'The task only; never the planning repository'],
+      ['Default coder', 'Avoozl worker sessions'],
+      ['Limit', 'Issue Radar cannot code here'],
+    ],
+  },
+  {
+    mode: 'single-repo',
+    title: 'Single repository',
+    line: 'Specs, issues and pull requests all live in the code repository.',
+    useWhen: ['One repository', 'Open planning is fine', 'The simplest setup'],
+    facts: [
+      ['Who closes issues', 'GitHub, from "Closes #N" when the pull request merges'],
+      ['Pull request text', 'Names its issue with Closes #N'],
+      ['Default coder', 'Issue Radar (worker sessions also allowed)'],
+      ['Limit', 'Issues and plans are visible to everyone who can see the repository'],
+    ],
+  },
+] as const
+
+// The saved mode as a pane key: no mode is Local only.
+export const modeKey = (mode: string) => (mode === 'plans-repo' || mode === 'single-repo' ? mode : 'local')
+export const isGitHubMode = (mode: string) => modeKey(mode) !== 'local'
+
+// The radio group's arrow keys: the next or previous pane, wrapping.
+export function stepMode(current: string, key: string): string | null {
+  const modes: string[] = MODE_CARDS.map((card) => card.mode)
+  const at = Math.max(0, modes.indexOf(modeKey(current)))
+  if (key === 'ArrowRight' || key === 'ArrowDown') return modes[(at + 1) % modes.length]
+  if (key === 'ArrowLeft' || key === 'ArrowUp') return modes[(at - 1 + modes.length) % modes.length]
+  if (key === 'Home') return modes[0]
+  if (key === 'End') return modes[modes.length - 1]
+  return null
+}
+
+// Which settings each mode reads, so Settings shows only those. Checked in
+// code: local delivery reads the checkout folder, landing branch, worker
+// chats (delivery), reviewer roles and each repository's checks
+// (delivery.mjs declaredChecks); every github.* setting is read only with a
+// GitHub mode (github-policy.mjs, github-sync.mjs). Content rules, plugins
+// and workspaces apply in every mode.
+export type SettingKey =
+  | 'planningRepository'
+  | 'defaultAuthority'
+  | 'epicIssueType'
+  | 'projectFields'
+  | 'setupGitHub'
+  | 'issueRadarCrews'
+  | 'coder'
+  | 'triggers'
+  | 'requiredChecks'
+  | 'pullRequestReviews'
+  | 'reviewerChats'
+  | 'localChecks'
+  | 'landingBranch'
+  | 'workerChats'
+
+export function visibleSettings(mode: string): Set<SettingKey> {
+  const key = modeKey(mode)
+  const always: SettingKey[] = ['reviewerChats', 'landingBranch', 'workerChats']
+  if (key === 'local') return new Set([...always, 'localChecks'])
+  const github: SettingKey[] = ['defaultAuthority', 'epicIssueType', 'projectFields', 'setupGitHub', 'coder', 'triggers', 'requiredChecks', 'pullRequestReviews']
+  if (key === 'plans-repo') return new Set([...always, ...github, 'planningRepository'])
+  return new Set([...always, ...github, 'issueRadarCrews'])
+}
+
+export const LOCAL_HIDDEN_LINE = 'Labels, checks, reviews and the Project board only apply to GitHub modes.'
+
+// Saved GitHub settings that Local only keeps but does not use.
+export function unusedInLocal(form: SettingsForm): string[] {
+  const kept: string[] = []
+  if (form.planningRepository.trim()) kept.push('planning repository')
+  if (form.projectOwner.trim() || form.projectNumber.trim()) kept.push('Project board')
+  if (form.repositories.length) kept.push(`${form.repositories.length} repository GitHub setting${form.repositories.length === 1 ? '' : 's'}`)
+  if (form.epicIssueType.trim()) kept.push('epic issue type')
+  return kept
+}
+
+// Set up GitHub (SetupWizard.tsx): pure helpers.
+// Each write's group in the review step, by the wizard's step id.
+export const SETUP_GROUPS: { key: string; title: string; steps: string[] }[] = [
+  { key: 'repository', title: 'Repository', steps: ['token', 'repository', 'issues'] },
+  { key: 'project', title: 'Project', steps: ['project'] },
+  { key: 'fields', title: 'Fields and views', steps: ['fields', 'views', 'workflows', 'epic'] },
+  { key: 'labels', title: 'Labels', steps: ['labels'] },
+  { key: 'settings', title: 'Settings file', steps: ['settings'] },
+]
+
+// create, change or keep, from the write's action.
+export const writeBadge = (write: Pick<SetupWrite, 'action'>) =>
+  /^create|^enable/.test(write.action) ? 'create' : /^keep/.test(write.action) ? 'keep' : 'change'
+
+export function groupWrites(writes: SetupWrite[]) {
+  return SETUP_GROUPS.map((group) => ({ ...group, writes: writes.filter((w) => group.steps.includes(w.step)) })).filter((g) => g.writes.length)
+}
+
+// Whether the button shows: only when the read-only preview finds a change.
+export type SetupState =
+  | { kind: 'checking' }
+  | { kind: 'error'; reason: string; fix: string | null }
+  | { kind: 'set-up'; at: string }
+  | { kind: 'changes'; count: number; at: string }
+
+export function setupState(result: SetupResult | null, error: string | null, at: string): SetupState {
+  if (error) return { kind: 'error', reason: error, fix: null }
+  if (!result) return { kind: 'checking' }
+  // A failed step (no gh, a missing scope) means the preview could not read
+  // what it needs: say why and how to fix it.
+  const blocked = result.steps.find((s) => s.status === 'failed')
+  if (blocked && !result.writes.length) return { kind: 'error', reason: `${blocked.title}: ${blocked.reason}`, fix: blocked.fix }
+  if (result.writes.length || result.settings.changed) return { kind: 'changes', count: result.writes.length + (result.settings.changed ? 1 : 0), at }
+  return { kind: 'set-up', at }
+}
+
+
+// Who codes (CoderPicker.tsx).
+export const CODER_CARDS = [
+  {
+    coder: 'worker',
+    title: 'Avoozl worker chats',
+    line: 'Avoozl opens a Kiro Crew chat on this Mac for each ready task.',
+    flow: ['Ready task', 'Worker chat', 'Checks', 'Reviewer chats', 'Merged'],
+    useWhen: ['Plans stay private', 'You want to watch each chat', 'The work needs this Mac'],
+    reviews: "Avoozl's reviewer chats review the exact commit; on GitHub, the branch's review rule applies too.",
+    modes: ['local', 'plans-repo', 'single-repo'],
+  },
+  {
+    coder: 'issue-radar',
+    title: 'Issue Radar',
+    line: 'You label a GitHub issue and Issue Radar takes it.',
+    flow: ['Ready label', 'Issue Radar crew', 'Pull request', 'GitHub checks', 'Merged'],
+    useWhen: ['One open repository', 'Your crew already codes issues', 'Pull requests can say Closes #N'],
+    reviews: "GitHub's branch review rule and the required checks on the pull request.",
+    modes: ['single-repo'],
+  },
+] as const
+
+// The default coder in a mode, as github-policy.mjs sets it.
+export const defaultCoder = (mode: string) => (modeKey(mode) === 'single-repo' ? 'issue-radar' : 'worker')
+
+
+// Settings opens on Workspaces. The inner tab is kept only while the person
+// stays in Settings: each new visit, and any tab that no longer exists,
+// starts over on Workspaces.
+export const SETTINGS_HOME = 'workspaces'
+export function settingsTabOnEnter<T extends string>(from: string, to: string, current: string, valid: readonly T[]): T {
+  const home = SETTINGS_HOME as T
+  if (to === 'settings' && from !== 'settings') return home
+  return valid.includes(current as T) ? (current as T) : home
+}

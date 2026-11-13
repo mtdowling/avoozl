@@ -1,75 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { fixture } from "./fixtures.mjs";
-import { networkPolicy, privateAddress } from "../network.mjs";
 import { Operations } from "../operations.mjs";
-import { metrics } from "../telemetry.mjs";
 import { createPlan } from "../plans.mjs";
-test("private network access allows local interface hosts and refuses rebinding and cross-site requests", () => {
-  const access = networkPolicy({
-      host: "0.0.0.0",
-      hostname: "plans.local",
-      interfaces: { en0: [{ address: "192.168.1.25", family: "IPv4" }] },
-    }),
-    request = (host, peer = "192.168.1.4", extra = {}) => ({
-      headers: { host, ...extra },
-      socket: { remoteAddress: peer },
-    });
-  assert.equal(access(request("192.168.1.25:9417"), 9417), null);
-  assert.equal(access(request("plans.local:9417", "10.99.0.2"), 9417), null);
-  assert.equal(
-    access(request("127.0.0.1:9417", "::ffff:127.0.0.1"), 9417),
-    null,
-  );
-  assert.match(access(request("evil.test:9417"), 9417), /not allowed/);
-  assert.match(
-    access(request("192.168.1.25:9417", "8.8.8.8"), 9417),
-    /Private/,
-  );
-  assert.match(
-    access(
-      request("192.168.1.25:9417", "192.168.1.4", {
-        origin: "https://evil.test",
-      }),
-      9417,
-    ),
-    /Same-origin/,
-  );
-  const canvas = networkPolicy({
-    allowedOrigins: ["http://127.0.0.1:38400"],
-  });
-  assert.equal(
-    canvas(
-      request("127.0.0.1:9417", "::ffff:127.0.0.1", {
-        origin: "http://127.0.0.1:38400",
-        "sec-fetch-site": "same-site",
-      }),
-      9417,
-    ),
-    null,
-  );
-  assert.match(
-    canvas(
-      request("127.0.0.1:9417", "::ffff:127.0.0.1", {
-        origin: "http://127.0.0.1:38401",
-      }),
-      9417,
-    ),
-    /Same-origin/,
-  );
-  assert.match(
-    access(
-      request("192.168.1.25:9417", "192.168.1.4", {
-        "sec-fetch-site": "cross-site",
-      }),
-      9417,
-    ),
-    /Same-origin/,
-  );
-  assert.equal(privateAddress("172.32.1.1"), false);
-  const local = networkPolicy();
-  assert.match(local(request("192.168.1.25:9417"), 9417), /not allowed/);
-});
 test("deleting conversations and drafts preserves audit history, can restore, and refuses active or approved work", async (t) => {
   const { store } = fixture(t),
     ops = new Operations(store);
@@ -106,38 +39,9 @@ test("deleting conversations and drafts preserves audit history, can restore, an
   store.put("plans", { ...plan, state: "approved" });
   await assert.rejects(
     ops.execute("plan.delete", { id: plan.id }),
-    /Approved plans/,
+    /approved revision.*retire: true/,
   );
 });
-test("daily graphs divide session intervals across midnight and leave missing costs unknown", (t) => {
-  const { store } = fixture(t),
-    run = {
-      id: "midnight",
-      taskId: "sample-task",
-      provider: "codex",
-      createdAt: "2026-11-07T23:59:00Z",
-      state: "completed",
-    };
-  store.put("runs", run);
-  for (const [at, kind, body] of [
-    ["2026-11-07T23:59:00Z", "state", { state: "running" }],
-    ["2026-11-08T00:01:00Z", "request.created", { request: { kind: "input" } }],
-    ["2026-11-08T00:02:00Z", "turn.completed", {}],
-  ]) {
-    const e = store.event(run.id, kind, body);
-    store.db.prepare("UPDATE events SET at=? WHERE seq=?").run(at, e.seq);
-  }
-  const result = metrics(store, {
-    days: 2,
-    now: Date.parse("2026-11-08T12:00:00Z"),
-  });
-  assert.equal(result.series.length, 2);
-  assert.equal(result.series[0].agentMs, 60000);
-  assert.equal(result.series[1].agentMs, 60000);
-  assert.equal(result.series[1].waitingMs, 60000);
-  assert.equal(result.series[1].estimatedCostUsd, null);
-});
-
 test("chat Markdown renders formatting and safe links without interpreting embedded HTML", async () => {
   const { renderMarkdown, renderInline } = await import("../../markdown.mjs");
   const html = renderMarkdown(

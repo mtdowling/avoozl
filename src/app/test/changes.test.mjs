@@ -2,9 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { fixture } from "./fixtures.mjs";
+import { fixture, recordedRun } from "./fixtures.mjs";
 import { Operations } from "../operations.mjs";
-import { RunManager } from "../manager.mjs";
 import { git } from "../git.mjs";
 
 test("a conversation's changes are readable, bounded, and never alter the worktree", async (t) => {
@@ -17,32 +16,17 @@ test("a conversation's changes are readable, bounded, and never alter the worktr
   fs.writeFileSync(path.join(repo, "app.mjs"), "export const value = 1;\n");
   await git(repo, ["add", "."]);
   await git(repo, ["commit", "-m", "Start"]);
-  const manager = new RunManager(store, {
-    recover: false,
-    factories: {
-      codex: ({ emit }) => ({
-        async start(options) {
-          if (options.catalogOnly) return [];
-          emit("session", { providerSessionId: "thread" });
-        },
-        async close() {},
-      }),
-    },
-  });
-  t.after(() => manager.close());
-  const ops = new Operations(store, { manager });
+  const ops = new Operations(store);
   await ops.execute("project.configure", {
     id: "fixture",
     root: repo,
     checks: [[process.execPath, "--version"]],
   });
-  const run = await ops.execute("run.start", {
+  // A run the removed agent host started, as an old workspace holds it.
+  const run = await recordedRun(store, {
     id: "run-changes",
-    taskId: "sample-task",
-    provider: "codex",
     projectId: "fixture",
-    mode: "implement",
-    prompt: "Change the value",
+    state: "running",
   });
   // One committed change and one uncommitted change, as a real run leaves.
   fs.writeFileSync(

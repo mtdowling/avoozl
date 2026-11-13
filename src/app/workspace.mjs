@@ -2,6 +2,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { Store, fail } from "./store.mjs";
 import { workspaceConfig } from "./config.mjs";
+import { Operations } from "./operations.mjs";
+import { generateNamespace } from "./github-marker.mjs";
+import { SUPERSEDED_STATUS } from "./supersede.mjs";
 
 export function emptySnapshot(name = "My workspace") {
   return {
@@ -18,6 +21,7 @@ export function emptySnapshot(name = "My workspace") {
       { id: "blocked", label: "Blocked", complete: false },
       { id: "deferred", label: "Deferred", complete: false },
       { id: "recorded", label: "Historical completion", complete: false },
+      { ...SUPERSEDED_STATUS },
     ],
     epics: [
       { id: "inbox", title: "Inbox", scope: "catalog", color: "#96abc1" },
@@ -40,17 +44,39 @@ export function initializeWorkspace(
 ) {
   if (typeof name !== "string" || !name.trim() || name.length > 160)
     fail("Choose a workspace name of 1–160 characters.");
-  const config = workspaceConfig({ workspace: root, port, documents, db });
-  if (config.configured || fs.existsSync(config.dbPath))
+  const config = workspaceConfig({ workspace: root, port, documents, db }),
+    current = workspaceConfig({ workspace: root });
+  if (fs.existsSync(config.dbPath) || fs.existsSync(current.dbPath))
     fail(
       "This workspace already exists. Choose a new directory; existing data was preserved.",
       409,
     );
+  // A configuration with no database (a new machine, or a deleted SQLite
+  // file) gets an empty database under the same configuration and
+  // namespace, so `avoozl rebuild` can find its GitHub issues (§3.3).
+  if (current.configured) {
+    const store = new Store(current.dbPath);
+    try {
+      new Operations(store).initialize(emptySnapshot(current.name));
+    } finally {
+      store.close();
+    }
+    fs.mkdirSync(current.plansRoot, { recursive: true });
+    return {
+      workspace: current.workspaceRoot,
+      dbPath: current.dbPath,
+      name: current.name,
+      port: current.port,
+      existingConfiguration: true,
+    };
+  }
   fs.mkdirSync(config.workspaceRoot, { recursive: true });
   const saved = {
     $schema: "https://avoozl.dev/schema/repository-config-v1.json",
     version: 1,
     name,
+    // Owns this workspace's GitHub task IDs (design §3.4); never changes.
+    namespace: generateNamespace(),
     dbPath: path.relative(path.dirname(config.filename), config.dbPath),
     documents: path.relative(path.dirname(config.filename), config.plansRoot),
     port: config.port,
@@ -63,10 +89,7 @@ export function initializeWorkspace(
   });
   const store = new Store(config.dbPath);
   try {
-    store.transaction(() => {
-      store.write(emptySnapshot(name));
-      store.setMeta("mode", "active");
-    });
+    new Operations(store).initialize(emptySnapshot(name));
   } finally {
     store.close();
   }

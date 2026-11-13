@@ -1,19 +1,20 @@
+import { flowPolicy } from "./flow.mjs";
+import { deliveryPolicy } from "./delivery.mjs";
 import { createHash, randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import {
-  CONVERSATION_SETTINGS_DEFAULTS,
-  conversationSettings,
-  normalizeConversationSettings,
-  updateConversationSettings,
-} from "./conversation-settings.mjs";
-import { normalizeAgentRouting } from "./agent-routing.mjs";
 import { normalizeGitHubLabelBehaviors } from "./github-label-behaviors.mjs";
+import {
+  normalizeGitHubPolicy,
+  POLICY_KEYS,
+  policySection,
+} from "./github-policy.mjs";
 import {
   assertPortableRepositoryConfig,
   assertSafeConfig,
   avoozlConfigSchemaPath,
 } from "./layered-config.mjs";
+import { validateContentRules } from "./content-rules.mjs";
 import { fail } from "./store.mjs";
 
 const MAX_CONFIG_BYTES = 1024 * 1024;
@@ -34,7 +35,8 @@ function same(left, right) {
 function privilegedConfiguration(value) {
   return Object.fromEntries(
     Object.entries(value).filter(
-      ([key]) => !["$schema", "version", "conversations"].includes(key),
+      // `packs` only records where imported settings came from.
+      ([key]) => !["$schema", "version", "conversations", "packs"].includes(key),
     ),
   );
 }
@@ -64,6 +66,7 @@ function projectInput(value, id, base) {
     "name",
     "root",
     "baseBranch",
+    "integrationBranch",
     "worktreeRoot",
     "checks",
     "planning",
@@ -91,6 +94,14 @@ function projectInput(value, id, base) {
       : { name: text(value.name, `Project ${id} name`) }),
     root: resolve(text(value.root, `Project ${id} root`)),
     baseBranch: text(value.baseBranch || "main", `Project ${id} base branch`),
+    ...(value.integrationBranch === undefined
+      ? {}
+      : {
+          integrationBranch: text(
+            value.integrationBranch,
+            `Project ${id} integration branch`,
+          ),
+        }),
     ...(value.worktreeRoot === undefined
       ? {}
       : {
@@ -133,6 +144,7 @@ function githubIssueInput(value, repository) {
     "workspaceRepositoryId",
     "assignee",
     "label",
+    "managedLabel",
     "enabled",
     "autoStart",
     "provider",
@@ -172,6 +184,10 @@ function githubIssueInput(value, repository) {
     label: text(
       value.label || "avoozl:ready",
       `GitHub issue intake ${repository} label`,
+    ),
+    managedLabel: text(
+      value.managedLabel || "avoozl:managed",
+      `GitHub issue intake ${repository} managed label`,
     ),
     enabled: value.enabled !== false,
     autoStart: Boolean(value.autoStart),
@@ -225,9 +241,8 @@ function githubQueueInput(value, repository) {
 function githubInput(value) {
   if (value === undefined) return { issueIntake: {}, queue: {} };
   if (!record(value)) fail("GitHub configuration must contain a JSON object.");
-  for (const key of Object.keys(value))
-    if (!["issueIntake", "queue"].includes(key))
-      fail(`Unknown GitHub configuration setting ${key}.`);
+  // Mode, Project and repository rules (§4.4); applied when read, not here.
+  normalizeGitHubPolicy(value);
   const map = (items, normalize, label) => {
     if (items === undefined) return {};
     if (!record(items)) fail(`${label} must contain a JSON object.`);
@@ -285,6 +300,9 @@ function appliedActions(store) {
           ...(project.name === undefined ? {} : { name: project.name }),
           root: project.root,
           baseBranch: project.baseBranch || "main",
+          ...(project.integrationBranch
+            ? { integrationBranch: project.integrationBranch }
+            : {}),
           ...(project.worktreeRoot
             ? { worktreeRoot: project.worktreeRoot }
             : {}),
@@ -304,6 +322,7 @@ function appliedActions(store) {
             : {}),
           assignee: entry.assignee,
           label: entry.label || "avoozl:ready",
+          managedLabel: entry.managedLabel || "avoozl:managed",
           enabled: true,
           autoStart: Boolean(entry.autoStart),
           provider: entry.provider || null,
@@ -408,42 +427,36 @@ function parse(text, filename, { portable = false } = {}) {
   return value;
 }
 
+// `.avoozl.json` `conversations`. Only autoArchiveCompleted still acts: an
+// accepted task's finished runs leave the conversation list. `driver` and
+// `routing` configured the removed agent host; files that set them still
+// load, and the values are ignored.
+const CONVERSATION_KEYS = new Set([
+  "autoArchiveCompleted",
+  "driver",
+  "routing",
+]);
 function conversationInput(value) {
   if (value === undefined) return null;
   if (!record(value))
     fail("Conversation configuration must contain a JSON object.");
-  const allowed = new Set(["autoArchiveCompleted", "driver", "routing"]);
   for (const key of Object.keys(value))
-    if (!allowed.has(key))
+    if (!CONVERSATION_KEYS.has(key))
       fail(`Unknown conversation configuration setting ${key}.`);
-  const driver = value.driver;
-  if (driver !== undefined && !record(driver))
-    fail("Driver configuration must contain a JSON object.");
-  for (const key of Object.keys(driver || {}))
-    if (!["agentProfile", "model"].includes(key))
-      fail(`Unknown Driver configuration setting ${key}.`);
-  return {
-    ...("autoArchiveCompleted" in value
-      ? { autoArchiveCompleted: value.autoArchiveCompleted }
-      : {}),
-    ...(driver && "agentProfile" in driver
-      ? { driverAgentProfile: driver.agentProfile }
-      : {}),
-    ...(driver && "model" in driver ? { driverModel: driver.model } : {}),
-    ...(value.routing === undefined
-      ? {}
-      : { routing: normalizeAgentRouting(value.routing) }),
-  };
+  if (
+    "autoArchiveCompleted" in value &&
+    typeof value.autoArchiveCompleted !== "boolean"
+  )
+    fail("Choose whether completed conversations auto-archive.");
+  return "autoArchiveCompleted" in value
+    ? { autoArchiveCompleted: value.autoArchiveCompleted }
+    : {};
 }
 
-function canonicalConversations(settings) {
+export function conversationSettings(store) {
   return {
-    autoArchiveCompleted: settings.autoArchiveCompleted,
-    driver: {
-      agentProfile: settings.driverAgentProfile,
-      model: settings.driverModel,
-    },
-    routing: settings.routing,
+    autoArchiveCompleted:
+      store.getMeta("conversationSettings")?.autoArchiveCompleted !== false,
   };
 }
 
@@ -472,10 +485,10 @@ export class RepositorySettings {
     };
     this.sources = sources;
     this.baseConversationConfigured = baseConfig.conversations !== undefined;
-    this.baseConversationSettings = normalizeConversationSettings(
-      CONVERSATION_SETTINGS_DEFAULTS,
-      conversationInput(baseConfig.conversations) || {},
-    );
+    this.baseConversationSettings = {
+      autoArchiveCompleted: true,
+      ...conversationInput(baseConfig.conversations),
+    };
     this.debounceMs = debounceMs;
     this.watchFactory = watchFactory;
     this.watcher = null;
@@ -566,6 +579,8 @@ export class RepositorySettings {
       portable: scope === "repository",
     });
     if (scope === "repository") {
+      // Refuse an invalid GitHub policy before it reaches the file.
+      githubInput(value.github);
       this.write(value, { expectedHash });
       this.reload();
       return {
@@ -648,14 +663,10 @@ export class RepositorySettings {
         restartDesired,
       );
       if (input || this.baseConversationConfigured || file.exists) {
-        const current = conversationSettings(this.store),
-          next = normalizeConversationSettings(
-            this.baseConversationSettings,
-            input || {},
-          );
-        if (!same(current, next))
+        const next = { ...this.baseConversationSettings, ...input };
+        if (!same(this.store.getMeta("conversationSettings"), next))
           this.store.transaction(() => {
-            updateConversationSettings(this.store, next);
+            this.store.setMeta("conversationSettings", next);
             this.store.event(null, "workspace.settings.applied", {
               filename: this.filename,
               hash: file.hash,
@@ -704,6 +715,13 @@ export class RepositorySettings {
       value,
       `repository Avoozl configuration at ${this.filename}`,
     );
+    validateContentRules(value.contentRules);
+    try {
+      flowPolicy(value);
+      deliveryPolicy(value);
+    } catch (error) {
+      fail(error.message);
+    }
     const text = JSON.stringify(value, null, 2) + "\n";
     if (Buffer.byteLength(text) > MAX_CONFIG_BYTES)
       fail("Workspace Avoozl configuration is too large.");
@@ -737,16 +755,128 @@ export class RepositorySettings {
     return { text, hash: hash(text) };
   }
 
+  // The `github` policy keys of this file (design §4.4) for the Settings view.
+  readGitHubSettings() {
+    const file = this.readFile(),
+      github = record(file.value.github) ? file.value.github : {};
+    return {
+      filename: this.filename,
+      exists: file.exists,
+      hash: file.hash,
+      github: policySection(
+        Object.fromEntries(
+          POLICY_KEYS.filter((key) => Object.hasOwn(github, key)).map((key) => [
+            key,
+            github[key],
+          ]),
+        ),
+      ),
+    };
+  }
+
+  // Replaces the policy keys of `github` and keeps every other key. The
+  // whole block is validated before the file is written.
+  updateGitHubSettings({ github, expectedHash } = {}) {
+    const section = policySection(github),
+      before = this.readFile();
+    if (expectedHash !== before.hash)
+      fail("Avoozl configuration changed; reload before saving.", 409);
+    const value = this.updateValue(before),
+      next = Object.fromEntries(
+        Object.entries(record(value.github) ? value.github : {}).filter(
+          ([key]) => !POLICY_KEYS.includes(key),
+        ),
+      );
+    Object.assign(next, section);
+    githubInput(next);
+    if (Object.keys(next).length) value.github = next;
+    else delete value.github;
+    this.write(value, { expectedHash: before.hash });
+    return this.readGitHubSettings();
+  }
+
+  // Settings > Flow (§8.4): the workspace's `flow` and each repository's
+  // override (`projects.<id>.flow`).
+  readFlowSettings() {
+    const file = this.readFile(),
+      projects = record(file.value.projects) ? file.value.projects : {};
+    return {
+      filename: this.filename,
+      exists: file.exists,
+      hash: file.hash,
+      flow: record(file.value.flow) ? structuredClone(file.value.flow) : {},
+      repositories: Object.fromEntries(
+        Object.entries(projects)
+          .filter(([, p]) => record(p) && record(p.flow))
+          .map(([id, p]) => [id, structuredClone(p.flow)]),
+      ),
+    };
+  }
+
+  // Replace the workspace's `flow` (or one repository's override) whole,
+  // with an expected hash so a stale edit fails instead of overwriting.
+  updateFlowSettings({ flow, repository = null, expectedHash } = {}) {
+    const before = this.readFile();
+    if (expectedHash !== before.hash)
+      fail("Avoozl configuration changed; reload before saving.", 409);
+    if (!record(flow)) fail("Give the flow settings as an object.");
+    const value = this.updateValue(before);
+    if (repository) {
+      if (!record(value.projects?.[repository]))
+        fail(`Repository ${repository} is not in .avoozl.json projects.`, 404);
+      if (Object.keys(flow).length) value.projects[repository].flow = flow;
+      else delete value.projects[repository].flow;
+    } else if (Object.keys(flow).length) value.flow = flow;
+    else delete value.flow;
+    this.write(value, { expectedHash: before.hash });
+    return this.readFlowSettings();
+  }
+
+  // An approved retro proposal for a delivery setting (§4.11): one key,
+  // refused when its value is no longer the proposal's `from`.
+  updateDeliveryKey({ key, from, to, expectedHash } = {}) {
+    const before = this.readFile();
+    if (expectedHash !== before.hash)
+      fail("Avoozl configuration changed; reload before saving.", 409);
+    const value = this.updateValue(before),
+      name = key.replace(/^delivery\./, ""),
+      delivery = record(value.delivery) ? value.delivery : {};
+    if (JSON.stringify(delivery[name]) !== JSON.stringify(from))
+      fail(`${key} is now ${JSON.stringify(delivery[name])}, not ${JSON.stringify(from)}; this proposal is stale.`, 409);
+    value.delivery = { ...delivery, [name]: to };
+    this.write(value, { expectedHash: before.hash });
+    return this.readFile();
+  }
+
+  // Settings > Content rules: replace `contentRules.sets`. `options` are the
+  // plugin ids a set may name, so a save never leaves a policy the guard
+  // reads as invalid (which would block every write).
+  updateContentRules({ sets, expectedHash } = {}, { pluginIds = null } = {}) {
+    const before = this.readFile();
+    if (expectedHash !== before.hash)
+      fail("Avoozl configuration changed; reload before saving.", 409);
+    if (!Array.isArray(sets)) fail("Give the list of rule sets.");
+    const value = this.updateValue(before);
+    validateContentRules({ sets }, { pluginIds });
+    if (sets.length) value.contentRules = { sets };
+    else delete value.contentRules;
+    const written = this.write(value, { expectedHash: before.hash });
+    return { hash: written?.hash ?? this.readFile().hash };
+  }
+
   updateConversationSettings(input = {}) {
     const before = this.readFile(),
-      current = {
-        ...CONVERSATION_SETTINGS_DEFAULTS,
-        ...(this.store.getMeta("conversationSettings") || {}),
+      next = {
+        ...conversationSettings(this.store),
+        ...conversationInput(
+          "autoArchiveCompleted" in input
+            ? { autoArchiveCompleted: input.autoArchiveCompleted }
+            : {},
+        ),
       },
-      next = normalizeConversationSettings(current, input),
       value = this.updateValue(before);
     value.version = 1;
-    value.conversations = canonicalConversations(next);
+    value.conversations = next;
     const written = this.write(value, {
       expectedHash: Object.hasOwn(input, "expectedHash")
         ? input.expectedHash
@@ -771,6 +901,9 @@ export class RepositorySettings {
       ...(project.name ? { name: project.name } : {}),
       root: this.portablePath(project.root),
       baseBranch: project.baseBranch || "main",
+      ...(project.integrationBranch
+        ? { integrationBranch: project.integrationBranch }
+        : {}),
       ...(project.worktreeRoot
         ? { worktreeRoot: this.portablePath(project.worktreeRoot) }
         : {}),
@@ -807,6 +940,7 @@ export class RepositorySettings {
         : {}),
       assignee: entry.assignee,
       label: entry.label || "avoozl:ready",
+      managedLabel: entry.managedLabel || "avoozl:managed",
       enabled: true,
       autoStart: Boolean(entry.autoStart),
       provider: entry.provider || null,
@@ -814,77 +948,6 @@ export class RepositorySettings {
       allowedActors: [...new Set(entry.allowedActors || [])].sort(),
       minimumPermission: entry.minimumPermission || "write",
     };
-    return this.writeApplied(value, before.hash, ["github"]);
-  }
-
-  updateGitHubProjectConnection(issueIntake, queue) {
-    const before = this.readFile(),
-      value = this.updateValue(before);
-    value.version = 1;
-    value.github = record(value.github) ? value.github : {};
-    value.github.issueIntake = record(value.github.issueIntake)
-      ? value.github.issueIntake
-      : {};
-    value.github.queue = record(value.github.queue) ? value.github.queue : {};
-    value.github.issueIntake[issueIntake.id] = {
-      projectId: issueIntake.projectId,
-      ...(issueIntake.workspaceRepositoryId
-        ? { workspaceRepositoryId: issueIntake.workspaceRepositoryId }
-        : {}),
-      assignee: issueIntake.assignee,
-      label: issueIntake.label || "avoozl:ready",
-      enabled: true,
-      autoStart: Boolean(issueIntake.autoStart),
-      provider: issueIntake.provider || null,
-      model: issueIntake.model || null,
-      allowedActors: [...new Set(issueIntake.allowedActors || [])].sort(),
-      minimumPermission: issueIntake.minimumPermission || "write",
-    };
-    value.github.queue[queue.id] = {
-      projectId: queue.projectId || null,
-      ...(queue.workspaceRepositoryId
-        ? { workspaceRepositoryId: queue.workspaceRepositoryId }
-        : {}),
-      enabled: queue.enabled !== false,
-      includeIssues: queue.includeIssues !== false,
-      includePullRequests: queue.includePullRequests !== false,
-      labelBehaviors: normalizeGitHubLabelBehaviors(queue.labelBehaviors),
-      visibility:
-        queue.visibility || (queue.private === false ? "public" : "private"),
-    };
-    return this.writeApplied(value, before.hash, ["github"]);
-  }
-
-  updateGitHubQueue(entry) {
-    const before = this.readFile(),
-      value = this.updateValue(before);
-    value.version = 1;
-    value.github = record(value.github) ? value.github : {};
-    value.github.queue = record(value.github.queue) ? value.github.queue : {};
-    value.github.queue[entry.id] = {
-      projectId: entry.projectId || null,
-      ...(entry.workspaceRepositoryId
-        ? { workspaceRepositoryId: entry.workspaceRepositoryId }
-        : {}),
-      enabled: entry.enabled !== false,
-      includeIssues: entry.includeIssues !== false,
-      includePullRequests: entry.includePullRequests !== false,
-      labelBehaviors: normalizeGitHubLabelBehaviors(entry.labelBehaviors),
-      visibility:
-        entry.visibility || (entry.private === false ? "public" : "private"),
-    };
-    return this.writeApplied(value, before.hash, ["github"]);
-  }
-
-  removeGitHubQueue(repository) {
-    const before = this.readFile(),
-      value = this.updateValue(before);
-    value.version = 1;
-    if (record(value.github?.queue)) {
-      delete value.github.queue[repository];
-      if (!Object.keys(value.github.queue).length) delete value.github.queue;
-      if (!Object.keys(value.github).length) delete value.github;
-    }
     return this.writeApplied(value, before.hash, ["github"]);
   }
 
@@ -905,6 +968,9 @@ export class RepositorySettings {
         ...(project.name ? { name: project.name } : {}),
         root: this.portablePath(project.root),
         baseBranch: project.baseBranch || "main",
+        ...(project.integrationBranch
+          ? { integrationBranch: project.integrationBranch }
+          : {}),
         ...(project.worktreeRoot
           ? { worktreeRoot: this.portablePath(project.worktreeRoot) }
           : {}),
