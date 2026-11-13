@@ -57,7 +57,7 @@
     ]
   },
   "permissions": {
-    "api": ["/apps/avoozl/api/*", "/api/chat/slots/avoozl_*", "/api/reveal", "/api/usage/turns", "/api/models"],
+    "api": ["/apps/avoozl/api/*", "/api/chat/slots/avoozl_*", "/api/reveal", "/api/usage/turns", "/api/models", "/api/apps/spec-builder/specs"],
     "cron": true
   },
   "tags": ["planning", "github", "automation", "developer-tools"],

@@ -2,27 +2,53 @@
 // Kept free of JSX so node can test it directly.
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
+import type { SpecBuilderCreate } from './spec-builder-api.ts'
 
 // The spec folder name rule the backend applies (spec-plans.mjs NAME).
 export const SPEC_NAME = /^[a-z0-9][a-z0-9-]{0,79}$/
 
+export const EPIC_PROBLEM = "Name the epic by its spec folder: lowercase letters, digits and hyphens."
+
 export interface NewPlanForm {
   name: string
   category: string
-  // One epic or phase per line.
+  // The epic's spec folder name, or blank for none.
+  epic: string
+  // One phase per line.
   epics: string
   repositories: string[]
   goal: string
   context: string
 }
 
-export const EMPTY_NEW_PLAN: NewPlanForm = { name: '', category: '', epics: '', repositories: [], goal: '', context: '' }
+export const EMPTY_NEW_PLAN: NewPlanForm = { name: '', category: '', epic: '', epics: '', repositories: [], goal: '', context: '' }
 
+// The planner chat fallback.
 export interface NewPlanResult {
   name: string
   folder: string
   agent: string
   message: string
+}
+
+// Whether the target repository has Avoozl's steering file.
+export interface SteeringStatus {
+  path: string
+  state: 'missing' | 'current' | 'changed'
+  text?: string
+}
+
+export interface NewPlanPreview {
+  name: string
+  folder: string
+  steering: SteeringStatus & { text: string }
+}
+
+export interface SpecBuilderHandoff {
+  name: string
+  folder: string
+  steering: SteeringStatus
+  specBuilder: SpecBuilderCreate
 }
 
 // A folder name from free text: lowercase, hyphens, at most 80 characters.
@@ -55,6 +81,7 @@ export function formProblems(form: NewPlanForm, taken: Iterable<string>, reposit
   if (name) problems.push(name)
   if (!repositoryCount) problems.push('Register a repository in Settings › Repositories first.')
   else if (!form.repositories.length) problems.push('Pick at least one repository.')
+  if (form.epic.trim() && !SPEC_NAME.test(form.epic.trim())) problems.push(EPIC_PROBLEM)
   if (!form.goal.trim()) problems.push('Say what you want.')
   return problems
 }
@@ -67,22 +94,27 @@ export const epicList = (text: string) =>
 
 export const isDirty = (form: NewPlanForm) => JSON.stringify(form) !== JSON.stringify(EMPTY_NEW_PLAN)
 
+const fields = (form: NewPlanForm) => ({
+  name: form.name.trim(),
+  category: form.category.trim(),
+  epic: form.epic.trim(),
+  epics: epicList(form.epics),
+  repositories: form.repositories,
+  goal: form.goal,
+  context: form.context,
+})
+
 export function newPlanClient(api: AppApi) {
+  const call = async <T>(workspaceId: string, input: Record<string, unknown>) =>
+    (await api.post<{ result: T }>(COMMAND_PATH, { operation: 'plan.new', workspaceId, input })).result
   return {
-    request: async (workspaceId: string, form: NewPlanForm) =>
-      (
-        await api.post<{ result: NewPlanResult }>(COMMAND_PATH, {
-          operation: 'plan.new',
-          workspaceId,
-          input: {
-            name: form.name.trim(),
-            category: form.category.trim(),
-            epics: epicList(form.epics),
-            repositories: form.repositories,
-            goal: form.goal,
-            context: form.context,
-          },
-        })
-      ).result,
+    // Checks the fields and reads the steering file; records nothing.
+    preview: (workspaceId: string, form: NewPlanForm) =>
+      call<NewPlanPreview>(workspaceId, { ...fields(form), handoff: 'spec-builder', preview: true }),
+    // Records the request and returns Spec Builder's create body.
+    specBuilder: (workspaceId: string, form: NewPlanForm, writeSteering: boolean) =>
+      call<SpecBuilderHandoff>(workspaceId, { ...fields(form), handoff: 'spec-builder', writeSteering }),
+    // The fallback: an Avoozl planner chat's seed.
+    request: (workspaceId: string, form: NewPlanForm) => call<NewPlanResult>(workspaceId, fields(form)),
   }
 }

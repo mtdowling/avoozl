@@ -1,19 +1,33 @@
-// New plan (Plans page): a person names a plan idea, and an Avoozl planner
-// chat drafts its spec folder. `requestNewPlan` checks the fields, runs
-// content rules on the seed, records the request, and returns the seed;
-// the page opens the chat. `importNewPlans` (each tick) stores a requested
-// folder as a draft plan once it lints clean. Nothing here approves a
-// plan, starts delivery, or pushes.
+// New plan (Plans page): a person names a plan idea, and Kiro Crew's Spec
+// Builder (or, as the fallback, an Avoozl planner chat) drafts its spec
+// folder. `requestNewPlan` checks the fields, runs content rules on the
+// text it hands over, records the request, and returns it; the page makes
+// the Spec Builder create call or opens the chat. `importNewPlans` (each
+// tick) writes avoozl/manifest.json for a Spec Builder folder once its
+// tasks.md holds still, and stores a requested folder as a draft plan once
+// it lints clean. Nothing here approves a plan, starts delivery, or pushes.
 import { fail } from "./store.mjs";
+import { digest } from "../model.mjs";
 import { contentBinding, enforce } from "./content-rules.mjs";
-import { createSpecPlan, specName } from "./spec-plans.mjs";
+import { createSpecPlan, MANIFEST, specName } from "./spec-plans.mjs";
 import { PLANNER_AGENT } from "./github-planner.mjs";
+import { draftManifest } from "./spec-manifest.mjs";
+import {
+  STEERING_FILE,
+  STEERING_TEXT,
+  steeringStatus,
+  writeSteering,
+} from "./spec-steering.mjs";
 
 const META = "newPlans";
 const GOAL_LIMIT = 20000;
 const CONTEXT_LIMIT = 20000;
 const LINE_LIMIT = 200;
 const EPIC_LIMIT = 30;
+const HANDOFFS = ["planner", "spec-builder"];
+// Spec Builder's feature type writes requirements.md, design.md and
+// tasks.md; its quick type skips design.md, which Avoozl requires.
+const SPEC_TYPE = "feature";
 
 const text = (value, label, limit, { required = false } = {}) => {
   if (value === undefined || value === null) value = "";
@@ -62,8 +76,13 @@ export function newPlanBrief(request) {
     `Repositories: ${repositories.map((repo) => repo.id).join(", ")}. Every leaf's \`repository\` is one of these.`,
     "",
     "Write the four files your prompt's draft rules name: requirements.md (bugfix.md for a bug fix), design.md, tasks.md and avoozl/manifest.json. Give every tasks.md item a unique task ID, and key the manifest by those IDs.",
-    category
-      ? `Start requirements.md (or bugfix.md) with this front-matter, exactly:\n---\ncategory: ${category}\n---`
+    category || request.epic
+      ? `Start requirements.md (or bugfix.md) with this front-matter, exactly:\n---\n${[
+          category && `category: ${category}`,
+          request.epic && `epic: ${request.epic}`,
+        ]
+          .filter(Boolean)
+          .join("\n")}\n---`
       : "Do not add a category front-matter block.",
     "Ask me focused questions in this chat only when an answer would change the plan. Then write the folder and show me a short summary.",
     "Avoozl imports the folder as a draft plan once it lints clean. Do not approve it, start work or push; I approve the exact revision in the Avoozl Plans view.",
@@ -75,7 +94,40 @@ export function newPlanBrief(request) {
   ].join("\n");
 }
 
-// Check one New plan request and record it. Returns the chat seed.
+// What New plan hands Spec Builder as the user's first words. Spec Builder
+// appends it to its own seed prompt. The rules come from the steering file
+// when it is there; otherwise they ride along here.
+export function specBuilderDescription(request, steering) {
+  const { category, epic, epics, repositories, goal, context } = request;
+  const front = [
+    category && `category: ${category}`,
+    epic && `epic: ${epic}`,
+  ].filter(Boolean);
+  return [
+    "Avoozl will deliver this spec. Plan details from Avoozl's New plan form:",
+    "",
+    steering === "missing"
+      ? `Follow these spec rules:\n\n${STEERING_TEXT.replace(/^---\n[\s\S]*?\n---\n\n/, "")}`
+      : `Follow the spec rules in ${STEERING_FILE.split("\\").join("/")}.`,
+    front.length
+      ? `Start requirements.md with this front-matter, exactly:\n---\n${front.join("\n")}\n---`
+      : "Leave out the front-matter block: this plan has no category or epic.",
+    epics.length
+      ? `Phases, as ## headings in tasks.md:\n${epics.map((epic) => `- ${epic}`).join("\n")}`
+      : null,
+    `Repositories in scope (use these IDs in _Repository:_ lines): ${repositories
+      .map((repo) => (repo.localCheckout ? `${repo.id} (${repo.localCheckout})` : repo.id))
+      .join(", ")}.`,
+    `What I want:\n${goal}`,
+    context ? `Links and context:\n${context}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+// Check one New plan request and record it. Returns the Spec Builder create
+// body or the chat seed; with `preview`, only checks the fields and says
+// whether the steering file is there, recording and writing nothing.
 // `deps`: {readSpec(name), repositories, specRoot}.
 export function requestNewPlan(store, input = {}, deps) {
   if (!input || typeof input !== "object") fail("Send the New plan fields.");
@@ -85,6 +137,14 @@ export function requestNewPlan(store, input = {}, deps) {
   const category = oneLine(input.category, "Category");
   if (category && !/^[^:#{}[\]]+$/.test(category))
     fail("Category may not use : # { } [ or ].");
+  const epic = oneLine(input.epic, "Epic");
+  if (epic && !/^[a-z0-9][a-z0-9-]{0,79}$/.test(epic))
+    fail(
+      "Name the epic by its spec folder: lowercase letters, digits and hyphens.",
+    );
+  const handoff = input.handoff ?? "planner";
+  if (!HANDOFFS.includes(handoff))
+    fail("handoff must be planner or spec-builder.");
   const epicsInput = input.epics ?? [];
   if (!Array.isArray(epicsInput)) fail("Epics must be a list.");
   const epics = epicsInput
@@ -125,10 +185,17 @@ export function requestNewPlan(store, input = {}, deps) {
     );
 
   const folder = `${deps.specRoot}/.kiro/specs/${name}`;
+  if (input.preview === true)
+    return {
+      name,
+      folder,
+      steering: { ...steeringStatus(deps.specRoot), text: STEERING_TEXT },
+    };
   const request = {
     name,
     folder,
     category,
+    epic,
     epics,
     repositories: repositories.map((repo) => ({
       id: repo.id,
@@ -137,14 +204,24 @@ export function requestNewPlan(store, input = {}, deps) {
     goal,
     context,
   };
-  const message = newPlanBrief(request);
-  // A content rule that blocks the seed refuses it: nothing is recorded.
+  const builder = handoff === "spec-builder";
+  // Asked first on the page; a changed or present copy is never written.
+  let steering = builder ? steeringStatus(deps.specRoot) : null;
+  const handed = builder
+    ? specBuilderDescription(
+        request,
+        input.writeSteering === true ? "written" : steering.state,
+      )
+    : newPlanBrief(request);
+  // A content rule that blocks the text refuses it: nothing is recorded.
   if (contentBinding(store)?.workspaceRoot)
     enforce(
       store,
-      { boundary: "brief", target: `new-plan/${name}`, text: message },
+      { boundary: "brief", target: `new-plan/${name}`, text: handed },
       { mode: "refuse" },
     );
+  if (builder && input.writeSteering === true)
+    steering = writeSteering(deps.specRoot);
   const at = new Date().toISOString();
   // Asking again for the same name replaces the earlier request.
   const rest = pendingNewPlans(store).filter((entry) => entry.name !== name);
@@ -156,15 +233,54 @@ export function requestNewPlan(store, input = {}, deps) {
       repositories: request.repositories.map((repo) => repo.id),
       requestedAt: at,
       lastError: null,
+      ...(builder ? { handoff } : {}),
     },
   ]);
-  return { name, folder, agent: PLANNER_AGENT, message };
+  if (!builder) return { name, folder, agent: PLANNER_AGENT, message: handed };
+  return {
+    name,
+    folder,
+    handoff,
+    steering,
+    specBuilder: {
+      name,
+      working_dir: deps.specRoot,
+      spec_type: SPEC_TYPE,
+      description: handed,
+    },
+  };
+}
+
+// Spec Builder writes no manifest, so Avoozl writes one from tasks.md: once
+// the prose files are there and tasks.md read the same on two ticks in a
+// row (Spec Builder may still be writing), and again when tasks.md changes
+// before the plan's first approval. A manifest Avoozl did not write, or one
+// a person edited since, is never replaced. Returns the entry to keep, or
+// the same entry when nothing changed.
+function buildManifest(entry, spec, deps) {
+  const tasks = spec.files["tasks.md"],
+    manifest = spec.files[MANIFEST];
+  const prose =
+    spec.files["design.md"] !== undefined &&
+    (spec.files["requirements.md"] !== undefined ||
+      spec.files["bugfix.md"] !== undefined);
+  if (tasks === undefined || !prose) return entry;
+  if (manifest !== undefined && digest(manifest) !== entry.manifestHash)
+    return entry;
+  const tasksHash = digest(tasks);
+  if (tasksHash === entry.builtFrom) return entry;
+  if (entry.seenTasks !== tasksHash) return { ...entry, seenTasks: tasksHash };
+  const text = draftManifest(entry.name, tasks, {
+    repositories: entry.repositories,
+  });
+  deps.writeManifest(entry.name, text);
+  return { ...entry, builtFrom: tasksHash, manifestHash: digest(text) };
 }
 
 // Store each requested folder that lints clean as a draft plan.
-// `deps`: {readSpec(name), lint(spec)} where lint returns {canApprove},
-// content rule matches included, so a blocked folder stays pending.
-// Returns the names imported this call.
+// `deps`: {readSpec(name), lint(spec), writeManifest(name, text)} where lint
+// returns {canApprove}, content rule matches included, so a blocked folder
+// stays pending. Returns the names imported this call.
 // shortcut: a request whose folder never lints clean stays pending until
 // the folder is imported by hand (Import in the Plans table); add an
 // expiry if pending requests pile up.
@@ -174,9 +290,20 @@ export function importNewPlans(store, deps) {
   const imported = [],
     keep = [];
   let changed = false;
-  for (const entry of pending) {
+  for (const start of pending) {
+    let entry = start;
+    const plan = store.get("plans", entry.name),
+      builder = entry.handoff === "spec-builder";
     // Imported by hand, or another plan took the name: nothing left to do.
-    if (store.get("plans", entry.name)) {
+    // A Spec Builder plan this tick imported keeps its manifest in step
+    // with tasks.md until it is first approved.
+    const following =
+      plan &&
+      builder &&
+      entry.imported &&
+      !plan.deletedAt &&
+      !store.list("approvals").some((a) => a.planId === plan.id);
+    if (plan && !following) {
       changed = true;
       continue;
     }
@@ -192,9 +319,24 @@ export function importNewPlans(store, deps) {
       continue;
     }
     try {
+      if (builder) {
+        const next = buildManifest(entry, spec, deps);
+        if (next !== entry) {
+          changed = true;
+          if (next.builtFrom !== entry.builtFrom)
+            spec = deps.readSpec(entry.name);
+          entry = next;
+        }
+      }
+      if (following) {
+        keep.push(entry);
+        continue;
+      }
       const quality = deps.lint(spec);
       if (!quality.canApprove) {
-        const lastError = "The folder has lint errors; the planner is still writing, or it needs a fix.";
+        const lastError = builder
+          ? "Waiting for Spec Builder's tasks.md, or the folder has lint errors to fix."
+          : "The folder has lint errors; the planner is still writing, or it needs a fix.";
         if (entry.lastError !== lastError) changed = true;
         keep.push({ ...entry, lastError });
         continue;
@@ -210,6 +352,7 @@ export function importNewPlans(store, deps) {
       );
       imported.push(entry.name);
       changed = true;
+      if (builder) keep.push({ ...entry, imported: true, lastError: null });
     } catch (error) {
       if (entry.lastError !== error.message) changed = true;
       keep.push({ ...entry, lastError: error.message });
