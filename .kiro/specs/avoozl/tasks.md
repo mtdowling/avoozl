@@ -1207,3 +1207,15 @@ per-chat model change (F126); everything proves with fakes for Kiro Crew.
   - Expected: (1) picks match the earlier ticks exactly; (2) `alpha-1` is low and new tasks take `beta-1`; (3) `alpha-1` is out, no new session opens on it, and Preview says why; (4) provider `beta` is out and `alpha-2` goes low then out, with no row text stored; (5) both clear; (6) the retry keeps `alpha-1` while low and moves off it when out, saying so; (7) both chats are asked to switch to a healthy model not on the review role's model, the busy one is recorded `deferred`, the refused one `refused` once and never retried, the sessions and worktrees are untouched, and each switch reaches the activity hook; (8) the verdict counts and is refused only when a reviewer model equals one of the writer's; (9) preview writes nothing, the confirm queues one switch per chat and marks the provider out with `gamma-1` for new tasks, and the stale hash gets 409; (10) every call is refused, MCP with the person-only refusal; (11) one `provider-out` item per out mark shows the switched count, and Undo clears the person's mark.
   - Failure means: a task can open on an out provider, a switch loses a chat's work, or a non-person can switch models.
   - Next decision: switch by opening a new session on the same branch instead, or mark health only from errors.
+
+## Phase 31: Stop all agents and searchable pickers
+
+Owner approval 2026-11-13 (Requirements 64.12–64.16 and 73, design §4.11
+and §8.9). Numbered after Phase 30 because task IDs never move.
+
+- [ ] 31.1 Stop all agents in the backend and CLI, after 24.1 [R64.12, R64.14–R64.16] (§4.11)
+  - `flow.stop {full: true}` is person only (MCP refused), needs the app backend's session stopper, records a full `all` stop with the sessions it stopped, stops each live tick-opened session, marks stopped bindings and attempts "Interrupted by stop" without spending a retry, holds checks and review sessions while open; Resume turns interrupted deliveries back to `failed` so the next tick re-dispatches on the same worktree, agent and model with a brief that says so; `avoozl flow stop --full`.
+- [ ] 31.2 Stop all agents in the dialog, after 31.1 and 24.2 [R64.12, R64.13] (§4.11)
+  - The dialog's two choices, the full stop's confirm warning that replies in progress are lost and saved files are kept, and the banner's count of stopped chats.
+- [ ] 31.3 One searchable picker for tasks and specs, after 24.2 [R73] (§8.9)
+  - `Picker.tsx` combobox with ID, title and spec matching, state badges, the keys and ARIA of §8.9, and at most 50 rendered results; used in the Stop the line target, the filter panels and Start now; a test filters 5,000 tasks.

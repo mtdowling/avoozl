@@ -36,6 +36,7 @@ import { chatClient } from './chat-api.ts'
 import { DEFER_TIP, RESUME_TIP, RETRY_TIP, START_TIP } from './delivery-api.ts'
 import { routingClient } from './routing-api.ts'
 import { linkHref } from './views-api.ts'
+import { Picker } from './Picker.tsx'
 
 function LaneCardView(props: {
   card: LaneCard
@@ -369,9 +370,14 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
     [client, workspaceId, reload],
   )
 
-  const all = value ? deliveryLanes(value.graph, value.items) : null
+  const all = useMemo(() => (value ? deliveryLanes(value.graph, value.items) : null), [value])
   const lanes = all ? filterLanes(all, filter) : null
   const choices = useMemo(() => filterChoices(value?.graph ?? null), [value])
+  // Start now (§8.9): any ready task Avoozl codes itself, by search.
+  const startable = useMemo(
+    () => (all?.ready ?? []).filter(canStartNow).map((card) => ({ id: card.id, title: card.title, spec: card.spec, state: card.state })),
+    [all],
+  )
   const members = lanes ? new Set(Object.values(lanes).flat().map((card) => card.id)) : null
   const reports = (value?.reports ?? []).filter((r) => !members || !r.taskId || members.has(r.taskId))
   const superseded = value?.items.filter((item) => item.status === 'superseded') ?? []
@@ -391,9 +397,16 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
         }
         actions={
           workspaceId && (
-            <IconLabel icon={RefreshCw} onClick={() => void reload()} disabled={busy || acting}>
-              Refresh
-            </IconLabel>
+            <>
+              <IconLabel icon={RefreshCw} onClick={() => void reload()} disabled={busy || acting}>
+                Refresh
+              </IconLabel>
+              {startable.length > 0 && (
+                <div data-start-now-picker style={{ minWidth: '14rem' }}>
+                  <Picker label="Start now" items={startable} value="" keep={false} onPick={start} placeholder="Find a ready task" maxWidth="20rem" />
+                </div>
+              )}
+            </>
           )
         }
       >

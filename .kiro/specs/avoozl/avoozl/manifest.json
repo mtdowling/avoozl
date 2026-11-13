@@ -5628,6 +5628,58 @@
         "30.4",
         "30.5"
       ]
+    },
+    "31.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 31 (Stop all agents and searchable pickers). See R64.12, R64.14–R64.16; §4.11.",
+      "acceptance": [
+        "Stop all agents in the backend and CLI, after 24.1",
+        "A person-only full stop stops every running session Avoozl opened, keeps worktrees, marks attempts Interrupted by stop without spending a retry, and Resume re-dispatches each on the same branch, agent and model."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "24.1"
+      ]
+    },
+    "31.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 31 (Stop all agents and searchable pickers). See R64.12, R64.13; §4.11.",
+      "acceptance": [
+        "Stop all agents in the dialog, after 31.1 and 24.2",
+        "The dialog offers Stop the line and Stop all agents, and the full stop's confirm warns that replies in progress are lost and saved files are kept."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "31.1",
+        "24.2"
+      ]
+    },
+    "31.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 31 (Stop all agents and searchable pickers). See R73; §8.9.",
+      "acceptance": [
+        "One searchable picker for tasks and specs, after 24.2",
+        "Every task and spec choice uses one keyboard-accessible combobox that matches ID, title and spec, shows state, and stays fast with 5,000 tasks."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "24.2"
+      ]
     }
   }
 }
