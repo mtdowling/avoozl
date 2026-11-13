@@ -442,7 +442,7 @@ export async function handleMcp(
     body: {
       jsonrpc: "2.0",
       id,
-      result: complete(message, result, versionHeader),
+      result: complete(message, result),
     },
   });
   if (workspaceId && workspaceIdentity(ops.store) !== workspaceId)

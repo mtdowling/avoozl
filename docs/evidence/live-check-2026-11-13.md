@@ -74,3 +74,11 @@ ran `kirocrew app install` and enabled the app; an agent shell may not.
    for it was first sent to another chat. At the time of writing the
    worker had not reported, so a report with a caller identity is not yet
    seen live.
+8. With sharing on, the worker chat and a new chat again had no `plans_*`
+   tools: "Invalid result for tools/list: missing required resultType". Kiro
+   Crew's gateway primes a shared server's tool list itself, with no
+   protocol revision, and hands that list to 2026-07-28 clients. The fields
+   were added only when a request named that revision. Fixed: every result
+   now carries `resultType`, and every list `ttlMs` and `cacheScope` (test:
+   "the app's MCP server meets protocol 2026-07-28 result rules"). Needs one
+   more app update and gateway restart to see live.
