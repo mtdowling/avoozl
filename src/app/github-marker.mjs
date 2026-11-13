@@ -75,6 +75,8 @@ export function planningIdentity(workspaceRoot) {
       value.github.subIssues.maxPerParent >= 1
         ? value.github.subIssues.maxPerParent
         : 100,
+    // `github.issues.includeDone` (R74): done tasks get issues only when true.
+    includeDone: value.github?.issues?.includeDone === true,
     repositories: value.github?.repositories || {},
   };
 }

@@ -1,4 +1,4 @@
-// The P29 and P33 workspace (tasks 11.9, P29, P33): an isolated temporary
+// The P29 and P44 workspace (tasks 11.9, P29, P44): an isolated temporary
 // workspace, a sample repository whose bare remote answers as
 // git.example.test, and the fake crew driver. Fake names only.
 import fs from "node:fs";
@@ -32,14 +32,18 @@ export const leaf = (summary, extra = {}) => ({
 });
 export const MANIFEST = {
   c1: leaf("c1 is compliance work.", { labels: ["compliance"] }),
-  t1: leaf("t1 tests Windows paths.", { type: "test", paths: ["src/win/**"] }),
+  t1: leaf("t1 tests Windows paths.", {
+    type: "test",
+    paths: ["src/win/**"],
+    needs: ["os:windows"],
+  }),
   w1: leaf("w1 plain work."),
   w2: leaf("w2 plain work."),
   w3: leaf("w3 plain work."),
   w4: leaf("w4 plain work."),
   u1: leaf("u1 needs arm Linux.", {
     type: "test",
-    labels: ["needs-arm-linux"],
+    needs: ["os:linux", "arch:arm64"],
   }),
 };
 const spec = (ids, manifest) => ({
@@ -55,21 +59,11 @@ const spec = (ids, manifest) => ({
     ),
   }),
 });
-export const RULES = [
-  {
-    id: "windows-tests",
-    when: { kinds: ["test"], paths: ["src/win/**"] },
-    on: "any",
-    requireTags: ["os:windows"],
-  },
-  { id: "spread-work", on: "any" },
-  {
-    id: "arm-linux",
-    when: { labels: ["needs-arm-linux"] },
-    requireTags: ["os:linux", "arch:arm64"],
-  },
-  { id: "compliance", when: { labels: ["compliance"] }, keepLocal: true },
-];
+// The routing prompt on this machine (§4.10): on, with one instruction.
+export const PROMPT = {
+  enabled: true,
+  prompt: "Keep compliance work local. Spread the rest across crews.",
+};
 export const CREWS = {
   local: { tags: ["os:macos", "trust:local"], chatLimit: 2 },
   "fake-linux": {

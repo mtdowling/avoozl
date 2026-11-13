@@ -20,11 +20,12 @@ import { DocumentReader } from '../../src/DocumentReader.tsx'
 import { StopLineButton } from '../../src/StopLine.tsx'
 import { PackImportDialog } from '../../src/PackImport.tsx'
 import { SendToRadar } from '../../src/SendToRadar.tsx'
-import { CrewDialog, RuleDialog } from '../../src/RoutingView.tsx'
+import { CrewDialog } from '../../src/RoutingView.tsx'
 import { SwitchModelButton } from '../../src/SwitchModel.tsx'
 import { setupForm } from '../../src/settings-api.ts'
-import { toRuleForm } from '../../src/routing-api.ts'
 import { LAYER } from '../../src/layers.ts'
+import PluginsSettings from '../../src/PluginsSettings.tsx'
+import { answerIntake } from './intake-fixture.ts'
 import AvoozlApp from '../../src/App.tsx'
 import { MarkDoneDialog } from '../../src/TaskNotes.tsx'
 import NewPlanDrawer from '../../src/NewPlanDrawer.tsx'
@@ -179,7 +180,6 @@ export const SCENARIOS: Record<string, Scenario> = {
   'mark-done': shown((close) => <MarkDoneDialog workspaceId="w" taskId="team-review" title="Review with team" onIssue onClose={close} onDone={close} />),
   // The real page shows New spec over the whole page, not inside a card.
   'new-spec-template': shown((close) => createPortal(<div {...{ [APP_ATTR]: '' }}><NewPlanDrawer workspaceId="w" taken={[]} categories={[]} epics={[{ id: 'sdk-target', title: 'SDK target architecture' }]} start="template" onClose={close} /></div>, document.body)),
-  rule: shown((close) => <RuleDialog view={{ crews: [], repositories: {}, labels: [] } as never} form={toRuleForm({ id: 'r1' } as never)} isNew={false} models={[]} onCancel={close} onSave={async () => null} onDelete={close} />),
 }
 
 function Scenario({ name }: { name: string }) {
@@ -248,4 +248,22 @@ function Page() {
   )
 }
 
-createRoot(document.getElementById('root')!).render(<Page />)
+// ?page=intake: Settings > Plugins with its Intake sources, on fake data
+// (intake-fixture.ts); &empty=1 with no source. For the intake screenshots.
+function IntakePage() {
+  return (
+    <div {...{ [APP_ATTR]: '' }} style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
+      <NavHistoryProvider>
+        <ConfirmProvider>
+          <div data-intake-page style={{ padding: 16 }}>
+            <PluginsSettings workspaceId="w" />
+          </div>
+        </ConfirmProvider>
+      </NavHistoryProvider>
+    </div>
+  )
+}
+
+const intake = query.get('page') === 'intake'
+if (intake) answerIntake(query.get('empty') === '1')
+createRoot(document.getElementById('root')!).render(intake ? <IntakePage /> : <Page />)

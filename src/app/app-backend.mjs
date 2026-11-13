@@ -32,10 +32,11 @@ import { budgetStep } from "./budget.mjs";
 import { gatewayClient } from "./gateway-client.mjs";
 import {
   applySwitches,
+  gatewayModelList,
   gatewayModelSwitcher,
   refreshHealth,
 } from "./provider-health.mjs";
-import { choiceModels, routingContext } from "./routing.mjs";
+import { recordModelList, routingContext, switchModels } from "./routing.mjs";
 import { taskRepository } from "../work-model.mjs";
 import { issueRadarReader } from "./radar-handoff.mjs";
 import { WORKSPACE_LOCK, tickHealth } from "./tick.mjs";
@@ -381,6 +382,9 @@ export function startAppBackend({
   usageReader = gatewayUsageTurns(process.env),
   // Changes a running chat's model (provider-health.mjs, F126).
   modelSwitcher = gatewayModelSwitcher(gatewayClient(process.env)),
+  // Lists the models Kiro Crew offers (GET /api/models, F128), read on each
+  // pass so routing never works from an old list.
+  modelReader = gatewayModelList(gatewayClient(process.env)),
   // Reads Issue Radar's crews for Send to Issue Radar (radar-handoff.mjs).
   crewReader = issueRadarReader(process.env),
   // Stops a session for Stop all agents (session-observer.mjs).
@@ -573,6 +577,12 @@ export function startAppBackend({
           // Provider health (§4.20): marks from the reads above, then move
           // live chats off an out model, and apply a person's switches.
           refreshHealth(store);
+          if (modelReader)
+            try {
+              recordModelList(store, await modelReader());
+            } catch (error) {
+              console.error(error.message);
+            }
           if (modelSwitcher) {
             const data = store.read(),
               tasks = new Map(data.tasks.map((t) => [t.id, t])),
@@ -581,14 +591,7 @@ export function startAppBackend({
               ...ops.providerOptions(),
               health: ctx.health,
               choicesFor: (binding) =>
-                tasks.has(binding.taskId)
-                  ? choiceModels(
-                      ctx,
-                      data,
-                      tasks.get(binding.taskId),
-                      binding.role,
-                    )
-                  : [],
+                switchModels(ctx, tasks.get(binding.taskId)),
             });
           }
         } catch (error) {
@@ -604,7 +607,16 @@ export function startAppBackend({
     target.dbPath !== ":memory:" &&
     fs.existsSync(target.dbPath);
   const follow = () => {
-    if (!(notifier || slotReader || rowReader || usageReader || modelSwitcher))
+    if (
+      !(
+        notifier ||
+        slotReader ||
+        rowReader ||
+        usageReader ||
+        modelSwitcher ||
+        modelReader
+      )
+    )
       return;
     let target = drainable(config) ? config : null;
     if (!target)

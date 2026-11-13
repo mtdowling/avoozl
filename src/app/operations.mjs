@@ -287,9 +287,11 @@ import { settleConflicts } from "./conflict-actions.mjs";
 import {
   declaredSources,
   editSource,
+  githubReads,
   intakeTab,
   listItems,
   pollSources,
+  sourceCounts,
   sourceRow as sourceRowOf,
   sourceMap,
   startByPerson,
@@ -2209,13 +2211,11 @@ export class Operations {
       (context.caller || context.mcp)
     )
       fail(
-        "Only a person changes routing rules and crew settings, on the Routing page or the CLI.",
+        "Only a person changes the routing prompt and crew settings, in Settings › Routing or the CLI.",
         403,
       );
     if (name === "routing.update") {
-      const result = updateRouting(this.settingsFile(), store, input, {
-        pluginIds: this.plugins?.inspect().map((p) => p.id) ?? null,
-      });
+      const result = updateRouting(this.settingsFile(), store, input);
       this.configuration?.reload();
       return result;
     }
@@ -2757,7 +2757,9 @@ export class Operations {
       if (name === "task.notes.show") return showNote(store, task, input);
     }
     if (name === "intake.view") return viewItem(store, input);
-    if (name === "intake.sources")
+    if (name === "intake.sources") {
+      const counts = sourceCounts(store),
+        none = { total: 0, untriaged: 0, lastAt: null };
       return {
         sources: declaredSources(this.pluginOptions, store).map(
           ({ id, scope, entry, error }) => ({
@@ -2766,9 +2768,16 @@ export class Operations {
             entry,
             error,
             state: id ? sourceRowOf(store, `source:${id}`) : null,
+            items: (id && counts.get(id)) || none,
           }),
         ),
+        github: {
+          mode: readGitHubPolicyOrNull(this.workspaceRoot)?.mode ?? null,
+          repositories: githubReads(store),
+          items: counts.get("github") || none,
+        },
       };
+    }
     // Plan this and Deliver this (R50.15), and source settings: a person's.
     if (
       [

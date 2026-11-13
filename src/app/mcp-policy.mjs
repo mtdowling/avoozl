@@ -80,7 +80,7 @@ export const PERSON_ONLY = new Map([
     "activity.settings.update",
     person("Only a person changes how long activity is kept."),
   ],
-  ["routing.update", person("Only a person changes routing rules.")],
+  ["routing.update", person("Only a person changes the routing prompt.")],
   ["crews.update", person("Only a person changes crew settings.")],
   ["provider.switch", person("Only a person switches models.")],
   ["provider.health.clear", person("Only a person undoes a provider mark.")],
