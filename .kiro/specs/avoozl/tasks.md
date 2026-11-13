@@ -1214,9 +1214,9 @@ retro model.
   - Flow views Overview, Proposals (diffs, evidence, cited lessons, Approve and Reject, prompt versions with Revert, the three-way diff) and Lessons (filters for pattern, outcome, source and state; confidence, last confirmed, stale reason, History); Settings › Flow › Lessons with the two switches and three numbers; checked by drawing the page at 375 and 1280 px in light and dark.
   - Built: `b6ea704`, `a66ce80` (`FlowMemory.tsx`, Settings › Flow › Lessons, plugin card pack and notes); drawn at 375 and 1280 px, light and dark, in a harness with fake data.
 
-- [ ] 28.9 Share chosen lessons, after 28.8 [R69.1, R69.11–R69.15] (§4.18)
+- [x] 28.9 Share chosen lessons, after 28.8 [R69.1, R69.11–R69.15] (§4.18)
   - Share candidates in the Lessons view (kept, unmarked, own; evidence, fit, confidence) with why; person-only `lessons.share.preview` and `lessons.share {ids, previewHash}`; summaries-only pack file `.avoozl/lessons.json` merged by ID, content rules at `lesson` and `github`; a branch, commit and pull request to the plans repository (plans-repo) or code repository (single-repo), a commit only when GitHub cannot be reached; Local only shares nowhere; `lessons.export {raw: true}` for the driver export of 26.2.
-  - Open: in flight in PR #17 on mtdowling/avoozl; not merged.
+  - Built: `fefae29`, PR #17 (`src/app/lessons-share.mjs`, `lessons.share.preview`, `lessons.share`; `src/app/test/lessons-share.test.mjs`).
 
 - [ ] avoozl-p42 P42 Proof: prompt and skill proposals, and lessons [R68, R69, R70] (§4.18)
   - Setup: isolated temporary workspaces `W1` and `W2` with a fake config directory, each with one repository (`W1`'s with `.kiro/skills/tests/SKILL.md`), declared check `npm test`, and an approved spec with leaves `a1`–`a12`; a fake plugin `p1` whose folder has a skill file and a lessons pack version 1; a fake terms file banning `secretword`; fake workers whose reports name the skills they loaded; the fake retro model and a fake model list.
@@ -1227,6 +1227,7 @@ retro model.
   - Share expected: (13) only the kept lesson is a candidate; MCP gets 403; the owner's share opens one pull request to the plans repository with `.avoozl/lessons.json` holding summaries only (no context, history, workspace ID, task ID or repository name); (14) Share is off and says lessons share nowhere.
   - Next decision: keep prompt proposals and drop shared lessons, or share lessons only through packs.
   - Built: `a0a0771`, `src/app/test/proof-p42.test.mjs`, steps 1–12 with fake workers, a fake retro model, a fake model list and a fake plugin; W1 uses leaves a1–a70 because the steps finish more than 12 tasks. Not run live.
+  - Open: steps 13–14 (Share) are covered by `src/app/test/lessons-share.test.mjs`, not yet by the proof test.
 
 ## Phase 29: Activity log
 
