@@ -1,4 +1,4 @@
-// The searchable picker's pure parts (design §8.9, R71): matching on ID,
+// The searchable picker's pure parts (design §8.9, R72): matching on ID,
 // title and spec, and what each key does. Picker.tsx draws it.
 export interface PickItem {
   id: string

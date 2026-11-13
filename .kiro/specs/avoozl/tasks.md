@@ -1161,14 +1161,36 @@ retro model.
   - Failure means: a retro can change what agents are told without a person, or one workspace's text reaches another through lessons.
   - Next decision: keep prompt proposals and drop shared lessons, or share lessons only through packs.
 
-## Phase 29: Stop all agents and searchable pickers
+## Phase 29: Activity log
 
-Owner approval 2026-11-13 (Requirements 64.12–64.16 and 71, design §4.11
-and §8.9). Numbered after Phase 28 because task IDs never move.
+Owner request 2026-11-13 (Requirement 71, design §4.19). Numbered after
+Phase 28 because task IDs never move. Tests use isolated temporary
+workspaces, a fake GitHub and a fake plugin.
 
-- [ ] 29.1 Stop all agents in the backend and CLI, after 24.1 [R64.12, R64.14–R64.16] (§4.11)
+- [ ] 29.1 Activity table, helper and screening, after 10.4 [R71.1, R71.4, R71.5, R71.8] (§4.19)
+  - `activity_log` with a unique `key` for derived rows; `recordActivity` in `src/app/activity-log.mjs` validates source and kind, trims the summary to 200 characters, keeps only plain target IDs and `https:` links, screens with the built-in secret and path screens and the `activity` content boundary, and saves a matched or unchecked row redacted; a test fails if a secret-shaped value is saved.
+- [ ] 29.2 Local actions and tick events, after 29.1 and 14.10 [R71.2, R71.3] (§4.19)
+  - `execute` records the listed operations with source `local` or `mcp` and the actor; the tick diffs a snapshot of verdicts, Project item orders, label events, incoming items and conflicts and records each change once by key; the Wave write-back is recorded where it is written; recording never fails the action.
+- [ ] 29.3 Retention, `activity.list` and MCP, after 29.2 [R71.6, R71.9] (§4.19)
+  - `activity.retentionDays` (default 30, 1–365) with `activity.settings.get` and person-only `activity.settings.update`; `pruneActivity` on every `workspace.tick`; `activity.list` with filters, 100-row pages and its facets; `plans_view` action `activity` reads it and `recent` keeps the Dashboard timeline.
+- [ ] 29.4 Activity tab and the retention setting, after 29.3 and 12.11 [R71.7] (§4.19)
+  - The Activity tab with the `History` icon, `ViewHeading`, the shared filter panel (Source, Kind, Actor), 100 rows per page with Show more, task targets that open the drawer and GitHub links with `target="_blank" rel="noopener noreferrer"`; the Keep activity (days) field on the tab, saved by a person.
+
+- [ ] avoozl-p43 P43 Proof: activity log [R71] (§4.19)
+  - Setup: an isolated temporary workspace with one repository, a fake GitHub in single-repo mode with a Project, an approved spec with leaves `a1` and `a2` (`a2` requires `a1`), a fake tracker plugin, and a fake terms file banning `secretword` for every boundary.
+  - Action: (1) from the page press Start now on `a1`, pull the Andon cord, resume it, set `a2` to Deferred, save Flow settings, approve the plugin and change the writer model; (2) do one dispatch through MCP; (3) on the fake GitHub merge `a1`'s closing pull request, move `a2` to Deferred as an allowed actor and as another actor, set Wave by hand, apply a trigger label, and edit a managed title; tick twice; (4) add a tracker conflict and a new plugin incoming item; tick; (5) record a row whose summary holds `ghp_` plus 36 letters, and one holding `secretword`; (6) set retention to 1 day, age a row 2 days, and tick; (7) read the Activity tab and `plans_view` action `activity`, filtered by source `github`.
+  - Expected: (1) one `local` row each, with the person as actor; (2) one `mcp` row naming the session; (3) one row each for the merge, the order, the ignored move, the revert, the label and the conflict, the same after the second tick; (4) one `plugin` row each; (5) both saved redacted, and no row holds either value; (6) the old row is gone; (7) the tab and MCP show the same rows newest first, a task row opens the drawer and a GitHub row opens a new tab.
+  - Failure means: something that changed the workspace leaves no row, or the log can hold a secret or a private term.
+  - Next decision: record from each step instead of a snapshot diff, or keep redacted rows out of the log.
+
+## Phase 30: Stop all agents and searchable pickers
+
+Owner approval 2026-11-13 (Requirements 64.12–64.16 and 72, design §4.11
+and §8.9). Numbered after Phase 29 because task IDs never move.
+
+- [ ] 30.1 Stop all agents in the backend and CLI, after 24.1 [R64.12, R64.14–R64.16] (§4.11)
   - `flow.stop {full: true}` is person only (MCP refused), needs the app backend's session stopper, records a full `all` stop with the sessions it stopped, stops each live tick-opened session, marks stopped bindings and attempts "Interrupted by stop" without spending a retry, holds checks and review sessions while open; Resume turns interrupted deliveries back to `failed` so the next tick re-dispatches on the same worktree, agent and model with a brief that says so; `avoozl flow stop --full`.
-- [ ] 29.2 Stop all agents in the dialog, after 29.1 and 24.2 [R64.12, R64.13] (§4.11)
+- [ ] 30.2 Stop all agents in the dialog, after 30.1 and 24.2 [R64.12, R64.13] (§4.11)
   - The dialog's two choices, the full stop's confirm warning that replies in progress are lost and saved files are kept, and the banner's count of stopped chats.
-- [ ] 29.3 One searchable picker for tasks and specs, after 24.2 [R71] (§8.9)
+- [ ] 30.3 One searchable picker for tasks and specs, after 24.2 [R72] (§8.9)
   - `Picker.tsx` combobox with ID, title and spec matching, state badges, the keys and ARIA of §8.9, and at most 50 rendered results; used in the Stop the line target, the filter panels and Start now; a test filters 5,000 tasks.

@@ -5435,7 +5435,97 @@
     "29.1": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 29 (Stop all agents and searchable pickers). See R64.12, R64.14–R64.16; §4.11.",
+      "summary": "Phase 29 (Activity log). See R71.1, R71.4, R71.5, R71.8; §4.19.",
+      "acceptance": [
+        "Activity table, helper and screening, after 10.4",
+        "An activity_log table and one recordActivity helper validate, trim and screen each row with the built-in secret and path screens and the activity content boundary; a matched or unchecked row is saved redacted; a test fails if a secret-shaped value is saved."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "10.4"
+      ]
+    },
+    "29.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 29 (Activity log). See R71.2, R71.3; §4.19.",
+      "acceptance": [
+        "Local actions and tick events, after 29.1 and 14.10",
+        "The listed local actions record one row each with source local or mcp; the tick records GitHub and plugin closes, board orders, label orders, incoming items, conflicts and reverts once each; recording never fails an action."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "29.1",
+        "14.10"
+      ]
+    },
+    "29.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 29 (Activity log). See R71.6, R71.9; §4.19.",
+      "acceptance": [
+        "Retention, activity.list and MCP, after 29.2",
+        "activity.retentionDays defaults to 30 and is saved by a person only; each tick prunes older rows; activity.list filters and pages 100 rows; plans_view action activity reads it and recent keeps the Dashboard timeline."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "29.2"
+      ]
+    },
+    "29.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 29 (Activity log). See R71.7; §4.19.",
+      "acceptance": [
+        "Activity tab and the retention setting, after 29.3 and 12.11",
+        "The Activity tab uses the shared heading, filter panel and 100-row pages; task rows open the drawer and GitHub links open in a new tab with noopener noreferrer; the tab's Keep activity field sets the retention."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "29.3",
+        "12.11"
+      ]
+    },
+    "avoozl-p43": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 29 (Activity log). Proof. See R71; §4.19.",
+      "acceptance": [
+        "Proof: activity log",
+        "Expected: every listed local action and tick event makes one row, a change seen twice makes one, secret-shaped and rule-matched values are saved redacted, old rows are pruned on the tick, and the tab and plans_view read the same rows."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "29.1",
+        "29.2",
+        "29.3",
+        "29.4"
+      ]
+    },
+    "30.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 30 (Stop all agents and searchable pickers). See R64.12, R64.14–R64.16; §4.11.",
       "acceptance": [
         "Stop all agents in the backend and CLI, after 24.1",
         "A person-only full stop stops every running session Avoozl opened, keeps worktrees, marks attempts Interrupted by stop without spending a retry, and Resume re-dispatches each on the same branch, agent and model."
@@ -5449,12 +5539,12 @@
         "24.1"
       ]
     },
-    "29.2": {
+    "30.2": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 29 (Stop all agents and searchable pickers). See R64.12, R64.13; §4.11.",
+      "summary": "Phase 30 (Stop all agents and searchable pickers). See R64.12, R64.13; §4.11.",
       "acceptance": [
-        "Stop all agents in the dialog, after 29.1 and 24.2",
+        "Stop all agents in the dialog, after 30.1 and 24.2",
         "The dialog offers Stop the line and Stop all agents, and the full stop's confirm warns that replies in progress are lost and saved files are kept."
       ],
       "completion": "integrated",
@@ -5463,14 +5553,14 @@
         "git diff --check"
       ],
       "requires": [
-        "29.1",
+        "30.1",
         "24.2"
       ]
     },
-    "29.3": {
+    "30.3": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 29 (Stop all agents and searchable pickers). See R71; §8.9.",
+      "summary": "Phase 30 (Stop all agents and searchable pickers). See R72; §8.9.",
       "acceptance": [
         "One searchable picker for tasks and specs, after 24.2",
         "Every task and spec choice uses one keyboard-accessible combobox that matches ID, title and spec, shows state, and stays fast with 5,000 tasks."
