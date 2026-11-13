@@ -65,5 +65,16 @@ for (const data of [
   fs.cpSync(path.join(root, data), path.join(lib, data), { recursive: true });
 fs.writeFileSync(
   path.join(lib, "package.json"),
-  JSON.stringify({ type: "module", private: true }, null, 2) + "\n",
+  // flow-retro.mjs reads the version from ../../package.json beside itself.
+  JSON.stringify(
+    {
+      type: "module",
+      private: true,
+      version: JSON.parse(
+        fs.readFileSync(path.join(root, "package.json"), "utf8"),
+      ).version,
+    },
+    null,
+    2,
+  ) + "\n",
 );

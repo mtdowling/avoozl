@@ -1,4 +1,4 @@
-import { useMedia } from './TaskDrawer.tsx'
+import { useMedia } from './use-media.ts'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Tooltip } from './Tooltip.tsx'
 import { useAppApi } from '@kirocrew/app-sdk'
