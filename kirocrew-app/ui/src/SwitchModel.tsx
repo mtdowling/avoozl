@@ -135,7 +135,13 @@ function SwitchModelDialog(props: { workspaceId: string; tasks: string[]; onClos
     </div>
   )
   return (
-    <Modal id="avoozl-switch-model" title="Switch model" onDismiss={() => props.onClose(Boolean(done))} footer={footer}>
+    <Modal
+      id="avoozl-switch-model"
+      title="Switch model"
+      unsaved={!done && to !== '' && { title: 'Stop switching?', body: 'No chat is moved. What you picked is lost.', action: 'Stop' }}
+      onDismiss={() => props.onClose(Boolean(done))}
+      footer={footer}
+    >
       <div className="flex flex-col gap-4 text-sm" data-switch-model>
         {(view?.marks.length ?? 0) > 0 && (
           <section aria-label="Provider health">

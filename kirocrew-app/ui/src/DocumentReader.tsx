@@ -5,7 +5,6 @@
 // open; under prefers-reduced-motion nothing slides or fades; on a narrow
 // screen it fills the screen. The task drawer opens it for a task's source.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
 import { useAppApi } from '@kirocrew/app-sdk'
 import { Markdown } from './Markdown.tsx'
 import { Tooltip } from './Tooltip.tsx'
@@ -20,7 +19,7 @@ import { insideWorkspace, lineText, taskClient } from './task-api.ts'
 import { CITED_STYLE, markCited } from './CitedFile.tsx'
 import { useReveal } from './RepositoriesSettings.tsx'
 import { errorMessage, workspaceClient } from './workspace-api.ts'
-import { APP_ATTR, useBackStep } from './NavHistory.tsx'
+import { Modal } from './Modal.tsx'
 
 export interface ReaderTarget {
   document: string
@@ -29,7 +28,6 @@ export interface ReaderTarget {
 }
 
 const PREFIX = 'avoozl-reader'
-const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])'
 
 // `text` shows a file bundled with the app (the Plugin guide) instead of
 // reading a workspace file; it has no folder to reveal.
@@ -45,7 +43,6 @@ export function DocumentReader(props: { workspaceId: string; target: ReaderTarge
   const [, setGrammars] = useState(0)
   const panel = useRef<HTMLDivElement>(null)
   const body = useRef<HTMLDivElement>(null)
-  const returnTo = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
     let live = true
@@ -83,33 +80,11 @@ export function DocumentReader(props: { workspaceId: string; target: ReaderTarge
     return () => cancelAnimationFrame(frame)
   }, [doc.text, toLine])
 
-  // Focus moves in on open and back on close; Esc and Back close this, not
-  // the drawer under it; Tab and Shift+Tab wrap inside.
-  useBackStep('modal', true, 'Close the file', onClose)
+  // Focus starts on the panel, so the arrow keys scroll it; the shared
+  // Modal keeps Tab inside and gives focus back on close.
   useEffect(() => {
-    returnTo.current = document.activeElement as HTMLElement | null
     panel.current?.focus()
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key !== 'Tab' || !panel.current) return
-      const items = [...panel.current.querySelectorAll<HTMLElement>(FOCUSABLE)]
-      if (!items.length) return event.preventDefault()
-      const first = items[0],
-        last = items[items.length - 1],
-        at = document.activeElement
-      if (event.shiftKey && (at === first || at === panel.current)) {
-        event.preventDefault()
-        last.focus()
-      } else if (!event.shiftKey && (at === last || !panel.current.contains(at))) {
-        event.preventDefault()
-        first.focus()
-      }
-    }
-    document.addEventListener('keydown', onKey, true)
-    return () => {
-      document.removeEventListener('keydown', onKey, true)
-      returnTo.current?.focus?.()
-    }
-  }, [onClose])
+  }, [])
 
   const copy = async () => {
     try {
@@ -135,95 +110,79 @@ export function DocumentReader(props: { workspaceId: string; target: ReaderTarge
   const line = lineText(target)
   const jump = (id: string) => panel.current?.querySelector(`#${CSS.escape(id)}`)?.scrollIntoView?.({ block: 'start', behavior: still ? 'auto' : 'smooth' })
 
-  return createPortal(
-    <div className="fixed inset-0" style={{ zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' }} data-document-reader {...{ [APP_ATTR]: '' }}>
-      <div aria-hidden="true" data-reader-backdrop className="absolute inset-0" onClick={onClose} style={{ background: 'color-mix(in srgb, var(--text) 35%, transparent)' }} />
+  // Esc, Back, Close and a click outside shut it, this and not the drawer
+  // under it.
+  return (
+    <Modal id="avoozl-reader" plain width="78rem" height="90vh" backLabel="Close the file" boxRef={panel} attrs={{ 'data-document-reader': true }} onDismiss={onClose}>
+      <div className="border-b px-4 py-2.5" style={{ borderColor: 'var(--border)' }}>
+        <SectionHeading
+          id="avoozl-reader-title"
+          title={<code>{target.document}</code>}
+          actions={
+            <>
+              <IconBtn icon={Copy} label="Copy path" tooltip={`Copy ${target.document}`} onClick={() => void copy()} />
+              {text === undefined && <IconBtn icon={FolderOpen} label="Reveal in Finder" tooltip="Show this file in Finder" onClick={() => void revealFile()} />}
+              <IconLabel icon={X} onClick={onClose} aria-label="Close the file">
+                Close
+              </IconLabel>
+            </>
+          }
+          blurb={
+            line && (
+              <Tooltip text={`Scroll back to ${line.toLowerCase()}`}>
+                {(describedBy) => (
+                  <button type="button" className="text-xs text-muted hover:underline" onClick={toLine} aria-describedby={describedBy}>
+                    {line}
+                  </button>
+                )}
+              </Tooltip>
+            )
+          }
+        />
+        {note && (
+          <p role="status" className="mt-1 text-xs text-muted" style={{ overflowWrap: 'anywhere' }}>
+            {note}
+          </p>
+        )}
+      </div>
       <div
-        ref={panel}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="avoozl-reader-title"
-        tabIndex={-1}
-        className={`relative flex flex-col overflow-hidden border shadow-lg outline-none ${narrow ? '' : 'rounded-lg'}`}
-        style={{
-          width: narrow ? '100vw' : 'min(78rem, 94vw)',
-          height: narrow ? '100vh' : '90vh',
-          background: 'var(--card, var(--bg))',
-          color: 'var(--text)',
-          borderColor: 'var(--border)',
-        }}
+        className="min-h-0 grow"
+        style={narrow ? { display: 'flex', flexDirection: 'column', overflowY: 'auto' } : { display: 'grid', gridTemplateColumns: '15rem minmax(0, 1fr)', minHeight: 0 }}
+        ref={narrow ? body : undefined}
       >
-        <div className="border-b px-4 py-2.5" style={{ borderColor: 'var(--border)' }}>
-          <SectionHeading
-            id="avoozl-reader-title"
-            title={<code>{target.document}</code>}
-            actions={
-              <>
-                <IconBtn icon={Copy} label="Copy path" tooltip={`Copy ${target.document}`} onClick={() => void copy()} />
-                {text === undefined && <IconBtn icon={FolderOpen} label="Reveal in Finder" tooltip="Show this file in Finder" onClick={() => void revealFile()} />}
-                <IconLabel icon={X} onClick={onClose} aria-label="Close the file">
-                  Close
-                </IconLabel>
-              </>
-            }
-            blurb={
-              line && (
-                <Tooltip text={`Scroll back to ${line.toLowerCase()}`}>
-                  {(describedBy) => (
-                    <button type="button" className="text-xs text-muted hover:underline" onClick={toLine} aria-describedby={describedBy}>
-                      {line}
-                    </button>
-                  )}
-                </Tooltip>
-              )
-            }
-          />
-          {note && (
-            <p role="status" className="mt-1 text-xs text-muted" style={{ overflowWrap: 'anywhere' }}>
-              {note}
+        {headings.length > 0 &&
+          (narrow ? (
+            <details className="border-b px-4 py-2 text-sm" style={{ borderColor: 'var(--border)' }}>
+              <summary className="cursor-pointer font-medium">Outline</summary>
+              <Outline headings={headings} onJump={jump} />
+            </details>
+          ) : (
+            <nav aria-label="File outline" className="overflow-y-auto border-r px-3 py-3 text-sm" style={{ borderColor: 'var(--border)' }}>
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">Outline</h4>
+              <Outline headings={headings} onJump={jump} />
+            </nav>
+          ))}
+        <div
+          ref={narrow ? undefined : body}
+          className="min-w-0 px-5 py-4"
+          style={narrow ? undefined : { overflowY: 'auto', gridColumn: headings.length ? undefined : '1 / -1' }}
+          aria-label={`Contents of ${target.document}`}
+        >
+          {doc.error ? (
+            <p role="alert" className="text-sm text-danger">
+              {doc.error}
             </p>
+          ) : doc.text === null ? (
+            <p className="text-sm text-muted">Reading…</p>
+          ) : (
+            <>
+              <style>{CITED_STYLE}</style>
+              <Markdown text={doc.text} idPrefix={PREFIX} measure={PROSE_MEASURE} />
+            </>
           )}
         </div>
-        <div
-          className="min-h-0 grow"
-          style={narrow ? { display: 'flex', flexDirection: 'column', overflowY: 'auto' } : { display: 'grid', gridTemplateColumns: '15rem minmax(0, 1fr)', minHeight: 0 }}
-          ref={narrow ? body : undefined}
-        >
-          {headings.length > 0 &&
-            (narrow ? (
-              <details className="border-b px-4 py-2 text-sm" style={{ borderColor: 'var(--border)' }}>
-                <summary className="cursor-pointer font-medium">Outline</summary>
-                <Outline headings={headings} onJump={jump} />
-              </details>
-            ) : (
-              <nav aria-label="File outline" className="overflow-y-auto border-r px-3 py-3 text-sm" style={{ borderColor: 'var(--border)' }}>
-                <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">Outline</h4>
-                <Outline headings={headings} onJump={jump} />
-              </nav>
-            ))}
-          <div
-            ref={narrow ? undefined : body}
-            className="min-w-0 px-5 py-4"
-            style={narrow ? undefined : { overflowY: 'auto', gridColumn: headings.length ? undefined : '1 / -1' }}
-            aria-label={`Contents of ${target.document}`}
-          >
-            {doc.error ? (
-              <p role="alert" className="text-sm text-danger">
-                {doc.error}
-              </p>
-            ) : doc.text === null ? (
-              <p className="text-sm text-muted">Reading…</p>
-            ) : (
-              <>
-                <style>{CITED_STYLE}</style>
-                <Markdown text={doc.text} idPrefix={PREFIX} measure={PROSE_MEASURE} />
-              </>
-            )}
-          </div>
-        </div>
       </div>
-    </div>,
-    document.body,
+    </Modal>
   )
 }
 
