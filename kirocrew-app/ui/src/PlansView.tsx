@@ -17,6 +17,7 @@ import { STATES, documentEpic, nodeState, type Drill, type NodeState } from './g
 import { rowPlanKey, type TaskFilter } from './filters.ts'
 import { outline } from './markdown.ts'
 import { registerLanguages } from './highlight.ts'
+import { scrollParent, stickyHeight } from './sticky-column.ts'
 import { viewsClient, type Graph } from './views-api.ts'
 import {
   UNCATEGORIZED,
@@ -61,32 +62,34 @@ export const PROSE_MEASURE = '80ch'
 const ASIDE_WIDTH = '17rem'
 const STACK = '(max-width: 1023px)'
 
-// The left column sticks to the top of whatever scrolls the page (the host
-// scrolls its own panel, not the window), and is never taller than the
-// part of that panel on screen, so it scrolls on its own.
-export function scrollParent(el: HTMLElement | null): HTMLElement | null {
-  for (let node = el?.parentElement ?? null; node; node = node.parentElement) {
-    const { overflowY } = getComputedStyle(node)
-    if (/(auto|scroll|overlay)/.test(overflowY) && node.scrollHeight > node.clientHeight) return node
-  }
-  return null
-}
-
-function useStickyHeight(ref: { current: HTMLElement | null }, on: boolean) {
+// The left column sticks to the top of whatever scrolls the page (in Kiro
+// Crew, the app's own content pane, not the window) and is never taller
+// than the part of it on screen, so it scrolls on its own. The callback ref
+// measures when the column mounts, which is after the plan opens, and again
+// whenever that pane changes size.
+function useStickyHeight(on: boolean) {
   const [height, setHeight] = useState<number | null>(null)
-  useEffect(() => {
-    if (!on) return
-    const measure = () => {
-      const parent = scrollParent(ref.current)
-      const top = parent ? Math.max(0, parent.getBoundingClientRect().top) : 0
-      const bottom = parent ? Math.min(window.innerHeight, parent.getBoundingClientRect().bottom) : window.innerHeight
-      setHeight(Math.max(240, Math.floor(bottom - top - 16)))
-    }
-    measure()
-    window.addEventListener('resize', measure)
-    return () => window.removeEventListener('resize', measure)
-  }, [ref, on])
-  return height
+  const stop = useRef<(() => void) | null>(null)
+  const ref = useCallback(
+    (node: HTMLElement | null) => {
+      stop.current?.()
+      stop.current = null
+      if (!node || !on) return
+      const parent = scrollParent(node)
+      const measure = () => setHeight(stickyHeight(parent, window.innerHeight))
+      measure()
+      const observer = parent && typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null
+      if (parent) observer?.observe(parent)
+      window.addEventListener('resize', measure)
+      stop.current = () => {
+        observer?.disconnect()
+        window.removeEventListener('resize', measure)
+      }
+    },
+    [on],
+  )
+  useEffect(() => () => stop.current?.(), [])
+  return [ref, height] as const
 }
 
 const docPrefix = (file: string) => `avoozl-doc-${file.replace(/\.md$/, '')}`
@@ -1017,8 +1020,7 @@ export default function PlansView(props: {
   const drawer = useTaskDrawer()
   const chat = useAskChat(workspace)
   const stack = useMedia(STACK)
-  const asideRef = useRef<HTMLElement | null>(null)
-  const asideHeight = useStickyHeight(asideRef, !stack)
+  const [asideRef, asideHeight] = useStickyHeight(!stack)
   const [deleting, setDeleting] = useState<PlanRow | null>(null)
   const [archiving, setArchiving] = useState<PlanRow | null>(null)
   const [creating, setCreating] = useState(false)
