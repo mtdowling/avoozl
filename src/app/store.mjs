@@ -403,6 +403,8 @@ export class Store {
       ].includes(table)
     )
       fail("Unknown record type");
+    // No id names no record; some node:sqlite versions refuse to bind undefined.
+    if (id == null) return null;
     const row = this.db.prepare(`SELECT body FROM ${table} WHERE id=?`).get(id);
     return row ? JSON.parse(row.body) : null;
   }
