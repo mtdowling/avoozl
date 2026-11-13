@@ -781,8 +781,13 @@ export async function reportSession(
   if (pushing && declaredHere.length) {
     const project = taskProject(store, task),
       declared = declaredHere,
-      pushed = checkDoneList(checks, declared),
-      pass = await localPass(project.root, pushed, declared);
+      pushed = checkDoneList(checks, declared);
+    if (pushed !== input.commit)
+      fail(
+        `Local checks first: the check list is for ${pushed.slice(0, 12)}, but you reported ${input.commit.slice(0, 12)}. Run the checks on the commit you report.`,
+        409,
+      );
+    const pass = await localPass(project.root, pushed, declared);
     if (!pass.ok)
       fail(`Local checks first: ${pass.cause}. Run \`avoozl checks run --task ${task.id}\` in your worktree, then push.`, 409);
   }
@@ -1976,7 +1981,10 @@ const roleFailures = (delivery, roleId, commit) =>
 // The model the writer of the delivery's newest done attempt was opened on.
 function writerModel(store, delivery) {
   const done = delivery.attempts.findLast((a) => a.outcome === "done");
-  return done ? store.get("session_bindings", done.slot)?.model || null : null;
+  // An attempt recorded without its slot has no binding to read.
+  return done?.slot
+    ? store.get("session_bindings", done.slot)?.model || null
+    : null;
 }
 
 // Null when the review role may run against this writer, else why not
