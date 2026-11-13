@@ -1,5 +1,6 @@
 import { flowPolicy } from "./flow.mjs";
 import { deliveryPolicy } from "./delivery.mjs";
+import { validateTrackedRouting } from "./placement.mjs";
 import { createHash, randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -719,6 +720,7 @@ export class RepositorySettings {
     try {
       flowPolicy(value);
       deliveryPolicy(value);
+      validateTrackedRouting(value);
     } catch (error) {
       fail(error.message);
     }

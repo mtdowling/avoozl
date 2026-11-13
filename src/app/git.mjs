@@ -62,9 +62,9 @@ export async function withWorkLock(store, { id, projectId, kind }, fn) {
       .run(id, token);
   }
 }
-export async function git(cwd, args) {
+export async function git(cwd, args, { env } = {}) {
   return (
-    await exec("git", args, { cwd, maxBuffer: 8 * 1024 * 1024 })
+    await exec("git", args, { cwd, maxBuffer: 8 * 1024 * 1024, ...(env ? { env } : {}) })
   ).stdout.trim();
 }
 async function gitFile(cwd, args) {

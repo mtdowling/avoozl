@@ -9,6 +9,9 @@
 // issue intake, planner sessions for matched issues, broad-issue publishing,
 // re-projection, crew labels and the Project board.
 import fs from "node:fs";
+import { validateTrackedRouting } from "./placement.mjs";
+import { crewSnapshot } from "./crews.mjs";
+import { closeNoFit, fetchAll, openNoFit, routingContext } from "./routing.mjs";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { git, withWorkLock } from "./git.mjs";
@@ -100,6 +103,7 @@ function parsePolicy(text) {
   deliveryPolicy(value);
   flowPolicy(value);
   repositoryPlugins(value);
+  validateTrackedRouting(value);
   validateContentRules(value.contentRules);
   validateIntake(value.intake);
   return value;
@@ -593,7 +597,16 @@ async function pluginStep(store, plugins, planned, workspaceRoot) {
 
 export async function tick(
   store,
-  { workspaceRoot, memory, sessions, cron = false, github, breakdownHooks, plugins },
+  {
+    workspaceRoot,
+    memory,
+    sessions,
+    cron = false,
+    github,
+    breakdownHooks,
+    plugins,
+    placement = {},
+  },
 ) {
   const at = new Date().toISOString(),
     roster = sessionList(sessions),
@@ -753,8 +766,17 @@ export async function tick(
       const listed = new Set((roster || []).map((row) => row.target)),
         observed = (b) =>
           roster || !script ? listed.has(b.slot) : Boolean(b.status),
+        // A session on a crew that stopped answering stays bound and is not
+        // waited on (R41.10); when the crew answers again its roster lists
+        // it, so it is observed before anything new opens.
+        unreachable = new Set(
+          (crewSnapshot(store)?.instances || [])
+            .filter((i) => i.reachable === false)
+            .map((i) => i.id),
+        ),
         unobserved = bindings
           .filter((b) => b.source === "tick" && liveAttempt(b))
+          .filter((b) => !(b.crew && unreachable.has(b.crew)))
           .filter((b) => !observed(b))
           .map((b) => b.slot);
       // Respond (§6.2): label, one responder per snapshot, label removed
@@ -791,6 +813,29 @@ export async function tick(
             text: error.message,
           });
         }
+      // Placement (§4.10): crews, rules, and readings for this tick. A
+      // broken machine settings file keeps every session local.
+      let routing = null;
+      if (delivery && !unobserved.length)
+        try {
+          routing = routingContext(store, {
+            workspaceRoot,
+            tracked: memory.value || {},
+            ...(placement.localReading ? { local: placement.localReading() } : {}),
+            ...(placement.now ? { now: placement.now() } : {}),
+          });
+          await fetchAll(store, routing, { fetch: script });
+        } catch (error) {
+          routing = null;
+          planned.notify.push({
+            channel: "failure",
+            title: "Avoozl placed every session on this machine",
+            text: `Placement settings could not be read: ${error.message}`,
+          });
+        }
+      const waits = [],
+        fits = [],
+        placementState = { crews: new Map(), choices: new Map() };
       const requested = unobserved.length
           ? []
           : planDispatches(store, bindings),
@@ -803,11 +848,24 @@ export async function tick(
                   ...(pluginResult?.held || []),
                 ]),
                 github: readGitHubPolicyOrNull(workspaceRoot),
+                routing,
+                placementState,
+                waits,
+                fits,
               }),
         verify =
           unobserved.length || !delivery
             ? []
-            : planVerifierDispatches(store, delivery);
+            : planVerifierDispatches(store, delivery, {
+                routing,
+                placementState,
+              });
+      // No fit (R41.8): one decision per task; it closes when the task fits.
+      for (const id of fits) closeNoFit(store, id);
+      for (const { task, result } of waits)
+        if (result.noFit)
+          planned.notify.push(...openNoFit(store, task, result, { script }));
+        else closeNoFit(store, task.id);
       // Timing (§4.11): queued, attempt starts, verifier and review
       // sessions, and merge. Always on; writes only what changed.
       syncSpans(store);

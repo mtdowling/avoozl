@@ -24,7 +24,10 @@ export function commitIn(worktree, file, text, message) {
 
 const as = (slot) => ({ caller: { sessionKey: "dashboard:" + slot } });
 
-export function fakeCrew(ops, { aliases = {}, scripts = {}, defaults }) {
+export function fakeCrew(
+  ops,
+  { aliases = {}, scripts = {}, defaults, visible = () => true },
+) {
   const sessions = [],
     roster = [],
     name = (taskId) => aliases[taskId] ?? taskId;
@@ -51,7 +54,9 @@ export function fakeCrew(ops, { aliases = {}, scripts = {}, defaults }) {
     // is opened and bound before the next tick, as tick.py does.
     async tick() {
       const result = await ops.execute("workspace.tick", {
-        sessions: roster.map((target) => ({ target, status: "idle" })),
+        sessions: roster
+          .filter((slot) => visible(slot, sessions.find((s) => s.slot === slot)))
+          .map((target) => ({ target, status: "idle" })),
       });
       for (const d of result.dispatch) {
         const slot = `s${++opened}-${name(d.task)}-${d.role}-${d.attempt}`;
@@ -64,6 +69,11 @@ export function fakeCrew(ops, { aliases = {}, scripts = {}, defaults }) {
           title: d.title,
           ...(d.model ? { model: d.model } : {}),
           ...(d.commit ? { commit: d.commit } : {}),
+          // Placement (§4.10), as tick.py binds it.
+          ...(d.agent ? { agent: d.agent } : {}),
+          ...(d.crew ? { crew: d.crew } : {}),
+          ...(d.placement ? { placement: d.placement } : {}),
+          ...(d.sessionReason ? { sessionReason: d.sessionReason } : {}),
         });
         roster.push(slot);
         sessions.push({ ...d, slot, alias: name(d.task), state: "open" });

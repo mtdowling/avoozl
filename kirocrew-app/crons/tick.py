@@ -127,14 +127,26 @@ def run(ctx):
         # A named model is the one review roles are kept distinct from (§5.2);
         # without one the session runs on the agent's own model.
         extra = {"model": d["model"]} if d.get("model") else {}
-        slot = ctx.open_session(d["title"], folder_id=folder, agent=d.get("agent", ""), **extra)
+        # A remote crew (§4.10) is named only once Kiro Crew's MC-10 lets an
+        # app open sessions there; the tick sends `crew` only then. A Kiro
+        # Crew whose open_session takes no crew skips the dispatch.
+        if d.get("crew"):
+            try:
+                slot = ctx.open_session(d["title"], agent=d.get("agent", ""), crew=d["crew"], **extra)
+            except TypeError:
+                continue
+        else:
+            slot = ctx.open_session(d["title"], folder_id=folder, agent=d.get("agent", ""), **extra)
         # Bound before the brief, so a crash between open and send leaves a
         # bound, empty session the next tick messages (§4.6). The binding
         # records the model it was opened on and the commit it judges.
         binding = {"taskId": d["task"], "slot": slot, "title": d["title"], "source": "tick"}
-        for key in ("role", "attempt", "model", "commit", "batch"):
+        for key in ("role", "attempt", "model", "commit", "batch", "crew", "placement", "sessionReason"):
             if d.get(key):
                 binding[key] = d[key]
+        # The agent is recorded once placement chose it (R53.10).
+        if d.get("sessionReason") and d.get("agent"):
+            binding["agent"] = d["agent"]
         plans(ctx, "plans_bind_session", binding)
         ctx.send_to_session(slot, d["brief"])
         opened += 1

@@ -37,6 +37,8 @@ const tools = {
       graph: ["graph.view", "the dependency graph, optionally one plan"],
       delivery: ["delivery.view", "delivery columns"],
       flow: ["flow.view", "lead time, stages, bottlenecks"],
+      routing: ["routing.view", "crews, routing rules, smart pick, model router"],
+      routing_preview: ["routing.preview", "where ready tasks would run now; opens nothing"],
       log: ["workspace.tick.log", "recent tick log"],
       health: ["workspace.tick.health", "tick health"],
       activity: ["activity.recent", "recent activity"],
