@@ -457,6 +457,18 @@ export function placeOne(store, data, ctx, state, input) {
   };
 }
 
+// Whether the hard rules alone let `task`'s worker run on `crewId`: a batch
+// member runs in its leader's session, so it must fit the leader's crew
+// (R46.4) without a placement of its own.
+export function rulesAllow(data, ctx, task, crewId) {
+  return evaluatePlacement(
+    subjectOf(task, data, "worker"),
+    ctx.config.rules,
+    ctx.crews,
+    { remoteDispatch: true },
+  ).allowed.includes(crewId);
+}
+
 // ---------------------------------------------------------------------------
 // No-fit decisions (§4.10 step 4, R41.8): one per task, closed by itself
 // when a later evaluation fits.
