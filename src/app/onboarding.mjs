@@ -98,4 +98,3 @@ export function scanSpecs(store, readSpec, names) {
     }),
   };
 }
-
