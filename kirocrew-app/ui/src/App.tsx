@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useAppApi } from '@kirocrew/app-sdk'
+import { useAppApi } from './host.ts'
 import { Btn, EmptyState, PageHeader, SegmentedControl } from '@kirocrew/app-sdk/ui'
 import Logo from './Logo'
 import DashboardView, { type DashboardTarget } from './DashboardView'
@@ -26,6 +26,8 @@ import type { Drill } from './graph-layout.ts'
 import { viewsClient } from './views-api.ts'
 import { APP_ATTR, NavHistoryProvider, useNav } from './NavHistory.tsx'
 import { changePage } from './nav-history.ts'
+import { DemoBadge, DemoBar, DemoProvider, DemoTour, StartDemoButton, useDemo } from './Demo.tsx'
+import { DEMO_WORKSPACE_ID } from './demo-api.ts'
 import {
   errorMessage,
   pickDefault,
@@ -99,13 +101,16 @@ const tabLabel = (key: Tab) => TABS.find((t) => t.key === key)?.label ?? key
 export default function AvoozlApp() {
   return (
     <NavHistoryProvider>
-      <AvoozlPage />
+      <DemoProvider>
+        <AvoozlPage />
+      </DemoProvider>
     </NavHistoryProvider>
   )
 }
 
 function AvoozlPage() {
   const nav = useNav()
+  const demo = useDemo()
   const api = useAppApi()
   const client = useMemo(() => workspaceClient(api), [api])
   const saved = useMemo(() => readPageState(storage()), [])
@@ -161,7 +166,8 @@ function AvoozlPage() {
     changePage(nav, here, next, apply, (before, newTab) => (newTab ? `Back to ${tabLabel(before.tab)}` : 'Back to the previous Settings section'), open)
   const openWorkspaces = () => go({ settingsTab: 'workspaces', tab: 'settings' })
   // A saved workspace counts only once the catalog confirms it still exists.
-  const active = list ? workspaceId : null
+  // The demo reads its own sample; the saved choice waits for Exit demo.
+  const active = demo.active ? DEMO_WORKSPACE_ID : list ? workspaceId : null
   const needsWorkspace = tab !== 'settings' && !active
 
   const navigate = (target: DashboardTarget, taskId?: string) => go({ focus: taskId ?? null, drill: null, tab: target })
@@ -233,8 +239,9 @@ function AvoozlPage() {
         subtitle="Plan work as a graph, then deliver ready tasks through Kiro Crew"
         actions={
           <div className="flex flex-wrap items-center gap-3">
-            <WorkspacePicker list={list} value={workspaceId} onChange={setWorkspaceId} />
+            {demo.active ? <DemoBadge /> : <WorkspacePicker list={list} value={workspaceId} onChange={setWorkspaceId} />}
             <DriverSummary workspaceId={active} />
+            <StartDemoButton />
             <Btn
               type="button"
               primary
@@ -273,6 +280,7 @@ function AvoozlPage() {
           wrap
         />
       </div>
+      <DemoBar />
       {error && (
         <p role="alert" className="px-6 pb-2 text-sm text-danger">
           {error}
@@ -296,10 +304,15 @@ function AvoozlPage() {
             }
             action={
               list?.items.length === 0 ? (
-                <Btn type="button" onClick={openWorkspaces}>
-                  Open Settings › Workspaces
-                </Btn>
-              ) : undefined
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <Btn type="button" onClick={openWorkspaces}>
+                    Open Settings › Workspaces
+                  </Btn>
+                  <StartDemoButton />
+                </div>
+              ) : (
+                <StartDemoButton />
+              )
             }
           />
         ) : tab === 'dashboard' ? (
@@ -339,13 +352,20 @@ function AvoozlPage() {
             workspaceId={active}
             tab={settingsTab}
             onTab={(next) => go({ settingsTab: next })}
-            onSelectWorkspace={(id) => id && setWorkspaceId(id)}
-            onListChange={takeList}
+            // The demo's catalog is the sample alone; it never replaces the
+            // person's own choice.
+            onSelectWorkspace={(id) => !demo.active && id && setWorkspaceId(id)}
+            onListChange={(next) => !demo.active && takeList(next)}
             onOpenPlans={() => chooseTab('plans')}
             onOpenRouting={() => chooseTab('routing')}
           />
         )}
       </div>
+      <DemoTour
+        onEnter={(step) =>
+          go({ focus: null, drill: null, tab: step.tab, ...(step.settingsTab ? { settingsTab: step.settingsTab as SettingsTab } : {}) })
+        }
+      />
     </div>
     </TaskDrawerProvider>
     </ConfirmProvider>

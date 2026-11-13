@@ -4,7 +4,7 @@
 // computer by default; sharing it in `.avoozl.json` asks you to confirm,
 // because its id and plugin may be private names.
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
-import { useAppApi } from '@kirocrew/app-sdk'
+import { useAppApi } from './host.ts'
 import { Btn, Card, Input } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { DangerBtn, IconLabel, SectionHeading } from './controls.tsx'

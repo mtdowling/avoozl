@@ -7,7 +7,7 @@
 // holds, show under With Issue Radar. A row from another source links to its
 // item and offers a person Plan this and Deliver this, each asked first.
 import { useCallback, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
-import { useAppApi } from '@kirocrew/app-sdk'
+import { useAppApi } from './host.ts'
 import { EmptyState, SegmentedControl } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { Tooltip } from './Tooltip.tsx'

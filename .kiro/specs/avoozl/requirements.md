@@ -4000,3 +4000,44 @@ that are already done.
 6. The issue preview SHALL list the skipped tasks (`skippedDone`), and a
    test SHALL show that a done task gets no issue by default and gets one
    with `includeDone: true`.
+
+### Requirement 75: Demo mode with a guided tour
+
+Added 2026-11-13 (owner request). Design §6.11.
+
+**User story:** As the owner, I want a demo I can show anyone, so that they
+see Avoozl working on made-up work while my own work, GitHub and agents
+stay untouched.
+
+#### Acceptance criteria
+
+1. WHEN a person presses Try the demo THEN Avoozl SHALL open a made-up
+   sample workspace: one epic over three approved specs with phases, one
+   draft spec, tasks that are done, ready, running, in review, blocked and
+   done by a person, Intake items, an idea, Flow history with a closed stop,
+   two lessons, receipts and Activity rows. It SHALL hold no real or private
+   data.
+2. The sample SHALL be installed once, in its own temporary folder, built
+   in a staging folder and moved into place whole. A failed build SHALL
+   leave nothing. A second start SHALL reuse the sample and keep its edits.
+   A folder in the way SHALL never be overwritten. Installing SHALL never
+   approve a person's draft, start an agent or configure an execution
+   repository; the sample's draft stays a draft.
+3. In the demo every operation that is not a read SHALL change nothing and
+   SHALL answer with one sentence that says what it would do in a real
+   workspace. No dispatch, router, retro, responder or reviewer session
+   SHALL start, and the page SHALL open no Kiro Crew chat and call no host
+   route outside Avoozl's own commands and reads.
+4. The demo SHALL use a fake GitHub with an epic issue, sub-issues, a
+   Project, pull requests and passing, failing and running checks. It SHALL
+   refuse every write, every raw call and every method it does not know.
+5. A guided tour SHALL show one large caption per step over the real
+   Dashboard, Specs, Graph, a task drawer, Intake, Flow, Needs you, Stop the
+   line and Settings, with Back, Next, Close and arrow, Home, End and Esc
+   keys. Its motion SHALL be off under `prefers-reduced-motion`.
+6. A Demo badge SHALL show in the header on every page while the demo is
+   on, and Settings SHALL list only the sample, never the machine's own
+   workspaces.
+7. One Exit demo button SHALL return to the person's own workspace. A test
+   SHALL hash the real workspace's database, configuration, the machine
+   catalog and settings before and after a demo and find them unchanged.

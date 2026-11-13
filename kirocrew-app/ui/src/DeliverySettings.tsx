@@ -3,7 +3,7 @@
 // delivery.settings.update with the file's hash. Per-task agent and model
 // are routing rules, so this page links to Routing instead of repeating them.
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useAppApi } from '@kirocrew/app-sdk'
+import { useAppApi } from './host.ts'
 import { Btn, Card, Input } from '@kirocrew/app-sdk/ui'
 import { Marker, Section } from './SettingsView.tsx'
 import { modelOptions, parseModels } from './flow-api.ts'

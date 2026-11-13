@@ -65,6 +65,22 @@ fictional example, run
 `node cli.mjs seed --workspace ~/plans --example product-launch`. Loading
 examples never approves a plan, starts a session, or configures a repository.
 
+## Demo mode
+
+To show Avoozl to someone without touching your work, choose **Try the
+demo** in the Avoozl page header (or on the empty page when you have no
+workspace yet). It opens a made-up workspace, Recipe Box, and a guided tour
+of the Dashboard, Specs, Graph, a task, Intake, Flow, Needs you, Stop the
+line and Settings. Use **Next** and **Back** or the arrow keys; Esc closes the
+tour.
+
+While the demo is on, a **Demo** badge shows in the header. Reads work.
+Every change only says what it would do, no agent or chat starts, and GitHub
+is a fake that writes nothing. **Exit demo** returns to your own workspace,
+which the demo never opens. The sample is built once in a folder under your
+system temp folder and kept, with any edits, for the next demo. Screenshots
+are in [docs/evidence/demo/](docs/evidence/demo/).
+
 ## Where tasks live
 
 **Settings > Where tasks live** picks one of three modes (`github.mode` in
@@ -357,6 +373,7 @@ tests with a fake GitHub, fake sessions, or fake crews, run by `npm test`.
 | Pull request feedback                                | Fakes only (P34)                                      |
 | Spec Builder hand-off                                | Fakes only                                            |
 | Stacked pull requests, comment steering, Discussions | Fakes only                                            |
+| Demo mode and its guided tour                        | Fakes only, plus headless Chrome on the harness page  |
 
 ## Configuration and secrets
 

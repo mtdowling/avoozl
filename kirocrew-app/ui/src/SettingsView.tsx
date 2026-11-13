@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Tooltip } from './Tooltip.tsx'
-import { useAppApi } from '@kirocrew/app-sdk'
+import { useAppApi } from './host.ts'
 import { Btn, Card, EmptyState, Input, SegmentedControl } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { ModePicker } from './ModePicker.tsx'

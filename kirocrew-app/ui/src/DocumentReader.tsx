@@ -5,7 +5,7 @@
 // open; under prefers-reduced-motion nothing slides or fades; on a narrow
 // screen it fills the screen. The task drawer opens it for a task's source.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useAppApi } from '@kirocrew/app-sdk'
+import { useAppApi } from './host.ts'
 import { Markdown } from './Markdown.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import { useMedia } from './use-media.ts'
