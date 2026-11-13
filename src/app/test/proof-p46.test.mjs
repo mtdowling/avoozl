@@ -1,4 +1,4 @@
-// Proof P45: the Remote relay with a fake relay chat and fake crews (tasks.md
+// Proof P46: the Remote relay with a fake relay chat and fake crews (tasks.md
 // Phase 32, design §4.10 "Remote relay", Requirements 41.16–41.24). The P29
 // workspace and crew driver, with MC-10 missing. A fake Kiro Crew plays
 // `session_create` / `session_send` / `session_read_message` with `crew=`,
@@ -10,7 +10,14 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fakeCrew, git } from "./fake-crew.mjs";
-import { defaults, URL, workspace } from "./fixtures/crews/workspace.mjs";
+import {
+  defaults,
+  leaf,
+  MANIFEST,
+  PROMPT,
+  URL,
+  workspace,
+} from "./fixtures/crews/workspace.mjs";
 import { REPORT_LINE } from "../relay.mjs";
 
 const as = (slot) => ({ caller: { sessionKey: "dashboard:" + slot } });
@@ -76,21 +83,20 @@ function fakeRelay(ops, kc, slot) {
   };
 }
 
-const RELAY_ON = {
-  rules: [
-    {
-      id: "linux",
-      when: { roles: ["worker"] },
-      on: "any",
-      requireTags: ["os:linux"],
-    },
-  ],
-  remoteRelay: "on",
+// The relay on in the workspace, and w1 and w2 need Linux: only fake-linux
+// passes the checks, so each worker's one option is remote.
+const RELAY_ON = { remoteRelay: "on" };
+const LINUX = {
+  ...MANIFEST,
+  w1: leaf("w1 needs Linux.", { needs: ["os:linux"] }),
+  w2: leaf("w2 needs Linux.", { needs: ["os:linux"] }),
 };
 
-test("P45: a remote pick waits for the person's turn, then runs on its crew through the relay", async (t) => {
+test("P46: a remote pick waits for the person's turn, then runs on its crew through the relay", async (t) => {
   const env = await workspace(t, {
       routing: RELAY_ON,
+      manifest: LINUX,
+      machine: PROMPT,
       mc10: false,
       ids: ["w1", "w2"],
     }),
@@ -246,10 +252,10 @@ test("P45: a remote pick waits for the person's turn, then runs on its crew thro
   );
 });
 
-test("P45: off by default, and MC-10 makes the setting ignored", async (t) => {
+test("P46: off by default, and MC-10 makes the setting ignored", async (t) => {
   // Off: remote picks run on local, as before the relay.
   const off = await workspace(t, {
-    routing: { rules: [{ id: "spread", on: "any" }] },
+    machine: PROMPT,
     mc10: false,
     ids: ["w1"],
   });
@@ -268,6 +274,8 @@ test("P45: off by default, and MC-10 makes the setting ignored", async (t) => {
   // MC-10 present: the direct path places the task and the relay is ignored.
   const direct = await workspace(t, {
     routing: RELAY_ON,
+    manifest: LINUX,
+    machine: PROMPT,
     mc10: true,
     ids: ["w1"],
   });
@@ -284,9 +292,11 @@ test("P45: off by default, and MC-10 makes the setting ignored", async (t) => {
   assert.equal(ignored.active, false);
 });
 
-test("P45: turning the relay off drops queued requests so their tasks are placed again", async (t) => {
+test("P46: turning the relay off drops queued requests so their tasks are placed again", async (t) => {
   const env = await workspace(t, {
     routing: RELAY_ON,
+    manifest: LINUX,
+    machine: PROMPT,
     mc10: false,
     ids: ["w1"],
   });
@@ -302,8 +312,8 @@ test("P45: turning the relay off drops queued requests so their tasks are placed
   fs.writeFileSync(file, JSON.stringify(value));
   const result = await crew.tick();
   assert.equal((await env.ops.execute("routing.view", {})).relay.queued, 0);
-  // Off: the task is placed as it was before the relay. Its rule allows
-  // only Linux crews and MC-10 is missing, so it waits (R41.14).
+  // Off: the task is placed as it was before the relay. It needs Linux
+  // and MC-10 is missing, so it waits (R41.14).
   assert.deepEqual(
     result.dispatch.filter((d) => d.role === "worker"),
     [],
@@ -316,9 +326,11 @@ test("P45: turning the relay off drops queued requests so their tasks are placed
   );
 });
 
-test("P45: a refusal for a chat the person did not open asks for a new relay chat", async (t) => {
+test("P46: a refusal for a chat the person did not open asks for a new relay chat", async (t) => {
   const env = await workspace(t, {
     routing: RELAY_ON,
+    manifest: LINUX,
+    machine: PROMPT,
     mc10: false,
     ids: ["w1"],
   });
@@ -352,9 +364,11 @@ test("P45: a refusal for a chat the person did not open asks for a new relay cha
   const pending = await fresh.turn();
   assert.equal(pending.requests.length, 1);
   // Another refusal (the crew is full) drops the request; the next tick
-  // places the task again under the same rules.
+  // places the task again under the same checks.
   const env2 = await workspace(t, {
     routing: RELAY_ON,
+    manifest: LINUX,
+    machine: PROMPT,
     mc10: false,
     ids: ["w1"],
   });

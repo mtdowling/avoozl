@@ -1,4 +1,4 @@
-import { MCP_TOOLS, validateMcpRequest } from "../mcp.mjs";
+import { complete, MCP_TOOLS, validateMcpRequest } from "../mcp.mjs";
 import { workspaceIdentity } from "./identity.mjs";
 import { classifyOperation } from "./operation-kinds.mjs";
 import { mcpRefusal, PERSON_ONLY } from "./mcp-policy.mjs";
@@ -427,6 +427,8 @@ export function kiroCrewCaller(message) {
     ? { sessionKey: block.sessionKey }
     : null;
 }
+export { complete };
+
 export async function handleMcp(
   message,
   ops,
@@ -437,7 +439,11 @@ export async function handleMcp(
   const id = message?.id;
   const ok = (result) => ({
     status: 200,
-    body: { jsonrpc: "2.0", id, result },
+    body: {
+      jsonrpc: "2.0",
+      id,
+      result: complete(message, result),
+    },
   });
   if (workspaceId && workspaceIdentity(ops.store) !== workspaceId)
     return ok({

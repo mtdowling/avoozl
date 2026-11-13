@@ -132,6 +132,20 @@ turn on Autopilot, Avoozl's name for delivery, with the `delivery` block in
 { "delivery": { "concurrency": 1 } }
 ```
 
+Two Kiro Crew steps only you can do, once:
+
+1. Let Kiro Crew tell Avoozl which chat is calling, so a worker can report.
+   Kiro Crew passes this only to MCP servers it shares. Open **MCP
+   Management**, find `avoozl:avoozl`, turn on sharing, and press **Approve
+   sharing**. Then restart the gateway (**Settings › About › Restart
+   gateway**). Without this, a worker can do the work but `plans_report`
+   refuses it. A shared server runs outside the chat sandbox, with your
+   access.
+
+2. After the first tick, open the chat folder **Avoozl** › _repository ID_
+   in the sidebar and set its project directory to the checkout. Only a
+   person can set it, and the tick opens no session there until it is set.
+
 Each minute the tick starts a Kiro Crew session for each ready leaf, in its
 own worktree. When a session reports done, Avoozl runs the checks on a clean
 committed head, rebases, fast-forwards the base branch, and releases the
@@ -201,7 +215,7 @@ and says why.
 - Nothing moves the role because a machine went quiet. A task that was
   running on the old driver is "away": it completes from GitHub when its
   pull request merges, or waits for you to start it here.
-- Plugin approvals, terms files, router and retro instructions, crews and
+- Plugin approvals, terms files, the routing prompt, retro instructions, crews and
   SSH host keys stay on each machine. After a take-over the page lists
   what to set up again.
 
@@ -243,31 +257,46 @@ keep going. Only a person presses **Resume**.
 
 ## Routing
 
-The **Routing** page decides which crew, agent, and model run each worker,
-checks, and reviewer session. With no rule set, nothing changes: every
-session runs on this machine with the agent and model from **Settings >
-Delivery**.
+**Settings > Routing** decides which crew and model run each worker. It is
+off by default: every session runs on this machine with the agent and model
+from **Settings > Delivery**, as before.
 
-- **Rules** (`routing.rules`) match labels, kinds, roles, repositories,
-  categories, or paths, and can require or forbid crew tags, keep a task
-  local, or pick an agent and model. A tracked `.avoozl.json` cannot pin a
-  crew by name; that lives in this machine's settings.
-- **Smart pick** (`routing.pick`) scores the crews the rules allow:
-  `balanced`, `keep-local`, `spread-out`, or your own weights.
-- **Model router** (`routing.router`, off by default) asks a tool-less
-  `avoozl-router` session to rank the allowed crews. No answer in time falls
-  back to smart pick.
-- **Pick again** makes a task's next attempt choose its agent and model
-  afresh.
+- **Routing prompt** (`routing.prompt` in this machine's settings, never in
+  `.avoozl.json`): turn it on and write how to choose, or insert one of the
+  examples (Tests go remote, Private repos stay local, Spread the load,
+  Prefer Kiro models when Claude is low, 70% Claude, 30% Kiro) and edit it.
+  Each tick, one tool-less `avoozl-router` session ranks every ready task
+  at once and picks a crew and a model for each. An answer is used in one
+  tick only, after the checks run again.
+- **Checks come first.** A crew must be online, approve tools on its own
+  (so a chat cannot stall on an approval), reach the repository, and have
+  the tags a task `needs` (such as `os:windows`). A model whose provider is
+  out is never offered. The agent only picks among what passed; task text
+  in its brief is marked as untrusted data. A bad or missing reply falls
+  back to local and is logged in Activity.
+- **Pins win.** A manifest task's `session` may pin `agent`, `model`, or
+  `crew`.
+- **Providers** shows each provider's health and usage in the last 5 hours,
+  with one **Low at** setting (80% by default) and an optional credits
+  limit per provider. Low is a fact the prompt can weigh, for new tasks
+  only. A running chat switches model on its own only when its provider is
+  out.
+- **Preview** is a dry run on the ready tasks: each one's options, what
+  ruled the rest out, and the brief one routing call would get. It calls no
+  agent.
+- **Pick again** makes a task's next attempt choose its model afresh.
 - **Hand-back**: a remote crew's work comes back either by `push` to the
   repository remote or by `handback`, where this machine fetches the branch
   from the crew's folder over SSH, pinning the host key on first use.
   Avoozl never pushes either way.
 
+Old `routing.rules`, `routing.pick` and `routing.router` keys are refused;
+`node scripts/migrate-routing.mjs <file>` turns them into prompt lines once.
+
 Remote crews are not live yet. Until Kiro Crew can open a session on another
-instance (Kiro Crew issue #36335), every session runs on this machine;
-Preview still shows where tasks would go. Hand-back over SSH is tested only
-with a fake `ssh` command.
+instance (Kiro Crew issue #36335), remote crews fail the checks and every
+session runs on this machine. Hand-back over SSH is tested only with a fake
+`ssh` command.
 
 ### Remote relay (stopgap)
 
@@ -291,7 +320,7 @@ Two catches, also shown on the Routing page:
 Only worker sessions go through the relay; checks and review run here. Once
 Kiro Crew can open remote sessions itself, Avoozl uses that and ignores the
 setting. The relay is built and tested with a fake relay chat and fake crews
-only (P45). It has not been run against a real remote crew.
+only (P46). It has not been run against a real remote crew.
 
 ## Pull request feedback
 
@@ -375,8 +404,8 @@ tests with a fake GitHub, fake sessions, or fake crews, run by `npm test`.
 | Plugins, packs, plugin and MCP intake sources        | Fakes only (P26, P32, P35)                            |
 | Flow: timing, stop the line, batching, retros        | Fakes only (P30)                                      |
 | Andon cord                                           | Fakes only                                            |
-| Routing, model router, agent and model per task      | Fakes only (P29, P33); remote crews wait on Kiro Crew |
-| Remote relay                                         | Fakes only (P45); not run on a real remote crew       |
+| Routing prompt, checks, and pins                     | Fakes only (P29); remote crews wait on Kiro Crew      |
+| Remote relay                                         | Fakes only (P46); not run on a real remote crew       |
 | Provider health and Switch model                     | Fakes only (P44); Kiro Crew's model change not called |
 | One driver per spec, hand off and take over          | Fakes only (P40)                                      |
 | Pull request feedback                                | Fakes only (P34)                                      |

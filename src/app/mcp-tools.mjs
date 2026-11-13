@@ -77,7 +77,7 @@ const tools = {
       flow: ["flow.view", "lead time, stages, bottlenecks"],
       routing: [
         "routing.view",
-        "crews, routing rules, smart pick, model router",
+        "crews and their checks, the routing prompt switch, provider health",
       ],
       routing_preview: [
         "routing.preview",
