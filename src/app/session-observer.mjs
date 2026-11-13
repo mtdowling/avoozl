@@ -14,6 +14,7 @@
 import { liveAttempt } from "./delivery.mjs";
 import { gatewayClient } from "./gateway-client.mjs";
 import { ingestToolRows, toolCallsReadable } from "./flow.mjs";
+import { ingestProviderErrors } from "./provider-health.mjs";
 import { recordRetroReply } from "./flow-retro.mjs";
 import { recordRouterReply, routerBatch } from "./router.mjs";
 import {
@@ -123,7 +124,7 @@ export function gatewaySlotRows(env = process.env, request = fetch) {
 }
 
 // Read each live worker session the tick opened and record its new tool
-// rows as timing spans. Writes only new spans. shortcut: one read per live
+// rows as timing spans, and its provider errors as health marks. Writes only new spans. shortcut: one read per live
 // session per tick, the same bound as the status read; batch it once Kiro
 // Crew offers an app-scoped roster.
 export async function observeToolRows(store, readRows, { checksFor } = {}) {
@@ -142,6 +143,8 @@ export async function observeToolRows(store, readRows, { checksFor } = {}) {
       rows += ingestToolRows(store, binding, read.rows, {
         checks: checksFor ? checksFor(binding) : [],
       });
+      // Provider errors (§4.20, R72.3) ride on the same read: no new request.
+      ingestProviderErrors(store, binding, read.rows);
       if (
         read.cursor &&
         JSON.stringify(read.cursor) !== JSON.stringify(store.getMeta(key))

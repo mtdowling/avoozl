@@ -420,6 +420,7 @@ export const CONFLICT_LABELS: Record<string, string> = {
   resource: 'Shared resource',
   'content-match': 'Content rule',
   'content-unavailable': 'Rule set unavailable',
+  'provider-out': 'Provider out',
 }
 
 // A local task that is not already replaced may be superseded by hand. GitHub

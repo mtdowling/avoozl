@@ -3773,7 +3773,113 @@ what and when without reading chats, the tick log or GitHub.
    stay reachable as `plans_view` action `recent`.
    `activity.settings.update` SHALL be a person's only.
 
-### Requirement 72: Searchable task and spec pickers
+### Requirement 72: Provider health and switching models
+
+Added 2026-11-13 (owner request). Design §4.20. It builds on the usage read
+of Requirement 43 (`flow_usage`), the session tool-row read (design §4.11),
+the agent and model choices of Requirement 53, and Kiro Crew's per-chat
+model change (design F126).
+
+**User story:** As the owner, I want Avoozl to notice when a model provider
+runs low or runs out, keep new work off it, and move running chats to
+another model without losing their work, so that a rate limit or an empty
+credit balance does not stall delivery, and I can make the same switch by
+hand.
+
+#### Acceptance criteria
+
+1. Avoozl SHALL keep a **health level** for each provider and each model:
+   `ok`, `low`, or `out`. A model's level SHALL be the worse of its own and
+   its provider's. A model's provider SHALL be the first `providers.groups`
+   entry whose pattern matches its ID, else the ID up to its first `-`,
+   `/`, `.` or `:`. `auto` and an unnamed model SHALL have no provider and
+   SHALL always read `ok`.
+2. Avoozl SHALL mark health from usage reads: after each read it SHALL sum
+   the credits and the input plus output tokens of every turn in the last
+   `providers.windowHours` (default 5) per provider and per model, and
+   compare each sum with that key's `providers.limits` entry (`credits`,
+   `tokens`). At or above 100% of a limit the key SHALL be `out`; at or
+   above `providers.lowPercent` (default 80) it SHALL be `low`. A key with
+   no limit SHALL never be marked from usage. A usage mark SHALL clear by
+   itself when a later read finds the sum below the low line.
+3. Avoozl SHALL mark health from provider errors in the session rows it
+   already reads: a row of kind `usage_limit`, or text naming out of
+   credits, insufficient credits, a usage limit or a quota, SHALL mark the
+   model's provider `out`; a row of kind `model_unavailable`, or text
+   naming 429, a rate limit, too many requests or throttling, SHALL mark
+   the model `low`, and a second such row for a model already `low` from an
+   error inside its cooldown SHALL mark it `out`. Avoozl SHALL store the
+   kind and when, never the row's text.
+4. An error mark SHALL clear on a later success (a usage turn on that model
+   after the mark) or once `providers.cooldownMinutes` (default 30) pass
+   after its last error. A mark a person set SHALL clear only when a person
+   undoes it.
+5. A new task's worker SHALL skip a `low` or `out` model in routing and in
+   weighted choices: `out` choices SHALL be dropped, and `low` ones SHALL
+   be dropped while an `ok` choice remains. A task with no rule or with
+   every choice dropped SHALL take the first `ok`, then `low`, model in
+   `providers.fallback`, or, for a model a person marked out, the model the
+   person switched it to. With none left the task SHALL wait and say why;
+   it SHALL NOT open on an `out` model. A writer SHALL never be given a
+   review role's model this way (Requirement 53.7).
+6. A retry SHALL keep its last model unless that model is `out`; then it
+   SHALL pick as a new task does and say that the kept model is out.
+7. Routing Preview SHALL show the same picks and reasons, and SHALL write
+   nothing.
+8. WHEN a running chat Avoozl opened is on an `out` model THEN Avoozl SHALL
+   switch that chat to a healthy model through Kiro Crew's per-chat model
+   change, in the same session, so the chat keeps its branch, worktree and
+   committed work. A chat with a turn running SHALL switch at the end of
+   that turn (Kiro Crew defers it). Avoozl SHALL NOT stop, restart or close
+   the chat.
+9. The new model SHALL be the first healthy one among the task's own
+   choices and then `providers.fallback`, never on the same provider when
+   the provider is `out`, never the writer's model for a review role whose
+   `distinctFrom` is `model`, and never a review role's model for a writer.
+   WHEN no model qualifies THEN Avoozl SHALL leave the chat on its model and
+   say so in Needs you.
+10. Avoozl SHALL record each switch: when, the chat, task, role, from and
+    to, who (`auto` or the person), the reason, and the result (`switched`,
+    `deferred`, `refused` with Kiro Crew's status, or `no target`). It SHALL
+    write each finished record to the activity log (Requirement 71) once,
+    as kind `model.switch`. A refused switch
+    SHALL NOT be retried for the same model of that chat.
+11. A review verdict's served-model check (Requirement 36.3) SHALL count
+    every model a switched chat ran on: a writer or reviewer that Avoozl
+    switched SHALL NOT be refused only because its model changed mid-session,
+    and a reviewer SHALL be refused when any of its models equals any of
+    the writer's.
+12. The Dashboard header and the In flight card SHALL have a **Switch
+    model** button. It SHALL open a dialog to pick From (a provider, a
+    model, or tasks chosen from the running ones) and To (the models Kiro
+    Crew lists in `GET /api/models`), then preview the running chats it
+    would switch, read only, before the person confirms.
+13. The dialog SHALL have an optional **Also new tasks** setting. With it
+    on, the From provider or model (for chosen tasks, each model their chats
+    run on) SHALL be marked `out` by the person, with the To model as its
+    replacement for new tasks, until a person undoes it.
+14. A manual switch SHALL go through the same switch path and record as
+    criterion 8 and 10, with `by` the person. Its confirm SHALL carry the
+    preview's hash and SHALL be refused when the running chats changed.
+15. Switching, undoing a mark and saving provider settings SHALL be
+    person-only: MCP SHALL refuse them with the person-only refusal
+    (Requirement 56.2), and the app backend SHALL refuse app tokens and
+    agent tools. The provider view and the switch preview SHALL be readable
+    by MCP.
+16. WHEN a provider or model is `out` THEN Needs you SHALL show one item for
+    it with the reason, how many chats were switched and to what, and any
+    chat left on it because no model qualified. The item SHALL go away when
+    the mark clears.
+17. Settings SHALL have a **Providers** tab for this machine's
+    `providers` settings (`~/.config/avoozl/config.json`): low line,
+    cooldown, window, limits per provider or model, provider groups, and
+    fallback models, with defaults as placeholders. Validation SHALL refuse
+    a `providers` key in `.avoozl.json`. The tab SHALL list current marks
+    with Undo for a person's marks.
+18. With no `providers` settings, no error rows and no manual marks,
+    routing and dispatch SHALL behave exactly as before.
+
+### Requirement 73: Searchable task and spec pickers
 
 Added 2026-11-13 (owner approval). Design §8.9.
 

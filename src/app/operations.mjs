@@ -265,8 +265,16 @@ import {
   retryDelivery,
   readyCandidates,
   pickAgain,
+  reviewRoles as deliveryReviewRoles,
   startNow,
 } from "./delivery.mjs";
+import {
+  clearMark,
+  providersView,
+  queueSwitch,
+  switchPreview,
+  updateProviders,
+} from "./provider-health.mjs";
 import {
   routingPreview,
   routingView,
@@ -796,6 +804,22 @@ export class Operations {
         ? { local: this.placement.localReading() }
         : {}),
       ...(this.placement.now ? { now: this.placement.now() } : {}),
+    };
+  }
+  // What the provider operations need: the clock and each session's review
+  // roles, so a switch never breaks review distinctness (R72.9).
+  providerOptions() {
+    const policy = readDeliveryPolicy(this.workspaceRoot).delivery,
+      tasks = new Map(this.read().tasks.map((t) => [t.id, t]));
+    return {
+      ...(this.placement.now ? { now: this.placement.now() } : {}),
+      reviewRoles: (binding) =>
+        policy
+          ? deliveryReviewRoles(
+              policy,
+              taskRepository(tasks.get(binding.taskId)),
+            )
+          : [],
     };
   }
   // Tracker plugin tasks rebuilt from each approved tracker's `list` and the
@@ -1923,6 +1947,17 @@ export class Operations {
       return result;
     }
     if (name === "crews.update") return updateCrews(store, input);
+    // Provider health and model switches (§4.20, R72). The writes are a
+    // person's: mcp-policy.mjs refuses them for MCP, the backend for tokens.
+    if (name === "providers.view")
+      return providersView(store, this.providerOptions());
+    if (name === "provider.switch.preview")
+      return switchPreview(store, input, this.providerOptions());
+    if (name === "provider.switch")
+      return queueSwitch(store, input, this.providerOptions());
+    if (name === "provider.health.clear") return clearMark(store, input);
+    if (name === "providers.settings.update")
+      return updateProviders(store, input);
     if (name === "delivery.pickAgain") return pickAgain(store, input);
     if (name === "delivery.settings.get")
       return this.settingsFile().readDeliverySettings();
