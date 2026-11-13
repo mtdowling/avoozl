@@ -40,7 +40,14 @@ const MAX_FIELD = 300;
 const BRIEF_LESSONS = 10;
 const DAY = 24 * 3600_000;
 // shortcut: fixed confidence steps; fit them to real data after P42.
-const CONFIDENCE = { start: 0.5, kept: 0.8, step: 0.05, top: 0.95, drop: 0.2, low: 0.3 };
+const CONFIDENCE = {
+  start: 0.5,
+  kept: 0.8,
+  step: 0.05,
+  top: 0.95,
+  drop: 0.2,
+  low: 0.3,
+};
 
 const sha = (text) => createHash("sha256").update(String(text)).digest("hex");
 const record = (v) => Boolean(v) && typeof v === "object" && !Array.isArray(v);
@@ -287,7 +294,12 @@ export function writeLesson(
       : null);
   if (problem) return { refused: problem };
   const date = iso(now),
-    id = "L-" + sha(`${source}\0${finding}\0${JSON.stringify(change)}\0${date}`).slice(0, 6);
+    id =
+      "L-" +
+      sha(`${source}\0${finding}\0${JSON.stringify(change)}\0${date}`).slice(
+        0,
+        6,
+      );
   return {
     lesson: lessons.put({
       id,
@@ -318,7 +330,12 @@ export function writeLesson(
 
 // The PDCA result for a lesson's change (R69.3): helped keeps it; a revert
 // approved after it did not help undoes it.
-export function setOutcome(lessons, id, outcome, { now = Date.now(), after = null, by = "pdca" } = {}) {
+export function setOutcome(
+  lessons,
+  id,
+  outcome,
+  { now = Date.now(), after = null, by = "pdca" } = {},
+) {
   const lesson = lessons.get(id);
   if (!lesson || lesson.readOnly) return null;
   const next = history(
@@ -369,11 +386,22 @@ function remark(lesson, wanted, { now, sticky = ["pdca", "pack"] }) {
   for (const [cause, mark] of Object.entries(wanted))
     if (!marks[cause] || marks[cause].reason !== mark.reason) {
       marks[cause] = { ...mark, at };
-      next = history(next, { at, by: "avoozl", what: "marked", state: mark.state, reason: mark.reason });
+      next = history(next, {
+        at,
+        by: "avoozl",
+        what: "marked",
+        state: mark.state,
+        reason: mark.reason,
+      });
     }
   for (const cause of Object.keys(marks))
     if (!wanted[cause] && !sticky.includes(cause)) {
-      next = history(next, { at, by: "avoozl", what: "cleared", reason: marks[cause].reason });
+      next = history(next, {
+        at,
+        by: "avoozl",
+        what: "cleared",
+        reason: marks[cause].reason,
+      });
       delete marks[cause];
     }
   return withState({ ...next, marks });
@@ -390,7 +418,11 @@ const expired = (lesson, untestedDays, now) =>
 // and tools of matching repositories, traits}. Context checks apply to this
 // workspace's own lessons and imported packs; the model list and the
 // confirmation age apply to all. Writes only a lesson whose marks changed.
-export function healLessons(lessons, env, { now = Date.now(), confirmDays = LESSON_DEFAULTS.confirmDays } = {}) {
+export function healLessons(
+  lessons,
+  env,
+  { now = Date.now(), confirmDays = LESSON_DEFAULTS.confirmDays } = {},
+) {
   const changed = [];
   for (const lesson of lessons.list()) {
     if (lesson.state === "retired") continue;
@@ -460,7 +492,11 @@ export function healLessons(lessons, env, { now = Date.now(), confirmDays = LESS
 
 // A fresh window confirms a lesson (R70.3): confidence up one step, the
 // context refreshed to what ran, and every mark cleared.
-export function confirmLesson(lessons, id, { now = Date.now(), context = null } = {}) {
+export function confirmLesson(
+  lessons,
+  id,
+  { now = Date.now(), context = null } = {},
+) {
   const lesson = lessons.get(id);
   if (!lesson || lesson.state === "retired") return null;
   const at = iso(now);
@@ -477,7 +513,12 @@ export function confirmLesson(lessons, id, { now = Date.now(), context = null } 
     { at, by: "pdca", what: "confirmed" },
   );
   for (const mark of Object.values(next.marks || {}))
-    next = history(next, { at, by: "pdca", what: "cleared", reason: mark.reason });
+    next = history(next, {
+      at,
+      by: "pdca",
+      what: "cleared",
+      reason: mark.reason,
+    });
   return lessons.put(withState({ ...next, marks: {} }));
 }
 
@@ -504,7 +545,9 @@ export function disagree(lessons, id, { now = Date.now(), reason }) {
 }
 
 const sameChange = (a, b) =>
-  a?.type === b?.type && a?.target === b?.target && (a?.key ?? null) === (b?.key ?? null);
+  a?.type === b?.type &&
+  a?.target === b?.target &&
+  (a?.key ?? null) === (b?.key ?? null);
 const samePattern = (a, b) =>
   (a?.stage ?? null) === (b?.stage ?? null) &&
   (a?.check ?? null) === (b?.check ?? null) &&
@@ -539,9 +582,17 @@ const matches = (lesson, { traits, stage }) =>
 
 export const briefLesson = (l) => ({
   id: l.id,
-  pattern: { stage: l.pattern.stage, check: l.pattern.check, tool: l.pattern.tool },
+  pattern: {
+    stage: l.pattern.stage,
+    check: l.pattern.check,
+    tool: l.pattern.tool,
+  },
   finding: l.finding,
-  change: { type: l.change?.type ?? null, target: l.change?.target ?? null, summary: l.change?.summary ?? null },
+  change: {
+    type: l.change?.type ?? null,
+    target: l.change?.target ?? null,
+    summary: l.change?.summary ?? null,
+  },
   outcome: l.outcome,
   confidence: l.confidence,
   evidence: {
@@ -558,14 +609,28 @@ export const briefLesson = (l) => ({
 // expired ones. `allow(lesson)` runs the reading workspace's content rules.
 export function lessonsForBrief(
   lessons,
-  { workspaceId, traits = [], stage = null, read = true, untestedDays = LESSON_DEFAULTS.untestedDays, allow = () => true, now = Date.now() },
+  {
+    workspaceId,
+    traits = [],
+    stage = null,
+    read = true,
+    untestedDays = LESSON_DEFAULTS.untestedDays,
+    allow = () => true,
+    now = Date.now(),
+  },
 ) {
   const pool = lessons
       .list()
-      .filter((l) => visible(l, { workspaceId, read }) && matches(l, { traits, stage }))
+      .filter(
+        (l) =>
+          visible(l, { workspaceId, read }) && matches(l, { traits, stage }),
+      )
       .filter((l) => allow(l)),
     didNotWork = pool.filter(
-      (l) => l.outcome === "undone" || l.state === "retired" || expired(l, untestedDays, now),
+      (l) =>
+        l.outcome === "undone" ||
+        l.state === "retired" ||
+        expired(l, untestedDays, now),
     ),
     citable = pool
       .filter((l) => !didNotWork.includes(l) && l.state === "ok")
@@ -583,7 +648,12 @@ export function lessonsForBrief(
       id: l.id,
       finding: l.finding,
       change: briefLesson(l).change,
-      why: l.state === "retired" ? "retired" : l.outcome === "undone" ? "undone" : "expired untested",
+      why:
+        l.state === "retired"
+          ? "retired"
+          : l.outcome === "undone"
+            ? "undone"
+            : "expired untested",
     })),
   };
 }
@@ -592,10 +662,22 @@ export function lessonsForBrief(
 // pattern and change, for a retro that may propose rewrites, merges and
 // retirements.
 export function reviewLessons(lessons, { workspaceId, read = true }) {
-  const pool = lessons.list().filter((l) => l.state !== "retired" && visible(l, { workspaceId, read }) && !l.readOnly),
+  const pool = lessons
+      .list()
+      .filter(
+        (l) =>
+          l.state !== "retired" &&
+          visible(l, { workspaceId, read }) &&
+          !l.readOnly,
+      ),
     marked = pool.filter((l) => l.state !== "ok"),
     similar = pool.filter((l) =>
-      pool.some((o) => o.id !== l.id && samePattern(o.pattern, l.pattern) && sameChange(o.change, l.change)),
+      pool.some(
+        (o) =>
+          o.id !== l.id &&
+          samePattern(o.pattern, l.pattern) &&
+          sameChange(o.change, l.change),
+      ),
     );
   return [...new Set([...marked, ...similar])].slice(0, 20).map((l) => ({
     ...briefLesson(l),
@@ -608,25 +690,37 @@ export function reviewLessons(lessons, { workspaceId, read = true }) {
 
 // A person's rewrite, merge or retire (R70.4). Never a delete: a merged-away
 // or retired lesson stays as history and counts as "did not work".
-export function editLesson(lessons, edit, { by, now = Date.now(), known = [] }) {
+export function editLesson(
+  lessons,
+  edit,
+  { by, now = Date.now(), known = [] },
+) {
   const at = iso(now),
     ids = Array.isArray(edit.lessons) ? edit.lessons : [],
     found = ids.map((id) => lessons.get(id));
-  if (!ids.length || found.some((l) => !l)) fail("Name lessons that exist.", 404);
+  if (!ids.length || found.some((l) => !l))
+    fail("Name lessons that exist.", 404);
   if (found.some((l) => l.readOnly))
-    fail("A lesson from a plugin pack is read-only; change the pack instead.", 409);
+    fail(
+      "A lesson from a plugin pack is read-only; change the pack instead.",
+      409,
+    );
   if (edit.kind === "rewrite") {
     const problem = lessonTextProblem(edit.finding, { known });
     if (problem) fail(`The new finding ${problem}.`, 400);
     const l = found[0];
     return [
       lessons.put(
-        history({ ...l, finding: edit.finding }, { at, by, what: "rewritten", from: l.finding }),
+        history(
+          { ...l, finding: edit.finding },
+          { at, by, what: "rewritten", from: l.finding },
+        ),
       ),
     ];
   }
   if (edit.kind === "merge") {
-    if (ids.length < 2) fail("A merge names the lesson to keep, then the others.", 400);
+    if (ids.length < 2)
+      fail("A merge names the lesson to keep, then the others.", 400);
     const [keep, ...away] = found;
     if (edit.finding !== undefined) {
       const problem = lessonTextProblem(edit.finding, { known });
@@ -639,7 +733,10 @@ export function editLesson(lessons, edit, { by, now = Date.now(), known = [] }) 
           finding: edit.finding ?? keep.finding,
           evidence: {
             ...keep.evidence,
-            tasks: away.reduce((n, l) => n + (l.evidence?.tasks || 0), keep.evidence?.tasks || 0),
+            tasks: away.reduce(
+              (n, l) => n + (l.evidence?.tasks || 0),
+              keep.evidence?.tasks || 0,
+            ),
           },
         },
         { at, by, what: "merged", from: away.map((l) => l.id) },
@@ -649,7 +746,12 @@ export function editLesson(lessons, edit, { by, now = Date.now(), known = [] }) 
       lessons.put(
         withState(
           history(
-            { ...l, state: "retired", staleReason: `merged into ${keep.id}`, mergedInto: keep.id },
+            {
+              ...l,
+              state: "retired",
+              staleReason: `merged into ${keep.id}`,
+              mergedInto: keep.id,
+            },
             { at, by, what: "retired", reason: `merged into ${keep.id}` },
           ),
         ),
@@ -658,10 +760,18 @@ export function editLesson(lessons, edit, { by, now = Date.now(), known = [] }) 
     return [kept, ...gone];
   }
   if (edit.kind === "retire") {
-    const reason = typeof edit.reason === "string" && edit.reason.trim() ? edit.reason.trim().slice(0, 300) : "retired by a person";
+    const reason =
+      typeof edit.reason === "string" && edit.reason.trim()
+        ? edit.reason.trim().slice(0, 300)
+        : "retired by a person";
     return found.map((l) =>
       lessons.put(
-        withState(history({ ...l, state: "retired", staleReason: reason }, { at, by, what: "retired", reason })),
+        withState(
+          history(
+            { ...l, state: "retired", staleReason: reason },
+            { at, by, what: "retired", reason },
+          ),
+        ),
       ),
     );
   }
@@ -674,7 +784,10 @@ export function editLesson(lessons, edit, { by, now = Date.now(), known = [] }) 
 // change, outcome, evidence}]}, each checked like a written lesson.
 export function validateLessonsPack(value, { known = [] } = {}) {
   if (!record(value)) fail(`${LESSONS_FILE} must be an object.`, 400);
-  if (typeof value.version !== "string" || !/^[0-9A-Za-z.+-]{1,40}$/.test(value.version))
+  if (
+    typeof value.version !== "string" ||
+    !/^[0-9A-Za-z.+-]{1,40}$/.test(value.version)
+  )
     fail(`${LESSONS_FILE} needs a version.`, 400);
   if (!Array.isArray(value.lessons) || value.lessons.length > 200)
     fail(`${LESSONS_FILE} lessons must be a list of at most 200.`, 400);
@@ -682,33 +795,77 @@ export function validateLessonsPack(value, { known = [] } = {}) {
   return {
     version: value.version,
     lessons: value.lessons.map((l, i) => {
-      if (!record(l) || typeof l.id !== "string" || !/^[a-z0-9][a-z0-9-]{0,39}$/.test(l.id) || seen.has(l.id))
+      if (
+        !record(l) ||
+        typeof l.id !== "string" ||
+        !/^[a-z0-9][a-z0-9-]{0,39}$/.test(l.id) ||
+        seen.has(l.id)
+      )
         fail(`lessons[${i}] needs a unique lowercase id.`, 400);
       seen.add(l.id);
       const problem = lessonProblem(l, { known });
       if (problem) fail(`lessons[${i}]: ${problem}.`, 400);
       const summary = l.change?.summary;
       if (summary !== undefined && lessonTextProblem(summary, { known }))
-        fail(`lessons[${i}]: the change summary ${lessonTextProblem(summary, { known })}.`, 400);
+        fail(
+          `lessons[${i}]: the change summary ${lessonTextProblem(summary, { known })}.`,
+          400,
+        );
       return {
         id: l.id,
-        pattern: { stage: l.pattern.stage ?? null, check: l.pattern.check ?? null, tool: l.pattern.tool ?? null, traits: Array.isArray(l.pattern.traits) ? l.pattern.traits.filter((t) => typeof t === "string" && /^[a-z]+:[\w.+-]{1,40}$/.test(t)).sort() : [] },
+        pattern: {
+          stage: l.pattern.stage ?? null,
+          check: l.pattern.check ?? null,
+          tool: l.pattern.tool ?? null,
+          traits: Array.isArray(l.pattern.traits)
+            ? l.pattern.traits
+                .filter(
+                  (t) =>
+                    typeof t === "string" && /^[a-z]+:[\w.+-]{1,40}$/.test(t),
+                )
+                .sort()
+            : [],
+        },
         finding: l.finding,
         change: {
-          type: ["settings", "plan", "prompt", "skill"].includes(l.change?.type) ? l.change.type : null,
-          target: typeof l.change?.target === "string" ? l.change.target.slice(0, 100) : null,
+          type: ["settings", "plan", "prompt", "skill"].includes(l.change?.type)
+            ? l.change.type
+            : null,
+          target:
+            typeof l.change?.target === "string"
+              ? l.change.target.slice(0, 100)
+              : null,
           summary: summary ?? null,
         },
         outcome: LESSON_OUTCOMES.includes(l.outcome) ? l.outcome : "untested",
-        evidence: record(l.evidence) ? { tasks: Number.isInteger(l.evidence.tasks) ? l.evidence.tasks : null, metric: typeof l.evidence.metric === "string" ? l.evidence.metric.slice(0, 40) : null, before: typeof l.evidence.before === "number" ? l.evidence.before : null, after: typeof l.evidence.after === "number" ? l.evidence.after : null } : {},
+        evidence: record(l.evidence)
+          ? {
+              tasks: Number.isInteger(l.evidence.tasks)
+                ? l.evidence.tasks
+                : null,
+              metric:
+                typeof l.evidence.metric === "string"
+                  ? l.evidence.metric.slice(0, 40)
+                  : null,
+              before:
+                typeof l.evidence.before === "number"
+                  ? l.evidence.before
+                  : null,
+              after:
+                typeof l.evidence.after === "number" ? l.evidence.after : null,
+            }
+          : {},
       };
     }),
   };
 }
 
-export const packHash = (plugin, pack) => sha(JSON.stringify({ plugin, ...pack }));
-const packLessonId = (plugin, id) => "L-" + sha(`pack\0${plugin}\0${id}`).slice(0, 6);
-const contentOf = (l) => sha(JSON.stringify([l.pattern, l.finding, l.change, l.outcome, l.evidence]));
+export const packHash = (plugin, pack) =>
+  sha(JSON.stringify({ plugin, ...pack }));
+const packLessonId = (plugin, id) =>
+  "L-" + sha(`pack\0${plugin}\0${id}`).slice(0, 6);
+const contentOf = (l) =>
+  sha(JSON.stringify([l.pattern, l.finding, l.change, l.outcome, l.evidence]));
 
 // What importing `pack` from `plugin` would add, change and retire.
 export function packPreview(lessons, plugin, pack) {
@@ -716,12 +873,36 @@ export function packPreview(lessons, plugin, pack) {
     rows = pack.lessons.map((l) => {
       const id = packLessonId(plugin, l.id),
         old = current.find((c) => c.id === id);
-      return { id, packId: l.id, finding: l.finding, outcome: l.outcome, action: !old ? "add" : old.pack.content !== contentOf(l) ? "change" : "keep" };
+      return {
+        id,
+        packId: l.id,
+        finding: l.finding,
+        outcome: l.outcome,
+        action: !old
+          ? "add"
+          : old.pack.content !== contentOf(l)
+            ? "change"
+            : "keep",
+      };
     }),
     removed = current
-      .filter((c) => c.state !== "retired" && !pack.lessons.some((l) => packLessonId(plugin, l.id) === c.id))
-      .map((c) => ({ id: c.id, packId: c.pack.id, finding: c.finding, action: "retire" }));
-  return { plugin, version: pack.version, rows: [...rows, ...removed], hash: packHash(plugin, pack) };
+      .filter(
+        (c) =>
+          c.state !== "retired" &&
+          !pack.lessons.some((l) => packLessonId(plugin, l.id) === c.id),
+      )
+      .map((c) => ({
+        id: c.id,
+        packId: c.pack.id,
+        finding: c.finding,
+        action: "retire",
+      }));
+  return {
+    plugin,
+    version: pack.version,
+    rows: [...rows, ...removed],
+    hash: packHash(plugin, pack),
+  };
 }
 
 // Import a pack a person previewed (R69.7): read-only lessons named by the
@@ -733,32 +914,56 @@ export function importPack(lessons, plugin, pack, { by, now = Date.now() }) {
     const id = packLessonId(plugin, l.id),
       old = lessons.get(id),
       content = contentOf(l),
-      base = old && old.pack.content === content
-        ? old
-        : {
-            ...(old || { history: [], marks: {}, confidence: CONFIDENCE.start, confirmedAt: null }),
-            id,
-            pattern: l.pattern,
-            finding: l.finding,
-            change: l.change,
-            outcome: l.outcome,
-            evidence: l.evidence,
-            context: old?.context || {},
-            confidence: l.outcome === "kept" ? Math.max(old?.confidence ?? 0, CONFIDENCE.kept) : old?.confidence ?? CONFIDENCE.start,
-            date: old?.date || at,
-          };
+      base =
+        old && old.pack.content === content
+          ? old
+          : {
+              ...(old || {
+                history: [],
+                marks: {},
+                confidence: CONFIDENCE.start,
+                confirmedAt: null,
+              }),
+              id,
+              pattern: l.pattern,
+              finding: l.finding,
+              change: l.change,
+              outcome: l.outcome,
+              evidence: l.evidence,
+              context: old?.context || {},
+              confidence:
+                l.outcome === "kept"
+                  ? Math.max(old?.confidence ?? 0, CONFIDENCE.kept)
+                  : (old?.confidence ?? CONFIDENCE.start),
+              date: old?.date || at,
+            };
     const marks = { ...(base.marks || {}) };
     delete marks.pack;
     lessons.put(
       withState(
         history(
-          { ...base, marks, source, shared: true, readOnly: true, state: base.state === "retired" ? "ok" : base.state, pack: { plugin, id: l.id, version: pack.version, content } },
-          { at, by, what: old ? "imported again" : "imported", version: pack.version },
+          {
+            ...base,
+            marks,
+            source,
+            shared: true,
+            readOnly: true,
+            state: base.state === "retired" ? "ok" : base.state,
+            pack: { plugin, id: l.id, version: pack.version, content },
+          },
+          {
+            at,
+            by,
+            what: old ? "imported again" : "imported",
+            version: pack.version,
+          },
         ),
       ),
     );
   }
-  for (const c of lessons.list().filter((x) => x.pack?.plugin === plugin && x.state !== "retired"))
+  for (const c of lessons
+    .list()
+    .filter((x) => x.pack?.plugin === plugin && x.state !== "retired"))
     if (!pack.lessons.some((l) => packLessonId(plugin, l.id) === c.id))
       retireRemoved(lessons, c, pack.version, at);
   return packPreview(lessons, plugin, pack);
@@ -766,7 +971,14 @@ export function importPack(lessons, plugin, pack, { by, now = Date.now() }) {
 
 function retireRemoved(lessons, lesson, version, at) {
   const reason = `removed from the ${lesson.pack.plugin} pack in version ${version}`;
-  lessons.put(withState(history({ ...lesson, state: "retired", staleReason: reason }, { at, by: "avoozl", what: "retired", reason })));
+  lessons.put(
+    withState(
+      history(
+        { ...lesson, state: "retired", staleReason: reason },
+        { at, by: "avoozl", what: "retired", reason },
+      ),
+    ),
+  );
 }
 
 // A plugin's pack changed version (R70.6): changed lessons need a re-check
@@ -774,9 +986,13 @@ function retireRemoved(lessons, lesson, version, at) {
 export function packChanged(lessons, plugin, pack, { now = Date.now() } = {}) {
   const at = iso(now),
     out = [];
-  for (const lesson of lessons.list().filter((l) => l.pack?.plugin === plugin && l.state !== "retired")) {
+  for (const lesson of lessons
+    .list()
+    .filter((l) => l.pack?.plugin === plugin && l.state !== "retired")) {
     if (lesson.pack.version === pack.version) continue;
-    const next = pack.lessons.find((l) => packLessonId(plugin, l.id) === lesson.id);
+    const next = pack.lessons.find(
+      (l) => packLessonId(plugin, l.id) === lesson.id,
+    );
     if (!next) {
       retireRemoved(lessons, lesson, pack.version, at);
       out.push(lesson.id);
@@ -785,8 +1001,20 @@ export function packChanged(lessons, plugin, pack, { now = Date.now() } = {}) {
       lessons.put(
         withState(
           history(
-            { ...lesson, marks: { ...(lesson.marks || {}), pack: { state: "needs re-check", reason, at } } },
-            { at, by: "avoozl", what: "marked", state: "needs re-check", reason },
+            {
+              ...lesson,
+              marks: {
+                ...(lesson.marks || {}),
+                pack: { state: "needs re-check", reason, at },
+              },
+            },
+            {
+              at,
+              by: "avoozl",
+              what: "marked",
+              state: "needs re-check",
+              reason,
+            },
           ),
         ),
       );
@@ -802,12 +1030,21 @@ export function exportPack(lessons, { workspaceId }) {
     version: new Date().toISOString().slice(0, 10),
     lessons: lessons
       .list()
-      .filter((l) => !l.readOnly && l.state !== "retired" && (l.source === workspaceId || l.shared !== false))
+      .filter(
+        (l) =>
+          !l.readOnly &&
+          l.state !== "retired" &&
+          (l.source === workspaceId || l.shared !== false),
+      )
       .map((l) => ({
         id: l.id.toLowerCase(),
         pattern: l.pattern,
         finding: l.finding,
-        change: { type: l.change?.type ?? null, target: l.change?.target ?? null, summary: l.change?.summary ?? null },
+        change: {
+          type: l.change?.type ?? null,
+          target: l.change?.target ?? null,
+          summary: l.change?.summary ?? null,
+        },
         outcome: l.outcome,
         evidence: briefLesson(l).evidence,
       })),

@@ -48,8 +48,16 @@ test("each built-in prompt is named sections that join back to its text, with lo
       (s) => s.name === "load-and-validate-configuration",
     ),
   );
-  for (const target of ["brief.worker", "brief.review", "agent.planner", "agent.retro"])
-    assert.match(shipped[target], new RegExp(OUTRANK_LINE.replace(/[.]/g, "\\.")));
+  for (const target of [
+    "brief.worker",
+    "brief.review",
+    "agent.planner",
+    "agent.retro",
+  ])
+    assert.match(
+      shipped[target],
+      new RegExp(OUTRANK_LINE.replace(/[.]/g, "\\.")),
+    );
 });
 
 function setup() {
@@ -88,7 +96,10 @@ test("approve writes override version 1 outside shipped files; revert is one ste
   assert.match(approved.to, /^brief\.worker@[0-9a-f]{8}\+o1$/);
   assert.ok(fs.existsSync(file));
   const after = promptState(file, shipped);
-  assert.match(after["brief.worker"].text, /Add a test for each changed branch/);
+  assert.match(
+    after["brief.worker"].text,
+    /Add a test for each changed branch/,
+  );
   const v1 = JSON.parse(fs.readFileSync(file, "utf8")).targets["brief.worker"]
     .versions[0];
   assert.deepEqual(Object.keys(v1).sort(), [
@@ -125,12 +136,26 @@ test("approve writes override version 1 outside shipped files; revert is one ste
     /locked \(untrusted-data\)/,
   );
   // Revert: the shipped text returns, recorded as version 2.
-  const reverted = revertPrompt(file, { target: "brief.worker", by: "dashboard", at: "t" }, shipped);
+  const reverted = revertPrompt(
+    file,
+    { target: "brief.worker", by: "dashboard", at: "t" },
+    shipped,
+  );
   assert.equal(reverted.n, 2);
-  assert.equal(promptState(file, shipped)["brief.worker"].text, shipped["brief.worker"]);
-  assert.equal(promptState(file, shipped)["brief.worker"].version, after["brief.worker"].shipped);
+  assert.equal(
+    promptState(file, shipped)["brief.worker"].text,
+    shipped["brief.worker"],
+  );
+  assert.equal(
+    promptState(file, shipped)["brief.worker"].version,
+    after["brief.worker"].shipped,
+  );
   // Revert the revert: version 1's text again, as version 3.
-  revertPrompt(file, { target: "brief.worker", by: "dashboard", at: "t" }, shipped);
+  revertPrompt(
+    file,
+    { target: "brief.worker", by: "dashboard", at: "t" },
+    shipped,
+  );
   const again = promptState(file, shipped)["brief.worker"];
   assert.match(again.text, /Add a test for each changed branch/);
   assert.match(again.version, /\+o3$/);
@@ -164,7 +189,10 @@ test("an agent prompt override travels in the seed as whole labeled sections", (
   const seed = seedOverrides(promptState(file, shipped), "agent.retro");
   assert.match(seed, /replaces the section of the same name/);
   assert.match(seed, /# Reply[\s\S]*Prefer one proposal\./);
-  assert.equal(seedOverrides(promptState(file, shipped), "agent.planner"), null);
+  assert.equal(
+    seedOverrides(promptState(file, shipped), "agent.planner"),
+    null,
+  );
 });
 
 test("an update under an override is flagged with a three-way diff and a rebase; locked text always updates", () => {
@@ -176,7 +204,10 @@ test("an update under an override is flagged with a three-way diff and a rebase;
       target: "brief.worker",
       section: "steps",
       base: current.sha256,
-      diff: unifiedDiff(current.body, current.body + "Add a test per branch.\n"),
+      diff: unifiedDiff(
+        current.body,
+        current.body + "Add a test per branch.\n",
+      ),
       proposal: { retro: "retro-1", id: "p1" },
       by: "dashboard",
       at: "t",
@@ -197,7 +228,10 @@ test("an update under an override is flagged with a three-way diff and a rebase;
   const drift = state.drift[0];
   assert.equal(drift.section, "steps");
   assert.equal(drift.conflict, false);
-  assert.match(drift.rebased, /Read the task first\.[\s\S]*Add a test per branch\./);
+  assert.match(
+    drift.rebased,
+    /Read the task first\.[\s\S]*Add a test per branch\./,
+  );
   assert.ok(drift.diffs.builtIn && drift.diffs.override);
   // Until a person approves, sessions keep the override; the locked
   // section's new text is used at once.
@@ -208,18 +242,33 @@ test("an update under an override is flagged with a three-way diff and a rebase;
     () =>
       rebasePrompt(
         file,
-        { target: "brief.worker", section: "steps", hash: "x", by: "d", at: "t" },
+        {
+          target: "brief.worker",
+          section: "steps",
+          hash: "x",
+          by: "d",
+          at: "t",
+        },
         updated,
       ),
     /changed since you saw it/,
   );
   rebasePrompt(
     file,
-    { target: "brief.worker", section: "steps", hash: drift.hash, by: "d", at: "t" },
+    {
+      target: "brief.worker",
+      section: "steps",
+      hash: drift.hash,
+      by: "d",
+      at: "t",
+    },
     updated,
   );
   const rebased = promptState(file, updated)["brief.worker"];
   assert.equal(rebased.drift.length, 0);
-  assert.match(rebased.text, /Read the task first\.[\s\S]*Add a test per branch\./);
+  assert.match(
+    rebased.text,
+    /Read the task first\.[\s\S]*Add a test per branch\./,
+  );
   assert.equal(path.basename(path.dirname(file)), "prompts");
 });

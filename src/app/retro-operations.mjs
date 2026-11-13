@@ -41,7 +41,11 @@ export const RETRO_WRITES = new Set([
 
 const memory = (store) => {
   const m = retroMemory(store);
-  if (!m) fail("This Avoozl process has no settings folder for prompts and lessons.", 409);
+  if (!m)
+    fail(
+      "This Avoozl process has no settings folder for prompts and lessons.",
+      409,
+    );
   return m;
 };
 
@@ -77,7 +81,12 @@ function proposalsView(store) {
     notes: retros.flatMap((r) =>
       (r.proposals || [])
         .filter((p) => p.note)
-        .map((p) => ({ retro: r.id, proposal: p.id, target: p.target, ...p.note })),
+        .map((p) => ({
+          retro: r.id,
+          proposal: p.id,
+          target: p.target,
+          ...p.note,
+        })),
     ),
     available: Boolean(retroMemory(store)),
   };
@@ -89,7 +98,13 @@ const FILTERS = {
   outcome: (l, v) => l.outcome === v,
   state: (l, v) => l.state === v,
   source: (l, v, id) =>
-    v === "this" ? l.source === id : v === "other" ? !l.readOnly && l.source !== id : v === "pack" ? l.readOnly : l.source === v,
+    v === "this"
+      ? l.source === id
+      : v === "other"
+        ? !l.readOnly && l.source !== id
+        : v === "pack"
+          ? l.readOnly
+          : l.source === v,
 };
 
 // The Lessons view (R69.10, R70.7): every lesson this workspace may read,
@@ -101,19 +116,35 @@ function lessonsView(store, input = {}) {
     lessons = m.lessons
       .list()
       .filter((l) => l.source === id || l.shared !== false)
-      .filter((l) => Object.entries(FILTERS).every(([key, test]) => input[key] === undefined || input[key] === "" || test(l, input[key], id)))
+      .filter((l) =>
+        Object.entries(FILTERS).every(
+          ([key, test]) =>
+            input[key] === undefined ||
+            input[key] === "" ||
+            test(l, input[key], id),
+        ),
+      )
       .map((l) => ({
         id: l.id,
         pattern: l.pattern,
         finding: l.finding,
-        change: { type: l.change?.type ?? null, target: l.change?.target ?? null, summary: l.change?.summary ?? null },
+        change: {
+          type: l.change?.type ?? null,
+          target: l.change?.target ?? null,
+          summary: l.change?.summary ?? null,
+        },
         outcome: l.outcome,
         evidence: l.evidence,
         confidence: l.confidence,
         confirmedAt: l.confirmedAt,
         state: l.state,
         staleReason: l.staleReason,
-        source: l.source === id ? "this workspace" : l.readOnly ? l.source : "another workspace",
+        source:
+          l.source === id
+            ? "this workspace"
+            : l.readOnly
+              ? l.source
+              : "another workspace",
         readOnly: Boolean(l.readOnly),
         date: l.date,
         history: l.history || [],
@@ -124,11 +155,18 @@ function lessonsView(store, input = {}) {
 function pluginFolder(m, id, { approved = false } = {}) {
   if (typeof id !== "string" || !id) fail("Name the plugin by its id.");
   const folder = (m.loadPluginFolders?.() || []).find((p) => p.id === id);
-  if (!folder) fail(`Plugin ${id} is not declared, or has no folder on this machine.`, 404);
+  if (!folder)
+    fail(
+      `Plugin ${id} is not declared, or has no folder on this machine.`,
+      404,
+    );
   if (!folder.provides?.includes("lessons"))
     fail(`Plugin ${id} provides no lessons pack.`, 409);
   if (approved && folder.state !== "approved")
-    fail(`Approve plugin ${id} at this version before importing its lessons pack.`, 409);
+    fail(
+      `Approve plugin ${id} at this version before importing its lessons pack.`,
+      409,
+    );
   return folder;
 }
 
@@ -152,7 +190,10 @@ export async function retroOperation(
     packChanged(m.lessons, folder.id, pack, { now });
     return packPreview(m.lessons, folder.id, pack);
   }
-  if (RETRO_WRITES.has(name) && (context.caller || context.mcp || context.plugin))
+  if (
+    RETRO_WRITES.has(name) &&
+    (context.caller || context.mcp || context.plugin)
+  )
     fail(
       name === "lessons.export"
         ? "Only a person exports lessons, in the Avoozl page or the CLI."
@@ -163,11 +204,21 @@ export async function retroOperation(
     );
   const at = new Date(now).toISOString();
   if (name === "prompt.override.revert")
-    return revertPrompt(overridesFile(store), { target: input.target, by, at }, m.shipped || shippedPrompts());
+    return revertPrompt(
+      overridesFile(store),
+      { target: input.target, by, at },
+      m.shipped || shippedPrompts(),
+    );
   if (name === "prompt.override.rebase")
     return rebasePrompt(
       overridesFile(store),
-      { target: input.target, section: input.section, hash: input.hash, by, at },
+      {
+        target: input.target,
+        section: input.section,
+        hash: input.hash,
+        by,
+        at,
+      },
       m.shipped || shippedPrompts(),
     );
   if (name === "plugin.lessons.import") {
@@ -175,20 +226,39 @@ export async function retroOperation(
       pack = readLessonsPack(store, folder),
       preview = packPreview(m.lessons, folder.id, pack);
     if (input.previewHash !== preview.hash)
-      fail(`The pack changed since that preview. Preview ${folder.id} again.`, 409);
+      fail(
+        `The pack changed since that preview. Preview ${folder.id} again.`,
+        409,
+      );
     return importPack(m.lessons, folder.id, pack, { by, now });
   }
   if (name === "lessons.export") {
-    if (typeof input.path !== "string" || !path.isAbsolute(input.path) || !input.path.endsWith(".json"))
+    if (
+      typeof input.path !== "string" ||
+      !path.isAbsolute(input.path) ||
+      !input.path.endsWith(".json")
+    )
       fail("Choose an absolute path for the pack file, ending in .json.");
     const pack = exportPack(m.lessons, { workspaceId: workspaceId(store) }),
-      blocks = pack.lessons.flatMap((l) => contentBlocks(store, "lesson", `export:${l.id}`, lessonText(l)));
-    if (blocks.length) fail(`Content rules refused the export, nothing was written: ${[...new Set(blocks)].join("; ")}.`, 422);
+      blocks = pack.lessons.flatMap((l) =>
+        contentBlocks(store, "lesson", `export:${l.id}`, lessonText(l)),
+      );
+    if (blocks.length)
+      fail(
+        `Content rules refused the export, nothing was written: ${[...new Set(blocks)].join("; ")}.`,
+        422,
+      );
     if (fs.existsSync(input.path) && input.replace !== true)
       fail("That file exists. Choose another path, or confirm Replace.", 409);
     fs.mkdirSync(path.dirname(input.path), { recursive: true });
-    fs.writeFileSync(input.path, JSON.stringify(pack, null, 2) + "\n", { mode: 0o600 });
-    return { path: input.path, lessons: pack.lessons.length, version: pack.version };
+    fs.writeFileSync(input.path, JSON.stringify(pack, null, 2) + "\n", {
+      mode: 0o600,
+    });
+    return {
+      path: input.path,
+      lessons: pack.lessons.length,
+      version: pack.version,
+    };
   }
   fail("Unknown operation " + name, 404);
 }

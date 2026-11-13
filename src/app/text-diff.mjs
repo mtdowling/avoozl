@@ -149,8 +149,7 @@ export function reverseDiff(diff) {
   return hunks
     .map((h) => {
       const body = h.lines.map(
-          (l) =>
-            (l.op === "=" ? " " : l.op === "-" ? "+" : "-") + l.line,
+          (l) => (l.op === "=" ? " " : l.op === "-" ? "+" : "-") + l.line,
         ),
         oldCount = body.filter((l) => l[0] !== "+").length,
         newCount = body.filter((l) => l[0] !== "-").length;
@@ -173,7 +172,8 @@ export const addedLines = (diff) =>
 // conflict. Returns {text, conflict}.
 export function merge3(base, ours, theirs) {
   if (ours === base) return { text: theirs, conflict: false };
-  if (theirs === base || theirs === ours) return { text: ours, conflict: false };
+  if (theirs === base || theirs === ours)
+    return { text: ours, conflict: false };
   const hunks = parseDiff(unifiedDiff(base, ours, { context: 0 })) || [],
     baseLines = lines(base);
   let target = lines(theirs);

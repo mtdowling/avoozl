@@ -2,12 +2,7 @@
 // three-way merge an override rebase uses (design §4.18).
 import assert from "node:assert/strict";
 import test from "node:test";
-import {
-  applyDiff,
-  merge3,
-  reverseDiff,
-  unifiedDiff,
-} from "../text-diff.mjs";
+import { applyDiff, merge3, reverseDiff, unifiedDiff } from "../text-diff.mjs";
 
 const before = ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j"].join("\n");
 
@@ -43,7 +38,10 @@ test("merge3 replays an override onto a changed base, or reports a conflict", ()
     text: "intro v2\n\nRun the checks. Add a test per branch.\nend",
     conflict: false,
   });
-  assert.equal(merge3(base, ours, "intro\nRun all checks.\nend").conflict, true);
+  assert.equal(
+    merge3(base, ours, "intro\nRun all checks.\nend").conflict,
+    true,
+  );
   assert.equal(merge3(base, base, theirs).text, theirs);
   assert.equal(merge3(base, ours, base).text, ours);
 });
