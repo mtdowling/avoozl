@@ -187,6 +187,8 @@ const APP_OPERATIONS = new Set([
   "delivery.retry",
   "task.start",
   "flow.runAnyway",
+  "flow.stop",
+  "flow.resume",
   "flow.settings.get",
   "flow.settings.update",
   "routing.view",

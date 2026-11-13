@@ -9,6 +9,7 @@ import path from "node:path";
 import { check as checkContent, contentBinding } from "./content-rules.mjs";
 import { FINAL_STATUSES, listSessionBindings } from "./session-bindings.mjs";
 import { taskRepository } from "../work-model.mjs";
+import { inPlan } from "./page-views.mjs";
 import { fail } from "./store.mjs";
 
 export const STAGES = Object.freeze([
@@ -889,15 +890,17 @@ export function flowSeries(timings, stops, unit = "day") {
   const buckets = new Map(),
     get = (key) => {
       if (!buckets.has(key))
-        buckets.set(key, { key, tasks: [], fixes: [] });
+        buckets.set(key, { key, tasks: [], fixes: [], opened: 0 });
       return buckets.get(key);
     };
   for (const t of timings) if (t.finishedAt) get(bucketOf(t.finishedAt, unit)).tasks.push(t);
-  for (const s of stops)
+  for (const s of stops) {
+    get(bucketOf(s.openedAt, unit)).opened += 1;
     if (s.closedAt) get(bucketOf(s.closedAt, unit)).fixes.push(ms(s.openedAt, s.closedAt));
+  }
   return [...buckets.values()]
     .sort((a, b) => (a.key < b.key ? -1 : 1))
-    .map(({ key, tasks, fixes }) => {
+    .map(({ key, tasks, fixes, opened }) => {
       const lead = tasks.reduce((sum, t) => sum + t.leadMs, 0),
         active = tasks.reduce((sum, t) => sum + t.activeMs, 0),
         stages = Object.fromEntries(
@@ -910,6 +913,8 @@ export function flowSeries(timings, stops, unit = "day") {
         flowEfficiency: lead ? active / lead : null,
         firstPassRate: tasks.length ? tasks.filter((t) => t.firstPass).length / tasks.length : null,
         timeToFixMs: median(fixes),
+        // Line stops opened in the bucket, automatic and pulled (R64.11).
+        stops: opened,
         stages,
       };
     });
@@ -979,6 +984,21 @@ export function dependentsOf(data, id) {
 // or with an unknown culprit (or scope repo) every task in the repository,
 // or every task (scope all). Its fix task is never paused.
 export function stopScope(store, data, stop) {
+  // A pulled stop (R64.5) pauses everything in its scope, fix tasks too.
+  if (stop.manual) {
+    if (stop.scope === "all") return new Set(data.tasks.map((t) => t.id));
+    if (stop.scope === "task")
+      return new Set([stop.taskId, ...dependentsOf(data, stop.taskId)]);
+    return new Set(
+      data.tasks
+        .filter((t) =>
+          stop.scope === "spec"
+            ? inPlan(t, { plan: stop.planId, spec: stop.spec })
+            : taskRepository(t) === stop.projectId,
+        )
+        .map((t) => t.id),
+    );
+  }
   const fixes = new Set(
     listOr(store, "flow_stops")
       .map((s) => s.fixTaskId)

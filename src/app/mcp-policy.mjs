@@ -50,6 +50,7 @@ export const PERSON_ONLY = new Map([
   ["flow.retro.start", person("Only a person starts a retro.")],
   ["flow.retro.decide", person("Only a person decides retro proposals.")],
   ["flow.runAnyway", person("Only a person presses Run anyway.")],
+  ["flow.resume", person("Only a person resumes a pulled stop.")],
   ["untriaged.handoff", person("Only a person sends issues to Issue Radar.")],
   ["review.chat", person("Only a person starts a code review chat.")],
   ["intake.deliver", person("Only a person presses Deliver this on an incoming item.")],

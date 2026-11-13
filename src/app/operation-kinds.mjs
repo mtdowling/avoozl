@@ -154,6 +154,8 @@ const EXECUTE = new Set([
   "content.check",
   "workspace.tick",
   "flow.runAnyway",
+  "flow.stop",
+  "flow.resume",
   "flow.checks.run",
   "flow.settings.update",
   "flow.instructions.update",

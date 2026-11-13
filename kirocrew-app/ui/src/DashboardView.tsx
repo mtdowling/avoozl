@@ -13,6 +13,7 @@ import { plansClient } from './plans-api.ts'
 import { CONFLICT_LABELS, viewsClient, type ConflictItem } from './views-api.ts'
 import { useRead } from './useRead.ts'
 import { LineBanner } from './FlowView.tsx'
+import { StopLineButton } from './StopLine.tsx'
 import { flowClient } from './flow-api.ts'
 import Logo from './Logo'
 import { IconBtn, IconLabel, ShowMore, ViewHeading, useAskChat, usePages } from './controls.tsx'
@@ -377,6 +378,10 @@ export default function DashboardView(props: {
         {summary && value.total > 0 && (
           <StateCounts counts={summary.counts} total={value.total} layout={layout} onPick={(state) => props.onScope?.('delivery', { state })} />
         )}
+        {/* Pull the Andon cord (R64): at the header's end, red. */}
+        <span className="ml-auto">
+          <StopLineButton workspaceId={workspaceId} onPulled={() => void flow.reload()} />
+        </span>
       </div>
       {/* Line stopped (R44.9, R48.5): above every other section. */}
       <LineBanner stops={flow.value?.line ?? []} workspaceId={workspaceId} onChanged={() => void flow.reload()} />
