@@ -1308,4 +1308,4 @@ Phase 32, which the remote relay holds, because task IDs never move.
 
 - [x] 33.1 Skip done tasks in projection, after 3.7 [R74] (§6.3)
   - `github.issues.includeDone` (default `false`) in the policy, the planning identity and the GitHub settings page; projection leaves out a done task with no issue, drops edges from it, keeps the plan issue, puts an open task of a skipped package under the plan issue, and the preview returns `skippedDone`; `src/app/test/github-include-done.test.mjs`.
-  - Built: `task/include-done`.
+  - Built: `da8a2b4`, PR #34.
