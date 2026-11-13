@@ -1224,7 +1224,7 @@ per-chat model change (F126); everything proves with fakes for Kiro Crew.
 ## Phase 31: Stop all agents and searchable pickers
 
 Owner approval 2026-11-13 (Requirements 64.12–64.16 and 73, design §4.11
-and §8.9). Numbered after Phase 30 (Phases 29 and 30 went to the activity log and provider switching) because task IDs never move.
+and §8.9). Numbered after Phase 30 because task IDs never move.
 
 - [ ] 31.1 Stop all agents in the backend and CLI, after 24.1 [R64.12, R64.14–R64.16] (§4.11)
   - `flow.stop {full: true}` is person only (MCP refused), needs the app backend's session stopper, records a full `all` stop with the sessions it stopped, stops each live tick-opened session, marks stopped bindings and attempts "Interrupted by stop" without spending a retry, holds checks and review sessions while open; Resume turns interrupted deliveries back to `failed` so the next tick re-dispatches on the same worktree, agent and model with a brief that says so; `avoozl flow stop --full`.

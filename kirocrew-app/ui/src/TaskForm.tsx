@@ -19,6 +19,7 @@ import {
 import type { Graph } from './views-api.ts'
 import { errorMessage } from './workspace-api.ts'
 import { linkHref } from './views-api.ts'
+import { Picker, taskItems } from './Picker.tsx'
 
 const fieldStyle = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }
 
@@ -48,15 +49,12 @@ function Area(props: { id: string; value: string; onChange: (value: string) => v
 
 // Prerequisites picked from existing tasks with a search box.
 function Prerequisites(props: { graph: Graph | null; self: string; value: Prerequisite[]; onChange: (value: Prerequisite[]) => void }) {
-  const [query, setQuery] = useState('')
   const titles = useMemo(() => new Map((props.graph?.tasks ?? []).map((t) => [t.id, t.title])), [props.graph])
-  const chosen = new Set(props.value.map((p) => p.id))
-  const matches = query.trim()
-    ? (props.graph?.tasks ?? [])
-        .filter((t) => t.id !== props.self && !chosen.has(t.id))
-        .filter((t) => `${t.id} ${t.title}`.toLowerCase().includes(query.trim().toLowerCase()))
-        .slice(0, 8)
-    : []
+  const chosenKey = props.value.map((p) => p.id).join('\n')
+  const candidates = useMemo(() => {
+    const chosen = new Set(chosenKey.split('\n'))
+    return taskItems(props.graph?.tasks ?? []).filter((t) => t.id !== props.self && !chosen.has(t.id))
+  }, [props.graph, props.self, chosenKey])
   const update = (at: number, change: Partial<Prerequisite>) =>
     props.onChange(props.value.map((p, i) => (i === at ? { ...p, ...change } : p)))
   return (
@@ -99,32 +97,14 @@ function Prerequisites(props: { graph: Graph | null; self: string; value: Prereq
           </li>
         ))}
       </ul>
-      <Input
-        aria-label="Search tasks to add as a prerequisite"
+      <Picker
+        label="Add a prerequisite"
         placeholder="Search tasks by title or ID"
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
+        items={candidates}
+        value=""
+        keep={false}
+        onPick={(id) => props.onChange([...props.value, { id, kind: 'requires', condition: '' }])}
       />
-      {matches.length > 0 && (
-        <ul role="listbox" aria-label="Matching tasks" className="flex flex-col gap-0.5 rounded border p-1" style={{ borderColor: 'var(--border)' }}>
-          {matches.map((t) => (
-            <li key={t.id}>
-              <button
-                type="button"
-                role="option"
-                aria-selected={false}
-                className="w-full truncate text-left text-sm hover:underline"
-                onClick={() => {
-                  props.onChange([...props.value, { id: t.id, kind: 'requires', condition: '' }])
-                  setQuery('')
-                }}
-              >
-                {t.title} <span className="text-xs text-muted">{t.id}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
     </div>
   )
 }

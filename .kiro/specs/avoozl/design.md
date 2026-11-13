@@ -4998,7 +4998,7 @@ the request. Avoozl adds no second path to Spec Builder.
 
 ### 8.9 Searchable pickers
 
-Added 2026-11-13 (Requirement 71). `Picker.tsx` is one combobox for every
+Added 2026-11-13 (Requirement 73). `Picker.tsx` is one combobox for every
 task and spec choice: the Stop the line target, the filter panels' task
 and spec fields, Start now, and any later one. Repositories keep their
 short select.

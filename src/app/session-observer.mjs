@@ -47,6 +47,26 @@ export function gatewaySlotReader(env = process.env, request = fetch) {
   };
 }
 
+// Stop one session's turn for Stop all agents (R64.12): Kiro Crew's own
+// session stop, on the app token. The app manifest grants
+// /api/chat/slots/avoozl_*; any refusal throws, and the caller names it.
+export function gatewaySessionStopper(env = process.env, request = fetch) {
+  const client = gatewayClient(env, request);
+  if (!client) return null;
+  return async (slot) => {
+    const response = await client.call(
+      `/api/chat/slots/${encodeURIComponent(slot)}/stop`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      },
+    );
+    if (!response.ok)
+      throw Error(`Kiro Crew refused the session stop (${response.status}).`);
+  };
+}
+
 // sessions.observe: read every live session the tick opened and record what
 // changed. Writes only a changed status. Returns {observed, errors}.
 // shortcut: one read per live session per tick; batch once Kiro Crew offers

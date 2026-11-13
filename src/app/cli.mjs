@@ -70,6 +70,7 @@ try {
           "no-epic",
           "push",
           "accept-lowered",
+          "full",
           "confirm-public",
           "untriaged",
         ].includes(key)
@@ -640,8 +641,9 @@ try {
     console.log(
       JSON.stringify(
         await localOrRequest("flow.stop", {
-          scope: options.scope,
+          scope: options.full ? "all" : options.scope,
           reason: options.reason,
+          ...(options.full ? { full: true } : {}),
           ...(options.repository ? { repository: options.repository } : {}),
           ...(options.spec ? { spec: options.spec } : {}),
           ...(options.task ? { taskId: options.task } : {}),
@@ -1320,6 +1322,7 @@ try {
                                         Act on a budget stop or an over-budget task (a person only)
   flow stop --scope all|repo|spec|task [--repository ID] [--spec ID] [--task ID] --reason TEXT
                                         Pull the Andon cord: stop new work in a scope
+  flow stop --full --reason TEXT        Stop all agents: also stop every running chat Avoozl opened (needs the app backend)
   flow resume STOP_ID                   Resume a pulled stop (a person only)
   checks run --task TASK_ID             Run the declared checks in this worktree and record the pass
   claim TASK_ID --slot SESSION [--model MODEL] Claim a ready leaf for a Crew Mode worker session

@@ -4,6 +4,8 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { Btn, Card } from '@kirocrew/app-sdk/ui'
 import { FilterSelect, selectStyle } from './FilterSelect.tsx'
+import { Picker } from './Picker.tsx'
+import type { PickItem } from './picker.ts'
 import { X } from './icons.ts'
 import { ICON, TipBtn } from './controls.tsx'
 import { useMedia } from './TaskDrawer.tsx'
@@ -12,6 +14,8 @@ import type { Option } from './filters.ts'
 export type FilterField =
   | { kind: 'search'; key: string; label: string; value: string; placeholder: string; onChange: (value: string) => void }
   | { kind: 'select'; key: string; label: string; value: string; options: Option[]; onChange: (value: string) => void; disabled?: boolean; hint?: string }
+  // A task or spec: the searchable picker (§8.9), with '' for All.
+  | { kind: 'pick'; key: string; label: string; value: string; items: PickItem[]; onChange: (value: string) => void }
   | {
       kind: 'range'
       key: string
@@ -49,6 +53,8 @@ function Field({ id, field }: { id: string; field: FilterField }) {
     )
   if (field.kind === 'select')
     return <FilterSelect id={fieldId} label={field.label} value={field.value} options={field.options} onChange={field.onChange} disabled={field.disabled} hint={field.hint} />
+  if (field.kind === 'pick')
+    return <Picker id={fieldId} label={field.label} items={field.items} value={field.value} onPick={field.onChange} emptyLabel="All" maxWidth="16rem" />
   if (field.kind === 'check')
     return (
       <label className="flex items-center gap-1.5 pb-1 text-sm">

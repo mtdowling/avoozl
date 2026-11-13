@@ -103,6 +103,10 @@ export const PERSON_ONLY = new Map([
   ["budget.switchToStop", person("Only a person changes a budget's mode.")],
   ["prices.save", person("Only a person changes the price table.")],
   ["budget.settings.update", person("Only a person changes budget settings.")],
+  [
+    "flow.stop",
+    person("Only a person stops all agents.", (input) => input?.full === true),
+  ],
   ["untriaged.handoff", person("Only a person sends issues to Issue Radar.")],
   ["review.chat", person("Only a person starts a code review chat.")],
   [

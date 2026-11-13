@@ -129,7 +129,11 @@ test("every person-only operation is refused for an MCP or session call", async 
     ops = new Operations(store),
     before = store.read().revision;
   for (const [name, rule] of PERSON_ONLY) {
-    const input = rule.when ? { confirm: true, previewHash: "x" } : { id: "x" };
+    // The input shape each `when` rule refuses: a confirmed GitHub setup, a
+    // full stop.
+    const input = rule.when
+      ? { confirm: true, previewHash: "x", full: true }
+      : { id: "x" };
     for (const context of [
       { mcp: true },
       { caller: { sessionKey: "dashboard:s" } },
