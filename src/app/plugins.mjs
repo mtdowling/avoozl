@@ -604,7 +604,10 @@ export function inspectPlugins(options) {
 const ipv4 = (hex) => {
   const [address, port] = hex.split(":");
   if (!/^[0-9A-F]{8}$/i.test(address || "") || !port) return hex;
-  const bytes = address.match(/../g).map((b) => parseInt(b, 16)).reverse();
+  const bytes = address
+    .match(/../g)
+    .map((b) => parseInt(b, 16))
+    .reverse();
   return `${bytes.join(".")}:${parseInt(port, 16)}`;
 };
 

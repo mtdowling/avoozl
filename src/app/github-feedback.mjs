@@ -391,7 +391,8 @@ export async function feedbackStep(
           if (
             rules.minimumPermission &&
             !held.has(key) &&
-            (!actors.length || actors.some((actor) => lower(actor) === lower(login)))
+            (!actors.length ||
+              actors.some((actor) => lower(actor) === lower(login)))
           )
             held.set(
               key,
