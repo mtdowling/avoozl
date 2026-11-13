@@ -2703,7 +2703,17 @@ export class Operations {
         (data) => {
           const task = data.tasks.find((item) => item.id === input.id);
           if (!task) fail("Task not found.", 404);
-          if (name === "task.archive") return archiveTask(task);
+          if (name === "task.archive") {
+            // Why it was archived, such as "plan removed" (Requirement 59.4:
+            // a plan is done when each task is done or archived with a reason).
+            if (input.reason !== undefined) {
+              if (typeof input.reason !== "string" || !input.reason.trim() || input.reason.length > 200 || /[\r\n]/.test(input.reason))
+                fail("reason is one line of 1–200 characters.");
+              task.archivedReason = input.reason.trim();
+            }
+            return archiveTask(task);
+          }
+          delete task.archivedReason;
           task.archivedAt = null;
           task.updatedAt = new Date().toISOString();
           return task;
