@@ -5723,6 +5723,23 @@
       "requires": [
         "24.2"
       ]
+    },
+    "33.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 33 (Only open tasks get issues). See R74; §6.3.",
+      "acceptance": [
+        "Skip done tasks in projection, after 3.7",
+        "With github.issues.includeDone unset, a done task with no issue gets no issue, card or link, edges from it are met, and the plan issue is still made; with it true, done tasks get issues as before."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "3.7"
+      ]
     }
   }
 }
