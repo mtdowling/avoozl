@@ -2433,7 +2433,7 @@ Needs you: Raise budget (person) │ Stop (person, pauses like Deferred)
 
 #### Caps
 
-- **Levels.** `budget: { usd?, tokens?, credits? }` at the workspace
+- **Levels.** `budget: { usd?, tokens?, credits?, mode? }` at the workspace
   (`.avoozl.json` `budget`), the repository (`projects.<id>.budget`), the
   spec (manifest top-level `budget`), and the task (a leaf's `budget`). The
   most specific level that sets a key wins, key by key. Every level is a
@@ -2452,16 +2452,37 @@ Needs you: Raise budget (person) │ Stop (person, pauses like Deferred)
   own cap from its repository and workspace. Planner, critic, retro and
   router sessions are not tasks and have no cap; their turns show on Flow
   under "no task".
+- **Modes.** `mode` is `"stop"` (default) or `"warn"`, most specific
+  level winning. In `stop` mode the cap works as "The stop" below. In
+  `warn` mode nothing is stopped, paused or messaged: at 100% the task
+  gets an Over budget badge (spend / cap) on the drawer, the Delivery card
+  and In flight, and one Needs you item, "Over budget: $X of $Y", with
+  Acknowledge, Raise budget and Switch to stop (person only).
+  Acknowledge clears it until spend passes the next step, each further
+  50% of the cap. `budget.notify: true` at the workspace also sends a Kiro
+  Crew notice per step; it is off by default. Switch to stop records who
+  and when in `budget_holds` and the next check stops the task.
+- **80% warning.** At 80% of any cap the task and the receipt show a
+  warning in both modes; nothing else changes.
+- **Fallback settings.** The 2,000,000-token and 200-credit fallbacks are
+  the defaults of the workspace `budget.tokens` and `budget.credits`.
+- **Intake grants.** A grant (`intakeBudget` on the task) only fills a
+  dollar cap no level set, never raises a person's cap, and forces `stop`
+  mode.
 - **Raises.** `budget.raise {taskId, usd?, tokens?, credits?}` (person
-  only) writes a row to `budget_raises` (`task_id`, `by`, `at`, `from`,
-  `to`, `price_version`). A raise overrides the computed cap for that task
+  only) writes a row to `budget_raises` (`task_id`, `by`, `at`,
+  `from_json`, `to_json`, `price_version`). A raise overrides the computed cap for that task
   without editing the approved manifest, whose hash stays pinned.
 
 #### The stop
 
 Spend is known after each usage read, which runs after each tick receipt,
-about once a minute. The check runs then and again in the tick before any
-dispatch for the task.
+about once a minute. The check runs then (in the app backend, under the
+tick's lock) and again in the tick before any dispatch for the task. A
+task can pass its cap by the turns that run between two reads; the
+receipt shows the overrun. Stops, pauses, over-budget steps and sent
+messages live in SQLite `budget_holds`. The rest of this section is
+`stop` mode.
 
 1. Spend reaches a cap. The tick records a `budget` stop on the task:
    spend, cap, level, and the price version used.
@@ -2476,7 +2497,7 @@ dispatch for the task.
    the first live stop records it). Avoozl never calls a stop, interrupt
    or close on the session.
 4. Every Avoozl MCP call from a bound session, except `plans_report`,
-   returns `budget_reached` with the same text, so a worker that missed the
+   returns `budget_reached` (status 409, error code `budget_reached`) with the same text, so a worker that missed the
    message still learns at its next Avoozl call.
 5. The task opens one Needs you decision of kind `budget` with **Raise
    budget** and **Stop**. Turns that ran between the cap and the stop are
@@ -2546,7 +2567,18 @@ An incoming item (§4.12) may later carry `budget: { usd }` from a plugin
 source whose entry the owner approved with a `budget` capability. A task
 made from that item by Plan this or Deliver this would take it at the spec
 level, below the manifest task. Nothing builds this until a real grant
-plugin exists; payments, escrow and refunds are out of scope.
+plugin exists; payments, escrow and refunds are out of scope. A grant only sets a cap where none
+exists and is always `stop` mode (owner decision 2026-11-13).
+
+#### Built (2026-11-13)
+
+`src/app/budget.mjs` holds the price table, caps, spend, holds and
+receipts. Settings puts caps in **Settings › Budgets** (workspace and each
+repository, `budget.settings.get` and `budget.settings.update`) rather than
+in the repository Edit modal, so each cap lives in one place. The CLI adds
+`avoozl budget view|raise|stop|acknowledge|switch-to-stop`. The driver
+export (§6.10) is not built yet; when it is, it leaves `prices` and
+`price_versions` out.
 
 #### Why each choice
 
@@ -2562,6 +2594,10 @@ plugin exists; payments, escrow and refunds are out of scope.
 | Stop at the next turn by message | Ending a tool call mid-change can lose work |
 | Retries and reviews share the cap | The point is a task's total cost |
 | Unknown spend warns, never stops | A missing read must not block delivery |
+| Warn mode | Some owners want to see overspend, not block it |
+| Acknowledge until the next 50% step | One item per step cannot nag every tick |
+| Grant caps always stop | It is someone else's money |
+| No spec-wide total | Owner decision 2026-11-13; per-task caps first |
 | Raise and Stop person only | Spending more is the owner's call |
 | Budget never a permission | Spend limits must not loosen safety gates |
 

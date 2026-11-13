@@ -50,6 +50,10 @@ export default function NewPlanDrawer(props: {
   // Names a plan or spec folder already uses.
   taken: string[]
   categories: string[]
+  // Epic folders to pick from: their folder name and title.
+  epics?: { id: string; title: string }[]
+  // Make it a spec (R63.9): fields filled from an idea, and its id.
+  seed?: Partial<NewPlanForm>
   onClose: (notice: string | null) => void
 }) {
   const api = useAppApi()
@@ -60,7 +64,7 @@ export default function NewPlanDrawer(props: {
   const ask = useConfirm()
   const narrow = useMedia('(max-width: 767px)')
   const still = useMedia('(prefers-reduced-motion: reduce)')
-  const [form, setForm] = useState<NewPlanForm>(EMPTY_NEW_PLAN)
+  const [form, setForm] = useState<NewPlanForm>(() => ({ ...EMPTY_NEW_PLAN, ...props.seed }))
   const [repositories, setRepositories] = useState<Repository[] | null>(null)
   const [nameTouched, setNameTouched] = useState(false)
   const [tried, setTried] = useState(false)
@@ -101,13 +105,13 @@ export default function NewPlanDrawer(props: {
   const dirty = isDirty(form)
   const close = async () => {
     if (busy) return
-    if (dirty && !(await ask({ title: 'Discard this new plan?', body: 'What you typed is not saved anywhere.', action: 'Discard' }))) return
+    if (dirty && !(await ask({ title: 'Discard this new spec?', body: 'What you typed is not saved anywhere.', action: 'Discard' }))) return
     props.onClose(null)
   }
   const closeRef = useRef(close)
   closeRef.current = close
   // Esc and Back ask first when something was typed, like Cancel.
-  useBackStep('drawer', true, 'Close New plan', () => void closeRef.current())
+  useBackStep('drawer', true, 'Close New spec', () => void closeRef.current())
 
   useEffect(() => {
     const before = document.activeElement as HTMLElement | null
@@ -177,7 +181,7 @@ export default function NewPlanDrawer(props: {
     return run(async () => {
       const preview = await client.preview(props.workspaceId, form)
       // A missing file is asked about first; a present or changed one is left alone.
-      if (preview.steering.state === 'missing') setSteering(preview.steering)
+      if (preview.steering.state === 'missing' || preview.steering.state === 'older') setSteering(preview.steering)
       else await handOffNow(false)
     })
   }
@@ -219,9 +223,9 @@ export default function NewPlanDrawer(props: {
           <SectionHeading
             level={2}
             id="avoozl-new-plan-title"
-            title="New plan"
+            title="New spec"
             actions={
-              <IconLabel icon={X} onClick={() => void close()} aria-label="Close New plan">
+              <IconLabel icon={X} onClick={() => void close()} aria-label="Close New spec">
                 Close
               </IconLabel>
             }
@@ -236,7 +240,7 @@ export default function NewPlanDrawer(props: {
           }}
         >
           <p className="text-xs text-muted">
-            Kiro Crew&apos;s Spec Builder drafts the spec from this: requirements, design, then tasks, each for you to review. Avoozl then writes the manifest, and the plan shows in Plans as a draft. Nothing is approved or started.
+            Kiro Crew&apos;s Spec Builder drafts the spec from this: requirements, design, then tasks, each for you to review. Avoozl then writes the manifest, and the spec shows in Specs as a draft. Nothing is approved or started.
           </p>
           <Field id="avoozl-new-plan-name" need="required" label="Name" hint="Becomes the spec folder name: lowercase letters, digits and hyphens." problem={nameIssue}>
             <Input
@@ -250,7 +254,7 @@ export default function NewPlanDrawer(props: {
               style={{ maxWidth: '24rem' }}
             />
           </Field>
-          <Field id="avoozl-new-plan-category" need="optional" label="Category" hint="Pick one or type a new one. Left blank, the plan is Uncategorized.">
+          <Field id="avoozl-new-plan-category" need="optional" label="Category" hint="Pick one or type a new one. Left blank, the spec is Uncategorized.">
             <Input
               id="avoozl-new-plan-category"
               list="avoozl-new-plan-categories"
@@ -268,23 +272,31 @@ export default function NewPlanDrawer(props: {
             id="avoozl-new-plan-epic"
             need="optional"
             label="Epic"
-            hint="The epic's spec folder name. Left blank, the plan is in no epic."
+            hint="Pick an epic, a goal that spans specs. Left blank, the spec is in no epic."
             problem={form.epic.trim() && !SPEC_NAME.test(form.epic.trim()) ? EPIC_PROBLEM : null}
           >
             <Input
               id="avoozl-new-plan-epic"
               value={form.epic}
+              list="avoozl-new-plan-epic-list"
               placeholder="rewrite"
               onChange={(event) => set({ epic: event.target.value })}
               style={{ maxWidth: '18rem' }}
             />
+            <datalist id="avoozl-new-plan-epic-list">
+              {(props.epics ?? []).map((epic) => (
+                <option key={epic.id} value={epic.id}>
+                  {epic.title}
+                </option>
+              ))}
+            </datalist>
           </Field>
-          <Field id="avoozl-new-plan-epics" need="optional" label="Phases" hint="One per line; each becomes a heading in tasks.md. Left blank, the planner picks them.">
+          <Field id="avoozl-new-plan-phases" need="optional" label="Phases" hint="One per line; each becomes a heading in tasks.md. Left blank, the planner picks them.">
             <textarea
-              id="avoozl-new-plan-epics"
+              id="avoozl-new-plan-phases"
               rows={3}
-              value={form.epics}
-              onChange={(event) => set({ epics: event.target.value })}
+              value={form.phases}
+              onChange={(event) => set({ phases: event.target.value })}
               className="rounded border px-2 py-1 text-sm"
               style={fieldStyle}
             />

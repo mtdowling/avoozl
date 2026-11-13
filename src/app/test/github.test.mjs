@@ -250,8 +250,8 @@ test("approved design tasks project once, preserve human issue text, and point t
     id: "plan-github",
     prompt: "Project a design",
     text: markdown.replace(
-      '"epic":"sample"',
-      '"epic":"sample","projectId":"code"',
+      '"track":"catalog"',
+      '"track":"catalog","projectId":"code"',
     ),
     context: { projectId: "code" },
   });
@@ -517,8 +517,8 @@ test("fresh workspace recovers projected issues from managed markers", async (t)
       id: "recover-projection",
       prompt: "Recover a projection",
       text: markdown.replace(
-        '"epic":"sample"',
-        '"epic":"sample","projectId":"code"',
+        '"track":"catalog"',
+        '"track":"catalog","projectId":"code"',
       ),
       context: { projectId: "code" },
     },
@@ -671,7 +671,7 @@ test("parent tasks link children as sub-issues across repositories", async (t) =
     { plan, approved } = await approve(ops, store, "parent-link", [
       {
         id: "epic-one",
-        kind: "epic",
+        kind: "package",
         title: "Epic one",
         projectId: "planning",
       },
@@ -695,7 +695,7 @@ test("parent tasks link children as sub-issues across repositories", async (t) =
   assert.equal(child.repository, "example/code");
   assert.deepEqual(github.subIssues, [[epic.number, child.id]]);
   assert.equal(markerOf(child).parent, epicId);
-  assert.equal(markerOf(epic).kind, "epic");
+  assert.equal(markerOf(epic).kind, "package");
 
   await ops.execute("github.project", { planId: plan.id });
   assert.deepEqual(github.subIssues, [[epic.number, child.id]]);
@@ -766,11 +766,11 @@ function issueFor(github, taskId) {
   return github.created.find((issue) => markerOf(issue).taskId === taskId);
 }
 
-test("epics get the epic issue type, sequence edges block, supports stay in the marker", async (t) => {
+test("a package gets no issue type, sequence edges block, supports stay in the marker", async (t) => {
   const { store, github, ops, plan, approved } = await projectedWorkspace(
     t,
     [
-      { id: "big-epic", kind: "epic", title: "Big epic", projectId: "code" },
+      { id: "big-epic", kind: "package", title: "Big epic", projectId: "code" },
       leaf("first-leaf"),
       leaf("second-leaf", { sequence: ["first-leaf"] }),
       leaf("third-leaf", { supports: ["first-leaf"] }),
@@ -789,7 +789,8 @@ test("epics get the epic issue type, sequence edges block, supports stay in the 
     second = issueFor(github, secondId),
     third = issueFor(github, thirdId);
   assert.deepEqual(result.notes, []);
-  assert.equal(epic.type.name, "Epic");
+  // Only a cross-plan epic's issue gets the epic type (Requirement 59.8).
+  assert.equal(epic.type, undefined);
   assert.equal(first.type, undefined);
   assert.deepEqual(
     github.subIssues.map(([parent]) => parent),
@@ -801,13 +802,9 @@ test("epics get the epic issue type, sequence edges block, supports stay in the 
   assert.deepEqual(markerOf(first).applied.blockers, []);
   assert.deepEqual(markerOf(third).edges, undefined);
   assert.deepEqual(markerOf(first).edges, { supports: [thirdId] });
-  // Epics never carry the ready label.
+  // Packages never carry the ready label.
   assert.equal(labelsOf(epic).includes("avoozl:ready"), false);
   assert.equal(labelsOf(second).includes("avoozl:ready"), false);
-
-  github.issueTypes = { example: ["Task"] };
-  const rerun = await ops.execute("github.project", { planId: plan.id });
-  assert.match(rerun.notes[0], /example has no Epic issue type/);
 });
 
 function labelsOf(issue) {

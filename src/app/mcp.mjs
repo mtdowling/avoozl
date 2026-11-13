@@ -182,7 +182,7 @@ export const OLD_TOOLS = {
   ],
   plans_draft_children: [
     "github.breakdown.draft",
-    "Name the spec folder that holds a broad issue's child graph: {repository, number, spec}. Its one top-level epic item stands for the issue; every other item nests under it. Returns the lint diagnostics and whether a current critique exists. Writes nothing to GitHub; the next sync posts the preview.",
+    "Name the spec folder that holds a broad issue's child graph: {repository, number, spec}. Its one top-level package item stands for the issue; every other item nests under it. Returns the lint diagnostics and whether a current critique exists. Writes nothing to GitHub; the next sync posts the preview.",
   ],
   plans_advance_breakdowns: [
     "github.breakdown.advance",

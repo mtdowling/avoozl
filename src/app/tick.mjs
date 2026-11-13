@@ -22,6 +22,11 @@ import {
   assertSafeConfig,
 } from "./layered-config.mjs";
 import { flowPolicy, syncSpans } from "./flow.mjs";
+import {
+  budgetHeldTaskIds,
+  budgetStep,
+  validateTrackedBudgets,
+} from "./budget.mjs";
 import { blockedNaming, judgeBaseFailures, watchLine } from "./flow-line.mjs";
 import { retroStep } from "./flow-retro.mjs";
 import {
@@ -48,6 +53,7 @@ import { workspaceRepositories } from "./workspace-repositories.mjs";
 import { queueNotifications, sessionUrl } from "./notifications.mjs";
 import {
   closeGitHubParents,
+  closePlanAndEpicIssues,
   reconcileGitHubCompletion,
 } from "./github-close.mjs";
 import { readGitHubPolicy, readGitHubPolicyOrNull } from "./github-policy.mjs";
@@ -109,6 +115,7 @@ function parsePolicy(text) {
   validateTrackedRouting(value);
   validateContentRules(value.contentRules);
   validateIntake(value.intake);
+  validateTrackedBudgets(value);
   return value;
 }
 
@@ -430,6 +437,7 @@ async function githubStep(store, github, workspaceRoot, delivery) {
       });
     completeParents(store);
     await closeGitHubParents(store, github);
+    await closePlanAndEpicIssues(store, github);
     // Readiness changed by this tick's verdicts reaches GitHub now: the
     // ready label for Issue Radar, `dispatch.ready` for the runner.
     const projection = await refreshProjectedReadiness(store, github, {
@@ -680,6 +688,14 @@ export async function tick(
         // Dependents are released by readiness below, in this same tick.
         completeParents(store);
       }
+      // Budgets (§4.17): the check before any dispatch for a task. A stop
+      // queues one message per live session; nothing is closed.
+      const budget = budgetStep(store, store.read(), {
+        script,
+        tracked: memory.value || {},
+      });
+      planned.messages.push(...budget.messages);
+      planned.notify.push(...budget.notify);
       // Only the cron reads and writes GitHub; the page's tick plans only.
       const githubResult =
         script && github
@@ -906,6 +922,32 @@ export async function tick(
       const reviews =
         script && !unobserved.length ? reviewDispatches(store) : [];
       const notices = [...notify, ...planned.notify];
+      // Nothing new starts for a task at its budget, and its sessions get
+      // only the budget's own messages until a person acts (R67.8).
+      const budgetHeld = budgetHeldTaskIds(store),
+        heldSlots = new Set(
+          bindings
+            .filter((b) =>
+              [b.taskId, ...(b.batch?.tasks || [])].some((id) =>
+                budgetHeld.has(id),
+              ),
+            )
+            .map((b) => b.slot),
+        ),
+        open = (d) =>
+          ![d.task, ...(d.batch?.tasks || [])].some((id) => budgetHeld.has(id)),
+        dispatched = [
+          ...requested,
+          ...ready,
+          ...verify,
+          ...responders,
+          ...planners,
+          ...retro.dispatch,
+          ...reviews,
+        ].filter(open),
+        messages = planned.messages.filter(
+          (m) => m.budget || !heldSlots.has(m.slot),
+        );
       // The cron's tick queues each notice once for the app's notification
       // channels; the app backend pushes it (notifications.mjs).
       if (script) queueNotifications(store, notices);
@@ -929,16 +971,8 @@ export async function tick(
         observe: bindings
           .filter((b) => !FINAL_STATUSES.has(b.status))
           .map(({ slot, taskId, role }) => ({ slot, taskId, role })),
-        dispatch: [
-          ...requested,
-          ...ready,
-          ...verify,
-          ...responders,
-          ...planners,
-          ...retro.dispatch,
-          ...reviews,
-        ],
-        messages: planned.messages,
+        dispatch: dispatched,
+        messages,
         notify: notices.map((notice) => ({
           ...notice,
           link: sessionUrl(notice.slot),

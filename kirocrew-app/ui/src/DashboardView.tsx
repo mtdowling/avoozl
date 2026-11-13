@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
+import { SpendChip } from './Budget.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import { useAppApi } from '@kirocrew/app-sdk'
 import { Btn, Card, EmptyState } from '@kirocrew/app-sdk/ui'
@@ -22,7 +23,6 @@ import { Activity, DetailsIcon, ExternalLink, Inbox, MessageSquare, Network, Ref
 import { chatClient, itemRef, type ActivityItem } from './chat-api.ts'
 import type { TaskFilter } from './filters.ts'
 import type { Drill } from './graph-layout.ts'
-import { documentEpic } from './graph-layout.ts'
 import { linkHref } from './views-api.ts'
 
 // Recent activity reads up to the backend's cap (activity.recent allows 200).
@@ -163,7 +163,8 @@ function InFlightRow({ row, now, onInfo, onPickAgain }: { row: InFlight; now: nu
         <span className="text-xs text-muted">
           {row.taskId}
           {row.epic ? ` · ${row.epic}` : ''} · attempt {row.attempt}
-        </span>
+        </span>{' '}
+        <SpendChip budget={row.budget} />
         {row.focus && <span className="block text-xs text-muted">{row.focus}</span>}
         <span className="block text-xs text-muted">
           {row.session.agent ? `${row.session.agent} / ` : ''}
@@ -387,6 +388,11 @@ export default function DashboardView(props: {
             {props.untriaged !== null && props.untriaged !== undefined && (
               <UntriagedStat count={props.untriaged} onOpen={() => onNavigate('untriaged')} />
             )}
+            {summary && summary.overBudget > 0 && (
+              <span data-over-budget>
+                <Badge variant="danger">{summary.overBudget} over budget</Badge>
+              </span>
+            )}
           </>
         }
         wideActions={layout !== 'wide'}
@@ -415,8 +421,8 @@ export default function DashboardView(props: {
         <EmptyState
           icon={<Logo size={40} />}
           title="No tasks yet"
-          subtitle="Plan a goal from the header, then approve its spec in Plans. Ready tasks start on their own."
-          action={<Btn onClick={() => onNavigate('plans')}>Open Plans</Btn>}
+          subtitle="Plan a goal from the header, then approve its spec in Specs. Ready tasks start on their own."
+          action={<Btn onClick={() => onNavigate('plans')}>Open Specs</Btn>}
         />
       ) : summary ? (
         <>
@@ -454,20 +460,20 @@ export default function DashboardView(props: {
             </Section>
             <Section
               title="Progress by epic"
-              empty={summary.progress.length === 0 && `No epics yet. ${summary.plans.approved} approved and ${summary.plans.draft} draft plans.`}
+              empty={summary.progress.length === 0 && `No epics yet. ${summary.plans.approved} approved and ${summary.plans.draft} draft specs.`}
             >
               <p className="mt-1 text-xs text-muted">
-                {summary.plans.approved} approved and {summary.plans.draft} draft plans.{' '}
+                {summary.plans.approved} approved and {summary.plans.draft} draft specs.{' '}
                 <button type="button" className="underline" onClick={() => onNavigate('plans')}>
-                  Open Plans
+                  Open Specs
                 </button>
               </p>
               <ul className="mt-2 flex flex-col gap-1 text-sm">
                 {summary.progress.map((entry) => {
                   const percent = entry.total ? Math.round((entry.done / entry.total) * 100) : 0
-                  const title = entry.title !== entry.epic ? entry.title : documentEpic(entry.epic)
+                  const title = entry.title
                   return (
-                    <li key={entry.epic}>
+                    <li key={entry.epic ?? '(none)'}>
                       <Tooltip text={`Show only ${title} in the Graph${entry.running > 0 ? `. ${entry.running} Avoozl chats running now.` : ''}`} display="block">
                       <button
                         type="button"

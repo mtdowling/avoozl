@@ -69,7 +69,7 @@ if (fs.existsSync("breaks-main") && path.basename(process.cwd()).startsWith("avo
     leaf("f" + (i + 1), { status: "accepted" }),
   );
   const tasks = [
-    leaf("e1", { kind: "epic", acceptance: undefined }),
+    leaf("e1", { kind: "package", acceptance: undefined }),
     ...["a1", "a2", "a3", "a4"].map((id) =>
       leaf(id, { parent: "e1", size: "small" }),
     ),

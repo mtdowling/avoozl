@@ -2,8 +2,8 @@
 
 Avoozl turns a goal into a reviewed task graph and delivers it through
 [Kiro Crew](kirocrew-app/README.md) sessions. It runs as a Kiro Crew app: a
-page, a loopback backend, an MCP server, and a one-minute tick. Plans are Kiro
-spec folders. Execution state lives in a local SQLite workspace. GitHub is
+page, a loopback backend, an MCP server, and a one-minute tick. Its work is
+described in Kiro spec folders, called specs on the page. Execution state lives in a local SQLite workspace. GitHub is
 optional.
 
 ## Install
@@ -32,8 +32,8 @@ The trust request asks for these API grants:
 | `/api/chat/slots/avoozl_*`     | Status of the sessions the tick opened, and no others      |
 | `/api/usage/turns`             | Token and credit counts per flow stage, for those sessions |
 | `/api/models`                  | The model lists in Settings                                |
-| `/api/apps/spec-builder/specs` | Handing a new plan to Spec Builder                         |
-| `/api/reveal`                  | Showing a plan file in the file browser                    |
+| `/api/apps/spec-builder/specs` | Handing a new spec to Spec Builder                         |
+| `/api/reveal`                  | Showing a spec file in the file browser                    |
 
 An update that adds a grant waits until you approve it. The **Avoozl** page
 appears in the sidebar.
@@ -81,9 +81,11 @@ in the file, unused, so switching back restores them. In plans-repo mode a
 leak screen keeps the planning repository's name out of branches, pull
 requests, and comments in the code repositories.
 
-## Plan
+## Specs
 
-Every plan is a Kiro spec folder:
+Every spec is a Kiro spec folder. Inside Avoozl and in its interfaces
+(`plan.*` operations, `plans_*` MCP tools, CLI commands) a spec is stored as a
+plan, so those names stay.
 
 ```text
 .kiro/specs/<name>/
@@ -98,14 +100,14 @@ each ID its kind, summary, acceptance, dependencies (`requires`), checks, and
 completion level. Avoozl refuses a folder that is missing a file, or a
 `tasks.md` with a missing or repeated ID.
 
-In the Plans view, choose **New plan** (or **Plan a goal** in the header).
+On the Specs page, choose **New spec** (or **Plan a goal** in the header).
 Fill in the name, the repositories in scope and what you want, then choose
 **Open in Spec Builder**. Avoozl offers to add `.kiro/steering/avoozl-specs.md`
 to the repository first, showing its text; it holds Avoozl's spec rules, and it
 is never written over a changed copy. Kiro Crew's Spec Builder then drafts
 requirements, design and tasks, one phase at a time for you to review. Once
 `tasks.md` holds still, Avoozl writes `avoozl/manifest.json` from it and stores
-the folder as a draft plan. Nothing is approved or started. Spec Builder must
+the folder as a draft spec. Nothing is approved or started. Spec Builder must
 be turned on in Kiro Crew's Apps; when it is off, the drawer says so and offers
 an `avoozl-planner` chat instead.
 Select the spec, review the lint results and the graph, then choose
@@ -142,12 +144,26 @@ To let a Crew Mode conductor claim leaves instead, set
 Avoozl never replaces a worker only because its activity went quiet. It
 checks durable session and delivery records first.
 
+## Ideas
+
+An idea is a rough note that can later become a spec. Choose **New idea** on
+the Specs page or the Intake tab, give it a title, and add notes and links.
+Agents can save ideas too, over MCP (`plans_intake`, action `capture_idea`)
+or the CLI (`avoozl intake idea add --title ...`). An idea never runs work:
+no trigger rule matches it and it never counts as untriaged.
+
+On the Intake tab, **Ideas** lists them. **Riff on this** opens a chat about
+the idea that changes nothing except adding notes and links to it (action
+`add_idea_note`). **Make it a spec** opens New spec filled in from the idea,
+and the idea is marked as that spec once you send it. Only a person archives,
+restores, or makes an idea a spec.
+
 ## Deliver through GitHub
 
 Pick a GitHub mode under **Settings > Where tasks live**, then use **Set up
 GitHub** there, or **Settings > Repositories > Onboard** for a new folder. Both
 read GitHub first and preview every write (labels, Project fields, issue
-types); nothing is written until you confirm. Approved plans become issues,
+types); nothing is written until you confirm. Approved specs become issues,
 sub-issues, and blocked-by links, with a Project board as the view. Public and
 private repositories both work.
 
@@ -263,7 +279,7 @@ operation: `plans_workspace` (read only), `plans_maintain`, `plans_view`,
 `{"action": "get", "input": {"id": "TASK_ID"}}`.
 
 Some actions belong to a person and are refused over MCP under any tool name,
-old or new: approving or starting a plan, deletes, plugin changes, Allow
+old or new: approving or starting a spec, deletes, plugin changes, Allow
 once and content-rule terms, choosing a conflict winner, GitHub setup writes
 and settings (including Who counts), adding or removing repositories or
 intake sources, workspace, flow, delivery, and routing settings, Pick again,

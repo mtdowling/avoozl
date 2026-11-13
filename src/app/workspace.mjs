@@ -25,9 +25,8 @@ export function emptySnapshot(name = "My workspace") {
       { id: "recorded", label: "Historical completion", complete: false },
       { ...SUPERSEDED_STATUS },
     ],
-    epics: [
-      { id: "inbox", title: "Inbox", scope: "catalog", color: "#96abc1" },
-    ],
+    // Cross-plan epics only; each comes from an approved epic folder.
+    epics: [],
     tracks: [{ id: "catalog", label: "General" }],
     tasks: [],
     edges: [],

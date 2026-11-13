@@ -6,8 +6,8 @@ import Badge from './Badge.tsx'
 export function PlanChip({ label, onClear }: { label: string; onClear?: () => void }) {
   return (
     <span className="inline-flex items-center gap-2 text-sm">
-      <Badge variant="info">Plan: {label}</Badge>
-      {onClear && <TipBtn tooltip="Remove the plan filter" onClick={onClear}>Show all plans</TipBtn>}
+      <Badge variant="info">Spec: {label}</Badge>
+      {onClear && <TipBtn tooltip="Remove the spec filter" onClick={onClear}>Show all specs</TipBtn>}
     </span>
   )
 }

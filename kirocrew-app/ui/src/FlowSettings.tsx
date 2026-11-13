@@ -82,6 +82,18 @@ export default function FlowSettings({ workspaceId }: { workspaceId: string }) {
     setInstructions(value.instructions ?? '')
   }, [value])
   const set = (change: Partial<FlowForm>) => setForm({ ...form, ...change })
+  // Overrides an Avoozl update changed under them (R70.5).
+  const [drifted, setDrifted] = useState(0)
+  useEffect(() => {
+    let live = true
+    client.proposals(workspaceId).then(
+      (p) => live && setDrifted(p.prompts.reduce((n, row) => n + row.drift.length, 0)),
+      () => live && setDrifted(0),
+    )
+    return () => {
+      live = false
+    }
+  }, [client, workspaceId])
   const save = async () => {
     if (!value) return
     const built = toFlowSection(form)
@@ -143,8 +155,8 @@ export default function FlowSettings({ workspaceId }: { workspaceId: string }) {
             </Labeled>
             <Labeled id="avoozl-flow-by" label="Group by" raw="flow.batch.by" width="12rem">
               <select id="avoozl-flow-by" value={form.by} onChange={(event) => set({ by: event.target.value as FlowForm['by'] })} className="rounded border px-2 py-1 text-sm" style={selectStyle}>
-                <option value="">Same epic (default)</option>
-                <option value="epic">Same epic</option>
+                <option value="">Same phase (default)</option>
+                <option value="phase">Same phase</option>
                 <option value="files">Same files</option>
               </select>
             </Labeled>
@@ -184,6 +196,43 @@ export default function FlowSettings({ workspaceId }: { workspaceId: string }) {
             placeholder="What the retro should weigh, for example: fewer review rounds matter more than CI time."
             note="Saved on this machine only."
           />
+        </Section>
+      </Box>
+      <Box>
+        <Section title="Lessons" blurb="What retros learned, as short summaries. Lessons stay on this computer and help retros in your other workspaces.">
+          <div className="flex flex-col gap-2" data-flow-group="lessons">
+            {(
+              [
+                ['share', "Share this workspace's lessons"],
+                ['read', 'Use lessons from other workspaces'],
+              ] as const
+            ).map(([key, label]) => (
+              <div key={key} className="flex flex-col gap-0.5">
+                <label className="flex flex-wrap items-center gap-2 text-sm">
+                  <input type="checkbox" checked={form[key] ? form[key] === 'on' : FLOW_DEFAULTS[key]} onChange={(event) => set({ [key]: event.target.checked ? 'on' : 'off' })} />
+                  <span className="font-medium">{label}</span>
+                  <Marker rule={OPTIONAL} />
+                </label>
+                <Raw name={`flow.lessons.${key}`} />
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-4">
+            <Labeled id="avoozl-flow-untested" label="Untested lessons expire after (days)" raw="flow.lessons.untestedDays" width="16rem">
+              <Input id="avoozl-flow-untested" inputMode="numeric" value={form.untestedDays} placeholder={String(FLOW_DEFAULTS.untestedDays)} onChange={(event) => set({ untestedDays: event.target.value })} />
+            </Labeled>
+            <Labeled id="avoozl-flow-confirm" label="Confirm within (days)" raw="flow.lessons.confirmDays" width="14rem">
+              <Input id="avoozl-flow-confirm" inputMode="numeric" value={form.confirmDays} placeholder={String(FLOW_DEFAULTS.confirmDays)} onChange={(event) => set({ confirmDays: event.target.value })} />
+            </Labeled>
+            <Labeled id="avoozl-flow-review" label="Review lessons every (retros)" raw="flow.lessons.reviewEvery" width="15rem">
+              <Input id="avoozl-flow-review" inputMode="numeric" value={form.reviewEvery} placeholder={String(FLOW_DEFAULTS.reviewEvery)} onChange={(event) => set({ reviewEvery: event.target.value })} />
+            </Labeled>
+          </div>
+          {drifted > 0 && (
+            <p role="status" className="text-sm" style={{ color: 'var(--warning, var(--text))' }} data-override-warning>
+              {drifted === 1 ? 'A prompt override is' : `${drifted} prompt overrides are`} based on an older built-in text. Review the rebase in Flow › Proposals.
+            </p>
+          )}
         </Section>
       </Box>
       <div className="flex flex-wrap items-center gap-3">

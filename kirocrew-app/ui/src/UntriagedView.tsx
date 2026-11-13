@@ -20,6 +20,8 @@ import { relativeTime } from './task-api.ts'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
 import { useSteppedState } from './NavHistory.tsx'
+import { IdeasList, NewIdeaButton, NewIdeaDialog } from './Ideas.tsx'
+import type { Idea } from './ideas-api.ts'
 import {
   AGE_OPTIONS,
   KIND_OPTIONS,
@@ -416,17 +418,18 @@ function RadarList({ items, now, narrow }: { items: RadarItem[]; now: number; na
   )
 }
 
-export default function UntriagedView({ workspaceId }: { workspaceId: string | null }) {
+export default function UntriagedView({ workspaceId, onMakeSpec }: { workspaceId: string | null; onMakeSpec?: (idea: Idea) => void }) {
   const api = useAppApi()
   const ask = useConfirm()
   const client = useMemo(() => untriagedClient(api), [api])
   const radar = useMemo(() => radarClient(api), [api])
-  const [show, setShow] = useSteppedState<'untriaged' | 'radar'>(
+  const [chosenShow, setShow] = useSteppedState<'untriaged' | 'radar' | 'ideas'>(
     'untriaged-show',
     'inner',
-    (previous) => (previous === 'radar' ? 'Back to With Issue Radar' : 'Back to Untriaged'),
+    (previous) => (previous === 'radar' ? 'Back to With Issue Radar' : previous === 'ideas' ? 'Back to Ideas' : 'Back to Untriaged'),
     'untriaged',
   )
+  const [newIdea, setNewIdea] = useState(false)
   const [sending, setSending] = useState<UntriagedItem[] | null>(null)
   const [note, setNote] = useState<string | null>(null)
   const load = useCallback((id: string) => client.view(id), [client])
@@ -439,6 +442,9 @@ export default function UntriagedView({ workspaceId }: { workspaceId: string | n
   const narrow = useMedia('(max-width: 767px)')
   const now = Date.now()
   const list = fresh ?? read
+  // With no GitHub mode and no intake source, ideas are all the tab has.
+  const show = list && !list.enabled ? 'ideas' : chosenShow
+  const ideas = list?.ideas ?? []
   const options = useMemo(() => filterOptions(list), [list])
   const shown = useMemo(() => (list?.items ?? []).filter((item) => matchesFilter(item, filter, now)), [list, filter, now])
   const pages = usePages(JSON.stringify(filter))
@@ -478,7 +484,7 @@ export default function UntriagedView({ workspaceId }: { workspaceId: string | n
     const yes = await ask(
       action === 'deliver'
         ? { title: `Deliver ${name}?`, body: `Avoozl makes one task in ${item.repository} from "${item.title}", pinned to its text now, and a worker starts it. Avoozl writes nothing back to ${item.source}.`, action: 'Deliver this' }
-        : { title: `Plan ${name}?`, body: `Avoozl adds "${item.title}" to the Inbox for a planner. Nothing starts until a plan is approved.`, action: 'Plan this' },
+        : { title: `Plan ${name}?`, body: `Avoozl adds "${item.title}" to the Inbox for a planner. Nothing starts until a spec is approved.`, action: 'Plan this' },
     )
     if (!yes) return
     setCheckError(null)
@@ -511,27 +517,31 @@ export default function UntriagedView({ workspaceId }: { workspaceId: string | n
         id="avoozl-untriaged-title"
         view="untriaged"
         actions={
-          <IconLabel icon={RefreshCw} onClick={() => void checkNow()} disabled={busy || checking || !list?.enabled} tooltip="Read GitHub and poll each plugin source now instead of waiting for the next check">
-            {checking ? 'Checking…' : 'Check now'}
-          </IconLabel>
+          <span className="flex flex-wrap gap-2">
+            <NewIdeaButton onClick={() => setNewIdea(true)} disabled={!workspaceId} />
+            <IconLabel icon={RefreshCw} onClick={() => void checkNow()} disabled={busy || checking || !list?.enabled} tooltip="Read GitHub and poll each plugin source now instead of waiting for the next check">
+              {checking ? 'Checking…' : 'Check now'}
+            </IconLabel>
+          </span>
         }
       >
         Intake
       </ViewHeading>
       <p className="text-sm text-muted">
-        Work that comes in from GitHub and your intake sources. Untriaged shows the items no trigger rule, triage label or Avoozl task covers. Send GitHub issues to an Issue Radar crew or start a code review chat on a pull request; plan or deliver an item from another source.
+        Work that comes in from GitHub and your intake sources, and your own ideas. Untriaged shows the items no trigger rule, triage label or Avoozl task covers. Send GitHub issues to an Issue Radar crew or start a code review chat on a pull request; plan or deliver an item from another source.
       </p>
-      {list?.enabled && (
+      {list && (
         <div>
         <SegmentedControl
           layoutId="avoozl-untriaged-show"
           ariaLabel="Show"
           segments={[
-            { key: 'untriaged', label: `Untriaged (${list.items.length})` },
-            ...(list.mode ? [{ key: 'radar' as const, label: `With Issue Radar (${radarItems.length})` }] : []),
+            ...(list.enabled ? [{ key: 'untriaged' as const, label: `Untriaged (${list.items.length})` }] : []),
+            ...(list.enabled && list.mode ? [{ key: 'radar' as const, label: `With Issue Radar (${radarItems.length})` }] : []),
+            { key: 'ideas' as const, label: `Ideas (${ideas.filter((idea) => idea.state === 'open').length})` },
           ]}
           value={show}
-          onChange={(key: 'untriaged' | 'radar') => setShow(key)}
+          onChange={(key: 'untriaged' | 'radar' | 'ideas') => setShow(key)}
         />
         </div>
       )}
@@ -547,8 +557,13 @@ export default function UntriagedView({ workspaceId }: { workspaceId: string | n
       )}
       {!list ? (
         <p className="text-sm text-muted">{busy ? 'Loading…' : 'Not loaded'}</p>
-      ) : !list.enabled ? (
-        <p className="text-sm text-muted">Intake needs a GitHub mode or an intake source. Choose a mode in Settings › GitHub, or add a source in Settings › Plugins.</p>
+      ) : show === 'ideas' ? (
+        <>
+          {!list.enabled && (
+            <p className="text-xs text-muted">Untriaged items need a GitHub mode or an intake source. Choose a mode in Settings › GitHub, or add a source in Settings › Plugins.</p>
+          )}
+          {workspaceId && <IdeasList workspaceId={workspaceId} ideas={ideas} narrow={narrow} onChanged={() => void reload()} onMakeSpec={(idea) => onMakeSpec?.(idea)} />}
+        </>
       ) : show === 'radar' ? (
         <div className="flex flex-col gap-2" data-radar-view>
           <p className="text-xs text-muted">
@@ -622,6 +637,18 @@ export default function UntriagedView({ workspaceId }: { workspaceId: string | n
           )}
           <ShowMore {...pages.more('untriaged', shown.length)} />
         </>
+      )}
+      {newIdea && workspaceId && (
+        <NewIdeaDialog
+          workspaceId={workspaceId}
+          onClose={(made) => {
+            setNewIdea(false)
+            if (!made) return
+            setNote(`Saved the idea ${made.title}.`)
+            setShow('ideas')
+            void reload()
+          }}
+        />
       )}
       {sending && workspaceId && (
         <SendToRadar

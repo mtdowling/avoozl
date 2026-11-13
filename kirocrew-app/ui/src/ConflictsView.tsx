@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { BudgetActions } from './Budget.tsx'
+import type { BudgetChip } from './budget-api.ts'
 import { useAppApi } from '@kirocrew/app-sdk'
 import { Btn, Card, Input } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
@@ -37,7 +39,6 @@ import { Tooltip } from './Tooltip.tsx'
 import { FilterPanel, useStoredFilter } from './FilterPanel.tsx'
 import { Check, DetailsIcon, ExternalLink, Eye, History, MessageSquare, RefreshCw, RotateCcw, X } from './icons.ts'
 import { itemRef } from './chat-api.ts'
-import { documentEpic } from './graph-layout.ts'
 import { linkHref } from './views-api.ts'
 import { optionItems } from './picker.ts'
 
@@ -106,6 +107,14 @@ export function ConflictActions(props: {
   const why = noActionReason(item)
   return (
     <div className="flex flex-col gap-2">
+      {(item.kind === 'budget' || item.kind === 'over-budget') && item.taskId && (item as ConflictItem & { budget?: BudgetChip }).budget && (
+        <BudgetActions
+          workspaceId={workspaceId}
+          taskId={item.taskId}
+          budget={(item as ConflictItem & { budget: BudgetChip }).budget}
+          onDone={(text) => run(async () => ({ ok: true, text }))}
+        />
+      )}
       {item.kind === 'content-match' && item.id && (
         <ContentActions id={item.id} readable={item.readable === true} workspaceId={workspaceId} busy={busy} run={run} />
       )}
@@ -131,12 +140,12 @@ export function ConflictActions(props: {
           </DangerBtn>
           <IconLabel
             icon={Check}
-            tooltip="Keep GitHub's edit until the plan changes this field"
+            tooltip="Keep GitHub's edit until the spec changes this field"
             disabled={busy || item.resolution === 'github'}
             onClick={() =>
               run(async () => {
                 await views.resolveConflict(workspaceId, item.taskId!, item.field!, 'github')
-                return { ok: true, text: 'GitHub’s value stays until the plan changes this field.' }
+                return { ok: true, text: 'GitHub’s value stays until the spec changes this field.' }
               })
             }
           >
@@ -313,7 +322,7 @@ function ItemHistory({ item, workspaceId }: { item: ConflictItem; workspaceId: s
       {detail && (
         <>
           <p className="text-xs text-muted">
-            Plan: {detail.plan ? `${detail.plan.title} (${detail.plan.approved ? 'approved' : (detail.plan.state ?? 'draft')})` : 'none'}
+            Spec: {detail.plan ? `${detail.plan.title} (${detail.plan.approved ? 'approved' : (detail.plan.state ?? 'draft')})` : 'none'}
             {detail.task.epicTitle ? ` · Epic: ${detail.task.epicTitle}` : ''} · State: {detail.task.state ?? 'unknown'}
           </p>
           {detail.timeline.length ? (
@@ -381,7 +390,7 @@ function ConflictRow(props: {
         )}
         {item.taskId && <span className="text-xs text-muted">{item.taskId}</span>}
         <Authority owner={item} />
-        {props.plan && <span className="text-xs text-muted">· plan {props.plan}</span>}
+        {props.plan && <span className="text-xs text-muted">· spec {props.plan}</span>}
         {time && (
           <Tooltip text={time}>
             <span className="text-xs text-muted">· {relativeTime(time)}</span>
@@ -455,7 +464,7 @@ export default function ConflictsView({ workspaceId }: { workspaceId: string | n
   // Each task's plan, by the spec folder or plan ID graph.view names.
   const plans = useMemo(() => {
     const graph: Graph | null = value?.graph ?? null
-    return new Map((graph?.tasks ?? []).map((t) => [t.id, t.spec ?? t.planId ?? (t.epic ? documentEpic(t.epic) : null)]))
+    return new Map((graph?.tasks ?? []).map((t) => [t.id, t.spec ?? t.planId ?? null]))
   }, [value])
   const tasksById = useMemo(() => new Map((value?.graph?.tasks ?? []).map((t) => [t.id, t])), [value])
   // A filter change starts the selection over, like the list.
@@ -560,7 +569,7 @@ export default function ConflictsView({ workspaceId }: { workspaceId: string | n
             fields={[
               { kind: 'search', key: 'q', label: 'Search', value: filter.q ?? '', placeholder: 'Task, ID or detail', onChange: (q) => setField({ q }) },
               { kind: 'select', key: 'kind', label: 'Kind', value: filter.kind ?? '', options: choices.kinds, onChange: (kind) => setField({ kind }) },
-              { kind: 'pick', key: 'plan', label: 'Plan', value: filter.plan ?? '', items: optionItems(choices.plans), onChange: (plan) => setField({ plan }) },
+              { kind: 'pick', key: 'plan', label: 'Spec', value: filter.plan ?? '', items: optionItems(choices.plans), onChange: (plan) => setField({ plan }) },
               { kind: 'select', key: 'epic', label: 'Epic', value: filter.epic ?? '', options: choices.epics, onChange: (epic) => setField({ epic }) },
               {
                 kind: 'select',

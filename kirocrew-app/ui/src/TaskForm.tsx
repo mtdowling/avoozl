@@ -138,7 +138,7 @@ function PreviewBlock({ preview }: { preview: ChangePreview }) {
           </pre>
         </div>
       )}
-      <p className="text-xs text-muted">Nothing was written. Approving the changed plan stays your step.</p>
+      <p className="text-xs text-muted">Nothing was written. Approving the changed spec stays your step.</p>
     </div>
   )
 }
@@ -226,22 +226,6 @@ export default function TaskForm(props: {
         <Area id="avoozl-task-summary" rows={4} value={form.summary} onChange={(summary) => set({ summary })} />
       </Field>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field id="avoozl-task-epic" label="Epic">
-          <select
-            id="avoozl-task-epic"
-            value={form.epic}
-            onChange={(event) => set({ epic: event.target.value })}
-            className="rounded border px-2 py-1 text-sm"
-            style={fieldStyle}
-          >
-            <option value="">{detail ? 'Keep' : 'Inbox'}</option>
-            {(graph?.epics ?? []).map((epic) => (
-              <option key={epic.id} value={epic.id}>
-                {epic.title}
-              </option>
-            ))}
-          </select>
-        </Field>
         <Field id="avoozl-task-repository" label="Repository">
           <select
             id="avoozl-task-repository"
@@ -279,7 +263,7 @@ export default function TaskForm(props: {
       {preview && <PreviewBlock preview={preview} />}
       <div className="flex flex-wrap gap-2">
         <Btn type="submit" primary disabled={busy || !valid}>
-          {locked ? 'Draft the plan change' : detail ? 'Save changes' : 'Add draft task'}
+          {locked ? 'Draft the spec change' : detail ? 'Save changes' : 'Add draft task'}
         </Btn>
         <Btn type="button" onClick={props.onCancel} disabled={busy}>
           Cancel

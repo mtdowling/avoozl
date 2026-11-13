@@ -18,6 +18,7 @@ import { validateProposal, writeRevision } from "./plans.mjs";
 import { lintPlan } from "./plan-quality.mjs";
 import { frontMatter, withoutFrontMatter } from "../front-matter.mjs";
 import { resolveTaskId } from "../task-identity.mjs";
+import { validateManifestBudget } from "./budget.mjs";
 
 export const SPECS_DIRECTORY = path.join(".kiro", "specs");
 export const MANIFEST = "avoozl/manifest.json";
@@ -245,6 +246,46 @@ export function specItems(name, text) {
   return items;
 }
 
+// The phase each tasks.md line sits under (Requirement 59.5): the nearest
+// heading of level 2 or lower above it, outside code fences. A heading's
+// text is the phase title; its slug is the ID, made unique within the plan
+// with a -2, -3 suffix. Returns line -> { id, title }; a line under no such
+// heading is absent (No phase).
+export function headingPhases(text) {
+  const byLine = new Map(),
+    used = new Map();
+  let fenced = false,
+    current = null;
+  withoutFrontMatter(text)
+    .split("\n")
+    .forEach((raw, index) => {
+      if (FENCE.test(raw)) fenced = !fenced;
+      if (fenced) return;
+      const heading = /^(#{1,6})\s+(.*?)\s*#*\s*$/.exec(raw.replace(/\r$/, ""));
+      if (heading) {
+        if (heading[1].length < 2) {
+          current = null;
+          return;
+        }
+        const title = heading[2].trim(),
+          base =
+            title
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, "-")
+              .replace(/^-+|-+$/g, "")
+              .slice(0, 60) || "phase",
+          count = (used.get(base) || 0) + 1;
+        used.set(base, count);
+        current = { id: count > 1 ? `${base}-${count}` : base, title };
+        return;
+      }
+      if (current) byLine.set(index + 1, current);
+    });
+  return byLine;
+}
+
+const PHASE_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,59}$/;
+
 // Items checked [x] in tasks.md, with the first "Built:" line under each.
 // Only an approval of the stored revision reads these (plans.mjs): [~] and
 // [-] are Kiro's queued and running marks and stay planned.
@@ -432,10 +473,12 @@ export function parseSpec({
   }
 
   const text = files[MANIFEST];
-  let entries = null;
+  let entries = null,
+    specBudget,
+    manifest = null;
   if (text !== undefined) {
     try {
-      const manifest = JSON.parse(text);
+      manifest = JSON.parse(text);
       if (
         !manifest ||
         typeof manifest !== "object" ||
@@ -451,7 +494,25 @@ export function parseSpec({
             'The manifest is one JSON object with a "tasks" object keyed by tasks.md ID.',
           ),
         );
-      else entries = manifest.tasks;
+      else {
+        entries = manifest.tasks;
+        // The spec's per-task cap, and never prices (§4.17, R67.2).
+        try {
+          specBudget = validateManifestBudget(manifest);
+        } catch (error) {
+          diagnostics.push(
+            diagnostic(
+              "manifest.schema",
+              MANIFEST,
+              manifestLine(
+                text,
+                manifest.prices !== undefined ? "prices" : "budget",
+              ),
+              error.message,
+            ),
+          );
+        }
+      }
     } catch (error) {
       diagnostics.push(
         diagnostic(
@@ -463,11 +524,7 @@ export function parseSpec({
       );
     }
   }
-  // A bugfix spec's unchanged behavior is acceptance on every fix leaf
-  // (design §6.8), so a regression fails the leaf, not only Kiro's tests.
-  const unchanged =
-    bugfix && !feature ? unchangedClauses(files["bugfix.md"]) : [];
-  if (entries) {
+  if (entries)
     for (const key of Object.keys(entries))
       if (!byKey.has(key))
         diagnostics.push(
@@ -478,6 +535,155 @@ export function parseSpec({
             `Manifest entry "${key}" has no tasks.md item.`,
           ),
         );
+  const type =
+    bugfix && !feature ? "bugfix" : feature && !bugfix ? "feature" : null;
+  // An epic folder lists member plans, not tasks (Requirement 59.1).
+  if (manifest?.kind === "epic") {
+    if (bugfix)
+      diagnostics.push(
+        diagnostic(
+          "spec.epic-bugfix",
+          "bugfix.md",
+          1,
+          "An epic folder states its goal in requirements.md. Remove bugfix.md.",
+        ),
+      );
+    const members = [],
+      named = new Map();
+    for (const item of byKey.values()) {
+      const entry = entries?.[item.key];
+      if (entries && entry === undefined) {
+        diagnostics.push(
+          diagnostic(
+            "manifest.missing-entry",
+            "tasks.md",
+            item.line,
+            `Item "${item.key}" has no entry in ${MANIFEST}. Name its member plan in "plan".`,
+            { taskId: item.id },
+          ),
+        );
+        continue;
+      }
+      if (!entry) continue;
+      const line = manifestLine(text, item.key),
+        extra =
+          entry && typeof entry === "object" && !Array.isArray(entry)
+            ? Object.keys(entry).filter(
+                (key) => !["plan", "summary"].includes(key),
+              )
+            : [];
+      if (extra.length)
+        diagnostics.push(
+          diagnostic(
+            "spec.epic-task-fields",
+            MANIFEST,
+            line,
+            `Epic entry "${item.key}" holds ${extra.map((key) => `"${key}"`).join(", ")}. An epic entry holds only "plan" and "summary"${extra.includes("memberPlan") ? '; rename "memberPlan" to "plan"' : ""}.`,
+            { entry: item.key },
+          ),
+        );
+      if (typeof entry?.plan !== "string" || !NAME.test(entry.plan)) {
+        if (!extra.includes("memberPlan"))
+          diagnostics.push(
+            diagnostic(
+              "manifest.schema",
+              MANIFEST,
+              line,
+              `Epic entry "${item.key}" needs "plan": the member plan's spec folder name.`,
+              { entry: item.key },
+            ),
+          );
+        continue;
+      }
+      if (entry.summary !== undefined && typeof entry.summary !== "string")
+        diagnostics.push(
+          diagnostic(
+            "manifest.schema",
+            MANIFEST,
+            line,
+            `Epic entry "${item.key}": summary must be text.`,
+            { entry: item.key },
+          ),
+        );
+      if (named.has(entry.plan)) {
+        diagnostics.push(
+          diagnostic(
+            "spec.epic-member-twice",
+            MANIFEST,
+            line,
+            `Epic entry "${item.key}" names plan ${entry.plan}, which entry "${named.get(entry.plan)}" already names. Keep one.`,
+            { entry: item.key },
+          ),
+        );
+        continue;
+      }
+      named.set(entry.plan, item.key);
+      members.push({
+        key: item.key,
+        plan: entry.plan,
+        summary: typeof entry.summary === "string" ? entry.summary : "",
+        title: item.title,
+        line,
+      });
+    }
+    return { type, kind: "epic", items, diagnostics, proposals, members };
+  }
+  // The old plan forms are errors, never loaded under another name
+  // (Requirement 59.7).
+  if (manifest && Object.hasOwn(manifest, "epics"))
+    diagnostics.push(
+      diagnostic(
+        "spec.entry-epic",
+        MANIFEST,
+        manifestLine(text, "epics"),
+        'The manifest has a top-level "epics" list. Rename it "phases", an object keyed by phase ID, such as {"w1": {"title": "W1"}}.',
+      ),
+    );
+  const phaseTitles = new Map();
+  if (manifest && manifest.phases !== undefined) {
+    const phases = manifest.phases;
+    if (!phases || typeof phases !== "object" || Array.isArray(phases))
+      diagnostics.push(
+        diagnostic(
+          "manifest.schema",
+          MANIFEST,
+          manifestLine(text, "phases"),
+          '"phases" is an object keyed by phase ID, such as {"w1": {"title": "W1"}}.',
+        ),
+      );
+    else
+      for (const [phase, value] of Object.entries(phases)) {
+        if (
+          !PHASE_ID.test(phase) ||
+          !value ||
+          typeof value !== "object" ||
+          typeof value.title !== "string" ||
+          !value.title.trim() ||
+          value.title.length > TITLE_LIMIT ||
+          Object.keys(value).some((key) => key !== "title")
+        )
+          diagnostics.push(
+            diagnostic(
+              "manifest.schema",
+              MANIFEST,
+              manifestLine(text, phase),
+              `Phase "${phase}" needs an ID of letters, digits, ".", "_" or "-" and only a "title" of 1–${TITLE_LIMIT} characters.`,
+            ),
+          );
+        else phaseTitles.set(phase, value.title.trim());
+      }
+  }
+  const headings = headingPhases(files["tasks.md"] || "");
+  // A bugfix spec's unchanged behavior is acceptance on every fix leaf
+  // (design §6.8), so a regression fails the leaf, not only Kiro's tests.
+  const unchanged =
+    bugfix && !feature ? unchangedClauses(files["bugfix.md"]) : [];
+  if (entries) {
+    const oldKind = new Set();
+    for (const item of byKey.values()) {
+      const entry = entries[item.key];
+      if (entry?.kind === "epic") oldKind.add(item.key);
+    }
     for (const item of byKey.values()) {
       const entry = entries[item.key];
       if (entry === undefined) {
@@ -493,36 +699,84 @@ export function parseSpec({
         continue;
       }
       if (!item.title) continue;
+      const line = manifestLine(text, item.key);
+      let old = false;
+      if (oldKind.has(item.key)) {
+        old = true;
+        diagnostics.push(
+          diagnostic(
+            "spec.kind-epic",
+            MANIFEST,
+            line,
+            `Manifest entry "${item.key}" has "kind": "epic". Inside a plan a parent is a package: write "kind": "package". An epic is its own spec folder that lists plans.`,
+            { taskId: item.id, entry: item.key },
+          ),
+        );
+      }
+      if (entry && typeof entry === "object" && Object.hasOwn(entry, "epic")) {
+        old = true;
+        diagnostics.push(
+          diagnostic(
+            "spec.entry-epic",
+            MANIFEST,
+            line,
+            `Manifest entry "${item.key}" has "epic". Rename it "phase"; name phase titles in a top-level "phases" object.`,
+            { taskId: item.id, entry: item.key },
+          ),
+        );
+      }
       // A nested item is a child of the item above it (R13.7), which must
-      // be an epic or package: only those project as parent issues. Nesting
-      // is the only way to name a parent, so the manifest never holds one.
+      // be a package: only those project as parent issues. Nesting is the
+      // only way to name a parent, so the manifest never holds one.
       if (entry && typeof entry === "object" && "parent" in entry)
         diagnostics.push(
           diagnostic(
             "manifest.schema",
             MANIFEST,
-            manifestLine(text, item.key),
+            line,
             `Manifest entry "${item.key}" names a parent. Nest the item under its parent in tasks.md instead.`,
             { taskId: item.id },
           ),
         );
       const parentKey = item.parent?.key,
-        parentOk =
-          parentKey && ["epic", "package"].includes(entries[parentKey]?.kind);
-      if (parentKey && !parentOk)
+        parentOk = parentKey && entries[parentKey]?.kind === "package";
+      if (parentKey && !parentOk && !oldKind.has(parentKey))
         diagnostics.push(
           diagnostic(
             "task.parent-kind",
             "tasks.md",
             item.line,
-            `Task "${item.key}" is nested under "${parentKey}", which is not an epic or package. Mark "${parentKey}" as an epic or package in ${MANIFEST}, or stop nesting this item.`,
+            `Task "${item.key}" is nested under "${parentKey}", which is not a package. Mark "${parentKey}" as a package in ${MANIFEST}, or stop nesting this item.`,
             { taskId: item.id },
           ),
         );
+      if (old) continue;
+      if (
+        entry &&
+        typeof entry === "object" &&
+        entry.phase !== undefined &&
+        (typeof entry.phase !== "string" || !PHASE_ID.test(entry.phase))
+      ) {
+        diagnostics.push(
+          diagnostic(
+            "manifest.schema",
+            MANIFEST,
+            line,
+            `Manifest entry "${item.key}": phase is an ID of letters, digits, ".", "_" or "-", up to 60 characters.`,
+            { taskId: item.id },
+          ),
+        );
+        continue;
+      }
       const local = (reference) => byKey.get(reference)?.id ?? reference;
       try {
         const title = shortTitle(item.title),
-          fields = { ...structuredClone(entry), title };
+          { phase: phaseValue, ...rest } = structuredClone(entry),
+          fields = {
+            ...rest,
+            title,
+            ...(specBudget && entry?.kind !== "package" ? { specBudget } : {}),
+          };
         if (title !== item.title)
           fields.summary = [item.title, entry?.summary]
             .filter((text) => typeof text === "string" && text.trim())
@@ -538,14 +792,24 @@ export function parseSpec({
               value,
             ]),
           );
-        if (unchanged.length && !["epic", "package"].includes(proposal.kind))
+        if (unchanged.length && proposal.kind !== "package")
           proposal.acceptance = [
             ...new Set([...(proposal.acceptance || []), ...unchanged]),
           ];
+        // Its phase: the manifest value, else the heading above it, else
+        // No phase (Requirement 59.5).
+        const phase =
+          phaseValue !== undefined
+            ? {
+                id: phaseValue,
+                title: phaseTitles.get(phaseValue) ?? phaseValue,
+              }
+            : (headings.get(item.line) ?? null);
         proposals.push({
           ...proposal,
           id: item.id,
           specKey: item.key,
+          phase,
           ...(parentOk ? { parent: item.parent.id } : {}),
           lineStart: item.line,
           lineEnd: item.line,
@@ -555,7 +819,7 @@ export function parseSpec({
           diagnostic(
             "manifest.schema",
             MANIFEST,
-            manifestLine(text, item.key),
+            line,
             `Manifest entry "${item.key}": ${error.message}`,
             { taskId: item.id },
           ),
@@ -563,12 +827,7 @@ export function parseSpec({
       }
     }
   }
-  return {
-    type: bugfix && !feature ? "bugfix" : feature && !bugfix ? "feature" : null,
-    items,
-    diagnostics,
-    proposals,
-  };
+  return { type, kind: "plan", items, diagnostics, proposals };
 }
 
 // Spec structure plus lintPlan's graph and boundedness checks. Any error
@@ -583,18 +842,23 @@ export function lintSpec({
   data: given = {},
   approved = null,
   retitled = [],
+  namespace = null,
 }) {
   const data = { tasks: [], ...given },
     parsed = parseSpec(spec),
-    graph = lintPlan({
-      text: spec.files["tasks.md"] || "",
-      plan,
-      data,
-      proposals: parsed.proposals,
-    }),
+    graph =
+      parsed.kind === "epic"
+        ? { diagnostics: [] }
+        : lintPlan({
+            text: spec.files["tasks.md"] || "",
+            plan,
+            data,
+            proposals: parsed.proposals,
+          }),
     diagnostics = [
       ...parsed.diagnostics,
       ...graph.diagnostics.map((item) => ({ file: "tasks.md", ...item })),
+      ...(namespace ? epicDiagnostics(spec, parsed, namespace) : []),
     ];
   // An ID is unique across the workspace, not only inside one tasks.md.
   for (const proposal of parsed.proposals) {
@@ -648,9 +912,125 @@ export function lintSpec({
     counts,
     taskCount: parsed.proposals.length,
     type: parsed.type,
+    kind: parsed.kind ?? null,
+    epic: specEpic(spec.files),
+    ...(parsed.kind === "epic"
+      ? {
+          members: parsed.members.map(({ key, plan, summary, title }) => ({
+            key,
+            plan,
+            summary,
+            title,
+          })),
+        }
+      : {}),
     diagnostics,
     proposals: parsed.proposals,
   };
+}
+
+// Whether a folder's manifest marks it an epic folder (Requirement 59.1).
+export function isEpicFolder(files = {}) {
+  try {
+    return JSON.parse(files[MANIFEST] ?? "null")?.kind === "epic";
+  } catch {
+    return false;
+  }
+}
+
+// The epic a plan's front-matter names, or null (Requirement 59.2).
+export function specEpic(files = {}) {
+  return frontMatter(files["requirements.md"] ?? files["bugfix.md"]).epic;
+}
+
+// The epic's member plans, by spec folder name, in its tasks.md order.
+export function epicMembers(files = {}) {
+  const parsed = parseSpec({ name: "epic", exists: true, files });
+  return parsed.kind === "epic"
+    ? parsed.members.map((member) => member.plan)
+    : [];
+}
+
+// Membership needs both sides (design §6.9). `namespace(name)` reads one
+// spec folder of the mode's roots, or null. An epic's entry the member does
+// not confirm is an error on the epic; a plan's epic: the epic does not list
+// is a warning on the plan.
+function epicDiagnostics(spec, parsed, namespace) {
+  const read = (name) => {
+      try {
+        const folder = namespace(name);
+        return folder?.exists ? folder : null;
+      } catch {
+        return null;
+      }
+    },
+    out = [];
+  if (parsed.kind === "epic") {
+    for (const member of parsed.members) {
+      const folder = member.plan === spec.name ? spec : read(member.plan);
+      if (!folder)
+        out.push(
+          diagnostic(
+            "spec.epic-member-missing",
+            MANIFEST,
+            member.line,
+            `Epic entry "${member.key}" names plan ${member.plan}, which has no spec folder .kiro/specs/${member.plan}/. Create it or remove the entry.`,
+            { entry: member.key },
+          ),
+        );
+      else if (isEpicFolder(folder.files))
+        out.push(
+          diagnostic(
+            "spec.epic-nested",
+            MANIFEST,
+            member.line,
+            `Epic entry "${member.key}" names ${member.plan}, which is an epic. An epic lists plans only.`,
+            { entry: member.key },
+          ),
+        );
+      else if (specEpic(folder.files) !== spec.name) {
+        const named = specEpic(folder.files);
+        out.push(
+          diagnostic(
+            "spec.epic-member-unconfirmed",
+            MANIFEST,
+            member.line,
+            named
+              ? `Epic entry "${member.key}" lists plan ${member.plan}, whose front-matter names epic ${named}. Change its "epic:" to ${spec.name}, or remove the entry.`
+              : `Epic entry "${member.key}" lists plan ${member.plan}, whose front-matter names no epic. Add "epic: ${spec.name}" to its front-matter, or remove the entry.`,
+            { entry: member.key },
+          ),
+        );
+      }
+    }
+    return out;
+  }
+  const front = frontMatter(
+      spec.files["requirements.md"] ?? spec.files["bugfix.md"],
+    ),
+    file =
+      spec.files["requirements.md"] !== undefined
+        ? "requirements.md"
+        : "bugfix.md";
+  if (!front.epic) return out;
+  const epic = front.epic === spec.name ? null : read(front.epic);
+  const listed =
+    epic &&
+    isEpicFolder(epic.files) &&
+    epicMembers(epic.files).includes(spec.name);
+  if (!listed)
+    out.push(
+      diagnostic(
+        "spec.epic-unknown",
+        file,
+        front.epicLine ?? 1,
+        !epic || !isEpicFolder(epic.files)
+          ? `Front-matter names epic ${front.epic}, which is not an epic folder. This plan shows under No epic.`
+          : `Front-matter names epic ${front.epic}, which does not list this plan. Add it to the epic's manifest, or this plan shows under No epic.`,
+        { severity: "warning" },
+      ),
+    );
+  return out;
 }
 
 // The critique file: a `Reviewed: <folder> <hash>` line, then one fenced

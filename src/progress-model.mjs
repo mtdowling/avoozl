@@ -1,3 +1,4 @@
+import { crossPlanEpics, taskEpic } from "./app/epics.mjs";
 import { statusComplete } from "./query.mjs";
 import { isArchivedTask } from "./browse-model.mjs";
 
@@ -46,8 +47,10 @@ export function epicProgress(data, { scope = "all", matchingIds = null } = {}) {
       (!isArchivedTask(data, t) || matchingIds?.has(t.id)),
   );
   const byEpic = new Map();
+  // Epics span plans (Requirement 59): a task's epic is its plan's, and a
+  // task in no epic is under No epic, never a document or path.
   for (const task of tasks) {
-    const key = task.epic || "unassigned";
+    const key = taskEpic(data, task) || "unassigned";
     if (!byEpic.has(key)) byEpic.set(key, []);
     byEpic.get(key).push(task);
   }
@@ -60,13 +63,12 @@ export function epicProgress(data, { scope = "all", matchingIds = null } = {}) {
     "#91d79b",
     "#e4a0c0",
   ];
-  const epicById = new Map(data.epics.map((e) => [e.id, e])),
+  const epicById = new Map(crossPlanEpics(data).map((e) => [e.id, e])),
     ordered = [...new Set([...epicById.keys(), ...byEpic.keys()])].filter(
       (id) => byEpic.has(id),
     );
   return ordered.map((id, index) => {
-    const epic = epicById.get(id),
-      doc = data.documents[id.replace(/^doc:/, "")];
+    const epic = epicById.get(id);
     const items = chronologicalTasks(byEpic.get(id));
     const complete = items.filter((t) => statusComplete(data, t.status)).length;
     const matches = matchingIds
@@ -74,7 +76,7 @@ export function epicProgress(data, { scope = "all", matchingIds = null } = {}) {
       : items.length;
     return {
       id,
-      title: epic?.title || doc?.title || id,
+      title: epic?.title || (id === "unassigned" ? "No epic" : id),
       summary: epic?.summary || "",
       color: epic?.color || palette[index % palette.length],
       tasks: items,

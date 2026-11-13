@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { BudgetFold, SpendChip } from './Budget.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import { useAppApi } from '@kirocrew/app-sdk'
 import { Btn } from '@kirocrew/app-sdk/ui'
@@ -20,7 +21,6 @@ import { Authority } from './Authority.tsx'
 import { errorMessage } from './workspace-api.ts'
 import { Fold, IconLabel, SectionHeading, ShowMore, TipBtn, useAskChat, usePages } from './controls.tsx'
 import { resultMessage, settleTargets, whyLine } from './conflicts-api.ts'
-import { documentEpic } from './graph-layout.ts'
 import { itemRef } from './chat-api.ts'
 import { TimingFold } from './FlowView.tsx'
 import { Crosshair, Eye, FileText, MessageSquare, Pause, Pencil, Play, Plus, RotateCcw, X } from './icons.ts'
@@ -35,6 +35,7 @@ const SECTIONS = [
   { key: 'links', label: 'Links' },
   { key: 'delivery', label: 'Delivery' },
   { key: 'timing', label: 'Timing' },
+  { key: 'budget', label: 'Budget' },
   { key: 'conflicts', label: 'Conflicts' },
   { key: 'timeline', label: 'Timeline' },
 ] as const
@@ -148,7 +149,7 @@ function Origin(props: { origin: TaskOrigin; issue: string | null; workspaceId: 
         )}
         {origin.spec && props.onOpenSpec && (
           <button type="button" className="text-xs underline" onClick={() => props.onOpenSpec!(origin.spec!)}>
-            Open spec {origin.spec} in Plans
+            Open spec {origin.spec} in Specs
           </button>
         )}
         {origin.sources.map((source) =>
@@ -406,13 +407,14 @@ function TaskPanel(props: {
 
         <Fold id="summary" group="task-drawer" title="Summary" open={detail.conflicts.length === 0}>
           <dl className="grid gap-x-3 gap-y-1.5 text-sm" style={{ gridTemplateColumns: 'max-content 1fr' }}>
-            <Row label="Epic">{task.epicTitle ? documentEpic(task.epicTitle) : 'none'}</Row>
+            <Row label="Epic">{task.epicTitle ?? 'none'}</Row>
+            <Row label="Phase">{task.phase?.title ?? 'none'}</Row>
             {detail.origin && (
               <Row label="Came from">
                 <Origin origin={detail.origin} issue={issue} workspaceId={workspaceId} />
               </Row>
             )}
-            <Row label="Plan">
+            <Row label="Spec">
               {detail.plan ? `${detail.plan.title}${detail.plan.approved ? ' (approved)' : ` (${detail.plan.state ?? 'draft'})`}` : 'none'}
               {task.planArchived ? ' · archived: its tasks do not start until you unarchive it' : ''}
             </Row>
@@ -473,7 +475,7 @@ function TaskPanel(props: {
             </div>
             {task.context && (
               <div>
-                <h4 className="text-sm font-semibold">From its plan</h4>
+                <h4 className="text-sm font-semibold">From its spec</h4>
                 <Markdown text={task.context} />
               </div>
             )}
@@ -530,6 +532,17 @@ function TaskPanel(props: {
         </Fold>
         <Fold id="timing" group="task-drawer" title="Timing">
           <TimingFold timing={detail.timing ?? null} />
+        </Fold>
+        <Fold
+          id="budget"
+          group="task-drawer"
+          title={
+            <span className="flex items-center gap-2">
+              Budget <SpendChip budget={delivery?.budget} />
+            </span>
+          }
+        >
+          <BudgetFold workspaceId={workspaceId} taskId={task.id} onChange={() => void load()} />
         </Fold>
         <Fold id="conflicts" group="task-drawer" title={detail.conflicts.length ? `Conflicts (${detail.conflicts.length})` : 'Conflicts'} open={detail.conflicts.length > 0}>
           {detail.conflicts.length ? (
@@ -635,8 +648,8 @@ function ReviewPanel(props: { workspaceId: string; group: ConflictItem; open: (i
     <div className="flex flex-col gap-3">
       <SectionHeading level={2} id="avoozl-drawer-title" title={group?.title ?? props.group.title} />
       <p className="text-sm text-muted">
-        Avoozl re-reads a plan when its file changes. A task waits here when its own section changed, or when it is new. Moving a
-        plan or fixing its links does not count. Read each task, then mark them reviewed so they may start.
+        Avoozl re-reads a spec when its file changes. A task waits here when its own section changed, or when it is new. Moving a
+        spec or fixing its links does not count. Read each task, then mark them reviewed so they may start.
       </p>
       {message && (
         <p role="alert" className="text-sm text-danger">

@@ -4,6 +4,7 @@
 // source it came from (tool calls, phase markers, or events) so a coarse
 // number never reads as an exact one. Spans hold durations, stage names, and
 // check or command names only: no prompts, output, tokens, or cost.
+import { crossPlanEpics, taskEpic } from "./epics.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import { check as checkContent, contentBinding } from "./content-rules.mjs";
@@ -40,11 +41,19 @@ export const PHASES = Object.freeze(["coding", "tests", "commands", "ci-wait"]);
 export const FLOW_DEFAULTS = Object.freeze({
   stopTheLine: Object.freeze({ scope: "dependents" }),
   localChecksFirst: true,
-  batch: Object.freeze({ max: 3, by: "epic" }),
+  batch: Object.freeze({ max: 3, by: "phase" }),
   retro: Object.freeze({ everyTasks: 10, slowFactor: 2, model: "auto" }),
+  // Retro memory across workspaces (R69.6, R69.9, R70.2, R70.4).
+  lessons: Object.freeze({
+    share: true,
+    read: true,
+    untestedDays: 90,
+    confirmDays: 180,
+    reviewEvery: 5,
+  }),
 });
 export const SCOPES = Object.freeze(["dependents", "repo", "all"]);
-export const BATCH_BY = Object.freeze(["epic", "files"]);
+export const BATCH_BY = Object.freeze(["phase", "files"]);
 const MODEL = /^(?:auto|[A-Za-z0-9][A-Za-z0-9._:/-]{0,127})$/;
 const record = (value) =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -57,7 +66,13 @@ export const FLOW_KEYS = Object.freeze({
   localChecksFirst: (v) => typeof v === "boolean" || "true or false",
   "batch.max": (v) =>
     (Number.isInteger(v) && v >= 1 && v <= 10) || "a whole number 1–10",
-  "batch.by": (v) => BATCH_BY.includes(v) || `one of ${BATCH_BY.join(", ")}`,
+  // "epic" was the old name of "phase"; it is refused, never read as it
+  // (Requirement 59.11).
+  "batch.by": (v) =>
+    BATCH_BY.includes(v) ||
+    (v === "epic"
+      ? '"phase": an epic spans plans, so tasks batch by phase'
+      : `one of ${BATCH_BY.join(", ")}`),
   "retro.everyTasks": (v) =>
     (Number.isInteger(v) && v >= 1 && v <= 1000) || "a whole number 1–1000",
   "retro.slowFactor": (v) =>
@@ -65,6 +80,14 @@ export const FLOW_KEYS = Object.freeze({
     "a number 1.1–20",
   "retro.model": (v) =>
     (typeof v === "string" && MODEL.test(v)) || 'a model name or "auto"',
+  "lessons.share": (v) => typeof v === "boolean" || "true or false",
+  "lessons.read": (v) => typeof v === "boolean" || "true or false",
+  "lessons.untestedDays": (v) =>
+    (Number.isInteger(v) && v >= 1 && v <= 3650) || "a whole number 1–3650",
+  "lessons.confirmDays": (v) =>
+    (Number.isInteger(v) && v >= 1 && v <= 3650) || "a whole number 1–3650",
+  "lessons.reviewEvery": (v) =>
+    (Number.isInteger(v) && v >= 1 && v <= 100) || "a whole number 1–100",
 });
 
 // Check one `flow` object (the workspace's or one repository's) and return
@@ -73,10 +96,13 @@ export const FLOW_KEYS = Object.freeze({
 export function flowSection(value, where = "flow") {
   if (value === undefined) return {};
   if (!record(value)) throw Error(`${where} must be an object.`);
-  const groups = { stopTheLine: 1, batch: 1, retro: 1 };
+  const groups = { stopTheLine: 1, batch: 1, retro: 1, lessons: 1 };
   for (const key of Object.keys(value)) {
     if (key === "localChecksFirst") continue;
     if (!(key in groups)) throw Error(`${where}.${key} is not a flow setting.`);
+    // Lessons are per workspace, never per repository (design §4.18).
+    if (key === "lessons" && /^projects\./.test(where))
+      throw Error(`${where}.lessons is set per workspace, in flow.lessons.`);
     if (!record(value[key])) throw Error(`${where}.${key} must be an object.`);
     for (const inner of Object.keys(value[key])) {
       if (key === "retro" && inner === "instructions")
@@ -715,7 +741,8 @@ export function taskTiming(
     taskId: task.id,
     title: task.title || "",
     repository: taskRepository(task) || null,
-    epic: task.parent || task.epic || null,
+    epic: taskEpic(store.read(), task),
+    phase: task.phase?.id ?? null,
     startedAt: first,
     finishedAt: end,
     leadMs: lead,
@@ -803,8 +830,9 @@ export const listOr = (store, table) => {
 };
 
 // flow.view: the Flow tab, `avoozl flow`, and plans_flow. Computed on read,
-// never stored as truth (§4.11). Filters: repository, epic, window (last N
-// finished tasks, default 20), stage (bars only).
+// never stored as truth (§4.11). Filters: repository, epic (across plans),
+// plan and phase (inside the plan), window (last N finished tasks, default
+// 20), stage (bars only).
 export function flowView(store, data, input = {}, { now = Date.now() } = {}) {
   const size =
       Number.isInteger(input.window) && input.window > 0
@@ -827,7 +855,9 @@ export function flowView(store, data, input = {}, { now = Date.now() } = {}) {
       (t) =>
         byTask.has(t.id) &&
         (!input.repository || taskRepository(t) === input.repository) &&
-        (!input.epic || t.parent === input.epic || t.epic === input.epic),
+        (!input.epic || taskEpic(data, t) === input.epic) &&
+        (!input.plan || t.planId === input.plan) &&
+        (!input.phase || t.phase?.id === input.phase),
     ),
     timings = tasks.map((t) =>
       taskTiming(store, t, { spans: byTask.get(t.id), now, deliveries }),
@@ -877,10 +907,25 @@ export function flowView(store, data, input = {}, { now = Date.now() } = {}) {
     repositories: [
       ...new Set(data.tasks.map(taskRepository).filter(Boolean)),
     ].sort(),
-    epics: data.tasks
-      .filter((t) => t.kind === "epic")
-      .map((t) => ({ id: t.id, title: t.title || t.id })),
+    epics: crossPlanEpics(data).map((e) => ({
+      id: e.id,
+      title: e.title || e.id,
+    })),
+    plans: [...new Set(data.tasks.map((t) => t.planId).filter(Boolean))]
+      .map((id) => ({ id, title: store.get("plans", id)?.title || id }))
+      .sort((a, b) => a.title.localeCompare(b.title)),
+    phases: flowPhases(data, input.plan),
   };
+}
+
+// The phases of one plan, for the Phase filter; none until a plan is picked.
+function flowPhases(data, planId) {
+  if (!planId) return [];
+  const seen = new Map();
+  for (const task of data.tasks)
+    if (task.planId === planId && task.phase && !seen.has(task.phase.id))
+      seen.set(task.phase.id, { id: task.phase.id, title: task.phase.title });
+  return [...seen.values()];
 }
 
 // The Flow tab's charts over time (owner addition 2026-11-13): per day or
@@ -941,8 +986,17 @@ export function flowSeries(timings, stops, unit = "day") {
 export function taskFlow(store, task, { now = Date.now() } = {}) {
   const spans = listSpans(store, { taskId: task.id });
   if (!spans.length) return null;
+  // Which prompt and skill versions each attempt ran on (R68.12).
+  const versions = (store.get("task_deliveries", task.id)?.attempts || [])
+    .filter((a) => a.prompts || a.skills)
+    .map((a) => ({
+      attempt: a.attempt,
+      prompts: a.prompts || {},
+      skills: a.skills || {},
+    }));
   return {
     ...taskTiming(store, task, { spans, now }),
+    versions,
     spans: spans.map(
       ({
         id,

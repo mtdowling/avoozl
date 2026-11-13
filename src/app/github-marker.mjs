@@ -9,6 +9,15 @@ import { fail } from "./store.mjs";
 import { secretReason } from "./workspace-repository.mjs";
 
 const BASE32 = "abcdefghijklmnopqrstuvwxyz234567";
+// The issues above tasks: one per cross-plan epic and one per plan. Their
+// marker taskId is `epic.<id>` or `plan.<id>`.
+export const PARENT_KINDS = Object.freeze(["epic", "plan"]);
+// shortcut: a marker of kind "epic" whose taskId does not start with
+// "epic." is an issue projected for a task before Requirement 59, which now
+// reads as a package. A spec folder named "epic" would be misread; rename it.
+export const isParentMarker = (marker) =>
+  marker?.kind === "plan" ||
+  (marker?.kind === "epic" && String(marker.taskId || "").startsWith("epic."));
 // Generated as RFC 4648 base32; read as any 16 lowercase letters and digits,
 // so the design's own example (`avz_k3q9m2x7v4d8p1ta`) stays valid.
 export const NAMESPACE = /^avz_[a-z0-9]{16}$/;
@@ -60,6 +69,12 @@ export function planningIdentity(workspaceRoot) {
     mode,
     planningRepository,
     epicIssueType: value.github?.epicIssueType || null,
+    // Read here as written; the Settings validator refuses a bad value.
+    maxPerParent:
+      Number.isSafeInteger(value.github?.subIssues?.maxPerParent) &&
+      value.github.subIssues.maxPerParent >= 1
+        ? value.github.subIssues.maxPerParent
+        : 100,
     repositories: value.github?.repositories || {},
   };
 }
@@ -140,7 +155,8 @@ export function validateMarker(marker, { planningRepository } = {}) {
   check(marker.version === 2, "version must be 2");
   check(TASK_ID.test(marker.taskId || ""), "taskId");
   check(NAMESPACE.test(marker.namespace || ""), "namespace");
-  check(TASK_KINDS.includes(marker.kind), "kind");
+  // An epic or plan issue (Requirement 59.8) carries kind epic or plan.
+  check([...TASK_KINDS, ...PARENT_KINDS].includes(marker.kind), "kind");
   check(marker.parent === undefined || TASK_ID.test(marker.parent), "parent");
   onlyKeys(marker.source, ["commit", "manifest"], "source");
   check(

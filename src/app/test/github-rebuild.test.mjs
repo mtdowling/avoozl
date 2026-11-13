@@ -145,7 +145,7 @@ async function projectedGraph(t) {
   avoozlJson(root);
   const { store, ops } = await openWorkspace(t, root, github),
     tasks = [
-      { id: "epic", kind: "epic", title: "The epic", projectId: "code" },
+      { id: "epic", kind: "package", title: "The epic", projectId: "code" },
       leaf("alpha", { milestone: "one" }),
       leaf("bravo", {
         milestone: "two",
@@ -460,7 +460,7 @@ test("rebuild restores an approved spec plan row from its folder", async (t) => 
 
 // P8's shape: one epic nesting three leaves in tasks.md, with a requires
 // and a sequence edge, in single-repo mode with an Epic issue type.
-test("a spec epic projects as one Epic parent with three sub-issues, and rebuild restores the parents", async (t) => {
+test("a spec plan projects as a plan issue over its package and three leaves, and rebuild restores the parents", async (t) => {
   const root = temporaryDirectory("avoozl-plan-"),
     code = temporaryDirectory("avoozl-code-"),
     github = fakeGitHub();
@@ -489,7 +489,7 @@ test("a spec epic projects as one Epic parent with three sub-issues, and rebuild
     ].join("\n"),
     "avoozl/manifest.json": JSON.stringify({
       tasks: {
-        1: { kind: "epic", summary: "The goal." },
+        1: { kind: "package", summary: "The goal." },
         1.1: leafEntry(),
         1.2: leafEntry({ requires: ["1.1"] }),
         1.3: leafEntry({ sequence: ["1.2"] }),
@@ -511,8 +511,20 @@ test("a spec epic projects as one Epic parent with three sub-issues, and rebuild
       github.created.find((issue) => issue.body.includes(`"taskId":"${id}"`)),
     epic = issueOf("loader.1"),
     leaves = ["loader.1.1", "loader.1.2", "loader.1.3"].map(issueOf);
-  assert.equal(epic.type?.name, "Epic");
-  assert.equal(github.created.filter((issue) => issue.type).length, 1);
+  // A package gets no issue type; only a cross-plan epic's issue does.
+  assert.equal(epic.type, undefined);
+  assert.equal(github.created.filter((issue) => issue.type).length, 0);
+  // The plan issue (Requirement 59.8) holds the package, which holds the
+  // leaves; the plan issue is never ready.
+  const planIssue = issueOf("plan.loader");
+  assert.match(planIssue.body, /"kind":"plan"/);
+  assert.match(planIssue.body, /spec folder `\.kiro\/specs\/loader\/`/);
+  assert.deepEqual(
+    github.subIssues
+      .filter(([parent]) => parent === planIssue.number)
+      .map(([, id]) => id),
+    [epic.id],
+  );
   assert.deepEqual(
     github.subIssues
       .filter(([parent]) => parent === epic.number)
@@ -520,7 +532,7 @@ test("a spec epic projects as one Epic parent with three sub-issues, and rebuild
       .sort(),
     leaves.map((issue) => issue.id).sort(),
   );
-  assert.equal(github.subIssues.length, 3);
+  assert.equal(github.subIssues.length, 4);
   for (const issue of leaves) assert.match(issue.body, /"parent":"loader\.1"/);
   // Blocked-by links follow the requires and sequence edges.
   const blockedBy = (issue) => [
@@ -552,6 +564,14 @@ test("a spec epic projects as one Epic parent with three sub-issues, and rebuild
     "loader.1.3": "loader.1",
   });
   assert.deepEqual(parents(fresh.store), parents(store));
+  // The plan issue comes back as its receipt, not as a task.
+  assert.equal(
+    fresh.store.get("receipts", "github-parent:plan:loader").number,
+    planIssue.number,
+  );
+  assert.ok(
+    !fresh.store.read().tasks.some((task) => task.id === "plan.loader"),
+  );
   assert.deepEqual(
     graphState(fresh.store, { verdicts: "orders" }).tasks.map(
       ({ id, parent, kind }) => [id, parent, kind],

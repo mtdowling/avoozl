@@ -343,6 +343,8 @@ export async function syncProject(
     releaseField = named("release", "Release", "single_select"),
     waveField = named("wave", "Wave", "number"),
     iterationField = named("iteration", null, "iteration"),
+    // Each task's phase (R59.8), only when .avoozl.json names the field.
+    phaseField = named("phase", null, "text"),
     // Blank skips the field: only a name set in .avoozl.json turns it on.
     namedState = named("avoozlState", null, "single_select"),
     // Avoozl never writes Status, so the two may not share a field.
@@ -368,7 +370,14 @@ export async function syncProject(
     };
   const items = await github.projectItems(
       project,
-      [statusField, releaseField, waveField, iterationField, stateField]
+      [
+        statusField,
+        releaseField,
+        waveField,
+        iterationField,
+        stateField,
+        phaseField,
+      ]
         .filter(Boolean)
         .map((field) => field.id),
     ),
@@ -423,6 +432,7 @@ export async function syncProject(
         Iteration: projectFieldValue(item, iterationField),
         Status: projectFieldValue(item, statusField),
         State: projectFieldValue(item, stateField),
+        Phase: projectFieldValue(item, phaseField),
       },
     });
   }
@@ -550,6 +560,14 @@ export async function syncProject(
         }
       }
       row.applied.Wave = want;
+    }
+    // Phase is Avoozl's like Wave: a person's edit is written back on the
+    // next tick and nothing else happens.
+    if (phaseField) {
+      const want = task.phase?.title ?? null;
+      if ((row.current.Phase ?? null) !== want)
+        updates.push({ id: phaseField.id, value: want });
+      row.applied.Phase = want;
     }
     if (iterationField) {
       const want = task.iteration ?? null,

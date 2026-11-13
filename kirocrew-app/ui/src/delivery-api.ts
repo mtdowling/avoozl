@@ -1,6 +1,6 @@
 // Swim lanes for the Delivery tab: one lane per delivery state, from the
 // delivery and graph reads. Kept free of JSX so node can test it directly.
-import { documentEpic, nodeState, waves, type NodeState } from './graph-layout.ts'
+import { nodeState, waves, type NodeState } from './graph-layout.ts'
 import { matches, type TaskFilter } from './filters.ts'
 import type { DeliveryItem, DeliverySession, Graph, GraphTask } from './views-api.ts'
 import { laneOf as sharedLaneOf } from '../../../src/delivery-lanes.mjs'
@@ -50,6 +50,11 @@ export interface LaneCard {
   epicId: string | null
   repository: string | null
   planId: string | null
+  // The plan's title and the task's phase, shown on the card (R59.10).
+  plan: string | null
+  phase: { id: string; title: string } | null
+  // A sub-issue link the cap or GitHub left out (R59.9, R59.15).
+  subIssue: { parent: string; reason: string } | null
   spec: string | null
   // The shared filter's view of the card: its state and wave.
   state: NodeState
@@ -113,6 +118,7 @@ export function deliveryLanes(graph: Graph | null, items: DeliveryItem[]): Recor
   const tasks = new Map((graph?.tasks ?? []).map((t) => [t.id, t]))
   const wave = graph ? waves(graph) : new Map<string, number>()
   const titles = new Map((graph?.epics ?? []).map((e) => [e.id, e.title]))
+  const planTitles = new Map((graph?.plans ?? []).map((p) => [p.id, p.title]))
   const lanes: Record<LaneId, LaneCard[]> = { ready: [], running: [], reviewing: [], 'needs-you': [], waiting: [], done: [] }
   const seen = new Set<string>()
   const add = (task: GraphTask | null, item: DeliveryItem | null) => {
@@ -124,10 +130,13 @@ export function deliveryLanes(graph: Graph | null, items: DeliveryItem[]): Recor
     lanes[lane].push({
       id,
       title: item?.title ?? task!.title,
-      epic: epic ? (titles.get(epic) ?? documentEpic(epic)) : null,
+      epic: epic ? (titles.get(epic) ?? epic) : null,
       epicId: epic,
       repository: task?.repository ?? null,
       planId: task?.planId ?? null,
+      plan: task?.planId ? (planTitles.get(task.planId) ?? task.planId) : null,
+      phase: task?.phase ?? item?.phase ?? null,
+      subIssue: item?.subIssue ?? null,
       spec: task?.spec ?? null,
       state: cardState(lane, task),
       wave: wave.get(id) ?? 1,
@@ -183,7 +192,7 @@ export function filterLanes(lanes: Record<LaneId, LaneCard[]>, filter: TaskFilte
       lane,
       lanes[lane].filter((card) =>
         matches(
-          { ...card, decision: card.decision ?? (card.deliveryState === 'decision' ? 'delivery stopped' : null) },
+          { ...card, epic: card.epicId, decision: card.decision ?? (card.deliveryState === 'decision' ? 'delivery stopped' : null) },
           filter,
         ),
       ),

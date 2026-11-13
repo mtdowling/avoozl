@@ -14,8 +14,8 @@ import { fail } from "./store.mjs";
 const entry = (action, by, at) => ({ action, by: by || null, at });
 
 export function archivePlan(store, plan, { by = null } = {}) {
-  if (plan.deletedAt) fail("This plan is deleted.", 409);
-  if (plan.archivedAt) fail("This plan is already archived.", 409);
+  if (plan.deletedAt) fail("This spec is deleted.", 409);
+  if (plan.archivedAt) fail("This spec is already archived.", 409);
   const at = new Date().toISOString(),
     title = plan.title || plan.spec || plan.id;
   return store.mutate("Archive plan " + plan.id, (data) => {
@@ -67,8 +67,8 @@ export function archivePlan(store, plan, { by = null } = {}) {
 }
 
 export function unarchivePlan(store, plan, { by = null } = {}) {
-  if (plan.deletedAt) fail("This plan is deleted.", 409);
-  if (!plan.archivedAt) fail("This plan is not archived.", 409);
+  if (plan.deletedAt) fail("This spec is deleted.", 409);
+  if (!plan.archivedAt) fail("This spec is not archived.", 409);
   const at = new Date().toISOString(),
     { decisions = [] } = plan.archive || {};
   return store.mutate("Unarchive plan " + plan.id, (data) => {

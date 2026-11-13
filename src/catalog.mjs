@@ -72,10 +72,8 @@ export function catalogTask(document, block) {
     summary:
       "Imported plan item. The source checkbox is historical context; task edits in this database are authoritative.",
     status: block.checked ? "recorded" : "planned",
-    epic:
-      document.id === "todo/nupp-native-runtime.md" && block.epic
-        ? block.epic
-        : "doc:" + document.id,
+    // No group is made up from a file path (Requirement 59.6): an imported
+    // item has no plan, and its document is provenance in `source`.
     track:
       document.id === "todo/nupp-native-runtime.md" && block.epic
         ? {
@@ -188,19 +186,6 @@ export function syncPlans(
     doc.links = [
       ...new Set((doc.rawLinks || doc.links).filter((id) => known.has(id))),
     ];
-  }
-  const main = data.documents["todo/nupp-native-runtime.md"];
-  if (main) {
-    const lines = main.text.split("\n");
-    for (const epic of data.epics || []) {
-      const start = lines.findIndex((l) =>
-        l.startsWith("### " + epic.id + "."),
-      );
-      if (start < 0) continue;
-      let end = start + 1;
-      while (end < lines.length && !/^### W\d\.|^## /.test(lines[end])) end++;
-      epic.context = { document: main.id, lineStart: start + 1, lineEnd: end };
-    }
   }
   return stats;
 }

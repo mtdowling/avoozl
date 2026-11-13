@@ -31,11 +31,7 @@ export function planSummaries(data) {
   const byId = new Map(data.tasks.map((t) => [t.id, t])),
     owned = new Map();
   for (const t of data.tasks) {
-    for (const id of new Set(
-      taskSourceRefs(t)
-        .map((r) => r.document)
-        .concat(t.epic?.startsWith("doc:") ? [t.epic.slice(4)] : []),
-    )) {
+    for (const id of new Set(taskSourceRefs(t).map((r) => r.document))) {
       if (!owned.has(id)) owned.set(id, []);
       owned.get(id).push(t);
     }
