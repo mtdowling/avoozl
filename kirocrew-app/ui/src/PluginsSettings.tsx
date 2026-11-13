@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import AddPlugin from './AddPlugin.tsx'
+import IntakeSources from './IntakeSources.tsx'
 import { useAppApi, useChatLauncher } from '@kirocrew/app-sdk'
 import { Card, CardTitle, EmptyState } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
@@ -227,6 +228,7 @@ export default function PluginsSettings({ workspaceId }: { workspaceId: string }
           ))}
         </div>
       </div>
+      <IntakeSources workspaceId={workspaceId} plugins={value?.plugins ?? []} />
     </div>
   )
 }

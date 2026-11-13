@@ -1,17 +1,19 @@
-// The Untriaged tab (design §8.5, R49, R52): open GitHub issues and pull
-// requests no trigger rule, triage label or Avoozl task covers. Each row
-// hands off to GitHub, Issue Radar or Code Review Sage, which do the work.
-// The one GitHub write is Send to Issue Radar (SendToRadar.tsx), which adds
-// a crew's label after a confirm step; those issues, and any a crew holds,
-// show under With Issue Radar.
+// The Intake tab (design §8.5, §4.12, R49, R50, R52): incoming items from
+// GitHub and every declared intake source. Its default filter, Untriaged,
+// shows those no trigger rule, triage label or Avoozl task covers. A GitHub
+// row hands off to GitHub, Issue Radar or Code Review Sage, which do the
+// work; the one GitHub write is Send to Issue Radar (SendToRadar.tsx), which
+// adds a crew's label after a confirm step; those issues, and any a crew
+// holds, show under With Issue Radar. A row from another source links to its
+// item and offers a person Plan this and Deliver this, each asked first.
 import { useCallback, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { useAppApi } from '@kirocrew/app-sdk'
 import { EmptyState, SegmentedControl } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import { FilterPanel, useStoredFilter } from './FilterPanel.tsx'
-import { ICON, IconBtn, IconLabel, ShowMore, ViewHeading, usePages } from './controls.tsx'
-import { Check, CircleDot, GitPullRequest, GitPullRequestDraft, Inbox, MessageSquare, Radar, RefreshCw, ScanSearch, Users, X, type LucideIcon } from './icons.ts'
+import { ICON, IconBtn, IconLabel, ShowMore, ViewHeading, useConfirm, usePages } from './controls.tsx'
+import { Check, CircleDot, FileText, GitPullRequest, GitPullRequestDraft, Inbox, MessageSquare, Play, Radar, RefreshCw, ScanSearch, Users, X, type LucideIcon } from './icons.ts'
 import { SendToRadar } from './SendToRadar.tsx'
 import { useMedia } from './TaskDrawer.tsx'
 import { relativeTime } from './task-api.ts'
@@ -28,12 +30,14 @@ import {
   filterActive,
   filterOptions,
   itemKey,
+  itemName,
   matchesFilter,
   radarClient,
   repositoryHref,
   radarState,
   selectionHandOff,
   sendable,
+  sourceOf,
   toggleSelected,
   untriagedClient,
   type HandOff,
@@ -79,11 +83,11 @@ function IconLink(props: { icon: LucideIcon; label: string; tooltip: string; hre
 }
 
 function KindIcon({ item }: { item: UntriagedItem }) {
-  const Icon = item.kind === 'issue' ? CircleDot : item.draft ? GitPullRequestDraft : GitPullRequest
-  const name = item.kind === 'issue' ? 'Issue' : item.draft ? 'Draft pull request' : 'Pull request'
+  const Icon = item.kind === 'issue' ? CircleDot : item.kind === 'ticket' ? FileText : item.kind === 'review' ? ScanSearch : item.draft ? GitPullRequestDraft : GitPullRequest
+  const name = item.kind === 'issue' ? 'Issue' : item.kind === 'ticket' ? 'Ticket' : item.kind === 'review' ? 'Review request' : item.draft ? 'Draft pull request' : 'Pull request'
   return (
     <Tooltip text={name}>
-      <span role="img" aria-label={name} style={{ display: 'inline-flex', color: item.kind === 'issue' ? 'var(--ok)' : 'var(--accent)' }}>
+      <span role="img" aria-label={name} style={{ display: 'inline-flex', color: item.kind === 'issue' || item.kind === 'ticket' ? 'var(--ok)' : 'var(--accent)' }}>
         <Icon size={16} aria-hidden="true" />
       </span>
     </Tooltip>
@@ -119,8 +123,24 @@ function Labels({ labels }: { labels: string[] }) {
   )
 }
 
-function Actions({ item, onSend, onReview }: { item: UntriagedItem; onSend?: (item: UntriagedItem) => void; onReview?: (item: UntriagedItem) => void }) {
-  const name = `${item.repository} #${item.number}`
+type Start = (item: UntriagedItem, action: 'deliver' | 'plan') => void
+
+function Actions({ item, onSend, onReview, onStart }: { item: UntriagedItem; onSend?: (item: UntriagedItem) => void; onReview?: (item: UntriagedItem) => void; onStart?: Start }) {
+  const name = itemName(item)
+  // An item from another source: a person's Plan this and Deliver this, and
+  // Code review for a review request. Issue Radar works GitHub only.
+  if (sourceOf(item) !== 'github')
+    return (
+      <span className="inline-flex gap-1.5">
+        {item.links.review && <IconLink icon={ScanSearch} label={`Code review for ${name}`} tooltip={item.links.review.tooltip} href={item.links.review.url} />}
+        {onStart && item.start?.plan && (
+          <IconBtn icon={FileText} label={`Plan this: ${name}`} tooltip="Plan this: a planner turns it into a task in the Inbox." onClick={() => onStart(item, 'plan')} />
+        )}
+        {onStart && item.start?.deliver && (
+          <IconBtn icon={Play} label={`Deliver this: ${name}`} tooltip="Deliver this: one task in its repository, pinned to this text." onClick={() => onStart(item, 'deliver')} />
+        )}
+      </span>
+    )
   return (
     <span className="inline-flex gap-1.5">
       {onSend &&
@@ -130,7 +150,7 @@ function Actions({ item, onSend, onReview }: { item: UntriagedItem; onSend?: (it
           // Crews work issues only; the gap keeps the columns lined up.
           <span aria-hidden="true" style={{ display: 'inline-block', width: 28 }} />
         ))}
-      <IconLink icon={Radar} label={`Open ${name} in Issue Radar`} tooltip={item.links.issueRadar.tooltip} href={item.links.issueRadar.url} />
+      {item.links.issueRadar && <IconLink icon={Radar} label={`Open ${name} in Issue Radar`} tooltip={item.links.issueRadar.tooltip} href={item.links.issueRadar.url} />}
       {item.links.review && onReview && (
         <IconBtn icon={ScanSearch} label={`Code review for ${name}`} tooltip={item.links.review.tooltip} onClick={() => onReview(item)} />
       )}
@@ -161,8 +181,9 @@ function RepoLink({ item }: { item: UntriagedItem }) {
 }
 
 function AuthorLink({ item, fallback = '' }: { item: UntriagedItem; fallback?: string }) {
-  const href = authorHref(item)
-  if (!href) return <>{fallback}</>
+  // An author from another source is a name there, not a GitHub login.
+  const href = sourceOf(item) === 'github' ? authorHref(item) : null
+  if (!href) return <>{item.author ?? fallback}</>
   return (
     <a href={href} target="_blank" rel="noopener noreferrer" className="underline" data-author-link>
       {item.author}
@@ -171,9 +192,10 @@ function AuthorLink({ item, fallback = '' }: { item: UntriagedItem; fallback?: s
 }
 
 function Title({ item }: { item: UntriagedItem }) {
+  const github = sourceOf(item) === 'github'
   return (
-    <a href={item.links.github} target="_blank" rel="noopener noreferrer" className="min-w-0" style={{ overflowWrap: 'anywhere' }}>
-      <span className="text-muted tabular-nums">#{item.number}</span> <span className="underline">{item.title}</span>
+    <a href={item.links.github ?? item.links.item ?? item.url} target="_blank" rel="noopener noreferrer" className="min-w-0" style={{ overflowWrap: 'anywhere' }}>
+      <span className="text-muted tabular-nums">{github ? `#${item.number}` : item.id}</span> <span className="underline">{item.title}</span>
     </a>
   )
 }
@@ -183,13 +205,13 @@ function Select(props: { item: UntriagedItem; checked: boolean; onChange: (on: b
     <input
       type="checkbox"
       checked={props.checked}
-      aria-label={`Select ${props.item.repository} #${props.item.number}`}
+      aria-label={`Select ${itemName(props.item)}`}
       onChange={(event) => props.onChange(event.target.checked)}
     />
   )
 }
 
-function Table(props: { items: UntriagedItem[]; selected: Set<string>; now: number; onSelect: (keys: string[], on: boolean) => void; onSend: (item: UntriagedItem) => void; onReview: (item: UntriagedItem) => void }) {
+function Table(props: { items: UntriagedItem[]; selected: Set<string>; now: number; onSelect: (keys: string[], on: boolean) => void; onSend: (item: UntriagedItem) => void; onReview: (item: UntriagedItem) => void; onStart: Start }) {
   const keys = props.items.map(itemKey)
   const all = keys.length > 0 && keys.every((key) => props.selected.has(key))
   return (
@@ -204,6 +226,7 @@ function Table(props: { items: UntriagedItem[]; selected: Set<string>; now: numb
               <span className="sr-only">Kind</span>
             </th>
             <th style={HEAD}>Item</th>
+            <th style={HEAD}>Source</th>
             <th style={HEAD}>Repository</th>
             <th style={HEAD}>Author</th>
             <th style={HEAD}>Age</th>
@@ -235,6 +258,9 @@ function Table(props: { items: UntriagedItem[]; selected: Set<string>; now: numb
                   <PullState item={item} />
                 </div>
               </td>
+              <td style={{ ...CELL, whiteSpace: 'nowrap' }} data-intake-source>
+                {sourceOf(item)}
+              </td>
               <td style={{ ...CELL, whiteSpace: 'nowrap' }}>
                 <RepoLink item={item} />
               </td>
@@ -253,7 +279,7 @@ function Table(props: { items: UntriagedItem[]; selected: Set<string>; now: numb
                 {item.comments}
               </td>
               <td style={{ ...CELL, whiteSpace: 'nowrap' }}>
-                <Actions item={item} onSend={props.onSend} onReview={props.onReview} />
+                <Actions item={item} onSend={props.onSend} onReview={props.onReview} onStart={props.onStart} />
               </td>
             </tr>
           ))}
@@ -264,7 +290,7 @@ function Table(props: { items: UntriagedItem[]; selected: Set<string>; now: numb
 }
 
 // Narrow screens: one stacked row per item, same parts.
-function Stack(props: { items: UntriagedItem[]; selected: Set<string>; now: number; onSelect: (keys: string[], on: boolean) => void; onSend: (item: UntriagedItem) => void; onReview: (item: UntriagedItem) => void }) {
+function Stack(props: { items: UntriagedItem[]; selected: Set<string>; now: number; onSelect: (keys: string[], on: boolean) => void; onSend: (item: UntriagedItem) => void; onReview: (item: UntriagedItem) => void; onStart: Start }) {
   return (
     <ul className="flex flex-col" data-untriaged-stack>
       {props.items.map((item) => (
@@ -274,12 +300,13 @@ function Stack(props: { items: UntriagedItem[]; selected: Set<string>; now: numb
           <div className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
             <Title item={item} />
             <span className="text-xs text-muted">
-              <RepoLink item={item} /> · <AuthorLink item={item} fallback="unknown" /> · {age(item.createdAt, props.now)} · {item.comments} comment{item.comments === 1 ? '' : 's'}
+              {sourceOf(item)} · <RepoLink item={item} /> · <AuthorLink item={item} fallback="unknown" /> · {age(item.createdAt, props.now)}
+              {sourceOf(item) === 'github' ? ` · ${item.comments} comment${item.comments === 1 ? '' : 's'}` : ''}
             </span>
             <PullState item={item} />
             <Labels labels={item.labels} />
           </div>
-          <Actions item={item} onSend={props.onSend} onReview={props.onReview} />
+          <Actions item={item} onSend={props.onSend} onReview={props.onReview} onStart={props.onStart} />
         </li>
       ))}
     </ul>
@@ -289,10 +316,19 @@ function Stack(props: { items: UntriagedItem[]; selected: Set<string>; now: numb
 // When each repository was last read, and any read error or cut-off.
 function Checked({ list, now }: { list: UntriagedList; now: number }) {
   const notes = list.repositories.filter((row) => row.error || row.truncated)
+  const sources = (list.sources ?? []).filter((row) => row.id !== 'github')
   const times = list.repositories.map((row) => row.checkedAt).filter((at): at is string => Boolean(at)).sort()
   return (
     <div className="flex flex-col gap-0.5 text-xs text-muted" data-untriaged-checked>
-      <span>{times.length ? `Checked ${relativeTime(times[0], now)}` : 'Not checked yet'} · GitHub is read at most every 10 minutes.</span>
+      {list.repositories.length > 0 && (
+        <span>{times.length ? `Checked ${relativeTime(times[0], now)}` : 'Not checked yet'} · GitHub is read at most every 10 minutes.</span>
+      )}
+      {sources.map((row) => (
+        <span key={row.id} className={row.error ? 'text-danger' : undefined} data-intake-source-state={row.id}>
+          {row.id}: {row.error ?? (row.via === 'mcp' ? 'Items arrive through MCP.' : row.checkedAt ? `Read ${relativeTime(row.checkedAt, now)}${row.more ? ', more on the next tick' : ''}.` : 'Read on the next tick.')}
+          {row.refused ? ` ${row.refused} item${row.refused === 1 ? '' : 's'} refused.` : ''}
+        </span>
+      ))}
       {notes.map((row) => (
         <span key={row.repository} className={row.error ? 'text-danger' : undefined}>
           {row.repository}: {row.error ?? `GitHub search returns ${row.read} of the ${row.searched ?? 'more'} items it found. Narrow its Untriaged filter to see the rest.`}
@@ -381,6 +417,7 @@ function RadarList({ items, now, narrow }: { items: RadarItem[]; now: number; na
 
 export default function UntriagedView({ workspaceId }: { workspaceId: string | null }) {
   const api = useAppApi()
+  const ask = useConfirm()
   const client = useMemo(() => untriagedClient(api), [api])
   const radar = useMemo(() => radarClient(api), [api])
   const [show, setShow] = useSteppedState<'untriaged' | 'radar'>(
@@ -433,6 +470,25 @@ export default function UntriagedView({ workspaceId }: { workspaceId: string | n
       setCheckError(errorMessage(caught))
     }
   }
+  // Plan this and Deliver this (R50.15), asked first with the item's name.
+  const start = async (item: UntriagedItem, action: 'deliver' | 'plan') => {
+    if (!workspaceId) return
+    const name = itemName(item)
+    const yes = await ask(
+      action === 'deliver'
+        ? { title: `Deliver ${name}?`, body: `Avoozl makes one task in ${item.repository} from "${item.title}", pinned to its text now, and a worker starts it. Avoozl writes nothing back to ${item.source}.`, action: 'Deliver this' }
+        : { title: `Plan ${name}?`, body: `Avoozl adds "${item.title}" to the Inbox for a planner. Nothing starts until a plan is approved.`, action: 'Plan this' },
+    )
+    if (!yes) return
+    setCheckError(null)
+    try {
+      const made = await client.start(workspaceId, item, action)
+      setNote(`${name} is now task ${made.taskId}.`)
+      await reload()
+    } catch (caught) {
+      setCheckError(errorMessage(caught))
+    }
+  }
   const setField = (change: Partial<UntriagedFilter>) => setFilter({ ...filter, ...change })
   const onSelect = (keys: string[], on: boolean) => setSelected(toggleSelected(selected, keys, on))
   const checkNow = async () => {
@@ -452,14 +508,14 @@ export default function UntriagedView({ workspaceId }: { workspaceId: string | n
     <section aria-labelledby="avoozl-untriaged-title" className="flex flex-col gap-3.5">
       <div className="flex flex-wrap items-center gap-3">
         <ViewHeading id="avoozl-untriaged-title" view="untriaged">
-          Untriaged
+          Intake
         </ViewHeading>
-        <IconLabel icon={RefreshCw} onClick={() => void checkNow()} disabled={busy || checking || !list?.enabled} tooltip="Read GitHub now instead of waiting for the next check">
+        <IconLabel icon={RefreshCw} onClick={() => void checkNow()} disabled={busy || checking || !list?.enabled} tooltip="Read GitHub and poll each plugin source now instead of waiting for the next check">
           {checking ? 'Checking…' : 'Check now'}
         </IconLabel>
       </div>
       <p className="text-sm text-muted">
-        Open issues and pull requests no trigger rule, triage label or Avoozl task covers. Send issues to an Issue Radar crew, open them in Issue Radar, or start a code review chat on a pull request.
+        Work that comes in from GitHub and your intake sources. Untriaged shows the items no trigger rule, triage label or Avoozl task covers. Send GitHub issues to an Issue Radar crew or start a code review chat on a pull request; plan or deliver an item from another source.
       </p>
       {list?.enabled && (
         <div>
@@ -468,7 +524,7 @@ export default function UntriagedView({ workspaceId }: { workspaceId: string | n
           ariaLabel="Show"
           segments={[
             { key: 'untriaged', label: `Untriaged (${list.items.length})` },
-            { key: 'radar', label: `With Issue Radar (${radarItems.length})` },
+            ...(list.mode ? [{ key: 'radar' as const, label: `With Issue Radar (${radarItems.length})` }] : []),
           ]}
           value={show}
           onChange={(key: 'untriaged' | 'radar') => setShow(key)}
@@ -488,7 +544,7 @@ export default function UntriagedView({ workspaceId }: { workspaceId: string | n
       {!list ? (
         <p className="text-sm text-muted">{busy ? 'Loading…' : 'Not loaded'}</p>
       ) : !list.enabled ? (
-        <p className="text-sm text-muted">The Untriaged list needs a GitHub mode. Choose one in Settings › GitHub.</p>
+        <p className="text-sm text-muted">Intake needs a GitHub mode or an intake source. Choose a mode in Settings › GitHub, or add a source in Settings › Plugins.</p>
       ) : show === 'radar' ? (
         <div className="flex flex-col gap-2" data-radar-view>
           <p className="text-xs text-muted">
@@ -514,6 +570,7 @@ export default function UntriagedView({ workspaceId }: { workspaceId: string | n
             active={filterActive(filter)}
             onClear={() => setFilter({})}
             fields={[
+              { kind: 'select', key: 'source', label: 'Source', value: filter.source ?? '', options: options.sources, onChange: (source) => setField({ source: source || undefined }) },
               { kind: 'select', key: 'repository', label: 'Repository', value: filter.repository ?? '', options: options.repositories, onChange: (repository) => setField({ repository: repository || undefined }) },
               { kind: 'select', key: 'kind', label: 'Kind', value: filter.kind ?? '', options: KIND_OPTIONS, onChange: (kind) => setField({ kind: (kind || undefined) as UntriagedFilter['kind'] }) },
               { kind: 'select', key: 'age', label: 'Age', value: filter.age ?? '', options: AGE_OPTIONS, onChange: (value) => setField({ age: value || undefined }) },
@@ -555,9 +612,9 @@ export default function UntriagedView({ workspaceId }: { workspaceId: string | n
           {shown.length === 0 ? (
             <p className="text-sm text-muted">No untriaged item matches these filters. Clear them to see all {list.items.length}.</p>
           ) : narrow ? (
-            <Stack items={pages.take('untriaged', shown)} selected={selected} now={now} onSelect={onSelect} onSend={(item) => setSending([item])} onReview={(item) => void review(item)} />
+            <Stack items={pages.take('untriaged', shown)} selected={selected} now={now} onSelect={onSelect} onSend={(item) => setSending([item])} onReview={(item) => void review(item)} onStart={(item, action) => void start(item, action)} />
           ) : (
-            <Table items={pages.take('untriaged', shown)} selected={selected} now={now} onSelect={onSelect} onSend={(item) => setSending([item])} onReview={(item) => void review(item)} />
+            <Table items={pages.take('untriaged', shown)} selected={selected} now={now} onSelect={onSelect} onSend={(item) => setSending([item])} onReview={(item) => void review(item)} onStart={(item, action) => void start(item, action)} />
           )}
           <ShowMore {...pages.more('untriaged', shown.length)} />
         </>

@@ -1,8 +1,10 @@
-// Calls and pure helpers for the Untriaged tab (design §8.5): open GitHub
-// issues and pull requests no trigger rule, triage label, or task covers.
-// The backend (src/app/untriaged.mjs) decides what is untriaged and builds
-// every link; this module only filters, sorts and selects. Keep it free of
-// JSX and runtime imports so node can test it directly.
+// Calls and pure helpers for the Intake tab (design §8.5, §4.12): incoming
+// items from GitHub and every declared source; its default filter,
+// Untriaged, shows those no trigger rule, triage label, or task covers.
+// The backend (src/app/untriaged.mjs, src/app/intake.mjs) decides what is
+// untriaged and builds every link; this module only filters, sorts and
+// selects. Keep it free of JSX and runtime imports so node can test it
+// directly.
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
 import type { Option } from './filters.ts'
@@ -15,8 +17,13 @@ export interface HandOff {
 }
 
 export interface UntriagedItem {
-  kind: 'issue' | 'pr'
-  number: number
+  // `github`, or a declared intake source's id (absent from older backends).
+  source?: string
+  // The item's id at its source; `owner/repo#N` for GitHub.
+  id?: string
+  kind: 'issue' | 'pr' | 'review' | 'ticket'
+  // Null for an item that is not from GitHub.
+  number: number | null
   title: string
   url: string
   repository: string
@@ -27,7 +34,13 @@ export interface UntriagedItem {
   draft?: boolean
   checks?: 'passing' | 'failing' | 'pending' | null
   headSha?: string | null
-  links: { github: string; issueRadar: HandOff; review: HandOff | null }
+  // `github` and `issueRadar` are null for an item from another source,
+  // which links to its own `item` page instead.
+  links: { github: string | null; item?: string; issueRadar: HandOff | null; review: HandOff | null }
+  // A person's Plan this and Deliver this, for an item from another source.
+  start?: { plan: boolean; deliver: boolean }
+  // Why no rule took it, when one matched for someone who does not count.
+  reason?: string | null
   // A pull request's code review chat (src/app/pr-review.mjs): queued until
   // the next tick opens it, then open with a link to Attach.
   reviewChat?: ReviewChat | null
@@ -67,7 +80,19 @@ export interface UntriagedRepository {
   notify: boolean
 }
 
+// A declared intake source and its last read (GitHub is `github`).
+export interface IntakeSource {
+  id: string
+  via: string | null
+  repository: string | null
+  error: string | null
+  checkedAt: string | null
+  more?: boolean
+  refused?: number
+}
+
 export interface UntriagedList {
+  sources?: IntakeSource[]
   enabled: boolean
   mode: string | null
   total: number
@@ -84,6 +109,16 @@ export function untriagedClient(api: AppApi) {
   return {
     view: (workspaceId: string) => run(workspaceId, {}),
     refresh: (workspaceId: string) => run(workspaceId, { refresh: true }),
+    // Plan this and Deliver this (R50.15): a person's start for an item
+    // from another source. The backend refuses a session or MCP caller.
+    start: (workspaceId: string, item: Pick<UntriagedItem, 'source' | 'id'>, action: 'deliver' | 'plan') =>
+      api
+        .post<{ result: { taskId: string } }>(COMMAND_PATH, {
+          operation: action === 'deliver' ? 'intake.deliver' : 'intake.plan',
+          input: { source: item.source, id: item.id },
+          workspaceId,
+        })
+        .then((reply) => reply.result),
     review: (workspaceId: string, item: Pick<UntriagedItem, 'repository' | 'number'>) =>
       api
         .post<{ result: ReviewChat & { created: boolean } }>(COMMAND_PATH, {
@@ -144,6 +179,8 @@ export function radarClient(api: AppApi) {
 // Whether these rows can go to one crew together, and why not.
 export function sendable(items: UntriagedItem[]): { ok: boolean; reason: string; repository: string | null } {
   if (!items.length) return { ok: false, reason: 'Select issues to send them to an Issue Radar crew.', repository: null }
+  if (items.some((item) => sourceOf(item) !== 'github'))
+    return { ok: false, reason: 'Issue Radar works GitHub issues. Unselect the items from other sources first.', repository: null }
   if (items.some((item) => item.kind !== 'issue'))
     return { ok: false, reason: 'Crews work issues. Unselect the pull requests first.', repository: null }
   const repository = items[0].repository
@@ -199,6 +236,7 @@ export function triageRows(saved: string[], labels: string[] | null): { name: st
 }
 
 export interface UntriagedFilter {
+  source?: string
   repository?: string
   kind?: 'issue' | 'pr'
   // Days: newer than this many.
@@ -217,14 +255,19 @@ export const AGE_OPTIONS: Option[] = [
 export const KIND_OPTIONS: Option[] = [
   { value: 'issue', label: 'Issues' },
   { value: 'pr', label: 'Pull requests' },
+  { value: 'ticket', label: 'Tickets' },
+  { value: 'review', label: 'Reviews' },
 ]
 
 export const filterActive = (filter: UntriagedFilter) =>
-  Boolean(filter.repository || filter.kind || filter.age || filter.author || filter.label)
+  Boolean(filter.source || filter.repository || filter.kind || filter.age || filter.author || filter.label)
+
+export const sourceOf = (item: Pick<UntriagedItem, 'source'>) => item.source ?? 'github'
 
 const DAY = 86400000
 
 export function matchesFilter(item: UntriagedItem, filter: UntriagedFilter, now = Date.now()): boolean {
+  if (filter.source && sourceOf(item) !== filter.source) return false
   if (filter.repository && item.repository !== filter.repository) return false
   if (filter.kind && item.kind !== filter.kind) return false
   if (filter.author && item.author !== filter.author) return false
@@ -244,6 +287,7 @@ export function filterOptions(list: UntriagedList | null) {
     [...new Set(values)].sort((a, b) => a.localeCompare(b)).map((value) => ({ value, label: value }))
   const items = list?.items ?? []
   return {
+    sources: sorted([...(list?.sources ?? []).map((row) => row.id), ...items.map(sourceOf)]),
     repositories: sorted((list?.repositories ?? []).map((row) => row.repository)),
     authors: sorted(items.map((item) => item.author).filter((author): author is string => Boolean(author))),
     labels: sorted(items.flatMap((item) => item.labels)),
@@ -262,22 +306,30 @@ export function age(at: string | null, now = Date.now()): string {
   return `${Math.round(minutes / 60 / 24 / 365)} y`
 }
 
-export const itemKey = (item: { repository: string; number: number }) => `${item.repository}#${item.number}`
+// GitHub rows keep their `owner/repo#N` key; another source's rows add the
+// source, since its ids are its own.
+export const itemKey = (item: { repository: string; number: number | null; source?: string; id?: string }) =>
+  sourceOf(item) === 'github' ? `${item.repository}#${item.number}` : `${item.source}:${item.id}`
+
+// How a row names its item: `o/app #12` on GitHub, `tickets T-1042` elsewhere.
+export const itemName = (item: Pick<UntriagedItem, 'repository' | 'number' | 'source' | 'id'>) =>
+  sourceOf(item) === 'github' ? `${item.repository} #${item.number}` : `${item.source} ${item.id}`
 
 // The GitHub host an item lives on, from its own link: github.com, or an
 // Enterprise host. A link that does not parse falls back to github.com.
-function githubOrigin(item: { url?: string; links?: { github?: string } }): string {
+function githubOrigin(item: { url?: string; source?: string; links?: { github?: string | null } }): string {
   try {
-    return new URL(item.links?.github || item.url || '').origin
+    // Another source's url is its own tracker's, not a GitHub host.
+    return new URL(item.links?.github || (sourceOf(item) === 'github' ? item.url : '') || '').origin
   } catch {
     return 'https://github.com'
   }
 }
 
 // Links for a row's repository and author on the item's GitHub host.
-export const repositoryHref = (item: { repository: string; url?: string; links?: { github?: string } }) =>
+export const repositoryHref = (item: { repository: string; url?: string; source?: string; links?: { github?: string | null } }) =>
   `${githubOrigin(item)}/${item.repository.split('/').map(encodeURIComponent).join('/')}`
-export const authorHref = (item: { author: string | null; url?: string; links?: { github?: string } }) =>
+export const authorHref = (item: { author: string | null; url?: string; source?: string; links?: { github?: string | null } }) =>
   item.author ? `${githubOrigin(item)}/${encodeURIComponent(item.author)}` : null
 
 // The selection with one row turned on or off, or every shown row at once.
@@ -294,13 +346,15 @@ export function toggleSelected(selected: Set<string>, keys: string[], on: boolea
 // no selection from a link yet (design F98, MC-14), so it opens Issue Radar
 // and names them. shortcut: page link only; pass the selection when MC-14
 // ships.
-export function selectionHandOff(items: UntriagedItem[]): HandOff {
-  if (!items.length) return { url: '/issue-radar', exact: false, tooltip: 'Select rows to open them in Issue Radar.' }
+export function selectionHandOff(chosen: UntriagedItem[]): HandOff {
+  // Only GitHub rows go to Issue Radar.
+  const items = chosen.filter((item) => sourceOf(item) === 'github' && item.links.issueRadar)
+  if (!items.length) return { url: '/issue-radar', exact: false, tooltip: 'Select GitHub rows to open them in Issue Radar.' }
   const groups = new Map<string, string[]>()
   for (const item of items) groups.set(item.repository, [...(groups.get(item.repository) ?? []), `#${item.number}`])
   const names = [...groups].map(([repository, numbers]) => `${repository} ${numbers.join(', ')}`).join('; ')
   return {
-    url: items[0].links.issueRadar.url,
+    url: items[0].links.issueRadar?.url ?? '/issue-radar',
     exact: false,
     tooltip: `Issue Radar can't take a selection from a link yet, so this opens Issue Radar. Pick these there: ${names}.`,
   }
@@ -309,6 +363,8 @@ export function selectionHandOff(items: UntriagedItem[]): HandOff {
 // What the empty state says, for a list with no items.
 export function emptyText(list: UntriagedList): { title: string; subtitle: string } {
   const failed = list.repositories.find((row) => row.error)
+  if (!list.repositories.length && (list.sources ?? []).length)
+    return { title: 'Nothing untriaged', subtitle: 'Items from your intake sources that no trigger rule takes show here.' }
   if (!list.repositories.length)
     return { title: 'No repository yet', subtitle: 'Add a GitHub repository in Settings › Repositories, and its untriaged items show here.' }
   if (list.repositories.every((row) => !row.checkedAt))

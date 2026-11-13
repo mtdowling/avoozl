@@ -47,6 +47,7 @@ export const BOUNDARY_LABELS: Record<string, string> = {
   github: 'GitHub text',
   brief: 'Session briefs',
   diff: 'Worker diffs',
+  intake: 'Incoming items',
 }
 
 // One line on what each boundary checks, from content-rules.mjs and its callers.
@@ -55,15 +56,18 @@ export const BOUNDARY_HINTS: Record<string, string> = {
   github: 'Issue, comment and pull request text Avoozl writes.',
   brief: 'The brief a worker session starts with.',
   diff: 'Lines a worker adds, checked before a push.',
+  intake: 'Items that come in from a plugin source or MCP. Only checked when you tick it.',
 }
 
 export const BOUNDARIES = Object.keys(BOUNDARY_LABELS)
+// What a set with no `boundaries` list checks: all but intake.
+export const DEFAULT_BOUNDARIES = BOUNDARIES.filter((b) => b !== 'intake')
 
 // The `contentRules.sets` keys, each with whether it must be set.
 export const SET_FIELDS: { key: string; required: boolean; text: string }[] = [
   { key: 'id', required: true, text: 'Names the set and its terms file, .avoozl/local/content-rules/<id>.txt.' },
   { key: 'action', required: false, text: 'block (the default) stops the write; report lets it through and records the match.' },
-  { key: 'boundaries', required: false, text: 'Some of plan, github, brief, diff. Blank means all of them.' },
+  { key: 'boundaries', required: false, text: 'Some of plan, github, brief, diff, intake. Blank means all but intake.' },
   { key: 'repositories', required: false, text: 'Registered repositories it applies to. Blank means all.' },
   { key: 'plugin', required: false, text: 'A plugins entry of kind rules that supplies this set instead of a terms file.' },
 ]
@@ -75,7 +79,7 @@ export function sourceLabel(set: ContentRuleSet): string {
 }
 
 export function scopeLabel(set: ContentRuleSet): string {
-  const where = set.boundaries ? set.boundaries.map((b) => BOUNDARY_LABELS[b] ?? b).join(', ') : 'Every boundary'
+  const where = set.boundaries ? set.boundaries.map((b) => BOUNDARY_LABELS[b] ?? b).join(', ') : 'Every boundary but incoming items'
   return set.repositories ? `${where} in ${set.repositories.join(', ')}` : where
 }
 
@@ -137,19 +141,19 @@ export const builtinUsed = (id: string, mode: string | null | undefined) => {
 export interface SetForm {
   id: string
   action: 'block' | 'report'
-  // Every boundary checked saves no list (all of them); none is refused.
+  // The default boundaries (all but intake) save no list; none is refused.
   // No repository checked means every repository.
   boundaries: string[]
   repositories: string[]
   plugin: string
 }
 
-export const emptySetForm = (): SetForm => ({ id: '', action: 'block', boundaries: [...BOUNDARIES], repositories: [], plugin: '' })
+export const emptySetForm = (): SetForm => ({ id: '', action: 'block', boundaries: [...DEFAULT_BOUNDARIES], repositories: [], plugin: '' })
 
 export const setFormOf = (set: ContentRuleSet): SetForm => ({
   id: set.id,
   action: set.action,
-  boundaries: set.boundaries ?? [...BOUNDARIES],
+  boundaries: set.boundaries ?? [...DEFAULT_BOUNDARIES],
   repositories: set.repositories ?? [],
   plugin: set.plugin ?? '',
 })
@@ -168,7 +172,8 @@ export function setEntry(form: SetForm, others: string[]): { entry?: Record<stri
     entry: {
       id,
       ...(form.action === 'report' ? { action: 'report' } : {}),
-      ...(form.boundaries.length && form.boundaries.length < BOUNDARIES.length
+      ...(form.boundaries.length &&
+      !(form.boundaries.length === DEFAULT_BOUNDARIES.length && DEFAULT_BOUNDARIES.every((b) => form.boundaries.includes(b)))
         ? { boundaries: BOUNDARIES.filter((b) => form.boundaries.includes(b)) }
         : {}),
       ...(form.repositories.length ? { repositories: [...form.repositories] } : {}),
