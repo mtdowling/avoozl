@@ -3,12 +3,12 @@
 // eval and network loads, and the steps below are a few hundred lines.
 //
 //   1. Rank: reverse the edges that close a cycle (the plan validator refuses
-//      cycles, but a collapsed epic can make one), then rank each node by its
+//      cycles, but a collapsed group can make one), then rank each node by its
 //      longest path from a node that waits on nothing.
 //   2. Split each edge that spans ranks with one dummy per rank in between,
 //      so a long edge passes through a slot of its own, never under a node.
 //   3. Order each rank to cut crossings: barycenter sweeps down and up,
-//      keeping each epic's nodes together, and keep the best order seen.
+//      keeping each group's nodes together, and keep the best order seen.
 //   4. Grid: every node takes one cell of a uniform grid, columns in wave
 //      order. A wave with more nodes than the grid has rows wraps into more
 //      columns, and the row count is chosen so the drawing's shape is close
@@ -19,7 +19,9 @@
 //      its left side. No segment crosses a cell.
 //
 // Tasks with no drawn edge fill the same grid under the graph, row by row
-// in epic order. Kept free of JSX so node
+// in group order. A group is the level the Graph shows: epics at the top,
+// then an epic's plans, then a plan's phases (Requirement 59.10). Kept free
+// of JSX so node
 // can test it directly.
 import type { Graph, GraphTask } from './views-api.ts'
 import { nodeState as sharedNodeState } from '../../../src/delivery-lanes.mjs'
@@ -43,7 +45,7 @@ export interface Spacing {
   columnGap: number
   rowGap: number
   margin: number
-  // Room above an epic's block for its label, and between blocks.
+  // Room above a group's block for its label, and between blocks.
   clusterLabel: number
   clusterGap: number
 }
@@ -51,7 +53,7 @@ export interface Spacing {
 export const SPACING: Spacing = {
   nodeWidth: 168,
   nodeHeight: 36,
-  // Gutters carry the edges, and the row gutter holds an epic's label.
+  // Gutters carry the edges, and the row gutter holds a group's label.
   columnGap: 28,
   rowGap: 14,
   margin: 12,
@@ -92,17 +94,17 @@ const PLACE_PASSES = 8
 
 export interface LaidNode {
   id: string
-  // The task, or null for a collapsed epic drawn as one node.
+  // The task, or null for a collapsed group drawn as one node.
   task: GraphTask | null
   title: string
-  epic: string | null
+  group: string | null
   state: NodeState
   // The column. A node that waits on nothing sits just before the first
   // node that waits on it.
   wave: number
   x: number
   y: number
-  // For a collapsed epic: how many tasks it holds, and how many are done.
+  // For a collapsed group: how many tasks it holds, and how many are done.
   members?: { total: number; done: number }
   // True for a task with no drawn edge, packed in the grid below the graph.
   loose?: boolean
@@ -117,9 +119,9 @@ export interface LaidEdge {
   points: [number, number][]
 }
 
-// One epic's nodes in one column, drawn as a box behind them.
+// One group's nodes in one column, drawn as a box behind them.
 export interface ClusterBox {
-  epic: string | null
+  group: string | null
   title: string
   count: number
   collapsed: boolean
@@ -127,13 +129,13 @@ export interface ClusterBox {
   y: number
   width: number
   height: number
-  // Only one box per epic carries the label.
+  // Only one box per group carries the label.
   label: boolean
 }
 
-// A heading over one epic's unconnected tasks in the grid.
+// A heading over one group's unconnected tasks in the grid.
 export interface LooseGroup {
-  epic: string | null
+  group: string | null
   title: string
   count: number
   // Where the label goes, and how many characters fit there.
@@ -186,44 +188,34 @@ export function waves(graph: Graph): Map<string, number> {
   return wave
 }
 
-export const epicKey = (epic: string | null) => epic ?? '(none)'
+export const groupKey = (group: string | null) => group ?? '(none)'
 
-// An epic with no title that stands for a document (`doc:<path>`) is shown
-// by the part of its path that tells it apart: the spec folder's name for
-// `.kiro/specs/<name>/...`, else the path without `doc:` and `.md`. Nodes
-// are narrow, so the shared prefix would leave every label the same.
-export function documentEpic(epic: string): string {
-  if (!epic.startsWith('doc:')) return epic
-  const path = epic.slice(4)
-  return /^\.kiro\/specs\/([^/]+)\//.exec(path)?.[1] ?? path.replace(/\.md$/, '')
-}
-
-// The drawn nodes (tasks, or one node per collapsed epic) and the blocking
-// edges between them, merged and without self loops.
+// The drawn nodes (tasks, or one node per collapsed group) and the blocking
+// edges between them, merged and without self loops. Each task's `group`
+// and the graph's `groups` (titles, in order) come from groupGraph; a group
+// with no ID is the level's "No epic", "No spec" or "No phase".
 function drawnGraph(graph: Graph, collapsed: ReadonlySet<string>) {
-  const titles = new Map(graph.epics.map((e) => [e.id, e.title]))
-  const order = new Map(graph.epics.map((e, i) => [e.id, i]))
-  const epicTitle = (epic: string | null) => {
-    if (!epic) return 'No epic'
-    const title = titles.get(epic)
-    return title && title !== epic ? title : documentEpic(epic)
-  }
+  const groups = graph.groups ?? []
+  const titles = new Map(groups.map((g) => [g.id, g.title]))
+  const order = new Map(groups.map((g, i) => [g.id, i]))
+  const groupTitle = (group: string | null) => titles.get(group) ?? (group === null ? 'No epic' : group)
   const members = new Map<string | null, GraphTask[]>()
   for (const task of graph.tasks) {
-    if (!members.has(task.epic)) members.set(task.epic, [])
-    members.get(task.epic)!.push(task)
+    const group = task.group ?? null
+    if (!members.has(group)) members.set(group, [])
+    members.get(group)!.push(task)
   }
-  const epics = [...members.keys()].sort(
+  const keys = [...members.keys()].sort(
     (a, b) => (a === null ? 1e9 : (order.get(a) ?? 1e8)) - (b === null ? 1e9 : (order.get(b) ?? 1e8)),
   )
   const nodeOf = new Map<string, string>()
   const nodes: LaidNode[] = []
-  for (const epic of epics) {
-    const tasks = members.get(epic)!
-    if (collapsed.has(epicKey(epic))) {
-      const id = `epic:${epicKey(epic)}`
+  for (const group of keys) {
+    const tasks = members.get(group)!
+    if (collapsed.has(groupKey(group))) {
+      const id = `group:${groupKey(group)}`
       const states = new Set(tasks.map(nodeState))
-      // The most urgent member state colors the whole epic.
+      // The most urgent member state colors the whole group.
       const state =
         (['needs-you', 'running', 'ready', 'waiting', 'deferred', 'done'] as NodeState[]).find((s) =>
           states.has(s),
@@ -232,8 +224,8 @@ function drawnGraph(graph: Graph, collapsed: ReadonlySet<string>) {
       nodes.push({
         id,
         task: null,
-        title: epicTitle(epic),
-        epic,
+        title: groupTitle(group),
+        group,
         state,
         wave: 1,
         x: 0,
@@ -243,7 +235,7 @@ function drawnGraph(graph: Graph, collapsed: ReadonlySet<string>) {
     } else
       for (const task of tasks) {
         nodeOf.set(task.id, task.id)
-        nodes.push({ id: task.id, task, title: task.title, epic, state: nodeState(task), wave: 1, x: 0, y: 0 })
+        nodes.push({ id: task.id, task, title: task.title, group, state: nodeState(task), wave: 1, x: 0, y: 0 })
       }
   }
   const edges: Omit<LaidEdge, 'points'>[] = []
@@ -264,7 +256,7 @@ function drawnGraph(graph: Graph, collapsed: ReadonlySet<string>) {
     byKey.set(key, drawn)
     edges.push(drawn)
   }
-  return { nodes, edges, epicTitle, epics, members }
+  return { nodes, edges, groupTitle, members }
 }
 
 // Ranks from the longest path, after reversing the edges a depth-first
@@ -331,7 +323,7 @@ function rank(ids: string[], edges: { from: string; to: string }[]) {
 
 interface Item {
   id: string
-  // A dummy's cluster key is its own id, so it never joins an epic's block.
+  // A dummy's cluster key is its own id, so it never joins a group's block.
   cluster: string
   height: number
   rank: number
@@ -377,7 +369,7 @@ export function countCrossings(layers: string[][], items: Map<string, Item>): nu
 }
 
 // Reorder one rank by the barycenter of each item's neighbors in the fixed
-// rank, keeping each epic's items together: blocks go by their mean, items
+// rank, keeping each group's items together: blocks go by their mean, items
 // inside a block by their own. An item with no neighbor keeps its place.
 function reorder(layer: string[], items: Map<string, Item>, fixed: string[], side: 'up' | 'down') {
   const at = new Map(fixed.map((id, i) => [id, i]))
@@ -437,7 +429,7 @@ const median = (values: number[]) => {
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2
 }
 
-// Lay the graph out. Epics in `collapsed` draw as one node; edges to and
+// Lay the graph out. Groups in `collapsed` draw as one node; edges to and
 // from their tasks attach to that node. `options.naive` skips the crossing
 // sweeps, for comparison in tests.
 export function layoutGraph(
@@ -455,7 +447,7 @@ export function layoutGraph(
     clusterGap: CLUSTER_GAP,
   } = options.spacing ?? SPACING
   const columnX = (rank: number) => MARGIN + (rank - 1) * (NODE_WIDTH + COLUMN_GAP)
-  const { nodes, edges, epicTitle } = drawnGraph(graph, collapsed)
+  const { nodes, edges, groupTitle } = drawnGraph(graph, collapsed)
   const byId = new Map(nodes.map((n) => [n.id, n]))
   const linked = new Set(edges.flatMap((e) => [e.from, e.to]))
   const placed = nodes.filter((n) => linked.has(n.id))
@@ -470,7 +462,7 @@ export function layoutGraph(
   for (const node of placed)
     items.set(node.id, {
       id: node.id,
-      cluster: `epic:${epicKey(node.epic)}`,
+      cluster: `group:${groupKey(node.group)}`,
       height: NODE_HEIGHT,
       rank: ranks.get(node.id)!,
       up: [],
@@ -494,13 +486,13 @@ export function layoutGraph(
   const depth = Math.max(0, ...[...items.values()].map((item) => item.rank))
   let layers: string[][] = Array.from({ length: depth }, () => [])
   for (const item of items.values()) layers[item.rank - 1].push(item.id)
-  // Start in epic order, then input order: the order a naive drawing uses.
+  // Start in group order, then input order: the order a naive drawing uses.
   const first = new Map(placed.map((n, i) => [n.id, i]))
-  const epicOrder = new Map<string, number>()
-  for (const node of placed) if (!epicOrder.has(epicKey(node.epic))) epicOrder.set(epicKey(node.epic), epicOrder.size)
+  const groupOrder = new Map<string, number>()
+  for (const node of placed) if (!groupOrder.has(groupKey(node.group))) groupOrder.set(groupKey(node.group), groupOrder.size)
   const startKey = (id: string) => {
     const node = byId.get(id)
-    return node ? epicOrder.get(epicKey(node.epic))! * 1e6 + first.get(id)! : 1e12
+    return node ? groupOrder.get(groupKey(node.group))! * 1e6 + first.get(id)! : 1e12
   }
   for (const layer of layers) layer.sort((a, b) => startKey(a) - startKey(b))
 
@@ -645,13 +637,13 @@ export function layoutGraph(
     }
   })
 
-  // Epic boxes: each run of one epic's nodes in a grid column. The label sits
-  // in the row gutter above the run's first node. A collapsed epic's node
-  // already shows its title, so its box has no label.
+  // Group boxes: each run of one group's nodes in a grid column. The label
+  // sits in the row gutter above the run's first node. A collapsed group's
+  // node already shows its title, so its box has no label.
   const clusters: ClusterBox[] = []
   const labelled = new Set<string>()
   const counts = new Map<string, number>()
-  for (const node of nodes) counts.set(epicKey(node.epic), (counts.get(epicKey(node.epic)) ?? 0) + (node.members?.total ?? 1))
+  for (const node of nodes) counts.set(groupKey(node.group), (counts.get(groupKey(node.group)) ?? 0) + (node.members?.total ?? 1))
   const byColumn = new Map<number, LaidNode[]>()
   for (const node of placed) {
     const c = column.get(node.id)!
@@ -663,11 +655,11 @@ export function layoutGraph(
     let run: LaidNode[] = []
     const flush = () => {
       if (!run.length) return
-      const key = epicKey(run[0].epic)
+      const key = groupKey(run[0].group)
       const folded = collapsed.has(key)
       clusters.push({
-        epic: run[0].epic,
-        title: epicTitle(run[0].epic),
+        group: run[0].group,
+        title: groupTitle(run[0].group),
         count: counts.get(key) ?? run.length,
         collapsed: folded,
         x: run[0].x - 4,
@@ -680,31 +672,31 @@ export function layoutGraph(
       run = []
     }
     for (const node of list) {
-      if (run.length && epicKey(run[0].epic) !== epicKey(node.epic)) flush()
+      if (run.length && groupKey(run[0].group) !== groupKey(node.group)) flush()
       run.push(node)
     }
     flush()
   }
 
   // Unconnected tasks: the same grid under the graph, filled row by row in
-  // epic order, with each epic's name in the gutter above its first task.
+  // group order, with each group's name in the gutter above its first task.
   const graphBottom = placed.length ? top + rows * cellH - ROW_GAP : 0
   const looseTop = placed.length ? graphBottom + cellH : top
   const groups: LooseGroup[] = []
-  // `loose` is already in epic order: drawnGraph builds nodes epic by epic.
+  // `loose` is already in group order: drawnGraph builds nodes group by group.
   const ordered = loose
   ordered.forEach((node, i) => {
     node.loose = true
     node.wave = 0
     node.x = MARGIN + (i % looseColumns) * cellW
     node.y = looseTop + Math.floor(i / looseColumns) * cellH
-    const key = epicKey(node.epic)
+    const key = groupKey(node.group)
     const last = groups[groups.length - 1]
-    if (last && epicKey(last.epic) === key) last.count++
+    if (last && groupKey(last.group) === key) last.count++
     else if (!collapsed.has(key))
       groups.push({
-        epic: node.epic,
-        title: epicTitle(node.epic),
+        group: node.group,
+        title: groupTitle(node.group),
         count: 1,
         x: node.x,
         y: node.y - ROW_GAP - 1,
@@ -731,22 +723,31 @@ export function layoutGraph(
 }
 
 // What a click on a drawn node does. A press that panned the canvas is a
-// drag, not a click. A collapsed epic drills into its own sub-graph; a task
+// drag, not a click. A collapsed group drills into its own level; a task
 // opens in the drawer.
 export function nodeClick(node: { members?: unknown }, dragged: boolean): 'none' | 'drill' | 'open' {
   if (dragged) return 'none'
   return node.members ? 'drill' : 'open'
 }
 
-// A drill-in: one epic's tasks, or one task's whole upstream and
-// downstream chain (Focus).
-export type Drill = { kind: 'epic'; id: string | null; title: string } | { kind: 'focus'; id: string; title: string }
+// A drill-in (Requirement 59.10): one epic's member plans (id null is No
+// epic), one plan's phases, one phase's tasks, or one task's whole upstream
+// and downstream chain (Focus).
+export type Drill =
+  | { kind: 'epic'; id: string | null; title: string }
+  | { kind: 'plan'; id: string | null; title: string }
+  | { kind: 'phase'; plan: string | null; id: string | null; title: string }
+  | { kind: 'focus'; id: string; title: string }
 
 // The graph a drill-in shows: only those tasks and the edges between them.
 export function drillGraph(graph: Graph, drill: Drill | null): Graph {
   if (!drill) return graph
   let keep: Set<string>
-  if (drill.kind === 'epic') keep = new Set(graph.tasks.filter((t) => t.epic === drill.id || t.id === drill.id).map((t) => t.id))
+  const pick = (test: (t: GraphTask) => boolean) => new Set(graph.tasks.filter(test).map((t) => t.id))
+  if (drill.kind === 'epic') keep = pick((t) => (t.epic ?? null) === drill.id)
+  else if (drill.kind === 'plan') keep = pick((t) => (t.planId ?? null) === drill.id)
+  else if (drill.kind === 'phase')
+    keep = pick((t) => (t.planId ?? null) === drill.plan && (t.phase?.id ?? null) === drill.id)
   else {
     const { up, down } = lineage(graph.edges.filter((e) => e.blocking), drill.id)
     keep = new Set([drill.id, ...up, ...down])
@@ -859,7 +860,44 @@ export function drillCrumbs(stack: DrillEntry[], current: Drill | null): { at: n
 }
 
 export const drillLabel = (drill: Drill | null) =>
-  !drill ? 'All tasks' : drill.kind === 'epic' ? drill.title : `Focus: ${drill.title}`
+  !drill ? 'All tasks' : drill.kind === 'focus' ? `Focus: ${drill.title}` : drill.title
+
+// What each level groups by (Requirement 59.10): All by epic, an epic by
+// plan, a plan by phase. A phase or a Focus chain groups by plan. Each task
+// gets `group`, and the graph `groups` with titles in order, None last.
+export function groupGraph(graph: Graph, drill: Drill | null): Graph {
+  const level = !drill ? 'epic' : drill.kind === 'epic' ? 'plan' : drill.kind === 'plan' ? 'phase' : 'plan'
+  const plans = graph.plans ?? []
+  const planTitle = new Map(plans.map((p) => [p.id, p.title]))
+  const of = (task: GraphTask): string | null =>
+    level === 'epic' ? (task.epic ?? null) : level === 'plan' ? (task.planId ?? null) : (task.phase?.id ?? null)
+  const groups: { id: string | null; title: string }[] =
+    level === 'epic'
+      ? graph.epics.map((e) => ({ id: e.id, title: e.title }))
+      : level === 'plan'
+        ? plans.map((p) => ({ id: p.id, title: p.title }))
+        : (plans.find((p) => p.id === (drill as { id: string | null }).id)?.phases ?? [])
+            .filter((phase) => phase.id !== null)
+            .map((phase) => ({ id: phase.id, title: phase.title ?? phase.id! }))
+  const titleOf = (task: GraphTask) =>
+    level === 'phase' ? (task.phase?.title ?? null) : level === 'plan' ? (planTitle.get(task.planId ?? '') ?? task.planId ?? null) : null
+  for (const task of graph.tasks) {
+    const id = of(task)
+    if (id !== null && !groups.some((g) => g.id === id)) groups.push({ id, title: titleOf(task) ?? id })
+  }
+  groups.push({ id: null, title: level === 'epic' ? 'No epic' : level === 'plan' ? 'No spec' : 'No phase' })
+  return { ...graph, groups, tasks: graph.tasks.map((task) => ({ ...task, group: of(task) })) }
+}
+
+// The level a group label drills into from `drill`: All to an epic, an
+// epic to a plan, a plan to a phase. A phase and a Focus chain go no deeper
+// by group; null means the click does nothing.
+export function drillInto(drill: Drill | null, group: string | null, title: string): Drill | null {
+  if (!drill) return { kind: 'epic', id: group, title }
+  if (drill.kind === 'epic') return { kind: 'plan', id: group, title }
+  if (drill.kind === 'plan') return { kind: 'phase', plan: drill.id, id: group, title }
+  return null
+}
 
 // Where Back goes, for its tooltip.
 export const backLabel = (stack: DrillEntry[]) => {

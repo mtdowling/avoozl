@@ -138,11 +138,11 @@ responder works.
 }
 ```
 
-## Plans in one repository, code in others
+## Specs in one repository, code in others
 
 Plans-repo mode keeps issues and Kiro specs in a planning repository and
 opens pull requests in the code repositories. This example triggers nothing:
-work comes only from approved plans.
+work comes only from approved specs.
 
 ```json
 {
@@ -164,7 +164,7 @@ work comes only from approved plans.
 ## Ban private terms from everything Avoozl writes
 
 Content rules keep private names, hostnames, repositories and paths out of
-plan files, issues, pull request text, comments, Project fields, session
+spec files, issues, pull request text, comments, Project fields, session
 briefs and worker diffs. `.avoozl.json` names the rule sets; the rules live
 outside Git, so the list itself never lands in a repository.
 

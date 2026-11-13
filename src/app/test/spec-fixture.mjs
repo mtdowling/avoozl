@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-// One small feature spec: an epic and two dependent leaves.
+// One small feature spec: a package and two dependent leaves.
 export const specFiles = () => ({
   "requirements.md":
     "# Load configuration\n\nThe CLI reads and validates config.json.\n",
@@ -19,7 +19,7 @@ export const specFiles = () => ({
       {
         tasks: {
           1: {
-            kind: "epic",
+            kind: "package",
             summary: "The goal.",
             requires: ["1.1", "1.2"],
             acceptance: ["The CLI reads, validates, and reports its config."],

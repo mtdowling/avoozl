@@ -3,7 +3,7 @@ import os from "node:os";
 import { digest } from "../model.mjs";
 import { fail } from "./store.mjs";
 import { parseRepository } from "./github.mjs";
-import { parseMarker } from "./github-marker.mjs";
+import { isParentMarker, parseMarker } from "./github-marker.mjs";
 import {
   evaluateRules,
   legacyRepositoryPolicy,
@@ -96,7 +96,6 @@ export function parseIssueTask(issue) {
       "requires",
       "tags",
       "resources",
-      "epic",
       "track",
       "projectId",
     ]);
@@ -110,7 +109,7 @@ export function parseIssueTask(issue) {
         item.title.length > 240)
     )
       fail("Issue task title must contain 1–240 characters.");
-    for (const field of ["summary", "epic", "track", "projectId"])
+    for (const field of ["summary", "track", "projectId"])
       if (item[field] !== undefined && typeof item[field] !== "string")
         fail(field + " must be text.");
     return {
@@ -120,7 +119,6 @@ export function parseIssueTask(issue) {
       requires: textList(item.requires, "requires"),
       tags: textList(item.tags, "tags"),
       resources: textList(item.resources, "resources"),
-      epic: item.epic,
       track: item.track,
       projectId: item.projectId,
       parser: "fenced-task",
@@ -169,13 +167,6 @@ function taskIdFor(issue) {
 }
 
 export function ensureInbox(data) {
-  if (!data.epics.some((epic) => epic.id === "inbox"))
-    data.epics.push({
-      id: "inbox",
-      title: "Inbox",
-      scope: "catalog",
-      color: "#96abc1",
-    });
   if (!data.tracks.some((track) => track.id === "catalog"))
     data.tracks.push({ id: "catalog", label: "General" });
 }
@@ -199,7 +190,6 @@ function applyIssueTask(
     scope: "runtime",
     kind: "task",
     status: "planned",
-    epic: parsed.epic || "inbox",
     track: parsed.track || "catalog",
     createdAt: new Date().toISOString(),
   };
@@ -212,7 +202,6 @@ function applyIssueTask(
       acceptance: parsed.acceptance,
       tags: [...new Set(["github", ...(parsed.tags || [])])],
       resources: parsed.resources || [],
-      epic: parsed.epic || task.epic || "inbox",
       track: parsed.track || task.track || "catalog",
       // The issue's repository decides where its work runs: issue text
       // cannot send it to another registered repository.
@@ -551,6 +540,8 @@ export async function syncGitHubIssues(
           });
         continue;
       }
+      // A plan or epic issue is never delivered (Requirement 59.8).
+      if (isParentMarker(projectedMarker(issue.body))) continue;
       seen.add(id);
       const previous = store.get("github_issues", id),
         body = String(issue.body || ""),

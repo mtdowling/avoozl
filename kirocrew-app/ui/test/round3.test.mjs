@@ -35,7 +35,7 @@ test('every destructive button asks first through a red confirm', () => {
   // Plans' trash buttons open DeletePlanDialog, whose red Delete plan button
   // is the confirm itself (it says what happens and can't be sent by Enter).
   // Routing's Remove choice drops a row from the rule form before Save.
-  const forms = new Set(['DeliveryDetails.tsx: Supersede', 'TaskForm.tsx: Remove', 'PlansView.tsx: )}', 'PlansView.tsx: ', 'PlansView.tsx: Delete plan', 'RoutingView.tsx: '])
+  const forms = new Set(['DeliveryDetails.tsx: Supersede', 'TaskForm.tsx: Remove', 'PlansView.tsx: )}', 'PlansView.tsx: ', 'PlansView.tsx: Delete spec', 'RoutingView.tsx: '])
   assert.deepEqual(plain.filter((entry) => !forms.has(entry)), [])
   // The ones the owner named, each a DangerBtn with its own copy.
   const settings = source('SettingsView.tsx')
@@ -131,13 +131,13 @@ test('the plan view keeps a sticky left column that stacks on narrow pages, with
   const plans = source('PlansView.tsx')
   assert.match(plans, /position: 'sticky'/)
   assert.match(plans, /useMedia\(STACK\)/)
-  assert.match(plans, /Edit plan/)
-  assert.match(plans, /Discuss plan/)
+  assert.match(plans, /Edit spec/)
+  assert.match(plans, /Discuss spec/)
   assert.match(plans, /chat\.ask\(discussSeed\(row\)\)/)
   // The plan view has no Add task; the list and the Graph keep theirs.
   const detail = plans.slice(plans.indexOf('{row && ('))
   assert.doesNotMatch(detail.slice(0, detail.indexOf('</div>')), /addTask/)
-  for (const label of ["Open this plan's documents and tasks", "Show this plan's tasks in the Graph", "Show this plan's tasks in Delivery", 'Open this plan to check and approve it', 'Start a planner chat to change this plan'])
+  for (const label of ["Open this spec's documents and tasks", "Show this spec's tasks in the Graph", "Show this spec's tasks in Delivery", 'Open this spec to check and approve it', 'Start a planner chat to change this spec'])
     assert.ok(plans.includes(`tooltip="${label}"`), label)
 })
 

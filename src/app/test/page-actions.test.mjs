@@ -336,7 +336,10 @@ test("task origin names where a task came from and the lines to read", async () 
   );
   assert.equal(gone.sources[0].readable, false);
   const spec = taskOrigin(
-    { id: "1.2", epic: "doc:.kiro/specs/demo/tasks.md" },
+    {
+      id: "1.2",
+      source: { document: ".kiro/specs/demo/tasks.md", key: "1.2" },
+    },
     data,
   );
   assert.equal(spec.kind, "spec");

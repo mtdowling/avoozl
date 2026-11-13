@@ -189,9 +189,10 @@ test("plan.table: one row per plan with counts, grouped by authored category", a
   assert.equal(byName.config.category, "Runtime");
   assert.equal(byName.config.status, "approved");
   assert.equal(byName.config.planId, "config");
-  // Two leaves under one epic.
+  // Two leaves under one package, in no phase and no epic.
   assert.deepEqual(byName.config.tasks, { total: 2, done: 0 });
-  assert.equal(byName.config.epics, 1);
+  assert.equal(byName.config.phases, 0);
+  assert.equal(byName.config.epic, null);
   assert.equal(
     byName.config.now.ready +
       byName.config.now.running +

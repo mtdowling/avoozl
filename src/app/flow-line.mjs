@@ -139,7 +139,7 @@ export async function findCulprit(
 }
 
 // The open stop's fix task: `<culprit>.fix-<n>` (or `line.fix-<n>`) in the
-// culprit's repository and epic, local authority, first in line. Its brief
+// culprit's repository, local authority, first in line. Its brief
 // names the check, the culprit commit or range, and the output's last lines,
 // and allows a fix or a revert. A second stop for the same check reuses it.
 function createFixTask(store, stop, culpritTask, project, tail) {
@@ -171,7 +171,6 @@ function createFixTask(store, stop, culpritTask, project, tail) {
       kind: "leaf",
       scope: template.scope,
       status: "planned",
-      epic: template.epic,
       track: template.track,
       tags: [],
       ...(template.parent ? { parent: template.parent } : {}),

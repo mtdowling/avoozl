@@ -6,7 +6,7 @@ browser's top layer. Z-indexes outside modals come from `kirocrew-app/ui/src/lay
 
 Checks run on Linux with headless Chromium 154:
 
-- `kirocrew-app/ui`: `npm test` — 314 pass, 0 fail, 2 skipped (they need other env), including
+- `kirocrew-app/ui`: `npm test` — 337 pass, 0 fail, 2 skipped (they need other env), including
   `test/modal-cover.test.mjs` (14 modals, plus the unsaved-changes confirm
   and the tooltip inside a modal). For each modal, at 1280 px and at 320 px,
   with the page at the top and scrolled so the Graph and the sticky column
@@ -15,7 +15,7 @@ Checks run on Linux with headless Chromium 154:
   and matches `:modal`. Focus is inside it. A mouse wheel does not scroll
   the page behind it. Esc closes it and gives focus back to the opener. A
   click outside closes it. At 320 px it fills the screen.
-- Root `npm test` — 893 pass, 0 fail. `npm run format:check`, `git diff --check`
+- Root `npm test` — 927 pass, 0 fail. `npm run format:check`, `git diff --check`
   and `node scripts/release-scan.mjs` pass. No local release terms file was
   present, so private names were not checked by the scan.
 

@@ -160,17 +160,27 @@ export async function observeUsage(store, readTurns) {
     if (binding.source !== "tick") continue;
     const done = "flow.usage.done." + binding.slot;
     if (store.getMeta(done)) continue;
+    // Each slot's last read, for a budget's "spend unknown" and its time
+    // (design §4.17).
+    const read = "flow.usage.read." + binding.slot;
     try {
       const turns = await readTurns(binding.slot);
       if (!store.getMeta("flow.usage.readable"))
         store.setMeta("flow.usage.readable", true);
       rows += ingestUsage(store, binding, turns);
+      store.setMeta(read, { at: new Date().toISOString(), ok: true });
       if (
         ["closed", "lost", "gone"].includes(binding.status) ||
         binding.report?.kind === "done"
       )
         store.setMeta(done, true);
     } catch (error) {
+      const last = store.getMeta(read);
+      store.setMeta(read, {
+        at: last?.at ?? null,
+        ok: false,
+        failedAt: last?.ok === false ? last.failedAt : new Date().toISOString(),
+      });
       errors.push({ slot: binding.slot, error: error.message });
     }
   }

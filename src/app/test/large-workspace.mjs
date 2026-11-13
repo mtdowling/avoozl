@@ -82,7 +82,7 @@ function specFiles(name, { groups, leaves, extraPerLeaf, next }) {
       };
     }
     manifest[epic] = {
-      kind: "epic",
+      kind: "package",
       summary: `Area ${g} of ${name}.`,
       requires: members,
       acceptance: [`Area ${g} of ${name} is delivered.`],
@@ -172,12 +172,13 @@ export async function largeWorkspace(
   );
   const picked = { running: [], review: [], decisions: 0, conflicts: 0 };
   store.mutate("Synthetic state", (data) => {
-    data.epics = [...(data.epics || []), ...epics];
     const index = new Map(names.map((name, i) => [name, i]));
     for (const task of data.tasks) {
       const spec = index.get(task.planId) ?? 0,
         roll = next();
-      task.epic = epics[Math.floor(spec / 5)].id;
+      // Each task's phase stands for its area (Requirement 59.5).
+      const area = epics[Math.floor(spec / 5)];
+      task.phase = { id: area.id, title: area.title };
       // Earlier specs are further along.
       const done = spec / specs < 0.4;
       if (task.kind === "leaf") {

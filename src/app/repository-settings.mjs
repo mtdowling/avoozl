@@ -1,6 +1,7 @@
 import { flowPolicy } from "./flow.mjs";
 import { deliveryPolicy } from "./delivery.mjs";
 import { validateTrackedRouting } from "./placement.mjs";
+import { validateTrackedBudgets } from "./budget.mjs";
 import { createHash, randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -730,6 +731,7 @@ export class RepositorySettings {
       flowPolicy(value);
       deliveryPolicy(value);
       validateTrackedRouting(value);
+      validateTrackedBudgets(value, this.filename);
     } catch (error) {
       fail(error.message);
     }
@@ -841,6 +843,47 @@ export class RepositorySettings {
     else delete value.flow;
     this.write(value, { expectedHash: before.hash });
     return this.readFlowSettings();
+  }
+
+  // Settings > Budgets (§4.17): the workspace's per-task cap and mode, and
+  // each repository's. Prices are not here: they are this machine's only.
+  readBudgetSettings() {
+    const file = this.readFile(),
+      projects = record(file.value.projects) ? file.value.projects : {};
+    return {
+      filename: this.filename,
+      exists: file.exists,
+      hash: file.hash,
+      budget: record(file.value.budget)
+        ? structuredClone(file.value.budget)
+        : {},
+      repositories: Object.fromEntries(
+        Object.entries(projects)
+          .filter(([, p]) => record(p))
+          .map(([id, p]) => [
+            id,
+            record(p.budget) ? structuredClone(p.budget) : {},
+          ]),
+      ),
+    };
+  }
+
+  updateBudgetSettings({ budget, repository = null, expectedHash } = {}) {
+    const before = this.readFile();
+    if (expectedHash !== before.hash)
+      fail("Avoozl configuration changed; reload before saving.", 409);
+    if (!record(budget)) fail("Give the budget as an object.");
+    const value = this.updateValue(before);
+    if (repository) {
+      if (!record(value.projects?.[repository]))
+        fail(`Repository ${repository} is not in .avoozl.json projects.`, 404);
+      if (Object.keys(budget).length)
+        value.projects[repository].budget = budget;
+      else delete value.projects[repository].budget;
+    } else if (Object.keys(budget).length) value.budget = budget;
+    else delete value.budget;
+    this.write(value, { expectedHash: before.hash });
+    return this.readBudgetSettings();
   }
 
   // Settings > General: how long the activity log keeps rows (§4.19).

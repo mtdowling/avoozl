@@ -24,6 +24,8 @@ export interface TaskDetail {
     checks: string[]
     epic: string | null
     epicTitle: string | null
+    // Its phase inside its plan; older backends omit it.
+    phase?: { id: string; title: string } | null
     kind: string
     authority: string
     route: string
@@ -267,7 +269,6 @@ export interface TaskForm {
   id: string
   title: string
   summary: string
-  epic: string
   repository: string
   acceptance: string
   checks: string
@@ -283,7 +284,7 @@ const lines = (text: string) =>
     .filter(Boolean)
 
 export function emptyForm(): TaskForm {
-  return { id: '', title: '', summary: '', epic: '', repository: '', acceptance: '', checks: '', prerequisites: [] }
+  return { id: '', title: '', summary: '', repository: '', acceptance: '', checks: '', prerequisites: [] }
 }
 
 export function formFrom(detail: TaskDetail): TaskForm {
@@ -291,7 +292,6 @@ export function formFrom(detail: TaskDetail): TaskForm {
     id: detail.task.id,
     title: detail.task.title,
     summary: detail.task.summary,
-    epic: detail.task.epic ?? '',
     repository: detail.task.repository ?? '',
     acceptance: detail.task.acceptance.join('\n'),
     checks: detail.task.checks.join('\n'),
@@ -313,7 +313,6 @@ export function taskInput(form: TaskForm, original: TaskForm | null): Record<str
   set('summary', form.summary.trim(), original?.summary.trim())
   set('acceptance', lines(form.acceptance), original ? lines(original.acceptance) : undefined)
   set('checks', lines(form.checks), original ? lines(original.checks) : undefined)
-  if (form.epic) set('epic', form.epic, original?.epic)
   set('repository', form.repository.trim() || undefined, original ? original.repository.trim() || undefined : undefined)
   if (input.repository === undefined) delete input.repository
   const requires = (list: Prerequisite[]) =>

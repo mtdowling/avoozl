@@ -137,7 +137,8 @@ export function plansWithoutFolder(specs: SpecList | null, stored: StoredPlanPag
 // null; Avoozl never guesses one.
 export interface PlanRow {
   key: string
-  kind: 'spec' | 'old-style'
+  // An epic folder lists member plans (Requirement 59.1).
+  kind: 'spec' | 'old-style' | 'epic'
   name: string
   spec: string | null
   folder: string | null
@@ -149,7 +150,13 @@ export interface PlanRow {
   status: string
   tasks: { total: number; done: number }
   now: { ready: number; running: number; needsYou: number }
-  epics: number
+  // How many phases its tasks fall in; older backends omit it.
+  phases?: number
+  // The epic it belongs to, both sides agreeing; null is No epic.
+  epic?: string | null
+  epicTitle?: string | null
+  // An epic folder's member plans, in its order.
+  members?: { key: string; plan: string; summary: string; title: string }[]
   lastChange: string | null
   // Set while the plan is archived (plan.archive); older backends omit it.
   archived?: { at: string; by: string | null } | null
@@ -214,8 +221,8 @@ export const planScope = (row: PlanRow) => ({
 export function changeMessage(row: PlanRow): string {
   const target = row.spec
     ? `the existing spec folder .kiro/specs/${row.spec}/${row.planId ? ` (plan ${row.planId})` : ''}`
-    : `the stored plan ${row.planId}, which has no spec folder yet; move it to .kiro/specs/<name>/ first`
-  return `Use the Avoozl skill's "Plan a goal" steps 2 to 4 to change ${target}. Ask me what should change. Edit it in a planner session, critique it in a second isolated session, store the new revision, and show me the result. Do not approve it; I approve the exact revision in the Avoozl Plans view.`
+    : `the stored spec ${row.planId}, which has no spec folder yet; move it to .kiro/specs/<name>/ first`
+  return `Use the Avoozl skill's "Plan a goal" steps 2 to 4 to change ${target}. Ask me what should change. Edit it in a planner session, critique it in a second isolated session, store the new revision, and show me the result. Do not approve it; I approve the exact revision in the Avoozl Specs view.`
 }
 
 export function plansClient(api: AppApi) {
@@ -308,13 +315,13 @@ const n = (count: number, one: string, many = one + 's') => `${count} ${count ==
 
 // The confirm dialog's lines: what happens to each part, from the preview.
 export function deleteLines(p: DeletePreview): string[] {
-  if (!p.retire) return ['The draft is marked deleted. No task was made from it.', 'The plan stays in history.']
+  if (!p.retire) return ['The draft is marked deleted. No task was made from it.', 'The spec stays in history.']
   return [
     `${n(p.open, 'open task')}: archived. Their rows stay as history.`,
     `${n(p.running, 'running chat')}: left alone. Each task is archived when its chat ends.`,
     `${n(p.done, 'done task')}: kept as they are.`,
-    `${n(p.dependents, 'task')} outside the plan that wait on it: each gets a decision for you.`,
-    'The plan is marked deleted and stays in history. There is no undo button.',
+    `${n(p.dependents, 'task')} outside the spec that wait on it: each gets a decision for you.`,
+    'The spec is marked deleted and stays in history. There is no undo button.',
   ]
 }
 
@@ -456,8 +463,8 @@ export const discussSeed = (row: PlanRow) => ({ plan: row.key, purpose: 'discuss
 // dialog says so and its button is not red.
 export const ARCHIVE_LINES = [
   'Its open tasks stop starting. Running chats keep going.',
-  'Tasks in other plans that wait on it get a decision for you.',
-  'It is hidden on Plans, Graph, Delivery and the Dashboard. Show archived brings it back.',
+  'Tasks in other specs that wait on it get a decision for you.',
+  'It is hidden on Specs, Graph, Delivery and the Dashboard. Show archived brings it back.',
   'Nothing is deleted, and its spec folder is not touched. Unarchive undoes all of it.',
 ]
 

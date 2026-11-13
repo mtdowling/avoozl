@@ -12,7 +12,7 @@ import { Operations } from "./operations.mjs";
 import { CLIENT_OPERATIONS } from "./client.mjs";
 import { classifyOperation } from "./operation-kinds.mjs";
 import { workspaceConfig } from "./config.mjs";
-import { WorkspaceRegistry } from "./host-config.mjs";
+import { machineAvoozlPaths, WorkspaceRegistry } from "./host-config.mjs";
 import { initializeWorkspace } from "./workspace.mjs";
 import { gatewayPusher } from "./notifications.mjs";
 import {
@@ -27,6 +27,7 @@ import {
 } from "./session-observer.mjs";
 import { declaredChecks } from "./delivery.mjs";
 import { observeUsage } from "./flow-usage.mjs";
+import { budgetStep } from "./budget.mjs";
 import { gatewayClient } from "./gateway-client.mjs";
 import {
   applySwitches,
@@ -36,7 +37,8 @@ import {
 import { choiceModels, routingContext } from "./routing.mjs";
 import { taskRepository } from "../work-model.mjs";
 import { issueRadarReader } from "./radar-handoff.mjs";
-import { tickHealth } from "./tick.mjs";
+import { WORKSPACE_LOCK, tickHealth } from "./tick.mjs";
+import { withWorkLock } from "./git.mjs";
 
 export const PRINCIPAL_HEADER = "x-kirocrew-principal";
 const HOST = "127.0.0.1";
@@ -164,6 +166,10 @@ const APP_OPERATIONS = new Set([
   "intake.plan",
   "intake.source.add",
   "intake.source.remove",
+  "idea.capture",
+  "idea.append",
+  "idea.archive",
+  "idea.restore",
   "flow.view",
   "untriaged.crews",
   "untriaged.handoff",
@@ -172,6 +178,8 @@ const APP_OPERATIONS = new Set([
   "task.detail",
   "plan.spec.read",
   "plan.table",
+  "epic.list",
+  "epic.get",
   "plan.new",
   "github.repository.inspect",
   "task.change.preview",
@@ -201,6 +209,16 @@ const APP_OPERATIONS = new Set([
   "flow.runAnyway",
   "flow.stop",
   "flow.resume",
+  "budget.view",
+  "budget.receipt",
+  "budget.raise",
+  "budget.stop",
+  "budget.acknowledge",
+  "budget.switchToStop",
+  "budget.settings.get",
+  "budget.settings.update",
+  "prices.get",
+  "prices.save",
   "flow.settings.get",
   "flow.settings.update",
   "routing.view",
@@ -218,6 +236,13 @@ const APP_OPERATIONS = new Set([
   "flow.instructions.update",
   "flow.retro.decide",
   "flow.retro.start",
+  "flow.proposals",
+  "lessons.view",
+  "plugin.lessons.preview",
+  "prompt.override.revert",
+  "prompt.override.rebase",
+  "plugin.lessons.import",
+  "lessons.export",
   "github.settings.get",
   "github.trigger.preview",
   "github.settings.validate",
@@ -378,6 +403,7 @@ export function startAppBackend({
           operator: target.operator,
           workspaceRoot: target.workspaceRoot,
           plansRoot: target.plansRoot,
+          configDirectory: machineAvoozlPaths().configDirectory,
           notifier,
           crewReader,
           sessionStopper,
@@ -507,6 +533,16 @@ export function startAppBackend({
           if (usageReader) {
             const { errors } = await observeUsage(store, usageReader);
             if (errors.length) console.error(errors[0].error);
+            // The budget check after each usage read (§4.17): a stop is
+            // recorded now; the next tick sends its messages and notices.
+            // Under the tick's lock; a running tick checks it itself.
+            try {
+              await withWorkLock(store, WORKSPACE_LOCK, async () =>
+                budgetStep(store, store.read()),
+              );
+            } catch (error) {
+              if (!error.contention) throw error;
+            }
           }
           // Provider health (§4.20): marks from the reads above, then move
           // live chats off an out model, and apply a person's switches.
