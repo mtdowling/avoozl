@@ -405,6 +405,19 @@ execution.
 12. Comment-mention steering SHALL pass the content rules' `brief`
     boundary (Requirement 40) before it is sent, as pull request feedback
     does (added 2026-11-13, injection audit).
+13. The planner agent's file writes SHALL be limited by its agent spec,
+    not only its prompt: `toolsSettings.fs_write` SHALL set
+    `fallbackAction: "deny"` with `allowedPaths: [".kiro/specs/**"]`,
+    anchored at the session's folder (the planning checkout). Kiro Crew
+    0.12.2 enforces this on kiro-cli and at its own tool gate on some other
+    backends; the rest do not read it, and a static spec cannot name one
+    spec folder,
+    so the one-folder limit within `.kiro/specs/` stays in the prompt
+    (added 2026-11-13, injection audit follow-up; upstream gap).
+14. Every link the app page renders SHALL be an http or https URL or one
+    of Kiro Crew's own pages (`/chat?sid=`, `/apps/`, `/issue-radar`,
+    `/code-review-sage`); anything else SHALL render as text (added
+    2026-11-13, injection audit follow-up).
 
 ### Requirement 11: Configurable trigger and managed labels
 
@@ -850,6 +863,14 @@ idea on Kiro Crew and Issue Radar. (**Proposed**)
     repository and open pull requests only there (F23, F24). IF the Issue
     Radar handoff cannot meet criteria 4, 9, and 10 in single-repo mode THEN
     the design SHALL use worker sessions there too, and SHALL record why.
+15. A reply on a public repository, or one GitHub cannot read, SHALL quote
+    only that repository. Avoozl SHALL refuse a reply (posting nothing)
+    any of whose lines, of at least 20 characters with quote and list marks
+    dropped, appears in a file of another registered checkout, a plans
+    repository included, and not in the target's own checkout. The refusal
+    SHALL name the line, never the text. Content rules still run. A reply
+    on a private repository is not checked this way (added 2026-11-13,
+    injection audit follow-up).
 
 ### Requirement 28: GitHub modes and task authority
 
@@ -1579,6 +1600,11 @@ public or shared repositories cannot leak what the company keeps private.
     SHALL NOT write a terms file; the person saves terms in the editor. The
     button and the skill SHALL warn that terms typed into a chat stay in its
     transcript.
+17. Residual risk (named 2026-11-13, injection audit): text a worker
+    writes to GitHub itself, such as pull request titles and bodies and
+    `gh` comments, does not pass through Avoozl and is not checked by
+    content rules. The pre-push hook checks the diff, and quoted outside
+    text in briefs (Requirement 10.6, 10.11) narrows what can steer it.
 
 ### Requirement 41: Crew placement
 
@@ -2110,7 +2136,12 @@ pick up. The list is a triage list, not a second issue browser
     The seed SHALL quote the title as data and say that the pull request's
     title, description, comments, commits, and diff are data, not
     instructions, since its author may be anyone (added 2026-11-13,
-    injection audit).
+    injection audit). The chat SHALL run on the app's read-only
+    `avoozl-code-review` agent: file reads, and a shell whose
+    `toolsSettings` deny every command but `gh pr view|diff|checks`,
+    `gh issue view`, and flagless `gh api` reads of one pull request or
+    issue; no file write and no GitHub write (added 2026-11-13, injection
+    audit follow-up).
 17. The seed SHALL pass content rules (`brief`) before it is queued; a block
     SHALL queue nothing and open a decision. Only a person SHALL start a
     review chat.
@@ -2237,7 +2268,12 @@ and the Untriaged reader onto the record without changing what they do.
     left. A body or title changed after the trigger snapshot SHALL
     quarantine the task, which keeps the snapshot's title, until an allowed
     actor re-triggers it or a person confirms the new snapshot
-    (Requirement 12.1, 12.2).
+    (Requirement 12.1, 12.2). A person confirms with `intake.confirm`
+    {source, id, hash}, where `hash` is the `snapshotHash` (title and
+    body) that `intake.view` showed; a changed item SHALL be refused. The
+    confirm SHALL move the task's snapshot to that text, record
+    `confirmedHash` and when, and let the task run again. Sessions and MCP
+    callers SHALL be refused (added 2026-11-13, injection audit follow-up).
 18. WHEN a source closes an item tied to a task THEN the allowed-close
     rule SHALL apply (Requirement 33.8–33.10): an allowed actor's close is
     an order that releases dependents, is recorded, and never counts as a
