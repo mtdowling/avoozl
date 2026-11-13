@@ -189,6 +189,45 @@ export interface LessonRow {
   history: { at: string; by: string; what: string; reason?: string; outcome?: string; state?: string }[]
 }
 
+export interface ShareCandidate {
+  id: string
+  tasks: number
+  fit: number
+  confidence: number
+  why: string
+}
+
+export interface LessonsModel {
+  lessons: LessonRow[]
+  available: boolean
+  candidates?: ShareCandidate[]
+  share?: { mode: string; repository: string | null; file: string | null; off: string | null } | null
+}
+
+export interface SharePreview {
+  mode: string
+  repository: string
+  base: string
+  file: string
+  lessons: string[]
+  text: string
+  hash: string
+}
+
+export interface ShareResult extends Omit<SharePreview, 'text'> {
+  branch: string
+  commit: string
+  pushed: boolean
+  pullRequest: { number: number; url: string } | null
+  reason?: string
+}
+
+// What a finished share says: the pull request, or where the commit waits.
+export function shareResultText(r: ShareResult): string {
+  if (r.pullRequest) return `Opened pull request #${r.pullRequest.number} to ${r.repository}.`
+  return `Committed on branch ${r.branch}${r.pushed ? ' and pushed' : ''}; ${r.reason ?? 'no pull request was opened'}.`
+}
+
 export interface LessonFilter {
   stage?: string
   outcome?: string
@@ -398,11 +437,13 @@ export function flowClient(api: AppApi) {
     revertPrompt: (workspaceId: string, target: string) => run(workspaceId, 'prompt.override.revert', { target }),
     rebasePrompt: (workspaceId: string, input: { target: string; section: string; hash: string }) => run(workspaceId, 'prompt.override.rebase', input),
     lessons: (workspaceId: string, filter: LessonFilter = {}) =>
-      run<{ lessons: LessonRow[]; available: boolean }>(
+      run<LessonsModel>(
         workspaceId,
         'lessons.view',
         Object.fromEntries(Object.entries(filter).filter(([, v]) => v)),
       ),
+    sharePreview: (workspaceId: string, ids: string[]) => run<SharePreview>(workspaceId, 'lessons.share.preview', { ids }),
+    share: (workspaceId: string, ids: string[], previewHash: string) => run<ShareResult>(workspaceId, 'lessons.share', { ids, previewHash }),
     exportLessons: (workspaceId: string, file: string) => run<{ path: string; lessons: number }>(workspaceId, 'lessons.export', { path: file }),
   }
 }
@@ -486,7 +527,7 @@ export function diffLines(diff: string | undefined): { kind: 'add' | 'del' | 'hu
 // What a lesson's state reads as in the Lessons view.
 export function lessonStateText(l: Pick<LessonRow, 'state' | 'staleReason' | 'outcome'>): string {
   if (l.state === 'retired') return `retired${l.staleReason ? `: ${l.staleReason}` : ''}`
-  if (l.state !== 'ok') return `${l.state}: ${l.staleReason ?? ''}`.trim()
+  if (l.state !== 'ok') return l.staleReason ? `${l.state}: ${l.staleReason}` : l.state
   return l.outcome === 'undone' ? 'did not work' : l.outcome
 }
 
