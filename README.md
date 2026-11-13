@@ -132,6 +132,20 @@ turn on Autopilot, Avoozl's name for delivery, with the `delivery` block in
 { "delivery": { "concurrency": 1 } }
 ```
 
+Two Kiro Crew steps only you can do, once:
+
+1. Let Kiro Crew tell Avoozl which chat is calling, so a worker can report.
+   Kiro Crew passes this only to MCP servers it shares. Open **MCP
+   Management**, find `avoozl:avoozl`, turn on sharing, and press **Approve
+   sharing**. Then restart the gateway (**Settings › About › Restart
+   gateway**). Without this, a worker can do the work but `plans_report`
+   refuses it. A shared server runs outside the chat sandbox, with your
+   access.
+
+2. After the first tick, open the chat folder **Avoozl** › _repository ID_
+   in the sidebar and set its project directory to the checkout. Only a
+   person can set it, and the tick opens no session there until it is set.
+
 Each minute the tick starts a Kiro Crew session for each ready leaf, in its
 own worktree. When a session reports done, Avoozl runs the checks on a clean
 committed head, rebases, fast-forwards the base branch, and releases the
