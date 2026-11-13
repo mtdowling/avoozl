@@ -731,11 +731,15 @@ export async function reportSession(
       typeof input.slot === "string" && input.slot && input.slot !== own
         ? slotKey(input.slot)
         : null;
-  if (!own && !(local && relay))
+  if (!own && !(local && relay)) {
+    // Kept so the quiet notice can name the cause: a worker that reports
+    // without an identity reads as quiet to the tick.
+    store.setMeta(IDENTITY_REFUSED, new Date().toISOString());
     fail(
       "plans_report needs the calling session's identity from the Kiro Crew gateway, and none came. Kiro Crew sends it only to MCP servers it brokers: the owner turns on sharing for avoozl:avoozl in MCP Management (mcp_gateway.stub_servers), approves it and restarts the gateway. Then report again from this session; do not report from a shell.",
       403,
     );
+  }
   const kind = input.kind;
   if (!REPORT_KINDS.includes(kind))
     fail("Choose kind progress, done, blocked, or question.");
@@ -1097,6 +1101,17 @@ const quote = (text) =>
 // done or blocked report: "wait", "nudge", or "exhausted" once the nudge bound
 // is spent. Only an observed idle status counts, so a session Avoozl cannot see
 // (disconnected, or a lapsed lease) is never treated as quiet.
+// The last plans_report refused for want of a caller identity. Kiro Crew sends
+// no identity, so the refusal names no session: any refusal since this
+// binding began is the likely cause of its silence.
+// shortcut: workspace-wide, not per session; per session once Kiro Crew
+// attributes a call it does not broker.
+const IDENTITY_REFUSED = "delivery.identityRefusedAt";
+const identityRefusedSince = (store, binding) => {
+  const at = store.getMeta(IDENTITY_REFUSED);
+  return Boolean(at && Date.parse(at) >= Date.parse(binding.boundAt));
+};
+
 function quietStep(binding, nudge, policy, now) {
   if (binding.status !== "idle" || binding.source !== "tick") return "wait";
   const since = Math.max(
@@ -1264,7 +1279,7 @@ export function reconcileDeliveries(
             task: taskId,
             slot: binding.slot,
             title: `${taskId} is quiet`,
-            text: `The worker has not reported after ${nudge?.count || 0} nudges. Avoozl will not replace its session.`,
+            text: `The worker has not reported after ${nudge?.count || 0} nudges. Avoozl will not replace its session.${identityRefusedSince(store, binding) ? " A plans_report was refused because no caller identity came from Kiro Crew: turn on sharing for avoozl:avoozl in MCP Management, approve it and restart the gateway." : ""}`,
             resume:
               "Open the session and tell the worker to continue, or close it to retry.",
           });

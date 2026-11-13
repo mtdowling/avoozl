@@ -528,6 +528,43 @@ test("a recorded failure stays failed when its closed session reads live again",
   assert.deepEqual(after.attempts, failed.attempts);
 });
 
+test("a quiet notice names a report refused for want of a caller identity", async (t) => {
+  const { store, ops } = setup(t, {
+    tasks: [leaf("a")],
+    delivery: { quietMinutes: 10, nudges: 0, concurrency: 1 },
+  });
+  await bindTick(ops, "a", "slot-1");
+  const idle = [{ target: "slot-1", status: "idle" }];
+  await ops.execute("workspace.tick", { sessions: idle });
+  age(store, "slot-1", 600);
+  // No caller: the report is refused, as when Kiro Crew does not share the server.
+  await assert.rejects(
+    ops.execute("session.report", {
+      taskId: "a",
+      kind: "done",
+      commit: "0".repeat(40),
+    }),
+    /caller|identity/,
+  );
+  const { notify } = await ops.execute("workspace.tick", { sessions: idle });
+  assert.equal(notify.length, 1);
+  assert.match(notify[0].text, /no caller identity came from Kiro Crew/);
+});
+
+test("a quiet notice without a refused report names no identity cause", async (t) => {
+  const { store, ops } = setup(t, {
+    tasks: [leaf("a")],
+    delivery: { quietMinutes: 10, nudges: 0, concurrency: 1 },
+  });
+  await bindTick(ops, "a", "slot-1");
+  const idle = [{ target: "slot-1", status: "idle" }];
+  await ops.execute("workspace.tick", { sessions: idle });
+  age(store, "slot-1", 600);
+  const { notify } = await ops.execute("workspace.tick", { sessions: idle });
+  assert.equal(notify.length, 1);
+  assert.doesNotMatch(notify[0].text, /caller identity/);
+});
+
 test("a quiet session is nudged, never replaced, and a person decides past the nudge bound", async (t) => {
   // Nearby inputs: idle for less than quietMinutes, working for hours, a
   // session waiting on its question, and ticks without a roster (the page).
