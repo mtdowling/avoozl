@@ -9,6 +9,13 @@ Rules for every task: work in a task worktree; tests use isolated temporary
 workspaces; run `npm test` and `git diff --check` before landing; no real
 workspace data, credentials, or personal plans in the repository (AGENTS.md).
 
+Person-only tasks. Entries marked `"manual": true` in the manifest are
+tasks an agent should not start: proofs the owner skipped or that need scratch
+organizations, the existing-workspace move, publishing, and tasks waiting on
+Kiro Crew requests (MC-10, MC-13, and the asks not yet filed). The tick reads
+`manual` only once 22.1 is built; until then, move their cards to Deferred on
+the Project before turning on Autopilot. Added 2026-11-13.
+
 Commit names. A `Built:` line written before the publish names a commit from
 the private history; that code is in the publish commit `ac3825f`. Later lines
 name commits and pull requests on `main`.
@@ -698,6 +705,7 @@ IDs never move.
   - Built: `src/app/handback.mjs`, crew `delivery`/`sshHost`/`worktreeRoot`, `src/app/test/handback.test.mjs` with a fake ssh command, `3068954`, `13c365c`. A pull-request leaf on a hand-back crew needs a local chat that pushes; that chat is not built.
 - [ ] 11.10 MC-10 upstream ask [R41.14] (§4.10, §7.1, F77–F79)
   - File the standalone request with Kiro Crew (an owner grant letting the Avoozl app and its tick cron open, message, read, and close remote sessions it opened, with a binding that survives a hub restart, and attach to each from the In flight card); change no Kiro Crew code; when it ships, record its contract in §7.1, switch 11.5's remote path on, and run P29 case 13 against one real crew.
+  - Open: filed as kirodotdev/KiroCrew#36335 (open); waits on Kiro Crew.
 
 - [ ] avoozl-p29 P29 Proof: crew placement with fake crews [R41, R42] (§4.10, §8.3). Changed 2026-11-12 (owner answers): cases 10–14.
   - Setup: an isolated temporary workspace with a sample repository in the test tree and a bare git remote on host `git.example.test`; the fake crew driver with `local` (`os:macos`, `trust:local`, limit 2), `fake-linux` (`os:linux`, `trust:remote`, `gitHosts: ["git.example.test"]`, limit 2), and `fake-windows` (`os:windows`, `trust:remote`, same host, limit 1); a fake terms file set `fake-diff` covering `diff`; an approved spec with leaves `c1` (label `compliance`), `t1` (kind `test`, paths `src/win/**`), `w1`–`w4` (plain), and `u1` (kind `test`, label `needs-arm-linux`).
@@ -772,6 +780,7 @@ never move.
 - [ ] 12.13 MC-13 upstream ask [R43.4, R43.5] (§4.11, §7.1, F90–F94)
   - File the standalone request with Kiro Crew for an app-scoped tool-call read with end time and exit code, covering sessions bound to the app's tasks, local and remote; change no Kiro Crew code; when it ships, record its contract in §7.1 and switch 12.2 to it, keeping markers for older hosts.
   - Drafted, not filed: the request is ready for the owner to file (2026-11-13). Usage needs no ask: `GET /api/usage/turns` already serves an app its own sessions' tokens and credits (Verified from source).
+  - Open: filed as kirodotdev/KiroCrew#36743 (open); waits on Kiro Crew.
 
 - [x] avoozl-p30 P30 Proof: flow with fake workers and scripted timings [R43–R48] (§4.11, §8.4)
   - Setup: an isolated temporary workspace with a sample repository in the test tree, integration branch `main`, one declared check `node test/check.mjs`, an approved spec with epic `e1` holding leaves `a1`, `a2`, `a3`, `a4` (all `size: "small"`), and `b1`, `c1`, `c2` (independent), and `d1` (requires `a1`); fake workers that follow a script of tool rows, phase markers, reports, and sleeps on a fake clock; a fake GitHub check-run feed for one plans-repo leaf `g1`; the fake retro model.
@@ -815,6 +824,7 @@ page and says so. It is numbered after Phase 12 because task IDs never move.
   - Built: in the publish commit `ac3825f`: a claimed issue's close holds (`src/app/test/github-close.test.mjs`), crew label events never trigger and a rule naming one is refused (`radar-handoff.test.mjs`), a reopened blocker removes the ready label (`single-repo-delivery.test.mjs`).
 - [ ] 13.9 Read-only crew list upstream ask [R52.2] (§8.5, §7.1)
   - File the standalone request with Kiro Crew for an app-reachable, read-only crew list (names, state, scope labels, needs-human label) that does not also grant crew writes; change no Kiro Crew code; when it ships, switch 13.7's reader to it.
+  - Open: not filed yet; filing upstream is the owner's.
 
 - [x] avoozl-p31 P31 Proof: the Untriaged list with a fake GitHub, then a live read-only count [R49] (§8.5)
   - Setup: an isolated temporary workspace in single-repo mode with repository `o/app`, one `deliver` rule `label:go`, managed labels `avoozl:managed` and `avoozl:ready`, triage label `triaged`, and a fake GitHub with open items: issue 1 (no labels), issue 2 (`go`), issue 3 (`triaged`), issue 4 (`avoozl:managed`, a task's issue), issue 5 (100 days old), pull request 6 (draft, checks failing), pull request 7 (closes issue 4), pull request 8 (recorded on a task).
@@ -867,6 +877,7 @@ never move.
   - Built: `3040bef`, `dbcf1b9`, `2c932c0`: `intakeTab` adds every source's items with `source`; the Intake tab (renamed, R50.23) has a Source column and filter, item links, no Issue Radar on other sources, Code review for reviews, Plan this and Deliver this behind a confirm (403 for sessions and MCP), shows in Local only with a source, and Check now polls. Drawn at 1440, 1000 and 600 in light and dark with a harness and looked at.
 - [ ] 14.11 MC-15 upstream ask [R50.19] (§4.12, §7.1, F99)
   - File the standalone request with Kiro Crew for an app call that starts a Code Review Sage review of one item and returns its run ID; change no Kiro Crew code; when it ships, record the contract in §7.1 and add the `review` rule action.
+  - Open: not filed yet; filing upstream is the owner's.
 - [x] 14.12 Docs and leak scan, after 14.3 and 14.6 [R50.22] (§4.8, §13)
   - The plugin guide gains `poll` with the fake plugin as its example; a short guide to `plans_intake_submit` from a Kiro Crew cron job using a fake source; sources named only generically; the 7.4 scan covers the new docs and fixtures.
   - Built: `3040bef`: Intake part and source settings in `docs/plugins.md` with the fake tracker; `docs/policies.md` "Bring in work from other trackers and scripts" (MCP submit from a cron job); `avoozl-rules` skill lists `intake`; the release scan passes over docs and fixtures.

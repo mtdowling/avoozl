@@ -1027,7 +1027,8 @@
         "3.16",
         "3.17",
         "3.18"
-      ]
+      ],
+      "manual": true
     },
     "avoozl-p8": {
       "kind": "leaf",
@@ -1061,7 +1062,8 @@
         "3.16",
         "3.17",
         "3.18"
-      ]
+      ],
+      "manual": true
     },
     "avoozl-p9": {
       "kind": "leaf",
@@ -1130,7 +1132,8 @@
         "3.17",
         "3.18",
         "avoozl-p8"
-      ]
+      ],
+      "manual": true
     },
     "avoozl-p11": {
       "kind": "leaf",
@@ -1164,7 +1167,8 @@
         "3.16",
         "3.17",
         "3.18"
-      ]
+      ],
+      "manual": true
     },
     "avoozl-p16": {
       "kind": "leaf",
@@ -1198,7 +1202,8 @@
         "3.16",
         "3.17",
         "3.18"
-      ]
+      ],
+      "manual": true
     },
     "avoozl-p20": {
       "kind": "leaf",
@@ -1300,7 +1305,8 @@
         "3.16",
         "3.17",
         "3.18"
-      ]
+      ],
+      "manual": true
     },
     "avoozl-p25": {
       "kind": "leaf",
@@ -1334,7 +1340,8 @@
         "3.16",
         "3.17",
         "3.18"
-      ]
+      ],
+      "manual": true
     },
     "4.1": {
       "kind": "leaf",
@@ -1614,7 +1621,8 @@
         "4.9",
         "avoozl-p12",
         "avoozl-p17"
-      ]
+      ],
+      "manual": true
     },
     "avoozl-p17": {
       "kind": "leaf",
@@ -1639,7 +1647,8 @@
         "4.7",
         "4.8",
         "4.9"
-      ]
+      ],
+      "manual": true
     },
     "avoozl-p18": {
       "kind": "leaf",
@@ -1664,7 +1673,8 @@
         "4.7",
         "4.8",
         "4.9"
-      ]
+      ],
+      "manual": true
     },
     "avoozl-p19": {
       "kind": "leaf",
@@ -2031,7 +2041,8 @@
         "5.6",
         "5.7",
         "5.8"
-      ]
+      ],
+      "manual": true
     },
     "6.9": {
       "kind": "leaf",
@@ -2052,7 +2063,8 @@
         "5.6",
         "5.7",
         "5.8"
-      ]
+      ],
+      "manual": true
     },
     "6.10": {
       "kind": "leaf",
@@ -2121,7 +2133,8 @@
         "6.9",
         "6.10",
         "6.11"
-      ]
+      ],
+      "manual": true
     },
     "avoozl-p22": {
       "kind": "leaf",
@@ -2145,7 +2158,8 @@
         "6.9",
         "6.10",
         "6.11"
-      ]
+      ],
+      "manual": true
     },
     "avoozl-p23": {
       "kind": "leaf",
@@ -2170,7 +2184,8 @@
         "6.10",
         "6.11",
         "avoozl-p22"
-      ]
+      ],
+      "manual": true
     },
     "7.1": {
       "kind": "leaf",
@@ -2276,7 +2291,8 @@
         "avoozl-p14",
         "avoozl-p22",
         "avoozl-p23"
-      ]
+      ],
+      "manual": true
     },
     "avoozl-p15": {
       "kind": "leaf",
@@ -2298,7 +2314,8 @@
         "7.4",
         "7.5",
         "7.6"
-      ]
+      ],
+      "manual": true
     },
     "8.1": {
       "kind": "leaf",
@@ -2660,7 +2677,8 @@
         "avoozl-p22",
         "avoozl-p23",
         "avoozl-p15"
-      ]
+      ],
+      "manual": true
     },
     "avoozl-p8b": {
       "kind": "leaf",
@@ -2678,7 +2696,8 @@
       "requires": [
         "8.5",
         "avoozl-p4"
-      ]
+      ],
+      "manual": true
     },
     "9.1": {
       "kind": "leaf",
@@ -3115,7 +3134,8 @@
         "avoozl-p6",
         "avoozl-p2b",
         "10.4"
-      ]
+      ],
+      "manual": true
     },
     "11.2": {
       "kind": "leaf",
@@ -3301,7 +3321,8 @@
         "avoozl-p6",
         "avoozl-p2b",
         "10.4"
-      ]
+      ],
+      "manual": true
     },
     "avoozl-p29": {
       "kind": "leaf",
@@ -3327,7 +3348,8 @@
         "11.8",
         "11.9",
         "11.10"
-      ]
+      ],
+      "manual": true
     },
     "12.1": {
       "kind": "leaf",
@@ -3608,7 +3630,8 @@
         "avoozl-p5",
         "avoozl-p6",
         "avoozl-p2b"
-      ]
+      ],
+      "manual": true
     },
     "avoozl-p30": {
       "kind": "leaf",
@@ -3821,7 +3844,8 @@
         "avoozl-p5",
         "avoozl-p6",
         "avoozl-p2b"
-      ]
+      ],
+      "manual": true
     },
     "avoozl-p31": {
       "kind": "leaf",
@@ -4074,7 +4098,8 @@
         "avoozl-p5",
         "avoozl-p6",
         "avoozl-p2b"
-      ]
+      ],
+      "manual": true
     },
     "14.12": {
       "kind": "leaf",
