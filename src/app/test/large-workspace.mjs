@@ -137,7 +137,7 @@ export async function largeWorkspace(
   store.importSnapshot(emptySnapshot());
   store.put("projects", {
     id: "app",
-    root: fs.realpathSync(checkout),
+    root: fs.realpathSync.native(checkout),
     baseBranch: "main",
   });
   const ops = new Operations(store, { workspaceRoot: root, operator: "Owner" });

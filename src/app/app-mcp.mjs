@@ -45,7 +45,7 @@ export function createAppMcp({ fallback = null, env = process.env } = {}) {
   // tick memory and caches stay per workspace.
   const opened = new Map();
   const open = (config) => {
-    const key = fs.realpathSync(config.dbPath);
+    const key = fs.realpathSync.native(config.dbPath);
     let entry = opened.get(key);
     if (!entry) {
       const store = new Store(config.dbPath);
@@ -87,7 +87,7 @@ export function createAppMcp({ fallback = null, env = process.env } = {}) {
     if (existing(fallback)) configs.push(fallback);
     const seen = new Set();
     return configs.filter((config) => {
-      const key = fs.realpathSync(config.dbPath);
+      const key = fs.realpathSync.native(config.dbPath);
       if (seen.has(key)) return false;
       seen.add(key);
       return true;

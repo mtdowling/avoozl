@@ -439,7 +439,7 @@ test("explicit Settings operations persist typed desired state without changing 
     baseBranch: "main",
     checks: [["npm", "test"]],
   });
-  assert.equal(project.root, fs.realpathSync(code));
+  assert.equal(project.root, fs.realpathSync.native(code));
   assert.equal(project.configuration, undefined);
   const updatedProject = await ops.execute("project.configure", {
     id: "code",
@@ -467,7 +467,7 @@ test("explicit Settings operations persist typed desired state without changing 
       directory: "workspace",
     },
   );
-  assert.equal(workspaceRepository.root, fs.realpathSync(planning));
+  assert.equal(workspaceRepository.root, fs.realpathSync.native(planning));
 
   const filename = path.join(root, ".avoozl.json"),
     saved = JSON.parse(fs.readFileSync(filename, "utf8"));
@@ -548,7 +548,7 @@ test("direct privileged edits are validated and reported as inert apply or resta
 
 test("creating repository JSON materializes already-applied non-secret settings", (t) => {
   const { root, store } = fixture(t),
-    realRoot = fs.realpathSync(root),
+    realRoot = fs.realpathSync.native(root),
     configuration = new RepositorySettings(store, { workspaceRoot: root });
   store.put("projects", {
     id: "code",
