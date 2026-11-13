@@ -5724,6 +5724,60 @@
         "24.2"
       ]
     },
+    "32.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 32 (Remote relay). See R41.16–R41.20, R41.22–R41.24; §4.10.",
+      "acceptance": [
+        "Relay setting, queue, and tool, after 11.11 and 11.13",
+        "routing.remoteRelay is validated in the workspace file only and ignored with MC-10; a worker's remote pick queues for the relay chat and never runs on local; one registered relay opens workers with crew= and hands back replies, whose last report line alone runs the normal report path; refusals wait for the person or drop; only a person forgets the relay."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "11.11",
+        "11.13"
+      ]
+    },
+    "32.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 32 (Remote relay). See R41.20, R41.21, R42.3; §4.10, §8.3.",
+      "acceptance": [
+        "Routing page and Needs you, after 32.1 and 11.12",
+        "The Crews section shows the relay setting, its stopgap line and both catches, status with turns today, Open relay chat, Go to relay chat and a confirmed Forget; Needs you lists each queued remote task with its reason."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "32.1",
+        "11.12"
+      ]
+    },
+    "avoozl-p47": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 32 (Remote relay). Proof. See R41.16–R41.24; §4.10.",
+      "acceptance": [
+        "Proof: Remote relay with a fake relay and a fake crew",
+        "Expected: remote picks queue and never run on local; a turn the owner did not send waits with a Needs you item; one relay only; the owner's turn opens each worker on its crew with the brief unchanged; only a reply's report line counts and verification follows; the setting off or MC-10 present drops the queue; only a person forgets the relay."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "32.1",
+        "32.2"
+      ]
+    },
     "33.1": {
       "kind": "leaf",
       "repository": "avoozl",

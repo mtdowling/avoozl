@@ -5,6 +5,7 @@
 // settings, and an approved spec with chain a -> b -> c and pair x -> y, all
 // owned by plugin:fake-tracker; b is delivered by plugin:fake-route. The
 // fake session driver plays every local worker and verifier.
+import { checkRuns } from "../check-runs.mjs";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
@@ -303,7 +304,7 @@ test(
       defaults,
       // x's worker plays only in action 3, and its checks never finish, so
       // x is still open when someone closes its record in action 4.
-      scripts: { "x:verifier": "hold" },
+      scripts: { "x:checks": "hold" },
     });
     const tick = async () => {
       const result = await crew.tick();
@@ -377,7 +378,7 @@ test(
     assert.match(view.get(B).needsYou.reason, /crashed/);
     assert.equal(view.get(X).needsYou, null);
     assert.ok(
-      result.dispatch.some((d) => d.task === X && d.role === "verifier"),
+      checkRuns(store).some((r) => r.taskId === X),
       "x advanced to its checks",
     );
     assert.deepEqual(pluginChildren(), []);

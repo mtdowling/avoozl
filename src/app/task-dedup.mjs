@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { digest, validate } from "../model.mjs";
+import { digest, summarizeErrors, validate } from "../model.mjs";
 import { activityState } from "../activity.mjs";
 import { isHistoricalTask } from "../browse-model.mjs";
 import {
@@ -242,7 +242,7 @@ export function mergeTasks(
           data.taskAliases,
         );
       const errors = validate(data);
-      if (errors.length) fail(errors.join("\n"), 409);
+      if (errors.length) fail(summarizeErrors(errors), 409);
       const graph = new Map();
       for (const e of data.edges.filter((e) =>
         ["requires", "sequence"].includes(e.kind),
