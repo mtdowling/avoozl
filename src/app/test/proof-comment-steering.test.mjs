@@ -2,6 +2,8 @@
 // GitHub in plans-repo mode. Off by default: only a code repository whose
 // policy sets `commentSteering.mention` is read.
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import test from "node:test";
 import { normalizeGitHubPolicy } from "../github-policy.mjs";
 import { mentions } from "../github-steering.mjs";
@@ -89,6 +91,26 @@ test("P-steer 3: a mention that names the planning repository is held with a dec
     (await w.tick()).notify.filter((n) => /did not relay/.test(n.title)).length,
     0,
   );
+});
+
+test("P-steer 3b: content rules screen steering, and a long comment is cut", async (t) => {
+  const w = await running(t, { commentSteering: { mention: MENTION } });
+  // A made-up rule set on the brief boundary with one fake term.
+  const file = path.join(w.root, ".avoozl.json"),
+    config = JSON.parse(fs.readFileSync(file, "utf8"));
+  config.contentRules = { sets: [{ id: "fake-terms", boundaries: ["brief"] }] };
+  fs.writeFileSync(file, JSON.stringify(config));
+  const dir = path.join(w.root, ".avoozl", "local", "content-rules");
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, "fake-terms.txt"), "codename: \\bBluejay\\b\n");
+  w.github.comment(1, "maintainer", `${MENTION} ship it as Bluejay`);
+  let result = await w.tick();
+  assert.deepEqual(w.toWorker(result), [], "a blocked term is not relayed");
+  w.github.comment(1, "maintainer", `${MENTION} ${"x".repeat(20000)}`);
+  result = await w.tick();
+  const [sent] = w.toWorker(result);
+  assert.ok(sent.text.length < 6000, "cut");
+  assert.match(sent.text, /cut at 4,000 characters/);
 });
 
 test("P-steer 4: a closed session is not steered", async (t) => {

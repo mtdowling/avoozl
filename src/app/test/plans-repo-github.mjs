@@ -279,7 +279,7 @@ export function workspace(t, { repository = {}, runner = "tick" } = {}) {
     task = (id) => store.read().tasks.find((item) => item.id === id),
     branch = (id) => store.get("github_linked_branches", id),
     names = () => github.created.map((input) => input.name);
-  return { store, github, ops, run, task, branch, names };
+  return { store, github, ops, run, task, branch, names, root };
 }
 
 export const briefOf = (result, id) =>

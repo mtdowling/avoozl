@@ -152,7 +152,7 @@ test("Code review queues one seeded chat, the tick opens it, and the row shows A
     "- Repository: o/app",
     "- Number: #6",
     `- Head commit: ${SHA}`,
-    "- Title: Change 6",
+    "Title:\n```text\nChange 6\n```",
     "- Author: alice",
     `Load the sage-review skill (${sageSkillPath(home)})`,
     "Post nothing to GitHub",

@@ -9,7 +9,8 @@
 // shortcut: only sessions the tick opened (`source: tick`) are steered,
 // because the cron can message only the sessions it opened; a Crew Mode
 // conductor's workers are not, until Kiro Crew lets an app reach them (MC-5).
-import { liveAttempt } from "./delivery.mjs";
+import { briefAllowed, liveAttempt } from "./delivery.mjs";
+import { cut, MAX_QUOTE } from "./github-feedback.mjs";
 import { actorAllowed } from "./github-policy.mjs";
 import { codeRepository, findPlanningLeak } from "./github-plans-repo.mjs";
 import { fence } from "./github-respond.mjs";
@@ -28,7 +29,7 @@ export function mentions(body, mention) {
 }
 
 function steeringText(task, comment, mention) {
-  const body = String(comment.body || ""),
+  const body = cut(comment.body || "", MAX_QUOTE, comment.html_url),
     mark = fence(body);
   return [
     `Steering for Avoozl task ${task.id} from ${comment.user.login}, whom the repository policy allows. They mentioned ${mention} on the task's issue:`,
@@ -111,7 +112,17 @@ export async function steeringStep(store, github, policy) {
       const text = steeringText(task, comment, mention),
         // A planning issue's comment must not carry the planning
         // repository's name into the code repository's worker (R28.7).
-        leak = findPlanningLeak([["comment", text]], policy.planningRepository);
+        leak = findPlanningLeak([["comment", text]], policy.planningRepository),
+        // Content rules (§4.9 `brief`): a block opens a decision and sends
+        // nothing, as for pull request feedback.
+        allowed =
+          !leak &&
+          briefAllowed(store, {
+            taskId: task.id,
+            role: "steering",
+            brief: text,
+            repository: code,
+          });
       // Recorded before the cron sends it: a comment is relayed at most once.
       store.put("receipts", {
         id: receiptId(binding.slot, comment.id),
@@ -120,7 +131,7 @@ export async function steeringStep(store, github, policy) {
         taskId: task.id,
         commentId: comment.id,
         actor: login,
-        relayed: !leak,
+        relayed: allowed,
         at: new Date().toISOString(),
       });
       if (leak) {
@@ -133,6 +144,7 @@ export async function steeringStep(store, github, policy) {
         });
         continue;
       }
+      if (!allowed) continue;
       messages.push({ slot: binding.slot, text });
     }
   }
