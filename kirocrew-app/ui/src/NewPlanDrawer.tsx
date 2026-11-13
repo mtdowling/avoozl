@@ -11,9 +11,11 @@ import { useAppApi, useChatLauncher, useNavigate } from '@kirocrew/app-sdk'
 import { Btn, Input } from '@kirocrew/app-sdk/ui'
 import { ExternalLink, MessageSquare, X } from './icons.ts'
 import { ICON, IconLabel, SectionHeading, useConfirm } from './controls.tsx'
-import { useMedia } from './TaskDrawer.tsx'
+import { useMedia } from './use-media.ts'
 import { trapStep } from './focus-trap.ts'
 import { useBackStep } from './NavHistory.tsx'
+import { modalOpen } from './Modal.tsx'
+import { LAYER } from './layers.ts'
 import { errorMessage, workspaceClient, type Repository } from './workspace-api.ts'
 import { EMPTY_NEW_PLAN, EPIC_PROBLEM, formProblems, isDirty, nameProblem, newPlanClient, SPEC_NAME, type NewPlanForm, type NewPlanPreview } from './new-plan-api.ts'
 import { openSpecBuilder, specBuilderClient, specBuilderProblem } from './spec-builder-api.ts'
@@ -120,7 +122,8 @@ export default function NewPlanDrawer(props: {
       panel.current?.querySelector<HTMLElement>('#avoozl-new-plan-name')?.focus()
     })
     const onKey = (event: KeyboardEvent) => {
-      if (document.querySelector('[data-confirm-dialog]')) return
+      // A modal over the drawer (a confirm) takes Tab.
+      if (modalOpen()) return
       if (event.key !== 'Tab' || !panel.current) return
       const items = [...panel.current.querySelectorAll<HTMLElement>(FOCUSABLE)]
       const next = trapStep(items.length, items.indexOf(document.activeElement as HTMLElement), event.shiftKey)
@@ -195,7 +198,7 @@ export default function NewPlanDrawer(props: {
     })
 
   return (
-    <div className="fixed inset-0 z-50" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+    <div className="fixed inset-0" style={{ zIndex: LAYER.drawer, display: 'flex', justifyContent: 'flex-end' }}>
       <div
         aria-hidden="true"
         data-drawer-backdrop

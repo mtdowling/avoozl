@@ -16,6 +16,7 @@ import {
   taskTiming,
 } from "./flow.mjs";
 import fs from "node:fs";
+import { appFile } from "./app-files.mjs";
 import { fail } from "./store.mjs";
 import { briefAllowed } from "./delivery.mjs";
 import { taskRepository } from "../work-model.mjs";
@@ -58,6 +59,7 @@ import {
   shippedPrompts,
 } from "./prompts.mjs";
 import { contentBinding } from "./content-rules.mjs";
+import { recordTraits } from "./lessons-share.mjs";
 import { applyDiff, reverseDiff, unifiedDiff } from "./text-diff.mjs";
 
 export const RETRO_AGENT = "avoozl-retro";
@@ -690,6 +692,7 @@ function healAt(store, data, config, now) {
     traits = workspaceTraits(store),
     id = workspaceId(store),
     tools = checkTools(checks);
+  recordTraits(m.lessons, id, traits);
   checkPacks(store, { now });
   healLessons(
     m.lessons,
@@ -1567,10 +1570,7 @@ export function applyToConfig(file, proposal) {
 export function retroPrompt() {
   try {
     return JSON.parse(
-      fs.readFileSync(
-        new URL("../../kirocrew-app/agents/avoozl-retro.json", import.meta.url),
-        "utf8",
-      ),
+      fs.readFileSync(appFile("agents/avoozl-retro.json"), "utf8"),
     ).prompt;
   } catch {
     return null;

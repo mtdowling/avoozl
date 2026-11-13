@@ -210,13 +210,6 @@ export function rowActions(row: PlanRow) {
   }
 }
 
-// The Graph and Delivery filter for one plan.
-export const planScope = (row: PlanRow) => ({
-  plan: row.planId ?? undefined,
-  spec: row.spec ?? undefined,
-  label: row.name,
-})
-
 // The chat draft that changes one plan. The user reviews it before sending.
 export function changeMessage(row: PlanRow): string {
   const target = row.spec

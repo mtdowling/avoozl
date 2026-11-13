@@ -106,7 +106,7 @@ function useModels() {
   return models
 }
 
-function CrewDialog(props: { crew: Crew; onCancel: () => void; onSave: (form: CrewForm) => Promise<string | null> }) {
+export function CrewDialog(props: { crew: Crew; onCancel: () => void; onSave: (form: CrewForm) => Promise<string | null> }) {
   const [form, setForm] = useState<CrewForm>(toCrewForm(props.crew))
   const [error, setError] = useState<string | null>(null)
   const set = (change: Partial<CrewForm>) => setForm({ ...form, ...change })
@@ -115,6 +115,7 @@ function CrewDialog(props: { crew: Crew; onCancel: () => void; onSave: (form: Cr
     <Modal
       id="avoozl-crew-dialog"
       title={`Crew ${props.crew.name}`}
+      unsaved={JSON.stringify(form) !== JSON.stringify(toCrewForm(props.crew)) && { title: `Discard your changes to ${props.crew.name}?`, body: 'Every edit in this dialog is lost.', action: 'Discard changes' }}
       onDismiss={props.onCancel}
       footer={
         <div className="flex flex-wrap items-center gap-2">
@@ -297,7 +298,7 @@ function CrewsSection(props: { view: View; workspaceId: string; onSaved: () => P
   )
 }
 
-function RuleDialog(props: {
+export function RuleDialog(props: {
   view: View
   form: RuleForm
   isNew: boolean
@@ -326,6 +327,7 @@ function RuleDialog(props: {
     <Modal
       id="avoozl-rule-dialog"
       title={props.isNew ? 'Add rule' : `Rule ${props.form.id}`}
+      unsaved={JSON.stringify(form) !== JSON.stringify(props.form) && { title: props.isNew ? 'Discard this rule?' : `Discard your changes to ${props.form.id}?`, body: 'Every edit in this dialog is lost.', action: 'Discard changes' }}
       onDismiss={props.onCancel}
       footer={
         <div className="flex flex-wrap items-center gap-2">
