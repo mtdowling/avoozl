@@ -130,8 +130,9 @@ export function roleTarget(role) {
 // --------------------------------------------------------------- skills
 
 const SKILL_FILE = /(?:^|\/)SKILL\.md$|\/skills\/[^/]+\.md$/;
+// Either separator, so a Windows path reads like any other.
 export const isSkillPath = (file) =>
-  typeof file === "string" && SKILL_FILE.test(file);
+  typeof file === "string" && SKILL_FILE.test(file.replace(/\\/g, "/"));
 
 const inside = (root, file) => {
   if (!root) return null;
