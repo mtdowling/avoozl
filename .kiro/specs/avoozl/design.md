@@ -5170,6 +5170,34 @@ short select.
   `role="option"` with `aria-selected`. The state shows as a small badge
   beside the title.
 
+### 8.10 Task files and diffs
+
+Added 2026-11-13 (Requirement 81). The task drawer's Files fold
+(`TaskFiles.tsx`, `files-api.ts`) reads only when first opened.
+
+- **Where.** `task.files` and `task.diff` (`src/app/task-files.mjs`) find
+  the task's `task_worktrees` row. A worktree still on disk is read as is,
+  untracked files too; else the branch (`refs/heads/<branch>`, then
+  `origin/<branch>`) in the repository's checkout; else `mode: none`. The
+  base is the merge base of the head with the integration branch, else the
+  base branch. A remote crew's task, or one with no worktree, shows its
+  branch on GitHub.
+- **Reads.** `git diff --name-status -z -M` and `--numstat -z` give the
+  list; `ls-files` and `ls-tree` give Show all files. `task.diff` runs one
+  `git diff ... -- <path>` and builds an untracked file's diff itself after
+  an `lstat`. Every call is `execFile` with `--literal-pathspecs`,
+  `core.fsmonitor=false`, the gateway secrets stripped, `--end-of-options`
+  before refs, and `--` before paths.
+- **Paths.** A path must be relative with forward slashes and no `.`,
+  `..` or empty part, and must be one Git lists for the task (or in the
+  tree, which reads as unchanged). An untracked link is reported, never
+  read.
+- **Caps.** 3,000 files listed; a diff over 256 KB returns `tooLarge` with
+  its counts; binaries return `binary`. The page draws the first 1,500
+  lines with a button for the rest.
+- **Editor.** `kiro://file/<path>[:line]` or `vscode://file/<path>[:line]`,
+  picked on the fold and kept in the page's storage; Kiro by default.
+
 ## 9. Current-code disposition
 
 Covers `feature/kirocrew-github-delivery` and the `main`-only modules (F19).
@@ -5358,7 +5386,7 @@ and next decision, are tasks in `tasks.md` (P1–P32). Summary:
 | P42 | Prompt and skill proposals and lessons with fake workers and a fake retro model in two temporary workspaces: locked sections, stale bases and blocked text dropped, person-only approve and revert, overrides outside shipped files, a repository skill change as a leaf and an external one as a note, PDCA per version with mixed windows, lessons shared with no source text, opt-out, refused lesson text, drift marks that clear on confirmation, the lessons review, override drift with a three-way diff, pack versions, and person-only export (Phase 28) |
 | P43 | The activity log in a temporary workspace with a fake GitHub and a fake plugin: every listed local action and tick event makes one row, a change seen twice makes one, a secret-shaped or rule-matched value is saved redacted, rows past retention go on the tick, and the tab and `plans_view` read the same rows (Phase 29) |
 | P45 | Investigate first, evidence bundles, staying current, rules from corrections, fix-work share and ship mode with fake workers, a fake falsifier and a fake GitHub (Phase 34) |
-| P46 | The Remote relay with a fake relay chat and a fake Kiro Crew on the P29 crews, MC-10 missing: remote picks queue and never run on local, a turn the owner did not send waits with a Needs you item, one relay only and other chats refused, the person's turn opens each worker on its crew with the brief unchanged, a reply's report line (not its other text) runs the normal report path and verification follows, turns per day, Forget as a person only, a refusal for a chat the owner did not open, other refusals dropped, the setting off or MC-10 present dropping the queue (Phase 32) |
+| P47 | The Remote relay with a fake relay chat and a fake Kiro Crew on the P29 crews, MC-10 missing: remote picks queue and never run on local, a turn the owner did not send waits with a Needs you item, one relay only and other chats refused, the person's turn opens each worker on its crew with the brief unchanged, a reply's report line (not its other text) runs the normal report path and verification follows, turns per day, Forget as a person only, a refusal for a chat the owner did not open, other refusals dropped, the setting off or MC-10 present dropping the queue (Phase 32) |
 | P44 | Provider health and switching with fake usage rows, fake error rows and a fake Kiro Crew model change in a temporary workspace: usage and error marks, recovery by success and cooldown, new tasks and weighted choices skipping low and out, retries keeping a model until it is out, running chats switched in the same session at the next turn, the review gate across a switch, the manual switch with preview hash and Also new tasks, person-only 403s, Needs you, and nothing changed with no settings (Phase 30) |
 
 A new server, shared database, or plugin mechanism other than the seam in §4.8
@@ -5395,7 +5423,7 @@ Detailed in `tasks.md`. **Proposed** order:
 | 28. Retro prompt and skill proposals, and lessons | Prompt and skill diffs with evidence from the retro, local per-workspace prompt overrides with revert, repository skill changes as leaves and external ones as notes, PDCA per version, a lessons store on this Mac shared across workspaces, lessons packs, and healing of lessons and overrides (§4.18) | Starts after 12.9 and 12.10; P42 |
 | 29. Activity log | One SQLite activity table, one `recordActivity` helper, local actions and the tick's GitHub and plugin events, screening and redaction, retention on the tick, the Activity tab and `plans_view` action `activity` (§4.19) | Starts after 10.4, 12.11 and 14.10; P43 |
 | 30. Provider health and switching | Health levels from usage reads and error rows, routing that skips low and out, running chats moved with Kiro Crew's model change, the manual Switch model dialog, Needs you, and Settings › Providers (§4.20) | Starts after 11.11 and 12.12; P44 |
-| 32. Remote relay | Opt-in `routing.remoteRelay`, the relay queue, the `avoozl-relay` agent and `plans_relay`, the Routing page block and Needs you, until MC-10 (§4.10 Remote relay) | Starts after 11.11 and 11.13; P46 |
+| 32. Remote relay | Opt-in `routing.remoteRelay`, the relay queue, the `avoozl-relay` agent and `plans_relay`, the Routing page block and Needs you, until MC-10 (§4.10 Remote relay) | Starts after 11.11 and 11.13; P47 |
 | 33. Only open tasks get issues | `github.issues.includeDone` (default off): done tasks get no issue, card or link at approval (§6.3) | Built in PR #34 |
 | 34. Investigate first, evidence, staying current, rules, fix share, ship mode | Findings and a falsifier before code, an evidence bundle per task, pull requests brought up to date without force pushes, rules from repeated corrections, the fix-work share in Flow, and `delivery.ship` (§4.21–§4.25) | Starts after 15.4, 28.3 and 12.11; P45 |
 
