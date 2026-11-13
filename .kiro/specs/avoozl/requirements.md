@@ -317,7 +317,17 @@ before dependents start, so that later tasks build on accepted code.
 #### Acceptance criteria
 
 1. WHEN a worker reports done THEN Avoozl SHALL run the leaf's declared checks
-   against the exact commit and record the result.
+   against the exact commit and record the result. Avoozl SHALL run them
+   itself, with no model call: in a clean detached worktree at that commit,
+   each check as an argument list with no shell, each with its own time
+   limit, recording the exit code and a short redacted output tail, and
+   removing the worktree afterwards. The runs SHALL be queued off the tick,
+   one at a time per repository, and SHALL NOT start while all agents are
+   stopped or while a stopped line holds the commit. A check that is not
+   run, cannot start (exit 126 or 127), or times out SHALL fail the
+   checking, not the writer's attempt. A verifier session SHALL open only
+   for a bar that needs judgment: a prose acceptance with no declared
+   check, or `verify: agent` on the task.
 2. WHEN checks pass THEN Avoozl SHALL integrate the commit into the configured
    local integration branch and record the integrated commit.
 3. WHEN integration succeeds THEN Avoozl SHALL recompute readiness and dispatch
@@ -1686,7 +1696,11 @@ user-facing work never leaves this machine.
    The instructions SHALL NOT be able to allow a crew a rule forbids. The
    router SHALL be off by default. The router instructions SHALL live only
    in machine-local settings and SHALL NOT be written to any tracked file;
-   validation SHALL refuse them in `.avoozl.json`.
+   validation SHALL refuse them in `.avoozl.json`. WHEN pins and hard
+   checks leave exactly one crew and one agent and model for a task THEN
+   Avoozl SHALL assign it directly, SHALL record "only one choice" in the
+   Activity log, and SHALL NOT call the router for it; a tick whose ready
+   tasks are all like that SHALL make no router call.
 8. WHEN no crew satisfies a task's hard constraints THEN the task SHALL wait
    and Avoozl SHALL open one decision naming the rules that ruled each crew
    out. WHEN allowed crews exist but none has room THEN the task SHALL wait
@@ -1915,7 +1929,7 @@ and nobody waits on CI to learn about a failure.
    "CI only" failure with the check names, so that a difference between the
    two environments shows in the Flow tab.
 6. Local delivery, where nothing is pushed, SHALL be unchanged: the
-   verifier already runs the checks on this machine.
+   checks already run on this machine (Requirement 7.1).
 7. Avoozl SHALL NOT enforce this on sessions it does not open (for example
    Issue Radar's); the Flow tab SHALL show their CI wait like any other.
 

@@ -154,7 +154,7 @@ outside Kiro Crew.
 | Kiro Crew sessions and transcripts | Kiro Crew | Binding: task ID → slot key | Bindings can be rediscovered from session titles |
 | Worktrees and branches | Git in the target repository | Receipt: path, branch, base SHA | Branch name derived from task ID |
 | Pull requests | GitHub | Cache | Written by Issue Radar (single-repo mode), Avoozl worker sessions (plans-repo mode), or a person; never by the Avoozl process |
-| Test results | The system that ran them: GitHub checks for GitHub work; the verifier session's report plus re-runnable command for local work | Receipt: command, exit code, commit SHA | |
+| Test results | The system that ran them: GitHub checks for GitHub work; Avoozl's own check run (or a verifier session when the bar needs judgment) plus re-runnable command for local work | Receipt: command, exit code, commit SHA | |
 | Completion | Derived: GitHub facts (Requirement 16) or local verified-and-integrated commit | Cached verdict | Never written as an independent fact for GitHub tasks |
 | Activity and evidence | Append-only event log in SQLite, pointing at real sources | Authoritative for local; receipt for GitHub | Evidence links, not copies |
 | Human decisions | SQLite for local tasks; GitHub labels and comments for GitHub tasks | Authoritative / cache | |
@@ -1186,6 +1186,14 @@ passes the content rules like any other brief. The reply is JSON,
   (`routing.router.instructions` in `~/.config/avoozl/config.json`), because
   they may name private machines. Validation refuses them in a tracked
   `.avoozl.json`.
+- Only one choice: when pins and hard checks leave exactly one crew and
+  one agent and model for a ready worker, there is nothing to judge. The
+  task is assigned directly, its placement reason is `only one choice`,
+  one Activity row `routing.only-one` is written per attempt, and the task
+  is not put in the router's batch. A tick whose batch is empty opens no
+  router session (`routing.mjs` `placeOne`, `tick.mjs`). A separate change
+  is rebuilding the batch as one prompt; the skip sits where the batch is
+  built, so it carries over.
 
 #### Agent and model per session
 
@@ -1471,7 +1479,9 @@ Rules:
   can already see. This works for Crew Mode too: the conductor relays the
   worker's report.
 - **Check durations.** Verifier entries gain `durationMs`; a `done` report's
-  check list (Requirement 45) carries it too.
+  check list (Requirement 45) carries it too. A check run Avoozl makes
+  itself (§5.2 Checks in code) records its span as stage `checks`, role
+  `checks`, from start to end of the run.
 - **Reading tool rows.** The backend reads each live tick-opened worker
   session with the incremental cursor once per tick, alongside the status
   read it already makes (F91), and keeps only `kind`, the command's first
@@ -3128,7 +3138,7 @@ row that cannot be written never loses the record in `provider_switches`
 | 7. Dispatch | Crew Mode conductor (preferred, §5.1); tick and script cron as fallback | The conductor asks Avoozl for ready leaves and opens one worker session per leaf, up to capacity; the fallback opens `kirocrew-worker` sessions from the tick. The brief names the task ID, acceptance, checks, and the worktree tool | |
 | 8. Work | Worker session | Calls `plans_prepare_worktree` (branch `avoozl/<task-id>`), implements, commits, reports `done` with the commit SHA through `plans_report` | Worker reports `question` |
 | 9. Complex leaf | Worker session | May call `task_run` on a spec it writes for the leaf; Task Runner steps stay inside that run (F5, F6) | |
-| 10. Verify | Tick opens an `avoozl-verifier` session, plus one session per review role when the repository names any (§5.2) | Runs the leaf's declared checks on the exact SHA in a clean worktree and reports exit codes; review roles report verdicts and findings on the same SHA | Checks fail after the retry bound |
+| 10. Verify | Tick queues a check run that Avoozl makes itself (an `avoozl-verifier` session only for a bar that needs judgment), plus one session per review role when the repository names any (§5.2) | Runs the leaf's declared checks as argv on the exact SHA in a clean worktree and records exit codes and output tails; review roles report verdicts and findings on the same SHA | Checks fail after the retry bound |
 | 11. Integrate | Tick (`integrateRun`) | Rebases and merges into the local integration branch | Rebase conflict the worker cannot resolve |
 | 12. Release | Tick | Recomputes readiness; dispatches newly ready leaves | |
 | 13. Close parent | Tick | Marks packages and the epic done when all required children are done; whole-head acceptance stays a separate, explicit action | Whole-head acceptance |
@@ -3203,7 +3213,7 @@ below read `kirocrew-native` at `dd8b28b`.
 
 | # | Fact | Evidence |
 |---|---|---|
-| F56 | **Verified.** A worker's `done` report opens one `avoozl-verifier` session that runs the leaf's declared checks (else the repository's) in a detached worktree at the reported commit. `verdictCause` refuses a report for another commit, a declared check missing from the report, and a non-zero exit. | `src/app/delivery.mjs` `planVerifierDispatches`, `verifierBrief`, `verdictCause` |
+| F56 | **Verified.** A worker's `done` report queues one check run that Avoozl makes itself on the leaf's declared checks (else the repository's) in a detached worktree at the reported commit; an `avoozl-verifier` session opens only for a bar that needs judgment (§5.2 Checks in code). `verdictCause` refuses a report for another commit, a declared check missing from the report, and a non-zero exit. | `src/app/delivery.mjs` `planVerifierDispatches`, `planCheckRuns`, `verifierBrief`, `verdictCause`; `src/app/check-runs.mjs` |
 | F57 | **Verified.** A rejected verdict marks the worker's attempt failed; the retry path opens a new worker attempt on the same worktree with the earlier cause quoted as data, up to `retries`, then a decision. A blocked or quiet verifier fails only the verification and is retried. Attempts and verifications stay on the `task_deliveries` row. | `delivery.mjs` `reconcileVerifications`, `reconcileDeliveries`, `workerBrief` |
 | F58 | **Verified.** Only a `verified` delivery is integrated, and a local leaf's `integrated` completion is reached from `task.integration.commit`, so dependents already wait for the verifier and integration. | `delivery.mjs` `integrateVerified`; `src/work-model.mjs` `completionReached`; `src/query.mjs` `ready` |
 | F59 | **Verified.** Per-repository and workspace concurrency count only live worker attempts; verifier sessions do not count. The default workspace concurrency is 1. | `delivery.mjs` `readyLeaves`, `DELIVERY_DEFAULTS` |
@@ -3252,13 +3262,46 @@ entry may replace the workspace's list.
   (`model`, the default, or `session`). Validation refuses a duplicate `id`,
   an empty `focus`, and, for `distinctFrom: model`, a missing or `auto` model
   on either side or a reviewer model equal to the writer's.
-- The checks role (today's verifier) is always present, with id `checks`.
+- The checks role is always present, with id `checks`. Avoozl runs it
+  itself (Checks in code, below); a verifier chat holds it only for a bar
+  that needs judgment.
+
+#### Checks in code
+
+The checks role makes no model call when the bar is commands. Owner
+decision 2026-11-13.
+
+- **Queue.** The tick queues one `check-run` record (in `flow_records`)
+  per reported commit, after fetching remote hand-back branches, so a
+  remote commit is checked here too. The app backend drain runs the queue
+  off the tick's path: per repository, oldest first, one at a time, under
+  a work lock. Nothing starts while all agents are stopped, and a commit a
+  stopped line holds is not queued until the line is green. A run left
+  `running` by a process that is gone goes back in the queue.
+- **Run.** A clean detached worktree at the exact reported commit. Each
+  declared check (`task.checks`, else the repository's `checks`) runs as
+  argv with no shell, with its own time limit (20 minutes), and records
+  its exit code and the last lines of its output, redacted by the content
+  rules and with the worktree path removed. The worktree is removed
+  afterwards. If HEAD is not the reported commit, nothing runs.
+- **Verdict.** The next tick judges the run with the same `verdictCause`
+  rules as a verifier's report. A check not run, exit 126 or 127, or a
+  timeout fails the checking, which is retried, not the writer's attempt.
+  A non-zero exit fails the writer's attempt; the tail is kept beside
+  that check on the verification. A run for an older commit judges nothing.
+- **Receipts.** The verification keeps role id `checks` and the same entry
+  shape (`command`, `exitCode`, `durationMs`), so receipts and gates read
+  the same. Flow timing records the run as stage `checks`.
+- **Judgment.** A verifier session on `avoozl-verifier` opens only when
+  the task says `verify: "agent"`, or its acceptance is prose with no
+  declared check. Its report carries a `verdict` like a reviewer's.
 
 #### Flow
 
 1. A worker reports `done` with commit C. The delivery opens round C.
-2. The tick opens one session per role for round C, all at once: the checks
-   role on `avoozl-verifier`, each review role on its agent and model. At
+2. The tick starts every role for round C at once: it queues the checks
+   run (or opens the verifier when the bar needs judgment), and opens each
+   review role on its agent and model. At
    dispatch it compares the reviewer's model with the model recorded on the
    writer attempt's binding; if either is unknown, it opens a decision
    instead (Requirement 36.4).
