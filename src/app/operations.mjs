@@ -2939,8 +2939,9 @@ export class Operations {
           });
         };
       if (name === "epic.get") {
-        if (typeof input.id !== "string" || !ids.includes(input.id))
-          fail(`No epic ${input.id}.`, 404);
+        if (typeof input.id !== "string" || !input.id)
+          fail("Name the epic: {id}, its spec folder name. plans_plan epics lists them.");
+        if (!ids.includes(input.id)) fail(`No epic ${input.id}.`, 404);
         return view(input.id);
       }
       return {

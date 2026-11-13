@@ -13,8 +13,14 @@ import { temporaryDirectory } from "./temporary.mjs";
 
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
 
-function workspace(t, { repositories = ["app"], contentRules } = {}) {
+function workspace(t, { repositories = ["app"], contentRules, epic = false } = {}) {
   const { root, store } = fixture(t);
+  // An epic folder New plan may name (Requirement 59.11).
+  if (epic)
+    writeSpec(root, "rewrite", {
+      "tasks.md": "# Plans\n",
+      "avoozl/manifest.json": JSON.stringify({ kind: "epic", tasks: {} }),
+    });
   if (contentRules) {
     fs.writeFileSync(
       path.join(root, ".avoozl.json"),
@@ -199,7 +205,7 @@ const builderRequest = (overrides = {}) =>
   request({ handoff: "spec-builder", epic: "rewrite", ...overrides });
 
 test("plan.new preview says whether the steering file is there and records nothing", async (t) => {
-  const { root, store, ops } = workspace(t);
+  const { root, store, ops } = workspace(t, { epic: true });
   const preview = await ops.execute(
     "plan.new",
     builderRequest({ preview: true }),
@@ -220,7 +226,7 @@ test("plan.new preview says whether the steering file is there and records nothi
 });
 
 test("plan.new for Spec Builder writes the steering file when asked and returns the create body", async (t) => {
-  const { root, store, ops } = workspace(t);
+  const { root, store, ops } = workspace(t, { epic: true });
   const result = await ops.execute(
     "plan.new",
     builderRequest({ writeSteering: true }),
@@ -248,7 +254,7 @@ test("plan.new for Spec Builder writes the steering file when asked and returns 
 });
 
 test("a changed steering file is never overwritten, and a declined one puts the rules in the description", async (t) => {
-  const { root, ops } = workspace(t);
+  const { root, ops } = workspace(t, { epic: true });
   const declined = await ops.execute("plan.new", builderRequest());
   assert.equal(fs.existsSync(steeringPath(root)), false);
   assert.ok(declined.specBuilder.description.includes("## Task IDs"));
@@ -305,7 +311,7 @@ const manifestOf = (root) =>
   );
 
 test("the tick writes the manifest once Spec Builder's tasks.md holds still, then imports a draft", async (t) => {
-  const { root, store, ops } = workspace(t);
+  const { root, store, ops } = workspace(t, { epic: true });
   await ops.execute("plan.new", builderRequest());
   const before = { approvals: approvals(store), sessions: sessions(store) };
   writeSpec(root, "cache-invalidation", builderFiles());
