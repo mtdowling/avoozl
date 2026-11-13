@@ -19,7 +19,11 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { matchLine, parseTerms } from "../src/app/content-rules.mjs";
+import {
+  matchLine,
+  parseTerms,
+  PUBLISH_RULES,
+} from "../src/app/content-rules.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -29,21 +33,9 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 // line, at $AVOOZL_RELEASE_TERMS or .avoozl/local/release-terms.txt. Its
 // `allow:` and `allow <rule>:` lines cancel that file's own matches on the
 // same line, never a public rule's (R40.15).
-const PUBLIC_RULES = [
-  ["secret", "aws-key", /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/],
-  [
-    "secret",
-    "github-token",
-    /\bgh[pousr]_[A-Za-z0-9]{36,}|\bgithub_pat_[A-Za-z0-9_]{22,}/,
-  ],
-  ["secret", "private-key", /-----BEGIN [A-Z ]*PRIVATE KEY-----/],
-  ["secret", "slack-token", /\bxox[baprs]-[A-Za-z0-9-]{10,}/],
-  ["secret", "api-key", /\bsk-(?:ant|proj)-[A-Za-z0-9_-]{12,}/],
-  ["absolute-path", "macos-home", /\/Users\/[A-Za-z0-9._-]+/],
-  ["absolute-path", "macos-temp", /\/private\/(?:tmp|var)\//],
-  ["absolute-path", "linux-home", /\/home\/[a-z][a-z0-9_-]*\//],
-  ["absolute-path", "windows-home", /\b[A-Za-z]:\\+Users\\+/],
-].map(([category, rule, pattern]) => ({ category, rule, pattern }));
+// The rules themselves live beside the content-rules matcher, so the
+// Onboard flow's leak scan checks specs with the same list.
+const PUBLIC_RULES = PUBLISH_RULES;
 
 // The terms parser and per-line matcher are content-rules.mjs's (design
 // §4.9): one format, so a company writes one list.

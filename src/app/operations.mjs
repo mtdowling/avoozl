@@ -194,6 +194,7 @@ import {
   draftGitHubChildren,
 } from "./github-breakdown.mjs";
 import { previewProjection } from "./github-preview.mjs";
+import { inspectFolder, scanSpecs } from "./onboarding.mjs";
 import {
   assertRepositoryRemovable,
   removeWorkspaceRepositoryRecords,
@@ -3330,6 +3331,12 @@ export class Operations {
       return { items: workspaceRepositories(store) };
     // Read only: what the Add repository form would register for a folder.
     if (name === "repositories.detect") return detectCheckout(input.folder);
+    // Onboard flow reads (onboarding.mjs): the folder as a whole, and the
+    // leak scan of the specs a public repository's issues would show.
+    if (name === "onboarding.inspect")
+      return inspectFolder({ store, github: this.github, folder: input.folder });
+    if (name === "onboarding.scan")
+      return scanSpecs(store, (spec) => this.readSpec(spec), input.specs);
     if (name === "repositories.configure") {
       this.configuration?.assertWritable();
       const id = String(input.id || "").trim();
@@ -3650,6 +3657,57 @@ export class Operations {
           identity: planningIdentity(this.workspaceRoot),
         }),
       );
+    // The issues approving a draft spec plan would make, without approving
+    // it: approval runs on a scratch copy of the store that is thrown away,
+    // then the projection preview reads that copy. Nothing is written here
+    // or on GitHub.
+    if (name === "plan.issues.preview") {
+      const plan = store.get("plans", input.planId);
+      if (!plan) fail("Plan not found.", 404);
+      if (!plan.spec) fail("Only a spec plan is previewed this way.", 409);
+      let policy = null;
+      try {
+        policy = this.githubPolicy();
+      } catch {
+        policy = null;
+      }
+      // Lint implies a leaf's repository when only one is registered;
+      // the preview does the same for the issue repository.
+      const configured = store.list("github_repositories"),
+        repository =
+          input.repository ||
+          (configured.length === 1 ? configured[0].id : undefined);
+      const projection = (target) =>
+        previewProjection(target, this.github, {
+          planId: plan.id,
+          repository,
+          identity: planningIdentity(this.workspaceRoot),
+          policy,
+          claimed: claimedTaskIds(target),
+        });
+      if (plan.state === "approved")
+        return { ...(await projection(store)), simulated: false };
+      const quality = this.lintSpecPlan(plan, [], { content: false }),
+        blocking = quality.diagnostics.filter((d) => d.severity === "error");
+      if (blocking.length)
+        return { planId: plan.id, writes: [], blocked: blocking, simulated: true };
+      const scratch = store.scratch();
+      try {
+        approvePlan(scratch, {
+          id: plan.id,
+          expectedHash: plan.hash,
+          expectedRevision: scratch.read().revision,
+          githubPolicy: policy,
+          proposals: quality.proposals,
+          baseline: true,
+          approvedBy: this.operator,
+          operator: this.operator,
+        });
+        return { ...(await projection(scratch)), simulated: true };
+      } finally {
+        scratch.close();
+      }
+    }
     if (name === "github.project.preview") {
       // Like `withProjectSync`, a bad Project policy never hides the issue
       // preview; the projection reads its own identity.
