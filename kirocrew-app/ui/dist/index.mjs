@@ -28198,8 +28198,617 @@ function Hv(e) {
 		]
 	});
 }
+// kirocrew-app/ui/src/files-api.ts
+function Uv(e) {
+	let t = async (t, n, r) => (await e.post(un, {
+		operation: t,
+		input: n,
+		workspaceId: r
+	})).result;
+	return {
+		files: (e, n, r = !1) => t("task.files", {
+			taskId: n,
+			...r ? { all: !0 } : {}
+		}, e),
+		diff: (e, n, r) => t("task.diff", {
+			taskId: n,
+			path: r
+		}, e)
+	};
+}
+var Wv = {
+	added: "A",
+	modified: "M",
+	deleted: "D",
+	renamed: "R",
+	copied: "C"
+}, Gv = {
+	added: "success",
+	modified: "info",
+	deleted: "danger",
+	renamed: "wave",
+	copied: "wave"
+};
+function Kv(e) {
+	return [
+		"added",
+		"modified",
+		"deleted",
+		"renamed",
+		"copied"
+	].map((t) => [t, e.filter((e) => e.status === t).length]).filter(([, e]) => e > 0).map(([e, t]) => `${t} ${e}`).join(", ");
+}
+function qv(e, t = []) {
+	let n = new Map(t.map((e) => [e.path, e])), r = {
+		name: "",
+		path: "",
+		change: null,
+		file: !1,
+		children: []
+	};
+	for (let i of /* @__PURE__ */ new Set([...e, ...t.map((e) => e.path)])) {
+		let e = i.split("/"), t = r;
+		e.forEach((r, a) => {
+			let o = e.slice(0, a + 1).join("/"), s = a === e.length - 1, c = t.children.find((e) => e.name === r && e.file === s);
+			c || (c = {
+				name: r,
+				path: o,
+				change: s ? n.get(i) ?? null : null,
+				file: s,
+				children: []
+			}, t.children.push(c)), t = c;
+		});
+	}
+	let i = (e) => {
+		let t = e.children.map(i);
+		return t.sort((e, t) => Number(e.file) - Number(t.file) || e.name.localeCompare(t.name)), !e.file && e.path && t.length === 1 && !t[0].file ? {
+			...t[0],
+			name: `${e.name}/${t[0].name}`
+		} : {
+			...e,
+			children: t
+		};
+	};
+	return i(r).children;
+}
+var Jv = (e) => e.kind === "add" || e.kind === "del" || e.kind === "context";
+function Yv(e) {
+	let t = [], n = 0, r = 0, i = !1, a = e.split("\n");
+	a.at(-1) === "" && a.pop();
+	for (let e of a) {
+		let a = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(e);
+		a ? (n = Number(a[1]), r = Number(a[2]), i = !0, t.push({
+			kind: "hunk",
+			text: e
+		})) : !i || e.startsWith("\\") || e.startsWith("diff --git ") ? (e.startsWith("diff --git ") && (i = !1), t.push({
+			kind: "meta",
+			text: e
+		})) : e.startsWith("+") ? t.push({
+			kind: "add",
+			text: e.slice(1),
+			old: null,
+			new: r++
+		}) : e.startsWith("-") ? t.push({
+			kind: "del",
+			text: e.slice(1),
+			old: n++,
+			new: null
+		}) : t.push({
+			kind: "context",
+			text: e.slice(1),
+			old: n++,
+			new: r++
+		});
+	}
+	return t;
+}
+function Xv(e) {
+	let t = [], n = [], r = [], i = () => {
+		for (let e = 0; e < Math.max(n.length, r.length); e++) t.push({
+			kind: "pair",
+			left: n[e] ?? null,
+			right: r[e] ?? null
+		});
+		n = [], r = [];
+	};
+	for (let a of e) Jv(a) ? a.kind === "del" ? (r.length && i(), n.push(a)) : a.kind === "add" ? r.push(a) : (i(), t.push({
+		kind: "pair",
+		left: a,
+		right: a
+	})) : (i(), t.push(a));
+	return i(), t;
+}
+var Zv = [{
+	key: "kiro",
+	label: "Kiro"
+}, {
+	key: "vscode",
+	label: "VS Code"
+}];
+function Qv(e, t) {
+	let n = /^[A-Za-z]:\\/.test(e) || e.includes("\\") && !e.includes("/") ? "\\" : "/";
+	return e.replace(/[\\/]+$/, "") + n + t.split("/").join(n);
+}
+function $v(e, t, n) {
+	if (!t) return null;
+	let r = t.replace(/\\/g, "/");
+	if (!r.startsWith("/") && !/^[A-Za-z]:\//.test(r)) return null;
+	let i = r.replace(/^\/+/, "").split("/").map((e, t) => t === 0 && /^[A-Za-z]:$/.test(e) ? e : encodeURIComponent(e)).join("/");
+	return `${e === "vscode" ? "vscode" : "kiro"}://file/${i}${n ? `:${n}` : ""}`;
+}
+function ey(e) {
+	for (let t of e) if (Jv(t) && t.kind !== "context") return t.new ?? t.old;
+	return null;
+}
+var ty = "avoozl.editor";
+function ny(e) {
+	try {
+		return e?.getItem(ty) === "vscode" ? "vscode" : "kiro";
+	} catch {
+		return "kiro";
+	}
+}
+function ry(e, t) {
+	try {
+		t === "kiro" ? e?.removeItem(ty) : e?.setItem(ty, t);
+	} catch {}
+}
+function iy(e) {
+	let t = e.additions !== null && e.deletions !== null ? ` (+${e.additions} −${e.deletions})` : "";
+	return e.link ? "A link. Not followed or shown." : e.binary ? "Binary file. Not shown." : e.tooLarge ? `Too large to show here${t}${e.bytes ? `, ${Math.round(e.bytes / 1024)} KB` : ""}. Open it in your editor.` : e.status === "unchanged" ? "This task did not change this file." : e.status === "deleted" && !e.diff ? "Deleted." : e.diff ? null : "No text changes.";
+}
+// kirocrew-app/ui/src/TaskFiles.tsx
+var ay = 1500;
+function oy() {
+	try {
+		return window.localStorage;
+	} catch {
+		return null;
+	}
+}
+var sy = {
+	fontFamily: "var(--mono, ui-monospace, monospace)",
+	fontSize: 12,
+	lineHeight: "18px"
+}, cy = {
+	add: "color-mix(in srgb, var(--ok) 16%, transparent)",
+	del: "color-mix(in srgb, var(--danger) 16%, transparent)",
+	hunk: "color-mix(in srgb, var(--accent) 10%, transparent)"
+};
+function ly({ change: e }) {
+	return /* @__PURE__ */ x("span", {
+		title: e.status,
+		"data-status": e.status,
+		children: [/* @__PURE__ */ b("span", {
+			"aria-hidden": "true",
+			children: /* @__PURE__ */ b(G, {
+				variant: Gv[e.status],
+				children: Wv[e.status]
+			})
+		}), /* @__PURE__ */ b("span", {
+			className: "sr-only",
+			children: e.status
+		})]
+	});
+}
+function uy({ change: e }) {
+	return e.binary ? /* @__PURE__ */ b("span", {
+		className: "text-xs text-muted",
+		children: "binary"
+	}) : e.additions === null ? null : /* @__PURE__ */ x("span", {
+		className: "shrink-0 text-xs",
+		style: sy,
+		children: [
+			/* @__PURE__ */ x("span", {
+				style: { color: "var(--ok)" },
+				children: ["+", e.additions]
+			}),
+			" ",
+			/* @__PURE__ */ x("span", {
+				style: { color: "var(--danger)" },
+				children: ["−", e.deletions]
+			})
+		]
+	});
+}
+function dy(e) {
+	return /* @__PURE__ */ b("ul", {
+		"aria-label": e.depth === 0 ? "Files" : void 0,
+		className: "flex flex-col",
+		children: e.nodes.map((t) => t.file ? /* @__PURE__ */ b("li", { children: /* @__PURE__ */ x("button", {
+			type: "button",
+			"aria-current": e.selected === t.path ? "true" : void 0,
+			onClick: () => e.onPick(t.path),
+			className: "flex w-full min-w-0 items-center gap-2 rounded px-1 py-0.5 text-left text-sm",
+			style: {
+				paddingLeft: 4 + e.depth * 14,
+				background: e.selected === t.path ? "var(--bg-elevated)" : void 0,
+				color: t.change ? "var(--text)" : "var(--muted)"
+			},
+			"data-file": t.path,
+			children: [
+				t.change ? /* @__PURE__ */ b(ly, { change: t.change }) : /* @__PURE__ */ b("span", {
+					style: { width: 18 },
+					"aria-hidden": "true"
+				}),
+				/* @__PURE__ */ x("span", {
+					className: "min-w-0 flex-1 truncate",
+					title: t.change?.from ? `${t.change.from} → ${t.path}` : t.path,
+					children: [
+						t.name,
+						t.change?.from && /* @__PURE__ */ x("span", {
+							className: "text-xs text-muted",
+							children: [" ← ", t.change.from]
+						}),
+						t.change?.untracked && /* @__PURE__ */ b("span", {
+							className: "text-xs text-muted",
+							children: " (not committed)"
+						})
+					]
+				}),
+				t.change && /* @__PURE__ */ b(uy, { change: t.change })
+			]
+		}) }, t.path) : /* @__PURE__ */ x("li", { children: [/* @__PURE__ */ x("div", {
+			className: "flex items-center gap-1 px-1 py-0.5 text-sm text-muted",
+			style: { paddingLeft: 4 + e.depth * 14 },
+			children: [/* @__PURE__ */ b(ie, {
+				size: 14,
+				"aria-hidden": "true"
+			}), /* @__PURE__ */ b("span", {
+				className: "truncate",
+				children: t.name
+			})]
+		}), /* @__PURE__ */ b(dy, {
+			nodes: t.children,
+			depth: e.depth + 1,
+			selected: e.selected,
+			onPick: e.onPick
+		})] }, t.path))
+	});
+}
+var fy = (e) => /* @__PURE__ */ b("span", {
+	className: "select-none pr-2 text-right text-muted",
+	style: {
+		display: "inline-block",
+		minWidth: 36
+	},
+	children: e ?? ""
+});
+function py({ lines: e }) {
+	return /* @__PURE__ */ b("div", {
+		role: "group",
+		"aria-label": "Unified diff",
+		style: sy,
+		children: e.map((e, t) => Jv(e) ? /* @__PURE__ */ x("div", {
+			"data-line": e.kind,
+			style: {
+				whiteSpace: "pre",
+				background: e.kind === "context" ? void 0 : cy[e.kind]
+			},
+			children: [
+				fy(e.old),
+				fy(e.new),
+				/* @__PURE__ */ b("span", { children: e.kind === "add" ? "+" : e.kind === "del" ? "-" : " " }),
+				e.text
+			]
+		}, t) : /* @__PURE__ */ b("div", {
+			className: "text-muted",
+			style: {
+				whiteSpace: "pre",
+				background: e.kind === "hunk" ? cy.hunk : void 0
+			},
+			children: e.text
+		}, t))
+	});
+}
+function my({ lines: e }) {
+	let t = o(() => Xv(e), [e]), n = (e, t) => /* @__PURE__ */ b("div", {
+		style: {
+			whiteSpace: "pre",
+			overflow: "hidden",
+			background: e && e.kind !== "context" ? cy[e.kind] : void 0
+		},
+		children: e ? /* @__PURE__ */ x(y, { children: [fy(t === "left" ? e.old : e.new), e.text] }) : " "
+	});
+	return /* @__PURE__ */ b("div", {
+		role: "group",
+		"aria-label": "Side-by-side diff",
+		style: sy,
+		children: t.map((e, t) => e.kind === "pair" ? /* @__PURE__ */ x("div", {
+			"data-split-row": !0,
+			style: {
+				display: "grid",
+				gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)",
+				gap: 1
+			},
+			children: [n(e.left, "left"), n(e.right, "right")]
+		}, t) : /* @__PURE__ */ b("div", {
+			className: "text-muted",
+			style: {
+				whiteSpace: "pre",
+				background: e.kind === "hunk" ? cy.hunk : void 0
+			},
+			children: e.text
+		}, t))
+	});
+}
+function hy(e) {
+	return /* @__PURE__ */ b("span", {
+		role: "group",
+		"aria-label": e.label,
+		className: "inline-flex overflow-hidden rounded border",
+		style: { borderColor: "var(--border)" },
+		children: e.options.map((t) => /* @__PURE__ */ b("button", {
+			type: "button",
+			"aria-pressed": e.value === t.key,
+			onClick: () => e.onChange(t.key),
+			className: "px-2 py-0.5 text-xs",
+			style: e.value === t.key ? {
+				background: "var(--accent)",
+				color: "var(--bg)"
+			} : { color: "var(--text)" },
+			children: t.label
+		}, t.key))
+	});
+}
+function gy(e) {
+	let [t, n] = c(!1), r = o(() => Yv(e.diff.diff), [e.diff.diff]), i = iy(e.diff);
+	if (i) return /* @__PURE__ */ b("p", {
+		className: "text-sm text-muted",
+		"data-diff-summary": !0,
+		children: i
+	});
+	let a = t ? r : r.slice(0, ay);
+	return /* @__PURE__ */ x("div", {
+		"data-diff": !0,
+		className: "flex flex-col gap-1",
+		children: [/* @__PURE__ */ b("div", {
+			className: "overflow-x-auto rounded border",
+			style: {
+				borderColor: "var(--border)",
+				background: "var(--card, var(--bg))"
+			},
+			children: e.layout === "split" ? /* @__PURE__ */ b(my, { lines: a }) : /* @__PURE__ */ b(py, { lines: a })
+		}), a.length < r.length && /* @__PURE__ */ x("button", {
+			type: "button",
+			className: "self-start text-xs underline",
+			onClick: () => n(!0),
+			children: [
+				"Show the other ",
+				r.length - a.length,
+				" lines"
+			]
+		})]
+	});
+}
+function _y(e) {
+	let t = l(), n = o(() => Uv(t), [t]), [i, a] = c(null), [s, u] = c(null), [d, f] = c(!1), [p, m] = c(null), [h, g] = c(null), [_, v] = c("unified"), [S, C] = c(() => ny(oy())), [w, T] = c(0);
+	r(() => {
+		if (!e.active) return;
+		let t = !0;
+		return u(null), n.files(e.workspaceId, e.taskId, d).then((e) => t && a(e), (e) => t && u(K(e))), () => {
+			t = !1;
+		};
+	}, [
+		n,
+		e.workspaceId,
+		e.taskId,
+		e.active,
+		d,
+		w
+	]), r(() => {
+		m(null), g(null), a(null), f(!1);
+	}, [e.taskId]);
+	let E = (t) => {
+		m(t), g({
+			path: t,
+			view: null,
+			error: null
+		}), n.diff(e.workspaceId, e.taskId, t).then((e) => g((n) => n?.path === t ? {
+			path: t,
+			view: e,
+			error: null
+		} : n), (e) => g((n) => n?.path === t ? {
+			path: t,
+			view: null,
+			error: K(e)
+		} : n));
+	}, D = o(() => i ? qv(d && i.all ? i.all.paths : [], i.files) : [], [i, d]);
+	if (s) return /* @__PURE__ */ b("p", {
+		role: "alert",
+		className: "text-sm text-danger",
+		children: s
+	});
+	if (!i) return /* @__PURE__ */ b("p", {
+		className: "text-sm text-muted",
+		children: "Reading the task's branch…"
+	});
+	let O = Tr(i.github), k = i.mode === "worktree" && !i.remote && i.worktree, A = O && /* @__PURE__ */ x("a", {
+		href: O,
+		target: "_blank",
+		rel: "noreferrer",
+		className: "inline-flex items-center gap-1 text-sm underline",
+		"data-github-branch": !0,
+		children: [
+			/* @__PURE__ */ b(ce, {
+				size: 14,
+				"aria-hidden": "true"
+			}),
+			i.branch,
+			" on GitHub"
+		]
+	});
+	if (i.mode === "none") return /* @__PURE__ */ x("div", {
+		className: "flex flex-col gap-2 text-sm",
+		children: [/* @__PURE__ */ b("p", {
+			className: "text-muted",
+			children: i.remote ? "This task runs on another machine. Its files are not here." : "No worktree or branch for this task on this machine yet."
+		}), A]
+	});
+	let j = i.files.find((e) => e.path === p) ?? null, M = h?.view ? Yv(h.view.diff) : [], N = k && p && j?.status !== "deleted" ? $v(S, Qv(i.worktree, p), ey(M)) : null;
+	return /* @__PURE__ */ x("div", {
+		className: "flex flex-col gap-3",
+		"data-task-files": !0,
+		children: [
+			/* @__PURE__ */ x("div", {
+				className: "flex flex-wrap items-center gap-2 text-sm",
+				children: [
+					/* @__PURE__ */ b("span", {
+						"data-files-totals": !0,
+						children: i.totals ? /* @__PURE__ */ x(y, { children: [
+							i.totals.files,
+							" ",
+							i.totals.files === 1 ? "file" : "files",
+							" changed",
+							i.totals.files > 0 && /* @__PURE__ */ x(y, { children: [
+								" ",
+								"· ",
+								/* @__PURE__ */ x("span", {
+									style: { color: "var(--ok)" },
+									children: ["+", i.totals.additions]
+								}),
+								" ",
+								/* @__PURE__ */ x("span", {
+									style: { color: "var(--danger)" },
+									children: ["−", i.totals.deletions]
+								})
+							] })
+						] }) : "Too many changes to list."
+					}),
+					i.files.length > 0 && /* @__PURE__ */ b("span", {
+						className: "text-xs text-muted",
+						children: Kv(i.files)
+					}),
+					/* @__PURE__ */ b("span", { className: "flex-1" }),
+					/* @__PURE__ */ b(J, {
+						icon: Ne,
+						label: "Read the files again",
+						onClick: () => T((e) => e + 1)
+					})
+				]
+			}),
+			/* @__PURE__ */ x("div", {
+				className: "flex flex-wrap items-center gap-2 text-xs",
+				children: [
+					/* @__PURE__ */ x("span", {
+						className: "text-muted",
+						children: [i.mode === "worktree" ? "Its worktree" : `Its branch ${i.branch}`, " against where it left its base."]
+					}),
+					k ? /* @__PURE__ */ x("a", {
+						href: $v(S, i.worktree) ?? void 0,
+						className: "inline-flex items-center gap-1 underline",
+						"data-open-worktree": !0,
+						children: [
+							/* @__PURE__ */ b(H, {
+								size: 14,
+								"aria-hidden": "true"
+							}),
+							"Open worktree in ",
+							Zv.find((e) => e.key === S).label
+						]
+					}) : A,
+					k && /* @__PURE__ */ x("label", {
+						className: "inline-flex items-center gap-1",
+						children: ["Editor", /* @__PURE__ */ b("select", {
+							value: S,
+							onChange: (e) => {
+								let t = e.target.value;
+								C(t), ry(oy(), t);
+							},
+							className: "rounded border px-1 py-0.5 text-xs",
+							style: {
+								borderColor: "var(--border)",
+								background: "var(--card, var(--bg))",
+								color: "var(--text)"
+							},
+							children: Zv.map((e) => /* @__PURE__ */ b("option", {
+								value: e.key,
+								children: e.label
+							}, e.key))
+						})]
+					}),
+					/* @__PURE__ */ x("label", {
+						className: "inline-flex items-center gap-1",
+						children: [/* @__PURE__ */ b("input", {
+							type: "checkbox",
+							checked: d,
+							onChange: (e) => f(e.target.checked)
+						}), "Show all files"]
+					})
+				]
+			}),
+			D.length === 0 ? /* @__PURE__ */ b("p", {
+				className: "text-sm text-muted",
+				children: "This task has not changed any files yet."
+			}) : /* @__PURE__ */ b("div", {
+				className: "max-h-80 overflow-auto rounded border p-1",
+				style: { borderColor: "var(--border)" },
+				children: /* @__PURE__ */ b(dy, {
+					nodes: D,
+					depth: 0,
+					selected: p,
+					onPick: E
+				})
+			}),
+			(i.truncated || i.all?.truncated) && /* @__PURE__ */ b("p", {
+				className: "text-xs text-muted",
+				children: "Only the first files are listed."
+			}),
+			h && /* @__PURE__ */ x("section", {
+				"aria-label": `Diff of ${h.path}`,
+				className: "flex flex-col gap-2",
+				children: [/* @__PURE__ */ x("div", {
+					className: "flex flex-wrap items-center gap-2",
+					children: [
+						/* @__PURE__ */ b("h4", {
+							className: "min-w-0 flex-1 truncate text-sm font-semibold",
+							style: sy,
+							title: h.path,
+							children: h.path
+						}),
+						/* @__PURE__ */ b(hy, {
+							label: "Diff layout",
+							options: [{
+								key: "unified",
+								label: "Unified"
+							}, {
+								key: "split",
+								label: "Split"
+							}],
+							value: _,
+							onChange: (e) => v(e)
+						}),
+						N && /* @__PURE__ */ x("a", {
+							href: N,
+							className: "inline-flex items-center gap-1 text-xs underline",
+							"data-open-file": !0,
+							children: [
+								/* @__PURE__ */ b(H, {
+									size: 14,
+									"aria-hidden": "true"
+								}),
+								"Open in ",
+								Zv.find((e) => e.key === S).label
+							]
+						})
+					]
+				}), h.error ? /* @__PURE__ */ b("p", {
+					role: "alert",
+					className: "text-sm text-danger",
+					children: h.error
+				}) : h.view ? /* @__PURE__ */ b(gy, {
+					diff: h.view,
+					layout: _
+				}) : /* @__PURE__ */ b("p", {
+					className: "text-sm text-muted",
+					children: "Reading the diff…"
+				})]
+			})
+		]
+	});
+}
 // kirocrew-app/ui/src/TaskDrawer.tsx
-function Uv({ label: e, children: t }) {
+function vy({ label: e, children: t }) {
 	return /* @__PURE__ */ x(y, { children: [/* @__PURE__ */ b("dt", {
 		className: "text-muted",
 		children: e
@@ -28208,7 +28817,7 @@ function Uv({ label: e, children: t }) {
 		children: t
 	})] });
 }
-function Wv({ title: e, links: t, open: n }) {
+function yy({ title: e, links: t, open: n }) {
 	return /* @__PURE__ */ x("div", { children: [/* @__PURE__ */ b("h4", {
 		className: "text-sm font-semibold",
 		children: e
@@ -28238,7 +28847,7 @@ function Wv({ title: e, links: t, open: n }) {
 		}, `${e.id}:${e.kind}`))
 	})] });
 }
-function Gv(e) {
+function by(e) {
 	let { origin: n } = e, i = l(), a = o(() => ei(i), [i]), [s, u] = c(null), [d, f] = c(null), p = t(() => f(null), []), m = async (t) => {
 		if (s?.source === t) return u(null);
 		u({
@@ -28376,8 +28985,10 @@ function Gv(e) {
 		]
 	});
 }
-function Kv(e) {
-	let { workspaceId: n, id: i } = e, a = l(), s = o(() => ei(a), [a]), u = o(() => Cr(a), [a]), [d, f] = c(null), p = Pn(e.id), [m, h] = c(null), [g, _] = c(!1), v = Nn(n), [S, C] = c(!1), [w, T] = c(null), E = t(async () => {
+function xy(e) {
+	let { workspaceId: n, id: i } = e, a = l(), s = o(() => ei(a), [a]), u = o(() => Cr(a), [a]), [d, f] = c(null), p = Pn(e.id), [m, h] = c(null), [g, _] = c(!1), v = Nn(n), [S, C] = c(!1), [w, T] = c(null), [E, D] = c(!1);
+	r(() => D(!1), [i]);
+	let O = t(async () => {
 		h(null);
 		try {
 			f(await s.detail(n, i));
@@ -28390,12 +29001,12 @@ function Kv(e) {
 		i
 	]);
 	r(() => {
-		f(null), _(!1), T(null), E();
-	}, [E]);
-	let D = (e) => {
+		f(null), _(!1), T(null), O();
+	}, [O]);
+	let k = (e) => {
 		C(!0), T(null), (async () => {
 			try {
-				T(await e()), await E();
+				T(await e()), await O();
 			} catch (e) {
 				T({
 					ok: !1,
@@ -28415,25 +29026,25 @@ function Kv(e) {
 		className: "text-sm text-muted",
 		children: "Loading…"
 	});
-	let { task: O, delivery: k } = d, A = O.authority === "local", j = (k?.deliveries ?? []).map((e) => e.state).filter((e) => typeof e == "string").at(-1), M = O.status === "deferred", N = Mu(e.graph), P = k?.complete ?? O.state === "done", F = Tr(O.issue?.url ?? null);
+	let { task: A, delivery: j } = d, M = A.authority === "local", N = (j?.deliveries ?? []).map((e) => e.state).filter((e) => typeof e == "string").at(-1), P = A.status === "deferred", F = Mu(e.graph), I = j?.complete ?? A.state === "done", L = Tr(A.issue?.url ?? null);
 	return /* @__PURE__ */ x("div", {
 		className: "flex flex-col gap-3",
 		children: [
 			/* @__PURE__ */ x("div", { children: [/* @__PURE__ */ b(Y, {
 				level: 2,
 				id: "avoozl-drawer-title",
-				title: O.title
+				title: A.title
 			}), /* @__PURE__ */ x("div", {
 				className: "mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted",
 				children: [
-					/* @__PURE__ */ b("span", { children: O.id }),
-					/* @__PURE__ */ b(ec, { owner: O }),
-					O.state && /* @__PURE__ */ b(G, {
-						variant: O.state === "needs-you" ? "warning" : void 0,
-						children: O.state
+					/* @__PURE__ */ b("span", { children: A.id }),
+					/* @__PURE__ */ b(ec, { owner: A }),
+					A.state && /* @__PURE__ */ b(G, {
+						variant: A.state === "needs-you" ? "warning" : void 0,
+						children: A.state
 					}),
 					d.locked && /* @__PURE__ */ b(G, { children: "locked" }),
-					O.planArchived && /* @__PURE__ */ b(G, { children: "Archived" })
+					A.planArchived && /* @__PURE__ */ b(G, { children: "Archived" })
 				]
 			})] }),
 			/* @__PURE__ */ x("div", {
@@ -28443,41 +29054,41 @@ function Kv(e) {
 						icon: V,
 						tooltip: "Show only this task and the tasks it waits on and that wait on it",
 						onClick: () => {
-							e.onFocus(O.id, O.title), e.onClose();
+							e.onFocus(A.id, A.title), e.onClose();
 						},
 						children: "Focus"
 					}),
 					/* @__PURE__ */ b(q, {
 						icon: Ce,
 						tooltip: "Start a Kiro Crew chat seeded with this task's full context",
-						onClick: () => void v.ask({ tasks: [O.id] }),
+						onClick: () => void v.ask({ tasks: [A.id] }),
 						children: "Ask in a chat"
 					}),
-					j === "decision" && /* @__PURE__ */ b(q, {
+					N === "decision" && /* @__PURE__ */ b(q, {
 						icon: Pe,
 						disabled: S,
 						tooltip: "Starts a new attempt for this task.",
-						onClick: () => D(async () => (await u.retry(n, O.id), {
+						onClick: () => k(async () => (await u.retry(n, A.id), {
 							ok: !0,
 							text: "Retrying."
 						})),
 						children: "Retry"
 					}),
-					!P && A && !M && /* @__PURE__ */ b(q, {
+					!I && M && !P && /* @__PURE__ */ b(q, {
 						icon: Oe,
 						disabled: S,
 						tooltip: "Pauses new dispatch. A running chat is left alone. Resume undoes it.",
-						onClick: () => D(async () => (await u.updateTask(n, O.id, { status: "deferred" }, d.revision), {
+						onClick: () => k(async () => (await u.updateTask(n, A.id, { status: "deferred" }, d.revision), {
 							ok: !0,
 							text: "Deferred. No new attempt starts; a running session is left alone."
 						})),
 						children: "Defer"
 					}),
-					!P && A && M && N && /* @__PURE__ */ b(q, {
+					!I && M && P && F && /* @__PURE__ */ b(q, {
 						icon: Ae,
 						disabled: S,
 						tooltip: "Lets the tick start this task again. Undoes Defer.",
-						onClick: () => D(async () => (await u.updateTask(n, O.id, { status: N }, d.revision), {
+						onClick: () => k(async () => (await u.updateTask(n, A.id, { status: F }, d.revision), {
 							ok: !0,
 							text: "Resumed."
 						})),
@@ -28489,8 +29100,8 @@ function Kv(e) {
 						onClick: () => _(!g),
 						children: "Edit"
 					}),
-					!P && !A && F && /* @__PURE__ */ b("a", {
-						href: Z(F),
+					!I && !M && L && /* @__PURE__ */ b("a", {
+						href: Z(L),
 						target: "_blank",
 						rel: "noreferrer",
 						className: "self-center text-xs underline",
@@ -28508,25 +29119,25 @@ function Kv(e) {
 				className: `text-sm ${w.ok ? "text-muted" : "text-danger"}`,
 				children: w.text
 			}),
-			O.handSetReview && /* @__PURE__ */ b(Wu, {
+			A.handSetReview && /* @__PURE__ */ b(Wu, {
 				workspaceId: n,
-				task: O,
+				task: A,
 				graph: e.graph,
 				revision: d.revision,
 				onChanged: (e) => {
 					T({
 						ok: !0,
 						text: e
-					}), E();
+					}), O();
 				}
 			}),
-			Ir(k).length > 0 && /* @__PURE__ */ x("section", {
+			Ir(j).length > 0 && /* @__PURE__ */ x("section", {
 				"aria-label": "Review",
 				className: "flex flex-col gap-1",
 				children: [/* @__PURE__ */ b("h4", {
 					className: "text-sm font-semibold",
 					children: "Review"
-				}), /* @__PURE__ */ b(Uu, { item: k })]
+				}), /* @__PURE__ */ b(Uu, { item: j })]
 			}),
 			g && /* @__PURE__ */ b("div", {
 				className: "rounded border p-3",
@@ -28539,7 +29150,7 @@ function Kv(e) {
 						T({
 							ok: !0,
 							text: "Saved. This task needs your review again before it starts."
-						}), _(!1), E();
+						}), _(!1), O();
 					},
 					onCancel: () => _(!1)
 				})
@@ -28558,71 +29169,71 @@ function Kv(e) {
 							className: "grid gap-x-3 gap-y-1.5 text-sm",
 							style: { gridTemplateColumns: "max-content 1fr" },
 							children: [
-								/* @__PURE__ */ b(Uv, {
+								/* @__PURE__ */ b(vy, {
 									label: "Epic",
-									children: O.epicTitle ?? "none"
+									children: A.epicTitle ?? "none"
 								}),
-								/* @__PURE__ */ b(Uv, {
+								/* @__PURE__ */ b(vy, {
 									label: "Phase",
-									children: O.phase?.title ?? "none"
+									children: A.phase?.title ?? "none"
 								}),
-								d.origin && /* @__PURE__ */ b(Uv, {
+								d.origin && /* @__PURE__ */ b(vy, {
 									label: "Came from",
-									children: /* @__PURE__ */ b(Gv, {
+									children: /* @__PURE__ */ b(by, {
 										origin: d.origin,
-										issue: F,
+										issue: L,
 										workspaceId: n
 									})
 								}),
-								/* @__PURE__ */ x(Uv, {
+								/* @__PURE__ */ x(vy, {
 									label: "Spec",
-									children: [d.plan ? `${d.plan.title}${d.plan.approved ? " (approved)" : ` (${d.plan.state ?? "draft"})`}` : "none", O.planArchived ? " · archived: its tasks do not start until you unarchive it" : ""]
+									children: [d.plan ? `${d.plan.title}${d.plan.approved ? " (approved)" : ` (${d.plan.state ?? "draft"})`}` : "none", A.planArchived ? " · archived: its tasks do not start until you unarchive it" : ""]
 								}),
-								/* @__PURE__ */ x(Uv, {
+								/* @__PURE__ */ x(vy, {
 									label: "Authority",
 									children: [
-										/* @__PURE__ */ b(ec, { owner: O }),
+										/* @__PURE__ */ b(ec, { owner: A }),
 										" ",
-										O.authority
+										A.authority
 									]
 								}),
-								/* @__PURE__ */ b(Uv, {
+								/* @__PURE__ */ b(vy, {
 									label: "Route",
-									children: O.route
+									children: A.route
 								}),
-								/* @__PURE__ */ b(Uv, {
+								/* @__PURE__ */ b(vy, {
 									label: "Status",
-									children: O.status ?? "none"
+									children: A.status ?? "none"
 								}),
-								/* @__PURE__ */ b(Uv, {
+								/* @__PURE__ */ b(vy, {
 									label: "State",
-									children: O.state ?? "unknown"
+									children: A.state ?? "unknown"
 								}),
-								/* @__PURE__ */ b(Uv, {
+								/* @__PURE__ */ b(vy, {
 									label: "Wave",
-									children: O.wave
+									children: A.wave
 								}),
-								/* @__PURE__ */ b(Uv, {
+								/* @__PURE__ */ b(vy, {
 									label: "Done when",
-									children: O.completion
+									children: A.completion
 								}),
-								O.repository && /* @__PURE__ */ b(Uv, {
+								A.repository && /* @__PURE__ */ b(vy, {
 									label: "Repository",
-									children: O.repository
+									children: A.repository
 								}),
-								O.owner && /* @__PURE__ */ b(Uv, {
+								A.owner && /* @__PURE__ */ b(vy, {
 									label: "Assignee",
-									children: O.owner
+									children: A.owner
 								}),
-								O.decision && /* @__PURE__ */ b(Uv, {
+								A.decision && /* @__PURE__ */ b(vy, {
 									label: "Decision",
-									children: O.decision
+									children: A.decision
 								}),
-								O.needsReview && /* @__PURE__ */ b(Uv, {
+								A.needsReview && /* @__PURE__ */ b(vy, {
 									label: "Review",
 									children: "Needs your review"
 								}),
-								(k?.pullRequests ?? []).map((e, t) => /* @__PURE__ */ b(Uv, {
+								(j?.pullRequests ?? []).map((e, t) => /* @__PURE__ */ b(vy, {
 									label: "Pull request",
 									children: Tr(e.url) ? /* @__PURE__ */ x("a", {
 										href: Tr(e.url),
@@ -28646,16 +29257,16 @@ function Kv(e) {
 						children: /* @__PURE__ */ x("div", {
 							className: "flex flex-col gap-3",
 							children: [
-								O.summary ? /* @__PURE__ */ b($s, { text: O.summary }) : /* @__PURE__ */ b("p", {
+								A.summary ? /* @__PURE__ */ b($s, { text: A.summary }) : /* @__PURE__ */ b("p", {
 									className: "text-sm text-muted",
 									children: "No description."
 								}),
 								/* @__PURE__ */ x("div", { children: [/* @__PURE__ */ b("h4", {
 									className: "text-sm font-semibold",
 									children: "Acceptance"
-								}), O.acceptance.length ? /* @__PURE__ */ b("ul", {
+								}), A.acceptance.length ? /* @__PURE__ */ b("ul", {
 									className: "mt-1 list-disc pl-5 text-sm",
-									children: O.acceptance.map((e, t) => /* @__PURE__ */ b("li", { children: e }, t))
+									children: A.acceptance.map((e, t) => /* @__PURE__ */ b("li", { children: e }, t))
 								}) : /* @__PURE__ */ b("p", {
 									className: "text-sm text-muted",
 									children: "None."
@@ -28663,17 +29274,17 @@ function Kv(e) {
 								/* @__PURE__ */ x("div", { children: [/* @__PURE__ */ b("h4", {
 									className: "text-sm font-semibold",
 									children: "Checks"
-								}), O.checks.length ? /* @__PURE__ */ b("ul", {
+								}), A.checks.length ? /* @__PURE__ */ b("ul", {
 									className: "mt-1 flex flex-col gap-1 text-sm",
-									children: O.checks.map((e, t) => /* @__PURE__ */ b("li", { children: /* @__PURE__ */ b("code", { children: e }) }, t))
+									children: A.checks.map((e, t) => /* @__PURE__ */ b("li", { children: /* @__PURE__ */ b("code", { children: e }) }, t))
 								}) : /* @__PURE__ */ b("p", {
 									className: "text-sm text-muted",
 									children: "None."
 								})] }),
-								O.context && /* @__PURE__ */ x("div", { children: [/* @__PURE__ */ b("h4", {
+								A.context && /* @__PURE__ */ x("div", { children: [/* @__PURE__ */ b("h4", {
 									className: "text-sm font-semibold",
 									children: "From its spec"
-								}), /* @__PURE__ */ b($s, { text: O.context })] })
+								}), /* @__PURE__ */ b($s, { text: A.context })] })
 							]
 						})
 					}),
@@ -28683,11 +29294,11 @@ function Kv(e) {
 						title: "Links",
 						children: /* @__PURE__ */ x("div", {
 							className: "flex flex-col gap-3",
-							children: [/* @__PURE__ */ b(Wv, {
+							children: [/* @__PURE__ */ b(yy, {
 								title: "Waits on",
 								links: d.waitsOn,
 								open: e.open
-							}), /* @__PURE__ */ b(Wv, {
+							}), /* @__PURE__ */ b(yy, {
 								title: "Blocks",
 								links: d.blocks,
 								open: e.open
@@ -28698,12 +29309,12 @@ function Kv(e) {
 						id: "delivery",
 						group: "task-drawer",
 						title: "Delivery",
-						children: k ? /* @__PURE__ */ x("div", {
+						children: j ? /* @__PURE__ */ x("div", {
 							className: "flex flex-col gap-2",
 							children: [
-								k.sessions.length > 0 && /* @__PURE__ */ b("ul", {
+								j.sessions.length > 0 && /* @__PURE__ */ b("ul", {
 									className: "flex flex-col gap-1 text-sm",
-									children: k.sessions.map((e) => /* @__PURE__ */ x("li", { children: [
+									children: j.sessions.map((e) => /* @__PURE__ */ x("li", { children: [
 										/* @__PURE__ */ x("a", {
 											href: Z(di(e)),
 											className: "underline",
@@ -28728,24 +29339,35 @@ function Kv(e) {
 										})
 									] }, e.slot))
 								}),
-								j === "decision" && /* @__PURE__ */ b(bu, {
-									item: k,
+								N === "decision" && /* @__PURE__ */ b(bu, {
+									item: j,
 									busy: S,
-									onRetry: (e) => D(async () => (await u.retry(n, O.id, e), {
+									onRetry: (e) => k(async () => (await u.retry(n, A.id, e), {
 										ok: !0,
 										text: "Dismissed and retrying."
 									}))
 								}),
 								/* @__PURE__ */ b(xu, {
-									item: k,
+									item: j,
 									onSupersede: async (e, t) => {
-										await u.supersede(n, e, t), await E();
+										await u.supersede(n, e, t), await O();
 									}
 								})
 							]
 						}) : /* @__PURE__ */ b("p", {
 							className: "text-sm text-muted",
 							children: "No delivery yet."
+						})
+					}),
+					/* @__PURE__ */ b(jn, {
+						id: "files",
+						group: "task-drawer",
+						title: "Files",
+						onToggle: (e) => e && D(!0),
+						children: /* @__PURE__ */ b(_y, {
+							workspaceId: n,
+							taskId: A.id,
+							active: E
 						})
 					}),
 					/* @__PURE__ */ b(jn, {
@@ -28759,12 +29381,12 @@ function Kv(e) {
 						group: "task-drawer",
 						title: /* @__PURE__ */ x("span", {
 							className: "flex items-center gap-2",
-							children: ["Budget ", /* @__PURE__ */ b(mr, { budget: k?.budget })]
+							children: ["Budget ", /* @__PURE__ */ b(mr, { budget: j?.budget })]
 						}),
 						children: /* @__PURE__ */ b(vr, {
 							workspaceId: n,
-							taskId: O.id,
-							onChange: () => void E()
+							taskId: A.id,
+							onChange: () => void O()
 						})
 					}),
 					/* @__PURE__ */ b(jn, {
@@ -28802,7 +29424,7 @@ function Kv(e) {
 										workspaceId: n,
 										revision: d.revision,
 										busy: S,
-										run: D,
+										run: k,
 										onSettled: () => void 0
 									})
 								]
@@ -28835,24 +29457,24 @@ function Kv(e) {
 					})
 				]
 			}),
-			k && Nr(k) && /* @__PURE__ */ b(vu, {
-				item: k,
+			j && Nr(j) && /* @__PURE__ */ b(vu, {
+				item: j,
 				onSupersede: async (e, t) => {
-					await u.supersede(n, e, t), await E();
+					await u.supersede(n, e, t), await O();
 				}
 			}),
-			k?.sessions.length ? /* @__PURE__ */ x("p", {
+			j?.sessions.length ? /* @__PURE__ */ x("p", {
 				className: "text-xs text-muted",
 				children: [
 					"Running for ",
-					li(k.sessions.at(-1).boundAt),
+					li(j.sessions.at(-1).boundAt),
 					" in its latest attempt."
 				]
 			}) : null
 		]
 	});
 }
-function qv(e) {
+function Sy(e) {
 	let t = l(), n = o(() => Cr(t), [t]), i = o(() => ei(t), [t]), [a, s] = c(null), [u, d] = c(!1), [f, p] = c(null);
 	r(() => {
 		n.conflictsPage(e.workspaceId).then((t) => s({
@@ -28924,14 +29546,14 @@ function qv(e) {
 		]
 	});
 }
-function Jv() {
+function Cy() {
 	try {
 		return window.localStorage;
 	} catch {
 		return null;
 	}
 }
-function Yv(e) {
+function wy(e) {
 	let [t, n] = c(!1);
 	return /* @__PURE__ */ b("div", {
 		role: "separator",
@@ -28976,14 +29598,14 @@ function Yv(e) {
 		})
 	});
 }
-function Xv({ workspaceId: e, children: n, onFocus: i }) {
+function Ty({ workspaceId: e, children: n, onFocus: i }) {
 	let a = l(), u = o(() => Cr(a), [a]), [d, f] = c(null), [p, m] = c([]), [h, g] = c(null), [_, v] = c(!1), S = s(null), C = s(null), w = Ze("(max-width: 767px)"), T = Ze("(prefers-reduced-motion: reduce)"), [E, D] = c(620), [O, k] = c(!1);
 	r(() => {
-		D(e ? Pv(Jv(), e) : 620);
+		D(e ? Pv(Cy(), e) : 620);
 	}, [e]);
 	let A = t((t) => {
 		let n = Mv(t, window.innerWidth);
-		D(n), e && Fv(Jv(), e, n);
+		D(n), e && Fv(Cy(), e, n);
 	}, [e]), j = s(null);
 	j.current = d;
 	let M = o(() => ({
@@ -29044,7 +29666,7 @@ function Xv({ workspaceId: e, children: n, onFocus: i }) {
 					className: "absolute inset-0",
 					style: { background: "color-mix(in srgb, var(--text) 25%, transparent)" }
 				}),
-				!w && /* @__PURE__ */ b(Yv, {
+				!w && /* @__PURE__ */ b(wy, {
 					width: Mv(E, typeof window > "u" ? E : window.innerWidth),
 					onResize: A,
 					onDragging: k,
@@ -29087,14 +29709,14 @@ function Xv({ workspaceId: e, children: n, onFocus: i }) {
 								children: "Close"
 							})
 						]
-					}), d.kind === "task" ? /* @__PURE__ */ b(Kv, {
+					}), d.kind === "task" ? /* @__PURE__ */ b(xy, {
 						workspaceId: e,
 						id: d.id,
 						graph: h,
 						open: M.openTask,
 						onClose: P,
 						onFocus: i
-					}) : d.kind === "review" ? /* @__PURE__ */ b(qv, {
+					}) : d.kind === "review" ? /* @__PURE__ */ b(Sy, {
 						workspaceId: e,
 						group: d.group,
 						open: M.openTask,
@@ -29123,7 +29745,7 @@ function Xv({ workspaceId: e, children: n, onFocus: i }) {
 	});
 }
 // kirocrew-app/ui/src/App.tsx
-var Zv = [
+var Ey = [
 	{
 		key: "dashboard",
 		label: "Dashboard"
@@ -29165,14 +29787,14 @@ var Zv = [
 		label: "Settings"
 	}
 ];
-function Qv() {
+function Dy() {
 	try {
 		return window.localStorage;
 	} catch {
 		return null;
 	}
 }
-function $v(e) {
+function Oy(e) {
 	let { list: t } = e;
 	return /* @__PURE__ */ x("label", {
 		className: "flex items-center gap-2 text-sm",
@@ -29203,18 +29825,18 @@ function $v(e) {
 		})]
 	});
 }
-var ey = (e) => Zv.find((t) => t.key === e)?.label ?? e;
-function ty() {
-	return /* @__PURE__ */ b(rn, { children: /* @__PURE__ */ b(ny, {}) });
+var ky = (e) => Ey.find((t) => t.key === e)?.label ?? e;
+function Ay() {
+	return /* @__PURE__ */ b(rn, { children: /* @__PURE__ */ b(jy, {}) });
 }
-function ny() {
-	let e = tn(), n = l(), i = o(() => dn(n), [n]), a = o(() => hn(Qv()), []), [s, u] = c("dashboard"), [d, f] = c(Ep), [m, g] = c(null), [y, S] = c(null), [C, w] = c(0), [T, E] = c({ n: 0 }), [D, O] = c(null), [k, A] = c(null), j = o(() => Cr(n), [n]), M = o(() => Bd(n), [n]), [N, P] = c(a.workspaceId), [F, I] = c(null), [L, R] = c(null), z = t((e) => {
+function jy() {
+	let e = tn(), n = l(), i = o(() => dn(n), [n]), a = o(() => hn(Dy()), []), [s, u] = c("dashboard"), [d, f] = c(Ep), [m, g] = c(null), [y, S] = c(null), [C, w] = c(0), [T, E] = c({ n: 0 }), [D, O] = c(null), [k, A] = c(null), j = o(() => Cr(n), [n]), M = o(() => Bd(n), [n]), [N, P] = c(a.workspaceId), [F, I] = c(null), [L, R] = c(null), z = t((e) => {
 		I(e), P((t) => pn(e, t));
 	}, []);
 	r(() => {
 		i.list().then(z, (e) => R(K(e)));
 	}, [i, z]), r(() => {
-		gn(Qv(), { workspaceId: N });
+		gn(Dy(), { workspaceId: N });
 	}, [N]);
 	let B = {
 		tab: s,
@@ -29223,7 +29845,7 @@ function ny() {
 		drill: y
 	}, ee = (e) => {
 		e.focus !== void 0 && g(e.focus), e.drill !== void 0 && S(e.drill), e.settingsTab !== void 0 && f(e.settingsTab), e.tab !== void 0 && u(e.tab);
-	}, V = (t, n) => Zt(e, B, t, ee, (e, t) => t ? `Back to ${ey(e.tab)}` : "Back to the previous Settings section", n), te = () => V({
+	}, V = (t, n) => Zt(e, B, t, ee, (e, t) => t ? `Back to ${ky(e.tab)}` : "Back to the previous Settings section", n), te = () => V({
 		settingsTab: "workspaces",
 		tab: "settings"
 	}), H = F ? N : null, ne = s !== "settings" && !H, re = (e, t) => V({
@@ -29275,7 +29897,7 @@ function ny() {
 	]), /* @__PURE__ */ b("div", {
 		[Qt]: "",
 		style: { display: "contents" },
-		children: /* @__PURE__ */ b(On, { children: /* @__PURE__ */ b(Xv, {
+		children: /* @__PURE__ */ b(On, { children: /* @__PURE__ */ b(Ty, {
 			workspaceId: H,
 			onFocus: (e, t) => ie({
 				kind: "focus",
@@ -29294,7 +29916,7 @@ function ny() {
 						actions: /* @__PURE__ */ x("div", {
 							className: "flex flex-wrap items-center gap-3",
 							children: [
-								/* @__PURE__ */ b($v, {
+								/* @__PURE__ */ b(Oy, {
 									list: F,
 									value: N,
 									onChange: P
@@ -29320,7 +29942,7 @@ function ny() {
 						children: /* @__PURE__ */ b(v, {
 							layoutId: "avoozl-views",
 							ariaLabel: "Avoozl views",
-							segments: Zv.map((e) => ({
+							segments: Ey.map((e) => ({
 								key: e.key,
 								label: e.key === "untriaged" && D ? /* @__PURE__ */ x("span", {
 									className: "inline-flex items-center gap-1.5",
@@ -29429,4 +30051,4 @@ function ny() {
 		}) })
 	});
 }
-export { ty as default };
+export { Ay as default };
