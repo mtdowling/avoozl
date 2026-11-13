@@ -5,18 +5,17 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import {
   MC10_LINE,
+  OFF_LINE,
   chatPlaceholder,
+  checkText,
   crewMap,
-  moveRule,
+  insertExample,
   readingText,
-  ruleText,
-  sessionNote,
   toCrewEntry,
   toCrewForm,
-  toRule,
-  toRuleForm,
-  emptyRuleForm,
-  withRules,
+  toProviderBox,
+  toRoutingSection,
+  usedText,
 } from '../src/routing-api.ts'
 import { toDeliveryForm, toDeliverySection } from '../src/delivery-api.ts'
 import { sessionLabel } from '../src/views-api.ts'
@@ -24,46 +23,31 @@ import { attachHref } from '../src/task-api.ts'
 
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 
-test('rule rows read When <match> -> <route> on <crews> as <agent / model>', () => {
-  assert.equal(
-    ruleText({ id: 'windows-tests', when: { kinds: ['test'], paths: ['src/win/**'] }, on: 'any', requireTags: ['os:windows'] }),
-    'When kind test, src/win/** -> local worker on any crew (os:windows)',
-  )
-  assert.equal(ruleText({ id: 'compliance', when: { labels: ['compliance'] }, keepLocal: true }), 'When label compliance -> local worker on local only')
-  assert.equal(ruleText({ id: 'hard', when: { labels: ['hard'] }, session: { model: 'model-a' } }), 'When label hard -> local worker on local as model-a')
-  assert.equal(ruleText({ id: 'routine', session: { choices: [{ model: 'b' }, { model: 'c' }] } }), 'Every task -> local worker on local as 2 choices')
-  assert.match(sessionNote({ id: 'radar', route: 'github' }), /does not apply/)
-  assert.equal(sessionNote({ id: 'x' }), null)
+test('the routing prompt saves on, off, and an inserted example, never twice', () => {
+  assert.equal(insertExample('', { text: 'Tests go remote.' }), 'Tests go remote.')
+  assert.equal(insertExample('Keep it local.\n', { text: 'Tests go remote.' }), 'Keep it local.\nTests go remote.')
+  assert.equal(insertExample('Tests go remote.', { text: 'Tests go remote.' }), 'Tests go remote.')
+  assert.deepEqual(toRoutingSection({ enabled: true, prompt: ' Spread the load. ', model: '' }).routing, { enabled: true, prompt: 'Spread the load.' })
+  assert.deepEqual(toRoutingSection({ enabled: false, prompt: '', model: 'model-r' }).routing, { model: 'model-r' })
+  assert.match(toRoutingSection({ enabled: true, prompt: '  ', model: '' }).error, /Write a routing prompt/)
+  assert.match(toRoutingSection({ enabled: false, prompt: 'x'.repeat(4001), model: '' }).error, /at most 4000/)
+  assert.match(OFF_LINE, /every task runs on this machine/)
 })
 
-test('the rule form round-trips and refuses a crew pin outside this machine', () => {
-  const rule = { id: 'spread', when: { roles: ['worker'] }, on: 'tags:os:linux', session: { choices: [{ model: 'b', weight: 2 }, { model: 'c' }] }, source: 'workspace' }
-  assert.deepEqual(toRule(toRuleForm(rule)).rule, { id: 'spread', when: { roles: ['worker'] }, on: 'tags:os:linux', session: { choices: [{ model: 'b', weight: 2 }, { model: 'c' }] } })
-  const pin = { ...emptyRuleForm(), id: 'pin', on: 'fake-linux' }
-  assert.match(toRule(pin).error, /only when Save in is this machine/)
-  assert.deepEqual(toRule({ ...pin, saveIn: 'machine' }).rule, { id: 'pin', on: 'fake-linux' })
-  assert.match(toRule({ ...emptyRuleForm(), id: 'Bad Name' }).error, /Name is required/)
-  assert.match(toRule({ ...emptyRuleForm(), id: 'w', choices: [{ agent: '', model: 'm', weight: '0' }] }).error, /weight is a whole number 1–100/)
-})
-
-test('reordering keeps a source whole and its pick and router', () => {
-  const view = {
-    rules: [
-      { id: 'a', source: 'workspace' },
-      { id: 'b', source: 'workspace' },
-      { id: 'm', source: 'machine' },
-    ],
-    workspace: { rules: [{ id: 'a' }, { id: 'b' }], pick: { preset: 'spread-out' } },
-    machine: { router: { enabled: true } },
-    repositories: {},
-  }
-  assert.deepEqual(moveRule([{ id: 'a' }, { id: 'b' }], 1, 0).map((r) => r.id), ['b', 'a'])
-  assert.deepEqual(withRules(view, 'workspace', [{ id: 'b' }, { id: 'a' }]), { rules: [{ id: 'b' }, { id: 'a' }], pick: { preset: 'spread-out' } })
-  assert.deepEqual(withRules(view, 'machine', []), { router: { enabled: true } })
+test('the provider box saves one low line and credits limits, keeping token limits', () => {
+  assert.deepEqual(toProviderBox({ lowPercent: '', limits: {} }).providers, {})
+  assert.deepEqual(toProviderBox({ lowPercent: '70', limits: { claude: '500', kiro: '' } }, { kiro: { tokens: 9 } }).providers, {
+    lowPercent: 70,
+    limits: { kiro: { tokens: 9 }, claude: { credits: 500 } },
+  })
+  assert.match(toProviderBox({ lowPercent: '100', limits: {} }).error, /1–99/)
+  assert.match(toProviderBox({ lowPercent: '', limits: { claude: '-1' } }).error, /claude/)
+  assert.equal(usedText({ provider: 'claude', level: 'low', percent: 85, credits: 85, tokens: 0, limit: { credits: 100 }, why: 'usage', line: '' }), '85% used')
+  assert.equal(usedText({ provider: 'kiro', level: 'ok', percent: null, credits: 0, tokens: 0, limit: null, why: null, line: '' }), 'no usage')
 })
 
 test('crew settings show defaults as placeholders and keep trust and hand-back', () => {
-  const crew = { id: 'fake-linux', name: 'fake linux', tags: ['os:linux', 'trust:remote'], trust: 'remote', gitHosts: ['git.example.test'], chatLimit: 2, chatLimitSet: false, delivery: 'handback', sshHost: 'user@fake.example.test', worktreeRoot: '/w', configured: true, reading: null, ageSeconds: null, running: 0, available: false, why: 'no reading' }
+  const crew = { id: 'fake-linux', name: 'fake linux', tags: ['os:linux', 'trust:remote'], trust: 'remote', gitHosts: ['git.example.test'], chatLimit: 2, chatLimitSet: false, delivery: 'handback', sshHost: 'user@fake.example.test', worktreeRoot: '/w', configured: true, reading: null, ageSeconds: null, running: 0, checks: [{ check: 'online', ok: false, why: 'no reading' }] }
   assert.equal(chatPlaceholder(crew), '2')
   assert.equal(chatPlaceholder({ id: 'local' }), '3')
   const form = toCrewForm(crew)
@@ -72,23 +56,27 @@ test('crew settings show defaults as placeholders and keep trust and hand-back',
   assert.match(toCrewEntry('fake-linux', { ...form, tags: 'color:red' }).error, /use key:value/)
   assert.match(toCrewEntry('fake-linux', { ...form, worktreeRoot: 'relative' }).error, /absolute/)
   assert.deepEqual(Object.keys(crewMap([crew, { ...crew, id: 'other', configured: false }])), ['fake-linux'])
-  assert.equal(readingText({ ...crew, ageSeconds: 240, why: 'stale reading (240 s old)' }).health, 'stale 4m')
+  assert.equal(readingText(crew).mem, '–')
+  assert.equal(checkText(crew.checks[0]), 'no reading')
+  assert.equal(checkText({ check: 'ready', ok: true, why: null }), 'yes')
 })
 
-test('the Routing page has its five sections in order, the MC-10 line, and confirmed deletes', () => {
+test('Settings › Routing has its four sections in order, examples, and no rule builder', () => {
   const page = source('RoutingView.tsx')
-  const order = ['title="Crews"', 'title="Rules"', 'title="Smart pick"', 'title="Model router"', 'title="Preview"'].map((s) => page.indexOf(s))
+  const order = ['title="Routing prompt"', 'title="Providers"', 'title="Crews"', 'title="Preview"'].map((s) => page.indexOf(s))
   assert.ok(order.every((at) => at > 0))
   assert.deepEqual([...order].sort((a, b) => a - b), order)
-  assert.match(MC10_LINE, /waits on Kiro Crew \(MC-10\)/)
+  for (const gone of ['title="Rules"', 'title="Smart pick"', 'title="Model router"', 'RuleDialog', 'Show weights']) assert.ok(!page.includes(gone), gone)
+  assert.match(MC10_LINE, /wait on Kiro Crew \(MC-10\)/)
   assert.match(page, /\{MC10_LINE\}/)
   assert.match(page, /Saved on this machine only\./)
-  assert.match(page, /confirm=\{\{ title: `Delete rule/)
+  assert.match(page, /props\.view\.examples\.map/)
   assert.match(page, /confirm=\{\{ title: `Remove settings for/)
   assert.match(page, /placeholder=\{String\(DEFAULT_STALE_SECONDS\)\}/)
-  assert.match(page, /draggable/)
-  assert.match(page, /Session does not apply|sessionNote/)
-  assert.match(source('App.tsx'), /key: 'routing', label: 'Routing'/)
+  assert.match(page, /placeholder=\{String\(box\.defaultLowPercent\)\}/)
+  assert.match(source('SettingsView.tsx'), /key: 'routing', label: 'Routing'/)
+  assert.doesNotMatch(source('SettingsView.tsx'), /key: 'providers'/)
+  assert.doesNotMatch(source('App.tsx'), /key: 'routing'/)
 })
 
 test('Settings > Delivery holds PR feedback and the writer model, with defaults as placeholders', () => {

@@ -1,7 +1,7 @@
 // A built-in agent prompt shown read-only, folded, with Copy, and below it
 // the owner's own instructions, which Avoozl adds after the built-in prompt.
 // One part for every agent whose prompt the owner may extend: the retro now,
-// the model router's instructions next.
+// the routing prompt next.
 import { useState } from 'react'
 import { Tooltip } from './Tooltip.tsx'
 import { Fold, IconLabel } from './controls.tsx'
