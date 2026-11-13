@@ -4043,3 +4043,30 @@ wherever I pick one, so that I never scroll a long dropdown.
    list SHALL show at most 50 results with a count of the rest, and a
    test SHALL filter 5,000 tasks within the time a 1,000-task filter took
    times 10.
+
+### Requirement 74: Only open tasks get issues
+
+Added 2026-11-13 (owner decision). Design §6.3.
+
+**User story:** As the owner, I want approving a spec to make issues only for
+work that is still open, so that GitHub does not fill with issues for tasks
+that are already done.
+
+#### Acceptance criteria
+
+1. WHEN a spec is approved or projected THEN a task that is already done and
+   has no issue SHALL get no issue, no Project card and no sub-issue link,
+   unless `github.issues.includeDone` is `true`.
+2. `github.issues.includeDone` SHALL be `true` or `false`, default `false`.
+   Settings SHALL refuse any other value or key under `github.issues`, and
+   the GitHub settings page SHALL show it as a checkbox.
+3. An edge from a skipped done task SHALL count as met and SHALL make no
+   blocked-by link.
+4. The plan issue and the epic issue SHALL still be made, even when every
+   task in the spec is done. An open task whose package was skipped SHALL
+   sit under the plan issue.
+5. A task that already has an issue SHALL keep it. WHEN a skipped task is
+   no longer done THEN the next projection SHALL make its issue.
+6. The issue preview SHALL list the skipped tasks (`skippedDone`), and a
+   test SHALL show that a done task gets no issue by default and gets one
+   with `includeDone: true`.
