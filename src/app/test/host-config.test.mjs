@@ -77,12 +77,11 @@ test("a second Kiro Crew home gets its own Avoozl config and catalog", () => {
     second.catalogPath,
     "/tmp/kc-test-home/avoozl/state/catalog.sqlite",
   );
+  // The layered config's global file is the same one, on this platform.
+  const env = { KIROCREW_HOME: path.resolve("kc-test-home") };
   assert.equal(
-    globalAvoozlConfigPath({
-      env: { KIROCREW_HOME: "/tmp/kc-test-home" },
-      home: "/home/example",
-    }),
-    second.configPath,
+    globalAvoozlConfigPath({ env, home: path.resolve("home") }),
+    machineAvoozlPaths({ env, home: path.resolve("home") }).configPath,
   );
   // The main home named outright keeps the usual places.
   const main = machineAvoozlPaths({
