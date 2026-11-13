@@ -151,3 +151,17 @@ test('a crew asking for a person reads plainly in Conflicts', async () => {
     'An Issue Radar crew added "crew: needs human".',
   )
 })
+
+test('rows link the repository and the author to GitHub, in a new tab', async () => {
+  const { authorHref, repositoryHref } = await import('../src/untriaged-api.ts')
+  const item = { repository: 'octo/app', author: 'mona', url: 'https://github.com/octo/app/issues/3', links: { github: 'https://github.com/octo/app/issues/3' } }
+  assert.equal(repositoryHref(item), 'https://github.com/octo/app')
+  assert.equal(authorHref(item), 'https://github.com/mona')
+  assert.equal(authorHref({ ...item, author: null }), null)
+  const enterprise = { ...item, links: { github: 'https://git.example.com/octo/app/pull/9' } }
+  assert.equal(repositoryHref(enterprise), 'https://git.example.com/octo/app')
+  const view = (await import('node:fs')).readFileSync(new URL('../src/UntriagedView.tsx', import.meta.url), 'utf8')
+  for (const part of ['RepoLink', 'AuthorLink'])
+    assert.match(view, new RegExp(`function ${part}[\\s\\S]{0,300}target="_blank" rel="noopener noreferrer"`))
+  assert.doesNotMatch(view, />\{item\.repository\}<\/td>|>\{item\.author \?\? ''\}<\/td>/)
+})
