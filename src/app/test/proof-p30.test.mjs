@@ -93,7 +93,7 @@ if (fs.existsSync("breaks-main") && path.basename(process.cwd()).startsWith("avo
   });
   store.put("projects", {
     id: "app",
-    root: fs.realpathSync(checkout),
+    root: fs.realpathSync.native(checkout),
     baseBranch: "main",
     checks: [["node", "test/check.mjs"]],
   });
@@ -109,7 +109,7 @@ if (fs.existsSync("breaks-main") && path.basename(process.cwd()).startsWith("avo
   return {
     root,
     dbPath,
-    checkout: fs.realpathSync(checkout),
+    checkout: fs.realpathSync.native(checkout),
     store,
     ops: new Operations(store, { workspaceRoot: root }),
     flaky,

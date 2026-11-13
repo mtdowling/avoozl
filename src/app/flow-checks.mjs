@@ -13,9 +13,8 @@ import { taskRepository } from "../work-model.mjs";
 const SHA = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
 
 async function recordDir(root) {
-  const common = path.resolve(
-    root,
-    await git(root, ["rev-parse", "--git-common-dir"]),
+  const common = fs.realpathSync.native(
+    path.resolve(root, await git(root, ["rev-parse", "--git-common-dir"])),
   );
   return path.join(common, "avoozl-checks");
 }

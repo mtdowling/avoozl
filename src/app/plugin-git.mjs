@@ -251,11 +251,11 @@ export async function fetchGitCommit({ remote, ref, commit, subdir, root }) {
   const folder = subdir ? path.join(target, subdir) : target;
   let real;
   try {
-    real = fs.realpathSync(folder);
+    real = fs.realpathSync.native(folder);
   } catch {
     fail(`Commit ${commit.slice(0, 12)} has no folder ${subdir}.`, 409);
   }
-  const top = fs.realpathSync(target);
+  const top = fs.realpathSync.native(target);
   if (real !== top && !real.startsWith(top + path.sep))
     fail(`subdir ${subdir} leaves the repository.`, 409);
   if (!fs.statSync(real).isDirectory())

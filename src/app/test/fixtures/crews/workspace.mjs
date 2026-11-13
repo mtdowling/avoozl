@@ -14,7 +14,10 @@ import { temporaryDirectory } from "../../temporary.mjs";
 export const XDG = temporaryDirectory("avoozl-crews-xdg-");
 process.env.XDG_CONFIG_HOME = XDG;
 export const MACHINE = path.join(XDG, "avoozl", "config.json");
-export const CHECK = "scripts/validate.sh";
+// A node script, not a .sh file: Windows cannot exec a shell script directly.
+export const CHECK_FILE = "scripts/validate.mjs";
+export const CHECK_ARGV = ["node", CHECK_FILE];
+export const CHECK = CHECK_ARGV.join(" ");
 export const URL = "https://git.example.test/o/app.git";
 
 export const IDS = ["c1", "t1", "w1", "w2", "w3", "w4", "u1"];
@@ -117,9 +120,7 @@ export async function workspace(
   git(checkout, "config", `url.${bare}.insteadOf`, URL);
   git(checkout, "remote", "add", "origin", URL);
   fs.writeFileSync(path.join(checkout, "README.md"), "app\n");
-  fs.writeFileSync(path.join(checkout, CHECK), "#!/bin/sh\nexit 0\n", {
-    mode: 0o755,
-  });
+  fs.writeFileSync(path.join(checkout, CHECK_FILE), "process.exit(0);\n");
   git(checkout, "add", ".");
   git(checkout, "commit", "-m", "Start");
   git(checkout, "push", "--quiet", "origin", "main");
@@ -152,7 +153,7 @@ export async function workspace(
     id: "app",
     root: checkout,
     baseBranch: "main",
-    checks: [[CHECK]],
+    checks: [CHECK_ARGV],
   });
   writeSpec(root, "p29", spec(ids, manifest));
   await ops.execute("plan.create", { spec: "p29" });

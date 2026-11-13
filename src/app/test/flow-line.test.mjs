@@ -59,7 +59,7 @@ if (fs.existsSync("broken")) { console.error("assertion failed: broken"); proces
   store.importSnapshot({ ...snapshot(), tasks, edges });
   store.put("projects", {
     id: "app",
-    root: fs.realpathSync(checkout),
+    root: fs.realpathSync.native(checkout),
     baseBranch: "main",
     checks: [["node", "check.mjs"]],
   });

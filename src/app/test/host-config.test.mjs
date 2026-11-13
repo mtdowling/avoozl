@@ -52,11 +52,16 @@ test("machine host paths follow XDG and Windows conventions", () => {
     home: "C:\\Users\\example",
     platform: "win32",
   });
-  assert(windows.configPath.endsWith(path.join("avoozl", "config.json")));
-  assert(
-    windows.catalogPath.endsWith(
-      path.join("avoozl", "state", "catalog.sqlite"),
-    ),
+  assert.equal(windows.configPath, "C:\\Local\\avoozl\\config.json");
+  assert.equal(windows.catalogPath, "C:\\Local\\avoozl\\state\\catalog.sqlite");
+  // An explicit XDG folder wins on Windows too.
+  assert.equal(
+    machineAvoozlPaths({
+      env: { LOCALAPPDATA: "C:\\Local", XDG_CONFIG_HOME: "D:\\xdg" },
+      home: "C:\\Users\\example",
+      platform: "win32",
+    }).configPath,
+    "D:\\xdg\\avoozl\\config.json",
   );
 });
 
@@ -397,7 +402,10 @@ test("catalog is rebuildable and unregistering preserves workspace data", () => 
   registry = new WorkspaceRegistry(paths);
   try {
     assert.deepEqual(registry.catalog.integrityCheck(), ["ok"]);
-    assert.equal(registry.get("rebuild").root, fs.realpathSync(workspace));
+    assert.equal(
+      registry.get("rebuild").root,
+      fs.realpathSync.native(workspace),
+    );
     const removed = registry.remove("rebuild");
     assert.equal(removed.databasePreserved, true);
     assert(fs.existsSync(workspaceDatabase));
@@ -520,7 +528,10 @@ test("one unavailable workspace does not prevent healthy registrations from load
   const registry = new WorkspaceRegistry({ env, home: "/unused" });
   try {
     assert.equal(registry.list().length, 2);
-    assert.equal(registry.validate("healthy").root, fs.realpathSync(healthy));
+    assert.equal(
+      registry.validate("healthy").root,
+      fs.realpathSync.native(healthy),
+    );
     assert.throws(() => registry.validate("missing"), /does not exist/);
   } finally {
     registry.close();
