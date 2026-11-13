@@ -391,8 +391,10 @@ function approveEpic(store, data, plan, { expectedRevision, approver, evidence }
   plan.mapping = {};
   plan.approvalId = receipt.id;
   store.put("plans", plan);
+  // The store keeps cross-plan epics only (design §6.9): rows from before
+  // Requirement 59 (no planId) are dropped with this write.
   data.epics = [
-    ...(data.epics || []).filter((epic) => epic.id !== plan.spec),
+    ...(data.epics || []).filter((epic) => epic.planId && epic.id !== plan.spec),
     { id: plan.spec, title: specTitle({ name: plan.spec, files: plan.files }), planId: plan.id, listed, plans: [] },
   ];
   refreshEpicMembers(data, plansById(store));

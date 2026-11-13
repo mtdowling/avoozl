@@ -17,7 +17,7 @@ export function setSharedFilter(workspaceId: string, filter: TaskFilter) {
   writeStored(TASK_STORE, workspaceId, filter)
 }
 
-// The Graph and Delivery task filter: search, plan, epic, repository, state,
+// The Graph and Delivery task filter: search, epic, plan, phase, repository, state,
 // wave range, owner and Needs me, in the shared filter panel.
 export function FilterBar(props: {
   id: string
@@ -36,8 +36,19 @@ export function FilterBar(props: {
       onClear={() => props.onChange({})}
       fields={[
         { kind: 'search', key: 'q', label: 'Search', value: filter.q ?? '', placeholder: 'Task name or ID', onChange: (q) => set({ q }) },
-        { kind: 'select', key: 'plan', label: 'Plan', value: filter.plan ?? '', options: choices.plans, onChange: (plan) => set({ plan }) },
         { kind: 'select', key: 'epic', label: 'Epic', value: filter.epic ?? '', options: choices.epics, onChange: (epic) => set({ epic }) },
+        // A plan change drops the phase, which belongs to one plan.
+        { kind: 'select', key: 'plan', label: 'Plan', value: filter.plan ?? '', options: choices.plans, onChange: (plan) => set({ plan, phase: undefined }) },
+        {
+          kind: 'select',
+          key: 'phase',
+          label: 'Phase',
+          value: filter.phase ?? '',
+          options: choices.phases,
+          disabled: !filter.plan,
+          hint: filter.plan ? undefined : 'Pick a plan first',
+          onChange: (phase) => set({ phase }),
+        },
         {
           kind: 'select',
           key: 'repository',

@@ -50,6 +50,8 @@ export default function NewPlanDrawer(props: {
   // Names a plan or spec folder already uses.
   taken: string[]
   categories: string[]
+  // Epic folders to pick from: their folder name and title.
+  epics?: { id: string; title: string }[]
   onClose: (notice: string | null) => void
 }) {
   const api = useAppApi()
@@ -268,23 +270,31 @@ export default function NewPlanDrawer(props: {
             id="avoozl-new-plan-epic"
             need="optional"
             label="Epic"
-            hint="The epic's spec folder name. Left blank, the plan is in no epic."
+            hint="Pick an epic, a goal that spans plans. Left blank, the plan is in no epic."
             problem={form.epic.trim() && !SPEC_NAME.test(form.epic.trim()) ? EPIC_PROBLEM : null}
           >
             <Input
               id="avoozl-new-plan-epic"
               value={form.epic}
+              list="avoozl-new-plan-epic-list"
               placeholder="rewrite"
               onChange={(event) => set({ epic: event.target.value })}
               style={{ maxWidth: '18rem' }}
             />
+            <datalist id="avoozl-new-plan-epic-list">
+              {(props.epics ?? []).map((epic) => (
+                <option key={epic.id} value={epic.id}>
+                  {epic.title}
+                </option>
+              ))}
+            </datalist>
           </Field>
-          <Field id="avoozl-new-plan-epics" need="optional" label="Phases" hint="One per line; each becomes a heading in tasks.md. Left blank, the planner picks them.">
+          <Field id="avoozl-new-plan-phases" need="optional" label="Phases" hint="One per line; each becomes a heading in tasks.md. Left blank, the planner picks them.">
             <textarea
-              id="avoozl-new-plan-epics"
+              id="avoozl-new-plan-phases"
               rows={3}
-              value={form.epics}
-              onChange={(event) => set({ epics: event.target.value })}
+              value={form.phases}
+              onChange={(event) => set({ phases: event.target.value })}
               className="rounded border px-2 py-1 text-sm"
               style={fieldStyle}
             />

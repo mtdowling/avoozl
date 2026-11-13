@@ -11,7 +11,7 @@ import type { Option } from './filters.ts'
 
 export type FilterField =
   | { kind: 'search'; key: string; label: string; value: string; placeholder: string; onChange: (value: string) => void }
-  | { kind: 'select'; key: string; label: string; value: string; options: Option[]; onChange: (value: string) => void }
+  | { kind: 'select'; key: string; label: string; value: string; options: Option[]; onChange: (value: string) => void; disabled?: boolean; hint?: string }
   | {
       kind: 'range'
       key: string
@@ -48,7 +48,7 @@ function Field({ id, field }: { id: string; field: FilterField }) {
       </label>
     )
   if (field.kind === 'select')
-    return <FilterSelect id={fieldId} label={field.label} value={field.value} options={field.options} onChange={field.onChange} />
+    return <FilterSelect id={fieldId} label={field.label} value={field.value} options={field.options} onChange={field.onChange} disabled={field.disabled} hint={field.hint} />
   if (field.kind === 'check')
     return (
       <label className="flex items-center gap-1.5 pb-1 text-sm">

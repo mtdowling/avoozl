@@ -59,6 +59,13 @@ Steps 1 to 4 of local delivery. The chat you are in runs these steps. Two
 - Choose a spec name: lowercase letters, digits, and hyphens, at most 80
   characters, not already in `plans_specs`. The name is also the plan ID and
   the prefix of the spec's numbered task IDs.
+- Epics and phases are two things. An epic is a goal across plans: its own
+  spec folder whose manifest says `"kind": "epic"` and lists member plans in
+  `plan` entries; each member's front-matter says `epic: <epic>`. A phase is a
+  group of tasks inside one plan: a `## ` heading in `tasks.md`, or a
+  manifest `phase` value. Read them with `plans_plan` `epics` and `epic`.
+  Never write `kind: "epic"` inside a plan, an `epic` value on a task, or an
+  `epics` list: Avoozl refuses them.
 
 ### 2. Draft in a planner session
 
@@ -183,8 +190,8 @@ When a deliver rule matched an issue and the user wants it delivered:
    `plans_classify_issue` `{repository, number, kind, reason}`. Bounded ends
    here: the issue stays its own leaf.
 2. Broad: run a draft planner session on a new spec folder, then an isolated
-   critique session, as in Plan a goal. The spec's one top-level epic item is
-   the issue itself; nest every child under it. Then call
+   critique session, as in Plan a goal. The spec's one top-level package item
+   is the issue itself; nest every child under it. Then call
    `plans_draft_children` `{repository, number, spec}`.
 3. The next GitHub sync (or `plans_advance_breakdowns`) posts one preview
    comment on the issue. Nothing else is written. An allowed actor approves

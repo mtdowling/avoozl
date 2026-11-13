@@ -137,7 +137,8 @@ export function plansWithoutFolder(specs: SpecList | null, stored: StoredPlanPag
 // null; Avoozl never guesses one.
 export interface PlanRow {
   key: string
-  kind: 'spec' | 'old-style'
+  // An epic folder lists member plans (Requirement 59.1).
+  kind: 'spec' | 'old-style' | 'epic'
   name: string
   spec: string | null
   folder: string | null
@@ -149,7 +150,13 @@ export interface PlanRow {
   status: string
   tasks: { total: number; done: number }
   now: { ready: number; running: number; needsYou: number }
-  epics: number
+  // How many phases its tasks fall in; older backends omit it.
+  phases?: number
+  // The epic it belongs to, both sides agreeing; null is No epic.
+  epic?: string | null
+  epicTitle?: string | null
+  // An epic folder's member plans, in its order.
+  members?: { key: string; plan: string; summary: string; title: string }[]
   lastChange: string | null
   // Set while the plan is archived (plan.archive); older backends omit it.
   archived?: { at: string; by: string | null } | null

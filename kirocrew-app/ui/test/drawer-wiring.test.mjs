@@ -65,8 +65,8 @@ test('a Graph node click opens its task in the drawer, and a drag does not', () 
   // Node's own click goes to select, which asks nodeClick about drags.
   assert.match(graph, /onClick=\{\(\) => props\.onSelect\(node\)\}/)
   assert.match(graph, /const action = nodeClick\(node, moved\.current\)[\s\S]{0,400}drawer\.openTask\(node\.id\)/)
-  // A collapsed epic, or an epic task with tasks under it, drills in.
-  assert.match(graph, /if \(action === 'drill'\) return drillEpic\(node\.epic\)/)
+  // A collapsed group opens its level: an epic, a plan, then a phase.
+  assert.match(graph, /if \(action === 'drill'\) \{\s*const next = drillInto\(drill, node\.group, node\.title\)/)
   // A press that moves past the threshold marks the gesture as a drag.
   assert.match(graph, /start\.moved = moved\.current = true/)
 })

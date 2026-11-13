@@ -75,6 +75,7 @@ function LaneCardView(props: {
           <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-muted">
             <span>{card.id}</span>
             {card.epic && <Badge>{card.epic}</Badge>}
+            {card.plan && <span>{card.plan}{card.phase ? ` · ${card.phase.title}` : ''}</span>}
             <Authority owner={{ authority: card.authority, issue: card.issue }} />
             {card.attempt !== null && <Badge>attempt {card.attempt}</Badge>}
             {card.reviewRounds > 0 && <Badge>{card.reviewRounds} review rounds</Badge>}
@@ -84,6 +85,11 @@ function LaneCardView(props: {
             {card.planArchived && <Badge>Archived</Badge>}
             <SpendChip budget={card.item?.budget} />
           </div>
+          {card.subIssue && (
+            <p className="mt-2 text-xs" style={{ color: 'var(--warning, var(--muted))' }} data-sub-issue>
+              {card.subIssue.reason}
+            </p>
+          )}
           {card.item && (
             <div className="mt-2.5">
               <ReviewRuns item={card.item} compact onInfo={() => drawer.openTask(card.id)} />
@@ -373,7 +379,7 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
 
   const all = value ? deliveryLanes(value.graph, value.items) : null
   const lanes = all ? filterLanes(all, filter) : null
-  const choices = useMemo(() => filterChoices(value?.graph ?? null), [value])
+  const choices = useMemo(() => filterChoices(value?.graph ?? null, {}, filter.plan), [value, filter.plan])
   const members = lanes ? new Set(Object.values(lanes).flat().map((card) => card.id)) : null
   const reports = (value?.reports ?? []).filter((r) => !members || !r.taskId || members.has(r.taskId))
   const superseded = value?.items.filter((item) => item.status === 'superseded') ?? []

@@ -15,7 +15,10 @@ export interface TaskFilter {
   q?: string
   // `spec:<folder>` or `plan:<id>` (planKey).
   plan?: string
+  // An epic across plans; NO_GROUP is No epic (Requirement 59.10).
   epic?: string
+  // A phase of the picked plan; NO_GROUP is No phase.
+  phase?: string
   // A repository ID, or NO_REPOSITORY.
   repository?: string
   state?: NodeState
@@ -28,6 +31,7 @@ export interface TaskFilter {
 }
 
 export const NO_REPOSITORY = '(none)'
+export const NO_GROUP = '(none)'
 
 // What a filter reads from a task; Delivery cards without a graph row
 // supply the same fields.
@@ -35,6 +39,7 @@ export interface Filterable {
   id: string
   title: string
   epic: string | null
+  phase?: { id: string; title: string } | null
   planId?: string | null
   spec?: string | null
   repository: string | null
@@ -57,6 +62,7 @@ export const filterActive = (filter: TaskFilter) =>
     filter.q?.trim() ||
       filter.plan ||
       filter.epic ||
+      filter.phase ||
       filter.repository ||
       filter.state ||
       filter.waveMin ||
@@ -79,7 +85,9 @@ export function matches(task: Filterable, filter: TaskFilter): boolean {
     (!text || task.title.toLowerCase().includes(text) || task.id.toLowerCase().includes(text)) &&
     (!key ||
       (key.startsWith('spec:') ? task.spec === key.slice(5) : key.startsWith('plan:') ? task.planId === key.slice(5) : false)) &&
-    (!filter.epic || task.epic === filter.epic) &&
+    (!filter.epic || (filter.epic === NO_GROUP ? !task.epic : task.epic === filter.epic)) &&
+    // Phase applies inside the picked plan only.
+    (!filter.phase || !key || (filter.phase === NO_GROUP ? !task.phase : task.phase?.id === filter.phase)) &&
     (!filter.repository ||
       (filter.repository === NO_REPOSITORY ? !task.repository : task.repository === filter.repository)) &&
     (!filter.state || task.state === filter.state) &&
@@ -94,6 +102,7 @@ export const filterable = (task: GraphTask, wave: number): Filterable => ({
   id: task.id,
   title: task.title,
   epic: task.epic,
+  phase: task.phase ?? null,
   planId: task.planId ?? null,
   spec: task.spec ?? null,
   repository: task.repository,
@@ -112,7 +121,7 @@ export interface Option {
 // The choices each control offers, from the graph itself. Plans list every
 // spec folder and stored plan a task names; repositories list the
 // workspace's registered ones, plus No repository when a task names none.
-export function filterChoices(graph: Graph | null, planLabels: Record<string, string> = {}) {
+export function filterChoices(graph: Graph | null, planLabels: Record<string, string> = {}, plan?: string) {
   const tasks = graph?.tasks ?? []
   const wave = graph ? waves(graph) : new Map<string, number>()
   const distinct = (pick: (task: GraphTask) => string | null, label: (value: string) => string): Option[] => {
@@ -127,7 +136,21 @@ export function filterChoices(graph: Graph | null, planLabels: Record<string, st
   const repositories = new Set([...(graph?.repositories ?? []), ...tasks.map((t) => t.repository).filter((r): r is string => Boolean(r))])
   return {
     plans: distinct(planKey, (value) => planLabels[value] ?? value.replace(/^(spec|plan):/, '')),
-    epics: distinct((t) => t.epic, (value) => epicTitles.get(value) ?? value),
+    epics: [
+      ...distinct((t) => t.epic, (value) => epicTitles.get(value) ?? value),
+      ...(tasks.some((t) => !t.epic) ? [{ value: NO_GROUP, label: 'No epic' }] : []),
+    ],
+    // The picked plan's phases, in task order; none until a plan is picked.
+    phases: (() => {
+      if (!plan) return []
+      const inPlan = tasks.filter((t) => planKey(t) === plan)
+      const seen = new Map<string, string>()
+      for (const t of inPlan) if (t.phase && !seen.has(t.phase.id)) seen.set(t.phase.id, t.phase.title)
+      return [
+        ...[...seen].map(([value, label]) => ({ value, label })),
+        ...(inPlan.some((t) => !t.phase) ? [{ value: NO_GROUP, label: 'No phase' }] : []),
+      ]
+    })(),
     repositories: [
       ...[...repositories].sort().map((value) => ({ value, label: value })),
       ...(tasks.some((t) => !t.repository) ? [{ value: NO_REPOSITORY, label: 'No repository' }] : []),
@@ -157,7 +180,7 @@ export function readFilter(storage: Pick<Storage, 'getItem'> | null, workspaceId
     const value = JSON.parse(storage?.getItem(key(workspaceId)) ?? 'null')
     if (!value || typeof value !== 'object') return {}
     const out: TaskFilter = {}
-    for (const name of ['q', 'plan', 'epic', 'repository', 'authority'] as const)
+    for (const name of ['q', 'plan', 'epic', 'phase', 'repository', 'authority'] as const)
       if (typeof value[name] === 'string' && value[name]) out[name] = value[name]
     if (STATES.some((s) => s.id === value.state)) out.state = value.state
     for (const name of ['waveMin', 'waveMax'] as const)

@@ -39,7 +39,6 @@ import { Tooltip } from './Tooltip.tsx'
 import { FilterPanel, useStoredFilter } from './FilterPanel.tsx'
 import { Check, DetailsIcon, ExternalLink, Eye, History, MessageSquare, RefreshCw, RotateCcw, X } from './icons.ts'
 import { itemRef } from './chat-api.ts'
-import { documentEpic } from './graph-layout.ts'
 import { linkHref } from './views-api.ts'
 
 const CONFLICT_STORE = { event: CONFLICT_FILTER_EVENT, read: readConflictFilter, write: writeConflictFilter, empty: {} as ConflictFilter }
@@ -464,7 +463,7 @@ export default function ConflictsView({ workspaceId }: { workspaceId: string | n
   // Each task's plan, by the spec folder or plan ID graph.view names.
   const plans = useMemo(() => {
     const graph: Graph | null = value?.graph ?? null
-    return new Map((graph?.tasks ?? []).map((t) => [t.id, t.spec ?? t.planId ?? (t.epic ? documentEpic(t.epic) : null)]))
+    return new Map((graph?.tasks ?? []).map((t) => [t.id, t.spec ?? t.planId ?? null]))
   }, [value])
   const tasksById = useMemo(() => new Map((value?.graph?.tasks ?? []).map((t) => [t.id, t])), [value])
   // A filter change starts the selection over, like the list.

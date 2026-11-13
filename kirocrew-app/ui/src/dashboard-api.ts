@@ -5,7 +5,7 @@
 // of JSX so node can test it directly.
 import type { BudgetChip } from './budget-api.ts'
 import type { StoredPlanPage } from './plans-api.ts'
-import { documentEpic, nodeState, waves, type NodeState } from './graph-layout.ts'
+import { nodeState, waves, type NodeState } from './graph-layout.ts'
 import { modelLabel, safeHref, type ConflictItem, type DeliveryItem, type DeliverySession, type Graph, type GraphTask } from './views-api.ts'
 
 // Session statuses after which a session will not move again.
@@ -77,7 +77,8 @@ export interface Done {
 }
 
 export interface Progress {
-  epic: string
+  // An epic across plans; null is No epic (Requirement 59.10).
+  epic: string | null
   title: string
   done: number
   total: number
@@ -192,7 +193,7 @@ export function summarize(input: {
           focus: session.title,
           taskId: item.id,
           title: item.title,
-          epic: epic ? (epicTitles.get(epic) ?? documentEpic(epic)) : null,
+          epic: epic ? (epicTitles.get(epic) ?? epic) : null,
           attempt: session.attempt,
           model: modelLabel(session),
           startedAt: session.boundAt,
@@ -234,14 +235,20 @@ export function summarize(input: {
     const epic = tasks.get(row.taskId)?.epic
     if (epic) chats.set(epic, (chats.get(epic) ?? 0) + 1)
   }
-  const byEpic = new Map<string, Progress>()
+  // One row per epic, counting the tasks of all its member plans, in the
+  // backend's epic order, then No epic.
+  const byEpic = new Map<string | null, Progress>()
+  for (const epic of graph?.epics ?? []) byEpic.set(epic.id, { epic: epic.id, title: epic.title, done: 0, total: 0, running: chats.get(epic.id) ?? 0 })
+  let none = 0
   for (const task of leaves) {
-    if (!task.epic || !titles.has(task.epic)) continue
-    const entry = byEpic.get(task.epic) ?? { epic: task.epic, title: titles.get(task.epic)!, done: 0, total: 0, running: chats.get(task.epic) ?? 0 }
+    const key = task.epic && titles.has(task.epic) ? task.epic : null
+    if (key === null) none += 1
+    const entry = byEpic.get(key) ?? { epic: null, title: 'No epic', done: 0, total: 0, running: 0 }
     entry.total += 1
     if (nodeState(task) === 'done') entry.done += 1
-    byEpic.set(task.epic, entry)
+    byEpic.set(key, entry)
   }
+  for (const [key, entry] of byEpic) if (!entry.total || (key === null && !none)) byEpic.delete(key)
 
   const stored = (input.plans?.items ?? []).filter((p) => !p.archivedAt)
   const archivedPlans = (input.plans?.items ?? []).length - stored.length

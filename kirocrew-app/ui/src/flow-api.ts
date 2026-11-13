@@ -135,6 +135,9 @@ export interface FlowViewModel {
   stages: Stage[]
   repositories: string[]
   epics: { id: string; title: string }[]
+  // Plans with tasks, and the picked plan's phases; older backends omit them.
+  plans?: { id: string; title: string }[]
+  phases?: { id: string; title: string }[]
   series: { day: SeriesPoint[]; week: SeriesPoint[] }
   usage: UsageView
   // Task IDs over budget, past 80%, stopped at the cap, or stopped by a
@@ -248,6 +251,8 @@ export interface TaskTimingDetail extends TaskTiming {
 export interface FlowFilter {
   repository?: string
   epic?: string
+  plan?: string
+  phase?: string
   window?: string
   stage?: string
 }
@@ -283,6 +288,8 @@ export function flowClient(api: AppApi) {
       run<FlowViewModel>(workspaceId, 'flow.view', {
         ...(filter.repository ? { repository: filter.repository } : {}),
         ...(filter.epic ? { epic: filter.epic } : {}),
+        ...(filter.plan ? { plan: filter.plan } : {}),
+        ...(filter.plan && filter.phase ? { phase: filter.phase } : {}),
         ...(filter.window ? { window: Number(filter.window) } : {}),
         ...(filter.stage ? { stage: filter.stage } : {}),
       }),
@@ -425,7 +432,7 @@ export function bannerText(stop: LineStop): string {
 }
 
 export function filterActive(filter: FlowFilter) {
-  return Boolean(filter.repository || filter.epic || filter.window || filter.stage)
+  return Boolean(filter.repository || filter.epic || filter.plan || filter.phase || filter.window || filter.stage)
 }
 
 // ------------------------------------------------------------ settings
@@ -433,7 +440,7 @@ export function filterActive(filter: FlowFilter) {
 export interface FlowSection {
   stopTheLine?: { scope?: 'dependents' | 'repo' | 'all' }
   localChecksFirst?: boolean
-  batch?: { max?: number; by?: 'epic' | 'files' }
+  batch?: { max?: number; by?: 'phase' | 'files' }
   retro?: { everyTasks?: number; slowFactor?: number; model?: string }
 }
 
@@ -451,7 +458,7 @@ export const FLOW_DEFAULTS = {
   scope: 'dependents',
   localChecksFirst: true,
   max: 3,
-  by: 'epic',
+  by: 'phase',
   everyTasks: 10,
   slowFactor: 2,
   model: 'auto',
@@ -461,7 +468,7 @@ export interface FlowForm {
   scope: '' | 'dependents' | 'repo' | 'all'
   localChecksFirst: '' | 'on' | 'off'
   max: string
-  by: '' | 'epic' | 'files'
+  by: '' | 'phase' | 'files'
   everyTasks: string
   slowFactor: string
   model: string
