@@ -8,6 +8,7 @@
 // SQLite keeps one `project-item:<task>` receipt per task as the cache of
 // what Avoozl last wrote and saw; the issue marker's `applied.project` holds
 // the same values for a fresh workspace (§3.4).
+import { recordRevert } from "./activity-log.mjs";
 import { digest } from "../model.mjs";
 import { statusComplete } from "../query.mjs";
 import { taskAuthority, taskKind, taskRepository } from "../work-model.mjs";
@@ -532,16 +533,21 @@ export async function syncProject(
       if (row.current.Wave !== want) {
         updates.push({ id: waveField.id, value: want });
         // A Wave Avoozl did not write is refused and written back.
-        if (!row.added && row.applied.Wave !== undefined)
-          if (row.current.Wave !== row.applied.Wave)
-            notify.push({
-              channel: "decision",
-              task: task.id,
-              title: `Wave for ${task.id} reset to ${want}`,
-              text: `Someone set Wave on ${task.id} to ${row.current.Wave ?? "empty"}. Avoozl computes Wave from blocking edges and wrote ${want} back.`,
-              resume:
-                "Change the plan's requires or sequence edges to move a wave.",
-            });
+        if (
+          !row.added &&
+          row.applied.Wave !== undefined &&
+          row.current.Wave !== row.applied.Wave
+        ) {
+          notify.push({
+            channel: "decision",
+            task: task.id,
+            title: `Wave for ${task.id} reset to ${want}`,
+            text: `Someone set Wave on ${task.id} to ${row.current.Wave ?? "empty"}. Avoozl computes Wave from blocking edges and wrote ${want} back.`,
+            resume:
+              "Change the plan's requires or sequence edges to move a wave.",
+          });
+          recordRevert(store, { taskId: task.id, field: "Wave" });
+        }
       }
       row.applied.Wave = want;
     }

@@ -28,12 +28,15 @@ import { fail } from "./store.mjs";
 
 // `intake` screens incoming items (design §4.12) and runs only for a set
 // that names it, so GitHub intake is unchanged unless the owner asks.
+// `activity` screens each activity log row (§4.19); a matching row is saved
+// redacted, so no decision opens.
 export const BOUNDARIES = Object.freeze([
   "plan",
   "github",
   "brief",
   "diff",
   "intake",
+  "activity",
 ]);
 const OPT_IN = new Set(["intake"]);
 export const ACTIONS = Object.freeze(["block", "report"]);
