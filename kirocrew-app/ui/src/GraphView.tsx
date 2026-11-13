@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import { Tooltip } from './Tooltip.tsx'
 import { useAppApi } from '@kirocrew/app-sdk'
-import { Btn, Card, CardTitle } from '@kirocrew/app-sdk/ui'
+import { Btn, Card } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { graphSummary, safeHref, viewsClient, type GraphTask, noSessionLabel } from './views-api.ts'
 import {
@@ -37,7 +37,7 @@ import { useRead } from './useRead.ts'
 import { useTaskDrawer } from './drawer-context.ts'
 import { FilterBar, useSharedFilter } from './FilterBar.tsx'
 import { filterChoices, filterGraph } from './filters.ts'
-import { IconLabel, TipBtn, ViewHeading } from './controls.tsx'
+import { IconLabel, SectionHeading, TipBtn, ViewHeading } from './controls.tsx'
 import { ArrowLeft, Plus, RefreshCw } from './icons.ts'
 import { useNav, useRemembered } from './NavHistory.tsx'
 
@@ -172,11 +172,15 @@ function Details(props: { task: GraphTask; neighbors: ReturnType<typeof neighbor
   return (
     <Card>
       <div aria-label="Task details" role="region">
-        <div className="flex flex-wrap items-center gap-2">
-          <CardTitle>{task.title}</CardTitle>
-          <TipBtn tooltip="Open this task's details in the drawer" onClick={() => drawer.openTask(task.id)}>All details</TipBtn>
-          <TipBtn tooltip="Add a draft task that waits on this one" onClick={() => drawer.addTask({ prerequisite: task.id })}>Add a task after this</TipBtn>
-        </div>
+        <SectionHeading
+          title={task.title}
+          actions={
+            <>
+              <TipBtn tooltip="Open this task's details in the drawer" onClick={() => drawer.openTask(task.id)}>All details</TipBtn>
+              <TipBtn tooltip="Add a draft task that waits on this one" onClick={() => drawer.addTask({ prerequisite: task.id })}>Add a task after this</TipBtn>
+            </>
+          }
+        />
         <div className="mt-1 flex flex-wrap items-center gap-1.5 text-sm">
           <span className="text-xs text-muted">{task.id}</span>
           <Badge>{task.kind}</Badge>
@@ -459,11 +463,9 @@ export default function GraphView({
       className="flex flex-col gap-3.5"
       data-graph-view
     >
-      <div className="flex flex-wrap items-center gap-3">
-        <ViewHeading id="avoozl-graph-title" view="graph">
-          Graph
-        </ViewHeading>
-      </div>
+      <ViewHeading id="avoozl-graph-title" view="graph">
+        Graph
+      </ViewHeading>
       {error && (
         <p role="alert" className="text-sm text-danger">
           {error}
@@ -478,7 +480,7 @@ export default function GraphView({
               Refresh
             </IconLabel>
             <IconLabel icon={Plus} tooltip="Add a draft task. It waits for your review." onClick={() => drawer.addTask()}>
-              Add task
+              New task
             </IconLabel>
           </div>
           <p role="status" className="mt-2 text-sm text-muted">

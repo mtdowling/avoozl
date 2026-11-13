@@ -11,7 +11,7 @@ import { Markdown } from './Markdown.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import { useMedia } from './TaskDrawer.tsx'
 import { PROSE_MEASURE } from './PlansView.tsx'
-import { IconBtn, IconLabel } from './controls.tsx'
+import { IconBtn, IconLabel, SectionHeading } from './controls.tsx'
 import { Copy, FolderOpen, X } from './icons.ts'
 import { outline } from './markdown.ts'
 import { registerLanguages } from './highlight.ts'
@@ -154,29 +154,30 @@ export function DocumentReader(props: { workspaceId: string; target: ReaderTarge
         }}
       >
         <div className="border-b px-4 py-2.5" style={{ borderColor: 'var(--border)' }}>
-          <div className="flex items-start gap-2">
-            <div className="flex min-w-0 grow flex-col">
-              <h3 id="avoozl-reader-title" className="text-sm font-semibold" style={{ overflowWrap: 'anywhere' }}>
-                <code>{target.document}</code>
-              </h3>
-              {line && (
-                <span className="self-start">
-                  <Tooltip text={`Scroll back to ${line.toLowerCase()}`}>
-                    {(describedBy) => (
-                      <button type="button" className="text-xs text-muted hover:underline" onClick={toLine} aria-describedby={describedBy}>
-                        {line}
-                      </button>
-                    )}
-                  </Tooltip>
-                </span>
-              )}
-            </div>
-            <IconBtn icon={Copy} label="Copy path" tooltip={`Copy ${target.document}`} onClick={() => void copy()} />
-            {text === undefined && <IconBtn icon={FolderOpen} label="Reveal in Finder" tooltip="Show this file in Finder" onClick={() => void revealFile()} />}
-            <IconLabel icon={X} onClick={onClose} aria-label="Close the file">
-              Close
-            </IconLabel>
-          </div>
+          <SectionHeading
+            id="avoozl-reader-title"
+            title={<code>{target.document}</code>}
+            actions={
+              <>
+                <IconBtn icon={Copy} label="Copy path" tooltip={`Copy ${target.document}`} onClick={() => void copy()} />
+                {text === undefined && <IconBtn icon={FolderOpen} label="Reveal in Finder" tooltip="Show this file in Finder" onClick={() => void revealFile()} />}
+                <IconLabel icon={X} onClick={onClose} aria-label="Close the file">
+                  Close
+                </IconLabel>
+              </>
+            }
+            blurb={
+              line && (
+                <Tooltip text={`Scroll back to ${line.toLowerCase()}`}>
+                  {(describedBy) => (
+                    <button type="button" className="text-xs text-muted hover:underline" onClick={toLine} aria-describedby={describedBy}>
+                      {line}
+                    </button>
+                  )}
+                </Tooltip>
+              )
+            }
+          />
           {note && (
             <p role="status" className="mt-1 text-xs text-muted" style={{ overflowWrap: 'anywhere' }}>
               {note}

@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppApi } from '@kirocrew/app-sdk'
 import { Btn, Card, Input } from '@kirocrew/app-sdk/ui'
 import { Tooltip } from './Tooltip.tsx'
-import { ChoiceCards } from './controls.tsx'
+import { ChoiceCards, SectionHeading } from './controls.tsx'
 import { Marker, Section } from './SettingsView.tsx'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
@@ -37,6 +37,15 @@ function Labeled(props: { id: string; label: string; raw: string; width?: string
       {props.note && <span className="text-xs text-muted">{props.note}</span>}
       <Raw name={props.raw} />
     </div>
+  )
+}
+
+// One bordered, titled box per sub-section, on the card surface.
+function Box({ children }: { children: React.ReactNode }) {
+  return (
+    <Card className="flex flex-col gap-4" data-flow-box>
+      {children}
+    </Card>
   )
 }
 
@@ -101,8 +110,10 @@ export default function FlowSettings({ workspaceId }: { workspaceId: string }) {
   const local = form.localChecksFirst ? form.localChecksFirst === 'on' : FLOW_DEFAULTS.localChecksFirst
   return (
     <div className="flex flex-col gap-3" data-flow-settings>
-      <Card className="flex flex-col gap-4">
+      <Box>
         <Section title="Timing" blurb="Always on. Avoozl records where each task's time goes; nothing to set." />
+      </Box>
+      <Box>
         <Section title="Stop the line" blurb="When a change breaks a check that passed, pause new work until it's fixed.">
           <div className="flex flex-col gap-1 text-sm">
             <span className="flex flex-wrap items-baseline gap-x-2">
@@ -113,6 +124,8 @@ export default function FlowSettings({ workspaceId }: { workspaceId: string }) {
             <Raw name="flow.stopTheLine.scope" />
           </div>
         </Section>
+      </Box>
+      <Box>
         <Section title="Local checks first" blurb="Run the checks here before any push, so CI only confirms. It matters only when sessions push.">
           <label className="flex flex-wrap items-center gap-2 text-sm">
             <input type="checkbox" checked={local} onChange={(event) => set({ localChecksFirst: event.target.checked ? 'on' : 'off' })} />
@@ -121,6 +134,8 @@ export default function FlowSettings({ workspaceId }: { workspaceId: string }) {
           </label>
           <Raw name="flow.localChecksFirst" />
         </Section>
+      </Box>
+      <Box>
         <Section title="Batching" blurb="Run small related tasks together to pay setup and checks once. 1 turns it off.">
           <div className="flex flex-wrap gap-4">
             <Labeled id="avoozl-flow-max" label="Most tasks per run" raw="flow.batch.max" width="13rem">
@@ -135,14 +150,20 @@ export default function FlowSettings({ workspaceId }: { workspaceId: string }) {
             </Labeled>
           </div>
         </Section>
+      </Box>
+      <Box>
         <Section title="Retro" blurb="A review that finds the biggest slowdown and proposes one change. You approve or reject each proposal.">
-          <div className="flex flex-wrap gap-4">
+          <SectionHeading level={4} title="When it runs" />
+          <div className="flex flex-wrap gap-4" data-flow-group="when">
             <Labeled id="avoozl-flow-every" label="After this many tasks" raw="flow.retro.everyTasks" width="14rem">
               <Input id="avoozl-flow-every" inputMode="numeric" value={form.everyTasks} placeholder={String(FLOW_DEFAULTS.everyTasks)} onChange={(event) => set({ everyTasks: event.target.value })} />
             </Labeled>
             <Labeled id="avoozl-flow-slow" label="Slow when over (× usual)" raw="flow.retro.slowFactor" width="14rem">
               <Input id="avoozl-flow-slow" inputMode="decimal" value={form.slowFactor} placeholder={String(FLOW_DEFAULTS.slowFactor)} onChange={(event) => set({ slowFactor: event.target.value })} />
             </Labeled>
+          </div>
+          <SectionHeading level={4} title="Who runs it and what it weighs" />
+          <div className="flex flex-wrap gap-4" data-flow-group="model">
             <Labeled id="avoozl-flow-model" label="Model" raw="flow.retro.model" width="16rem" note={models.error ?? undefined}>
               <select id="avoozl-flow-model" value={form.model || FLOW_DEFAULTS.model} onChange={(event) => set({ model: event.target.value === FLOW_DEFAULTS.model ? '' : event.target.value })} className="rounded border px-2 py-1 text-sm" style={selectStyle}>
                 {modelOptions(models.list, form.model).map((option) => (
@@ -164,7 +185,7 @@ export default function FlowSettings({ workspaceId }: { workspaceId: string }) {
             note="Saved on this machine only."
           />
         </Section>
-      </Card>
+      </Box>
       <div className="flex flex-wrap items-center gap-3">
         <Btn type="button" primary disabled={saving} onClick={() => void save()}>
           {saving ? 'Saving…' : 'Save'}

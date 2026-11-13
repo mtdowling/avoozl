@@ -23,6 +23,25 @@ export interface Attention {
   href: string | null
 }
 
+// What a Needs you title opens: a review group's list of tasks, the task's
+// drawer (it shows the task's conflicts and decisions), or, for an item
+// with no task, the tab where it is settled.
+export type AttentionTarget = { kind: 'review' } | { kind: 'task'; id: string } | { kind: 'tab'; tab: Attention['tab'] }
+
+export function attentionTarget(item: Attention): AttentionTarget {
+  if (item.group) return { kind: 'review' }
+  if (item.taskId) return { kind: 'task', id: item.taskId }
+  return { kind: 'tab', tab: item.tab }
+}
+
+// The title link's tooltip: where the click goes.
+export function attentionTip(item: Attention): string {
+  const target = attentionTarget(item)
+  if (target.kind === 'review') return 'Open the list of tasks to review'
+  if (target.kind === 'task') return `Open ${target.id} in the drawer`
+  return target.tab === 'conflicts' ? 'Open it in Conflicts' : 'Open it in Delivery'
+}
+
 export interface RunningTask {
   id: string
   title: string

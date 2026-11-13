@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import AddPlugin from './AddPlugin.tsx'
 import IntakeSources from './IntakeSources.tsx'
 import { useAppApi, useChatLauncher } from '@kirocrew/app-sdk'
-import { Card, CardTitle, EmptyState } from '@kirocrew/app-sdk/ui'
+import { Card, EmptyState } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import {
   CONTRACT_LABEL,
@@ -15,7 +15,7 @@ import {
 } from './plugins-api.ts'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
-import { DangerBtn, IconLabel, TipBtn } from './controls.tsx'
+import { DangerBtn, IconLabel, SectionHeading, TipBtn } from './controls.tsx'
 import { PackImportDialog } from './PackImport.tsx'
 import { BookOpen, MessagesSquare, Trash2 } from './icons.ts'
 import { useMedia } from './TaskDrawer.tsx'
@@ -86,11 +86,15 @@ function PluginCard(props: { row: PluginRow; busy: boolean; act: (fn: () => Prom
   const id = row.id ?? ''
   return (
     <Card>
-      <div className="flex flex-wrap items-center gap-2">
-        <CardTitle>{row.id ?? 'Unnamed entry'}</CardTitle>
-        <Badge variant={status.attention ? 'warning' : undefined}>{status.label}</Badge>
-        {row.health?.state === 'ok' ? <Badge>Healthy</Badge> : null}
-      </div>
+      <SectionHeading
+        title={row.id ?? 'Unnamed entry'}
+        meta={
+          <>
+            <Badge variant={status.attention ? 'warning' : undefined}>{status.label}</Badge>
+            {row.health?.state === 'ok' ? <Badge>Healthy</Badge> : null}
+          </>
+        }
+      />
       {row.reason ? <p className="mt-1 text-xs text-muted">{row.reason}</p> : null}
       {row.health?.state === 'unavailable' && row.health.reason !== row.reason ? (
         <p className="mt-1 text-xs text-muted">Last tick: {row.health.reason}</p>

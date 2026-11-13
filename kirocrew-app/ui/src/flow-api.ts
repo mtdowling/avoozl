@@ -178,6 +178,13 @@ export function compact(n: number): string {
 }
 export const credits = (n: number) => (n ? n.toFixed(2) : '0')
 
+// The usage card's one message when it has nothing to show, or null.
+export function usageMessage(usage: FlowViewModel['usage']): string | null {
+  if (!usage?.available) return 'Not available: Kiro Crew has not reported usage for this workspace\'s chats yet.'
+  if (!usage.total.turns) return 'No turns recorded for these tasks yet.'
+  return null
+}
+
 // One usage row in words: tokens, credits, or both.
 export function usageText(row: Omit<UsageRow, 'key'>): string {
   const parts = []

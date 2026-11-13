@@ -10,7 +10,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useAppApi, useChatLauncher, useNavigate } from '@kirocrew/app-sdk'
 import { Btn, Input } from '@kirocrew/app-sdk/ui'
 import { ExternalLink, MessageSquare, X } from './icons.ts'
-import { IconLabel, ICON, useConfirm } from './controls.tsx'
+import { ICON, IconLabel, SectionHeading, useConfirm } from './controls.tsx'
 import { useMedia } from './TaskDrawer.tsx'
 import { trapStep } from './focus-trap.ts'
 import { useBackStep } from './NavHistory.tsx'
@@ -215,13 +215,17 @@ export default function NewPlanDrawer(props: {
           transition: still ? 'none' : 'transform 180ms ease-out',
         }}
       >
-        <div className="flex items-center gap-2 border-b px-4 py-3" style={{ borderColor: 'var(--border)' }}>
-          <h3 id="avoozl-new-plan-title" className="grow text-lg font-semibold">
-            New plan
-          </h3>
-          <IconLabel icon={X} onClick={() => void close()} aria-label="Close New plan">
-            Close
-          </IconLabel>
+        <div className="border-b px-4 py-3" style={{ borderColor: 'var(--border)' }}>
+          <SectionHeading
+            level={2}
+            id="avoozl-new-plan-title"
+            title="New plan"
+            actions={
+              <IconLabel icon={X} onClick={() => void close()} aria-label="Close New plan">
+                Close
+              </IconLabel>
+            }
+          />
         </div>
         <form
           id="avoozl-new-plan-form"

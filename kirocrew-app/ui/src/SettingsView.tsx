@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Tooltip } from './Tooltip.tsx'
 import { useAppApi } from '@kirocrew/app-sdk'
-import { Btn, Card, CardTitle, EmptyState, Input, SegmentedControl } from '@kirocrew/app-sdk/ui'
+import { Btn, Card, EmptyState, Input, SegmentedControl } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { ModePicker } from './ModePicker.tsx'
 import {
@@ -55,7 +55,7 @@ import { useSteppedState } from './NavHistory.tsx'
 import { useRead } from './useRead.ts'
 import { labelsClient, triageRows, type RepositoryLabels } from './untriaged-api.ts'
 import { errorMessage, workspaceClient, type Repository, type WorkspaceList } from './workspace-api.ts'
-import { DangerBtn, IconLabel, TipBtn, ViewHeading, dangerStyle } from './controls.tsx'
+import { DangerBtn, IconLabel, SectionHeading, TipBtn, ViewHeading, dangerStyle } from './controls.tsx'
 import { Plus, Trash2 } from './icons.ts'
 
 const selectStyle = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }
@@ -242,25 +242,9 @@ function Hint({ children }: { children: ReactNode }) {
 
 // A heading with its one-line blurb, then the fields.
 export function Section(props: { title: string; blurb?: string; actions?: ReactNode; children?: ReactNode; level?: 'card' | 'sub' }) {
-  const heading =
-    props.level === 'sub' ? (
-      <h4 className="text-sm font-semibold">{props.title}</h4>
-    ) : (
-      <CardTitle>{props.title}</CardTitle>
-    )
   return (
     <div className="flex flex-col gap-2.5" data-section={props.title}>
-      <div className="flex flex-wrap items-start gap-2">
-        <div className="min-w-0 flex-1">
-          {heading}
-          {props.blurb && (
-            <p className="mt-0.5 text-xs text-muted" data-blurb>
-              {props.blurb}
-            </p>
-          )}
-        </div>
-        {props.actions && <div className="ml-auto flex items-center gap-2">{props.actions}</div>}
-      </div>
+      <SectionHeading level={props.level === 'sub' ? 4 : 3} title={props.title} blurb={props.blurb} actions={props.actions} />
       {props.children}
     </div>
   )

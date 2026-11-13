@@ -2,7 +2,7 @@ import { useMedia } from './TaskDrawer.tsx'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Tooltip } from './Tooltip.tsx'
 import { useAppApi } from '@kirocrew/app-sdk'
-import { Btn, Card, CardTitle, Input } from '@kirocrew/app-sdk/ui'
+import { Btn, Card, Input } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import {
   describeTick,
@@ -17,6 +17,7 @@ import {
 } from './workspace-api'
 import { TICK_LOG_LINES, chatClient, type TickLine } from './chat-api.ts'
 import { relativeTime } from './task-api.ts'
+import { SectionHeading } from './controls.tsx'
 
 function Field(props: {
   id: string
@@ -202,7 +203,7 @@ export default function WorkspaceView(
       >
         <div className="flex min-w-0 flex-col gap-3.5">
       <Card>
-        <CardTitle>Your workspaces ({list?.items.length ?? 0})</CardTitle>
+        <SectionHeading title={`Your workspaces (${list?.items.length ?? 0})`} className="mb-2" />
         <p className="mt-1 text-sm text-muted">The workspaces on this computer. The one you pick is the one the other tabs show.</p>
         {list === null ? (
           <p className="mt-2 text-sm text-muted">Loading…</p>
@@ -283,7 +284,7 @@ export default function WorkspaceView(
           <aside aria-label="Tick health" className="min-w-0">
           <Card>
             <div data-tick-panel style={{ maxHeight: 'calc(100vh - 12rem)', overflowY: 'auto' }}>
-            <CardTitle>Tick health</CardTitle>
+            <SectionHeading title="Tick health" className="mb-2" />
             <p className="my-2 text-sm">{describeTick(health)}</p>
             <h4 className="mt-2 text-xs font-semibold uppercase tracking-wide text-muted">
               Last {TICK_LOG_LINES} ticks, newest first

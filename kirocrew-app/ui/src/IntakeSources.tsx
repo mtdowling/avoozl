@@ -5,9 +5,9 @@
 // because its id and plugin may be private names.
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import { useAppApi } from '@kirocrew/app-sdk'
-import { Btn, Card, CardTitle, Input } from '@kirocrew/app-sdk/ui'
+import { Btn, Card, Input } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
-import { DangerBtn, IconLabel } from './controls.tsx'
+import { DangerBtn, IconLabel, SectionHeading } from './controls.tsx'
 import { Plus, Trash2 } from './icons.ts'
 import { emptySourceForm, intakeClient, sourceEntry, type IntakeSourceRow, type PluginRow, type SourceForm } from './plugins-api.ts'
 import { useRead } from './useRead.ts'
@@ -100,7 +100,7 @@ export default function IntakeSources({ workspaceId, plugins }: { workspaceId: s
   }
   return (
     <Card>
-      <CardTitle>Intake sources</CardTitle>
+      <SectionHeading title="Intake sources" className="mb-2" />
       <p className="mb-2 text-xs text-muted">
         Where work other than GitHub comes in. Items show in the Intake tab; a rule with <code>source:&lt;id&gt;</code> can take them. Avoozl writes nothing back to a source.
       </p>

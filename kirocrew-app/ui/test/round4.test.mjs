@@ -234,10 +234,11 @@ test('each view heading and its nav tab show the same icon, hidden from readers'
     ['ConflictsView.tsx', 'conflicts'],
     ['SettingsView.tsx', 'settings'],
   ])
-    assert.match(source(file), new RegExp(`<ViewHeading id="avoozl-${view}-title" view="${view}">`), file)
+    assert.match(source(file), new RegExp(`<ViewHeading\\s+id="avoozl-${view}-title"\\s+view="${view}"[\\s>]`), file)
   assert.match(source('App.tsx'), /<ViewLabel view=\{t\.key\}>\{t\.label\}<\/ViewLabel>/)
   const controls = source('controls.tsx')
-  assert.equal((controls.match(/<Icon size=\{(18|ICON)\} aria-hidden="true"/g) ?? []).length >= 2, true)
+  assert.match(controls, /<Icon size=\{level === 2 \? 18 : 16\} aria-hidden="true"/)
+  assert.match(controls, /<Icon size=\{ICON\} aria-hidden="true"/)
   assert.doesNotMatch(controls.slice(controls.indexOf('export function ViewHeading')), /warn|yellow/)
 })
 
