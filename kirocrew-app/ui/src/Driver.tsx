@@ -69,7 +69,7 @@ export function DriverSummary(props: { workspaceId: string | null }) {
   const readOnly = status.readOnly ?? 0
   const text = readOnly ? `${readOnly} of ${status.specs.length} specs read only here` : 'Driver: you'
   return (
-    <Tooltip text={readOnly ? 'Another machine or person drives these specs. Open one in Plans to see why.' : 'This machine drives every approved spec.'}>
+    <Tooltip text={readOnly ? 'Another machine or person drives these specs. Open one in Specs to see why.' : 'This machine drives every approved spec.'}>
       {(describedBy) => (
         <span data-driver-summary aria-describedby={describedBy} className="inline-flex items-center gap-1.5 text-sm">
           <Laptop size={14} aria-hidden="true" style={{ color: 'var(--muted)' }} />

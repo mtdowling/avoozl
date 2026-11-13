@@ -25,6 +25,8 @@ import { machineAvoozlPaths } from "./host-config.mjs";
 import { check as contentCheck } from "./content-rules.mjs";
 import { declaredPlugins, readPluginSettings } from "./plugins.mjs";
 import { listSessionBindings } from "./session-bindings.mjs";
+import { epicOfPlan } from "./epics.mjs";
+import { retroMemory } from "./retro-memory.mjs";
 import { fail } from "./store.mjs";
 
 const TABLE = "drivers";
@@ -264,42 +266,53 @@ function planIssueConfig(store, plan, identity) {
 }
 
 // The epic issue that stands in when the plan issue has no assignee: the
-// projected issue of the spec's top-level epic task.
-// shortcut: Phase 21's epic folders are not built, so the epic issue is the
-// spec's own root epic task; switch to the epic folder's issue with 21.4.
+// epic folder's issue projection recorded (§6.9), else the plan issue's
+// parent on GitHub, for a workspace that never projected the spec.
 function epicIssue(store, plan) {
-  const epic = planTasks(store.read(), plan.id).find(
-    (task) => taskKind(task) === "epic" && !task.parent && task.github?.number,
-  );
-  return epic
-    ? { repository: epic.github.repository, number: epic.github.number }
+  const epic = epicOfPlan(store.read(), plan.id),
+    receipt = epic && store.get("receipts", `github-parent:epic:${epic.id}`);
+  return receipt?.number
+    ? { repository: receipt.repository, number: receipt.number }
     : null;
 }
 
+// The plan issue projection keeps (github-projection.mjs `upsertParent`):
+// marker task ID `plan.<id>`, the managed label, a parent receipt. Made
+// here first so it holds the claim before any task issue exists; a spec
+// plan's projection then writes its own title and section over this one.
+const planTaskId = (plan) => `plan.${plan.id}`;
+const planReceipt = (plan) => `github-parent:plan:${plan.id}`;
+
 function planSection(plan) {
   return `<!-- avoozl:managed:start -->
-This is the plan issue for approved design \`${plan.id}\`. Its one assignee drives this spec in Avoozl; reassign it to hand the spec to someone else.
+This issue is the plan \`${plan.id}\`. Its one assignee drives it in Avoozl; reassign it to hand the plan to someone else.
 <!-- avoozl:managed:end -->`;
 }
 
-const planTitle = (plan) =>
-  ("Plan: " + (plan.title || specName(plan))).slice(0, 200);
+const planTitle = (plan) => String(plan.title || plan.id).slice(0, 200);
 
-function planMarker(plan, namespace, claim) {
-  const commit = plan.sourceCommit || plan.context?.github?.commit || null;
+function managedLabel(config, identity) {
+  return (
+    identity.repositories?.[config.id]?.managedLabels?.managed ||
+    config.managedLabel ||
+    null
+  );
+}
+
+function planMarker(plan, namespace, claim, label) {
   return {
     version: 2,
-    taskId: plan.id,
+    taskId: planTaskId(plan),
     namespace,
     kind: "plan",
     source: {
-      commit: COMMIT.test(commit || "") ? commit : null,
+      commit: null,
       manifest: SHA256.test(plan.hash) ? plan.hash : digest(String(plan.hash)),
     },
     applied: {
       title: digest(planTitle(plan)),
       body: digest(planSection(plan)),
-      labels: [],
+      labels: label ? [label] : [],
       blockers: [],
     },
     ...(claim ? { claim } : {}),
@@ -321,7 +334,7 @@ function planMarkerOf(issue, namespace, planId) {
   return marker?.version === 2 &&
     marker.kind === "plan" &&
     marker.namespace === namespace &&
-    marker.taskId === planId
+    marker.taskId === `plan.${planId}`
     ? marker
     : null;
 }
@@ -419,6 +432,9 @@ async function readGitHubDriver(
       planIssueConfig(store, plan, identity)
     : planIssueConfig(store, plan, identity);
   let issue = null;
+  const receipt = store.get("receipts", planReceipt(plan));
+  if (!row.number && receipt?.number && same(receipt.repository, config.id))
+    row = { ...row, number: receipt.number };
   if (row.number) issue = await github.issue(config, row.number);
   else if (find)
     issue = await findPlanIssue(github, config, namespace, plan.id);
@@ -496,23 +512,6 @@ async function readGitHubDriver(
       ),
     });
   }
-  // The plan issue sits under its epic issue (§6.9), so a workspace that
-  // never projected the spec still finds the epic's assignee.
-  let epicLinked = row.epicLinked ?? null;
-  if (heartbeat && verdict.state === "driver") {
-    const ref = epicIssue(store, plan);
-    if (
-      ref &&
-      epicLinked !== ref.number &&
-      Number.isSafeInteger(Number(issue.id))
-    ) {
-      const epicConfig = store.get("github_repositories", ref.repository);
-      if (epicConfig && same(epicConfig.id, config.id)) {
-        await github.addSubIssue(epicConfig, ref.number, Number(issue.id));
-        epicLinked = ref.number;
-      }
-    }
-  }
   // Zero or several assignees: one decision naming the issue and what it
   // found, closed by itself once the issue has one.
   let decision = row.decision || null;
@@ -549,7 +548,6 @@ async function readGitHubDriver(
     state: verdict.state,
     reason: verdict.reason,
     decision,
-    epicLinked,
     readAt: iso(now),
   };
   return { row: putRow(store, row), notify, issue, config, marker };
@@ -704,16 +702,10 @@ export async function ensurePlanIssue(store, github, plan) {
       // The epic issue's one assignee already decides.
       if (epicAssignees.length === 1) assignees = [];
     }
-    const claim = newClaim(ctx, login),
-      body = withClaimBody(
-        planSection(plan),
-        planMarker(plan, namespace, claim),
-        identity,
-      );
-    const created = await github.createIssue(config, {
-      title: planTitle(plan),
-      body,
-      ...(assignees.length ? { assignees } : {}),
+    const created = await createPlanIssue(store, github, ctx, plan, {
+      config,
+      claim: newClaim(ctx, login),
+      assignees,
     });
     putRow(store, { ...row, repository: config.id, number: created.number });
     ({ row } = await readGitHubDriver(store, github, ctx, plan, { login }));
@@ -724,6 +716,45 @@ export async function ensurePlanIssue(store, github, plan) {
       409,
     );
   return row;
+}
+
+async function createPlanIssue(
+  store,
+  github,
+  ctx,
+  plan,
+  { config, claim, assignees },
+) {
+  const identity = ctx.identity(),
+    label = managedLabel(config, identity),
+    created = await github.createIssue(config, {
+      title: planTitle(plan),
+      body: withClaimBody(
+        planSection(plan),
+        planMarker(plan, requireNamespace(identity), claim, label),
+        identity,
+      ),
+      ...(label ? { labels: [label] } : {}),
+      ...(assignees.length ? { assignees } : {}),
+    });
+  // The receipt projection reads to find its plan issue again.
+  store.transaction(() =>
+    store.put("receipts", {
+      ...(store.get("receipts", planReceipt(plan)) || {}),
+      id: planReceipt(plan),
+      kind: "github-parent",
+      level: "plan",
+      parentId: plan.id,
+      planId: plan.id,
+      repository: config.id,
+      number: created.number,
+      nodeId: created.node_id ?? null,
+      databaseId: Number(created.id) || null,
+      url: created.html_url ?? null,
+      updatedAt: new Date().toISOString(),
+    }),
+  );
+  return created;
 }
 
 // Words for why a spec reads only here, shown in the banner and errors.
@@ -1046,9 +1077,21 @@ function scrub(value) {
   );
 }
 
-// The lessons store (Phase 28) exports itself when it exists.
-// shortcut: Phase 28 is not built; `lessonsExport` is the hook it fills.
-export const lessonsHook = { export: null, import: null };
+// The raw lessons store (§4.18) moves with the export: this machine's
+// lesson rows as they are, and on take-over each row this machine lacks.
+// Tests may replace the hook.
+export const lessonsHook = {
+  export: (store) => {
+    const lessons = retroMemory(store)?.lessons;
+    return lessons ? lessons.list() : null;
+  },
+  import: (store, rows) => {
+    const lessons = retroMemory(store)?.lessons;
+    if (!lessons || !Array.isArray(rows)) return;
+    for (const row of rows)
+      if (typeof row?.id === "string" && !lessons.get(row.id)) lessons.put(row);
+  },
+};
 
 export function buildExport(store, ctx, plan, { unfinished = [] } = {}) {
   const data = store.read(),
@@ -1378,7 +1421,12 @@ async function writeClaim(store, github, ctx, row, claim) {
     issue = await github.issue(config, row.number),
     marker =
       planMarkerOf(issue, identity.namespace, row.id) ||
-      planMarker(store.get("plans", row.id), identity.namespace, null);
+      planMarker(
+        store.get("plans", row.id),
+        identity.namespace,
+        null,
+        managedLabel(config, identity),
+      );
   await github.updateIssue(config, row.number, {
     body: withClaimBody(issue.body, { ...marker, claim }, identity),
   });
@@ -1441,14 +1489,9 @@ export async function takeOver(store, github, input = {}, hooks = {}) {
   const claim = newClaim(ctx, login, { from: claimFrom(row.claim) });
   if (legacy) {
     const config = planIssueConfig(store, plan, ctx.identity()),
-      identity = ctx.identity(),
-      created = await github.createIssue(config, {
-        title: planTitle(plan),
-        body: withClaimBody(
-          planSection(plan),
-          planMarker(plan, identity.namespace, claim),
-          identity,
-        ),
+      created = await createPlanIssue(store, github, ctx, plan, {
+        config,
+        claim,
         assignees: [login],
       });
     row = putRow(store, {

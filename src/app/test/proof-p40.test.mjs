@@ -15,6 +15,7 @@ import { machineIdentity } from "../github-sync.mjs";
 import { parseMarker } from "../github-marker.mjs";
 import { Store } from "../store.mjs";
 import { snapshot } from "./fixtures.mjs";
+import { writeSpec } from "./spec-fixture.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
@@ -54,6 +55,11 @@ class World {
   planIssue() {
     return this.issues.find(
       (issue) => parseMarker(issue.body)?.kind === "plan",
+    );
+  }
+  epicIssue() {
+    return this.issues.find(
+      (issue) => parseMarker(issue.body)?.kind === "epic",
     );
   }
   taskIssue(taskId) {
@@ -276,41 +282,57 @@ const sleep = async (ms) => {
   clock.t += ms;
 };
 
-const TASKS = [
-  {
-    key: "e1",
-    id: "epic-one",
-    kind: "epic",
-    title: "Driver epic",
-    projectId: "code",
-  },
-  {
-    key: "a1",
-    id: "leaf-a1",
-    title: "Task a1",
-    summary: "a1",
-    acceptance: ["a1 works"],
-    projectId: "code",
-  },
-  {
-    key: "a2",
-    id: "leaf-a2",
-    title: "Task a2",
-    summary: "a2",
-    acceptance: ["a2 works"],
-    projectId: "code",
-    requires: ["leaf-a1"],
-  },
-  {
-    key: "l1",
-    id: "local-l1",
-    title: "Local l1",
-    summary: "l1",
-    acceptance: ["l1 works"],
-    projectId: "code",
-    authority: "local",
-  },
-];
+// Spec s1 under epic e1: leaves a1 and a2 (a2 requires a1) and a
+// local-authority leaf l1. The same files in every workspace's checkout.
+const leaf = (extra = {}) => ({
+  kind: "leaf",
+  summary: "Do it.",
+  repository: "code",
+  acceptance: ["It works."],
+  checks: ["npm test"],
+  ...extra,
+});
+function writeSpecs(root) {
+  writeSpec(root, "s1", {
+    "requirements.md": "---\nepic: e1\n---\n# Plan s1\n\nThe goal of s1.\n",
+    "tasks.md":
+      "# Tasks\n\n- [ ] 1 Task a1\n- [ ] 2 Task a2\n- [ ] 3 Local l1\n- [ ] 4 Task a3\n",
+    "avoozl/manifest.json": JSON.stringify({
+      tasks: {
+        1: leaf(),
+        2: leaf({ requires: ["1"] }),
+        3: leaf({ authority: "local" }),
+        // a3 waits on a2; it is here to be closed by someone not allowed.
+        4: leaf({ requires: ["2"] }),
+      },
+    }),
+  });
+  writeSpec(root, "e1", {
+    "requirements.md":
+      "# Epic e1\n\nShip s1.\n\n## What done means\n\ns1 is done.\n",
+    "design.md": "# Design\n\ns1.\n",
+    "tasks.md": "# Plans\n\n- [ ] 1 s1\n",
+    "avoozl/manifest.json": JSON.stringify({
+      kind: "epic",
+      tasks: { 1: { plan: "s1", summary: "Plan s1." } },
+    }),
+  });
+}
+
+async function approveSpec(ops, name) {
+  const plan =
+    ops.store.get("plans", name) ||
+    (await ops.execute("plan.create", {
+      spec: name,
+      context: { projectId: "plans" },
+    }));
+  const preview = await ops.execute("plan.preview", { id: plan.id });
+  return ops.execute("plan.approve", {
+    id: plan.id,
+    expectedHash: plan.hash,
+    expectedRevision: preview.expectedRevision,
+  });
+}
 
 // One isolated workspace: its own root, SQLite, checkout and driver
 // settings file (its machine ID), on the shared fake GitHub as `login`.
@@ -342,9 +364,18 @@ async function workspace(
         }
       : { github: { mode: "local" } }),
   });
+  writeSpecs(root);
   const store = new Store(path.join(root, "workspace.sqlite"));
   t.after(() => store.close());
   store.importSnapshot(snapshot());
+  // The planning checkout holds the spec folders; code is a plain folder.
+  store.put("projects", {
+    id: "plans",
+    root,
+    planning: true,
+    baseBranch: "main",
+    checks: [["npm", "test"]],
+  });
   store.put("projects", {
     id: "code",
     root: checkout,
@@ -366,41 +397,17 @@ async function workspace(
       id: PLANS,
       owner: "example",
       repo: "plans",
+      projectId: "plans",
       managedLabel: "avoozl",
       label: "avoozl-ready",
       activeMachine: machine,
     });
-    store.put("github_repositories", {
-      id: CODE,
-      owner: "example",
-      repo: "code",
-      projectId: "code",
-      activeMachine: machine,
-    });
   }
-  const plan = await ops.execute("plan.create", {
-    id: "s1",
-    prompt: "Driver handoff",
-    text:
-      "# s1\n\n" +
-      TASKS.map(
-        ({ key: _key, ...task }) =>
-          "```task\n" + JSON.stringify(task) + "\n```\n",
-      ).join("\n"),
-  });
-  const approved = await ops.execute("plan.approve", {
-    id: plan.id,
-    expectedHash: plan.hash,
-    expectedRevision: store.read().revision,
-  });
-  const ids = Object.fromEntries(
-    TASKS.map((task, index) => [task.key, approved.taskIds[index]]),
-  );
-  // a1 and a2 sit under the epic, as the rebuild test nests them.
-  store.mutate("Nest under the epic", (data) => {
-    for (const task of data.tasks)
-      if ([ids.a1, ids.a2].includes(task.id)) task.parent = ids.e1;
-  });
+  await approveSpec(ops, "s1");
+  await approveSpec(ops, "e1");
+  // Spec task IDs are the plan ID and the tasks.md number.
+  const ids = { a1: "s1.1", a2: "s1.2", l1: "s1.3", a3: "s1.4" };
+  assert.ok(store.read().tasks.some((task) => task.id === ids.a1));
   const tick = (sessions = []) =>
     ops.execute("workspace.tick", { sessions, cron: true });
   const status = async () =>
@@ -516,7 +523,7 @@ test("P40: one driver per spec, moved only by a person", async (t) => {
   // (4) No assignee on the plan issue, alice on the epic issue: the epic's
   // assignee stands in and A2 still drives. A2 never projected the spec; it
   // finds the epic as the plan issue's parent.
-  const epic = world.taskIssue(ids.e1);
+  const epic = world.epicIssue();
   assert.ok(
     world.subIssues.some(
       ([parent, id]) => parent === epic.number && id === plan.id,
@@ -770,15 +777,15 @@ test("P40: one driver per spec, moved only by a person", async (t) => {
     title: a2Dispatch.title,
   });
   // B stops: no more ticks from it. Someone the policy does not allow
-  // closes e1's issue, a decision whose cause stays on GitHub.
-  const e1Issue = world.taskIssue(ids.e1);
-  Object.assign(e1Issue, {
+  // closes a3's issue, a decision whose cause stays on GitHub.
+  const a3Issue = world.taskIssue(ids.a3);
+  Object.assign(a3Issue, {
     state: "closed",
     state_reason: "completed",
     closed_at: "2026-11-13T13:05:00Z",
     updated_at: "2026-11-13T13:05:00Z",
   });
-  world.events.set(e1Issue.number, [
+  world.events.set(a3Issue.number, [
     {
       event: "closed",
       actor: { login: "mallory" },
@@ -831,7 +838,7 @@ test("P40: one driver per spec, moved only by a person", async (t) => {
   assert.deepEqual(tickA1.github.projection.projected, ["s1"]);
   assert.ok(
     (await A1.ops.execute("conflicts.view", {})).items.some(
-      (item) => item.kind === "github-conflict" && item.taskId === ids.e1,
+      (item) => item.kind === "github-conflict" && item.taskId === ids.a3,
     ),
   );
   assert.equal(

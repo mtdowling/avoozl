@@ -335,12 +335,16 @@ async function upsertParent({
   const patch = {};
   if (titlePlan.write) patch.title = title;
   let body = bodyPlan.write ? withSection(current.body, section) : current.body;
-  const next = marker({
-    title: titlePlan.baseline,
-    body: bodyPlan.baseline,
-    labels: [labels.managed],
-    blockers: [],
-  });
+  const next = {
+    ...marker({
+      title: titlePlan.baseline,
+      body: bodyPlan.baseline,
+      labels: [labels.managed],
+      blockers: [],
+    }),
+    // The driver's claim (§6.10) is the driver's to write; projection keeps it.
+    ...(kind === "plan" && previous?.claim ? { claim: previous.claim } : {}),
+  };
   if (JSON.stringify(previous) !== JSON.stringify(next))
     body = withMarker(body, renderMarker(next, markerOptions));
   if (body !== current.body) patch.body = body;
