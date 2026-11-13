@@ -10,6 +10,7 @@ import { Send, X } from './icons.ts'
 import { IconLabel, ICON, useConfirm } from './controls.tsx'
 import { useMedia } from './TaskDrawer.tsx'
 import { trapStep } from './focus-trap.ts'
+import { useBackStep } from './NavHistory.tsx'
 import { errorMessage, workspaceClient, type Repository } from './workspace-api.ts'
 import { EMPTY_NEW_PLAN, formProblems, isDirty, nameProblem, newPlanClient, type NewPlanForm } from './new-plan-api.ts'
 
@@ -85,6 +86,8 @@ export default function NewPlanDrawer(props: {
   }
   const closeRef = useRef(close)
   closeRef.current = close
+  // Esc and Back ask first when something was typed, like Cancel.
+  useBackStep('drawer', true, 'Close New plan', () => void closeRef.current())
 
   useEffect(() => {
     const before = document.activeElement as HTMLElement | null
@@ -94,11 +97,6 @@ export default function NewPlanDrawer(props: {
     })
     const onKey = (event: KeyboardEvent) => {
       if (document.querySelector('[data-confirm-dialog]')) return
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        void closeRef.current()
-        return
-      }
       if (event.key !== 'Tab' || !panel.current) return
       const items = [...panel.current.querySelectorAll<HTMLElement>(FOCUSABLE)]
       const next = trapStep(items.length, items.indexOf(document.activeElement as HTMLElement), event.shiftKey)

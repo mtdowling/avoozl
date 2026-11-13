@@ -16,6 +16,7 @@ import {
   type PluginRow,
 } from './plugins-api.ts'
 import { errorMessage } from './workspace-api.ts'
+import { useBackStep } from './NavHistory.tsx'
 
 type Client = ReturnType<typeof pluginsClient>
 
@@ -105,15 +106,8 @@ export function PackImportDialog(props: { row: PluginRow; workspaceId: string; c
       live = false
     }
   }, [client, workspaceId, row.id])
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return
-      event.preventDefault()
-      cancel()
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [cancel])
+  // Esc and Back do what Cancel does.
+  useBackStep('modal', true, 'Cancel', cancel)
   useEffect(() => {
     box.current?.querySelector<HTMLElement>('button')?.focus()
   }, [])

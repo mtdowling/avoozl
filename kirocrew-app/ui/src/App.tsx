@@ -20,6 +20,8 @@ import { setSharedFilter } from './FilterBar.tsx'
 import type { TaskFilter } from './filters.ts'
 import type { Drill } from './graph-layout.ts'
 import { viewsClient } from './views-api.ts'
+import { APP_ATTR, NavHistoryProvider, useNav } from './NavHistory.tsx'
+import { changePage } from './nav-history.ts'
 import {
   errorMessage,
   pickDefault,
@@ -83,7 +85,18 @@ function WorkspacePicker(props: {
   )
 }
 
+const tabLabel = (key: Tab) => TABS.find((t) => t.key === key)?.label ?? key
+
 export default function AvoozlApp() {
+  return (
+    <NavHistoryProvider>
+      <AvoozlPage />
+    </NavHistoryProvider>
+  )
+}
+
+function AvoozlPage() {
+  const nav = useNav()
   const api = useAppApi()
   const client = useMemo(() => workspaceClient(api), [api])
   const { openChat } = useChatLauncher()
@@ -121,42 +134,39 @@ export default function AvoozlApp() {
     writePageState(storage(), { workspaceId })
   }, [workspaceId])
 
-  const openWorkspaces = () => {
-    setSettingsTab('workspaces')
-    setTab('settings')
+  // Every change of tab or Settings section is a Back step that keeps
+  // where the page was (changePage).
+  const here = { tab, settingsTab, focus, drill }
+  const apply = (place: Partial<typeof here>) => {
+    if (place.focus !== undefined) setFocus(place.focus)
+    if (place.drill !== undefined) setDrill(place.drill)
+    if (place.settingsTab !== undefined) setSettingsTab(place.settingsTab)
+    if (place.tab !== undefined) setTab(place.tab)
   }
+  const go = (next: Partial<typeof here>) =>
+    changePage(nav, here, next, apply, (before, newTab) => (newTab ? `Back to ${tabLabel(before.tab)}` : 'Back to the previous Settings section'))
+  const openWorkspaces = () => go({ settingsTab: 'workspaces', tab: 'settings' })
   // A saved workspace counts only once the catalog confirms it still exists.
   const active = list ? workspaceId : null
   const needsWorkspace = tab !== 'settings' && !active
 
-  const navigate = useCallback((target: DashboardTarget, taskId?: string) => {
-    setFocus(taskId ?? null)
-    setDrill(null)
-    setTab(target)
-  }, [])
+  const navigate = (target: DashboardTarget, taskId?: string) => go({ focus: taskId ?? null, drill: null, tab: target })
   // A Plans row's Graph or Delivery button, or a Dashboard count: set the
   // tabs' shared filter, then open the tab. The filter bar shows it, and
   // Clear undoes it.
-  const scopeTo = useCallback(
-    (target: PlanTarget, filter: TaskFilter) => {
-      if (active) setSharedFilter(active, filter)
-      setFocus(null)
-      setDrill(null)
-      setTab(target)
-    },
-    [active],
-  )
-  const openDrill = useCallback((next: Drill) => {
-    setFocus(null)
-    setDrill(next)
-    setTab('graph')
-  }, [])
-  const chooseTab = (key: Tab) => {
-    setFocus(null)
-    setDrill(null)
-    setSettingsTab((current) => settingsTabOnEnter(tab, key, current, SETTINGS_TABS.map((t) => t.key)))
-    setTab(key)
+  const scopeTo = (target: PlanTarget, filter: TaskFilter) => {
+    if (active) setSharedFilter(active, filter)
+    go({ focus: null, drill: null, tab: target })
   }
+  // On the Graph already, a drill is the Graph's own Back step.
+  const openDrill = (next: Drill) => go({ focus: null, drill: next, tab: 'graph' })
+  const chooseTab = (key: Tab) =>
+    go({
+      focus: null,
+      drill: null,
+      settingsTab: settingsTabOnEnter(tab, key, settingsTab, SETTINGS_TABS.map((t) => t.key)),
+      tab: key,
+    })
 
   useEffect(() => {
     if (!active) return setConflicts(0)
@@ -195,6 +205,7 @@ export default function AvoozlApp() {
   }, [untriaged, tab])
 
   return (
+    <div {...{ [APP_ATTR]: '' }} style={{ display: 'contents' }}>
     <ConfirmProvider>
     <TaskDrawerProvider workspaceId={active} onFocus={(id, title) => openDrill({ kind: 'focus', id, title })}>
     <div className="flex h-full min-h-0 flex-col">
@@ -244,7 +255,13 @@ export default function AvoozlApp() {
           {error}
         </p>
       )}
-      <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-8">
+      <div
+        ref={(element) => {
+          nav.scroller.current = element
+        }}
+        data-avoozl-pane
+        className="flex-1 min-h-0 overflow-y-auto px-6 pb-8"
+      >
         {needsWorkspace ? (
           <EmptyState
             icon={<Logo size={40} />}
@@ -280,7 +297,7 @@ export default function AvoozlApp() {
           <SettingsView
             workspaceId={active}
             tab={settingsTab}
-            onTab={setSettingsTab}
+            onTab={(next) => go({ settingsTab: next })}
             onSelectWorkspace={(id) => id && setWorkspaceId(id)}
             onListChange={takeList}
             onOpenPlans={() => chooseTab('plans')}
@@ -290,5 +307,6 @@ export default function AvoozlApp() {
     </div>
     </TaskDrawerProvider>
     </ConfirmProvider>
+    </div>
   )
 }

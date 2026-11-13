@@ -84,9 +84,10 @@ test('the full-file reader is a trapped, closable modal over the page', () => {
   assert.match(reader, /registerLanguages\(/)
   assert.match(reader, /outline\(doc\.text/)
   assert.match(reader, /tasks\.document\(workspaceId, target\.document\)/)
-  // Esc closes it before the drawer hears it; Tab wraps; backdrop closes.
+  // Esc and Back close it before the drawer under it (it is the newer
+  // step in the page's history); Tab wraps; backdrop closes.
+  assert.match(reader, /useBackStep\('modal', true, 'Close the file', onClose\)/)
   assert.match(reader, /addEventListener\('keydown', onKey, true\)/)
-  assert.match(reader, /event\.stopPropagation\(\)/)
   assert.match(reader, /event\.key !== 'Tab'/)
   assert.match(reader, /data-reader-backdrop className="absolute inset-0" onClick=\{onClose\}/)
   assert.match(reader, /aria-modal="true"/)

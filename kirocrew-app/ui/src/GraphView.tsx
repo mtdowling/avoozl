@@ -8,8 +8,6 @@ import {
   backLabel,
   drillCrumbs,
   drillLabel,
-  isBackButton,
-  isBackKey,
   popDrill,
   pushDrill,
   pushFilter,
@@ -41,6 +39,7 @@ import { FilterBar, useSharedFilter } from './FilterBar.tsx'
 import { filterChoices, filterGraph } from './filters.ts'
 import { IconLabel, TipBtn, ViewHeading } from './controls.tsx'
 import { ArrowLeft, Plus, RefreshCw } from './icons.ts'
+import { useNav, useRemembered } from './NavHistory.tsx'
 
 // Graphs larger than this open with every epic collapsed to one node.
 const COLLAPSE_ABOVE = 60
@@ -268,9 +267,13 @@ export default function GraphView({
   // null until the reader chooses: big graphs then start collapsed.
   const [collapsed, setCollapsed] = useState<Set<string> | null>(null)
   useEffect(() => setCollapsed(null), [drill])
-  const [selected, setSelected] = useState<string | null>(null)
+  const nav = useNav()
+  // Kept while another tab is open, so Back returns to the same level,
+  // selection, zoom and pan.
+  const [selected, setSelected] = useRemembered<string | null>('graph-selected', null)
   const [hovered, setHovered] = useState<string | null>(null)
-  const [view, setView] = useState<View>({ x: 0, y: 0, scale: 1 })
+  const [view, setView] = useRemembered<View>('graph-view', { x: 0, y: 0, scale: 1 })
+  const [returning] = useState(() => nav.memory.has('graph-stack'))
   const canvas = useRef<HTMLDivElement>(null)
   const drag = useRef<{ x: number; y: number; view: View; moved: boolean } | null>(null)
   const moved = useRef(false)
@@ -299,11 +302,12 @@ export default function GraphView({
   }
   // The drill stack: every level left, with its zoom, pan and selection.
   // The app runs inside the Kiro Crew page (no iframe of its own), so
-  // history.pushState would move the host page too; Back is handled here.
-  const [stack, setStack] = useState<DrillEntry[]>([])
+  // history.pushState would move the host page too. Each level is one step
+  // in the page's Back history (NavHistory.tsx), which calls back() here.
+  const [stack, setStack] = useRemembered<DrillEntry[]>('graph-stack', [])
   const last = useRef<DrillEntry>({ drill, view, selected })
   const backing = useRef(false)
-  const restore = useRef<View | null>(null)
+  const restore = useRef<View | null>(returning ? view : null)
   useEffect(() => {
     const leaving = last.current
     if (backing.current) backing.current = false
@@ -333,16 +337,18 @@ export default function GraphView({
       onDrill?.(entry.drill)
     } else setView(entry.view)
   }
-  const onBackKey = (event: { key: string; altKey: boolean; metaKey: boolean; preventDefault: () => void }) => {
-    if (!isBackKey(event) || !stack.length) return
-    event.preventDefault()
-    back()
-  }
-  const onBackButton = (event: { button: number; preventDefault: () => void }) => {
-    if (!isBackButton(event) || !stack.length) return
-    event.preventDefault()
-    back()
-  }
+  const backNow = useRef(back)
+  backNow.current = back
+  useEffect(() => {
+    const handler = () => backNow.current()
+    nav.handlers.set('graph', handler)
+    return () => {
+      if (nav.handlers.get('graph') === handler) nav.handlers.delete('graph')
+    }
+  }, [nav])
+  useEffect(() => {
+    nav.history.sync('graph', stack.length, () => ({ label: 'Back in the Graph', back: () => nav.handlers.get('graph')?.() }))
+  }, [nav, stack.length])
   const drillEpic = (epic: string | null) => onDrill?.({ kind: 'epic', id: epic, title: epicTitle(epic) })
 
   const fit = useCallback(() => {
@@ -452,9 +458,6 @@ export default function GraphView({
       aria-labelledby="avoozl-graph-title"
       className="flex flex-col gap-3.5"
       data-graph-view
-      onKeyDown={onBackKey}
-      onMouseUp={onBackButton}
-      onAuxClick={onBackButton}
     >
       <div className="flex flex-wrap items-center gap-3">
         <ViewHeading id="avoozl-graph-title" view="graph">

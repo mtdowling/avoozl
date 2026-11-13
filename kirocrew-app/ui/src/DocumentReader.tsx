@@ -20,6 +20,7 @@ import { insideWorkspace, lineText, taskClient } from './task-api.ts'
 import { CITED_STYLE, markCited } from './CitedFile.tsx'
 import { useReveal } from './RepositoriesSettings.tsx'
 import { errorMessage, workspaceClient } from './workspace-api.ts'
+import { APP_ATTR, useBackStep } from './NavHistory.tsx'
 
 export interface ReaderTarget {
   document: string
@@ -82,18 +83,13 @@ export function DocumentReader(props: { workspaceId: string; target: ReaderTarge
     return () => cancelAnimationFrame(frame)
   }, [doc.text, toLine])
 
-  // Focus moves in on open and back on close; Esc closes this, not the
-  // drawer under it; Tab and Shift+Tab wrap inside.
+  // Focus moves in on open and back on close; Esc and Back close this, not
+  // the drawer under it; Tab and Shift+Tab wrap inside.
+  useBackStep('modal', true, 'Close the file', onClose)
   useEffect(() => {
     returnTo.current = document.activeElement as HTMLElement | null
     panel.current?.focus()
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        event.stopPropagation()
-        onClose()
-        return
-      }
       if (event.key !== 'Tab' || !panel.current) return
       const items = [...panel.current.querySelectorAll<HTMLElement>(FOCUSABLE)]
       if (!items.length) return event.preventDefault()
@@ -140,7 +136,7 @@ export function DocumentReader(props: { workspaceId: string; target: ReaderTarge
   const jump = (id: string) => panel.current?.querySelector(`#${CSS.escape(id)}`)?.scrollIntoView?.({ block: 'start', behavior: still ? 'auto' : 'smooth' })
 
   return createPortal(
-    <div className="fixed inset-0" style={{ zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' }} data-document-reader>
+    <div className="fixed inset-0" style={{ zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' }} data-document-reader {...{ [APP_ATTR]: '' }}>
       <div aria-hidden="true" data-reader-backdrop className="absolute inset-0" onClick={onClose} style={{ background: 'color-mix(in srgb, var(--text) 35%, transparent)' }} />
       <div
         ref={panel}

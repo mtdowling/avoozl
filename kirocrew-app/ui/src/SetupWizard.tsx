@@ -15,6 +15,7 @@ import { CircleCheck, RefreshCw, Workflow, X } from './icons.ts'
 import { groupWrites, setupForm, setupInput, setupState, writeBadge, type GitHubSettings, type SetupForm, type SetupResult, settingsClient } from './settings-api.ts'
 import { errorMessage } from './workspace-api.ts'
 import { relativeTime } from './task-api.ts'
+import { useBackStep } from './NavHistory.tsx'
 
 type Client = ReturnType<typeof settingsClient>
 
@@ -56,17 +57,11 @@ function SetupDialog(props: {
       props.onClose('Cancelled. Avoozl stops before its next write; check again to see what was made.')
     } else props.onClose(step === 3 ? undefined : 'Cancelled. Nothing was written.')
   }, [client, workspaceId, props, step])
+  // Esc and Back do what Cancel does.
+  useBackStep('modal', true, 'Cancel', cancel)
   useEffect(() => {
     box.current?.querySelector<HTMLElement>('input, button')?.focus()
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        cancel()
-      }
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [cancel])
+  }, [])
   const call = async (action: () => Promise<void>) => {
     setBusy(true)
     setError(null)
