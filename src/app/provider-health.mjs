@@ -11,6 +11,7 @@ import { machineFile, writeMachineFile } from "./crews.mjs";
 import { contentBinding } from "./content-rules.mjs";
 import { listUsage } from "./flow-usage.mjs";
 import { listSessionBindings } from "./session-bindings.mjs";
+import { recordActivity } from "./activity-log.mjs";
 
 const HEALTH = "provider_health";
 const SWITCHES = "provider_switches";
@@ -406,11 +407,35 @@ export function clearMark(store, input = {}) {
 
 // -------------------------------------------------------------- switches
 
-// The activity log hook (R72.10). TODO(activity): write `entry` to the
-// activity log once the Activity tab (built in parallel) lands; until then
-// the record lives only in provider_switches.
-export function onSwitchRecorded(entry) {
-  void entry;
+// The activity log hook (R72.10): one `model.switch` row per finished
+// switch record, keyed by its ID so a record is logged once. A log that
+// cannot be written never loses the switch record itself.
+const SWITCH_WORDS = {
+  switched: (e) =>
+    `Switched ${e.taskId}'s ${e.role} chat from ${e.from} to ${e.to}`,
+  deferred: (e) =>
+    `Switching ${e.taskId}'s ${e.role} chat from ${e.from} to ${e.to} at its next turn`,
+  refused: (e) =>
+    `Kiro Crew refused to switch ${e.taskId}'s ${e.role} chat from ${e.from} to ${e.to}`,
+  "no target": (e) =>
+    `${e.taskId}'s ${e.role} chat stayed on ${e.from}: no healthy model`,
+  skipped: (e) => `Skipped switching ${e.taskId}: the chat ended or moved`,
+};
+
+export function onSwitchRecorded(store, entry) {
+  const words = SWITCH_WORDS[entry.result];
+  if (!words) return;
+  try {
+    recordActivity(store, {
+      source: "local",
+      actor: entry.by === "auto" ? "avoozl" : entry.by,
+      kind: "model.switch",
+      summary: words(entry),
+      targetId: entry.taskId,
+      key: `provider-switch:${entry.id}`,
+      at: entry.at,
+    });
+  } catch {}
 }
 
 export function listSwitches(store) {
@@ -425,7 +450,7 @@ export function listSwitches(store) {
 
 function putSwitch(store, entry) {
   store.put(SWITCHES, entry);
-  if (entry.state !== "pending") onSwitchRecorded(entry);
+  if (entry.state !== "pending") onSwitchRecorded(store, entry);
   return entry;
 }
 
