@@ -1325,3 +1325,12 @@ and §8.9). Numbered after Phase 30 because task IDs never move.
 - [x] 31.3 One searchable picker for tasks and specs, after 24.2 [R73] (§8.9)
   - `Picker.tsx` combobox with ID, title and spec matching, state badges, the keys and ARIA of §8.9, and at most 50 rendered results; used in the Stop the line target, the filter panels and Start now; a test filters 5,000 tasks.
   - Built: `2456191`, PR #11 (`Picker.tsx`, `picker.ts`; `kirocrew-app/ui/test/picker.test.mjs`).
+
+## Phase 33: Only open tasks get issues
+
+Owner decision 2026-11-13 (Requirement 74, design §6.3). Numbered after
+Phase 32, which the remote relay holds, because task IDs never move.
+
+- [x] 33.1 Skip done tasks in projection, after 3.7 [R74] (§6.3)
+  - `github.issues.includeDone` (default `false`) in the policy, the planning identity and the GitHub settings page; projection leaves out a done task with no issue, drops edges from it, keeps the plan issue, puts an open task of a skipped package under the plan issue, and the preview returns `skippedDone`; `src/app/test/github-include-done.test.mjs`.
+  - Built: `da8a2b4`, PR #34.

@@ -296,6 +296,8 @@ export interface SettingsForm {
   epicIssueType: string
   // github.subIssues.maxPerParent (R59.15); blank is GitHub's 100.
   maxPerParent: string
+  // github.issues.includeDone (R74); off means only open tasks get issues.
+  includeDone: boolean
   projectOwner: string
   projectNumber: string
   fields: Record<string, string>
@@ -386,6 +388,7 @@ export function toForm(github: Policy): SettingsForm {
       // The default reads as blank, so an untouched file stays untouched.
       return value === 100 ? '' : str(value)
     })(),
+    includeDone: record(github.issues).includeDone === true,
     projectOwner: str(project.owner),
     projectNumber: str(project.number),
     fields: strings(project.fields),
@@ -452,6 +455,7 @@ export function toPolicy(form: SettingsForm): Policy {
     defaultAuthority: blank(form.defaultAuthority) ?? null,
     epicIssueType: blank(form.epicIssueType) ?? null,
     subIssues: count(form.maxPerParent) !== undefined ? { maxPerParent: count(form.maxPerParent) } : null,
+    issues: form.includeDone ? { includeDone: true } : null,
     project: hasProject
       ? compact({
           owner: blank(form.projectOwner),
@@ -784,6 +788,7 @@ export function unusedInLocal(form: SettingsForm): string[] {
   if (form.repositories.length) kept.push(`${form.repositories.length} repository GitHub setting${form.repositories.length === 1 ? '' : 's'}`)
   if (form.epicIssueType.trim()) kept.push('epic issue type')
   if (form.maxPerParent.trim()) kept.push('sub-issue cap')
+  if (form.includeDone) kept.push('issues for done tasks')
   return kept
 }
 
