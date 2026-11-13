@@ -151,8 +151,18 @@ export function validateRouting(
   const errors = [];
   if (!record(value)) fail(`${at} must be an object.`);
   for (const key of Object.keys(value))
-    if (!["rules", "pick", "router"].includes(key))
+    if (!["rules", "pick", "router", "remoteRelay"].includes(key))
       errors.push(`${at}.${key} is not a routing setting.`);
+  // The Remote relay (R41.16) is one setting per workspace, in its tracked
+  // .avoozl.json; a repository or this machine cannot turn it on.
+  if (value.remoteRelay !== undefined) {
+    if (!tracked || at !== "routing")
+      errors.push(
+        `${at}.remoteRelay is a workspace setting; set routing.remoteRelay in the workspace's .avoozl.json.`,
+      );
+    else if (!["off", "on"].includes(value.remoteRelay))
+      errors.push(`${at}.remoteRelay must be off or on.`);
+  }
   const seen = new Set();
   if (
     value.rules !== undefined &&
@@ -365,6 +375,8 @@ export function routingConfig({ workspace = {}, machine = {} } = {}) {
     pick,
     weights: weightsOf(pick),
     router,
+    // Off unless the workspace turns it on (R41.16).
+    remoteRelay: workspace.routing?.remoteRelay === "on" ? "on" : "off",
     // Any rule at all, from any source, opts this workspace in (R41.3).
     active: rules.length > 0,
   };

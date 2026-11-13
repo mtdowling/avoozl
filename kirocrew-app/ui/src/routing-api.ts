@@ -60,6 +60,20 @@ export interface Routing {
   rules?: Rule[]
   pick?: { preset?: string; weights?: Record<string, number> }
   router?: { enabled?: boolean; model?: string | null; timeoutSeconds?: number; instructions?: string }
+  remoteRelay?: 'on' | 'off'
+}
+
+// The Remote relay (R41.16–R41.24): a stopgap until MC-10.
+export interface Relay {
+  setting: 'on' | 'off'
+  active: boolean
+  ignored: boolean
+  slot: string | null
+  queued: number
+  workers: number
+  turnsToday: number
+  turns: Record<string, number>
+  refusal: { taskId: string; crew: string; code: string; text?: string; at: string } | null
 }
 
 export interface RoutingView {
@@ -76,6 +90,7 @@ export interface RoutingView {
   instructions: string | null
   mc10: boolean
   remoteDispatch: boolean
+  relay: Relay
   noFit: { taskId: string; why: string; text: string }[]
   labels: string[]
 }
@@ -98,6 +113,25 @@ export const DEFAULT_STALE_SECONDS = 120
 export const TAG_KEYS = ['os', 'arch', 'tools', 'trust'] as const
 export const ROLES = ['worker', 'checks', 'reviewer'] as const
 export const MC10_LINE = 'Remote placement waits on Kiro Crew (MC-10). Every chat runs on local.'
+export const RELAY_AGENT = 'avoozl-relay'
+export const RELAY_MESSAGE = 'Relay the queued Avoozl work.'
+// The two catches the page shows beside the setting (R41.20, R41.21).
+export const RELAY_CATCHES = [
+  'Kiro Crew lets a chat open a remote chat only during a turn you sent. Remote tasks wait for you until you send any message to the relay chat.',
+  'Each relay turn costs one model turn.',
+] as const
+
+// The relay block's status lines, in order.
+export function relayLines(relay: Relay): string[] {
+  if (relay.ignored) return ['Kiro Crew has MC-10, so Avoozl opens remote chats itself. This setting is ignored.']
+  if (relay.setting !== 'on') return ['Off. Remote picks run on local until Kiro Crew ships MC-10.']
+  const lines = [relay.slot ? 'Relay chat is open.' : 'No relay chat yet. Open it, then send any message.']
+  if (relay.queued) lines.push(`${relay.queued} ${relay.queued === 1 ? 'task waits' : 'tasks wait'} for you.`)
+  if (relay.workers) lines.push(`${relay.workers} relayed ${relay.workers === 1 ? 'chat' : 'chats'} running.`)
+  lines.push(`Relay turns today: ${relay.turnsToday}.`)
+  if (relay.refusal) lines.push(`Last refusal: ${relay.refusal.taskId} on ${relay.refusal.crew}${relay.refusal.code ? ` (${relay.refusal.code})` : ''}.`)
+  return lines
+}
 export const PRESETS = [
   { key: 'balanced', title: 'Balanced', line: 'Weigh free chats, memory, disk, and load, with a small lean to this machine.', when: 'mixed work on a few crews (the default).' },
   { key: 'keep-local', title: 'Keep local', line: 'Run here unless this machine is full.', when: 'remote crews are for overflow only.' },
@@ -403,5 +437,6 @@ export function routingClient(api: AppApi) {
     saveCrews: (workspaceId: string, input: { crews?: Record<string, unknown>; staleSeconds?: number | null; expectedHash: string | null }) =>
       run(workspaceId, 'crews.update', input),
     pickAgain: (workspaceId: string, taskId: string) => run(workspaceId, 'delivery.pickAgain', { taskId }),
+    forgetRelay: (workspaceId: string) => run(workspaceId, 'relay.forget'),
   }
 }

@@ -34,6 +34,7 @@ import {
 } from "./placement.mjs";
 import { contentBinding, resolveSets } from "./content-rules.mjs";
 import { routerAnswer } from "./router.mjs";
+import { relayActive, relayQueuedByCrew, relayView } from "./relay.mjs";
 import { listSessionBindings } from "./session-bindings.mjs";
 import { taskRepository, taskRoute } from "../work-model.mjs";
 
@@ -111,23 +112,27 @@ export function routingContext(store, options = {}) {
     snapshot = crewSnapshot(store),
     bindings = options.bindings ?? listSessionBindings(store),
     counts = runningCounts(bindings),
-    now = options.now ?? Date.now(),
-    crews = listCrews({
-      settings: machine.crews,
-      staleSeconds: machine.staleSeconds,
-      snapshot,
-      local:
-        options.local ??
-        localReading({ root: workspaceRoot || undefined, now }),
-      running: counts.crews,
-      now,
-    });
+    now = options.now ?? Date.now();
+  // A request queued for the Remote relay holds a chat on its crew (R41.17).
+  for (const [crew, n] of relayQueuedByCrew(store))
+    counts.crews.set(crew, (counts.crews.get(crew) || 0) + n);
+  const crews = listCrews({
+    settings: machine.crews,
+    staleSeconds: machine.staleSeconds,
+    snapshot,
+    local:
+      options.local ?? localReading({ root: workspaceRoot || undefined, now }),
+    running: counts.crews,
+    now,
+  });
   return {
     config,
     crews,
     machine,
     snapshot,
     mc10: snapshot?.mc10 === true,
+    // The Remote relay places remote picks until MC-10 lands (R41.16).
+    relayActive: relayActive(config, snapshot?.mc10 === true),
     remoteDispatch: snapshot?.remoteDispatch === true,
     counts,
     fetch: options.fetch ?? new Map(),
@@ -410,9 +415,12 @@ export function placeOne(store, data, ctx, state, input) {
       session,
     };
   // Without MC-10 a remote pick cannot open (§4.10 Who opens remote
-  // sessions): it runs on local when the rules allow that, else waits.
+  // sessions): it runs on local when the rules allow that, else waits. The
+  // Remote relay, when on, keeps a worker's remote picks and never falls
+  // back (R41.17); it carries workers only, so other roles stay as before.
   let candidates = allowed;
-  if (!preview && !ctx.mc10) candidates = allowed.filter((id) => id === LOCAL);
+  if (!preview && !ctx.mc10 && !(ctx.relayActive && bindingRole === "worker"))
+    candidates = allowed.filter((id) => id === LOCAL);
   // The model router ranks only what the rules allow (R41.7); it never
   // holds the tick, and any failure falls back to the scorer.
   let routerNote = null;
@@ -605,6 +613,9 @@ export function routingView(store, data, options = {}) {
       rules: tracked.routing?.rules || [],
       pick: tracked.routing?.pick || {},
       router: tracked.routing?.router || {},
+      ...(tracked.routing?.remoteRelay
+        ? { remoteRelay: tracked.routing.remoteRelay }
+        : {}),
     },
     repositories: Object.fromEntries(
       Object.entries(record(tracked.projects) ? tracked.projects : {})
@@ -627,6 +638,13 @@ export function routingView(store, data, options = {}) {
       : null,
     mc10: ctx.mc10,
     remoteDispatch: ctx.remoteDispatch,
+    // The Remote relay (R41.16–R41.23): the setting, whether MC-10 makes it
+    // ignored, the registered chat, and the relay's turns per day.
+    relay: relayView(store, {
+      setting: ctx.config.remoteRelay,
+      mc10: ctx.mc10,
+      now: ctx.now,
+    }),
     noFit: openNoFits(store),
     labels: [
       ...new Set(

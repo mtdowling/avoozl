@@ -4,7 +4,7 @@
 // Every edit goes through routing.update or crews.update with the expected
 // revision; crew settings and router instructions stay on this machine.
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
-import { useAppApi } from '@kirocrew/app-sdk'
+import { useAppApi, useChatLauncher } from '@kirocrew/app-sdk'
 import { Btn, Card, Input } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { Modal } from './Modal.tsx'
@@ -15,9 +15,14 @@ import { ArrowDown, ArrowUp, Pencil, Plus, Trash2 } from './icons.ts'
 import { modelOptions, parseModels } from './flow-api.ts'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
+import { sessionHref } from './task-api.ts'
+import { linkHref } from './views-api.ts'
 import {
   MC10_LINE,
   PRESETS,
+  RELAY_AGENT,
+  RELAY_CATCHES,
+  RELAY_MESSAGE,
   ROLES,
   WEIGHT_LABELS,
   DEFAULT_STALE_SECONDS,
@@ -26,6 +31,7 @@ import {
   emptyRuleForm,
   moveRule,
   readingText,
+  relayLines,
   routingClient,
   ruleText,
   rulesIn,
@@ -219,7 +225,7 @@ function CrewsSection(props: { view: View; workspaceId: string; onSaved: () => P
                     <span className="font-medium">{crew.name}</span>
                     {crew.name !== crew.id && <span className="block text-xs text-muted">{crew.id}</span>}
                     {remoteWaits && (
-                      <span className="block text-xs text-muted">{!props.view.remoteDispatch ? "Kiro Crew's remote dispatch is off." : 'Waits on Kiro Crew.'}</span>
+                      <span className="block text-xs text-muted">{!props.view.remoteDispatch ? "Kiro Crew's remote dispatch is off." : props.view.relay.active ? 'Workers go through the relay chat.' : 'Waits on Kiro Crew.'}</span>
                     )}
                   </td>
                   <td style={cell}>{crew.tags.filter((t) => !t.startsWith('trust:')).join(' ') || <span className="text-muted">none</span>}</td>
@@ -260,11 +266,12 @@ function CrewsSection(props: { view: View; workspaceId: string; onSaved: () => P
         </table>
       </div>
       {props.view.crews.length === 1 && <p className="text-xs text-muted">Only this machine. Connect another Kiro Crew instance to see it here.</p>}
-      {!props.view.mc10 && (
+      {!props.view.mc10 && !props.view.relay.active && (
         <p className="text-sm text-muted" data-mc10>
           {MC10_LINE}
         </p>
       )}
+      <RelayBlock view={props.view} workspaceId={props.workspaceId} onSaved={props.onSaved} />
       <Field id="avoozl-stale" label="Stale after (seconds)" raw="crewStaleSeconds" note="A crew whose reading is older is not used." width="22rem">
         <span className="flex items-center gap-2">
           <span style={{ width: '8rem' }}>
@@ -294,6 +301,78 @@ function CrewsSection(props: { view: View; workspaceId: string; onSaved: () => P
         />
       )}
     </Section>
+  )
+}
+
+// The Remote relay (R41.16–R41.24): one workspace setting, the chat a
+// person opens, and the two catches. A stopgap until MC-10.
+function RelayBlock(props: { view: View; workspaceId: string; onSaved: () => Promise<void> }) {
+  const api = useAppApi()
+  const client = useMemo(() => routingClient(api), [api])
+  const { openChat } = useChatLauncher()
+  const relay = props.view.relay
+  const [message, setMessage] = useState<string | null>(null)
+  const act = async (run: () => Promise<unknown>) => {
+    setMessage(null)
+    try {
+      await run()
+      await props.onSaved()
+    } catch (caught) {
+      setMessage(errorMessage(caught))
+    }
+  }
+  const setOn = (on: boolean) => {
+    const { remoteRelay: _, ...rest } = props.view.workspace
+    return act(() => client.save(props.workspaceId, { where: 'workspace', routing: on ? { ...rest, remoteRelay: 'on' } : rest, expectedHash: props.view.configHash }))
+  }
+  return (
+    <div className="flex flex-col gap-2" data-relay>
+      <h3 className="text-sm font-medium">Remote relay</h3>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={relay.setting === 'on'} onChange={(e) => void setOn(e.target.checked)} />
+        <span>Place remote picks through one relay chat</span>
+        <Marker rule={OPTIONAL} />
+        <Raw name="routing.remoteRelay" />
+      </label>
+      <p className="text-xs text-muted">A stopgap until Kiro Crew ships MC-10. Off by default.</p>
+      <ul className="text-xs text-muted" style={{ margin: 0, paddingLeft: '1.2rem' }} data-relay-catches>
+        {RELAY_CATCHES.map((line) => (
+          <li key={line}>{line}</li>
+        ))}
+      </ul>
+      {relayLines(relay).map((line) => (
+        <p key={line} className="text-sm" style={relay.queued && line.includes('wait') ? needsYou : undefined}>
+          {line}
+        </p>
+      ))}
+      {relay.active && (
+        <span className="flex flex-wrap gap-2">
+          {relay.slot ? (
+            <>
+              <a className="text-sm" href={linkHref(sessionHref({ slot: relay.slot, link: null }))}>
+                Go to relay chat
+              </a>
+              <DangerBtn
+                label="Forget relay chat"
+                confirm={{ title: 'Forget the relay chat?', body: 'Avoozl stops using it. Chats it opened keep reporting through it. Open a new relay chat next.', action: 'Forget' }}
+                onConfirm={() => void act(() => client.forgetRelay(props.workspaceId))}
+              >
+                Forget relay chat
+              </DangerBtn>
+            </>
+          ) : (
+            <Btn type="button" primary onClick={() => openChat({ message: RELAY_MESSAGE, agent: RELAY_AGENT, autoSend: true })}>
+              Open relay chat
+            </Btn>
+          )}
+        </span>
+      )}
+      {message && (
+        <p role="alert" className="text-sm text-danger">
+          {message}
+        </p>
+      )}
+    </div>
   )
 }
 
@@ -735,7 +814,7 @@ function RouterSection(props: { view: View; workspaceId: string; onSaved: () => 
   )
 }
 
-function PreviewSection(props: { workspaceId: string; mc10: boolean; crews: Crew[] }) {
+function PreviewSection(props: { workspaceId: string; mc10: boolean; relay: boolean; crews: Crew[] }) {
   const name = (id: string) => props.crews.find((c) => c.id === id)?.name ?? id
   const api = useAppApi()
   const client = useMemo(() => routingClient(api), [api])
@@ -793,7 +872,9 @@ function PreviewSection(props: { workspaceId: string; mc10: boolean; crews: Crew
           ))}
         </ul>
       )}
-      {!props.mc10 && items && items.some((i) => i.crew && i.crew !== 'local') && <p className="text-xs text-muted">Remote picks show where tasks would go; they run on local until Kiro Crew ships MC-10.</p>}
+      {!props.mc10 && items && items.some((i) => i.crew && i.crew !== 'local') && (
+        <p className="text-xs text-muted">{props.relay ? 'Remote picks go to the relay chat and wait for your next message there.' : 'Remote picks show where tasks would go; they run on local until Kiro Crew ships MC-10.'}</p>
+      )}
     </Section>
   )
 }
@@ -848,7 +929,7 @@ export default function RoutingView({ workspaceId: given }: { workspaceId: strin
             <RouterSection view={value} workspaceId={workspaceId} onSaved={saved} />
           </Card>
           <Card className="flex flex-col gap-4">
-            <PreviewSection workspaceId={workspaceId} mc10={value.mc10} crews={value.crews} />
+            <PreviewSection workspaceId={workspaceId} mc10={value.mc10} relay={value.relay.active} crews={value.crews} />
           </Card>
         </>
       )}
