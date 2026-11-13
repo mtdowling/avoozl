@@ -5,7 +5,7 @@
 // prefers-reduced-motion.
 import { useEffect, useRef } from 'react'
 import { Markdown } from './Markdown.tsx'
-import { useMedia } from './TaskDrawer.tsx'
+import { useMedia } from './use-media.ts'
 import { citedNodes } from './task-api.ts'
 
 export const CITED_CLASS = 'avoozl-cited'
