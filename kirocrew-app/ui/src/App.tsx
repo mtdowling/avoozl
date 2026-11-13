@@ -9,7 +9,6 @@ import DeliveryView from './DeliveryView'
 import ConflictsView from './ConflictsView'
 import UntriagedView from './UntriagedView.tsx'
 import FlowView from './FlowView.tsx'
-import RoutingView from './RoutingView.tsx'
 import ActivityView from './ActivityView.tsx'
 import { DriverSummary } from './Driver.tsx'
 import { untriagedClient } from './untriaged-api.ts'
@@ -41,8 +40,6 @@ const TABS = [
   { key: 'graph', label: 'Graph' },
   { key: 'delivery', label: 'Delivery' },
   { key: 'flow', label: 'Flow' },
-  // Routing (§8.3): which crew, agent, and model run each task.
-  { key: 'routing', label: 'Routing' },
   { key: 'conflicts', label: 'Conflicts' },
   // Intake (§8.5, §4.12); the key keeps its first name.
   { key: 'untriaged', label: 'Intake' },
@@ -324,8 +321,6 @@ function AvoozlPage() {
           <ConflictsView workspaceId={active} />
         ) : tab === 'flow' ? (
           <FlowView workspaceId={active} />
-        ) : tab === 'routing' ? (
-          <RoutingView workspaceId={active} />
         ) : tab === 'untriaged' ? (
           <UntriagedView
             workspaceId={active}
@@ -344,7 +339,7 @@ function AvoozlPage() {
             onSelectWorkspace={(id) => id && setWorkspaceId(id)}
             onListChange={takeList}
             onOpenPlans={() => chooseTab('plans')}
-            onOpenRouting={() => chooseTab('routing')}
+            onOpenRouting={() => go({ settingsTab: 'routing', tab: 'settings' })}
           />
         )}
       </div>
