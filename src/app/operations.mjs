@@ -2209,6 +2209,7 @@ export class Operations {
         memory: this.tickPolicy,
         sessions: input.sessions,
         cron: input.cron === true,
+        folders: input.folders ?? null,
         github: this.github,
         breakdownHooks: () => this.breakdownHooks({ locked: true }),
         plugins: this.plugins,

@@ -658,6 +658,7 @@ export async function tick(
     breakdownHooks,
     plugins,
     placement = {},
+    folders = null,
   },
 ) {
   // Every GitHub write of every step passes the driver backstop (§6.10).
@@ -1050,6 +1051,28 @@ export async function tick(
         messages = planned.messages.filter(
           (m) => m.budget || !heldSlots.has(m.slot),
         );
+      // MC-1: a session takes its project from its chat folder, and only a
+      // person can set a folder's project directory. The cron reads its
+      // folders first; a dispatch whose folder has none waits, and the
+      // person hears once what to set (the same notice is queued once).
+      const unset = new Set();
+      if (folders && typeof folders === "object")
+        for (let i = dispatched.length - 1; i >= 0; i--) {
+          const d = dispatched[i];
+          if (d.project === false || folders[d.folder] !== false) continue;
+          unset.add(d.folder);
+          dispatched.splice(i, 1);
+        }
+      for (const folder of unset) {
+        const id = folder.split("/").pop(),
+          checkout = store.get("projects", id)?.root;
+        notices.push({
+          channel: "decision",
+          title: `Set the project directory of chat folder ${folder.replaceAll("/", " › ")}`,
+          text: `Avoozl has work ready for ${id}, but its chat folder ${folder.replaceAll("/", " › ")} has no project directory, so no chat opens there. Only a person can set it.`,
+          resume: `In the Kiro Crew sidebar, open the folder's settings and set its project directory${checkout ? ` to ${checkout}` : " to the checkout"}. The next tick starts the work.`,
+        });
+      }
       // The cron's tick queues each notice once for the app's notification
       // channels; the app backend pushes it (notifications.mjs).
       if (script) queueNotifications(store, notices);
