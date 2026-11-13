@@ -3734,8 +3734,8 @@ what and when without reading chats, the tick log or GitHub.
    "Redacted by content rules", and no actor, target or link. A test
    SHALL fail if a secret-shaped value is saved.
 6. Rows SHALL be kept 30 days by default. `activity.retentionDays` in
-   `.avoozl.json` (1–365) SHALL change it, from Settings › General. Each
-   tick SHALL delete older rows.
+   `.avoozl.json` (1–365) SHALL change it, from the Activity tab's Keep
+   activity field. Each tick SHALL delete older rows.
 7. The page SHALL have an Activity tab: the shared heading, the shared
    filter panel with Source, Kind and Actor, 100 rows per page with the
    shared Show more, newest first. A row whose target is a task SHALL open
