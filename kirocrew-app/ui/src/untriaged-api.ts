@@ -26,7 +26,21 @@ export interface UntriagedItem {
   comments: number
   draft?: boolean
   checks?: 'passing' | 'failing' | 'pending' | null
+  headSha?: string | null
   links: { github: string; issueRadar: HandOff; review: HandOff | null }
+  // A pull request's code review chat (src/app/pr-review.mjs): queued until
+  // the next tick opens it, then open with a link to Attach.
+  reviewChat?: ReviewChat | null
+}
+
+export interface ReviewChat {
+  state: 'queued' | 'open'
+  attempt: number
+  headSha: string | null
+  skill: string | null
+  slot: string | null
+  status: string | null
+  link: string | null
 }
 
 // An issue a crew has, or was sent to (R52.6).
@@ -70,6 +84,14 @@ export function untriagedClient(api: AppApi) {
   return {
     view: (workspaceId: string) => run(workspaceId, {}),
     refresh: (workspaceId: string) => run(workspaceId, { refresh: true }),
+    review: (workspaceId: string, item: Pick<UntriagedItem, 'repository' | 'number'>) =>
+      api
+        .post<{ result: ReviewChat & { created: boolean } }>(COMMAND_PATH, {
+          operation: 'review.chat',
+          input: { repository: item.repository, number: item.number },
+          workspaceId,
+        })
+        .then((reply) => reply.result),
   }
 }
 

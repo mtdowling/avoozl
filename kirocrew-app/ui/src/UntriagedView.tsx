@@ -116,7 +116,7 @@ function Labels({ labels }: { labels: string[] }) {
   )
 }
 
-function Actions({ item, onSend }: { item: UntriagedItem; onSend?: (item: UntriagedItem) => void }) {
+function Actions({ item, onSend, onReview }: { item: UntriagedItem; onSend?: (item: UntriagedItem) => void; onReview?: (item: UntriagedItem) => void }) {
   const name = `${item.repository} #${item.number}`
   return (
     <span className="inline-flex gap-1.5">
@@ -128,9 +128,22 @@ function Actions({ item, onSend }: { item: UntriagedItem; onSend?: (item: Untria
           <span aria-hidden="true" style={{ display: 'inline-block', width: 28 }} />
         ))}
       <IconLink icon={Radar} label={`Open ${name} in Issue Radar`} tooltip={item.links.issueRadar.tooltip} href={item.links.issueRadar.url} />
-      {item.links.review && (
-        <IconLink icon={ScanSearch} label={`Code review for ${name}`} tooltip={item.links.review.tooltip} href={item.links.review.url} />
+      {item.links.review && onReview && (
+        <IconBtn icon={ScanSearch} label={`Code review for ${name}`} tooltip={item.links.review.tooltip} onClick={() => onReview(item)} />
       )}
+      {item.reviewChat?.link ? (
+        <Tooltip text="Open this pull request's code review chat">
+          <a href={item.reviewChat.link} target="_top" className="self-center text-sm underline" aria-label={`Attach to the code review chat for ${name}`} data-review-attach>
+            Attach
+          </a>
+        </Tooltip>
+      ) : item.reviewChat?.state === 'queued' ? (
+        <Tooltip text="The next tick opens the chat, within a minute.">
+          <span className="self-center text-xs text-muted" data-review-queued>
+            Starting…
+          </span>
+        </Tooltip>
+      ) : null}
     </span>
   )
 }
@@ -154,7 +167,7 @@ function Select(props: { item: UntriagedItem; checked: boolean; onChange: (on: b
   )
 }
 
-function Table(props: { items: UntriagedItem[]; selected: Set<string>; now: number; onSelect: (keys: string[], on: boolean) => void; onSend: (item: UntriagedItem) => void }) {
+function Table(props: { items: UntriagedItem[]; selected: Set<string>; now: number; onSelect: (keys: string[], on: boolean) => void; onSend: (item: UntriagedItem) => void; onReview: (item: UntriagedItem) => void }) {
   const keys = props.items.map(itemKey)
   const all = keys.length > 0 && keys.every((key) => props.selected.has(key))
   return (
@@ -214,7 +227,7 @@ function Table(props: { items: UntriagedItem[]; selected: Set<string>; now: numb
                 {item.comments}
               </td>
               <td style={{ ...CELL, whiteSpace: 'nowrap' }}>
-                <Actions item={item} onSend={props.onSend} />
+                <Actions item={item} onSend={props.onSend} onReview={props.onReview} />
               </td>
             </tr>
           ))}
@@ -225,7 +238,7 @@ function Table(props: { items: UntriagedItem[]; selected: Set<string>; now: numb
 }
 
 // Narrow screens: one stacked row per item, same parts.
-function Stack(props: { items: UntriagedItem[]; selected: Set<string>; now: number; onSelect: (keys: string[], on: boolean) => void; onSend: (item: UntriagedItem) => void }) {
+function Stack(props: { items: UntriagedItem[]; selected: Set<string>; now: number; onSelect: (keys: string[], on: boolean) => void; onSend: (item: UntriagedItem) => void; onReview: (item: UntriagedItem) => void }) {
   return (
     <ul className="flex flex-col" data-untriaged-stack>
       {props.items.map((item) => (
@@ -240,7 +253,7 @@ function Stack(props: { items: UntriagedItem[]; selected: Set<string>; now: numb
             <PullState item={item} />
             <Labels labels={item.labels} />
           </div>
-          <Actions item={item} onSend={props.onSend} />
+          <Actions item={item} onSend={props.onSend} onReview={props.onReview} />
         </li>
       ))}
     </ul>
@@ -371,6 +384,22 @@ export default function UntriagedView({ workspaceId }: { workspaceId: string | n
       setCheckError(errorMessage(caught))
     }
   }
+  // Code review: queue the chat, then show Starting… until the tick opens it.
+  const review = async (item: UntriagedItem) => {
+    if (!workspaceId) return
+    setCheckError(null)
+    try {
+      const chat = await client.review(workspaceId, item)
+      setNote(
+        chat.state === 'open'
+          ? `${item.repository} #${item.number} already has a code review chat. Use Attach.`
+          : `Code review chat for ${item.repository} #${item.number} starts on the next tick${chat.skill ? '' : '. The sage-review skill is not installed, so it reviews without it'}.`,
+      )
+      await reload()
+    } catch (caught) {
+      setCheckError(errorMessage(caught))
+    }
+  }
   const setField = (change: Partial<UntriagedFilter>) => setFilter({ ...filter, ...change })
   const onSelect = (keys: string[], on: boolean) => setSelected(toggleSelected(selected, keys, on))
   const checkNow = async () => {
@@ -397,7 +426,7 @@ export default function UntriagedView({ workspaceId }: { workspaceId: string | n
         </IconLabel>
       </div>
       <p className="text-sm text-muted">
-        Open issues and pull requests no trigger rule, triage label or Avoozl task covers. Send issues to an Issue Radar crew, or open them in Issue Radar or Code Review Sage.
+        Open issues and pull requests no trigger rule, triage label or Avoozl task covers. Send issues to an Issue Radar crew, open them in Issue Radar, or start a code review chat on a pull request.
       </p>
       {list?.enabled && (
         <div>
@@ -493,9 +522,9 @@ export default function UntriagedView({ workspaceId }: { workspaceId: string | n
           {shown.length === 0 ? (
             <p className="text-sm text-muted">No untriaged item matches these filters. Clear them to see all {list.items.length}.</p>
           ) : narrow ? (
-            <Stack items={pages.take('untriaged', shown)} selected={selected} now={now} onSelect={onSelect} onSend={(item) => setSending([item])} />
+            <Stack items={pages.take('untriaged', shown)} selected={selected} now={now} onSelect={onSelect} onSend={(item) => setSending([item])} onReview={(item) => void review(item)} />
           ) : (
-            <Table items={pages.take('untriaged', shown)} selected={selected} now={now} onSelect={onSelect} onSend={(item) => setSending([item])} />
+            <Table items={pages.take('untriaged', shown)} selected={selected} now={now} onSelect={onSelect} onSend={(item) => setSending([item])} onReview={(item) => void review(item)} />
           )}
           <ShowMore {...pages.more('untriaged', shown.length)} />
         </>

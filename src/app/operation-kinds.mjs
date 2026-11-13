@@ -167,6 +167,7 @@ const PROTECT = new Set([
   "configuration.update",
   "github.settings.update",
   "untriaged.handoff",
+  "review.chat",
   "github.setup",
   "github.setup.cancel",
   "local.ignore.fix",

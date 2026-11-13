@@ -93,7 +93,7 @@ const SEARCH = `query($q: String!, $first: Int!, $after: String) {
         comments { totalCount }
       }
       ... on PullRequest {
-        number title url createdAt isDraft
+        number title url createdAt isDraft headRefOid
         author { login }
         labels(first: 30) { nodes { name } }
         assignees(first: 10) { nodes { login } }
@@ -133,6 +133,7 @@ function item(node) {
     ...(pull
       ? {
           draft: node.isDraft === true,
+          headSha: typeof node.headRefOid === "string" ? node.headRefOid : null,
           checks: CHECKS[rollup] ?? null,
           closes: (node.closingIssuesReferences?.nodes || []).map((ref) => ({
             repository: ref.repository?.nameWithOwner ?? null,
@@ -315,10 +316,11 @@ function withRadar(entry, repository, settings, linked, handoffs) {
   };
 }
 
-// Where each button goes. Kiro Crew has no link to one item in Issue Radar
-// or Code Review Sage (design F98, F99), so each opens the app's page and
-// says what to pick there. shortcut: page links only; switch to exact links
-// when Kiro Crew ships MC-14.
+// Where each link goes. Kiro Crew has no link to one item in Issue Radar
+// (design F98), so it opens the app's page and says what to pick there.
+// Code review opens Avoozl's own review chat instead (pr-review.mjs), so a
+// pull request's `review` link is only Code Review Sage's page.
+// shortcut: page links only; switch to exact links when Kiro Crew ships MC-14.
 export function itemLinks(repository, entry) {
   const name = `${repository} #${entry.number}`;
   return {
@@ -333,7 +335,8 @@ export function itemLinks(repository, entry) {
         ? {
             url: CODE_REVIEW_SAGE_PATH,
             exact: false,
-            tooltip: `Code Review Sage can't open one pull request from a link yet, so this opens Code Review Sage. Pick ${name} there.`,
+            // The Code review button opens Avoozl's review chat instead.
+            tooltip: `Opens a Kiro Crew chat that reviews ${name} with the sage-review skill and posts nothing to GitHub. A stand-in until the app can start Code Review Sage directly.`,
           }
         : null,
   };
@@ -371,6 +374,7 @@ export function untriagedView(
   cache,
   now = Date.now(),
   handoffs = new Map(),
+  reviews = new Map(),
 ) {
   if (!policy?.mode)
     return {
@@ -431,6 +435,14 @@ export function untriagedView(
         ...candidate,
         repository,
         links: itemLinks(repository, candidate),
+        ...(candidate.kind === "pr"
+          ? {
+              reviewChat:
+                reviews.get(
+                  `pr-review:${lower(repository)}#${candidate.number}`,
+                ) ?? null,
+            }
+          : {}),
       });
   }
   const newest = (a, b) =>

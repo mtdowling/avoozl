@@ -121,7 +121,8 @@ def run(ctx):
         # person can set. Without one the worker would run outside the checkout.
         # shortcut: a folder with no project directory waits silently; the
         # Workspace view should say "Set project directory" once it reads folders.
-        if not project_dir:
+        # A code review chat needs no checkout and says so with project False.
+        if not project_dir and d.get("project", True):
             continue
         # A named model is the one review roles are kept distinct from (§5.2);
         # without one the session runs on the agent's own model.
