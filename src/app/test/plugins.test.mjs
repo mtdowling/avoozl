@@ -12,6 +12,7 @@ import {
   disablePlugin,
   inspectPlugins,
   listeningSockets,
+  netstatListeners,
   pluginHost,
   procAddress,
   readPluginSettings,
@@ -293,6 +294,25 @@ test("a /proc/net/tcp address reads as lsof prints it", () => {
     procAddress("0000000000000000FFFF00000100007F:0016"),
     "[::ffff:7f00:1]:22",
   );
+});
+
+test("netstat rows read as listeners only for the plugin's own pid", () => {
+  const text = [
+    "",
+    "Active Connections",
+    "",
+    "  Proto  Local Address          Foreign Address        State           PID",
+    "  TCP    0.0.0.0:135            0.0.0.0:0              LISTENING       900",
+    "  TCP    127.0.0.1:50123        0.0.0.0:0              ABHÖREN         4242",
+    "  TCP    127.0.0.1:50124        127.0.0.1:443          ESTABLISHED     4242",
+    "  TCP    [::1]:8080             [::]:0                 LISTENING       4242",
+    "  UDP    0.0.0.0:5353           *:*                                    4242",
+  ].join("\r\n");
+  assert.deepEqual(netstatListeners(text, 4242), [
+    "127.0.0.1:50123",
+    "[::1]:8080",
+  ]);
+  assert.deepEqual(netstatListeners(text, 1), []);
 });
 
 test("the socket check stops a plugin that listens past the guard", async () => {

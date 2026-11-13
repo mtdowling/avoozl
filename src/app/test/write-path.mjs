@@ -12,7 +12,8 @@ import { emptySnapshot } from "../workspace.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 const cli = fileURLToPath(new URL("../../../cli.mjs", import.meta.url));
-const hook = fileURLToPath(new URL("./write-trace.mjs", import.meta.url));
+// --import takes a URL; a bare D:\ path reads as the scheme "d:".
+const hook = new URL("./write-trace.mjs", import.meta.url).href;
 const SECRET = "test-proxy-secret";
 
 function isolatedEnv(root, extra = {}) {

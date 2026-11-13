@@ -479,7 +479,7 @@ export class RepositorySettings {
     if (!workspaceRoot) fail("Choose a workspace root.");
     this.store = store;
     this.workspaceRoot = path.resolve(workspaceRoot);
-    this.realWorkspaceRoot = fs.realpathSync(this.workspaceRoot);
+    this.realWorkspaceRoot = fs.realpathSync.native(this.workspaceRoot);
     this.filename =
       files.repository || path.join(this.workspaceRoot, ".avoozl.json");
     this.directory = path.dirname(this.filename);
@@ -1130,7 +1130,7 @@ export class RepositorySettings {
     )
       absolute =
         this.realWorkspaceRoot + absolute.slice(this.workspaceRoot.length);
-    else if (entryStat(absolute)) absolute = fs.realpathSync(absolute);
+    else if (entryStat(absolute)) absolute = fs.realpathSync.native(absolute);
     const relative = path.relative(this.realWorkspaceRoot, absolute);
     if (path.isAbsolute(relative))
       fail(

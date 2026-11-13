@@ -262,9 +262,9 @@ function githubRepositoryFromRemote(url) {
 }
 
 export async function configureWorkspaceRepository(store, input, github) {
-  const root = fs.realpathSync(input.root),
+  const root = fs.realpathSync.native(input.root),
     top = await git(root, ["rev-parse", "--show-toplevel"]);
-  if (fs.realpathSync(top) !== root)
+  if (fs.realpathSync.native(top) !== root)
     fail("Workspace repository root must be the Git checkout root.");
   const config = {
     root,
