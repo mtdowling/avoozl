@@ -522,7 +522,6 @@ const leaf = (id, extra = {}) => ({
   title: "Task " + id,
   acceptance: [id + " is observable."],
   checks: ["npm test"],
-  epic: "sample",
   projectId: "code",
   ...extra,
 });

@@ -101,7 +101,7 @@ test("plans_prepare_worktree gives a leaf one worktree on avoozl/<task-id>, agai
       leaf("a"),
       leaf("b"),
       leaf("loose", { repository: "missing" }),
-      leaf("epic", { kind: "epic" }),
+      leaf("epic", { kind: "package" }),
     ],
   });
   const first = await ops.execute("worktree.prepare", { taskId: "a" });

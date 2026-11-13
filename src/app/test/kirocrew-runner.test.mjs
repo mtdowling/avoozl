@@ -332,7 +332,7 @@ test("plans_next puts every local leaf in one bucket with what it waits on", asy
       leaf("old", { status: "accepted" }),
       leaf("merged", { integration: { commit: "f".repeat(40) } }),
       leaf("later", { status: "deferred" }),
-      leaf("epic", { kind: "epic" }),
+      leaf("epic", { kind: "package" }),
       leaf("remote", { route: "github" }),
     ],
     edges: [requires("a", "dep"), requires("b", "dep")],

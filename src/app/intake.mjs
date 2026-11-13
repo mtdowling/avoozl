@@ -410,13 +410,6 @@ export function judgeItem(
 // Tasks.
 
 function ensureInbox(data) {
-  if (!data.epics.some((epic) => epic.id === "inbox"))
-    data.epics.push({
-      id: "inbox",
-      title: "Inbox",
-      scope: "catalog",
-      color: "#96abc1",
-    });
   if (!data.tracks.some((track) => track.id === "catalog"))
     data.tracks.push({ id: "catalog", label: "General" });
 }
@@ -457,7 +450,6 @@ function leafFor(row, source, how) {
     kind: "leaf",
     authority: "local",
     repository: source.project,
-    epic: "inbox",
     track: "catalog",
     tags: ["intake", `source:${item.source}`],
     // Pinned to this snapshot of the item (R50.15, R12).

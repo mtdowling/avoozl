@@ -4,6 +4,7 @@
 // source it came from (tool calls, phase markers, or events) so a coarse
 // number never reads as an exact one. Spans hold durations, stage names, and
 // check or command names only: no prompts, output, tokens, or cost.
+import { crossPlanEpics, taskEpic } from "./epics.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import { check as checkContent, contentBinding } from "./content-rules.mjs";
@@ -40,11 +41,11 @@ export const PHASES = Object.freeze(["coding", "tests", "commands", "ci-wait"]);
 export const FLOW_DEFAULTS = Object.freeze({
   stopTheLine: Object.freeze({ scope: "dependents" }),
   localChecksFirst: true,
-  batch: Object.freeze({ max: 3, by: "epic" }),
+  batch: Object.freeze({ max: 3, by: "phase" }),
   retro: Object.freeze({ everyTasks: 10, slowFactor: 2, model: "auto" }),
 });
 export const SCOPES = Object.freeze(["dependents", "repo", "all"]);
-export const BATCH_BY = Object.freeze(["epic", "files"]);
+export const BATCH_BY = Object.freeze(["phase", "files"]);
 const MODEL = /^(?:auto|[A-Za-z0-9][A-Za-z0-9._:/-]{0,127})$/;
 const record = (value) =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -57,7 +58,13 @@ export const FLOW_KEYS = Object.freeze({
   localChecksFirst: (v) => typeof v === "boolean" || "true or false",
   "batch.max": (v) =>
     (Number.isInteger(v) && v >= 1 && v <= 10) || "a whole number 1–10",
-  "batch.by": (v) => BATCH_BY.includes(v) || `one of ${BATCH_BY.join(", ")}`,
+  // "epic" was the old name of "phase"; it is refused, never read as it
+  // (Requirement 59.11).
+  "batch.by": (v) =>
+    BATCH_BY.includes(v) ||
+    (v === "epic"
+      ? '"phase": an epic spans plans, so tasks batch by phase'
+      : `one of ${BATCH_BY.join(", ")}`),
   "retro.everyTasks": (v) =>
     (Number.isInteger(v) && v >= 1 && v <= 1000) || "a whole number 1–1000",
   "retro.slowFactor": (v) =>
@@ -715,7 +722,8 @@ export function taskTiming(
     taskId: task.id,
     title: task.title || "",
     repository: taskRepository(task) || null,
-    epic: task.parent || task.epic || null,
+    epic: taskEpic(store.read(), task),
+    phase: task.phase?.id ?? null,
     startedAt: first,
     finishedAt: end,
     leadMs: lead,
@@ -803,8 +811,9 @@ export const listOr = (store, table) => {
 };
 
 // flow.view: the Flow tab, `avoozl flow`, and plans_flow. Computed on read,
-// never stored as truth (§4.11). Filters: repository, epic, window (last N
-// finished tasks, default 20), stage (bars only).
+// never stored as truth (§4.11). Filters: repository, epic (across plans),
+// plan and phase (inside the plan), window (last N finished tasks, default
+// 20), stage (bars only).
 export function flowView(store, data, input = {}, { now = Date.now() } = {}) {
   const size =
       Number.isInteger(input.window) && input.window > 0
@@ -827,7 +836,9 @@ export function flowView(store, data, input = {}, { now = Date.now() } = {}) {
       (t) =>
         byTask.has(t.id) &&
         (!input.repository || taskRepository(t) === input.repository) &&
-        (!input.epic || t.parent === input.epic || t.epic === input.epic),
+        (!input.epic || taskEpic(data, t) === input.epic) &&
+        (!input.plan || t.planId === input.plan) &&
+        (!input.phase || t.phase?.id === input.phase),
     ),
     timings = tasks.map((t) =>
       taskTiming(store, t, { spans: byTask.get(t.id), now, deliveries }),
@@ -877,10 +888,19 @@ export function flowView(store, data, input = {}, { now = Date.now() } = {}) {
     repositories: [
       ...new Set(data.tasks.map(taskRepository).filter(Boolean)),
     ].sort(),
-    epics: data.tasks
-      .filter((t) => t.kind === "epic")
-      .map((t) => ({ id: t.id, title: t.title || t.id })),
+    epics: crossPlanEpics(data).map((e) => ({ id: e.id, title: e.title || e.id })),
+    phases: flowPhases(data, input.plan),
   };
+}
+
+// The phases of one plan, for the Phase filter; none until a plan is picked.
+function flowPhases(data, planId) {
+  if (!planId) return [];
+  const seen = new Map();
+  for (const task of data.tasks)
+    if (task.planId === planId && task.phase && !seen.has(task.phase.id))
+      seen.set(task.phase.id, { id: task.phase.id, title: task.phase.title });
+  return [...seen.values()];
 }
 
 // The Flow tab's charts over time (owner addition 2026-11-13): per day or

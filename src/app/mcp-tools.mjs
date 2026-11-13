@@ -89,6 +89,8 @@ const tools = {
     actions: {
       list: ["plan.list", "stored plans"],
       table: ["plan.table", "plans grouped with progress"],
+      epics: ["epic.list", "epics across plans with computed progress"],
+      epic: ["epic.get", "one epic: goal, what done means, member plans, decisions: {id}"],
       specs: ["plan.specs", "spec folders on disk"],
       get: ["plan.get", "one plan, its revisions and receipts"],
       read_spec: ["plan.spec.read", "a spec folder's documents"],

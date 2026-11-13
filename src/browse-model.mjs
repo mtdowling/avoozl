@@ -6,8 +6,7 @@ export function isArchivedTask(data, task) {
 }
 export function isHistoricalTask(data, task) {
   if (isArchivedTask(data, task)) return true;
-  const doc =
-    data.documents[task.source?.document || task.epic?.replace(/^doc:/, "")];
+  const doc = data.documents[task.source?.document];
   return Boolean(
     task.tags?.includes("historical") ||
       doc?.historical ||
