@@ -250,7 +250,12 @@ export function knownNames(store) {
     ...data.tasks.map((t) => t.id),
     ...store
       .list("projects")
-      .flatMap((p) => [p.id, p.github, p.github?.split("/").at(-1)]),
+      .flatMap((p) => [
+        p.id,
+        p.repository,
+        p.repository?.split("/").at(-1),
+        p.github,
+      ]),
   ].filter((v) => typeof v === "string" && v.length > 2);
 }
 
