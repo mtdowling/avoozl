@@ -7,8 +7,10 @@ import { parseMatch } from "../issue-match.mjs";
 import { normalizeGitHubPolicy } from "../github-policy.mjs";
 import {
   confirmSnapshot,
+  githubReads,
   labelEffects,
   pollSources,
+  sourceCounts,
   takeItem,
   validateIntake,
   validateSource,
@@ -509,4 +511,44 @@ test("a person confirms an item's new text, and a later edit holds it again", as
       ),
       (error) => error.status === 403,
     );
+});
+
+test("Settings counts each source's items and lists GitHub's reads", (t) => {
+  const { store } = fixture(t),
+    put = (id, source, extra) =>
+      store.put("incoming_items", {
+        id,
+        source,
+        record: { kind: "ticket" },
+        firstSeenAt: "2026-11-01T00:00:00Z",
+        ...extra,
+      });
+  store.transaction(() => {
+    put("a", "tickets", { route: { state: "untriaged" } });
+    put("b", "tickets", {
+      route: { state: "untriaged" },
+      taskId: "t1",
+      firstSeenAt: "2026-11-03T00:00:00Z",
+    });
+    put("c", "tickets", { route: { state: "paused" } });
+    put("d", "local", { record: { kind: "idea" } });
+    store.put("intake_sources", {
+      id: "github:o/app",
+      source: "github",
+      repository: "o/app",
+      checkedAt: "2026-11-02T00:00:00Z",
+      keys: [],
+    });
+    store.put("intake_sources", { id: "source:tickets", source: "tickets" });
+  });
+  const counts = sourceCounts(store);
+  assert.deepEqual(counts.get("tickets"), {
+    total: 3,
+    untriaged: 1,
+    lastAt: "2026-11-03T00:00:00Z",
+  });
+  assert.equal(counts.has("local"), false);
+  assert.deepEqual(githubReads(store), [
+    { repository: "o/app", checkedAt: "2026-11-02T00:00:00Z", error: null },
+  ]);
 });
