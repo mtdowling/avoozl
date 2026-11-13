@@ -599,6 +599,15 @@ export function inspectPlugins(options) {
 
 // TCP listeners the process holds: lsof on macOS and BSD, /proc on Linux.
 // A process Avoozl cannot check is treated as listening (fail closed).
+// /proc/net/tcp's `0100007F:B167` as `127.0.0.1:45415`, the form lsof gives.
+// shortcut: assumes a little-endian host, as /proc writes host byte order.
+const ipv4 = (hex) => {
+  const [address, port] = hex.split(":");
+  if (!/^[0-9A-F]{8}$/i.test(address || "") || !port) return hex;
+  const bytes = address.match(/../g).map((b) => parseInt(b, 16)).reverse();
+  return `${bytes.join(".")}:${parseInt(port, 16)}`;
+};
+
 export async function listeningSockets(pid) {
   if (process.platform === "linux") {
     const inodes = new Set();
@@ -619,7 +628,8 @@ export async function listeningSockets(pid) {
       }
       for (const line of text.split("\n").slice(1)) {
         const parts = line.trim().split(/\s+/);
-        if (parts[3] === "0A" && inodes.has(parts[9])) found.push(parts[1]);
+        if (parts[3] === "0A" && inodes.has(parts[9]))
+          found.push(table === "tcp" ? ipv4(parts[1]) : parts[1]);
       }
     }
     return found;
