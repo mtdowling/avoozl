@@ -276,7 +276,7 @@ function Table(props: { items: UntriagedItem[]; selected: Set<string>; now: numb
                 <Labels labels={item.labels} />
               </td>
               <td style={{ ...CELL, textAlign: 'right' }} className="tabular-nums">
-                {item.comments}
+                {sourceOf(item) === 'github' ? item.comments : ''}
               </td>
               <td style={{ ...CELL, whiteSpace: 'nowrap' }}>
                 <Actions item={item} onSend={props.onSend} onReview={props.onReview} onStart={props.onStart} />

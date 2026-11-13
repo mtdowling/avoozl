@@ -13340,7 +13340,7 @@ function Ql(e) {
 							textAlign: "right"
 						},
 						className: "tabular-nums",
-						children: t.comments
+						children: tl(t) === "github" ? t.comments : ""
 					}),
 					/* @__PURE__ */ b("td", {
 						style: {
