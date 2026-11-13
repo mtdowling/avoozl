@@ -341,7 +341,7 @@ plugin's `list` and `read` plus the approved manifest (§4.8, proof P26).
 | Field | Values | Rule |
 |---|---|---|
 | `id` | lowercase, dotted path allowed (`w3.reactor-timers`) | Immutable after approval; comes from the `tasks.md` item's ID (§6.8) |
-| `kind` | `epic`, `package`, `leaf` | Only leaves dispatch; epics and packages complete from children |
+| `kind` | `epic`, `package`, `leaf` | Only leaves dispatch; epics and packages complete from children. Changed 2026-11-13: inside a plan only `package` and `leaf`; epics span plans (§6.9) |
 | `authority` | `local`, `github`, `plugin:<id>` | §3.2; default `github` when a GitHub mode is set; `plugin:<id>` needs a loaded tracker plugin (§4.8) |
 | `route` | `local`, `github`, `plugin:<id>` | How a leaf is delivered; `plugin:<id>` needs a loaded route plugin (§4.8) |
 | `repository` | registered repository ID | Required for leaves; exactly one |
@@ -1067,7 +1067,9 @@ then by position.
 
 - `when` (optional; empty matches every task): `labels` (any of; issue
   labels for GitHub tasks, manifest `labels` for local ones), `kinds` (the
-  manifest task's `kind`), `roles` (`worker`, `checks`, `reviewer`),
+  manifest task's `type`, one word such as `test`, else its work-model
+  `kind`; changed 2026-11-13, because `kind` holds only epic, package, or
+  leaf), `roles` (`worker`, `checks`, `reviewer`),
   `repositories`, `categories` (the plan's front-matter category; missing
   stays missing, never guessed), and `paths` (globs over the task's
   declared files). All listed keys must match.
@@ -1244,6 +1246,42 @@ optional `remote: "allow" | "forbid"`. The default is `forbid` for a set
 that covers `diff`, because its pre-push hook cannot be installed on another
 machine (F83), and `allow` otherwise. Built-in sets are `allow`: they check
 pull-request text and briefs on this machine.
+
+#### Hand-back over SSH
+
+**Decided**, owner 2026-11-13 (Requirement 41.15). How a remote crew's
+work comes back is the crew's own machine-local setting:
+
+```json
+{ "crews": { "<instance id>": { "delivery": "handback", "sshHost": "user@build-box.example",
+                                "worktreeRoot": "/home/user/avoozl-work" } } }
+```
+
+- `handback` (the default): the brief tells the worker to clone into
+  `<worktreeRoot>/<repository>-<task id>`, check out `avoozl/<task id>` at
+  the base commit, commit there, and not push or write to GitHub. At its
+  `done` report this machine fetches `+refs/heads/avoozl/<task id>` from
+  that folder on `sshHost` into `refs/avoozl/remote/<task id>`, checks
+  that the fetched tip is the reported commit, and fast-forwards the local
+  task branch to it. Then the `diff` boundary, local checks, verification,
+  review, and integration run here as for a local worker; a local Kiro Crew
+  chat pushes. A crew without `sshHost` or `worktreeRoot` is removed in
+  step 3 as "work not fetchable".
+- `push`: the worker pushes its task branch to the repository remote, as
+  in Fetchable work above, and this machine fetches it from there.
+- Host keys: git runs ssh with `BatchMode=yes`, `HashKnownHosts=no`, and
+  `UserKnownHostsFile` set to Avoozl's own `known_hosts` beside the
+  machine-local settings. The first fetch from a host uses
+  `StrictHostKeyChecking=accept-new`, which pins its key; every later fetch
+  uses `yes`, so a changed key refuses the fetch and the report.
+- Tests use a fake ssh command that checks the same file and runs git
+  locally. No test connects to a host.
+
+| Choice | Why |
+|---|---|
+| Hand-back is the default | The remote crew needs no GitHub write, and the push stays with a chat on this machine |
+| Pin on first use, check every time | The same trust ssh gives, without asking a person mid-tick |
+| Avoozl's own known_hosts | The pin is Avoozl's record and does not change the owner's ssh files |
 
 #### Recording and recovery
 
@@ -1772,7 +1810,7 @@ the cursor and the items, shows the error on the source, and stops
 nothing else (§4.8). It costs no model turn.
 
 **MCP** for outside callers, for example a Kiro Crew cron job that reads a
-system no plugin covers. `plans_intake_submit` calls `intake.submit` with
+system no plugin covers. `plans_intake` action `submit_items` calls `intake.submit` with
 `{source, items}` (1–100 items) for a source whose `via` is `mcp`. A
 submit naming `github`, a plugin source, or an undeclared source is
 refused, so an MCP caller cannot pose as GitHub or a plugin. The reply
@@ -1787,8 +1825,9 @@ lock, and the tick runs it for polled and GitHub items.
 `source`, `kind`, `state`, `untriaged`, paged by 100), and `intake.view`
 (observe: one record with its route, findings, and history). The CLI is
 `avoozl intake submit --source <id> --file <items.json>`, `avoozl intake
-list`, and `avoozl intake view <source> <id>`; MCP adds
-`plans_intake_submit`, `plans_intake_list`, and `plans_intake_view`. No
+list`, and `avoozl intake view <source> <id>`; MCP adds the actions
+`submit_items`, `items`, and `item` to the grouped `plans_intake` tool
+(Requirement 56) instead of new tool names. No
 existing `plans_*` name changes. The old `github.intake.*` callback
 operations are unrelated and stay on their delete path (§9).
 
@@ -2021,6 +2060,31 @@ gets 403), like approval. The tick never imports. The CLI has
 | No follow mode, no org minimums | After import the settings are the repository's own; nobody upstream can change them |
 | Intake is the tracker kind's `poll` | Reuses plugin consent, health, and isolation; Requirement 50 adds storage |
 | Crew placement rules are not a pack key yet | They do not exist until Phase 11 builds them (task 16.7) |
+
+### 4.15 Onboard a repository
+
+**Built** 2026-11-13, owner request (Requirement 58). Settings >
+Repositories gets **Onboard** beside Add repository: one stepped dialog,
+styled like Add plugin, that walks a folder to draft plans ready to approve.
+Every step reuses an operation that already exists; three reads are new.
+
+| Step | Operation | Writes |
+|---|---|---|
+| Pick folder | `onboarding.inspect` (detect, plus `.avoozl.json`, spec folders, already added, visibility) | none |
+| Pick mode | the mode cards, in the shared radio fold-out | none |
+| Check GitHub | `github.setup` without `confirm` | none |
+| Set up | `github.setup` with `confirm`, `github.settings.update`, `repositories.configure` | each GitHub write asks first |
+| Import specs | `plan.specs`, `plan.create {spec}` | drafts only |
+| Leak scan | `onboarding.scan`: content rules plus the public secret and path rules the release scan uses | none |
+| Preview issues | `plan.issues.preview`: approval runs on a scratch copy of the store, then the projection preview reads it | none |
+| Finish | a summary and Approve in Plans | none |
+
+The three new reads are `observe`. The leak scan runs only when the
+repository that holds the issues is public (single-repo mode, or this folder
+as the planning repository), and it names file, line, set and rule, never
+the matched text. With one GitHub repository registered, the issue preview
+uses it for every leaf, as lint already does. The flow approves nothing,
+starts no agent and pushes nothing.
 
 ---
 
@@ -2554,6 +2618,16 @@ P18 checks them (F39).
   (F54). Blocked work shows GitHub's own Blocked icon (F53), not a column.
   The one Status Avoozl reads is Deferred, a person's order (below).
   Pending-projection tasks have no item yet.
+- **Avoozl state** (single-select, optional; added 2026-11-13, R29.18–21)
+  is Avoozl's own column: the Delivery lane from `src/delivery-lanes.mjs`,
+  the module the Delivery tab imports too. Sync writes it after the Status
+  orders of the same pass, so a card paused this pass reads Deferred, and
+  only when the board differs. The receipt keeps the value Avoozl last
+  wrote; a different board value is a person's edit, written back once and
+  kept as `stateConflict` (shown in Conflicts) until the state moves. It is
+  not kept in the issue marker, so a state change never rewrites a body.
+  Setup creates it and **Board by Avoozl state**; Status's first option is
+  Ready, and a board with Todo keeps Todo.
 - **Release** (single-select) is set from the plan's milestones when Avoozl
   adds the item. A milestone is
   a manifest-level group of task IDs; each leaf takes its own milestone, and a
@@ -2586,6 +2660,9 @@ P18 checks them (F39).
     | Answers | What a task belongs to | How soon it can start |
     | Spans | One subtree | Any epics; one wave may hold tasks from several |
     | Changes when | A task moves to another parent | An edge is added or removed |
+
+    Changed 2026-11-13 (§6.9): an epic now spans plans, and a group inside
+    one plan is a phase. Wave still spans them all.
 - **Board edits.** **Proposed (owner decision 2026-11-12, changed the same
   day for the GitHub-native split, Requirement 33):** people use the Project
   board as usual. A card drag is never a conflict, and Avoozl reverts no
@@ -2719,6 +2796,207 @@ P18 checks them (F39).
   writes them. A migrated workspace may keep reading its old graph through
   that path until its plans move to spec folders (§10.2 step 11).
 
+### 6.9 Epics across plans, phases inside plans
+
+**Proposed**, owner decision 2026-11-13 (Requirement 59). An epic is a goal
+that spans plans, such as a language rewrite. A phase is a group of tasks
+inside one plan. Today's code mixes three things under one word: the
+manifest `kind: "epic"` (a parent task inside a plan), the per-task `epic`
+string with its `epics` list (a grouping), and `doc:<path>` epics that the
+catalog and capture paths make up for any document (`src/catalog.mjs`,
+`src/capture.mjs`, `src/app/plans.mjs`; `specOf` in
+`src/app/page-views.mjs` parses them back). This section gives each word
+one meaning and removes the made-up groups.
+
+| Level | Is | Comes from | GitHub |
+|---|---|---|---|
+| Epic | A goal across plans | Its own spec folder; members' `epic:` front-matter | One issue, `epicIssueType` |
+| Plan | One spec folder | `.kiro/specs/<name>/` (§6.8) | One plan issue, sub-issue of its epic's issue |
+| Phase | A group inside a plan | Manifest `phase`, else the `tasks.md` heading | Not an issue: managed body line and optional Project field |
+| Package, leaf | Tasks | Manifest `kind` | Sub-issues of the plan issue or package |
+
+**Epic folder.** The same four files as a plan (§6.8), so Requirement 30's
+layout rule holds unchanged. A folder is an epic folder when its manifest
+has a top-level `"kind": "epic"`. `requirements.md` states the goal and what
+done means. `design.md` says how the member plans fit and in what order.
+`tasks.md` has one item per member plan, for example
+`- [ ] 1 Native runtime`. The manifest lists plans, not tasks:
+
+```json
+{
+  "version": 1,
+  "kind": "epic",
+  "tasks": {
+    "1": { "plan": "native-runtime", "summary": "Direction and work W1-W7" },
+    "2": { "plan": "runtime-contracts" }
+  }
+}
+```
+
+- An entry may hold only `plan` and `summary`. `memberPlan` loads as
+  `plan` with a warning, because the first real epic folder was written
+  before this rule.
+- Each member's `requirements.md` (or `bugfix.md`) starts with front-matter
+  such as `---` / `category: Runtime` / `epic: rewrite` / `---`. Avoozl reads
+  `epic:` exactly as it reads `category:` (§6.8): one top-level line, never
+  written, never guessed, part of the revision hash.
+- Membership needs both sides. The epic's list is the order shown; the
+  member's `epic:` key confirms it. A list entry the member does not confirm
+  is an error on the epic folder. A member key the epic does not list is a
+  warning on the plan, which then shows under **No epic**.
+- The epic's own `tasks.md` items are not tasks. They make no Avoozl task,
+  no issue of their own, no readiness, and no edges. The epic's issue is
+  the epic folder itself.
+- Approving an epic revision stores its member list. It never approves a
+  member plan or its tasks, which keep their own approvals.
+- Progress is computed, never stored: an epic counts the tasks of its
+  member plans; a plan is done when each of its tasks is done or archived
+  with a reason; an epic is done when every member plan is done.
+
+**Validation codes** (errors block approval of the folder that has them):
+
+| Code | Severity | When |
+|---|---|---|
+| `spec.epic-member-missing` | error | An entry's `plan` is not a spec folder in the namespace |
+| `spec.epic-member-unconfirmed` | error | The named plan's `epic:` is missing or names another epic |
+| `spec.epic-member-twice` | error | Two entries name the same plan |
+| `spec.epic-nested` | error | An entry names an epic folder |
+| `spec.epic-task-fields` | error | An entry holds a key other than `plan`, `memberPlan`, and `summary` |
+| `spec.epic-bugfix` | error | The epic folder has `bugfix.md` |
+| `spec.epic-unknown` | warning | A plan's `epic:` names no epic folder, or one that does not list it |
+| `spec.kind-epic` | warning | A plan's manifest entry has `"kind": "epic"`; loads as `package` |
+| `spec.entry-epic` | warning | A plan's manifest entry has `epic`; loads as `phase` |
+| `spec.member-plan-alias` | warning | An epic entry uses `memberPlan`; loads as `plan` |
+
+**Phases.** A task's phase is, in order: its manifest entry's `phase`
+value; otherwise the nearest heading of level 2 or lower above its item in
+`tasks.md`; otherwise **No phase**. The heading's text is the title, and
+its slug is the ID, made unique within the plan by a `-2` suffix. A
+manifest may name titles for its `phase` values:
+
+```json
+"phases": { "w1": { "title": "W1: core execution" } }
+```
+
+A `phase` value with no title shows its ID. A heading renamed in
+`tasks.md` changes the phase ID; no issue or edge depends on it, so
+nothing else moves. Phases never add edges, readiness, or completion. A
+heading-only plan such as this spec gets its phases from its
+`## Phase N: ...` headings with no manifest change.
+
+**No invented groups.** The `doc:` form goes away. Capture and catalog
+paths stop creating `doc:<path>` epics; a captured task keeps its source
+reference (document and lines) as provenance only. A task with no plan
+shows under **No plan**. Every view reads the plan, epic, and phase titles
+from records, so no view, export, or brief ever prints a `doc:` ID or a
+file path as a group name. `specOf` reads the task's plan or its source
+reference instead of parsing an epic string.
+
+**Store.** `epics` holds only cross-plan epics: ID, title, the epic
+folder's plan record, and the ordered member plan IDs from its last
+approved revision. A plan record gains `epic` (from front-matter, or null).
+A task gains `phase` (ID and title) and loses `epic`; its epic is always
+its plan's epic, so a task cannot disagree with its plan.
+
+**GitHub layering.** Projection order (§6.3) adds two parent kinds before
+tasks:
+
+1. The epic issue, titled from the epic's `requirements.md` heading. Its
+   managed body section holds the goal, what done means, and a list of
+   member plans. It gets `epicIssueType` when the owner has one (F44).
+2. One plan issue per approved plan, titled from its spec heading, with a
+   managed body section linking the spec folder. It is a sub-issue of its
+   epic's issue when the plan has an epic. It gets no issue type.
+3. Task issues, as today, each a sub-issue of its package, or of the plan
+   issue when it has no package.
+
+Epic and plan issues live in the repository that holds the plan's task
+issues: the planning repository in plans-repo mode, the code repository in
+single-repo mode. They are never ready, never get a ready label, and carry
+the marker with `kind` `epic` or `plan`. The tick's close step (§5, step
+13) closes a plan issue when all its tasks are complete and an epic issue
+when all its plan issues are closed. Avoozl closes them in both modes,
+since no pull request closes a parent.
+
+The phase is not an issue. Avoozl writes `Phase: <title>` in each task's
+managed body section and, when `project.fields.phase` names a field, sets
+that field. Like Wave, the field is Avoozl's: a person's edit is reverted
+on the next tick and nothing else happens. With no field named, nothing
+is written to the Project.
+
+Limits. GitHub allows up to 100 sub-issues per parent and eight levels of
+nesting ([Adding sub-issues](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/adding-sub-issues),
+**Verified** in docs only, so **Inferred** until a live call confirms it).
+Epic, plan, package, and leaf use four levels. A plan with more than 100
+tasks outside packages is linked in `tasks.md` order up to the limit. The
+preview lists the rest, their markers name the plan issue, and the Delivery
+view shows "Over GitHub's sub-issue limit; group these tasks in packages".
+When an epic issue and a plan issue are under different owners, or a link
+write is refused, both issues stay, the marker records the epic, and the
+Delivery view shows why (Requirement 59.9). Whether GitHub allows a
+sub-issue from another repository of the same owner is **Inferred**; the
+build's first live call settles it.
+
+Existing projected issues for a manifest `kind: "epic"` entry stay where
+they are, as package issues. The next preview shows their type change and
+their new parent, the plan issue; nothing is closed or recreated.
+
+**Views.**
+
+| View | Epic (across plans) | Phase (inside a plan) |
+|---|---|---|
+| Graph | Top level: epics and **No epic**; drill to member plans | Plan drill-in: phases, then tasks; **No phase** last |
+| Delivery | Filter; row shows plan and phase | Filter, enabled once a plan is picked |
+| Flow | Filter | Filter; `flow.batch.by: "phase"` (alias `epic`) |
+| Dashboard | **Progress by epic**: one row per epic over all member plans' tasks, plus **No epic** | — |
+| Plans | Filter and an Epic column; epic folders listed with kind **Epic** | — |
+| Plan left column | The plan's epic as a link to its epic page | Phases with progress, replacing today's per-plan epics |
+| Epic page | Goal, what done means, member plans with status and progress, open decisions, Edit and Discuss like a plan | Each member's phase counts |
+
+The Graph's back stack and breadcrumb read All > Epic > Plan > Phase >
+Focus: task. The epic page is the Graph's epic drill-in with the epic's
+prose beside it, so no new top tab is added. The New plan drawer offers
+**Epic** (pick one) and **Phases**; the seed tells the planner to write the
+`epic:` key and the phase headings.
+
+**Migration** (`workspace.migrate.epics`, page and CLI only, person only
+under Requirement 56.2):
+
+1. Preview: list each change with counts, and refuse to apply against any
+   other database revision.
+2. Back up the SQLite file next to the workspace with its sha256, and record
+   the path and hash in the migration receipt.
+3. Each existing `epics` row that is neither a `doc:` epic nor backed by an
+   epic folder becomes a phase,
+   with the same ID and title, of each plan whose tasks use it. Its tasks
+   with no plan show under **No plan**.
+4. Each task in a `doc:` epic whose source is a spec plan's `tasks.md`
+   takes that item's heading as its phase; any other goes to **No phase**.
+5. Each task whose plan record is gone is archived with `task.archive`,
+   reason "plan removed". Done tasks are archived the same way, so history
+   stays readable.
+6. `epics` keeps only rows backed by an epic folder; every other row is
+   removed after steps 3–5 moved its tasks.
+7. A second run finds nothing to change. Nothing is approved, no session is
+   started or stopped, and nothing is written to GitHub or pushed. The next
+   projection preview shows the GitHub side for approval.
+
+The build runs it first on a copy of the workspace and its spec repository.
+
+**Nupp-shaped example.** A planning repository holds a rewrite epic folder
+listing 21 member plans, each with `epic:` front-matter. Its main runtime
+plan's manifest gives each task an `epic` value `W1`–`W7`, and its
+`tasks.md` headings are "From design.md" and "Recorded only in the
+workspace database". After the build, that plan loads with
+`spec.entry-epic` warnings, and its tasks group under phases W1–W7
+(manifest values win over headings). Its epic folder's manifest has no
+top-level `"kind": "epic"` yet, so it keeps loading as an ordinary plan,
+as it does today, with `spec.kind-epic` warnings, and the epic shows no
+members. A one-time edit in that repository, made after the build and
+outside this plan, adds `"kind": "epic"`, keeps only `plan` (or the
+`memberPlan` alias) and `summary` in each entry, and renames each task's
+`epic` to `phase`. The proof checks both states.
+
 ---
 
 ## 7. Kiro Crew integration map
@@ -2778,7 +3056,7 @@ backend, which calls the same operations as CLI and MCP (Requirement 20.4).
 | **Settings** | `.avoozl.json`: GitHub mode, planning repository, default authority, Project and its fields, epic issue type; per repository: rules, managed labels, actors, permission, checks, concurrency, priority, coder; required Issue Radar crew label (single-repo mode); a link to **Routing** for delivery routes and crews; plugins with kinds, version, approval state, and health (§4.8) | Edit and validate; **Set up GitHub** wizard (§8.2); check Project fields and the `project` scope; show crew setup; add, approve, disable, or remove a plugin | `.avoozl.json` in Git; machine-local settings for plugin approvals and local plugin entries | Issue Radar crew setup; GitHub Project settings; Kiro Crew secrets | Issue Radar settings; Kiro Crew settings |
 | **Routing** | Crews with tags, trust, chat limit, live readings, and health; ordered routing rules; Smart pick preset; model router; read-only placement preview (§4.10, §8.3) | Add, edit, reorder, or delete a rule; edit a crew's tags and chat limit and the stale limit; pick a preset; turn the router on or off; Preview | `.avoozl.json` in Git for shared rules; machine-local settings for crews, chat limits, the stale limit, pins, and router instructions (never tracked); Kiro Crew instance list and headroom | Kiro Crew Connections; Kiro Crew remote dispatch settings | Kiro Crew's instance management and its remote dispatch limits |
 | **Flow** | Lead time, flow efficiency, first-pass rate, and time to fix with the previous window; stacked time bar per task by stage; biggest bottleneck; retrospectives with proposals and PDCA results (§4.11, §8.4) | Approve or reject a proposal; run a retro now; open a task | SQLite `flow_spans`, line stops, and retrospectives | Each task's session; the pull request and CI run in GitHub | Issue Radar's pipeline and CI views; Kiro Crew's Usage page |
-| **Untriaged** | Open items from every source (§4.12) that no trigger rule, triage label, or task covers, with source, kind, number or ID, title, repository, author, age, labels, comments, and a pull request's draft and checks state (§8.5) | Check now; open at the source; open in Issue Radar (GitHub); Code review; select several and open them in Issue Radar; Plan this and Deliver this (non-GitHub, person only) | Incoming items in SQLite, read from GitHub search, plugin `poll`, and `intake.submit`; `.avoozl.json` `untriaged` per repository and `intake.sources` | GitHub item; Issue Radar; Code Review Sage | Issue Radar's lists and item pages; Sage reviews; GitHub's issue list |
+| **Intake** | Open items from every source (§4.12) that no trigger rule, triage label, or task covers, with source, kind, number or ID, title, repository, author, age, labels, comments, and a pull request's draft and checks state (§8.5) | Check now; open at the source; open in Issue Radar (GitHub); Code review; select several and open them in Issue Radar; Plan this and Deliver this (non-GitHub, person only) | Incoming items in SQLite, read from GitHub search, plugin `poll`, and `intake.submit`; `.avoozl.json` `untriaged` per repository and `intake.sources` | GitHub item; Issue Radar; Code Review Sage | Issue Radar's lists and item pages; Sage reviews; GitHub's issue list |
 
 **Choosing a repository and workspace.** A workspace is a directory with
 `.avoozl.json` and its SQLite file (existing layout). The machine catalog lists
@@ -3148,7 +3426,12 @@ buttons only for space. Local-only mode shows every Flow sub-group, because
 all of them apply to local delivery; the local-checks-first line says it
 matters only when sessions push.
 
-### 8.5 Untriaged tab
+### 8.5 Intake tab
+
+Renamed from Untriaged on 2026-11-13 (R50.23). **Untriaged** is the tab's
+default filter; setting keys and the `untriaged` notification channel keep
+their names. Built: the GitHub read is SQLite now (`github` incoming items
+and a `github:<repo>` `intake_sources` row), not `untriaged.json`.
 
 **Proposed**, owner request 2026-11-12 (Requirement 49). Avoozl acts only on
 issues a trigger rule matches and reads only pull requests tied to its
@@ -3165,7 +3448,7 @@ yellow: an untriaged item waits for someone, not necessarily the owner.
 The tab and the Dashboard count are hidden in Local only mode.
 
 ```text
-▣ Untriaged                                              Workspace: example ▾
+▣ Intake                                                 Workspace: example ▾
 Open issues and pull requests no trigger rule, triage label, or task covers.
 ┌ Filters ───────────────────────────────────────────────────────────────┐
 │ Repository [all ▾]  Kind [all ▾]  Age [any ▾]  Author [all ▾]  Label [all ▾] │
@@ -3264,6 +3547,16 @@ which refuse a session caller or MCP with 403. In Local only mode the tab
 shows when a non-GitHub source is declared, with only those sources; with
 none, it stays hidden as before. **Check now** on a plugin source polls it
 once. A non-GitHub source's items count toward its repository's notice.
+
+**Code review chat** (added 2026-11-13, R49.16–18; a stand-in until MC-15).
+**Code review** on a pull request calls `review.chat` (person only). It
+checks for `~/.kiro/crew/skills/sage-review/SKILL.md`, builds the seed from
+the cached search row (the search now reads `headRefOid`), runs content
+rules on it, and stores one `pr-review:<repo>#<n>` receipt. The cron's next
+tick opens the chat without a project folder, binds it as role `pr-review`
+to the receipt, and sends the seed; the row then shows **Attach**. A queued
+or open chat is reused; a closed one gets a new attempt. Avoozl makes no
+GitHub call for it, and the seed tells the chat to post nothing.
 
 #### Facts
 
@@ -3471,6 +3764,7 @@ and next decision, are tasks in `tasks.md` (P1–P32). Summary:
 | P33 | Agent and model per task with fake crews and fake agents: no `session` changes nothing, the order of sources holds, weighted choices split a batch as computed, retries keep the model, review distinctness skips colliding choices, a missing agent rules a crew out (Phase 11) |
 | P34 | Pull request feedback with a fake GitHub and fake workers: failed checks, changes requested, review comments, conflicts, and auto-merge off each reach the live worker once, in one message per tick; untrusted comments are not relayed; a gone worker gets a resume attempt on the same branch and model; the round bound and the same-check stop open a decision; Avoozl writes nothing to GitHub (Phase 15) |
 | P35 | One bundle plugin with a pack, rules, a tracker, and an intake source: it installs shared with the repository, previews its pack as create/change/keep/skip, refuses an import before approval, imports after approval with provenance, polls a fake intake source, and refuses an unknown pack key by name, a silent who-counts lowering, and a new version without a new approval (Phase 16) |
+| P36 | Epics across plans and phases inside plans, in a temporary workspace with one epic and two member plans and on a migrated Nupp-shaped copy: membership needs both sides, phases come from the manifest or headings, no `doc:` group appears, three levels of sub-issues project and a second preview writes nothing, and the migration backs up, archives orphans, and is idempotent (Phase 21) |
 
 A new server, shared database, or plugin mechanism other than the seam in §4.8
 requires a failed proof that a small Kiro Crew or GitHub contract cannot fix.
@@ -3498,6 +3792,7 @@ Detailed in `tasks.md`. **Proposed** order:
 | 14. Incoming items | One incoming-item record in SQLite; `intake.submit`, `intake.list`, `intake.view` on the page, CLI, and MCP; plugin `poll` and MCP submit; the `intake` content boundary; `source:` rules and who counts per source; updates and closes; reviews to Code Review Sage; every source in Untriaged; GitHub intake and the Untriaged read moved onto the record (§4.12) | Starts after Phase 2's proofs and after 8.7, 10.6, 13.3, and 13.4; the `review` action waits for MC-15 (14.11); P32 |
 | 15. Pull request feedback | Failed checks, reviews, conflicts, and auto-merge state on worker pull requests sent back to the worker, with a round bound (§4.13) | Starts after Phase 2's proofs and after 4.7 and 10.4; P34 |
 | 16. Plugin bundles | One plugin bundles a settings pack, content rules, a tracker, and an intake source; packs preview and import once with provenance; the intake contract hook (§4.14) | Starts after 8.6–8.8; does not wait for Phases 9–15; P35 |
+| 21. Epics and phases | Epic folders across plans, phases from `tasks.md` headings, no invented groups, epic and plan issues on GitHub, the views, and the workspace migration (§6.9) | Starts after Phase 3's proofs and 19.1; P36 |
 
 ### 12.1 Bootstrap: building Avoozl before Avoozl works
 

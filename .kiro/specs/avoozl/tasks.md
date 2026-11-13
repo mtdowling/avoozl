@@ -101,6 +101,13 @@ earlier task's behavior: a manifest without `provides` loads as before.
 contract it calls. It starts after 8.6–8.8 and does not wait for Phases
 9–15; 16.7 waits for 11.2.
 
+Change note (2026-11-13, Intake, Requirements 50.23, 55.11, 55.12). The
+Untriaged tab is now **Intake**, with Untriaged as its default filter;
+setting keys and the `untriaged` channel keep their names. Packs and
+repository entries gain optional `waitingLabels` and `priorityLabels`.
+Under Requirement 56 the MCP side of 14.3 is `plans_intake` actions, not
+new `plans_intake_*` tools. No earlier task changes.
+
 ## Phase 0: Baseline
 
 - [x] 0.1 Rebase `feature/kirocrew-github-delivery` onto `main` and resolve conflicts in `github-sync.mjs`, `operations.mjs`, `store.mjs`, `cli.mjs`, and `mcp.mjs`. [R25.3] (§9)
@@ -648,22 +655,34 @@ IDs never move.
 
 - [ ] 11.1 Crew registry [R41.1, R41.3, R41.6] (§4.10, F77–F82)
   - New `src/app/crews.mjs` lists crews from Kiro Crew's `GET /api/instances` plus `local`; tags (`os`, `arch`, `tools`, `trust`), `gitHosts`, and `chatLimit` from machine-local settings only (`crews.<id>`), `chatLimit` per crew with 3 for `local` and 2 for a remote crew when unset; a crew without settings is `trust:remote` with no git hosts; readings for `local` from `os.freemem`, `os.loadavg`, and `fs.statfs`, for a remote from its headroom snapshot (F80), each with source and `measured_at`; stale after `crewStaleSeconds` (machine-local, 120 when unset); minimum memory and disk read from Kiro Crew's `remote_dispatch_memory_gb` and `_disk_gb`, never stored in Avoozl. First, call `session_create` with `crew` from the tick script cron and from the app backend against one connected crew and record the refusal codes in the receipt, settling F78.
-- [ ] 11.2 Routing rules [R41.2–R41.5, R41.8, R41.12, R22.5] (§4.10)
+  - Built (registry only): `src/app/crews.mjs` (`listCrews`, `localReading`, `recordCrewSnapshot`, machine-local `crews.<id>` and `crewStaleSeconds`), `3068954`. Not checked off: the live `session_create` call with `crew` waits on MC-10, so F78 stays Inferred, and the app backend is not granted `GET /api/instances` or headroom yet; only `local` shows on a real install.
+- [x] 11.2 Routing rules [R41.2–R41.5, R41.8, R41.12, R22.5] (§4.10)
   - `routing.rules`, `routing.pick`, and `routing.router` in `.avoozl.json` (workspace and repository) and machine-local settings; validation per §4.4 and §4.10 (refuse a crew id or router instructions in a tracked file, an unknown tag key, a missing plugin route, a rule without `id`); `evaluatePlacement(task, role, crews, readings)` per §4.10 steps 1–4, returning the allowed set, the removed crews each with the rule or check that removed it, and the route; route precedence manifest task, first matching rule, repository, workspace; categories from front-matter only.
-- [ ] 11.3 Scorer and presets [R41.6] (§4.10)
+  - Built: `src/app/placement.mjs` (`validateRouting`, `validateTrackedRouting`, `evaluatePlacement`, `routingConfig`), `3068954`. Repository rules live under `projects.<id>.routing`. `kinds` match the manifest `type`. A rule's `route` shows in Preview and on the page; the tick still delivers by each task's own route. Plugin routes are checked when saved through the page or CLI.
+- [x] 11.3 Scorer and presets [R41.6] (§4.10)
   - The §4.10 formula with `balanced` (default), `keep local`, and `spread out`, editable weights shown as Custom; per-tick slot reservation so one batch spreads; ties to `local`, then crew id; unavailable crews per §4.10; all allowed crews unavailable means the task waits with no decision.
-- [ ] 11.4 Model router, off by default [R41.7] (§4.10)
+  - Built: `scoreCrew`, `pickCrew`, presets and custom weights in `src/app/placement.mjs`; per-tick reservation in `src/app/routing.mjs` `placeOne`, `3068954`. With no rule only an owner-set local chat limit applies.
+- [x] 11.4 Model router, off by default [R41.7] (§4.10)
   - The tool-less `avoozl-router` agent in `kirocrew-app/agents/`, one local session per tick batch on the owner's model, brief checked at the `brief` boundary, instructions from machine-local settings only (`routing.router.instructions`), never a tracked file; reply `[{session, crew, reason}]` schema-checked; a crew outside the allowed set ignored; timeout (default 90 seconds), malformed reply, or refused model falls back to the scorer and records why; the tick never waits on the router.
-- [ ] 11.5 Dispatch and fetch-back [R41.5, R41.11, R41.13, R40.3] (§4.10, §4.9, F83)
+  - Built: `kirocrew-app/agents/avoozl-router.json`, `src/app/router.mjs` (one batch session, reply read by `observeRouterReplies`, fallback on time limit, malformed reply, or ended session), `f34fc7a`. P29 action 4.
+- [x] 11.5 Dispatch and fetch-back [R41.5, R41.11, R41.13, R40.3] (§4.10, §4.9, F83)
   - `plans_tick` intents carry `crew`; `tick.py` opens on `local` as today and, only when MC-10 exists, on the chosen remote crew; fetchability check (repository remote host in the crew's `gitHosts`, base commit on that remote, earlier attempt branch for a retry); remote briefs carry clone URL, base commit, and task branch instead of a checkout path, pass content rules and the leak screen, and tell the worker to push its task branch before `done`, on public and private repositories alike (visibility plays no part; repository policy and content rules still apply); Avoozl fetches the branch, checks the reported commit, then verifies, reviews, and integrates as for a local worker; content-rule sets gain `remote` (`forbid` by default for sets covering `diff`, else `allow`; built-in sets `allow`).
-- [ ] 11.6 Recording and recovery [R41.9, R41.10, R41.14, R8] (§4.10, F79, F81)
+  - Built: dispatch carries `crew` only when MC-10 is reported (`src/app/delivery.mjs` `planReadyDispatches`, `kirocrew-app/crons/tick.py`); fetchability in `src/app/routing.mjs` `fetchInfo`/`fetchableWhy`; remote briefs `remoteSteps`; fetch-back at `done` (`fetchBack`, `src/app/handback.mjs`); content-rule sets gain `remote`, `3068954`. Inert until MC-10: every session runs on `local`. Checks and review sessions always run here.
+- [x] 11.6 Recording and recovery [R41.9, R41.10, R41.14, R8] (§4.10, F79, F81)
   - Bindings store `crew`, remote slot key, applied rules, readings or router reason, and time; the Delivery view shows the crew; an unreachable crew's sessions show "crew unreachable" and stay bound; no timer re-places them; the tick reconciles with the crew's session state when it answers again before new dispatch there; Retry and the bounded retry policy place afresh; no use of Kiro Crew's own `work_item` placement; the In flight card's Attach opens every Avoozl chat, local (`/chat?sid=<slot>`) or remote (through MC-10, from the binding's crew and slot key).
-- [ ] 11.7 No-fit decisions [R41.8] (§4.10, §8.3)
+  - Built: bindings store `crew`, `placement` (rules, reading or router reason, time), `agent`, `sessionReason`; unreachable crews keep their bindings and do not hold the tick; Delivery shows the crew and "crew unreachable"; Attach links remote chats only from MC-10's link pattern (Inferred), `3068954`, `6a9cf83`.
+- [x] 11.7 No-fit decisions [R41.8] (§4.10, §8.3)
   - One decision per task naming each crew and the rule or check that removed it, in yellow on the Routing page and in Conflicts; it closes by itself when a rule or crew change makes the task fit; never run the session elsewhere.
-- [ ] 11.8 Routing page per §8.3 [R42, R20.4, R41.14] (§8.3)
+  - Built: `placement_decisions`, `openNoFit`/`closeNoFit` in `src/app/routing.mjs`, `no-fit` items in Conflicts, `3068954`.
+- [x] 11.8 Routing page per §8.3 [R42, R20.4, R41.14] (§8.3)
   - Sections Crews, Rules, Smart pick, Model router, Preview, each with a heading and one short line and an empty-state line; rule rows "When <match> -> <route> on <crews>" with drag to reorder and a side form with Required and Optional markers and placeholders; checkbox pickers for labels, roles, routes, and tags; per-crew Chat limit (placeholder 3 for `local`, 2 remote) and one Stale after field (placeholder 120 s), both saved on this machine; the router instructions box marked as saved on this machine only; until MC-10 ships, one neutral line saying remote placement waits on Kiro Crew; red, confirmed delete and remove on the right; Preview read-only with route, crew, reason, and "why not"; Settings links here and stops listing delivery routes; every edit through the shared operations with expected revisions (CLI `avoozl routing …` and MCP `plans_routing_*`); yellow only for no fit and unavailable content-rule sets. Check the page by drawing it and looking at it.
-- [ ] 11.9 Fake crew driver and docs [R41.13, R24.2] (§4.10)
+  - Built: `kirocrew-app/ui/src/RoutingView.tsx`, `routing-api.ts`, operations `routing.view`, `routing.preview`, `routing.update`, `crews.update`, CLI `avoozl routing` and `avoozl crews set`, MCP `plans_view` actions `routing` and `routing_preview` (edits are person-only), `6a9cf83`. Drawn at three widths in light and dark.
+- [x] 11.9 Fake crew driver and docs [R41.13, R24.2] (§4.10)
   - A test-only driver under `test/fixtures/crews/` playing the instance list, headroom snapshots, remote sessions, and an unreachable crew; public docs use only fake crew names and "a private git host"; extend the 7.4 scan to the crew fixtures.
+  - Built: `src/app/test/fixtures/crews/` (driver, workspace, fake ssh), fake names and `.example.test` hosts only; the release scan covers the fixtures, `f34fc7a`, `13c365c`.
+- [x] 11.13 Hand-back over SSH [R41.15] (§4.10 Hand-back over SSH)
+  - Per-crew machine-local `delivery: handback | push` (default `handback`), `sshHost`, and `worktreeRoot`; the hand-back brief names the folder and forbids a push or GitHub write; at `done` fetch the task branch over SSH with Avoozl's own `known_hosts` (accept-new on first use, yes after), check the reported commit, fast-forward the local task branch, then the `diff` boundary, checks, review, and integration run here; a crew missing either setting is "work not fetchable"; tests use a fake ssh command and a local repository, never a real host.
+  - Built: `src/app/handback.mjs`, crew `delivery`/`sshHost`/`worktreeRoot`, `src/app/test/handback.test.mjs` with a fake ssh command, `3068954`, `13c365c`. A pull-request leaf on a hand-back crew needs a local chat that pushes; that chat is not built.
 - [ ] 11.10 MC-10 upstream ask [R41.14] (§4.10, §7.1, F77–F79)
   - File the standalone request with Kiro Crew (an owner grant letting the Avoozl app and its tick cron open, message, read, and close remote sessions it opened, with a binding that survives a hub restart, and attach to each from the In flight card); change no Kiro Crew code; when it ships, record its contract in §7.1, switch 11.5's remote path on, and run P29 case 13 against one real crew.
 
@@ -673,17 +692,21 @@ IDs never move.
   - Expected: (1) every session opens on `local`, at most 2 at once, and nothing else changes; (2) Preview opens nothing and shows each task's route, crew, reason, and why-not; `c1` runs on `local` though its rule is last; `t1` runs on `fake-windows`; `w1`–`w4` spread across `local` and `fake-linux` by reservation, never past a chat limit, and the rest wait; `u1` waits with one yellow no-fit decision naming every crew and the rule that removed it; (3) `fake-windows` is unavailable and `t1`'s retry waits without a decision; (4) the router's `fake-windows` pick for `w1` is ignored when the rules do not allow it, and recorded with its reason when they do; the silent model falls back to the scorer after about 90 seconds and the malformed one at once, each recorded; (5) `w5` stays local with "work not fetchable"; (6) validation refuses the file; (7) `w2` keeps its binding and shows "crew unreachable"; nothing re-places it; when `fake-linux` returns the tick reconciles first; `w3`'s retry is placed afresh; a remote leaf's pushed branch is fetched, its commit checked, and it integrates like a local one; (8) no new session in that repository goes remote; (9) every new session runs on `local`; (10) `fake-linux` takes at most 1 session and a 70-second reading counts as stale, and after clearing both the limit is 2 and the stale limit 120 s again, each shown as a placeholder; (11) validation refuses the file and names the key; (12) placement is the same as for a private remote, the worker pushes its branch, and the `diff` boundary checks it at `done` and at integration; (13) each chat opens and takes the typed message; (14) every session runs on `local`, Preview still shows remote picks, and the Routing page shows the waits-on-Kiro-Crew line. The live check in 11.1 records whether a real tick may open a remote session.
   - Failure means: placement cannot keep hard rules exact while spreading work, or it re-places lost work on a timer.
   - Next decision: drop the scorer and router and keep only rule-chosen pins. MC-10 is required either way (owner, 2026-11-12).
-- [ ] 11.11 Agent and model per session, after 11.2 and 11.3 [R53.1–R53.10, R53.12, R53.13] (§4.10)
+  - Built: pass with fake crews, `src/app/test/proof-p29.test.mjs`, receipt `docs/evidence/phase11-p29-crew-placement.md`. Not checked off: action 13's typing into a remote chat and the live check wait on MC-10.
+- [x] 11.11 Agent and model per session, after 11.2 and 11.3 [R53.1–R53.10, R53.12, R53.13] (§4.10)
   - `session` (`{agent, model}` or `choices` of 1–10 `{agent, model, weight}`) on routing rules and manifest tasks, validated per R53.8; `chooseSession(task, role, rules, policy, running)` with the R53.3 order and the R53.4 weighted pick reserved per tick; the router may rank choices with fallback; crews without the agent ruled out as "agent not installed"; `distinctFrom: model` skips colliding writer choices, else one decision; retries keep the last agent and model, **Pick again** clears it; `tick.py` passes `agent` and `model` to `open_session`; bindings gain `agent`, `model`, `modelUsed`, `sessionReason`; Issue Radar and plugin routes ignore `session`; no `session` anywhere means no change.
-- [ ] 11.12 Session fields on the Routing page, after 11.8 and 11.11 [R53.11] (§4.10, §8.3)
+  - Built: `chooseSession` in `src/app/placement.mjs`, manifest `session`, `labels`, `paths`, and `type` carried onto tasks, Pick again (`delivery.pickAgain`), `3068954`, `f34fc7a`. The router ranking choices is built in `chooseSession` but the tick does not ask for it yet.
+- [x] 11.12 Session fields on the Routing page, after 11.8 and 11.11 [R53.11] (§4.10, §8.3)
   - Rule rows read "... as <agent / model>" or "as <N> choices"; a **Session** group in the side form with Optional markers, default placeholders, and an add-choice row with weight; Preview shows each task's agent, model, and how they were chosen; the Delivery view and In flight card show agent and model and offer **Pick again**; a note on Issue Radar and plugin route rules that `session` does not apply. Check the page by drawing it and looking at it.
+  - Built: rule rows "as <agent / model>" or "as N choices", a Session group with choices and weights, Preview agent, model, and reason, Pick again on the In flight card and the Delivery card, the does-not-apply note, `6a9cf83`. Settings > Delivery holds the writer's agent and model and Phase 15's `delivery.prFeedback` and `delivery.feedbackRounds`.
 
-- [ ] avoozl-p33 P33 Proof: agent and model per task with fake crews and fake agents [R53] (§4.10)
+- [x] avoozl-p33 P33 Proof: agent and model per task with fake crews and fake agents [R53] (§4.10)
   - Setup: the P29 workspace and fake crew driver, with every chat limit set to 10, where `fake-linux` lacks agent `alt-worker`; a review role `correctness` on `model-r` with `distinctFrom: model`; leaves `h1` (label `hard`), `r1`–`r6` (plain), `m1` (manifest `session: {model: "model-m"}`), and `q1` (label `hard`, Issue Radar route).
   - Action: (1) tick with no `session`; (2) add rule `hard-parts` (`hard` -> `model-a`) and rule `routine` with choices `model-b` weight 2 and `model-c` weight 1, then preview and tick; (3) fail `r1` and let it retry, then press **Pick again** on `r2` after a failure; (4) change `routine` to choices `model-r` and `model-c`; (5) set `hard-parts` to agent `alt-worker` and release `h1` with only `fake-linux` allowed; (6) put weight 0 and 11 choices in `.avoozl.json`.
   - Expected: (1) every session opens as before with Kiro Crew's default agent and `auto`; (2) `h1` runs on `model-a`, `m1` on `model-m` though `routine` matches it, `r1`–`r6` split 4 to 2 between `model-b` and `model-c`, `q1` opens no session and its rule shows the does-not-apply note, and Preview shows each reason; (3) `r1`'s retry keeps its model and `r2` is picked afresh; (4) no writer runs on `model-r`; (5) `h1` waits with one no-fit decision naming "agent not installed"; (6) validation refuses the file and names each key. Every binding records agent, model, and reason.
   - Failure means: one rule set cannot pick crew and model together and stay deterministic.
   - Next decision: keep one model per repository and drop `choices`.
+  - Built: pass, `src/app/test/proof-p33.test.mjs`, receipt `docs/evidence/phase11-p33-agent-model.md`.
 
 ## Phase 12: Flow
 
@@ -796,38 +819,50 @@ on Kiro Crew's MC-15 (design §7.1). Public code, docs, and fixtures name
 sources only generically. It is numbered after Phase 13 because task IDs
 never move.
 
-- [ ] 14.1 Incoming-item record and storage [R50.1–R50.3] (§4.12, F112)
+- [x] 14.1 Incoming-item record and storage [R50.1–R50.3] (§4.12, F112)
   - `incoming_items` and `intake_sources` store tables; the record shape with the trust-boundary checks of R50.2 (bad items refused alone, with the field named); dedup on source plus ID by content hash; stale `updatedAt` ignored and reported; a quiet pass writes nothing.
-- [ ] 14.2 Source settings, after 3.13 [R50.6, R50.11, R50.20] (§4.12, §4.4)
+  - Built: `3040bef`: `incoming_items` and `intake_sources` tables (`src/app/store.mjs`), the record and checks (`incomingItem` gains `trigger`, `src/app/plugin-contract.mjs`; first part in 16.4), dedup, stale and quiet writes in `takeItem` (`src/app/intake.mjs`).
+- [x] 14.2 Source settings, after 3.13 [R50.6, R50.11, R50.20] (§4.12, §4.4)
   - `intake.sources` in `.avoozl.json` and in machine-local settings, validated like `plugins` entries: reserved `github` and `local`, `via` naming a `plugins` entry with `poll` or `mcp`, a registered `repository`, `labelFields`, `assigneeField`, `allowedActors`, `minimumPermission` (default `write`); one Settings group with the public-repository warning and plain "(optional)" markers; a `respond` rule with a non-GitHub `source:` refused.
-- [ ] 14.3 `intake.submit`, `intake.list`, `intake.view`, after 14.1 and 14.2 [R50.5, R50.8] (§4.12)
+  - Built: `3040bef`, `dbcf1b9`: `validateSource`, `declaredSources`, `editSource` (`src/app/intake.mjs`); `intake` in the tick's policy check and the schema; Settings › Plugins › Intake sources (`IntakeSources.tsx`) with the shared-repo confirm; respond with `source:` refused (`github-policy.mjs`).
+- [x] 14.3 `intake.submit`, `intake.list`, `intake.view`, after 14.1 and 14.2 [R50.5, R50.8] (§4.12)
   - Operations in `operations.mjs`; CLI `avoozl intake submit|list|view`; MCP `plans_intake_submit`, `plans_intake_list`, `plans_intake_view` with no existing `plans_*` name changed; submit only to an `mcp` source, 1–100 items, per-item results; run under the workspace tick lock.
-- [ ] 14.4 Pipeline, after 14.3 and 10.6 [R50.9–R50.11, R50.19] (§4.12, §4.9, F107, F109, F110)
+  - Built: `3040bef`: `intake.submit`, `intake.list`, `intake.view` (and `intake.sources`) in `operations.mjs`, under the tick lock; CLI `avoozl intake`; MCP as `plans_intake` actions `submit_items`, `items`, `item`, `sources` (R56 grouping, not new names).
+- [x] 14.4 Pipeline, after 14.3 and 10.6 [R50.9–R50.11, R50.19] (§4.12, §4.9, F107, F109, F110)
   - The `intake` content boundary (block quarantines with a decision that never names the text; report records), off unless a set names it; `source:` in `parseMatch` (one per rule; absent means GitHub; refused in an Untriaged filter); `labelFields` and `assigneeField` mapping; actions by today's precedence; `deliver`/`execute` make a pinned local leaf in the source's repository and `plan` an inbox task through `task.capture`; `review` items skipped by deliver, execute, plan, and respond rules.
-- [ ] 14.5 Who counts per source, after 14.4 [R50.12–R50.14] (§4.12, F106–F108)
+  - Built: `3040bef`: the opt-in `intake` boundary (`content-rules.mjs`); `source:` in `parseMatch` and `sourceRules` in the normalized policy so GitHub code never sees them; `matchView` for `labelFields` and `assigneeField`; leaves and inbox tasks from `takeItem`; reviews skip starting rules.
+- [x] 14.5 Who counts per source, after 14.4 [R50.12–R50.14] (§4.12, F106–F108)
   - GitHub unchanged; a plugin source's `trigger.actor` and `trigger.permission` checked by `actorAllowed` against the source's settings; no `actor` capability means no allowed actor; an MCP caller's items meet only `pause` and `quarantine` rules, and its claimed author and trigger are stored as claims.
-- [ ] 14.6 Plugin `poll`, after 8.7 and 14.4 [R50.7] (§4.8, §4.12, F104, F105)
+  - Built: `3040bef`: `judgeItem` (`src/app/intake.mjs`): plugin `trigger` through `actorAllowed` against the source's settings, no `actor` capability means nobody, MCP items meet only pause and quarantine and keep author and trigger as `claims`.
+- [x] 14.6 Plugin `poll`, after 8.7 and 14.4 [R50.7] (§4.8, §4.12, F104, F105)
   - New tracker capability `poll` and reply check (`items`, `cursor` of at most 2,000 characters, `more`, at most 500 items); the tick opens every plugin a declared source names; one poll per source per tick; the cursor stored after every item is handled; a failed or invalid poll keeps the cursor and items and shows the error; a poll-only plugin is never asked to project, read, list, or close; the fake tracker plugin gains `poll`.
   - Part built in 16.4: the `poll` capability and its reply check. This task still owns calling it from the tick and storing the cursor and items.
-- [ ] 14.7 GitHub intake on the record, after 14.4 [R50.4] (§4.12, F101)
+  - Built: `3040bef`: `pollSources` and the tick's `pollStep` (`src/app/tick.mjs`): one poll per source, cursor stored after the page, a failed poll keeps cursor and items and shows the error; the fake tracker gains `poll` (changed-since cursor). The `poll` contract itself is from 16.4 (`837497b`).
+- [x] 14.7 GitHub intake on the record, after 14.4 [R50.4] (§4.12, F101)
   - `syncGitHubIssues` writes each listed issue as a `github` item and points its `github_issues` row at it; listing by label, events, permissions, snapshot freeze, and results unchanged; the existing GitHub intake tests pass unchanged.
-- [ ] 14.8 Untriaged read on the record, after 14.1 and 13.3 [R50.4] (§4.12, §8.5, F102)
+  - Built: `3040bef`: `mirrorGitHubIssue`; each `github_issues` row points at its item through `item`; GitHub intake tests pass unchanged.
+- [x] 14.8 Untriaged read on the record, after 14.1 and 13.3 [R50.4] (§4.12, §8.5, F102)
   - The search results become `github` items and each repository's read state an `intake_sources` row (query, checked time, error, truncated, the keys the last search returned); `untriaged.json` no longer written, and the first tick after upgrade reads once; `untriaged.view` returns the same items and repository rows as before for GitHub, plus `source` on each.
-- [ ] 14.9 Updates and closes, after 14.5 [R50.17, R50.18, R50.21] (§4.12, §6.5)
+  - Built: `3040bef`: `readCache` and `writeCache` (`src/app/untriaged.mjs`) read and write `github` items and `github:<repo>` source rows; `untriaged.json` is not written and an upgraded workspace reads once; `untriaged.view` is unchanged for GitHub (P31 passes as is).
+- [x] 14.9 Updates and closes, after 14.5 [R50.17, R50.18, R50.21] (§4.12, §6.5)
   - Title and labels follow to the tied task and rules run again, with withdrawal when no allowed match is left; a body change after the snapshot quarantines; closes follow the allowed-close rule (order, brief note, never verified; otherwise hold and a decision; never reopen); a reopen withdraws the order and leaves running sessions alone; untied closed items deleted after 30 days.
-- [ ] 14.10 Untriaged for every source, after 14.8, 14.5, and 13.4 [R50.15, R50.16, R50.19] (§8.5)
+  - Built: `3040bef`: title, labels and rules follow to the tied task with withdrawal; body change after the snapshot quarantines; `judgeClose` with `intakeVerdict` (order) or `intakeHold` (decision), reopen lifts both; `purgeClosed` after 30 days. `completionReached` and `blockerNotes` read `intakeVerdict`.
+- [x] 14.10 Untriaged for every source, after 14.8, 14.5, and 13.4 [R50.15, R50.16, R50.19] (§8.5)
   - Source filter and source on each row; non-GitHub rows link to the item, show no Issue Radar button, show **Code review** for reviews, and offer person-only **Plan this** and **Deliver this** (403 from a session caller or MCP, with a confirm dialog naming the item); the tab in Local only mode when a non-GitHub source is declared; **Check now** polls a plugin source once. Check the page by drawing it at three widths in light and dark and looking at it.
+  - Built: `3040bef`, `dbcf1b9`, `2c932c0`: `intakeTab` adds every source's items with `source`; the Intake tab (renamed, R50.23) has a Source column and filter, item links, no Issue Radar on other sources, Code review for reviews, Plan this and Deliver this behind a confirm (403 for sessions and MCP), shows in Local only with a source, and Check now polls. Drawn at 1440, 1000 and 600 in light and dark with a harness and looked at.
 - [ ] 14.11 MC-15 upstream ask [R50.19] (§4.12, §7.1, F99)
   - File the standalone request with Kiro Crew for an app call that starts a Code Review Sage review of one item and returns its run ID; change no Kiro Crew code; when it ships, record the contract in §7.1 and add the `review` rule action.
-- [ ] 14.12 Docs and leak scan, after 14.3 and 14.6 [R50.22] (§4.8, §13)
+- [x] 14.12 Docs and leak scan, after 14.3 and 14.6 [R50.22] (§4.8, §13)
   - The plugin guide gains `poll` with the fake plugin as its example; a short guide to `plans_intake_submit` from a Kiro Crew cron job using a fake source; sources named only generically; the 7.4 scan covers the new docs and fixtures.
+  - Built: `3040bef`: Intake part and source settings in `docs/plugins.md` with the fake tracker; `docs/policies.md` "Bring in work from other trackers and scripts" (MCP submit from a cron job); `avoozl-rules` skill lists `intake`; the release scan passes over docs and fixtures.
 
-- [ ] avoozl-p32 P32 Proof: incoming items from a fake plugin source and a fake MCP caller [R50] (§4.12, §8.5)
+- [x] avoozl-p32 P32 Proof: incoming items from a fake plugin source and a fake MCP caller [R50] (§4.12, §8.5)
   - Setup: an isolated temporary workspace in single-repo mode with repository `o/app`, managed labels `avoozl:managed` and `avoozl:ready`, and rules `deliver` `label:go source:tickets`, `pause` `label:hold source:script`, `deliver` `label:go source:script`, and `deliver` `label:go` (GitHub); a fake GitHub with issue 1 (`go`, labeled by an allowed actor) and issue 2 (no labels); the fake tracker plugin from `test/fixtures/plugins/` with `poll` and `actor`, declared as source `tickets` (`labelFields: ["component"]`, `minimumPermission: write`), with items `T1` (`go`, trigger actor `bob`, permission `write`), `T2` (`go`, trigger actor `eve`, permission `read`), `T3` (no labels), `T5` and `T6` (`go`, trigger `bob`, `write`, each with a local task `d5` or `d6` that requires its leaf), and `R1` (kind `review`, `go`, trigger `bob`, `write`); source `script` with `via: mcp`; a content rule set naming the `intake` boundary with one fake term in `T4`'s body; the same GitHub fixtures and expected results as P31.
   - Action: (1) tick; (2) tick again with no change; (3) make `poll` fail and tick, then restore it and tick; (4) through MCP, `plans_intake_submit` to `script` items `S1` (`go`, author `alice`, trigger actor `alice`, permission `admin`), `S2` (`hold`), and one item with a `javascript:` link, then submit `S1` again unchanged, then once with an older `updatedAt`; (5) submit to `tickets` and to `github` through MCP; (6) add `T4` to the fake source and tick; (7) open the Untriaged tab; press **Deliver this** on `S1` from the page, then call the same operation from MCP; (8) change `T1`'s body and tick; (9) before either leaf finishes, close `T5` as `bob`, close `T6` as `eve`, then reopen `T6`; (10) wait past 30 days on the fake clock for a closed untied item; (11) run the P31 actions against the GitHub fixtures.
   - Expected: (1) `T1`, `T5`, and `T6` each become one pinned local leaf in `o/app`; `T2` is untriaged (eve lacks `write`); `T3` untriaged; `R1` untriaged with **Code review** and no leaf; issue 1 delivers and issue 2 is untriaged, as before; (2) nothing written; (3) the cursor and items stay, the error shows on the source, and the rest of the tick runs; after restore the next page is read and no item is duplicated; (4) `S1` is listed, not delivered (an MCP claim meets no starting rule); `S2` is paused; the bad link is refused with the field named while the others are stored; the replay is `unchanged` and the older one `stale`; (5) both refused; (6) `T4` is quarantined with a decision naming the set and rule and not the term; (7) the tab lists items from `github`, `tickets`, and `script` with a Source filter, non-GitHub rows link to their items and show no Issue Radar button; the page press makes one pinned leaf, and the MCP call gets 403; (8) `T1`'s task is quarantined until re-triggered or confirmed; (9) `T5`'s close is an order: `d5` is released with the brief note, and `T5`'s leaf has no verified completion; `T6`'s close holds `d6` and opens a decision, Avoozl does not reopen it, and the reopen lifts the hold with running sessions untouched; (10) the closed untied item is gone and tied ones stay; (11) every P31 expectation holds, and `untriaged.json` is not written.
   - Failure means: one record cannot carry every source without changing GitHub behavior, or an unverifiable caller can start work.
   - Next decision: keep MCP submit list-only and drop plugin-source rules, or keep plugin sources and drop the MCP way in.
+  - Built: pass, receipt `docs/evidence/proof-p32.md` (`798b554`), test `src/app/test/proof-p32.test.mjs`. MCP calls use `plans_intake` action `submit_items`; GitHub issue 1 is authorized and goes to the planner as before.
 
 ## Phase 15: Pull request feedback
 
@@ -904,6 +939,18 @@ Numbered after Phase 16 because task IDs never move.
   - 15 tools with an `action` enum, each action one existing operation; person-only operations refused for any MCP call in `Operations.perform`; old `plans_*` names listed and marked deprecated; a session may archive a plan.
   - Built: `e729e08`, `src/app/test/mcp-tools.test.mjs`.
 
+## Phase 18: Avoozl state on the board, and a code review chat
+
+Owner requests 2026-11-13. Numbered after Phase 17 because task IDs never
+move.
+
+- [x] 18.1 Avoozl state Project field and board view [R29.18–R29.21] (§6.7, §8.2)
+  - One lane rule in `src/delivery-lanes.mjs` for the Delivery tab and Project sync; sync writes Avoozl state only on change, writes a person's edit back once and records it in Conflicts; setup creates the field and Board by Avoozl state, names Status's first option Ready and keeps an existing Todo.
+  - Built: `4e49f4c`, `src/app/test/github-project.test.mjs`, `src/app/test/github-setup.test.mjs`.
+- [x] 18.2 Code review chat, until MC-15 [R49.16–R49.18] (§8.5)
+  - `review.chat` queues one seeded sage-review chat per pull request; the tick opens it as role `pr-review`; the row shows Attach; content rules run on the seed; no GitHub write.
+  - Built: `25f3132`, `src/app/test/pr-review.test.mjs`.
+
 ## Phase 19: New plan
 
 Owner request 2026-11-13. Numbered after Phase 18 because task IDs never
@@ -912,3 +959,47 @@ move.
 - [x] 19.1 New plan drawer and Plans button icons, after 2.5 [R57] (§8.6)
   - `plan.new` checks fields and content rules and records the request; the drawer opens an `avoozl-planner` chat; the tick imports a clean folder as a draft and approves nothing.
   - Built: see the commit that adds `src/app/new-plan.mjs`.
+
+## Phase 20: Onboard a repository
+
+Owner request 2026-11-13. Numbered after Phase 19 because task IDs never
+move.
+
+- [x] 20.1 Onboard reads, after 3.18 [R58.2, R58.6, R58.7] (§4.15)
+  - `onboarding.inspect`, `onboarding.scan` and `plan.issues.preview`, all `observe`; the public secret and path rules move beside the content-rules matcher so the release scan and the leak scan share them.
+  - Built: see the commit that adds `src/app/onboarding.mjs`.
+- [x] 20.2 Onboard dialog, after 20.1 and 16.5 [R58] (§4.15, §8)
+  - Eight steps with Cancel on each; steps that do not apply are left out and satisfied ones show done; one confirm per GitHub write; nothing written before Set up; never approves, starts or pushes.
+  - Built: see the commit that adds `kirocrew-app/ui/src/Onboard.tsx`.
+
+## Phase 21: Epics and phases
+
+Owner decision 2026-11-13 (Requirement 59, design §6.9). An epic spans
+plans; a phase groups tasks inside one plan; no group is made up from a
+file path. Numbered after Phase 21 because task IDs never move. It starts
+after Phase 3's proofs and 19.1. It changes earlier tasks' behavior only as
+Requirement 59 states: 2.1's `kind: "epic"` loads as a package, 3.7
+projects epic and plan issues, 12.8's `epic` batch key is named `phase`,
+and 19.1's drawer gets separate Epic and Phases fields.
+
+- [ ] 21.1 Epic folders and the `epic:` key, after Phase 3's proofs [R59.1–R59.4, R59.7] (§6.9)
+  - The spec reader knows an epic folder by its manifest's top-level `"kind": "epic"`, reads members from `plan` (alias `memberPlan`), reads `epic:` front-matter like `category:`, and reports the §6.9 validation codes; `kind: "epic"` and per-entry `epic` in a plan load as `package` and `phase` with warnings.
+- [ ] 21.2 Phases from the manifest and `tasks.md` headings, after 21.1 [R59.5, R59.6] (§6.9)
+  - Each task gets a phase from its `phase` value, else its nearest level-2-or-lower heading, else No phase; the store keeps cross-plan epics only and tasks lose `epic`; capture and catalog paths stop making `doc:` epics, and `specOf` reads the plan or source reference.
+- [ ] 21.3 Epic and phase reads on the page, CLI, and MCP, after 21.2 [R59.4, R59.10] (§6.9, §8)
+  - An epic read gives goal, what done means, member plans with status and progress, and open decisions; plan and task reads carry epic and phase; progress is computed, never stored; reads join the grouped MCP tools (R56).
+- [ ] 21.4 Epic and plan issues on GitHub, after 21.2 [R59.8, R59.9] (§6.9, §6.3)
+  - Projection creates the epic issue with `epicIssueType`, one plan issue per plan as its sub-issue, and task issues under the plan issue or package; writes the phase line and the optional `phase` Project field; the tick closes plan and epic issues from children; the 100-sub-issue limit and refused links show in the preview and Delivery.
+- [ ] 21.5 Views use epic and phase, after 21.3 [R59.6, R59.10] (§6.9, §8)
+  - Graph levels All > Epic > Plan > Phase > task with the back stack; separate Epic and Phase filters in Graph, Delivery, Flow, and Plans; Dashboard Progress by epic across member plans; the plan left column shows its epic link and phases; the epic page; no `doc:` ID or path shown anywhere.
+- [ ] 21.6 Batch by phase and the New plan fields, after 21.2 and 19.1 [R59.11, R59.14] (§6.9, §8.6)
+  - `flow.batch.by` accepts `phase` (default) and `epic` as its alias; the New plan drawer has Epic (pick) and Phases; the planner agent and skill write epic folders, the `epic:` key, and phase headings.
+- [ ] 21.7 Workspace epic migration, after 21.2 [R59.12, R59.13] (§6.9)
+  - `workspace.migrate.epics`, person only: preview, sha256 backup, per-plan epics to phases, `doc:` epics to their `tasks.md` section or No phase, orphaned tasks archived with `task.archive` reason "plan removed"; a second run changes nothing; it approves, starts, and pushes nothing.
+
+- [ ] avoozl-p36 P36 Proof: one epic over two member plans, and a migrated Nupp-shaped copy [R59] (§6.9)
+  - Setup: an isolated temporary workspace in plans-repo mode with a fake GitHub; an epic folder `rewrite` listing plans `alpha` and `beta`; `alpha` has `epic: rewrite` and two `## ` headings, one task under none; `beta` has `epic: rewrite`, manifest `phase` values and a `phases` title; a third plan `gamma` says `epic: rewrite` but is not listed. A second temporary workspace copies a Nupp-shaped database: per-plan W1–W3 epics, `doc:` epics over a spec `tasks.md` and over a free document, tasks whose plan is gone, and an epic folder with old `memberPlan` entries and no top-level kind.
+  - Action: (1) lint and approve all four folders; (2) list `beta` as a member while it names no epic, then restore; (3) read the epic, the Graph levels, Delivery, Flow, and Plans with each filter, and the Dashboard; (4) preview projection, apply it, preview again; (5) close every `alpha` and `beta` task issue; (6) in the copy, preview the migration, apply it, apply it again; (7) add the top-level kind to the copy's epic folder and lint it; then drop each entry's `kind` and `repository` and lint again.
+  - Expected: (1) 0 errors; `gamma` gets `spec.epic-unknown` and shows under No epic; (2) `spec.epic-member-unconfirmed` blocks only the epic's approval; (3) the epic lists `alpha` then `beta` with computed progress; phases come from headings or manifest values; the headless task is under No phase; no response contains `doc:` or a file path as a group name; (4) one epic issue with the epic type, two plan issues as its sub-issues, task issues under them, the phase line in each body; the second preview writes nothing; (5) the tick closes both plan issues, then the epic issue; (6) a backup with its sha256, W1–W3 as phases, the spec `doc:` tasks under their headings, the free-document tasks under No phase, orphans archived as "plan removed", nothing approved, started, or written to GitHub, and the second apply changes nothing; (7) first `spec.epic-task-fields` names each entry's `kind` and `repository`; then the folder loads as an epic with `spec.member-plan-alias` warnings and lists its members.
+  - Failure means: one word still means two things, or a group is still made up from a path.
+  - Next decision: keep phases as Avoozl-only groups and project only epics and tasks.

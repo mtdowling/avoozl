@@ -4171,6 +4171,28 @@
         "11.11"
       ]
     },
+    "11.13": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 11 (Crew placement). See R41.15; §4.10 Hand-back over SSH.",
+      "acceptance": [
+        "Hand-back over SSH",
+        "A remote crew's commit comes back over SSH from its folder with the host key pinned on first use and checked on every fetch, then runs content rules, checks, verify, review, and integration here; tests use a fake ssh command only."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "10.4",
+        "11.5",
+        "avoozl-p2b",
+        "avoozl-p4",
+        "avoozl-p5",
+        "avoozl-p6"
+      ]
+    },
     "avoozl-p33": {
       "kind": "leaf",
       "repository": "avoozl",
@@ -4502,6 +4524,34 @@
         "2.3"
       ]
     },
+    "18.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 18 (Avoozl state and code review chat). See R29.18–R29.21; §6.7, §8.2.",
+      "acceptance": [
+        "Avoozl state Project field and board view",
+        "Avoozl state follows the Delivery lane, is written only on change, a person's edit is written back once and recorded, setup creates the field and view, and Status is never written."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "18.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 18 (Avoozl state and code review chat). See R49.16–R49.18; §8.5.",
+      "acceptance": [
+        "Code review chat, until MC-15",
+        "Code review queues one seeded sage-review chat the tick opens, the row shows Attach, content rules run on the seed, and Avoozl writes nothing to GitHub."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
     "19.1": {
       "kind": "leaf",
       "repository": "avoozl",
@@ -4517,6 +4567,194 @@
       ],
       "requires": [
         "2.5"
+      ]
+    },
+    "20.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 20 (Onboard a repository). See R58; §4.15.",
+      "acceptance": [
+        "Onboard reads, after 3.18",
+        "Folder inspect, leak scan and issue preview are read-only operations; the preview approves only a scratch copy."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "3.18"
+      ]
+    },
+    "20.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 20 (Onboard a repository). See R58; §4.15.",
+      "acceptance": [
+        "Onboard dialog, after 20.1 and 16.5",
+        "Cancel before Set up writes nothing; each GitHub write asks first; the flow never approves, dispatches or pushes."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "20.1",
+        "16.5"
+      ]
+    },
+    "21.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 21 (Epics and phases). See R59.1–R59.4, R59.7; §6.9.",
+      "acceptance": [
+        "Epic folders and the `epic:` key, after Phase 3's proofs",
+        "An epic folder is known by its manifest's top-level kind, lists member plans, and is refused with the §6.9 codes; `epic:` front-matter is read like `category:`; old `kind: \"epic\"` and per-entry `epic` in a plan load as package and phase with warnings."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "avoozl-p7",
+        "avoozl-p8",
+        "avoozl-p9",
+        "avoozl-p10",
+        "avoozl-p11",
+        "avoozl-p16",
+        "avoozl-p20",
+        "avoozl-p21",
+        "avoozl-p24",
+        "avoozl-p25",
+        "19.1"
+      ]
+    },
+    "21.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 21 (Epics and phases). See R59.5, R59.6; §6.9.",
+      "acceptance": [
+        "Phases from the manifest and `tasks.md` headings, after 21.1",
+        "Every task has a phase from its manifest value, else its heading, else No phase; the store keeps only cross-plan epics; no `doc:` epic is created anywhere."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "21.1"
+      ]
+    },
+    "21.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 21 (Epics and phases). See R59.4, R59.10; §6.9, §8.",
+      "acceptance": [
+        "Epic and phase reads on the page, CLI, and MCP, after 21.2",
+        "An epic read lists member plans with computed status and progress and open decisions; plan and task reads carry epic and phase; the reads are reachable through the grouped MCP tools."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "21.2"
+      ]
+    },
+    "21.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 21 (Epics and phases). See R59.8, R59.9; §6.9, §6.3.",
+      "acceptance": [
+        "Epic and plan issues on GitHub, after 21.2",
+        "Projection makes the epic issue with the epic type, plan issues as its sub-issues and task issues under them; the phase line and optional Project field are written; the tick closes plan then epic issues; a second preview writes nothing; limits and refused links show in the preview and Delivery."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "21.2"
+      ]
+    },
+    "21.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 21 (Epics and phases). See R59.6, R59.10; §6.9, §8.",
+      "acceptance": [
+        "Views use epic and phase, after 21.3",
+        "Graph drills All > Epic > Plan > Phase > task with back navigation; Graph, Delivery, Flow, and Plans have separate Epic and Phase filters; Progress by epic counts all member plans; the plan left column and the epic page show epic and phases; no view shows a `doc:` ID or path."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "21.3"
+      ]
+    },
+    "21.6": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 21 (Epics and phases). See R59.11, R59.14; §6.9, §8.6.",
+      "acceptance": [
+        "Batch by phase and the New plan fields, after 21.2 and 19.1",
+        "`flow.batch.by` accepts `phase` as the default and `epic` as its alias; New plan has Epic and Phases fields; the planner agent and skill write epic folders, the `epic:` key, and phase headings."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "21.2",
+        "19.1"
+      ]
+    },
+    "21.7": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 21 (Epics and phases). See R59.12, R59.13; §6.9.",
+      "acceptance": [
+        "Workspace epic migration, after 21.2",
+        "`workspace.migrate.epics` previews, backs up with sha256, turns per-plan epics into phases, maps `doc:` epics to sections or No phase, archives orphaned tasks with reason \"plan removed\", changes nothing on a second run, and approves, starts, writes to GitHub, and pushes nothing."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "21.2"
+      ]
+    },
+    "avoozl-p36": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 21 (Epics and phases). Proof. See R59; §6.9.",
+      "acceptance": [
+        "Proof: one epic over two member plans, and a migrated Nupp-shaped copy",
+        "Expected: membership needs both sides; phases come from manifest values or headings; no `doc:` group appears; three levels of sub-issues project and a second preview writes nothing; plan then epic issues close from children; the migration backs up, maps, archives orphans, and is idempotent on a copy."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "21.1",
+        "21.2",
+        "21.3",
+        "21.4",
+        "21.5",
+        "21.6",
+        "21.7"
       ]
     }
   }
