@@ -13,7 +13,8 @@
     "agents/avoozl-reviewer.json",
     "agents/avoozl-responder.json",
     "agents/avoozl-retro.json",
-    "agents/avoozl-router.json"
+    "agents/avoozl-router.json",
+    "agents/avoozl-code-review.json"
   ],
   "mcpServers": {
     "avoozl": {

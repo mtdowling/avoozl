@@ -92,6 +92,52 @@ test("manifest declares the §4.2 app and every target ships in the package", ()
   assert.ok(!responder.tools.includes("execute_bash"), "responder reads only");
 });
 
+// Shell commands a read-only agent's allowedCommands must refuse, matched the
+// way kiro-cli does: each entry is a regex anchored at both ends.
+const WRITES = [
+  "gh pr review 6 --repo o/app --approve",
+  "gh pr comment 6 --repo o/app --body hi",
+  "gh pr merge 6 --repo o/app",
+  "gh pr edit 6 --repo o/app --add-label x",
+  "gh api repos/o/app/issues/6/comments -f body=hi",
+  "gh api -X POST repos/o/app/issues/6/comments",
+  "gh api repos/o/app/pulls/6/comments --method POST",
+  "gh pr view 6 --repo o/app; rm -rf src",
+  "gh pr diff 6 --repo o/app > out.txt",
+  "git push origin main",
+  "rm -rf src",
+];
+const READS = [
+  "gh pr view 6 --repo o/app",
+  "gh pr view 6 --repo o/app --comments",
+  "gh pr diff 6 --repo o/app",
+  "gh pr checks 6 --repo o/app",
+  "gh api repos/o/app/pulls/6/files",
+  "gh api repos/o/app/pulls/6/comments",
+];
+
+test("the code review agent reads a pull request and cannot write", () => {
+  // MC-15 stand-in (pr-review.mjs): a stranger's pull request reaches it.
+  const file = "agents/avoozl-code-review.json",
+    spec = JSON.parse(fs.readFileSync(path.join(app, file), "utf8"));
+  assert.ok(manifest.agents.includes(file));
+  assert.deepEqual(spec.tools.toSorted(), [
+    "execute_bash",
+    "fs_read",
+    "glob",
+    "grep",
+    "thinking",
+  ]);
+  assert.deepEqual(spec.allowedTools, []);
+  assert.equal(spec.includeMcpJson, false);
+  const shell = spec.toolsSettings.execute_bash;
+  assert.equal(shell.denyByDefault, true);
+  const patterns = shell.allowedCommands.map((p) => new RegExp(`^(?:${p})$`)),
+    allowed = (command) => patterns.some((p) => p.test(command));
+  for (const command of READS) assert.ok(allowed(command), command);
+  for (const command of WRITES) assert.ok(!allowed(command), command);
+});
+
 test("the built package carries no path of the machine that built it", () => {
   const lib = path.join(app, "bin", "lib"),
     needle = fs.realpathSync(root).replace(/\/$/, "");
