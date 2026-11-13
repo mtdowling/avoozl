@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { diffLines, evidenceText, lessonStateText, proposalText, shareRank, toFlowForm, toFlowSection } from '../src/flow-api.ts'
+import { diffLines, evidenceText, lessonStateText, proposalText, shareRank, shareResultText, toFlowForm, toFlowSection } from '../src/flow-api.ts'
 import { lessonsPackText } from '../src/plugins-api.ts'
 
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
@@ -71,4 +71,15 @@ test('the plugin card previews and imports a lessons pack and shows suggested ch
   assert.match(card, /lessonsImport\(workspaceId, id, preview\.hash\)/)
   assert.match(card, /data-plugin-notes/)
   assert.match(card, /Avoozl sends nothing/)
+})
+
+test('Share picks candidates, previews the exact text, then shares; Local only says it shares nowhere', () => {
+  const memory = source('FlowMemory.tsx')
+  assert.match(memory, /value\.share\?\.off \? \(\s*<p className="text-sm text-muted">\{value\.share\.off\}<\/p>/)
+  assert.match(memory, /data-share-candidates/)
+  assert.match(memory, /client\.sharePreview\(workspaceId!, picked\)/)
+  assert.match(memory, /client\.share\(workspaceId!, picked, preview\.hash\)/)
+  const base = { mode: 'plans-repo', repository: 'acme/plans', base: 'main', file: '.avoozl/lessons.json', lessons: ['L-1'], hash: 'h', branch: 'avoozl/lessons-x', commit: 'c' }
+  assert.equal(shareResultText({ ...base, pushed: true, pullRequest: { number: 7, url: 'u' } }), 'Opened pull request #7 to acme/plans.')
+  assert.equal(shareResultText({ ...base, pushed: false, pullRequest: null, reason: 'the branch could not be pushed' }), 'Committed on branch avoozl/lessons-x; the branch could not be pushed.')
 })
