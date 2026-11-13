@@ -11,6 +11,7 @@ import {
   WorkspaceRegistry,
 } from "../host-config.mjs";
 import { initializeWorkspace } from "../workspace.mjs";
+import { globalAvoozlConfigPath } from "../layered-config.mjs";
 import { workspaceConfig } from "../config.mjs";
 import { Store } from "../store.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
@@ -62,6 +63,40 @@ test("machine host paths follow XDG and Windows conventions", () => {
       platform: "win32",
     }).configPath,
     "D:\\xdg\\avoozl\\config.json",
+  );
+});
+
+test("a second Kiro Crew home gets its own Avoozl config and catalog", () => {
+  const second = machineAvoozlPaths({
+    env: { KIROCREW_HOME: "/tmp/kc-test-home", XDG_STATE_HOME: "/tmp/xdg" },
+    home: "/home/example",
+    platform: "linux",
+  });
+  assert.equal(second.configPath, "/tmp/kc-test-home/avoozl/config.json");
+  assert.equal(
+    second.catalogPath,
+    "/tmp/kc-test-home/avoozl/state/catalog.sqlite",
+  );
+  // The layered config's global file is the same one, on this platform.
+  const env = { KIROCREW_HOME: path.resolve("kc-test-home") };
+  assert.equal(
+    globalAvoozlConfigPath({ env, home: path.resolve("home") }),
+    machineAvoozlPaths({ env, home: path.resolve("home") }).configPath,
+  );
+  // The main home named outright keeps the usual places.
+  const main = machineAvoozlPaths({
+    env: { KIROCREW_HOME: "/home/example/.kiro/crew" },
+    home: "/home/example",
+    platform: "linux",
+  });
+  assert.equal(main.configPath, "/home/example/.config/avoozl/config.json");
+  assert.equal(
+    machineAvoozlPaths({
+      env: { KIROCREW_HOME: "C:\\Users\\Example\\.kiro\\crew" },
+      home: "C:\\Users\\example",
+      platform: "win32",
+    }).configPath,
+    "C:\\Users\\example\\AppData\\Local\\avoozl\\config.json",
   );
 });
 

@@ -410,16 +410,19 @@ print(json.dumps({"outcome": outcome, "calls": calls}))
   );
 }
 
-// The script reads the roster first and hands it to the tick (observe first).
-const TICK = [
+// The script reads the roster and its folders first and hands both to the
+// tick (observe first).
+const tickCalls = (folders = {}) => [
   ["session_status"],
+  ["list_session_folders"],
   [
     "call_tool",
     "avoozl:avoozl",
     "plans_tick",
-    { input: { cron: true, sessions: [] } },
+    { input: { cron: true, sessions: [], folders } },
   ],
 ];
+const TICK = tickCalls();
 
 test("tick cron raises Skip when the tick is idle or locked", () => {
   const idle = { observe: [], dispatch: [], messages: [], notify: [] };
@@ -442,11 +445,12 @@ test("tick cron hands every session status to the tick before it plans", () => {
   assert.equal(result.outcome, "skip");
   assert.deepEqual(result.calls, [
     ["session_status"],
+    ["list_session_folders"],
     [
       "call_tool",
       "avoozl:avoozl",
       "plans_tick",
-      { input: { cron: true, sessions } },
+      { input: { cron: true, sessions, folders: {} } },
     ],
   ]);
   // An unreadable roster is not an empty one: the tick is told it saw nothing.
@@ -457,7 +461,13 @@ test("tick cron hands every session status to the tick before it plans", () => {
     ).calls,
     [
       ["session_status"],
-      ["call_tool", "avoozl:avoozl", "plans_tick", { input: { cron: true } }],
+      ["list_session_folders"],
+      [
+        "call_tool",
+        "avoozl:avoozl",
+        "plans_tick",
+        { input: { cron: true, folders: {} } },
+      ],
     ],
   );
   // A stock Kiro Crew has no session_status: the cron says it is the cron and
@@ -467,7 +477,15 @@ test("tick cron hands every session status to the tick before it plans", () => {
       { observe: [], dispatch: [], messages: [], notify: [] },
       { results: { stock: true } },
     ).calls,
-    [["call_tool", "avoozl:avoozl", "plans_tick", { input: { cron: true } }]],
+    [
+      ["list_session_folders"],
+      [
+        "call_tool",
+        "avoozl:avoozl",
+        "plans_tick",
+        { input: { cron: true, folders: {} } },
+      ],
+    ],
   );
 });
 
@@ -489,7 +507,7 @@ test("tick cron passes Kiro Crew's model fields through only when the row has th
       },
     },
   );
-  assert.deepEqual(result.calls[1][3].input.sessions, [
+  assert.deepEqual(result.calls[2][3].input.sessions, [
     { target: "new", status: "idle", ...model },
     { target: "old", status: "idle" },
   ]);
@@ -535,7 +553,7 @@ test("tick cron binds each session before its brief, then messages; notices stay
   );
   assert.equal(result.outcome, "ok");
   assert.deepEqual(result.calls, [
-    ...TICK,
+    ...tickCalls({ Avoozl: false, "Avoozl/example-app": true }),
     ["list_session_folders"],
     ["open_session", "avoozl:w1.loader Add loader", "f1", "kirocrew-worker"],
     [

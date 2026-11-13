@@ -270,6 +270,7 @@ import { machineRoots, postReply } from "./github-respond.mjs";
 import {
   activityView,
   chatContext,
+  helpMessage,
   conflictsView,
   deliveryView,
   graphView,
@@ -328,6 +329,7 @@ import {
   clearMark,
   providersView,
   queueSwitch,
+  switchDryRun,
   switchPreview,
   updateProviders,
 } from "./provider-health.mjs";
@@ -923,9 +925,15 @@ export class Operations {
   // roles, so a switch never breaks review distinctness (R72.9).
   providerOptions() {
     const policy = readDeliveryPolicy(this.workspaceRoot).delivery,
+      github = readGitHubPolicyOrNull(this.workspaceRoot),
       tasks = new Map(this.read().tasks.map((t) => [t.id, t]));
     return {
       ...(this.placement.now ? { now: this.placement.now() } : {}),
+      tasks,
+      // Issue Radar codes the task (design §6.4): its chats are not Avoozl's.
+      radar: (task) =>
+        Boolean(task?.github?.repository) &&
+        github?.repositories?.[task.github.repository]?.coder === "issue-radar",
       reviewRoles: (binding) =>
         policy
           ? deliveryReviewRoles(
@@ -2243,6 +2251,28 @@ export class Operations {
       return providersView(store, this.providerOptions());
     if (name === "provider.switch.preview")
       return switchPreview(store, input, this.providerOptions());
+    // Switch model's step 2 (R72.12): what Switch would do, with the ready
+    // tasks Also new tasks moves. Person-only; writes nothing.
+    if (name === "provider.switch.dryRun") {
+      const github = readGitHubPolicyOrNull(this.workspaceRoot);
+      let ready = [];
+      if (input.alsoNewTasks === true)
+        try {
+          ready = (
+            await routingPreview(store, this.read(), {
+              workspaceRoot: this.workspaceRoot,
+              policy: readDeliveryPolicy(this.workspaceRoot).delivery,
+              github,
+              readyCandidates: () => readyCandidates(store, { github }),
+              ...this.routingHooks(),
+            })
+          ).items;
+        } catch {
+          // The dry run still answers; the page says the list is unread.
+          ready = null;
+        }
+      return switchDryRun(store, input, { ...this.providerOptions(), ready });
+    }
     if (name === "provider.switch")
       return queueSwitch(store, input, this.providerOptions());
     if (name === "provider.health.clear") return clearMark(store, input);
@@ -2276,6 +2306,7 @@ export class Operations {
         memory: this.tickPolicy,
         sessions: input.sessions,
         cron: input.cron === true,
+        folders: input.folders ?? null,
         github: this.github,
         breakdownHooks: () => this.breakdownHooks({ locked: true }),
         plugins: this.plugins,
@@ -2378,6 +2409,8 @@ export class Operations {
         github: readGitHubPolicyOrNull(this.workspaceRoot),
       });
     if (name === "chat.context") {
+      // Ask for help (§8.9): the page's own words and settings.
+      if (input.purpose === "help") return { message: helpMessage(input) };
       // Riff on this (R63.8): the idea as data; the chat may only append.
       if (input.purpose === "riff-idea")
         return {
