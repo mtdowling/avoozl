@@ -320,7 +320,7 @@ Two catches, also shown on the Routing page:
 Only worker sessions go through the relay; checks and review run here. Once
 Kiro Crew can open remote sessions itself, Avoozl uses that and ignores the
 setting. The relay is built and tested with a fake relay chat and fake crews
-only (P46). It has not been run against a real remote crew.
+only (P47). It has not been run against a real remote crew.
 
 ## Pull request feedback
 
@@ -405,7 +405,7 @@ tests with a fake GitHub, fake sessions, or fake crews, run by `npm test`.
 | Flow: timing, stop the line, batching, retros        | Fakes only (P30)                                      |
 | Andon cord                                           | Fakes only                                            |
 | Routing prompt, checks, and pins                     | Fakes only (P29); remote crews wait on Kiro Crew      |
-| Remote relay                                         | Fakes only (P46); not run on a real remote crew       |
+| Remote relay                                         | Fakes only (P47); not run on a real remote crew       |
 | Provider health and Switch model                     | Fakes only (P44); Kiro Crew's model change not called |
 | One driver per spec, hand off and take over          | Fakes only (P40)                                      |
 | Pull request feedback                                | Fakes only (P34)                                      |

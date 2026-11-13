@@ -1340,7 +1340,7 @@ task IDs never move.
 - [x] 32.2 Routing page and Needs you, after 32.1 and 11.12 [R41.20, R41.21, R42.3] (§4.10 Remote relay, §8.3)
   - The Remote relay block in Crews: the setting, the stopgap line, both catches, status lines with turns today and the last refusal, Open relay chat through the app SDK's `openChat` on `avoozl-relay`, Go to relay chat, and a confirmed Forget; Preview's line for relayed picks; `conflicts.view` `needs-human` items with reason `relay`.
 
-- [x] avoozl-p46 P46 Proof: Remote relay with a fake relay and a fake crew [R41.16–R41.24] (§4.10 Remote relay)
+- [x] avoozl-p47 P47 Proof: Remote relay with a fake relay and a fake crew [R41.16–R41.24] (§4.10 Remote relay)
   - Setup: the P29 workspace and crew driver with MC-10 missing, `routing.remoteRelay: "on"`, and a worker rule that allows only Linux crews; a fake Kiro Crew whose `session_create` with `crew=` refuses with Kiro Crew's own text on a turn the owner did not send; a fake relay that runs the `avoozl-relay` loop through `relay.call`.
   - Action: (1) tick twice; (2) run a relay turn the owner did not send; (3) register and pull from another chat and with no caller; (4) run the owner's turn; (5) the w1 worker pushes and replies with orders to the relay and then its report line; another chat hands a reply back; the relay hands it back; tick; (6) repeat with the setting off and with MC-10 present; (7) refuse one request for a chat the owner did not open, Forget it as a session and as a person, register a new relay; refuse another for a full crew.
   - Expected: (1) nothing opens, not even on local; two requests queue once each; Needs you says to open the relay chat; (2) nothing opens; the tasks wait; Needs you says to send any message, linking the chat; (3) refused; (4) each worker opens on `fake-linux` with the brief unchanged (the report line, the clone URL, no local path), binds with the relay's slot, nothing waits, two turns count, and nothing is held for the roster; (5) only the report line counts and the worker's binding reports done with its commit; the other chat is refused; a verifier opens here on that commit, no non-worker session carries a crew, and nothing integrates without the normal pipeline; (6) off places as before the relay; with MC-10 the worker goes straight to `fake-linux` without the relay, which is shown ignored; turning it off drops the queue; (7) the request waits with the Forget advice; a session's Forget is refused; the new relay gets the request; the full-crew refusal drops it.
@@ -1381,3 +1381,23 @@ isolated temporary workspaces, a fake GitHub and fake workers.
   - Expected: (1) no file changes before the gate, then coding; (2) the task waits in Needs you, one new round, then coding; (3) no investigation; (4) the screenshot is in the drawer and the comment, the large file refused; (5) one `base-moved` message, a merge commit and no force push; (6) one rule proposal naming both corrections and one steering leaf; (7) fix-work share 1 of 3; (8) no auto-merge, one Ready to merge item, and completion after the person merges.
   - Failure means: coding starts on refuted findings, a writer force pushes, or a manual ship merges without a person.
   - Next decision: keep the falsifier only for large tasks, or drop the PR comment and keep evidence local.
+
+## Phase 35: Review a task's changes in the drawer
+
+Owner request 2026-11-13 (Requirement 81, design §8.10). Numbered after
+Phase 34 because task IDs never move.
+
+- [x] 35.1 Read a task's changed files and diffs, after 2.6 [R81.4–R81.6] (§8.10)
+  - `task.files` and `task.diff` in `src/app/task-files.mjs`, observe-classified so MCP and app tokens may call them; path and argument rules; size caps; `src/app/test/task-files.test.mjs`.
+  - Built: `4d0b101`.
+- [x] 35.2 Files fold in the task drawer, after 35.1 [R81.1–R81.3] (§8.10)
+  - `TaskFiles.tsx` and `files-api.ts`: the tree with badges and counts, Show all files, unified and split diffs, summaries, Open in editor with the editor choice, and the GitHub branch link; `kirocrew-app/ui/test/task-files.test.mjs`, `task-files-browser.test.mjs`, screenshots in `docs/evidence/task-files/`.
+  - Built: `3505ff3`.
+
+- [x] avoozl-p46 P46 Proof: review a task's changes in the drawer [R81] (§8.10)
+  - Setup: an isolated temporary workspace with one repository and task `a`'s worktree with a file added, changed, deleted, renamed, a binary and an untracked file; the harness page for the fold.
+  - Action: (1) read `task.files`, with and without `all`; (2) read each file's `task.diff`; (3) ask for paths with `..`, absolute, drive, backslash, `.`, empty, NUL, `.git`, pathspec magic and option shapes, and a link out; set an option-shaped base branch; (4) remove the worktree and read again; call both from MCP; (5) open the fold, click a file, choose Split, switch the editor and Show all files.
+  - Expected: (1) each change has its badge and counts; (2) text diffs show, binaries, large files and links are summarized; (3) each is refused and nothing outside is read or written; (4) the branch is read and MCP gets both; (5) the diff draws both ways and every editor link follows the choice.
+  - Failure means: a read leaves the worktree or an input reaches Git as an option.
+  - Next decision: drop untracked files, or read diffs through a provider instead of local Git.
+  - Built: pass, `src/app/test/task-files.test.mjs`, `kirocrew-app/ui/test/task-files.test.mjs`, `kirocrew-app/ui/test/task-files-browser.test.mjs`.

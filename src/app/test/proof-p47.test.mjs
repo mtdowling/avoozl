@@ -1,4 +1,4 @@
-// Proof P46: the Remote relay with a fake relay chat and fake crews (tasks.md
+// Proof P47: the Remote relay with a fake relay chat and fake crews (tasks.md
 // Phase 32, design §4.10 "Remote relay", Requirements 41.16–41.24). The P29
 // workspace and crew driver, with MC-10 missing. A fake Kiro Crew plays
 // `session_create` / `session_send` / `session_read_message` with `crew=`,
@@ -92,7 +92,7 @@ const LINUX = {
   w2: leaf("w2 needs Linux.", { needs: ["os:linux"] }),
 };
 
-test("P46: a remote pick waits for the person's turn, then runs on its crew through the relay", async (t) => {
+test("P47: a remote pick waits for the person's turn, then runs on its crew through the relay", async (t) => {
   const env = await workspace(t, {
       routing: RELAY_ON,
       manifest: LINUX,
@@ -252,7 +252,7 @@ test("P46: a remote pick waits for the person's turn, then runs on its crew thro
   );
 });
 
-test("P46: off by default, and MC-10 makes the setting ignored", async (t) => {
+test("P47: off by default, and MC-10 makes the setting ignored", async (t) => {
   // Off: remote picks run on local, as before the relay.
   const off = await workspace(t, {
     machine: PROMPT,
@@ -292,7 +292,7 @@ test("P46: off by default, and MC-10 makes the setting ignored", async (t) => {
   assert.equal(ignored.active, false);
 });
 
-test("P46: turning the relay off drops queued requests so their tasks are placed again", async (t) => {
+test("P47: turning the relay off drops queued requests so their tasks are placed again", async (t) => {
   const env = await workspace(t, {
     routing: RELAY_ON,
     manifest: LINUX,
@@ -326,7 +326,7 @@ test("P46: turning the relay off drops queued requests so their tasks are placed
   );
 });
 
-test("P46: a refusal for a chat the person did not open asks for a new relay chat", async (t) => {
+test("P47: a refusal for a chat the person did not open asks for a new relay chat", async (t) => {
   const env = await workspace(t, {
     routing: RELAY_ON,
     manifest: LINUX,

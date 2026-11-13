@@ -92,6 +92,8 @@ const OBSERVE = new Set([
   "github.repository.labels",
   "content.rules",
   "task.detail",
+  "task.files",
+  "task.diff",
   "plan.spec.read",
   "plan.table",
   "epic.list",
