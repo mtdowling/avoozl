@@ -125,7 +125,8 @@ node cli.mjs project configure code --workspace ~/plans \
 ```
 
 Checkout paths are per machine, so they are kept out of `.avoozl.json`. Then
-turn on delivery in `.avoozl.json`:
+turn on Autopilot, Avoozl's name for delivery, with the `delivery` block in
+`.avoozl.json`:
 
 ```json
 { "delivery": { "concurrency": 1 } }
