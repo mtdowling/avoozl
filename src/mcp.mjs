@@ -730,11 +730,32 @@ export function dispatchMcp(message, ctx, { versionHeader } = {}) {
       result = { content: [{ type: "text", text: e.message }], isError: true };
     }
   } else return error(-32601, "Method not found");
+  result = complete(message, result);
   if (modern)
     result = {
       ...result,
-      resultType: "complete",
       _meta: { "io.modelcontextprotocol/serverInfo": identity },
     };
   return { status: 200, body: { jsonrpc: "2.0", id: message.id, result } };
+}
+
+// Results of protocol revision 2026-07-28: every one carries resultType, and
+// a list also says how long a client may cache it. Kiro Crew refuses a server
+// whose tools/list lacks either. Every result carries them whatever revision
+// the request names: Kiro Crew's gateway primes a shared server's tool list
+// itself, without the client's revision, and hands that list to 2026-07-28
+// clients. Earlier revisions ignore the extra fields.
+// ttlMs 0 and private: the tool list may differ by caller, so never cache it.
+const LISTS = new Set([
+  "tools/list",
+  "prompts/list",
+  "resources/list",
+  "resources/templates/list",
+]);
+export function complete(message, result) {
+  return {
+    ...(LISTS.has(message?.method) ? { ttlMs: 0, cacheScope: "private" } : {}),
+    ...result,
+    resultType: "complete",
+  };
 }

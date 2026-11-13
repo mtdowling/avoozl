@@ -213,7 +213,9 @@ export function localReading({ root = os.homedir(), now = Date.now() } = {}) {
 
 // What the app backend (or a test driver) last read from Kiro Crew:
 // {instances: [{id, name}], headroom: {id: F80 fields}, agents: {id: [...]},
-// remoteDispatch, limits: {memoryGb, diskGb}, mc10, readAt}. Absent on a
+// ready: {id: true|false} (the crew approves tools on its own, so a chat
+// would not stall on an approval), remoteDispatch, limits: {memoryGb,
+// diskGb}, mc10, readAt}. Absent on a
 // Kiro Crew that grants the app no instance read: then only `local` exists.
 export const crewSnapshot = (store) => store.getMeta(SNAPSHOT);
 
@@ -232,6 +234,11 @@ export function recordCrewSnapshot(store, input = {}) {
     })),
     headroom: record(input.headroom) ? structuredClone(input.headroom) : {},
     agents: record(input.agents) ? structuredClone(input.agents) : {},
+    ready: record(input.ready)
+      ? Object.fromEntries(
+          Object.entries(input.ready).filter(([, v]) => typeof v === "boolean"),
+        )
+      : {},
     remoteDispatch: input.remoteDispatch === true,
     limits: record(input.limits) ? structuredClone(input.limits) : {},
     mc10: input.mc10 === true,
@@ -266,7 +273,7 @@ const tagValue = (tags, key) =>
 
 // Every crew with its settings, reading, running Avoozl sessions, and
 // whether it can take a new session now: [{id, name, tags, trust, gitHosts,
-// chatLimit, delivery, reading, running, available, why}].
+// chatLimit, delivery, reading, running, ready, available, why}].
 // `running` maps crew id to its live Avoozl session count.
 export function listCrews({
   settings = {},
@@ -337,6 +344,9 @@ export function listCrews({
         age === null || Number.isNaN(age) ? null : Math.round(age / 1000),
       running: count,
       agents: isLocal ? null : (snapshot?.agents?.[entry.id] ?? null),
+      // This machine's chats open with the tick's own grants; a remote
+      // crew is ready only when its snapshot says it approves on its own.
+      ready: isLocal ? true : (snapshot?.ready?.[entry.id] ?? null),
       available: !why,
       why,
     };
