@@ -1,6 +1,6 @@
 ---
 name: avoozl-costs
-description: Help a person choose Avoozl's Settings > Budgets, Settings > Prices and Settings > Providers values. Explains each field and its default, then proposes values with reasons. Never saves; the person saves on the page. Use when a chat opens from an Ask for help link on those pages.
+description: Help a person choose Avoozl's Settings > Budgets, Settings > Prices and Settings > Routing > Providers values. Explains each field and its default, then proposes values with reasons. Never saves; the person saves on the page. Use when a chat opens from an Ask for help link on those pages.
 ---
 
 # Avoozl budgets, prices and provider limits
@@ -48,20 +48,17 @@ updated" with that date.
 - Overrides are optional and kept on this computer only. Suggest one only
   when the person pays a different price than the list price.
 
-## Settings > Providers (thresholds)
+## Settings > Routing > Providers
 
-These decide when a provider or model counts as low or out, so new tasks
-skip it. Values are kept on this computer only.
+This table decides when a provider counts as low or out, so new tasks skip
+it. Each row shows a provider's health and its usage in the last 5 hours.
+Values are kept on this computer only.
 
 | Field | Key | Default | What it does |
 |---|---|---|---|
+| Limit (credits per 5 h) | `providers.limits.<provider>.credits` | None | Credits a provider may use in 5 hours. At 100% it is out. Without a limit, usage never marks it low. |
 | Low at | `providers.lowPercent` | 80 | Percent of a limit at which a provider counts as low. 1 to 99. |
-| Limits | `providers.limits` | None | Per provider or model: credits or tokens allowed in the usage window. At 100% it is out. Without a limit, usage never marks it low. |
-| Fallback models | `providers.fallback` | None | In order. Used when every model a task may use is out. |
-| Usage window | `providers.windowHours` | 5 hours | How far back usage counts toward a limit. 1 to 168. |
-| Error cooldown | `providers.cooldownMinutes` | 30 minutes | How long an error keeps a model out. 1 to 1440. |
-| Provider groups | `providers.groups` | None | Which model IDs belong to a provider, by pattern (`*` only). Without one, a model's provider is the first word of its ID. |
 
-Most people need only Low at, one limit per provider they pay for, and one
-or two fallback models. Leave the window, cooldown and groups at their
-defaults unless something is wrong.
+Most people need only one limit per provider they pay for. The page does
+not edit fallback models, the usage window, the error cooldown or provider
+groups; those stay in `~/.config/avoozl/config.json` under `providers`.

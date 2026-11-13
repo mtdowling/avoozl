@@ -120,6 +120,12 @@ Each problem below is marked **Fixed** or **Open**.
   Thresholds card, and the saved message uses `role="status"`.
 - **Fixed.** "Saved on this machine only" now says "this computer", like
   the rest of the app.
+- **Superseded.** While this branch was open, main (PR #33) moved
+  Providers into Settings › Routing as one table: each provider's health,
+  usage and credit limit per 5 hours, plus "Low at". That already is a few
+  plain fields, so this branch keeps main's form and drops its own page
+  and its after-shots. Its Ask for help link moved onto main's Providers
+  section.
 
 ## All three pages
 

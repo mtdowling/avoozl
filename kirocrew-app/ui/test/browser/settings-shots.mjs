@@ -12,7 +12,7 @@ import { buildHarness } from './build.mjs'
 import { findChrome, launch } from './chrome.mjs'
 
 const WIDTHS = [375, 768, 1280]
-const ALL = ['budgets', 'prices', 'providers']
+const ALL = ['budgets', 'prices']
 
 const args = process.argv.slice(2)
 const open = args.includes('--open')

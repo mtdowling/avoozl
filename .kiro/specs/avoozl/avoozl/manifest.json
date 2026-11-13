@@ -5740,6 +5740,132 @@
       "requires": [
         "3.7"
       ]
+    },
+    "34.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 34 (Investigate first, evidence, staying current, rules, fix share, ship mode). See R75; §4.21.",
+      "acceptance": [
+        "Findings, falsifier and the confidence gate",
+        "A leaf's worker reports findings with no file changes, a read-only falsifier on another model replies, and coding starts only when both reach the confidence gate; otherwise the task waits in Needs you."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "11.11",
+        "12.9"
+      ]
+    },
+    "34.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 34 (Investigate first, evidence, staying current, rules, fix share, ship mode). See R76; §4.22.",
+      "acceptance": [
+        "Evidence bundle",
+        "Each task has one screened local evidence bundle shown in the drawer and summarized in one pull request comment."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "34.1",
+        "22.3"
+      ]
+    },
+    "34.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 34 (Investigate first, evidence, staying current, rules, fix share, ship mode). See R77; §4.23.",
+      "acceptance": [
+        "Bring pull requests up to date",
+        "When the base branch moves, each conflicting or behind pull request's writer gets one message to merge it in, and no brief can ask for a force push."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "15.4"
+      ]
+    },
+    "34.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 34 (Investigate first, evidence, staying current, rules, fix share, ship mode). See R78; §4.24.",
+      "acceptance": [
+        "Corrections and rules",
+        "The same correction on two tasks makes one rule proposal; approval lands it as a steering leaf."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "28.3"
+      ]
+    },
+    "34.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 34 (Investigate first, evidence, staying current, rules, fix share, ship mode). See R79; §4.11.",
+      "acceptance": [
+        "Fix-work share",
+        "Flow shows fix tasks over finished tasks as a card and in the charts."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "12.11"
+      ]
+    },
+    "34.6": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 34 (Investigate first, evidence, staying current, rules, fix share, ship mode). See R80; §4.25.",
+      "acceptance": [
+        "Ship mode",
+        "With delivery.ship manual, writers do not enable auto-merge and Needs you shows Ready to merge; auto-merge stays the default."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "15.4"
+      ]
+    },
+    "avoozl-p45": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 34 (Investigate first, evidence, staying current, rules, fix share, ship mode). See R75–R80; §4.21–§4.25.",
+      "acceptance": [
+        "P45 Proof",
+        "P45 passes with fake workers, a fake falsifier and a fake GitHub."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "34.1",
+        "34.2",
+        "34.3",
+        "34.4",
+        "34.5",
+        "34.6"
+      ]
     }
   }
 }

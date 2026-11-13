@@ -37,11 +37,16 @@ import { resolveTaskId } from "../task-identity.mjs";
 import { pausedTaskIds } from "./github-project.mjs";
 import { budgetHeldTaskIds, budgetStopSlots } from "./budget.mjs";
 import { LOCAL } from "./crews.mjs";
-import { machineRouting, placeOne, routingOn, rulesAllow } from "./routing.mjs";
+import {
+  crewAllowed,
+  machineRouting,
+  placeOne,
+  routingOn,
+} from "./routing.mjs";
 import { handbackFetch, pushedFetch } from "./handback.mjs";
 import { currentPrompts } from "./retro-memory.mjs";
 import { routeResultNotes, submittedTaskIds } from "./routes.mjs";
-import { healthContext, healthyChoices, modelsOf } from "./provider-health.mjs";
+import { healthContext, modelsOf } from "./provider-health.mjs";
 import {
   findPlanningLeak,
   isLinkedBranchLeaf,
@@ -731,11 +736,15 @@ export async function reportSession(
       typeof input.slot === "string" && input.slot && input.slot !== own
         ? slotKey(input.slot)
         : null;
-  if (!own && !(local && relay))
+  if (!own && !(local && relay)) {
+    // Kept so the quiet notice can name the cause: a worker that reports
+    // without an identity reads as quiet to the tick.
+    store.setMeta(IDENTITY_REFUSED, new Date().toISOString());
     fail(
-      "plans_report needs the calling session's identity from the Kiro Crew gateway. Report from the bound worker session through the Avoozl MCP server.",
+      "plans_report needs the calling session's identity from the Kiro Crew gateway, and none came. Kiro Crew sends it only to MCP servers it brokers: the owner turns on sharing for avoozl:avoozl in MCP Management (mcp_gateway.stub_servers), approves it and restarts the gateway. Then report again from this session; do not report from a shell.",
       403,
     );
+  }
   const kind = input.kind;
   if (!REPORT_KINDS.includes(kind))
     fail("Choose kind progress, done, blocked, or question.");
@@ -1093,6 +1102,17 @@ export function retryDelivery(
 const quote = (text) =>
   "```text\n" + String(text).replaceAll("```", "'''") + "\n```";
 
+// The last plans_report refused for want of a caller identity. Kiro Crew sends
+// no identity, so the refusal names no session: any refusal since this
+// binding began is the likely cause of its silence.
+// shortcut: workspace-wide, not per session; per session once Kiro Crew
+// attributes a call it does not broker.
+const IDENTITY_REFUSED = "delivery.identityRefusedAt";
+const identityRefusedSince = (store, binding) => {
+  const at = store.getMeta(IDENTITY_REFUSED);
+  return Boolean(at && Date.parse(at) >= Date.parse(binding.boundAt));
+};
+
 // What to do about a session the cron opened that ended its turn without a
 // done or blocked report: "wait", "nudge", or "exhausted" once the nudge bound
 // is spent. Only an observed idle status counts, so a session Avoozl cannot see
@@ -1264,7 +1284,7 @@ export function reconcileDeliveries(
             task: taskId,
             slot: binding.slot,
             title: `${taskId} is quiet`,
-            text: `The worker has not reported after ${nudge?.count || 0} nudges. Avoozl will not replace its session.`,
+            text: `The worker has not reported after ${nudge?.count || 0} nudges. Avoozl will not replace its session.${identityRefusedSince(store, binding) ? " A plans_report was refused because no caller identity came from Kiro Crew: turn on sharing for avoozl:avoozl in MCP Management, approve it and restart the gateway." : ""}`,
             resume:
               "Open the session and tell the worker to continue, or close it to retry.",
           });
@@ -1945,11 +1965,11 @@ export function planReadyDispatches(store, policy, options = {}) {
         }
       : null,
     // A batch runs in its leader's local session (the batch brief is local
-    // only), so the leader must be placed on local and every member's rules
-    // must allow local (R46.4).
+    // only), so the leader must be placed on local and every member's pin
+    // and needs must allow local (R46.4).
     batchFits = (leader, task) =>
       placed.get(leader.task.id)?.crew === LOCAL &&
-      rulesAllow(data, routing, task, LOCAL),
+      crewAllowed(routing, task, LOCAL),
     leaves = planBatches(
       store,
       readyLeaves(store, policy, { ...options, skip, place }),
@@ -1986,21 +2006,16 @@ export function planReadyDispatches(store, policy, options = {}) {
     )
       return [];
     let model = where ? where.model : keptModel(store, leaf.task.id, policy);
-    // Without routing the delivery model is the one choice; an out model
-    // takes a replacement or fallback, else the task waits (R72.5).
+    // Without placement the delivery model is the one choice: an out model
+    // is never offered (R72.5). A person's replacement for it is taken;
+    // else the task waits, and Needs you says the provider is out.
     if (!where && model) {
       health ??= healthContext(store);
-      const healthy = healthyChoices(
-        [{ agent: null, model, weight: 1 }],
-        health,
-        {
-          skipModels: reviewRoles(policy, leaf.project.id)
-            .filter((r) => r.distinctFrom === "model" && r.model)
-            .map((r) => r.model),
-        },
-      );
-      if (healthy.wait) return [];
-      model = healthy.pool[0].model;
+      if (health.level(model) === "out") {
+        const to = health.replacement(model);
+        if (!to || health.level(to) === "out") return [];
+        model = to;
+      }
     }
     const agent = where
       ? where.agent || policy.agent
