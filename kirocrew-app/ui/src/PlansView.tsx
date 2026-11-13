@@ -10,8 +10,10 @@ import { errorMessage } from './workspace-api'
 import { relativeTime } from './task-api.ts'
 import { Authority } from './Authority.tsx'
 import NewPlanDrawer from './NewPlanDrawer.tsx'
+import { NewIdeaButton, NewIdeaDialog } from './Ideas.tsx'
+import type { NewPlanForm } from './new-plan-api.ts'
 import { IconBtn, IconLabel, SectionHeading, ShowMore, TipBtn, ViewHeading, dangerStyle, useAskChat, usePages } from './controls.tsx'
-import { Archive, ArchiveRestore, ArrowLeft, ChevronRight, ClipboardCheck, DetailsIcon, Download, FolderOpen, LayoutGrid, MessagesSquare, Network, Pencil, Plus, RefreshCw, Trash2, X } from './icons.ts'
+import { Archive, ArchiveRestore, ArrowLeft, ChevronRight, ClipboardCheck, DetailsIcon, Download, FolderOpen, LayoutGrid, Lightbulb, MessagesSquare, Network, Pencil, Plus, RefreshCw, Trash2, X } from './icons.ts'
 import { FilterPanel } from './FilterPanel.tsx'
 import { STATES, nodeState, type Drill, type NodeState } from './graph-layout.ts'
 import { rowPlanKey, type TaskFilter } from './filters.ts'
@@ -489,12 +491,18 @@ const UNARCHIVE_TIP = 'Unarchive this plan: its tasks may start again and it sho
 // Refresh last. Refresh re-reads plan.table (the spec folders on disk and
 // the stored plans); it imports nothing.
 export const REFRESH_PLANS_TIP = 'Reload plans from disk. Imports nothing.'
-function PlansActions(props: { onNewPlan: () => void; onNewTask: () => void; onRefresh: () => void; busy: boolean }) {
+function PlansActions(props: { onNewPlan: () => void; onNewIdea: () => void; onOpenIdeas?: () => void; ideas: number | null; onNewTask: () => void; onRefresh: () => void; busy: boolean }) {
   return (
     <>
-      <IconLabel icon={Plus} primary tooltip="Describe a plan idea. Spec Builder drafts its spec folder; nothing is approved." onClick={props.onNewPlan}>
+      <IconLabel icon={Plus} primary tooltip="Describe what you want. Spec Builder drafts its spec folder; nothing is approved." onClick={props.onNewPlan}>
         New plan
       </IconLabel>
+      <NewIdeaButton onClick={props.onNewIdea} />
+      {props.onOpenIdeas && (
+        <IconLabel icon={Lightbulb} tooltip="Open your ideas on the Intake tab" onClick={props.onOpenIdeas}>
+          Ideas{props.ideas !== null ? ` (${props.ideas})` : ''}
+        </IconLabel>
+      )}
       <IconLabel icon={Plus} tooltip="Add a draft task. It waits for your review." onClick={props.onNewTask}>
         New task
       </IconLabel>
@@ -1048,8 +1056,12 @@ export default function PlansView(props: {
   workspaceId: string | null
   onScope?: (target: PlanTarget, filter: TaskFilter) => void
   onDrill?: (drill: Drill) => void
-  // Bumped by the header's Plan a goal: open the New plan drawer.
-  newPlanRequest?: number
+  // Bumped by the header's Plan a goal, or by Make it a spec with the
+  // idea's fields: open the New plan drawer.
+  newPlanRequest?: { n: number; seed?: Partial<NewPlanForm> }
+  // Open ideas, and the Ideas view on the Intake tab.
+  ideas?: number | null
+  onOpenIdeas?: () => void
 }) {
   const workspace = props.workspaceId
   const api = useAppApi()
@@ -1062,9 +1074,10 @@ export default function PlansView(props: {
   const [asideRef, asideHeight] = useStickyHeight(!stack)
   const [deleting, setDeleting] = useState<PlanRow | null>(null)
   const [archiving, setArchiving] = useState<PlanRow | null>(null)
-  const [creating, setCreating] = useState(false)
+  const [creating, setCreating] = useState<{ seed?: Partial<NewPlanForm> } | null>(null)
+  const [newIdea, setNewIdea] = useState(false)
   useEffect(() => {
-    if (props.newPlanRequest) setCreating(true)
+    if (props.newPlanRequest?.n) setCreating({ seed: props.newPlanRequest.seed })
   }, [props.newPlanRequest])
   const [notice, setNotice] = useState<string | null>(null)
   const [table, setTable] = useState<PlanTable | null>(null)
@@ -1228,14 +1241,24 @@ export default function PlansView(props: {
           }}
         />
       )}
+      {newIdea && workspace && (
+        <NewIdeaDialog
+          workspaceId={workspace}
+          onClose={(made) => {
+            setNewIdea(false)
+            if (made) setNotice(`Saved the idea ${made.title}. Find it under Ideas.`)
+          }}
+        />
+      )}
       {creating && workspace && (
         <NewPlanDrawer
           workspaceId={workspace}
+          seed={creating.seed}
           taken={(table?.items ?? []).flatMap((item) => [item.spec, item.planId]).filter((name): name is string => Boolean(name))}
           categories={[...new Set((table?.items ?? []).map((item) => item.category).filter((name): name is string => Boolean(name)))].sort()}
           epics={(table?.items ?? []).filter((item) => item.kind === 'epic' && item.spec).map((item) => ({ id: item.spec!, title: item.name }))}
           onClose={(text) => {
-            setCreating(false)
+            setCreating(null)
             if (text) setNotice(text)
           }}
         />
@@ -1249,7 +1272,7 @@ export default function PlansView(props: {
             view="plans"
             actions={
               workspace && !row ? (
-                <PlansActions onNewPlan={() => setCreating(true)} onNewTask={() => drawer.addTask()} onRefresh={() => void load(workspace)} busy={busy} />
+                <PlansActions onNewPlan={() => setCreating({})} onNewIdea={() => setNewIdea(true)} onOpenIdeas={props.onOpenIdeas} ideas={props.ideas ?? null} onNewTask={() => drawer.addTask()} onRefresh={() => void load(workspace)} busy={busy} />
               ) : row ? (
                 <RowButtons row={row} onScope={(target) => scope(target, row)} onReview={() => jump('avoozl-plan-main')} />
               ) : null

@@ -134,6 +134,8 @@ const DRAFT = new Set([
 
 const EXECUTE = new Set([
   "intake.submit",
+  "idea.capture",
+  "idea.append",
   "driver.open",
   "driver.context",
   "run.start",
@@ -202,6 +204,8 @@ const PROTECT = new Set([
   "intake.plan",
   "intake.source.add",
   "intake.source.remove",
+  "idea.archive",
+  "idea.restore",
   "github.setup",
   "github.setup.cancel",
   "local.ignore.fix",

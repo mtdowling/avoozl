@@ -135,6 +135,7 @@ declare module 'lucide-react' {
   export const FileText: LucideIcon
   export const History: LucideIcon
   export const Info: LucideIcon
+  export const Lightbulb: LucideIcon
   export const LayoutGrid: LucideIcon
   export const MessageSquare: LucideIcon
   export const MessagesSquare: LucideIcon

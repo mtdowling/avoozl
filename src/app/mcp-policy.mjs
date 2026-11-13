@@ -103,6 +103,8 @@ export const PERSON_ONLY = new Map([
     "intake.confirm",
     person("Only a person confirms an incoming item's changed text."),
   ],
+  ["idea.archive", person("Only a person archives an idea.")],
+  ["idea.restore", person("Only a person restores an idea.")],
   ["intake.source.add", person("Only a person changes intake sources.")],
   ["intake.source.remove", person("Only a person changes intake sources.")],
   [

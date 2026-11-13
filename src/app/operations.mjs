@@ -263,6 +263,15 @@ import {
 } from "./intake.mjs";
 import { highlightLanguages } from "./highlight-languages.mjs";
 import { importNewPlans, requestNewPlan } from "./new-plan.mjs";
+import {
+  appendIdea,
+  captureIdea,
+  graduateIdea,
+  ideaView,
+  openIdea,
+  riffMessage,
+  setIdeaState,
+} from "./ideas.mjs";
 import { writeSpecManifest } from "./spec-manifest.mjs";
 import {
   callerSlot,
@@ -2097,6 +2106,16 @@ export class Operations {
         github: readGitHubPolicyOrNull(this.workspaceRoot),
       });
     if (name === "chat.context") {
+      // Riff on this (R63.8): the idea as data; the chat may only append.
+      if (input.purpose === "riff-idea")
+        return {
+          message: riffMessage(
+            ideaView(
+              store.get("incoming_items", `local\0${input.idea}`) ??
+                fail(`No idea ${input.idea}.`, 404),
+            ),
+          ),
+        };
       // A plan's seed carries its row and its spec documents.
       let planRow = null,
         documents = null;
@@ -2354,6 +2373,27 @@ export class Operations {
         queueNotifications(store, notify);
         return result;
       });
+    // Ideas (R63): anyone captures and appends; a session is named.
+    if (name === "idea.capture" || name === "idea.append") {
+      const by =
+        context.caller || context.mcp
+          ? {
+              kind: "agent",
+              name: `session:${context.caller?.sessionKey || context.caller || "mcp"}`,
+            }
+          : { kind: "person", name: context.local ? "cli" : "person" };
+      return name === "idea.capture"
+        ? captureIdea(store, input, { by })
+        : appendIdea(store, input, { by });
+    }
+    if (name === "idea.archive" || name === "idea.restore") {
+      if (context.caller || context.mcp)
+        fail("Only a person archives or restores an idea, in the Avoozl page or the CLI.", 403);
+      return setIdeaState(store, {
+        id: input.id,
+        state: name === "idea.archive" ? "archived" : "open",
+      });
+    }
     if (name === "intake.list") return listItems(store, input);
     if (name === "intake.view") return viewItem(store, input);
     if (name === "intake.sources")
@@ -3469,13 +3509,23 @@ export class Operations {
     if (name === "plan.new") {
       if (context.caller || context.mcp)
         fail("Only a person starts a new plan, from the Avoozl page.", 403);
-      return requestNewPlan(store, input, {
+      // Make it a spec (R63.9): the idea must be open, and it graduates
+      // only once the request is recorded.
+      const idea =
+        typeof input.idea === "string" && input.idea
+          ? openIdea(store, input.idea)
+          : null;
+      const { idea: _idea, ...fields } = input;
+      const result = requestNewPlan(store, fields, {
         readSpec: (spec) => this.readSpec(spec),
         repositories: workspaceRepositories(store).filter(
           (repo) => !repo.planning,
         ),
         specRoot: this.specRoots()[0] || null,
       });
+      if (idea && input.preview !== true)
+        result.idea = graduateIdea(store, idea.itemId, result.name);
+      return result;
     }
     if (name === "plan.create") {
       if (input.spec === undefined) return createPlan(store, input);

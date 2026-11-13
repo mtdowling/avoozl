@@ -30,6 +30,7 @@ import { declaredPlugins, readPluginSettings } from "./plugins.mjs";
 import { workspaceRepositories } from "./workspace-repositories.mjs";
 import { canonical, fail } from "./store.mjs";
 import { CODE_REVIEW_SAGE_PATH } from "./untriaged.mjs";
+import { listIdeas } from "./ideas.mjs";
 
 export const RESERVED_SOURCES = Object.freeze(["github", "local"]);
 export const POLL_LIMIT = 500;
@@ -949,6 +950,7 @@ export function purgeClosed(store, now = Date.now()) {
     gone = itemRows(store).filter(
       (row) =>
         row.record?.state === "closed" &&
+        row.record.kind !== "idea" &&
         !(row.taskId && tasks.has(row.taskId)) &&
         now -
           Date.parse(row.route?.closedAt || row.record.closedAt || row.seenAt) >
@@ -981,17 +983,26 @@ function summary(row) {
     via: row.via ?? null,
     route: row.route,
     taskId: row.taskId ?? null,
+    ...(item.kind === "idea"
+      ? {
+          notes: item.notes?.length ?? 0,
+          links: item.links?.length ?? 0,
+          graduated: item.graduated ?? null,
+        }
+      : {}),
   };
 }
 
-const KINDS = ["issue", "pr", "review", "ticket"];
+const KINDS = ["issue", "pr", "review", "ticket", "idea"];
+// Ideas (ideas.mjs) are open, archived or graduated; never closed.
+const STATES = ["open", "closed", "archived", "graduated"];
 
 // intake.list: filters source, kind, state, untriaged; 100 per page.
 export function listItems(store, input = {}) {
   if (input.kind !== undefined && !KINDS.includes(input.kind))
     fail(`kind must be one of ${KINDS.join(", ")}.`);
-  if (input.state !== undefined && !["open", "closed"].includes(input.state))
-    fail("state must be open or closed.");
+  if (input.state !== undefined && !STATES.includes(input.state))
+    fail(`state must be one of ${STATES.join(", ")}.`);
   const offset =
       Number.isSafeInteger(input.offset) && input.offset >= 0
         ? input.offset
@@ -1034,6 +1045,9 @@ export function viewItem(store, input = {}) {
     findings: row.findings ?? [],
     history: row.history ?? [],
     snapshotHash: snapshotDigest(row.record),
+    ...(row.record.kind === "idea"
+      ? { notes: row.record.notes, links: row.record.links }
+      : {}),
   };
 }
 
@@ -1095,6 +1109,8 @@ export function startByPerson(
       "A GitHub item starts through its trigger labels or Issue Radar.",
       409,
     );
+  if (id === "local")
+    fail("An idea never runs work. Use Make it a spec instead.", 409);
   const source = sources.get(id);
   if (!source) fail(`Source ${id} is not declared, or cannot be used.`, 404);
   const row = store.get("incoming_items", itemKey(id, itemId));
@@ -1269,6 +1285,8 @@ export function intakeTab(view, store, declared) {
     enabled: view.enabled || usable.length > 0,
     total: items.length,
     items,
+    // Ideas never count as untriaged (R63.6); the tab lists them apart.
+    ideas: listIdeas(store),
     repositories: view.repositories.map((row) => ({
       ...row,
       source: "github",

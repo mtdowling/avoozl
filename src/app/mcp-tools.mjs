@@ -219,6 +219,14 @@ const tools = {
         "incoming items: {source?, kind?, state?, untriaged?, offset?}",
       ],
       item: ["intake.view", "one incoming item: {source, id}"],
+      capture_idea: [
+        "idea.capture",
+        "save a rough idea that never runs work: {title, notes?, links?}",
+      ],
+      add_idea_note: [
+        "idea.append",
+        "add a note or link to an open idea: {id, note?, link?}",
+      ],
       sources: [
         "intake.sources",
         "declared intake sources and their read state",
