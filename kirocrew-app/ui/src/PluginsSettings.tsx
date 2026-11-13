@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import AddPlugin from './AddPlugin.tsx'
-import { useAppApi } from '@kirocrew/app-sdk'
+import { useAppApi, useChatLauncher } from '@kirocrew/app-sdk'
 import { Card, CardTitle, EmptyState } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import {
@@ -14,10 +14,13 @@ import {
 } from './plugins-api.ts'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
-import { DangerBtn, TipBtn } from './controls.tsx'
+import { DangerBtn, IconLabel, TipBtn } from './controls.tsx'
 import { PackImportDialog } from './PackImport.tsx'
-import { Trash2 } from './icons.ts'
+import { BookOpen, MessagesSquare, Trash2 } from './icons.ts'
 import { useMedia } from './TaskDrawer.tsx'
+import { DocumentReader } from './DocumentReader.tsx'
+import { DESIGN_PLUGIN_TIP, PLUGIN_GUIDE, PLUGIN_GUIDE_TIP, pluginDesignMessage } from './design-chat.ts'
+import pluginGuide from '../../../docs/plugins.md?raw'
 
 // What a person reviews before approving (R34.4). Every value is the
 // plugin's own text, rendered as text.
@@ -151,6 +154,16 @@ export default function PluginsSettings({ workspaceId }: { workspaceId: string }
   const [actionError, setActionError] = useState<string | null>(null)
   const [importing, setImporting] = useState<PluginRow | null>(null)
   const [note, setNote] = useState<string | null>(null)
+  const [guide, setGuide] = useState(false)
+  const { openChat } = useChatLauncher()
+  const design = () =>
+    openChat({
+      message: pluginDesignMessage({
+        supported: value?.supportedContracts ?? [],
+        installed: (value?.plugins ?? []).flatMap((row) => (row.id ? [row.id] : [])),
+      }),
+      autoSend: false,
+    })
   const act = (fn: () => Promise<unknown>) => {
     setActing(true)
     setActionError(null)
@@ -164,6 +177,17 @@ export default function PluginsSettings({ workspaceId }: { workspaceId: string }
   const wide = useMedia('(min-width: 1024px)')
   return (
     <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap gap-2" data-plugin-help>
+        <IconLabel icon={MessagesSquare} tooltip={DESIGN_PLUGIN_TIP} onClick={design}>
+          Design a plugin
+        </IconLabel>
+        <IconLabel icon={BookOpen} tooltip={PLUGIN_GUIDE_TIP} onClick={() => setGuide(true)}>
+          Plugin guide
+        </IconLabel>
+      </div>
+      {guide ? (
+        <DocumentReader workspaceId={workspaceId} target={{ document: PLUGIN_GUIDE, lineStart: null, lineEnd: null }} text={pluginGuide} onClose={() => setGuide(false)} />
+      ) : null}
       {error ? <p className="text-xs text-danger">{error}</p> : null}
       {actionError ? <p className="text-xs text-danger">{actionError}</p> : null}
       {note ? (

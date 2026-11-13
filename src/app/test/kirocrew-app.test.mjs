@@ -16,12 +16,17 @@ const root = path.resolve(
 test("Kiro Crew app package contains its page, skill, icon, and built UI", () => {
   assert.equal(manifest.name, "avoozl");
   assert.equal(manifest.ui.pages[0].route, "/apps/avoozl");
-  assert.deepEqual(manifest.skills, ["skills/avoozl", "skills/avoozl-plugin"]);
+  assert.deepEqual(manifest.skills, [
+    "skills/avoozl",
+    "skills/avoozl-plugin",
+    "skills/avoozl-rules",
+  ]);
   for (const file of [
     manifest.iconPath,
     path.join("ui", manifest.ui.entry),
     "skills/avoozl/SKILL.md",
     "skills/avoozl-plugin/SKILL.md",
+    "skills/avoozl-rules/SKILL.md",
   ])
     assert.equal(fs.statSync(path.join(appRoot, file)).isFile(), true, file);
 });

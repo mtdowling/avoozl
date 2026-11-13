@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { useAppApi } from '@kirocrew/app-sdk'
+import { useAppApi, useChatLauncher } from '@kirocrew/app-sdk'
 import { Btn, Input, SegmentedControl } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import {
@@ -35,7 +35,8 @@ import {
   type TermsFile,
 } from './content-api.ts'
 import { ChoiceCards, DangerBtn, IconBtn, IconLabel, ICON } from './controls.tsx'
-import { BookOpen, Ban, Eye, Lock, Plus, ShieldCheck, Trash2, X } from './icons.ts'
+import { BookOpen, Ban, Eye, Lock, MessagesSquare, Plus, ShieldCheck, Trash2, X } from './icons.ts'
+import { DESIGN_RULES_TIP, rulesDesignMessage } from './design-chat.ts'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
 import { useMedia } from './TaskDrawer.tsx'
@@ -914,8 +915,15 @@ export default function ContentRulesSettings({ workspaceId }: { workspaceId: str
   const wide = useMedia('(min-width: 860px)')
   const set = chosen?.kind === 'set' ? (value?.sets.find((s) => s.id === chosen.id) ?? null) : null
   const builtin = chosen?.kind === 'builtin' ? value?.builtins.find((b) => b.id === chosen.id) : undefined
+  const { openChat } = useChatLauncher()
+  const design = () => openChat({ message: rulesDesignMessage({ sets: (value?.sets ?? []).map((s) => s.id) }), autoSend: false })
   return (
     <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap gap-2" data-rules-design>
+        <IconLabel icon={MessagesSquare} tooltip={DESIGN_RULES_TIP} onClick={design}>
+          Design a rule set
+        </IconLabel>
+      </div>
       {error && <p className="text-xs text-danger">{error}</p>}
       {value?.error && <p className="text-xs text-danger">.avoozl.json contentRules is invalid, so every check blocks: {value.error}</p>}
       <div
