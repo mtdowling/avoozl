@@ -126,8 +126,13 @@ export async function launch(chrome) {
       async wheel(x, y, deltaY) {
         await call('Input.dispatchMouseEvent', { type: 'mouseWheel', x, y, deltaX: 0, deltaY })
       },
-      async screenshot(file) {
-        const { data } = await call('Page.captureScreenshot', { format: 'png' })
+      // `selector` crops to that element, past the viewport if it is taller.
+      async screenshot(file, { selector } = {}) {
+        const box = selector
+          ? await evaluate(`(() => { const r = document.querySelector(${JSON.stringify(selector)})?.getBoundingClientRect(); return r && { x: r.left + scrollX, y: r.top + scrollY, width: r.width, height: r.height } })()`)
+          : null
+        if (selector && !box) throw Error(`No ${selector} to capture`)
+        const { data } = await call('Page.captureScreenshot', { format: 'png', ...(box ? { clip: { ...box, scale: 1 }, captureBeyondViewport: true } : {}) })
         fs.writeFileSync(file, Buffer.from(data, 'base64'))
       },
     }
