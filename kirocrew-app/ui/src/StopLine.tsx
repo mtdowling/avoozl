@@ -1,16 +1,20 @@
 // Pull the Andon cord (design §4.11, R64): the red Stop the line button in
-// the Dashboard header and its dialog. The person picks what to stop and
-// gives a one-line reason. Nothing is written until Stop the line in the
-// dialog; Cancel, Esc and a click outside change nothing.
+// the Dashboard header and its dialog. The person picks Stop the line (new
+// work in a scope) or Stop all agents (everything, and every running chat
+// Avoozl opened), and gives a one-line reason. Nothing is written until the
+// dialog's red button (and, for Stop all agents, its confirm); Cancel, Esc
+// and a click outside change nothing.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAppApi } from '@kirocrew/app-sdk'
 import { Btn, Input } from '@kirocrew/app-sdk/ui'
-import { ICON } from './controls.tsx'
+import { ICON, useConfirm } from './controls.tsx'
 import { Pause } from './icons.ts'
+import { Picker, taskItems } from './Picker.tsx'
+import type { PickItem } from './picker.ts'
 import { RadioFold } from './RadioFold.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import { Modal } from './Modal.tsx'
-import { MAX_REASON, PULL_SCOPES, emptyPull, flowClient, toPull, type PullForm } from './flow-api.ts'
+import { FULL_STOP_WARNING, MAX_REASON, PULL_KINDS, PULL_SCOPES, emptyPull, flowClient, toPull, type PullForm } from './flow-api.ts'
 import { plansClient } from './plans-api.ts'
 import { viewsClient } from './views-api.ts'
 import { workspaceClient, errorMessage } from './workspace-api.ts'
@@ -20,8 +24,8 @@ const FIELD = { borderColor: 'var(--border)', color: 'var(--text)', background: 
 
 interface Choices {
   repositories: string[]
-  specs: { id: string; title: string }[]
-  tasks: { id: string; title: string }[]
+  specs: PickItem[]
+  tasks: PickItem[]
 }
 
 export function StopLineButton(props: { workspaceId: string | null; onPulled: () => void }) {
@@ -29,7 +33,7 @@ export function StopLineButton(props: { workspaceId: string | null; onPulled: ()
   if (!props.workspaceId) return null
   return (
     <>
-      <Tooltip text="Stop new work in a scope, with a reason">
+      <Tooltip text="Stop new work in a scope, or stop all agents, with a reason">
         {(describedBy) => (
           <Btn type="button" data-stop-line aria-describedby={describedBy} onClick={() => setOpen(true)} style={FILL}>
             <Pause size={ICON} aria-hidden="true" />
@@ -58,6 +62,7 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
   const [choices, setChoices] = useState<Choices | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const confirm = useConfirm()
   const box = useRef<HTMLDivElement>(null)
   const set = (patch: Partial<PullForm>) => setForm((current) => ({ ...current, ...patch }))
   const close = useCallback(() => props.onClose(), [props])
@@ -68,8 +73,8 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
       if (!live) return
       setChoices({
         repositories: repos.status === 'fulfilled' ? repos.value.map((r) => r.id) : [],
-        specs: plans.status === 'fulfilled' ? plans.value.items.filter((p) => !p.archivedAt).map((p) => ({ id: p.id, title: p.title || p.id })) : [],
-        tasks: graph.status === 'fulfilled' ? graph.value.tasks.filter((t) => t.kind !== 'epic').map((t) => ({ id: t.id, title: t.title || t.id })) : [],
+        specs: plans.status === 'fulfilled' ? plans.value.items.filter((p) => !p.archivedAt).map((p) => ({ id: p.id, title: p.title || p.id, state: p.state })) : [],
+        tasks: graph.status === 'fulfilled' ? taskItems(graph.value.tasks) : [],
       })
     })
     return () => {
@@ -82,6 +87,7 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
   const pull = async () => {
     const { input, error: problem } = toPull(form)
     if (!input) return setError(problem ?? null)
+    if (input.full && !(await confirm({ title: 'Stop all agents?', body: FULL_STOP_WARNING, action: 'Stop all agents' }))) return
     setBusy(true)
     setError(null)
     try {
@@ -93,27 +99,31 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
       setBusy(false)
     }
   }
-  const pick = (label: string, value: string, items: { id: string; title: string }[], onPick: (id: string) => void, empty: string) =>
-    items.length ? (
+  const empty = (text: string) => <p className="text-sm text-muted">{choices ? text : 'Reading…'}</p>
+  const required = (label: string) => (
+    <span>
+      {label} <span className="text-xs text-muted">(required)</span>
+    </span>
+  )
+  const pick = (label: string, value: string, items: PickItem[], onPick: (id: string) => void, none: string) =>
+    items.length ? <Picker label={required(label)} items={items} value={value} onPick={onPick} placeholder={`Type a ${label.toLowerCase()} ID or title`} /> : empty(none)
+  const fields = {
+    all: null,
+    repo: choices?.repositories.length ? (
       <label className="flex min-w-0 flex-col gap-1 text-sm">
-        <span>
-          {label} <span className="text-xs text-muted">(required)</span>
-        </span>
-        <select value={value} onChange={(e) => onPick(e.target.value)} className="rounded border px-2 py-1 text-sm" style={FIELD} data-stop-target>
+        {required('Repository')}
+        <select value={form.repository} onChange={(e) => set({ repository: e.target.value })} className="rounded border px-2 py-1 text-sm" style={FIELD} data-stop-target>
           <option value="">Choose…</option>
-          {items.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.title === item.id ? item.id : `${item.id}: ${item.title}`}
+          {choices.repositories.map((id) => (
+            <option key={id} value={id}>
+              {id}
             </option>
           ))}
         </select>
       </label>
     ) : (
-      <p className="text-sm text-muted">{choices ? empty : 'Reading…'}</p>
-    )
-  const fields = {
-    all: null,
-    repo: pick('Repository', form.repository, (choices?.repositories ?? []).map((id) => ({ id, title: id })), (repository) => set({ repository }), 'No repository is registered.'),
+      empty('No repository is registered.')
+    ),
     spec: pick('Spec', form.spec, choices?.specs ?? [], (spec) => set({ spec }), 'No spec is stored yet.'),
     task: pick('Task', form.taskId, choices?.tasks ?? [], (taskId) => set({ taskId }), 'No task yet.'),
   }
@@ -136,15 +146,32 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
           Stop the line
         </h3>
         <p id="avoozl-stop-line" className="text-sm text-muted">
-          No new work starts in what you pick. Chats already running keep going. Only a person can resume it.
+          Only a person can resume it.
         </p>
       </div>
       <RadioFold
-        name="avoozl-stop-scope"
-        label="What to stop"
-        value={form.scope}
-        onChange={(scope) => set({ scope })}
-        sections={PULL_SCOPES.map((s) => ({ key: s.value, title: s.label, line: s.line, fields: fields[s.value] }))}
+        name="avoozl-stop-kind"
+        label="How to stop"
+        value={form.kind}
+        onChange={(kind) => set({ kind })}
+        sections={PULL_KINDS.map((k) => ({
+          key: k.value,
+          title: k.label,
+          line: k.line,
+          ...(k.value === 'agents'
+            ? { description: <p className="text-sm text-muted" data-full-warning>{FULL_STOP_WARNING}</p> }
+            : {
+                fields: (
+                  <RadioFold
+                    name="avoozl-stop-scope"
+                    label="What to stop"
+                    value={form.scope}
+                    onChange={(scope) => set({ scope })}
+                    sections={PULL_SCOPES.map((s) => ({ key: s.value, title: s.label, line: s.line, fields: fields[s.value] }))}
+                  />
+                ),
+              }),
+        }))}
       />
       <label className="flex flex-col gap-1 text-sm">
         <span>
@@ -170,7 +197,7 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
         </Btn>
         <Btn type="button" data-danger data-stop-confirm onClick={() => void pull()} disabled={busy} style={FILL}>
           <Pause size={ICON} aria-hidden="true" />
-          Stop the line
+          {form.kind === 'agents' ? 'Stop all agents' : 'Stop the line'}
         </Btn>
       </div>
     </Modal>

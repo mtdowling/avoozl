@@ -172,7 +172,13 @@ import {
   retroInstructions,
   setRetroInstructions,
 } from "./flow-retro.mjs";
-import { lineBanner, pullCord, resumeStop, runAnyway } from "./flow-line.mjs";
+import {
+  lineBanner,
+  pullCord,
+  pullFullStop,
+  resumeStop,
+  runAnyway,
+} from "./flow-line.mjs";
 import { localCheckList, localPass, runLocalChecks } from "./flow-checks.mjs";
 import { queueNotifications } from "./notifications.mjs";
 
@@ -259,8 +265,16 @@ import {
   retryDelivery,
   readyCandidates,
   pickAgain,
+  reviewRoles as deliveryReviewRoles,
   startNow,
 } from "./delivery.mjs";
+import {
+  clearMark,
+  providersView,
+  queueSwitch,
+  switchPreview,
+  updateProviders,
+} from "./provider-health.mjs";
 import {
   routingPreview,
   routingView,
@@ -714,6 +728,9 @@ export class Operations {
       repositoryBindingGuard = null,
       notifier = null,
       crewReader = null,
+      // Stops one Kiro Crew session by slot (session-observer.mjs
+      // gatewaySessionStopper); only the app backend has one.
+      sessionStopper = null,
       // {skillPath, exists} for the code review chat (pr-review.mjs); tests
       // point it at a temporary skill.
       reviewOptions = {},
@@ -737,6 +754,7 @@ export class Operations {
     // Reads Issue Radar's crews through the gateway (radar-handoff.mjs);
     // only the app backend has one.
     this.crewReader = crewReader;
+    this.sessionStopper = sessionStopper;
     this.reviewOptions = reviewOptions;
     this.placement = placement;
     // Provenance for records this workspace mints; never an authorization.
@@ -786,6 +804,22 @@ export class Operations {
         ? { local: this.placement.localReading() }
         : {}),
       ...(this.placement.now ? { now: this.placement.now() } : {}),
+    };
+  }
+  // What the provider operations need: the clock and each session's review
+  // roles, so a switch never breaks review distinctness (R72.9).
+  providerOptions() {
+    const policy = readDeliveryPolicy(this.workspaceRoot).delivery,
+      tasks = new Map(this.read().tasks.map((t) => [t.id, t]));
+    return {
+      ...(this.placement.now ? { now: this.placement.now() } : {}),
+      reviewRoles: (binding) =>
+        policy
+          ? deliveryReviewRoles(
+              policy,
+              taskRepository(tasks.get(binding.taskId)),
+            )
+          : [],
     };
   }
   // Tracker plugin tasks rebuilt from each approved tracker's `list` and the
@@ -1913,6 +1947,17 @@ export class Operations {
       return result;
     }
     if (name === "crews.update") return updateCrews(store, input);
+    // Provider health and model switches (§4.20, R72). The writes are a
+    // person's: mcp-policy.mjs refuses them for MCP, the backend for tokens.
+    if (name === "providers.view")
+      return providersView(store, this.providerOptions());
+    if (name === "provider.switch.preview")
+      return switchPreview(store, input, this.providerOptions());
+    if (name === "provider.switch")
+      return queueSwitch(store, input, this.providerOptions());
+    if (name === "provider.health.clear") return clearMark(store, input);
+    if (name === "providers.settings.update")
+      return updateProviders(store, input);
     if (name === "delivery.pickAgain") return pickAgain(store, input);
     if (name === "delivery.settings.get")
       return this.settingsFile().readDeliverySettings();
@@ -2213,6 +2258,16 @@ export class Operations {
         );
       return runAnyway(store, input, {
         operator: context.local ? "cli" : "dashboard",
+      });
+    }
+    // Stop all agents (R64.12): a person only, through the app backend,
+    // which alone can stop Kiro Crew sessions.
+    if (name === "flow.stop" && input.full === true) {
+      if (context.caller || context.mcp)
+        fail("Only a person stops all agents. Do it in the Avoozl app.", 403);
+      return pullFullStop(store, input, {
+        by: { kind: "person", name: context.local ? "cli" : "dashboard" },
+        stopSession: this.sessionStopper,
       });
     }
     // Pull the Andon cord (R64): a person or an agent session stops new

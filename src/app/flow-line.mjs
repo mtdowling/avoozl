@@ -22,8 +22,9 @@ import {
 } from "./flow.mjs";
 import { fail } from "./store.mjs";
 import { taskRepository } from "../work-model.mjs";
-import { rebaseForIntegration } from "./delivery.mjs";
+import { INTERRUPTED, liveAttempt, rebaseForIntegration } from "./delivery.mjs";
 import { fence } from "./github-respond.mjs";
+import { listSessionBindings } from "./session-bindings.mjs";
 
 export const BISECT_RUNS = 8;
 const TAIL_LINES = 20;
@@ -632,7 +633,11 @@ export function runAnyway(store, input = {}, { operator = "dashboard" } = {}) {
 export const PULL_SCOPES = Object.freeze(["all", "repo", "spec", "task"]);
 const MAX_REASON = 200;
 
-export function pullCord(store, input = {}, { by, now = Date.now() } = {}) {
+export function pullCord(
+  store,
+  input = {},
+  { by, now = Date.now(), full = false } = {},
+) {
   const reason = typeof input.reason === "string" ? input.reason.trim() : "";
   if (!reason) fail("Give a reason for stopping the line.");
   if (/[\r\n]/.test(reason)) fail("Keep the reason to one line.");
@@ -689,18 +694,116 @@ export function pullCord(store, input = {}, { by, now = Date.now() } = {}) {
       openedAt: at,
       closedAt: null,
       runAnyway: null,
+      ...(full ? { full: true, sessions: [] } : {}),
     };
   store.transaction(() => store.put("flow_stops", stop));
   queueNotifications(store, [
     {
       channel: "failure",
       task: stop.taskId,
-      title: `Line stopped by ${by.name}: ${reason}`,
-      text: `Scope ${stopTarget(stop)}. No new work starts there; running chats keep going.`,
+      title: `${full ? "All agents stopped" : "Line stopped"} by ${by.name}: ${reason}`,
+      text: full
+        ? "No new work starts, and every running chat Avoozl opened is stopped. Worktrees and branches are kept."
+        : `Scope ${stopTarget(stop)}. No new work starts there; running chats keep going.`,
       resume: "Press Resume on the Dashboard banner when it is safe.",
     },
   ]);
   return { stop };
+}
+
+// flow.stop {full: true}: Stop all agents (R64.12-R64.16). A person only
+// (mcp-policy.mjs). It pulls a stop on everything, then stops each live
+// session the tick opened through `stopSession(slot)` (the app backend's
+// gateway call). A stopped session's binding and attempt are marked
+// interrupted; one Kiro Crew refused is named on the stop and runs on.
+export async function pullFullStop(
+  store,
+  input = {},
+  { by, stopSession, now = Date.now() } = {},
+) {
+  if (typeof stopSession !== "function")
+    fail(
+      "Stop all agents runs from the Avoozl page: only the app backend can stop Kiro Crew sessions.",
+      409,
+    );
+  const { full, ...rest } = input,
+    { stop } = pullCord(
+      store,
+      { ...rest, scope: "all" },
+      { by, now, full: true },
+    ),
+    sessions = [];
+  for (const binding of listSessionBindings(store)) {
+    if (binding.source !== "tick" || !liveAttempt(binding)) continue;
+    const entry = {
+      slot: binding.slot,
+      taskId: binding.taskId,
+      role: binding.role,
+      attempt: binding.attempt,
+      ...(binding.model ? { model: binding.model } : {}),
+      ...(binding.agent ? { agent: binding.agent } : {}),
+    };
+    try {
+      await stopSession(binding.slot);
+      sessions.push({ ...entry, stopped: true });
+    } catch (error) {
+      sessions.push({
+        ...entry,
+        stopped: false,
+        error: String(error?.message || error).slice(0, 200),
+      });
+    }
+  }
+  const at = new Date(now).toISOString();
+  return store.transaction(() => {
+    for (const entry of sessions) {
+      const binding =
+        entry.stopped && store.get("session_bindings", entry.slot);
+      // It reported done or blocked while being stopped: that result stands.
+      if (!binding || !liveAttempt(binding)) {
+        if (entry.stopped) entry.finished = true;
+        continue;
+      }
+      store.put("session_bindings", {
+        ...binding,
+        interrupted: { stop: stop.id, at },
+      });
+      if (binding.role !== "worker") continue;
+      for (const taskId of binding.batch?.tasks || [binding.taskId]) {
+        if (["done", "blocked"].includes(binding.reports?.[taskId]?.kind))
+          continue;
+        const delivery = store.get("task_deliveries", taskId) || {
+          id: taskId,
+          taskId,
+          attempts: [],
+        };
+        if (delivery.attempts.some((a) => a.attempt === binding.attempt))
+          continue;
+        const { cause, nudge, decisionNotifiedAt, ...kept } = delivery;
+        store.put("task_deliveries", {
+          ...kept,
+          attempts: [
+            ...delivery.attempts,
+            {
+              attempt: binding.attempt,
+              slot: binding.slot,
+              ...(binding.batch ? { batch: binding.batch.id } : {}),
+              outcome: "interrupted",
+              cause: INTERRUPTED,
+              stop: stop.id,
+              at,
+            },
+          ],
+          state: "interrupted",
+          interruptedBy: stop.id,
+          updatedAt: at,
+        });
+      }
+    }
+    const next = { ...store.get("flow_stops", stop.id), sessions };
+    store.put("flow_stops", next);
+    return { stop: next };
+  });
 }
 
 const stopTarget = (stop) =>
@@ -732,6 +835,21 @@ export function resumeStop(store, input = {}, { by, now = Date.now() } = {}) {
         resumedBy: { by, at },
       };
     store.put("flow_stops", closed);
+    // A full stop's interrupted tasks are ready again: the next tick starts
+    // each on its kept worktree, agent and model (R64.15).
+    if (stop.full)
+      for (const delivery of store.list("task_deliveries"))
+        if (
+          delivery.state === "interrupted" &&
+          delivery.interruptedBy === stop.id
+        ) {
+          const { interruptedBy, ...rest } = delivery;
+          store.put("task_deliveries", {
+            ...rest,
+            state: "failed",
+            updatedAt: at,
+          });
+        }
     return { stop: closed };
   });
 }

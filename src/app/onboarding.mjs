@@ -18,7 +18,7 @@ import { fail } from "./store.mjs";
 
 const realpath = (value) => {
   try {
-    return fs.realpathSync(value);
+    return fs.realpathSync.native(value);
   } catch {
     return value;
   }

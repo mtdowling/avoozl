@@ -74,6 +74,12 @@ export const PERSON_ONLY = new Map([
   ],
   ["routing.update", person("Only a person changes routing rules.")],
   ["crews.update", person("Only a person changes crew settings.")],
+  ["provider.switch", person("Only a person switches models.")],
+  ["provider.health.clear", person("Only a person undoes a provider mark.")],
+  [
+    "providers.settings.update",
+    person("Only a person changes provider settings."),
+  ],
   ["delivery.pickAgain", person("Only a person presses Pick again.")],
   [
     "delivery.settings.update",
@@ -84,6 +90,10 @@ export const PERSON_ONLY = new Map([
   ["flow.retro.decide", person("Only a person decides retro proposals.")],
   ["flow.runAnyway", person("Only a person presses Run anyway.")],
   ["flow.resume", person("Only a person resumes a pulled stop.")],
+  [
+    "flow.stop",
+    person("Only a person stops all agents.", (input) => input?.full === true),
+  ],
   ["untriaged.handoff", person("Only a person sends issues to Issue Radar.")],
   ["review.chat", person("Only a person starts a code review chat.")],
   [

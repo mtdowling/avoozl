@@ -7,9 +7,8 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
-    # Windows port tracked separately; 61 known failures (lsof, ESM D:\ imports, path forms, EPERM rm).
-    continue-on-error: ${{ matrix.os == 'windows-latest' }}
-    timeout-minutes: 10
+    # Windows spawns git and node more slowly; its suite runs past 10 minutes.
+    timeout-minutes: ${{ matrix.os == 'windows-latest' && 25 || 10 }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
