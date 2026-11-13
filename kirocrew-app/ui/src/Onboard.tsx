@@ -160,7 +160,7 @@ function ModeStep(props: { form: OnboardForm; set: (patch: Partial<OnboardForm>)
             ) : undefined,
         }))}
       />
-      <div className="grid gap-2" style={{ gridTemplateColumns: 'minmax(0, 12rem) minmax(0, 12rem)' }}>
+      <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(12rem, 15rem))' }}>
         <label className="flex flex-col gap-1">
           <span>
             Short ID <span className="text-xs text-muted">(required)</span>
@@ -256,6 +256,7 @@ function OnboardDialog(props: { workspaceId: string; client: OnboardClient; onCl
   const [form, setForm] = useState<OnboardForm | null>(null)
   const [check, setCheck] = useState<SetupResult | null>(null)
   const [written, setWritten] = useState<string[]>([])
+  const [setupDone, setSetupDone] = useState(false)
   const [specs, setSpecs] = useState<SpecList | null>(null)
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const [scan, setScan] = useState<ScanResult | null>(null)
@@ -358,6 +359,7 @@ function OnboardDialog(props: { workspaceId: string; client: OnboardClient; onCl
       setFound(facts)
       setSpecs(await client.specs(workspaceId).catch(() => null))
       await props.onChanged()
+      setSetupDone(true)
       next()
     })
   const shown = found ? folderSpecs(specs, found) : []
@@ -394,11 +396,11 @@ function OnboardDialog(props: { workspaceId: string; client: OnboardClient; onCl
   const findings = scanFindings(scan)
   const problem = step === 'mode' && form && found ? modeProblem(form, found) : null
   const checkFailed = step === 'check' && check ? check.steps.some((s) => s.status === 'failed') && check.writes.length === 0 : false
-  const setupLeft = planned.filter((w) => !w.done)
+  const setupLeft = setupDone ? [] : planned.filter((w) => !w.done)
   const isDone = (key: StepKey) =>
     (key === 'folder' && Boolean(found)) ||
     (key === 'check' && Boolean(check) && check!.writes.length === 0) ||
-    (key === 'setup' && Boolean(found) && Boolean(form) && setupLeft.length === 0 && at > steps.indexOf('setup')) ||
+    (key === 'setup' && (setupDone || (Boolean(form) && setupLeft.length === 0))) ||
     (key === 'import' && shown.length > 0 && shown.every(imported))
   return (
     <div className="fixed inset-0" style={{ zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -439,9 +441,9 @@ function OnboardDialog(props: { workspaceId: string; client: OnboardClient; onCl
                 <span className="w-5 flex-none text-right text-muted">{i + 1}.</span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-1.5">
-                    {write.done ? <Check size={13} aria-label="done" style={{ color: 'var(--ok)' }} /> : null}
+                    {write.done || setupDone ? <Check size={13} aria-label="done" style={{ color: 'var(--ok)' }} /> : null}
                     {write.title}
-                    {write.confirm && !write.done && <Badge variant="warning">asks first</Badge>}
+                    {write.confirm && !write.done && !setupDone && <Badge variant="warning">asks first</Badge>}
                   </span>
                   <span className="block text-xs text-muted">{write.detail}</span>
                 </span>
