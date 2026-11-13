@@ -39,7 +39,7 @@ import { BookOpen, Ban, Eye, Lock, MessagesSquare, Plus, ShieldCheck, Trash2, X 
 import { DESIGN_RULES_TIP, rulesDesignMessage } from './design-chat.ts'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
-import { useMedia } from './TaskDrawer.tsx'
+import { useMedia } from './use-media.ts'
 import { useSteppedState } from './NavHistory.tsx'
 
 type Client = ReturnType<typeof contentClient>
