@@ -424,14 +424,16 @@ export async function feedbackStep(
       const { events, strangers } = await feedbackEvents(pull, {
         stacked: leaf.stacked && pull.base !== leaf.finalBase,
         allowed: async (login) => {
-          const key = lower(login),
+          // Permissions are per repository: never reuse one read for another.
+          const key = `${lower(code)}\u0000${lower(login)}`,
             actors = rules.allowedActors || [];
           // Read a permission only where it decides; an unreadable one
           // counts as none, so the comment is not relayed.
           if (
             rules.minimumPermission &&
             !held.has(key) &&
-            (!actors.length || actors.some((actor) => lower(actor) === key))
+            (!actors.length ||
+              actors.some((actor) => lower(actor) === lower(login)))
           )
             held.set(
               key,

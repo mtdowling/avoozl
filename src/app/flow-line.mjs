@@ -13,7 +13,13 @@ import {
 } from "./content-rules.mjs";
 import { queueNotifications } from "./notifications.mjs";
 import { commandEvidence, git } from "./git.mjs";
-import { flowPolicy, listOr, openStops, stopScope } from "./flow.mjs";
+import {
+  dependentsOf,
+  flowPolicy,
+  listOr,
+  openStops,
+  stopScope,
+} from "./flow.mjs";
 import { fail } from "./store.mjs";
 import { taskRepository } from "../work-model.mjs";
 import { rebaseForIntegration } from "./delivery.mjs";
@@ -559,6 +565,8 @@ export function blockedNaming(store, config, { now = Date.now() } = {}) {
       named = integrated.find(
         (t) =>
           t.id !== binding.taskId &&
+          // Only a dependent can be broken by the task it names (R44.2).
+          dependentsOf(data, t.id).has(binding.taskId) &&
           new RegExp(
             `(^|[^A-Za-z0-9._-])${t.id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^A-Za-z0-9_-]|$)`,
           ).test(text) &&

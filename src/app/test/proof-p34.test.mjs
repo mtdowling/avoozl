@@ -132,22 +132,31 @@ class FeedbackGitHub {
       ),
     );
   }
-  permission(_repository, login) {
+  permission(repository, login) {
     return Promise.resolve({
-      permission: this.permissions.get(login) || "none",
+      permission:
+        this.permissions.get(`${repository}\0${login}`) ||
+        this.permissions.get(login) ||
+        "none",
     });
   }
 }
 
 // One workspace: `mode` plans-repo (o/app, allowed actor alice) or
 // single-repo (o/lib coder worker, o/radar coder issue-radar).
-function workspace(t, { mode, delivery = {}, runner = "tick", rules = null }) {
+function workspace(
+  t,
+  { mode, delivery = {}, runner = "tick", rules = null, extra = {} },
+) {
   const { store } = fixture(t),
     root = temporaryDirectory(),
     github = new FeedbackGitHub(),
     repositories =
       mode === "plans-repo"
-        ? { [APP]: rules || { baseBranch: "main", allowedActors: ["alice"] } }
+        ? {
+            [APP]: rules || { baseBranch: "main", allowedActors: ["alice"] },
+            ...extra,
+          }
         : {
             [LIB]: {
               baseBranch: "main",
@@ -806,5 +815,38 @@ test("P34 minimumPermission: write relays, read is counted, unreadable is counte
   assert.match(sent.text, /from bob/);
   assert.doesNotMatch(sent.text, /from eve|from nobody/);
   assert.equal(Object.keys(w.row("a").strangers).length, 2);
+  assert.deepEqual(w.github.writes, []);
+});
+
+test("P34 minimumPermission is read per repository, never reused across them", async (t) => {
+  const write = { baseBranch: "main", minimumPermission: "write" },
+    w = workspace(t, {
+      mode: "plans-repo",
+      rules: write,
+      extra: { [LIB]: write },
+    });
+  // Leaf b's pull request lives in o/lib, where bob may only read.
+  w.store.put("github_linked_branches", {
+    ...w.store.get("github_linked_branches", "b"),
+    repository: LIB,
+  });
+  w.github.permissions.set(`${APP}\0bob`, "write");
+  w.github.permissions.set(`${LIB}\0bob`, "read");
+  const a = w.github.open(APP, "avoozl/a"),
+    b = w.github.open(LIB, "avoozl/b");
+  await w.step();
+  const say = (id) => ({
+    id,
+    body: `bob says ${id}`,
+    url: `u${id}`,
+    login: "bob",
+    commit: null,
+  });
+  w.github.touch(a, { comments: [say(1)] });
+  w.github.touch(b, { comments: [say(2)] });
+  const result = await w.step();
+  assert.match(w.toWorker(result, "a")[0]?.text || "", /bob says 1/);
+  assert.deepEqual(w.toWorker(result, "b"), []);
+  assert.equal(Object.keys(w.row("b").strangers).length, 1);
   assert.deepEqual(w.github.writes, []);
 });

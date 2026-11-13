@@ -25,6 +25,7 @@ export const RETRO_TIMEOUT_MS = 10 * 60_000;
 // one; make it a setting if retrospectives run too often.
 export const SPIKE_GAP_MS = 60 * 60_000;
 const CI_FALLBACK_MS = 30 * 60_000;
+const SPIKES = new Set(["slow", "retry", "ci"]);
 export const METRICS = Object.freeze([
   "lead time",
   "flow efficiency",
@@ -284,12 +285,15 @@ export function retroStep(
   }
   // PDCA (R47.7): measure each approved change after `everyTasks` more.
   const finished = finishedTasks(store, data).length;
-  for (const retro of listOr(store, "flow_retros"))
-    for (const proposal of retro.proposals || []) {
+  for (const listed of listOr(store, "flow_retros"))
+    for (const proposal of listed.proposals || []) {
       const p = proposal.pdca;
       if (proposal.status !== "approved" || !p || p.result || finished < p.at)
         continue;
-      const after = metricOver(store, data, proposal.metric, p.window),
+      // Read again: an earlier proposal of this retro may have just been
+      // measured, and its result must not be lost.
+      const retro = store.get("flow_retros", listed.id),
+        after = metricOver(store, data, proposal.metric, p.window),
         result = pdcaResult(p.before, after, proposal.direction);
       const next = {
         ...retro,
@@ -316,13 +320,19 @@ export function retroStep(
     last = retros
       .filter((r) => r.startedAt)
       .sort((a, b) => (a.startedAt < b.startedAt ? 1 : -1))[0],
-    pending = [...s.pending, ...found.out];
+    // A slow-task, retry, or CI trigger within an hour of the last retro
+    // waits for the next count trigger (R47.2); one found later starts one.
+    recent = last && now - Date.parse(last.startedAt) < SPIKE_GAP_MS,
+    pending = [
+      ...s.pending,
+      ...found.out.map((t) =>
+        recent && SPIKES.has(t.kind) ? { ...t, waitsForCount: true } : t,
+      ),
+    ];
   if (found.out.length) changed = true;
   s = { ...s, seen: found.seen, pending };
   const busy = listOr(store, "flow_retros").some((r) => r.state === "running"),
-    count = pending.some((t) => t.kind === "count" || t.kind === "manual"),
-    spikeOk = !last || now - Date.parse(last.startedAt) >= SPIKE_GAP_MS,
-    due = pending.length && !busy && (count || spikeOk);
+    due = pending.length && !busy && pending.some((t) => !t.waitsForCount);
   if (due) {
     const n = retros.length + 1,
       retro = {
@@ -520,25 +530,27 @@ export function recordRetroReply(
         : null;
     const proposals = [],
       dropped = [],
-      offered = [
-        ...(Array.isArray(reply.proposals) ? reply.proposals : []),
-        ...(retro.reverts || []),
-      ];
+      replied = Array.isArray(reply.proposals) ? reply.proposals : [],
+      offered = [...replied, ...(retro.reverts || [])];
+    let fromReply = 0;
     for (const [i, p] of offered.entries()) {
-      const problem =
-        proposalProblem(p) ||
-        (proposals.length >= 3 + (retro.reverts || []).length && !p?.revertOf
-          ? "more than 3 proposals"
-          : null);
+      // At most 3 of the agent's own; the typed reverts Avoozl owes come on
+      // top (R47.4, R47.7).
+      const own = i < replied.length,
+        problem =
+          proposalProblem(p) ||
+          (own && fromReply >= 3 ? "more than 3 proposals" : null);
       if (problem)
         dropped.push({ index: i, key: p?.key ?? null, reason: problem });
-      else
+      else {
+        if (own) fromReply += 1;
         proposals.push({
           ...p,
           id: `p${proposals.length + 1}`,
           status: "open",
           ...(removesCheck(p) ? { removesCheck: true } : {}),
         });
+      }
     }
     const valid = bottleneck || proposals.length,
       next = {

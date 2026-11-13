@@ -28,7 +28,7 @@ const leaf = (id, extra = {}) => ({
   ...extra,
 });
 
-function setup(t, tasks, { flow } = {}) {
+function setup(t, tasks, { flow, routing, placement } = {}) {
   const root = temporaryDirectory("avoozl-batch-"),
     checkout = path.join(root, "app");
   fs.mkdirSync(checkout);
@@ -53,9 +53,16 @@ function setup(t, tasks, { flow } = {}) {
       version: 1,
       delivery: { concurrency: 1, retries: 1 },
       ...(flow ? { flow } : {}),
+      ...(routing ? { routing } : {}),
     }),
   );
-  return { store, ops: new Operations(store, { workspaceRoot: root }) };
+  return {
+    store,
+    ops: new Operations(store, {
+      workspaceRoot: root,
+      ...(placement ? { placement } : {}),
+    }),
+  };
 }
 
 const as = (slot) => ({ caller: { sessionKey: "dashboard:" + slot } });
@@ -228,4 +235,33 @@ test("a failing batch head splits the batch; each task retries alone at no attem
     flow: { batch: { max: 1 } },
   });
   assert.equal((await tick(off.ops)).dispatch[0].batch, undefined);
+});
+
+test("a batch never takes a task whose routing rules rule out the leader's crew", async (t) => {
+  const { ops } = setup(
+    t,
+    [leaf("a1"), leaf("a2", { labels: ["win"] }), leaf("a3")],
+    {
+      // a2 must run on a Windows crew; local is not one.
+      routing: {
+        rules: [
+          { id: "win", when: { labels: ["win"] }, requireTags: ["os:windows"] },
+        ],
+      },
+      placement: {
+        localReading: () => ({
+          source: "test",
+          measuredAt: new Date().toISOString(),
+          memFreeGb: 32,
+          diskFreeGb: 500,
+          loadPerCpu: 0.1,
+          cpuCount: 8,
+        }),
+      },
+    },
+  );
+  const first = await tick(ops);
+  const workers = first.dispatch.filter((d) => d.role === "worker");
+  assert.equal(workers.length, 1);
+  assert.deepEqual(workers[0].batch.tasks, ["a1", "a3"]);
 });

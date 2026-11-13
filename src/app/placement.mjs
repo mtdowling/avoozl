@@ -665,12 +665,10 @@ export function chooseSession({
     if (same)
       return { ...same, from, reason: `${from}, kept from the last attempt` };
   }
+  // The binding says why a retry did not keep its pick (R53.6).
+  const removedNote = kept ? ", the kept choice was removed" : "";
   if (usable.length === 1)
-    return {
-      ...usable[0],
-      from,
-      reason: kept ? `${from}, the kept choice was removed` : from,
-    };
+    return { ...usable[0], from, reason: from + removedNote };
   // The router may rank the choices (R53.5); a pick outside the list falls back.
   if (rank) {
     const picked = rank(usable);
@@ -678,7 +676,7 @@ export function chooseSession({
       return {
         ...usable.find((c) => choiceKey(c) === choiceKey(picked.choice)),
         from,
-        reason: `${from}, router: ${picked.reason}`,
+        reason: `${from}, router: ${picked.reason}${removedNote}`,
       };
   }
   let best = null;
@@ -690,6 +688,6 @@ export function chooseSession({
   return {
     ...best.c,
     from,
-    reason: `${from}, choice ${best.i + 1} of ${usable.length} (weight ${best.c.weight})`,
+    reason: `${from}, choice ${best.i + 1} of ${usable.length} (weight ${best.c.weight})${removedNote}`,
   };
 }
