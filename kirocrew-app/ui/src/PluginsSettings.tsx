@@ -206,7 +206,7 @@ function PluginCard(props: { row: PluginRow; busy: boolean; act: (fn: () => Prom
 
 // Settings > Plugins (design §4.8, R34.9): every declared plugin with its
 // kinds, version, approval and health; Add plugin, approve, disable, remove.
-export default function PluginsSettings({ workspaceId }: { workspaceId: string }) {
+export default function PluginsSettings({ workspaceId, onOpenGitHub }: { workspaceId: string; onOpenGitHub?: () => void }) {
   const api = useAppApi()
   const client = useMemo(() => pluginsClient(api), [api])
   const load = useCallback((id: string) => client.list(id), [client])
@@ -301,7 +301,7 @@ export default function PluginsSettings({ workspaceId }: { workspaceId: string }
           ))}
         </div>
       </div>
-      <IntakeSources workspaceId={workspaceId} plugins={value?.plugins ?? []} />
+      <IntakeSources workspaceId={workspaceId} plugins={value?.plugins ?? []} onOpenGitHub={onOpenGitHub} />
     </div>
   )
 }
