@@ -410,10 +410,6 @@ export function approveBlocker(plan: SpecPlan | null): string | null {
   return null
 }
 
-// The chat draft that starts goal planning. The user reviews it before sending.
-export const DRAFT_MESSAGE =
-  "Use the Avoozl skill's \"Plan a goal\" steps. Ask me for the goal and which repositories are in scope. Draft one Kiro spec folder in the planning repository with a planner session, critique it in a second isolated session, store and validate the revision, and show me the result. Do not approve it; I approve the exact revision in the Avoozl Plans view."
-
 // The Plans list's filters. Empty fields match every row.
 export interface PlanListFilter {
   q?: string

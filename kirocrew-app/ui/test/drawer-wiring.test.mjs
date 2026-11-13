@@ -85,7 +85,11 @@ test('a Plans row, its name and Open docs open the plan in view', () => {
   assert.match(plans, /props\.onScope\?\.\(target, \{ plan: rowPlanKey\(next\) \}\)/)
   // App sets the tabs' shared filter, then opens the tab.
   const app = source('App.tsx')
-  assert.match(app, /<PlansView workspaceId=\{active\} onScope=\{scopeTo\} onDrill=\{openDrill\} \/>/)
+  assert.match(app, /<PlansView workspaceId=\{active\} onScope=\{scopeTo\} onDrill=\{openDrill\} newPlanRequest=\{planGoal\} \/>/)
+  // Plan a goal opens the same New plan drawer on the Plans tab, not a chat.
+  assert.match(app, /setPlanGoal\(\(count\) => count \+ 1\)\s*go\(\{ focus: null, drill: null, tab: 'plans' \}\)/)
+  assert.doesNotMatch(app, /openChat/)
+  assert.match(plans, /if \(props\.newPlanRequest\) setCreating\(true\)/)
   assert.match(app, /if \(active\) setSharedFilter\(active, filter\)/)
   assert.match(app, /<GraphView workspaceId=\{active\} focus=\{focus\} drill=\{drill\} onDrill=\{setDrill\} \/>/)
 })

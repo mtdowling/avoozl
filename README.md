@@ -74,10 +74,16 @@ each ID its kind, summary, acceptance, dependencies (`requires`), checks, and
 completion level. Avoozl refuses a folder that is missing a file, or a
 `tasks.md` with a missing or repeated ID.
 
-In the Plans view, under **Plan a goal**, choose **Open planning draft**. It
-opens a chat with a drafted message; add your goal and the repositories in
-scope, then send it. The chat runs the `avoozl-planner` agent twice, once to
-write the folder and once to critique it; neither can approve or start work.
+In the Plans view, choose **New plan** (or **Plan a goal** in the header).
+Fill in the name, the repositories in scope and what you want, then choose
+**Open in Spec Builder**. Avoozl offers to add `.kiro/steering/avoozl-specs.md`
+to the repository first, showing its text; it holds Avoozl's spec rules, and it
+is never written over a changed copy. Kiro Crew's Spec Builder then drafts
+requirements, design and tasks, one phase at a time for you to review. Once
+`tasks.md` holds still, Avoozl writes `avoozl/manifest.json` from it and stores
+the folder as a draft plan. Nothing is approved or started. Spec Builder must
+be turned on in Kiro Crew's Apps; when it is off, the drawer says so and offers
+an `avoozl-planner` chat instead.
 Select the spec, review the lint results and the graph, then choose
 **Approve revision**. Approval records the exact revision hash, so a later
 edit reads as unapproved until you approve again.

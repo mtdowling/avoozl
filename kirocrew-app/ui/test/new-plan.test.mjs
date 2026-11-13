@@ -38,3 +38,17 @@ test('the client sends plan.new with epics as a list', async () => {
   assert.equal(calls[0].body.input.name, 'p')
   assert.deepEqual(epicList(''), [])
 })
+
+test('the Spec Builder hand-off previews first, then asks for the create body', async () => {
+  const calls = []
+  const api = { post: async (path, body) => (calls.push({ path, body }), { result: {} }) }
+  const form = { ...EMPTY_NEW_PLAN, name: 'p', epic: ' rewrite ', repositories: ['app'], goal: 'g' }
+  await newPlanClient(api).preview('ws', form)
+  await newPlanClient(api).specBuilder('ws', form, true)
+  assert.equal(calls[0].body.input.preview, true)
+  assert.equal(calls[0].body.input.handoff, 'spec-builder')
+  assert.equal(calls[1].body.input.writeSteering, true)
+  assert.equal(calls[1].body.input.preview, undefined)
+  assert.equal(calls[1].body.input.epic, 'rewrite')
+  assert.match(formProblems({ ...form, epic: 'Not A Folder' }, [], 1)[0], /epic by its spec folder/)
+})

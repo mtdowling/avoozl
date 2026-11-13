@@ -249,6 +249,7 @@ import {
 } from "./intake.mjs";
 import { highlightLanguages } from "./highlight-languages.mjs";
 import { importNewPlans, requestNewPlan } from "./new-plan.mjs";
+import { writeSpecManifest } from "./spec-manifest.mjs";
 import {
   claimedTaskIds,
   declaredChecks,
@@ -1914,6 +1915,7 @@ export class Operations {
       // New plan folders that lint clean become draft plans (never approved).
       importNewPlans(store, {
         readSpec: (spec) => this.readSpec(spec),
+        writeManifest: (spec, text) => writeSpecManifest(this.readSpec(spec), text),
         lint: (spec) =>
           this.withContentDiagnostics(
             lintSpec({

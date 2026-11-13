@@ -1008,6 +1008,8 @@ export default function PlansView(props: {
   workspaceId: string | null
   onScope?: (target: PlanTarget, filter: TaskFilter) => void
   onDrill?: (drill: Drill) => void
+  // Bumped by the header's Plan a goal: open the New plan drawer.
+  newPlanRequest?: number
 }) {
   const workspace = props.workspaceId
   const api = useAppApi()
@@ -1021,6 +1023,9 @@ export default function PlansView(props: {
   const [deleting, setDeleting] = useState<PlanRow | null>(null)
   const [archiving, setArchiving] = useState<PlanRow | null>(null)
   const [creating, setCreating] = useState(false)
+  useEffect(() => {
+    if (props.newPlanRequest) setCreating(true)
+  }, [props.newPlanRequest])
   const [notice, setNotice] = useState<string | null>(null)
   const [table, setTable] = useState<PlanTable | null>(null)
   // Opening a plan is a Back step; Back from another tab reopens it.
@@ -1202,7 +1207,7 @@ export default function PlansView(props: {
         </ViewHeading>
         {workspace && !row && (
           <>
-            <IconLabel icon={Plus} primary tooltip="Describe a plan idea. A planner chat drafts its spec folder; nothing is approved." onClick={() => setCreating(true)}>
+            <IconLabel icon={Plus} primary tooltip="Describe a plan idea. Spec Builder drafts its spec folder; nothing is approved." onClick={() => setCreating(true)}>
               New plan
             </IconLabel>
             <IconLabel icon={RefreshCw} onClick={() => void load(workspace)} disabled={busy}>

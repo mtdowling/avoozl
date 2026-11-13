@@ -45,13 +45,16 @@ test("manifest declares the §4.2 app and every target ships in the package", ()
   // The second grant reads only the sessions the tick opened (session-observer.mjs);
   // the third lets Settings > Repositories reveal a checkout in Finder; the
   // fourth reads tokens and credits of the app's own sessions (rows Kiro
-  // Crew stamps with the app), and the fifth lists models for Settings > Flow.
+  // Crew stamps with the app), and the fifth lists models for Settings > Flow. The
+  // sixth lets New plan create a spec in Spec Builder.
   assert.deepEqual(manifest.permissions.api, [
     "/apps/avoozl/api/*",
     "/api/chat/slots/avoozl_*",
     "/api/reveal",
     "/api/usage/turns",
     "/api/models",
+    // New plan creates a spec in Spec Builder (spec-builder-grant.test.mjs).
+    "/api/apps/spec-builder/specs",
   ]);
   assert.deepEqual(
     manifest.notifications.channels.map((c) => c.id),

@@ -1,18 +1,28 @@
-// New plan: a right drawer that collects a plan idea and opens an Avoozl
-// planner chat seeded with it. The backend (plan.new) checks the fields
-// and runs content rules on the seed; the folder the planner writes shows
-// in Plans as a draft once it lints clean. Nothing here approves a plan,
-// starts delivery or pushes.
+// New plan: a right drawer that collects a plan idea and hands it to Kiro
+// Crew's Spec Builder, which drafts the spec folder phase by phase. The
+// backend (plan.new) checks the fields, runs content rules on what is
+// handed over, and writes Avoozl's steering file only after the person
+// agrees here. Avoozl then writes the manifest and the folder shows in
+// Plans as a draft once it lints clean. When Spec Builder is off, an Avoozl
+// planner chat is the fallback. Nothing here approves a plan, starts
+// delivery or pushes.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { useAppApi, useChatLauncher } from '@kirocrew/app-sdk'
+import { useAppApi, useChatLauncher, useNavigate } from '@kirocrew/app-sdk'
 import { Btn, Input } from '@kirocrew/app-sdk/ui'
-import { Send, X } from './icons.ts'
+import { ExternalLink, MessageSquare, X } from './icons.ts'
 import { IconLabel, ICON, useConfirm } from './controls.tsx'
 import { useMedia } from './TaskDrawer.tsx'
 import { trapStep } from './focus-trap.ts'
 import { useBackStep } from './NavHistory.tsx'
 import { errorMessage, workspaceClient, type Repository } from './workspace-api.ts'
-import { EMPTY_NEW_PLAN, formProblems, isDirty, nameProblem, newPlanClient, type NewPlanForm } from './new-plan-api.ts'
+import { EMPTY_NEW_PLAN, EPIC_PROBLEM, formProblems, isDirty, nameProblem, newPlanClient, SPEC_NAME, type NewPlanForm, type NewPlanPreview } from './new-plan-api.ts'
+import { openSpecBuilder, specBuilderClient, specBuilderProblem } from './spec-builder-api.ts'
+
+// Spec Builder resolves symlinks (/tmp is /private/tmp on macOS).
+const samePath = (left: string, right: string) => {
+  const plain = (value: string) => value.replace(/\\/g, '/').replace(/\/+$/, '').replace(/^\/private(?=\/)/, '')
+  return plain(left) === plain(right)
+}
 
 const fieldStyle = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
@@ -45,6 +55,8 @@ export default function NewPlanDrawer(props: {
   const api = useAppApi()
   const client = useMemo(() => newPlanClient(api), [api])
   const { openChat } = useChatLauncher()
+  const navigate = useNavigate()
+  const builder = useMemo(() => specBuilderClient(api), [api])
   const ask = useConfirm()
   const narrow = useMedia('(max-width: 767px)')
   const still = useMedia('(prefers-reduced-motion: reduce)')
@@ -54,9 +66,17 @@ export default function NewPlanDrawer(props: {
   const [tried, setTried] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // The steering file to ask about, once a preview found it missing.
+  const [steering, setSteering] = useState<NewPlanPreview['steering'] | null>(null)
+  // Spec Builder could not be reached: offer the planner chat instead.
+  const [fallback, setFallback] = useState(false)
   const [shown, setShown] = useState(false)
   const panel = useRef<HTMLDivElement>(null)
-  const set = (change: Partial<NewPlanForm>) => setForm((now) => ({ ...now, ...change }))
+  const set = (change: Partial<NewPlanForm>) => {
+    setForm((now) => ({ ...now, ...change }))
+    // The question was about the old fields; Open in Spec Builder asks again.
+    setSteering(null)
+  }
 
   useEffect(() => {
     let live = true
@@ -115,21 +135,60 @@ export default function NewPlanDrawer(props: {
   const problems = repositories ? formProblems(form, props.taken, repositories.length) : []
   const nameIssue = nameTouched || tried ? nameProblem(form.name, props.taken) : null
 
-  const submit = async () => {
-    setTried(true)
-    if (problems.length || !repositories) return
+  const run = async (step: () => Promise<void>) => {
     setBusy(true)
     setError(null)
     try {
-      const result = await client.request(props.workspaceId, form)
-      openChat({ message: result.message, agent: result.agent, autoSend: true })
-      props.onClose(`A planner chat is drafting ${result.name}. It shows here as a draft once its folder is complete; you approve it.`)
+      await step()
     } catch (caught) {
       setError(errorMessage(caught))
     } finally {
       setBusy(false)
     }
   }
+
+  // Record the request, then create the spec in Spec Builder and open it.
+  const handOffNow = async (writeSteering: boolean) => {
+      const handoff = await client.specBuilder(props.workspaceId, form, writeSteering)
+      setSteering(null)
+      let created
+      try {
+        created = await builder.create(handoff.specBuilder)
+      } catch (caught) {
+        const problem = specBuilderProblem(caught)
+        setFallback(problem.fallback)
+        setError(problem.message)
+        return
+      }
+      const elsewhere = created.spec_dir && !samePath(created.spec_dir, handoff.folder)
+      props.onClose(
+        elsewhere
+          ? `Spec Builder made ${handoff.name} in ${created.spec_dir}, but Avoozl reads ${handoff.folder}. Clear Spec Builder's base path setting, or move the folder.`
+          : `Spec Builder is drafting ${handoff.name}. Avoozl writes its manifest after tasks.md, and it shows here as a draft; you approve it.`,
+      )
+      openSpecBuilder(handoff.name, navigate)
+  }
+  const handOff = (writeSteering: boolean) => run(() => handOffNow(writeSteering))
+
+  const submit = () => {
+    setTried(true)
+    if (problems.length || !repositories) return
+    setFallback(false)
+    return run(async () => {
+      const preview = await client.preview(props.workspaceId, form)
+      // A missing file is asked about first; a present or changed one is left alone.
+      if (preview.steering.state === 'missing') setSteering(preview.steering)
+      else await handOffNow(false)
+    })
+  }
+
+  // The fallback: an Avoozl planner chat seeded with the same details.
+  const plannerChat = () =>
+    run(async () => {
+      const result = await client.request(props.workspaceId, form)
+      openChat({ message: result.message, agent: result.agent, autoSend: true })
+      props.onClose(`A planner chat is drafting ${result.name}. It shows here as a draft once its folder is complete; you approve it.`)
+    })
 
   return (
     <div className="fixed inset-0 z-50" style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -173,7 +232,7 @@ export default function NewPlanDrawer(props: {
           }}
         >
           <p className="text-xs text-muted">
-            An Avoozl planner chat drafts the spec folder from this. The plan shows in Plans as a draft once its folder is complete. Nothing is approved or started.
+            Kiro Crew&apos;s Spec Builder drafts the spec from this: requirements, design, then tasks, each for you to review. Avoozl then writes the manifest, and the plan shows in Plans as a draft. Nothing is approved or started.
           </p>
           <Field id="avoozl-new-plan-name" need="required" label="Name" hint="Becomes the spec folder name: lowercase letters, digits and hyphens." problem={nameIssue}>
             <Input
@@ -201,7 +260,22 @@ export default function NewPlanDrawer(props: {
               ))}
             </datalist>
           </Field>
-          <Field id="avoozl-new-plan-epics" need="optional" label="Epics or phases" hint="One per line. Left blank, the planner picks them.">
+          <Field
+            id="avoozl-new-plan-epic"
+            need="optional"
+            label="Epic"
+            hint="The epic's spec folder name. Left blank, the plan is in no epic."
+            problem={form.epic.trim() && !SPEC_NAME.test(form.epic.trim()) ? EPIC_PROBLEM : null}
+          >
+            <Input
+              id="avoozl-new-plan-epic"
+              value={form.epic}
+              placeholder="rewrite"
+              onChange={(event) => set({ epic: event.target.value })}
+              style={{ maxWidth: '18rem' }}
+            />
+          </Field>
+          <Field id="avoozl-new-plan-epics" need="optional" label="Phases" hint="One per line; each becomes a heading in tasks.md. Left blank, the planner picks them.">
             <textarea
               id="avoozl-new-plan-epics"
               rows={3}
@@ -258,16 +332,45 @@ export default function NewPlanDrawer(props: {
               style={fieldStyle}
             />
           </Field>
+          {steering && (
+            <section aria-labelledby="avoozl-new-plan-steering" className="flex flex-col gap-2 rounded border p-3 text-sm" style={{ borderColor: 'var(--border)' }}>
+              <h4 id="avoozl-new-plan-steering" className="font-medium">
+                Add Avoozl&apos;s spec rules to this repository?
+              </h4>
+              <p className="text-xs text-muted">
+                Spec Builder&apos;s chat reads steering files from the repository. This writes <code>{steering.path}</code>, which you commit. Skip it, and the rules go with this one spec instead.
+              </p>
+              <pre className="max-h-64 overflow-auto rounded border p-2 text-xs" style={{ borderColor: 'var(--border)', whiteSpace: 'pre-wrap' }} data-steering-text>
+                {steering.text}
+              </pre>
+              <div className="flex flex-wrap gap-2">
+                <Btn type="button" primary disabled={busy} onClick={() => void handOff(true)}>
+                  Add the file and open Spec Builder
+                </Btn>
+                <Btn type="button" disabled={busy} onClick={() => void handOff(false)}>
+                  Skip the file
+                </Btn>
+              </div>
+            </section>
+          )}
           {error && (
             <p role="alert" className="text-sm text-danger">
               {error}
             </p>
           )}
+          {fallback && (
+            <div>
+              <Btn type="button" disabled={busy} onClick={() => void plannerChat()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <MessageSquare size={ICON} aria-hidden="true" />
+                Use an Avoozl planner chat instead
+              </Btn>
+            </div>
+          )}
         </form>
         <div className="flex items-center gap-2 border-t px-4 py-3" style={{ borderColor: 'var(--border)' }}>
-          <Btn type="submit" form="avoozl-new-plan-form" primary disabled={busy || repositories === null} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <Send size={ICON} aria-hidden="true" />
-            {busy ? 'Opening…' : 'Start planner chat'}
+          <Btn type="submit" form="avoozl-new-plan-form" primary disabled={busy || repositories === null || steering !== null} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <ExternalLink size={ICON} aria-hidden="true" />
+            {busy ? 'Opening…' : 'Open in Spec Builder'}
           </Btn>
           <Btn type="button" onClick={() => void close()} disabled={busy}>
             Cancel

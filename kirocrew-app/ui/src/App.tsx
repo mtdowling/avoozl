@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useAppApi, useChatLauncher } from '@kirocrew/app-sdk'
+import { useAppApi } from '@kirocrew/app-sdk'
 import { Btn, EmptyState, PageHeader, SegmentedControl } from '@kirocrew/app-sdk/ui'
 import Logo from './Logo'
 import DashboardView, { type DashboardTarget } from './DashboardView'
@@ -13,7 +13,6 @@ import RoutingView from './RoutingView.tsx'
 import { untriagedClient } from './untriaged-api.ts'
 import SettingsView, { SETTINGS_TABS, type SettingsTab } from './SettingsView'
 import { SETTINGS_HOME, settingsTabOnEnter } from './settings-api.ts'
-import { DRAFT_MESSAGE } from './plans-api'
 import { TaskDrawerProvider } from './TaskDrawer'
 import Badge from './Badge.tsx'
 import { ConfirmProvider, ViewLabel } from './controls.tsx'
@@ -103,7 +102,6 @@ function AvoozlPage() {
   const nav = useNav()
   const api = useAppApi()
   const client = useMemo(() => workspaceClient(api), [api])
-  const { openChat } = useChatLauncher()
   const saved = useMemo(() => readPageState(storage()), [])
   // The page always opens on the Dashboard; the tab is remembered only while
   // the page stays open.
@@ -115,6 +113,8 @@ function AvoozlPage() {
   const [drill, setDrill] = useState<Drill | null>(null)
   // Open conflicts, for the yellow count after the Conflicts tab's label.
   const [conflicts, setConflicts] = useState(0)
+  // Each Plan a goal press opens the New plan drawer once.
+  const [planGoal, setPlanGoal] = useState(0)
   // Untriaged items in Intake (§8.5): null hides the tab, as in Local only
   // mode with no intake source.
   const [untriaged, setUntriaged] = useState<number | null>(null)
@@ -225,7 +225,15 @@ function AvoozlPage() {
         actions={
           <div className="flex flex-wrap items-center gap-3">
             <WorkspacePicker list={list} value={workspaceId} onChange={setWorkspaceId} />
-            <Btn type="button" primary onClick={() => openChat({ message: DRAFT_MESSAGE, autoSend: false })}>
+            <Btn
+              type="button"
+              primary
+              onClick={() => {
+                // The same New plan drawer, opened on the Plans tab.
+                setPlanGoal((count) => count + 1)
+                go({ focus: null, drill: null, tab: 'plans' })
+              }}
+            >
               Plan a goal
             </Btn>
           </div>
@@ -287,7 +295,7 @@ function AvoozlPage() {
         ) : tab === 'dashboard' ? (
           <DashboardView workspaceId={active} untriaged={untriaged} onNavigate={navigate} onScope={scopeTo} onDrill={openDrill} />
         ) : tab === 'plans' ? (
-          <PlansView workspaceId={active} onScope={scopeTo} onDrill={openDrill} />
+          <PlansView workspaceId={active} onScope={scopeTo} onDrill={openDrill} newPlanRequest={planGoal} />
         ) : tab === 'graph' ? (
           <GraphView workspaceId={active} focus={focus} drill={drill} onDrill={setDrill} />
         ) : tab === 'delivery' ? (

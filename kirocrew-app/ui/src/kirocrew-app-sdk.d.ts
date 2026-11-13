@@ -10,6 +10,8 @@ declare module '@kirocrew/app-sdk' {
   }
 
   export function useAppApi(): AppApi
+  // The host's own page navigation (a dashboard route such as /chat).
+  export function useNavigate(): (path: string) => void
   export function useChatLauncher(): {
     openChat(input: {
       message: string
