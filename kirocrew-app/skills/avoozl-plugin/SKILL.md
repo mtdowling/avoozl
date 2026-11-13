@@ -47,8 +47,9 @@ Ask what the team needs, then list only those parts in `provides`:
 | Task records kept in another system                                                                             | `tracker` |
 | Outside work brought in on each tick                                                                            | `intake`  |
 | Tasks delivered somewhere other than a local worker                                                             | `route`   |
+| Retro lessons other workspaces may use, in `avoozl-lessons.json`                                                | `lessons` |
 
-A plugin with only `pack` has no `entry` and runs no code. `intake` runs as
+A plugin with only `pack` or `lessons` has no `entry` and runs no code. `intake` runs as
 the `tracker` kind and needs `capabilities.tracker` to list `poll`.
 
 The code kinds are `route`, `tracker` and `rules`. A manifest written

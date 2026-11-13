@@ -45,14 +45,14 @@ test('headings with buttons pass them as the heading actions', () => {
   for (const name of views) assert.doesNotMatch(source(name), /items-center gap-3">\s*<(ViewHeading|CardTitle)/, name)
 })
 
-test('Plans heading: New plan, New task, then an icon-only Refresh last', () => {
+test('Specs heading: New spec, New idea, Ideas, New task, then an icon-only Refresh last', () => {
   const plans = source('PlansView.tsx')
   const part = plans.slice(plans.indexOf('function PlansActions'), plans.indexOf('// The row\'s icon buttons'))
   const at = (text) => part.indexOf(text)
-  assert.ok(at('New plan') > 0 && at('New plan') < at('New task') && at('New task') < at('RefreshCw'), 'order')
+  assert.ok(at('New spec') > 0 && at('New spec') < at('NewIdeaButton') && at('NewIdeaButton') < at('New task') && at('New task') < at('RefreshCw'), 'order')
   assert.equal(part.match(/<IconLabel icon=\{Plus\}/g).length, 2)
-  assert.match(part, /<IconBtn icon=\{RefreshCw\} label="Refresh plans" tooltip=\{REFRESH_PLANS_TIP\}/)
-  assert.match(plans, /REFRESH_PLANS_TIP = 'Reload plans from disk\. Imports nothing\.'/)
+  assert.match(part, /<IconBtn icon=\{RefreshCw\} label="Refresh specs" tooltip=\{REFRESH_PLANS_TIP\}/)
+  assert.match(plans, /REFRESH_PLANS_TIP = 'Reload specs from disk\. Imports nothing\.'/)
   assert.match(plans, /actions=\{\s*workspace && !row \? \(\s*<PlansActions/)
   for (const name of views) assert.doesNotMatch(source(name), />\s*Add task\s*</, name)
 })
@@ -88,7 +88,7 @@ test('Settings > Flow puts each sub-section in its own titled box', () => {
   const flow = source('FlowSettings.tsx')
   assert.match(flow, /function Box\(\{ children \}[\s\S]*?<Card className="flex flex-col gap-4" data-flow-box>/)
   const titles = [...flow.matchAll(/<Box>\s*<Section title="([^"]+)" blurb="[^"]+"/g)].map((m) => m[1])
-  assert.deepEqual(titles, ['Timing', 'Stop the line', 'Local checks first', 'Batching', 'Retro'])
+  assert.deepEqual(titles, ['Timing', 'Stop the line', 'Local checks first', 'Batching', 'Retro', 'Lessons'])
   assert.equal(flow.match(/<Box>/g).length, titles.length)
   // Retro keeps the model dropdown, then the built-in prompt and your instructions.
   const retro = flow.slice(flow.indexOf('title="Retro"'))

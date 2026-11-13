@@ -39,7 +39,12 @@ export const FIELD_KEYS = Object.freeze([
   "wave",
   "iteration",
   "avoozlState",
+  // A text field Avoozl owns like Wave: each task's phase (R59.8).
+  "phase",
 ]);
+// GitHub links at most 100 sub-issues under one parent, closed ones
+// included (design §6.9 Limits).
+export const SUB_ISSUE_CAP = 100;
 export const PERMISSIONS = Object.freeze([
   "read",
   "triage",
@@ -74,6 +79,7 @@ export const POLICY_KEYS = Object.freeze([
   "defaultAuthority",
   "project",
   "epicIssueType",
+  "subIssues",
   "repositories",
 ]);
 // Who may give Avoozl orders when a repository names nobody.
@@ -121,6 +127,18 @@ function permission(value, label) {
   if (!PERMISSIONS.includes(value))
     fail(`${label} must be one of ${PERMISSIONS.join(", ")}.`);
   return value;
+}
+
+// `github.subIssues.maxPerParent` (R59.15): how many sub-issues Avoozl links
+// under one parent issue, default GitHub's own limit.
+function subIssuesInput(value) {
+  if (value === undefined || value === null)
+    return { maxPerParent: SUB_ISSUE_CAP };
+  onlyKeys(value, ["maxPerParent"], "github.subIssues");
+  const cap = value.maxPerParent ?? SUB_ISSUE_CAP;
+  if (!Number.isSafeInteger(cap) || cap < 1)
+    fail("github.subIssues.maxPerParent must be a whole number of at least 1.");
+  return { maxPerParent: cap };
 }
 
 function projectInput(value) {
@@ -551,6 +569,7 @@ export function normalizeGitHubPolicy(value) {
     epicIssueType: name(value.epicIssueType, "github.epicIssueType", {
       optional: true,
     }),
+    subIssues: subIssuesInput(value.subIssues),
     repositories: Object.fromEntries(
       Object.entries(repositories)
         .sort(([left], [right]) => left.localeCompare(right))

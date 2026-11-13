@@ -73,7 +73,7 @@ test("validation rejects unknown work-model values and edge conditions", (t) => 
 test("only leaves are ready; epics and packages complete from children", async (t) => {
   const { store } = fixture(t),
     ops = new Operations(store);
-  await ops.execute("task.update", { id: "sample-task", kind: "epic" });
+  await ops.execute("task.update", { id: "sample-task", kind: "package" });
   assert.deepEqual(ready(store.read()), []);
   await ops.execute("task.update", { id: "sample-task", kind: "leaf" });
   assert.deepEqual(ready(store.read()), ["sample-task"]);
@@ -178,7 +178,12 @@ test("plan blocks carry work-model fields and edge conditions into approval", as
     ops = new Operations(store),
     text =
       "# Model\n\n" +
-      block({ id: "parent", title: "Parent", kind: "epic", summary: "All." }) +
+      block({
+        id: "parent",
+        title: "Parent",
+        kind: "package",
+        summary: "All.",
+      }) +
       block(leaf("base", { completion: "released" })) +
       block(
         leaf("user", {
@@ -196,7 +201,7 @@ test("plan blocks carry work-model fields and edge conditions into approval", as
     data = store.read(),
     byLocal = (id) =>
       data.tasks.find((task) => task.id === receipt.mapping[id]);
-  assert.equal(byLocal("parent").kind, "epic");
+  assert.equal(byLocal("parent").kind, "package");
   assert.equal(byLocal("base").completion, "released");
   assert.deepEqual(byLocal("base").checks, ["npm test"]);
   assert.equal(

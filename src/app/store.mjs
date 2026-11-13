@@ -118,6 +118,10 @@ export class Store {
    CREATE TABLE IF NOT EXISTS provider_health(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS provider_switches(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS flow_usage(id TEXT PRIMARY KEY,slot TEXT NOT NULL,task_id TEXT NOT NULL,attempt INTEGER,role TEXT,ts TEXT NOT NULL,model TEXT,input REAL,output REAL,credits REAL);
+   CREATE TABLE IF NOT EXISTS price_versions(version INTEGER PRIMARY KEY,sha256 TEXT NOT NULL,saved_at TEXT NOT NULL,table_json TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS budget_raises(id TEXT PRIMARY KEY,task_id TEXT NOT NULL,by TEXT NOT NULL,at TEXT NOT NULL,from_json TEXT,to_json TEXT NOT NULL,price_version INTEGER);
+   CREATE INDEX IF NOT EXISTS budget_raises_task ON budget_raises(task_id,at);
+   CREATE TABLE IF NOT EXISTS budget_holds(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS activity_log(seq INTEGER PRIMARY KEY AUTOINCREMENT,at TEXT NOT NULL,source TEXT NOT NULL,actor TEXT,kind TEXT NOT NULL,summary TEXT NOT NULL,target_id TEXT,link TEXT,redacted INTEGER NOT NULL DEFAULT 0,key TEXT UNIQUE);
    CREATE INDEX IF NOT EXISTS activity_log_at ON activity_log(at);
   `);
@@ -424,6 +428,7 @@ export class Store {
         "incoming_items",
         "intake_sources",
         "placement_decisions",
+        "budget_holds",
         "provider_health",
         "provider_switches",
       ].includes(table)
@@ -483,6 +488,7 @@ export class Store {
         "incoming_items",
         "intake_sources",
         "placement_decisions",
+        "budget_holds",
         "provider_health",
         "provider_switches",
       ].includes(table)
@@ -538,6 +544,7 @@ export class Store {
         "incoming_items",
         "intake_sources",
         "placement_decisions",
+        "budget_holds",
         "provider_health",
         "provider_switches",
       ].includes(table)
@@ -612,6 +619,7 @@ export class Store {
         "incoming_items",
         "intake_sources",
         "placement_decisions",
+        "budget_holds",
         "provider_health",
         "provider_switches",
       ].includes(table)

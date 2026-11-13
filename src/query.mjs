@@ -1,3 +1,4 @@
+import { taskEpic } from "./app/epics.mjs";
 import { resolveTaskId, taskSourceRefs } from "./task-identity.mjs";
 import { activityState } from "./activity.mjs";
 import { isArchivedTask, isHistoricalTask } from "./browse-model.mjs";
@@ -72,7 +73,7 @@ function searchable(data, t) {
     t.notes,
     t.id,
     ...(index.aliases.get(t.id) || []),
-    t.epic,
+    taskEpic(data, t),
     ...(t.tags || []),
     t.owner,
     t.activity?.owner,
@@ -152,7 +153,9 @@ export function queryTasks(data, options = {}) {
     rows = rows.filter((t) => !statusComplete(data, t.status));
   else if (options.status)
     rows = rows.filter((t) => matches(t.status, options.status));
-  if (options.epic) rows = rows.filter((t) => matches(t.epic, options.epic));
+  // A task's epic is its plan's (Requirement 59.2).
+  if (options.epic)
+    rows = rows.filter((t) => matches(taskEpic(data, t), options.epic));
   if (options.track) rows = rows.filter((t) => matches(t.track, options.track));
   if (options.tag) rows = rows.filter((t) => t.tags?.includes(options.tag));
   if (options.node && options.relation) {
@@ -187,7 +190,7 @@ export function queryTasks(data, options = {}) {
       rows = rows.filter((t) =>
         key === "tag"
           ? t.tags?.some((x) => matches(x, value))
-          : matches(t[key], value),
+          : matches(key === "epic" ? taskEpic(data, t) : t[key], value),
       );
     else if (key === "inflight")
       rows = rows.filter(

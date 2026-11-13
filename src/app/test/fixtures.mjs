@@ -26,7 +26,7 @@ export function snapshot() {
       { id: "blocked", label: "Blocked", complete: false },
       { id: "deferred", label: "Deferred", complete: false },
     ],
-    epics: [{ id: "sample", title: "Sample", scope: "catalog" }],
+    epics: [],
     tracks: [{ id: "catalog", label: "Plans" }],
     tasks: [
       {
@@ -34,7 +34,6 @@ export function snapshot() {
         title: "Implement fixture",
         scope: "catalog",
         status: "planned",
-        epic: "sample",
         track: "catalog",
         tags: [],
         acceptance: ["Pass fixture test."],
@@ -72,7 +71,6 @@ function fixtureTask(id) {
     title: "Fixture " + id,
     scope: "catalog",
     status: "planned",
-    epic: "sample",
     track: "catalog",
     tags: [],
     acceptance: [`${id} passes.`],
@@ -204,4 +202,4 @@ export async function waitFor(predicate, { timeoutMs = 20000, label } = {}) {
     await new Promise((resolve) => setTimeout(resolve, 10));
   }
 }
-export const markdown = `# A small plan\n\n## Design\n\nKeep the design in one document.\n\n\`\`\`task\n{"id":"foundation","title":"Build foundation","acceptance":["Foundation passes"],"checks":["npm test"],"epic":"sample"}\n\`\`\`\n\n\`\`\`task\n{"id":"delivery","title":"Deliver feature","acceptance":["Feature passes"],"checks":["npm test"],"requires":["foundation"],"epic":"sample"}\n\`\`\`\n`;
+export const markdown = `# A small plan\n\n## Design\n\nKeep the design in one document.\n\n\`\`\`task\n{"id":"foundation","title":"Build foundation","acceptance":["Foundation passes"],"checks":["npm test"],"track":"catalog"}\n\`\`\`\n\n\`\`\`task\n{"id":"delivery","title":"Deliver feature","acceptance":["Feature passes"],"checks":["npm test"],"requires":["foundation"],"track":"catalog"}\n\`\`\`\n`;

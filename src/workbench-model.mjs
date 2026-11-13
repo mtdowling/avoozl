@@ -1,3 +1,4 @@
+import { crossPlanEpics, taskEpic } from "./app/epics.mjs";
 import { activityState } from "./activity.mjs";
 import { statusComplete } from "./query.mjs";
 
@@ -72,8 +73,7 @@ export function taskSignals(data, task, now = Date.now()) {
 }
 
 export function isPlanInventory(data, task) {
-  const document =
-    data.documents[task.source?.document || task.epic?.replace(/^doc:/, "")];
+  const document = data.documents[task.source?.document];
   return Boolean(
     task.tags?.some((tag) => ["historical", "plan-inventory"].includes(tag)) ||
       document?.historical ||
@@ -119,7 +119,10 @@ export function taskTree(
         ? task.tags?.length
           ? task.tags
           : ["untagged"]
-        : [task[group] || "Unassigned"];
+        : [
+            (group === "epic" ? taskEpic(data, task) : task[group]) ||
+              "Unassigned",
+          ];
     for (const key of new Set(keys)) {
       if (!roots.has(key))
         roots.set(key, { key, tasks: [], children: [], total: 0, complete: 0 });
@@ -132,7 +135,7 @@ export function taskTree(
   }
   const order =
     group === "epic"
-      ? data.epics
+      ? crossPlanEpics(data)
       : group === "track"
         ? data.tracks
         : group === "status"
@@ -151,7 +154,7 @@ export function taskTree(
       for (const task of root.tasks) {
         const key =
           group === "track"
-            ? task.epic || "Unassigned"
+            ? taskEpic(data, task) || "Unassigned"
             : task.track || "Unassigned";
         if (!children.has(key)) children.set(key, []);
         children.get(key).push(task);

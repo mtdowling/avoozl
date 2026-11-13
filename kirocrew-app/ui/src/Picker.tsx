@@ -138,4 +138,4 @@ export function Picker(props: {
 
 // A graph's tasks (epics left out) and stored specs as picker items.
 export const taskItems = (tasks: { id: string; title: string; kind?: string; spec?: string | null; planId?: string | null; state?: string | null; status?: string | null }[]): PickItem[] =>
-  tasks.filter((t) => t.kind !== 'epic').map((t) => ({ id: t.id, title: t.title || t.id, spec: t.spec ?? t.planId ?? null, state: t.state ?? t.status ?? null }))
+  tasks.filter((t) => t.kind !== 'package').map((t) => ({ id: t.id, title: t.title || t.id, spec: t.spec ?? t.planId ?? null, state: t.state ?? t.status ?? null }))

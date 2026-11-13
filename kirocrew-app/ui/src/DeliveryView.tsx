@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { SpendChip } from './Budget.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import { useAppApi } from '@kirocrew/app-sdk'
 import { Btn, Card } from '@kirocrew/app-sdk/ui'
@@ -75,6 +76,7 @@ function LaneCardView(props: {
           <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-muted">
             <span>{card.id}</span>
             {card.epic && <Badge>{card.epic}</Badge>}
+            {card.plan && <span>{card.plan}{card.phase ? ` · ${card.phase.title}` : ''}</span>}
             <Authority owner={{ authority: card.authority, issue: card.issue }} />
             {card.attempt !== null && <Badge>attempt {card.attempt}</Badge>}
             {card.reviewRounds > 0 && <Badge>{card.reviewRounds} review rounds</Badge>}
@@ -82,7 +84,13 @@ function LaneCardView(props: {
             {card.deferred && <Badge>deferred</Badge>}
             {card.review && <Badge>review</Badge>}
             {card.planArchived && <Badge>Archived</Badge>}
+            <SpendChip budget={card.item?.budget} />
           </div>
+          {card.subIssue && (
+            <p className="mt-2 text-xs" style={{ color: 'var(--warning, var(--muted))' }} data-sub-issue>
+              {card.subIssue.reason}
+            </p>
+          )}
           {card.item && (
             <div className="mt-2.5">
               <ReviewRuns item={card.item} compact onInfo={() => drawer.openTask(card.id)} />
@@ -372,7 +380,7 @@ export default function DeliveryView({ workspaceId }: { workspaceId: string | nu
 
   const all = useMemo(() => (value ? deliveryLanes(value.graph, value.items) : null), [value])
   const lanes = all ? filterLanes(all, filter) : null
-  const choices = useMemo(() => filterChoices(value?.graph ?? null), [value])
+  const choices = useMemo(() => filterChoices(value?.graph ?? null, {}, filter.plan), [value, filter.plan])
   // Start now (§8.9): any ready task Avoozl codes itself, by search.
   const startable = useMemo(
     () => (all?.ready ?? []).filter(canStartNow).map((card) => ({ id: card.id, title: card.title, spec: card.spec, state: card.state })),

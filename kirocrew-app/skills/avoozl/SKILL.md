@@ -17,7 +17,9 @@ local or GitHub work.
 - Use Avoozl's CLI for deterministic validation and GitHub projection.
 - Use Kiro Crew sessions for planning, implementation, tests, and review.
 - Never start blocked work.
-- Never approve a plan for the user. Approval is the user's, on the exact revision.
+- Never approve a spec for the user. Approval is the user's, on the exact revision.
+- The page calls a plan a spec. Tool and operation names keep `plan`
+  (`plans_*`, `plan.*`); say spec when you talk to the user.
 - Never overwrite changed GitHub-managed fields silently.
 - Keep trigger and managed label names repository-configurable.
 - Write a trigger rule as `match`, one GitHub issue-search line using only
@@ -43,6 +45,18 @@ local or GitHub work.
 
 Use `avoozl help` to inspect the installed CLI surface before choosing commands.
 
+## Ideas
+
+An idea is a rough note that may become a spec later. It never runs work.
+
+- When the user has a half-formed thought worth keeping, save it with
+  `plans_intake` action `capture_idea`, input `{title, notes?, links?}`. You
+  are named as its author.
+- In a Riff on this chat, add a note or link only when the user agrees, with
+  action `add_idea_note`, input `{id, note?, link?}`. Make no other change.
+- Archiving, restoring, and Make it a spec are the user's, on the Avoozl
+  page. Never turn an idea into a spec folder yourself.
+
 ## Plan a goal
 
 Steps 1 to 4 of local delivery. The chat you are in runs these steps. Two
@@ -59,6 +73,13 @@ Steps 1 to 4 of local delivery. The chat you are in runs these steps. Two
 - Choose a spec name: lowercase letters, digits, and hyphens, at most 80
   characters, not already in `plans_specs`. The name is also the plan ID and
   the prefix of the spec's numbered task IDs.
+- Epics and phases are two things. An epic is a goal across plans: its own
+  spec folder whose manifest says `"kind": "epic"` and lists member plans in
+  `plan` entries; each member's front-matter says `epic: <epic>`. A phase is a
+  group of tasks inside one plan: a `## ` heading in `tasks.md`, or a
+  manifest `phase` value. Read them with `plans_plan` `epics` and `epic`.
+  Never write `kind: "epic"` inside a plan, an `epic` value on a task, or an
+  `epics` list: Avoozl refuses them.
 
 ### 2. Draft in a planner session
 
@@ -102,8 +123,8 @@ rounds and show the user what remains.
   planner, then store the revision again.
 - When validation fails twice, stop and show the user the diagnostics.
 - When it passes, show the user the graph, the critique findings, and the
-  revision hash. Tell them to approve that exact revision in the Avoozl Plans
-  view. Do not call `plans_approve_plan` yourself.
+  revision hash. Tell them to approve that exact revision on the Avoozl Specs
+  page. Do not call `plans_approve_plan` yourself.
 
 ### Briefs
 
@@ -183,8 +204,8 @@ When a deliver rule matched an issue and the user wants it delivered:
    `plans_classify_issue` `{repository, number, kind, reason}`. Bounded ends
    here: the issue stays its own leaf.
 2. Broad: run a draft planner session on a new spec folder, then an isolated
-   critique session, as in Plan a goal. The spec's one top-level epic item is
-   the issue itself; nest every child under it. Then call
+   critique session, as in Plan a goal. The spec's one top-level package item
+   is the issue itself; nest every child under it. Then call
    `plans_draft_children` `{repository, number, spec}`.
 3. The next GitHub sync (or `plans_advance_breakdowns`) posts one preview
    comment on the issue. Nothing else is written. An allowed actor approves

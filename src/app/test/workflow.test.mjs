@@ -90,8 +90,8 @@ test("stale approvals and cyclic dependencies leave no partial tasks, receipt or
     plan = await ops.execute("plan.create", {
       prompt: "Bad graph",
       text: markdown.replace(
-        '"epic":"sample"}',
-        '"epic":"sample","requires":["delivery"]}',
+        '"track":"catalog"}',
+        '"track":"catalog","requires":["delivery"]}',
       ),
     });
   const input = {

@@ -1,16 +1,22 @@
 // Work model fields from design §3.2 and §4.3. Rows written before these
 // fields existed are read through the defaults below; nothing rewrites them.
-export const TASK_KINDS = ["epic", "package", "leaf"];
+// An epic is a goal across plans, never a task (Requirement 59.7).
+export const TASK_KINDS = ["package", "leaf"];
 // Kinds stored before the work model. They read as leaves so that readiness
 // and dispatch of existing workspaces do not change.
-export const LEGACY_TASK_KINDS = ["task", "milestone"];
+// "epic" is a row approved before Requirement 59 (see taskKind).
+export const LEGACY_TASK_KINDS = ["task", "milestone", "epic"];
 export const COMPLETIONS = ["merged-pr", "integrated", "released", "answered"];
 const SOURCE = /^(?:local|github|plugin:[a-z][a-z0-9-]{0,60})$/;
 
 export const isSource = (value) =>
   typeof value === "string" && SOURCE.test(value);
 
+// shortcut: a row approved before Requirement 59 may still say "epic"; it
+// reads as the package it now is until its plan's next approval rewrites
+// it. No manifest or proposal can write "epic" any more.
 export function taskKind(task) {
+  if (task?.kind === "epic") return "package";
   return TASK_KINDS.includes(task?.kind) ? task.kind : "leaf";
 }
 
@@ -80,15 +86,15 @@ export function completionReached(task, level, complete) {
   if (!task) return false;
   if (!level) {
     if (
+      task.kind !== "epic" &&
       !TASK_KINDS.includes(task.kind) &&
       !COMPLETIONS.includes(task.completion)
     )
       return done;
     level = taskCompletion(task);
   }
-  // Epics and packages complete from their children (the tick records it).
-  if (task.childrenComplete && ["epic", "package"].includes(taskKind(task)))
-    return true;
+  // Packages complete from their children (the tick records it).
+  if (task.childrenComplete && taskKind(task) === "package") return true;
   if (level === "integrated" && task.integration?.commit) return true;
   // A GitHub leaf's verdict (§6.5): verified by its one merged, passing
   // closer, or done by an allowed actor's order, which satisfies every level.

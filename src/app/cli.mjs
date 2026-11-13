@@ -17,7 +17,11 @@ import { hookEvent, runnerHookBrief } from "./runner.mjs";
 import { validate } from "../model.mjs";
 import { planFiles } from "../catalog.mjs";
 import { reconcileSource } from "./source-sync.mjs";
-import { loadHostConfig, WorkspaceRegistry } from "./host-config.mjs";
+import {
+  loadHostConfig,
+  machineAvoozlPaths,
+  WorkspaceRegistry,
+} from "./host-config.mjs";
 
 // Reindex every plan file and stored document from the plans root.
 function generate(config) {
@@ -72,6 +76,13 @@ try {
         ].includes(key)
       )
         options[key] = true;
+      // `avoozl budget receipt TASK --json` prints the receipt object.
+      else if (
+        key === "json" &&
+        args[0] === "budget" &&
+        (args[i + 1] === undefined || args[i + 1].startsWith("--"))
+      )
+        options.json = true;
       // `plugins add --repository` is a bare flag; elsewhere it takes a value.
       else if (
         key === "repository" &&
@@ -160,6 +171,7 @@ try {
       operator: config.operator,
       workspaceRoot: config.workspaceRoot,
       plansRoot: config.plansRoot,
+      configDirectory: machineAvoozlPaths().configDirectory,
     });
   // Without a server, every CLI write goes through Operations in process.
   // `local` marks the caller as the person at this machine's command line.
@@ -498,10 +510,38 @@ try {
         deliver: () => ["intake.deliver", { source, id }],
         plan: () => ["intake.plan", { source, id }],
         confirm: () => ["intake.confirm", { source, id, hash: options.hash }],
+        // Ideas (R63): `intake idea add|note|archive|restore`; the second
+        // word is the idea action and the third the idea's id.
+        idea: () => {
+          const [, step, ideaId] = positionals,
+            ideaCalls = {
+              add: () => [
+                "idea.capture",
+                {
+                  title: options.title,
+                  ...(options.note ? { notes: options.note } : {}),
+                  ...(options.link ? { links: [options.link] } : {}),
+                },
+              ],
+              note: () => [
+                "idea.append",
+                {
+                  id: ideaId,
+                  ...(options.note ? { note: options.note } : {}),
+                  ...(options.link ? { link: options.link } : {}),
+                },
+              ],
+              archive: () => ["idea.archive", { id: ideaId }],
+              restore: () => ["idea.restore", { id: ideaId }],
+            };
+          if (!ideaCalls[step])
+            throw Error("Choose intake idea add, note, archive, or restore.");
+          return ideaCalls[step]();
+        },
       };
     if (!calls[action])
       throw Error(
-        "Choose intake list, view, submit, sources, deliver, plan, or confirm.",
+        "Choose intake list, view, submit, sources, deliver, plan, confirm, or idea.",
       );
     if (["view", "deliver", "plan", "confirm"].includes(action))
       need(source && id, `intake ${action} SOURCE ID`);
@@ -551,6 +591,52 @@ try {
         2,
       ),
     );
+  // Budgets and receipts (§4.17).
+  else if (command === "budget" && positionals[0] === "receipt") {
+    const receipt = await localOrRequest("budget.receipt", {
+      taskId: positionals[1],
+    });
+    if (options.json) console.log(JSON.stringify(receipt, null, 2));
+    else console.log(receiptText(receipt));
+  } else if (command === "budget" && positionals[0] === "view")
+    console.log(
+      JSON.stringify(await localOrRequest("budget.view", {}), null, 2),
+    );
+  else if (command === "budget" && positionals[0] === "raise")
+    console.log(
+      JSON.stringify(
+        await localOrRequest("budget.raise", {
+          taskId: positionals[1],
+          ...(options.usd !== undefined ? { usd: Number(options.usd) } : {}),
+          ...(options.tokens !== undefined
+            ? { tokens: Number(options.tokens) }
+            : {}),
+          ...(options.credits !== undefined
+            ? { credits: Number(options.credits) }
+            : {}),
+        }),
+        null,
+        2,
+      ),
+    );
+  else if (
+    command === "budget" &&
+    ["stop", "acknowledge", "switch-to-stop"].includes(positionals[0])
+  )
+    console.log(
+      JSON.stringify(
+        await localOrRequest(
+          {
+            stop: "budget.stop",
+            acknowledge: "budget.acknowledge",
+            "switch-to-stop": "budget.switchToStop",
+          }[positionals[0]],
+          { taskId: positionals[1] },
+        ),
+        null,
+        2,
+      ),
+    );
   else if (command === "flow" && positionals[0] === "stop")
     console.log(
       JSON.stringify(
@@ -593,9 +679,21 @@ try {
         await localOrRequest("flow.view", {
           ...(options.repository ? { repository: options.repository } : {}),
           ...(options.epic ? { epic: options.epic } : {}),
+          ...(options.plan ? { plan: options.plan } : {}),
+          ...(options.phase ? { phase: options.phase } : {}),
           ...(options.window ? { window: Number(options.window) } : {}),
           ...(options.stage ? { stage: options.stage } : {}),
         }),
+        null,
+        2,
+      ),
+    );
+  else if (command === "epics" || command === "epic")
+    console.log(
+      JSON.stringify(
+        command === "epic"
+          ? await localOrRequest("epic.get", { id: positionals[0] })
+          : await localOrRequest("epic.list"),
         null,
         2,
       ),
@@ -1201,6 +1299,9 @@ try {
   intake sources                        Declared intake sources and their read state
   intake deliver|plan SOURCE ID         Deliver this or Plan this on an item (a person only)
   intake confirm SOURCE ID --hash H     Confirm an item's changed text, H from intake view (a person only)
+  intake idea add --title T [--note N] [--link URL]  Save an idea; it never runs work
+  intake idea note ID [--note N] [--link URL]  Add a note or link to an open idea
+  intake idea archive|restore ID        Archive or restore an idea (a person only)
   plugins [list]                        Declared plugins, their approval and health
   plugins add ID --path DIR|--package NAME|--git URL --ref REF [--subdir DIR] [--contract 1] [--config JSON] [--repository [--confirm-public]]
   plugins update ID                     Resolve a git plugin's ref again and fetch that commit
@@ -1209,8 +1310,16 @@ try {
   plugins pack-preview ID [--repo OWNER/REPO]  What importing a plugin's pack would create, change, or keep
   plugins pack-import ID --preview HASH [--repo OWNER/REPO] [--accept-lowered] [--confirm-public]  Import the exact preview
   next [--hook]                         Crew Mode buckets: ready, running, waiting, needsYou, done
-  flow [--repository ID] [--epic ID] [--window N] [--stage STAGE] Where delivery time goes (§4.11)
+  flow [--repository ID] [--epic ID] [--plan ID [--phase ID]] [--window N] [--stage STAGE] Where delivery time goes (§4.11)
+  epics                                 Epics across plans, each with member plans and computed progress
+  epic ID                               One epic: goal, what done means, member plans, open decisions
   flow run-anyway STOP_ID --confirm     Resume dispatch while a line stop stays open (a person only)
+  budget receipt TASK [--json]          A task's usage receipt: spend by stage, model and attempt (§4.17)
+  budget view                           Every task's spend against its cap
+  budget raise TASK [--usd N] [--tokens N] [--credits N]
+                                        Raise a task's cap (a person only)
+  budget stop|acknowledge|switch-to-stop TASK
+                                        Act on a budget stop or an over-budget task (a person only)
   flow stop --scope all|repo|spec|task [--repository ID] [--spec ID] [--task ID] --reason TEXT
                                         Pull the Andon cord: stop new work in a scope
   flow stop --full --reason TEXT        Stop all agents: also stop every running chat Avoozl opened (needs the app backend)
@@ -1271,4 +1380,23 @@ override workspace configuration. UI, CLI and MCP share application operations.`
   console.error(error.message);
   process.exitCode =
     command === "session-hook" || (command === "next" && options.hook) ? 0 : 1;
+}
+
+// A receipt as a few lines of text, for the terminal.
+function receiptText(r) {
+  const usd = (n) => (n == null ? "no cap" : `$${Number(n).toFixed(2)}`);
+  const lines = [
+    `${r.taskId}: ${usd(r.totals.usd)} of ${usd(r.cap.usd)} (${r.cap.mode}, cap from ${r.cap.level || "nowhere"})`,
+    `Tokens ${Math.round(r.totals.input + r.totals.output)}, credits ${r.totals.credits}, unpriced turns ${r.totals.unpricedTurns}`,
+    `Prices: version ${r.price.version}${r.readAt ? `; last usage read ${r.readAt}` : ""}`,
+  ];
+  if (!r.complete)
+    lines.push(
+      `Incomplete: ${[...new Set(r.missing.map((m) => m.reason))].join(", ")}`,
+    );
+  for (const row of r.byStage)
+    lines.push(
+      `  ${row.stage}: ${usd(row.usd)}${row.priced ? "" : " (some unpriced)"}`,
+    );
+  return lines.join("\n");
 }

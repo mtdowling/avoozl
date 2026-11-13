@@ -14,7 +14,9 @@ export interface ChatSeed {
   items?: ItemRef[]
   tasks?: string[]
   plan?: string
-  purpose?: 'resolve' | 'discuss-plan'
+  // An idea's id, for Riff on this (R63.8).
+  idea?: string
+  purpose?: 'resolve' | 'discuss-plan' | 'riff-idea'
 }
 
 export interface ItemRef {

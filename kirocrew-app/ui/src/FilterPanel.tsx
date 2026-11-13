@@ -13,7 +13,7 @@ import type { Option } from './filters.ts'
 
 export type FilterField =
   | { kind: 'search'; key: string; label: string; value: string; placeholder: string; onChange: (value: string) => void }
-  | { kind: 'select'; key: string; label: string; value: string; options: Option[]; onChange: (value: string) => void }
+  | { kind: 'select'; key: string; label: string; value: string; options: Option[]; onChange: (value: string) => void; disabled?: boolean; hint?: string }
   // A task or spec: the searchable picker (§8.9), with '' for All.
   | { kind: 'pick'; key: string; label: string; value: string; items: PickItem[]; onChange: (value: string) => void }
   | {
@@ -52,7 +52,7 @@ function Field({ id, field }: { id: string; field: FilterField }) {
       </label>
     )
   if (field.kind === 'select')
-    return <FilterSelect id={fieldId} label={field.label} value={field.value} options={field.options} onChange={field.onChange} />
+    return <FilterSelect id={fieldId} label={field.label} value={field.value} options={field.options} onChange={field.onChange} disabled={field.disabled} hint={field.hint} />
   if (field.kind === 'pick')
     return <Picker id={fieldId} label={field.label} items={field.items} value={field.value} onPick={field.onChange} emptyLabel="All" maxWidth="16rem" />
   if (field.kind === 'check')

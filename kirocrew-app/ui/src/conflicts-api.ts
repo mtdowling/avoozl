@@ -68,7 +68,7 @@ export function withoutSettled(items: ConflictItem[], action: SettleAction, resu
 // A review group with fewer tasks left, titled to match.
 function reviewGroup(item: ConflictItem, tasks: NonNullable<ConflictItem['tasks']>): ConflictItem {
   const n = tasks.length
-  return { ...item, tasks, title: `Review ${n} ${n === 1 ? 'task' : 'tasks'} in ${item.plan ?? 'this plan'}: their design text changed` }
+  return { ...item, tasks, title: `Review ${n} ${n === 1 ? 'task' : 'tasks'} in ${item.plan ?? 'this spec'}: their design text changed` }
 }
 
 // One line for the result: how many were settled, and each refusal's reason.
@@ -89,10 +89,12 @@ export function noActionReason(item: ConflictItem): string | null {
         ? 'Avoozl fills Avoozl state and already wrote its value back. Move the card’s Status instead. This clears when the task’s state next changes.'
         : 'GitHub owns the issue state. Reopen or close it on GitHub; Avoozl reads the result on its next tick.'
   if (item.kind === 'resource') return 'Two active runs share a resource. Stop one run, or wait for one to finish.'
-  if (item.kind === 'tracker-conflict') return 'The tracker record owns this field. Change it there or in the plan.'
+  if (item.kind === 'tracker-conflict') return 'The tracker record owns this field. Change it there or in the spec.'
   if (item.kind === 'content-unavailable')
     return 'Add or fix this rule set’s terms file or plugin on this machine. Avoozl checks again on the next tick.'
   if (item.kind === 'content-match') return null
+  // Budget items carry their own actions (Budget.tsx BudgetActions).
+  if (item.kind === 'budget' || item.kind === 'over-budget') return null
   if (item.kind === 'needs-human' && item.reason === 'hand-set-review')
     return 'Discuss it, mark it done, or move it back to planned from the task.'
   if (item.kind === 'review' && settleActionOf(item) === null)

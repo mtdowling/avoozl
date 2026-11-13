@@ -43,6 +43,8 @@ export {
   Info,
   LayoutDashboard,
   LayoutGrid,
+  // Lightbulb is in the host's lucide-react export (checked 2026-11-13).
+  Lightbulb,
   MessageSquare,
   MessagesSquare,
   Network,

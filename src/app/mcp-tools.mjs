@@ -27,6 +27,10 @@ const tools = {
         "delivery.settings.get",
         "the writer agent and model and pull request feedback settings",
       ],
+      budget_settings: [
+        "budget.settings.get",
+        "per-task budget caps and modes for the workspace and each repository",
+      ],
       conversation_settings: [
         "conversations.settings.get",
         "conversation settings",
@@ -89,6 +93,10 @@ const tools = {
       queue: ["queue", "ready work, resource conflicts, queued integration"],
       next: ["runner.next", "what a Crew Mode conductor does next"],
       query: ["query", "search tasks"],
+      receipt: [
+        "budget.receipt",
+        "one task's usage receipt: {taskId}; counts and dollars only",
+      ],
     },
   },
   plans_plan: {
@@ -97,6 +105,11 @@ const tools = {
     actions: {
       list: ["plan.list", "stored plans"],
       table: ["plan.table", "plans grouped with progress"],
+      epics: ["epic.list", "epics across plans with computed progress"],
+      epic: [
+        "epic.get",
+        "one epic: goal, what done means, member plans, decisions: {id}",
+      ],
       specs: ["plan.specs", "spec folders on disk"],
       get: ["plan.get", "one plan, its revisions and receipts"],
       read_spec: ["plan.spec.read", "a spec folder's documents"],
@@ -225,6 +238,14 @@ const tools = {
         "incoming items: {source?, kind?, state?, untriaged?, offset?}",
       ],
       item: ["intake.view", "one incoming item: {source, id}"],
+      capture_idea: [
+        "idea.capture",
+        "save a rough idea that never runs work: {title, notes?, links?}",
+      ],
+      add_idea_note: [
+        "idea.append",
+        "add a note or link to an open idea: {id, note?, link?}",
+      ],
       sources: [
         "intake.sources",
         "declared intake sources and their read state",

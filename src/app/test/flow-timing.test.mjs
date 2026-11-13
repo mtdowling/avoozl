@@ -79,8 +79,13 @@ test("flow settings: defaults, per-repository overrides, and refused keys", () =
   assert.equal(policy.workspace.batch.max, 5);
   assert.equal(
     policy.workspace.batch.by,
-    "epic",
+    "phase",
     "a missing key is its default",
+  );
+  // "epic" was the old name; it is refused naming "phase" (R59.11).
+  assert.throws(
+    () => flowPolicy({ flow: { batch: { by: "epic" } } }),
+    /"phase"/,
   );
   assert.equal(policy.workspace.stopTheLine.scope, "dependents");
   assert.equal(policy.for("app").stopTheLine.scope, "repo");

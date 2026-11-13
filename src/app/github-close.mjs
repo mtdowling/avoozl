@@ -11,7 +11,12 @@ import {
   check as checkContent,
   contentBinding,
 } from "./content-rules.mjs";
-import { taskKind, taskRepository } from "../work-model.mjs";
+import {
+  completionReached,
+  taskAuthority,
+  taskKind,
+  taskRepository,
+} from "../work-model.mjs";
 import { inspectGitHubTaskCompletion } from "./github-completion.mjs";
 import {
   parseMarker,
@@ -650,7 +655,7 @@ export async function closeGitHubParents(store, github) {
   const writers = writerRepositories(store);
   for (const parent of store.read().tasks) {
     if (
-      !["epic", "package"].includes(taskKind(parent)) ||
+      taskKind(parent) !== "package" ||
       !parent.childrenComplete ||
       parent.githubClosedAt ||
       !parent.github?.number ||
@@ -670,5 +675,50 @@ export async function closeGitHubParents(store, github) {
       draft.tasks.find((t) => t.id === parent.id).githubClosedAt =
         new Date().toISOString();
     });
+  }
+}
+
+// Plan and epic issues (Requirement 59.8): Avoozl closes a plan issue once
+// every task of its plan is complete, and an epic issue once every member
+// plan's issue is closed. No pull request closes either, in either mode.
+export async function closePlanAndEpicIssues(store, github) {
+  const writers = writerRepositories(store),
+    data = store.read(),
+    complete = (status) => statusComplete(data, status),
+    receipts = store
+      .list("receipts")
+      .filter((row) => row.kind === "github-parent"),
+    close = async (row) => {
+      if (row.closedAt || !writers.has(row.repository)) return;
+      const issue = await github.issue(row.repository, row.number);
+      if (issue.state !== "closed")
+        await github.updateIssue(row.repository, row.number, {
+          state: "closed",
+          state_reason: "completed",
+        });
+      store.put("receipts", { ...row, closedAt: new Date().toISOString() });
+      row.closedAt = true;
+    };
+  for (const row of receipts.filter((entry) => entry.level === "plan")) {
+    const tasks = data.tasks.filter(
+      (task) =>
+        task.planId === row.planId &&
+        taskAuthority(task) !== "local" &&
+        !task.archivedAt &&
+        task.status !== "superseded",
+    );
+    if (
+      tasks.length &&
+      tasks.every((task) => completionReached(task, null, complete))
+    )
+      await close(row);
+  }
+  for (const row of receipts.filter((entry) => entry.level === "epic")) {
+    const epic = (data.epics || []).find((entry) => entry.id === row.parentId),
+      members = (epic?.plans || []).map((id) =>
+        receipts.find((entry) => entry.level === "plan" && entry.planId === id),
+      );
+    if (members.length && members.every((entry) => entry?.closedAt))
+      await close(row);
   }
 }
