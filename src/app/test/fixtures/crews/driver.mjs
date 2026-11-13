@@ -9,7 +9,23 @@ import fs from "node:fs";
 import path from "node:path";
 import { recordCrewSnapshot } from "../../../crews.mjs";
 
-export const FAKE_SSH = path.join(import.meta.dirname, "fake-ssh.mjs");
+// Git runs GIT_SSH_COMMAND through sh, which reads `\` as an escape.
+export const FAKE_SSH = path
+  .join(import.meta.dirname, "fake-ssh.mjs")
+  .replaceAll("\\", "/");
+
+// A crew folder is a POSIX path on that crew (crews.mjs). The fake crew is
+// this machine, so on Windows its folders use Git sh's /c/... form, which
+// sh turns back into C:/... when it runs git.
+const windows = process.platform === "win32";
+export const crewFolder = (folder) =>
+  windows
+    ? folder
+        .replace(/^([A-Za-z]):[\\/]/, (_, drive) => `/${drive.toLowerCase()}/`)
+        .replaceAll("\\", "/")
+    : folder;
+const localFolder = (folder) =>
+  windows && folder ? folder.replace(/^\/([A-Za-z])\//, "$1:/") : folder;
 
 const git = (cwd, ...args) =>
   execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
@@ -70,7 +86,7 @@ export function crewDriver(
     // A remote session's own clone, under the fake crew's folder.
     clone(session, url, base) {
       const folder =
-        session.placement?.back?.folder ||
+        localFolder(session.placement?.back?.folder) ||
         path.join(
           root,
           "remote",

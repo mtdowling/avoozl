@@ -233,11 +233,12 @@ test("the tick never fetches: it reads only the pinned folder", async (t) => {
   approve(options);
   // Take the repository and git itself away; loading still works.
   fs.renameSync(repo, `${repo}-gone`);
-  // PATH keeps only lsof, which the listener check needs.
+  // PATH keeps only lsof, which the listener check needs outside Linux
+  // (/proc) and Windows (netstat by full path).
   const savedPath = process.env.PATH,
     bin = path.join(path.dirname(gitRoot), "..", "only-lsof");
   fs.mkdirSync(bin, { recursive: true });
-  if (process.platform !== "linux")
+  if (!["linux", "win32"].includes(process.platform))
     fs.symlinkSync(
       execFileSync("sh", ["-c", "command -v lsof"], {
         encoding: "utf8",
@@ -286,7 +287,13 @@ test("refused: a subdir that leaves the repository, no manifest, unshipped depen
   git("add", ".");
   git("commit", "-q", "-m", "Refusals");
   for (const [subdir, pattern] of [
-    ["escape", /leaves the repository/],
+    // Git for Windows checks a symlink out as a file (core.symlinks off).
+    [
+      "escape",
+      process.platform === "win32"
+        ? /leaves the repository|is not a folder/
+        : /leaves the repository/,
+    ],
     ["empty", /has no avoozl-plugin.json in empty/],
     ["missing", /has no folder missing/],
     ["plugin", /does not ship \(left-pad\).*runs no npm install/],
@@ -322,7 +329,8 @@ test("git hooks and init templates from the person's config never run", async (t
       );
   fs.writeFileSync(
     gitConfig,
-    `[core]\n\thooksPath = ${hooks}\n[init]\n\ttemplateDir = ${template}\n`,
+    // Forward slashes: git config reads `\` as an escape.
+    `[core]\n\thooksPath = ${hooks.replaceAll("\\", "/")}\n[init]\n\ttemplateDir = ${template.replaceAll("\\", "/")}\n`,
   );
   const added = await addGitPlugin(options, { entry: entry() });
   assert.equal(added.state, "unapproved");

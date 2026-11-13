@@ -301,6 +301,7 @@ tests with a fake GitHub, fake sessions, or fake crews, run by `npm test`.
 | Flow: timing, stop the line, batching, retros        | Fakes only (P30)                                      |
 | Andon cord                                           | Fakes only                                            |
 | Routing, model router, agent and model per task      | Fakes only (P29, P33); remote crews wait on Kiro Crew |
+| Provider health and Switch model                     | Fakes only (P44); Kiro Crew's model change not called |
 | Pull request feedback                                | Fakes only (P34)                                      |
 | Spec Builder hand-off                                | Fakes only                                            |
 | Stacked pull requests, comment steering, Discussions | Fakes only                                            |

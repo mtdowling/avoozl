@@ -425,6 +425,7 @@ export const CONFLICT_LABELS: Record<string, string> = {
   'content-unavailable': 'Rule set unavailable',
   budget: 'Budget reached',
   'over-budget': 'Over budget',
+  'provider-out': 'Provider out',
 }
 
 // A local task that is not already replaced may be superseded by hand. GitHub

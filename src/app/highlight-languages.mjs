@@ -63,7 +63,7 @@ export function highlightLanguages(workspaceRoot) {
     return { languages, problems };
   let root;
   try {
-    root = fs.realpathSync(workspaceRoot);
+    root = fs.realpathSync.native(workspaceRoot);
   } catch {
     return { languages, problems };
   }
@@ -72,7 +72,7 @@ export function highlightLanguages(workspaceRoot) {
       if (!NAME.test(name)) throw Error("is not a fence name");
       if (typeof file !== "string" || !file || path.isAbsolute(file))
         throw Error("must name a file inside the workspace");
-      const target = fs.realpathSync(path.resolve(root, file));
+      const target = fs.realpathSync.native(path.resolve(root, file));
       if (!inside(root, target))
         throw Error("must name a file inside the workspace");
       if (fs.statSync(target).size > MAX_FILE)

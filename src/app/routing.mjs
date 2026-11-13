@@ -18,6 +18,7 @@ import {
   staleSecondsInput,
   writeMachineFile,
 } from "./crews.mjs";
+import { healthContext } from "./provider-health.mjs";
 import {
   choiceKey,
   chooseSession,
@@ -26,6 +27,7 @@ import {
   placedRole,
   presetOf,
   routingConfig,
+  sessionSource,
   subjectOf,
   validateRouting,
   validateTrackedRouting,
@@ -133,6 +135,10 @@ export function routingContext(store, options = {}) {
     // The owner set a local chat limit: it caps local sessions even with
     // no rule (P29 action 1).
     localLimit: machine.crews[LOCAL]?.chatLimit ?? null,
+    // Provider health (§4.20): empty unless something is marked.
+    health:
+      options.health ??
+      healthContext(store, { machineFile: file ?? undefined, now }),
   };
 }
 
@@ -360,9 +366,21 @@ export function placeOne(store, data, ctx, state, input) {
     reserved: state.choices,
     kept,
     skipModels,
+    health: ctx.health,
     agentAvailable: (agent) =>
       allowed.some((id) => hasAgent(byId.get(id), agent)),
   });
+  // Every model the task may use is out (R72.5): it waits, with no no-fit
+  // decision; Needs you already shows the provider.
+  if (session.wait && session.health)
+    return {
+      wait: true,
+      noFit: false,
+      why: session.reason,
+      removed,
+      evaluation,
+      session,
+    };
   if (session.wait) {
     // An agent no allowed crew has, or no model apart from a reviewer's.
     if (!session.distinct)
@@ -479,6 +497,19 @@ export function placeOne(store, data, ctx, state, input) {
     },
     crewInfo: picked.crew,
   };
+}
+
+// The models a task's own session choices name, in order (§4.20 Running
+// chats): a switch tries these before the fallback list.
+export function choiceModels(ctx, data, task, role = "worker") {
+  const { source } = sessionSource({
+    task,
+    role: placedRole(role) || role,
+    rules: ctx.config.rules,
+    subject: subjectOf(task, data, placedRole(role) || role),
+  });
+  if (!source) return [];
+  return (source.choices || [source]).map((c) => c.model).filter(Boolean);
 }
 
 // Whether the hard rules alone let `task`'s worker run on `crewId`: a batch
@@ -622,6 +653,15 @@ export async function routingPreview(store, data, options = {}) {
           role: "worker",
           project,
           policy: options.policy,
+          // The writer never takes a review role's model (R53.7), so Preview
+          // shows the pick the tick would make.
+          skipModels: (
+            options.policy?.repositories?.[taskRepository(task)]?.reviewers ??
+            options.policy?.reviewers ??
+            []
+          )
+            .filter((r) => r.distinctFrom === "model" && r.model)
+            .map((r) => r.model),
           preview: true,
         });
       return {

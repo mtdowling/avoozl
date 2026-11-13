@@ -41,7 +41,9 @@ class OnboardGitHub extends FakeGitHub {
 }
 
 function checkout(remote) {
-  const root = fs.realpathSync(temporaryDirectory("avoozl-onboard-code-"));
+  const root = fs.realpathSync.native(
+    temporaryDirectory("avoozl-onboard-code-"),
+  );
   const git = (...args) =>
     execFileSync("git", args, { cwd: root, stdio: "ignore" });
   git("init", "-q", "-b", "main");

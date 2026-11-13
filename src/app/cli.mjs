@@ -66,6 +66,8 @@ try {
           "no-epic",
           "push",
           "accept-lowered",
+          "confirm-public",
+          "untriaged",
         ].includes(key)
       )
         options[key] = true;
@@ -76,6 +78,12 @@ try {
         (args[i + 1] === undefined || args[i + 1].startsWith("--"))
       )
         options.json = true;
+      // `plugins add --repository` is a bare flag; elsewhere it takes a value.
+      else if (
+        key === "repository" &&
+        (args[i + 1] === undefined || args[i + 1].startsWith("--"))
+      )
+        options[key] = true;
       else {
         if (args[i + 1] === undefined || args[i + 1].startsWith("--"))
           throw Error("Missing value for --" + key);
@@ -93,14 +101,14 @@ try {
     env.AICOMMANDER_WORKSPACE ||
     env.NUPP_WORKSPACE;
   let registeredWorkspaceId = null,
-    machineHost = null,
     configOptions = options;
   if (
     typeof requestedWorkspace === "string" &&
     /^[a-z][a-z0-9-]{0,60}$/.test(requestedWorkspace)
   ) {
-    machineHost = loadHostConfig({ env }).config;
-    const registered = machineHost.workspaces[requestedWorkspace];
+    const registered = loadHostConfig({ env }).config.workspaces[
+      requestedWorkspace
+    ];
     if (registered) {
       registeredWorkspaceId = requestedWorkspace;
       configOptions = { ...options, workspace: registered.root };
@@ -117,32 +125,22 @@ try {
   const requireLocalMaintenancePath = (action) => {
     if (!registeredWorkspaceId) return;
     throw Error(
-      `${action} is a local-only maintenance operation and cannot use registered workspace ID ${registeredWorkspaceId}. Stop the Avoozl host, then pass the workspace root path explicitly.`,
+      `${action} is a local-only maintenance operation and cannot use registered workspace ID ${registeredWorkspaceId}. Pass the workspace root path explicitly.`,
     );
   };
   const request = async (operation, input = {}, expectedRevision) => {
-    const hostEndpoint = registeredWorkspaceId
-      ? machineHost.url ||
-        `http://127.0.0.1:${machineHost.port || config.port || 9428}`
-      : endpoint;
-    const response = await fetch(
-      registeredWorkspaceId
-        ? hostEndpoint +
-            "/api/workspaces/" +
-            encodeURIComponent(registeredWorkspaceId) +
-            "/operations/" +
-            encodeURIComponent(operation)
-        : hostEndpoint + "/api/command",
-      {
+    let response;
+    try {
+      response = await fetch(endpoint + "/api/command", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          registeredWorkspaceId
-            ? { input, expectedRevision }
-            : { operation, input, expectedRevision },
-        ),
-      },
-    );
+        body: JSON.stringify({ operation, input, expectedRevision }),
+      });
+    } catch {
+      throw Error(
+        `No Avoozl server answered at ${endpoint}. Drop --url and AVOOZL_URL to act on the workspace database directly.`,
+      );
+    }
     const result = await response.json();
     if (!response.ok) throw Error(result.error);
     return result.result;
@@ -153,15 +151,16 @@ try {
       : options.json
         ? JSON.parse(options.json)
         : {};
-  // A running server is used only when one is named or there is no local
-  // database; otherwise commands and the stdio MCP server act in process.
+  // A server is used only when one is named. Otherwise commands and the
+  // stdio MCP server act in process on the workspace database, a registered
+  // workspace ID naming its root.
   const useServer = () =>
-    registeredWorkspaceId ||
-    options.url ||
-    process.env.AVOOZL_URL ||
-    process.env.AICOMMANDER_URL ||
-    process.env.NUPP_WORKSPACE_URL ||
-    !fs.existsSync(dbPath);
+    Boolean(
+      options.url ||
+        process.env.AVOOZL_URL ||
+        process.env.AICOMMANDER_URL ||
+        process.env.NUPP_WORKSPACE_URL,
+    );
   const localOperations = (store) =>
     new Operations(store, {
       operator: config.operator,
@@ -170,16 +169,26 @@ try {
     });
   // Without a server, every CLI write goes through Operations in process.
   // `local` marks the caller as the person at this machine's command line.
-  const localOrRequest = async (operation, input = {}) => {
-    if (useServer()) return request(operation, input);
+  const localOrRequest = async (operation, input = {}, expectedRevision) => {
+    if (useServer()) return request(operation, input, expectedRevision);
+    requireDatabase();
     const store = new Store(dbPath);
     try {
-      return await localOperations(store).execute(operation, input, undefined, {
-        local: true,
-      });
+      return await localOperations(store).execute(
+        operation,
+        input,
+        expectedRevision,
+        { local: true },
+      );
     } finally {
       store.close();
     }
+  };
+  // A required positional or option, refused with its usage when missing.
+  const need = (value, usage) => {
+    if (value === undefined || value === true || value === "")
+      throw Error("Usage: avoozl " + usage);
+    return value;
   };
   if (command === "init") {
     if (!positionals[0])
@@ -200,7 +209,15 @@ try {
     process.stdout.write(workflowSkill(config));
   } else if (command === "import") {
     requireLocalMaintenancePath("Import");
-    const snapshot = JSON.parse(fs.readFileSync(positionals[0], "utf8"));
+    const snapshot = JSON.parse(
+      fs.readFileSync(
+        need(
+          positionals[0],
+          "import SNAPSHOT.json --workspace PATH [--dry-run]",
+        ),
+        "utf8",
+      ),
+    );
     const store = new Store(dbPath);
     try {
       console.log(
@@ -277,6 +294,7 @@ try {
   } else if (command === "mcp" && !useServer()) {
     // A stdio MCP server for one workspace: the same plans_* tools, served in
     // process from the workspace database with no web server running.
+    requireDatabase();
     const store = new Store(dbPath),
       ops = localOperations(store),
       lines = readline.createInterface({ input: process.stdin });
@@ -316,13 +334,7 @@ try {
       store.close();
     }
   } else if (command === "mcp") {
-    const mcpEndpoint = registeredWorkspaceId
-      ? (machineHost.url ||
-          `http://127.0.0.1:${machineHost.port || config.port || 9428}`) +
-        "/api/workspaces/" +
-        encodeURIComponent(registeredWorkspaceId) +
-        "/mcp"
-      : endpoint + "/mcp";
+    const mcpEndpoint = endpoint + "/mcp";
     const lines = readline.createInterface({ input: process.stdin });
     for await (const line of lines) {
       let message;
@@ -355,6 +367,11 @@ try {
         `Avoozl app backend listening on 127.0.0.1:${server.address().port}`,
       ),
     );
+    server.once("error", (error) => {
+      console.error(`The app backend cannot listen: ${error.message}`);
+      process.exitCode = 1;
+      server.close();
+    });
   } else if (command === "plugins") {
     // Settings' plugin actions at the command line (design §4.8). Approval
     // names the hash `plugins list` showed, so a person approves what they saw.
@@ -414,6 +431,7 @@ try {
       throw Error(
         "Choose plugins list, add, update, approve, disable, enable, remove, pack-preview, or pack-import.",
       );
+    if (action !== "list") need(id, `plugins ${action} ID ...`);
     console.log(
       JSON.stringify(await localOrRequest(...calls[action]()), null, 2),
     );
@@ -425,8 +443,17 @@ try {
     const [action = "list", id] = positionals,
       calls = {
         list: () => ["content.rules", {}],
-        allow: () => ["content.allow", { id, reason: options.reason }],
-        show: () => ["content.show", { id }],
+        allow: () => [
+          "content.allow",
+          {
+            id: need(id, "content allow DECISION_ID --reason TEXT"),
+            reason: options.reason,
+          },
+        ],
+        show: () => [
+          "content.show",
+          { id: need(id, "content show DECISION_ID") },
+        ],
         check: () => [
           "content.check",
           {
@@ -462,7 +489,15 @@ try {
           "intake.submit",
           {
             source: options.source,
-            items: JSON.parse(fs.readFileSync(options.file, "utf8")),
+            items: JSON.parse(
+              fs.readFileSync(
+                need(
+                  options.file,
+                  "intake submit --source ID --file ITEMS.json",
+                ),
+                "utf8",
+              ),
+            ),
           },
         ],
         sources: () => ["intake.sources", {}],
@@ -474,6 +509,8 @@ try {
       throw Error(
         "Choose intake list, view, submit, sources, deliver, plan, or confirm.",
       );
+    if (["view", "deliver", "plan", "confirm"].includes(action))
+      need(source && id, `intake ${action} SOURCE ID`);
     console.log(
       JSON.stringify(await localOrRequest(...calls[action]()), null, 2),
     );
@@ -583,7 +620,9 @@ try {
   else if (command === "flow" && positionals[0] === "resume")
     console.log(
       JSON.stringify(
-        await localOrRequest("flow.resume", { stopId: positionals[1] }),
+        await localOrRequest("flow.resume", {
+          stopId: need(positionals[1], "flow resume STOP_ID"),
+        }),
         null,
         2,
       ),
@@ -592,7 +631,7 @@ try {
     console.log(
       JSON.stringify(
         await localOrRequest("flow.runAnyway", {
-          stopId: positionals[1],
+          stopId: need(positionals[1], "flow run-anyway STOP_ID --confirm"),
           confirm: options.confirm === true,
         }),
         null,
@@ -706,27 +745,21 @@ try {
         2,
       ),
     );
-  else if (command === "health")
-    console.log(
-      JSON.stringify(
-        await (
-          await fetch(
-            registeredWorkspaceId
-              ? (machineHost.url ||
-                  `http://127.0.0.1:${
-                    machineHost.port || config.port || 9428
-                  }`) +
-                  "/api/workspaces/" +
-                  encodeURIComponent(registeredWorkspaceId) +
-                  "/health"
-              : endpoint + "/api/health",
-          )
-        ).json(),
-        null,
-        2,
-      ),
-    );
-  else if (command === "rebuild")
+  else if (command === "health") {
+    // The app backend answers /health; an older server answers /api/health.
+    let response;
+    try {
+      response = await fetch(endpoint + "/health");
+      if (response.status === 404)
+        response = await fetch(endpoint + "/api/health");
+    } catch {
+      throw Error(
+        `No Avoozl server answered at ${endpoint}. Pass --url URL for a running app backend, or run avoozl check --workspace PATH to validate the database.`,
+      );
+    }
+    console.log(JSON.stringify(await response.json(), null, 2));
+    if (!response.ok) process.exitCode = 1;
+  } else if (command === "rebuild")
     console.log(
       JSON.stringify(
         await localOrRequest("workspace.rebuild", {
@@ -784,7 +817,10 @@ try {
       operation =
         action === "project" ? "github.project" : "github.project.preview";
       value = {
-        planId: options.plan || positionals[1],
+        planId: need(
+          options.plan || positionals[1],
+          `github ${action} PLAN_ID [--repository OWNER/REPO]`,
+        ),
         repository: options.repository,
       };
     } else if (action === "start") {
@@ -1025,7 +1061,10 @@ try {
       console.log(
         JSON.stringify(
           await localOrRequest("planning.publish", {
-            planId: options.plan || positionals[1],
+            planId: need(
+              options.plan || positionals[1],
+              "planning publish PLAN_ID",
+            ),
           }),
           null,
           2,
@@ -1051,7 +1090,9 @@ try {
   } else if (command === "show")
     console.log(
       JSON.stringify(
-        await localOrRequest("task.get", { id: positionals[0] }),
+        await localOrRequest("task.get", {
+          id: need(positionals[0], "show TASK_ID"),
+        }),
         null,
         2,
       ),
@@ -1080,7 +1121,10 @@ try {
     console.log(
       JSON.stringify(
         await localOrRequest("task.supersede", {
-          id: positionals[1],
+          id: need(
+            positionals[1],
+            "task supersede TASK_ID [--title TITLE] ...",
+          ),
           create,
           ...(options.reason ? { reason: options.reason } : {}),
         }),
@@ -1089,7 +1133,9 @@ try {
       ),
     );
   } else if (command === "update") {
-    const task = await localOrRequest("task.get", { id: positionals[0] }),
+    const task = await localOrRequest("task.get", {
+        id: need(positionals[0], "update TASK_ID [--status STATUS] ..."),
+      }),
       value = { id: task.id };
     for (const key of [
       "status",
@@ -1114,7 +1160,7 @@ try {
     console.log(
       JSON.stringify(
         await localOrRequest("activity", {
-          id: positionals[0],
+          id: need(positionals[0], "activity TASK_ID --action ACTION ..."),
           action: options.action || "start",
           owner: options.owner,
           sessionId: options["session-id"],
@@ -1140,7 +1186,7 @@ try {
       }
       hook = JSON.parse(text || "{}");
     }
-    const result = await request("session.register", {
+    const result = await localOrRequest("session.register", {
       taskId:
         options.task ||
         process.env.AVOOZL_TASK ||
@@ -1184,7 +1230,7 @@ try {
   workspace-repo publish [--dry-run]     Safely publish portable planning state
   workspace-repo sync                    Hydrate from the configured private repo
   workspace-repo status                  Show portable repository revisions
-  andon                                  Where pause and resume went (rule actions)
+  andon                                 Where the old andon gate went (rule actions and flow stop)
   planning publish PLAN_ID               Open a private planning pull request
   planning reconcile                     Project tasks from merged planning PRs
   query [--q QUERY] | show TASK_ID | update TASK_ID --status STATUS
@@ -1237,25 +1283,46 @@ try {
   backup --workspace PATH --output FILE  Local-only; registered IDs are refused
   export --workspace PATH [--output FILE] Local-only; registered IDs are refused
   import SNAPSHOT.json --workspace PATH [--dry-run] Local-only; registered IDs are refused
-  generate | check | health --workspace PATH
+  generate | check --workspace PATH    Reindex Markdown; validate the task graph
+  health [--url URL]                    Ask a running app backend whether it is up
   OPERATION --json JSON [--revision N] --workspace PATH
   OPERATION --input FILE --workspace PATH
 
 Use --workspace PATH or AVOOZL_WORKSPACE to choose data independently
 of the application checkout. --db, --documents, --port, --operator and --url
 override workspace configuration. UI, CLI and MCP share application operations.`);
-  else
-    console.log(
-      JSON.stringify(
-        await request(
-          command,
-          input(),
-          options.revision ? Number(options.revision) : undefined,
-        ),
-        null,
-        2,
-      ),
+  else if (["task", "checks", "crews"].includes(command))
+    throw Error(
+      {
+        task: "Choose task supersede.",
+        checks: "Choose checks run.",
+        crews: "Choose crews set.",
+      }[command],
     );
+  else {
+    if (!useServer() && !fs.existsSync(dbPath))
+      throw Error(
+        `${command} is not a command; run avoozl help. Operations need a workspace: avoozl init PATH, then use --workspace PATH.`,
+      );
+    try {
+      console.log(
+        JSON.stringify(
+          await localOrRequest(
+            command,
+            input(),
+            options.revision ? Number(options.revision) : undefined,
+          ),
+          null,
+          2,
+        ),
+      );
+    } catch (error) {
+      if (!/^Unknown operation /.test(error.message)) throw error;
+      throw Error(
+        `Unknown command or operation ${command}. Run avoozl help for commands.`,
+      );
+    }
+  }
 } catch (error) {
   console.error(error.message);
   process.exitCode =

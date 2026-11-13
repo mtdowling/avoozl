@@ -27,24 +27,23 @@ const ACTIVE_RUN_STATES = new Set([
   "waiting-approval",
 ]);
 
-function configHome({ env, home, platform }) {
-  if (platform === "win32")
-    return path.resolve(
-      env.LOCALAPPDATA || env.APPDATA || path.join(home, "AppData", "Local"),
-    );
-  return env.XDG_CONFIG_HOME
-    ? path.resolve(env.XDG_CONFIG_HOME)
-    : path.join(home, ".config");
-}
+// The platform's own path rules, so a Windows layout can be computed (and
+// tested) on any host. An explicit XDG folder wins on every platform, which
+// is how tests and portable setups move Avoozl's machine files.
+const pathFor = (platform) => (platform === "win32" ? path.win32 : path.posix);
+const localAppData = ({ env, home, platform }) =>
+  pathFor(platform).resolve(
+    env.LOCALAPPDATA ||
+      env.APPDATA ||
+      pathFor(platform).join(home, "AppData", "Local"),
+  );
 
-function stateHome({ env, home, platform }) {
-  if (platform === "win32")
-    return path.resolve(
-      env.LOCALAPPDATA || env.APPDATA || path.join(home, "AppData", "Local"),
-    );
-  return env.XDG_STATE_HOME
-    ? path.resolve(env.XDG_STATE_HOME)
-    : path.join(home, ".local", "state");
+function configHome({ env, home, platform }) {
+  const p = pathFor(platform);
+  if (env.XDG_CONFIG_HOME) return p.resolve(env.XDG_CONFIG_HOME);
+  return platform === "win32"
+    ? localAppData({ env, home, platform })
+    : p.join(home, ".config");
 }
 
 export function machineAvoozlPaths({
@@ -52,19 +51,18 @@ export function machineAvoozlPaths({
   home = os.homedir(),
   platform = process.platform,
 } = {}) {
-  const configDirectory = path.join(
-    configHome({ env, home, platform }),
-    "avoozl",
-  );
-  const stateDirectory =
-    platform === "win32"
-      ? path.join(stateHome({ env, home, platform }), "avoozl", "state")
-      : path.join(stateHome({ env, home, platform }), "avoozl");
+  const p = pathFor(platform);
+  const configDirectory = p.join(configHome({ env, home, platform }), "avoozl");
+  const stateDirectory = env.XDG_STATE_HOME
+    ? p.join(p.resolve(env.XDG_STATE_HOME), "avoozl")
+    : platform === "win32"
+      ? p.join(localAppData({ env, home, platform }), "avoozl", "state")
+      : p.join(home, ".local", "state", "avoozl");
   return {
     configDirectory,
-    configPath: path.join(configDirectory, "config.json"),
+    configPath: p.join(configDirectory, "config.json"),
     stateDirectory,
-    catalogPath: path.join(stateDirectory, "catalog.sqlite"),
+    catalogPath: p.join(stateDirectory, "catalog.sqlite"),
   };
 }
 
@@ -145,7 +143,10 @@ function normalizeRepositories(
       } catch {
         throw Error(`Repository ${id} is not a Git checkout: ${resolved}`);
       }
-      if (fs.realpathSync(checkoutRoot) !== fs.realpathSync(resolved))
+      if (
+        fs.realpathSync.native(checkoutRoot) !==
+        fs.realpathSync.native(resolved)
+      )
         throw Error(
           `Repository ${id} must bind the checkout root, not a subdirectory: ${resolved}`,
         );
@@ -162,7 +163,7 @@ function normalizeWorkspace(id, value, { validatePaths = false } = {}) {
   let root = path.resolve(value.root);
   if (validatePaths) {
     safeDirectory(root, `Workspace ${id}`);
-    root = fs.realpathSync(root);
+    root = fs.realpathSync.native(root);
   }
   const enabled = value.enabled !== false;
   const maxConcurrentRuns =
@@ -538,17 +539,17 @@ export class WorkspaceRegistry {
       validatePaths: true,
     });
     validateWorkspaceFiles(id, candidate.root, { writeIdentity });
-    const candidateRoot = fs.realpathSync(candidate.root);
+    const candidateRoot = fs.realpathSync.native(candidate.root);
     const candidateRepositories = new Set(
       Object.values(candidate.repositories).map((root) =>
-        fs.realpathSync(root),
+        fs.realpathSync.native(root),
       ),
     );
     for (const [otherId, other] of Object.entries(this.config.workspaces)) {
       if (otherId === id) continue;
       if (
         fs.existsSync(other.root) &&
-        fs.realpathSync(other.root) === candidateRoot
+        fs.realpathSync.native(other.root) === candidateRoot
       )
         throw Error(
           `Workspaces ${otherId} and ${id} use the same root: ${candidateRoot}`,
@@ -556,10 +557,10 @@ export class WorkspaceRegistry {
       for (const repositoryRoot of Object.values(other.repositories || {}))
         if (
           fs.existsSync(repositoryRoot) &&
-          candidateRepositories.has(fs.realpathSync(repositoryRoot))
+          candidateRepositories.has(fs.realpathSync.native(repositoryRoot))
         )
           throw Error(
-            `Editable checkout ${fs.realpathSync(
+            `Editable checkout ${fs.realpathSync.native(
               repositoryRoot,
             )} is already bound to workspace ${otherId}.`,
           );
@@ -595,7 +596,8 @@ export class WorkspaceRegistry {
     for (const [otherId, other] of Object.entries(this.config.workspaces)) {
       if (
         fs.existsSync(other.root) &&
-        fs.realpathSync(other.root) === fs.realpathSync(candidate.root)
+        fs.realpathSync.native(other.root) ===
+          fs.realpathSync.native(candidate.root)
       )
         throw Error(
           `Workspaces ${otherId} and ${id} use the same root: ${candidate.root}`,
@@ -603,12 +605,12 @@ export class WorkspaceRegistry {
       const otherRepositories = new Set(
         Object.values(other.repositories || {})
           .filter((repositoryRoot) => fs.existsSync(repositoryRoot))
-          .map((repositoryRoot) => fs.realpathSync(repositoryRoot)),
+          .map((repositoryRoot) => fs.realpathSync.native(repositoryRoot)),
       );
       for (const repositoryRoot of Object.values(candidate.repositories))
-        if (otherRepositories.has(fs.realpathSync(repositoryRoot)))
+        if (otherRepositories.has(fs.realpathSync.native(repositoryRoot)))
           throw Error(
-            `Editable checkout ${fs.realpathSync(
+            `Editable checkout ${fs.realpathSync.native(
               repositoryRoot,
             )} is already bound to workspace ${otherId}.`,
           );
@@ -652,14 +654,16 @@ export class WorkspaceRegistry {
       existing = this.config.workspaces[id];
     if (
       existing &&
-      fs.realpathSync(existing.root) !== fs.realpathSync(candidate.root)
+      fs.realpathSync.native(existing.root) !==
+        fs.realpathSync.native(candidate.root)
     )
       throw Error(`Workspace ${id} is already registered at ${existing.root}.`);
     for (const [otherId, other] of Object.entries(this.config.workspaces))
       if (
         otherId !== id &&
         fs.existsSync(other.root) &&
-        fs.realpathSync(other.root) === fs.realpathSync(candidate.root)
+        fs.realpathSync.native(other.root) ===
+          fs.realpathSync.native(candidate.root)
       )
         throw Error(
           `Workspace root ${candidate.root} is already registered as ${otherId}.`,

@@ -18,13 +18,16 @@ import { temporaryDirectory } from "./temporary.mjs";
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
 
 const FIXTURE = path.join(import.meta.dirname, "fixtures", "plugins");
+// A node script, not a .sh file: Windows cannot exec a shell script directly.
+const CHECK_ARGV = ["node", "scripts/check.mjs"],
+  CHECK = CHECK_ARGV.join(" ");
 
 const leaf = (summary, extra = {}) => ({
   kind: "leaf",
   repository: "app",
   summary,
   acceptance: [summary],
-  checks: ["scripts/check.sh"],
+  checks: [CHECK],
   completion: "integrated",
   ...extra,
 });
@@ -59,11 +62,8 @@ async function workspace(t) {
   git(checkout, "config", "user.name", "Test");
   git(checkout, "config", "user.email", "test@example.com");
   fs.writeFileSync(
-    path.join(checkout, "scripts", "check.sh"),
-    "#!/bin/sh\nexit 0\n",
-    {
-      mode: 0o755,
-    },
+    path.join(checkout, "scripts", "check.mjs"),
+    "process.exit(0);\n",
   );
   git(checkout, "add", ".");
   git(checkout, "commit", "-m", "Start");
@@ -100,7 +100,7 @@ async function workspace(t) {
     id: "app",
     root: checkout,
     baseBranch: "main",
-    checks: [["scripts/check.sh"]],
+    checks: [CHECK_ARGV],
   });
   writeSpec(root, "chain", spec);
   await ops.execute("plan.create", { spec: "chain" });
@@ -121,7 +121,7 @@ async function workspace(t) {
   return { root, store, ops, remote };
 }
 
-const passed = [{ command: "scripts/check.sh", exitCode: 0 }];
+const passed = [{ command: CHECK, exitCode: 0 }];
 const defaults = (role) =>
   role === "worker"
     ? async ({ session, worktree, report }) => {
