@@ -264,6 +264,7 @@ const SETTINGS = {
   "content.sets.update": "content rule set",
   "content.terms.update": "content rule terms",
   "activity.settings.update": "activity",
+  "providers.settings.update": "provider",
 };
 
 const scopeText = (stop) =>
@@ -340,6 +341,20 @@ function operationRow(name, input, result) {
       kind: "model.switch",
       summary: `Pick again: ${id}'s next attempt chooses its agent and model`,
       targetId: id,
+    };
+  // Switch model (§4.20): the queue and the undo; each chat's switch is
+  // logged by provider-health.mjs when the backend applies it.
+  if (name === "provider.switch") {
+    const to = text(input?.to, 100);
+    return {
+      kind: "model.switch",
+      summary: `Switch model: queued ${Number(result?.queued) || 0} running chats to ${to}${input?.alsoNewTasks === true ? ", and new tasks" : ""}`,
+    };
+  }
+  if (name === "provider.health.clear")
+    return {
+      kind: "model.switch",
+      summary: `Undid provider mark ${id}`,
     };
   if (name === "delivery.settings.update") {
     const model = text(input?.delivery?.model, 100);
