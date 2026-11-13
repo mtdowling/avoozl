@@ -250,7 +250,7 @@ repository's "needs human" label (`crew: needs human` unless Issue Radar's
 settings say otherwise). Crews use your `gh` login, so on GitHub their
 labels and closes look like yours.
 
-**Send to Issue Radar.** In the Untriaged tab, select issues from one
+**Send to Issue Radar.** In the Intake tab, select issues from one
 repository and press **Send selected to Issue Radar**, or use the row's
 crew button. Pick a crew, check the label and the issues, then press **Add
 label**. Avoozl checks your login against the repository's `allowedActors`
@@ -278,10 +278,70 @@ yours by label, not by login:
 - Adding or removing a crew label never makes a rule true, and a rule may
   not use a crew label as a trigger.
 - The "needs human" label shows under **Needs you** with a link to the
-  issue, both for Avoozl tasks and for issues sent from Untriaged.
+  issue, both for Avoozl tasks and for issues sent from Intake.
 
 Labels a crew watches are set in Issue Radar. Labels it writes are set under
 `crewLabels` (`claim`, `needsHuman`) when yours differ from the defaults.
+
+## Bring in work from other trackers and scripts
+
+GitHub is one source of incoming items. A tracker plugin with `poll` is
+another (see the Intake part in `docs/plugins.md`), and so is anything you
+script, through MCP. Every item lands in the **Intake** tab with its
+source; **Untriaged** is that tab's default filter.
+
+Declare a script's source with `via: mcp`, here in this machine's
+`plugins.json` so the name stays off a public repository:
+
+```json
+{
+  "intake": {
+    "sources": {
+      "script": { "via": "mcp", "repository": "example/app" }
+    }
+  }
+}
+```
+
+A Kiro Crew cron job that reads a system no plugin covers then sends what
+it found with the `plans_intake` tool, action `submit_items`:
+
+```json
+{
+  "action": "submit_items",
+  "input": {
+    "source": "script",
+    "items": [
+      {
+        "id": "Q-17",
+        "kind": "ticket",
+        "link": "https://tickets.example.test/Q-17",
+        "title": "Export fails on an empty sheet",
+        "body": "Steps to reproduce ...",
+        "labels": ["hold"],
+        "state": "open",
+        "updatedAt": "2026-11-12T20:01:00Z"
+      }
+    ]
+  }
+}
+```
+
+The reply has one result per item: `created`, `updated`, `unchanged`,
+`stale` (older than the stored one) or `refused` with the field it broke.
+The same items from the command line: `avoozl intake submit --source script
+--file items.json`.
+
+An MCP caller is you, on this computer, but Avoozl cannot tell who wrote an
+item at its source, and a chat may be passing on text it read. So its
+items are listed, may meet `pause` and `quarantine` rules (`label:hold
+source:script`), and never start work by themselves. Press **Deliver this**
+or **Plan this** on the item in the Intake tab, or run `avoozl intake
+deliver script Q-17`. MCP cannot submit to `github` or to a plugin's source,
+and a close it reports holds the item's dependents for you to decide.
+
+Avoozl writes nothing back to these sources. A closed item that no task
+holds is deleted 30 days after it closed.
 
 ## Later GitHub features, each off by default
 

@@ -11,8 +11,11 @@ import { createHash } from "node:crypto";
 import { gatewayClient } from "./gateway-client.mjs";
 import { fail } from "./store.mjs";
 
-// app.json notifications.channels ids.
+// app.json notifications.channels ids. The Intake tab's channel keeps its
+// first id, `untriaged`, so a person's channel settings carry over; `intake`
+// is accepted as its other name.
 export const CHANNELS = new Set(["decision", "failure", "untriaged"]);
+const CHANNEL_ALIASES = new Map([["intake", "untriaged"]]);
 const MAX_TITLE = 200;
 const MAX_BODY = 2000;
 
@@ -34,11 +37,12 @@ const clip = (text, max) => {
 // The push body for one tick notice {channel, task?, slot?, title, text,
 // resume}: what stopped, why, the action that resumes work, and the link.
 export function notificationPayload(notice) {
-  if (!CHANNELS.has(notice?.channel))
-    fail("Choose notification channel decision or failure.");
+  const channel = CHANNEL_ALIASES.get(notice?.channel) ?? notice?.channel;
+  if (!CHANNELS.has(channel))
+    fail("Choose notification channel decision, failure or untriaged.");
   const body = [notice.text, notice.resume].filter(Boolean).join("\n\n");
   return {
-    channel: notice.channel,
+    channel,
     title: clip(notice.title || notice.text, MAX_TITLE),
     body: clip(body, MAX_BODY),
     url: sessionUrl(notice.slot),

@@ -66,6 +66,9 @@ const OBSERVE = new Set([
   "delivery.view",
   "conflicts.view",
   "untriaged.view",
+  "intake.list",
+  "intake.view",
+  "intake.sources",
   "flow.view",
   "flow.settings.get",
   "untriaged.crews",
@@ -121,6 +124,7 @@ const DRAFT = new Set([
 ]);
 
 const EXECUTE = new Set([
+  "intake.submit",
   "driver.open",
   "driver.context",
   "run.start",
@@ -172,6 +176,10 @@ const PROTECT = new Set([
   "github.settings.update",
   "untriaged.handoff",
   "review.chat",
+  "intake.deliver",
+  "intake.plan",
+  "intake.source.add",
+  "intake.source.remove",
   "github.setup",
   "github.setup.cancel",
   "local.ignore.fix",

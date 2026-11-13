@@ -61,6 +61,12 @@ import { blockerNotes } from "./github-close.mjs";
 import { refreshUntriaged } from "./untriaged.mjs";
 import { pluginHealth, recordHealth } from "./plugin-session.mjs";
 import { repositoryPlugins } from "./plugins.mjs";
+import {
+  pollSources,
+  purgeClosed,
+  sourceMap,
+  validateIntake,
+} from "./intake.mjs";
 import { settleUnavailable, validateContentRules } from "./content-rules.mjs";
 import { statusComplete } from "../query.mjs";
 import {
@@ -95,6 +101,7 @@ function parsePolicy(text) {
   flowPolicy(value);
   repositoryPlugins(value);
   validateContentRules(value.contentRules);
+  validateIntake(value.intake);
   return value;
 }
 
@@ -489,6 +496,41 @@ async function projectStep(store, github, workspaceRoot) {
   }
 }
 
+// Plugin intake sources (§4.12). A failed poll shows on its source and
+// stops nothing else; closed items no task holds go after 30 days.
+async function pollStep(store, plugins, planned, workspaceRoot) {
+  let sources;
+  try {
+    sources = sourceMap(
+      { workspaceRoot, settingsFile: plugins.options?.settingsFile },
+      store,
+    );
+  } catch (error) {
+    planned.notify.push({
+      channel: "failure",
+      title: "Avoozl could not read its intake sources",
+      text: error.message,
+    });
+    return;
+  }
+  if ([...sources.values()].some((source) => source.plugin)) {
+    const session = plugins.open();
+    try {
+      const polled = await pollSources(
+        store,
+        session,
+        sources,
+        readGitHubPolicyOrNull(workspaceRoot),
+      );
+      planned.notify.push(...polled.notify);
+    } finally {
+      await session.close();
+    }
+    recordHealth(store, session.report());
+  }
+  purgeClosed(store);
+}
+
 // [id, kind] for each plugin an unfinished task names as its route or its
 // authority.
 function referencedPlugins(data) {
@@ -700,6 +742,9 @@ export async function tick(
             ? await pluginStep(store, plugins, planned, workspaceRoot)
             : null,
         pluginReport = pluginResult?.report;
+      // Incoming items from plugin sources (§4.12): one poll per source,
+      // before dispatch, so a delivered item's leaf can start this tick.
+      if (script && plugins) await pollStep(store, plugins, planned, workspaceRoot);
       // After a restart, and on every tick, nothing new is dispatched until
       // every live session this cron opened has been observed in the roster.
       // Without a roster (a stock Kiro Crew), a session counts as observed

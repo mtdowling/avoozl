@@ -97,6 +97,8 @@ export function readPluginSettings(file) {
     approvals: record(value.approvals) ? value.approvals : {},
     disabled: Array.isArray(value.disabled) ? value.disabled : [],
     pins: record(value.pins) ? value.pins : {},
+    // This machine's intake sources (design §4.12), kept through plugin edits.
+    ...(record(value.intake) ? { intake: value.intake } : {}),
   };
 }
 

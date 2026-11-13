@@ -11,6 +11,7 @@ import {
   requireDefaultBranch,
 } from "./github-policy.mjs";
 import { breakdownHold, nextBreakdown } from "./github-breakdown.mjs";
+import { labelEffects, mirrorGitHubIssue, WAITING_REASON } from "./intake.mjs";
 
 const taskFence = () => /^```task\s*\r?\n([\s\S]*?)^```\s*$/gm;
 
@@ -179,7 +180,14 @@ export function ensureInbox(data) {
     data.tracks.push({ id: "catalog", label: "General" });
 }
 
-function applyIssueTask(data, record, parsed, config, marker) {
+function applyIssueTask(
+  data,
+  record,
+  parsed,
+  config,
+  marker,
+  { labels = [], repository = null } = {},
+) {
   ensureInbox(data);
   const existing = marker
     ? data.tasks.find((task) => task.id === marker.taskId)
@@ -224,8 +232,15 @@ function applyIssueTask(data, record, parsed, config, marker) {
     bodyHash: record.bodyHash,
     pullRequests: record.pullRequests || [],
   };
-  // A broad issue, or one whose dependency text awaits approval, is held.
-  const hold = record.state === "authorized" && breakdownHold(record.breakdown);
+  // A broad issue, or one whose dependency text awaits approval, is held;
+  // so is one with a waiting label (Waiting on the author).
+  const { waiting, labelRank } = labelEffects(repository, labels),
+    hold =
+      record.state === "authorized" &&
+      (breakdownHold(record.breakdown) ||
+        (waiting ? { state: "waiting", reason: WAITING_REASON } : null));
+  if (labelRank === null) delete task.labelRank;
+  else task.labelRank = labelRank;
   task.dispatch = {
     ready: record.state === "authorized" && !hold,
     state: hold ? hold.state : record.state,
@@ -622,6 +637,8 @@ export async function syncGitHubIssues(
         : previous?.breakdown;
       if (breakdown) record.breakdown = breakdown;
       store.transaction(() => {
+        // The issue is also a `github` incoming item (R50.4).
+        record.item = mirrorGitHubIssue(store, config.id, issue, record);
         store.put("github_issues", record);
         const data = structuredClone(store.read());
         if (
@@ -629,7 +646,12 @@ export async function syncGitHubIssues(
           marker ||
           data.tasks.some((task) => task.id === record.taskId)
         ) {
-          applyIssueTask(data, record, parsed, config, marker);
+          applyIssueTask(data, record, parsed, config, marker, {
+            labels: (issue.labels || []).map((label) =>
+              typeof label === "string" ? label : label?.name,
+            ),
+            repository: configured,
+          });
           store.commit(data, "Synchronize " + config.id + "#" + issue.number);
         }
       });

@@ -341,26 +341,77 @@ avoozl plugins pack-import sdk-team --preview HASH [--accept-lowered]
 ## Intake part
 
 An intake source is a tracker kind with the `poll` capability, listed in
-`provides` as `intake`:
+`provides` as `intake`. The fake tracker (`fake-tracker/`) is the example:
+its `poll` reads a JSON file of items and returns those changed since the
+cursor.
 
 | Call                    | Reply                                                                   |
 | ----------------------- | ----------------------------------------------------------------------- |
 | `poll({cursor, limit})` | `{items, cursor, more}`: items changed since `cursor`, at most `limit` |
 
+```js
+export const tracker = {
+  poll({ cursor, limit }, { config }) {
+    const changed = readItems(config).filter(
+      (item) => !cursor || mark(item) > cursor,
+    );
+    const page = changed.slice(0, limit);
+    return {
+      items: page,
+      cursor: page.length ? mark(page.at(-1)) : cursor,
+      more: changed.length > page.length,
+    };
+  },
+};
+```
+
 - `cursor` is your own text of at most 2,000 characters, or null on the
   first poll. Return the cursor for the next poll and `more: true` when a
-  page is left.
+  page is left. Avoozl asks for at most 500 items, polls each source at most
+  once per tick, and stores the new cursor only after every item of the
+  reply is handled, so a crash replays the same page. A failed poll keeps
+  the cursor and the items and shows the error on the source.
 - Each item has `id`, `link` (`http` or `https`), `kind` (`issue`, `pr`,
   `review` or `ticket`), `title`, `state` (`open` or `closed`), and
   `updatedAt`; and may have `body`, `labels`, `author`, `assignees`,
-  `closeReason`, `closedBy`, `closedAt` and `fields` (text, number or
-  true/false values). An item that breaks a limit is refused with a reason
-  naming the field; the other items of the reply still count.
+  `closeReason`, `closedBy`, `closedAt`, `fields` (text, number or
+  true/false values) and `trigger`. An item that breaks a limit is refused
+  with a reason naming the field; the other items of the reply still count.
+- `trigger` is `{actor, permission, eventId, at}`: who last changed what a
+  rule would match, and that person's standing in your system, mapped to
+  `none`, `read`, `triage`, `write`, `maintain` or `admin`. Avoozl checks it
+  against the source's `allowedActors` and `minimumPermission` (default
+  `write`). Without the `actor` capability nobody counts, so your items only
+  list, pause or quarantine. A close counts as an order only when
+  `closedBy` is the trigger's actor and that actor counts.
 - A plugin that provides `intake` but not `tracker` is never asked to
-  `project`, `read`, `list` or `close`.
-- The contract is in place now. Storing items, the trigger rules over them
-  and the Untriaged list for every source come with incoming items
-  (Requirement 50).
+  `project`, `read`, `list` or `close`. Avoozl writes nothing back to an
+  intake source.
+
+Declare the source under `intake.sources`, in `.avoozl.json` or in this
+machine's `plugins.json` when its name must stay private:
+
+```json
+{
+  "intake": {
+    "sources": {
+      "tickets": {
+        "via": "plugin:fake-tracker",
+        "repository": "example/app",
+        "labelFields": ["component"],
+        "minimumPermission": "write"
+      }
+    }
+  }
+}
+```
+
+`repository` names a registered repository: its trigger rules apply, and a
+delivered item's task lands there. A rule matches a source's items only
+with a `source:` term, such as `label:go source:tickets`; a rule without
+one matches GitHub only. `labelFields` adds a `<field>:<value>` label per
+field and `assigneeField` an assignee before matching. Items no rule takes
+show in the **Intake** tab with their source.
 
 ## Testing your plugin
 
@@ -368,3 +419,4 @@ Copy the fake plugins' approach: keep the remote system in a file or a local
 stand-in, declare the plugin in a temporary `plugins.json`, approve its hash,
 and run ticks. Avoozl's proof P26 does exactly this with the two fakes, and
 proof P35 installs, previews, imports and polls the `sdk-team` bundle.
+Proof P32 polls the fake tracker as an intake source.

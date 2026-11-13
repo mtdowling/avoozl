@@ -152,6 +152,48 @@
         ]
       }
     },
+    "intake": {
+      "description": "Sources other than GitHub that bring incoming items in (design §4.12). Declare a source whose name must stay private in this machine's plugins.json instead.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sources": {
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^[a-z][a-z0-9-]{0,60}$",
+            "not": { "enum": ["github", "local"] }
+          },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["via", "repository"],
+            "properties": {
+              "via": {
+                "type": "string",
+                "description": "plugin:<id> for a tracker plugin with poll, or mcp for callers of intake.submit.",
+                "pattern": "^(mcp|plugin:[a-z][a-z0-9-]{0,60})$"
+              },
+              "repository": {
+                "type": "string",
+                "description": "The registered workspace repository whose rules apply and where a delivered item's task lands."
+              },
+              "labelFields": {
+                "type": "array",
+                "items": { "type": "string", "minLength": 1 }
+              },
+              "assigneeField": { "type": "string", "minLength": 1 },
+              "allowedActors": {
+                "type": "array",
+                "items": { "type": "string", "minLength": 1 }
+              },
+              "minimumPermission": {
+                "enum": ["read", "triage", "write", "maintain", "admin"]
+              }
+            }
+          }
+        }
+      }
+    },
     "delivery": {
       "description": "Turns on readiness dispatch of local leaves by the tick. Limits count sessions the tick opened that have not finished.",
       "type": "object",
@@ -810,6 +852,24 @@
         },
         "priority": {
           "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "priorityLabels": {
+          "type": "array",
+          "description": "Labels in priority order. They order tasks inside Ready and Up next, never the lane. The newer name for priority; set only one of the two.",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "waitingLabels": {
+          "type": "array",
+          "description": "Labels that mean the item waits on someone outside, such as response-requested. A task whose item has one waits in Blocked or waiting with the reason Waiting on the author.",
           "uniqueItems": true,
           "items": {
             "type": "string",

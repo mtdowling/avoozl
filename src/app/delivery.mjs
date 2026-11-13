@@ -1209,14 +1209,15 @@ export function graphOrder(data) {
 }
 
 // The order the tick dispatches ready leaves in: tasks a person asked to
-// start now (task.start) first, then rank (priority labels), then graph
+// start now (task.start) first, then rank (a set rank, else the place of
+// its item's best priority label, intake.mjs labelEffects), then graph
 // order. The page's Up next list sorts by the same comparator (graph.view
 // `order`), so the two never disagree.
 export function dispatchOrder(data, first = [], order = graphOrder(data)) {
   const head = new Map(first.map((id, i) => [id, i])),
-    pin = (task) => (head.has(task.id) ? head.get(task.id) : first.length);
-  return (a, b) =>
-    pin(a) - pin(b) || (a.rank ?? 1000) - (b.rank ?? 1000) || order(a, b);
+    pin = (task) => (head.has(task.id) ? head.get(task.id) : first.length),
+    rank = (task) => task.rank ?? task.labelRank ?? 1000;
+  return (a, b) => pin(a) - pin(b) || rank(a) - rank(b) || order(a, b);
 }
 
 // Meta key for task.start's list; read by readyLeaves.

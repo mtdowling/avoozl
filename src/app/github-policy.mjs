@@ -200,7 +200,11 @@ function ruleInput(value, label) {
             optional: true,
           }),
           unassigned: false,
+          source: null,
         };
+  // Avoozl writes nothing to a non-GitHub source yet (R50.20).
+  if (fields.source && value.action === "respond")
+    fail(`${label} is a respond rule, which cannot use source:; Avoozl answers on GitHub only.`);
   const rule = {
     id: value.id,
     action: value.action,
@@ -270,6 +274,8 @@ function repositoryInput(value, id, mode) {
       "concurrency",
       "dependencyText",
       "priority",
+      "priorityLabels",
+      "waitingLabels",
       "managedLabels",
       "crewLabels",
       "rules",
@@ -346,10 +352,19 @@ function repositoryInput(value, id, mode) {
     fail(
       `${label} has a respond rule, so managedLabels.responding must name its label.`,
     );
-  const priority = names(value.priority, `${label}.priority`);
-  for (const entry of priority)
+  // `priorityLabels` is the newer name for `priority`; both are one list.
+  if (value.priority !== undefined && value.priorityLabels !== undefined)
+    fail(`${label} has both priority and priorityLabels; use only priorityLabels.`);
+  const priorityKey = value.priorityLabels !== undefined ? "priorityLabels" : "priority",
+    priority = names(value[priorityKey], `${label}.${priorityKey}`),
+    // Labels that mean "waiting on someone outside": the task waits with
+    // the reason "Waiting on the author" while one is on its item.
+    waitingLabels = names(value.waitingLabels, `${label}.waitingLabels`);
+  for (const entry of [...priority, ...waitingLabels])
     if (managedNames.has(lower(entry)))
-      fail(`${label}.priority cannot use managed label ${entry}.`);
+      fail(
+        `${label}.${priority.includes(entry) ? priorityKey : "waitingLabels"} cannot use managed label ${entry}.`,
+      );
   const crewInput = onlyKeys(
       value.crewLabels ?? {},
       CREW_LABEL_KEYS,
@@ -406,9 +421,17 @@ function repositoryInput(value, id, mode) {
     concurrency: value.concurrency ?? 1,
     dependencyText: value.dependencyText === true,
     priority,
+    waitingLabels,
     managedLabels: managed,
     crewLabels,
-    rules,
+    // GitHub's rules; a rule with source: matches only that intake
+    // source's items (design §4.12), so GitHub code never sees it.
+    rules: rules.filter((rule) => !rule.source),
+    // Set only when a rule names a source, so a policy without one keeps
+    // its old shape.
+    ...(rules.some((rule) => rule.source)
+      ? { sourceRules: rules.filter((rule) => rule.source) }
+      : {}),
     // Deferred features (task 8.2), each off by default.
     stackedPullRequests: value.stackedPullRequests === true,
     commentSteering,

@@ -132,12 +132,16 @@ const tools = {
     },
   },
   plans_intake: {
-    summary: "A person's requests and saved searches.",
+    summary: "A person's requests, saved searches, and incoming items from intake sources. Items submitted here are listed and may meet only pause and quarantine rules; Plan this and Deliver this are a person's, in the app.",
     actions: {
       capture: ["task.capture", "record a person's own request as untriaged"],
       submit: ["intent.submit", "submit an intent"],
       get: ["intent.get", "read an intent"],
       search_result: ["search.result", "keep a search result as a saved view"],
+      submit_items: ["intake.submit", "send 1-100 items to an mcp intake source: {source, items}"],
+      items: ["intake.list", "incoming items: {source?, kind?, state?, untriaged?, offset?}"],
+      item: ["intake.view", "one incoming item: {source, id}"],
+      sources: ["intake.sources", "declared intake sources and their read state"],
     },
   },
   plans_document: {

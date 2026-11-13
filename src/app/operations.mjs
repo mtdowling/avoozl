@@ -235,6 +235,18 @@ import {
   seenCheckNames,
 } from "./github-branch-rules.mjs";
 import { settleConflicts } from "./conflict-actions.mjs";
+import {
+  declaredSources,
+  editSource,
+  intakeTab,
+  listItems,
+  pollSources,
+  sourceRow as sourceRowOf,
+  sourceMap,
+  startByPerson,
+  submitItems,
+  viewItem,
+} from "./intake.mjs";
 import { highlightLanguages } from "./highlight-languages.mjs";
 import { importNewPlans, requestNewPlan } from "./new-plan.mjs";
 import {
@@ -729,6 +741,25 @@ export class Operations {
   }
   read() {
     return this.store.read();
+  }
+  // Check now for plugin sources: one poll each, under the tick's lock.
+  async pollNow() {
+    const sources = sourceMap(this.pluginOptions, this.store);
+    if (![...sources.values()].some((source) => source.plugin)) return;
+    await withWorkLock(this.store, WORKSPACE_LOCK, async () => {
+      const session = this.plugins.open();
+      try {
+        const polled = await pollSources(
+          this.store,
+          session,
+          sources,
+          readGitHubPolicyOrNull(this.workspaceRoot),
+        );
+        queueNotifications(this.store, polled.notify);
+      } finally {
+        await session.close();
+      }
+    });
   }
   // Tracker plugin tasks rebuilt from each approved tracker's `list` and the
   // approved spec folders the records pin (§3.3, R35.7). A plan row is
@@ -2027,14 +2058,80 @@ export class Operations {
         tasks = this.read().tasks;
       if (input.refresh === true && policy?.mode && this.github?.available?.())
         await refreshUntriaged(store, this.github, policy, tasks, { force: true });
-      return untriagedView(
-        policy,
-        tasks,
-        readCache(store),
-        Date.now(),
-        handoffReceipts(store),
-        reviewChats(store),
+      // Check now also polls each plugin source once (R50.16).
+      if (input.refresh === true && this.plugins)
+        await this.pollNow();
+      // The Intake tab: GitHub's Untriaged list plus every other source's
+      // items (design §4.12, §8.5).
+      return intakeTab(
+        untriagedView(
+          policy,
+          tasks,
+          readCache(store),
+          Date.now(),
+          handoffReceipts(store),
+          reviewChats(store),
+        ),
+        store,
+        declaredSources(this.pluginOptions, store),
       );
+    }
+    // Incoming items (§4.12). Submit runs the pipeline at once, under the
+    // tick's lock; list and view only read.
+    if (name === "intake.submit")
+      return withWorkLock(store, WORKSPACE_LOCK, async () => {
+        const { notify, ...result } = submitItems(
+          store,
+          sourceMap(this.pluginOptions, store),
+          readGitHubPolicyOrNull(this.workspaceRoot),
+          input,
+        );
+        queueNotifications(store, notify);
+        return result;
+      });
+    if (name === "intake.list") return listItems(store, input);
+    if (name === "intake.view") return viewItem(store, input);
+    if (name === "intake.sources")
+      return {
+        sources: declaredSources(this.pluginOptions, store).map(
+          ({ id, scope, entry, error }) => ({
+            id,
+            scope,
+            entry,
+            error,
+            state: id ? sourceRowOf(store, `source:${id}`) : null,
+          }),
+        ),
+      };
+    // Plan this and Deliver this (R50.15), and source settings: a person's.
+    if (
+      ["intake.deliver", "intake.plan", "intake.source.add", "intake.source.remove"].includes(name) &&
+      (context.caller || context.mcp)
+    )
+      fail(
+        name.startsWith("intake.source")
+          ? "Only a person changes intake sources, in Settings or the CLI."
+          : "Only a person starts work from an incoming item, in the Intake tab or the CLI.",
+        403,
+      );
+    if (name === "intake.deliver" || name === "intake.plan")
+      return withWorkLock(store, WORKSPACE_LOCK, async () =>
+        startByPerson(
+          store,
+          sourceMap(this.pluginOptions, store),
+          readGitHubPolicyOrNull(this.workspaceRoot),
+          { ...input, action: name === "intake.deliver" ? "deliver" : "plan" },
+        ),
+      );
+    if (name === "intake.source.add" || name === "intake.source.remove") {
+      if (!this.pluginOptions.workspaceRoot)
+        fail("Intake sources need a workspace root.", 409);
+      return {
+        sources: editSource(this.pluginOptions, {
+          ...input,
+          remove: name === "intake.source.remove",
+        }).map(({ id, scope, entry, error }) => ({ id, scope, entry, error })),
+      };
     }
     // Code review (§8.5): queue one review chat for a pull request; the
     // tick cron opens it. Person-only, like Send to Issue Radar.

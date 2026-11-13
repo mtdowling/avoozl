@@ -435,6 +435,38 @@ try {
     console.log(
       JSON.stringify(await localOrRequest(...calls[action]()), null, 2),
     );
+  } else if (command === "intake") {
+    // Incoming items (design §4.12). `submit` reads a JSON list of items for
+    // an mcp source; `deliver` and `plan` are a person's Deliver this and
+    // Plan this.
+    const [action = "list", source, id] = positionals,
+      calls = {
+        list: () => [
+          "intake.list",
+          {
+            ...(options.source ? { source: options.source } : {}),
+            ...(options.kind ? { kind: options.kind } : {}),
+            ...(options.state ? { state: options.state } : {}),
+            ...(options.untriaged ? { untriaged: true } : {}),
+          },
+        ],
+        view: () => ["intake.view", { source, id }],
+        submit: () => [
+          "intake.submit",
+          {
+            source: options.source,
+            items: JSON.parse(fs.readFileSync(options.file, "utf8")),
+          },
+        ],
+        sources: () => ["intake.sources", {}],
+        deliver: () => ["intake.deliver", { source, id }],
+        plan: () => ["intake.plan", { source, id }],
+      };
+    if (!calls[action])
+      throw Error("Choose intake list, view, submit, sources, deliver, or plan.");
+    console.log(
+      JSON.stringify(await localOrRequest(...calls[action]()), null, 2),
+    );
   } else if (command === "tick")
     console.log(
       JSON.stringify(await localOrRequest("workspace.tick"), null, 2),
@@ -1038,6 +1070,11 @@ try {
   content allow DECISION_ID --reason TEXT Allow one blocked write once (a person only)
   content show DECISION_ID              Read the matched line again from its source
   content check --push --task TASK_ID   The pre-push hook: refuse a push whose added lines match
+  intake [list] [--source ID] [--kind KIND] [--state open|closed] [--untriaged]  Incoming items
+  intake view SOURCE ID                 One incoming item, its route and history
+  intake submit --source ID --file ITEMS.json  Send 1-100 items to an mcp intake source
+  intake sources                        Declared intake sources and their read state
+  intake deliver|plan SOURCE ID         Deliver this or Plan this on an item (a person only)
   plugins [list]                        Declared plugins, their approval and health
   plugins add ID --path DIR|--package NAME|--git URL --ref REF [--subdir DIR] [--contract 1] [--config JSON] [--repository [--confirm-public]]
   plugins update ID                     Resolve a git plugin's ref again and fetch that commit
