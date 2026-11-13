@@ -250,6 +250,8 @@ safe pieces.
    graph, and an independent critique SHALL review it before approval.
 2. Every task SHALL have a stable ID that never changes after approval.
 3. Every task SHALL be classified as an epic, a work package, or a leaf.
+   (Changed 2026-11-13: a task is a package or a leaf; epics span plans,
+   Requirement 59.7.)
 4. Only leaves SHALL be dispatchable; epics and work packages SHALL complete
    only from their children.
 5. A leaf SHALL be bounded: one target repository, observable acceptance
@@ -451,7 +453,8 @@ with native dependencies, so that collaborators see the same graph.
    `owner/repo#number`.
 7. Epics and packages SHALL project as parent issues and their children as
    sub-issues. An epic SHALL get the owner's `Epic` issue type when the owner
-   has one, and no type otherwise.
+   has one, and no type otherwise. (Changed 2026-11-13: epic, plan issue,
+   then tasks, Requirement 59.8.)
 8. Blocking edges (`requires`, `sequence`) SHALL project as GitHub issue
    dependencies (blocked by). Avoozl-only detail, such as a `requires`
    completion level and advisory `supports` edges, SHALL live only in the
@@ -674,6 +677,7 @@ moved was Nupp's; its counts are in "Example workspace facts".)
    the unfinished work SHALL become issues in the private planning
    repository, epics as parent issues and their tasks as sub-issues, with
    blocking edges as issue dependencies.
+   (Changed 2026-11-13: the old work groups become phases, Requirement 59.13.)
 10. The workspace's milestones SHALL become values of the Project's Release
     field, and each issue's Release SHALL come from its milestone.
 11. Until cutover, the migration SHALL read the old database and fenced plan
@@ -940,6 +944,25 @@ on GitHub.
     option, map them through `statusValues`, and SHALL never remove or rename
     an existing option (Requirement 32). Avoozl SHALL NOT require other
     Status options. (Changed 2026-11-12.)
+18. Avoozl SHALL fill an optional single-select Project field, Avoozl state,
+    with the task's Delivery lane: Ready, Running, Reviewing, Needs you,
+    Blocked or waiting, Done, or Deferred. The lane SHALL come from the one
+    rule the Delivery tab uses, and Avoozl SHALL write the field only when
+    its value changes. A blank `project.fields.avoozlState` SHALL turn it
+    off. Avoozl SHALL still never write Status. (Added 2026-11-13.)
+19. WHEN anyone else changes Avoozl state THEN Avoozl SHALL write its own
+    value back on the next tick, once, notify the owner, and record a GitHub
+    edit in Conflicts that stays until the state next moves. Avoozl state
+    SHALL NOT name the Status field.
+20. The setup wizard SHALL create Avoozl state with those options and a
+    "Board by Avoozl state" board view with a column per Avoozl state, each
+    shown as create, change, or keep. WHEN the API cannot set the view's
+    columns THEN the checklist SHALL name the one click, marked Inferred
+    until a live call confirms the API cannot.
+21. The wizard SHALL name Status's first option Ready, renaming GitHub's
+    default Todo only on a Project it just created, and SHALL keep an
+    existing Todo through `statusValues.todo`, so older boards keep working.
+    (Changes the Todo in criterion 17, 2026-11-13.)
 
 ### Requirement 30: Every plan is a Kiro spec folder
 
@@ -1646,6 +1669,18 @@ user-facing work never leaves this machine.
     tasks would go, every session runs on `local`, and the Routing page SHALL
     say that remote placement waits on Kiro Crew. Avoozl SHALL NOT work
     around Kiro Crew's owner-only check.
+15. (Added 2026-11-13, owner decision.) Each remote crew SHALL have a
+    machine-local `delivery` of `handback` (the default) or `push`. Under
+    `handback` the remote worker SHALL commit on its task branch in a folder
+    under the crew's `worktreeRoot` and SHALL make no GitHub write; this
+    machine SHALL fetch that branch over SSH from the crew's `sshHost`,
+    SHALL pin the host key on first use, and SHALL refuse a fetch whose host
+    key changed. Content rules, local checks, verification, review, and
+    integration SHALL then run on this machine as for a local worker, and a
+    local Kiro Crew chat SHALL push. The Avoozl process itself SHALL never
+    push. Under `push` the worker SHALL push its task branch as criterion 5
+    says. Public tests SHALL use a fake SSH command and SHALL never connect
+    to a real host.
 
 ### Requirement 42: Routing page
 
@@ -1844,7 +1879,8 @@ once instead of once per tiny task.
    `size: "small"`. Leaves without it SHALL never be batched.
 2. Avoozl SHALL group ready batchable leaves into one run when they share
    the key `flow.batch.by` names: `epic` (the same parent) or `files`
-   (overlapping manifest `paths`). The default SHALL be `epic`.
+   (overlapping manifest `paths`). The default SHALL be `epic`. (Changed
+   2026-11-13: `epic` is now named `phase`, Requirement 59.11.)
 3. A batch SHALL hold at most `flow.batch.max` leaves, default 3. A value of
    1 SHALL turn batching off.
 4. A batch SHALL hold only leaves with the same repository, route, crew,
@@ -2038,6 +2074,21 @@ pick up. The list is a triage list, not a second issue browser
 15. The list SHALL NOT show item bodies, comments, CI logs, or review
     findings, and SHALL NOT edit labels, assignees, or state: those stay in
     Issue Radar, Code Review Sage, and GitHub.
+16. **Code review** on a pull request row SHALL open a new Kiro Crew chat
+    through the tick's own session permission, seeded with the pull
+    request's URL, repository, number, head commit, title, author, its Avoozl
+    task and spec section if any, and an ask to review that one pull request
+    with the sage-review skill, comments as drafts, posting nothing. WHEN the
+    skill is not installed THEN the seed SHALL ask for a careful
+    single-pull-request review without it. (Added 2026-11-13: a stand-in
+    until Kiro Crew can start Code Review Sage on one pull request, MC-15.)
+17. The seed SHALL pass content rules (`brief`) before it is queued; a block
+    SHALL queue nothing and open a decision. Only a person SHALL start a
+    review chat.
+18. The row SHALL show Attach once the chat exists, and the button's tooltip
+    SHALL say it is a stand-in until the app can start Code Review Sage
+    directly. A second click SHALL reuse a queued or open chat. Avoozl SHALL
+    make no GitHub write for it.
 
 ### Requirement 50: Incoming items from every source
 
@@ -2082,9 +2133,9 @@ and the Untriaged reader onto the record without changing what they do.
    exclusions, and results (Requirements 10–12, 49).
 5. The operations `intake.submit`, `intake.list`, and `intake.view` SHALL
    live in `operations.mjs` and be shared by the page, the CLI
-   (`avoozl intake submit|list|view`), and MCP (`plans_intake_submit`,
-   `plans_intake_list`, `plans_intake_view`). Existing `plans_*` names
-   SHALL NOT change. `intake.list` and `intake.view` SHALL only read.
+   (`avoozl intake submit|list|view`), and MCP (the grouped `plans_intake`
+   tool of Requirement 56, actions `submit_items`, `items`, and `item`).
+   Existing `plans_*` names SHALL NOT change. `intake.list` and `intake.view` SHALL only read.
 6. Sources other than GitHub SHALL be declared under `intake.sources` in
    `.avoozl.json` or in the machine-local Avoozl settings, like `plugins`
    entries (Requirement 34.1): an id (`github` and `local` reserved),
@@ -2139,17 +2190,18 @@ and the Untriaged reader onto the record without changing what they do.
     `quarantine` rules, and SHALL NOT meet a `deliver`, `execute`,
     `plan`, `respond`, or `resume` rule. A close it reports SHALL be
     treated as a close by an actor who is not allowed (criterion 18).
-15. The Untriaged tab SHALL offer a person **Plan this** (an inbox task
+15. The Intake tab SHALL offer a person **Plan this** (an inbox task
     tied to the item, through `task.capture`) and **Deliver this** (one
     leaf in the source's repository, pinned to the item's snapshot) on a
     non-GitHub item. Both SHALL be refused with 403 from an agent session
     or MCP, like `content.allow`.
-16. The Untriaged tab SHALL list untriaged items from every source, with
+16. The Intake tab SHALL list untriaged items from every source, with
     a **Source** filter and the source on each row. GitHub items SHALL
     keep Requirement 49 unchanged. The tab SHALL also show in Local only
     mode when a non-GitHub source is declared, with only those sources.
     A non-GitHub row SHALL link to its item's `link` and SHALL NOT show
-    Issue Radar buttons.
+    Issue Radar buttons. (The tab was named Untriaged until 2026-11-13;
+    see criterion 23.)
 17. WHEN a source changes an item tied to a task THEN Avoozl SHALL update
     the record and the task's cached title and labels, re-run the trigger
     match, and withdraw the task's authorization when no allowed match is
@@ -2180,6 +2232,11 @@ and the Untriaged reader onto the record without changing what they do.
     generically ("internal ticket tracker", "internal code review
     system", the fake plugin, the fake MCP caller), and the release leak
     scan (task 7.4) SHALL cover them.
+23. The tab of Requirement 49 SHALL be named **Intake** in the page,
+    docs, and spec (owner decision 2026-11-13), and **Untriaged** SHALL
+    stay as its default filter. The `untriaged` setting keys and the
+    `untriaged` notification channel id SHALL keep working; `intake`
+    SHALL be accepted as the channel's other name.
 
 ### Requirement 51: Archiving a plan, and review state shown plainly
 
@@ -2539,6 +2596,17 @@ setting or runs until someone on that computer has seen it and approved it.
 10. The plugin guide and the app's plugin skill SHALL describe bundles,
     packs, and intake, with a sample bundle in the test tree that names no
     private system or company.
+11. A pack and a repository entry MAY set `waitingLabels` (owner request
+    2026-11-13): labels meaning the item waits on someone outside. A task
+    whose item carries one SHALL wait in **Blocked or waiting** with the
+    reason "Waiting on the author". Absent, nothing changes.
+12. A pack and a repository entry MAY set `priorityLabels`, an ordered
+    list, the newer name for `priority`; setting both SHALL be refused. A
+    task's best priority label SHALL set its order inside Ready and Up
+    next, after a set rank, and SHALL never change its lane. Absent,
+    nothing changes. The sample pack sets `waitingLabels:
+    ["response-requested"]` and `priorityLabels: ["p0", "p1", "p2",
+    "p3"]`.
 
 ### Requirement 56: Fewer MCP tools, every safe action
 
@@ -2585,7 +2653,8 @@ without my writing a prompt.
    drawer with Name (the spec folder name), Category (pick or type),
    Epics or phases (optional), Repositories (checkboxes of registered code
    repositories), What you want (required) and Links and context
-   (optional). Cancel SHALL ask first when anything was typed.
+   (optional). Cancel SHALL ask first when anything was typed. (Changed
+   2026-11-13: Epic and Phases are separate fields, Requirement 59.11.)
 2. Avoozl SHALL refuse a name that is not a spec folder name, or that a
    plan or spec folder already uses; a request with no registered
    repository, no picked repository or no goal; and a seed that a content
@@ -2598,3 +2667,170 @@ without my writing a prompt.
 4. The tick SHALL import the folder as a draft plan once it lints clean.
    New plan SHALL never approve a plan, start delivery or push.
 5. Every top button on the Plans page SHALL show an icon.
+
+### Requirement 58: Onboard a repository
+
+Added 2026-11-13 (owner request).
+
+**User story:** As the owner, I want adding a repository to offer a guided
+Onboard flow, so that a repository goes from nothing to plans ready to
+approve without my running setup steps by hand.
+
+#### Acceptance criteria
+
+1. Settings > Repositories SHALL offer **Onboard**, a stepped dialog with
+   Cancel on every step: pick folder, pick mode, check GitHub, set up,
+   import specs, leak scan, preview issues, finish. A step that does not
+   apply SHALL be left out; a step already satisfied SHALL show as done and
+   MAY be skipped.
+2. Pick folder SHALL show the checkout, its remote, default branch,
+   `.avoozl.json`, `.kiro/specs` folders, and whether the workspace already
+   has it. No remote and a non-GitHub remote SHALL allow Local only only.
+3. Check GitHub SHALL be the read-only Set up GitHub preview, listing each
+   item as create, change or keep.
+4. WHEN the person cancels before Set up THEN nothing SHALL have been
+   written. In Set up each GitHub write SHALL ask first.
+5. Import specs SHALL list spec folders with their lint results and import
+   them as drafts only.
+6. WHEN the repository that would hold the issues is public THEN the leak
+   scan SHALL check the specs against the content rules and the public
+   secret and machine-path rules, name each finding by file and line only,
+   and hold the next step while any finding remains.
+7. Preview issues SHALL show the issues approval would make, without making
+   them or approving the plan.
+8. The flow SHALL never approve a plan, start an agent, or push.
+
+### Requirement 59: Epics span plans, phases sit inside plans
+
+Added 2026-11-13 (owner decision). Design §6.9. This replaces Requirement
+4.3 and changes 4.4, 13.7, 23.9, 46.2, 48.3 and 57.1 as stated below. It
+drops the separate Initiative level that was discussed: no Initiative field
+or front-matter key exists.
+
+**User story:** As the owner, I want an epic to be a goal that spans
+several plans, and the groups of tasks inside one plan to be its phases, so
+that a large goal such as a rewrite shows its member plans and their
+progress, and no grouping is made up from a file path.
+
+#### Acceptance criteria
+
+1. An **epic** SHALL be a goal that spans plans. Each epic SHALL be its own
+   Kiro spec folder, `.kiro/specs/<epic>/`, in the same place plans live
+   (Requirement 30.3), holding `requirements.md` (the goal and what done
+   means), `design.md` (the approach across plans), `tasks.md` (one
+   checklist item per member plan, with a task ID as Requirement 30.5
+   requires) and `avoozl/manifest.json` with `"kind": "epic"`. Each manifest
+   entry, keyed by its `tasks.md` ID, SHALL name one member plan in `plan`
+   and SHALL hold no task fields (`repository`, `acceptance`, `checks`,
+   `completion`, edges). An epic folder SHALL NOT be a `bugfix.md` spec.
+2. A member plan SHALL name its epic with a top-level `epic: <epic>` key in
+   the YAML front-matter of its `requirements.md` or `bugfix.md`, read the
+   same way as `category:` (Requirement 30.9): Avoozl SHALL read it, SHALL
+   NOT write it, and SHALL NOT infer it. A plan SHALL belong to at most one
+   epic, and an epic SHALL NOT list an epic.
+3. Deterministic validation SHALL refuse an epic folder whose entry names a
+   plan with no spec folder in the namespace, names the same plan twice,
+   names a plan whose front-matter names a different epic or none, names an
+   epic, or holds task fields. A plan whose `epic:` names no epic folder, or
+   an epic that does not list it, SHALL get a warning diagnostic with its
+   file and line and SHALL show under **No epic**; it SHALL NOT block the
+   plan's approval.
+4. An epic SHALL never be dispatched and SHALL have no repository. It SHALL
+   be done when every member plan is done, and a plan SHALL be done when
+   each of its tasks is done or archived with a reason. Approving an epic
+   revision SHALL approve only its member list and prose, never a member
+   plan or a task.
+5. A **phase** SHALL be a group of tasks inside one plan. A task's phase
+   SHALL come from its manifest entry's `phase` value when it has one, and
+   otherwise from the nearest heading of level 2 or lower above its item in
+   `tasks.md`. The manifest MAY hold a `phases` object that gives each
+   phase ID a title. A task under no heading and with no `phase` value SHALL
+   sit under its plan as **No phase**. Phases SHALL group and filter only:
+   they SHALL NOT add edges, readiness or completion.
+6. Avoozl SHALL NOT invent an epic or a phase. It SHALL NOT create
+   `doc:<path>` epics or any other grouping named after a file. A task with
+   no plan SHALL show under **No plan**. No view, list, filter, export or
+   brief SHALL show a raw `doc:` ID or a file path as an epic or phase name.
+7. Inside a plan, the manifest `kind` values SHALL be `package` and `leaf`
+   (this replaces Requirement 4.3; Requirement 4.4 reads "packages complete
+   only from their children"). An existing entry with `"kind": "epic"`
+   SHALL load as a `package`, and an existing per-entry `epic` value SHALL
+   load as `phase`, each with a warning diagnostic naming the edit that
+   clears it. Neither SHALL block approval or change a task ID.
+8. In a GitHub mode Avoozl SHALL project three levels of sub-issues: each
+   epic as one issue with the configured `epicIssueType` (no type when the
+   owner has none), each plan as one **plan issue** that is a sub-issue of
+   its epic's issue when it has an epic, and each task as a sub-issue of
+   its plan issue, or of its package when it has one (this changes
+   Requirement 13.7). Epic and plan issues SHALL live in the repository
+   that holds the plan's tasks' issues, SHALL never be ready or get a ready
+   label, and SHALL be closed by Avoozl when their children are complete.
+   A phase SHALL NOT be an issue: Avoozl SHALL write it in the managed body
+   section and, when the Project names a `phase` field, to that field,
+   which Avoozl owns like Wave.
+9. When GitHub cannot link a plan issue under its epic's issue, Avoozl
+   SHALL keep both issues, record the epic in the marker, and show the
+   reason in the Delivery view. It SHALL NOT move issues to make the link.
+10. The Graph SHALL open at epics (and **No epic**), drill into an epic's
+    member plans, then a plan's phases, then a phase's tasks, with the
+    back navigation it already has. The Graph, Delivery, Flow and Plans
+    filters SHALL offer Epic (across plans) and Phase (inside the picked
+    plan) as separate filters. The Dashboard's **Progress by epic** SHALL
+    show one row per epic counting the tasks of all its member plans, plus
+    **No epic**. The plan view's left column SHALL show the plan's epic as
+    a link and its phases with progress. An **epic page** (or Graph
+    drill-in) SHALL show the epic's goal, what done means, each member
+    plan with its status and progress, and open decisions.
+11. Flow batching (Requirement 46.2) SHALL name the grouping `phase`: the
+    same parent package, otherwise the same phase. The value `epic` SHALL
+    stay accepted with the same meaning. The New plan drawer (Requirement
+    57.1) SHALL offer **Epic** (pick an existing epic, optional) and
+    **Phases** (optional) instead of "Epics or phases"; the planner writes
+    the `epic:` front-matter and the phase headings.
+12. One operation SHALL migrate an existing workspace, preview first and
+    then apply against the previewed revision: back up the database with
+    its sha256 recorded; turn each per-plan epic into a phase of its plan,
+    keeping its ID and title; move each task in a `doc:` epic to its
+    `tasks.md` section when its source is a spec plan's `tasks.md`, and
+    otherwise to **No phase**; archive each leftover task whose plan is
+    gone through the task archive operation with the reason "plan
+    removed"; and keep only cross-plan epics as epics. A second run SHALL
+    change nothing. The migration SHALL NOT approve a plan, start or stop
+    a session, touch GitHub or push. It SHALL be tested on a copy before
+    the live run.
+13. A Nupp-shaped workspace SHALL migrate this way: its W1–W7 groups SHALL
+    become phases of their plan, not epics (this changes Requirement
+    23.9), and its rewrite epic folder SHALL list the member plans whose
+    front-matter names it.
+14. Avoozl's planner agent and skill SHALL write epic folders and the
+    `epic:` key in this layout, and SHALL write phases as `tasks.md`
+    headings.
+
+### Requirement 60: One Back history for the app page
+
+**User Story:** As a user, I want Back to work everywhere on the Avoozl
+page, so that I can retrace tabs, sections, drill-ins and dialogs without
+leaving the page.
+
+#### Acceptance Criteria
+
+1. The page SHALL keep one Back history. A step SHALL be a top tab, an
+   inner tab (a Settings section, a repository sub-tab, other in-view
+   tabs), an opened plan, a Graph drill-in level (the Graph's own stack,
+   not a copy), or an open drawer (task drawer, New plan) or modal (file
+   viewer, repository Edit, Add plugin, Set up GitHub, Onboard, confirm).
+2. The mouse back button, Alt+Left and Cmd+[ SHALL take one step. Esc
+   SHALL close the topmost drawer or modal. Alt+Left in a text field
+   SHALL stay with the field.
+3. Going back SHALL restore the view's scroll position and selection
+   (the opened plan, the Graph level, zoom and selected task). Focus SHALL
+   return to the control that opened a drawer or modal.
+4. Back on a dialog with unsaved changes SHALL ask first, the same way
+   Cancel does.
+5. Kiro Crew gives an app page no history API: its route is the bare app
+   route, and `history.pushState` would move the host page. Avoozl SHALL
+   keep its own history and claim the button and keys only when the press
+   comes from its page and it has a step to take; at the root they SHALL
+   fall through to Kiro Crew.
+6. Settings SHALL open on Workspaces each visit. Restores SHALL be
+   instant, so reduced motion needs nothing more.
