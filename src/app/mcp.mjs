@@ -427,6 +427,18 @@ export function kiroCrewCaller(message) {
     ? { sessionKey: block.sessionKey }
     : null;
 }
+// Protocol revision 2026-07-28 requires every result to carry resultType;
+// Kiro Crew refuses a server whose tools/list lacks it. Earlier revisions
+// get the result unchanged.
+export function complete(message, result, versionHeader) {
+  const version =
+    message?.params?._meta?.["io.modelcontextprotocol/protocolVersion"] ||
+    versionHeader;
+  return version === "2026-07-28"
+    ? { ...result, resultType: "complete" }
+    : result;
+}
+
 export async function handleMcp(
   message,
   ops,
@@ -437,7 +449,11 @@ export async function handleMcp(
   const id = message?.id;
   const ok = (result) => ({
     status: 200,
-    body: { jsonrpc: "2.0", id, result },
+    body: {
+      jsonrpc: "2.0",
+      id,
+      result: complete(message, result, versionHeader),
+    },
   });
   if (workspaceId && workspaceIdentity(ops.store) !== workspaceId)
     return ok({

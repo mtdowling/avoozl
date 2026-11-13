@@ -289,3 +289,39 @@ test("the app's MCP server answers a non-object request as Invalid Request", asy
     server.close();
   }
 });
+
+test("the app's MCP server marks results complete for protocol 2026-07-28", async () => {
+  const server = createAppMcp({ env: {} });
+  const modern = {
+    "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+    "io.modelcontextprotocol/clientInfo": { name: "test", version: "1" },
+    "io.modelcontextprotocol/clientCapabilities": {},
+  };
+  try {
+    const list = await server.handle({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/list",
+      params: { _meta: modern },
+    });
+    assert.equal(list.result.resultType, "complete");
+    // No workspace: the refusal is a result too.
+    const call = await server.handle({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "tools/call",
+      params: { _meta: modern, name: "plans_workspace", arguments: {} },
+    });
+    assert.equal(call.result.isError, true);
+    assert.equal(call.result.resultType, "complete");
+    const older = await server.handle({
+      jsonrpc: "2.0",
+      id: 3,
+      method: "tools/list",
+      params: {},
+    });
+    assert.equal(older.result.resultType, undefined);
+  } finally {
+    server.close();
+  }
+});
