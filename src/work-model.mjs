@@ -6,7 +6,13 @@ export const TASK_KINDS = ["package", "leaf"];
 // and dispatch of existing workspaces do not change.
 // "epic" is a row approved before Requirement 59 (see taskKind).
 export const LEGACY_TASK_KINDS = ["task", "milestone", "epic"];
-export const COMPLETIONS = ["merged-pr", "integrated", "released", "answered"];
+export const COMPLETIONS = [
+  "merged-pr",
+  "integrated",
+  "released",
+  "answered",
+  "person",
+];
 const SOURCE = /^(?:local|github|plugin:[a-z][a-z0-9-]{0,60})$/;
 
 export const isSource = (value) =>
@@ -52,7 +58,13 @@ export const pluginId = (source) =>
     ? source.slice(7)
     : null;
 
+// A leaf only a person does (Requirement 61.9): never dispatched, marked
+// done by a person, complete at every level once done.
+export const isManual = (task) =>
+  task?.manual === true && taskKind(task) === "leaf";
+
 export function taskCompletion(task) {
+  if (isManual(task)) return "person";
   if (COMPLETIONS.includes(task?.completion)) return task.completion;
   return taskRoute(task) === "github" ? "merged-pr" : "integrated";
 }
@@ -84,6 +96,9 @@ export function taskRepository(task) {
 export function completionReached(task, level, complete) {
   const done = complete(task?.status);
   if (!task) return false;
+  // Every edge condition on a manual leaf is met when it is done: there is
+  // no merge or integration to wait for (R61.10).
+  if (isManual(task)) return done || Boolean(task.manualDone);
   if (!level) {
     if (
       task.kind !== "epic" &&

@@ -678,5 +678,6 @@ test("the managed section yields plan, summary, acceptance and requires", () => 
     summary: "Do the thing",
     acceptance: ["First", "Second"],
     requires: ["graph-alpha"],
+    notes: [],
   });
 });

@@ -13,6 +13,7 @@ import {
 } from "./content-rules.mjs";
 import {
   completionReached,
+  isManual,
   taskAuthority,
   taskKind,
   taskRepository,
@@ -302,12 +303,80 @@ function patchAdded(file, patch) {
   return lines;
 }
 
+// Who may close it: the closer and Who counts, as for a close without code.
+// Returns {closer} when allowed, else a held verdict.
+async function allowedCloser(github, repository, issue, code, repo) {
+  const closer = await readCloser(github, repository, issue);
+  if (!closer)
+    return {
+      held: {
+        state: "held",
+        reason: `Issue #${issue.number} closed and no person can be read as its closer.`,
+      },
+    };
+  let permission = null;
+  if (repo.minimumPermission)
+    try {
+      permission =
+        (await github.permission(code || repository, closer.actor))
+          ?.permission || "none";
+    } catch (error) {
+      if (error?.status !== 403) throw error;
+      return {
+        held: {
+          state: "held",
+          reason: `Issue #${issue.number} closed by ${closer.actor}. ${uncheckedReason(repo, closer.actor)}`,
+          closer,
+        },
+      };
+    }
+  const check = actorAllowed(repo, closer.actor, permission);
+  if (!check.allowed)
+    return {
+      held: {
+        state: "held",
+        reason: `Issue #${issue.number} closed by ${closer.actor}, whom the policy does not allow: ${check.reason}`,
+        closer,
+      },
+    };
+  return { closer };
+}
+
+// A manual leaf (R61.14): no code to check. An allowed actor's close is its
+// completion, with the close reason as Done or Skipped, and counts as
+// verified; any other close holds its dependents and opens a decision. The
+// issue is never reopened.
+async function judgeManual(github, task, issue, { code, repo }) {
+  if (issue.state !== "closed") return { state: "open" };
+  const { closer, held } = await allowedCloser(
+    github,
+    task.github.repository,
+    issue,
+    code,
+    repo,
+  );
+  if (held)
+    return {
+      ...held,
+      reason: `${held.reason} ${task.id} is a manual task: dependents wait until an allowed person closes it, or marks it done in Avoozl.`,
+    };
+  return {
+    state: "verified",
+    manual: {
+      choice: closer.reason === "NOT_PLANNED" ? "skipped" : "done",
+      actor: closer.actor,
+      closedAt: closer.closedAt,
+    },
+  };
+}
+
 // One verdict for one GitHub leaf from its issue as GitHub reports it now.
 async function judge(github, store, task, issue, { policy, mode, reviewRule }) {
   const repository = task.github.repository,
     code = codeRepository(store, task, mode),
-    repo = (code && policy.repositories[code]) || {},
-    project = store.get("projects", taskRepository(task)),
+    repo = (code && policy.repositories[code]) || {};
+  if (isManual(task)) return judgeManual(github, task, issue, { code, repo });
+  const project = store.get("projects", taskRepository(task)),
     options = {
       baseBranch: repo.baseBranch || project?.baseBranch || "main",
       requiredChecks: repo.requiredChecks || [],
@@ -586,6 +655,22 @@ export async function reconcileGitHubCompletion(store, github, { policy }) {
       if (done && complete && !statusComplete(draft, row.status))
         row.status = complete;
       if (!done && wasDone) row.status = previous.previousStatus || "planned";
+      // A manual leaf's done is a person's close (R61.14); a reopen or a
+      // close Who counts does not allow makes it open again.
+      if (isManual(row)) {
+        if (done && !row.manualDone && verdict.manual)
+          row.manualDone = {
+            choice: verdict.manual.choice,
+            by: verdict.manual.actor,
+            login: verdict.manual.actor,
+            at: verdict.manual.closedAt || new Date().toISOString(),
+            via: "github",
+          };
+        if (!done && (wasDone || row.manualDone)) {
+          delete row.manualDone;
+          if (statusComplete(draft, row.status)) row.status = "planned";
+        }
+      }
       if (decision) row.decision = decision;
       else if (String(row.decision || "").startsWith("github-completion:"))
         row.decision = null;
