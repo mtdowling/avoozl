@@ -603,6 +603,8 @@ function crewRows(ctx) {
       running: c.running,
       configured: c.configured,
       delivery: c.delivery,
+      sshHost: c.sshHost,
+      worktreeRoot: c.worktreeRoot,
       ageSeconds: c.ageSeconds,
       reading: c.reading
         ? {
