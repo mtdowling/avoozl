@@ -399,6 +399,15 @@ import {
   kiroCrewSessions,
   movedOperation,
 } from "./moved-operations.mjs";
+import { completeManual, reopenManual } from "./manual-tasks.mjs";
+import {
+  addNote,
+  editNote,
+  noteAuthor,
+  notesView,
+  removeNote,
+  showNote,
+} from "./task-notes.mjs";
 
 // Avoozl-recorded validation at a task's current commit (§5.2, R38.5): its
 // integrated commit, else its delivery's, else the newest validated commit.
@@ -2654,6 +2663,45 @@ export class Operations {
       });
     }
     if (name === "intake.list") return listItems(store, input);
+    // Manual tasks and Links and notes (§4.16, R61.12–R61.22).
+    if (name === "task.manual.complete" || name === "task.manual.reopen") {
+      if (context.caller || context.mcp)
+        fail(
+          "Only a person marks a manual task done or reopens it, in the Avoozl page or the CLI.",
+          403,
+        );
+      const taskId = resolveTaskId(this.read(), input.taskId),
+        by = context.local ? "cli" : this.operator || "person",
+        github = this.github,
+        policy = this.workspaceRoot
+          ? readGitHubPolicyOrNull(this.workspaceRoot)
+          : null;
+      return name === "task.manual.complete"
+        ? completeManual(store, { ...input, taskId }, { by, github, policy })
+        : reopenManual(store, { taskId }, { by, github });
+    }
+    if (name.startsWith("task.notes.")) {
+      if (typeof input.taskId !== "string" || !input.taskId)
+        fail("Name the task: taskId.");
+      const data = this.read(),
+        task = data.tasks.find(
+          (t) => t.id === resolveTaskId(data, input.taskId),
+        );
+      if (!task) fail(`No task ${input.taskId}.`, 404);
+      if (name === "task.notes.list") return notesView(store, task.id);
+      if (name === "task.notes.add")
+        return addNote(store, task, input, {
+          author: noteAuthor(store, task.id, context, this.operator),
+        });
+      if (context.caller || context.mcp)
+        fail(
+          "Only a person edits, removes or shows a link or note, in the Avoozl page or the CLI.",
+          403,
+        );
+      if (name === "task.notes.edit") return editNote(store, task, input);
+      if (name === "task.notes.remove") return removeNote(store, task, input);
+      if (name === "task.notes.show") return showNote(store, task, input);
+    }
     if (name === "intake.view") return viewItem(store, input);
     if (name === "intake.sources")
       return {

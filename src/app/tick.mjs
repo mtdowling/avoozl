@@ -8,6 +8,7 @@
 // done report. On the cron it also reads and writes GitHub: completion,
 // issue intake, planner sessions for matched issues, broad-issue publishing,
 // re-projection, crew labels and the Project board.
+import { notesReprojectIds, notesReprojected } from "./task-notes.mjs";
 import { recordTickActivity } from "./activity-log.mjs";
 import fs from "node:fs";
 import { validateTrackedRouting } from "./placement.mjs";
@@ -451,14 +452,21 @@ async function githubStep(store, github, workspaceRoot, delivery) {
     await closePlanAndEpicIssues(store, github);
     // Readiness changed by this tick's verdicts reaches GitHub now: the
     // ready label for Issue Radar, `dispatch.ready` for the runner.
+    // A taken-over spec, and one whose shown links and notes changed
+    // (R61.23), are projected once more.
     const reproject = takenOverPlanIds(store),
+      noted = notesReprojectIds(store),
       projection = await refreshProjectedReadiness(store, github, {
         identity: planningIdentity(workspaceRoot),
         skipPlans: readOnlyPlanIds(store),
-        forcePlans: reproject,
+        forcePlans: new Set([...reproject, ...noted]),
       });
     for (const planId of projection.projected)
       if (reproject.has(planId)) reprojected(store, planId);
+    notesReprojected(
+      store,
+      projection.projected.filter((planId) => noted.has(planId)),
+    );
     // A linked branch is the start of new work: none for a held spec.
     const branches = await ensureLinkedBranches(store, github, {
       delivery,
