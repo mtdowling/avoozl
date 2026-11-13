@@ -131,6 +131,24 @@ turn on delivery in `.avoozl.json`:
 { "delivery": { "concurrency": 1 } }
 ```
 
+Two Kiro Crew steps only you can do, once:
+
+1. Let Kiro Crew tell Avoozl which chat is calling, so a worker can report.
+   Kiro Crew passes this only to servers it brokers. Run this, adding
+   `avoozl:avoozl` to your current list rather than replacing it (see the
+   list with `kirocrew config get mcp_gateway.stub_servers`):
+
+   ```sh
+   kirocrew config set mcp_gateway.stub_servers '["kirocrew-core", "avoozl:avoozl"]'
+   ```
+
+   Then approve the new stub's launch when Kiro Crew asks. Without this, a
+   worker can do the work but `plans_report` refuses it.
+
+2. After the first tick, open the chat folder **Avoozl** › _repository ID_
+   in the sidebar and set its project directory to the checkout. Only a
+   person can set it, and the tick opens no session there until it is set.
+
 Each minute the tick starts a Kiro Crew session for each ready leaf, in its
 own worktree. When a session reports done, Avoozl runs the checks on a clean
 committed head, rebases, fast-forwards the base branch, and releases the

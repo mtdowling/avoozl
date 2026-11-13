@@ -16,14 +16,15 @@ ran `kirocrew app install` and enabled the app; an agent shell may not.
 | Build and install | Pass | Backend healthy on loopback, 7 agents, 3 skills, MCP server `avoozl:avoozl`, `avoozl-tick` cron registered |
 | Backend refuses unsigned callers | Pass | `POST /api/command` without a signed principal answers 401 |
 | Tick (`avoozl-tick` cron) | Pass | With no default workspace each run failed with "Avoozl has no workspace for this session", a clear message. After `init` it runs every minute and stays silent |
+| Quiet worker nudge | Pass | A worker idle for 15 minutes with no report got the nudge message, twice, 15 minutes apart |
 | Tick under a pulled stop | Pass | `plans_maintain tick` returns an empty `dispatch` while the line is stopped |
 | MCP grouped tools (stdio, installed package) | Pass | 15 grouped tools listed; every read action tried answered; old names still listed with `Deprecated:` |
 | MCP person-only refusals | Pass | Approve plan, Allow once, Run anyway: refused with "Only a person ...". No agent action resumes a stop |
 | MCP from a real chat | Fail, fixed | Kiro Crew's agent speaks MCP revision 2026-07-28 and refused to start `avoozl:avoozl` in every chat: first "missing required resultType", then, after that fix, missing `ttlMs` and `cacheScope` on `tools/list`. Every result for that revision now carries `resultType: "complete"`, and every list also carries `ttlMs: 0` and `cacheScope: "private"` (test: "the app's MCP server meets protocol 2026-07-28 result rules"). Checked against the rebuilt package over stdio with that revision's metadata. Recheck in a chat pending the app update |
 | Flow view | Pass | `flow` (CLI) and `plans_view flow` (MCP) return metrics, stops and time to fix |
 | Andon stop and resume | Pass | Agent pulled the cord with `plans_session stop_line`; the CLI (`flow resume`) resumed it and recorded who and the time to fix |
-| CLI `OPERATION --json` with no server | Fail, fixed | It always called a server, so it failed with `fetch failed` when none ran. Now it runs in process like the other commands (test: "a named operation runs in process when no server is running") |
-| Dispatch to a local worker chat | Partial | After the owner set the folder's project directory, the tick opened the worker chat, bound it, and sent the brief within a minute. The chat had no `plans_*` tools (the MCP failure above), so it could not prepare a worktree or report, and it stopped without changing the checkout. The binding then read `idle` |
+| CLI `OPERATION --json` with no server | Fail, fixed | It always called a server, so it failed with `fetch failed` when none ran. Main fixed the same bug while this check ran; this branch keeps a test for it ("a named operation runs in process when no server is running") |
+| Dispatch to a local worker chat | Fail, fixed in docs | The tick opened the worker chat, bound it, and sent the brief. After the MCP fixes, the tick's nudge (15 quiet minutes) reached the same chat, which then called `plans_prepare_worktree` (worktree and branch made), committed `hello.txt` with the check passing, and called `plans_report` and `plans_session report`. Both were refused: no caller identity reached the server. Kiro Crew injects it only into servers listed in `mcp_gateway.stub_servers`, and the README never said to add `avoozl:avoozl`. The README now has that step and the folder project-directory step, and the refusal names the setting (test: app-mcp "no caller fails closed") |
 | Page load, every tab | Can't test | The agent browser refuses the dashboard's own port even when it is listed as a local origin, by design. Dashboard API calls need an owner sign-in token, which an agent may not mint |
 | Settings, every tab's save | Pass (operations only) | The page can't be driven, so the same operations ran from the CLI as the local person: Flow, Delivery, Where tasks live, Content rules and conversation settings saved; a stale hash was refused with "reload before saving"; Delivery refused a key it does not own and kept `concurrency`. Workspaces and Repositories were set up through `init` and `project configure`. Plugins: listing only, no plugin to add |
 | Back button and drawer | Can't test | Page only; see page load |
@@ -56,3 +57,6 @@ ran `kirocrew app install` and enabled the app; an agent shell may not.
    whose stdio MCP server answers `tools/list` without `resultType` under
    revision 2026-07-28, open a dashboard chat with an agent that mounts it,
    and ask the chat to list its tools; the gateway log has no line for it.
+5. A fresh install cannot take worker reports until the owner adds
+   `avoozl:avoozl` to `mcp_gateway.stub_servers`. Earlier live proofs set it
+   by hand, so they hid the gap. Avoozl cannot set it itself.
