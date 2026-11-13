@@ -112,7 +112,8 @@ test('every link goes through linkHref or safeHref', () => {
   for (const file of fs.readdirSync(dir).filter((f) => f.endsWith('.tsx'))) {
     const text = fs.readFileSync(new URL(file, dir), 'utf8')
     for (const match of text.matchAll(/\bhref=\{([^}]*)/g))
-      if (!/^\s*(linkHref|safeHref)\(/.test(match[1])) raw.push(`${file}: href={${match[1]}`)
+      // editorHref builds only kiro:// or vscode:// file links from an absolute path.
+      if (!/^\s*(linkHref|safeHref|editorHref)\(/.test(match[1])) raw.push(`${file}: href={${match[1]}`)
   }
   assert.deepEqual(raw, [])
 })

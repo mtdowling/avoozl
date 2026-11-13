@@ -5121,6 +5121,34 @@ short select.
   `role="option"` with `aria-selected`. The state shows as a small badge
   beside the title.
 
+### 8.10 Task files and diffs
+
+Added 2026-11-13 (Requirement 81). The task drawer's Files fold
+(`TaskFiles.tsx`, `files-api.ts`) reads only when first opened.
+
+- **Where.** `task.files` and `task.diff` (`src/app/task-files.mjs`) find
+  the task's `task_worktrees` row. A worktree still on disk is read as is,
+  untracked files too; else the branch (`refs/heads/<branch>`, then
+  `origin/<branch>`) in the repository's checkout; else `mode: none`. The
+  base is the merge base of the head with the integration branch, else the
+  base branch. A remote crew's task, or one with no worktree, shows its
+  branch on GitHub.
+- **Reads.** `git diff --name-status -z -M` and `--numstat -z` give the
+  list; `ls-files` and `ls-tree` give Show all files. `task.diff` runs one
+  `git diff ... -- <path>` and builds an untracked file's diff itself after
+  an `lstat`. Every call is `execFile` with `--literal-pathspecs`,
+  `core.fsmonitor=false`, the gateway secrets stripped, `--end-of-options`
+  before refs, and `--` before paths.
+- **Paths.** A path must be relative with forward slashes and no `.`,
+  `..` or empty part, and must be one Git lists for the task (or in the
+  tree, which reads as unchanged). An untracked link is reported, never
+  read.
+- **Caps.** 3,000 files listed; a diff over 256 KB returns `tooLarge` with
+  its counts; binaries return `binary`. The page draws the first 1,500
+  lines with a button for the rest.
+- **Editor.** `kiro://file/<path>[:line]` or `vscode://file/<path>[:line]`,
+  picked on the fold and kept in the page's storage; Kiro by default.
+
 ## 9. Current-code disposition
 
 Covers `feature/kirocrew-github-delivery` and the `main`-only modules (F19).
