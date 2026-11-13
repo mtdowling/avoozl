@@ -22,9 +22,26 @@ def node() -> str:
     return found
 
 
+def crew_home(launcher: Path):
+    """The Kiro Crew home this package is installed in, or None.
+
+    An installed app lives at ``<crew home>/apps/<app>/bin/``.
+    """
+    apps = launcher.parent.parent.parent
+    return apps.parent if apps.name == "apps" else None
+
+
 def main() -> None:
-    entry = Path(__file__).resolve().with_name("avoozl.mjs")
+    launcher = Path(__file__).resolve()
+    entry = launcher.with_name("avoozl.mjs")
     executable = node()
+    # A chat's MCP launch carries almost no environment (no KIROCREW_HOME),
+    # so a server for a second crew home would read the main home's Avoozl
+    # catalog. The install path names the home.
+    if not os.environ.get("KIROCREW_HOME"):
+        home = crew_home(launcher)
+        if home is not None:
+            os.environ["KIROCREW_HOME"] = str(home)
     # --kirocrew: each request picks its workspace from the gateway's caller
     # block, so one process may serve many sessions (src/app/app-mcp.mjs).
     os.execv(executable, [executable, str(entry), "mcp", "--kirocrew", *sys.argv[1:]])
