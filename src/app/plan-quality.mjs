@@ -1,4 +1,8 @@
-import { duplicateCandidates, resolveTaskId } from "../task-identity.mjs";
+import {
+  duplicateCandidates,
+  resolveTaskId,
+  titleIndex,
+} from "../task-identity.mjs";
 import { extractPlan } from "./plans.mjs";
 import { taskCompletion, taskKind, taskRoute } from "../work-model.mjs";
 
@@ -235,6 +239,8 @@ export function lintPlan({ text, plan = {}, data = {}, proposals }) {
   );
   const localTasks = new Map(tasks.map((task) => [task.id, task]));
   const normalizedTitles = new Map();
+  // Built once: every proposal's title is checked against every task.
+  let titles = null;
 
   for (const task of tasks) {
     const at = taskLine(task);
@@ -292,10 +298,15 @@ export function lintPlan({ text, plan = {}, data = {}, proposals }) {
         ),
       );
     if (!task.taskId) {
-      const duplicates = duplicateCandidates(data, {
-        ...task,
-        id: plan.mapping?.[task.id] || `${plan.id || "plan"}-${task.id}`,
-      });
+      titles ??= titleIndex(data.tasks || []);
+      const duplicates = duplicateCandidates(
+        data,
+        {
+          ...task,
+          id: plan.mapping?.[task.id] || `${plan.id || "plan"}-${task.id}`,
+        },
+        { index: titles },
+      );
       if (duplicates.length && !task.distinctReason?.trim())
         diagnostics.push(
           diagnostic(

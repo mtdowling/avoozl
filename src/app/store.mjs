@@ -144,23 +144,34 @@ export class Store {
     const metadata = this.getMeta("snapshot");
     if (!metadata) fail("Import a JSON snapshot first.", 503);
     if (this.cache?.revision === metadata.revision) return this.cache;
-    const data = { ...metadata, tasks: [], documents: {}, edges: [] };
+    const data = { ...metadata, tasks: [], documents: {}, edges: [] },
+      stored = new Map();
     for (const row of this.db
       .prepare("SELECT * FROM entities ORDER BY kind,ordinal")
       .all()) {
       const value = JSON.parse(row.body);
+      stored.set(row.kind + "\0" + row.id, row.ordinal + "\0" + row.body);
       if (row.kind === "task") data.tasks.push(value);
       else if (row.kind === "document") data.documents[row.id] = value;
       else if (row.kind === "edge") data.edges.push(value);
     }
     this.cache = data;
+    // Each row as it is on disk at this revision, so write() skips rows
+    // that did not change instead of running one statement per entity.
+    this.stored = { revision: metadata.revision, rows: stored };
     return data;
   }
   write(data) {
     const errors = validate(data);
     if (errors.length) fail(errors.join("\n"), 422);
-    const { tasks, documents, edges, ...metadata } = data;
+    const { tasks, documents, edges, ...metadata } = data,
+      known =
+        this.stored &&
+        this.stored.revision === this.getMeta("snapshot")?.revision
+          ? this.stored.rows
+          : null;
     this.setMeta("snapshot", metadata);
+    this.stored = null;
     const seen = new Set(),
       upsert = this.db.prepare(
         "INSERT INTO entities VALUES (?,?,?,?) ON CONFLICT(kind,id) DO UPDATE SET ordinal=excluded.ordinal,body=excluded.body WHERE body<>excluded.body OR ordinal<>excluded.ordinal",
@@ -171,8 +182,10 @@ export class Store {
       ["edge", edges.map((e, i) => [e.id || "edge-" + i, e])],
     ])
       rows.forEach(([id, value], i) => {
-        seen.add(kind + "\0" + id);
-        upsert.run(kind, id, i, JSON.stringify(value));
+        const key = kind + "\0" + id,
+          body = JSON.stringify(value);
+        seen.add(key);
+        if (known?.get(key) !== i + "\0" + body) upsert.run(kind, id, i, body);
       });
     for (const row of this.db.prepare("SELECT kind,id FROM entities").all())
       if (!seen.has(row.kind + "\0" + row.id))
