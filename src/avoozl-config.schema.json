@@ -194,6 +194,19 @@
         }
       }
     },
+    "activity": {
+      "description": "The activity log. retentionDays is how many days rows are kept; each tick deletes older ones.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "retentionDays": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 365,
+          "default": 30
+        }
+      }
+    },
     "delivery": {
       "description": "Turns on readiness dispatch of local leaves by the tick. Limits count sessions the tick opened that have not finished.",
       "type": "object",
