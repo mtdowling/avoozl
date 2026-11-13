@@ -134,16 +134,12 @@ turn on delivery in `.avoozl.json`:
 Two Kiro Crew steps only you can do, once:
 
 1. Let Kiro Crew tell Avoozl which chat is calling, so a worker can report.
-   Kiro Crew passes this only to servers it brokers. Run this, adding
-   `avoozl:avoozl` to your current list rather than replacing it (see the
-   list with `kirocrew config get mcp_gateway.stub_servers`):
-
-   ```sh
-   kirocrew config set mcp_gateway.stub_servers '["kirocrew-core", "avoozl:avoozl"]'
-   ```
-
-   Then approve the new stub's launch when Kiro Crew asks. Without this, a
-   worker can do the work but `plans_report` refuses it.
+   Kiro Crew passes this only to MCP servers it shares. Open **MCP
+   Management**, find `avoozl:avoozl`, turn on sharing, and press **Approve
+   sharing**. Then restart the gateway (**Settings › About › Restart
+   gateway**). Without this, a worker can do the work but `plans_report`
+   refuses it. A shared server runs outside the chat sandbox, with your
+   access.
 
 2. After the first tick, open the chat folder **Avoozl** › _repository ID_
    in the sidebar and set its project directory to the checkout. Only a
