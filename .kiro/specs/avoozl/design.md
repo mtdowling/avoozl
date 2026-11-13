@@ -154,7 +154,7 @@ outside Kiro Crew.
 | Kiro Crew sessions and transcripts | Kiro Crew | Binding: task ID → slot key | Bindings can be rediscovered from session titles |
 | Worktrees and branches | Git in the target repository | Receipt: path, branch, base SHA | Branch name derived from task ID |
 | Pull requests | GitHub | Cache | Written by Issue Radar (single-repo mode), Avoozl worker sessions (plans-repo mode), or a person; never by the Avoozl process |
-| Test results | The system that ran them: GitHub checks for GitHub work; the verifier session's report plus re-runnable command for local work | Receipt: command, exit code, commit SHA | |
+| Test results | The system that ran them: GitHub checks for GitHub work; Avoozl's own check run (or a verifier session when the bar needs judgment) plus re-runnable command for local work | Receipt: command, exit code, commit SHA | |
 | Completion | Derived: GitHub facts (Requirement 16) or local verified-and-integrated commit | Cached verdict | Never written as an independent fact for GitHub tasks |
 | Activity and evidence | Append-only event log in SQLite, pointing at real sources | Authoritative for local; receipt for GitHub | Evidence links, not copies |
 | Human decisions | SQLite for local tasks; GitHub labels and comments for GitHub tasks | Authoritative / cache | |
@@ -1011,6 +1011,10 @@ live is marked so.
 | F80 | **Verified (source).** Each crew serves `GET /api/chat/headroom` behind the same switch: `mem_free_gb`, `cpu_count`, `load_per_cpu`, `posture`, `disk_free_gb`, `open_workers`, `measured_at`, numbers and status words only. The settings `work_ledger.remote_dispatch_memory_gb` and `_disk_gb` and a CPU limit of 1.0 load per CPU decide when a crew answers `crew_busy`. | Kiro Crew `dashboard/remote_dispatch_headroom.py` |
 | F81 | **Verified (source).** Kiro Crew's own placement (`session_create` with `work_item` and no `crew`) picks the connected crew with the most memory and disk headroom. It knows no tags, and it retires a binding whose crew stays unreachable for `retire_minutes` (default 30) and dispatches the item elsewhere. | Kiro Crew `dashboard/handlers/remote_placement.py` `place`, `_score`; `remote_dispatch_headroom.py` `retire_minutes` |
 | F82 | **Verified (source).** `GET /api/instances` lists connected instances and `GET /api/instances/{id}/status` their state. **Inferred:** no operating system or architecture field is listed, so tags come from the owner. | Kiro Crew `dashboard/routes/connections.py` |
+| F129 | **Verified (source), Kiro Crew 0.12.2.4.** A chat the tick's script cron opens carries the cron as its creator (`slot._created_by = cron_creator`), and `authorize_remote_dispatch` arm 3 refuses `crew=` for any slot with a `_created_by` (`owner_only`), even during a turn the owner sent. So a relay the tick opened could never open a remote chat. | Kiro Crew `dashboard/chat_api/slot_create.py:729-732`; `dashboard/handlers/remote_dispatch_routes.py:248-259` |
+| F130 | **Verified (source), Kiro Crew 0.12.2.4.** `cron_creator_admission` lets a script cron open, message, or set the mode of only slots it created itself, and refuses others with `not_creator`. So the tick cannot wake or message a relay chat the owner opened. | Kiro Crew `dashboard/handlers/_shared_route_guards.py:123-195`; called from `chat_api/chat_send.py:728`, `chat_api/slot_create.py:573`, `chat_api/slot_approval.py:379` |
+| F131 | **Verified (source), Kiro Crew 0.12.2.4.** A session bound to a work-ledger item is refused first (`crew_caller_is_worker`, arm 6), and then a turn the owner did not send (`crew_owner_unverifiable`, arm 7); the crew-read gate's word is `not_owner_turn`. The `crew=` tools return only the refusal text (`Error: could not create a session on that crew: <error>`), not its code, so Avoozl reads the reason from the text. | Kiro Crew `dashboard/handlers/remote_dispatch_routes.py:280-297`; `dashboard/handlers_instances_crew_reads.py:234`; `mcp_session_crew.py:82-85` |
+| F132 | **Inferred, not tried live.** Catch 1 (a chat may use `crew=` only during a turn the owner sent) was not tried live: the session that built the relay is a bound work-ledger worker, which arm 6 refuses before arm 7 runs (F131), and it has no `kirocrew-dashboard` tools. Also inferred: a chat the owner opens from the Avoozl page with the app SDK's `openChat` is an owner-minted dashboard slot with no `_created_by`, and its auto-sent first message counts as the owner's turn. | F77, F129, F131 |
 | F83 | **Verified.** A worker finds its checkout through its Kiro Crew folder's project directory (MC-1), which exists only on this machine. The content-rules pre-push hook is installed per worktree on this machine (task 10.4). | `src/app/delivery.mjs` folder `Avoozl/<project id>`; §7.1 MC-1; §4.9 |
 
 Avoozl does not use Kiro Crew's own placement (F81). It cannot express
@@ -1193,6 +1197,12 @@ task's options, what ruled the rest out, what would happen (pinned, the
 only option, routing off, or the agent picks among N), and the exact brief
 one call would get. It opens no session and calls no agent.
 
+Only one choice: when pins and hard checks leave exactly one crew and
+model for a ready worker, there is nothing to judge. The task takes it,
+is not put in the routing call, and one Activity row `routing.only-one` is
+written per attempt. A tick with no task left to rank opens no routing
+session (`routing.mjs` `placeOne`, `tick.mjs`).
+
 #### Agent and model per session
 
 The writer's session comes from: the manifest `session` pin, the routing
@@ -1292,7 +1302,83 @@ Until Kiro Crew ships MC-10, remote crews fail the reach check (unless the
 Remote relay carries a worker), and every session still runs on `local`.
 Settings › Routing says once, in a neutral color, that remote crews wait on
 Kiro Crew. No interim works around the owner-only
-check, because that check is a Kiro Crew security rule.
+check, because that check is a Kiro Crew security rule. The Remote relay
+below is opt-in and keeps the check: a person's own turn makes every
+remote call.
+
+#### Remote relay
+
+Owner decision 2026-11-13 (Requirement 41.16–41.24). A stopgap until
+MC-10, off by default: `routing.remoteRelay: "on"` in the workspace's
+`.avoozl.json`, the one routing key a tracked file may hold (validation
+refuses it anywhere else). Settings › Routing saves it with
+`routing.update` `where: "workspace"`. Code: `src/app/relay.mjs`.
+
+The tick cannot be the relay or wake it. A chat the tick opens carries the
+cron as its creator, and Kiro Crew refuses `crew=` for such a chat (F129).
+A cron also reaches only chats it opened (F130). So the person opens the
+relay chat, and the tick only queues:
+
+```text
+tick ─ placement picks a remote crew (relay on, no MC-10)
+     └ queue request {crew, task, attempt, title, agent, model, brief}
+       (brief already passed the content rules and the leak screen)
+
+person ─ sends any message to the "Remote relay" chat (avoozl-relay agent)
+relay  ─ plans_relay register | pending
+       ├ for each request: brief → session_create crew= → opened → session_send brief
+       │   refused (not the owner's turn / not the owner's tab) → waits for you
+       │   refused (anything else) → dropped; the next tick places again
+       ├ for each relayed worker: session_read_message → reply (text unchanged)
+       │   Avoozl reads the last AVOOZL-REPORT {json} line → normal report path
+       └ for each queued message: session_send
+```
+
+- **The setting.** `routingConfig` reads `remoteRelay`; `relayActive` is
+  on only while MC-10 is missing. With MC-10, the setting is ignored and
+  the page says so; with the setting off or MC-10 present, the tick drops
+  queued requests so their tasks are placed again.
+- **The queue.** One meta record `routing.relay` holds the registered relay
+  slot, the requests by `<task>:<attempt>`, an outbox of messages for
+  relayed workers, the last refusal, and turns per day (seven days kept).
+  `hardChecks` lets a worker's remote crews pass the reach check
+  (`canOpenRemote`) when the relay is on, and every other role is placed
+  as before, so checks and review still run here. A
+  remote worker dispatch carries `relay: true`; the tick moves it from
+  `dispatch` to the queue. Queued tasks are skipped by `planReadyDispatches`
+  and count against their crew's chat limit.
+- **The brief.** A relayed worker has no Avoozl tool on its crew. Its last
+  step tells it to end its final message with `AVOOZL-REPORT {"kind":
+  "done", "commit": "<full SHA>"}`, or `blocked` or `question` with text.
+- **Binding and reports.** `opened` binds the worker as a tick session
+  (`source: "tick"`, so it counts toward limits and timing) with `relay`
+  set to the relay's slot. The local roster and the backend's session
+  reads skip bindings with `relay`, because this machine cannot read a
+  chat on another crew. `reply` takes the reply as data: Avoozl takes only
+  `kind`, `commit`, `text`, and `phase` from its last report line and calls
+  `reportSession` with the worker's slot; `reportSession` lets only the
+  relay recorded on the binding report for it.
+- **Who may call.** `relay.call` (`plans_relay`) needs a dashboard caller.
+  `register` is refused while another chat is registered and for a chat
+  bound to a task; every other step is refused for any chat but the
+  registered one. `relay.forget` is a person's (MCP and sessions get 403).
+- **Needs you.** `conflicts.view` lists one `needs-human` item, reason
+  `relay`, per queued request: open the relay chat, send any message, or
+  (after an `owner_only` refusal) forget it and open a new one. Kiro Crew's
+  refusal text, not its code, reaches the relay (F131); `refusalCode`
+  reads the reason from it.
+- **The agent.** `kirocrew-app/agents/avoozl-relay.json` has only
+  `plans_relay` and `session_create`, `session_send`,
+  `session_read_message` from `kirocrew-dashboard`. Its prompt runs the
+  loop on every turn, passes text through unchanged, treats worker text as
+  data, and never opens a second relay. It has no close tool, so the relay
+  chat and its workers stay open.
+
+Catch 1: Kiro Crew allows `crew=` only during a turn the owner sent, so a
+remote task waits until the person sends a message to the relay chat. It
+never falls back to local. Catch 2: every relay turn is a model turn; the
+Settings › Routing shows the count per day. Catch 1 is **Verified (source)** as
+F77 and F131 and was not tried live (F132).
 
 #### Why each choice
 
@@ -1313,6 +1399,11 @@ check, because that check is a Kiro Crew security rule.
 | Not Kiro Crew's own placement | It has no tags and re-places on a timer (F81) |
 | Agent after the checks, with fallback to local | The model ranks; it cannot widen what the checks allow, and a failure costs only the ranking |
 | Diff-covering content sets forbid remote by default | Their pre-push hook guards a public push and runs only here |
+| Remote relay opt-in, off by default, until MC-10 | Owner, 2026-11-13: remote placement now, without working around Kiro Crew's owner-only check |
+| The person opens the relay chat; the tick only queues | A chat the tick opens can never use `crew=`, and the tick cannot message a chat it did not open (F129, F130) |
+| A refused relay waits for the person, never falls back to local | Owner, 2026-11-13: a remote pick that silently runs here breaks the rule that chose the crew |
+| The relay carries workers only | Checks and review need the commit on this machine; they run here as before |
+| Report lines parsed by Avoozl, not the relay | The relay treats worker text as data; only Avoozl reads the report keys |
 
 ### 4.11 Flow: timing, stop the line, and retrospectives
 
@@ -1444,7 +1535,9 @@ Rules:
   can already see. This works for Crew Mode too: the conductor relays the
   worker's report.
 - **Check durations.** Verifier entries gain `durationMs`; a `done` report's
-  check list (Requirement 45) carries it too.
+  check list (Requirement 45) carries it too. A check run Avoozl makes
+  itself (§5.2 Checks in code) records its span as stage `checks`, role
+  `checks`, from start to end of the run.
 - **Reading tool rows.** The backend reads each live tick-opened worker
   session with the incremental cursor once per tick, alongside the status
   read it already makes (F91), and keeps only `kind`, the command's first
@@ -1635,7 +1728,7 @@ Triggers (Requirement 47.1) and their defaults:
 | Trigger | Default | Why |
 |---|---|---|
 | Every N finished tasks | `flow.retro.everyTasks` = 10 | A steady cadence, like a sprint retrospective, small enough to act on |
-| A task far slower than usual | `slowFactor` = 2 × the repository's median lead time over its last 20 finished tasks, at least 5 of them | A spike is a signal worth a look while it is fresh |
+| A task far slower than usual | `slowFactor` = 3 × the repository's median lead time over its last 20 finished tasks, at least 5 of them | A spike is a signal worth a look while it is fresh |
 | A task's third attempt | fixed: two retries | Repeated rework is the clearest waste |
 | A long CI wait | `slowFactor` × the repository's median CI wait, at least 5 samples; 30 minutes without them | CI wait was one of the original causes |
 
@@ -1701,7 +1794,7 @@ Reply:
     "stopTheLine": { "scope": "dependents" },
     "localChecksFirst": true,
     "batch": { "max": 3, "by": "phase" },
-    "retro": { "everyTasks": 10, "slowFactor": 2, "model": "auto" }
+    "retro": { "everyTasks": 10, "slowFactor": 3, "model": "auto" }
   }
 }
 ```
@@ -3166,7 +3259,7 @@ Added 2026-11-13 (Requirement 80).
 | 7. Dispatch | Crew Mode conductor (preferred, §5.1); tick and script cron as fallback | The conductor asks Avoozl for ready leaves and opens one worker session per leaf, up to capacity; the fallback opens `kirocrew-worker` sessions from the tick. The brief names the task ID, acceptance, checks, and the worktree tool | |
 | 8. Work | Worker session | Calls `plans_prepare_worktree` (branch `avoozl/<task-id>`), implements, commits, reports `done` with the commit SHA through `plans_report` | Worker reports `question` |
 | 9. Complex leaf | Worker session | May call `task_run` on a spec it writes for the leaf; Task Runner steps stay inside that run (F5, F6) | |
-| 10. Verify | Tick opens an `avoozl-verifier` session, plus one session per review role when the repository names any (§5.2) | Runs the leaf's declared checks on the exact SHA in a clean worktree and reports exit codes; review roles report verdicts and findings on the same SHA | Checks fail after the retry bound |
+| 10. Verify | Tick queues a check run that Avoozl makes itself (an `avoozl-verifier` session only for a bar that needs judgment), plus one session per review role when the repository names any (§5.2) | Runs the leaf's declared checks as argv on the exact SHA in a clean worktree and records exit codes and output tails; review roles report verdicts and findings on the same SHA | Checks fail after the retry bound |
 | 11. Integrate | Tick (`integrateRun`) | Rebases and merges into the local integration branch | Rebase conflict the worker cannot resolve |
 | 12. Release | Tick | Recomputes readiness; dispatches newly ready leaves | |
 | 13. Close parent | Tick | Marks packages and the epic done when all required children are done; whole-head acceptance stays a separate, explicit action | Whole-head acceptance |
@@ -3241,7 +3334,7 @@ below read `kirocrew-native` at `dd8b28b`.
 
 | # | Fact | Evidence |
 |---|---|---|
-| F56 | **Verified.** A worker's `done` report opens one `avoozl-verifier` session that runs the leaf's declared checks (else the repository's) in a detached worktree at the reported commit. `verdictCause` refuses a report for another commit, a declared check missing from the report, and a non-zero exit. | `src/app/delivery.mjs` `planVerifierDispatches`, `verifierBrief`, `verdictCause` |
+| F56 | **Verified.** A worker's `done` report queues one check run that Avoozl makes itself on the leaf's declared checks (else the repository's) in a detached worktree at the reported commit; an `avoozl-verifier` session opens only for a bar that needs judgment (§5.2 Checks in code). `verdictCause` refuses a report for another commit, a declared check missing from the report, and a non-zero exit. | `src/app/delivery.mjs` `planVerifierDispatches`, `planCheckRuns`, `verifierBrief`, `verdictCause`; `src/app/check-runs.mjs` |
 | F57 | **Verified.** A rejected verdict marks the worker's attempt failed; the retry path opens a new worker attempt on the same worktree with the earlier cause quoted as data, up to `retries`, then a decision. A blocked or quiet verifier fails only the verification and is retried. Attempts and verifications stay on the `task_deliveries` row. | `delivery.mjs` `reconcileVerifications`, `reconcileDeliveries`, `workerBrief` |
 | F58 | **Verified.** Only a `verified` delivery is integrated, and a local leaf's `integrated` completion is reached from `task.integration.commit`, so dependents already wait for the verifier and integration. | `delivery.mjs` `integrateVerified`; `src/work-model.mjs` `completionReached`; `src/query.mjs` `ready` |
 | F59 | **Verified.** Per-repository and workspace concurrency count only live worker attempts; verifier sessions do not count. The default workspace concurrency is 1. | `delivery.mjs` `readyLeaves`, `DELIVERY_DEFAULTS` |
@@ -3290,13 +3383,46 @@ entry may replace the workspace's list.
   (`model`, the default, or `session`). Validation refuses a duplicate `id`,
   an empty `focus`, and, for `distinctFrom: model`, a missing or `auto` model
   on either side or a reviewer model equal to the writer's.
-- The checks role (today's verifier) is always present, with id `checks`.
+- The checks role is always present, with id `checks`. Avoozl runs it
+  itself (Checks in code, below); a verifier chat holds it only for a bar
+  that needs judgment.
+
+#### Checks in code
+
+The checks role makes no model call when the bar is commands. Owner
+decision 2026-11-13.
+
+- **Queue.** The tick queues one `check-run` record (in `flow_records`)
+  per reported commit, after fetching remote hand-back branches, so a
+  remote commit is checked here too. The app backend drain runs the queue
+  off the tick's path: per repository, oldest first, one at a time, under
+  a work lock. Nothing starts while all agents are stopped, and a commit a
+  stopped line holds is not queued until the line is green. A run left
+  `running` by a process that is gone goes back in the queue.
+- **Run.** A clean detached worktree at the exact reported commit. Each
+  declared check (`task.checks`, else the repository's `checks`) runs as
+  argv with no shell, with its own time limit (20 minutes), and records
+  its exit code and the last lines of its output, redacted by the content
+  rules and with the worktree path removed. The worktree is removed
+  afterwards. If HEAD is not the reported commit, nothing runs.
+- **Verdict.** The next tick judges the run with the same `verdictCause`
+  rules as a verifier's report. A check not run, exit 126 or 127, or a
+  timeout fails the checking, which is retried, not the writer's attempt.
+  A non-zero exit fails the writer's attempt; the tail is kept beside
+  that check on the verification. A run for an older commit judges nothing.
+- **Receipts.** The verification keeps role id `checks` and the same entry
+  shape (`command`, `exitCode`, `durationMs`), so receipts and gates read
+  the same. Flow timing records the run as stage `checks`.
+- **Judgment.** A verifier session on `avoozl-verifier` opens only when
+  the task says `verify: "agent"`, or its acceptance is prose with no
+  declared check. Its report carries a `verdict` like a reviewer's.
 
 #### Flow
 
 1. A worker reports `done` with commit C. The delivery opens round C.
-2. The tick opens one session per role for round C, all at once: the checks
-   role on `avoozl-verifier`, each review role on its agent and model. At
+2. The tick starts every role for round C at once: it queues the checks
+   run (or opens the verifier when the bar needs judgment), and opens each
+   review role on its agent and model. At
    dispatch it compares the reviewer's model with the model recorded on the
    writer attempt's binding; if either is unknown, it opens a decision
    instead (Requirement 36.4).
@@ -4630,6 +4756,11 @@ a crew and a model for each ready task, among the options that pass the checks.
 │ build box  os:linux      0/4   0.2  24 GB  yes      yes    yes   [✎][🗑]│
 │ win box    os:windows    –/2   –    –      stale 4m unknown no hosts [✎] │
 │ Remote crews wait on Kiro Crew (MC-10). Every chat runs on local.        │
+│ Remote relay  [ ] Place remote picks through one relay chat (Optional,   │
+│   routing.remoteRelay, saved in the workspace). A stopgap until MC-10.   │
+│   · Remote tasks wait for you until you send any message to the relay.   │
+│   · Each relay turn costs one model turn.                                │
+│   Relay chat is open. Relay turns today: 4. [Go to relay chat] [Forget…] │
 │ Stale after [ 120 s ]                                        [Save]     │
 ├ Preview ──────────────────────────────────────────────────── [Preview] ─┤
 │ 3.2 Parse flags   the routing agent picks among 4 options               │
@@ -4755,7 +4886,7 @@ How Avoozl measures delivery time and reacts to slow or broken work.
 ┌ Retro ─────────────────────────────────────────────────────────────────┐
 │ A review that finds the biggest slowdown and proposes one change.       │
 │ After this many tasks (optional) [ 10 ]  flow.retro.everyTasks           │
-│ Slow when over (optional) [ 2 ] × usual  flow.retro.slowFactor           │
+│ Slow when over (optional) [ 3 ] × usual  flow.retro.slowFactor           │
 │ Model (optional) [ auto ▾ ]              flow.retro.model                │
 │ Instructions (optional) [                     ]  flow.retro.instructions │
 │ Saved on this machine only.                                              │
@@ -5296,6 +5427,7 @@ and next decision, are tasks in `tasks.md` (P1–P32). Summary:
 | P42 | Prompt and skill proposals and lessons with fake workers and a fake retro model in two temporary workspaces: locked sections, stale bases and blocked text dropped, person-only approve and revert, overrides outside shipped files, a repository skill change as a leaf and an external one as a note, PDCA per version with mixed windows, lessons shared with no source text, opt-out, refused lesson text, drift marks that clear on confirmation, the lessons review, override drift with a three-way diff, pack versions, and person-only export (Phase 28) |
 | P43 | The activity log in a temporary workspace with a fake GitHub and a fake plugin: every listed local action and tick event makes one row, a change seen twice makes one, a secret-shaped or rule-matched value is saved redacted, rows past retention go on the tick, and the tab and `plans_view` read the same rows (Phase 29) |
 | P45 | Investigate first, evidence bundles, staying current, rules from corrections, fix-work share and ship mode with fake workers, a fake falsifier and a fake GitHub (Phase 34) |
+| P47 | The Remote relay with a fake relay chat and a fake Kiro Crew on the P29 crews, MC-10 missing: remote picks queue and never run on local, a turn the owner did not send waits with a Needs you item, one relay only and other chats refused, the person's turn opens each worker on its crew with the brief unchanged, a reply's report line (not its other text) runs the normal report path and verification follows, turns per day, Forget as a person only, a refusal for a chat the owner did not open, other refusals dropped, the setting off or MC-10 present dropping the queue (Phase 32) |
 | P44 | Provider health and switching with fake usage rows, fake error rows and a fake Kiro Crew model change in a temporary workspace: usage and error marks, recovery by success and cooldown, new tasks and weighted choices skipping low and out, retries keeping a model until it is out, running chats switched in the same session at the next turn, the review gate across a switch, the manual switch with preview hash and Also new tasks, person-only 403s, Needs you, and nothing changed with no settings (Phase 30) |
 
 A new server, shared database, or plugin mechanism other than the seam in §4.8
@@ -5332,6 +5464,7 @@ Detailed in `tasks.md`. **Proposed** order:
 | 28. Retro prompt and skill proposals, and lessons | Prompt and skill diffs with evidence from the retro, local per-workspace prompt overrides with revert, repository skill changes as leaves and external ones as notes, PDCA per version, a lessons store on this Mac shared across workspaces, lessons packs, and healing of lessons and overrides (§4.18) | Starts after 12.9 and 12.10; P42 |
 | 29. Activity log | One SQLite activity table, one `recordActivity` helper, local actions and the tick's GitHub and plugin events, screening and redaction, retention on the tick, the Activity tab and `plans_view` action `activity` (§4.19) | Starts after 10.4, 12.11 and 14.10; P43 |
 | 30. Provider health and switching | Health levels from usage reads and error rows, routing that skips low and out, running chats moved with Kiro Crew's model change, the manual Switch model dialog, Needs you, and Settings › Providers (§4.20) | Starts after 11.11 and 12.12; P44 |
+| 32. Remote relay | Opt-in `routing.remoteRelay`, the relay queue, the `avoozl-relay` agent and `plans_relay`, the Routing page block and Needs you, until MC-10 (§4.10 Remote relay) | Starts after 11.11 and 11.13; P47 |
 | 33. Only open tasks get issues | `github.issues.includeDone` (default off): done tasks get no issue, card or link at approval (§6.3) | Built in PR #34 |
 | 34. Investigate first, evidence, staying current, rules, fix share, ship mode | Findings and a falsifier before code, an evidence bundle per task, pull requests brought up to date without force pushes, rules from repeated corrections, the fix-work share in Flow, and `delivery.ship` (§4.21–§4.25) | Starts after 15.4, 28.3 and 12.11; P45 |
 

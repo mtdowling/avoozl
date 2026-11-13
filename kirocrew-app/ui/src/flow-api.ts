@@ -6,7 +6,7 @@
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
 
-export const STAGES = ['queued', 'coding', 'tests', 'commands', 'ci-wait', 'review', 'rework', 'merge', 'waiting'] as const
+export const STAGES = ['queued', 'coding', 'tests', 'commands', 'checks', 'ci-wait', 'review', 'rework', 'merge', 'waiting'] as const
 export type Stage = (typeof STAGES)[number]
 
 // One color per stage, readable on light and dark cards. Waiting stages are
@@ -16,6 +16,7 @@ export const STAGE_COLORS: Record<Stage, string> = {
   coding: '#3b82f6',
   tests: '#10b981',
   commands: '#8b5cf6',
+  checks: '#22c55e',
   'ci-wait': '#0ea5e9',
   review: '#ec4899',
   rework: '#ef4444',
@@ -28,6 +29,7 @@ export const STAGE_LABELS: Record<Stage, string> = {
   coding: 'Coding',
   tests: 'Tests',
   commands: 'Commands',
+  checks: 'Checks',
   'ci-wait': 'CI wait',
   review: 'Review',
   rework: 'Rework',
@@ -660,7 +662,7 @@ export const FLOW_DEFAULTS = {
   max: 3,
   by: 'phase',
   everyTasks: 10,
-  slowFactor: 2,
+  slowFactor: 3,
   model: 'auto',
   share: true,
   read: true,

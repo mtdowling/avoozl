@@ -40,6 +40,7 @@ import {
   routerBatch,
   routerBrief,
 } from "./router.mjs";
+import { relayActive, relayQueuedByCrew, relayView } from "./relay.mjs";
 import { listSessionBindings } from "./session-bindings.mjs";
 import { taskRepository } from "../work-model.mjs";
 
@@ -126,6 +127,9 @@ export function routingContext(store, options = {}) {
     counts = runningCounts(bindings),
     now = options.now ?? Date.now();
   validateTrackedRouting(tracked);
+  // A request queued for the Remote relay holds a chat on its crew (R41.17).
+  for (const [crew, n] of relayQueuedByCrew(store))
+    counts.crews.set(crew, (counts.crews.get(crew) || 0) + n);
   const crews = listCrews({
     settings: machine.crews,
     staleSeconds: machine.staleSeconds,
@@ -135,13 +139,20 @@ export function routingContext(store, options = {}) {
     running: counts.crews,
     now,
   });
-  const mc10 = snapshot?.mc10 === true;
+  const mc10 = snapshot?.mc10 === true,
+    config = routingConfig({
+      workspace: tracked,
+      machine: { routing: machine.routing },
+    });
   return {
-    config: routingConfig({ machine: { routing: machine.routing } }),
+    config,
     crews,
     machine,
     snapshot,
     mc10,
+    // The Remote relay opens a worker's remote pick until MC-10 lands
+    // (R41.16); hardChecks reads it.
+    relayActive: relayActive(config, mc10),
     remoteDispatch: snapshot?.remoteDispatch === true,
     counts,
     fetch: options.fetch ?? new Map(),
@@ -321,6 +332,14 @@ export function placeOne(store, data, ctx, state, input) {
       : ctx.config.enabled
         ? "the only option that passed the checks"
         : "routing is off: local";
+    // Nothing is left to judge: no routing call; Activity says so once.
+    if (ctx.config.enabled && checks.role === "worker")
+      ctx.onlyOne?.push({
+        taskId: task.id,
+        attempt: input.attempt || 1,
+        crew: pick.crew,
+        model: pick.model,
+      });
   } else if (ctx.config.enabled && checks.role === "worker") {
     const answer = routerAnswer(store, ctx, task.id, options, {
       ...brief(task, data, checks),
@@ -671,6 +690,13 @@ export function routingView(store, data, options = {}) {
     },
     mc10: ctx.mc10,
     remoteDispatch: ctx.remoteDispatch,
+    // The Remote relay (R41.16–R41.23): the setting, whether MC-10 makes it
+    // ignored, the registered chat, and the relay's turns per day.
+    relay: relayView(store, {
+      setting: ctx.config.remoteRelay,
+      mc10: ctx.mc10,
+      now: ctx.now,
+    }),
     lastCall: batch
       ? {
           id: batch.id,
@@ -797,8 +823,25 @@ export function routingFacts(store, ctx) {
 
 // Writes go to this machine's file with an expected hash: the prompt may
 // name private machines, so it never goes in a tracked file (R41.7).
+// The one tracked key, routing.remoteRelay, goes to the workspace's
+// .avoozl.json (R41.16).
 export function updateRouting(settings, store, input = {}, options = {}) {
   const where = input.where ?? "machine";
+  if (where === "workspace") {
+    const routing = input.routing || {};
+    if (Object.keys(routing).some((k) => k !== "remoteRelay"))
+      fail(
+        "The routing prompt is saved on this machine only (where: machine). The workspace holds only routing.remoteRelay.",
+      );
+    const before = settings.readFile();
+    if (input.expectedHash !== before.hash)
+      fail("Avoozl configuration changed; reload before saving.", 409);
+    const value = settings.updateValue(before);
+    if (Object.keys(routing).length) value.routing = routing;
+    else delete value.routing;
+    validateTrackedRouting(value);
+    return { hash: settings.write(value, { expectedHash: before.hash }).hash };
+  }
   if (where !== "machine")
     fail("The routing prompt is saved on this machine only (where: machine).");
   const file = machinePath(store, options);

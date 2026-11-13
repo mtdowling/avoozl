@@ -147,10 +147,13 @@ Two Kiro Crew steps only you can do, once:
    person can set it, and the tick opens no session there until it is set.
 
 Each minute the tick starts a Kiro Crew session for each ready leaf, in its
-own worktree. When a session reports done, Avoozl runs the checks on a clean
-committed head, rebases, fast-forwards the base branch, and releases the
-leaf's dependents. Avoozl never pushes. Implementation, integration, and
-acceptance stay separate steps, each with its own record.
+own worktree. When a session reports done, Avoozl runs the checks itself on
+the exact commit in a clean worktree, with no model call, then rebases,
+fast-forwards the base branch, and releases the leaf's dependents. A
+verifier session opens only when a task's bar needs judgment: prose
+acceptance with no checks, or `verify: "agent"`. Avoozl never pushes.
+Implementation, integration, and acceptance stay separate steps, each with
+its own record.
 
 To let a Crew Mode conductor claim leaves instead, set
 `"delivery": {"runner": "crew-mode"}` and follow
@@ -246,7 +249,7 @@ can override them). The Flow view shows where the time went.
   run in one session and one worktree, one commit per task. A failing batch
   splits. `1` turns it off.
 - **Retro** (`retro.everyTasks`, default `10`; `retro.slowFactor`, default
-  `2`): a tool-less `avoozl-retro` session names the biggest slowdown and
+  `3`): a tool-less `avoozl-retro` session names the biggest slowdown and
   proposes up to three changes. You approve or reject each, and an approved
   change is measured afterward.
 
@@ -268,7 +271,8 @@ from **Settings > Delivery**, as before.
   Prefer Kiro models when Claude is low, 70% Claude, 30% Kiro) and edit it.
   Each tick, one tool-less `avoozl-router` session ranks every ready task
   at once and picks a crew and a model for each. An answer is used in one
-  tick only, after the checks run again.
+  tick only, after the checks run again. A task with only one option left
+  takes it with no routing call, and Activity says "only one choice".
 - **Checks come first.** A crew must be online, approve tools on its own
   (so a chat cannot stall on an approval), reach the repository, and have
   the tags a task `needs` (such as `os:windows`). A model whose provider is
@@ -298,6 +302,30 @@ Remote crews are not live yet. Until Kiro Crew can open a session on another
 instance (Kiro Crew issue #36335), remote crews fail the checks and every
 session runs on this machine. Hand-back over SSH is tested only with a fake
 `ssh` command.
+
+### Remote relay (stopgap)
+
+`routing.remoteRelay: "on"` in the workspace's `.avoozl.json` (off by
+default) places remote worker picks before Kiro Crew can. Press **Open relay
+chat** on the Routing page. That opens one chat on the `avoozl-relay` agent.
+The tick queues each remote pick for that chat instead of running it here.
+Each time you send the chat a message, it opens the queued workers on their
+crews, sends their briefs unchanged, and hands their replies back. Avoozl
+reads only the report line at the end of a reply. The relay has four tools
+and cannot approve, merge, or push.
+
+Two catches, also shown on the Routing page:
+
+- Kiro Crew lets a chat open a remote chat only during a turn you sent. A
+  remote task waits, listed in **Needs you**, until you send any message to
+  the relay chat. It never falls back to this machine.
+- Each relay turn costs one model turn. The Routing page shows the count
+  per day.
+
+Only worker sessions go through the relay; checks and review run here. Once
+Kiro Crew can open remote sessions itself, Avoozl uses that and ignores the
+setting. The relay is built and tested with a fake relay chat and fake crews
+only (P47). It has not been run against a real remote crew.
 
 ## Pull request feedback
 
@@ -382,6 +410,7 @@ tests with a fake GitHub, fake sessions, or fake crews, run by `npm test`.
 | Flow: timing, stop the line, batching, retros        | Fakes only (P30)                                      |
 | Andon cord                                           | Fakes only                                            |
 | Routing prompt, checks, and pins                     | Fakes only (P29); remote crews wait on Kiro Crew      |
+| Remote relay                                         | Fakes only (P47); not run on a real remote crew       |
 | Provider health and Switch model                     | Fakes only (P44); Kiro Crew's model change not called |
 | One driver per spec, hand off and take over          | Fakes only (P40)                                      |
 | Pull request feedback                                | Fakes only (P34)                                      |
