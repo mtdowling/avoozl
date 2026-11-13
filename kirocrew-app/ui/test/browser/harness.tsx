@@ -24,6 +24,8 @@ import { SwitchModelButton } from '../../src/SwitchModel.tsx'
 import { setupForm } from '../../src/settings-api.ts'
 import { toRuleForm } from '../../src/routing-api.ts'
 import { LAYER } from '../../src/layers.ts'
+import PluginsSettings from '../../src/PluginsSettings.tsx'
+import { answerIntake } from './intake-fixture.ts'
 
 const query = new URLSearchParams(location.search)
 document.documentElement.dataset.theme = query.get('theme') === 'dark' ? 'dark' : 'light'
@@ -163,4 +165,22 @@ function Page() {
   )
 }
 
-createRoot(document.getElementById('root')!).render(<Page />)
+// ?page=intake: Settings > Plugins with its Intake sources, on fake data
+// (intake-fixture.ts); &empty=1 with no source. For the intake screenshots.
+function IntakePage() {
+  return (
+    <div {...{ [APP_ATTR]: '' }} style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
+      <NavHistoryProvider>
+        <ConfirmProvider>
+          <div data-intake-page style={{ padding: 16 }}>
+            <PluginsSettings workspaceId="w" />
+          </div>
+        </ConfirmProvider>
+      </NavHistoryProvider>
+    </div>
+  )
+}
+
+const intake = query.get('page') === 'intake'
+if (intake) answerIntake(query.get('empty') === '1')
+createRoot(document.getElementById('root')!).render(intake ? <IntakePage /> : <Page />)

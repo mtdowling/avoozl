@@ -327,6 +327,7 @@ function AvoozlPage() {
         ) : tab === 'untriaged' ? (
           <UntriagedView
             workspaceId={active}
+            onOpenSources={() => go({ settingsTab: 'plugins', tab: 'settings' })}
             onMakeSpec={(idea) => {
               setPlanGoal((request) => ({ n: request.n + 1, seed: specSeed(idea) }))
               go({ focus: null, drill: null, tab: 'plans' })

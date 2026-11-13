@@ -127,6 +127,43 @@ export function validateSource(id, value, where = `intake.sources.${id}`) {
   };
 }
 
+// What each source holds, for Settings: items, how many are untriaged, and
+// when the newest one first came in. Reads only.
+export function sourceCounts(store) {
+  const counts = new Map();
+  for (const row of itemRows(store)) {
+    if (!row.record || row.record.kind === "idea") continue;
+    const count = counts.get(row.source) ?? {
+      total: 0,
+      untriaged: 0,
+      lastAt: null,
+    };
+    count.total += 1;
+    if (row.route?.state === "untriaged" && !row.taskId) count.untriaged += 1;
+    if (row.firstSeenAt && !(count.lastAt >= row.firstSeenAt))
+      count.lastAt = row.firstSeenAt;
+    counts.set(row.source, count);
+  }
+  return counts;
+}
+
+// GitHub's read of each repository (untriaged.mjs), for Settings.
+export function githubReads(store) {
+  let rows = [];
+  try {
+    rows = store.list("intake_sources");
+  } catch {
+    // An older read-only database has no table yet.
+  }
+  return rows
+    .filter((row) => row.source === "github" && row.repository)
+    .map((row) => ({
+      repository: row.repository,
+      checkedAt: row.checkedAt ?? null,
+      error: row.error ?? null,
+    }));
+}
+
 // The `intake` block's shape, for the tick's policy check.
 export function validateIntake(value, where = "intake") {
   if (value === undefined) return { sources: {} };

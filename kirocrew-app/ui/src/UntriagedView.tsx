@@ -316,8 +316,20 @@ function Stack(props: { items: UntriagedItem[]; selected: Set<string>; now: numb
   )
 }
 
-// When each repository was last read, and any read error or cut-off.
-function Checked({ list, now }: { list: UntriagedList; now: number }) {
+// A link to Settings > Plugins > Intake sources, where each source's
+// settings and status live; plain words without the page's navigation.
+function SourcesLink({ onOpen }: { onOpen?: () => void }) {
+  if (!onOpen) return <>Settings › Plugins</>
+  return (
+    <button type="button" className="underline" onClick={onOpen} data-open-intake-sources>
+      Settings › Plugins › Intake sources
+    </button>
+  )
+}
+
+// When each repository was last read, and any read error or cut-off. A
+// source's status is in Settings; only its error shows here.
+function Checked({ list, now, onOpenSources }: { list: UntriagedList; now: number; onOpenSources?: () => void }) {
   const notes = list.repositories.filter((row) => row.error || row.truncated)
   const sources = (list.sources ?? []).filter((row) => row.id !== 'github')
   const times = list.repositories.map((row) => row.checkedAt).filter((at): at is string => Boolean(at)).sort()
@@ -326,12 +338,18 @@ function Checked({ list, now }: { list: UntriagedList; now: number }) {
       {list.repositories.length > 0 && (
         <span>{times.length ? `Checked ${relativeTime(times[0], now)}` : 'Not checked yet'} · GitHub is read at most every 10 minutes.</span>
       )}
-      {sources.map((row) => (
-        <span key={row.id} className={row.error ? 'text-danger' : undefined} data-intake-source-state={row.id}>
-          {row.id}: {row.error ?? (row.via === 'mcp' ? 'Items arrive through MCP.' : row.checkedAt ? `Read ${relativeTime(row.checkedAt, now)}${row.more ? ', more on the next tick' : ''}.` : 'Read on the next tick.')}
-          {row.refused ? ` ${row.refused} item${row.refused === 1 ? '' : 's'} refused.` : ''}
+      {sources
+        .filter((row) => row.error)
+        .map((row) => (
+          <span key={row.id} className="text-danger" data-intake-source-state={row.id}>
+            {row.id}: {row.error}
+          </span>
+        ))}
+      {sources.length > 0 && (
+        <span data-intake-sources-note>
+          {sources.length} other source{sources.length === 1 ? '' : 's'}. Status and settings: <SourcesLink onOpen={onOpenSources} />.
         </span>
-      ))}
+      )}
       {notes.map((row) => (
         <span key={row.repository} className={row.error ? 'text-danger' : undefined}>
           {row.repository}: {row.error ?? `GitHub search returns ${row.read} of the ${row.searched ?? 'more'} items it found. Narrow its Untriaged filter to see the rest.`}
@@ -418,7 +436,7 @@ function RadarList({ items, now, narrow }: { items: RadarItem[]; now: number; na
   )
 }
 
-export default function UntriagedView({ workspaceId, onMakeSpec }: { workspaceId: string | null; onMakeSpec?: (idea: Idea) => void }) {
+export default function UntriagedView({ workspaceId, onMakeSpec, onOpenSources }: { workspaceId: string | null; onMakeSpec?: (idea: Idea) => void; onOpenSources?: () => void }) {
   const api = useAppApi()
   const ask = useConfirm()
   const client = useMemo(() => untriagedClient(api), [api])
@@ -560,7 +578,9 @@ export default function UntriagedView({ workspaceId, onMakeSpec }: { workspaceId
       ) : show === 'ideas' ? (
         <>
           {!list.enabled && (
-            <p className="text-xs text-muted">Untriaged items need a GitHub mode or an intake source. Choose a mode in Settings › GitHub, or add a source in Settings › Plugins.</p>
+            <p className="text-xs text-muted">
+              Untriaged items need a GitHub mode or an intake source. Choose a mode in Settings › GitHub, or add a source in <SourcesLink onOpen={onOpenSources} />.
+            </p>
           )}
           {workspaceId && <IdeasList workspaceId={workspaceId} ideas={ideas} narrow={narrow} onChanged={() => void reload()} onMakeSpec={(idea) => onMakeSpec?.(idea)} />}
         </>
@@ -578,7 +598,7 @@ export default function UntriagedView({ workspaceId, onMakeSpec }: { workspaceId
         </div>
       ) : list.items.length === 0 ? (
         <>
-          <Checked list={list} now={now} />
+          <Checked list={list} now={now} onOpenSources={onOpenSources} />
           <EmptyState icon={<Inbox size={36} aria-hidden="true" />} {...emptyText(list)} />
         </>
       ) : (
@@ -603,7 +623,7 @@ export default function UntriagedView({ workspaceId, onMakeSpec }: { workspaceId
                   {shown.length === list.items.length ? `${list.items.length} untriaged` : `${shown.length} of ${list.items.length} untriaged`}
                   {chosen.length ? ` · ${chosen.length} selected` : ''}
                 </p>
-                <Checked list={list} now={now} />
+                <Checked list={list} now={now} onOpenSources={onOpenSources} />
               </div>
               <Tooltip text={bulk.tooltip}>
                 {(describedBy) => (
