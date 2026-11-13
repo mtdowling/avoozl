@@ -13,8 +13,8 @@ test('the confirm says what happens to each part of an approved plan', () => {
     '3 open tasks: archived. Their rows stay as history.',
     '1 running chat: left alone. Each task is archived when its chat ends.',
     '4 done tasks: kept as they are.',
-    '2 tasks outside the plan that wait on it: each gets a decision for you.',
-    'The plan is marked deleted and stays in history. There is no undo button.',
+    '2 tasks outside the spec that wait on it: each gets a decision for you.',
+    'The spec is marked deleted and stays in history. There is no undo button.',
   ])
   assert.match(deleteLines({ retire: false }).join(' '), /stays in history/)
 })

@@ -37,7 +37,6 @@ export function captureTask(data, input) {
     "q",
     "status",
     "activity",
-    "epic",
     "track",
     "tag",
     "relation",
@@ -48,33 +47,17 @@ export function captureTask(data, input) {
       (t) => t.id === resolveTaskId(data, c.selected),
     ),
     document = data.documents[c.document] ? c.document : null;
-  const epic = data.epics.find(
-      (e) => e.id === (filters.epic || c.selected?.replace(/^epic:/, "")),
-    ),
-    docEpic =
-      filters.epic?.startsWith("doc:") && data.documents[filters.epic.slice(4)]
-        ? filters.epic
-        : null;
+  // A captured task has no plan, so it shows under No plan; the document
+  // it came from is provenance only, never a group (Requirement 59.6).
   const compatible =
-    selected &&
-    (filters.scope !== "runtime" || selected.scope === "runtime") &&
-    (!filters.epic || selected.epic === filters.epic)
+    selected && (filters.scope !== "runtime" || selected.scope === "runtime")
       ? selected
       : null;
-  const scope =
-    epic?.scope === "catalog" || docEpic || document
-      ? "catalog"
-      : filters.scope === "runtime"
-        ? "runtime"
-        : epic
-          ? "runtime"
-          : compatible?.scope || "catalog";
-  const targetEpic =
-    docEpic ||
-    epic?.id ||
-    (document ? "doc:" + document : null) ||
-    compatible?.epic ||
-    "inbox";
+  const scope = document
+    ? "catalog"
+    : filters.scope === "runtime"
+      ? "runtime"
+      : compatible?.scope || "catalog";
   const track = data.tracks.some((t) => t.id === filters.track)
     ? filters.track
     : compatible?.track || "catalog";
@@ -103,8 +86,7 @@ export function captureTask(data, input) {
             t.prompt === prompt &&
             resolveTaskId(data, t.capture?.context?.selected || "") ===
               (selected?.id || "") &&
-            (t.capture?.context?.document || null) === document &&
-            t.epic === targetEpic,
+            (t.capture?.context?.document || null) === document,
         )
       : null;
   if (input.reuseTaskId && !reuse) throw Error("Task to reuse was not found.");
@@ -123,14 +105,6 @@ export function captureTask(data, input) {
     ];
     return { task: reuse, existing: true };
   }
-  if (targetEpic === "inbox" && !data.epics.some((e) => e.id === "inbox"))
-    data.epics.push({
-      id: "inbox",
-      title: "Inbox",
-      scope: "catalog",
-      color: "#96abc1",
-      summary: "New requests awaiting planning and classification.",
-    });
   const duplicates = requireDistinctTask(data, {
     title,
     distinctReason: input.distinctReason,
@@ -150,9 +124,7 @@ export function captureTask(data, input) {
       ? c.view
       : "strip",
     filters,
-    selected:
-      selected?.id ||
-      (epic && c.selected === "epic:" + epic.id ? c.selected : ""),
+    selected: selected?.id || "",
     document,
     taskIds: Array.isArray(c.taskIds)
       ? [
@@ -185,8 +157,7 @@ export function captureTask(data, input) {
       summary: prompt,
       prompt,
       status: "planned",
-      scope: targetEpic === "inbox" ? "catalog" : scope,
-      epic: targetEpic,
+      scope,
       track,
       kind: "task",
       tags: [

@@ -13,13 +13,14 @@ import {
   pushFilter,
   type DrillEntry,
   drillGraph,
-  documentEpic,
+  drillInto,
+  groupGraph,
   type Drill,
   NODE_HEIGHT,
   NODE_WIDTH,
   STATES,
   edgePath,
-  epicKey,
+  groupKey,
   fitView,
   layoutGraph,
   lineage,
@@ -33,6 +34,7 @@ import {
   adaptiveSpacing,
 } from './graph-layout.ts'
 import { Authority } from './Authority.tsx'
+import { EpicPanel } from './EpicPanel.tsx'
 import { useRead } from './useRead.ts'
 import { useTaskDrawer } from './drawer-context.ts'
 import { FilterBar, useSharedFilter } from './FilterBar.tsx'
@@ -42,7 +44,7 @@ import { ArrowLeft, Plus, RefreshCw } from './icons.ts'
 import { useNav, useRemembered } from './NavHistory.tsx'
 import { linkHref } from './views-api.ts'
 
-// Graphs larger than this open with every epic collapsed to one node.
+// Graphs larger than this open with every group collapsed to one node.
 const COLLAPSE_ABOVE = 60
 const CANVAS_HEIGHT = 640
 
@@ -104,7 +106,7 @@ function Node(props: {
     ? `${node.members.done} of ${node.members.total} done`
     : `${node.id} · ${STATE_LABEL[node.state]}`
   const label = node.members
-    ? `Epic ${node.title}, collapsed, ${sub}. Press to show only this epic.`
+    ? `${node.title}, collapsed, ${sub}. Press to open it.`
     : `${node.title}, ${node.id}, ${STATE_LABEL[node.state]}${node.task?.review ? ', waits for review' : ''}${node.task?.planArchived ? ', archived plan' : ''}${node.task?.handSetReview ? ', review set by hand, none running' : ''}`
   return (
     <g
@@ -266,9 +268,13 @@ export default function GraphView({
   const [filter, setFilter] = useSharedFilter(workspaceId)
   const load = useCallback((id: string) => client.graph(id), [client])
   const { value: full, error, busy, reload } = useRead(workspaceId, load)
-  // The shared filter, then the drill-in, decide what is drawn.
-  const graph = useMemo(() => (full ? drillGraph(filterGraph(full, filter), drill) : null), [full, filter, drill])
-  const choices = useMemo(() => filterChoices(full), [full])
+  // The shared filter, then the drill-in, decide what is drawn; the level
+  // decides the groups: epics, an epic's plans, or a plan's phases.
+  const graph = useMemo(
+    () => (full ? groupGraph(drillGraph(filterGraph(full, filter), drill), drill) : null),
+    [full, filter, drill],
+  )
+  const choices = useMemo(() => filterChoices(full, {}, filter.plan), [full, filter.plan])
   // null until the reader chooses: big graphs then start collapsed.
   const [collapsed, setCollapsed] = useState<Set<string> | null>(null)
   useEffect(() => setCollapsed(null), [drill])
@@ -283,13 +289,19 @@ export default function GraphView({
   const drag = useRef<{ x: number; y: number; view: View; moved: boolean } | null>(null)
   const moved = useRef(false)
 
-  const epicKeys = useMemo(
-    () => [...new Set((graph?.tasks ?? []).map((t) => t.epic ?? '(none)'))],
+  const groupKeys = useMemo(
+    () => [...new Set((graph?.tasks ?? []).map((t) => groupKey(t.group ?? null)))],
     [graph],
   )
+  // All and an epic's level open folded when big, so a large epic shows its
+  // plans before their tasks.
   const shut = useMemo(
-    () => collapsed ?? new Set(!drill && (graph?.tasks.length ?? 0) > COLLAPSE_ABOVE ? epicKeys : []),
-    [collapsed, graph, epicKeys, drill],
+    () =>
+      collapsed ??
+      new Set(
+        (!drill || drill.kind === 'epic') && (graph?.tasks.length ?? 0) > COLLAPSE_ABOVE ? groupKeys : [],
+      ),
+    [collapsed, graph, groupKeys, drill],
   )
   // The canvas width, for the gaps; a resize recomputes them.
   const [canvasWidth, setCanvasWidth] = useState(1100)
@@ -300,11 +312,8 @@ export default function GraphView({
   const byId = useMemo(() => new Map(layout?.nodes.map((n) => [n.id, n]) ?? []), [layout])
   const task = graph?.tasks.find((t) => t.id === selected) ?? null
   const summary = graph ? graphSummary(graph) : null
-  const epicTitle = (epic: string | null) => {
-    if (!epic) return 'No epic'
-    const title = full?.epics.find((e) => e.id === epic)?.title
-    return title && title !== epic ? title : documentEpic(epic)
-  }
+  const groupTitle = (group: string | null) =>
+    graph?.groups?.find((g) => g.id === group)?.title ?? group ?? 'None'
   // The drill stack: every level left, with its zoom, pan and selection.
   // The app runs inside the Kiro Crew page (no iframe of its own), so
   // history.pushState would move the host page too. Each level is one step
@@ -354,7 +363,11 @@ export default function GraphView({
   useEffect(() => {
     nav.history.sync('graph', stack.length, () => ({ label: 'Back in the Graph', back: () => nav.handlers.get('graph')?.() }))
   }, [nav, stack.length])
-  const drillEpic = (epic: string | null) => onDrill?.({ kind: 'epic', id: epic, title: epicTitle(epic) })
+  // A group label opens the next level: an epic, a plan, then a phase.
+  const drillGroup = (group: string | null) => {
+    const next = drillInto(drill, group, groupTitle(group))
+    if (next) onDrill?.(next)
+  }
 
   const fit = useCallback(() => {
     if (!layout || !canvas.current) return
@@ -402,19 +415,23 @@ export default function GraphView({
     else next.add(key)
     setCollapsed(next)
   }
-  // A click on a task opens it in the drawer; a click on a collapsed epic,
-  // or on an epic task, drills into that epic's own sub-graph.
+  // A click on a task opens it in the drawer; a click on a collapsed group
+  // opens its level.
   const select = (node: LaidNode) => {
     const action = nodeClick(node, moved.current)
-    if (action === 'drill') return drillEpic(node.epic)
+    if (action === 'drill') {
+      const next = drillInto(drill, node.group, node.title)
+      if (next) onDrill?.(next)
+      else toggle(groupKey(node.group))
+      return
+    }
     if (action !== 'open') return
-    if (node.task?.kind === 'epic' && full?.tasks.some((t) => t.epic === node.id)) return drillEpic(node.id)
     setSelected(node.id)
     drawer.openTask(node.id)
   }
   const selectId = (id: string) => {
     const node = graph?.tasks.find((t) => t.id === id)
-    if (node && shut.has(node.epic ?? '(none)')) toggle(node.epic ?? '(none)')
+    if (node && shut.has(groupKey(node.group ?? null))) toggle(groupKey(node.group ?? null))
     setSelected(id)
   }
   // A task named from another tab (the Dashboard's Ready next) opens selected.
@@ -493,8 +510,11 @@ export default function GraphView({
           </p>
         </FilterBar>
       )}
+      {workspaceId && drill?.kind === 'epic' && drill.id && (
+        <EpicPanel workspaceId={workspaceId} id={drill.id} client={client} onDrill={(next) => onDrill?.(next)} />
+      )}
       {graph && graph.total === 0 && (
-        <p className="text-sm text-muted">No tasks yet. Store and approve a plan in the Plans tab to fill the graph.</p>
+        <p className="text-sm text-muted">No tasks yet. Store and approve a spec in the Specs tab to fill the graph.</p>
       )}
       {layout && layout.nodes.length > 0 && (
         <Card>
@@ -521,8 +541,8 @@ export default function GraphView({
                 </nav>
               </>
             )}
-            <TipBtn tooltip="Fold each epic into one box" onClick={() => setCollapsed(new Set(epicKeys))}>Collapse all</TipBtn>
-            <TipBtn tooltip="Show every task inside each epic" onClick={() => setCollapsed(new Set())}>Expand all</TipBtn>
+            <TipBtn tooltip="Fold each group into one box" onClick={() => setCollapsed(new Set(groupKeys))}>Collapse all</TipBtn>
+            <TipBtn tooltip="Show every task inside each group" onClick={() => setCollapsed(new Set())}>Expand all</TipBtn>
             <span className="grow" />
             <TipBtn tooltip="Zoom out" onClick={() => zoom(1 / 1.25)} aria-label="Zoom out">
               −
@@ -564,7 +584,7 @@ export default function GraphView({
               </defs>
               <g transform={`translate(${view.x},${view.y}) scale(${view.scale})`}>
                 {layout.clusters.map((cluster, i) => {
-                  const key = epicKey(cluster.epic)
+                  const key = groupKey(cluster.group)
                   return (
                     <g key={`${key}:${i}`} opacity={lit ? 0.5 : 1}>
                       <rect
@@ -583,9 +603,9 @@ export default function GraphView({
                           role="button"
                           tabIndex={0}
                           aria-expanded={!cluster.collapsed}
-                          aria-label={`Epic ${cluster.title}, ${cluster.count} tasks. Press to show only this epic.`}
-                          onClick={() => !moved.current && drillEpic(cluster.epic)}
-                          onKeyDown={(e) => pressed(e, () => drillEpic(cluster.epic))}
+                          aria-label={`${cluster.title}, ${cluster.count} tasks. Press to open it.`}
+                          onClick={() => !moved.current && drillGroup(cluster.group)}
+                          onKeyDown={(e) => pressed(e, () => drillGroup(cluster.group))}
                           style={{ fill: 'var(--muted)', cursor: 'pointer' }}
                         >
                           {clip(cluster.title, 30)} ›
@@ -595,7 +615,7 @@ export default function GraphView({
                   )
                 })}
                 {layout.loose.map((group) => {
-                  const key = epicKey(group.epic)
+                  const key = groupKey(group.group)
                   return (
                     <text
                       key={`loose:${key}`}
@@ -604,9 +624,9 @@ export default function GraphView({
                       fontSize={10}
                       role="button"
                       tabIndex={0}
-                      aria-label={`Epic ${group.title}: ${group.count} with no dependencies. Press to show only this epic.`}
-                      onClick={() => !moved.current && drillEpic(group.epic)}
-                      onKeyDown={(e) => pressed(e, () => drillEpic(group.epic))}
+                      aria-label={`${group.title}: ${group.count} with no dependencies. Press to open it.`}
+                      onClick={() => !moved.current && drillGroup(group.group)}
+                      onKeyDown={(e) => pressed(e, () => drillGroup(group.group))}
                       style={{ fill: 'var(--muted)', cursor: 'pointer' }}
                     >
                       {clip(`${group.title} · ${group.count} with no dependencies`, group.chars)}

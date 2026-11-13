@@ -140,6 +140,7 @@ test("the planning identity comes from .avoozl.json", () => {
     mode: null,
     planningRepository: null,
     epicIssueType: null,
+    maxPerParent: 100,
     repositories: {},
   });
   assert.throws(
@@ -159,6 +160,7 @@ test("the planning identity comes from .avoozl.json", () => {
     mode: "plans-repo",
     planningRepository: "example/plans",
     epicIssueType: null,
+    maxPerParent: 100,
     repositories: {},
   });
   fs.writeFileSync(

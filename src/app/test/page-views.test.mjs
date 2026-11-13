@@ -14,26 +14,32 @@ const leaf = (id, extra = {}) => ({
   title: "Task " + id,
   scope: "catalog",
   status: "planned",
-  epic: "sample",
   track: "catalog",
   tags: [],
   acceptance: [id + " is observable."],
   ...extra,
 });
 
-// One epic, a chain a -> b -> c, a decision, a blocked task, a GitHub row.
+// Plan sample (no epic): a chain a -> b -> c, a decision, a blocked task.
+// Plan other, in epic "other": a GitHub row.
 function graphSnapshot() {
   const data = snapshot();
-  data.epics.push({ id: "other", title: "Other", scope: "catalog" });
+  data.epics.push({
+    id: "other",
+    title: "Other",
+    planId: "other",
+    listed: ["other-plan"],
+    plans: ["other-plan"],
+  });
   data.tasks = [
-    leaf("root", { kind: "epic", title: "Sample epic" }),
+    leaf("root", { kind: "package", title: "Sample epic" }),
     leaf("a", { status: "accepted" }),
     leaf("b"),
     leaf("c"),
     leaf("d", { decision: "choose-format" }),
     leaf("e", { status: "blocked" }),
     leaf("g", {
-      epic: "other",
+      planId: "other-plan",
       github: { number: 5, url: "https://github.com/example/fixture/issues/5" },
     }),
   ];
@@ -48,6 +54,12 @@ function graphSnapshot() {
 function graphFixture(t) {
   const { store } = fixture(t);
   store.importSnapshot(graphSnapshot());
+  store.put("plans", {
+    id: "other-plan",
+    title: "Other plan",
+    state: "approved",
+    epic: "other",
+  });
   return { store, ops: new Operations(store, {}) };
 }
 
@@ -60,7 +72,7 @@ test("graph view shows kind, authority, status, blocking edges and ready leaves"
   const graph = await ops.execute("graph.view", {});
   const byId = Object.fromEntries(graph.tasks.map((task) => [task.id, task]));
   assert.equal(graph.total, 7);
-  assert.equal(byId.root.kind, "epic");
+  assert.equal(byId.root.kind, "package");
   assert.equal(byId.g.authority, "github");
   assert.equal(byId.g.issue.number, 5);
   assert.equal(byId.b.authority, "local");
@@ -95,12 +107,12 @@ test("graph view shows kind, authority, status, blocking edges and ready leaves"
   );
   assert.equal(edge("a", "g").blocking, false);
   assert.deepEqual(
-    graph.epics.map((epic) => [epic.id, epic.count]),
-    [
-      ["sample", 6],
-      ["other", 1],
-    ],
+    graph.epics.map((epic) => [epic.id, epic.count, epic.plans]),
+    [["other", 1, ["other-plan"]]],
   );
+  // A task's epic is its plan's; the others are in no epic.
+  assert.equal(byId.g.epic, "other");
+  assert.equal(byId.a.epic, null);
   assert.deepEqual(rows(store), before);
 });
 
@@ -113,7 +125,7 @@ test("graph view filters by epic and status and keeps edges inside the set", asy
   );
   assert.deepEqual(other.edges, []);
   const planned = await ops.execute("graph.view", {
-    epic: ["sample", "other"],
+    epic: ["(none)", "other"],
     status: "planned",
   });
   assert.deepEqual(planned.tasks.map((task) => task.id).sort(), [

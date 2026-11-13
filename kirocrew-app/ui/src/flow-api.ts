@@ -90,9 +90,16 @@ export interface LineStop {
   sessions?: { slot: string; taskId: string; role: string; attempt: number; stopped: boolean; error?: string; finished?: boolean }[]
 }
 
+// Structured evidence a prompt or skill proposal carries (R68.4).
+export interface ChangeEvidence {
+  runs: string[]
+  value: string | number
+  effect: string
+}
+
 export interface Proposal {
   id: string
-  type: 'settings' | 'plan'
+  type: 'settings' | 'plan' | 'prompt' | 'skill' | 'lesson'
   file?: 'workspace' | 'repository'
   repository?: string
   key?: string
@@ -100,14 +107,91 @@ export interface Proposal {
   to?: unknown
   spec?: string
   change?: string
+  // prompt and skill proposals (design §4.18)
+  target?: string
+  section?: string
+  base?: string
+  diff?: string
+  revert?: boolean
+  lessons?: string[]
+  lessonId?: string
+  lessonRefused?: string
+  override?: { n: number; from: string; to: string }
+  leaf?: string
+  note?: SkillNote
+  // lesson edits from the lessons review
+  kind?: 'rewrite' | 'merge' | 'retire'
+  finding?: string
   metric: string
   direction: 'up' | 'down'
-  evidence: string
+  evidence: string | ChangeEvidence
   status: 'open' | 'approved' | 'rejected'
   removesCheck?: boolean
   revertOf?: string
   reason?: string | null
-  pdca?: { before: number | null; after?: number | null; result?: 'helped' | 'no change' | 'worse'; window: number }
+  pdca?: { before: number | null; after?: number | null; result?: 'helped' | 'no change' | 'worse'; window: number; mixed?: boolean }
+}
+
+export interface SkillNote {
+  plugin: string | null
+  file: string
+  diff: string
+  summary: string
+  at: string
+  sent: false
+}
+
+export interface PromptDrift {
+  section: string
+  old: string
+  new: string
+  override: string
+  rebased: string | null
+  conflict: boolean
+  hash: string | null
+  diffs: { builtIn: string; override: string }
+}
+
+export interface PromptRow {
+  target: string
+  version: string
+  shipped: string
+  active: number
+  versions: { n: number; kind: 'approve' | 'revert' | 'rebase'; section?: string; by: string; at: string }[]
+  sections: { name: string; locked: string | null; override: boolean; sha256: string }[]
+  drift: PromptDrift[]
+}
+
+export interface ProposalsModel {
+  proposals: (Proposal & { retro: string })[]
+  dropped: { retro: string; index: number | string; key: string | null; type?: string; reason: string }[]
+  prompts: PromptRow[]
+  notes: (SkillNote & { retro: string; proposal: string; target: string })[]
+  available: boolean
+}
+
+export interface LessonRow {
+  id: string
+  pattern: { stage: string | null; check: string | null; tool: string | null; traits: string[] }
+  finding: string
+  change: { type: string | null; target: string | null; summary: string | null }
+  outcome: 'untested' | 'kept' | 'undone'
+  evidence: { tasks?: number | null; metric?: string | null; before?: number | null; after?: number | null }
+  confidence: number
+  confirmedAt: string | null
+  state: 'ok' | 'stale' | 'needs re-check' | 'retired'
+  staleReason: string | null
+  source: string
+  readOnly: boolean
+  date: string
+  history: { at: string; by: string; what: string; reason?: string; outcome?: string; state?: string }[]
+}
+
+export interface LessonFilter {
+  stage?: string
+  outcome?: string
+  source?: string
+  state?: string
 }
 
 export interface Retro {
@@ -138,8 +222,23 @@ export interface FlowViewModel {
   stages: Stage[]
   repositories: string[]
   epics: { id: string; title: string }[]
+  // Plans with tasks, and the picked plan's phases; older backends omit them.
+  plans?: { id: string; title: string }[]
+  phases?: { id: string; title: string }[]
   series: { day: SeriesPoint[]; week: SeriesPoint[] }
   usage: UsageView
+  // Task IDs over budget, past 80%, stopped at the cap, or stopped by a
+  // person (§4.17). Older backends send none.
+  budget?: { over: string[]; warning: string[]; stopped: string[]; paused: string[] }
+}
+
+// The Flow tab's budget mark for one task's bar, or null.
+export function budgetMark(budget: FlowViewModel['budget'], taskId: string): 'over budget' | 'stopped at budget' | '80% of budget' | null {
+  if (!budget) return null
+  if (budget.stopped.includes(taskId) || budget.paused.includes(taskId)) return 'stopped at budget'
+  if (budget.over.includes(taskId)) return 'over budget'
+  if (budget.warning.includes(taskId)) return '80% of budget'
+  return null
 }
 
 export interface SeriesPoint {
@@ -239,6 +338,8 @@ export interface TaskTimingDetail extends TaskTiming {
 export interface FlowFilter {
   repository?: string
   epic?: string
+  plan?: string
+  phase?: string
   window?: string
   stage?: string
 }
@@ -274,6 +375,8 @@ export function flowClient(api: AppApi) {
       run<FlowViewModel>(workspaceId, 'flow.view', {
         ...(filter.repository ? { repository: filter.repository } : {}),
         ...(filter.epic ? { epic: filter.epic } : {}),
+        ...(filter.plan ? { plan: filter.plan } : {}),
+        ...(filter.plan && filter.phase ? { phase: filter.phase } : {}),
         ...(filter.window ? { window: Number(filter.window) } : {}),
         ...(filter.stage ? { stage: filter.stage } : {}),
       }),
@@ -288,6 +391,17 @@ export function flowClient(api: AppApi) {
     models: () => api.get<unknown>('/api/models').then(parseModels),
     saveInstructions: (workspaceId: string, instructions: string) =>
       run<{ instructions: string }>(workspaceId, 'flow.instructions.update', { instructions }),
+    // Proposals and Lessons (design §4.18).
+    proposals: (workspaceId: string) => run<ProposalsModel>(workspaceId, 'flow.proposals'),
+    revertPrompt: (workspaceId: string, target: string) => run(workspaceId, 'prompt.override.revert', { target }),
+    rebasePrompt: (workspaceId: string, input: { target: string; section: string; hash: string }) => run(workspaceId, 'prompt.override.rebase', input),
+    lessons: (workspaceId: string, filter: LessonFilter = {}) =>
+      run<{ lessons: LessonRow[]; available: boolean }>(
+        workspaceId,
+        'lessons.view',
+        Object.fromEntries(Object.entries(filter).filter(([, v]) => v)),
+      ),
+    exportLessons: (workspaceId: string, file: string) => run<{ path: string; lessons: number }>(workspaceId, 'lessons.export', { path: file }),
   }
 }
 
@@ -341,11 +455,45 @@ export const SOURCE_TEXT = {
 // "flow.batch.max 3 → 5" or the plan change in words.
 export function proposalText(p: Proposal): string {
   if (p.type === 'plan') return `${p.change} (spec ${p.spec})`
+  if (p.type === 'prompt') return `${p.revert ? 'Revert ' : ''}${p.target}${p.section ? ` § ${p.section}` : ''}`
+  if (p.type === 'skill') return `${p.revert ? 'Revert ' : ''}skill ${p.target}`
+  if (p.type === 'lesson') return `${p.kind} ${(p.lessons ?? []).join(', ')}`
   const where = p.file === 'repository' ? ` in ${p.repository}` : ''
   return `${p.key} ${JSON.stringify(p.from)} → ${JSON.stringify(p.to)}${where}`
 }
 
-export const directionText = (p: Proposal) => `${p.metric} ${p.direction === 'down' ? '↓' : '↑'}`
+export const directionText = (p: Proposal) => (p.type === 'lesson' ? 'lessons review' : `${p.metric} ${p.direction === 'down' ? '↓' : '↑'}`)
+
+// A proposal's evidence in one line: plain text, or runs, value and effect.
+export function evidenceText(p: Pick<Proposal, 'evidence'>): string {
+  const e = p.evidence
+  if (typeof e === 'string') return e
+  if (!e) return ''
+  return `${e.runs.join(', ')} · now ${e.value} · ${e.effect}`
+}
+
+// A unified diff as lines to color: added, removed, hunk header or context.
+export function diffLines(diff: string | undefined): { kind: 'add' | 'del' | 'hunk' | 'same'; text: string }[] {
+  if (!diff) return []
+  return diff.split('\n').map((text) => ({
+    kind: text.startsWith('@@') ? 'hunk' : text.startsWith('+') ? 'add' : text.startsWith('-') ? 'del' : 'same',
+    text,
+  }))
+}
+
+// What a lesson's state reads as in the Lessons view.
+export function lessonStateText(l: Pick<LessonRow, 'state' | 'staleReason' | 'outcome'>): string {
+  if (l.state === 'retired') return `retired${l.staleReason ? `: ${l.staleReason}` : ''}`
+  if (l.state !== 'ok') return `${l.state}: ${l.staleReason ?? ''}`.trim()
+  return l.outcome === 'undone' ? 'did not work' : l.outcome
+}
+
+// Lessons worth sharing first: kept, confirmed, confident, with evidence.
+export function shareRank(lessons: LessonRow[]): LessonRow[] {
+  return lessons
+    .filter((l) => l.outcome === 'kept' && l.state === 'ok' && !l.readOnly)
+    .sort((a, b) => b.confidence - a.confidence || (b.evidence.tasks ?? 0) - (a.evidence.tasks ?? 0))
+}
 
 export function pdcaText(p: Proposal): string | null {
   if (p.status !== 'approved' || !p.pdca) return null
@@ -435,7 +583,7 @@ export function bannerText(stop: LineStop): string {
 }
 
 export function filterActive(filter: FlowFilter) {
-  return Boolean(filter.repository || filter.epic || filter.window || filter.stage)
+  return Boolean(filter.repository || filter.epic || filter.plan || filter.phase || filter.window || filter.stage)
 }
 
 // ------------------------------------------------------------ settings
@@ -443,8 +591,9 @@ export function filterActive(filter: FlowFilter) {
 export interface FlowSection {
   stopTheLine?: { scope?: 'dependents' | 'repo' | 'all' }
   localChecksFirst?: boolean
-  batch?: { max?: number; by?: 'epic' | 'files' }
+  batch?: { max?: number; by?: 'phase' | 'files' }
   retro?: { everyTasks?: number; slowFactor?: number; model?: string }
+  lessons?: { share?: boolean; read?: boolean; untestedDays?: number; confirmDays?: number; reviewEvery?: number }
 }
 
 export interface FlowSettings {
@@ -461,20 +610,30 @@ export const FLOW_DEFAULTS = {
   scope: 'dependents',
   localChecksFirst: true,
   max: 3,
-  by: 'epic',
+  by: 'phase',
   everyTasks: 10,
   slowFactor: 2,
   model: 'auto',
+  share: true,
+  read: true,
+  untestedDays: 90,
+  confirmDays: 180,
+  reviewEvery: 5,
 } as const
 
 export interface FlowForm {
   scope: '' | 'dependents' | 'repo' | 'all'
   localChecksFirst: '' | 'on' | 'off'
   max: string
-  by: '' | 'epic' | 'files'
+  by: '' | 'phase' | 'files'
   everyTasks: string
   slowFactor: string
   model: string
+  share: '' | 'on' | 'off'
+  read: '' | 'on' | 'off'
+  untestedDays: string
+  confirmDays: string
+  reviewEvery: string
 }
 
 export function toFlowForm(section: FlowSection = {}): FlowForm {
@@ -486,6 +645,11 @@ export function toFlowForm(section: FlowSection = {}): FlowForm {
     everyTasks: section.retro?.everyTasks === undefined ? '' : String(section.retro.everyTasks),
     slowFactor: section.retro?.slowFactor === undefined ? '' : String(section.retro.slowFactor),
     model: section.retro?.model ?? '',
+    share: section.lessons?.share === undefined ? '' : section.lessons.share ? 'on' : 'off',
+    read: section.lessons?.read === undefined ? '' : section.lessons.read ? 'on' : 'off',
+    untestedDays: section.lessons?.untestedDays === undefined ? '' : String(section.lessons.untestedDays),
+    confirmDays: section.lessons?.confirmDays === undefined ? '' : String(section.lessons.confirmDays),
+    reviewEvery: section.lessons?.reviewEvery === undefined ? '' : String(section.lessons.reviewEvery),
   }
 }
 
@@ -519,5 +683,19 @@ export function toFlowSection(form: FlowForm): { flow?: FlowSection; error?: str
     retro.model = form.model.trim()
   }
   if (Object.keys(retro).length) flow.retro = retro
+  const lessons: NonNullable<FlowSection['lessons']> = {}
+  if (form.share) lessons.share = form.share === 'on'
+  if (form.read) lessons.read = form.read === 'on'
+  for (const [key, label, max] of [
+    ['untestedDays', 'Untested lessons expire after', 3650],
+    ['confirmDays', 'Confirm within', 3650],
+    ['reviewEvery', 'Review lessons every', 100],
+  ] as const) {
+    if (!form[key].trim()) continue
+    const n = Number(form[key])
+    if (!Number.isInteger(n) || n < 1 || n > max) return { error: `${label} must be a whole number 1–${max}.` }
+    lessons[key] = n
+  }
+  if (Object.keys(lessons).length) flow.lessons = lessons
   return { flow }
 }

@@ -1,12 +1,12 @@
 // Runs under node's type stripping: `node --test kirocrew-app/ui/test`.
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { EMPTY_NEW_PLAN, epicList, formProblems, isDirty, nameProblem, newPlanClient, suggestName } from '../src/new-plan-api.ts'
+import { EMPTY_NEW_PLAN, phaseList, formProblems, isDirty, nameProblem, newPlanClient, suggestName } from '../src/new-plan-api.ts'
 import { COMMAND_PATH } from '../src/workspace-api.ts'
 
 test('a name must be a folder name, and not one a plan or folder already uses', () => {
   assert.equal(nameProblem('cache-invalidation', []), null)
-  assert.match(nameProblem('', []), /Name the plan/)
+  assert.match(nameProblem('', []), /Name the spec/)
   assert.match(nameProblem('Cache Invalidation', []), /like cache-invalidation/)
   assert.match(nameProblem('a/b', []), /like a-b/)
   assert.match(nameProblem('x'.repeat(81), []), /up to 80/)
@@ -27,16 +27,18 @@ test('Cancel asks only when something changed', () => {
   assert.equal(isDirty({ ...EMPTY_NEW_PLAN, goal: 'x' }), true)
 })
 
-test('the client sends plan.new with epics as a list', async () => {
+test('the client sends plan.new with one epic and phases as a list', async () => {
   const calls = []
   const api = { post: async (path, body) => (calls.push({ path, body }), { result: { name: 'p' } }) }
-  await newPlanClient(api).request('ws', { ...EMPTY_NEW_PLAN, name: ' p ', epics: 'One\n\n Two ', repositories: ['app'], goal: 'g' })
+  await newPlanClient(api).request('ws', { ...EMPTY_NEW_PLAN, name: ' p ', epic: 'rewrite', phases: 'One\n\n Two ', repositories: ['app'], goal: 'g' })
   assert.equal(calls[0].path, COMMAND_PATH)
   assert.equal(calls[0].body.operation, 'plan.new')
   assert.equal(calls[0].body.workspaceId, 'ws')
-  assert.deepEqual(calls[0].body.input.epics, ['One', 'Two'])
+  assert.deepEqual(calls[0].body.input.phases, ['One', 'Two'])
+  assert.equal(calls[0].body.input.epic, 'rewrite')
+  assert.equal(calls[0].body.input.epics, undefined)
   assert.equal(calls[0].body.input.name, 'p')
-  assert.deepEqual(epicList(''), [])
+  assert.deepEqual(phaseList(''), [])
 })
 
 test('the Spec Builder hand-off previews first, then asks for the create body', async () => {

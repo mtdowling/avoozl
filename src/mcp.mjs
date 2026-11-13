@@ -1,3 +1,4 @@
+import { crossPlanEpics, taskEpic } from "./app/epics.mjs";
 import { resolveTaskId } from "./task-identity.mjs";
 import { applyActivity, activityState } from "./activity.mjs";
 import { randomUUID } from "node:crypto";
@@ -209,12 +210,13 @@ export const MCP_TOOLS = [
     annotations: { readOnlyHint: false, destructiveHint: false },
   },
 ];
-const cleanTask = (t) => ({
+const cleanTask = (t, data) => ({
   id: t.id,
   title: t.title,
   status: t.status,
   scope: t.scope,
-  epic: t.epic,
+  epic: taskEpic(data, t),
+  ...(t.phase ? { phase: t.phase } : {}),
   track: t.track,
   tags: t.tags,
   nextAction: t.nextAction,
@@ -330,7 +332,7 @@ function callTool(name, args, ctx) {
       total: rows.length,
       tasks: rows
         .slice(args.offset || 0, (args.offset || 0) + (args.limit || 60))
-        .map(cleanTask),
+        .map((t) => cleanTask(t, data)),
     };
   }
   if (name === "plans_status") {
@@ -518,7 +520,7 @@ function callTool(name, args, ctx) {
     if (
       args.selected &&
       !data.tasks.some((t) => t.id === args.selected) &&
-      !data.epics.some((e) => "epic:" + e.id === args.selected)
+      !crossPlanEpics(data).some((e) => "epic:" + e.id === args.selected)
     )
       throw Error("Unknown selected task or epic");
     const f = { scope: "all", ...(args.filters || {}) };
@@ -533,11 +535,7 @@ function callTool(name, args, ctx) {
       throw Error("Unknown status filter");
     if (f.track && !data.tracks.some((t) => t.id === f.track))
       throw Error("Unknown track filter");
-    if (
-      f.epic &&
-      !data.epics.some((t) => t.id === f.epic) &&
-      !data.documents[f.epic.replace(/^doc:/, "")]
-    )
+    if (f.epic && !crossPlanEpics(data).some((t) => t.id === f.epic))
       throw Error("Unknown epic filter");
     record = {
       id,

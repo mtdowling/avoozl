@@ -36,6 +36,7 @@ import {
   type SettingsChoices,
   type SettingsForm,
   LOCAL_HIDDEN_LINE,
+  SUB_ISSUE_LINE,
   isGitHubMode,
   modeKey,
   unusedInLocal,
@@ -50,6 +51,7 @@ import { AddRepository, REPOSITORIES_LINE, RepositoryDialog, RepositoryList, rep
 import PluginsSettings from './PluginsSettings.tsx'
 import ContentRulesSettings from './ContentRulesSettings.tsx'
 import FlowSettings from './FlowSettings.tsx'
+import { BudgetSettings, PricesSettings } from './BudgetSettings.tsx'
 import DeliverySettings from './DeliverySettings.tsx'
 import ProvidersSettings from './ProvidersSettings.tsx'
 import { useSteppedState } from './NavHistory.tsx'
@@ -78,6 +80,8 @@ export const SETTINGS_TABS = [
   { key: 'content', label: 'Content rules' },
   { key: 'flow', label: 'Flow' },
   { key: 'delivery', label: 'Delivery' },
+  { key: 'budgets', label: 'Budgets' },
+  { key: 'prices', label: 'Prices' },
   { key: 'providers', label: 'Providers' },
 ] as const
 export type SettingsTab = (typeof SETTINGS_TABS)[number]['key']
@@ -89,7 +93,7 @@ export const LOCAL_TAB_BLURB = 'The mode for this workspace. Save only writes .a
 
 export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
   workspaces:
-    'The Avoozl workspaces on this machine, each a folder with its own task database. Add one for each set of plans you keep apart.',
+    'The Avoozl workspaces on this machine, each a folder with its own task database. Add one for each set of specs you keep apart.',
   repositories:
     'The code checkouts tasks change and land in, with their GitHub settings. Save only writes .avoozl.json.',
   github:
@@ -97,10 +101,14 @@ export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
   plugins:
     'A plugin can bring a team’s settings pack, content rules, a tracker, an intake source or a delivery route. Each one runs or imports only after you approve it on this machine.',
   content:
-    'Terms Avoozl must never write: in plan files, issues, comments, briefs and diffs. A match stops the write and asks you.',
+    'Terms Avoozl must never write: in spec files, issues, comments, briefs and diffs. A match stops the write and asks you.',
   flow: 'How Avoozl measures delivery time and reacts to slow or broken work. Every group applies in each mode.',
   delivery:
     'Which agent and model write each task by default, and whether pull request feedback goes back to the writer. Crews and per-task picks are on the Routing tab.',
+  budgets:
+    "Each task's spending cap and what happens at it: stop new work, or only warn. Save only writes .avoozl.json.",
+  prices:
+    'What each model costs, so budgets can count dollars. Kept on this computer only, never in a repository.',
   providers:
     'When a provider or model counts as low or out, and the fallback models. New tasks skip low and out ones. Saved on this machine only.',
 }
@@ -1043,7 +1051,7 @@ function RepositoriesTab(props: {
         <Card>
           <Section title={`${row.name} settings`} blurb="A local-only repository: no GitHub remote, so the GitHub tabs do not apply.">
             <p className="text-sm" data-local-checks>
-              Required checks apply only to GitHub pull requests. Here Avoozl runs each task&apos;s own checks from the plan manifest, or this
+              Required checks apply only to GitHub pull requests. Here Avoozl runs each task&apos;s own checks from the spec manifest, or this
               repository&apos;s checks when a task names none.
             </p>
           </Section>
@@ -1094,7 +1102,7 @@ function LocalRepository(props: { row: RepositoryRow; review: ReviewSettings | u
           <dd>Avoozl worker chats</dd>
         </dl>
         <p className="text-sm" data-local-checks>
-          Avoozl runs each task&apos;s own checks from the plan manifest, or this repository&apos;s checks when a task names none.
+          Avoozl runs each task&apos;s own checks from the spec manifest, or this repository&apos;s checks when a task names none.
         </p>
         {props.kept && <p className="text-xs text-muted">Its GitHub settings are kept, not used. They apply again if you pick a GitHub mode.</p>}
       </Section>
@@ -1151,6 +1159,9 @@ function GeneralTab(props: {
                 onChange={(value) => set({ defaultAuthority: value })}
               />
               <Text id="avoozl-settings-epic" label="Epic issue type" raw="epicIssueType" rule={{ required: false, blank: 'blank: epics get no issue type' }} placeholder="Epic" width="md" value={form.epicIssueType} onChange={(value) => set({ epicIssueType: value })} />
+              {shown.has('subIssueCap') && (
+                <Text id="avoozl-settings-sub-issues" label="Sub-issues per parent" raw="subIssues.maxPerParent" rule={{ required: false, blank: SUB_ISSUE_LINE }} placeholder="100" type="number" width="sm" value={form.maxPerParent} onChange={(value) => set({ maxPerParent: value })} />
+              )}
             </div>
             <ProjectFields form={form} choices={choices} set={set} />
             <Section level="sub" title="Set up GitHub" blurb="Creates the labels, Project and fields the settings above name. It reads GitHub first and shows every write before making one.">
@@ -1406,6 +1417,10 @@ export default function SettingsView(props: {
         <FlowSettings workspaceId={workspaceId} />
       ) : tab === 'delivery' ? (
         <DeliverySettings workspaceId={workspaceId} onOpenRouting={props.onOpenRouting} />
+      ) : tab === 'budgets' ? (
+        <BudgetSettings workspaceId={workspaceId} />
+      ) : tab === 'prices' ? (
+        <PricesSettings workspaceId={workspaceId} />
       ) : tab === 'providers' ? (
         <ProvidersSettings workspaceId={workspaceId} />
       ) : (

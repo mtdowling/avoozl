@@ -10,6 +10,7 @@ const POLICY = {
   planningRepository: 'example/plans',
   defaultAuthority: 'github',
   epicIssueType: 'Epic',
+  subIssues: { maxPerParent: 5 },
   project: {
     owner: 'example',
     number: 7,
@@ -156,6 +157,7 @@ test('an empty form clears every policy key', () => {
     planningRepository: null,
     defaultAuthority: null,
     epicIssueType: null,
+    subIssues: null,
     project: null,
     repositories: null,
   })

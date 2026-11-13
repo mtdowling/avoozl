@@ -201,7 +201,7 @@ example a local leaf, then a remote one, then a local one.
 
 A task with `"authority": "plugin:<id>"` keeps its record in that tracker,
 the way a GitHub task keeps its record in an issue. SQLite only caches it:
-direct edits are refused, and changes go through the plan and projection.
+direct edits are refused, and changes go through the spec and projection.
 
 | Call                               | Reply                                                                                  |
 | ---------------------------------- | -------------------------------------------------------------------------------------- |
@@ -228,7 +228,7 @@ Rules a tracker plugin must follow:
   `project`, `read` and `list`. A plugin that does not is refused as a
   tracker.
 - **Edges.** Without the `edges` capability, the graph stays in Avoozl: its
-  edges come from the approved plan. With `edges`, `desired.blockedBy` lists
+  edges come from the approved spec. With `edges`, `desired.blockedBy` lists
   the record IDs that block this one; store them as the tracker's own links.
 - **Edit only managed fields.** Avoozl changes the title, the managed section,
   managed tags and, with `edges`, blocking links. A field a person changed is a

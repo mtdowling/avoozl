@@ -3,8 +3,9 @@
 // Only graph-specific facts: Issue Radar shows issues, pull requests and CI,
 // and Code Review Sage shows review, so neither is repeated here. Kept free
 // of JSX so node can test it directly.
+import type { BudgetChip } from './budget-api.ts'
 import type { StoredPlanPage } from './plans-api.ts'
-import { documentEpic, nodeState, waves, type NodeState } from './graph-layout.ts'
+import { nodeState, waves, type NodeState } from './graph-layout.ts'
 import { modelLabel, safeHref, type ConflictItem, type DeliveryItem, type DeliverySession, type Graph, type GraphTask } from './views-api.ts'
 
 // Session statuses after which a session will not move again.
@@ -63,6 +64,8 @@ export interface InFlight {
   lastAt: string | null
   status: string | null
   session: DeliverySession
+  // Spend against the cap (§4.17).
+  budget: BudgetChip | null
 }
 
 export interface Done {
@@ -74,7 +77,8 @@ export interface Done {
 }
 
 export interface Progress {
-  epic: string
+  // An epic across plans; null is No epic (Requirement 59.10).
+  epic: string | null
   title: string
   done: number
   total: number
@@ -88,6 +92,8 @@ export interface DashboardSummary {
   counts: Record<NodeState, number>
   running: RunningTask[]
   inFlight: InFlight[]
+  // Open tasks at or past their cap (§4.17), for the header count.
+  overBudget: number
   readyNext: (GraphTask & { wave: number })[]
   recent: Done[]
   progress: Progress[]
@@ -172,7 +178,7 @@ export function summarize(input: {
 
   const running = (allDelivery ?? [])
     .filter((item) => !item.complete)
-    .map((item) => ({ id: item.id, title: item.title, sessions: item.sessions.filter((s) => !ENDED.has(s.status ?? '')) }))
+    .map((item) => ({ id: item.id, title: item.title, budget: item.budget ?? null, sessions: item.sessions.filter((s) => !ENDED.has(s.status ?? '')) }))
     .filter((item) => item.sessions.length > 0)
 
   const tasks = new Map((graph?.tasks ?? []).map((t) => [t.id, t]))
@@ -187,13 +193,14 @@ export function summarize(input: {
           focus: session.title,
           taskId: item.id,
           title: item.title,
-          epic: epic ? (epicTitles.get(epic) ?? documentEpic(epic)) : null,
+          epic: epic ? (epicTitles.get(epic) ?? epic) : null,
           attempt: session.attempt,
           model: modelLabel(session),
           startedAt: session.boundAt,
           lastAt: session.statusAt ?? session.boundAt,
           status: session.status,
           session,
+          budget: item.budget,
         }
       }),
     )
@@ -228,14 +235,20 @@ export function summarize(input: {
     const epic = tasks.get(row.taskId)?.epic
     if (epic) chats.set(epic, (chats.get(epic) ?? 0) + 1)
   }
-  const byEpic = new Map<string, Progress>()
+  // One row per epic, counting the tasks of all its member plans, in the
+  // backend's epic order, then No epic.
+  const byEpic = new Map<string | null, Progress>()
+  for (const epic of graph?.epics ?? []) byEpic.set(epic.id, { epic: epic.id, title: epic.title, done: 0, total: 0, running: chats.get(epic.id) ?? 0 })
+  let none = 0
   for (const task of leaves) {
-    if (!task.epic || !titles.has(task.epic)) continue
-    const entry = byEpic.get(task.epic) ?? { epic: task.epic, title: titles.get(task.epic)!, done: 0, total: 0, running: chats.get(task.epic) ?? 0 }
+    const key = task.epic && titles.has(task.epic) ? task.epic : null
+    if (key === null) none += 1
+    const entry = byEpic.get(key) ?? { epic: null, title: 'No epic', done: 0, total: 0, running: 0 }
     entry.total += 1
     if (nodeState(task) === 'done') entry.done += 1
-    byEpic.set(task.epic, entry)
+    byEpic.set(key, entry)
   }
+  for (const [key, entry] of byEpic) if (!entry.total || (key === null && !none)) byEpic.delete(key)
 
   const stored = (input.plans?.items ?? []).filter((p) => !p.archivedAt)
   const archivedPlans = (input.plans?.items ?? []).length - stored.length
@@ -244,6 +257,7 @@ export function summarize(input: {
     counts,
     running,
     inFlight,
+    overBudget: (input.delivery ?? []).filter((item) => !item.complete && item.budget?.reached).length,
     readyNext,
     recent,
     progress: [...byEpic.values()],

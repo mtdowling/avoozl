@@ -40,8 +40,8 @@ const task = (id, extra = {}) => ({
 // a2 requires a1; b2 requires a2 and b1; b3 follows b2; a1 supports b3.
 function graph() {
   const tasks = [
-      task("A", { kind: "epic", acceptance: undefined }),
-      task("B", { kind: "epic", acceptance: undefined }),
+      task("A", { kind: "package", acceptance: undefined }),
+      task("B", { kind: "package", acceptance: undefined }),
       task("a1", { parent: "A", milestone: "one" }),
       task("a2", { parent: "A", milestone: "two", iteration: "Sprint 1" }),
       task("b1", { parent: "B", milestone: "one" }),

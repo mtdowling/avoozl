@@ -294,6 +294,8 @@ export interface SettingsForm {
   planningRepository: string
   defaultAuthority: string
   epicIssueType: string
+  // github.subIssues.maxPerParent (R59.15); blank is GitHub's 100.
+  maxPerParent: string
   projectOwner: string
   projectNumber: string
   fields: Record<string, string>
@@ -379,6 +381,11 @@ export function toForm(github: Policy): SettingsForm {
     planningRepository: str(github.planningRepository),
     defaultAuthority: str(github.defaultAuthority),
     epicIssueType: str(github.epicIssueType),
+    maxPerParent: (() => {
+      const value = record(github.subIssues).maxPerParent
+      // The default reads as blank, so an untouched file stays untouched.
+      return value === 100 ? '' : str(value)
+    })(),
     projectOwner: str(project.owner),
     projectNumber: str(project.number),
     fields: strings(project.fields),
@@ -444,6 +451,7 @@ export function toPolicy(form: SettingsForm): Policy {
     planningRepository: blank(form.planningRepository) ?? null,
     defaultAuthority: blank(form.defaultAuthority) ?? null,
     epicIssueType: blank(form.epicIssueType) ?? null,
+    subIssues: count(form.maxPerParent) !== undefined ? { maxPerParent: count(form.maxPerParent) } : null,
     project: hasProject
       ? compact({
           owner: blank(form.projectOwner),
@@ -505,6 +513,7 @@ export const PROJECT_FIELD_RULES: Record<string, FieldRule> = {
   wave: { required: false, blank: 'blank: uses the field named Wave' },
   iteration: { required: false, blank: 'blank: Avoozl skips Iteration' },
   avoozlState: { required: false, blank: 'blank: Avoozl skips Avoozl state' },
+  phase: { required: false, blank: 'blank: phases stay off the Project' },
   todo: { required: false, blank: 'blank: Ready, or Todo on an older board' },
   inProgress: { required: false, blank: 'blank: In progress' },
   done: { required: false, blank: 'blank: Done' },
@@ -518,6 +527,7 @@ export const PROJECT_DEFAULTS: Record<string, string> = {
   wave: 'Wave',
   iteration: '',
   avoozlState: '',
+  phase: '',
   todo: 'Ready',
   inProgress: 'In progress',
   done: 'Done',
@@ -739,6 +749,7 @@ export type SettingKey =
   | 'planningRepository'
   | 'defaultAuthority'
   | 'epicIssueType'
+  | 'subIssueCap'
   | 'projectFields'
   | 'setupGitHub'
   | 'issueRadarCrews'
@@ -755,10 +766,13 @@ export function visibleSettings(mode: string): Set<SettingKey> {
   const key = modeKey(mode)
   const always: SettingKey[] = ['reviewerChats', 'landingBranch', 'workerChats']
   if (key === 'local') return new Set([...always, 'localChecks'])
-  const github: SettingKey[] = ['defaultAuthority', 'epicIssueType', 'projectFields', 'setupGitHub', 'coder', 'triggers', 'requiredChecks', 'pullRequestReviews']
+  const github: SettingKey[] = ['defaultAuthority', 'epicIssueType', 'subIssueCap', 'projectFields', 'setupGitHub', 'coder', 'triggers', 'requiredChecks', 'pullRequestReviews']
   if (key === 'plans-repo') return new Set([...always, ...github, 'planningRepository'])
   return new Set([...always, ...github, 'issueRadarCrews'])
 }
+
+// The one line under the sub-issue cap (R59.15).
+export const SUB_ISSUE_LINE = 'Most sub-issues Avoozl links under one issue. GitHub allows 100, closed ones included.'
 
 export const LOCAL_HIDDEN_LINE = 'Labels, checks, reviews and the Project board only apply to GitHub modes.'
 
@@ -769,6 +783,7 @@ export function unusedInLocal(form: SettingsForm): string[] {
   if (form.projectOwner.trim() || form.projectNumber.trim()) kept.push('Project board')
   if (form.repositories.length) kept.push(`${form.repositories.length} repository GitHub setting${form.repositories.length === 1 ? '' : 's'}`)
   if (form.epicIssueType.trim()) kept.push('epic issue type')
+  if (form.maxPerParent.trim()) kept.push('sub-issue cap')
   return kept
 }
 
@@ -816,7 +831,7 @@ export const CODER_CARDS = [
     title: 'Avoozl worker chats',
     line: 'Avoozl opens a Kiro Crew chat on this Mac for each ready task.',
     flow: ['Ready task', 'Worker chat', 'Checks', 'Reviewer chats', 'Merged'],
-    useWhen: ['Plans stay private', 'You want to watch each chat', 'The work needs this Mac'],
+    useWhen: ['Specs stay private', 'You want to watch each chat', 'The work needs this Mac'],
     reviews: "Avoozl's reviewer chats review the exact commit; on GitHub, the branch's review rule applies too.",
     modes: ['local', 'plans-repo', 'single-repo'],
   },

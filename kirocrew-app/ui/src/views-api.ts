@@ -1,6 +1,7 @@
 // Calls and pure helpers for the Graph, Delivery and Conflicts views. All three
 // are read-only operations on the app backend. Keep this module free of JSX and
 // runtime imports so node can test it directly.
+import type { BudgetChip } from './budget-api.ts'
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
 
@@ -13,14 +14,19 @@ export interface TaskOwner {
 export interface GraphTask extends TaskOwner {
   id: string
   title: string
+  // Its plan's epic, across plans (Requirement 59.2); null is No epic.
   epic: string | null
   // The stored plan it came from; older backends omit it.
   planId?: string | null
-  // The spec folder its epic or source reference names (graph.view).
+  // The spec folder its source reference names (graph.view).
   spec?: string | null
+  // Its phase inside the plan; null is No phase.
+  phase?: { id: string; title: string } | null
+  // The level's group, set by groupGraph (graph-layout.ts) for drawing.
+  group?: string | null
   // Its place in the tick's dispatch order; older backends omit it.
   order?: number
-  kind: 'epic' | 'package' | 'leaf'
+  kind: 'package' | 'leaf'
   authority: string
   route: string
   completion: string
@@ -52,9 +58,22 @@ export interface GraphEdge {
   satisfied: boolean
 }
 
+export interface GraphPlan {
+  id: string
+  title: string
+  spec: string | null
+  epic: string | null
+  phases: { id: string | null; title: string | null; count: number }[]
+}
+
 export interface Graph {
   revision: number
-  epics: { id: string; title: string; count: number }[]
+  // Epics across plans, each with its member plan IDs in order.
+  epics: { id: string; title: string; count: number; plans?: string[] }[]
+  // The plans the Graph drills into, with their phases; older backends omit it.
+  plans?: GraphPlan[]
+  // The groups this level draws, in order (groupGraph); not from the backend.
+  groups?: { id: string | null; title: string }[]
   statuses: { id: string; label: string; complete: boolean }[]
   repositories: string[]
   total: number
@@ -64,6 +83,7 @@ export interface Graph {
 
 export interface GraphFilter {
   epic?: string
+  phase?: string
   repository?: string
   status?: string
   // One plan's tasks: its stored plan ID, its spec folder, or both.
@@ -178,6 +198,12 @@ export function prFeedbackLine(feedback: PrFeedback): string {
 export interface DeliveryItem extends TaskOwner {
   id: string
   title: string
+  // Its plan, epic and phase (R59.10); older backends omit them.
+  planId?: string | null
+  epic?: string | null
+  phase?: { id: string; title: string } | null
+  // A sub-issue link the cap or GitHub left out (R59.9, R59.15).
+  subIssue?: { parent: string; reason: string } | null
   status: string | null
   complete: boolean
   repository: string | null
@@ -209,6 +235,8 @@ export interface DeliveryItem extends TaskOwner {
   noSession?: 'review' | 'running' | null
   nextAction?: string | null
   planArchived?: string | null
+  // Spend against the cap (§4.17); null with no usage.
+  budget?: BudgetChip | null
 }
 
 // One task in a review group.
@@ -270,6 +298,27 @@ export interface ContentReport {
   at: string | null
 }
 
+// One epic (epic.get, Requirement 59.10): its goal, what done means, and
+// each member plan with computed progress. Writes nothing.
+export interface EpicView {
+  id: string
+  title: string
+  approved: boolean
+  goal: string | null
+  done: string | null
+  progress: { done: number; total: number }
+  complete: boolean
+  members: {
+    plan: string
+    title: string
+    confirmed: boolean
+    status: string
+    progress: { done: number; total: number }
+    phases: { id: string | null; title: string | null; done: number; total: number }[]
+  }[]
+  decisions: { taskId: string; title: string; decision: string; plan: string }[]
+}
+
 export function viewsClient(api: AppApi) {
   const run = async <T>(operation: string, input: Record<string, unknown>, workspaceId: string, expectedRevision?: number) => {
     const reply = await api.post<{ result: T }>(COMMAND_PATH, {
@@ -283,10 +332,11 @@ export function viewsClient(api: AppApi) {
   return {
     graph: (workspaceId: string, filter: GraphFilter = {}) => {
       const input: Record<string, unknown> = {}
-      for (const key of ['epic', 'repository', 'status', 'plan', 'spec'] as const)
+      for (const key of ['epic', 'phase', 'repository', 'status', 'plan', 'spec'] as const)
         if (filter[key]) input[key] = filter[key]
       return run<Graph>('graph.view', input, workspaceId)
     },
+    epic: (workspaceId: string, id: string) => run<EpicView>('epic.get', { id }, workspaceId),
     delivery: (workspaceId: string) =>
       run<{ revision: number; items: DeliveryItem[] }>('delivery.view', {}, workspaceId).then(
         (r) => r.items,
@@ -420,6 +470,8 @@ export const CONFLICT_LABELS: Record<string, string> = {
   resource: 'Shared resource',
   'content-match': 'Content rule',
   'content-unavailable': 'Rule set unavailable',
+  budget: 'Budget reached',
+  'over-budget': 'Over budget',
   'provider-out': 'Provider out',
 }
 

@@ -29,6 +29,22 @@ const minimal = () => ({
   edges: [],
   changelog: [],
 });
+// Epics span plans (Requirement 59): each fixture epic becomes an approved
+// epic over one plan, and each task with an epic joins that plan.
+function crossPlan(d) {
+  for (const task of d.tasks)
+    if (task.epic) {
+      task.planId = "plan-" + task.epic;
+      delete task.epic;
+    }
+  d.epics = d.epics.map((e) => ({
+    ...e,
+    planId: "epic-" + e.id,
+    listed: ["plan-" + e.id],
+    plans: ["plan-" + e.id],
+  }));
+  return d;
+}
 function fixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "nupp-plan-report-"));
   fs.mkdirSync(path.join(root, "todo"));
@@ -185,6 +201,7 @@ test("epic filters retain scope, completion counts and stable task positions", (
       track: "storage",
     },
   ];
+  crossPlan(d);
   const all = epicProgress(d, { scope: "runtime" }),
     filtered = epicProgress(d, {
       scope: "runtime",
@@ -308,6 +325,7 @@ test("single strip contains every task exactly once and filters preserve world p
     status: i % 2 ? "planned" : "implemented",
     track: "frontend",
   }));
+  crossPlan(d);
   const a = stripLayout(d, { scope: "runtime" }),
     b = stripLayout(d, { scope: "runtime", matchingIds: new Set(["t42"]) });
   assert.equal(a.total, 4100);
@@ -447,7 +465,8 @@ test("prompt capture inherits view context without inventing dependencies or com
       },
     };
   const result = captureTask(d, input);
-  assert.equal(result.task.epic, "W2");
+  // A captured task has no plan, so no epic (Requirement 59.6).
+  assert.equal(result.task.epic, undefined);
   assert.equal(result.task.scope, "runtime");
   assert.equal(result.task.track, "storage");
   assert.equal(result.task.status, "planned");
@@ -467,7 +486,7 @@ test("prompt capture inherits view context without inventing dependencies or com
     context: { view: "strip", filters: { scope: "all" } },
   }).task;
   assert.equal(unscoped.scope, "catalog");
-  assert.equal(unscoped.epic, "inbox");
+  assert.equal(unscoped.epic, undefined);
   assert.equal(validate(d).length, 0);
 });
 test("plan progress distinguishes owned tasks, supporting context, archives and authored estimates", () => {

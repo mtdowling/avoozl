@@ -28,6 +28,8 @@ import { fail } from "./store.mjs";
 
 // `intake` screens incoming items (design §4.12) and runs only for a set
 // that names it, so GitHub intake is unchanged unless the owner asks.
+// `proposal` screens retro proposals and `lesson` the lessons shared across
+// workspaces (design §4.18); every set covers them unless it narrows.
 // `activity` screens each activity log row (§4.19); a matching row is saved
 // redacted, so no decision opens.
 export const BOUNDARIES = Object.freeze([
@@ -36,6 +38,8 @@ export const BOUNDARIES = Object.freeze([
   "brief",
   "diff",
   "intake",
+  "proposal",
+  "lesson",
   "activity",
 ]);
 const OPT_IN = new Set(["intake"]);

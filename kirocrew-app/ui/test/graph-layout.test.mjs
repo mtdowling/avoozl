@@ -11,7 +11,6 @@ import {
   ASPECT,
   SPACING,
   adaptiveSpacing,
-  documentEpic,
   layoutGraph,
   lineage,
   nodeClick,
@@ -24,7 +23,7 @@ import {
 const task = (id, extra = {}) => ({
   id,
   title: 'Task ' + id,
-  epic: 'e1',
+  group: 'e1',
   kind: 'leaf',
   authority: 'local',
   route: 'local',
@@ -50,7 +49,7 @@ const edge = (from, to, extra = {}) => ({
 // e1: a -> b -> d, a -> c -> d; e2: x waits on b; a supports edge is ignored.
 const graph = {
   revision: 1,
-  epics: [
+  groups: [
     { id: 'e1', title: 'First', count: 4 },
     { id: 'e2', title: 'Second', count: 1 },
   ],
@@ -63,12 +62,12 @@ const graph = {
     task('c', { state: 'running' }),
     task('d', { state: 'waiting' }),
     task('x', {
-      epic: 'e2',
+      group: 'e2',
       state: 'needs-you',
       authority: 'github',
       issue: { number: 7, url: 'https://github.com/o/r/issues/7', repository: 'o/r' },
     }),
-    task('loose', { epic: null, state: 'deferred' }),
+    task('loose', { group: null, state: 'deferred' }),
   ],
   edges: [
     edge('a', 'b', { satisfied: true }),
@@ -143,7 +142,7 @@ function nuppSized(seed = 7) {
     return state / 2147483648
   }
   const tasks = []
-  for (let i = 0; i < 141; i++) tasks.push(task(`t${i}`, { epic: `e${Math.floor(i / 21)}` }))
+  for (let i = 0; i < 141; i++) tasks.push(task(`t${i}`, { group: `e${Math.floor(i / 21)}` }))
   const edges = []
   const seen = new Set()
   while (edges.length < 130) {
@@ -159,7 +158,7 @@ function nuppSized(seed = 7) {
   }
   return {
     ...graph,
-    epics: Array.from({ length: 7 }, (_, i) => ({ id: `e${i}`, title: `Epic ${i}`, count: 21 })),
+    groups: Array.from({ length: 7 }, (_, i) => ({ id: `e${i}`, title: `Epic ${i}`, count: 21 })),
     total: 141,
     tasks,
     edges,
@@ -237,21 +236,21 @@ test('a chain runs straight across', () => {
 
 test('a collapsed epic is one node and its edges join without self loops', () => {
   const layout = layoutGraph(graph, new Set(['e1']))
-  const epic = layout.nodes.find((n) => n.id === 'epic:e1')
+  const epic = layout.nodes.find((n) => n.id === 'group:e1')
   assert.deepEqual(epic.members, { total: 4, done: 1 })
   // The most urgent member state colors it: c is running.
   assert.equal(epic.state, 'running')
   assert.deepEqual(
     layout.edges.map(({ from, to, kind, satisfied }) => ({ from, to, kind, satisfied })),
-    [{ from: 'epic:e1', to: 'x', kind: 'requires', satisfied: false }],
+    [{ from: 'group:e1', to: 'x', kind: 'requires', satisfied: false }],
   )
-  assert.equal(layout.clusters.find((c) => c.epic === 'e1').collapsed, true)
+  assert.equal(layout.clusters.find((c) => c.group === 'e1').collapsed, true)
 })
 
 test('a merged edge is met only when every edge it stands for is met', () => {
   const two = {
     ...graph,
-    tasks: [task('a'), task('b'), task('x', { epic: 'e2' })],
+    tasks: [task('a'), task('b'), task('x', { group: 'e2' })],
     edges: [edge('a', 'x', { satisfied: true }), edge('b', 'x')],
   }
   assert.equal(layoutGraph(two, new Set(['e1'])).edges[0].satisfied, false)
@@ -273,7 +272,7 @@ test('a Nupp-sized graph has no edge under a node and fewer crossings than the n
   const looseRows = new Set(layout.nodes.filter((n) => n.loose).map((n) => n.y))
   const looseCount = layout.nodes.filter((n) => n.loose).length
   assert.ok(looseCount > 0 && looseRows.size < looseCount)
-  const folded = layoutGraph(big, new Set(big.tasks.map((t) => t.epic)))
+  const folded = layoutGraph(big, new Set(big.tasks.map((t) => t.group)))
   assert.equal(folded.nodes.length, 7)
   assertClean(folded)
 })
@@ -373,24 +372,18 @@ test("an epic's tasks in a column form one block", () => {
   // Each (column, epic) pair is one unbroken run: one box.
   const boxes = new Map()
   for (const c of layout.clusters) {
-    const key = `${c.x}:${c.epic}`
+    const key = `${c.x}:${c.group}`
     boxes.set(key, (boxes.get(key) ?? 0) + 1)
   }
   assert.ok([...boxes.values()].every((n) => n === 1))
 })
 
 test('unconnected collapsed epics share one grid instead of one row each', () => {
-  const tasks = Array.from({ length: 30 }, (_, i) => task(`t${i}`, { epic: `e${i}` }))
-  const layout = layoutGraph({ ...graph, epics: [], tasks, edges: [] }, new Set(tasks.map((t) => t.epic)))
+  const tasks = Array.from({ length: 30 }, (_, i) => task(`t${i}`, { group: `e${i}` }))
+  const layout = layoutGraph({ ...graph, groups: [], tasks, edges: [] }, new Set(tasks.map((t) => t.group)))
   assert.ok(new Set(layout.nodes.map((n) => n.y)).size < 30)
   assert.equal(layout.loose.length, 0)
   assertClean(layout)
-})
-
-test('a document epic is named by its spec folder or path', () => {
-  assert.equal(documentEpic('doc:.kiro/specs/compression/design.md'), 'compression')
-  assert.equal(documentEpic('doc:todo/nupp-runtime.md'), 'todo/nupp-runtime')
-  assert.equal(documentEpic('W1'), 'W1')
 })
 
 test('a click opens a task, expands a collapsed epic, and a drag is not a click', () => {

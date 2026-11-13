@@ -37,8 +37,9 @@ test('opening Spec Builder names the spec it should show', () => {
 test('the drawer asks before it writes the steering file, and offers the planner chat when Spec Builder is out of reach', async () => {
   const { readFileSync } = await import('node:fs')
   const drawer = readFileSync(new URL('../src/NewPlanDrawer.tsx', import.meta.url), 'utf8')
-  // Only a missing file is asked about; the question shows the file's text.
-  assert.match(drawer, /if \(preview\.steering\.state === 'missing'\) setSteering\(preview\.steering\)\s*else await handOffNow\(false\)/)
+  // Only a missing file, or one equal to an older Avoozl text, is asked
+  // about; the question shows the file's text.
+  assert.match(drawer, /if \(preview\.steering\.state === 'missing' \|\| preview\.steering\.state === 'older'\) setSteering\(preview\.steering\)\s*else await handOffNow\(false\)/)
   assert.match(drawer, /data-steering-text>\s*\{steering\.text\}/)
   // Only the Add button writes it.
   assert.equal(drawer.match(/handOff\(true\)/g).length, 1)

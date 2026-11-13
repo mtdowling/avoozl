@@ -3484,16 +3484,20 @@ cannot spend without limit and I can see where the money went.
    workspace default (`budget` in `.avoozl.json`), the repository
    (`projects.<id>.budget`), the spec (top-level `budget` in
    `avoozl/manifest.json`), and the task (a leaf's `budget` in the
-   manifest). Each level SHALL take `usd` and, for criterion 6, `tokens`
-   and `credits`. With no level set, a task SHALL have no cap, and its
-   receipt SHALL still be kept.
+   manifest). Each level SHALL take `usd`, `mode` and, for criterion 6,
+   `tokens` and `credits`. `mode` is `"stop"` (the default) or `"warn"`
+   and resolves like a cap: the most specific level that sets it wins.
+   With no level set, a task SHALL have no cap, and its receipt SHALL
+   still be kept. There SHALL be no spec-wide total cap (owner decision
+   2026-11-13).
 6. WHEN a turn cannot be priced (its model has no price, or it has credits
    and there is no credit price) THEN the dollar cap SHALL NOT be enforced
    for that turn. Avoozl SHALL warn once per task and model on the task and
    in Settings › Prices, and SHALL count unpriced turns against the token
    cap (input plus output) and the credit cap instead. Where no level sets
    them, these caps SHALL default to 2,000,000 tokens and 200 credits per
-   task.
+   task. The defaults SHALL be settings: the workspace `budget.tokens` and
+   `budget.credits` replace them.
 7. A task's spend SHALL include every session bound to it: each attempt
    and retry, the verifier, each review round, and pull request feedback
    rounds (Requirement 54). A fix task (Requirement 44.7) SHALL have its
@@ -3504,10 +3508,12 @@ cannot spend without limit and I can see where the money went.
    any session for the task. WHEN spend reaches the cap THEN Avoozl SHALL
    NOT dispatch a new session for the task, and SHALL ask each live session
    bound to it to stop at its next turn boundary. Avoozl SHALL NOT
-   interrupt a turn, end a tool call, or close or stop a session. Spend MAY
-   pass the cap by the turns that ran before the read; the receipt SHALL
-   show by how much.
-9. A task stopped by its budget SHALL go to **Needs you** with two
+   interrupt a turn, end a tool call, or close or stop a session. Spend is
+   known only after each usage read (about once a minute), so a task CAN
+   pass its cap by the turns that ran between two reads; the receipt SHALL
+   show by how much. This criterion and criterion 9 apply in `stop` mode;
+   criterion 18 covers `warn` mode.
+9. A task stopped by its budget (`stop` mode) SHALL go to **Needs you** with two
    actions, both a person's only: **Raise budget**, which takes a new cap,
    records who raised it, from what, to what, and when, and lets the task
    go on (the same session if it is still live, else the next attempt);
@@ -3547,7 +3553,30 @@ cannot spend without limit and I can see where the money went.
     finish any task.
 16. An incoming item (Requirement 50) MAY carry a budget later, from a
     plugin source with an owner-approved budget capability. This is a hook
-    only: payments, escrow and refunds are out of scope.
+    only: payments, escrow and refunds are out of scope. A grant SHALL
+    only set a dollar cap where no level sets one, and SHALL never raise a
+    cap a person set. A cap set by a grant SHALL always be in `stop` mode,
+    because it is someone else's money.
+17. WHEN spend reaches 80% of any cap THEN the task and its receipt SHALL
+    show a warning, in both modes. Nothing else changes at 80%.
+18. WHERE a task's mode is `warn` THEN reaching the cap SHALL stop and
+    pause nothing and SHALL send no stop message. The task SHALL get an
+    **Over budget** badge (spend / cap) on the drawer, the Delivery card
+    and In flight, and one Needs you item, "Over budget: $X of $Y", with
+    **Acknowledge**, **Raise budget** and **Switch to stop**, a person's
+    only. Acknowledge SHALL clear the item until spend passes the next
+    step, each further 50% of the cap, so it cannot nag every tick. A
+    Kiro Crew notification for it SHALL be optional (workspace
+    `budget.notify`), off by default.
+19. The Dashboard SHALL show a count of open over-budget tasks; the Flow
+    tab and receipts SHALL mark over-budget and budget-stopped runs; the
+    retro payload SHALL say which receipts went over budget.
+20. Settings SHALL show the mode next to each cap with one plain line on
+    what each mode does, in Settings › Budgets (the workspace and each
+    repository); prices are in Settings › Prices.
+21. A remote chat's spend is unknown (criterion 14) and SHALL warn, never
+    stop. No upstream Kiro Crew ask is filed for remote usage yet (owner
+    decision 2026-11-13).
 
 ### Requirement 68: Retros propose prompt and skill changes
 

@@ -202,7 +202,7 @@ function workspace(t, mode = "single-repo", extra = {}) {
     data.tasks.push(
       {
         ...leaf("parent", 20),
-        kind: "epic",
+        kind: "package",
         acceptance: undefined,
       },
       leaf("a", 1, { parent: "parent" }),

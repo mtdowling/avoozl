@@ -233,7 +233,7 @@ export default function WorkspaceView(
           <h3 id="avoozl-ws-add" className="text-base font-semibold">
             Add a workspace
           </h3>
-          <p className="mt-1 text-sm text-muted">A workspace is a folder with your plans. Pick one that already has them, or start a new one.</p>
+          <p className="mt-1 text-sm text-muted">A workspace is a folder with your specs. Pick one that already has them, or start a new one.</p>
           <form
             className="mt-3 flex flex-col gap-2"
             style={{ maxWidth: '36rem' }}
@@ -267,7 +267,7 @@ export default function WorkspaceView(
                 <Btn type="submit" disabled={busy}>
                   Add existing
                 </Btn>
-                <p className="text-xs text-muted">The folder already has Avoozl plans (an .avoozl.json and its database). Avoozl lists it; nothing in it changes.</p>
+                <p className="text-xs text-muted">The folder already has Avoozl specs (an .avoozl.json and its database). Avoozl lists it; nothing in it changes.</p>
               </div>
               <div className="flex flex-col gap-1.5 rounded border p-3" style={{ borderColor: 'var(--border)' }} data-choice="init">
                 <Btn type="button" disabled={busy} onClick={() => void submitWorkspace('init')}>
