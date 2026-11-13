@@ -17,6 +17,7 @@ evidence baseline.
 |---|---|---|
 | Public repositories | Fully supported; execution needs an explicit reviewed rule | Owner, 2026-11-11 |
 | Who writes GitHub pull requests | Issue Radar crews scoped to Avoozl's ready label in single-repo mode; Avoozl worker sessions in plans-repo mode (§6.6) | Owner, 2026-11-11 (updated) |
+| Autopilot | The name people read for delivery, the tick starting ready leaves on its own. The `delivery` key, the `delivery.*` operations, the CLI and the `plans_*` MCP names keep their names | Owner, 2026-11-13 |
 | Runtime machinery | Kiro Crew crons, sessions, and notifications; Avoozl builds none of its own | Requirement 26 |
 | Label-driven loop | Similar idea to the public glorp project; no code, skills, or text reused | Requirement 27 |
 | Persistence for GitHub work | GitHub issues, sub-issues, dependencies, labels, Project fields, and pull requests hold the truth; SQLite is a rebuildable cache | Owner, 2026-11-11 |
@@ -2601,6 +2602,8 @@ external skill ─▶ note on the plugin card (nothing sent)
 lessons store (~/.config/avoozl/lessons.sqlite) ─▶ other workspaces' retros
      ▲ drift checks re-score, mark stale, re-check; a person rewrites,
        merges or retires
+     ▼ a person shares chosen kept lessons (summaries) ─▶ PR to the plans
+       repo (plans-repo) or the code repo (single-repo); Local only: nowhere
 ```
 
 #### Current-code facts
@@ -2680,8 +2683,11 @@ it.
 
 #### Lessons store
 
-One SQLite file on this Mac, `~/.config/avoozl/lessons.sqlite`, never in a
-repository and never in a driver export (§6.10).
+One SQLite file on this Mac, `~/.config/avoozl/lessons.sqlite`. The raw
+store never goes to a repository or GitHub. It leaves this Mac only in a
+person's pack export, a person's **Share** of chosen proven lessons as
+summaries (below), and the driver handoff export (§6.10), which includes
+it (`lessons.export {raw: true}`).
 
 | Field | Holds |
 |---|---|
@@ -2779,6 +2785,35 @@ The Flow tab gets **Overview** (today's content), **Proposals**, and
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
+#### Sharing
+
+Owner decision 2026-11-13 (R69.11–R69.15). The Lessons view ranks share
+candidates: this workspace's own lessons that are `kept`, unmarked and not
+read-only, by evidence count, then fit, then confidence. Fit counts the
+other workspaces on this Mac whose traits (recorded in the store's meta at
+each retro) share one of the lesson's traits.
+
+| Step | Operation | Caller |
+|---|---|---|
+| Preview | `lessons.share.preview {ids}`: target repository, file, text, hash | Person (reads only) |
+| Share | `lessons.share {ids, previewHash}` | Person only; 403 for sessions, MCP, app token, plugins |
+
+The file is `.avoozl/lessons.json` in the pack shape (`version`,
+`lessons`), merged by lesson ID with the file already on the base branch,
+summaries only, checked at the `lesson` and `github` boundaries. Avoozl
+writes it on a new branch `avoozl/lessons-<date>` in a temporary worktree
+of the target checkout, commits, pushes and opens a pull request:
+
+| Mode | Target |
+|---|---|
+| plans-repo | the planning repository |
+| single-repo | the code repository |
+| Local only | none; Share is off and the view says so |
+
+When GitHub cannot be reached the commit stays on the branch and the
+result names it. Another workspace imports the file like a plugin's
+lessons pack.
+
 Settings › Flow gets a **Lessons** sub-group: Share this workspace's
 lessons (`flow.lessons.share`), Use lessons from other workspaces
 (`flow.lessons.read`), Untested lessons expire after (days,
@@ -2798,6 +2833,7 @@ placeholders, and one line saying lessons stay on this computer.
 | Repo skill change as a leaf | It is code in someone's repository, so it gets checks and review |
 | External skill as a note | Avoozl cannot edit a pinned plugin |
 | Lessons on this Mac, summaries only | Cross-workspace reuse without moving one workspace's text into another |
+| Share chosen proven lessons by pull request | A person decides what leaves; the repository's review sees it; raw contexts stay local |
 | Undone and retired kept | Retros should not relearn what failed |
 | Automatic marks, person edits | Marks are reversible; changing what a lesson says is a judgment |
 | Keep the override until a rebase is approved | Dropping it silently would undo a proven change |
@@ -4128,7 +4164,8 @@ names the winner.
    and hash, task rows and receipts, local-authority tasks, decisions open
    and answered, Flow spans and stops, retros and proposals, task links and
    notes, the activity log, token usage, session bindings marked with the
-   old machine ID, and the list of machine-local items in use (below). It
+   old machine ID, the raw lessons store (`lessons.export {raw: true}`,
+   §4.18), and the list of machine-local items in use (below). It
    never holds a terms file, router or retro instructions, a token, a crew
    host or a host key. Avoozl never uploads, commits or pushes it; the
    person moves it, and the dialog says it may hold private notes.
@@ -5071,7 +5108,7 @@ and adds an `Epic` issue type if an organization admin runs it.
    approves it, and the next tick projects the issues, sub-issues,
    dependencies, and Project items, with Release set from milestones. The
    graph is read through the migration read path (§6.8) until step 11.
-9. **Start delivery.** Enable the tick for one epic with concurrency 1. Avoozl
+9. **Turn on Autopilot.** Enable the tick for one epic with concurrency 1. Avoozl
    worker sessions code its leaves in the code repositories (§6.6), against
    each code repository's default branch, so GitHub closes each issue
    (§6.5). (Changed 2026-11-12: a recorded integration branch that is not a

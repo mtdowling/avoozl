@@ -18,6 +18,12 @@ The three documents together form the recommendation:
 | `design.md` | Product thesis, non-goals, state ownership, architecture, workflows, Kiro Crew integration map, app UX, code disposition, moving an existing workspace, release gates, kill criteria, and the final product statement |
 | `tasks.md` | The ordered proof sequence and phased roadmap as checkable tasks |
 
+**Autopilot** is the name people read for delivery: the tick starting ready
+leaves on its own. Only the name changes (owner decision, 2026-11-13). The
+`delivery` key in `.avoozl.json`, the `delivery.*` operations, the CLI and the
+`plans_*` MCP names stay as they are, and so do the requirements below that
+say delivery.
+
 Every conclusion carries one label:
 
 - **Verified**: confirmed by reading current code, documentation, or data, with the source named.
@@ -2748,7 +2754,7 @@ without my writing a prompt.
    (Changed 2026-11-13: Submit hands the request to Spec Builder,
    Requirement 65; the planner chat is the fallback.)
 4. The tick SHALL import the folder as a draft plan once it lints clean.
-   New plan SHALL never approve a plan, start delivery or push.
+   New plan SHALL never approve a plan, turn on Autopilot (delivery) or push.
 5. Every top button on the Plans page SHALL show an icon.
 
 ### Requirement 58: Onboard a repository
@@ -3402,8 +3408,9 @@ going away.
     approved commit and hash, task rows and receipts, local-authority
     tasks, open and answered decisions, Flow timing and stops, retros and
     proposals, task links and notes, the activity log, token usage,
-    session bindings marked as the old machine's, and a list of the
-    machine-local items in use (Criterion 16) without their contents. It
+    session bindings marked as the old machine's, the raw lessons store
+    (Requirement 69.15; added 2026-11-13, owner decision), and a list of
+    the machine-local items in use (Criterion 16) without their contents. It
     SHALL NOT hold a terms file, router or retro instructions, a token, a
     crew host or a host key. Avoozl SHALL write it to a folder the person
     picks and SHALL never upload, commit or push it. The dialog SHALL say
@@ -3677,8 +3684,13 @@ failed is not tried again.
 #### Acceptance criteria
 
 1. Avoozl SHALL keep one lessons store on this Mac, under the Avoozl
-   config directory, and SHALL NOT write lessons to any repository,
-   tracked file, GitHub, or driver export.
+   config directory. The raw store (contexts, histories, source
+   workspace IDs) SHALL stay local: Avoozl SHALL NOT write it to any
+   repository, tracked file or GitHub. The only ways lessons leave this
+   Mac SHALL be a person's **Share** of chosen proven lessons (criteria
+   11–15), a person's export to a pack file (criterion 8), and the driver
+   handoff export (Requirement 66.12). (Changed 2026-11-13, owner
+   decision: share chosen proven lessons.)
 2. A lesson SHALL hold: a pattern (stage, check kind, tool, and
    repository traits such as languages and build files), a finding, the
    change made (type, target, and a summary), the PDCA outcome (`kept`,
@@ -3713,6 +3725,33 @@ failed is not tried again.
 10. The Flow tab SHALL have a **Lessons** view with filters for pattern,
     outcome, source, and state, and Settings › Flow SHALL have a
     **Lessons** sub-group with the two sharing switches and the ages.
+11. The Lessons view SHALL rank **share candidates**: this workspace's own
+    lessons that are `kept` after the PDCA check, not marked and not
+    read-only, ordered by evidence count, then by fit (how many other
+    workspaces on this Mac share at least one of the lesson's traits),
+    then by confidence. Each candidate SHALL show why it ranks there.
+12. **Share** SHALL be a person's act on lessons the person picks. It
+    SHALL first show a preview: the target repository, the file, the exact
+    text and its hash; sharing SHALL name that hash. Agent sessions, MCP,
+    the app token and plugins SHALL get 403 on preview-to-share and share.
+    Only candidates (criterion 11) MAY be shared.
+13. A shared file SHALL hold summaries only, in the lessons pack shape
+    (criterion 7): pattern, finding, change summary, outcome and evidence
+    counts, with no context, history, source workspace ID, task ID, path,
+    repository name or URL. The content rules SHALL run on it at the
+    `lesson` and `github` boundaries before anything is written; a block
+    SHALL write nothing and name the rule without the matched text.
+14. WHERE the mode is plans-repo THEN Share SHALL write
+    `.avoozl/lessons.json` in the planning repository on a new branch and
+    open a pull request to its base branch (a commit on that branch when
+    GitHub cannot be reached, shown with the branch name). WHERE the mode
+    is single-repo THEN Share SHALL do the same in the code repository.
+    WHERE the mode is Local only THEN Share SHALL be off and the view SHALL
+    say lessons share nowhere in this mode. Share SHALL merge with the
+    file already there by lesson ID and SHALL never push to a protected
+    branch directly.
+15. `lessons.export` SHALL also offer the raw store (`raw: true`, person
+    only) for the driver handoff export to include (Requirement 66.12).
 
 ### Requirement 70: Lessons and overrides heal as things change
 
