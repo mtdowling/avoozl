@@ -19,7 +19,8 @@ package or folder that plugs in here.
 The examples on this page are the test-only plugins in Avoozl's own test
 tree: `src/app/test/fixtures/plugins/sdk-team/` bundles a pack, rules, a
 tracker and an intake source; `fake-route/`, `fake-tracker/` and
-`fake-rules/` each provide one part. Read them alongside this guide.
+`fake-rules/` each provide one part. Read them alongside this guide. These
+fakes are the only plugins tested so far; no real plugin has run live.
 
 ## What a plugin is
 
