@@ -5,6 +5,7 @@
 import { fail } from "./store.mjs";
 import { isCrewId, LOCAL, tagError } from "./crews.mjs";
 import { isSource, pluginId } from "../work-model.mjs";
+import { healthyChoices, refuseTrackedProviders } from "./provider-health.mjs";
 
 export const PLACED_ROLES = Object.freeze(["worker", "checks", "reviewer"]);
 export const PRESETS = Object.freeze({
@@ -313,6 +314,7 @@ export function validateRouting(
 // The tracked file's routing: the workspace's `routing` and each
 // repository's `projects.<id>.routing`. Throws.
 export function validateTrackedRouting(config, options = {}) {
+  refuseTrackedProviders(config);
   validateRouting(config?.routing, {
     ...options,
     at: "routing",
@@ -591,6 +593,19 @@ const sessionApplies = (rule, role) =>
 export const choiceKey = (choice) =>
   `${choice.agent || ""}\u0000${choice.model || ""}`;
 
+// Where a session's agent and model come from: the manifest's `session`
+// for a writer, else the first matching rule's (R53.2). {source, from}.
+export function sessionSource({ task, role, rules = [], subject }) {
+  if (role === "worker" && task.session)
+    return { source: task.session, from: "manifest" };
+  const rule = rules.find(
+    (r) => sessionApplies(r, role) && ruleMatches(r, subject),
+  );
+  return rule
+    ? { source: rule.session, from: "rule " + rule.id }
+    : { source: null, from: null };
+}
+
 // The session for one task and role, before crews lacking the agent are
 // ruled out. `defaults`: {agent, model, source} from repository or
 // workspace delivery settings (R53.3). `running` and `reserved` map
@@ -610,28 +625,36 @@ export function chooseSession({
   skipModels = [],
   agentAvailable = () => true,
   rank = null,
+  health = null,
 }) {
-  let source = null,
-    from = null;
-  if (role === "worker" && task.session) {
-    source = task.session;
-    from = "manifest";
-  } else {
-    const rule = rules.find(
-      (r) => sessionApplies(r, role) && ruleMatches(r, subject),
-    );
-    if (rule) {
-      source = rule.session;
-      from = "rule " + rule.id;
-    }
-  }
-  if (!source)
-    return {
+  const { source, from } = sessionSource({ task, role, rules, subject });
+  if (!source) {
+    const fallback = {
       agent: defaults.agent ?? null,
       model: defaults.model ?? null,
       from: defaults.source || "default",
       reason: defaults.source || "default",
     };
+    // Provider health (R72.5, R72.6): the default is one choice, left only
+    // when it is out.
+    const healthy = healthyChoices([{ ...fallback, weight: 1 }], health, {
+      skipModels: role === "worker" ? skipModels : [],
+    });
+    if (healthy.wait)
+      return {
+        wait: true,
+        health: true,
+        from: fallback.from,
+        reason: `${fallback.from}: ${healthy.reason}`,
+      };
+    return healthy.fallback || healthy.note
+      ? {
+          ...fallback,
+          model: healthy.pool[0].model,
+          reason: fallback.reason + healthy.note,
+        }
+      : fallback;
+  }
   const choices = source.choices
     ? source.choices.map((c) => ({ ...c, weight: c.weight ?? 1 }))
     : [{ agent: source.agent, model: source.model, weight: 1 }];
@@ -641,10 +664,34 @@ export function chooseSession({
     weight: c.weight,
   });
   const writer = role === "worker",
-    usable = choices
+    allowed = choices
       .map(fill)
       .filter((c) => !(writer && c.model && skipModels.includes(c.model)))
       .filter((c) => agentAvailable(c.agent));
+  // Retries keep the last pick while it is still a choice and not out (R53.6, R72.6).
+  if (kept) {
+    const same = allowed.find(
+      (c) => c.agent === kept.agent && c.model === kept.model,
+    );
+    if (same && !(health && same.model && health.level(same.model) === "out"))
+      return { ...same, from, reason: `${from}, kept from the last attempt` };
+  }
+  const keptOut =
+    kept && health && kept.model && health.level(kept.model) === "out"
+      ? `, the kept model ${kept.model} is out`
+      : "";
+  const healthy = allowed.length
+    ? healthyChoices(allowed, health, { skipModels: writer ? skipModels : [] })
+    : { pool: [], note: "" };
+  if (healthy.wait)
+    return {
+      wait: true,
+      health: true,
+      from,
+      reason: `${from}: ${healthy.reason}`,
+    };
+  const usable = healthy.pool,
+    healthNote = keptOut + healthy.note;
   if (!usable.length) {
     const skipped =
       writer && choices.map(fill).some((c) => skipModels.includes(c.model));
@@ -657,16 +704,9 @@ export function chooseSession({
       distinct: skipped,
     };
   }
-  // Retries keep the last pick while it is still a choice (R53.6).
-  if (kept) {
-    const same = usable.find(
-      (c) => c.agent === kept.agent && c.model === kept.model,
-    );
-    if (same)
-      return { ...same, from, reason: `${from}, kept from the last attempt` };
-  }
   // The binding says why a retry did not keep its pick (R53.6).
-  const removedNote = kept ? ", the kept choice was removed" : "";
+  const removedNote =
+    (kept && !keptOut ? ", the kept choice was removed" : "") + healthNote;
   if (usable.length === 1)
     return { ...usable[0], from, reason: from + removedNote };
   // The router may rank the choices (R53.5); a pick outside the list falls back.
