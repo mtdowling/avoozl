@@ -334,7 +334,7 @@ export function validateContentRules(
     if (!record(entry)) fail(`${where} must be an object.`);
     for (const key of Object.keys(entry))
       if (
-        !["id", "action", "boundaries", "repositories", "plugin"].includes(key)
+        !["id", "action", "boundaries", "repositories", "plugin", "remote"].includes(key)
       )
         fail(`${where}.${key} is not a rule set setting.`);
     if (typeof entry.id !== "string" || !entry.id)
@@ -386,12 +386,19 @@ export function validateContentRules(
       if (pluginIds && !pluginIds.includes(entry.plugin))
         fail(`${where}.plugin ${entry.plugin} names no plugins entry.`);
     }
+    // Remote crews (§4.10, R41.11): a set covering `diff` forbids them by
+    // default, because its pre-push hook is installed only on this machine.
+    if (entry.remote !== undefined && !["allow", "forbid"].includes(entry.remote))
+      fail(`${where}.remote must be allow or forbid.`);
     return {
       id: entry.id,
       action,
       boundaries,
       repositories: repos,
       plugin: entry.plugin ?? null,
+      remote:
+        entry.remote ??
+        (!boundaries || boundaries.includes("diff") ? "forbid" : "allow"),
     };
   });
   return { sets };

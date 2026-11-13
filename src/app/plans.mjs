@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { digest } from "../model.mjs";
 import { COMPLETIONS, TASK_KINDS, isSource } from "../work-model.mjs";
 import { fail } from "./store.mjs";
+import { validateSession } from "./placement.mjs";
 import { frontMatterCategory } from "../front-matter.mjs";
 import { newTaskAuthority } from "./github-policy.mjs";
 import { checkedItems } from "./spec-plans.mjs";
@@ -138,6 +139,18 @@ export function validateProposal(item) {
     (!Array.isArray(item.paths) || item.paths.some((x) => typeof x !== "string"))
   )
     fail("paths must be a list of strings.");
+  // Placement (§4.10): labels and a type word routing rules match on, and
+  // the session's agent and model (R53.1).
+  if (
+    item.labels !== undefined &&
+    (!Array.isArray(item.labels) ||
+      item.labels.length > 30 ||
+      item.labels.some((x) => typeof x !== "string" || !x.trim() || x.length > 100))
+  )
+    fail("labels must be a list of at most 30 names.");
+  if (item.type !== undefined && (typeof item.type !== "string" || !/^[a-z][a-z0-9-]{0,39}$/.test(item.type)))
+    fail("type must be one lowercase word, such as test.");
+  if (item.session !== undefined) validateSession(item.session);
   return item;
 }
 export function createPlan(
@@ -425,6 +438,10 @@ export function approvePlan(
             "iteration",
             "authority",
             "parent",
+            "labels",
+            "paths",
+            "type",
+            "session",
           ].map((key) => task[key] ?? null),
           task.source?.hash ?? null,
           data.edges
@@ -494,6 +511,10 @@ export function approvePlan(
             "acceptFrom",
             "milestone",
             "iteration",
+            "labels",
+            "paths",
+            "type",
+            "session",
           ]
             .filter((key) => proposal[key] !== undefined)
             .map((key) => [key, proposal[key]]),
@@ -564,7 +585,7 @@ export function approvePlan(
         if (!design.authority) delete existing.authority;
         // A manifest that drops a milestone moves the task out of it, and
         // one that drops acceptFrom lifts the validation gate.
-        for (const key of ["milestone", "iteration", "acceptFrom"])
+        for (const key of ["milestone", "iteration", "acceptFrom", "labels", "paths", "type", "session"])
           if (design[key] === undefined) delete existing[key];
         // An item moved out from under its epic loses that parent.
         if (spec && design.parent === undefined) delete existing.parent;

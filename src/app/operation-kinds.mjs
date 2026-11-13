@@ -71,6 +71,8 @@ const OBSERVE = new Set([
   "intake.sources",
   "flow.view",
   "flow.settings.get",
+  "routing.view",
+  "routing.preview",
   "untriaged.crews",
   "github.repository.labels",
   "content.rules",
@@ -171,6 +173,9 @@ const EXECUTE = new Set([
 ]);
 
 const PROTECT = new Set([
+  "routing.update",
+  "crews.update",
+  "delivery.pickAgain",
   "workspace.seed",
   "configuration.update",
   "github.settings.update",

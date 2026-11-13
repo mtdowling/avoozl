@@ -87,6 +87,23 @@ export function bindSession(store, input = {}, { guard, conductor } = {}) {
     fail("Choose role worker, verifier, responder, planner, or review:<id>.");
   if (input.model !== undefined && !MODEL.test(input.model))
     fail("Choose a model name.");
+  // Placement (§4.10, R41.9, R53.10): the crew, agent, and why.
+  if (input.crew !== undefined && !/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(input.crew))
+    fail("Choose a crew id.");
+  if (input.agent !== undefined && !AGENT.test(input.agent))
+    fail("Choose an agent name.");
+  if (
+    input.placement !== undefined &&
+    (!input.placement ||
+      typeof input.placement !== "object" ||
+      JSON.stringify(input.placement).length > 8000)
+  )
+    fail("A placement is an object of at most 8000 characters.");
+  if (
+    input.sessionReason !== undefined &&
+    (typeof input.sessionReason !== "string" || input.sessionReason.length > 300)
+  )
+    fail("A session reason is at most 300 characters.");
   if (input.commit !== undefined && !SHA.test(input.commit))
     fail("Name the subject commit as a full lowercase SHA.");
   if (
@@ -160,6 +177,10 @@ export function bindSession(store, input = {}, { guard, conductor } = {}) {
       // The model the session was opened on, and the commit a checks or
       // review session judges (§5.2). Unset means unknown.
       ...(input.model ? { model: input.model } : {}),
+      ...(input.agent ? { agent: input.agent } : {}),
+      ...(input.crew && input.crew !== "local" ? { crew: input.crew } : {}),
+      ...(input.placement ? { placement: input.placement } : {}),
+      ...(input.sessionReason ? { sessionReason: input.sessionReason } : {}),
       ...(input.commit ? { commit: input.commit } : {}),
       ...(batch ? { batch } : {}),
       boundAt: new Date().toISOString(),

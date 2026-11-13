@@ -29,6 +29,7 @@ import { pluginHealth } from "./plugin-session.mjs";
 import { taskSourceRefs } from "../task-identity.mjs";
 import { taskFlow } from "./flow.mjs";
 import { avoozlState } from "../delivery-lanes.mjs";
+import { attachLink } from "./routing.mjs";
 
 const BLOCKING = new Set(["requires", "sequence"]);
 const ACTIVE_RUNS = new Set([
@@ -498,7 +499,12 @@ export function deliveryView(store, data) {
     board = projectItemRecords(store),
     live = liveSessions(store),
     claimed = claimedLeaves(store),
-    archivedOf = archivedPlanOf(store);
+    archivedOf = archivedPlanOf(store),
+    unreachableCrews = new Set(
+      (store.getMeta("crews.snapshot")?.instances || [])
+        .filter((i) => i.reachable === false)
+        .map((i) => i.id),
+    );
   const items = [];
   for (const task of data.tasks) {
     if (taskKind(task) !== "leaf") continue;
@@ -542,6 +548,12 @@ export function deliveryView(store, data) {
           statusAt: binding.statusAt ?? null,
           boundAt: binding.boundAt ?? null,
           model: binding.model ?? null,
+          // Placement (§4.10, R41.9, R53.10): the crew, agent, and why.
+          agent: binding.agent ?? null,
+          crew: binding.crew ?? "local",
+          crewUnreachable: unreachableCrews.has(binding.crew),
+          placementReason: binding.placement?.reason ?? null,
+          sessionReason: binding.sessionReason ?? null,
           // What Kiro Crew said the session ran on; null from a Kiro Crew
           // that does not report it, whose requested model is trusted.
           served: binding.served
@@ -552,7 +564,7 @@ export function deliveryView(store, data) {
               }
             : null,
           commit: binding.commit ?? null,
-          link: sessionUrl(binding.slot),
+          link: attachLink(store, binding, sessionUrl(binding.slot)),
         }))
         .sort((a, b) => a.attempt - b.attempt || a.role.localeCompare(b.role)),
       runs: (runs.get(id) || [])
@@ -795,6 +807,21 @@ export function conflictsView(store, data) {
       target: decision.target ?? null,
       line: decision.line ?? null,
       readable: Boolean(decision.source),
+      openedAt: decision.openedAt ?? null,
+    });
+  }
+  // No crew fits (§4.10, R41.8): yellow, one per task.
+  for (const decision of optionalList(store, "placement_decisions")) {
+    if (decision.state !== "open") continue;
+    const task = byId.get(decision.taskId);
+    items.push({
+      kind: "no-fit",
+      id: decision.id,
+      taskId: decision.taskId,
+      ...ownership(task),
+      title: `No crew fits ${decision.taskId}`,
+      detail: `${decision.why}. ${decision.text}.`,
+      removed: decision.removed ?? [],
       openedAt: decision.openedAt ?? null,
     });
   }

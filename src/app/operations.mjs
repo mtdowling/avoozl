@@ -255,8 +255,16 @@ import {
   prepareWorktree,
   reportSession,
   retryDelivery,
+  readyCandidates,
+  pickAgain,
   startNow,
 } from "./delivery.mjs";
+import {
+  routingPreview,
+  routingView,
+  updateCrews,
+  updateRouting,
+} from "./routing.mjs";
 import { claimTask, nextView } from "./runner.mjs";
 import { supersedeTask } from "./supersede.mjs";
 
@@ -702,6 +710,9 @@ export class Operations {
       // {skillPath, exists} for the code review chat (pr-review.mjs); tests
       // point it at a temporary skill.
       reviewOptions = {},
+      // Placement hooks (§4.10): {localReading, sshCommand, knownHosts};
+      // tests pass fakes, nothing else does.
+      placement = {},
       pluginSettingsFile = pluginSettingsPath(),
       plugins = workspaceRoot
         ? pluginHost({ workspaceRoot, settingsFile: pluginSettingsFile })
@@ -720,6 +731,7 @@ export class Operations {
     // only the app backend has one.
     this.crewReader = crewReader;
     this.reviewOptions = reviewOptions;
+    this.placement = placement;
     // Provenance for records this workspace mints; never an authorization.
     this.operator = operator || "";
     // Every GitHub text write passes content rules first (§4.9).
@@ -760,6 +772,12 @@ export class Operations {
         await session.close();
       }
     });
+  }
+  routingHooks() {
+    return {
+      ...(this.placement.localReading ? { local: this.placement.localReading() } : {}),
+      ...(this.placement.now ? { now: this.placement.now() } : {}),
+    };
   }
   // Tracker plugin tasks rebuilt from each approved tracker's `list` and the
   // approved spec folders the records pin (§3.3, R35.7). A plan row is
@@ -1801,6 +1819,7 @@ export class Operations {
       });
     if (name === "session.report")
       return reportSession(store, input, context.caller, {
+        placement: this.placement,
         local: context.local === true,
         flow: readFlowPolicy(this.workspaceRoot),
       });
@@ -1831,6 +1850,33 @@ export class Operations {
         policy: readDeliveryPolicy(this.workspaceRoot),
         github: readGitHubPolicyOrNull(this.workspaceRoot),
       });
+    // Routing (§4.10, §8.3): one view, a read-only Preview, and the edits.
+    if (name === "routing.view")
+      return routingView(store, this.read(), {
+        workspaceRoot: this.workspaceRoot,
+        person: !(context.caller || context.mcp),
+        ...this.routingHooks(),
+      });
+    if (name === "routing.preview")
+      return routingPreview(store, this.read(), {
+        workspaceRoot: this.workspaceRoot,
+        policy: readDeliveryPolicy(this.workspaceRoot).delivery,
+        github: readGitHubPolicyOrNull(this.workspaceRoot),
+        readyCandidates: () =>
+          readyCandidates(store, { github: readGitHubPolicyOrNull(this.workspaceRoot) }),
+        ...this.routingHooks(),
+      });
+    if (["routing.update", "crews.update"].includes(name) && (context.caller || context.mcp))
+      fail("Only a person changes routing rules and crew settings, on the Routing page or the CLI.", 403);
+    if (name === "routing.update") {
+      const result = updateRouting(this.settingsFile(), store, input, {
+        pluginIds: this.plugins?.inspect().map((p) => p.id) ?? null,
+      });
+      this.configuration?.reload();
+      return result;
+    }
+    if (name === "crews.update") return updateCrews(store, input);
+    if (name === "delivery.pickAgain") return pickAgain(store, input);
     if (name === "delivery.retry")
       return retryDelivery(store, input, {
         caller: context.caller,
@@ -1848,6 +1894,7 @@ export class Operations {
         github: this.github,
         breakdownHooks: () => this.breakdownHooks({ locked: true }),
         plugins: this.plugins,
+        placement: this.placement,
       });
       // A deleted plan's tasks whose chats have ended are archived now.
       archiveEnded(store);

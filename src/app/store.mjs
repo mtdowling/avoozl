@@ -109,6 +109,7 @@ export class Store {
    CREATE TABLE IF NOT EXISTS pr_feedback(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS incoming_items(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS intake_sources(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS placement_decisions(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS flow_usage(id TEXT PRIMARY KEY,slot TEXT NOT NULL,task_id TEXT NOT NULL,attempt INTEGER,role TEXT,ts TEXT NOT NULL,model TEXT,input REAL,output REAL,credits REAL);
   `);
   }
@@ -398,6 +399,7 @@ export class Store {
         "pr_feedback",
         "incoming_items",
         "intake_sources",
+        "placement_decisions",
       ].includes(table)
     )
       fail("Unknown record type");
@@ -452,6 +454,7 @@ export class Store {
         "pr_feedback",
         "incoming_items",
         "intake_sources",
+        "placement_decisions",
       ].includes(table)
     )
       fail("Unknown record type");
@@ -504,6 +507,7 @@ export class Store {
         "pr_feedback",
         "incoming_items",
         "intake_sources",
+        "placement_decisions",
       ].includes(table)
     )
       this.db
@@ -575,6 +579,7 @@ export class Store {
         "pr_feedback",
         "incoming_items",
         "intake_sources",
+        "placement_decisions",
       ].includes(table)
     )
       fail("Unknown record type");
