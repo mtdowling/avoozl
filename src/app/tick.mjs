@@ -91,6 +91,17 @@ import {
 } from "../work-model.mjs";
 import { routeResultNotes, routeStep } from "./routes.mjs";
 import { heldByTrackers, trackerStep } from "./trackers.mjs";
+import {
+  driverStep,
+  recheckDrivers,
+  reprojected,
+  takenOverPlanIds,
+} from "./driver.mjs";
+import {
+  driverGuard,
+  driverHeldTaskIds,
+  readOnlyPlanIds,
+} from "./driver-scope.mjs";
 
 // The colon keeps this lock out of every configured project's namespace.
 // GitHub projection takes it too, so one workspace has one writer at a time.
@@ -441,12 +452,19 @@ async function githubStep(store, github, workspaceRoot, delivery) {
     await closePlanAndEpicIssues(store, github);
     // Readiness changed by this tick's verdicts reaches GitHub now: the
     // ready label for Issue Radar, `dispatch.ready` for the runner.
-    const projection = await refreshProjectedReadiness(store, github, {
-      identity: planningIdentity(workspaceRoot),
-    });
+    const reproject = takenOverPlanIds(store),
+      projection = await refreshProjectedReadiness(store, github, {
+        identity: planningIdentity(workspaceRoot),
+        skipPlans: readOnlyPlanIds(store),
+        forcePlans: reproject,
+      });
+    for (const planId of projection.projected)
+      if (reproject.has(planId)) reprojected(store, planId);
+    // A linked branch is the start of new work: none for a held spec.
     const branches = await ensureLinkedBranches(store, github, {
       delivery,
       policy,
+      skip: driverHeldTaskIds(store),
     });
     return {
       status: "ok",
@@ -615,6 +633,15 @@ async function pluginStep(store, plugins, planned, workspaceRoot) {
   return { report, held };
 }
 
+// The specs of these task IDs.
+function plansOf(store, taskIds) {
+  const wanted = new Set(taskIds),
+    plans = new Set();
+  for (const task of store.read().tasks)
+    if (wanted.has(task.id) && task.planId) plans.add(task.planId);
+  return plans;
+}
+
 export async function tick(
   store,
   {
@@ -622,12 +649,14 @@ export async function tick(
     memory,
     sessions,
     cron = false,
-    github,
+    github: client,
     breakdownHooks,
     plugins,
     placement = {},
   },
 ) {
+  // Every GitHub write of every step passes the driver backstop (§6.10).
+  const github = client ? driverGuard(store, client) : client;
   const at = new Date().toISOString(),
     roster = sessionList(sessions),
     // The script cron, which carries out intents, as opposed to the page's
@@ -640,6 +669,11 @@ export async function tick(
       const { policy, notify } = await loadPolicy(workspaceRoot, memory);
       // A content rule set that is available again settles its decision.
       settleUnavailable(store);
+      // Who drives each spec (§6.10): read before anything plans or writes,
+      // so a spec driven elsewhere is read-only for this whole tick.
+      // Its own plan-issue writes (claim, heartbeat, epic link) are the
+      // lock itself, so it holds the unguarded client.
+      notify.push(...(await driverStep(store, client, { script })).notify);
       // Observe first: statuses the script read land before any planning.
       if (roster) {
         const bound = new Set(listSessionBindings(store).map((b) => b.slot));
@@ -673,8 +707,35 @@ export async function tick(
         );
         // Integration moves branches and may raise a decision, so only the
         // cron, which carries out notifications, runs it.
-        if (script)
-          planned.notify.push(...(await integrateVerified(store)).notify);
+        if (script) {
+          // Read the plan issue again before each integrate (R66.6).
+          const verified = store
+              .list("task_deliveries")
+              .filter((d) => d.state === "verified")
+              .map((d) => d.taskId),
+            lost = await recheckDrivers(
+              store,
+              github,
+              plansOf(store, verified),
+            ),
+            readOnly = readOnlyPlanIds(store);
+          planned.notify.push(
+            ...(
+              await integrateVerified(store, {
+                skip: new Set(
+                  store
+                    .read()
+                    .tasks.filter(
+                      (t) =>
+                        t.planId &&
+                        (readOnly.has(t.planId) || lost.has(t.planId)),
+                    )
+                    .map((t) => t.id),
+                ),
+              })
+            ).notify,
+          );
+        }
         // Stop the line (§4.11): a failure on the task's own base, a worker
         // that names its cause, and the landing branch's checks. Pauses new
         // dispatch only; running sessions are left alone.
@@ -869,9 +930,13 @@ export async function tick(
       const waits = [],
         fits = [],
         placementState = { crews: new Map(), choices: new Map() };
+      // No new work for a spec driven elsewhere or being handed off, and
+      // none for an away task (R66.6, R66.10, R66.11).
+      const held = driverHeldTaskIds(store),
+        readOnly = readOnlyPlanIds(store);
       const requested = unobserved.length
           ? []
-          : planDispatches(store, bindings),
+          : planDispatches(store, bindings).filter((d) => !held.has(d.task)),
         ready =
           unobserved.length || !delivery || delivery.runner !== "tick"
             ? []
@@ -879,6 +944,7 @@ export async function tick(
                 skip: new Set([
                   ...requested.map((d) => d.task),
                   ...(pluginResult?.held || []),
+                  ...held,
                   // A request queued for the Remote relay holds its task.
                   ...relayHeldTasks(store),
                 ]),
@@ -925,6 +991,39 @@ export async function tick(
       // Code review chats a person asked for (pr-review.mjs), cron only.
       const reviews =
         script && !unobserved.length ? reviewDispatches(store) : [];
+      // Read each spec's plan issue again right before its dispatches; a
+      // spec reassigned since the sync read dispatches nothing (R66.6).
+      const taskPlan = new Map(
+          store
+            .read()
+            .tasks.filter((t) => t.planId)
+            .map((t) => [t.id, t.planId]),
+        ),
+        readOnlyTask = (id) => readOnly.has(taskPlan.get(id)),
+        heldTask = (id) => held.has(id) || readOnlyTask(id);
+      let dispatch = [
+        ...requested,
+        ...ready,
+        // A verifier judges work already done: it runs while a spec drains.
+        ...verify.filter((d) => !readOnlyTask(d.task)),
+        ...responders.filter((d) => !heldTask(d.task)),
+        ...planners.filter((d) => !heldTask(d.task)),
+        ...retro.dispatch,
+        ...reviews.filter((d) => !heldTask(d.task)),
+      ];
+      if (script) {
+        const lost = await recheckDrivers(
+          store,
+          client,
+          new Set(dispatch.map((d) => taskPlan.get(d.task)).filter(Boolean)),
+        );
+        if (lost.size)
+          dispatch = dispatch.filter((d) => !lost.has(taskPlan.get(d.task)));
+      }
+      // No message reaches a session of a read-only spec.
+      planned.messages = planned.messages.filter(
+        (m) => !readOnly.has(taskPlan.get(m.task)),
+      );
       const notices = [...notify, ...planned.notify];
       // Nothing new starts for a task at its budget, and its sessions get
       // only the budget's own messages until a person acts (R67.8).
@@ -940,15 +1039,7 @@ export async function tick(
         ),
         open = (d) =>
           ![d.task, ...(d.batch?.tasks || [])].some((id) => budgetHeld.has(id)),
-        allDispatches = [
-          ...requested,
-          ...ready,
-          ...verify,
-          ...responders,
-          ...planners,
-          ...retro.dispatch,
-          ...reviews,
-        ].filter(open),
+        allDispatches = dispatch.filter(open),
         sendable = planned.messages.filter(
           (m) => m.budget || !heldSlots.has(m.slot),
         );
