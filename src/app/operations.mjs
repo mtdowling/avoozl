@@ -302,6 +302,11 @@ import {
   proposalsFromFacts,
   submitExtraction,
 } from "./design-extraction.mjs";
+import {
+  DEFAULT_RETENTION_DAYS,
+  listActivity,
+  recordOperation,
+} from "./activity-log.mjs";
 import { lintPlan } from "./plan-quality.mjs";
 import {
   createSpecPlan,
@@ -1723,6 +1728,11 @@ export class Operations {
   // the app's stdio MCP server, and nothing else sets it (see mcp.mjs).
   async execute(name, input = {}, expectedRevision, context = {}) {
     const result = await this.perform(name, input, expectedRevision, context);
+    // One activity row for a listed local action (§4.19); never fails it.
+    recordOperation(this.store, name, input, result, {
+      context,
+      operator: this.operator,
+    });
     if (this.plansRoot) flushOutbox(this.store, this.plansRoot);
     return result;
   }
@@ -1977,6 +1987,34 @@ export class Operations {
       return highlightLanguages(this.workspaceRoot);
     if (name === "activity.recent")
       return activityView(store, this.read(), input);
+    // The activity log (§4.19).
+    if (name === "activity.list") {
+      const page = listActivity(store, input);
+      let tasks = new Set();
+      try {
+        tasks = new Set(this.read().tasks.map((task) => task.id));
+      } catch {}
+      return {
+        ...page,
+        items: page.items.map((row) =>
+          row.targetId && tasks.has(row.targetId)
+            ? { ...row, task: true }
+            : row,
+        ),
+        retentionDays: this.workspaceRoot
+          ? this.settingsFile().readActivitySettings().retentionDays
+          : DEFAULT_RETENTION_DAYS,
+      };
+    }
+    if (name === "activity.settings.get")
+      return this.settingsFile().readActivitySettings();
+    if (name === "activity.settings.update") {
+      if (context.caller || context.mcp)
+        fail("Only a person changes how long activity is kept.", 403);
+      const written = this.settingsFile().updateActivitySettings(input);
+      this.configuration?.reload();
+      return written;
+    }
     if (name === "task.start")
       return startNow(store, input, {
         policy: readDeliveryPolicy(this.workspaceRoot),
