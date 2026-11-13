@@ -271,9 +271,11 @@ import { settleConflicts } from "./conflict-actions.mjs";
 import {
   declaredSources,
   editSource,
+  githubReads,
   intakeTab,
   listItems,
   pollSources,
+  sourceCounts,
   sourceRow as sourceRowOf,
   sourceMap,
   startByPerson,
@@ -2590,7 +2592,9 @@ export class Operations {
     }
     if (name === "intake.list") return listItems(store, input);
     if (name === "intake.view") return viewItem(store, input);
-    if (name === "intake.sources")
+    if (name === "intake.sources") {
+      const counts = sourceCounts(store),
+        none = { total: 0, untriaged: 0, lastAt: null };
       return {
         sources: declaredSources(this.pluginOptions, store).map(
           ({ id, scope, entry, error }) => ({
@@ -2599,9 +2603,16 @@ export class Operations {
             entry,
             error,
             state: id ? sourceRowOf(store, `source:${id}`) : null,
+            items: (id && counts.get(id)) || none,
           }),
         ),
+        github: {
+          mode: readGitHubPolicyOrNull(this.workspaceRoot)?.mode ?? null,
+          repositories: githubReads(store),
+          items: counts.get("github") || none,
+        },
       };
+    }
     // Plan this and Deliver this (R50.15), and source settings: a person's.
     if (
       [
