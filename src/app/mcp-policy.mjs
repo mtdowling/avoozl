@@ -45,6 +45,7 @@ export const PERSON_ONLY = new Map([
   ["routing.update", person("Only a person changes routing rules.")],
   ["crews.update", person("Only a person changes crew settings.")],
   ["delivery.pickAgain", person("Only a person presses Pick again.")],
+  ["delivery.settings.update", person("Only a person changes delivery settings.")],
   ["flow.instructions.update", person("Only a person changes flow settings.")],
   ["flow.retro.start", person("Only a person starts a retro.")],
   ["flow.retro.decide", person("Only a person decides retro proposals.")],

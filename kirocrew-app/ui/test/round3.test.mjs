@@ -34,7 +34,8 @@ test('every destructive button asks first through a red confirm', () => {
   // drops a prerequisite from the form before Save.
   // Plans' trash buttons open DeletePlanDialog, whose red Delete plan button
   // is the confirm itself (it says what happens and can't be sent by Enter).
-  const forms = new Set(['DeliveryDetails.tsx: Supersede', 'TaskForm.tsx: Remove', 'PlansView.tsx: )}', 'PlansView.tsx: ', 'PlansView.tsx: Delete plan'])
+  // Routing's Remove choice drops a row from the rule form before Save.
+  const forms = new Set(['DeliveryDetails.tsx: Supersede', 'TaskForm.tsx: Remove', 'PlansView.tsx: )}', 'PlansView.tsx: ', 'PlansView.tsx: Delete plan', 'RoutingView.tsx: '])
   assert.deepEqual(plain.filter((entry) => !forms.has(entry)), [])
   // The ones the owner named, each a DangerBtn with its own copy.
   const settings = source('SettingsView.tsx')

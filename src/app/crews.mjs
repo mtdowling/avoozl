@@ -328,7 +328,7 @@ export function listCrews({
       gitHosts: own.gitHosts || [],
       chatLimit,
       chatLimitSet: own.chatLimit !== undefined,
-      delivery: own.delivery || "handback",
+      delivery: isLocal ? null : own.delivery || "handback",
       sshHost: own.sshHost || null,
       worktreeRoot: own.worktreeRoot || null,
       configured: Boolean(settings[entry.id]),

@@ -222,3 +222,46 @@ export const DEFER_TIP = 'Pauses new dispatch. A running chat is left alone. Res
 export const RESUME_TIP = 'Lets the tick start this task again. Undoes Defer.'
 export const START_TIP = 'Starts this task first on the next tick, within the limit.'
 export const RETRY_TIP = 'Starts a new attempt for this task.'
+
+// Settings > Delivery (R53.3, R54.8): the backend's defaults, shown as
+// placeholders (src/app/delivery.mjs DELIVERY_DEFAULTS).
+export const DELIVERY_DEFAULTS = { agent: 'kirocrew-worker', prFeedback: true, feedbackRounds: 5 } as const
+
+export interface DeliverySettings {
+  hash: string | null
+  on: boolean
+  delivery: { agent?: string; model?: string; prFeedback?: boolean; feedbackRounds?: number }
+}
+
+export interface DeliveryForm {
+  agent: string
+  model: string
+  prFeedback: '' | 'on' | 'off'
+  feedbackRounds: string
+}
+
+export function toDeliveryForm(delivery: DeliverySettings['delivery'] = {}): DeliveryForm {
+  return {
+    agent: delivery.agent ?? '',
+    model: delivery.model ?? '',
+    prFeedback: delivery.prFeedback === undefined ? '' : delivery.prFeedback ? 'on' : 'off',
+    feedbackRounds: delivery.feedbackRounds === undefined ? '' : String(delivery.feedbackRounds),
+  }
+}
+
+// The keys to write; a blank field is left out, so its default applies.
+export function toDeliverySection(form: DeliveryForm): { delivery?: DeliverySettings['delivery']; error?: string } {
+  const delivery: DeliverySettings['delivery'] = {}
+  if (form.agent.trim()) {
+    if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(form.agent.trim())) return { error: 'Agent is an agent name: letters, digits, . _ : or -.' }
+    delivery.agent = form.agent.trim()
+  }
+  if (form.model) delivery.model = form.model
+  if (form.prFeedback) delivery.prFeedback = form.prFeedback === 'on'
+  if (form.feedbackRounds.trim()) {
+    const n = Number(form.feedbackRounds)
+    if (!Number.isInteger(n) || n < 1 || n > 20) return { error: 'Feedback rounds is a whole number 1–20.' }
+    delivery.feedbackRounds = n
+  }
+  return { delivery }
+}

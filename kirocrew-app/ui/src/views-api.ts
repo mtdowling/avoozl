@@ -84,6 +84,12 @@ export interface DeliverySession {
   served?: { model: string | null; withheld: boolean; changed: boolean } | null
   commit?: string | null
   link?: string | null
+  // Placement (§4.10, R41.9, R53.10).
+  agent?: string | null
+  crew?: string
+  crewUnreachable?: boolean
+  placementReason?: string | null
+  sessionReason?: string | null
 }
 
 // One role's verdict on one subject commit (design §5.2).
@@ -339,7 +345,9 @@ export function safeHref(value: unknown): string | null {
 export function sessionLabel(session: DeliverySession): string {
   return [
     `${session.role} #${session.attempt}`,
-    session.status ?? 'not observed',
+    session.crewUnreachable ? 'crew unreachable' : (session.status ?? 'not observed'),
+    session.crew && session.crew !== 'local' ? `on ${session.crew}` : null,
+    session.agent && session.agent !== 'kirocrew-worker' ? session.agent : null,
     modelLabel(session),
   ]
     .filter(Boolean)

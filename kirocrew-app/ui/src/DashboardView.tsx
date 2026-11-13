@@ -4,7 +4,8 @@ import { useAppApi } from '@kirocrew/app-sdk'
 import { Btn, Card, CardTitle, EmptyState } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { SMALL, countsLayout, countsStyles, summarize, type Attention, type CountsLayout, type InFlight } from './dashboard-api.ts'
-import { duration, relativeTime, sessionHref } from './task-api.ts'
+import { attachHref, duration, relativeTime, sessionHref } from './task-api.ts'
+import { routingClient } from './routing-api.ts'
 import { useTaskDrawer } from './drawer-context.ts'
 import { useMedia } from './TaskDrawer.tsx'
 import { STATES, type NodeState } from './graph-layout.ts'
@@ -139,7 +140,9 @@ const roleLabel = (row: InFlight) =>
 // stays current. Paused while the page is hidden.
 const REFRESH_MS = 20000
 
-function InFlightRow({ row, now, onInfo }: { row: InFlight; now: number; onInfo: () => void }) {
+function InFlightRow({ row, now, onInfo, onPickAgain }: { row: InFlight; now: number; onInfo: () => void; onPickAgain?: () => void }) {
+  const href = attachHref(row.session),
+    remote = row.session.crew && row.session.crew !== 'local'
   return (
     <li className="flex flex-wrap items-start gap-2 border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)' }}>
       <Badge>{roleLabel(row)}</Badge>
@@ -151,14 +154,22 @@ function InFlightRow({ row, now, onInfo }: { row: InFlight; now: number; onInfo:
         </span>
         {row.focus && <span className="block text-xs text-muted">{row.focus}</span>}
         <span className="block text-xs text-muted">
-          {row.model ?? 'model not named'} · running {duration(row.startedAt, now)} · {row.status ?? 'not observed'}{' '}
-          {relativeTime(row.lastAt, now)}
+          {row.session.agent ? `${row.session.agent} / ` : ''}
+          {row.model ?? 'model not named'}
+          {remote ? ` · on ${row.session.crew}` : ''} · running {duration(row.startedAt, now)} ·{' '}
+          {row.session.crewUnreachable ? 'crew unreachable' : (row.status ?? 'not observed')} {relativeTime(row.lastAt, now)}
         </span>
       </span>
       <span className="flex gap-1.5">
         <IconBtn icon={DetailsIcon} label={`Details for ${row.title}`} tooltip="Open the task drawer" onClick={onInfo} />
+        {onPickAgain && row.role === 'worker' && (
+          <IconBtn icon={RefreshCw} label={`Pick again for ${row.title}`} tooltip="The next attempt picks its agent and model afresh" onClick={onPickAgain} />
+        )}
+        {!href ? (
+          <span className="self-center text-xs text-muted">Attach waits on Kiro Crew</span>
+        ) : (
         <a
-          href={sessionHref(row.session)}
+          href={href}
           className="self-center text-sm underline"
           aria-label={`Attach to the ${row.role} chat for ${row.title}`}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
@@ -166,6 +177,7 @@ function InFlightRow({ row, now, onInfo }: { row: InFlight; now: number; onInfo:
           <ExternalLink size={14} aria-hidden="true" />
           Attach
         </a>
+        )}
       </span>
     </li>
   )
@@ -290,6 +302,7 @@ export default function DashboardView(props: {
   const views = useMemo(() => viewsClient(api), [api])
   const plans = useMemo(() => plansClient(api), [api])
   const chats = useMemo(() => chatClient(api), [api])
+  const routing = useMemo(() => routingClient(api), [api])
   const chat = useAskChat(workspaceId)
   const layout = countsLayout(useMedia(WIDE), useMedia(SMALL))
   // One failed read leaves its section empty rather than the whole page.
@@ -385,7 +398,17 @@ export default function DashboardView(props: {
             <Section title={`In flight (${summary.inFlight.length})`} empty={summary.inFlight.length === 0 && 'No agent is working right now.'}>
               <ul className="mt-1">
                 {pages.take('flight', summary.inFlight).map((row) => (
-                  <InFlightRow key={row.slot} row={row} now={now} onInfo={() => drawer.openTask(row.taskId)} />
+                  <InFlightRow
+                    key={row.slot}
+                    row={row}
+                    now={now}
+                    onInfo={() => drawer.openTask(row.taskId)}
+                    onPickAgain={
+                      workspaceId && row.session.sessionReason
+                        ? () => void routing.pickAgain(workspaceId, row.taskId).then(() => reload())
+                        : undefined
+                    }
+                  />
                 ))}
               </ul>
               <ShowMore {...pages.more('flight', summary.inFlight.length)} />

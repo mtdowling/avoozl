@@ -50,6 +50,7 @@ import { AddRepository, REPOSITORIES_LINE, RepositoryDialog, RepositoryList, rep
 import PluginsSettings from './PluginsSettings.tsx'
 import ContentRulesSettings from './ContentRulesSettings.tsx'
 import FlowSettings from './FlowSettings.tsx'
+import DeliverySettings from './DeliverySettings.tsx'
 import { useSteppedState } from './NavHistory.tsx'
 import { useRead } from './useRead.ts'
 import { labelsClient, triageRows, type RepositoryLabels } from './untriaged-api.ts'
@@ -74,6 +75,7 @@ export const SETTINGS_TABS = [
   { key: 'plugins', label: 'Plugins' },
   { key: 'content', label: 'Content rules' },
   { key: 'flow', label: 'Flow' },
+  { key: 'delivery', label: 'Delivery' },
 ] as const
 export type SettingsTab = (typeof SETTINGS_TABS)[number]['key']
 
@@ -94,6 +96,8 @@ export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
   content:
     'Terms Avoozl must never write: in plan files, issues, comments, briefs and diffs. A match stops the write and asks you.',
   flow: 'How Avoozl measures delivery time and reacts to slow or broken work. Every group applies in each mode.',
+  delivery:
+    'Which agent and model write each task by default, and whether pull request feedback goes back to the writer. Crews and per-task picks are on the Routing tab.',
 }
 
 const REPOSITORY_TABS = [
@@ -1371,6 +1375,7 @@ export default function SettingsView(props: {
   onSelectWorkspace?: (id: string | null) => void
   onListChange?: (list: WorkspaceList) => void
   onOpenPlans?: () => void
+  onOpenRouting?: () => void
 }) {
   const { workspaceId } = props
   const [own, setOwn] = useState<SettingsTab>(SETTINGS_HOME)
@@ -1410,6 +1415,8 @@ export default function SettingsView(props: {
         <ContentRulesSettings workspaceId={workspaceId} />
       ) : tab === 'flow' ? (
         <FlowSettings workspaceId={workspaceId} />
+      ) : tab === 'delivery' ? (
+        <DeliverySettings workspaceId={workspaceId} onOpenRouting={props.onOpenRouting} />
       ) : (
         <PolicyEditor workspaceId={workspaceId} tab={tab} onOpenPlans={props.onOpenPlans} />
       )}
