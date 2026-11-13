@@ -45,7 +45,7 @@ export const FLOW_DEFAULTS = Object.freeze({
   stopTheLine: Object.freeze({ scope: "dependents" }),
   localChecksFirst: true,
   batch: Object.freeze({ max: 3, by: "phase" }),
-  retro: Object.freeze({ everyTasks: 10, slowFactor: 2, model: "auto" }),
+  retro: Object.freeze({ everyTasks: 10, slowFactor: 3, model: "auto" }),
   // Retro memory across workspaces (R69.6, R69.9, R70.2, R70.4).
   lessons: Object.freeze({
     share: true,

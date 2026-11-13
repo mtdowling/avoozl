@@ -3641,7 +3641,7 @@ var io = {
 	max: 3,
 	by: "phase",
 	everyTasks: 10,
-	slowFactor: 2,
+	slowFactor: 3,
 	model: "auto",
 	share: !0,
 	read: !0,

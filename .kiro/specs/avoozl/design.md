@@ -1671,7 +1671,7 @@ Triggers (Requirement 47.1) and their defaults:
 | Trigger | Default | Why |
 |---|---|---|
 | Every N finished tasks | `flow.retro.everyTasks` = 10 | A steady cadence, like a sprint retrospective, small enough to act on |
-| A task far slower than usual | `slowFactor` = 2 × the repository's median lead time over its last 20 finished tasks, at least 5 of them | A spike is a signal worth a look while it is fresh |
+| A task far slower than usual | `slowFactor` = 3 × the repository's median lead time over its last 20 finished tasks, at least 5 of them | A spike is a signal worth a look while it is fresh |
 | A task's third attempt | fixed: two retries | Repeated rework is the clearest waste |
 | A long CI wait | `slowFactor` × the repository's median CI wait, at least 5 samples; 30 minutes without them | CI wait was one of the original causes |
 
@@ -1737,7 +1737,7 @@ Reply:
     "stopTheLine": { "scope": "dependents" },
     "localChecksFirst": true,
     "batch": { "max": 3, "by": "phase" },
-    "retro": { "everyTasks": 10, "slowFactor": 2, "model": "auto" }
+    "retro": { "everyTasks": 10, "slowFactor": 3, "model": "auto" }
   }
 }
 ```
@@ -4784,7 +4784,7 @@ How Avoozl measures delivery time and reacts to slow or broken work.
 ┌ Retro ─────────────────────────────────────────────────────────────────┐
 │ A review that finds the biggest slowdown and proposes one change.       │
 │ After this many tasks (optional) [ 10 ]  flow.retro.everyTasks           │
-│ Slow when over (optional) [ 2 ] × usual  flow.retro.slowFactor           │
+│ Slow when over (optional) [ 3 ] × usual  flow.retro.slowFactor           │
 │ Model (optional) [ auto ▾ ]              flow.retro.model                │
 │ Instructions (optional) [                     ]  flow.retro.instructions │
 │ Saved on this machine only.                                              │

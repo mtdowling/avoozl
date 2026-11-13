@@ -655,7 +655,7 @@ export const FLOW_DEFAULTS = {
   max: 3,
   by: 'phase',
   everyTasks: 10,
-  slowFactor: 2,
+  slowFactor: 3,
   model: 'auto',
   share: true,
   read: true,
