@@ -144,7 +144,7 @@ answer('task.files', (body) => ({
   branch: 'avoozl/a1',
   remote: false,
   github: 'https://github.com/octo/app/tree/avoozl/a1',
-  worktree: '/home/me/worktrees/a1',
+  worktree: '/srv/worktrees/a1',
   base: 'abc123',
   head: 'def456',
   files: changed,

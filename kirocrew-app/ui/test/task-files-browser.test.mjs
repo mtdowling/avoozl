@@ -41,13 +41,13 @@ test('the Files fold shows the tree, a diff, split view, all files and editor li
     'notes.md': 'added',
   })
   assert.match(await page.evaluate(`document.querySelector('[data-files-totals]').textContent`), /7 files changed · \+264 −43/)
-  assert.equal(await page.evaluate(`document.querySelector('[data-open-worktree]').getAttribute('href')`), 'kiro://file/home/me/worktrees/a1')
+  assert.equal(await page.evaluate(`document.querySelector('[data-open-worktree]').getAttribute('href')`), 'kiro://file/srv/worktrees/a1')
 
   await click('[data-file="README.md"]')
   await page.until(`Boolean(document.querySelector('[data-diff] [data-line]'))`)
   const kinds = await page.evaluate(`[...document.querySelectorAll('[data-diff] [data-line]')].map((r) => r.dataset.line)`)
   assert.deepEqual(kinds.filter((k) => k !== 'context'), ['del', 'add', 'add', 'add'])
-  assert.equal(await page.evaluate(`document.querySelector('[data-open-file]').getAttribute('href')`), 'kiro://file/home/me/worktrees/a1/README.md:3')
+  assert.equal(await page.evaluate(`document.querySelector('[data-open-file]').getAttribute('href')`), 'kiro://file/srv/worktrees/a1/README.md:3')
 
   await page.evaluate(`(() => { ${button('Split')}.click(); return true })()`)
   await page.until(`Boolean(document.querySelector('[data-split-row]'))`)

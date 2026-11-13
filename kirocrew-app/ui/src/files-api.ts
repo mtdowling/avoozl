@@ -169,7 +169,7 @@ export function splitRows(lines: DiffLine[]): SplitRow[] {
 }
 
 // Open in editor: the editor's URL for a folder or file on this machine,
-// e.g. kiro://file/home/me/wt/src/a.ts:12 or vscode://file/C:/wt/a.ts.
+// e.g. kiro://file/srv/wt/src/a.ts:12 or vscode://file/C:/wt/a.ts.
 export type Editor = 'kiro' | 'vscode'
 export const EDITORS: { key: Editor; label: string }[] = [
   { key: 'kiro', label: 'Kiro' },

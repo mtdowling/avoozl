@@ -53,7 +53,7 @@ const LINE_BG = {
 
 function StatusBadge({ change }: { change: FileChange }) {
   return (
-    <span title={change.status} data-status={change.status}>
+    <span data-status={change.status}>
       <span aria-hidden="true">
         <Badge variant={STATUS_VARIANT[change.status]}>{STATUS_LETTER[change.status]}</Badge>
       </span>
@@ -87,7 +87,7 @@ function Tree(props: { nodes: TreeNode[]; depth: number; selected: string | null
               data-file={node.path}
             >
               {node.change ? <StatusBadge change={node.change} /> : <span style={{ width: 18 }} aria-hidden="true" />}
-              <span className="min-w-0 flex-1 truncate" title={node.change?.from ? `${node.change.from} → ${node.path}` : node.path}>
+              <span className="min-w-0 flex-1 truncate">
                 {node.name}
                 {node.change?.from && <span className="text-xs text-muted"> ← {node.change.from}</span>}
                 {node.change?.untracked && <span className="text-xs text-muted"> (not committed)</span>}
@@ -264,11 +264,11 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
     )
   if (!view) return <p className="text-sm text-muted">Reading the task&apos;s branch…</p>
 
-  const github = safeHref(view.github)
+  const github = safeHref(view.github) && view.github
   // Open in editor needs the files on this machine: the task's own worktree.
   const local = view.mode === 'worktree' && !view.remote && view.worktree
   const branchLink = github && (
-    <a href={github} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm underline" data-github-branch>
+    <a href={safeHref(github)!} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm underline" data-github-branch>
       <GitBranch size={14} aria-hidden="true" />
       {view.branch} on GitHub
     </a>
@@ -282,7 +282,9 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
     )
   const pickedChange = view.files.find((f) => f.path === picked) ?? null
   const diffLines = diff?.view ? parseDiff(diff.view.diff) : []
-  const fileHref = local && picked && pickedChange?.status !== 'deleted' ? editorHref(editor, joinPath(view.worktree!, picked), firstChangedLine(diffLines)) : null
+  // The shown file on disk, at its first changed line; a deleted file has none.
+  const fileTarget = local && picked && pickedChange?.status !== 'deleted' ? { path: joinPath(view.worktree!, picked), line: firstChangedLine(diffLines) } : null
+  const fileHref = fileTarget && editorHref(editor, fileTarget.path, fileTarget.line)
   return (
     <div className="flex flex-col gap-3" data-task-files>
       <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -308,7 +310,7 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
       <div className="flex flex-wrap items-center gap-2 text-xs">
         <span className="text-muted">{view.mode === 'worktree' ? 'Its worktree' : `Its branch ${view.branch}`} against where it left its base.</span>
         {local ? (
-          <a href={editorHref(editor, view.worktree!) ?? undefined} className="inline-flex items-center gap-1 underline" data-open-worktree>
+          <a href={editorHref(editor, view.worktree!)!} className="inline-flex items-center gap-1 underline" data-open-worktree>
             <ExternalLink size={14} aria-hidden="true" />
             Open worktree in {EDITORS.find((e) => e.key === editor)!.label}
           </a>
@@ -352,7 +354,7 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
       {diff && (
         <section aria-label={`Diff of ${diff.path}`} className="flex flex-col gap-2">
           <div className="flex flex-wrap items-center gap-2">
-            <h4 className="min-w-0 flex-1 truncate text-sm font-semibold" style={mono} title={diff.path}>
+            <h4 className="min-w-0 flex-1 text-sm font-semibold" style={{ ...mono, overflowWrap: 'anywhere' }}>
               {diff.path}
             </h4>
             <Toggle
@@ -365,7 +367,7 @@ export function TaskFiles(props: { workspaceId: string; taskId: string; active: 
               onChange={(key) => setLayout(key as 'unified' | 'split')}
             />
             {fileHref && (
-              <a href={fileHref} className="inline-flex items-center gap-1 text-xs underline" data-open-file>
+              <a href={editorHref(editor, fileTarget!.path, fileTarget!.line)!} className="inline-flex items-center gap-1 text-xs underline" data-open-file>
                 <ExternalLink size={14} aria-hidden="true" />
                 Open in {EDITORS.find((e) => e.key === editor)!.label}
               </a>

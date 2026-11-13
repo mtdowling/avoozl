@@ -28377,7 +28377,6 @@ var sy = {
 };
 function ly({ change: e }) {
 	return /* @__PURE__ */ x("span", {
-		title: e.status,
 		"data-status": e.status,
 		children: [/* @__PURE__ */ b("span", {
 			"aria-hidden": "true",
@@ -28433,7 +28432,6 @@ function dy(e) {
 				}),
 				/* @__PURE__ */ x("span", {
 					className: "min-w-0 flex-1 truncate",
-					title: t.change?.from ? `${t.change.from} → ${t.path}` : t.path,
 					children: [
 						t.name,
 						t.change?.from && /* @__PURE__ */ x("span", {
@@ -28623,8 +28621,8 @@ function _y(e) {
 		className: "text-sm text-muted",
 		children: "Reading the task's branch…"
 	});
-	let O = Tr(i.github), k = i.mode === "worktree" && !i.remote && i.worktree, A = O && /* @__PURE__ */ x("a", {
-		href: O,
+	let O = Tr(i.github) && i.github, k = i.mode === "worktree" && !i.remote && i.worktree, A = O && /* @__PURE__ */ x("a", {
+		href: Tr(O),
 		target: "_blank",
 		rel: "noreferrer",
 		className: "inline-flex items-center gap-1 text-sm underline",
@@ -28645,7 +28643,10 @@ function _y(e) {
 			children: i.remote ? "This task runs on another machine. Its files are not here." : "No worktree or branch for this task on this machine yet."
 		}), A]
 	});
-	let j = i.files.find((e) => e.path === p) ?? null, M = h?.view ? Yv(h.view.diff) : [], N = k && p && j?.status !== "deleted" ? $v(S, Qv(i.worktree, p), ey(M)) : null;
+	let j = i.files.find((e) => e.path === p) ?? null, M = h?.view ? Yv(h.view.diff) : [], N = k && p && j?.status !== "deleted" ? {
+		path: Qv(i.worktree, p),
+		line: ey(M)
+	} : null, P = N && $v(S, N.path, N.line);
 	return /* @__PURE__ */ x("div", {
 		className: "flex flex-col gap-3",
 		"data-task-files": !0,
@@ -28695,7 +28696,7 @@ function _y(e) {
 						children: [i.mode === "worktree" ? "Its worktree" : `Its branch ${i.branch}`, " against where it left its base."]
 					}),
 					k ? /* @__PURE__ */ x("a", {
-						href: $v(S, i.worktree) ?? void 0,
+						href: $v(S, i.worktree),
 						className: "inline-flex items-center gap-1 underline",
 						"data-open-worktree": !0,
 						children: [
@@ -28761,9 +28762,11 @@ function _y(e) {
 					className: "flex flex-wrap items-center gap-2",
 					children: [
 						/* @__PURE__ */ b("h4", {
-							className: "min-w-0 flex-1 truncate text-sm font-semibold",
-							style: sy,
-							title: h.path,
+							className: "min-w-0 flex-1 text-sm font-semibold",
+							style: {
+								...sy,
+								overflowWrap: "anywhere"
+							},
 							children: h.path
 						}),
 						/* @__PURE__ */ b(hy, {
@@ -28778,8 +28781,8 @@ function _y(e) {
 							value: _,
 							onChange: (e) => v(e)
 						}),
-						N && /* @__PURE__ */ x("a", {
-							href: N,
+						P && /* @__PURE__ */ x("a", {
+							href: $v(S, N.path, N.line),
 							className: "inline-flex items-center gap-1 text-xs underline",
 							"data-open-file": !0,
 							children: [
