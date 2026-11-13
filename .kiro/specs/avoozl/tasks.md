@@ -1174,7 +1174,7 @@ workspaces, a fake GitHub and a fake plugin.
 - [ ] 29.3 Retention, `activity.list` and MCP, after 29.2 [R71.6, R71.9] (§4.19)
   - `activity.retentionDays` (default 30, 1–365) with `activity.settings.get` and person-only `activity.settings.update`; `pruneActivity` on every `workspace.tick`; `activity.list` with filters, 100-row pages and its facets; `plans_view` action `activity` reads it and `recent` keeps the Dashboard timeline.
 - [ ] 29.4 Activity tab and the retention setting, after 29.3 and 12.11 [R71.7] (§4.19)
-  - The Activity tab with the `History` icon, `ViewHeading`, the shared filter panel (Source, Kind, Actor), 100 rows per page with Show more, task targets that open the drawer and GitHub links with `target="_blank" rel="noopener noreferrer"`; Activity kept for (days) in Settings › General.
+  - The Activity tab with the `History` icon, `ViewHeading`, the shared filter panel (Source, Kind, Actor), 100 rows per page with Show more, task targets that open the drawer and GitHub links with `target="_blank" rel="noopener noreferrer"`; the Keep activity (days) field on the tab, saved by a person.
 
 - [ ] avoozl-p43 P43 Proof: activity log [R71] (§4.19)
   - Setup: an isolated temporary workspace with one repository, a fake GitHub in single-repo mode with a Project, an approved spec with leaves `a1` and `a2` (`a2` requires `a1`), a fake tracker plugin, and a fake terms file banning `secretword` for every boundary.

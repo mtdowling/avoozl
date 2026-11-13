@@ -2841,7 +2841,7 @@ is written, in `github-project.mjs`.
 
 `activity.retentionDays` (default 30, 1–365) is a `.avoozl.json` key,
 read and saved by `activity.settings.get` and person-only
-`activity.settings.update` from Settings › General. Each
+`activity.settings.update` from the Activity tab's Keep activity field. Each
 `workspace.tick` calls `pruneActivity`. `activity.list {source, kind,
 actor, limit ≤ 100, offset}` answers `{items, total, sources, kinds,
 actors, retentionDays}` newest first, and is `plans_view` action

@@ -5490,7 +5490,7 @@
       "summary": "Phase 29 (Activity log). See R71.7; §4.19.",
       "acceptance": [
         "Activity tab and the retention setting, after 29.3 and 12.11",
-        "The Activity tab uses the shared heading, filter panel and 100-row pages; task rows open the drawer and GitHub links open in a new tab with noopener noreferrer; Settings › General sets the retention."
+        "The Activity tab uses the shared heading, filter panel and 100-row pages; task rows open the drawer and GitHub links open in a new tab with noopener noreferrer; the tab's Keep activity field sets the retention."
       ],
       "completion": "integrated",
       "checks": [
