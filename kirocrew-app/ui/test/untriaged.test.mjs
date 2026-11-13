@@ -63,7 +63,7 @@ test('the bulk link opens Issue Radar and names the selection, as the fallback',
   assert.equal(bulk.exact, false)
   assert.match(bulk.tooltip, /can't take a selection from a link yet/)
   assert.match(bulk.tooltip, /o\/app #1, #6; o\/lib #2/)
-  assert.match(selectionHandOff([]).tooltip, /Select rows/)
+  assert.match(selectionHandOff([]).tooltip, /Select GitHub rows/)
 })
 
 test('the empty state says what untriaged means and where to change it', () => {
@@ -164,4 +164,63 @@ test('rows link the repository and the author to GitHub, in a new tab', async ()
   for (const part of ['RepoLink', 'AuthorLink'])
     assert.match(view, new RegExp(`function ${part}[\\s\\S]{0,300}target="_blank" rel="noopener noreferrer"`))
   assert.doesNotMatch(view, />\{item\.repository\}<\/td>|>\{item\.author \?\? ''\}<\/td>/)
+})
+
+test('Intake: the tab is renamed, lists every source, and filters by source', async () => {
+  const { itemKey, itemName, sourceOf } = await import('../src/untriaged-api.ts')
+  const app = source('App.tsx')
+  assert.match(app, /\{ key: 'untriaged', label: 'Intake' \}/)
+  assert.match(app, /<ViewLabel view="untriaged">Intake<\/ViewLabel>/)
+  assert.doesNotMatch(app, />Untriaged</)
+  const view = source('UntriagedView.tsx')
+  assert.match(view, /<ViewHeading id="avoozl-untriaged-title" view="untriaged">\s*Intake\s*</)
+  // Untriaged stays as the tab's default filter.
+  assert.match(view, /\{ key: 'untriaged', label: `Untriaged \(\$\{list\.items\.length\}\)` \}/)
+  assert.match(view, /<th style=\{HEAD\}>Source<\/th>/)
+  const ticket = item(null, {
+    source: 'tickets',
+    id: 'T-1',
+    kind: 'ticket',
+    url: 'https://tickets.example.test/T-1',
+    links: { github: null, item: 'https://tickets.example.test/T-1', issueRadar: null, review: null },
+    start: { plan: true, deliver: true },
+  })
+  const one = item(1)
+  assert.equal(sourceOf(one), 'github')
+  assert.equal(itemKey(ticket), 'tickets:T-1')
+  assert.equal(itemKey(one), 'o/app#1')
+  assert.equal(itemName(ticket), 'tickets T-1')
+  assert.equal(matchesFilter(ticket, { source: 'tickets' }, NOW), true)
+  assert.equal(matchesFilter(one, { source: 'tickets' }, NOW), false)
+  const options = filterOptions({ enabled: true, mode: null, total: 2, repositories: [], sources: [{ id: 'tickets' }], items: [one, ticket] })
+  assert.deepEqual(options.sources.map((o) => o.value), ['github', 'tickets'])
+  // Issue Radar takes GitHub rows only.
+  assert.match(selectionHandOff([ticket]).tooltip, /Select GitHub rows/)
+  const { sendable } = await import('../src/untriaged-api.ts')
+  assert.match(sendable([ticket]).reason, /Issue Radar works GitHub issues/)
+})
+
+test('Plan this and Deliver this ask first and name the item', () => {
+  const view = source('UntriagedView.tsx')
+  assert.match(view, /const yes = await ask\(/)
+  assert.match(view, /title: `Deliver \$\{name\}\?`/)
+  assert.match(view, /title: `Plan \$\{name\}\?`/)
+  assert.match(view, /if \(!yes\) return/)
+  assert.match(source('untriaged-api.ts'), /action === 'deliver' \? 'intake\.deliver' : 'intake\.plan'/)
+})
+
+test('an intake source form saves a valid entry and names what to fix', async () => {
+  const { emptySourceForm, sourceEntry } = await import('../src/plugins-api.ts')
+  const form = { ...emptySourceForm(), id: 'tickets', via: 'plugin:fake-tracker', repository: 'o/app', labelFields: 'component, queue' }
+  assert.deepEqual(sourceEntry(form, []), {
+    id: 'tickets',
+    entry: { via: 'plugin:fake-tracker', repository: 'o/app', labelFields: ['component', 'queue'] },
+  })
+  assert.match(sourceEntry({ ...form, id: 'github' }, []).error, /built in/)
+  assert.match(sourceEntry({ ...form, id: 'Bad Name' }, []).error, /lowercase/)
+  assert.match(sourceEntry(form, ['tickets']).error, /already exists/)
+  assert.match(sourceEntry({ ...form, repository: '' }, []).error, /repository/)
+  const settings = source('IntakeSources.tsx')
+  assert.match(settings, /\.avoozl\.json may be public/)
+  assert.match(settings, /action: 'Remove source'/)
 })

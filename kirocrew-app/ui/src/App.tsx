@@ -38,7 +38,8 @@ const TABS = [
   { key: 'delivery', label: 'Delivery' },
   { key: 'flow', label: 'Flow' },
   { key: 'conflicts', label: 'Conflicts' },
-  { key: 'untriaged', label: 'Untriaged' },
+  // Intake (§8.5, §4.12); the key keeps its first name.
+  { key: 'untriaged', label: 'Intake' },
   { key: 'settings', label: 'Settings' },
 ] as const
 
@@ -111,7 +112,8 @@ function AvoozlPage() {
   const [drill, setDrill] = useState<Drill | null>(null)
   // Open conflicts, for the yellow count after the Conflicts tab's label.
   const [conflicts, setConflicts] = useState(0)
-  // Untriaged items (§8.5): null hides the tab, as in Local only mode.
+  // Untriaged items in Intake (§8.5): null hides the tab, as in Local only
+  // mode with no intake source.
   const [untriaged, setUntriaged] = useState<number | null>(null)
   const views = useMemo(() => viewsClient(api), [api])
   const untriagedReads = useMemo(() => untriagedClient(api), [api])
@@ -234,8 +236,8 @@ function AvoozlPage() {
             key: t.key,
             label:
               t.key === 'untriaged' && untriaged ? (
-                <span className="inline-flex items-center gap-1.5" aria-label={`Untriaged, ${untriaged} items`}>
-                  <ViewLabel view="untriaged">Untriaged</ViewLabel> <Badge variant="info">{untriaged}</Badge>
+                <span className="inline-flex items-center gap-1.5" aria-label={`Intake, ${untriaged} untriaged items`}>
+                  <ViewLabel view="untriaged">Intake</ViewLabel> <Badge variant="info">{untriaged}</Badge>
                 </span>
               ) : t.key === 'conflicts' && conflicts > 0 ? (
                 <span className="inline-flex items-center gap-1.5" aria-label={`Conflicts, ${conflicts} need you`}>

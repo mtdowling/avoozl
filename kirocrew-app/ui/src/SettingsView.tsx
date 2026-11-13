@@ -392,7 +392,7 @@ function MatchIssues({ preview, untriaged = false }: { preview: MatchPreview; un
 }
 
 // Settings › Repositories › Triggers and labels › Untriaged (design §8.5):
-// what the Untriaged tab leaves out for this repository, and its notice.
+// what the Intake tab's Untriaged filter leaves out here, and its notice.
 function UntriagedSettings(props: { id: string; value: UntriagedForm; repository: string; workspaceId: string; onChange: (value: UntriagedForm) => void }) {
   const api = useAppApi()
   const readLabels = useMemo(() => labelsClient(api), [api])
@@ -419,7 +419,7 @@ function UntriagedSettings(props: { id: string; value: UntriagedForm; repository
     <Section
       level="sub"
       title="Untriaged"
-      blurb="What the Untriaged tab lists for this repository: open issues and pull requests no rule, triage label or task covers."
+      blurb="What the Intake tab's Untriaged filter lists for this repository: open issues and pull requests no rule, triage label or task covers."
     >
       <MatchField
         id={`${id}-untriaged-filter`}

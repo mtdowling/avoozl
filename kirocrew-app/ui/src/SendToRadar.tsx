@@ -61,7 +61,8 @@ export function SendToRadar(props: {
   useBackStep('modal', true, 'Cancel', cancel)
   const crew = crews?.crews.find((entry) => entry.id === crewId) ?? null
   const input = (): HandOffInput => ({
-    items: items.map((item) => ({ repository: item.repository, number: item.number })),
+    // Only GitHub issues reach this dialog (sendable), so each has a number.
+    items: items.flatMap((item) => (item.number === null ? [] : [{ repository: item.repository, number: item.number }])),
     ...(crews?.available ? { crew: { id: crewId } } : { label: typed.trim() }),
   })
   const call = async (action: () => Promise<void>) => {

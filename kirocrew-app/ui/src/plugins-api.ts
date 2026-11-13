@@ -325,3 +325,64 @@ export function pluginsClient(api: AppApi) {
     packImport: (workspaceId: string, input: Record<string, unknown>) => run<PackPreview>('plugin.pack.import', input, workspaceId),
   }
 }
+
+// Intake sources (design §4.12, R50.6): sources other than GitHub, declared
+// under `intake.sources` on this computer or in `.avoozl.json`.
+export interface IntakeSourceRow {
+  id: string | null
+  scope: 'machine' | 'repository'
+  entry: Record<string, unknown> | null
+  error: string | null
+  state?: { cursor: string | null; readAt: string | null; error: string | null; more?: boolean } | null
+}
+
+export interface SourceForm {
+  id: string
+  via: string
+  repository: string
+  labelFields: string
+  assigneeField: string
+  minimumPermission: string
+  scope: 'machine' | 'repository'
+}
+
+export const emptySourceForm = (): SourceForm => ({ id: '', via: 'mcp', repository: '', labelFields: '', assigneeField: '', minimumPermission: '', scope: 'machine' })
+
+const SOURCE_ID = /^[a-z][a-z0-9-]{0,60}$/
+
+// The entry a form saves, or the first thing to fix. The backend checks again.
+export function sourceEntry(form: SourceForm, taken: string[]): { id?: string; entry?: Record<string, unknown>; error?: string } {
+  const id = form.id.trim()
+  if (!SOURCE_ID.test(id)) return { error: 'Name the source with lowercase letters, digits and dashes.' }
+  if (id === 'github' || id === 'local') return { error: `${id} is built in.` }
+  if (taken.includes(id)) return { error: `A source named ${id} already exists.` }
+  if (!form.repository.trim()) return { error: 'Pick the repository its work lands in.' }
+  const fields = form.labelFields
+    .split(',')
+    .map((field) => field.trim())
+    .filter(Boolean)
+  return {
+    id,
+    entry: {
+      via: form.via,
+      repository: form.repository.trim(),
+      ...(fields.length ? { labelFields: fields } : {}),
+      ...(form.assigneeField.trim() ? { assigneeField: form.assigneeField.trim() } : {}),
+      ...(form.minimumPermission ? { minimumPermission: form.minimumPermission } : {}),
+    },
+  }
+}
+
+export function intakeClient(api: AppApi) {
+  const run = async <T>(operation: string, input: Record<string, unknown>, workspaceId: string) => {
+    const reply = await api.post<{ result: T }>(COMMAND_PATH, { operation, input, workspaceId })
+    return reply.result
+  }
+  return {
+    list: (workspaceId: string) => run<{ sources: IntakeSourceRow[] }>('intake.sources', {}, workspaceId),
+    add: (workspaceId: string, input: { id: string; entry: Record<string, unknown>; scope: string; confirmPublic: boolean }) =>
+      run<{ sources: IntakeSourceRow[] }>('intake.source.add', input, workspaceId),
+    remove: (workspaceId: string, row: IntakeSourceRow) =>
+      run<{ sources: IntakeSourceRow[] }>('intake.source.remove', { id: row.id, scope: row.scope }, workspaceId),
+  }
+}

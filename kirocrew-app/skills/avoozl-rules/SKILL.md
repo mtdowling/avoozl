@@ -69,7 +69,8 @@ allow ticket: \bacme-0000\b
 
 ## Where rules check
 
-A set checks every boundary unless `boundaries` narrows it:
+A set checks every boundary but `intake` unless `boundaries` narrows it.
+`intake` runs only for a set that lists it:
 
 | Boundary | Checks                                                  |
 | -------- | ------------------------------------------------------- |
@@ -77,6 +78,7 @@ A set checks every boundary unless `boundaries` narrows it:
 | `github` | Issue, comment and pull request text Avoozl writes      |
 | `brief`  | The brief a worker session starts with                  |
 | `diff`   | Lines a worker adds, checked before a push              |
+| `intake` | Items that come in from a plugin source or MCP          |
 
 `repositories` narrows a set to some registered repositories. Matching also
 reads through percent and HTML escapes and hidden zero-width characters.

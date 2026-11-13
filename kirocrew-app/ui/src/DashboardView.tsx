@@ -212,17 +212,17 @@ function StateCounts(props: { counts: Record<NodeState, number>; total: number; 
   )
 }
 
-// The small Untriaged count on the heading line: open GitHub items no rule,
-// triage label or task covers. Accent, not yellow: they wait for someone,
+// The small Untriaged count on the heading line: incoming items no rule,
+// triage label or task covers, shown in the Intake tab. Accent, not yellow: they wait for someone,
 // not necessarily the owner.
 function UntriagedStat({ count, onOpen }: { count: number; onOpen: () => void }) {
   return (
-    <Tooltip text="Open issues and pull requests no rule, triage label or task covers. Opens the Untriaged tab.">
+    <Tooltip text="Incoming items no rule, triage label or task covers. Opens the Intake tab.">
       {(describedBy) => (
         <button
           type="button"
           onClick={onOpen}
-          aria-label={`Untriaged: ${count} items. Open the Untriaged tab`}
+          aria-label={`Untriaged: ${count} items. Open the Intake tab`}
           aria-describedby={describedBy}
           className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium"
           style={{
@@ -279,7 +279,7 @@ function RecentActivity({
 
 export default function DashboardView(props: {
   workspaceId: string | null
-  // Untriaged GitHub items (§8.5); null in Local only mode.
+  // Untriaged items in Intake (§8.5); null when the tab is hidden.
   untriaged?: number | null
   onNavigate: (tab: DashboardTarget, taskId?: string) => void
   onScope?: (tab: 'graph' | 'delivery', filter: TaskFilter) => void
