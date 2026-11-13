@@ -12,6 +12,8 @@ import { Authority } from './Authority.tsx'
 import NewPlanDrawer from './NewPlanDrawer.tsx'
 import { NewIdeaButton, NewIdeaDialog } from './Ideas.tsx'
 import type { NewPlanForm } from './new-plan-api.ts'
+import { DriverBanner, DriverChip, HandOffButton, SetupList, useDriver } from './Driver.tsx'
+import type { DriverSpec } from './driver-api.ts'
 import { IconBtn, IconLabel, SectionHeading, ShowMore, TipBtn, ViewHeading, dangerStyle, useAskChat, usePages } from './controls.tsx'
 import { Archive, ArchiveRestore, ArrowLeft, ChevronRight, ClipboardCheck, DetailsIcon, Download, FolderOpen, LayoutGrid, Lightbulb, MessagesSquare, Network, Pencil, Plus, RefreshCw, Trash2, X } from './icons.ts'
 import { FilterPanel } from './FilterPanel.tsx'
@@ -710,6 +712,9 @@ function PlanAside(props: {
   onUnarchive?: () => void
   onDrill: (drill: Drill) => void
   onOpenTask: (id: string) => void
+  workspaceId: string | null
+  driver: DriverSpec | null
+  onDriverChanged: () => void
 }) {
   const { row, graph, docs } = props
   const leaves = (graph?.tasks ?? []).filter((t) => t.kind === 'leaf')
@@ -737,6 +742,7 @@ function PlanAside(props: {
         <IconLabel icon={MessagesSquare} tooltip="Start a chat about this spec. It makes no edits." onClick={props.onDiscuss}>
           Discuss spec
         </IconLabel>
+        {props.workspaceId && <HandOffButton workspaceId={props.workspaceId} spec={props.driver} onChanged={props.onDriverChanged} />}
         {(props.onDelete || props.onArchive || props.onUnarchive) && (
           <span className="ml-auto flex gap-1.5">
             {props.onArchive && <IconBtn icon={Archive} label={`Archive ${row.name}`} tooltip={ARCHIVE_TIP} onClick={props.onArchive} />}
@@ -1116,6 +1122,8 @@ export default function PlansView(props: {
   }, [workspace, load, plans])
 
   const row = table?.items.find((item) => item.key === selected) ?? null
+  // Who drives the open spec (§6.10): the chip, banner and Hand off.
+  const driver = useDriver(workspace, row?.planId ?? null)
   const spec: SpecSummary | null = row?.spec ? (table?.specs.find((item) => item.name === row.spec) ?? null) : null
 
   // The opened row's stored plan, preview, documents and tasks. Opening is
@@ -1256,7 +1264,10 @@ export default function PlansView(props: {
               workspace && !row ? (
                 <PlansActions onNewPlan={() => setCreating({})} onNewIdea={() => setNewIdea(true)} onOpenIdeas={props.onOpenIdeas} ideas={props.ideas ?? null} onNewTask={() => drawer.addTask()} onRefresh={() => void load(workspace)} busy={busy} />
               ) : row ? (
-                <RowButtons row={row} onScope={(target) => scope(target, row)} onReview={() => jump('avoozl-plan-main')} />
+                <span className="flex flex-wrap items-center gap-2">
+                  <DriverChip spec={driver.spec} />
+                  <RowButtons row={row} onScope={(target) => scope(target, row)} onReview={() => jump('avoozl-plan-main')} />
+                </span>
               ) : null
             }
           >
@@ -1329,11 +1340,16 @@ export default function PlansView(props: {
                 onUnarchive={rowActions(row).unarchivable ? () => unarchive(row) : undefined}
                 onDrill={(drill) => props.onDrill?.(drill)}
                 onOpenTask={(id) => drawer.openTask(id)}
+                workspaceId={workspace}
+                driver={driver.spec}
+                onDriverChanged={driver.reload}
               />
             </Card>
           </aside>
           <div id="avoozl-plan-main" className="min-w-0">
             <ArchivedBanner row={row} busy={busy} onUnarchive={() => unarchive(row)} />
+            {workspace && <DriverBanner workspaceId={workspace} spec={driver.spec} onChanged={driver.reload} />}
+            <SetupList spec={driver.spec} />
             {row.categoryProblem && (
               <p className="mb-3 text-sm text-muted">
                 <Badge variant="warning">front-matter</Badge> {row.categoryProblem}
