@@ -113,13 +113,13 @@ test('binaries, large files, links and unchanged files are summarized, not drawn
 })
 
 test('Open in editor builds kiro:// or vscode:// file links for local paths only', () => {
-  assert.equal(editorHref('kiro', '/home/me/wt'), 'kiro://file/home/me/wt')
-  assert.equal(editorHref('vscode', '/home/me/wt/src/a b.ts', 12), 'vscode://file/home/me/wt/src/a%20b.ts:12')
+  assert.equal(editorHref('kiro', '/srv/wt'), 'kiro://file/srv/wt')
+  assert.equal(editorHref('vscode', '/srv/wt/src/a b.ts', 12), 'vscode://file/srv/wt/src/a%20b.ts:12')
   assert.equal(editorHref('vscode', 'C:\\wt\\src\\a.ts'), 'vscode://file/C:/wt/src/a.ts')
   assert.equal(editorHref('kiro', '/wt/#x?.ts'), 'kiro://file/wt/%23x%3F.ts')
   // Not an absolute path on this machine: no link.
   for (const bad of ['', 'relative/a.ts', 'https://example.com/a', 'javascript:alert(1)']) assert.equal(editorHref('kiro', bad), null, bad)
-  assert.equal(joinPath('/home/me/wt/', 'src/a.ts'), '/home/me/wt/src/a.ts')
+  assert.equal(joinPath('/srv/wt/', 'src/a.ts'), '/srv/wt/src/a.ts')
   assert.equal(joinPath('C:\\wt', 'src/a.ts'), 'C:\\wt\\src\\a.ts')
 })
 

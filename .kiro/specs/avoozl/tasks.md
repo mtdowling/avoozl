@@ -1320,6 +1320,7 @@ Phase 33 because task IDs never move.
   - Built: `4d0b101`.
 - [x] 34.2 Files fold in the task drawer, after 34.1 [R75.1–R75.3] (§8.10)
   - `TaskFiles.tsx` and `files-api.ts`: the tree with badges and counts, Show all files, unified and split diffs, summaries, Open in editor with the editor choice, and the GitHub branch link; `kirocrew-app/ui/test/task-files.test.mjs`, `task-files-browser.test.mjs`, screenshots in `docs/evidence/task-files/`.
+  - Built: `3505ff3`.
 
 - [x] avoozl-p45 P45 Proof: review a task's changes in the drawer [R75] (§8.10)
   - Setup: an isolated temporary workspace with one repository and task `a`'s worktree with a file added, changed, deleted, renamed, a binary and an untracked file; the harness page for the fold.

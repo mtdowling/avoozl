@@ -255,6 +255,40 @@ test("task.files and task.diff pass no argument to Git as an option or pathspec"
     assert.ok(!fs.readdirSync(dir).includes("PWNED"));
 });
 
+test("files whose names read as options or pathspec magic are diffed as names", async (t) => {
+  // Nearby inputs: an untracked and a committed `--output=` name, `-p`, and
+  // a `:(glob)` name (skipped where the file system refuses ':').
+  const { ops, root, worktree } = await setup(t);
+  const names = ["--output=out.txt", "-p", ":(glob)*"].filter((name) => {
+    try {
+      fs.writeFileSync(path.join(worktree, name), "tricky\n");
+      return true;
+    } catch {
+      return false;
+    }
+  });
+  const check = async (when) => {
+    for (const name of names) {
+      const diff = await ops.execute("task.diff", { taskId: "a", path: name });
+      assert.match(diff.diff, /^\+tricky$/m, `${when} ${name}`);
+      assert.doesNotMatch(
+        diff.diff,
+        /keep\.txt|new\.txt|moved\.txt/,
+        `${when} ${name}`,
+      );
+    }
+  };
+  await check("untracked");
+  git(worktree, "add", "-A");
+  git(worktree, "commit", "-m", "Tricky names");
+  await check("committed");
+  for (const dir of [root, worktree, process.cwd()])
+    assert.ok(
+      !fs.readdirSync(dir).includes("out.txt"),
+      "a path ran as --output",
+    );
+});
+
 test("a removed worktree reads the task's branch, and MCP may call both reads", async (t) => {
   const { ops, checkout, worktree } = await setup(t);
   git(checkout, "worktree", "remove", "--force", worktree);
