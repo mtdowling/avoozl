@@ -2338,7 +2338,425 @@ Each new SDK plan made this way can join one epic, such as an SDK target
 architecture epic, through the drawer's Epic field. The review's outcome
 note and links reach the cutover workers' briefs.
 
+### 4.17 Budgets and usage receipts
+
+**Proposed**, owner decisions 2026-11-13 (Requirement 67). A task that loops
+or keeps asking for review rounds can spend without limit, and nobody sees
+it until the bill. Avoozl already reads every turn's tokens and credits for
+the sessions its tick opened (§4.11, owner additions, `flow_usage`). This
+section adds a price table, a cap per task, a stop at the cap, and a receipt.
+
+```text
+GET /api/usage/turns (after each tick receipt) ─▶ flow_usage (raw counts only)
+                                                       │
+price table (this Mac, versioned) ─▶ priced on read ───┤
+                                                       ▼
+cap = task ▸ spec ▸ repository ▸ workspace ─▶ spend ≥ cap?
+   │ no: Delivery card, In flight, drawer show $spent / $cap
+   ▼ yes
+no new session for the task; stop message to each live session
+   ▼
+Needs you: Raise budget (person) │ Stop (person, pauses like Deferred)
+```
+
+#### Price table
+
+- **Where.** Machine-local settings, `~/.config/avoozl/config.json` key
+  `prices` (F74), never in a tracked file:
+
+  ```json
+  {
+    "prices": {
+      "version": 3,
+      "creditUsd": 0.04,
+      "models": {
+        "claude-sonnet-4.5": { "inputPerMTokUsd": 3, "outputPerMTokUsd": 15 }
+      }
+    }
+  }
+  ```
+
+  The numbers above are an example layout, not shipped prices. Avoozl ships
+  an empty table, because prices change and a public repository should not
+  carry stale ones. Validation refuses `prices` in `.avoozl.json`, in a
+  settings pack (§4.14), and in a manifest, and names the file.
+- **Versions.** `prices.save` (person only) bumps `version`, computes the
+  sha256 of the canonical JSON, and writes a row to the SQLite table
+  `price_versions` (`version`, `sha256`, `saved_at`, `table_json`). A
+  driver export (§6.10) leaves `prices` and `price_versions` out, like
+  every machine-local setting; the new driver prices with its own table.
+- **Pricing a turn.** `credits > 0` and `creditUsd` set: `credits ×
+  creditUsd`. Otherwise tokens and a model price: `input ×
+  inputPerMTokUsd / 1e6 + output × outputPerMTokUsd / 1e6`. Anything else
+  is unpriced. The kiro backend fills credits and other backends fill
+  tokens (§4.11), so one table covers both.
+- **Settings › Prices**, marked "this computer only": one row per model
+  Kiro Crew lists (`GET /api/models`, already granted) and per model seen
+  in `flow_usage`, with input and output price fields, a Credit price
+  field, the version and when it was saved, and a muted note on each model
+  with turns but no price.
+
+#### Caps
+
+- **Levels.** `budget: { usd?, tokens?, credits? }` at the workspace
+  (`.avoozl.json` `budget`), the repository (`projects.<id>.budget`), the
+  spec (manifest top-level `budget`), and the task (a leaf's `budget`). The
+  most specific level that sets a key wins, key by key. Every level is a
+  per-task cap; there is no spec-wide total. With no `usd` anywhere, the
+  task has no dollar cap; its receipt is still kept.
+- **Fallback.** Unpriced turns count against `tokens` (input plus output)
+  and `credits`, defaulting to 2,000,000 and 200 per task. Priced turns
+  count only against `usd`. A task stops when any of the three is reached.
+  The first unpriced turn of a model on a task raises one warning on the
+  task and lists the model in Settings › Prices.
+- **What counts.** Every binding of the task: writer attempts and retries,
+  the verifier, review roles (§5.2), responders for pull request feedback
+  (§4.13), and the batch (§4.11). A batch's cap is the sum of its tasks'
+  caps; its turns are shared out evenly across its tasks and marked
+  `shared` on their receipts. A fix task (`<culprit-id>.fix-<n>`) has its
+  own cap from its repository and workspace. Planner, critic, retro and
+  router sessions are not tasks and have no cap; their turns show on Flow
+  under "no task".
+- **Raises.** `budget.raise {taskId, usd?, tokens?, credits?}` (person
+  only) writes a row to `budget_raises` (`task_id`, `by`, `at`, `from`,
+  `to`, `price_version`). A raise overrides the computed cap for that task
+  without editing the approved manifest, whose hash stays pinned.
+
+#### The stop
+
+Spend is known after each usage read, which runs after each tick receipt,
+about once a minute. The check runs then and again in the tick before any
+dispatch for the task.
+
+1. Spend reaches a cap. The tick records a `budget` stop on the task:
+   spend, cap, level, and the price version used.
+2. The tick dispatches nothing new for the task: no retry, verifier,
+   review round, responder, or batch slot.
+3. For each live session bound to the task, the tick queues one message
+   through the existing `messages` intent and `send_to_session` (§4.6):
+   "Budget reached. Finish the tool call you are in, leave the worktree as
+   it is, report `blocked` with `budget`, and stop." Kiro Crew delivers it
+   as the session's next turn (**Inferred**: a message sent to a busy
+   session waits for the current turn; P41 checks it with the fake, and
+   the first live stop records it). Avoozl never calls a stop, interrupt
+   or close on the session.
+4. Every Avoozl MCP call from a bound session, except `plans_report`,
+   returns `budget_reached` with the same text, so a worker that missed the
+   message still learns at its next Avoozl call.
+5. The task opens one Needs you decision of kind `budget` with **Raise
+   budget** and **Stop**. Turns that ran between the cap and the stop are
+   still recorded; the receipt shows the overrun in dollars.
+
+Raise budget sends one "Budget raised to $N; go on" message to a live
+session, or lets the next tick dispatch the next attempt as usual. Stop
+pauses the task exactly as an allowed drag to Deferred does (§6.7): nothing
+new is dispatched, the session and worktree are left alone, dependents
+wait, and in GitHub modes the Project Status shows Deferred. Neither costs
+an attempt (§5.2).
+
+#### Receipts
+
+`budget.receipt {taskId}` is an observe operation:
+
+```json
+{
+  "taskId": "s1.a1",
+  "spec": "s1",
+  "repository": "r1",
+  "complete": false,
+  "missing": [{ "slot": "avoozl_…", "reason": "crew-mode" }],
+  "cap": { "usd": 5, "tokens": 2000000, "credits": 200, "level": "spec" },
+  "raises": [{ "by": "owner", "at": "…", "from": { "usd": 5 }, "to": { "usd": 8 } }],
+  "price": { "version": 3, "sha256": "…" },
+  "stops": [{ "at": "…", "usd": 5.12, "priceVersion": 2 }],
+  "totals": { "input": 0, "output": 0, "credits": 0, "usd": 0, "unpricedTurns": 0 },
+  "byStage": [{ "stage": "coding", "input": 0, "output": 0, "credits": 0, "usd": 0, "priced": true }],
+  "byModel": [],
+  "byAttempt": [],
+  "readAt": "…"
+}
+```
+
+- Stages are the Flow stages, attributed by `turnStage` (§4.11).
+- Dollars use the current price version on every read, so a price edit
+  recomputes old receipts. A stop or raise also keeps the dollars and
+  version that applied then.
+- The drawer's **Budget** fold, after Timing, shows spend against the cap,
+  the receipt tables, and **Export JSON**, which downloads the same object.
+  The CLI is `avoozl budget receipt TASK [--json]`; MCP is `plans_view`
+  action `receipt` (R56: no new tool).
+- The retro payload gains `receipts`: each finished task's totals by stage
+  and model. Counts, dollars, model IDs and stage names only.
+- The Delivery card and In flight card show a chip `$1.20 / $5.00`, muted
+  below 80% of the cap, red at the cap, and "spend unknown" when it is.
+
+#### Where usage can be missing
+
+| Case | Why | What the budget does |
+|---|---|---|
+| Crew Mode worker | Bound by a conductor, not opened by the tick; `observeUsage` reads `source: "tick"` bindings only | Spend unknown; warn once; no stop |
+| Remote chat | `/api/usage/turns` reads this gateway's rows; remote placement is inert until MC-10, and MC-10 does not cover usage | Spend unknown; warn once; no stop |
+| Issue Radar route | Avoozl opens no session (§6.4) | No receipt beyond "not run by Avoozl" |
+| Usage read fails | Kiro Crew refuses or the backend is down | Keep last known spend with its time; retry next tick; no stop |
+| Turn with no model | Row has tokens but no `model` | Unpriced; counts against the token cap |
+
+Unknown spend never stops a task, because a budget is a cap, not a
+permission, and stopping on missing data would turn a read failure into a
+blocked line. Known spend from readable sessions of the same task still
+counts.
+
+#### Incoming item budgets (hook only)
+
+An incoming item (§4.12) may later carry `budget: { usd }` from a plugin
+source whose entry the owner approved with a `budget` capability. A task
+made from that item by Plan this or Deliver this would take it at the spec
+level, below the manifest task. Nothing builds this until a real grant
+plugin exists; payments, escrow and refunds are out of scope.
+
+#### Why each choice
+
+| Choice | Why |
+|---|---|
+| Dollars as the unit | Tokens and credits do not compare across models |
+| Prices on this Mac only, none shipped | Prices are private and go stale; a shared file would spread wrong numbers |
+| Raw counts stored, dollars on read | A price change recomputes every receipt |
+| Versioned price table | A receipt can say which prices made a stop |
+| Token and credit fallback | An unpriced model must still have a ceiling |
+| Most specific level wins, key by key | A task can tighten one cap without restating the rest |
+| Raise in SQLite, not the manifest | The approved manifest's hash stays pinned |
+| Stop at the next turn by message | Ending a tool call mid-change can lose work |
+| Retries and reviews share the cap | The point is a task's total cost |
+| Unknown spend warns, never stops | A missing read must not block delivery |
+| Raise and Stop person only | Spending more is the owner's call |
+| Budget never a permission | Spend limits must not loosen safety gates |
+
 ---
+
+### 4.18 Retro prompt and skill proposals, and lessons
+
+**Proposed**, owner approval 2026-11-13 (Requirements 68–70). The retro of
+§4.11 can change settings and plans. Much of what slows a task is in what
+the worker is told, so it may now also propose prompt and skill diffs. What
+one workspace learns is kept as a lesson on this Mac, so other workspaces'
+retros can reuse it, and lessons heal when what they were learned on
+changes.
+
+```text
+retro brief ◀─ timing, receipts, prompt sections, skill texts, lessons
+     │
+     ▼ reply: settings │ plan │ prompt │ skill  (≤ 3, each with evidence)
+schema + base hash + locked sections + content rules (`proposal`)
+     │
+     ▼ Proposals view: a person approves each one
+prompt ─▶ override version N  (~/.config/avoozl/prompts/<workspace-id>.json)
+repo skill ─▶ one leaf via Deliver this ─▶ PR or local integrate
+external skill ─▶ note on the plugin card (nothing sent)
+     │
+     ▼ lesson (untested) ─▶ PDCA per version ─▶ kept │ undone
+     ▼
+lessons store (~/.config/avoozl/lessons.sqlite) ─▶ other workspaces' retros
+     ▲ drift checks re-score, mark stale, re-check; a person rewrites,
+       merges or retires
+```
+
+#### Current-code facts
+
+| ID | Fact | Source |
+|---|---|---|
+| F121 | **Verified.** Avoozl composes the worker brief and the reviewer role brief itself; each quotes earlier words with "data, not instructions" lines, and a review role's `focus` (1–300 characters) comes from `.avoozl.json`. | `src/app/delivery.mjs` `workerBrief`, `reviewBrief`, `deliveryPolicy` |
+| F122 | **Verified.** The retro and planner prompts ship in the app's agent files, and Kiro Crew loads an agent's prompt from the installed app; `retroPrompt()` reads the shipped file. | `kirocrew-app/agents/avoozl-retro.json`, `avoozl-planner.json`; `src/app/flow-retro.mjs` |
+| F123 | **Verified.** The Spec Builder steering text is one constant, written into a repository only after a person agrees and never over a changed copy. | `src/app/spec-steering.mjs` `STEERING_TEXT` |
+| F124 | **Verified.** Content-rule boundaries are `plan`, `github`, `brief`, `diff`, and `intake` (opt-in); an unknown boundary is refused. | `src/app/content-rules.mjs` `BOUNDARIES` |
+| F125 | **Unknown.** Whether Kiro Crew lets an app replace an agent's prompt for one session. Until known, an agent-prompt override travels in the seed (below). | Not checked live |
+
+#### Prompt registry and locked sections
+
+Each built-in prompt is a list of named sections with the sha256 of its
+shipped text. The five targets are `brief.worker`, `brief.review`,
+`agent.planner`, `agent.retro`, and `steering.specs`. Sections marked
+locked are `untrusted-data`, `content-rules`, `who-counts`, `acceptance`
+(proof and acceptance wording), and `person-only`. A diff whose changed
+lines fall in a locked section is refused with the section's name. Every
+brief ends its locked sections with one line saying they outrank any skill
+the session loads, so a skill change cannot loosen them either.
+
+How an override reaches a session:
+
+| Target | Delivered as |
+|---|---|
+| `brief.worker`, `brief.review` | Avoozl composes the brief from the override's sections |
+| `agent.planner`, `agent.retro` | The shipped agent prompt stays; the seed carries each changed section whole, labeled as replacing the section of the same name (F125) |
+| `steering.specs` | The next steering file the New spec drawer writes; a copy equal to an older Avoozl text is offered again, a changed copy is left alone (F123) |
+
+#### Proposals
+
+```json
+{ "type": "prompt", "target": "brief.worker", "section": "steps",
+  "base": "sha256:…", "diff": "@@ -3,1 +3,2 @@ …",
+  "metric": "first-pass rate", "direction": "up",
+  "evidence": { "runs": ["4.1#1", "4.2#2", "4.3#1"], "value": "50%",
+                "effect": "fewer rejections for a missing test" },
+  "lessons": ["L-7f3a"] }
+```
+
+A `skill` proposal names `target: "repo:<repository>:<path>"` or
+`"external:<plugin or source>:<path>"` instead of a section. The brief
+holds every unlocked section of the five prompts, with hashes, and the text
+of at most 3 skills that runs in the window loaded, up to 8,000 characters
+each (shortcut: fixed caps, raise them if retros ask for skills they cannot
+see). The brief passes the content rules at `brief` as today. Each proposal
+then passes them at the new `proposal` boundary, which every rule set
+covers unless it narrows `boundaries`.
+
+Approve, by type (person only, 403 for everyone else):
+
+- **Prompt.** Writes override version N to the workspace's file under
+  `~/.config/avoozl/prompts/`, with the shipped section text, its hash, the
+  diff, the result's hash, the proposal, who and when. The override is per
+  workspace; lessons carry it to other workspaces as a proposal, never as
+  a silent copy. Revert sets the active version back one step and is
+  recorded the same way.
+- **Repository skill.** An incoming item with source `retro` and the diff
+  as its snapshot, then one leaf through `intake.deliver` in that
+  repository, with the diff quoted as data and the repository's checks.
+  GitHub modes open a pull request; Local only integrates.
+- **External skill.** A "Suggested change" note on the plugin card in
+  Settings › Plugins (or in Flow when no plugin owns the file) with the
+  diff, evidence and **Copy**. Its PDCA starts only if a later pin loads a
+  skill whose hash differs.
+
+Each attempt records `prompts` (target to version ID, such as
+`brief.worker@3f2a91c0+o2`) and `skills` (target to sha256). Skill hashes
+come from tool calls that read a skill file (F91) when Avoozl can read
+them, else from an optional `skills` list in the worker's reports. The
+receipt and the Timing fold show both. PDCA compares the change's metric
+over `everyTasks` finished tasks on the old version with as many on the
+new one, and marks the window "mixed" when another change took effect in
+it.
+
+#### Lessons store
+
+One SQLite file on this Mac, `~/.config/avoozl/lessons.sqlite`, never in a
+repository and never in a driver export (§6.10).
+
+| Field | Holds |
+|---|---|
+| `id` | `L-` and a short hash |
+| `pattern` | stage, check kind (`test`, `lint`, `build`, `typecheck`, `format`, `other`), tool (a command's first word), traits |
+| `finding`, `change` | summaries of at most 300 characters; change type and target |
+| `outcome` | `untested`, `kept`, `undone` |
+| `evidence` | task and run counts, metric, before and after |
+| `context` | Avoozl version, model IDs, prompt and skill versions, check and tool names, traits, metric baseline |
+| `confidence`, `confirmedAt`, `state`, `staleReason` | healing (below) |
+| `source` | workspace random ID, or `pack:<plugin>@<version>` |
+| `history` | each change with who or what made it and when |
+
+Traits come from a fixed list so no free text leaks: up to 3 languages by
+file count, build files present (such as `package.json` or `Cargo.toml`),
+GitHub mode, and CI present. The retro reply gives each proposal a
+`lesson` (`pattern`, `finding`) in general words. Validation refuses task
+IDs, paths, issue and pull request numbers, repository names and URLs, and
+the content rules run at the new `lesson` boundary, on write and again with
+the reading workspace's rules on use. A refused lesson is not written, and
+the proposal still stands.
+
+A retro's brief gets up to 10 matching lessons (same stage and at least
+one shared trait): `kept` first, then confidence, evidence count, and
+date. Undone, retired and expired lessons go in a short "did not work"
+list. `flow.lessons.share` and `flow.lessons.read` (default `true`) live in
+`.avoozl.json` per workspace (not per repository), so a team can commit an
+opt-out. Untested lessons expire
+after `untestedDays` (90).
+
+A plugin bundle may provide `lessons`: `avoozl-lessons.json` with
+`version` and `lessons`, checked like a written lesson. Import follows the
+pack flow (§4.14): `plugin.lessons.preview` reads only and
+`plugin.lessons.import {previewHash}` is a person's act. `lessons.export`
+writes the same shape to a file the person picks and is person-only.
+
+#### Healing
+
+Drift checks run at each retrospective and when a lesson is read:
+
+| Trigger | Mark |
+|---|---|
+| A model in `context` is no longer listed (`GET /api/models`) or no longer used for that stage | `needs re-check` |
+| A prompt or skill version in `context` changed | `needs re-check` |
+| A check or tool it names is gone from every matching repository | `stale` |
+| Matching repositories' traits changed | `needs re-check` |
+| A newer PDCA result for the same pattern and change disagrees | `needs re-check`, confidence down |
+| Not confirmed within `confirmDays` (180) | `stale` |
+
+These marks need no approval, are recorded in `history`, and clear by
+themselves when fresh runs confirm the lesson. A marked lesson is left out
+of the citable list. Confidence starts at 0.5, becomes 0.8 when kept, rises
+0.05 per confirming window to 0.95, and drops 0.2 on a disagreement; below
+0.3 the lesson needs a re-check (shortcut: fixed steps, fit them to real
+data after P42). A window confirms a lesson when its change is in effect in
+a matching workspace and the metric stays within 10% of its after value.
+
+Every `reviewEvery` retros (5), the retro also gets the store's marked and
+similar lessons and may reply with `lessonEdits` (`rewrite`, `merge`,
+`retire`), each a diff with evidence, shown in Proposals for a person. No
+lesson is deleted.
+
+Overrides heal too. At backend start, Avoozl compares each override's
+shipped-section hash with the shipped text. When it changed, the override
+is flagged, the Proposals view shows a three-way diff (old built-in, new
+built-in, override), and Avoozl proposes a rebased override made with a
+three-way merge. Until a person approves, sessions keep the override and
+the Flow tab and Settings warn. Locked sections are never overridden, so
+an upstream change to one always wins. A new lessons pack version marks
+changed imported lessons `needs re-check` until it is imported, and
+retires removed ones with that reason.
+
+#### UI
+
+The Flow tab gets **Overview** (today's content), **Proposals**, and
+**Lessons** views.
+
+```text
+◔ Flow   Overview │ Proposals │ Lessons
+┌ Proposal · retro 4 · prompt brief.worker § steps (v3f2a91c0+o1) ───────┐
+│ - Run the checks.                                                       │
+│ + Run the checks. Add a test for each changed branch before done.       │
+│ evidence: 4.1#1, 4.2#2, 4.3#1 · first-pass rate 50% ↑ · cites L-7f3a     │
+│                                                    [Reject] [Approve]   │
+└────────────────────────────────────────────────────────────────────────┘
+┌ Prompt versions ───────────────────────────────────────────────────────┐
+│ brief.worker  +o2 since Nov 12  PDCA: helped        [Revert]            │
+│ agent.retro   +o1  ⚠ built-in changed in 0.2.0 · rebase proposed        │
+└────────────────────────────────────────────────────────────────────────┘
+┌ Lessons  Filters: Pattern [ci-wait ▾] Outcome [all ▾] Source [all ▾]    │
+│ L-7f3a  tests · npm · js  "Ask for a test per branch"  kept  0.85        │
+│         confirmed Nov 10 · from another workspace        [History]       │
+│ L-19c0  ci-wait · cargo   "Batch by files"  undone  did not work         │
+│ L-a4e2  review · py       stale: check `lint` removed                    │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+Settings › Flow gets a **Lessons** sub-group: Share this workspace's
+lessons (`flow.lessons.share`), Use lessons from other workspaces
+(`flow.lessons.read`), Untested lessons expire after (days,
+`flow.lessons.untestedDays`), Confirm within (days,
+`flow.lessons.confirmDays`), and Review lessons every (retros,
+`flow.lessons.reviewEvery`), all "(optional)" with defaults as
+placeholders, and one line saying lessons stay on this computer.
+
+#### Why each choice
+
+| Choice | Why |
+|---|---|
+| Diffs against a hashed base | A stale proposal fails instead of overwriting a newer text |
+| Locked sections, and briefs outrank skills | A speed review must not loosen what protects the owner |
+| Overrides outside shipped files | An update stays clean, and revert is one step |
+| Override per workspace | One workspace's evidence should not change another's prompts silently; lessons carry it as a proposal |
+| Repo skill change as a leaf | It is code in someone's repository, so it gets checks and review |
+| External skill as a note | Avoozl cannot edit a pinned plugin |
+| Lessons on this Mac, summaries only | Cross-workspace reuse without moving one workspace's text into another |
+| Undone and retired kept | Retros should not relearn what failed |
+| Automatic marks, person edits | Marks are reversible; changing what a lesson says is a judgment |
+| Keep the override until a rebase is approved | Dropping it silently would undo a proven change |
 
 ## 5. Local workflow
 
@@ -3967,6 +4385,10 @@ buttons only for space. Local-only mode shows every Flow sub-group, because
 all of them apply to local delivery; the local-checks-first line says it
 matters only when sessions push.
 
+Owner approval 2026-11-13 (Requirements 68–70): the Flow tab gains
+**Proposals** and **Lessons** views, and Settings › Flow a **Lessons**
+sub-group, sketched in §4.18.
+
 ### 8.5 Intake tab
 
 Renamed from Untriaged on 2026-11-13 (R50.23). **Untriaged** is the tab's
@@ -4439,6 +4861,8 @@ and next decision, are tasks in `tasks.md` (P1–P32). Summary:
 | P37 | Workflow templates, manual leaves, and links and notes, in a temporary single-repo workspace with a fake GitHub and the sample SDK rewrite template: the template makes a draft that joins an epic and imports no setting unless ticked, the manual review leaf is never dispatched and gates cutover, only a person or an allowed GitHub closer completes it, and links and notes pass content rules, reach briefs, and reach the issue only when shown (Phase 22) |
 | P38 | The Specs name and ideas, in a temporary workspace with a fake chat and a fake New spec entry point: no user-facing plan word outside the allowlist, the compat names unchanged, an idea captured by a person, by MCP and by a session, refused fields and blocked text, an idea that never matches a rule or counts as untriaged, a riff that only appends, Make it a spec that prefills New spec and graduates the idea, and archive kept past the purge (Phase 23) |
 | P40 | Driver handoff with temporary workspaces on one fake GitHub: the plan issue's single assignee and the machine claim pick one driver, the epic's assignee stands in, zero or several assignees read only with one decision, one login on two machines, the check before dispatch, age never moves the role, drain then export then reassign and take over, a tampered file refused, rebuild and forced take-over with the loss list, a silently ignored reassignment, the old driver going read-only on return, away tasks never restarted by lease, the re-approve list, person-only 403s, and the Local only row (Phase 26) |
+| P41 | Budgets and receipts in a temporary workspace with fake workers and fake usage rows: priced and unpriced turns, caps by level, retries and review rounds on one cap, a batch's shared cap, the stop message at the next turn with no session stopped, `budget_reached` on MCP, Raise budget and Stop as a person only, a price change recomputing a receipt with both versions shown, unknown spend for Crew Mode and a failed read, JSON export, the retro payload, and no budget changing a gate (Phase 27) |
+| P42 | Prompt and skill proposals and lessons with fake workers and a fake retro model in two temporary workspaces: locked sections, stale bases and blocked text dropped, person-only approve and revert, overrides outside shipped files, a repository skill change as a leaf and an external one as a note, PDCA per version with mixed windows, lessons shared with no source text, opt-out, refused lesson text, drift marks that clear on confirmation, the lessons review, override drift with a three-way diff, pack versions, and person-only export (Phase 28) |
 
 A new server, shared database, or plugin mechanism other than the seam in §4.8
 requires a failed proof that a small Kiro Crew or GitHub contract cannot fix.
@@ -4470,6 +4894,8 @@ Detailed in `tasks.md`. **Proposed** order:
 | 22. Templates, manual tasks, links and notes | The `template` plugin part and From template in New plan; `manual` leaves in Needs you and on GitHub; Links and notes on every task (§4.16) | Starts after 21.1, 16.3, 17.1 and P28; P37 runs after P36 |
 | 23. Specs and ideas | The page says spec (§8.7); ideas as `local` incoming items with notes and links, Riff on this, Make it a spec through the New spec entry point, and archive (§8.8) | Starts after 14.10, 17.1 and 19.1; P38 |
 | 26. Driver handoff | One driver per spec: the plan issue's assignee plus a machine claim, read-only ticks elsewhere, the check before dispatch, hand off with drain, export and reassign, take over from the file or a rebuild, force take over, what never moves, the header and banner (§6.10) | Starts after 3.8, 3.10 and 21.4; P40 |
+| 27. Budgets and receipts | A machine-local, versioned price table; dollar caps per task from workspace, repository, spec and task, with token and credit fallbacks; the stop at the next turn and Raise budget or Stop in Needs you; receipts by stage, model and attempt with JSON export; spend on the drawer, Delivery and In flight (§4.17) | Starts after 12.12 and 12.9; P41 |
+| 28. Retro prompt and skill proposals, and lessons | Prompt and skill diffs with evidence from the retro, local per-workspace prompt overrides with revert, repository skill changes as leaves and external ones as notes, PDCA per version, a lessons store on this Mac shared across workspaces, lessons packs, and healing of lessons and overrides (§4.18) | Starts after 12.9 and 12.10; P42 |
 
 ### 12.1 Bootstrap: building Avoozl before Avoozl works
 
