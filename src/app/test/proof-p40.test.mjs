@@ -1009,7 +1009,7 @@ test("P40: the machine claim's shape", async () => {
   assert.match(renderMarker(marker("plan", claim)), /"claim"/);
   assert.throws(() => renderMarker(marker("leaf", claim)), /only a plan issue/);
   assert.throws(
-    () => renderMarker(marker("plan", { ...claim, label: "/home/me" })),
+    () => renderMarker(marker("plan", { ...claim, label: "/var/x" })),
     /contains a path/,
   );
   assert.throws(
