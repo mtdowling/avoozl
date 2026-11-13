@@ -22,7 +22,6 @@ import { Activity, DetailsIcon, ExternalLink, Inbox, MessageSquare, Network, Ref
 import { chatClient, itemRef, type ActivityItem } from './chat-api.ts'
 import type { TaskFilter } from './filters.ts'
 import type { Drill } from './graph-layout.ts'
-import { documentEpic } from './graph-layout.ts'
 import { linkHref } from './views-api.ts'
 
 // Recent activity reads up to the backend's cap (activity.recent allows 200).
@@ -456,9 +455,9 @@ export default function DashboardView(props: {
               <ul className="mt-2 flex flex-col gap-1 text-sm">
                 {summary.progress.map((entry) => {
                   const percent = entry.total ? Math.round((entry.done / entry.total) * 100) : 0
-                  const title = entry.title !== entry.epic ? entry.title : documentEpic(entry.epic)
+                  const title = entry.title
                   return (
-                    <li key={entry.epic}>
+                    <li key={entry.epic ?? '(none)'}>
                       <Tooltip text={`Show only ${title} in the Graph${entry.running > 0 ? `. ${entry.running} Avoozl chats running now.` : ''}`} display="block">
                       <button
                         type="button"

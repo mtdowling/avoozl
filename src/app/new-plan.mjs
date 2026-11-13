@@ -9,7 +9,7 @@
 import { fail } from "./store.mjs";
 import { digest } from "../model.mjs";
 import { contentBinding, enforce } from "./content-rules.mjs";
-import { createSpecPlan, MANIFEST, specName } from "./spec-plans.mjs";
+import { createSpecPlan, isEpicFolder, MANIFEST, specName } from "./spec-plans.mjs";
 import { PLANNER_AGENT } from "./github-planner.mjs";
 import { draftManifest } from "./spec-manifest.mjs";
 import {
@@ -23,7 +23,7 @@ const META = "newPlans";
 const GOAL_LIMIT = 20000;
 const CONTEXT_LIMIT = 20000;
 const LINE_LIMIT = 200;
-const EPIC_LIMIT = 30;
+const PHASE_LIMIT = 30;
 const HANDOFFS = ["planner", "spec-builder"];
 // Spec Builder's feature type writes requirements.md, design.md and
 // tasks.md; its quick type skips design.md, which Avoozl requires.
@@ -52,16 +52,17 @@ export function pendingNewPlans(store) {
 
 // The planner's brief. Field values sit in one data block, after the rules.
 export function newPlanBrief(request) {
-  const { name, folder, category, epics, repositories, goal, context } =
+  const { name, folder, category, phases, repositories, goal, context } =
     request;
   const data = [
     `Name: ${name}`,
     category
       ? `Category: ${category}`
       : "Category: (none; leave the front-matter out)",
-    epics.length
-      ? `Epics or phases:\n${epics.map((epic) => `- ${epic}`).join("\n")}`
-      : "Epics or phases: (none named)",
+    request.epic ? `Epic: ${request.epic}` : "Epic: (none)",
+    phases.length
+      ? `Phases, as ## headings in tasks.md:\n${phases.map((phase) => `- ${phase}`).join("\n")}`
+      : "Phases: (none named)",
     `What I want:\n${goal}`,
     context ? `Links and context:\n${context}` : null,
   ]
@@ -105,7 +106,7 @@ export function newPlanBrief(request) {
 // appends it to its own seed prompt. The rules come from the steering file
 // when it is there; otherwise they ride along here.
 export function specBuilderDescription(request, steering) {
-  const { category, epic, epics, repositories, goal, context } = request;
+  const { category, epic, phases, repositories, goal, context } = request;
   const front = [
     category && `category: ${category}`,
     epic && `epic: ${epic}`,
@@ -119,8 +120,8 @@ export function specBuilderDescription(request, steering) {
     front.length
       ? `Start requirements.md with this front-matter, exactly:\n---\n${front.join("\n")}\n---`
       : "Leave out the front-matter block: this plan has no category or epic.",
-    epics.length
-      ? `Phases, as ## headings in tasks.md:\n${epics.map((epic) => `- ${epic}`).join("\n")}`
+    phases.length
+      ? `Phases, as ## headings in tasks.md:\n${phases.map((phase) => `- ${phase}`).join("\n")}`
       : null,
     `Repositories in scope (use these IDs in _Repository:_ lines): ${repositories
       .map((repo) =>
@@ -154,12 +155,21 @@ export function requestNewPlan(store, input = {}, deps) {
   const handoff = input.handoff ?? "planner";
   if (!HANDOFFS.includes(handoff))
     fail("handoff must be planner or spec-builder.");
-  const epicsInput = input.epics ?? [];
-  if (!Array.isArray(epicsInput)) fail("Epics must be a list.");
-  const epics = epicsInput
-    .map((epic, index) => oneLine(epic, `Epic ${index + 1}`))
+  // An epic is a goal across plans: name one epic folder (R59.11). The old
+  // free-text list is refused, never read as phases.
+  if (input.epics !== undefined)
+    fail("Name one epic in epic, and phases in phases.");
+  if (epic) {
+    const folder = deps.readSpec(epic);
+    if (!folder.exists || !isEpicFolder(folder.files))
+      fail(`${epic} is not an epic folder. Pick an epic, or leave Epic empty.`, 404);
+  }
+  const phasesInput = input.phases ?? [];
+  if (!Array.isArray(phasesInput)) fail("Phases must be a list.");
+  const phases = phasesInput
+    .map((phase, index) => oneLine(phase, `Phase ${index + 1}`))
     .filter(Boolean);
-  if (epics.length > EPIC_LIMIT) fail(`Name at most ${EPIC_LIMIT} epics.`);
+  if (phases.length > PHASE_LIMIT) fail(`Name at most ${PHASE_LIMIT} phases.`);
   const goal = text(input.goal, "What you want", GOAL_LIMIT, {
     required: true,
   });
@@ -205,7 +215,7 @@ export function requestNewPlan(store, input = {}, deps) {
     folder,
     category,
     epic,
-    epics,
+    phases,
     repositories: repositories.map((repo) => ({
       id: repo.id,
       localCheckout: repo.localCheckout || null,

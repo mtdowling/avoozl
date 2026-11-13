@@ -14,14 +14,14 @@ export interface NewPlanForm {
   category: string
   // The epic's spec folder name, or blank for none.
   epic: string
-  // One phase per line.
-  epics: string
+  // One phase per line; each becomes a tasks.md heading (Requirement 59.11).
+  phases: string
   repositories: string[]
   goal: string
   context: string
 }
 
-export const EMPTY_NEW_PLAN: NewPlanForm = { name: '', category: '', epic: '', epics: '', repositories: [], goal: '', context: '' }
+export const EMPTY_NEW_PLAN: NewPlanForm = { name: '', category: '', epic: '', phases: '', repositories: [], goal: '', context: '' }
 
 // The planner chat fallback.
 export interface NewPlanResult {
@@ -86,7 +86,7 @@ export function formProblems(form: NewPlanForm, taken: Iterable<string>, reposit
   return problems
 }
 
-export const epicList = (text: string) =>
+export const phaseList = (text: string) =>
   text
     .split('\n')
     .map((line) => line.trim())
@@ -98,7 +98,7 @@ const fields = (form: NewPlanForm) => ({
   name: form.name.trim(),
   category: form.category.trim(),
   epic: form.epic.trim(),
-  epics: epicList(form.epics),
+  phases: phaseList(form.phases),
   repositories: form.repositories,
   goal: form.goal,
   context: form.context,

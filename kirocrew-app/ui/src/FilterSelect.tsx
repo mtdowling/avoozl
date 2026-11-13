@@ -8,6 +8,9 @@ export function FilterSelect(props: {
   value: string
   options: { value: string; label: string }[]
   onChange: (value: string) => void
+  // Shown but not usable, with why in its tooltip-free hint text.
+  disabled?: boolean
+  hint?: string
 }) {
   return (
     <label htmlFor={props.id} className="flex min-w-0 flex-col gap-1 text-sm" style={{ maxWidth: '13rem' }}>
@@ -15,6 +18,8 @@ export function FilterSelect(props: {
       <select
         id={props.id}
         value={props.value}
+        disabled={props.disabled}
+        aria-describedby={props.hint ? `${props.id}-hint` : undefined}
         onChange={(event) => props.onChange(event.target.value)}
         className="rounded border px-2 py-1 text-sm"
         style={selectStyle}
@@ -26,6 +31,11 @@ export function FilterSelect(props: {
           </option>
         ))}
       </select>
+      {props.hint && (
+        <span id={`${props.id}-hint`} className="text-xs text-muted">
+          {props.hint}
+        </span>
+      )}
     </label>
   )
 }

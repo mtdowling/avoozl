@@ -246,22 +246,6 @@ export default function TaskForm(props: {
         <Area id="avoozl-task-summary" rows={4} value={form.summary} onChange={(summary) => set({ summary })} />
       </Field>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field id="avoozl-task-epic" label="Epic">
-          <select
-            id="avoozl-task-epic"
-            value={form.epic}
-            onChange={(event) => set({ epic: event.target.value })}
-            className="rounded border px-2 py-1 text-sm"
-            style={fieldStyle}
-          >
-            <option value="">{detail ? 'Keep' : 'Inbox'}</option>
-            {(graph?.epics ?? []).map((epic) => (
-              <option key={epic.id} value={epic.id}>
-                {epic.title}
-              </option>
-            ))}
-          </select>
-        </Field>
         <Field id="avoozl-task-repository" label="Repository">
           <select
             id="avoozl-task-repository"

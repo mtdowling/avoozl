@@ -435,6 +435,8 @@ export default function FlowView({ workspaceId }: { workspaceId: string | null }
             fields={[
               { kind: 'select', key: 'repository', label: 'Repository', value: filter.repository ?? '', options: [...view.repositories.map((r) => ({ value: r, label: r }))], onChange: (repository) => setField({ repository: repository || undefined }) },
               { kind: 'select', key: 'epic', label: 'Epic', value: filter.epic ?? '', options: [...view.epics.map((e) => ({ value: e.id, label: e.title }))], onChange: (epic) => setField({ epic: epic || undefined }) },
+              { kind: 'select', key: 'plan', label: 'Plan', value: filter.plan ?? '', options: (view.plans ?? []).map((p) => ({ value: p.id, label: p.title })), onChange: (plan) => setField({ plan: plan || undefined, phase: undefined }) },
+              { kind: 'select', key: 'phase', label: 'Phase', value: filter.phase ?? '', options: (view.phases ?? []).map((p) => ({ value: p.id, label: p.title })), disabled: !filter.plan, hint: filter.plan ? undefined : 'Pick a plan first', onChange: (phase) => setField({ phase: phase || undefined }) },
               { kind: 'select', key: 'window', label: 'Window', value: filter.window ?? '20', options: WINDOW_OPTIONS, onChange: (window) => setField({ window: window || undefined }) },
               { kind: 'select', key: 'stage', label: 'Stage', value: filter.stage ?? '', options: [...STAGES.map((s) => ({ value: s, label: STAGE_LABELS[s] }))], onChange: (stage) => setField({ stage: stage || undefined }) },
             ]}

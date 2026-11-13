@@ -71,7 +71,7 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
       setChoices({
         repositories: repos.status === 'fulfilled' ? repos.value.map((r) => r.id) : [],
         specs: plans.status === 'fulfilled' ? plans.value.items.filter((p) => !p.archivedAt).map((p) => ({ id: p.id, title: p.title || p.id })) : [],
-        tasks: graph.status === 'fulfilled' ? graph.value.tasks.filter((t) => t.kind !== 'epic').map((t) => ({ id: t.id, title: t.title || t.id })) : [],
+        tasks: graph.status === 'fulfilled' ? graph.value.tasks.filter((t) => t.kind === 'leaf').map((t) => ({ id: t.id, title: t.title || t.id })) : [],
       })
     })
     return () => {

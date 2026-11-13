@@ -37,7 +37,7 @@ function workspace(t, { repositories = ["app"], contentRules } = {}) {
 const request = (overrides = {}) => ({
   name: "cache-invalidation",
   category: "Runtime",
-  epics: ["Phase 1", "Phase 2"],
+  phases: ["Phase 1", "Phase 2"],
   repositories: ["app"],
   goal: "Invalidate the cache when config changes.",
   context: "See issue 12.",
@@ -115,7 +115,10 @@ test("plan.new refuses bad names, duplicates, missing repositories and an empty 
   await refuses({ repositories: [] }, /at least one repository/);
   await refuses({ repositories: ["nope"] }, /not a registered repository/, 404);
   await refuses({ category: "a: b" }, /Category may not use/);
-  await refuses({ epics: ["two\nlines"] }, /one line/);
+  await refuses({ phases: ["two\nlines"] }, /one line/);
+  // The old free-text list is refused, and an epic must be an epic folder.
+  await refuses({ epics: ["W1"] }, /Name one epic in epic/);
+  await refuses({ epic: "missing" }, /not an epic/, 404);
   writeSpec(root, "taken");
   await refuses({ name: "taken" }, /already exists/, 409);
   await ops.execute("plan.create", { spec: "taken" });

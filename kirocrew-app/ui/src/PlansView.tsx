@@ -13,7 +13,7 @@ import NewPlanDrawer from './NewPlanDrawer.tsx'
 import { IconBtn, IconLabel, SectionHeading, ShowMore, TipBtn, ViewHeading, dangerStyle, useAskChat, usePages } from './controls.tsx'
 import { Archive, ArchiveRestore, ArrowLeft, ChevronRight, ClipboardCheck, DetailsIcon, Download, FolderOpen, LayoutGrid, MessagesSquare, Network, Pencil, Plus, RefreshCw, Trash2, X } from './icons.ts'
 import { FilterPanel } from './FilterPanel.tsx'
-import { STATES, documentEpic, nodeState, type Drill, type NodeState } from './graph-layout.ts'
+import { STATES, nodeState, type Drill, type NodeState } from './graph-layout.ts'
 import { rowPlanKey, type TaskFilter } from './filters.ts'
 import { outline } from './markdown.ts'
 import { registerLanguages } from './highlight.ts'
@@ -578,7 +578,7 @@ export function PlansTable(props: {
         <th style={head}>Status</th>
         <th style={head}>Progress</th>
         <th style={head}>Now</th>
-        <th style={{ ...head, textAlign: 'right' }}>Epics</th>
+        <th style={head}>Epic</th>
         <th style={head}>Last change</th>
         <th style={head}>
           <span className="sr-only">Actions</span>
@@ -635,7 +635,7 @@ export function PlansTable(props: {
                             {row.name}
                           </button>
                           <span className="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-muted">
-                            <Badge>{row.kind === 'spec' ? (row.type ?? 'spec') : 'old-style'}</Badge>
+                            <Badge>{row.kind === 'epic' ? 'Epic' : row.kind === 'spec' ? (row.type ?? 'spec') : 'old-style'}</Badge>
                             {row.spec ? <code>{row.spec}</code> : row.planId ? <code>{row.planId}</code> : null}
                             {row.errors > 0 && <Badge variant="danger">{row.errors} errors</Badge>}
                             {row.archived && <Badge>Archived</Badge>}
@@ -650,8 +650,10 @@ export function PlansTable(props: {
                         <td style={cell}>
                           <Now now={row.now} />
                         </td>
-                        <td style={{ ...cell, textAlign: 'right' }} className="tabular-nums">
-                          {row.epics}
+                        <td style={cell} className="text-xs">
+                          {row.kind === 'epic'
+                            ? `${row.members?.length ?? 0} plans`
+                            : (row.epicTitle ?? <span className="text-muted">No epic</span>)}
                         </td>
                         <td style={cell} className="whitespace-nowrap text-xs text-muted">
                           <Tooltip text={row.lastChange}>
@@ -703,16 +705,16 @@ function PlanAside(props: {
   const leaves = (graph?.tasks ?? []).filter((t) => t.kind === 'leaf')
   const counts = Object.fromEntries(STATES.map((s) => [s.id, 0])) as Record<NodeState, number>
   for (const task of leaves) counts[nodeState(task)] += 1
-  const epicTitles = new Map((graph?.epics ?? []).map((e) => [e.id, e.title]))
-  const epics = new Map<string, { title: string; done: number; total: number }>()
+  // Its phases with progress, in task order; No phase last (R59.10).
+  const phases = new Map<string | null, { title: string; done: number; total: number }>()
   for (const task of leaves) {
-    if (!task.epic) continue
-    const title = epicTitles.get(task.epic)
-    const entry = epics.get(task.epic) ?? { title: title && title !== task.epic ? title : documentEpic(task.epic), done: 0, total: 0 }
+    const id = task.phase?.id ?? null
+    const entry = phases.get(id) ?? { title: task.phase?.title ?? 'No phase', done: 0, total: 0 }
     entry.total += 1
     if (nodeState(task) === 'done') entry.done += 1
-    epics.set(task.epic, entry)
+    phases.set(id, entry)
   }
+  const phaseList = [...phases].sort(([a], [b]) => Number(a === null) - Number(b === null))
   const decisions = (graph?.tasks ?? []).filter((t) => t.decision)
   const tabs = documentTabs(docs)
   const heading = (text: string) => <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">{text}</h4>
@@ -758,19 +760,37 @@ function PlanAside(props: {
           ))}
         </dl>
       </div>
-      {epics.size > 0 && (
+      {row.kind !== 'epic' && (
         <div>
-          {heading('Epics')}
+          {heading('Epic')}
+          <p className="mt-1">
+            {row.epic ? (
+              <button
+                type="button"
+                className="underline"
+                onClick={() => props.onDrill({ kind: 'epic', id: row.epic!, title: row.epicTitle ?? row.epic! })}
+              >
+                {row.epicTitle ?? row.epic}
+              </button>
+            ) : (
+              <span className="text-muted">No epic</span>
+            )}
+          </p>
+        </div>
+      )}
+      {phaseList.length > 0 && (
+        <div>
+          {heading('Phases')}
           <ul className="mt-1 flex flex-col gap-1">
-            {[...epics].map(([id, epic]) => {
+            {phaseList.map(([id, epic]) => {
               const percent = epic.total ? Math.round((epic.done / epic.total) * 100) : 0
               return (
-                <li key={id}>
+                <li key={id ?? '(none)'}>
                   <Tooltip text={`Show only ${epic.title} in the Graph`} display="block">
                   <button
                     type="button"
                     className="w-full rounded px-1 py-0.5 text-left hover:bg-accent/10"
-                    onClick={() => props.onDrill({ kind: 'epic', id, title: epic.title })}
+                    onClick={() => props.onDrill({ kind: 'phase', plan: row.planId, id, title: epic.title })}
                   >
                     <span className="flex justify-between gap-2">
                       <span className="truncate">{epic.title}</span>
@@ -1213,6 +1233,7 @@ export default function PlansView(props: {
           workspaceId={workspace}
           taken={(table?.items ?? []).flatMap((item) => [item.spec, item.planId]).filter((name): name is string => Boolean(name))}
           categories={[...new Set((table?.items ?? []).map((item) => item.category).filter((name): name is string => Boolean(name)))].sort()}
+          epics={(table?.items ?? []).filter((item) => item.kind === 'epic' && item.spec).map((item) => ({ id: item.spec!, title: item.name }))}
           onClose={(text) => {
             setCreating(false)
             if (text) setNotice(text)

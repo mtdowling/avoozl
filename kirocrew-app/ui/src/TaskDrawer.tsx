@@ -21,7 +21,6 @@ import { Authority } from './Authority.tsx'
 import { errorMessage } from './workspace-api.ts'
 import { Fold, IconLabel, SectionHeading, ShowMore, TipBtn, useAskChat, usePages } from './controls.tsx'
 import { resultMessage, settleTargets, whyLine } from './conflicts-api.ts'
-import { documentEpic } from './graph-layout.ts'
 import { itemRef } from './chat-api.ts'
 import { TimingFold } from './FlowView.tsx'
 import { Crosshair, Eye, FileText, MessageSquare, Pause, Pencil, Play, Plus, RotateCcw, X } from './icons.ts'
@@ -408,7 +407,8 @@ function TaskPanel(props: {
 
         <Fold id="summary" group="task-drawer" title="Summary" open={detail.conflicts.length === 0}>
           <dl className="grid gap-x-3 gap-y-1.5 text-sm" style={{ gridTemplateColumns: 'max-content 1fr' }}>
-            <Row label="Epic">{task.epicTitle ? documentEpic(task.epicTitle) : 'none'}</Row>
+            <Row label="Epic">{task.epicTitle ?? 'none'}</Row>
+            <Row label="Phase">{task.phase?.title ?? 'none'}</Row>
             {detail.origin && (
               <Row label="Came from">
                 <Origin origin={detail.origin} issue={issue} workspaceId={workspaceId} />

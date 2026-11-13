@@ -143,8 +143,8 @@ export default function FlowSettings({ workspaceId }: { workspaceId: string }) {
             </Labeled>
             <Labeled id="avoozl-flow-by" label="Group by" raw="flow.batch.by" width="12rem">
               <select id="avoozl-flow-by" value={form.by} onChange={(event) => set({ by: event.target.value as FlowForm['by'] })} className="rounded border px-2 py-1 text-sm" style={selectStyle}>
-                <option value="">Same epic (default)</option>
-                <option value="epic">Same epic</option>
+                <option value="">Same phase (default)</option>
+                <option value="phase">Same phase</option>
                 <option value="files">Same files</option>
               </select>
             </Labeled>
