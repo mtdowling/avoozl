@@ -49,9 +49,9 @@ export const PageHeader = (props: { title: ReactNode; subtitle?: string; actions
   </header>
 )
 export const EmptyState = (props: { title: ReactNode; subtitle?: ReactNode; action?: ReactNode }) => (
-  <div>
-    {props.title}
-    {props.subtitle}
+  <div className="flex flex-col items-center gap-2 p-4 text-sm" style={{ textAlign: 'center' }}>
+    <strong>{props.title}</strong>
+    {props.subtitle && <span className="text-muted">{props.subtitle}</span>}
     {props.action}
   </div>
 )

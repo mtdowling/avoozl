@@ -25,6 +25,8 @@ import { InFlightRow } from '../../src/DashboardView.tsx'
 import { setupForm } from '../../src/settings-api.ts'
 import { LAYER } from '../../src/layers.ts'
 import { BudgetSettings, PricesSettings } from '../../src/BudgetSettings.tsx'
+import PluginsSettings from '../../src/PluginsSettings.tsx'
+import { answerIntake } from './intake-fixture.ts'
 import AvoozlApp from '../../src/App.tsx'
 
 const query = new URLSearchParams(location.search)
@@ -258,7 +260,7 @@ function Page() {
 // Settings pages with sample data (?page=budgets|prices), for the
 // settings screenshots. Prices and models here are made up. Only a settings
 // page answers these, so the modal and app scenarios keep their own replies.
-if (query.get('page') && query.get('page') !== 'app') {
+if (query.get('page') === 'budgets' || query.get('page') === 'prices') {
 answer('budget.settings.get', () => ({
   hash: 'h1',
   budget: { usd: 5, mode: 'stop' },
@@ -297,6 +299,23 @@ function SettingsPage({ name }: { name: string }) {
   )
 }
 
+
+// ?page=intake: Settings > Plugins with its Intake sources, on fake data
+// (intake-fixture.ts); &empty=1 with no source. For the intake screenshots.
+function IntakePage() {
+  return (
+    <div {...{ [APP_ATTR]: '' }} style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
+      <NavHistoryProvider>
+        <ConfirmProvider>
+          <div data-intake-page style={{ padding: 16 }}>
+            <PluginsSettings workspaceId="w" />
+          </div>
+        </ConfirmProvider>
+      </NavHistoryProvider>
+    </div>
+  )
+}
+
 function AppPage() {
   return (
     <div data-host-pane style={{ position: 'fixed', inset: 0, overflowY: 'auto', background: 'var(--bg)', color: 'var(--text)' }}>
@@ -306,4 +325,8 @@ function AppPage() {
 }
 
 const page = query.get('page')
-createRoot(document.getElementById('root')!).render(page && page !== 'app' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />)
+const intake = page === 'intake'
+if (intake) answerIntake(query.get('empty') === '1')
+createRoot(document.getElementById('root')!).render(
+  intake ? <IntakePage /> : page && page !== 'app' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
+)
