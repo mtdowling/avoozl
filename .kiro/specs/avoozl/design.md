@@ -1584,6 +1584,41 @@ closedAt, resumedBy, time to fix ─▶ Flow stops, charts, retro
 - **CLI.** `avoozl flow stop --scope all|repo|spec|task [--repository ID]
   [--spec ID] [--task ID] --reason TEXT` and `avoozl flow resume STOP-ID`.
 
+#### Stop all agents
+
+Added 2026-11-13 (Requirement 64.12–64.16). The dialog's second choice is
+a full stop: nothing new starts anywhere, and every running chat Avoozl
+opened stops now.
+
+```text
+Stop all agents ─▶ confirm (replies in progress are lost; files are kept)
+   ▼ flow.stop {full: true, reason}   (person only; MCP refused)
+flow_stops row { manual, full, scope: all, by, reason, sessions: [] }
+   ▼ for each live binding the tick opened (any role)
+POST /api/chat/slots/<slot>/stop (app backend, app token)
+   ├─ ok ─▶ binding.interrupted { stop, at }; worker attempt recorded
+   │        { outcome: interrupted, cause: "Interrupted by stop" },
+   │        delivery state `interrupted`
+   └─ refused ─▶ sessions[i].error; the session runs on, unmarked
+Resume ─▶ flow.resume ─▶ each `interrupted` delivery of this stop ─▶ `failed`
+   ▼ next tick: same worktree and branch, same agent and model
+```
+
+- **Where the stop runs.** Only the app backend holds the app token, so
+  `flow.stop {full: true}` needs its session stopper. The CLI without the
+  backend is refused with nothing recorded.
+- **Attempts.** `interrupted` is its own outcome: it is not a failure for
+  the retry limit, and an interrupted session is not live, so it is not
+  nudged or counted against concurrency. Review and checks sessions are
+  stopped too; their verification is recorded `interrupted` and a new one
+  opens after Resume. While a full stop is open no checks or review
+  session opens.
+- **Same model.** The next worker attempt keeps the interrupted binding's
+  agent and model, whatever the policy says now.
+- **Brief.** The next brief says the attempt was interrupted by a stop and
+  tells the worker to read `git status` and `git log` in the kept worktree
+  first.
+
 #### Local checks first
 
 Default on. It applies wherever a session Avoozl opens pushes: plans-repo
@@ -2398,7 +2433,7 @@ Needs you: Raise budget (person) │ Stop (person, pauses like Deferred)
 
 #### Caps
 
-- **Levels.** `budget: { usd?, tokens?, credits? }` at the workspace
+- **Levels.** `budget: { usd?, tokens?, credits?, mode? }` at the workspace
   (`.avoozl.json` `budget`), the repository (`projects.<id>.budget`), the
   spec (manifest top-level `budget`), and the task (a leaf's `budget`). The
   most specific level that sets a key wins, key by key. Every level is a
@@ -2417,16 +2452,37 @@ Needs you: Raise budget (person) │ Stop (person, pauses like Deferred)
   own cap from its repository and workspace. Planner, critic, retro and
   router sessions are not tasks and have no cap; their turns show on Flow
   under "no task".
+- **Modes.** `mode` is `"stop"` (default) or `"warn"`, most specific
+  level winning. In `stop` mode the cap works as "The stop" below. In
+  `warn` mode nothing is stopped, paused or messaged: at 100% the task
+  gets an Over budget badge (spend / cap) on the drawer, the Delivery card
+  and In flight, and one Needs you item, "Over budget: $X of $Y", with
+  Acknowledge, Raise budget and Switch to stop (person only).
+  Acknowledge clears it until spend passes the next step, each further
+  50% of the cap. `budget.notify: true` at the workspace also sends a Kiro
+  Crew notice per step; it is off by default. Switch to stop records who
+  and when in `budget_holds` and the next check stops the task.
+- **80% warning.** At 80% of any cap the task and the receipt show a
+  warning in both modes; nothing else changes.
+- **Fallback settings.** The 2,000,000-token and 200-credit fallbacks are
+  the defaults of the workspace `budget.tokens` and `budget.credits`.
+- **Intake grants.** A grant (`intakeBudget` on the task) only fills a
+  dollar cap no level set, never raises a person's cap, and forces `stop`
+  mode.
 - **Raises.** `budget.raise {taskId, usd?, tokens?, credits?}` (person
-  only) writes a row to `budget_raises` (`task_id`, `by`, `at`, `from`,
-  `to`, `price_version`). A raise overrides the computed cap for that task
+  only) writes a row to `budget_raises` (`task_id`, `by`, `at`,
+  `from_json`, `to_json`, `price_version`). A raise overrides the computed cap for that task
   without editing the approved manifest, whose hash stays pinned.
 
 #### The stop
 
 Spend is known after each usage read, which runs after each tick receipt,
-about once a minute. The check runs then and again in the tick before any
-dispatch for the task.
+about once a minute. The check runs then (in the app backend, under the
+tick's lock) and again in the tick before any dispatch for the task. A
+task can pass its cap by the turns that run between two reads; the
+receipt shows the overrun. Stops, pauses, over-budget steps and sent
+messages live in SQLite `budget_holds`. The rest of this section is
+`stop` mode.
 
 1. Spend reaches a cap. The tick records a `budget` stop on the task:
    spend, cap, level, and the price version used.
@@ -2441,7 +2497,7 @@ dispatch for the task.
    the first live stop records it). Avoozl never calls a stop, interrupt
    or close on the session.
 4. Every Avoozl MCP call from a bound session, except `plans_report`,
-   returns `budget_reached` with the same text, so a worker that missed the
+   returns `budget_reached` (status 409, error code `budget_reached`) with the same text, so a worker that missed the
    message still learns at its next Avoozl call.
 5. The task opens one Needs you decision of kind `budget` with **Raise
    budget** and **Stop**. Turns that ran between the cap and the stop are
@@ -2511,7 +2567,18 @@ An incoming item (§4.12) may later carry `budget: { usd }` from a plugin
 source whose entry the owner approved with a `budget` capability. A task
 made from that item by Plan this or Deliver this would take it at the spec
 level, below the manifest task. Nothing builds this until a real grant
-plugin exists; payments, escrow and refunds are out of scope.
+plugin exists; payments, escrow and refunds are out of scope. A grant only sets a cap where none
+exists and is always `stop` mode (owner decision 2026-11-13).
+
+#### Built (2026-11-13)
+
+`src/app/budget.mjs` holds the price table, caps, spend, holds and
+receipts. Settings puts caps in **Settings › Budgets** (workspace and each
+repository, `budget.settings.get` and `budget.settings.update`) rather than
+in the repository Edit modal, so each cap lives in one place. The CLI adds
+`avoozl budget view|raise|stop|acknowledge|switch-to-stop`. The driver
+export (§6.10) is not built yet; when it is, it leaves `prices` and
+`price_versions` out.
 
 #### Why each choice
 
@@ -2527,6 +2594,10 @@ plugin exists; payments, escrow and refunds are out of scope.
 | Stop at the next turn by message | Ending a tool call mid-change can lose work |
 | Retries and reviews share the cap | The point is a task's total cost |
 | Unknown spend warns, never stops | A missing read must not block delivery |
+| Warn mode | Some owners want to see overspend, not block it |
+| Acknowledge until the next 50% step | One item per step cannot nag every tick |
+| Grant caps always stop | It is someone else's money |
+| No spec-wide total | Owner decision 2026-11-13; per-task caps first |
 | Raise and Stop person only | Spending more is the owner's call |
 | Budget never a permission | Spend limits must not loosen safety gates |
 
@@ -4676,6 +4747,26 @@ the request. Avoozl adds no second path to Spec Builder.
 | Agents may capture and append | Writing a note starts nothing; limits cap it; content rules screen it |
 | Archive, restore, graduate are a person's | They change what the owner sees and decides |
 | Reuse the New spec entry point | One place owns spec rules and the Spec Builder hand-off |
+
+### 8.9 Searchable pickers
+
+Added 2026-11-13 (Requirement 71). `Picker.tsx` is one combobox for every
+task and spec choice: the Stop the line target, the filter panels' task
+and spec fields, Start now, and any later one. Repositories keep their
+short select.
+
+- **Items.** `{id, title, spec?, state?}`. The match is a lower-case
+  substring test on `id`, `title` and `spec`, run over a list built once
+  per item set; an ID that starts with the text sorts first. At most 50
+  results render, with "N more; type to narrow".
+- **Keys.** Down and Up move the highlight, Home and End jump, Enter picks,
+  Esc closes the list, and a second Esc clears the text. Tab leaves
+  without picking.
+- **ARIA.** The input is `role="combobox"` with `aria-expanded`,
+  `aria-controls`, `aria-autocomplete="list"` and
+  `aria-activedescendant`; the list is `role="listbox"` and each result is
+  `role="option"` with `aria-selected`. The state shows as a small badge
+  beside the title.
 
 ## 9. Current-code disposition
 
