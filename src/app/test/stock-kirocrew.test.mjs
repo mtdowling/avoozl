@@ -54,9 +54,9 @@ function setup(t, tasks = [leaf("a")]) {
   store.importSnapshot({ ...snapshot(), tasks, edges: [] });
   store.put("projects", {
     id: "app",
-    root: fs.realpathSync(checkout),
+    root: fs.realpathSync.native(checkout),
     baseBranch: "main",
-    localCheckout: fs.realpathSync(checkout),
+    localCheckout: fs.realpathSync.native(checkout),
   });
   fs.writeFileSync(
     path.join(root, ".avoozl.json"),
@@ -309,7 +309,8 @@ test("a backend that started before any workspace reads sessions once one is add
   assert.deepEqual(reads, [], "a roster tick needs no backend read");
   fs.writeFileSync(health, JSON.stringify({ outcome: "ok", observer: "app" }));
   await settle();
-  assert.deepEqual(reads, ["avoozl_a"]);
+  // Windows can report one write as two watch events; each reads the slot.
+  assert.deepEqual([...new Set(reads)], ["avoozl_a"]);
   for (
     let i = 0;
     i < 50 && !store.get("session_bindings", "avoozl_a").status;

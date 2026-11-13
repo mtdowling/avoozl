@@ -120,7 +120,7 @@ async function workspace(t, delivery) {
   writeSpec(root, "p27", spec);
   await ops.execute("plan.create", { spec: "p27" });
   await approve(ops);
-  return { root, checkout: fs.realpathSync(checkout), store, ops };
+  return { root, checkout: fs.realpathSync.native(checkout), store, ops };
 }
 
 async function approve(ops) {

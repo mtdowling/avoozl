@@ -183,7 +183,7 @@ async function workspace(t) {
   });
   return {
     root,
-    checkout: fs.realpathSync(checkout),
+    checkout: fs.realpathSync.native(checkout),
     store,
     ops,
     terms,

@@ -52,7 +52,7 @@ function setup(t) {
   });
   store.put("projects", {
     id: "app",
-    root: fs.realpathSync(checkout),
+    root: fs.realpathSync.native(checkout),
     baseBranch: "main",
     checks: [["git", "status"]],
   });

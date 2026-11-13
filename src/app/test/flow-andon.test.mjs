@@ -219,7 +219,7 @@ test("Flow and the retro see each pull", async (t) => {
 test("the CLI pulls and resumes as the person at the command line", async () => {
   const { execFileSync } = await import("node:child_process"),
     { initializeWorkspace } = await import("../workspace.mjs"),
-    cli = new URL("../../../cli.mjs", import.meta.url).pathname,
+    cli = path.join(import.meta.dirname, "..", "..", "..", "cli.mjs"),
     root = temporaryDirectory("avoozl-andon-cli-");
   initializeWorkspace(root);
   const env = { ...process.env, XDG_CONFIG_HOME: path.join(root, "config") };

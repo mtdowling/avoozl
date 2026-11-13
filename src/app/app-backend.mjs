@@ -249,7 +249,7 @@ function badRequest(message, status = 400) {
 
 function sameDirectory(a, b) {
   try {
-    return fs.realpathSync(a) === fs.realpathSync(b);
+    return fs.realpathSync.native(a) === fs.realpathSync.native(b);
   } catch {
     return false;
   }
