@@ -8,7 +8,12 @@ import test from "node:test";
 import { pinned, sshCommand } from "../handback.mjs";
 import { fakeCrew, git } from "./fake-crew.mjs";
 import { crewFolder, FAKE_SSH } from "./fixtures/crews/driver.mjs";
-import { CREWS, defaults, workspace } from "./fixtures/crews/workspace.mjs";
+import {
+  CREWS,
+  defaults,
+  leaf,
+  workspace,
+} from "./fixtures/crews/workspace.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 test("the first fetch pins a host key and later fetches require it", () => {
@@ -43,11 +48,10 @@ test("a hand-back crew's commit is fetched over ssh, checked, and integrated; a 
     delete process.env.FAKE_SSH_HOST_KEY;
   });
   const env = await workspace(t, {
-    routing: { rules: [{ id: "spread-work", on: "any" }] },
-    machine: {
-      rules: [
-        { id: "pin-linux", when: { roles: ["worker"] }, on: "fake-linux" },
-      ],
+    // Both workers pin the hand-back crew in their manifest.
+    manifest: {
+      w1: leaf("w1 plain work.", { session: { crew: "fake-linux" } }),
+      w2: leaf("w2 plain work.", { session: { crew: "fake-linux" } }),
     },
     crews: {
       ...CREWS,
