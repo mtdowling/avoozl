@@ -10822,7 +10822,7 @@ function Hl({ workspaceId: e }) {
 						}, `${t.retro}:${t.id}`))
 					}) : /* @__PURE__ */ b("p", {
 						className: "text-sm text-muted",
-						children: "No prompt, skill or lesson proposals yet. Settings and plan proposals are under Overview."
+						children: "No prompt, skill or lesson proposals yet. Settings and spec proposals are under Overview."
 					}),
 					a.dropped.some((e) => e.type) && /* @__PURE__ */ x("span", {
 						className: "text-xs text-muted",
