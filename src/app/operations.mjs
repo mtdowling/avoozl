@@ -2,6 +2,17 @@ import { crossPlanEpics, epicOfPlan, taskEpic } from "./epics.mjs";
 import path from "node:path";
 import { mcpRefusal } from "./mcp-policy.mjs";
 import {
+  bindDriver,
+  decideAway,
+  driverContext,
+  driverStatus,
+  forceTakeOver,
+  handOffDriver,
+  takeOver,
+  takeoverPreview,
+  updateMachineSettings,
+} from "./driver.mjs";
+import {
   resolveTaskId,
   requireDistinctTask,
   taskSourceRefs,
@@ -776,6 +787,10 @@ export class Operations {
       // tests pass fakes, nothing else does.
       placement = {},
       pluginSettingsFile = pluginSettingsPath(),
+      // The spec driver lock (§6.10): {settingsFile, now?, sleep?}. The
+      // CLI, app backend and app MCP server pass this machine's settings
+      // file; without one the old one-writer rule (task 3.8) holds alone.
+      driver = null,
       plugins = workspaceRoot
         ? pluginHost({ workspaceRoot, settingsFile: pluginSettingsFile })
         : null,
@@ -815,6 +830,8 @@ export class Operations {
     this.tickPolicy = {};
     this.repositoryBindingGuard = repositoryBindingGuard;
     this.pendingIntents = new Map();
+    if (workspaceRoot && driver?.settingsFile)
+      bindDriver(store, { ...driver, workspaceRoot, pluginSettingsFile });
     // Content rules (§4.9) read this workspace's `.avoozl.json` and terms.
     if (workspaceRoot)
       bindContentRules(store, {
@@ -2415,6 +2432,49 @@ export class Operations {
         "Only a person changes flow settings and decides retro proposals, in the Avoozl page.",
         403,
       );
+    // The spec driver (§6.10). Status reads everywhere; moving the role or
+    // changing this computer's settings is a person's, on the page or CLI.
+    if (name === "driver.status") return driverStatus(store, input);
+    if (name === "driver.takeover.preview")
+      return takeoverPreview(store, input);
+    if (
+      [
+        "driver.settings.update",
+        "driver.handoff",
+        "driver.takeover",
+        "driver.forceTakeover",
+        "driver.away.decide",
+      ].includes(name) &&
+      (context.caller || context.mcp || context.plugin)
+    )
+      fail(
+        "Only a person hands off, takes over or changes this computer's driver settings, in the Avoozl page or CLI.",
+        403,
+      );
+    if (name === "driver.settings.update") {
+      const ctx = driverContext(store);
+      if (!ctx) fail("This workspace has no driver settings.", 409);
+      updateMachineSettings(store, ctx.settingsFile, input);
+      return driverStatus(store);
+    }
+    if (name === "driver.handoff")
+      return handOffDriver(store, this.github, input);
+    if (name === "driver.away.decide") return decideAway(store, input);
+    if (name === "driver.takeover" || name === "driver.forceTakeover") {
+      const hooks = {
+        rebuild: (repository) =>
+          rebuildFromGitHub(store, this.github, {
+            repository,
+            identity: planningIdentity(this.workspaceRoot),
+            policy: this.githubPolicy(),
+            readSpec: (spec) => this.readSpec(spec),
+          }),
+        notify: (notices) => queueNotifications(store, notices),
+      };
+      return name === "driver.takeover"
+        ? takeOver(store, this.github, input, hooks)
+        : forceTakeOver(store, this.github, input, hooks);
+    }
     if (name === "flow.settings.update") {
       const written = this.settingsFile().updateFlowSettings(input);
       this.configuration?.reload();
@@ -3270,6 +3330,8 @@ export class Operations {
           },
         },
         workspaceRepository: workspaceRepositoryStatus(store),
+        // Which machine drives each spec (§6.10), from SQLite only.
+        driver: driverStatus(store),
         audit: auditPlans(this.read()),
         lastEvent: store.db
           .prepare("SELECT COALESCE(MAX(seq),0) seq FROM events")
