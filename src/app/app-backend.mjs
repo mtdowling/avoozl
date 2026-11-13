@@ -184,6 +184,8 @@ export const APP_OPERATIONS = new Set([
   "review.chat",
   "github.repository.labels",
   "task.detail",
+  "task.files",
+  "task.diff",
   "plan.spec.read",
   "plan.table",
   "epic.list",

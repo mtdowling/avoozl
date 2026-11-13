@@ -69,7 +69,7 @@ test('in the demo only Avoozl commands and reads reach the host', async () => {
 
 test('every view takes the host hooks through host.ts', () => {
   const dir = new URL('../src/', import.meta.url)
-  for (const name of ['App.tsx', 'TaskDrawer.tsx', 'PlansView.tsx', 'controls.tsx', 'NewPlanDrawer.tsx', 'PluginsSettings.tsx', 'RepositoriesSettings.tsx']) {
+  for (const name of ['App.tsx', 'TaskFiles.tsx', 'TaskDrawer.tsx', 'PlansView.tsx', 'controls.tsx', 'NewPlanDrawer.tsx', 'PluginsSettings.tsx', 'RepositoriesSettings.tsx']) {
     const text = readFileSync(new URL(name, dir), 'utf8')
     assert.doesNotMatch(text, /import \{[^}]*\buse(AppApi|ChatLauncher)\b[^}]*\} from '@kirocrew\/app-sdk'/, name)
   }

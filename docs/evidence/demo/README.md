@@ -1,6 +1,6 @@
 # Demo mode (2026-11-13)
 
-Requirement 81, design §6.11. Try the demo opens a made-up sample workspace
+Requirement 82, design §6.11. Try the demo opens a made-up sample workspace
 (`src/app/demo.mjs`) with a guided tour (`kirocrew-app/ui/src/Demo.tsx`).
 
 Checks run on Linux with headless Chromium:
