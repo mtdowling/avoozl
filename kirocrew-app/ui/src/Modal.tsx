@@ -8,7 +8,7 @@
 // it closes, and the page behind it can't scroll. Full screen on a narrow page.
 import { createContext, useCallback, useContext, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
-import { useMedia } from './TaskDrawer.tsx'
+import { useMedia } from './use-media.ts'
 import { trapStep } from './focus-trap.ts'
 import { APP_ATTR, useBackStep } from './NavHistory.tsx'
 import { useConfirm, type ConfirmCopy } from './controls.tsx'
