@@ -214,8 +214,17 @@ export interface Place<Tab extends string = string, Section extends string = str
 
 // Change the page. A new tab or Settings section is a Back step that
 // keeps `here`, the views' remembered state (a new tab starts fresh) and
-// the scroll position. `apply` sets the fields it is given.
-export function changePage<P extends Place>(nav: Nav, here: P, next: Partial<P>, apply: (place: Partial<P>) => void, label: (here: P, newTab: boolean) => string): void {
+// the scroll position. `apply` sets the fields it is given. `open` deep-links
+// into the new place's inner views ({ 'untriaged-show': 'ideas' }): it is
+// written after the old tab's memory is taken, so the fresh view starts on it.
+export function changePage<P extends Place>(
+  nav: Nav,
+  here: P,
+  next: Partial<P>,
+  apply: (place: Partial<P>) => void,
+  label: (here: P, newTab: boolean) => string,
+  open: Record<string, unknown> = {},
+): void {
   const newTab = next.tab !== undefined && next.tab !== here.tab
   const newSection = next.settingsTab !== undefined && next.settingsTab !== here.settingsTab
   if (newTab || newSection) {
@@ -231,6 +240,11 @@ export function changePage<P extends Place>(nav: Nav, here: P, next: Partial<P>,
         nav.restoreScroll(top)
       },
     })
+  }
+  for (const [key, value] of Object.entries(open)) {
+    nav.memory.set(key, value)
+    // On the same tab the view is mounted and reads memory only once.
+    if (!newTab) (nav.setters.get(key) as ((value: unknown) => void) | undefined)?.(value)
   }
   apply(next)
 }

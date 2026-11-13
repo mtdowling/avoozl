@@ -83,6 +83,27 @@ test('an opened plan comes back when Back returns to its tab, then Back closes i
   assert.equal(scroller.scrollTop, 300, 'the list scroll comes back')
 })
 
+test('a deep link opens the new tab on its inner view; Back returns without it', () => {
+  const { nav, place } = page()
+  const go = (next, open) => changePage(nav, { ...place }, next, (n) => Object.assign(place, n), (before) => `Back to ${before.tab}`, open)
+  go({ tab: 'plans' })
+  nav.memory.set('plans-selected', null)
+  go({ tab: 'untriaged' }, { 'untriaged-show': 'ideas' })
+  assert.equal(place.tab, 'untriaged')
+  assert.deepEqual([...nav.memory], [['untriaged-show', 'ideas']], 'the fresh tab starts on Ideas, with nothing else')
+  nav.history.back()
+  assert.equal(place.tab, 'plans')
+  assert.deepEqual([...nav.memory], [['plans-selected', null]], "Plans gets its own state back, not the link's")
+  // On the same tab the mounted view is set, with no extra Back step.
+  go({ tab: 'untriaged' })
+  let shown = 'untriaged'
+  nav.setters.set('untriaged-show', (value) => (shown = value))
+  const steps = nav.history.steps().length
+  go({ tab: 'untriaged' }, { 'untriaged-show': 'ideas' })
+  assert.equal(shown, 'ideas')
+  assert.equal(nav.history.steps().length, steps)
+})
+
 test('the Graph keeps its drill stack and the page history in step', () => {
   const { nav, go } = page()
   go({ tab: 'graph' })
@@ -233,6 +254,9 @@ test('focus returns to the opener, and a restore waits for the view to grow', ()
 
 test('the views use the shared history: inner tabs, the plan, the Graph, the drawer', () => {
   assert.match(source('App.tsx'), /changePage\(nav, here, next, apply,/)
+  // Deep links go through changePage, never a memory write before the switch.
+  assert.match(source('App.tsx'), /go\(\{ focus: null, drill: null, tab: 'untriaged' \}, \{ 'untriaged-show': 'ideas' \}\)/)
+  assert.doesNotMatch(source('App.tsx'), /nav\.memory\.set\(/)
   assert.match(source('App.tsx'), /onTab=\{\(next\) => go\(\{ settingsTab: next \}\)\}/)
   assert.match(source('SettingsView.tsx'), /useSteppedState<RepositoryTab>\(\s*`settings-repo-tab-\$\{props\.index\}`,\s*'inner',/)
   assert.match(source('UntriagedView.tsx'), /useSteppedState<'untriaged' \| 'radar' \| 'ideas'>\(\s*'untriaged-show',\s*'inner'/)
