@@ -71,6 +71,24 @@ export async function git(cwd, args, { env } = {}) {
     })
   ).stdout.trim();
 }
+// The real path of a Git checkout root, refused in plain words when the
+// folder is missing, is not a checkout, or is inside one.
+export async function checkoutRoot(root, label) {
+  if (typeof root !== "string" || !root) fail(`Name the ${label} folder.`);
+  let real, top;
+  try {
+    real = fs.realpathSync(root);
+  } catch {
+    fail(`The ${label} folder ${root} does not exist.`);
+  }
+  try {
+    top = fs.realpathSync(await git(real, ["rev-parse", "--show-toplevel"]));
+  } catch {
+    fail(`The ${label} folder ${real} is not a Git checkout.`);
+  }
+  if (top !== real) fail(`The ${label} must be the Git checkout root.`);
+  return real;
+}
 async function gitFile(cwd, args) {
   return (
     await exec("git", args, {
@@ -166,16 +184,14 @@ export async function projectConfig({
 }) {
   if (!/^[a-z][a-z0-9-]{1,60}$/.test(id || ""))
     fail("Choose a stable project ID.");
-  root = fs.realpathSync(root);
-  if (
-    (await git(root, [
-      "rev-parse",
-      "--is-inside-work-tree",
-      "--show-prefix",
-    ])) !== "true"
-  )
-    fail("Project root must be the Git checkout root.");
-  await git(root, ["rev-parse", "--verify", baseBranch + "^{commit}"]);
+  root = await checkoutRoot(root, "project root");
+  try {
+    await git(root, ["rev-parse", "--verify", baseBranch + "^{commit}"]);
+  } catch {
+    fail(
+      `Branch ${baseBranch} has no commit in ${root}. Pass --branch BRANCH.`,
+    );
+  }
   if (
     !Array.isArray(checks) ||
     checks.some(
