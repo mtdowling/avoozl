@@ -36,7 +36,7 @@ const STEP_TEXT = [
   ['Save the settings file', 'Write the names GitHub gave back into .avoozl.json. Nothing is saved until you press Save.'],
 ] as const
 
-function SetupDialog(props: {
+export function SetupDialog(props: {
   workspaceId: string
   client: Client
   form: SetupForm

@@ -106,7 +106,7 @@ function useModels() {
   return models
 }
 
-function CrewDialog(props: { crew: Crew; onCancel: () => void; onSave: (form: CrewForm) => Promise<string | null> }) {
+export function CrewDialog(props: { crew: Crew; onCancel: () => void; onSave: (form: CrewForm) => Promise<string | null> }) {
   const [form, setForm] = useState<CrewForm>(toCrewForm(props.crew))
   const [error, setError] = useState<string | null>(null)
   const set = (change: Partial<CrewForm>) => setForm({ ...form, ...change })
@@ -297,7 +297,7 @@ function CrewsSection(props: { view: View; workspaceId: string; onSaved: () => P
   )
 }
 
-function RuleDialog(props: {
+export function RuleDialog(props: {
   view: View
   form: RuleForm
   isNew: boolean
