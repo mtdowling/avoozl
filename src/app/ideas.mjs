@@ -226,7 +226,10 @@ export function setIdeaState(store, input = {}, { now } = {}) {
 export function openIdea(store, id) {
   const row = rowOf(store, id);
   if (row.record.state !== "open")
-    fail(`Idea ${id} is ${row.record.state}; only an open idea becomes a spec.`, 409);
+    fail(
+      `Idea ${id} is ${row.record.state}; only an open idea becomes a spec.`,
+      409,
+    );
   return row;
 }
 
@@ -263,7 +266,9 @@ export function ideaView(row) {
 export function listIdeas(store) {
   return store
     .list("incoming_items")
-    .filter((row) => row.source === IDEA_SOURCE && row.record?.kind === IDEA_KIND)
+    .filter(
+      (row) => row.source === IDEA_SOURCE && row.record?.kind === IDEA_KIND,
+    )
     .sort((a, b) =>
       String(b.record.updatedAt).localeCompare(String(a.record.updatedAt)),
     )

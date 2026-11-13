@@ -6,7 +6,7 @@ import { COMMAND_PATH } from '../src/workspace-api.ts'
 
 test('a name must be a folder name, and not one a plan or folder already uses', () => {
   assert.equal(nameProblem('cache-invalidation', []), null)
-  assert.match(nameProblem('', []), /Name the plan/)
+  assert.match(nameProblem('', []), /Name the spec/)
   assert.match(nameProblem('Cache Invalidation', []), /like cache-invalidation/)
   assert.match(nameProblem('a/b', []), /like a-b/)
   assert.match(nameProblem('x'.repeat(81), []), /up to 80/)

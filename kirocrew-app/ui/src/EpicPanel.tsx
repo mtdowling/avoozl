@@ -30,7 +30,7 @@ export function EpicPanel(props: {
         actions={
           props.onOpenPlans && (
             <button type="button" className="text-sm underline" onClick={props.onOpenPlans}>
-              Edit or discuss in Plans
+              Edit or discuss in Specs
             </button>
           )
         }
@@ -69,7 +69,7 @@ export function EpicPanel(props: {
           )}
         </div>
         <div>
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">Member plans</h4>
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">Member specs</h4>
           <ul className="mt-1 flex flex-col gap-1">
             {value.members.map((member) => (
               <li key={member.plan}>

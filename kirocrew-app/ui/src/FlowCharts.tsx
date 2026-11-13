@@ -182,7 +182,7 @@ export function UsagePanel({ view, unit }: { view: FlowViewModel; unit: Unit }) 
           <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 16rem), 1fr))' }}>
             <UsageTable title="By stage" rows={usage.byStage} />
             <UsageTable title="By model" rows={usage.byModel} />
-            <UsageTable title="By plan" rows={usage.byPlan} />
+            <UsageTable title="By spec" rows={usage.byPlan} />
             <UsageTable title="By task (top 8)" rows={usage.byTask} />
           </div>
         </>

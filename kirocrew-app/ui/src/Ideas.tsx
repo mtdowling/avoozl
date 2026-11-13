@@ -11,6 +11,7 @@ import { IconBtn, IconLabel, useAskChat, useConfirm } from './controls.tsx'
 import { Archive, ArchiveRestore, FileText, Lightbulb, MessagesSquare, Plus } from './icons.ts'
 import { relativeTime } from './task-api.ts'
 import { errorMessage } from './workspace-api.ts'
+import { safeHref } from './views-api.ts'
 import { EMPTY_IDEA, IDEA_STATES, ideaProblems, ideasClient, ideasOf, type Idea, type IdeaState, type NewIdeaForm } from './ideas-api.ts'
 
 const fieldStyle: CSSProperties = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }
@@ -224,9 +225,13 @@ function IdeaDialog(props: { workspaceId: string; idea: Idea; onChanged: (idea: 
             <ul className="flex flex-col gap-1">
               {idea.links.map((entry, index) => (
                 <li key={index}>
-                  <a href={entry.url} target="_blank" rel="noopener noreferrer" className="underline" style={{ overflowWrap: 'anywhere' }}>
-                    {entry.label || entry.url}
-                  </a>
+                  {safeHref(entry.url) ? (
+                    <a href={safeHref(entry.url)!} target="_blank" rel="noopener noreferrer" className="underline" style={{ overflowWrap: 'anywhere' }}>
+                      {entry.label || entry.url}
+                    </a>
+                  ) : (
+                    <span style={{ overflowWrap: 'anywhere' }}>{entry.label || entry.url}</span>
+                  )}
                 </li>
               ))}
             </ul>

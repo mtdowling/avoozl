@@ -35,7 +35,7 @@ import {
 
 const TABS = [
   { key: 'dashboard', label: 'Dashboard' },
-  { key: 'plans', label: 'Plans' },
+  { key: 'plans', label: 'Specs' },
   { key: 'graph', label: 'Graph' },
   { key: 'delivery', label: 'Delivery' },
   { key: 'flow', label: 'Flow' },

@@ -43,7 +43,7 @@ export interface TermsFile {
 
 // What each boundary covers, in the words Settings shows.
 export const BOUNDARY_LABELS: Record<string, string> = {
-  plan: 'Plan files',
+  plan: 'Spec files',
   github: 'GitHub text',
   brief: 'Session briefs',
   diff: 'Worker diffs',
@@ -52,7 +52,7 @@ export const BOUNDARY_LABELS: Record<string, string> = {
 
 // One line on what each boundary checks, from content-rules.mjs and its callers.
 export const BOUNDARY_HINTS: Record<string, string> = {
-  plan: 'Spec files when a plan is saved or approved.',
+  plan: 'Spec files when a spec is saved or approved.',
   github: 'Issue, comment and pull request text Avoozl writes.',
   brief: 'The brief a worker session starts with.',
   diff: 'Lines a worker adds, checked before a push.',

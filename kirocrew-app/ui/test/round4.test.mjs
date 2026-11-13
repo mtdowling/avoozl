@@ -60,7 +60,7 @@ test('Graph, Delivery, Plans and Conflicts use the one boxed filter panel', () =
   assert.match(panel, /useMedia\('\(max-width: 767px\)'\)/)
   // Conflicts lost its kind tabs; kind is a filter.
   assert.doesNotMatch(source('ConflictsView.tsx'), /SegmentedControl/)
-  for (const label of ['Search', 'Kind', 'Plan', 'Epic', 'Repository', 'Age', 'Changed by'])
+  for (const label of ['Search', 'Kind', 'Spec', 'Epic', 'Repository', 'Age', 'Changed by'])
     assert.match(source('ConflictsView.tsx'), new RegExp(`label: '${label}'`), label)
 })
 
@@ -272,6 +272,6 @@ test('workspace states read as plain words; yellow only where the owner must act
   for (const [state, entry] of Object.entries(WORKSPACE_STATES))
     assert.equal(entry.variant === 'warning', ['degraded', 'quarantined'].includes(state), state)
   assert.match(source('WorkspaceView.tsx'), /Add a workspace/)
-  assert.match(source('WorkspaceView.tsx'), /A workspace is a folder with your plans\. Pick one that already has them, or start a new one\./)
+  assert.match(source('WorkspaceView.tsx'), /A workspace is a folder with your specs\. Pick one that already has them, or start a new one\./)
   assert.doesNotMatch(source('WorkspaceView.tsx'), /Add or initialize/)
 })

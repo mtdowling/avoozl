@@ -139,12 +139,12 @@ export function ConflictActions(props: {
           </DangerBtn>
           <IconLabel
             icon={Check}
-            tooltip="Keep GitHub's edit until the plan changes this field"
+            tooltip="Keep GitHub's edit until the spec changes this field"
             disabled={busy || item.resolution === 'github'}
             onClick={() =>
               run(async () => {
                 await views.resolveConflict(workspaceId, item.taskId!, item.field!, 'github')
-                return { ok: true, text: 'GitHub’s value stays until the plan changes this field.' }
+                return { ok: true, text: 'GitHub’s value stays until the spec changes this field.' }
               })
             }
           >
@@ -568,7 +568,7 @@ export default function ConflictsView({ workspaceId }: { workspaceId: string | n
             fields={[
               { kind: 'search', key: 'q', label: 'Search', value: filter.q ?? '', placeholder: 'Task, ID or detail', onChange: (q) => setField({ q }) },
               { kind: 'select', key: 'kind', label: 'Kind', value: filter.kind ?? '', options: choices.kinds, onChange: (kind) => setField({ kind }) },
-              { kind: 'select', key: 'plan', label: 'Plan', value: filter.plan ?? '', options: choices.plans, onChange: (plan) => setField({ plan }) },
+              { kind: 'select', key: 'plan', label: 'Spec', value: filter.plan ?? '', options: choices.plans, onChange: (plan) => setField({ plan }) },
               { kind: 'select', key: 'epic', label: 'Epic', value: filter.epic ?? '', options: choices.epics, onChange: (epic) => setField({ epic }) },
               {
                 kind: 'select',

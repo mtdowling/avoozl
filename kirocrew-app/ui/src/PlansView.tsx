@@ -140,7 +140,7 @@ function GitHubPreview(props: { projection: ProjectionPreview | null; busy: bool
         title="GitHub preview"
         blurb="Lists every write a projection would make. Nothing is written."
         actions={
-          <TipBtn tooltip="List every GitHub write this plan would make. Makes none." onClick={props.onPreview} disabled={busy}>
+          <TipBtn tooltip="List every GitHub write this spec would make. Makes none." onClick={props.onPreview} disabled={busy}>
             {projection ? 'Preview again' : 'Preview GitHub writes'}
           </TipBtn>
         }
@@ -218,14 +218,14 @@ function SpecDetail(props: {
             <code>{shortHash(plan.hash)}</code> · {plan.state}
           </p>
         ) : (
-          <p className="mt-1 text-sm">Import stores this folder as a draft plan, so you can check and approve it. It approves nothing and starts nothing.</p>
+          <p className="mt-1 text-sm">Import stores this folder as a draft spec, so you can check and approve it. It approves nothing and starts nothing.</p>
         )}
         <p className="mt-1 text-xs text-muted">
           Avoozl delivers this spec. Do not use Spec Builder&apos;s Approve tasks or Kiro&apos;s Run all Tasks on it.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           {!plan && (
-            <IconLabel icon={Download} tooltip="Store this folder as a draft plan. Approves and starts nothing." onClick={props.onStore} disabled={busy}>
+            <IconLabel icon={Download} tooltip="Store this folder as a draft spec. Approves and starts nothing." onClick={props.onStore} disabled={busy}>
               Import
             </IconLabel>
           )}
@@ -432,11 +432,11 @@ function PlanFilters(props: { filter: PlanListFilter; rows: PlanRow[]; onChange:
   return (
     <FilterPanel
       id="avoozl-plans"
-      label="Filter plans"
+      label="Filter specs"
       active={Object.keys(filter).length > 0}
       onClear={() => props.onChange({})}
       fields={[
-        { kind: 'search', key: 'q', label: 'Search', value: filter.q ?? '', placeholder: 'Plan name or folder', onChange: (q) => set({ q }) },
+        { kind: 'search', key: 'q', label: 'Search', value: filter.q ?? '', placeholder: 'Spec name or folder', onChange: (q) => set({ q }) },
         {
           kind: 'select',
           key: 'category',
@@ -460,7 +460,7 @@ function PlanFilters(props: { filter: PlanListFilter; rows: PlanRow[]; onChange:
           value: filter.kind ?? '',
           options: [
             { value: 'spec', label: 'Spec folder' },
-            { value: 'old-style', label: 'Old-style plan' },
+            { value: 'old-style', label: 'Old-style spec' },
           ],
           onChange: (kind) => set({ kind: (kind || undefined) as PlanListFilter['kind'] }),
         },
@@ -484,18 +484,18 @@ function PlanFilters(props: { filter: PlanListFilter; rows: PlanRow[]; onChange:
   )
 }
 
-const ARCHIVE_TIP = 'Archive this plan: its tasks stop starting and it is hidden. You can undo it.'
-const UNARCHIVE_TIP = 'Unarchive this plan: its tasks may start again and it shows everywhere.'
+const ARCHIVE_TIP = 'Archive this spec: its tasks stop starting and it is hidden. You can undo it.'
+const UNARCHIVE_TIP = 'Unarchive this spec: its tasks may start again and it shows everywhere.'
 
 // The Plans heading buttons, in the owner's order: New plan, New task, then
 // Refresh last. Refresh re-reads plan.table (the spec folders on disk and
 // the stored plans); it imports nothing.
-export const REFRESH_PLANS_TIP = 'Reload plans from disk. Imports nothing.'
+export const REFRESH_PLANS_TIP = 'Reload specs from disk. Imports nothing.'
 function PlansActions(props: { onNewPlan: () => void; onNewIdea: () => void; onOpenIdeas?: () => void; ideas: number | null; onNewTask: () => void; onRefresh: () => void; busy: boolean }) {
   return (
     <>
       <IconLabel icon={Plus} primary tooltip="Describe what you want. Spec Builder drafts its spec folder; nothing is approved." onClick={props.onNewPlan}>
-        New plan
+        New spec
       </IconLabel>
       <NewIdeaButton onClick={props.onNewIdea} />
       {props.onOpenIdeas && (
@@ -506,7 +506,7 @@ function PlansActions(props: { onNewPlan: () => void; onNewIdea: () => void; onO
       <IconLabel icon={Plus} tooltip="Add a draft task. It waits for your review." onClick={props.onNewTask}>
         New task
       </IconLabel>
-      <IconBtn icon={RefreshCw} label="Refresh plans" tooltip={REFRESH_PLANS_TIP} onClick={props.onRefresh} disabled={props.busy} />
+      <IconBtn icon={RefreshCw} label="Refresh specs" tooltip={REFRESH_PLANS_TIP} onClick={props.onRefresh} disabled={props.busy} />
     </>
   )
 }
@@ -529,13 +529,13 @@ function RowButtons(props: {
   return (
     <span className="flex justify-end gap-1.5">
       {actions.importable && props.onImport && (
-        <IconBtn icon={Download} label={`Import ${row.name}`} tooltip="Store this folder as a draft plan. Approves and starts nothing." disabled={props.busy} onClick={props.onImport} />
+        <IconBtn icon={Download} label={`Import ${row.name}`} tooltip="Store this folder as a draft spec. Approves and starts nothing." disabled={props.busy} onClick={props.onImport} />
       )}
-      {props.onOpen && <IconBtn icon={DetailsIcon} label={`Open docs for ${row.name}`} tooltip="Open this plan's documents and tasks" onClick={props.onOpen} />}
-      {actions.scoped && <IconBtn icon={Network} label={`Graph of ${row.name}`} tooltip="Show this plan's tasks in the Graph" onClick={() => props.onScope('graph')} />}
-      {actions.scoped && <IconBtn icon={LayoutGrid} label={`Delivery of ${row.name}`} tooltip="Show this plan's tasks in Delivery" onClick={() => props.onScope('delivery')} />}
-      {actions.review && props.onReview && <IconBtn icon={ClipboardCheck} label={`Review ${row.name}`} tooltip="Open this plan to check and approve it" onClick={props.onReview} />}
-      {props.onChange && <IconBtn icon={Pencil} label={`Plan a change to ${row.name}`} tooltip="Start a planner chat to change this plan" onClick={props.onChange} />}
+      {props.onOpen && <IconBtn icon={DetailsIcon} label={`Open docs for ${row.name}`} tooltip="Open this spec's documents and tasks" onClick={props.onOpen} />}
+      {actions.scoped && <IconBtn icon={Network} label={`Graph of ${row.name}`} tooltip="Show this spec's tasks in the Graph" onClick={() => props.onScope('graph')} />}
+      {actions.scoped && <IconBtn icon={LayoutGrid} label={`Delivery of ${row.name}`} tooltip="Show this spec's tasks in Delivery" onClick={() => props.onScope('delivery')} />}
+      {actions.review && props.onReview && <IconBtn icon={ClipboardCheck} label={`Review ${row.name}`} tooltip="Open this spec to check and approve it" onClick={props.onReview} />}
+      {props.onChange && <IconBtn icon={Pencil} label={`Change spec ${row.name}`} tooltip="Start a planner chat to change this spec" onClick={props.onChange} />}
       {props.onArchive && actions.archivable && (
         <IconBtn icon={Archive} label={`Archive ${row.name}`} tooltip={ARCHIVE_TIP} disabled={props.busy} onClick={props.onArchive} />
       )}
@@ -543,7 +543,7 @@ function RowButtons(props: {
         <IconBtn icon={ArchiveRestore} label={`Unarchive ${row.name}`} tooltip={UNARCHIVE_TIP} disabled={props.busy} onClick={props.onUnarchive} />
       )}
       {props.onDelete && actions.deletable && (
-        <IconBtn icon={Trash2} label={`Delete ${row.name}`} tooltip="Delete this plan. You confirm first; it stays in history." disabled={props.busy} onClick={props.onDelete} style={dangerStyle} />
+        <IconBtn icon={Trash2} label={`Delete ${row.name}`} tooltip="Delete this spec. You confirm first; it stays in history." disabled={props.busy} onClick={props.onDelete} style={dangerStyle} />
       )}
     </span>
   )
@@ -582,7 +582,7 @@ export function PlansTable(props: {
   const header = (
     <thead>
       <tr className="text-xs text-muted">
-        <th style={head}>Plan</th>
+        <th style={head}>Spec</th>
         <th style={head}>Status</th>
         <th style={head}>Progress</th>
         <th style={head}>Now</th>
@@ -730,17 +730,17 @@ function PlanAside(props: {
     <div className="flex flex-col gap-4 text-sm" data-plan-aside>
       <div className="flex flex-wrap gap-2">
         <IconLabel icon={Pencil} primary tooltip="Start a planner chat that drafts a change to the spec files" onClick={props.onEdit}>
-          Edit plan
+          Edit spec
         </IconLabel>
-        <IconLabel icon={MessagesSquare} tooltip="Start a chat about this plan. It makes no edits." onClick={props.onDiscuss}>
-          Discuss plan
+        <IconLabel icon={MessagesSquare} tooltip="Start a chat about this spec. It makes no edits." onClick={props.onDiscuss}>
+          Discuss spec
         </IconLabel>
         {(props.onDelete || props.onArchive || props.onUnarchive) && (
           <span className="ml-auto flex gap-1.5">
             {props.onArchive && <IconBtn icon={Archive} label={`Archive ${row.name}`} tooltip={ARCHIVE_TIP} onClick={props.onArchive} />}
             {props.onUnarchive && <IconBtn icon={ArchiveRestore} label={`Unarchive ${row.name}`} tooltip={UNARCHIVE_TIP} onClick={props.onUnarchive} />}
             {props.onDelete && (
-              <IconBtn icon={Trash2} label={`Delete ${row.name}`} tooltip="Delete this plan. You confirm first; it stays in history." onClick={props.onDelete} style={dangerStyle} />
+              <IconBtn icon={Trash2} label={`Delete ${row.name}`} tooltip="Delete this spec. You confirm first; it stays in history." onClick={props.onDelete} style={dangerStyle} />
             )}
           </span>
         )}
@@ -818,7 +818,7 @@ function PlanAside(props: {
         </div>
       )}
       {tabs.length > 0 && (
-        <nav aria-label="Plan outline">
+        <nav aria-label="Spec outline">
           {heading('Outline')}
           <ul className="mt-1 flex flex-col gap-1">
             {tabs.map((tab) => (
@@ -903,7 +903,7 @@ function ArchivePlanDialog(props: { workspaceId: string; row: PlanRow; client: P
     try {
       const done = await client.archive(workspaceId, row.planId!)
       props.onDone(
-        `Archived ${row.name}. ${done.held} tasks held, ${done.running} running chats left alone, ${done.decisions} decisions opened. Show archived on Plans brings it back.`,
+        `Archived ${row.name}. ${done.held} tasks held, ${done.running} running chats left alone, ${done.decisions} decisions opened. Show archived on Specs brings it back.`,
       )
     } catch (caught) {
       setError(errorMessage(caught))
@@ -936,7 +936,7 @@ function ArchivePlanDialog(props: { workspaceId: string; row: PlanRow; client: P
             Cancel
           </Btn>
           <Btn type="button" primary data-archive-confirm disabled={busy} onClick={() => void run()}>
-            Archive plan
+            Archive spec
           </Btn>
         </div>
       </div>
@@ -957,7 +957,7 @@ function ArchivedBanner(props: { row: PlanRow; busy: boolean; onUnarchive: () =>
     >
       <Archive size={18} aria-hidden="true" style={{ color: 'var(--muted)' }} />
       <span className="min-w-0 flex-1">
-        <span className="font-medium">This plan is archived.</span>{' '}
+        <span className="font-medium">This spec is archived.</span>{' '}
         <span className="text-muted">
           {archived.by ? `${archived.by} archived it` : 'Archived'} <Tooltip text={archived.at}><span>{relativeTime(archived.at)}</span></Tooltip>. Its tasks
           do not start, and it is hidden unless Show archived is on.
@@ -1044,7 +1044,7 @@ function DeletePlanDialog(props: { workspaceId: string; row: PlanRow; client: Pl
             Cancel
           </Btn>
           <Btn type="button" data-danger disabled={!preview || busy || blocked} onClick={() => void run()} style={{ background: 'var(--danger)', borderColor: 'var(--danger)', color: '#fff' }}>
-            Delete plan
+            Delete spec
           </Btn>
         </div>
       </div>
@@ -1085,7 +1085,7 @@ export default function PlansView(props: {
   const [selected, openPlan, setSelected] = useSteppedState<string | null>(
     'plans-selected',
     'select',
-    (previous) => (previous ? 'Back to the plan' : 'Back to all plans'),
+    (previous) => (previous ? 'Back to the spec' : 'Back to all specs'),
     null,
   )
   const shownWorkspace = useRef(workspace)
@@ -1265,7 +1265,7 @@ export default function PlansView(props: {
       )}
       {notice && <p role="status" className="text-sm text-muted">{notice}</p>}
       <div ref={detailTop} className="flex flex-wrap items-center gap-3">
-        {row && <IconLabel icon={ArrowLeft} onClick={() => openPlan(null)}>All plans</IconLabel>}
+        {row && <IconLabel icon={ArrowLeft} onClick={() => openPlan(null)}>All specs</IconLabel>}
         <div className="min-w-0 flex-1">
           <ViewHeading
             id="avoozl-plans-title"
@@ -1278,7 +1278,7 @@ export default function PlansView(props: {
               ) : null
             }
           >
-            {row ? row.name : 'Plans'}
+            {row ? row.name : 'Specs'}
           </ViewHeading>
         </div>
       </div>
@@ -1312,7 +1312,7 @@ export default function PlansView(props: {
             ) : rows.length ? (
               <PlansTable rows={rows} reset={JSON.stringify(filter)} busy={busy} onOpen={open} onScope={scope} onChange={change} onImport={importRow} onDelete={setDeleting} onArchive={setArchiving} onUnarchive={unarchive} />
             ) : (
-              <p className="text-sm text-muted">No plan matches these filters.</p>
+              <p className="text-sm text-muted">No spec matches these filters.</p>
             )}
             {table?.problem && <p className="mt-2 text-xs text-muted">Spec folders: {table.problem}</p>}
             <p className="mt-2 text-xs text-muted">
@@ -1331,7 +1331,7 @@ export default function PlansView(props: {
         >
           <aside
             ref={asideRef}
-            aria-label="Plan summary"
+            aria-label="Spec summary"
             data-plan-aside-scroll
             style={stack ? undefined : { position: 'sticky', top: 8, maxHeight: asideHeight ?? 'calc(100vh - 2rem)', overflowY: 'auto', overscrollBehavior: 'contain' }}
           >
@@ -1385,7 +1385,7 @@ export default function PlansView(props: {
                   ) : text.text ? (
                     <Markdown text={text.text} measure={PROSE_MEASURE} />
                   ) : (
-                    <p className="text-sm text-muted">This plan has no text.</p>
+                    <p className="text-sm text-muted">This spec has no text.</p>
                   )}
                 </div>
               </Card>
