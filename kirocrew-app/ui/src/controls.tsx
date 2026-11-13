@@ -23,8 +23,29 @@ import { errorMessage } from './workspace-api.ts'
 import { moreLabel, visibleCount } from './paging.ts'
 import { Tooltip } from './Tooltip.tsx'
 import { Modal } from './Modal.tsx'
+import { useTaskDrawer } from './drawer-context.ts'
+import { linkHref } from './views-api.ts'
 
 export const ICON = 14
+
+// A task's title as a real link that opens its drawer. The drawer adds its
+// own Back step, so Back closes it.
+export function TaskTitleLink(props: { id: string; children: ReactNode; className?: string }) {
+  const drawer = useTaskDrawer()
+  return (
+    <a
+      href={linkHref(`/apps/avoozl#task-${encodeURIComponent(props.id)}`)}
+      className={`underline ${props.className ?? ''}`}
+      data-task-link={props.id}
+      onClick={(event) => {
+        event.preventDefault()
+        drawer.openTask(props.id)
+      }}
+    >
+      {props.children}
+    </a>
+  )
+}
 
 // Danger: the theme's danger color, readable in light and dark.
 export const dangerStyle: CSSProperties = { color: 'var(--danger)', borderColor: 'var(--danger)' }

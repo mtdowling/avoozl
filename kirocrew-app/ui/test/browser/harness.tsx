@@ -10,6 +10,8 @@ import { NavHistoryProvider, APP_ATTR } from '../../src/NavHistory.tsx'
 import { ConfirmProvider, DangerBtn } from '../../src/controls.tsx'
 import { TaskDrawerProvider } from '../../src/TaskDrawer.tsx'
 import GraphView from '../../src/GraphView.tsx'
+import DashboardView from '../../src/DashboardView.tsx'
+import DeliveryView from '../../src/DeliveryView.tsx'
 import AddPlugin from '../../src/AddPlugin.tsx'
 import Onboard from '../../src/Onboard.tsx'
 import { RepositoryDialog } from '../../src/RepositoriesSettings.tsx'
@@ -68,6 +70,43 @@ answer('graph.view', () => ({
   ],
 }))
 
+// ?view=dashboard|delivery: the real view, with a2 and b1 in flight, so a
+// test can click a running task's title and see its drawer.
+const working = (id: string, slot: string) => ({
+  id,
+  title: `Task ${id}`,
+  status: null,
+  complete: false,
+  repository: null,
+  sessions: [{ slot, role: 'worker', attempt: 1, title: null, status: 'working', statusAt: '2026-01-01T00:01:00Z', boundAt: '2026-01-01T00:00:00Z', model: 'm1', link: '/chat/' + slot }],
+  runs: [],
+  evidence: [],
+  integration: null,
+  pullRequests: [],
+  deliveries: [{ state: 'running' }],
+  worktrees: [],
+  rounds: [],
+  budget: null,
+})
+answer('delivery.view', () => ({ revision: 1, items: [working('a2', 's-a2'), working('b1', 's-b1')] }))
+answer('conflicts.view', () => ({ revision: 1, items: [] }))
+answer('plan.list', () => ({ items: [], total: 0 }))
+answer('activity.recent', () => ({ items: [] }))
+answer('task.detail', (body) => {
+  const id = (body.input as { id: string }).id
+  return {
+    revision: 1,
+    task: { ...task(id, 'e1'), summary: '', acceptance: [], checks: [], epicTitle: 'First epic', state: 'running', needsReview: false, owner: null, wave: 1, context: '' },
+    plan: null,
+    locked: null,
+    waitsOn: [],
+    blocks: [],
+    delivery: null,
+    conflicts: [],
+    timeline: [],
+  }
+})
+
 const row = { key: 'p1', kind: 'spec', name: 'Modal plan', spec: 'modal-plan', folder: '.kiro/specs/modal-plan', planId: 'modal-plan', type: 'feature', category: null, categoryProblem: null, errors: 0, status: 'approved', tasks: { total: 3, done: 1 }, now: { ready: 1, running: 0, needsYou: 0 }, epics: 1, lastChange: null }
 const crew = { id: 'remote-1', name: 'Remote one', tags: ['linux'], trust: 'remote', gitHosts: ['github.com'], chatLimit: 2, chatLimitSet: false, delivery: 'handback', sshHost: null, worktreeRoot: null, configured: true, reading: null, ageSeconds: null, running: 0 }
 const text = ['# Guide', '', 'A short file for the viewer.', '', '## Part one', '', 'Some words.', '', '## Part two', '', 'More words.'].join('\n')
@@ -121,6 +160,9 @@ export const SCENARIOS: Record<string, Scenario> = {
 
 function Scenario({ name }: { name: string }) {
   const [open, setOpen] = useState(false)
+  const view = query.get('view')
+  if (view === 'dashboard') return <DashboardView workspaceId="w" />
+  if (view === 'delivery') return <DeliveryView workspaceId="w" />
   const scenario = SCENARIOS[name]
   if (!scenario) return <p>Unknown modal {name}</p>
   const close = () => {
