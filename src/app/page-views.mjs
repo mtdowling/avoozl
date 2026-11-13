@@ -512,8 +512,17 @@ function graphPlans(store, data) {
     entry.line = Math.min(entry.line, task.source?.lineStart ?? Infinity);
     phases.set(key, entry);
   }
+  // Members in their epic's order, then every other plan by title.
+  const rank = (plan) => {
+    const epic = epicOfPlan(data, plan.id);
+    return epic ? epic.listed.indexOf(plan.id) : Infinity;
+  };
   return plans
     .filter((plan) => byPlan.has(plan.id))
+    .sort(
+      (a, b) =>
+        rank(a) - rank(b) || (a.title || a.id).localeCompare(b.title || b.id),
+    )
     .map((plan) => ({
       id: plan.id,
       title: plan.title || plan.id,
@@ -711,12 +720,19 @@ export function deliveryView(store, data) {
       !links.length &&
       !task.githubVerdict?.reviews &&
       !prFeedback &&
-      !submissions.has(id)
+      !submissions.has(id) &&
+      !task.github?.unlinked
     )
       continue;
     items.push({
       id,
       title: task.title ?? id,
+      // Its plan, epic and phase, from records (Requirement 59.10).
+      planId: task.planId ?? null,
+      epic: taskEpic(data, task),
+      phase: task.phase ?? null,
+      // A sub-issue link GitHub refused or the cap left out (R59.9, R59.15).
+      subIssue: task.github?.unlinked ?? null,
       status: task.status ?? null,
       complete: statusComplete(data, task.status),
       repository: taskRepository(task),

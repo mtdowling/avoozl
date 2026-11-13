@@ -3,7 +3,7 @@ import os from "node:os";
 import { digest } from "../model.mjs";
 import { fail } from "./store.mjs";
 import { parseRepository } from "./github.mjs";
-import { parseMarker } from "./github-marker.mjs";
+import { isParentMarker, parseMarker } from "./github-marker.mjs";
 import {
   evaluateRules,
   legacyRepositoryPolicy,
@@ -540,6 +540,8 @@ export async function syncGitHubIssues(
           });
         continue;
       }
+      // A plan or epic issue is never delivered (Requirement 59.8).
+      if (isParentMarker(projectedMarker(issue.body))) continue;
       seen.add(id);
       const previous = store.get("github_issues", id),
         body = String(issue.body || ""),

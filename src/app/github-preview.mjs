@@ -313,7 +313,7 @@ export class PreviewGitHub {
 
 // Every write projection and Project sync would make for `planId`, without
 // making any. Returns {planId, planHash, writes, conflicts, notes,
-// previewOnly, project}.
+// unlinked, previewOnly, project}.
 export async function previewProjection(
   store,
   github,
@@ -348,6 +348,8 @@ export async function previewProjection(
       writes: stand.writes,
       conflicts: projection.conflicts,
       notes: projection.notes,
+      // Children the sub-issue cap or GitHub leaves unlinked (R59.15).
+      unlinked: projection.unlinked,
       previewOnly: projection.previewOnly,
       project,
     };

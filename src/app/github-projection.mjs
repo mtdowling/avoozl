@@ -15,9 +15,11 @@ import { graphOrder } from "./delivery.mjs";
 import { priorityRank } from "./github-policy.mjs";
 import {
   assertPlanningLink,
+  isParentMarker,
   renderMarker,
   requireNamespace,
 } from "./github-marker.mjs";
+import { epicOfPlan } from "./epics.mjs";
 import {
   issueRecordId,
   machineIdentity,
@@ -40,7 +42,7 @@ function managedSection(task, plan, requires, notes = []) {
   const list = requires.map((id) => `- ${id}`).join("\n");
   return `<!-- avoozl:managed:start -->
 This issue is projected from approved design \`${plan.id}\` at \`${plan.hash.slice(0, 12)}\`.
-
+${task.phase ? `\nPhase: ${task.phase.title}\n` : ""}
 ${task.summary || task.nextAction || ""}
 
 ## Acceptance criteria
@@ -53,7 +55,7 @@ ${list ? `\n## Dependencies\n\n${list}\n` : ""}${notes.length ? `\n${notes.map((
 // Marker version 2 (§3.4): IDs and hashes only. Requires levels and
 // `supports` edges live here and nowhere on GitHub. `previous` carries the
 // Project values and an order forward.
-function taskMarker({ task, plan, data, namespace, applied, previous }) {
+function taskMarker({ task, plan, data, namespace, applied, previous, unlinked = null }) {
   const commit = plan.sourceCommit || plan.context?.github?.commit || null,
     conditions = {},
     supports = [];
@@ -73,7 +75,12 @@ function taskMarker({ task, plan, data, namespace, applied, previous }) {
     taskId: task.id,
     namespace,
     kind: taskKind(task),
-    ...(task.parent ? { parent: task.parent } : {}),
+    // A child the cap or GitHub left unlinked keeps its parent here (R59.15).
+    ...(task.parent
+      ? { parent: task.parent }
+      : unlinked?.parent
+        ? { parent: unlinked.parent }
+        : {}),
     source: {
       commit: COMMIT.test(commit || "") ? commit : null,
       manifest: SHA256.test(plan.hash) ? plan.hash : digest(String(plan.hash)),
@@ -216,6 +223,292 @@ function fieldPlan({ current, applied, desired, also = [], resolution }) {
   )
     return { write: current !== desired, baseline: desired, desired };
   return { conflict: true, write: false, baseline: applied, desired };
+}
+
+const lower = (value) => String(value ?? "").toLowerCase();
+
+const parentReceipt = (level, id) => `github-parent:${level}:${id}`;
+
+function parentSection(lines) {
+  return `<!-- avoozl:managed:start -->\n${lines.join("\n").trim()}\n<!-- avoozl:managed:end -->`;
+}
+
+// The prose under a heading of requirements.md, or under the title.
+function prose(text, pattern) {
+  const rows = String(text || "")
+      .replace(/^\uFEFF?---[ \t]*\r?\n[\s\S]*?\n(?:---|\.\.\.)[ \t]*\r?(?:\n|$)/, "")
+      .split("\n"),
+    out = [];
+  let inside = !pattern;
+  for (const row of rows) {
+    const heading = /^(#{1,6})\s+(.*)$/.exec(row);
+    if (heading) {
+      if (!pattern) {
+        if (heading[1].length === 1 && !out.length) continue;
+        if (out.some((line) => line.trim())) break;
+        continue;
+      }
+      if (inside) break;
+      inside = heading[1].length > 1 && pattern.test(heading[2]);
+      continue;
+    }
+    if (inside) out.push(row);
+  }
+  return out.join("\n").trim();
+}
+
+// Create or update one plan or epic issue: its title and managed section
+// follow Requirement 15 like a task's, a person's edit is a conflict, and the
+// marker records kind, parent and the applied baselines. Returns the issue,
+// or null when nothing may be written (a conflict note says why).
+async function upsertParent({
+  github,
+  config,
+  labels,
+  current,
+  title,
+  section,
+  kind,
+  taskId,
+  parent,
+  type,
+  namespace,
+  plan,
+  markerOptions,
+  notes,
+}) {
+  const marker = (applied) => ({
+    version: 2,
+    taskId,
+    namespace,
+    kind,
+    ...(parent ? { parent } : {}),
+    source: { commit: null, manifest: plan.hash },
+    applied,
+  });
+  if (!current) {
+    const applied = {
+      title: digest(title),
+      body: digest(section),
+      labels: [labels.managed],
+      blockers: [],
+    };
+    return github.createIssue(config, {
+      title,
+      body: renderMarker(marker(applied), markerOptions) + "\n" + section,
+      labels: [labels.managed],
+      ...(type ? { type } : {}),
+    });
+  }
+  const previous = projectedMarker(current.body),
+    applied = previous?.version === 2 ? previous.applied : null,
+    titlePlan = fieldPlan({
+      current: digest(current.title || ""),
+      applied: applied?.title,
+      desired: digest(title),
+    }),
+    bodyPlan = fieldPlan({
+      current: digest(sectionOf(current.body)),
+      applied: applied?.body,
+      desired: digest(section),
+    });
+  for (const [field, entry] of [
+    ["title", titlePlan],
+    ["body", bodyPlan],
+  ])
+    if (entry.conflict)
+      notes.add(
+        `The ${field} of ${kind} issue ${config.id}#${current.number} changed on GitHub since Avoozl last wrote it; Avoozl left it.`,
+      );
+  const patch = {};
+  if (titlePlan.write) patch.title = title;
+  let body = bodyPlan.write ? withSection(current.body, section) : current.body;
+  const next = marker({
+    title: titlePlan.baseline,
+    body: bodyPlan.baseline,
+    labels: [labels.managed],
+    blockers: [],
+  });
+  if (JSON.stringify(previous) !== JSON.stringify(next))
+    body = withMarker(body, renderMarker(next, markerOptions));
+  if (body !== current.body) patch.body = body;
+  if (type && current.type?.name !== type) patch.type = type;
+  return Object.keys(patch).length
+    ? github.updateIssue(config, current.number, patch)
+    : current;
+}
+
+// A spec plan's own issue, and its epic's issue when the plan has an epic
+// (Requirement 59.8, design §6.9). They live in the repository of the plan's
+// first task issue. A plan broken down from one GitHub issue sits under that
+// issue instead, and an extracted design keeps its own parent.
+async function projectPlanParents({
+  store,
+  github,
+  plan,
+  data,
+  items,
+  identity,
+  namespace,
+  markerOptions,
+  managedByRepository,
+  epicType,
+  notes,
+}) {
+  if (!plan.spec || plan.epicFolder || plan.context?.issue || plan.extractionId)
+    return null;
+  const first = items.find((item) => item.issue);
+  if (!first) return null;
+  const { config, labels } = first,
+    find = async (taskId, receipt) => {
+      const stored = store.get("receipts", receipt);
+      if (stored?.number && stored.repository === config.id)
+        return github.issue(config, stored.number);
+      return (
+        managedByRepository
+          .get(config.id)
+          .issues.find((issue) => {
+            const marker = projectedMarker(issue.body);
+            return (
+              isParentMarker(marker) &&
+              marker.namespace === namespace &&
+              marker.taskId === taskId
+            );
+          }) || null
+      );
+    },
+    record = (level, id, issue, extra = {}) =>
+      store.put("receipts", {
+        id: parentReceipt(level, id),
+        kind: "github-parent",
+        level,
+        parentId: id,
+        repository: config.id,
+        number: issue.number,
+        nodeId: issue.node_id ?? null,
+        databaseId: Number(issue.id) || null,
+        url: issue.html_url ?? null,
+        ...(store.get("receipts", parentReceipt(level, id))?.closedAt
+          ? { closedAt: store.get("receipts", parentReceipt(level, id)).closedAt }
+          : {}),
+        ...extra,
+        updatedAt: new Date().toISOString(),
+      });
+  const parents = [];
+  // The epic issue first, so the plan issue's marker can name it.
+  const epic = epicOfPlan(data, plan.id);
+  let epicIssue = null,
+    epicConfig = null;
+  if (epic) {
+    const epicPlan = store.get("plans", epic.planId),
+      files = epicPlan?.files || {},
+      members = epic.listed.map((id) => store.get("plans", id)?.title || id),
+      stored = store.get("receipts", parentReceipt("epic", epic.id));
+    epicConfig =
+      stored?.repository && stored.repository !== config.id
+        ? store.get("github_repositories", stored.repository) || config
+        : config;
+    const section = parentSection([
+        `This issue is the epic \`${epic.id}\`, a goal across plans. Avoozl closes it when every member plan's issue is closed.`,
+        "",
+        prose(files["requirements.md"], null),
+        ...(prose(files["requirements.md"], /\bdone\b/i)
+          ? ["", "## What done means", "", prose(files["requirements.md"], /\bdone\b/i)]
+          : []),
+        "",
+        "## Member plans",
+        "",
+        ...members.map((title) => `- ${title}`),
+      ]),
+      current =
+        epicConfig === config
+          ? await find(`epic.${epic.id}`, parentReceipt("epic", epic.id))
+          : await github.issue(epicConfig, stored.number);
+    epicIssue = await upsertParent({
+      github,
+      config: epicConfig,
+      labels,
+      current,
+      title: epic.title,
+      section,
+      kind: "epic",
+      taskId: `epic.${epic.id}`,
+      type: await epicType(epicConfig),
+      namespace,
+      plan,
+      markerOptions,
+      notes,
+    });
+    store.put("receipts", {
+      ...(stored || {}),
+      id: parentReceipt("epic", epic.id),
+      kind: "github-parent",
+      level: "epic",
+      parentId: epic.id,
+      repository: epicConfig.id,
+      number: epicIssue.number,
+      nodeId: epicIssue.node_id ?? null,
+      databaseId: Number(epicIssue.id) || null,
+      url: epicIssue.html_url ?? null,
+      updatedAt: new Date().toISOString(),
+    });
+    parents.push({ level: "epic", id: epic.id, number: epicIssue.number, repository: epicConfig.id });
+  }
+  const planTaskId = `plan.${plan.id}`,
+    section = parentSection([
+      `This issue is the plan \`${plan.id}\`, spec folder \`.kiro/specs/${plan.spec}/\`. Its tasks are sub-issues; Avoozl closes it when they are all complete.`,
+      ...(epic ? ["", `Epic: ${epic.title}`] : []),
+    ]),
+    planIssue = await upsertParent({
+      github,
+      config,
+      labels,
+      current: await find(planTaskId, parentReceipt("plan", plan.id)),
+      title: plan.title || plan.id,
+      section,
+      kind: "plan",
+      taskId: planTaskId,
+      parent: epic ? `epic.${epic.id}` : null,
+      type: null,
+      namespace,
+      plan,
+      markerOptions,
+      notes,
+    });
+  // Link the plan issue under its epic's issue. GitHub refuses a sub-issue
+  // under another owner's parent; then both stay and the marker names the
+  // epic (Requirement 59.9).
+  let epicLink = null;
+  if (epicIssue) {
+    const linked = (await github.listSubIssues(epicConfig, epicIssue.number)).map(
+        (child) => Number(child.id),
+      ),
+      id = Number(planIssue.id);
+    if (!linked.includes(id)) {
+      const total = Math.max(linked.length, Number(epicIssue.sub_issues_summary?.total) || 0);
+      if (lower(epicConfig.owner) !== lower(config.owner))
+        epicLink = `GitHub links sub-issues only within one owner; ${config.id} and ${epicConfig.id} differ.`;
+      else if (total >= (identity.maxPerParent ?? 100))
+        epicLink = "Over the sub-issue limit; group these plans under fewer epics.";
+      else {
+        await github.addSubIssue(epicConfig, epicIssue.number, id);
+        if (
+          !(await github.listSubIssues(epicConfig, epicIssue.number)).some(
+            (child) => Number(child.id) === id,
+          )
+        )
+          epicLink = "GitHub refused the sub-issue link.";
+      }
+    }
+    if (epicLink) notes.add(`Plan ${plan.id} is not linked under epic ${epic.id}: ${epicLink}`);
+  }
+  record("plan", plan.id, planIssue, {
+    planId: plan.id,
+    epic: epic?.id ?? null,
+    ...(epicLink ? { unlinked: { parent: `epic.${epic.id}`, reason: epicLink } } : {}),
+  });
+  parents.push({ level: "plan", id: plan.id, number: planIssue.number, repository: config.id });
+  return { taskId: planTaskId, config, issue: planIssue, parents };
 }
 
 export async function projectPlanIssues(store, github, options) {
@@ -628,8 +921,9 @@ async function project(
     }
   }
   async function writeIssue(item) {
+    // Only a cross-plan epic's issue has the epic type (Requirement 59.8).
     const { task, config, labels, current } = item,
-      type = taskKind(task) === "epic" ? await epicType(config) : null;
+      type = null;
     if (!current) {
       const applied = {
         title: digest(item.title),
@@ -665,7 +959,12 @@ async function project(
     if (item.plans.title.write) patch.title = item.title;
     if (item.plans.body.write)
       patch.body = withSection(current.body, item.section);
-    if (type && current.type?.name !== type) patch.type = type;
+    // An issue projected for a task of the old kind "epic" loses the type.
+    if (
+      identity.epicIssueType &&
+      lower(current.type?.name) === lower(identity.epicIssueType)
+    )
+      patch.type = null;
     item.issue = Object.keys(patch).length
       ? await github.updateIssue(config, current.number, patch)
       : current;
@@ -688,24 +987,88 @@ async function project(
   for (const item of items)
     if (item.issue) item.issueId = issueDatabaseId(item.issue);
 
+  // 5b. The plan issue above the tasks, and its epic's issue above it
+  // (Requirement 59.8). Neither is ever ready.
+  const planParent = await projectPlanParents({
+    store,
+    github,
+    plan,
+    data,
+    items,
+    identity,
+    namespace,
+    markerOptions,
+    managedByRepository,
+    epicType,
+    notes,
+  });
+
   // 6. Links, then dependencies. Sub-issues name the child by database ID, so
   // a parent may sit in another repository or organization (F37, F38); only
-  // missing links are added, so a sub-issue a person added stays.
+  // missing links are added, so a sub-issue a person added stays. A task
+  // with no package sits under the plan issue. Each parent takes at most
+  // `maxPerParent` sub-issues, counting the ones it has (R59.15); the rest
+  // stay unlinked in tasks.md order and say why.
+  const cap = identity.maxPerParent ?? 100,
+    under = new Map();
   for (const item of items) {
-    const parent = item.task.parent && byTask.get(item.task.parent);
-    if (!item.issue || !parent?.issue) continue;
-    assertPlanningLink(identity, parent.config.id, item.config.id);
-    const has = async () =>
-      (await github.listSubIssues(parent.config, parent.issue.number)).some(
-        (child) => Number(child.id) === item.issueId,
-      );
-    if (await has()) continue;
-    await github.addSubIssue(parent.config, parent.issue.number, item.issueId);
-    if (!(await has()))
-      fail(
-        `GitHub did not link task ${item.task.id} under ${item.task.parent}.`,
-        502,
-      );
+    if (!item.issue) continue;
+    const parent = item.task.parent
+      ? byTask.get(item.task.parent)
+      : planParent;
+    if (!parent?.issue) continue;
+    const parentId = item.task.parent || planParent.taskId;
+    if (!under.has(parentId)) under.set(parentId, { parent, children: [] });
+    under.get(parentId).children.push(item);
+  }
+  for (const [parentId, { parent, children }] of under) {
+    const listed = await github.listSubIssues(parent.config, parent.issue.number),
+      linked = new Set(listed.map((child) => Number(child.id)));
+    let total = Math.max(
+      linked.size,
+      Number(parent.issue.sub_issues_summary?.total) || 0,
+    );
+    const added = [];
+    for (const item of children) {
+      if (linked.has(item.issueId)) continue;
+      if (parent.config.owner?.toLowerCase() !== item.config.owner?.toLowerCase()) {
+        item.unlinked = {
+          parent: parentId,
+          reason: `GitHub links sub-issues only within one owner; ${item.config.id} and ${parent.config.id} differ.`,
+        };
+        continue;
+      }
+      if (total >= cap) {
+        item.unlinked = {
+          parent: parentId,
+          reason: "Over the sub-issue limit; group these tasks in packages.",
+        };
+        continue;
+      }
+      assertPlanningLink(identity, parent.config.id, item.config.id);
+      await github.addSubIssue(parent.config, parent.issue.number, item.issueId);
+      total += 1;
+      added.push(item);
+    }
+    if (!added.length) continue;
+    const after = new Set(
+      (await github.listSubIssues(parent.config, parent.issue.number)).map(
+        (child) => Number(child.id),
+      ),
+    );
+    for (const item of added)
+      if (!after.has(item.issueId)) {
+        if (parentId === planParent?.taskId)
+          item.unlinked = {
+            parent: parentId,
+            reason: "GitHub refused the sub-issue link.",
+          };
+        else
+          fail(
+            `GitHub did not link task ${item.task.id} under ${item.task.parent}.`,
+            502,
+          );
+      }
   }
   for (const item of items) {
     if (!item.issue) continue;
@@ -788,6 +1151,7 @@ async function project(
         data,
         namespace,
         previous: marker,
+        unlinked: item.unlinked,
         applied: {
           title: plans.title.baseline,
           body: plans.body.baseline,
@@ -848,6 +1212,7 @@ async function project(
         url: issue.html_url,
         origin: "design",
         bodyHash: record.bodyHash,
+        ...(item.unlinked ? { unlinked: item.unlinked } : {}),
       },
       projectId: config.projectId,
       dispatch: {
@@ -988,6 +1353,10 @@ async function project(
     issues: results,
     conflicts,
     notes: [...notes],
+    parents: planParent?.parents ?? [],
+    unlinked: items
+      .filter((item) => item.unlinked)
+      .map((item) => ({ taskId: item.task.id, ...item.unlinked })),
     ...(dryRun ? { previewOnly: [...previewOnly] } : {}),
     parent: parent
       ? {
