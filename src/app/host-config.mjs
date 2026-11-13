@@ -7,6 +7,7 @@ import { execFileSync } from "node:child_process";
 import {
   assertPortableRepositoryConfig,
   assertSafeConfig,
+  crewHomeAvoozlDirectory,
 } from "./layered-config.mjs";
 import { workspaceConfig } from "./config.mjs";
 import { CatalogStore } from "./catalog-store.mjs";
@@ -52,6 +53,14 @@ export function machineAvoozlPaths({
   platform = process.platform,
 } = {}) {
   const p = pathFor(platform);
+  const scoped = crewHomeAvoozlDirectory({ env, home, platform });
+  if (scoped)
+    return {
+      configDirectory: scoped,
+      configPath: p.join(scoped, "config.json"),
+      stateDirectory: p.join(scoped, "state"),
+      catalogPath: p.join(scoped, "state", "catalog.sqlite"),
+    };
   const configDirectory = p.join(configHome({ env, home, platform }), "avoozl");
   const stateDirectory = env.XDG_STATE_HOME
     ? p.join(p.resolve(env.XDG_STATE_HOME), "avoozl")
