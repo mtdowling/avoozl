@@ -548,7 +548,14 @@ export function approvePlan(
           .filter((t) => t.planId === id)
           .map((t) => [t.id, { entry: entry(t), needsReview: t.needsReview }]),
       ),
-      held = new Set(plan.reviewHeld || []);
+      held = new Set(plan.reviewHeld || []),
+      edgeById = new Map(data.edges.filter((e) => e.id).map((e) => [e.id, e])),
+      livePlans = new Set(
+        store
+          .list("plans")
+          .filter((entry) => !entry.deletedAt)
+          .map((entry) => entry.id),
+      );
     for (const proposal of proposals) {
       if (
         proposal.taskId &&
@@ -714,15 +721,25 @@ export function approvePlan(
             : {}),
         });
       }
-      data.edges = data.edges.filter(
-        (e) => !(e.to === taskId && e.planId === id),
-      );
+      data.edges = data.edges.filter((e) => {
+        const drop = e.to === taskId && e.planId === id;
+        if (drop && edgeById.get(e.id) === e) edgeById.delete(e.id);
+        return !drop;
+      });
       for (const kind of ["requires", "sequence", "supports"])
         for (const ref of proposal[kind] || []) {
           const from = resolveTaskId(data, mapping[ref] || ref);
           if (!known.has(from)) fail("Unknown " + kind + " reference " + ref);
-          data.edges.push({
-            id: `${from}:${kind}:${taskId}`,
+          const edgeId = `${from}:${kind}:${taskId}`,
+            same = edgeById.get(edgeId);
+          // An edge ID is unique. Another live plan's copy of the same edge
+          // stays its own; an unowned one (imported, hand-made, or from an
+          // old revision that did not name it) becomes this plan's.
+          if (same?.planId && same.planId !== id && livePlans.has(same.planId))
+            continue;
+          if (same) data.edges.splice(data.edges.indexOf(same), 1);
+          const edge = {
+            id: edgeId,
             from,
             to: taskId,
             kind,
@@ -731,7 +748,9 @@ export function approvePlan(
               : {}),
             planId: id,
             reason: "Approved plan revision " + plan.hash.slice(0, 12),
-          });
+          };
+          data.edges.push(edge);
+          edgeById.set(edgeId, edge);
         }
     }
     // Sequence edges also participate in readiness, so reject cycles across both kinds.
