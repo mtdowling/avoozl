@@ -80,6 +80,7 @@ export const POLICY_KEYS = Object.freeze([
   "project",
   "epicIssueType",
   "subIssues",
+  "issues",
   "repositories",
 ]);
 // Who may give Avoozl orders when a repository names nobody.
@@ -139,6 +140,16 @@ function subIssuesInput(value) {
   if (!Number.isSafeInteger(cap) || cap < 1)
     fail("github.subIssues.maxPerParent must be a whole number of at least 1.");
   return { maxPerParent: cap };
+}
+
+// `github.issues.includeDone` (R74): whether a task already done when its
+// spec is approved gets an issue. Off by default: only open tasks do.
+function issuesInput(value) {
+  if (value === undefined || value === null) return { includeDone: false };
+  onlyKeys(value, ["includeDone"], "github.issues");
+  if (value.includeDone !== undefined && typeof value.includeDone !== "boolean")
+    fail("github.issues.includeDone must be true or false.");
+  return { includeDone: value.includeDone === true };
 }
 
 function projectInput(value) {
@@ -570,6 +581,7 @@ export function normalizeGitHubPolicy(value) {
       optional: true,
     }),
     subIssues: subIssuesInput(value.subIssues),
+    issues: issuesInput(value.issues),
     repositories: Object.fromEntries(
       Object.entries(repositories)
         .sort(([left], [right]) => left.localeCompare(right))
