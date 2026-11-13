@@ -45,6 +45,8 @@ export const laneBackground = (tint: string) => `color-mix(in srgb, ${tint} 8%, 
 export interface LaneCard {
   id: string
   title: string
+  // A manual task (R61.11): no agent works on it; tagged Manual.
+  manual?: boolean
   epic: string | null
   // For filtering: the epic's ID, the task's repository and plan.
   epicId: string | null
@@ -130,6 +132,7 @@ export function deliveryLanes(graph: Graph | null, items: DeliveryItem[]): Recor
     lanes[lane].push({
       id,
       title: item?.title ?? task!.title,
+      manual: Boolean(task?.manual),
       epic: epic ? (titles.get(epic) ?? epic) : null,
       epicId: epic,
       repository: task?.repository ?? null,

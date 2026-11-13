@@ -6,10 +6,14 @@
 // Plans as a draft once it lints clean. When Spec Builder is off, an Avoozl
 // planner chat is the fallback. Nothing here approves a plan, starts
 // delivery or pushes.
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useAppApi, useChatLauncher, useNavigate } from '@kirocrew/app-sdk'
 import { Btn, Input } from '@kirocrew/app-sdk/ui'
-import { ExternalLink, MessageSquare, X } from './icons.ts'
+import { ExternalLink, FileText, MessageSquare, Package, X } from './icons.ts'
+import { RadioFold } from './RadioFold.tsx'
+import { TemplateStart, templateKey, type InputValues } from './TemplateStart.tsx'
+import { missingInputs, notesClient, type TemplateSummary } from './notes-api.ts'
+import { importInput, pluginsClient, type PackPreview } from './plugins-api.ts'
 import { ICON, IconLabel, SectionHeading, useConfirm } from './controls.tsx'
 import { useMedia } from './use-media.ts'
 import { trapStep } from './focus-trap.ts'
@@ -17,7 +21,18 @@ import { useBackStep } from './NavHistory.tsx'
 import { modalOpen } from './Modal.tsx'
 import { LAYER } from './layers.ts'
 import { errorMessage, workspaceClient, type Repository } from './workspace-api.ts'
-import { EMPTY_NEW_PLAN, EPIC_PROBLEM, formProblems, isDirty, nameProblem, newPlanClient, SPEC_NAME, type NewPlanForm, type NewPlanPreview } from './new-plan-api.ts'
+import {
+  EMPTY_NEW_PLAN,
+  EPIC_PROBLEM,
+  formProblems,
+  isDirty,
+  nameProblem,
+  newPlanClient,
+  SPEC_NAME,
+  templateProblems,
+  type NewPlanForm,
+  type NewPlanPreview,
+} from './new-plan-api.ts'
 import { openSpecBuilder, specBuilderClient, specBuilderProblem } from './spec-builder-api.ts'
 
 // Spec Builder resolves symlinks (/tmp is /private/tmp on macOS).
@@ -56,6 +71,8 @@ export default function NewPlanDrawer(props: {
   epics?: { id: string; title: string }[]
   // Make it a spec (R63.9): fields filled from an idea, and its id.
   seed?: Partial<NewPlanForm>
+  // Which way it opens; Blank unless said.
+  start?: 'blank' | 'template'
   onClose: (notice: string | null) => void
 }) {
   const api = useAppApi()
@@ -77,6 +94,21 @@ export default function NewPlanDrawer(props: {
   // Spec Builder could not be reached: offer the planner chat instead.
   const [fallback, setFallback] = useState(false)
   const [shown, setShown] = useState(false)
+  // Blank, or From template (R61.7): a template's inputs, and its settings
+  // imported only when ticked.
+  const [start, setStart] = useState<'blank' | 'template'>(props.start ?? 'blank')
+  const [templates, setTemplates] = useState<TemplateSummary[] | null>(null)
+  const [picked, setPicked] = useState<string | null>(null)
+  const [values, setValues] = useState<InputValues>({})
+  const [importSettings, setImportSettings] = useState(false)
+  const [settingsPreview, setSettingsPreview] = useState<PackPreview | null>(null)
+  const onPreview = useCallback((preview: PackPreview | null) => {
+    setSettingsPreview(preview)
+    setImportSettings(false)
+  }, [])
+  const notes = useMemo(() => notesClient(api), [api])
+  const plugins = useMemo(() => pluginsClient(api), [api])
+  const template = templates?.find((t) => templateKey(t) === picked) ?? null
   const panel = useRef<HTMLDivElement>(null)
   const set = (change: Partial<NewPlanForm>) => {
     setForm((now) => ({ ...now, ...change }))
@@ -104,7 +136,23 @@ export default function NewPlanDrawer(props: {
     }
   }, [api, props.workspaceId])
 
-  const dirty = isDirty(form)
+  useEffect(() => {
+    if (start !== 'template' || templates !== null) return
+    let live = true
+    notes.templates(props.workspaceId).then(
+      (found) => {
+        if (!live) return
+        setTemplates(found.templates)
+        if (found.templates.length === 1) setPicked(templateKey(found.templates[0]))
+      },
+      (caught: unknown) => live && (setTemplates([]), setError(errorMessage(caught))),
+    )
+    return () => {
+      live = false
+    }
+  }, [notes, props.workspaceId, start, templates])
+
+  const dirty = isDirty(form) || Object.values(values).some((v) => (Array.isArray(v) ? v.length > 0 : Boolean(String(v).trim())))
   const close = async () => {
     if (busy) return
     if (dirty && !(await ask({ title: 'Discard this new spec?', body: 'What you typed is not saved anywhere.', action: 'Discard' }))) return
@@ -139,7 +187,12 @@ export default function NewPlanDrawer(props: {
     }
   }, [])
 
-  const problems = repositories ? formProblems(form, props.taken, repositories.length) : []
+  const problems =
+    start === 'template'
+      ? [...(template ? [] : ['Pick a template.']), ...templateProblems(form, props.taken, template ? missingInputs(template, values) : [])]
+      : repositories
+        ? formProblems(form, props.taken, repositories.length)
+        : []
   const nameIssue = nameTouched || tried ? nameProblem(form.name, props.taken) : null
 
   const run = async (step: () => Promise<void>) => {
@@ -177,8 +230,26 @@ export default function NewPlanDrawer(props: {
   }
   const handOff = (writeSteering: boolean) => run(() => handOffNow(writeSteering))
 
+  // From template: import the settings only when ticked, against the exact
+  // preview shown, then open the planner chat the template seeds.
+  const fromTemplate = () =>
+    run(async () => {
+      if (!template) return
+      if (importSettings && settingsPreview)
+        await plugins.packImport(props.workspaceId, { ...importInput(settingsPreview, false, false), template: template.id })
+      const result = await client.fromTemplate(props.workspaceId, form, { plugin: template.plugin, id: template.id, version: template.version }, values)
+      openChat({ message: result.message, agent: result.agent, autoSend: true })
+      props.onClose(
+        `A planner chat is drafting ${result.name} from ${template.title}.${importSettings ? ' Its settings were imported.' : ''} It shows here as a draft once its folder is complete; you approve it.`,
+      )
+    })
+
   const submit = () => {
     setTried(true)
+    if (start === 'template') {
+      if (problems.length) return
+      return fromTemplate()
+    }
     if (problems.length || !repositories) return
     setFallback(false)
     return run(async () => {
@@ -243,7 +314,9 @@ export default function NewPlanDrawer(props: {
           }}
         >
           <p className="text-xs text-muted">
-            Kiro Crew&apos;s Spec Builder drafts the spec from this: requirements, design, then tasks, each for you to review. Avoozl then writes the manifest, and the spec shows in Specs as a draft. Nothing is approved or started.
+            {start === 'template'
+              ? 'An Avoozl planner chat drafts the spec from the template and what you fill in. It shows in Specs as a draft. Nothing is approved or started.'
+              : "Kiro Crew's Spec Builder drafts the spec from this: requirements, design, then tasks, each for you to review. Avoozl then writes the manifest, and the spec shows in Specs as a draft. Nothing is approved or started."}
           </p>
           <Field id="avoozl-new-plan-name" need="required" label="Name" hint="Becomes the spec folder name: lowercase letters, digits and hyphens." problem={nameIssue}>
             <Input
@@ -294,6 +367,23 @@ export default function NewPlanDrawer(props: {
               ))}
             </datalist>
           </Field>
+          <RadioFold<'blank' | 'template'>
+            name="avoozl-new-plan-start"
+            label="How to start"
+            value={start}
+            onChange={(next) => {
+              setStart(next)
+              setTried(false)
+              setError(null)
+            }}
+            sections={[
+              {
+                key: 'blank',
+                title: 'Blank',
+                line: 'Spec Builder drafts it from what you want, phase by phase.',
+                icon: FileText,
+                fields: (
+                  <div className="flex flex-col gap-3">
           <Field id="avoozl-new-plan-phases" need="optional" label="Phases" hint="One per line; each becomes a heading in tasks.md. Left blank, the planner picks them.">
             <textarea
               id="avoozl-new-plan-phases"
@@ -351,6 +441,36 @@ export default function NewPlanDrawer(props: {
               style={fieldStyle}
             />
           </Field>
+                  </div>
+                ),
+              },
+              {
+                key: 'template',
+                title: 'From template',
+                line: 'Start from a workflow template in an approved plugin: its phases, proofs and manual steps.',
+                icon: Package,
+                fields: (
+                  <TemplateStart
+                    workspaceId={props.workspaceId}
+                    templates={templates}
+                    picked={picked}
+                    onPick={(key) => {
+                      setPicked(key)
+                      setValues({})
+                    }}
+                    values={values}
+                    onValues={setValues}
+                    repositories={repositories ?? []}
+                    epics={props.epics ?? []}
+                    tried={tried}
+                    importSettings={importSettings}
+                    onImportSettings={setImportSettings}
+                    onPreview={onPreview}
+                  />
+                ),
+              },
+            ]}
+          />
           {steering && (
             <section aria-labelledby="avoozl-new-plan-steering" className="flex flex-col gap-2 rounded border p-3 text-sm" style={{ borderColor: 'var(--border)' }}>
               <h4 id="avoozl-new-plan-steering" className="font-medium">
@@ -388,8 +508,8 @@ export default function NewPlanDrawer(props: {
         </form>
         <div className="flex items-center gap-2 border-t px-4 py-3" style={{ borderColor: 'var(--border)' }}>
           <Btn type="submit" form="avoozl-new-plan-form" primary disabled={busy || repositories === null || steering !== null} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <ExternalLink size={ICON} aria-hidden="true" />
-            {busy ? 'Opening…' : 'Open in Spec Builder'}
+            {start === 'template' ? <MessageSquare size={ICON} aria-hidden="true" /> : <ExternalLink size={ICON} aria-hidden="true" />}
+            {busy ? 'Opening…' : start === 'template' ? 'Open a planner chat' : 'Open in Spec Builder'}
           </Btn>
           <Btn type="button" onClick={() => void close()} disabled={busy}>
             Cancel

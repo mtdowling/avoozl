@@ -38,7 +38,7 @@ const STATE_COLOR: Record<NodeState, string> = {
   deferred: 'var(--muted)',
 }
 
-const KIND_LABEL: Record<string, string> = { ...CONFLICT_LABELS, delivery: 'Delivery', 'github-conflict': 'GitHub edit' }
+const KIND_LABEL: Record<string, string> = { ...CONFLICT_LABELS, delivery: 'Delivery', 'github-conflict': 'GitHub edit', manual: 'Manual' }
 
 // Wide screens pair two cards per row. The row has a fixed height, so both
 // cards are the same height, and a card with more content scrolls inside
@@ -97,7 +97,7 @@ function AttentionRow({
 }) {
   return (
     <li className="flex flex-wrap items-start gap-2 border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)' }}>
-      <Badge variant={['decision', 'needs-human', 'review'].includes(item.kind) ? 'warning' : 'danger'}>
+      <Badge variant={['decision', 'needs-human', 'review', 'manual'].includes(item.kind) ? 'warning' : 'danger'}>
         {KIND_LABEL[item.kind] ?? item.kind}
       </Badge>
       <span className="min-w-0 flex-1">

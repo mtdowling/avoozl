@@ -134,7 +134,9 @@ import {
   addPlugin,
   approvePlugin,
   disablePlugin,
+  approvedTemplates,
   inspectPlugins,
+  pickTemplate,
   pluginHost,
   importPluginPack,
   previewPlugin,
@@ -231,6 +233,8 @@ const PLUGIN_OPERATIONS = new Set([
   "plugin.update",
   "plugin.pack.preview",
   "plugin.pack.import",
+  "template.list",
+  "template.preview",
 ]);
 import {
   advanceGitHubBreakdowns,
@@ -405,6 +409,21 @@ import {
   kiroCrewSessions,
   movedOperation,
 } from "./moved-operations.mjs";
+import { completeManual, reopenManual } from "./manual-tasks.mjs";
+import {
+  checkInputs,
+  fill,
+  templateSeed,
+  templateSummary,
+} from "./templates.mjs";
+import {
+  addNote,
+  editNote,
+  noteAuthor,
+  notesView,
+  removeNote,
+  showNote,
+} from "./task-notes.mjs";
 
 // Avoozl-recorded validation at a task's current commit (§5.2, R38.5): its
 // integrated commit, else its delivery's, else the newest validated commit.
@@ -1092,6 +1111,16 @@ export class Operations {
         packs = repositoryPacks(options.workspaceRoot),
         plugins = inspectPlugins(options).map(({ manifest, entry, ...p }) => ({
           ...p,
+          // Templates by name only; template.list reads the rest.
+          ...(p.templates
+            ? {
+                templates: p.templates.map((t) => ({
+                  id: t.id,
+                  title: t.title,
+                  description: t.description,
+                })),
+              }
+            : {}),
           // The pack's description and groups, and what was imported from
           // it; a newer version offers its diff again (R55.7).
           ...(p.pack
@@ -1134,6 +1163,27 @@ export class Operations {
     // What importing a plugin's pack would change. Reads only.
     if (name === "plugin.pack.preview")
       return previewPluginPack(options, input);
+    // Workflow templates of approved plugins only (R61.1, R61.6). Reads only.
+    if (name === "template.list")
+      return {
+        templates: approvedTemplates(options).map(({ plugin, template }) =>
+          templateSummary(plugin, template),
+        ),
+      };
+    if (name === "template.preview") {
+      const { plugin, template } = pickTemplate(options, input),
+        { text } = checkInputs(template, input.inputs ?? {});
+      return {
+        template: templateSummary(plugin, template),
+        starter: Object.fromEntries(
+          Object.entries(template.starterFiles).map(([file, body]) => [
+            file,
+            fill(body, text),
+          ]),
+        ),
+        seed: templateSeed(template, text),
+      };
+    }
     if (context.caller)
       fail("Only a person changes plugins, in Settings or the CLI.", 403);
     const strip = (plugin) => {
@@ -2266,6 +2316,19 @@ export class Operations {
       archiveEnded(store);
       // New plan folders that lint clean become draft plans (never approved).
       importNewPlans(store, {
+        // A picked epic's folder comes back as its own draft revision.
+        saveEpic: (epic) => {
+          const folder = this.readSpec(epic),
+            stored = store.get("plans", epic);
+          if (!folder.exists) return;
+          if (!stored) createSpecPlan(store, { id: epic }, folder);
+          else if (stored.hash !== folder.hash)
+            saveSpecPlan(
+              store,
+              { id: epic, expectedHash: stored.hash },
+              folder,
+            );
+        },
         readSpec: (spec) => this.readSpec(spec),
         writeManifest: (spec, text) =>
           writeSpecManifest(this.readSpec(spec), text),
@@ -2706,6 +2769,45 @@ export class Operations {
       });
     }
     if (name === "intake.list") return listItems(store, input);
+    // Manual tasks and Links and notes (§4.16, R61.12–R61.22).
+    if (name === "task.manual.complete" || name === "task.manual.reopen") {
+      if (context.caller || context.mcp)
+        fail(
+          "Only a person marks a manual task done or reopens it, in the Avoozl page or the CLI.",
+          403,
+        );
+      const taskId = resolveTaskId(this.read(), input.taskId),
+        by = context.local ? "cli" : this.operator || "person",
+        github = this.github,
+        policy = this.workspaceRoot
+          ? readGitHubPolicyOrNull(this.workspaceRoot)
+          : null;
+      return name === "task.manual.complete"
+        ? completeManual(store, { ...input, taskId }, { by, github, policy })
+        : reopenManual(store, { taskId }, { by, github });
+    }
+    if (name.startsWith("task.notes.")) {
+      if (typeof input.taskId !== "string" || !input.taskId)
+        fail("Name the task: taskId.");
+      const data = this.read(),
+        task = data.tasks.find(
+          (t) => t.id === resolveTaskId(data, input.taskId),
+        );
+      if (!task) fail(`No task ${input.taskId}.`, 404);
+      if (name === "task.notes.list") return notesView(store, task.id);
+      if (name === "task.notes.add")
+        return addNote(store, task, input, {
+          author: noteAuthor(store, task.id, context, this.operator),
+        });
+      if (context.caller || context.mcp)
+        fail(
+          "Only a person edits, removes or shows a link or note, in the Avoozl page or the CLI.",
+          403,
+        );
+      if (name === "task.notes.edit") return editNote(store, task, input);
+      if (name === "task.notes.remove") return removeNote(store, task, input);
+      if (name === "task.notes.show") return showNote(store, task, input);
+    }
     if (name === "intake.view") return viewItem(store, input);
     if (name === "intake.sources") {
       const counts = sourceCounts(store),
@@ -3859,6 +3961,7 @@ export class Operations {
           (repo) => !repo.planning,
         ),
         specRoot: this.specRoots()[0] || null,
+        template: (ref) => pickTemplate(this.pluginOptions, ref),
       });
       if (idea && input.preview !== true)
         result.idea = graduateIdea(store, idea.itemId, result.name);

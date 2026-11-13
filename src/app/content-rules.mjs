@@ -31,7 +31,8 @@ import { fail } from "./store.mjs";
 // `proposal` screens retro proposals and `lesson` the lessons shared across
 // workspaces (design §4.18); every set covers them unless it narrows.
 // `activity` screens each activity log row (§4.19); a matching row is saved
-// redacted, so no decision opens.
+// redacted, so no decision opens. `notes` screens each task link and note
+// when it is saved (§4.16); like `plan`, every set covers it by default.
 export const BOUNDARIES = Object.freeze([
   "plan",
   "github",
@@ -41,6 +42,7 @@ export const BOUNDARIES = Object.freeze([
   "proposal",
   "lesson",
   "activity",
+  "notes",
 ]);
 const OPT_IN = new Set(["intake"]);
 export const ACTIONS = Object.freeze(["block", "report"]);
