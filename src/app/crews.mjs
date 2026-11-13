@@ -23,7 +23,8 @@ export const CREW_DELIVERIES = Object.freeze(["handback", "push"]);
 const CREW_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 const TAG = /^([a-z]+):([A-Za-z0-9._+-]{1,60})$/;
 const HOST = /^[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$/;
-const SSH_HOST = /^(?:[A-Za-z0-9._-]{1,64}@)?[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$/;
+const SSH_HOST =
+  /^(?:[A-Za-z0-9._-]{1,64}@)?[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$/;
 const SNAPSHOT = "crews.snapshot";
 
 const record = (value) =>
@@ -76,7 +77,9 @@ export function crewSettingsInput(value, at = "crews") {
         errors.push(`${where}.${key} is not a crew setting.`);
     if (
       entry.name !== undefined &&
-      (typeof entry.name !== "string" || !entry.name.trim() || entry.name.length > 80)
+      (typeof entry.name !== "string" ||
+        !entry.name.trim() ||
+        entry.name.length > 80)
     )
       errors.push(`${where}.name must be 1–80 characters.`);
     if (entry.tags !== undefined) {
@@ -108,13 +111,18 @@ export function crewSettingsInput(value, at = "crews") {
         entry.chatLimit > 32)
     )
       errors.push(`${where}.chatLimit must be a whole number 0–32.`);
-    if (entry.delivery !== undefined && !CREW_DELIVERIES.includes(entry.delivery))
+    if (
+      entry.delivery !== undefined &&
+      !CREW_DELIVERIES.includes(entry.delivery)
+    )
       errors.push(`${where}.delivery must be handback or push.`);
     if (
       entry.sshHost !== undefined &&
       (typeof entry.sshHost !== "string" || !SSH_HOST.test(entry.sshHost))
     )
-      errors.push(`${where}.sshHost must be a host name, optionally user@host.`);
+      errors.push(
+        `${where}.sshHost must be a host name, optionally user@host.`,
+      );
     if (
       entry.worktreeRoot !== undefined &&
       (typeof entry.worktreeRoot !== "string" ||
@@ -155,9 +163,13 @@ export function machineFile(file = globalAvoozlConfigPath()) {
     try {
       value = JSON.parse(text);
     } catch (error) {
-      fail(`${path.basename(file)} on this machine is invalid: ${error.message}`, 409);
+      fail(
+        `${path.basename(file)} on this machine is invalid: ${error.message}`,
+        409,
+      );
     }
-    if (!record(value)) fail(`${path.basename(file)} must hold a JSON object.`, 409);
+    if (!record(value))
+      fail(`${path.basename(file)} must hold a JSON object.`, 409);
   }
   return { file, value, hash: text === null ? null : digest(text) };
 }
@@ -224,7 +236,9 @@ export function recordCrewSnapshot(store, input = {}) {
     limits: record(input.limits) ? structuredClone(input.limits) : {},
     mc10: input.mc10 === true,
     // MC-10's attach link pattern, `/…{crew}…{slot}` (Inferred contract).
-    ...(typeof input.attach === "string" && input.attach.startsWith("/") && input.attach.length < 200
+    ...(typeof input.attach === "string" &&
+    input.attach.startsWith("/") &&
+    input.attach.length < 200
       ? { attach: input.attach }
       : {}),
     readAt: new Date().toISOString(),
@@ -272,14 +286,21 @@ export function listCrews({
     const own = settings[entry.id] || {},
       isLocal = entry.id === LOCAL,
       tags = [...(own.tags || [])].filter((t) => !t.startsWith("trust:"));
-    const trust = isLocal ? "local" : tagValue(own.tags || [], "trust") || "remote";
+    const trust = isLocal
+      ? "local"
+      : tagValue(own.tags || [], "trust") || "remote";
     tags.push("trust:" + trust);
-    const reading = isLocal ? local : remoteReading(snapshot?.headroom?.[entry.id]),
+    const reading = isLocal
+        ? local
+        : remoteReading(snapshot?.headroom?.[entry.id]),
       chatLimit =
-        own.chatLimit ?? (isLocal ? DEFAULT_CHAT_LIMIT.local : DEFAULT_CHAT_LIMIT.remote),
+        own.chatLimit ??
+        (isLocal ? DEFAULT_CHAT_LIMIT.local : DEFAULT_CHAT_LIMIT.remote),
       count = running.get(entry.id) || 0;
     let why = null;
-    const age = reading?.measuredAt ? now - Date.parse(reading.measuredAt) : null;
+    const age = reading?.measuredAt
+      ? now - Date.parse(reading.measuredAt)
+      : null;
     if (!isLocal && entry.reachable === false) why = "crew unreachable";
     else if (!reading) why = "no reading";
     else if (age === null || Number.isNaN(age) || age > stale)
@@ -312,7 +333,8 @@ export function listCrews({
       worktreeRoot: own.worktreeRoot || null,
       configured: Boolean(settings[entry.id]),
       reading,
-      ageSeconds: age === null || Number.isNaN(age) ? null : Math.round(age / 1000),
+      ageSeconds:
+        age === null || Number.isNaN(age) ? null : Math.round(age / 1000),
       running: count,
       agents: isLocal ? null : (snapshot?.agents?.[entry.id] ?? null),
       available: !why,
@@ -330,7 +352,9 @@ export function remoteHost(url) {
   if (scp && !/^[a-z]+:\/\//i.test(url)) return scp[1].toLowerCase();
   try {
     const parsed = new URL(url);
-    return parsed.protocol === "file:" ? null : parsed.hostname.toLowerCase() || null;
+    return parsed.protocol === "file:"
+      ? null
+      : parsed.hostname.toLowerCase() || null;
   } catch {
     return null;
   }

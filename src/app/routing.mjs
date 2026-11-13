@@ -41,7 +41,10 @@ const DECISIONS = "placement_decisions";
 function readTracked(workspaceRoot) {
   if (!workspaceRoot) return { value: {}, hash: null };
   try {
-    const text = fs.readFileSync(path.join(workspaceRoot, ".avoozl.json"), "utf8");
+    const text = fs.readFileSync(
+      path.join(workspaceRoot, ".avoozl.json"),
+      "utf8",
+    );
     return { value: JSON.parse(text), text };
   } catch (error) {
     if (error.code === "ENOENT") return { value: {} };
@@ -70,7 +73,12 @@ function runningCounts(bindings) {
   const crews = new Map(),
     choices = new Map();
   for (const b of bindings) {
-    if (b.status === "closed" || b.status === "lost" || b.report?.kind === "done" || b.report?.kind === "blocked")
+    if (
+      b.status === "closed" ||
+      b.status === "lost" ||
+      b.report?.kind === "done" ||
+      b.report?.kind === "blocked"
+    )
       continue;
     if (b.source !== "tick") continue;
     const crew = b.crew || LOCAL;
@@ -86,10 +94,13 @@ function runningCounts(bindings) {
 // Everything one tick or one Preview needs. `local` is this machine's
 // reading; tests pass their own.
 export function routingContext(store, options = {}) {
-  const workspaceRoot = options.workspaceRoot ?? contentBinding(store)?.workspaceRoot ?? null,
+  const workspaceRoot =
+      options.workspaceRoot ?? contentBinding(store)?.workspaceRoot ?? null,
     tracked = options.tracked ?? readTracked(workspaceRoot).value,
     file = machinePath(store, options),
-    machine = file ? machineRouting(file) : { crews: {}, staleSeconds: null, routing: null },
+    machine = file
+      ? machineRouting(file)
+      : { crews: {}, staleSeconds: null, routing: null },
     config = routingConfig({
       workspace: tracked,
       machine: { routing: machine.routing },
@@ -102,7 +113,9 @@ export function routingContext(store, options = {}) {
       settings: machine.crews,
       staleSeconds: machine.staleSeconds,
       snapshot,
-      local: options.local ?? localReading({ root: workspaceRoot || undefined, now }),
+      local:
+        options.local ??
+        localReading({ root: workspaceRoot || undefined, now }),
       running: counts.crews,
       now,
     });
@@ -147,9 +160,17 @@ export async function fetchInfo(project, { fetch = false, hosts = null } = {}) {
           await git(project.root, ["fetch", "--quiet", remote.name]);
         } catch {}
   const branch = project.integrationBranch || project.baseBranch || "main";
-  for (const ref of [project.integrationBranch, project.baseBranch || "main"].filter(Boolean))
+  for (const ref of [
+    project.integrationBranch,
+    project.baseBranch || "main",
+  ].filter(Boolean))
     try {
-      info.base = await git(project.root, ["rev-parse", "--verify", "--quiet", `refs/heads/${ref}`]);
+      info.base = await git(project.root, [
+        "rev-parse",
+        "--verify",
+        "--quiet",
+        `refs/heads/${ref}`,
+      ]);
       break;
     } catch {}
   if (!info.base) return info;
@@ -161,8 +182,13 @@ export async function fetchInfo(project, { fetch = false, hosts = null } = {}) {
       info.base,
       "refs/remotes",
     ]);
-    for (const ref of refs.split("\n").filter(Boolean)) info.on.add(ref.split("/")[0]);
-    const all = await git(project.root, ["for-each-ref", "--format=%(refname:short)", "refs/remotes"]);
+    for (const ref of refs.split("\n").filter(Boolean))
+      info.on.add(ref.split("/")[0]);
+    const all = await git(project.root, [
+      "for-each-ref",
+      "--format=%(refname:short)",
+      "refs/remotes",
+    ]);
     for (const ref of all.split("\n").filter(Boolean)) info.branches.add(ref);
   } catch {}
   info.landing = branch;
@@ -171,25 +197,43 @@ export async function fetchInfo(project, { fetch = false, hosts = null } = {}) {
 
 // Projects whose remote crews are worth a fetch this tick.
 export async function fetchAll(store, ctx, { fetch = false } = {}) {
-  const remote = ctx.crews.filter((c) => c.trust !== "local" && c.gitHosts.length);
+  const remote = ctx.crews.filter(
+    (c) => c.trust !== "local" && c.gitHosts.length,
+  );
   if (!ctx.config.active || !remote.length) return ctx.fetch;
-  const hosts = new Set(remote.flatMap((c) => c.gitHosts.map((h) => h.toLowerCase())));
+  const hosts = new Set(
+    remote.flatMap((c) => c.gitHosts.map((h) => h.toLowerCase())),
+  );
   for (const project of store.list("projects"))
-    if (project.root) ctx.fetch.set(project.id, await fetchInfo(project, { fetch, hosts }));
+    if (project.root)
+      ctx.fetch.set(project.id, await fetchInfo(project, { fetch, hosts }));
   return ctx.fetch;
 }
 
 // Why `crew` cannot fetch this task's work, or null (§4.10 Fetchable work).
-export function fetchableWhy(ctx, project, crew, { taskId, attempt, earlier = false }) {
+export function fetchableWhy(
+  ctx,
+  project,
+  crew,
+  { taskId, attempt, earlier = false },
+) {
   const info = ctx.fetch.get(project.id);
   if (crew.delivery === "handback" && (!crew.sshHost || !crew.worktreeRoot))
     return "work not fetchable (hand-back needs sshHost and worktreeRoot for this crew)";
-  const remote = info?.remotes.find((r) => r.host && crew.gitHosts.map((h) => h.toLowerCase()).includes(r.host));
-  if (!remote) return "work not fetchable (no remote on a git host this crew lists)";
+  const remote = info?.remotes.find(
+    (r) => r.host && crew.gitHosts.map((h) => h.toLowerCase()).includes(r.host),
+  );
+  if (!remote)
+    return "work not fetchable (no remote on a git host this crew lists)";
   if (!info.on.has(remote.name))
     return "work not fetchable (the base commit is only on this machine)";
   // A retry or rework resumes the earlier attempt's commits, when it left any.
-  if (attempt > 1 && earlier && crew.delivery === "push" && !info.branches.has(`${remote.name}/avoozl/${taskId}`))
+  if (
+    attempt > 1 &&
+    earlier &&
+    crew.delivery === "push" &&
+    !info.branches.has(`${remote.name}/avoozl/${taskId}`)
+  )
     return `work not fetchable (the earlier attempt's branch is not on ${remote.name})`;
   return null;
 }
@@ -207,7 +251,9 @@ export function contentForbidsRemote(store, repository) {
     (s) =>
       s.remote === "forbid" &&
       (!s.repositories ||
-        s.repositories.some((r) => r.toLowerCase() === String(repository).toLowerCase())),
+        s.repositories.some(
+          (r) => r.toLowerCase() === String(repository).toLowerCase(),
+        )),
   );
   return set?.id ?? null;
 }
@@ -253,18 +299,30 @@ function roleDefaults(role, policy, reviewRole) {
 // Map}. Returns {crew, agent, model, placement} or {wait, why, noFit,
 // removed}. `preview` keeps remote picks even without MC-10.
 export function placeOne(store, data, ctx, state, input) {
-  const { task, role: bindingRole, project, attempt = 1, policy, reviewRole, kept = null, skipModels = [], preview = false } = input;
+  const {
+    task,
+    role: bindingRole,
+    project,
+    attempt = 1,
+    policy,
+    reviewRole,
+    kept = null,
+    skipModels = [],
+    preview = false,
+  } = input;
   const role = placedRole(bindingRole);
   const subject = {
     ...subjectOf(task, data, role),
     route: task.route,
     defaultRoute: taskRoute(task),
   };
-  if (!role)
-    return { crew: LOCAL, agent: null, model: null, placement: null };
+  if (!role) return { crew: LOCAL, agent: null, model: null, placement: null };
   const evaluation = evaluatePlacement(subject, ctx.config.rules, ctx.crews, {
     remoteDispatch: ctx.remoteDispatch,
-    contentForbids: contentForbidsRemote(store, project?.repository || project?.id || taskRepository(task)),
+    contentForbids: contentForbidsRemote(
+      store,
+      project?.repository || project?.id || taskRepository(task),
+    ),
     fetchable: (crew) =>
       role !== "worker"
         ? "work not fetchable (checks and reviews run on this machine, where the commit is)"
@@ -280,7 +338,8 @@ export function placeOne(store, data, ctx, state, input) {
     removed = [...evaluation.removed];
   let allowed = [...evaluation.allowed];
   // The session (R53): after the hard rules, before the scorer.
-  const hasAgent = (crew, agent) => !agent || !crew.agents || crew.agents.includes(agent);
+  const hasAgent = (crew, agent) =>
+    !agent || !crew.agents || crew.agents.includes(agent);
   const session = chooseSession({
     task,
     role,
@@ -291,12 +350,14 @@ export function placeOne(store, data, ctx, state, input) {
     reserved: state.choices,
     kept,
     skipModels,
-    agentAvailable: (agent) => allowed.some((id) => hasAgent(byId.get(id), agent)),
+    agentAvailable: (agent) =>
+      allowed.some((id) => hasAgent(byId.get(id), agent)),
   });
   if (session.wait) {
     // An agent no allowed crew has, or no model apart from a reviewer's.
     if (!session.distinct)
-      for (const id of allowed) removed.push({ crew: id, by: "agent not installed" });
+      for (const id of allowed)
+        removed.push({ crew: id, by: "agent not installed" });
     return {
       wait: true,
       noFit: true,
@@ -328,7 +389,9 @@ export function placeOne(store, data, ctx, state, input) {
   const crews = ctx.config.active
       ? ctx.crews
       : ctx.crews.map((c) =>
-          c.id === LOCAL && ctx.localLimit === null ? { ...c, chatLimit: Infinity, available: true } : c,
+          c.id === LOCAL && ctx.localLimit === null
+            ? { ...c, chatLimit: Infinity, available: true }
+            : c,
         ),
     picked = pickCrew(candidates, crews, ctx.config.weights, state.crews);
   if (!picked)
@@ -392,7 +455,8 @@ export function openNoFit(store, task, result, { script }) {
       why: result.why,
       removed: result.removed,
       text,
-      openedAt: current?.state === "open" ? current.openedAt : new Date().toISOString(),
+      openedAt:
+        current?.state === "open" ? current.openedAt : new Date().toISOString(),
     }),
   );
   return script && current?.state !== "open"
@@ -402,7 +466,8 @@ export function openNoFit(store, task, result, { script }) {
           task: task.id,
           title: `No crew fits ${task.id}`,
           text: `${result.why}. ${text}.`,
-          resume: "Change a routing rule or a crew's tags on the Routing page; the task starts when it fits.",
+          resume:
+            "Change a routing rule or a crew's tags on the Routing page; the task starts when it fits.",
         },
       ]
     : [];
@@ -412,7 +477,11 @@ export function closeNoFit(store, taskId) {
   const current = store.get(DECISIONS, taskId);
   if (current?.state !== "open") return;
   store.transaction(() =>
-    store.put(DECISIONS, { ...current, state: "closed", closedAt: new Date().toISOString() }),
+    store.put(DECISIONS, {
+      ...current,
+      state: "closed",
+      closedAt: new Date().toISOString(),
+    }),
   );
 }
 
@@ -426,7 +495,8 @@ export function routingView(store, data, options = {}) {
   const ctx = routingContext(store, options),
     tracked =
       options.tracked ??
-      readTracked(options.workspaceRoot ?? contentBinding(store)?.workspaceRoot).value;
+      readTracked(options.workspaceRoot ?? contentBinding(store)?.workspaceRoot)
+        .value;
   return {
     crews: ctx.crews.map((c) => ({
       ...c,
@@ -457,13 +527,27 @@ export function routingView(store, data, options = {}) {
         .map(([id, p]) => [id, p.routing]),
     ),
     machine: ctx.machine.routing || {},
-    pick: { ...ctx.config.pick, preset: presetOf(ctx.config.pick), weights: ctx.config.weights },
-    router: { ...ctx.config.router, instructions: undefined, hasInstructions: Boolean(ctx.machine.routing?.router?.instructions) },
-    instructions: options.person ? (ctx.machine.routing?.router?.instructions ?? "") : null,
+    pick: {
+      ...ctx.config.pick,
+      preset: presetOf(ctx.config.pick),
+      weights: ctx.config.weights,
+    },
+    router: {
+      ...ctx.config.router,
+      instructions: undefined,
+      hasInstructions: Boolean(ctx.machine.routing?.router?.instructions),
+    },
+    instructions: options.person
+      ? (ctx.machine.routing?.router?.instructions ?? "")
+      : null,
     mc10: ctx.mc10,
     remoteDispatch: ctx.remoteDispatch,
     noFit: openNoFits(store),
-    labels: [...new Set(data.tasks.flatMap((t) => subjectOf(t, data, "worker").labels))].sort(),
+    labels: [
+      ...new Set(
+        data.tasks.flatMap((t) => subjectOf(t, data, "worker").labels),
+      ),
+    ].sort(),
   };
 }
 
@@ -472,8 +556,7 @@ export function routingView(store, data, options = {}) {
 export async function routingPreview(store, data, options = {}) {
   const ctx = routingContext(store, options);
   await fetchAll(store, ctx, { fetch: false });
-  const
-    state = { crews: new Map(), choices: new Map() },
+  const state = { crews: new Map(), choices: new Map() },
     projects = new Map(store.list("projects").map((p) => [p.id, p]));
   const tasks = readyForPreview(store, data, options);
   return {
@@ -490,7 +573,10 @@ export async function routingPreview(store, data, options = {}) {
       return {
         taskId: task.id,
         title: task.title,
-        route: result.placement?.route ?? result.evaluation?.route ?? taskRoute(task),
+        route:
+          result.placement?.route ??
+          result.evaluation?.route ??
+          taskRoute(task),
         crew: result.wait ? null : result.crew,
         agent: result.agent ?? result.session?.agent ?? null,
         model: result.model ?? result.session?.model ?? null,
@@ -499,7 +585,14 @@ export async function routingPreview(store, data, options = {}) {
         noFit: Boolean(result.noFit),
         whyNot: (result.removed || result.placement?.removed || []).concat(
           ctx.crews
-            .filter((c) => !c.available && (result.placement?.allowed || result.allowed || []).includes(c.id) && c.id !== result.crew)
+            .filter(
+              (c) =>
+                !c.available &&
+                (result.placement?.allowed || result.allowed || []).includes(
+                  c.id,
+                ) &&
+                c.id !== result.crew,
+            )
             .map((c) => ({ crew: c.id, by: c.why })),
         ),
       };
@@ -509,9 +602,7 @@ export async function routingPreview(store, data, options = {}) {
 
 // Ready local leaves, without capacity: what the next ticks would place.
 function readyForPreview(store, data, options) {
-  return options.readyCandidates
-    ? options.readyCandidates()
-    : [];
+  return options.readyCandidates ? options.readyCandidates() : [];
 }
 
 // Writes. The tracked half goes through the workspace settings file with an
@@ -523,7 +614,10 @@ export function updateRouting(settings, store, input = {}, options = {}) {
     if (!file) fail("This workspace has no machine settings file.", 409);
     const routing = input.routing;
     if (routing !== null && routing !== undefined)
-      validateRouting(routing, { tracked: false, pluginIds: options.pluginIds ?? null });
+      validateRouting(routing, {
+        tracked: false,
+        pluginIds: options.pluginIds ?? null,
+      });
     return writeMachineFile(
       file,
       (value) => {
@@ -556,8 +650,12 @@ export function updateRouting(settings, store, input = {}, options = {}) {
 export function updateCrews(store, input = {}, options = {}) {
   const file = machinePath(store, options);
   if (!file) fail("This workspace has no machine settings file.", 409);
-  const crews = input.crews === undefined ? undefined : crewSettingsInput(input.crews);
-  const stale = input.staleSeconds === undefined ? undefined : staleSecondsInput(input.staleSeconds);
+  const crews =
+    input.crews === undefined ? undefined : crewSettingsInput(input.crews);
+  const stale =
+    input.staleSeconds === undefined
+      ? undefined
+      : staleSecondsInput(input.staleSeconds);
   return writeMachineFile(
     file,
     (value) => {
