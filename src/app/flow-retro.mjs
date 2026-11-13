@@ -16,6 +16,7 @@ import {
   taskTiming,
 } from "./flow.mjs";
 import fs from "node:fs";
+import { appFile } from "./app-files.mjs";
 import { fail } from "./store.mjs";
 import { briefAllowed } from "./delivery.mjs";
 import { taskRepository } from "../work-model.mjs";
@@ -1567,10 +1568,7 @@ export function applyToConfig(file, proposal) {
 export function retroPrompt() {
   try {
     return JSON.parse(
-      fs.readFileSync(
-        new URL("../../kirocrew-app/agents/avoozl-retro.json", import.meta.url),
-        "utf8",
-      ),
+      fs.readFileSync(appFile("agents/avoozl-retro.json"), "utf8"),
     ).prompt;
   } catch {
     return null;
