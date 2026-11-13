@@ -8,6 +8,7 @@ import test from "node:test";
 import { GitHubClient } from "../github.mjs";
 import {
   BOARD_VIEW,
+  STATE_VIEW,
   TABLE_VIEW,
   cancelSetup,
   githubSetup,
@@ -376,9 +377,11 @@ test("the preview lists every write and writes nothing", async () => {
       ["repository", "create-repository", "example/plans"],
       ["project", "create-project", "Plans"],
       ["fields", "ensure-options", "Status"],
+      ["fields", "ensure-options", "Avoozl state"],
       ["fields", "ensure-options", "Release"],
       ["fields", "create-field", "Wave"],
       ["views", "create-view", BOARD_VIEW],
+      ["views", "create-view", STATE_VIEW],
       ["epic", "create-issue-type", "Epic"],
       ...[
         "avoozl:managed",
@@ -414,13 +417,29 @@ test("confirming runs the preview; a second run changes nothing", async () => {
   const project = fake.state.projects[0];
   assert.equal(project.public, false, "a new Project is set private");
   const status = project.fields.find((field) => field.name === "Status");
+  // A Project the wizard made has nobody's Todo yet: it becomes Ready,
+  // keeping its id and color.
   assert.deepEqual(
-    status.options.map((entry) => [entry.id, entry.name]),
+    status.options.map((entry) => [entry.id, entry.name, entry.color]),
     [
-      ["o-todo", "Todo"],
-      ["o-progress", "In Progress"],
-      ["o-done", "Done"],
-      [status.options[3].id, "Deferred"],
+      ["o-todo", "Ready", "GREEN"],
+      ["o-progress", "In Progress", "YELLOW"],
+      ["o-done", "Done", "PURPLE"],
+      [status.options[3].id, "Deferred", "GRAY"],
+    ],
+  );
+  assert.deepEqual(
+    project.fields
+      .find((field) => field.name === "Avoozl state")
+      .options.map((entry) => entry.name),
+    [
+      "Ready",
+      "Running",
+      "Reviewing",
+      "Needs you",
+      "Blocked or waiting",
+      "Done",
+      "Deferred",
     ],
   );
   assert.deepEqual(
@@ -436,7 +455,7 @@ test("confirming runs the preview; a second run changes nothing", async () => {
   assert.ok(!project.fields.some((field) => field.name === "Iteration"));
   assert.deepEqual(
     project.views.map((view) => view.name),
-    ["View 1", BOARD_VIEW],
+    ["View 1", BOARD_VIEW, STATE_VIEW],
   );
   assert.ok(!project.views.some((view) => view.layout === "ROADMAP_LAYOUT"));
   assert.ok(fake.state.issueTypes.example.some((type) => type.name === "Epic"));
@@ -448,6 +467,17 @@ test("confirming runs the preview; a second run changes nothing", async () => {
   );
   assert.equal(group.text, `In ${BOARD_VIEW}, Group by Release, then Save.`);
   assert.equal(group.link, `${project.url}/views/2`);
+  // The state board's columns are a field other than Status: one click,
+  // marked Inferred until a live run shows the API cannot set it.
+  const columns = first.checklist.find(
+    (item) => item.id === `group-${STATE_VIEW}`,
+  );
+  assert.equal(
+    columns.text,
+    `In ${STATE_VIEW}, set Column by to Avoozl state, then Save. (Inferred: the API did not set it.)`,
+  );
+  assert.equal(columns.inferred, true);
+  assert.equal(columns.link, `${project.url}/views/3`);
 
   // The proposed .avoozl.json: valid, with the mapped Status names.
   assert.equal(first.settings.error, null);
@@ -455,9 +485,14 @@ test("confirming runs the preview; a second run changes nothing", async () => {
   assert.deepEqual(first.settings.github.project, {
     owner: "example",
     number: project.number,
-    fields: { status: "Status", release: "Release", wave: "Wave" },
+    fields: {
+      status: "Status",
+      release: "Release",
+      wave: "Wave",
+      avoozlState: "Avoozl state",
+    },
     statusValues: {
-      todo: "Todo",
+      todo: "Ready",
       inProgress: "In Progress",
       done: "Done",
       deferred: "Deferred",
@@ -530,20 +565,24 @@ test("existing Status options keep their ids, colors and names", async () => {
     [
       ["enable-issues", "example/plans"],
       ["add-options", "Status"],
+      ["create-field", "Avoozl state"],
       ["add-options", "Release"],
       ["create-field", "Wave"],
       ["create-field", "Iteration"],
       ["create-view", BOARD_VIEW],
+      ["create-view", STATE_VIEW],
       ["create-view", TABLE_VIEW],
       ["create-issue-type", "Epic"],
     ],
   );
+  // An older board keeps its Todo as the first column: no Ready is added.
   assert.match(
     preview.writes[1].detail,
-    /Add options Deferred; keep Todo, In Progress, Done/,
+    /^Add options Deferred; keep Todo, In Progress, Done/,
   );
-  await apply(fake, input);
+  const applied = await apply(fake, input);
   assertNoDeleteOrRename(fake, before);
+  assert.equal(applied.settings.github.project.statusValues.todo, "Todo");
   const fields = fake.state.projects[0].fields;
   assert.deepEqual(
     fields
@@ -597,6 +636,12 @@ test("REST views with grouping leave no grouping click", async () => {
   assert.deepEqual(board.vertical_group_by, [status.databaseId]);
   assert.deepEqual(board.group_by, [release.databaseId]);
   assert.equal(board.layout, "BOARD_LAYOUT");
+  // Board by Avoozl state: a column per Avoozl state, no swimlanes.
+  const states = project.views.find((view) => view.name === STATE_VIEW),
+    state = project.fields.find((field) => field.name === "Avoozl state");
+  assert.deepEqual(states.vertical_group_by, [state.databaseId]);
+  assert.equal(states.group_by, undefined);
+  assert.equal(states.layout, "BOARD_LAYOUT");
   assert.equal(
     project.views.find((view) => view.name === TABLE_VIEW).layout,
     "TABLE_LAYOUT",
@@ -839,4 +884,43 @@ test("Cancel during apply stops before the next write and reports the rest", asy
   const again = await apply(fake, PLANS);
   assert.ok(again.results.every((r) => r.status === "done"));
   assert.throws(() => cancelSetup("../x"), /previewHash/);
+});
+
+test("an Avoozl state field missing options gets them; its old ones stay", async () => {
+  const existing = blankProject(7, "Board", "example");
+  existing.public = false;
+  existing.fields.push({
+    id: "F_state",
+    databaseId: 12,
+    name: "Avoozl state",
+    dataType: "SINGLE_SELECT",
+    options: [option("s-ready", "Ready", "BLUE"), option("s-old", "Parked")],
+  });
+  const fake = fakeGitHub({ repositories: APP, projects: [existing] }),
+    before = structuredClone(fake.state),
+    input = { ...PLANS, project: { owner: "example", number: 7 } },
+    preview = await run(fake, input),
+    write = preview.writes.find((entry) => entry.name === "Avoozl state");
+  assert.equal(write.action, "add-options");
+  assert.match(
+    write.detail,
+    /^Add options Running, Reviewing, Needs you, Blocked or waiting, Done, Deferred; keep Ready, Parked\.$/,
+  );
+  await apply(fake, input);
+  assertNoDeleteOrRename(fake, before);
+  const again = await run(fake, input);
+  assert.ok(!again.writes.some((entry) => entry.name === "Avoozl state"));
+  assert.ok(
+    step(again, "fields").notes.includes("Avoozl state has every option."),
+  );
+});
+
+test("Cancel before Apply writes nothing", async () => {
+  const fake = fakeGitHub({ repositories: APP }),
+    preview = await run(fake, PLANS);
+  cancelSetup(preview.previewHash);
+  assert.equal(fake.log.length, 0);
+  // Checking again after a cancel still only reads.
+  await run(fake, PLANS);
+  assert.equal(fake.log.length, 0);
 });

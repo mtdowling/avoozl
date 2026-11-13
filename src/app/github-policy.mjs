@@ -38,6 +38,7 @@ export const FIELD_KEYS = Object.freeze([
   "release",
   "wave",
   "iteration",
+  "avoozlState",
 ]);
 export const PERMISSIONS = Object.freeze([
   "read",

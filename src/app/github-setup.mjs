@@ -11,25 +11,30 @@
 import { digest } from "../model.mjs";
 import { MANAGED_LABEL_KEYS, normalizeGitHubPolicy } from "./github-policy.mjs";
 import { PROJECT_SCOPE_FIX } from "./github-project.mjs";
+import { AVOOZL_STATES } from "../delivery-lanes.mjs";
 import { parseRepository } from "./github.mjs";
 import { fail } from "./store.mjs";
 
 export const BOARD_VIEW = "Board by release";
 export const TABLE_VIEW = "Table by wave";
+export const STATE_VIEW = "Board by Avoozl state";
 const SCOPES = ["repo", "read:org", "project"];
 // A classic scope that includes another (GitHub's scope hierarchy).
 const INCLUDED_BY = { "read:org": ["write:org", "admin:org"] };
+// The first column is Ready; a board that already has Todo keeps it.
 const STATUS = [
-  ["todo", "Todo"],
+  ["todo", "Ready"],
   ["inProgress", "In progress"],
   ["done", "Done"],
   ["deferred", "Deferred"],
 ];
+const STATUS_ALIASES = { todo: ["Todo"] };
 const FIELDS = {
   status: "Status",
   release: "Release",
   wave: "Wave",
   iteration: "Iteration",
+  avoozlState: "Avoozl state",
 };
 const LABEL_COLORS = {
   managed: "5319e7",
@@ -156,6 +161,7 @@ export function setupRequest(input = {}, current = {}, milestones = []) {
       release: fields.release || FIELDS.release,
       wave: fields.wave || FIELDS.wave,
       iteration: iteration ? fields.iteration || FIELDS.iteration : null,
+      avoozlState: fields.avoozlState || FIELDS.avoozlState,
     },
     statusValues: Object.fromEntries(
       STATUS.map(([key, name]) => [
@@ -314,14 +320,19 @@ function missingScopes(state) {
 const scopeFix = (scopes) => `gh auth refresh -s ${scopes.join(",")}`;
 
 // Options to add to a single-select field: each wanted name the field lacks,
-// matched without case so "In Progress" maps "In progress".
-function optionPlan(field, wanted) {
+// matched without case so "In Progress" maps "In progress". `aliases` names
+// older option names that count as the wanted one (Status Todo for Ready).
+function optionPlan(field, wanted, aliases = {}) {
   const existing = field?.options || [],
     names = new Map(existing.map((option) => [lower(option.name), option])),
     mapped = {},
     add = [];
   for (const [key, name] of wanted) {
-    const match = names.get(lower(name));
+    const match =
+      names.get(lower(name)) ??
+      (aliases[key] || [])
+        .map((alias) => names.get(lower(alias)))
+        .find(Boolean);
     if (match) mapped[key] = match.name;
     else {
       mapped[key] = name;
@@ -331,11 +342,14 @@ function optionPlan(field, wanted) {
   return { mapped, add };
 }
 
+const aliasesOf = (key) => (key === "status" ? STATUS_ALIASES : {});
+
 const fieldType = {
   status: "SINGLE_SELECT",
   release: "SINGLE_SELECT",
   wave: "NUMBER",
   iteration: "ITERATION",
+  avoozlState: "SINGLE_SELECT",
 };
 
 // The plan: steps with their findings, and writes, each a description the
@@ -684,6 +698,7 @@ function planProject(
           { input: { projectId: created.id, public: false } },
         );
         ctx.project = await projectDetail(github, created.id);
+        ctx.created = created.id;
       },
     );
   }
@@ -704,6 +719,7 @@ function planProject(
   // Status, then Release: add missing options, keep every old one.
   const optionSteps = [
     ["status", STATUS.map(([key]) => [key, request.statusValues[key]])],
+    ["avoozlState", AVOOZL_STATES.map(([key, name]) => [key, name])],
     ...(request.releases.length
       ? [["release", request.releases.map((name) => [name, name])]]
       : []),
@@ -718,7 +734,7 @@ function planProject(
     const name = request.fields[key],
       field = byName(name);
     if (wrongType(key, field)) continue;
-    const { mapped, add } = optionPlan(field, wanted);
+    const { mapped, add } = optionPlan(field, wanted, aliasesOf(key));
     if (key === "status") Object.assign(ctx.statusValues, mapped);
     if (field && !add.length) {
       note("fields", `${field.name} has every option.`);
@@ -740,7 +756,7 @@ function planProject(
           ? `Add options ${add.join(", ")}; keep ${field.options.map((o) => o.name).join(", ")}.`
           : project
             ? `Single-select with ${add.join(", ")}.`
-            : `Add whichever of ${wanted.map(([, value]) => value).join(", ")} the new Project lacks.`,
+            : `Add whichever of ${wanted.map(([, value]) => value).join(", ")} the new Project lacks${key === "status" ? `; its default Todo is renamed ${request.statusValues.todo}` : ""}.`,
       },
       () => ensureOptions(github, ctx, key, name, wanted),
       after,
@@ -776,6 +792,7 @@ function planProject(
   // 5b Views. No Roadmap: Avoozl sets no dates.
   const views = [
     [BOARD_VIEW, "board", "status", "release"],
+    [STATE_VIEW, "board", "avoozlState", null],
     ...(request.tableByWave ? [[TABLE_VIEW, "table", null, "wave"]] : []),
   ];
   for (const [name, layout, columns, group] of views) {
@@ -795,16 +812,18 @@ function planProject(
         name,
         visibility: null,
         detail:
-          layout === "board"
-            ? `Board, a column per ${request.fields.status}, grouped by ${request.fields.release}.`
-            : `Table grouped by ${request.fields.wave}.`,
+          layout !== "board"
+            ? `Table grouped by ${request.fields.wave}.`
+            : group
+              ? `Board, a column per ${request.fields.status}, grouped by ${request.fields.release}.`
+              : `Board, a column per ${request.fields[columns]}.`,
       },
       () =>
         createView(github, ctx, request, state, {
           name,
           layout,
           columns: columns && request.fields[columns],
-          group: request.fields[group],
+          group: group && request.fields[group],
         }),
       ["project"],
     );
@@ -832,9 +851,17 @@ async function ensureOptions(github, ctx, key, name, wanted) {
       `Field ${field.name} is ${field.dataType}, not ${fieldType[key]}.`,
       409,
     );
-  const { mapped, add } = optionPlan(field, wanted);
+  // A Project this run made comes with GitHub's Todo: renamed to the first
+  // column's name, since nobody uses it yet. An older Project keeps Todo.
+  const own = key === "status" && field && ctx.created === ctx.project.id,
+    { mapped, add } = optionPlan(field, wanted, own ? {} : aliasesOf(key)),
+    todo = own
+      ? field.options.find((option) => lower(option.name) === "todo")
+      : null,
+    rename = todo && add.includes(mapped.todo) ? mapped.todo : null;
+  if (rename) add.splice(add.indexOf(rename), 1);
   if (key === "status") Object.assign(ctx.statusValues, mapped);
-  if (field && !add.length) return;
+  if (field && !add.length && !rename) return;
   const fresh = add.map((option) => ({
     name: option,
     color: "GRAY",
@@ -872,7 +899,7 @@ async function ensureOptions(github, ctx, key, name, wanted) {
   }
   const kept = field.options.map((option) => ({
     id: option.id,
-    name: option.name,
+    name: rename && option.id === todo.id ? rename : option.name,
     color: option.color,
     description: option.description ?? "",
   }));
@@ -963,14 +990,14 @@ async function createView(github, ctx, request, state, view) {
     columns = id(view.columns),
     group = id(view.group);
   try {
-    if (!group || (view.columns && !columns))
+    if ((view.group && !group) || (view.columns && !columns))
       throw Error("A grouping field is missing.");
-    const created = await github.request("POST", `${base}/views`, {
+    await github.request("POST", `${base}/views`, {
       body: {
         name: view.name,
         layout: view.layout,
         ...(columns ? { vertical_group_by: [columns] } : {}),
-        group_by: [group],
+        ...(group ? { group_by: [group] } : {}),
       },
     });
     return;
@@ -1003,6 +1030,11 @@ async function createView(github, ctx, request, state, view) {
   ctx.fallbacks.push({
     view: view.name,
     group: view.group,
+    // A board whose columns are not Status needs its column field set too.
+    columns:
+      view.columns && lower(view.columns) !== lower(request.fields.status)
+        ? view.columns
+        : null,
     number: created?.number ?? null,
   });
 }
@@ -1025,11 +1057,16 @@ function checklist(request, steps, ctx) {
         link: DOCS.scopes,
       });
     }
+  // Inferred, not proved live: GitHub's API makes the view but may not set
+  // its grouping (L7b), so the one click is listed.
   for (const fallback of ctx.fallbacks)
     items.push({
       id: `group-${fallback.view}`,
-      text: `In ${fallback.view}, Group by ${fallback.group}, then Save.`,
+      text: fallback.columns
+        ? `In ${fallback.view}, set Column by to ${fallback.columns}, then Save. (Inferred: the API did not set it.)`
+        : `In ${fallback.view}, Group by ${fallback.group}, then Save.`,
       link: url && fallback.number ? `${url}/views/${fallback.number}` : url,
+      ...(fallback.columns ? { inferred: true } : {}),
     });
   if (steps.workflows.status === "ok") {
     const values = {

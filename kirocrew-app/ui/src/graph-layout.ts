@@ -22,6 +22,7 @@
 // in epic order. Kept free of JSX so node
 // can test it directly.
 import type { Graph, GraphTask } from './views-api.ts'
+import { nodeState as sharedNodeState } from '../../../src/delivery-lanes.mjs'
 
 export type NodeState = 'ready' | 'running' | 'waiting' | 'needs-you' | 'done' | 'deferred'
 
@@ -154,16 +155,9 @@ export interface Layout {
   height: number
 }
 
-// Older backends send no `state`; derive the same order from the fields
-// they do send.
-export function nodeState(task: GraphTask): NodeState {
-  if (task.state) return task.state
-  if (task.complete) return 'done'
-  if (task.decision || task.status === 'blocked') return 'needs-you'
-  if (task.status === 'deferred') return 'deferred'
-  if (task.status === 'running' || task.status === 'review') return 'running'
-  return task.ready ? 'ready' : 'waiting'
-}
+// Older backends send no `state`; the shared rule derives the same order
+// from the fields they do send (src/delivery-lanes.mjs).
+export const nodeState: (task: GraphTask) => NodeState = sharedNodeState
 
 // wave = 1 + the highest wave of what a task waits on (its blocking
 // prerequisites). A cycle, which the plan validator refuses, is cut at the

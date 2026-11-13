@@ -85,7 +85,9 @@ export function noActionReason(item: ConflictItem): string | null {
   if (item.kind === 'github-conflict' && !item.choices?.length)
     return item.field === 'identity'
       ? 'Two issues claim this task. Close or merge the duplicate issue on GitHub; Avoozl reads the result on its next tick.'
-      : 'GitHub owns the issue state. Reopen or close it on GitHub; Avoozl reads the result on its next tick.'
+      : item.field === 'Avoozl state'
+        ? 'Avoozl fills Avoozl state and already wrote its value back. Move the card’s Status instead. This clears when the task’s state next changes.'
+        : 'GitHub owns the issue state. Reopen or close it on GitHub; Avoozl reads the result on its next tick.'
   if (item.kind === 'resource') return 'Two active runs share a resource. Stop one run, or wait for one to finish.'
   if (item.kind === 'tracker-conflict') return 'The tracker record owns this field. Change it there or in the plan.'
   if (item.kind === 'content-unavailable')
