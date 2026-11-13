@@ -1463,6 +1463,7 @@ Metrics (Requirement 43.7), computed on read, never stored as truth:
 | First-pass rate | Tasks accepted on attempt 1 with no `rework` span / finished tasks | Lean first-pass yield |
 | Time to fix | Line stopped to line green, per stop | DORA time to restore |
 | Change failure rate | Integrated tasks later named culprit / integrated tasks | DORA change failure rate |
+| Fix-work share | Finished fix tasks (bugfix spec, `type: fix`, stop-the-line fix, or issue type Bug) / finished tasks (R79) | Failure demand |
 
 `review` and `queued` count as waiting in flow efficiency because, from the
 task's side, both are waiting for someone else. Deployment frequency, the
@@ -3090,6 +3091,65 @@ row that cannot be written never loses the record in `provider_switches`
 | Credits mark the provider, rate limits the model | Credits are an account's; a limit is often one model's |
 | Person marks stay until undone | The owner said so; a timer would undo a decision |
 | Settings on this machine | Limits and reachable models differ per machine |
+
+### 4.21 Investigate before coding
+
+Added 2026-11-13 (Requirement 75). A leaf's first turn is findings, not
+code; a falsifier tries to break them; a gate decides.
+
+```text
+dispatch ─▶ worker: findings + confidence (no edits)
+              ─▶ falsifier (read-only, other model): stands | refuted + confidence
+                   ├─ both ≥ minConfidence and stands ─▶ worker: go ahead
+                   └─ else ─▶ Needs you: Go ahead | Investigate again | Stop
+```
+
+| Setting | Values | Default |
+|---|---|---|
+| `delivery.investigate.mode` | `all`, `not-small`, `off` | `not-small` |
+| `delivery.investigate.minConfidence` | `medium`, `high` | `high` |
+| Manifest `investigate` | `true`, `false` | from the mode |
+
+The falsifier is role `falsifier`, chosen like a review role (§4.10) with
+`distinctFrom: model`. Its brief quotes the findings as untrusted data. One
+round per press of Investigate again; the attempt does not spend a retry.
+
+### 4.22 Evidence bundle
+
+Added 2026-11-13 (Requirement 76). One bundle per task under
+`.avoozl/local/evidence/<task-id>/`: `bundle.json` (entries with kind,
+time, source and text) and attached files. Kinds: `findings`, `falsifier`,
+`decision`, `review`, `check`, `file`. Every entry passes the content rules
+and the secret screen first; a blocked entry is saved redacted. The drawer
+reads it through `task.evidence`. On GitHub one comment per pull request,
+found again by its marker, holds the text summary and is updated in place.
+
+### 4.23 Bringing pull requests up to date
+
+Added 2026-11-13 (Requirement 77). The tick remembers each base branch
+head. When it moves, it reads `mergeable` and `mergeStateStatus` of the open
+pull requests its writers opened and, for `CONFLICTING` or `BEHIND` (when up
+to date is required), sends one pull request feedback message of kind
+`base-moved`: merge the base branch in, fix, check, push; never force push.
+Avoozl refuses to send a brief or message that holds `--force`,
+`--force-with-lease` or `push -f`.
+
+### 4.24 Rules from repeated corrections
+
+Added 2026-11-13 (Requirement 78). `corrections` rows {id, taskId, by,
+kind, summary, at}. The retro groups them by meaning (model) and needs two
+tasks per group to propose a rule. Approval makes one leaf, source `retro`,
+that edits `.kiro/steering/avoozl-rules.md`; it reaches the repository by
+the usual review and checks. PDCA watches the group after the rule lands.
+
+### 4.25 Ship mode
+
+Added 2026-11-13 (Requirement 80).
+
+| `delivery.ship` | Writer | Avoozl | Person |
+|---|---|---|---|
+| `auto-merge` (default) | enables auto-merge | waits for the merge | nothing |
+| `manual` | does not enable auto-merge | Needs you: Ready to merge, when checks and reviews pass | merges on GitHub, or presses Integrate in Local only |
 
 ## 5. Local workflow
 
@@ -5207,6 +5267,7 @@ and next decision, are tasks in `tasks.md` (P1–P32). Summary:
 | P41 | Budgets and receipts in a temporary workspace with fake workers and fake usage rows: priced and unpriced turns, caps by level, retries and review rounds on one cap, a batch's shared cap, the stop message at the next turn with no session stopped, `budget_reached` on MCP, Raise budget and Stop as a person only, a price change recomputing a receipt with both versions shown, unknown spend for Crew Mode and a failed read, JSON export, the retro payload, and no budget changing a gate (Phase 27) |
 | P42 | Prompt and skill proposals and lessons with fake workers and a fake retro model in two temporary workspaces: locked sections, stale bases and blocked text dropped, person-only approve and revert, overrides outside shipped files, a repository skill change as a leaf and an external one as a note, PDCA per version with mixed windows, lessons shared with no source text, opt-out, refused lesson text, drift marks that clear on confirmation, the lessons review, override drift with a three-way diff, pack versions, and person-only export (Phase 28) |
 | P43 | The activity log in a temporary workspace with a fake GitHub and a fake plugin: every listed local action and tick event makes one row, a change seen twice makes one, a secret-shaped or rule-matched value is saved redacted, rows past retention go on the tick, and the tab and `plans_view` read the same rows (Phase 29) |
+| P45 | Investigate first, evidence bundles, staying current, rules from corrections, fix-work share and ship mode with fake workers, a fake falsifier and a fake GitHub (Phase 34) |
 | P44 | Provider health and switching with fake usage rows, fake error rows and a fake Kiro Crew model change in a temporary workspace: usage and error marks, recovery by success and cooldown, new tasks and weighted choices skipping low and out, retries keeping a model until it is out, running chats switched in the same session at the next turn, the review gate across a switch, the manual switch with preview hash and Also new tasks, person-only 403s, Needs you, and nothing changed with no settings (Phase 30) |
 
 A new server, shared database, or plugin mechanism other than the seam in §4.8
@@ -5243,6 +5304,8 @@ Detailed in `tasks.md`. **Proposed** order:
 | 28. Retro prompt and skill proposals, and lessons | Prompt and skill diffs with evidence from the retro, local per-workspace prompt overrides with revert, repository skill changes as leaves and external ones as notes, PDCA per version, a lessons store on this Mac shared across workspaces, lessons packs, and healing of lessons and overrides (§4.18) | Starts after 12.9 and 12.10; P42 |
 | 29. Activity log | One SQLite activity table, one `recordActivity` helper, local actions and the tick's GitHub and plugin events, screening and redaction, retention on the tick, the Activity tab and `plans_view` action `activity` (§4.19) | Starts after 10.4, 12.11 and 14.10; P43 |
 | 30. Provider health and switching | Health levels from usage reads and error rows, routing that skips low and out, running chats moved with Kiro Crew's model change, the manual Switch model dialog, Needs you, and Settings › Providers (§4.20) | Starts after 11.11 and 12.12; P44 |
+| 33. Only open tasks get issues | `github.issues.includeDone` (default off): done tasks get no issue, card or link at approval (§6.3) | Built in PR #34 |
+| 34. Investigate first, evidence, staying current, rules, fix share, ship mode | Findings and a falsifier before code, an evidence bundle per task, pull requests brought up to date without force pushes, rules from repeated corrections, the fix-work share in Flow, and `delivery.ship` (§4.21–§4.25) | Starts after 15.4, 28.3 and 12.11; P45 |
 
 ### 12.1 Bootstrap: building Avoozl before Avoozl works
 

@@ -4014,3 +4014,155 @@ that are already done.
 6. The issue preview SHALL list the skipped tasks (`skippedDone`), and a
    test SHALL show that a done task gets no issue by default and gets one
    with `includeDone: true`.
+
+### Requirement 75: Investigate before coding
+
+Added 2026-11-13 (owner decision). Design §4.21.
+
+**User story:** As the owner, I want a worker to show what it found before
+it writes code, and a second chat to try to prove it wrong, so that agents
+do not build on a wrong reading of the task.
+
+#### Acceptance criteria
+
+1. WHEN a leaf is dispatched and investigation applies THEN its worker SHALL
+   first report findings through `plans_report` kind `findings`: what it
+   read, the cause or approach it believes, the change it plans, how it will
+   check it, and a confidence of `low`, `medium` or `high`. It SHALL NOT
+   change files in this step.
+2. Avoozl SHALL then open one falsifier session for the findings. Its brief
+   SHALL hold the task and the findings as data and SHALL ask it to find
+   evidence that the findings are wrong. It SHALL be read-only, SHALL use a
+   model other than the writer's when one is allowed, and SHALL reply
+   `stands` or `refuted` with its evidence and its own confidence.
+3. Coding SHALL start only WHEN the worker's confidence and the falsifier's
+   confidence are both at least `delivery.investigate.minConfidence`
+   (default `high`) and the reply is `stands`. Avoozl SHALL then tell the
+   same worker to go ahead.
+4. Otherwise the task SHALL wait in **Needs you** with the findings and the
+   falsifier's reply, offering **Go ahead**, **Investigate again** (one new
+   round, with the reply as data), and **Stop**. These SHALL be person only.
+5. `delivery.investigate.mode` SHALL be `all`, `not-small` (default) or
+   `off`. `not-small` skips leaves marked `size: "small"`. A manifest task
+   MAY set `investigate: false` or `true` to override the mode.
+6. Investigation and the falsifier SHALL be Flow spans of their own and
+   SHALL count toward the task's budget (Requirement 67).
+7. With `mode: off`, dispatch SHALL behave exactly as before.
+
+### Requirement 76: Evidence bundle per task
+
+Added 2026-11-13 (owner decision). Design §4.22.
+
+**User story:** As a reviewer, I want one place that shows what a task
+found, decided and checked, so that I can review the change without
+reading the chat.
+
+#### Acceptance criteria
+
+1. Each task SHALL have one evidence bundle that Avoozl adds to as the task
+   runs: findings and the falsifier's reply (Requirement 75), decisions and
+   who answered them, review verdicts, check results with the tail of each
+   failing log, and files the worker attaches (screenshots or video) through
+   `plans_report` field `evidence`.
+2. The bundle SHALL be stored locally under the workspace's `.avoozl/local/`
+   folder, never in a tracked file, and SHALL pass the content rules and the
+   secret screen before it is saved. An attached file SHALL be at most 20 MB
+   and of an image or video type.
+3. The task drawer SHALL show the bundle as an Evidence section, newest
+   first.
+4. WHEN the task has a pull request THEN Avoozl SHALL keep one comment on it
+   with the bundle's text summary (no attached files unless
+   `github.evidence.attach` is true for the repository), checked at the
+   `github` boundary. Comments people leave on the pull request SHALL go to
+   the writer as pull request feedback does today (Requirement 54).
+5. The driver export (Requirement 66) SHALL carry the bundles.
+
+### Requirement 77: Bring open pull requests up to date when main moves
+
+Added 2026-11-13 (owner decision). Design §4.23.
+
+**User story:** As the owner, I want open agent pull requests to keep up
+with the base branch, so that they do not sit in conflict.
+
+#### Acceptance criteria
+
+1. WHEN a repository's base branch head changes THEN on that tick Avoozl
+   SHALL read every open pull request its writers opened in that
+   repository, and its mergeable state.
+2. WHEN a pull request conflicts with the base branch, or the repository
+   requires branches to be up to date and it is behind, THEN Avoozl SHALL
+   send its writer one message to merge the base branch into the task
+   branch, fix the conflicts, run the checks and push.
+3. The writer SHALL merge, never rebase a pushed branch, and SHALL NEVER
+   force push. Avoozl SHALL refuse to send a brief or feedback message that
+   asks for a force push.
+4. A gone writer SHALL get the resume attempt of pull request feedback, and
+   each update SHALL count as one feedback round (Requirement 54).
+5. For local delivery, a task branch whose worktree is behind the
+   integration branch SHALL be merged forward the same way before its
+   checks run.
+
+### Requirement 78: Rules from repeated corrections
+
+Added 2026-11-13 (owner decision). Design §4.24.
+
+**User story:** As the owner, I want the same correction I keep giving to
+become a written rule, so that I do not give it a third time.
+
+#### Acceptance criteria
+
+1. Avoozl SHALL record a **correction** when a person requests changes on
+   an agent's pull request, answers a decision by sending work back, reverts
+   an integrated agent commit, or presses **Pick again** with a reason. It
+   SHALL store the person, the task, the time and a summary of at most 300
+   characters, after the content rules.
+2. The retro SHALL receive the corrections since the last retro. WHEN it
+   finds the same correction on two or more different tasks THEN it MAY
+   propose a rule: a short text with the corrections it rests on.
+3. An approved rule SHALL land as one leaf through `intake.deliver` (source
+   `retro`) that adds or edits `.kiro/steering/avoozl-rules.md` in the
+   repository, so it arrives as a pull request (or an integrated commit in
+   Local only mode). Approval SHALL be person only.
+4. A proposed rule SHALL never name another repository, a task ID, a path
+   outside the repository, or a person.
+5. Flow SHALL show corrections per week, and the PDCA check (Requirement
+   68.12) SHALL report whether the corrected thing happened again.
+
+### Requirement 79: Fix-work share in Flow
+
+Added 2026-11-13 (owner decision). Design §4.11.
+
+**User story:** As the owner, I want to see how much finished work was bug
+fixes, so that I can tell whether delivery is getting cleaner.
+
+#### Acceptance criteria
+
+1. A finished task SHALL count as fix work WHEN its spec is a bugfix spec
+   (`bugfix.md`), its manifest `type` is `fix`, it is a stop-the-line fix
+   task, or its GitHub issue type is `Bug`.
+2. Flow SHALL show the fix-work share, fix tasks over finished tasks, as a
+   card and in the charts by day and by week, with the same filters as the
+   other metrics.
+3. The retro payload SHALL carry the share and its count.
+
+### Requirement 80: Ship mode
+
+Added 2026-11-13 (owner decision). Design §4.25.
+
+**User story:** As the owner, I want to choose whether finished pull
+requests merge by themselves or wait for me, so that I can keep the last
+step by hand when I want it.
+
+#### Acceptance criteria
+
+1. `delivery.ship` SHALL be `auto-merge` (default, today's behavior) or
+   `manual`, per workspace and per repository; the repository's value wins.
+2. With `auto-merge`, Requirement 18 SHALL apply unchanged.
+3. With `manual`, briefs SHALL tell writers not to enable auto-merge, and
+   Avoozl SHALL say so on Settings > Delivery. WHEN a pull request's
+   required checks pass and its reviews are met THEN Needs you SHALL show
+   one **Ready to merge** item with a link to it; the person merges on
+   GitHub, and Requirement 16 decides completion as before.
+4. With `manual` in Local only mode, integration SHALL wait for a person's
+   **Integrate** on the Ready to merge item.
+5. Avoozl SHALL still never merge a pull request itself.
