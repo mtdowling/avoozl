@@ -268,6 +268,25 @@ export function incomingItem(value, where = "item") {
     closedAt: closed ? actor(value.closedAt, `${where} closedAt`) : null,
     updatedAt: text(value.updatedAt, `${where} updatedAt`, { max: 64 }),
     fields,
+    trigger: trigger(value.trigger, `${where} trigger`),
+  };
+}
+
+// The event that last changed what a rule would match: who acted and that
+// person's standing, which the plugin maps from its own system's roles.
+const STANDINGS = ["none", "read", "triage", "write", "maintain", "admin"];
+function trigger(value, where) {
+  if (value === undefined || value === null) return null;
+  object(value, where);
+  if (value.permission !== undefined && !STANDINGS.includes(value.permission))
+    throw new ContractError(
+      `${where} permission must be one of ${STANDINGS.join(", ")}.`,
+    );
+  return {
+    actor: actor(value.actor, `${where} actor`),
+    permission: value.permission ?? null,
+    eventId: actor(value.eventId, `${where} eventId`),
+    at: actor(value.at, `${where} at`),
   };
 }
 

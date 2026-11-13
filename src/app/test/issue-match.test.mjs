@@ -13,6 +13,7 @@ const empty = {
   labelsNone: [],
   assignee: null,
   unassigned: false,
+  source: null,
 };
 
 test("match parses each supported qualifier", () => {
@@ -64,6 +65,7 @@ test("formatMatch writes a line that parses back to the same fields", () => {
     labelsNone: ["hold"],
     assignee: "mona",
     unassigned: false,
+    source: null,
   };
   const line = formatMatch(fields);
   assert.equal(

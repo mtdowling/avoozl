@@ -6,6 +6,11 @@
 // reports who closed a record (`actor`). `config.dropMarker` makes it forget
 // the marker, as a tracker that cannot store one would. Avoozl's own closes
 // are recorded as `config.account`. No network, no real system.
+//
+// As an intake source (design §4.12) it also answers `poll`: the items in
+// the JSON file `config.intakeFile` ({items: [...]}) changed since the
+// cursor. A test edits that file to add, change or close an item (with a
+// newer `updatedAt`); `{fail: "reason"}` in it makes the next poll fail.
 import fs from "node:fs";
 
 const read = (config) => {
@@ -68,5 +73,26 @@ export const tracker = {
       });
     write(config, state);
     return { closed: Boolean(record) };
+  },
+  // Items changed since the cursor, oldest change first: the cursor is the
+  // last item's `updatedAt` and id, as a real tracker's "changed since".
+  poll({ cursor, limit }, { config }) {
+    let intake = { items: [] };
+    try {
+      intake = JSON.parse(fs.readFileSync(config.intakeFile, "utf8"));
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+    if (intake.fail) throw new Error(intake.fail);
+    const mark = (item) => `${item.updatedAt}|${item.id}`,
+      changed = intake.items
+        .filter((item) => !cursor || mark(item) > cursor)
+        .sort((a, b) => mark(a).localeCompare(mark(b))),
+      page = changed.slice(0, limit);
+    return {
+      items: page,
+      cursor: page.length ? mark(page.at(-1)) : cursor,
+      more: changed.length > page.length,
+    };
   },
 };

@@ -6,10 +6,10 @@
 // crew's label, show under With Issue Radar instead.
 //
 // The tick cron reads GitHub at most once per repository per interval and
-// caches the raw items beside the database; the view applies the exclusions
-// at read time, so a rule, label, or task change shows at once.
-import fs from "node:fs";
+// keeps the raw items as `github` incoming items in SQLite; the view applies
+// the exclusions at read time, so a rule, label, or task change shows at once.
 import path from "node:path";
+import { itemKey, itemRows } from "./intake.mjs";
 import { parseMatch } from "./issue-match.mjs";
 import {
   CREW_LABEL_DEFAULTS,
@@ -169,38 +169,107 @@ export async function readUntriaged(github, query) {
   return { total, truncated: more || total > items.length, items };
 }
 
-// The cache sits beside the database, like the tick's health receipt: the
-// cron writes it and the app backend reads it.
+// The read lives in SQLite (design §4.12, R50.4): each item it returned is
+// a `github` incoming item, and each repository's read state is its
+// `intake_sources` row `github:<repository>` with the item keys the search
+// returned. `untriaged.json` is no longer written; a workspace upgraded from
+// it reads each repository once on its next tick.
 export function untriagedPath(store) {
   return store.filename && store.filename !== ":memory:"
     ? path.join(path.dirname(path.resolve(store.filename)), "untriaged.json")
     : null;
 }
 
-const memory = new WeakMap();
+const NOTICE_META = "untriagedNotice";
+const sourceId = (repository) => `github:${repository}`;
+const githubKey = (repository, number) => itemKey("github", `${repository}#${number}`);
 
 export function readCache(store) {
-  const filename = untriagedPath(store);
-  if (!filename) return memory.get(store) ?? structuredClone(EMPTY);
+  const cache = structuredClone(EMPTY);
   try {
-    const value = JSON.parse(fs.readFileSync(filename, "utf8"));
-    return value?.version === 1 ? value : structuredClone(EMPTY);
+    cache.notice = store.getMeta(NOTICE_META) ?? null;
+    const rows = new Map(itemRows(store).map((row) => [row.id, row]));
+    for (const row of store.list("intake_sources")) {
+      if (row.source !== "github" || !row.repository) continue;
+      const { id, source, repository, keys, ...state } = row;
+      cache.repositories[repository] = {
+        ...state,
+        items: (keys || [])
+          .map((number) => rows.get(githubKey(repository, number))?.search)
+          .filter(Boolean),
+      };
+    }
   } catch {
-    return structuredClone(EMPTY);
+    // An older read-only database has no intake tables yet.
   }
+  return cache;
 }
 
 function writeCache(store, cache) {
-  const filename = untriagedPath(store);
-  if (!filename) return void memory.set(store, cache);
-  const temporary = `${filename}.${process.pid}.tmp`;
-  try {
-    fs.writeFileSync(temporary, JSON.stringify(cache) + "\n", { mode: 0o600 });
-    fs.renameSync(temporary, filename);
-  } catch {
-    // The list is advisory; a failed write must not fail the tick.
-    fs.rmSync(temporary, { force: true });
-  }
+  const rows = new Map(itemRows(store).map((row) => [row.id, row])),
+    at = new Date().toISOString();
+  store.transaction(() => {
+    for (const [repository, entry] of Object.entries(cache.repositories)) {
+      const { items = [], ...state } = entry,
+        keys = items.map((entry) => entry.number),
+        kept = new Set(keys.map((number) => githubKey(repository, number)));
+      for (const entry of items) {
+        const id = githubKey(repository, entry.number),
+          current = rows.get(id),
+          next = current
+            ? { ...current, search: entry }
+            : {
+                id,
+                source: "github",
+                itemId: `${repository}#${entry.number}`,
+                record: {
+                  source: "github",
+                  id: `${repository}#${entry.number}`,
+                  link: entry.url,
+                  kind: entry.kind,
+                  title: entry.title,
+                  body: "",
+                  labels: entry.labels,
+                  author: entry.author,
+                  assignees: entry.assignees || [],
+                  state: "open",
+                  updatedAt: entry.createdAt ?? "",
+                  fields: {},
+                  trigger: null,
+                },
+                firstSeenAt: at,
+                seenAt: at,
+                taskId: null,
+                route: { state: "untriaged" },
+                findings: [],
+                history: [],
+                search: entry,
+              };
+        if (!current || JSON.stringify(current.search) !== JSON.stringify(entry))
+          store.put("incoming_items", next);
+      }
+      // Items the last search no longer returned leave the read; one the
+      // GitHub intake wrote, or a task holds, keeps its record.
+      for (const row of rows.values())
+        if (
+          row.source === "github" &&
+          row.search &&
+          row.itemId.startsWith(`${repository}#`) &&
+          !kept.has(row.id)
+        ) {
+          if (row.synced || row.taskId) {
+            const { search, ...rest } = row;
+            store.put("incoming_items", rest);
+          } else store.remove("incoming_items", row.id);
+        }
+      const next = { id: sourceId(repository), source: "github", repository, ...state, keys },
+        current = store.get("intake_sources", next.id);
+      if (JSON.stringify(current) !== JSON.stringify(next))
+        store.put("intake_sources", next);
+    }
+    if (JSON.stringify(store.getMeta(NOTICE_META)) !== JSON.stringify(cache.notice ?? null))
+      store.setMeta(NOTICE_META, cache.notice ?? null);
+  });
 }
 
 const key = (repository, number) => `${lower(repository)}#${number}`;
@@ -553,10 +622,10 @@ function noticeFor(policy, tasks, cache, now, handoffs) {
       {
         channel: "untriaged",
         task: "untriaged",
-        title: `Untriaged on GitHub: ${text}`,
+        title: `New in Intake from GitHub: ${text}`,
         text: `Open issues and pull requests no trigger rule, triage label, or task covers: ${text}. Checked ${cache.notice.at}.`,
         resume:
-          "Open Avoozl's Untriaged tab to hand them to Issue Radar or Code Review Sage.",
+          "Open Avoozl's Intake tab to hand them to Issue Radar or Code Review Sage.",
       },
     ];
   }

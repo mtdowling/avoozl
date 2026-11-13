@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "contract": 1,
   "kinds": ["tracker"],
-  "capabilities": { "tracker": ["actor"] },
+  "capabilities": { "tracker": ["actor", "poll"] },
   "entry": "index.mjs"
 }

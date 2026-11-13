@@ -26,7 +26,16 @@ import { globalAvoozlConfigPath } from "./layered-config.mjs";
 import { queueNotifications } from "./notifications.mjs";
 import { fail } from "./store.mjs";
 
-export const BOUNDARIES = Object.freeze(["plan", "github", "brief", "diff"]);
+// `intake` screens incoming items (design §4.12) and runs only for a set
+// that names it, so GitHub intake is unchanged unless the owner asks.
+export const BOUNDARIES = Object.freeze([
+  "plan",
+  "github",
+  "brief",
+  "diff",
+  "intake",
+]);
+const OPT_IN = new Set(["intake"]);
 export const ACTIONS = Object.freeze(["block", "report"]);
 export const CHECK_TIMEOUT_MS = 2000;
 const SET_ID = /^[a-z0-9][a-z0-9._-]{0,63}$/;
@@ -827,7 +836,9 @@ export function writeTermsFile(store, { id, text } = {}) {
 }
 
 const covers = (set, boundary, repository) =>
-  (!set.boundaries || set.boundaries.includes(boundary)) &&
+  (set.boundaries
+    ? set.boundaries.includes(boundary)
+    : !OPT_IN.has(boundary)) &&
   (!set.repositories ||
     !repository ||
     set.repositories.some(

@@ -101,6 +101,9 @@ export function completionReached(task, level, complete) {
   // allowed actor's close (R35.8, R35.9).
   const tracked = task.trackerVerdict?.state;
   if (tracked === "order") return true;
+  // An allowed actor's close of the task's incoming item (R50.18): an
+  // order, never a verified completion.
+  if (task.intakeVerdict?.state === "order") return true;
   if (tracked === "verified" && level !== "released") return true;
   if (!done) return false;
   const own = taskCompletion(task);

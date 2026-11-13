@@ -34,6 +34,10 @@ export const PACK_SETTINGS = Object.freeze({
     "minimumPermission",
     "requiredChecks",
     "priority",
+    // Order inside Ready and Up next, never the lane; and labels that mean
+    // the item waits on someone outside. Absent: no change.
+    "priorityLabels",
+    "waitingLabels",
     "managedLabels",
     "concurrency",
   ],

@@ -8,13 +8,17 @@
 //   -label:x / -label:a,b   has none of them
 //   assignee:name     assigned to name
 //   no:assignee       assigned to nobody
+//   source:id         an incoming item from source id (design §4.12); none
+//                     means GitHub. Refused in an Untriaged filter, which
+//                     GitHub search reads.
 //   "quoted values"   for names with spaces or commas
 import { fail } from "./store.mjs";
 
 const QUALIFIER = /^(-?)([A-Za-z]+):(.*)$/s;
 const LOGIN = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
+const SOURCE = /^[a-z][a-z0-9-]{0,60}$/;
 export const MATCH_HELP =
-  "Same syntax as GitHub's issue search. Supported: label:, -label:, assignee:, no:assignee.";
+  "Same syntax as GitHub's issue search. Supported: label:, -label:, assignee:, no:assignee, and source: for an intake source.";
 
 // Splits on spaces outside double quotes.
 function tokens(text) {
@@ -77,6 +81,7 @@ export function parseMatch(text, label = "match", { needLabel = true } = {}) {
     labelsNone: [],
     assignee: null,
     unassigned: false,
+    source: null,
   };
   for (const token of tokens(text.trim())) {
     const part = QUALIFIER.exec(token);
@@ -104,6 +109,18 @@ export function parseMatch(text, label = "match", { needLabel = true } = {}) {
       if (parsed.unassigned)
         fail(`${label} cannot use ${token} with no:assignee.`);
       parsed.assignee = items[0];
+    } else if (key === "source") {
+      // GitHub search has no such qualifier, so a filter it reads cannot.
+      if (!needLabel)
+        fail(`${label} cannot use ${token}: an Untriaged filter reads GitHub only.`);
+      const items = values(rest, token);
+      if (items.length !== 1 || !SOURCE.test(items[0]))
+        fail(`${label} cannot use ${token}: source: takes one intake source id.`);
+      if (parsed.source)
+        fail(`${label} cannot use ${token}: only one source: is supported.`);
+      if (["github", "local"].includes(items[0]))
+        fail(`${label} cannot use ${token}: leave source: out to match GitHub.`);
+      parsed.source = items[0];
     } else if (key === "no" && rest === "assignee") {
       if (parsed.assignee)
         fail(`${label} cannot use ${token} with assignee:.`);
@@ -127,6 +144,7 @@ export function formatMatch({
   labelsNone = [],
   assignee = null,
   unassigned = false,
+  source = null,
 } = {}) {
   for (const value of [...labelsAll, ...labelsAny, ...labelsNone])
     if (value.includes('"'))
@@ -137,6 +155,7 @@ export function formatMatch({
     ...(labelsNone.length ? [`-label:${labelsNone.map(quote).join(",")}`] : []),
     ...(assignee ? [`assignee:${assignee}`] : []),
     ...(unassigned ? ["no:assignee"] : []),
+    ...(source ? [`source:${source}`] : []),
   ].join(" ");
 }
 
@@ -175,6 +194,10 @@ export async function triggerPreview(github, input = {}) {
   }
   // No repository yet: the parse is the whole answer.
   if (!repository) return result;
+  if (result.parsed.source) {
+    result.searchError = `This rule matches items from source ${result.parsed.source}, which GitHub search cannot show.`;
+    return result;
+  }
   if (!github?.available?.()) {
     result.searchError = "GitHub is not signed in, so matches cannot be shown.";
     return result;
