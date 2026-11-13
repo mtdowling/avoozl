@@ -5,6 +5,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { checkRuns, drainCheckRuns } from "../check-runs.mjs";
 import { listSpans } from "../flow.mjs";
 import { Operations } from "../operations.mjs";
 import { Store } from "../store.mjs";
@@ -134,9 +135,13 @@ test("small tasks in one epic share one session, one check run on the head, and 
     );
   });
   const second = await tick(ops, ["w-batch"]);
-  const verify = second.dispatch.filter((d) => d.role === "verifier");
   assert.deepEqual(
-    verify.map((d) => [d.task, d.commit]),
+    second.dispatch.filter((d) => d.role === "verifier"),
+    [],
+    "a command-only bar opens no verifier chat",
+  );
+  assert.deepEqual(
+    checkRuns(store).map((r) => [r.taskId, r.commit]),
     [["a3", commits[2]]],
     "checks once, on the head",
   );
@@ -144,26 +149,8 @@ test("small tasks in one epic share one session, one check run on the head, and 
     ["a1", "a2", "a3"].map((id) => store.get("task_deliveries", id).state),
     ["done", "done", "done"],
   );
-  await ops.execute("session.bind", {
-    taskId: "a3",
-    slot: "v1",
-    role: "verifier",
-    attempt: 1,
-    source: "tick",
-    commit: commits[2],
-  });
-  await ops.execute(
-    "session.report",
-    {
-      taskId: "a3",
-      kind: "done",
-      commit: commits[2],
-      checks: [{ command: "git status", exitCode: 0, durationMs: 5 }],
-    },
-    undefined,
-    as("v1"),
-  );
-  await tick(ops, ["w-batch", "v1"]);
+  await drainCheckRuns(store);
+  await tick(ops, ["w-batch"]);
   const integrated = ["a1", "a2", "a3"].map(
     (id) => store.read().tasks.find((x) => x.id === id).integration?.commit,
   );

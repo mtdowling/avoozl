@@ -30,6 +30,9 @@ const leaf = (id, extra = {}) => ({
   acceptance: ["Works."],
   checks: [CHECK],
   repository: "app",
+  // These tests play the checks role as a verifier chat, which a bar that
+  // needs judgment still opens (§5.2 Checks).
+  verify: "agent",
   ...extra,
 });
 
@@ -316,7 +319,12 @@ test("review gates: three roles per commit, rework, closure, not-run checks, and
     verdict: "changes-requested",
     findings: [F1],
   });
-  await report(ops, "v-1", { taskId: "w1", commit: c1, checks: passed });
+  await report(ops, "v-1", {
+    taskId: "w1",
+    commit: c1,
+    checks: passed,
+    verdict: "approved",
+  });
 
   // (2) changes-requested fails the writer attempt; the retry quotes F1.
   const rework = await env.tick();
@@ -410,6 +418,7 @@ test("review gates: three roles per commit, rework, closure, not-run checks, and
     taskId: "w1",
     commit: c2,
     checks: [{ command: CHECK, exitCode: null, notRun: "bash missing" }],
+    verdict: "approved",
   });
   const rerun = await env.tick();
   delivery = store.get("task_deliveries", "w1");
@@ -421,7 +430,12 @@ test("review gates: three roles per commit, rework, closure, not-run checks, and
   );
   assert.deepEqual(roles(rerun, "w1"), [["verifier", 3, null, c2]]);
   await env.bind("w1", "v-3", "verifier", 3, { commit: c2 });
-  await report(ops, "v-3", { taskId: "w1", commit: c2, checks: passed });
+  await report(ops, "v-3", {
+    taskId: "w1",
+    commit: c2,
+    checks: passed,
+    verdict: "approved",
+  });
 
   // (4) The base moved: the rebase makes C3, nothing merges, all roles re-review.
   const moved = await commitIn(checkout, "README.md", "moved\n", "Move base");
@@ -459,7 +473,12 @@ test("review gates: three roles per commit, rework, closure, not-run checks, and
     (error) => error.status === 409,
     "a verdict on the old commit",
   );
-  await report(ops, "v-4", { taskId: "w1", commit: c3, checks: passed });
+  await report(ops, "v-4", {
+    taskId: "w1",
+    commit: c3,
+    checks: passed,
+    verdict: "approved",
+  });
   await report(ops, "rc-3", { taskId: "w1", commit: c3, verdict: "approved" });
   await report(ops, "rr-3", { taskId: "w1", commit: c3, verdict: "approved" });
   await env.tick();

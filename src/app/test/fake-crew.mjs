@@ -1,14 +1,16 @@
 // A test-only stand-in for Kiro Crew's sessions (proof P27). Each tick's
 // dispatch becomes a bound session, as tick.py's open_session would make it,
 // and `play` runs each open session's script: a writer commits in its
-// worktree and reports, the checks role reports check results, a reviewer
-// reports a verdict. Scripts are keyed `<alias>:<role>:<attempt>` (or
+// worktree and reports, a verifier (a bar that needs judgment) reports check
+// results and a verdict, a reviewer reports a verdict. Check runs a tick
+// queues are run right after it, as the app backend runs them. Scripts are keyed `<alias>:<role>:<attempt>` (or
 // `<alias>:<role>` for every attempt); "hold" leaves a session open and
 // unplayed. No Kiro Crew, network, or real workspace.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { checkRuns, drainCheckRuns } from "../check-runs.mjs";
 
 export function git(cwd, ...args) {
   return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
@@ -83,6 +85,17 @@ export function fakeCrew(
         roster.push(slot);
         sessions.push({ ...d, slot, alias: name(d.task), state: "open" });
       }
+      // The app backend runs the check runs this tick queued (§5.2 Checks);
+      // a `<alias>:checks` script of "hold" keeps a task's runs queued.
+      const held = checkRuns(ops.store).filter(
+        (r) =>
+          r.state === "queued" &&
+          scripts[`${name(r.taskId)}:checks`] === "hold",
+      );
+      for (const r of held)
+        ops.store.put("flow_records", { ...r, state: "held" });
+      await drainCheckRuns(ops.store);
+      for (const r of held) ops.store.put("flow_records", r);
       return result;
     },
     script(session) {

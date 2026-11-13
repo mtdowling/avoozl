@@ -1,7 +1,7 @@
 import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import path from "node:path";
-import { digest, validate } from "../model.mjs";
+import { digest, summarizeErrors, validate } from "../model.mjs";
 
 export const canonical = (value) => JSON.stringify(normalize(value));
 function normalize(value) {
@@ -180,7 +180,7 @@ export class Store {
   }
   write(data) {
     const errors = validate(data);
-    if (errors.length) fail(errors.join("\n"), 422);
+    if (errors.length) fail(summarizeErrors(errors), 422);
     const { tasks, documents, edges, ...metadata } = data,
       known =
         this.stored &&
@@ -235,7 +235,7 @@ export class Store {
   }
   importSnapshot(data, { final = false, dryRun = false } = {}) {
     const errors = validate(data);
-    if (errors.length) fail(errors.join("\n"), 422);
+    if (errors.length) fail(summarizeErrors(errors), 422);
     const sourceHash = digest(canonical(data)),
       old = this.initialized() ? this.read() : null;
     let merged = structuredClone(data);

@@ -171,6 +171,8 @@ const tools = {
     actions: {
       get: ["task.get", "one task"],
       detail: ["task.detail", "the task drawer's detail"],
+      files: ["task.files", "files its branch changed (all: every file)"],
+      diff: ["task.diff", "one changed file's diff"],
       sessions: ["task.sessions", "its Kiro Crew sessions"],
       handoff: ["handoff", "design, dependencies, runs and evidence"],
       duplicates: ["task.duplicates", "repeated-title candidates"],
