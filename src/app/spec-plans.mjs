@@ -18,6 +18,7 @@ import { validateProposal, writeRevision } from "./plans.mjs";
 import { lintPlan } from "./plan-quality.mjs";
 import { frontMatter, withoutFrontMatter } from "../front-matter.mjs";
 import { resolveTaskId } from "../task-identity.mjs";
+import { validateManifestBudget } from "./budget.mjs";
 
 export const SPECS_DIRECTORY = path.join(".kiro", "specs");
 export const MANIFEST = "avoozl/manifest.json";
@@ -429,7 +430,8 @@ export function parseSpec({
   }
 
   const text = files[MANIFEST];
-  let entries = null;
+  let entries = null,
+    specBudget;
   if (text !== undefined) {
     try {
       const manifest = JSON.parse(text);
@@ -448,7 +450,25 @@ export function parseSpec({
             'The manifest is one JSON object with a "tasks" object keyed by tasks.md ID.',
           ),
         );
-      else entries = manifest.tasks;
+      else {
+        entries = manifest.tasks;
+        // The spec's per-task cap, and never prices (§4.17, R67.2).
+        try {
+          specBudget = validateManifestBudget(manifest);
+        } catch (error) {
+          diagnostics.push(
+            diagnostic(
+              "manifest.schema",
+              MANIFEST,
+              manifestLine(
+                text,
+                manifest.prices !== undefined ? "prices" : "budget",
+              ),
+              error.message,
+            ),
+          );
+        }
+      }
     } catch (error) {
       diagnostics.push(
         diagnostic(
@@ -519,7 +539,13 @@ export function parseSpec({
       const local = (reference) => byKey.get(reference)?.id ?? reference;
       try {
         const title = shortTitle(item.title),
-          fields = { ...structuredClone(entry), title };
+          fields = {
+            ...structuredClone(entry),
+            title,
+            ...(specBudget && !["epic", "package"].includes(entry?.kind)
+              ? { specBudget }
+              : {}),
+          };
         if (title !== item.title)
           fields.summary = [item.title, entry?.summary]
             .filter((text) => typeof text === "string" && text.trim())

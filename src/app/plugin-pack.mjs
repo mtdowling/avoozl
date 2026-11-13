@@ -82,6 +82,11 @@ export function validatePack(value) {
   )
     fail("Pack description must be 1-300 characters.");
   const settings = value.settings;
+  // Prices are this computer's only (§4.17, R67.2).
+  if (record(settings) && settings.prices !== undefined)
+    fail(
+      "Pack settings cannot hold prices. Prices are kept on this computer only, in ~/.config/avoozl/config.json (Settings › Prices).",
+    );
   only(settings, Object.keys(PACK_SETTINGS), "settings");
   if (!Object.keys(settings).length)
     fail("Pack settings must set at least one setting.");

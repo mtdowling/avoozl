@@ -35,6 +35,7 @@ import { FINAL_STATUSES, listSessionBindings } from "./session-bindings.mjs";
 import { queryTasks, statusComplete } from "../query.mjs";
 import { resolveTaskId } from "../task-identity.mjs";
 import { pausedTaskIds } from "./github-project.mjs";
+import { budgetHeldTaskIds, budgetStopSlots } from "./budget.mjs";
 import { LOCAL } from "./crews.mjs";
 import { machineRouting, placeOne, routingOn, rulesAllow } from "./routing.mjs";
 import { handbackFetch, pushedFetch } from "./handback.mjs";
@@ -1006,9 +1007,11 @@ function* expandBatches(attempts) {
 }
 
 // Failed attempts since the last time a person chose to retry (retryDelivery).
+// An attempt a budget stop ended costs nothing (R67.9).
 const failuresSince = (delivery, attempts) =>
-  attempts.slice(delivery.retryFrom || 0).filter((a) => a.outcome === "failed")
-    .length;
+  attempts
+    .slice(delivery.retryFrom || 0)
+    .filter((a) => a.outcome === "failed" && !a.budget).length;
 
 // plans_retry_delivery: a person resumes a leaf that stopped for a decision.
 // The next attempt resumes on the same worktree with a fresh retry budget.
@@ -1107,10 +1110,23 @@ export function reconcileDeliveries(
 ) {
   const messages = [],
     notify = [],
-    at = new Date(now).toISOString();
+    at = new Date(now).toISOString(),
+    budgetSlots = budgetStopSlots(store),
+    budgetHeld = budgetHeldTaskIds(store);
   for (const [taskId, binding] of expandBatches(
     runnerAttempts(listSessionBindings(store)),
   )) {
+    // A session a budget stop asked to stop (R67.8, R67.9): its `budget`
+    // blocked report, or its end while the task is held, is not a failure.
+    // While it stays open nothing is recorded, so the task stays claimed and
+    // Raise budget lets the same session go on.
+    const stopped = budgetSlots.get(slotKey(binding.slot)),
+      budgetEnd =
+        stopped &&
+        ((binding.report?.kind === "blocked" &&
+          /\bbudget\b/i.test(binding.report.text || "")) ||
+          (budgetHeld.has(taskId) && !binding.report));
+    if (budgetEnd && !FINAL_STATUSES.has(binding.status)) continue;
     const stored = store.get("task_deliveries", taskId),
       delivery = stored || {
         id: taskId,
@@ -1126,6 +1142,7 @@ export function reconcileDeliveries(
       ),
       result = outcomeOf(binding),
       open = !result && !recorded;
+    if (result && budgetEnd) result.budget = true;
     if (result && !recorded) {
       const attempts = [
         ...delivery.attempts,
@@ -1209,7 +1226,8 @@ export function reconcileDeliveries(
         open &&
         !binding.member &&
         binding.status === "idle" &&
-        binding.source === "tick"
+        binding.source === "tick" &&
+        !budgetHeld.has(taskId)
       ) {
         // Only the cron can message a session it opened; a Crew Mode
         // conductor watches its own workers.
@@ -1709,7 +1727,9 @@ export function readyCandidates(
     paused = true,
   } = {},
 ) {
-  const held = paused ? pausedTaskIds(store) : new Set(),
+  const held = paused
+      ? new Set([...pausedTaskIds(store), ...budgetHeldTaskIds(store)])
+      : new Set(),
     stacked = stackedBlockers(store, github, stack),
     line = paused ? linePausedTaskIds(store, data) : new Set();
   return queryTasks(data, {
@@ -2537,9 +2557,12 @@ export function planVerifierDispatches(store, policy = null, options = {}) {
         ? options.routing
         : null,
     state = options.placementState || { crews: new Map(), choices: new Map() },
+    budgetHeld = budgetHeldTaskIds(store),
     dispatch = [];
   for (const delivery of store.list("task_deliveries")) {
     if (delivery.state !== "done") continue;
+    // A task at its budget gets no checks or review session (R67.8).
+    if (budgetHeld.has(delivery.taskId)) continue;
     const task = data.tasks.find((t) => t.id === delivery.taskId),
       project = store.get("projects", taskRepository(task) || "");
     if (!task || !project?.root) continue;

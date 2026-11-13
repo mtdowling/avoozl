@@ -23,6 +23,10 @@ const tools = {
         "delivery.settings.get",
         "the writer agent and model and pull request feedback settings",
       ],
+      budget_settings: [
+        "budget.settings.get",
+        "per-task budget caps and modes for the workspace and each repository",
+      ],
       conversation_settings: [
         "conversations.settings.get",
         "conversation settings",
@@ -73,6 +77,10 @@ const tools = {
       queue: ["queue", "ready work, resource conflicts, queued integration"],
       next: ["runner.next", "what a Crew Mode conductor does next"],
       query: ["query", "search tasks"],
+      receipt: [
+        "budget.receipt",
+        "one task's usage receipt: {taskId}; counts and dollars only",
+      ],
     },
   },
   plans_plan: {

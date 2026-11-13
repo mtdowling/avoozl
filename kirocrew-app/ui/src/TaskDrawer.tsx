@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { BudgetFold, SpendChip } from './Budget.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import { useAppApi } from '@kirocrew/app-sdk'
 import { Btn } from '@kirocrew/app-sdk/ui'
@@ -35,6 +36,7 @@ const SECTIONS = [
   { key: 'links', label: 'Links' },
   { key: 'delivery', label: 'Delivery' },
   { key: 'timing', label: 'Timing' },
+  { key: 'budget', label: 'Budget' },
   { key: 'conflicts', label: 'Conflicts' },
   { key: 'timeline', label: 'Timeline' },
 ] as const
@@ -530,6 +532,17 @@ function TaskPanel(props: {
         </Fold>
         <Fold id="timing" group="task-drawer" title="Timing">
           <TimingFold timing={detail.timing ?? null} />
+        </Fold>
+        <Fold
+          id="budget"
+          group="task-drawer"
+          title={
+            <span className="flex items-center gap-2">
+              Budget <SpendChip budget={delivery?.budget} />
+            </span>
+          }
+        >
+          <BudgetFold workspaceId={workspaceId} taskId={task.id} onChange={() => void load()} />
         </Fold>
         <Fold id="conflicts" group="task-drawer" title={detail.conflicts.length ? `Conflicts (${detail.conflicts.length})` : 'Conflicts'} open={detail.conflicts.length > 0}>
           {detail.conflicts.length ? (

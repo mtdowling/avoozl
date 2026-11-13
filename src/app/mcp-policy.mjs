@@ -80,6 +80,15 @@ export const PERSON_ONLY = new Map([
   ["flow.retro.decide", person("Only a person decides retro proposals.")],
   ["flow.runAnyway", person("Only a person presses Run anyway.")],
   ["flow.resume", person("Only a person resumes a pulled stop.")],
+  ["budget.raise", person("Only a person raises a budget.")],
+  ["budget.stop", person("Only a person stops a task at its budget.")],
+  [
+    "budget.acknowledge",
+    person("Only a person acknowledges an over-budget task."),
+  ],
+  ["budget.switchToStop", person("Only a person changes a budget's mode.")],
+  ["prices.save", person("Only a person changes the price table.")],
+  ["budget.settings.update", person("Only a person changes budget settings.")],
   ["untriaged.handoff", person("Only a person sends issues to Issue Radar.")],
   ["review.chat", person("Only a person starts a code review chat.")],
   [
@@ -132,6 +141,14 @@ export const NOT_ON_MCP = new Map([
     "Whole-database read; plans_view and plans_task read what a session needs.",
   ],
   ["notifications.deliver", "The tick delivers notifications itself."],
+  [
+    "prices.get",
+    "This computer's price table; a person reads it in Settings › Prices.",
+  ],
+  [
+    "budget.view",
+    "The page's budget chips; a session reads one task's receipt with plans_view receipt.",
+  ],
   ["publication.retry", "A no-op kept for old pages."],
   ["highlight.languages", page],
   ["chat.context", page],

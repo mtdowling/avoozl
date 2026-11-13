@@ -3,6 +3,7 @@
 // Only graph-specific facts: Issue Radar shows issues, pull requests and CI,
 // and Code Review Sage shows review, so neither is repeated here. Kept free
 // of JSX so node can test it directly.
+import type { BudgetChip } from './budget-api.ts'
 import type { StoredPlanPage } from './plans-api.ts'
 import { documentEpic, nodeState, waves, type NodeState } from './graph-layout.ts'
 import { modelLabel, safeHref, type ConflictItem, type DeliveryItem, type DeliverySession, type Graph, type GraphTask } from './views-api.ts'
@@ -63,6 +64,8 @@ export interface InFlight {
   lastAt: string | null
   status: string | null
   session: DeliverySession
+  // Spend against the cap (§4.17).
+  budget: BudgetChip | null
 }
 
 export interface Done {
@@ -88,6 +91,8 @@ export interface DashboardSummary {
   counts: Record<NodeState, number>
   running: RunningTask[]
   inFlight: InFlight[]
+  // Open tasks at or past their cap (§4.17), for the header count.
+  overBudget: number
   readyNext: (GraphTask & { wave: number })[]
   recent: Done[]
   progress: Progress[]
@@ -172,7 +177,7 @@ export function summarize(input: {
 
   const running = (allDelivery ?? [])
     .filter((item) => !item.complete)
-    .map((item) => ({ id: item.id, title: item.title, sessions: item.sessions.filter((s) => !ENDED.has(s.status ?? '')) }))
+    .map((item) => ({ id: item.id, title: item.title, budget: item.budget ?? null, sessions: item.sessions.filter((s) => !ENDED.has(s.status ?? '')) }))
     .filter((item) => item.sessions.length > 0)
 
   const tasks = new Map((graph?.tasks ?? []).map((t) => [t.id, t]))
@@ -194,6 +199,7 @@ export function summarize(input: {
           lastAt: session.statusAt ?? session.boundAt,
           status: session.status,
           session,
+          budget: item.budget,
         }
       }),
     )
@@ -244,6 +250,7 @@ export function summarize(input: {
     counts,
     running,
     inFlight,
+    overBudget: (input.delivery ?? []).filter((item) => !item.complete && item.budget?.reached).length,
     readyNext,
     recent,
     progress: [...byEpic.values()],
