@@ -17,7 +17,10 @@ import { temporaryDirectory } from "./temporary.mjs";
 
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
 
-const CHECK = "scripts/validate.sh";
+// A node script, not a .sh file: Windows cannot exec a shell script directly.
+const CHECK_FILE = "scripts/validate.mjs",
+  CHECK_ARGV = ["node", CHECK_FILE],
+  CHECK = CHECK_ARGV.join(" ");
 const W1 = "p27.1",
   D1 = "p27.2",
   W2 = "p27.3",
@@ -100,9 +103,7 @@ async function workspace(t, delivery) {
   git(checkout, "config", "user.name", "Test");
   git(checkout, "config", "user.email", "test@example.com");
   fs.writeFileSync(path.join(checkout, "README.md"), "app\n");
-  fs.writeFileSync(path.join(checkout, CHECK), "#!/bin/sh\nexit 0\n", {
-    mode: 0o755,
-  });
+  fs.writeFileSync(path.join(checkout, CHECK_FILE), "process.exit(0);\n");
   git(checkout, "add", ".");
   git(checkout, "commit", "-m", "Start");
   const store = new Store(path.join(root, "workspace.sqlite"));
@@ -115,7 +116,7 @@ async function workspace(t, delivery) {
     id: "app",
     root: checkout,
     baseBranch: "main",
-    checks: [[CHECK]],
+    checks: [CHECK_ARGV],
   });
   writeSpec(root, "p27", spec);
   await ops.execute("plan.create", { spec: "p27" });

@@ -27,7 +27,10 @@ const FIXTURE = path.join(import.meta.dirname, "fixtures", "plugins");
 const NAMESPACE = "avz_p26fakepluginsxx";
 const [A, B, C, X, Y] = ["p26.1", "p26.2", "p26.3", "p26.4", "p26.5"];
 const aliases = { [A]: "a", [B]: "b", [C]: "c", [X]: "x", [Y]: "y" };
-const CHECK = "scripts/check.sh";
+// A node script, not a .sh file: Windows cannot exec a shell script directly.
+const CHECK_FILE = "scripts/check.mjs",
+  CHECK_ARGV = ["node", CHECK_FILE],
+  CHECK = CHECK_ARGV.join(" ");
 const TRACKER = "plugin:fake-tracker";
 
 const leaf = (summary, extra = {}) => ({
@@ -82,9 +85,7 @@ function setup() {
   git(checkout, "init", "-b", "main");
   git(checkout, "config", "user.name", "Test");
   git(checkout, "config", "user.email", "test@example.com");
-  fs.writeFileSync(path.join(checkout, CHECK), "#!/bin/sh\nexit 0\n", {
-    mode: 0o755,
-  });
+  fs.writeFileSync(path.join(checkout, CHECK_FILE), "process.exit(0);\n");
   git(checkout, "add", ".");
   git(checkout, "commit", "-m", "Start");
   for (const name of ["fake-route", "fake-tracker"])
@@ -176,7 +177,7 @@ async function open(env, t) {
     id: "app",
     root: env.checkout,
     baseBranch: "main",
-    checks: [[CHECK]],
+    checks: [CHECK_ARGV],
   });
   return { store, ops };
 }
