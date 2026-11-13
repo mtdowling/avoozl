@@ -12,7 +12,7 @@ import { digest, statusComplete } from "../model.mjs";
 import { taskAuthority, taskKind } from "../work-model.mjs";
 import { withWorkLock } from "./git.mjs";
 import { verdictKey } from "./github-close.mjs";
-import { requireNamespace } from "./github-marker.mjs";
+import { isParentMarker, requireNamespace } from "./github-marker.mjs";
 import { computeWaves, projectFieldValue } from "./github-project.mjs";
 import { ensureInbox, issueRecordId, projectedMarker } from "./github-sync.mjs";
 import { fail } from "./store.mjs";
@@ -99,6 +99,7 @@ async function rebuild(
 
   // 1. Every issue whose marker carries this namespace, by task ID.
   const found = new Map(),
+    parentIssues = [],
     conflicts = [],
     notes = [];
   for (const config of configs) {
@@ -117,12 +118,23 @@ async function rebuild(
     for (const issue of issues) {
       const marker = projectedMarker(issue.body);
       if (marker?.version !== 2 || marker.namespace !== namespace) continue;
+      // A plan or epic issue is no task; its receipt comes back below.
+      if (isParentMarker(marker)) {
+        parentIssues.push({ issue, marker, config });
+        continue;
+      }
       const list = found.get(marker.taskId) || [];
       list.push({ issue, marker, config, labels });
       found.set(marker.taskId, list);
     }
   }
-  const entries = new Map();
+  const entries = new Map(),
+    parentIds = new Set(parentIssues.map(({ marker }) => marker.taskId)),
+    // A task under a plan issue has no task parent.
+    taskParent = (marker) =>
+      marker.parent && !parentIds.has(marker.parent) && !/^(?:plan|epic)\./.test(marker.parent)
+        ? marker.parent
+        : null;
   for (const [taskId, list] of found) {
     if (list.length > 1) {
       // R14.4: two issues with one task ID write nothing for that task.
@@ -242,7 +254,7 @@ async function rebuild(
         .filter(({ entry }) => entry.marker.applied.project?.Release)
         .map(
           ({ entry }) =>
-            entry.marker.parent || parents.get(entry.marker.taskId),
+            taskParent(entry.marker) || parents.get(entry.marker.taskId),
         )
         .filter(Boolean),
     ),
@@ -260,7 +272,7 @@ async function rebuild(
         taskId,
         entry,
         existing: next.tasks.find((task) => task.id === taskId),
-        parent: entry.marker.parent || parents.get(taskId) || null,
+        parent: taskParent(entry.marker) || parents.get(taskId) || null,
         complete,
         mode,
         ownRelease: !childReleases.has(taskId),
@@ -303,6 +315,30 @@ async function rebuild(
       store.put("approvals", approval);
       store.put("plans", plan);
       receipts += 1;
+    }
+    // Plan and epic issues come back as their receipts (Requirement 59.8).
+    for (const { issue, marker, config } of parentIssues) {
+      const level = marker.kind,
+        id = marker.taskId.slice(level.length + 1),
+        key = `github-parent:${level}:${id}`,
+        previous = store.get("receipts", key);
+      receipts += putIfChanged(store, "receipts", {
+        ...(previous || {}),
+        id: key,
+        kind: "github-parent",
+        level,
+        parentId: id,
+        ...(level === "plan" ? { planId: id } : {}),
+        repository: config.id,
+        number: issue.number,
+        nodeId: issue.node_id ?? null,
+        databaseId: Number(issue.id) || null,
+        url: issue.html_url ?? null,
+        ...(issue.state === "closed" && !previous?.closedAt
+          ? { closedAt: issue.closed_at ?? new Date().toISOString() }
+          : {}),
+        updatedAt: previous?.updatedAt ?? new Date().toISOString(),
+      });
     }
     return { committed: Boolean(changed), receipts };
   });

@@ -52,6 +52,7 @@ import { workspaceRepositories } from "./workspace-repositories.mjs";
 import { queueNotifications, sessionUrl } from "./notifications.mjs";
 import {
   closeGitHubParents,
+  closePlanAndEpicIssues,
   reconcileGitHubCompletion,
 } from "./github-close.mjs";
 import { readGitHubPolicy, readGitHubPolicyOrNull } from "./github-policy.mjs";
@@ -435,6 +436,7 @@ async function githubStep(store, github, workspaceRoot, delivery) {
       });
     completeParents(store);
     await closeGitHubParents(store, github);
+    await closePlanAndEpicIssues(store, github);
     // Readiness changed by this tick's verdicts reaches GitHub now: the
     // ready label for Issue Radar, `dispatch.ready` for the runner.
     const projection = await refreshProjectedReadiness(store, github, {

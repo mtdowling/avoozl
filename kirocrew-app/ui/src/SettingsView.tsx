@@ -36,6 +36,7 @@ import {
   type SettingsChoices,
   type SettingsForm,
   LOCAL_HIDDEN_LINE,
+  SUB_ISSUE_LINE,
   isGitHubMode,
   modeKey,
   unusedInLocal,
@@ -1154,6 +1155,9 @@ function GeneralTab(props: {
                 onChange={(value) => set({ defaultAuthority: value })}
               />
               <Text id="avoozl-settings-epic" label="Epic issue type" raw="epicIssueType" rule={{ required: false, blank: 'blank: epics get no issue type' }} placeholder="Epic" width="md" value={form.epicIssueType} onChange={(value) => set({ epicIssueType: value })} />
+              {shown.has('subIssueCap') && (
+                <Text id="avoozl-settings-sub-issues" label="Sub-issues per parent" raw="subIssues.maxPerParent" rule={{ required: false, blank: SUB_ISSUE_LINE }} placeholder="100" type="number" width="sm" value={form.maxPerParent} onChange={(value) => set({ maxPerParent: value })} />
+              )}
             </div>
             <ProjectFields form={form} choices={choices} set={set} />
             <Section level="sub" title="Set up GitHub" blurb="Creates the labels, Project and fields the settings above name. It reads GitHub first and shows every write before making one.">

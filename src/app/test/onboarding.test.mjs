@@ -253,10 +253,10 @@ test("Onboard end to end: reads before setup write nothing; issues are previewed
     planId: plan.id,
   });
   assert.equal(preview.simulated, true);
-  const issues = preview.writes.filter(
-    (write) => write.kind === "issue.create",
-  );
-  assert.equal(issues.length, 3, JSON.stringify(preview.writes));
+  const issues = preview.writes.filter((write) => write.kind === "issue.create");
+  // Three task issues and the plan's own issue (Requirement 59.8).
+  assert.equal(issues.length, 4, JSON.stringify(preview.writes));
+  assert.equal(issues.filter((write) => write.taskId === "plan.load-config").length, 1);
   assert.ok(issues.every((write) => write.repository === REPO));
   assert.equal(
     ws.github.created.length,
