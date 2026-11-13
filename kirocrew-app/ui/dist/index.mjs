@@ -16589,6 +16589,7 @@ function ep(e) {
 			let t = Wf(e.subIssues).maxPerParent;
 			return t === 100 ? "" : Gf(t);
 		})(),
+		includeDone: Wf(e.issues).includeDone === !0,
 		projectOwner: Gf(t.owner),
 		projectNumber: Gf(t.number),
 		fields: qf(t.fields),
@@ -16647,6 +16648,7 @@ function rp(e) {
 		defaultAuthority: Yf(e.defaultAuthority) ?? null,
 		epicIssueType: Yf(e.epicIssueType) ?? null,
 		subIssues: Xf(e.maxPerParent) === void 0 ? null : { maxPerParent: Xf(e.maxPerParent) },
+		issues: e.includeDone ? { includeDone: !0 } : null,
 		project: r ? tp({
 			owner: Yf(e.projectOwner),
 			number: Xf(e.projectNumber),
@@ -16916,7 +16918,7 @@ function _p(e) {
 var vp = "Labels, checks, reviews and the Project board only apply to GitHub modes.";
 function yp(e) {
 	let t = [];
-	return e.planningRepository.trim() && t.push("planning repository"), (e.projectOwner.trim() || e.projectNumber.trim()) && t.push("Project board"), e.repositories.length && t.push(`${e.repositories.length} repository GitHub setting${e.repositories.length === 1 ? "" : "s"}`), e.epicIssueType.trim() && t.push("epic issue type"), e.maxPerParent.trim() && t.push("sub-issue cap"), t;
+	return e.planningRepository.trim() && t.push("planning repository"), (e.projectOwner.trim() || e.projectNumber.trim()) && t.push("Project board"), e.repositories.length && t.push(`${e.repositories.length} repository GitHub setting${e.repositories.length === 1 ? "" : "s"}`), e.epicIssueType.trim() && t.push("epic issue type"), e.maxPerParent.trim() && t.push("sub-issue cap"), e.includeDone && t.push("issues for done tasks"), t;
 }
 var bp = [
 	{
@@ -25698,6 +25700,21 @@ function K_(e) {
 							width: "sm",
 							value: t.maxPerParent,
 							onChange: (e) => r({ maxPerParent: e })
+						})
+					]
+				}),
+				/* @__PURE__ */ x("label", {
+					className: "flex items-center gap-1.5 text-sm",
+					children: [
+						/* @__PURE__ */ b("input", {
+							type: "checkbox",
+							checked: t.includeDone,
+							onChange: (e) => r({ includeDone: e.target.checked })
+						}),
+						"Make issues for tasks already done when a spec is approved ",
+						/* @__PURE__ */ b("span", {
+							className: "text-xs text-muted",
+							children: "issues.includeDone"
 						})
 					]
 				}),
