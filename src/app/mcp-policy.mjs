@@ -68,8 +68,18 @@ export const PERSON_ONLY = new Map([
     person("Only a person changes workspace settings."),
   ],
   ["flow.settings.update", person("Only a person changes flow settings.")],
+  [
+    "activity.settings.update",
+    person("Only a person changes how long activity is kept."),
+  ],
   ["routing.update", person("Only a person changes routing rules.")],
   ["crews.update", person("Only a person changes crew settings.")],
+  ["provider.switch", person("Only a person switches models.")],
+  ["provider.health.clear", person("Only a person undoes a provider mark.")],
+  [
+    "providers.settings.update",
+    person("Only a person changes provider settings."),
+  ],
   ["delivery.pickAgain", person("Only a person presses Pick again.")],
   [
     "delivery.settings.update",

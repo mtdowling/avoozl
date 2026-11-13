@@ -348,8 +348,8 @@ const STEERING = new URL("./runner/avoozl-runner.md", import.meta.url);
 
 function within(directory, root) {
   try {
-    const a = fs.realpathSync(directory),
-      b = fs.realpathSync(root);
+    const a = fs.realpathSync.native(directory),
+      b = fs.realpathSync.native(root);
     return a === b || a.startsWith(b + path.sep);
   } catch {
     return false;

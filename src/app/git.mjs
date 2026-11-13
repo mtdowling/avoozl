@@ -71,6 +71,27 @@ export async function git(cwd, args, { env } = {}) {
     })
   ).stdout.trim();
 }
+// The real path of a Git checkout root, refused in plain words when the
+// folder is missing, is not a checkout, or is inside one.
+export async function checkoutRoot(root, label) {
+  if (typeof root !== "string" || !root) fail(`Name the ${label} folder.`);
+  let real;
+  try {
+    real = fs.realpathSync.native(root);
+  } catch {
+    fail(`The ${label} folder ${root} does not exist.`);
+  }
+  // An empty prefix means the root; comparing --show-toplevel paths breaks
+  // on Windows, where Git and Node spell the same folder differently.
+  let prefix;
+  try {
+    prefix = await git(real, ["rev-parse", "--show-prefix"]);
+  } catch {
+    fail(`The ${label} folder ${real} is not a Git checkout.`);
+  }
+  if (prefix) fail(`The ${label} must be the Git checkout root.`);
+  return real;
+}
 async function gitFile(cwd, args) {
   return (
     await exec("git", args, {
@@ -166,16 +187,14 @@ export async function projectConfig({
 }) {
   if (!/^[a-z][a-z0-9-]{1,60}$/.test(id || ""))
     fail("Choose a stable project ID.");
-  root = fs.realpathSync(root);
-  if (
-    (await git(root, [
-      "rev-parse",
-      "--is-inside-work-tree",
-      "--show-prefix",
-    ])) !== "true"
-  )
-    fail("Project root must be the Git checkout root.");
-  await git(root, ["rev-parse", "--verify", baseBranch + "^{commit}"]);
+  root = await checkoutRoot(root, "project root");
+  try {
+    await git(root, ["rev-parse", "--verify", baseBranch + "^{commit}"]);
+  } catch {
+    fail(
+      `Branch ${baseBranch} has no commit in ${root}. Pass --branch BRANCH.`,
+    );
+  }
   if (
     !Array.isArray(checks) ||
     checks.some(
@@ -257,7 +276,11 @@ async function listWorktrees(root) {
     await git(root, ["worktree", "list", "--porcelain"])
   ).split("\n")) {
     if (line.startsWith("worktree ")) {
+      // Real path, so git's C:/ form matches node's (8.3 names, slashes).
       current = path.resolve(line.slice(9));
+      try {
+        current = fs.realpathSync.native(current);
+      } catch {}
       entries.set(current, null);
     } else if (line.startsWith("branch ") && current)
       entries.set(current, line.slice(7));
@@ -279,7 +302,7 @@ export async function prepareTaskWorktree(store, project, { branch, name }) {
       );
       fs.mkdirSync(base, { recursive: true });
       // git prints real paths, so a linked temporary directory must compare equal.
-      const worktree = path.join(fs.realpathSync(base), name),
+      const worktree = path.join(fs.realpathSync.native(base), name),
         ref = "refs/heads/" + branch;
       const listed = await listWorktrees(project.root),
         holder = [...listed].find(([, value]) => value === ref)?.[0];
@@ -383,12 +406,12 @@ function diffText(contents) {
   return { text: contents.toString("utf8"), truncated: false, binary: false };
 }
 function worktreeFile(worktree, file) {
-  const root = fs.realpathSync(worktree),
+  const root = fs.realpathSync.native(worktree),
     candidate = path.resolve(root, file);
   if (candidate !== root && !candidate.startsWith(root + path.sep))
     fail("Use a repository-relative path.");
   if (!fs.existsSync(candidate)) return Buffer.alloc(0);
-  const full = fs.realpathSync(candidate);
+  const full = fs.realpathSync.native(candidate);
   if (!full.startsWith(root + path.sep) || !fs.statSync(full).isFile())
     fail("Use a repository-relative path.");
   return fs.readFileSync(full);
@@ -754,13 +777,16 @@ export async function detectCheckout(folder) {
     fail("Give the folder as an absolute path.");
   let root;
   try {
-    root = fs.realpathSync(folder.trim());
+    root = fs.realpathSync.native(folder.trim());
   } catch {
     fail("That folder does not exist.");
   }
   let top;
   try {
-    top = await git(root, ["rev-parse", "--show-toplevel"]);
+    // git prints C:/ forward-slash paths on Windows; return node's form.
+    top = fs.realpathSync.native(
+      await git(root, ["rev-parse", "--show-toplevel"]),
+    );
   } catch {
     fail("That folder is not a Git checkout.");
   }

@@ -6,6 +6,7 @@
 // tick) writes avoozl/manifest.json for a Spec Builder folder once its
 // tasks.md holds still, and stores a requested folder as a draft plan once
 // it lints clean. Nothing here approves a plan, starts delivery, or pushes.
+import path from "node:path";
 import { fail } from "./store.mjs";
 import { digest } from "../model.mjs";
 import { contentBinding, enforce } from "./content-rules.mjs";
@@ -216,7 +217,7 @@ export function requestNewPlan(store, input = {}, deps) {
       409,
     );
 
-  const folder = `${deps.specRoot}/.kiro/specs/${name}`,
+  const folder = path.join(deps.specRoot, ".kiro", "specs", name),
     rules = steeringOptions(store);
   if (input.preview === true)
     return {

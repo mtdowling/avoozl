@@ -30,6 +30,8 @@ import { fail } from "./store.mjs";
 // that names it, so GitHub intake is unchanged unless the owner asks.
 // `proposal` screens retro proposals and `lesson` the lessons shared across
 // workspaces (design §4.18); every set covers them unless it narrows.
+// `activity` screens each activity log row (§4.19); a matching row is saved
+// redacted, so no decision opens.
 export const BOUNDARIES = Object.freeze([
   "plan",
   "github",
@@ -38,6 +40,7 @@ export const BOUNDARIES = Object.freeze([
   "intake",
   "proposal",
   "lesson",
+  "activity",
 ]);
 const OPT_IN = new Set(["intake"]);
 export const ACTIONS = Object.freeze(["block", "report"]);
@@ -1803,13 +1806,13 @@ export function installPushHook(worktree, { cli, workspaceRoot, taskId }) {
   // Git resolves symlinks in --absolute-git-dir but not in a relative
   // --git-common-dir, so compare real paths (a symlinked home or TMPDIR).
   const gitDir = gitSync(worktree, ["rev-parse", "--absolute-git-dir"]).trim(),
-    commonDir = fs.realpathSync(
+    commonDir = fs.realpathSync.native(
       path.resolve(
         worktree,
         gitSync(worktree, ["rev-parse", "--git-common-dir"]).trim(),
       ),
     );
-  if (fs.realpathSync(gitDir) === commonDir)
+  if (fs.realpathSync.native(gitDir) === commonDir)
     fail("The pre-push hook is installed only in a linked worktree.", 409);
   const hooks = path.join(gitDir, "avoozl-hooks"),
     hook = path.join(hooks, "pre-push"),

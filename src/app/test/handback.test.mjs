@@ -7,7 +7,7 @@ import path from "node:path";
 import test from "node:test";
 import { pinned, sshCommand } from "../handback.mjs";
 import { fakeCrew, git } from "./fake-crew.mjs";
-import { FAKE_SSH } from "./fixtures/crews/driver.mjs";
+import { crewFolder, FAKE_SSH } from "./fixtures/crews/driver.mjs";
 import { CREWS, defaults, workspace } from "./fixtures/crews/workspace.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
@@ -55,7 +55,7 @@ test("a hand-back crew's commit is fetched over ssh, checked, and integrated; a 
         ...CREWS["fake-linux"],
         delivery: "handback",
         sshHost: "builder@fake-linux.example.test",
-        worktreeRoot: remoteRoot,
+        worktreeRoot: crewFolder(remoteRoot),
       },
     },
     ids: ["w1", "w2"],
@@ -98,7 +98,7 @@ test("a hand-back crew's commit is fetched over ssh, checked, and integrated; a 
     ["fake-linux", "fake-linux"],
   );
   const brief = dispatch[0].brief;
-  assert.match(brief, new RegExp(`Work in ${remoteRoot}/app-`));
+  assert.match(brief, new RegExp(`Work in ${crewFolder(remoteRoot)}/app-`));
   assert.match(brief, /Do not push, and write nothing to GitHub/);
   assert.ok(!brief.includes(env.checkout));
   await crew.play((s) => s.alias === "w1");

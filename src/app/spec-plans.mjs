@@ -134,11 +134,14 @@ export function readSpecFolder(root, name) {
     folder = `.kiro/specs/${name}/`;
   let real;
   try {
-    real = fs.realpathSync(directory);
+    real = fs.realpathSync.native(directory);
   } catch {
     return { name, folder, exists: false, files: {}, hash: null };
   }
-  if (!inside(fs.realpathSync(root), real) || !fs.statSync(real).isDirectory())
+  if (
+    !inside(fs.realpathSync.native(root), real) ||
+    !fs.statSync(real).isDirectory()
+  )
     return { name, folder, exists: false, files: {}, hash: null };
   const read = (file) => {
     const target = path.join(real, file);

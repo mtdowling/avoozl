@@ -52,7 +52,7 @@ function setup(t, { tasks = [leaf("a")], edges = [], project = {} } = {}) {
   store.importSnapshot({ ...snapshot(), tasks, edges });
   store.put("projects", {
     id: "app",
-    root: fs.realpathSync(checkout),
+    root: fs.realpathSync.native(checkout),
     baseBranch: "main",
     checks: [["git", "status"]],
     ...project,
@@ -63,7 +63,7 @@ function setup(t, { tasks = [leaf("a")], edges = [], project = {} } = {}) {
   );
   return {
     root,
-    checkout: fs.realpathSync(checkout),
+    checkout: fs.realpathSync.native(checkout),
     store,
     ops: new Operations(store, { workspaceRoot: root }),
   };
@@ -509,7 +509,7 @@ test("an integration branch takes the verified commit and leaves the checkout un
     fs.existsSync(path.join(store.get("task_worktrees", "b").path, "a-1.txt")),
     "a dependent starts from the integration branch, not the base",
   );
-  const holder = fs.realpathSync(path.join(root, "holder"));
+  const holder = fs.realpathSync.native(path.join(root, "holder"));
   // An untracked file elsewhere in the holder is not in the way.
   fs.writeFileSync(path.join(holder, "notes.txt"), "mine\n");
   await tick(ops);
@@ -527,11 +527,12 @@ test("an integration branch takes the verified commit and leaves the checkout un
   fs.appendFileSync(path.join(holder, "a-1.txt"), "edited\n");
   const notify = (await tick(ops)).notify;
   assert.equal(store.get("task_deliveries", "c").state, "decision");
-  assert.match(
-    store.get("task_deliveries", "c").cause,
-    new RegExp(
-      `checked out at ${holder}, which has uncommitted changes \\(a-1\\.txt\\)`,
-    ),
+  assert.ok(
+    store
+      .get("task_deliveries", "c")
+      .cause.includes(
+        `checked out at ${holder}, which has uncommitted changes (a-1.txt)`,
+      ),
   );
   assert.ok(notify.some((item) => item.task === "c"));
   assert.equal(git(checkout, "rev-parse", "avoozl-integration"), landed);

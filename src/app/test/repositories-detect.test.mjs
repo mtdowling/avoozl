@@ -25,7 +25,7 @@ function checkout(t, name) {
     "-m",
     "x",
   );
-  return { root: fs.realpathSync(root), git };
+  return { root: fs.realpathSync.native(root), git };
 }
 
 test("detect reads a checkout's root, branch, GitHub remote and ID without changing it", async (t) => {
