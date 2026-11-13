@@ -16,6 +16,11 @@ import {
   avoozlConfigSchemaPath,
 } from "./layered-config.mjs";
 import { validateContentRules } from "./content-rules.mjs";
+import {
+  DEFAULT_RETENTION_DAYS,
+  activityRetention,
+  validateActivitySettings,
+} from "./activity-log.mjs";
 import { fail } from "./store.mjs";
 
 const MAX_CONFIG_BYTES = 1024 * 1024;
@@ -721,6 +726,7 @@ export class RepositorySettings {
     );
     validateContentRules(value.contentRules);
     try {
+      validateActivitySettings(value.activity);
       flowPolicy(value);
       deliveryPolicy(value);
       validateTrackedRouting(value);
@@ -835,6 +841,36 @@ export class RepositorySettings {
     else delete value.flow;
     this.write(value, { expectedHash: before.hash });
     return this.readFlowSettings();
+  }
+
+  // Settings > General: how long the activity log keeps rows (§4.19).
+  readActivitySettings() {
+    const file = this.readFile();
+    return {
+      filename: this.filename,
+      exists: file.exists,
+      hash: file.hash,
+      retentionDays: activityRetention(file.value),
+      default: DEFAULT_RETENTION_DAYS,
+    };
+  }
+
+  // null clears the key, so the default applies again.
+  updateActivitySettings({ retentionDays, expectedHash } = {}) {
+    const before = this.readFile();
+    if (expectedHash !== before.hash)
+      fail("Avoozl configuration changed; reload before saving.", 409);
+    const value = this.updateValue(before);
+    if (retentionDays === null || retentionDays === undefined)
+      delete value.activity;
+    else value.activity = { ...(value.activity || {}), retentionDays };
+    try {
+      validateActivitySettings(value.activity);
+    } catch (error) {
+      fail(error.message);
+    }
+    this.write(value, { expectedHash: before.hash });
+    return this.readActivitySettings();
   }
 
   // Settings > Delivery: the writer's agent and model and pull request

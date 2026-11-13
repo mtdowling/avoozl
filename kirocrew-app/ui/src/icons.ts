@@ -70,7 +70,7 @@ import { Info } from 'lucide-react'
 // something on the page.
 export const DetailsIcon = Info
 
-import { CircleAlert, FileText, Gauge, HardDrive, Inbox, LayoutDashboard, LayoutGrid, Network, Settings } from 'lucide-react'
+import { CircleAlert, FileText, Gauge, HardDrive, History, Inbox, LayoutDashboard, LayoutGrid, Network, Settings } from 'lucide-react'
 // One icon per top-level view, shared by its nav tab and its page heading.
 // Network and LayoutGrid match the Graph and Delivery row buttons.
 export const VIEW_ICONS = {
@@ -84,5 +84,7 @@ export const VIEW_ICONS = {
   routing: HardDrive,
   conflicts: CircleAlert,
   untriaged: Inbox,
+  // History is in the list above: the log of what happened.
+  activity: History,
   settings: Settings,
 } as const
