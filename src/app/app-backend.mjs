@@ -237,6 +237,7 @@ const APP_OPERATIONS = new Set([
   "routing.preview",
   "routing.update",
   "crews.update",
+  "relay.forget",
   "providers.view",
   "provider.switch.preview",
   "provider.switch",

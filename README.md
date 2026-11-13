@@ -302,6 +302,30 @@ instance (Kiro Crew issue #36335), remote crews fail the checks and every
 session runs on this machine. Hand-back over SSH is tested only with a fake
 `ssh` command.
 
+### Remote relay (stopgap)
+
+`routing.remoteRelay: "on"` in the workspace's `.avoozl.json` (off by
+default) places remote worker picks before Kiro Crew can. Press **Open relay
+chat** on the Routing page. That opens one chat on the `avoozl-relay` agent.
+The tick queues each remote pick for that chat instead of running it here.
+Each time you send the chat a message, it opens the queued workers on their
+crews, sends their briefs unchanged, and hands their replies back. Avoozl
+reads only the report line at the end of a reply. The relay has four tools
+and cannot approve, merge, or push.
+
+Two catches, also shown on the Routing page:
+
+- Kiro Crew lets a chat open a remote chat only during a turn you sent. A
+  remote task waits, listed in **Needs you**, until you send any message to
+  the relay chat. It never falls back to this machine.
+- Each relay turn costs one model turn. The Routing page shows the count
+  per day.
+
+Only worker sessions go through the relay; checks and review run here. Once
+Kiro Crew can open remote sessions itself, Avoozl uses that and ignores the
+setting. The relay is built and tested with a fake relay chat and fake crews
+only (P47). It has not been run against a real remote crew.
+
 ## Pull request feedback
 
 For each leaf an Avoozl worker codes on a linked branch, the tick reads its
@@ -385,6 +409,7 @@ tests with a fake GitHub, fake sessions, or fake crews, run by `npm test`.
 | Flow: timing, stop the line, batching, retros        | Fakes only (P30)                                      |
 | Andon cord                                           | Fakes only                                            |
 | Routing prompt, checks, and pins                     | Fakes only (P29); remote crews wait on Kiro Crew      |
+| Remote relay                                         | Fakes only (P47); not run on a real remote crew       |
 | Provider health and Switch model                     | Fakes only (P44); Kiro Crew's model change not called |
 | One driver per spec, hand off and take over          | Fakes only (P40)                                      |
 | Pull request feedback                                | Fakes only (P34)                                      |
