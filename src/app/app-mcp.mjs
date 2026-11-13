@@ -18,6 +18,7 @@ import { workspaceConfig } from "./config.mjs";
 import { loadHostConfig } from "./host-config.mjs";
 import { handleMcp, kiroCrewCaller } from "./mcp.mjs";
 import { Operations } from "./operations.mjs";
+import { driverSettingsPath } from "./driver.mjs";
 import { Store } from "./store.mjs";
 import { callerSlot } from "./delivery.mjs";
 import { dispatchMcp } from "../mcp.mjs";
@@ -56,6 +57,7 @@ export function createAppMcp({ fallback = null, env = process.env } = {}) {
           operator: config.operator,
           workspaceRoot: config.workspaceRoot,
           plansRoot: config.plansRoot,
+          driver: { settingsFile: driverSettingsPath() },
         }),
       };
       opened.set(key, entry);

@@ -88,6 +88,17 @@ export const PERSON_ONLY = new Map([
   ["flow.instructions.update", person("Only a person changes flow settings.")],
   ["flow.retro.start", person("Only a person starts a retro.")],
   ["flow.retro.decide", person("Only a person decides retro proposals.")],
+  ["driver.handoff", person("Only a person hands off a spec's driver.")],
+  ["driver.takeover", person("Only a person takes over a spec's driver.")],
+  [
+    "driver.forceTakeover",
+    person("Only a person takes over a spec's driver by force."),
+  ],
+  ["driver.away.decide", person("Only a person decides an away task.")],
+  [
+    "driver.settings.update",
+    person("Only a person changes this computer's driver settings."),
+  ],
   ["flow.runAnyway", person("Only a person presses Run anyway.")],
   ["flow.resume", person("Only a person resumes a pulled stop.")],
   [

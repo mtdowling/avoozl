@@ -11,6 +11,7 @@ import { withWorkLock } from "./git.mjs";
 import { WORKSPACE_LOCK } from "./tick.mjs";
 import { blockerNotes, closeWithoutCode } from "./github-close.mjs";
 import { pausedTaskIds } from "./github-project.mjs";
+import { ensurePlanIssue } from "./driver.mjs";
 import { graphOrder } from "./delivery.mjs";
 import { priorityRank } from "./github-policy.mjs";
 import {
@@ -256,7 +257,11 @@ function graphReady(store, data, tasks) {
 // whose blocker completed gets the ready label (and a linked-branch leaf its
 // dispatch) without a person running `github project`. Only plans whose
 // repositories this machine writes. A quiet graph makes no GitHub call.
-export async function refreshProjectedReadiness(store, github, { identity }) {
+export async function refreshProjectedReadiness(
+  store,
+  github,
+  { identity, skipPlans = new Set(), forcePlans = new Set() },
+) {
   const data = store.read(),
     result = { projected: [], errors: [] },
     designed = data.tasks.filter(
@@ -268,7 +273,7 @@ export async function refreshProjectedReadiness(store, github, { identity }) {
     );
   // machineIdentity writes on first use; a workspace with no projected
   // task must stay untouched.
-  if (!designed.length) return result;
+  if (!designed.length && !forcePlans.size) return result;
   const machine = machineIdentity(store).id,
     writers = new Set(
       store
@@ -287,10 +292,22 @@ export async function refreshProjectedReadiness(store, github, { identity }) {
         )
         .map((task) => task.planId),
     );
+  // A spec taken over is projected once more, so the next tick raises again
+  // every conflict whose cause is still on GitHub (§6.10).
+  for (const planId of forcePlans) plans.add(planId);
   for (const planId of plans) {
+    // A spec driven elsewhere is read-only here (§6.10).
+    if (skipPlans.has(planId)) continue;
     if (store.get("plans", planId)?.state !== "approved") continue;
     try {
-      await project(store, github, { planId, identity });
+      // Plans-repo mode keeps every task issue in the planning repository.
+      await project(store, github, {
+        planId,
+        identity,
+        ...(identity.mode === "plans-repo" && identity.planningRepository
+          ? { repository: identity.planningRepository }
+          : {}),
+      });
       result.projected.push(planId);
     } catch (error) {
       result.errors.push({ planId, error: error.message });
@@ -312,6 +329,9 @@ async function project(
     plan = store.get("plans", planId);
   if (!plan || plan.state !== "approved")
     fail("Approve the design revision before projecting issues.", 409);
+  // The plan issue first, then only while this workspace drives the spec
+  // (§6.10). A preview writes nothing, so it does not ask.
+  if (!dryRun) await ensurePlanIssue(store, github, plan);
   const data = store.read(),
     complete = (status) => statusComplete(data, status),
     // An opt-in local task never syncs to GitHub (R28.3).

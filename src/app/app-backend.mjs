@@ -9,6 +9,7 @@ import path from "node:path";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { Store } from "./store.mjs";
 import { Operations } from "./operations.mjs";
+import { driverSettingsPath } from "./driver.mjs";
 import { CLIENT_OPERATIONS } from "./client.mjs";
 import { classifyOperation } from "./operation-kinds.mjs";
 import { workspaceConfig } from "./config.mjs";
@@ -203,6 +204,13 @@ const APP_OPERATIONS = new Set([
   "flow.resume",
   "flow.settings.get",
   "flow.settings.update",
+  "driver.status",
+  "driver.takeover.preview",
+  "driver.settings.update",
+  "driver.handoff",
+  "driver.takeover",
+  "driver.forceTakeover",
+  "driver.away.decide",
   "routing.view",
   "routing.preview",
   "routing.update",
@@ -381,6 +389,7 @@ export function startAppBackend({
           notifier,
           crewReader,
           sessionStopper,
+          driver: { settingsFile: driverSettingsPath() },
         }),
       };
       opened.set(target.dbPath, entry);
