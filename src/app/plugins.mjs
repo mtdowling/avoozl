@@ -1064,6 +1064,7 @@ export function repositoryPacks(workspaceRoot) {
 // A plugin's pack against this repository's `.avoozl.json` (R55.5). Reads
 // only. It works before approval, so a person can look before trusting it.
 function packPlugin(options, id) {
+  if (typeof id !== "string" || !id) fail("Name the plugin by its id.");
   const plugin = inspectPlugins(options).find((p) => p.id === id);
   if (!plugin) fail(`Plugin ${id} is not declared.`, 404);
   if (plugin.state === "invalid" || plugin.state === "missing")

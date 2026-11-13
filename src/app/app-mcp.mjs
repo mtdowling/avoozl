@@ -34,10 +34,10 @@ const STATIC = new Set([
   "resources/templates/list",
 ]);
 
-const rpcError = (id, message) => ({
+const rpcError = (id, message, code = -32603) => ({
   jsonrpc: "2.0",
   id: id ?? null,
-  error: { code: -32603, message },
+  error: { code, message },
 });
 
 export function createAppMcp({ fallback = null, env = process.env } = {}) {
@@ -125,7 +125,7 @@ export function createAppMcp({ fallback = null, env = process.env } = {}) {
 
   async function handle(message) {
     if (!message || typeof message !== "object" || Array.isArray(message))
-      return rpcError(null, "Send one JSON-RPC request object.");
+      return rpcError(null, "Send one JSON-RPC request object.", -32600);
     // Notifications get no reply.
     if (!Object.hasOwn(message, "id")) return null;
     if (STATIC.has(message.method)) {

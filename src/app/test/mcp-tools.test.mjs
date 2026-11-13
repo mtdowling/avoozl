@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
 import { handleMcp, OLD_TOOLS } from "../mcp.mjs";
+import { createAppMcp } from "../app-mcp.mjs";
 import { NOT_ON_MCP, PERSON_ONLY } from "../mcp-policy.mjs";
 import { GROUPED_TOOLS, groupedCall } from "../mcp-tools.mjs";
 import { MOVED_OPERATIONS } from "../moved-operations.mjs";
@@ -163,4 +164,53 @@ test("grouped calls run their operation, and plans_workspace keeps its old shape
   const current = await call(ops, "plans_workspace", { action: "get" });
   assert.deepEqual(Object.keys(old.structuredContent), Object.keys(current.structuredContent));
   assert.equal(classifyOperation("workspace"), "observe");
+});
+
+// A session that leaves out a field gets a message it can act on, never a
+// SQLite binding error or a message naming `undefined`.
+test("every MCP name answers an empty input with a clear message", async (t) => {
+  const { root, store } = fixture(t),
+    ops = new Operations(store, { workspaceRoot: root });
+  // Writes the person's global git ignore file.
+  const skip = new Set(["local.ignore.fix"]);
+  const calls = [];
+  for (const [tool, { actions }] of Object.entries(GROUPED_TOOLS))
+    for (const [action, [operation]] of Object.entries(actions))
+      if (!skip.has(operation)) calls.push([tool, { action, input: {} }]);
+  for (const [name, [operation]] of Object.entries(OLD_TOOLS))
+    if (!skip.has(operation)) calls.push([name, { input: {} }]);
+  const unclear = [];
+  for (const [name, args] of calls) {
+    const result = await call(ops, name, args),
+      text = result.content.map((item) => item.text).join("\n");
+    if (result.isError && /SQLite|\bundefined\b|\n\s+at |\bChoose a [aeiou]/.test(text))
+      unclear.push(`${name} ${args.action ?? ""}: ${text}`);
+  }
+  assert.deepEqual(unclear, []);
+  // The workspace's saved settings are readable over MCP.
+  const settings = await call(ops, "plans_workspace", { action: "configuration" });
+  assert.equal(settings.isError, undefined, settings.content[0].text);
+  assert.equal(settings.structuredContent.scope, "repository");
+});
+
+test("an old plans_* name refuses an input that is not an object", async (t) => {
+  const { store } = fixture(t),
+    ops = new Operations(store),
+    before = store.read().revision;
+  for (const input of ["x", [1], 0])
+    for (const name of ["plans_update_task", "plans_capture"]) {
+      const result = await call(ops, name, { input });
+      assert.equal(result.isError, true, `${name} ${JSON.stringify(input)}`);
+      assert.equal(result.content[0].text, "input must be an object.");
+    }
+  assert.equal(store.read().revision, before);
+});
+
+test("the app's MCP server answers a non-object request as Invalid Request", async () => {
+  const server = createAppMcp({ env: {} });
+  try {
+    assert.deepEqual((await server.handle([])).error.code, -32600);
+  } finally {
+    server.close();
+  }
 });

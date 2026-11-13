@@ -334,6 +334,13 @@ export const OLD_TOOLS = {
   ],
 };
 const operations = OLD_TOOLS;
+// The operation and input an old plans_* call names, or {error}.
+const oldCall = (name, args) => {
+  const input = args.input ?? {};
+  return input && typeof input === "object" && !Array.isArray(input)
+    ? { operation: operations[name][0], input }
+    : { error: "input must be an object." };
+};
 // "plans_task {action: \"update\"}" for an operation, or null.
 const replacement = (operation) => {
   for (const [tool, { actions }] of Object.entries(GROUPED_TOOLS))
@@ -456,7 +463,7 @@ export async function handleMcp(
     const args = message.params.arguments || {},
       route = Object.hasOwn(GROUPED_TOOLS, name)
         ? groupedCall(name, args)
-        : { operation: operations[name][0], input: args.input || {} };
+        : oldCall(name, args);
     const refuse = (text) => ok({ isError: true, content: [{ type: "text", text }] });
     if (route.error) return refuse(route.error);
     // Checked again in Operations.perform; refusing here names the tool.
