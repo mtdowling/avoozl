@@ -132,7 +132,10 @@ test("a gone worker opens one decision and is never replaced on its own", async 
   });
   assert.equal(store.get("session_bindings", "avoozl_a").status, "lost");
   const retried = await cronTick(ops);
-  assert.equal(store.get("task_deliveries", "a").attempts.at(-1).outcome, "failed");
+  assert.equal(
+    store.get("task_deliveries", "a").attempts.at(-1).outcome,
+    "failed",
+  );
   assert.deepEqual(
     retried.dispatch.map((d) => [d.task, d.attempt]),
     [["a", 2]],
@@ -185,7 +188,10 @@ test("a slot read maps Kiro Crew's answer and never reads a refusal as gone", as
         .digest("hex"),
     };
   assert.equal(
-    gatewaySlotReader({ ...env, KIROCREW_GATEWAY_ORIGIN_PROOF: "0".repeat(64) }),
+    gatewaySlotReader({
+      ...env,
+      KIROCREW_GATEWAY_ORIGIN_PROOF: "0".repeat(64),
+    }),
     null,
   );
   const calls = [],
@@ -198,7 +204,11 @@ test("a slot read maps Kiro Crew's answer and never reads a refusal as gone", as
   const read = gatewaySlotReader(env, async (url, init) => {
     calls.push([init.method, url.replace(origin, "")]);
     if (url.endsWith("/api/apps/avoozl/token"))
-      return { ok: true, status: 200, json: async () => ({ token: `t${++tokens}` }) };
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ token: `t${++tokens}` }),
+      };
     const slot = decodeURIComponent(url.match(/slots\/([^?]+)/)[1]),
       [code, body] = answers[slot];
     // The first read's token has expired; the next one is fresh.
@@ -252,7 +262,11 @@ test("a backend that started before any workspace reads sessions once one is add
   const store = new Store(target.dbPath);
   t.after(() => store.close());
   store.importSnapshot({ ...snapshot(), tasks: [leaf("a")], edges: [] });
-  await bind(new Operations(store, { workspaceRoot: workspace }), "a", "avoozl_a");
+  await bind(
+    new Operations(store, { workspaceRoot: workspace }),
+    "a",
+    "avoozl_a",
+  );
   const reads = [];
   const server = startAppBackend({
     config: workspaceConfig({ workspace: path.join(root, "none"), env: {} }),
@@ -270,27 +284,37 @@ test("a backend that started before any workspace reads sessions once one is add
     operation: "workspaces.add",
     input: { id: "w", root: workspace },
   });
-  const added = await fetch(`http://127.0.0.1:${server.address().port}/api/command`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-KiroCrew-Principal": sign(body, secret),
+  const added = await fetch(
+    `http://127.0.0.1:${server.address().port}/api/command`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-KiroCrew-Principal": sign(body, secret),
+      },
+      body,
     },
-    body,
-  });
+  );
   assert.equal(added.status, 200);
   const health = path.join(path.dirname(target.dbPath), "tick-health.json"),
     settle = async () => {
       for (let i = 0; i < 50 && !reads.length; i++)
         await new Promise((resolve) => setTimeout(resolve, 40));
     };
-  fs.writeFileSync(health, JSON.stringify({ outcome: "ok", observer: "roster" }));
+  fs.writeFileSync(
+    health,
+    JSON.stringify({ outcome: "ok", observer: "roster" }),
+  );
   await settle();
   assert.deepEqual(reads, [], "a roster tick needs no backend read");
   fs.writeFileSync(health, JSON.stringify({ outcome: "ok", observer: "app" }));
   await settle();
   assert.deepEqual(reads, ["avoozl_a"]);
-  for (let i = 0; i < 50 && !store.get("session_bindings", "avoozl_a").status; i++)
+  for (
+    let i = 0;
+    i < 50 && !store.get("session_bindings", "avoozl_a").status;
+    i++
+  )
     await new Promise((resolve) => setTimeout(resolve, 40));
   assert.equal(store.get("session_bindings", "avoozl_a").status, "working");
 });

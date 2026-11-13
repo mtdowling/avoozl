@@ -12,12 +12,15 @@ import {
 
 const COMMIT = /\b[0-9a-f]{9,40}\b/g;
 // Commit-like words; an all-digit word is a number, not a hash.
-const hashes = (text) => unique((text.match(COMMIT) || []).filter((w) => /[a-f]/.test(w)));
+const hashes = (text) =>
+  unique((text.match(COMMIT) || []).filter((w) => /[a-f]/.test(w)));
 const escape = (s) => s.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
 // Branch names in free text: words starting with one of the prefixes.
 const branchPattern = (prefixes) =>
   new RegExp(
-    "(?<![\\w/])(?:" + prefixes.map(escape).join("|") + ")[A-Za-z0-9._/-]*[A-Za-z0-9]",
+    "(?<![\\w/])(?:" +
+      prefixes.map(escape).join("|") +
+      ")[A-Za-z0-9._/-]*[A-Za-z0-9]",
     "g",
   );
 
@@ -28,7 +31,10 @@ const textOf = (...parts) =>
 function sourceLines(task, readDocument) {
   const src = task.source;
   if (!src?.document || !readDocument) return [];
-  return (readDocument(src.document) || []).slice(src.lineStart - 1, src.lineEnd);
+  return (readDocument(src.document) || []).slice(
+    src.lineStart - 1,
+    src.lineEnd,
+  );
 }
 
 // Step 5 input: one evidence row per unfinished partial task. `commitRefs`
@@ -51,17 +57,30 @@ export function partialEvidence(
   const complete = completeStatuses(data);
   const entries = mapping?.entries || [];
   return data.tasks
-    .filter((t) => inEpic.has(t.epic) && t.status === "partial" && !complete.has(t.status))
+    .filter(
+      (t) =>
+        inEpic.has(t.epic) && t.status === "partial" && !complete.has(t.status),
+    )
     .map((t) => {
       const lines = sourceLines(t, readDocument);
-      const text = textOf(t.summary, t.nextAction, t.notes, t.activity?.summary, lines.join(" "));
+      const text = textOf(
+        t.summary,
+        t.nextAction,
+        t.notes,
+        t.activity?.summary,
+        lines.join(" "),
+      );
       const commits = hashes(text).map((sha) => {
         const refs = commitRefs ? commitRefs(sha) : null;
         return { sha, resolved: refs !== null, refs: refs || [] };
       });
-      const branches = unique([...((BRANCH && text.match(BRANCH)) || []), t.activity?.branch]).map(
-        (name) => ({ name, exists: branchExists ? !!branchExists(name) : null }),
-      );
+      const branches = unique([
+        ...((BRANCH && text.match(BRANCH)) || []),
+        t.activity?.branch,
+      ]).map((name) => ({
+        name,
+        exists: branchExists ? !!branchExists(name) : null,
+      }));
       return {
         id: t.id,
         epic: t.epic,
@@ -88,7 +107,9 @@ export function partialEvidence(
               summary: redactPaths(t.activity.summary ?? ""),
             }
           : null,
-        runs: runs.filter((r) => r.taskId === t.id).map((r) => ({ id: r.id, state: r.state })),
+        runs: runs
+          .filter((r) => r.taskId === t.id)
+          .map((r) => ({ id: r.id, state: r.state })),
         commits,
         branches,
         entries: entries
@@ -104,7 +125,12 @@ export function broadScope(data, kinds, { mapping } = {}) {
   const byId = new Map(data.tasks.map((t) => [t.id, t]));
   const entries = mapping?.entries || [];
   return kinds.tasks
-    .filter((k) => k.kind === "package" && k.status !== "partial" && !completeStatuses(data).has(k.status))
+    .filter(
+      (k) =>
+        k.kind === "package" &&
+        k.status !== "partial" &&
+        !completeStatuses(data).has(k.status),
+    )
     .map((k) => {
       const t = byId.get(k.id);
       return {
@@ -113,7 +139,9 @@ export function broadScope(data, kinds, { mapping } = {}) {
         title: t.title,
         status: k.status,
         reason: k.reason,
-        children: data.tasks.filter((c) => c.parentId === k.id).map((c) => c.id),
+        children: data.tasks
+          .filter((c) => c.parentId === k.id)
+          .map((c) => c.id),
         summary: redactPaths(t.summary),
         source: t.source
           ? { document: t.source.document, lineStart: t.source.lineStart }
@@ -141,7 +169,11 @@ export const RULES = {
 // are `<task-id>.<slug>`, new, and unique; checklist entries named on a leaf
 // must be entries mapped to its task (they become its acceptance, never a
 // new task, R23.5).
-export function applyProposals(scope, proposals, { verdicts, existingIds = [] }) {
+export function applyProposals(
+  scope,
+  proposals,
+  { verdicts, existingIds = [] },
+) {
   const errors = [];
   const rows = new Map(scope.map((r) => [r.id, r]));
   const seen = new Set();
@@ -166,18 +198,23 @@ export function applyProposals(scope, proposals, { verdicts, existingIds = [] })
     if (rule.acceptance && !acceptance.length)
       errors.push(`${p.task}: ${p.verdict} needs acceptance`);
     const list = p.leaves || [];
-    if (rule.leaves && !list.length) errors.push(`${p.task}: ${p.verdict} needs leaves`);
-    if (!rule.leaves && list.length) errors.push(`${p.task}: ${p.verdict} takes no leaves`);
+    if (rule.leaves && !list.length)
+      errors.push(`${p.task}: ${p.verdict} needs leaves`);
+    if (!rule.leaves && list.length)
+      errors.push(`${p.task}: ${p.verdict} takes no leaves`);
     const mapped = new Set(row.entries.map((e) => e.id));
     for (const leaf of list) {
       const id = `${p.task}.${leaf.slug}`;
-      if (!SLUG.test(leaf.slug || "")) errors.push(`${id}: slug must be lowercase words joined by -`);
+      if (!SLUG.test(leaf.slug || ""))
+        errors.push(`${id}: slug must be lowercase words joined by -`);
       if (taken.has(id)) errors.push(`${id}: ID already used`);
       taken.add(id);
       if (!leaf.title?.trim()) errors.push(`${id}: title is required`);
-      if (!leaf.acceptance?.length) errors.push(`${id}: acceptance is required`);
+      if (!leaf.acceptance?.length)
+        errors.push(`${id}: acceptance is required`);
       for (const e of leaf.entries || [])
-        if (!mapped.has(e)) errors.push(`${id}: entry ${e} is not mapped to ${p.task}`);
+        if (!mapped.has(e))
+          errors.push(`${id}: entry ${e} is not mapped to ${p.task}`);
       leaves.push({
         id,
         parentId: p.task,
@@ -190,9 +227,17 @@ export function applyProposals(scope, proposals, { verdicts, existingIds = [] })
         basis: leaf.basis || null,
       });
     }
-    decided.push({ ...row, verdict: p.verdict, reason: p.reason, acceptance, leaves: list.map((l) => `${p.task}.${l.slug}`), proposal: true });
+    decided.push({
+      ...row,
+      verdict: p.verdict,
+      reason: p.reason,
+      acceptance,
+      leaves: list.map((l) => `${p.task}.${l.slug}`),
+      proposal: true,
+    });
   }
-  for (const id of rows.keys()) if (!seen.has(id)) errors.push(`${id}: no proposal`);
+  for (const id of rows.keys())
+    if (!seen.has(id)) errors.push(`${id}: no proposal`);
   return { rows: decided, leaves, errors };
 }
 
@@ -212,7 +257,14 @@ export const DRAIN_STATES = [
 // output and token deltas stay in the archive.
 export function runEvidence(
   data,
-  { runs, events = [], deliveries = [], archived = {}, commitRefs, present = {} },
+  {
+    runs,
+    events = [],
+    deliveries = [],
+    archived = {},
+    commitRefs,
+    present = {},
+  },
 ) {
   const tasks = new Map(data.tasks.map((t) => [t.id, t]));
   return runs
@@ -245,10 +297,19 @@ export function runEvidence(
           .map((e) => ({ at: e.at, text: redactPaths(e.text) })),
         deliveries: deliveries
           .filter((d) => d.runId === r.id)
-          .map((d) => ({ at: d.createdAt ?? null, state: d.state, text: redactPaths(d.text) })),
-        endedAs: own.filter((e) => e.kind === "turn.completed").at(-1)?.state ?? null,
+          .map((d) => ({
+            at: d.createdAt ?? null,
+            state: d.state,
+            text: redactPaths(d.text),
+          })),
+        endedAs:
+          own.filter((e) => e.kind === "turn.completed").at(-1)?.state ?? null,
         activity: task?.activity
-          ? { state: task.activity.state, branch: task.activity.branch ?? null, summary: redactPaths(summary) }
+          ? {
+              state: task.activity.state,
+              branch: task.activity.branch ?? null,
+              summary: redactPaths(summary),
+            }
           : null,
         commits,
         archivedAt: archived[r.id] ?? null,

@@ -143,20 +143,22 @@ export function deliveryPolicy(value) {
       typeof entry !== "object" ||
       Object.keys(entry).some(
         (key) =>
-          !["concurrency", "reviewers", "prFeedback", "feedbackRounds"].includes(
-            key,
-          ),
+          ![
+            "concurrency",
+            "reviewers",
+            "prFeedback",
+            "feedbackRounds",
+          ].includes(key),
       ) ||
       (entry.concurrency !== undefined && !bounded(entry.concurrency, 0, 32))
     )
       throw Error(
         `delivery.repositories.${id} may set only concurrency, a whole number 0–32, reviewers, prFeedback, and feedbackRounds.`,
       );
-    if (
-      entry.prFeedback !== undefined &&
-      typeof entry.prFeedback !== "boolean"
-    )
-      throw Error(`delivery.repositories.${id}.prFeedback must be true or false.`);
+    if (entry.prFeedback !== undefined && typeof entry.prFeedback !== "boolean")
+      throw Error(
+        `delivery.repositories.${id}.prFeedback must be true or false.`,
+      );
     if (
       entry.feedbackRounds !== undefined &&
       !bounded(entry.feedbackRounds, 1, 20)
@@ -282,7 +284,12 @@ async function retireBatchWorktree(store, project, taskId, branch) {
     n = 1;
   for (;;) {
     try {
-      await git(project.root, ["rev-parse", "--verify", "--quiet", "refs/heads/" + name]);
+      await git(project.root, [
+        "rev-parse",
+        "--verify",
+        "--quiet",
+        "refs/heads/" + name,
+      ]);
       name = `${branch}-batch-${++n}`;
     } catch {
       break;
@@ -312,9 +319,9 @@ export async function prepareWorktree(store, input = {}) {
     branch = "avoozl/" + task.id;
   await retireBatchWorktree(store, project, task.id, branch);
   const prepared = await prepareTaskWorktree(store, project, {
-      branch,
-      name: "avoozl-" + task.id,
-    });
+    branch,
+    name: "avoozl-" + task.id,
+  });
   const record = {
     id: task.id,
     taskId: task.id,
@@ -784,7 +791,10 @@ export async function reportSession(
       pushed = checkDoneList(checks, declared),
       pass = await localPass(project.root, pushed, declared);
     if (!pass.ok)
-      fail(`Local checks first: ${pass.cause}. Run \`avoozl checks run --task ${task.id}\` in your worktree, then push.`, 409);
+      fail(
+        `Local checks first: ${pass.cause}. Run \`avoozl checks run --task ${task.id}\` in your worktree, then push.`,
+        409,
+      );
   }
   if (
     !review &&
@@ -895,7 +905,12 @@ async function fetchBack(store, project, task, binding, commit, hooks) {
     configFile = contentBinding(store)?.configFile;
   let fetched;
   if (back.delivery === "push")
-    fetched = await pushedFetch({ root: project.root, remote: back.remote || "origin", branch, ref });
+    fetched = await pushedFetch({
+      root: project.root,
+      remote: back.remote || "origin",
+      branch,
+      ref,
+    });
   else {
     const crew = {
       id: binding.crew,
@@ -922,7 +937,10 @@ async function fetchBack(store, project, task, binding, commit, hooks) {
   try {
     await git(worktree.path, ["merge", "--ff-only", commit]);
   } catch {
-    fail(`${commit} does not follow ${branch} on this machine; it cannot be fast-forwarded.`, 409);
+    fail(
+      `${commit} does not follow ${branch} on this machine; it cannot be fast-forwarded.`,
+      409,
+    );
   }
 }
 
@@ -1272,7 +1290,9 @@ const START_NOW = "startNow";
 export function startNowIds(store) {
   try {
     const value = store.getMeta(START_NOW);
-    return Array.isArray(value) ? value.filter((id) => typeof id === "string") : [];
+    return Array.isArray(value)
+      ? value.filter((id) => typeof id === "string")
+      : [];
   } catch {
     return [];
   }
@@ -1283,20 +1303,38 @@ export function startNowIds(store) {
 // next tick (or a Crew Mode conductor's next claim) starts it, still within
 // the workspace's and the repository's concurrency. A full workspace says so
 // and the task stays first in line.
-export function startNow(store, input = {}, { policy = null, github = null } = {}) {
+export function startNow(
+  store,
+  input = {},
+  { policy = null, github = null } = {},
+) {
   const task = findTask(store, input.taskId),
     delivery = policy?.delivery;
-  if (taskKind(task) !== "leaf") fail("Only a task, not an epic, can start.", 409);
+  if (taskKind(task) !== "leaf")
+    fail("Only a task, not an epic, can start.", 409);
   if (!delivery)
-    fail("Delivery is off: .avoozl.json has no delivery block, so nothing starts tasks.", 409);
+    fail(
+      "Delivery is off: .avoozl.json has no delivery block, so nothing starts tasks.",
+      409,
+    );
   const data = store.read();
-  if (statusComplete(data, task.status)) fail(`${task.id} is already done.`, 409);
-  if (claimedTaskIds(store).has(task.id)) fail(`${task.id} is already running.`, 409);
+  if (statusComplete(data, task.status))
+    fail(`${task.id} is already done.`, 409);
+  if (claimedTaskIds(store).has(task.id))
+    fail(`${task.id} is already running.`, 409);
   // Every leaf the tick could start, ignoring capacity.
-  const unlimited = { ...delivery, concurrency: Number.MAX_SAFE_INTEGER, repositories: {} },
-    eligible = readyLeaves(store, unlimited, { github }).some((leaf) => leaf.task.id === task.id);
+  const unlimited = {
+      ...delivery,
+      concurrency: Number.MAX_SAFE_INTEGER,
+      repositories: {},
+    },
+    eligible = readyLeaves(store, unlimited, { github }).some(
+      (leaf) => leaf.task.id === task.id,
+    );
   if (!eligible) {
-    const ready = queryTasks(data, { scope: "all", q: "ready:true" }).some((t) => t.id === task.id);
+    const ready = queryTasks(data, { scope: "all", q: "ready:true" }).some(
+      (t) => t.id === task.id,
+    );
     fail(
       !ready
         ? `${task.id} is not ready: it waits on a prerequisite, a decision or a review.`
@@ -1309,12 +1347,21 @@ export function startNow(store, input = {}, { policy = null, github = null } = {
   store.transaction(() =>
     store.setMeta(START_NOW, [
       task.id,
-      ...startNowIds(store).filter((id) => id !== task.id && !claimedTaskIds(store).has(id)),
+      ...startNowIds(store).filter(
+        (id) => id !== task.id && !claimedTaskIds(store).has(id),
+      ),
     ]),
   );
-  const starting = readyLeaves(store, delivery, { github }).some((leaf) => leaf.task.id === task.id),
-    live = [...runnerAttempts(listSessionBindings(store)).values()].filter(liveAttempt).length,
-    by = delivery.runner === "crew-mode" ? "the conductor's next claim" : "the next tick, within a minute";
+  const starting = readyLeaves(store, delivery, { github }).some(
+      (leaf) => leaf.task.id === task.id,
+    ),
+    live = [...runnerAttempts(listSessionBindings(store)).values()].filter(
+      liveAttempt,
+    ).length,
+    by =
+      delivery.runner === "crew-mode"
+        ? "the conductor's next claim"
+        : "the next tick, within a minute";
   return {
     taskId: task.id,
     full: !starting,
@@ -1642,7 +1689,13 @@ export function readyCandidates(
           taskRoute(task) === "local" ||
           linkedBranch(store, task.id)),
     )
-    .sort(dispatchOrder(data, [...lineFirstIds(store), ...startNowIds(store)], graphOrder(data)));
+    .sort(
+      dispatchOrder(
+        data,
+        [...lineFirstIds(store), ...startNowIds(store)],
+        graphOrder(data),
+      ),
+    );
 }
 
 // A dispatch's session title. Kiro Crew keys a session by its name and hands
@@ -1657,7 +1710,12 @@ export function sessionTitle(taskId, attempt, label) {
 
 // The brief a ready leaf's worker gets, for its route. A plans-repo leaf's
 // brief is the task's own text and its linked branch (§6.6).
-export function leafBrief(store, data, leaf, { relay = false, remote = null } = {}) {
+export function leafBrief(
+  store,
+  data,
+  leaf,
+  { relay = false, remote = null } = {},
+) {
   const { task, project, attempt, delivery } = leaf,
     options = {
       attempt,
@@ -1674,8 +1732,9 @@ export function leafBrief(store, data, leaf, { relay = false, remote = null } = 
   if (taskRoute(task) === "github") {
     const branch = linkedBranch(store, task.id);
     return plansRepoBrief(task, project, {
-      localChecks: readFlowPolicy(contentBinding(store)?.workspaceRoot).for(project.id)
-        .localChecksFirst,
+      localChecks: readFlowPolicy(contentBinding(store)?.workspaceRoot).for(
+        project.id,
+      ).localChecksFirst,
       ...options,
       relay,
       ...(branch?.stackedOn
@@ -1754,7 +1813,10 @@ export function planReadyDispatches(store, policy, options = {}) {
     }),
     waiting = waitingForBatch(store, candidates, { workspaceRoot, data }),
     skip = new Set([...(options.skip || []), ...waiting]),
-    routing = options.routing && routingOn(options.routing, data) ? options.routing : null,
+    routing =
+      options.routing && routingOn(options.routing, data)
+        ? options.routing
+        : null,
     state = options.placementState || { crews: new Map(), choices: new Map() },
     placed = new Map(),
     place = routing
@@ -1860,7 +1922,10 @@ export function pickAgain(store, input = {}) {
   );
   if (!last) fail(`${task.id} has no attempt to pick again after.`, 409);
   store.transaction(() =>
-    store.setMeta(PICK_AGAIN, { ...(store.getMeta(PICK_AGAIN) || {}), [task.id]: last }),
+    store.setMeta(PICK_AGAIN, {
+      ...(store.getMeta(PICK_AGAIN) || {}),
+      [task.id]: last,
+    }),
   );
   return { taskId: task.id, pickAgainAfter: last };
 }
@@ -1871,7 +1936,8 @@ export function keptSession(store, taskId) {
   const last = listSessionBindings(store)
     .filter((b) => b.taskId === taskId && b.role === "worker")
     .sort((a, b) => b.attempt - a.attempt)[0];
-  if (!last || last.attempt <= (store.getMeta(PICK_AGAIN)?.[taskId] || 0)) return null;
+  if (!last || last.attempt <= (store.getMeta(PICK_AGAIN)?.[taskId] || 0))
+    return null;
   return { agent: last.agent ?? null, model: last.model ?? null };
 }
 
@@ -1879,7 +1945,8 @@ export function keptSession(store, taskId) {
 function remoteTarget(routing, leaf, crew) {
   const info = routing.fetch.get(leaf.project.id),
     remote = info?.remotes.find(
-      (r) => r.host && crew.gitHosts.map((h) => h.toLowerCase()).includes(r.host),
+      (r) =>
+        r.host && crew.gitHosts.map((h) => h.toLowerCase()).includes(r.host),
     );
   return {
     crew: crew.id,
@@ -2404,7 +2471,9 @@ export function planVerifierDispatches(store, policy = null, options = {}) {
     bindings = listSessionBindings(store),
     retries = policy?.retries ?? DELIVERY_DEFAULTS.retries,
     routing =
-      options.routing && routingOn(options.routing, data) ? options.routing : null,
+      options.routing && routingOn(options.routing, data)
+        ? options.routing
+        : null,
     state = options.placementState || { crews: new Map(), choices: new Map() },
     dispatch = [];
   for (const delivery of store.list("task_deliveries")) {
@@ -2733,7 +2802,11 @@ async function integrateMembers(store, head, entry, at) {
   const record = store.get("flow_batches", head.batch);
   if (record)
     store.transaction(() =>
-      store.put("flow_batches", { ...record, state: "integrated", integratedAt: at }),
+      store.put("flow_batches", {
+        ...record,
+        state: "integrated",
+        integratedAt: at,
+      }),
     );
 }
 

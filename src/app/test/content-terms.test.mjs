@@ -63,14 +63,23 @@ test("allow lines are counted apart and their problems name only the line", () =
 test("a person writes the terms file owner-only; Settings never sees a term", async (t) => {
   const { root, store, ops } = setup(t);
   const empty = await ops.execute("content.terms.get", { id: "made-up" });
-  assert.deepEqual([empty.exists, empty.editable, empty.text], [false, true, ""]);
+  assert.deepEqual(
+    [empty.exists, empty.editable, empty.text],
+    [false, true, ""],
+  );
   assert.equal(empty.file, ".avoozl/local/content-rules/made-up.txt");
   const saved = await ops.execute("content.terms.update", {
     id: "made-up",
     text: "zebra-falcon: zebra\\s+falcon\ncobalt-heron: cobalt heron",
   });
   assert.deepEqual([saved.saved, saved.rules], [true, 2]);
-  const file = path.join(root, ".avoozl", "local", "content-rules", "made-up.txt");
+  const file = path.join(
+    root,
+    ".avoozl",
+    "local",
+    "content-rules",
+    "made-up.txt",
+  );
   assert.equal(fs.statSync(file).mode & 0o777, 0o600);
   assert.equal(fs.statSync(path.dirname(file)).mode & 0o777, 0o700);
   assert.match(fs.readFileSync(file, "utf8"), /cobalt heron\n$/);
@@ -80,9 +89,7 @@ test("a person writes the terms file owner-only; Settings never sees a term", as
   const listed = JSON.stringify(await ops.execute("content.rules", {}));
   assert.doesNotMatch(listed, /zebra|cobalt/);
   assert.match(listed, /"ruleCount":2/);
-  const events = JSON.stringify(
-    store.db.prepare("SELECT * FROM events").all(),
-  );
+  const events = JSON.stringify(store.db.prepare("SELECT * FROM events").all());
   assert.doesNotMatch(events, /zebra|cobalt/);
   await assert.rejects(
     ops.execute("content.terms.update", {
@@ -234,7 +241,9 @@ test("plugin.preview reads a folder's manifest without declaring it", async (t) 
     ["made-up-tracker", "1.2.0", 1, true],
   );
   assert.ok(!fs.existsSync(options.settingsFile), "nothing was declared");
-  const missing = await previewPlugin(options, { path: path.join(root, "nope") });
+  const missing = await previewPlugin(options, {
+    path: path.join(root, "nope"),
+  });
   assert.match(missing.error, /No avoozl-plugin\.json/);
   const pkg = await previewPlugin(options, { package: "made-up-pkg" });
   assert.match(pkg.error, /not installed/);
@@ -247,7 +256,15 @@ test("plugin.preview reads a folder's manifest without declaring it", async (t) 
   git("init", "-q", "-b", "main");
   fs.writeFileSync(path.join(repo, "a.txt"), "a");
   git("add", ".");
-  git("-c", "user.email=a@example.com", "-c", "user.name=a", "commit", "-qm", "a");
+  git(
+    "-c",
+    "user.email=a@example.com",
+    "-c",
+    "user.name=a",
+    "commit",
+    "-qm",
+    "a",
+  );
   const head = git("rev-parse", "HEAD");
   const pinned = await previewPlugin(options, { git: repo, ref: "main" });
   assert.equal(pinned.commit, head);

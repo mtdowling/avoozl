@@ -52,7 +52,9 @@ function setup(t) {
 
 const ready = (store) =>
   new Set(
-    queryTasks(store.read(), { scope: "all", q: "ready:true" }).map((t) => t.id),
+    queryTasks(store.read(), { scope: "all", q: "ready:true" }).map(
+      (t) => t.id,
+    ),
   );
 
 test("archive holds open tasks, opens decisions, and unarchive restores", async (t) => {
@@ -92,7 +94,11 @@ test("archive holds open tasks, opens decisions, and unarchive restores", async 
   assert.equal(byId("p.3").status, "deferred", "a hand defer stays");
   const after = store.get("plans", "a1");
   assert.equal(after.archivedAt, undefined);
-  assert.deepEqual(after.history, [{ revision: 1, hash: "h1" }], "revision history untouched");
+  assert.deepEqual(
+    after.history,
+    [{ revision: 1, hash: "h1" }],
+    "revision history untouched",
+  );
   assert.deepEqual(
     after.events.map((h) => [h.action, h.by]),
     [

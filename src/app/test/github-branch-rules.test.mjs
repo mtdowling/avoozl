@@ -125,11 +125,23 @@ test("classic protection hidden from a non-admin is an unknown rule, not zero", 
   assert.match(rule.hiddenReason, /only to admins/);
   assert.equal(rule.url, "https://github.com/example/code/settings/branches");
   assert.match(
-    reviewRuleText({ repository: REPO, branch: "main", reviewRule: rule, checks: null, error: null }),
+    reviewRuleText({
+      repository: REPO,
+      branch: "main",
+      reviewRule: rule,
+      checks: null,
+      error: null,
+    }),
     /unknown/i,
   );
   assert.doesNotMatch(
-    reviewRuleText({ repository: REPO, branch: "main", reviewRule: rule, checks: null, error: null }),
+    reviewRuleText({
+      repository: REPO,
+      branch: "main",
+      reviewRule: rule,
+      checks: null,
+      error: null,
+    }),
     /No branch rule asks for approvals/,
   );
 });
@@ -140,7 +152,10 @@ test("a ruleset count with hidden classic protection is a floor", async () => {
       branch: hiddenClassic,
       admin: false,
       rules: [
-        { type: "pull_request", parameters: { required_approving_review_count: 1 } },
+        {
+          type: "pull_request",
+          parameters: { required_approving_review_count: 1 },
+        },
       ],
     }),
     REPO,
@@ -149,7 +164,13 @@ test("a ruleset count with hidden classic protection is a floor", async () => {
   assert.equal(rule.approvals, 1);
   assert.equal(rule.hidden, true);
   assert.match(
-    reviewRuleText({ repository: REPO, branch: "main", reviewRule: rule, checks: null, error: null }),
+    reviewRuleText({
+      repository: REPO,
+      branch: "main",
+      reviewRule: rule,
+      checks: null,
+      error: null,
+    }),
     /at least 1/,
   );
 });
@@ -168,7 +189,9 @@ test("an admin's 404 means no classic protection, and an unprotected branch is k
     fake({
       branch: hiddenClassic,
       admin: false,
-      protection: { required_pull_request_reviews: { required_approving_review_count: 2 } },
+      protection: {
+        required_pull_request_reviews: { required_approving_review_count: 2 },
+      },
     }),
     REPO,
     "main",
@@ -209,11 +232,14 @@ test("check names come from recent commits and the branch's required checks", as
     REPO,
     "main",
   );
-  assert.deepEqual({ branch: names.branch, seen: names.seen, required: names.required }, {
-    branch: "main",
-    seen: ["build", "ci/legacy", "deploy", "e2e", "lint"],
-    required: ["deploy", "e2e", "lint"],
-  });
+  assert.deepEqual(
+    { branch: names.branch, seen: names.seen, required: names.required },
+    {
+      branch: "main",
+      seen: ["build", "ci/legacy", "deploy", "e2e", "lint"],
+      required: ["deploy", "e2e", "lint"],
+    },
+  );
 });
 
 test("github.repository.inspect reads rules and checks without writing", async (t) => {
@@ -266,23 +292,40 @@ test("check names also come from open pull requests, with where each was seen", 
   github.checkRuns = (repository, sha) =>
     sha === "p"
       ? Promise.resolve([
-          { name: "e2e", app: { name: "GitHub Actions" }, completed_at: "2026-11-10T00:00:00Z" },
+          {
+            name: "e2e",
+            app: { name: "GitHub Actions" },
+            completed_at: "2026-11-10T00:00:00Z",
+          },
         ])
       : runs(repository, sha);
   const names = await seenCheckNames(github, REPO, "main");
   assert.deepEqual(names.seen, ["build", "e2e", "lint"]);
   assert.deepEqual(names.required, ["lint"]);
-  assert.deepEqual(names.sources.e2e, { source: "GitHub Actions", at: "2026-11-10T00:00:00Z" });
-  assert.equal(names.sources.lint, undefined, "a rule-only name was not seen running");
+  assert.deepEqual(names.sources.e2e, {
+    source: "GitHub Actions",
+    at: "2026-11-10T00:00:00Z",
+  });
+  assert.equal(
+    names.sources.lint,
+    undefined,
+    "a rule-only name was not seen running",
+  );
   assert.equal(names.url, "https://github.com/example/code/settings/rules");
 });
 
 test("inspect keeps the check names when the review rule cannot be read", async (t) => {
   const { store } = fixture(t),
     github = fake({ commits: [{ sha: "a", runs: ["build"] }] });
-  github.branchRules = () => Promise.reject(Object.assign(Error("Resource not accessible"), { status: 403 }));
+  github.branchRules = () =>
+    Promise.reject(
+      Object.assign(Error("Resource not accessible"), { status: 403 }),
+    );
   const ops = new Operations(store, { github });
-  const result = await ops.execute("github.repository.inspect", { repository: REPO, baseBranch: "main" });
+  const result = await ops.execute("github.repository.inspect", {
+    repository: REPO,
+    baseBranch: "main",
+  });
   assert.equal(result.reviewRule, null);
   assert.match(result.reviewError, /Resource not accessible/);
   assert.deepEqual(result.checks.seen, ["build"]);
@@ -293,10 +336,13 @@ test("inspect keeps the check names when the review rule cannot be read", async 
 test("inspect says not signed in instead of reading GitHub anonymously", async (t) => {
   const { store } = fixture(t),
     github = { ...fake(), available: () => true, signedIn: () => false };
-  const result = await new Operations(store, { github }).execute("github.repository.inspect", {
-    repository: REPO,
-    baseBranch: "main",
-  });
+  const result = await new Operations(store, { github }).execute(
+    "github.repository.inspect",
+    {
+      repository: REPO,
+      baseBranch: "main",
+    },
+  );
   assert.equal(result.checks, null);
   assert.match(result.error, /not signed in/);
 });

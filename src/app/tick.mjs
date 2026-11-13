@@ -215,7 +215,8 @@ function recordRun(store, run) {
 // at this size; switch to rotation if TICK_LOG_KEEP grows large.
 export const TICK_LOG_KEEP = 200;
 
-const tickLogPath = (healthFile) => path.join(path.dirname(healthFile), "tick-log.jsonl");
+const tickLogPath = (healthFile) =>
+  path.join(path.dirname(healthFile), "tick-log.jsonl");
 
 function appendTickLog(healthFile, run) {
   const filename = tickLogPath(healthFile),
@@ -228,7 +229,9 @@ function appendTickLog(healthFile, run) {
       if (error.code !== "ENOENT") throw error;
     }
     lines.push(JSON.stringify(run));
-    fs.writeFileSync(temporary, lines.slice(-TICK_LOG_KEEP).join("\n") + "\n", { mode: 0o600 });
+    fs.writeFileSync(temporary, lines.slice(-TICK_LOG_KEEP).join("\n") + "\n", {
+      mode: 0o600,
+    });
     fs.renameSync(temporary, filename);
   } catch {
     fs.rmSync(temporary, { force: true });
@@ -238,7 +241,9 @@ function appendTickLog(healthFile, run) {
 // One readable line per receipt: when, how bad, and what happened.
 export function tickLogEntry(run) {
   const level =
-    run.outcome === "error" || run.outcome === "unreadable" || run.policy === "invalid"
+    run.outcome === "error" ||
+    run.outcome === "unreadable" ||
+    run.policy === "invalid"
       ? "error"
       : run.outcome === "locked" || run.held || run.project?.status === "error"
         ? "warn"
@@ -267,7 +272,10 @@ export function tickLog(store, { limit = 20 } = {}) {
   if (!health) return { items: [] };
   let lines = [];
   try {
-    lines = fs.readFileSync(tickLogPath(health), "utf8").split("\n").filter(Boolean);
+    lines = fs
+      .readFileSync(tickLogPath(health), "utf8")
+      .split("\n")
+      .filter(Boolean);
   } catch (error) {
     if (error.code !== "ENOENT") throw error;
   }
@@ -651,8 +659,7 @@ export async function tick(
         planned.messages.unshift(...verifying.messages);
         planned.notify.push(...verifying.notify);
         planned.notify.push(
-          ...holdUnprovenReviews(store, delivery, { script })
-            .notify,
+          ...holdUnprovenReviews(store, delivery, { script }).notify,
         );
         // Integration moves branches and may raise a decision, so only the
         // cron, which carries out notifications, runs it.
@@ -759,7 +766,8 @@ export async function tick(
         pluginReport = pluginResult?.report;
       // Incoming items from plugin sources (§4.12): one poll per source,
       // before dispatch, so a delivered item's leaf can start this tick.
-      if (script && plugins) await pollStep(store, plugins, planned, workspaceRoot);
+      if (script && plugins)
+        await pollStep(store, plugins, planned, workspaceRoot);
       // After a restart, and on every tick, nothing new is dispatched until
       // every live session this cron opened has been observed in the roster.
       // Without a roster (a stock Kiro Crew), a session counts as observed
@@ -823,7 +831,9 @@ export async function tick(
           routing = routingContext(store, {
             workspaceRoot,
             tracked: memory.value || {},
-            ...(placement.localReading ? { local: placement.localReading() } : {}),
+            ...(placement.localReading
+              ? { local: placement.localReading() }
+              : {}),
             ...(placement.now ? { now: placement.now() } : {}),
           });
           await fetchAll(store, routing, { fetch: script });

@@ -97,7 +97,9 @@ export function parseMatch(text, label = "match", { needLabel = true } = {}) {
       else if (items.length === 1) addLabels(parsed.labelsAll, items);
       else {
         if (parsed.labelsAny.length)
-          fail(`${label} cannot use ${token}: only one label:a,b group is supported.`);
+          fail(
+            `${label} cannot use ${token}: only one label:a,b group is supported.`,
+          );
         addLabels(parsed.labelsAny, items);
       }
     } else if (key === "assignee") {
@@ -112,18 +114,23 @@ export function parseMatch(text, label = "match", { needLabel = true } = {}) {
     } else if (key === "source") {
       // GitHub search has no such qualifier, so a filter it reads cannot.
       if (!needLabel)
-        fail(`${label} cannot use ${token}: an Untriaged filter reads GitHub only.`);
+        fail(
+          `${label} cannot use ${token}: an Untriaged filter reads GitHub only.`,
+        );
       const items = values(rest, token);
       if (items.length !== 1 || !SOURCE.test(items[0]))
-        fail(`${label} cannot use ${token}: source: takes one intake source id.`);
+        fail(
+          `${label} cannot use ${token}: source: takes one intake source id.`,
+        );
       if (parsed.source)
         fail(`${label} cannot use ${token}: only one source: is supported.`);
       if (["github", "local"].includes(items[0]))
-        fail(`${label} cannot use ${token}: leave source: out to match GitHub.`);
+        fail(
+          `${label} cannot use ${token}: leave source: out to match GitHub.`,
+        );
       parsed.source = items[0];
     } else if (key === "no" && rest === "assignee") {
-      if (parsed.assignee)
-        fail(`${label} cannot use ${token} with assignee:.`);
+      if (parsed.assignee) fail(`${label} cannot use ${token} with assignee:.`);
       parsed.unassigned = true;
     } else
       fail(`${label} cannot use ${token}: it is not supported. ${MATCH_HELP}`);

@@ -1,10 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {
-  formatMatch,
-  parseMatch,
-  triggerPreview,
-} from "../issue-match.mjs";
+import { formatMatch, parseMatch, triggerPreview } from "../issue-match.mjs";
 import { matchingRules, normalizeGitHubPolicy } from "../github-policy.mjs";
 
 const empty = {
@@ -115,7 +111,13 @@ test("match rules evaluate exactly like the equivalent legacy rules", () => {
     [{ labelsAll: ["go"], assignee: "mona" }, "label:go assignee:mona"],
   ];
   const issues = [];
-  for (const labels of [[], ["go"], ["GO", "area:core"], ["ship"], ["go", "hold"]])
+  for (const labels of [
+    [],
+    ["go"],
+    ["GO", "area:core"],
+    ["ship"],
+    ["go", "hold"],
+  ])
     for (const assignees of [[], ["mona"], ["hubot"]])
       issues.push({
         labels: labels.map((name) => ({ name })),
@@ -157,7 +159,11 @@ test("triggerPreview parses, then asks GitHub search read only", async () => {
       return {
         total_count: 12,
         items: [
-          { number: 3, title: "Three", html_url: "https://github.com/o/r/issues/3" },
+          {
+            number: 3,
+            title: "Three",
+            html_url: "https://github.com/o/r/issues/3",
+          },
         ],
       };
     },
@@ -192,6 +198,9 @@ test("triggerPreview parses, then asks GitHub search read only", async () => {
   );
   // No repository yet: parse only, no search.
   const parseOnly = await triggerPreview(github, { match: "label:go" });
-  assert.deepEqual([parseOnly.parsed.labelsAll, parseOnly.total], [["go"], null]);
+  assert.deepEqual(
+    [parseOnly.parsed.labelsAll, parseOnly.total],
+    [["go"], null],
+  );
   assert.equal(calls.length, 1);
 });

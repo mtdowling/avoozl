@@ -21,7 +21,10 @@ test("the stdio MCP server and the tick it serves write only inside Operations",
     result = avoozl(
       ["mcp", "--workspace", workspace],
       [
-        mcpLine(1, "plans_update_task", { id: "sample-task", title: "Via MCP" }),
+        mcpLine(1, "plans_update_task", {
+          id: "sample-task",
+          title: "Via MCP",
+        }),
         mcpLine(2, "plans_tick", {}),
         mcpLine(3, "plans_bind_session", {
           taskId: "sample-task",

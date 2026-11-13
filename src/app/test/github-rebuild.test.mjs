@@ -508,9 +508,7 @@ test("a spec epic projects as one Epic parent with three sub-issues, and rebuild
   });
   await ops.execute("github.project", { planId: plan.id });
   const issueOf = (id) =>
-      github.created.find((issue) =>
-        issue.body.includes(`"taskId":"${id}"`),
-      ),
+      github.created.find((issue) => issue.body.includes(`"taskId":"${id}"`)),
     epic = issueOf("loader.1"),
     leaves = ["loader.1.1", "loader.1.2", "loader.1.3"].map(issueOf);
   assert.equal(epic.type?.name, "Epic");
@@ -525,13 +523,10 @@ test("a spec epic projects as one Epic parent with three sub-issues, and rebuild
   assert.equal(github.subIssues.length, 3);
   for (const issue of leaves) assert.match(issue.body, /"parent":"loader\.1"/);
   // Blocked-by links follow the requires and sequence edges.
-  const blockedBy = (issue) =>
-    [...(github.blockers.get(`${REPO}#${issue.number}`)?.keys() || [])];
-  assert.deepEqual(leaves.map(blockedBy), [
-    [],
-    [leaves[0].id],
-    [leaves[1].id],
-  ]);
+  const blockedBy = (issue) => [
+    ...(github.blockers.get(`${REPO}#${issue.number}`)?.keys() || []),
+  ];
+  assert.deepEqual(leaves.map(blockedBy), [[], [leaves[0].id], [leaves[1].id]]);
 
   // A second apply links nothing new.
   const links = github.subIssues.length,

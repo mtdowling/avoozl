@@ -56,7 +56,9 @@ export function newPlanBrief(request) {
     request;
   const data = [
     `Name: ${name}`,
-    category ? `Category: ${category}` : "Category: (none; leave the front-matter out)",
+    category
+      ? `Category: ${category}`
+      : "Category: (none; leave the front-matter out)",
     epics.length
       ? `Epics or phases:\n${epics.map((epic) => `- ${epic}`).join("\n")}`
       : "Epics or phases: (none named)",
@@ -72,7 +74,12 @@ export function newPlanBrief(request) {
     `Avoozl planner for a new plan: ${name}.`,
     "Mode: draft.",
     `Write only inside: ${folder}/.`,
-    `Read only: ${repositories.map((repo) => repo.localCheckout).filter(Boolean).join(", ") || "(no local checkouts)"}.`,
+    `Read only: ${
+      repositories
+        .map((repo) => repo.localCheckout)
+        .filter(Boolean)
+        .join(", ") || "(no local checkouts)"
+    }.`,
     `Repositories: ${repositories.map((repo) => repo.id).join(", ")}. Every leaf's \`repository\` is one of these.`,
     "",
     "Write the four files your prompt's draft rules name: requirements.md (bugfix.md for a bug fix), design.md, tasks.md and avoozl/manifest.json. Give every tasks.md item a unique task ID, and key the manifest by those IDs.",
@@ -116,7 +123,9 @@ export function specBuilderDescription(request, steering) {
       ? `Phases, as ## headings in tasks.md:\n${epics.map((epic) => `- ${epic}`).join("\n")}`
       : null,
     `Repositories in scope (use these IDs in _Repository:_ lines): ${repositories
-      .map((repo) => (repo.localCheckout ? `${repo.id} (${repo.localCheckout})` : repo.id))
+      .map((repo) =>
+        repo.localCheckout ? `${repo.id} (${repo.localCheckout})` : repo.id,
+      )
       .join(", ")}.`,
     `What I want:\n${goal}`,
     context ? `Links and context:\n${context}` : null,

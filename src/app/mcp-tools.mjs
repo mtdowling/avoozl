@@ -12,24 +12,45 @@ const tools = {
     summary: "The workspace, read only.",
     defaultAction: "get",
     actions: {
-      get: ["workspace", "projects, plan drafts, run history, integration queue, GitHub state"],
+      get: [
+        "workspace",
+        "projects, plan drafts, run history, integration queue, GitHub state",
+      ],
       describe: ["client.describe", "client contract and operations"],
       configuration: ["configuration.get", "the saved .avoozl.json settings"],
       flow_settings: ["flow.settings.get", "flow settings"],
-      delivery_settings: ["delivery.settings.get", "the writer agent and model and pull request feedback settings"],
-      conversation_settings: ["conversations.settings.get", "conversation settings"],
+      delivery_settings: [
+        "delivery.settings.get",
+        "the writer agent and model and pull request feedback settings",
+      ],
+      conversation_settings: [
+        "conversations.settings.get",
+        "conversation settings",
+      ],
       examples: ["workspace.examples", "optional example packs"],
       trash: ["trash", "deleted plans and runs"],
-      local_ignore: ["local.ignore.status", "whether Avoozl files are ignored locally"],
+      local_ignore: [
+        "local.ignore.status",
+        "whether Avoozl files are ignored locally",
+      ],
     },
   },
   plans_maintain: {
     summary: "Workspace upkeep: the tick, rebuilds, examples.",
     actions: {
       tick: ["workspace.tick", "run one bounded tick"],
-      rebuild: ["workspace.rebuild", "rebuild GitHub and tracker tasks from their sources"],
-      seed_example: ["workspace.seed", "load one example pack, once, only when asked"],
-      fix_local_ignore: ["local.ignore.fix", "add the missing local ignore lines"],
+      rebuild: [
+        "workspace.rebuild",
+        "rebuild GitHub and tracker tasks from their sources",
+      ],
+      seed_example: [
+        "workspace.seed",
+        "load one example pack, once, only when asked",
+      ],
+      fix_local_ignore: [
+        "local.ignore.fix",
+        "add the missing local ignore lines",
+      ],
     },
   },
   plans_view: {
@@ -38,8 +59,14 @@ const tools = {
       graph: ["graph.view", "the dependency graph, optionally one plan"],
       delivery: ["delivery.view", "delivery columns"],
       flow: ["flow.view", "lead time, stages, bottlenecks"],
-      routing: ["routing.view", "crews, routing rules, smart pick, model router"],
-      routing_preview: ["routing.preview", "where ready tasks would run now; opens nothing"],
+      routing: [
+        "routing.view",
+        "crews, routing rules, smart pick, model router",
+      ],
+      routing_preview: [
+        "routing.preview",
+        "where ready tasks would run now; opens nothing",
+      ],
       log: ["workspace.tick.log", "recent tick log"],
       health: ["workspace.tick.health", "tick health"],
       activity: ["activity.recent", "recent activity"],
@@ -49,7 +76,8 @@ const tools = {
     },
   },
   plans_plan: {
-    summary: "Plans and their Kiro spec folders. Approval and delete are a person's, in the app.",
+    summary:
+      "Plans and their Kiro spec folders. Approval and delete are a person's, in the app.",
     actions: {
       list: ["plan.list", "stored plans"],
       table: ["plan.table", "plans grouped with progress"],
@@ -58,10 +86,16 @@ const tools = {
       read_spec: ["plan.spec.read", "a spec folder's documents"],
       lint: ["plan.lint", "deterministic checks on a stored revision"],
       preview: ["plan.preview", "the tasks approval would publish"],
-      project_preview: ["github.project.preview", "GitHub writes projecting would make"],
+      project_preview: [
+        "github.project.preview",
+        "GitHub writes projecting would make",
+      ],
       delete_preview: ["plan.delete.preview", "what deleting would remove"],
       create: ["plan.create", "store a spec folder as a draft: {spec}"],
-      save: ["plan.save", "reload a spec folder as the next draft: {id, expectedHash}"],
+      save: [
+        "plan.save",
+        "reload a spec folder as the next draft: {id, expectedHash}",
+      ],
       propose: ["plan.propose", "propose adjacent work as a draft"],
       classify: ["plan.classify", "set plan metadata"],
       archive: ["plan.archive", "archive a plan: holds its open tasks"],
@@ -70,18 +104,28 @@ const tools = {
     },
   },
   plans_review: {
-    summary: "Design reviews and design extraction. None of these approve a plan.",
+    summary:
+      "Design reviews and design extraction. None of these approve a plan.",
     actions: {
       list: ["plan.review.list", "review comments"],
       submit: ["plan.review.submit", "submit anchored review comments"],
       reply: ["plan.review.reply", "reply to a comment"],
-      dispose: ["plan.review.dispose", "resolve, accept, reject or defer a comment"],
+      dispose: [
+        "plan.review.dispose",
+        "resolve, accept, reject or defer a comment",
+      ],
       apply: ["plan.review.apply", "apply a suggestion to the draft"],
       pipeline: ["plan.review.pipeline.get", "one review round"],
       extract: ["plan.extract", "open an extraction record"],
       extraction: ["plan.extract.get", "extraction rounds and facts"],
-      submit_extraction: ["plan.extraction.submit", "submit one extraction round"],
-      dispose_fact: ["plan.extraction.dispose", "reject, edit, accept or reuse a fact"],
+      submit_extraction: [
+        "plan.extraction.submit",
+        "submit one extraction round",
+      ],
+      dispose_fact: [
+        "plan.extraction.dispose",
+        "reject, edit, accept or reuse a fact",
+      ],
       triage_design: ["queue.design.triage", "classify an untriaged design"],
     },
   },
@@ -95,13 +139,19 @@ const tools = {
       duplicates: ["task.duplicates", "repeated-title candidates"],
       merge_receipt: ["task.merge.get", "a consolidation receipt"],
       preview_change: ["task.change.preview", "what an update would change"],
-      update: ["task.update", "metadata, status (deferred pauses) or dependencies"],
+      update: [
+        "task.update",
+        "metadata, status (deferred pauses) or dependencies",
+      ],
       supersede: ["task.supersede", "replace a local task with a new one"],
       merge: ["task.merge", "consolidate reviewed duplicates"],
       archive: ["task.archive", "archive, only when the user permits"],
       unarchive: ["task.unarchive", "undo archive"],
       start: ["task.start", "Start now"],
-      retry: ["delivery.retry", "resume a stopped delivery, when the person asks"],
+      retry: [
+        "delivery.retry",
+        "resume a stopped delivery, when the person asks",
+      ],
       validate: ["run.validate", "run acceptance checks at the worktree head"],
       integrate: ["integration.merge", "rebase, revalidate, fast-forward"],
       accept: ["task.accept", "record acceptance evidence"],
@@ -132,23 +182,37 @@ const tools = {
     },
   },
   plans_conflicts: {
-    summary: "Conflicts and open decisions. Choosing a GitHub conflict winner is a person's, in the app.",
+    summary:
+      "Conflicts and open decisions. Choosing a GitHub conflict winner is a person's, in the app.",
     actions: {
       view: ["conflicts.view", "open conflicts and decisions"],
-      settle: ["conflicts.settle", "reviewed, unblock, dismiss or settle items"],
+      settle: [
+        "conflicts.settle",
+        "reviewed, unblock, dismiss or settle items",
+      ],
     },
   },
   plans_intake: {
-    summary: "A person's requests, saved searches, and incoming items from intake sources. Items submitted here are listed and may meet only pause and quarantine rules; Plan this and Deliver this are a person's, in the app.",
+    summary:
+      "A person's requests, saved searches, and incoming items from intake sources. Items submitted here are listed and may meet only pause and quarantine rules; Plan this and Deliver this are a person's, in the app.",
     actions: {
       capture: ["task.capture", "record a person's own request as untriaged"],
       submit: ["intent.submit", "submit an intent"],
       get: ["intent.get", "read an intent"],
       search_result: ["search.result", "keep a search result as a saved view"],
-      submit_items: ["intake.submit", "send 1-100 items to an mcp intake source: {source, items}"],
-      items: ["intake.list", "incoming items: {source?, kind?, state?, untriaged?, offset?}"],
+      submit_items: [
+        "intake.submit",
+        "send 1-100 items to an mcp intake source: {source, items}",
+      ],
+      items: [
+        "intake.list",
+        "incoming items: {source?, kind?, state?, untriaged?, offset?}",
+      ],
       item: ["intake.view", "one incoming item: {source, id}"],
-      sources: ["intake.sources", "declared intake sources and their read state"],
+      sources: [
+        "intake.sources",
+        "declared intake sources and their read state",
+      ],
     },
   },
   plans_document: {
@@ -160,7 +224,8 @@ const tools = {
     },
   },
   plans_github: {
-    summary: "GitHub reads, sync, breakdowns and the Untriaged list. Setup writes, settings and handing items to Issue Radar are a person's, in the app.",
+    summary:
+      "GitHub reads, sync, breakdowns and the Untriaged list. Setup writes, settings and handing items to Issue Radar are a person's, in the app.",
     actions: {
       untriaged: ["untriaged.view", "items no rule claims"],
       crews: ["untriaged.crews", "Issue Radar crews for a repository"],
@@ -170,7 +235,10 @@ const tools = {
       inspect: ["github.repository.inspect", "branch rules and checks"],
       settings: ["github.settings.get", "GitHub settings"],
       validate: ["github.settings.validate", "check GitHub settings"],
-      trigger_preview: ["github.trigger.preview", "what a trigger rule would match"],
+      trigger_preview: [
+        "github.trigger.preview",
+        "what a trigger rule would match",
+      ],
       detect_project: ["github.project.detect", "find a repository's Project"],
       setup_preview: [
         "github.setup",
@@ -183,12 +251,19 @@ const tools = {
       reconcile: ["planning.reconcile", "reconcile planning pull requests"],
       rebuild: ["github.rebuild", "rebuild GitHub tasks from GitHub"],
       classify: ["github.breakdown.classify", "bounded or broad"],
-      draft_children: ["github.breakdown.draft", "name a broad issue's child spec"],
-      advance: ["github.breakdown.advance", "preview, detect approval, publish children"],
+      draft_children: [
+        "github.breakdown.draft",
+        "name a broad issue's child spec",
+      ],
+      advance: [
+        "github.breakdown.advance",
+        "preview, detect approval, publish children",
+      ],
     },
   },
   plans_repos: {
-    summary: "Registered repositories, read only. Adding or removing one is a person's, in the app.",
+    summary:
+      "Registered repositories, read only. Adding or removing one is a person's, in the app.",
     actions: {
       list: ["repositories.list", "registered repositories"],
       detect: ["repositories.detect", "what Add repository would register"],
@@ -196,11 +271,15 @@ const tools = {
     },
   },
   plans_plugins: {
-    summary: "Plugins, read only. Adding, approving or removing one is a person's, in the app.",
+    summary:
+      "Plugins, read only. Adding, approving or removing one is a person's, in the app.",
     actions: {
       list: ["plugins.list", "installed plugins"],
       preview: ["plugin.preview", "what a plugin source holds"],
-      pack_preview: ["plugin.pack.preview", "what importing a plugin's settings pack would change"],
+      pack_preview: [
+        "plugin.pack.preview",
+        "what importing a plugin's settings pack would change",
+      ],
     },
   },
   plans_content: {
@@ -234,7 +313,9 @@ export function groupedToolList(classify) {
       name,
       description: `${tool.summary} Actions: ${actions
         .map((action) => `${action} (${tool.actions[action][1]})`)
-        .join("; ")}.${tool.defaultAction ? ` action defaults to ${tool.defaultAction}.` : ""}`,
+        .join(
+          "; ",
+        )}.${tool.defaultAction ? ` action defaults to ${tool.defaultAction}.` : ""}`,
       inputSchema: {
         type: "object",
         properties: {

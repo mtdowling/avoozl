@@ -53,7 +53,8 @@ test("a terms file's allow lines cancel only that file's matches (R40.15)", () =
   // Problems name the line, never its text.
   assert.throws(
     () => parseTerms("codename: zorblat\nallow nope: quartz"),
-    (error) => /line 2/.test(error.message) && !/quartz|nope/.test(error.message),
+    (error) =>
+      /line 2/.test(error.message) && !/quartz|nope/.test(error.message),
   );
   assert.throws(
     () => parseTerms("allow: quartz("),

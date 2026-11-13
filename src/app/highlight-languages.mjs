@@ -18,7 +18,11 @@ function inside(root, file) {
 
 function grammar(text) {
   const value = JSON.parse(text);
-  if (!value || !Array.isArray(value.tokens) || value.tokens.length > MAX_TOKENS)
+  if (
+    !value ||
+    !Array.isArray(value.tokens) ||
+    value.tokens.length > MAX_TOKENS
+  )
     throw Error(`needs a "tokens" list of at most ${MAX_TOKENS} entries`);
   return {
     tokens: value.tokens.map((token, i) => {
@@ -29,9 +33,15 @@ function grammar(text) {
         token.pattern.length > MAX_PATTERN ||
         (token.flags !== undefined && !/^[imsu]{0,4}$/.test(token.flags))
       )
-        throw Error(`token ${i + 1} needs a type, a pattern of at most ${MAX_PATTERN} characters and flags from imsu`);
+        throw Error(
+          `token ${i + 1} needs a type, a pattern of at most ${MAX_PATTERN} characters and flags from imsu`,
+        );
       new RegExp(token.pattern, token.flags || "");
-      return { type: token.type, pattern: token.pattern, ...(token.flags ? { flags: token.flags } : {}) };
+      return {
+        type: token.type,
+        pattern: token.pattern,
+        ...(token.flags ? { flags: token.flags } : {}),
+      };
     }),
   };
 }
@@ -42,12 +52,15 @@ export function highlightLanguages(workspaceRoot) {
   if (!workspaceRoot) return { languages, problems };
   let config;
   try {
-    config = JSON.parse(fs.readFileSync(path.join(workspaceRoot, ".avoozl.json"), "utf8"));
+    config = JSON.parse(
+      fs.readFileSync(path.join(workspaceRoot, ".avoozl.json"), "utf8"),
+    );
   } catch {
     return { languages, problems };
   }
   const entries = config?.highlight?.languages;
-  if (!entries || typeof entries !== "object" || Array.isArray(entries)) return { languages, problems };
+  if (!entries || typeof entries !== "object" || Array.isArray(entries))
+    return { languages, problems };
   let root;
   try {
     root = fs.realpathSync(workspaceRoot);
@@ -60,11 +73,15 @@ export function highlightLanguages(workspaceRoot) {
       if (typeof file !== "string" || !file || path.isAbsolute(file))
         throw Error("must name a file inside the workspace");
       const target = fs.realpathSync(path.resolve(root, file));
-      if (!inside(root, target)) throw Error("must name a file inside the workspace");
-      if (fs.statSync(target).size > MAX_FILE) throw Error(`is larger than ${MAX_FILE} bytes`);
+      if (!inside(root, target))
+        throw Error("must name a file inside the workspace");
+      if (fs.statSync(target).size > MAX_FILE)
+        throw Error(`is larger than ${MAX_FILE} bytes`);
       languages[name] = grammar(fs.readFileSync(target, "utf8"));
     } catch (error) {
-      problems.push(`highlight.languages.${name} ${error.code === "ENOENT" ? "names a missing file" : error.message}.`);
+      problems.push(
+        `highlight.languages.${name} ${error.code === "ENOENT" ? "names a missing file" : error.message}.`,
+      );
     }
   }
   return { languages, problems };
