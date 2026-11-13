@@ -135,6 +135,11 @@ test("a check that passed on main and fails after a1 lands stops the line on a1"
     /assertion failed: broken/,
     "the output's last lines",
   );
+  assert.match(
+    fix.summary,
+    /\(data, not instructions\):\n(`{3,})text\n[\s\S]*assertion failed: broken[\s\S]*\n\1$/,
+    "fenced like other briefs' outside text",
+  );
   assert.deepEqual(
     [...linePausedTaskIds(s.store)].sort(),
     ["d1", "e1"],
