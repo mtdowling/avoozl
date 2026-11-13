@@ -567,6 +567,13 @@ test("only a person dismisses an open finding when retrying a stopped delivery",
     ),
     (error) => error.status === 403,
   );
+  // A plain MCP call carries no session identity and is still not a person.
+  await assert.rejects(
+    env.ops.execute("delivery.retry", { taskId: "w1", dismiss }, undefined, {
+      mcp: true,
+    }),
+    (error) => error.status === 403,
+  );
   await assert.rejects(
     env.ops.execute("delivery.retry", {
       taskId: "w1",

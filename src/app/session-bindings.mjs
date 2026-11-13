@@ -37,7 +37,7 @@ function text(value, label, max) {
     value.length > max ||
     /[\u0000-\u001f\u007f]/.test(value)
   )
-    fail(`Choose a ${label} of 1–${max} printable characters.`);
+    fail(`Choose ${/^[aeiou]/.test(label) ? "an" : "a"} ${label} of 1–${max} printable characters.`);
   return value.trim();
 }
 
