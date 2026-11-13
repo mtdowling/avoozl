@@ -123,12 +123,13 @@ Each problem below is marked **Fixed** or **Open**.
 
 ## All three pages
 
-- **Fixed.** No way to get help choosing values. Each page has a
-  chat-icon **Ask for help** link. It opens a Kiro Crew chat, not sent,
-  with the page, its current values as JSON, and the guide (the
-  `avoozl-costs` skill, `kirocrew-app/skills/avoozl-costs/SKILL.md`). The
-  chat may propose values; it is told not to write files or save, so the
-  page's Save stays the only write.
+- **Fixed.** No way to get help choosing values. Each page has the shared
+  chat-icon **Ask for help** link (`AskForHelp` in `controls.tsx`, built
+  on `task/modal-followups`). It opens a Kiro Crew chat with the page, its
+  current values, and the guide (the `avoozl-costs` skill,
+  `kirocrew-app/skills/avoozl-costs/SKILL.md`). The chat may propose
+  values; it is told to save nothing, so the page's Save stays the only
+  write.
 - **Fixed.** Light and dark both read well at every width after the change;
   borders use `var(--border)` and the open choice uses `var(--accent)`.
 - **Open.** The raw keys (`budget.usd`, `providers.lowPercent`) stay under

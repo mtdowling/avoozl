@@ -10,19 +10,20 @@ import Badge from "./Badge.tsx";
 import { Marker, Section } from "./SettingsView.tsx";
 import { RadioFold, type RadioSection } from "./RadioFold.tsx";
 import { Fold } from "./controls.tsx";
-import { AskForHelp } from "./AskForHelp.tsx";
 import { FieldBox } from "./FieldBox.tsx";
 import { useRead } from "./useRead.ts";
+import { AskForHelp } from "./controls.tsx";
 import { COMMAND_PATH, errorMessage } from "./workspace-api.ts";
 import { parseModels } from "./flow-api.ts";
 import { linkHref } from "./views-api.ts";
-import { COSTS_DOCS, COSTS_SKILL } from "./help-chat.ts";
 import {
   MODE_TEXT,
   MODE_TITLE,
   budgetApi,
+  COSTS_DOCS,
   fromBudgetForm,
   fromPricesForm,
+  helpSettings,
   inheritText,
   modelsInUse,
   pricesUpdatedText,
@@ -279,27 +280,31 @@ export function BudgetSettings({ workspaceId }: { workspaceId: string }) {
         {message[key].error ?? message[key].ok}
       </p>
     );
-  const help = () => ({
-    page: "Settings > Budgets",
-    purpose:
-      "It sets a spending cap per task for the workspace and for each repository, and what happens at the cap.",
-    settings: {
-      workspace: { ...(fromBudgetForm(workspace).budget ?? {}), notify },
-      repositories: Object.fromEntries(
-        Object.keys(value.repositories).map((id) => [
-          id,
-          fromBudgetForm(forms[id] ?? toBudgetForm(null)).budget ?? {},
-        ]),
+  const help = {
+    page: "Settings › Budgets",
+    says: "A spending cap per task for the workspace and each repository, and what happens when a task reaches it. Blank fields use the default.",
+    settings: helpSettings({
+      budget: {
+        usd: workspace.usd,
+        mode: workspace.mode,
+        tokens: workspace.tokens,
+        credits: workspace.credits,
+        notify,
+      },
+      projects: Object.fromEntries(
+        Object.keys(value.repositories).map((id) => {
+          const f = forms[id] ?? toBudgetForm(null);
+          return [id, { budget: { usd: f.usd, mode: f.mode, tokens: f.tokens, credits: f.credits } }];
+        }),
       ),
-      defaults: { usd: null, mode: "stop", tokens: DEFAULT_TOKENS, credits: DEFAULT_CREDITS, notify: false },
-    },
-    skill: COSTS_SKILL,
+      defaults: `no dollar cap, Stop, ${n(DEFAULT_TOKENS)} tokens, ${n(DEFAULT_CREDITS)} credits, no notice`,
+    }),
     docs: COSTS_DOCS,
-  });
+  };
   return (
     <div className="flex flex-col gap-4" data-budget-settings>
       <div className="flex flex-wrap items-center gap-2">
-        <AskForHelp context={help} />
+        <AskForHelp workspaceId={workspaceId} help={help} />
       </div>
       <Card className="flex flex-col gap-3">
         <Section
@@ -344,8 +349,21 @@ export function BudgetSettings({ workspaceId }: { workspaceId: string }) {
           blurb="A repository can set its own cap for its tasks. A blank field uses the workspace default."
         >
           {Object.keys(value.repositories).length === 0 ? (
-            <p className="text-sm text-muted">
-              No repository is in .avoozl.json yet. Add one under Repositories.
+            <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
+              <span>
+                No repository is in .avoozl.json yet. Add one under
+                Repositories.
+              </span>
+              <AskForHelp
+                workspaceId={workspaceId}
+                help={{
+                  page: "Settings › Budgets",
+                  section: "Repositories",
+                  says: "No repository is in .avoozl.json yet. Add one under Repositories.",
+                  settings: [{ key: "repositories", value: "none" }],
+                  docs: "README.md, section Create a workspace",
+                }}
+              />
             </p>
           ) : (
             Object.keys(value.repositories)
@@ -439,23 +457,30 @@ export function PricesSettings({ workspaceId }: { workspaceId: string }) {
     });
   const models = modelsInUse(value, offered);
   const overrides = Object.keys(value.models).length + (value.creditUsd != null ? 1 : 0);
-  const help = () => ({
-    page: "Settings > Prices",
-    purpose:
-      "Avoozl prices models with a built-in list on its own; this page shows how each model is budgeted and holds optional price overrides for this computer.",
-    settings: {
-      pricesUpdated: value.defaults?.updated ?? null,
-      overrides: { creditUsd: value.creditUsd, models: value.models },
-      models: models.map((m) => ({ model: m.model, budgeted: m.kind })),
-      caps: value.caps ?? null,
-    },
-    skill: COSTS_SKILL,
+  const help = {
+    page: "Settings › Prices",
+    says: "Avoozl prices models with a built-in list on its own. This page shows how each model is budgeted, and holds optional price overrides for this computer.",
+    settings: [
+      { key: "prices last updated", value: value.defaults?.updated ?? "built-in prices off" },
+      ...models.map((m) => ({ key: `model ${m.model}`, value: m.text })),
+      ...helpSettings({
+        prices: {
+          creditUsd: value.creditUsd,
+          ...Object.fromEntries(
+            Object.entries(value.models).map(([id, p]) => [
+              `models.${id}`,
+              `$${p.inputPerMTokUsd} in, $${p.outputPerMTokUsd} out per million tokens`,
+            ]),
+          ),
+        },
+      }),
+    ],
     docs: COSTS_DOCS,
-  });
+  };
   return (
     <div className="flex flex-col gap-4" data-prices-settings>
       <div className="flex flex-wrap items-center gap-2">
-        <AskForHelp context={help} />
+        <AskForHelp workspaceId={workspaceId} help={help} />
       </div>
       <Card className="flex flex-col gap-3">
         <Section

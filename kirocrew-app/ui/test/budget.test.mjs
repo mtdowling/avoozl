@@ -7,10 +7,12 @@ import test from "node:test";
 import {
   MODE_TEXT,
   MODE_TITLE,
+  COSTS_DOCS,
   chipText,
   chipTone,
   fromBudgetForm,
   fromPricesForm,
+  helpSettings,
   howPriced,
   inheritText,
   modelsInUse,
@@ -22,12 +24,6 @@ import {
   toPricesForm,
   toRaise,
 } from "../src/budget-api.ts";
-import {
-  COSTS_DOCS,
-  COSTS_SKILL,
-  HELP_LABEL,
-  helpMessage,
-} from "../src/help-chat.ts";
 import { budgetMark } from "../src/flow-api.ts";
 import { summarize } from "../src/dashboard-api.ts";
 
@@ -212,33 +208,38 @@ test("Settings › Prices asks for no prices: overrides are optional and folded 
   assert.match(page, /pricesUpdatedText\(value\)/);
 });
 
-test("Ask for help seeds a chat with the page, its settings and the guide, and saves nothing", () => {
-  const message = helpMessage({
-    page: "Settings > Budgets",
-    purpose: "It sets caps.",
-    settings: { workspace: { usd: 5 } },
-    skill: COSTS_SKILL,
-    docs: COSTS_DOCS,
-  });
-  assert.match(message, /Settings > Budgets/);
-  assert.match(message, /"usd": 5/);
-  assert.match(message, /avoozl-costs skill \(skills\/avoozl-costs\/SKILL\.md/);
-  assert.match(message, /Do not edit any file or save settings yourself/);
-  assert.match(message, /press Save there/);
-  assert.equal(HELP_LABEL, "Ask for help");
-  for (const name of ["BudgetSettings.tsx", "ProvidersSettings.tsx"])
-    assert.ok(
-      (source(name).match(/<AskForHelp context=\{help\} \/>/g) || []).length >= 1,
-      name,
-    );
+test("Ask for help on Budgets, Prices and Providers uses the shared link with the page's settings and the guide", () => {
+  // The shared part (controls.tsx AskForHelp) seeds the chat through
+  // chat.context purpose "help"; these pages pass their settings and docs.
+  assert.deepEqual(
+    helpSettings({
+      budget: { usd: "5", mode: "", notify: false },
+      projects: { r1: { budget: { usd: "" } } },
+      fallback: ["a", "b"],
+    }),
+    [
+      { key: "budget.usd", value: "5" },
+      { key: "budget.mode", value: "not set (default)" },
+      { key: "budget.notify", value: false },
+      { key: "projects.r1.budget.usd", value: "not set (default)" },
+      { key: "fallback", value: "a, b" },
+    ],
+  );
+  assert.match(COSTS_DOCS, /avoozl-costs skill \(skills\/avoozl-costs\/SKILL\.md/);
+  const budgets = source("BudgetSettings.tsx"),
+    providers = source("ProvidersSettings.tsx");
+  assert.match(budgets, /import \{ AskForHelp \} from "\.\/controls\.tsx"/);
+  assert.match(providers, /import \{ AskForHelp, Fold \} from '\.\/controls\.tsx'/);
   assert.equal(
-    (source("BudgetSettings.tsx").match(/<AskForHelp /g) || []).length,
+    (budgets.match(/<AskForHelp workspaceId=\{workspaceId\} help=\{help\} \/>/g) || []).length,
     2,
     "Budgets and Prices",
   );
-  const link = source("AskForHelp.tsx");
-  assert.match(link, /MessagesSquare/);
-  assert.match(link, /autoSend: false/);
+  assert.match(providers, /<AskForHelp workspaceId=\{workspaceId\} help=\{help\} \/>/);
+  for (const text of [budgets, providers]) assert.match(text, /docs: COSTS_DOCS/);
+  assert.match(budgets, /page: "Settings › Budgets"/);
+  assert.match(budgets, /page: "Settings › Prices"/);
+  assert.match(providers, /page: 'Settings › Providers',\s*section: 'Thresholds'/);
   assert.match(
     readFileSync(
       new URL("../../skills/avoozl-costs/SKILL.md", import.meta.url),

@@ -21,6 +21,8 @@ import { PackImportDialog } from '../../src/PackImport.tsx'
 import { SendToRadar } from '../../src/SendToRadar.tsx'
 import { CrewDialog, RuleDialog } from '../../src/RoutingView.tsx'
 import { SwitchModelButton } from '../../src/SwitchModel.tsx'
+import AvoozlApp from '../../src/App.tsx'
+import { InFlightRow } from '../../src/DashboardView.tsx'
 import { setupForm } from '../../src/settings-api.ts'
 import { toRuleForm } from '../../src/routing-api.ts'
 import { LAYER } from '../../src/layers.ts'
@@ -121,6 +123,75 @@ export const SCENARIOS: Record<string, Scenario> = {
   rule: shown((close) => <RuleDialog view={{ crews: [], repositories: {}, labels: [] } as never} form={toRuleForm({ id: 'r1' } as never)} isNew={false} models={[]} onCancel={close} onSave={async () => null} onDelete={close} />),
 }
 
+// The Switch model steps against fake answers: two running chats, one
+// remote; the first Confirm finds the set changed (?changed=1).
+if (query.get('modal') === 'switch-flow') {
+  const chat = (slot: string, taskId: string, model: string, crew?: string) => ({ slot, taskId, title: `Task ${taskId}`, spec: 'spec-a', role: 'worker', model, to: 'gamma-1', where: crew ?? 'local' })
+  answer('providers.view', () => ({
+    settings: {},
+    hash: null,
+    defaults: { lowPercent: 80, cooldownMinutes: 30, windowHours: 5 },
+    marks: [{ id: 'error:provider:beta', scope: 'provider', name: 'beta', level: 'out', source: 'error', kind: 'credits', since: '' }],
+    switches: [],
+    chats: [
+      { slot: 's1', taskId: 'a1', role: 'worker', model: 'alpha-1', provider: 'alpha', level: 'ok' },
+      { slot: 's2', taskId: 'a2', role: 'worker', model: 'alpha-1', provider: 'alpha', level: 'ok' },
+    ],
+  }))
+  answer('GET /api/models', () => [{ model_id: 'gamma-1', display_name: 'Gamma one' }, { model_id: 'delta-1' }])
+  let runs = 0
+  const flow = state as unknown as { dryRuns: unknown[]; switches: unknown[] }
+  flow.dryRuns = []
+  flow.switches = []
+  answer('provider.switch.dryRun', (body) => {
+    flow.dryRuns.push(body.input)
+    runs += 1
+    const chats = [chat('s1', 'a1', 'alpha-1'), ...(runs > 1 && query.get('changed') ? [chat('s3', 'a3', 'alpha-1')] : [])]
+    return {
+      to: 'gamma-1',
+      alsoNewTasks: true,
+      chats,
+      skipped: [{ ...chat('s2', 'a2', 'alpha-1', 'remote-1'), why: 'runs on remote crew remote-1: only chats on this machine switch' }],
+      marks: [{ scope: 'provider', name: 'alpha', to: 'gamma-1' }],
+      queued: [{ taskId: 'q1', title: 'Task q1', spec: 'spec-a', model: 'alpha-1' }],
+      counts: { switch: chats.length, cannot: 1, queued: 1 },
+      previewHash: `h${runs}`,
+    }
+  })
+  answer('provider.switch', (body) => {
+    const input = body.input as { previewHash: string }
+    if (query.get('changed') && input.previewHash === 'h1') throw Object.assign(Error('The running chats changed since the dry run; check the new set.'), { status: 409 })
+    flow.switches.push(input)
+    return { queued: runs > 1 && query.get('changed') ? 2 : 1, marked: ['provider alpha'] }
+  })
+}
+
+// One In flight row, for the title link test.
+const flightRow = {
+  slot: 's1',
+  role: 'worker',
+  focus: null,
+  taskId: 'a1',
+  title: 'Task a1',
+  epic: 'e1',
+  attempt: 1,
+  model: 'alpha-1',
+  startedAt: null,
+  lastAt: null,
+  status: 'busy',
+  session: { slot: 's1', role: 'worker', attempt: 1, link: null, crew: null },
+  budget: null,
+}
+SCENARIOS['in-flight'] = { opener: '', render: () => <ul><InFlightRow row={flightRow as never} now={Date.now()} onInfo={() => undefined} /></ul> }
+SCENARIOS['switch-flow'] = own('Switch model', <SwitchModelButton workspaceId="w" />)
+
+// The whole page's top row (?app=1): workspaces and the line, nothing else
+// answered, so each tab stays on its loading line. ?stopped=1 opens a stop.
+if (query.get('app')) {
+  answer('workspaces.list', () => ({ defaultWorkspace: 'w', items: [{ id: 'w', name: 'Workspace', served: true }] }))
+  answer('flow.view', () => ({ line: query.get('stopped') ? [{ id: 'l1', manual: true, reason: 'bad base', scope: 'all', closedAt: null, branch: 'main', check: null }] : [] }))
+}
+
 function Scenario({ name }: { name: string }) {
   const [open, setOpen] = useState(false)
   const scenario = SCENARIOS[name]
@@ -166,7 +237,9 @@ function Page() {
 }
 
 // Settings pages with sample data (?page=budgets|prices|providers), for the
-// settings screenshots. Prices and models here are made up.
+// settings screenshots. Prices and models here are made up. Only a settings
+// page answers these, so the modal and app scenarios keep their own replies.
+if (query.get('page')) {
 answer('budget.settings.get', () => ({
   hash: 'h1',
   budget: { usd: 5, mode: 'stop' },
@@ -199,6 +272,7 @@ answer('providers.view', () => ({
   switches: [],
   chats: [],
 }))
+}
 const PAGES: Record<string, () => ReactNode> = {
   budgets: () => <BudgetSettings workspaceId="w" />,
   prices: () => <PricesSettings workspaceId="w" />,
@@ -213,5 +287,13 @@ function SettingsPage({ name }: { name: string }) {
   )
 }
 
+function AppPage() {
+  return (
+    <div data-host-pane style={{ position: 'fixed', inset: 0, overflowY: 'auto', background: 'var(--bg)', color: 'var(--text)' }}>
+      <AvoozlApp />
+    </div>
+  )
+}
+
 const page = query.get('page')
-createRoot(document.getElementById('root')!).render(page ? <SettingsPage name={page} /> : <Page />)
+createRoot(document.getElementById('root')!).render(page ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />)

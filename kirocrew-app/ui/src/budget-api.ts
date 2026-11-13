@@ -127,6 +127,34 @@ export const inheritText = (from: string, value: string) =>
 
 const count = (n: number) => n.toLocaleString("en-US");
 
+// The guide for Settings › Budgets, Prices and Providers, for the Ask for
+// help seed (controls.tsx AskForHelp).
+export const COSTS_DOCS =
+  "the avoozl-costs skill (skills/avoozl-costs/SKILL.md in the Avoozl app): every field on Budgets, Prices and Providers, with its default";
+
+// Settings as the help seed's key and value lines: nested keys joined with
+// dots, blank values said as "not set (default)".
+export function helpSettings(
+  value: Record<string, unknown>,
+  prefix = "",
+): { key: string; value: string | number | boolean | null }[] {
+  return Object.entries(value).flatMap(([key, v]) => {
+    const at = prefix ? `${prefix}.${key}` : key;
+    if (v && typeof v === "object" && !Array.isArray(v))
+      return helpSettings(v as Record<string, unknown>, at);
+    if (v === undefined || v === null || v === "")
+      return [{ key: at, value: "not set (default)" }];
+    return [
+      {
+        key: at,
+        value: Array.isArray(v)
+          ? v.join(", ")
+          : (v as string | number | boolean),
+      },
+    ];
+  });
+}
+
 const UNKNOWN_TEXT: Record<string, string> = {
   "crew-mode": "a Crew Mode worker",
   remote: "a remote chat",

@@ -14,11 +14,9 @@ import { plansClient } from './plans-api.ts'
 import { CONFLICT_LABELS, viewsClient, type ConflictItem } from './views-api.ts'
 import { useRead } from './useRead.ts'
 import { LineBanner } from './FlowView.tsx'
-import { StopLineButton } from './StopLine.tsx'
-import { SwitchModelButton } from './SwitchModel.tsx'
-import { flowClient } from './flow-api.ts'
+import { LINE_EVENT, flowClient } from './flow-api.ts'
 import Logo from './Logo'
-import { IconBtn, IconLabel, SectionHeading, ShowMore, ViewHeading, useAskChat, usePages } from './controls.tsx'
+import { IconBtn, IconLabel, SectionHeading, ShowMore, TaskTitleLink, ViewHeading, useAskChat, usePages } from './controls.tsx'
 import { Activity, DetailsIcon, ExternalLink, Inbox, MessageSquare, Network, RefreshCw, Check } from './icons.ts'
 import { chatClient, itemRef, type ActivityItem } from './chat-api.ts'
 import type { TaskFilter } from './filters.ts'
@@ -152,14 +150,14 @@ const roleLabel = (row: InFlight) =>
 // stays current. Paused while the page is hidden.
 const REFRESH_MS = 20000
 
-function InFlightRow({ row, now, onInfo, onPickAgain }: { row: InFlight; now: number; onInfo: () => void; onPickAgain?: () => void }) {
+export function InFlightRow({ row, now, onInfo, onPickAgain }: { row: InFlight; now: number; onInfo: () => void; onPickAgain?: () => void }) {
   const href = attachHref(row.session),
     remote = row.session.crew && row.session.crew !== 'local'
   return (
     <li className="flex flex-wrap items-start gap-2 border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)' }}>
       <Badge>{roleLabel(row)}</Badge>
       <span className="min-w-0 flex-1">
-        <span className="font-medium">{row.title}</span>{' '}
+        <TaskTitleLink id={row.taskId} title={row.title} className="font-medium" />{' '}
         <span className="text-xs text-muted">
           {row.taskId}
           {row.epic ? ` · ${row.epic}` : ''} · attempt {row.attempt}
@@ -346,6 +344,13 @@ export default function DashboardView(props: {
   const flowLoad = useCallback((id: string) => flows.view(id, { window: '10' }), [flows])
   const flow = useRead(workspaceId, flowLoad)
   const summary = value?.summary
+  // A stop pulled or resumed anywhere on the page (the top row's Stop the
+  // line, a banner) reads the banner again.
+  useEffect(() => {
+    const again = () => void flow.reload()
+    window.addEventListener(LINE_EVENT, again)
+    return () => window.removeEventListener(LINE_EVENT, again)
+  }, [flow.reload])
   const drawer = useTaskDrawer()
   const pages = usePages('')
   const [now, setNow] = useState(() => Date.now())
@@ -401,10 +406,6 @@ export default function DashboardView(props: {
             {summary && value.total > 0 && (
               <StateCounts counts={summary.counts} total={value.total} layout={layout} onPick={(state) => props.onScope?.('delivery', { state })} />
             )}
-            {/* Move running chats to another model (§4.20, R72.12). */}
-            <SwitchModelButton workspaceId={workspaceId} onSwitched={() => void reload()} compact={layout === 'small'} />
-            {/* Pull the Andon cord (R64): at the header's end, red. */}
-            <StopLineButton workspaceId={workspaceId} onPulled={() => void flow.reload()} />
           </>
         }
       >
@@ -430,16 +431,6 @@ export default function DashboardView(props: {
             <Section
               title={`In flight (${summary.inFlight.length})`}
               empty={summary.inFlight.length === 0 && 'No agent is working right now.'}
-              actions={
-                summary.inFlight.length > 0 && (
-                  <SwitchModelButton
-                    workspaceId={workspaceId}
-                    tasks={[...new Set(summary.inFlight.map((row) => row.taskId))]}
-                    onSwitched={() => void reload()}
-                    compact
-                  />
-                )
-              }
             >
               <ul className="mt-1">
                 {pages.take('flight', summary.inFlight).map((row) => (

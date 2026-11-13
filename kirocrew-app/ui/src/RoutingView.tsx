@@ -10,7 +10,7 @@ import Badge from './Badge.tsx'
 import { Modal } from './Modal.tsx'
 import { Marker, Section } from './SettingsView.tsx'
 import { Tooltip } from './Tooltip.tsx'
-import { ChoiceCards, DangerBtn, IconBtn, IconLabel, ViewHeading } from './controls.tsx'
+import { AskForHelp, ChoiceCards, DangerBtn, IconBtn, IconLabel, ViewHeading } from './controls.tsx'
 import { ArrowDown, ArrowUp, Pencil, Plus, Trash2 } from './icons.ts'
 import { modelOptions, parseModels } from './flow-api.ts'
 import { useRead } from './useRead.ts'
@@ -561,7 +561,24 @@ function RulesSection(props: { view: View; workspaceId: string; onSaved: () => P
           <span className="flex-1">Anything else -&gt; repository route on local</span>
         </li>
       </ol>
-      {!props.view.rules.length && <p className="text-xs text-muted">No rules: every chat runs on this machine, as before. Add a rule to send work to another crew or model.</p>}
+      {!props.view.rules.length && (
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+          <span>No rules: every chat runs on this machine, as before. Add a rule to send work to another crew or model.</span>
+          <AskForHelp
+            workspaceId={props.workspaceId}
+            help={{
+              page: 'Routing',
+              section: 'Rules',
+              says: 'No rules: every chat runs on this machine, as before. Add a rule to send work to another crew or model.',
+              settings: [
+                { key: 'routing.rules', value: 'none' },
+                { key: 'crews', value: props.view.crews.map((c) => c.id).join(', ') || 'none' },
+              ],
+              docs: 'README.md, section Routing',
+            }}
+          />
+        </p>
+      )}
       {message && (
         <p role="alert" className="text-sm text-danger">
           {message}

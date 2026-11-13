@@ -6,12 +6,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppApi } from '@kirocrew/app-sdk'
 import { Btn, Card, Input } from '@kirocrew/app-sdk/ui'
 import { Marker, Section } from './SettingsView.tsx'
+import { AskForHelp, useConfirm } from './controls.tsx'
 import { modelOptions, parseModels } from './flow-api.ts'
 import { useRead } from './useRead.ts'
 import { COMMAND_PATH, errorMessage } from './workspace-api.ts'
 import { DELIVERY_DEFAULTS, toDeliveryForm, toDeliverySection, type DeliveryForm, type DeliverySettings as Settings } from './delivery-api.ts'
 
 const OPTIONAL = { required: false } as const
+const OFF_BLURB = 'The tick starts no ready task until delivery is on. Its agent, model and pull request settings show here then.'
 const selectStyle = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }
 
 function Raw({ name }: { name: string }) {
@@ -49,6 +51,8 @@ export default function DeliverySettings({ workspaceId, onOpenRouting }: { works
   const [form, setForm] = useState<DeliveryForm>(toDeliveryForm())
   const [models, setModels] = useState<{ value: string; label: string }[]>([])
   const [message, setMessage] = useState<{ ok?: string; error?: string } | null>(null)
+  const [turning, setTurning] = useState(false)
+  const confirm = useConfirm()
   useEffect(() => {
     let live = true
     api.get<unknown>('/api/models').then(
@@ -83,10 +87,54 @@ export default function DeliverySettings({ workspaceId, onOpenRouting }: { works
       </p>
     )
   if (!value) return <p className="text-sm text-muted">Loading…</p>
+  // Turn on delivery: the normal save, with an empty delivery section (every
+  // key at its default) written first.
+  const turnOn = async () => {
+    const yes = await confirm({
+      title: 'Turn on delivery?',
+      body: 'The tick starts ready tasks in Kiro Crew chats, about once a minute, with the default agent and model. Stop the line or Defer pauses them.',
+      action: 'Turn on delivery',
+    })
+    if (!yes) return
+    setTurning(true)
+    setMessage(null)
+    try {
+      await run('delivery.settings.update', { delivery: {}, expectedHash: value.hash, turnOn: true })
+      await reload()
+    } catch (caught) {
+      setMessage({ error: errorMessage(caught) })
+    } finally {
+      setTurning(false)
+    }
+  }
   if (!value.on)
     return (
       <Card>
-        <Section title="Delivery is off" blurb="Add a delivery section to .avoozl.json to let the tick start ready tasks; these settings appear then." />
+        <Section title="Delivery is off" blurb={OFF_BLURB}>
+          <div className="flex flex-wrap items-center gap-3" data-delivery-off>
+            <Btn type="button" primary disabled={turning} onClick={() => void turnOn()} data-turn-on-delivery>
+              {turning ? 'Turning on…' : 'Turn on delivery'}
+            </Btn>
+            <AskForHelp
+              workspaceId={workspaceId}
+              help={{
+                page: 'Settings › Delivery',
+                section: 'Delivery is off',
+                says: `${OFF_BLURB} A Turn on delivery button writes a default delivery section.`,
+                settings: [
+                  { key: 'delivery', value: 'not set (delivery is off)' },
+                  { key: 'saved in', value: '.avoozl.json, through this page' },
+                ],
+                docs: 'README.md, sections Deliver locally and Deliver through GitHub',
+              }}
+            />
+            {message?.error && (
+              <span role="alert" className="text-sm text-danger">
+                {message.error}
+              </span>
+            )}
+          </div>
+        </Section>
       </Card>
     )
   const feedback = form.prFeedback ? form.prFeedback === 'on' : DELIVERY_DEFAULTS.prFeedback

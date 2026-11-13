@@ -360,7 +360,13 @@ function operationRow(name, input, result) {
     const model = text(input?.delivery?.model, 100);
     return model
       ? { kind: "model.switch", summary: `Writer model set to ${model}` }
-      : { kind: "settings.save", summary: "Saved delivery settings" };
+      : {
+          kind: "settings.save",
+          summary:
+            input?.turnOn === true
+              ? "Turned on delivery"
+              : "Saved delivery settings",
+        };
   }
   if (name === "task.update") {
     if (input?.status === "deferred")

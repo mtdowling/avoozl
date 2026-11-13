@@ -2614,13 +2614,13 @@ export (§6.10) is not built yet; when it is, it leaves `prices` and
   shown), **Limits** (one row per provider or model: name, amount, unit,
   Remove, Add a limit) and **Fallback models**. The usage window, error
   cooldown and provider groups fold away under Advanced.
-- **Ask for help.** A chat-icon link on Budgets, Prices and Providers
-  (`AskForHelp.tsx`, `help-chat.ts`) opens a Kiro Crew chat, not sent,
-  seeded with the page, its current values as JSON, and the
-  `avoozl-costs` skill (`skills/avoozl-costs/SKILL.md`), which explains
-  every field and default. The chat proposes values; it is told not to
-  write files or save, so the page's Save stays the only write. The part
-  is shared, for any setup screen that wants one.
+- **Ask for help.** The shared chat-icon link (`AskForHelp` in
+  `controls.tsx`, §8.9) on Budgets, Prices and Providers › Thresholds
+  opens a Kiro Crew chat through `chat.context` purpose `help`, seeded with
+  the page, its current values and the `avoozl-costs` skill
+  (`skills/avoozl-costs/SKILL.md`), which explains every field and
+  default. The chat proposes values and is told to save nothing, so the
+  page's Save stays the only write.
 
 #### Why each choice
 

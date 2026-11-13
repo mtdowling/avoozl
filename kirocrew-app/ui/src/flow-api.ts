@@ -367,6 +367,13 @@ export const WINDOW_OPTIONS = [
   { value: '50', label: 'Last 50 tasks' },
 ]
 
+// The page-wide signal that the line was stopped or resumed, so the top
+// row's Stop the line button and every banner read again.
+export const LINE_EVENT = 'avoozl:line-changed'
+export const lineChanged = () => {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(LINE_EVENT))
+}
+
 export function flowClient(api: AppApi) {
   const run = <T>(workspaceId: string, operation: string, input: Record<string, unknown> = {}) =>
     api.post<{ result: T }>(COMMAND_PATH, { operation, input, workspaceId }).then((reply) => reply.result)

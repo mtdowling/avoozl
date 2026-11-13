@@ -9,9 +9,8 @@ import { useAppApi } from '@kirocrew/app-sdk'
 import { Btn, Card, Input } from '@kirocrew/app-sdk/ui'
 import { Marker, Section } from './SettingsView.tsx'
 import { FieldBox } from './FieldBox.tsx'
-import { COSTS_DOCS, COSTS_SKILL } from './help-chat.ts'
-import { AskForHelp } from './AskForHelp.tsx'
-import { Fold } from './controls.tsx'
+import { COSTS_DOCS, helpSettings } from './budget-api.ts'
+import { AskForHelp, Fold } from './controls.tsx'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
 import {
@@ -142,17 +141,27 @@ export default function ProvidersSettings({ workspaceId }: { workspaceId: string
   if (!value) return <p className="text-sm text-muted">Loading…</p>
   const d = value.defaults
   const windowHours = form.windowHours.trim() || String(d.windowHours)
-  const help = () => ({
-    page: 'Settings > Providers',
-    purpose: 'Its Thresholds decide when a provider or model counts as low or out, so new tasks skip it, and which models take over.',
-    settings: { current: toProvidersSection(form).providers ?? value.settings, defaults: d },
-    skill: COSTS_SKILL,
+  const help = {
+    page: 'Settings › Providers',
+    section: 'Thresholds',
+    says: 'When a provider or model counts as low or out, so new tasks skip it, and which models take over. Blank fields use the default.',
+    settings: helpSettings({
+      providers: {
+        lowPercent: form.lowPercent,
+        limits: form.limits.filter((l) => l.name.trim()).map((l) => `${l.name} ${l.amount} ${l.unit}`),
+        fallback: form.fallback,
+        windowHours: form.windowHours,
+        cooldownMinutes: form.cooldownMinutes,
+        groups: form.groups.split('\n').filter(Boolean).join('; '),
+      },
+      defaults: `low at ${d.lowPercent}%, no limits, no fallback, ${d.windowHours}-hour window, ${d.cooldownMinutes}-minute cooldown, provider is the first word of the model ID`,
+    }),
     docs: COSTS_DOCS,
-  })
+  }
   return (
     <div className="flex flex-col gap-3" data-providers-settings>
       <div className="flex flex-wrap items-center gap-2">
-        <AskForHelp context={help} />
+        <AskForHelp workspaceId={workspaceId} help={help} />
       </div>
       <Card className="flex flex-col gap-3">
         <Section title="Health" blurb="Low and out providers and models. New tasks skip them; running chats on an out model switch at their next turn.">
