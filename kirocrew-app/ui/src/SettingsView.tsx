@@ -53,7 +53,7 @@ import ContentRulesSettings from './ContentRulesSettings.tsx'
 import FlowSettings from './FlowSettings.tsx'
 import { BudgetSettings, PricesSettings } from './BudgetSettings.tsx'
 import DeliverySettings from './DeliverySettings.tsx'
-import ProvidersSettings from './ProvidersSettings.tsx'
+import RoutingView from './RoutingView.tsx'
 import { useSteppedState } from './NavHistory.tsx'
 import { useRead } from './useRead.ts'
 import { labelsClient, triageRows, type RepositoryLabels } from './untriaged-api.ts'
@@ -83,7 +83,7 @@ export const SETTINGS_TABS = [
   { key: 'delivery', label: 'Delivery' },
   { key: 'budgets', label: 'Budgets' },
   { key: 'prices', label: 'Prices' },
-  { key: 'providers', label: 'Providers' },
+  { key: 'routing', label: 'Routing' },
 ] as const
 export type SettingsTab = (typeof SETTINGS_TABS)[number]['key']
 
@@ -105,13 +105,13 @@ export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
     'Terms Avoozl must never write: in spec files, issues, comments, briefs and diffs. A match stops the write and asks you.',
   flow: 'How Avoozl measures delivery time and reacts to slow or broken work. Every group applies in each mode.',
   delivery:
-    'Which agent and model write each task by default, and whether pull request feedback goes back to the writer. Crews and per-task picks are on the Routing tab.',
+    'Which agent and model write each task by default, and whether pull request feedback goes back to the writer. Crews and the routing prompt are on the Routing tab.',
   budgets:
     "Each task's spending cap and what happens at it: stop new work, or only warn. Save only writes .avoozl.json.",
   prices:
     'What each model costs, so budgets can count dollars. Kept on this computer only, never in a repository.',
-  providers:
-    'When a provider or model counts as low or out, and the fallback models. New tasks skip low and out ones. Saved on this machine only.',
+  routing:
+    'Off by default: every task runs on this machine. On, one routing prompt picks a crew and a model for each ready task, among the options that pass the checks. Saved on this machine only.',
 }
 
 const REPOSITORY_TABS = [
@@ -1440,8 +1440,8 @@ export default function SettingsView(props: {
         <BudgetSettings workspaceId={workspaceId} />
       ) : tab === 'prices' ? (
         <PricesSettings workspaceId={workspaceId} />
-      ) : tab === 'providers' ? (
-        <ProvidersSettings workspaceId={workspaceId} />
+      ) : tab === 'routing' ? (
+        <RoutingView workspaceId={workspaceId} />
       ) : (
         <PolicyEditor workspaceId={workspaceId} tab={tab} onOpenPlans={props.onOpenPlans} />
       )}

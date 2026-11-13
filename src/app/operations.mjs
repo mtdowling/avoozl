@@ -2167,13 +2167,11 @@ export class Operations {
       (context.caller || context.mcp)
     )
       fail(
-        "Only a person changes routing rules and crew settings, on the Routing page or the CLI.",
+        "Only a person changes the routing prompt and crew settings, in Settings › Routing or the CLI.",
         403,
       );
     if (name === "routing.update") {
-      const result = updateRouting(this.settingsFile(), store, input, {
-        pluginIds: this.plugins?.inspect().map((p) => p.id) ?? null,
-      });
+      const result = updateRouting(this.settingsFile(), store, input);
       this.configuration?.reload();
       return result;
     }

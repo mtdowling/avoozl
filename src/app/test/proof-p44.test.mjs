@@ -19,13 +19,13 @@ import {
   applySwitches,
   errorKind,
   healthContext,
-  healthyChoices,
   ingestProviderErrors,
   providerOf,
   providersInput,
   refreshHealth,
 } from "../provider-health.mjs";
-import { chooseSession, validateTrackedRouting } from "../placement.mjs";
+import { routingConfig, validateTrackedRouting } from "../placement.mjs";
+import { hardChecks, recordModelList } from "../routing.mjs";
 import { servedModel } from "../delivery.mjs";
 import { principalAllows } from "../app-backend.mjs";
 import { listActivity } from "../activity-log.mjs";
@@ -37,15 +37,9 @@ const MANIFEST = Object.fromEntries(
 const TEN = Object.fromEntries(
   Object.entries(CREWS).map(([id, c]) => [id, { ...c, chatLimit: 10 }]),
 );
-const RULES = [
-  {
-    id: "routine",
-    when: { kinds: ["leaf"] },
-    session: {
-      choices: [{ model: "alpha-1", weight: 2 }, { model: "beta-1" }],
-    },
-  },
-];
+// The routing prompt, on this machine; Kiro Crew lists three models.
+const PROMPT = { enabled: true, prompt: "Prefer beta when alpha is low." };
+const MODELS = ["alpha-1", "beta-1", "gamma-1"];
 const REVIEWERS = [
   {
     id: "correctness",
@@ -55,37 +49,40 @@ const REVIEWERS = [
     distinctFrom: "model",
   },
 ];
-const PROVIDERS = {
-  limits: { "alpha-1": { credits: 100 } },
-  fallback: ["delta-1", "gamma-1"],
-  cooldownMinutes: 30,
-};
+const PROVIDERS = { limits: { "alpha-1": { credits: 100 } } };
 const hold = Object.fromEntries(IDS.map((id) => [`${id}:worker`, "hold"]));
 const writers = (result) =>
   Object.fromEntries(
     result.dispatch.filter((d) => d.role === "worker").map((d) => [d.task, d]),
   );
 
-function machine(providers) {
+function machine(providers, routing) {
   const value = JSON.parse(fs.readFileSync(MACHINE, "utf8"));
   if (providers) value.providers = providers;
   else delete value.providers;
+  if (routing) value.routing = routing;
+  else delete value.routing;
   fs.writeFileSync(MACHINE, JSON.stringify(value, null, 2));
 }
 
-async function setup(t, { providers = PROVIDERS, ...options } = {}) {
+// Routing is off unless a test turns the prompt on: every chat opens on
+// local, on the delivery model alpha-1.
+async function setup(
+  t,
+  { providers = PROVIDERS, prompt = null, ...options } = {},
+) {
   const env = await workspace(t, {
     crews: TEN,
     ids: IDS,
     manifest: MANIFEST,
-    routing: { rules: RULES },
     delivery: { model: "alpha-1", reviewers: REVIEWERS },
     agents: {
       "fake-linux": ["kirocrew-worker", "avoozl-verifier", "avoozl-reviewer"],
     },
     ...options,
   });
-  machine(providers);
+  machine(providers, prompt);
+  recordModelList(env.store, MODELS);
   return env;
 }
 
@@ -94,72 +91,52 @@ const turn = (store, model, credits, ts = new Date().toISOString()) =>
     { ts, model, input: 0, output: 0, credits },
   ]);
 
-test("P44 action 1: with no providers settings routing is unchanged", async (t) => {
+test("P44 action 1: with no providers settings nothing is marked and routing is unchanged", async (t) => {
   const env = await setup(t, { providers: null });
   const health = healthContext(env.store);
   assert.equal(health.empty, true);
-  const choices = [{ model: "alpha-1", weight: 1 }];
-  assert.equal(healthyChoices(choices, health).pool, choices);
   const preview = await env.ops.execute("routing.preview", {});
+  assert.equal(preview.items.length, IDS.length);
   for (const item of preview.items) {
-    assert.doesNotMatch(item.sessionReason, /skipped|fallback|is out/);
-    assert.ok(["alpha-1", "beta-1"].includes(item.model));
+    assert.equal(item.outcome.crew, "local");
+    assert.equal(item.outcome.model, "alpha-1");
+    assert.equal(item.outcome.text, "routing is off: local");
+    assert.doesNotMatch(JSON.stringify(item.removed), /is out/);
   }
 });
 
-test("P44 actions 2-3: usage marks alpha-1 low, then out; new tasks skip it and Preview says why", async (t) => {
-  const env = await setup(t),
+test("P44 actions 2-3: usage marks alpha-1 low, then out; low is a fact, out is never offered", async (t) => {
+  const env = await setup(t, { prompt: PROMPT }),
     { ops, store } = env;
   turn(store, "alpha-1", 85);
   refreshHealth(store);
   assert.equal(healthContext(store).level("alpha-1"), "low");
   let preview = await ops.execute("routing.preview", {});
-  assert.ok(preview.items.every((i) => i.model === "beta-1"));
-  assert.match(preview.items[0].sessionReason, /skipped alpha-1 is low/);
+  assert.ok(
+    preview.items.every((i) => i.options.some((o) => o.model === "alpha-1")),
+    "a low model is still offered",
+  );
+  assert.match(preview.brief, /alpha-1: 85% used, low/);
+  assert.match(preview.brief, /Prefer beta when alpha is low\./);
 
   turn(store, "alpha-1", 20);
   refreshHealth(store);
   assert.equal(healthContext(store).level("alpha-1"), "out");
-  const placed = writers(
-    await fakeCrew(ops, {
-      aliases: env.aliases,
-      defaults: defaults(env),
-      scripts: hold,
-    }).tick(),
-  );
-  assert.equal(Object.keys(placed).length, IDS.length);
-  for (const d of Object.values(placed)) {
-    assert.equal(d.model, "beta-1", "no session opens on an out model");
-    assert.match(d.sessionReason, /skipped alpha-1 is out/);
+  preview = await ops.execute("routing.preview", {});
+  for (const item of preview.items) {
+    assert.ok(item.options.every((o) => o.model !== "alpha-1"));
+    assert.ok(item.removed.some((r) => r.by === "alpha-1 is out"));
   }
   // The window drops below the low line: the usage mark clears by itself.
   refreshHealth(store, { now: Date.now() + 6 * 3600000 });
   assert.equal(healthContext(store).level("alpha-1"), "ok");
 });
 
-test("P44 actions 2-3: every choice out takes the fallback, never a review role's model, else waits", async (t) => {
+test("P44 actions 2-3: with routing off an out delivery model waits, with no no-fit decision", async (t) => {
   const env = await setup(t),
     { ops, store } = env;
   turn(store, "alpha-1", 100);
-  ingestProviderErrors(store, { slot: "x", model: "beta-1" }, [
-    {
-      role: "error",
-      meta: { kind: "usage_limit" },
-      ts: new Date().toISOString(),
-    },
-  ]);
   refreshHealth(store);
-  let preview = await ops.execute("routing.preview", {});
-  for (const item of preview.items) {
-    assert.equal(item.model, "gamma-1", "delta-1 is the reviewer's model");
-    assert.match(item.sessionReason, /fallback gamma-1/);
-  }
-  machine({ ...PROVIDERS, fallback: ["delta-1"] });
-  preview = await ops.execute("routing.preview", {});
-  for (const item of preview.items) {
-    assert.equal(item.crew, null);
-    assert.match(item.reason, /every model it may use is out/);
-  }
   const crew = fakeCrew(ops, {
     aliases: env.aliases,
     defaults: defaults(env),
@@ -170,6 +147,12 @@ test("P44 actions 2-3: every choice out takes the fallback, never a review role'
     (i) => i.kind === "no-fit",
   );
   assert.equal(noFit.length, 0, "health waits open no no-fit decision");
+  assert.equal(
+    (await ops.execute("conflicts.view", {})).items.filter(
+      (i) => i.kind === "provider-out",
+    ).length,
+    1,
+  );
 });
 
 test("P44 actions 4-5: error rows mark health by kind, store no text, and recover", async (t) => {
@@ -236,36 +219,41 @@ test("P44 actions 4-5: error rows mark health by kind, store no text, and recove
   assert.equal(store.list("provider_health").length, 0);
 });
 
-test("P44 action 6: a retry keeps its model while low and moves off it when out", () => {
-  const rules = RULES.map((r) => ({ ...r, source: "workspace" })),
-    subject = { kind: "leaf", labels: [], role: "worker" },
-    health = (level) => ({
-      empty: false,
-      level: (m) => (m === "alpha-1" ? level : "ok"),
-      replacement: () => null,
-      fallback: [],
+test("P44 action 6: a retry keeps its model while low and moves off it when out", (t) => {
+  const ctx = (level) => ({
+      config: routingConfig(),
+      crews: [
+        {
+          id: "local",
+          tags: [],
+          available: true,
+          ready: true,
+          running: 0,
+          chatLimit: 3,
+        },
+      ],
+      remoteDispatch: false,
+      mc10: false,
+      models: [],
+      fetch: new Map(),
+      localLimit: null,
+      health: {
+        level: (m) => (m === "alpha-1" ? level : "ok"),
+        replacement: () => null,
+        marks: [],
+      },
     }),
-    kept = { agent: null, model: "alpha-1" };
-  const low = chooseSession({
-    task: {},
-    role: "worker",
-    rules,
-    subject,
-    kept,
-    health: health("low"),
-  });
-  assert.equal(low.model, "alpha-1");
-  assert.match(low.reason, /kept from the last attempt/);
-  const out = chooseSession({
-    task: {},
-    role: "worker",
-    rules,
-    subject,
-    kept,
-    health: health("out"),
-  });
-  assert.equal(out.model, "beta-1");
-  assert.match(out.reason, /the kept model alpha-1 is out/);
+    input = {
+      task: { id: "r1", repository: "app" },
+      role: "worker",
+      policy: { model: "beta-1" },
+      kept: { agent: null, model: "alpha-1" },
+    };
+  const low = hardChecks(null, { tasks: [] }, ctx("low"), input);
+  assert.deepEqual(low.models, ["alpha-1"]);
+  const out = hardChecks(null, { tasks: [] }, ctx("out"), input);
+  assert.deepEqual(out.models, ["beta-1"]);
+  assert.equal(out.keptOut, true);
 });
 
 test("P44 action 7: running chats on an out model switch in the same session; refusals are not retried", async (t) => {
@@ -280,7 +268,7 @@ test("P44 action 7: running chats on an out model switch in the same session; re
   const live = store
     .list("session_bindings")
     .filter((b) => b.role === "worker" && b.model === "alpha-1");
-  assert.ok(live.length >= 2, "the weights put two chats on alpha-1");
+  assert.ok(live.length >= 2, "routing off puts every chat on alpha-1");
   const [busy, refused] = live.map((b) => b.slot),
     statusBefore = store.get("session_bindings", busy).status;
   turn(store, "alpha-1", 100);
@@ -328,7 +316,7 @@ test("P44 action 7: running chats on an out model switch in the same session; re
 });
 
 test("P44 action 7: with no healthy target the chat stays and Needs you says so", async (t) => {
-  const env = await setup(t, { providers: { fallback: ["delta-1"] } }),
+  const env = await setup(t, { providers: {} }),
     { ops, store } = env;
   await fakeCrew(ops, {
     aliases: env.aliases,
@@ -354,7 +342,7 @@ test("P44 action 7: with no healthy target the chat stays and Needs you says so"
     ...ops.providerOptions(),
     choicesFor: () => ["alpha-1", "beta-1"],
   });
-  assert.deepEqual(calls, [], "delta-1 is the reviewer's model");
+  assert.deepEqual(calls, [], "both choices are out");
   assert.ok(results.length && results.every((r) => r.result === "no target"));
   assert.equal(
     (
@@ -395,7 +383,7 @@ test("P44 action 8: the served-model check counts every model a switched chat ra
 });
 
 test("P44 actions 9-11: the manual switch previews, refuses a stale hash, marks new tasks, is person-only, and shows in Needs you", async (t) => {
-  const env = await setup(t, { providers: { fallback: ["gamma-1"] } }),
+  const env = await setup(t, { providers: {} }),
     { ops, store } = env;
   await fakeCrew(ops, {
     aliases: env.aliases,
@@ -464,13 +452,10 @@ test("P44 actions 9-11: the manual switch previews, refuses a stale hash, marks 
   const mark = store.get("provider_health", "person:provider:alpha");
   assert.equal(mark.level, "out");
   assert.equal(mark.to, "gamma-1");
-  // New tasks: alpha is out, so the routine choices keep only beta-1; a task
-  // whose only model is alpha takes the person's replacement.
+  // New tasks: alpha is out, and a task on alpha takes the replacement.
   const health = healthContext(store);
-  assert.equal(
-    healthyChoices([{ model: "alpha-1", weight: 1 }], health).pool[0].model,
-    "gamma-1",
-  );
+  assert.equal(health.level("alpha-1"), "out");
+  assert.equal(health.replacement("alpha-1"), "gamma-1");
   // The backend pass applies the person's switches.
   const results = await applySwitches(
     store,
@@ -502,12 +487,8 @@ test("P44 actions 9-11: the manual switch previews, refuses a stale hash, marks 
   assert.equal(items.length, 0);
 });
 
-test("P44: without routing an out delivery model takes the fallback, else the task waits", async (t) => {
-  const env = await setup(t, {
-    routing: undefined,
-    delivery: { model: "alpha-1" },
-    providers: { fallback: ["gamma-1"] },
-  });
+test("P44: without routing an out delivery model takes a person's replacement, else waits", async (t) => {
+  const env = await setup(t, { providers: {} });
   ingestProviderErrors(env.store, { slot: "x", model: "alpha-1" }, [
     {
       role: "error",
@@ -520,28 +501,22 @@ test("P44: without routing an out delivery model takes the fallback, else the ta
     defaults: defaults(env),
     scripts: hold,
   });
-  const placed = writers(await crew.tick());
+  assert.deepEqual(writers(await crew.tick()), {});
+  // Switch model with no running chats and Also new tasks: a person's mark.
+  const input = {
+      from: { provider: "alpha" },
+      to: "gamma-1",
+      alsoNewTasks: true,
+    },
+    dry = await env.ops.execute("provider.switch.dryRun", input);
+  await env.ops.execute("provider.switch", {
+    ...input,
+    previewHash: dry.previewHash,
+  });
+  const r = await crew.tick();
+  const placed = writers(r);
   assert.ok(Object.values(placed).length);
   assert.ok(Object.values(placed).every((d) => d.model === "gamma-1"));
-  machine({});
-  const env2 = await setup(t, {
-    routing: undefined,
-    delivery: { model: "alpha-1" },
-    providers: {},
-  });
-  ingestProviderErrors(env2.store, { slot: "x", model: "alpha-1" }, [
-    {
-      role: "error",
-      meta: { kind: "usage_limit" },
-      ts: new Date().toISOString(),
-    },
-  ]);
-  const crew2 = fakeCrew(env2.ops, {
-    aliases: env2.aliases,
-    defaults: defaults(env2),
-    scripts: hold,
-  });
-  assert.deepEqual(writers(await crew2.tick()), {});
 });
 
 test("P44: provider settings are validated and refused in .avoozl.json", async (t) => {
@@ -551,13 +526,14 @@ test("P44: provider settings are validated and refused in .avoozl.json", async (
     () => providersInput({ limits: { a: { dollars: 1 } } }),
     /credits or tokens/,
   );
-  assert.throws(() => providersInput({ fallback: ["auto"] }), /name a model/);
+  assert.throws(
+    () => providersInput({ fallback: ["m"] }),
+    /fallback was removed/,
+  );
+  assert.throws(() => providersInput({ groups: {} }), /groups was removed/);
   assert.throws(() => providersInput({ nope: 1 }), /not a provider setting/);
   assert.equal(providerOf("claude-sonnet-4.5"), "claude");
-  assert.equal(
-    providerOf("gpt-5", { groups: { openai: ["gpt-*"] } }),
-    "openai",
-  );
+  assert.equal(providerOf("gpt-5"), "gpt");
   assert.equal(providerOf("auto"), null);
   assert.throws(
     () => validateTrackedRouting({ providers: {} }),

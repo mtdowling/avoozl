@@ -11,8 +11,6 @@ import {
   markText,
   switchResultText,
   switchText,
-  toProvidersForm,
-  toProvidersSection,
 } from '../src/providers-api.ts'
 
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
@@ -72,23 +70,7 @@ test('switch records say what happened', () => {
   assert.equal(switchText({ ...base, to: null, state: 'done', result: 'no target' }), 'a: no healthy model to switch to')
 })
 
-test('the Providers form round-trips and refuses malformed lines', () => {
-  const settings = {
-    lowPercent: 70,
-    cooldownMinutes: 15,
-    limits: { claude: { credits: 500 }, 'model-a': { tokens: 2000000 } },
-    groups: { anthropic: ['claude-*', 'sonnet-*'] },
-    fallback: ['model-b', 'model-c'],
-  }
-  assert.deepEqual(toProvidersSection(toProvidersForm(settings)).providers, settings)
-  assert.deepEqual(toProvidersSection(toProvidersForm()).providers, {})
-  const form = toProvidersForm()
-  assert.match(toProvidersSection({ ...form, lowPercent: '7.5' }).error, /lowPercent/)
-  assert.match(toProvidersSection({ ...form, limits: 'claude dollars 5' }).error, /credits\|tokens/)
-  assert.match(toProvidersSection({ ...form, groups: 'anthropic' }).error, /<provider>: <pattern>/)
-})
-
-test('Switch model and Stop the line sit once each in the top row; Providers is a Settings tab', () => {
+test('Switch model and Stop the line sit once each in the top row; providers show in Settings › Routing', () => {
   const app = source('App.tsx'),
     dashboard = source('DashboardView.tsx')
   const row = app.slice(app.indexOf('data-top-row'), app.indexOf('</div>', app.indexOf('data-top-actions')))
@@ -113,7 +95,6 @@ test('Switch model and Stop the line sit once each in the top row; Providers is 
   assert.match(dialog, /previewHash: dry\.previewHash/)
   assert.match(dialog, /setChanged\(dryRunDiff\(dry, next\)\)/)
   assert.match(dialog, /onClick=\{\(\) => setStep\('choose'\)\} data-switch-back/)
-  const settings = source('SettingsView.tsx')
-  assert.match(settings, /tab === 'providers' \? \(\s*<ProvidersSettings/)
+  assert.match(source('RoutingView.tsx'), /<ProvidersSection /)
   assert.match(source('views-api.ts'), /'provider-out': 'Provider out'/)
 })

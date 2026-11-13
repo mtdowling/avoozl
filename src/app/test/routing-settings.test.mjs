@@ -92,71 +92,64 @@ test("Turn on delivery writes an empty delivery section through the same save", 
   assert.deepEqual(JSON.parse(fs.readFileSync(file, "utf8")).delivery, {});
 });
 
-test("routing edits pin crews only on this machine and refuse a stale revision", async (t) => {
+test("the routing prompt is saved on this machine only, by a person", async (t) => {
   const env = await workspace(t, { ids: ["w1"] }),
     { ops } = env;
   const view = await ops.execute("routing.view", {});
+  assert.equal(view.enabled, false, "off by default");
+  assert.ok(view.examples.length >= 5, "canned example prompts");
   await assert.rejects(
     ops.execute("routing.update", {
       where: "workspace",
-      routing: { rules: [{ id: "pin", on: "fake-linux" }] },
+      routing: { prompt: "x" },
       expectedHash: view.configHash,
     }),
-    /pin a crew only in this machine's settings/,
+    /saved on this machine only/,
   );
   await assert.rejects(
     ops.execute(
       "routing.update",
-      {
-        where: "workspace",
-        routing: { rules: [] },
-        expectedHash: view.configHash,
-      },
+      { routing: { enabled: true }, expectedHash: view.machineHash },
       ...mcp,
     ),
     /Only a person/,
   );
   await ops.execute("routing.update", {
-    where: "machine",
-    routing: {
-      rules: [{ id: "pin", on: "fake-linux" }],
-      router: { instructions: "Prefer fake-linux." },
-    },
+    routing: { enabled: true, prompt: "Tests go remote." },
     expectedHash: view.machineHash,
   });
   const machine = JSON.parse(fs.readFileSync(MACHINE, "utf8"));
-  assert.equal(machine.routing.rules[0].on, "fake-linux");
+  assert.equal(machine.routing.prompt, "Tests go remote.");
   assert.ok(machine.crews, "crew settings are kept");
   const next = await ops.execute("routing.view", {});
-  assert.equal(next.instructions, "Prefer fake-linux.");
+  assert.equal(next.enabled, true);
+  assert.equal(next.prompt, "Tests go remote.");
   assert.equal(
-    (await ops.execute("routing.view", {}, ...mcp)).instructions,
+    (await ops.execute("routing.view", {}, ...mcp)).prompt,
     null,
-    "sessions do not read the instructions",
+    "sessions do not read the prompt",
   );
   await assert.rejects(
     ops.execute("routing.update", {
-      where: "machine",
       routing: {},
       expectedHash: view.machineHash,
     }),
     /changed; reload/,
   );
-  await ops.execute("routing.update", {
-    where: "workspace",
-    routing: {
-      rules: [{ id: "spread", on: "any" }],
-      pick: { preset: "spread-out" },
-    },
-    expectedHash: next.configHash,
+  // The provider box: one low line, saved on this machine.
+  await assert.rejects(
+    ops.execute("providers.settings.update", {
+      providers: { lowPercent: 80, fallback: ["m"] },
+      expectedHash: next.providers.hash,
+    }),
+    /fallback was removed/,
+  );
+  await ops.execute("providers.settings.update", {
+    providers: { lowPercent: 70 },
+    expectedHash: next.providers.hash,
   });
   const after = await ops.execute("routing.view", {});
-  assert.equal(after.pick.preset, "spread-out");
-  assert.deepEqual(
-    after.rules.map((r) => [r.id, r.source]),
-    [
-      ["spread", "workspace"],
-      ["pin", "machine"],
-    ],
-  );
+  assert.equal(after.providers.lowPercent, 70);
+  assert.equal(after.providers.defaultLowPercent, 80);
+  assert.equal(after.prompt, "Tests go remote.", "the prompt is kept");
 });

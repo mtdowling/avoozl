@@ -16,11 +16,11 @@ import { recordActivity } from "./activity-log.mjs";
 const HEALTH = "provider_health";
 const SWITCHES = "provider_switches";
 const LEVELS = ["ok", "low", "out"];
-export const PROVIDER_DEFAULTS = Object.freeze({
-  lowPercent: 80,
-  cooldownMinutes: 30,
-  windowHours: 5,
-});
+export const PROVIDER_DEFAULTS = Object.freeze({ lowPercent: 80 });
+// Fixed since 2026-11-13: an error mark clears after 30 minutes, and usage
+// is summed over the last 5 hours.
+const COOLDOWN_MS = 30 * 60000;
+const WINDOW_MS = 5 * 3600000;
 const record = (value) =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
 const rank = (level) => Math.max(0, LEVELS.indexOf(level));
@@ -36,32 +36,38 @@ function modelName(value, at) {
 
 // ------------------------------------------------------------ settings
 
-// Machine-local `providers` (§4.20 Settings). Every key is optional.
+// Keys the thresholds form used (removed 2026-11-13). The cooldown and the
+// window are fixed; providers come from the model ID; the routing agent
+// replaces the fallback list.
+const OLD_PROVIDER_KEYS = [
+  "cooldownMinutes",
+  "windowHours",
+  "groups",
+  "fallback",
+];
+
+// Machine-local `providers` (§4.20 Settings): `lowPercent`, and `limits`
+// that give usage a percent. Every key is optional.
 export function providersInput(value, at = "providers") {
   if (value === undefined || value === null) return {};
   if (!record(value)) fail(`${at} must be an object.`);
   const out = {};
   for (const key of Object.keys(value))
-    if (
-      ![
-        "lowPercent",
-        "cooldownMinutes",
-        "windowHours",
-        "limits",
-        "groups",
-        "fallback",
-      ].includes(key)
-    )
+    if (OLD_PROVIDER_KEYS.includes(key))
+      fail(
+        `${at}.${key} was removed; run node scripts/migrate-routing.mjs <file>.`,
+      );
+    else if (!["lowPercent", "limits"].includes(key))
       fail(`${at}.${key} is not a provider setting.`);
-  const int = (key, min, max) => {
-    if (value[key] === undefined) return;
-    if (!Number.isInteger(value[key]) || value[key] < min || value[key] > max)
-      fail(`${at}.${key} must be a whole number from ${min} to ${max}.`);
-    out[key] = value[key];
-  };
-  int("lowPercent", 1, 99);
-  int("cooldownMinutes", 1, 1440);
-  int("windowHours", 1, 168);
+  if (value.lowPercent !== undefined) {
+    if (
+      !Number.isInteger(value.lowPercent) ||
+      value.lowPercent < 1 ||
+      value.lowPercent > 99
+    )
+      fail(`${at}.lowPercent must be a whole number from 1 to 99.`);
+    out.lowPercent = value.lowPercent;
+  }
   if (value.limits !== undefined) {
     if (!record(value.limits)) fail(`${at}.limits must be an object.`);
     out.limits = {};
@@ -81,30 +87,6 @@ export function providersInput(value, at = "providers") {
         fail(`${at}.limits.${key} needs credits or tokens.`);
       out.limits[key] = entry;
     }
-  }
-  if (value.groups !== undefined) {
-    if (!record(value.groups)) fail(`${at}.groups must be an object.`);
-    out.groups = {};
-    for (const [key, patterns] of Object.entries(value.groups)) {
-      modelName(key, `${at}.groups key`);
-      if (
-        !Array.isArray(patterns) ||
-        !patterns.length ||
-        patterns.some(
-          (p) =>
-            typeof p !== "string" || !/^[A-Za-z0-9._:/@+*-]{1,128}$/.test(p),
-        )
-      )
-        fail(`${at}.groups.${key} must list model patterns (* only).`);
-      out.groups[key] = [...patterns];
-    }
-  }
-  if (value.fallback !== undefined) {
-    if (!Array.isArray(value.fallback) || value.fallback.length > 20)
-      fail(`${at}.fallback must list up to 20 models.`);
-    out.fallback = value.fallback.map((m, i) =>
-      modelName(m, `${at}.fallback.${i}`),
-    );
   }
   return out;
 }
@@ -144,22 +126,10 @@ export function refuseTrackedProviders(config) {
 
 // --------------------------------------------------------------- health
 
-const globToRegExp = (glob) =>
-  new RegExp(
-    "^" +
-      glob
-        .split("*")
-        .map((part) => part.replace(/[.+?^${}()|[\]\\/]/g, "\\$&"))
-        .join(".*") +
-      "$",
-  );
-
-// A model's provider (R72.1): the first group that matches, else its ID up
-// to the first `-`, `/`, `.` or `:`. `auto` and no model have none.
-export function providerOf(model, settings = {}) {
+// A model's provider (R72.1): its ID up to the first `-`, `/`, `.` or `:`.
+// `auto` and no model have none.
+export function providerOf(model) {
   if (typeof model !== "string" || !model || model === "auto") return null;
-  for (const [id, patterns] of Object.entries(settings.groups || {}))
-    if (patterns.some((p) => globToRegExp(p).test(model))) return id;
   return model.split(/[-/.:]/)[0].toLowerCase() || null;
 }
 
@@ -200,58 +170,52 @@ export function healthContext(store, options = {}) {
     now,
     marks,
     level,
-    providerOf: (model) => providerOf(model, settings),
+    providerOf,
     // A person's replacement for a model they marked out (R72.13).
     replacement: (model) =>
       marksFor(model).find((m) => m.source === "person" && m.to)?.to ?? null,
-    fallback: settings.fallback || [],
     empty: marks.length === 0,
   };
 }
 
-// The models a new or kept session may use (R72.5, R72.6). `choices` are
-// {agent, model, weight} after review-role models are removed; `skipModels`
-// are review-role models a writer must not get from a fallback. Returns
-// {pool, note} or {wait, reason}; with nothing marked, `pool` is `choices`
-// and `note` is empty, so routing is unchanged (R72.18).
-export function healthyChoices(choices, health, { skipModels = [] } = {}) {
-  if (!health || health.empty) return { pool: choices, note: "" };
-  const level = (c) => (c.model ? health.level(c.model) : "ok"),
-    out = choices.filter((c) => level(c) === "out"),
-    live = choices.filter((c) => level(c) !== "out"),
-    ok = live.filter((c) => level(c) === "ok"),
-    low = live.filter((c) => level(c) === "low");
-  const dropped = [
-    ...out.map((c) => `${c.model} is out`),
-    ...(ok.length ? low.map((c) => `${c.model} is low`) : []),
-  ];
-  const note = dropped.length ? `; skipped ${dropped.join(", ")}` : "";
-  if (ok.length) return { pool: ok, note };
-  if (low.length) return { pool: low, note };
-  // Every choice is out: the person's replacement, then the fallback list.
-  const agent = choices[0]?.agent ?? null,
-    candidates = [
-      ...out.map((c) => health.replacement(c.model)).filter(Boolean),
-      ...health.fallback,
-    ].filter(
-      (m, i, all) =>
-        all.indexOf(m) === i &&
-        !skipModels.includes(m) &&
-        !choices.some((c) => c.model === m),
-    );
-  const pick =
-    candidates.find((m) => health.level(m) === "ok") ??
-    candidates.find((m) => health.level(m) === "low");
-  if (pick)
+// Usage in the last 5 hours, read live (R72.2): one row per provider seen
+// in the window and per limit key, with its percent of the limit when one
+// is set. [{key, credits, tokens, percent|null, limit|null}].
+export function usageReport(store, options = {}) {
+  const settings = options.settings ?? readProviders(store, options).settings,
+    now = options.now ?? Date.now(),
+    since = iso(now - WINDOW_MS),
+    turns = (options.turns ?? listUsage(store)).filter((t) => t.ts >= since),
+    limits = settings.limits || {},
+    keys = [
+      ...new Set([
+        ...Object.keys(limits),
+        ...turns.map((t) => providerOf(t.model)).filter(Boolean),
+      ]),
+    ];
+  return keys.map((key) => {
+    let credits = 0,
+      tokens = 0;
+    for (const t of turns)
+      if (t.model === key || providerOf(t.model) === key) {
+        credits += t.credits || 0;
+        tokens += (t.input || 0) + (t.output || 0);
+      }
+    const limit = limits[key] ?? null,
+      percent = limit
+        ? Math.max(
+            limit.credits ? (100 * credits) / limit.credits : 0,
+            limit.tokens ? (100 * tokens) / limit.tokens : 0,
+          )
+        : null;
     return {
-      pool: [{ agent, model: pick, weight: 1 }],
-      note: `${note}; fallback ${pick}`,
-      fallback: true,
+      key,
+      credits,
+      tokens,
+      limit,
+      percent: percent === null ? null : Math.round(percent),
     };
-  return {
-    wait: true,
-    reason: `every model it may use is out (${out.map((c) => c.model).join(", ")}) and no fallback is healthy`,
-  };
+  });
 }
 
 // Writes after a usage read (R72.2): one `usage` mark per limit key at or
@@ -261,28 +225,13 @@ export function refreshHealth(store, options = {}) {
   const settings = options.settings ?? readProviders(store, options).settings,
     now = options.now ?? Date.now(),
     lowPercent = settings.lowPercent ?? PROVIDER_DEFAULTS.lowPercent,
-    since = iso(
-      now - (settings.windowHours ?? PROVIDER_DEFAULTS.windowHours) * 3600000,
-    ),
     turns = listUsage(store),
     marks = listMarks(store),
     changes = [];
   store.transaction(() => {
-    for (const [key, limit] of Object.entries(settings.limits || {})) {
-      let credits = 0,
-        tokens = 0;
-      for (const t of turns)
-        if (
-          t.ts >= since &&
-          (t.model === key || providerOf(t.model, settings) === key)
-        ) {
-          credits += t.credits || 0;
-          tokens += (t.input || 0) + (t.output || 0);
-        }
-      const percent = Math.max(
-          limit.credits ? (100 * credits) / limit.credits : 0,
-          limit.tokens ? (100 * tokens) / limit.tokens : 0,
-        ),
+    for (const row of usageReport(store, { settings, now, turns })) {
+      if (!row.limit) continue;
+      const { key, percent } = row,
         level = percent >= 100 ? "out" : percent >= lowPercent ? "low" : "ok",
         id = `usage:key:${key}`,
         current = marks.find((m) => m.id === id);
@@ -293,18 +242,21 @@ export function refreshHealth(store, options = {}) {
         }
         continue;
       }
-      if (current?.level === level) continue;
+      if (current?.level === level && current.percent === percent) continue;
       store.put(HEALTH, {
         id,
         scope: "key",
         name: key,
         level,
         source: "usage",
-        kind: limit.credits && credits >= limit.credits ? "credits" : "usage",
-        percent: Math.round(percent),
+        kind:
+          row.limit.credits && row.credits >= row.limit.credits
+            ? "credits"
+            : "usage",
+        percent,
         since: current?.since ?? iso(now),
       });
-      changes.push({ id, level });
+      if (current?.level !== level) changes.push({ id, level });
     }
     for (const mark of marks) {
       if (mark.source !== "error") continue;
@@ -349,8 +301,7 @@ export function ingestProviderErrors(store, binding, rows, options = {}) {
     .filter((e) => e.kind && typeof e.at === "string" && e.at);
   if (!errors.length) return 0;
   const settings = options.settings ?? readProviders(store, options).settings,
-    cooldown =
-      (settings.cooldownMinutes ?? PROVIDER_DEFAULTS.cooldownMinutes) * 60000,
+    cooldown = COOLDOWN_MS,
     model = binding.served?.model || binding.model || null,
     provider = providerOf(model, settings);
   if (!provider) return 0;
@@ -498,13 +449,29 @@ export function switchTarget(store, binding, health, options = {}) {
     candidates = [
       health.replacement(binding.model),
       ...(options.choices || []),
-      ...health.fallback,
     ].filter((m, i, all) => m && all.indexOf(m) === i && !blocked.has(m));
   return (
     candidates.find((m) => health.level(m) === "ok") ??
     candidates.find((m) => health.level(m) === "low") ??
     null
   );
+}
+
+// A function that lists the models Kiro Crew offers (GET /api/models,
+// F128, granted in app.json), or null without a gateway client.
+export function gatewayModelList(client) {
+  if (!client) return null;
+  return async () => {
+    const response = await client.call("/api/models", { method: "GET" });
+    if (!response.ok)
+      throw Error(`Kiro Crew refused the model list (${response.status}).`);
+    const body = await response.json();
+    return Array.isArray(body)
+      ? body
+      : Array.isArray(body?.models)
+        ? body.models
+        : [];
+  };
 }
 
 // A function that asks Kiro Crew to change one chat's model (F126), or null
@@ -896,6 +863,45 @@ export function queueSwitch(store, input = {}, options = {}) {
 
 // ------------------------------------------------------------------ views
 
+// Provider facts, read live (R72.1, R72.2): one row per provider or model
+// that has usage, a limit or a mark, with its level, percent used and one
+// line the routing agent reads, such as "claude: 85% used, low". `models`
+// adds the providers of models Kiro Crew lists.
+export function providerFacts(store, health, options = {}) {
+  const usage = usageReport(store, { ...options, settings: health.settings }),
+    keys = [
+      ...new Set([
+        ...usage.map((u) => u.key),
+        ...health.marks.map((m) => m.name),
+        ...(options.models || []).map((m) => providerOf(m)).filter(Boolean),
+      ]),
+    ].sort();
+  return keys.map((key) => {
+    const row = usage.find((u) => u.key === key),
+      level = health.level(key),
+      marks = health.marks.filter((m) => m.name === key),
+      why = marks.find((m) => m.level === level)?.kind ?? null,
+      used =
+        row?.percent != null
+          ? `${row.percent}% used`
+          : row
+            ? `${Math.round(row.credits * 10) / 10} credits, ${row.tokens} tokens in 5 h`
+            : null;
+    return {
+      provider: key,
+      level,
+      percent: row?.percent ?? null,
+      credits: row?.credits ?? 0,
+      tokens: row?.tokens ?? 0,
+      limit: row?.limit ?? null,
+      why,
+      line: [`${key}: ${used ?? "no usage"}`, level]
+        .concat(why && level !== "ok" ? [why] : [])
+        .join(", "),
+    };
+  });
+}
+
 export function providersView(store, options = {}) {
   const { settings, hash } = readProviders(store, options),
     health = healthContext(store, { ...options, settings });
@@ -903,6 +909,7 @@ export function providersView(store, options = {}) {
     settings,
     hash,
     defaults: PROVIDER_DEFAULTS,
+    providers: providerFacts(store, health, options),
     marks: health.marks.map((m) => ({ ...m })),
     switches: listSwitches(store).slice(0, 50),
     chats: listSessionBindings(store)
@@ -944,7 +951,7 @@ export function providerOutItems(store, options = {}) {
         targets = [...new Set(moved.map((s) => s.to))];
       const why =
         mark.source === "person"
-          ? `Marked out by ${mark.by || "a person"}; new tasks use ${mark.to}. Undo it in Settings › Providers.`
+          ? `Marked out by ${mark.by || "a person"}; new tasks use ${mark.to}. Undo it in Settings › Routing.`
           : mark.source === "usage"
             ? `It used ${mark.percent}% of its limit in the window.`
             : mark.kind === "credits"
