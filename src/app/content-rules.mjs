@@ -1782,12 +1782,16 @@ export function enforceDiff(store, { project, head, taskId, mode = "decide" }) {
 // that worktree alone, so the main checkout's hooks are never touched
 // (settles the Inferred note in §4.9; content-rules tests check it).
 export function installPushHook(worktree, { cli, workspaceRoot, taskId }) {
+  // Git resolves symlinks in --absolute-git-dir but not in a relative
+  // --git-common-dir, so compare real paths (a symlinked home or TMPDIR).
   const gitDir = gitSync(worktree, ["rev-parse", "--absolute-git-dir"]).trim(),
-    commonDir = path.resolve(
-      worktree,
-      gitSync(worktree, ["rev-parse", "--git-common-dir"]).trim(),
+    commonDir = fs.realpathSync(
+      path.resolve(
+        worktree,
+        gitSync(worktree, ["rev-parse", "--git-common-dir"]).trim(),
+      ),
     );
-  if (gitDir === commonDir)
+  if (fs.realpathSync(gitDir) === commonDir)
     fail("The pre-push hook is installed only in a linked worktree.", 409);
   const hooks = path.join(gitDir, "avoozl-hooks"),
     hook = path.join(hooks, "pre-push"),

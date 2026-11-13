@@ -258,6 +258,23 @@ test("the pre-push hook goes in one linked worktree, not the main checkout's hoo
   t.after(() => {});
 });
 
+test("the pre-push hook refuses a main checkout reached through a symlink", () => {
+  const real = temporaryDirectory("avoozl-cr-real-"),
+    link = path.join(temporaryDirectory("avoozl-cr-link-"), "repo");
+  git(real, "init", "-q", "-b", "main");
+  fs.symlinkSync(real, link);
+  assert.throws(
+    () =>
+      installPushHook(link, {
+        cli: "cli.mjs",
+        workspaceRoot: link,
+        taskId: "x",
+      }),
+    /linked worktree/,
+  );
+  assert.equal(fs.existsSync(path.join(real, ".git", "avoozl-hooks")), false);
+});
+
 test("the guarded GitHub client blocks a matching write and lets the rest through", async (t) => {
   const { store } = workspace(
     t,
