@@ -22,12 +22,14 @@ import {
   KIND_OPTIONS,
   UNTRIAGED_FILTER_STORE,
   age,
+  authorHref,
   emptyText,
   filterActive,
   filterOptions,
   itemKey,
   matchesFilter,
   radarClient,
+  repositoryHref,
   radarState,
   selectionHandOff,
   sendable,
@@ -148,6 +150,25 @@ function Actions({ item, onSend, onReview }: { item: UntriagedItem; onSend?: (it
   )
 }
 
+// The repository and author as links to GitHub, opening in a new tab.
+function RepoLink({ item }: { item: UntriagedItem }) {
+  return (
+    <a href={repositoryHref(item)} target="_blank" rel="noopener noreferrer" className="underline" data-repository-link>
+      {item.repository}
+    </a>
+  )
+}
+
+function AuthorLink({ item, fallback = '' }: { item: UntriagedItem; fallback?: string }) {
+  const href = authorHref(item)
+  if (!href) return <>{fallback}</>
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer" className="underline" data-author-link>
+      {item.author}
+    </a>
+  )
+}
+
 function Title({ item }: { item: UntriagedItem }) {
   return (
     <a href={item.links.github} target="_blank" rel="noopener noreferrer" className="min-w-0" style={{ overflowWrap: 'anywhere' }}>
@@ -213,8 +234,12 @@ function Table(props: { items: UntriagedItem[]; selected: Set<string>; now: numb
                   <PullState item={item} />
                 </div>
               </td>
-              <td style={{ ...CELL, whiteSpace: 'nowrap' }}>{item.repository}</td>
-              <td style={{ ...CELL, whiteSpace: 'nowrap' }}>{item.author ?? ''}</td>
+              <td style={{ ...CELL, whiteSpace: 'nowrap' }}>
+                <RepoLink item={item} />
+              </td>
+              <td style={{ ...CELL, whiteSpace: 'nowrap' }}>
+                <AuthorLink item={item} />
+              </td>
               <td style={{ ...CELL, whiteSpace: 'nowrap' }}>
                 <Tooltip text={item.createdAt ? `Opened ${item.createdAt.slice(0, 10)}` : null}>
                   <span className="tabular-nums">{age(item.createdAt, props.now)}</span>
@@ -248,7 +273,7 @@ function Stack(props: { items: UntriagedItem[]; selected: Set<string>; now: numb
           <div className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
             <Title item={item} />
             <span className="text-xs text-muted">
-              {item.repository} · {item.author ?? 'unknown'} · {age(item.createdAt, props.now)} · {item.comments} comment{item.comments === 1 ? '' : 's'}
+              <RepoLink item={item} /> · <AuthorLink item={item} fallback="unknown" /> · {age(item.createdAt, props.now)} · {item.comments} comment{item.comments === 1 ? '' : 's'}
             </span>
             <PullState item={item} />
             <Labels labels={item.labels} />
@@ -296,7 +321,7 @@ function RadarList({ items, now, narrow }: { items: RadarItem[]; now: number; na
             <div className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
               <Title item={item} />
               <span className="text-xs text-muted">
-                {item.repository} · {sentLine(item)}
+                <RepoLink item={item} /> · {sentLine(item)}
               </span>
               <span>
                 <State item={item} />
@@ -333,7 +358,9 @@ function RadarList({ items, now, narrow }: { items: RadarItem[]; now: number; na
               <td style={{ ...CELL, minWidth: '16rem' }}>
                 <Title item={item} />
               </td>
-              <td style={{ ...CELL, whiteSpace: 'nowrap' }}>{item.repository}</td>
+              <td style={{ ...CELL, whiteSpace: 'nowrap' }}>
+                <RepoLink item={item} />
+              </td>
               <td style={{ ...CELL, whiteSpace: 'nowrap' }}>
                 <State item={item} />
               </td>

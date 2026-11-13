@@ -264,6 +264,22 @@ export function age(at: string | null, now = Date.now()): string {
 
 export const itemKey = (item: { repository: string; number: number }) => `${item.repository}#${item.number}`
 
+// The GitHub host an item lives on, from its own link: github.com, or an
+// Enterprise host. A link that does not parse falls back to github.com.
+function githubOrigin(item: { url?: string; links?: { github?: string } }): string {
+  try {
+    return new URL(item.links?.github || item.url || '').origin
+  } catch {
+    return 'https://github.com'
+  }
+}
+
+// Links for a row's repository and author on the item's GitHub host.
+export const repositoryHref = (item: { repository: string; url?: string; links?: { github?: string } }) =>
+  `${githubOrigin(item)}/${item.repository.split('/').map(encodeURIComponent).join('/')}`
+export const authorHref = (item: { author: string | null; url?: string; links?: { github?: string } }) =>
+  item.author ? `${githubOrigin(item)}/${encodeURIComponent(item.author)}` : null
+
 // The selection with one row turned on or off, or every shown row at once.
 export function toggleSelected(selected: Set<string>, keys: string[], on: boolean): Set<string> {
   const next = new Set(selected)
