@@ -6,7 +6,11 @@
 // comment, and removes the label. A session that ends without a reply has its
 // label removed by the next tick.
 import { createHash } from "node:crypto";
+import { execFile } from "node:child_process";
+import fs from "node:fs";
 import os from "node:os";
+import path from "node:path";
+import { promisify } from "node:util";
 import { FINAL_STATUSES, listSessionBindings } from "./session-bindings.mjs";
 import { callerSlot } from "./delivery.mjs";
 import { actorAllowed, readGitHubPolicy } from "./github-policy.mjs";
@@ -49,6 +53,99 @@ function replyBody(value) {
   return value.trim();
 }
 
+// R27.15: a reply on a public repository may quote only that repository.
+// A reply line (quote and list marks dropped, at least QUOTE_MIN characters)
+// that appears in a file of another registered checkout, a plans repository
+// included, and not in the target's own checkout is refused. A repository
+// GitHub cannot read counts as public.
+// shortcut: exact text of one line, files git does not ignore; a reworded or
+// re-wrapped quote and files outside registered checkouts are not caught.
+const QUOTE_MIN = 20;
+const exec = promisify(execFile);
+
+function quoteCandidates(body) {
+  const lines = new Map();
+  for (const [index, raw] of body.split("\n").entries()) {
+    const line = raw
+      .replace(/^\s*(?:>\s*)+/, "")
+      .replace(/^\s*(?:[-*+]|\d+[.)])\s+/, "")
+      .trim();
+    if (line.length >= QUOTE_MIN && !lines.has(line))
+      lines.set(line, index + 1);
+  }
+  return lines;
+}
+
+// The candidates found in a file under `root` that git does not ignore, or
+// with `tracked`, only in files the repository tracks.
+async function foundIn(root, candidates, { tracked = false } = {}) {
+  if (!root || !fs.existsSync(root) || !candidates.length) return new Set();
+  let stdout = "";
+  try {
+    ({ stdout } = await exec(
+      "git",
+      [
+        "grep",
+        ...(tracked ? [] : ["--no-index", "--exclude-standard"]),
+        "-F",
+        "-I",
+        "-h",
+        "--no-color",
+        ...candidates.flatMap((line) => ["-e", line]),
+      ],
+      { cwd: root, maxBuffer: 64 * 1024 * 1024 },
+    ));
+  } catch (error) {
+    // 1 is "no match". Anything else fails closed: every line counts as
+    // found in another checkout, and as not found in the target.
+    if (error.code === 1 || tracked) return new Set();
+    return new Set(candidates);
+  }
+  const text = stdout;
+  return new Set(candidates.filter((line) => text.includes(line)));
+}
+
+export async function privateQuotes(store, github, config, body) {
+  let visibility = "public";
+  try {
+    const remote = await github.repository(config);
+    if (remote?.private === true) visibility = "private";
+  } catch {}
+  if (visibility === "private") return [];
+  const own = config.projectId && store.get("projects", config.projectId),
+    target = path.resolve(
+      own?.root ||
+        store
+          .list("projects")
+          .find((p) => p.repository?.toLowerCase() === config.id.toLowerCase())
+          ?.root ||
+        "/nonexistent",
+    ),
+    others = [
+      ...new Set(
+        store
+          .list("projects")
+          .map((p) => p.root && path.resolve(p.root))
+          .filter((root) => root && root !== target),
+      ),
+    ],
+    lines = quoteCandidates(body),
+    candidates = [...lines.keys()];
+  if (!others.length || !candidates.length) return [];
+  const elsewhere = new Set();
+  for (const root of others)
+    for (const line of await foundIn(root, candidates)) elsewhere.add(line);
+  if (!elsewhere.size) return [];
+  const local = await foundIn(target, [...elsewhere], { tracked: true });
+  return [...elsewhere]
+    .filter((line) => !local.has(line))
+    .map((line) => ({
+      kind: "text from another repository",
+      line: lines.get(line),
+    }))
+    .sort((a, b) => a.line - b.line);
+}
+
 // This machine's directories a reply must not name.
 export function machineRoots(store, workspaceRoot) {
   return [
@@ -76,8 +173,13 @@ export async function postReply(store, github, input = {}, caller, options) {
   if (!response) fail("Only a bound responder session may post a reply.", 403);
   if (response.state !== "open")
     fail("This issue snapshot already has its one reply.", 409);
+  const config = store.get("github_repositories", response.repository);
+  if (!config) fail("The GitHub repository is not registered.", 409);
   const body = replyBody(input.body),
-    findings = screenReply(body, options);
+    findings = [
+      ...screenReply(body, options),
+      ...(await privateQuotes(store, github, config, body)),
+    ];
   if (findings.length) {
     store.event(null, "github.reply.refused", {
       response: response.id,
@@ -102,8 +204,6 @@ export async function postReply(store, github, input = {}, caller, options) {
     },
     { mode: "refuse", taskId: response.taskId ?? null },
   );
-  const config = store.get("github_repositories", response.repository);
-  if (!config) fail("The GitHub repository is not registered.", 409);
   // Marked before the call: a crash after GitHub accepts it cannot post twice.
   store.transaction(() => {
     const current = store.get("github_responses", response.id);
@@ -165,6 +265,7 @@ function responderBrief(record, { kind = "issue" } = {}) {
     `Post the reply once: call plans_post_reply with {"input": {"body": "<your reply>"}}. It is your only way to GitHub.`,
     "Do not change files, branches, labels or pull requests.",
     "Name files by their path inside the repository. Never include an absolute or home path, a token, a password, or a URL with credentials: Avoozl refuses such a reply and posts nothing.",
+    "On a public repository, quote only files of this repository. Avoozl refuses a reply that quotes another repository on this machine, a plans repository included.",
     "If you cannot answer, post a short reply that says what is missing.",
   ].join("\n");
 }

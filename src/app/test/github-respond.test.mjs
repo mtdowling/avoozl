@@ -2,6 +2,7 @@
 // responding label and one read-only responder session; plans_post_reply
 // screens the reply, posts at most one comment and removes the label.
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -349,4 +350,67 @@ test("the responder agent has read tools and plans_post_reply only", () => {
   assert.equal(spec.includeMcpJson, false);
   // The tool ref names the server Kiro Crew registers for the app.
   assert.ok(Object.hasOwn(manifest.mcpServers, "avoozl"));
+});
+
+test("a public reply may not quote another repository on this machine", async (t) => {
+  // Nearby inputs: the same line in the public checkout passes; a private
+  // target passes; an unreadable repository counts as public; short lines
+  // and the responder's own words pass; quote and list marks are dropped.
+  const w = await boundResponder(t),
+    plans = temporaryDirectory(),
+    secret = "const signingKeyRotation = rotateEveryHours(36);",
+    shared = "export function runAllTheTests(options) {";
+  fs.writeFileSync(path.join(plans, "design.md"), `${secret}\n${shared}\n`);
+  fs.writeFileSync(path.join(w.checkout, "index.mjs"), `${shared}\n`);
+  // Only files the public repository tracks count as its own.
+  fs.writeFileSync(path.join(w.checkout, "notes.txt"), `${secret}\n`);
+  execFileSync("git", ["init", "-q"], { cwd: w.checkout });
+  execFileSync("git", ["add", "index.mjs"], { cwd: w.checkout });
+  w.store.put("projects", {
+    id: "plans",
+    root: plans,
+    planning: true,
+    baseBranch: "main",
+    checks: [],
+  });
+  w.github.repository = async () => ({ private: false });
+  for (const body of [
+    "It does this:\n\n```js\n" + secret + "\n```",
+    "> " + secret,
+    "- " + secret,
+  ])
+    await assert.rejects(
+      w.post(body),
+      (error) =>
+        error.status === 422 &&
+        /text from another repository on line \d/.test(error.message) &&
+        !error.message.includes("signingKey"),
+      body,
+    );
+  w.github.repository = async () => {
+    throw Error("offline");
+  };
+  await assert.rejects(w.post(secret), (e) => e.status === 422);
+  assert.equal(w.github.comments.length, 0);
+  w.github.repository = async () => ({ private: false });
+  const ok = await w.post(
+    "The entry point is:\n\n```js\n" +
+      shared +
+      "\n```\n\nRun `npm test` to try it.",
+  );
+  assert.equal(ok.posted, true);
+});
+
+test("a private repository's reply may quote another checkout", async (t) => {
+  const w = await boundResponder(t),
+    other = temporaryDirectory(),
+    line = "const signingKeyRotation = rotateEveryHours(36);";
+  fs.writeFileSync(path.join(other, "a.mjs"), line + "\n");
+  w.store.put("projects", {
+    id: "other",
+    root: other,
+    baseBranch: "main",
+    checks: [],
+  });
+  assert.equal((await w.post(line)).posted, true);
 });
