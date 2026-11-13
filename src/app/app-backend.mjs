@@ -149,6 +149,7 @@ const APP_OPERATIONS = new Set([
   "intake.view",
   "intake.sources",
   "intake.deliver",
+  "intake.confirm",
   "intake.plan",
   "intake.source.add",
   "intake.source.remove",

@@ -461,10 +461,11 @@ try {
         sources: () => ["intake.sources", {}],
         deliver: () => ["intake.deliver", { source, id }],
         plan: () => ["intake.plan", { source, id }],
+        confirm: () => ["intake.confirm", { source, id, hash: options.hash }],
       };
     if (!calls[action])
       throw Error(
-        "Choose intake list, view, submit, sources, deliver, or plan.",
+        "Choose intake list, view, submit, sources, deliver, plan, or confirm.",
       );
     console.log(
       JSON.stringify(await localOrRequest(...calls[action]()), null, 2),
@@ -1151,6 +1152,7 @@ try {
   intake submit --source ID --file ITEMS.json  Send 1-100 items to an mcp intake source
   intake sources                        Declared intake sources and their read state
   intake deliver|plan SOURCE ID         Deliver this or Plan this on an item (a person only)
+  intake confirm SOURCE ID --hash H     Confirm an item's changed text, H from intake view (a person only)
   plugins [list]                        Declared plugins, their approval and health
   plugins add ID --path DIR|--package NAME|--git URL --ref REF [--subdir DIR] [--contract 1] [--config JSON] [--repository [--confirm-public]]
   plugins update ID                     Resolve a git plugin's ref again and fetch that commit
