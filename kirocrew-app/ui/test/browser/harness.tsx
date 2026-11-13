@@ -21,6 +21,7 @@ import { PackImportDialog } from '../../src/PackImport.tsx'
 import { SendToRadar } from '../../src/SendToRadar.tsx'
 import { CrewDialog } from '../../src/RoutingView.tsx'
 import { SwitchModelButton } from '../../src/SwitchModel.tsx'
+import { TaskFiles } from '../../src/TaskFiles.tsx'
 import { setupForm } from '../../src/settings-api.ts'
 import { LAYER } from '../../src/layers.ts'
 import PluginsSettings from '../../src/PluginsSettings.tsx'
@@ -118,7 +119,66 @@ export const SCENARIOS: Record<string, Scenario> = {
   'send-to-radar': shown((close) => <SendToRadar workspaceId="w" client={idle} items={[]} repository="avoozl" onClose={close} onSent={close} />),
   crew: shown((close) => <CrewDialog crew={crew as never} onCancel={close} onSave={async () => null} />),
   'switch-model': own('Switch model', <SwitchModelButton workspaceId="w" />),
+  // Not a modal: the drawer's Files fold, at a drawer's width.
+  'task-files': shown(() => (
+    <div style={{ maxWidth: 620 }}>
+      <TaskFiles workspaceId="w" taskId="a1" active />
+    </div>
+  )),
 }
+
+// The Files fold's reads: a worktree with each kind of change.
+const change = (path: string, status: string, additions: number | null, deletions: number | null, extra = {}) => ({ path, from: null, status, additions, deletions, binary: false, ...extra })
+const changed = [
+  change('README.md', 'modified', 3, 1),
+  change('src/app/task-files.mjs', 'added', 256, 0),
+  change('src/app/operations.mjs', 'modified', 3, 0),
+  change('src/app/old-name.mjs', 'deleted', 0, 40),
+  change('src/app/renamed.mjs', 'renamed', 2, 2, { from: 'src/app/before.mjs' }),
+  change('assets/logo.png', 'modified', null, null, { binary: true }),
+  change('notes.md', 'added', null, null, { untracked: true }),
+]
+answer('task.files', (body) => ({
+  taskId: 'a1',
+  mode: 'worktree',
+  branch: 'avoozl/a1',
+  remote: false,
+  github: 'https://github.com/octo/app/tree/avoozl/a1',
+  worktree: '/srv/worktrees/a1',
+  base: 'abc123',
+  head: 'def456',
+  files: changed,
+  totals: { files: changed.length, additions: 264, deletions: 43 },
+  truncated: false,
+  all: (body.input as { all?: boolean })?.all ? { paths: ['README.md', 'package.json', 'src/app/store.mjs', 'src/app/operations.mjs', 'src/app/task-files.mjs', 'src/app/renamed.mjs'], truncated: false } : null,
+}))
+answer('task.diff', (body) => ({
+  path: (body.input as { path: string }).path,
+  status: 'modified',
+  from: null,
+  additions: 3,
+  deletions: 1,
+  binary: false,
+  tooLarge: false,
+  diff: [
+    'diff --git a/README.md b/README.md',
+    'index 1a2b3c4..5d6e7f8 100644',
+    '--- a/README.md',
+    '+++ b/README.md',
+    '@@ -1,6 +1,8 @@',
+    ' # Avoozl',
+    ' ',
+    '-Plans and tasks in one place.',
+    '+Plans, tasks, and agents in one local workspace.',
+    '+',
+    '+Review what a worker changed from the task drawer.',
+    ' ',
+    ' ## Install',
+    ' ',
+    ' Run npm install.',
+    '',
+  ].join('\n'),
+}))
 
 function Scenario({ name }: { name: string }) {
   const [open, setOpen] = useState(false)
