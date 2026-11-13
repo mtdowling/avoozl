@@ -15,7 +15,7 @@ import { RadioFold } from './RadioFold.tsx'
 import { MODE_CARDS, groupWrites, writeBadge, type GitHubSettings, type SetupResult } from './settings-api.ts'
 import type { SpecList } from './plans-api.ts'
 import { errorMessage } from './workspace-api.ts'
-import { useBackStep } from './NavHistory.tsx'
+import { Modal } from './Modal.tsx'
 import {
   ONBOARD_STEPS,
   folderSpecs,
@@ -272,8 +272,6 @@ function OnboardDialog(props: { workspaceId: string; client: OnboardClient; onCl
   const cancel = useCallback(() => {
     onClose(wrote ? `Stopped. Done so far: ${written.join('; ')}.` : 'Cancelled. Nothing was written.')
   }, [onClose, wrote, written])
-  // Esc and Back do what Cancel does.
-  useBackStep('modal', true, 'Cancel', cancel)
   useEffect(() => {
     box.current?.querySelector<HTMLElement>('input:not([disabled]), button')?.focus()
   }, [step])
@@ -397,255 +395,254 @@ function OnboardDialog(props: { workspaceId: string; client: OnboardClient; onCl
     (key === 'setup' && (setupDone || (Boolean(form) && setupLeft.length === 0))) ||
     (key === 'import' && shown.length > 0 && shown.every(imported))
   return (
-    <div className="fixed inset-0" style={{ zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div aria-hidden="true" className="absolute inset-0" onClick={cancel} style={{ background: 'color-mix(in srgb, var(--text) 30%, transparent)' }} />
-      <div
-        ref={box}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="avoozl-onboard-title"
-        aria-describedby="avoozl-onboard-line"
-        data-onboard-dialog={step}
-        className="relative flex flex-col gap-3 rounded-lg border p-4 shadow-lg"
-        style={{ width: 'min(44rem, 94vw)', maxHeight: '88vh', overflow: 'auto', background: 'var(--card, var(--bg))', color: 'var(--text)', borderColor: 'var(--border)' }}
-      >
-        <ol className="flex flex-wrap gap-x-3 gap-y-1 text-xs" aria-label="Steps">
-          {steps.map((key, i) => (
-            <li key={key} aria-current={key === step ? 'step' : undefined} className={`inline-flex items-center gap-1 ${key === step ? 'font-semibold' : 'text-muted'}`}>
-              {isDone(key) && <Check size={11} aria-label="done" style={{ color: 'var(--ok)' }} />}
-              {i + 1}. {ONBOARD_STEPS.find((s) => s.key === key)!.title}
+    // Esc, Back and a click outside do what Cancel does, asking first once
+    // a folder was entered.
+    <Modal
+      id="avoozl-onboard"
+      width="44rem"
+      backLabel="Cancel"
+      describedBy="avoozl-onboard-line"
+      boxRef={box}
+      attrs={{ 'data-onboard-dialog': step }}
+      unsaved={folder.trim() !== '' && { title: 'Stop onboarding?', body: wrote ? `What was done stays: ${written.join('; ')}.` : 'What you entered is lost. Nothing was written.', action: 'Stop' }}
+      onDismiss={cancel}
+    >
+      <ol className="flex flex-wrap gap-x-3 gap-y-1 text-xs" aria-label="Steps">
+        {steps.map((key, i) => (
+          <li key={key} aria-current={key === step ? 'step' : undefined} className={`inline-flex items-center gap-1 ${key === step ? 'font-semibold' : 'text-muted'}`}>
+            {isDone(key) && <Check size={11} aria-label="done" style={{ color: 'var(--ok)' }} />}
+            {i + 1}. {ONBOARD_STEPS.find((s) => s.key === key)!.title}
+          </li>
+        ))}
+      </ol>
+      <div>
+        <h3 id="avoozl-onboard-title" className="text-base font-semibold">
+          {text.title}
+        </h3>
+        <p id="avoozl-onboard-line" className="text-sm text-muted">
+          {text.line}
+        </p>
+      </div>
+      {step === 'folder' && <FolderStep folder={folder} setFolder={(v) => { setFolder(v); setFound(null) }} found={found} />}
+      {step === 'mode' && form && found && <ModeStep form={form} set={set} found={found} problem={problem} />}
+      {step === 'check' && <CheckStep result={check} />}
+      {step === 'setup' && (
+        <ol className="flex flex-col gap-2 text-sm" data-onboard-setup>
+          {planned.map((write, i) => (
+            <li key={write.key} className="flex items-start gap-2">
+              <span className="w-5 flex-none text-right text-muted">{i + 1}.</span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-1.5">
+                  {write.done || setupDone ? <Check size={13} aria-label="done" style={{ color: 'var(--ok)' }} /> : null}
+                  {write.title}
+                  {write.confirm && !write.done && !setupDone && <Badge variant="warning">asks first</Badge>}
+                </span>
+                <span className="block text-xs text-muted">{write.detail}</span>
+              </span>
             </li>
           ))}
         </ol>
-        <div>
-          <h3 id="avoozl-onboard-title" className="text-base font-semibold">
-            {text.title}
-          </h3>
-          <p id="avoozl-onboard-line" className="text-sm text-muted">
-            {text.line}
-          </p>
-        </div>
-        {step === 'folder' && <FolderStep folder={folder} setFolder={(v) => { setFolder(v); setFound(null) }} found={found} />}
-        {step === 'mode' && form && found && <ModeStep form={form} set={set} found={found} problem={problem} />}
-        {step === 'check' && <CheckStep result={check} />}
-        {step === 'setup' && (
-          <ol className="flex flex-col gap-2 text-sm" data-onboard-setup>
-            {planned.map((write, i) => (
-              <li key={write.key} className="flex items-start gap-2">
-                <span className="w-5 flex-none text-right text-muted">{i + 1}.</span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-1.5">
-                    {write.done || setupDone ? <Check size={13} aria-label="done" style={{ color: 'var(--ok)' }} /> : null}
-                    {write.title}
-                    {write.confirm && !write.done && !setupDone && <Badge variant="warning">asks first</Badge>}
-                  </span>
-                  <span className="block text-xs text-muted">{write.detail}</span>
-                </span>
+      )}
+      {step === 'import' && (
+        <div className="flex flex-col gap-2 text-sm" data-onboard-import>
+          {shown.length === 0 && <p className="text-muted">No spec folders here for this mode. Write one with Plan a goal, or add one under .kiro/specs/ and come back.</p>}
+          {shown.length > 0 && shown.every(imported) && <Done>Every spec here is imported.</Done>}
+          <ul className="flex flex-col gap-1.5">
+            {shown.map((spec) => (
+              <li key={spec.name} className="flex flex-wrap items-center gap-2" data-onboard-spec={spec.name}>
+                <input
+                  type="checkbox"
+                  aria-label={`Import ${spec.name}`}
+                  disabled={imported(spec)}
+                  checked={imported(spec) || picked.has(spec.name)}
+                  onChange={(e) => {
+                    const nextPicked = new Set(picked)
+                    if (e.target.checked) nextPicked.add(spec.name)
+                    else nextPicked.delete(spec.name)
+                    setPicked(nextPicked)
+                  }}
+                />
+                <code>{spec.name}</code>
+                <span className="text-xs text-muted">{spec.taskCount} tasks</span>
+                {spec.counts.error > 0 ? (
+                  <Badge variant="warning">
+                    {spec.counts.error} lint error{spec.counts.error === 1 ? '' : 's'}
+                  </Badge>
+                ) : (
+                  <Badge>lint clean{spec.counts.warning ? `, ${spec.counts.warning} warnings` : ''}</Badge>
+                )}
+                {spec.plan && <Badge>{spec.plan.approved ? 'approved' : 'draft'}</Badge>}
               </li>
             ))}
-          </ol>
-        )}
-        {step === 'import' && (
-          <div className="flex flex-col gap-2 text-sm" data-onboard-import>
-            {shown.length === 0 && <p className="text-muted">No spec folders here for this mode. Write one with Plan a goal, or add one under .kiro/specs/ and come back.</p>}
-            {shown.length > 0 && shown.every(imported) && <Done>Every spec here is imported.</Done>}
-            <ul className="flex flex-col gap-1.5">
-              {shown.map((spec) => (
-                <li key={spec.name} className="flex flex-wrap items-center gap-2" data-onboard-spec={spec.name}>
-                  <input
-                    type="checkbox"
-                    aria-label={`Import ${spec.name}`}
-                    disabled={imported(spec)}
-                    checked={imported(spec) || picked.has(spec.name)}
-                    onChange={(e) => {
-                      const nextPicked = new Set(picked)
-                      if (e.target.checked) nextPicked.add(spec.name)
-                      else nextPicked.delete(spec.name)
-                      setPicked(nextPicked)
-                    }}
-                  />
-                  <code>{spec.name}</code>
-                  <span className="text-xs text-muted">{spec.taskCount} tasks</span>
-                  {spec.counts.error > 0 ? (
-                    <Badge variant="warning">
-                      {spec.counts.error} lint error{spec.counts.error === 1 ? '' : 's'}
-                    </Badge>
-                  ) : (
-                    <Badge>lint clean{spec.counts.warning ? `, ${spec.counts.warning} warnings` : ''}</Badge>
-                  )}
-                  {spec.plan && <Badge>{spec.plan.approved ? 'approved' : 'draft'}</Badge>}
-                </li>
-              ))}
-            </ul>
-            {shown.some((s) => s.counts.error > 0) && <p className="text-xs text-muted">A draft with lint errors imports, but Plans won&apos;t approve it until they are fixed.</p>}
-          </div>
-        )}
-        {step === 'scan' && (
-          <div className="flex flex-col gap-2 text-sm" data-onboard-scan>
-            {!scan && <p className="text-muted">Scanning…</p>}
-            {scan && findings.length === 0 && <Done>No secrets, local paths or content-rule matches in {scan.items.length} spec{scan.items.length === 1 ? '' : 's'}.</Done>}
-            {findings.length > 0 && (
-              <>
-                <p role="alert" className="text-danger">
-                  {findings.length} finding{findings.length === 1 ? '' : 's'}. Fix each line, then scan again. The next step waits until none are left.
-                </p>
-                <ul className="flex flex-col gap-1">
-                  {findings.map((f, i) => (
-                    <li key={i} className="text-xs">
-                      <code>
-                        {f.spec}/{f.file}:{f.line}
-                      </code>{' '}
-                      <span className="text-muted">
-                        {f.set} {f.rule ?? ''}
-                      </span>
-                      <span className="block">{f.message}</span>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-          </div>
-        )}
-        {step === 'issues' && (
-          <div className="flex flex-col gap-3 text-sm" data-onboard-issues>
-            {shown.filter((s) => s.plan && !s.plan.approved).length === 0 && <p className="text-muted">No draft plans to preview. Import a spec first.</p>}
-            {Object.entries(previews).map(([name, preview]) => {
-              if ('error' in preview)
-                return (
-                  <p key={name} role="alert" className="text-sm text-danger">
-                    {name}: {preview.error}
-                  </p>
-                )
-              const sum = issueSummary(preview)
-              return (
-                <section key={name} data-onboard-preview={name}>
-                  <h4 className="font-semibold">
-                    <code>{name}</code>
-                  </h4>
-                  {preview.blocked?.length ? (
-                    <p className="text-xs text-muted">Not previewed until lint passes: {preview.blocked[0].message}</p>
-                  ) : (
-                    <>
-                      <p className="text-xs text-muted">
-                        Approving would create {sum.create.length} issue{sum.create.length === 1 ? '' : 's'}
-                        {sum.update.length ? `, update ${sum.update.length}` : ''}
-                        {sum.other ? `, and make ${sum.other} label, link or board changes` : ''}.
-                      </p>
-                      <ul className="mt-1 flex flex-col gap-0.5 text-xs">
-                        {sum.create.slice(0, 8).map((w, i) => (
-                          <li key={i}>
-                            <Pill kind="create" /> {w.title} <span className="text-muted">in {w.repository}</span>
-                          </li>
-                        ))}
-                        {sum.create.length > 8 && <li className="text-muted">and {sum.create.length - 8} more</li>}
-                      </ul>
-                    </>
-                  )}
-                </section>
-              )
-            })}
-          </div>
-        )}
-        {step === 'finish' && (
-          <div className="flex flex-col gap-2 text-sm" data-onboard-finish>
-            {written.length ? (
-              <ul className="list-disc pl-5">
-                {written.map((line, i) => (
-                  <li key={i}>{line}</li>
+          </ul>
+          {shown.some((s) => s.counts.error > 0) && <p className="text-xs text-muted">A draft with lint errors imports, but Plans won&apos;t approve it until they are fixed.</p>}
+        </div>
+      )}
+      {step === 'scan' && (
+        <div className="flex flex-col gap-2 text-sm" data-onboard-scan>
+          {!scan && <p className="text-muted">Scanning…</p>}
+          {scan && findings.length === 0 && <Done>No secrets, local paths or content-rule matches in {scan.items.length} spec{scan.items.length === 1 ? '' : 's'}.</Done>}
+          {findings.length > 0 && (
+            <>
+              <p role="alert" className="text-danger">
+                {findings.length} finding{findings.length === 1 ? '' : 's'}. Fix each line, then scan again. The next step waits until none are left.
+              </p>
+              <ul className="flex flex-col gap-1">
+                {findings.map((f, i) => (
+                  <li key={i} className="text-xs">
+                    <code>
+                      {f.spec}/{f.file}:{f.line}
+                    </code>{' '}
+                    <span className="text-muted">
+                      {f.set} {f.rule ?? ''}
+                    </span>
+                    <span className="block">{f.message}</span>
+                  </li>
                 ))}
               </ul>
-            ) : (
-              <p className="text-muted">Nothing needed changing.</p>
-            )}
-            <p className="text-xs text-muted">Nothing was approved, no agent was started and nothing was pushed. Approve each draft in Plans when you are ready.</p>
-          </div>
-        )}
-        {error && (
-          <p role="alert" className="text-sm text-danger">
-            {error}
-          </p>
-        )}
-        <div className="flex flex-wrap justify-end gap-2">
-          <Btn type="button" onClick={cancel} disabled={busy}>
-            {step === 'finish' ? 'Close' : 'Cancel'}
+            </>
+          )}
+        </div>
+      )}
+      {step === 'issues' && (
+        <div className="flex flex-col gap-3 text-sm" data-onboard-issues>
+          {shown.filter((s) => s.plan && !s.plan.approved).length === 0 && <p className="text-muted">No draft plans to preview. Import a spec first.</p>}
+          {Object.entries(previews).map(([name, preview]) => {
+            if ('error' in preview)
+              return (
+                <p key={name} role="alert" className="text-sm text-danger">
+                  {name}: {preview.error}
+                </p>
+              )
+            const sum = issueSummary(preview)
+            return (
+              <section key={name} data-onboard-preview={name}>
+                <h4 className="font-semibold">
+                  <code>{name}</code>
+                </h4>
+                {preview.blocked?.length ? (
+                  <p className="text-xs text-muted">Not previewed until lint passes: {preview.blocked[0].message}</p>
+                ) : (
+                  <>
+                    <p className="text-xs text-muted">
+                      Approving would create {sum.create.length} issue{sum.create.length === 1 ? '' : 's'}
+                      {sum.update.length ? `, update ${sum.update.length}` : ''}
+                      {sum.other ? `, and make ${sum.other} label, link or board changes` : ''}.
+                    </p>
+                    <ul className="mt-1 flex flex-col gap-0.5 text-xs">
+                      {sum.create.slice(0, 8).map((w, i) => (
+                        <li key={i}>
+                          <Pill kind="create" /> {w.title} <span className="text-muted">in {w.repository}</span>
+                        </li>
+                      ))}
+                      {sum.create.length > 8 && <li className="text-muted">and {sum.create.length - 8} more</li>}
+                    </ul>
+                  </>
+                )}
+              </section>
+            )
+          })}
+        </div>
+      )}
+      {step === 'finish' && (
+        <div className="flex flex-col gap-2 text-sm" data-onboard-finish>
+          {written.length ? (
+            <ul className="list-disc pl-5">
+              {written.map((line, i) => (
+                <li key={i}>{line}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-muted">Nothing needed changing.</p>
+          )}
+          <p className="text-xs text-muted">Nothing was approved, no agent was started and nothing was pushed. Approve each draft in Plans when you are ready.</p>
+        </div>
+      )}
+      {error && (
+        <p role="alert" className="text-sm text-danger">
+          {error}
+        </p>
+      )}
+      <div className="flex flex-wrap justify-end gap-2">
+        <Btn type="button" onClick={cancel} disabled={busy}>
+          {step === 'finish' ? 'Close' : 'Cancel'}
+        </Btn>
+        {at > 0 && step !== 'finish' && steps[at - 1] !== 'setup' && (
+          <Btn type="button" onClick={back} disabled={busy}>
+            Back
           </Btn>
-          {at > 0 && step !== 'finish' && steps[at - 1] !== 'setup' && (
-            <Btn type="button" onClick={back} disabled={busy}>
-              Back
+        )}
+        {step === 'folder' && (
+          <Btn type="button" primary onClick={() => void look()} disabled={busy || !folder.trim()}>
+            Check folder
+          </Btn>
+        )}
+        {step === 'mode' && (
+          <Btn type="button" primary onClick={next} disabled={busy || Boolean(problem)}>
+            Next
+          </Btn>
+        )}
+        {step === 'check' && (
+          <>
+            <Btn type="button" onClick={() => void checkGitHub()} disabled={busy}>
+              Check again
             </Btn>
-          )}
-          {step === 'folder' && (
-            <Btn type="button" primary onClick={() => void look()} disabled={busy || !folder.trim()}>
-              Check folder
-            </Btn>
-          )}
-          {step === 'mode' && (
-            <Btn type="button" primary onClick={next} disabled={busy || Boolean(problem)}>
+            <Btn type="button" primary onClick={next} disabled={busy || !check || checkFailed}>
               Next
             </Btn>
-          )}
-          {step === 'check' && (
-            <>
-              <Btn type="button" onClick={() => void checkGitHub()} disabled={busy}>
-                Check again
-              </Btn>
-              <Btn type="button" primary onClick={next} disabled={busy || !check || checkFailed}>
-                Next
-              </Btn>
-            </>
-          )}
-          {step === 'setup' &&
-            (setupLeft.length ? (
-              <Btn type="button" primary onClick={() => void setUp()} disabled={busy}>
-                Set up
-              </Btn>
-            ) : (
-              <Btn type="button" primary onClick={next} disabled={busy}>
-                Next
-              </Btn>
-            ))}
-          {step === 'import' && (
-            <>
-              {picked.size > 0 && (
-                <Btn type="button" onClick={() => void importPicked()} disabled={busy}>
-                  Import {picked.size} as draft{picked.size === 1 ? '' : 's'}
-                </Btn>
-              )}
-              <Btn type="button" primary onClick={next} disabled={busy}>
-                {shown.length && !shown.every(imported) && picked.size ? 'Skip import' : 'Next'}
-              </Btn>
-            </>
-          )}
-          {step === 'scan' && (
-            <>
-              <Btn type="button" onClick={() => void runScan()} disabled={busy}>
-                Scan again
-              </Btn>
-              <Btn type="button" primary onClick={next} disabled={busy || !scan || findings.length > 0}>
-                Next
-              </Btn>
-            </>
-          )}
-          {step === 'issues' && (
+          </>
+        )}
+        {step === 'setup' &&
+          (setupLeft.length ? (
+            <Btn type="button" primary onClick={() => void setUp()} disabled={busy}>
+              Set up
+            </Btn>
+          ) : (
             <Btn type="button" primary onClick={next} disabled={busy}>
               Next
             </Btn>
-          )}
-          {step === 'finish' && props.onOpenPlans && (
-            <Btn
-              type="button"
-              primary
-              onClick={() => {
-                onClose(written.length ? `Onboarded: ${written.join('; ')}.` : undefined)
-                props.onOpenPlans!()
-              }}
-            >
-              Approve in Plans
+          ))}
+        {step === 'import' && (
+          <>
+            {picked.size > 0 && (
+              <Btn type="button" onClick={() => void importPicked()} disabled={busy}>
+                Import {picked.size} as draft{picked.size === 1 ? '' : 's'}
+              </Btn>
+            )}
+            <Btn type="button" primary onClick={next} disabled={busy}>
+              {shown.length && !shown.every(imported) && picked.size ? 'Skip import' : 'Next'}
             </Btn>
-          )}
-        </div>
+          </>
+        )}
+        {step === 'scan' && (
+          <>
+            <Btn type="button" onClick={() => void runScan()} disabled={busy}>
+              Scan again
+            </Btn>
+            <Btn type="button" primary onClick={next} disabled={busy || !scan || findings.length > 0}>
+              Next
+            </Btn>
+          </>
+        )}
+        {step === 'issues' && (
+          <Btn type="button" primary onClick={next} disabled={busy}>
+            Next
+          </Btn>
+        )}
+        {step === 'finish' && props.onOpenPlans && (
+          <Btn
+            type="button"
+            primary
+            onClick={() => {
+              onClose(written.length ? `Onboarded: ${written.join('; ')}.` : undefined)
+              props.onOpenPlans!()
+            }}
+          >
+            Approve in Plans
+          </Btn>
+        )}
       </div>
-    </div>
+    </Modal>
   )
 }
 

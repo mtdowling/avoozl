@@ -5,10 +5,26 @@
 // open, elementFromPoint at the 4 corners and the center hits the modal or
 // its backdrop, never the page behind. Skipped when no Chrome is found.
 import assert from 'node:assert/strict'
+import { readdirSync, readFileSync } from 'node:fs'
 import { after, before, test } from 'node:test'
 import { buildHarness } from './browser/build.mjs'
 import { findChrome, launch } from './browser/chrome.mjs'
 
+// Runs without Chrome: every modal is the shared Modal, and every z-index
+// comes from the one ordered set in layers.ts.
+test('every modal is the shared Modal and every z-index is a named layer', async () => {
+  const dir = new URL('../src/', import.meta.url)
+  const files = readdirSync(dir).filter((name) => /\.tsx?$/.test(name))
+  const drawers = ['TaskDrawer.tsx', 'NewPlanDrawer.tsx']
+  for (const name of files) {
+    const text = readFileSync(new URL(name, dir), 'utf8')
+    if (name !== 'Modal.tsx' && !drawers.includes(name)) assert.doesNotMatch(text, /aria-modal|fixed inset-0/, `${name} draws its own modal`)
+    assert.doesNotMatch(text, /zIndex: (?!LAYER\.)|\bz-\d|\bz-\[/, `${name} sets a z-index outside layers.ts`)
+  }
+  const { LAYER } = await import('../src/layers.ts')
+  assert.deepEqual(Object.keys(LAYER), ['raised', 'sticky', 'drawer', 'tooltip'])
+  assert.ok(LAYER.raised < LAYER.sticky && LAYER.sticky < LAYER.drawer && LAYER.drawer < LAYER.tooltip, 'the layers are in order')
+})
 const chrome = findChrome()
 const skip = chrome ? false : 'no Chrome found; set AVOOZL_CHROME to run the modal cover tests'
 const MODALS = ['add-plugin', 'onboard', 'repo-edit', 'setup-github', 'archive-plan', 'delete-plan', 'confirm', 'file-viewer', 'stop-line', 'pack-import', 'send-to-radar', 'crew', 'rule']
@@ -31,12 +47,11 @@ after(async () => {
   harness?.remove()
 })
 
-// The topmost modal box, its covering layer (the box's parent: the backdrop
-// and the box), and what each probe point hits.
+// The topmost modal (the element with aria-modal, which holds its backdrop
+// and its box) and what each probe point hits.
 const PROBE = `(() => {
-  const box = [...document.querySelectorAll('[aria-modal="true"]')].at(-1)
-  if (!box) return null
-  const layer = box.parentElement
+  const layer = [...document.querySelectorAll('[aria-modal="true"]')].at(-1)
+  if (!layer) return null
   const w = innerWidth, h = innerHeight
   const points = [[0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1], [Math.floor(w / 2), Math.floor(h / 2)]]
   const name = (el) => el ? el.tagName.toLowerCase() + Object.keys(el.dataset).map((k) => '[data-' + k.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase()) + ']').join('') : 'nothing'
@@ -116,7 +131,7 @@ for (const name of MODALS) {
     await load(name, { width: 320, height: 640 })
     await open(name)
     await covers(name, 'at 320px')
-    const rect = await page.evaluate(`(() => { const r = [...document.querySelectorAll('[aria-modal="true"]')].at(-1).getBoundingClientRect(); return [r.left, r.top, r.width, r.height].map(Math.round) })()`)
+    const rect = await page.evaluate(`(() => { const modal = [...document.querySelectorAll('[aria-modal="true"]')].at(-1); const r = (modal.querySelector('[data-modal-box]') ?? modal).getBoundingClientRect(); return [r.left, r.top, r.width, r.height].map(Math.round) })()`)
     assert.deepEqual(rect, [0, 0, 320, 640], `${name}: not full screen at 320px`)
     assert.deepEqual(page.errors, [], `${name}: page errors`)
   })

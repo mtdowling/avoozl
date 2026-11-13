@@ -19,7 +19,9 @@ import { outline } from './markdown.ts'
 import { registerLanguages } from './highlight.ts'
 import { scrollParent, stickyHeight } from './sticky-column.ts'
 import { viewsClient, type Graph } from './views-api.ts'
-import { useBackStep, useSteppedState } from './NavHistory.tsx'
+import { useSteppedState } from './NavHistory.tsx'
+import { Modal } from './Modal.tsx'
+import { LAYER } from './layers.ts'
 import {
   UNCATEGORIZED,
   approveBlocker,
@@ -865,7 +867,6 @@ export function ArchivePlanDialog(props: { workspaceId: string; row: PlanRow; cl
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const cancel = useRef<HTMLButtonElement>(null)
-  useBackStep('modal', true, 'Cancel', () => props.onDone(null))
   useEffect(() => {
     cancel.current?.focus()
   }, [])
@@ -884,35 +885,26 @@ export function ArchivePlanDialog(props: { workspaceId: string; row: PlanRow; cl
     }
   }
   return (
-    <div className="fixed inset-0" style={{ zIndex: 70, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div aria-hidden="true" className="absolute inset-0" onClick={() => props.onDone(null)} style={{ background: 'color-mix(in srgb, var(--text) 30%, transparent)' }} />
-      <div
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="avoozl-archive-plan-title"
-        data-archive-plan
-        className="relative flex flex-col gap-3 rounded-lg border p-4 shadow-lg"
-        style={{ width: 'min(32rem, 94vw)', background: 'var(--card, var(--bg))', color: 'var(--text)', borderColor: 'var(--border)' }}
-      >
-        <h3 id="avoozl-archive-plan-title" className="text-base font-semibold">
-          Archive the plan {row.name}?
-        </h3>
-        <ul className="flex flex-col gap-1 pl-5 text-sm" style={{ listStyle: 'disc' }}>
-          {ARCHIVE_LINES.map((line) => (
-            <li key={line}>{line}</li>
-          ))}
-        </ul>
-        {error && <p role="alert" className="text-sm text-danger">{error}</p>}
-        <div className="flex justify-end gap-2">
-          <Btn ref={cancel} type="button" onClick={() => props.onDone(null)}>
-            Cancel
-          </Btn>
-          <Btn type="button" primary data-archive-confirm disabled={busy} onClick={() => void run()}>
-            Archive plan
-          </Btn>
-        </div>
+    // Esc, Back and a click outside do what Cancel does.
+    <Modal id="avoozl-archive-plan" role="alertdialog" width="32rem" backLabel="Cancel" attrs={{ 'data-archive-plan': true }} onDismiss={() => props.onDone(null)}>
+      <h3 id="avoozl-archive-plan-title" className="text-base font-semibold">
+        Archive the plan {row.name}?
+      </h3>
+      <ul className="flex flex-col gap-1 pl-5 text-sm" style={{ listStyle: 'disc' }}>
+        {ARCHIVE_LINES.map((line) => (
+          <li key={line}>{line}</li>
+        ))}
+      </ul>
+      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+      <div className="flex justify-end gap-2">
+        <Btn ref={cancel} type="button" onClick={() => props.onDone(null)}>
+          Cancel
+        </Btn>
+        <Btn type="button" primary data-archive-confirm disabled={busy} onClick={() => void run()}>
+          Archive plan
+        </Btn>
       </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -955,7 +947,6 @@ export function DeletePlanDialog(props: { workspaceId: string; row: PlanRow; cli
   useEffect(() => {
     client.deletePreview(workspaceId, row.planId!).then(setPreview, (caught) => setError(errorMessage(caught)))
   }, [client, workspaceId, row.planId])
-  useBackStep('modal', true, 'Cancel', () => props.onDone(null))
   useEffect(() => {
     cancel.current?.focus()
   }, [])
@@ -978,49 +969,40 @@ export function DeletePlanDialog(props: { workspaceId: string; row: PlanRow; cli
   }
   const blocked = Boolean(folder && preview?.folder?.dirty)
   return (
-    <div className="fixed inset-0" style={{ zIndex: 70, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div aria-hidden="true" className="absolute inset-0" onClick={() => props.onDone(null)} style={{ background: 'color-mix(in srgb, var(--text) 30%, transparent)' }} />
-      <div
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="avoozl-delete-plan-title"
-        data-delete-plan={preview?.retire ? 'retire' : 'draft'}
-        className="relative flex flex-col gap-3 rounded-lg border p-4 shadow-lg"
-        style={{ width: 'min(32rem, 94vw)', background: 'var(--card, var(--bg))', color: 'var(--text)', borderColor: 'var(--border)' }}
-      >
-        <h3 id="avoozl-delete-plan-title" className="text-base font-semibold">
-          Delete the plan {preview?.title ?? row.name}?
-        </h3>
-        {!preview && !error && <p className="text-sm text-muted">Counting its tasks…</p>}
-        {preview && (
-          <ul className="flex flex-col gap-1 pl-5 text-sm" style={{ listStyle: 'disc' }}>
-            {deleteLines(preview).map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
-        )}
-        {preview?.folder?.exists && (
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="flex items-center gap-2">
-              <input type="checkbox" checked={folder} onChange={(event) => setFolder(event.target.checked)} />
-              Also delete the spec folder (.kiro/specs/{preview.spec}/) from the repo.
-            </span>
-            <code className="pl-6 text-xs text-muted" style={{ overflowWrap: 'anywhere' }}>{preview.folder.path}</code>
-            <span className="pl-6 text-xs text-muted">Only the working tree. Avoozl never commits or pushes this.</span>
-            {folder && preview.folder.dirty && <span role="alert" className="pl-6 text-xs text-danger">{preview.folder.reason}</span>}
-          </label>
-        )}
-        {error && <p role="alert" className="text-sm text-danger">{error}</p>}
-        <div className="flex justify-end gap-2">
-          <Btn ref={cancel} type="button" onClick={() => props.onDone(null)}>
-            Cancel
-          </Btn>
-          <Btn type="button" data-danger disabled={!preview || busy || blocked} onClick={() => void run()} style={{ background: 'var(--danger)', borderColor: 'var(--danger)', color: '#fff' }}>
-            Delete plan
-          </Btn>
-        </div>
+    // Esc, Back and a click outside do what Cancel does.
+    <Modal id="avoozl-delete-plan" role="alertdialog" width="32rem" backLabel="Cancel" attrs={{ 'data-delete-plan': preview?.retire ? 'retire' : 'draft' }} onDismiss={() => props.onDone(null)}>
+      <h3 id="avoozl-delete-plan-title" className="text-base font-semibold">
+        Delete the plan {preview?.title ?? row.name}?
+      </h3>
+      {!preview && !error && <p className="text-sm text-muted">Counting its tasks…</p>}
+      {preview && (
+        <ul className="flex flex-col gap-1 pl-5 text-sm" style={{ listStyle: 'disc' }}>
+          {deleteLines(preview).map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      )}
+      {preview?.folder?.exists && (
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="flex items-center gap-2">
+            <input type="checkbox" checked={folder} onChange={(event) => setFolder(event.target.checked)} />
+            Also delete the spec folder (.kiro/specs/{preview.spec}/) from the repo.
+          </span>
+          <code className="pl-6 text-xs text-muted" style={{ overflowWrap: 'anywhere' }}>{preview.folder.path}</code>
+          <span className="pl-6 text-xs text-muted">Only the working tree. Avoozl never commits or pushes this.</span>
+          {folder && preview.folder.dirty && <span role="alert" className="pl-6 text-xs text-danger">{preview.folder.reason}</span>}
+        </label>
+      )}
+      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+      <div className="flex justify-end gap-2">
+        <Btn ref={cancel} type="button" onClick={() => props.onDone(null)}>
+          Cancel
+        </Btn>
+        <Btn type="button" data-danger disabled={!preview || busy || blocked} onClick={() => void run()} style={{ background: 'var(--danger)', borderColor: 'var(--danger)', color: '#fff' }}>
+          Delete plan
+        </Btn>
       </div>
-    </div>
+    </Modal>
   )
 }
 
@@ -1289,7 +1271,7 @@ export default function PlansView(props: {
             ref={asideRef}
             aria-label="Plan summary"
             data-plan-aside-scroll
-            style={stack ? undefined : { position: 'sticky', top: 8, maxHeight: asideHeight ?? 'calc(100vh - 2rem)', overflowY: 'auto', overscrollBehavior: 'contain' }}
+            style={stack ? undefined : { position: 'sticky', top: 8, zIndex: LAYER.sticky, maxHeight: asideHeight ?? 'calc(100vh - 2rem)', overflowY: 'auto', overscrollBehavior: 'contain' }}
           >
             <Card>
               <PlanAside
