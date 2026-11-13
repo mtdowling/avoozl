@@ -418,9 +418,20 @@ test("P44 actions 9-11: the manual switch previews, refuses a stale hash, marks 
   assert.equal(toReviewer.chats.length, 0);
   assert.match(toReviewer.skipped[0].why, /review role's model/);
 
-  // (10) Only a person switches, undoes and saves.
+  // Switch runs the dry run's set: its hash, not the read-only preview's.
+  const dry = await ops.execute("provider.switch.dryRun", {
+    ...input,
+    alsoNewTasks: true,
+  });
+  assert.deepEqual(
+    dry.chats.map((c) => c.slot),
+    preview.chats.map((c) => c.slot),
+  );
+
+  // (10) Only a person switches, runs the dry run, undoes and saves.
   for (const [name, args] of [
-    ["provider.switch", { ...input, previewHash: preview.previewHash }],
+    ["provider.switch", { ...input, previewHash: dry.previewHash }],
+    ["provider.switch.dryRun", input],
     ["provider.health.clear", { id: "person:provider:alpha" }],
     ["providers.settings.update", { providers: {} }],
   ]) {
@@ -446,7 +457,7 @@ test("P44 actions 9-11: the manual switch previews, refuses a stale hash, marks 
   );
   const queued = await ops.execute("provider.switch", {
     ...input,
-    previewHash: preview.previewHash,
+    previewHash: dry.previewHash,
     alsoNewTasks: true,
   });
   assert.equal(queued.queued, preview.chats.length);

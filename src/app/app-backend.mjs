@@ -227,6 +227,7 @@ const APP_OPERATIONS = new Set([
   "crews.update",
   "providers.view",
   "provider.switch.preview",
+  "provider.switch.dryRun",
   "provider.switch",
   "provider.health.clear",
   "providers.settings.update",
