@@ -39,6 +39,7 @@ import { budgetHeldTaskIds, budgetStopSlots } from "./budget.mjs";
 import { LOCAL } from "./crews.mjs";
 import { machineRouting, placeOne, routingOn, rulesAllow } from "./routing.mjs";
 import { handbackFetch, pushedFetch } from "./handback.mjs";
+import { currentPrompts } from "./retro-memory.mjs";
 import { routeResultNotes, submittedTaskIds } from "./routes.mjs";
 import {
   findPlanningLeak,
@@ -1150,6 +1151,9 @@ export function reconcileDeliveries(
           attempt: binding.attempt,
           slot: binding.slot,
           ...(binding.batch ? { batch: binding.batch.id } : {}),
+          // The prompt and skill versions it ran on (R68.12).
+          ...(binding.prompts ? { prompts: binding.prompts } : {}),
+          ...(binding.skills ? { skills: binding.skills } : {}),
           ...result,
           ...(binding.report?.text ? { lastReport: binding.report.text } : {}),
           at,
@@ -1771,7 +1775,18 @@ export function sessionTitle(taskId, attempt, label) {
 
 // The brief a ready leaf's worker gets, for its route. A plans-repo leaf's
 // brief is the task's own text and its linked branch (§6.6).
-export function leafBrief(
+// The standing rules a brief ends with (design §4.18): the built-in
+// sections, or this workspace's override of the unlocked ones.
+export function withRules(store, brief, target) {
+  const rules = currentPrompts(store)[target]?.text?.trim();
+  return rules ? `${brief}\n\n${rules}` : brief;
+}
+
+export function leafBrief(store, data, leaf, options = {}) {
+  return withRules(store, composeLeafBrief(store, data, leaf, options), "brief.worker");
+}
+
+function composeLeafBrief(
   store,
   data,
   leaf,
@@ -2637,13 +2652,17 @@ export function planVerifierDispatches(store, policy = null, options = {}) {
         brief =
           role.id === "checks"
             ? verifierBrief(task, project, delivery.commit, attempt)
-            : reviewBrief(
-                task,
-                project,
-                delivery.commit,
-                attempt,
-                role,
-                openFindings(delivery, role.id),
+            : withRules(
+                store,
+                reviewBrief(
+                  task,
+                  project,
+                  delivery.commit,
+                  attempt,
+                  role,
+                  openFindings(delivery, role.id),
+                ),
+                "brief.review",
               );
       if (
         !briefAllowed(store, {

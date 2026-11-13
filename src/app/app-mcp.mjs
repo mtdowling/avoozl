@@ -15,7 +15,7 @@
 // caller, so tools that need an identity, such as plans_report, refuse it.
 import fs from "node:fs";
 import { workspaceConfig } from "./config.mjs";
-import { loadHostConfig } from "./host-config.mjs";
+import { loadHostConfig, machineAvoozlPaths } from "./host-config.mjs";
 import { handleMcp, kiroCrewCaller } from "./mcp.mjs";
 import { Operations } from "./operations.mjs";
 import { Store } from "./store.mjs";
@@ -56,6 +56,7 @@ export function createAppMcp({ fallback = null, env = process.env } = {}) {
           operator: config.operator,
           workspaceRoot: config.workspaceRoot,
           plansRoot: config.plansRoot,
+      configDirectory: machineAvoozlPaths().configDirectory,
         }),
       };
       opened.set(key, entry);

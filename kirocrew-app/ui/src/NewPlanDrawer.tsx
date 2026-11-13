@@ -181,7 +181,7 @@ export default function NewPlanDrawer(props: {
     return run(async () => {
       const preview = await client.preview(props.workspaceId, form)
       // A missing file is asked about first; a present or changed one is left alone.
-      if (preview.steering.state === 'missing') setSteering(preview.steering)
+      if (preview.steering.state === 'missing' || preview.steering.state === 'older') setSteering(preview.steering)
       else await handOffNow(false)
     })
   }

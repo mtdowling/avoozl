@@ -12,6 +12,7 @@ import { contentBinding, enforce } from "./content-rules.mjs";
 import { createSpecPlan, isEpicFolder, MANIFEST, specName } from "./spec-plans.mjs";
 import { PLANNER_AGENT } from "./github-planner.mjs";
 import { draftManifest } from "./spec-manifest.mjs";
+import { steeringOptions, withSeed } from "./retro-memory.mjs";
 import {
   STEERING_FILE,
   STEERING_TEXT,
@@ -105,7 +106,7 @@ export function newPlanBrief(request) {
 // What New plan hands Spec Builder as the user's first words. Spec Builder
 // appends it to its own seed prompt. The rules come from the steering file
 // when it is there; otherwise they ride along here.
-export function specBuilderDescription(request, steering) {
+export function specBuilderDescription(request, steering, rules = STEERING_TEXT) {
   const { category, epic, phases, repositories, goal, context } = request;
   const front = [
     category && `category: ${category}`,
@@ -114,8 +115,8 @@ export function specBuilderDescription(request, steering) {
   return [
     "Avoozl will deliver this spec. Spec details from Avoozl's New spec form:",
     "",
-    steering === "missing"
-      ? `Follow these spec rules:\n\n${STEERING_TEXT.replace(/^---\n[\s\S]*?\n---\n\n/, "")}`
+    steering === "missing" || steering === "older"
+      ? `Follow these spec rules:\n\n${rules.replace(/^---\n[\s\S]*?\n---\n\n/, "")}`
       : `Follow the spec rules in ${STEERING_FILE.split("\\").join("/")}.`,
     front.length
       ? `Start requirements.md with this front-matter, exactly:\n---\n${front.join("\n")}\n---`
@@ -203,12 +204,13 @@ export function requestNewPlan(store, input = {}, deps) {
       409,
     );
 
-  const folder = `${deps.specRoot}/.kiro/specs/${name}`;
+  const folder = `${deps.specRoot}/.kiro/specs/${name}`,
+    rules = steeringOptions(store);
   if (input.preview === true)
     return {
       name,
       folder,
-      steering: { ...steeringStatus(deps.specRoot), text: STEERING_TEXT },
+      steering: { ...steeringStatus(deps.specRoot, rules), text: rules.text },
     };
   const request = {
     name,
@@ -225,13 +227,14 @@ export function requestNewPlan(store, input = {}, deps) {
   };
   const builder = handoff === "spec-builder";
   // Asked first on the page; a changed or present copy is never written.
-  let steering = builder ? steeringStatus(deps.specRoot) : null;
+  let steering = builder ? steeringStatus(deps.specRoot, rules) : null;
   const handed = builder
     ? specBuilderDescription(
         request,
         input.writeSteering === true ? "written" : steering.state,
+        rules.text,
       )
-    : newPlanBrief(request);
+    : withSeed(store, newPlanBrief(request), "agent.planner");
   // A content rule that blocks the text refuses it: nothing is recorded.
   if (contentBinding(store)?.workspaceRoot)
     enforce(
@@ -240,7 +243,7 @@ export function requestNewPlan(store, input = {}, deps) {
       { mode: "refuse" },
     );
   if (builder && input.writeSteering === true)
-    steering = writeSteering(deps.specRoot);
+    steering = writeSteering(deps.specRoot, rules);
   const at = new Date().toISOString();
   // Asking again for the same name replaces the earlier request.
   const rest = pendingNewPlans(store).filter((entry) => entry.name !== name);

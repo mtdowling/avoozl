@@ -41,7 +41,8 @@ export const CAPABILITIES = {
 };
 // The parts one plugin may bundle (R55.1), and the code kind each runs as.
 // A pack is settings only and runs as nothing; intake is a tracker's `poll`.
-export const PARTS = ["pack", "rules", "tracker", "intake", "route"];
+// `lessons` is a lessons pack (design §4.18), data only like a pack.
+export const PARTS = ["pack", "rules", "tracker", "intake", "route", "lessons"];
 const PART_KIND = {
   rules: "rules",
   tracker: "tracker",

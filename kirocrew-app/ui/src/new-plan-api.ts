@@ -36,7 +36,7 @@ export interface NewPlanResult {
 // Whether the target repository has Avoozl's steering file.
 export interface SteeringStatus {
   path: string
-  state: 'missing' | 'current' | 'changed'
+  state: 'missing' | 'current' | 'older' | 'changed'
   text?: string
 }
 

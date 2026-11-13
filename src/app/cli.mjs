@@ -17,7 +17,11 @@ import { hookEvent, runnerHookBrief } from "./runner.mjs";
 import { validate } from "../model.mjs";
 import { planFiles } from "../catalog.mjs";
 import { reconcileSource } from "./source-sync.mjs";
-import { loadHostConfig, WorkspaceRegistry } from "./host-config.mjs";
+import {
+  loadHostConfig,
+  machineAvoozlPaths,
+  WorkspaceRegistry,
+} from "./host-config.mjs";
 
 // Reindex every plan file and stored document from the plans root.
 function generate(config) {
@@ -167,6 +171,7 @@ try {
       operator: config.operator,
       workspaceRoot: config.workspaceRoot,
       plansRoot: config.plansRoot,
+      configDirectory: machineAvoozlPaths().configDirectory,
     });
   // Without a server, every CLI write goes through Operations in process.
   // `local` marks the caller as the person at this machine's command line.
