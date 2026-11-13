@@ -13,6 +13,8 @@ import {
   validateTrackedRouting,
   weightsOf,
 } from "../placement.mjs";
+import { placeOne } from "../routing.mjs";
+import { fixture } from "./fixtures.mjs";
 
 const now = Date.parse("2026-11-13T10:00:00Z");
 const fresh = (extra = {}) => ({
@@ -403,4 +405,63 @@ test("globs and remote hosts", () => {
     "git.example.test",
   );
   assert.equal(remoteHost("/tmp/bare.git"), null);
+});
+
+test("a retry whose kept choice was removed says so among several choices", () => {
+  const picked = chooseSession({
+    task: { id: "r" },
+    role: "worker",
+    rules: rules([
+      {
+        id: "routine",
+        session: { choices: [{ model: "model-b" }, { model: "model-c" }] },
+      },
+    ]),
+    subject: subject(),
+    kept: { agent: null, model: "model-gone" },
+  });
+  assert.equal(picked.model, "model-b");
+  assert.match(picked.reason, /the kept choice was removed/);
+});
+
+test("no fit from the hard rules is not reported as a missing agent", (t) => {
+  const { store } = fixture(t),
+    config = routingConfig({
+      workspace: {
+        routing: {
+          rules: [
+            {
+              id: "win",
+              requireTags: ["os:windows"],
+              session: { agent: "kirocrew-worker" },
+            },
+          ],
+        },
+      },
+    }),
+    ctx = {
+      config,
+      crews: crews(),
+      remoteDispatch: false,
+      mc10: false,
+      counts: { crews: new Map(), choices: new Map() },
+      fetch: new Map(),
+      now,
+      localLimit: null,
+    },
+    result = placeOne(
+      store,
+      store.read(),
+      ctx,
+      { crews: new Map(), choices: new Map() },
+      { task: { id: "t", repository: "app" }, role: "worker" },
+    );
+  assert.equal(result.wait, true);
+  assert.equal(result.noFit, true);
+  assert.equal(result.why, "no crew fits");
+  assert.ok(
+    result.removed.some(
+      (r) => r.crew === "local" && /requires os:windows/.test(r.by),
+    ),
+  );
 });
