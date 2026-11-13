@@ -6409,7 +6409,7 @@ function ns(e) {
 	}
 }
 function rs(e, t, n, r) {
-	return t.trim() === e.spec ? !r.trim() && !n ? "Tick that you understand what a rebuild loses, or give an export file." : r.trim() && !r.trim().startsWith("/") ? "Give the export file by its full path." : null : `Type ${e.spec} to confirm.`;
+	return t.trim() === e.spec ? !r.trim() && !n ? "Tick that you understand what a rebuild loses, or give an export file." : r.trim() && !/^(?:\/|[A-Za-z]:[\\/]|\\\\)/.test(r.trim()) ? "Give the export file by its full path." : null : `Type ${e.spec} to confirm.`;
 }
 function is(e) {
 	let t = e.label.trim();

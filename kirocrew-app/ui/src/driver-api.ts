@@ -151,7 +151,7 @@ export function setupText(item: { kind: string; id?: string }): string {
 export function forceReady(spec: DriverSpec, typed: string, acknowledged: boolean, file: string): string | null {
   if (typed.trim() !== spec.spec) return `Type ${spec.spec} to confirm.`
   if (!file.trim() && !acknowledged) return 'Tick that you understand what a rebuild loses, or give an export file.'
-  if (file.trim() && !file.trim().startsWith('/')) return 'Give the export file by its full path.'
+  if (file.trim() && !/^(?:\/|[A-Za-z]:[\\/]|\\\\)/.test(file.trim())) return 'Give the export file by its full path.'
   return null
 }
 

@@ -54,6 +54,7 @@ test('Force take over needs the typed spec name and the loss acknowledged or an 
   assert.equal(forceReady(spec(), 's1', true, ''), null)
   assert.equal(forceReady(spec(), ' s1 ', false, '/tmp/s1.avoozl-driver.json'), null)
   assert.match(forceReady(spec(), 's1', false, 'relative.json'), /full path/)
+  assert.equal(forceReady(spec(), 's1', false, 'C:\\exports\\s1.avoozl-driver.json'), null)
 })
 
 test('This computer: an optional label and heartbeat minutes from 5 to 60', () => {
