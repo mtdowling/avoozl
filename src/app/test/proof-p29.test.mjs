@@ -584,3 +584,33 @@ test("P29 action 14: no MC-10 removes remote crews and keeps sessions local", as
   assert.equal((await env.ops.execute("routing.view", {})).mc10, false);
   void CREWS;
 });
+
+test("the router is skipped when one crew and one model are left", async (t) => {
+  // Nearby inputs: the only ready worker has one option (its base is only on
+  // this machine): no routing call that tick, one Activity row, written once
+  // across ticks. Tasks with more options still get a call (action 2).
+  const env = await workspace(t, { machine: PROMPT, ids: ["w1"] });
+  commitIn(env.checkout, "local-only.txt", "x\n", "Local only");
+  const crew = fakeCrew(env.ops, {
+    aliases: env.aliases,
+    defaults: defaults(env),
+    scripts: { ...ROUTER, ...hold(["w1"]) },
+  });
+  const first = await crew.tick();
+  assert.deepEqual(routerDispatch(first), [], "no routing call");
+  assert.ok(!routerBatch(env.store), "no routing batch");
+  const worker = first.dispatch.find((d) => d.role === "worker");
+  assert.equal(worker.task, env.id.w1);
+  await crew.tick();
+  const rows = listActivity(env.store, {}).items.filter(
+    (r) => r.kind === "routing.only-one",
+  );
+  assert.deepEqual(
+    rows.map((r) => r.targetId),
+    [env.id.w1],
+  );
+  assert.match(
+    rows[0].summary,
+    /Only one choice for .+: local.*; no router call/,
+  );
+});
