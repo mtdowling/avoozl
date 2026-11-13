@@ -253,6 +253,7 @@ export function routeNeedsYou(row, health) {
 }
 
 function submission(store, input) {
+  if (!input.taskId) fail("Choose a task ID.");
   const data = store.read(),
     taskId = resolveTaskId(data, input.taskId),
     row = store.get("route_submissions", taskId || "");

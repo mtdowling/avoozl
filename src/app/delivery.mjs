@@ -994,13 +994,13 @@ const failuresSince = (delivery, attempts) =>
 export function retryDelivery(
   store,
   input = {},
-  { caller = null, local = false } = {},
+  { caller = null, mcp = false, local = false } = {},
 ) {
   const task = findTask(store, input.taskId),
     dismiss = input.dismiss ?? [];
   if (!Array.isArray(dismiss) || dismiss.length > 200)
     fail("List at most 200 findings to dismiss.");
-  if (dismiss.length && callerSlot(caller))
+  if (dismiss.length && (mcp || callerSlot(caller)))
     fail("Only a person dismisses a review finding, not a session.", 403);
   for (const entry of dismiss)
     if (

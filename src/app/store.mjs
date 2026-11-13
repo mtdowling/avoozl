@@ -403,6 +403,8 @@ export class Store {
       ].includes(table)
     )
       fail("Unknown record type");
+    // A missing or non-text ID names no record; SQLite would throw on it.
+    if (typeof id !== "string" && typeof id !== "number") return null;
     const row = this.db.prepare(`SELECT body FROM ${table} WHERE id=?`).get(id);
     return row ? JSON.parse(row.body) : null;
   }

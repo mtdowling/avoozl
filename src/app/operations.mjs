@@ -903,6 +903,7 @@ export class Operations {
   // the plugin authority, so its next approval projects the task again;
   // drop the authority from the manifest before re-approving.
   async takeBackLocal(input) {
+    if (!input.taskId) fail("Choose a task ID.");
     const data = this.read(),
       task = data.tasks.find((t) => t.id === resolveTaskId(data, input.taskId));
     if (!task) fail(`Task ${input.taskId} was not found.`, 404);
@@ -1894,6 +1895,7 @@ export class Operations {
     if (name === "delivery.retry")
       return retryDelivery(store, input, {
         caller: context.caller,
+        mcp: context.mcp === true,
         local: context.local === true,
       });
     if (name === "notifications.deliver")
@@ -2225,6 +2227,7 @@ export class Operations {
     // Send to Issue Radar (§8.5, R52): the repository's crews, then the
     // label write. The app backend lets only an owner session hand off.
     if (name === "untriaged.crews") {
+      if (!input.repository) fail("Name one repository as owner/repository.");
       const policy = readGitHubPolicyOrNull(this.workspaceRoot),
         repository = Object.keys(policy?.repositories || {}).find(
           (entry) => entry === input.repository,
@@ -2883,11 +2886,8 @@ export class Operations {
       this.configuration?.reload();
       return this.githubSettings();
     }
-    if (name === "configuration.get") {
-      if (!this.configuration)
-        fail("Configuration editing is unavailable from this server.", 404);
-      return this.configuration.readConfiguration(input.scope);
-    }
+    if (name === "configuration.get")
+      return this.settingsFile().readConfiguration(input.scope ?? "repository");
     if (name === "configuration.update") {
       if (!this.configuration)
         fail("Configuration editing is unavailable from this server.", 404);
@@ -3992,7 +3992,7 @@ export class Operations {
     if (name === "run.event") {
       const row = store.db
         .prepare("SELECT * FROM events WHERE seq=? AND run_id=?")
-        .get(input.seq, input.id);
+        .get(input.seq ?? null, input.id ?? null);
       if (!row) fail("Event not found.", 404);
       return {
         seq: row.seq,
