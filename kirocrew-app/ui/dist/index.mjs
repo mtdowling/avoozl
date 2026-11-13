@@ -25955,6 +25955,22 @@ function Av(e) {
 					})
 				]
 			}),
+			!e.view.switchedOn && /* @__PURE__ */ b(Fn, {
+				workspaceId: e.workspaceId,
+				help: {
+					page: "Settings › Routing",
+					section: "Routing prompt",
+					says: "Off: every task runs on this machine, as before.",
+					settings: [{
+						key: "routing.enabled",
+						value: "false"
+					}, {
+						key: "crews",
+						value: e.view.crews.map((e) => e.id).join(", ") || "none"
+					}],
+					docs: "README.md, section Routing"
+				}
+			}),
 			/* @__PURE__ */ b(Dv, {
 				id: "avoozl-routing-prompt",
 				label: "Prompt",
