@@ -34,7 +34,7 @@ import {
   type SourceTone,
 } from './plugins-api.ts'
 import { relativeTime } from './task-api.ts'
-import { useMedia } from './TaskDrawer.tsx'
+import { useMedia } from './use-media.ts'
 import { useRead } from './useRead.ts'
 import { errorMessage, workspaceClient } from './workspace-api.ts'
 
