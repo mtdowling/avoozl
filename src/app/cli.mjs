@@ -469,10 +469,38 @@ try {
         deliver: () => ["intake.deliver", { source, id }],
         plan: () => ["intake.plan", { source, id }],
         confirm: () => ["intake.confirm", { source, id, hash: options.hash }],
+        // Ideas (R63): `intake idea add|note|archive|restore`; the second
+        // word is the idea action and the third the idea's id.
+        idea: () => {
+          const [, step, ideaId] = positionals,
+            ideaCalls = {
+              add: () => [
+                "idea.capture",
+                {
+                  title: options.title,
+                  ...(options.note ? { notes: options.note } : {}),
+                  ...(options.link ? { links: [options.link] } : {}),
+                },
+              ],
+              note: () => [
+                "idea.append",
+                {
+                  id: ideaId,
+                  ...(options.note ? { note: options.note } : {}),
+                  ...(options.link ? { link: options.link } : {}),
+                },
+              ],
+              archive: () => ["idea.archive", { id: ideaId }],
+              restore: () => ["idea.restore", { id: ideaId }],
+            };
+          if (!ideaCalls[step])
+            throw Error("Choose intake idea add, note, archive, or restore.");
+          return ideaCalls[step]();
+        },
       };
     if (!calls[action])
       throw Error(
-        "Choose intake list, view, submit, sources, deliver, plan, or confirm.",
+        "Choose intake list, view, submit, sources, deliver, plan, confirm, or idea.",
       );
     console.log(
       JSON.stringify(await localOrRequest(...calls[action]()), null, 2),
@@ -1218,6 +1246,9 @@ try {
   intake sources                        Declared intake sources and their read state
   intake deliver|plan SOURCE ID         Deliver this or Plan this on an item (a person only)
   intake confirm SOURCE ID --hash H     Confirm an item's changed text, H from intake view (a person only)
+  intake idea add --title T [--note N] [--link URL]  Save an idea; it never runs work
+  intake idea note ID [--note N] [--link URL]  Add a note or link to an open idea
+  intake idea archive|restore ID        Archive or restore an idea (a person only)
   plugins [list]                        Declared plugins, their approval and health
   plugins add ID --path DIR|--package NAME|--git URL --ref REF [--subdir DIR] [--contract 1] [--config JSON] [--repository [--confirm-public]]
   plugins update ID                     Resolve a git plugin's ref again and fetch that commit

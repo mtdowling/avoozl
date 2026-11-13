@@ -52,6 +52,8 @@ export default function NewPlanDrawer(props: {
   categories: string[]
   // Epic folders to pick from: their folder name and title.
   epics?: { id: string; title: string }[]
+  // Make it a spec (R63.9): fields filled from an idea, and its id.
+  seed?: Partial<NewPlanForm>
   onClose: (notice: string | null) => void
 }) {
   const api = useAppApi()
@@ -62,7 +64,7 @@ export default function NewPlanDrawer(props: {
   const ask = useConfirm()
   const narrow = useMedia('(max-width: 767px)')
   const still = useMedia('(prefers-reduced-motion: reduce)')
-  const [form, setForm] = useState<NewPlanForm>(EMPTY_NEW_PLAN)
+  const [form, setForm] = useState<NewPlanForm>(() => ({ ...EMPTY_NEW_PLAN, ...props.seed }))
   const [repositories, setRepositories] = useState<Repository[] | null>(null)
   const [nameTouched, setNameTouched] = useState(false)
   const [tried, setTried] = useState(false)
