@@ -2,10 +2,10 @@
 
 Avoozl ships with no trigger rule. A new workspace, or a repository you have
 only registered, takes no GitHub issue until its `.avoozl.json` names a rule.
-Labels alone never start work: a repository with a `respond`, `deliver`, or
-`execute` rule must also name `allowedActors` or a `minimumPermission`, and
-the person who added the label must pass that check. The same applies to
-public and private repositories.
+Labels alone never start work: the person who added the label must also pass
+the repository's **Who counts** check, `allowedActors` or a
+`minimumPermission`. A repository that names neither counts anyone with
+`write` permission. The same applies to public and private repositories.
 
 Rules live under `github.repositories.<owner/repo>.rules` in the repository
 root `.avoozl.json`. Each rule maps a `match` line to one fixed action:
@@ -30,20 +30,26 @@ reads only these qualifiers:
 | `-label:x` or `-label:a,b` | has none of them                         |
 | `assignee:login`           | is assigned to `login`                   |
 | `no:assignee`              | is assigned to nobody                    |
+| `source:id`                | is an item from intake source `id`       |
 
 Quote a name with spaces or commas: `label:"needs triage"`. Labels compare
 without case, as GitHub search does. Any other term (`is:`, `repo:`,
 `author:`, free text, another qualifier) is refused with an error that names
 it, so a rule never matches more than its line says. A rule needs at least
-one `label:` term. Paste the line into an issue search on GitHub to see the
-same issues; Settings shows the open issues it matches now.
+one `label:` term. A rule without `source:` matches GitHub issues only, and a
+`respond` rule cannot use `source:`. Paste a line without `source:` into an
+issue search on GitHub to see the same issues; Settings shows the open
+issues it matches now.
 
 Who may trigger a rule is not part of `match`: search cannot say whose label
-counts, so `allowedActors` and `minimumPermission` stay separate. `author`
-narrows a rule further. Label names are yours to choose; no name needs a
-particular prefix. Labels Avoozl writes are set in `managedLabels` and cannot
-be used as triggers, and neither can Issue Radar's crew labels (see [Work
-beside Issue Radar crews](#work-beside-issue-radar-crews)).
+counts, so `allowedActors` and `minimumPermission` stay separate, under
+**Who counts** in Settings. The same check applies to a board drag and to a
+close. A rule's `author` key narrows it to issues one login opened.
+
+Label names are yours to choose; no name needs a particular prefix. Labels
+Avoozl writes are set in `managedLabels` and cannot be used as triggers, and
+neither can Issue Radar's crew labels (see [Work beside Issue Radar
+crews](#work-beside-issue-radar-crews)).
 
 Older rules use `labelsAll`, `labelsAny`, `labelsNone`, and `assignee` in
 place of `match`. They still work unchanged. A rule with both `match` and one
@@ -195,6 +201,9 @@ outside Git, so the list itself never lands in a repository.
   can fix the text.
 - `boundaries` narrows a set to some of `plan`, `github`, `brief` and `diff`;
   `repositories` to some registered repositories.
+- `remote` is `allow` or `forbid`: whether tasks this set covers may run on a
+  remote crew. A set that covers `diff` forbids it by default, because its
+  pre-push hook exists only on this machine.
 - A set this machine does not have blocks everything it covers until you add
   its terms file. A findings message names the set, rule and line, never the
   matched text.
@@ -384,5 +393,5 @@ as early.
   `categories` whose author the policy allows gets one responder session and
   at most one reply, screened like a `respond` reply. Discussions must be
   turned on for the repository, and the repository needs a local checkout.
-- `commentSteering` and `discussions` need `allowedActors` or a
-  `minimumPermission`.
+- `commentSteering` and `discussions` use the repository's Who counts check
+  (`write` when it names nobody).
