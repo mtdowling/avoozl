@@ -9,8 +9,9 @@ import { useMedia } from './TaskDrawer.tsx'
 import { errorMessage } from './workspace-api'
 import { relativeTime } from './task-api.ts'
 import { Authority } from './Authority.tsx'
+import NewPlanDrawer from './NewPlanDrawer.tsx'
 import { IconBtn, IconLabel, ShowMore, TipBtn, ViewHeading, dangerStyle, useAskChat, usePages } from './controls.tsx'
-import { Archive, ArchiveRestore, ChevronRight, ClipboardCheck, DetailsIcon, Download, FolderOpen, LayoutGrid, MessagesSquare, Network, Pencil, Plus, RefreshCw, Trash2, X } from './icons.ts'
+import { Archive, ArchiveRestore, ArrowLeft, ChevronRight, ClipboardCheck, DetailsIcon, Download, FolderOpen, LayoutGrid, MessagesSquare, Network, Pencil, Plus, RefreshCw, Trash2, X } from './icons.ts'
 import { FilterPanel } from './FilterPanel.tsx'
 import { STATES, documentEpic, nodeState, type Drill, type NodeState } from './graph-layout.ts'
 import { rowPlanKey, type TaskFilter } from './filters.ts'
@@ -1020,6 +1021,7 @@ export default function PlansView(props: {
   const asideHeight = useStickyHeight(asideRef, !stack)
   const [deleting, setDeleting] = useState<PlanRow | null>(null)
   const [archiving, setArchiving] = useState<PlanRow | null>(null)
+  const [creating, setCreating] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [table, setTable] = useState<PlanTable | null>(null)
   const [selected, setSelected] = useState<string | null>(null)
@@ -1172,14 +1174,28 @@ export default function PlansView(props: {
           }}
         />
       )}
+      {creating && workspace && (
+        <NewPlanDrawer
+          workspaceId={workspace}
+          taken={(table?.items ?? []).flatMap((item) => [item.spec, item.planId]).filter((name): name is string => Boolean(name))}
+          categories={[...new Set((table?.items ?? []).map((item) => item.category).filter((name): name is string => Boolean(name)))].sort()}
+          onClose={(text) => {
+            setCreating(false)
+            if (text) setNotice(text)
+          }}
+        />
+      )}
       {notice && <p role="status" className="text-sm text-muted">{notice}</p>}
       <div ref={detailTop} className="flex flex-wrap items-center gap-3">
-        {row && <Btn onClick={() => setSelected(null)}>← All plans</Btn>}
+        {row && <IconLabel icon={ArrowLeft} onClick={() => setSelected(null)}>All plans</IconLabel>}
         <ViewHeading id="avoozl-plans-title" view="plans">
           {row ? row.name : 'Plans'}
         </ViewHeading>
         {workspace && !row && (
           <>
+            <IconLabel icon={Plus} primary tooltip="Describe a plan idea. A planner chat drafts its spec folder; nothing is approved." onClick={() => setCreating(true)}>
+              New plan
+            </IconLabel>
             <IconLabel icon={RefreshCw} onClick={() => void load(workspace)} disabled={busy}>
               Refresh
             </IconLabel>
@@ -1219,7 +1235,7 @@ export default function PlansView(props: {
               <p className="text-sm text-muted">{busy ? 'Loading…' : 'Not loaded'}</p>
             ) : table.items.length === 0 ? (
               <p className="text-sm text-muted">
-                No plans yet{table.root ? ` in ${table.root}/.kiro/specs` : ''}. Use Plan a goal in the header to start one.
+                No plans yet{table.root ? ` in ${table.root}/.kiro/specs` : ''}. Use New plan to start one.
               </p>
             ) : rows.length ? (
               <PlansTable rows={rows} reset={JSON.stringify(filter)} busy={busy} onOpen={open} onScope={scope} onChange={change} onImport={importRow} onDelete={setDeleting} onArchive={setArchiving} onUnarchive={unarchive} />

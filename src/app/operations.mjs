@@ -235,6 +235,7 @@ import {
 } from "./github-branch-rules.mjs";
 import { settleConflicts } from "./conflict-actions.mjs";
 import { highlightLanguages } from "./highlight-languages.mjs";
+import { importNewPlans, requestNewPlan } from "./new-plan.mjs";
 import {
   claimedTaskIds,
   declaredChecks,
@@ -1818,6 +1819,19 @@ export class Operations {
       });
       // A deleted plan's tasks whose chats have ended are archived now.
       archiveEnded(store);
+      // New plan folders that lint clean become draft plans (never approved).
+      importNewPlans(store, {
+        readSpec: (spec) => this.readSpec(spec),
+        lint: (spec) =>
+          this.withContentDiagnostics(
+            lintSpec({
+              spec,
+              plan: { id: spec.name },
+              data: { ...this.read(), projects: store.list("projects") },
+            }),
+            spec,
+          ),
+      });
       return result;
     }
     if (name === "route.cancel") {
@@ -2991,6 +3005,19 @@ export class Operations {
     // call in-call, naming set, rule, file and line (§4.9 `plan`). A
     // person's save is checked at approval, which opens a decision.
     const agent = Boolean(context.caller || context.mcp);
+    // New plan: only a person asks, from the Avoozl page. It records the
+    // request and returns the planner chat's seed; it approves nothing.
+    if (name === "plan.new") {
+      if (context.caller || context.mcp)
+        fail("Only a person starts a new plan, from the Avoozl page.", 403);
+      return requestNewPlan(store, input, {
+        readSpec: (spec) => this.readSpec(spec),
+        repositories: workspaceRepositories(store).filter(
+          (repo) => !repo.planning,
+        ),
+        specRoot: this.specRoots()[0] || null,
+      });
+    }
     if (name === "plan.create") {
       if (input.spec === undefined) return createPlan(store, input);
       const spec = this.readSpec(input.spec);

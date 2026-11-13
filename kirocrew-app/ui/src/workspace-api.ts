@@ -26,6 +26,8 @@ export interface Repository {
   localCheckout: string | null
   github: string | null
   baseBranch: string
+  // The planning repository (plans-repo mode), which holds specs.
+  planning?: boolean
 }
 
 export interface DetectedCheckout {
