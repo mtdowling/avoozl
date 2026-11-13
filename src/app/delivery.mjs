@@ -733,7 +733,7 @@ export async function reportSession(
         : null;
   if (!own && !(local && relay))
     fail(
-      "plans_report needs the calling session's identity from the Kiro Crew gateway, and none came. Kiro Crew sends it only to MCP servers it brokers: the owner adds avoozl:avoozl to mcp_gateway.stub_servers and approves its launch. Then report again from this session; do not report from a shell.",
+      "plans_report needs the calling session's identity from the Kiro Crew gateway, and none came. Kiro Crew sends it only to MCP servers it brokers: the owner turns on sharing for avoozl:avoozl in MCP Management (mcp_gateway.stub_servers), approves it and restarts the gateway. Then report again from this session; do not report from a shell.",
       403,
     );
   const kind = input.kind;
