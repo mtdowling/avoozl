@@ -41,6 +41,18 @@ const rpcError = (id, message, code = -32603) => ({
   error: { code, message },
 });
 
+// The avoozl-tick cron's call: plans_tick (or plans_maintain tick) marked cron.
+function cronTick(message) {
+  if (message.method !== "tools/call") return false;
+  const { name, arguments: args } = message.params || {};
+  const input = args?.input;
+  return (
+    input?.cron === true &&
+    (name === "plans_tick" ||
+      (name === "plans_maintain" && args.action === "tick"))
+  );
+}
+
 export function createAppMcp({ fallback = null, env = process.env } = {}) {
   // One Store and Operations per database, opened on first use and kept, so
   // tick memory and caches stay per workspace.
@@ -120,6 +132,7 @@ export function createAppMcp({ fallback = null, env = process.env } = {}) {
     const launch = existing(fallback);
     if (!launch)
       return {
+        noWorkspace: true,
         error:
           "Avoozl has no workspace for this session. Choose a default workspace in the Avoozl Workspace view.",
       };
@@ -149,6 +162,22 @@ export function createAppMcp({ fallback = null, env = process.env } = {}) {
       return reply;
     }
     const target = resolve(message);
+    // Before any workspace exists the cron's tick has nothing to do. An
+    // error here would count toward Kiro Crew's cron auto-pause (five in a
+    // row), and a paused tick stays off after the person adds a workspace.
+    if (target.noWorkspace && cronTick(message))
+      return {
+        jsonrpc: "2.0",
+        id: message.id,
+        result: complete(message, {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ skipped: true, reason: target.error }),
+            },
+          ],
+        }),
+      };
     if (target.error) {
       if (message.method === "tools/call")
         return {
