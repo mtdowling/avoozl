@@ -3696,3 +3696,57 @@ stale advice stops being used without my clearing it by hand.
    1–4 SHALL apply to pack lessons as to local ones.
 7. The Lessons view SHALL show each lesson's confidence, last confirmed
    date, state and stale reason, and its history.
+
+### Requirement 71: Activity log and Activity tab
+
+Added 2026-11-13 (owner request). Design §4.19.
+
+**User story:** As the owner, I want one list of what people, sessions,
+GitHub and plugins did in this workspace, so that I can see who changed
+what and when without reading chats, the tick log or GitHub.
+
+#### Acceptance criteria
+
+1. Avoozl SHALL keep an `activity_log` table in the workspace's SQLite.
+   Each row SHALL hold its time, source (`local`, `github`, `plugin` or
+   `mcp`), actor, kind, a short summary, a target ID and a link. `plugin`
+   covers plugin sync: tracker and intake plugins.
+2. Avoozl SHALL record these local actions when they succeed: dispatch
+   (Start now and dispatch requests), stop (a task set to Deferred),
+   pulling and resuming the Andon cord, merge, plan approval, archive and
+   unarchive, delete, a settings save, plugin approval, and a model
+   switch. A call through MCP or an agent session SHALL be recorded with
+   source `mcp` and the session as actor.
+3. The tick SHALL record what it sees from GitHub and plugin sync: closes
+   (an allowed close, a held close, and a merged closing pull request),
+   Project board orders (Deferred and back, ignored moves, and a Release
+   change), label orders, incoming items, conflicts, and reverts (a Wave
+   value written back). A change seen twice SHALL be recorded once.
+4. A row SHALL hold only IDs and a short summary Avoozl writes. It SHALL
+   NOT hold a prompt, a content-rule term, a token, file contents, or an
+   issue or pull request title or body. A summary SHALL be at most 200
+   characters.
+5. Before a row is saved, Avoozl SHALL screen its actor, summary, target
+   and link with the built-in secret and path screens and the content-rule
+   sets that cover the `activity` boundary. A set with no `boundaries`
+   list SHALL cover it. A row that matches, or that a set cannot check,
+   SHALL be saved as redacted: its time, source and kind, the summary
+   "Redacted by content rules", and no actor, target or link. A test
+   SHALL fail if a secret-shaped value is saved.
+6. Rows SHALL be kept 30 days by default. `activity.retentionDays` in
+   `.avoozl.json` (1–365) SHALL change it, from Settings › General. Each
+   tick SHALL delete older rows.
+7. The page SHALL have an Activity tab: the shared heading, the shared
+   filter panel with Source, Kind and Actor, 100 rows per page with the
+   shared Show more, newest first. A row whose target is a task SHALL open
+   the task drawer. A row with a GitHub link SHALL open it in a new tab
+   with `target="_blank"` and `rel="noopener noreferrer"`.
+8. Avoozl SHALL expose one helper, `recordActivity`, that any part of
+   Avoozl calls to add a row. It SHALL validate and screen the row as in
+   criteria 4 and 5, and SHALL never make the action that called it
+   fail.
+9. `activity.list` SHALL read the log with `source`, `kind`, `actor`,
+   `limit` (at most 100) and `offset`, and SHALL be the `activity` action
+   of the `plans_view` MCP tool. The Dashboard's recent task events SHALL
+   stay reachable as `plans_view` action `recent`.
+   `activity.settings.update` SHALL be a person's only.
