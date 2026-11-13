@@ -3224,6 +3224,28 @@ something wrong, so that nothing new builds on it while it is looked at.
     automatic stops, counted in the charts over time, its open-to-resume
     time counted as time to fix, and sent to the retro with its scope and
     reason.
+12. Added 2026-11-13 (owner approval). The Stop the line dialog SHALL offer
+    two choices: **Stop the line**, which stops new work only (criteria
+    1–11), and **Stop all agents**, a full stop. A full stop SHALL pause
+    everything in the workspace like scope `all`, and SHALL also stop every
+    running session Avoozl opened (Kiro Crew session stop) at once. It
+    SHALL keep each worktree and branch, and SHALL mark each stopped attempt
+    "Interrupted by stop". An interrupted attempt SHALL NOT count as a
+    failure toward the retry limit, and SHALL NOT be nudged.
+13. The confirm for **Stop all agents** SHALL warn that replies in progress
+    are lost, and that committed and saved files are kept.
+14. Only a person SHALL pull or resume a full stop. An MCP call SHALL be
+    refused with the usual person-only refusal, and nothing SHALL be
+    recorded. A pull that cannot reach Kiro Crew to stop sessions (the CLI
+    without the app backend) SHALL be refused with nothing recorded. A
+    session Kiro Crew refuses to stop SHALL be named on the stop and left
+    running, and its attempt SHALL NOT be marked.
+15. WHEN a full stop is resumed THEN Avoozl SHALL re-dispatch each
+    interrupted task on the same worktree and branch, with the same agent
+    and model its interrupted attempt ran on. The new brief SHALL say the
+    attempt was interrupted by a stop and the worktree's files were kept.
+16. Each full stop SHALL be a stop in Flow like other pulls (criterion 11),
+    marked full, with the sessions it stopped.
 
 ### Requirement 65: New plan hands off to Spec Builder
 
@@ -3462,16 +3484,20 @@ cannot spend without limit and I can see where the money went.
    workspace default (`budget` in `.avoozl.json`), the repository
    (`projects.<id>.budget`), the spec (top-level `budget` in
    `avoozl/manifest.json`), and the task (a leaf's `budget` in the
-   manifest). Each level SHALL take `usd` and, for criterion 6, `tokens`
-   and `credits`. With no level set, a task SHALL have no cap, and its
-   receipt SHALL still be kept.
+   manifest). Each level SHALL take `usd`, `mode` and, for criterion 6,
+   `tokens` and `credits`. `mode` is `"stop"` (the default) or `"warn"`
+   and resolves like a cap: the most specific level that sets it wins.
+   With no level set, a task SHALL have no cap, and its receipt SHALL
+   still be kept. There SHALL be no spec-wide total cap (owner decision
+   2026-11-13).
 6. WHEN a turn cannot be priced (its model has no price, or it has credits
    and there is no credit price) THEN the dollar cap SHALL NOT be enforced
    for that turn. Avoozl SHALL warn once per task and model on the task and
    in Settings › Prices, and SHALL count unpriced turns against the token
    cap (input plus output) and the credit cap instead. Where no level sets
    them, these caps SHALL default to 2,000,000 tokens and 200 credits per
-   task.
+   task. The defaults SHALL be settings: the workspace `budget.tokens` and
+   `budget.credits` replace them.
 7. A task's spend SHALL include every session bound to it: each attempt
    and retry, the verifier, each review round, and pull request feedback
    rounds (Requirement 54). A fix task (Requirement 44.7) SHALL have its
@@ -3482,10 +3508,12 @@ cannot spend without limit and I can see where the money went.
    any session for the task. WHEN spend reaches the cap THEN Avoozl SHALL
    NOT dispatch a new session for the task, and SHALL ask each live session
    bound to it to stop at its next turn boundary. Avoozl SHALL NOT
-   interrupt a turn, end a tool call, or close or stop a session. Spend MAY
-   pass the cap by the turns that ran before the read; the receipt SHALL
-   show by how much.
-9. A task stopped by its budget SHALL go to **Needs you** with two
+   interrupt a turn, end a tool call, or close or stop a session. Spend is
+   known only after each usage read (about once a minute), so a task CAN
+   pass its cap by the turns that ran between two reads; the receipt SHALL
+   show by how much. This criterion and criterion 9 apply in `stop` mode;
+   criterion 18 covers `warn` mode.
+9. A task stopped by its budget (`stop` mode) SHALL go to **Needs you** with two
    actions, both a person's only: **Raise budget**, which takes a new cap,
    records who raised it, from what, to what, and when, and lets the task
    go on (the same session if it is still live, else the next attempt);
@@ -3525,7 +3553,30 @@ cannot spend without limit and I can see where the money went.
     finish any task.
 16. An incoming item (Requirement 50) MAY carry a budget later, from a
     plugin source with an owner-approved budget capability. This is a hook
-    only: payments, escrow and refunds are out of scope.
+    only: payments, escrow and refunds are out of scope. A grant SHALL
+    only set a dollar cap where no level sets one, and SHALL never raise a
+    cap a person set. A cap set by a grant SHALL always be in `stop` mode,
+    because it is someone else's money.
+17. WHEN spend reaches 80% of any cap THEN the task and its receipt SHALL
+    show a warning, in both modes. Nothing else changes at 80%.
+18. WHERE a task's mode is `warn` THEN reaching the cap SHALL stop and
+    pause nothing and SHALL send no stop message. The task SHALL get an
+    **Over budget** badge (spend / cap) on the drawer, the Delivery card
+    and In flight, and one Needs you item, "Over budget: $X of $Y", with
+    **Acknowledge**, **Raise budget** and **Switch to stop**, a person's
+    only. Acknowledge SHALL clear the item until spend passes the next
+    step, each further 50% of the cap, so it cannot nag every tick. A
+    Kiro Crew notification for it SHALL be optional (workspace
+    `budget.notify`), off by default.
+19. The Dashboard SHALL show a count of open over-budget tasks; the Flow
+    tab and receipts SHALL mark over-budget and budget-stopped runs; the
+    retro payload SHALL say which receipts went over budget.
+20. Settings SHALL show the mode next to each cap with one plain line on
+    what each mode does, in Settings › Budgets (the workspace and each
+    repository); prices are in Settings › Prices.
+21. A remote chat's spend is unknown (criterion 14) and SHALL warn, never
+    stop. No upstream Kiro Crew ask is filed for remote usage yet (owner
+    decision 2026-11-13).
 
 ### Requirement 68: Retros propose prompt and skill changes
 
@@ -3696,3 +3747,30 @@ stale advice stops being used without my clearing it by hand.
    1–4 SHALL apply to pack lessons as to local ones.
 7. The Lessons view SHALL show each lesson's confidence, last confirmed
    date, state and stale reason, and its history.
+
+### Requirement 71: Searchable task and spec pickers
+
+Added 2026-11-13 (owner approval). Design §8.9.
+
+**User story:** As the owner, I want to type to find a task or spec
+wherever I pick one, so that I never scroll a long dropdown.
+
+#### Acceptance criteria
+
+1. Every place the page picks one task or one spec SHALL use one shared
+   combobox: the Stop the line scope, the filter panels, Start now, and
+   any other task or spec choice.
+2. Typing SHALL match on the ID, the title and the spec, ignoring case.
+   Each result SHALL show its state beside it.
+3. The picker SHALL work from the keyboard: Down and Up move through the
+   results, Enter picks the highlighted one, and Esc closes the list
+   (a second Esc clears the text). Home and End move to the first and
+   last result.
+4. The picker SHALL be a WAI-ARIA combobox with a listbox popup:
+   `role="combobox"`, `aria-expanded`, `aria-controls`,
+   `aria-activedescendant`, and `role="option"` with `aria-selected` on
+   each result.
+5. With 5,000 tasks, filtering on each key press SHALL stay fast: the
+   list SHALL show at most 50 results with a count of the rest, and a
+   test SHALL filter 5,000 tasks within the time a 1,000-task filter took
+   times 10.
