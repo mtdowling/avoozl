@@ -1894,6 +1894,7 @@ export class Operations {
     if (name === "delivery.retry")
       return retryDelivery(store, input, {
         caller: context.caller,
+        mcp: context.mcp === true,
         local: context.local === true,
       });
     if (name === "notifications.deliver")
