@@ -84,19 +84,15 @@ test('the full-file reader is a trapped, closable modal over the page', () => {
   assert.match(reader, /registerLanguages\(/)
   assert.match(reader, /outline\(doc\.text/)
   assert.match(reader, /tasks\.document\(workspaceId, target\.document\)/)
-  // Esc and Back close it before the drawer under it (it is the newer
-  // step in the page's history); Tab wraps; backdrop closes.
-  assert.match(reader, /useBackStep\('modal', true, 'Close the file', onClose\)/)
-  assert.match(reader, /addEventListener\('keydown', onKey, true\)/)
-  assert.match(reader, /event\.key !== 'Tab'/)
-  assert.match(reader, /data-reader-backdrop className="absolute inset-0" onClick=\{onClose\}/)
-  assert.match(reader, /aria-modal="true"/)
+  // The shared Modal: Esc and Back close it before the drawer under it (it
+  // is the newer step in the page's history); Tab wraps; backdrop closes.
+  assert.match(reader, /<Modal id="avoozl-reader" plain width="78rem" height="90vh" backLabel="Close the file" boxRef=\{panel\}[^\n]*onDismiss=\{onClose\}>/)
   // No motion when motion is off; full screen when narrow.
   assert.match(reader, /behavior: still \? 'auto' : 'smooth'/)
   // The cited lines stay marked; no flash.
   assert.match(reader, /markCited\(root, target\.lineStart, target\.lineEnd, still\)/)
   assert.doesNotMatch(reader, /FLASH_MS|el\.animate/)
-  assert.match(reader, /width: narrow \? '100vw'/)
+  assert.match(readFileSync(new URL('../src/Modal.tsx', import.meta.url), 'utf8'), /narrow\s*\? \{ width: '100%', height: '100%'/)
   // The drawer opens it from the path link, Open full file and the excerpt.
   assert.match(drawer, /data-origin-path/)
   assert.equal((drawer.match(/setFull\(/g) ?? []).length >= 4, true)
