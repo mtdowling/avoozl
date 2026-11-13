@@ -136,7 +136,8 @@ export function validateProposal(item) {
     fail('size may only be "small".');
   if (
     item.paths !== undefined &&
-    (!Array.isArray(item.paths) || item.paths.some((x) => typeof x !== "string"))
+    (!Array.isArray(item.paths) ||
+      item.paths.some((x) => typeof x !== "string"))
   )
     fail("paths must be a list of strings.");
   // Placement (§4.10): labels and a type word routing rules match on, and
@@ -145,10 +146,15 @@ export function validateProposal(item) {
     item.labels !== undefined &&
     (!Array.isArray(item.labels) ||
       item.labels.length > 30 ||
-      item.labels.some((x) => typeof x !== "string" || !x.trim() || x.length > 100))
+      item.labels.some(
+        (x) => typeof x !== "string" || !x.trim() || x.length > 100,
+      ))
   )
     fail("labels must be a list of at most 30 names.");
-  if (item.type !== undefined && (typeof item.type !== "string" || !/^[a-z][a-z0-9-]{0,39}$/.test(item.type)))
+  if (
+    item.type !== undefined &&
+    (typeof item.type !== "string" || !/^[a-z][a-z0-9-]{0,39}$/.test(item.type))
+  )
     fail("type must be one lowercase word, such as test.");
   if (item.session !== undefined) validateSession(item.session);
   return item;
@@ -585,7 +591,15 @@ export function approvePlan(
         if (!design.authority) delete existing.authority;
         // A manifest that drops a milestone moves the task out of it, and
         // one that drops acceptFrom lifts the validation gate.
-        for (const key of ["milestone", "iteration", "acceptFrom", "labels", "paths", "type", "session"])
+        for (const key of [
+          "milestone",
+          "iteration",
+          "acceptFrom",
+          "labels",
+          "paths",
+          "type",
+          "session",
+        ])
           if (design[key] === undefined) delete existing[key];
         // An item moved out from under its epic loses that parent.
         if (spec && design.parent === undefined) delete existing.parent;

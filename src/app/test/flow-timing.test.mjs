@@ -417,18 +417,40 @@ test("tokens and credits are attributed to session, task, stage by time, and mod
     2,
     "an empty turn is skipped",
   );
-  assert.equal(ingestUsage(store, binding, [{ ts: "2026-11-12T10:05:00Z", input: 100 }]), 0, "seen rows are skipped");
+  assert.equal(
+    ingestUsage(store, binding, [{ ts: "2026-11-12T10:05:00Z", input: 100 }]),
+    0,
+    "seen rows are skipped",
+  );
   store.setMeta("flow.usage.readable", true);
   const { usage } = await ops.execute("flow.view", {});
   assert.equal(usage.available, true);
-  assert.deepEqual(usage.total, { input: 100, output: 10, credits: 2.5, turns: 2 });
+  assert.deepEqual(usage.total, {
+    input: 100,
+    output: 10,
+    credits: 2.5,
+    turns: 2,
+  });
   assert.deepEqual(
     usage.byStage.map((r) => [r.key, r.input, r.credits]).sort(),
-    [["coding", 100, 0], ["tests", 0, 2.5]],
+    [
+      ["coding", 100, 0],
+      ["tests", 0, 2.5],
+    ],
   );
-  assert.deepEqual(usage.byModel.map((r) => r.key), ["m1"]);
-  assert.deepEqual(usage.byTask.map((r) => r.key), ["a"]);
+  assert.deepEqual(
+    usage.byModel.map((r) => r.key),
+    ["m1"],
+  );
+  assert.deepEqual(
+    usage.byTask.map((r) => r.key),
+    ["a"],
+  );
   assert.equal(usage.byWeek[0].key, "2026-11-09", "weeks start on Monday");
   const fresh = setup(t);
-  assert.equal((await fresh.ops.execute("flow.view", {})).usage.available, false, "not available until a read answers");
+  assert.equal(
+    (await fresh.ops.execute("flow.view", {})).usage.available,
+    false,
+    "not available until a read answers",
+  );
 });

@@ -41,7 +41,17 @@ const { values: args } = parseArgs({
     out: { type: "string" },
   },
 });
-for (const key of ["db", "docs", "commit", "code", "refs", "prep", "reconcile", "decompose", "out"])
+for (const key of [
+  "db",
+  "docs",
+  "commit",
+  "code",
+  "refs",
+  "prep",
+  "reconcile",
+  "decompose",
+  "out",
+])
   if (!args[key]) throw Error("--" + key + " is required");
 if (!/^[0-9a-f]{40}$/.test(args.commit))
   throw Error("--commit must be a full commit hash");
@@ -94,12 +104,22 @@ const refs = Object.fromEntries(args.refs.split(",").map((p) => p.split("=")));
 const known = new Map();
 const commitRefs = (sha) => {
   if (!known.has(sha)) {
-    const full = git(args.code, "rev-parse", "--verify", "-q", sha + "^{commit}")?.trim();
+    const full = git(
+      args.code,
+      "rev-parse",
+      "--verify",
+      "-q",
+      sha + "^{commit}",
+    )?.trim();
     known.set(
       sha,
       full
         ? Object.entries(refs)
-            .filter(([, ref]) => git(args.code, "merge-base", "--is-ancestor", full, ref) !== null)
+            .filter(
+              ([, ref]) =>
+                git(args.code, "merge-base", "--is-ancestor", full, ref) !==
+                null,
+            )
             .map(([name]) => name)
         : null,
     );
@@ -107,13 +127,23 @@ const commitRefs = (sha) => {
   return known.get(sha);
 };
 const branchExists = (name) =>
-  git(args.code, "rev-parse", "--verify", "-q", "refs/remotes/origin/" + name) !== null ||
+  git(
+    args.code,
+    "rev-parse",
+    "--verify",
+    "-q",
+    "refs/remotes/origin/" + name,
+  ) !== null ||
   git(args.code, "rev-parse", "--verify", "-q", "refs/heads/" + name) !== null;
 
 const existingIds = data.tasks.map((t) => t.id);
 const partial = partialEvidence(data, {
   epicIds: args.epics?.split(","),
-  runs: runs.map((r) => ({ id: r.id, taskId: r.taskId ?? r.task_id, state: r.state })),
+  runs: runs.map((r) => ({
+    id: r.id,
+    taskId: r.taskId ?? r.task_id,
+    state: r.state,
+  })),
   mapping,
   readDocument,
   commitRefs,
@@ -125,14 +155,10 @@ const reconciliation = applyProposals(partial, json(args.reconcile).proposals, {
   existingIds,
 });
 const broad = broadScope(data, kinds, { mapping });
-const decomposition = applyProposals(
-  broad,
-  json(args.decompose).proposals,
-  {
-    verdicts: ["leaf", "package", "hold"],
-    existingIds: [...existingIds, ...reconciliation.leaves.map((l) => l.id)],
-  },
-);
+const decomposition = applyProposals(broad, json(args.decompose).proposals, {
+  verdicts: ["leaf", "package", "hold"],
+  existingIds: [...existingIds, ...reconciliation.leaves.map((l) => l.id)],
+});
 const drain = runEvidence(data, {
   runs,
   events,
@@ -144,8 +170,14 @@ const drain = runEvidence(data, {
 const errors = [...reconciliation.errors, ...decomposition.errors];
 fs.mkdirSync(args.out, { recursive: true });
 // The planner reads these to write its proposals; they are kept with them.
-fs.writeFileSync(path.join(args.out, "partial-evidence.json"), JSON.stringify(partial, null, 2) + "\n");
-fs.writeFileSync(path.join(args.out, "broad-scope.json"), JSON.stringify(broad, null, 2) + "\n");
+fs.writeFileSync(
+  path.join(args.out, "partial-evidence.json"),
+  JSON.stringify(partial, null, 2) + "\n",
+);
+fs.writeFileSync(
+  path.join(args.out, "broad-scope.json"),
+  JSON.stringify(broad, null, 2) + "\n",
+);
 if (errors.length) {
   console.error(errors.join("\n"));
   process.exit(1);
@@ -158,9 +190,18 @@ const table = (obj) =>
     .sort()
     .map(([k, v]) => `| ${k} | ${v} |`)
     .join("\n");
-const cell = (s) => String(s ?? "").replace(/\|/g, "\\|").replace(/\s+/g, " ").trim();
-const source = `Source revision ${data.revision}; documents at commit \`${args.commit}\`; code refs ${Object.entries(refs)
-  .map(([n, r]) => `${n} = \`${git(args.code, "rev-parse", r)?.trim().slice(0, 12)}\``)
+const cell = (s) =>
+  String(s ?? "")
+    .replace(/\|/g, "\\|")
+    .replace(/\s+/g, " ")
+    .trim();
+const source = `Source revision ${data.revision}; documents at commit \`${args.commit}\`; code refs ${Object.entries(
+  refs,
+)
+  .map(
+    ([n, r]) =>
+      `${n} = \`${git(args.code, "rev-parse", r)?.trim().slice(0, 12)}\``,
+  )
   .join(", ")}.`;
 const commitCell = (cs) => {
   const by = (pred) => cs.filter(pred).length;
@@ -217,7 +258,13 @@ ${reconciliation.rows
     (r) =>
       `| ${r.id} | ${r.commits
         .filter((c) => !c.refs.length)
-        .map((c) => "`" + c.sha + "`" + (c.resolved ? " unmerged" : " does not resolve"))
+        .map(
+          (c) =>
+            "`" +
+            c.sha +
+            "`" +
+            (c.resolved ? " unmerged" : " does not resolve"),
+        )
         .join(", ")} |`,
   )
   .join("\n")}
@@ -255,7 +302,9 @@ write(
   "drain.md",
   `# Old-host run drain
 
-${source} ${drain.length} runs were open in the old host (${Object.entries(count(drain, "state"))
+${source} ${drain.length} runs were open in the old host (${Object.entries(
+    count(drain, "state"),
+  )
     .map(([k, v]) => `${v} ${k}`)
     .join(", ")}).
 

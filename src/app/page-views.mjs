@@ -204,7 +204,9 @@ export function reviewGroups(store, data) {
     });
   }
   return [...groups.values()]
-    .sort((a, b) => b.tasks.length - a.tasks.length || a.name.localeCompare(b.name))
+    .sort(
+      (a, b) => b.tasks.length - a.tasks.length || a.name.localeCompare(b.name),
+    )
     .map((group) => ({
       kind: "review",
       id: `review:${group.key}`,
@@ -751,7 +753,9 @@ export function conflictsView(store, data) {
         detail: "Task is blocked.",
       });
     // A decision on the task already asks the owner; one item is enough.
-    const orphan = task.decision ? null : statusWithoutSession(task, live, claimed);
+    const orphan = task.decision
+      ? null
+      : statusWithoutSession(task, live, claimed);
     if (orphan)
       items.push({
         kind: "needs-human",
@@ -783,7 +787,8 @@ export function conflictsView(store, data) {
       link: sessionUrl(binding.slot),
       // Retry applies only to a delivery stopped for a decision; any other
       // ended attempt is retried by the tick on its own.
-      deliveryState: optionalGet(store, "task_deliveries", task.id)?.state ?? null,
+      deliveryState:
+        optionalGet(store, "task_deliveries", task.id)?.state ?? null,
       batch: optionalGet(store, "task_deliveries", task.id)?.batch ?? null,
     });
   }
@@ -794,7 +799,10 @@ export function conflictsView(store, data) {
     if (decision.state !== "open") continue;
     const task = decision.taskId ? byId.get(decision.taskId) : null;
     items.push({
-      kind: decision.kind === "unavailable" ? "content-unavailable" : "content-match",
+      kind:
+        decision.kind === "unavailable"
+          ? "content-unavailable"
+          : "content-match",
       id: decision.id,
       taskId: decision.taskId ?? null,
       ...(task ? ownership(task) : {}),
@@ -860,25 +868,41 @@ export function conflictsView(store, data) {
 // plan. Writes nothing. `locked` says why the page must not write the row
 // and drafts a plan change instead: GitHub or a tracker plugin owns it, or it
 // came from a plan whose current text is approved.
-export function taskDetailView(store, data, detail, { plan = null, approved = false } = {}) {
+export function taskDetailView(
+  store,
+  data,
+  detail,
+  { plan = null, approved = false } = {},
+) {
   const id = detail.id,
     graph = graphView(store, data, {}),
     node = graph.tasks.find((task) => task.id === id) || null,
-    titles = new Map(data.tasks.map((task) => [task.id, task.title ?? task.id])),
+    titles = new Map(
+      data.tasks.map((task) => [task.id, task.title ?? task.id]),
+    ),
     blocking = data.edges.filter((edge) => BLOCKING.has(edge.kind)),
     satisfied = new Map(
-      graph.edges.map((edge) => [`${edge.from}\u0000${edge.to}\u0000${edge.kind}`, edge.satisfied]),
+      graph.edges.map((edge) => [
+        `${edge.from}\u0000${edge.to}\u0000${edge.kind}`,
+        edge.satisfied,
+      ]),
     ),
     edge = (e, other) => ({
       id: other,
       title: titles.get(other) ?? other,
       kind: e.kind,
       condition: e.condition ?? null,
-      satisfied: satisfied.get(`${e.from}\u0000${e.to}\u0000${e.kind}`) ?? false,
+      satisfied:
+        satisfied.get(`${e.from}\u0000${e.to}\u0000${e.kind}`) ?? false,
     }),
     delivery =
-      deliveryView(store, { ...data, tasks: data.tasks.filter((task) => task.id === id) }).items[0] || null,
-    conflicts = conflictsView(store, data).items.filter((item) => item.taskId === id),
+      deliveryView(store, {
+        ...data,
+        tasks: data.tasks.filter((task) => task.id === id),
+      }).items[0] || null,
+    conflicts = conflictsView(store, data).items.filter(
+      (item) => item.taskId === id,
+    ),
     authority = taskAuthority(detail);
   // Wave: one more than the highest wave this task waits on.
   const before = new Map();
@@ -927,7 +951,10 @@ export function taskDetailView(store, data, detail, { plan = null, approved = fa
       acceptance: detail.acceptance || [],
       checks: detail.checks || [],
       epic: detail.epic ?? null,
-      epicTitle: data.epics.find((e) => e.id === detail.epic)?.title ?? detail.epic ?? null,
+      epicTitle:
+        data.epics.find((e) => e.id === detail.epic)?.title ??
+        detail.epic ??
+        null,
       kind: taskKind(detail),
       authority,
       route: taskRoute(detail),
@@ -992,7 +1019,11 @@ export function taskOrigin(task, data, plan = null) {
           ? `, lines ${s.lineStart}–${s.lineEnd}`
           : `, line ${s.lineStart}`
         : "";
-  const base = { sources, spec, plan: plan ? { id: plan.id, title: plan.title ?? plan.id } : null };
+  const base = {
+    sources,
+    spec,
+    plan: plan ? { id: plan.id, title: plan.title ?? plan.id } : null,
+  };
   if (origin === "issue")
     return {
       ...base,
@@ -1039,7 +1070,8 @@ export function taskOrigin(task, data, plan = null) {
       kind: "captured",
       label: "A captured prompt",
       text: "Someone described this task in a prompt, and Avoozl captured it as a draft.",
-      prompt: typeof task.prompt === "string" ? task.prompt.slice(0, 2000) : null,
+      prompt:
+        typeof task.prompt === "string" ? task.prompt.slice(0, 2000) : null,
     };
   return {
     ...base,
@@ -1056,19 +1088,35 @@ export function taskTimeline(task, delivery) {
   return [
     task.updatedAt && { at: task.updatedAt, text: "Task row changed" },
     ...(delivery?.sessions || []).flatMap((s) => [
-      s.boundAt && { at: s.boundAt, text: `${s.role} attempt ${s.attempt} started` },
-      s.statusAt && { at: s.statusAt, text: `${s.role} attempt ${s.attempt} is ${s.status}` },
+      s.boundAt && {
+        at: s.boundAt,
+        text: `${s.role} attempt ${s.attempt} started`,
+      },
+      s.statusAt && {
+        at: s.statusAt,
+        text: `${s.role} attempt ${s.attempt} is ${s.status}`,
+      },
     ]),
-    ...(delivery?.evidence || []).map((e) => e.at && { at: e.at, text: `Evidence: ${e.kind || "record"}` }),
+    ...(delivery?.evidence || []).map(
+      (e) => e.at && { at: e.at, text: `Evidence: ${e.kind || "record"}` },
+    ),
     ...(delivery?.deliveries || []).map(
-      (d) => typeof d.updatedAt === "string" && { at: d.updatedAt, text: `Delivery is ${d.state}` },
+      (d) =>
+        typeof d.updatedAt === "string" && {
+          at: d.updatedAt,
+          text: `Delivery is ${d.state}`,
+        },
     ),
     delivery?.integration?.at && {
       at: delivery.integration.at,
       text: `Integrated ${String(delivery.integration.commit || "").slice(0, 12)}`,
     },
     ...(task.runs || delivery?.runs || []).map(
-      (run) => run.createdAt && { at: run.createdAt, text: `Run ${run.id} (${run.state})` },
+      (run) =>
+        run.createdAt && {
+          at: run.createdAt,
+          text: `Run ${run.id} (${run.state})`,
+        },
     ),
   ]
     .filter((entry) => entry && typeof entry.at === "string")
@@ -1079,12 +1127,16 @@ export function taskTimeline(task, delivery) {
 // across the workspace, newest first. Writes nothing.
 export function activityView(store, data, { limit = 50 } = {}) {
   const max = Math.max(1, Math.min(Number(limit) || 50, 200)),
-    delivery = new Map(deliveryView(store, data).items.map((item) => [item.id, item])),
+    delivery = new Map(
+      deliveryView(store, data).items.map((item) => [item.id, item]),
+    ),
     items = [];
   for (const task of data.tasks)
     for (const entry of taskTimeline(task, delivery.get(task.id)))
       items.push({ ...entry, taskId: task.id, title: task.title ?? task.id });
-  items.sort((a, b) => b.at.localeCompare(a.at) || a.taskId.localeCompare(b.taskId));
+  items.sort(
+    (a, b) => b.at.localeCompare(a.at) || a.taskId.localeCompare(b.taskId),
+  );
   return { revision: data.revision, items: items.slice(0, max) };
 }
 
@@ -1098,7 +1150,8 @@ export function inPlan(task, { plan = null, spec = null } = {}) {
   return (
     (typeof task.epic === "string" && task.epic.startsWith(`doc:${folder}`)) ||
     taskSourceRefs(task).some(
-      (ref) => typeof ref.document === "string" && ref.document.startsWith(folder),
+      (ref) =>
+        typeof ref.document === "string" && ref.document.startsWith(folder),
     )
   );
 }
@@ -1109,7 +1162,7 @@ export function inPlan(task, { plan = null, spec = null } = {}) {
 export function specOf(task) {
   const folder = (document) =>
     typeof document === "string"
-      ? document.match(/^\.kiro\/specs\/([^/]+)\//)?.[1] ?? null
+      ? (document.match(/^\.kiro\/specs\/([^/]+)\//)?.[1] ?? null)
       : null;
   if (typeof task.epic === "string" && task.epic.startsWith("doc:")) {
     const name = folder(task.epic.slice(4));
@@ -1123,7 +1176,10 @@ export function specOf(task) {
 }
 
 const newest = (...values) =>
-  values.filter((value) => typeof value === "string" && value).sort().at(-1) ?? null;
+  values
+    .filter((value) => typeof value === "string" && value)
+    .sort()
+    .at(-1) ?? null;
 
 // A Plans row's archive state (plan.archive) and its archive events (`events`, apart from the revision `history`):
 // who archived or unarchived it, and when, newest first.
@@ -1141,22 +1197,39 @@ const archiveFields = (plan) => ({
 // counts, what is ready, running or needs a person, and its last change.
 // `specs` is plan.specs's items, each with `modifiedAt` and `category`;
 // `stored` is every live stored plan. Writes nothing.
-export function plansTableView(store, data, { specs = [], stored = [], categoryOf }) {
+export function plansTableView(
+  store,
+  data,
+  { specs = [], stored = [], categoryOf },
+) {
   const graph = graphView(store, data, {}),
     state = new Map(graph.tasks.map((task) => [task.id, task.state])),
-    claimed = new Set(specs.flatMap((spec) => (spec.plan ? [spec.plan.id] : [])));
+    claimed = new Set(
+      specs.flatMap((spec) => (spec.plan ? [spec.plan.id] : [])),
+    );
   const counts = (scope) => {
-    const tasks = data.tasks.filter((task) => inPlan(task, scope) && task.status !== "superseded"),
-      leaves = tasks.filter((task) => !["epic", "package"].includes(taskKind(task))),
+    const tasks = data.tasks.filter(
+        (task) => inPlan(task, scope) && task.status !== "superseded",
+      ),
+      leaves = tasks.filter(
+        (task) => !["epic", "package"].includes(taskKind(task)),
+      ),
       epicTasks = tasks.filter((task) => taskKind(task) === "epic"),
-      of = (name) => leaves.filter((task) => state.get(task.id) === name).length;
+      of = (name) =>
+        leaves.filter((task) => state.get(task.id) === name).length;
     return {
       tasks: {
         total: leaves.length,
         done: of("done"),
       },
-      now: { ready: of("ready"), running: of("running"), needsYou: of("needs-you") },
-      epics: epicTasks.length || new Set(leaves.map((task) => task.epic).filter(Boolean)).size,
+      now: {
+        ready: of("ready"),
+        running: of("running"),
+        needsYou: of("needs-you"),
+      },
+      epics:
+        epicTasks.length ||
+        new Set(leaves.map((task) => task.epic).filter(Boolean)).size,
       changedAt: newest(...tasks.map((task) => task.updatedAt)),
     };
   };
@@ -1240,10 +1313,16 @@ const CONTEXT_DOC_CHARS = 20000,
   CONTEXT_HISTORY = 12;
 
 const clipText = (text, max) =>
-  text.length > max ? `${text.slice(0, max)}\n\n[cut at ${max} characters]` : text;
+  text.length > max
+    ? `${text.slice(0, max)}\n\n[cut at ${max} characters]`
+    : text;
 
 const shown = (value) =>
-  Array.isArray(value) ? value.join(", ") || "none" : value ? String(value) : "empty";
+  Array.isArray(value)
+    ? value.join(", ") || "none"
+    : value
+      ? String(value)
+      : "empty";
 
 export function sameItem(item, key) {
   return (
@@ -1255,13 +1334,26 @@ export function sameItem(item, key) {
   );
 }
 
-export function chatContext(store, data, input = {}, { documents = null, planRow = null } = {}) {
-  const keys = Array.isArray(input.items) ? input.items.slice(0, CONTEXT_ITEMS) : [],
-    taskIds = Array.isArray(input.tasks) ? input.tasks.filter((id) => typeof id === "string").slice(0, CONTEXT_ITEMS) : [],
+export function chatContext(
+  store,
+  data,
+  input = {},
+  { documents = null, planRow = null } = {},
+) {
+  const keys = Array.isArray(input.items)
+      ? input.items.slice(0, CONTEXT_ITEMS)
+      : [],
+    taskIds = Array.isArray(input.tasks)
+      ? input.tasks
+          .filter((id) => typeof id === "string")
+          .slice(0, CONTEXT_ITEMS)
+      : [],
     byId = new Map(data.tasks.map((task) => [task.id, task])),
     plans = new Map(store.list("plans").map((plan) => [plan.id, plan])),
     conflicts = keys.length ? conflictsView(store, data).items : [],
-    delivery = new Map(deliveryView(store, data).items.map((item) => [item.id, item])),
+    delivery = new Map(
+      deliveryView(store, data).items.map((item) => [item.id, item]),
+    ),
     graph = graphView(store, data, {}),
     state = new Map(graph.tasks.map((task) => [task.id, task.state])),
     lines = [];
@@ -1270,7 +1362,9 @@ export function chatContext(store, data, input = {}, { documents = null, planRow
     if (!task) return [`- Task ${id}: not found in this workspace.`];
     const plan = task.planId ? plans.get(task.planId) : null,
       spec = specOf(task),
-      waits = data.edges.filter((e) => e.to === id && BLOCKING.has(e.kind)).map((e) => e.from),
+      waits = data.edges
+        .filter((e) => e.to === id && BLOCKING.has(e.kind))
+        .map((e) => e.from),
       history = taskTimeline(task, delivery.get(id)).slice(0, CONTEXT_HISTORY);
     return [
       `- Task: ${task.title ?? id} (${id})`,
@@ -1281,15 +1375,23 @@ export function chatContext(store, data, input = {}, { documents = null, planRow
       ...(task.decision ? [`- Open decision: ${task.decision}`] : []),
       ...(issueLink(task)?.url ? [`- Issue: ${issueLink(task).url}`] : []),
       ...(history.length
-        ? ["- History, newest first:", ...history.map((entry) => `  - ${entry.at} ${entry.text}`)]
+        ? [
+            "- History, newest first:",
+            ...history.map((entry) => `  - ${entry.at} ${entry.text}`),
+          ]
         : ["- History: nothing recorded."]),
     ];
   };
   if (keys.length) {
-    lines.push(`## ${keys.length === 1 ? "The item" : `${keys.length} items`} that need me`, "");
+    lines.push(
+      `## ${keys.length === 1 ? "The item" : `${keys.length} items`} that need me`,
+      "",
+    );
     keys.forEach((key, n) => {
       const item = conflicts.find((candidate) => sameItem(candidate, key));
-      lines.push(`### ${n + 1}. ${item ? item.title : `${key.kind} on ${key.taskId ?? "the workspace"}`}`);
+      lines.push(
+        `### ${n + 1}. ${item ? item.title : `${key.kind} on ${key.taskId ?? "the workspace"}`}`,
+      );
       if (!item) {
         lines.push("- This item is no longer open.", "");
         return;
@@ -1299,25 +1401,37 @@ export function chatContext(store, data, input = {}, { documents = null, planRow
         `- Why: ${item.detail}`,
       );
       if (item.expected !== undefined || item.actual !== undefined)
-        lines.push(`- Avoozl expected: ${shown(item.expected)}`, `- GitHub has: ${shown(item.actual)}`);
+        lines.push(
+          `- Avoozl expected: ${shown(item.expected)}`,
+          `- GitHub has: ${shown(item.actual)}`,
+        );
       if (item.changedBy || item.changedAt)
-        lines.push(`- Changed by ${item.changedBy ?? "unknown"} at ${item.changedAt ?? "unknown time"}`);
+        lines.push(
+          `- Changed by ${item.changedBy ?? "unknown"} at ${item.changedAt ?? "unknown time"}`,
+        );
       if (item.openedAt) lines.push(`- Opened: ${item.openedAt}`);
-      if (item.choices?.length) lines.push(`- Choices: ${item.choices.join(", ")}`);
+      if (item.choices?.length)
+        lines.push(`- Choices: ${item.choices.join(", ")}`);
       if (item.taskId) lines.push(...taskLines(item.taskId));
       if (item.tasks?.length)
         lines.push(
           "- Tasks:",
           ...item.tasks
             .slice(0, CONTEXT_TASKS)
-            .map((task) => `  - ${task.id} ${task.title} (${task.status ?? "no status"})`),
+            .map(
+              (task) =>
+                `  - ${task.id} ${task.title} (${task.status ?? "no status"})`,
+            ),
         );
       lines.push("");
     });
   }
-  for (const id of taskIds) lines.push(`## Task ${id}`, "", ...taskLines(id), "");
+  for (const id of taskIds)
+    lines.push(`## Task ${id}`, "", ...taskLines(id), "");
   if (planRow) {
-    const members = graph.tasks.filter((task) => inPlan(byId.get(task.id), { plan: planRow.planId, spec: planRow.spec }));
+    const members = graph.tasks.filter((task) =>
+      inPlan(byId.get(task.id), { plan: planRow.planId, spec: planRow.spec }),
+    );
     lines.push(
       `## Plan ${planRow.name}`,
       "",
@@ -1326,16 +1440,34 @@ export function chatContext(store, data, input = {}, { documents = null, planRow
       `- Tasks: ${planRow.tasks.done} of ${planRow.tasks.total} done; ${planRow.now.ready} ready, ${planRow.now.running} running, ${planRow.now.needsYou} need me`,
       "",
       "### Tasks",
-      ...members.slice(0, CONTEXT_TASKS).map((task) => `- ${task.id} ${task.title} (${task.state}${task.decision ? `; decision: ${task.decision}` : ""})`),
-      ...(members.length > CONTEXT_TASKS ? [`- and ${members.length - CONTEXT_TASKS} more`] : []),
+      ...members
+        .slice(0, CONTEXT_TASKS)
+        .map(
+          (task) =>
+            `- ${task.id} ${task.title} (${task.state}${task.decision ? `; decision: ${task.decision}` : ""})`,
+        ),
+      ...(members.length > CONTEXT_TASKS
+        ? [`- and ${members.length - CONTEXT_TASKS} more`]
+        : []),
       "",
     );
     for (const [file, text] of Object.entries(documents?.documents ?? {}))
-      lines.push(`### ${file}`, "", "```markdown", clipText(text, CONTEXT_DOC_CHARS), "```", "");
+      lines.push(
+        `### ${file}`,
+        "",
+        "```markdown",
+        clipText(text, CONTEXT_DOC_CHARS),
+        "```",
+        "",
+      );
   }
   const ask =
     input.purpose === "discuss-plan"
       ? "Discuss this plan with me. Answer from the documents, tasks and state below. Make no edits to any file, task or plan, and start no sessions."
       : "Explain why each item below needs me and what each choice would do, then recommend one. Do not change anything, settle anything or start any session until I say which.";
-  return { message: [`Context from the Avoozl page.`, ask, "", ...lines].join("\n").trim() };
+  return {
+    message: [`Context from the Avoozl page.`, ask, "", ...lines]
+      .join("\n")
+      .trim(),
+  };
 }

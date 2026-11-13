@@ -38,7 +38,10 @@ export function settleConflicts(store, input = {}, expectedRevision) {
     items.some((item) => typeof item?.taskId !== "string")
   )
     fail(`Name 1 to ${MAX_ITEMS} items, each with its taskId.`);
-  if (action === "dismiss" && items.some((item) => typeof item.slot !== "string"))
+  if (
+    action === "dismiss" &&
+    items.some((item) => typeof item.slot !== "string")
+  )
     fail("Name the ended session's slot for each item to dismiss.");
   if (
     action === "settle" &&

@@ -11,9 +11,20 @@ function checkout(t, name) {
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const root = path.join(dir, name);
   fs.mkdirSync(root);
-  const git = (...args) => execFileSync("git", args, { cwd: root, stdio: "ignore" });
+  const git = (...args) =>
+    execFileSync("git", args, { cwd: root, stdio: "ignore" });
   git("init", "-q", "-b", "trunk");
-  git("-c", "user.email=a@b", "-c", "user.name=a", "commit", "-q", "--allow-empty", "-m", "x");
+  git(
+    "-c",
+    "user.email=a@b",
+    "-c",
+    "user.name=a",
+    "commit",
+    "-q",
+    "--allow-empty",
+    "-m",
+    "x",
+  );
   return { root: fs.realpathSync(root), git };
 }
 
@@ -38,6 +49,9 @@ test("detect without a remote, and refusals for bad folders", async (t) => {
   assert.equal(found.github, null);
   assert.equal(found.remote, null);
   await assert.rejects(detectCheckout("relative/path"), /absolute path/);
-  await assert.rejects(detectCheckout(path.join(root, "missing")), /does not exist/);
+  await assert.rejects(
+    detectCheckout(path.join(root, "missing")),
+    /does not exist/,
+  );
   await assert.rejects(detectCheckout(os.tmpdir()), /not a Git checkout/);
 });

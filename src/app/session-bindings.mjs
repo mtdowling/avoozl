@@ -37,7 +37,9 @@ function text(value, label, max) {
     value.length > max ||
     /[\u0000-\u001f\u007f]/.test(value)
   )
-    fail(`Choose ${/^[aeiou]/.test(label) ? "an" : "a"} ${label} of 1–${max} printable characters.`);
+    fail(
+      `Choose ${/^[aeiou]/.test(label) ? "an" : "a"} ${label} of 1–${max} printable characters.`,
+    );
   return value.trim();
 }
 
@@ -67,10 +69,14 @@ function batchInput(value, role, leader) {
     !Array.isArray(value.tasks) ||
     value.tasks.length < 2 ||
     value.tasks.length > 10 ||
-    value.tasks.some((id) => typeof id !== "string" || !id || id.length > 200) ||
+    value.tasks.some(
+      (id) => typeof id !== "string" || !id || id.length > 200,
+    ) ||
     value.tasks[0] !== leader
   )
-    fail("A batch is {id, tasks: [leader, ...]} of 2–10 task IDs on a worker binding.");
+    fail(
+      "A batch is {id, tasks: [leader, ...]} of 2–10 task IDs on a worker binding.",
+    );
   return {
     id: value.id,
     tasks: [...value.tasks],
@@ -90,7 +96,10 @@ export function bindSession(store, input = {}, { guard, conductor } = {}) {
   if (input.model !== undefined && !MODEL.test(input.model))
     fail("Choose a model name.");
   // Placement (§4.10, R41.9, R53.10): the crew, agent, and why.
-  if (input.crew !== undefined && !/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(input.crew))
+  if (
+    input.crew !== undefined &&
+    !/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(input.crew)
+  )
     fail("Choose a crew id.");
   if (input.agent !== undefined && !AGENT.test(input.agent))
     fail("Choose an agent name.");
@@ -103,7 +112,8 @@ export function bindSession(store, input = {}, { guard, conductor } = {}) {
     fail("A placement is an object of at most 8000 characters.");
   if (
     input.sessionReason !== undefined &&
-    (typeof input.sessionReason !== "string" || input.sessionReason.length > 300)
+    (typeof input.sessionReason !== "string" ||
+      input.sessionReason.length > 300)
   )
     fail("A session reason is at most 300 characters.");
   if (input.commit !== undefined && !SHA.test(input.commit))
@@ -128,7 +138,8 @@ export function bindSession(store, input = {}, { guard, conductor } = {}) {
         (role === "responder" && store.get("github_responses", named)) ||
         // A retrospective binds to its retro record (§4.11).
         (role === "retro" && store.get("flow_retros", named)) ||
-        (role === "router" && store.getMeta("routing.router.batch")?.id === named) ||
+        (role === "router" &&
+          store.getMeta("routing.router.batch")?.id === named) ||
         // A code review chat binds to its request (pr-review.mjs).
         (role === "pr-review" &&
           store.get("receipts", named)?.kind === "pr-review")

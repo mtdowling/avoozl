@@ -37,7 +37,8 @@ function privilegedConfiguration(value) {
   return Object.fromEntries(
     Object.entries(value).filter(
       // `packs` only records where imported settings came from.
-      ([key]) => !["$schema", "version", "conversations", "packs"].includes(key),
+      ([key]) =>
+        !["$schema", "version", "conversations", "packs"].includes(key),
     ),
   );
 }
@@ -847,7 +848,10 @@ export class RepositorySettings {
       hash: file.hash,
       on: record(file.value.delivery),
       delivery: Object.fromEntries(
-        DELIVERY_FORM_KEYS.filter((key) => key in delivery).map((key) => [key, delivery[key]]),
+        DELIVERY_FORM_KEYS.filter((key) => key in delivery).map((key) => [
+          key,
+          delivery[key],
+        ]),
       ),
     };
   }
@@ -862,10 +866,14 @@ export class RepositorySettings {
         fail(`delivery.${key} is not set here.`);
     const value = this.updateValue(before);
     if (!record(value.delivery))
-      fail("Delivery is off in .avoozl.json; turn it on before changing these.", 409);
+      fail(
+        "Delivery is off in .avoozl.json; turn it on before changing these.",
+        409,
+      );
     const next = { ...value.delivery };
     for (const key of DELIVERY_FORM_KEYS)
-      if (delivery[key] === undefined || delivery[key] === null) delete next[key];
+      if (delivery[key] === undefined || delivery[key] === null)
+        delete next[key];
       else next[key] = delivery[key];
     value.delivery = next;
     this.write(value, { expectedHash: before.hash });
@@ -882,7 +890,10 @@ export class RepositorySettings {
       name = key.replace(/^delivery\./, ""),
       delivery = record(value.delivery) ? value.delivery : {};
     if (JSON.stringify(delivery[name]) !== JSON.stringify(from))
-      fail(`${key} is now ${JSON.stringify(delivery[name])}, not ${JSON.stringify(from)}; this proposal is stale.`, 409);
+      fail(
+        `${key} is now ${JSON.stringify(delivery[name])}, not ${JSON.stringify(from)}; this proposal is stale.`,
+        409,
+      );
     value.delivery = { ...delivery, [name]: to };
     this.write(value, { expectedHash: before.hash });
     return this.readFile();

@@ -17,7 +17,9 @@ function record(sql) {
     trace,
     JSON.stringify({
       sql: sql.trim().split(/\s+/).slice(0, 4).join(" "),
-      operations: stack.some((line) => line.includes("/src/app/operations.mjs")),
+      operations: stack.some((line) =>
+        line.includes("/src/app/operations.mjs"),
+      ),
       stack: stack.slice(0, 8).map((line) => line.trim()),
     }) + "\n",
   );

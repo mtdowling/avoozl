@@ -60,14 +60,25 @@ test("a worker brief quotes an issue's or an item's text as data", () => {
 test("verifier and reviewer briefs quote an issue's text as data", () => {
   quotedOnly(verifierBrief(fromIssue, PROJECT, "a".repeat(40), 1));
   quotedOnly(
-    reviewBrief(fromIssue, PROJECT, "a".repeat(40), 1, { id: "r", focus: "f" }, []),
+    reviewBrief(
+      fromIssue,
+      PROJECT,
+      "a".repeat(40),
+      1,
+      { id: "r", focus: "f" },
+      [],
+    ),
   );
 });
 
 test("pull request feedback quotes check names and cuts long text", () => {
   const text = feedbackText(
     fromIssue,
-    { url: "https://github.com/o/app/pull/3", head: "b".repeat(40), base: "main" },
+    {
+      url: "https://github.com/o/app/pull/3",
+      head: "b".repeat(40),
+      base: "main",
+    },
     [
       {
         kind: "check",

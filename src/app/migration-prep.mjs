@@ -13,7 +13,10 @@ export const redactPaths = (text) =>
     .replace(/\/(?:Users|home)\/[^/\s`)\]]+\//g, "~/")
     .replace(/\/private\/tmp\//g, "/tmp/")
     .replace(/\/Volumes\/[^/\s`)\]]+\//g, "<volume>/")
-    .replace(/https?:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?[^\s)\]]*/g, "<local app>");
+    .replace(
+      /https?:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?[^\s)\]]*/g,
+      "<local app>",
+    );
 
 // The delivery epics: every snapshot epic that is not a catalog epic.
 export function deliveryEpics(data, ids) {
@@ -250,7 +253,10 @@ export function mapChecklistEntries(
   const block = (p, key) => {
     if (!located.has(p)) {
       const doc = lines(p);
-      located.set(p, new Map(doc ? blocks(doc.join("\n")).map((b) => [b.key, b]) : []));
+      located.set(
+        p,
+        new Map(doc ? blocks(doc.join("\n")).map((b) => [b.key, b]) : []),
+      );
     }
     return located.get(p).get(key);
   };

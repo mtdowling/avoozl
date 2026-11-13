@@ -219,9 +219,7 @@ export function retroBrief(store, data, retro) {
       lineStops: view.stops.map((s) => ({
         check: s.check,
         culprit: s.culprit,
-        ...(s.manual
-          ? { manual: true, scope: s.scope, reason: s.reason }
-          : {}),
+        ...(s.manual ? { manual: true, scope: s.scope, reason: s.reason } : {}),
         timeToFixMs: s.timeToFixMs ?? null,
       })),
       flaky: view.flaky.map((r) => ({ check: r.check, commit: r.commit })),
@@ -663,7 +661,10 @@ export function applyToConfig(file, proposal) {
 export function retroPrompt() {
   try {
     return JSON.parse(
-      fs.readFileSync(new URL("../../kirocrew-app/agents/avoozl-retro.json", import.meta.url), "utf8"),
+      fs.readFileSync(
+        new URL("../../kirocrew-app/agents/avoozl-retro.json", import.meta.url),
+        "utf8",
+      ),
     ).prompt;
   } catch {
     return null;

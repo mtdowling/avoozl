@@ -57,19 +57,19 @@ export const sha256 = (text) =>
 // written here; they come from a terms file.
 export const PUBLISH_RULES = Object.freeze(
   [
-  ["secret", "aws-key", /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/],
-  [
-    "secret",
-    "github-token",
-    /\bgh[pousr]_[A-Za-z0-9]{36,}|\bgithub_pat_[A-Za-z0-9_]{22,}/,
-  ],
-  ["secret", "private-key", /-----BEGIN [A-Z ]*PRIVATE KEY-----/],
-  ["secret", "slack-token", /\bxox[baprs]-[A-Za-z0-9-]{10,}/],
-  ["secret", "api-key", /\bsk-(?:ant|proj)-[A-Za-z0-9_-]{12,}/],
-  ["absolute-path", "macos-home", /\/Users\/[A-Za-z0-9._-]+/],
-  ["absolute-path", "macos-temp", /\/private\/(?:tmp|var)\//],
-  ["absolute-path", "linux-home", /\/home\/[a-z][a-z0-9_-]*\//],
-  ["absolute-path", "windows-home", /\b[A-Za-z]:\\+Users\\+/],
+    ["secret", "aws-key", /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/],
+    [
+      "secret",
+      "github-token",
+      /\bgh[pousr]_[A-Za-z0-9]{36,}|\bgithub_pat_[A-Za-z0-9_]{22,}/,
+    ],
+    ["secret", "private-key", /-----BEGIN [A-Z ]*PRIVATE KEY-----/],
+    ["secret", "slack-token", /\bxox[baprs]-[A-Za-z0-9-]{10,}/],
+    ["secret", "api-key", /\bsk-(?:ant|proj)-[A-Za-z0-9_-]{12,}/],
+    ["absolute-path", "macos-home", /\/Users\/[A-Za-z0-9._-]+/],
+    ["absolute-path", "macos-temp", /\/private\/(?:tmp|var)\//],
+    ["absolute-path", "linux-home", /\/home\/[a-z][a-z0-9_-]*\//],
+    ["absolute-path", "windows-home", /\b[A-Za-z]:\\+Users\\+/],
   ].map(([category, rule, pattern]) => ({ category, rule, pattern })),
 );
 
@@ -334,7 +334,14 @@ export function validateContentRules(
     if (!record(entry)) fail(`${where} must be an object.`);
     for (const key of Object.keys(entry))
       if (
-        !["id", "action", "boundaries", "repositories", "plugin", "remote"].includes(key)
+        ![
+          "id",
+          "action",
+          "boundaries",
+          "repositories",
+          "plugin",
+          "remote",
+        ].includes(key)
       )
         fail(`${where}.${key} is not a rule set setting.`);
     if (typeof entry.id !== "string" || !entry.id)
@@ -388,7 +395,10 @@ export function validateContentRules(
     }
     // Remote crews (§4.10, R41.11): a set covering `diff` forbids them by
     // default, because its pre-push hook is installed only on this machine.
-    if (entry.remote !== undefined && !["allow", "forbid"].includes(entry.remote))
+    if (
+      entry.remote !== undefined &&
+      !["allow", "forbid"].includes(entry.remote)
+    )
       fail(`${where}.remote must be allow or forbid.`);
     return {
       id: entry.id,
@@ -816,10 +826,7 @@ export function writeTermsFile(store, { id, text } = {}) {
       409,
     );
   const body = text.endsWith("\n") || !text ? text : text + "\n",
-    pending = path.join(
-      folder,
-      `.${id}.${process.pid}.${Date.now()}.pending`,
-    );
+    pending = path.join(folder, `.${id}.${process.pid}.${Date.now()}.pending`);
   const descriptor = fs.openSync(pending, "wx", 0o600);
   try {
     fs.writeFileSync(descriptor, body);

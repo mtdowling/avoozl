@@ -713,5 +713,8 @@ test("P28 (3): projection writes nothing for an issue whose title holds an encod
     [decision.set, decision.rules, decision.boundary, decision.line],
     ["fake-terms", ["codename"], "github", 1],
   );
-  assert.doesNotMatch(JSON.stringify(store.list("app_notifications")), /zorbl/i);
+  assert.doesNotMatch(
+    JSON.stringify(store.list("app_notifications")),
+    /zorbl/i,
+  );
 });

@@ -403,9 +403,7 @@ export function readyAt(store, data, task, attempt, memo = {}) {
   const blockers = (memo.blockers.get(task.id) || [])
     .map((id) => memo.byId.get(id))
     .filter(Boolean)
-    .map(
-      (t) => finishedAt(t) || t.childrenComplete?.at || t.acceptedAt || null,
-    )
+    .map((t) => finishedAt(t) || t.childrenComplete?.at || t.acceptedAt || null)
     .filter(Boolean)
     .sort();
   if (blockers.length) return blockers.at(-1);
@@ -905,10 +903,12 @@ export function flowSeries(timings, stops, unit = "day") {
         buckets.set(key, { key, tasks: [], fixes: [], opened: 0 });
       return buckets.get(key);
     };
-  for (const t of timings) if (t.finishedAt) get(bucketOf(t.finishedAt, unit)).tasks.push(t);
+  for (const t of timings)
+    if (t.finishedAt) get(bucketOf(t.finishedAt, unit)).tasks.push(t);
   for (const s of stops) {
     get(bucketOf(s.openedAt, unit)).opened += 1;
-    if (s.closedAt) get(bucketOf(s.closedAt, unit)).fixes.push(ms(s.openedAt, s.closedAt));
+    if (s.closedAt)
+      get(bucketOf(s.closedAt, unit)).fixes.push(ms(s.openedAt, s.closedAt));
   }
   return [...buckets.values()]
     .sort((a, b) => (a.key < b.key ? -1 : 1))
@@ -916,14 +916,19 @@ export function flowSeries(timings, stops, unit = "day") {
       const lead = tasks.reduce((sum, t) => sum + t.leadMs, 0),
         active = tasks.reduce((sum, t) => sum + t.activeMs, 0),
         stages = Object.fromEntries(
-          STAGES.map((s) => [s, tasks.reduce((sum, t) => sum + t.stages[s], 0)]),
+          STAGES.map((s) => [
+            s,
+            tasks.reduce((sum, t) => sum + t.stages[s], 0),
+          ]),
         );
       return {
         key,
         tasks: tasks.length,
         leadTimeMs: median(tasks.map((t) => t.leadMs)),
         flowEfficiency: lead ? active / lead : null,
-        firstPassRate: tasks.length ? tasks.filter((t) => t.firstPass).length / tasks.length : null,
+        firstPassRate: tasks.length
+          ? tasks.filter((t) => t.firstPass).length / tasks.length
+          : null,
         timeToFixMs: median(fixes),
         // Line stops opened in the bucket, automatic and pulled (R64.11).
         stops: opened,

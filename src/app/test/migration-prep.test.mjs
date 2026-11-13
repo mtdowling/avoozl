@@ -192,16 +192,42 @@ test("checklist entries map to the closest task or stay unmatched", () => {
 });
 
 test("checklist entries are found by key when the document moved", () => {
-  const old = ["# Plan", "## Collector", "- [ ] Generational collector with remembered sets"];
+  const old = [
+    "# Plan",
+    "## Collector",
+    "- [ ] Generational collector with remembered sets",
+  ];
   const [b] = blocks(old.join("\n"));
-  const doc = ["# Plan", "Intro added later.", "", "## Collector", "- [ ] Paint the bikeshed purple", old[2]];
+  const doc = [
+    "# Plan",
+    "Intro added later.",
+    "",
+    "## Collector",
+    "- [ ] Paint the bikeshed purple",
+    old[2],
+  ];
   const d = data();
   const e1 = d.tasks.find((t) => t.id === "e1");
-  e1.source = { document: "plan.md", key: b.key, lineStart: 3, lineEnd: 3, checked: false };
+  e1.source = {
+    document: "plan.md",
+    key: b.key,
+    lineStart: 3,
+    lineEnd: 3,
+    checked: false,
+  };
   const e2 = d.tasks.find((t) => t.id === "e2");
   e2.title = "Frozen tables";
-  e2.source = { document: "plan.md", key: "gone", lineStart: 6, lineEnd: 6, checked: false };
-  const m = mapChecklistEntries(d, { entryEpics: ["doc:plan.md"], readDocument: () => doc });
+  e2.source = {
+    document: "plan.md",
+    key: "gone",
+    lineStart: 6,
+    lineEnd: 6,
+    checked: false,
+  };
+  const m = mapChecklistEntries(d, {
+    entryEpics: ["doc:plan.md"],
+    readDocument: () => doc,
+  });
   const byId = Object.fromEntries(m.entries.map((e) => [e.id, e]));
   assert.equal(byId.e1.lineStart, 6);
   assert.equal(byId.e1.located, true);

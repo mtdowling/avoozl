@@ -64,7 +64,9 @@ test("task.detail shows the task, both directions of links, delivery, conflicts 
     detail.delivery.sessions.map((s) => s.slot),
     ["slot-b-1"],
   );
-  assert.ok(detail.timeline.some((entry) => /worker attempt 1/.test(entry.text)));
+  assert.ok(
+    detail.timeline.some((entry) => /worker attempt 1/.test(entry.text)),
+  );
   assert.equal(detail.locked, null);
   assert.equal(store.read().revision, before, "the read writes nothing");
   const github = await ops.execute("task.detail", { id: "g" });
@@ -111,7 +113,11 @@ test("a new task from the page is a draft that waits for review, never ready", a
 test("a prerequisite that makes a cycle is refused with its path", async (t) => {
   const { ops } = workspace(t);
   await assert.rejects(
-    ops.execute("task.update", { id: "a", requires: ["c"] }, ops.read().revision),
+    ops.execute(
+      "task.update",
+      { id: "a", requires: ["c"] },
+      ops.read().revision,
+    ),
     (error) =>
       error.status === 409 &&
       error.code === "cycle" &&
@@ -119,7 +125,11 @@ test("a prerequisite that makes a cycle is refused with its path", async (t) => 
   );
   // A self edge keeps the store validator's own refusal.
   await assert.rejects(
-    ops.execute("task.update", { id: "b", sequence: ["b"] }, ops.read().revision),
+    ops.execute(
+      "task.update",
+      { id: "b", sequence: ["b"] },
+      ops.read().revision,
+    ),
     /Self edge b/,
   );
 });
@@ -141,7 +151,10 @@ test("a GitHub task's edit routes to a change preview that writes nothing", asyn
     (error) => error.status === 409 && error.code === "authority-github",
   );
   const before = store.read().revision,
-    preview = await ops.execute("task.change.preview", { id: "g", title: "Edit" });
+    preview = await ops.execute("task.change.preview", {
+      id: "g",
+      title: "Edit",
+    });
   assert.equal(preview.route, "github");
   assert.equal(preview.link, "https://github.com/example/fixture/issues/5");
   assert.equal(store.read().revision, before);
@@ -174,7 +187,9 @@ test("an approved spec task's edit previews the tasks.md line and manifest entry
     before: "  - [ ] 1.2 Validate loaded config",
     after: "  - [ ] 1.2 Validate and report config",
   });
-  assert.deepEqual(change.manifest.after.acceptance, ["Unknown keys are listed."]);
+  assert.deepEqual(change.manifest.after.acceptance, [
+    "Unknown keys are listed.",
+  ]);
   assert.equal(
     fs.readFileSync(path.join(root, ".kiro/specs/config/tasks.md"), "utf8"),
     tasksBefore,
@@ -210,7 +225,10 @@ test("conflicts.settle marks reviewed, unblocks, settles and dismisses, refusing
   await ops.execute("session.bind", { taskId: "b", slot: "slot-b-1" });
   await ops.execute("session.status", { slot: "slot-b-1", status: "lost" });
   await assert.rejects(
-    ops.execute("conflicts.settle", { action: "reviewed", items: [{ taskId: "c" }] }),
+    ops.execute("conflicts.settle", {
+      action: "reviewed",
+      items: [{ taskId: "c" }],
+    }),
     (error) => error.status === 428,
   );
   const reviewed = await ops.execute(
@@ -220,11 +238,18 @@ test("conflicts.settle marks reviewed, unblocks, settles and dismisses, refusing
   );
   assert.deepEqual(reviewed.settled, [{ taskId: "c" }]);
   assert.deepEqual(
-    reviewed.refused.map((item) => [item.taskId, /GitHub owns/.test(item.reason)]),
+    reviewed.refused.map((item) => [
+      item.taskId,
+      /GitHub owns/.test(item.reason),
+    ]),
     [["g", true]],
   );
   assert.equal(reviewed.revision, ops.read().revision);
-  await ops.execute("conflicts.settle", { action: "unblock", items: [{ taskId: "e" }] }, reviewed.revision);
+  await ops.execute(
+    "conflicts.settle",
+    { action: "unblock", items: [{ taskId: "e" }] },
+    reviewed.revision,
+  );
   await ops.execute(
     "conflicts.settle",
     { action: "settle", answer: "Use JSON.", items: [{ taskId: "d" }] },
@@ -243,15 +268,25 @@ test("conflicts.settle marks reviewed, unblocks, settles and dismisses, refusing
   const d = ops.read().tasks.find((task) => task.id === "d");
   assert.equal(d.decision, undefined);
   assert.match(d.notes, /choose-format settled .*: Use JSON\./);
-  assert.equal(ops.read().tasks.find((task) => task.id === "e").status, "planned");
+  assert.equal(
+    ops.read().tasks.find((task) => task.id === "e").status,
+    "planned",
+  );
 });
 
 test("the new reads are observe; settling is the owner's alone", () => {
-  for (const operation of ["task.detail", "plan.spec.read", "task.change.preview"]) {
+  for (const operation of [
+    "task.detail",
+    "plan.spec.read",
+    "task.change.preview",
+  ]) {
     assert.equal(classifyOperation(operation), "observe");
     assert.equal(principalAllows({ kind: "app-token" }, operation), true);
   }
-  assert.equal(principalAllows({ kind: "owner-session" }, "conflicts.settle"), true);
+  assert.equal(
+    principalAllows({ kind: "owner-session" }, "conflicts.settle"),
+    true,
+  );
   for (const kind of ["app-token", "agent-tool"])
     assert.equal(principalAllows({ kind }, "conflicts.settle"), false);
 });
@@ -259,12 +294,24 @@ test("the new reads are observe; settling is the owner's alone", () => {
 test("task origin names where a task came from and the lines to read", async () => {
   const { taskOrigin } = await import("../page-views.mjs");
   const data = {
-    documents: { "todo/runtime.md": { id: "todo/runtime.md", title: "Runtime", text: "# Runtime\n- [x] Pack\n" } },
+    documents: {
+      "todo/runtime.md": {
+        id: "todo/runtime.md",
+        title: "Runtime",
+        text: "# Runtime\n- [x] Pack\n",
+      },
+    },
   };
   const imported = taskOrigin(
     {
       id: "plan-4d2be3cc7ff616f29a",
-      source: { document: "todo/runtime.md", key: "k", lineStart: 2, lineEnd: 2, checked: true },
+      source: {
+        document: "todo/runtime.md",
+        key: "k",
+        lineStart: 2,
+        lineEnd: 2,
+        checked: true,
+      },
     },
     data,
   );
@@ -274,14 +321,33 @@ test("task origin names where a task came from and the lines to read", async () 
   assert.match(imported.text, /ticked then/);
   assert.match(imported.text, /hash of the file and the item/);
   assert.deepEqual(imported.sources, [
-    { document: "todo/runtime.md", title: "Runtime", lineStart: 2, lineEnd: 2, checked: true, readable: true },
+    {
+      document: "todo/runtime.md",
+      title: "Runtime",
+      lineStart: 2,
+      lineEnd: 2,
+      checked: true,
+      readable: true,
+    },
   ]);
-  const gone = taskOrigin({ id: "x", source: { document: "old.md", key: "k" } }, data);
+  const gone = taskOrigin(
+    { id: "x", source: { document: "old.md", key: "k" } },
+    data,
+  );
   assert.equal(gone.sources[0].readable, false);
-  const spec = taskOrigin({ id: "1.2", epic: "doc:.kiro/specs/demo/tasks.md" }, data);
+  const spec = taskOrigin(
+    { id: "1.2", epic: "doc:.kiro/specs/demo/tasks.md" },
+    data,
+  );
   assert.equal(spec.kind, "spec");
   assert.equal(spec.spec, "demo");
-  assert.equal(taskOrigin({ id: "g", github: { origin: "issue" } }, data).kind, "github-issue");
-  assert.equal(taskOrigin({ id: "p", planId: "p1" }, data, { id: "p1", title: "P" }).kind, "plan");
+  assert.equal(
+    taskOrigin({ id: "g", github: { origin: "issue" } }, data).kind,
+    "github-issue",
+  );
+  assert.equal(
+    taskOrigin({ id: "p", planId: "p1" }, data, { id: "p1", title: "P" }).kind,
+    "plan",
+  );
   assert.equal(taskOrigin({ id: "h" }, data).kind, "unknown");
 });

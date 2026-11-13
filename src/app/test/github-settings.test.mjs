@@ -396,7 +396,9 @@ test("Local only is a mode: no GitHub mode, and stored GitHub settings are kept 
 });
 
 test("githubMode() is null in Local only", async (t) => {
-  const { ops } = workspace(t, { file: { version: 1, github: { mode: "local" } } });
+  const { ops } = workspace(t, {
+    file: { version: 1, github: { mode: "local" } },
+  });
   assert.equal(ops.githubMode(), null);
   const settings = await ops.execute("github.settings.get");
   assert.equal(settings.github.mode, "local");

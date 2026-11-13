@@ -463,7 +463,9 @@ try {
         plan: () => ["intake.plan", { source, id }],
       };
     if (!calls[action])
-      throw Error("Choose intake list, view, submit, sources, deliver, or plan.");
+      throw Error(
+        "Choose intake list, view, submit, sources, deliver, or plan.",
+      );
     console.log(
       JSON.stringify(await localOrRequest(...calls[action]()), null, 2),
     );
@@ -607,14 +609,19 @@ try {
     console.log(JSON.stringify(result, null, 2));
   } else if (command === "crews" && positionals[0] === "set") {
     if (!options.file)
-      throw Error("Name the crews JSON: avoozl crews set --file CREWS.json [--stale SECONDS].");
+      throw Error(
+        "Name the crews JSON: avoozl crews set --file CREWS.json [--stale SECONDS].",
+      );
     const view = await localOrRequest("routing.view", {});
     console.log(
       JSON.stringify(
         await localOrRequest("crews.update", {
           crews: JSON.parse(fs.readFileSync(options.file, "utf8")),
           ...(options.stale !== undefined
-            ? { staleSeconds: options.stale === "" ? null : Number(options.stale) }
+            ? {
+                staleSeconds:
+                  options.stale === "" ? null : Number(options.stale),
+              }
             : {}),
           expectedHash: view.machineHash,
         }),
