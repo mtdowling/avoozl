@@ -210,7 +210,7 @@ export const OLD_TOOLS = {
   ],
   plans_post_reply: [
     "reply.post",
-    "Post your one reply on the GitHub issue your responder session is bound to: {body}. Avoozl picks the issue from your session, refuses a reply with a secret-looking token, a URL with credentials, or an absolute or home path (nothing is posted; fix it and post again), posts at most one comment per issue snapshot, and removes the responding label.",
+    "Post your one reply on the GitHub issue your responder session is bound to: {body}. Avoozl picks the issue from your session, refuses a reply with a secret-looking token, a URL with credentials, or an absolute or home path, or (on a public repository) one that quotes another repository on this machine (nothing is posted; fix it and post again), posts at most one comment per issue snapshot, and removes the responding label.",
   ],
   plans_next: [
     "runner.next",
