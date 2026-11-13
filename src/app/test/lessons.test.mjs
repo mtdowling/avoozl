@@ -161,3 +161,16 @@ test("New plan offers the steering file again over an older Avoozl text, never o
   assert.equal(writeSteering(root, options).state, "changed");
   assert.equal(fs.readFileSync(file, "utf8"), "my rules\n");
 });
+
+test("a skill path matches with either separator", async () => {
+  const { isSkillPath } = await import("../retro-memory.mjs");
+  for (const file of [
+    "/r/.kiro/skills/tests/SKILL.md",
+    "D:\\r\\.kiro\\skills\\tests\\SKILL.md",
+    "/r/skills/review.md",
+    "D:\\r\\skills\\review.md",
+  ])
+    assert.equal(isSkillPath(file), true, file);
+  for (const file of ["/r/README.md", "D:\\r\\notes\\review.md"])
+    assert.equal(isSkillPath(file), false, file);
+});
