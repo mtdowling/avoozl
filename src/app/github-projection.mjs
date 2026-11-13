@@ -375,6 +375,7 @@ async function projectPlanParents({
   plan,
   data,
   items,
+  fallback,
   identity,
   namespace,
   markerOptions,
@@ -384,7 +385,7 @@ async function projectPlanParents({
 }) {
   if (!plan.spec || plan.epicFolder || plan.context?.issue || plan.extractionId)
     return null;
-  const first = items.find((item) => item.issue);
+  const first = items.find((item) => item.issue) || fallback;
   if (!first) return null;
   const { config, labels } = first,
     find = async (taskId, receipt) => {
@@ -688,7 +689,11 @@ async function project(
     managedByRepository = new Map(),
     issueTypes = new Map(),
     notes = new Set(),
+    // Done tasks with no issue yet stay off GitHub unless the policy says
+    // otherwise (R74): no issue, no Project card, and edges to them are met.
+    skippedDone = new Set(),
     items = [];
+  let fallback = null;
 
   // 1. Desired graph, matched to the issues that already carry it.
   for (const task of tasks) {
@@ -747,6 +752,17 @@ async function project(
           ? [await github.issue(config, task.github.number)]
           : managedByRepository.get(config.id).byTaskId.get(task.id) || [],
       item = { task, config, labels, conflicts: [] };
+    if (
+      !identity.includeDone &&
+      !matches.length &&
+      !task.github?.number &&
+      (complete(task.status) || completionReached(task, null, complete))
+    ) {
+      skippedDone.add(task.id);
+      // The plan issue still needs a repository when every task is done.
+      fallback ??= item;
+      continue;
+    }
     items.push(item);
     if (matches.length > 1) {
       item.skip = true;
@@ -795,7 +811,12 @@ async function project(
       shownNotes(store, task.id),
     );
     item.blockerTasks = data.edges
-      .filter((edge) => edge.to === task.id && BLOCKING.has(edge.kind))
+      .filter(
+        (edge) =>
+          edge.to === task.id &&
+          BLOCKING.has(edge.kind) &&
+          !skippedDone.has(edge.from),
+      )
       .map((edge) => edge.from);
     for (const id of item.blockerTasks) {
       if (byTask.has(id) || external.has(id)) continue;
@@ -1068,6 +1089,7 @@ async function project(
     plan,
     data,
     items,
+    fallback,
     identity,
     namespace,
     markerOptions,
@@ -1086,9 +1108,11 @@ async function project(
     under = new Map();
   for (const item of items) {
     if (!item.issue) continue;
-    const parent = item.task.parent ? byTask.get(item.task.parent) : planParent;
+    // A package skipped as done (R74) leaves its open children under the plan.
+    const own = item.task.parent ? byTask.get(item.task.parent) : null,
+      parent = own || planParent;
     if (!parent?.issue) continue;
-    const parentId = item.task.parent || planParent.taskId;
+    const parentId = own ? item.task.parent : planParent.taskId;
     if (!under.has(parentId)) under.set(parentId, { parent, children: [] });
     under.get(parentId).children.push(item);
   }
@@ -1437,6 +1461,7 @@ async function project(
     unlinked: items
       .filter((item) => item.unlinked)
       .map((item) => ({ taskId: item.task.id, ...item.unlinked })),
+    skippedDone: [...skippedDone],
     ...(dryRun ? { previewOnly: [...previewOnly] } : {}),
     parent: parent
       ? {

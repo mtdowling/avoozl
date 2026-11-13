@@ -16,7 +16,7 @@
 import fs from "node:fs";
 import { workspaceConfig } from "./config.mjs";
 import { loadHostConfig, machineAvoozlPaths } from "./host-config.mjs";
-import { handleMcp, kiroCrewCaller } from "./mcp.mjs";
+import { complete, handleMcp, kiroCrewCaller } from "./mcp.mjs";
 import { Operations } from "./operations.mjs";
 import { driverSettingsPath } from "./driver.mjs";
 import { Store } from "./store.mjs";
@@ -154,10 +154,10 @@ export function createAppMcp({ fallback = null, env = process.env } = {}) {
         return {
           jsonrpc: "2.0",
           id: message.id,
-          result: {
+          result: complete(message, {
             isError: true,
             content: [{ type: "text", text: target.error }],
-          },
+          }),
         };
       return rpcError(message.id, target.error);
     }

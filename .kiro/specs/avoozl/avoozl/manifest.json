@@ -5659,6 +5659,217 @@
       "requires": [
         "24.2"
       ]
+    },
+    "33.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 33 (Only open tasks get issues). See R74; §6.3.",
+      "acceptance": [
+        "Skip done tasks in projection, after 3.7",
+        "With github.issues.includeDone unset, a done task with no issue gets no issue, card or link, edges from it are met, and the plan issue is still made; with it true, done tasks get issues as before."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "3.7"
+      ]
+    },
+    "34.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 34 (Investigate first, evidence, staying current, rules, fix share, ship mode). See R75; §4.21.",
+      "acceptance": [
+        "Findings, falsifier and the confidence gate",
+        "A leaf's worker reports findings with no file changes, a read-only falsifier on another model replies, and coding starts only when both reach the confidence gate; otherwise the task waits in Needs you."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "11.11",
+        "12.9"
+      ]
+    },
+    "34.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 34 (Investigate first, evidence, staying current, rules, fix share, ship mode). See R76; §4.22.",
+      "acceptance": [
+        "Evidence bundle",
+        "Each task has one screened local evidence bundle shown in the drawer and summarized in one pull request comment."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "34.1",
+        "22.3"
+      ]
+    },
+    "34.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 34 (Investigate first, evidence, staying current, rules, fix share, ship mode). See R77; §4.23.",
+      "acceptance": [
+        "Bring pull requests up to date",
+        "When the base branch moves, each conflicting or behind pull request's writer gets one message to merge it in, and no brief can ask for a force push."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "15.4"
+      ]
+    },
+    "34.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 34 (Investigate first, evidence, staying current, rules, fix share, ship mode). See R78; §4.24.",
+      "acceptance": [
+        "Corrections and rules",
+        "The same correction on two tasks makes one rule proposal; approval lands it as a steering leaf."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "28.3"
+      ]
+    },
+    "34.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 34 (Investigate first, evidence, staying current, rules, fix share, ship mode). See R79; §4.11.",
+      "acceptance": [
+        "Fix-work share",
+        "Flow shows fix tasks over finished tasks as a card and in the charts."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "12.11"
+      ]
+    },
+    "34.6": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 34 (Investigate first, evidence, staying current, rules, fix share, ship mode). See R80; §4.25.",
+      "acceptance": [
+        "Ship mode",
+        "With delivery.ship manual, writers do not enable auto-merge and Needs you shows Ready to merge; auto-merge stays the default."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "15.4"
+      ]
+    },
+    "avoozl-p45": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 34 (Investigate first, evidence, staying current, rules, fix share, ship mode). See R75–R80; §4.21–§4.25.",
+      "acceptance": [
+        "P45 Proof",
+        "P45 passes with fake workers, a fake falsifier and a fake GitHub."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "34.1",
+        "34.2",
+        "34.3",
+        "34.4",
+        "34.5",
+        "34.6"
+      ]
+    },
+    "11.14": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "summary": "Phase 11 (Crew placement). See R41.2–R41.4, R41.7, R41.8; §4.10 One routing prompt.",
+      "acceptance": [
+        "One routing prompt, off by default",
+        "A machine-local routing prompt, off by default, picks crew, agent and model among the options the hard checks leave; the old rule, pick and router keys are refused."
+      ],
+      "requires": [
+        "11.1"
+      ]
+    },
+    "11.15": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "summary": "Phase 11 (Crew placement). See R53; §4.10 Agent and model per session.",
+      "acceptance": [
+        "Pins win and retries keep their model",
+        "A manifest pin wins, then the routing pick, then delivery, then Kiro Crew's default; a retry keeps its model unless it is out."
+      ],
+      "requires": [
+        "11.14"
+      ]
+    },
+    "11.16": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "summary": "Phase 11 (Crew placement). See R42, R72.17; §8.3.",
+      "acceptance": [
+        "Settings › Routing",
+        "Routing lives in Settings with the routing prompt, Providers, Crews and Preview sections."
+      ],
+      "requires": [
+        "11.14"
+      ]
+    },
+    "11.17": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "summary": "Phase 11 (Crew placement). See §4.10 One routing prompt.",
+      "acceptance": [
+        "One-time migration of the old keys",
+        "scripts/migrate-routing.mjs turns old routing keys into prompt lines, keeps a copy of each changed file, and is idempotent."
+      ],
+      "requires": [
+        "11.14"
+      ]
     }
   }
 }

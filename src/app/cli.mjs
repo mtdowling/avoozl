@@ -803,14 +803,13 @@ try {
     else if (action === "set") {
       if (!options.file)
         throw Error(
-          "Name the routing JSON: avoozl routing set --where workspace|machine|repository:ID --file ROUTING.json.",
+          "Name the routing JSON: avoozl routing set --file ROUTING.json ({enabled, prompt, model}).",
         );
-      const where = options.where || "workspace",
-        view = await localOrRequest("routing.view", {});
+      const view = await localOrRequest("routing.view", {});
       result = await localOrRequest("routing.update", {
-        where,
+        where: "machine",
         routing: JSON.parse(fs.readFileSync(options.file, "utf8")),
-        expectedHash: where === "machine" ? view.machineHash : view.configHash,
+        expectedHash: view.machineHash,
       });
     } else throw Error("Choose routing view, preview, or set.");
     console.log(JSON.stringify(result, null, 2));
@@ -1475,8 +1474,8 @@ try {
   report TASK_ID --slot SESSION --kind done|blocked|question|progress [--commit SHA] [--text TEXT]
   retry TASK_ID [--dismiss FINDING --reason TEXT] Resume a leaf that stopped for a decision
   pick-again TASK_ID                    The next attempt picks its agent and model afresh
-  routing [view|preview]                Crews, rules, smart pick, router; where ready tasks would run
-  routing set --where workspace|machine|repository:ID --file ROUTING.json  Replace one source's rules
+  routing [view|preview]                Crews and checks, the routing prompt, providers; a dry run on ready tasks
+  routing set --file ROUTING.json       This machine's routing: {enabled, prompt, model}
   crews set --file CREWS.json [--stale SECONDS]  This machine's crew tags, limits, and hand-back
   app-backend --workspace PATH          Kiro Crew app backend on 127.0.0.1 ($PORT)
   backup --workspace PATH --output FILE  Local-only; registered IDs are refused
