@@ -18,6 +18,8 @@ export const STAGES = Object.freeze([
   "coding",
   "tests",
   "commands",
+  // Declared checks Avoozl ran itself (check-runs.mjs).
+  "checks",
   "ci-wait",
   "review",
   "rework",
@@ -29,6 +31,7 @@ export const ACTIVE = new Set([
   "coding",
   "tests",
   "commands",
+  "checks",
   "rework",
   "merge",
 ]);

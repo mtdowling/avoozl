@@ -709,6 +709,8 @@ export function chooseSession({
     (kept && !keptOut ? ", the kept choice was removed" : "") + healthNote;
   if (usable.length === 1)
     return { ...usable[0], from, reason: from + removedNote };
+  // More than one agent and model is left: the router may judge between them.
+  const options = usable.length;
   // The router may rank the choices (R53.5); a pick outside the list falls back.
   if (rank) {
     const picked = rank(usable);
@@ -716,6 +718,7 @@ export function chooseSession({
       return {
         ...usable.find((c) => choiceKey(c) === choiceKey(picked.choice)),
         from,
+        options,
         reason: `${from}, router: ${picked.reason}${removedNote}`,
       };
   }
@@ -728,6 +731,7 @@ export function chooseSession({
   return {
     ...best.c,
     from,
+    options,
     reason: `${from}, choice ${best.i + 1} of ${usable.length} (weight ${best.c.weight})${removedNote}`,
   };
 }
