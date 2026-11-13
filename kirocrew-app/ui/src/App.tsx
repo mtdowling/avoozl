@@ -11,6 +11,7 @@ import UntriagedView from './UntriagedView.tsx'
 import FlowView from './FlowView.tsx'
 import RoutingView from './RoutingView.tsx'
 import ActivityView from './ActivityView.tsx'
+import { DriverSummary } from './Driver.tsx'
 import { untriagedClient } from './untriaged-api.ts'
 import { specSeed } from './ideas-api.ts'
 import type { NewPlanForm } from './new-plan-api.ts'
@@ -233,6 +234,7 @@ function AvoozlPage() {
         actions={
           <div className="flex flex-wrap items-center gap-3">
             <WorkspacePicker list={list} value={workspaceId} onChange={setWorkspaceId} />
+            <DriverSummary workspaceId={active} />
             <Btn
               type="button"
               primary

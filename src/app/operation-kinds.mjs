@@ -80,6 +80,8 @@ const OBSERVE = new Set([
   "flow.proposals",
   "lessons.view",
   "plugin.lessons.preview",
+  "driver.status",
+  "driver.takeover.preview",
   "routing.view",
   "routing.preview",
   "providers.view",
@@ -201,6 +203,11 @@ const EXECUTE = new Set([
 ]);
 
 const PROTECT = new Set([
+  "driver.settings.update",
+  "driver.handoff",
+  "driver.takeover",
+  "driver.forceTakeover",
+  "driver.away.decide",
   "routing.update",
   "crews.update",
   "provider.switch",

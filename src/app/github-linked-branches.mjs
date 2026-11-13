@@ -99,7 +99,7 @@ export function stackCandidates(store, policy) {
 export async function ensureLinkedBranches(
   store,
   github,
-  { delivery, policy },
+  { delivery, policy, skip = new Set() },
 ) {
   const notify = [];
   if (!delivery || !policy?.mode) return { notify };
@@ -109,6 +109,7 @@ export async function ensureLinkedBranches(
     // still takes a capacity slot in this pass and is then skipped; it
     // starts on a later tick once a slot is free and the pull request opens.
     leaves = readyLeaves(store, delivery, {
+      skip,
       github: policy,
       unbranched: true,
       stack,
