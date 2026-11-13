@@ -1,10 +1,14 @@
 // The page's one tooltip. The host SDK ships none and the host uses the
 // native title attribute, which is slow, unstyled and unreachable by
 // keyboard. This one renders in a fixed layer on document.body, so no
-// drawer or scroll area clips it, and it never moves the layout.
+// drawer or scroll area clips it, and it never moves the layout. Inside a
+// modal it renders into that modal instead: the modal is on the browser's
+// top layer, so only its own tooltips show above it.
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { placeTooltip, tooltipController } from './tooltip.ts'
+import { LAYER } from './layers.ts'
+import { usePortalTarget } from './Modal.tsx'
 
 const reducedMotion = () => typeof window !== 'undefined' && Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
 
@@ -27,6 +31,7 @@ export function Tooltip(props: {
   display?: 'inline-flex' | 'block'
 }) {
   const id = useId()
+  const portal = usePortalTarget()
   const anchor = useRef<HTMLSpanElement>(null)
   const tip = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState(false)
@@ -82,7 +87,7 @@ export function Tooltip(props: {
               top: place?.top ?? 0,
               left: place?.left ?? 0,
               visibility: place ? 'visible' : 'hidden',
-              zIndex: 2147483000,
+              zIndex: LAYER.tooltip,
               maxWidth: 'min(20rem, calc(100vw - 12px))',
               padding: '4px 8px',
               borderRadius: 6,
@@ -117,7 +122,7 @@ export function Tooltip(props: {
               />
             )}
           </div>,
-          document.body,
+          portal ?? document.body,
         )}
     </span>
   )

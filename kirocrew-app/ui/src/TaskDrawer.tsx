@@ -19,8 +19,6 @@ import { Markdown } from './Markdown.tsx'
 import TaskForm from './TaskForm.tsx'
 import { Authority } from './Authority.tsx'
 import { useMedia } from './use-media.ts'
-// shortcut: Modal.tsx still imports useMedia from here; point it at use-media.ts once task/modals lands.
-export { useMedia }
 import { errorMessage } from './workspace-api.ts'
 import { Fold, IconLabel, SectionHeading, ShowMore, TipBtn, useAskChat, usePages } from './controls.tsx'
 import { resultMessage, settleTargets, whyLine } from './conflicts-api.ts'
@@ -28,6 +26,7 @@ import { itemRef } from './chat-api.ts'
 import { TimingFold } from './FlowView.tsx'
 import { Crosshair, Eye, FileText, MessageSquare, Pause, Pencil, Play, Plus, RotateCcw, X } from './icons.ts'
 import { useBackStep } from './NavHistory.tsx'
+import { LAYER } from './layers.ts'
 import { linkHref } from './views-api.ts'
 
 // The drawer's sections, as collapsible <details> (the host has no
@@ -720,7 +719,7 @@ function DrawerHandle(props: { width: number; onResize: (width: number) => void;
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       className="absolute inset-y-0 flex items-center justify-center outline-none"
-      style={{ right: props.width - 5, width: 10, cursor: 'col-resize', zIndex: 1 }}
+      style={{ right: props.width - 5, width: 10, cursor: 'col-resize', zIndex: LAYER.raised }}
     >
       <span
         aria-hidden="true"
@@ -830,7 +829,7 @@ export function TaskDrawerProvider({
     <TaskDrawerContext.Provider value={api_}>
       {children}
       {mode && workspaceId && (
-        <div className="fixed inset-0 z-50" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <div className="fixed inset-0" style={{ zIndex: LAYER.drawer, display: 'flex', justifyContent: 'flex-end' }}>
           <div
             aria-hidden="true"
             data-drawer-backdrop
