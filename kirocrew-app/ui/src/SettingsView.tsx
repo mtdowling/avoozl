@@ -59,6 +59,7 @@ import { errorMessage, workspaceClient, type Repository, type WorkspaceList } fr
 import { DangerBtn, IconLabel, SectionHeading, TipBtn, ViewHeading, dangerStyle } from './controls.tsx'
 import { Plus, Trash2 } from './icons.ts'
 import { linkHref } from './views-api.ts'
+import { ThisComputer } from './Driver.tsx'
 
 const selectStyle = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }
 // Fields share a row and wrap; each keeps a readable width.
@@ -1317,6 +1318,7 @@ function PolicyEditor(props: { workspaceId: string; tab: SettingsTab; onOpenPlan
           crews={visibleSettings(form.mode).has('issueRadarCrews') ? <CrewScopes crews={settings.crews ?? []} /> : null}
         />
       )}
+      {tab === 'github' && <ThisComputer workspaceId={workspaceId} />}
       <div className="flex flex-wrap items-center gap-2">
         <TipBtn tooltip="Check these settings without saving them" onClick={() => void check()} disabled={saving}>
           Check
