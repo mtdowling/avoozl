@@ -158,3 +158,20 @@ export function validate(data) {
   for (const id of ids) walk(id);
   return errors;
 }
+// One line for a failed write: errors of one kind are counted, with the
+// first as the example, so 140 repeated edges read as one clause.
+export function summarizeErrors(errors) {
+  const groups = new Map();
+  for (const error of errors) {
+    const kind = error.split(" ").slice(0, 2).join(" ");
+    if (!groups.has(kind)) groups.set(kind, []);
+    groups.get(kind).push(error);
+  }
+  return [...groups]
+    .map(([kind, list]) =>
+      list.length === 1
+        ? list[0]
+        : `${kind} ×${list.length}, e.g. ${list[0].slice(kind.length + 1)}`,
+    )
+    .join("; ");
+}

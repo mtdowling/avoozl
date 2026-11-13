@@ -1327,6 +1327,26 @@ and §8.9). Numbered after Phase 30 because task IDs never move.
   - `Picker.tsx` combobox with ID, title and spec matching, state badges, the keys and ARIA of §8.9, and at most 50 rendered results; used in the Stop the line target, the filter panels and Start now; a test filters 5,000 tasks.
   - Built: `2456191`, PR #11 (`Picker.tsx`, `picker.ts`; `kirocrew-app/ui/test/picker.test.mjs`).
 
+## Phase 32: Remote relay
+
+Owner decision 2026-11-13 (Requirement 41.16–41.24, design §4.10 Remote
+relay). An opt-in stopgap until MC-10: the person opens one relay chat,
+the tick only queues remote worker picks, and the relay opens them with
+`crew=` on the person's turns (F129–F132). Numbered after Phase 31 because
+task IDs never move.
+
+- [x] 32.1 Relay setting, queue, and tool, after 11.11 and 11.13 [R41.16–R41.20, R41.22–R41.24] (§4.10 Remote relay, F129–F131)
+  - `routing.remoteRelay` validated in the workspace file only; `relayActive` off with MC-10; `placeOne` keeps a worker's remote picks while it is on; the tick moves `relay: true` dispatches and messages for relayed workers to the `routing.relay` queue, skips queued tasks, counts them against crew limits, and drops the queue when off or with MC-10; the relayed brief's `AVOOZL-REPORT` step; `relay.call` (`plans_relay` register, pending, brief, opened, refused, reply) with one relay only; relayed bindings skipped by the roster and session reads; `reportSession` for the relay that opened a worker; refusal codes read from Kiro Crew's text; person-only `relay.forget`; the `avoozl-relay` agent with four tools.
+- [x] 32.2 Routing page and Needs you, after 32.1 and 11.12 [R41.20, R41.21, R42.3] (§4.10 Remote relay, §8.3)
+  - The Remote relay block in Crews: the setting, the stopgap line, both catches, status lines with turns today and the last refusal, Open relay chat through the app SDK's `openChat` on `avoozl-relay`, Go to relay chat, and a confirmed Forget; Preview's line for relayed picks; `conflicts.view` `needs-human` items with reason `relay`.
+
+- [x] avoozl-p47 P47 Proof: Remote relay with a fake relay and a fake crew [R41.16–R41.24] (§4.10 Remote relay)
+  - Setup: the P29 workspace and crew driver with MC-10 missing, `routing.remoteRelay: "on"`, and a worker rule that allows only Linux crews; a fake Kiro Crew whose `session_create` with `crew=` refuses with Kiro Crew's own text on a turn the owner did not send; a fake relay that runs the `avoozl-relay` loop through `relay.call`.
+  - Action: (1) tick twice; (2) run a relay turn the owner did not send; (3) register and pull from another chat and with no caller; (4) run the owner's turn; (5) the w1 worker pushes and replies with orders to the relay and then its report line; another chat hands a reply back; the relay hands it back; tick; (6) repeat with the setting off and with MC-10 present; (7) refuse one request for a chat the owner did not open, Forget it as a session and as a person, register a new relay; refuse another for a full crew.
+  - Expected: (1) nothing opens, not even on local; two requests queue once each; Needs you says to open the relay chat; (2) nothing opens; the tasks wait; Needs you says to send any message, linking the chat; (3) refused; (4) each worker opens on `fake-linux` with the brief unchanged (the report line, the clone URL, no local path), binds with the relay's slot, nothing waits, two turns count, and nothing is held for the roster; (5) only the report line counts and the worker's binding reports done with its commit; the other chat is refused; a verifier opens here on that commit, no non-worker session carries a crew, and nothing integrates without the normal pipeline; (6) off places as before the relay; with MC-10 the worker goes straight to `fake-linux` without the relay, which is shown ignored; turning it off drops the queue; (7) the request waits with the Forget advice; a session's Forget is refused; the new relay gets the request; the full-crew refusal drops it.
+  - Failure means: a remote pick runs on local, the relay acts on worker text, or a chat other than the relay reports for a relayed worker.
+  - Next decision: drop the relay when MC-10 ships, or keep it for crews MC-10 cannot reach.
+
 ## Phase 33: Only open tasks get issues
 
 Owner decision 2026-11-13 (Requirement 74, design §6.3). Numbered after

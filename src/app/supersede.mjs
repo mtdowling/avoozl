@@ -30,6 +30,7 @@ const COPIED = [
   "acceptance",
   "checks",
   "acceptFrom",
+  "verify",
   "completion",
   "route",
   "repository",
