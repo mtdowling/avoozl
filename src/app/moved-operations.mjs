@@ -15,7 +15,7 @@ const BINDINGS =
   "Kiro Crew sessions are bound to tasks with plans_bind_session; rebuild lost bindings from session titles with plans_rediscover_sessions.";
 const RUNTIME = "Kiro Crew owns models, usage, concurrency, and agent routing.";
 const SAFETY =
-  "The andon gate was replaced by repository rule actions: a pause rule label or a move to the Deferred column pauses a GitHub task, and a resume rule or a move out of Deferred resumes it. Kiro Crew stops a running session.";
+  "The andon gate was replaced by repository rule actions: a pause rule label or a move to the Deferred column pauses a GitHub task, and a resume rule or a move out of Deferred resumes it. Kiro Crew stops a running session. To stop new work in a scope by hand, pull the Andon cord with avoozl flow stop.";
 const RESTART = "Kiro Crew starts and restarts the Avoozl app backend.";
 const TEAM =
   "Team coordination and execution targets were removed. Kiro Crew sessions are the delivery route, and GitHub issues, assignees, and pull requests hold shared state.";
