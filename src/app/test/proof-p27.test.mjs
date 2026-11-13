@@ -61,6 +61,8 @@ const policy = (delivery = {}) =>
     },
   });
 
+// `verify: "agent"`: this proof plays the checks role as a verifier chat,
+// which a bar that needs judgment still opens (§5.2 Checks).
 const leaf = (summary, extra = {}) => ({
   kind: "leaf",
   repository: "app",
@@ -68,6 +70,7 @@ const leaf = (summary, extra = {}) => ({
   acceptance: [summary],
   checks: [CHECK],
   completion: "integrated",
+  verify: "agent",
   ...extra,
 });
 
@@ -150,7 +153,11 @@ const defaults = (role) =>
       }
     : role === "verifier"
       ? ({ session, report }) =>
-          report({ commit: session.commit, checks: passed })
+          report({
+            commit: session.commit,
+            checks: passed,
+            verdict: "approved",
+          })
       : ({ session, report }) =>
           report({ commit: session.commit, verdict: "approved" });
 
@@ -205,6 +212,7 @@ const scripts = {
     report({
       commit: session.commit,
       checks: [{ command: CHECK, exitCode: null, notRun: "sh missing" }],
+      verdict: "approved",
     }),
   // w2's reviews stay open until w2 is superseded; they are its history.
   "w2:verifier": "hold",

@@ -260,6 +260,7 @@ const SETTINGS = {
   "flow.instructions.update": "retro instructions",
   "routing.update": "routing",
   "crews.update": "crews",
+  "relay.forget": "relay chat",
   "conversations.settings.update": "conversation",
   "content.sets.update": "content rule set",
   "content.terms.update": "content rule terms",

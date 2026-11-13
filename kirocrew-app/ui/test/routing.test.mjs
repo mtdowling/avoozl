@@ -6,6 +6,9 @@ import test from 'node:test'
 import {
   MC10_LINE,
   OFF_LINE,
+  RELAY_AGENT,
+  RELAY_CATCHES,
+  relayLines,
   chatPlaceholder,
   checkText,
   crewMap,
@@ -77,6 +80,25 @@ test('Settings › Routing has its four sections in order, examples, and no rule
   assert.match(source('SettingsView.tsx'), /key: 'routing', label: 'Routing'/)
   assert.doesNotMatch(source('SettingsView.tsx'), /key: 'providers'/)
   assert.doesNotMatch(source('App.tsx'), /key: 'routing'/)
+})
+
+test('the Remote relay block shows the setting, both catches, the turn count, and a confirmed Forget', () => {
+  const relay = { setting: 'on', active: true, ignored: false, slot: null, queued: 2, workers: 0, turnsToday: 0, turns: {}, refusal: null }
+  assert.deepEqual(relayLines({ ...relay, setting: 'off', active: false }), ['Off. Remote picks run on local until Kiro Crew ships MC-10.'])
+  assert.match(relayLines({ ...relay, ignored: true, active: false })[0], /MC-10.*ignored/)
+  assert.deepEqual(relayLines(relay), ['No relay chat yet. Open it, then send any message.', '2 tasks wait for you.', 'Relay turns today: 0.'])
+  const busy = relayLines({ ...relay, slot: 'dashboard:r', queued: 0, workers: 1, turnsToday: 4, refusal: { taskId: 'a.1', crew: 'box', code: 'crew_owner_unverifiable', at: '' } })
+  assert.deepEqual(busy, ['Relay chat is open.', '1 relayed chat running.', 'Relay turns today: 4.', 'Last refusal: a.1 on box (crew_owner_unverifiable).'])
+  assert.match(RELAY_CATCHES[0], /turn you sent/)
+  assert.match(RELAY_CATCHES[1], /model turn/)
+  assert.equal(RELAY_AGENT, 'avoozl-relay')
+  const page = source('RoutingView.tsx')
+  assert.match(page, /<RelayBlock /)
+  assert.match(page, /routing\.remoteRelay/)
+  assert.match(page, /stopgap until Kiro Crew ships MC-10/)
+  assert.match(page, /openChat\(\{ message: RELAY_MESSAGE, agent: RELAY_AGENT, autoSend: true \}\)/)
+  assert.match(page, /confirm=\{\{ title: 'Forget the relay chat\?'/)
+  assert.match(source('routing-api.ts'), /saveRelay: [\s\S]*?'routing\.update', \{ where: 'workspace'/)
 })
 
 test('Settings > Delivery holds PR feedback and the writer model, with defaults as placeholders', () => {
