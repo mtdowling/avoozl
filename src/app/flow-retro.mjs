@@ -59,6 +59,7 @@ import {
   shippedPrompts,
 } from "./prompts.mjs";
 import { contentBinding } from "./content-rules.mjs";
+import { recordTraits } from "./lessons-share.mjs";
 import { applyDiff, reverseDiff, unifiedDiff } from "./text-diff.mjs";
 
 export const RETRO_AGENT = "avoozl-retro";
@@ -691,6 +692,7 @@ function healAt(store, data, config, now) {
     traits = workspaceTraits(store),
     id = workspaceId(store),
     tools = checkTools(checks);
+  recordTraits(m.lessons, id, traits);
   checkPacks(store, { now });
   healLessons(
     m.lessons,
