@@ -503,15 +503,15 @@ test("P44: without routing an out delivery model takes a person's replacement, e
   });
   assert.deepEqual(writers(await crew.tick()), {});
   // Switch model with no running chats and Also new tasks: a person's mark.
-  const input = {
-      from: { provider: "alpha" },
-      to: "gamma-1",
+  const input = { from: { provider: "alpha" }, to: "gamma-1" },
+    dry = await env.ops.execute("provider.switch.dryRun", {
+      ...input,
       alsoNewTasks: true,
-    },
-    dry = await env.ops.execute("provider.switch.dryRun", input);
+    });
   await env.ops.execute("provider.switch", {
     ...input,
     previewHash: dry.previewHash,
+    alsoNewTasks: true,
   });
   const r = await crew.tick();
   const placed = writers(r);
