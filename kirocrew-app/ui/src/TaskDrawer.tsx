@@ -18,6 +18,9 @@ import { reviewRuns } from './views-api.ts'
 import { Markdown } from './Markdown.tsx'
 import TaskForm from './TaskForm.tsx'
 import { Authority } from './Authority.tsx'
+import { useMedia } from './use-media.ts'
+// shortcut: Modal.tsx still imports useMedia from here; point it at use-media.ts once task/modals lands.
+export { useMedia }
 import { errorMessage } from './workspace-api.ts'
 import { Fold, IconLabel, SectionHeading, ShowMore, TipBtn, useAskChat, usePages } from './controls.tsx'
 import { resultMessage, settleTargets, whyLine } from './conflicts-api.ts'
@@ -45,18 +48,6 @@ type Mode =
   | { kind: 'add'; prerequisite?: string }
   | { kind: 'review'; group: ConflictItem; onReviewed?: () => void }
   | null
-
-export function useMedia(query: string) {
-  const [match, setMatch] = useState(() => (typeof window !== 'undefined' && window.matchMedia ? window.matchMedia(query).matches : false))
-  useEffect(() => {
-    if (typeof window === 'undefined' || !window.matchMedia) return
-    const media = window.matchMedia(query)
-    const change = () => setMatch(media.matches)
-    media.addEventListener('change', change)
-    return () => media.removeEventListener('change', change)
-  }, [query])
-  return match
-}
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
