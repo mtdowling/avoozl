@@ -10,7 +10,7 @@ import { useAppApi } from '@kirocrew/app-sdk'
 import { Btn, Card, Input } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { FilterPanel } from './FilterPanel.tsx'
-import { SectionHeading, dangerStyle, useConfirm } from './controls.tsx'
+import { AskForHelp, SectionHeading, dangerStyle, useConfirm } from './controls.tsx'
 import { relativeTime } from './task-api.ts'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
@@ -189,7 +189,21 @@ export function ProposalsView({ workspaceId }: { workspaceId: string | null }) {
           {message}
         </p>
       )}
-      {!value.available && <p className="text-sm text-muted">This Avoozl process has no settings folder, so prompt overrides and lessons are off.</p>}
+      {!value.available && (
+        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
+          <span>This Avoozl process has no settings folder, so prompt overrides and lessons are off.</span>
+          <AskForHelp
+            workspaceId={workspaceId}
+            help={{
+              page: 'Flow › Proposals',
+              section: 'Prompt overrides and lessons are off',
+              says: 'This Avoozl process has no settings folder, so prompt overrides and lessons are off.',
+              settings: [{ key: 'settings folder', value: 'none for this process' }],
+              docs: 'README.md, sections Flow and Configuration and secrets',
+            }}
+          />
+        </p>
+      )}
       <Card className="flex flex-col gap-2">
         <SectionHeading title="Prompt and skill proposals" />
         <p className="text-xs text-muted">A retro may propose a change to what agents are told. Nothing changes until you approve it.</p>

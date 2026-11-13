@@ -111,10 +111,49 @@ export const usd = (n: number | null | undefined) =>
   n == null ? "no cap" : `$${n.toFixed(2)}`;
 
 // What each mode does, in one plain line, for Settings and the drawer.
-export const MODE_TEXT: Record<BudgetMode, string> = {
-  stop: "Stop: at the cap no new session starts and its chats are asked to stop.",
-  warn: "Warn: the task keeps running and shows Over budget; you choose what to do.",
+export const MODE_TITLE: Record<BudgetMode, string> = {
+  stop: "Stop",
+  warn: "Warn",
 };
+export const MODE_TEXT: Record<BudgetMode, string> = {
+  stop: "When a task reaches its cap, no new chat starts for it and its running chats are asked to stop.",
+  warn: "When a task reaches its cap, it keeps running and shows Over budget. You decide what to do.",
+};
+
+// An inherited choice says where it comes from and what it is, never
+// "same as above": "Use the workspace default (Stop)".
+export const inheritText = (from: string, value: string) =>
+  `Use the ${from} (${value})`;
+
+const count = (n: number) => n.toLocaleString("en-US");
+
+// The guide for Settings › Budgets, Prices and Providers, for the Ask for
+// help seed (controls.tsx AskForHelp).
+export const COSTS_DOCS =
+  "the avoozl-costs skill (skills/avoozl-costs/SKILL.md in the Avoozl app): every field on Budgets, Prices and Providers, with its default";
+
+// Settings as the help seed's key and value lines: nested keys joined with
+// dots, blank values said as "not set (default)".
+export function helpSettings(
+  value: Record<string, unknown>,
+  prefix = "",
+): { key: string; value: string | number | boolean | null }[] {
+  return Object.entries(value).flatMap(([key, v]) => {
+    const at = prefix ? `${prefix}.${key}` : key;
+    if (v && typeof v === "object" && !Array.isArray(v))
+      return helpSettings(v as Record<string, unknown>, at);
+    if (v === undefined || v === null || v === "")
+      return [{ key: at, value: "not set (default)" }];
+    return [
+      {
+        key: at,
+        value: Array.isArray(v)
+          ? v.join(", ")
+          : (v as string | number | boolean),
+      },
+    ];
+  });
+}
 
 const UNKNOWN_TEXT: Record<string, string> = {
   "crew-mode": "a Crew Mode worker",
@@ -239,15 +278,105 @@ export function fromBudgetForm(form: BudgetForm): {
   return Object.keys(out).length ? { budget: out } : {};
 }
 
+export type PriceTable = Record<
+  string,
+  { inputPerMTokUsd: number; outputPerMTokUsd: number }
+>;
+
+// How a model is budgeted: this machine's price, the built-in one, in Kiro
+// credits, or not in dollars at all.
+export type PricedBy = "override" | "default" | "credits" | "none";
+
 export interface PricesView {
   version: number;
   sha256: string;
   savedAt: string | null;
   hash: string | null;
   creditUsd: number | null;
-  models: Record<string, { inputPerMTokUsd: number; outputPerMTokUsd: number }>;
-  seen: { model: string; turns: number; unpricedTurns: number }[];
+  // This machine's overrides only.
+  models: PriceTable;
+  // The built-in table, or null when the override file is broken.
+  defaults?: { updated: string; sources: string[]; models: PriceTable } | null;
+  // The workspace fallback caps.
+  caps?: { tokens: number; credits: number };
+  seen: {
+    model: string;
+    turns: number;
+    unpricedTurns: number;
+    creditTurns?: number;
+    priced?: PricedBy;
+  }[];
   error?: string;
+}
+
+// The built-in table's form of a model ID; the same rules as the backend's
+// priceKey (src/app/default-prices.mjs).
+export function priceKey(model: string): string {
+  return model
+    .toLowerCase()
+    .replace(/^.*\//, "")
+    .replace(/^(?:[a-z]+\.)+(?=claude-)/, "")
+    .replace(/(?:-v\d+(?::\d+)?|-\d{8}|-latest)+$/, "")
+    .replace(/(\d)-(\d)(?!\d)/g, "$1.$2");
+}
+
+export function builtInPrice(view: PricesView, model: string) {
+  const table = view.defaults?.models;
+  return table ? (table[model] ?? table[priceKey(model)] ?? null) : null;
+}
+
+const per = (n: number) => `$${n}`;
+
+// The line under Settings › Prices' title.
+export function pricesUpdatedText(view: PricesView): string {
+  return view.defaults
+    ? `Prices last updated ${view.defaults.updated}.`
+    : "Built-in prices are off until the override list below is fixed.";
+}
+
+// One model's row in "Models in use": how it is budgeted, in plain words.
+export function howPriced(
+  view: PricesView,
+  row: { model: string; priced?: PricedBy },
+): { kind: PricedBy; text: string } {
+  const caps = view.caps ?? { tokens: 2000000, credits: 200 };
+  const own = view.models[row.model];
+  const builtIn = builtInPrice(view, row.model);
+  const kind: PricedBy =
+    row.priced ?? (own ? "override" : builtIn ? "default" : "none");
+  if (kind === "credits")
+    return {
+      kind,
+      text: `Kiro Crew bills this model in credits, so it is budgeted in credits: ${count(caps.credits)} credits per task.`,
+    };
+  if (kind === "override" && own)
+    return {
+      kind,
+      text: `${per(own.inputPerMTokUsd)} in, ${per(own.outputPerMTokUsd)} out per million tokens (your price).`,
+    };
+  if (kind === "default" && builtIn)
+    return {
+      kind,
+      text: `${per(builtIn.inputPerMTokUsd)} in, ${per(builtIn.outputPerMTokUsd)} out per million tokens (built-in price).`,
+    };
+  return {
+    kind: "none",
+    text: `No known price, so Avoozl cannot count it in dollars. It counts against the token cap instead: ${count(caps.tokens)} tokens per task.`,
+  };
+}
+
+// The models Settings › Prices lists: those seen in usage, then those Kiro
+// Crew offers, each once.
+export function modelsInUse(view: PricesView, offered: string[] = []) {
+  const seen = view.seen.filter((s) => s.model !== "unknown");
+  const ids = new Set(seen.map((s) => s.model));
+  return [
+    ...seen,
+    ...offered
+      .filter((id) => !ids.has(id))
+      .sort()
+      .map((model) => ({ model, turns: 0, unpricedTurns: 0 })),
+  ].map((row) => ({ ...row, ...howPriced(view, row) }));
 }
 
 export interface PriceRow {
@@ -256,6 +385,9 @@ export interface PriceRow {
   output: string;
   // Turns on this model with no price, for the muted note.
   unpricedTurns: number;
+  // The built-in price, shown as the field's placeholder.
+  defaultInput?: string;
+  defaultOutput?: string;
 }
 export interface PricesForm {
   creditUsd: string;
@@ -277,16 +409,25 @@ export function toPricesForm(
   ].filter((id) => id !== "unknown");
   return {
     creditUsd: view.creditUsd != null ? String(view.creditUsd) : "",
-    rows: ids.sort().map((model) => ({
-      model,
-      input: view.models[model]
-        ? String(view.models[model].inputPerMTokUsd)
-        : "",
-      output: view.models[model]
-        ? String(view.models[model].outputPerMTokUsd)
-        : "",
-      unpricedTurns: seen.get(model)?.unpricedTurns ?? 0,
-    })),
+    rows: ids.sort().map((model) => {
+      const builtIn = builtInPrice(view, model);
+      return {
+        model,
+        input: view.models[model]
+          ? String(view.models[model].inputPerMTokUsd)
+          : "",
+        output: view.models[model]
+          ? String(view.models[model].outputPerMTokUsd)
+          : "",
+        unpricedTurns: seen.get(model)?.unpricedTurns ?? 0,
+        ...(builtIn
+          ? {
+              defaultInput: String(builtIn.inputPerMTokUsd),
+              defaultOutput: String(builtIn.outputPerMTokUsd),
+            }
+          : {}),
+      };
+    }),
   };
 }
 

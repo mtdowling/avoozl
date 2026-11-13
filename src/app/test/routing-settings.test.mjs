@@ -59,6 +59,39 @@ test("Settings > Delivery writes PR feedback and the writer model, validated", a
   );
 });
 
+test("Turn on delivery writes an empty delivery section through the same save", async (t) => {
+  const env = await workspace(t, { ids: ["w1"] }),
+    { ops } = env,
+    file = path.join(env.root, ".avoozl.json");
+  const config = JSON.parse(fs.readFileSync(file, "utf8"));
+  delete config.delivery;
+  fs.writeFileSync(file, JSON.stringify(config, null, 2));
+  const off = await ops.execute("delivery.settings.get", {});
+  assert.equal(off.on, false);
+  await assert.rejects(
+    ops.execute("delivery.settings.update", {
+      delivery: {},
+      expectedHash: off.hash,
+    }),
+    /Delivery is off/,
+  );
+  await assert.rejects(
+    ops.execute(
+      "delivery.settings.update",
+      { delivery: {}, expectedHash: off.hash, turnOn: true },
+      ...mcp,
+    ),
+    /Only a person/,
+  );
+  const on = await ops.execute("delivery.settings.update", {
+    delivery: {},
+    expectedHash: off.hash,
+    turnOn: true,
+  });
+  assert.equal(on.on, true);
+  assert.deepEqual(JSON.parse(fs.readFileSync(file, "utf8")).delivery, {});
+});
+
 test("the routing prompt is saved on this machine only, by a person", async (t) => {
   const env = await workspace(t, { ids: ["w1"] }),
     { ops } = env;

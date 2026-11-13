@@ -664,15 +664,176 @@ export function switchPreview(store, input = {}, options = {}) {
   return { from, to, chats, skipped, previewHash: hash };
 }
 
-// A person's switch (R72.13, R72.14): one pending record per chat, applied
-// by the backend pass; with alsoNewTasks, the From marked out until undone.
+// Not closed, lost or finished: a chat a switch could still reach.
+const liveChat = (b) =>
+  !["closed", "lost", "gone"].includes(b.status) &&
+  !["done", "blocked"].includes(b.report?.kind);
+
+// The dry run behind the Switch model dialog's step 2 (R72.12): every live
+// chat From reaches, split into the ones that switch and the ones that
+// cannot (and why), the marks Also new tasks would set, and the ready tasks
+// those marks move. Reads only. `options.tasks` maps task ID to task,
+// `options.radar(task)` says Issue Radar codes it, and `options.ready` is
+// routing.preview's items (where each ready task would run now). To may be
+// `auto`, Kiro Crew's own pick. The hash covers exactly what Switch writes.
+export function switchDryRun(store, input = {}, options = {}) {
+  const from = record(input.from) ? input.from : fail("Choose From.");
+  const to = input.to === "auto" ? "auto" : modelName(input.to, "To");
+  const alsoNewTasks = input.alsoNewTasks === true;
+  const settings = options.settings ?? readProviders(store, options).settings,
+    reviewRoles = options.reviewRoles ?? (() => []),
+    tasks = options.tasks ?? new Map(),
+    radar = options.radar ?? (() => false);
+  let match,
+    chosen = null;
+  if (typeof from.provider === "string" && from.provider)
+    match = (b) => providerOf(b.model, settings) === from.provider;
+  else if (typeof from.model === "string" && from.model)
+    match = (b) => b.model === from.model;
+  else if (
+    Array.isArray(from.tasks) &&
+    from.tasks.length &&
+    from.tasks.length <= 200 &&
+    from.tasks.every((t) => typeof t === "string")
+  ) {
+    chosen = new Set(from.tasks);
+    match = (b) => chosen.has(b.taskId);
+  } else fail("From is a provider, a model, or a list of tasks.");
+  const about = (taskId) => {
+    const task = tasks.get(taskId);
+    return {
+      taskId,
+      title: task?.title || taskId,
+      spec: task?.planId ?? task?.spec ?? null,
+    };
+  };
+  const chats = [],
+    skipped = [],
+    reached = new Set();
+  for (const b of listSessionBindings(store)) {
+    if (!liveChat(b) || !match(b)) continue;
+    reached.add(b.taskId);
+    const where = b.crew || "local",
+      row = {
+        slot: b.slot,
+        ...about(b.taskId),
+        role: b.role,
+        model: b.model ?? null,
+        where,
+      },
+      task = tasks.get(b.taskId),
+      pin =
+        b.role === "worker" && !task?.session?.choices
+          ? (task?.session?.model ?? null)
+          : null;
+    const why =
+      b.source !== "tick"
+        ? "a Crew Mode chat: its conductor owns it"
+        : b.crew
+          ? `runs on remote crew ${b.crew}: only chats on this machine switch`
+          : pin && pin !== to
+            ? `its spec pins ${pin}`
+            : (b.model ?? "auto") === to
+              ? `already on ${to}`
+              : !b.model || b.model === "auto"
+                ? "runs on auto"
+                : forbidden(store, b, reviewRoles(b)).includes(to)
+                  ? b.role === "worker"
+                    ? `${to} is a review role's model`
+                    : `a distinctFrom: model reviewer; the writer ran on ${to}`
+                  : null;
+    if (why) skipped.push({ ...row, why });
+    else chats.push({ ...row, to });
+  }
+  // A chosen task with no live Avoozl chat says why.
+  for (const id of chosen ?? [])
+    if (!reached.has(id))
+      skipped.push({
+        slot: null,
+        ...about(id),
+        role: null,
+        model: null,
+        where: null,
+        why: radar(tasks.get(id))
+          ? "Issue Radar codes this task"
+          : "no running chat",
+      });
+  chats.sort((a, b) => a.slot.localeCompare(b.slot));
+  skipped.sort((a, b) => a.taskId.localeCompare(b.taskId));
+  // Also new tasks: routing skips each marked model until it is undone.
+  const marks = !alsoNewTasks
+    ? []
+    : (from.provider
+        ? [{ scope: "provider", name: from.provider }]
+        : from.model
+          ? [{ scope: "model", name: from.model }]
+          : [
+              ...new Set(
+                [...chats, ...skipped]
+                  .map((c) => c.model)
+                  .filter((m) => m && m !== "auto" && m !== to),
+              ),
+            ]
+              .sort()
+              .map((name) => ({ scope: "model", name }))
+      )
+        .filter(
+          (m) => m.scope !== "provider" || m.name !== providerOf(to, settings),
+        )
+        .map((m) => ({ ...m, to }));
+  // Null when routing.preview could not be read.
+  const queued =
+    options.ready === null
+      ? null
+      : (options.ready || [])
+          .filter(
+            (item) =>
+              item.model &&
+              marks.some((m) =>
+                applies(m, item.model, providerOf(item.model, settings)),
+              ),
+          )
+          .map((item) => ({ ...about(item.taskId), model: item.model }));
+  const previewHash = createHash("sha256")
+    .update(
+      JSON.stringify({
+        from,
+        to,
+        marks,
+        chats: chats.map((c) => [c.slot, c.model]),
+      }),
+    )
+    .digest("hex");
+  return {
+    from,
+    to,
+    alsoNewTasks,
+    chats,
+    skipped,
+    marks,
+    queued,
+    counts: {
+      switch: chats.length,
+      cannot: skipped.length,
+      queued: queued?.length ?? null,
+    },
+    previewHash,
+  };
+}
+
+// A person's switch (R72.13, R72.14): exactly the dry run's chats, one
+// pending record each, applied by the backend pass; with alsoNewTasks, the
+// dry run's marks. Refused with 409 when the hash no longer matches the
+// current dry run, so the page runs it again and shows what changed.
 export function queueSwitch(store, input = {}, options = {}) {
-  const preview = switchPreview(store, input, options),
+  const preview = switchDryRun(store, input, options),
     now = options.now ?? Date.now(),
     by = options.by || "person";
   if (input.previewHash !== preview.previewHash)
-    fail("The running chats changed since the preview; preview again.", 409);
-  const settings = options.settings ?? readProviders(store, options).settings;
+    fail(
+      "The running chats changed since the dry run; check the new set.",
+      409,
+    );
   const queued = [];
   store.transaction(() => {
     for (const chat of preview.chats)
@@ -690,27 +851,14 @@ export function queueSwitch(store, input = {}, options = {}) {
           at: iso(now),
         }),
       );
-    if (input.alsoNewTasks === true) {
-      const marks = preview.from.provider
-        ? [{ scope: "provider", name: preview.from.provider }]
-        : preview.from.model
-          ? [{ scope: "model", name: preview.from.model }]
-          : [
-              ...new Set(
-                [...preview.chats, ...preview.skipped]
-                  .map((c) => c.model)
-                  .filter((m) => m && m !== preview.to),
-              ),
-            ].map((name) => ({ scope: "model", name }));
-      for (const mark of marks)
-        if (
-          mark.scope !== "provider" ||
-          mark.name !== providerOf(preview.to, settings)
-        )
-          markByPerson(store, { ...mark, to: preview.to, by, now });
-    }
+    for (const mark of preview.marks) markByPerson(store, { ...mark, by, now });
   });
-  return { queued: queued.length, switches: queued, to: preview.to };
+  return {
+    queued: queued.length,
+    switches: queued,
+    to: preview.to,
+    marked: preview.marks.map((m) => `${m.scope} ${m.name}`),
+  };
 }
 
 // ------------------------------------------------------------------ views
