@@ -225,334 +225,354 @@ const defaults = (role) =>
       : ({ session, report }) =>
           report({ commit: session.commit, verdict: "approved" });
 
-test("P28: content rules block, ask, allow once, fail closed, and never leak a term", async (t) => {
-  const env = await workspace(t),
-    { root, store, ops, terms, checkout } = env;
+// Real Git, worktrees, a pre-push hook that runs the CLI and a rules plugin
+// process, with no sleeps: it is CPU-bound, so a loaded host stretches it
+// past the default 60 s limit (seen at 60 s+ beside two other full suites).
+test(
+  "P28: content rules block, ask, allow once, fail closed, and never leak a term",
+  { timeout: 300_000 },
+  async (t) => {
+    const env = await workspace(t),
+      { root, store, ops, terms, checkout } = env;
 
-  // Settings shows each set, its source kind and availability, never a rule.
-  const rules = await ops.execute("content.rules", {});
-  assert.deepEqual(
-    rules.sets.map((s) => [s.id, s.source, s.available, s.action]),
-    [
-      ["fake-terms", "file", true, "block"],
-      ["fake-paths", "file", true, "report"],
-      ["fake-plugin-set", "plugin", true, "block"],
-    ],
-  );
-  assert.equal(rules.sets[1].termsFrom, "machine");
-  assert.equal(rules.sets[2].version, "1.0.0");
-  assert.equal(rules.builtins.length, 3);
+    // Settings shows each set, its source kind and availability, never a rule.
+    const rules = await ops.execute("content.rules", {});
+    assert.deepEqual(
+      rules.sets.map((s) => [s.id, s.source, s.available, s.action]),
+      [
+        ["fake-terms", "file", true, "block"],
+        ["fake-paths", "file", true, "report"],
+        ["fake-plugin-set", "plugin", true, "block"],
+      ],
+    );
+    assert.equal(rules.sets[1].termsFrom, "machine");
+    assert.equal(rules.sets[2].version, "1.0.0");
+    assert.equal(rules.builtins.length, 3);
 
-  // (1) The planner's draft names the codename in design.md: refused in-call
-  // with set, rule, file and line; no decision opens.
-  writeSpec(root, "p28", {
-    ...spec(),
-    "design.md": "# Design\n\nThe zorblat loader.\n",
-  });
-  await assert.rejects(
-    ops.execute("plan.create", { spec: "p28" }, undefined, planner),
-    (error) =>
-      error.status === 422 &&
-      /fake-terms rule codename at p28\/design\.md line 3/.test(
-        error.message,
-      ) &&
-      !/zorblat/i.test(error.message),
-  );
-  assert.equal(store.get("plans", "p28"), null);
-  assert.deepEqual(openDecisions(store), []);
-  assert.ok(
-    store.events({ limit: 1000 }).some((e) => e.kind === "content.refused"),
-  );
-
-  // (2) A person puts the line in tasks.md and approves: refused with a
-  // content.match diagnostic and a decision. Allow once, approve again.
-  writeSpec(root, "p28", spec("Codename zorblat stays internal."));
-  await ops.execute("plan.create", { spec: "p28" });
-  const lint = await ops.execute("plan.lint", { id: "p28" });
-  assert.ok(
-    lint.diagnostics.some(
-      (d) =>
-        d.code === "content.match" &&
-        d.file === "tasks.md" &&
-        d.lineStart === 3,
-    ),
-  );
-  await assert.rejects(approve(ops), /content\.match/);
-  const [blocked] = openDecisions(store, "match");
-  assert.deepEqual(
-    [
-      blocked.set,
-      blocked.rules,
-      blocked.boundary,
-      blocked.target,
-      blocked.line,
-    ],
-    ["fake-terms", ["codename"], "plan", "p28/tasks.md", 3],
-  );
-  const shown = await ops.execute("content.show", { id: blocked.id });
-  assert.equal(shown.text, "Codename zorblat stays internal.");
-  await assert.rejects(
-    ops.execute(
-      "content.allow",
-      { id: blocked.id, reason: "x" },
-      undefined,
-      planner,
-    ),
-    (error) => error.status === 403,
-  );
-  const allowed = await ops.execute("content.allow", {
-    id: blocked.id,
-    reason: "The codename is public after launch.",
-  });
-  assert.deepEqual(
-    [allowed.allowances[0].by, allowed.allowances[0].reason],
-    ["owner", "The codename is public after launch."],
-  );
-  assert.match(allowed.allowances[0].contentHash, /^[0-9a-f]{64}$/);
-  await approve(ops);
-  assert.ok(store.list("content_allowances").every((a) => a.usedAt));
-
-  // (5) Worker a adds a line naming the fake host: done is refused in-call,
-  // the hook stops the push, and the fixed commit is accepted and lands.
-  let pushed = null;
-  const crew = fakeCrew(ops, {
-    aliases,
-    defaults,
-    scripts: {
-      "a:worker:1": async ({ session, worktree, report, refused }) => {
-        const tree = await worktree();
-        const bad = commitIn(
-          tree,
-          "src/a.txt",
-          "deploy to build7.corp.example\n",
-          "Work a",
-        );
-        await refused(
-          { commit: bad },
-          (error) =>
-            /fake-terms rule host at src\/a\.txt line 1/.test(error.message) &&
-            !/build7/.test(error.message),
-        );
-        pushed = spawnSync("git", ["push", "-q", "origin", `avoozl/${A}`], {
-          cwd: tree,
-          encoding: "utf8",
-        });
-        fs.writeFileSync(path.join(tree, "src", "a.txt"), "deploy a\n");
-        git(tree, "add", ".");
-        git(tree, "commit", "-q", "--amend", "-m", "Work a");
-        const good = git(tree, "rev-parse", "HEAD");
-        await report({ commit: good });
-        return good;
-      },
-    },
-  });
-  const first = await crew.tick();
-  assert.deepEqual(
-    first.dispatch.map((d) => [aliases[d.task], d.role]),
-    [["a", "worker"]],
-  );
-  await crew.play();
-  assert.notEqual(pushed.status, 0, "the hook stopped the push");
-  assert.match(pushed.stderr, /fake-terms rule host/);
-  assert.doesNotMatch(pushed.stderr, /build7/);
-  assert.equal(
-    spawnSync("git", ["config", "--get", "core.hooksPath"], { cwd: checkout })
-      .status,
-    1,
-    "the main checkout keeps its own hooks",
-  );
-  for (
-    let i = 0;
-    i < 4 && !store.read().tasks.find((x) => x.id === A).integration;
-    i++
-  ) {
-    await crew.tick();
-    await crew.play((s) => s.alias === "a");
-  }
-  await crew.tick();
-  assert.ok(store.read().tasks.find((x) => x.id === A).integration, "a lands");
-  assert.equal(
-    git(checkout, "show", "main:hosts.txt"),
-    "legacy build7.corp.example",
-    "a base line never blocks",
-  );
-
-  // (8) b's brief quotes its issue line that matches the report set: it is
-  // sent, and the Delivery view shows one fake-paths finding with one
-  // notification.
-  const bWorker = crew.find("b", "worker", 1);
-  assert.ok(bWorker, "b's brief was sent");
-  assert.match(bWorker.brief, /fileshare\/teams/);
-  const delivery = await ops.execute("delivery.view", {});
-  assert.deepEqual(
-    delivery.contentReports.map((r) => [r.set, r.rule, r.boundary, r.taskId]),
-    [["fake-paths", "share", "brief", B]],
-  );
-  assert.equal(
-    store
-      .list("app_notifications")
-      .filter((n) => /fake-paths reported/.test(n.payload.title)).length,
-    1,
-  );
-
-  // (9) Delete the terms file: every boundary fake-terms covers fails
-  // closed with one decision; the tick still finishes.
-  const file = path.join(terms, "fake-terms.txt"),
-    saved = fs.readFileSync(file, "utf8");
-  fs.rmSync(file);
-  await assert.rejects(
-    crew.find("b", "worker", 1) &&
-      ops.execute(
-        "session.report",
-        { kind: "done", taskId: B, commit: git(checkout, "rev-parse", "main") },
-        undefined,
-        { caller: { sessionKey: "dashboard:" + bWorker.slot } },
-      ),
-    /fake-terms is unavailable \(no terms file/,
-  );
-  for (const input of [
-    { boundary: "brief", target: "brief:x", text: "plain" },
-    { boundary: "brief", target: "brief:y", text: "plain" },
-  ])
-    assert.equal(enforce(store, input).ok, false);
-  const done = await crew.tick();
-  assert.ok(done.policy, "the tick finished");
-  assert.deepEqual(
-    openDecisions(store, "unavailable").map((d) => d.set),
-    ["fake-terms"],
-  );
-  // Restore it, then track it: refused.
-  fs.writeFileSync(file, saved);
-  await crew.tick();
-  assert.deepEqual(openDecisions(store, "unavailable"), [], "settled");
-  git(root, "add", "-f", file);
-  assert.match(describeSets(store).sets[0].reason, /refused: Git tracks it/);
-  git(root, "rm", "-q", "--cached", file);
-  assert.equal(describeSets(store).sets[0].available, true);
-  // The plugin crashes: only its set is unavailable.
-  fs.writeFileSync(env.crashFile, "crash");
-  await loadRulePlugins(store, ops.plugins);
-  assert.deepEqual(
-    describeSets(store).sets.map((s) => [s.id, s.available]),
-    [
-      ["fake-terms", true],
-      ["fake-paths", true],
-      ["fake-plugin-set", false],
-    ],
-  );
-  assert.match(describeSets(store).sets[2].reason, /fake-rules/);
-  fs.rmSync(env.crashFile);
-  await loadRulePlugins(store, ops.plugins);
-  // The plugin's own rule, from memory only.
-  assert.deepEqual(
-    check(store, {
-      boundary: "github",
-      target: "t",
-      text: "Project X launch",
-    }).findings.map((f) => [f.set, f.rule, f.version]),
-    [["fake-plugin-set", "project", "1.0.0"]],
-  );
-  // A slow rule times out in about two seconds; its set fails closed.
-  fs.appendFileSync(file, "slow: (a+)+$\n");
-  const started = Date.now(),
-    slow = check(store, {
-      boundary: "brief",
-      target: "t",
-      text: "a".repeat(40) + "!",
+    // (1) The planner's draft names the codename in design.md: refused in-call
+    // with set, rule, file and line; no decision opens.
+    writeSpec(root, "p28", {
+      ...spec(),
+      "design.md": "# Design\n\nThe zorblat loader.\n",
     });
-  const took = Date.now() - started;
-  assert.ok(took >= 1900 && took < 4500, `took ${took} ms`);
-  assert.deepEqual(slow.unavailable.map((u) => u.set).sort(), [
-    "fake-paths",
-    "fake-plugin-set",
-    "fake-terms",
-  ]);
-  assert.match(slow.unavailable[0].reason, /time limit/);
-  fs.writeFileSync(file, saved);
+    await assert.rejects(
+      ops.execute("plan.create", { spec: "p28" }, undefined, planner),
+      (error) =>
+        error.status === 422 &&
+        /fake-terms rule codename at p28\/design\.md line 3/.test(
+          error.message,
+        ) &&
+        !/zorblat/i.test(error.message),
+    );
+    assert.equal(store.get("plans", "p28"), null);
+    assert.deepEqual(openDecisions(store), []);
+    assert.ok(
+      store.events({ limit: 1000 }).some((e) => e.kind === "content.refused"),
+    );
 
-  // (2, end) The person changes the allowed line: blocked again.
-  writeSpec(root, "p28", spec("The zorblat launch moves later."));
-  const plan = store.get("plans", "p28");
-  await ops.execute("plan.save", { id: "p28", expectedHash: plan.hash });
-  await assert.rejects(approve(ops), /content\.match/);
-  assert.equal(openDecisions(store, "match").length, 1);
+    // (2) A person puts the line in tasks.md and approves: refused with a
+    // content.match diagnostic and a decision. Allow once, approve again.
+    writeSpec(root, "p28", spec("Codename zorblat stays internal."));
+    await ops.execute("plan.create", { spec: "p28" });
+    const lint = await ops.execute("plan.lint", { id: "p28" });
+    assert.ok(
+      lint.diagnostics.some(
+        (d) =>
+          d.code === "content.match" &&
+          d.file === "tasks.md" &&
+          d.lineStart === 3,
+      ),
+    );
+    await assert.rejects(approve(ops), /content\.match/);
+    const [blocked] = openDecisions(store, "match");
+    assert.deepEqual(
+      [
+        blocked.set,
+        blocked.rules,
+        blocked.boundary,
+        blocked.target,
+        blocked.line,
+      ],
+      ["fake-terms", ["codename"], "plan", "p28/tasks.md", 3],
+    );
+    const shown = await ops.execute("content.show", { id: blocked.id });
+    assert.equal(shown.text, "Codename zorblat stays internal.");
+    await assert.rejects(
+      ops.execute(
+        "content.allow",
+        { id: blocked.id, reason: "x" },
+        undefined,
+        planner,
+      ),
+      (error) => error.status === 403,
+    );
+    const allowed = await ops.execute("content.allow", {
+      id: blocked.id,
+      reason: "The codename is public after launch.",
+    });
+    assert.deepEqual(
+      [allowed.allowances[0].by, allowed.allowances[0].reason],
+      ["owner", "The codename is public after launch."],
+    );
+    assert.match(allowed.allowances[0].contentHash, /^[0-9a-f]{64}$/);
+    await approve(ops);
+    assert.ok(store.list("content_allowances").every((a) => a.usedAt));
 
-  // (10) A rule in .avoozl.json is refused; a session's allow gets 403.
-  const good = fs.readFileSync(path.join(root, ".avoozl.json"), "utf8");
-  const bad = JSON.parse(good);
-  bad.contentRules.sets[0].terms = ["zorblat"];
-  fs.writeFileSync(path.join(root, ".avoozl.json"), JSON.stringify(bad));
-  const invalid = await ops.execute("workspace.tick", { sessions: [] });
-  assert.equal(invalid.policy.status, "invalid");
-  assert.match(invalid.policy.error, /could hold a rule/);
-  assert.match(describeSets(store).error, /could hold a rule/);
-  assert.equal(
-    enforce(store, { boundary: "plan", target: "x", text: "plain" }).ok,
-    false,
-    "invalid content rules fail closed",
-  );
-  fs.writeFileSync(path.join(root, ".avoozl.json"), good);
-  const decision = openDecisions(store, "match")[0];
-  const reply = await handleMcp(
-    {
-      jsonrpc: "2.0",
-      id: 1,
-      method: "tools/call",
-      params: {
-        name: "plans_content_allow",
-        arguments: { input: { id: decision.id, reason: "please" } },
+    // (5) Worker a adds a line naming the fake host: done is refused in-call,
+    // the hook stops the push, and the fixed commit is accepted and lands.
+    let pushed = null;
+    const crew = fakeCrew(ops, {
+      aliases,
+      defaults,
+      scripts: {
+        "a:worker:1": async ({ session, worktree, report, refused }) => {
+          const tree = await worktree();
+          const bad = commitIn(
+            tree,
+            "src/a.txt",
+            "deploy to build7.corp.example\n",
+            "Work a",
+          );
+          await refused(
+            { commit: bad },
+            (error) =>
+              /fake-terms rule host at src\/a\.txt line 1/.test(
+                error.message,
+              ) && !/build7/.test(error.message),
+          );
+          pushed = spawnSync("git", ["push", "-q", "origin", `avoozl/${A}`], {
+            cwd: tree,
+            encoding: "utf8",
+          });
+          fs.writeFileSync(path.join(tree, "src", "a.txt"), "deploy a\n");
+          git(tree, "add", ".");
+          git(tree, "commit", "-q", "--amend", "-m", "Work a");
+          const good = git(tree, "rev-parse", "HEAD");
+          await report({ commit: good });
+          return good;
+        },
       },
-    },
-    ops,
-  );
-  assert.equal(reply.body.result.isError, true);
-  assert.match(reply.body.result.content[0].text, /Only a person/);
+    });
+    const first = await crew.tick();
+    assert.deepEqual(
+      first.dispatch.map((d) => [aliases[d.task], d.role]),
+      [["a", "worker"]],
+    );
+    await crew.play();
+    assert.notEqual(pushed.status, 0, "the hook stopped the push");
+    assert.match(pushed.stderr, /fake-terms rule host/);
+    assert.doesNotMatch(pushed.stderr, /build7/);
+    assert.equal(
+      spawnSync("git", ["config", "--get", "core.hooksPath"], { cwd: checkout })
+        .status,
+      1,
+      "the main checkout keeps its own hooks",
+    );
+    for (
+      let i = 0;
+      i < 4 && !store.read().tasks.find((x) => x.id === A).integration;
+      i++
+    ) {
+      await crew.tick();
+      await crew.play((s) => s.alias === "a");
+    }
+    await crew.tick();
+    assert.ok(
+      store.read().tasks.find((x) => x.id === A).integration,
+      "a lands",
+    );
+    assert.equal(
+      git(checkout, "show", "main:hosts.txt"),
+      "legacy build7.corp.example",
+      "a base line never blocks",
+    );
 
-  // (11) No blocking term, plain or encoded, in Avoozl's own records or in
-  // the landed history. `plans` and `approvals` hold the plan text a person
-  // saved and allowed; they are the plan, not a record about it.
-  const tables = [
-    "content_decisions",
-    "content_allowances",
-    "content_reports",
-    "app_notifications",
-    "receipts",
-    "session_bindings",
-    "task_deliveries",
-    "task_worktrees",
-    "integration",
-    "evidence",
-    "runs",
-  ];
-  const records =
-    JSON.stringify(tables.map((name) => store.list(name))) +
-    JSON.stringify(store.events({ limit: 100000 })) +
-    JSON.stringify(store.read().tasks);
-  for (const term of TERMS) assert.doesNotMatch(records, term, String(term));
-  const landed = git(checkout, "log", "-p", "main", "--", ".", ":!hosts.txt");
-  for (const term of TERMS) assert.doesNotMatch(landed, term);
-  assert.doesNotMatch(git(root, "log", "-p", "--all"), /zorblat/i);
+    // (8) b's brief quotes its issue line that matches the report set: it is
+    // sent, and the Delivery view shows one fake-paths finding with one
+    // notification.
+    const bWorker = crew.find("b", "worker", 1);
+    assert.ok(bWorker, "b's brief was sent");
+    assert.match(bWorker.brief, /fileshare\/teams/);
+    const delivery = await ops.execute("delivery.view", {});
+    assert.deepEqual(
+      delivery.contentReports.map((r) => [r.set, r.rule, r.boundary, r.taskId]),
+      [["fake-paths", "share", "brief", B]],
+    );
+    assert.equal(
+      store
+        .list("app_notifications")
+        .filter((n) => /fake-paths reported/.test(n.payload.title)).length,
+      1,
+    );
 
-  // The release scan reads the same terms file and prints the rule id with
-  // the line number, never the matched line.
-  const scanned = execFileSync(
-    process.execPath,
-    [
-      "--input-type=module",
-      "-e",
-      `import { scanText, RULES } from ${JSON.stringify(
-        path.resolve(import.meta.dirname, "../../../scripts/release-scan.mjs"),
-      )}; console.log(JSON.stringify(scanText("plain\\nthe zorblat note", RULES)))`,
-    ],
-    {
-      encoding: "utf8",
-      env: { ...process.env, AVOOZL_RELEASE_TERMS: file },
-    },
-  );
-  assert.deepEqual(JSON.parse(scanned), [
-    { category: "private-name", rule: "codename", line: 2 },
-  ]);
-});
+    // (9) Delete the terms file: every boundary fake-terms covers fails
+    // closed with one decision; the tick still finishes.
+    const file = path.join(terms, "fake-terms.txt"),
+      saved = fs.readFileSync(file, "utf8");
+    fs.rmSync(file);
+    await assert.rejects(
+      crew.find("b", "worker", 1) &&
+        ops.execute(
+          "session.report",
+          {
+            kind: "done",
+            taskId: B,
+            commit: git(checkout, "rev-parse", "main"),
+          },
+          undefined,
+          { caller: { sessionKey: "dashboard:" + bWorker.slot } },
+        ),
+      /fake-terms is unavailable \(no terms file/,
+    );
+    for (const input of [
+      { boundary: "brief", target: "brief:x", text: "plain" },
+      { boundary: "brief", target: "brief:y", text: "plain" },
+    ])
+      assert.equal(enforce(store, input).ok, false);
+    const done = await crew.tick();
+    assert.ok(done.policy, "the tick finished");
+    assert.deepEqual(
+      openDecisions(store, "unavailable").map((d) => d.set),
+      ["fake-terms"],
+    );
+    // Restore it, then track it: refused.
+    fs.writeFileSync(file, saved);
+    await crew.tick();
+    assert.deepEqual(openDecisions(store, "unavailable"), [], "settled");
+    git(root, "add", "-f", file);
+    assert.match(describeSets(store).sets[0].reason, /refused: Git tracks it/);
+    git(root, "rm", "-q", "--cached", file);
+    assert.equal(describeSets(store).sets[0].available, true);
+    // The plugin crashes: only its set is unavailable.
+    fs.writeFileSync(env.crashFile, "crash");
+    await loadRulePlugins(store, ops.plugins);
+    assert.deepEqual(
+      describeSets(store).sets.map((s) => [s.id, s.available]),
+      [
+        ["fake-terms", true],
+        ["fake-paths", true],
+        ["fake-plugin-set", false],
+      ],
+    );
+    assert.match(describeSets(store).sets[2].reason, /fake-rules/);
+    fs.rmSync(env.crashFile);
+    await loadRulePlugins(store, ops.plugins);
+    // The plugin's own rule, from memory only.
+    assert.deepEqual(
+      check(store, {
+        boundary: "github",
+        target: "t",
+        text: "Project X launch",
+      }).findings.map((f) => [f.set, f.rule, f.version]),
+      [["fake-plugin-set", "project", "1.0.0"]],
+    );
+    // A slow rule times out in about two seconds; its set fails closed.
+    fs.appendFileSync(file, "slow: (a+)+$\n");
+    const started = Date.now(),
+      slow = check(store, {
+        boundary: "brief",
+        target: "t",
+        text: "a".repeat(40) + "!",
+      });
+    const took = Date.now() - started;
+    // At least the limit; no upper bound, since a loaded host can stall the
+    // waiting thread. A hang would run into the test's own timeout instead.
+    assert.ok(took >= 1900, `took ${took} ms`);
+    assert.deepEqual(slow.unavailable.map((u) => u.set).sort(), [
+      "fake-paths",
+      "fake-plugin-set",
+      "fake-terms",
+    ]);
+    assert.match(slow.unavailable[0].reason, /time limit/);
+    fs.writeFileSync(file, saved);
+
+    // (2, end) The person changes the allowed line: blocked again.
+    writeSpec(root, "p28", spec("The zorblat launch moves later."));
+    const plan = store.get("plans", "p28");
+    await ops.execute("plan.save", { id: "p28", expectedHash: plan.hash });
+    await assert.rejects(approve(ops), /content\.match/);
+    assert.equal(openDecisions(store, "match").length, 1);
+
+    // (10) A rule in .avoozl.json is refused; a session's allow gets 403.
+    const good = fs.readFileSync(path.join(root, ".avoozl.json"), "utf8");
+    const bad = JSON.parse(good);
+    bad.contentRules.sets[0].terms = ["zorblat"];
+    fs.writeFileSync(path.join(root, ".avoozl.json"), JSON.stringify(bad));
+    const invalid = await ops.execute("workspace.tick", { sessions: [] });
+    assert.equal(invalid.policy.status, "invalid");
+    assert.match(invalid.policy.error, /could hold a rule/);
+    assert.match(describeSets(store).error, /could hold a rule/);
+    assert.equal(
+      enforce(store, { boundary: "plan", target: "x", text: "plain" }).ok,
+      false,
+      "invalid content rules fail closed",
+    );
+    fs.writeFileSync(path.join(root, ".avoozl.json"), good);
+    const decision = openDecisions(store, "match")[0];
+    const reply = await handleMcp(
+      {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "plans_content_allow",
+          arguments: { input: { id: decision.id, reason: "please" } },
+        },
+      },
+      ops,
+    );
+    assert.equal(reply.body.result.isError, true);
+    assert.match(reply.body.result.content[0].text, /Only a person/);
+
+    // (11) No blocking term, plain or encoded, in Avoozl's own records or in
+    // the landed history. `plans` and `approvals` hold the plan text a person
+    // saved and allowed; they are the plan, not a record about it.
+    const tables = [
+      "content_decisions",
+      "content_allowances",
+      "content_reports",
+      "app_notifications",
+      "receipts",
+      "session_bindings",
+      "task_deliveries",
+      "task_worktrees",
+      "integration",
+      "evidence",
+      "runs",
+    ];
+    const records =
+      JSON.stringify(tables.map((name) => store.list(name))) +
+      JSON.stringify(store.events({ limit: 100000 })) +
+      JSON.stringify(store.read().tasks);
+    for (const term of TERMS) assert.doesNotMatch(records, term, String(term));
+    const landed = git(checkout, "log", "-p", "main", "--", ".", ":!hosts.txt");
+    for (const term of TERMS) assert.doesNotMatch(landed, term);
+    assert.doesNotMatch(git(root, "log", "-p", "--all"), /zorblat/i);
+
+    // The release scan reads the same terms file and prints the rule id with
+    // the line number, never the matched line.
+    const scanned = execFileSync(
+      process.execPath,
+      [
+        "--input-type=module",
+        "-e",
+        `import { scanText, RULES } from ${JSON.stringify(
+          path.resolve(
+            import.meta.dirname,
+            "../../../scripts/release-scan.mjs",
+          ),
+        )}; console.log(JSON.stringify(scanText("plain\\nthe zorblat note", RULES)))`,
+      ],
+      {
+        encoding: "utf8",
+        env: { ...process.env, AVOOZL_RELEASE_TERMS: file },
+      },
+    );
+    assert.deepEqual(JSON.parse(scanned), [
+      { category: "private-name", rule: "codename", line: 2 },
+    ]);
+  },
+);
 
 test("P28 (3), (7): a GitHub issue write and a reply naming a fake term", async (t) => {
   const { store, ops } = await workspace(t);

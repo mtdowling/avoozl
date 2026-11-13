@@ -237,7 +237,14 @@ port.on("message", ({ key, rules, lines }) => {
   Atomics.store(flag, 0, 1);
   Atomics.notify(flag, 0);
 });
+// Ready: the caller starts the match clock only after this.
+Atomics.store(flag, 0, 1);
+Atomics.notify(flag, 0);
 `;
+
+// How long a new worker may take to start. Startup is not matching, so it
+// is kept out of the time limit: a loaded host must not fail a check closed.
+const START_TIMEOUT_MS = 30_000;
 
 let runner = null;
 function startRunner() {
@@ -253,7 +260,14 @@ function startRunner() {
   worker.on("error", () => {
     if (runner?.worker === worker) runner = null;
   });
-  return { worker, port: port1, flag: new Int32Array(flag) };
+  const view = new Int32Array(flag);
+  if (Atomics.wait(view, 0, 0, START_TIMEOUT_MS) === "timed-out") {
+    worker.terminate();
+    const error = Error("the matching worker did not start");
+    error.timeout = true;
+    throw error;
+  }
+  return { worker, port: port1, flag: view };
 }
 
 // [{line index, set, rule}] for every rule that matches a line, or throws
