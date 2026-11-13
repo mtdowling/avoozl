@@ -1309,3 +1309,29 @@ Phase 32, which the remote relay holds, because task IDs never move.
 - [x] 33.1 Skip done tasks in projection, after 3.7 [R74] (§6.3)
   - `github.issues.includeDone` (default `false`) in the policy, the planning identity and the GitHub settings page; projection leaves out a done task with no issue, drops edges from it, keeps the plan issue, puts an open task of a skipped package under the plan issue, and the preview returns `skippedDone`; `src/app/test/github-include-done.test.mjs`.
   - Built: `da8a2b4`, PR #34.
+
+## Phase 34: Investigate first, evidence, staying current, rules, fix share, ship mode
+
+Owner decisions 2026-11-13 (Requirements 75–80, design §4.11 and
+§4.21–§4.25). Numbered after Phase 33 because task IDs never move. Tests use
+isolated temporary workspaces, a fake GitHub and fake workers.
+
+- [ ] 34.1 Findings, falsifier and the confidence gate, after 11.11 and 12.9 [R75] (§4.21)
+  - `plans_report` kind `findings`; the `falsifier` role and session; the gate; the Needs you item with Go ahead, Investigate again and Stop; `delivery.investigate` settings and manifest `investigate`; Flow spans and budget.
+- [ ] 34.2 Evidence bundle, after 34.1 and 22.3 [R76] (§4.22)
+  - The local bundle, `plans_report` field `evidence`, screening, `task.evidence`, the drawer section, the pull request comment, and the driver export.
+- [ ] 34.3 Bring pull requests up to date, after 15.4 [R77] (§4.23)
+  - Base head tracking, the `base-moved` feedback message, the force-push refusal, and the local merge-forward.
+- [ ] 34.4 Corrections and rules, after 28.3 [R78] (§4.24)
+  - The `corrections` table and its four sources, the retro grouping and rule proposal, the steering leaf, and corrections in Flow and PDCA.
+- [ ] 34.5 Fix-work share, after 12.11 [R79] (§4.11)
+  - The fix-work rule, the Flow card and charts, and the retro payload.
+- [ ] 34.6 Ship mode, after 15.4 [R80] (§4.25)
+  - `delivery.ship` in workspace and repository settings, the briefs, the Ready to merge item, and Integrate in Local only; Settings > Delivery shows it.
+
+- [ ] avoozl-p45 P45 Proof: investigate first, evidence, staying current, rules, fix share and ship mode [R75–R80] (§4.21–§4.25)
+  - Setup: an isolated temporary workspace in single-repo mode on a fake GitHub with leaves `a1` (plain), `a2` (`size: "small"`) and `a3` (plain), a bugfix spec with leaf `f1`, fake workers and a fake falsifier.
+  - Action: (1) dispatch `a1` with findings at `high` and a `stands` reply; (2) dispatch `a3` with a `refuted` reply; press Investigate again, then Go ahead; (3) dispatch `a2`; (4) attach a screenshot and a 30 MB file to `a1`; (5) move the base branch so `a1`'s pull request conflicts; (6) request changes with the same point on `a1` and `a3`; run the retro; approve its rule; (7) finish `f1`; read Flow; (8) set `delivery.ship` to `manual` and let `a3`'s checks pass.
+  - Expected: (1) no file changes before the gate, then coding; (2) the task waits in Needs you, one new round, then coding; (3) no investigation; (4) the screenshot is in the drawer and the comment, the large file refused; (5) one `base-moved` message, a merge commit and no force push; (6) one rule proposal naming both corrections and one steering leaf; (7) fix-work share 1 of 3; (8) no auto-merge, one Ready to merge item, and completion after the person merges.
+  - Failure means: coding starts on refuted findings, a writer force pushes, or a manual ship merges without a person.
+  - Next decision: keep the falsifier only for large tasks, or drop the PR comment and keep evidence local.
