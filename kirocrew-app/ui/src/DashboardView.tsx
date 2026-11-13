@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
+import { SpendChip } from './Budget.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import { useAppApi } from '@kirocrew/app-sdk'
 import { Btn, Card, EmptyState } from '@kirocrew/app-sdk/ui'
@@ -162,7 +163,8 @@ function InFlightRow({ row, now, onInfo, onPickAgain }: { row: InFlight; now: nu
         <span className="text-xs text-muted">
           {row.taskId}
           {row.epic ? ` · ${row.epic}` : ''} · attempt {row.attempt}
-        </span>
+        </span>{' '}
+        <SpendChip budget={row.budget} />
         {row.focus && <span className="block text-xs text-muted">{row.focus}</span>}
         <span className="block text-xs text-muted">
           {row.session.agent ? `${row.session.agent} / ` : ''}
@@ -385,6 +387,11 @@ export default function DashboardView(props: {
             </span>
             {props.untriaged !== null && props.untriaged !== undefined && (
               <UntriagedStat count={props.untriaged} onOpen={() => onNavigate('untriaged')} />
+            )}
+            {summary && summary.overBudget > 0 && (
+              <span data-over-budget>
+                <Badge variant="danger">{summary.overBudget} over budget</Badge>
+              </span>
             )}
           </>
         }

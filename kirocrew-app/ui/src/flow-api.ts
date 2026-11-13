@@ -137,6 +137,18 @@ export interface FlowViewModel {
   epics: { id: string; title: string }[]
   series: { day: SeriesPoint[]; week: SeriesPoint[] }
   usage: UsageView
+  // Task IDs over budget, past 80%, stopped at the cap, or stopped by a
+  // person (§4.17). Older backends send none.
+  budget?: { over: string[]; warning: string[]; stopped: string[]; paused: string[] }
+}
+
+// The Flow tab's budget mark for one task's bar, or null.
+export function budgetMark(budget: FlowViewModel['budget'], taskId: string): 'over budget' | 'stopped at budget' | '80% of budget' | null {
+  if (!budget) return null
+  if (budget.stopped.includes(taskId) || budget.paused.includes(taskId)) return 'stopped at budget'
+  if (budget.over.includes(taskId)) return 'over budget'
+  if (budget.warning.includes(taskId)) return '80% of budget'
+  return null
 }
 
 export interface SeriesPoint {

@@ -50,6 +50,7 @@ import { AddRepository, REPOSITORIES_LINE, RepositoryDialog, RepositoryList, rep
 import PluginsSettings from './PluginsSettings.tsx'
 import ContentRulesSettings from './ContentRulesSettings.tsx'
 import FlowSettings from './FlowSettings.tsx'
+import { BudgetSettings, PricesSettings } from './BudgetSettings.tsx'
 import DeliverySettings from './DeliverySettings.tsx'
 import { useSteppedState } from './NavHistory.tsx'
 import { useRead } from './useRead.ts'
@@ -77,6 +78,8 @@ export const SETTINGS_TABS = [
   { key: 'content', label: 'Content rules' },
   { key: 'flow', label: 'Flow' },
   { key: 'delivery', label: 'Delivery' },
+  { key: 'budgets', label: 'Budgets' },
+  { key: 'prices', label: 'Prices' },
 ] as const
 export type SettingsTab = (typeof SETTINGS_TABS)[number]['key']
 
@@ -99,6 +102,10 @@ export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
   flow: 'How Avoozl measures delivery time and reacts to slow or broken work. Every group applies in each mode.',
   delivery:
     'Which agent and model write each task by default, and whether pull request feedback goes back to the writer. Crews and per-task picks are on the Routing tab.',
+  budgets:
+    "Each task's spending cap and what happens at it: stop new work, or only warn. Save only writes .avoozl.json.",
+  prices:
+    'What each model costs, so budgets can count dollars. Kept on this computer only, never in a repository.',
 }
 
 const REPOSITORY_TABS = [
@@ -1402,6 +1409,10 @@ export default function SettingsView(props: {
         <FlowSettings workspaceId={workspaceId} />
       ) : tab === 'delivery' ? (
         <DeliverySettings workspaceId={workspaceId} onOpenRouting={props.onOpenRouting} />
+      ) : tab === 'budgets' ? (
+        <BudgetSettings workspaceId={workspaceId} />
+      ) : tab === 'prices' ? (
+        <PricesSettings workspaceId={workspaceId} />
       ) : (
         <PolicyEditor workspaceId={workspaceId} tab={tab} onOpenPlans={props.onOpenPlans} />
       )}

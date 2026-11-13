@@ -4,6 +4,7 @@ import { digest } from "../model.mjs";
 import { COMPLETIONS, TASK_KINDS, isSource } from "../work-model.mjs";
 import { fail } from "./store.mjs";
 import { validateSession } from "./placement.mjs";
+import { budgetInput } from "./budget.mjs";
 import { frontMatterCategory } from "../front-matter.mjs";
 import { newTaskAuthority } from "./github-policy.mjs";
 import { checkedItems } from "./spec-plans.mjs";
@@ -157,6 +158,10 @@ export function validateProposal(item) {
   )
     fail("type must be one lowercase word, such as test.");
   if (item.session !== undefined) validateSession(item.session);
+  // A leaf's cap, and its spec's from the manifest top level (§4.17).
+  if (item.budget !== undefined) budgetInput(item.budget, "budget");
+  if (item.specBudget !== undefined)
+    budgetInput(item.specBudget, "the spec budget");
   return item;
 }
 export function createPlan(
@@ -521,6 +526,8 @@ export function approvePlan(
             "paths",
             "type",
             "session",
+            "budget",
+            "specBudget",
           ]
             .filter((key) => proposal[key] !== undefined)
             .map((key) => [key, proposal[key]]),
@@ -599,6 +606,8 @@ export function approvePlan(
           "paths",
           "type",
           "session",
+          "budget",
+          "specBudget",
         ])
           if (design[key] === undefined) delete existing[key];
         // An item moved out from under its epic loses that parent.

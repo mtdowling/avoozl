@@ -26,9 +26,11 @@ import {
 } from "./session-observer.mjs";
 import { declaredChecks } from "./delivery.mjs";
 import { observeUsage } from "./flow-usage.mjs";
+import { budgetStep } from "./budget.mjs";
 import { taskRepository } from "../work-model.mjs";
 import { issueRadarReader } from "./radar-handoff.mjs";
-import { tickHealth } from "./tick.mjs";
+import { WORKSPACE_LOCK, tickHealth } from "./tick.mjs";
+import { withWorkLock } from "./git.mjs";
 
 export const PRINCIPAL_HEADER = "x-kirocrew-principal";
 const HOST = "127.0.0.1";
@@ -190,6 +192,16 @@ const APP_OPERATIONS = new Set([
   "flow.runAnyway",
   "flow.stop",
   "flow.resume",
+  "budget.view",
+  "budget.receipt",
+  "budget.raise",
+  "budget.stop",
+  "budget.acknowledge",
+  "budget.switchToStop",
+  "budget.settings.get",
+  "budget.settings.update",
+  "prices.get",
+  "prices.save",
   "flow.settings.get",
   "flow.settings.update",
   "routing.view",
@@ -486,6 +498,16 @@ export function startAppBackend({
           if (usageReader) {
             const { errors } = await observeUsage(store, usageReader);
             if (errors.length) console.error(errors[0].error);
+            // The budget check after each usage read (§4.17): a stop is
+            // recorded now; the next tick sends its messages and notices.
+            // Under the tick's lock; a running tick checks it itself.
+            try {
+              await withWorkLock(store, WORKSPACE_LOCK, async () =>
+                budgetStep(store, store.read()),
+              );
+            } catch (error) {
+              if (!error.contention) throw error;
+            }
           }
         } catch (error) {
           if (error.status !== 503) console.error(error);

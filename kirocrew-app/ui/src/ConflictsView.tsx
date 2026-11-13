@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { BudgetActions } from './Budget.tsx'
+import type { BudgetChip } from './budget-api.ts'
 import { useAppApi } from '@kirocrew/app-sdk'
 import { Btn, Card, Input } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
@@ -105,6 +107,14 @@ export function ConflictActions(props: {
   const why = noActionReason(item)
   return (
     <div className="flex flex-col gap-2">
+      {(item.kind === 'budget' || item.kind === 'over-budget') && item.taskId && (item as ConflictItem & { budget?: BudgetChip }).budget && (
+        <BudgetActions
+          workspaceId={workspaceId}
+          taskId={item.taskId}
+          budget={(item as ConflictItem & { budget: BudgetChip }).budget}
+          onDone={(text) => run(async () => ({ ok: true, text }))}
+        />
+      )}
       {item.kind === 'content-match' && item.id && (
         <ContentActions id={item.id} readable={item.readable === true} workspaceId={workspaceId} busy={busy} run={run} />
       )}

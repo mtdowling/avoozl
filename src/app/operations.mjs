@@ -175,6 +175,17 @@ import {
 import { lineBanner, pullCord, resumeStop, runAnyway } from "./flow-line.mjs";
 import { localCheckList, localPass, runLocalChecks } from "./flow-checks.mjs";
 import { queueNotifications } from "./notifications.mjs";
+import {
+  acknowledgeBudget,
+  budgetRefusal,
+  budgetReceipt,
+  budgetView,
+  pricesView,
+  raiseBudget,
+  savePrices,
+  stopBudget,
+  switchBudgetToStop,
+} from "./budget.mjs";
 
 const PLUGIN_OPERATIONS = new Set([
   "plugins.list",
@@ -252,6 +263,7 @@ import { highlightLanguages } from "./highlight-languages.mjs";
 import { importNewPlans, requestNewPlan } from "./new-plan.mjs";
 import { writeSpecManifest } from "./spec-manifest.mjs";
 import {
+  callerSlot,
   claimedTaskIds,
   declaredChecks,
   prepareWorktree,
@@ -1744,6 +1756,61 @@ export class Operations {
     if (context.caller || context.mcp) {
       const refusal = mcpRefusal(name, input);
       if (refusal) fail(refusal, 403);
+      // A session bound to a task at its budget hears so at its next Avoozl
+      // call; only its report goes through (§4.17, R67.8).
+      if (name !== "session.report") {
+        const reached = budgetRefusal(store, callerSlot(context.caller));
+        if (reached) {
+          const error = Error(reached);
+          error.status = 409;
+          error.code = "budget_reached";
+          throw error;
+        }
+      }
+    }
+    // Budgets and receipts (§4.17). Raise, Stop, Acknowledge, Switch to
+    // stop and the price table are a person's only (R67.9).
+    if (name === "budget.view") return budgetView(store, this.read());
+    if (name === "budget.receipt")
+      return budgetReceipt(
+        store,
+        this.read(),
+        resolveTaskId(this.read(), input.taskId),
+      );
+    if (name === "prices.get") return pricesView(store);
+    if (name === "budget.settings.get")
+      return this.settingsFile().readBudgetSettings();
+    if (name === "budget.settings.update") {
+      if (context.caller || context.mcp)
+        fail("Only a person changes budget settings, in the Avoozl page.", 403);
+      const written = this.settingsFile().updateBudgetSettings(input);
+      this.configuration?.reload();
+      return written;
+    }
+    if (
+      [
+        "budget.raise",
+        "budget.stop",
+        "budget.acknowledge",
+        "budget.switchToStop",
+        "prices.save",
+      ].includes(name)
+    ) {
+      if (context.caller || context.mcp)
+        fail(
+          "Only a person changes a budget or the price table, in the Avoozl page or the CLI.",
+          403,
+        );
+      const by = context.local ? "cli" : this.operator || "dashboard",
+        taskInput = input.taskId
+          ? { ...input, taskId: resolveTaskId(this.read(), input.taskId) }
+          : input;
+      if (name === "prices.save") return savePrices(store, input);
+      if (name === "budget.raise") return raiseBudget(store, taskInput, { by });
+      if (name === "budget.stop") return stopBudget(store, taskInput, { by });
+      if (name === "budget.acknowledge")
+        return acknowledgeBudget(store, taskInput, { by });
+      return switchBudgetToStop(store, taskInput, { by });
     }
     // Rules plugins' sets live in memory (§4.9); reload them when stale so a
     // boundary in this process never checks with sets it has not loaded.
@@ -2086,6 +2153,8 @@ export class Operations {
         usage: usageView(store, data, {
           tasks: filtered ? view.tasks.map((t) => t.taskId) : null,
         }),
+        // Over-budget and budget-stopped tasks (§4.17).
+        budget: flowBudget(store, data),
       };
     }
     // Settings > Flow (§8.4) and the retros (§4.11).
@@ -4345,5 +4414,26 @@ export class Operations {
         { versionHeader: input.versionHeader },
       );
     fail("Unknown operation " + name, 404);
+  }
+}
+
+// The Flow tab's budget marks: task IDs over budget, stopped, or paused.
+function flowBudget(store, data) {
+  try {
+    const view = budgetView(store, data);
+    return {
+      over: view.tasks.filter((t) => t.reached).map((t) => t.taskId),
+      warning: view.tasks
+        .filter((t) => t.warning && !t.reached)
+        .map((t) => t.taskId),
+      stopped: view.tasks
+        .filter((t) => t.state === "open")
+        .map((t) => t.taskId),
+      paused: view.tasks
+        .filter((t) => t.state === "paused")
+        .map((t) => t.taskId),
+    };
+  } catch {
+    return { over: [], warning: [], stopped: [], paused: [] };
   }
 }

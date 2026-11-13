@@ -1,6 +1,7 @@
 // Calls and pure helpers for the Graph, Delivery and Conflicts views. All three
 // are read-only operations on the app backend. Keep this module free of JSX and
 // runtime imports so node can test it directly.
+import type { BudgetChip } from './budget-api.ts'
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
 
@@ -209,6 +210,8 @@ export interface DeliveryItem extends TaskOwner {
   noSession?: 'review' | 'running' | null
   nextAction?: string | null
   planArchived?: string | null
+  // Spend against the cap (§4.17); null with no usage.
+  budget?: BudgetChip | null
 }
 
 // One task in a review group.
@@ -420,6 +423,8 @@ export const CONFLICT_LABELS: Record<string, string> = {
   resource: 'Shared resource',
   'content-match': 'Content rule',
   'content-unavailable': 'Rule set unavailable',
+  budget: 'Budget reached',
+  'over-budget': 'Over budget',
 }
 
 // A local task that is not already replaced may be superseded by hand. GitHub

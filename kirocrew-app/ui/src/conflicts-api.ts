@@ -93,6 +93,8 @@ export function noActionReason(item: ConflictItem): string | null {
   if (item.kind === 'content-unavailable')
     return 'Add or fix this rule set’s terms file or plugin on this machine. Avoozl checks again on the next tick.'
   if (item.kind === 'content-match') return null
+  // Budget items carry their own actions (Budget.tsx BudgetActions).
+  if (item.kind === 'budget' || item.kind === 'over-budget') return null
   if (item.kind === 'needs-human' && item.reason === 'hand-set-review')
     return 'Discuss it, mark it done, or move it back to planned from the task.'
   if (item.kind === 'review' && settleActionOf(item) === null)
