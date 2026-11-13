@@ -14,8 +14,12 @@ test("conversation history starts at the latest events and pages backward withou
     state: "completed",
     prompt: "Original question",
   });
-  for (let i = 0; i < 1200; i++)
-    store.event("run-history", "message", { text: "Message " + i });
+  // One transaction: 1200 separate commits each wait on a disk flush, which
+  // took 40 s+ on a busy disk.
+  store.transaction(() => {
+    for (let i = 0; i < 1200; i++)
+      store.event("run-history", "message", { text: "Message " + i });
+  });
   const ops = new Operations(store),
     recent = await ops.execute("run.get", { id: "run-history", limit: 80 });
   assert.equal(recent.events.length, 80);

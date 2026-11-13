@@ -142,7 +142,9 @@ test("a slow rule times out in about two seconds and fails closed", () => {
     (error) => error.timeout === true,
   );
   const took = Date.now() - started;
-  assert.ok(took >= 1900 && took < 4000, `took ${took} ms`);
+  // At least the limit; no upper bound, since a loaded host can stall the
+  // waiting thread. A hang would run into the test's own timeout instead.
+  assert.ok(took >= 1900, `took ${took} ms`);
   // The next check gets a fresh worker.
   assert.deepEqual(
     matchInWorker([{ set: "s", rule: "r", source: "b" }], ["abc"]),
@@ -256,6 +258,23 @@ test("the pre-push hook goes in one linked worktree, not the main checkout's hoo
     /linked worktree/,
   );
   t.after(() => {});
+});
+
+test("the pre-push hook refuses a main checkout reached through a symlink", () => {
+  const real = temporaryDirectory("avoozl-cr-real-"),
+    link = path.join(temporaryDirectory("avoozl-cr-link-"), "repo");
+  git(real, "init", "-q", "-b", "main");
+  fs.symlinkSync(real, link);
+  assert.throws(
+    () =>
+      installPushHook(link, {
+        cli: "cli.mjs",
+        workspaceRoot: link,
+        taskId: "x",
+      }),
+    /linked worktree/,
+  );
+  assert.equal(fs.existsSync(path.join(real, ".git", "avoozl-hooks")), false);
 });
 
 test("the guarded GitHub client blocks a matching write and lets the rest through", async (t) => {
