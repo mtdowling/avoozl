@@ -478,6 +478,7 @@ function intakeLink(row, how) {
     kind: item.kind,
     labels: item.labels,
     snapshotHash: digest(item.body || ""),
+    snapshotTitle: item.title,
     rule: how.rule ?? null,
     actor: how.actor ?? null,
     eventId: how.eventId ?? null,
@@ -746,15 +747,21 @@ export function takeItem(store, source, item, context = {}) {
   } else if (taskId) {
     patchTask(store, taskId, `Update ${taskId} from ${source.id}`, (task) => {
       const view = matchView(record, source);
-      task.title = record.title;
       if (task.intake) task.intake.labels = record.labels;
       const waiting = setLabelEffects(task, repository, view.labels);
       const snapshot = task.intake?.snapshotHash,
         bodyHash = digest(record.body || ""),
+        // The title is frozen with the body; a task from before this takes
+        // the title last stored for the item as its snapshot.
+        snapshotTitle = task.intake
+          ? (task.intake.snapshotTitle ?? stored?.record?.title ?? record.title)
+          : record.title,
         retriggered =
           route.eventId &&
           task.intake?.eventId &&
           route.eventId !== task.intake.eventId;
+      if (!task.intake || retriggered || snapshotTitle === record.title)
+        task.title = record.title;
       if (["paused", "quarantined"].includes(route.state))
         setDispatch(task, false, route.state, route.reason);
       else if (route.state === "untriaged" && task.intake?.by !== "person")
@@ -764,6 +771,17 @@ export function takeItem(store, source, item, context = {}) {
           "withdrawn",
           route.reason ||
             "No rule matches this item for an allowed actor any more.",
+        );
+      else if (
+        !retriggered &&
+        snapshotTitle !== record.title &&
+        task.intake?.confirmedHash !== bodyHash
+      )
+        setDispatch(
+          task,
+          false,
+          "quarantined",
+          "The item's title changed after its trigger snapshot. An allowed actor re-triggers it, or a person confirms the new text.",
         );
       else if (
         snapshot &&
@@ -781,6 +799,7 @@ export function takeItem(store, source, item, context = {}) {
       else {
         if (retriggered) {
           task.intake.snapshotHash = bodyHash;
+          task.intake.snapshotTitle = record.title;
           task.intake.eventId = route.eventId;
           task.approvedSource = { hash: bodyHash, text: record.body || "" };
         }

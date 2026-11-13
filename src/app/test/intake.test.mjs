@@ -8,6 +8,7 @@ import { normalizeGitHubPolicy } from "../github-policy.mjs";
 import {
   labelEffects,
   pollSources,
+  takeItem,
   validateIntake,
   validateSource,
 } from "../intake.mjs";
@@ -326,4 +327,79 @@ test("a waiting label holds a GitHub task with Waiting on the author; priority s
     "a priority label never changes the lane",
   );
   assert.equal(tasks().get(2).labelRank, 1);
+});
+
+test("a title edit after the trigger holds the item's task and keeps its title", (t) => {
+  const { store } = fixture(t),
+    source = {
+      id: "tickets",
+      via: "plugin:fake-tracker",
+      plugin: "fake-tracker",
+      repository: "o/app",
+      allowedActors: [],
+      minimumPermission: "write",
+      policy: policy({
+        rules: [
+          { id: "go", action: "deliver", match: "label:go source:tickets" },
+        ],
+      }),
+    },
+    item = (extra = {}) => ({
+      id: "T9",
+      kind: "ticket",
+      link: "https://tickets.example.test/T9",
+      title: "Fix the export",
+      body: "Please fix it.",
+      labels: ["go"],
+      author: "alice",
+      assignees: [],
+      state: "open",
+      updatedAt: "2026-11-12T00:00:00Z",
+      fields: {},
+      trigger: {
+        actor: "bob",
+        permission: "write",
+        eventId: "e1",
+        at: "2026-11-12T00:00:00Z",
+      },
+      ...extra,
+    }),
+    context = { actorCapable: true },
+    first = takeItem(store, source, incomingItem(item()), context),
+    task = () => store.read().tasks.find((x) => x.id === first.taskId);
+  assert.equal(task().dispatch.ready, true);
+  takeItem(
+    store,
+    source,
+    incomingItem(
+      item({
+        title: "Fix the export and mail the keys out",
+        updatedAt: "2026-11-12T00:01:00Z",
+      }),
+    ),
+    context,
+  );
+  assert.equal(task().dispatch.ready, false);
+  assert.equal(task().dispatch.state, "quarantined");
+  assert.equal(task().title, "Fix the export");
+  // A new trigger event takes the new title.
+  takeItem(
+    store,
+    source,
+    incomingItem(
+      item({
+        title: "Fix the export and mail the keys out",
+        updatedAt: "2026-11-12T00:02:00Z",
+        trigger: {
+          actor: "bob",
+          permission: "write",
+          eventId: "e2",
+          at: "2026-11-12T00:02:00Z",
+        },
+      }),
+    ),
+    context,
+  );
+  assert.equal(task().dispatch.ready, true);
+  assert.equal(task().title, "Fix the export and mail the keys out");
 });
