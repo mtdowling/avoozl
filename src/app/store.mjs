@@ -20,12 +20,24 @@ export function fail(message, status = 400) {
   throw error;
 }
 const stamp = () => new Date().toISOString();
+function writable(filename) {
+  try {
+    fs.accessSync(filename, fs.constants.W_OK);
+    return true;
+  } catch (error) {
+    return error.code === "ENOENT";
+  }
+}
 export class Store {
   constructor(filename) {
     if (filename !== ":memory:")
       fs.mkdirSync(path.dirname(path.resolve(filename)), { recursive: true });
     this.filename = filename;
-    this.db = new DatabaseSync(filename);
+    // A database file the user made read-only is opened read-only, without
+    // the schema statements, so reading it never writes. Writes then fail.
+    this.readOnly = filename !== ":memory:" && !writable(filename);
+    this.db = new DatabaseSync(filename, { readOnly: this.readOnly });
+    if (this.readOnly) return;
     this.db
       .exec(`PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;
    CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -67,6 +79,35 @@ export class Store {
    CREATE INDEX IF NOT EXISTS github_intake_deliveries_repository ON github_intake_deliveries(repository,received_at);
    CREATE TABLE IF NOT EXISTS review_threads(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS review_rounds(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS execution_targets(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS execution_jobs(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS team_checkpoints(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS review_requests(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS safety_incidents(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS safety_permits(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS safety_submissions(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS extractions(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS plan_facts(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS session_bindings(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS session_requests(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS github_responses(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS task_worktrees(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS task_deliveries(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS github_linked_branches(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS app_notifications(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS route_submissions(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS plugin_health(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS content_decisions(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS content_allowances(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS content_reports(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS flow_spans(id TEXT PRIMARY KEY,task_id TEXT NOT NULL,attempt INTEGER,batch_id TEXT,role TEXT,stage TEXT NOT NULL,started_at TEXT NOT NULL,ended_at TEXT,source TEXT NOT NULL,detail TEXT);
+   CREATE INDEX IF NOT EXISTS flow_spans_task ON flow_spans(task_id,attempt);
+   CREATE TABLE IF NOT EXISTS flow_records(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS flow_stops(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS flow_retros(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS flow_batches(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS pr_feedback(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS flow_usage(id TEXT PRIMARY KEY,slot TEXT NOT NULL,task_id TEXT NOT NULL,attempt INTEGER,role TEXT,ts TEXT NOT NULL,model TEXT,input REAL,output REAL,credits REAL);
   `);
   }
   transaction(fn) {
@@ -327,6 +368,32 @@ export class Store {
         "github_queue_associations",
         "review_threads",
         "review_rounds",
+        "execution_targets",
+        "execution_jobs",
+        "team_checkpoints",
+        "review_requests",
+        "safety_incidents",
+        "safety_permits",
+        "safety_submissions",
+        "extractions",
+        "plan_facts",
+        "session_bindings",
+        "session_requests",
+        "github_responses",
+        "task_worktrees",
+        "task_deliveries",
+        "github_linked_branches",
+        "app_notifications",
+        "route_submissions",
+        "plugin_health",
+        "content_decisions",
+        "content_allowances",
+        "content_reports",
+        "flow_records",
+        "flow_stops",
+        "flow_retros",
+        "flow_batches",
+        "pr_feedback",
       ].includes(table)
     )
       fail("Unknown record type");
@@ -353,6 +420,32 @@ export class Store {
         "github_queue_associations",
         "review_threads",
         "review_rounds",
+        "execution_targets",
+        "execution_jobs",
+        "team_checkpoints",
+        "review_requests",
+        "safety_incidents",
+        "safety_permits",
+        "safety_submissions",
+        "extractions",
+        "plan_facts",
+        "session_bindings",
+        "session_requests",
+        "github_responses",
+        "task_worktrees",
+        "task_deliveries",
+        "github_linked_branches",
+        "app_notifications",
+        "route_submissions",
+        "plugin_health",
+        "content_decisions",
+        "content_allowances",
+        "content_reports",
+        "flow_records",
+        "flow_stops",
+        "flow_retros",
+        "flow_batches",
+        "pr_feedback",
       ].includes(table)
     )
       fail("Unknown record type");
@@ -377,6 +470,32 @@ export class Store {
         "github_queue_associations",
         "review_threads",
         "review_rounds",
+        "execution_targets",
+        "execution_jobs",
+        "team_checkpoints",
+        "review_requests",
+        "safety_incidents",
+        "safety_permits",
+        "safety_submissions",
+        "extractions",
+        "plan_facts",
+        "session_bindings",
+        "session_requests",
+        "github_responses",
+        "task_worktrees",
+        "task_deliveries",
+        "github_linked_branches",
+        "app_notifications",
+        "route_submissions",
+        "plugin_health",
+        "content_decisions",
+        "content_allowances",
+        "content_reports",
+        "flow_records",
+        "flow_stops",
+        "flow_retros",
+        "flow_batches",
+        "pr_feedback",
       ].includes(table)
     )
       this.db
@@ -421,12 +540,65 @@ export class Store {
         "github_queue_associations",
         "review_threads",
         "review_rounds",
+        "execution_targets",
+        "execution_jobs",
+        "team_checkpoints",
+        "review_requests",
+        "safety_incidents",
+        "safety_permits",
+        "safety_submissions",
+        "extractions",
+        "plan_facts",
+        "session_bindings",
+        "session_requests",
+        "task_worktrees",
+        "task_deliveries",
+        "github_linked_branches",
+        "app_notifications",
+        "route_submissions",
+        "plugin_health",
+        "content_decisions",
+        "content_allowances",
+        "content_reports",
+        "flow_records",
+        "flow_stops",
+        "flow_retros",
+        "flow_batches",
+        "pr_feedback",
       ].includes(table)
     )
       fail("Unknown record type");
     return (
       this.db.prepare(`DELETE FROM ${table} WHERE id=?`).run(id).changes > 0
     );
+  }
+  // An in-memory copy for a dry run: writes to it never reach this database.
+  scratch() {
+    const copy = new Store(":memory:"),
+      tables = this.db
+        .prepare(
+          "SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
+        )
+        .all(),
+      present = new Set(
+        copy.db
+          .prepare("SELECT name FROM sqlite_master WHERE type='table'")
+          .all()
+          .map((row) => row.name),
+      );
+    copy.db.exec("PRAGMA foreign_keys=OFF");
+    for (const { name, sql } of tables) {
+      if (!present.has(name)) copy.db.exec(sql);
+      const rows = this.db.prepare(`SELECT * FROM "${name}"`).all();
+      if (!rows.length) continue;
+      const columns = Object.keys(rows[0]),
+        insert = copy.db.prepare(
+          `INSERT OR REPLACE INTO "${name}" (${columns.map((c) => `"${c}"`).join(",")}) VALUES (${columns.map(() => "?").join(",")})`,
+        );
+      for (const row of rows) insert.run(...columns.map((c) => row[c]));
+    }
+    copy.db.exec("PRAGMA foreign_keys=ON");
+    return copy;
   }
   close() {
     this.db.close();

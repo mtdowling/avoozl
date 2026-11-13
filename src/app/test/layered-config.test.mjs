@@ -145,11 +145,6 @@ test("workspaceConfig preserves legacy workspace.json compatibility", () => {
   assert.equal(config.name, "Legacy workspace");
   assert.equal(config.dbPath, path.join(workspaceRoot, "state/legacy.sqlite"));
   assert.equal(config.plansRoot, path.join(workspaceRoot, "designs"));
-  assert.equal(config.ahp.port, 9765);
-  assert.equal(
-    config.ahp.tokens,
-    path.join(workspaceRoot, "state/ahp-tokens.json"),
-  );
 });
 
 test(".avoozl/config.json is ignored", () => {
@@ -235,6 +230,15 @@ test("the shipped JSON Schema describes versioned non-secret config", () => {
     "instruction",
   ]);
   assert.equal(schema.$defs.agentInstructionRule.additionalProperties, false);
+  assert.equal(schema.properties.safety.$ref, "#/$defs/safetyPolicy");
+  assert.deepEqual(
+    schema.$defs.safetyAuthorityRule.properties.activities.items.enum,
+    ["raise", "diagnose", "remediate", "review", "resolve", "resume"],
+  );
+  assert.deepEqual(
+    schema.$defs.safetyPolicy.properties.coordinator.properties.mode.enum,
+    ["local", "optional", "strict"],
+  );
   assert(schema.$defs.safePropertyName);
   assert(schema.$defs.safeValue);
 });

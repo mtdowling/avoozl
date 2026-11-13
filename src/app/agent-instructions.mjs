@@ -9,6 +9,7 @@ export const AGENT_INSTRUCTION_CATEGORIES = Object.freeze([
   "plan",
   "plan.create",
   "plan.edit",
+  "plan.extract",
   "plan.review",
   "plan.publish",
   "task",
@@ -33,6 +34,7 @@ const whenKeys = new Set([
   "tagsAny",
   "tagsAll",
   "tagsNone",
+  "paths",
 ]);
 
 function record(value) {
@@ -257,6 +259,18 @@ function selectorMatches(rule, task) {
     !includesOrAll(when.tracks, task?.track)
   )
     return false;
+  if (
+    when.paths?.length &&
+    !when.paths.some((pattern) => {
+      const escaped = pattern
+        .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+        .replace(/\*\*/g, "\0")
+        .replace(/\*/g, "[^/]*")
+        .replace(/\0/g, ".*");
+      return new RegExp(`^${escaped}$`).test(task?.path || "");
+    })
+  )
+    return false;
   const tags = new Set(task?.tags || []);
   if (when.tagsAny?.length && !when.tagsAny.some((tag) => tags.has(tag)))
     return false;
@@ -281,6 +295,8 @@ export function matchingAgentInstructions(data, category, task) {
 export function workflowCategory(run) {
   const explicit = run.context?.workflowCategory;
   if (categories.has(explicit)) return explicit;
+  if (run.extraction?.planId || run.extraction?.extractionId)
+    return "plan.extract";
   if (run.review?.planId || run.review?.pipelineId) return "plan.review";
   if (run.mode === "plan")
     return run.context?.planId || run.planId ? "plan.edit" : "plan.create";

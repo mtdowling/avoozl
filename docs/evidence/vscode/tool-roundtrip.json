@@ -10,7 +10,7 @@
     "editorOffer": ["0.9.0", "0.7.0", "0.6.0", "0.5.2", "0.5.1"],
     "negotiated": "0.9.0"
   },
-  "workspaceId": "38844573-cc30-4c3f-901c-443ceb33b919",
+  "workspaceId": "00000000-0000-0000-0000-000000000001",
   "run": {
     "id": "run-5108deb71ee1d00d8e14ad48",
     "provider": "claude",
@@ -30,8 +30,8 @@
     "error": null
   },
   "request": {
-    "id": "request-7b06f7b0-c1b5-4743-889c-295c73d676a3",
-    "providerRequestId": "c83a863f-e270-49ba-9975-afd53d7d2ed3",
+    "id": "request-00000000-0000-0000-0000-000000000002",
+    "providerRequestId": "00000000-0000-0000-0000-000000000003",
     "toolUseId": "tool-38392943",
     "offered": ["allow-once", "deny"],
     "answeredThroughProtocol": true,
@@ -44,7 +44,7 @@
   "cancellation": {
     "dispatchedAt": "2026-11-09T23:27:57.163Z",
     "action": "chat/turnCancelled",
-    "channel": "ahp-chat:/327bc9f6-08b0-55bb-b223-e9c9670968f2",
+    "channel": "ahp-chat:/00000000-0000-0000-0000-000000000004",
     "processStopped": true,
     "signalRecordedByCommand": "SIGTERM",
     "normalCompletionMarker": false

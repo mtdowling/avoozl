@@ -79,7 +79,7 @@
       "requested": true,
       "requestedAt": "2026-11-10T01:49:07.805Z",
       "acknowledgedAt": "2026-11-10T01:49:07.805Z",
-      "reason": "client-cancel:9b333ae8-5c71-482a-9113-c20e047cde92",
+      "reason": "client-cancel:00000000-0000-0000-0000-000000000001",
       "providerConfirmed": false,
       "completionRace": "no",
       "contract": 1,
@@ -87,14 +87,14 @@
     }
   },
   "request": {
-    "providerRequestId": "ebbe410c-d698-4173-afa5-129515caa547",
+    "providerRequestId": "00000000-0000-0000-0000-000000000002",
     "toolUseId": "tool-d02356d8",
     "offered": [
       "allow-once",
       "deny"
     ],
     "state": "allowed",
-    "answeredBy": "9b333ae8-5c71-482a-9113-c20e047cde92",
+    "answeredBy": "00000000-0000-0000-0000-000000000001",
     "optionId": "allow-once"
   },
   "actualExecution": {
@@ -116,12 +116,12 @@
     {
       "name": "the approval came from a connected editor client",
       "passed": true,
-      "detail": "client 9b333ae8-5c71-482a-9113-c20e047cde92 (vscode-editor-window)"
+      "detail": "client 00000000-0000-0000-0000-000000000001 (vscode-editor-window)"
     },
     {
       "name": "the cancellation came from the same editor client",
       "passed": true,
-      "detail": "9b333ae8-5c71-482a-9113-c20e047cde92"
+      "detail": "00000000-0000-0000-0000-000000000001"
     },
     {
       "name": "the approval was recorded as allowed",

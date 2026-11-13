@@ -1,0 +1,9 @@
+{
+  "id": "sdk-team",
+  "version": "1.0.0",
+  "contract": 1,
+  "provides": ["pack", "rules", "tracker", "intake"],
+  "capabilities": { "tracker": ["actor", "poll"], "rules": [] },
+  "pack": "avoozl-pack.json",
+  "entry": "index.mjs"
+}

@@ -25,12 +25,26 @@ The library lands before the client consumes it.
 \`\`\`
 `;
 
+test("ordinary design prose is valid without prescribed headings or task blocks", () => {
+  const result = lintPlan({
+    text: "Ship the portable release after its compatibility check succeeds.",
+    plan: { context: {} },
+    data: { projects: [], tasks: [] },
+  });
+  assert.equal(result.canApprove, true);
+  assert.equal(result.taskCount, 0);
+  assert.deepEqual(result.diagnostics, []);
+});
+
 test("plan quality reports reusable line diagnostics and cross-project dependencies", () => {
   const result = lintPlan({
     text: design,
     plan: { context: {} },
     data: {
-      projects: [{ id: "library" }, { id: "client" }],
+      projects: [
+        { id: "library", checks: [["npm", "test"]] },
+        { id: "client", checks: [["npm", "test"]] },
+      ],
       tasks: [],
     },
   });
@@ -54,7 +68,10 @@ test("plan quality blocks unknown projects, references, and dependency cycles", 
     text,
     plan: { context: {} },
     data: {
-      projects: [{ id: "library" }, { id: "client" }],
+      projects: [
+        { id: "library", checks: [["npm", "test"]] },
+        { id: "client", checks: [["npm", "test"]] },
+      ],
       tasks: [],
     },
   });
@@ -81,7 +98,10 @@ test("plan quality catches an existing duplicate before approval", () => {
     ),
     plan: { id: "portable-release", context: {} },
     data: {
-      projects: [{ id: "library" }, { id: "client" }],
+      projects: [
+        { id: "library", checks: [["npm", "test"]] },
+        { id: "client", checks: [["npm", "test"]] },
+      ],
       tasks: [
         {
           id: "existing-contract",
@@ -93,7 +113,8 @@ test("plan quality catches an existing duplicate before approval", () => {
   const duplicate = result.diagnostics.find(
     (item) => item.code === "task.possible-duplicate",
   );
-  assert.equal(result.canApprove, false);
+  assert.equal(result.canApprove, true);
+  assert.equal(duplicate.severity, "warning");
   assert.equal(duplicate.relatedTaskId, "existing-contract");
 });
 
@@ -104,7 +125,7 @@ test("operations expose live quality checks and refuse a blocking approval", asy
     root: "/tmp/library",
     baseBranch: "main",
     worktreeRoot: "/tmp/worktrees",
-    checks: [],
+    checks: [["npm", "test"]],
   });
   const ops = new Operations(store);
   const plan = await ops.execute("plan.create", {

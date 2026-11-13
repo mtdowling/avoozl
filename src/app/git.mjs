@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { execFile } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
 import { promisify } from "node:util";
 import { fail } from "./store.mjs";
 const exec = promisify(execFile);
@@ -84,6 +84,21 @@ export function githubRepositoryFromRemote(value) {
     );
   return match ? `${match[1]}/${match[2]}` : null;
 }
+// The GitHub repository a checkout's origin names, or null. Synchronous for
+// callers that resolve paths without awaiting.
+export function originRepositorySync(root) {
+  try {
+    return githubRepositoryFromRemote(
+      execFileSync("git", ["remote", "get-url", "origin"], {
+        cwd: root,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      }),
+    );
+  } catch {
+    return null;
+  }
+}
 export async function projectGitHubRepository(store, input = {}) {
   const project = store.get("projects", input.projectId);
   if (!project) fail("Choose a configured execution project.");
@@ -141,6 +156,7 @@ export async function projectConfig({
   id,
   root,
   baseBranch = "main",
+  integrationBranch,
   worktreeRoot,
   checks = [],
 }) {
@@ -169,10 +185,23 @@ export async function projectConfig({
   );
   if (worktreeRoot === root || worktreeRoot.startsWith(root + path.sep))
     fail("Place worktrees outside the project checkout.");
+  if (integrationBranch !== undefined) {
+    if (
+      typeof integrationBranch !== "string" ||
+      integrationBranch === baseBranch
+    )
+      fail("Name an integration branch other than the base branch.");
+    try {
+      await git(root, ["check-ref-format", "--branch", integrationBranch]);
+    } catch {
+      fail("Name a valid integration branch.");
+    }
+  }
   return {
     id,
     root,
     baseBranch,
+    ...(integrationBranch === undefined ? {} : { integrationBranch }),
     worktreeRoot,
     checks,
     repository: await remoteRepository(root),
@@ -216,6 +245,94 @@ export async function createWorktree(store, project, runId) {
     },
   );
 }
+// The worktrees git knows for `root`: path -> branch ref (or null if detached).
+async function listWorktrees(root) {
+  const entries = new Map();
+  let current = null;
+  for (const line of (
+    await git(root, ["worktree", "list", "--porcelain"])
+  ).split("\n")) {
+    if (line.startsWith("worktree ")) {
+      current = path.resolve(line.slice(9));
+      entries.set(current, null);
+    } else if (line.startsWith("branch ") && current)
+      entries.set(current, line.slice(7));
+  }
+  return entries;
+}
+
+// One task's worktree on its own branch. A retry finds the same worktree, or
+// re-adds it on the existing branch so earlier commits are kept. Nothing is
+// ever removed or reset here.
+export async function prepareTaskWorktree(store, project, { branch, name }) {
+  return withWorkLock(
+    store,
+    { id: "worktree:" + name, projectId: project.id, kind: "worktree" },
+    async () => {
+      const base = path.resolve(
+        project.worktreeRoot ||
+          path.join(path.dirname(project.root), ".avoozl-worktrees"),
+      );
+      fs.mkdirSync(base, { recursive: true });
+      // git prints real paths, so a linked temporary directory must compare equal.
+      const worktree = path.join(fs.realpathSync(base), name),
+        ref = "refs/heads/" + branch;
+      const listed = await listWorktrees(project.root),
+        holder = [...listed].find(([, value]) => value === ref)?.[0];
+      let created = false;
+      if (listed.has(worktree)) {
+        if (listed.get(worktree) !== ref)
+          fail(`Worktree ${worktree} is not on branch ${branch}.`, 409);
+        if (!fs.existsSync(worktree))
+          fail(
+            `Worktree ${worktree} is registered but missing. Run git worktree prune in ${project.root}.`,
+            409,
+          );
+      } else if (holder)
+        fail(`Branch ${branch} is checked out at ${holder}.`, 409);
+      else if (fs.existsSync(worktree))
+        fail(`${worktree} exists and is not this task's worktree.`, 409);
+      else {
+        let exists = true;
+        try {
+          await git(project.root, ["rev-parse", "--verify", "--quiet", ref]);
+        } catch {
+          exists = false;
+        }
+        // A dependent starts from the work already integrated: the integration
+        // branch when the project has one and it exists, else the base branch.
+        let start = project.baseBranch || "main";
+        if (project.integrationBranch)
+          try {
+            await git(project.root, [
+              "rev-parse",
+              "--verify",
+              "--quiet",
+              "refs/heads/" + project.integrationBranch,
+            ]);
+            start = project.integrationBranch;
+          } catch {
+            // Not created yet: the first integration creates it from the base.
+          }
+        await git(
+          project.root,
+          exists
+            ? ["worktree", "add", worktree, branch]
+            : ["worktree", "add", "-b", branch, worktree, start],
+        );
+        await configureWorktreeIdentity(project.root, worktree);
+        created = true;
+      }
+      return {
+        branch,
+        worktree,
+        created,
+        head: await git(worktree, ["rev-parse", "HEAD"]),
+      };
+    },
+  );
+}
+
 export async function commandEvidence(
   cwd,
   argv,
@@ -362,8 +479,14 @@ export async function validateRun(store, runId) {
     () => validateUnlocked(store, runId),
   );
 }
-async function validateUnlocked(store, runId, { phase = "validation" } = {}) {
-  const run = store.get("runs", runId);
+// `source` stands in for the run when the work is not a run: a Kiro Crew
+// delivery's integration entry (delivery.mjs).
+async function validateUnlocked(
+  store,
+  runId,
+  { phase = "validation", source } = {},
+) {
+  const run = source || store.get("runs", runId);
   if (!run?.worktree) fail("Run has no worktree.");
   if (
     ["running", "starting", "waiting-approval", "waiting-input"].includes(
@@ -445,6 +568,39 @@ async function validateUnlocked(store, runId, { phase = "validation" } = {}) {
   }
   return { passed, unchanged, commit: head, results };
 }
+// Refuse when the worktree holding the integration branch has changes a
+// fast-forward could touch: any staged or unstaged change, or an untracked
+// file at a path the incoming commits write. The message names the worktree
+// and the files, and becomes the delivery's decision (delivery.mjs).
+async function refuseBusyHolder(holder, target, { from, to } = {}) {
+  const names = async (args) =>
+      (await git(holder, args)).split("\n").filter(Boolean),
+    changed = [
+      ...new Set([
+        ...(await names(["diff", "--name-only"])),
+        ...(await names(["diff", "--cached", "--name-only"])),
+      ]),
+    ],
+    written = to
+      ? new Set(await names(["diff", "--name-only", from, to]))
+      : null,
+    untracked = (
+      await names(["ls-files", "--others", "--exclude-standard"])
+    ).filter((file) => !written || written.has(file)),
+    shown = (files) =>
+      files.slice(0, 5).join(", ") +
+      (files.length > 5 ? ` and ${files.length - 5} more` : "");
+  if (changed.length)
+    fail(
+      `Integration branch ${target} is checked out at ${holder}, which has uncommitted changes (${shown(changed)}); integration is left queued. Commit or clear them there, then retry.`,
+      409,
+    );
+  if (written && untracked.length)
+    fail(
+      `Integration branch ${target} is checked out at ${holder}, which has untracked files the fast-forward would overwrite (${shown(untracked)}); integration is left queued. Move them there, then retry.`,
+      409,
+    );
+}
 export async function integrateRun(store, { id, expectedCommit }) {
   const entry = store.get("integration", id);
   if (!entry) fail("Integration not found.", 404);
@@ -464,16 +620,45 @@ async function integrateUnlocked(store, { id, expectedCommit }) {
   const project = store.get("projects", entry.projectId);
   if (entry.commit !== expectedCommit)
     fail("Review the current integration head.", 409);
-  if (
-    (await git(project.root, ["branch", "--show-current"])) !==
-    project.baseBranch
-  )
-    fail("The originating checkout is not on its configured base branch.", 409);
-  if (await git(project.root, ["status", "--porcelain"]))
-    fail(
-      "The originating checkout has changes; integration is left queued.",
-      409,
-    );
+  // An integration branch keeps the user's checkout untouched: the work lands
+  // by moving that branch's ref. When a worktree has the branch checked out,
+  // the work lands there with merge --ff-only, and only while that worktree
+  // has nothing the fast-forward could touch; it is never stashed or reset.
+  const target = project.integrationBranch || project.baseBranch,
+    separate = Boolean(project.integrationBranch);
+  let holder = null;
+  if (separate) {
+    const ref = "refs/heads/" + target;
+    holder =
+      [...(await listWorktrees(project.root))].find(
+        ([, branch]) => branch === ref,
+      )?.[0] || null;
+    if (holder) await refuseBusyHolder(holder, target);
+    try {
+      await git(project.root, ["rev-parse", "--verify", "--quiet", ref]);
+    } catch {
+      await git(project.root, ["branch", target, project.baseBranch]);
+    }
+  } else {
+    if (
+      (await git(project.root, ["branch", "--show-current"])) !==
+      project.baseBranch
+    )
+      fail(
+        "The originating checkout is not on its configured base branch.",
+        409,
+      );
+    // Untracked files do not block: Kiro Crew writes `.kiro/settings` into a
+    // session's project directory, and `merge --ff-only` still refuses to
+    // overwrite an untracked file.
+    if (
+      await git(project.root, ["status", "--porcelain", "--untracked-files=no"])
+    )
+      fail(
+        "The originating checkout has changes; integration is left queued.",
+        409,
+      );
+  }
   if (await git(entry.worktree, ["status", "--porcelain"]))
     fail("Run worktree has uncommitted changes.", 409);
   if ((await git(entry.worktree, ["rev-parse", "HEAD"])) !== expectedCommit)
@@ -484,16 +669,37 @@ async function integrateUnlocked(store, { id, expectedCommit }) {
   // land on and revalidated at that exact base, and a failure refuses the
   // merge. `entry.state === "ready"` records an older validation against an
   // older base; never skip this step by trusting it.
-  await git(entry.worktree, ["rebase", project.baseBranch]);
+  const before = await git(project.root, ["rev-parse", target]);
+  await git(entry.worktree, ["rebase", target]);
   const revalidated = await validateUnlocked(store, id, {
     phase: "integration",
+    source: entry.runId ? undefined : { ...entry, state: "integrating" },
   });
   if (!revalidated.passed)
     fail("Rebased work did not pass acceptance checks.", 409);
   const head = await git(entry.worktree, ["rev-parse", "HEAD"]);
-  await git(project.root, ["merge", "--ff-only", entry.branch]);
+  if (holder) {
+    // Checks ran meanwhile: look again, then fast-forward only from the
+    // value read before the rebase.
+    if ((await git(holder, ["rev-parse", "HEAD"])) !== before)
+      fail(
+        `Integration branch ${target} moved in ${holder} during integration; integration is left queued.`,
+        409,
+      );
+    await refuseBusyHolder(holder, target, { from: before, to: head });
+    await git(holder, ["merge", "--ff-only", head]);
+  } else if (separate)
+    // Fast-forward only, and only from the value read before the rebase.
+    await git(project.root, [
+      "update-ref",
+      "refs/heads/" + target,
+      head,
+      before,
+    ]);
+  else await git(project.root, ["merge", "--ff-only", entry.branch]);
   entry.state = "integrated";
   entry.integratedCommit = head;
+  entry.into = target;
   entry.integratedAt = new Date().toISOString();
   entry.revalidatedEvidenceIds = revalidated.results.map((r) => r.id);
   store.put("integration", entry);
@@ -503,6 +709,7 @@ async function integrateUnlocked(store, { id, expectedCommit }) {
       task.integration = {
         commit: head,
         branch: entry.branch,
+        into: target,
         at: entry.integratedAt,
       };
   });
@@ -511,7 +718,7 @@ async function integrateUnlocked(store, { id, expectedCommit }) {
   // steering signal for those runs and the UI, not a correctness step.
   store.event(null, "project.base.moved", {
     projectId: project.id,
-    baseBranch: project.baseBranch,
+    baseBranch: target,
     commit: head,
     behind: store
       .list("runs")
@@ -533,4 +740,44 @@ async function integrateUnlocked(store, { id, expectedCommit }) {
   )
     await git(project.root, ["worktree", "remove", entry.worktree]);
   return entry;
+}
+
+// What adding a checkout would register, read from the folder alone (read
+// only): its root, the branch tasks land on (origin's default, else the
+// current branch), its GitHub remote, and a suggested ID.
+export async function detectCheckout(folder) {
+  if (typeof folder !== "string" || !path.isAbsolute(folder.trim()))
+    fail("Give the folder as an absolute path.");
+  let root;
+  try {
+    root = fs.realpathSync(folder.trim());
+  } catch {
+    fail("That folder does not exist.");
+  }
+  let top;
+  try {
+    top = await git(root, ["rev-parse", "--show-toplevel"]);
+  } catch {
+    fail("That folder is not a Git checkout.");
+  }
+  const quiet = (args) => git(top, args).catch(() => "");
+  const originHead = (await quiet(["symbolic-ref", "--short", "refs/remotes/origin/HEAD"])).replace(/^origin\//, "");
+  const current = await quiet(["branch", "--show-current"]);
+  const remoteUrl = await quiet(["remote", "get-url", "origin"]);
+  const github = remoteUrl ? githubRepositoryFromRemote(remoteUrl) : null;
+  const id =
+    path
+      .basename(top)
+      .toLowerCase()
+      .replace(/[^a-z0-9-]+/g, "-")
+      .replace(/^[^a-z]+|-+$/g, "")
+      .slice(0, 61) || null;
+  return {
+    root: top,
+    baseBranch: originHead || current || "main",
+    currentBranch: current || null,
+    remote: remoteUrl ? "origin" : null,
+    github,
+    id: id && /^[a-z][a-z0-9-]{1,60}$/.test(id) ? id : null,
+  };
 }

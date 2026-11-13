@@ -4,10 +4,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { Store, canonical } from "../store.mjs";
 import { Operations } from "../operations.mjs";
-import { RunManager } from "../manager.mjs";
 import { projectConfig, git, validateRun, integrateRun } from "../git.mjs";
-import { fixture, snapshot, markdown } from "./fixtures.mjs";
-import { flushOutbox } from "../server.mjs";
+import { fixture, snapshot, markdown, recordedRun } from "./fixtures.mjs";
+import { flushOutbox } from "../outbox.mjs";
 
 test("SQLite import round trips every legacy record and unknown metadata", (t) => {
   const { store } = fixture(t);
@@ -201,26 +200,6 @@ test("optimistic task writes reject stale revisions and dependency cycles", asyn
     /Self edge/,
   );
 });
-test("sessions retain uncertain deliveries across restart and do not auto-accept tasks", async (t) => {
-  const { store } = fixture(t);
-  store.put("runs", {
-    id: "run-existing",
-    taskId: "sample-task",
-    state: "running",
-    provider: "codex",
-  });
-  store.put("deliveries", {
-    id: "message-existing",
-    runId: "run-existing",
-    text: "Do something",
-    state: "sending",
-  });
-  const manager = new RunManager(store);
-  assert.equal(store.get("runs", "run-existing").state, "disconnected");
-  assert.equal(store.get("deliveries", "message-existing").state, "uncertain");
-  assert.equal(store.read().tasks[0].status, "planned");
-  await manager.close();
-});
 test("real isolated Git work validates at its head, rebases and integrates without touching other trees", async (t) => {
   const { root, store } = fixture(t),
     repo = path.join(root, "repo");
@@ -240,41 +219,17 @@ test("real isolated Git work validates at its head, rebases and integrates witho
     checks: [[process.execPath, "check.mjs"]],
   });
   store.put("projects", project);
-  const factory = ({ emit }) => ({
-    async start(options) {
-      this.options = options;
-      emit("session", { providerSessionId: "fixture-session" });
-      emit("state", { state: "running" });
-      return this;
-    },
-    async close() {},
-    async send() {
-      return {};
-    },
-    async interrupt() {},
-  });
-  const manager = new RunManager(store, { factories: { codex: factory } });
-  t.after(() => manager.close());
-  const run = await manager.start({
+  // A run the removed agent host had started, as an old workspace holds it.
+  const run = await recordedRun(store, {
     id: "run-fixture",
-    taskId: "sample-task",
     projectId: "fixture",
-    provider: "codex",
+    state: "running",
   });
   assert.notEqual(run.worktree, repo);
-  await assert.rejects(
-    manager.start({
-      id: "run-conflict",
-      taskId: "sample-task",
-      projectId: "fixture",
-      provider: "codex",
-    }),
-    /Conflicts|reported session/,
-  );
   fs.writeFileSync(path.join(run.worktree, "result.txt"), "done");
   await git(run.worktree, ["add", "."]);
   await git(run.worktree, ["commit", "-m", "Complete fixture"]);
-  manager.receive(run.id, "turn.completed", { state: "completed" });
+  store.put("runs", { ...store.get("runs", run.id), state: "completed" });
   const validation = await validateRun(store, run.id);
   assert.equal(validation.passed, true);
   assert.equal(store.read().tasks[0].status, "implemented");

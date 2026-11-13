@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "avoozl-runner",
+      "description": "Brief a Crew Mode conductor that starts in an Avoozl workspace checkout with the Avoozl runner steering and the current next buckets. Prints nothing anywhere else.",
+      "trigger": "AgentSpawn",
+      "action": {
+        "type": "command",
+        "command": "PATH=\"$PATH:/opt/homebrew/bin:/usr/local/bin\" node \"${KIROCREW_HOME:-$HOME/.kiro/crew}/apps/avoozl/bin/avoozl.mjs\" next --hook"
+      },
+      "timeout": 10
+    }
+  ]
+}

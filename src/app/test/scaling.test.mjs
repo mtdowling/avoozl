@@ -1,24 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { rowOffsets, visibleRange } from "../../virtual-list.mjs";
 import { documentPages } from "../../document-pages.mjs";
 import { opacityPrefix, paintBand } from "../../band-paint.mjs";
 import { queryTasks } from "../../query.mjs";
 import { browseRows } from "../../browse-model.mjs";
 
-test("a 100000-row collection mounts a viewport-sized range at either end", () => {
-  const rows = Array.from({ length: 100000 }, (_, id) => ({
-      id,
-      height: id % 10 === 0 ? 44 : 82,
-    })),
-    offsets = rowOffsets(rows, (r) => r.height);
-  for (const top of [0, 40000, offsets.at(-1) - 700]) {
-    const range = visibleRange(offsets, top, 700);
-    assert(range.end - range.start < 30);
-    assert(offsets[range.start] <= top);
-    assert(offsets[range.end] >= top + 700);
-  }
-});
 test("dense chart drawing blends pixels instead of drawing every task", () => {
   const data = {
       statuses: [{ id: "done", complete: true }, { id: "planned" }],

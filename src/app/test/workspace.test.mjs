@@ -2,17 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { once } from "node:events";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { applicationRoot, workspaceConfig } from "../config.mjs";
 import { initializeWorkspace } from "../workspace.mjs";
 import { Store } from "../store.mjs";
 import { Operations } from "../operations.mjs";
-import { handleMcp } from "../mcp.mjs";
-import { startServer } from "../server.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
-import { mintRunCapability } from "../run-capabilities.mjs";
 const exec = promisify(execFile);
 function temporary(t) {
   return temporaryDirectory();
@@ -33,6 +29,7 @@ test("initialization starts empty, refuses replacement, and paths survive moving
   );
   assert.equal(savedConfig.dbPath, ".avoozl/local/workspace.sqlite");
   assert.equal(savedConfig.documents, "plans");
+  assert.match(savedConfig.namespace, /^avz_[a-z2-7]{16}$/);
   let config = workspaceConfig({ workspace: original }),
     store = new Store(config.dbPath);
   assert.deepEqual(store.read().tasks, []);
@@ -49,6 +46,25 @@ test("initialization starts empty, refuses replacement, and paths survive moving
   store = new Store(config.dbPath);
   assert.equal(store.read().project.name, "A team project");
   store.close();
+});
+
+test("init on a configuration with no database keeps its namespace", (t) => {
+  const root = temporary(t);
+  initializeWorkspace(root, { name: "Kept", port: 9477 });
+  const file = path.join(root, ".avoozl.json"),
+    before = fs.readFileSync(file, "utf8"),
+    { dbPath } = workspaceConfig({ workspace: root });
+  fs.rmSync(dbPath);
+  const result = initializeWorkspace(root);
+  assert.equal(result.existingConfiguration, true);
+  assert.equal(result.dbPath, dbPath);
+  assert.equal(result.name, "Kept");
+  assert.equal(fs.readFileSync(file, "utf8"), before);
+  const store = new Store(dbPath);
+  assert.equal(store.read().tasks.length, 0);
+  assert.equal(store.read().project.name, "Kept");
+  store.close();
+  assert.throws(() => initializeWorkspace(root), /already exists/);
 });
 
 test("examples preserve user state and edits on retries and keep proposal tasks outside the queue", async (t) => {
@@ -126,95 +142,6 @@ test("colliding IDs and stale requests roll back all example data and receipts",
   assert.equal(store.list("plans").length, 0);
   assert.equal(store.get("receipts", "example:product-launch"), null);
   assert.equal(store.db.prepare("SELECT COUNT(*) n FROM outbox").get().n, 0);
-});
-
-test("CLI, MCP, and HTTP use the same seed receipt and publish example Markdown", async (t) => {
-  const root = temporary(t);
-  initializeWorkspace(root);
-  const config = workspaceConfig({ workspace: root }),
-    server = startServer({
-      dbPath: config.dbPath,
-      workspaceName: "Named deployment",
-      projectionRoot: config.plansRoot,
-      sourceRoot: config.plansRoot,
-      port: 0,
-    });
-  await once(server, "listening");
-  t.after(() => new Promise((resolve) => server.close(resolve)));
-  const url = "http://127.0.0.1:" + server.address().port;
-  assert.equal(
-    (await (await fetch(url + "/api/view-state")).json()).project.workspaceName,
-    "Named deployment",
-  );
-  assert.equal(
-    (await (await fetch(url + "/database.json")).json()).project.workspaceName,
-    undefined,
-  );
-  const cli = async (args) =>
-    JSON.parse(
-      (
-        await exec(process.execPath, [
-          path.join(applicationRoot, "cli.mjs"),
-          "--workspace",
-          root,
-          "--url",
-          url,
-          ...args,
-        ])
-      ).stdout,
-    );
-  assert.equal((await cli(["query"])).length, 0);
-  const seeded = await cli(["seed", "--example", "product-launch"]);
-  assert.equal(seeded.existing, false);
-  assert.equal(
-    fs.existsSync(path.join(config.plansRoot, "examples/product-launch.md")),
-    true,
-  );
-  const message = {
-    jsonrpc: "2.0",
-    id: 1,
-    method: "tools/call",
-    params: {
-      name: "plans_seed_example",
-      arguments: { input: { example: "product-launch" } },
-    },
-  };
-  const response = await fetch(url + "/mcp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(message),
-    }),
-    body = await response.json();
-  assert.equal(body.result.structuredContent.existing, true);
-  assert.deepEqual(body.result.structuredContent.taskIds, seeded.taskIds);
-  assert.equal((await cli(["query", "--q", "tag:product-launch"])).length, 8);
-  assert.equal((await cli(["examples"])).examples[0].id, "product-launch");
-  assert.equal(
-    (await (await fetch(url + "/api/health")).json()).application,
-    "avoozl",
-  );
-  const ownedRun = {
-      id: "owned-run",
-      taskId: "sample-task",
-      provider: "codex",
-      mode: "implement",
-      state: "running",
-    },
-    ownedToken = mintRunCapability(
-      server.workspace.store,
-      server.workspace.store.put("runs", ownedRun),
-    ).token;
-  const denied = await handleMcp(message, server.workspace.ops, {
-    runId: "owned-run",
-    runCapability: ownedToken,
-  });
-  assert.equal(denied.body.result.isError, true);
-  const list = await handleMcp(
-    { jsonrpc: "2.0", id: 2, method: "tools/list" },
-    server.workspace.ops,
-    { runId: "owned-run", runCapability: ownedToken },
-  );
-  assert(!list.body.result.tools.some((t) => t.name === "plans_seed_example"));
 });
 
 test("offline skill export binds the chosen workspace without creating data", async (t) => {

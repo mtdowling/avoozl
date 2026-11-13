@@ -2,9 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { fixture, markdown } from "./fixtures.mjs";
+import { fixture, markdown, recordedRun } from "./fixtures.mjs";
 import { Operations } from "../operations.mjs";
-import { RunManager } from "../manager.mjs";
 import { git, validateRun, integrateRun } from "../git.mjs";
 import { operatorName } from "../config.mjs";
 
@@ -82,17 +81,7 @@ test("acceptance derives its evidence from a validated run and requires none wit
   fs.writeFileSync(path.join(repo, "check.mjs"), "process.exit(0)");
   await git(repo, ["add", "."]);
   await git(repo, ["commit", "-m", "Prepare fixture"]);
-  const factory = ({ emit }) => ({
-    async start() {
-      emit("session", { providerSessionId: "fixture-session" });
-      emit("state", { state: "running" });
-      return this;
-    },
-    async close() {},
-  });
-  const manager = new RunManager(store, { factories: { codex: factory } }),
-    ops = new Operations(store, { manager });
-  t.after(() => manager.close());
+  const ops = new Operations(store);
   await ops.execute("project.configure", {
     id: "fixture",
     root: repo,
@@ -105,16 +94,15 @@ test("acceptance derives its evidence from a validated run and requires none wit
   });
   assert.equal(component.acceptanceEvidence.evidence, "");
   assert.equal(component.status, "implemented");
-  const run = await manager.start({
+  // A run the removed agent host had finished, as an old workspace holds it.
+  const run = await recordedRun(store, {
     id: "run-accept",
-    taskId: "sample-task",
     projectId: "fixture",
-    provider: "codex",
+    state: "completed",
   });
   fs.writeFileSync(path.join(run.worktree, "result.txt"), "done");
   await git(run.worktree, ["add", "."]);
   await git(run.worktree, ["commit", "-m", "Complete fixture"]);
-  manager.receive(run.id, "turn.completed", { state: "completed" });
   const validation = await validateRun(store, run.id);
   assert.equal(validation.passed, true);
   await integrateRun(store, { id: run.id, expectedCommit: validation.commit });

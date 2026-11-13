@@ -1,50 +1,31 @@
 import { resolveTaskId, taskSourceRefs } from "./task-identity.mjs";
 import { queryTasks, statusComplete } from "./query.mjs";
+import { frontMatterCategory } from "./front-matter.mjs";
 export const PLAN_STATUSES = {
   done: "DONE",
   "not-started": "NOT STARTED",
   started: "STARTED",
   abandoned: "ABANDONED",
 };
-export function featureCategory(doc) {
-  if (/^to do$/i.test(doc.title)) return "Planning & tooling";
-  const name = (doc.title + " " + doc.id).toLowerCase();
-  for (const [category, pattern] of [
-    [
-      "Planning & tooling",
-      /plans.site|handoff|takeover|agent|roadmap|planning|report.generator|cheap.to.change|duplication|engineering.review|correctness|test|\bci\b|coherence|amendment|remaining.public|current|s0.frozen/,
-    ],
-    [
-      "Concurrency & I/O",
-      /coroutine|suspension|concurren|worker|scheduler|event.loop|network|http|socket|filesystem|file.api|process|\bio\b|\bi\/o\b|portable.file|host.channel|task.queue|file.watch|application.director/,
-    ],
-    [
-      "Memory & data",
-      /\bbyte|buffer|garbage|collector|\bgc\b|memory|array|serialization|serde|json|digest|checksum|allocator|table|object|values|allocation|struct.reference|nupp.set/,
-    ],
-    [
-      "Performance & codegen",
-      /performance|optimi|\baot\b|\bjit\b|\bsimd\b|\bssa\b|\bcfg\b|llvm|cranelift|benchmark|codegen|multicore|\bgpu\b|interpreter.speed|vectorization|inline.assembly|static.trace.budget/,
-    ],
-    [
-      "Runtime & delivery",
-      /runtime|native|bootstrap|seed|release|backend|reload|snapshot|frames.and.calls|nupp.vm|core.pivot/,
-    ],
-    [
-      "Language & compiler",
-      /compiler|type|syntax|language|pattern|checker|method|record|interface|generic|diagnostic|comptime|\bpeg\b|or.exit|metatable|iterator|single.ir/,
-    ],
-    [
-      "Libraries & APIs",
-      /library|\bapi|smithy|binding|module|package|everyday.geometry|matrix.math|device.surface|window.design|game.storage|compression|extension|\bspi\b/,
-    ],
-    [
-      "Documentation & experience",
-      /document|learn|guide|website|editor|\blsp\b/,
-    ],
-  ])
-    if (pattern.test(name)) return category;
-  return "Other plans";
+// Values older Avoozl builds wrote into an approval's own document as a
+// category. Nobody authored them, so they read as no category.
+const WRITTEN_BY_AVOOZL = new Set([
+  "Approved plans",
+  "Kiro specs",
+  "Extracted designs",
+]);
+// A plan's category comes only from what a person wrote: the plan's
+// metadata (plan.classify) or front-matter at the top of its text. With
+// neither it is null, shown as Uncategorized. Avoozl never guesses one.
+export function planCategory(doc) {
+  const stored = doc.plan?.category;
+  if (
+    typeof stored === "string" &&
+    stored &&
+    !((doc.virtual || doc.managed) && WRITTEN_BY_AVOOZL.has(stored))
+  )
+    return stored;
+  return frontMatterCategory(doc.text);
 }
 export function planSummaries(data) {
   const byId = new Map(data.tasks.map((t) => [t.id, t])),
@@ -124,7 +105,7 @@ export function planSummaries(data) {
         done,
         status: lifecycle,
         percent,
-        category: doc.plan?.category || featureCategory(doc),
+        category: planCategory(doc),
         branch: doc.plan?.targetBranch || "Unassigned branch",
         basis:
           doc.plan?.progressPercent !== undefined

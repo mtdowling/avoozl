@@ -1,7 +1,8 @@
 # Working on Avoozl
 
-Avoozl is a local planning application with a website, CLI, MCP interface,
-and managed agent host. UI, CLI, and MCP share operations in `src/app/operations.mjs`.
+Avoozl is a local planning application with a Kiro Crew app page, CLI, and MCP
+interface; Kiro Crew runs its agent sessions. UI, CLI, and MCP share operations in
+`src/app/operations.mjs`.
 SQLite owns execution state; Markdown owns design prose.
 
 Keep application source independent of workspace paths and data. Tests use
@@ -16,8 +17,7 @@ Initialization creates an empty workspace. Example data is explicitly requested,
 transactional, and installed once. Preserve edits on retries. Never use example
 installation to approve drafts, start agents, or configure an execution repository.
 
-Web reloads preserve the separate agent host. Drain before updating host code;
-stop refuses while work is active. Never replace a disconnected worker solely
+Never replace a disconnected worker solely
 because its activity lease expired. Keep plan approval, implementation,
 integration, and whole-head acceptance distinct.
 

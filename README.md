@@ -1,153 +1,144 @@
 # Avoozl
 
-Plans, tasks, and agents in one local workspace. Use the Avoozl page in
-OpenHands Canvas, the CLI, or MCP to work with the same plans and execution
-state.
+Avoozl turns a goal into a reviewed task graph and delivers it through
+[Kiro Crew](kirocrew-app/README.md) sessions. It runs as a Kiro Crew app: a
+page, a loopback backend, an MCP server, and a one-minute tick. Plans are Kiro
+spec folders. Execution state lives in a local SQLite workspace. GitHub is
+optional.
+
+## Install
+
+You need Kiro Crew 0.12.2.3 or later, as installed (no custom build), Node
+22.13 or later (for built-in SQLite; Node 26 is tested), and Git. The GitHub
+features also need `gh` signed in, or a token. Avoozl was tested on Kiro Crew
+0.12.2.3; earlier versions were not tried.
 
 ```sh
 git clone https://github.com/mtdowling/avoozl.git
 cd avoozl
-npm ci --ignore-scripts
-npm run build:web
-node cli.mjs init ../my-plans --name "My plans"
-node cli.mjs serve --workspace ../my-plans
+npm ci
+npm run build:kirocrew-app
+kirocrew app install "$PWD/kirocrew-app"
 ```
 
-Install the Canvas App as described in [the OpenHands setup](docs/openhands.md),
-then open **Avoozl** inside OpenHands. The loopback Avoozl address is a backend
-and recovery handoff, not a second product UI. Node 22.13 or later is required
-for its built-in SQLite support; Node 26 is tested.
+The build writes the page bundle and copies the CLI into
+`kirocrew-app/bin/lib`, so the installed app does not depend on this checkout.
+Then open Kiro Crew's App Store, review Avoozl's trust request, and enable it.
+The trust request asks for two API grants: the app's own `/apps/avoozl/api/*`,
+and `/api/chat/slots/avoozl_*`, which lets the app backend read the status of
+the sessions its tick opened (Kiro Crew still refuses any session the app does
+not own). An update that adds a grant waits until you approve it.
+The **Avoozl** page appears in the sidebar.
 
-The Canvas App is a React application. OpenHands owns conversations and their
-terminal, files, browser, attachment, and steering surfaces. Avoozl uses Monaco
-for plan and workspace Markdown with preview and revision-safe saves. Production
-assets are built locally; Monaco and its worker are not loaded from a CDN.
+To update, pull, rebuild, and run `kirocrew app update avoozl`. A second
+`kirocrew app install` is refused once the app is installed.
 
-![An example product launch in Avoozl](docs/example-workspace.png)
+## Create a workspace
 
-## Start empty or load examples
-
-New workspaces contain no tasks or example plans. Add a task, write a proposal, or choose **Load examples** in the empty workspace or Settings.
+On the Avoozl page, under **Add or initialize a workspace**, enter an ID and
+an absolute directory, then choose **Initialize new**. Choose **Add existing**
+for a directory that already holds a workspace. The CLI does the same:
 
 ```sh
-node cli.mjs seed --workspace ../my-plans --example product-launch
+node cli.mjs init ~/plans --name "My plans"
 ```
 
-The fictional product launch includes two epics, eight tasks, dependencies, a design document, an unapproved proposal, three saved views, and a walkthrough. Loading it again preserves changes and creates no duplicates. It never configures a repository, launches an agent, or approves the draft. Example tasks carry an `example` tag. They are ordinary editable tasks after loading.
-
-CLI, UI, and MCP all call the same `workspace.seed` operation. MCP clients can list packs with `plans_examples` and load a requested pack with `plans_seed_example`, using `{"input":{"example":"product-launch"}}`. Managed worker connections cannot seed their own workspace.
-
-## Keep code and data separate
-
-The application checkout contains reusable software and example fixtures. Each workspace has its own configuration, state, and design files:
+A workspace is a directory you own, separate from this checkout:
 
 ```text
 my-plans/
-  .avoozl.json
-  .avoozl/local/workspace.sqlite
-  plans/
+  .avoozl.json                     portable, reviewable policy
+  .avoozl/local/workspace.sqlite   execution state (not committed)
+  .kiro/specs/<name>/              plans
 ```
 
-SQLite owns live tasks, dependencies, evidence, approvals, conversations, and agent state. Markdown owns design prose. `/database.json` is an export of current state, not a file to edit.
+A new workspace has no tasks, no repositories, and no trigger rules. To add a
+fictional example, run
+`node cli.mjs seed --workspace ~/plans --example product-launch`. Loading
+examples never approves a plan, starts a session, or configures a repository.
 
-Choose a workspace with `--workspace PATH` or `AVOOZL_WORKSPACE`.
-`~/.config/avoozl/config.json` owns machine-host registration, local checkout
-roots, and concurrency. The repository-root `.avoozl.json` owns portable,
-reviewable policy. Environment variables and command-line options have the
-final say. Paths in `.avoozl.json` are relative to the repository root.
+## Plan
 
-```json
-{
-  "$schema": "https://avoozl.dev/schema/repository-config-v1.json",
-  "version": 1,
-  "repository": {
-    "id": "my-plans",
-    "roles": ["planning"],
-    "baseBranch": "main"
-  },
-  "documents": "plans",
-  "agentInstructions": {
-    "rules": [
-      {
-        "id": "record-required-cleanup",
-        "title": "Record required cleanup",
-        "appliesTo": ["task.implement"],
-        "instruction": "Propose clearly required follow-up work instead of only mentioning it."
-      }
-    ]
-  },
-  "conversations": {
-    "autoArchiveCompleted": true,
-    "driver": {
-      "agentProfile": "avoozl-codex",
-      "model": null
-    },
-    "routing": {
-      "enabled": true,
-      "fallback": {
-        "agentProfile": "avoozl-codex",
-        "model": null
-      },
-      "rules": [
-        {
-          "id": "high-risk-runtime",
-          "priority": 50,
-          "categories": ["task.implement"],
-          "scopes": ["runtime"],
-          "risks": ["high"],
-          "agentProfile": "avoozl-claude"
-        }
-      ]
-    }
-  }
-}
+Every plan is a Kiro spec folder:
+
+```text
+.kiro/specs/<name>/
+  requirements.md (or bugfix.md)
+  design.md
+  tasks.md
+  avoozl/manifest.json
 ```
 
-Settings is a validated façade over these JSON files, so the Driver can also
-edit ordinary preferences directly. Avoozl watches `.avoozl.json` and keeps
-the last valid configuration if an edit is incomplete or invalid. Actions
-with external effects—installing OpenHands automation, registering GitHub
-intake, or applying repository setup—remain explicit Settings actions.
+Each checkbox in `tasks.md` has a task ID, and `avoozl/manifest.json` gives
+each ID its kind, summary, acceptance, dependencies (`requires`), checks, and
+completion level. Avoozl refuses a folder that is missing a file, or a
+`tasks.md` with a missing or repeated ID.
 
-Conversation routing selects an OpenHands agent profile and model
-deterministically from workflow category, task scope, `risk:low`,
-`risk:medium`, or `risk:high` tags, and a reported remaining-context
-percentage. Higher-priority matching rules win, then the fallback applies.
-An explicit per-run agent or model choice always wins. Every run records its
-routing decision and the signals that produced it. When OpenHands reports both
-`per_turn_token` and `context_window`, Avoozl records their ratio as remaining
-context capacity. A `contextRemainingAtMost` rule is skipped when either value
-is absent; cumulative or billed tokens are never substituted. At a completed
-Driver turn, a matching context-threshold rule creates a linked successor
-Driver and preserves the prior conversation. Before launch, Avoozl checks
-selected agent profiles against the profiles advertised by OpenHands and skips
-policy rules that name a missing profile. Model access remains validated by
-OpenHands when the conversation starts because its profile catalog is not a
-complete provider entitlement list.
+In the Plans view, under **Plan a goal**, choose **Open planning draft**. It
+opens a chat with a drafted message; add your goal and the repositories in
+scope, then send it. The chat runs the `avoozl-planner` agent twice, once to
+write the folder and once to critique it; neither can approve or start work.
+Select the spec, review the lint results and the graph, then choose
+**Approve revision**. Approval records the exact revision hash, so a later
+edit reads as unapproved until you approve again.
 
-Configuration is intentionally non-secret. The loader and schema reject
-secret-like fields and absolute paths in the new portable policy sections;
-those sections also reject unknown properties. Keep provider credentials,
-GitHub authentication, session tokens, transcripts, approvals, leases, and
-execution state in their owning credential store, `.avoozl/local/`, or
-SQLite—never in `.avoozl.json`.
+## Deliver locally
 
-The application checkout, plan directory, and repositories being worked on can all live in different locations. For example:
+Register the Git checkout the work changes, with its base branch, a worktree
+directory, and the check commands:
 
 ```sh
-node /opt/avoozl/cli.mjs init /srv/team-state --documents /srv/team-plans
-node /opt/avoozl/cli.mjs serve --workspace /srv/team-state
+node cli.mjs project configure code --workspace ~/plans \
+  --json '{"root":"/path/to/code","baseBranch":"main","worktreeRoot":"/path/to/worktrees","checks":[["npm","test"]]}'
 ```
 
-Then configure a working repository such as `/home/you/projects/product` in Settings. Its code stays in that repository; plans stay in `/srv/team-plans`; the application stays in `/opt/avoozl`. Use `init --db PATH` to place SQLite independently too.
+Checkout paths are per machine, so they are kept out of `.avoozl.json`. Then
+turn on delivery in `.avoozl.json`:
 
-`--db`, `--documents`, `--host`, `--port`, and `--url` override configuration. `AVOOZL_URL` selects an endpoint for CLI and MCP clients. The earlier `AICOMMANDER_*` and `NUPP_WORKSPACE_*` names still work. `operator` in the workspace configuration, `AVOOZL_OPERATOR`, `AICOMMANDER_OPERATOR`, or `--operator` names the person this workspace acts for, defaulting to `git config user.name` and then the OS user; it is recorded on approval receipts as provenance, not as an authorization. Repository checkout paths, worktree directories, and provider authentication are machine-specific; configure those on each machine. Each workspace has one agent host and web server.
+```json
+{ "delivery": { "concurrency": 1 } }
+```
 
-To adopt an existing SQLite workspace, write a configuration pointing to its existing database and Markdown directory, then start Avoozl with that workspace. Do not import a stale JSON export over a live database. Stop the previous web server before replacing it. Drain and stop the previous agent host only after its active work finishes; web reloads can preserve a compatible existing host.
+Each minute the tick starts a Kiro Crew session for each ready leaf, in its
+own worktree. When a session reports done, Avoozl runs the checks on a clean
+committed head, rebases, fast-forwards the base branch, and releases the
+leaf's dependents. Avoozl never pushes. Implementation, integration, and
+acceptance stay separate steps, each with its own record.
 
-## Connect an agent
+To let a Crew Mode conductor claim leaves instead, set
+`"delivery": {"runner": "crew-mode"}` and follow
+[the app package notes](kirocrew-app/README.md).
 
-The HTTP MCP endpoint is [localhost:9428/mcp](http://127.0.0.1:9428/mcp). A stdio client can launch this bridge with absolute paths:
+Avoozl never replaces a worker only because its activity went quiet. It
+checks durable session and delivery records first.
+
+## Deliver through GitHub
+
+Choose **Set up GitHub** in Settings. The wizard previews every write (labels,
+Project fields, issue types) and applies them only after you confirm. Two
+modes are supported:
+
+- **Single-repo**: issues, specs, and pull requests live in one code
+  repository. A pull request that says `Closes #N` closes its issue.
+- **Plans-repo**: issues and specs live in a planning repository, and pull
+  requests go to the code repositories. Avoozl closes the issues.
+
+Approved plans become issues, sub-issues, and blocked-by links, with a
+Project board as the view. Public and private repositories both work.
+
+Avoozl ships with no trigger rule, so no label starts any work until you add
+one. Each rule names an action, a `match` line in GitHub's issue-search
+syntax (for example `label:agent:go -label:hold`), and who may trigger it. See
+[trigger rules and example policies](docs/policies.md).
+
+Other delivery routes and task trackers plug in as separate packages that
+you approve on each machine. See
+[writing a route or tracker plugin](docs/plugins.md).
+
+## Agents and the CLI
+
+Agent sessions in Kiro Crew reach Avoozl through the app's `avoozl` MCP
+server. Any other stdio MCP client can run it directly:
 
 ```json
 {
@@ -165,133 +156,77 @@ The HTTP MCP endpoint is [localhost:9428/mcp](http://127.0.0.1:9428/mcp). A stdi
 }
 ```
 
-Start the server first. The bridge connects to that workspace's endpoint. Existing `plans_*` tool names remain stable.
+The page, the CLI, and MCP call the same operations, so each one sees the
+same state. `node cli.mjs help` lists the commands.
 
-Export the portable agent workflow skill without starting the server:
+### MCP tools
 
-```sh
-node cli.mjs skill --workspace ../my-plans
-```
+MCP has one tool per thing, each with an `action` field that names one
+operation: `plans_workspace` (read only), `plans_maintain`, `plans_view`,
+`plans_plan`, `plans_review`, `plans_task`, `plans_session`,
+`plans_conflicts`, `plans_intake`, `plans_document`, `plans_github`,
+`plans_repos` (read only), `plans_plugins` (read only), `plans_content`, and
+`plans_run`. Each tool's description lists its actions. A call looks like
+`{"action": "get", "input": {"id": "TASK_ID"}}`.
 
-Install that output as the `avoozl` skill in your agent client's skill directory. It contains this installation's paths and endpoint, not task records or credentials. Re-export after moving the application or workspace. Read the workspace and target repository's own guidance before acting.
+Some actions belong to a person and are refused over MCP under any tool name,
+old or new: approving a plan or plugin, Allow once, choosing a conflict
+winner, content-rule terms, Who counts and other settings, adding or removing
+repositories, GitHub setup writes, and deletes. Do these in the Avoozl app.
 
-## Plan and execute
-
-Capture tasks through the UI or `task.capture`. For substantial work, draft one Markdown plan with design and proposed deliverables. Each deliverable uses a fenced `task` block:
-
-````markdown
-# Save preferences
-
-Preserve the user's settings after restarting.
-
-```task
-{
-  "id": "save-preferences",
-  "title": "Persist preferences",
-  "summary": "Restore saved preferences on startup.",
-  "acceptance": ["A changed preference survives restart."],
-  "requires": []
-}
-```
-````
-
-Use `plan.create`, `plan.save`, and `plan.get` to work on the draft. Approval identifies the exact document hash and database revision — those two checks are the authorization — and extracts tasks atomically. The receipt records the workspace operator, and `evidence` when a caller has something real to say. Indexing Markdown alone does not create ready work. The example proposal stays a draft until explicitly approved.
-
-An agent that discovers adjacent work while implementing appends one proposal with `plan.propose` instead of creating a task: `{"id":"PLAN_ID","proposal":{"id":"local-id","title":"...","acceptance":["Observable check."]}}`. The appended block is validated by the same rules as approval and stays non-executable. The amended plan no longer matches its approval receipt, so it reads as having unapproved changes and its tasks are flagged for review until the next approval converts the proposal.
-
-Configure a Git checkout, base branch, worktree directory, and acceptance commands in Settings before managed execution. Install the Avoozl Canvas App with `node cli.mjs openhands install-app`; this also installs the pinned Avoozl skill/plugin. `node cli.mjs openhands setup-agents` performs the same idempotent plugin registration while configuring provider-neutral agent profiles. The plugin stores only MCP variable names. Avoozl injects a fresh run-scoped URL and bearer capability into each conversation and never creates a global privileged MCP endpoint. On supported Linux hosts OpenHands verifies and starts the Avoozl backend, then exposes it through a short-lived authenticated App session. macOS and Windows retain the separately started exact-origin fallback until OpenHands supports owned App backends there. Avoozl is an embedded planning and control-plane surface; OpenHands owns conversations, attachment, terminal, files, browser, chat, and steering. The direct Avoozl HTTP page is not a second product UI. See [the OpenHands setup](docs/openhands.md). Implementation runs own isolated worktrees; acceptance checks run against a clean committed head. Integration rebases, revalidates, and fast-forwards the configured checkout. Integration does not push. Scoped implementation, integration, and whole-head acceptance remain separate.
-
-Every Avoozl-started conversation is bound to a configured project workspace.
-Implementation gets an isolated task worktree. Project, scoped, planning, and
-review chats inspect the configured checkout in read-only mode; Avoozl does not
-create empty temporary chat workspaces. A task or plan uses its associated
-project automatically. With one configured project, that project is the
-unambiguous default; with several, choose one before opening chat.
-
-## Private GitHub planning and work intake
-
-Avoozl can publish sanitized planning state to a Git branch, open a planning pull request, project merged design tasks into issues, and accept assigned issues labeled `avoozl:ready` through the same execution path. Repository registration verifies that GitHub reports the repository as private. OpenHands Automations own scheduled GitHub observation and submit exact snapshots through a repository-scoped Avoozl intake capability; Avoozl rechecks repository visibility and current GitHub state before any authorization transition. Issue projection, planning pull-request operations, and explicit Queue reconciliation also fail before mutation if visibility changes.
+The older one-tool-per-operation `plans_*` names stay listed and keep
+working. Each description starts with `Deprecated:` and names its
+replacement. They stay listed because a Kiro Crew session can call only the
+tools its client was shown.
 
 ```sh
-gh auth login
-node cli.mjs project configure code --workspace ../my-plans --json '{"root":"/path/to/code","baseBranch":"main","worktreeRoot":"/path/to/worktrees","checks":[["npm","test"]]}'
-node cli.mjs github configure OWNER/CODE --workspace ../my-plans --project code --assignee YOUR_LOGIN --allowed-actors YOUR_LOGIN
-node cli.mjs workspace-repo configure /path/to/private-planning-checkout --workspace ../my-plans --branch avoozl-workspace --directory .avoozl
-node cli.mjs planning publish PLAN_ID --workspace ../my-plans
-node cli.mjs planning reconcile --workspace ../my-plans
-node cli.mjs github sync --workspace ../my-plans # explicit recovery/reconciliation
+node cli.mjs query --workspace ~/plans --q 'ready:true'
+node cli.mjs show TASK_ID --workspace ~/plans
+node cli.mjs tick --workspace ~/plans
 ```
 
-The publication allowlist contains Markdown designs, exact approval receipts, task definitions, and structured review threads. SQLite, provider credentials, environment files, transcripts, terminal output, local repository roots, and absolute user paths are rejected. A second computer configures its own checkout and credentials, then runs `workspace-repo sync`; it does not copy the first computer's execution database.
+Choose a workspace with `--workspace PATH` or `AVOOZL_WORKSPACE`.
 
-Shared agent policy belongs in `agentInstructions.rules` in the planning
-repository's `.avoozl.json`. Avoozl does not parse `AGENTS.md`; OpenHands and
-other agents may still read it normally as repository guidance. The app shows
-the structured `.avoozl.json` rules and permits each local instance to enable
-or disable them without rewriting committed policy.
+## Configuration and secrets
 
-`appliesTo` supports inherited workflow categories including `chat.project`,
-`chat.scoped`, `plan.create`, `plan.edit`, `plan.review`, `plan.publish`,
-`task.create`, `task.create.scoped`, `task.implement`, `task.review`,
-`task.complete`, `github.issue.triage`, `github.issue.implement`, and
-`github.pr.review`. Optional `when` filters support scopes, epics, tracks, and
-`tagsAny`, `tagsAll`, or `tagsNone`. Rule IDs are stable keys, so a local
-disable remains effective when the team edits or reorders the policy.
+`.avoozl.json` holds portable policy: repositories, GitHub mode and rules,
+delivery limits, and agent instructions. It is meant to be committed.
+Paths in it are relative to the file. The loader rejects absolute paths and
+fields that look like secrets. Keep GitHub credentials in `gh` or your
+credential store.
+
+The app backend binds 127.0.0.1 and accepts only requests that the Kiro Crew
+gateway signed. Do not expose it.
+
+## Back up
 
 ```sh
-node cli.mjs query --workspace ../my-plans --q 'ready:true'
-node cli.mjs show TASK_ID --workspace ../my-plans
-node cli.mjs task.update --workspace ../my-plans --json '{"id":"TASK_ID","status":"partial"}'
-node cli.mjs plan.create --workspace ../my-plans --json '{"prompt":"Save preferences"}'
-node cli.mjs workspace --workspace ../my-plans
-node cli.mjs help
+node cli.mjs backup --workspace ~/plans --output ~/plans-backup.sqlite
 ```
 
-Shared operations accept `--json JSON` or `--input FILE`, with optional `--revision N` for optimistic writes. MCP exposes operation wrappers with an `input` object. Inspect `tools/list` for current schemas. The UI uses the same operations through `/api/command`.
+Back up the spec folders and `.avoozl.json` with it. Use the backup command
+rather than copying the database file: SQLite also keeps a WAL file.
 
-## Back up and update
+## Compatibility
 
-```sh
-node cli.mjs backup --workspace ../my-plans --output ../my-plans-backup.sqlite
-node cli.mjs export --workspace ../my-plans --output ../tasks-export.json
-node cli.mjs reload --workspace ../my-plans
-```
+Avoozl was first released as AICommander. These names keep working:
 
-Back up the Markdown directory and configuration alongside the SQLite backup. Use the backup command rather than copying an active database file by itself: SQLite also uses a WAL file. The JSON export contains task and document state; a SQLite backup also preserves conversations, approvals, receipts, and other execution history.
+- MCP tool names that start with `plans_`.
+- `AVOOZL_*` variables, and the older `AICOMMANDER_*` and `NUPP_WORKSPACE_*`
+  names, including `NUPP_WORKSPACE` for the workspace.
+- The `aicommander` command, the same CLI as `avoozl`.
+- Older fenced-`task` plan files, which stay readable so their work can move
+  to spec folders.
 
-The control-plane process and agent host are separate. Reloading the Canvas App
-leaves agents running. Before updating host code, use `host drain`, let active
-work finish, then use `host stop`. Start `serve` after the update to launch its
-replacement. Do not launch replacement workers because a check-in is stale;
-inspect durable session and delivery records before resuming.
+## Develop
 
-The default listener is loopback. Private LAN/VPN listening is available with `--host 0.0.0.0`. This is a trusted local workspace, without per-user authentication or public-internet hosting support. Do not expose an OpenHands-enabled workspace remotely until Avoozl has authenticated users and project-level authorization; terminal, files, browser state, and transcripts are all sensitive.
-
-## Fork and customize
-
-Fork this repository to retain an upstream relationship and bring in later improvements. Create your workspace separately, then change the UI, workflow, providers, or example packs in your fork. Your planning data stays independent of source updates. The repository can also be used as a GitHub template for a fresh independent history.
-
-Application operations and SQLite storage live in `src/app/`. Shared models and browser assets live in `src/`. Provider adapters live in `src/app/providers/`. The exported workflow skill lives in `src/app/skills/avoozl/`. Add example packs under `examples/` and register them in `src/app/examples.mjs`; packs use stable IDs and installation receipts to preserve later edits.
-
-Run `npm test` before sharing changes. Tests use disposable workspaces and provider fixtures; they do not require paid agent calls. CI runs on Linux, macOS, and Windows with Node 26.
+Application operations and SQLite storage live in `src/app/`, shared models
+in `src/`, and the Kiro Crew page in `kirocrew-app/ui/`. Run `npm test` before
+sharing a change. Tests use disposable workspaces and make no network or paid
+agent calls. `node scripts/release-scan.mjs` checks what the npm and app
+packages would contain.
 
 ## License
 
-MIT. The bundled Marked renderer retains its own license in [src/MARKED-LICENSE.md](src/MARKED-LICENSE.md).
-
-## VS Code client
-
-An extension in [`extension/`](extension/README.md) brings plans, tasks, and the conversations this workspace owns into the editor. It is a client: it never starts a provider process and never opens a second writer for a conversation that already has an owner. Saving a plan records a draft revision and never approves it, a conflicting save cannot overwrite another client's revision, and stopping a conversation is reported as a cancellation rather than a failure.
-
-```sh
-node cli.mjs serve --workspace ../my-plans --ahp   # site, agent host, and the editor facade
-node cli.mjs editor --workspace ../my-plans        # the editor settings to paste
-node scripts/package-extension.mjs                 # build an installable .vsix
-```
-
-The editor facade translates owned sessions into Microsoft's Agent Host Protocol so they appear as native chat. It binds loopback only and requires a bearer token on every connection; the address `editor` prints contains that token, so treat it as a credential. Reach it from another machine through an authenticated tunnel or an SSH local port forward, never by publishing the listener.
-
-The [implementation plan](docs/design/vscode-client.md) and
-[research handoff](docs/research/vscode/README.md) preserve the earlier VS Code
-experiment. The OpenHands Canvas product direction supersedes its recommendation
-to retain a standalone website.
+MIT. Bundled third-party code and its licenses are listed in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

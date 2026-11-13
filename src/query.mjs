@@ -1,6 +1,12 @@
 import { resolveTaskId, taskSourceRefs } from "./task-identity.mjs";
 import { activityState } from "./activity.mjs";
 import { isArchivedTask, isHistoricalTask } from "./browse-model.mjs";
+import {
+  completionReached,
+  supersedingTask,
+  taskKind,
+  taskRepository,
+} from "./work-model.mjs";
 function wantsArchived(options) {
   return (
     options.historical === true ||
@@ -19,7 +25,7 @@ function queryIndex(data) {
     for (const e of data.edges)
       if (["requires", "sequence"].includes(e.kind)) {
         if (!prerequisites.has(e.to)) prerequisites.set(e.to, []);
-        prerequisites.get(e.to).push(e.from);
+        prerequisites.get(e.to).push(e);
       }
     index = {
       lines: new Map(),
@@ -202,13 +208,42 @@ export function queryTasks(data, options = {}) {
         (t) =>
           (!statusComplete(data, t.status) &&
             !isArchivedTask(data, t) &&
-            !["blocked", "deferred", "review"].includes(t.status) &&
+            !["blocked", "deferred", "review", "superseded"].includes(
+              t.status,
+            ) &&
             !t.needsReview &&
             !t.source?.removed &&
             t.dispatch?.ready !== false &&
-            (index.prerequisites.get(t.id) || []).every((id) =>
-              index.complete.has(index.byId.get(id)?.status),
-            )) ===
+            // Held while its plan is archived (plan.archive).
+            !t.planArchived &&
+            taskKind(t) === "leaf" &&
+            t.status !== "draft" &&
+            !t.decision &&
+            // A claimed leaf (a live session, or a delivery under way) and a
+            // leaf that reached its own completion are not ready again.
+            !options.claimed?.has(t.id) &&
+            !completionReached(t, undefined, (status) =>
+              index.complete.has(status),
+            ) &&
+            (!options.repositories ||
+              !taskRepository(t) ||
+              options.repositories.includes(taskRepository(t))) &&
+            // A blocker with an open decision (a crew needing a person, a
+            // stale claim, a held completion) holds its dependents too. An
+            // edge from a superseded task is judged by its replacement.
+            (index.prerequisites.get(t.id) || []).every((e) => {
+              const from = supersedingTask(index.byId, e.from);
+              // A dependent stacked on this blocker's open pull request
+              // (task 8.2) does not wait for it to merge.
+              if (from && options.stacked?.get(t.id) === from.id)
+                return !from.decision;
+              return (
+                !from?.decision &&
+                completionReached(from, e.condition, (status) =>
+                  index.complete.has(status),
+                )
+              );
+            })) ===
           (value === "true"),
       );
     else if (["depends", "unblocks", "neighbors"].includes(key)) {

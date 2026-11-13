@@ -1,0 +1,69 @@
+{
+  "description": "Triage labels, triggers and who counts for SDK repositories that use needs-triage and p0-p3.",
+  "settings": {
+    "repositories": {
+      "minimumPermission": "write",
+      "priority": ["p0", "p1"],
+      "managedLabels": {
+        "managed": "avoozl:managed",
+        "responding": "avoozl:responding",
+        "planning": "avoozl:planning",
+        "ready": "avoozl:ready",
+        "stale": "avoozl:stale",
+        "decision": "avoozl:decision"
+      },
+      "rules": [
+        {
+          "id": "plan",
+          "action": "plan",
+          "match": "label:avoozl:plan -label:needs-triage -label:response-requested"
+        },
+        {
+          "id": "deliver",
+          "action": "deliver",
+          "match": "label:avoozl:deliver -label:needs-triage -label:response-requested -label:blocked -label:avoozl:paused"
+        },
+        { "id": "pause", "action": "pause", "match": "label:avoozl:paused" },
+        {
+          "id": "quarantine",
+          "action": "quarantine",
+          "match": "label:avoozl:quarantine"
+        }
+      ],
+      "untriaged": {
+        "filter": "label:needs-triage",
+        "triageLabels": [
+          "response-requested",
+          "closing-soon",
+          "pending-release"
+        ],
+        "ignoreOlderThanDays": 365,
+        "notify": false
+      },
+      "requiredChecks": []
+    },
+    "project": {
+      "fields": { "status": "Status", "release": "Release", "wave": "Wave" },
+      "statusValues": {
+        "todo": "Todo",
+        "inProgress": "In progress",
+        "done": "Done",
+        "deferred": "Deferred"
+      }
+    },
+    "contentRules": {
+      "sets": [{ "id": "team-terms", "plugin": "sdk-team", "action": "block" }]
+    },
+    "delivery": {
+      "reviewers": [
+        {
+          "id": "api-review",
+          "focus": "Public API shape and backward compatibility",
+          "agent": "avoozl-reviewer",
+          "distinctFrom": "session"
+        }
+      ]
+    },
+    "flow": { "batch": { "max": 2 } }
+  }
+}

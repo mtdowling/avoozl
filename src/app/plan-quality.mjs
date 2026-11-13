@@ -1,5 +1,6 @@
 import { duplicateCandidates, resolveTaskId } from "../task-identity.mjs";
 import { extractPlan } from "./plans.mjs";
+import { taskCompletion, taskKind, taskRoute } from "../work-model.mjs";
 
 const taskBlocks = () => /^```task\s*\r?\n([\s\S]*?)^```\s*$/gm;
 
@@ -26,18 +27,6 @@ function diagnostic(
   };
 }
 
-function headingLines(text) {
-  return [...text.matchAll(/^(#{1,6})[ \t]+(.+?)\s*$/gm)].map((match) => ({
-    depth: match[1].length,
-    title: match[2].trim(),
-    line: lineAt(text, match.index),
-  }));
-}
-
-function hasHeading(headings, pattern) {
-  return headings.some((heading) => pattern.test(heading.title));
-}
-
 function taskLine(task) {
   return {
     lineStart: task.lineStart || 1,
@@ -48,8 +37,105 @@ function taskLine(task) {
 
 function effectiveProject(plan, task, existing) {
   return (
-    task.projectId || plan?.context?.projectId || existing?.projectId || null
+    task.repository ||
+    task.projectId ||
+    plan?.context?.projectId ||
+    existing?.repository ||
+    existing?.projectId ||
+    null
   );
+}
+
+// Completion levels each route can observe (design §4.3).
+const ROUTE_COMPLETIONS = {
+  local: ["integrated", "released", "answered"],
+  github: ["merged-pr", "released", "answered"],
+};
+
+// A leaf is bounded: one repository, acceptance, checks and a completion
+// its route can observe. Acceptance is enforced by extractPlan.
+function boundednessDiagnostics(task, projectId, projects) {
+  const at = taskLine(task),
+    found = [],
+    add = (code, message) =>
+      found.push(
+        diagnostic(code, "error", message, at.lineStart, at.lineEnd, {
+          taskId: task.id,
+        }),
+      );
+  // acceptFrom gates a local leaf's acceptance on validation Avoozl ran at
+  // its integrated commit (§5.2); nothing else records such validation.
+  if (
+    task.acceptFrom !== undefined &&
+    (taskKind(task) !== "leaf" ||
+      taskRoute(task) !== "local" ||
+      !["integrated", "released"].includes(taskCompletion(task)))
+  )
+    add(
+      "leaf.accept-from",
+      `acceptFrom on "${task.id}" needs a local leaf that completes by integration.`,
+    );
+  if (taskKind(task) !== "leaf") return found;
+  if (task.repository && task.projectId && task.repository !== task.projectId)
+    add(
+      "leaf.repository",
+      `Leaf "${task.id}" names two repositories; a leaf changes exactly one.`,
+    );
+  // With one registered repository or none (the workspace checkout), the
+  // target is implied; with several the leaf must name one.
+  else if (!projectId && projects.size > 1)
+    add(
+      "leaf.repository",
+      `Name the one repository leaf "${task.id}" changes; this workspace has several.`,
+    );
+  const completion = taskCompletion(task),
+    allowed = ROUTE_COMPLETIONS[taskRoute(task)];
+  if (allowed && !allowed.includes(completion))
+    add(
+      "leaf.completion",
+      `Completion "${completion}" cannot be observed on route "${taskRoute(task)}".`,
+    );
+  // An unregistered repository is reported as task.unknown-project.
+  const unknown = projectId && projects.size && !projects.has(projectId),
+    checks = task.checks?.length
+      ? task.checks
+      : projects.get(projectId)?.checks || [];
+  if (completion !== "answered" && !checks.length && !unknown)
+    add(
+      "leaf.checks",
+      `Name the checks that prove leaf "${task.id}", or configure checks on its repository.`,
+    );
+  return found;
+}
+
+// Repeated IDs stop extraction, so they are found from the raw blocks.
+function duplicateIdDiagnostics(text, matches) {
+  const first = new Map(),
+    found = [];
+  for (const match of matches) {
+    let id;
+    try {
+      id = JSON.parse(match[1])?.id;
+    } catch {
+      continue;
+    }
+    if (typeof id !== "string") continue;
+    const lineStart = lineAt(text, match.index),
+      lineEnd = lineAt(text, match.index + match[0].length);
+    if (first.has(id))
+      found.push(
+        diagnostic(
+          "task.duplicate-id",
+          "error",
+          `Task ID "${id}" is already used at line ${first.get(id)}.`,
+          lineStart,
+          lineEnd,
+          { taskId: id },
+        ),
+      );
+    else first.set(id, lineStart);
+  }
+  return found;
 }
 
 function placeholderAcceptance(value) {
@@ -110,107 +196,15 @@ function cycleDiagnostics(tasks, mapping) {
   return diagnostics;
 }
 
-export function lintPlan({ text, plan = {}, data = {} }) {
+export function lintPlan({ text, plan = {}, data = {}, proposals }) {
   const diagnostics = [];
-  const headings = headingLines(text);
-  if (!headings.some((heading) => heading.depth === 1))
-    diagnostics.push(
-      diagnostic(
-        "design.title",
-        "warning",
-        "Add one top-level title for the design.",
-      ),
-    );
-  if (!hasHeading(headings, /^(intent|objective|goals?)$/i))
-    diagnostics.push(
-      diagnostic(
-        "design.intent",
-        "warning",
-        "State the intended outcome in an Intent, Objective, or Goals section.",
-      ),
-    );
-  if (!hasHeading(headings, /^(design|approach|decisions?|architecture)$/i))
-    diagnostics.push(
-      diagnostic(
-        "design.decisions",
-        "warning",
-        "Record the chosen design and its important decisions.",
-      ),
-    );
-  if (!hasHeading(headings, /^non[- ]goals?$/i))
-    diagnostics.push(
-      diagnostic(
-        "design.non-goals",
-        "info",
-        "Consider naming non-goals so reviewers can distinguish omitted scope from missing work.",
-      ),
-    );
-  if (!hasHeading(headings, /^(constraints?|assumptions?)$/i))
-    diagnostics.push(
-      diagnostic(
-        "design.constraints",
-        "info",
-        "Consider recording constraints or assumptions that shape the design.",
-      ),
-    );
-  if (!hasHeading(headings, /^(risks?|failure modes?|security)$/i))
-    diagnostics.push(
-      diagnostic(
-        "design.risks",
-        "info",
-        "Consider describing material risks and failure behavior.",
-      ),
-    );
-  if (!hasHeading(headings, /^(testing|test strategy|acceptance|validation)$/i))
-    diagnostics.push(
-      diagnostic(
-        "design.validation",
-        "info",
-        "Consider explaining how the whole design will be validated, beyond individual task checks.",
-      ),
-    );
-  if (/\b(deploy|migration|release|rollout|upgrade|backfill)\b/i.test(text)) {
-    if (!hasHeading(headings, /^(rollout|deployment|migration)$/i))
-      diagnostics.push(
-        diagnostic(
-          "design.rollout",
-          "info",
-          "Describe how this change rolls out and how partial progress is observed.",
-        ),
-      );
-    if (!hasHeading(headings, /^(rollback|recovery)$/i))
-      diagnostics.push(
-        diagnostic(
-          "design.rollback",
-          "info",
-          "Describe rollback or recovery when rollout cannot complete safely.",
-        ),
-      );
-  }
-  if (!hasHeading(headings, /^proposed work$/i))
-    diagnostics.push(
-      diagnostic(
-        "design.proposed-work",
-        "warning",
-        "Put executable proposals under a Proposed work section.",
-      ),
-    );
-
   const matches = [...text.matchAll(taskBlocks())];
-  if (!matches.length) {
-    diagnostics.push(
-      diagnostic(
-        "task.missing",
-        "error",
-        "Add at least one fenced task block before approval.",
-      ),
-    );
+  if (!matches.length && proposals === undefined)
     return summarize(diagnostics, []);
-  }
 
   let tasks = [];
   try {
-    tasks = extractPlan(text);
+    tasks = proposals === undefined ? extractPlan(text) : proposals;
   } catch (cause) {
     for (const match of matches) {
       try {
@@ -227,16 +221,9 @@ export function lintPlan({ text, plan = {}, data = {} }) {
         );
       }
     }
-    if (!diagnostics.some((item) => item.code === "task.schema"))
-      diagnostics.push(
-        diagnostic(
-          "task.schema",
-          "error",
-          cause.message,
-          headings.find((heading) => /^proposed work$/i.test(heading.title))
-            ?.line || 1,
-        ),
-      );
+    diagnostics.push(...duplicateIdDiagnostics(text, matches));
+    if (!diagnostics.length)
+      diagnostics.push(diagnostic("task.schema", "error", cause.message, 1));
     return summarize(diagnostics, []);
   }
 
@@ -277,7 +264,7 @@ export function lintPlan({ text, plan = {}, data = {} }) {
           { taskId: task.id },
         ),
       );
-    for (const acceptance of task.acceptance)
+    for (const acceptance of task.acceptance || [])
       if (placeholderAcceptance(acceptance))
         diagnostics.push(
           diagnostic(
@@ -292,7 +279,7 @@ export function lintPlan({ text, plan = {}, data = {} }) {
 
     const canonical = task.taskId ? resolveTaskId(data, task.taskId) : null;
     const existing = canonical ? existingTasks.get(canonical) : null;
-    const projectId = effectiveProject(plan, task, existing);
+    let projectId = effectiveProject(plan, task, existing);
     if (task.taskId && !existing)
       diagnostics.push(
         diagnostic(
@@ -313,8 +300,8 @@ export function lintPlan({ text, plan = {}, data = {} }) {
         diagnostics.push(
           diagnostic(
             "task.possible-duplicate",
-            "error",
-            `Possible existing task "${duplicates[0].id}" has the same title. Reuse it with taskId or explain the separate scope with distinctReason.`,
+            "warning",
+            `Possible existing task "${duplicates[0].id}" has the same title. Reuse it when it covers the same deliverable.`,
             at.lineStart,
             at.lineEnd,
             { taskId: task.id, relatedTaskId: duplicates[0].id },
@@ -332,7 +319,9 @@ export function lintPlan({ text, plan = {}, data = {} }) {
           { taskId: task.id },
         ),
       );
-    else if (!projectId && projects.size > 1)
+    else if (!projectId && projects.size === 1 && taskKind(task) === "leaf")
+      projectId = projects.keys().next().value;
+    else if (!projectId && projects.size > 1 && taskKind(task) !== "leaf")
       diagnostics.push(
         diagnostic(
           "task.project-ambiguous",
@@ -343,6 +332,8 @@ export function lintPlan({ text, plan = {}, data = {} }) {
           { taskId: task.id },
         ),
       );
+
+    diagnostics.push(...boundednessDiagnostics(task, projectId, projects));
 
     for (const field of ["requires", "sequence", "supports"]) {
       const seen = new Set();

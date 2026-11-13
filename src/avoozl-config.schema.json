@@ -17,6 +17,11 @@
       "pattern": "^[a-z][a-z0-9-]{0,60}$",
       "description": "Stable portable identity used when this workspace is registered with a machine host."
     },
+    "namespace": {
+      "type": "string",
+      "pattern": "^avz_[a-z0-9]{16}$",
+      "description": "Opaque owner of this workspace's GitHub task IDs, written by avoozl init. Managed issue markers carry it; it never changes."
+    },
     "name": {
       "type": "string",
       "minLength": 1,
@@ -95,8 +100,108 @@
     "github": {
       "$ref": "#/$defs/github"
     },
+    "review": {
+      "$ref": "#/$defs/reviewPolicy"
+    },
+    "safety": {
+      "$ref": "#/$defs/safetyPolicy"
+    },
     "planningRepository": {
       "$ref": "#/$defs/planningRepository"
+    },
+    "plugins": {
+      "description": "Route and tracker plugins this repository declares (design §4.8). A plugin loads only after a person approves its exact version and content hash on each machine. Declare a plugin whose name must stay private in this machine's plugins.json instead.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "contract"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]{0,60}$",
+            "not": { "enum": ["local", "github"] }
+          },
+          "package": { "type": "string" },
+          "path": {
+            "type": "string",
+            "description": "A folder relative to this file."
+          },
+          "git": {
+            "type": "string",
+            "description": "A repository URL or a local repository path relative to this file. Never a URL with credentials."
+          },
+          "ref": {
+            "type": "string",
+            "description": "A tag, branch or full commit. Each machine pins it to one commit when a person adds or updates the plugin."
+          },
+          "subdir": {
+            "type": "string",
+            "description": "The plugin's folder inside the git repository."
+          },
+          "contract": { "type": "integer" },
+          "config": {
+            "type": "object",
+            "description": "Plain, non-secret data for the plugin. A key ending in Env names an environment variable the plugin reads a credential from."
+          }
+        },
+        "oneOf": [
+          { "required": ["package"] },
+          { "required": ["path"] },
+          { "required": ["git", "ref"] }
+        ]
+      }
+    },
+    "delivery": {
+      "description": "Turns on readiness dispatch of local leaves by the tick. Limits count sessions the tick opened that have not finished.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "concurrency": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 32,
+          "default": 1
+        },
+        "retries": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10,
+          "default": 2
+        },
+        "quietMinutes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1440,
+          "default": 15
+        },
+        "nudges": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10,
+          "default": 3
+        },
+        "agent": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+          "default": "kirocrew-worker"
+        },
+        "runner": {
+          "description": "Who starts worker sessions for ready leaves: the tick's script cron, or a Crew Mode conductor that claims them through avoozl next and claim. The tick verifies and integrates either way.",
+          "enum": ["tick", "crew-mode"],
+          "default": "tick"
+        },
+        "repositories": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "concurrency": { "type": "integer", "minimum": 0, "maximum": 32 }
+            }
+          }
+        }
+      }
     },
     "ahpPort": {
       "type": "integer",
@@ -123,6 +228,19 @@
       "type": "string",
       "minLength": 1,
       "deprecated": true
+    },
+    "packs": {
+      "type": "object",
+      "description": "Written by a pack import (design §4.14): for each plugin whose pack was imported, the version and time of the import and the settings that came from it. Records provenance only; Avoozl never re-applies it.",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "version": { "type": "string" },
+          "importedAt": { "type": "string" },
+          "importedBy": { "type": "string" },
+          "settings": { "type": "array", "items": { "type": "string" } }
+        }
+      }
     }
   },
   "propertyNames": {
@@ -257,6 +375,7 @@
               "plan",
               "plan.create",
               "plan.edit",
+              "plan.extract",
               "plan.review",
               "plan.publish",
               "task",
@@ -308,6 +427,9 @@
           "$ref": "#/$defs/uniqueStrings"
         },
         "tagsNone": {
+          "$ref": "#/$defs/uniqueStrings"
+        },
+        "paths": {
           "$ref": "#/$defs/uniqueStrings"
         }
       },
@@ -486,6 +608,10 @@
           "type": "string",
           "minLength": 1
         },
+        "integrationBranch": {
+          "type": "string",
+          "minLength": 1
+        },
         "worktreeRoot": {
           "type": "string",
           "minLength": 1
@@ -515,7 +641,7 @@
     },
     "github": {
       "type": "object",
-      "description": "Desired non-secret GitHub intake and Queue configuration. Remote setup remains an explicit action.",
+      "description": "Desired non-secret GitHub configuration: mode, task authority, Project, and per-repository policy (design §4.4), plus the older issue intake and Queue settings. Remote setup remains an explicit action.",
       "properties": {
         "issueIntake": {
           "type": "object",
@@ -534,8 +660,262 @@
           "additionalProperties": {
             "$ref": "#/$defs/githubQueueRepository"
           }
+        },
+        "mode": {
+          "enum": ["local", "plans-repo", "single-repo"],
+          "description": "Where issues live. local, or absent, means every task is local; GitHub settings stored beside local are kept but not used."
+        },
+        "planningRepository": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+          "description": "Planning repository for plans-repo mode; kept but not used in other modes."
+        },
+        "defaultAuthority": {
+          "enum": ["github", "local"],
+          "description": "Authority of new tasks. Defaults to github when a mode is set, else local."
+        },
+        "project": {
+          "$ref": "#/$defs/githubProject"
+        },
+        "epicIssueType": {
+          "type": ["string", "null"],
+          "minLength": 1
+        },
+        "repositories": {
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/githubRepositoryPolicy"
+          }
         }
       },
+      "additionalProperties": false
+    },
+    "githubProject": {
+      "type": "object",
+      "required": ["owner", "number"],
+      "properties": {
+        "owner": {
+          "type": "string",
+          "minLength": 1
+        },
+        "number": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "fields": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": ["string", "null"],
+              "minLength": 1
+            },
+            "release": {
+              "type": ["string", "null"],
+              "minLength": 1
+            },
+            "wave": {
+              "type": ["string", "null"],
+              "minLength": 1
+            },
+            "iteration": {
+              "type": ["string", "null"],
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "statusValues": {
+          "type": "object",
+          "description": "Project Status option names. Only deferred is read as an order.",
+          "properties": {
+            "todo": {
+              "type": "string",
+              "minLength": 1
+            },
+            "inProgress": {
+              "type": "string",
+              "minLength": 1
+            },
+            "done": {
+              "type": "string",
+              "minLength": 1
+            },
+            "deferred": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "githubRepositoryPolicy": {
+      "type": "object",
+      "description": "Who may trigger work in one repository and which labels do what. No label name is built in.",
+      "properties": {
+        "checkout": {
+          "type": "string",
+          "minLength": 1
+        },
+        "folder": {
+          "type": "string",
+          "minLength": 1
+        },
+        "baseBranch": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Must equal the repository's default branch when a mode is set."
+        },
+        "coder": {
+          "enum": ["worker", "issue-radar"],
+          "description": "issue-radar is refused in plans-repo mode."
+        },
+        "allowedActors": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "minimumPermission": {
+          "enum": ["read", "triage", "write", "maintain", "admin"]
+        },
+        "requiredChecks": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "concurrency": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 1
+        },
+        "dependencyText": {
+          "type": "boolean",
+          "default": false
+        },
+        "priority": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "managedLabels": {
+          "type": "object",
+          "description": "Labels Avoozl adds and removes. Each must differ from every trigger label.",
+          "properties": {
+            "managed": {
+              "type": "string",
+              "minLength": 1
+            },
+            "responding": {
+              "type": "string",
+              "minLength": 1
+            },
+            "planning": {
+              "type": "string",
+              "minLength": 1
+            },
+            "ready": {
+              "type": "string",
+              "minLength": 1
+            },
+            "stale": {
+              "type": "string",
+              "minLength": 1
+            },
+            "decision": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/githubRule"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "githubRule": {
+      "type": "object",
+      "required": ["id", "action"],
+      "description": "Matches when every labelsAll label, one labelsAny label (when given), no labelsNone label, and the assignee and author hold, and the newest event that made it true came from an allowed actor.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{0,60}$"
+        },
+        "action": {
+          "enum": [
+            "respond",
+            "plan",
+            "deliver",
+            "execute",
+            "pause",
+            "resume",
+            "quarantine"
+          ]
+        },
+        "labelsAll": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "labelsAny": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "labelsNone": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "assignee": {
+          "type": "string",
+          "minLength": 1
+        },
+        "author": {
+          "type": "string",
+          "minLength": 1
+        },
+        "autoPublishChildren": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "anyOf": [
+        {
+          "required": ["labelsAll"]
+        },
+        {
+          "required": ["labelsAny"]
+        }
+      ],
       "additionalProperties": false
     },
     "githubIssueIntake": {
@@ -648,6 +1028,223 @@
       "items": {
         "type": "string",
         "minLength": 1
+      }
+    },
+    "reviewPolicy": {
+      "type": "object",
+      "description": "Repository review policy. Unmatched changes use the most restrictive configured class.",
+      "properties": {
+        "requiredChecks": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "excludeAuthor": {
+          "type": "boolean",
+          "default": true
+        },
+        "excludeImplementer": {
+          "type": "boolean",
+          "default": true
+        },
+        "defaultClass": {
+          "enum": ["mechanical", "low-risk", "normal", "high-consequence"],
+          "default": "high-consequence"
+        },
+        "classes": {
+          "type": "object",
+          "properties": {
+            "mechanical": {
+              "$ref": "#/$defs/reviewClass"
+            },
+            "low-risk": {
+              "$ref": "#/$defs/reviewClass"
+            },
+            "normal": {
+              "$ref": "#/$defs/reviewClass"
+            },
+            "high-consequence": {
+              "$ref": "#/$defs/reviewClass"
+            }
+          },
+          "additionalProperties": false
+        },
+        "agentReviewer": {
+          "type": "object",
+          "properties": {
+            "mustDifferBy": {
+              "enum": ["provider", "model"]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "reviewClass": {
+      "type": "object",
+      "properties": {
+        "humans": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20
+        },
+        "agents": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20
+        },
+        "notifyHuman": {
+          "type": "boolean"
+        },
+        "agentIsAdvisory": {
+          "type": "boolean"
+        },
+        "requireHumanAcceptance": {
+          "type": "boolean"
+        },
+        "paths": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/portablePath"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "safetyPolicy": {
+      "type": "object",
+      "description": "Non-secret andon authority and optional coordinator enforcement. Authority is denied when no rule matches.",
+      "properties": {
+        "coordinator": {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "enum": ["local", "optional", "strict"],
+              "default": "optional",
+              "description": "Strict mode requires exact coordinator generation and safety-epoch fencing for distributed protected operations."
+            }
+          },
+          "additionalProperties": false
+        },
+        "authority": {
+          "type": "object",
+          "properties": {
+            "rules": {
+              "type": "array",
+              "maxItems": 200,
+              "description": "Ordered policy rules. A matching deny overrides allows; no match denies.",
+              "items": {
+                "$ref": "#/$defs/safetyAuthorityRule"
+              }
+            },
+            "separationOfDuty": {
+              "$ref": "#/$defs/safetySeparationOfDuty"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "safetyAuthorityRule": {
+      "type": "object",
+      "required": ["id", "activities", "scopes"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{2,79}$"
+        },
+        "effect": {
+          "enum": ["allow", "deny"],
+          "default": "allow"
+        },
+        "activities": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "raise",
+              "diagnose",
+              "remediate",
+              "review",
+              "resolve",
+              "resume"
+            ]
+          }
+        },
+        "scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": ["task", "project", "workspace"]
+          }
+        },
+        "categories": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "default": ["*"]
+        },
+        "identities": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          }
+        },
+        "roles": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          }
+        }
+      },
+      "anyOf": [{ "required": ["identities"] }, { "required": ["roles"] }],
+      "additionalProperties": false
+    },
+    "safetySeparationOfDuty": {
+      "type": "object",
+      "properties": {
+        "reviewerDistinctFrom": {
+          "$ref": "#/$defs/safetyDutyList"
+        },
+        "resolverDistinctFrom": {
+          "$ref": "#/$defs/safetyDutyList"
+        },
+        "resumerDistinctFrom": {
+          "$ref": "#/$defs/safetyDutyList"
+        },
+        "resolutionReviewRequired": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "safetyDutyList": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": ["raiser", "requester", "implementer", "reviewer", "resolver"]
       }
     },
     "planningRepository": {

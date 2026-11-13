@@ -1,5 +1,6 @@
 import { resolveTaskId, taskSourceRefs } from "./task-identity.mjs";
 import { activityErrors } from "./activity.mjs";
+import { edgeErrors, workModelErrors } from "./work-model.mjs";
 import { createHash } from "node:crypto";
 export const digest = (value) =>
   createHash("sha256").update(value).digest("hex");
@@ -46,6 +47,58 @@ export function blocks(text) {
   }
   return result;
 }
+// A task's section as a reader sees what it asks: link targets, Markdown
+// document paths and the checkbox mark removed, whitespace collapsed. Moving a
+// plan, fixing a link or ticking the box leaves it the same. Code paths stay,
+// since naming another file can change the work.
+export function sectionText(context) {
+  return context
+    .replace(/^(\s*[-*]\s*)\[[ xX]\]/, "$1[ ]")
+    .replace(/\]\([^)]*\)/g, "]()")
+    .replace(/(?:[\w.@~-]*\/)*[\w.@~-]+\.md(?:#[\w-]*)?/g, "<doc>")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+// Where a source reference's section is now, and whether its text changed,
+// given the document before (`before`, may be null) and after. A key that no
+// longer parses (its checkbox line or headings were rewritten) is matched by
+// unchanged section text when exactly one section has it. Without the old
+// text, the stored hash is compared as it was.
+export function matchSection(ref, before, after) {
+  const old = before?.find((b) => b.key === ref.key) ?? null;
+  let block = after.find((b) => b.key === ref.key) ?? null;
+  if (!block && old) {
+    const same = after.filter(
+      (b) => sectionText(b.context) === sectionText(old.context),
+    );
+    if (same.length === 1) block = same[0];
+  }
+  if (!block) return { block: null, changed: true };
+  if (old)
+    return {
+      block,
+      changed: sectionText(old.context) !== sectionText(block.context),
+    };
+  return {
+    block,
+    changed: Boolean(ref.hash) && ref.hash !== digest(block.context),
+  };
+}
+// A plan's own reference: it moves, and is reviewed, through plan approval
+// (a changed plan is a draft whose re-approval flags changed tasks), never
+// through indexing.
+export function planOwned(task, ref) {
+  return Boolean(ref.planId || (ref === task.source && task.planId));
+}
+// Done, recorded, archived and superseded tasks are never sent back for review
+// by a document edit.
+export function reviewSettled(data, task) {
+  const status = (data.statuses || []).find((s) => s.id === task.status);
+  return (
+    Boolean(status?.complete || status?.archived) ||
+    ["recorded", "archived", "superseded"].includes(task.status)
+  );
+}
 export { statusComplete, graphNeighbors, queryTasks } from "./query.mjs";
 export function validate(data) {
   const errors = [];
@@ -53,7 +106,7 @@ export function validate(data) {
   const ids = new Set(),
     statuses = new Set(data.statuses.map((s) => s.id));
   for (const task of data.tasks) {
-    errors.push(...activityErrors(task));
+    errors.push(...activityErrors(task), ...workModelErrors(task));
     if (ids.has(task.id)) errors.push("Repeated task " + task.id);
     ids.add(task.id);
     if (!statuses.has(task.status)) errors.push("Unknown status " + task.id);
@@ -80,6 +133,7 @@ export function validate(data) {
   }
   const graph = new Map();
   for (const edge of data.edges) {
+    errors.push(...edgeErrors(edge));
     if (!ids.has(edge.from) || !ids.has(edge.to))
       errors.push("Dangling edge " + edge.from + " → " + edge.to);
     if (edge.from === edge.to) errors.push("Self edge " + edge.from);

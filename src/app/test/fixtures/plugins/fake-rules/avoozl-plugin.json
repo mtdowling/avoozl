@@ -1,0 +1,8 @@
+{
+  "id": "fake-rules",
+  "version": "1.0.0",
+  "contract": 1,
+  "kinds": ["rules"],
+  "capabilities": { "rules": [] },
+  "entry": "index.mjs"
+}

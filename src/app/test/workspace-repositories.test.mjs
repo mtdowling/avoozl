@@ -65,12 +65,11 @@ test("unified repositories preserve legacy execution and GitHub records", async 
     github: "example/compiler",
     planning: true,
     editable: true,
-    monitorIssues: true,
-    monitorPullRequests: true,
     issueAuthorization: true,
     assignee: "operator",
     allowedActors: ["maintainer"],
     readyLabel: "team:ready",
+    managedLabel: "team:managed",
     labelBehaviors: {
       ready: ["team:ready"],
       blocked: ["team:blocked"],
@@ -83,7 +82,6 @@ test("unified repositories preserve legacy execution and GitHub records", async 
   assert.equal(configured.id, "compiler");
   assert.equal(configured.github, "example/compiler");
   assert.equal(configured.planning, true);
-  assert.equal(configured.queue.pullRequests, true);
   assert.equal(configured.issueAuthorization.enabled, true);
   assert.deepEqual(configured.labels.ready, ["team:ready"]);
   assert.equal(
@@ -91,24 +89,16 @@ test("unified repositories preserve legacy execution and GitHub records", async 
     fs.realpathSync(checkout),
   );
   assert.equal(
-    store.get("github_queue_repositories", "example/compiler")
-      .workspaceRepositoryId,
-    "compiler",
-  );
-  assert.equal(
     store.get("github_repositories", "example/compiler").workspaceRepositoryId,
     "compiler",
   );
-  assert.deepEqual(github.labels, ["team:ready"]);
+  assert.deepEqual(github.labels, ["team:ready", "team:managed"]);
 
   const saved = JSON.parse(
     fs.readFileSync(path.join(root, ".avoozl.json"), "utf8"),
   );
   assert.equal(saved.projects.compiler.planning, true);
-  assert.equal(
-    saved.github.queue["example/compiler"].workspaceRepositoryId,
-    "compiler",
-  );
+  assert.equal(saved.github.queue, undefined);
   assert.equal(
     saved.github.issueIntake["example/compiler"].workspaceRepositoryId,
     "compiler",
@@ -121,31 +111,6 @@ test("unified repositories preserve legacy execution and GitHub records", async 
     null,
   );
   assert.equal(store.get("github_repositories", "example/compiler"), null);
-});
-
-test("remote-only public repositories contribute Queue without execution", async (t) => {
-  const { store } = fixture(t),
-    github = new FakeGitHub(),
-    operations = new Operations(store, { github });
-  github.private = false;
-
-  const configured = await operations.execute("repositories.configure", {
-    id: "community",
-    github: "example/community",
-    visibility: "public",
-    monitorIssues: true,
-    monitorPullRequests: false,
-  });
-
-  assert.equal(configured.localCheckout, null);
-  assert.equal(configured.editable, false);
-  assert.equal(configured.queue.issues, true);
-  assert.equal(configured.queue.pullRequests, false);
-  assert.equal(configured.issueAuthorization.enabled, false);
-  assert.equal(
-    store.get("github_queue_repositories", "example/community").projectId,
-    null,
-  );
 });
 
 test("legacy project and Queue records project as one repository", (t) => {

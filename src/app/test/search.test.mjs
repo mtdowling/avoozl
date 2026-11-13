@@ -1,66 +1,28 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { fixture, runCapability } from "./fixtures.mjs";
+import { fixture } from "./fixtures.mjs";
 import { Operations } from "../operations.mjs";
-import { handleMcp } from "../mcp.mjs";
-import { addQueryFacet, removeQueryFacet } from "../../facets.mjs";
 
-test("query facets replace exclusive values, retain multiple tags and preserve quoted text", () => {
-  assert.equal(
-    addQueryFacet('status:planned tag:ffi "byte buffer"', "status:partial"),
-    'tag:ffi "byte buffer" status:partial',
-  );
-  assert.equal(
-    addQueryFacet("tag:ffi", "tag:ownership"),
-    "tag:ffi tag:ownership",
-  );
-  assert.equal(addQueryFacet("tag:ffi", "tag:ffi"), "tag:ffi");
-  assert.equal(removeQueryFacet("ready:true tag:ffi", "ready:true"), "tag:ffi");
-});
-test("prompt search is read-only, preserves the current view, and saves validated results once", async (t) => {
+test("prompt search moved to Kiro Crew, and an old search result still saves its view once", async (t) => {
   const { store } = fixture(t),
     before = JSON.stringify(store.read().tasks),
-    manager = {
-      remote: true,
-      async start(input) {
-        return store.put("runs", {
-          ...input,
-          id: input.id,
-          taskId: "plan:" + input.planId,
-          state: "completed",
-        });
-      },
-    },
-    ops = new Operations(store, { manager });
-  const run = await ops.execute("search.prompt", {
+    ops = new Operations(store);
+  const moved = await ops.execute("search.prompt", {
     prompt: "Find the fixture",
     submissionId: "search-fixture",
-    provider: "codex",
-    projectId: "fixture",
-    context: { view: "activity", group: "status" },
   });
-  const token = runCapability(store, run.id, "ask");
-  const tools = await handleMcp(
-    { jsonrpc: "2.0", id: 1, method: "tools/list" },
-    ops,
-    { runId: run.id, runCapability: token },
-  );
-  assert.ok(tools.body.result.tools.every((t) => t.annotations.readOnlyHint));
-  const denied = await handleMcp(
-    {
-      jsonrpc: "2.0",
-      id: 2,
-      method: "tools/call",
-      params: {
-        name: "plans_visualize",
-        arguments: { title: "Unwanted", view: "graph" },
-      },
-    },
-    ops,
-    { runId: run.id, runCapability: token },
-  );
-  assert.equal(denied.body.result.isError, true);
-  assert.equal(store.read().presentation, undefined);
+  assert.equal(moved.moved, true);
+  assert.equal(store.list("runs").length, 0);
+  // A search the removed agent host ran, as an old workspace holds it.
+  const run = store.put("runs", {
+    id: "run-search-old",
+    taskId: "sample-task",
+    state: "completed",
+    provider: "codex",
+    prompt: "NUPP_PROMPT_SEARCH",
+    searchContext: { view: "activity", group: "status" },
+    searchPrompt: "Find the fixture",
+  });
   store.event(run.id, "message", {
     text: JSON.stringify({
       scope: "all",
