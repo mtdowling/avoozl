@@ -45,6 +45,7 @@ import {
 import { CoderPicker } from './CoderPicker.tsx'
 import SetupWizard from './SetupWizard.tsx'
 import WorkspaceView from './WorkspaceView.tsx'
+import Onboard from './Onboard.tsx'
 import { AddRepository, REPOSITORIES_LINE, RepositoryDialog, RepositoryList, repositoryRows, useReveal, type RepositoryRow } from './RepositoriesSettings.tsx'
 import PluginsSettings from './PluginsSettings.tsx'
 import ContentRulesSettings from './ContentRulesSettings.tsx'
@@ -918,6 +919,7 @@ function RepositoriesTab(props: {
   saving: boolean
   // The registry change rewrote .avoozl.json; read the form again.
   onRegistryChanged: () => Promise<unknown>
+  onOpenPlans?: () => void
 }) {
   const { form, choices, set } = props
   const api = useAppApi()
@@ -1048,6 +1050,12 @@ function RepositoriesTab(props: {
           </div>
         </RepositoryDialog>
       )}
+      <Onboard
+        workspaceId={props.workspaceId}
+        disabled={props.dirty ? 'Save or discard your settings changes first: onboarding writes .avoozl.json.' : null}
+        onChanged={() => Promise.all([reload(), props.onRegistryChanged()])}
+        onOpenPlans={props.onOpenPlans}
+      />
       <Card>
         <div ref={addBox}>
           <AddRepository
@@ -1216,7 +1224,7 @@ function sharedSetup(form: SettingsForm) {
 }
 
 // The tabs that edit `.avoozl.json`: one form, one Save, kept across tabs.
-function PolicyEditor(props: { workspaceId: string; tab: SettingsTab }) {
+function PolicyEditor(props: { workspaceId: string; tab: SettingsTab; onOpenPlans?: () => void }) {
   const { workspaceId, tab } = props
   const api = useAppApi()
   const client = useMemo(() => settingsClient(api), [api])
@@ -1296,6 +1304,7 @@ function PolicyEditor(props: { workspaceId: string; tab: SettingsTab }) {
           onSave={save}
           saving={saving}
           onRegistryChanged={reload}
+          onOpenPlans={props.onOpenPlans}
         />
       ) : (
         <GeneralTab
@@ -1352,6 +1361,7 @@ export default function SettingsView(props: {
   onTab?: (tab: SettingsTab) => void
   onSelectWorkspace?: (id: string | null) => void
   onListChange?: (list: WorkspaceList) => void
+  onOpenPlans?: () => void
 }) {
   const { workspaceId } = props
   const [own, setOwn] = useState<SettingsTab>(SETTINGS_HOME)
@@ -1392,7 +1402,7 @@ export default function SettingsView(props: {
       ) : tab === 'flow' ? (
         <FlowSettings workspaceId={workspaceId} />
       ) : (
-        <PolicyEditor workspaceId={workspaceId} tab={tab} />
+        <PolicyEditor workspaceId={workspaceId} tab={tab} onOpenPlans={props.onOpenPlans} />
       )}
     </section>
   )

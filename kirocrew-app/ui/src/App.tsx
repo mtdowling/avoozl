@@ -283,6 +283,7 @@ export default function AvoozlApp() {
             onTab={setSettingsTab}
             onSelectWorkspace={(id) => id && setWorkspaceId(id)}
             onListChange={takeList}
+            onOpenPlans={() => chooseTab('plans')}
           />
         )}
       </div>
