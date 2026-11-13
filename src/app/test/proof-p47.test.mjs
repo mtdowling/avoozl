@@ -19,6 +19,7 @@ import {
   workspace,
 } from "./fixtures/crews/workspace.mjs";
 import { REPORT_LINE } from "../relay.mjs";
+import { taskCheckRuns } from "../check-runs.mjs";
 
 const as = (slot) => ({ caller: { sessionKey: "dashboard:" + slot } });
 const NOT_OWNER =
@@ -231,25 +232,31 @@ test("P47: a remote pick waits for the person's turn, then runs on its crew thro
   const reported = store.get("session_bindings", w1.slot);
   assert.equal(reported.report.kind, "done");
   assert.equal(reported.report.commit, commit);
-  // The rest of the pipeline is the normal one: a verifier opens for w1 on
-  // its pushed commit.
+  // The rest of the pipeline is the normal one: Avoozl runs w1's declared
+  // checks itself on its pushed commit (§5.2 Checks), on this machine.
   const opened = [];
   for (let i = 0; i < 3; i++) opened.push(...(await crew.tick()).dispatch);
   assert.ok(
     opened.every((d) => d.role === "worker" || !d.crew),
     "the relay carries workers only; checks run here",
   );
+  const runs = taskCheckRuns(store, id.w1);
   assert.ok(
-    opened.some(
-      (d) => d.task === id.w1 && d.role === "verifier" && d.commit === commit,
-    ),
+    runs.some((r) => r.commit === commit && r.state === "finished"),
     "w1 moves on to verification",
   );
-  // The relay could not approve, merge or push anything for it.
-  assert.equal(
-    ops.read().tasks.find((x) => x.id === id.w1).integration?.commit,
-    undefined,
-  );
+  // The relay could not approve, merge or push anything for it: whatever
+  // landed, Avoozl landed after its own checks passed on that commit.
+  const landed = ops.read().tasks.find((x) => x.id === id.w1).integration;
+  if (landed?.commit)
+    assert.ok(
+      runs.some(
+        (r) =>
+          r.commit === commit &&
+          r.checks?.length &&
+          r.checks.every((c) => c.exitCode === 0),
+      ),
+    );
 });
 
 test("P47: off by default, and MC-10 makes the setting ignored", async (t) => {
