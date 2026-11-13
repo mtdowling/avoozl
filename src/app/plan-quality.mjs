@@ -4,7 +4,12 @@ import {
   titleIndex,
 } from "../task-identity.mjs";
 import { extractPlan } from "./plans.mjs";
-import { taskCompletion, taskKind, taskRoute } from "../work-model.mjs";
+import {
+  isManual,
+  taskCompletion,
+  taskKind,
+  taskRoute,
+} from "../work-model.mjs";
 
 const taskBlocks = () => /^```task\s*\r?\n([\s\S]*?)^```\s*$/gm;
 
@@ -55,6 +60,50 @@ const ROUTE_COMPLETIONS = {
   local: ["integrated", "released", "answered"],
   github: ["merged-pr", "released", "answered"],
 };
+// What a manual leaf may not hold: nothing runs it (R61.9).
+const MANUAL_REFUSED = [
+  "checks",
+  "agent",
+  "model",
+  "session",
+  "size",
+  "paths",
+  "route",
+];
+
+// A manual leaf: acceptance, a repository for its issue, completion person
+// and nothing an agent would use. `person` is a manual leaf's only.
+function manualDiagnostics(task, projectId, add) {
+  if (task.manual !== true) {
+    if (task.completion === "person")
+      add(
+        "spec.person-completion",
+        `Completion "person" is only for a manual task; "${task.id}" is not manual.`,
+      );
+    return;
+  }
+  if (taskKind(task) !== "leaf")
+    add(
+      "spec.manual-field",
+      `"${task.id}" is a package; only a leaf can be manual.`,
+    );
+  if (task.completion !== undefined && task.completion !== "person")
+    add(
+      "spec.manual-field",
+      `Manual task "${task.id}" has completion "${task.completion}"; a manual task completes by "person".`,
+    );
+  for (const key of MANUAL_REFUSED)
+    if (task[key] !== undefined)
+      add(
+        "spec.manual-field",
+        `Manual task "${task.id}" has "${key}"; nothing runs a manual task, so remove it.`,
+      );
+  if (!projectId)
+    add(
+      "spec.manual-field",
+      `Manual task "${task.id}" needs a "repository": where its issue lives.`,
+    );
+}
 
 // A leaf is bounded: one repository, acceptance, checks and a completion
 // its route can observe. Acceptance is enforced by extractPlan.
@@ -79,7 +128,10 @@ function boundednessDiagnostics(task, projectId, projects) {
       "leaf.accept-from",
       `acceptFrom on "${task.id}" needs a local leaf that completes by integration.`,
     );
+  manualDiagnostics(task, projectId, add);
   if (taskKind(task) !== "leaf") return found;
+  // A manual leaf runs nothing: no route completion or checks to prove.
+  if (isManual(task)) return found;
   if (task.repository && task.projectId && task.repository !== task.projectId)
     add(
       "leaf.repository",

@@ -743,6 +743,8 @@ const median = (values) => {
 export function finishedAt(task) {
   return (
     task?.integration?.at ||
+    // A manual leaf finishes when a person marks it done (R61.15).
+    (task?.manual === true ? task.manualDone?.at : null) ||
     (task?.githubVerdict?.state === "verified"
       ? task.githubVerdict.mergedAt
       : null) ||
@@ -801,11 +803,22 @@ export function taskTiming(
     sources: [...new Set(own.map((s) => s.source))],
     batch: own.find((s) => s.batchId)?.batchId || null,
     fix: isFixWork(task),
+    // A manual leaf's time is a person's: first-pass rate skips it.
+    manual: task.manual === true,
     firstPass:
       Boolean(end) &&
       !own.some((s) => s.stage === "rework") &&
       !(delivery?.attempts || []).some((a) => a.outcome === "failed"),
   };
+}
+
+// Agent tasks that passed the first time, of those finished; a manual leaf
+// is a person's step and is left out (R61.15).
+function firstPassRate(timings) {
+  const agent = timings.filter((t) => !t.manual);
+  return agent.length
+    ? agent.filter((t) => t.firstPass).length / agent.length
+    : null;
 }
 
 function windowMetrics(timings, stops, culprits, size) {
@@ -829,7 +842,7 @@ function windowMetrics(timings, stops, culprits, size) {
     size,
     leadTimeMs: median(timings.map((t) => t.leadMs)),
     flowEfficiency: lead ? active / lead : null,
-    firstPassRate: timings.filter((t) => t.firstPass).length / finished,
+    firstPassRate: firstPassRate(timings),
     changeFailureRate:
       timings.filter((t) => culprits.has(t.taskId)).length / finished,
     integrationsPerDay: finished / days,
@@ -908,6 +921,9 @@ export function flowView(store, data, input = {}, { now = Date.now() } = {}) {
       a.openedAt < b.openedAt ? 1 : -1,
     ),
     culprits = new Set(stops.map((s) => s.culprit).filter(Boolean)),
+    manualIds = new Set(
+      data.tasks.filter((t) => t.manual === true).map((t) => t.id),
+    ),
     tasks = data.tasks.filter(
       (t) =>
         byTask.has(t.id) &&
@@ -941,10 +957,14 @@ export function flowView(store, data, input = {}, { now = Date.now() } = {}) {
     ),
     before = windowMetrics(previous, stops, culprits, size),
     records = listOr(store, "flow_records");
+  // Time to fix skips a stop a manual leaf caused (R61.15).
+  const agentStops = (list) => list.filter((s) => !manualIds.has(s.culprit));
   metrics.timeToFixMs = timeToFix(
-    stopsIn(current).length ? stopsIn(current) : stops,
+    agentStops(stopsIn(current).length ? stopsIn(current) : stops),
   );
-  before.timeToFixMs = previous.length ? timeToFix(stopsIn(previous)) : null;
+  before.timeToFixMs = previous.length
+    ? timeToFix(agentStops(stopsIn(previous)))
+    : null;
   const shown = (
     input.stage ? timings.filter((t) => t.stages[input.stage] > 0) : timings
   ).sort((a, b) => ((b.startedAt || "") < (a.startedAt || "") ? -1 : 1));
@@ -1049,9 +1069,7 @@ export function flowSeries(timings, stops, unit = "day", corrections = []) {
         tasks: tasks.length,
         leadTimeMs: median(tasks.map((t) => t.leadMs)),
         flowEfficiency: lead ? active / lead : null,
-        firstPassRate: tasks.length
-          ? tasks.filter((t) => t.firstPass).length / tasks.length
-          : null,
+        firstPassRate: firstPassRate(tasks),
         timeToFixMs: median(fixes),
         // Line stops opened in the bucket, automatic and pulled (R64.11).
         stops: opened,

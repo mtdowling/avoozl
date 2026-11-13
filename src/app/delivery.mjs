@@ -71,11 +71,13 @@ import {
 import {
   completionReached,
   pendingProjection,
+  supersedingTask,
   taskCompletion,
   taskKind,
   taskRepository,
   taskRoute,
 } from "../work-model.mjs";
+import { briefNotes } from "./task-notes.mjs";
 
 // `findings` is a worker's first turn when it investigates first (R75.1).
 export const REPORT_KINDS = [
@@ -1825,6 +1827,7 @@ export function workerBrief(
     repositoryLine = null,
     outside = outsideSource(task),
     investigate = false,
+    linksAndNotes = "",
   },
 ) {
   const own = taskLines(task, `Avoozl task ${task.id}`, outside);
@@ -1838,6 +1841,8 @@ export function workerBrief(
       `Repository: ${project.id}, checkout ${project.root}, base branch ${project.baseBranch || "main"}.`,
     ...(outside ? [checks, ...own.text] : [own.text[0], checks, own.text[1]]),
     ...(notes.length ? ["", ...notes] : []),
+    // Links and notes people and agents left (R61.20), framed as data.
+    ...(linksAndNotes ? ["", linksAndNotes] : []),
     "",
     // Investigate first (R75.1): findings before any change.
     ...(investigate ? investigateLines(task) : []),
@@ -2052,6 +2057,17 @@ export function withRules(store, brief, target) {
   return rules ? `${brief}\n\n${rules}` : brief;
 }
 
+// The tasks `task` waits on, each by its newest replacement.
+function blockerTasks(data, task) {
+  const byId = new Map(data.tasks.map((t) => [t.id, t]));
+  return data.edges
+    .filter(
+      (e) => e.to === task.id && ["requires", "sequence"].includes(e.kind),
+    )
+    .map((e) => supersedingTask(byId, e.from))
+    .filter(Boolean);
+}
+
 export function leafBrief(store, data, leaf, options = {}) {
   return withRules(
     store,
@@ -2079,6 +2095,7 @@ function composeLeafBrief(
         ...[feedbackNote(store, task.id)].filter(Boolean),
       ],
       findings: openFindings(delivery),
+      linksAndNotes: briefNotes(store, task, blockerTasks(data, task)),
     };
   if (taskRoute(task) === "github") {
     const branch = linkedBranch(store, task.id);

@@ -45,6 +45,12 @@ export interface TaskDetail {
     issue: { number: number | null; url: string | null; repository: string | null } | null
     wave: number
     context: string
+    // A step only a person does, and how it was marked (R61.12); older
+    // backends omit them.
+    manual?: boolean
+    manualDone?: import('./notes-api.ts').ManualDone | null
+    // It has an issue on GitHub, so Show on the issue applies.
+    onGitHub?: boolean
   }
   plan: { id: string; title: string; spec: string | null; state: string | null; approved: boolean } | null
   // Where the task came from (page-views.mjs taskOrigin).

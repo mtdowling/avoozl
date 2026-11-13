@@ -292,6 +292,66 @@ yours by label, not by login:
 Labels a crew watches are set in Issue Radar. Labels it writes are set under
 `crewLabels` (`claim`, `needsHuman`) when yours differ from the defaults.
 
+## Manual tasks and links and notes
+
+Some steps are a person's, such as a team review before a cutover. Mark one
+manual in the spec's manifest, or with `_Manual_` under it in `tasks.md`:
+
+```json
+{
+  "tasks": {
+    "team-review": {
+      "kind": "leaf",
+      "manual": true,
+      "repository": "sdk",
+      "acceptance": ["The team agreed the results are good enough to cut over"],
+      "completion": "person",
+      "requires": ["protocol-tests-proof"]
+    }
+  }
+}
+```
+
+A manual task needs `acceptance`, a `repository` (where its issue lives)
+and completion `person`. Lint refuses `checks`, `session`, `agent`,
+`model`, `size`, `paths` and `route` on it, by name, and refuses `person`
+on any other task. No agent ever runs it: it is never ready, batched,
+checked, reviewed or merged. Until its blockers finish it is in **Blocked
+or waiting**; then it is in **Needs you**, tagged **Manual**, with "Waiting
+for a person: <title>". Its dependents wait on it like on any task.
+
+Open it in the task drawer to see its acceptance and **Mark done**. The
+dialog takes an optional outcome note and links, and **Done** or
+**Skipped**; either one releases its dependents, and Skipped stays shown.
+Only a person marks it done or reopens it, in the page or with `avoozl
+task done TASK [--skipped]` and `avoozl task reopen TASK`; MCP refuses
+both. In a GitHub mode its issue says a person closes it, never gets the
+ready label, and Mark done closes it as your `gh` login, which must pass
+**Who counts**. A close on GitHub by someone Who counts allows completes
+it (completed is Done, not planned is Skipped). Anyone else's close holds
+its dependents and opens a decision; Avoozl does not reopen the issue.
+Flow counts its time in Needs you as waiting on a person and leaves it out
+of first-pass rate.
+
+Every task also has **Links and notes** in the drawer: links (an `http` or
+`https` URL with no user name, and a label) and notes (up to 10,000
+characters), newest first, with who wrote each and when. They live in
+SQLite, not in the spec, so adding one never changes a plan's revision. A
+task holds up to 200. Content rules check each one at the `notes`
+boundary when it is saved; a blocked save offers **Allow once** in place.
+A session may add one to the task it is bound to, through the `plans_task`
+tool's `add_note`; only a person edits, removes or ticks **Show on the
+issue**. A removed entry stays in the activity log. A worker's brief
+carries the newest 20 (at most 8,000 characters) as data, not
+instructions, and a dependent's brief carries each blocker's outcome
+entries, so the cutover worker reads what the review decided. Nothing goes
+to GitHub unless you tick **Show on the issue** on it; then it is listed
+in the issue's managed section under "Links and notes", and a rebuild from
+GitHub brings it back. From the command line: `avoozl task notes TASK
+[add|edit|remove|show]`.
+
+This is tested with a fake GitHub (proof P37); it has not run live yet.
+
 ## Bring in work from other trackers and scripts
 
 GitHub is one source of incoming items. A tracker plugin with `poll` is

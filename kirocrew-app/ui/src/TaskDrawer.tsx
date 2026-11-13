@@ -30,6 +30,7 @@ import { Crosshair, Eye, FileText, MessageSquare, Pause, Pencil, Play, Plus, Rot
 import { useBackStep } from './NavHistory.tsx'
 import { LAYER } from './layers.ts'
 import { linkHref } from './views-api.ts'
+import { LinksAndNotes, ManualTask } from './TaskNotes.tsx'
 
 // The drawer's sections, as collapsible <details> (the host has no
 // accordion). Summary starts open; the rest open on a click.
@@ -37,6 +38,7 @@ const SECTIONS = [
   { key: 'summary', label: 'Summary' },
   { key: 'description', label: 'Description' },
   { key: 'links', label: 'Links' },
+  { key: 'notes', label: 'Links and notes' },
   { key: 'delivery', label: 'Delivery' },
   { key: 'files', label: 'Files' },
   { key: 'timing', label: 'Timing' },
@@ -367,6 +369,16 @@ function TaskPanel(props: {
           {message.text}
         </p>
       )}
+      {task.manual && (
+        <ManualTask
+          workspaceId={workspaceId}
+          task={{ id: task.id, title: task.title, acceptance: task.acceptance, manualDone: task.manualDone ?? null, onGitHub: Boolean(task.onGitHub) }}
+          onChanged={(text) => {
+            setMessage({ ok: true, text })
+            void load()
+          }}
+        />
+      )}
       {task.handSetReview && (
         <HandSetReview
           workspaceId={workspaceId}
@@ -483,6 +495,9 @@ function TaskPanel(props: {
             <Links title="Waits on" links={detail.waitsOn} open={props.open} />
             <Links title="Blocks" links={detail.blocks} open={props.open} />
           </div>
+        </Fold>
+        <Fold id="notes" group="task-drawer" title="Links and notes">
+          <LinksAndNotes workspaceId={workspaceId} taskId={task.id} onGitHub={Boolean(task.onGitHub)} refresh={detail.revision} />
         </Fold>
         <Fold id="delivery" group="task-drawer" title="Delivery">
           {delivery ? (
