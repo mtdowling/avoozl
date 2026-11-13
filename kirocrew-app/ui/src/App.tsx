@@ -10,6 +10,7 @@ import ConflictsView from './ConflictsView'
 import UntriagedView from './UntriagedView.tsx'
 import FlowView from './FlowView.tsx'
 import RoutingView from './RoutingView.tsx'
+import ActivityView from './ActivityView.tsx'
 import { untriagedClient } from './untriaged-api.ts'
 import SettingsView, { SETTINGS_TABS, type SettingsTab } from './SettingsView'
 import { SETTINGS_HOME, settingsTabOnEnter } from './settings-api.ts'
@@ -42,6 +43,8 @@ const TABS = [
   { key: 'conflicts', label: 'Conflicts' },
   // Intake (§8.5, §4.12); the key keeps its first name.
   { key: 'untriaged', label: 'Intake' },
+  // Activity (§4.19): who did what, from the page, MCP, GitHub and plugins.
+  { key: 'activity', label: 'Activity' },
   { key: 'settings', label: 'Settings' },
 ] as const
 
@@ -308,6 +311,8 @@ function AvoozlPage() {
           <RoutingView workspaceId={active} />
         ) : tab === 'untriaged' ? (
           <UntriagedView workspaceId={active} />
+        ) : tab === 'activity' ? (
+          <ActivityView workspaceId={active} />
         ) : (
           <SettingsView
             workspaceId={active}
