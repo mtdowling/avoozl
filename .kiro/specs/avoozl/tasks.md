@@ -1320,3 +1320,12 @@ task IDs never move.
   - Expected: (1) nothing opens, not even on local; two requests queue once each; Needs you says to open the relay chat; (2) nothing opens; the tasks wait; Needs you says to send any message, linking the chat; (3) refused; (4) each worker opens on `fake-linux` with the brief unchanged (the report line, the clone URL, no local path), binds with the relay's slot, nothing waits, two turns count, and nothing is held for the roster; (5) only the report line counts and the worker's binding reports done with its commit; the other chat is refused; a verifier opens here on that commit, no non-worker session carries a crew, and nothing integrates without the normal pipeline; (6) off places as before the relay; with MC-10 the worker goes straight to `fake-linux` without the relay, which is shown ignored; turning it off drops the queue; (7) the request waits with the Forget advice; a session's Forget is refused; the new relay gets the request; the full-crew refusal drops it.
   - Failure means: a remote pick runs on local, the relay acts on worker text, or a chat other than the relay reports for a relayed worker.
   - Next decision: drop the relay when MC-10 ships, or keep it for crews MC-10 cannot reach.
+
+## Phase 33: Only open tasks get issues
+
+Owner decision 2026-11-13 (Requirement 74, design §6.3). Numbered after
+Phase 32, which the remote relay holds, because task IDs never move.
+
+- [x] 33.1 Skip done tasks in projection, after 3.7 [R74] (§6.3)
+  - `github.issues.includeDone` (default `false`) in the policy, the planning identity and the GitHub settings page; projection leaves out a done task with no issue, drops edges from it, keeps the plan issue, puts an open task of a skipped package under the plan issue, and the preview returns `skippedDone`; `src/app/test/github-include-done.test.mjs`.
+  - Built: `da8a2b4`, PR #34.

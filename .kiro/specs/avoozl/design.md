@@ -3541,6 +3541,19 @@ re-read, ready added last (F11). **Proposed** additions:
 6. Add the ready label only to leaves that are ready and unclaimed.
 7. Record new `applied` hashes in each marker.
 
+**Done tasks** (R74, owner decision 2026-11-13). Step 1 leaves out a task
+that is already done and has no issue yet, unless `github.issues.includeDone`
+is `true` (default `false`). Such a task gets no issue, no Project card and no
+sub-issue link, and an edge from it counts as met with no blocked-by link. The
+plan issue and the epic issue are still made, even when every task is done.
+An open task under a skipped package sits under the plan issue. A task that
+already has an issue keeps it. A done task that opens again gets its issue on
+the next projection. The preview lists the skipped tasks as `skippedDone`.
+
+| Setting | Values | Default |
+|---|---|---|
+| `github.issues.includeDone` | `true` or `false` | `false`: only open tasks get issues |
+
 One namespace has one writer: projection runs only inside the tick under the
 workspace lock, and only the workspace whose policy names itself the
 namespace owner may write. Other workspaces preview only.
