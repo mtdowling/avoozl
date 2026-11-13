@@ -96,16 +96,22 @@ function projectInput(value, id, base) {
     fail(`Project ${id} checks must be arrays of command arguments.`);
   const resolve = (candidate) =>
     path.isAbsolute(candidate) ? candidate : path.resolve(base, candidate);
+  // Branches reach git as positional arguments; a leading dash is an option.
+  const branch = (value, label) => {
+    const name = text(value, label);
+    if (name.startsWith("-")) fail(`${label} must not start with a dash.`);
+    return name;
+  };
   return {
     ...(value.name === undefined
       ? {}
       : { name: text(value.name, `Project ${id} name`) }),
     root: resolve(text(value.root, `Project ${id} root`)),
-    baseBranch: text(value.baseBranch || "main", `Project ${id} base branch`),
+    baseBranch: branch(value.baseBranch || "main", `Project ${id} base branch`),
     ...(value.integrationBranch === undefined
       ? {}
       : {
-          integrationBranch: text(
+          integrationBranch: branch(
             value.integrationBranch,
             `Project ${id} integration branch`,
           ),
