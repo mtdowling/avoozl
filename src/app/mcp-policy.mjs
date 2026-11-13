@@ -92,6 +92,8 @@ export const PERSON_ONLY = new Map([
   ["prompt.override.rebase", person("Only a person changes prompt overrides.")],
   ["plugin.lessons.import", person("Only a person imports a lessons pack.")],
   ["lessons.export", person("Only a person exports lessons.")],
+  ["lessons.share.preview", person("Only a person shares lessons.")],
+  ["lessons.share", person("Only a person shares lessons.")],
   ["flow.runAnyway", person("Only a person presses Run anyway.")],
   ["flow.resume", person("Only a person resumes a pulled stop.")],
   ["budget.raise", person("Only a person raises a budget.")],
