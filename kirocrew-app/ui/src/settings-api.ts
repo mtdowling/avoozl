@@ -831,7 +831,7 @@ export const CODER_CARDS = [
     title: 'Avoozl worker chats',
     line: 'Avoozl opens a Kiro Crew chat on this Mac for each ready task.',
     flow: ['Ready task', 'Worker chat', 'Checks', 'Reviewer chats', 'Merged'],
-    useWhen: ['Plans stay private', 'You want to watch each chat', 'The work needs this Mac'],
+    useWhen: ['Specs stay private', 'You want to watch each chat', 'The work needs this Mac'],
     reviews: "Avoozl's reviewer chats review the exact commit; on GitHub, the branch's review rule applies too.",
     modes: ['local', 'plans-repo', 'single-repo'],
   },

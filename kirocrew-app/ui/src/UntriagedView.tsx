@@ -484,7 +484,7 @@ export default function UntriagedView({ workspaceId, onMakeSpec }: { workspaceId
     const yes = await ask(
       action === 'deliver'
         ? { title: `Deliver ${name}?`, body: `Avoozl makes one task in ${item.repository} from "${item.title}", pinned to its text now, and a worker starts it. Avoozl writes nothing back to ${item.source}.`, action: 'Deliver this' }
-        : { title: `Plan ${name}?`, body: `Avoozl adds "${item.title}" to the Inbox for a planner. Nothing starts until a plan is approved.`, action: 'Plan this' },
+        : { title: `Plan ${name}?`, body: `Avoozl adds "${item.title}" to the Inbox for a planner. Nothing starts until a spec is approved.`, action: 'Plan this' },
     )
     if (!yes) return
     setCheckError(null)

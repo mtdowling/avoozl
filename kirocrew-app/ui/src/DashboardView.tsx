@@ -418,8 +418,8 @@ export default function DashboardView(props: {
         <EmptyState
           icon={<Logo size={40} />}
           title="No tasks yet"
-          subtitle="Plan a goal from the header, then approve its spec in Plans. Ready tasks start on their own."
-          action={<Btn onClick={() => onNavigate('plans')}>Open Plans</Btn>}
+          subtitle="Plan a goal from the header, then approve its spec in Specs. Ready tasks start on their own."
+          action={<Btn onClick={() => onNavigate('plans')}>Open Specs</Btn>}
         />
       ) : summary ? (
         <>
@@ -444,12 +444,12 @@ export default function DashboardView(props: {
             </Section>
             <Section
               title="Progress by epic"
-              empty={summary.progress.length === 0 && `No epics yet. ${summary.plans.approved} approved and ${summary.plans.draft} draft plans.`}
+              empty={summary.progress.length === 0 && `No epics yet. ${summary.plans.approved} approved and ${summary.plans.draft} draft specs.`}
             >
               <p className="mt-1 text-xs text-muted">
                 {summary.plans.approved} approved and {summary.plans.draft} draft plans.{' '}
                 <button type="button" className="underline" onClick={() => onNavigate('plans')}>
-                  Open Plans
+                  Open Specs
                 </button>
               </p>
               <ul className="mt-2 flex flex-col gap-1 text-sm">

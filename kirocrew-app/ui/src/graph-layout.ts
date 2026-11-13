@@ -193,7 +193,7 @@ export const groupKey = (group: string | null) => group ?? '(none)'
 // The drawn nodes (tasks, or one node per collapsed group) and the blocking
 // edges between them, merged and without self loops. Each task's `group`
 // and the graph's `groups` (titles, in order) come from groupGraph; a group
-// with no ID is the level's "No epic", "No plan" or "No phase".
+// with no ID is the level's "No epic", "No spec" or "No phase".
 function drawnGraph(graph: Graph, collapsed: ReadonlySet<string>) {
   const groups = graph.groups ?? []
   const titles = new Map(groups.map((g) => [g.id, g.title]))
@@ -885,7 +885,7 @@ export function groupGraph(graph: Graph, drill: Drill | null): Graph {
     const id = of(task)
     if (id !== null && !groups.some((g) => g.id === id)) groups.push({ id, title: titleOf(task) ?? id })
   }
-  groups.push({ id: null, title: level === 'epic' ? 'No epic' : level === 'plan' ? 'No plan' : 'No phase' })
+  groups.push({ id: null, title: level === 'epic' ? 'No epic' : level === 'plan' ? 'No spec' : 'No phase' })
   return { ...graph, groups, tasks: graph.tasks.map((task) => ({ ...task, group: of(task) })) }
 }
 

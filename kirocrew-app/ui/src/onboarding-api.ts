@@ -57,7 +57,7 @@ export const ONBOARD_STEPS: { key: StepKey; title: string; line: string }[] = [
   { key: 'import', title: 'Import specs', line: 'Spec folders and their lint results. Import makes drafts; nothing is approved.' },
   { key: 'scan', title: 'Leak scan', line: 'This repository is public, so its issues are too. Avoozl checks the specs for secrets, paths on this computer and your content rules.' },
   { key: 'issues', title: 'Preview issues', line: 'The issues approving each draft would make. Nothing is made now.' },
-  { key: 'finish', title: 'Finish', line: 'What was done. Approve plans in Plans when you are ready.' },
+  { key: 'finish', title: 'Finish', line: 'What was done. Approve specs in Specs when you are ready.' },
 ]
 
 export interface OnboardForm {
@@ -113,7 +113,7 @@ export function modeProblem(form: OnboardForm, found: FolderFacts): string | nul
   if (form.mode === 'plans-repo' && !form.isPlanning && !/^[\w.-]+\/[\w.-]+$/.test(form.planningRepository.trim()))
     return 'Name the planning repository as owner/name.'
   if (form.mode === 'plans-repo' && form.isPlanning && found.visibility === 'public')
-    return 'A planning repository must be private: its issues name plans and code repositories.'
+    return 'A planning repository must be private: its issues name specs and code repositories.'
   return null
 }
 

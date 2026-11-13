@@ -17,7 +17,9 @@ local or GitHub work.
 - Use Avoozl's CLI for deterministic validation and GitHub projection.
 - Use Kiro Crew sessions for planning, implementation, tests, and review.
 - Never start blocked work.
-- Never approve a plan for the user. Approval is the user's, on the exact revision.
+- Never approve a spec for the user. Approval is the user's, on the exact revision.
+- The page calls a plan a spec. Tool and operation names keep `plan`
+  (`plans_*`, `plan.*`); say spec when you talk to the user.
 - Never overwrite changed GitHub-managed fields silently.
 - Keep trigger and managed label names repository-configurable.
 - Write a trigger rule as `match`, one GitHub issue-search line using only
@@ -42,6 +44,18 @@ local or GitHub work.
 9. Release dependents only after their configured completion facts hold.
 
 Use `avoozl help` to inspect the installed CLI surface before choosing commands.
+
+## Ideas
+
+An idea is a rough note that may become a spec later. It never runs work.
+
+- When the user has a half-formed thought worth keeping, save it with
+  `plans_intake` action `capture_idea`, input `{title, notes?, links?}`. You
+  are named as its author.
+- In a Riff on this chat, add a note or link only when the user agrees, with
+  action `add_idea_note`, input `{id, note?, link?}`. Make no other change.
+- Archiving, restoring, and Make it a spec are the user's, on the Avoozl
+  page. Never turn an idea into a spec folder yourself.
 
 ## Plan a goal
 
@@ -109,8 +123,8 @@ rounds and show the user what remains.
   planner, then store the revision again.
 - When validation fails twice, stop and show the user the diagnostics.
 - When it passes, show the user the graph, the critique findings, and the
-  revision hash. Tell them to approve that exact revision in the Avoozl Plans
-  view. Do not call `plans_approve_plan` yourself.
+  revision hash. Tell them to approve that exact revision on the Avoozl Specs
+  page. Do not call `plans_approve_plan` yourself.
 
 ### Briefs
 

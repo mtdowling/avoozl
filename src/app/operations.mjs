@@ -2388,7 +2388,10 @@ export class Operations {
     }
     if (name === "idea.archive" || name === "idea.restore") {
       if (context.caller || context.mcp)
-        fail("Only a person archives or restores an idea, in the Avoozl page or the CLI.", 403);
+        fail(
+          "Only a person archives or restores an idea, in the Avoozl page or the CLI.",
+          403,
+        );
       return setIdeaState(store, {
         id: input.id,
         state: name === "idea.archive" ? "archived" : "open",
@@ -3721,7 +3724,7 @@ export class Operations {
       if (!plan) fail("Plan not found.", 404);
       // New tasks from an archived plan would start; unarchive it first.
       if (plan.archivedAt)
-        fail("This plan is archived. Unarchive it before approving.", 409);
+        fail("This spec is archived. Unarchive it before approving.", 409);
       if (plan.hash !== input.expectedHash)
         fail("The reviewed document hash changed.", 409);
       // Approval is of the stored revision, and only while the folder on

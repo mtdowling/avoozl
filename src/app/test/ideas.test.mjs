@@ -77,7 +77,10 @@ test("a person captures an idea with notes and links; bad fields record nothing"
     ["https://example.com/minimap", "https://example.com/other"],
   );
 
-  await refused(ops.execute("idea.capture", { title: "" }), /title is required/);
+  await refused(
+    ops.execute("idea.capture", { title: "" }),
+    /title is required/,
+  );
   await refused(
     ops.execute("idea.capture", { title: "x".repeat(241) }),
     /at most 240/,
@@ -236,7 +239,11 @@ test("Make it a spec graduates the idea only when the request is recorded", asyn
     /only an open idea/,
     409,
   );
-  await refused(ops.execute("idea.archive", { id: idea.id }), /stays graduated/, 409);
+  await refused(
+    ops.execute("idea.archive", { id: idea.id }),
+    /stays graduated/,
+    409,
+  );
 });
 
 test("Riff on this seeds a chat with the idea as data and one allowed write", async (t) => {

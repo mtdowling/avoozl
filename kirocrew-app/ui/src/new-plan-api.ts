@@ -67,12 +67,12 @@ export function suggestName(text: string): string {
 // a plan or a spec folder.
 export function nameProblem(name: string, taken: Iterable<string>): string | null {
   const value = name.trim()
-  if (!value) return 'Name the plan.'
+  if (!value) return 'Name the spec.'
   if (!SPEC_NAME.test(value)) {
     const hint = suggestName(value)
     return `Use lowercase letters, digits and hyphens, up to 80 characters${hint && hint !== value ? `, like ${hint}` : ''}.`
   }
-  for (const used of taken) if (used === value) return `${value} is already used by a plan or spec folder.`
+  for (const used of taken) if (used === value) return `${value} is already used by a spec or its folder.`
   return null
 }
 
