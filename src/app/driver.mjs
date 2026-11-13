@@ -1005,7 +1005,14 @@ const MOVED_TABLES = [
   "github_linked_branches",
   "pr_feedback",
 ];
-const COLUMN_TABLES = ["flow_spans", "flow_usage", "usage_samples"];
+// Column tables: [table, the column naming its task, columns left behind].
+const COLUMN_TABLES = [
+  ["flow_spans", "task_id", []],
+  ["flow_usage", "task_id", []],
+  ["usage_samples", "task_id", []],
+  // The activity log (§4.16): a new machine numbers its own rows.
+  ["activity_log", "target_id", ["seq"]],
+];
 
 function belongs(row, ids, planId) {
   return (
@@ -1060,12 +1067,17 @@ export function buildExport(store, ctx, plan, { unfinished = [] } = {}) {
     tables[table] = scrub(rows.filter((row) => belongs(row, ids, plan.id)));
   }
   const columns = {};
-  for (const table of COLUMN_TABLES) {
+  for (const [table, column, dropped] of COLUMN_TABLES) {
     try {
       columns[table] = store.db
         .prepare(`SELECT * FROM ${table}`)
         .all()
-        .filter((row) => ids.has(row.task_id));
+        .filter((row) => ids.has(row[column]) || row[column] === plan.id)
+        .map((row) =>
+          Object.fromEntries(
+            Object.entries(row).filter(([key]) => !dropped.includes(key)),
+          ),
+        );
     } catch {
       columns[table] = [];
     }
@@ -1283,7 +1295,8 @@ function importExport(store, value, now) {
       if (MOVED_TABLES.includes(table))
         for (const row of rows) if (row?.id) store.put(table, row);
     for (const [table, rows] of Object.entries(value.columns || {})) {
-      if (!COLUMN_TABLES.includes(table) || !rows.length) continue;
+      if (!COLUMN_TABLES.some(([name]) => name === table) || !rows.length)
+        continue;
       const columns = Object.keys(rows[0]);
       if (!columns.every((column) => /^[a-z_]+$/.test(column))) continue;
       const insert = store.db.prepare(
