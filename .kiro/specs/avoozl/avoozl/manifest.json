@@ -5408,6 +5408,23 @@
         "12.12"
       ]
     },
+    "28.9": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 28 (Retro prompt and skill proposals, and lessons). See R69.1, R69.11–R69.15; §4.18.",
+      "acceptance": [
+        "Share chosen lessons, after 28.8",
+        "The Lessons view ranks share candidates; a person previews and shares chosen kept lessons as summaries by pull request to the plans repository or code repository after content rules; Local only shares nowhere; lessons.export {raw: true} exists for the driver export."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "28.8"
+      ]
+    },
     "avoozl-p42": {
       "kind": "leaf",
       "repository": "avoozl",
@@ -5429,7 +5446,8 @@
         "28.5",
         "28.6",
         "28.7",
-        "28.8"
+        "28.8",
+        "28.9"
       ]
     },
     "29.1": {
