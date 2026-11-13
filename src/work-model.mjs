@@ -94,8 +94,7 @@ export function completionReached(task, level, complete) {
     level = taskCompletion(task);
   }
   // Packages complete from their children (the tick records it).
-  if (task.childrenComplete && taskKind(task) === "package")
-    return true;
+  if (task.childrenComplete && taskKind(task) === "package") return true;
   if (level === "integrated" && task.integration?.commit) return true;
   // A GitHub leaf's verdict (§6.5): verified by its one merged, passing
   // closer, or done by an allowed actor's order, which satisfies every level.

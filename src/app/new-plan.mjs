@@ -9,7 +9,12 @@
 import { fail } from "./store.mjs";
 import { digest } from "../model.mjs";
 import { contentBinding, enforce } from "./content-rules.mjs";
-import { createSpecPlan, isEpicFolder, MANIFEST, specName } from "./spec-plans.mjs";
+import {
+  createSpecPlan,
+  isEpicFolder,
+  MANIFEST,
+  specName,
+} from "./spec-plans.mjs";
 import { PLANNER_AGENT } from "./github-planner.mjs";
 import { draftManifest } from "./spec-manifest.mjs";
 import {
@@ -162,7 +167,10 @@ export function requestNewPlan(store, input = {}, deps) {
   if (epic) {
     const folder = deps.readSpec(epic);
     if (!folder.exists || !isEpicFolder(folder.files))
-      fail(`${epic} is not an epic folder. Pick an epic, or leave Epic empty.`, 404);
+      fail(
+        `${epic} is not an epic folder. Pick an epic, or leave Epic empty.`,
+        404,
+      );
   }
   const phasesInput = input.phases ?? [];
   if (!Array.isArray(phasesInput)) fail("Phases must be a list.");

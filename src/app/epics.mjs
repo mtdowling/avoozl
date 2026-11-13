@@ -12,7 +12,9 @@
 // Inbox, per-plan W1-W7 groups, `doc:` groups) have no planId and are read
 // by nothing.
 export const isCrossPlanEpic = (epic) =>
-  Boolean(epic && typeof epic.planId === "string" && Array.isArray(epic.listed));
+  Boolean(
+    epic && typeof epic.planId === "string" && Array.isArray(epic.listed),
+  );
 
 export function crossPlanEpics(data) {
   return (data?.epics || []).filter(isCrossPlanEpic);
@@ -27,7 +29,8 @@ export function epicOfPlan(data, planId) {
   );
 }
 
-export const taskEpic = (data, task) => epicOfPlan(data, task?.planId)?.id ?? null;
+export const taskEpic = (data, task) =>
+  epicOfPlan(data, task?.planId)?.id ?? null;
 
 // Recompute each epic's confirmed members from the plans' approved epic
 // key. `plans` maps plan ID to its record; a deleted or archived-away plan

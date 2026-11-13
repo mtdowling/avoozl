@@ -707,7 +707,10 @@ export async function closePlanAndEpicIssues(store, github) {
         !task.archivedAt &&
         task.status !== "superseded",
     );
-    if (tasks.length && tasks.every((task) => completionReached(task, null, complete)))
+    if (
+      tasks.length &&
+      tasks.every((task) => completionReached(task, null, complete))
+    )
       await close(row);
   }
   for (const row of receipts.filter((entry) => entry.level === "epic")) {
