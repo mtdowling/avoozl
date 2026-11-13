@@ -133,10 +133,13 @@ turn on Autopilot, Avoozl's name for delivery, with the `delivery` block in
 ```
 
 Each minute the tick starts a Kiro Crew session for each ready leaf, in its
-own worktree. When a session reports done, Avoozl runs the checks on a clean
-committed head, rebases, fast-forwards the base branch, and releases the
-leaf's dependents. Avoozl never pushes. Implementation, integration, and
-acceptance stay separate steps, each with its own record.
+own worktree. When a session reports done, Avoozl runs the checks itself on
+the exact commit in a clean worktree, with no model call, then rebases,
+fast-forwards the base branch, and releases the leaf's dependents. A
+verifier session opens only when a task's bar needs judgment: prose
+acceptance with no checks, or `verify: "agent"`. Avoozl never pushes.
+Implementation, integration, and acceptance stay separate steps, each with
+its own record.
 
 To let a Crew Mode conductor claim leaves instead, set
 `"delivery": {"runner": "crew-mode"}` and follow
@@ -256,7 +259,8 @@ Delivery**.
   `balanced`, `keep-local`, `spread-out`, or your own weights.
 - **Model router** (`routing.router`, off by default) asks a tool-less
   `avoozl-router` session to rank the allowed crews. No answer in time falls
-  back to smart pick.
+  back to smart pick. When only one crew and one model are left for a task,
+  it is assigned with no router call, and Activity says "only one choice".
 - **Pick again** makes a task's next attempt choose its agent and model
   afresh.
 - **Hand-back**: a remote crew's work comes back either by `push` to the
