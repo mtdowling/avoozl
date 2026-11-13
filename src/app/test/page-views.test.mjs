@@ -54,7 +54,12 @@ function graphSnapshot() {
 function graphFixture(t) {
   const { store } = fixture(t);
   store.importSnapshot(graphSnapshot());
-  store.put("plans", { id: "other-plan", title: "Other plan", state: "approved", epic: "other" });
+  store.put("plans", {
+    id: "other-plan",
+    title: "Other plan",
+    state: "approved",
+    epic: "other",
+  });
   return { store, ops: new Operations(store, {}) };
 }
 

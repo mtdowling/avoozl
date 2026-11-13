@@ -74,7 +74,9 @@ export function validateProposal(item) {
         : "kind must be package or leaf.",
     );
   if (item.epic !== undefined)
-    fail('A task names no epic: its plan does. Use "phase" to group tasks inside a plan.');
+    fail(
+      'A task names no epic: its plan does. Use "phase" to group tasks inside a plan.',
+    );
   // Local is opt-in per task; github comes only from projection (§3.2). A
   // tracker plugin's authority is named in the plan and projected (R35.10).
   if (
@@ -364,7 +366,12 @@ const plansById = (store) =>
 
 // An epic folder's approval stores its member list and prose. It never
 // approves a member plan or a task (Requirement 59.4).
-function approveEpic(store, data, plan, { expectedRevision, approver, evidence }) {
+function approveEpic(
+  store,
+  data,
+  plan,
+  { expectedRevision, approver, evidence },
+) {
   const now = new Date().toISOString(),
     plans = store.list("plans").filter((entry) => !entry.deletedAt),
     listed = epicMembers(plan.files).map(
@@ -394,8 +401,16 @@ function approveEpic(store, data, plan, { expectedRevision, approver, evidence }
   // The store keeps cross-plan epics only (design §6.9): rows from before
   // Requirement 59 (no planId) are dropped with this write.
   data.epics = [
-    ...(data.epics || []).filter((epic) => epic.planId && epic.id !== plan.spec),
-    { id: plan.spec, title: specTitle({ name: plan.spec, files: plan.files }), planId: plan.id, listed, plans: [] },
+    ...(data.epics || []).filter(
+      (epic) => epic.planId && epic.id !== plan.spec,
+    ),
+    {
+      id: plan.spec,
+      title: specTitle({ name: plan.spec, files: plan.files }),
+      planId: plan.id,
+      listed,
+      plans: [],
+    },
   ];
   refreshEpicMembers(data, plansById(store));
   store.commit(data, "Approve epic " + plan.title, expectedRevision);

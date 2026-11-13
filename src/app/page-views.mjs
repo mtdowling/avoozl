@@ -293,7 +293,9 @@ export function graphView(store, data, input = {}) {
     if (live.has(task.id)) return "running";
     return ready.has(task.id) ? "ready" : "waiting";
   };
-  const epicOf = new Map(data.tasks.map((task) => [task.id, taskEpic(data, task)]));
+  const epicOf = new Map(
+    data.tasks.map((task) => [task.id, taskEpic(data, task)]),
+  );
   for (const task of data.tasks) {
     const epic = epicOf.get(task.id);
     counts.set(epic, (counts.get(epic) || 0) + 1);
@@ -405,13 +407,22 @@ export function epicView(store, data, { id, spec = null, members = null }) {
         null,
       tasks = data.tasks.filter(
         (task) =>
-          plan && task.planId === plan.id && taskKind(task) === "leaf" && task.status !== "superseded",
+          plan &&
+          task.planId === plan.id &&
+          taskKind(task) === "leaf" &&
+          task.status !== "superseded",
       ),
-      finished = (task) => state.get(task.id) === "done" || Boolean(task.archivedAt),
+      finished = (task) =>
+        state.get(task.id) === "done" || Boolean(task.archivedAt),
       phases = new Map();
     for (const task of tasks) {
       const key = task.phase?.id ?? null,
-        entry = phases.get(key) ?? { id: key, title: task.phase?.title ?? null, done: 0, total: 0 };
+        entry = phases.get(key) ?? {
+          id: key,
+          title: task.phase?.title ?? null,
+          done: 0,
+          total: 0,
+        };
       entry.total++;
       if (finished(task)) entry.done++;
       phases.set(key, entry);
@@ -429,10 +440,16 @@ export function epicView(store, data, { id, spec = null, members = null }) {
           ? "done"
           : plan.state || "draft",
       progress: { done, total: tasks.length },
-      phases: [...phases.values()].sort((a, b) => (a.id === null) - (b.id === null)),
+      phases: [...phases.values()].sort(
+        (a, b) => (a.id === null) - (b.id === null),
+      ),
       decisions: tasks
         .filter((task) => task.decision)
-        .map((task) => ({ taskId: task.id, title: task.title ?? task.id, decision: task.decision })),
+        .map((task) => ({
+          taskId: task.id,
+          title: task.title ?? task.id,
+          decision: task.decision,
+        })),
     };
   };
   const list = listed.map(member),
@@ -451,13 +468,21 @@ export function epicView(store, data, { id, spec = null, members = null }) {
     members: list,
     progress: { done, total },
     complete: list.length > 0 && list.every((item) => item.status === "done"),
-    decisions: list.flatMap((item) => item.decisions.map((d) => ({ ...d, plan: item.plan }))),
+    decisions: list.flatMap((item) =>
+      item.decisions.map((d) => ({ ...d, plan: item.plan })),
+    ),
   };
 }
 
-const withoutFrontMatterText = (text) => text.replace(/^\uFEFF?---[ \t]*\r?\n[\s\S]*?\n(?:---|\.\.\.)[ \t]*\r?(?:\n|$)/, "");
+const withoutFrontMatterText = (text) =>
+  text.replace(
+    /^\uFEFF?---[ \t]*\r?\n[\s\S]*?\n(?:---|\.\.\.)[ \t]*\r?(?:\n|$)/,
+    "",
+  );
 const specTitleOf = (files, id) =>
-  withoutFrontMatterText(files["requirements.md"] ?? "").match(/^# (.+)$/m)?.[1]?.trim() || id;
+  withoutFrontMatterText(files["requirements.md"] ?? "")
+    .match(/^# (.+)$/m)?.[1]
+    ?.trim() || id;
 
 // The prose under the first heading that matches `pattern`, or, with no
 // pattern, the prose between the title and the first other heading.
@@ -494,7 +519,8 @@ export const NO_PHASE = "(none)";
 // phases in tasks.md order, with task counts. Titles come from records.
 function graphPlans(store, data) {
   const plans = optionalList(store, "plans").filter(
-      (plan) => !plan.deletedAt && plan.kind !== "conversation" && !plan.epicFolder,
+      (plan) =>
+        !plan.deletedAt && plan.kind !== "conversation" && !plan.epicFolder,
     ),
     byPlan = new Map();
   for (const task of data.tasks) {
@@ -1372,7 +1398,8 @@ export function inPlan(task, { plan = null, spec = null } = {}) {
   if (!spec) return false;
   const folder = `.kiro/specs/${spec}/`;
   return taskSourceRefs(task).some(
-    (ref) => typeof ref.document === "string" && ref.document.startsWith(folder),
+    (ref) =>
+      typeof ref.document === "string" && ref.document.startsWith(folder),
   );
 }
 
@@ -1424,16 +1451,24 @@ export function plansTableView(
       specs.flatMap((spec) => (spec.plan ? [spec.plan.id] : [])),
     );
   const counts = (scope) => {
-    const tasks = data.tasks.filter((task) => inPlan(task, scope) && task.status !== "superseded"),
+    const tasks = data.tasks.filter(
+        (task) => inPlan(task, scope) && task.status !== "superseded",
+      ),
       leaves = tasks.filter((task) => taskKind(task) === "leaf"),
-      of = (name) => leaves.filter((task) => state.get(task.id) === name).length;
+      of = (name) =>
+        leaves.filter((task) => state.get(task.id) === name).length;
     return {
       tasks: {
         total: leaves.length,
         done: of("done"),
       },
-      now: { ready: of("ready"), running: of("running"), needsYou: of("needs-you") },
-      phases: new Set(leaves.map((task) => task.phase?.id).filter(Boolean)).size,
+      now: {
+        ready: of("ready"),
+        running: of("running"),
+        needsYou: of("needs-you"),
+      },
+      phases: new Set(leaves.map((task) => task.phase?.id).filter(Boolean))
+        .size,
       changedAt: newest(...tasks.map((task) => task.updatedAt)),
     };
   };
@@ -1582,7 +1617,9 @@ export function chatContext(
       `- Task: ${task.title ?? id} (${id})`,
       `- State: ${state.get(id) ?? "unknown"}; status ${task.status ?? "none"}; owner ${taskAuthority(task)}`,
       `- Plan: ${plan ? `${plan.title || plan.id} (${plan.id}, ${plan.state || "draft"})` : spec ? `spec .kiro/specs/${spec}/` : "none"}`,
-      ...(epicOfPlan(data, task.planId) ? [`- Epic: ${epicOfPlan(data, task.planId).title}`] : []),
+      ...(epicOfPlan(data, task.planId)
+        ? [`- Epic: ${epicOfPlan(data, task.planId).title}`]
+        : []),
       ...(task.phase ? [`- Phase: ${task.phase.title}`] : []),
       ...(waits.length ? [`- Waits on: ${waits.join(", ")}`] : []),
       ...(task.decision ? [`- Open decision: ${task.decision}`] : []),

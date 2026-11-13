@@ -888,7 +888,10 @@ export function flowView(store, data, input = {}, { now = Date.now() } = {}) {
     repositories: [
       ...new Set(data.tasks.map(taskRepository).filter(Boolean)),
     ].sort(),
-    epics: crossPlanEpics(data).map((e) => ({ id: e.id, title: e.title || e.id })),
+    epics: crossPlanEpics(data).map((e) => ({
+      id: e.id,
+      title: e.title || e.id,
+    })),
     plans: [...new Set(data.tasks.map((t) => t.planId).filter(Boolean))]
       .map((id) => ({ id, title: store.get("plans", id)?.title || id }))
       .sort((a, b) => a.title.localeCompare(b.title)),

@@ -565,7 +565,9 @@ export function parseSpec({
       const line = manifestLine(text, item.key),
         extra =
           entry && typeof entry === "object" && !Array.isArray(entry)
-            ? Object.keys(entry).filter((key) => !["plan", "summary"].includes(key))
+            ? Object.keys(entry).filter(
+                (key) => !["plan", "summary"].includes(key),
+              )
             : [];
       if (extra.length)
         diagnostics.push(
@@ -770,9 +772,7 @@ export function parseSpec({
           fields = {
             ...rest,
             title,
-            ...(specBudget && entry?.kind !== "package"
-              ? { specBudget }
-              : {}),
+            ...(specBudget && entry?.kind !== "package" ? { specBudget } : {}),
           };
         if (title !== item.title)
           fields.summary = [item.title, entry?.summary]
@@ -797,7 +797,10 @@ export function parseSpec({
         // No phase (Requirement 59.5).
         const phase =
           phaseValue !== undefined
-            ? { id: phaseValue, title: phaseTitles.get(phaseValue) ?? phaseValue }
+            ? {
+                id: phaseValue,
+                title: phaseTitles.get(phaseValue) ?? phaseValue,
+              }
             : (headings.get(item.line) ?? null);
         proposals.push({
           ...proposal,
@@ -909,7 +912,14 @@ export function lintSpec({
     kind: parsed.kind ?? null,
     epic: specEpic(spec.files),
     ...(parsed.kind === "epic"
-      ? { members: parsed.members.map(({ key, plan, summary, title }) => ({ key, plan, summary, title })) }
+      ? {
+          members: parsed.members.map(({ key, plan, summary, title }) => ({
+            key,
+            plan,
+            summary,
+            title,
+          })),
+        }
       : {}),
     diagnostics,
     proposals: parsed.proposals,
@@ -933,7 +943,9 @@ export function specEpic(files = {}) {
 // The epic's member plans, by spec folder name, in its tasks.md order.
 export function epicMembers(files = {}) {
   const parsed = parseSpec({ name: "epic", exists: true, files });
-  return parsed.kind === "epic" ? parsed.members.map((member) => member.plan) : [];
+  return parsed.kind === "epic"
+    ? parsed.members.map((member) => member.plan)
+    : [];
 }
 
 // Membership needs both sides (design §6.9). `namespace(name)` reads one
@@ -993,10 +1005,16 @@ function epicDiagnostics(spec, parsed, namespace) {
   const front = frontMatter(
       spec.files["requirements.md"] ?? spec.files["bugfix.md"],
     ),
-    file = spec.files["requirements.md"] !== undefined ? "requirements.md" : "bugfix.md";
+    file =
+      spec.files["requirements.md"] !== undefined
+        ? "requirements.md"
+        : "bugfix.md";
   if (!front.epic) return out;
   const epic = front.epic === spec.name ? null : read(front.epic);
-  const listed = epic && isEpicFolder(epic.files) && epicMembers(epic.files).includes(spec.name);
+  const listed =
+    epic &&
+    isEpicFolder(epic.files) &&
+    epicMembers(epic.files).includes(spec.name);
   if (!listed)
     out.push(
       diagnostic(

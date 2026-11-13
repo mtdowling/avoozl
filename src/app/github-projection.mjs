@@ -55,7 +55,15 @@ ${list ? `\n## Dependencies\n\n${list}\n` : ""}${notes.length ? `\n${notes.map((
 // Marker version 2 (§3.4): IDs and hashes only. Requires levels and
 // `supports` edges live here and nowhere on GitHub. `previous` carries the
 // Project values and an order forward.
-function taskMarker({ task, plan, data, namespace, applied, previous, unlinked = null }) {
+function taskMarker({
+  task,
+  plan,
+  data,
+  namespace,
+  applied,
+  previous,
+  unlinked = null,
+}) {
   const commit = plan.sourceCommit || plan.context?.github?.commit || null,
     conditions = {},
     supports = [];
@@ -236,7 +244,10 @@ function parentSection(lines) {
 // The prose under a heading of requirements.md, or under the title.
 function prose(text, pattern) {
   const rows = String(text || "")
-      .replace(/^\uFEFF?---[ \t]*\r?\n[\s\S]*?\n(?:---|\.\.\.)[ \t]*\r?(?:\n|$)/, "")
+      .replace(
+        /^\uFEFF?---[ \t]*\r?\n[\s\S]*?\n(?:---|\.\.\.)[ \t]*\r?(?:\n|$)/,
+        "",
+      )
       .split("\n"),
     out = [];
   let inside = !pattern;
@@ -365,16 +376,14 @@ async function projectPlanParents({
       if (stored?.number && stored.repository === config.id)
         return github.issue(config, stored.number);
       return (
-        managedByRepository
-          .get(config.id)
-          .issues.find((issue) => {
-            const marker = projectedMarker(issue.body);
-            return (
-              isParentMarker(marker) &&
-              marker.namespace === namespace &&
-              marker.taskId === taskId
-            );
-          }) || null
+        managedByRepository.get(config.id).issues.find((issue) => {
+          const marker = projectedMarker(issue.body);
+          return (
+            isParentMarker(marker) &&
+            marker.namespace === namespace &&
+            marker.taskId === taskId
+          );
+        }) || null
       );
     },
     record = (level, id, issue, extra = {}) =>
@@ -389,7 +398,10 @@ async function projectPlanParents({
         databaseId: Number(issue.id) || null,
         url: issue.html_url ?? null,
         ...(store.get("receipts", parentReceipt(level, id))?.closedAt
-          ? { closedAt: store.get("receipts", parentReceipt(level, id)).closedAt }
+          ? {
+              closedAt: store.get("receipts", parentReceipt(level, id))
+                .closedAt,
+            }
           : {}),
         ...extra,
         updatedAt: new Date().toISOString(),
@@ -413,7 +425,12 @@ async function projectPlanParents({
         "",
         prose(files["requirements.md"], null),
         ...(prose(files["requirements.md"], /\bdone\b/i)
-          ? ["", "## What done means", "", prose(files["requirements.md"], /\bdone\b/i)]
+          ? [
+              "",
+              "## What done means",
+              "",
+              prose(files["requirements.md"], /\bdone\b/i),
+            ]
           : []),
         "",
         "## Member plans",
@@ -452,7 +469,12 @@ async function projectPlanParents({
       url: epicIssue.html_url ?? null,
       updatedAt: new Date().toISOString(),
     });
-    parents.push({ level: "epic", id: epic.id, number: epicIssue.number, repository: epicConfig.id });
+    parents.push({
+      level: "epic",
+      id: epic.id,
+      number: epicIssue.number,
+      repository: epicConfig.id,
+    });
   }
   const planTaskId = `plan.${plan.id}`,
     section = parentSection([
@@ -480,16 +502,20 @@ async function projectPlanParents({
   // epic (Requirement 59.9).
   let epicLink = null;
   if (epicIssue) {
-    const linked = (await github.listSubIssues(epicConfig, epicIssue.number)).map(
-        (child) => Number(child.id),
-      ),
+    const linked = (
+        await github.listSubIssues(epicConfig, epicIssue.number)
+      ).map((child) => Number(child.id)),
       id = Number(planIssue.id);
     if (!linked.includes(id)) {
-      const total = Math.max(linked.length, Number(epicIssue.sub_issues_summary?.total) || 0);
+      const total = Math.max(
+        linked.length,
+        Number(epicIssue.sub_issues_summary?.total) || 0,
+      );
       if (lower(epicConfig.owner) !== lower(config.owner))
         epicLink = `GitHub links sub-issues only within one owner; ${config.id} and ${epicConfig.id} differ.`;
       else if (total >= (identity.maxPerParent ?? 100))
-        epicLink = "Over the sub-issue limit; group these plans under fewer epics.";
+        epicLink =
+          "Over the sub-issue limit; group these plans under fewer epics.";
       else {
         await github.addSubIssue(epicConfig, epicIssue.number, id);
         if (
@@ -500,14 +526,24 @@ async function projectPlanParents({
           epicLink = "GitHub refused the sub-issue link.";
       }
     }
-    if (epicLink) notes.add(`Plan ${plan.id} is not linked under epic ${epic.id}: ${epicLink}`);
+    if (epicLink)
+      notes.add(
+        `Plan ${plan.id} is not linked under epic ${epic.id}: ${epicLink}`,
+      );
   }
   record("plan", plan.id, planIssue, {
     planId: plan.id,
     epic: epic?.id ?? null,
-    ...(epicLink ? { unlinked: { parent: `epic.${epic.id}`, reason: epicLink } } : {}),
+    ...(epicLink
+      ? { unlinked: { parent: `epic.${epic.id}`, reason: epicLink } }
+      : {}),
   });
-  parents.push({ level: "plan", id: plan.id, number: planIssue.number, repository: config.id });
+  parents.push({
+    level: "plan",
+    id: plan.id,
+    number: planIssue.number,
+    repository: config.id,
+  });
   return { taskId: planTaskId, config, issue: planIssue, parents };
 }
 
@@ -1013,16 +1049,17 @@ async function project(
     under = new Map();
   for (const item of items) {
     if (!item.issue) continue;
-    const parent = item.task.parent
-      ? byTask.get(item.task.parent)
-      : planParent;
+    const parent = item.task.parent ? byTask.get(item.task.parent) : planParent;
     if (!parent?.issue) continue;
     const parentId = item.task.parent || planParent.taskId;
     if (!under.has(parentId)) under.set(parentId, { parent, children: [] });
     under.get(parentId).children.push(item);
   }
   for (const [parentId, { parent, children }] of under) {
-    const listed = await github.listSubIssues(parent.config, parent.issue.number),
+    const listed = await github.listSubIssues(
+        parent.config,
+        parent.issue.number,
+      ),
       linked = new Set(listed.map((child) => Number(child.id)));
     let total = Math.max(
       linked.size,
@@ -1031,7 +1068,9 @@ async function project(
     const added = [];
     for (const item of children) {
       if (linked.has(item.issueId)) continue;
-      if (parent.config.owner?.toLowerCase() !== item.config.owner?.toLowerCase()) {
+      if (
+        parent.config.owner?.toLowerCase() !== item.config.owner?.toLowerCase()
+      ) {
         item.unlinked = {
           parent: parentId,
           reason: `GitHub links sub-issues only within one owner; ${item.config.id} and ${parent.config.id} differ.`,
@@ -1046,7 +1085,11 @@ async function project(
         continue;
       }
       assertPlanningLink(identity, parent.config.id, item.config.id);
-      await github.addSubIssue(parent.config, parent.issue.number, item.issueId);
+      await github.addSubIssue(
+        parent.config,
+        parent.issue.number,
+        item.issueId,
+      );
       total += 1;
       added.push(item);
     }

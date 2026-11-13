@@ -286,7 +286,12 @@ async function workspace(t) {
     text:
       "# Preview\n\n" +
       [
-        { id: "big-epic", kind: "package", title: "Big epic", projectId: "code" },
+        {
+          id: "big-epic",
+          kind: "package",
+          title: "Big epic",
+          projectId: "code",
+        },
         leaf("first-leaf"),
         leaf("second-leaf", { requires: ["first-leaf"] }),
         leaf("third-leaf", { sequence: ["second-leaf"] }),

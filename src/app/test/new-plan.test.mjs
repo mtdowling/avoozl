@@ -13,7 +13,10 @@ import { temporaryDirectory } from "./temporary.mjs";
 
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
 
-function workspace(t, { repositories = ["app"], contentRules, epic = false } = {}) {
+function workspace(
+  t,
+  { repositories = ["app"], contentRules, epic = false } = {},
+) {
   const { root, store } = fixture(t);
   // An epic folder New plan may name (Requirement 59.11).
   if (epic)

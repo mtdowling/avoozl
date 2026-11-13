@@ -369,7 +369,14 @@ export async function syncProject(
     };
   const items = await github.projectItems(
       project,
-      [statusField, releaseField, waveField, iterationField, stateField, phaseField]
+      [
+        statusField,
+        releaseField,
+        waveField,
+        iterationField,
+        stateField,
+        phaseField,
+      ]
         .filter(Boolean)
         .map((field) => field.id),
     ),

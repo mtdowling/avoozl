@@ -178,7 +178,12 @@ test("plan blocks carry work-model fields and edge conditions into approval", as
     ops = new Operations(store),
     text =
       "# Model\n\n" +
-      block({ id: "parent", title: "Parent", kind: "package", summary: "All." }) +
+      block({
+        id: "parent",
+        title: "Parent",
+        kind: "package",
+        summary: "All.",
+      }) +
       block(leaf("base", { completion: "released" })) +
       block(
         leaf("user", {

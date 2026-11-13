@@ -520,7 +520,9 @@ test("a spec plan projects as a plan issue over its package and three leaves, an
   assert.match(planIssue.body, /"kind":"plan"/);
   assert.match(planIssue.body, /spec folder `\.kiro\/specs\/loader\/`/);
   assert.deepEqual(
-    github.subIssues.filter(([parent]) => parent === planIssue.number).map(([, id]) => id),
+    github.subIssues
+      .filter(([parent]) => parent === planIssue.number)
+      .map(([, id]) => id),
     [epic.id],
   );
   assert.deepEqual(
@@ -563,8 +565,13 @@ test("a spec plan projects as a plan issue over its package and three leaves, an
   });
   assert.deepEqual(parents(fresh.store), parents(store));
   // The plan issue comes back as its receipt, not as a task.
-  assert.equal(fresh.store.get("receipts", "github-parent:plan:loader").number, planIssue.number);
-  assert.ok(!fresh.store.read().tasks.some((task) => task.id === "plan.loader"));
+  assert.equal(
+    fresh.store.get("receipts", "github-parent:plan:loader").number,
+    planIssue.number,
+  );
+  assert.ok(
+    !fresh.store.read().tasks.some((task) => task.id === "plan.loader"),
+  );
   assert.deepEqual(
     graphState(fresh.store, { verdicts: "orders" }).tasks.map(
       ({ id, parent, kind }) => [id, parent, kind],

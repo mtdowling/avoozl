@@ -185,10 +185,7 @@ export function saveBreakdown(store, row, breakdown, message) {
     const hold = breakdownHold(breakdown),
       ready = row.state === "authorized" && !hold;
     if (breakdown.classification?.kind === "broad") task.kind = "package";
-    else if (
-      ["epic", "package"].includes(task.kind) &&
-      !breakdown.published
-    )
+    else if (["epic", "package"].includes(task.kind) && !breakdown.published)
       task.kind = "task";
     task.dispatch = {
       ...task.dispatch,

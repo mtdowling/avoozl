@@ -132,7 +132,9 @@ async function rebuild(
     parentIds = new Set(parentIssues.map(({ marker }) => marker.taskId)),
     // A task under a plan issue has no task parent.
     taskParent = (marker) =>
-      marker.parent && !parentIds.has(marker.parent) && !/^(?:plan|epic)\./.test(marker.parent)
+      marker.parent &&
+      !parentIds.has(marker.parent) &&
+      !/^(?:plan|epic)\./.test(marker.parent)
         ? marker.parent
         : null;
   for (const [taskId, list] of found) {
