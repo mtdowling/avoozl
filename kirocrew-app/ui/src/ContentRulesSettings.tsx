@@ -40,6 +40,7 @@ import { DESIGN_RULES_TIP, rulesDesignMessage } from './design-chat.ts'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
 import { useMedia } from './TaskDrawer.tsx'
+import { useSteppedState } from './NavHistory.tsx'
 
 type Client = ReturnType<typeof contentClient>
 type Selection = { kind: 'set' | 'builtin'; id: string } | { kind: 'new' }
@@ -543,7 +544,12 @@ function TermsEditor(props: { workspaceId: string; client: Client; set: ContentR
   const [rows, setRows] = useState<TermRow[]>([])
   const [text, setText] = useState('')
   const [saved, setSaved] = useState('')
-  const [view, setView] = useState<'builder' | 'file'>('builder')
+  const [view, setView] = useSteppedState<'builder' | 'file'>(
+    'content-terms-view',
+    'inner',
+    (previous) => (previous === 'file' ? 'Back to File view' : 'Back to Rule builder'),
+    'builder',
+  )
   const [error, setError] = useState<string | null>(null)
   const [note, setNote] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)

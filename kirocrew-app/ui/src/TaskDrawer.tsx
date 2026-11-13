@@ -24,6 +24,7 @@ import { documentEpic } from './graph-layout.ts'
 import { itemRef } from './chat-api.ts'
 import { TimingFold } from './FlowView.tsx'
 import { Crosshair, Eye, FileText, MessageSquare, Pause, Pencil, Play, Plus, RotateCcw, X } from './icons.ts'
+import { useBackStep } from './NavHistory.tsx'
 
 // The drawer's sections, as collapsible <details> (the host has no
 // accordion). Summary starts open; the rest open on a click.
@@ -811,18 +812,8 @@ export function TaskDrawerProvider({
       setShown(true)
       panel.current?.focus()
     })
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        close()
-      }
-    }
-    document.addEventListener('keydown', onKey)
-    return () => {
-      cancelAnimationFrame(frame)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [open, close])
+    return () => cancelAnimationFrame(frame)
+  }, [open])
 
   const back = () => {
     const previous = history.at(-1)
@@ -830,6 +821,9 @@ export function TaskDrawerProvider({
     setHistory(history.slice(0, -1))
     setMode(previous)
   }
+  // One page Back step while open: Back walks the drawer's own linked-task
+  // history and then closes it; Esc closes it.
+  useBackStep('drawer', open && Boolean(workspaceId), 'Close the drawer', () => (history.length ? back() : close()), close)
 
   return (
     <TaskDrawerContext.Provider value={api_}>

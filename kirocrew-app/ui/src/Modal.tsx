@@ -1,10 +1,11 @@
 // A large modal dialog: a title, a body that scrolls, and a footer that
-// stays in view. Esc and a click outside ask `onDismiss`, which decides
-// whether to close. Tab and Shift+Tab stay inside while it is open, and
+// stays in view. Esc, Back and a click outside ask `onDismiss`, which
+// decides whether to close. Tab and Shift+Tab stay inside while it is open, and
 // focus goes back where it was when it closes. Full screen on a narrow page.
 import { useEffect, useRef, type ReactNode } from 'react'
 import { useMedia } from './TaskDrawer.tsx'
 import { trapStep } from './focus-trap.ts'
+import { useBackStep } from './NavHistory.tsx'
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])'
 
@@ -13,17 +14,13 @@ export function Modal(props: { id: string; title: ReactNode; onDismiss: () => vo
   const narrow = useMedia('(max-width: 767px)')
   const dismiss = useRef(props.onDismiss)
   dismiss.current = props.onDismiss
+  useBackStep('modal', true, 'Close the dialog', () => dismiss.current())
   useEffect(() => {
     const before = document.activeElement as HTMLElement | null
     box.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus()
     const onKey = (event: KeyboardEvent) => {
       // The page's confirm dialog sits above this one and handles its keys.
       if (document.querySelector('[data-confirm-dialog]')) return
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        dismiss.current()
-        return
-      }
       if (event.key !== 'Tab' || !box.current) return
       const items = [...box.current.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((el) => el.offsetParent !== null || el === document.activeElement)
       const next = trapStep(items.length, items.indexOf(document.activeElement as HTMLElement), event.shiftKey)

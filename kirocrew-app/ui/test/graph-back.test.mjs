@@ -35,8 +35,11 @@ test('the mouse back button and Alt+Left or Cmd+[ go back; Esc does not', () => 
   assert.equal(isBackKey({ key: '[', metaKey: true }), true)
   assert.equal(isBackKey({ key: 'Escape' }), false)
   assert.equal(isBackKey({ key: 'ArrowLeft' }), false)
-  assert.match(graph, /onMouseUp=\{onBackButton\}\s+onAuxClick=\{onBackButton\}/)
-  assert.match(graph, /event\.preventDefault\(\)\s+back\(\)/)
+  // The page's one Back history takes the button and keys (NavHistory.tsx);
+  // each drill level is one of its steps, and it calls back() here.
+  assert.doesNotMatch(graph, /onMouseUp=\{onBackButton\}/)
+  assert.match(graph, /nav\.history\.sync\('graph', stack\.length,/)
+  assert.match(graph, /nav\.handlers\.set\('graph', handler\)/)
   assert.doesNotMatch(graph, /pushState\(/)
   // Back restores the zoom and pan instead of refitting.
   assert.match(graph, /if \(restore\.current\) \{\s*setView\(restore\.current\)/)

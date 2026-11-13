@@ -33,6 +33,7 @@ import { IconLabel } from './controls.tsx'
 import { RadioFold } from './RadioFold.tsx'
 import { Folder, GitBranch, Laptop, Package, Plus, Users } from './icons.ts'
 import { Facts, Parts } from './PluginsSettings.tsx'
+import { useBackStep } from './NavHistory.tsx'
 
 type Client = ReturnType<typeof pluginsClient>
 
@@ -259,15 +260,8 @@ function AddPluginDialog(props: { workspaceId: string; client: Client; supported
       .then(() => onChanged())
       .finally(() => onClose(`Cancelled. ${id} was removed again; nothing ran.`))
   }, [added, client, workspaceId, onClose, onChanged])
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return
-      event.preventDefault()
-      cancel()
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [cancel])
+  // Esc and Back do what Cancel does.
+  useBackStep('modal', true, 'Cancel', cancel)
   useEffect(() => {
     box.current?.querySelector<HTMLElement>('summary, input:not([disabled]), button')?.focus()
   }, [step])

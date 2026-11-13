@@ -18,7 +18,9 @@ test('Delivery cards, Graph nodes, Dashboard lists and Conflicts items open the 
 
 test('the drawer closes on Escape, its button and the backdrop, and returns focus', () => {
   const drawer = source('TaskDrawer.tsx')
-  assert.match(drawer, /event\.key === 'Escape'[\s\S]{0,80}close\(\)/)
+  // Esc closes it through the page's Back history; Back walks its own
+  // linked-task history first.
+  assert.match(drawer, /useBackStep\('drawer', open && Boolean\(workspaceId\), 'Close the drawer', \(\) => \(history\.length \? back\(\) : close\(\)\), close\)/)
   assert.match(drawer, /data-drawer-backdrop\s+onClick=\{close\}/)
   assert.match(drawer, /aria-label="Close task details"/)
   assert.match(drawer, /panel\.current\?\.focus\(\)/)
@@ -74,7 +76,7 @@ test('a Plans row, its name and Open docs open the plan in view', () => {
   assert.match(plans, /onOpen=\{\(\) => props\.onOpen\(row\)\}/)
   assert.match(plans, /<IconBtn icon=\{DetailsIcon\} label=\{`Open docs for \$\{row\.name\}`\} tooltip="Open this plan's documents and tasks"/)
   // Opening sets the row at once, with no reload first, and scrolls to it.
-  assert.match(plans, /const open = \(next: PlanRow\) => setSelected\(next\.key\)/)
+  assert.match(plans, /const open = \(next: PlanRow\) => openPlan\(next\.key\)/)
   assert.match(plans, /detailTop\.current\?\.scrollIntoView/)
   // Graph and Delivery buttons filter to the plan; App passes the filter on.
   assert.match(plans, /onScope=\{\(target\) => props\.onScope\(target, row\)\}/)

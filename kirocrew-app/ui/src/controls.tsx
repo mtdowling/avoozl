@@ -22,6 +22,7 @@ import { chatClient, type ChatSeed } from './chat-api.ts'
 import { errorMessage } from './workspace-api.ts'
 import { moreLabel, visibleCount } from './paging.ts'
 import { Tooltip } from './Tooltip.tsx'
+import { useBackStep } from './NavHistory.tsx'
 
 export const ICON = 14
 
@@ -105,7 +106,7 @@ type Ask = (copy: ConfirmCopy) => Promise<boolean>
 const ConfirmContext = createContext<Ask>(async () => false)
 export const useConfirm = () => useContext(ConfirmContext)
 
-// One confirm dialog for the page. Esc and Cancel say no; focus starts on
+// One confirm dialog for the page. Esc, Back and Cancel say no; focus starts on
 // Cancel, so Enter alone never confirms.
 export function ConfirmProvider({ children }: { children: ReactNode }) {
   const [pending, setPending] = useState<(ConfirmCopy & { resolve: (yes: boolean) => void }) | null>(null)
@@ -115,19 +116,11 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     pending?.resolve(yes)
     setPending(null)
   }
+  // Esc and Back say no, like Cancel.
+  useBackStep('confirm', pending !== null, 'Cancel', () => answer(false))
   useEffect(() => {
-    if (!pending) return
-    cancel.current?.focus()
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        event.stopPropagation()
-        answer(false)
-      }
-    }
-    document.addEventListener('keydown', onKey, true)
-    return () => document.removeEventListener('keydown', onKey, true)
-  })
+    if (pending) cancel.current?.focus()
+  }, [pending])
   return (
     <ConfirmContext.Provider value={ask}>
       {children}

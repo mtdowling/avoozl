@@ -17,6 +17,7 @@ import { useMedia } from './TaskDrawer.tsx'
 import { relativeTime } from './task-api.ts'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
+import { useSteppedState } from './NavHistory.tsx'
 import {
   AGE_OPTIONS,
   KIND_OPTIONS,
@@ -382,7 +383,12 @@ export default function UntriagedView({ workspaceId }: { workspaceId: string | n
   const api = useAppApi()
   const client = useMemo(() => untriagedClient(api), [api])
   const radar = useMemo(() => radarClient(api), [api])
-  const [show, setShow] = useState<'untriaged' | 'radar'>('untriaged')
+  const [show, setShow] = useSteppedState<'untriaged' | 'radar'>(
+    'untriaged-show',
+    'inner',
+    (previous) => (previous === 'radar' ? 'Back to With Issue Radar' : 'Back to Untriaged'),
+    'untriaged',
+  )
   const [sending, setSending] = useState<UntriagedItem[] | null>(null)
   const [note, setNote] = useState<string | null>(null)
   const load = useCallback((id: string) => client.view(id), [client])

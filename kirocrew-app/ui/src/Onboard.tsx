@@ -15,6 +15,7 @@ import { RadioFold } from './RadioFold.tsx'
 import { MODE_CARDS, groupWrites, writeBadge, type GitHubSettings, type SetupResult } from './settings-api.ts'
 import type { SpecList } from './plans-api.ts'
 import { errorMessage } from './workspace-api.ts'
+import { useBackStep } from './NavHistory.tsx'
 import {
   ONBOARD_STEPS,
   folderSpecs,
@@ -271,15 +272,8 @@ function OnboardDialog(props: { workspaceId: string; client: OnboardClient; onCl
   const cancel = useCallback(() => {
     onClose(wrote ? `Stopped. Done so far: ${written.join('; ')}.` : 'Cancelled. Nothing was written.')
   }, [onClose, wrote, written])
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape' || document.querySelector('[data-confirm-dialog]')) return
-      event.preventDefault()
-      cancel()
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [cancel])
+  // Esc and Back do what Cancel does.
+  useBackStep('modal', true, 'Cancel', cancel)
   useEffect(() => {
     box.current?.querySelector<HTMLElement>('input:not([disabled]), button')?.focus()
   }, [step])

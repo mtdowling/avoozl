@@ -9,6 +9,7 @@ import { Check, CircleAlert, Radar, X } from './icons.ts'
 import { ICON } from './controls.tsx'
 import { crewLine, radarClient, type CrewList, type HandOffInput, type HandOffReply, type UntriagedItem } from './untriaged-api.ts'
 import { errorMessage } from './workspace-api.ts'
+import { useBackStep } from './NavHistory.tsx'
 
 type Client = ReturnType<typeof radarClient>
 
@@ -56,16 +57,8 @@ export function SendToRadar(props: {
   useEffect(() => {
     box.current?.querySelector<HTMLElement>('input, button')?.focus()
   }, [step, crews])
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        cancel()
-      }
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [cancel])
+  // Esc and Back do what Cancel does.
+  useBackStep('modal', true, 'Cancel', cancel)
   const crew = crews?.crews.find((entry) => entry.id === crewId) ?? null
   const input = (): HandOffInput => ({
     items: items.map((item) => ({ repository: item.repository, number: item.number })),

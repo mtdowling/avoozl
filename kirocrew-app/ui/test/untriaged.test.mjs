@@ -136,7 +136,7 @@ test('the dialog writes only after preview and its confirm button; Cancel is on 
   assert.match(dialog, /setPreview\(await client\.preview\(/)
   assert.match(dialog, /data-radar-send onClick=\{\(\) => void send\(\)\}/)
   assert.match(dialog, /\{step < 2 && \(\s*<Btn type="button" onClick=\{cancel\}>\s*Cancel/)
-  assert.match(dialog, /event\.key === 'Escape'/)
+  assert.match(dialog, /useBackStep\('modal', true, 'Cancel', cancel\)/)
   assert.match(dialog, /role="dialog"\s*aria-modal="true"/)
   assert.match(dialog, /data-radar-empty-scope/)
   const view = source('UntriagedView.tsx')

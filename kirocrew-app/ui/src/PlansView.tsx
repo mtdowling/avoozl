@@ -19,6 +19,7 @@ import { outline } from './markdown.ts'
 import { registerLanguages } from './highlight.ts'
 import { scrollParent, stickyHeight } from './sticky-column.ts'
 import { viewsClient, type Graph } from './views-api.ts'
+import { useBackStep, useSteppedState } from './NavHistory.tsx'
 import {
   UNCATEGORIZED,
   approveBlocker,
@@ -844,12 +845,10 @@ function ArchivePlanDialog(props: { workspaceId: string; row: PlanRow; client: P
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const cancel = useRef<HTMLButtonElement>(null)
+  useBackStep('modal', true, 'Cancel', () => props.onDone(null))
   useEffect(() => {
     cancel.current?.focus()
-    const onKey = (event: KeyboardEvent) => event.key === 'Escape' && props.onDone(null)
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [props])
+  }, [])
   const run = async () => {
     setBusy(true)
     setError(null)
@@ -936,12 +935,10 @@ function DeletePlanDialog(props: { workspaceId: string; row: PlanRow; client: Pl
   useEffect(() => {
     client.deletePreview(workspaceId, row.planId!).then(setPreview, (caught) => setError(errorMessage(caught)))
   }, [client, workspaceId, row.planId])
+  useBackStep('modal', true, 'Cancel', () => props.onDone(null))
   useEffect(() => {
     cancel.current?.focus()
-    const onKey = (event: KeyboardEvent) => event.key === 'Escape' && props.onDone(null)
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [props])
+  }, [])
   const run = async () => {
     if (!preview) return
     setBusy(true)
@@ -1026,7 +1023,14 @@ export default function PlansView(props: {
   const [creating, setCreating] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [table, setTable] = useState<PlanTable | null>(null)
-  const [selected, setSelected] = useState<string | null>(null)
+  // Opening a plan is a Back step; Back from another tab reopens it.
+  const [selected, openPlan, setSelected] = useSteppedState<string | null>(
+    'plans-selected',
+    'select',
+    (previous) => (previous ? 'Back to the plan' : 'Back to all plans'),
+    null,
+  )
+  const shownWorkspace = useRef(workspace)
   const [filter, setFilter] = useState<PlanListFilter>({})
   const [plan, setPlan] = useState<SpecPlan | null>(null)
   const [preview, setPreview] = useState<Preview | null>(null)
@@ -1056,7 +1060,10 @@ export default function PlansView(props: {
   const load = useCallback((workspaceId: string) => attempt(async () => setTable(await plans.table(workspaceId))), [attempt, plans])
   useEffect(() => {
     setTable(null)
-    setSelected(null)
+    if (shownWorkspace.current !== workspace) {
+      shownWorkspace.current = workspace
+      setSelected(null)
+    }
     if (!workspace) return
     void load(workspace)
     plans.languages(workspace).then(
@@ -1120,7 +1127,7 @@ export default function PlansView(props: {
     if (selected) detailTop.current?.scrollIntoView?.({ block: 'start' })
   }, [selected])
 
-  const open = (next: PlanRow) => setSelected(next.key)
+  const open = (next: PlanRow) => openPlan(next.key)
   const scope = (target: PlanTarget, next: PlanRow) => props.onScope?.(target, { plan: rowPlanKey(next) })
   // Edit plan: a planner chat drafts the change to the spec files; adding a
   // task goes the same way, and comes back as a revision to approve.
@@ -1189,7 +1196,7 @@ export default function PlansView(props: {
       )}
       {notice && <p role="status" className="text-sm text-muted">{notice}</p>}
       <div ref={detailTop} className="flex flex-wrap items-center gap-3">
-        {row && <IconLabel icon={ArrowLeft} onClick={() => setSelected(null)}>All plans</IconLabel>}
+        {row && <IconLabel icon={ArrowLeft} onClick={() => openPlan(null)}>All plans</IconLabel>}
         <ViewHeading id="avoozl-plans-title" view="plans">
           {row ? row.name : 'Plans'}
         </ViewHeading>

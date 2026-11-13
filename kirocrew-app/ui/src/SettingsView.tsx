@@ -50,6 +50,7 @@ import { AddRepository, REPOSITORIES_LINE, RepositoryDialog, RepositoryList, rep
 import PluginsSettings from './PluginsSettings.tsx'
 import ContentRulesSettings from './ContentRulesSettings.tsx'
 import FlowSettings from './FlowSettings.tsx'
+import { useSteppedState } from './NavHistory.tsx'
 import { useRead } from './useRead.ts'
 import { labelsClient, triageRows, type RepositoryLabels } from './untriaged-api.ts'
 import { errorMessage, workspaceClient, type Repository, type WorkspaceList } from './workspace-api.ts'
@@ -712,7 +713,15 @@ function RepositoryEditor(props: {
   const { repository, choices } = props
   const api = useAppApi()
   const inspectRepository = useMemo(() => inspectClient(api), [api])
-  const [tab, setTab] = useState<RepositoryTab>('mode')
+  // Each sub-tab is a Back step inside the Edit dialog; a new dialog
+  // starts on Mode.
+  const [tab, setTab] = useSteppedState<RepositoryTab>(
+    `settings-repo-tab-${props.index}`,
+    'inner',
+    (previous) => `Back to ${REPOSITORY_TABS.find((t) => t.key === previous)?.label ?? previous}`,
+    'mode',
+    false,
+  )
   const [inspect, setInspect] = useState<RepositoryInspect | null>(null)
   const id = `avoozl-settings-repo-${props.index}`
   const set = (change: Partial<RepositoryForm>) => props.onChange({ ...repository, ...change })

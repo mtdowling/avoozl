@@ -38,7 +38,7 @@ test('the Edit dialog saves through the shared Save, blocks on a missing field a
   assert.match(settings, /onSave=\{save\}/)
   assert.match(settings, /replace=\{setForm\}/)
   // Esc and a click outside both go through onDismiss; narrow is full screen.
-  assert.match(modal, /event\.key === 'Escape'/)
+  assert.match(modal, /useBackStep\('modal', true, 'Close the dialog', \(\) => dismiss\.current\(\)\)/)
   assert.match(modal, /onClick=\{\(\) => dismiss\.current\(\)\}/)
   assert.match(modal, /width: narrow \? '100vw'/)
   assert.match(modal, /aria-modal="true"/)
@@ -78,7 +78,7 @@ test('Settings opens on Workspaces each visit and drops an unknown tab', async (
   assert.equal(settingsTabOnEnter('settings', 'settings', 'people', tabs), 'workspaces')
   const app = source('App.tsx')
   assert.match(app, /useState<SettingsTab>\(SETTINGS_HOME\)/)
-  assert.match(app, /setSettingsTab\(\(current\) => settingsTabOnEnter\(tab, key, current,/)
+  assert.match(app, /settingsTab: settingsTabOnEnter\(tab, key, settingsTab,/)
   assert.match(source('SettingsView.tsx'), /SETTINGS_TABS\.some\(\(t\) => t\.key === asked\) \? asked : SETTINGS_HOME/)
 })
 
