@@ -24,6 +24,7 @@ import { Fold, IconLabel, SectionHeading, ShowMore, TipBtn, useAskChat, usePages
 import { resultMessage, settleTargets, whyLine } from './conflicts-api.ts'
 import { itemRef } from './chat-api.ts'
 import { TimingFold } from './FlowView.tsx'
+import { EvidenceFold } from './Evidence.tsx'
 import { Crosshair, Eye, FileText, MessageSquare, Pause, Pencil, Play, Plus, RotateCcw, X } from './icons.ts'
 import { useBackStep } from './NavHistory.tsx'
 import { LAYER } from './layers.ts'
@@ -37,6 +38,7 @@ const SECTIONS = [
   { key: 'links', label: 'Links' },
   { key: 'delivery', label: 'Delivery' },
   { key: 'timing', label: 'Timing' },
+  { key: 'evidence', label: 'Evidence' },
   { key: 'budget', label: 'Budget' },
   { key: 'conflicts', label: 'Conflicts' },
   { key: 'timeline', label: 'Timeline' },
@@ -522,6 +524,9 @@ function TaskPanel(props: {
         </Fold>
         <Fold id="timing" group="task-drawer" title="Timing">
           <TimingFold timing={detail.timing ?? null} />
+        </Fold>
+        <Fold id="evidence" group="task-drawer" title="Evidence">
+          <EvidenceFold workspaceId={workspaceId} taskId={task.id} />
         </Fold>
         <Fold
           id="budget"

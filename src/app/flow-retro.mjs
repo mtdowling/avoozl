@@ -61,6 +61,13 @@ import {
 import { contentBinding } from "./content-rules.mjs";
 import { recordTraits } from "./lessons-share.mjs";
 import { applyDiff, reverseDiff, unifiedDiff } from "./text-diff.mjs";
+import {
+  retroCorrections,
+  ruleAgain,
+  ruleChangeBody,
+  ruleProblem,
+  ruleRepository,
+} from "./corrections.mjs";
 
 export const RETRO_AGENT = "avoozl-retro";
 export const RETRO_TIMEOUT_MS = 10 * 60_000;
@@ -379,6 +386,17 @@ export function retroBrief(store, data, retro, memory = null) {
       ),
       earlierProposals: earlier,
       revertProposals: retro.reverts || [],
+      // How much finished work was bug fixes (§4.11, R79.3).
+      fixWork: view.metrics.fixWork ?? null,
+      // Corrections since the last retro (§4.24, R78.2): a person told an
+      // agent it got something wrong. Two or more alike may become a rule.
+      corrections: retroCorrections(
+        store,
+        data,
+        retro.correctionsSince ?? null,
+      ),
+      // Rules that landed, and whether the corrected thing happened again.
+      rules: landedRules(store),
       ...(memory?.payload || {}),
     };
   return [
@@ -404,7 +422,9 @@ const summary = (p) => ({
       ? { target: p.target, ...(p.section ? { section: p.section } : {}) }
       : p.type === "lesson"
         ? { kind: p.kind, lessons: p.lessons }
-        : { spec: p.spec, change: p.change }),
+        : p.type === "rule"
+          ? { text: p.text, corrections: p.corrections }
+          : { spec: p.spec, change: p.change }),
   metric: p.metric,
   direction: p.direction,
   status: p.status,
@@ -443,6 +463,30 @@ export function retroStep(
     for (const proposal of listed.proposals || []) {
       const p = proposal.pdca;
       if (proposal.status !== "approved" || !p || p.result) continue;
+      // A rule (R78.5): did the corrected thing happen again?
+      if (proposal.type === "rule") {
+        if (finished < p.at) continue;
+        const again = ruleAgain(store, data, proposal, p.approvedAt),
+          retro = store.get("flow_retros", listed.id);
+        store.put("flow_retros", {
+          ...retro,
+          proposals: retro.proposals.map((q) =>
+            q.id === proposal.id
+              ? {
+                  ...q,
+                  pdca: {
+                    ...p,
+                    again: again.map((c) => c.id),
+                    result: again.length ? "no change" : "helped",
+                    measuredAt: new Date(now).toISOString(),
+                  },
+                }
+              : q,
+          ),
+        });
+        changed = true;
+        continue;
+      }
       const versioned = p.version ? versionWindow(store, data, p) : null;
       if (versioned ? versioned.length < p.window : finished < p.at) continue;
       // Read again: an earlier proposal of this retro may have just been
@@ -522,6 +566,14 @@ export function retroStep(
     healAt(store, data, config, now);
     const memory = memoryBrief(store, data, retro, config, { now });
     if (memory) retro.seen = memory.seen;
+    // The corrections this retro is shown; a rule may cite only these.
+    retro.correctionsSince = last?.startedAt ?? null;
+    retro.seen = {
+      ...(retro.seen || {}),
+      corrections: retroCorrections(store, data, retro.correctionsSince).map(
+        (c) => c.id,
+      ),
+    };
     const brief = retroBrief(store, data, retro, memory),
       model = flowPolicy(config || {}).workspace.retro.model,
       // The brief passes the content rules at the brief boundary (R47.3).
@@ -999,6 +1051,11 @@ function changeProblem(p, retro, store) {
 // Check one proposal (R47.4, R47.5, R68.4): the reason it is dropped, or null.
 export function proposalProblem(p, retro = null, store = null) {
   if (!p || typeof p !== "object" || Array.isArray(p)) return "not an object";
+  // A rule from repeated corrections needs no metric (R78.2).
+  if (p.type === "rule")
+    return store
+      ? ruleProblem(p, retro, store, store.read())
+      : "rule proposals need the workspace";
   if (!METRICS.includes(p.metric))
     return `metric must be one of ${METRICS.join(", ")}`;
   if (!["up", "down"].includes(p.direction))
@@ -1014,7 +1071,7 @@ export function proposalProblem(p, retro = null, store = null) {
     return null;
   }
   if (p.type !== "settings")
-    return "type must be settings, plan, prompt or skill";
+    return "type must be settings, plan, prompt, skill or rule";
   if (Object.keys(p).some((k) => !SETTINGS_FIELDS.includes(k)))
     return "unknown field in a settings proposal";
   if (typeof p.key !== "string") return "key is missing";
@@ -1156,6 +1213,7 @@ function blockedProposal(store, retroId, index, p) {
   const text = [
     p.diff,
     p.change,
+    p.text,
     p.key,
     typeof p.evidence === "string"
       ? p.evidence
@@ -1285,6 +1343,7 @@ export async function decideProposal(
     draft,
     prompt,
     skill,
+    rule,
     lessonEdit,
     config,
     by = "person",
@@ -1319,12 +1378,14 @@ export async function decideProposal(
     let pdca =
       proposal.type === "lesson"
         ? null
-        : {
-            before: metricOver(store, data, proposal.metric, every),
-            window: every,
-            at: done + every,
-            approvedAt: at,
-          };
+        : proposal.type === "rule"
+          ? { approvedAt: at, window: every, at: done + every }
+          : {
+              before: metricOver(store, data, proposal.metric, every),
+              window: every,
+              at: done + every,
+              approvedAt: at,
+            };
     if (proposal.type === "settings") await apply(proposal, input.expectedHash);
     else if (proposal.type === "plan")
       update = { draft: (await draft(proposal)) ?? null };
@@ -1371,6 +1432,24 @@ export async function decideProposal(
           },
           proposal,
         );
+    } else if (proposal.type === "rule") {
+      // One leaf, source retro, that edits the steering rules file (R78.3).
+      if (!rule) fail("Rules need the Deliver this path.", 409);
+      const repository = ruleRepository(store, data, proposal);
+      if (!repository) fail("The rule's repository is gone.", 409);
+      update = {
+        repository,
+        leaf: await rule({
+          retro: retro.id,
+          proposal: proposal.id,
+          repository,
+          title: "Add a rule from repeated corrections",
+          body: ruleChangeBody(
+            proposal.text,
+            `A person approved this rule from retro ${retro.id}. It rests on ${proposal.corrections.length} corrections.`,
+          ),
+        }),
+      };
     } else if (proposal.type === "lesson")
       update = {
         edited: await (
@@ -1567,6 +1646,20 @@ export function applyToConfig(file, proposal) {
 }
 
 // The avoozl-retro agent's own prompt, as shipped in the app package.
+// Approved rules and their PDCA results, for the next retro (R78.5).
+function landedRules(store) {
+  return listOr(store, "flow_retros").flatMap((r) =>
+    (r.proposals || [])
+      .filter((p) => p.type === "rule" && p.status === "approved")
+      .map((p) => ({
+        retro: r.id,
+        text: p.text,
+        approvedAt: p.decidedAt ?? null,
+        happenedAgain: p.pdca?.again ?? null,
+      })),
+  );
+}
+
 export function retroPrompt() {
   try {
     return JSON.parse(

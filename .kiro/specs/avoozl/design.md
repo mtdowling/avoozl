@@ -3123,6 +3123,12 @@ time, source and text) and attached files. Kinds: `findings`, `falsifier`,
 and the secret screen first; a blocked entry is saved redacted. The drawer
 reads it through `task.evidence`. On GitHub one comment per pull request,
 found again by its marker, holds the text summary and is updated in place.
+Entries are screened at the `evidence` content boundary. A worker attaches
+files through `plans_report` `evidence: [{kind: "file", path, note?}]` and
+notes as `{kind: "note", text}`; a check entry may carry `logTail`.
+shortcut: GitHub's API cannot upload a file to a comment, so
+`github.evidence.attach` is not built and the comment names attached files
+only; upgrade if GitHub adds an upload API.
 
 ### 4.23 Bringing pull requests up to date
 
@@ -3132,7 +3138,13 @@ pull requests its writers opened and, for `CONFLICTING` or `BEHIND` (when up
 to date is required), sends one pull request feedback message of kind
 `base-moved`: merge the base branch in, fix, check, push; never force push.
 Avoozl refuses to send a brief or message that holds `--force`,
-`--force-with-lease` or `push -f`.
+`--force-with-lease`, `push -f` or a `+` refspec; the tick drops it and
+says so once. A move is judged once GitHub has read mergeability again
+(`mergeable` is not `UNKNOWN`), and its message goes out once per base head.
+The base head is the pull request's `baseRef` target, read in the same
+query. Locally, a verified task whose integration branch moved is merged
+forward in its worktree with a merge commit, which every role then judges
+again.
 
 ### 4.24 Rules from repeated corrections
 
@@ -3150,6 +3162,14 @@ Added 2026-11-13 (Requirement 80).
 |---|---|---|---|
 | `auto-merge` (default) | enables auto-merge | waits for the merge | nothing |
 | `manual` | does not enable auto-merge | Needs you: Ready to merge, when checks and reviews pass | merges on GitHub, or presses Integrate in Local only |
+
+The task's manifest `ship` wins, then the spec manifest's top-level `ship`,
+then `delivery.repositories.<id>.ship`, then `delivery.ship`. Under
+`manual`, a writer that turned auto-merge on is asked to turn it off, and a
+pull request closed without merging goes back to its writer once as one
+feedback round. A local task's Integrate approves one commit; a new commit
+needs a new press. Settings > Delivery shows the mode as one radio
+fold-out.
 
 ## 5. Local workflow
 

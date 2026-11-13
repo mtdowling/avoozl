@@ -9,7 +9,8 @@ import { Marker, Section } from './SettingsView.tsx'
 import { modelOptions, parseModels } from './flow-api.ts'
 import { useRead } from './useRead.ts'
 import { COMMAND_PATH, errorMessage } from './workspace-api.ts'
-import { DELIVERY_DEFAULTS, toDeliveryForm, toDeliverySection, type DeliveryForm, type DeliverySettings as Settings } from './delivery-api.ts'
+import { DELIVERY_DEFAULTS, SHIP_CHOICES, toDeliveryForm, toDeliverySection, type DeliveryForm, type DeliverySettings as Settings, type ShipMode } from './delivery-api.ts'
+import { RadioFold } from './RadioFold.tsx'
 
 const OPTIONAL = { required: false } as const
 const selectStyle = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }
@@ -118,6 +119,52 @@ export default function DeliverySettings({ workspaceId, onOpenRouting }: { works
               'Set it on the Routing tab.'
             )}
           </p>
+        </Section>
+        <Section title="Who merges" blurb="Who lands a finished pull request. A repository, spec or task may set its own in .avoozl.json or the manifest; Avoozl never merges one itself.">
+          <RadioFold<ShipMode>
+            name="avoozl-delivery-ship"
+            label="Who merges"
+            value={form.ship ?? DELIVERY_DEFAULTS.ship}
+            onChange={(ship) => set({ ship })}
+            sections={SHIP_CHOICES.map((choice) => ({
+              key: choice.key,
+              title: choice.title,
+              line: choice.line,
+              description: (
+                <table className="text-sm">
+                  <tbody>
+                    {['Writer', 'Avoozl', 'You'].map((who, i) => (
+                      <tr key={who}>
+                        <th scope="row" className="pr-3 text-left font-medium">
+                          {who}
+                        </th>
+                        <td>{choice.who[i]}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ),
+            }))}
+          />
+          {form.ship === 'manual' && <p className="text-xs text-muted">Briefs tell writers not to turn on auto-merge.</p>}
+          <Raw name="delivery.ship" />
+        </Section>
+        <Section title="Investigate first" blurb="Before coding, the writer reports what it found and how sure it is; a second chat tries to prove it wrong. Coding starts only when both are sure enough and the findings stand.">
+          <div className="flex flex-wrap gap-4">
+            <Labeled id="avoozl-delivery-investigate" label="Which tasks" raw="delivery.investigate.mode" width="16rem" note="A task's manifest can set investigate: true or false.">
+              <select id="avoozl-delivery-investigate" value={form.investigateMode ?? DELIVERY_DEFAULTS.investigateMode} onChange={(e) => set({ investigateMode: e.target.value as DeliveryForm['investigateMode'] })} className="rounded border px-2 py-1 text-sm" style={selectStyle}>
+                <option value="not-small">All but small tasks</option>
+                <option value="all">All tasks</option>
+                <option value="off">Off</option>
+              </select>
+            </Labeled>
+            <Labeled id="avoozl-delivery-confidence" label="Sure enough at" raw="delivery.investigate.minConfidence" width="16rem" note="Less sure waits in Needs you.">
+              <select id="avoozl-delivery-confidence" value={form.minConfidence ?? DELIVERY_DEFAULTS.minConfidence} onChange={(e) => set({ minConfidence: e.target.value as DeliveryForm['minConfidence'] })} className="rounded border px-2 py-1 text-sm" style={selectStyle}>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+              </select>
+            </Labeled>
+          </div>
         </Section>
         <Section title="Pull request feedback" blurb="Send failed checks and allowed reviewers' comments back to the chat that wrote the pull request. Matters only in a GitHub mode.">
           <label className="flex flex-wrap items-center gap-2 text-sm">

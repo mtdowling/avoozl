@@ -44,6 +44,11 @@ export function feedbackOf(node) {
     base: node.baseRefName,
     mergeable: node.mergeable,
     autoMerge: Boolean(node.autoMergeRequest),
+    // Up to date and review state (§4.23, §4.25); GitHub says BEHIND only
+    // when the base branch requires branches to be up to date.
+    mergeState: node.mergeStateStatus ?? null,
+    reviewDecision: node.reviewDecision ?? null,
+    baseHead: node.baseRef?.target?.oid ?? null,
     checks: contexts.filter(Boolean).map((entry) =>
       entry.__typename === "StatusContext"
         ? {
@@ -764,7 +769,7 @@ export class GitHubClient {
     const fields = list
         .map(
           (_, i) =>
-            `b${i}:pullRequests(headRefName:$b${i},states:OPEN,first:1,orderBy:{field:CREATED_AT,direction:DESC}){nodes{number url updatedAt headRefOid baseRefName mergeable autoMergeRequest{enabledAt}}}`,
+            `b${i}:pullRequests(headRefName:$b${i},states:OPEN,first:1,orderBy:{field:CREATED_AT,direction:DESC}){nodes{number url updatedAt headRefOid baseRefName baseRef{target{oid}} mergeable mergeStateStatus reviewDecision autoMergeRequest{enabledAt}}}`,
         )
         .join(" "),
       args = list.map((_, i) => `,$b${i}:String!`).join(""),
@@ -793,6 +798,9 @@ export class GitHubClient {
                 base: node.baseRefName,
                 mergeable: node.mergeable,
                 autoMerge: Boolean(node.autoMergeRequest),
+                mergeState: node.mergeStateStatus ?? null,
+                reviewDecision: node.reviewDecision ?? null,
+                baseHead: node.baseRef?.target?.oid ?? null,
               }
             : null,
         ];
@@ -814,7 +822,7 @@ export class GitHubClient {
       fields = list
         .map(
           (_, i) =>
-            `p${i}:pullRequest(number:$p${i}){number url updatedAt headRefOid baseRefName mergeable autoMergeRequest{enabledAt} commits(last:1){nodes{commit{oid statusCheckRollup{contexts(first:100){nodes{__typename ... on CheckRun{databaseId name status conclusion detailsUrl checkSuite{workflowRun{databaseId}}} ... on StatusContext{id context state targetUrl}}}}}}} reviews(last:50){nodes{databaseId state body url submittedAt ${actor} commit{oid}}} reviewThreads(last:50){nodes{id isResolved path comments(last:20){nodes{databaseId body url createdAt ${actor} originalCommit{oid}}}}} comments(last:50){nodes{databaseId body url createdAt ${actor}}}}`,
+            `p${i}:pullRequest(number:$p${i}){number url updatedAt headRefOid baseRefName baseRef{target{oid}} mergeable mergeStateStatus reviewDecision autoMergeRequest{enabledAt} commits(last:1){nodes{commit{oid statusCheckRollup{contexts(first:100){nodes{__typename ... on CheckRun{databaseId name status conclusion detailsUrl checkSuite{workflowRun{databaseId}}} ... on StatusContext{id context state targetUrl}}}}}}} reviews(last:50){nodes{databaseId state body url submittedAt ${actor} commit{oid}}} reviewThreads(last:50){nodes{id isResolved path comments(last:20){nodes{databaseId body url createdAt ${actor} originalCommit{oid}}}}} comments(last:50){nodes{databaseId body url createdAt ${actor}}}}`,
         )
         .join(" "),
       args = list.map((_, i) => `,$p${i}:Int!`).join(""),

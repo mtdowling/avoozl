@@ -11,6 +11,8 @@ const ROLES = new Set([
   "planner",
   "retro",
   "pr-review",
+  // Tries to prove a worker's findings wrong (§4.21).
+  "falsifier",
   // The routing agent (§4.10): binds to its call, not a task.
   "router",
 ]);
@@ -92,7 +94,9 @@ export function bindSession(store, input = {}, { guard, conductor } = {}) {
         ? null
         : text(input.title, "session title", MAX_TITLE);
   if (!isRole(role))
-    fail("Choose role worker, verifier, responder, planner, or review:<id>.");
+    fail(
+      "Choose role worker, verifier, responder, planner, falsifier, or review:<id>.",
+    );
   if (input.model !== undefined && !MODEL.test(input.model))
     fail("Choose a model name.");
   // Placement (§4.10, R41.9, R53.10): the crew, agent, and why.
@@ -197,6 +201,11 @@ export function bindSession(store, input = {}, { guard, conductor } = {}) {
       ...(input.sessionReason ? { sessionReason: input.sessionReason } : {}),
       ...(input.commit ? { commit: input.commit } : {}),
       ...(batch ? { batch } : {}),
+      // A worker opened to investigate first codes only after Go ahead
+      // (§4.21).
+      ...(input.investigate === true && role === "worker"
+        ? { investigate: true }
+        : {}),
       boundAt: new Date().toISOString(),
     };
     store.put("session_bindings", binding);

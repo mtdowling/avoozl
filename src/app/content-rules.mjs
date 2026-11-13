@@ -41,6 +41,8 @@ export const BOUNDARIES = Object.freeze([
   "proposal",
   "lesson",
   "activity",
+  // Each evidence bundle entry (§4.22); a match is saved redacted.
+  "evidence",
 ]);
 const OPT_IN = new Set(["intake"]);
 export const ACTIONS = Object.freeze(["block", "report"]);

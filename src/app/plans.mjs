@@ -149,6 +149,18 @@ export function validateProposal(item) {
   // Batching (§4.11): only the planner knows a task is small in advance.
   if (item.size !== undefined && item.size !== "small")
     fail('size may only be "small".');
+  // Investigate first (§4.21) and ship mode (§4.25), per task; a spec's
+  // ship mode and type come from its folder.
+  if (item.investigate !== undefined && typeof item.investigate !== "boolean")
+    fail("investigate must be true or false.");
+  for (const field of ["ship", "specShip"])
+    if (
+      item[field] !== undefined &&
+      !["auto-merge", "manual"].includes(item[field])
+    )
+      fail(`${field} must be "auto-merge" or "manual".`);
+  if (item.specType !== undefined && item.specType !== "bugfix")
+    fail('specType may only be "bugfix".');
   if (
     item.paths !== undefined &&
     (!Array.isArray(item.paths) ||
@@ -594,6 +606,11 @@ export function approvePlan(
             "needs",
             "budget",
             "specBudget",
+            "size",
+            "investigate",
+            "ship",
+            "specShip",
+            "specType",
           ]
             .filter((key) => proposal[key] !== undefined)
             .map((key) => [key, proposal[key]]),
@@ -678,6 +695,11 @@ export function approvePlan(
           "needs",
           "budget",
           "specBudget",
+          "size",
+          "investigate",
+          "ship",
+          "specShip",
+          "specType",
           "phase",
         ])
           if (design[key] === undefined) delete existing[key];

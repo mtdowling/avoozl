@@ -4,6 +4,7 @@
 // empty rather than failing the view.
 import { budgetSummaries } from "./budget.mjs";
 import { providerOutItems } from "./provider-health.mjs";
+import { investigationItems } from "./investigate.mjs";
 import { queryTasks, reviewSettled, statusComplete } from "../model.mjs";
 import {
   completionReached,
@@ -1099,6 +1100,50 @@ export function conflictsView(store, data) {
   }
   // A provider or model that is out (§4.20, R72.16): one item per mark.
   items.push(...providerOutItems(store));
+  // Ready to merge under manual ship (§4.25, R80.3, R80.4): a pull request
+  // a person merges on GitHub, or a local task waiting for Integrate.
+  for (const row of optionalList(store, "pr_feedback")) {
+    const task = byId.get(row.taskId);
+    if (!row.ready || !row.pull || !task || complete(task.status)) continue;
+    items.push({
+      kind: "ready-to-merge",
+      id: "ready-to-merge:" + task.id,
+      taskId: task.id,
+      ...ownership(task),
+      title: `${task.id} is ready to merge`,
+      detail: `Its checks and reviews pass on ${String(row.ready.head).slice(0, 12)}. You merge it on GitHub; Avoozl never merges it.`,
+      link: row.ready.url,
+      pullRequest: row.ready.number,
+      openedAt: row.ready.at,
+    });
+  }
+  for (const delivery of optionalList(store, "task_deliveries")) {
+    const task = byId.get(delivery.taskId);
+    if (
+      !task ||
+      delivery.state !== "verified" ||
+      !delivery.awaitingIntegrate ||
+      delivery.awaitingIntegrate !== delivery.commit ||
+      delivery.integrateApproved?.commit === delivery.commit
+    )
+      continue;
+    items.push({
+      kind: "ready-to-merge",
+      id: "ready-to-merge:" + task.id,
+      taskId: task.id,
+      ...ownership(task),
+      title: `${task.id} is ready to merge`,
+      detail: `Its checks and reviews passed on ${delivery.commit.slice(0, 12)}. Press Integrate to land it.`,
+      commit: delivery.commit,
+      integrate: true,
+      openedAt: delivery.updatedAt ?? null,
+    });
+  }
+  // Findings the gate did not pass (§4.21, R75.4).
+  for (const item of investigationItems(store, data)) {
+    const task = byId.get(item.taskId);
+    items.push({ ...item, ...(task ? ownership(task) : {}) });
+  }
   const holders = new Map();
   for (const run of optionalList(store, "runs"))
     if (ACTIVE_RUNS.has(run.state) && !run.deletedAt)

@@ -11,6 +11,7 @@
     "agents/avoozl-planner.json",
     "agents/avoozl-verifier.json",
     "agents/avoozl-reviewer.json",
+    "agents/avoozl-falsifier.json",
     "agents/avoozl-responder.json",
     "agents/avoozl-retro.json",
     "agents/avoozl-router.json",

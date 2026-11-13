@@ -218,7 +218,7 @@ import {
   promptVersions,
   skillHashes,
 } from "./retro-memory.mjs";
-import { deliverRetroSkill } from "./intake.mjs";
+import { deliverRetroRule, deliverRetroSkill } from "./intake.mjs";
 
 const PLUGIN_OPERATIONS = new Set([
   "plugins.list",
@@ -307,6 +307,8 @@ import {
   setIdeaState,
 } from "./ideas.mjs";
 import { writeSpecManifest } from "./spec-manifest.mjs";
+import { decideInvestigation } from "./investigate.mjs";
+import { taskEvidence } from "./evidence.mjs";
 import {
   callerSlot,
   claimedTaskIds,
@@ -314,6 +316,7 @@ import {
   prepareWorktree,
   reportSession,
   retryDelivery,
+  approveIntegration,
   readyCandidates,
   pickAgain,
   reviewRoles as deliveryReviewRoles,
@@ -2089,6 +2092,7 @@ export class Operations {
         placement: this.placement,
         local: context.local === true,
         flow: readFlowPolicy(this.workspaceRoot),
+        policy: readDeliveryPolicy(this.workspaceRoot).delivery,
       });
       if (skills?.length && result.binding) {
         const hashes = skillHashes(store, skills, result.binding.taskId),
@@ -2182,6 +2186,43 @@ export class Operations {
     if (name === "providers.settings.update")
       return updateProviders(store, input);
     if (name === "delivery.pickAgain") return pickAgain(store, input);
+    // The task's evidence bundle (§4.22): read only.
+    if (name === "task.evidence")
+      return taskEvidence(store, {
+        ...input,
+        taskId: resolveTaskId(this.read(), String(input.taskId ?? "")),
+      });
+    // Ship mode manual in Local only (§4.25, R80.4): a person's Integrate.
+    if (name === "delivery.integrate") {
+      if (context.caller || context.mcp)
+        fail(
+          "Only a person presses Integrate, in the Avoozl page or the CLI.",
+          403,
+        );
+      return approveIntegration(store, input, {
+        by: context.local ? "cli" : this.operator || "dashboard",
+      });
+    }
+    // Investigate first (§4.21): Go ahead, Investigate again or Stop.
+    if (name === "investigation.decide") {
+      if (context.caller || context.mcp)
+        fail(
+          "Only a person decides on a task's findings, in the Avoozl page or the CLI.",
+          403,
+        );
+      return decideInvestigation(
+        store,
+        this.read(),
+        {
+          ...input,
+          taskId:
+            typeof input.taskId === "string"
+              ? resolveTaskId(this.read(), input.taskId)
+              : input.taskId,
+        },
+        { by: context.local ? "cli" : this.operator || "dashboard" },
+      );
+    }
     if (name === "delivery.settings.get")
       return this.settingsFile().readDeliverySettings();
     if (name === "delivery.settings.update") {
@@ -2518,6 +2559,15 @@ export class Operations {
         skill: async (change) =>
           withWorkLock(store, WORKSPACE_LOCK, async () =>
             deliverRetroSkill(
+              store,
+              readGitHubPolicyOrNull(this.workspaceRoot),
+              change,
+            ),
+          ),
+        // A rule from repeated corrections is one leaf too (R78.3).
+        rule: async (change) =>
+          withWorkLock(store, WORKSPACE_LOCK, async () =>
+            deliverRetroRule(
               store,
               readGitHubPolicyOrNull(this.workspaceRoot),
               change,

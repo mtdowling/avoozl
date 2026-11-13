@@ -15,6 +15,7 @@ import {
   prepareWorktree,
   readyLeaves,
   briefAllowed,
+  shipMode,
 } from "./delivery.mjs";
 import {
   isLinkedBranchLeaf,
@@ -171,7 +172,12 @@ export function nextView(store, { policy, github = null }) {
       continue;
     }
     const leaf = startable.get(task.id),
-      brief = leaf ? leafBrief(store, data, leaf, { relay: true }) : null;
+      brief = leaf
+        ? leafBrief(store, data, leaf, {
+            relay: true,
+            ship: shipMode(delivery, task),
+          })
+        : null;
     // A brief a content rule blocks is not offered (§4.9); its decision
     // shows the task under needsYou in the Conflicts view.
     if (

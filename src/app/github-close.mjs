@@ -629,7 +629,7 @@ export async function reconcileGitHubCompletion(store, github, { policy }) {
         messages.push({
           slot: worker.slot,
           task: task.id,
-          text: `Avoozl task ${task.id}: ${verdict.reason} Rewrite it with \`gh pr edit\` (title or body) or by amending and force-pushing your branch (commit messages), using only this task's own title and acceptance.`,
+          text: `Avoozl task ${task.id}: ${verdict.reason} Rewrite the title or body with \`gh pr edit\`, using only this task's own title and acceptance. A commit message cannot change without rewriting pushed history, which Avoozl never asks for: if a commit message is the cause, report blocked so a person decides.`,
         });
     }
   }

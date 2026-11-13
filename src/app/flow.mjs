@@ -15,6 +15,9 @@ import { fail } from "./store.mjs";
 
 export const STAGES = Object.freeze([
   "queued",
+  // Findings before code, and the falsifier checking them (§4.21).
+  "investigate",
+  "falsify",
   "coding",
   "tests",
   "commands",
@@ -26,6 +29,7 @@ export const STAGES = Object.freeze([
 ]);
 // Active time in flow efficiency; the rest is waiting on someone else.
 export const ACTIVE = new Set([
+  "investigate",
   "coding",
   "tests",
   "commands",
@@ -283,6 +287,9 @@ function closeOpen(store, taskId, attempt, role, at, { except = null } = {}) {
 
 const BLOCKING_EDGES = new Set(["requires", "sequence"]);
 const workerStage = (attempt) => (attempt > 1 ? "rework" : "coding");
+// A worker opened to investigate first starts with its findings (§4.21).
+const firstStage = (binding) =>
+  binding.investigate ? "investigate" : workerStage(binding.attempt);
 const isRunner = (b) =>
   b.role === "worker" && ["tick", "conductor"].includes(b.source);
 
@@ -319,14 +326,14 @@ function ensureWorkerStart(store, binding) {
       binding.taskId,
       binding.attempt,
       "worker",
-      workerStage(binding.attempt),
+      firstStage(binding),
       binding.boundAt,
     ),
     taskId: binding.taskId,
     attempt: binding.attempt,
     batchId: binding.batch?.id ?? null,
     role: "worker",
-    stage: workerStage(binding.attempt),
+    stage: firstStage(binding),
     startedAt: binding.boundAt,
     source: "events",
   });
@@ -378,6 +385,13 @@ export function flowOnReport(
     if (report.kind === "blocked") put("waiting", "events");
     return;
   }
+  // Findings end the investigation stretch; the worker waits for the gate.
+  if (report.kind === "findings") {
+    if (waiting) return;
+    closeOpen(store, taskId, attempt, "worker", at);
+    put("waiting", "events");
+    return;
+  }
   if (report.kind === "question") {
     if (waiting) return;
     closeOpen(store, taskId, attempt, "worker", at);
@@ -401,6 +415,24 @@ export function flowOnReport(
   if (current?.stage === phase && current.source === "markers") return;
   closeOpen(store, taskId, attempt, "worker", at);
   put(phase, "markers");
+}
+
+// A decision on a worker's findings (§4.21): Go ahead starts its coding,
+// Investigate again a new investigation stretch; both end its wait.
+export function flowOnDecision(store, binding, action, at) {
+  if (!binding || !isRunner(binding) || action === "stop") return;
+  const { taskId, attempt } = binding;
+  closeOpen(store, taskId, attempt, "worker", at);
+  const stage = action === "go" ? workerStage(attempt) : "investigate";
+  putSpan(store, {
+    id: spanId("events", taskId, attempt, "worker", stage, at),
+    taskId,
+    attempt,
+    role: "worker",
+    stage,
+    startedAt: at,
+    source: "events",
+  });
 }
 
 // When a task became ready for this attempt, from events Avoozl already
@@ -509,9 +541,11 @@ export function syncSpans(store, { now = Date.now() } = {}) {
     const stage =
       binding.role === "verifier"
         ? "tests"
-        : binding.role?.startsWith("review:")
-          ? "review"
-          : null;
+        : binding.role === "falsifier"
+          ? "falsify"
+          : binding.role?.startsWith("review:")
+            ? "review"
+            : null;
     if (!stage || binding.source !== "tick") continue;
     const id = spanId(
         "events",
@@ -713,6 +747,18 @@ export function finishedAt(task) {
   );
 }
 
+// Fix work (§4.11, R79.1): a bugfix spec's task, a manifest `type: fix`, a
+// stop-the-line fix task, or a GitHub issue of type Bug.
+export function isFixWork(task) {
+  return Boolean(
+    task &&
+      (task.specType === "bugfix" ||
+        task.type === "fix" ||
+        task.flowFix ||
+        String(task.github?.issueType || "").toLowerCase() === "bug"),
+  );
+}
+
 // One task's timing: lead time, time per stage, sources, and whether any of
 // it is coarse (not from tool calls or GitHub timestamps).
 export function taskTiming(
@@ -751,6 +797,7 @@ export function taskTiming(
     coarse: workerSpans.some((s) => s.source !== "tool-calls"),
     sources: [...new Set(own.map((s) => s.source))],
     batch: own.find((s) => s.batchId)?.batchId || null,
+    fix: isFixWork(task),
     firstPass:
       Boolean(end) &&
       !own.some((s) => s.stage === "rework") &&
@@ -768,6 +815,7 @@ function windowMetrics(timings, stops, culprits, size) {
       firstPassRate: null,
       changeFailureRate: null,
       integrationsPerDay: null,
+      fixWork: { fixes: 0, finished: 0, share: null },
     };
   const lead = timings.reduce((s, t) => s + t.leadMs, 0),
     active = timings.reduce((s, t) => s + t.activeMs, 0),
@@ -782,6 +830,12 @@ function windowMetrics(timings, stops, culprits, size) {
     changeFailureRate:
       timings.filter((t) => culprits.has(t.taskId)).length / finished,
     integrationsPerDay: finished / days,
+    // Fix tasks over finished tasks (R79.2).
+    fixWork: {
+      fixes: timings.filter((t) => t.fix).length,
+      finished,
+      share: timings.filter((t) => t.fix).length / finished,
+    },
   };
 }
 
@@ -877,6 +931,11 @@ export function flowView(store, data, input = {}, { now = Date.now() } = {}) {
       );
     },
     metrics = windowMetrics(current, stops, culprits, size),
+    taskIds = new Set(tasks.map((t) => t.id)),
+    filtered = input.repository || input.epic || input.plan || input.phase,
+    corrections = listOr(store, "corrections").filter(
+      (c) => !filtered || taskIds.has(c.taskId),
+    ),
     before = windowMetrics(previous, stops, culprits, size),
     records = listOr(store, "flow_records");
   metrics.timeToFixMs = timeToFix(
@@ -896,8 +955,15 @@ export function flowView(store, data, input = {}, { now = Date.now() } = {}) {
     flaky: records.filter((r) => r.kind === "flaky"),
     ciOnly: records.filter((r) => r.kind === "ci-only"),
     series: {
-      day: flowSeries(timings, stops, "day"),
-      week: flowSeries(timings, stops, "week"),
+      day: flowSeries(timings, stops, "day", corrections),
+      week: flowSeries(timings, stops, "week", corrections),
+    },
+    // Corrections (§4.24, R78.5), with the same filters.
+    corrections: {
+      lastWeek: corrections.filter(
+        (c) => now - Date.parse(c.at) <= 7 * 86_400_000,
+      ).length,
+      total: corrections.length,
     },
     retros: listOr(store, "flow_retros").sort((a, b) =>
       a.startedAt < b.startedAt ? 1 : -1,
@@ -941,13 +1007,22 @@ export function bucketOf(iso, unit) {
   return d.toISOString().slice(0, 10);
 }
 
-export function flowSeries(timings, stops, unit = "day") {
+export function flowSeries(timings, stops, unit = "day", corrections = []) {
   const buckets = new Map(),
     get = (key) => {
       if (!buckets.has(key))
-        buckets.set(key, { key, tasks: [], fixes: [], opened: 0 });
+        buckets.set(key, {
+          key,
+          tasks: [],
+          fixes: [],
+          opened: 0,
+          corrected: 0,
+        });
       return buckets.get(key);
     };
+  // Corrections people made, by when (R78.5).
+  for (const c of corrections)
+    if (c.at) get(bucketOf(c.at, unit)).corrected += 1;
   for (const t of timings)
     if (t.finishedAt) get(bucketOf(t.finishedAt, unit)).tasks.push(t);
   for (const s of stops) {
@@ -957,7 +1032,7 @@ export function flowSeries(timings, stops, unit = "day") {
   }
   return [...buckets.values()]
     .sort((a, b) => (a.key < b.key ? -1 : 1))
-    .map(({ key, tasks, fixes, opened }) => {
+    .map(({ key, tasks, fixes, opened, corrected }) => {
       const lead = tasks.reduce((sum, t) => sum + t.leadMs, 0),
         active = tasks.reduce((sum, t) => sum + t.activeMs, 0),
         stages = Object.fromEntries(
@@ -977,6 +1052,12 @@ export function flowSeries(timings, stops, unit = "day") {
         timeToFixMs: median(fixes),
         // Line stops opened in the bucket, automatic and pulled (R64.11).
         stops: opened,
+        // The share of finished tasks that were fix work (R79.2).
+        fixShare: tasks.length
+          ? tasks.filter((t) => t.fix).length / tasks.length
+          : null,
+        fixes: tasks.filter((t) => t.fix).length,
+        corrections: corrected,
         stages,
       };
     });

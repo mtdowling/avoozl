@@ -6,13 +6,15 @@
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
 
-export const STAGES = ['queued', 'coding', 'tests', 'commands', 'ci-wait', 'review', 'rework', 'merge', 'waiting'] as const
+export const STAGES = ['queued', 'investigate', 'falsify', 'coding', 'tests', 'commands', 'ci-wait', 'review', 'rework', 'merge', 'waiting'] as const
 export type Stage = (typeof STAGES)[number]
 
 // One color per stage, readable on light and dark cards. Waiting stages are
 // muted; rework is the warm red of waste.
 export const STAGE_COLORS: Record<Stage, string> = {
   queued: '#94a3b8',
+  investigate: '#6366f1',
+  falsify: '#f97316',
   coding: '#3b82f6',
   tests: '#10b981',
   commands: '#8b5cf6',
@@ -25,6 +27,8 @@ export const STAGE_COLORS: Record<Stage, string> = {
 
 export const STAGE_LABELS: Record<Stage, string> = {
   queued: 'Queued',
+  investigate: 'Investigate',
+  falsify: 'Falsify',
   coding: 'Coding',
   tests: 'Tests',
   commands: 'Commands',
@@ -59,6 +63,8 @@ export interface Metrics {
   changeFailureRate: number | null
   integrationsPerDay: number | null
   timeToFixMs: number | null
+  // Fix tasks over finished tasks (§4.11, R79). Older backends omit it.
+  fixWork?: { fixes: number; finished: number; share: number | null }
 }
 
 export interface LineStop {
@@ -265,6 +271,8 @@ export interface FlowViewModel {
   plans?: { id: string; title: string }[]
   phases?: { id: string; title: string }[]
   series: { day: SeriesPoint[]; week: SeriesPoint[] }
+  // Corrections people made (§4.24); older backends omit them.
+  corrections?: { lastWeek: number; total: number }
   usage: UsageView
   // Task IDs over budget, past 80%, stopped at the cap, or stopped by a
   // person (§4.17). Older backends send none.
@@ -287,6 +295,10 @@ export interface SeriesPoint {
   flowEfficiency: number | null
   firstPassRate: number | null
   timeToFixMs: number | null
+  // Fix work and corrections in the bucket (R79.2, R78.5).
+  fixShare?: number | null
+  fixes?: number
+  corrections?: number
   stages: Record<Stage, number>
 }
 
@@ -461,6 +473,10 @@ export function duration(ms: number | null | undefined): string {
 export const percent = (value: number | null | undefined) =>
   value === null || value === undefined ? '–' : `${Math.round(value * 100)}%`
 
+// "33% (1 of 3)", or a dash before any task finished.
+export const fixText = (fix: Metrics['fixWork']) =>
+  fix && fix.share !== null && fix.finished ? `${percent(fix.share)} (${fix.fixes} of ${fix.finished})` : '–'
+
 // The four metric cards (R48.2): value, the previous window's value, and
 // what produces a value when there is none yet.
 export function metricCards(view: FlowViewModel) {
@@ -471,6 +487,8 @@ export function metricCards(view: FlowViewModel) {
     { key: 'efficiency', title: 'Flow efficiency', value: percent(m.flowEfficiency), was: p.tasks ? percent(p.flowEfficiency) : null, empty: m.flowEfficiency === null ? 'Finish a task to see how much of its time was active.' : null, tip: 'Coding, tests, commands, rework and merge over lead time. Queued, CI wait, review and waiting count as waiting.' },
     { key: 'first-pass', title: 'First-pass rate', value: percent(m.firstPassRate), was: p.tasks ? percent(p.firstPassRate) : null, empty: m.firstPassRate === null ? 'Finish a task to see how many pass the first time.' : null, tip: 'Tasks accepted on their first attempt with no rework.' },
     { key: 'fix', title: 'Time to fix', value: duration(m.timeToFixMs), was: p.tasks && p.timeToFixMs !== null ? duration(p.timeToFixMs) : null, empty: m.timeToFixMs === null ? 'No line stop yet.' : null, tip: 'From the line stopping to the check passing on the branch again.' },
+    { key: 'fix-work', title: 'Fix work', value: fixText(m.fixWork), was: p.tasks ? fixText(p.fixWork) : null, empty: m.fixWork?.share == null ? 'Finish a task to see how much was bug fixes.' : null, tip: 'Finished tasks that were fixes: a bugfix spec, type fix, a stop-the-line fix, or a GitHub Bug.' },
+    { key: 'corrections', title: 'Corrections', value: view.corrections ? `${view.corrections.lastWeek} this week` : '–', was: null, empty: view.corrections ? null : 'No corrections yet.', tip: 'Times a person told an agent it got something wrong: changes requested, sent back, reverted, or Pick again with a reason.' },
   ]
 }
 
