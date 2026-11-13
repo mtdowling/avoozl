@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import {
   canUndo,
+  emptyLimit,
   fromInput,
   fromOptions,
   markText,
@@ -51,7 +52,7 @@ test('switch records say what happened', () => {
   assert.equal(switchText({ ...base, to: null, state: 'done', result: 'no target' }), 'a: no healthy model to switch to')
 })
 
-test('the Providers form round-trips and refuses malformed lines', () => {
+test('the Providers form round-trips and refuses malformed rows', () => {
   const settings = {
     lowPercent: 70,
     cooldownMinutes: 15,
@@ -62,9 +63,25 @@ test('the Providers form round-trips and refuses malformed lines', () => {
   assert.deepEqual(toProvidersSection(toProvidersForm(settings)).providers, settings)
   assert.deepEqual(toProvidersSection(toProvidersForm()).providers, {})
   const form = toProvidersForm()
-  assert.match(toProvidersSection({ ...form, lowPercent: '7.5' }).error, /lowPercent/)
-  assert.match(toProvidersSection({ ...form, limits: 'claude dollars 5' }).error, /credits\|tokens/)
+  assert.match(toProvidersSection({ ...form, lowPercent: '7.5' }).error, /Low at must be a whole number/)
+  // A blank row is skipped; a half-filled one says what is missing.
+  assert.deepEqual(toProvidersSection({ ...form, limits: [emptyLimit()] }).providers, {})
+  assert.match(toProvidersSection({ ...form, limits: [{ name: 'claude', unit: 'credits', amount: '' }] }).error, /claude needs an amount/)
+  assert.match(toProvidersSection({ ...form, limits: [{ name: '', unit: 'tokens', amount: '5' }] }).error, /needs a provider or model name/)
   assert.match(toProvidersSection({ ...form, groups: 'anthropic' }).error, /<provider>: <pattern>/)
+})
+
+test('the Thresholds form groups its fields in titled boxes, shows defaults and folds advanced values away', () => {
+  const page = source('ProvidersSettings.tsx')
+  for (const title of ['Low and out', 'Limits', 'Fallback models', 'Timing', 'Provider groups']) assert.match(page, new RegExp(`<FieldBox\\s+title="${title}"`), title)
+  const advanced = page.slice(page.indexOf('<Fold'), page.indexOf('</Fold>'))
+  assert.match(advanced, /avoozl-providers-window/)
+  assert.match(advanced, /avoozl-providers-cooldown/)
+  assert.match(advanced, /avoozl-providers-groups/)
+  assert.doesNotMatch(advanced, /avoozl-providers-low/)
+  assert.match(page, /Blank: \$\{d\.lowPercent\}%/)
+  assert.match(page, /Add a limit/)
+  assert.match(page, /<AskForHelp context=\{help\} \/>/)
 })
 
 test('Switch model sits in the Dashboard header and on In flight; Providers is a Settings tab', () => {

@@ -6,16 +6,28 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   MODE_TEXT,
+  MODE_TITLE,
   chipText,
   chipTone,
   fromBudgetForm,
   fromPricesForm,
+  howPriced,
+  inheritText,
+  modelsInUse,
+  priceKey,
+  pricesUpdatedText,
   receiptFile,
   showChip,
   toBudgetForm,
   toPricesForm,
   toRaise,
 } from "../src/budget-api.ts";
+import {
+  COSTS_DOCS,
+  COSTS_SKILL,
+  HELP_LABEL,
+  helpMessage,
+} from "../src/help-chat.ts";
 import { budgetMark } from "../src/flow-api.ts";
 import { summarize } from "../src/dashboard-api.ts";
 
@@ -112,8 +124,128 @@ test("a budget level is blank unless set, and refuses bad numbers by name", () =
     credits: "",
     mode: "stop",
   });
-  assert.match(MODE_TEXT.stop, /no new session starts/);
+  assert.match(MODE_TEXT.stop, /no new chat starts/);
   assert.match(MODE_TEXT.warn, /keeps running/);
+});
+
+test("inherited choices say where they come from and what they are", () => {
+  assert.equal(
+    inheritText("workspace default", MODE_TITLE.stop),
+    "Use the workspace default (Stop)",
+  );
+  assert.equal(
+    inheritText("repository setting", MODE_TITLE.warn),
+    "Use the repository setting (Warn)",
+  );
+  const page = source("BudgetSettings.tsx");
+  assert.doesNotMatch(page, /Same as above/);
+  assert.doesNotMatch(MODE_TEXT.stop + MODE_TEXT.warn, /^(Stop|Warn):/);
+  // Stop and Warn are the shared radio fold-out, inside titled boxes.
+  assert.match(page, /<RadioFold\b/);
+  assert.match(page, /<FieldBox title="When a task reaches its cap">/);
+  assert.match(page, /<FieldBox title="Dollar cap">/);
+  assert.match(page, /inheritText\(fallback\.from, MODE_TITLE\[fallback\.mode\]\)/);
+  assert.match(page, /from: "workspace default"/);
+  // The fallback caps fold away under Advanced.
+  assert.match(page, /<Fold title="Advanced: caps for turns not counted in dollars"/);
+});
+
+const pricesView = (extra = {}) => ({
+  version: 0,
+  sha256: "x",
+  savedAt: null,
+  hash: null,
+  creditUsd: null,
+  models: {},
+  defaults: {
+    updated: "2026-11-13",
+    sources: ["https://example.com/pricing"],
+    models: { "claude-sonnet-4.5": { inputPerMTokUsd: 3, outputPerMTokUsd: 15 } },
+  },
+  caps: { tokens: 2000000, credits: 200 },
+  seen: [],
+  ...extra,
+});
+
+test("default prices apply with nothing typed, and each model says how it is budgeted", () => {
+  const view = pricesView({
+    seen: [
+      { model: "claude-sonnet-4.5", turns: 2, unpricedTurns: 0, priced: "default" },
+      { model: "kiro-x", turns: 1, unpricedTurns: 1, creditTurns: 1, priced: "credits" },
+      { model: "local-x", turns: 1, unpricedTurns: 1, priced: "none" },
+    ],
+  });
+  assert.equal(pricesUpdatedText(view), "Prices last updated 2026-11-13.");
+  const rows = modelsInUse(view, ["anthropic/claude-sonnet-4-5", "local-x"]);
+  assert.deepEqual(
+    rows.map((r) => [r.model, r.kind]),
+    [
+      ["claude-sonnet-4.5", "default"],
+      ["kiro-x", "credits"],
+      ["local-x", "none"],
+      ["anthropic/claude-sonnet-4-5", "default"],
+    ],
+  );
+  assert.match(rows[0].text, /\$3 in, \$15 out per million tokens \(built-in price\)/);
+  assert.match(rows[1].text, /bills this model in credits, so it is budgeted in credits: 200 credits/);
+  assert.match(rows[2].text, /No known price, so Avoozl cannot count it in dollars\. It counts against the token cap instead: 2,000,000 tokens/);
+  const own = howPriced(
+    pricesView({ models: { "claude-sonnet-4.5": { inputPerMTokUsd: 1, outputPerMTokUsd: 2 } } }),
+    { model: "claude-sonnet-4.5" },
+  );
+  assert.deepEqual(own.kind, "override");
+  assert.match(own.text, /your price/);
+  assert.equal(priceKey("claude-opus-4-1-20250805"), "claude-opus-4.1");
+  // The override form shows the built-in price as its placeholder.
+  const form = toPricesForm(view, ["claude-sonnet-4.5"]);
+  assert.equal(form.rows.find((r) => r.model === "claude-sonnet-4.5").defaultInput, "3");
+});
+
+test("Settings › Prices asks for no prices: overrides are optional and folded away", () => {
+  const page = source("BudgetSettings.tsx");
+  assert.match(page, /You do not need to enter any\./);
+  assert.doesNotMatch(page, /ships no prices/);
+  const fold = page.slice(page.indexOf('id="price-overrides"') - 200, page.indexOf('id="price-overrides"'));
+  assert.match(fold, /<Fold\s*$/);
+  assert.doesNotMatch(fold, /\bopen\b/);
+  assert.match(page, /Override prices/);
+  assert.match(page, /pricesUpdatedText\(value\)/);
+});
+
+test("Ask for help seeds a chat with the page, its settings and the guide, and saves nothing", () => {
+  const message = helpMessage({
+    page: "Settings > Budgets",
+    purpose: "It sets caps.",
+    settings: { workspace: { usd: 5 } },
+    skill: COSTS_SKILL,
+    docs: COSTS_DOCS,
+  });
+  assert.match(message, /Settings > Budgets/);
+  assert.match(message, /"usd": 5/);
+  assert.match(message, /avoozl-costs skill \(skills\/avoozl-costs\/SKILL\.md/);
+  assert.match(message, /Do not edit any file or save settings yourself/);
+  assert.match(message, /press Save there/);
+  assert.equal(HELP_LABEL, "Ask for help");
+  for (const name of ["BudgetSettings.tsx", "ProvidersSettings.tsx"])
+    assert.ok(
+      (source(name).match(/<AskForHelp context=\{help\} \/>/g) || []).length >= 1,
+      name,
+    );
+  assert.equal(
+    (source("BudgetSettings.tsx").match(/<AskForHelp /g) || []).length,
+    2,
+    "Budgets and Prices",
+  );
+  const link = source("AskForHelp.tsx");
+  assert.match(link, /MessagesSquare/);
+  assert.match(link, /autoSend: false/);
+  assert.match(
+    readFileSync(
+      new URL("../../skills/avoozl-costs/SKILL.md", import.meta.url),
+      "utf8",
+    ),
+    /^---\nname: avoozl-costs\n/,
+  );
 });
 
 test("the price table lists offered and seen models and needs both prices", () => {

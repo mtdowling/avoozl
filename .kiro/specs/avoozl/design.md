@@ -2396,8 +2396,18 @@ Needs you: Raise budget (person) │ Stop (person, pauses like Deferred)
 
 #### Price table
 
-- **Where.** Machine-local settings, `~/.config/avoozl/config.json` key
-  `prices` (F74), never in a tracked file:
+- **Built in.** `src/app/default-prices.mjs` holds public list prices
+  (base input and output, dollars per million tokens) for known models,
+  with `updated` (the date read) and `sources` (the pricing page URLs).
+  Avoozl uses it with no setup. A model ID matches after `priceKey`
+  normalizes it: lower case, no provider prefix, no date or version suffix,
+  dots between version numbers (`claude-sonnet-4-5-20250929` →
+  `claude-sonnet-4.5`). Cache writes and hits are not in Kiro Crew's usage
+  rows, so they are not priced. Updating the table is a code change that
+  moves `updated` with the numbers (owner decision 2026-11-13: nobody
+  should have to type prices).
+- **Overrides.** Machine-local settings, `~/.config/avoozl/config.json`
+  key `prices` (F74), never in a tracked file:
 
   ```json
   {
@@ -2411,25 +2421,34 @@ Needs you: Raise budget (person) │ Stop (person, pauses like Deferred)
   }
   ```
 
-  The numbers above are an example layout, not shipped prices. Avoozl ships
-  an empty table, because prices change and a public repository should not
-  carry stale ones. Validation refuses `prices` in `.avoozl.json`, in a
-  settings pack (§4.14), and in a manifest, and names the file.
+  The numbers above are an example layout. An override wins for its
+  model; a new file has none. Validation refuses `prices` in
+  `.avoozl.json`, in a settings pack (§4.14), and in a manifest, and names
+  the file.
 - **Versions.** `prices.save` (person only) bumps `version`, computes the
-  sha256 of the canonical JSON, and writes a row to the SQLite table
-  `price_versions` (`version`, `sha256`, `saved_at`, `table_json`). A
-  driver export (§6.10) leaves `prices` and `price_versions` out, like
-  every machine-local setting; the new driver prices with its own table.
-- **Pricing a turn.** `credits > 0` and `creditUsd` set: `credits ×
-  creditUsd`. Otherwise tokens and a model price: `input ×
-  inputPerMTokUsd / 1e6 + output × outputPerMTokUsd / 1e6`. Anything else
-  is unpriced. The kiro backend fills credits and other backends fill
-  tokens (§4.11), so one table covers both.
-- **Settings › Prices**, marked "this computer only": one row per model
-  Kiro Crew lists (`GET /api/models`, already granted) and per model seen
-  in `flow_usage`, with input and output price fields, a Credit price
-  field, the version and when it was saved, and a muted note on each model
-  with turns but no price.
+  sha256 of the canonical JSON of the overrides plus the built-in table's
+  `updated` date, and writes a row to the SQLite table `price_versions`
+  (`version`, `sha256`, `saved_at`, `table_json`). A driver export (§6.10)
+  leaves `prices` and `price_versions` out, like every machine-local
+  setting; the new driver prices with its own table.
+- **Pricing a turn.** `credits > 0`: `credits × creditUsd` when a credit
+  price is set, else unpriced, counted against the credit cap: Kiro Crew
+  bills it in credits, and a token list price is not what it cost.
+  Otherwise tokens at the override for the model, else the built-in price:
+  `input × inputPerMTokUsd / 1e6 + output × outputPerMTokUsd / 1e6`.
+  Anything else is unpriced and counts against the token cap.
+- **Settings › Prices.** "Prices last updated <date>" with a Source link;
+  **Models in use**, one row per model Kiro Crew lists (`GET /api/models`)
+  and per model seen in `flow_usage`, each saying how it is budgeted in
+  plain words: the built-in price, your price, "billed in credits, so it is
+  budgeted in credits: N credits per task", or "no known price, so it
+  counts against the token cap instead: N tokens per task". Below it,
+  **Override prices**, collapsed and optional, marked "this computer only":
+  the credit price and per-model input and output fields, each showing the
+  built-in price as its placeholder, with the version and when it was
+  saved. `prices.get` returns `models` (the overrides), `defaults`, `caps`
+  (the workspace fallback caps) and `seen[].priced` (`override`,
+  `default`, `credits` or `none`).
 
 #### Caps
 
@@ -2443,7 +2462,8 @@ Needs you: Raise budget (person) │ Stop (person, pauses like Deferred)
   and `credits`, defaulting to 2,000,000 and 200 per task. Priced turns
   count only against `usd`. A task stops when any of the three is reached.
   The first unpriced turn of a model on a task raises one warning on the
-  task and lists the model in Settings › Prices.
+  task that says why (no known price, or billed in credits) and which cap
+  it counts against.
 - **What counts.** Every binding of the task: writer attempts and retries,
   the verifier, review roles (§5.2), responders for pull request feedback
   (§4.13), and the batch (§4.11). A batch's cap is the sum of its tasks'
@@ -2580,12 +2600,35 @@ in the repository Edit modal, so each cap lives in one place. The CLI adds
 export (§6.10) is not built yet; when it is, it leaves `prices` and
 `price_versions` out.
 
+#### Settings pages (owner UX audit, 2026-11-13)
+
+- **Budgets.** Each level is titled bordered boxes: **Dollar cap** (a blank
+  field says what it falls back to: "Blank: the workspace default ($5)"),
+  and **When a task reaches its cap**, the shared radio fold-out with Stop
+  and Warn. A repository's first choice says where it comes from and what
+  it is, "Use the workspace default (Stop)"; nothing says "same as above".
+  The Warn choice holds the notice checkbox at the workspace. The token and
+  credit caps fold away under **Advanced: caps for turns not counted in
+  dollars**.
+- **Providers › Thresholds.** Boxes for **Low and out** (Low at, default
+  shown), **Limits** (one row per provider or model: name, amount, unit,
+  Remove, Add a limit) and **Fallback models**. The usage window, error
+  cooldown and provider groups fold away under Advanced.
+- **Ask for help.** A chat-icon link on Budgets, Prices and Providers
+  (`AskForHelp.tsx`, `help-chat.ts`) opens a Kiro Crew chat, not sent,
+  seeded with the page, its current values as JSON, and the
+  `avoozl-costs` skill (`skills/avoozl-costs/SKILL.md`), which explains
+  every field and default. The chat proposes values; it is told not to
+  write files or save, so the page's Save stays the only write. The part
+  is shared, for any setup screen that wants one.
+
 #### Why each choice
 
 | Choice | Why |
 |---|---|
 | Dollars as the unit | Tokens and credits do not compare across models |
-| Prices on this Mac only, none shipped | Prices are private and go stale; a shared file would spread wrong numbers |
+| Built-in dated prices, optional overrides on this Mac | Nobody knows list prices by heart; a dated table with its source says how fresh it is, and an override covers a negotiated price |
+| Credit turns budgeted in credits | Kiro Crew bills them in credits; a token list price is not what they cost |
 | Raw counts stored, dollars on read | A price change recomputes every receipt |
 | Versioned price table | A receipt can say which prices made a stop |
 | Token and credit fallback | An unpriced model must still have a ceiling |
@@ -3064,7 +3107,8 @@ row that cannot be written never loses the record in `provider_switches`
 - **Needs you** lists `out` marks from `conflicts.view` kind `provider-out`
   (R72.16).
 - **Settings › Providers** edits the machine `providers` key and lists the
-  marks with Undo (R72.17).
+  marks with Undo (R72.17). Its Thresholds form is described in §4.17,
+  Settings pages.
 
 #### Why each choice
 

@@ -3465,21 +3465,30 @@ cannot spend without limit and I can see where the money went.
 1. A budget SHALL be a cap in US dollars per task. Dollars SHALL be the
    only budget unit except the fallback of criterion 6, because they are
    the only unit that compares across models.
-2. Dollars SHALL come from a **price table** that lives only on this
-   machine, in machine-local settings (`~/.config/avoozl/config.json` key
-   `prices`). It SHALL hold, per model ID, a dollar price per million input
-   tokens and per million output tokens, and one dollar price per Kiro
-   credit. Validation SHALL refuse a `prices` key in `.avoozl.json`, a
-   plugin pack, or a spec. The owner SHALL be able to edit it in Settings.
-   Avoozl SHALL ship no prices: a new table is empty.
+2. Dollars SHALL come from a **price table**. Avoozl SHALL ship a built-in,
+   dated table of public list prices for known models, with the source URL
+   and the date in the file (`src/app/default-prices.mjs`), and SHALL use
+   it with no setup: nobody SHALL have to type a price. This machine MAY
+   override it in machine-local settings (`~/.config/avoozl/config.json`
+   key `prices`): per model ID, a dollar price per million input tokens and
+   per million output tokens, and one dollar price per Kiro credit. An
+   override wins for its model. Validation SHALL refuse a `prices` key in
+   `.avoozl.json`, a plugin pack, or a spec. Settings › Prices SHALL show
+   "Prices last updated <date>" and how each model is budgeted; the
+   override list SHALL be optional and collapsed by default (owner
+   decision 2026-11-13).
 3. Each save of the price table SHALL get the next version number and a
    sha256 of its contents, and Avoozl SHALL keep every saved version in
    SQLite so an old receipt can name the one it used.
 4. Avoozl SHALL store raw counts only: each turn's input tokens, output
    tokens and credits, as Requirement 43 already does. Dollars SHALL be
    computed on read from the raw counts and a price table version. A turn
-   with credits SHALL be priced by the credit price; a turn with only
-   tokens by its model's token prices.
+   with credits SHALL be priced only by the credit price, because Kiro
+   Crew bills it in credits and a token list price is not what it cost;
+   with no credit price it SHALL count against the credit cap (criterion
+   6), and Settings › Prices SHALL say that model is budgeted in credits.
+   A turn with only tokens SHALL be priced by this machine's price for its
+   model, else the built-in one.
 5. A budget SHALL be set at four levels, the most specific winning: the
    workspace default (`budget` in `.avoozl.json`), the repository
    (`projects.<id>.budget`), the spec (top-level `budget` in
@@ -3490,11 +3499,13 @@ cannot spend without limit and I can see where the money went.
    With no level set, a task SHALL have no cap, and its receipt SHALL
    still be kept. There SHALL be no spec-wide total cap (owner decision
    2026-11-13).
-6. WHEN a turn cannot be priced (its model has no price, or it has credits
-   and there is no credit price) THEN the dollar cap SHALL NOT be enforced
-   for that turn. Avoozl SHALL warn once per task and model on the task and
-   in Settings › Prices, and SHALL count unpriced turns against the token
-   cap (input plus output) and the credit cap instead. Where no level sets
+6. WHEN a turn cannot be priced (its model has no known price, or it has
+   credits and there is no credit price) THEN the dollar cap SHALL NOT be
+   enforced for that turn. Avoozl SHALL warn once per task and model on the
+   task, saying why in plain words (no known price, or billed in credits),
+   SHALL say so in Settings › Prices, and SHALL count unpriced token turns
+   against the token cap (input plus output) and credit turns against the
+   credit cap instead. Where no level sets
    them, these caps SHALL default to 2,000,000 tokens and 200 credits per
    task. The defaults SHALL be settings: the workspace `budget.tokens` and
    `budget.credits` replace them.
@@ -3573,7 +3584,14 @@ cannot spend without limit and I can see where the money went.
     retro payload SHALL say which receipts went over budget.
 20. Settings SHALL show the mode next to each cap with one plain line on
     what each mode does, in Settings › Budgets (the workspace and each
-    repository); prices are in Settings › Prices.
+    repository); prices are in Settings › Prices. A choice a level
+    inherits SHALL say where it comes from and what it is ("Use the
+    workspace default (Stop)"), never "same as above". Stop and Warn SHALL
+    use the shared radio fold-out. Budgets, Prices and Providers'
+    Thresholds SHALL each have an **Ask for help** link that opens a Kiro
+    Crew chat seeded with the page, its current settings and the guide;
+    the chat MAY propose values, and only the page's Save writes them
+    (owner decision 2026-11-13).
 21. A remote chat's spend is unknown (criterion 14) and SHALL warn, never
     stop. No upstream Kiro Crew ask is filed for remote usage yet (owner
     decision 2026-11-13).
