@@ -901,6 +901,12 @@ export function approvePlugin(
 
 export function disablePlugin(options, { id, disabled = true }) {
   const settings = readPluginSettings(options.settingsFile);
+  // Enabling still clears a stale entry for a plugin no longer declared.
+  if (
+    !inspectPlugins(options).some((p) => p.id === id) &&
+    !(disabled === false && settings.disabled.includes(id))
+  )
+    fail(`Plugin ${id} is not declared.`, 404);
   settings.disabled = settings.disabled.filter((item) => item !== id);
   if (disabled) settings.disabled.push(id);
   writePluginSettings(options.settingsFile, settings);
