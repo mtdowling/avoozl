@@ -53,7 +53,9 @@ test('the drawer shows every section, and a linked task opens in it', () => {
 test('In flight rows have Info and an Attach link to their session', () => {
   const dashboard = source('DashboardView.tsx')
   assert.match(dashboard, /<IconBtn icon=\{DetailsIcon\} label=\{`Details for \$\{row\.title\}`\} tooltip="Open the task drawer" onClick=\{onInfo\} \/>/)
-  assert.match(dashboard, /href=\{sessionHref\(row\.session\)\}/)
+  // A remote chat attaches only through Kiro Crew's MC-10 (R41.14).
+  assert.match(dashboard, /const href = attachHref\(row\.session\)/)
+  assert.match(dashboard, /href=\{href\}/)
   // In flight comes first in reading order, Needs you beside it.
   assert.ok(dashboard.indexOf('In flight (') < dashboard.indexOf('Needs you ('))
 })

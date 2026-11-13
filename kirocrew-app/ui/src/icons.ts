@@ -70,7 +70,7 @@ import { Info } from 'lucide-react'
 // something on the page.
 export const DetailsIcon = Info
 
-import { CircleAlert, FileText, Gauge, Inbox, LayoutDashboard, LayoutGrid, Network, Settings } from 'lucide-react'
+import { CircleAlert, FileText, Gauge, HardDrive, Inbox, LayoutDashboard, LayoutGrid, Network, Settings } from 'lucide-react'
 // One icon per top-level view, shared by its nav tab and its page heading.
 // Network and LayoutGrid match the Graph and Delivery row buttons.
 export const VIEW_ICONS = {
@@ -80,6 +80,8 @@ export const VIEW_ICONS = {
   delivery: LayoutGrid,
   // Gauge is in the host's lucide-react export list (checked 2026-11-13).
   flow: Gauge,
+  // HardDrive is already in the list above: crews are machines.
+  routing: HardDrive,
   conflicts: CircleAlert,
   untriaged: Inbox,
   settings: Settings,

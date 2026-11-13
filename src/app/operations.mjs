@@ -1852,11 +1852,15 @@ export class Operations {
       });
     // Routing (§4.10, §8.3): one view, a read-only Preview, and the edits.
     if (name === "routing.view")
-      return routingView(store, this.read(), {
-        workspaceRoot: this.workspaceRoot,
-        person: !(context.caller || context.mcp),
-        ...this.routingHooks(),
-      });
+      return {
+        ...routingView(store, this.read(), {
+          workspaceRoot: this.workspaceRoot,
+          person: !(context.caller || context.mcp),
+          ...this.routingHooks(),
+        }),
+        // The expected revision a tracked edit names.
+        configHash: this.settingsFile().readFile().hash,
+      };
     if (name === "routing.preview")
       return routingPreview(store, this.read(), {
         workspaceRoot: this.workspaceRoot,
@@ -1877,6 +1881,15 @@ export class Operations {
     }
     if (name === "crews.update") return updateCrews(store, input);
     if (name === "delivery.pickAgain") return pickAgain(store, input);
+    if (name === "delivery.settings.get")
+      return this.settingsFile().readDeliverySettings();
+    if (name === "delivery.settings.update") {
+      if (context.caller || context.mcp)
+        fail("Only a person changes delivery settings, in the Avoozl page.", 403);
+      const written = this.settingsFile().updateDeliverySettings(input);
+      this.configuration?.reload();
+      return written;
+    }
     if (name === "delivery.retry")
       return retryDelivery(store, input, {
         caller: context.caller,

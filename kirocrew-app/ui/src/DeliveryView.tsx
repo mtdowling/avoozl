@@ -34,6 +34,7 @@ import { IconLabel, ShowMore, ViewHeading, usePages } from './controls.tsx'
 import { DetailsIcon, Pause, Play, RefreshCw, RotateCcw } from './icons.ts'
 import { chatClient } from './chat-api.ts'
 import { DEFER_TIP, RESUME_TIP, RETRY_TIP, START_TIP } from './delivery-api.ts'
+import { routingClient } from './routing-api.ts'
 
 function LaneCardView(props: {
   card: LaneCard
@@ -52,6 +53,10 @@ function LaneCardView(props: {
 }) {
   const { card, busy, act, client, workspaceId } = props
   const drawer = useTaskDrawer()
+  const api = useAppApi()
+  const routing = useMemo(() => routingClient(api), [api])
+  // Pick again (R53.6): offered once a worker's agent and model were chosen.
+  const picked = card.sessions.some((s) => s.role === 'worker' && s.sessionReason)
   const local = card.authority === 'local'
   const issue = safeHref(card.issue?.url ?? null)
   const done = card.item?.complete ?? false
@@ -112,6 +117,11 @@ function LaneCardView(props: {
             {props.ready && canStartNow(card) && (
               <IconLabel icon={Play} disabled={busy} tooltip={START_TIP} onClick={() => props.onStart(card.id)}>
                 Start now
+              </IconLabel>
+            )}
+            {picked && !done && (
+              <IconLabel icon={RefreshCw} disabled={busy} tooltip="The next attempt picks its agent and model afresh" onClick={() => act(() => routing.pickAgain(workspaceId, card.id))}>
+                Pick again
               </IconLabel>
             )}
             {card.deliveryState === 'decision' && (

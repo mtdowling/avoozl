@@ -461,6 +461,8 @@ export function conversationSettings(store) {
   };
 }
 
+const DELIVERY_FORM_KEYS = ["agent", "model", "prFeedback", "feedbackRounds"];
+
 export class RepositorySettings {
   constructor(
     store,
@@ -832,6 +834,42 @@ export class RepositorySettings {
     else delete value.flow;
     this.write(value, { expectedHash: before.hash });
     return this.readFlowSettings();
+  }
+
+  // Settings > Delivery: the writer's agent and model and pull request
+  // feedback (R53.3, R54.8). Other delivery keys are kept as they are.
+  readDeliverySettings() {
+    const file = this.readFile(),
+      delivery = record(file.value.delivery) ? file.value.delivery : {};
+    return {
+      filename: this.filename,
+      exists: file.exists,
+      hash: file.hash,
+      on: record(file.value.delivery),
+      delivery: Object.fromEntries(
+        DELIVERY_FORM_KEYS.filter((key) => key in delivery).map((key) => [key, delivery[key]]),
+      ),
+    };
+  }
+
+  updateDeliverySettings({ delivery, expectedHash } = {}) {
+    const before = this.readFile();
+    if (expectedHash !== before.hash)
+      fail("Avoozl configuration changed; reload before saving.", 409);
+    if (!record(delivery)) fail("Give the delivery settings as an object.");
+    for (const key of Object.keys(delivery))
+      if (!DELIVERY_FORM_KEYS.includes(key))
+        fail(`delivery.${key} is not set here.`);
+    const value = this.updateValue(before);
+    if (!record(value.delivery))
+      fail("Delivery is off in .avoozl.json; turn it on before changing these.", 409);
+    const next = { ...value.delivery };
+    for (const key of DELIVERY_FORM_KEYS)
+      if (delivery[key] === undefined || delivery[key] === null) delete next[key];
+      else next[key] = delivery[key];
+    value.delivery = next;
+    this.write(value, { expectedHash: before.hash });
+    return this.readDeliverySettings();
   }
 
   // An approved retro proposal for a delivery setting (§4.11): one key,

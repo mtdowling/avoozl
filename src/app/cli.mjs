@@ -561,6 +561,53 @@ try {
         2,
       ),
     );
+  else if (command === "routing") {
+    // Routing (§8.3): view, read-only preview, and validated edits with the
+    // expected revision read first, as the page does.
+    const action = positionals[0] || "view";
+    let result;
+    if (action === "view") result = await localOrRequest("routing.view", {});
+    else if (action === "preview")
+      result = await localOrRequest("routing.preview", {});
+    else if (action === "set") {
+      if (!options.file)
+        throw Error(
+          "Name the routing JSON: avoozl routing set --where workspace|machine|repository:ID --file ROUTING.json.",
+        );
+      const where = options.where || "workspace",
+        view = await localOrRequest("routing.view", {});
+      result = await localOrRequest("routing.update", {
+        where,
+        routing: JSON.parse(fs.readFileSync(options.file, "utf8")),
+        expectedHash: where === "machine" ? view.machineHash : view.configHash,
+      });
+    } else throw Error("Choose routing view, preview, or set.");
+    console.log(JSON.stringify(result, null, 2));
+  } else if (command === "crews" && positionals[0] === "set") {
+    if (!options.file)
+      throw Error("Name the crews JSON: avoozl crews set --file CREWS.json [--stale SECONDS].");
+    const view = await localOrRequest("routing.view", {});
+    console.log(
+      JSON.stringify(
+        await localOrRequest("crews.update", {
+          crews: JSON.parse(fs.readFileSync(options.file, "utf8")),
+          ...(options.stale !== undefined
+            ? { staleSeconds: options.stale === "" ? null : Number(options.stale) }
+            : {}),
+          expectedHash: view.machineHash,
+        }),
+        null,
+        2,
+      ),
+    );
+  } else if (command === "pick-again")
+    console.log(
+      JSON.stringify(
+        await localOrRequest("delivery.pickAgain", { taskId: positionals[0] }),
+        null,
+        2,
+      ),
+    );
   else if (command === "retry")
     console.log(
       JSON.stringify(
@@ -1089,6 +1136,10 @@ try {
   claim TASK_ID --slot SESSION [--model MODEL] Claim a ready leaf for a Crew Mode worker session
   report TASK_ID --slot SESSION --kind done|blocked|question|progress [--commit SHA] [--text TEXT]
   retry TASK_ID [--dismiss FINDING --reason TEXT] Resume a leaf that stopped for a decision
+  pick-again TASK_ID                    The next attempt picks its agent and model afresh
+  routing [view|preview]                Crews, rules, smart pick, router; where ready tasks would run
+  routing set --where workspace|machine|repository:ID --file ROUTING.json  Replace one source's rules
+  crews set --file CREWS.json [--stale SECONDS]  This machine's crew tags, limits, and hand-back
   app-backend --workspace PATH          Kiro Crew app backend on 127.0.0.1 ($PORT)
   backup --workspace PATH --output FILE  Local-only; registered IDs are refused
   export --workspace PATH [--output FILE] Local-only; registered IDs are refused

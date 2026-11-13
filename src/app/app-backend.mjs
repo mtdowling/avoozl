@@ -194,6 +194,8 @@ const APP_OPERATIONS = new Set([
   "routing.update",
   "crews.update",
   "delivery.pickAgain",
+  "delivery.settings.get",
+  "delivery.settings.update",
   "flow.instructions.update",
   "flow.retro.decide",
   "flow.retro.start",
