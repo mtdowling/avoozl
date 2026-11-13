@@ -162,6 +162,11 @@ export function summarize(input: {
     if (trouble)
       push({ key: `delivery:${item.id}`, kind: 'delivery', taskId: item.id, title: item.title, detail: trouble, tab: 'delivery', href: issueHref(item) })
   }
+  // A manual task once its blockers hold (R61.11): a person's step, tagged
+  // Manual, in the same Needs you list.
+  for (const task of leaves)
+    if (task.needsYou?.manual && nodeState(task) === 'needs-you')
+      push({ key: `manual:${task.id}`, kind: 'manual', taskId: task.id, title: task.title, detail: task.needsYou.reason, tab: 'delivery', href: null })
   // Decisions and GitHub conflicts first, then the rest in view order.
   const rank = (kind: string) => ['decision', 'github-conflict', 'stale-session'].indexOf(kind) >>> 0
   for (const item of [...(input.conflicts ?? [])].sort((a, b) => rank(a.kind) - rank(b.kind)))

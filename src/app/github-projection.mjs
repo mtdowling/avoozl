@@ -4,7 +4,12 @@
 // marker carries this workspace's namespace, and only on repositories this
 // machine is the active writer for. Every other workspace previews.
 import { digest, queryTasks, statusComplete } from "../model.mjs";
-import { completionReached, isManual, taskKind } from "../work-model.mjs";
+import {
+  completionReached,
+  isManual,
+  taskKind,
+  taskRepository,
+} from "../work-model.mjs";
 import { issueNotesLines, shownNotes } from "./task-notes.mjs";
 import { fail } from "./store.mjs";
 import { parseRepository } from "./github.mjs";
@@ -689,12 +694,13 @@ async function project(
   for (const task of tasks) {
     const config = repository
       ? store.get("github_repositories", parseRepository(repository).id)
-      : store
-          .list("github_repositories")
-          .find(
-            (entry) =>
-              entry.projectId === (task.projectId || plan.context?.projectId),
-          );
+      : store.list("github_repositories").find(
+          (entry) =>
+            // The task's or its plan's project; else the repository a spec
+            // leaf names.
+            entry.projectId ===
+            (task.projectId || plan.context?.projectId || taskRepository(task)),
+        );
     if (!config)
       fail(`No GitHub repository is registered for task ${task.id}.`);
     assertPlanningLink(identity, config.id);
