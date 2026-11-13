@@ -15,7 +15,7 @@ import { CircleCheck, RefreshCw, Workflow, X } from './icons.ts'
 import { groupWrites, setupForm, setupInput, setupState, writeBadge, type GitHubSettings, type SetupForm, type SetupResult, settingsClient } from './settings-api.ts'
 import { errorMessage } from './workspace-api.ts'
 import { relativeTime } from './task-api.ts'
-import { useBackStep } from './NavHistory.tsx'
+import { Modal } from './Modal.tsx'
 import { linkHref } from './views-api.ts'
 
 type Client = ReturnType<typeof settingsClient>
@@ -36,7 +36,7 @@ const STEP_TEXT = [
   ['Save the settings file', 'Write the names GitHub gave back into .avoozl.json. Nothing is saved until you press Save.'],
 ] as const
 
-function SetupDialog(props: {
+export function SetupDialog(props: {
   workspaceId: string
   client: Client
   form: SetupForm
@@ -58,8 +58,6 @@ function SetupDialog(props: {
       props.onClose('Cancelled. Avoozl stops before its next write; check again to see what was made.')
     } else props.onClose(step === 3 ? undefined : 'Cancelled. Nothing was written.')
   }, [client, workspaceId, props, step])
-  // Esc and Back do what Cancel does.
-  useBackStep('modal', true, 'Cancel', cancel)
   useEffect(() => {
     box.current?.querySelector<HTMLElement>('input, button')?.focus()
   }, [])
@@ -102,169 +100,159 @@ function SetupDialog(props: {
   const count = result?.writes.length ?? 0
   const failed = (result?.results ?? []).filter((r) => r.status !== 'done')
   return (
-    <div className="fixed inset-0" style={{ zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div aria-hidden="true" className="absolute inset-0" onClick={cancel} style={{ background: 'color-mix(in srgb, var(--text) 30%, transparent)' }} />
-      <div
-        ref={box}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="avoozl-setup-title"
-        aria-describedby="avoozl-setup-line"
-        data-setup-dialog={step}
-        className="relative flex flex-col gap-3 rounded-lg border p-4 shadow-lg"
-        style={{ width: 'min(40rem, 94vw)', maxHeight: '88vh', overflow: 'auto', background: 'var(--card, var(--bg))', color: 'var(--text)', borderColor: 'var(--border)' }}
-      >
-        <ol className="flex flex-wrap gap-2 text-xs" aria-label="Steps">
-          {STEP_TEXT.map(([title], i) => (
-            <li key={title} aria-current={i === step ? 'step' : undefined} className={i === step ? 'font-semibold' : 'text-muted'}>
-              {i + 1}. {title}
-            </li>
-          ))}
-        </ol>
-        <div>
-          <h3 id="avoozl-setup-title" className="text-base font-semibold">
-            {STEP_TEXT[step][0]}
-          </h3>
-          <p id="avoozl-setup-line" className="text-sm text-muted">
-            {STEP_TEXT[step][1]}
+    // Esc, Back and a click outside do what Cancel does. The form lives in
+    // the Settings page, so closing loses nothing.
+    <Modal id="avoozl-setup" width="40rem" backLabel="Cancel" describedBy="avoozl-setup-line" boxRef={box} attrs={{ 'data-setup-dialog': step }} onDismiss={cancel}>
+      <ol className="flex flex-wrap gap-2 text-xs" aria-label="Steps">
+        {STEP_TEXT.map(([title], i) => (
+          <li key={title} aria-current={i === step ? 'step' : undefined} className={i === step ? 'font-semibold' : 'text-muted'}>
+            {i + 1}. {title}
+          </li>
+        ))}
+      </ol>
+      <div>
+        <h3 id="avoozl-setup-title" className="text-base font-semibold">
+          {STEP_TEXT[step][0]}
+        </h3>
+        <p id="avoozl-setup-line" className="text-sm text-muted">
+          {STEP_TEXT[step][1]}
+        </p>
+      </div>
+      {step === 0 && (
+        <div className="flex flex-col gap-2 text-sm">
+          <p className="text-xs text-muted" data-setup-shared>
+            Mode {form.mode}
+            {form.mode === 'plans-repo' ? `, planning repository ${form.planningRepository || 'not set'}` : ''}, repositories {form.repositories || 'none yet'}, Project{' '}
+            {form.projectOwner ? `${form.projectOwner}/${form.projectNumber || 'new'}` : 'not set'}.
           </p>
-        </div>
-        {step === 0 && (
-          <div className="flex flex-col gap-2 text-sm">
-            <p className="text-xs text-muted" data-setup-shared>
-              Mode {form.mode}
-              {form.mode === 'plans-repo' ? `, planning repository ${form.planningRepository || 'not set'}` : ''}, repositories {form.repositories || 'none yet'}, Project{' '}
-              {form.projectOwner ? `${form.projectOwner}/${form.projectNumber || 'new'}` : 'not set'}.
-            </p>
-            {!/^\d+$/.test(form.projectNumber.trim()) && (
-              <label className="flex flex-col gap-1">
-                New Project title <span className="text-xs text-muted">(optional)</span>
-                <Input id="avoozl-setup-title-field" value={form.projectTitle} placeholder="Avoozl" onChange={(e: { target: { value: string } }) => props.set({ projectTitle: e.target.value })} />
-              </label>
-            )}
+          {!/^\d+$/.test(form.projectNumber.trim()) && (
             <label className="flex flex-col gap-1">
-              Releases, if no spec names one <span className="text-xs text-muted">(optional)</span>
-              <Input id="avoozl-setup-releases" value={form.releases} placeholder="v1, v2" onChange={(e: { target: { value: string } }) => props.set({ releases: e.target.value })} />
+              New Project title <span className="text-xs text-muted">(optional)</span>
+              <Input id="avoozl-setup-title-field" value={form.projectTitle} placeholder="Avoozl" onChange={(e: { target: { value: string } }) => props.set({ projectTitle: e.target.value })} />
             </label>
-            <div className="flex flex-wrap gap-3">
-              {(
-                [
-                  ['iteration', 'Iteration field'],
-                  ['tableByWave', 'Table by wave view'],
-                  ['epic', 'Epic issue type'],
-                ] as const
-              ).map(([key, label]) => (
-                <label key={key} className="flex items-center gap-1.5">
-                  <input type="checkbox" checked={form[key]} onChange={(e) => props.set({ [key]: e.target.checked })} />
-                  {label}
-                </label>
-              ))}
-            </div>
-          </div>
-        )}
-        {step === 1 && result && (
-          <div className="flex flex-col gap-3 text-sm">
-            {groups.length === 0 && <p>Nothing to change on GitHub.</p>}
-            {groups.map((group) => (
-              <section key={group.key} data-setup-group={group.key}>
-                <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">{group.title}</h4>
-                <ul className="mt-1 flex flex-col gap-1">
-                  {group.writes.map((write, i) => (
-                    <li key={i} className="flex flex-wrap items-baseline gap-2">
-                      <span className="rounded-full border px-1.5 text-[10px] font-semibold" style={BADGE_STYLE[writeBadge(write)]}>
-                        {writeBadge(write)}
-                      </span>
-                      <span>
-                        {write.object} <code>{write.name}</code>
-                        {write.visibility ? ` (${write.visibility})` : ''} in {write.owner}
-                      </span>
-                      <span className="w-full pl-12 text-xs text-muted">{write.detail}</span>
-                    </li>
-                  ))}
-                </ul>
-              </section>
+          )}
+          <label className="flex flex-col gap-1">
+            Releases, if no spec names one <span className="text-xs text-muted">(optional)</span>
+            <Input id="avoozl-setup-releases" value={form.releases} placeholder="v1, v2" onChange={(e: { target: { value: string } }) => props.set({ releases: e.target.value })} />
+          </label>
+          <div className="flex flex-wrap gap-3">
+            {(
+              [
+                ['iteration', 'Iteration field'],
+                ['tableByWave', 'Table by wave view'],
+                ['epic', 'Epic issue type'],
+              ] as const
+            ).map(([key, label]) => (
+              <label key={key} className="flex items-center gap-1.5">
+                <input type="checkbox" checked={form[key]} onChange={(e) => props.set({ [key]: e.target.checked })} />
+                {label}
+              </label>
             ))}
-            {result.checklist.length > 0 && (
-              <section>
-                <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">Left for you on GitHub</h4>
-                <ul className="mt-1 list-disc pl-5 text-xs">
-                  {result.checklist.map((item) => (
-                    <li key={item.id}>
-                      {item.link ? (
-                        <a href={linkHref(item.link)} target="_blank" rel="noopener noreferrer" className="underline">
-                          {item.text}
-                        </a>
-                      ) : (
-                        item.text
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
           </div>
-        )}
-        {step === 2 && <p className="text-sm" role="status">Making {count} changes on GitHub…</p>}
-        {step === 3 && result && (
-          <div className="flex flex-col gap-2 text-sm">
-            <p role="status">
-              Made {(result.results ?? []).filter((r) => r.status === 'done').length} of {count} changes.
-            </p>
-            {failed.length > 0 && (
-              <ul role="alert" className="text-xs text-danger">
-                {failed.map((entry, i) => (
-                  <li key={i}>
-                    {entry.status}: {entry.action} {entry.name}
-                    {entry.reason ? ` (${entry.reason})` : ''}
+        </div>
+      )}
+      {step === 1 && result && (
+        <div className="flex flex-col gap-3 text-sm">
+          {groups.length === 0 && <p>Nothing to change on GitHub.</p>}
+          {groups.map((group) => (
+            <section key={group.key} data-setup-group={group.key}>
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">{group.title}</h4>
+              <ul className="mt-1 flex flex-col gap-1">
+                {group.writes.map((write, i) => (
+                  <li key={i} className="flex flex-wrap items-baseline gap-2">
+                    <span className="rounded-full border px-1.5 text-[10px] font-semibold" style={BADGE_STYLE[writeBadge(write)]}>
+                      {writeBadge(write)}
+                    </span>
+                    <span>
+                      {write.object} <code>{write.name}</code>
+                      {write.visibility ? ` (${write.visibility})` : ''} in {write.owner}
+                    </span>
+                    <span className="w-full pl-12 text-xs text-muted">{write.detail}</span>
                   </li>
                 ))}
               </ul>
-            )}
-            {result.settings.changed ? (
-              <>
-                {result.settings.error && <p role="alert" className="text-danger">{result.settings.error}</p>}
-                <pre className="overflow-auto rounded border p-2 text-xs" style={{ borderColor: 'var(--border)' }}>
-                  {result.settings.diff}
-                </pre>
-              </>
-            ) : (
-              <p className="text-muted">.avoozl.json already matches.</p>
-            )}
-          </div>
-        )}
-        {error && <p role="alert" className="text-sm text-danger">{error}</p>}
-        <div className="flex flex-wrap justify-end gap-2">
-          <Btn type="button" onClick={cancel}>
-            {step === 3 ? 'Close' : 'Cancel'}
-          </Btn>
-          {step === 1 && (
-            <Btn type="button" onClick={() => setStep(0)} disabled={busy}>
-              Back
-            </Btn>
-          )}
-          {step === 0 && (
-            <Btn type="button" primary onClick={() => void review()} disabled={busy}>
-              Check the changes
-            </Btn>
-          )}
-          {step === 1 && count > 0 && (
-            <Btn type="button" primary onClick={() => void apply()} disabled={busy}>
-              Apply {count} change{count === 1 ? '' : 's'}
-            </Btn>
-          )}
-          {step === 1 && count === 0 && result?.settings.changed && (
-            <Btn type="button" primary onClick={() => setStep(3)}>
-              Next
-            </Btn>
-          )}
-          {step === 3 && result?.settings.changed && (
-            <Btn type="button" primary onClick={() => void save()} disabled={busy || Boolean(result.settings.error)}>
-              Save to .avoozl.json
-            </Btn>
+            </section>
+          ))}
+          {result.checklist.length > 0 && (
+            <section>
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">Left for you on GitHub</h4>
+              <ul className="mt-1 list-disc pl-5 text-xs">
+                {result.checklist.map((item) => (
+                  <li key={item.id}>
+                    {item.link ? (
+                      <a href={linkHref(item.link)} target="_blank" rel="noopener noreferrer" className="underline">
+                        {item.text}
+                      </a>
+                    ) : (
+                      item.text
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </section>
           )}
         </div>
+      )}
+      {step === 2 && <p className="text-sm" role="status">Making {count} changes on GitHub…</p>}
+      {step === 3 && result && (
+        <div className="flex flex-col gap-2 text-sm">
+          <p role="status">
+            Made {(result.results ?? []).filter((r) => r.status === 'done').length} of {count} changes.
+          </p>
+          {failed.length > 0 && (
+            <ul role="alert" className="text-xs text-danger">
+              {failed.map((entry, i) => (
+                <li key={i}>
+                  {entry.status}: {entry.action} {entry.name}
+                  {entry.reason ? ` (${entry.reason})` : ''}
+                </li>
+              ))}
+            </ul>
+          )}
+          {result.settings.changed ? (
+            <>
+              {result.settings.error && <p role="alert" className="text-danger">{result.settings.error}</p>}
+              <pre className="overflow-auto rounded border p-2 text-xs" style={{ borderColor: 'var(--border)' }}>
+                {result.settings.diff}
+              </pre>
+            </>
+          ) : (
+            <p className="text-muted">.avoozl.json already matches.</p>
+          )}
+        </div>
+      )}
+      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+      <div className="flex flex-wrap justify-end gap-2">
+        <Btn type="button" onClick={cancel}>
+          {step === 3 ? 'Close' : 'Cancel'}
+        </Btn>
+        {step === 1 && (
+          <Btn type="button" onClick={() => setStep(0)} disabled={busy}>
+            Back
+          </Btn>
+        )}
+        {step === 0 && (
+          <Btn type="button" primary onClick={() => void review()} disabled={busy}>
+            Check the changes
+          </Btn>
+        )}
+        {step === 1 && count > 0 && (
+          <Btn type="button" primary onClick={() => void apply()} disabled={busy}>
+            Apply {count} change{count === 1 ? '' : 's'}
+          </Btn>
+        )}
+        {step === 1 && count === 0 && result?.settings.changed && (
+          <Btn type="button" primary onClick={() => setStep(3)}>
+            Next
+          </Btn>
+        )}
+        {step === 3 && result?.settings.changed && (
+          <Btn type="button" primary onClick={() => void save()} disabled={busy || Boolean(result.settings.error)}>
+            Save to .avoozl.json
+          </Btn>
+        )}
       </div>
-    </div>
+    </Modal>
   )
 }
 

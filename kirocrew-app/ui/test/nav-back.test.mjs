@@ -168,12 +168,15 @@ test('a dialog with unsaved changes asks first, the same way Cancel does', async
   await Promise.resolve()
   assert.equal(open, false)
   assert.equal(nav.history.steps().length, 0)
-  // The wiring: Back and Esc go through the dialog's own Cancel.
-  assert.match(source('Modal.tsx'), /useBackStep\('modal', true, 'Close the dialog', \(\) => dismiss\.current\(\)\)/)
-  assert.match(source('RepositoriesSettings.tsx'), /props\.edited\s+\? void ask\(/)
+  // The wiring: Back and Esc go through the shared Modal, which asks first
+  // when `unsaved` is set, then through the dialog's own Cancel.
+  const shared = source('Modal.tsx')
+  assert.match(shared, /useBackStep\(props\.kind \?\? 'modal', true, props\.backLabel \?\? 'Close the dialog', dismiss\)/)
+  assert.match(shared, /if \(!unsaved\) return onDismiss\(\)[\s\S]*?void ask\(unsaved\)\.then\(\(yes\) => \{[\s\S]*?if \(yes\) latest\.current\.onDismiss\(\)/)
+  assert.match(source('RepositoriesSettings.tsx'), /unsaved=\{props\.edited && discard\}/)
   for (const name of ['AddPlugin.tsx', 'PackImport.tsx', 'SendToRadar.tsx', 'SetupWizard.tsx'])
-    assert.match(source(name), /useBackStep\('modal', true, 'Cancel', cancel\)/, name)
-  assert.match(source('controls.tsx'), /useBackStep\('confirm', pending !== null, 'Cancel', \(\) => answer\(false\)\)/)
+    assert.match(source(name), /<Modal\b[\s\S]*?backLabel="Cancel"[\s\S]*?onDismiss=\{cancel\}/, name)
+  assert.match(source('controls.tsx'), /<Modal\s+id="avoozl-confirm"\s+kind="confirm"\s+role="alertdialog"\s+backLabel="Cancel"[\s\S]*?onDismiss=\{\(\) => answer\(false\)\}/)
 })
 
 test('the keys and the mouse back button: ours only with a step and from the page', () => {
@@ -197,8 +200,9 @@ test('the keys and the mouse back button: ours only with a step and from the pag
   assert.match(wiring, /isBackButton\(event\) && fromPage\(event\.target\) && nav\.history\.steps\(\)\.length > 0/)
   assert.match(wiring, /event\.stopImmediatePropagation\(\)/)
   assert.doesNotMatch(wiring, /pushState/)
-  // The file reader is portaled to <body>, so it carries the page mark.
-  assert.match(source('DocumentReader.tsx'), /data-document-reader \{\.\.\.\{ \[APP_ATTR\]: '' \}\}/)
+  // Every modal is portaled to <body>, so it carries the page mark.
+  assert.match(source('Modal.tsx'), /data-modal=\{props\.id\}[\s\S]*?\{\.\.\.\{ \[APP_ATTR\]: '' \}\}/)
+  assert.match(source('DocumentReader.tsx'), /<Modal\b[^\n]*attrs=\{\{ 'data-document-reader': true \}\}/)
   assert.match(source('App.tsx'), /<div \{\.\.\.\{ \[APP_ATTR\]: '' \}\} style=\{\{ display: 'contents' \}\}>/)
 })
 
@@ -237,7 +241,7 @@ test('the views use the shared history: inner tabs, the plan, the Graph, the dra
   assert.match(source('GraphView.tsx'), /useRemembered<DrillEntry\[\]>\('graph-stack', \[\]\)/)
   assert.match(source('TaskDrawer.tsx'), /useBackStep\('drawer',/)
   assert.match(source('NewPlanDrawer.tsx'), /useBackStep\('drawer', true, 'Close New spec', \(\) => void closeRef\.current\(\)\)/)
-  assert.match(source('Onboard.tsx'), /useBackStep\('modal', true, 'Cancel', cancel\)/)
+  assert.match(source('Onboard.tsx'), /<Modal\b[\s\S]*?backLabel="Cancel"[\s\S]*?onDismiss=\{cancel\}/)
   // No view keeps its own Esc listener any more.
   for (const name of ['Modal.tsx', 'TaskDrawer.tsx', 'AddPlugin.tsx', 'PackImport.tsx', 'SendToRadar.tsx', 'SetupWizard.tsx', 'DocumentReader.tsx', 'controls.tsx', 'PlansView.tsx', 'NewPlanDrawer.tsx', 'Onboard.tsx'])
     assert.doesNotMatch(source(name), /key === 'Escape'|key !== 'Escape'/, name)
