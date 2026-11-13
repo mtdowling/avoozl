@@ -314,9 +314,9 @@ test("P34 plans-repo: checks, reviews and strangers, each once, no writes", asyn
   );
   assert.match(
     toA.text,
-    /- test: failure\. Details: https:\/\/github.com\/o\/app\/actions\/runs\/7001\/job\/1\. Read its failed log with `gh run view 7001 --log-failed`\./,
+    /- `test`: failure\. Details: https:\/\/github.com\/o\/app\/actions\/runs\/7001\/job\/1\. Read its failed log with `gh run view 7001 --log-failed`\./,
   );
-  assert.match(toA.text, /- lint: timed_out\./);
+  assert.match(toA.text, /- `lint`: timed_out\./);
   assert.match(toA.text, /round 1 of 5/);
   assert.equal(w.toWorker(result, "b").length, 1);
   assert.match(toB.text, /Review requesting changes by alice/);
@@ -548,7 +548,7 @@ test("P34 nearby inputs: force-push, dismissed then re-requested review, a passi
   w.github.touch(a, { checks: [w.github.check("test", null, 9003)] });
   assert.deepEqual((await w.step()).messages, []);
   a.checks = [w.github.check("test", "CANCELLED", 9003)];
-  assert.match(w.toWorker(await w.step(), "a")[0].text, /- test: cancelled/);
+  assert.match(w.toWorker(await w.step(), "a")[0].text, /- `test`: cancelled/);
   // A failed read keeps the last state and shows the error.
   w.github.fail = "GitHub is unreachable";
   assert.deepEqual((await w.step()).messages, []);
