@@ -4,7 +4,14 @@
 import { fail } from "./store.mjs";
 import { resolveTaskId } from "../task-identity.mjs";
 
-const ROLES = new Set(["worker", "verifier", "responder", "planner", "retro"]);
+const ROLES = new Set([
+  "worker",
+  "verifier",
+  "responder",
+  "planner",
+  "retro",
+  "pr-review",
+]);
 // A review role's session (§5.2): `review:<role id>`, so each role numbers its
 // own attempts.
 const REVIEW_ROLE = /^review:[a-z0-9][a-z0-9-]{0,39}$/;
@@ -101,7 +108,10 @@ export function bindSession(store, input = {}, { guard, conductor } = {}) {
       taskId =
         (role === "responder" && store.get("github_responses", named)) ||
         // A retrospective binds to its retro record (§4.11).
-        (role === "retro" && store.get("flow_retros", named))
+        (role === "retro" && store.get("flow_retros", named)) ||
+        // A code review chat binds to its request (pr-review.mjs).
+        (role === "pr-review" &&
+          store.get("receipts", named)?.kind === "pr-review")
           ? named
           : existingTask(store, named);
     if (!taskId) fail("Task not found.", 404);

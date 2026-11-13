@@ -147,6 +147,7 @@ const APP_OPERATIONS = new Set([
   "flow.view",
   "untriaged.crews",
   "untriaged.handoff",
+  "review.chat",
   "github.repository.labels",
   "task.detail",
   "plan.spec.read",

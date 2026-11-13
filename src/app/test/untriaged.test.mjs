@@ -304,7 +304,7 @@ test("links go to GitHub exactly and fall back to the app pages with a tooltip",
   assert.equal(pr.review.exact, false);
   assert.match(
     pr.review.tooltip,
-    /Code Review Sage can't open one pull request/,
+    /reviews o\/app #6 with the sage-review skill and posts nothing to GitHub\. A stand-in until the app can start Code Review Sage directly\./,
   );
 });
 

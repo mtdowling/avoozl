@@ -263,7 +263,7 @@ test("P31: the Untriaged list with a fake GitHub", async (t) => {
       assert.equal(item.links.review.url, "/code-review-sage");
       assert.match(
         item.links.review.tooltip,
-        /can't open one pull request from a link yet/,
+        /posts nothing to GitHub\. A stand-in until the app can start Code Review Sage directly\./,
       );
     } else assert.equal(item.links.review, null);
   }

@@ -49,6 +49,7 @@ import { ensureLinkedBranches } from "./github-linked-branches.mjs";
 import { refreshProjectedReadiness } from "./github-projection.mjs";
 import { planningIdentity } from "./github-marker.mjs";
 import { syncProject } from "./github-project.mjs";
+import { reviewDispatches } from "./pr-review.mjs";
 import { crewStep } from "./github-crew.mjs";
 import { respondStep } from "./github-respond.mjs";
 import { steeringStep } from "./github-steering.mjs";
@@ -773,6 +774,9 @@ export async function tick(
                 folder: home ? `Avoozl/${home.id}` : null,
               })
             : { dispatch: [] };
+      // Code review chats a person asked for (pr-review.mjs), cron only.
+      const reviews =
+        script && !unobserved.length ? reviewDispatches(store) : [];
       const notices = [...notify, ...planned.notify];
       // The cron's tick queues each notice once for the app's notification
       // channels; the app backend pushes it (notifications.mjs).
@@ -801,6 +805,7 @@ export async function tick(
           ...responders,
           ...planners,
           ...retro.dispatch,
+          ...reviews,
         ],
         messages: planned.messages,
         notify: notices.map((notice) => ({

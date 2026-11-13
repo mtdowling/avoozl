@@ -161,6 +161,7 @@ import {
   refreshUntriaged,
   untriagedView,
 } from "./untriaged.mjs";
+import { requestReviewChat, reviewChats } from "./pr-review.mjs";
 import { handOff, readCrews } from "./radar-handoff.mjs";
 import { flowView, readFlowConfig, readFlowPolicy } from "./flow.mjs";
 import { usageView } from "./flow-usage.mjs";
@@ -684,6 +685,9 @@ export class Operations {
       repositoryBindingGuard = null,
       notifier = null,
       crewReader = null,
+      // {skillPath, exists} for the code review chat (pr-review.mjs); tests
+      // point it at a temporary skill.
+      reviewOptions = {},
       pluginSettingsFile = pluginSettingsPath(),
       plugins = workspaceRoot
         ? pluginHost({ workspaceRoot, settingsFile: pluginSettingsFile })
@@ -701,6 +705,7 @@ export class Operations {
     // Reads Issue Radar's crews through the gateway (radar-handoff.mjs);
     // only the app backend has one.
     this.crewReader = crewReader;
+    this.reviewOptions = reviewOptions;
     // Provenance for records this workspace mints; never an authorization.
     this.operator = operator || "";
     // Every GitHub text write passes content rules first (§4.9).
@@ -2013,6 +2018,20 @@ export class Operations {
         readCache(store),
         Date.now(),
         handoffReceipts(store),
+        reviewChats(store),
+      );
+    }
+    // Code review (§8.5): queue one review chat for a pull request; the
+    // tick cron opens it. Person-only, like Send to Issue Radar.
+    if (name === "review.chat") {
+      if (context.caller || context.mcp)
+        fail("Only a person starts a code review chat, from the Avoozl page.", 403);
+      return requestReviewChat(
+        store,
+        readGitHubPolicyOrNull(this.workspaceRoot),
+        this.read().tasks,
+        input,
+        this.reviewOptions,
       );
     }
     // Send to Issue Radar (§8.5, R52): the repository's crews, then the
