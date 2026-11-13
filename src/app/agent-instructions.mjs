@@ -1,3 +1,4 @@
+import { taskEpic } from "./epics.mjs";
 import { digest } from "../model.mjs";
 import { fail } from "./store.mjs";
 
@@ -249,13 +250,14 @@ function includesOrAll(selected, value) {
   return !selected?.length || selected.includes(value);
 }
 
-function selectorMatches(rule, task) {
+function selectorMatches(rule, task, data) {
   const when = rule.when || {};
   if (rule.source?.repositoryId && rule.source.repositoryId !== task?.projectId)
     return false;
   if (
     !includesOrAll(when.scopes, task?.scope) ||
-    !includesOrAll(when.epics, task?.epic) ||
+    // An epic spans plans: a task's is its plan's (Requirement 59.2).
+    !includesOrAll(when.epics, taskEpic(data, task)) ||
     !includesOrAll(when.tracks, task?.track)
   )
     return false;
@@ -288,7 +290,7 @@ export function matchingAgentInstructions(data, category, task) {
       (rule.appliesTo || [rule.category || "all"]).some((appliesTo) =>
         inherited.has(appliesTo),
       ) &&
-      selectorMatches(rule, task),
+      selectorMatches(rule, task, data),
   );
 }
 

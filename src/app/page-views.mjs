@@ -31,6 +31,8 @@ import { taskSourceRefs } from "../task-identity.mjs";
 import { taskFlow } from "./flow.mjs";
 import { avoozlState } from "../delivery-lanes.mjs";
 import { attachLink } from "./routing.mjs";
+import { crossPlanEpics, epicOfPlan, taskEpic } from "./epics.mjs";
+import { fail } from "./store.mjs";
 
 const BLOCKING = new Set(["requires", "sequence"]);
 const ACTIVE_RUNS = new Set([
@@ -238,10 +240,13 @@ export function reviewGroups(store, data) {
     }));
 }
 
-// Tasks and blocking edges, filtered by epic, repository and status. Edges are
-// kept only when both ends are shown. `ready` uses the same rule as `queue`.
+// Tasks and blocking edges, filtered by epic (across plans), phase (inside
+// a plan), repository and status. Edges are kept only when both ends are
+// shown. `ready` uses the same rule as `queue`. Each task carries its epic,
+// plan and phase, read from records, never from a file path (R59.6).
 export function graphView(store, data, input = {}) {
   const epics = list(input.epic),
+    phases = list(input.phase),
     repositories = list(input.repository),
     statuses = list(input.status),
     registered = workspaceRepositories(store).map((entry) => entry.id),
@@ -288,8 +293,11 @@ export function graphView(store, data, input = {}) {
     if (live.has(task.id)) return "running";
     return ready.has(task.id) ? "ready" : "waiting";
   };
-  for (const task of data.tasks)
-    counts.set(task.epic ?? null, (counts.get(task.epic ?? null) || 0) + 1);
+  const epicOf = new Map(data.tasks.map((task) => [task.id, taskEpic(data, task)]));
+  for (const task of data.tasks) {
+    const epic = epicOf.get(task.id);
+    counts.set(epic, (counts.get(epic) || 0) + 1);
+  }
   const scope =
     input.plan || input.spec
       ? { plan: input.plan || null, spec: input.spec || null }
@@ -297,7 +305,8 @@ export function graphView(store, data, input = {}) {
   const shown = data.tasks.filter(
     (task) =>
       (!scope || inPlan(task, scope)) &&
-      (!epics || epics.has(String(task.epic))) &&
+      (!epics || epics.has(String(epicOf.get(task.id) ?? NO_EPIC))) &&
+      (!phases || phases.has(String(task.phase?.id ?? NO_PHASE))) &&
       (!repositories || repositories.has(String(taskRepository(task)))) &&
       (!statuses || statuses.has(String(task.status))),
   );
@@ -310,11 +319,13 @@ export function graphView(store, data, input = {}) {
     );
   return {
     revision: data.revision,
-    epics: (data.epics || []).map((epic) => ({
+    epics: crossPlanEpics(data).map((epic) => ({
       id: epic.id,
       title: epic.title ?? epic.id,
       count: counts.get(epic.id) || 0,
+      plans: [...(epic.plans || [])],
     })),
+    plans: graphPlans(store, data),
     statuses: (data.statuses || []).map((status) => ({
       id: status.id,
       label: status.label ?? status.id,
@@ -325,9 +336,10 @@ export function graphView(store, data, input = {}) {
     tasks: shown.map((task) => ({
       id: task.id,
       title: task.title ?? task.id,
-      epic: task.epic ?? null,
+      epic: epicOf.get(task.id) ?? null,
       planId: task.planId ?? null,
       spec: specOf(task),
+      phase: task.phase ?? null,
       order: order.get(task.id),
       kind: taskKind(task),
       route: taskRoute(task),
@@ -367,6 +379,150 @@ export function graphView(store, data, input = {}) {
         ),
       })),
   };
+}
+
+// The epic page and `epic.get` (Requirement 59.4, 59.10): the epic's goal
+// and what done means from its requirements.md, each member plan in the
+// epic's order with its status, computed progress and phase counts, and the
+// open decisions on member tasks. Progress is computed, never stored. `spec`
+// is the epic folder as read from disk, or null; `members` is the folder's
+// list when no approved row exists. Writes nothing.
+export function epicView(store, data, { id, spec = null, members = null }) {
+  const row = crossPlanEpics(data).find((epic) => epic.id === id) || null;
+  if (!row && !spec?.exists) fail(`No epic ${id}.`, 404);
+  const plans = optionalList(store, "plans").filter((plan) => !plan.deletedAt),
+    epicPlan = row ? plans.find((plan) => plan.id === row.planId) : null,
+    files = spec?.exists ? spec.files : (epicPlan?.files ?? {}),
+    prose = withoutFrontMatterText(files["requirements.md"] ?? ""),
+    graph = graphView(store, data, {}),
+    state = new Map(graph.tasks.map((task) => [task.id, task.state])),
+    listed = row ? row.listed : (members ?? []),
+    confirmed = new Set(row ? row.plans : []);
+  const member = (planId) => {
+    const plan =
+        plans.find((entry) => entry.id === planId) ||
+        plans.find((entry) => entry.spec === planId) ||
+        null,
+      tasks = data.tasks.filter(
+        (task) =>
+          plan && task.planId === plan.id && taskKind(task) === "leaf" && task.status !== "superseded",
+      ),
+      finished = (task) => state.get(task.id) === "done" || Boolean(task.archivedAt),
+      phases = new Map();
+    for (const task of tasks) {
+      const key = task.phase?.id ?? null,
+        entry = phases.get(key) ?? { id: key, title: task.phase?.title ?? null, done: 0, total: 0 };
+      entry.total++;
+      if (finished(task)) entry.done++;
+      phases.set(key, entry);
+    }
+    const done = tasks.filter(finished).length;
+    return {
+      plan: plan?.id ?? planId,
+      title: plan?.title || planId,
+      spec: plan?.spec ?? null,
+      // Both sides agree (the epic lists it, its front-matter names it).
+      confirmed: confirmed.has(plan?.id ?? planId),
+      status: !plan
+        ? "not imported"
+        : plan.state === "approved" && tasks.length && done === tasks.length
+          ? "done"
+          : plan.state || "draft",
+      progress: { done, total: tasks.length },
+      phases: [...phases.values()].sort((a, b) => (a.id === null) - (b.id === null)),
+      decisions: tasks
+        .filter((task) => task.decision)
+        .map((task) => ({ taskId: task.id, title: task.title ?? task.id, decision: task.decision })),
+    };
+  };
+  const list = listed.map(member),
+    done = list.reduce((sum, item) => sum + item.progress.done, 0),
+    total = list.reduce((sum, item) => sum + item.progress.total, 0);
+  return {
+    revision: data.revision,
+    id,
+    title: row?.title || (spec?.exists ? specTitleOf(files, id) : id),
+    approved: Boolean(row),
+    planId: row?.planId ?? epicPlan?.id ?? null,
+    goal: section(prose, null),
+    done: section(prose, /\bdone\b/i),
+    requirements: files["requirements.md"] ?? null,
+    design: files["design.md"] ?? null,
+    members: list,
+    progress: { done, total },
+    complete: list.length > 0 && list.every((item) => item.status === "done"),
+    decisions: list.flatMap((item) => item.decisions.map((d) => ({ ...d, plan: item.plan }))),
+  };
+}
+
+const withoutFrontMatterText = (text) => text.replace(/^\uFEFF?---[ \t]*\r?\n[\s\S]*?\n(?:---|\.\.\.)[ \t]*\r?(?:\n|$)/, "");
+const specTitleOf = (files, id) =>
+  withoutFrontMatterText(files["requirements.md"] ?? "").match(/^# (.+)$/m)?.[1]?.trim() || id;
+
+// The prose under the first heading that matches `pattern`, or, with no
+// pattern, the prose between the title and the first other heading.
+function section(text, pattern) {
+  const lines = text.split("\n"),
+    out = [];
+  let inside = pattern === null,
+    seenTitle = false;
+  for (const line of lines) {
+    const heading = /^(#{1,6})\s+(.*)$/.exec(line);
+    if (heading) {
+      if (pattern === null) {
+        if (heading[1].length === 1 && !seenTitle) {
+          seenTitle = true;
+          continue;
+        }
+        if (out.some((entry) => entry.trim())) break;
+        continue;
+      }
+      if (inside) break;
+      inside = heading[1].length > 1 && pattern.test(heading[2]);
+      continue;
+    }
+    if (inside) out.push(line);
+  }
+  const value = out.join("\n").trim();
+  return value || null;
+}
+
+export const NO_EPIC = "(none)";
+export const NO_PHASE = "(none)";
+
+// The plans the Graph drills into: each stored plan with its epic and its
+// phases in tasks.md order, with task counts. Titles come from records.
+function graphPlans(store, data) {
+  const plans = optionalList(store, "plans").filter(
+      (plan) => !plan.deletedAt && plan.kind !== "conversation" && !plan.epicFolder,
+    ),
+    byPlan = new Map();
+  for (const task of data.tasks) {
+    if (!task.planId) continue;
+    if (!byPlan.has(task.planId)) byPlan.set(task.planId, new Map());
+    const key = task.phase?.id ?? null,
+      phases = byPlan.get(task.planId),
+      entry = phases.get(key) ?? {
+        id: key,
+        title: task.phase?.title ?? null,
+        count: 0,
+        line: task.source?.lineStart ?? Infinity,
+      };
+    entry.count++;
+    entry.line = Math.min(entry.line, task.source?.lineStart ?? Infinity);
+    phases.set(key, entry);
+  }
+  return plans
+    .filter((plan) => byPlan.has(plan.id))
+    .map((plan) => ({
+      id: plan.id,
+      title: plan.title || plan.id,
+      spec: plan.spec ?? null,
+      epic: epicOfPlan(data, plan.id)?.id ?? null,
+      phases: [...byPlan.get(plan.id).values()]
+        .sort((a, b) => (a.id === null) - (b.id === null) || a.line - b.line)
+        .map(({ id, title, count }) => ({ id, title, count })),
+    }));
 }
 
 // Leaves that are running or have delivery records: their session bindings,
@@ -1003,11 +1159,10 @@ export function taskDetailView(
       summary: detail.summary ?? "",
       acceptance: detail.acceptance || [],
       checks: detail.checks || [],
-      epic: detail.epic ?? null,
-      epicTitle:
-        data.epics.find((e) => e.id === detail.epic)?.title ??
-        detail.epic ??
-        null,
+      // Its plan's epic and its phase inside the plan (Requirement 59).
+      epic: taskEpic(data, detail),
+      epicTitle: epicOfPlan(data, detail.planId)?.title ?? null,
+      phase: detail.phase ?? null,
       kind: taskKind(detail),
       authority,
       route: taskRoute(detail),
@@ -1194,33 +1349,25 @@ export function activityView(store, data, { limit = 50 } = {}) {
 }
 
 // Whether a task belongs to a plan: its stored plan ID, or, for a spec
-// folder, a source reference (or document epic) inside that folder. Both are
-// links a person or an approval recorded; nothing is matched by title.
+// folder, a source reference inside that folder. Both are links a person or
+// an approval recorded; nothing is matched by title.
 export function inPlan(task, { plan = null, spec = null } = {}) {
   if (plan && task.planId === plan) return true;
   if (!spec) return false;
   const folder = `.kiro/specs/${spec}/`;
-  return (
-    (typeof task.epic === "string" && task.epic.startsWith(`doc:${folder}`)) ||
-    taskSourceRefs(task).some(
-      (ref) =>
-        typeof ref.document === "string" && ref.document.startsWith(folder),
-    )
+  return taskSourceRefs(task).some(
+    (ref) => typeof ref.document === "string" && ref.document.startsWith(folder),
   );
 }
 
-// The spec folder a task came from, by the same links inPlan reads: a
-// document epic or a source reference under .kiro/specs/<name>/. Null when
-// it has neither.
+// The spec folder a task came from, by the same links inPlan reads: a source
+// reference under .kiro/specs/<name>/ (Requirement 59.6). Null when it has
+// none.
 export function specOf(task) {
   const folder = (document) =>
     typeof document === "string"
       ? (document.match(/^\.kiro\/specs\/([^/]+)\//)?.[1] ?? null)
       : null;
-  if (typeof task.epic === "string" && task.epic.startsWith("doc:")) {
-    const name = folder(task.epic.slice(4));
-    if (name) return name;
-  }
   for (const ref of taskSourceRefs(task)) {
     const name = folder(ref.document);
     if (name) return name;
@@ -1261,30 +1408,23 @@ export function plansTableView(
       specs.flatMap((spec) => (spec.plan ? [spec.plan.id] : [])),
     );
   const counts = (scope) => {
-    const tasks = data.tasks.filter(
-        (task) => inPlan(task, scope) && task.status !== "superseded",
-      ),
-      leaves = tasks.filter(
-        (task) => !["epic", "package"].includes(taskKind(task)),
-      ),
-      epicTasks = tasks.filter((task) => taskKind(task) === "epic"),
-      of = (name) =>
-        leaves.filter((task) => state.get(task.id) === name).length;
+    const tasks = data.tasks.filter((task) => inPlan(task, scope) && task.status !== "superseded"),
+      leaves = tasks.filter((task) => taskKind(task) === "leaf"),
+      of = (name) => leaves.filter((task) => state.get(task.id) === name).length;
     return {
       tasks: {
         total: leaves.length,
         done: of("done"),
       },
-      now: {
-        ready: of("ready"),
-        running: of("running"),
-        needsYou: of("needs-you"),
-      },
-      epics:
-        epicTasks.length ||
-        new Set(leaves.map((task) => task.epic).filter(Boolean)).size,
+      now: { ready: of("ready"), running: of("running"), needsYou: of("needs-you") },
+      phases: new Set(leaves.map((task) => task.phase?.id).filter(Boolean)).size,
       changedAt: newest(...tasks.map((task) => task.updatedAt)),
     };
+  };
+  // The epic a plan belongs to, both sides agreeing (Requirement 59.2).
+  const epicFields = (planId) => {
+    const epic = epicOfPlan(data, planId);
+    return { epic: epic?.id ?? null, epicTitle: epic?.title ?? null };
   };
   const status = ({ plan, approved, changed }, done) =>
     !plan
@@ -1304,7 +1444,9 @@ export function plansTableView(
       summary = counts({ plan: spec.plan?.id ?? null, spec: spec.name });
     rows.push({
       key: `spec:${spec.root ?? ""}:${spec.name}`,
-      kind: "spec",
+      kind: spec.kind === "epic" ? "epic" : "spec",
+      ...(spec.kind === "epic" ? { members: spec.members ?? [] } : {}),
+      ...epicFields(spec.plan?.id ?? null),
       name: spec.title || spec.name,
       spec: spec.name,
       folder: spec.folder,
@@ -1332,6 +1474,7 @@ export function plansTableView(
     rows.push({
       key: `plan:${plan.id}`,
       kind: plan.spec ? "spec" : "old-style",
+      ...epicFields(plan.id),
       name: plan.title || plan.id,
       spec: null,
       folder: null,
@@ -1423,7 +1566,8 @@ export function chatContext(
       `- Task: ${task.title ?? id} (${id})`,
       `- State: ${state.get(id) ?? "unknown"}; status ${task.status ?? "none"}; owner ${taskAuthority(task)}`,
       `- Plan: ${plan ? `${plan.title || plan.id} (${plan.id}, ${plan.state || "draft"})` : spec ? `spec .kiro/specs/${spec}/` : "none"}`,
-      ...(task.epic ? [`- Epic: ${task.epic}`] : []),
+      ...(epicOfPlan(data, task.planId) ? [`- Epic: ${epicOfPlan(data, task.planId).title}`] : []),
+      ...(task.phase ? [`- Phase: ${task.phase.title}`] : []),
       ...(waits.length ? [`- Waits on: ${waits.join(", ")}`] : []),
       ...(task.decision ? [`- Open decision: ${task.decision}`] : []),
       ...(issueLink(task)?.url ? [`- Issue: ${issueLink(task).url}`] : []),

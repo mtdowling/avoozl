@@ -7,7 +7,14 @@ import { validateSession } from "./placement.mjs";
 import { budgetInput } from "./budget.mjs";
 import { frontMatterCategory } from "../front-matter.mjs";
 import { newTaskAuthority } from "./github-policy.mjs";
-import { checkedItems } from "./spec-plans.mjs";
+import {
+  checkedItems,
+  epicMembers,
+  isEpicFolder,
+  specEpic,
+  specTitle,
+} from "./spec-plans.mjs";
+import { refreshEpicMembers } from "./epics.mjs";
 import {
   createExtraction,
   factIdentity,
@@ -61,7 +68,13 @@ export function validateProposal(item) {
   )
     fail("Each task needs a title of 1–240 characters.");
   if (item.kind !== undefined && !TASK_KINDS.includes(item.kind))
-    fail("kind must be epic, package or leaf.");
+    fail(
+      item.kind === "epic"
+        ? 'kind "epic" is not a task kind: write "package". An epic is its own spec folder that lists plans.'
+        : "kind must be package or leaf.",
+    );
+  if (item.epic !== undefined)
+    fail('A task names no epic: its plan does. Use "phase" to group tasks inside a plan.');
   // Local is opt-in per task; github comes only from projection (§3.2). A
   // tracker plugin's authority is named in the plan and projected (R35.10).
   if (
@@ -79,8 +92,8 @@ export function validateProposal(item) {
   // Accept only from Avoozl-recorded validation (§5.2, R38.4).
   if (item.acceptFrom !== undefined && item.acceptFrom !== "validation")
     fail('acceptFrom may only be "validation".');
-  // Epics and packages complete from their children; leaves are checked.
-  const parent = ["epic", "package"].includes(item.kind);
+  // Packages complete from their children; leaves are checked.
+  const parent = item.kind === "package";
   if (
     (!parent || item.acceptance !== undefined) &&
     (!Array.isArray(item.acceptance) ||
@@ -120,7 +133,6 @@ export function validateProposal(item) {
   for (const field of [
     "summary",
     "nextAction",
-    "epic",
     "track",
     "projectId",
     "taskId",
@@ -347,6 +359,53 @@ function baselineAcceptance(item, hash, { at, approver }) {
 // recorded from the workspace's operator when the caller does not say, and
 // approval notes are kept only when a caller has something real to add: a
 // required field containing a fixed sentence carries less than an absent one.
+const plansById = (store) =>
+  new Map(store.list("plans").map((plan) => [plan.id, plan]));
+
+// An epic folder's approval stores its member list and prose. It never
+// approves a member plan or a task (Requirement 59.4).
+function approveEpic(store, data, plan, { expectedRevision, approver, evidence }) {
+  const now = new Date().toISOString(),
+    plans = store.list("plans").filter((entry) => !entry.deletedAt),
+    listed = epicMembers(plan.files).map(
+      (name) => plans.find((entry) => entry.spec === name)?.id ?? name,
+    ),
+    receipt = {
+      id: "approval-" + randomUUID(),
+      planId: plan.id,
+      hash: plan.hash,
+      source: plan.text,
+      approvedBy: approver,
+      evidence: evidence?.trim() || "",
+      at: now,
+      mapping: {},
+      taskIds: [],
+      spec: plan.spec,
+      files: plan.files,
+      epic: { members: listed },
+    };
+  store.put("approvals", receipt);
+  plan.state = "approved";
+  plan.kind = "plan";
+  plan.epicFolder = true;
+  plan.mapping = {};
+  plan.approvalId = receipt.id;
+  store.put("plans", plan);
+  data.epics = [
+    ...(data.epics || []).filter((epic) => epic.id !== plan.spec),
+    { id: plan.spec, title: specTitle({ name: plan.spec, files: plan.files }), planId: plan.id, listed, plans: [] },
+  ];
+  refreshEpicMembers(data, plansById(store));
+  store.commit(data, "Approve epic " + plan.title, expectedRevision);
+  store.event(null, "plan.approved", {
+    planId: plan.id,
+    receiptId: receipt.id,
+    taskIds: [],
+    epic: plan.spec,
+  });
+  return receipt;
+}
+
 export function approvePlan(
   store,
   {
@@ -383,6 +442,12 @@ export function approvePlan(
         "Database changed. Review extraction against the current revision.",
         409,
       );
+    if (plan.spec && isEpicFolder(plan.files))
+      return approveEpic(store, data, plan, {
+        expectedRevision,
+        approver: approvedBy?.trim() || operator?.trim() || "",
+        evidence,
+      });
     // A spec plan's tasks keep their tasks.md IDs; its tasks.md is plan.text.
     const extracted = Boolean(extraction),
       spec = plan.spec || null,
@@ -434,7 +499,6 @@ export function approvePlan(
             "summary",
             "acceptance",
             "nextAction",
-            "epic",
             "track",
             "tags",
             "resources",
@@ -477,23 +541,6 @@ export function approvePlan(
         contextTask = data.tasks.find(
           (t) => t.id === resolveTaskId(data, plan.context.selected),
         );
-      const epic =
-        proposal.epic ||
-        plan.context.filters?.epic ||
-        contextTask?.epic ||
-        "inbox";
-      if (epic === "inbox" && !data.epics.some((e) => e.id === epic))
-        data.epics.push({
-          id: epic,
-          title: "Inbox",
-          scope: "catalog",
-          color: "#96abc1",
-        });
-      if (
-        !data.epics.some((e) => e.id === epic) &&
-        !data.documents[epic.replace(/^doc:/, "")]
-      )
-        fail("Unknown epic " + epic);
       const track =
         proposal.track ||
         plan.context.filters?.track ||
@@ -507,7 +554,6 @@ export function approvePlan(
         summary: proposal.summary || "",
         acceptance: proposal.acceptance,
         nextAction: proposal.nextAction || proposal.summary || proposal.title,
-        epic,
         track,
         tags: proposal.tags || [],
         resources: proposal.resources || [],
@@ -557,6 +603,9 @@ export function approvePlan(
         statusAuthority: "database",
         updatedAt: now,
       };
+      // A spec plan's phase groups only (Requirement 59.5); its epic is the
+      // plan's, so a task never stores one.
+      if (proposal.phase) design.phase = proposal.phase;
       // A spec plan names parents by nesting in tasks.md (spec-plans.mjs);
       // the parent is in the same plan, so it is in mapping.
       if (spec && proposal.parent) design.parent = mapping[proposal.parent];
@@ -608,8 +657,10 @@ export function approvePlan(
           "session",
           "budget",
           "specBudget",
+          "phase",
         ])
           if (design[key] === undefined) delete existing[key];
+        delete existing.epic;
         // An item moved out from under its epic loses that parent.
         if (spec && design.parent === undefined) delete existing.parent;
         Object.assign(existing, design, { needsReview: true });
@@ -790,11 +841,15 @@ export function approvePlan(
     };
     store.put("approvals", receipt);
     plan.state = "approved";
+    // The epic this revision's front-matter names; an epic counts the plan
+    // only while both sides agree (Requirement 59.2).
+    if (spec) plan.epic = specEpic(plan.files);
     if (!extracted) plan.documentId = documentId;
     else plan.extractionId = extraction.id;
     plan.mapping = mapping;
     plan.approvalId = receipt.id;
     store.put("plans", plan);
+    refreshEpicMembers(data, plansById(store));
     if (!extracted && !spec)
       store.db
         .prepare(

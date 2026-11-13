@@ -208,7 +208,7 @@ test("a broad issue publishes children only after an allowed re-label", async (t
   const { store, ops, github, code, drafted } = await broadDraft(t);
   assert.equal(drafted.canPublish, true);
   assert.equal(sourceTask(store).dispatch.ready, false, "broad is held");
-  assert.equal(sourceTask(store).kind, "epic");
+  assert.equal(sourceTask(store).kind, "package");
 
   // No critique yet: nothing is posted.
   let synced = await ops.execute("github.sync");

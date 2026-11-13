@@ -750,7 +750,7 @@ test("plans-repo mode reads the workspace root when it is the planning checkout"
 });
 
 // An old-style approved plan whose tasks a spec folder now describes.
-const legacyText = `# Load configuration\n\n\`\`\`task\n{"id":"load","title":"Read the config file","acceptance":["A missing file yields defaults."],"checks":["npm test"],"epic":"sample"}\n\`\`\`\n\n\`\`\`task\n{"id":"check","title":"Validate loaded config","acceptance":["An unknown key is reported."],"checks":["npm test"],"requires":["load"],"epic":"sample"}\n\`\`\`\n`;
+const legacyText = `# Load configuration\n\n\`\`\`task\n{"id":"load","title":"Read the config file","acceptance":["A missing file yields defaults."],"checks":["npm test"],"track":"catalog"}\n\`\`\`\n\n\`\`\`task\n{"id":"check","title":"Validate loaded config","acceptance":["An unknown key is reported."],"checks":["npm test"],"requires":["load"],"track":"catalog"}\n\`\`\`\n`;
 const legacySpec = (ids = ["config-load", "config-check"]) => ({
   "tasks.md":
     "# Tasks\n\n" + ids.map((id) => `- [ ] ${id} Task ${id}\n`).join(""),
@@ -763,7 +763,6 @@ const legacySpec = (ids = ["config-load", "config-check"]) => ({
           summary: `Do ${id}.`,
           acceptance: [`${id} passes.`],
           checks: ["npm test"],
-          epic: "sample",
           ...(index ? { requires: [ids[0]] } : {}),
         },
       ]),

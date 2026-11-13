@@ -589,7 +589,7 @@ test("integration releases dependents in the same tick and completes parents, ne
       ...leaf("pkg", { kind: "package", parent: "top" }),
       checks: undefined,
     },
-    { ...leaf("top", { kind: "epic" }), checks: undefined },
+    { ...leaf("top", { kind: "package" }), checks: undefined },
   ];
   const edges = [
     { from: "a", to: "b", kind: "requires" },

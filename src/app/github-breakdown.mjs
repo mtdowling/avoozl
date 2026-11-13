@@ -184,8 +184,12 @@ export function saveBreakdown(store, row, breakdown, message) {
     if (!task) return;
     const hold = breakdownHold(breakdown),
       ready = row.state === "authorized" && !hold;
-    if (breakdown.classification?.kind === "broad") task.kind = "epic";
-    else if (task.kind === "epic" && !breakdown.published) task.kind = "task";
+    if (breakdown.classification?.kind === "broad") task.kind = "package";
+    else if (
+      ["epic", "package"].includes(task.kind) &&
+      !breakdown.published
+    )
+      task.kind = "task";
     task.dispatch = {
       ...task.dispatch,
       ready,
@@ -310,14 +314,14 @@ function saveSpec(store, row, breakdown, spec) {
   );
 }
 
-// The spec's one top-level epic stands for the source issue, which already
-// exists. Its children become top-level children of that issue.
+// The spec's one top-level package stands for the source issue, which
+// already exists. Its children become top-level children of that issue.
 export function childGraph(proposals = []) {
   const roots = proposals.filter((proposal) => !proposal.parent);
-  if (roots.length !== 1 || roots[0].kind !== "epic")
+  if (roots.length !== 1 || roots[0].kind !== "package")
     return {
       error:
-        "Nest every child under one top-level epic item that stands for the issue itself.",
+        "Nest every child under one top-level package item that stands for the issue itself.",
     };
   const root = roots[0].id,
     drop = (list) => list?.filter((id) => id !== root);

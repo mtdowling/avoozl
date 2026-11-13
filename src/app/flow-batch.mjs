@@ -1,5 +1,6 @@
 // Batching small tasks (design §4.11, Requirement 46): ready leaves the
-// plan marks `size: "small"` that share an epic (or overlapping paths), a
+// plan marks `size: "small"` that share a phase (the same parent package,
+// otherwise the same plan phase; R59.11) or overlapping paths, a
 // repository, a route, review roles and local authority, with no edge
 // between them, run in one worker session and one worktree. The worker makes
 // one commit and one done report per task, in order; checks and review run
@@ -20,10 +21,13 @@ export function batchable(store, task) {
   return !store.get("task_deliveries", task.id)?.batchSplit;
 }
 
+// The phase key: the same parent package, otherwise the same phase of the
+// same plan. A task in no package and no phase batches with its plan's
+// other phaseless tasks.
 const keyOf = (task, by) =>
   by === "files"
     ? null
-    : `${taskRepository(task)}|${task.parent || task.epic || ""}`;
+    : `${taskRepository(task)}|${task.parent ? `parent:${task.parent}` : `phase:${task.planId || ""}:${task.phase?.id ?? ""}`}`;
 
 const overlaps = (a, b) => {
   const left = a.paths || a.resources || [],
@@ -94,7 +98,7 @@ export function planBatches(
     }
     const live = liveKeys(store, data, by);
     if (
-      (by === "epic" && live.keys.has(keyOf(leaf.task, by))) ||
+      (by === "phase" && live.keys.has(keyOf(leaf.task, by))) ||
       (by === "files" && live.tasks.some((t) => overlaps(t, leaf.task)))
     )
       continue;
@@ -116,7 +120,7 @@ export function planBatches(
       )
         continue;
       if (
-        by === "epic"
+        by === "phase"
           ? keyOf(task, by) !== keyOf(leaf.task, by)
           : !group.some((g) => overlaps(g, task))
       )
@@ -158,7 +162,7 @@ export function waitingForBatch(
     if (store.get("task_deliveries", task.id)?.attempts?.length) continue;
     const live = liveKeys(store, data, batch.by);
     if (
-      (batch.by === "epic" && live.keys.has(keyOf(task, batch.by))) ||
+      (batch.by === "phase" && live.keys.has(keyOf(task, batch.by))) ||
       (batch.by === "files" && live.tasks.some((t) => overlaps(t, task)))
     )
       out.add(task.id);

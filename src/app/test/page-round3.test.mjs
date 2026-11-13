@@ -50,11 +50,9 @@ function workspace(
   return { root, store, ops: new Operations(store, { workspaceRoot: root }) };
 }
 
-test("a task's spec folder comes from its document epic or a source reference", () => {
-  assert.equal(
-    specOf({ epic: "doc:.kiro/specs/compression/design.md" }),
-    "compression",
-  );
+test("a task's spec folder comes from a source reference, never an epic string", () => {
+  // Requirement 59.6: a `doc:` epic is no group and names no spec folder.
+  assert.equal(specOf({ epic: "doc:.kiro/specs/compression/design.md" }), null);
   assert.equal(
     specOf({
       epic: "x",

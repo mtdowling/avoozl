@@ -1,3 +1,4 @@
+import { crossPlanEpics, epicOfPlan, taskEpic } from "./epics.mjs";
 import path from "node:path";
 import { mcpRefusal } from "./mcp-policy.mjs";
 import {
@@ -237,6 +238,7 @@ import {
   graphView,
   ownership,
   plansTableView,
+  epicView,
   taskDetailView,
 } from "./page-views.mjs";
 import { frontMatter, frontMatterCategory } from "../front-matter.mjs";
@@ -332,6 +334,7 @@ import {
   specName,
   specRoots,
   specTitle,
+  specEpic,
 } from "./spec-plans.mjs";
 import {
   matchingAgentInstructions,
@@ -1072,6 +1075,7 @@ export class Operations {
   // and when its files last changed on disk.
   specList() {
     const store = this.store;
+    const namespace = this.specNamespace();
     const roots = this.specRoots(),
       data = { ...this.read(), projects: store.list("projects") },
       plans = store
@@ -1091,6 +1095,7 @@ export class Operations {
                 plan: plan || { id: name },
                 data,
                 approved: plan && this.approvedSpec(plan),
+                namespace,
               }),
               disk,
             );
@@ -1106,6 +1111,9 @@ export class Operations {
             modifiedAt: specModifiedAt(root, name, Object.keys(disk.files)),
             folder: disk.folder,
             type: quality.type,
+            kind: quality.kind,
+            epic: quality.epic,
+            ...(quality.members ? { members: quality.members } : {}),
             hash: disk.hash,
             files: Object.keys(disk.files),
             counts: quality.counts,
@@ -1128,6 +1136,23 @@ export class Operations {
   }
   readSpec(name) {
     return findSpecFolder(this.specRoots(), specName(name));
+  }
+  // One folder of the mode's spec roots by name, for the checks that read
+  // another folder: an epic's members, a plan's epic (Requirement 59.3).
+  specNamespace() {
+    const cache = new Map();
+    return (name) => {
+      if (!cache.has(name)) {
+        let folder = null;
+        try {
+          folder = this.readSpec(name);
+        } catch {
+          folder = null;
+        }
+        cache.set(name, folder);
+      }
+      return cache.get(name);
+    };
   }
   workspaceIsPlanningCheckout(mode) {
     if (mode !== "plans-repo" || !this.workspaceRoot) return false;
@@ -1249,6 +1274,15 @@ export class Operations {
       : null;
     return receipt?.files ? receipt : null;
   }
+  // The namespace, or none when the mode has no spec roots yet.
+  safeSpecNamespace() {
+    try {
+      this.specRoots();
+    } catch {
+      return null;
+    }
+    return this.specNamespace();
+  }
   lintSpecPlan(plan, retitled = [], { content = true } = {}) {
     const spec = { name: plan.spec, exists: true, files: plan.files || {} },
       quality = lintSpec({
@@ -1257,6 +1291,7 @@ export class Operations {
         data: { ...this.read(), projects: this.store.list("projects") },
         approved: this.approvedSpec(plan),
         retitled,
+        namespace: this.safeSpecNamespace(),
       });
     return content ? this.withContentDiagnostics(quality, spec) : quality;
   }
@@ -1347,6 +1382,8 @@ export class Operations {
         runs.find((run) => WORKING_STATES.includes(run.state)) || runs.at(-1);
     return {
       ...task,
+      // Its plan's epic; a task never stores one (Requirement 59.2).
+      epic: taskEpic(data, task),
       ...(requestedId !== id ? { requestedId } : {}),
       context:
         task.approvedSource?.text ||
@@ -2155,7 +2192,7 @@ export class Operations {
     if (name === "flow.view") {
       const data = this.read(),
         view = flowView(store, data, input),
-        filtered = input.repository || input.epic;
+        filtered = input.repository || input.epic || input.plan || input.phase;
       return {
         ...view,
         line: lineBanner(store, data),
@@ -2867,6 +2904,43 @@ export class Operations {
     }
     if (name === "plan.list") return planPage(store, input);
     if (name === "plan.specs") return this.specList();
+    // Epics span plans (Requirement 59): every approved epic and every epic
+    // folder on disk not yet approved, each with computed progress.
+    if (name === "epic.list" || name === "epic.get") {
+      const data = this.read(),
+        folders = (() => {
+          try {
+            return this.specList().items.filter((item) => item.kind === "epic");
+          } catch {
+            return [];
+          }
+        })(),
+        approved = crossPlanEpics(data),
+        ids = [
+          ...approved.map((epic) => epic.id),
+          ...folders.map((item) => item.name).filter((id) => !approved.some((epic) => epic.id === id)),
+        ],
+        view = (id) => {
+          const folder = folders.find((item) => item.name === id);
+          return epicView(store, data, {
+            id,
+            spec: folder ? this.readSpec(id) : null,
+            members: folder?.members?.map((member) => member.plan) ?? null,
+          });
+        };
+      if (name === "epic.get") {
+        if (typeof input.id !== "string" || !ids.includes(input.id))
+          fail(`No epic ${input.id}.`, 404);
+        return view(input.id);
+      }
+      return {
+        revision: data.revision,
+        items: ids.map((id) => {
+          const { requirements, design, ...summary } = view(id);
+          return summary;
+        }),
+      };
+    }
     if (name === "plan.table") {
       const specs = (() => {
         // A workspace with no spec folders for its mode still has stored
@@ -3110,16 +3184,9 @@ export class Operations {
               scope: "catalog",
               kind: "task",
               status: "planned",
-              epic: "inbox",
               track: "catalog",
               tags: [],
             };
-            if (!data.epics.some((e) => e.id === "inbox"))
-              data.epics.push({
-                id: "inbox",
-                title: "Inbox",
-                scope: "catalog",
-              });
             data.tasks.push(task);
           }
           refuseGateBypass(data, task, input, reviewers);
@@ -3143,7 +3210,7 @@ export class Operations {
             "title",
             "summary",
             "status",
-            "epic",
+            "phase",
             "track",
             "tags",
             "notes",
@@ -3163,6 +3230,28 @@ export class Operations {
             "parent",
           ])
             if (Object.hasOwn(input, key)) task[key] = input[key];
+          // A task's epic is its plan's (Requirement 59.2): only a stale
+          // value from before that rule may be cleared, with epic: null.
+          if (Object.hasOwn(input, "epic")) {
+            if (input.epic !== null)
+              fail("A task names no epic: its plan does. Send epic: null to clear an old value.");
+            delete task.epic;
+          }
+          if (input.kind === "epic")
+            fail('kind "epic" is not a task kind: write "package".');
+          if (task.phase === null) delete task.phase;
+          else if (
+            task.phase !== undefined &&
+            (!task.phase ||
+              typeof task.phase !== "object" ||
+              typeof task.phase.id !== "string" ||
+              !/^[A-Za-z0-9][A-Za-z0-9._-]{0,59}$/.test(task.phase.id) ||
+              typeof task.phase.title !== "string" ||
+              !task.phase.title.trim() ||
+              task.phase.title.length > 240 ||
+              Object.keys(task.phase).some((key) => !["id", "title"].includes(key)))
+          )
+            fail("phase is {id, title}, or null for No phase.");
           // Authority changes only through projection or taking a task back.
           if (Object.hasOwn(input, "authority"))
             fail("Authority changes only through projection.", 409);
@@ -3197,11 +3286,6 @@ export class Operations {
               fail(key + " must be a list of strings.");
           if (!data.tracks.some((t) => t.id === task.track))
             fail("Unknown track.");
-          if (
-            !data.epics.some((e) => e.id === task.epic) &&
-            !data.documents[task.epic.replace(/^doc:/, "")]
-          )
-            fail("Unknown epic.");
           if (input.requires !== undefined) {
             // Each entry is a task ID, or {task, condition} naming the
             // completion level the dependency must reach (design §4.3).
@@ -3420,8 +3504,20 @@ export class Operations {
     if (name === "plan.get") {
       const plan = store.get("plans", input.id);
       if (!plan) fail("Plan not found.", 404);
+      const data = this.read(),
+        epic = epicOfPlan(data, plan.id),
+        phases = new Map();
+      for (const task of data.tasks)
+        if (task.planId === plan.id && task.phase && !phases.has(task.phase.id))
+          phases.set(task.phase.id, task.phase);
       return {
         ...plan,
+        // The epic both sides agree on, and the one this revision's
+        // front-matter names (Requirement 59.2); its phases, in task order.
+        epic: epic?.id ?? null,
+        epicTitle: epic?.title ?? null,
+        epicNamed: plan.spec ? specEpic(plan.files) : null,
+        phases: [...phases.values()],
         quality: plan.spec
           ? this.lintSpecPlan(plan)
           : lintPlan({

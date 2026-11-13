@@ -605,9 +605,21 @@ try {
         await localOrRequest("flow.view", {
           ...(options.repository ? { repository: options.repository } : {}),
           ...(options.epic ? { epic: options.epic } : {}),
+          ...(options.plan ? { plan: options.plan } : {}),
+          ...(options.phase ? { phase: options.phase } : {}),
           ...(options.window ? { window: Number(options.window) } : {}),
           ...(options.stage ? { stage: options.stage } : {}),
         }),
+        null,
+        2,
+      ),
+    );
+  else if (command === "epics" || command === "epic")
+    console.log(
+      JSON.stringify(
+        command === "epic"
+          ? await localOrRequest("epic.get", { id: positionals[0] })
+          : await localOrRequest("epic.list"),
         null,
         2,
       ),
@@ -1214,7 +1226,9 @@ try {
   plugins pack-preview ID [--repo OWNER/REPO]  What importing a plugin's pack would create, change, or keep
   plugins pack-import ID --preview HASH [--repo OWNER/REPO] [--accept-lowered] [--confirm-public]  Import the exact preview
   next [--hook]                         Crew Mode buckets: ready, running, waiting, needsYou, done
-  flow [--repository ID] [--epic ID] [--window N] [--stage STAGE] Where delivery time goes (§4.11)
+  flow [--repository ID] [--epic ID] [--plan ID [--phase ID]] [--window N] [--stage STAGE] Where delivery time goes (§4.11)
+  epics                                 Epics across plans, each with member plans and computed progress
+  epic ID                               One epic: goal, what done means, member plans, open decisions
   flow run-anyway STOP_ID --confirm     Resume dispatch while a line stop stays open (a person only)
   budget receipt TASK [--json]          A task's usage receipt: spend by stage, model and attempt (§4.17)
   budget view                           Every task's spend against its cap

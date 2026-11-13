@@ -163,6 +163,8 @@ const APP_OPERATIONS = new Set([
   "task.detail",
   "plan.spec.read",
   "plan.table",
+  "epic.list",
+  "epic.get",
   "plan.new",
   "github.repository.inspect",
   "task.change.preview",

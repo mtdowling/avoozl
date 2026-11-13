@@ -84,6 +84,8 @@ const OBSERVE = new Set([
   "task.detail",
   "plan.spec.read",
   "plan.table",
+  "epic.list",
+  "epic.get",
   "github.repository.inspect",
   "task.change.preview",
   "plugins.list",
