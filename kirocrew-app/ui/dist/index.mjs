@@ -7614,7 +7614,7 @@ function Ys(e) {
 	if (!t?.enabled || !t.specs.length) return null;
 	let n = t.readOnly ?? 0, r = n ? `${n} of ${t.specs.length} specs read only here` : "Driver: you";
 	return /* @__PURE__ */ b(G, {
-		text: n ? "Another machine or person drives these specs. Open one in Plans to see why." : "This machine drives every approved spec.",
+		text: n ? "Another machine or person drives these specs. Open one in Specs to see why." : "This machine drives every approved spec.",
 		children: (e) => /* @__PURE__ */ x("span", {
 			"data-driver-summary": !0,
 			"aria-describedby": e,
