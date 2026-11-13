@@ -204,6 +204,7 @@ const PROTECT = new Set([
   "routing.update",
   "crews.update",
   "provider.switch",
+  "provider.switch.dryRun",
   "provider.health.clear",
   "providers.settings.update",
   "delivery.pickAgain",

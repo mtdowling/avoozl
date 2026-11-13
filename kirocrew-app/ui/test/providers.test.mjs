@@ -5,10 +5,12 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import {
   canUndo,
+  dryRunDiff,
   emptyLimit,
   fromInput,
   fromOptions,
   markText,
+  switchResultText,
   switchText,
   toProvidersForm,
   toProvidersSection,
@@ -31,6 +33,25 @@ test('From lists the providers, models and tasks the running chats use', () => {
     { slot: 'c', taskId: 't1', role: 'review:x', model: null, provider: null, level: 'ok' },
   ]
   assert.deepEqual(fromOptions(chats), { providers: ['alpha', 'beta'], models: ['alpha-1', 'beta-1'], tasks: ['t1', 't2'] })
+  // The health list adds what it marks; a limit key is left out.
+  const marks = [
+    { id: 'a', scope: 'provider', name: 'gamma', level: 'out', source: 'error', kind: 'credits', since: '' },
+    { id: 'b', scope: 'model', name: 'delta-1', level: 'low', source: 'error', kind: 'rate-limit', since: '' },
+    { id: 'c', scope: 'key', name: 'omega', level: 'low', source: 'usage', kind: 'usage', since: '' },
+  ]
+  assert.deepEqual(fromOptions(chats, marks), { providers: ['alpha', 'beta', 'gamma'], models: ['alpha-1', 'beta-1', 'delta-1'], tasks: ['t1', 't2'] })
+})
+
+test('a changed dry run names the chats that joined and left; the result says what moved', () => {
+  const chat = (slot, model) => ({ slot, taskId: slot, title: slot, spec: null, role: 'worker', model, to: 'g', where: 'local' })
+  const run = (chats, marks = []) => ({ to: 'g', alsoNewTasks: false, chats, skipped: [], marks, queued: [], counts: { switch: chats.length, cannot: 0, queued: 0 }, previewHash: 'h' })
+  const diff = dryRunDiff(run([chat('s1', 'a'), chat('s2', 'a')]), run([chat('s2', 'a'), chat('s3', 'a')]))
+  assert.deepEqual(diff.added.map((c) => c.slot), ['s3'])
+  assert.deepEqual(diff.removed.map((c) => c.slot), ['s1'])
+  assert.equal(diff.marks, false)
+  assert.equal(dryRunDiff(run([]), run([], [{ scope: 'model', name: 'a', to: 'g' }])).marks, true)
+  assert.equal(switchResultText({ queued: 2, marked: ['provider alpha'] }, 'g'), 'Queued 2 running chats to g. Each moves at its next turn. New tasks skip provider alpha until you undo it.')
+  assert.equal(switchResultText({ queued: 0 }, 'g'), 'No running chat was moved.')
 })
 
 test('marks read as one line; only a person mark has Undo', () => {
@@ -81,21 +102,34 @@ test('the Thresholds form groups its fields in titled boxes, shows defaults and 
   assert.doesNotMatch(advanced, /avoozl-providers-low/)
   assert.match(page, /Blank: \$\{d\.lowPercent\}%/)
   assert.match(page, /Add a limit/)
-  assert.match(page, /<AskForHelp context=\{help\} \/>/)
+  assert.match(page, /<AskForHelp\s+workspaceId=\{workspaceId\}/)
 })
 
-test('Switch model sits in the Dashboard header and on In flight; Providers is a Settings tab', () => {
-  const dashboard = source('DashboardView.tsx')
-  const header = dashboard.slice(dashboard.indexOf('actions={'), dashboard.indexOf('</ViewHeading>'))
-  assert.match(header, /<SwitchModelButton workspaceId=\{workspaceId\}/)
-  const flight = dashboard.slice(dashboard.indexOf('title={`In flight'), dashboard.indexOf("pages.take('flight'"))
-  assert.match(flight, /<SwitchModelButton[\s\S]*tasks=\{/)
+test('Switch model and Stop the line sit once each in the top row; Providers is a Settings tab', () => {
+  const app = source('App.tsx'),
+    dashboard = source('DashboardView.tsx')
+  const row = app.slice(app.indexOf('data-top-row'), app.indexOf('</div>', app.indexOf('data-top-actions')))
+  assert.ok(row.indexOf('<SegmentedControl') < row.indexOf('<SwitchModelButton'), 'after the tabs')
+  assert.ok(row.indexOf('<SwitchModelButton') < row.indexOf('<StopLineButton'), 'Stop the line goes last')
+  for (const file of ['DashboardView.tsx', 'FlowView.tsx', 'DeliveryView.tsx', 'SettingsView.tsx'])
+    assert.doesNotMatch(source(file), /<SwitchModelButton|<StopLineButton/, `${file} has its own copy`)
+  assert.equal(app.match(/<SwitchModelButton/g).length, 1)
+  assert.equal(app.match(/<StopLineButton/g).length, 1)
+  assert.match(dashboard, /<LineBanner/)
   const dialog = source('SwitchModel.tsx')
-  // Switch needs a preview first, and sends its hash.
-  assert.match(dialog, /disabled=\{busy \|\| !preview/)
-  assert.match(dialog, /previewHash: preview\.previewHash/)
-  assert.match(dialog, /Also new tasks/)
-  assert.match(dialog, /client\.models\(\)/)
+  // Step 1 uses dropdowns and the shared picker, text only when a list can't be read.
+  assert.match(dialog, /<select aria-label=\{label\}/)
+  assert.match(dialog, /<Picker id="avoozl-switch-to"/)
+  assert.match(dialog, /modelOptions\(/, 'To offers auto and Kiro Crew\'s models')
+  assert.match(dialog, /models === 'failed' \?/)
+  assert.match(dialog, /could not be read, so there is no list/)
+  assert.match(dialog, /change model at their next turn\. Each keeps its branch and worktree/)
+  assert.match(dialog, /Routing skips the From provider or model for new tasks/)
+  // Step 2 is the dry run; Confirm sends its hash, and a 409 shows the difference.
+  assert.match(dialog, /client\.dryRun\(/)
+  assert.match(dialog, /previewHash: dry\.previewHash/)
+  assert.match(dialog, /setChanged\(dryRunDiff\(dry, next\)\)/)
+  assert.match(dialog, /onClick=\{\(\) => setStep\('choose'\)\} data-switch-back/)
   const settings = source('SettingsView.tsx')
   assert.match(settings, /tab === 'providers' \? \(\s*<ProvidersSettings/)
   assert.match(source('views-api.ts'), /'provider-out': 'Provider out'/)
