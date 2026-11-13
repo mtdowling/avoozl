@@ -4610,7 +4610,7 @@
       "summary": "Phase 21 (Epics and phases). See R59.1–R59.4, R59.7; §6.9.",
       "acceptance": [
         "Epic folders and the `epic:` key, after Phase 3's proofs",
-        "An epic folder is known by its manifest's top-level kind, lists member plans, and is refused with the §6.9 codes; `epic:` front-matter is read like `category:`; old `kind: \"epic\"` and per-entry `epic` in a plan load as package and phase with warnings."
+        "An epic folder is known by its manifest's top-level kind, lists member plans, and is refused with the §6.9 codes; `epic:` front-matter is read like `category:`; `kind: \"epic\"`, per-entry `epic`, a plan's `epics` list and `memberPlan` are validation errors and never load under another name."
       ],
       "completion": "integrated",
       "checks": [
@@ -4668,10 +4668,10 @@
     "21.4": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 21 (Epics and phases). See R59.8, R59.9; §6.9, §6.3.",
+      "summary": "Phase 21 (Epics and phases). See R59.8, R59.9, R59.15; §6.9, §6.3.",
       "acceptance": [
         "Epic and plan issues on GitHub, after 21.2",
-        "Projection makes the epic issue with the epic type, plan issues as its sub-issues and task issues under them; the phase line and optional Project field are written; the tick closes plan then epic issues; a second preview writes nothing; limits and refused links show in the preview and Delivery."
+        "Projection makes the epic issue with the epic type, plan issues as its sub-issues and task issues under them; the phase line and optional Project field are written; the tick closes plan then epic issues; a second preview writes nothing; `github.subIssues.maxPerParent` (default 100) is validated, shown in GitHub modes only, and checked against each parent's existing sub-issue total; children past the cap and refused links show in the preview and Delivery."
       ],
       "completion": "integrated",
       "checks": [
@@ -4705,7 +4705,7 @@
       "summary": "Phase 21 (Epics and phases). See R59.11, R59.14; §6.9, §8.6.",
       "acceptance": [
         "Batch by phase and the New plan fields, after 21.2 and 19.1",
-        "`flow.batch.by` accepts `phase` as the default and `epic` as its alias; New plan has Epic and Phases fields; the planner agent and skill write epic folders, the `epic:` key, and phase headings."
+        "`flow.batch.by` accepts `phase` as the default and `files`, and refuses `epic` naming `phase`; New plan has Epic and Phases fields; the planner agent and skill write epic folders, the `epic:` key, and phase headings."
       ],
       "completion": "integrated",
       "checks": [
@@ -4722,16 +4722,12 @@
       "repository": "avoozl",
       "summary": "Phase 21 (Epics and phases). See R59.12, R59.13; §6.9.",
       "acceptance": [
-        "Workspace epic migration, after 21.2",
-        "`workspace.migrate.epics` previews, backs up with sha256, turns per-plan epics into phases, maps `doc:` epics to sections or No phase, archives orphaned tasks with reason \"plan removed\", changes nothing on a second run, and approves, starts, writes to GitHub, and pushes nothing."
+        "Rewrite the owner's plans once, after avoozl-p36",
+        "A one-time script, kept in the task's report and not in `src/`, runs through existing operations on a copy and then live after a sha256 backup; per-plan epics become phases, `doc:` tasks go to their section or No phase, orphaned tasks are archived as \"plan removed\", old manifest forms and `flow.batch.by: \"epic\"` are rewritten, every plan lints with 0 errors, a second run changes nothing, spec edits are local commits, and nothing is approved, started, written to GitHub, or pushed."
       ],
-      "completion": "integrated",
-      "checks": [
-        "npm test",
-        "git diff --check"
-      ],
+      "completion": "answered",
       "requires": [
-        "21.2"
+        "avoozl-p36"
       ]
     },
     "avoozl-p36": {
@@ -4739,8 +4735,8 @@
       "repository": "avoozl",
       "summary": "Phase 21 (Epics and phases). Proof. See R59; §6.9.",
       "acceptance": [
-        "Proof: one epic over two member plans, and a migrated Nupp-shaped copy",
-        "Expected: membership needs both sides; phases come from manifest values or headings; no `doc:` group appears; three levels of sub-issues project and a second preview writes nothing; plan then epic issues close from children; the migration backs up, maps, archives orphans, and is idempotent on a copy."
+        "Proof: one epic over two member plans, and old forms refused",
+        "Expected: membership needs both sides; phases come from manifest values or headings; no `doc:` group appears; three levels of sub-issues project, children past `github.subIssues.maxPerParent` stay unlinked and are shown, and a second preview writes nothing; plan then epic issues close from children; every old form is a validation error; `flow.batch.by: \"epic\"` is refused."
       ],
       "completion": "integrated",
       "checks": [
@@ -4753,8 +4749,427 @@
         "21.3",
         "21.4",
         "21.5",
+        "21.6"
+      ]
+    },
+    "22.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 22 (Templates, manual tasks, links and notes). See R61.9–R61.11, R61.13, R61.15; §4.16, §4.3.",
+      "acceptance": [
+        "Manual leaves in lint and the tick, after 21.1",
+        "A manual leaf lints only with completion `person` and no run fields; it is never dispatched or batched; it shows in Blocked or waiting, then Needs you tagged Manual; only a person marks it Done or Skipped or reopens it, and either releases its dependents; MCP calls are refused."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "21.1"
+      ]
+    },
+    "22.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 22 (Templates, manual tasks, links and notes). See R61.14; §4.16, §6.3, §6.7.",
+      "acceptance": [
+        "Manual leaves on GitHub, after 22.1 and 18.1",
+        "The manual leaf's issue never gets a ready or trigger label and says a person closes it; Mark done closes it as the person's login after Who counts; an allowed GitHub close completes it; any other close holds dependents with a decision and no reopen; a reopen leaves running sessions alone."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "22.1",
+        "18.1"
+      ]
+    },
+    "22.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 22 (Templates, manual tasks, links and notes). See R61.16–R61.18, R61.20–R61.22; §4.16, §4.9.",
+      "acceptance": [
+        "Links and notes store, operations, CLI, and MCP, after 17.1 and avoozl-p28",
+        "Links and notes are stored in SQLite with the §4.16 limits; the `notes` boundary blocks a banned term for sessions and persons; a session adds only to its bound task and cannot edit or remove; briefs carry the newest entries and blockers' outcomes as data; the plan revision does not change."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "17.1",
+        "avoozl-p28"
+      ]
+    },
+    "22.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 22 (Templates, manual tasks, links and notes). See R61.12, R61.19; §4.16, §8.",
+      "acceptance": [
+        "Task drawer Links and notes and the Mark done dialog, after 22.1 and 22.3",
+        "The drawer lists links and notes newest first with author and time, adds, edits and removes them after a confirm, and shows a manual leaf's acceptance with a Mark done dialog that saves an outcome and Done or Skipped."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "22.1",
+        "22.3"
+      ]
+    },
+    "22.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 22 (Templates, manual tasks, links and notes). See R61.23; §4.16, §3.3.",
+      "acceptance": [
+        "Links and notes on the issue, after 22.2 and 22.3",
+        "Only entries a person marks Show on the issue reach the managed body, after the `github` boundary; edits there are conflicts; a rebuild restores shown entries."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "22.2",
+        "22.3"
+      ]
+    },
+    "22.6": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 22 (Templates, manual tasks, links and notes). See R61.1–R61.6; §4.16, §4.14.",
+      "acceptance": [
+        "Template plugin part and checks, after 16.3 and 21.2",
+        "A plugin can provide templates without code; a template with an unknown key, an unknown placeholder, a starter that does not lint, phases that do not match, or an invalid pack or flow makes its plugin invalid; only approved plugins' templates are listed."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "16.3",
+        "21.2"
+      ]
+    },
+    "22.7": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 22 (Templates, manual tasks, links and notes). See R61.6–R61.8; §4.16, §8.6.",
+      "acceptance": [
+        "From template in the New plan drawer, after 22.6, 21.6 and 19.1",
+        "From template lists approved templates, fills their inputs, seeds the planner chat, and returns a draft plan that records the template; settings import only when ticked, through the pack preview hash; a picked epic gets a draft revision; nothing is approved, started or pushed."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "22.6",
         "21.6",
-        "21.7"
+        "19.1"
+      ]
+    },
+    "22.8": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 22 (Templates, manual tasks, links and notes). See R61.24; §4.16.",
+      "acceptance": [
+        "Sample SDK rewrite template, docs, and skills, after 22.7 and 22.4",
+        "The sample SDK rewrite template lints and loads; the docs and the plugin and planner skills describe templates, manual leaves, and links and notes; the sample names no private system or company."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "22.7",
+        "22.4"
+      ]
+    },
+    "avoozl-p37": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 22 (Templates, manual tasks, links and notes). Proof. See R61; §4.16.",
+      "acceptance": [
+        "Proof: an SDK rewrite plan from a template, gated by a manual team review, with links and notes",
+        "Expected: the template makes a draft that joins an epic and imports no setting unless ticked; the manual review is never dispatched and gates cutover; only a person in the app or an allowed GitHub closer completes it; links and notes are refused by content rules and field limits, reach the dependent's brief as data, and reach the issue only when shown."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "22.1",
+        "22.2",
+        "22.3",
+        "22.4",
+        "22.5",
+        "22.6",
+        "22.7",
+        "22.8",
+        "avoozl-p36"
+      ]
+    },
+    "23.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 23 (Specs and ideas). See R62; §8.7.",
+      "acceptance": [
+        "Say spec on the page, in docs and in skills, after 19.1",
+        "Every user-facing plan word reads spec; the compatibility names are unchanged; a page-source test fails on any plan word outside its allowlist."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "19.1"
+      ]
+    },
+    "23.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 23 (Specs and ideas). See R63.1, R63.3–R63.6, R63.10; §8.8, §4.12.",
+      "acceptance": [
+        "Idea record and operations, after 14.10 and 17.1",
+        "Ideas are `local` incoming items with notes and links and their limits; capture and append pass the `intake` boundary; sessions only capture and append; ideas never match a rule, tie to a task, count as untriaged or get purged."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "14.10",
+        "17.1"
+      ]
+    },
+    "23.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 23 (Specs and ideas). See R63.2, R63.7, R63.10; §8.8.",
+      "acceptance": [
+        "Ideas on the page, after 23.1 and 23.2",
+        "+ New idea on Specs and Intake, the Idea kind filter and the idea drawer with notes, links, Archive and Restore work at 375 and 1280 px in light and dark."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "23.1",
+        "23.2"
+      ]
+    },
+    "23.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 23 (Specs and ideas). See R63.8, R63.9; §8.8, §8.6.",
+      "acceptance": [
+        "Riff on this and Make it a spec, after 23.3",
+        "Riff on this opens a seeded chat that only appends to the idea; Make it a spec prefills the New spec entry point and graduates the idea when the request is recorded; a cancel changes nothing."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "23.3"
+      ]
+    },
+    "avoozl-p38": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 23 (Specs and ideas). Proof. See R62, R63; §8.7, §8.8.",
+      "acceptance": [
+        "Proof: the Specs name and ideas",
+        "Expected: no user-facing plan word outside the allowlist and compat names unchanged; bad idea fields and blocked text refused; ideas never start work or count as untriaged; a session cannot archive or graduate; riff only appends; Make it a spec prefills New spec and graduates the idea; archived ideas survive the purge."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "23.1",
+        "23.2",
+        "23.3",
+        "23.4"
+      ]
+    },
+    "24.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 24 (Pull the Andon cord). See R64.2–R64.5, R64.7–R64.11; §4.11.",
+      "acceptance": [
+        "Pulled stops in the backend, CLI and MCP, after 12.6",
+        "`flow.stop` records a pulled stop after the `brief` content rules and pauses dispatch in its scope; `flow.resume` is person only and recorded; a pulled stop never closes by itself; MCP `stop_line`, `avoozl flow stop` and `avoozl flow resume` work; Flow and the retro carry the pull."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "12.6"
+      ]
+    },
+    "24.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 24 (Pull the Andon cord). See R64.1, R64.6, R64.7; §4.11.",
+      "acceptance": [
+        "Stop the line on the Dashboard, after 24.1",
+        "The red header button, its dialog and the banner with Resume work at 375 and 1280 px in light and dark."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "24.1"
+      ]
+    },
+    "avoozl-p39": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 24 (Pull the Andon cord). Proof. See R64; §4.11.",
+      "acceptance": [
+        "Proof: pull the Andon cord",
+        "Expected: a pulled stop pauses its scope and leaves running sessions alone; bad pulls are refused with nothing recorded; only a person resumes; nothing else closes a pulled stop; Flow, the retro and the CLI see each pull."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "24.1",
+        "24.2"
+      ]
+    },
+    "25.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 25 (New plan hands off to Spec Builder). See R65; §8.6.",
+      "acceptance": [
+        "Spec Builder hand-off, steering file and manifest from tasks.md, after 19.1",
+        "New plan creates the spec in Spec Builder and opens it; the steering file is written only after asking; the tick writes the manifest and imports a draft; Avoozl calls no Spec Builder route but create."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "19.1"
+      ]
+    },
+    "26.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 26 (Driver handoff). See R66.1–R66.9; §6.10.",
+      "acceptance": [
+        "Driver lock and read-only ticks, after 3.8 and 21.4",
+        "A spec is driven only where its plan issue (else its epic issue) has exactly one assignee equal to the gh login and the marker claim names this machine; zero or several reads only everywhere with one decision; the check runs again before each dispatch, projection and integrate; Avoozl changes no assignee; Local only uses a SQLite row."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "3.8",
+        "21.4"
+      ]
+    },
+    "26.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 26 (Driver handoff). See R66.10–R66.12, R66.15, R66.16; §6.10.",
+      "acceptance": [
+        "Hand off and take over from an export, after 26.1 and 12.1",
+        "Hand off drains without ending chats, writes a one-spec export with no machine-local contents and links the plan issue to reassign; Take over checks the file against the claim and imports it in one transaction; away tasks are never restarted by lease; the re-approve list shows; agent, MCP, app-token and plugin callers get 403."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "26.1",
+        "12.1"
+      ]
+    },
+    "26.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 26 (Driver handoff). See R66.11, R66.13–R66.15; §6.10.",
+      "acceptance": [
+        "Rebuild and force take over, after 26.1 and 3.10",
+        "Rebuild from GitHub shows the loss list first and re-raises open decisions; Force take over names the old driver, needs the spec name typed, sets the plan issue's assignee to this login and reads it back, and records a forced claim; a returning old driver reads only."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "26.1",
+        "3.10"
+      ]
+    },
+    "26.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 26 (Driver handoff). See R66.17; §6.10.",
+      "acceptance": [
+        "Driver in the header, banner, dialogs and Settings, after 26.2 and 26.3",
+        "The header driver chip, read-only banner with its reason, stepped Hand off dialog, confirm dialogs and Settings › General › This computer work at 375 and 1280 px in light and dark."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "26.2",
+        "26.3"
+      ]
+    },
+    "avoozl-p40": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 26 (Driver handoff). Proof. See R66; §6.10.",
+      "acceptance": [
+        "Proof: driver handoff",
+        "Expected: only the machine named by the plan issue's single assignee and its claim writes for a spec; zero or several assignees read only with one decision; one login on two machines is told apart; the dispatch check stops a reassigned driver; age never moves the role; hand off drains, exports and leaves the reassign to a person; take over checks the file; rebuild and forced take-over list what is lost; a silently ignored reassignment is caught; a returning old driver reads only; person-only moves refuse other callers."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "26.1",
+        "26.2",
+        "26.3",
+        "26.4"
       ]
     }
   }

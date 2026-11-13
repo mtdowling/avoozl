@@ -53,7 +53,7 @@ Each row is **Verified** against the cited page or a read-only query on
 
 | # | Fact | Evidence |
 |---|---|---|
-| F37 | A parent issue can take sub-issues from other repositories; up to 100 sub-issues per parent and eight levels of nesting. `gh issue create --parent` and `gh issue edit --add-sub-issue` manage them. | [Adding sub-issues](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/adding-sub-issues); [REST sub-issues](https://docs.github.com/en/rest/issues/sub-issues) |
+| F37 | A parent issue can take sub-issues from other repositories of the same owner; up to 100 sub-issues per parent and eight levels of nesting (rechecked 2026-11-13, §6.9). `gh issue create --parent` and `gh issue edit --add-sub-issue` manage them. | [Adding sub-issues](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/adding-sub-issues); [REST sub-issues](https://docs.github.com/en/rest/issues/sub-issues) |
 | F38 | A sub-issue may belong to a different organization than its parent. Sub-issues inherit the parent's Project and milestone by default. Projects have a REST API that adds items and updates field values. | [Changelog 2025-09-11](https://github.blog/changelog/2025-09-11-a-rest-api-for-github-projects-sub-issues-improvements-and-more/) |
 | F39 | Issue dependencies (blocked by, blocking) are generally available, with up to 50 issues per relationship type, in REST, GraphQL, and webhooks. `gh issue edit --add-blocked-by` accepts issue numbers or URLs. Same-org cross-repository dependencies were proved live (F11). Cross-organization dependencies are **Inferred** to work; P18 checks it. | [Creating issue dependencies](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/creating-issue-dependencies); [Changelog 2025-08-21](https://github.blog/changelog/2025-08-21-dependencies-on-issues/) |
 | F40 | A Project can hold issues and pull requests from any organization, up to 50,000 items. Project timeline events on an issue are visible only to people who can read the Project. | [Adding items to your project](https://docs.github.com/en/issues/planning-and-tracking-with-projects/managing-items-in-your-project/adding-items-to-your-project) |
@@ -159,6 +159,7 @@ outside Kiro Crew.
 | Human decisions | SQLite for local tasks; GitHub labels and comments for GitHub tasks | Authoritative / cache | |
 | Tracker plugin records (`authority: plugin:<id>`) | The plugin's tracker: records, open or closed, managed fields, the stored marker, and native links when the plugin has `edges` | **Cache** | Same rule as GitHub. Without `edges`, the graph's edges come from the approved manifest and SQLite caches them (§4.8) |
 | Plugin approvals | Machine-local Avoozl settings: id, version, content hash | Receipt | Never in Git; never set by the tick (§4.8) |
+| Spec driver (which machine may write for a spec) | GitHub: the plan issue's single assignee (else its epic issue's) plus the machine claim in its marker; Local only: a SQLite row | **Cache** in GitHub modes; authoritative in Local only | Moves only by a person: a reassignment then Take over, or Force take over (§6.10) |
 
 ### 3.2 When SQLite is authoritative
 
@@ -347,7 +348,8 @@ plugin's `list` and `read` plus the approved manifest (§4.8, proof P26).
 | `repository` | registered repository ID | Required for leaves; exactly one |
 | `acceptance` | list of observable statements | Required for leaves |
 | `checks` | named commands (local) or check names (GitHub) | Required for code leaves |
-| `completion` | `merged-pr`, `integrated`, `released`, `answered` | `answered` only for `respond` |
+| `completion` | `merged-pr`, `integrated`, `released`, `answered`, `person` | `answered` only for `respond`; `person` only, and always, for a `manual` leaf (§4.16) |
+| `manual` | `true` or absent | A leaf only a person does: never dispatched, waits in Needs you, marked done by a person (§4.16) |
 | `status` | `draft`, `approved`, `running`, `review`, `done`, `failed`, `blocked`, `deferred`, `partial` | `partial` exists only for migrated tasks (§10) |
 | `decision` | open decision ID or null | Any open decision blocks readiness |
 
@@ -1545,6 +1547,43 @@ fix integrates ─▶ checks pass on head ─▶ resume, close stop with time to
   asks a question, is blocked on something only a person can do, or fails
   past its retry bound.
 
+#### Pull the cord
+
+Added 2026-11-13 (Requirement 64). In the Toyota line anyone who sees a
+defect may pull the cord. Avoozl's automatic stops only fire on a check that
+used to pass; the cord covers what no check sees.
+
+```text
+Stop the line (header) ─▶ dialog: scope + one-line reason ─▶ flow.stop
+   │ reason passes the `brief` content rules, scope target exists
+   ▼
+flow_stops row { manual: true, by, scope, target, reason, openedAt }
+   │ dispatch skips every task in scope (fix tasks too); running chats untouched
+   ▼
+banner: who, when, scope, reason, paused count ─▶ Resume (person) ─▶ flow.resume
+   ▼
+closedAt, resumedBy, time to fix ─▶ Flow stops, charts, retro
+```
+
+- **Scope.** `all` pauses every task; `repo` every task in one
+  repository; `spec` every task of one plan; `task` one task and its
+  transitive dependents along blocking edges. Unlike an automatic stop, a
+  pulled stop pauses fix tasks in scope too, because the person asked for
+  nothing new to start.
+- **Who.** `flow.stop` is an `execute` operation. The page and the CLI pull
+  as a person; an agent session pulls through `plans_session` action
+  `stop_line`, and the stop names the session. `flow.resume` is person
+  only (`mcp-policy.mjs`) and refuses app-token and agent-tool callers.
+- **Never by itself.** The line watch closes only stops that have a check
+  or a fix task; a pulled stop has neither, so only Resume closes it.
+  Resume refuses an automatic stop, and Run anyway refuses a pulled one.
+- **Flow.** A pulled stop is a row in `flow_stops` like any other, so it is
+  listed, counted per day and week, and its open-to-resume time is a time
+  to fix. The retro payload's `lineStops` carries `manual`, `scope` and
+  `reason`.
+- **CLI.** `avoozl flow stop --scope all|repo|spec|task [--repository ID]
+  [--spec ID] [--task ID] --reason TEXT` and `avoozl flow resume STOP-ID`.
+
 #### Local checks first
 
 Default on. It applies wherever a session Avoozl opens pushes: plans-repo
@@ -1564,8 +1603,8 @@ enforced there.
 
 A leaf is batchable only when the plan marks it `size: "small"` in the
 manifest, because only the planner knows a task is small before it runs.
-Avoozl groups ready batchable leaves by `flow.batch.by` (`epic`, the same
-parent, by default; or `files`, overlapping manifest `paths`) up to
+Avoozl groups ready batchable leaves by `flow.batch.by` (`phase`, the same
+parent or phase, by default, renamed from `epic` in §6.9; or `files`, overlapping manifest `paths`) up to
 `flow.batch.max` (default 3). Every leaf in a batch shares the repository,
 route, crew, and review roles, has no edge to another, and has local
 authority. GitHub-authority leaves are not batched yet: each closes through
@@ -1651,7 +1690,7 @@ Reply:
   "flow": {
     "stopTheLine": { "scope": "dependents" },
     "localChecksFirst": true,
-    "batch": { "max": 3, "by": "epic" },
+    "batch": { "max": 3, "by": "phase" },
     "retro": { "everyTasks": 10, "slowFactor": 2, "model": "auto" }
   }
 }
@@ -2085,6 +2124,219 @@ as the planning repository), and it names file, line, set and rule, never
 the matched text. With one GitHub repository registered, the issue preview
 uses it for every leaf, as lint already does. The flow approves nothing,
 starts no agent and pushes nothing.
+
+### 4.16 Workflow templates, manual tasks, and task links and notes
+
+**Proposed**, owner approval 2026-11-13 (Requirement 61). A repeated kind
+of work, such as rewriting one SDK after another, should start from the
+same phases, proofs, settings and flow habits each time. Some steps in it
+are for people only, such as a team review, and what they decide has to
+reach the agents after them. Three small parts cover this: templates,
+manual leaves, and links and notes on every task.
+
+#### Templates
+
+A template is a folder in a plugin, named by the `template` part in
+`provides` (§4.14). It holds no code, so it runs as nothing, like a pack;
+a template-only plugin has no `entry`. Install, pin, approval and the
+shared-with-the-repo rule are the plugin's (§4.8, §4.14), so a team ships
+its templates in the same bundle as its pack and rules.
+
+```
+templates/sdk-rewrite/
+  avoozl-template.json
+  prompt.md
+  starter/requirements.md
+  starter/design.md
+  starter/tasks.md
+  starter/avoozl/manifest.json
+```
+
+| Key | Holds | Checked by |
+|---|---|---|
+| `id`, `title`, `description` | Shown in the New plan drawer | `id` like a plugin ID, unique in the plugin |
+| `inputs` | Fields the person fills: `text`, `choice` (with `options`), `file`, `repositories`, `epic` | Each has `id`, `label`, `type`, `required`; IDs unique |
+| `prompt` | The planner prompt, Markdown | Exists; uses only known `{{input}}` names |
+| `starter` | A spec folder in the §6.8 layout | Lints clean with sample values; may hold `manual` leaves and proof tasks |
+| `phases` | Phase IDs and titles, in order | Match the starter's headings or `phase` values (§6.9) |
+| `proofKinds` | Proof outlines: title, setup, action, expected, failure means, next decision | Each has a title; the prompt tells the planner to fill them |
+| `pack` | A settings pack (§4.14) | The pack validators of Requirement 55.4 |
+| `flow` | Flow defaults | The Flow settings validator (§4.11) |
+
+Placeholders are plain text replacement: `{{sdk}}` becomes what the person
+typed, nothing is evaluated, and an unknown name makes the template invalid.
+A `file` input is read in the page with the browser's file picker, at most
+200 KB of text, and goes into the seed; Avoozl never opens a path typed into
+a field. A template's seed still runs in the planner chat; the blank form
+goes to Spec Builder (§8.6).
+
+**New plan from template.** The New plan drawer (§8.6) starts with **Blank**
+or **From template**, as radio fold-outs. From template lists approved
+templates with title and description; picking one shows its inputs under
+the drawer's Name, Category and Epic. `plan.new` gains `template` (plugin
+ID, template ID, version) and `inputs`; it checks each required input and
+runs content rules on the whole seed at the `brief` boundary, and a refused
+request records nothing. The seed holds the prompt, the starter with its
+placeholders filled, the inputs, and the spec rules the drawer already
+sends. The tick imports the folder as a draft once it lints clean, with the
+template recorded on the plan. With an epic picked, the planner also adds
+the plan to that epic folder's `tasks.md` and manifest, which come back as
+a draft revision of the epic (§6.9: both sides must agree).
+
+**Settings and flow.** Picking a template changes no setting. When it has a
+`pack` or `flow`, the drawer shows the pack preview (create, change, keep,
+skip) with **Import these settings**, unticked. Ticking it and submitting
+runs the person-only pack import against the shown preview hash, exactly as
+Settings does (Requirement 55.5–55.7). The batching default works only
+because the starter and prompt mark small tasks `size: "small"` (§4.11).
+
+#### Manual leaves
+
+```json
+"review": {
+  "kind": "leaf",
+  "manual": true,
+  "repository": "sdk",
+  "acceptance": ["The team agreed the runtime and protocol results are good enough to cut over"],
+  "completion": "person",
+  "requires": ["protocol-tests"]
+}
+```
+
+- **Lint.** `manual` leaves need `acceptance`, `repository` and completion
+  `person`; `checks`, `agent`, `model`, `size`, `paths` and `route` are
+  errors (`spec.manual-field`), and `person` on any other leaf is an error
+  (`spec.person-completion`). `repository` only says where the issue
+  lives, since nothing runs in it.
+- **Tick.** A manual leaf is left out of `ready` for dispatch, batching,
+  verification, review and integration. Its edges work as for any task, and
+  every edge condition on it is met when it is done, because there is no
+  merge or integration to wait for.
+- **Lane.** Before its blockers finish it is in **Blocked or waiting**.
+  Then it is in **Needs you**, tagged **Manual**, reason "Waiting for a
+  person: Review with team". This reuses the lane people already watch and
+  the Avoozl state option that exists on the board (§6.7), so setup
+  changes nothing.
+- **Mark done.** The task drawer shows the acceptance and **Mark done**. The
+  dialog takes an optional outcome note and links, and **Done** or
+  **Skipped**. `task.manual.complete` and `task.manual.reopen` are person
+  only (page and CLI); MCP refuses them (Requirement 56.2). Either choice
+  releases dependents; Skipped stays visible on the task and in Flow.
+- **GitHub.** The issue is projected like any task's, under its plan issue
+  or package, never gets a ready or trigger label and is never handed to
+  Issue Radar. Its managed body says "Manual task: a person closes this
+  issue or marks it done in Avoozl. No agent works on it." Mark done closes
+  it as the person's `gh` login (completed for Done, not planned for
+  Skipped), refused when that login fails Who counts. A close on GitHub by
+  an allowed actor is the completion, with the close reason as Done or
+  Skipped; unlike a code task, nothing is missing, so it counts as
+  verified. A close by anyone else, or by a closer Avoozl cannot read,
+  holds the dependents and opens a decision; the issue is not reopened. A
+  reopened issue makes the leaf open again: new dispatch of dependents
+  waits and running sessions are left alone, as for any reopened task.
+- **Flow.** Time in Needs you counts as waiting on a person; first-pass
+  rate and time to fix skip manual leaves.
+
+#### Links and notes
+
+| Field | Rule |
+|---|---|
+| `kind` | `link` or `note` |
+| `url`, `label` | Link only: `https` or `http`, at most 2,000 characters, no user info; label 1–200 characters |
+| `text` | Note only: 1–10,000 characters |
+| `outcome` | True when saved from a manual leaf's Mark done dialog |
+| `author` | `person` (with the `gh` login when known) or `session:<id>` |
+| `at`, `editedAt`, `removedAt` | Times; a removed entry leaves the list and stays in activity history |
+| `onIssue` | Show on the issue; false by default |
+
+**Why SQLite, not spec text.** Links and notes record what happened while
+the work ran: a meeting's outcome, a doc a reviewer pointed at, a decision.
+They change after approval. In a spec file each one would change the
+revision hash and send the plan back for approval, and the planner would
+own text that people and workers write. They are execution state, so
+they live in a `task_notes` table with at most 200 entries per task. A
+link that belongs in the plan itself goes through Edit plan.
+
+**Access.**
+
+| Who | List | Add | Edit or remove | Show on the issue |
+|---|---|---|---|---|
+| Person (page, CLI) | yes | yes | yes | yes |
+| Session (MCP `task` tool) | yes | its bound task only | no | no |
+
+`task.notes.list` is `observe`. `task.notes.add` is open to sessions for
+their bound task, so a worker can leave a finding for the next one.
+`task.notes.edit`, `task.notes.remove` and `task.notes.show` are person
+only. The CLI gets `avoozl task notes <id>` with `add`, `edit` and
+`remove`.
+
+**Content rules.** A new `notes` boundary, on by default like `plan`,
+`github` and `brief`, checks each entry when saved. A block refuses a
+session's call with the rule's names (§4.9) and refuses a person's save
+inline with Allow once. Entries are checked again at `brief` when they go
+into a brief and at `github` when shown on an issue.
+
+**Briefs.** A worker's brief gets a "Links and notes" section: the newest
+20 entries, at most 8,000 characters, each with author and time, introduced
+as data from people and agents, not instructions. A dependent's brief also
+carries each blocker's outcome entries, so the cutover worker reads what
+the review decided.
+
+**GitHub.** Nothing is written by default, because notes may hold meeting
+notes not meant for a shared repository. An entry a person ticks **Show on
+the issue** is listed in the managed body section under "Links and
+notes". Edits there by others are conflicts, as for the rest of the
+managed section. The rebuild test (§3.3) rebuilds shown entries from the
+body; entries not shown live only in SQLite and its backups, and may be
+missing after a rebuild, like session bindings.
+
+#### Example: SDK rewrite template
+
+| Phase | Starter tasks | Kind |
+|---|---|---|
+| Inventory | List `{{sdk}}`'s operations and features; read the gap list | leaves, `size: "small"` |
+| Codegen | Generate the client from the models; compare with the old one | leaves |
+| Runtime | Port transport, auth, retries, paging | leaves |
+| Protocol tests | Run the protocol test suite until it passes | leaf, plus proof `protocol-tests` |
+| Review | **Review with team** | `manual`, requires protocol tests |
+| Cutover | Switch callers, dry run, release notes | leaves, require review, plus proof `cutover-dry-run` |
+
+```json
+{
+  "id": "sdk-rewrite",
+  "title": "SDK rewrite",
+  "description": "Rewrite one SDK on the new runtime, phase by phase, with a team review before cutover.",
+  "inputs": [
+    { "id": "sdk", "label": "Which SDK", "type": "text", "required": true },
+    { "id": "repository", "label": "Target repository", "type": "repositories", "required": true },
+    { "id": "gaps", "label": "Gap list", "type": "file", "required": false }
+  ],
+  "prompt": "prompt.md",
+  "starter": "starter",
+  "phases": [
+    { "id": "inventory", "title": "Inventory" },
+    { "id": "codegen", "title": "Codegen" },
+    { "id": "runtime", "title": "Runtime" },
+    { "id": "protocol-tests", "title": "Protocol tests" },
+    { "id": "review", "title": "Review" },
+    { "id": "cutover", "title": "Cutover" }
+  ],
+  "proofKinds": [
+    { "id": "protocol-tests", "title": "Protocol tests pass" },
+    { "id": "cutover-dry-run", "title": "Cutover dry run" }
+  ],
+  "flow": {
+    "batch": { "by": "phase", "max": 3 },
+    "stopTheLine": { "scope": "dependents" },
+    "localChecksFirst": true,
+    "retro": { "everyTasks": 10 }
+  }
+}
+```
+
+Each new SDK plan made this way can join one epic, such as an SDK target
+architecture epic, through the drawer's Epic field. The review's outcome
+note and links reach the cutover workers' briefs.
 
 ---
 
@@ -2806,7 +3058,10 @@ string with its `epics` list (a grouping), and `doc:<path>` epics that the
 catalog and capture paths make up for any document (`src/catalog.mjs`,
 `src/capture.mjs`, `src/app/plans.mjs`; `specOf` in
 `src/app/page-views.mjs` parses them back). This section gives each word
-one meaning and removes the made-up groups.
+one meaning and removes the made-up groups. Changed 2026-11-13 (owner):
+old forms are errors, not warnings, and no migration operation exists. The
+owner is the only user, so task 21.7 rewrites the owner's plans once with a
+throwaway script.
 
 | Level | Is | Comes from | GitHub |
 |---|---|---|---|
@@ -2833,9 +3088,8 @@ done means. `design.md` says how the member plans fit and in what order.
 }
 ```
 
-- An entry may hold only `plan` and `summary`. `memberPlan` loads as
-  `plan` with a warning, because the first real epic folder was written
-  before this rule.
+- An entry may hold only `plan` and `summary`. The older `memberPlan`
+  key is an error; task 21.7 renames it in the one folder that used it.
 - Each member's `requirements.md` (or `bugfix.md`) starts with front-matter
   such as `---` / `category: Runtime` / `epic: rewrite` / `---`. Avoozl reads
   `epic:` exactly as it reads `category:` (§6.8): one top-level line, never
@@ -2861,12 +3115,11 @@ done means. `design.md` says how the member plans fit and in what order.
 | `spec.epic-member-unconfirmed` | error | The named plan's `epic:` is missing or names another epic |
 | `spec.epic-member-twice` | error | Two entries name the same plan |
 | `spec.epic-nested` | error | An entry names an epic folder |
-| `spec.epic-task-fields` | error | An entry holds a key other than `plan`, `memberPlan`, and `summary` |
+| `spec.epic-task-fields` | error | An entry holds a key other than `plan` and `summary` (`memberPlan` included) |
 | `spec.epic-bugfix` | error | The epic folder has `bugfix.md` |
 | `spec.epic-unknown` | warning | A plan's `epic:` names no epic folder, or one that does not list it |
-| `spec.kind-epic` | warning | A plan's manifest entry has `"kind": "epic"`; loads as `package` |
-| `spec.entry-epic` | warning | A plan's manifest entry has `epic`; loads as `phase` |
-| `spec.member-plan-alias` | warning | An epic entry uses `memberPlan`; loads as `plan` |
+| `spec.kind-epic` | error | A plan's manifest entry has `"kind": "epic"`; use `package` |
+| `spec.entry-epic` | error | A plan's manifest entry has `epic`, or the manifest has a top-level `epics` list; use `phase` and `phases` |
 
 **Phases.** A task's phase is, in order: its manifest entry's `phase`
 value; otherwise the nearest heading of level 2 or lower above its item in
@@ -2924,18 +3177,42 @@ that field. Like Wave, the field is Avoozl's: a person's edit is reverted
 on the next tick and nothing else happens. With no field named, nothing
 is written to the Project.
 
-Limits. GitHub allows up to 100 sub-issues per parent and eight levels of
-nesting ([Adding sub-issues](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/adding-sub-issues),
-**Verified** in docs only, so **Inferred** until a live call confirms it).
-Epic, plan, package, and leaf use four levels. A plan with more than 100
-tasks outside packages is linked in `tasks.md` order up to the limit. The
-preview lists the rest, their markers name the plan issue, and the Delivery
-view shows "Over GitHub's sub-issue limit; group these tasks in packages".
-When an epic issue and a plan issue are under different owners, or a link
-write is refused, both issues stay, the marker records the epic, and the
-Delivery view shows why (Requirement 59.9). Whether GitHub allows a
-sub-issue from another repository of the same owner is **Inferred**; the
-build's first live call settles it.
+**Limits**, checked 2026-11-13 against GitHub's docs and the GraphQL
+schema, read only (no issue was written to test them):
+
+| Limit | Value | Source | Status |
+|---|---|---|---|
+| Sub-issues per parent | 100 | [Adding sub-issues](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/adding-sub-issues); the docs source sets `sub-issue_limit: '100'` in `data/variables/projects.yml` of github/docs | **Verified** (docs) |
+| Closed sub-issues count toward the 100 | yes | A user's report of the `addSubIssue` error "Parent cannot have more than 100 sub-issues" with 433 closed children ([community discussion 207865](https://github.com/orgs/community/discussions/207865)); the docs do not say | **Inferred** (one report) |
+| Nesting depth | 8 levels | Adding sub-issues | **Verified** (docs) |
+| Sub-issue from another repository | allowed when both repositories have the same owner | [REST sub-issues](https://docs.github.com/en/rest/issues/sub-issues): `sub_issue_id` "must belong to the same repository owner as the parent issue"; the docs' UI steps add issues from other repositories | **Verified** (docs) |
+| Who may link | triage permission or more | Adding sub-issues | **Verified** (docs) |
+| GraphQL | `addSubIssue(issueId, subIssueId or subIssueUrl, replaceParent)`, `removeSubIssue`, `reprioritizeSubIssue`; `Issue.subIssuesSummary` gives `total`, `completed`, `percentCompleted` | `gh api graphql` introspection | **Verified** (schema) |
+
+Epic, plan, package, and leaf use four levels, well inside eight. Epic and
+plan issues always sit in the same repository as their task issues, so the
+owner rule only matters for an epic whose member plans use repositories
+under different owners.
+
+The cap is a setting: `.avoozl.json` `github.subIssues.maxPerParent`, an
+integer of at least 1, default 100. It sits in Settings > GitHub setup,
+shown in the two GitHub modes only, with the line "Most sub-issues Avoozl
+links under one issue. GitHub allows 100, closed ones included." When
+GitHub changes its limit, the owner changes this one number. A value above
+GitHub's limit is allowed; GitHub then refuses the extra links, which show
+as refused links (Requirement 59.9).
+
+Before linking, projection reads the parent's `subIssuesSummary.total`, so
+sub-issues a person added count too. Children are linked in `tasks.md`
+order until the cap. The rest stay unlinked: their marker names the parent,
+the preview lists them, and the Delivery view shows "Over the sub-issue
+limit; group these tasks in packages". Avoozl never unlinks a closed child
+to make room, because the closed children are the parent's history. For a
+plan, the fix is packages: each package is one sub-issue of the plan issue
+and holds up to the cap itself. When an epic issue and a plan issue are
+under different owners, or a link write is refused, both issues stay, the
+marker records the epic, and the Delivery view shows why (Requirement
+59.9).
 
 Existing projected issues for a manifest `kind: "epic"` entry stay where
 they are, as package issues. The next preview shows their type change and
@@ -2947,7 +3224,7 @@ their new parent, the plan issue; nothing is closed or recreated.
 |---|---|---|
 | Graph | Top level: epics and **No epic**; drill to member plans | Plan drill-in: phases, then tasks; **No phase** last |
 | Delivery | Filter; row shows plan and phase | Filter, enabled once a plan is picked |
-| Flow | Filter | Filter; `flow.batch.by: "phase"` (alias `epic`) |
+| Flow | Filter | Filter; `flow.batch.by: "phase"` (`epic` is refused) |
 | Dashboard | **Progress by epic**: one row per epic over all member plans' tasks, plus **No epic** | — |
 | Plans | Filter and an Epic column; epic folders listed with kind **Epic** | — |
 | Plan left column | The plan's epic as a link to its epic page | Phases with progress, replacing today's per-plan epics |
@@ -2959,43 +3236,306 @@ prose beside it, so no new top tab is added. The New plan drawer offers
 **Epic** (pick one) and **Phases**; the seed tells the planner to write the
 `epic:` key and the phase headings.
 
-**Migration** (`workspace.migrate.epics`, page and CLI only, person only
-under Requirement 56.2):
+**One-time rewrite** (task 21.7). No operation, CLI command or MCP action
+migrates a workspace: the owner is Avoozl's only user, so the owner's data
+is rewritten once and the old forms are errors from then on. Task 21.7
+writes a script, runs it, and keeps it in the task's report, not in `src/`.
+The script calls only existing operations (`plan.save`, `task.archive`,
+`task.update`, `flow.settings.update`) and edits spec files as local commits.
 
-1. Preview: list each change with counts, and refuse to apply against any
-   other database revision.
-2. Back up the SQLite file next to the workspace with its sha256, and record
-   the path and hash in the migration receipt.
-3. Each existing `epics` row that is neither a `doc:` epic nor backed by an
-   epic folder becomes a phase,
-   with the same ID and title, of each plan whose tasks use it. Its tasks
-   with no plan show under **No plan**.
+1. Copy the workspace database and every spec repository to a temporary
+   folder and run the whole rewrite there first. Lint every plan.
+2. Back up the live SQLite file with its sha256, and record the path and
+   hash in the task's report.
+3. Each `epics` row that is neither a `doc:` epic nor backed by an epic
+   folder becomes a phase, with the same ID and title, of each plan whose
+   tasks use it: the plan's manifest gets `phase` values and a `phases`
+   object, saved as a new draft revision of that plan.
 4. Each task in a `doc:` epic whose source is a spec plan's `tasks.md`
    takes that item's heading as its phase; any other goes to **No phase**.
 5. Each task whose plan record is gone is archived with `task.archive`,
    reason "plan removed". Done tasks are archived the same way, so history
    stays readable.
-6. `epics` keeps only rows backed by an epic folder; every other row is
-   removed after steps 3–5 moved its tasks.
-7. A second run finds nothing to change. Nothing is approved, no session is
-   started or stopped, and nothing is written to GitHub or pushed. The next
-   projection preview shows the GitHub side for approval.
+6. Each manifest in the old form is rewritten: `kind: "epic"` to
+   `package`, per-entry `epic` to `phase`, `epics` to `phases`; an epic
+   folder gets the top-level `"kind": "epic"`, and its entries keep only
+   `plan` (renamed from `memberPlan`) and `summary`.
+7. `flow.batch.by: "epic"` becomes `"phase"` in each `.avoozl.json`.
+8. Run it again; it finds nothing to change. Nothing is approved, no
+   session is started or stopped, nothing is written to GitHub, and
+   nothing is pushed. Rewritten plans come back as drafts for the owner to
+   approve; the next projection preview shows the GitHub side.
 
-The build runs it first on a copy of the workspace and its spec repository.
+The plans covered: Nupp's plans, including the rewrite epic folder and its
+native runtime plan, and Avoozl's own spec (which already uses headings
+only, so it should need no change).
 
-**Nupp-shaped example.** A planning repository holds a rewrite epic folder
-listing 21 member plans, each with `epic:` front-matter. Its main runtime
-plan's manifest gives each task an `epic` value `W1`–`W7`, and its
-`tasks.md` headings are "From design.md" and "Recorded only in the
-workspace database". After the build, that plan loads with
-`spec.entry-epic` warnings, and its tasks group under phases W1–W7
-(manifest values win over headings). Its epic folder's manifest has no
-top-level `"kind": "epic"` yet, so it keeps loading as an ordinary plan,
-as it does today, with `spec.kind-epic` warnings, and the epic shows no
-members. A one-time edit in that repository, made after the build and
-outside this plan, adds `"kind": "epic"`, keeps only `plan` (or the
-`memberPlan` alias) and `summary` in each entry, and renames each task's
-`epic` to `phase`. The proof checks both states.
+**Nupp example.** A planning repository holds a rewrite epic folder
+listing 21 member plans, each with `epic:` front-matter. Its manifest has
+`memberPlan` entries with `kind` and `repository` and no top-level kind.
+The native runtime plan's manifest gives each task an `epic` value `W1`–`W7`,
+and its `tasks.md` headings are "From design.md" and "Recorded only in the
+workspace database". After the build, both folders fail lint with
+`spec.epic-task-fields` and `spec.entry-epic` until task 21.7 rewrites
+them. After the rewrite the epic folder lists its 21 members, and the
+runtime plan's tasks group under phases W1–W7 (manifest values win over
+headings).
+
+### 6.10 Driver: one machine drives each spec
+
+**Proposed** 2026-11-13 (Requirement 66; the lock was changed the same day
+to the plan issue's assignee). Avoozl runs on one person's machine, the
+**driver**. Run state is in that machine's SQLite. GitHub holds the spec
+(in Git), issues, links, the Project, branches, pull requests and markers
+keyed by the namespace (§3.4). The namespace check of §6.3 asks only
+whether `.avoozl.json` names the namespace, and every clone of the
+planning repository does. So two machines can both tick one spec today,
+and the role cannot be moved.
+
+#### The lock: who is assigned, and which of their machines
+
+Every spec already has a plan issue under its epic issue (§6.9). The
+driver is read from it:
+
+- **Assignee: which person.** The plan issue's assignee is the spec's
+  driver. A plan issue with no assignee takes its epic issue's assignee,
+  so one assignment can name the driver for every member spec. Task-issue
+  assignees keep their meaning (intake rules, Issue Radar) and say nothing
+  about the driver.
+- **Claim: which machine.** One person may run Avoozl on two machines with
+  one `gh` login, which an assignee cannot tell apart. The plan issue's
+  marker (§3.4, `kind: "plan"`) gets a `claim`:
+
+```json
+"claim": {"machine": "mch_7hw2c4n6r8t1y3pq", "label": "laptop",
+          "login": "octocat", "takenAt": "<ISO-8601>",
+          "heartbeatAt": "<ISO-8601>", "from": null, "forced": false,
+          "export": null}
+```
+
+A workspace drives a spec only when the issue that decides has **exactly
+one** assignee, that assignee is this machine's `gh` login, and the claim
+names this machine. Every other case reads only:
+
+| Plan issue (or epic issue, when the plan issue has none) | Claim | Here |
+|---|---|---|
+| One assignee, this login | This machine | **Driver** |
+| One assignee, this login | Another machine, or none | Read only; **Take over** offered |
+| One assignee, someone else | Any | Read only; **Force take over** offered |
+| No assignee, or several | Any | Read only on every machine; one decision |
+
+The decision for zero or several names the issue and the assignees found,
+and closes by itself once the issue has one. A plan issue with several
+assignees never falls back to the epic: several names is a conflict, not a
+blank.
+
+**Why the assignee.** It is GitHub's own answer to "who owns this", it
+shows in every issue list and Project view, it is searchable
+(`assignee:octocat`) and its changes are in the issue's timeline with who
+made them. Hand-off is then a normal GitHub action. Rejected: a new
+Project field (fields are per item, a person's Project edit is an order,
+§6.7, and a field has no history of who set it), a pinned issue (one more
+issue per spec, and a repository pins at most 3), and a comment lock (a
+second place to look for what the assignee already says).
+
+**GitHub's limits, checked 2026-11-13** in GitHub's docs: an issue takes
+up to 10 assignees. Who can be assigned: yourself, anyone who has
+commented on the issue, anyone with write access, and organization
+members with read access. In the web page, triage access and up can
+assign. Through the REST API only users with push access can add or
+remove assignees, and GitHub **silently ignores** the change otherwise
+([REST: assignees](https://docs.github.com/en/rest/issues/assignees);
+[Assigning issues](https://docs.github.com/en/issues/tracking-your-work-with-issues/using-issues/assigning-issues-and-pull-requests-to-other-github-users);
+[Repository roles](https://docs.github.com/en/organizations/managing-user-access-to-your-organizations-repositories/managing-repository-roles/repository-roles-for-an-organization)).
+So Avoozl reads assignees back after every change it makes and never
+trusts a 2xx alone.
+
+**Heartbeat.** The driver edits the claim's `heartbeatAt` at most once per
+`driver.heartbeatMinutes` (machine-local, default 15): 96 marker edits a
+day per spec at the default. Editing an issue body sends no notification
+(**Inferred** from GitHub community answers). The claim is left out of the
+`applied` hashes, so it never reads as a conflict. Three missed intervals
+show "not seen since". Age never moves the role: the heartbeat is for
+people to read, and Avoozl never replaces a disconnected worker or driver
+because a lease expired.
+
+#### Reading it in the tick
+
+Step 4 of §4.5 already reads each plan issue (§6.9); it now also keeps its
+assignees and claim. The tick reads them **again** right before each
+dispatch intent for the spec (step 11), before projection (step 10), and
+before each integrate (step 8). A spec that is not driven here is
+read-only: its steps run only as far as they change this machine's cache
+and views, the script gets no intents for it, and nothing is written to
+GitHub or the spec folder for it. Other specs keep ticking.
+
+**The overlap, and its bound.** Assignment is not atomic: a person can
+reassign the plan issue while the old driver is mid-tick. The old driver
+then keeps going only until its next check, and every write step checks
+first, so it can start at most what that one tick does after its last
+read, inside one tick's time budget (45 seconds, §4.5). The new driver
+cannot start before its own Take over, which waits 10 seconds and reads
+again. A session the old driver started in that window shows as **away**
+on the new driver (below), so it is never started twice by Avoozl.
+**Limit**, stated in the docs.
+
+**First driver.** Approval in a GitHub mode projects the plan issue first
+(§6.3). It is created assigned to the approving person, unless the epic
+issue's assignee already decides, with this machine's claim, and no task
+issue is created until both read back. A plan issue made before this
+section has no claim: every workspace reads only for that spec and shows
+**Take over**. One click on the machine that should drive restores
+delivery. This pauses delivery once after the upgrade, on purpose:
+guessing the driver is the bug this section fixes.
+
+**Take over** (person-only) is offered when the assignee rule names this
+login but the claim does not name this machine: a hand-off was reassigned
+to this person, or this is the person's other machine. It writes this
+machine's claim (`from` names the old one), reads the issue again at least
+10 seconds later, and drives only if its claim is still there. Two
+machines with one login pressing it at once both write; the body that
+GitHub keeps decides, both read the same one, and the other reads only and
+names the winner.
+
+#### Hand off
+
+**Hand off driver** (person-only) runs on the driver:
+
+1. Dispatch stops for the spec. Running chats keep running and are never
+   ended; their reports, verification, integration and GitHub completion
+   still apply.
+2. The page lists the running chats with their tasks. When none is left,
+   Avoozl writes the export. **Export with N unfinished** writes it sooner
+   and records those tasks as unfinished. **Cancel** before the export
+   resumes dispatch.
+3. The export is one JSON file, `<spec>.avoozl-driver.json`, saved to a
+   folder the person picks. It holds the namespace, spec, approved commit
+   and hash, task rows and receipts, local-authority tasks, decisions open
+   and answered, Flow spans and stops, retros and proposals, task links and
+   notes, the activity log, token usage, session bindings marked with the
+   old machine ID, and the list of machine-local items in use (below). It
+   never holds a terms file, router or retro instructions, a token, a crew
+   host or a host key. Avoozl never uploads, commits or pushes it; the
+   person moves it, and the dialog says it may hold private notes.
+4. The claim records the file's sha256, the spec is read-only here, and
+   the page links the plan issue: **Reassign it on GitHub**. Avoozl does
+   not reassign it.
+
+On the new machine, once the assignee rule names its login, **Take over**
+offers **From an export** or **Rebuild from GitHub**. From an export it
+checks the namespace and spec, the file's sha256 against the claim, and
+that the approved commit is in this workspace's spec checkout (fetching
+the planning repository if needed). A mismatch is refused by name and
+changes nothing. Then it imports in one SQLite transaction and writes the
+claim. A same-person hand-off (one login, two machines) needs no
+reassignment: Take over on the other machine is enough.
+
+Tasks the export marks unfinished, bound to a session on another machine,
+or with an open linked branch or pull request and no session here are
+**away**. They are never started again because a lease expired. The tick
+completes an away task from GitHub facts when they show it done (a merged
+closing pull request, or an allowed close, §6.5). In plans-repo mode a
+running worker pushes its own branch and opens its own pull request
+(§6.6), so finished work reaches the new driver through GitHub. An away
+task with no such fact gets one decision: **Start it here** or **Wait**.
+
+#### Rebuild from GitHub
+
+When the old machine is gone, Take over runs `avoozl rebuild` (§3.3) for
+the spec, then writes the claim.
+
+| Kept (read back from GitHub and the spec) | Lost (only in the old machine's SQLite) |
+|---|---|
+| Tasks, edges, completion levels, status, verdicts, orders, managed baselines, Release, Wave, Iteration, Deferred, linked branches, pull requests | Flow spans and stop history, so lead time and time to fix restart |
+| The approved spec at its commit | Retros and PDCA proposals |
+| Notes and links shown on GitHub (§4.16) | Notes and links not shown on GitHub (the default) |
+| | The spec's local-authority tasks, unless the workspace repository published them (§3.2) |
+| | Answered decisions' local records, the activity log, token usage |
+
+Open decisions are not copied. The next tick raises again every decision
+whose cause is still in GitHub or the spec: conflicts, disallowed closes,
+leak hits, quarantined snapshots, and a zero-or-several assignee decision.
+The dialog shows this list before anything runs.
+
+#### Force take over
+
+The one assignee change Avoozl makes, and only from a person's confirm box.
+It is offered on a read-only spec. The dialog names the current assignee,
+the claim's machine label and ID and its last heartbeat, says that machine
+may still be running chats for this spec and that their local results will
+not come here, and needs the spec name typed. Then Avoozl:
+
+1. sets the plan issue's assignees to exactly this login, when they are
+   not already (one login, two machines needs no change), and reads them
+   back; when GitHub kept the old ones (no push access), it says so and
+   stops;
+2. rebuilds from GitHub, or imports a matching export if the person gives
+   one;
+3. writes a claim with `"forced": true` and `from` set, waits and reads it
+   back, records the event, and notifies the owner once.
+
+When the old driver ticks again it reads only. Its banner says who took
+over, when, and that it was forced. It never takes the role back by
+itself. Chats still running on it finish; what they push reaches GitHub,
+and the new driver judges it.
+
+#### What never moves
+
+Machine-local settings (F74) stay on each machine: plugin approvals
+(§4.8), the private terms file (§4.9), router instructions (§4.10), retro
+instructions (§4.11), the crew registry and SSH host keys. After any
+take-over the page lists what to set up again: from the export's list, or
+after a rebuild from the plugins and rule sets `.avoozl.json` names. Until
+then today's fail-closed rules hold: an unapproved plugin's tasks park and
+a missing terms file blocks its boundary, so a new driver cannot write
+GitHub through an unchecked boundary.
+
+#### Local only mode
+
+There is no GitHub, so the lock is a `driver` row per spec in the
+workspace's SQLite: machine ID, label, state and heartbeat. Hand-off is
+the export and Take over from the file. Its limits, stated in the docs and
+in Settings: it guards only instances that open this file or a copy of it,
+it cannot see another machine, and there is no forced take-over between
+machines because there is nothing shared to write to. A copy opened on
+another machine sees a row naming a different machine and reads only until
+a person presses Take over.
+
+#### Who may do it
+
+`driver.handoff`, `driver.takeover` and `driver.forceTakeover` are
+person-only operations on the page and CLI. Agent sessions, MCP, the app
+token and plugins get 403 (F108). `driver.status` is readable everywhere,
+including the workspace status MCP reply. CLI: `avoozl driver status`,
+`avoozl driver handoff`, `avoozl driver takeover --file <path>`,
+`avoozl driver takeover --rebuild`, and `avoozl driver takeover --force
+--confirm <spec>`.
+
+#### Page and Settings
+
+- The header shows the selected spec's driver: "Driver: you", or
+  "Driver: octocat · laptop · seen 4 min ago", with "not seen since"
+  after three missed heartbeats.
+- A read-only spec shows a banner on its pages saying why: assigned to
+  someone else, your other machine, or no assignee or several (with a link
+  to the issue). It offers **Take over** when this login is the assignee
+  and **Force take over** otherwise. The Dashboard counts read-only specs.
+- Hand off driver sits in the spec view's left column actions. Its dialog
+  is stepped: drain (running chats listed), export (folder picker),
+  reassign (the issue link).
+- Settings › General › **This computer**: Machine label (optional),
+  Heartbeat minutes (optional, placeholder 15), and the machine ID shown
+  small. The group's blurb says these stay on this machine.
+
+| Decision | Reason |
+|---|---|
+| Plan issue assignee names the driver, the epic's as default | GitHub's own owner field, visible in every list and view, with history |
+| A machine claim beside it | One login on two machines is the owner's own case |
+| Exactly one assignee | Zero or several is not an answer; guessing is the bug |
+| Avoozl never reassigns, except Force take over | Hand-off is a person's GitHub action |
+| Check again before each dispatch | Assignment is not atomic; this bounds the overlap to one tick |
+| Age never moves the role | A slow or asleep machine is not a gone one; the repository rule for workers applies to drivers too |
+| Export is a file the person moves | It may hold private notes; GitHub is not a place for them |
 
 ---
 
@@ -3038,6 +3578,7 @@ Each has an interim that uses only supported interfaces. None is a private route
 | MC-13 | Read the tool calls of a session the app runs: kind, command, start, end, status, and exit code, for slots the app owns and for Crew Mode and remote sessions bound to its tasks, under an owner grant (F90–F94) | Tick-opened local sessions: kinds, commands, and start times from the slot read (F91), lengths estimated; Crew Mode and remote sessions: worker phase markers, marked coarse (§4.11) | No; timing is coarser without it |
 | MC-14 | Page links that open Issue Radar on one repository with a filter or a set of selected issue and pull-request numbers, or on one item, and open Code Review Sage on one pull request's review by owner, repository, and number (F98, F99) | Open the app's page; the button's tooltip says the item must be picked there; the title links to GitHub (§8.5) | No; one more click per item |
 | MC-15 | Start a Code Review Sage review of one item from an app: a pull request by owner, repository, and number, or an outside review request by link, returning a run ID the app can link to (F99) | A `review` item lists in Untriaged with the **Code review** button and its fallback tooltip; nothing starts a review (§4.12) | No; one more click per review |
+| MC-16 | A `permissions.api` entry for one method and exact path, such as `POST /api/apps/spec-builder/specs`, matching no child route | The prefix grant, with a source scan test that Avoozl calls only the create route (§8.6) | No; narrows a grant the owner already accepted |
 
 ---
 
@@ -3408,7 +3949,7 @@ How Avoozl measures delivery time and reacts to slow or broken work.
 ┌ Batching ──────────────────────────────────────────────────────────────┐
 │ Run small related tasks together to pay setup and checks once.          │
 │ Most tasks per run (optional) [ 3 ]  flow.batch.max                      │
-│ Group by (optional)  ○ Same epic  ○ Same files      flow.batch.by        │
+│ Group by (optional)  ○ Same phase ○ Same files      flow.batch.by        │
 └────────────────────────────────────────────────────────────────────────┘
 ┌ Retro ─────────────────────────────────────────────────────────────────┐
 │ A review that finds the biggest slowdown and proposes one change.       │
@@ -3579,10 +4120,140 @@ draft mode. After each tick, a requested folder that lints clean is stored
 as a draft plan. A folder that never lints clean stays pending and can be
 imported by hand.
 
-Spec Builder has a create route, but an app grant to it also reaches
-approve, handoff and delete below it. Its seed also omits the manifest.
-MC-16 asks for a method-and-path grant and author rules on create. Until
-then the planner chat is the path.
+Changed 2026-11-13: the drawer starts with Blank or From template, and a
+template fills the seed (§4.16).
+
+**Spec Builder hand-off** (built 2026-11-13, Requirement 65). The owner
+approved the grant `/api/apps/spec-builder/specs`. Kiro Crew matches a
+grant as a path prefix for every method, so it also reaches approve,
+handoff, execute, task, stop and delete under it; Avoozl's page calls only
+`POST /api/apps/spec-builder/specs`, and a source scan test enforces that.
+
+1. Open in Spec Builder calls `plan.new` with `preview`. It checks the
+   fields and reads `.kiro/steering/avoozl-specs.md` in the spec root,
+   recording nothing.
+2. A missing file is shown in full in the drawer. **Add the file** writes
+   it (create-only, never over a copy); **Skip the file** puts the same
+   rules in the description. A present or changed copy is left alone.
+3. `plan.new` with `handoff: "spec-builder"` runs content rules on the
+   description, records the request and returns the create body: `name`,
+   `working_dir` (the spec root), `spec_type: "feature"` (quick skips
+   design.md) and `description`.
+4. The page posts it to Spec Builder, then opens `/spec-builder` through
+   the SDK's navigate. Spec Builder has no deep link; its page opens the
+   spec named by its own last-open entry, which Avoozl sets first.
+5. Spec Builder's seed tells its agent to write requirements.md,
+   design.md and tasks.md only, and appends the description as the user's
+   words. Its chat runs the default agent with the spec root as its
+   folder, and that agent's resources include `.kiro/steering/**/*.md`.
+6. Each tick, once the prose files exist and `tasks.md` is unchanged since
+   the last tick, Avoozl writes `avoozl/manifest.json` from it: an item with
+   sub-items is a `package` that requires them; every other item is a
+   `leaf` whose bullets are its acceptance, with `_Repository:_`,
+   `_Requires:_`, `_Checks:_` and `_Manual_` read into their fields and the
+   one picked repository as the default. Then the folder lints and imports
+   as a draft. Until the first approval, a changed `tasks.md` rewrites a
+   manifest Avoozl wrote and nobody edited.
+7. A refused create maps to words: `app_disabled` says to turn Spec
+   Builder on in Apps; an SDK grant refusal says to approve the update in
+   Apps › Updates; both offer the planner chat with the same fields.
+
+MC-16 is no longer needed for create. Kept narrowed as a nice-to-have: a
+grant entry for one method and exact path, so the app could not reach
+Spec Builder's approve, handoff and delete routes at all.
+
+### 8.7 Specs: the page's name
+
+**Proposed**, owner approval 2026-11-13 (Requirement 62). People write
+`.kiro/specs/<name>/` folders, and the page called them plans. The page
+now says spec wherever a person reads it. Inside Avoozl the record is
+still a plan, so no interface moves.
+
+| Shown to people | Kept as is |
+|---|---|
+| Specs tab and heading; New spec, Edit spec, Discuss spec, Delete spec, Archive spec, Unarchive spec, Change spec (was Plan a change) | `plans_*` MCP tools; `plan.*` and `plans.*` operations |
+| Spec filters and columns in Dashboard, Graph, Delivery, Flow, Intake and Conflicts | CLI commands and flags; `.avoozl.json` keys |
+| Drawer, dialog, tooltip, aria and empty-state text; notices; page-shown operation messages | SQLite tables and columns; receipt and marker fields |
+| `docs/`, README, shipped skills and agents | The Plans repo mode and its plans repository; `avoozl-planner`; `docs/research/`, `docs/evidence/` |
+
+Plan as a verb stays (**Plan this**, "plan a goal"). The guard is a test
+over the page's source: it collects JSX text and string literals,
+matches `\bplans?\b` case-blind, and fails on any match not in its
+allowlist. Each allowlist entry is one exact string with the reason it
+stays, so a new string fails until someone decides.
+
+### 8.8 Ideas
+
+**Proposed**, owner approval 2026-11-13 (Requirement 63). An idea is a
+rough thing to riff on before it is worth a spec. It rides the incoming
+item record (§4.12) so it lists, filters and stores like any intake item,
+but it is the one kind that never meets the pipeline's trigger match.
+
+#### The record
+
+```json
+{ "source": "local", "id": "idea-7f3a2c", "kind": "idea",
+  "title": "Graph minimap for big plans", "state": "open",
+  "notes": [{ "text": "Maybe only past 200 nodes.", "author": "person", "at": "2026-11-13T16:02:00Z" }],
+  "links": [{ "url": "https://example.com/minimap", "label": "Prior art" }],
+  "updatedAt": "2026-11-13T16:02:00Z" }
+```
+
+`local` is already reserved (R50.6) and is never declared. A graduated
+idea adds `graduated: { spec, at }`. `body` is the notes joined, so search
+and content rules read one text. Ideas are stored in `incoming_items`
+like other items, keyed `local\0<id>`.
+
+#### Operations
+
+| Operation | Kind | Who | MCP action | CLI |
+|---|---|---|---|---|
+| `idea.capture` | act | anyone; a session is recorded as author | `capture_idea` | `avoozl intake idea add` |
+| `idea.append` | act | anyone on an open idea; append only | `add_idea_note` | `avoozl intake idea note` |
+| `idea.archive`, `idea.restore` | act | person only (403 for a session or MCP) | none | `avoozl intake idea archive`, `restore` |
+| `intake.list` with `kind: "idea"`, `intake.view` | observe | anyone | `items`, `item` | `avoozl intake list --kind idea` |
+
+Capture and append run the `intake` content boundary (§4.9) on the new
+text. A block refuses the write; it does not quarantine, because an idea
+has no work to hold. No new MCP tool name: the actions join the grouped
+`plans_intake` tool (R56).
+
+#### Never runs work
+
+`takeItem` returns before trigger match for kind `idea`. `intake.deliver`
+and `intake.plan` refuse an idea with 409. The Untriaged count, badge and
+notice skip ideas, and no tick step writes them anywhere. The 30-day purge
+skips them.
+
+#### Page
+
+**+ New idea** sits in the Specs page header and the Intake header, and
+opens one small modal: Title (required), Notes, Links (one per line). The
+Intake tab's **Kind** filter gains **Idea**; the Specs page header also
+shows **Ideas (N)**, which opens Intake with that filter. Opening an idea
+shows a drawer with its notes and links, **Add note**, **Add link**,
+**Riff on this**, **Make it a spec** and **Archive** (or **Restore**).
+
+**Riff on this** asks `chat.context` with purpose `riff-idea`. The seed
+gives the idea as data and says: make no file, Git or GitHub change; you
+may add notes and links to this idea with `plans_intake` `add_idea_note`.
+The page opens the chat with the app SDK, like **Discuss spec**.
+
+**Make it a spec** opens the New spec flow through its one entry point
+(§8.6), prefilled: Name from the title as a spec folder name, What you
+want from the title and notes, Links and context from the links, and the
+idea key. The request operation marks the idea graduated when it records
+the request. Avoozl adds no second path to Spec Builder.
+
+#### Why each choice
+
+| Choice | Why |
+|---|---|
+| An incoming item kind | One list, one store, one filter panel; the owner asked for it |
+| Source `local` | Already reserved; an idea comes from this workspace, not an outside system |
+| Agents may capture and append | Writing a note starts nothing; limits cap it; content rules screen it |
+| Archive, restore, graduate are a person's | They change what the owner sees and decides |
+| Reuse the New spec entry point | One place owns spec rules and the Spec Builder hand-off |
 
 ## 9. Current-code disposition
 
@@ -3764,7 +4435,10 @@ and next decision, are tasks in `tasks.md` (P1–P32). Summary:
 | P33 | Agent and model per task with fake crews and fake agents: no `session` changes nothing, the order of sources holds, weighted choices split a batch as computed, retries keep the model, review distinctness skips colliding choices, a missing agent rules a crew out (Phase 11) |
 | P34 | Pull request feedback with a fake GitHub and fake workers: failed checks, changes requested, review comments, conflicts, and auto-merge off each reach the live worker once, in one message per tick; untrusted comments are not relayed; a gone worker gets a resume attempt on the same branch and model; the round bound and the same-check stop open a decision; Avoozl writes nothing to GitHub (Phase 15) |
 | P35 | One bundle plugin with a pack, rules, a tracker, and an intake source: it installs shared with the repository, previews its pack as create/change/keep/skip, refuses an import before approval, imports after approval with provenance, polls a fake intake source, and refuses an unknown pack key by name, a silent who-counts lowering, and a new version without a new approval (Phase 16) |
-| P36 | Epics across plans and phases inside plans, in a temporary workspace with one epic and two member plans and on a migrated Nupp-shaped copy: membership needs both sides, phases come from the manifest or headings, no `doc:` group appears, three levels of sub-issues project and a second preview writes nothing, and the migration backs up, archives orphans, and is idempotent (Phase 21) |
+| P36 | Epics across plans and phases inside plans, in a temporary workspace with one epic and two member plans: membership needs both sides, phases come from the manifest or headings, no `doc:` group appears, three levels of sub-issues project and a second preview writes nothing, and the old forms are errors (Phase 21; the owner's data is rewritten once in task 21.7) |
+| P37 | Workflow templates, manual leaves, and links and notes, in a temporary single-repo workspace with a fake GitHub and the sample SDK rewrite template: the template makes a draft that joins an epic and imports no setting unless ticked, the manual review leaf is never dispatched and gates cutover, only a person or an allowed GitHub closer completes it, and links and notes pass content rules, reach briefs, and reach the issue only when shown (Phase 22) |
+| P38 | The Specs name and ideas, in a temporary workspace with a fake chat and a fake New spec entry point: no user-facing plan word outside the allowlist, the compat names unchanged, an idea captured by a person, by MCP and by a session, refused fields and blocked text, an idea that never matches a rule or counts as untriaged, a riff that only appends, Make it a spec that prefills New spec and graduates the idea, and archive kept past the purge (Phase 23) |
+| P40 | Driver handoff with temporary workspaces on one fake GitHub: the plan issue's single assignee and the machine claim pick one driver, the epic's assignee stands in, zero or several assignees read only with one decision, one login on two machines, the check before dispatch, age never moves the role, drain then export then reassign and take over, a tampered file refused, rebuild and forced take-over with the loss list, a silently ignored reassignment, the old driver going read-only on return, away tasks never restarted by lease, the re-approve list, person-only 403s, and the Local only row (Phase 26) |
 
 A new server, shared database, or plugin mechanism other than the seam in §4.8
 requires a failed proof that a small Kiro Crew or GitHub contract cannot fix.
@@ -3792,7 +4466,10 @@ Detailed in `tasks.md`. **Proposed** order:
 | 14. Incoming items | One incoming-item record in SQLite; `intake.submit`, `intake.list`, `intake.view` on the page, CLI, and MCP; plugin `poll` and MCP submit; the `intake` content boundary; `source:` rules and who counts per source; updates and closes; reviews to Code Review Sage; every source in Untriaged; GitHub intake and the Untriaged read moved onto the record (§4.12) | Starts after Phase 2's proofs and after 8.7, 10.6, 13.3, and 13.4; the `review` action waits for MC-15 (14.11); P32 |
 | 15. Pull request feedback | Failed checks, reviews, conflicts, and auto-merge state on worker pull requests sent back to the worker, with a round bound (§4.13) | Starts after Phase 2's proofs and after 4.7 and 10.4; P34 |
 | 16. Plugin bundles | One plugin bundles a settings pack, content rules, a tracker, and an intake source; packs preview and import once with provenance; the intake contract hook (§4.14) | Starts after 8.6–8.8; does not wait for Phases 9–15; P35 |
-| 21. Epics and phases | Epic folders across plans, phases from `tasks.md` headings, no invented groups, epic and plan issues on GitHub, the views, and the workspace migration (§6.9) | Starts after Phase 3's proofs and 19.1; P36 |
+| 21. Epics and phases | Epic folders across plans, phases from `tasks.md` headings, no invented groups, epic and plan issues on GitHub, the sub-issue cap setting, the views, and a one-time rewrite of the owner's plans (§6.9) | Starts after Phase 3's proofs and 19.1; P36 |
+| 22. Templates, manual tasks, links and notes | The `template` plugin part and From template in New plan; `manual` leaves in Needs you and on GitHub; Links and notes on every task (§4.16) | Starts after 21.1, 16.3, 17.1 and P28; P37 runs after P36 |
+| 23. Specs and ideas | The page says spec (§8.7); ideas as `local` incoming items with notes and links, Riff on this, Make it a spec through the New spec entry point, and archive (§8.8) | Starts after 14.10, 17.1 and 19.1; P38 |
+| 26. Driver handoff | One driver per spec: the plan issue's assignee plus a machine claim, read-only ticks elsewhere, the check before dispatch, hand off with drain, export and reassign, take over from the file or a rebuild, force take over, what never moves, the header and banner (§6.10) | Starts after 3.8, 3.10 and 21.4; P40 |
 
 ### 12.1 Bootstrap: building Avoozl before Avoozl works
 

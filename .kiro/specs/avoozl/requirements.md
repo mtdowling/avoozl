@@ -1485,6 +1485,8 @@ public or shared repositories cannot leak what the company keeps private.
    worker, verifier, and reviewer briefs; and each worker's diff before it
    merges, added lines only. A rule set MAY narrow the boundaries and
    repositories it applies to; by default it applies to all of them.
+   (Changed 2026-11-13: a task's links and notes when saved, the `notes`
+   boundary, Requirement 61.18.)
 4. Text SHALL be decoded before matching the way the plans-repo leak screen
    decodes it today (percent escapes, HTML character references, zero-width
    characters, backslashes), so that an encoded term still matches.
@@ -1880,7 +1882,8 @@ once instead of once per tiny task.
 2. Avoozl SHALL group ready batchable leaves into one run when they share
    the key `flow.batch.by` names: `epic` (the same parent) or `files`
    (overlapping manifest `paths`). The default SHALL be `epic`. (Changed
-   2026-11-13: `epic` is now named `phase`, Requirement 59.11.)
+   2026-11-13: `epic` is now named `phase`, and `epic` is refused,
+   Requirement 59.11.)
 3. A batch SHALL hold at most `flow.batch.max` leaves, default 3. A value of
    1 SHALL turn batching off.
 4. A batch SHALL hold only leaves with the same repository, route, crew,
@@ -2541,7 +2544,9 @@ setting or runs until someone on that computer has seen it and approved it.
    `intake` as `tracker`, `route` as `route`; `pack` SHALL run as nothing.
    A manifest without `provides` SHALL keep working, each of its `kinds`
    being one part. A manifest with both SHALL have `kinds` equal to the
-   kinds its parts need, or be refused naming the mismatch.
+   kinds its parts need, or be refused naming the mismatch. (Changed
+   2026-11-13: `template` is a sixth part that runs as nothing,
+   Requirement 61.1.)
 2. One plugin SHALL be one install, pinned to one version, content hash,
    and, for git, commit (Requirements 34.4, 34.13). Its approval SHALL list
    every part, and Settings and the Add plugin review step SHALL show each
@@ -2630,6 +2635,9 @@ nothing a person must decide can be done from a chat.
    before anything runs, saying to do it in the app. A test SHALL fail
    when an operation has neither an MCP route nor a written reason it has
    none, and a test SHALL check that each person-only operation is refused.
+   (Changed 2026-11-13: marking a manual task done or reopening it, and
+   editing, removing or showing a task's links and notes on its issue, are
+   person only too, Requirement 61.13 and 61.22.)
 3. The older `plans_*` names SHALL stay listed and working, each
    description starting with `Deprecated:` and naming its replacement.
    They stay listed because a session's client calls only the tools it was
@@ -2654,7 +2662,10 @@ without my writing a prompt.
    Epics or phases (optional), Repositories (checkboxes of registered code
    repositories), What you want (required) and Links and context
    (optional). Cancel SHALL ask first when anything was typed. (Changed
-   2026-11-13: Epic and Phases are separate fields, Requirement 59.11.)
+   2026-11-13: Epic and Phases are separate fields, Requirement 59.11, and
+   the drawer offers Blank or From template, Requirement 61.7.; the button is
+   New spec, Requirement 62.1, and an idea can prefill it, Requirement
+   63.9.)
 2. Avoozl SHALL refuse a name that is not a spec folder name, or that a
    plan or spec folder already uses; a request with no registered
    repository, no picked repository or no goal; and a seed that a content
@@ -2663,7 +2674,8 @@ without my writing a prompt.
    spec rules: the `.kiro/specs/<name>/` layout with requirements.md,
    design.md, tasks.md and avoozl/manifest.json, the `category:`
    front-matter, unique task IDs, the folder and the repositories.
-   Handing the request to Spec Builder instead waits on MC-16.
+   (Changed 2026-11-13: Submit hands the request to Spec Builder,
+   Requirement 65; the planner chat is the fallback.)
 4. The tick SHALL import the folder as a draft plan once it lints clean.
    New plan SHALL never approve a plan, start delivery or push.
 5. Every top button on the Plans page SHALL show an icon.
@@ -2705,7 +2717,10 @@ approve without my running setup steps by hand.
 Added 2026-11-13 (owner decision). Design §6.9. This replaces Requirement
 4.3 and changes 4.4, 13.7, 23.9, 46.2, 48.3 and 57.1 as stated below. It
 drops the separate Initiative level that was discussed: no Initiative field
-or front-matter key exists.
+or front-matter key exists. Changed 2026-11-13 (owner): no old plan form
+keeps loading. The owner is Avoozl's only user, so the old forms become
+validation errors, and task 21.7 rewrites the owner's existing plans once,
+with a script that is not part of the product.
 
 **User story:** As the owner, I want an epic to be a goal that spans
 several plans, and the groups of tasks inside one plan to be its phases, so
@@ -2753,10 +2768,11 @@ progress, and no grouping is made up from a file path.
    brief SHALL show a raw `doc:` ID or a file path as an epic or phase name.
 7. Inside a plan, the manifest `kind` values SHALL be `package` and `leaf`
    (this replaces Requirement 4.3; Requirement 4.4 reads "packages complete
-   only from their children"). An existing entry with `"kind": "epic"`
-   SHALL load as a `package`, and an existing per-entry `epic` value SHALL
-   load as `phase`, each with a warning diagnostic naming the edit that
-   clears it. Neither SHALL block approval or change a task ID.
+   only from their children"). An entry with `"kind": "epic"`, a per-entry
+   `epic` value, a top-level `epics` list in a plan's manifest, and an
+   epic entry's `memberPlan` key SHALL each be a validation error naming
+   the file, the entry and the edit that fixes it. Avoozl SHALL NOT load
+   any of them under another name.
 8. In a GitHub mode Avoozl SHALL project three levels of sub-issues: each
    epic as one issue with the configured `epicIssueType` (no type when the
    owner has none), each plan as one **plan issue** that is a sub-issue of
@@ -2771,6 +2787,9 @@ progress, and no grouping is made up from a file path.
 9. When GitHub cannot link a plan issue under its epic's issue, Avoozl
    SHALL keep both issues, record the epic in the marker, and show the
    reason in the Delivery view. It SHALL NOT move issues to make the link.
+   GitHub refuses a sub-issue whose repository has another owner than the
+   parent's, and allows at most 100 sub-issues per parent, closed ones
+   included, and eight levels of nesting (design §6.9).
 10. The Graph SHALL open at epics (and **No epic**), drill into an epic's
     member plans, then a plan's phases, then a phase's tasks, with the
     back navigation it already has. The Graph, Delivery, Flow and Plans
@@ -2783,28 +2802,41 @@ progress, and no grouping is made up from a file path.
     plan with its status and progress, and open decisions.
 11. Flow batching (Requirement 46.2) SHALL name the grouping `phase`: the
     same parent package, otherwise the same phase. The value `epic` SHALL
-    stay accepted with the same meaning. The New plan drawer (Requirement
+    be refused by the Settings validator, naming `phase`. The New plan drawer (Requirement
     57.1) SHALL offer **Epic** (pick an existing epic, optional) and
     **Phases** (optional) instead of "Epics or phases"; the planner writes
     the `epic:` front-matter and the phase headings.
-12. One operation SHALL migrate an existing workspace, preview first and
-    then apply against the previewed revision: back up the database with
-    its sha256 recorded; turn each per-plan epic into a phase of its plan,
-    keeping its ID and title; move each task in a `doc:` epic to its
-    `tasks.md` section when its source is a spec plan's `tasks.md`, and
-    otherwise to **No phase**; archive each leftover task whose plan is
-    gone through the task archive operation with the reason "plan
-    removed"; and keep only cross-plan epics as epics. A second run SHALL
-    change nothing. The migration SHALL NOT approve a plan, start or stop
-    a session, touch GitHub or push. It SHALL be tested on a copy before
-    the live run.
-13. A Nupp-shaped workspace SHALL migrate this way: its W1–W7 groups SHALL
-    become phases of their plan, not epics (this changes Requirement
-    23.9), and its rewrite epic folder SHALL list the member plans whose
-    front-matter names it.
+12. No operation, CLI command or MCP action SHALL migrate a workspace.
+    The owner's existing workspace and plans SHALL be rewritten once,
+    inside task 21.7, by a script that runs only in that task and is not
+    added to the product. It SHALL use existing operations only, back up
+    the database with its sha256 first, and run on a copy before the live
+    run. It SHALL turn each per-plan epic into a phase of its plan with the
+    same ID and title, move each task in a `doc:` epic to its `tasks.md`
+    section or **No phase**, archive each task whose plan is gone with
+    `task.archive` and the reason "plan removed", rewrite each old manifest
+    form of criterion 7 into the new one, and set `flow.batch.by` to
+    `phase` where it was `epic`. A second run SHALL change nothing. It
+    SHALL NOT approve a plan, start or stop a session, touch GitHub or
+    push; spec changes SHALL be local commits.
+13. The owner's Nupp plans SHALL be rewritten this way: the W1–W7 groups
+    SHALL become phases of their plan, not epics (this changes
+    Requirement 23.9), and the rewrite epic folder SHALL list the member
+    plans whose front-matter names it, with `"kind": "epic"` and only
+    `plan` and `summary` in each entry. Avoozl's own spec SHALL be checked
+    the same way and rewritten if it uses an old form.
 14. Avoozl's planner agent and skill SHALL write epic folders and the
     `epic:` key in this layout, and SHALL write phases as `tasks.md`
     headings.
+15. `.avoozl.json` `github.subIssues.maxPerParent` SHALL set how many
+    sub-issues Avoozl links under one parent issue: an integer of at least
+    1, default 100 (GitHub's limit). Avoozl SHALL count a parent's existing
+    sub-issues, open and closed, from GitHub before it links more. Children
+    past the cap SHALL stay unlinked in `tasks.md` order, keep the parent
+    in their marker, and show in the projection preview and Delivery with
+    "Over the sub-issue limit; group these tasks in packages". Settings >
+    GitHub setup SHALL show the value in GitHub modes only, with one line
+    saying what it does and that GitHub's own limit is 100.
 
 ### Requirement 60: One Back history for the app page
 
@@ -2834,3 +2866,499 @@ leaving the page.
    fall through to Kiro Crew.
 6. Settings SHALL open on Workspaces each visit. Restores SHALL be
    instant, so reduced motion needs nothing more.
+
+### Requirement 61: Workflow templates, manual tasks, and task links and notes
+
+Added 2026-11-13 (owner approval). Design §4.16. This adds the `template`
+part to Requirement 55.1, **From template** to the New plan drawer of
+Requirement 57.1, the `manual` leaf and the `person` completion to
+Requirement 4 and design §4.3, the `notes` content-rule boundary to
+Requirement 40.3, and the actions of criteria 13 and 22 to the person-only
+list of Requirement 56.2.
+
+**User story:** As the owner, I want to start a plan from a reusable
+workflow, such as an SDK rewrite, with its phases, proofs, settings and
+flow habits already in it; to put steps in a plan that only people do,
+such as a team review; and to keep links and notes on any task, so that a
+repeated kind of work starts the same way each time, a person's step gates
+the work after it, and what was decided stays with the task.
+
+#### Acceptance criteria
+
+Workflow templates
+
+1. A **workflow template** SHALL be one folder in a plugin, listed by the
+   manifest part `template` (Requirement 55.1). A plugin MAY ship only
+   templates; such a plugin SHALL have no `entry` and Avoozl SHALL start
+   no process for it. A template SHALL be installed, pinned and approved
+   as its plugin is (Requirement 34), and SHALL be offered only while its
+   plugin is approved on this computer.
+2. A template folder SHALL hold `avoozl-template.json` with `id`, `title`,
+   `description`, `inputs`, `prompt` (a Markdown file: the planner
+   prompt, also used for Spec Builder once MC-16 allows it), `starter`
+   (a folder with `requirements.md`, `design.md`, `tasks.md` and
+   `avoozl/manifest.json` in the layout of Requirement 30), and MAY hold
+   `phases`, `proofKinds`, `pack` and `flow`. Any other key SHALL make the
+   template invalid, naming the key, and its plugin SHALL show as invalid.
+3. Each input SHALL have an `id`, a `label`, a `type` (`text`, `choice`
+   with its `options`, `file`, `repositories` or `epic`) and `required`.
+   The prompt and starter files MAY use `{{<input id>}}`; Avoozl SHALL
+   replace each with the input's text, unchanged and never run, and SHALL
+   refuse a template that uses an unknown input ID. A `file` input SHALL
+   be read as text in the page, at most 200 KB, and passed in the seed;
+   Avoozl SHALL NOT read a path the person typed.
+4. The starter SHALL lint as a spec folder with its placeholders filled
+   with sample values, and an invalid starter SHALL make the template
+   invalid. Starter tasks MAY include `manual` leaves (criterion 9) and
+   proof tasks.
+5. `phases` SHALL list the starter's phase IDs and titles in order, and
+   SHALL match the starter's `tasks.md` headings or manifest `phase`
+   values (Requirement 59.5). `proofKinds` SHALL list named proof outlines
+   (title, setup, action, expected, what failure means, next decision)
+   that the prompt tells the planner to fill in for this plan.
+6. `pack` SHALL be a settings pack under Requirement 55.3–55.7, and
+   `flow` SHALL set only `flow` keys that pass the Flow settings
+   validator: batching small tasks, stop the line, local checks first,
+   and the retrospective cadence. Neither SHALL be applied by picking the
+   template. The New plan drawer SHALL show them as the pack preview of
+   Requirement 55.5 with an **Import these settings** checkbox, off by
+   default; only a person ticking it and submitting SHALL import them,
+   through the same preview hash and person-only import.
+7. The New plan drawer (Requirement 57.1) SHALL offer **Blank** or **From
+   template**. From template SHALL list the approved templates by title
+   and description, then show the picked template's inputs as fields,
+   with the drawer's own Name, Category and Epic fields. Required inputs
+   SHALL be filled before Submit. Submit SHALL check the inputs and run
+   content rules on the seed (`brief` boundary), then open the planner
+   chat seeded with the prompt, the filled starter, the inputs and
+   Avoozl's spec rules. A refused request SHALL record nothing.
+8. The result SHALL come back as a draft plan under Requirement 57.4,
+   recording the template ID and version. WHEN an epic was picked THEN the
+   planner SHALL write the plan's `epic:` front-matter and add the plan to
+   that epic folder, and the epic's change SHALL come back as its own
+   draft revision. Nothing SHALL be approved, started or pushed.
+
+Manual tasks
+
+9. A leaf MAY set `"manual": true` in its manifest entry: a step only a
+   person does. A manual leaf SHALL have `acceptance` (what the person
+   checks), `repository` (where its issue lives in a GitHub mode) and
+   completion `person`, the only completion it may have. It SHALL NOT
+   hold `checks`, `agent`, `model`, `size`, `paths` or `route`; lint SHALL
+   refuse each, naming the key. A non-manual leaf SHALL NOT use completion
+   `person`.
+10. A manual leaf SHALL never be dispatched, batched, verified, reviewed or
+    integrated, and SHALL never appear in the ready leaves a conductor or
+    the tick reads. Edges into and out of it SHALL work as for any task;
+    every edge condition on it SHALL be met when it is done.
+11. Before its blocking edges hold, a manual leaf SHALL sit in **Blocked or
+    waiting**. Once they hold, it SHALL sit in **Needs you** with the tag
+    **Manual** and the reason "Waiting for a person: <title>", in every
+    view and in the Avoozl state Project field. No new lane SHALL be added.
+12. The task drawer SHALL show a manual leaf's acceptance and a **Mark
+    done** button. Mark done SHALL open a dialog with an optional outcome
+    note and links (criterion 16) and a choice of **Done** or **Skipped**,
+    and SHALL record who, when, the choice and the outcome. Dependents
+    SHALL be released by either choice; Skipped SHALL show on the task.
+13. Marking a manual leaf done or reopening it SHALL be person only (page
+    and CLI). An MCP call SHALL be refused under Requirement 56.2.
+14. In a GitHub mode a manual leaf SHALL get an issue like any task, a
+    sub-issue of its plan issue or package. It SHALL never get a ready or
+    trigger label, SHALL never be sent to Issue Radar, and its managed
+    body section SHALL say that a person closes it and that no agent works
+    on it. Mark done SHALL close the issue (reason completed for Done, not
+    planned for Skipped) as the person's GitHub login, and SHALL be
+    refused when that login fails the repository's Who counts rule.
+    WHEN an allowed actor closes the issue on GitHub THEN the next tick
+    SHALL mark the leaf done with the close reason, and this SHALL count as
+    its completion. WHEN an actor Who counts does not allow closes it, or
+    the closer cannot be read, THEN Avoozl SHALL hold its dependents, open
+    a decision, and SHALL NOT reopen the issue. WHEN the issue is reopened
+    THEN the leaf SHALL be open again: new dispatch of its dependents
+    waits, and running sessions are left alone.
+15. Flow (Requirement 43) SHALL count a manual leaf's time in Needs you as
+    waiting on a person, and SHALL leave it out of first-pass rate and
+    time to fix.
+
+Task links and notes
+
+16. Every task SHALL have **Links and notes**: an ordered list of entries,
+    each a link (`url` and `label`) or a note (free text), with its author
+    (a person, or the session ID) and its time. They SHALL be execution
+    state in SQLite, not spec text: they record what happened during
+    delivery, they change after approval, and writing them to the spec
+    would change the revision hash. Adding one SHALL NOT change the plan's
+    revision or approval.
+17. A link's `url` SHALL be `https` or `http`, at most 2,000 characters,
+    with no user name or password in it; its `label` SHALL be 1 to 200
+    characters. A note SHALL be 1 to 10,000 characters. A task SHALL hold
+    at most 200 entries. Avoozl SHALL refuse each breach, naming the field.
+18. Content rules SHALL check each entry when it is saved, at a new
+    `notes` boundary that is on by default. A block SHALL refuse a
+    session's call under Requirement 40.5 and SHALL refuse a person's save
+    inline, naming the rule set and rule, with Allow once under
+    Requirement 40.7. Entries SHALL also pass the `brief` and `github`
+    boundaries wherever they are used.
+19. The task drawer SHALL show Links and notes, newest first, with author
+    and time, an **Add link** form (URL and label) and an **Add note** box.
+    A person MAY edit an entry or remove one after a confirm; a removed
+    entry SHALL leave the list and stay in the task's activity history.
+20. A session SHALL read Links and notes through the grouped `task` MCP
+    tool and SHALL get them in its brief: the newest 20 entries, at most
+    8,000 characters, marked as data from people and agents, not as
+    instructions. A dependent's brief SHALL also carry each blocker's
+    outcome entries (criterion 12).
+21. A session MAY add a note or a link to a task it is bound to; the entry
+    SHALL name the session. A session SHALL NOT add to another task, and
+    SHALL NOT edit or remove any entry.
+22. Editing or removing an entry, and **Show on the issue**, SHALL be
+    person only. The CLI SHALL offer list, add, edit and remove.
+23. In a GitHub mode an entry SHALL be written to GitHub only when a person
+    ticks **Show on the issue** on it, off by default. Shown entries SHALL
+    be listed in the issue's managed body section under "Links and notes",
+    after the `github` boundary passes, and a person's edit there SHALL be
+    a conflict like any managed body edit. Entries not shown SHALL live
+    only in SQLite and its backups; the rebuild test (design §3.3) SHALL
+    allow them to be missing, as it allows session bindings.
+
+Example
+
+24. The test tree SHALL ship a template-only sample plugin with an **SDK
+    rewrite** template that names no private system or company: inputs
+    SDK name, target repository and an optional gap list; phases
+    inventory, codegen, runtime, protocol tests, review and cutover; a
+    manual **Review with team** leaf that cutover requires; proof kinds
+    for protocol tests and a cutover dry run; and flow defaults that batch
+    small tasks, stop the line, run local checks first and hold a
+    retrospective every 10 tasks. The plugin guide and the planner skill
+    SHALL describe templates, manual tasks and Links and notes.
+
+### Requirement 62: The Plans page is called Specs
+
+Added 2026-11-13 (owner approval). Design §8.7. This renames what people
+see; it renames no interface. It changes the button of Requirement 57.1 to
+**New spec**.
+
+**User story:** As the owner, I want the page and its words to say spec,
+so that the name matches the `.kiro/specs/<name>/` folders I write.
+
+#### Acceptance criteria
+
+1. Everything a person reads SHALL call Avoozl's plan a **spec**: the nav
+   tab and heading (**Specs**), buttons (**New spec**, **Edit spec**,
+   **Discuss spec**, **Delete spec**, **Archive spec**, **Unarchive
+   spec**, **Change spec**), drawer and dialog text, tooltips, aria
+   labels, empty states, filters and column labels in Dashboard, Graph,
+   Delivery, Flow, Intake and Conflicts, notices, the operation messages
+   the page shows, `docs/`, the README and the shipped skills and agents.
+2. These names SHALL NOT change: the `plans_*` MCP tool names, the `plan.*`
+   and `plans.*` operation names, CLI commands and flags, `.avoozl.json`
+   keys, SQLite tables and columns, receipt and marker fields, the
+   **Plans repo** mode and the plans repository it names, and the
+   `avoozl-planner` agent. Old text under `docs/research/` and
+   `docs/evidence/` SHALL stay as written.
+3. A test SHALL read the page's source and fail on any user-facing
+   `plan` or `plans` word outside an allowlist. The allowlist SHALL name
+   each kept name of criterion 2 and each use of plan as a verb (for
+   example **Plan this**), one entry per string.
+
+### Requirement 63: Ideas
+
+Added 2026-11-13 (owner approval). Design §8.8. This adds the kind `idea`
+to the incoming item of Requirement 50.1 and the reserved built-in source
+`local` of Requirement 50.6.
+
+**User story:** As the owner, I want to jot a rough idea down, riff on it,
+and later turn it into a spec, so that half-formed thoughts have a home
+that never starts work.
+
+#### Acceptance criteria
+
+1. An **idea** SHALL be an incoming item with `source: "local"` and
+   `kind: "idea"`: an `id` Avoozl makes, a `title` (1–240 characters),
+   `notes` (at most 100 entries of 1–4,000 characters, each with its
+   author and time), `links` (at most 50, http or https only, each at most
+   2,000 characters with an optional label of at most 200), `state`
+   (`open`, `archived`, or `graduated`) and, when graduated, the spec it
+   became. A bad field SHALL be refused by name and SHALL record nothing.
+2. A person SHALL create an idea from **+ New idea** on the Specs page
+   and on the Intake tab: Title (required), Notes (optional) and Links
+   (optional, one per line).
+3. An idea SHALL also be captured over MCP (`plans_intake` action
+   `capture_idea`) and the CLI (`avoozl intake idea add`). Agent sessions
+   MAY capture ideas; the idea SHALL name the session as its author.
+4. Notes and links SHALL be added through `idea.append` (MCP action
+   `add_idea_note`, CLI `avoozl intake idea note`). A session MAY append to
+   an open idea and the entry SHALL name it; a session SHALL NOT edit or
+   remove an entry, archive, restore, or graduate an idea.
+5. Captured and appended text SHALL pass the `intake` content-rule
+   boundary (Requirement 50.10). A `block` finding SHALL refuse the write
+   and name the set and rule, never the matched text.
+6. An idea SHALL never run work: the pipeline SHALL skip trigger match for
+   it, no rule SHALL match it, it SHALL never be tied to a task, and
+   **Plan this** and **Deliver this** SHALL refuse it. Ideas SHALL NOT
+   count toward the Untriaged count, its badge or its notice, and SHALL
+   never be written to GitHub or a plugin.
+7. The Intake tab SHALL list ideas under its **Kind** filter value
+   **Idea**, newest first, with title, note and link counts, age and
+   state. Opening one SHALL show its notes and links and the actions of
+   criteria 8–10.
+8. **Riff on this** SHALL open a Kiro Crew chat seeded with the idea's
+   title, notes and links, marked as data, and told to make no edits
+   except appending notes and links to this idea through `add_idea_note`.
+9. **Make it a spec** (person only) SHALL open the New spec flow of
+   Requirement 57 through its one entry point, prefilled with a name from
+   the title, the title and notes as What you want, and the links as Links
+   and context, and SHALL pass the idea's key. When that request is
+   recorded the idea SHALL become `graduated`, naming the spec. A
+   cancelled or refused request SHALL leave the idea unchanged.
+10. **Archive** and **Restore** SHALL be person only. Archived and
+    graduated ideas SHALL leave the default list, show under the state
+    filter, and never be deleted by the 30-day purge of Requirement 50.21.
+
+### Requirement 64: Pull the Andon cord
+
+Added 2026-11-13 (owner approval). Design §4.11. This adds a stop that a
+person or an agent pulls by hand to the automatic stops of Requirement 44.
+
+**User story:** As the owner, I want to stop new work myself when I see
+something wrong, so that nothing new builds on it while it is looked at.
+
+#### Acceptance criteria
+
+1. The Dashboard header SHALL show a red **Stop the line** button. It SHALL
+   open a dialog with a scope and a reason, and Cancel SHALL change nothing.
+2. The scope SHALL be one of: everything in the workspace (`all`), one
+   repository (`repo`), one spec (`spec`), or one task and its transitive
+   dependents (`task`). The dialog SHALL list the repositories, specs and
+   tasks to choose from. A missing or unknown repository, spec or task
+   SHALL be refused by name, and nothing SHALL be recorded.
+3. The reason SHALL be required: one line of 1–200 characters. An empty
+   reason, a longer one, or one with a line break SHALL be refused.
+4. The reason SHALL pass the `brief` content-rule boundary (Requirement 40).
+   A `block` finding SHALL refuse the pull, name the set and rule and never
+   the matched text, and record nothing.
+5. WHILE a pulled stop is open THEN Avoozl SHALL NOT dispatch new work in
+   its scope, fix tasks included. Running sessions SHALL be left alone.
+6. The **Line stopped** banner (Requirement 44.9) SHALL show each pulled
+   stop with who pulled it, when, its scope and its reason, and how many
+   tasks it pauses.
+7. A pulled stop SHALL close only through **Resume**. Resume SHALL be one
+   button on the banner and one CLI command, SHALL be a person's only, and
+   SHALL record who resumed it and when. Agent, app-token and plugin
+   callers SHALL be refused with 403.
+8. A pulled stop SHALL never resume by itself: no passing check, integrated
+   fix or tick SHALL close it. An automatic stop (Requirement 44) SHALL
+   keep its own rules: Resume and the pull SHALL NOT change it, and Run
+   anyway SHALL NOT apply to a pulled stop.
+9. Agent sessions SHALL be able to pull the cord over MCP (`plans_session`
+   action `stop_line`) with a reason, for example when a worker finds a
+   broken base. The stop SHALL name the session as who pulled it, and the
+   owner SHALL be notified once.
+10. The CLI SHALL offer `avoozl flow stop` with a scope and a reason, and
+    `avoozl flow resume` with the stop ID.
+11. Each pull SHALL be a stop in Flow (Requirement 43): listed with the
+    automatic stops, counted in the charts over time, its open-to-resume
+    time counted as time to fix, and sent to the retro with its scope and
+    reason.
+
+### Requirement 65: New plan hands off to Spec Builder
+
+Added 2026-11-13 (owner approval, including the Spec Builder grant).
+Design §8.6. This changes Requirement 57.3.
+
+**User story:** As the owner, I want New plan and Plan a goal to open
+Kiro Crew's Spec Builder on a new spec with Avoozl's rules, so that I
+review requirements, design and tasks phase by phase there, and Avoozl
+still gets a spec folder it can deliver.
+
+#### Acceptance criteria
+
+1. The app manifest SHALL grant `/api/apps/spec-builder/specs`. The grant
+   is a path prefix, so it also reaches Spec Builder's approve, handoff,
+   execute, task, stop and delete routes; the owner accepts that. Avoozl
+   SHALL call only the create route, and a test SHALL fail when any source
+   file names another Spec Builder route or builds one from the create
+   path.
+2. Avoozl SHALL ship a steering file, `.kiro/steering/avoozl-specs.md`,
+   that states the spec layout, the `category:` and `epic:` front-matter,
+   task ID format and uniqueness, phases as `##` headings, the bullet lines
+   Avoozl reads under each task (`_Repository:_`, `_Requires:_`,
+   `_Checks:_`, `_Manual_`), and that Avoozl writes
+   `avoozl/manifest.json` itself. Spec Builder's chat runs the default
+   agent in the spec's repository, which loads `.kiro/steering/**/*.md`.
+3. Before the hand-off, New plan SHALL check whether that file is in the
+   spec's repository. When it is missing, the drawer SHALL show its full
+   text and ask; it SHALL be written only on **Add the file**, and never
+   over an existing or changed copy. When the person skips it, the rules
+   SHALL go in the create call's description instead.
+4. Name, Category, Epic, Phases, Repositories, What you want and Links and
+   context SHALL go into the create call's description, after content
+   rules at the `brief` boundary. The create call SHALL use the spec's
+   repository as its working folder and the feature type. Avoozl SHALL then
+   open Spec Builder's page on that spec. A spec Spec Builder places
+   outside the folder Avoozl reads SHALL be named in the notice.
+5. **Plan a goal** in the header SHALL open the same drawer on the Plans
+   page.
+6. Once the prose files are there and `tasks.md` reads the same on two
+   ticks, the tick SHALL write `avoozl/manifest.json` from `tasks.md`, then
+   lint the folder and import it as a draft plan once it lints clean. A
+   changed `tasks.md` SHALL rewrite the manifest until the plan's first
+   approval. A manifest Avoozl did not write, or one a person edited since,
+   SHALL never be replaced. Nothing SHALL approve, start an agent or push.
+7. WHEN Spec Builder is turned off, the grant is not yet approved, or Spec
+   Builder is missing THEN the drawer SHALL say so in plain words, with how
+   to turn it on or approve the grant, and SHALL offer an Avoozl planner
+   chat with the same fields.
+
+### Requirement 66: One driver per spec, and handing it off
+
+Added 2026-11-13 (owner request; lock changed the same day to the plan
+issue's assignee). Design §6.10. This makes Requirement 13.5 hold across
+machines: today two machines with the same planning repository both pass
+the namespace check and can both tick one spec.
+
+**User story:** As the owner, I want exactly one Avoozl to drive each spec
+at a time, named the way GitHub already names who owns an issue, and a
+safe way to move that role, so that two machines never dispatch, write
+GitHub or merge for the same spec, and the work survives the old machine
+going away.
+
+#### Acceptance criteria
+
+1. Each approved spec SHALL have at most one **driver**: one Avoozl
+   workspace on one machine. In a GitHub mode the driver SHALL be named by
+   two facts on the spec's plan issue (Requirement 59.8): its **assignee**
+   says which person, and a **machine claim** in Avoozl's managed marker
+   says which of that person's machines.
+2. A workspace SHALL drive a spec only WHEN the plan issue has exactly one
+   assignee, that assignee is this machine's `gh` login, and the claim
+   names this machine. WHEN the plan issue has no assignee THEN the epic
+   issue's assignee SHALL stand in, by the same rule; a plan issue with
+   several assignees SHALL NOT fall back to the epic. WHEN the result is
+   zero or several assignees THEN every workspace SHALL read only for that
+   spec, and Avoozl SHALL open one decision naming the issue and what it
+   found. Task-issue assignees SHALL keep their meaning (intake, Issue
+   Radar) and SHALL NOT affect the driver.
+3. The machine ID SHALL be `mch_` plus 16 lowercase base32 characters,
+   made once and kept in machine-local settings. A person MAY add a
+   machine label; it SHALL pass the `github` content-rule boundary
+   (Requirement 40), and Avoozl SHALL never fill it from the host name.
+   The claim SHALL hold the machine ID, the label, the login that wrote it,
+   when it was taken, a heartbeat time, the previous driver and whether
+   the take-over was forced, and SHALL be left out of the `applied`
+   hashes (Requirement 15). It SHALL hold no path, host name or token.
+4. The driver SHALL update the claim's heartbeat at most once per
+   `driver.heartbeatMinutes` (machine-local; default 15, allowed 5–60). A
+   heartbeat older than three intervals SHALL show the driver as "not
+   seen since" that time. Nothing SHALL move the driver role because a
+   heartbeat, lease or session is old; only a person SHALL.
+5. Avoozl SHALL never change an assignee by itself. The only assignee
+   change Avoozl makes SHALL be a person's Force take over from the page
+   or CLI (Criterion 14).
+6. The tick SHALL read each plan issue's assignees and claim in its sync
+   step, and SHALL read them again right before each dispatch, before
+   projection, and before each integrate or merge for that spec. WHILE
+   this workspace is not the driver THEN the spec SHALL be read-only here:
+   the tick MAY refresh its own cache and views, and SHALL NOT dispatch,
+   message a session, write an issue, label, link, marker, Project field
+   or linked branch, close or reopen an issue, revert an edit, integrate,
+   merge, or write the spec folder. Other specs SHALL tick as usual.
+7. Assignment is not atomic, so the docs SHALL say that a short overlap is
+   possible: work the old driver started after its last check and before
+   it saw the change. The dispatch-time check SHALL bound it to what one
+   tick started after its last read (at most one tick's time budget), and
+   each session started in it SHALL be away on the new driver
+   (Criterion 11).
+8. WHEN a spec is approved in a GitHub mode THEN projection SHALL create
+   the plan issue assigned to the approving person and with this
+   machine's claim, unless the epic issue's assignee already decides, and
+   SHALL create no task issue until both read back. A plan issue from
+   before this requirement with no claim SHALL be read-only on every
+   workspace until a person presses **Take over** on one. **Take over**
+   SHALL write this machine's claim when the assignee rule already names
+   this login, read the issue again at least 10 seconds later, and drive
+   only if its claim is still there. WHEN two machines with one login
+   take over at once THEN the claim that reads back SHALL win on both, and
+   the other SHALL read only and say which machine won.
+9. In Local only mode the lock SHALL be a row in the workspace's SQLite
+   naming the machine ID, label, state and heartbeat, and hand-off SHALL be
+   export and import only. A workspace opened from a copy whose row names
+   another machine SHALL read only until a person presses Take over. The
+   docs and Settings SHALL say its limits: it guards only instances that
+   open that file or a copy, it cannot see another machine, and it has no
+   forced take-over between machines.
+10. **Hand off driver** SHALL drain the spec: no new work is dispatched for
+    it, running chats keep running and are never ended, and their reports
+    are still applied. The page SHALL list the running chats. When none is
+    left, Avoozl SHALL write the export and record its sha256 in the
+    claim; the person MAY export sooner with **Export with N unfinished**,
+    which records those tasks as unfinished. **Cancel** before the export
+    SHALL resume dispatch. After the export the spec SHALL be read-only
+    here, and the page SHALL show a link to the plan issue to reassign it.
+    Avoozl SHALL NOT reassign it.
+11. Avoozl SHALL never start a task again on the new driver only because
+    its old session's lease expired or its machine is gone (repository
+    rule). A task the export lists as unfinished, bound to a session on
+    another machine, or with an open linked branch or pull request and no
+    session here SHALL be **away**: it SHALL complete from GitHub facts
+    when they show it done (a merged closing pull request or an allowed
+    close), and otherwise SHALL get one decision asking a person whether
+    to start it here.
+12. The export SHALL be one JSON file for one spec: namespace, spec, the
+    approved commit and hash, task rows and receipts, local-authority
+    tasks, open and answered decisions, Flow timing and stops, retros and
+    proposals, task links and notes, the activity log, token usage,
+    session bindings marked as the old machine's, and a list of the
+    machine-local items in use (Criterion 16) without their contents. It
+    SHALL NOT hold a terms file, router or retro instructions, a token, a
+    crew host or a host key. Avoozl SHALL write it to a folder the person
+    picks and SHALL never upload, commit or push it. The dialog SHALL say
+    it may hold private notes. **Take over** with an export SHALL check the
+    namespace, the spec, the sha256 against the claim, and that the
+    approved commit is in this workspace's spec checkout; a mismatch SHALL
+    be refused by name and change nothing. Otherwise the import SHALL run
+    in one transaction before the claim is written.
+13. **Take over** with **Rebuild from GitHub** SHALL run `avoozl rebuild`
+    (Requirement 14.3) for the spec from its markers, issues, links,
+    Project fields and spec commit, then write the claim. Before it runs,
+    the dialog SHALL list what is lost: Flow timing and stop history,
+    retros and proposals, notes and links not shown on GitHub, the spec's
+    local-authority tasks, answered decisions' local records, token usage
+    and the activity log. The next tick SHALL re-raise open decisions from
+    GitHub facts and the spec.
+14. **Force take over** SHALL be offered on a read-only spec. Its confirm
+    dialog SHALL name the current assignee, the claim's machine label and
+    ID and its last heartbeat, say that machine may still be running chats
+    for the spec, and require the spec name typed. It SHALL set the plan
+    issue's assignees to exactly this login (when that is not already so),
+    read them back, rebuild from GitHub unless an export is given, write a
+    claim marked forced and naming the old driver, and notify the owner
+    once. WHEN GitHub keeps the old assignees (it silently ignores the
+    change for a token without push access) THEN Avoozl SHALL say so and
+    change nothing else. WHEN the old driver ticks again THEN it SHALL go
+    read-only for the spec, show who took over, when and that it was
+    forced, and never take the role back by itself.
+15. Hand off, Take over and Force take over SHALL be person-only: agent
+    sessions, MCP, the app token and plugins SHALL be refused with 403.
+    The driver's status SHALL be readable on the page, in the CLI and over
+    MCP. The CLI SHALL offer `avoozl driver status`, `avoozl driver
+    handoff`, `avoozl driver takeover --file <path>` or `--rebuild`, and
+    `--force`, which also needs `--confirm <spec>`.
+16. Machine-local items SHALL never move with the driver: plugin
+    approvals, the private content-rule terms file, router instructions,
+    retro instructions, the crew registry and SSH host keys. After a
+    take-over the page SHALL list what to re-approve or re-add, from the
+    export's list or, after a rebuild, from the plugins and rule sets named
+    in `.avoozl.json`. Until then the existing fail-closed rules SHALL
+    hold: an unapproved plugin's tasks park (Requirement 34) and a missing
+    terms file blocks its boundary (Requirement 40).
+17. The page header SHALL show the selected spec's driver: "Driver: you",
+    or the login, machine label and when it was last seen. A workspace
+    that is not a spec's driver SHALL show a read-only banner on that
+    spec's pages saying why (assigned to someone else, another machine of
+    yours, no assignee or several), with **Take over** when this login is
+    the assignee and **Force take over** otherwise. Settings › General
+    SHALL have a **This computer** group with Machine label (optional) and
+    Heartbeat minutes (optional, placeholder 15), and the machine ID shown
+    small.
