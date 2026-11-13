@@ -1,5 +1,5 @@
-// Pull the Andon cord (design §4.11, R64): the red Stop the line button in
-// the Dashboard header and its dialog. The person picks Stop the line (new
+// Pull the Andon cord (design §4.11, R64): the red Stop the line button at
+// the end of the page's top row, on every tab, and its dialog. The person picks Stop the line (new
 // work in a scope) or Stop all agents (everything, and every running chat
 // Avoozl opened), and gives a one-line reason. Nothing is written until the
 // dialog's red button (and, for Stop all agents, its confirm); Cancel, Esc
@@ -14,12 +14,14 @@ import type { PickItem } from './picker.ts'
 import { RadioFold } from './RadioFold.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import { Modal } from './Modal.tsx'
-import { FULL_STOP_WARNING, MAX_REASON, PULL_KINDS, PULL_SCOPES, emptyPull, flowClient, toPull, type PullForm } from './flow-api.ts'
+import { FULL_STOP_WARNING, LINE_EVENT, MAX_REASON, PULL_KINDS, PULL_SCOPES, emptyPull, flowClient, lineChanged, toPull, type LineStop, type PullForm } from './flow-api.ts'
 import { plansClient } from './plans-api.ts'
 import { viewsClient } from './views-api.ts'
 import { workspaceClient, errorMessage } from './workspace-api.ts'
 
 const FILL = { background: 'var(--danger)', borderColor: 'var(--danger)', color: '#fff', display: 'inline-flex', alignItems: 'center', gap: 6 }
+// Stopped: a red frame on a red tint, the text in the theme's own color.
+const STOPPED = { ...FILL, background: 'color-mix(in srgb, var(--danger) 16%, var(--card, var(--bg)))', color: 'var(--text)', borderWidth: 2 }
 const FIELD = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)', maxWidth: '100%' }
 
 interface Choices {
@@ -28,16 +30,61 @@ interface Choices {
   tasks: PickItem[]
 }
 
-export function StopLineButton(props: { workspaceId: string | null; onPulled: () => void }) {
+// How often the top row reads whether the line is stopped; a pull or
+// resume on the page (LINE_EVENT) reads at once.
+const LINE_READ_MS = 60000
+
+// The open stops, read through flow.view; [] until read or when it fails.
+function useOpenStops(workspaceId: string | null) {
+  const api = useAppApi()
+  const flows = useMemo(() => flowClient(api), [api])
+  const [stops, setStops] = useState<LineStop[]>([])
+  useEffect(() => {
+    if (!workspaceId) return setStops([])
+    let live = true
+    const read = () =>
+      flows.view(workspaceId, { window: '10' }).then(
+        (view) => live && setStops((view.line ?? []).filter((stop) => !stop.closedAt)),
+        () => undefined,
+      )
+    void read()
+    const timer = setInterval(read, LINE_READ_MS)
+    window.addEventListener(LINE_EVENT, read)
+    return () => {
+      live = false
+      clearInterval(timer)
+      window.removeEventListener(LINE_EVENT, read)
+    }
+  }, [flows, workspaceId])
+  return stops
+}
+
+// The page's top row (App.tsx), last and red. While a stop is open it
+// says Line stopped; pressing it still opens the dialog to stop more.
+export function StopLineButton(props: { workspaceId: string | null; onPulled?: () => void }) {
   const [open, setOpen] = useState(false)
+  const stops = useOpenStops(props.workspaceId)
   if (!props.workspaceId) return null
+  const stopped = stops.length > 0
+  const why = stops
+    .map((stop) => stop.reason ?? (stop.check ? `${stop.check} fails on ${stop.branch}` : `the line on ${stop.branch}`))
+    .slice(0, 3)
+    .join('; ')
   return (
     <>
-      <Tooltip text="Stop new work in a scope, or stop all agents, with a reason">
+      <Tooltip text={stopped ? `The line is stopped: ${why}. Resume it from the banner on the Dashboard or Flow. Press to stop more.` : 'Stop new work in a scope, or stop all agents, with a reason'}>
         {(describedBy) => (
-          <Btn type="button" data-stop-line aria-describedby={describedBy} onClick={() => setOpen(true)} style={FILL}>
-            <Pause size={ICON} aria-hidden="true" />
-            Stop the line
+          <Btn
+            type="button"
+            data-stop-line
+            data-stopped={stopped ? '' : undefined}
+            aria-describedby={describedBy}
+            aria-label={stopped ? `Line stopped, ${stops.length} open stop${stops.length === 1 ? '' : 's'}. Stop more` : undefined}
+            onClick={() => setOpen(true)}
+            style={stopped ? STOPPED : FILL}
+          >
+            <Pause size={ICON} aria-hidden="true" style={stopped ? { color: 'var(--danger)' } : undefined} />
+            {stopped ? 'Line stopped' : 'Stop the line'}
           </Btn>
         )}
       </Tooltip>
@@ -47,7 +94,8 @@ export function StopLineButton(props: { workspaceId: string | null; onPulled: ()
           onClose={() => setOpen(false)}
           onPulled={() => {
             setOpen(false)
-            props.onPulled()
+            lineChanged()
+            props.onPulled?.()
           }}
         />
       )}

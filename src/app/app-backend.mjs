@@ -240,6 +240,7 @@ const APP_OPERATIONS = new Set([
   "relay.forget",
   "providers.view",
   "provider.switch.preview",
+  "provider.switch.dryRun",
   "provider.switch",
   "provider.health.clear",
   "providers.settings.update",

@@ -1591,6 +1591,58 @@ export function sameItem(item, key) {
   );
 }
 
+// Ask for help (design §8.9): a chat seeded with where the person is on the
+// page, what it says, the settings there with their current values, and
+// where the docs are. The page sends it; every field is clipped text.
+const HELP_SETTINGS = 40;
+const helpText = (value, max) =>
+  typeof value === "string"
+    ? value
+        .replace(/[\u0000-\u001f\u007f]+/g, " ")
+        .trim()
+        .slice(0, max)
+    : "";
+
+export function helpMessage(input = {}) {
+  const help =
+    input.help && typeof input.help === "object" && !Array.isArray(input.help)
+      ? input.help
+      : {};
+  const page = helpText(help.page, 100) || "Avoozl",
+    section = helpText(help.section, 200),
+    says = helpText(help.says, 2000),
+    docs = helpText(help.docs, 300) || "README.md in the Avoozl repository",
+    settings = (Array.isArray(help.settings) ? help.settings : [])
+      .slice(0, HELP_SETTINGS)
+      .map((s) => ({
+        key: helpText(s?.key, 120),
+        value: helpText(
+          typeof s?.value === "string"
+            ? s.value
+            : JSON.stringify(s?.value ?? null),
+          300,
+        ),
+      }))
+      .filter((s) => s.key);
+  return [
+    "Context from the Avoozl page.",
+    "Help me with this part of the Avoozl page. Use the avoozl skill and the docs named below. Do not save or change any setting, write any file, or start any session: tell me what to set, and I will save it on the page.",
+    "",
+    "## Where I am",
+    `- Page: ${page}`,
+    ...(section ? [`- Section: ${section}`] : []),
+    ...(says ? [`- It says: ${says}`] : []),
+    "",
+    "## Settings here, as they are now",
+    ...(settings.length
+      ? settings.map((s) => `- ${s.key}: ${s.value}`)
+      : ["- None."]),
+    "",
+    "## Docs",
+    `- ${docs}`,
+  ].join("\n");
+}
+
 export function chatContext(
   store,
   data,
