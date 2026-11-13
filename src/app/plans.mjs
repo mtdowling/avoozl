@@ -94,6 +94,9 @@ export function validateProposal(item) {
   // Accept only from Avoozl-recorded validation (§5.2, R38.4).
   if (item.acceptFrom !== undefined && item.acceptFrom !== "validation")
     fail('acceptFrom may only be "validation".');
+  // A verifier chat judges this bar even when it has checks (§5.2 Checks).
+  if (item.verify !== undefined && item.verify !== "agent")
+    fail('verify may only be "agent".');
   // Packages complete from their children; leaves are checked.
   const parent = item.kind === "package";
   if (
@@ -527,6 +530,7 @@ export function approvePlan(
             "repository",
             "checks",
             "acceptFrom",
+            "verify",
             "milestone",
             "iteration",
             "authority",
@@ -592,6 +596,7 @@ export function approvePlan(
             "repository",
             "checks",
             "acceptFrom",
+            "verify",
             "milestone",
             "iteration",
             "labels",
@@ -678,6 +683,7 @@ export function approvePlan(
           "milestone",
           "iteration",
           "acceptFrom",
+          "verify",
           "labels",
           "paths",
           "type",

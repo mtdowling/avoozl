@@ -321,6 +321,14 @@ export function placeOne(store, data, ctx, state, input) {
       : ctx.config.enabled
         ? "the only option that passed the checks"
         : "routing is off: local";
+    // Nothing is left to judge: no routing call; Activity says so once.
+    if (ctx.config.enabled && checks.role === "worker")
+      ctx.onlyOne?.push({
+        taskId: task.id,
+        attempt: input.attempt || 1,
+        crew: pick.crew,
+        model: pick.model,
+      });
   } else if (ctx.config.enabled && checks.role === "worker") {
     const answer = routerAnswer(store, ctx, task.id, options, {
       ...brief(task, data, checks),
