@@ -149,7 +149,7 @@ function Origin(props: { origin: TaskOrigin; issue: string | null; workspaceId: 
         )}
         {origin.spec && props.onOpenSpec && (
           <button type="button" className="text-xs underline" onClick={() => props.onOpenSpec!(origin.spec!)}>
-            Open spec {origin.spec} in Plans
+            Open spec {origin.spec} in Specs
           </button>
         )}
         {origin.sources.map((source) =>

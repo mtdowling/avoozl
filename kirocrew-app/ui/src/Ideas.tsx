@@ -117,6 +117,8 @@ export function NewIdeaDialog(props: { workspaceId: string; onClose: (made: Idea
   )
 }
 
+const count = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
+
 const stateBadge = (idea: Idea) =>
   idea.state === 'graduated' ? <Badge variant="success">Spec {idea.graduated?.spec}</Badge> : idea.state === 'archived' ? <Badge>Archived</Badge> : null
 
@@ -296,7 +298,7 @@ export function IdeasList(props: { workspaceId: string; ideas: Idea[]; narrow: b
                 {idea.title}
               </button>
               <p className="mt-1 text-xs text-muted">
-                {idea.notes.length} notes · {idea.links.length} links · {relativeTime(idea.updatedAt)} {stateBadge(idea)}
+                {count(idea.notes.length, 'note')} · {count(idea.links.length, 'link')} · {relativeTime(idea.updatedAt)} {stateBadge(idea)}
               </p>
               {idea.state === 'open' && (
                 <div className="mt-2 flex gap-1.5">

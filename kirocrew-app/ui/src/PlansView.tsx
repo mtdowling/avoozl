@@ -624,7 +624,7 @@ export function PlansTable(props: {
                 <FolderOpen size={18} aria-hidden="true" style={{ color: 'var(--muted)' }} />
                 <span>{group.category}</span>
                 <span className="text-sm font-normal text-muted">
-                  {group.rows.length} {group.rows.length === 1 ? 'plan' : 'plans'}
+                  {group.rows.length} {group.rows.length === 1 ? 'spec' : 'specs'}
                 </span>
                 <span className="ml-auto text-sm font-normal" style={{ width: 'min(14rem, 40%)', minWidth: 120 }}>
                   <ProgressBar tasks={tasks} />
@@ -923,7 +923,7 @@ function ArchivePlanDialog(props: { workspaceId: string; row: PlanRow; client: P
         style={{ width: 'min(32rem, 94vw)', background: 'var(--card, var(--bg))', color: 'var(--text)', borderColor: 'var(--border)' }}
       >
         <h3 id="avoozl-archive-plan-title" className="text-base font-semibold">
-          Archive the plan {row.name}?
+          Archive the spec {row.name}?
         </h3>
         <ul className="flex flex-col gap-1 pl-5 text-sm" style={{ listStyle: 'disc' }}>
           {ARCHIVE_LINES.map((line) => (
@@ -1017,7 +1017,7 @@ function DeletePlanDialog(props: { workspaceId: string; row: PlanRow; client: Pl
         style={{ width: 'min(32rem, 94vw)', background: 'var(--card, var(--bg))', color: 'var(--text)', borderColor: 'var(--border)' }}
       >
         <h3 id="avoozl-delete-plan-title" className="text-base font-semibold">
-          Delete the plan {preview?.title ?? row.name}?
+          Delete the spec {preview?.title ?? row.name}?
         </h3>
         {!preview && !error && <p className="text-sm text-muted">Counting its tasks…</p>}
         {preview && (
@@ -1298,7 +1298,7 @@ export default function PlansView(props: {
           {table && table.items.length > 0 && (
             <PlanFilters filter={filter} rows={table.items} onChange={setFilter}>
               <p className="text-xs text-muted" role="status">
-                {rows.length} of {table.items.length} plans
+                {rows.length} of {table.items.length} specs
               </p>
             </PlanFilters>
           )}
@@ -1307,7 +1307,7 @@ export default function PlansView(props: {
               <p className="text-sm text-muted">{busy ? 'Loading…' : 'Not loaded'}</p>
             ) : table.items.length === 0 ? (
               <p className="text-sm text-muted">
-                No plans yet{table.root ? ` in ${table.root}/.kiro/specs` : ''}. Use New plan to start one.
+                No specs yet{table.root ? ` in ${table.root}/.kiro/specs` : ''}. Use New spec to start one.
               </p>
             ) : rows.length ? (
               <PlansTable rows={rows} reset={JSON.stringify(filter)} busy={busy} onOpen={open} onScope={scope} onChange={change} onImport={importRow} onDelete={setDeleting} onArchive={setArchiving} onUnarchive={unarchive} />

@@ -447,7 +447,7 @@ export default function DashboardView(props: {
               empty={summary.progress.length === 0 && `No epics yet. ${summary.plans.approved} approved and ${summary.plans.draft} draft specs.`}
             >
               <p className="mt-1 text-xs text-muted">
-                {summary.plans.approved} approved and {summary.plans.draft} draft plans.{' '}
+                {summary.plans.approved} approved and {summary.plans.draft} draft specs.{' '}
                 <button type="button" className="underline" onClick={() => onNavigate('plans')}>
                   Open Specs
                 </button>
