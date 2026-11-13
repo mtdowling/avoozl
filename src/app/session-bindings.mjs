@@ -84,7 +84,11 @@ function batchInput(value, role, leader) {
   };
 }
 
-export function bindSession(store, input = {}, { guard, conductor } = {}) {
+export function bindSession(
+  store,
+  input = {},
+  { guard, conductor, relay } = {},
+) {
   const slot = text(input.slot, "session slot key", MAX_SLOT),
     role = input.role ?? "worker",
     title =
@@ -188,6 +192,9 @@ export function bindSession(store, input = {}, { guard, conductor } = {}) {
       // Who claimed it for a Crew Mode conductor: its own session slot, or
       // "cli" for the local command line. Set only by runner.claim.
       ...(conductor ? { conductor } : {}),
+      // The Remote relay chat that opened this worker on its crew and
+      // relays its reports (relay.mjs). Set only by plans_relay opened.
+      ...(relay ? { relay } : {}),
       // The model the session was opened on, and the commit a checks or
       // review session judges (§5.2). Unset means unknown.
       ...(input.model ? { model: input.model } : {}),
