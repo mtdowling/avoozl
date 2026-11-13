@@ -22,13 +22,23 @@ export interface Mark {
   by?: string
 }
 
+// This machine's `providers` key: the low line and optional limits that
+// turn usage into a percent (§4.20 Settings).
 export interface ProviderSettings {
   lowPercent?: number
-  cooldownMinutes?: number
-  windowHours?: number
   limits?: Record<string, { credits?: number; tokens?: number }>
-  groups?: Record<string, string[]>
-  fallback?: string[]
+}
+
+// One provider's health, read live (§4.20): the line the routing agent reads.
+export interface ProviderFact {
+  provider: string
+  level: Level
+  percent: number | null
+  credits: number
+  tokens: number
+  limit: { credits?: number; tokens?: number } | null
+  why: string | null
+  line: string
 }
 
 export interface LiveChat {
@@ -55,11 +65,8 @@ export interface SwitchRecord {
 export interface ProvidersView {
   settings: ProviderSettings
   hash: string | null
-  defaults: {
-    lowPercent: number
-    cooldownMinutes: number
-    windowHours: number
-  }
+  defaults: { lowPercent: number }
+  providers: ProviderFact[]
   marks: Mark[]
   switches: SwitchRecord[]
   chats: LiveChat[]
@@ -221,84 +228,4 @@ export function switchText(entry: SwitchRecord): string {
     default:
       return `${entry.from} → ${to}: skipped, the chat ended or moved`
   }
-}
-
-// Settings › Providers form: text fields, as typed.
-export interface ProvidersForm {
-  lowPercent: string
-  cooldownMinutes: string
-  windowHours: string
-  limits: string
-  groups: string
-  fallback: string
-}
-
-const list = (text: string) =>
-  text
-    .split(/[\s,]+/)
-    .map((s) => s.trim())
-    .filter(Boolean)
-
-// Limits as "key credits 500" or "key tokens 2000000" lines; groups as
-// "id: pattern, pattern" lines.
-export function toProvidersForm(settings: ProviderSettings = {}): ProvidersForm {
-  return {
-    lowPercent: settings.lowPercent === undefined ? '' : String(settings.lowPercent),
-    cooldownMinutes: settings.cooldownMinutes === undefined ? '' : String(settings.cooldownMinutes),
-    windowHours: settings.windowHours === undefined ? '' : String(settings.windowHours),
-    limits: Object.entries(settings.limits ?? {})
-      .flatMap(([key, limit]) => Object.entries(limit).map(([field, n]) => `${key} ${field} ${n}`))
-      .join('\n'),
-    groups: Object.entries(settings.groups ?? {})
-      .map(([id, patterns]) => `${id}: ${patterns.join(', ')}`)
-      .join('\n'),
-    fallback: (settings.fallback ?? []).join(', '),
-  }
-}
-
-// The form as the `providers` key, or the first problem. The backend checks
-// again (providersInput).
-export function toProvidersSection(form: ProvidersForm): {
-  providers?: ProviderSettings
-  error?: string
-} {
-  const out: ProviderSettings = {}
-  for (const key of ['lowPercent', 'cooldownMinutes', 'windowHours'] as const) {
-    const text = form[key].trim()
-    if (!text) continue
-    if (!/^\d+$/.test(text)) return { error: `${key} must be a whole number.` }
-    out[key] = Number(text)
-  }
-  const limits: NonNullable<ProviderSettings['limits']> = {}
-  for (const line of form.limits
-    .split('\n')
-    .map((l) => l.trim())
-    .filter(Boolean)) {
-    const [key, field, amount, ...rest] = line.split(/\s+/)
-    const n = Number(amount)
-    if (rest.length || !key || (field !== 'credits' && field !== 'tokens') || !Number.isFinite(n) || n <= 0)
-      return {
-        error: `Limit "${line}" must read: <provider or model> credits|tokens <amount>.`,
-      }
-    limits[key] = { ...limits[key], [field]: n }
-  }
-  if (Object.keys(limits).length) out.limits = limits
-  const groups: NonNullable<ProviderSettings['groups']> = {}
-  for (const line of form.groups
-    .split('\n')
-    .map((l) => l.trim())
-    .filter(Boolean)) {
-    const at = line.indexOf(':')
-    const id = at > 0 ? line.slice(0, at).trim() : ''
-    const patterns = at > 0 ? list(line.slice(at + 1)) : []
-    if (!id || !patterns.length)
-      return {
-        error: `Group "${line}" must read: <provider>: <pattern>, <pattern>.`,
-      }
-    groups[id] = patterns
-  }
-  if (Object.keys(groups).length) out.groups = groups
-  const fallback = list(form.fallback)
-  if (fallback.length) out.fallback = fallback
-  return { providers: out }
 }

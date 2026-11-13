@@ -19,12 +19,11 @@ import { DocumentReader } from '../../src/DocumentReader.tsx'
 import { StopLineButton } from '../../src/StopLine.tsx'
 import { PackImportDialog } from '../../src/PackImport.tsx'
 import { SendToRadar } from '../../src/SendToRadar.tsx'
-import { CrewDialog, RuleDialog } from '../../src/RoutingView.tsx'
+import { CrewDialog } from '../../src/RoutingView.tsx'
 import { SwitchModelButton } from '../../src/SwitchModel.tsx'
 import AvoozlApp from '../../src/App.tsx'
 import { InFlightRow } from '../../src/DashboardView.tsx'
 import { setupForm } from '../../src/settings-api.ts'
-import { toRuleForm } from '../../src/routing-api.ts'
 import { LAYER } from '../../src/layers.ts'
 
 const query = new URLSearchParams(location.search)
@@ -118,7 +117,6 @@ export const SCENARIOS: Record<string, Scenario> = {
   'send-to-radar': shown((close) => <SendToRadar workspaceId="w" client={idle} items={[]} repository="avoozl" onClose={close} onSent={close} />),
   crew: shown((close) => <CrewDialog crew={crew as never} onCancel={close} onSave={async () => null} />),
   'switch-model': own('Switch model', <SwitchModelButton workspaceId="w" />),
-  rule: shown((close) => <RuleDialog view={{ crews: [], repositories: {}, labels: [] } as never} form={toRuleForm({ id: 'r1' } as never)} isNew={false} models={[]} onCancel={close} onSave={async () => null} onDelete={close} />),
 }
 
 // The Switch model steps against fake answers: two running chats, one
