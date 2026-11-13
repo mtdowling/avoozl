@@ -134,6 +134,21 @@ function PromptSection(props: { view: View; workspaceId: string; onSaved: () => 
         <Marker rule={OPTIONAL} />
         <span className="text-xs text-muted">{on ? 'One call each tick ranks every ready task. A bad or missing reply falls back to local.' : OFF_LINE}</span>
       </label>
+      {!props.view.switchedOn && (
+        <AskForHelp
+          workspaceId={props.workspaceId}
+          help={{
+            page: 'Settings › Routing',
+            section: 'Routing prompt',
+            says: OFF_LINE,
+            settings: [
+              { key: 'routing.enabled', value: 'false' },
+              { key: 'crews', value: props.view.crews.map((c) => c.id).join(', ') || 'none' },
+            ],
+            docs: 'README.md, section Routing',
+          }}
+        />
+      )}
       <Field id="avoozl-routing-prompt" label="Prompt" raw="routing.prompt" note={`Saved on this machine only. At most ${PROMPT_LIMIT} characters. A crew or model pinned in a task's manifest still wins.`}>
         <textarea
           id="avoozl-routing-prompt"

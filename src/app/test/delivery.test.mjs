@@ -428,6 +428,39 @@ test("a task with a live bound session is never dispatched twice", async (t) => 
   assert.equal(store.get("task_deliveries", "a").state, "done");
 });
 
+test("a ready leaf whose chat folder has no project directory waits with one notice", async (t) => {
+  // Nearby inputs: folders not read (old cron), the folder not made yet, the
+  // folder with a project directory, and the same notice on a second tick.
+  const { store, ops, checkout } = setup(t, {
+    tasks: [leaf("a")],
+    delivery: { concurrency: 1 },
+  });
+  const tick = (folders) =>
+    ops.execute("workspace.tick", {
+      sessions: [],
+      ...(folders ? { folders } : {}),
+    });
+  assert.equal((await tick()).dispatch[0].folder, "Avoozl/app");
+  assert.equal((await tick({})).dispatch.length, 1, "folder not made yet");
+  const waiting = await tick({ Avoozl: false, "Avoozl/app": false });
+  assert.deepEqual(waiting.dispatch, []);
+  const notice = waiting.notify.find((n) => n.title.includes("project"));
+  assert.equal(notice.channel, "decision");
+  assert.match(notice.resume, new RegExp(checkout.replace(/\\/g, "\\\\")));
+  const queued = () =>
+    store
+      .list("app_notifications")
+      .filter((n) => n.payload.title.includes("project")).length;
+  assert.equal(queued(), 1);
+  await tick({ "Avoozl/app": false });
+  assert.equal(queued(), 1, "queued once");
+  assert.equal(
+    (await tick({ "Avoozl/app": true })).dispatch[0].task,
+    "a",
+    "set: it starts",
+  );
+});
+
 test("a failed attempt retries on the same worktree, up to the bound, then opens a decision", async (t) => {
   // Nearby inputs: a blocked report, a session closed without a report, a
   // lost session, retries 0 (straight to a decision), and the decision
