@@ -9,8 +9,6 @@ import {
   fromOptions,
   markText,
   switchText,
-  toProvidersForm,
-  toProvidersSection,
 } from '../src/providers-api.ts'
 
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
@@ -51,23 +49,7 @@ test('switch records say what happened', () => {
   assert.equal(switchText({ ...base, to: null, state: 'done', result: 'no target' }), 'a: no healthy model to switch to')
 })
 
-test('the Providers form round-trips and refuses malformed lines', () => {
-  const settings = {
-    lowPercent: 70,
-    cooldownMinutes: 15,
-    limits: { claude: { credits: 500 }, 'model-a': { tokens: 2000000 } },
-    groups: { anthropic: ['claude-*', 'sonnet-*'] },
-    fallback: ['model-b', 'model-c'],
-  }
-  assert.deepEqual(toProvidersSection(toProvidersForm(settings)).providers, settings)
-  assert.deepEqual(toProvidersSection(toProvidersForm()).providers, {})
-  const form = toProvidersForm()
-  assert.match(toProvidersSection({ ...form, lowPercent: '7.5' }).error, /lowPercent/)
-  assert.match(toProvidersSection({ ...form, limits: 'claude dollars 5' }).error, /credits\|tokens/)
-  assert.match(toProvidersSection({ ...form, groups: 'anthropic' }).error, /<provider>: <pattern>/)
-})
-
-test('Switch model sits in the Dashboard header and on In flight; Providers is a Settings tab', () => {
+test('Switch model sits in the Dashboard header and on In flight; providers show in Settings › Routing', () => {
   const dashboard = source('DashboardView.tsx')
   const header = dashboard.slice(dashboard.indexOf('actions={'), dashboard.indexOf('</ViewHeading>'))
   assert.match(header, /<SwitchModelButton workspaceId=\{workspaceId\}/)
@@ -79,7 +61,6 @@ test('Switch model sits in the Dashboard header and on In flight; Providers is a
   assert.match(dialog, /previewHash: preview\.previewHash/)
   assert.match(dialog, /Also new tasks/)
   assert.match(dialog, /client\.models\(\)/)
-  const settings = source('SettingsView.tsx')
-  assert.match(settings, /tab === 'providers' \? \(\s*<ProvidersSettings/)
+  assert.match(source('RoutingView.tsx'), /<ProvidersSection /)
   assert.match(source('views-api.ts'), /'provider-out': 'Provider out'/)
 })

@@ -205,6 +205,23 @@ test("application, plans, state, and working repository can use independent dire
   assert(!fs.existsSync(path.join(applicationRoot, "state")));
 });
 
+test("a named operation runs in process when no server is running", async (t) => {
+  const workspace = temporary(t);
+  initializeWorkspace(workspace);
+  const { stdout } = await exec(process.execPath, [
+    path.join(applicationRoot, "cli.mjs"),
+    "plan.list",
+    "--json",
+    "{}",
+    "--workspace",
+    workspace,
+    // A port nothing listens on: a request to a server would fail.
+    "--port",
+    "9",
+  ]);
+  assert.deepEqual(JSON.parse(stdout).items, []);
+});
+
 test("source changes preserve portable document IDs across filesystem separators", async (t) => {
   const root = temporary(t);
   initializeWorkspace(root);

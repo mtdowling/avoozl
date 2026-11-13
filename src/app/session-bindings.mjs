@@ -11,7 +11,7 @@ const ROLES = new Set([
   "planner",
   "retro",
   "pr-review",
-  // The model router (§4.10): binds to its batch, not a task.
+  // The routing agent (§4.10): binds to its call, not a task.
   "router",
 ]);
 // A review role's session (§5.2): `review:<role id>`, so each role numbers its

@@ -1,0 +1,83 @@
+# Live check in a real Kiro Crew (2026-11-13)
+
+Avoozl from `origin/main` (`4846156`), built with `npm run build:kirocrew-app`
+and installed on a real Kiro Crew (release build 0.12.2.4, Linux). The owner
+ran `kirocrew app install` and enabled the app; an agent shell may not.
+
+- Workspace: a new temporary one made by `avoozl init` with the example data,
+  plus one approved spec (`live`, one leaf) for a one-commit local checkout.
+- No real workspace, no GitHub repository, no GitHub write.
+- Verdicts: pass, fail (fixed or a finding), or can't test with the reason.
+
+## Results
+
+| Feature                                      | Verdict                | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| -------------------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Build and install                            | Pass                   | Backend healthy on loopback, 7 agents, 3 skills, MCP server `avoozl:avoozl`, `avoozl-tick` cron registered                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| Backend refuses unsigned callers             | Pass                   | `POST /api/command` without a signed principal answers 401                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| Tick (`avoozl-tick` cron)                    | Pass                   | With no default workspace each run failed with "Avoozl has no workspace for this session", a clear message. After `init` it runs every minute and stays silent                                                                                                                                                                                                                                                                                                                                                                                          |
+| Quiet worker nudge                           | Pass                   | A worker idle for 15 minutes with no report got the nudge message, twice, 15 minutes apart                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| Tick under a pulled stop                     | Pass                   | `plans_maintain tick` returns an empty `dispatch` while the line is stopped                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| MCP grouped tools (stdio, installed package) | Pass                   | 15 grouped tools listed; every read action tried answered; old names still listed with `Deprecated:`                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| MCP person-only refusals                     | Pass                   | Approve plan, Allow once, Run anyway: refused with "Only a person ...". No agent action resumes a stop                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| MCP from a real chat                         | Fail, fixed            | Kiro Crew's agent speaks MCP revision 2026-07-28 and refused to start `avoozl:avoozl` in every chat: first "missing required resultType", then, after that fix, missing `ttlMs` and `cacheScope` on `tools/list`. Every result for that revision now carries `resultType: "complete"`, and every list also carries `ttlMs: 0` and `cacheScope: "private"` (test: "the app's MCP server meets protocol 2026-07-28 result rules"). Checked against the rebuilt package over stdio with that revision's metadata. Recheck in a chat pending the app update |
+| Flow view                                    | Pass                   | `flow` (CLI) and `plans_view flow` (MCP) return metrics, stops and time to fix                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Andon stop and resume                        | Pass                   | Agent pulled the cord with `plans_session stop_line`; the CLI (`flow resume`) resumed it and recorded who and the time to fix                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| CLI `OPERATION --json` with no server        | Fail, fixed            | It always called a server, so it failed with `fetch failed` when none ran. Main fixed the same bug while this check ran; this branch keeps a test for it ("a named operation runs in process when no server is running")                                                                                                                                                                                                                                                                                                                                |
+| Dispatch to a local worker chat              | Pass after fixes       | With the MCP fixes installed and `avoozl:avoozl` shared, `live.1` was superseded by `live.2` from the CLI. Within a minute the tick opened a new worker chat. It reported done with a caller identity, 28 seconds after its brief. The tick then opened a verifier chat, which ran `scripts/validate.sh` (exit 0) and reported. Avoozl fast-forwarded the base branch to the worker's commit (`state: integrated`), with no person in the loop                                                                                                          |
+| Page load, every tab                         | Can't test             | The agent browser refuses the dashboard's own port even when it is listed as a local origin, by design. Dashboard API calls need an owner sign-in token, which an agent may not mint                                                                                                                                                                                                                                                                                                                                                                    |
+| Settings, every tab's save                   | Pass (operations only) | The page can't be driven, so the same operations ran from the CLI as the local person: Flow, Delivery, Where tasks live, Content rules and conversation settings saved; a stale hash was refused with "reload before saving"; Delivery refused a key it does not own and kept `concurrency`. Workspaces and Repositories were set up through `init` and `project configure`. Plugins: listing only, no plugin to add                                                                                                                                    |
+| Back button and drawer                       | Can't test             | Page only; see page load                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| File viewer                                  | Can't test             | Page only; see page load                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| Usage reads (`GET /api/usage/turns`)         | Can't test             | The app backend reads it after a tick receipt, through the gateway with the app's grant. Its result shows only on the page, and an agent can't call the dashboard API                                                                                                                                                                                                                                                                                                                                                                                   |
+| Code review chat, draft-only                 | Can't test             | It opens only for a real pull request in a registered GitHub repository, and this check used none. Refused over MCP as person-only (pass)                                                                                                                                                                                                                                                                                                                                                                                                               |
+
+## Findings
+
+1. A dispatch whose session folder has no project directory waits with no
+   notice. The person sees a planned task and nothing else. The tick script
+   says so in a `shortcut:` comment.
+
+2. The agent browser cannot open the dashboard, so the page itself (tabs,
+   Back, drawer, file viewer) still has no live check. A person must click
+   through it once.
+3. Why the worker chat had no `plans_*` tools. The tick opened it with agent
+   `kirocrew-worker`, which mounts `avoozl:avoozl` (its gateway agent file
+   lists the server and `@avoozl:avoozl`). App MCP servers are not limited by
+   folder or project: chats with no folder tried to start the same server.
+   The brief's names (`plans_prepare_worktree`, `plans_report`) are still
+   listed, as deprecated aliases that the app agents' allowlists name. The
+   cause was the server itself: Kiro Crew's agent refused it at `tools/list`
+   (fixes above). A new test checks that every `plans_*` name in briefs,
+   agents, the cron and skills is listed.
+4. Kiro Crew gap: when an app MCP server fails to start in a dashboard chat,
+   nothing tells the chat or the person. A sub-agent's failure is logged
+   ("MCP servers unusable in this session"); the dashboard chat's was not
+   logged at all, and the chat saw only missing tools. Repro: install an app
+   whose stdio MCP server answers `tools/list` without `resultType` under
+   revision 2026-07-28, open a dashboard chat with an agent that mounts it,
+   and ask the chat to list its tools; the gateway log has no line for it.
+5. A fresh install cannot take worker reports until the owner adds
+   `avoozl:avoozl` to `mcp_gateway.stub_servers`. Earlier live proofs set it
+   by hand, so they hid the gap. Avoozl cannot set it itself.
+6. The worker did call `plans_report` on its own, after each of the three
+   nudges and before them. Every call was refused for want of a caller
+   identity, and a refused call leaves nothing on the binding, so the tick
+   read the worker as quiet and spent its nudges. Its notice then said only
+   "has not reported". Fixed: a refused report is now recorded, and the quiet
+   notice names the missing identity and the sharing step (tests: "a quiet
+   notice names a report refused for want of a caller identity", and its
+   pair without a refusal). The record is per workspace, because a refused
+   call carries no session.
+7. After the owner turned on sharing and restarted the gateway, the nudges
+   were used up, so only a person could wake the worker. The message meant
+   for it was first sent to another chat. At the time of writing the
+   worker had not reported. A fresh worker (finding 8's fix installed)
+   reported with a caller identity; see the dispatch row.
+8. With sharing on, the worker chat and a new chat again had no `plans_*`
+   tools: "Invalid result for tools/list: missing required resultType". Kiro
+   Crew's gateway primes a shared server's tool list itself, with no
+   protocol revision, and hands that list to 2026-07-28 clients. The fields
+   were added only when a request named that revision. Fixed: every result
+   now carries `resultType`, and every list `ttlMs` and `cacheScope` (test:
+   "the app's MCP server meets protocol 2026-07-28 result rules"). Seen live after the update.
