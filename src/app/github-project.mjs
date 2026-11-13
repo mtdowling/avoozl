@@ -1,6 +1,6 @@
 // GitHub Project sync (design §6.7, Requirements 29 and 33). Avoozl adds each
-// managed issue to the configured Project and writes Release, Wave and an
-// optional Iteration. It never writes Status. Of the board's Status values it
+// managed issue to the configured Project and writes Release, Wave, an
+// optional Iteration and an optional Avoozl state. It never writes Status. Of the board's Status values it
 // reads one order: Deferred, by an actor the repository policy allows,
 // pauses new dispatch for the task. Projection and the tick both call
 // `syncProject`, so they agree, and a second pass writes nothing.
@@ -20,12 +20,15 @@ import {
 import { actorAllowed, legacyRepositoryPolicy } from "./github-policy.mjs";
 import { fail } from "./store.mjs";
 import { allowWrite } from "./content-rules.mjs";
+import { AVOOZL_STATES } from "../delivery-lanes.mjs";
+import { avoozlStates } from "./page-views.mjs";
 
 const ITEM = "project-item:";
 const SYNC = "project-sync";
 const BLOCKING = new Set(["requires", "sequence"]);
 const MARKER = /<!--\s*avoozl-task\s*\n[\s\S]*?\n-->/;
 export const PROJECT_SCOPE_FIX = "gh auth refresh -s project";
+const STATE_OPTION = new Map(AVOOZL_STATES);
 
 // Wave per task ID: 1 for a task that waits on nothing, else 1 plus the
 // highest wave among its blockers. Only `requires` and `sequence` count.
@@ -246,6 +249,57 @@ function cleanApplied(applied) {
   );
 }
 
+// Avoozl state (design §6.7): Avoozl's own lane for each task, written only
+// when it differs from the board. A value Avoozl did not write is a
+// person's edit: written back once and recorded as a conflict, which stays
+// until the state next moves. `row.next.state` is what Avoozl last wrote.
+async function syncStates(store, github, project, field, rows, out) {
+  const states = avoozlStates(store, store.read()),
+    options = fieldOptions(field);
+  for (const row of rows.values()) {
+    const next = row.next,
+      lane = next.paused ? "deferred" : states.get(row.task.id),
+      want = STATE_OPTION.get(lane) ?? null,
+      current = row.current.State ?? null,
+      last = next.state;
+    if (!want) continue;
+    if (last !== undefined && last !== want) delete next.stateConflict;
+    if (current !== want) {
+      const option = options.find((entry) => entry.name === want);
+      if (!option) {
+        out.problems.push(
+          `${field.name} option ${want} is missing; run Set up GitHub to add it.`,
+        );
+        continue;
+      }
+      await github.updateProjectItem(project, row.item.id, [
+        { id: field.id, value: option.id },
+      ]);
+      out.writes.push({
+        taskId: row.task.id,
+        write: "fields",
+        fields: [field.id],
+      });
+      if (!row.added && last !== undefined && current !== last) {
+        next.stateConflict = {
+          board: current,
+          avoozl: want,
+          at: new Date().toISOString(),
+        };
+        out.notify.push({
+          channel: "decision",
+          task: row.task.id,
+          title: `${field.name} for ${row.task.id} reset to ${want}`,
+          text: `Someone set ${field.name} on ${row.task.id} to ${current ?? "empty"}. Avoozl fills ${field.name} from its own state and wrote ${want} back.`,
+          resume:
+            "Move the card's Status instead; Avoozl never writes Status.",
+        });
+      }
+    }
+    next.state = want;
+  }
+}
+
 // One sync pass. `claimed` is the set of tasks with a live session or a
 // delivery under way, used only to show a Status mismatch in Delivery.
 // Returns {status, writes, notify, problems, paused}. Writes nothing to
@@ -289,8 +343,24 @@ export async function syncProject(
     releaseField = named("release", "Release", "single_select"),
     waveField = named("wave", "Wave", "number"),
     iterationField = named("iteration", null, "iteration"),
+    // Blank skips the field: only a name set in .avoozl.json turns it on.
+    namedState = named("avoozlState", null, "single_select"),
+    // Avoozl never writes Status, so the two may not share a field.
+    stateField =
+      namedState && namedState.id === statusField?.id
+        ? (problems.push(
+            `Avoozl state cannot use the Status field ${namedState.name}; Avoozl never writes Status.`,
+          ),
+          null)
+        : namedState,
+    // Setup names the first column Ready; a board made before that keeps
+    // its Todo.
+    statusNames = new Set(
+      statusField ? fieldOptions(statusField).map((option) => option.name) : [],
+    ),
     values = {
-      todo: "Todo",
+      todo:
+        !statusNames.has("Ready") && statusNames.has("Todo") ? "Todo" : "Ready",
       inProgress: "In progress",
       done: "Done",
       deferred: "Deferred",
@@ -298,7 +368,7 @@ export async function syncProject(
     };
   const items = await github.projectItems(
       project,
-      [statusField, releaseField, waveField, iterationField]
+      [statusField, releaseField, waveField, iterationField, stateField]
         .filter(Boolean)
         .map((field) => field.id),
     ),
@@ -352,6 +422,7 @@ export async function syncProject(
         Wave: projectFieldValue(item, waveField),
         Iteration: projectFieldValue(item, iterationField),
         Status: projectFieldValue(item, statusField),
+        State: projectFieldValue(item, stateField),
       },
     });
   }
@@ -579,9 +650,22 @@ export async function syncProject(
           ? { board, avoozl: expected }
           : null,
     };
-    if (JSON.stringify(next) !== JSON.stringify(row.previous))
-      store.put("receipts", next);
+    // Avoozl state is written after every Status order is read below, so
+    // a card paused this pass shows Deferred in this same pass.
+    if (row.previous?.state !== undefined) next.state = row.previous.state;
+    if (row.previous?.stateConflict)
+      next.stateConflict = row.previous.stateConflict;
+    row.next = next;
   }
+  if (stateField)
+    await syncStates(store, github, project, stateField, rows, {
+      problems,
+      writes,
+      notify,
+    });
+  for (const row of rows.values())
+    if (JSON.stringify(row.next) !== JSON.stringify(row.previous))
+      store.put("receipts", row.next);
   record(store, { status: "synced", reason: "", fix: "", problems });
   return {
     status: "synced",

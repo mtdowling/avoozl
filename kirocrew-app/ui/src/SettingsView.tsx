@@ -116,13 +116,14 @@ const FIELD_LABELS: Record<string, string> = {
   release: 'Release field',
   wave: 'Wave field',
   iteration: 'Iteration field',
+  avoozlState: 'Avoozl state field',
 }
 const CREW_LABELS: Record<string, string> = {
   claim: 'Claim label',
   needsHuman: 'Needs-human label',
 }
 const STATUS_LABELS: Record<string, string> = {
-  todo: 'Todo option',
+  todo: 'Ready option',
   inProgress: 'In progress option',
   done: 'Done option',
   deferred: 'Deferred option',
@@ -1161,7 +1162,7 @@ export function ProjectFields({ form, choices, set }: { form: SettingsForm; choi
       <Section
         level="sub"
         title="Project fields"
-        blurb="The GitHub Project board Avoozl adds managed issues to and fills with Release and Wave. Leave every field blank to turn Project sync off."
+        blurb="The GitHub Project board Avoozl adds managed issues to and fills with Release, Wave and Avoozl state. People move Status; Avoozl never writes it. Leave every field blank to turn Project sync off."
       >
         <div style={grid(180)}>
           <Text id="avoozl-settings-project-owner" label="Owner" raw="project.owner" rule={PROJECT_FIELD_RULES.owner} placeholder="org or user" width="md" value={form.projectOwner} onChange={(value) => set({ projectOwner: value })} />

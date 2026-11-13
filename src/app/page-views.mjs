@@ -28,6 +28,7 @@ import { remoteLeaf, routeNeedsYou } from "./routes.mjs";
 import { pluginHealth } from "./plugin-session.mjs";
 import { taskSourceRefs } from "../task-identity.mjs";
 import { taskFlow } from "./flow.mjs";
+import { avoozlState } from "../delivery-lanes.mjs";
 
 const BLOCKING = new Set(["requires", "sequence"]);
 const ACTIVE_RUNS = new Set([
@@ -372,6 +373,7 @@ function projectNotes(record) {
     );
   return {
     status: record.status ?? null,
+    state: record.state ?? null,
     release: record.applied?.Release ?? null,
     wave: record.applied?.Wave ?? null,
     notes,
@@ -615,6 +617,21 @@ export function deliveryView(store, data) {
   return { revision: data.revision, items, contentReports };
 }
 
+// Each task's Avoozl state (ready, running, reviewing, needs-you, waiting,
+// done, deferred) by the Delivery tab's own lane rule, for the Project field
+// the tick fills (github-project.mjs).
+export function avoozlStates(store, data) {
+  const items = new Map(
+    deliveryView(store, data).items.map((item) => [item.id, item]),
+  );
+  return new Map(
+    graphView(store, data, {}).tasks.map((task) => [
+      task.id,
+      avoozlState(task, items.get(task.id) ?? null),
+    ]),
+  );
+}
+
 // Open conflicts and decisions: open decisions on tasks, GitHub projection
 // conflicts (managed fields, duplicate task IDs, closed issues), tasks
 // that need a person, sessions that ended under unfinished tasks, and active
@@ -632,7 +649,8 @@ function crewHoldText(task) {
 export function conflictsView(store, data) {
   const live = liveSessions(store),
     claimed = claimedLeaves(store),
-    archivedOf = archivedPlanOf(store);
+    archivedOf = archivedPlanOf(store),
+    board = projectItemRecords(store);
   const complete = (status) => statusComplete(data, status),
     byId = new Map(data.tasks.map((task) => [task.id, task])),
     // A person's chosen resolution per task and field (github.conflict.resolve),
@@ -688,6 +706,24 @@ export function conflictsView(store, data) {
             : null,
       });
     }
+    // An Avoozl state a person changed on the board (§6.7): written back
+    // once; kept here until the state next moves.
+    const reverted = board.get(task.id)?.stateConflict;
+    if (reverted)
+      items.push({
+        kind: "github-conflict",
+        taskId: task.id,
+        ...ownership(task),
+        title: task.title ?? task.id,
+        field: "Avoozl state",
+        detail: `It was set to ${reverted.board ?? "empty"} on the Project; Avoozl wrote ${reverted.avoozl} back.`,
+        expected: reverted.avoozl,
+        actual: reverted.board ?? null,
+        changedBy: null,
+        changedAt: reverted.at ?? null,
+        choices: [],
+        resolution: null,
+      });
     if (!complete(task.status) && task.status === "blocked")
       items.push({
         kind: "needs-human",

@@ -723,6 +723,11 @@
             "iteration": {
               "type": ["string", "null"],
               "minLength": 1
+            },
+            "avoozlState": {
+              "type": ["string", "null"],
+              "minLength": 1,
+              "description": "Single-select field Avoozl fills with its Delivery state. Blank: Avoozl skips it."
             }
           },
           "additionalProperties": false

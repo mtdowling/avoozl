@@ -13,7 +13,7 @@ import {
   syncProject,
 } from "../github-project.mjs";
 import { Operations } from "../operations.mjs";
-import { deliveryView } from "../page-views.mjs";
+import { avoozlStates, conflictsView, deliveryView } from "../page-views.mjs";
 import { Store } from "../store.mjs";
 import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
@@ -108,6 +108,20 @@ const FIELDS = [
     configuration: {
       iterations: [{ id: "it-1", title: { raw: "Sprint 1" } }],
     },
+  },
+  {
+    id: 5,
+    name: "Avoozl state",
+    data_type: "single_select",
+    options: [
+      ["Ready", "v-ready"],
+      ["Running", "v-running"],
+      ["Reviewing", "v-reviewing"],
+      ["Needs you", "v-needs"],
+      ["Blocked or waiting", "v-waiting"],
+      ["Done", "v-done"],
+      ["Deferred", "v-deferred"],
+    ].map(([name, id]) => option(id, name)),
   },
 ];
 
@@ -693,4 +707,190 @@ test("P28 (4): a Release value a rules plugin set blocks is not written and open
     );
   assert.ok(decisions.some((d) => d.target === "project-item:a2"));
   assert.equal(decisions[0].findings[0].version, "1.0.0");
+});
+
+// Avoozl state (§6.7): Avoozl's Delivery lane on the board, written only
+// when it changes; a person's edit is written back once and recorded.
+const statePolicy = normalizeGitHubPolicy({
+  ...policy,
+  project: {
+    ...policy.project,
+    fields: { ...policy.project.fields, avoozlState: "Avoozl state" },
+  },
+});
+const stateWrites = (github) =>
+  github.writes.filter(
+    (w) => w[0] === "fields" && w[2].some((field) => field.id === 5),
+  ).length;
+
+test("Avoozl state follows the Delivery lane, is written only on change, and never touches Status", async (t) => {
+  // Nearby inputs: a second pass, a status change, a blank field name, a
+  // card paused this pass, Status edits by the board's workflows.
+  const { store, github } = setup(t),
+    names = new Map([
+      ["ready", "Ready"],
+      ["waiting", "Blocked or waiting"],
+      ["deferred", "Deferred"],
+      ["done", "Done"],
+      ["needs-you", "Needs you"],
+    ]);
+  // Blank: Avoozl skips the field.
+  await sync(store, github);
+  assert.equal(stateWrites(github), 0, "blank skips Avoozl state");
+
+  const first = await sync(store, github, { policy: statePolicy });
+  assert.deepEqual(first.problems, []);
+  const lanes = avoozlStates(store, store.read());
+  for (const entry of graph().tasks)
+    assert.equal(value(github, entry.id, 5), names.get(lanes.get(entry.id)));
+  assert.equal(value(github, "a1", 5), "Ready");
+  assert.equal(value(github, "a2", 5), "Blocked or waiting");
+  const written = stateWrites(github);
+  assert.equal((await sync(store, github, { policy: statePolicy })).writes.length, 0);
+  assert.equal(stateWrites(github), written, "unchanged writes nothing");
+
+  // The plan moves a2 to needs-you: one write, for that card only.
+  const data = structuredClone(store.read());
+  data.tasks.find((entry) => entry.id === "a2").status = "blocked";
+  store.commit(data, "Block a2");
+  const moved = await sync(store, github, { policy: statePolicy });
+  assert.deepEqual(
+    moved.writes.map((w) => w.taskId),
+    ["a2"],
+  );
+  assert.equal(value(github, "a2", 5), "Needs you");
+  assert.deepEqual(moved.notify, [], "Avoozl's own change is no edit");
+
+  // A Deferred drag by an allowed actor shows Deferred in the same pass.
+  github.edit("b1", 1, "s-deferred");
+  (github.moves.I_b1 ||= []).push({
+    actor: "owner",
+    at: "2026-11-12T08:00:00Z",
+    status: "Deferred",
+    previousStatus: "Todo",
+    projectId: PROJECT_NODE,
+  });
+  await sync(store, github, { policy: statePolicy });
+  assert.equal(value(github, "b1", 5), "Deferred");
+
+  for (const [, , fields] of github.writes.filter((w) => w[0] === "fields"))
+    assert.ok(
+      fields.every((field) => field.id !== 1),
+      "Avoozl never writes Status",
+    );
+});
+
+test("a person's Avoozl state edit is written back once and recorded as a conflict", async (t) => {
+  // Nearby inputs: the pass after the revert, a second edit, the state
+  // moving on its own, an empty value.
+  const { store, github } = setup(t);
+  await sync(store, github, { policy: statePolicy });
+  github.edit("a1", 5, "v-done");
+  const reverted = await sync(store, github, { policy: statePolicy });
+  assert.equal(value(github, "a1", 5), "Ready");
+  assert.equal(reverted.notify.length, 1);
+  assert.match(
+    reverted.notify[0].text,
+    /set Avoozl state on a1 to Done\. Avoozl fills Avoozl state from its own state and wrote Ready back\./,
+  );
+  const conflict = () =>
+    conflictsView(store, store.read()).items.filter(
+      (item) => item.field === "Avoozl state",
+    );
+  assert.equal(conflict().length, 1);
+  assert.equal(conflict()[0].kind, "github-conflict");
+  assert.equal(conflict()[0].taskId, "a1");
+  assert.equal(conflict()[0].actual, "Done");
+  assert.deepEqual(conflict()[0].choices, []);
+
+  // Once: the next pass writes and notifies nothing, and the record stays.
+  const writes = github.writes.length,
+    after = await sync(store, github, { policy: statePolicy });
+  assert.equal(github.writes.length, writes);
+  assert.deepEqual(after.notify, []);
+  assert.equal(conflict().length, 1);
+
+  // Clearing the value is an edit too.
+  github.edit("a1", 5, null);
+  assert.equal(
+    (await sync(store, github, { policy: statePolicy })).notify.length,
+    1,
+  );
+  assert.equal(conflict()[0].actual, null);
+
+  // The state moving on its own clears the record.
+  const data = structuredClone(store.read());
+  data.tasks.find((entry) => entry.id === "a1").status = "accepted";
+  store.commit(data, "Finish a1");
+  await sync(store, github, { policy: statePolicy });
+  assert.equal(value(github, "a1", 5), "Done");
+  assert.deepEqual(conflict(), []);
+});
+
+test("Avoozl state may not name the Status field, and a missing option is reported", async (t) => {
+  // Nearby inputs: the Status field named twice, an option deleted on GitHub.
+  const { store, github } = setup(t),
+    onStatus = normalizeGitHubPolicy({
+      ...policy,
+      project: { ...policy.project, fields: { avoozlState: "Status" } },
+    });
+  const refused = await sync(store, github, { policy: onStatus });
+  assert.ok(refused.problems.some((p) => /cannot use the Status field/.test(p)));
+  for (const [, , fields] of github.writes.filter((w) => w[0] === "fields"))
+    assert.ok(fields.every((field) => field.id !== 1), "no Status write");
+
+  const real = github.projectFields;
+  github.projectFields = async () =>
+    (await real()).map((field) =>
+      field.id === 5
+        ? {
+            ...field,
+            options: field.options.filter(
+              (entry) => entry.name.raw !== "Blocked or waiting",
+            ),
+          }
+        : field,
+    );
+  const missing = await sync(store, github, { policy: statePolicy });
+  assert.ok(
+    missing.problems.includes(
+      "Avoozl state option Blocked or waiting is missing; run Set up GitHub to add it.",
+    ),
+  );
+});
+
+test("a board with Ready reads it as the first column; an older one keeps Todo", async (t) => {
+  // Nearby inputs: a Ready board, a Todo board, an explicit statusValues.
+  const { store, github } = setup(t);
+  await sync(store, github);
+  github.edit("a1", 1, "s-progress");
+  await sync(store, github);
+  assert.match(
+    deliveryView(store, store.read())
+      .items.find((item) => item.id === "a1")
+      .project.notes.join(" "),
+    /Avoozl's state is Todo/,
+  );
+  const real = github.projectFields;
+  github.projectFields = async () =>
+    (await real()).map((field) =>
+      field.id === 1
+        ? {
+            ...field,
+            options: field.options.map((entry) =>
+              entry.id === "s-todo" ? option("s-todo", "Ready") : entry,
+            ),
+          }
+        : field,
+    );
+  github.edit("a1", 1, "s-done");
+  await sync(store, github);
+  github.edit("a1", 1, "s-progress");
+  await sync(store, github);
+  assert.match(
+    deliveryView(store, store.read())
+      .items.find((item) => item.id === "a1")
+      .project.notes.join(" "),
+    /Avoozl's state is Ready/,
+  );
 });

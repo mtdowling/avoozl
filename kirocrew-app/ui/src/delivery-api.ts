@@ -3,6 +3,7 @@
 import { documentEpic, nodeState, waves, type NodeState } from './graph-layout.ts'
 import { matches, type TaskFilter } from './filters.ts'
 import type { DeliveryItem, DeliverySession, Graph, GraphTask } from './views-api.ts'
+import { laneOf as sharedLaneOf } from '../../../src/delivery-lanes.mjs'
 
 export type LaneId = 'ready' | 'running' | 'reviewing' | 'needs-you' | 'waiting' | 'done'
 
@@ -40,9 +41,6 @@ export const LANE_MIN_WIDTH = 320
 // A lane's background: a little of its tint over the card color, so text in
 // var(--text) stays readable in light and dark themes.
 export const laneBackground = (tint: string) => `color-mix(in srgb, ${tint} 8%, var(--card, transparent))`
-
-// Session statuses after which a session will not move again.
-const ENDED = new Set(['closed', 'lost'])
 
 export interface LaneCard {
   id: string
@@ -99,25 +97,9 @@ function newest(item: DeliveryItem | null): string | null {
   )
 }
 
-// Which lane a task is in. Needs-you wins, then done, then review, then a
-// live session, then readiness.
-export function laneOf(task: GraphTask | null, item: DeliveryItem | null): LaneId {
-  const state = deliveryState(item)
-  const live = (item?.sessions ?? []).filter((s) => !ENDED.has(s.status ?? ''))
-  if (state === 'decision' || item?.needsYou || (task && nodeState(task) === 'needs-you' && !item?.complete)) return 'needs-you'
-  if (item?.complete || (task && nodeState(task) === 'done')) return 'done'
-  if (
-    state === 'done' ||
-    state === 'verified' ||
-    (item?.status === 'review' && !item.handSetReview) ||
-    live.some((s) => s.role !== 'worker') ||
-    item?.githubReviews?.state === 'pending'
-  )
-    return 'reviewing'
-  if (live.length || state === 'running' || state === 'failed' || (item?.status === 'running' && !item.handSetReview)) return 'running'
-  if (task && nodeState(task) === 'ready') return 'ready'
-  return 'waiting'
-}
+// Which lane a task is in: the shared rule the Avoozl state Project field
+// also uses (src/delivery-lanes.mjs).
+export const laneOf: (task: GraphTask | null, item: DeliveryItem | null) => LaneId = sharedLaneOf
 
 // A card's state for the shared filter: its lane, with Waiting split into
 // waiting and deferred the way the Graph draws them.

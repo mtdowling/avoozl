@@ -238,3 +238,10 @@ test('the state icons are labelled, theme-colored, and still under reduced motio
   assert.match(view, /\{props\.phase && <StateIcon phase=\{props\.phase\} \/>\}/)
   assert.match(view, /list\(`\$\{lane\.id\}:\$\{group\.id\}`, group\.cards, group\.id\)/)
 })
+
+test('the lane rule is the one the Avoozl state Project field uses', async () => {
+  const shared = await import('../../../src/delivery-lanes.mjs')
+  assert.equal(laneOf, shared.laneOf)
+  assert.equal(shared.avoozlState({ state: 'deferred' }, null), 'deferred')
+  assert.equal(shared.laneOf({ state: 'deferred' }, null), 'waiting')
+})
