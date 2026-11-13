@@ -201,7 +201,31 @@ function Scenario({ name }: { name: string }) {
   return <>{scenario.render(open, setOpen, close)}</>
 }
 
+// ?page=app: the whole Avoozl page on one workspace with intake on and one
+// open idea, for tests that move between tabs.
+if (query.get('page') === 'app') {
+  answer('workspaces.list', () => ({ defaultWorkspace: 'w', items: [{ id: 'w', name: 'Harness', root: '/w', enabled: true, state: 'ready', served: true }] }))
+  answer('untriaged.view', () => ({
+    enabled: true,
+    mode: null,
+    total: 0,
+    repositories: [],
+    items: [],
+    withRadar: [],
+    ideas: [{ source: 'local', id: 'idea-1', kind: 'idea', title: 'Harness idea', state: 'open', author: 'me', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z', notes: [], links: [], graduated: null }],
+  }))
+}
+
+function AppPage() {
+  return (
+    <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)' }}>
+      <AvoozlApp />
+    </div>
+  )
+}
+
 function Page() {
+  if (query.get('page') === 'app') return <AppPage />
   return (
     <>
       <div data-host-header style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 48, zIndex: 1000, display: 'flex', alignItems: 'center', padding: '0 16px', background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border)', color: 'var(--text)' }}>
@@ -234,7 +258,7 @@ function Page() {
   )
 }
 
-function AppPage() {
+function TopRowPage() {
   return (
     <div data-host-pane style={{ position: 'fixed', inset: 0, overflowY: 'auto', background: 'var(--bg)', color: 'var(--text)' }}>
       <AvoozlApp />
@@ -242,4 +266,4 @@ function AppPage() {
   )
 }
 
-createRoot(document.getElementById('root')!).render(query.get('app') ? <AppPage /> : <Page />)
+createRoot(document.getElementById('root')!).render(query.get('app') ? <TopRowPage /> : <Page />)

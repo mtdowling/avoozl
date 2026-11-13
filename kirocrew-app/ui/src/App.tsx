@@ -158,8 +158,9 @@ function AvoozlPage() {
     if (place.settingsTab !== undefined) setSettingsTab(place.settingsTab)
     if (place.tab !== undefined) setTab(place.tab)
   }
-  const go = (next: Partial<typeof here>) =>
-    changePage(nav, here, next, apply, (before, newTab) => (newTab ? `Back to ${tabLabel(before.tab)}` : 'Back to the previous Settings section'))
+  // `open` deep-links into the new place's inner views (changePage).
+  const go = (next: Partial<typeof here>, open?: Record<string, unknown>) =>
+    changePage(nav, here, next, apply, (before, newTab) => (newTab ? `Back to ${tabLabel(before.tab)}` : 'Back to the previous Settings section'), open)
   const openWorkspaces = () => go({ settingsTab: 'workspaces', tab: 'settings' })
   // A saved workspace counts only once the catalog confirms it still exists.
   const active = list ? workspaceId : null
@@ -322,11 +323,8 @@ function AvoozlPage() {
             onDrill={openDrill}
             newPlanRequest={planGoal}
             ideas={openIdeas}
-            onOpenIdeas={() => {
-              // The Intake tab opens on its Ideas view (UntriagedView's key).
-              nav.memory.set('untriaged-show', 'ideas')
-              go({ focus: null, drill: null, tab: 'untriaged' })
-            }}
+            // The Intake tab opens on its Ideas view (UntriagedView's key).
+            onOpenIdeas={() => go({ focus: null, drill: null, tab: 'untriaged' }, { 'untriaged-show': 'ideas' })}
           />
         ) : tab === 'graph' ? (
           <GraphView workspaceId={active} focus={focus} drill={drill} onDrill={setDrill} />
