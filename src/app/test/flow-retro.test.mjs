@@ -290,3 +290,131 @@ test("PDCA marks helped, no change or worse at a 10% move in the expected direct
   assert.equal(pdcaResult(100, 120, "down"), "worse");
   assert.equal(pdcaResult(0.5, 0.6, "up"), "helped");
 });
+
+const approved = (id, extra) => ({
+  id,
+  metric: "lead time",
+  direction: "down",
+  evidence: "e",
+  status: "approved",
+  pdca: { before: 40 * 60_000, window: 10, at: 10 },
+  ...extra,
+});
+
+test("PDCA measures every approved proposal of one retro in the same tick, once", async (t) => {
+  const s = setup(t, 10);
+  s.store.put("flow_retros", {
+    id: "retro-1",
+    n: 1,
+    state: "done",
+    triggers: [],
+    startedAt: "2026-11-01T08:00:00Z",
+    proposals: [
+      approved("p1", {
+        type: "settings",
+        file: "workspace",
+        key: "flow.batch.max",
+        from: 3,
+        to: 5,
+      }),
+      approved("p2", { type: "plan", spec: "example", change: "Split t3" }),
+    ],
+  });
+  s.finish(s.ids);
+  const now = Date.parse("2026-11-12T16:00:00Z");
+  retroStep(s.store, {}, { now, folder: "Avoozl/app" });
+  assert.deepEqual(
+    s.store.get("flow_retros", "retro-1").proposals.map((p) => p.pdca.result),
+    ["no change", "no change"],
+  );
+  assert.deepEqual(
+    s.store.get("flow_retros", "retro-2").reverts.map((r) => r.revertOf),
+    ["retro-1:p1", "retro-1:p2"],
+  );
+  retroStep(s.store, {}, { now: now + 60_000, folder: "Avoozl/app" });
+  assert.deepEqual(s.store.getMeta("flow.retro.state").reverts, []);
+});
+
+test("a retry trigger within an hour of the last retro waits for the next count trigger", async (t) => {
+  const s = setup(t, 10),
+    now = Date.parse("2026-11-12T16:00:00Z");
+  s.store.put("flow_retros", {
+    id: "retro-1",
+    n: 1,
+    state: "done",
+    triggers: [],
+    proposals: [],
+    startedAt: new Date(now - 30 * 60_000).toISOString(),
+  });
+  s.store.put("session_bindings", {
+    id: "w",
+    slot: "w",
+    taskId: "t1",
+    role: "worker",
+    attempt: 3,
+    source: "tick",
+    status: "working",
+    boundAt: new Date(now - 5 * 60_000).toISOString(),
+  });
+  assert.equal(retroStep(s.store, {}, { now }).retro, null);
+  assert.equal(
+    retroStep(s.store, {}, { now: now + 2 * 3600_000 }).retro,
+    null,
+    "an hour passing is not a count trigger",
+  );
+  s.finish(s.ids);
+  const started = retroStep(s.store, {}, { now: now + 3 * 3600_000 });
+  assert.equal(started.retro, "retro-2");
+  assert.deepEqual(
+    s.store
+      .get("flow_retros", "retro-2")
+      .triggers.map((x) => x.kind)
+      .sort(),
+    ["count", "retry"],
+  );
+});
+
+test("a retro keeps at most 3 of its own proposals, plus the reverts it owes", async (t) => {
+  const s = setup(t, 10);
+  const revert = {
+    type: "settings",
+    file: "workspace",
+    key: "flow.batch.max",
+    from: 5,
+    to: 3,
+    metric: "lead time",
+    direction: "down",
+    evidence: "PDCA: did not help",
+    revertOf: "retro-1:p1",
+  };
+  s.store.put("flow_retros", {
+    id: "retro-2",
+    n: 2,
+    state: "running",
+    triggers: [],
+    reverts: [revert],
+    proposals: [],
+    startedAt: "2026-11-12T08:00:00Z",
+  });
+  const plan = (n) => ({
+    type: "plan",
+    spec: "example",
+    change: "Change " + n,
+    metric: "lead time",
+    direction: "down",
+    evidence: "e",
+  });
+  const { retro } = recordRetroReply(
+    s.store,
+    "retro-2",
+    JSON.stringify({
+      bottleneck: { stage: "queued", evidence: "e" },
+      proposals: [1, 2, 3, 4].map(plan),
+    }),
+  );
+  assert.deepEqual(
+    retro.proposals.map((p) => p.change || p.revertOf),
+    ["Change 1", "Change 2", "Change 3", "retro-1:p1"],
+  );
+  assert.equal(retro.dropped[0].reason, "more than 3 proposals");
+});
