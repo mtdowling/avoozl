@@ -783,17 +783,18 @@ function Xt(e, t, n, r, i, a) {
 	});
 	return a?.add(s), s;
 }
-function Zt(e, t, n, r, i) {
-	let a = n.tab !== void 0 && n.tab !== t.tab, o = n.settingsTab !== void 0 && n.settingsTab !== t.settingsTab;
-	if (a || o) {
-		let n = e.scrollTop(), o = a ? e.takeMemory() : null, s = e.history.push({
-			kind: a ? "tab" : "inner",
-			label: i(t, a),
+function Zt(e, t, n, r, i, a = {}) {
+	let o = n.tab !== void 0 && n.tab !== t.tab, s = n.settingsTab !== void 0 && n.settingsTab !== t.settingsTab;
+	if (o || s) {
+		let n = e.scrollTop(), a = o ? e.takeMemory() : null, s = e.history.push({
+			kind: o ? "tab" : "inner",
+			label: i(t, o),
 			back: () => {
-				e.history.release(s), o && e.putMemory(o), r(t), e.restoreScroll(n);
+				e.history.release(s), a && e.putMemory(a), r(t), e.restoreScroll(n);
 			}
 		});
 	}
+	for (let [t, n] of Object.entries(a)) e.memory.set(t, n), o || e.setters.get(t)?.(n);
 	r(n);
 }
 // kirocrew-app/ui/src/NavHistory.tsx
@@ -29222,7 +29223,7 @@ function ny() {
 		drill: y
 	}, ee = (e) => {
 		e.focus !== void 0 && g(e.focus), e.drill !== void 0 && S(e.drill), e.settingsTab !== void 0 && f(e.settingsTab), e.tab !== void 0 && u(e.tab);
-	}, V = (t) => Zt(e, B, t, ee, (e, t) => t ? `Back to ${ey(e.tab)}` : "Back to the previous Settings section"), te = () => V({
+	}, V = (t, n) => Zt(e, B, t, ee, (e, t) => t ? `Back to ${ey(e.tab)}` : "Back to the previous Settings section", n), te = () => V({
 		settingsTab: "workspaces",
 		tab: "settings"
 	}), H = F ? N : null, ne = s !== "settings" && !H, re = (e, t) => V({
@@ -29391,13 +29392,11 @@ function ny() {
 							onDrill: ie,
 							newPlanRequest: T,
 							ideas: k,
-							onOpenIdeas: () => {
-								e.memory.set("untriaged-show", "ideas"), V({
-									focus: null,
-									drill: null,
-									tab: "untriaged"
-								});
-							}
+							onOpenIdeas: () => V({
+								focus: null,
+								drill: null,
+								tab: "untriaged"
+							}, { "untriaged-show": "ideas" })
 						}) : s === "graph" ? /* @__PURE__ */ b(fu, {
 							workspaceId: H,
 							focus: m,
