@@ -1342,22 +1342,29 @@ Owner decisions 2026-11-13 (Requirements 75–80, design §4.11 and
 §4.21–§4.25). Numbered after Phase 33 because task IDs never move. Tests use
 isolated temporary workspaces, a fake GitHub and fake workers.
 
-- [ ] 34.1 Findings, falsifier and the confidence gate, after 11.11 and 12.9 [R75] (§4.21)
+- [x] 34.1 Findings, falsifier and the confidence gate, after 11.11 and 12.9 [R75] (§4.21)
   - `plans_report` kind `findings`; the `falsifier` role and session; the gate; the Needs you item with Go ahead, Investigate again and Stop; `delivery.investigate` settings and manifest `investigate`; Flow spans and budget.
-- [ ] 34.2 Evidence bundle, after 34.1 and 22.3 [R76] (§4.22)
+  - Built: PR #PRNUM (`src/app/investigate.mjs`, agent `avoozl-falsifier`, person-only `investigation.decide`, Flow stages `investigate` and `falsify`; a findings report with a changed worktree and a done before Go ahead are refused 409). The binding carries `investigate`, so a session bound by hand or by a Crew Mode conductor is not gated. The falsifier's usage counts toward the task's budget like any session bound to it.
+- [x] 34.2 Evidence bundle, after 34.1 and 22.3 [R76] (§4.22)
   - The local bundle, `plans_report` field `evidence`, screening, `task.evidence`, the drawer section, the pull request comment, and the driver export.
-- [ ] 34.3 Bring pull requests up to date, after 15.4 [R77] (§4.23)
+  - Built: PR #PRNUM (`src/app/evidence.mjs`, content boundary `evidence`, `Evidence.tsx` in the drawer, `evidenceCommentStep` in the tick, `evidence` in the driver export). `github.evidence.attach` is not built: GitHub's API has no comment upload.
+- [x] 34.3 Bring pull requests up to date, after 15.4 [R77] (§4.23)
   - Base head tracking, the `base-moved` feedback message, the force-push refusal, and the local merge-forward.
-- [ ] 34.4 Corrections and rules, after 28.3 [R78] (§4.24)
+  - Built: PR #PRNUM (`baseHead`, `mergeState` and `reviewDecision` in the pull request reads; `base-moved` in `src/app/github-feedback.mjs`; `asksForcePush` in `briefAllowed` and the tick; `rebaseForIntegration` merges forward). The stacked pull request brief and the commit-message leak message no longer ask for a force push.
+- [x] 34.4 Corrections and rules, after 28.3 [R78] (§4.24)
   - The `corrections` table and its four sources, the retro grouping and rule proposal, the steering leaf, and corrections in Flow and PDCA.
-- [ ] 34.5 Fix-work share, after 12.11 [R79] (§4.11)
+  - Built: PR #PRNUM (`src/app/corrections.mjs`; changes requested from pull request feedback, `delivery.retry` and `delivery.pickAgain` with `reason`, reverts read from the landing branch; retro proposal type `rule` and `deliverRetroRule`). shortcut: PDCA matches later corrections by kind and repository, not by meaning; the next retro reads them and judges.
+- [x] 34.5 Fix-work share, after 12.11 [R79] (§4.11)
   - The fix-work rule, the Flow card and charts, and the retro payload.
-- [ ] 34.6 Ship mode, after 15.4 [R80] (§4.25)
+  - Built: PR #PRNUM (`isFixWork`, `metrics.fixWork`, `fixShare` per day and week, `fixWork` in the retro payload; leaves of a bugfix spec carry `specType`, and issue intake keeps the issue type).
+- [x] 34.6 Ship mode, after 15.4 [R80] (§4.25)
   - `delivery.ship` in workspace and repository settings, the briefs, the Ready to merge item, and Integrate in Local only; Settings > Delivery shows it.
+  - Built: PR #PRNUM (`shipMode` with task, spec, repository and workspace values; `ready-to-merge` in Needs you; person-only `delivery.integrate`; closed without merging goes back to the writer; the radio fold-out in `DeliverySettings.tsx`).
 
-- [ ] avoozl-p45 P45 Proof: investigate first, evidence, staying current, rules, fix share and ship mode [R75–R80] (§4.21–§4.25)
+- [x] avoozl-p45 P45 Proof: investigate first, evidence, staying current, rules, fix share and ship mode [R75–R80] (§4.21–§4.25)
   - Setup: an isolated temporary workspace in single-repo mode on a fake GitHub with leaves `a1` (plain), `a2` (`size: "small"`) and `a3` (plain), a bugfix spec with leaf `f1`, fake workers and a fake falsifier.
   - Action: (1) dispatch `a1` with findings at `high` and a `stands` reply; (2) dispatch `a3` with a `refuted` reply; press Investigate again, then Go ahead; (3) dispatch `a2`; (4) attach a screenshot and a 30 MB file to `a1`; (5) move the base branch so `a1`'s pull request conflicts; (6) request changes with the same point on `a1` and `a3`; run the retro; approve its rule; (7) finish `f1`; read Flow; (8) set `delivery.ship` to `manual` and let `a3`'s checks pass.
   - Expected: (1) no file changes before the gate, then coding; (2) the task waits in Needs you, one new round, then coding; (3) no investigation; (4) the screenshot is in the drawer and the comment, the large file refused; (5) one `base-moved` message, a merge commit and no force push; (6) one rule proposal naming both corrections and one steering leaf; (7) fix-work share 1 of 3; (8) no auto-merge, one Ready to merge item, and completion after the person merges.
   - Failure means: coding starts on refuted findings, a writer force pushes, or a manual ship merges without a person.
   - Next decision: keep the falsifier only for large tasks, or drop the PR comment and keep evidence local.
+  - Built: pass with fakes, `src/app/test/proof-p45.test.mjs` and `src/app/test/phase34.test.mjs`, PR #PRNUM. Not run live: no real falsifier chat, GitHub pull request, base move or merge has run yet. Step (8)'s completion after the merge is Requirement 16's existing path and is not driven here.

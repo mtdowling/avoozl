@@ -73,11 +73,13 @@ test("P-stack 2: on, a dependent stacks only on one blocker's open pull request,
     /gh pr create --base avoozl\/a --head avoozl\/a-next/,
     /Do not turn on auto-merge and do not merge it while its base is avoozl\/a/,
     /If it closes without merging, report blocked/,
-    new RegExp(`git rebase --onto origin/main ${A_HEAD}`),
+    // Merged forward, never rebased or force pushed (R77.3).
+    /git merge origin\/main/,
     /gh pr edit avoozl\/a-next --base main/,
   ])
     assert.match(brief, step);
   assert.doesNotMatch(brief, /gh pr create --base main/);
+  assert.doesNotMatch(brief, /--force|push -f|rebase --onto/);
   assert.equal(findPlanningLeak([["brief", brief]], PLANS), null);
   // `both` has two unmet blockers and never stacks.
   assert.equal(branch("both"), null);

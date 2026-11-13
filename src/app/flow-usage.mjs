@@ -80,6 +80,7 @@ export function turnStage(spans, turn) {
   const pick = holding.sort((a, b) => (a.startedAt < b.startedAt ? 1 : -1))[0];
   if (pick) return pick.stage;
   if (turn.role === "verifier") return "tests";
+  if (turn.role === "falsifier") return "falsify";
   if (String(turn.role || "").startsWith("review:")) return "review";
   if (turn.role === "worker") return turn.attempt > 1 ? "rework" : "coding";
   return turn.role || "other";

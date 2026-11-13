@@ -4156,7 +4156,10 @@ step by hand when I want it.
 #### Acceptance criteria
 
 1. `delivery.ship` SHALL be `auto-merge` (default, today's behavior) or
-   `manual`, per workspace and per repository; the repository's value wins.
+   `manual`, per workspace and per repository. A spec's manifest MAY set a
+   top-level `ship` and a manifest task its own `ship`. The task's value
+   wins, then the spec's, then the repository's, then the workspace's. A
+   task that came from a GitHub issue follows it like any other.
 2. With `auto-merge`, Requirement 18 SHALL apply unchanged.
 3. With `manual`, briefs SHALL tell writers not to enable auto-merge, and
    Avoozl SHALL say so on Settings > Delivery. WHEN a pull request's
@@ -4166,3 +4169,7 @@ step by hand when I want it.
 4. With `manual` in Local only mode, integration SHALL wait for a person's
    **Integrate** on the Ready to merge item.
 5. Avoozl SHALL still never merge a pull request itself.
+6. With `manual`, WHEN a writer's pull request closes without merging THEN
+   Avoozl SHALL send the writer one message, as one feedback round, to read
+   why, fix it and reopen it, or report blocked. Settings > Delivery SHALL
+   choose the mode with one radio fold-out.

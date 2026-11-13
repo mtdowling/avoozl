@@ -128,6 +128,12 @@ export function FlowCharts({ view, unit, onUnit }: { view: FlowViewModel; unit: 
         <Chart title="First-pass rate" empty={none}>
           <Line points={points} value={(p) => p.firstPassRate} format={percent} color="var(--accent)" />
         </Chart>
+        <Chart title="Fix work" empty={!points.some((p) => p.fixShare != null)}>
+          <Line points={points} value={(p) => p.fixShare ?? null} format={percent} color="var(--accent)" />
+        </Chart>
+        <Chart title="Corrections" empty={!points.some((p) => (p.corrections ?? 0) > 0)}>
+          <Line points={points} value={(p) => p.corrections ?? 0} format={(n) => String(n ?? 0)} color="var(--danger)" />
+        </Chart>
         <Chart title="Time to fix" empty={!points.some((p) => p.timeToFixMs !== null)}>
           <Line points={points} value={(p) => p.timeToFixMs} format={duration} color="var(--danger)" />
         </Chart>

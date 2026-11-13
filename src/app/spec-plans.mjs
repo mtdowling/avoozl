@@ -475,6 +475,7 @@ export function parseSpec({
   const text = files[MANIFEST];
   let entries = null,
     specBudget,
+    specShip,
     manifest = null;
   if (text !== undefined) {
     try {
@@ -499,6 +500,14 @@ export function parseSpec({
         // The spec's per-task cap, and never prices (§4.17, R67.2).
         try {
           specBudget = validateManifestBudget(manifest);
+          specShip = manifest.ship;
+          if (
+            specShip !== undefined &&
+            !["auto-merge", "manual"].includes(specShip)
+          ) {
+            specShip = undefined;
+            throw Error('ship must be "auto-merge" or "manual".');
+          }
         } catch (error) {
           diagnostics.push(
             diagnostic(
@@ -506,7 +515,11 @@ export function parseSpec({
               MANIFEST,
               manifestLine(
                 text,
-                manifest.prices !== undefined ? "prices" : "budget",
+                manifest.prices !== undefined
+                  ? "prices"
+                  : specShip === undefined && manifest.ship !== undefined
+                    ? "ship"
+                    : "budget",
               ),
               error.message,
             ),
@@ -776,6 +789,12 @@ export function parseSpec({
             ...rest,
             title,
             ...(specBudget && entry?.kind !== "package" ? { specBudget } : {}),
+            // The spec's ship mode and a bugfix spec's type reach each leaf
+            // (§4.25, §4.11).
+            ...(specShip && entry?.kind !== "package" ? { specShip } : {}),
+            ...(bugfix && !feature && entry?.kind !== "package"
+              ? { specType: "bugfix" }
+              : {}),
           };
         if (title !== item.title)
           fields.summary = [item.title, entry?.summary]
