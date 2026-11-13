@@ -79,8 +79,8 @@ test("manifest declares the §4.2 app and every target ships in the package", ()
     path.join("bin", "lib", "cli.mjs"),
   ];
   for (const target of targets) {
-    const real = fs.realpathSync(path.join(app, target));
-    assert.ok(real.startsWith(fs.realpathSync(app) + path.sep), target);
+    const real = fs.realpathSync.native(path.join(app, target));
+    assert.ok(real.startsWith(fs.realpathSync.native(app) + path.sep), target);
   }
   for (const agent of manifest.agents) {
     const spec = JSON.parse(fs.readFileSync(path.join(app, agent), "utf8"));
@@ -140,7 +140,7 @@ test("the code review agent reads a pull request and cannot write", () => {
 
 test("the built package carries no path of the machine that built it", () => {
   const lib = path.join(app, "bin", "lib"),
-    needle = fs.realpathSync(root).replace(/\/$/, "");
+    needle = fs.realpathSync.native(root).replace(/\/$/, "");
   for (const file of fs.readdirSync(lib, { recursive: true })) {
     const full = path.join(lib, file);
     if (fs.statSync(full).isFile())

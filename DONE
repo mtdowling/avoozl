@@ -1,0 +1,67 @@
+Phase 27: per-task budgets and usage receipts. Built and landed locally.
+
+Commits
+- aicommander main (fast-forward, NOT pushed), on top of 4846156:
+    dbdad6c Add per-task budgets, usage receipts and Settings Prices
+    1112e0e Name the task when a budget call has none
+  Push command for the owner:
+    git -C /Users/dowling/projects/aicommander-wt-kirocrew-native push origin 4846156..1112e0e:main
+- avoozl-plans main (local, NOT pushed), on top of 29f814d:
+    ffe6b3b Add budget modes and owner decisions to R67; mark Phase 27 built
+  27.1-27.4 and avoozl-p41 are checked off with Built: notes. Spec lint: 0 errors, 0 warnings.
+- Branch task/phase27, worktree /private/tmp/aicommander-phase27.
+
+Tests (on the rebased branch)
+- npm test: 869 of 869 passed on the run before main's last two commits.
+  After rebasing on 4846156: 871 of 873 passed. The 2 that failed were
+  verify-integrate tests hitting the 60 s per-test timeout at load average 245.
+  Run alone they pass (31 s and 21 s). P27 and P28 timed out the same way on
+  main's own baseline run.
+- UI tests (kirocrew-app/ui): 289 of 291 passed, 2 skipped, 0 failed.
+- New: src/app/test/budget.test.mjs (9), src/app/test/proof-p41.test.mjs (P41),
+  kirocrew-app/ui/test/budget.test.mjs (8).
+- npm run format:check clean; git diff --check clean.
+- Screenshots at 375 and 1280 px, light and dark: /private/tmp/p27-harness/shots
+  (dashboard, delivery, conflicts, drawer, flow, budgets, prices).
+
+What was built
+- src/app/budget.mjs: price table (machine-local `prices`, versions in SQLite
+  price_versions, none shipped), caps from workspace > repository > spec > task,
+  key by key, with mode stop|warn. Fallback caps 2,000,000 tokens and 200 credits,
+  set as workspace budget.tokens/credits. Spend priced on read (credits first).
+  Batch caps are the sum of the members' caps, with turns shared evenly.
+  Holds live in budget_holds; raises in budget_raises.
+- Stop mode: the check runs after each usage read (app backend, under the tick
+  lock) and in the tick before dispatch. It sends one stop message per live
+  session, answers budget_reached on MCP calls except plans_report, and makes no
+  verifier or review dispatch. Never closes a session. A budget stop costs no
+  attempt.
+- Warn mode: never stops or messages. Shows an Over budget badge and one Needs you
+  item with Acknowledge / Raise budget / Switch to stop. The item reopens each
+  further 50% of the cap. Notify is optional (budget.notify, off).
+- 80% warning on the chip and receipt. The receipt shows any overrun.
+- Intake grant (task.intakeBudget) fills only a missing dollar cap, always stop.
+- Unknown spend (Crew Mode, remote, failed read) warns once, never stops.
+- Person only (403 for MCP, sessions, app tokens): budget.raise, .stop,
+  .acknowledge, .switchToStop, prices.save, budget.settings.update.
+- Receipt: budget.receipt, `avoozl budget receipt TASK --json`, plans_view
+  action receipt, retro payload `receipts`. Counts and dollars only.
+- Refused by name: prices in .avoozl.json, in a pack, or in a manifest.
+- UI: spend chip on Delivery cards and In flight, drawer Budget fold after Timing
+  (tables, Export JSON, actions), Needs you items, Dashboard "N over budget",
+  Flow bar marks, Settings > Budgets (mode with one plain line each) and
+  Settings > Prices ("This computer only").
+
+Untested live
+- Real Kiro Crew queueing of a message to a busy session (checked only by a fake
+  in P41; the first live stop should record it).
+- The app backend's live usage read followed by the budget check.
+- Settings forms saved against a real .avoozl.json in the app frame; the pages
+  were drawn only in the screenshot harness with made-up data.
+
+Left / deviations
+- Budget fields live in Settings > Budgets, not in Settings > General or the
+  repository Edit modal (one place per setting). The spec says so.
+- The driver export (Phase 26) does not exist yet, so "the export leaves prices
+  out" is unwired. The spec notes it.
+- No upstream Kiro Crew ask for remote usage (conductor decision 5).

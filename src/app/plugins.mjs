@@ -618,8 +618,27 @@ export function procAddress(hex) {
   return `${new URL(`http://[${groups.join(":")}]`).hostname}:${number}`;
 }
 
-// TCP listeners the process holds: lsof on macOS and BSD, /proc on Linux.
-// A process Avoozl cannot check is treated as listening (fail closed).
+// Listening TCP addresses `netstat -ano` shows for `pid` (Windows). A
+// listening row's foreign address has port 0 ("0.0.0.0:0", "[::]:0"); that
+// is read instead of the State column, which Windows translates.
+export function netstatListeners(text, pid) {
+  const found = [];
+  for (const line of text.split(/\r?\n/)) {
+    const parts = line.trim().split(/\s+/);
+    if (
+      parts.length === 5 &&
+      parts[0] === "TCP" &&
+      parts[4] === String(pid) &&
+      /:0$/.test(parts[2])
+    )
+      found.push(parts[1]);
+  }
+  return found;
+}
+
+// TCP listeners the process holds: lsof on macOS and BSD, /proc on Linux,
+// netstat on Windows. A process Avoozl cannot check is treated as listening
+// (fail closed).
 export async function listeningSockets(pid) {
   if (process.platform === "linux") {
     const inodes = new Set();
@@ -646,6 +665,24 @@ export async function listeningSockets(pid) {
     }
     return found;
   }
+  if (process.platform === "win32")
+    return new Promise((resolve, reject) =>
+      execFile(
+        // By full path, so a folder on PATH cannot stand in for it.
+        process.env.SystemRoot
+          ? path.join(process.env.SystemRoot, "System32", "netstat.exe")
+          : "netstat.exe",
+        ["-ano"],
+        { timeout: 5000, windowsHide: true },
+        (error, stdout) => {
+          if (error)
+            return reject(
+              Error(`cannot check for listeners: ${error.message}`),
+            );
+          resolve(netstatListeners(stdout, pid));
+        },
+      ),
+    );
   return new Promise((resolve, reject) =>
     execFile(
       "lsof",
@@ -901,6 +938,12 @@ export function approvePlugin(
 
 export function disablePlugin(options, { id, disabled = true }) {
   const settings = readPluginSettings(options.settingsFile);
+  // Enabling still clears a stale entry for a plugin no longer declared.
+  if (
+    !inspectPlugins(options).some((p) => p.id === id) &&
+    !(disabled === false && settings.disabled.includes(id))
+  )
+    fail(`Plugin ${id} is not declared.`, 404);
   settings.disabled = settings.disabled.filter((item) => item !== id);
   if (disabled) settings.disabled.push(id);
   writePluginSettings(options.settingsFile, settings);

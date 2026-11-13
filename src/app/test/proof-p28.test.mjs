@@ -10,6 +10,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { pathToFileURL } from "node:url";
 import { handleMcp } from "../mcp.mjs";
 import { Operations } from "../operations.mjs";
 import { Store } from "../store.mjs";
@@ -34,7 +35,10 @@ process.env.GIT_CONFIG_GLOBAL = path.join(
 fs.writeFileSync(process.env.GIT_CONFIG_GLOBAL, "");
 
 const FIXTURE = path.join(import.meta.dirname, "fixtures", "plugins");
-const CHECK = "scripts/validate.sh";
+// A node script, not a .sh file: Windows cannot exec a shell script directly.
+const CHECK_FILE = "scripts/validate.mjs",
+  CHECK_ARGV = ["node", CHECK_FILE],
+  CHECK = CHECK_ARGV.join(" ");
 const A = "p28.1",
   B = "p28.2";
 const aliases = { [A]: "a", [B]: "b" };
@@ -140,9 +144,7 @@ async function workspace(t) {
     path.join(checkout, "hosts.txt"),
     "legacy build7.corp.example\n",
   );
-  fs.writeFileSync(path.join(checkout, CHECK), "#!/bin/sh\nexit 0\n", {
-    mode: 0o755,
-  });
+  fs.writeFileSync(path.join(checkout, CHECK_FILE), "process.exit(0);\n");
   git(checkout, "add", ".");
   git(checkout, "commit", "-qm", "Start");
   git(remote, "init", "-q", "--bare");
@@ -179,11 +181,11 @@ async function workspace(t) {
     id: "app",
     root: checkout,
     baseBranch: "main",
-    checks: [[CHECK]],
+    checks: [CHECK_ARGV],
   });
   return {
     root,
-    checkout: fs.realpathSync(checkout),
+    checkout: fs.realpathSync.native(checkout),
     store,
     ops,
     terms,
@@ -557,10 +559,12 @@ test(
         "--input-type=module",
         "-e",
         `import { scanText, RULES } from ${JSON.stringify(
-          path.resolve(
-            import.meta.dirname,
-            "../../../scripts/release-scan.mjs",
-          ),
+          pathToFileURL(
+            path.resolve(
+              import.meta.dirname,
+              "../../../scripts/release-scan.mjs",
+            ),
+          ).href,
         )}; console.log(JSON.stringify(scanText("plain\\nthe zorblat note", RULES)))`,
       ],
       {
