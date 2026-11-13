@@ -3,7 +3,8 @@
 // with its status and computed progress, and open decisions. Edit and
 // Discuss live on the epic folder's row in Plans, like any plan.
 import { useCallback } from 'react'
-import { Card, CardTitle } from '@kirocrew/app-sdk/ui'
+import { Card } from '@kirocrew/app-sdk/ui'
+import { SectionHeading } from './controls.tsx'
 import Badge from './Badge.tsx'
 import { useRead } from './useRead.ts'
 import type { Drill } from './graph-layout.ts'
@@ -24,17 +25,21 @@ export function EpicPanel(props: {
   if (!value) return null
   return (
     <Card data-epic-panel>
-      <div className="flex flex-wrap items-center gap-2">
-        <CardTitle>{value.title}</CardTitle>
+      <SectionHeading
+        title={value.title}
+        actions={
+          props.onOpenPlans && (
+            <button type="button" className="text-sm underline" onClick={props.onOpenPlans}>
+              Edit or discuss in Plans
+            </button>
+          )
+        }
+      />
+      <div className="mt-1 flex flex-wrap items-center gap-2">
         <Badge>{value.complete ? 'done' : value.approved ? 'approved' : 'draft'}</Badge>
         <span className="text-xs text-muted">
           {value.progress.done} of {value.progress.total} tasks done across {value.members.length} plans
         </span>
-        {props.onOpenPlans && (
-          <button type="button" className="ml-auto text-sm underline" onClick={props.onOpenPlans}>
-            Edit or discuss in Plans
-          </button>
-        )}
       </div>
       <div className="mt-2 grid gap-4 text-sm" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(16rem, 1fr))' }}>
         <div className="flex flex-col gap-2" style={{ maxWidth: '75ch' }}>
