@@ -321,7 +321,7 @@ function ItemHistory({ item, workspaceId }: { item: ConflictItem; workspaceId: s
       {detail && (
         <>
           <p className="text-xs text-muted">
-            Plan: {detail.plan ? `${detail.plan.title} (${detail.plan.approved ? 'approved' : (detail.plan.state ?? 'draft')})` : 'none'}
+            Spec: {detail.plan ? `${detail.plan.title} (${detail.plan.approved ? 'approved' : (detail.plan.state ?? 'draft')})` : 'none'}
             {detail.task.epicTitle ? ` · Epic: ${detail.task.epicTitle}` : ''} · State: {detail.task.state ?? 'unknown'}
           </p>
           {detail.timeline.length ? (
@@ -389,7 +389,7 @@ function ConflictRow(props: {
         )}
         {item.taskId && <span className="text-xs text-muted">{item.taskId}</span>}
         <Authority owner={item} />
-        {props.plan && <span className="text-xs text-muted">· plan {props.plan}</span>}
+        {props.plan && <span className="text-xs text-muted">· spec {props.plan}</span>}
         {time && (
           <Tooltip text={time}>
             <span className="text-xs text-muted">· {relativeTime(time)}</span>
