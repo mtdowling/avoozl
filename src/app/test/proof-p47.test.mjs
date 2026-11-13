@@ -87,6 +87,8 @@ function fakeRelay(ops, kc, slot) {
 // passes the checks, so each worker's one option is remote. `verify:
 // "agent"` keeps w1's check a verifier chat on this machine (§5.2 Checks).
 const RELAY_ON = { remoteRelay: "on" };
+// w1 uses `verify: "agent"` so the relay proof still sees a verifier chat
+// open here; without it, its declared check runs here with no chat.
 const LINUX = {
   ...MANIFEST,
   w1: leaf("w1 needs Linux.", { needs: ["os:linux"], verify: "agent" }),

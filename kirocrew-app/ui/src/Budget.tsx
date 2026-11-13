@@ -295,9 +295,9 @@ export function BudgetFold(props: {
         {receipt.cap.usd == null
           ? "No dollar cap is set."
           : `Cap from the ${receipt.cap.level} level. `}
-        {MODE_TEXT[receipt.cap.mode]} Unpriced turns count against{" "}
-        {num(receipt.cap.tokens ?? 0)} tokens and{" "}
-        {num(receipt.cap.credits ?? 0)} credits.
+        {MODE_TEXT[receipt.cap.mode]} Turns with no dollar price count against{" "}
+        {num(receipt.cap.tokens ?? 0)} tokens, and turns billed in credits
+        against {num(receipt.cap.credits ?? 0)} credits.
         {receipt.readAt
           ? ` Last usage read ${new Date(receipt.readAt).toLocaleString()}.`
           : ""}
