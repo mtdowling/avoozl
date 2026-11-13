@@ -142,6 +142,11 @@ test("one pooled MCP process serves two workspaces without mixing them", async (
   assert.match(text(replies.get(5)), /Task not found/, "binding wins");
   assert.match(text(replies.get(6)), /identity/, "no caller fails closed");
   assert.match(
+    text(replies.get(6)),
+    /mcp_gateway\.stub_servers/,
+    "the refusal names the setting that sends the identity",
+  );
+  assert.match(
     text(replies.get(7)),
     /Task not found/,
     "the working directory's workspace is never used",

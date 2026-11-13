@@ -73,6 +73,10 @@ export function crewDriver(
         agents: Object.fromEntries(
           entries.filter(([, c]) => c.agents).map(([id, c]) => [id, c.agents]),
         ),
+        // A fake crew approves its own tools unless it says otherwise.
+        ready: Object.fromEntries(
+          entries.map(([id, c]) => [id, c.ready ?? true]),
+        ),
         remoteDispatch: state.remoteDispatch,
         limits: state.limits,
         mc10: state.mc10,
