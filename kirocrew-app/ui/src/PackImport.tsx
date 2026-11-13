@@ -16,7 +16,7 @@ import {
   type PluginRow,
 } from './plugins-api.ts'
 import { errorMessage } from './workspace-api.ts'
-import { useBackStep } from './NavHistory.tsx'
+import { Modal } from './Modal.tsx'
 
 type Client = ReturnType<typeof pluginsClient>
 
@@ -106,8 +106,6 @@ export function PackImportDialog(props: { row: PluginRow; workspaceId: string; c
       live = false
     }
   }, [client, workspaceId, row.id])
-  // Esc and Back do what Cancel does.
-  useBackStep('modal', true, 'Cancel', cancel)
   useEffect(() => {
     box.current?.querySelector<HTMLElement>('button')?.focus()
   }, [])
@@ -127,54 +125,44 @@ export function PackImportDialog(props: { row: PluginRow; workspaceId: string; c
     }
   }
   return (
-    <div className="fixed inset-0" style={{ zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div aria-hidden="true" className="absolute inset-0" onClick={cancel} style={{ background: 'color-mix(in srgb, var(--text) 30%, transparent)' }} />
-      <div
-        ref={box}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="avoozl-pack-title"
-        data-pack-dialog
-        className="relative flex flex-col gap-3 rounded-lg border p-4 shadow-lg"
-        style={{ width: 'min(48rem, 96vw)', maxHeight: '88vh', overflow: 'auto', background: 'var(--card, var(--bg))', color: 'var(--text)', borderColor: 'var(--border)' }}
-      >
-        <div>
-          <h3 id="avoozl-pack-title" className="text-base font-semibold">
-            Import {row.id} version {row.version}
-          </h3>
-          <p className="text-sm text-muted">Copies these settings into .avoozl.json once. Later versions offer their changes here again.</p>
-        </div>
-        {preview ? <PackChanges preview={preview} /> : !error && <p className="text-sm text-muted">Reading the pack...</p>}
-        {preview && preview.warnings.length > 0 && (
-          <label className="flex items-start gap-2 text-sm">
-            <input type="checkbox" className="mt-1" checked={acceptLowered} onChange={(e) => setAcceptLowered(e.target.checked)} />
-            <span>Import the who-counts change above</span>
-          </label>
-        )}
-        {row.source === 'machine' && (
-          <label className="flex items-start gap-2 text-sm">
-            <input type="checkbox" className="mt-1" checked={confirmPublic} onChange={(e) => setConfirmPublic(e.target.checked)} />
-            <span>
-              Write the plugin id into .avoozl.json
-              <span className="block text-xs text-muted">This plugin is declared on this computer only. Anyone who can read the repository sees its id and these settings.</span>
-            </span>
-          </label>
-        )}
-        {blocked && preview && !(preview.warnings.length && !acceptLowered) && <p className="text-xs text-muted">{blocked}</p>}
-        {error && (
-          <p role="alert" className="text-sm text-danger">
-            {error}
-          </p>
-        )}
-        <div className="flex flex-wrap justify-end gap-2">
-          <Btn type="button" onClick={cancel} disabled={busy}>
-            Cancel
-          </Btn>
-          <Btn type="button" primary onClick={() => void run()} disabled={busy || Boolean(blocked)}>
-            Import settings
-          </Btn>
-        </div>
+    // Esc, Back and a click outside do what Cancel does.
+    <Modal id="avoozl-pack" width="48rem" backLabel="Cancel" boxRef={box} attrs={{ 'data-pack-dialog': true }} onDismiss={cancel}>
+      <div>
+        <h3 id="avoozl-pack-title" className="text-base font-semibold">
+          Import {row.id} version {row.version}
+        </h3>
+        <p className="text-sm text-muted">Copies these settings into .avoozl.json once. Later versions offer their changes here again.</p>
       </div>
-    </div>
+      {preview ? <PackChanges preview={preview} /> : !error && <p className="text-sm text-muted">Reading the pack...</p>}
+      {preview && preview.warnings.length > 0 && (
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" className="mt-1" checked={acceptLowered} onChange={(e) => setAcceptLowered(e.target.checked)} />
+          <span>Import the who-counts change above</span>
+        </label>
+      )}
+      {row.source === 'machine' && (
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" className="mt-1" checked={confirmPublic} onChange={(e) => setConfirmPublic(e.target.checked)} />
+          <span>
+            Write the plugin id into .avoozl.json
+            <span className="block text-xs text-muted">This plugin is declared on this computer only. Anyone who can read the repository sees its id and these settings.</span>
+          </span>
+        </label>
+      )}
+      {blocked && preview && !(preview.warnings.length && !acceptLowered) && <p className="text-xs text-muted">{blocked}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-danger">
+          {error}
+        </p>
+      )}
+      <div className="flex flex-wrap justify-end gap-2">
+        <Btn type="button" onClick={cancel} disabled={busy}>
+          Cancel
+        </Btn>
+        <Btn type="button" primary onClick={() => void run()} disabled={busy || Boolean(blocked)}>
+          Import settings
+        </Btn>
+      </div>
+    </Modal>
   )
 }
