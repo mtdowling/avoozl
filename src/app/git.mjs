@@ -188,6 +188,9 @@ export async function projectConfig({
   if (!/^[a-z][a-z0-9-]{1,60}$/.test(id || ""))
     fail("Choose a stable project ID.");
   root = await checkoutRoot(root, "project root");
+  // A leading dash would reach git as an option.
+  if (typeof baseBranch !== "string" || baseBranch.startsWith("-"))
+    fail("Name a valid base branch.");
   try {
     await git(root, ["rev-parse", "--verify", baseBranch + "^{commit}"]);
   } catch {
@@ -248,6 +251,7 @@ export async function createWorktree(store, project, runId) {
       if (fs.existsSync(helper))
         await exec(helper, [branch, worktree, project.baseBranch], {
           cwd: project.root,
+          env: repositoryEnvironment(),
           maxBuffer: 8 * 1024 * 1024,
         });
       else
@@ -360,6 +364,20 @@ export async function prepareTaskWorktree(store, project, { branch, name }) {
   );
 }
 
+// The environment for repository code Avoozl runs (declared checks, a
+// scripts/worktree helper). That code can be a worker's, so it never gets the
+// Kiro Crew gateway credentials the backend holds: with the proxy secret it
+// could sign requests as the owner.
+const GATEWAY_SECRETS = [
+  "KIROCREW_PROXY_SECRET",
+  "KIROCREW_GATEWAY_ORIGIN_PROOF",
+];
+export function repositoryEnvironment(env = process.env) {
+  const out = { ...env };
+  for (const name of GATEWAY_SECRETS) delete out[name];
+  return out;
+}
+
 export async function commandEvidence(
   cwd,
   argv,
@@ -376,6 +394,7 @@ export async function commandEvidence(
   try {
     const { stdout, stderr } = await exec(argv[0], argv.slice(1), {
       cwd,
+      env: repositoryEnvironment(),
       timeout: timeoutMs,
       maxBuffer: 8 * 1024 * 1024,
     });
