@@ -238,4 +238,10 @@ test("a task names no epic, and its phase is {id, title}", async (t) => {
   await assert.rejects(ops.execute("task.update", { id: "sample-task", phase: { id: "bad id" } }), /phase is/);
   await ops.execute("task.update", { id: "sample-task", phase: null });
   assert.equal(ops.read().tasks.find((entry) => entry.id === "sample-task").phase, undefined);
+  // An archive may say why; an unarchive clears it.
+  await assert.rejects(ops.execute("task.archive", { id: "sample-task", reason: "two\nlines" }), /one line/);
+  await ops.execute("task.archive", { id: "sample-task", reason: "plan removed" });
+  assert.equal(ops.read().tasks.find((entry) => entry.id === "sample-task").archivedReason, "plan removed");
+  await ops.execute("task.unarchive", { id: "sample-task" });
+  assert.equal(ops.read().tasks.find((entry) => entry.id === "sample-task").archivedReason, undefined);
 });
