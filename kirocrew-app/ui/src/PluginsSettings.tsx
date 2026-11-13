@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import AddPlugin from './AddPlugin.tsx'
 import IntakeSources from './IntakeSources.tsx'
 import { useAppApi, useChatLauncher } from '@kirocrew/app-sdk'
@@ -10,13 +10,17 @@ import {
   PLUGIN_PARTS,
   partsOf,
   pluginsClient,
+  lessonsPackText,
   stateLabel,
+  type LessonsPackPreview,
   type PluginRow,
 } from './plugins-api.ts'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
 import { DangerBtn, IconLabel, SectionHeading, TipBtn } from './controls.tsx'
 import { PackImportDialog } from './PackImport.tsx'
+import { SkillNoteCard } from './FlowMemory.tsx'
+import { flowClient, type SkillNote } from './flow-api.ts'
 import { BookOpen, MessagesSquare, Trash2 } from './icons.ts'
 import { useMedia } from './TaskDrawer.tsx'
 import { DocumentReader } from './DocumentReader.tsx'
@@ -80,7 +84,50 @@ export function Parts({ row }: { row: PluginRow }) {
   )
 }
 
-function PluginCard(props: { row: PluginRow; busy: boolean; act: (fn: () => Promise<unknown>) => void; client: ReturnType<typeof pluginsClient>; workspaceId: string; onImport: (row: PluginRow) => void }) {
+// A plugin's lessons pack: preview first, then a person imports exactly
+// what the preview showed (R69.7).
+function LessonsPack({ row, busy, act, client, workspaceId }: { row: PluginRow; busy: boolean; act: (fn: () => Promise<unknown>) => void; client: ReturnType<typeof pluginsClient>; workspaceId: string }) {
+  const [preview, setPreview] = useState<LessonsPackPreview | null>(null)
+  const [done, setDone] = useState<string | null>(null)
+  const id = row.id ?? ''
+  return (
+    <div className="mt-2 flex flex-col gap-1 text-xs" data-lessons-pack={id}>
+      {preview ? (
+        <>
+          <span>{lessonsPackText(preview)}</span>
+          <div className="flex flex-wrap gap-2">
+            <TipBtn
+              tooltip="Import these lessons read-only, named by this plugin and version"
+              primary
+              disabled={busy || row.state !== 'approved'}
+              onClick={() =>
+                act(async () => {
+                  await client.lessonsImport(workspaceId, id, preview.hash)
+                  setDone(`Imported ${preview.rows.filter((r) => r.action !== 'retire').length} lessons.`)
+                  setPreview(null)
+                })
+              }
+            >
+              Import lessons
+            </TipBtn>
+            <TipBtn tooltip="Close the preview without importing" disabled={busy} onClick={() => setPreview(null)}>
+              Cancel
+            </TipBtn>
+          </div>
+        </>
+      ) : (
+        <div>
+          <TipBtn tooltip="See which lessons importing this pack adds, changes or retires" disabled={busy} onClick={() => act(async () => setPreview(await client.lessonsPreview(workspaceId, id)))}>
+            Preview lessons pack
+          </TipBtn>
+        </div>
+      )}
+      {done && <span className="text-muted">{done}</span>}
+    </div>
+  )
+}
+
+function PluginCard(props: { row: PluginRow; busy: boolean; act: (fn: () => Promise<unknown>) => void; client: ReturnType<typeof pluginsClient>; workspaceId: string; onImport: (row: PluginRow) => void; notes: SkillNote[] }) {
   const { row, busy, act, client, workspaceId } = props
   const status = stateLabel(row)
   const id = row.id ?? ''
@@ -101,6 +148,15 @@ function PluginCard(props: { row: PluginRow; busy: boolean; act: (fn: () => Prom
       ) : null}
       <Parts row={row} />
       <Facts row={row} />
+      {partsOf(row).includes('lessons') && row.id ? <LessonsPack row={row} busy={busy} act={act} client={client} workspaceId={workspaceId} /> : null}
+      {props.notes.length > 0 && (
+        <div className="mt-2 flex flex-col gap-2" data-plugin-notes>
+          <span className="text-xs font-semibold">Suggested changes from retros. Copy one to the plugin's owner; Avoozl sends nothing.</span>
+          {props.notes.map((n, i) => (
+            <SkillNoteCard key={i} note={n} />
+          ))}
+        </div>
+      )}
       {row.id ? (
         <div className="mt-3 flex flex-wrap gap-2">
           {row.pack ? (
@@ -180,6 +236,19 @@ export default function PluginsSettings({ workspaceId }: { workspaceId: string }
   // Add plugin on the left, the installed list on the right; stacked when
   // the page is narrow.
   const wide = useMedia('(min-width: 1024px)')
+  // Suggested skill changes approved from retros, by plugin (R68.11).
+  const api2 = useMemo(() => flowClient(api), [api])
+  const [notes, setNotes] = useState<SkillNote[]>([])
+  useEffect(() => {
+    let live = true
+    api2.proposals(workspaceId).then(
+      (p) => live && setNotes(p.notes),
+      () => live && setNotes([]),
+    )
+    return () => {
+      live = false
+    }
+  }, [api2, workspaceId])
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap gap-2" data-plugin-help>
@@ -228,7 +297,7 @@ export default function PluginsSettings({ workspaceId }: { workspaceId: string }
             </Card>
           ) : null}
           {value?.plugins.map((row, i) => (
-            <PluginCard key={`${row.id}-${row.source}-${i}`} row={row} busy={acting || busy} act={act} client={client} workspaceId={workspaceId} onImport={setImporting} />
+            <PluginCard key={`${row.id}-${row.source}-${i}`} row={row} busy={acting || busy} act={act} client={client} workspaceId={workspaceId} onImport={setImporting} notes={notes.filter((n) => n.plugin === row.id)} />
           ))}
         </div>
       </div>

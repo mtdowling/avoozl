@@ -131,7 +131,7 @@ test("plan.new refuses bad names, duplicates, missing repositories and an empty 
   writeSpec(root, "taken");
   await refuses({ name: "taken" }, /already exists/, 409);
   await ops.execute("plan.create", { spec: "taken" });
-  await refuses({ name: "taken" }, /plan named taken already exists/, 409);
+  await refuses({ name: "taken" }, /spec named taken already exists/, 409);
   assert.deepEqual(pendingNewPlans(store), []);
 });
 

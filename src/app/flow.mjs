@@ -43,6 +43,14 @@ export const FLOW_DEFAULTS = Object.freeze({
   localChecksFirst: true,
   batch: Object.freeze({ max: 3, by: "phase" }),
   retro: Object.freeze({ everyTasks: 10, slowFactor: 2, model: "auto" }),
+  // Retro memory across workspaces (R69.6, R69.9, R70.2, R70.4).
+  lessons: Object.freeze({
+    share: true,
+    read: true,
+    untestedDays: 90,
+    confirmDays: 180,
+    reviewEvery: 5,
+  }),
 });
 export const SCOPES = Object.freeze(["dependents", "repo", "all"]);
 export const BATCH_BY = Object.freeze(["phase", "files"]);
@@ -72,6 +80,14 @@ export const FLOW_KEYS = Object.freeze({
     "a number 1.1–20",
   "retro.model": (v) =>
     (typeof v === "string" && MODEL.test(v)) || 'a model name or "auto"',
+  "lessons.share": (v) => typeof v === "boolean" || "true or false",
+  "lessons.read": (v) => typeof v === "boolean" || "true or false",
+  "lessons.untestedDays": (v) =>
+    (Number.isInteger(v) && v >= 1 && v <= 3650) || "a whole number 1–3650",
+  "lessons.confirmDays": (v) =>
+    (Number.isInteger(v) && v >= 1 && v <= 3650) || "a whole number 1–3650",
+  "lessons.reviewEvery": (v) =>
+    (Number.isInteger(v) && v >= 1 && v <= 100) || "a whole number 1–100",
 });
 
 // Check one `flow` object (the workspace's or one repository's) and return
@@ -80,10 +96,13 @@ export const FLOW_KEYS = Object.freeze({
 export function flowSection(value, where = "flow") {
   if (value === undefined) return {};
   if (!record(value)) throw Error(`${where} must be an object.`);
-  const groups = { stopTheLine: 1, batch: 1, retro: 1 };
+  const groups = { stopTheLine: 1, batch: 1, retro: 1, lessons: 1 };
   for (const key of Object.keys(value)) {
     if (key === "localChecksFirst") continue;
     if (!(key in groups)) throw Error(`${where}.${key} is not a flow setting.`);
+    // Lessons are per workspace, never per repository (design §4.18).
+    if (key === "lessons" && /^projects\./.test(where))
+      throw Error(`${where}.lessons is set per workspace, in flow.lessons.`);
     if (!record(value[key])) throw Error(`${where}.${key} must be an object.`);
     for (const inner of Object.keys(value[key])) {
       if (key === "retro" && inner === "instructions")
@@ -967,8 +986,17 @@ export function flowSeries(timings, stops, unit = "day") {
 export function taskFlow(store, task, { now = Date.now() } = {}) {
   const spans = listSpans(store, { taskId: task.id });
   if (!spans.length) return null;
+  // Which prompt and skill versions each attempt ran on (R68.12).
+  const versions = (store.get("task_deliveries", task.id)?.attempts || [])
+    .filter((a) => a.prompts || a.skills)
+    .map((a) => ({
+      attempt: a.attempt,
+      prompts: a.prompts || {},
+      skills: a.skills || {},
+    }));
   return {
     ...taskTiming(store, task, { spans, now }),
+    versions,
     spans: spans.map(
       ({
         id,

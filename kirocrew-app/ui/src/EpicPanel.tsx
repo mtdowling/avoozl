@@ -30,7 +30,7 @@ export function EpicPanel(props: {
         actions={
           props.onOpenPlans && (
             <button type="button" className="text-sm underline" onClick={props.onOpenPlans}>
-              Edit or discuss in Plans
+              Edit or discuss in Specs
             </button>
           )
         }
@@ -38,7 +38,7 @@ export function EpicPanel(props: {
       <div className="mt-1 flex flex-wrap items-center gap-2">
         <Badge>{value.complete ? 'done' : value.approved ? 'approved' : 'draft'}</Badge>
         <span className="text-xs text-muted">
-          {value.progress.done} of {value.progress.total} tasks done across {value.members.length} plans
+          {value.progress.done} of {value.progress.total} tasks done across {value.members.length} specs
         </span>
       </div>
       <div className="mt-2 grid gap-4 text-sm" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(16rem, 1fr))' }}>
@@ -69,7 +69,7 @@ export function EpicPanel(props: {
           )}
         </div>
         <div>
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">Member plans</h4>
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">Member specs</h4>
           <ul className="mt-1 flex flex-col gap-1">
             {value.members.map((member) => (
               <li key={member.plan}>

@@ -38,7 +38,7 @@ export function FilterBar(props: {
         { kind: 'search', key: 'q', label: 'Search', value: filter.q ?? '', placeholder: 'Task name or ID', onChange: (q) => set({ q }) },
         { kind: 'select', key: 'epic', label: 'Epic', value: filter.epic ?? '', options: choices.epics, onChange: (epic) => set({ epic }) },
         // A plan change drops the phase, which belongs to one plan.
-        { kind: 'select', key: 'plan', label: 'Plan', value: filter.plan ?? '', options: choices.plans, onChange: (plan) => set({ plan, phase: undefined }) },
+        { kind: 'select', key: 'plan', label: 'Spec', value: filter.plan ?? '', options: choices.plans, onChange: (plan) => set({ plan, phase: undefined }) },
         {
           kind: 'select',
           key: 'phase',
@@ -46,7 +46,7 @@ export function FilterBar(props: {
           value: filter.phase ?? '',
           options: choices.phases,
           disabled: !filter.plan,
-          hint: filter.plan ? undefined : 'Pick a plan first',
+          hint: filter.plan ? undefined : 'Pick a spec first',
           onChange: (phase) => set({ phase }),
         },
         {

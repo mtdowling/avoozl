@@ -149,7 +149,7 @@ function Origin(props: { origin: TaskOrigin; issue: string | null; workspaceId: 
         )}
         {origin.spec && props.onOpenSpec && (
           <button type="button" className="text-xs underline" onClick={() => props.onOpenSpec!(origin.spec!)}>
-            Open spec {origin.spec} in Plans
+            Open spec {origin.spec} in Specs
           </button>
         )}
         {origin.sources.map((source) =>
@@ -414,7 +414,7 @@ function TaskPanel(props: {
                 <Origin origin={detail.origin} issue={issue} workspaceId={workspaceId} />
               </Row>
             )}
-            <Row label="Plan">
+            <Row label="Spec">
               {detail.plan ? `${detail.plan.title}${detail.plan.approved ? ' (approved)' : ` (${detail.plan.state ?? 'draft'})`}` : 'none'}
               {task.planArchived ? ' · archived: its tasks do not start until you unarchive it' : ''}
             </Row>
@@ -475,7 +475,7 @@ function TaskPanel(props: {
             </div>
             {task.context && (
               <div>
-                <h4 className="text-sm font-semibold">From its plan</h4>
+                <h4 className="text-sm font-semibold">From its spec</h4>
                 <Markdown text={task.context} />
               </div>
             )}
@@ -648,8 +648,8 @@ function ReviewPanel(props: { workspaceId: string; group: ConflictItem; open: (i
     <div className="flex flex-col gap-3">
       <SectionHeading level={2} id="avoozl-drawer-title" title={group?.title ?? props.group.title} />
       <p className="text-sm text-muted">
-        Avoozl re-reads a plan when its file changes. A task waits here when its own section changed, or when it is new. Moving a
-        plan or fixing its links does not count. Read each task, then mark them reviewed so they may start.
+        Avoozl re-reads a spec when its file changes. A task waits here when its own section changed, or when it is new. Moving a
+        spec or fixing its links does not count. Read each task, then mark them reviewed so they may start.
       </p>
       {message && (
         <p role="alert" className="text-sm text-danger">

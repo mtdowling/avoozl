@@ -4,7 +4,8 @@
 // Radar and GitHub; this tab shows graph and delivery timing only.
 import { useCallback, useMemo, useState, type CSSProperties } from 'react'
 import { useAppApi } from '@kirocrew/app-sdk'
-import { Btn, Card, EmptyState } from '@kirocrew/app-sdk/ui'
+import { Btn, Card, EmptyState, SegmentedControl } from '@kirocrew/app-sdk/ui'
+import { LessonsView, ProposalsView } from './FlowMemory.tsx'
 import Badge from './Badge.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import { FilterPanel, useStoredFilter } from './FilterPanel.tsx'
@@ -28,6 +29,7 @@ import {
   budgetMark,
   directionText,
   duration,
+  evidenceText,
   filterActive,
   flowClient,
   metricCards,
@@ -276,7 +278,7 @@ function ProposalRow({ proposal, retro, onDecide, busy }: { proposal: Proposal; 
           )}
         </span>
         <span className="text-xs text-muted" style={{ overflowWrap: 'anywhere' }}>
-          Evidence: {proposal.evidence}
+          Evidence: {evidenceText(proposal)}
         </span>
         {proposal.status !== 'open' && (
           <span className="text-xs">
@@ -411,18 +413,34 @@ export default function FlowView({ workspaceId }: { workspaceId: string | null }
   const { value: view, error, busy, reload } = useRead(workspaceId, load)
   const setField = (change: Partial<FlowFilter>) => setFilter({ ...filter, ...change })
   const [unit, setUnit] = useState<Unit>('day')
+  // Overview (timing and retros), Proposals and Lessons (design §4.18).
+  const [tab, setTab] = useState<'overview' | 'proposals' | 'lessons'>('overview')
   return (
     <section aria-labelledby="avoozl-flow-title" className="flex flex-col gap-3.5">
       <ViewHeading id="avoozl-flow-title" view="flow">
         Flow
       </ViewHeading>
       <p className="text-sm text-muted">Where delivery time goes, and what the last retro proposed.</p>
-      {error && (
+      <SegmentedControl
+        layoutId="avoozl-flow-tabs"
+        ariaLabel="Flow views"
+        segments={[
+          { key: 'overview', label: 'Overview' },
+          { key: 'proposals', label: 'Proposals' },
+          { key: 'lessons', label: 'Lessons' },
+        ]}
+        value={tab}
+        onChange={(key) => setTab(key as typeof tab)}
+        wrap
+      />
+      {tab === 'proposals' && <ProposalsView workspaceId={workspaceId} />}
+      {tab === 'lessons' && <LessonsView workspaceId={workspaceId} />}
+      {tab === 'overview' && error && (
         <p role="alert" className="text-sm text-danger">
           {error}
         </p>
       )}
-      {!view ? (
+      {tab !== 'overview' ? null : !view ? (
         <p className="text-sm text-muted">{busy ? 'Loading…' : 'Not loaded'}</p>
       ) : (
         <>
@@ -468,7 +486,16 @@ export default function FlowView({ workspaceId }: { workspaceId: string | null }
 
 // The drawer's Timing fold (R48.4): the task's bar and each span's stage,
 // length and source, and the batch it ran in.
-export function TimingFold({ timing }: { timing: (TaskTiming & { spans: { id: string; stage: string; lengthMs: number; source: keyof typeof SOURCE_TEXT; detail: string | null; attempt: number | null }[] }) | null }) {
+export function TimingFold({
+  timing,
+}: {
+  timing:
+    | (TaskTiming & {
+        spans: { id: string; stage: string; lengthMs: number; source: keyof typeof SOURCE_TEXT; detail: string | null; attempt: number | null }[]
+        versions?: { attempt: number; prompts: Record<string, string>; skills: Record<string, string> }[]
+      })
+    | null
+}) {
   if (!timing) return <p className="text-sm text-muted">No timing yet: Avoozl records it from the task's first dispatch.</p>
   return (
     <div className="flex flex-col gap-2 text-sm" data-timing-fold>
@@ -490,6 +517,16 @@ export function TimingFold({ timing }: { timing: (TaskTiming & { spans: { id: st
           </li>
         ))}
       </ul>
+      {timing.versions && timing.versions.length > 0 && (
+        <ul className="flex flex-col gap-0.5 text-xs text-muted" data-timing-versions>
+          {timing.versions.map((v) => (
+            <li key={v.attempt} style={{ overflowWrap: 'anywhere' }}>
+              Attempt {v.attempt} ran on {Object.values(v.prompts).join(', ') || 'the built-in prompts'}
+              {Object.keys(v.skills).length ? `; skills ${Object.entries(v.skills).map(([target, sha]) => `${target}@${sha.slice(0, 8)}`).join(', ')}` : ''}.
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }

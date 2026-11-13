@@ -209,7 +209,7 @@ test('Plan a change drafts a message for that plan and never approves', () => {
   const message = changeMessage(row('config', { planId: 'config' }))
   assert.match(message, /\.kiro\/specs\/config\/ \(plan config\)/)
   assert.match(message, /Do not approve it/)
-  assert.match(changeMessage(row('x', { kind: 'old-style', spec: null, planId: 'old' })), /stored plan old, which has no spec folder/)
+  assert.match(changeMessage(row('x', { kind: 'old-style', spec: null, planId: 'old' })), /stored spec old, which has no spec folder/)
 })
 
 test('the table is one plan.table call', async () => {

@@ -104,11 +104,11 @@ export function deletePlan(
   plan,
   { retire = false, deleteSpecFolder = false, folder = null } = {},
 ) {
-  if (plan.deletedAt) fail("This plan is already deleted.", 409);
+  if (plan.deletedAt) fail("This spec is already deleted.", 409);
   const approved = approvedOnce(plan);
   if (approved && retire !== true)
     fail(
-      "This plan has an approved revision. Deleting it archives its open tasks; pass retire: true after the person confirms.",
+      "This spec has an approved revision. Deleting it archives its open tasks; pass retire: true after the person confirms.",
       409,
     );
   if (deleteSpecFolder && folder?.exists && folder.dirty)

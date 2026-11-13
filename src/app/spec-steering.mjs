@@ -69,8 +69,13 @@ Avoozl.
 `;
 
 // Where the steering file lives in `root`, and whether it is missing, the
-// text above, or a changed copy.
-export function steeringStatus(root) {
+// current text, an `older` text Avoozl wrote before (offered again), or a
+// changed copy. `text` is this workspace's current text (a local override
+// may replace the one above, design §4.18); `older` lists earlier ones.
+export function steeringStatus(
+  root,
+  { text: current = STEERING_TEXT, older = [] } = {},
+) {
   const file = path.join(root, STEERING_FILE);
   let text;
   try {
@@ -82,20 +87,35 @@ export function steeringStatus(root) {
     if (error.code === "ENOENT") return { path: file, state: "missing" };
     throw error;
   }
-  return { path: file, state: text === STEERING_TEXT ? "current" : "changed" };
+  return {
+    path: file,
+    state:
+      text === current ? "current" : older.includes(text) ? "older" : "changed",
+  };
 }
 
-// Write the steering file only where none exists. Returns the new status.
-export function writeSteering(root) {
-  const status = steeringStatus(root);
+// Write the steering file only where none exists, or over a copy equal to
+// an older Avoozl text. Returns the new status.
+export function writeSteering(root, options = {}) {
+  const status = steeringStatus(root, options),
+    text = options.text ?? STEERING_TEXT;
+  if (status.state === "older") {
+    // Replaced whole, so a copy changed since the check is never mixed.
+    const temp = `${status.path}.${process.pid}.tmp`;
+    fs.writeFileSync(temp, text);
+    if (steeringStatus(root, options).state === "older")
+      fs.renameSync(temp, status.path);
+    else fs.rmSync(temp, { force: true });
+    return steeringStatus(root, options);
+  }
   if (status.state !== "missing") return status;
   fs.mkdirSync(path.dirname(status.path), { recursive: true });
   try {
     // `wx`: a file written since the check above is kept, not replaced.
-    fs.writeFileSync(status.path, STEERING_TEXT, { flag: "wx" });
+    fs.writeFileSync(status.path, text, { flag: "wx" });
   } catch (error) {
     if (error.code !== "EEXIST")
       fail(`Could not write ${STEERING_FILE}: ${error.message}`, 500);
   }
-  return steeringStatus(root);
+  return steeringStatus(root, options);
 }

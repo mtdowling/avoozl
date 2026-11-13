@@ -477,7 +477,7 @@ function OnboardDialog(props: { workspaceId: string; client: OnboardClient; onCl
                 </li>
               ))}
             </ul>
-            {shown.some((s) => s.counts.error > 0) && <p className="text-xs text-muted">A draft with lint errors imports, but Plans won&apos;t approve it until they are fixed.</p>}
+            {shown.some((s) => s.counts.error > 0) && <p className="text-xs text-muted">A draft with lint errors imports, but Specs won&apos;t approve it until they are fixed.</p>}
           </div>
         )}
         {step === 'scan' && (
@@ -508,7 +508,7 @@ function OnboardDialog(props: { workspaceId: string; client: OnboardClient; onCl
         )}
         {step === 'issues' && (
           <div className="flex flex-col gap-3 text-sm" data-onboard-issues>
-            {shown.filter((s) => s.plan && !s.plan.approved).length === 0 && <p className="text-muted">No draft plans to preview. Import a spec first.</p>}
+            {shown.filter((s) => s.plan && !s.plan.approved).length === 0 && <p className="text-muted">No draft specs to preview. Import a spec first.</p>}
             {Object.entries(previews).map(([name, preview]) => {
               if ('error' in preview)
                 return (
@@ -557,7 +557,7 @@ function OnboardDialog(props: { workspaceId: string; client: OnboardClient; onCl
             ) : (
               <p className="text-muted">Nothing needed changing.</p>
             )}
-            <p className="text-xs text-muted">Nothing was approved, no agent was started and nothing was pushed. Approve each draft in Plans when you are ready.</p>
+            <p className="text-xs text-muted">Nothing was approved, no agent was started and nothing was pushed. Approve each draft in Specs when you are ready.</p>
           </div>
         )}
         {error && (
@@ -640,7 +640,7 @@ function OnboardDialog(props: { workspaceId: string; client: OnboardClient; onCl
                 props.onOpenPlans!()
               }}
             >
-              Approve in Plans
+              Approve in Specs
             </Btn>
           )}
         </div>
@@ -662,7 +662,7 @@ export default function Onboard(props: { workspaceId: string; disabled: string |
   return (
     <Card>
       <SectionHeading title="Onboard a repository" className="mb-2" />
-      <p className="mt-1 text-xs text-muted">From a folder to plans ready to approve: mode, GitHub setup, spec import and an issue preview. Each GitHub write asks first.</p>
+      <p className="mt-1 text-xs text-muted">From a folder to specs ready to approve: mode, GitHub setup, spec import and an issue preview. Each GitHub write asks first.</p>
       <ol className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted">
         {ONBOARD_STEPS.map((s, i) => (
           <li key={s.key}>

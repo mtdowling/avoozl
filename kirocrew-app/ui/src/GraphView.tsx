@@ -514,7 +514,7 @@ export default function GraphView({
         <EpicPanel workspaceId={workspaceId} id={drill.id} client={client} onDrill={(next) => onDrill?.(next)} />
       )}
       {graph && graph.total === 0 && (
-        <p className="text-sm text-muted">No tasks yet. Store and approve a plan in the Plans tab to fill the graph.</p>
+        <p className="text-sm text-muted">No tasks yet. Store and approve a spec in the Specs tab to fill the graph.</p>
       )}
       {layout && layout.nodes.length > 0 && (
         <Card>
