@@ -5866,6 +5866,74 @@
         "34.5",
         "34.6"
       ]
+    },
+    "11.14": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "summary": "Phase 11 (Crew placement). See R41.2–R41.4, R41.7, R41.8; §4.10 One routing prompt.",
+      "acceptance": [
+        "One routing prompt, off by default",
+        "A machine-local routing prompt, off by default, picks crew, agent and model among the options the hard checks leave; the old rule, pick and router keys are refused."
+      ],
+      "requires": [
+        "11.1"
+      ]
+    },
+    "11.15": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "summary": "Phase 11 (Crew placement). See R53; §4.10 Agent and model per session.",
+      "acceptance": [
+        "Pins win and retries keep their model",
+        "A manifest pin wins, then the routing pick, then delivery, then Kiro Crew's default; a retry keeps its model unless it is out."
+      ],
+      "requires": [
+        "11.14"
+      ]
+    },
+    "11.16": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "summary": "Phase 11 (Crew placement). See R42, R72.17; §8.3.",
+      "acceptance": [
+        "Settings › Routing",
+        "Routing lives in Settings with the routing prompt, Providers, Crews and Preview sections."
+      ],
+      "requires": [
+        "11.14"
+      ]
+    },
+    "11.17": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "summary": "Phase 11 (Crew placement). See §4.10 One routing prompt.",
+      "acceptance": [
+        "One-time migration of the old keys",
+        "scripts/migrate-routing.mjs turns old routing keys into prompt lines, keeps a copy of each changed file, and is idempotent."
+      ],
+      "requires": [
+        "11.14"
+      ]
     }
   }
 }
