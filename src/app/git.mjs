@@ -75,18 +75,21 @@ export async function git(cwd, args, { env } = {}) {
 // folder is missing, is not a checkout, or is inside one.
 export async function checkoutRoot(root, label) {
   if (typeof root !== "string" || !root) fail(`Name the ${label} folder.`);
-  let real, top;
+  let real;
   try {
     real = fs.realpathSync(root);
   } catch {
     fail(`The ${label} folder ${root} does not exist.`);
   }
+  // An empty prefix means the root; comparing --show-toplevel paths breaks
+  // on Windows, where Git and Node spell the same folder differently.
+  let prefix;
   try {
-    top = fs.realpathSync(await git(real, ["rev-parse", "--show-toplevel"]));
+    prefix = await git(real, ["rev-parse", "--show-prefix"]);
   } catch {
     fail(`The ${label} folder ${real} is not a Git checkout.`);
   }
-  if (top !== real) fail(`The ${label} must be the Git checkout root.`);
+  if (prefix) fail(`The ${label} must be the Git checkout root.`);
   return real;
 }
 async function gitFile(cwd, args) {
