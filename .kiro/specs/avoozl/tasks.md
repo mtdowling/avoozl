@@ -1309,3 +1309,22 @@ Phase 32, which the remote relay holds, because task IDs never move.
 - [x] 33.1 Skip done tasks in projection, after 3.7 [R74] (§6.3)
   - `github.issues.includeDone` (default `false`) in the policy, the planning identity and the GitHub settings page; projection leaves out a done task with no issue, drops edges from it, keeps the plan issue, puts an open task of a skipped package under the plan issue, and the preview returns `skippedDone`; `src/app/test/github-include-done.test.mjs`.
   - Built: `da8a2b4`, PR #34.
+
+## Phase 34: Review a task's changes in the drawer
+
+Owner request 2026-11-13 (Requirement 75, design §8.10). Numbered after
+Phase 33 because task IDs never move.
+
+- [x] 34.1 Read a task's changed files and diffs, after 2.6 [R75.4–R75.6] (§8.10)
+  - `task.files` and `task.diff` in `src/app/task-files.mjs`, observe-classified so MCP and app tokens may call them; path and argument rules; size caps; `src/app/test/task-files.test.mjs`.
+  - Built: `4d0b101`.
+- [x] 34.2 Files fold in the task drawer, after 34.1 [R75.1–R75.3] (§8.10)
+  - `TaskFiles.tsx` and `files-api.ts`: the tree with badges and counts, Show all files, unified and split diffs, summaries, Open in editor with the editor choice, and the GitHub branch link; `kirocrew-app/ui/test/task-files.test.mjs`, `task-files-browser.test.mjs`, screenshots in `docs/evidence/task-files/`.
+
+- [x] avoozl-p45 P45 Proof: review a task's changes in the drawer [R75] (§8.10)
+  - Setup: an isolated temporary workspace with one repository and task `a`'s worktree with a file added, changed, deleted, renamed, a binary and an untracked file; the harness page for the fold.
+  - Action: (1) read `task.files`, with and without `all`; (2) read each file's `task.diff`; (3) ask for paths with `..`, absolute, drive, backslash, `.`, empty, NUL, `.git`, pathspec magic and option shapes, and a link out; set an option-shaped base branch; (4) remove the worktree and read again; call both from MCP; (5) open the fold, click a file, choose Split, switch the editor and Show all files.
+  - Expected: (1) each change has its badge and counts; (2) text diffs show, binaries, large files and links are summarized; (3) each is refused and nothing outside is read or written; (4) the branch is read and MCP gets both; (5) the diff draws both ways and every editor link follows the choice.
+  - Failure means: a read leaves the worktree or an input reaches Git as an option.
+  - Next decision: drop untracked files, or read diffs through a provider instead of local Git.
+  - Built: pass, `src/app/test/task-files.test.mjs`, `kirocrew-app/ui/test/task-files.test.mjs`, `kirocrew-app/ui/test/task-files-browser.test.mjs`.
