@@ -8,6 +8,7 @@ import { Btn, Card, Input } from "@kirocrew/app-sdk/ui";
 import Badge from "./Badge.tsx";
 import { Marker, Section } from "./SettingsView.tsx";
 import { useRead } from "./useRead.ts";
+import { AskForHelp } from "./controls.tsx";
 import { COMMAND_PATH, errorMessage } from "./workspace-api.ts";
 import { parseModels } from "./flow-api.ts";
 import {
@@ -218,8 +219,21 @@ export function BudgetSettings({ workspaceId }: { workspaceId: string }) {
           blurb="A repository's cap replaces the workspace default for its tasks. A spec's manifest and a task can set their own."
         >
           {Object.keys(value.repositories).length === 0 ? (
-            <p className="text-sm text-muted">
-              No repository is in .avoozl.json yet. Add one under Repositories.
+            <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
+              <span>
+                No repository is in .avoozl.json yet. Add one under
+                Repositories.
+              </span>
+              <AskForHelp
+                workspaceId={workspaceId}
+                help={{
+                  page: "Settings › Budgets",
+                  section: "Repositories",
+                  says: "No repository is in .avoozl.json yet. Add one under Repositories.",
+                  settings: [{ key: "repositories", value: "none" }],
+                  docs: "README.md, section Create a workspace",
+                }}
+              />
             </p>
           ) : (
             Object.keys(value.repositories)

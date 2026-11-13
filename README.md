@@ -201,7 +201,8 @@ can override them). The Flow view shows where the time went.
   proposes up to three changes. You approve or reject each, and an approved
   change is measured afterward.
 
-The red **Stop the line** button on the Dashboard is the Andon cord: a
+The red **Stop the line** button, last in the page's top button row on
+every tab, is the Andon cord: a
 person, or an agent through MCP, stops new work for everything, one
 repository, one spec, or one task, with a one-line reason. Running sessions
 keep going. Only a person presses **Resume**.
