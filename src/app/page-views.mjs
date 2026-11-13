@@ -34,6 +34,7 @@ import { avoozlState } from "../delivery-lanes.mjs";
 import { attachLink } from "./routing.mjs";
 import { crossPlanEpics, epicOfPlan, taskEpic } from "./epics.mjs";
 import { fail } from "./store.mjs";
+import { driverDecisions } from "./driver.mjs";
 
 const BLOCKING = new Set(["requires", "sequence"]);
 const ACTIVE_RUNS = new Set([
@@ -1074,6 +1075,12 @@ export function conflictsView(store, data) {
         detail: `${task.title ?? task.id} keeps running: its budget is in warn mode.`,
         budget,
       });
+  }
+  // Driver (§6.10): no single assignee on a plan issue, and away tasks
+  // waiting for Start it here or Wait.
+  for (const item of driverDecisions(store)) {
+    const task = item.taskId ? byId.get(item.taskId) : null;
+    items.push({ ...item, ...(task ? ownership(task) : {}) });
   }
   // No crew fits (§4.10, R41.8): yellow, one per task.
   for (const decision of optionalList(store, "placement_decisions")) {
