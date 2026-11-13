@@ -37,6 +37,6 @@ test('each category is its own boxed section with a heading line', () => {
 })
 
 test('the plan view left column sticks and scrolls on its own', () => {
-  assert.match(plans, /position: 'sticky', top: 8, maxHeight: asideHeight \?\? 'calc\(100vh - 2rem\)', overflowY: 'auto'/)
+  assert.match(plans, /position: 'sticky', top: 8, zIndex: LAYER\.sticky, maxHeight: asideHeight \?\? 'calc\(100vh - 2rem\)', overflowY: 'auto'/)
   assert.match(plans, /const \[asideRef, asideHeight\] = useStickyHeight\(!stack\)/)
 })
