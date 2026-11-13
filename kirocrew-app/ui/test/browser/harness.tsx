@@ -68,6 +68,45 @@ answer('graph.view', () => ({
   ],
 }))
 
+// Switch model: two running chats, a health mark, Kiro Crew's models, and a
+// dry run whose set grows by one chat after the first Switch, which the
+// backend refuses as changed (409). Calls are kept on window.__harness.
+const calls = ((window as unknown as { __switch: { previews: unknown[]; switches: unknown[] } }).__switch = { previews: [], switches: [] })
+answer('providers.view', () => ({
+  settings: {},
+  hash: null,
+  defaults: { lowPercent: 80, cooldownMinutes: 30, windowHours: 5 },
+  marks: [{ id: 'usage:provider:gamma', scope: 'provider', name: 'gamma', level: 'low', source: 'usage', kind: 'usage', percent: 85, since: '' }],
+  switches: [],
+  chats: [
+    { slot: 's1', taskId: 'a1', role: 'worker', model: 'alpha-1', provider: 'alpha', level: 'ok' },
+    { slot: 's2', taskId: 'a2', role: 'worker', model: 'alpha-1', provider: 'alpha', level: 'ok' },
+  ],
+}))
+answer('GET /api/models', () => {
+  if (query.get('models') === 'fail') throw { status: 502, body: '' }
+  return [
+    { model_id: 'beta-1', display_name: 'Beta one' },
+    { model_id: 'alpha-1', display_name: 'Alpha one' },
+  ]
+})
+const chat = (slot: string, taskId: string, to: string) => ({ slot, taskId, title: `Task ${taskId}`, spec: 'modal-plan', role: 'worker', model: 'alpha-1', to, where: 'local', agent: 'kirocrew-worker' })
+answer('provider.switch.preview', (body) => {
+  const input = body.input as { to: string; alsoNewTasks?: boolean }
+  calls.previews.push(input)
+  const grown = calls.switches.length > 0
+  const chats = [chat('s1', 'a1', input.to), chat('s2', 'a2', input.to), ...(grown ? [chat('s3', 'a3', input.to)] : [])]
+  const skipped = [{ slot: 's9', taskId: 'b1', title: 'Task b1', spec: null, role: 'worker', model: 'alpha-1', to: input.to, where: 'remote-1', agent: null, why: "runs on remote-1; a remote chat's model is not changed from here" }]
+  const newTasks = input.alsoNewTasks ? [{ taskId: 'b2', title: 'Task b2', model: 'alpha-1' }] : []
+  return { chats, skipped, newTasks, counts: { move: chats.length, stay: 1, newTasks: newTasks.length }, previewHash: grown ? 'h2' : 'h1' }
+})
+answer('provider.switch', (body) => {
+  const input = body.input as { previewHash: string; to: string }
+  calls.switches.push(input)
+  if (input.previewHash === 'h1') throw { status: 409, body: JSON.stringify({ error: 'The running chats changed since the preview; preview again.' }) }
+  return { queued: 3, to: input.to, switches: ['a1', 'a2', 'a3'].map((taskId) => ({ taskId, role: 'worker', from: 'alpha-1', to: input.to })) }
+})
+
 const row = { key: 'p1', kind: 'spec', name: 'Modal plan', spec: 'modal-plan', folder: '.kiro/specs/modal-plan', planId: 'modal-plan', type: 'feature', category: null, categoryProblem: null, errors: 0, status: 'approved', tasks: { total: 3, done: 1 }, now: { ready: 1, running: 0, needsYou: 0 }, epics: 1, lastChange: null }
 const crew = { id: 'remote-1', name: 'Remote one', tags: ['linux'], trust: 'remote', gitHosts: ['github.com'], chatLimit: 2, chatLimitSet: false, delivery: 'handback', sshHost: null, worktreeRoot: null, configured: true, reading: null, ageSeconds: null, running: 0 }
 const text = ['# Guide', '', 'A short file for the viewer.', '', '## Part one', '', 'Some words.', '', '## Part two', '', 'More words.'].join('\n')

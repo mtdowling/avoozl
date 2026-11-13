@@ -4,7 +4,7 @@
 // inputs. Free of JSX so node can test it.
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
-import { parseModels } from './flow-api.ts'
+import { modelOptions, parseModels } from './flow-api.ts'
 
 export type Level = 'ok' | 'low' | 'out'
 
@@ -67,16 +67,34 @@ export interface ProvidersView {
 
 export type From = { provider: string } | { model: string } | { tasks: string[] }
 
+// One chat in the dry run: its task, spec, current and new model, and where
+// it runs (a crew ID, or local).
+export interface PreviewChat {
+  slot: string | null
+  taskId: string
+  title: string | null
+  spec: string | null
+  role: string | null
+  model: string | null
+  to: string
+  where: string | null
+  agent: string | null
+}
+
 export interface SwitchPreview {
-  chats: { slot: string; taskId: string; role: string; model: string | null }[]
-  skipped: {
-    slot: string
-    taskId: string
-    role: string
-    model: string | null
-    why: string
-  }[]
+  chats: PreviewChat[]
+  // Chats or chosen tasks that cannot switch, and why.
+  skipped: (PreviewChat & { why: string })[]
+  // With Also new tasks: queued tasks whose next pick moves off From.
+  newTasks: { taskId: string; title: string | null; model: string }[]
+  counts: { move: number; stay: number; newTasks: number }
   previewHash: string
+}
+
+export interface SwitchResult {
+  queued: number
+  to: string
+  switches: { taskId: string; role: string; from: string; to: string }[]
 }
 
 export function providersClient(api: AppApi) {
@@ -84,7 +102,7 @@ export function providersClient(api: AppApi) {
     api.post<{ result: T }>(COMMAND_PATH, { operation, input, workspaceId }).then((reply) => reply.result)
   return {
     view: (workspaceId: string) => run<ProvidersView>(workspaceId, 'providers.view'),
-    preview: (workspaceId: string, input: { from: From; to: string }) => run<SwitchPreview>(workspaceId, 'provider.switch.preview', input),
+    preview: (workspaceId: string, input: { from: From; to: string; alsoNewTasks: boolean }) => run<SwitchPreview>(workspaceId, 'provider.switch.preview', input),
     switch: (
       workspaceId: string,
       input: {
@@ -93,7 +111,7 @@ export function providersClient(api: AppApi) {
         alsoNewTasks: boolean
         previewHash: string
       },
-    ) => run<{ queued: number }>(workspaceId, 'provider.switch', input),
+    ) => run<SwitchResult>(workspaceId, 'provider.switch', input),
     clear: (workspaceId: string, id: string) => run(workspaceId, 'provider.health.clear', { id }),
     save: (workspaceId: string, input: { providers: ProviderSettings; expectedHash: string | null }) =>
       run<{ hash: string }>(workspaceId, 'providers.settings.update', input),
@@ -110,12 +128,34 @@ export function fromInput(kind: 'provider' | 'model' | 'tasks', value: string, t
   return kind === 'provider' ? { provider: name } : { model: name }
 }
 
-// The providers and models the running chats use, for From's dropdowns.
-export function fromOptions(chats: LiveChat[]) {
-  const providers = [...new Set(chats.map((c) => c.provider).filter((p): p is string => Boolean(p)))].sort()
-  const models = [...new Set(chats.map((c) => c.model).filter((m): m is string => Boolean(m)))].sort()
-  const tasks = [...new Set(chats.map((c) => c.taskId))].sort()
-  return { providers, models, tasks }
+// The providers and models in use, for From's dropdowns: the running chats'
+// and the health list's (a key mark names neither).
+export function fromOptions(chats: LiveChat[], marks: Mark[] = []) {
+  const sorted = (list: (string | null)[]) => [...new Set(list.filter((v): v is string => Boolean(v)))].sort()
+  const named = (scope: Mark['scope']) => marks.filter((m) => m.scope === scope).map((m) => m.name)
+  return {
+    providers: sorted([...chats.map((c) => c.provider), ...named('provider')]),
+    models: sorted([...chats.map((c) => c.model), ...named('model')]),
+    tasks: sorted(chats.map((c) => c.taskId)),
+  }
+}
+
+// To's choices: auto first, then Kiro Crew's models (the Flow dropdown's feed).
+export const toOptions = (models: { value: string; label: string }[]) => modelOptions(models, '')
+
+// What a fresh dry run moved in and out of the set the person saw.
+export function previewDiff(before: SwitchPreview, after: SwitchPreview) {
+  const keys = (p: SwitchPreview) =>
+    new Map([
+      ...p.chats.map((c) => [`chat:${c.slot}:${c.model}`, `${c.taskId} ${c.role}`] as const),
+      ...p.newTasks.map((q) => [`new:${q.taskId}:${q.model}`, `${q.taskId} (new task)`] as const),
+    ])
+  const was = keys(before),
+    now = keys(after)
+  return {
+    added: [...now].filter(([k]) => !was.has(k)).map(([, v]) => v),
+    removed: [...was].filter(([k]) => !now.has(k)).map(([, v]) => v),
+  }
 }
 
 const SOURCE: Record<Mark['source'], string> = {

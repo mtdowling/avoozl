@@ -11,14 +11,27 @@ export function answer(operation: string, reply: Reply) {
   replies[operation] = reply
 }
 const never = () => new Promise<never>(() => undefined)
+// A reply that throws rejects the call, as the SDK does: {status, body}.
+const settle = (reply: Reply, body: { operation?: string; input?: unknown }, wrap: boolean) => {
+  try {
+    const value = reply(body)
+    return Promise.resolve(wrap ? { result: value } : value)
+  } catch (error) {
+    return Promise.reject(error)
+  }
+}
 const api = {
   request: never,
-  get: never,
+  // GET answers are keyed `GET <path>`.
+  get: (path: string) => {
+    const reply = replies[`GET ${path}`]
+    return reply ? settle(reply, {}, false) : never()
+  },
   put: never,
   del: never,
   post: (_path: string, body: { operation?: string }) => {
     const reply = replies[body?.operation ?? '']
-    return reply ? Promise.resolve({ result: reply(body) }) : never()
+    return reply ? settle(reply, body, true) : never()
   },
 }
 export const useAppApi = () => api

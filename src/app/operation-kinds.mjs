@@ -83,7 +83,6 @@ const OBSERVE = new Set([
   "routing.view",
   "routing.preview",
   "providers.view",
-  "provider.switch.preview",
   "delivery.settings.get",
   "untriaged.crews",
   "github.repository.labels",
@@ -203,6 +202,7 @@ const EXECUTE = new Set([
 const PROTECT = new Set([
   "routing.update",
   "crews.update",
+  "provider.switch.preview",
   "provider.switch",
   "provider.health.clear",
   "providers.settings.update",

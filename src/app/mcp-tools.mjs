@@ -79,10 +79,6 @@ const tools = {
         "providers.view",
         "provider health marks, switches, and live chats' models",
       ],
-      switch_preview: [
-        "provider.switch.preview",
-        "the chats a model switch would move; switches nothing",
-      ],
       log: ["workspace.tick.log", "recent tick log"],
       health: ["workspace.tick.health", "tick health"],
       activity: [
