@@ -783,17 +783,18 @@ function Xt(e, t, n, r, i, a) {
 	});
 	return a?.add(s), s;
 }
-function Zt(e, t, n, r, i) {
-	let a = n.tab !== void 0 && n.tab !== t.tab, o = n.settingsTab !== void 0 && n.settingsTab !== t.settingsTab;
-	if (a || o) {
-		let n = e.scrollTop(), o = a ? e.takeMemory() : null, s = e.history.push({
-			kind: a ? "tab" : "inner",
-			label: i(t, a),
+function Zt(e, t, n, r, i, a = {}) {
+	let o = n.tab !== void 0 && n.tab !== t.tab, s = n.settingsTab !== void 0 && n.settingsTab !== t.settingsTab;
+	if (o || s) {
+		let n = e.scrollTop(), a = o ? e.takeMemory() : null, s = e.history.push({
+			kind: o ? "tab" : "inner",
+			label: i(t, o),
 			back: () => {
-				e.history.release(s), o && e.putMemory(o), r(t), e.restoreScroll(n);
+				e.history.release(s), a && e.putMemory(a), r(t), e.restoreScroll(n);
 			}
 		});
 	}
+	for (let [t, n] of Object.entries(a)) e.memory.set(t, n), o || e.setters.get(t)?.(n);
 	r(n);
 }
 // kirocrew-app/ui/src/NavHistory.tsx
@@ -16592,6 +16593,7 @@ function ep(e) {
 			let t = Wf(e.subIssues).maxPerParent;
 			return t === 100 ? "" : Gf(t);
 		})(),
+		includeDone: Wf(e.issues).includeDone === !0,
 		projectOwner: Gf(t.owner),
 		projectNumber: Gf(t.number),
 		fields: qf(t.fields),
@@ -16650,6 +16652,7 @@ function rp(e) {
 		defaultAuthority: Yf(e.defaultAuthority) ?? null,
 		epicIssueType: Yf(e.epicIssueType) ?? null,
 		subIssues: Xf(e.maxPerParent) === void 0 ? null : { maxPerParent: Xf(e.maxPerParent) },
+		issues: e.includeDone ? { includeDone: !0 } : null,
 		project: r ? tp({
 			owner: Yf(e.projectOwner),
 			number: Xf(e.projectNumber),
@@ -16919,7 +16922,7 @@ function _p(e) {
 var vp = "Labels, checks, reviews and the Project board only apply to GitHub modes.";
 function yp(e) {
 	let t = [];
-	return e.planningRepository.trim() && t.push("planning repository"), (e.projectOwner.trim() || e.projectNumber.trim()) && t.push("Project board"), e.repositories.length && t.push(`${e.repositories.length} repository GitHub setting${e.repositories.length === 1 ? "" : "s"}`), e.epicIssueType.trim() && t.push("epic issue type"), e.maxPerParent.trim() && t.push("sub-issue cap"), t;
+	return e.planningRepository.trim() && t.push("planning repository"), (e.projectOwner.trim() || e.projectNumber.trim()) && t.push("Project board"), e.repositories.length && t.push(`${e.repositories.length} repository GitHub setting${e.repositories.length === 1 ? "" : "s"}`), e.epicIssueType.trim() && t.push("epic issue type"), e.maxPerParent.trim() && t.push("sub-issue cap"), e.includeDone && t.push("issues for done tasks"), t;
 }
 var bp = [
 	{
@@ -25704,6 +25707,21 @@ function K_(e) {
 						})
 					]
 				}),
+				/* @__PURE__ */ x("label", {
+					className: "flex items-center gap-1.5 text-sm",
+					children: [
+						/* @__PURE__ */ b("input", {
+							type: "checkbox",
+							checked: t.includeDone,
+							onChange: (e) => r({ includeDone: e.target.checked })
+						}),
+						"Make issues for tasks already done when a spec is approved ",
+						/* @__PURE__ */ b("span", {
+							className: "text-xs text-muted",
+							children: "issues.includeDone"
+						})
+					]
+				}),
 				/* @__PURE__ */ b(q_, {
 					form: t,
 					choices: n,
@@ -29208,7 +29226,7 @@ function ny() {
 		drill: y
 	}, ee = (e) => {
 		e.focus !== void 0 && g(e.focus), e.drill !== void 0 && S(e.drill), e.settingsTab !== void 0 && f(e.settingsTab), e.tab !== void 0 && u(e.tab);
-	}, V = (t) => Zt(e, B, t, ee, (e, t) => t ? `Back to ${ey(e.tab)}` : "Back to the previous Settings section"), te = () => V({
+	}, V = (t, n) => Zt(e, B, t, ee, (e, t) => t ? `Back to ${ey(e.tab)}` : "Back to the previous Settings section", n), te = () => V({
 		settingsTab: "workspaces",
 		tab: "settings"
 	}), H = F ? N : null, ne = s !== "settings" && !H, re = (e, t) => V({
@@ -29377,13 +29395,11 @@ function ny() {
 							onDrill: ie,
 							newPlanRequest: T,
 							ideas: k,
-							onOpenIdeas: () => {
-								e.memory.set("untriaged-show", "ideas"), V({
-									focus: null,
-									drill: null,
-									tab: "untriaged"
-								});
-							}
+							onOpenIdeas: () => V({
+								focus: null,
+								drill: null,
+								tab: "untriaged"
+							}, { "untriaged-show": "ideas" })
 						}) : s === "graph" ? /* @__PURE__ */ b(fu, {
 							workspaceId: H,
 							focus: m,
