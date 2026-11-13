@@ -1097,10 +1097,6 @@ export function retryDelivery(
 const quote = (text) =>
   "```text\n" + String(text).replaceAll("```", "'''") + "\n```";
 
-// What to do about a session the cron opened that ended its turn without a
-// done or blocked report: "wait", "nudge", or "exhausted" once the nudge bound
-// is spent. Only an observed idle status counts, so a session Avoozl cannot see
-// (disconnected, or a lapsed lease) is never treated as quiet.
 // The last plans_report refused for want of a caller identity. Kiro Crew sends
 // no identity, so the refusal names no session: any refusal since this
 // binding began is the likely cause of its silence.
@@ -1112,6 +1108,10 @@ const identityRefusedSince = (store, binding) => {
   return Boolean(at && Date.parse(at) >= Date.parse(binding.boundAt));
 };
 
+// What to do about a session the cron opened that ended its turn without a
+// done or blocked report: "wait", "nudge", or "exhausted" once the nudge bound
+// is spent. Only an observed idle status counts, so a session Avoozl cannot see
+// (disconnected, or a lapsed lease) is never treated as quiet.
 function quietStep(binding, nudge, policy, now) {
   if (binding.status !== "idle" || binding.source !== "tick") return "wait";
   const since = Math.max(
