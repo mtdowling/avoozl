@@ -1429,7 +1429,7 @@ export default function SettingsView(props: {
           action={<Btn onClick={() => choose('workspaces')}>Open Workspaces</Btn>}
         />
       ) : tab === 'plugins' ? (
-        <PluginsSettings workspaceId={workspaceId} />
+        <PluginsSettings workspaceId={workspaceId} onOpenGitHub={() => choose('github')} />
       ) : tab === 'content' ? (
         <ContentRulesSettings workspaceId={workspaceId} />
       ) : tab === 'flow' ? (
