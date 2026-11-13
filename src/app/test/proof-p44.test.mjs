@@ -28,6 +28,7 @@ import {
 import { chooseSession, validateTrackedRouting } from "../placement.mjs";
 import { servedModel } from "../delivery.mjs";
 import { principalAllows } from "../app-backend.mjs";
+import { listActivity } from "../activity-log.mjs";
 
 const IDS = ["r1", "r2", "r3"];
 const MANIFEST = Object.fromEntries(
@@ -314,6 +315,16 @@ test("P44 action 7: running chats on an out model switch in the same session; re
   await applySwitches(store, switcher, options);
   assert.deepEqual(calls, []);
   assert.ok(store.list("provider_switches").every((s) => s.state === "done"));
+  // Each switch reaches the activity log once, by Avoozl.
+  const logged = listActivity(store, { kind: "model.switch" }).items;
+  assert.equal(logged.length, live.length);
+  assert.ok(logged.every((r) => r.actor === "avoozl" && r.source === "local"));
+  assert.ok(
+    logged.some(
+      (r) => /at its next turn/.test(r.summary) && r.targetId === after.taskId,
+    ),
+  );
+  assert.ok(logged.some((r) => /Kiro Crew refused/.test(r.summary)));
 });
 
 test("P44 action 7: with no healthy target the chat stays and Needs you says so", async (t) => {
@@ -458,6 +469,11 @@ test("P44 actions 9-11: the manual switch previews, refuses a stale hash, marks 
   const mine = results.filter((r) => r.by === "person");
   assert.equal(mine.length, preview.chats.length);
   assert.ok(mine.every((r) => r.result === "switched" && r.to === "gamma-1"));
+  const queuedRow = listActivity(store, { kind: "model.switch" }).items.find(
+    (r) => /^Switch model: queued/.test(r.summary),
+  );
+  assert.equal(queuedRow.source, "local");
+  assert.match(queuedRow.summary, /to gamma-1, and new tasks/);
 
   // (11) Needs you shows the mark with the switched count; Undo clears it.
   let items = (await ops.execute("conflicts.view", {})).items.filter(
