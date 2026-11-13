@@ -12,8 +12,14 @@ import { recordActivity, recordTickActivity } from "./activity-log.mjs";
 import fs from "node:fs";
 import { validateTrackedRouting } from "./placement.mjs";
 import { crewSnapshot } from "./crews.mjs";
-import { closeNoFit, fetchAll, openNoFit, routingContext } from "./routing.mjs";
-import { expireRouter, openRouter } from "./router.mjs";
+import {
+  closeNoFit,
+  fetchAll,
+  openNoFit,
+  routingContext,
+  routingFacts,
+} from "./routing.mjs";
+import { expireRouter, openRouter, spendRouter } from "./router.mjs";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { git, withWorkLock } from "./git.mjs";
@@ -915,6 +921,7 @@ export async function tick(
               ? { local: placement.localReading() }
               : {}),
             ...(placement.now ? { now: placement.now() } : {}),
+            script,
           });
           await fetchAll(store, routing, { fetch: script });
           routing.routerQueue = [];
@@ -970,13 +977,17 @@ export async function tick(
             (run) => !readOnly.has(run.task.planId),
           ),
         );
-      // One router session for the sessions waiting on a ranking (§4.10).
+      // One routing call for every worker waiting on a pick (§4.10). An
+      // answer read this tick is spent first, so the next call carries this
+      // tick's facts, not the last one's.
       const routerHome = store.list("projects").find((p) => p.root);
+      if (routing && script) spendRouter(store);
       const router =
-        routing && script && routing.config.router.enabled
+        routing && script && routing.config.enabled
           ? openRouter(store, routing, {
               folder: routerHome ? `Avoozl/${routerHome.id}` : null,
               briefAllowed: (input) => briefAllowed(store, input),
+              facts: routingFacts(store, routing),
             })
           : null;
       if (router) ready.push({ ...router, project: false });
