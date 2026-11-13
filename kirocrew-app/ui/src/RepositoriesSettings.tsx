@@ -4,7 +4,7 @@
 // (repositories.list) with its GitHub settings in .avoozl.json
 // (github.repositories, keyed owner/name); either side may be missing.
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { useAppApi } from '@kirocrew/app-sdk'
+import { useAppApi } from './host.ts'
 import { Btn, Input } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { Tooltip } from './Tooltip.tsx'

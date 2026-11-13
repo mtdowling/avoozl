@@ -3,7 +3,7 @@
 // .avoozl.json through flow.settings.update with the file's hash; the retro
 // instructions are saved on this machine only (flow.instructions.update).
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useAppApi } from '@kirocrew/app-sdk'
+import { useAppApi } from './host.ts'
 import { Btn, Card, Input } from '@kirocrew/app-sdk/ui'
 import { Tooltip } from './Tooltip.tsx'
 import { ChoiceCards, SectionHeading } from './controls.tsx'

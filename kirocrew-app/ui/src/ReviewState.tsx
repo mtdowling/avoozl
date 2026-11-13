@@ -3,7 +3,7 @@
 // "waiting on your decision" block when status review was set by hand and
 // nothing is running.
 import { useMemo, useState } from 'react'
-import { useAppApi } from '@kirocrew/app-sdk'
+import { useAppApi } from './host.ts'
 import { Btn } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { noSessionLabel, reviewRuns, viewsClient, type DeliveryItem, type Graph } from './views-api.ts'

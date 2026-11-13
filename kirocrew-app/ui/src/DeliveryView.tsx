@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { SpendChip } from './Budget.tsx'
 import { Tooltip } from './Tooltip.tsx'
-import { useAppApi } from '@kirocrew/app-sdk'
+import { useAppApi } from './host.ts'
 import { Btn, Card } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { safeHref, sessionLabel, viewsClient, type ContentReport } from './views-api.ts'

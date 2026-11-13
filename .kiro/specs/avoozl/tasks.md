@@ -1309,3 +1309,14 @@ Phase 32, which the remote relay holds, because task IDs never move.
 - [x] 33.1 Skip done tasks in projection, after 3.7 [R74] (§6.3)
   - `github.issues.includeDone` (default `false`) in the policy, the planning identity and the GitHub settings page; projection leaves out a done task with no issue, drops edges from it, keeps the plan issue, puts an open task of a skipped package under the plan issue, and the preview returns `skippedDone`; `src/app/test/github-include-done.test.mjs`.
   - Built: `da8a2b4`, PR #34.
+
+## Phase 34: Demo mode
+
+Owner request 2026-11-13 (Requirement 75, design §6.11).
+
+- [x] 34.1 Demo sample, fake GitHub and preview gate, after 3.7 [R75.1–R75.4, R75.7] (§6.11)
+  - `src/app/demo.mjs` staged once-only install, the fake GitHub and the gate; `demo.start`, `demo.exit`, `demo.status` and `@demo` in the app backend; `src/app/test/demo.test.mjs`.
+- [x] 34.2 Demo badge, bar, tour and exit, after 34.1 and 31.3 [R75.3, R75.5–R75.7] (§6.11)
+  - `host.ts`, `demo-api.ts`, `Demo.tsx` and the App wiring; `kirocrew-app/ui/test/demo-tour.test.mjs` with tour, keys, preview, exit and layout at 320, 768 and 1280 px, light and dark.
+- [x] 34.3 README and screenshots, after 34.2 [R75] (§6.11)
+  - README says how to start it; `docs/evidence/demo/`.

@@ -6,7 +6,7 @@
 // step. Nothing is written before Set up, each GitHub write there asks
 // first, and the flow never approves a plan, starts an agent or pushes.
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
-import { useAppApi } from '@kirocrew/app-sdk'
+import { useAppApi } from './host.ts'
 import { Btn, Card, Input } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { IconLabel, SectionHeading, useConfirm } from './controls.tsx'

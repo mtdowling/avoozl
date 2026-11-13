@@ -3,7 +3,7 @@
 // runs work. Riff on this opens a chat that may only append to the idea;
 // Make it a spec opens the New spec drawer filled from it.
 import { useMemo, useState, type CSSProperties } from 'react'
-import { useAppApi } from '@kirocrew/app-sdk'
+import { useAppApi } from './host.ts'
 import { Btn, EmptyState, Input, SegmentedControl } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { Modal } from './Modal.tsx'

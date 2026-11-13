@@ -3,7 +3,7 @@
 // with Undo for a person's. Saves write ~/.config/avoozl/config.json through
 // providers.settings.update with the file's hash, never .avoozl.json.
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useAppApi } from '@kirocrew/app-sdk'
+import { useAppApi } from './host.ts'
 import { Btn, Card, Input } from '@kirocrew/app-sdk/ui'
 import { Marker, Section } from './SettingsView.tsx'
 import { useRead } from './useRead.ts'

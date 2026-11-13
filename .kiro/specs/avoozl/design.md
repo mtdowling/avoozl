@@ -4324,6 +4324,44 @@ including the workspace status MCP reply. CLI: `avoozl driver status`,
 | Age never moves the role | A slow or asleep machine is not a gone one; the repository rule for workers applies to drivers too |
 | Export is a file the person moves | It may hold private notes; GitHub is not a place for them |
 
+### 6.11 Demo mode
+
+Requirement 75. `src/app/demo.mjs` builds the sample; the app backend
+serves it; `kirocrew-app/ui/src/Demo.tsx` shows it.
+
+**Sample.** `installDemo(root)` builds in `<root>.staging-*` and renames the
+folder into place; the `demo:sample` receipt marks it done. Built through
+the same `plan.create` and `plan.approve` path as a person's specs, but
+only inside the throwaway folder, so the data has the real shape. Single-
+repo mode on the fake `example/recipe-box`; specs live in its checkout.
+Machine settings (lessons, plugins) live in the sample folder, and its
+configuration home is the sample folder. The default root is one folder
+per user under the system temp folder.
+
+**Serving.** Machine operations `demo.start`, `demo.exit` and `demo.status`.
+Requests for workspace `@demo`, which no catalog ID can be, go to the
+sample. Reads run; every other operation is refused with 409, `demo: true`
+and a preview sentence. The sample's `Operations` get the fake GitHub and
+no notifier, crew reader, session stopper or driver. The backend's drain
+never reads the sample.
+
+**Page.** `host.ts` wraps the host's `useAppApi` and `useChatLauncher`. In
+the demo, Open chat shows a preview, only Avoozl commands and GETs reach
+the host, and `workspaces.*` answer with the sample alone. `Demo.tsx` holds
+the badge, the Demo bar with the last preview and Exit demo, and the tour
+card (the popover layer) whose steps (`demo-api.ts` `TOUR`) move the page.
+
+| Choice | Why |
+|---|---|
+| A separate folder, not example data in the person's workspace | Nothing to clean up in their database; exit is just a switch |
+| Preview by refusal at the backend | One gate covers every page action, current and future |
+| Fake GitHub refuses unknown methods | A new write method fails closed |
+| `@demo` ID | Cannot collide with a catalog workspace |
+
+shortcut: the global Avoozl configuration file is still read beneath the
+sample's own (`loadLayeredConfig`); upgrade by passing the sample as home
+at each call site if a person's global file ever names repositories.
+
 ---
 
 ## 7. Kiro Crew integration map

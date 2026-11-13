@@ -10,12 +10,15 @@ export interface TaskDrawerApi {
   addTask(prefill?: { prerequisite?: string }): void
   // `onReviewed` runs after Mark reviewed, so the caller can reload.
   openReview(group: ConflictItem, onReviewed?: () => void): void
+  // Closes whatever the drawer shows (the demo tour leaving a task step).
+  close(): void
 }
 
 export const TaskDrawerContext = createContext<TaskDrawerApi>({
   openTask: () => undefined,
   addTask: () => undefined,
   openReview: () => undefined,
+  close: () => undefined,
 })
 
 export const useTaskDrawer = () => useContext(TaskDrawerContext)

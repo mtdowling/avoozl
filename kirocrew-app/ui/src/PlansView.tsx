@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Tooltip } from './Tooltip.tsx'
-import { useAppApi, useChatLauncher } from '@kirocrew/app-sdk'
+import { useAppApi, useChatLauncher } from './host.ts'
 import { Btn, Card } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { Markdown } from './Markdown.tsx'

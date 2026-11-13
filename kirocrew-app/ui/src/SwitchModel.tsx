@@ -4,7 +4,7 @@
 // moves, and Switch. The backend applies the switch on its next pass with
 // Kiro Crew's per-chat model change; the chats keep their session and branch.
 import { useEffect, useMemo, useState } from 'react'
-import { useAppApi } from '@kirocrew/app-sdk'
+import { useAppApi } from './host.ts'
 import { Btn } from '@kirocrew/app-sdk/ui'
 import { Modal } from './Modal.tsx'
 import { IconLabel } from './controls.tsx'

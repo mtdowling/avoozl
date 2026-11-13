@@ -5,7 +5,7 @@
 // containing block. ?theme=light|dark sets the host theme attribute.
 import { useState, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { answer, Btn, Card } from './stubs.tsx'
+import { answer, Btn, Card, Refusal, replyFor } from './stubs.tsx'
 import { NavHistoryProvider, APP_ATTR } from '../../src/NavHistory.tsx'
 import { ConfirmProvider, DangerBtn } from '../../src/controls.tsx'
 import { TaskDrawerProvider } from '../../src/TaskDrawer.tsx'
@@ -152,8 +152,32 @@ function AppPage() {
   )
 }
 
+// ?page=demo: the whole page, where Try the demo opens the sample. Calls
+// for the sample answer from window.__DEMO (demo-replies.mjs, built from
+// the real sample); other calls answer as ?page=app does.
+const demo = (window as unknown as { __DEMO?: { replies: Record<string, unknown>; previews: Record<string, string> } }).__DEMO
+if (query.get('page') === 'demo' && demo) {
+  let open = false
+  answer('demo.start', () => ((open = true), { active: true, workspaceId: '@demo', existing: false, at: null }))
+  answer('demo.exit', () => ((open = false), { active: false }))
+  answer('demo.status', () => ({ active: open, workspaceId: '@demo' }))
+  const names = new Set([...Object.keys(demo.replies), ...Object.keys(demo.previews)])
+  for (const name of names) {
+    const before = replyFor(name)
+    answer(name, (body) => {
+      const call = body as { workspaceId?: string }
+      if (call.workspaceId === '@demo') {
+        if (name in demo.previews) throw new Refusal(409, { error: demo.previews[name], demo: true })
+        return demo.replies[name]
+      }
+      if (before) return before(body)
+      throw new Refusal(404, { error: 'The harness workspace has no reply for this.' })
+    })
+  }
+}
+
 function Page() {
-  if (query.get('page') === 'app') return <AppPage />
+  if (query.get('page') === 'app' || query.get('page') === 'demo') return <AppPage />
   return (
     <>
       <div data-host-header style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 48, zIndex: 1000, display: 'flex', alignItems: 'center', padding: '0 16px', background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border)', color: 'var(--text)' }}>
