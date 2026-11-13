@@ -52,7 +52,7 @@ test('the Dashboard header has the red button, and Resume asks first', () => {
   assert.match(dialog, /<RadioFold/, 'scope is a radio fold-out group')
   assert.match(dialog, /background: 'var\(--danger\)'/)
   assert.match(dialog, /Reason <span className="text-xs text-muted">\(required\)<\/span>/)
-  assert.match(dialog, /useBackStep\('modal', true, 'Cancel', close\)/)
+  assert.match(dialog, /<Modal\b[\s\S]*?backLabel="Cancel"[\s\S]*?onDismiss=\{close\}/)
   // Resume runs only after the confirm says yes.
   const resume = banner.slice(banner.indexOf('const resume = async'), banner.indexOf('return (', banner.indexOf('const resume = async')))
   assert.ok(resume.indexOf('await confirm(') < resume.indexOf('client.resume('))
