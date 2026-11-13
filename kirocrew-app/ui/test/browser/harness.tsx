@@ -19,14 +19,12 @@ import { DocumentReader } from '../../src/DocumentReader.tsx'
 import { StopLineButton } from '../../src/StopLine.tsx'
 import { PackImportDialog } from '../../src/PackImport.tsx'
 import { SendToRadar } from '../../src/SendToRadar.tsx'
-import { CrewDialog, RuleDialog } from '../../src/RoutingView.tsx'
+import { CrewDialog } from '../../src/RoutingView.tsx'
 import { SwitchModelButton } from '../../src/SwitchModel.tsx'
 import { InFlightRow } from '../../src/DashboardView.tsx'
 import { setupForm } from '../../src/settings-api.ts'
-import { toRuleForm } from '../../src/routing-api.ts'
 import { LAYER } from '../../src/layers.ts'
 import { BudgetSettings, PricesSettings } from '../../src/BudgetSettings.tsx'
-import ProvidersSettings from '../../src/ProvidersSettings.tsx'
 import AvoozlApp from '../../src/App.tsx'
 
 const query = new URLSearchParams(location.search)
@@ -120,7 +118,6 @@ export const SCENARIOS: Record<string, Scenario> = {
   'send-to-radar': shown((close) => <SendToRadar workspaceId="w" client={idle} items={[]} repository="avoozl" onClose={close} onSent={close} />),
   crew: shown((close) => <CrewDialog crew={crew as never} onCancel={close} onSave={async () => null} />),
   'switch-model': own('Switch model', <SwitchModelButton workspaceId="w" />),
-  rule: shown((close) => <RuleDialog view={{ crews: [], repositories: {}, labels: [] } as never} form={toRuleForm({ id: 'r1' } as never)} isNew={false} models={[]} onCancel={close} onSave={async () => null} onDelete={close} />),
 }
 
 // The Switch model steps against fake answers: two running chats, one
@@ -258,7 +255,7 @@ function Page() {
   )
 }
 
-// Settings pages with sample data (?page=budgets|prices|providers), for the
+// Settings pages with sample data (?page=budgets|prices), for the
 // settings screenshots. Prices and models here are made up. Only a settings
 // page answers these, so the modal and app scenarios keep their own replies.
 if (query.get('page') && query.get('page') !== 'app') {
@@ -286,19 +283,10 @@ answer('prices.get', () => ({
     { model: 'local-model-x', turns: 3, unpricedTurns: 3, creditTurns: 0, priced: 'none' },
   ],
 }))
-answer('providers.view', () => ({
-  settings: { lowPercent: 75, limits: { claude: { credits: 500 } }, fallback: ['claude-haiku-5.5'] },
-  hash: 'h3',
-  defaults: { lowPercent: 80, cooldownMinutes: 30, windowHours: 5 },
-  marks: [],
-  switches: [],
-  chats: [],
-}))
 }
 const PAGES: Record<string, () => ReactNode> = {
   budgets: () => <BudgetSettings workspaceId="w" />,
   prices: () => <PricesSettings workspaceId="w" />,
-  providers: () => <ProvidersSettings workspaceId="w" />,
 }
 function SettingsPage({ name }: { name: string }) {
   const render = PAGES[name]

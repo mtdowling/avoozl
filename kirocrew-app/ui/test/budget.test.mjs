@@ -227,19 +227,18 @@ test("Ask for help on Budgets, Prices and Providers uses the shared link with th
   );
   assert.match(COSTS_DOCS, /avoozl-costs skill \(skills\/avoozl-costs\/SKILL\.md/);
   const budgets = source("BudgetSettings.tsx"),
-    providers = source("ProvidersSettings.tsx");
+    providers = source("RoutingView.tsx");
   assert.match(budgets, /import \{ AskForHelp \} from "\.\/controls\.tsx"/);
-  assert.match(providers, /import \{ AskForHelp, Fold \} from '\.\/controls\.tsx'/);
+  assert.match(providers, /import \{ AskForHelp, [^}]*\} from '\.\/controls\.tsx'/);
   assert.equal(
     (budgets.match(/<AskForHelp workspaceId=\{workspaceId\} help=\{help\} \/>/g) || []).length,
     2,
     "Budgets and Prices",
   );
-  assert.match(providers, /<AskForHelp workspaceId=\{workspaceId\} help=\{help\} \/>/);
   for (const text of [budgets, providers]) assert.match(text, /docs: COSTS_DOCS/);
   assert.match(budgets, /page: "Settings › Budgets"/);
   assert.match(budgets, /page: "Settings › Prices"/);
-  assert.match(providers, /page: 'Settings › Providers',\s*section: 'Thresholds'/);
+  assert.match(providers, /page: 'Settings › Routing',\s*section: 'Providers'/);
   assert.match(
     readFileSync(
       new URL("../../skills/avoozl-costs/SKILL.md", import.meta.url),
