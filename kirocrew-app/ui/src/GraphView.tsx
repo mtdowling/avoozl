@@ -40,6 +40,7 @@ import { filterChoices, filterGraph } from './filters.ts'
 import { IconLabel, SectionHeading, TipBtn, ViewHeading } from './controls.tsx'
 import { ArrowLeft, Plus, RefreshCw } from './icons.ts'
 import { useNav, useRemembered } from './NavHistory.tsx'
+import { linkHref } from './views-api.ts'
 
 // Graphs larger than this open with every epic collapsed to one node.
 const COLLAPSE_ABOVE = 60
@@ -82,7 +83,7 @@ function NodeOwner({ task, x, y }: { task: GraphTask; x: number; y: number }) {
     </text>
   )
   return href ? (
-    <a href={href} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} aria-label={`Issue ${label}`}>
+    <a href={linkHref(href)} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} aria-label={`Issue ${label}`}>
       {text}
     </a>
   ) : (

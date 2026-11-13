@@ -16,6 +16,7 @@ import { groupWrites, setupForm, setupInput, setupState, writeBadge, type GitHub
 import { errorMessage } from './workspace-api.ts'
 import { relativeTime } from './task-api.ts'
 import { useBackStep } from './NavHistory.tsx'
+import { linkHref } from './views-api.ts'
 
 type Client = ReturnType<typeof settingsClient>
 
@@ -190,7 +191,7 @@ function SetupDialog(props: {
                   {result.checklist.map((item) => (
                     <li key={item.id}>
                       {item.link ? (
-                        <a href={item.link} target="_blank" rel="noopener noreferrer" className="underline">
+                        <a href={linkHref(item.link)} target="_blank" rel="noopener noreferrer" className="underline">
                           {item.text}
                         </a>
                       ) : (

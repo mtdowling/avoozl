@@ -1,11 +1,13 @@
 // Runs under node's type stripping: `node --test kirocrew-app/ui/test`.
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
 import test from 'node:test'
 import { COMMAND_PATH } from '../src/workspace-api.ts'
 import {
   canSupersede,
   githubReviewLabel,
   graphSummary,
+  linkHref,
   safeHref,
   scalarFields,
   sessionLabel,
@@ -94,6 +96,25 @@ test('only http and https links are clickable', () => {
   assert.equal(safeHref('file:///etc/passwd'), null)
   assert.equal(safeHref('/tmp/receipt.md'), null)
   assert.equal(safeHref(null), null)
+})
+
+test('every link goes through linkHref or safeHref', () => {
+  // Kiro Crew's own pages and chats pass; anything else is not a link.
+  assert.equal(linkHref('/chat?sid=chat-9'), '/chat?sid=chat-9')
+  assert.equal(linkHref('/issue-radar'), '/issue-radar')
+  assert.equal(linkHref('/code-review-sage'), '/code-review-sage')
+  assert.equal(linkHref('/apps/avoozl'), '/apps/avoozl')
+  assert.equal(linkHref('https://github.com/o/r'), 'https://github.com/o/r')
+  for (const bad of ['javascript:alert(1)', '//evil.example/x', '/tmp/receipt.md', '/chat?sid=a b', 'data:text/html,x', null, 7])
+    assert.equal(linkHref(bad), undefined, String(bad))
+  const dir = new URL('../src/', import.meta.url)
+  const raw = []
+  for (const file of fs.readdirSync(dir).filter((f) => f.endsWith('.tsx'))) {
+    const text = fs.readFileSync(new URL(file, dir), 'utf8')
+    for (const match of text.matchAll(/\bhref=\{([^}]*)/g))
+      if (!/^\s*(linkHref|safeHref)\(/.test(match[1])) raw.push(`${file}: href={${match[1]}`)
+  }
+  assert.deepEqual(raw, [])
 })
 
 test('session and record labels', () => {

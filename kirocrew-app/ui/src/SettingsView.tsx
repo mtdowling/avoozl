@@ -57,6 +57,7 @@ import { labelsClient, triageRows, type RepositoryLabels } from './untriaged-api
 import { errorMessage, workspaceClient, type Repository, type WorkspaceList } from './workspace-api.ts'
 import { DangerBtn, IconLabel, SectionHeading, TipBtn, ViewHeading, dangerStyle } from './controls.tsx'
 import { Plus, Trash2 } from './icons.ts'
+import { linkHref } from './views-api.ts'
 
 const selectStyle = { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }
 // Fields share a row and wrap; each keeps a readable width.
@@ -368,7 +369,7 @@ function MatchIssues({ preview, untriaged = false }: { preview: MatchPreview; un
       <ul className="mt-1 flex flex-col gap-0.5">
         {preview.issues.map((issue) => (
           <li key={issue.number} className="min-w-0 truncate">
-            <a href={issue.url} target="_blank" rel="noopener noreferrer" className="underline">
+            <a href={linkHref(issue.url)} target="_blank" rel="noopener noreferrer" className="underline">
               #{issue.number}
             </a>{' '}
             <span>{issue.title}</span>
@@ -615,7 +616,7 @@ function ChecksEditor(props: {
       <p className="text-xs text-muted">
         Seen on {checks!.branch}&apos;s recent commits and open pull requests. Checks the branch rule requires stay on; Avoozl&apos;s list adds to
         them.{' '}
-        <a href={url} target="_blank" rel="noopener noreferrer" className="underline">
+        <a href={linkHref(url)} target="_blank" rel="noopener noreferrer" className="underline">
           Change the branch rule on GitHub
         </a>
       </p>
@@ -659,7 +660,7 @@ function ReviewRule(props: { inspect: RepositoryInspect | null; repository: stri
     <div className="flex flex-col gap-2 text-sm">
       <p>{reviewRuleText(props.inspect)}</p>
       {link && (
-        <a href={link} target="_blank" rel="noreferrer" className="self-start text-xs underline">
+        <a href={linkHref(link)} target="_blank" rel="noreferrer" className="self-start text-xs underline">
           Change it on GitHub
         </a>
       )}
@@ -890,7 +891,7 @@ function CrewScopes({ crews }: { crews: CrewScope[] }) {
               {crew.repository}: scope its crew to{' '}
               {crew.label ? <code>{crew.label}</code> : <span className="text-danger">no ready label yet; name one in Repositories</span>}{' '}
               in{' '}
-              <a href={crew.link} target="_top" className="underline">
+              <a href={linkHref(crew.link)} target="_top" className="underline">
                 Issue Radar
               </a>
               .

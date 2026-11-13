@@ -25,6 +25,7 @@ import { itemRef } from './chat-api.ts'
 import { TimingFold } from './FlowView.tsx'
 import { Crosshair, Eye, FileText, MessageSquare, Pause, Pencil, Play, Plus, RotateCcw, X } from './icons.ts'
 import { useBackStep } from './NavHistory.tsx'
+import { linkHref } from './views-api.ts'
 
 // The drawer's sections, as collapsible <details> (the host has no
 // accordion). Summary starts open; the rest open on a click.
@@ -141,7 +142,7 @@ function Origin(props: { origin: TaskOrigin; issue: string | null; workspaceId: 
       </span>
       <div className="flex flex-wrap items-center gap-2">
         {origin.kind === 'github-issue' && props.issue && (
-          <a href={props.issue} target="_blank" rel="noopener noreferrer" className="text-xs underline">
+          <a href={linkHref(props.issue)} target="_blank" rel="noopener noreferrer" className="text-xs underline">
             Open the issue on GitHub
           </a>
         )}
@@ -353,7 +354,7 @@ function TaskPanel(props: {
           Edit
         </IconLabel>
         {!done && !local && issue && (
-          <a href={issue} target="_blank" rel="noreferrer" className="self-center text-xs underline">
+          <a href={linkHref(issue)} target="_blank" rel="noreferrer" className="self-center text-xs underline">
             Defer on the board
           </a>
         )}
@@ -491,7 +492,7 @@ function TaskPanel(props: {
                 <ul className="flex flex-col gap-1 text-sm">
                   {delivery.sessions.map((session) => (
                     <li key={session.slot}>
-                      <a href={sessionHref(session)} className="underline">
+                      <a href={linkHref(sessionHref(session))} className="underline">
                         {session.role} attempt {session.attempt}
                       </a>{' '}
                       <span className="text-xs text-muted">

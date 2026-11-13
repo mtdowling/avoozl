@@ -38,6 +38,7 @@ import { FilterPanel, useStoredFilter } from './FilterPanel.tsx'
 import { Check, DetailsIcon, ExternalLink, Eye, History, MessageSquare, RefreshCw, RotateCcw, X } from './icons.ts'
 import { itemRef } from './chat-api.ts'
 import { documentEpic } from './graph-layout.ts'
+import { linkHref } from './views-api.ts'
 
 const CONFLICT_STORE = { event: CONFLICT_FILTER_EVENT, read: readConflictFilter, write: writeConflictFilter, empty: {} as ConflictFilter }
 
@@ -198,7 +199,7 @@ export function ConflictActions(props: {
           </a>
         )}
         {issue && (
-          <a href={issue} target="_blank" rel="noreferrer" className="text-sm underline">
+          <a href={linkHref(issue)} target="_blank" rel="noreferrer" className="text-sm underline">
             Open the issue
           </a>
         )}
@@ -387,7 +388,7 @@ function ConflictRow(props: {
         )}
         <span className="ml-auto flex items-center gap-1.5">
           {props.attach && (
-            <a href={props.attach} className="self-center text-sm underline" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <a href={linkHref(props.attach)} className="self-center text-sm underline" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
               <ExternalLink size={14} aria-hidden="true" />
               Attach
             </a>

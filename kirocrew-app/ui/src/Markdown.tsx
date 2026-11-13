@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { blocks, headingId, inline, type Inline } from './markdown.ts'
 import { highlight, tokenStyle, type Token } from './highlight.ts'
+import { linkHref } from './views-api.ts'
 
 // Renders plan Markdown as React elements (see markdown.ts): no HTML is set.
 function Spans({ parts }: { parts: Inline[] }): ReactNode {
@@ -25,7 +26,7 @@ function Spans({ parts }: { parts: Inline[] }): ReactNode {
         </em>
       )
     return part.href ? (
-      <a key={i} href={part.href} target="_blank" rel="noreferrer" className="underline" style={{ color: 'var(--accent)' }}>
+      <a key={i} href={linkHref(part.href)} target="_blank" rel="noreferrer" className="underline" style={{ color: 'var(--accent)' }}>
         <Spans parts={part.children} />
       </a>
     ) : (
