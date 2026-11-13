@@ -8,7 +8,7 @@ import { SMALL, attentionTarget, attentionTip, countsLayout, countsStyles, summa
 import { attachHref, duration, relativeTime, sessionHref } from './task-api.ts'
 import { routingClient } from './routing-api.ts'
 import { useTaskDrawer } from './drawer-context.ts'
-import { useMedia } from './TaskDrawer.tsx'
+import { useMedia } from './use-media.ts'
 import { STATES, type NodeState } from './graph-layout.ts'
 import { plansClient } from './plans-api.ts'
 import { CONFLICT_LABELS, viewsClient, type ConflictItem } from './views-api.ts'
