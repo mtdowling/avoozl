@@ -325,13 +325,25 @@ test("the app's MCP server meets protocol 2026-07-28 result rules", async () => 
     assert.equal(call.result.isError, true);
     assert.equal(call.result.resultType, "complete");
     assert.equal(call.result.ttlMs, undefined);
-    const older = await server.handle({
+    // Kiro Crew's gateway primes a shared server's list with no revision and
+    // hands it to 2026-07-28 clients, so a list without one carries the fields.
+    const primed = await server.handle({
       jsonrpc: "2.0",
       id: 3,
       method: "tools/list",
       params: {},
     });
-    assert.equal(older.result.resultType, undefined);
+    assert.equal(primed.result.resultType, "complete");
+    assert.equal(primed.result.ttlMs, 0);
+    assert.equal(primed.result.cacheScope, "private");
+    const ping = await server.handle({
+      jsonrpc: "2.0",
+      id: 5,
+      method: "ping",
+      params: {},
+    });
+    assert.equal(ping.result.resultType, "complete");
+    assert.equal(ping.result.ttlMs, undefined);
   } finally {
     server.close();
   }
