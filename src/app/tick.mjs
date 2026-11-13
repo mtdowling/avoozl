@@ -12,6 +12,7 @@ import fs from "node:fs";
 import { validateTrackedRouting } from "./placement.mjs";
 import { crewSnapshot } from "./crews.mjs";
 import { closeNoFit, fetchAll, openNoFit, routingContext } from "./routing.mjs";
+import { expireRouter, openRouter } from "./router.mjs";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { git, withWorkLock } from "./git.mjs";
@@ -30,6 +31,7 @@ import {
   integrateVerified,
   liveAttempt,
   planReadyDispatches,
+  briefAllowed,
   planVerifierDispatches,
   reconcileDeliveries,
   reconcileVerifications,
@@ -825,6 +827,8 @@ export async function tick(
             ...(placement.now ? { now: placement.now() } : {}),
           });
           await fetchAll(store, routing, { fetch: script });
+          routing.routerQueue = [];
+          expireRouter(store, routing, bindings);
         } catch (error) {
           routing = null;
           planned.notify.push({
@@ -860,6 +864,16 @@ export async function tick(
                 routing,
                 placementState,
               });
+      // One router session for the sessions waiting on a ranking (§4.10).
+      const routerHome = store.list("projects").find((p) => p.root);
+      const router =
+        routing && script && routing.config.router.enabled
+          ? openRouter(store, routing, {
+              folder: routerHome ? `Avoozl/${routerHome.id}` : null,
+              briefAllowed: (input) => briefAllowed(store, input),
+            })
+          : null;
+      if (router) ready.push({ ...router, project: false });
       // No fit (R41.8): one decision per task; it closes when the task fits.
       for (const id of fits) closeNoFit(store, id);
       for (const { task, result } of waits)

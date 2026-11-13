@@ -15,6 +15,7 @@ import { liveAttempt } from "./delivery.mjs";
 import { gatewayClient } from "./gateway-client.mjs";
 import { ingestToolRows, toolCallsReadable } from "./flow.mjs";
 import { recordRetroReply } from "./flow-retro.mjs";
+import { recordRouterReply, routerBatch } from "./router.mjs";
 import { listSessionBindings, recordSessionStatus } from "./session-bindings.mjs";
 
 // The status of one slot from its GET /api/chat/slots/<slot> body.
@@ -129,6 +130,25 @@ export async function observeRetroReplies(store, readRows) {
       const { rows } = await readRows(binding.slot, null),
         reply = [...rows].reverse().find((r) => r?.role === "assistant" && typeof r.content === "string");
       if (reply) recordRetroReply(store, binding.taskId, reply.content);
+    } catch (error) {
+      errors.push({ slot: binding.slot, error: error.message });
+    }
+  }
+  return { errors };
+}
+
+// The model router's answer (§4.10): like a retro, one JSON reply from the
+// tool-less avoozl-router agent, read once the session is idle.
+export async function observeRouterReplies(store, readRows) {
+  const errors = [],
+    batch = routerBatch(store);
+  if (batch?.state !== "running") return { errors };
+  for (const binding of listSessionBindings(store)) {
+    if (binding.role !== "router" || binding.taskId !== batch.id || binding.status !== "idle") continue;
+    try {
+      const { rows } = await readRows(binding.slot, null),
+        reply = [...rows].reverse().find((r) => r?.role === "assistant" && typeof r.content === "string");
+      if (reply) recordRouterReply(store, batch.id, reply.content);
     } catch (error) {
       errors.push({ slot: binding.slot, error: error.message });
     }

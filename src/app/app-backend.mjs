@@ -21,6 +21,7 @@ import {
   gatewayUsageTurns,
   observeSessions,
   observeRetroReplies,
+  observeRouterReplies,
   observeToolRows,
 } from "./session-observer.mjs";
 import { declaredChecks } from "./delivery.mjs";
@@ -462,6 +463,8 @@ export function startAppBackend({
           if (rowReader) {
             const { errors } = await observeRetroReplies(store, rowReader);
             if (errors.length) console.error(errors[0].error);
+            const routed = await observeRouterReplies(store, rowReader);
+            if (routed.errors.length) console.error(routed.errors[0].error);
           }
           if (usageReader) {
             const { errors } = await observeUsage(store, usageReader);
