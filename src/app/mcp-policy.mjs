@@ -94,6 +94,17 @@ export const PERSON_ONLY = new Map([
   ["lessons.export", person("Only a person exports lessons.")],
   ["lessons.share.preview", person("Only a person shares lessons.")],
   ["lessons.share", person("Only a person shares lessons.")],
+  ["driver.handoff", person("Only a person hands off a spec's driver.")],
+  ["driver.takeover", person("Only a person takes over a spec's driver.")],
+  [
+    "driver.forceTakeover",
+    person("Only a person takes over a spec's driver by force."),
+  ],
+  ["driver.away.decide", person("Only a person decides an away task.")],
+  [
+    "driver.settings.update",
+    person("Only a person changes this computer's driver settings."),
+  ],
   ["flow.runAnyway", person("Only a person presses Run anyway.")],
   ["flow.resume", person("Only a person resumes a pulled stop.")],
   ["budget.raise", person("Only a person raises a budget.")],
