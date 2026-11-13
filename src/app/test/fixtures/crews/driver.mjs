@@ -14,7 +14,10 @@ export const FAKE_SSH = path.join(import.meta.dirname, "fake-ssh.mjs");
 const git = (cwd, ...args) =>
   execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
 
-export function crewDriver(store, { crews = {}, root, mc10 = true, remoteDispatch = true } = {}) {
+export function crewDriver(
+  store,
+  { crews = {}, root, mc10 = true, remoteDispatch = true } = {},
+) {
   const state = {
     mc10,
     remoteDispatch,
@@ -45,7 +48,9 @@ export function crewDriver(store, { crews = {}, root, mc10 = true, remoteDispatc
                 cpu_count: 8,
                 posture: "ok",
                 ...(c.headroom || {}),
-                measured_at: new Date(now - (c.ageSeconds ?? 5) * 1000).toISOString(),
+                measured_at: new Date(
+                  now - (c.ageSeconds ?? 5) * 1000,
+                ).toISOString(),
               },
             ]),
         ),
@@ -66,13 +71,25 @@ export function crewDriver(store, { crews = {}, root, mc10 = true, remoteDispatc
     clone(session, url, base) {
       const folder =
         session.placement?.back?.folder ||
-        path.join(root, "remote", session.crew, `${session.task}-${session.attempt}`);
+        path.join(
+          root,
+          "remote",
+          session.crew,
+          `${session.task}-${session.attempt}`,
+        );
       if (!fs.existsSync(path.join(folder, ".git"))) {
         fs.mkdirSync(path.dirname(folder), { recursive: true });
         git(path.dirname(folder), "clone", "--quiet", url, folder);
         git(folder, "config", "user.name", "Remote");
         git(folder, "config", "user.email", "remote@example.test");
-        git(folder, "checkout", "--quiet", "-B", `avoozl/${session.task}`, base);
+        git(
+          folder,
+          "checkout",
+          "--quiet",
+          "-B",
+          `avoozl/${session.task}`,
+          base,
+        );
       }
       return folder;
     },
@@ -83,7 +100,14 @@ export function crewDriver(store, { crews = {}, root, mc10 = true, remoteDispatc
       fs.writeFileSync(path.join(folder, file), text);
       git(folder, "add", ".");
       git(folder, "commit", "--quiet", "-m", `Remote ${session.task}`);
-      if (push) git(folder, "push", "--quiet", "origin", `HEAD:refs/heads/avoozl/${session.task}`);
+      if (push)
+        git(
+          folder,
+          "push",
+          "--quiet",
+          "origin",
+          `HEAD:refs/heads/avoozl/${session.task}`,
+        );
       return git(folder, "rev-parse", "HEAD");
     },
   };

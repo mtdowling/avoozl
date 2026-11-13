@@ -21,9 +21,12 @@ export function pinned(file, host) {
   } catch {
     return false;
   }
-  return text
-    .split("\n")
-    .some((line) => line.split(/\s+/)[0]?.split(",").some((h) => h === host || h.startsWith(`[${host}]:`)));
+  return text.split("\n").some((line) =>
+    line
+      .split(/\s+/)[0]
+      ?.split(",")
+      .some((h) => h === host || h.startsWith(`[${host}]:`)),
+  );
 }
 
 // The ssh command git runs: the first fetch pins (accept-new), every later
@@ -45,16 +48,36 @@ export function sshCommand({ ssh = "ssh", knownHosts, host }) {
 const userHost = (sshHost) => sshHost.split("@").pop();
 
 // Fetch `branch` from the crew's folder into `ref` and return its commit.
-export async function handbackFetch({ root, crew, folder, branch, ref, knownHosts, ssh = "ssh" }) {
+export async function handbackFetch({
+  root,
+  crew,
+  folder,
+  branch,
+  ref,
+  knownHosts,
+  ssh = "ssh",
+}) {
   if (!crew.sshHost || !folder)
-    fail(`Crew ${crew.id} has no sshHost or worktreeRoot; its work cannot come back.`, 409);
+    fail(
+      `Crew ${crew.id} has no sshHost or worktreeRoot; its work cannot come back.`,
+      409,
+    );
   fs.mkdirSync(path.dirname(knownHosts), { recursive: true, mode: 0o700 });
   const host = userHost(crew.sshHost),
     { mode, command } = sshCommand({ ssh, knownHosts, host });
   try {
-    await git(root, ["fetch", "--no-tags", `ssh://${crew.sshHost}${folder}`, `+refs/heads/${branch}:${ref}`], {
-      env: { ...process.env, GIT_SSH_COMMAND: command },
-    });
+    await git(
+      root,
+      [
+        "fetch",
+        "--no-tags",
+        `ssh://${crew.sshHost}${folder}`,
+        `+refs/heads/${branch}:${ref}`,
+      ],
+      {
+        env: { ...process.env, GIT_SSH_COMMAND: command },
+      },
+    );
   } catch (error) {
     fail(
       mode === "yes" && /host key|verification failed/i.test(error.message)
@@ -72,9 +95,17 @@ export async function handbackFetch({ root, crew, folder, branch, ref, knownHost
 // The pushed branch from the repository remote.
 export async function pushedFetch({ root, remote, branch, ref }) {
   try {
-    await git(root, ["fetch", "--no-tags", remote, `+refs/heads/${branch}:${ref}`]);
+    await git(root, [
+      "fetch",
+      "--no-tags",
+      remote,
+      `+refs/heads/${branch}:${ref}`,
+    ]);
   } catch (error) {
-    fail(`Could not fetch ${branch} from ${remote}: ${error.message.split("\n")[0]}`, 409);
+    fail(
+      `Could not fetch ${branch} from ${remote}: ${error.message.split("\n")[0]}`,
+      409,
+    );
   }
   return { commit: await git(root, ["rev-parse", ref]) };
 }
