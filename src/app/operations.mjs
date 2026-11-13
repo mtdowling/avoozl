@@ -172,7 +172,13 @@ import {
   retroInstructions,
   setRetroInstructions,
 } from "./flow-retro.mjs";
-import { lineBanner, pullCord, resumeStop, runAnyway } from "./flow-line.mjs";
+import {
+  lineBanner,
+  pullCord,
+  pullFullStop,
+  resumeStop,
+  runAnyway,
+} from "./flow-line.mjs";
 import { localCheckList, localPass, runLocalChecks } from "./flow-checks.mjs";
 import { queueNotifications } from "./notifications.mjs";
 
@@ -709,6 +715,9 @@ export class Operations {
       repositoryBindingGuard = null,
       notifier = null,
       crewReader = null,
+      // Stops one Kiro Crew session by slot (session-observer.mjs
+      // gatewaySessionStopper); only the app backend has one.
+      sessionStopper = null,
       // {skillPath, exists} for the code review chat (pr-review.mjs); tests
       // point it at a temporary skill.
       reviewOptions = {},
@@ -732,6 +741,7 @@ export class Operations {
     // Reads Issue Radar's crews through the gateway (radar-handoff.mjs);
     // only the app backend has one.
     this.crewReader = crewReader;
+    this.sessionStopper = sessionStopper;
     this.reviewOptions = reviewOptions;
     this.placement = placement;
     // Provenance for records this workspace mints; never an authorization.
@@ -2175,6 +2185,16 @@ export class Operations {
         );
       return runAnyway(store, input, {
         operator: context.local ? "cli" : "dashboard",
+      });
+    }
+    // Stop all agents (R64.12): a person only, through the app backend,
+    // which alone can stop Kiro Crew sessions.
+    if (name === "flow.stop" && input.full === true) {
+      if (context.caller || context.mcp)
+        fail("Only a person stops all agents. Do it in the Avoozl app.", 403);
+      return pullFullStop(store, input, {
+        by: { kind: "person", name: context.local ? "cli" : "dashboard" },
+        stopSession: this.sessionStopper,
       });
     }
     // Pull the Andon cord (R64): a person or an agent session stops new

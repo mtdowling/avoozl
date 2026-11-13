@@ -1160,3 +1160,15 @@ retro model.
   - Expected: (1) the locked, stale and blocked proposals are dropped with their reasons and no matched text; (2) the agent gets 403; the owner's approval writes override version 1 outside the app's files, makes one leaf in `W1`'s repository that integrates the skill change, and puts a note on `p1`'s card with nothing sent; sessions after approval show the override's version, running ones keep theirs; (3) PDCA marks the prompt change helped and its lesson `kept`, and the second window "mixed"; (4) the shipped text returns and the revert is recorded; (5) `W2`'s brief holds `W1`'s kept lesson first with no task ID, path or repository name from `W1`, and the undone one under "did not work"; (6) `W2`'s brief has only its own lessons; (7) the lesson is refused and the proposal still stands; (8) the lesson goes `stale` or `needs re-check` with each reason, leaves the citable list, and clears when confirmed, each step in its history; (9) the merge appears as a diff for a person and the merged-away lesson stays as history; (10) the override is flagged with a three-way diff and a rebase proposal while sessions keep it with a warning, and the locked section's new text is used at once; (11) import shows a preview first and needs the owner; version 2 marks the changed lesson and retires the removed one; (12) the owner's export passes the content rules and MCP gets 403.
   - Failure means: a retro can change what agents are told without a person, or one workspace's text reaches another through lessons.
   - Next decision: keep prompt proposals and drop shared lessons, or share lessons only through packs.
+
+## Phase 29: Stop all agents and searchable pickers
+
+Owner approval 2026-11-13 (Requirements 64.12–64.16 and 71, design §4.11
+and §8.9). Numbered after Phase 28 because task IDs never move.
+
+- [ ] 29.1 Stop all agents in the backend and CLI, after 24.1 [R64.12, R64.14–R64.16] (§4.11)
+  - `flow.stop {full: true}` is person only (MCP refused), needs the app backend's session stopper, records a full `all` stop with the sessions it stopped, stops each live tick-opened session, marks stopped bindings and attempts "Interrupted by stop" without spending a retry, holds checks and review sessions while open; Resume turns interrupted deliveries back to `failed` so the next tick re-dispatches on the same worktree, agent and model with a brief that says so; `avoozl flow stop --full`.
+- [ ] 29.2 Stop all agents in the dialog, after 29.1 and 24.2 [R64.12, R64.13] (§4.11)
+  - The dialog's two choices, the full stop's confirm warning that replies in progress are lost and saved files are kept, and the banner's count of stopped chats.
+- [ ] 29.3 One searchable picker for tasks and specs, after 24.2 [R71] (§8.9)
+  - `Picker.tsx` combobox with ID, title and spec matching, state badges, the keys and ARIA of §8.9, and at most 50 rendered results; used in the Stop the line target, the filter panels and Start now; a test filters 5,000 tasks.
