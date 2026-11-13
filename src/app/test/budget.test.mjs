@@ -17,6 +17,7 @@ import {
   validateTrackedBudgets,
 } from "../budget.mjs";
 import { ingestUsage } from "../flow-usage.mjs";
+import { DEFAULT_PRICES, defaultPrice, priceKey } from "../default-prices.mjs";
 import { Operations } from "../operations.mjs";
 import { validatePack } from "../plugin-pack.mjs";
 import { parseSpec } from "../spec-plans.mjs";
@@ -391,4 +392,84 @@ test("a person only: agents, MCP and app tokens cannot raise, stop or price", as
         ops.execute(name, { taskId: "a1", usd: 5 }, undefined, context),
         (e) => e.status === 403,
       );
+});
+
+test("built-in prices apply with no setup, and an override wins", () => {
+  const table = { models: {}, defaults: DEFAULT_PRICES };
+  // 1M in at $3 and 1M out at $15.
+  assert.equal(
+    priceTurn(
+      { model: "claude-sonnet-4.5", credits: 0, input: 1e6, output: 1e6 },
+      table,
+    ),
+    18,
+  );
+  assert.equal(
+    priceTurn(
+      {
+        model: "anthropic.claude-sonnet-4-5-20250929-v1:0",
+        credits: 0,
+        input: 1e6,
+        output: 0,
+      },
+      table,
+    ),
+    3,
+    "provider prefixes, dates and dashed versions find the same price",
+  );
+  const override = {
+    models: {
+      "claude-sonnet-4.5": { inputPerMTokUsd: 1, outputPerMTokUsd: 1 },
+    },
+    defaults: DEFAULT_PRICES,
+  };
+  assert.equal(
+    priceTurn(
+      { model: "claude-sonnet-4.5", credits: 0, input: 1e6, output: 0 },
+      override,
+    ),
+    1,
+  );
+  assert.equal(
+    priceTurn(
+      { model: "no-such-model", credits: 0, input: 1e6, output: 0 },
+      table,
+    ),
+    null,
+  );
+  assert.match(DEFAULT_PRICES.updated, /^\d{4}-\d{2}-\d{2}$/);
+  assert.ok(DEFAULT_PRICES.sources.every((url) => url.startsWith("https://")));
+});
+
+test("a turn billed in credits counts against the credit cap until a credit price is set", () => {
+  const table = { models: {}, defaults: DEFAULT_PRICES };
+  const credited = {
+    model: "claude-sonnet-4.5",
+    credits: 3,
+    input: 1e6,
+    output: 0,
+  };
+  assert.equal(priceTurn(credited, table), null);
+  assert.equal(priceTurn(credited, { ...table, creditUsd: 0.5 }), 1.5);
+  assert.equal(priceKey("claude-opus-4-1-20250805"), "claude-opus-4.1");
+  assert.equal(defaultPrice("CLAUDE-HAIKU-4.5")?.outputPerMTokUsd, 5);
+});
+
+test("prices.get shows the built-in table, its date, and how each model is budgeted", async (t) => {
+  const { store, ops } = setup(t, [leaf("a1")], { budget: { tokens: 900 } });
+  const binding = bind(store, "a1");
+  ingestUsage(store, binding, [
+    turn("2026-11-13T10:00:00Z", "claude-sonnet-4.5", 10, 10),
+    turn("2026-11-13T10:01:00Z", "kiro-model", 10, 10, 2),
+    turn("2026-11-13T10:02:00Z", "local-x", 10, 10),
+  ]);
+  const view = await ops.execute("prices.get", {});
+  assert.equal(view.defaults.updated, DEFAULT_PRICES.updated);
+  assert.deepEqual(view.caps, { tokens: 900, credits: DEFAULT_CAPS.credits });
+  const by = Object.fromEntries(view.seen.map((s) => [s.model, s.priced]));
+  assert.deepEqual(by, {
+    "claude-sonnet-4.5": "default",
+    "kiro-model": "credits",
+    "local-x": "none",
+  });
 });

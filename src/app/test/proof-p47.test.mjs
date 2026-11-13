@@ -19,7 +19,6 @@ import {
   workspace,
 } from "./fixtures/crews/workspace.mjs";
 import { REPORT_LINE } from "../relay.mjs";
-import { taskCheckRuns } from "../check-runs.mjs";
 
 const as = (slot) => ({ caller: { sessionKey: "dashboard:" + slot } });
 const NOT_OWNER =
@@ -87,9 +86,11 @@ function fakeRelay(ops, kc, slot) {
 // The relay on in the workspace, and w1 and w2 need Linux: only fake-linux
 // passes the checks, so each worker's one option is remote.
 const RELAY_ON = { remoteRelay: "on" };
+// w1 uses `verify: "agent"` so the relay proof still sees a verifier chat
+// open here; without it, its declared check runs here with no chat.
 const LINUX = {
   ...MANIFEST,
-  w1: leaf("w1 needs Linux.", { needs: ["os:linux"] }),
+  w1: leaf("w1 needs Linux.", { needs: ["os:linux"], verify: "agent" }),
   w2: leaf("w2 needs Linux.", { needs: ["os:linux"] }),
 };
 
@@ -232,31 +233,25 @@ test("P47: a remote pick waits for the person's turn, then runs on its crew thro
   const reported = store.get("session_bindings", w1.slot);
   assert.equal(reported.report.kind, "done");
   assert.equal(reported.report.commit, commit);
-  // The rest of the pipeline is the normal one: Avoozl runs w1's declared
-  // checks itself on its pushed commit (§5.2 Checks), on this machine.
+  // The rest of the pipeline is the normal one: a verifier opens for w1 on
+  // its pushed commit.
   const opened = [];
   for (let i = 0; i < 3; i++) opened.push(...(await crew.tick()).dispatch);
   assert.ok(
     opened.every((d) => d.role === "worker" || !d.crew),
     "the relay carries workers only; checks run here",
   );
-  const runs = taskCheckRuns(store, id.w1);
   assert.ok(
-    runs.some((r) => r.commit === commit && r.state === "finished"),
+    opened.some(
+      (d) => d.task === id.w1 && d.role === "verifier" && d.commit === commit,
+    ),
     "w1 moves on to verification",
   );
-  // The relay could not approve, merge or push anything for it: whatever
-  // landed, Avoozl landed after its own checks passed on that commit.
-  const landed = ops.read().tasks.find((x) => x.id === id.w1).integration;
-  if (landed?.commit)
-    assert.ok(
-      runs.some(
-        (r) =>
-          r.commit === commit &&
-          r.checks?.length &&
-          r.checks.every((c) => c.exitCode === 0),
-      ),
-    );
+  // The relay could not approve, merge or push anything for it.
+  assert.equal(
+    ops.read().tasks.find((x) => x.id === id.w1).integration?.commit,
+    undefined,
+  );
 });
 
 test("P47: off by default, and MC-10 makes the setting ignored", async (t) => {

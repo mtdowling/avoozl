@@ -68,3 +68,4 @@ body {
 button { color: inherit; background: var(--bg-elevated); border: 1px solid var(--border); }
 button[data-primary] { background: var(--accent); color: #fff; border-color: var(--accent); }
 input, select, textarea { color: inherit; background: var(--bg); border: 1px solid var(--border); }
+.underline { text-decoration-line: underline; }

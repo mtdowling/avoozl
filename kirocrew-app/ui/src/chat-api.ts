@@ -16,7 +16,17 @@ export interface ChatSeed {
   plan?: string
   // An idea's id, for Riff on this (R63.8).
   idea?: string
-  purpose?: 'resolve' | 'discuss-plan' | 'riff-idea'
+  purpose?: 'resolve' | 'discuss-plan' | 'riff-idea' | 'help'
+  // Ask for help (§8.9): where the person is and the settings there.
+  help?: HelpSeed
+}
+
+export interface HelpSeed {
+  page: string
+  section?: string
+  says?: string
+  settings?: { key: string; value: string | number | boolean | null }[]
+  docs?: string
 }
 
 export interface ItemRef {

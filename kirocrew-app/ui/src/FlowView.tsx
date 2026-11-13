@@ -2,7 +2,7 @@
 // last retro proposed. Read-only except Approve, Reject, Run a retro now,
 // and Run anyway on a stopped line. Pull requests and CI runs stay in Issue
 // Radar and GitHub; this tab shows graph and delivery timing only.
-import { useCallback, useMemo, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useAppApi } from '@kirocrew/app-sdk'
 import { Btn, Card, EmptyState, SegmentedControl } from '@kirocrew/app-sdk/ui'
 import { LessonsView, ProposalsView } from './FlowMemory.tsx'
@@ -31,7 +31,9 @@ import {
   duration,
   evidenceText,
   filterActive,
+  LINE_EVENT,
   flowClient,
+  lineChanged,
   metricCards,
   pdcaText,
   proposalText,
@@ -98,6 +100,7 @@ export function LineBanner({ stops, workspaceId, onChanged }: { stops: LineStop[
     try {
       await client.runAnyway(workspaceId, stop.id)
       onChanged?.()
+      lineChanged()
     } catch (caught) {
       setError(errorMessage(caught))
     }
@@ -116,6 +119,7 @@ export function LineBanner({ stops, workspaceId, onChanged }: { stops: LineStop[
     try {
       await client.resume(workspaceId, stop.id)
       onChanged?.()
+      lineChanged()
     } catch (caught) {
       setError(errorMessage(caught))
     }
@@ -413,6 +417,12 @@ export default function FlowView({ workspaceId }: { workspaceId: string | null }
   const key = JSON.stringify(filter)
   const load = useCallback((id: string) => client.view(id, JSON.parse(key)), [client, key])
   const { value: view, error, busy, reload } = useRead(workspaceId, load)
+  // The top row's Stop the line reads the banner again here too.
+  useEffect(() => {
+    const again = () => void reload()
+    window.addEventListener(LINE_EVENT, again)
+    return () => window.removeEventListener(LINE_EVENT, again)
+  }, [reload])
   const setField = (change: Partial<FlowFilter>) => setFilter({ ...filter, ...change })
   const [unit, setUnit] = useState<Unit>('day')
   // Overview (timing and retros), Proposals and Lessons (design §4.18).
