@@ -1979,7 +1979,7 @@ process improves without my asking and without changing on its own.
 
 1. Avoozl SHALL start a retrospective WHEN `flow.retro.everyTasks` tasks
    (default 10) have finished since the last one, WHEN a task's lead time
-   passes `flow.retro.slowFactor` (default 2) times the median lead time of
+   passes `flow.retro.slowFactor` (default 3) times the median lead time of
    that repository's last 20 finished tasks (with at least 5 of them), WHEN
    a task starts its third attempt, or WHEN one CI wait passes
    `flow.retro.slowFactor` times that repository's median CI wait (with at

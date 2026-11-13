@@ -235,7 +235,7 @@ can override them). The Flow view shows where the time went.
   run in one session and one worktree, one commit per task. A failing batch
   splits. `1` turns it off.
 - **Retro** (`retro.everyTasks`, default `10`; `retro.slowFactor`, default
-  `2`): a tool-less `avoozl-retro` session names the biggest slowdown and
+  `3`): a tool-less `avoozl-retro` session names the biggest slowdown and
   proposes up to three changes. You approve or reject each, and an approved
   change is measured afterward.
 

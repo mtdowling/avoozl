@@ -374,6 +374,43 @@ test("a retry trigger within an hour of the last retro waits for the next count 
   );
 });
 
+test("a slow task triggers a retro past 3x the usual lead time by default; a saved factor stays", (t) => {
+  const run = (saved, coding) => {
+    const s = setup(t, 6),
+      config = saved ? { flow: { retro: { slowFactor: saved } } } : {};
+    const clock = s.finish(s.ids.slice(0, 5)),
+      at = (m) => new Date(clock + m * 60_000).toISOString();
+    s.store.db
+      .prepare("INSERT INTO flow_spans VALUES (?,?,?,?,?,?,?,?,?,?)")
+      .run(
+        "ct6",
+        "t6",
+        1,
+        null,
+        "worker",
+        "coding",
+        at(0),
+        at(coding),
+        "events",
+        null,
+      );
+    s.store.mutate("finish t6", (data) => {
+      data.tasks.find((x) => x.id === "t6").integration = {
+        commit: "x",
+        at: at(coding),
+      };
+    });
+    const step = retroStep(s.store, config, { now: clock + 200 * 60_000 });
+    return step.retro
+      ? s.store.get("flow_retros", step.retro).triggers.map((x) => x.kind)
+      : [];
+  };
+  // The usual lead time is 40 min.
+  assert.deepEqual(run(null, 100), [], "2.5x is not slow by default");
+  assert.deepEqual(run(null, 130), ["slow"], "3.25x is slow by default");
+  assert.deepEqual(run(2, 100), ["slow"], "a saved 2x is kept");
+});
+
 test("a retro keeps at most 3 of its own proposals, plus the reverts it owes", async (t) => {
   const s = setup(t, 10);
   const revert = {
