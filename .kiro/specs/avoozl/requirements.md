@@ -4167,7 +4167,41 @@ step by hand when I want it.
    **Integrate** on the Ready to merge item.
 5. Avoozl SHALL still never merge a pull request itself.
 
-### Requirement 81: Demo mode with a guided tour
+### Requirement 81: Review a task's changes in the drawer
+
+Added 2026-11-13 (owner request). Design §8.10.
+
+**User story:** As the owner, I want to see what a worker changed from the
+task drawer, so that I can review a task without leaving Avoozl.
+
+#### Acceptance criteria
+
+1. The task drawer SHALL have a Files section with a read-only tree of the
+   files the task's branch changed against where it left its base, each
+   with an added, modified, deleted or renamed badge and its line counts,
+   and the totals. A Show all files choice SHALL add every file in the
+   worktree or branch. Nothing in it SHALL write.
+2. A click on a file SHALL show its unified diff, colored with the page's
+   theme variables, with a Split choice that shows it side by side. A
+   binary file, a link, or a diff over the size cap SHALL be summarized,
+   not drawn.
+3. For a task whose worktree is on this machine, the section SHALL offer
+   Open in editor for the worktree and for the shown file, as a `kiro://`
+   or `vscode://` link. A choice on the page SHALL pick the editor,
+   default Kiro. For a task on another crew, or with no worktree, the
+   section SHALL link the task's branch on GitHub instead.
+4. `task.files` and `task.diff` SHALL be read-only operations that MCP may
+   call. They SHALL read with Git only, with fixed arguments, `--` before
+   every path, literal pathspecs and no shell, against the task's worktree
+   or branch.
+5. `task.diff` SHALL refuse a path that is absolute, has a `..`, `.` or
+   empty part, a backslash or NUL, or that Git does not list for the
+   task; it SHALL never follow a link out of the worktree. A ref from
+   settings that could read as an option SHALL never reach Git.
+6. File lists and diffs SHALL be capped in size, and tests SHALL show the
+   path and argument rules failing without them.
+
+### Requirement 82: Demo mode with a guided tour
 
 Added 2026-11-13 (owner request). Design §6.11.
 

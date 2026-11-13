@@ -1,4 +1,4 @@
-// Demo mode (Requirement 81, design §6.11): the sample installs once and
+// Demo mode (Requirement 82, design §6.11): the sample installs once and
 // all at once, keeps edits on a second start, answers every change with a
 // preview, never writes to GitHub or starts an agent, and leaves the
 // person's own workspace and settings exactly as they were.

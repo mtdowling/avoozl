@@ -5938,7 +5938,59 @@
     "35.1": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 35 (Demo mode). See R81; §6.11.",
+      "summary": "Phase 35 (Review a task's changes in the drawer). See R81.4–R81.6; §8.10.",
+      "acceptance": [
+        "Read a task's changed files and diffs, after 2.6",
+        "task.files and task.diff read with Git only, refuse paths outside the task's worktree and option-shaped inputs, cap their output, and MCP may call both."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "2.6"
+      ]
+    },
+    "35.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 35 (Review a task's changes in the drawer). See R81.1–R81.3; §8.10.",
+      "acceptance": [
+        "Files fold in the task drawer, after 35.1",
+        "The drawer's Files fold shows the changed-file tree with badges and counts, Show all files, unified and split diffs with summaries for binaries and large files, Open in editor links (Kiro by default), and the GitHub branch for remote tasks."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "35.1"
+      ]
+    },
+    "avoozl-p46": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 35 (Review a task's changes in the drawer). Proof. See R81; §8.10.",
+      "acceptance": [
+        "Proof: review a task's changes in the drawer",
+        "Expected: each change has its badge and counts; text diffs show and binaries, large files and links are summarized; every path or option-shaped input outside the rules is refused and nothing outside the worktree is read or written; a removed worktree reads the branch; MCP gets both reads; the fold draws unified and split diffs and editor links follow the choice."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "35.1",
+        "35.2"
+      ]
+    },
+    "36.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 36 (Demo mode). See R82; §6.11.",
       "acceptance": [
         "Demo sample, fake GitHub and preview gate, after 3.7",
         "The sample installs once and whole, keeps edits, previews every change, and no GitHub write or agent start is reachable."
@@ -5952,12 +6004,12 @@
         "3.7"
       ]
     },
-    "35.2": {
+    "36.2": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 35 (Demo mode). See R81; §6.11.",
+      "summary": "Phase 36 (Demo mode). See R82; §6.11.",
       "acceptance": [
-        "Demo badge, bar, tour and exit, after 35.1 and 31.3",
+        "Demo badge, bar, tour and exit, after 36.1 and 31.3",
         "The tour walks the nine pages with keys and reduced motion, a change shows its preview, and Exit demo returns to the person's workspace."
       ],
       "completion": "integrated",
@@ -5966,16 +6018,16 @@
         "git diff --check"
       ],
       "requires": [
-        "35.1",
+        "36.1",
         "31.3"
       ]
     },
-    "35.3": {
+    "36.3": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 35 (Demo mode). See R81; §6.11.",
+      "summary": "Phase 36 (Demo mode). See R82; §6.11.",
       "acceptance": [
-        "README and screenshots, after 35.2",
+        "README and screenshots, after 36.2",
         "The README says how to start the demo, and screenshots show it at three widths in light and dark."
       ],
       "completion": "integrated",
@@ -5984,7 +6036,7 @@
         "git diff --check"
       ],
       "requires": [
-        "35.2"
+        "36.2"
       ]
     }
   }
