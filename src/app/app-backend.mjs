@@ -251,6 +251,8 @@ const APP_OPERATIONS = new Set([
   "prompt.override.rebase",
   "plugin.lessons.import",
   "lessons.export",
+  "lessons.share.preview",
+  "lessons.share",
   "github.settings.get",
   "github.trigger.preview",
   "github.settings.validate",

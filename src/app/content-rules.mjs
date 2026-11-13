@@ -1264,7 +1264,7 @@ export function showDecisionLine(store, id) {
     ) {
       const text = execFileSync(
         "git",
-        ["show", `${source.commit}:${source.file}`],
+        ["show", `${revision(source.commit)}:${source.file}`],
         {
           cwd: source.root,
           encoding: "utf8",
@@ -1701,9 +1701,24 @@ const gitSync = (root, args) =>
     stdio: ["ignore", "pipe", "ignore"],
   });
 
+// A revision that reaches git as a positional argument. A caller (a pushed
+// line, an MCP content check) names it, so a leading dash would be read as
+// an option: `--output=FILE` makes git diff write over FILE.
+export function revision(value) {
+  if (
+    typeof value !== "string" ||
+    !value ||
+    value.startsWith("-") ||
+    /[\0-\x20\x7f]/.test(value)
+  )
+    fail("Name a commit or branch, not an option.", 400);
+  return value;
+}
+
 // The commit a task's work is measured against: the merge base of `head`
 // with the project's integration branch when it exists, else its base.
 export function diffBase(project, head) {
+  revision(head);
   for (const branch of [
     project.integrationBranch,
     project.baseBranch || "main",
@@ -1721,6 +1736,8 @@ export function diffBase(project, head) {
 
 // [{target: file, line, text}] for each line `head` adds over `base`.
 export function addedLines(root, base, head) {
+  revision(head);
+  if (base) revision(base);
   const out = gitSync(root, [
     "diff",
     "--unified=0",
