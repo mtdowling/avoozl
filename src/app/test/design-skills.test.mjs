@@ -94,6 +94,6 @@ test("avoozl-rules lists the boundaries, actions and built-in sets the matcher h
 // Private names come from the release scan's local terms file, never from
 // this test; the public rules catch secrets and machine paths.
 test("the design skills pass the release scan", () => {
-  for (const name of ["avoozl-plugin", "avoozl-rules"])
+  for (const name of ["avoozl-plugin", "avoozl-rules", "avoozl-costs"])
     assert.deepEqual(scanText(skill(name), RULES), [], name);
 });

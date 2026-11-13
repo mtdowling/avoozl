@@ -86,12 +86,47 @@ export interface SwitchPreview {
   previewHash: string
 }
 
+// The dry run behind Switch model's step 2 (provider.switch.dryRun).
+export interface DryRunChat {
+  slot: string
+  taskId: string
+  title: string
+  spec: string | null
+  role: string
+  model: string | null
+  to: string
+  where: string
+}
+export interface DryRunSkip {
+  slot: string | null
+  taskId: string
+  title: string
+  spec: string | null
+  role: string | null
+  model: string | null
+  where: string | null
+  why: string
+}
+export interface SwitchDryRun {
+  to: string
+  alsoNewTasks: boolean
+  chats: DryRunChat[]
+  skipped: DryRunSkip[]
+  marks: { scope: 'provider' | 'model'; name: string; to: string }[]
+  // Null when the ready tasks could not be read.
+  queued: { taskId: string; title: string; spec: string | null; model: string }[] | null
+  counts: { switch: number; cannot: number; queued: number | null }
+  previewHash: string
+}
+
 export function providersClient(api: AppApi) {
   const run = <T>(workspaceId: string, operation: string, input: Record<string, unknown> = {}) =>
     api.post<{ result: T }>(COMMAND_PATH, { operation, input, workspaceId }).then((reply) => reply.result)
   return {
     view: (workspaceId: string) => run<ProvidersView>(workspaceId, 'providers.view'),
     preview: (workspaceId: string, input: { from: From; to: string }) => run<SwitchPreview>(workspaceId, 'provider.switch.preview', input),
+    dryRun: (workspaceId: string, input: { from: From; to: string; alsoNewTasks: boolean }) =>
+      run<SwitchDryRun>(workspaceId, 'provider.switch.dryRun', input),
     switch: (
       workspaceId: string,
       input: {
@@ -100,7 +135,7 @@ export function providersClient(api: AppApi) {
         alsoNewTasks: boolean
         previewHash: string
       },
-    ) => run<{ queued: number }>(workspaceId, 'provider.switch', input),
+    ) => run<{ queued: number; marked: string[] }>(workspaceId, 'provider.switch', input),
     clear: (workspaceId: string, id: string) => run(workspaceId, 'provider.health.clear', { id }),
     save: (workspaceId: string, input: { providers: ProviderSettings; expectedHash: string | null }) =>
       run<{ hash: string }>(workspaceId, 'providers.settings.update', input),
@@ -117,12 +152,38 @@ export function fromInput(kind: 'provider' | 'model' | 'tasks', value: string, t
   return kind === 'provider' ? { provider: name } : { model: name }
 }
 
-// The providers and models the running chats use, for From's dropdowns.
-export function fromOptions(chats: LiveChat[]) {
-  const providers = [...new Set(chats.map((c) => c.provider).filter((p): p is string => Boolean(p)))].sort()
-  const models = [...new Set(chats.map((c) => c.model).filter((m): m is string => Boolean(m)))].sort()
+// From's dropdowns: the providers and models the running chats use, plus
+// the ones the health list marks (a limit key may be either, so it is left
+// out), and the running tasks.
+export function fromOptions(chats: LiveChat[], marks: Mark[] = []) {
+  const named = (scope: Mark['scope']) => marks.filter((m) => m.scope === scope).map((m) => m.name)
+  const providers = [...new Set([...chats.map((c) => c.provider), ...named('provider')].filter((p): p is string => Boolean(p)))].sort()
+  const models = [...new Set([...chats.map((c) => c.model), ...named('model')].filter((m): m is string => Boolean(m) && m !== 'auto'))].sort()
   const tasks = [...new Set(chats.map((c) => c.taskId))].sort()
   return { providers, models, tasks }
+}
+
+// What changed between two dry runs of the same choice: chats that joined,
+// chats that left, and whether the new-task marks moved.
+export function dryRunDiff(before: SwitchDryRun, after: SwitchDryRun) {
+  const key = (c: DryRunChat) => `${c.slot}\u0000${c.model ?? ''}`
+  const was = new Set(before.chats.map(key)),
+    now = new Set(after.chats.map(key))
+  const mark = (m: SwitchDryRun['marks'][number]) => `${m.scope}:${m.name}`
+  return {
+    added: after.chats.filter((c) => !was.has(key(c))),
+    removed: before.chats.filter((c) => !now.has(key(c))),
+    marks: before.marks.map(mark).join() !== after.marks.map(mark).join(),
+  }
+}
+
+// Step 3's words for a finished switch.
+export function switchResultText(result: { queued: number; marked?: string[] }, to: string): string {
+  const chats = result.queued
+    ? `Queued ${result.queued} running chat${result.queued === 1 ? '' : 's'} to ${to}. Each moves at its next turn.`
+    : 'No running chat was moved.'
+  const marked = result.marked?.length ? ` New tasks skip ${result.marked.join(', ')} until you undo it.` : ''
+  return chats + marked
 }
 
 const SOURCE: Record<Mark['source'], string> = {
