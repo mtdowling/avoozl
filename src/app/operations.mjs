@@ -337,6 +337,7 @@ import {
   updateCrews,
   updateRouting,
 } from "./routing.mjs";
+import { forgetRelay, relayCall, relayNeedsYou } from "./relay.mjs";
 import { claimTask, nextView } from "./runner.mjs";
 import { supersedeTask } from "./supersede.mjs";
 
@@ -2221,6 +2222,21 @@ export class Operations {
       return result;
     }
     if (name === "crews.update") return updateCrews(store, input);
+    // The Remote relay (relay.mjs): the relay chat's own calls, and Forget,
+    // which only a person presses on the Routing page.
+    if (name === "relay.call")
+      return relayCall(store, input, callerSlot(context.caller), {
+        report: (report) =>
+          reportSession(store, report, context.caller, {
+            placement: this.placement,
+            flow: readFlowPolicy(this.workspaceRoot),
+          }),
+      });
+    if (name === "relay.forget") {
+      if (context.caller || context.mcp)
+        fail("Only a person forgets the relay chat, on the Routing page.", 403);
+      return forgetRelay(store);
+    }
     // Provider health and model switches (§4.20, R72). The writes are a
     // person's: mcp-policy.mjs refuses them for MCP, the backend for tokens.
     if (name === "providers.view")
@@ -2451,6 +2467,8 @@ export class Operations {
         view = conflictsView(store, data),
         policy = readGitHubPolicyOrNull(this.workspaceRoot);
       // Crews that asked for a person on issues no task owns (R52.10).
+      // Remote tasks waiting on the person's turn in the relay (R41.20).
+      view.items.push(...relayNeedsYou(store));
       view.items.push(
         ...radarNeedsYou(
           untriagedView(
