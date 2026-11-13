@@ -1771,6 +1771,16 @@ export class Operations {
     // Budgets and receipts (§4.17). Raise, Stop, Acknowledge, Switch to
     // stop and the price table are a person's only (R67.9).
     if (name === "budget.view") return budgetView(store, this.read());
+    if (
+      name.startsWith("budget.") &&
+      ![
+        "budget.view",
+        "budget.settings.get",
+        "budget.settings.update",
+      ].includes(name) &&
+      (typeof input.taskId !== "string" || !input.taskId)
+    )
+      fail("Name the task: taskId.");
     if (name === "budget.receipt")
       return budgetReceipt(
         store,
