@@ -31,6 +31,7 @@ import {
   validateTrackedRouting,
 } from "./placement.mjs";
 import { contentBinding, resolveSets } from "./content-rules.mjs";
+import { routerAnswer } from "./router.mjs";
 import { listSessionBindings } from "./session-bindings.mjs";
 import { taskRepository, taskRoute } from "../work-model.mjs";
 
@@ -385,6 +386,21 @@ export function placeOne(store, data, ctx, state, input) {
   // sessions): it runs on local when the rules allow that, else waits.
   let candidates = allowed;
   if (!preview && !ctx.mc10) candidates = allowed.filter((id) => id === LOCAL);
+  // The model router ranks only what the rules allow (R41.7); it never
+  // holds the tick, and any failure falls back to the scorer.
+  let routerNote = null;
+  if (ctx.config.router.enabled && !preview && candidates.length > 1 && role === "worker") {
+    const answer = routerAnswer(store, ctx, task.id, candidates);
+    if (answer.placing)
+      return { wait: true, noFit: false, why: "placing", removed, evaluation, session, allowed };
+    if (answer.pick) {
+      const crew = ctx.crews.find((c) => c.id === answer.pick.crew),
+        taken = (crew?.running || 0) + (state.crews.get(answer.pick.crew) || 0);
+      if (crew?.available && taken < crew.chatLimit) candidates = [answer.pick.crew];
+      else routerNote = `router: fallback (${answer.pick.crew} has no room)`;
+      if (candidates.length === 1) routerNote = `router: ${answer.pick.reason}`;
+    } else routerNote = `router: fallback (${answer.fallback})`;
+  }
   // Without any rule only the owner's local chat limit applies.
   const crews = ctx.config.active
       ? ctx.crews
@@ -411,7 +427,9 @@ export function placeOne(store, data, ctx, state, input) {
     const key = choiceKey(session);
     state.choices.set(key, (state.choices.get(key) || 0) + 1);
   }
-  const why = evaluation.pin
+  const why = routerNote && !evaluation.pin
+    ? routerNote
+    : evaluation.pin
     ? `rule ${evaluation.pin} pins it`
     : allowed.length === 1
       ? allowed[0] === LOCAL

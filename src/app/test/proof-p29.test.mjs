@@ -7,209 +7,14 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { Operations } from "../operations.mjs";
-import { Store } from "../store.mjs";
 import { commitIn, fakeCrew, git } from "./fake-crew.mjs";
-import { crewDriver } from "./fixtures/crews/driver.mjs";
-import { snapshot } from "./fixtures.mjs";
-import { writeSpec } from "./spec-fixture.mjs";
-import { temporaryDirectory } from "./temporary.mjs";
-
-const XDG = temporaryDirectory("avoozl-p29-xdg-");
-process.env.XDG_CONFIG_HOME = XDG;
-const MACHINE = path.join(XDG, "avoozl", "config.json");
-const CHECK = "scripts/validate.sh";
-const URL = "https://git.example.test/o/app.git";
-
-const IDS = ["c1", "t1", "w1", "w2", "w3", "w4", "u1"];
-const leaf = (summary, extra = {}) => ({
-  kind: "leaf",
-  repository: "app",
-  summary,
-  acceptance: [summary],
-  checks: [CHECK],
-  completion: "integrated",
-  ...extra,
-});
-const MANIFEST = {
-  c1: leaf("c1 is compliance work.", { labels: ["compliance"] }),
-  t1: leaf("t1 tests Windows paths.", { type: "test", paths: ["src/win/**"] }),
-  w1: leaf("w1 plain work."),
-  w2: leaf("w2 plain work."),
-  w3: leaf("w3 plain work."),
-  w4: leaf("w4 plain work."),
-  u1: leaf("u1 needs arm Linux.", {
-    type: "test",
-    labels: ["needs-arm-linux"],
-  }),
-};
-const spec = (ids = IDS) => ({
-  "tasks.md": [
-    "# Tasks",
-    "",
-    ...ids.map((id, i) => `- [ ] ${i + 1} Do ${id}`),
-    "",
-  ].join("\n"),
-  "avoozl/manifest.json": JSON.stringify({
-    tasks: Object.fromEntries(
-      ids.map((id, i) => [String(i + 1), MANIFEST[id]]),
-    ),
-  }),
-});
-export const RULES = [
-  {
-    id: "windows-tests",
-    when: { kinds: ["test"], paths: ["src/win/**"] },
-    on: "any",
-    requireTags: ["os:windows"],
-  },
-  { id: "spread-work", on: "any" },
-  {
-    id: "arm-linux",
-    when: { labels: ["needs-arm-linux"] },
-    requireTags: ["os:linux", "arch:arm64"],
-  },
-  { id: "compliance", when: { labels: ["compliance"] }, keepLocal: true },
-];
-export const CREWS = {
-  local: { tags: ["os:macos", "trust:local"], chatLimit: 2 },
-  "fake-linux": {
-    tags: ["os:linux", "trust:remote"],
-    gitHosts: ["git.example.test"],
-    chatLimit: 2,
-    delivery: "push",
-  },
-  "fake-windows": {
-    tags: ["os:windows", "trust:remote"],
-    gitHosts: ["git.example.test"],
-    chatLimit: 1,
-    delivery: "push",
-  },
-};
-
-const localReading = () => ({
-  source: "node",
-  measuredAt: new Date().toISOString(),
-  memFreeGb: 12,
-  diskFreeGb: 200,
-  loadPerCpu: 0.3,
-});
-
-export async function workspace(
-  t,
-  {
-    routing,
-    machine = null,
-    crews = CREWS,
-    ids = IDS,
-    delivery = {},
-    extra = {},
-    mc10 = true,
-  } = {},
-) {
-  const root = temporaryDirectory("avoozl-p29-"),
-    checkout = path.join(root, "app"),
-    bare = path.join(root, "remote", "app.git");
-  fs.mkdirSync(path.join(checkout, "scripts"), { recursive: true });
-  git(root, "init", "--quiet", "--bare", bare);
-  git(checkout, "init", "-b", "main");
-  git(checkout, "config", "user.name", "Test");
-  git(checkout, "config", "user.email", "test@example.com");
-  // The remote answers as git.example.test; git reads it from the bare repo.
-  git(checkout, "config", `url.${bare}.insteadOf`, URL);
-  git(checkout, "remote", "add", "origin", URL);
-  fs.writeFileSync(path.join(checkout, "README.md"), "app\n");
-  fs.writeFileSync(path.join(checkout, CHECK), "#!/bin/sh\nexit 0\n", {
-    mode: 0o755,
-  });
-  git(checkout, "add", ".");
-  git(checkout, "commit", "-m", "Start");
-  git(checkout, "push", "--quiet", "origin", "main");
-  fs.mkdirSync(path.dirname(MACHINE), { recursive: true });
-  fs.writeFileSync(
-    MACHINE,
-    JSON.stringify(
-      { version: 1, crews, ...(machine ? { routing: machine } : {}) },
-      null,
-      2,
-    ),
-  );
-  const store = new Store(path.join(root, "workspace.sqlite"));
-  t.after(() => store.close());
-  store.importSnapshot({ ...snapshot(), tasks: [], edges: [] });
-  fs.writeFileSync(
-    path.join(root, ".avoozl.json"),
-    JSON.stringify({
-      version: 1,
-      delivery: { concurrency: 10, retries: 2, ...delivery },
-      ...(routing ? { routing } : {}),
-      ...extra,
-    }),
-  );
-  const ops = new Operations(store, {
-    workspaceRoot: root,
-    placement: { localReading },
-  });
-  await ops.execute("project.configure", {
-    id: "app",
-    root: checkout,
-    baseBranch: "main",
-    checks: [[CHECK]],
-  });
-  writeSpec(root, "p29", spec(ids));
-  await ops.execute("plan.create", { spec: "p29" });
-  const preview = await ops.execute("plan.preview", { id: "p29" });
-  await ops.execute("plan.approve", {
-    id: "p29",
-    expectedHash: preview.reviewedHash,
-    expectedRevision: preview.expectedRevision,
-  });
-  const byTitle = Object.fromEntries(
-    ops
-      .read()
-      .tasks.filter((x) => x.planId === "p29")
-      .map((x) => [x.title.replace(/^Do /, ""), x.id]),
-  );
-  const aliases = Object.fromEntries(
-    Object.entries(byTitle).map(([a, id]) => [id, a]),
-  );
-  const driver = crewDriver(store, {
-    root,
-    mc10,
-    crews: {
-      "fake-linux": { name: "fake linux" },
-      "fake-windows": { name: "fake windows" },
-    },
-  });
-  return { root, checkout, bare, store, ops, driver, id: byTitle, aliases };
-}
-
-const passed = [{ command: CHECK, exitCode: 0 }];
-const defaults = (env) => (role) =>
-  role === "worker"
-    ? async ({ session, worktree, report }) => {
-        const commit = session.crew
-          ? env.driver.remoteCommit(session, {
-              url: URL.replace("https://git.example.test/o/app.git", env.bare),
-              base: git(env.checkout, "rev-parse", "main"),
-              file: `src/${session.alias}.txt`,
-              text: `${session.alias}\n`,
-              push: true,
-            })
-          : commitIn(
-              await worktree(),
-              `src/${session.alias}.txt`,
-              `${session.alias}\n`,
-              `Work ${session.alias}`,
-            );
-        await report({ commit });
-        return commit;
-      }
-    : role === "verifier"
-      ? ({ session, report }) =>
-          report({ commit: session.commit, checks: passed })
-      : ({ session, report }) =>
-          report({ commit: session.commit, verdict: "approved" });
+import {
+  CREWS,
+  defaults,
+  MACHINE,
+  RULES,
+  workspace,
+} from "./fixtures/crews/workspace.mjs";
 
 const crewOf = (result) =>
   Object.fromEntries(
@@ -736,4 +541,74 @@ test("P29 action 12: a public remote changes nothing, and the diff boundary chec
   );
   await crew.tick();
   assert.equal(env.store.get("task_deliveries", env.id.w1).state, "done");
+});
+
+test("P29 action 4: the router ranks only allowed crews and falls back when it fails", async (t) => {
+  let clock = Date.now();
+  const run = async (rules, reply) => {
+    const env = await workspace(t, {
+      routing: { rules },
+      machine: {
+        router: {
+          enabled: true,
+          model: "fake-router",
+          timeoutSeconds: 90,
+          instructions: "Prefer fake-windows.",
+        },
+      },
+      ids: ["w1"],
+    });
+    env.ops.placement.now = () => clock;
+    const crew = fakeCrew(env.ops, {
+      aliases: env.aliases,
+      defaults: defaults(env),
+      scripts: { "w1:worker": "hold" },
+    });
+    const first = await crew.tick();
+    const routerSession = first.dispatch.find((d) => d.role === "router");
+    assert.ok(routerSession, "one router session for the batch");
+    assert.equal(routerSession.model, "fake-router");
+    assert.equal(routerSession.agent, "avoozl-router");
+    assert.ok(
+      !first.dispatch.some((d) => d.role === "worker"),
+      "w1 shows placing",
+    );
+    assert.match(routerSession.brief, /Prefer fake-windows/);
+    const { recordRouterReply, routerBatch } = await import("../router.mjs");
+    if (reply === "silent") clock += 91_000;
+    else
+      recordRouterReply(env.store, routerBatch(env.store).id, reply(env.id.w1));
+    const next = (await crew.tick()).dispatch.find((d) => d.role === "worker");
+    return { env, next };
+  };
+  const pick = (id) =>
+    JSON.stringify([
+      { session: id, crew: "fake-windows", reason: "fake model says so" },
+    ]);
+  // The rules do not allow fake-windows: the pick is ignored.
+  const linuxOnly = [{ id: "linux", on: "tags:os:linux" }];
+  const ignored = await run(linuxOnly, pick);
+  assert.notEqual(ignored.next.crew, "fake-windows");
+  assert.match(
+    ignored.next.placement.reason,
+    /router: fallback \(the router named fake-windows, which the rules do not allow\)/,
+  );
+  // They do: it is used and recorded with its reason.
+  const used = await run([{ id: "spread-work", on: "any" }], pick);
+  assert.equal(used.next.crew, "fake-windows");
+  assert.equal(used.next.placement.reason, "router: fake model says so");
+  // A silent model falls back after about 90 seconds, a malformed one at once.
+  const silent = await run([{ id: "spread-work", on: "any" }], "silent");
+  assert.match(
+    silent.next.placement.reason,
+    /router: fallback \(no reply within 90 s\)/,
+  );
+  const malformed = await run(
+    [{ id: "spread-work", on: "any" }],
+    () => "not json",
+  );
+  assert.match(
+    malformed.next.placement.reason,
+    /router: fallback \(the reply was not a list/,
+  );
 });

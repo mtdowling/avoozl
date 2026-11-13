@@ -1766,7 +1766,7 @@ export function planReadyDispatches(store, policy, options = {}) {
             attempt: leaf.attempt,
             delivery: leaf.delivery,
             policy,
-            kept: keptSession(store, leaf.task.id, leaf.delivery),
+            kept: keptSession(store, leaf.task.id),
             skipModels: reviewRoles(policy, leaf.project.id)
               .filter((r) => r.distinctFrom === "model" && r.model)
               .map((r) => r.model),
@@ -1847,30 +1847,31 @@ export function planReadyDispatches(store, policy, options = {}) {
 }
 
 // Pick again (R53.6): the next attempt chooses its agent and model afresh.
+// Kept in meta, not on the delivery, so it can be pressed while the attempt
+// still runs and no delivery record exists yet.
+const PICK_AGAIN = "session.pickAgain";
 export function pickAgain(store, input = {}) {
   const task = findTask(store, input.taskId);
-  return store.transaction(() => {
-    const delivery = store.get("task_deliveries", task.id);
-    if (!delivery) fail(`${task.id} has no attempt to pick again after.`, 409);
-    const last = Math.max(
-      0,
-      ...listSessionBindings(store)
-        .filter((b) => b.taskId === task.id && b.role === "worker")
-        .map((b) => b.attempt),
-    );
-    const next = { ...delivery, pickAgainAfter: last };
-    store.put("task_deliveries", next);
-    return { taskId: task.id, pickAgainAfter: last };
-  });
+  const last = Math.max(
+    0,
+    ...listSessionBindings(store)
+      .filter((b) => b.taskId === task.id && b.role === "worker")
+      .map((b) => b.attempt),
+  );
+  if (!last) fail(`${task.id} has no attempt to pick again after.`, 409);
+  store.transaction(() =>
+    store.setMeta(PICK_AGAIN, { ...(store.getMeta(PICK_AGAIN) || {}), [task.id]: last }),
+  );
+  return { taskId: task.id, pickAgainAfter: last };
 }
 
 // The agent and model a retry keeps (R53.6): the last worker attempt's,
 // unless a person pressed Pick again after it.
-export function keptSession(store, taskId, delivery = store.get("task_deliveries", taskId)) {
+export function keptSession(store, taskId) {
   const last = listSessionBindings(store)
     .filter((b) => b.taskId === taskId && b.role === "worker")
     .sort((a, b) => b.attempt - a.attempt)[0];
-  if (!last || last.attempt <= (delivery?.pickAgainAfter || 0)) return null;
+  if (!last || last.attempt <= (store.getMeta(PICK_AGAIN)?.[taskId] || 0)) return null;
   return { agent: last.agent ?? null, model: last.model ?? null };
 }
 
