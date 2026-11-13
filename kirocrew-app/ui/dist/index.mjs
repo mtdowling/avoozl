@@ -13422,7 +13422,7 @@ function zu(e) {
 						r.progress.total,
 						" tasks done across ",
 						r.members.length,
-						" plans"
+						" specs"
 					]
 				})]
 			}),
