@@ -191,14 +191,9 @@ export function conductorFeedback(store, taskId, slot) {
     : null;
 }
 
-// The Delivery view's line for a covered leaf (R54.4, R54.13).
-export function feedbackView(store, taskId) {
-  let row;
-  try {
-    row = store.get(FEEDBACK, taskId);
-  } catch {
-    return null;
-  }
+// The Delivery view's line for a covered leaf (R54.4, R54.13), from its
+// stored feedback row, or null.
+export function feedbackSummary(row) {
   if (!row) return null;
   const strangers = Object.values(row.strangers || {});
   return {

@@ -2744,16 +2744,21 @@ export function completeParents(store, { now = Date.now() } = {}) {
   const completed = [];
   for (;;) {
     const data = store.read(),
-      ready = data.tasks.filter((parent) => {
+      // Children by parent, built once rather than scanned per parent.
+      childrenOf = new Map();
+    for (const t of data.tasks)
+      if (t.parent !== undefined && t.status !== "superseded") {
+        if (!childrenOf.has(t.parent)) childrenOf.set(t.parent, []);
+        childrenOf.get(t.parent).push(t);
+      }
+    const ready = data.tasks.filter((parent) => {
         if (
           !["epic", "package"].includes(parent.kind) ||
           parent.childrenComplete
         )
           return false;
         // A superseded child is history; its replacement counts instead.
-        const children = data.tasks.filter(
-          (t) => t.parent === parent.id && t.status !== "superseded",
-        );
+        const children = childrenOf.get(parent.id) || [];
         return (
           children.length > 0 &&
           children.every((child) =>

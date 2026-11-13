@@ -23,7 +23,7 @@ import {
 } from "./delivery.mjs";
 import { sessionUrl } from "./notifications.mjs";
 import { projectItemRecords } from "./github-project.mjs";
-import { feedbackView } from "./github-feedback.mjs";
+import { FEEDBACK, feedbackSummary } from "./github-feedback.mjs";
 import { remoteLeaf, routeNeedsYou } from "./routes.mjs";
 import { pluginHealth } from "./plugin-session.mjs";
 import { taskSourceRefs } from "../task-identity.mjs";
@@ -500,6 +500,10 @@ export function deliveryView(store, data) {
     live = liveSessions(store),
     claimed = claimedLeaves(store),
     archivedOf = archivedPlanOf(store),
+    // Pull request feedback rows, read once rather than once per leaf.
+    feedback = new Map(
+      optionalList(store, FEEDBACK).map((row) => [row.id, row]),
+    ),
     unreachableCrews = new Set(
       (store.getMeta("crews.snapshot")?.instances || [])
         .filter((i) => i.reachable === false)
@@ -510,7 +514,8 @@ export function deliveryView(store, data) {
     if (taskKind(task) !== "leaf") continue;
     const id = task.id,
       pullRequests = task.github?.pullRequests || [],
-      links = Array.isArray(task.evidence) ? task.evidence : [];
+      links = Array.isArray(task.evidence) ? task.evidence : [],
+      prFeedback = feedbackSummary(feedback.get(id));
     if (
       !DELIVERY_STATUSES.has(task.status) &&
       !bindings.has(id) &&
@@ -523,7 +528,7 @@ export function deliveryView(store, data) {
       !pullRequests.length &&
       !links.length &&
       !task.githubVerdict?.reviews &&
-      !feedbackView(store, id) &&
+      !prFeedback &&
       !submissions.has(id)
     )
       continue;
@@ -601,7 +606,7 @@ export function deliveryView(store, data) {
       githubReviews: githubReviews(task.githubVerdict),
       // Pull request feedback (§4.13, R54.13): latest event, rounds, and
       // comments not relayed.
-      prFeedback: feedbackView(store, id),
+      prFeedback,
       deliveries: deliveries.get(id) || [],
       rounds: (deliveries.get(id) || []).flatMap(reviewRounds),
       worktrees: worktrees.get(id) || [],

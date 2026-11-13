@@ -381,7 +381,9 @@ export function flowOnReport(
 // holds, so planning a dispatch writes nothing: attempt 1 is ready when its
 // last blocker finished (else when its plan was approved); a later attempt
 // when the one before it was recorded failed or a person retried it.
-export function readyAt(store, data, task, attempt) {
+// `memo` holds the task, edge and approval lookups across calls on the same
+// data, so one tick builds them once instead of once per binding.
+export function readyAt(store, data, task, attempt, memo = {}) {
   if (attempt > 1) {
     const delivery = store.get("task_deliveries", task.id),
       before = delivery?.attempts?.find((a) => a.attempt === attempt - 1);
@@ -389,19 +391,27 @@ export function readyAt(store, data, task, attempt) {
       [before?.at, delivery?.retriedAt].filter(Boolean).sort().at(-1) || null
     );
   }
-  const byId = new Map(data.tasks.map((t) => [t.id, t])),
-    blockers = data.edges
-      .filter((e) => BLOCKING_EDGES.has(e.kind) && e.to === task.id)
-      .map((e) => byId.get(e.from))
-      .filter(Boolean)
-      .map(
-        (t) => finishedAt(t) || t.childrenComplete?.at || t.acceptedAt || null,
-      )
-      .filter(Boolean)
-      .sort();
+  memo.byId ??= new Map(data.tasks.map((t) => [t.id, t]));
+  if (!memo.blockers) {
+    memo.blockers = new Map();
+    for (const e of data.edges)
+      if (BLOCKING_EDGES.has(e.kind)) {
+        if (!memo.blockers.has(e.to)) memo.blockers.set(e.to, []);
+        memo.blockers.get(e.to).push(e.from);
+      }
+  }
+  const blockers = (memo.blockers.get(task.id) || [])
+    .map((id) => memo.byId.get(id))
+    .filter(Boolean)
+    .map(
+      (t) => finishedAt(t) || t.childrenComplete?.at || t.acceptedAt || null,
+    )
+    .filter(Boolean)
+    .sort();
   if (blockers.length) return blockers.at(-1);
   if (!task.planId) return null;
-  const approvals = listOr(store, "approvals")
+  memo.approvals ??= listOr(store, "approvals");
+  const approvals = memo.approvals
     .filter((a) => a.planId === task.planId && a.at)
     .map((a) => a.at)
     .sort();
@@ -423,6 +433,7 @@ export function syncSpans(store, { now = Date.now() } = {}) {
   }
   const own = (taskId) => byTask.get(taskId) || [];
   let data = null;
+  const memo = {};
   for (const binding of bindings.flatMap(perTask)) {
     const { taskId, attempt } = binding;
     if (isRunner(binding)) {
@@ -431,8 +442,9 @@ export function syncSpans(store, { now = Date.now() } = {}) {
         !own(taskId).some((s) => s.stage === "queued" && s.attempt === attempt)
       ) {
         data ||= store.read();
-        const task = data.tasks.find((t) => t.id === taskId),
-          from = task && readyAt(store, data, task, attempt);
+        memo.byId ??= new Map(data.tasks.map((t) => [t.id, t]));
+        const task = memo.byId.get(taskId),
+          from = task && readyAt(store, data, task, attempt, memo);
         if (from && from < binding.boundAt)
           putSpan(store, {
             id: spanId("events", taskId, attempt, null, "queued", from),
