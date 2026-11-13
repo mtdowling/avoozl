@@ -58,7 +58,7 @@ import { useSteppedState } from './NavHistory.tsx'
 import { useRead } from './useRead.ts'
 import { labelsClient, triageRows, type RepositoryLabels } from './untriaged-api.ts'
 import { errorMessage, workspaceClient, type Repository, type WorkspaceList } from './workspace-api.ts'
-import { DangerBtn, IconLabel, SectionHeading, TipBtn, ViewHeading, dangerStyle } from './controls.tsx'
+import { AskForHelp, DangerBtn, IconLabel, SectionHeading, TipBtn, ViewHeading, dangerStyle } from './controls.tsx'
 import { Plus, Trash2 } from './icons.ts'
 import { linkHref } from './views-api.ts'
 import { ThisComputer } from './Driver.tsx'
@@ -769,7 +769,24 @@ function RepositoryEditor(props: {
         {tab === 'triggers' && (
           <div className="flex flex-col gap-5">
             <Section level="sub" title="Label rules" blurb={REPOSITORY_BLURBS.triggers}>
-              {repository.rules.length === 0 && <p className="text-sm text-muted">No rules yet, so labels start nothing. Add one to let a label start work.</p>}
+              {repository.rules.length === 0 && (
+                <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
+                  <span>No rules yet, so labels start nothing. Add one to let a label start work.</span>
+                  <AskForHelp
+                    workspaceId={props.workspaceId}
+                    help={{
+                      page: 'Settings › Repositories › Edit › Triggers',
+                      section: 'Label rules',
+                      says: 'No rules yet, so labels start nothing. Add one to let a label start work.',
+                      settings: [
+                        { key: 'mode', value: props.mode },
+                        { key: 'rules', value: 'none' },
+                      ],
+                      docs: 'README.md, section Deliver through GitHub',
+                    }}
+                  />
+                </p>
+              )}
               {repository.rules.map((rule, index) => (
                 <RuleEditor
                   key={index}

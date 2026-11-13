@@ -17,7 +17,7 @@ import {
 } from './plugins-api.ts'
 import { useRead } from './useRead.ts'
 import { errorMessage } from './workspace-api.ts'
-import { DangerBtn, IconLabel, SectionHeading, TipBtn } from './controls.tsx'
+import { AskForHelp, DangerBtn, IconLabel, SectionHeading, TipBtn } from './controls.tsx'
 import { PackImportDialog } from './PackImport.tsx'
 import { SkillNoteCard } from './FlowMemory.tsx'
 import { flowClient, type SkillNote } from './flow-api.ts'
@@ -293,7 +293,22 @@ export default function PluginsSettings({ workspaceId, onOpenGitHub }: { workspa
         <div className="flex min-w-0 flex-col gap-3" aria-label="Installed plugins">
           {value && !value.plugins.length ? (
             <Card>
-              <EmptyState title="No plugins" subtitle="Nothing loads until a plugin is declared and approved. Add one on the left." />
+              <EmptyState
+                title="No plugins"
+                subtitle="Nothing loads until a plugin is declared and approved. Add one on the left."
+                action={
+                  <AskForHelp
+                    workspaceId={workspaceId}
+                    help={{
+                      page: 'Settings › Plugins',
+                      section: 'No plugins',
+                      says: 'Nothing loads until a plugin is declared and approved. Add one on the left.',
+                      settings: [{ key: 'plugins', value: 'none declared' }],
+                      docs: 'docs/plugins.md, and the avoozl-plugin skill',
+                    }}
+                  />
+                }
+              />
             </Card>
           ) : null}
           {value?.plugins.map((row, i) => (

@@ -278,10 +278,40 @@ function commandLineLayer(options) {
   return value;
 }
 
+// Avoozl's folder inside a second Kiro Crew home, or null. A gateway started
+// with KIROCREW_HOME set to anything but the main home (~/.kiro/crew) is a
+// separate crew, so its Avoozl gets its own config and state there and never
+// opens the main crew's catalog. Kiro Crew passes KIROCREW_HOME, not XDG_*,
+// to an app's backend and MCP server, so this wins over XDG.
+export function crewHomeAvoozlDirectory({
+  env = process.env,
+  home = os.homedir(),
+  platform = process.platform,
+} = {}) {
+  if (!env.KIROCREW_HOME) return null;
+  const p = platform === "win32" ? path.win32 : path.posix;
+  const real = (file) => {
+    try {
+      return fs.realpathSync.native(file);
+    } catch {
+      return p.resolve(file);
+    }
+  };
+  const named = real(env.KIROCREW_HOME),
+    main = real(p.join(home, ".kiro", "crew"));
+  const same =
+    platform === "win32" || platform === "darwin"
+      ? named.toLowerCase() === main.toLowerCase()
+      : named === main;
+  return same ? null : p.join(named, "avoozl");
+}
+
 export function globalAvoozlConfigPath({
   env = process.env,
   home = os.homedir(),
 } = {}) {
+  const scoped = crewHomeAvoozlDirectory({ env, home });
+  if (scoped) return path.join(scoped, "config.json");
   const configHome = env.XDG_CONFIG_HOME
     ? path.resolve(env.XDG_CONFIG_HOME)
     : path.join(home, ".config");
