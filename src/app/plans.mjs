@@ -91,6 +91,9 @@ export function validateProposal(item) {
     fail("route must be local, github or plugin:<id>.");
   if (item.completion !== undefined && !COMPLETIONS.includes(item.completion))
     fail("completion must be one of " + COMPLETIONS.join(", ") + ".");
+  // A step only a person does (R61.9); its other rules are lint's.
+  if (item.manual !== undefined && item.manual !== true)
+    fail("manual may only be true.");
   // Accept only from Avoozl-recorded validation (§5.2, R38.4).
   if (item.acceptFrom !== undefined && item.acceptFrom !== "validation")
     fail('acceptFrom may only be "validation".');
@@ -534,6 +537,7 @@ export function approvePlan(
             "paths",
             "type",
             "session",
+            "manual",
           ].map((key) => task[key] ?? null),
           task.source?.hash ?? null,
           data.edges
@@ -591,6 +595,7 @@ export function approvePlan(
             "session",
             "budget",
             "specBudget",
+            "manual",
           ]
             .filter((key) => proposal[key] !== undefined)
             .map((key) => [key, proposal[key]]),
@@ -675,6 +680,7 @@ export function approvePlan(
           "budget",
           "specBudget",
           "phase",
+          "manual",
         ])
           if (design[key] === undefined) delete existing[key];
         delete existing.epic;

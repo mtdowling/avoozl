@@ -4,7 +4,8 @@
 // marker carries this workspace's namespace, and only on repositories this
 // machine is the active writer for. Every other workspace previews.
 import { digest, queryTasks, statusComplete } from "../model.mjs";
-import { completionReached, taskKind } from "../work-model.mjs";
+import { completionReached, isManual, taskKind } from "../work-model.mjs";
+import { issueNotesLines, shownNotes } from "./task-notes.mjs";
 import { fail } from "./store.mjs";
 import { parseRepository } from "./github.mjs";
 import { withWorkLock } from "./git.mjs";
@@ -38,9 +39,14 @@ const FIELDS = ["title", "body", "labels", "blockers"];
 // The human-readable managed section. The marker above it is separate so
 // `applied.body` can hash the section without hashing itself.
 // `notes` tell an Issue Radar leaf, which gets no Avoozl brief, that a
-// blocker closed without merged code (R33.9).
-function managedSection(task, plan, requires, notes = []) {
-  const list = requires.map((id) => `- ${id}`).join("\n");
+// blocker closed without merged code (R33.9). A manual leaf says a person
+// closes it (R61.14); `shown` are the links and notes a person ticked Show
+// on the issue (R61.23).
+export const MANUAL_LINE =
+  "Manual task: a person closes this issue or marks it done in Avoozl. No agent works on it.";
+function managedSection(task, plan, requires, notes = [], shown = []) {
+  const list = requires.map((id) => `- ${id}`).join("\n"),
+    entries = issueNotesLines(shown).join("\n");
   return `<!-- avoozl:managed:start -->
 This issue is projected from approved design \`${plan.id}\` at \`${plan.hash.slice(0, 12)}\`.
 ${task.phase ? `\nPhase: ${task.phase.title}\n` : ""}
@@ -49,7 +55,7 @@ ${task.summary || task.nextAction || ""}
 ## Acceptance criteria
 
 ${(task.acceptance || []).map((item) => `- [ ] ${item}`).join("\n")}
-${list ? `\n## Dependencies\n\n${list}\n` : ""}${notes.length ? `\n${notes.map((note) => `> ${note}`).join("\n")}\n` : ""}
+${list ? `\n## Dependencies\n\n${list}\n` : ""}${notes.length ? `\n${notes.map((note) => `> ${note}`).join("\n")}\n` : ""}${isManual(task) ? `\n> ${MANUAL_LINE}\n` : ""}${entries ? `\n## Links and notes\n\n${entries}\n` : ""}
 <!-- avoozl:managed:end -->`;
 }
 
@@ -780,6 +786,7 @@ async function project(
       plan,
       requires,
       blockerNotes(data, task),
+      shownNotes(store, task.id),
     );
     item.blockerTasks = data.edges
       .filter((edge) => edge.to === task.id && BLOCKING.has(edge.kind))
