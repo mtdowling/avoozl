@@ -836,6 +836,120 @@ test("plan.save links an old-style plan to its spec folder as a draft", async (t
   assert.equal(store.list("approvals").length, 2);
 });
 
+// The old plan's blocks named no edges; the graph's edges came from an
+// import or a hand edit, so they carry no planId. The linked spec's manifest
+// now names those same edges, and approval must take them over, not add a
+// second copy of each.
+test("re-approving a linked spec replaces the plan's edges instead of repeating them", async (t) => {
+  const { root, store, ops } = workspace(t);
+  await ops.execute("plan.create", {
+    id: "config",
+    prompt: "Load config",
+    text: legacyText.replace(',"requires":["load"]', ""),
+  });
+  await approve(ops);
+  // Another plan owns a task and an edge into this plan's work.
+  await ops.execute("plan.create", {
+    id: "other",
+    prompt: "Other",
+    text: `# Other\n\n\`\`\`task\n{"id":"prep","title":"Prepare","acceptance":["Ready."],"checks":["npm test"],"track":"catalog"}\n\`\`\`\n`,
+  });
+  await approve(ops, "other");
+  store.mutate("Imported graph", (data) => {
+    data.edges.push(
+      {
+        id: "config-load:requires:config-check",
+        from: "config-load",
+        to: "config-check",
+        kind: "requires",
+        reason: "Imported.",
+      },
+      {
+        id: "other-prep:sequence:config-load",
+        from: "other-prep",
+        to: "config-load",
+        kind: "sequence",
+        planId: "other",
+        reason: "Other plan.",
+      },
+    );
+  });
+  const legacy = await ops.execute("plan.get", { id: "config" }),
+    files = legacySpec(),
+    manifest = JSON.parse(files["avoozl/manifest.json"]);
+  manifest.tasks["config-load"].sequence = ["other-prep"];
+  files["avoozl/manifest.json"] = JSON.stringify(manifest);
+  writeSpec(root, "config", files);
+  await ops.execute("plan.save", {
+    id: "config",
+    spec: "config",
+    expectedHash: legacy.hash,
+  });
+  await approve(ops);
+  const edges = store.read().edges,
+    ids = edges.map((e) => e.id);
+  assert.equal(new Set(ids).size, ids.length, "no repeated edges");
+  assert.deepEqual(
+    edges
+      .filter((e) => e.planId === "config")
+      .map((e) => e.id)
+      .sort(),
+    ["config-load:requires:config-check"],
+    "the plan owns exactly its manifest's edges, minus one another plan owns",
+  );
+  assert.equal(
+    edges.find((e) => e.id === "other-prep:sequence:config-load").planId,
+    "other",
+    "another plan's edge is kept",
+  );
+  // Approving the same revision again changes nothing.
+  const count = edges.length;
+  await approve(ops);
+  assert.equal(store.read().edges.length, count);
+});
+
+test("a failed approval writes nothing and names repeated errors once", async (t) => {
+  const { root, store, ops } = workspace(t);
+  writeSpec(root, "config");
+  await ops.execute("plan.create", { spec: "config" });
+  // A broken row already on disk makes the approval's commit fail validation.
+  for (const id of ["a", "b", "c"])
+    store.db.prepare("INSERT INTO entities VALUES (?,?,?,?)").run(
+      "edge",
+      `ghost-${id}`,
+      999,
+      JSON.stringify({
+        id: `ghost-${id}`,
+        from: "ghost",
+        to: id,
+        kind: "requires",
+      }),
+    );
+  store.cache = null;
+  const before = {
+    revision: store.read().revision,
+    plan: JSON.stringify(store.get("plans", "config")),
+    approvals: store.list("approvals").length,
+    rows: store.db.prepare("SELECT count(*) AS n FROM entities").get().n,
+  };
+  await assert.rejects(approve(ops), (error) => {
+    assert.equal(
+      error.message,
+      "Dangling edge ×3, e.g. ghost → a",
+      "one summary line",
+    );
+    return true;
+  });
+  store.cache = null;
+  assert.equal(store.read().revision, before.revision);
+  assert.equal(JSON.stringify(store.get("plans", "config")), before.plan);
+  assert.equal(store.list("approvals").length, before.approvals);
+  assert.equal(
+    store.db.prepare("SELECT count(*) AS n FROM entities").get().n,
+    before.rows,
+  );
+});
+
 test("plan.save refuses to link a spec that does not fit the plan", async (t) => {
   const { root, store, ops } = workspace(t),
     legacy = await legacyPlan(ops),
