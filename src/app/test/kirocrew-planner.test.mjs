@@ -59,6 +59,12 @@ test("the planner writes files only and reaches read-only Avoozl tools", () => {
     "grep",
     "thinking",
   ]);
+  // Kiro Crew (kiro-cli natively, some other backends at its gate) refuses a write
+  // no allowedPaths entry covers; a relative entry is anchored at the
+  // session's folder, the planning checkout.
+  assert.deepEqual(planner.toolsSettings, {
+    fs_write: { fallbackAction: "deny", allowedPaths: [".kiro/specs/**"] },
+  });
   const served = new Map(servedTools().map((tool) => [tool.name, tool]));
   for (const ref of mcp) {
     assert.ok(ref.startsWith(ownServer), ref + " names one tool of the app");
