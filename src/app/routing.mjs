@@ -340,7 +340,13 @@ export function placeOne(store, data, ctx, state, input) {
   let allowed = [...evaluation.allowed];
   // The hard rules left no crew: say so, not that an agent is missing.
   if (!allowed.length)
-    return { wait: true, noFit: true, why: "no crew fits", removed, evaluation };
+    return {
+      wait: true,
+      noFit: true,
+      why: "no crew fits",
+      removed,
+      evaluation,
+    };
   // The session (R53): after the hard rules, before the scorer.
   const hasAgent = (crew, agent) =>
     !agent || !crew.agents || crew.agents.includes(agent);
@@ -392,14 +398,28 @@ export function placeOne(store, data, ctx, state, input) {
   // The model router ranks only what the rules allow (R41.7); it never
   // holds the tick, and any failure falls back to the scorer.
   let routerNote = null;
-  if (ctx.config.router.enabled && !preview && candidates.length > 1 && role === "worker") {
+  if (
+    ctx.config.router.enabled &&
+    !preview &&
+    candidates.length > 1 &&
+    role === "worker"
+  ) {
     const answer = routerAnswer(store, ctx, task.id, candidates);
     if (answer.placing)
-      return { wait: true, noFit: false, why: "placing", removed, evaluation, session, allowed };
+      return {
+        wait: true,
+        noFit: false,
+        why: "placing",
+        removed,
+        evaluation,
+        session,
+        allowed,
+      };
     if (answer.pick) {
       const crew = ctx.crews.find((c) => c.id === answer.pick.crew),
         taken = (crew?.running || 0) + (state.crews.get(answer.pick.crew) || 0);
-      if (crew?.available && taken < crew.chatLimit) candidates = [answer.pick.crew];
+      if (crew?.available && taken < crew.chatLimit)
+        candidates = [answer.pick.crew];
       else routerNote = `router: fallback (${answer.pick.crew} has no room)`;
       if (candidates.length === 1) routerNote = `router: ${answer.pick.reason}`;
     } else routerNote = `router: fallback (${answer.fallback})`;
@@ -430,17 +450,18 @@ export function placeOne(store, data, ctx, state, input) {
     const key = choiceKey(session);
     state.choices.set(key, (state.choices.get(key) || 0) + 1);
   }
-  const why = routerNote && !evaluation.pin
-    ? routerNote
-    : evaluation.pin
-    ? `rule ${evaluation.pin} pins it`
-    : allowed.length === 1
-      ? allowed[0] === LOCAL
-        ? evaluation.applied.length
-          ? `rules ${evaluation.applied.join(", ")}: local only`
-          : "no rule: local"
-        : `only ${allowed[0]} is allowed`
-      : `${presetOf(ctx.config.pick)}: score ${Math.round(picked.score * 100) / 100}`;
+  const why =
+    routerNote && !evaluation.pin
+      ? routerNote
+      : evaluation.pin
+        ? `rule ${evaluation.pin} pins it`
+        : allowed.length === 1
+          ? allowed[0] === LOCAL
+            ? evaluation.applied.length
+              ? `rules ${evaluation.applied.join(", ")}: local only`
+              : "no rule: local"
+            : `only ${allowed[0]} is allowed`
+          : `${presetOf(ctx.config.pick)}: score ${Math.round(picked.score * 100) / 100}`;
   return {
     crew: picked.crew.id,
     agent: session.agent,

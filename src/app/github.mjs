@@ -204,10 +204,11 @@ export class GitHubClient {
       this.rateLimits.set(header("x-ratelimit-resource") || "core", {
         limit: Number(header("x-ratelimit-limit")),
         remaining: Number(header("x-ratelimit-remaining")),
-        resetAt: new Date(Number(header("x-ratelimit-reset")) * 1000).toISOString(),
+        resetAt: new Date(
+          Number(header("x-ratelimit-reset")) * 1000,
+        ).toISOString(),
       });
-    if (etag && response.status === 304)
-      return { notModified: true, etag };
+    if (etag && response.status === 304) return { notModified: true, etag };
     const text = await response.text();
     const value = text ? JSON.parse(text) : null;
     if (!response.ok) {
@@ -376,7 +377,12 @@ export class GitHubClient {
     const { owner, repo } =
         typeof value === "string" ? parseRepository(value) : value,
       result = await this.request("GET", `/repos/${owner}/${repo}/issues`, {
-        query: { state: "all", sort: "updated", direction: "desc", per_page: 1 },
+        query: {
+          state: "all",
+          sort: "updated",
+          direction: "desc",
+          per_page: 1,
+        },
         headers: true,
         etag: etag || undefined,
       });
@@ -404,7 +410,10 @@ export class GitHubClient {
       if (!Array.isArray(result?.items))
         fail("GitHub returned invalid search data.", 502);
       if (result.incomplete_results)
-        fail("GitHub search returned incomplete results; retrying next tick.", 503);
+        fail(
+          "GitHub search returned incomplete results; retrying next tick.",
+          503,
+        );
       items.push(...result.items);
       if (items.length >= result.total_count || result.items.length < PAGE_SIZE)
         return items.filter((item) => !item.pull_request);

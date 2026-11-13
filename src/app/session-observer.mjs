@@ -16,7 +16,10 @@ import { gatewayClient } from "./gateway-client.mjs";
 import { ingestToolRows, toolCallsReadable } from "./flow.mjs";
 import { recordRetroReply } from "./flow-retro.mjs";
 import { recordRouterReply, routerBatch } from "./router.mjs";
-import { listSessionBindings, recordSessionStatus } from "./session-bindings.mjs";
+import {
+  listSessionBindings,
+  recordSessionStatus,
+} from "./session-bindings.mjs";
 
 // The status of one slot from its GET /api/chat/slots/<slot> body.
 export function slotStatus(body) {
@@ -76,8 +79,13 @@ export function gatewaySlotRows(env = process.env, request = fetch) {
   if (!client) return null;
   return async (slot, cursor = null) => {
     const query = new URLSearchParams({ limit: "200", cursor: "1" });
-    if (cursor?.from !== undefined && cursor?.since !== undefined && cursor?.digest)
-      for (const key of ["from", "since", "digest"]) query.set(key, String(cursor[key]));
+    if (
+      cursor?.from !== undefined &&
+      cursor?.since !== undefined &&
+      cursor?.digest
+    )
+      for (const key of ["from", "since", "digest"])
+        query.set(key, String(cursor[key]));
     const response = await client.call(
       `/api/chat/slots/${encodeURIComponent(slot)}?${query}`,
       { method: "GET" },
@@ -88,7 +96,8 @@ export function gatewaySlotRows(env = process.env, request = fetch) {
     const body = await response.json();
     return {
       rows: Array.isArray(body?.messages) ? body.messages : [],
-      cursor: body?.cursor && typeof body.cursor === "object" ? body.cursor : null,
+      cursor:
+        body?.cursor && typeof body.cursor === "object" ? body.cursor : null,
     };
   };
 }
@@ -101,7 +110,11 @@ export async function observeToolRows(store, readRows, { checksFor } = {}) {
   const errors = [];
   let rows = 0;
   for (const binding of listSessionBindings(store)) {
-    if (binding.role !== "worker" || !toolCallsReadable(binding) || !liveAttempt(binding))
+    if (
+      binding.role !== "worker" ||
+      !toolCallsReadable(binding) ||
+      !liveAttempt(binding)
+    )
       continue;
     const key = "flow.toolCursor." + binding.slot;
     try {
@@ -109,7 +122,10 @@ export async function observeToolRows(store, readRows, { checksFor } = {}) {
       rows += ingestToolRows(store, binding, read.rows, {
         checks: checksFor ? checksFor(binding) : [],
       });
-      if (read.cursor && JSON.stringify(read.cursor) !== JSON.stringify(store.getMeta(key)))
+      if (
+        read.cursor &&
+        JSON.stringify(read.cursor) !== JSON.stringify(store.getMeta(key))
+      )
         store.setMeta(key, read.cursor);
     } catch (error) {
       errors.push({ slot: binding.slot, error: error.message });
@@ -128,7 +144,11 @@ export async function observeRetroReplies(store, readRows) {
     if (store.get("flow_retros", binding.taskId)?.state !== "running") continue;
     try {
       const { rows } = await readRows(binding.slot, null),
-        reply = [...rows].reverse().find((r) => r?.role === "assistant" && typeof r.content === "string");
+        reply = [...rows]
+          .reverse()
+          .find(
+            (r) => r?.role === "assistant" && typeof r.content === "string",
+          );
       if (reply) recordRetroReply(store, binding.taskId, reply.content);
     } catch (error) {
       errors.push({ slot: binding.slot, error: error.message });
@@ -144,10 +164,19 @@ export async function observeRouterReplies(store, readRows) {
     batch = routerBatch(store);
   if (batch?.state !== "running") return { errors };
   for (const binding of listSessionBindings(store)) {
-    if (binding.role !== "router" || binding.taskId !== batch.id || binding.status !== "idle") continue;
+    if (
+      binding.role !== "router" ||
+      binding.taskId !== batch.id ||
+      binding.status !== "idle"
+    )
+      continue;
     try {
       const { rows } = await readRows(binding.slot, null),
-        reply = [...rows].reverse().find((r) => r?.role === "assistant" && typeof r.content === "string");
+        reply = [...rows]
+          .reverse()
+          .find(
+            (r) => r?.role === "assistant" && typeof r.content === "string",
+          );
       if (reply) recordRouterReply(store, batch.id, reply.content);
     } catch (error) {
       errors.push({ slot: binding.slot, error: error.message });

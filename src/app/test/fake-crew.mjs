@@ -55,7 +55,12 @@ export function fakeCrew(
     async tick() {
       const result = await ops.execute("workspace.tick", {
         sessions: roster
-          .filter((slot) => visible(slot, sessions.find((s) => s.slot === slot)))
+          .filter((slot) =>
+            visible(
+              slot,
+              sessions.find((s) => s.slot === slot),
+            ),
+          )
           .map((target) => ({ target, status: "idle" })),
       });
       for (const d of result.dispatch) {

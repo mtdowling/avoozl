@@ -391,14 +391,20 @@ test("a closer whose permission GitHub hides holds instead of failing the tick",
   const { github, run, task, ready } = workspace(t);
   github.permission = () =>
     Promise.reject(
-      Object.assign(Error("Must have push access to view collaborator permission."), {
-        status: 403,
-      }),
+      Object.assign(
+        Error("Must have push access to view collaborator permission."),
+        {
+          status: 403,
+        },
+      ),
     );
   github.close(3, { reason: "not_planned" });
   await run();
   assert.equal(task("c").githubVerdict.state, "held");
-  assert.match(task("c").githubVerdict.reason, /write access .* to check who counts/);
+  assert.match(
+    task("c").githubVerdict.reason,
+    /write access .* to check who counts/,
+  );
   assert.equal(ready().has("c-next"), false);
   assert.deepEqual(github.updates, []);
 });

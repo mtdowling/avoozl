@@ -647,7 +647,13 @@ test("allowedActors alone decides without reading permissions", async () => {
       assignees: [],
       user: { login: "a" },
     },
-    rule = { id: "go", action: "deliver", labelsAll: ["go"], labelsAny: [], labelsNone: [] },
+    rule = {
+      id: "go",
+      action: "deliver",
+      labelsAll: ["go"],
+      labelsAny: [],
+      labelsNone: [],
+    },
     reads = [],
     permissionOf = (login) => {
       reads.push(login);
@@ -743,7 +749,10 @@ test("intake makes one search per repository for all its rules", async (t) => {
     { ops } = await workspace(t, github);
   github.permissions.set("maintainer", "write");
   // Only issues some rule could match have their events read.
-  github.issues = [issue(["bot:build", "area:core"]), { ...issue(["bot:build"]), number: 8, node_id: "n8" }];
+  github.issues = [
+    issue(["bot:build", "area:core"]),
+    { ...issue(["bot:build"]), number: 8, node_id: "n8" },
+  ];
   github.events.set(7, [
     labeled(1, "bot:build", "maintainer", 1),
     labeled(2, "area:core", "maintainer", 2),
@@ -783,7 +792,12 @@ test("the tick backs off quiet repositories and reads again on a change", async 
   const github = new FakeGitHub(),
     { store, root } = await workspace(t, github);
   github.permissions.set("maintainer", "write");
-  github.issues = [{ ...issue(["bot:build", "area:core"]), updated_at: "2026-11-12T10:00:00Z" }];
+  github.issues = [
+    {
+      ...issue(["bot:build", "area:core"]),
+      updated_at: "2026-11-12T10:00:00Z",
+    },
+  ];
   github.events.set(7, [
     labeled(1, "bot:build", "maintainer", 1),
     labeled(2, "area:core", "maintainer", 2),
@@ -791,7 +805,10 @@ test("the tick backs off quiet repositories and reads again on a change", async 
   const policy = readGitHubPolicy(root),
     t0 = Date.parse("2026-11-13T00:00:00Z"),
     at = (seconds) =>
-      syncGitHubIssues(store, github, { policy, pace: { now: t0 + seconds * 1000 } });
+      syncGitHubIssues(store, github, {
+        policy,
+        pace: { now: t0 + seconds * 1000 },
+      });
   await at(0);
   await at(60); // unchanged: quiet once, wait two minutes
   assert.equal(github.searches, 2);
@@ -823,7 +840,10 @@ test("a low GitHub call budget pauses paced intake and warns once", async (t) =>
     resource === "core" ? { limit: 5000, remaining: 120, resetAt } : null;
   const policy = readGitHubPolicy(root),
     now = Date.parse("2026-11-13T00:30:00Z");
-  const first = await syncGitHubIssues(store, github, { policy, pace: { now } });
+  const first = await syncGitHubIssues(store, github, {
+    policy,
+    pace: { now },
+  });
   assert.equal(github.searches, undefined);
   assert.equal(first.throttled.resource, "core");
   assert.equal(first.throttled.resetAt, resetAt);
@@ -857,7 +877,10 @@ test("a conditional activity read wakes a quiet repository at once", async (t) =
   const policy = readGitHubPolicy(root),
     t0 = Date.parse("2026-11-13T00:00:00Z"),
     at = (seconds) =>
-      syncGitHubIssues(store, github, { policy, pace: { now: t0 + seconds * 1000 } });
+      syncGitHubIssues(store, github, {
+        policy,
+        pace: { now: t0 + seconds * 1000 },
+      });
   await at(0);
   await at(60); // quiet: the timer says wait two minutes
   assert.equal(github.searches, 2);

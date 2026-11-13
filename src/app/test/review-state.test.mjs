@@ -50,16 +50,28 @@ test("a hand-set review needs the owner; a real one keeps its reviewer", async (
   const item = conflicts.items.find((x) => x.taskId === "by-hand");
   assert.equal(item.kind, "needs-human");
   assert.equal(item.reason, "hand-set-review");
-  assert.match(item.detail, /Marked in review, but no review is running\. Next: Owner decision: pick one/);
-  assert.equal(conflicts.items.some((x) => x.taskId === "reviewed"), false);
+  assert.match(
+    item.detail,
+    /Marked in review, but no review is running\. Next: Owner decision: pick one/,
+  );
+  assert.equal(
+    conflicts.items.some((x) => x.taskId === "reviewed"),
+    false,
+  );
 
   const delivery = await ops.execute("delivery.view", {});
   const card = delivery.items.find((x) => x.id === "reviewed");
   assert.equal(card.sessions[0].role, "reviewer");
   assert.equal(card.handSetReview, false);
-  assert.equal(delivery.items.find((x) => x.id === "by-hand").handSetReview, true);
+  assert.equal(
+    delivery.items.find((x) => x.id === "by-hand").handSetReview,
+    true,
+  );
   // Nothing about the task row changed.
-  assert.equal(store.read().tasks.find((x) => x.id === "by-hand").status, "review");
+  assert.equal(
+    store.read().tasks.find((x) => x.id === "by-hand").status,
+    "review",
+  );
 });
 
 test("Running means a live session: a closed one, or none, is not running", async (t) => {
@@ -74,14 +86,31 @@ test("Running means a live session: a closed one, or none, is not running", asyn
     );
   });
   store.transaction(() => {
-    store.put("session_bindings", { id: "ended:worker:1", taskId: "ended", slot: "chat-1", role: "worker", attempt: 1, status: "closed" });
-    store.put("session_bindings", { id: "live:checks:1", taskId: "live", slot: "chat-2", role: "checks", attempt: 1, status: "running" });
+    store.put("session_bindings", {
+      id: "ended:worker:1",
+      taskId: "ended",
+      slot: "chat-1",
+      role: "worker",
+      attempt: 1,
+      status: "closed",
+    });
+    store.put("session_bindings", {
+      id: "live:checks:1",
+      taskId: "live",
+      slot: "chat-2",
+      role: "checks",
+      attempt: 1,
+      status: "running",
+    });
   });
   const ops = new Operations(store, { workspaceRoot: root });
   const graph = await ops.execute("graph.view", {});
   const node = (id) => graph.tasks.find((x) => x.id === id);
   assert.deepEqual(
-    ["orphan", "ended", "live"].map((id) => [node(id).state, node(id).noSession]),
+    ["orphan", "ended", "live"].map((id) => [
+      node(id).state,
+      node(id).noSession,
+    ]),
     [
       ["needs-you", "running"],
       ["needs-you", "running"],

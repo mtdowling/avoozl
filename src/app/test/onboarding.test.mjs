@@ -28,7 +28,8 @@ class OnboardGitHub extends FakeGitHub {
     this.reads = [];
   }
   repository(value) {
-    const id = typeof value === "string" ? value : `${value.owner}/${value.repo}`;
+    const id =
+      typeof value === "string" ? value : `${value.owner}/${value.repo}`;
     this.reads.push(id);
     return Promise.resolve({
       node_id: "repo-node",
@@ -41,9 +42,20 @@ class OnboardGitHub extends FakeGitHub {
 
 function checkout(remote) {
   const root = fs.realpathSync(temporaryDirectory("avoozl-onboard-code-"));
-  const git = (...args) => execFileSync("git", args, { cwd: root, stdio: "ignore" });
+  const git = (...args) =>
+    execFileSync("git", args, { cwd: root, stdio: "ignore" });
   git("init", "-q", "-b", "main");
-  git("-c", "user.email=a@b", "-c", "user.name=a", "commit", "-q", "--allow-empty", "-m", "x");
+  git(
+    "-c",
+    "user.email=a@b",
+    "-c",
+    "user.name=a",
+    "commit",
+    "-q",
+    "--allow-empty",
+    "-m",
+    "x",
+  );
   if (remote) git("remote", "add", "origin", remote);
   return root;
 }
@@ -53,8 +65,15 @@ function workspace(t, { visibility } = {}) {
     github = new OnboardGitHub({ visibility }),
     root = temporaryDirectory(),
     settings = path.join(root, ".avoozl.json");
-  fs.writeFileSync(settings, JSON.stringify({ version: 1, namespace: NAMESPACE }, null, 2) + "\n");
-  const ops = new Operations(store, { github, operator: "Owner", workspaceRoot: root });
+  fs.writeFileSync(
+    settings,
+    JSON.stringify({ version: 1, namespace: NAMESPACE }, null, 2) + "\n",
+  );
+  const ops = new Operations(store, {
+    github,
+    operator: "Owner",
+    workspaceRoot: root,
+  });
   return { store, github, ops, root, settings };
 }
 
@@ -74,7 +93,11 @@ const snapshot = ({ store, github, settings }) =>
   });
 
 test("the Onboard reads are classified, page-only and read-only", () => {
-  for (const name of ["onboarding.inspect", "onboarding.scan", "plan.issues.preview"]) {
+  for (const name of [
+    "onboarding.inspect",
+    "onboarding.scan",
+    "plan.issues.preview",
+  ]) {
     assert.equal(classifyOperation(name), "observe", name);
     assert.equal(principalAllows({ kind: "owner-session" }, name), true, name);
     assert.equal(principalAllows({ kind: "app-token" }, name), true, name);
@@ -95,13 +118,23 @@ test("inspect names what a folder already has, with no remote, a non-GitHub remo
   const other = checkout("https://git.example.com/team/code.git");
   found = await ws.ops.execute("onboarding.inspect", { folder: other });
   assert.equal(found.remote, "origin");
-  assert.equal(found.github, null, "a non-GitHub remote is not a GitHub repository");
-  assert.deepEqual(ws.github.reads, [], "no GitHub read without a GitHub remote");
+  assert.equal(
+    found.github,
+    null,
+    "a non-GitHub remote is not a GitHub repository",
+  );
+  assert.deepEqual(
+    ws.github.reads,
+    [],
+    "no GitHub read without a GitHub remote",
+  );
 
   const code = checkout(`git@github.com:${REPO}.git`);
   writeSpec(code, "load-config");
   fs.writeFileSync(path.join(code, ".avoozl.json"), "{}\n");
-  found = await ws.ops.execute("onboarding.inspect", { folder: path.join(code, ".kiro") });
+  found = await ws.ops.execute("onboarding.inspect", {
+    folder: path.join(code, ".kiro"),
+  });
   assert.equal(found.root, code);
   assert.equal(found.github, REPO);
   assert.equal(found.visibility, "private");
@@ -109,11 +142,22 @@ test("inspect names what a folder already has, with no remote, a non-GitHub remo
   assert.deepEqual(found.specs, ["load-config"]);
   assert.equal(found.registered, null);
 
-  await ws.ops.execute("repositories.configure", { id: "code", localCheckout: code, baseBranch: "main" });
+  await ws.ops.execute("repositories.configure", {
+    id: "code",
+    localCheckout: code,
+    baseBranch: "main",
+  });
   found = await ws.ops.execute("onboarding.inspect", { folder: code });
-  assert.equal(found.registered.id, "code", "an added checkout shows as already registered");
+  assert.equal(
+    found.registered.id,
+    "code",
+    "an added checkout shows as already registered",
+  );
 
-  await assert.rejects(ws.ops.execute("onboarding.inspect", { folder: "relative" }), /absolute path/);
+  await assert.rejects(
+    ws.ops.execute("onboarding.inspect", { folder: "relative" }),
+    /absolute path/,
+  );
 });
 
 test("the leak scan names secrets and machine paths by file and line, never the text", async (t) => {
@@ -125,37 +169,62 @@ test("the leak scan names secrets and machine paths by file and line, never the 
     "design.md": `# Design\n\nSee ${home} for the draft.\n`,
   });
   // Local only: specs are read from the planning checkout.
-  await ws.ops.execute("repositories.configure", { id: "code", localCheckout: code, baseBranch: "main", planning: true });
-  const scan = await ws.ops.execute("onboarding.scan", { specs: ["clean", "leaky", "absent"] });
-  const byName = Object.fromEntries(scan.items.map((item) => [item.name, item]));
+  await ws.ops.execute("repositories.configure", {
+    id: "code",
+    localCheckout: code,
+    baseBranch: "main",
+    planning: true,
+  });
+  const scan = await ws.ops.execute("onboarding.scan", {
+    specs: ["clean", "leaky", "absent"],
+  });
+  const byName = Object.fromEntries(
+    scan.items.map((item) => [item.name, item]),
+  );
   assert.deepEqual(byName.clean.findings, []);
   assert.equal(byName.absent.missing, true);
   assert.equal(byName.leaky.findings.length, 1);
   assert.deepEqual(
-    { file: byName.leaky.findings[0].file, line: byName.leaky.findings[0].line, rule: byName.leaky.findings[0].rule },
+    {
+      file: byName.leaky.findings[0].file,
+      line: byName.leaky.findings[0].line,
+      rule: byName.leaky.findings[0].rule,
+    },
     { file: "design.md", line: 3, rule: "macos-home" },
   );
   assert.doesNotMatch(JSON.stringify(scan), /someone/);
-  await assert.rejects(ws.ops.execute("onboarding.scan", { specs: "leaky" }), /Name the spec folders/);
+  await assert.rejects(
+    ws.ops.execute("onboarding.scan", { specs: "leaky" }),
+    /Name the spec folders/,
+  );
 });
 
 test("Onboard end to end: reads before setup write nothing; issues are previewed, never made; nothing is approved", async (t) => {
   const ws = workspace(t);
   const code = checkout(`git@github.com:${REPO}.git`);
   writeSpec(code, "load-config");
-  writeSpec(code, "broken", { "tasks.md": "# Tasks\n\n- [ ] 1 One\n- [ ] 1 Repeated\n" });
+  writeSpec(code, "broken", {
+    "tasks.md": "# Tasks\n\n- [ ] 1 One\n- [ ] 1 Repeated\n",
+  });
 
   // Steps 1–3: pick the folder, pick the mode, check GitHub. Cancel here.
   const before = snapshot(ws);
   await ws.ops.execute("onboarding.inspect", { folder: code });
   await ws.ops.execute("github.settings.get");
   await ws.ops.execute("repositories.list");
-  assert.equal(snapshot(ws), before, "a step before Set up GitHub wrote something");
+  assert.equal(
+    snapshot(ws),
+    before,
+    "a step before Set up GitHub wrote something",
+  );
 
   // Step 4 (after its confirms): save the mode, register the repository.
   const settings = await ws.ops.execute("github.settings.get");
   await ws.ops.execute("github.settings.update", {
-    github: { mode: "single-repo", repositories: { [REPO]: { baseBranch: "main" } } },
+    github: {
+      mode: "single-repo",
+      repositories: { [REPO]: { baseBranch: "main" } },
+    },
     expectedHash: settings.hash,
   });
   await ws.ops.execute("repositories.configure", {
@@ -168,7 +237,9 @@ test("Onboard end to end: reads before setup write nothing; issues are previewed
 
   // Step 5: list specs with lint, import the clean one as a draft.
   const specs = await ws.ops.execute("plan.specs");
-  const names = Object.fromEntries(specs.items.map((item) => [item.name, item]));
+  const names = Object.fromEntries(
+    specs.items.map((item) => [item.name, item]),
+  );
   assert.ok(names.broken.counts.error > 0, "lint errors show before import");
   assert.equal(names["load-config"].counts.error, 0);
   const plan = await ws.ops.execute("plan.create", { spec: "load-config" });
@@ -178,19 +249,33 @@ test("Onboard end to end: reads before setup write nothing; issues are previewed
   const created = ws.github.created.length,
     tasks = ws.store.read().tasks.length,
     approvals = ws.store.list("approvals").length;
-  const preview = await ws.ops.execute("plan.issues.preview", { planId: plan.id });
+  const preview = await ws.ops.execute("plan.issues.preview", {
+    planId: plan.id,
+  });
   assert.equal(preview.simulated, true);
-  const issues = preview.writes.filter((write) => write.kind === "issue.create");
+  const issues = preview.writes.filter(
+    (write) => write.kind === "issue.create",
+  );
   assert.equal(issues.length, 3, JSON.stringify(preview.writes));
   assert.ok(issues.every((write) => write.repository === REPO));
-  assert.equal(ws.github.created.length, created, "the preview made a GitHub issue");
+  assert.equal(
+    ws.github.created.length,
+    created,
+    "the preview made a GitHub issue",
+  );
   assert.equal(ws.store.read().tasks.length, tasks, "the preview made tasks");
-  assert.equal(ws.store.list("approvals").length, approvals, "the preview approved");
+  assert.equal(
+    ws.store.list("approvals").length,
+    approvals,
+    "the preview approved",
+  );
   assert.notEqual(ws.store.get("plans", plan.id).state, "approved");
 
   // A plan with lint errors is not previewed; the errors say why.
   const broken = await ws.ops.execute("plan.create", { spec: "broken" });
-  const held = await ws.ops.execute("plan.issues.preview", { planId: broken.id });
+  const held = await ws.ops.execute("plan.issues.preview", {
+    planId: broken.id,
+  });
   assert.ok(held.blocked.length > 0);
   assert.deepEqual(held.writes, []);
 

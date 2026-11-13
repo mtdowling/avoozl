@@ -182,7 +182,8 @@ export function untriagedPath(store) {
 
 const NOTICE_META = "untriagedNotice";
 const sourceId = (repository) => `github:${repository}`;
-const githubKey = (repository, number) => itemKey("github", `${repository}#${number}`);
+const githubKey = (repository, number) =>
+  itemKey("github", `${repository}#${number}`);
 
 export function readCache(store) {
   const cache = structuredClone(EMPTY);
@@ -245,7 +246,10 @@ function writeCache(store, cache) {
                 history: [],
                 search: entry,
               };
-        if (!current || JSON.stringify(current.search) !== JSON.stringify(entry))
+        if (
+          !current ||
+          JSON.stringify(current.search) !== JSON.stringify(entry)
+        )
           store.put("incoming_items", next);
       }
       // Items the last search no longer returned leave the read; one the
@@ -262,12 +266,21 @@ function writeCache(store, cache) {
             store.put("incoming_items", rest);
           } else store.remove("incoming_items", row.id);
         }
-      const next = { id: sourceId(repository), source: "github", repository, ...state, keys },
+      const next = {
+          id: sourceId(repository),
+          source: "github",
+          repository,
+          ...state,
+          keys,
+        },
         current = store.get("intake_sources", next.id);
       if (JSON.stringify(current) !== JSON.stringify(next))
         store.put("intake_sources", next);
     }
-    if (JSON.stringify(store.getMeta(NOTICE_META)) !== JSON.stringify(cache.notice ?? null))
+    if (
+      JSON.stringify(store.getMeta(NOTICE_META)) !==
+      JSON.stringify(cache.notice ?? null)
+    )
       store.setMeta(NOTICE_META, cache.notice ?? null);
   });
 }

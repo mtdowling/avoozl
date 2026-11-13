@@ -102,7 +102,10 @@ test("P-steer 3b: content rules screen steering, and a long comment is cut", asy
   fs.writeFileSync(file, JSON.stringify(config));
   const dir = path.join(w.root, ".avoozl", "local", "content-rules");
   fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, "fake-terms.txt"), "codename: \\bBluejay\\b\n");
+  fs.writeFileSync(
+    path.join(dir, "fake-terms.txt"),
+    "codename: \\bBluejay\\b\n",
+  );
   w.github.comment(1, "maintainer", `${MENTION} ship it as Bluejay`);
   let result = await w.tick();
   assert.deepEqual(w.toWorker(result), [], "a blocked term is not relayed");

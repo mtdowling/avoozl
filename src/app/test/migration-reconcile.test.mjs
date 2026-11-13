@@ -23,9 +23,14 @@ const data = () => ({
       epic: "W1",
       status: "partial",
       title: "Collector",
-      summary: "Landed at abcdef1234; draft 99999999ab on codex/gc-lane, shift 2147483648.",
+      summary:
+        "Landed at abcdef1234; draft 99999999ab on codex/gc-lane, shift 2147483648.",
       source: { document: "plan.md", lineStart: 2, lineEnd: 3 },
-      activity: { state: "paused", branch: "codex/gc-lane", summary: "see /Users/someone/x" },
+      activity: {
+        state: "paused",
+        branch: "codex/gc-lane",
+        summary: "see /Users/someone/x",
+      },
     },
     { id: "broad", epic: "W1", status: "planned", title: "Snapshots" },
     { id: "done", epic: "W1", status: "implemented", title: "Done" },
@@ -76,7 +81,13 @@ test("broad scope keeps unfinished packages that are not partial", () => {
   const kinds = {
     tasks: [
       { id: "part", epic: "W1", status: "partial", kind: "package" },
-      { id: "broad", epic: "W1", status: "planned", kind: "package", reason: "r" },
+      {
+        id: "broad",
+        epic: "W1",
+        status: "planned",
+        kind: "package",
+        reason: "r",
+      },
       { id: "done", epic: "W1", status: "implemented", kind: "leaf" },
     ],
   };
@@ -97,7 +108,14 @@ test("proposals cover every task once and leaves are new and bounded", () => {
         task: "part",
         verdict: "partial",
         reason: "open items remain",
-        leaves: [{ slug: "minor-gc", title: "Minor GC", acceptance: ["passes"], entries: ["e1"] }],
+        leaves: [
+          {
+            slug: "minor-gc",
+            title: "Minor GC",
+            acceptance: ["passes"],
+            entries: ["e1"],
+          },
+        ],
       },
     ],
     { verdicts, existingIds: ["part"] },
@@ -111,7 +129,12 @@ test("proposals cover every task once and leaves are new and bounded", () => {
   const bad = applyProposals(
     scope,
     [
-      { task: "part", verdict: "partial", reason: "", leaves: [{ slug: "Bad Slug", acceptance: [], entries: ["e9"] }] },
+      {
+        task: "part",
+        verdict: "partial",
+        reason: "",
+        leaves: [{ slug: "Bad Slug", acceptance: [], entries: ["e9"] }],
+      },
       { task: "part", verdict: "stale", reason: "x" },
       { task: "nope", verdict: "stale", reason: "x" },
     ],
@@ -135,10 +158,19 @@ test("proposals cover every task once and leaves are new and bounded", () => {
     [{ task: "part", verdict: "complete-pending-acceptance", reason: "r" }],
     { verdicts },
   );
-  assert.deepEqual(taken.errors, ["part: complete-pending-acceptance needs acceptance"]);
+  assert.deepEqual(taken.errors, [
+    "part: complete-pending-acceptance needs acceptance",
+  ]);
   const dup = applyProposals(
     scope,
-    [{ task: "part", verdict: "partial", reason: "r", leaves: [{ slug: "a", title: "A", acceptance: ["x"] }] }],
+    [
+      {
+        task: "part",
+        verdict: "partial",
+        reason: "r",
+        leaves: [{ slug: "a", title: "A", acceptance: ["x"] }],
+      },
+    ],
     { verdicts, existingIds: ["part.a"] },
   );
   assert.deepEqual(dup.errors, ["part.a: ID already used"]);
@@ -146,12 +178,28 @@ test("proposals cover every task once and leaves are new and bounded", () => {
 
 test("run evidence keeps open runs with messages, deliveries and archive marks", () => {
   const runs = [
-    { id: "r1", taskId: "watched", state: "observing", external: true, worktree: "/Users/someone/wt" },
-    { id: "r2", taskId: "conversation:r2", state: "interrupted", provider: "codex" },
+    {
+      id: "r1",
+      taskId: "watched",
+      state: "observing",
+      external: true,
+      worktree: "/Users/someone/wt",
+    },
+    {
+      id: "r2",
+      taskId: "conversation:r2",
+      state: "interrupted",
+      provider: "codex",
+    },
     { id: "r3", taskId: "done", state: "completed" },
   ];
   const events = [
-    { runId: "r2", kind: "message", at: "t1", text: "found /Users/someone/plan.md (http://127.0.0.1:5000/?v=1)" },
+    {
+      runId: "r2",
+      kind: "message",
+      at: "t1",
+      text: "found /Users/someone/plan.md (http://127.0.0.1:5000/?v=1)",
+    },
     { runId: "r2", kind: "message.delta", at: "t2", text: "f" },
     { runId: "r2", kind: "turn.completed", at: "t3", state: "interrupted" },
   ];
@@ -163,13 +211,20 @@ test("run evidence keeps open runs with messages, deliveries and archive marks",
     commitRefs,
     present: { r1: { worktree: false, transcript: false } },
   });
-  assert.deepEqual(rows.map((r) => r.id), ["r1", "r2"]);
+  assert.deepEqual(
+    rows.map((r) => r.id),
+    ["r1", "r2"],
+  );
   const [watched, chat] = rows;
   assert.equal(watched.worktree, "~/wt");
   assert.equal(watched.transcriptPresent, false);
   assert.equal(watched.archivedAt, "2026-01-01T00:00:00Z");
-  assert.deepEqual(watched.commits, [{ sha: "abcdef1234", resolved: true, refs: ["main"] }]);
-  assert.deepEqual(chat.messages, [{ at: "t1", text: "found ~/plan.md (<local app>)" }]);
+  assert.deepEqual(watched.commits, [
+    { sha: "abcdef1234", resolved: true, refs: ["main"] },
+  ]);
+  assert.deepEqual(chat.messages, [
+    { at: "t1", text: "found ~/plan.md (<local app>)" },
+  ]);
   assert.equal(chat.endedAs, "interrupted");
   assert.equal(chat.deliveries[0].text, "archive them");
 });

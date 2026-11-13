@@ -88,7 +88,10 @@ test("an entry names one of package or path, no reserved id, no credential", () 
     [{ id: "github" }, /reserved/],
     [{ package: "@example/x" }, /exactly one of package, path or git/],
     [{ path: undefined }, /exactly one of package, path or git/],
-    [{ contract: "1" }, /contract \(the contract version\) must be a whole number/],
+    [
+      { contract: "1" },
+      /contract \(the contract version\) must be a whole number/,
+    ],
     [{ config: { apiToken: "abc" } }, /looks like a credential/],
     [{ config: { auth: "ghp_" + "a".repeat(36) } }, /looks like a credential/],
     [{ config: { tokenEnv: "not a name" } }, /environment variable/],

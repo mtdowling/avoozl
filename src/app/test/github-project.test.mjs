@@ -746,7 +746,10 @@ test("Avoozl state follows the Delivery lane, is written only on change, and nev
   assert.equal(value(github, "a1", 5), "Ready");
   assert.equal(value(github, "a2", 5), "Blocked or waiting");
   const written = stateWrites(github);
-  assert.equal((await sync(store, github, { policy: statePolicy })).writes.length, 0);
+  assert.equal(
+    (await sync(store, github, { policy: statePolicy })).writes.length,
+    0,
+  );
   assert.equal(stateWrites(github), written, "unchanged writes nothing");
 
   // The plan moves a2 to needs-you: one write, for that card only.
@@ -835,9 +838,14 @@ test("Avoozl state may not name the Status field, and a missing option is report
       project: { ...policy.project, fields: { avoozlState: "Status" } },
     });
   const refused = await sync(store, github, { policy: onStatus });
-  assert.ok(refused.problems.some((p) => /cannot use the Status field/.test(p)));
+  assert.ok(
+    refused.problems.some((p) => /cannot use the Status field/.test(p)),
+  );
   for (const [, , fields] of github.writes.filter((w) => w[0] === "fields"))
-    assert.ok(fields.every((field) => field.id !== 1), "no Status write");
+    assert.ok(
+      fields.every((field) => field.id !== 1),
+      "no Status write",
+    );
 
   const real = github.projectFields;
   github.projectFields = async () =>

@@ -98,11 +98,13 @@ test("markers refuse paths, credentials, planning repository names, and free fie
   });
   assert.doesNotThrow(() => validateMarker(leak));
   assert.throws(
-    () => validateMarker(leak, { planningRepository: "example-org/example-plans" }),
+    () =>
+      validateMarker(leak, { planningRepository: "example-org/example-plans" }),
     /names the planning repository/,
   );
   assert.throws(
-    () => renderMarker(leak, { planningRepository: "example-org/example-plans" }),
+    () =>
+      renderMarker(leak, { planningRepository: "example-org/example-plans" }),
     /names the planning repository/,
   );
 });
