@@ -290,7 +290,7 @@ test("the app's MCP server answers a non-object request as Invalid Request", asy
   }
 });
 
-test("the app's MCP server marks results complete for protocol 2026-07-28", async () => {
+test("the app's MCP server meets protocol 2026-07-28 result rules", async () => {
   const server = createAppMcp({ env: {} });
   const modern = {
     "io.modelcontextprotocol/protocolVersion": "2026-07-28",
@@ -305,6 +305,16 @@ test("the app's MCP server marks results complete for protocol 2026-07-28", asyn
       params: { _meta: modern },
     });
     assert.equal(list.result.resultType, "complete");
+    assert.equal(list.result.ttlMs, 0);
+    assert.equal(list.result.cacheScope, "private");
+    const resources = await server.handle({
+      jsonrpc: "2.0",
+      id: 4,
+      method: "resources/list",
+      params: { _meta: modern },
+    });
+    assert.equal(resources.result.resultType, "complete");
+    assert.equal(resources.result.cacheScope, "private");
     // No workspace: the refusal is a result too.
     const call = await server.handle({
       jsonrpc: "2.0",
@@ -314,6 +324,7 @@ test("the app's MCP server marks results complete for protocol 2026-07-28", asyn
     });
     assert.equal(call.result.isError, true);
     assert.equal(call.result.resultType, "complete");
+    assert.equal(call.result.ttlMs, undefined);
     const older = await server.handle({
       jsonrpc: "2.0",
       id: 3,

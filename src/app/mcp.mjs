@@ -1,4 +1,4 @@
-import { MCP_TOOLS, validateMcpRequest } from "../mcp.mjs";
+import { complete, MCP_TOOLS, validateMcpRequest } from "../mcp.mjs";
 import { workspaceIdentity } from "./identity.mjs";
 import { classifyOperation } from "./operation-kinds.mjs";
 import { mcpRefusal, PERSON_ONLY } from "./mcp-policy.mjs";
@@ -427,17 +427,7 @@ export function kiroCrewCaller(message) {
     ? { sessionKey: block.sessionKey }
     : null;
 }
-// Protocol revision 2026-07-28 requires every result to carry resultType;
-// Kiro Crew refuses a server whose tools/list lacks it. Earlier revisions
-// get the result unchanged.
-export function complete(message, result, versionHeader) {
-  const version =
-    message?.params?._meta?.["io.modelcontextprotocol/protocolVersion"] ||
-    versionHeader;
-  return version === "2026-07-28"
-    ? { ...result, resultType: "complete" }
-    : result;
-}
+export { complete };
 
 export async function handleMcp(
   message,
