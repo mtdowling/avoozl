@@ -160,6 +160,7 @@ import {
   loadRulePlugins,
   pushedCommits,
   readTermsFile,
+  revision as gitRevision,
   rulePluginsStale,
   showDecisionLine,
   specContentDiagnostics,
@@ -1439,6 +1440,7 @@ export class Operations {
         localCheckList(project).length > 0 &&
         readFlowPolicy(this.workspaceRoot).for(project.id).localChecksFirst;
     for (const head of heads) {
+      gitRevision(head);
       // Local checks first (R45.4): a recorded local pass, not a rerun.
       if (local) {
         const sha = /^[0-9a-f]{40}$/.test(head)
@@ -2271,6 +2273,9 @@ export class Operations {
       return retroOperation(store, name, input, context, {
         by: context.local ? "cli" : "dashboard",
         config: readFlowConfig(this.workspaceRoot),
+        github: this.github,
+        policy: readGitHubPolicyOrNull(this.workspaceRoot),
+        workspaceRoot: this.workspaceRoot,
       });
     if (PLUGIN_OPERATIONS.has(name)) {
       const result = await this.pluginOperation(name, input, context);

@@ -24,8 +24,9 @@ import {
   lessonStateText,
   pdcaText,
   proposalText,
-  shareRank,
+  shareResultText,
   type LessonFilter,
+  type SharePreview,
   type LessonRow,
   type PromptDrift,
   type PromptRow,
@@ -294,9 +295,14 @@ function LessonItem({ lesson }: { lesson: LessonRow }) {
       <span className="flex flex-wrap items-center gap-2">
         <code className="text-xs">{lesson.id}</code>
         <span className="text-xs text-muted">{[lesson.pattern.stage, lesson.pattern.check, lesson.pattern.tool].filter(Boolean).join(' · ')}</span>
-        <Badge variant={lesson.state === 'ok' ? (lesson.outcome === 'undone' ? 'warning' : undefined) : 'warning'}>{lessonStateText(lesson)}</Badge>
+        <Badge variant={lesson.state === 'ok' ? (lesson.outcome === 'undone' ? 'warning' : undefined) : 'warning'}>{lessonStateText({ ...lesson, staleReason: null })}</Badge>
         <span className="tabular-nums text-xs">confidence {lesson.confidence.toFixed(2)}</span>
       </span>
+      {lesson.staleReason && (
+        <span className="text-xs" style={{ color: 'var(--warning, var(--text))', overflowWrap: 'anywhere' }} data-stale-reason>
+          {lesson.state === 'retired' ? 'Retired' : 'Why'}: {lesson.staleReason}
+        </span>
+      )}
       <span style={{ overflowWrap: 'anywhere' }}>{lesson.finding}</span>
       <span className="text-xs text-muted">
         {lesson.change.summary ?? lesson.change.type} · {lesson.confirmedAt ? `confirmed ${relativeTime(lesson.confirmedAt, Date.now())}` : 'not confirmed yet'} · from {lesson.source}
@@ -332,7 +338,17 @@ export function LessonsView({ workspaceId }: { workspaceId: string | null }) {
   const [file, setFile] = useState('')
   const [message, setMessage] = useState<{ ok?: string; error?: string } | null>(null)
   const set = (change: Partial<LessonFilter>) => setFilter({ ...filter, ...change })
-  const share = useMemo(() => shareRank(value?.lessons ?? []).slice(0, 5), [value])
+  const [picked, setPicked] = useState<string[]>([])
+  const [preview, setPreview] = useState<SharePreview | null>(null)
+  const [shareMsg, setShareMsg] = useState<{ ok?: string; error?: string } | null>(null)
+  const shareAct = async (run: () => Promise<void>) => {
+    setShareMsg(null)
+    try {
+      await run()
+    } catch (caught) {
+      setShareMsg({ error: errorMessage(caught) })
+    }
+  }
   const exportNow = async () => {
     if (!workspaceId) return
     setMessage(null)
@@ -378,8 +394,74 @@ export function LessonsView({ workspaceId }: { workspaceId: string | null }) {
         )}
       </Card>
       <Card className="flex flex-col gap-2" data-lessons-share>
-        <SectionHeading title="Share as a pack" />
-        <p className="text-xs text-muted">Best to share: {share.length ? share.map((l) => l.id).join(', ') : 'none yet (kept, confirmed lessons rank first)'}. Export writes a lessons pack file you can put in a plugin; it passes your content rules first.</p>
+        <SectionHeading title="Share proven lessons" />
+        {value.share?.off ? (
+          <p className="text-sm text-muted">{value.share.off}</p>
+        ) : (
+          <>
+            <p className="text-xs text-muted">
+              Pick lessons to share with your team as summaries in {value.share?.file ?? '.avoozl/lessons.json'} on {value.share?.repository ?? 'the repository'}. Avoozl opens a pull request; nothing else leaves this computer.
+            </p>
+            {!(value.candidates ?? []).length ? (
+              <p className="text-sm text-muted">No candidates yet. A lesson can be shared once the PDCA check keeps it.</p>
+            ) : (
+              <ul className="flex flex-col gap-1 text-sm" data-share-candidates>
+                {(value.candidates ?? []).map((c) => (
+                  <li key={c.id}>
+                    <label className="flex flex-wrap items-baseline gap-2">
+                      <input
+                        type="checkbox"
+                        checked={picked.includes(c.id)}
+                        onChange={(event) => {
+                          setPreview(null)
+                          setPicked(event.target.checked ? [...picked, c.id] : picked.filter((id) => id !== c.id))
+                        }}
+                      />
+                      <code className="text-xs">{c.id}</code>
+                      <span className="text-xs text-muted">{c.why}</span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="flex flex-wrap gap-2">
+              <Btn type="button" disabled={!picked.length} onClick={() => void shareAct(async () => setPreview(await client.sharePreview(workspaceId!, picked)))}>
+                Preview share
+              </Btn>
+              {preview && (
+                <Btn
+                  type="button"
+                  primary
+                  onClick={() =>
+                    void shareAct(async () => {
+                      const result = await client.share(workspaceId!, picked, preview.hash)
+                      setShareMsg({ ok: shareResultText(result) })
+                      setPreview(null)
+                      setPicked([])
+                    })
+                  }
+                >
+                  Share
+                </Btn>
+              )}
+            </div>
+            {preview && (
+              <pre className="max-h-64 overflow-auto rounded border p-2 text-xs" style={{ borderColor: 'var(--border)', whiteSpace: 'pre-wrap', margin: 0 }} data-share-preview>
+                {preview.text}
+              </pre>
+            )}
+            {shareMsg?.error && (
+              <span role="alert" className="text-sm text-danger">
+                {shareMsg.error}
+              </span>
+            )}
+            {shareMsg?.ok && <span className="text-sm text-muted">{shareMsg.ok}</span>}
+          </>
+        )}
+      </Card>
+      <Card className="flex flex-col gap-2" data-lessons-export>
+        <SectionHeading title="Export as a pack" />
+        <p className="text-xs text-muted">Export writes a lessons pack file you can put in a plugin; it passes your content rules first.</p>
         <div className="flex flex-wrap items-end gap-2">
           <label className="flex min-w-0 flex-col gap-1 text-sm" style={{ maxWidth: '28rem', flex: '1 1 16rem' }}>
             <span className="font-medium">Pack file (required)</span>
