@@ -164,6 +164,7 @@ const EXECUTE = new Set([
   "session.request",
   "session.status",
   "session.report",
+  "relay.call",
   "reply.post",
   "worktree.prepare",
   "content.check",
@@ -202,6 +203,7 @@ const EXECUTE = new Set([
 
 const PROTECT = new Set([
   "routing.update",
+  "relay.forget",
   "crews.update",
   "provider.switch",
   "provider.health.clear",

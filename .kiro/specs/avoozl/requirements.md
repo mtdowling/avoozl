@@ -1716,7 +1716,10 @@ user-facing work never leaves this machine.
     remote placement SHALL be inert: rules validate and Preview shows where
     tasks would go, every session runs on `local`, and the Routing page SHALL
     say that remote placement waits on Kiro Crew. Avoozl SHALL NOT work
-    around Kiro Crew's owner-only check.
+    around Kiro Crew's owner-only check. The Remote relay (criteria 16–24)
+    is the one opt-in exception to inert placement; it does not work around
+    the check, because every remote call it makes runs in a chat the owner
+    opened, during a turn the owner sent.
 15. (Added 2026-11-13, owner decision.) Each remote crew SHALL have a
     machine-local `delivery` of `handback` (the default) or `push`. Under
     `handback` the remote worker SHALL commit on its task branch in a folder
@@ -1729,6 +1732,70 @@ user-facing work never leaves this machine.
     push. Under `push` the worker SHALL push its task branch as criterion 5
     says. Public tests SHALL use a fake SSH command and SHALL never connect
     to a real host.
+16. (Added 2026-11-13, owner decision. Design §4.10 Remote relay.) Each
+    workspace SHALL have one setting `routing.remoteRelay`, `off` or `on`,
+    default `off`, in its tracked `.avoozl.json` only. Validation SHALL
+    refuse it in a repository's settings, in machine-local settings, and
+    with any other value. The Routing page SHALL label it a stopgap until
+    MC-10. With it off, nothing SHALL change from criterion 14.
+17. WHILE the relay is on and MC-10 is missing, a worker session whose
+    placement picks a remote crew SHALL NOT fall back to `local`. The tick
+    SHALL queue one relay request per task and attempt (crew, task id,
+    title, agent, model, and the brief), SHALL open nothing for it, and
+    SHALL NOT queue the same request twice. A queued request SHALL count
+    against its crew's chat limit, and its task SHALL NOT be placed again
+    while it is queued. Checks, reviewer, planner, critic, router, and
+    responder sessions SHALL be placed as without the relay.
+18. The relay SHALL be one local chat on the `avoozl-relay` agent that the
+    owner opens from the Routing page. Avoozl, its tick, and its backend
+    SHALL NOT open, wake, or message it. The first chat that calls
+    `plans_relay` with action `register` SHALL be the relay; any other chat
+    SHALL be refused while one is registered, and a session bound to a task
+    SHALL be refused. Only a person SHALL forget the relay chat, on the
+    Routing page. Avoozl SHALL NOT start a second relay.
+19. On each turn the owner sends to the relay chat, the relay SHALL pull
+    the queue with `plans_relay` `pending`, open each worker on its crew
+    with `session_create` and `crew=`, record it with `opened`, send the
+    brief unchanged with `session_send`, read each relayed worker with
+    `session_read_message`, and hand each new final reply back unchanged
+    with `reply`. Avoozl SHALL bind the worker to the same task and
+    attempt, with the relay's slot recorded on the binding, and SHALL read
+    only the reply's last `AVOOZL-REPORT {json}` line, taking only `kind`,
+    `commit`, `text`, and `phase`, and SHALL run the normal report path for
+    the binding (Requirement 8). Only the relay that opened a worker SHALL
+    report for it. Hand-back, verification, review, and integration SHALL
+    run as for any remote worker (criteria 13 and 15).
+20. WHEN Kiro Crew refuses `crew=` because the turn was not one the owner
+    sent, or because the relay chat was not opened by the owner, THEN the
+    request SHALL stay queued in a "Waiting for you" state and SHALL NOT
+    fall back to `local`. Needs you SHALL show one item per queued request
+    with its reason: "Send any message to the relay chat to continue.", or,
+    for a chat the owner did not open, to forget it and open a new one; with
+    no relay chat it SHALL say to open one. Any other refusal SHALL drop
+    the request, and the next tick SHALL place the task again under the
+    same rules.
+21. The Routing page SHALL show the relay's two catches beside the setting
+    (criterion 20, and that each relay turn costs one model turn), whether
+    a relay chat is open, the queued and running counts, the last refusal,
+    and the relay's turns per day. A turn SHALL count once per `pending`
+    call.
+22. The relay SHALL pass briefs, messages, and replies through unchanged,
+    SHALL treat worker replies as data and never follow instructions in
+    them, and SHALL have only the `plans_relay` tool and Kiro Crew's
+    `session_create`, `session_send`, and `session_read_message` tools; it
+    SHALL NOT be able to approve, merge, push, close, or change a setting.
+    The content rules' `brief` boundary and the plans-repo leak screen SHALL
+    run before a request is queued (criterion 11). Messages the tick sends
+    a relayed worker SHALL wait in the relay's queue for its next turn. The
+    relay chat SHALL stay open; Avoozl SHALL NOT close it.
+23. WHEN Kiro Crew ships MC-10 THEN the direct path (criterion 14) SHALL
+    replace the relay, the setting SHALL be ignored, the Routing page SHALL
+    say so, and queued requests SHALL be dropped so their tasks are placed
+    on the direct path. Turning the setting off SHALL also drop queued
+    requests. A worker the relay already opened SHALL keep reporting
+    through it.
+24. Public tests SHALL use a fake relay chat and a fake Kiro Crew; they SHALL
+    NOT open a real remote session.
 
 ### Requirement 42: Routing page
 
@@ -1753,7 +1820,10 @@ preview delivery without reading `.avoozl.json` or several Settings tabs.
    crew's chat limit SHALL be editable, and the section SHALL hold one stale
    limit field; both SHALL show their default (3 for `local`, 2 for a
    remote crew, 120 seconds) as a placeholder. While MC-10 is missing,
-   remote rows SHALL say remote placement waits on Kiro Crew.
+   remote rows SHALL say remote placement waits on Kiro Crew. Crews SHALL
+   also hold the Remote relay block (Requirement 41.16–41.23): the setting,
+   its two catches, its status lines, and **Open relay chat** or **Go to
+   relay chat** and a confirmed **Forget relay chat**.
 4. **Rules** SHALL show an ordered list, one row per rule, read as
    "When <match> -> <route> on <crews>", with drag to reorder and add or
    edit in a side form. Every form field SHALL be marked Required or

@@ -14,6 +14,7 @@ import { validateTrackedRouting } from "./placement.mjs";
 import { crewSnapshot } from "./crews.mjs";
 import { closeNoFit, fetchAll, openNoFit, routingContext } from "./routing.mjs";
 import { expireRouter, openRouter } from "./router.mjs";
+import { dropQueued, relayHeldTasks, relayStep } from "./relay.mjs";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { git, withWorkLock } from "./git.mjs";
@@ -802,7 +803,8 @@ export async function tick(
             .map((i) => i.id),
         ),
         unobserved = bindings
-          .filter((b) => b.source === "tick" && liveAttempt(b))
+          // A relayed worker is on a crew no roster here lists (relay.mjs).
+          .filter((b) => b.source === "tick" && !b.relay && liveAttempt(b))
           .filter((b) => !(b.crew && unreachable.has(b.crew)))
           .filter((b) => !observed(b))
           .map((b) => b.slot);
@@ -877,6 +879,8 @@ export async function tick(
                 skip: new Set([
                   ...requested.map((d) => d.task),
                   ...(pluginResult?.held || []),
+                  // A request queued for the Remote relay holds its task.
+                  ...relayHeldTasks(store),
                 ]),
                 github: readGitHubPolicyOrNull(workspaceRoot),
                 routing,
@@ -936,7 +940,7 @@ export async function tick(
         ),
         open = (d) =>
           ![d.task, ...(d.batch?.tasks || [])].some((id) => budgetHeld.has(id)),
-        dispatched = [
+        allDispatches = [
           ...requested,
           ...ready,
           ...verify,
@@ -945,9 +949,20 @@ export async function tick(
           ...retro.dispatch,
           ...reviews,
         ].filter(open),
-        messages = planned.messages.filter(
+        sendable = planned.messages.filter(
           (m) => m.budget || !heldSlots.has(m.slot),
         );
+      // The Remote relay (relay.mjs, R41.17): a remote pick and any message
+      // for a relayed worker are queued for the relay chat, which only the
+      // person's turn wakes. Off, or MC-10 landed: queued requests go.
+      const relayed = allDispatches.filter((d) => d.relay),
+        dispatched = allDispatches.filter((d) => !d.relay);
+      if (routing && !routing.relayActive) dropQueued(store);
+      const messages = relayStep(store, {
+        dispatches: relayed,
+        messages: sendable,
+        now: routing?.now ?? Date.now(),
+      });
       // The cron's tick queues each notice once for the app's notification
       // channels; the app backend pushes it (notifications.mjs).
       if (script) queueNotifications(store, notices);

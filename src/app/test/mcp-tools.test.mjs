@@ -88,7 +88,7 @@ test("every operation has an MCP route or a written reason it has none", () => {
     );
 });
 
-test("about a dozen grouped tools, each with an action enum", async (t) => {
+test("each grouped tool lists its actions as an enum", async (t) => {
   const { store } = fixture(t),
     tools = (
       await handleMcp(
@@ -97,9 +97,9 @@ test("about a dozen grouped tools, each with an action enum", async (t) => {
       )
     ).body.result.tools,
     grouped = tools.filter((tool) => Object.hasOwn(GROUPED_TOOLS, tool.name));
-  assert.ok(
-    grouped.length >= 12 && grouped.length <= 15,
-    String(grouped.length),
+  assert.deepEqual(
+    grouped.map((tool) => tool.name).sort(),
+    Object.keys(GROUPED_TOOLS).sort(),
   );
   for (const tool of grouped)
     assert.deepEqual(

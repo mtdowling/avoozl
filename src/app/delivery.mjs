@@ -39,6 +39,7 @@ import { budgetHeldTaskIds, budgetStopSlots } from "./budget.mjs";
 import { LOCAL } from "./crews.mjs";
 import { machineRouting, placeOne, routingOn, rulesAllow } from "./routing.mjs";
 import { handbackFetch, pushedFetch } from "./handback.mjs";
+import { REPORT_LINE } from "./relay.mjs";
 import { currentPrompts } from "./retro-memory.mjs";
 import { routeResultNotes, submittedTaskIds } from "./routes.mjs";
 import { healthContext, healthyChoices, modelsOf } from "./provider-health.mjs";
@@ -761,8 +762,13 @@ export async function reportSession(
     binding?.batch?.tasks.includes(task.id) && binding.taskId !== task.id;
   if (!binding || (binding.taskId !== task.id && !member))
     fail("Only the session bound to this task may report on it.", 403);
+  // A worker the Remote relay opened on a crew reports through that relay
+  // chat only (relay.mjs, R41.19).
+  const relayed =
+    relay && binding.relay && own && slotKey(binding.relay) === own;
   if (
     relay &&
+    !relayed &&
     (binding.source !== "conductor" ||
       !(local || slotKey(binding.conductor) === own))
   )
@@ -1847,7 +1853,10 @@ function composeLeafBrief(
     return workerBrief(task, project, {
       ...options,
       repositoryLine: `Repository: ${project.id}, clone ${remote.url}, base commit ${remote.base}.`,
-      steps: remoteSteps(task, remote, { attempt }),
+      steps: remoteSteps(task, remote, {
+        attempt,
+        relayed: Boolean(remote.relayed),
+      }),
     });
   return workerBrief(task, project, {
     ...options,
@@ -1859,20 +1868,30 @@ function composeLeafBrief(
 // and either pushes that branch (`push`) or leaves the commit in its own
 // folder for this machine to fetch over SSH (`handback`). It never sees a
 // path on this machine.
-export function remoteSteps(task, remote, { attempt = 1 } = {}) {
+export function remoteSteps(
+  task,
+  remote,
+  { attempt = 1, relayed = false } = {},
+) {
   const branch = `avoozl/${task.id}`,
-    report = `{"input": {"taskId": "${task.id}", "kind": "done", "commit": "<full SHA>"}}`;
+    report = `{"input": {"taskId": "${task.id}", "kind": "done", "commit": "<full SHA>"}}`,
+    // A worker the Remote relay opened has no Avoozl tool on its crew: it
+    // ends its reply with one report line the relay hands back (R41.19).
+    reportStep = (n) =>
+      relayed
+        ? `${n}. You have no Avoozl tool on this crew. End your final message with one line: ${REPORT_LINE} {"kind": "done", "commit": "<full SHA>"}. If you cannot finish, end it with ${REPORT_LINE} {"kind": "blocked", "text": "<why>"} or {"kind": "question", "text": "<question>"} instead.`
+        : `${n}. Call plans_report with ${report}. If you cannot finish, report kind "blocked" or "question" with text.`;
   if (remote.delivery === "push")
     return [
       `1. Clone ${remote.url} into your own workspace, or reuse your clone. ${attempt > 1 ? `Fetch ${branch} from origin and check it out; it holds the earlier attempt.` : `Check out a new branch ${branch} at commit ${remote.base}.`}`,
       "2. Commit your change on that branch.",
       `3. Push it before you report: \`git push origin HEAD:${branch}\`. Push no other branch.`,
-      `4. Call plans_report with ${report}. If you cannot finish, report kind "blocked" or "question" with text.`,
+      reportStep(4),
     ];
   return [
     `1. Work in ${remote.folder}. If it does not exist, clone ${remote.url} there and check out a new branch ${branch} at commit ${remote.base}. If it exists, keep working on ${branch} there.`,
     "2. Commit your change on that branch. Do not push, and write nothing to GitHub: this machine fetches the branch from that folder.",
-    `3. Call plans_report with ${report}. If you cannot finish, report kind "blocked" or "question" with text.`,
+    reportStep(3),
   ];
 }
 
@@ -1960,7 +1979,12 @@ export function planReadyDispatches(store, policy, options = {}) {
   return leaves.flatMap((leaf) => {
     const where = placed.get(leaf.task.id),
       remote = where && where.crew !== LOCAL ? where.crewInfo : null,
-      target = remote && remoteTarget(routing, leaf, remote);
+      target = remote && {
+        ...remoteTarget(routing, leaf, remote),
+        // Without MC-10 a remote pick reaches its crew only through the
+        // Remote relay chat (relay.mjs); the tick queues it there.
+        relayed: !routing.mc10 && Boolean(routing.relayActive),
+      };
     // How the work comes back (handback.mjs), read again at `done`.
     if (target)
       where.placement.back = {
@@ -2024,6 +2048,7 @@ export function planReadyDispatches(store, policy, options = {}) {
         ...(where
           ? {
               ...(remote ? { crew: remote.id, project: false } : {}),
+              ...(target?.relayed ? { relay: true } : {}),
               placement: where.placement,
               sessionReason: where.sessionReason,
             }
