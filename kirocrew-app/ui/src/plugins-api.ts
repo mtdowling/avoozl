@@ -4,6 +4,7 @@
 // node can test it directly.
 import type { AppApi } from '@kirocrew/app-sdk'
 import { COMMAND_PATH } from './workspace-api.ts'
+import { relativeTime } from './task-api.ts'
 
 export type PluginState = 'invalid' | 'missing' | 'unsupported' | 'disabled' | 'unapproved' | 'changed' | 'approved'
 
@@ -332,12 +333,27 @@ export function pluginsClient(api: AppApi) {
 
 // Intake sources (design §4.12, R50.6): sources other than GitHub, declared
 // under `intake.sources` on this computer or in `.avoozl.json`.
+export interface SourceItems {
+  total: number
+  untriaged: number
+  lastAt: string | null
+}
+
 export interface IntakeSourceRow {
   id: string | null
   scope: 'machine' | 'repository'
   entry: Record<string, unknown> | null
   error: string | null
-  state?: { cursor: string | null; readAt: string | null; error: string | null; more?: boolean } | null
+  state?: { cursor: string | null; readAt: string | null; error: string | null; more?: boolean; refused?: unknown[] } | null
+  // What it holds (absent from older backends).
+  items?: SourceItems
+}
+
+// GitHub's own intake: set in Settings > GitHub, shown here read-only.
+export interface IntakeGitHub {
+  mode: string | null
+  repositories: { repository: string; checkedAt: string | null; error: string | null }[]
+  items?: SourceItems
 }
 
 export interface SourceForm {
@@ -346,25 +362,38 @@ export interface SourceForm {
   repository: string
   labelFields: string
   assigneeField: string
+  // Who counts, for a plugin source: a minimum permission, or named people.
+  who: 'permission' | 'people'
   minimumPermission: string
+  allowedActors: string
   scope: 'machine' | 'repository'
 }
 
-export const emptySourceForm = (): SourceForm => ({ id: '', via: 'mcp', repository: '', labelFields: '', assigneeField: '', minimumPermission: '', scope: 'machine' })
+export const emptySourceForm = (): SourceForm => ({ id: '', via: 'mcp', repository: '', labelFields: '', assigneeField: '', who: 'permission', minimumPermission: '', allowedActors: '', scope: 'machine' })
+
+export const PERMISSIONS = ['read', 'triage', 'write', 'maintain', 'admin'] as const
+export const DEFAULT_PERMISSION = 'write'
 
 const SOURCE_ID = /^[a-z][a-z0-9-]{0,60}$/
-
-// The entry a form saves, or the first thing to fix. The backend checks again.
-export function sourceEntry(form: SourceForm, taken: string[]): { id?: string; entry?: Record<string, unknown>; error?: string } {
-  const id = form.id.trim()
-  if (!SOURCE_ID.test(id)) return { error: 'Name the source with lowercase letters, digits and dashes.' }
-  if (id === 'github' || id === 'local') return { error: `${id} is built in.` }
-  if (taken.includes(id)) return { error: `A source named ${id} already exists.` }
-  if (!form.repository.trim()) return { error: 'Pick the repository its work lands in.' }
-  const fields = form.labelFields
+const list = (text: string) =>
+  text
     .split(',')
-    .map((field) => field.trim())
+    .map((part) => part.trim())
     .filter(Boolean)
+
+// The entry a form saves, or the first thing to fix and its field. The
+// backend checks again.
+export function sourceEntry(form: SourceForm, taken: string[]): { id?: string; entry?: Record<string, unknown>; error?: string; field?: keyof SourceForm } {
+  const id = form.id.trim()
+  if (!SOURCE_ID.test(id)) return { error: 'Name the source with lowercase letters, digits and dashes.', field: 'id' }
+  if (id === 'github' || id === 'local' || id === 'retro') return { error: `${id} is built in.`, field: 'id' }
+  if (taken.includes(id)) return { error: `A source named ${id} already exists.`, field: 'id' }
+  if (!form.repository.trim()) return { error: 'Pick the repository its work lands in.', field: 'repository' }
+  const fields = list(form.labelFields)
+  // Who counts applies to a plugin's items only: an MCP caller is you.
+  const plugin = form.via !== 'mcp'
+  const people = plugin && form.who === 'people' ? list(form.allowedActors) : []
+  if (plugin && form.who === 'people' && !people.length) return { error: 'Name at least one person, or choose a permission.', field: 'allowedActors' }
   return {
     id,
     entry: {
@@ -372,10 +401,67 @@ export function sourceEntry(form: SourceForm, taken: string[]): { id?: string; e
       repository: form.repository.trim(),
       ...(fields.length ? { labelFields: fields } : {}),
       ...(form.assigneeField.trim() ? { assigneeField: form.assigneeField.trim() } : {}),
-      ...(form.minimumPermission ? { minimumPermission: form.minimumPermission } : {}),
+      ...(people.length ? { allowedActors: people } : {}),
+      ...(plugin && form.who === 'permission' && form.minimumPermission ? { minimumPermission: form.minimumPermission } : {}),
     },
   }
 }
+
+// "Plugin ticket-tracker" or "MCP", from a source's `via`.
+export function viaLabel(via: unknown): string {
+  const text = String(via ?? '')
+  return text.startsWith('plugin:') ? `Plugin ${text.slice(7)}` : text === 'mcp' ? 'MCP (a script or cron job sends items)' : text || 'Unknown'
+}
+
+const strings = (value: unknown) => (Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [])
+
+export type SourceTone = 'ok' | 'off' | 'error' | 'waiting'
+
+// A source's one status: on, off, an error, or waiting for its first item,
+// with its last poll and item counts.
+export function sourceStatus(row: IntakeSourceRow, plugins: PluginRow[], now = Date.now()): { tone: SourceTone; label: string; facts: string[]; problem: string | null } {
+  const via = String(row.entry?.via ?? '')
+  const pluginId = via.startsWith('plugin:') ? via.slice(7) : null
+  const plugin = pluginId ? plugins.find((p) => p.id === pluginId) : null
+  const items = row.items
+  const facts: string[] = []
+  if (pluginId) facts.push(row.state?.readAt ? `Polled ${relativeTime(row.state.readAt, now)}${row.state.more ? ', more next tick' : ''}` : 'Not polled yet')
+  if (items) facts.push(`${items.total} item${items.total === 1 ? '' : 's'}, ${items.untriaged} untriaged`)
+  if (items?.lastAt) facts.push(`newest ${relativeTime(items.lastAt, now)}`)
+  const refused = row.state?.refused?.length ?? 0
+  if (refused) facts.push(`${refused} refused`)
+  if (row.error) return { tone: 'error', label: 'Not used', facts, problem: row.error }
+  if (plugin && plugin.state !== 'approved')
+    return { tone: 'off', label: 'Off', facts, problem: `Plugin ${pluginId} is ${stateLabel(plugin).label.toLowerCase()}. Turn it on in its plugin card above.` }
+  if (row.state?.error) return { tone: 'error', label: 'Error', facts, problem: row.state.error }
+  if (pluginId) return row.state?.readAt ? { tone: 'ok', label: 'On', facts, problem: null } : { tone: 'waiting', label: 'Waiting', facts, problem: null }
+  return items?.total ? { tone: 'ok', label: 'On', facts, problem: null } : { tone: 'waiting', label: 'No item yet', facts, problem: null }
+}
+
+// What a source's items can set off (design §4.12): a plugin poll runs the
+// full trigger rules if the plugin says who acted; an MCP caller's items
+// meet only pause and quarantine rules.
+export function sourceTriggers(row: IntakeSourceRow, plugins: PluginRow[]): { level: string; line: string } {
+  const via = String(row.entry?.via ?? '')
+  if (!via.startsWith('plugin:'))
+    return { level: 'Untriaged only', line: 'Rules can only pause or quarantine its items. You start work with Plan this or Deliver this.' }
+  const id = via.slice(7)
+  const plugin = plugins.find((p) => p.id === id)
+  if (plugin && !plugin.capabilities?.tracker?.includes('actor'))
+    return { level: 'No rules', line: `Plugin ${id} can't say who acted, so no rule runs. Items wait in Untriaged.` }
+  return { level: 'Full rules', line: 'Its rules can start, deliver, pause or quarantine work, when the person who acted counts.' }
+}
+
+// Who counts on a saved source, in words.
+export function whoCounts(entry: Record<string, unknown> | null): string {
+  if (!entry || entry.via === 'mcp') return 'Not used: an MCP caller is you'
+  const people = strings(entry.allowedActors)
+  const permission = typeof entry.minimumPermission === 'string' ? entry.minimumPermission : null
+  if (people.length) return `${people.join(', ')}${permission ? `, or anyone with ${permission} or higher` : ''}`
+  return `Anyone with ${permission ?? DEFAULT_PERMISSION} or higher${permission ? '' : ' (default)'}`
+}
+
+export const listText = (value: unknown) => strings(value).join(', ')
 
 export function intakeClient(api: AppApi) {
   const run = async <T>(operation: string, input: Record<string, unknown>, workspaceId: string) => {
@@ -383,7 +469,7 @@ export function intakeClient(api: AppApi) {
     return reply.result
   }
   return {
-    list: (workspaceId: string) => run<{ sources: IntakeSourceRow[] }>('intake.sources', {}, workspaceId),
+    list: (workspaceId: string) => run<{ sources: IntakeSourceRow[]; github?: IntakeGitHub }>('intake.sources', {}, workspaceId),
     add: (workspaceId: string, input: { id: string; entry: Record<string, unknown>; scope: string; confirmPublic: boolean }) =>
       run<{ sources: IntakeSourceRow[] }>('intake.source.add', input, workspaceId),
     remove: (workspaceId: string, row: IntakeSourceRow) =>
