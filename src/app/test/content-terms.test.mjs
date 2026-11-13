@@ -80,8 +80,12 @@ test("a person writes the terms file owner-only; Settings never sees a term", as
     "content-rules",
     "made-up.txt",
   );
-  assert.equal(fs.statSync(file).mode & 0o777, 0o600);
-  assert.equal(fs.statSync(path.dirname(file)).mode & 0o777, 0o700);
+  // shortcut: Windows has no mode bits (Node shows 0o666), so owner-only
+  // there rests on the folder's inherited ACL; set one if that ever matters.
+  if (process.platform !== "win32") {
+    assert.equal(fs.statSync(file).mode & 0o777, 0o600);
+    assert.equal(fs.statSync(path.dirname(file)).mode & 0o777, 0o700);
+  }
   assert.match(fs.readFileSync(file, "utf8"), /cobalt heron\n$/);
   const back = await ops.execute("content.terms.get", { id: "made-up" });
   assert.match(back.text, /zebra/);

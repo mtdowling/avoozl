@@ -3,6 +3,7 @@
 // `observe`. Old or read-only workspaces may lack newer tables; those read as
 // empty rather than failing the view.
 import { budgetSummaries } from "./budget.mjs";
+import { providerOutItems } from "./provider-health.mjs";
 import { queryTasks, reviewSettled, statusComplete } from "../model.mjs";
 import {
   completionReached,
@@ -1089,6 +1090,8 @@ export function conflictsView(store, data) {
       openedAt: decision.openedAt ?? null,
     });
   }
+  // A provider or model that is out (§4.20, R72.16): one item per mark.
+  items.push(...providerOutItems(store));
   const holders = new Map();
   for (const run of optionalList(store, "runs"))
     if (ACTIVE_RUNS.has(run.state) && !run.deletedAt)

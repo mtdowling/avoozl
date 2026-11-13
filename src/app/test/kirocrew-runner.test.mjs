@@ -86,7 +86,7 @@ function setup(
   store.importSnapshot({ ...snapshot(), tasks, edges });
   store.put("projects", {
     id: "app",
-    root: fs.realpathSync(checkout),
+    root: fs.realpathSync.native(checkout),
     baseBranch: "main",
   });
   if (delivery)
@@ -96,7 +96,7 @@ function setup(
     );
   return {
     root,
-    checkout: fs.realpathSync(checkout),
+    checkout: fs.realpathSync.native(checkout),
     store,
     ops: new Operations(store, { workspaceRoot: root }),
   };

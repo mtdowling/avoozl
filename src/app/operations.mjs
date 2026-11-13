@@ -296,8 +296,16 @@ import {
   retryDelivery,
   readyCandidates,
   pickAgain,
+  reviewRoles as deliveryReviewRoles,
   startNow,
 } from "./delivery.mjs";
+import {
+  clearMark,
+  providersView,
+  queueSwitch,
+  switchPreview,
+  updateProviders,
+} from "./provider-health.mjs";
 import {
   routingPreview,
   routingView,
@@ -339,6 +347,11 @@ import {
   proposalsFromFacts,
   submitExtraction,
 } from "./design-extraction.mjs";
+import {
+  DEFAULT_RETENTION_DAYS,
+  listActivity,
+  recordOperation,
+} from "./activity-log.mjs";
 import { lintPlan } from "./plan-quality.mjs";
 import {
   createSpecPlan,
@@ -853,6 +866,22 @@ export class Operations {
         ? { local: this.placement.localReading() }
         : {}),
       ...(this.placement.now ? { now: this.placement.now() } : {}),
+    };
+  }
+  // What the provider operations need: the clock and each session's review
+  // roles, so a switch never breaks review distinctness (R72.9).
+  providerOptions() {
+    const policy = readDeliveryPolicy(this.workspaceRoot).delivery,
+      tasks = new Map(this.read().tasks.map((t) => [t.id, t]));
+    return {
+      ...(this.placement.now ? { now: this.placement.now() } : {}),
+      reviewRoles: (binding) =>
+        policy
+          ? deliveryReviewRoles(
+              policy,
+              taskRepository(tasks.get(binding.taskId)),
+            )
+          : [],
     };
   }
   // Tracker plugin tasks rebuilt from each approved tracker's `list` and the
@@ -1829,6 +1858,11 @@ export class Operations {
   // the app's stdio MCP server, and nothing else sets it (see mcp.mjs).
   async execute(name, input = {}, expectedRevision, context = {}) {
     const result = await this.perform(name, input, expectedRevision, context);
+    // One activity row for a listed local action (§4.19); never fails it.
+    recordOperation(this.store, name, input, result, {
+      context,
+      operator: this.operator,
+    });
     if (this.plansRoot) flushOutbox(this.store, this.plansRoot);
     return result;
   }
@@ -2107,6 +2141,17 @@ export class Operations {
       return result;
     }
     if (name === "crews.update") return updateCrews(store, input);
+    // Provider health and model switches (§4.20, R72). The writes are a
+    // person's: mcp-policy.mjs refuses them for MCP, the backend for tokens.
+    if (name === "providers.view")
+      return providersView(store, this.providerOptions());
+    if (name === "provider.switch.preview")
+      return switchPreview(store, input, this.providerOptions());
+    if (name === "provider.switch")
+      return queueSwitch(store, input, this.providerOptions());
+    if (name === "provider.health.clear") return clearMark(store, input);
+    if (name === "providers.settings.update")
+      return updateProviders(store, input);
     if (name === "delivery.pickAgain") return pickAgain(store, input);
     if (name === "delivery.settings.get")
       return this.settingsFile().readDeliverySettings();
@@ -2187,6 +2232,34 @@ export class Operations {
       return highlightLanguages(this.workspaceRoot);
     if (name === "activity.recent")
       return activityView(store, this.read(), input);
+    // The activity log (§4.19).
+    if (name === "activity.list") {
+      const page = listActivity(store, input);
+      let tasks = new Set();
+      try {
+        tasks = new Set(this.read().tasks.map((task) => task.id));
+      } catch {}
+      return {
+        ...page,
+        items: page.items.map((row) =>
+          row.targetId && tasks.has(row.targetId)
+            ? { ...row, task: true }
+            : row,
+        ),
+        retentionDays: this.workspaceRoot
+          ? this.settingsFile().readActivitySettings().retentionDays
+          : DEFAULT_RETENTION_DAYS,
+      };
+    }
+    if (name === "activity.settings.get")
+      return this.settingsFile().readActivitySettings();
+    if (name === "activity.settings.update") {
+      if (context.caller || context.mcp)
+        fail("Only a person changes how long activity is kept.", 403);
+      const written = this.settingsFile().updateActivitySettings(input);
+      this.configuration?.reload();
+      return written;
+    }
     if (name === "task.start")
       return startNow(store, input, {
         policy: readDeliveryPolicy(this.workspaceRoot),

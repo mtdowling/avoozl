@@ -1174,14 +1174,61 @@ retro model.
   - Failure means: a retro can change what agents are told without a person, or one workspace's text reaches another through lessons.
   - Next decision: keep prompt proposals and drop shared lessons, or share lessons only through packs.
 
-## Phase 29: Stop all agents and searchable pickers
+## Phase 29: Activity log
 
-Owner approval 2026-11-13 (Requirements 64.12–64.16 and 71, design §4.11
-and §8.9). Numbered after Phase 28 because task IDs never move.
+Owner request 2026-11-13 (Requirement 71, design §4.19). Numbered after
+Phase 28 because task IDs never move. Tests use isolated temporary
+workspaces, a fake GitHub and a fake plugin.
 
-- [ ] 29.1 Stop all agents in the backend and CLI, after 24.1 [R64.12, R64.14–R64.16] (§4.11)
+- [ ] 29.1 Activity table, helper and screening, after 10.4 [R71.1, R71.4, R71.5, R71.8] (§4.19)
+  - `activity_log` with a unique `key` for derived rows; `recordActivity` in `src/app/activity-log.mjs` validates source and kind, trims the summary to 200 characters, keeps only plain target IDs and `https:` links, screens with the built-in secret and path screens and the `activity` content boundary, and saves a matched or unchecked row redacted; a test fails if a secret-shaped value is saved.
+- [ ] 29.2 Local actions and tick events, after 29.1 and 14.10 [R71.2, R71.3] (§4.19)
+  - `execute` records the listed operations with source `local` or `mcp` and the actor; the tick diffs a snapshot of verdicts, Project item orders, label events, incoming items and conflicts and records each change once by key; the Wave write-back is recorded where it is written; recording never fails the action.
+- [ ] 29.3 Retention, `activity.list` and MCP, after 29.2 [R71.6, R71.9] (§4.19)
+  - `activity.retentionDays` (default 30, 1–365) with `activity.settings.get` and person-only `activity.settings.update`; `pruneActivity` on every `workspace.tick`; `activity.list` with filters, 100-row pages and its facets; `plans_view` action `activity` reads it and `recent` keeps the Dashboard timeline.
+- [ ] 29.4 Activity tab and the retention setting, after 29.3 and 12.11 [R71.7] (§4.19)
+  - The Activity tab with the `History` icon, `ViewHeading`, the shared filter panel (Source, Kind, Actor), 100 rows per page with Show more, task targets that open the drawer and GitHub links with `target="_blank" rel="noopener noreferrer"`; the Keep activity (days) field on the tab, saved by a person.
+
+- [ ] avoozl-p43 P43 Proof: activity log [R71] (§4.19)
+  - Setup: an isolated temporary workspace with one repository, a fake GitHub in single-repo mode with a Project, an approved spec with leaves `a1` and `a2` (`a2` requires `a1`), a fake tracker plugin, and a fake terms file banning `secretword` for every boundary.
+  - Action: (1) from the page press Start now on `a1`, pull the Andon cord, resume it, set `a2` to Deferred, save Flow settings, approve the plugin and change the writer model; (2) do one dispatch through MCP; (3) on the fake GitHub merge `a1`'s closing pull request, move `a2` to Deferred as an allowed actor and as another actor, set Wave by hand, apply a trigger label, and edit a managed title; tick twice; (4) add a tracker conflict and a new plugin incoming item; tick; (5) record a row whose summary holds `ghp_` plus 36 letters, and one holding `secretword`; (6) set retention to 1 day, age a row 2 days, and tick; (7) read the Activity tab and `plans_view` action `activity`, filtered by source `github`.
+  - Expected: (1) one `local` row each, with the person as actor; (2) one `mcp` row naming the session; (3) one row each for the merge, the order, the ignored move, the revert, the label and the conflict, the same after the second tick; (4) one `plugin` row each; (5) both saved redacted, and no row holds either value; (6) the old row is gone; (7) the tab and MCP show the same rows newest first, a task row opens the drawer and a GitHub row opens a new tab.
+  - Failure means: something that changed the workspace leaves no row, or the log can hold a secret or a private term.
+  - Next decision: record from each step instead of a snapshot diff, or keep redacted rows out of the log.
+
+## Phase 30: Provider health and switching models
+
+Owner request 2026-11-13 (Requirement 72, design §4.20). Numbered after
+Phase 29 because task IDs never move. It reads health from the usage and
+row reads Avoozl already makes and moves running chats with Kiro Crew's own
+per-chat model change (F126); everything proves with fakes for Kiro Crew.
+
+- [x] 30.1 Provider health from usage and errors, after 12.12 [R72.1–R72.4, R72.17, R72.18] (§4.20, F127, F128)
+  - Machine-local `providers` settings (`lowPercent`, `cooldownMinutes`, `windowHours`, `limits`, `groups`, `fallback`) with validation, refused in `.avoozl.json`; `provider_health` rows; usage marks after each usage read; error marks from the timing row read (kind first, then words, kind stored only); recovery by a later turn or the cooldown; person marks until undone; `providers.view` and person-only `providers.settings.update` and `provider.health.clear`.
+- [x] 30.2 Routing skips low and out, after 30.1 and 11.11 [R72.5–R72.7] (§4.20)
+  - `chooseSession` drops `out` and then `low` choices; the replacement, then `fallback`, for no rule or nothing left; never a review role's model; wait with a reason when nothing is healthy; retries keep a model until it is out; the dispatch path without rules does the same; Preview shows it.
+- [x] 30.3 Switch running chats, after 30.1 [R72.8–R72.11] (§4.20, F126)
+  - The backend's pass over live tick sessions on an `out` model; target choice; `POST /api/chat/slots/<slot>/model`; `deferred` read as switching at the next turn; binding `model` and `switches`; `provider_switches` records and the `onSwitchRecorded` activity hook writing one `model.switch` row per record; a refusal not retried; the served-model gate across switches.
+- [x] 30.4 Manual Switch model, after 30.3 [R72.12–R72.15] (§4.20)
+  - `provider.switch.preview` with its hash; person-only `provider.switch` with `alsoNewTasks` marks and the replacement; MCP refusal and app-backend owner-only; pending switches applied by the backend pass.
+- [x] 30.5 Switch model dialog, Needs you, and Settings › Providers, after 30.4 [R72.12, R72.13, R72.16, R72.17] (§4.20, §8)
+  - The Switch model button in the Dashboard header and on In flight; the dialog with From, To from `GET /api/models`, Also new tasks, the preview and marks with Undo; `conflicts.view` kind `provider-out` in Needs you; the Providers settings tab.
+
+- [x] avoozl-p44 P44 Proof: provider health and switching [R72] (§4.20)
+  - Setup: an isolated temporary workspace with one repository and fake crews; machine `providers` with `limits` `alpha-1` 100 credits, `fallback` `gamma-1`, `cooldownMinutes` 30; a routing rule giving routine leaves weighted choices `alpha-1` (weight 2) and `beta-1`; a review role on `delta-1` with `distinctFrom: model`; a fake usage feed, fake session rows, and a fake Kiro Crew model change that answers `deferred` for a busy chat and 404 for one slot.
+  - Action: (1) with no `providers`, tick and preview; (2) feed `alpha-1` 85 credits; tick; (3) feed 20 more; read health; tick; (4) feed a session row of kind `usage_limit` from a `beta-1` chat, then a 429 row twice from an `alpha-2` chat; (5) let 31 minutes pass, and feed a later `beta-1` turn; (6) retry a task whose kept model is `alpha-1` while it is low, then while it is out; (7) run the backend pass with `alpha-1` out and chats on it, one busy and one whose slot answers 404; (8) review a switched writer; (9) preview and confirm Switch model from provider `alpha` to `gamma-1` with Also new tasks, then confirm with a stale hash; (10) call the switch, undo and settings save from MCP, an app token and an agent tool; (11) read Needs you; undo the mark.
+  - Expected: (1) picks match the earlier ticks exactly; (2) `alpha-1` is low and new tasks take `beta-1`; (3) `alpha-1` is out, no new session opens on it, and Preview says why; (4) provider `beta` is out and `alpha-2` goes low then out, with no row text stored; (5) both clear; (6) the retry keeps `alpha-1` while low and moves off it when out, saying so; (7) both chats are asked to switch to a healthy model not on the review role's model, the busy one is recorded `deferred`, the refused one `refused` once and never retried, the sessions and worktrees are untouched, and each switch reaches the activity hook; (8) the verdict counts and is refused only when a reviewer model equals one of the writer's; (9) preview writes nothing, the confirm queues one switch per chat and marks the provider out with `gamma-1` for new tasks, and the stale hash gets 409; (10) every call is refused, MCP with the person-only refusal; (11) one `provider-out` item per out mark shows the switched count, and Undo clears the person's mark.
+  - Failure means: a task can open on an out provider, a switch loses a chat's work, or a non-person can switch models.
+  - Next decision: switch by opening a new session on the same branch instead, or mark health only from errors.
+
+## Phase 31: Stop all agents and searchable pickers
+
+Owner approval 2026-11-13 (Requirements 64.12–64.16 and 73, design §4.11
+and §8.9). Numbered after Phase 30 (Phases 29 and 30 went to the activity log and provider switching) because task IDs never move.
+
+- [ ] 31.1 Stop all agents in the backend and CLI, after 24.1 [R64.12, R64.14–R64.16] (§4.11)
   - `flow.stop {full: true}` is person only (MCP refused), needs the app backend's session stopper, records a full `all` stop with the sessions it stopped, stops each live tick-opened session, marks stopped bindings and attempts "Interrupted by stop" without spending a retry, holds checks and review sessions while open; Resume turns interrupted deliveries back to `failed` so the next tick re-dispatches on the same worktree, agent and model with a brief that says so; `avoozl flow stop --full`.
-- [ ] 29.2 Stop all agents in the dialog, after 29.1 and 24.2 [R64.12, R64.13] (§4.11)
+- [ ] 31.2 Stop all agents in the dialog, after 31.1 and 24.2 [R64.12, R64.13] (§4.11)
   - The dialog's two choices, the full stop's confirm warning that replies in progress are lost and saved files are kept, and the banner's count of stopped chats.
-- [ ] 29.3 One searchable picker for tasks and specs, after 24.2 [R71] (§8.9)
+- [ ] 31.3 One searchable picker for tasks and specs, after 24.2 [R73] (§8.9)
   - `Picker.tsx` combobox with ID, title and spec matching, state badges, the keys and ARIA of §8.9, and at most 50 rendered results; used in the Stop the line target, the filter panels and Start now; a test filters 5,000 tasks.

@@ -1,5 +1,6 @@
 // Task 3.15: GitHub Project sync (design §6.7). Fake GitHub only. Each test
 // names the nearby inputs it checks.
+import { listActivity } from "../activity-log.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -364,6 +365,11 @@ test("a Wave edit is written back with a notification, and an edge change writes
   assert.equal(value(github, "b3", 3), 4);
   assert.equal(reverted.notify.length, 1);
   assert.match(reverted.notify[0].text, /set Wave on b3 to 9/);
+  // The revert is in the activity log (§4.19).
+  assert.deepEqual(
+    listActivity(store).items.map((row) => [row.kind, row.targetId]),
+    [["github.revert", "b3"]],
+  );
 
   const data = structuredClone(store.read());
   data.edges = data.edges.filter((edge) => edge.id !== "a1:requires:a2");

@@ -86,7 +86,7 @@ test("unified repositories preserve legacy execution and GitHub records", async 
   assert.deepEqual(configured.labels.ready, ["team:ready"]);
   assert.equal(
     store.get("projects", "compiler").root,
-    fs.realpathSync(checkout),
+    fs.realpathSync.native(checkout),
   );
   assert.equal(
     store.get("github_repositories", "example/compiler").workspaceRepositoryId,

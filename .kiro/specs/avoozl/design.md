@@ -2829,6 +2829,254 @@ placeholders, and one line saying lessons stay on this computer.
 | Automatic marks, person edits | Marks are reversible; changing what a lesson says is a judgment |
 | Keep the override until a rebase is approved | Dropping it silently would undo a proven change |
 
+### 4.19 Activity log and Activity tab
+
+Owner request 2026-11-13 (Requirement 71). One table of who did what, from
+the page, the CLI, MCP, GitHub and plugin sync. It is the "activity log"
+the driver export (§6.10) names.
+
+```text
+operations.execute ─▶ recordOperation ─┐
+tick: snapshot before ─▶ steps ─▶ snapshot after ─▶ recordTickChanges ─┤
+other code (provider switching) ─▶ recordActivity ─────────────────────┤
+                                                                       ▼
+                       validate ─▶ screen (secrets, paths, `activity` sets)
+                                                                       │
+                                     clean ─▶ row │ match ─▶ redacted row
+                                                                       ▼
+            activity_log ─▶ activity.list ─▶ Activity tab, plans_view activity
+                         ◀─ pruneActivity on each tick (retentionDays)
+```
+
+#### Table
+
+`activity_log(seq, at, source, actor, kind, summary, target_id, link,
+redacted, key UNIQUE)` in the workspace's SQLite, indexed by `at`. `key`
+is set only for rows the tick derives, so a change two ticks (or two
+processes) see is written once (`INSERT OR IGNORE`). Sources are `local`,
+`github`, `plugin` and `mcp`. Kinds are dotted names
+(`/^[a-z][a-z0-9-]*(\.[a-z0-9-]+)*$/`, at most 64 characters), so a later
+caller can add one without a schema change.
+
+#### One helper
+
+`recordActivity(store, {source, actor, kind, summary, targetId, link, key,
+at})` in `src/app/activity-log.mjs`. It trims the summary to 200
+characters, drops a target that is not a plain ID and a link that is not
+`https:`, screens the row, and inserts it. A read-only store records
+nothing. Bad input (an unknown source or kind) throws, so a caller's test
+finds it. Every built-in caller wraps it so an action never fails because
+its row could not be written.
+
+#### Screening
+
+Each of actor, summary, target and link is checked with
+`secretReason` (builtin:published-secrets), the `PUBLISH_RULES` secret and
+path patterns, and `check({boundary: "activity"})` against the content
+rule sets. `activity` joins the boundary list and is not opt-in, so a set
+with no `boundaries` list covers it. A finding or an unavailable set saves
+the row redacted: time, source, kind, the summary "Redacted by content
+rules", and null actor, target and link. No decision opens and no
+notification is sent; the write it describes was already screened at its
+own boundary. The matched text is never stored.
+
+#### What is recorded
+
+| Where | Kind | Summary (Avoozl's words, IDs only) |
+|---|---|---|
+| `task.start`, `run.start`, `session.request` | `dispatch` | Dispatched TASK |
+| `task.update` to Deferred | `stop` | Stopped TASK (Deferred) |
+| `flow.stop`, `flow.resume` | `andon.pull`, `andon.resume` | Pulled or resumed the Andon cord for SCOPE |
+| `integration.merge`, `task.merge` | `merge` | Merged TASK, or merged duplicates into TASK |
+| `plan.approve` | `approve` | Approved plan PLAN |
+| `plan.archive`, `task.archive`, `run.archive` and their undo | `archive`, `unarchive` | Archived THING |
+| `plan.delete`, `run.delete`, `report.delete` | `delete` | Deleted THING |
+| settings updates (configuration, GitHub, flow, delivery, routing, crews, conversations, content-rule sets and terms, activity) | `settings.save` | Saved NAME settings |
+| `plugin.approve` | `plugin.approve` | Approved plugin ID |
+| `delivery.settings.update` with a model, `task.update` with an agent or model, `delivery.pickAgain` | `model.switch` | Writer model set to MODEL, and so on |
+| GitHub verdicts | `github.pr-merged`, `github.close`, `github.close-held` | Closing pull request merged for TASK; ACTOR closed #N; the close is held |
+| Project items | `github.board-deferred`, `github.board-resumed`, `github.board-ignored`, `github.release` | Board orders and ignored moves |
+| Wave written back | `github.revert` | Wave on TASK written back |
+| `github_issues` label events | `github.label` | ACTOR's label applied rule RULE (ACTION) on #N |
+| incoming items | `intake.item` | New ITEM from SOURCE, source `github` or `plugin` |
+| projection and tracker conflicts | `github.conflict`, `plugin.conflict` | FIELD on TASK was changed outside Avoozl |
+| tracker verdicts | `plugin.close` | TASK closed in its tracker |
+
+The tick's rows come from a diff of a small snapshot taken before and
+after the tick (verdict states, Project item orders, label event IDs,
+incoming item IDs and conflict fields), read with SQL where it can, so a
+tick with no change parses no record. The Wave revert is recorded where it
+is written, in `github-project.mjs`.
+
+#### Retention, reads and the tab
+
+`activity.retentionDays` (default 30, 1–365) is a `.avoozl.json` key,
+read and saved by `activity.settings.get` and person-only
+`activity.settings.update` from the Activity tab's Keep activity field. Each
+`workspace.tick` calls `pruneActivity`. `activity.list {source, kind,
+actor, limit ≤ 100, offset}` answers `{items, total, sources, kinds,
+actors, retentionDays}` newest first, and is `plans_view` action
+`activity`; the Dashboard's task timeline moves to action `recent`.
+
+The Activity tab (icon `History`) uses `ViewHeading`, the shared
+`FilterPanel` (Source, Kind, Actor), 100 rows per page with `ShowMore`,
+and a row per entry: time, source, actor, summary, target. A task target
+opens the drawer; a GitHub link opens with `target="_blank"
+rel="noopener noreferrer"` through `safeHref`. A redacted row says so.
+
+#### Why each choice
+
+| Choice | Why |
+|---|---|
+| One table, one helper | Provider switching and later callers add rows without a new store |
+| Avoozl writes every summary | Issue text and prompts never reach the log |
+| Redact, not refuse | The row still shows something happened, without the text |
+| Diff snapshots in the tick | One place sees every GitHub and plugin change without touching each step |
+| `key` on derived rows | Two ticks, or two processes, record a change once |
+
+### 4.20 Provider health and switching models
+
+**Proposed**, owner request 2026-11-13 (Requirement 72). A rate limit or an
+empty credit balance stalls every chat on that provider, and today a new
+task still opens there. Avoozl already reads each session's usage turns and
+tool rows (§4.11). This section reads health from them, keeps new work off a
+weak provider, and moves running chats with Kiro Crew's own model change.
+
+```text
+GET /api/usage/turns ─▶ sums per provider and model in the window ─▶ limits?
+GET /api/chat/slots/<slot> rows ─▶ error kind (usage_limit, 429 …)    │
+                                                                       ▼
+                     provider_health: ok │ low │ out  (+ a person's marks)
+                         │                              │
+   new task / retry ◀────┘                              └──▶ running chat on out
+   skip low and out choices,                                POST /api/chat/slots/<slot>/model
+   else fallback, else wait                                 same session, next turn
+                                                                 │
+                                    provider_switches ◀──────────┘ ─▶ activity hook
+                                    Needs you: "<provider> is out"
+```
+
+#### Facts
+
+| ID | Fact | Where |
+|---|---|---|
+| F126 | **Verified from source, not called live.** `POST /api/chat/slots/{slot}/model` with `{model}` changes one chat's model in place (`session/set_model`) and answers `{ok, model}`; while a turn runs it answers `deferred: true` and applies the pick when that turn ends. An app may call it on a slot it owns: the slot checkpoint admits the owner app, and an app grant is a prefix match, so `/api/chat/slots/avoozl_*` already covers it. | Kiro Crew `dashboard/chat_api/slot_model.py` `api_chat_slot_model`, `dashboard/slot_ownership.py`, `dashboard/token_auth_app_scope.py` `_api_pattern_matches` |
+| F127 | **Verified from source.** A failed turn leaves a row with role `error` and `meta.kind`, among them `usage_limit` (a spent plan allowance), `model_unavailable` (capacity or rollout refusal after the retry ladder) and `transient_retry`. Plain error rows have no kind, so Avoozl also reads a few words of the text, and stores only the kind. | Kiro Crew `dashboard/chat_utils_injected_rows.py`, `dashboard/chat_turn/recovery.py` `_terminal_error_meta` |
+| F128 | **Verified from source.** `GET /api/models` lists `model_name`, `display_name` and `description`, with no provider. Providers therefore come from `providers.groups` or the model ID's first word. | Kiro Crew `dashboard/handlers/agents.py` `api_models` |
+
+#### Settings
+
+Machine-local, `~/.config/avoozl/config.json` key `providers`, because
+limits, credits and which models a machine reaches belong to that machine.
+`.avoozl.json` refuses the key (tick and settings validation):
+
+```json
+{
+  "providers": {
+    "lowPercent": 80,
+    "cooldownMinutes": 30,
+    "windowHours": 5,
+    "limits": { "claude": { "credits": 500 }, "model-a": { "tokens": 2000000 } },
+    "groups": { "anthropic": ["claude-*"] },
+    "fallback": ["model-b", "model-c"]
+  }
+}
+```
+
+Every key is optional. `groups` patterns take `*` only. A limit key names a
+provider or a model; both are checked.
+
+#### Health
+
+- **Record.** `provider_health` rows keyed `provider:<id>` or `model:<id>`:
+  `level`, `source` (`usage`, `error`, `person`), `kind`, `since`,
+  `lastErrorAt`, `until` (cooldown end), `to` (a person's replacement) and
+  `by`. A row at `ok` is deleted, so an empty table means no change
+  (R72.18).
+- **Usage.** After each usage read the backend sums the window per key and
+  writes or clears `usage` marks (R72.2). It never overrides a `person`
+  mark and never lowers an `error` `out`.
+- **Errors.** The backend's tool-row read for timing already fetches each
+  local worker session's new rows; it also hands them to the health check,
+  so no new request is made. Kind first, then the text's words (F127). The
+  model is the session's served model, else its requested one; a session on
+  `auto` marks nothing. `out of credits` marks the provider, since credits
+  are an account's; a rate limit marks the model (R72.3).
+- **Recovery.** On read, an `error` mark past `until` is dropped; a usage
+  turn on the model after `lastErrorAt` drops it too (R72.4).
+
+shortcut: errors are read from local worker sessions only (the rows the
+timing read already has); reviewer, remote and Crew Mode errors are missed
+until an app-scoped roster carries them. Their usage still counts.
+
+#### New tasks and retries
+
+`chooseSession` gets the health check. Weighted choices drop `out`, then
+`low` while an `ok` one remains, before the weights split the work (R72.5).
+With no rule, or nothing left, the pick is the person's replacement for the
+model, then the first healthy `fallback` that is not a review role's model.
+Without rules the dispatch path does the same with the delivery model. A
+retry keeps its model unless it is `out` (R72.6). The reason says which
+model was skipped and why, and Preview shows it (R72.7).
+
+#### Running chats
+
+After the reads, the backend looks at each live session the tick opened. On
+an `out` model it picks a target (R72.9) and calls F126. The binding's
+`model` becomes the target and its `switches` list gains `{from, to, at,
+by}`; the session, worktree and branch stay, so committed work is kept and
+the next turn runs on the new model (R72.8). A refusal is recorded on the
+binding and not retried for that model. The served-model gate reads
+`switches`: a chat Avoozl switched is judged by all its models (R72.11).
+
+#### Manual switch
+
+- `provider.switch.preview {from, to}` (observe): `from` is `{provider}`,
+  `{model}` or `{tasks: [...]}`. It lists the live chats it would move and
+  the ones it would skip with why (a reviewer whose writer runs on `to`),
+  and a hash of that list.
+- `provider.switch {from, to, alsoNewTasks, previewHash}` (person-only): 409
+  when the hash no longer matches; else it queues one `pending` switch per
+  chat (by the person) and, with `alsoNewTasks`, writes `person` marks with
+  `to` as the replacement. The backend applies pending switches on its next
+  pass, the same way as automatic ones (R72.14).
+- `provider.health.clear {id}` (person-only) undoes a mark.
+- `providers.view` (observe) gives settings, marks with levels, the last 50
+  switches and the live chats with their models.
+- `providers.settings.update {providers, expectedHash}` (person-only).
+
+#### Activity hook
+
+`provider-health.mjs` calls `onSwitchRecorded(store, entry)` once per
+finished switch record. It writes one activity row (§4.19) of kind
+`model.switch`, source `local`, actor `avoozl` or the person, the task as
+target, and the key `provider-switch:<id>` so a record is logged once. A
+row that cannot be written never loses the record in `provider_switches`
+(R72.10). `provider.switch`, `provider.health.clear` and
+`providers.settings.update` are recorded as local actions too.
+
+#### Page
+
+- **Switch model** in the Dashboard header and on the In flight card opens
+  one dialog: From (Provider, Model, or Tasks with a checkbox per running
+  task), To (models from `GET /api/models`), Also new tasks, the preview
+  list, and Switch. Health marks show above with Undo for a person's.
+- **Needs you** lists `out` marks from `conflicts.view` kind `provider-out`
+  (R72.16).
+- **Settings › Providers** edits the machine `providers` key and lists the
+  marks with Undo (R72.17).
+
+#### Why each choice
+
+| Choice | Why |
+|---|---|
+| Kiro Crew's model change, not a new session | The chat keeps its context, worktree and commits, and Kiro Crew waits for the turn to end |
+| Health from reads Avoozl already makes | No new request and no new grant |
+| Store the kind, not the text | Error text can hold prompts or paths |
+| Credits mark the provider, rate limits the model | Credits are an account's; a limit is often one model's |
+| Person marks stay until undone | The owner said so; a timer would undo a decision |
+| Settings on this machine | Limits and reachable models differ per machine |
+
 ## 5. Local workflow
 
 **Proposed.** From one large goal to integrated commits, with no GitHub.
@@ -4954,6 +5202,8 @@ and next decision, are tasks in `tasks.md` (P1–P32). Summary:
 | P40 | Driver handoff with temporary workspaces on one fake GitHub: the plan issue's single assignee and the machine claim pick one driver, the epic's assignee stands in, zero or several assignees read only with one decision, one login on two machines, the check before dispatch, age never moves the role, drain then export then reassign and take over, a tampered file refused, rebuild and forced take-over with the loss list, a silently ignored reassignment, the old driver going read-only on return, away tasks never restarted by lease, the re-approve list, person-only 403s, and the Local only row (Phase 26) |
 | P41 | Budgets and receipts in a temporary workspace with fake workers and fake usage rows: priced and unpriced turns, caps by level, retries and review rounds on one cap, a batch's shared cap, the stop message at the next turn with no session stopped, `budget_reached` on MCP, Raise budget and Stop as a person only, a price change recomputing a receipt with both versions shown, unknown spend for Crew Mode and a failed read, JSON export, the retro payload, and no budget changing a gate (Phase 27) |
 | P42 | Prompt and skill proposals and lessons with fake workers and a fake retro model in two temporary workspaces: locked sections, stale bases and blocked text dropped, person-only approve and revert, overrides outside shipped files, a repository skill change as a leaf and an external one as a note, PDCA per version with mixed windows, lessons shared with no source text, opt-out, refused lesson text, drift marks that clear on confirmation, the lessons review, override drift with a three-way diff, pack versions, and person-only export (Phase 28) |
+| P43 | The activity log in a temporary workspace with a fake GitHub and a fake plugin: every listed local action and tick event makes one row, a change seen twice makes one, a secret-shaped or rule-matched value is saved redacted, rows past retention go on the tick, and the tab and `plans_view` read the same rows (Phase 29) |
+| P44 | Provider health and switching with fake usage rows, fake error rows and a fake Kiro Crew model change in a temporary workspace: usage and error marks, recovery by success and cooldown, new tasks and weighted choices skipping low and out, retries keeping a model until it is out, running chats switched in the same session at the next turn, the review gate across a switch, the manual switch with preview hash and Also new tasks, person-only 403s, Needs you, and nothing changed with no settings (Phase 30) |
 
 A new server, shared database, or plugin mechanism other than the seam in §4.8
 requires a failed proof that a small Kiro Crew or GitHub contract cannot fix.
@@ -4987,6 +5237,8 @@ Detailed in `tasks.md`. **Proposed** order:
 | 26. Driver handoff | One driver per spec: the plan issue's assignee plus a machine claim, read-only ticks elsewhere, the check before dispatch, hand off with drain, export and reassign, take over from the file or a rebuild, force take over, what never moves, the header and banner (§6.10) | Starts after 3.8, 3.10 and 21.4; P40 |
 | 27. Budgets and receipts | A machine-local, versioned price table; dollar caps per task from workspace, repository, spec and task, with token and credit fallbacks; the stop at the next turn and Raise budget or Stop in Needs you; receipts by stage, model and attempt with JSON export; spend on the drawer, Delivery and In flight (§4.17) | Starts after 12.12 and 12.9; P41 |
 | 28. Retro prompt and skill proposals, and lessons | Prompt and skill diffs with evidence from the retro, local per-workspace prompt overrides with revert, repository skill changes as leaves and external ones as notes, PDCA per version, a lessons store on this Mac shared across workspaces, lessons packs, and healing of lessons and overrides (§4.18) | Starts after 12.9 and 12.10; P42 |
+| 29. Activity log | One SQLite activity table, one `recordActivity` helper, local actions and the tick's GitHub and plugin events, screening and redaction, retention on the tick, the Activity tab and `plans_view` action `activity` (§4.19) | Starts after 10.4, 12.11 and 14.10; P43 |
+| 30. Provider health and switching | Health levels from usage reads and error rows, routing that skips low and out, running chats moved with Kiro Crew's model change, the manual Switch model dialog, Needs you, and Settings › Providers (§4.20) | Starts after 11.11 and 12.12; P44 |
 
 ### 12.1 Bootstrap: building Avoozl before Avoozl works
 

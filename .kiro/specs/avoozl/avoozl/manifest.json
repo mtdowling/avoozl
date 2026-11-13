@@ -5435,7 +5435,204 @@
     "29.1": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 29 (Stop all agents and searchable pickers). See R64.12, R64.14–R64.16; §4.11.",
+      "summary": "Phase 29 (Activity log). See R71.1, R71.4, R71.5, R71.8; §4.19.",
+      "acceptance": [
+        "Activity table, helper and screening, after 10.4",
+        "An activity_log table and one recordActivity helper validate, trim and screen each row with the built-in secret and path screens and the activity content boundary; a matched or unchecked row is saved redacted; a test fails if a secret-shaped value is saved."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "10.4"
+      ]
+    },
+    "29.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 29 (Activity log). See R71.2, R71.3; §4.19.",
+      "acceptance": [
+        "Local actions and tick events, after 29.1 and 14.10",
+        "The listed local actions record one row each with source local or mcp; the tick records GitHub and plugin closes, board orders, label orders, incoming items, conflicts and reverts once each; recording never fails an action."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "29.1",
+        "14.10"
+      ]
+    },
+    "29.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 29 (Activity log). See R71.6, R71.9; §4.19.",
+      "acceptance": [
+        "Retention, activity.list and MCP, after 29.2",
+        "activity.retentionDays defaults to 30 and is saved by a person only; each tick prunes older rows; activity.list filters and pages 100 rows; plans_view action activity reads it and recent keeps the Dashboard timeline."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "29.2"
+      ]
+    },
+    "29.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 29 (Activity log). See R71.7; §4.19.",
+      "acceptance": [
+        "Activity tab and the retention setting, after 29.3 and 12.11",
+        "The Activity tab uses the shared heading, filter panel and 100-row pages; task rows open the drawer and GitHub links open in a new tab with noopener noreferrer; the tab's Keep activity field sets the retention."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "29.3",
+        "12.11"
+      ]
+    },
+    "avoozl-p43": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 29 (Activity log). Proof. See R71; §4.19.",
+      "acceptance": [
+        "Proof: activity log",
+        "Expected: every listed local action and tick event makes one row, a change seen twice makes one, secret-shaped and rule-matched values are saved redacted, old rows are pruned on the tick, and the tab and plans_view read the same rows."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "29.1",
+        "29.2",
+        "29.3",
+        "29.4"
+      ]
+    },
+    "30.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 30 (Provider health and switching models). See R72.1–R72.4, R72.17, R72.18; §4.20.",
+      "acceptance": [
+        "Provider health from usage and errors, after 12.12",
+        "Machine-local providers settings are validated and refused in .avoozl.json; usage sums and error rows mark providers and models low or out, storing the kind only; marks clear on a later turn or the cooldown, and a person's only when undone; providers.view reads them; settings save and undo are person-only."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "12.12"
+      ]
+    },
+    "30.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 30 (Provider health and switching models). See R72.5–R72.7; §4.20.",
+      "acceptance": [
+        "Routing skips low and out, after 30.1 and 11.11",
+        "New tasks drop out and then low choices, fall back to the replacement or providers.fallback, never take a review role's model, and wait with a reason when nothing is healthy; retries keep a model until it is out; the path without rules does the same; Preview shows it; with no settings nothing changes."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "30.1",
+        "11.11"
+      ]
+    },
+    "30.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 30 (Provider health and switching models). See R72.8–R72.11; §4.20, F126.",
+      "acceptance": [
+        "Switch running chats, after 30.1",
+        "Live tick chats on an out model switch through POST /api/chat/slots/<slot>/model in the same session, deferred to the next turn when busy; the binding records the switch; each switch is a provider_switches record passed to the activity hook; a refusal is not retried; the served-model gate counts every model a switched chat ran on."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "30.1"
+      ]
+    },
+    "30.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 30 (Provider health and switching models). See R72.12–R72.15; §4.20.",
+      "acceptance": [
+        "Manual Switch model, after 30.3",
+        "provider.switch.preview lists the chats with a hash and writes nothing; person-only provider.switch refuses a stale hash, queues one switch per chat and with alsoNewTasks marks the old model out with the replacement until undone; MCP gets the person-only refusal and app tokens and agent tools are refused."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "30.3"
+      ]
+    },
+    "30.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 30 (Provider health and switching models). See R72.12, R72.13, R72.16, R72.17; §4.20, §8.",
+      "acceptance": [
+        "Switch model dialog, Needs you, and Settings › Providers, after 30.4",
+        "Switch model in the Dashboard header and on In flight opens the dialog with From, To from /api/models, Also new tasks, the preview and marks with Undo; out marks show in Needs you; Settings › Providers edits this machine's providers settings."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "30.4"
+      ]
+    },
+    "avoozl-p44": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 30 (Provider health and switching models). Proof. See R72; §4.20.",
+      "acceptance": [
+        "Proof: provider health and switching",
+        "Expected: no task opens on an out model; low and out choices are skipped and retries keep a model until it is out; running chats on an out model switch in the same session at the next turn and each switch is recorded; the review gate holds across a switch; the manual switch previews, refuses a stale hash and marks new tasks only when asked; only a person can switch, undo or save; Needs you shows out marks; with no settings nothing changes."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "30.1",
+        "30.2",
+        "30.3",
+        "30.4",
+        "30.5"
+      ]
+    },
+    "31.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 31 (Stop all agents and searchable pickers). See R64.12, R64.14–R64.16; §4.11.",
       "acceptance": [
         "Stop all agents in the backend and CLI, after 24.1",
         "A person-only full stop stops every running session Avoozl opened, keeps worktrees, marks attempts Interrupted by stop without spending a retry, and Resume re-dispatches each on the same branch, agent and model."
@@ -5449,12 +5646,12 @@
         "24.1"
       ]
     },
-    "29.2": {
+    "31.2": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 29 (Stop all agents and searchable pickers). See R64.12, R64.13; §4.11.",
+      "summary": "Phase 31 (Stop all agents and searchable pickers). See R64.12, R64.13; §4.11.",
       "acceptance": [
-        "Stop all agents in the dialog, after 29.1 and 24.2",
+        "Stop all agents in the dialog, after 31.1 and 24.2",
         "The dialog offers Stop the line and Stop all agents, and the full stop's confirm warns that replies in progress are lost and saved files are kept."
       ],
       "completion": "integrated",
@@ -5463,14 +5660,14 @@
         "git diff --check"
       ],
       "requires": [
-        "29.1",
+        "31.1",
         "24.2"
       ]
     },
-    "29.3": {
+    "31.3": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Phase 29 (Stop all agents and searchable pickers). See R71; §8.9.",
+      "summary": "Phase 31 (Stop all agents and searchable pickers). See R73; §8.9.",
       "acceptance": [
         "One searchable picker for tasks and specs, after 24.2",
         "Every task and spec choice uses one keyboard-accessible combobox that matches ID, title and spec, shows state, and stays fast with 5,000 tasks."

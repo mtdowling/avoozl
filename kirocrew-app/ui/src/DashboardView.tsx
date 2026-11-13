@@ -15,6 +15,7 @@ import { CONFLICT_LABELS, viewsClient, type ConflictItem } from './views-api.ts'
 import { useRead } from './useRead.ts'
 import { LineBanner } from './FlowView.tsx'
 import { StopLineButton } from './StopLine.tsx'
+import { SwitchModelButton } from './SwitchModel.tsx'
 import { flowClient } from './flow-api.ts'
 import Logo from './Logo'
 import { IconBtn, IconLabel, SectionHeading, ShowMore, ViewHeading, useAskChat, usePages } from './controls.tsx'
@@ -57,10 +58,10 @@ function Pair({ height, children }: { height: string; children: ReactNode }) {
   )
 }
 
-function Section({ title, children, empty }: { title: string; children: ReactNode; empty?: string | false }) {
+function Section({ title, children, empty, actions }: { title: string; children: ReactNode; empty?: string | false; actions?: ReactNode }) {
   return (
     <Card className="flex h-full min-h-0 flex-col">
-      <SectionHeading title={title} className="mb-2" />
+      <SectionHeading title={title} className="mb-2" actions={actions} />
       <div data-scroll className="min-h-0 flex-1 overflow-y-auto">
         {empty ? <p className="mt-2 text-sm text-muted">{empty}</p> : children}
       </div>
@@ -400,6 +401,8 @@ export default function DashboardView(props: {
             {summary && value.total > 0 && (
               <StateCounts counts={summary.counts} total={value.total} layout={layout} onPick={(state) => props.onScope?.('delivery', { state })} />
             )}
+            {/* Move running chats to another model (§4.20, R72.12). */}
+            <SwitchModelButton workspaceId={workspaceId} onSwitched={() => void reload()} compact={layout === 'small'} />
             {/* Pull the Andon cord (R64): at the header's end, red. */}
             <StopLineButton workspaceId={workspaceId} onPulled={() => void flow.reload()} />
           </>
@@ -424,7 +427,20 @@ export default function DashboardView(props: {
       ) : summary ? (
         <>
           <Pair height={ROW_HEIGHT.flight}>
-            <Section title={`In flight (${summary.inFlight.length})`} empty={summary.inFlight.length === 0 && 'No agent is working right now.'}>
+            <Section
+              title={`In flight (${summary.inFlight.length})`}
+              empty={summary.inFlight.length === 0 && 'No agent is working right now.'}
+              actions={
+                summary.inFlight.length > 0 && (
+                  <SwitchModelButton
+                    workspaceId={workspaceId}
+                    tasks={[...new Set(summary.inFlight.map((row) => row.taskId))]}
+                    onSwitched={() => void reload()}
+                    compact
+                  />
+                )
+              }
+            >
               <ul className="mt-1">
                 {pages.take('flight', summary.inFlight).map((row) => (
                   <InFlightRow

@@ -19,6 +19,10 @@ const tools = {
       describe: ["client.describe", "client contract and operations"],
       configuration: ["configuration.get", "the saved .avoozl.json settings"],
       flow_settings: ["flow.settings.get", "flow settings"],
+      activity_settings: [
+        "activity.settings.get",
+        "how many days the activity log keeps rows",
+      ],
       delivery_settings: [
         "delivery.settings.get",
         "the writer agent and model and pull request feedback settings",
@@ -71,9 +75,21 @@ const tools = {
         "routing.preview",
         "where ready tasks would run now; opens nothing",
       ],
+      providers: [
+        "providers.view",
+        "provider health marks, switches, and live chats' models",
+      ],
+      switch_preview: [
+        "provider.switch.preview",
+        "the chats a model switch would move; switches nothing",
+      ],
       log: ["workspace.tick.log", "recent tick log"],
       health: ["workspace.tick.health", "tick health"],
-      activity: ["activity.recent", "recent activity"],
+      activity: [
+        "activity.list",
+        "the activity log: {source?, kind?, actor?, offset?}, 100 rows a page",
+      ],
+      recent: ["activity.recent", "recent task events"],
       queue: ["queue", "ready work, resource conflicts, queued integration"],
       next: ["runner.next", "what a Crew Mode conductor does next"],
       query: ["query", "search tasks"],

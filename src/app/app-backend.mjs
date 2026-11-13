@@ -27,6 +27,13 @@ import {
 import { declaredChecks } from "./delivery.mjs";
 import { observeUsage } from "./flow-usage.mjs";
 import { budgetStep } from "./budget.mjs";
+import { gatewayClient } from "./gateway-client.mjs";
+import {
+  applySwitches,
+  gatewayModelSwitcher,
+  refreshHealth,
+} from "./provider-health.mjs";
+import { choiceModels, routingContext } from "./routing.mjs";
 import { taskRepository } from "../work-model.mjs";
 import { issueRadarReader } from "./radar-handoff.mjs";
 import { WORKSPACE_LOCK, tickHealth } from "./tick.mjs";
@@ -142,6 +149,9 @@ const APP_OPERATIONS = new Set([
   "workspace.tick.log",
   "highlight.languages",
   "activity.recent",
+  "activity.list",
+  "activity.settings.get",
+  "activity.settings.update",
   "chat.context",
   "graph.view",
   "delivery.view",
@@ -214,6 +224,11 @@ const APP_OPERATIONS = new Set([
   "routing.preview",
   "routing.update",
   "crews.update",
+  "providers.view",
+  "provider.switch.preview",
+  "provider.switch",
+  "provider.health.clear",
+  "providers.settings.update",
   "delivery.pickAgain",
   "delivery.settings.get",
   "delivery.settings.update",
@@ -274,7 +289,7 @@ function badRequest(message, status = 400) {
 
 function sameDirectory(a, b) {
   try {
-    return fs.realpathSync(a) === fs.realpathSync(b);
+    return fs.realpathSync.native(a) === fs.realpathSync.native(b);
   } catch {
     return false;
   }
@@ -343,6 +358,8 @@ export function startAppBackend({
   rowReader = gatewaySlotRows(process.env),
   // Reads per-turn tokens and credits for timing (flow-usage.mjs).
   usageReader = gatewayUsageTurns(process.env),
+  // Changes a running chat's model (provider-health.mjs, F126).
+  modelSwitcher = gatewayModelSwitcher(gatewayClient(process.env)),
   // Reads Issue Radar's crews for Send to Issue Radar (radar-handoff.mjs).
   crewReader = issueRadarReader(process.env),
 }) {
@@ -523,6 +540,27 @@ export function startAppBackend({
               if (!error.contention) throw error;
             }
           }
+          // Provider health (§4.20): marks from the reads above, then move
+          // live chats off an out model, and apply a person's switches.
+          refreshHealth(store);
+          if (modelSwitcher) {
+            const data = store.read(),
+              tasks = new Map(data.tasks.map((t) => [t.id, t])),
+              ctx = routingContext(store, { workspaceRoot: ops.workspaceRoot });
+            await applySwitches(store, modelSwitcher, {
+              ...ops.providerOptions(),
+              health: ctx.health,
+              choicesFor: (binding) =>
+                tasks.has(binding.taskId)
+                  ? choiceModels(
+                      ctx,
+                      data,
+                      tasks.get(binding.taskId),
+                      binding.role,
+                    )
+                  : [],
+            });
+          }
         } catch (error) {
           if (error.status !== 503) console.error(error);
         }
@@ -536,7 +574,8 @@ export function startAppBackend({
     target.dbPath !== ":memory:" &&
     fs.existsSync(target.dbPath);
   const follow = () => {
-    if (!(notifier || slotReader || rowReader || usageReader)) return;
+    if (!(notifier || slotReader || rowReader || usageReader || modelSwitcher))
+      return;
     let target = drainable(config) ? config : null;
     if (!target)
       try {
