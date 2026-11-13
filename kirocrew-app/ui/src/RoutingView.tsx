@@ -164,7 +164,7 @@ function CrewDialog(props: { crew: Crew; onCancel: () => void; onSave: (form: Cr
               <Input id="avoozl-crew-ssh" value={form.sshHost} placeholder="user@host" onChange={(e) => set({ sshHost: e.target.value })} />
             </Field>
             <Field id="avoozl-crew-root" label="Worktree folder" raw={`crews.${props.crew.id}.worktreeRoot`} note="An absolute folder on that crew. Needed for hand-back." width="32rem">
-              <Input id="avoozl-crew-root" value={form.worktreeRoot} placeholder="/home/user/avoozl-work" onChange={(e) => set({ worktreeRoot: e.target.value })} />
+              <Input id="avoozl-crew-root" value={form.worktreeRoot} placeholder="/srv/avoozl-work" onChange={(e) => set({ worktreeRoot: e.target.value })} />
             </Field>
           </>
         )}

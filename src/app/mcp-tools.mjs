@@ -16,6 +16,7 @@ const tools = {
       describe: ["client.describe", "client contract and operations"],
       configuration: ["configuration.get", "the saved .avoozl.json settings"],
       flow_settings: ["flow.settings.get", "flow settings"],
+      delivery_settings: ["delivery.settings.get", "the writer agent and model and pull request feedback settings"],
       conversation_settings: ["conversations.settings.get", "conversation settings"],
       examples: ["workspace.examples", "optional example packs"],
       trash: ["trash", "deleted plans and runs"],

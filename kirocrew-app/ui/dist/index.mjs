@@ -22669,7 +22669,7 @@ function zh(e) {
 						children: /* @__PURE__ */ b(g, {
 							id: "avoozl-crew-root",
 							value: t.worktreeRoot,
-							placeholder: "/home/user/avoozl-work",
+							placeholder: "/srv/avoozl-work",
 							onChange: (e) => a({ worktreeRoot: e.target.value })
 						})
 					})
