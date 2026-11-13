@@ -115,6 +115,8 @@ export class Store {
    CREATE TABLE IF NOT EXISTS incoming_items(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS intake_sources(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS placement_decisions(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS provider_health(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS provider_switches(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS flow_usage(id TEXT PRIMARY KEY,slot TEXT NOT NULL,task_id TEXT NOT NULL,attempt INTEGER,role TEXT,ts TEXT NOT NULL,model TEXT,input REAL,output REAL,credits REAL);
    CREATE TABLE IF NOT EXISTS activity_log(seq INTEGER PRIMARY KEY AUTOINCREMENT,at TEXT NOT NULL,source TEXT NOT NULL,actor TEXT,kind TEXT NOT NULL,summary TEXT NOT NULL,target_id TEXT,link TEXT,redacted INTEGER NOT NULL DEFAULT 0,key TEXT UNIQUE);
    CREATE INDEX IF NOT EXISTS activity_log_at ON activity_log(at);
@@ -422,6 +424,8 @@ export class Store {
         "incoming_items",
         "intake_sources",
         "placement_decisions",
+        "provider_health",
+        "provider_switches",
       ].includes(table)
     )
       fail("Unknown record type");
@@ -479,6 +483,8 @@ export class Store {
         "incoming_items",
         "intake_sources",
         "placement_decisions",
+        "provider_health",
+        "provider_switches",
       ].includes(table)
     )
       fail("Unknown record type");
@@ -532,6 +538,8 @@ export class Store {
         "incoming_items",
         "intake_sources",
         "placement_decisions",
+        "provider_health",
+        "provider_switches",
       ].includes(table)
     )
       this.db
@@ -604,6 +612,8 @@ export class Store {
         "incoming_items",
         "intake_sources",
         "placement_decisions",
+        "provider_health",
+        "provider_switches",
       ].includes(table)
     )
       fail("Unknown record type");
