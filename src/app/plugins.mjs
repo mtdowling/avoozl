@@ -597,20 +597,29 @@ export function inspectPlugins(options) {
   );
 }
 
+// A /proc/net/tcp{,6} address ("0100007F:1F90") as lsof prints it
+// ("127.0.0.1:8080", "[::1]:8080"). The address is 32-bit words in host
+// byte order; shortcut: assumes a little-endian host, as every Linux
+// platform Node ships for is.
+export function procAddress(hex) {
+  const [address, port] = hex.split(":"),
+    words = address.match(/.{8}/g).map((word) =>
+      word
+        .match(/../g)
+        .reverse()
+        .map((byte) => parseInt(byte, 16)),
+    ),
+    bytes = words.flat(),
+    number = parseInt(port, 16);
+  if (bytes.length === 4) return `${bytes.join(".")}:${number}`;
+  const groups = [];
+  for (let i = 0; i < 16; i += 2)
+    groups.push(((bytes[i] << 8) | bytes[i + 1]).toString(16));
+  return `${new URL(`http://[${groups.join(":")}]`).hostname}:${number}`;
+}
+
 // TCP listeners the process holds: lsof on macOS and BSD, /proc on Linux.
 // A process Avoozl cannot check is treated as listening (fail closed).
-// /proc/net/tcp's `0100007F:B167` as `127.0.0.1:45415`, the form lsof gives.
-// shortcut: assumes a little-endian host, as /proc writes host byte order.
-const ipv4 = (hex) => {
-  const [address, port] = hex.split(":");
-  if (!/^[0-9A-F]{8}$/i.test(address || "") || !port) return hex;
-  const bytes = address
-    .match(/../g)
-    .map((b) => parseInt(b, 16))
-    .reverse();
-  return `${bytes.join(".")}:${parseInt(port, 16)}`;
-};
-
 export async function listeningSockets(pid) {
   if (process.platform === "linux") {
     const inodes = new Set();
@@ -632,7 +641,7 @@ export async function listeningSockets(pid) {
       for (const line of text.split("\n").slice(1)) {
         const parts = line.trim().split(/\s+/);
         if (parts[3] === "0A" && inodes.has(parts[9]))
-          found.push(table === "tcp" ? ipv4(parts[1]) : parts[1]);
+          found.push(procAddress(parts[1]));
       }
     }
     return found;

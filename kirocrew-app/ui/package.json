@@ -5,7 +5,7 @@
   "scripts": {
     "build": "vite build",
     "typecheck": "tsc --noEmit",
-    "test": "node --test test/"
+    "test": "node --test test/*.test.mjs"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^6.3.0",
