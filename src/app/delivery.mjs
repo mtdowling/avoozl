@@ -36,7 +36,7 @@ import { queryTasks, statusComplete } from "../query.mjs";
 import { resolveTaskId } from "../task-identity.mjs";
 import { pausedTaskIds } from "./github-project.mjs";
 import { LOCAL } from "./crews.mjs";
-import { machineRouting, placeOne, routingOn } from "./routing.mjs";
+import { machineRouting, placeOne, routingOn, rulesAllow } from "./routing.mjs";
 import { handbackFetch, pushedFetch } from "./handback.mjs";
 import { routeResultNotes, submittedTaskIds } from "./routes.mjs";
 import {
@@ -1780,11 +1780,17 @@ export function planReadyDispatches(store, policy, options = {}) {
           return true;
         }
       : null,
+    // A batch runs in its leader's local session (the batch brief is local
+    // only), so the leader must be placed on local and every member's rules
+    // must allow local (R46.4).
+    batchFits = (leader, task) =>
+      placed.get(leader.task.id)?.crew === LOCAL &&
+      rulesAllow(data, routing, task, LOCAL),
     leaves = planBatches(
       store,
       readyLeaves(store, policy, { ...options, skip, place }),
       candidates.filter((task) => !skip.has(task.id)),
-      { workspaceRoot, data, policy },
+      { workspaceRoot, data, policy, fits: routing ? batchFits : null },
     );
   return leaves.flatMap((leaf) => {
     const where = placed.get(leaf.task.id),
