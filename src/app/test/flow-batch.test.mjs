@@ -224,17 +224,12 @@ test("a failing batch head splits the batch; each task retries alone at no attem
   assert.equal((await tick(off.ops)).dispatch[0].batch, undefined);
 });
 
-test("a batch never takes a task whose routing rules rule out the leader's crew", async (t) => {
+test("a batch never takes a task whose needs rule out the leader's crew", async (t) => {
   const { ops } = setup(
     t,
-    [leaf("a1"), leaf("a2", { labels: ["win"] }), leaf("a3")],
+    [leaf("a1"), leaf("a2", { needs: ["os:windows"] }), leaf("a3")],
     {
       // a2 must run on a Windows crew; local is not one.
-      routing: {
-        rules: [
-          { id: "win", when: { labels: ["win"] }, requireTags: ["os:windows"] },
-        ],
-      },
       placement: {
         localReading: () => ({
           source: "test",

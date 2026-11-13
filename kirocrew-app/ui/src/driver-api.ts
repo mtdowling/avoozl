@@ -141,7 +141,7 @@ export function setupText(item: { kind: string; id?: string }): string {
     case 'retro-instructions':
       return 'Write retro instructions again in Settings › Flow'
     case 'router-instructions':
-      return 'Write router instructions again in Routing'
+      return 'Write the routing prompt again in Settings › Routing'
     default:
       return `Set up ${item.kind}${item.id ? ' ' + item.id : ''} again`
   }

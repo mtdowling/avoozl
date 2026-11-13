@@ -289,3 +289,62 @@ test("the app's MCP server answers a non-object request as Invalid Request", asy
     server.close();
   }
 });
+
+test("the app's MCP server meets protocol 2026-07-28 result rules", async () => {
+  const server = createAppMcp({ env: {} });
+  const modern = {
+    "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+    "io.modelcontextprotocol/clientInfo": { name: "test", version: "1" },
+    "io.modelcontextprotocol/clientCapabilities": {},
+  };
+  try {
+    const list = await server.handle({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/list",
+      params: { _meta: modern },
+    });
+    assert.equal(list.result.resultType, "complete");
+    assert.equal(list.result.ttlMs, 0);
+    assert.equal(list.result.cacheScope, "private");
+    const resources = await server.handle({
+      jsonrpc: "2.0",
+      id: 4,
+      method: "resources/list",
+      params: { _meta: modern },
+    });
+    assert.equal(resources.result.resultType, "complete");
+    assert.equal(resources.result.cacheScope, "private");
+    // No workspace: the refusal is a result too.
+    const call = await server.handle({
+      jsonrpc: "2.0",
+      id: 2,
+      method: "tools/call",
+      params: { _meta: modern, name: "plans_workspace", arguments: {} },
+    });
+    assert.equal(call.result.isError, true);
+    assert.equal(call.result.resultType, "complete");
+    assert.equal(call.result.ttlMs, undefined);
+    // Kiro Crew's gateway primes a shared server's list with no revision and
+    // hands it to 2026-07-28 clients, so a list without one carries the fields.
+    const primed = await server.handle({
+      jsonrpc: "2.0",
+      id: 3,
+      method: "tools/list",
+      params: {},
+    });
+    assert.equal(primed.result.resultType, "complete");
+    assert.equal(primed.result.ttlMs, 0);
+    assert.equal(primed.result.cacheScope, "private");
+    const ping = await server.handle({
+      jsonrpc: "2.0",
+      id: 5,
+      method: "ping",
+      params: {},
+    });
+    assert.equal(ping.result.resultType, "complete");
+    assert.equal(ping.result.ttlMs, undefined);
+  } finally {
+    server.close();
+  }
+});
