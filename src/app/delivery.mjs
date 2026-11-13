@@ -2817,10 +2817,13 @@ export async function rebaseForIntegration(project, worktree, commit) {
 // commit every role approved; integrateRun runs the repository's checks again
 // first. A refusal other than a held lock is a decision for a person; the work
 // stays on its branch.
-export async function integrateVerified(store, { now = Date.now() } = {}) {
+export async function integrateVerified(
+  store,
+  { now = Date.now(), skip = new Set() } = {},
+) {
   const notify = [];
   for (const delivery of store.list("task_deliveries")) {
-    if (delivery.state !== "verified") continue;
+    if (delivery.state !== "verified" || skip.has(delivery.taskId)) continue;
     const at = new Date(now).toISOString(),
       // A batch runs in its first task's worktree (§4.11).
       worktree =
