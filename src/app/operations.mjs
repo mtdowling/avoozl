@@ -1,6 +1,7 @@
 import { crossPlanEpics, epicOfPlan, taskEpic } from "./epics.mjs";
 import path from "node:path";
 import { mcpRefusal } from "./mcp-policy.mjs";
+import { taskDiff, taskFiles } from "./task-files.mjs";
 import {
   bindDriver,
   decideAway,
@@ -2760,6 +2761,8 @@ export class Operations {
       });
     }
     if (name === "plan.spec.read") return this.readSpecDocuments(input);
+    if (name === "task.files") return taskFiles(store, this.read(), input);
+    if (name === "task.diff") return taskDiff(store, this.read(), input);
     if (name === "task.change.preview") return this.previewTaskChange(input);
     if (name === "conflicts.settle")
       return settleConflicts(store, input, expectedRevision);
