@@ -235,6 +235,9 @@ export function principalAllows(claim, operation) {
   return false;
 }
 
+const offered = (operation) =>
+  MACHINE_OPERATIONS.has(operation) || APP_OPERATIONS.has(operation);
+
 function badRequest(message, status = 400) {
   const error = Error(message);
   error.status = status;
@@ -399,7 +402,11 @@ export function startAppBackend({
       } = request || {};
       if (typeof operation !== "string" || !principalAllows(claim, operation))
         return send(res, 403, {
-          error: "This caller may not run that operation.",
+          error: offered(operation)
+            ? "This caller may not run that operation."
+            : // A page newer than its backend sends operations this build
+              // lacks; the installed app copies bin/lib as last built.
+              `This Avoozl backend does not offer ${String(operation).slice(0, 80)}. The installed backend may be older than its page: run npm run build:kirocrew-app, then kirocrew app update avoozl.`,
         });
       if (!input || typeof input !== "object" || Array.isArray(input))
         return send(res, 400, { error: "Send input as a JSON object." });
@@ -456,8 +463,13 @@ export function startAppBackend({
           if (rowReader) {
             const { errors } = await observeToolRows(store, rowReader, {
               checksFor: (binding) => {
-                const task = store.read().tasks.find((t) => t.id === binding.taskId);
-                return declaredChecks(task, store.get("projects", taskRepository(task) || ""));
+                const task = store
+                  .read()
+                  .tasks.find((t) => t.id === binding.taskId);
+                return declaredChecks(
+                  task,
+                  store.get("projects", taskRepository(task) || ""),
+                );
               },
             });
             if (errors.length) console.error(errors[0].error);
@@ -481,7 +493,9 @@ export function startAppBackend({
     return draining;
   };
   const drainable = (target) =>
-    target?.dbPath && target.dbPath !== ":memory:" && fs.existsSync(target.dbPath);
+    target?.dbPath &&
+    target.dbPath !== ":memory:" &&
+    fs.existsSync(target.dbPath);
   const follow = () => {
     if (!(notifier || slotReader || rowReader || usageReader)) return;
     let target = drainable(config) ? config : null;
@@ -497,9 +511,12 @@ export function startAppBackend({
     drained = target;
     watcher?.close();
     try {
-      watcher = fs.watch(path.dirname(path.resolve(target.dbPath)), (_, name) => {
-        if (name === "tick-health.json") drain();
-      });
+      watcher = fs.watch(
+        path.dirname(path.resolve(target.dbPath)),
+        (_, name) => {
+          if (name === "tick-health.json") drain();
+        },
+      );
       watcher.on("error", () => watcher?.close());
     } catch {
       // No watch support: notices still go out when the backend restarts.
