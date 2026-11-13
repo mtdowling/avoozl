@@ -18,7 +18,7 @@ import { StopLineButton } from './StopLine.tsx'
 import { SwitchModelButton } from './SwitchModel.tsx'
 import { flowClient } from './flow-api.ts'
 import Logo from './Logo'
-import { IconBtn, IconLabel, SectionHeading, ShowMore, ViewHeading, useAskChat, usePages } from './controls.tsx'
+import { IconBtn, IconLabel, SectionHeading, ShowMore, TaskTitleLink, ViewHeading, useAskChat, usePages } from './controls.tsx'
 import { Activity, DetailsIcon, ExternalLink, Inbox, MessageSquare, Network, RefreshCw, Check } from './icons.ts'
 import { chatClient, itemRef, type ActivityItem } from './chat-api.ts'
 import type { TaskFilter } from './filters.ts'
@@ -159,7 +159,9 @@ function InFlightRow({ row, now, onInfo, onPickAgain }: { row: InFlight; now: nu
     <li className="flex flex-wrap items-start gap-2 border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)' }}>
       <Badge>{roleLabel(row)}</Badge>
       <span className="min-w-0 flex-1">
-        <span className="font-medium">{row.title}</span>{' '}
+        <TaskTitleLink id={row.taskId} className="font-medium">
+          {row.title}
+        </TaskTitleLink>{' '}
         <span className="text-xs text-muted">
           {row.taskId}
           {row.epic ? ` · ${row.epic}` : ''} · attempt {row.attempt}
