@@ -7,6 +7,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { principalAllows } from "../app-backend.mjs";
 import { budgetHeldTaskIds, budgetStep } from "../budget.mjs";
 import { workspaceConfig } from "../config.mjs";
@@ -20,7 +21,7 @@ import { snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-p41-xdg-");
-const cli = new URL("../../../cli.mjs", import.meta.url).pathname;
+const cli = fileURLToPath(new URL("../../../cli.mjs", import.meta.url));
 const git = (cwd, ...args) =>
   execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
 const leaf = (id, extra = {}) => ({
