@@ -612,3 +612,49 @@ test("P29 action 4: the router ranks only allowed crews and falls back when it f
     /router: fallback \(the reply was not a list/,
   );
 });
+
+test("the router is skipped when one crew and one model are left", async (t) => {
+  // Nearby inputs: every ready worker kept local by a rule (no router session
+  // that tick, one Activity row each), the row written once across ticks,
+  // and one task with two crews left (the router is still asked for it).
+  const env = await workspace(t, {
+    routing: { rules: [{ id: "stay", on: "local" }] },
+    machine: { router: { enabled: true, model: "fake-router" } },
+    ids: ["w1", "w2"],
+  });
+  const crew = fakeCrew(env.ops, {
+    aliases: env.aliases,
+    defaults: defaults(env),
+    scripts: { "w1:worker": "hold", "w2:worker": "hold" },
+  });
+  const first = await crew.tick();
+  assert.ok(
+    !first.dispatch.some((d) => d.role === "router"),
+    "no router call when every task has one choice",
+  );
+  const workers = first.dispatch.filter((d) => d.role === "worker");
+  assert.equal(workers.length, 2);
+  for (const w of workers) assert.equal(w.placement.reason, "only one choice");
+  await crew.tick();
+  const rows = (await env.ops.execute("activity.list", {})).items.filter(
+    (r) => r.kind === "routing.only-one",
+  );
+  assert.deepEqual(rows.map((r) => r.targetId).sort(), [env.id.w1, env.id.w2]);
+  assert.match(
+    rows[0].summary,
+    /Only one choice for .+: local; no router call/,
+  );
+
+  // Two crews left: the router still ranks.
+  const spread = await workspace(t, {
+    routing: { rules: [{ id: "spread-work", on: "any" }] },
+    machine: { router: { enabled: true, model: "fake-router" } },
+    ids: ["w1"],
+  });
+  const ranked = await fakeCrew(spread.ops, {
+    aliases: spread.aliases,
+    defaults: defaults(spread),
+    scripts: { "w1:worker": "hold" },
+  }).tick();
+  assert.ok(ranked.dispatch.some((d) => d.role === "router"));
+});

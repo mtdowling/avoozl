@@ -414,8 +414,20 @@ export function placeOne(store, data, ctx, state, input) {
   let candidates = allowed;
   if (!preview && !ctx.mc10) candidates = allowed.filter((id) => id === LOCAL);
   // The model router ranks only what the rules allow (R41.7); it never
-  // holds the tick, and any failure falls back to the scorer.
+  // holds the tick, and any failure falls back to the scorer. When pins and
+  // hard checks leave exactly one crew and one agent and model, nothing is
+  // left to judge: it is assigned directly and the router is not called.
   let routerNote = null;
+  const onlyOne = candidates.length === 1 && (session.options ?? 1) === 1;
+  if (ctx.config.router.enabled && !preview && role === "worker" && onlyOne) {
+    routerNote = "only one choice";
+    ctx.onlyOne?.push({
+      taskId: task.id,
+      attempt,
+      crew: candidates[0],
+      model: session.model,
+    });
+  }
   if (
     ctx.config.router.enabled &&
     !preview &&

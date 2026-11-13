@@ -7,7 +7,7 @@ import path from "node:path";
 import test from "node:test";
 import { Operations } from "../operations.mjs";
 import { Store } from "../store.mjs";
-import { planVerifierDispatches } from "../delivery.mjs";
+import { planCheckRuns, planVerifierDispatches } from "../delivery.mjs";
 import { readDeliveryPolicy } from "../tick.mjs";
 import { lintSpec, readSpecFolder } from "../spec-plans.mjs";
 import { queryTasks } from "../../model.mjs";
@@ -198,7 +198,7 @@ test("supersede is refused for GitHub and plugin tasks", async (t) => {
   assert.equal(task(ops, "gh").status, "planned");
 });
 
-test("a superseded task gets no new verifier; its running session is left alone", async (t) => {
+test("a superseded task gets no new verifier or check run; its running session is left alone", async (t) => {
   const checkout = temporaryDirectory("avoozl-checkout-"),
     { store, ops } = workspace(t, {
       tasks: [leaf("a", { repository: "app", checks: ["npm test"] })],
@@ -218,9 +218,15 @@ test("a superseded task gets no new verifier; its running session is left alone"
     source: "tick",
     title: "avoozl:a Task a",
   });
+  assert.equal(planCheckRuns(store).length, 1);
+  assert.deepEqual(planVerifierDispatches(store), [], "a command-only bar");
+  store.mutate("judge", (draft) => {
+    draft.tasks.find((x) => x.id === "a").verify = "agent";
+  });
   assert.equal(planVerifierDispatches(store).length, 1);
   await ops.execute("task.supersede", { id: "a", create: { id: "a-new" } });
   assert.deepEqual(planVerifierDispatches(store), []);
+  assert.deepEqual(planCheckRuns(store), []);
   assert.ok(store.get("session_bindings", "slot-1"), "the binding is kept");
   assert.equal(store.get("task_deliveries", "a").state, "done");
 });
