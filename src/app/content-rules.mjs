@@ -42,6 +42,28 @@ export const sha256 = (text) =>
     .update(String(text ?? ""))
     .digest("hex");
 
+// Public rules for text that will be published: secrets and machine paths.
+// The release scan (scripts/release-scan.mjs) and the Onboard flow's leak
+// scan of a public repository's specs share them. Private names are never
+// written here; they come from a terms file.
+export const PUBLISH_RULES = Object.freeze(
+  [
+  ["secret", "aws-key", /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/],
+  [
+    "secret",
+    "github-token",
+    /\bgh[pousr]_[A-Za-z0-9]{36,}|\bgithub_pat_[A-Za-z0-9_]{22,}/,
+  ],
+  ["secret", "private-key", /-----BEGIN [A-Z ]*PRIVATE KEY-----/],
+  ["secret", "slack-token", /\bxox[baprs]-[A-Za-z0-9-]{10,}/],
+  ["secret", "api-key", /\bsk-(?:ant|proj)-[A-Za-z0-9_-]{12,}/],
+  ["absolute-path", "macos-home", /\/Users\/[A-Za-z0-9._-]+/],
+  ["absolute-path", "macos-temp", /\/private\/(?:tmp|var)\//],
+  ["absolute-path", "linux-home", /\/home\/[a-z][a-z0-9_-]*\//],
+  ["absolute-path", "windows-home", /\b[A-Za-z]:\\+Users\\+/],
+  ].map(([category, rule, pattern]) => ({ category, rule, pattern })),
+);
+
 // ---------------------------------------------------------------------------
 // Terms files: `rule: regex` per line, `#` comments, matched per line ignoring
 // case. The release scan reads the same format (F67). An allow line cancels
