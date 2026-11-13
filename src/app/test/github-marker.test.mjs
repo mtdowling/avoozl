@@ -141,6 +141,7 @@ test("the planning identity comes from .avoozl.json", () => {
     planningRepository: null,
     epicIssueType: null,
     maxPerParent: 100,
+    includeDone: false,
     repositories: {},
   });
   assert.throws(
@@ -161,6 +162,7 @@ test("the planning identity comes from .avoozl.json", () => {
     planningRepository: "example/plans",
     epicIssueType: null,
     maxPerParent: 100,
+    includeDone: false,
     repositories: {},
   });
   fs.writeFileSync(
