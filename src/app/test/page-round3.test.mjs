@@ -24,7 +24,10 @@ const leaf = (id, extra = {}) => ({
   ...extra,
 });
 
-function workspace(t, { delivery = { concurrency: 1 }, tasks, edges = [] } = {}) {
+function workspace(
+  t,
+  { delivery = { concurrency: 1 }, tasks, edges = [] } = {},
+) {
   const { root, store } = fixture(t),
     data = snapshot(),
     checkout = path.join(root, "checkout");
@@ -40,14 +43,23 @@ function workspace(t, { delivery = { concurrency: 1 }, tasks, edges = [] } = {})
   store.importSnapshot(data);
   store.put("projects", { id: "app", name: "app", root: checkout });
   if (delivery)
-    fs.writeFileSync(path.join(root, ".avoozl.json"), JSON.stringify({ version: 1, delivery }));
+    fs.writeFileSync(
+      path.join(root, ".avoozl.json"),
+      JSON.stringify({ version: 1, delivery }),
+    );
   return { root, store, ops: new Operations(store, { workspaceRoot: root }) };
 }
 
 test("a task's spec folder comes from its document epic or a source reference", () => {
-  assert.equal(specOf({ epic: "doc:.kiro/specs/compression/design.md" }), "compression");
   assert.equal(
-    specOf({ epic: "x", source: { document: ".kiro/specs/ci/tasks.md", key: "1" } }),
+    specOf({ epic: "doc:.kiro/specs/compression/design.md" }),
+    "compression",
+  );
+  assert.equal(
+    specOf({
+      epic: "x",
+      source: { document: ".kiro/specs/ci/tasks.md", key: "1" },
+    }),
     "ci",
   );
   assert.equal(specOf({ epic: "doc:done/old.md" }), null);
@@ -58,8 +70,12 @@ test("graph.view names each task's spec and its place in the dispatch order", as
     edges: [{ id: "a:requires:c", from: "a", to: "c", kind: "requires" }],
   });
   const graph = await ops.execute("graph.view", {});
-  const ready = graph.tasks.filter((task) => task.ready && task.kind === "leaf");
-  const pageOrder = [...ready].sort((x, y) => x.order - y.order).map((task) => task.id);
+  const ready = graph.tasks.filter(
+    (task) => task.ready && task.kind === "leaf",
+  );
+  const pageOrder = [...ready]
+    .sort((x, y) => x.order - y.order)
+    .map((task) => task.id);
   const tickOrder = readyLeaves(
     store,
     { concurrency: 32, repositories: {} },
@@ -79,19 +95,36 @@ test("task.start puts a ready task first in line, or says the workspace is full"
   const first = await ops.execute("task.start", { taskId: "d" });
   assert.equal(first.full, false);
   assert.match(first.message, /next tick/);
-  assert.equal(readyLeaves(store, { concurrency: 1, repositories: {} }, {})[0].task.id, "d");
-  await ops.execute("session.bind", { taskId: "d", slot: "slot-d-1", attempt: 1, source: "tick" });
+  assert.equal(
+    readyLeaves(store, { concurrency: 1, repositories: {} }, {})[0].task.id,
+    "d",
+  );
+  await ops.execute("session.bind", {
+    taskId: "d",
+    slot: "slot-d-1",
+    attempt: 1,
+    source: "tick",
+  });
   await ops.execute("session.status", { slot: "slot-d-1", status: "working" });
   const full = await ops.execute("task.start", { taskId: "c" });
   assert.equal(full.full, true);
   assert.match(full.message, /All slots are busy/);
-  await assert.rejects(ops.execute("task.start", { taskId: "d" }), /already running/);
-  await assert.rejects(ops.execute("task.start", { taskId: "loose" }), /no repository/);
+  await assert.rejects(
+    ops.execute("task.start", { taskId: "d" }),
+    /already running/,
+  );
+  await assert.rejects(
+    ops.execute("task.start", { taskId: "loose" }),
+    /no repository/,
+  );
 });
 
 test("task.start refuses when delivery is off, and only the owner may call it", async (t) => {
   const { ops } = workspace(t, { delivery: null });
-  await assert.rejects(ops.execute("task.start", { taskId: "a" }), /Delivery is off/);
+  await assert.rejects(
+    ops.execute("task.start", { taskId: "a" }),
+    /Delivery is off/,
+  );
   assert.equal(classifyOperation("task.start"), "protect");
   assert.equal(principalAllows({ kind: "owner-session" }, "task.start"), true);
   assert.equal(principalAllows({ kind: "app-token" }, "task.start"), false);
@@ -111,7 +144,10 @@ test("tick log lines carry a time and a level, newest first", async (t) => {
   assert.equal(all.items.length, 2);
   assert.ok(all.items[0].at >= all.items[1].at);
   assert.equal(tickLogEntry({ outcome: "locked" }).level, "warn");
-  assert.equal(tickLogEntry({ outcome: "error", error: "boom" }).text, "Failed: boom");
+  assert.equal(
+    tickLogEntry({ outcome: "error", error: "boom" }).text,
+    "Failed: boom",
+  );
 });
 
 test("activity.recent lists task events newest first", async (t) => {
@@ -121,7 +157,11 @@ test("activity.recent lists task events newest first", async (t) => {
   const { items } = await ops.execute("activity.recent", { limit: 3 });
   assert.ok(items.length >= 1 && items.length <= 3);
   assert.ok(items.every((item, i) => i === 0 || items[i - 1].at >= item.at));
-  assert.ok(items.some((item) => item.taskId === "a" && /worker attempt 1/.test(item.text)));
+  assert.ok(
+    items.some(
+      (item) => item.taskId === "a" && /worker attempt 1/.test(item.text),
+    ),
+  );
 });
 
 test("chat.context seeds a chat with the item, its task, plan and history, and writes nothing", async (t) => {
@@ -136,7 +176,9 @@ test("chat.context seeds a chat with the item, its task, plan and history, and w
   assert.match(message, /Task x \(x\)/);
   assert.match(message, /History/);
   assert.match(message, /Do not change anything/);
-  const gone = await ops.execute("chat.context", { items: [{ kind: "decision", taskId: "nope" }] });
+  const gone = await ops.execute("chat.context", {
+    items: [{ kind: "decision", taskId: "nope" }],
+  });
   assert.match(gone.message, /no longer open/);
   assert.equal(store.read().revision, before);
 });
@@ -146,15 +188,25 @@ test("highlight.languages reads grammar files inside the workspace only", async 
   fs.mkdirSync(path.join(root, "grammars"), { recursive: true });
   fs.writeFileSync(
     path.join(root, "grammars", "nupp.json"),
-    JSON.stringify({ tokens: [{ type: "keyword", pattern: "\\b(?:fn|let)\\b" }] }),
+    JSON.stringify({
+      tokens: [{ type: "keyword", pattern: "\\b(?:fn|let)\\b" }],
+    }),
   );
-  fs.writeFileSync(path.join(root, "grammars", "bad.json"), JSON.stringify({ tokens: [{ type: "x", pattern: "(" }] }));
+  fs.writeFileSync(
+    path.join(root, "grammars", "bad.json"),
+    JSON.stringify({ tokens: [{ type: "x", pattern: "(" }] }),
+  );
   fs.writeFileSync(
     path.join(root, ".avoozl.json"),
     JSON.stringify({
       version: 1,
       highlight: {
-        languages: { nupp: "grammars/nupp.json", bad: "grammars/bad.json", out: "../etc/passwd", gone: "grammars/none.json" },
+        languages: {
+          nupp: "grammars/nupp.json",
+          bad: "grammars/bad.json",
+          out: "../etc/passwd",
+          gone: "grammars/none.json",
+        },
       },
     }),
   );
@@ -163,5 +215,9 @@ test("highlight.languages reads grammar files inside the workspace only", async 
   assert.equal(result.languages.nupp.tokens[0].type, "keyword");
   assert.equal(result.problems.length, 3);
   assert.ok(result.problems.some((p) => /bad/.test(p)));
-  assert.ok(result.problems.some((p) => /out .*inside the workspace|out names a missing file/.test(p)));
+  assert.ok(
+    result.problems.some((p) =>
+      /out .*inside the workspace|out names a missing file/.test(p),
+    ),
+  );
 });

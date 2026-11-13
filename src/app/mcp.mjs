@@ -457,7 +457,8 @@ export async function handleMcp(
       route = Object.hasOwn(GROUPED_TOOLS, name)
         ? groupedCall(name, args)
         : { operation: operations[name][0], input: args.input || {} };
-    const refuse = (text) => ok({ isError: true, content: [{ type: "text", text }] });
+    const refuse = (text) =>
+      ok({ isError: true, content: [{ type: "text", text }] });
     if (route.error) return refuse(route.error);
     // Checked again in Operations.perform; refusing here names the tool.
     const refusal = mcpRefusal(route.operation, route.input);

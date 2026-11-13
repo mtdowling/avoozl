@@ -406,8 +406,7 @@ test("allow lines never reach the built-in sets", (t) => {
     "fake-terms": "codename: zorblat\nallow: .\n",
   });
   assert.deepEqual(
-    check(store, { boundary: "github", target: "t", text: "zorblat" })
-      .findings,
+    check(store, { boundary: "github", target: "t", text: "zorblat" }).findings,
     [],
   );
   const token = "ghp_" + "a".repeat(36);

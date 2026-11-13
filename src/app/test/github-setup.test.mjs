@@ -878,7 +878,9 @@ test("Cancel during apply stops before the next write and reports the rest", asy
   const result = await applying;
   assert.equal(result.applied, true);
   assert.ok(result.results.every((r) => r.status === "skipped"));
-  assert.ok(result.results.every((r) => r.reason === "Cancelled before this write."));
+  assert.ok(
+    result.results.every((r) => r.reason === "Cancelled before this write."),
+  );
   assert.equal(fake.log.length, 0, "no write reached GitHub");
   // A new preview clears the cancel, so the next apply runs.
   const again = await apply(fake, PLANS);

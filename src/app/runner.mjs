@@ -225,10 +225,10 @@ export function nextView(store, { policy, github = null }) {
               : task.planArchived
                 ? "plan archived"
                 : !taskRepository(task)
-                ? "no repository"
-                : linked && !linkedBranch(store, task.id)
-                  ? "linked branch"
-                  : "capacity",
+                  ? "no repository"
+                  : linked && !linkedBranch(store, task.id)
+                    ? "linked branch"
+                    : "capacity",
           }),
     });
   }

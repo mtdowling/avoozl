@@ -103,7 +103,11 @@ export async function seenCheckNames(
     // run; a repo whose CI runs only on PRs shows none on its commits.
     github.listPullRequests
       ? github
-          .listPullRequests(repository, { state: "open", base: branch, per_page: pulls })
+          .listPullRequests(repository, {
+            state: "open",
+            base: branch,
+            per_page: pulls,
+          })
           .catch(() => [])
       : [],
     github.branchRules(repository, branch).catch(() => []),
@@ -119,7 +123,8 @@ export async function seenCheckNames(
   const note = (name, source, at) => {
     seen.add(name);
     const last = sources[name];
-    if (!last || (at && (!last.at || at > last.at))) sources[name] = { source, at: at || null };
+    if (!last || (at && (!last.at || at > last.at)))
+      sources[name] = { source, at: at || null };
   };
   const shas = [
     ...(recent || []).map((commit) => commit?.sha),
@@ -132,9 +137,18 @@ export async function seenCheckNames(
     ]);
     for (const run of runs)
       if (run?.name)
-        note(run.name, run.app?.name || "Check run", run.completed_at || run.started_at);
+        note(
+          run.name,
+          run.app?.name || "Check run",
+          run.completed_at || run.started_at,
+        );
     for (const entry of status?.statuses || [])
-      if (entry?.context) note(entry.context, "Commit status", entry.updated_at || entry.created_at);
+      if (entry?.context)
+        note(
+          entry.context,
+          "Commit status",
+          entry.updated_at || entry.created_at,
+        );
   }
   for (const rule of rules || [])
     if (rule?.type === "required_status_checks")

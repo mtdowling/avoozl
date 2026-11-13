@@ -6,7 +6,11 @@
 // module only reads, so a flow cancelled before Set up GitHub writes nothing.
 import fs from "node:fs";
 import path from "node:path";
-import { PUBLISH_RULES, matchLine, specContentDiagnostics } from "./content-rules.mjs";
+import {
+  PUBLISH_RULES,
+  matchLine,
+  specContentDiagnostics,
+} from "./content-rules.mjs";
 import { detectCheckout } from "./git.mjs";
 import { listSpecFolders } from "./spec-plans.mjs";
 import { workspaceRepositories } from "./workspace-repositories.mjs";

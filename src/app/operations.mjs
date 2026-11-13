@@ -776,7 +776,9 @@ export class Operations {
   }
   routingHooks() {
     return {
-      ...(this.placement.localReading ? { local: this.placement.localReading() } : {}),
+      ...(this.placement.localReading
+        ? { local: this.placement.localReading() }
+        : {}),
       ...(this.placement.now ? { now: this.placement.now() } : {}),
     };
   }
@@ -789,9 +791,7 @@ export class Operations {
     const trackers = this.plugins
       .inspect()
       // An intake-only plugin is never asked to list (R50.7).
-      .filter(
-        (p) => p.state === "approved" && p.provides?.includes("tracker"),
-      );
+      .filter((p) => p.state === "approved" && p.provides?.includes("tracker"));
     if (!trackers.length) return [];
     const namespace = requireNamespace(planningIdentity(this.workspaceRoot)),
       session = this.plugins.open(),
@@ -1271,10 +1271,19 @@ export class Operations {
     for (const head of heads) {
       // Local checks first (R45.4): a recorded local pass, not a rerun.
       if (local) {
-        const sha = /^[0-9a-f]{40}$/.test(head) ? head : await git(worktree?.path || project.root, ["rev-parse", head]);
-        const pass = await localPass(project.root, sha, localCheckList(project));
+        const sha = /^[0-9a-f]{40}$/.test(head)
+          ? head
+          : await git(worktree?.path || project.root, ["rev-parse", head]);
+        const pass = await localPass(
+          project.root,
+          sha,
+          localCheckList(project),
+        );
         if (!pass.ok)
-          fail(`Local checks first: ${pass.cause}. Run \`avoozl checks run --task ${task.id}\` in this worktree, then push again.`, 409);
+          fail(
+            `Local checks first: ${pass.cause}. Run \`avoozl checks run --task ${task.id}\` in this worktree, then push again.`,
+            409,
+          );
       }
       enforceDiff(store, {
         project: { ...project, root: worktree?.path || project.root },
@@ -1836,7 +1845,10 @@ export class Operations {
       return runLocalChecks({
         cwd: input.cwd,
         root: project.root,
-        checks: taskRoute(task) === "github" ? localCheckList(project) : declaredChecks(task, project),
+        checks:
+          taskRoute(task) === "github"
+            ? localCheckList(project)
+            : declaredChecks(task, project),
       });
     }
     if (name === "runner.next")
@@ -1868,11 +1880,19 @@ export class Operations {
         policy: readDeliveryPolicy(this.workspaceRoot).delivery,
         github: readGitHubPolicyOrNull(this.workspaceRoot),
         readyCandidates: () =>
-          readyCandidates(store, { github: readGitHubPolicyOrNull(this.workspaceRoot) }),
+          readyCandidates(store, {
+            github: readGitHubPolicyOrNull(this.workspaceRoot),
+          }),
         ...this.routingHooks(),
       });
-    if (["routing.update", "crews.update"].includes(name) && (context.caller || context.mcp))
-      fail("Only a person changes routing rules and crew settings, on the Routing page or the CLI.", 403);
+    if (
+      ["routing.update", "crews.update"].includes(name) &&
+      (context.caller || context.mcp)
+    )
+      fail(
+        "Only a person changes routing rules and crew settings, on the Routing page or the CLI.",
+        403,
+      );
     if (name === "routing.update") {
       const result = updateRouting(this.settingsFile(), store, input, {
         pluginIds: this.plugins?.inspect().map((p) => p.id) ?? null,
@@ -1886,7 +1906,10 @@ export class Operations {
       return this.settingsFile().readDeliverySettings();
     if (name === "delivery.settings.update") {
       if (context.caller || context.mcp)
-        fail("Only a person changes delivery settings, in the Avoozl page.", 403);
+        fail(
+          "Only a person changes delivery settings, in the Avoozl page.",
+          403,
+        );
       const written = this.settingsFile().updateDeliverySettings(input);
       this.configuration?.reload();
       return written;
@@ -1915,7 +1938,8 @@ export class Operations {
       // New plan folders that lint clean become draft plans (never approved).
       importNewPlans(store, {
         readSpec: (spec) => this.readSpec(spec),
-        writeManifest: (spec, text) => writeSpecManifest(this.readSpec(spec), text),
+        writeManifest: (spec, text) =>
+          writeSpecManifest(this.readSpec(spec), text),
         lint: (spec) =>
           this.withContentDiagnostics(
             lintSpec({
@@ -1946,8 +1970,10 @@ export class Operations {
     }
     if (name === "workspace.tick.health") return tickHealth(store);
     if (name === "workspace.tick.log") return tickLog(store, input);
-    if (name === "highlight.languages") return highlightLanguages(this.workspaceRoot);
-    if (name === "activity.recent") return activityView(store, this.read(), input);
+    if (name === "highlight.languages")
+      return highlightLanguages(this.workspaceRoot);
+    if (name === "activity.recent")
+      return activityView(store, this.read(), input);
     if (name === "task.start")
       return startNow(store, input, {
         policy: readDeliveryPolicy(this.workspaceRoot),
@@ -1969,7 +1995,9 @@ export class Operations {
           }
         else if (planRow.planId) {
           const stored = store.get("plans", planRow.planId);
-          documents = stored?.text ? { documents: { "plan.md": stored.text } } : null;
+          documents = stored?.text
+            ? { documents: { "plan.md": stored.text } }
+            : null;
         }
       }
       return chatContext(store, this.read(), input, { planRow, documents });
@@ -2033,7 +2061,13 @@ export class Operations {
       // Crews that asked for a person on issues no task owns (R52.10).
       view.items.push(
         ...radarNeedsYou(
-          untriagedView(policy, data.tasks, readCache(store), Date.now(), handoffReceipts(store)),
+          untriagedView(
+            policy,
+            data.tasks,
+            readCache(store),
+            Date.now(),
+            handoffReceipts(store),
+          ),
         ),
       );
       return view;
@@ -2057,7 +2091,8 @@ export class Operations {
         ...this.settingsFile().readFlowSettings(),
         // The built-in retro prompt, shown read-only above the owner's own.
         retroPrompt: retroPrompt(),
-        instructions: context.caller || context.mcp ? null : retroInstructions(store),
+        instructions:
+          context.caller || context.mcp ? null : retroInstructions(store),
       };
     if (
       [
@@ -2068,7 +2103,10 @@ export class Operations {
       ].includes(name) &&
       (context.caller || context.mcp)
     )
-      fail("Only a person changes flow settings and decides retro proposals, in the Avoozl page.", 403);
+      fail(
+        "Only a person changes flow settings and decides retro proposals, in the Avoozl page.",
+        403,
+      );
     if (name === "flow.settings.update") {
       const written = this.settingsFile().updateFlowSettings(input);
       this.configuration?.reload();
@@ -2077,11 +2115,23 @@ export class Operations {
     if (name === "flow.instructions.update")
       return setRetroInstructions(store, input.instructions);
     if (name === "flow.retro.start") {
-      const s = store.getMeta("flow.retro.state") || { seen: [], pending: [], reverts: [] };
+      const s = store.getMeta("flow.retro.state") || {
+        seen: [],
+        pending: [],
+        reverts: [],
+      };
       if (!s.pending.some((t) => t.kind === "manual"))
         store.setMeta("flow.retro.state", {
           ...s,
-          pending: [...s.pending, { kind: "manual", key: "manual:" + Date.now(), detail: "started by hand", at: new Date().toISOString() }],
+          pending: [
+            ...s.pending,
+            {
+              kind: "manual",
+              key: "manual:" + Date.now(),
+              detail: "started by hand",
+              at: new Date().toISOString(),
+            },
+          ],
         });
       return { queued: true };
     }
@@ -2091,12 +2141,18 @@ export class Operations {
         config: readFlowConfig(this.workspaceRoot),
         apply: async (proposal, expectedHash) => {
           if (proposal.key.startsWith("delivery."))
-            return settings.updateDeliveryKey({ key: proposal.key, from: proposal.from, to: proposal.to, expectedHash });
+            return settings.updateDeliveryKey({
+              key: proposal.key,
+              from: proposal.from,
+              to: proposal.to,
+              expectedHash,
+            });
           const file = settings.readFlowSettings(),
             flow = applyToConfig(file, proposal);
           return settings.updateFlowSettings({
             flow,
-            repository: proposal.file === "repository" ? proposal.repository : null,
+            repository:
+              proposal.file === "repository" ? proposal.repository : null,
             expectedHash,
           });
         },
@@ -2110,8 +2166,13 @@ export class Operations {
     // Run anyway (R44.10): a person only, confirmed and recorded.
     if (name === "flow.runAnyway") {
       if (context.caller || context.mcp)
-        fail("Only a person presses Run anyway, in the Avoozl page or the CLI.", 403);
-      return runAnyway(store, input, { operator: context.local ? "cli" : "dashboard" });
+        fail(
+          "Only a person presses Run anyway, in the Avoozl page or the CLI.",
+          403,
+        );
+      return runAnyway(store, input, {
+        operator: context.local ? "cli" : "dashboard",
+      });
     }
     // Pull the Andon cord (R64): a person or an agent session stops new
     // dispatch in a scope; only a person resumes.
@@ -2119,13 +2180,21 @@ export class Operations {
       return pullCord(store, input, {
         by:
           context.caller || context.mcp
-            ? { kind: "agent", name: `session:${context.caller?.sessionKey || context.caller || "mcp"}` }
+            ? {
+                kind: "agent",
+                name: `session:${context.caller?.sessionKey || context.caller || "mcp"}`,
+              }
             : { kind: "person", name: context.local ? "cli" : "dashboard" },
       });
     if (name === "flow.resume") {
       if (context.caller || context.mcp)
-        fail("Only a person resumes a pulled stop, in the Avoozl page or the CLI.", 403);
-      return resumeStop(store, input, { by: context.local ? "cli" : "dashboard" });
+        fail(
+          "Only a person resumes a pulled stop, in the Avoozl page or the CLI.",
+          403,
+        );
+      return resumeStop(store, input, {
+        by: context.local ? "cli" : "dashboard",
+      });
     }
     // The Untriaged list (§8.5): cached GitHub items no rule, triage label,
     // or task covers. `refresh` reads GitHub first (Check now); read only.
@@ -2133,10 +2202,11 @@ export class Operations {
       const policy = readGitHubPolicyOrNull(this.workspaceRoot),
         tasks = this.read().tasks;
       if (input.refresh === true && policy?.mode && this.github?.available?.())
-        await refreshUntriaged(store, this.github, policy, tasks, { force: true });
+        await refreshUntriaged(store, this.github, policy, tasks, {
+          force: true,
+        });
       // Check now also polls each plugin source once (R50.16).
-      if (input.refresh === true && this.plugins)
-        await this.pollNow();
+      if (input.refresh === true && this.plugins) await this.pollNow();
       // The Intake tab: GitHub's Untriaged list plus every other source's
       // items (design §4.12, §8.5).
       return intakeTab(
@@ -2181,7 +2251,12 @@ export class Operations {
       };
     // Plan this and Deliver this (R50.15), and source settings: a person's.
     if (
-      ["intake.deliver", "intake.plan", "intake.source.add", "intake.source.remove"].includes(name) &&
+      [
+        "intake.deliver",
+        "intake.plan",
+        "intake.source.add",
+        "intake.source.remove",
+      ].includes(name) &&
       (context.caller || context.mcp)
     )
       fail(
@@ -2213,7 +2288,10 @@ export class Operations {
     // tick cron opens it. Person-only, like Send to Issue Radar.
     if (name === "review.chat") {
       if (context.caller || context.mcp)
-        fail("Only a person starts a code review chat, from the Avoozl page.", 403);
+        fail(
+          "Only a person starts a code review chat, from the Avoozl page.",
+          403,
+        );
       return requestReviewChat(
         store,
         readGitHubPolicyOrNull(this.workspaceRoot),
@@ -2229,12 +2307,16 @@ export class Operations {
         repository = Object.keys(policy?.repositories || {}).find(
           (entry) => entry === input.repository,
         );
-      if (!repository) fail(`${input.repository} is not a registered repository.`, 404);
+      if (!repository)
+        fail(`${input.repository} is not a registered repository.`, 404);
       return readCrews(this.crewReader, repository);
     }
     if (name === "untriaged.handoff") {
       if (context.caller || context.mcp)
-        fail("Only a person sends issues to Issue Radar, from the Avoozl page.", 403);
+        fail(
+          "Only a person sends issues to Issue Radar, from the Avoozl page.",
+          403,
+        );
       return handOff(
         store,
         this.github,
@@ -2522,19 +2604,26 @@ export class Operations {
     if (name === "plan.archive" || name === "plan.unarchive") {
       const plan = store.get("plans", input.id);
       if (!plan || plan.deletedAt) fail("Plan not found.", 404);
-      return (name === "plan.archive" ? archivePlan : unarchivePlan)(store, plan, {
-        // A session is recorded as itself, never as the operator.
-        by:
-          context.caller || context.mcp
-            ? `session:${context.caller?.sessionKey || context.caller || "mcp"}`
-            : this.operator || null,
-      });
+      return (name === "plan.archive" ? archivePlan : unarchivePlan)(
+        store,
+        plan,
+        {
+          // A session is recorded as itself, never as the operator.
+          by:
+            context.caller || context.mcp
+              ? `session:${context.caller?.sessionKey || context.caller || "mcp"}`
+              : this.operator || null,
+        },
+      );
     }
     // Delete a plan (plan-retire.mjs): only a person, from the page or the
     // CLI. A plan with an approved revision needs {retire: true}.
     if (name === "plan.delete.preview" || name === "plan.delete") {
       if (name === "plan.delete" && (context.caller || context.mcp))
-        fail("Only a person deletes a plan, from the Avoozl page or the CLI.", 403);
+        fail(
+          "Only a person deletes a plan, from the Avoozl page or the CLI.",
+          403,
+        );
       const plan = store.get("plans", input.id);
       if (!plan || plan.deletedAt) fail("Plan not found.", 404);
       let folder = null;
@@ -2553,11 +2642,7 @@ export class Operations {
         folder,
       });
     }
-    if (
-      ["run.delete", "run.restore", "plan.restore"].includes(
-        name,
-      )
-    )
+    if (["run.delete", "run.restore", "plan.restore"].includes(name))
       return store.transaction(() => {
         const kind = name.startsWith("run.") ? "runs" : "plans",
           row = store.get(kind, input.id);
@@ -2788,22 +2873,38 @@ export class Operations {
     // label checkboxes. Read only.
     if (name === "github.repository.labels") {
       const repository = input.repository;
-      if (typeof repository !== "string" || !/^[\w.-]+\/[\w.-]+$/.test(repository))
+      if (
+        typeof repository !== "string" ||
+        !/^[\w.-]+\/[\w.-]+$/.test(repository)
+      )
         fail("Name one repository as owner/repository.");
       if (!this.github?.available?.())
         return { repository, labels: null, error: "GitHub is not signed in." };
       try {
         const labels = await this.github.listLabels(repository);
-        return { repository, labels: labels.map((label) => label.name).sort((a, b) => a.localeCompare(b)), error: null };
+        return {
+          repository,
+          labels: labels
+            .map((label) => label.name)
+            .sort((a, b) => a.localeCompare(b)),
+          error: null,
+        };
       } catch (error) {
-        return { repository, labels: null, error: `GitHub could not be read: ${error.message}` };
+        return {
+          repository,
+          labels: null,
+          error: `GitHub could not be read: ${error.message}`,
+        };
       }
     }
     // Read only: a repository's base-branch review rule and the check names
     // GitHub shows for it, for the Settings Reviews and Checks tabs.
     if (name === "github.repository.inspect") {
       const repository = input.repository;
-      if (typeof repository !== "string" || !/^[\w.-]+\/[\w.-]+$/.test(repository))
+      if (
+        typeof repository !== "string" ||
+        !/^[\w.-]+\/[\w.-]+$/.test(repository)
+      )
         fail("Name one repository as owner/repository.");
       const signedIn = this.github?.signedIn
         ? this.github.signedIn()
@@ -2834,7 +2935,8 @@ export class Operations {
         return {
           repository,
           branch,
-          reviewRule: reviewRule.status === "fulfilled" ? reviewRule.value : null,
+          reviewRule:
+            reviewRule.status === "fulfilled" ? reviewRule.value : null,
           checks: checks.status === "fulfilled" ? checks.value : null,
           error: why(reviewRule) && why(checks) ? why(checks) : null,
           reviewError: why(reviewRule),
@@ -3507,7 +3609,11 @@ export class Operations {
     // Onboard flow reads (onboarding.mjs): the folder as a whole, and the
     // leak scan of the specs a public repository's issues would show.
     if (name === "onboarding.inspect")
-      return inspectFolder({ store, github: this.github, folder: input.folder });
+      return inspectFolder({
+        store,
+        github: this.github,
+        folder: input.folder,
+      });
     if (name === "onboarding.scan")
       return scanSpecs(store, (spec) => this.readSpec(spec), input.specs);
     if (name === "repositories.configure") {
@@ -3863,7 +3969,12 @@ export class Operations {
       const quality = this.lintSpecPlan(plan, [], { content: false }),
         blocking = quality.diagnostics.filter((d) => d.severity === "error");
       if (blocking.length)
-        return { planId: plan.id, writes: [], blocked: blocking, simulated: true };
+        return {
+          planId: plan.id,
+          writes: [],
+          blocked: blocking,
+          simulated: true,
+        };
       const scratch = store.scratch();
       try {
         approvePlan(scratch, {

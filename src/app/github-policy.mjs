@@ -186,9 +186,7 @@ function ruleInput(value, label) {
   // with both would have two answers, so it is refused.
   const legacy = LEGACY_MATCH_KEYS.filter((key) => value[key] !== undefined);
   if (value.match !== undefined && legacy.length)
-    fail(
-      `${label} has both match and ${legacy.join(", ")}; use only match.`,
-    );
+    fail(`${label} has both match and ${legacy.join(", ")}; use only match.`);
   const fields =
     value.match !== undefined
       ? parseMatch(value.match, `${label}.match`)
@@ -204,7 +202,9 @@ function ruleInput(value, label) {
         };
   // Avoozl writes nothing to a non-GitHub source yet (R50.20).
   if (fields.source && value.action === "respond")
-    fail(`${label} is a respond rule, which cannot use source:; Avoozl answers on GitHub only.`);
+    fail(
+      `${label} is a respond rule, which cannot use source:; Avoozl answers on GitHub only.`,
+    );
   const rule = {
     id: value.id,
     action: value.action,
@@ -354,8 +354,11 @@ function repositoryInput(value, id, mode) {
     );
   // `priorityLabels` is the newer name for `priority`; both are one list.
   if (value.priority !== undefined && value.priorityLabels !== undefined)
-    fail(`${label} has both priority and priorityLabels; use only priorityLabels.`);
-  const priorityKey = value.priorityLabels !== undefined ? "priorityLabels" : "priority",
+    fail(
+      `${label} has both priority and priorityLabels; use only priorityLabels.`,
+    );
+  const priorityKey =
+      value.priorityLabels !== undefined ? "priorityLabels" : "priority",
     priority = names(value[priorityKey], `${label}.${priorityKey}`),
     // Labels that mean "waiting on someone outside": the task waits with
     // the reason "Waiting on the author" while one is on its item.
@@ -408,7 +411,11 @@ function repositoryInput(value, id, mode) {
       `${label}.commentSteering`,
     ),
     discussions = discussionsInput(value.discussions, `${label}.discussions`),
-    untriaged = untriagedInput(value.untriaged, `${label}.untriaged`, managedNames);
+    untriaged = untriagedInput(
+      value.untriaged,
+      `${label}.untriaged`,
+      managedNames,
+    );
   return {
     checkout: name(value.checkout, `${label}.checkout`, { optional: true }),
     folder: name(value.folder, `${label}.folder`, { optional: true }),

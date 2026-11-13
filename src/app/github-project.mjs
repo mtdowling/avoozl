@@ -291,8 +291,7 @@ async function syncStates(store, github, project, field, rows, out) {
           task: row.task.id,
           title: `${field.name} for ${row.task.id} reset to ${want}`,
           text: `Someone set ${field.name} on ${row.task.id} to ${current ?? "empty"}. Avoozl fills ${field.name} from its own state and wrote ${want} back.`,
-          resume:
-            "Move the card's Status instead; Avoozl never writes Status.",
+          resume: "Move the card's Status instead; Avoozl never writes Status.",
         });
       }
     }

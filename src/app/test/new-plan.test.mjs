@@ -127,7 +127,8 @@ test("plan.new with no registered repository says to register one", async (t) =>
   const { ops } = workspace(t, { repositories: [] });
   await assert.rejects(
     ops.execute("plan.new", request()),
-    (error) => /Register a repository/.test(error.message) && error.status === 409,
+    (error) =>
+      /Register a repository/.test(error.message) && error.status === 409,
   );
 });
 
@@ -207,7 +208,10 @@ test("plan.new preview says whether the steering file is there and records nothi
   assert.equal(fs.existsSync(steeringPath(root)), false);
   // The same field checks run.
   await assert.rejects(
-    ops.execute("plan.new", builderRequest({ preview: true, epic: "Bad Epic" })),
+    ops.execute(
+      "plan.new",
+      builderRequest({ preview: true, epic: "Bad Epic" }),
+    ),
     /epic by its spec folder/,
   );
 });
@@ -220,7 +224,9 @@ test("plan.new for Spec Builder writes the steering file when asked and returns 
   );
   assert.equal(result.handoff, "spec-builder");
   assert.equal(result.steering.state, "current");
-  assert.ok(fs.readFileSync(steeringPath(root), "utf8").includes("# Avoozl spec rules"));
+  assert.ok(
+    fs.readFileSync(steeringPath(root), "utf8").includes("# Avoozl spec rules"),
+  );
   const body = result.specBuilder;
   assert.equal(body.name, "cache-invalidation");
   assert.equal(body.working_dir, root);
@@ -252,7 +258,10 @@ test("a changed steering file is never overwritten, and a declined one puts the 
     builderRequest({ writeSteering: true }),
   );
   assert.equal(kept.steering.state, "changed");
-  assert.equal(fs.readFileSync(steeringPath(root), "utf8"), "# Our own rules\n");
+  assert.equal(
+    fs.readFileSync(steeringPath(root), "utf8"),
+    "# Our own rules\n",
+  );
   assert.ok(kept.specBuilder.description.includes("Follow the spec rules in"));
 });
 
@@ -280,7 +289,14 @@ const builderFiles = (tasks = builderTasks) => ({
 const manifestOf = (root) =>
   JSON.parse(
     fs.readFileSync(
-      path.join(root, ".kiro", "specs", "cache-invalidation", "avoozl", "manifest.json"),
+      path.join(
+        root,
+        ".kiro",
+        "specs",
+        "cache-invalidation",
+        "avoozl",
+        "manifest.json",
+      ),
       "utf8",
     ),
   );
@@ -290,7 +306,14 @@ test("the tick writes the manifest once Spec Builder's tasks.md holds still, the
   await ops.execute("plan.new", builderRequest());
   const before = { approvals: approvals(store), sessions: sessions(store) };
   writeSpec(root, "cache-invalidation", builderFiles());
-  const manifestFile = path.join(root, ".kiro", "specs", "cache-invalidation", "avoozl", "manifest.json");
+  const manifestFile = path.join(
+    root,
+    ".kiro",
+    "specs",
+    "cache-invalidation",
+    "avoozl",
+    "manifest.json",
+  );
 
   // First sight of tasks.md: Spec Builder may still be writing it.
   await ops.execute("workspace.tick", {});
@@ -299,7 +322,11 @@ test("the tick writes the manifest once Spec Builder's tasks.md holds still, the
 
   await ops.execute("workspace.tick", {});
   assert.deepEqual(manifestOf(root).tasks, {
-    1: { kind: "package", summary: "Load and validate configuration", requires: ["1.1", "1.2"] },
+    1: {
+      kind: "package",
+      summary: "Load and validate configuration",
+      requires: ["1.1", "1.2"],
+    },
     1.1: {
       kind: "leaf",
       summary: "Read the config file",
@@ -322,16 +349,34 @@ test("the tick writes the manifest once Spec Builder's tasks.md holds still, the
   assert.equal(sessions(store), before.sessions, "starts no session");
 
   // A revised tasks.md before approval: the manifest follows it.
-  writeSpec(root, "cache-invalidation", builderFiles(builderTasks.replace("Validate loaded config", "Validate the loaded config")));
+  writeSpec(
+    root,
+    "cache-invalidation",
+    builderFiles(
+      builderTasks.replace(
+        "Validate loaded config",
+        "Validate the loaded config",
+      ),
+    ),
+  );
   await ops.execute("workspace.tick", {});
   await ops.execute("workspace.tick", {});
-  assert.equal(manifestOf(root).tasks["1.2"].summary, "Validate the loaded config");
+  assert.equal(
+    manifestOf(root).tasks["1.2"].summary,
+    "Validate the loaded config",
+  );
 
   // A manifest a person edited is never replaced.
   const edited = manifestOf(root);
   edited.tasks["1.2"].checks = ["npm run lint"];
   fs.writeFileSync(manifestFile, JSON.stringify(edited));
-  writeSpec(root, "cache-invalidation", builderFiles(builderTasks.replace("Read the config file", "Read config.json")));
+  writeSpec(
+    root,
+    "cache-invalidation",
+    builderFiles(
+      builderTasks.replace("Read the config file", "Read config.json"),
+    ),
+  );
   await ops.execute("workspace.tick", {});
   await ops.execute("workspace.tick", {});
   assert.deepEqual(manifestOf(root).tasks["1.2"].checks, ["npm run lint"]);

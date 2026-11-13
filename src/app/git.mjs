@@ -64,7 +64,11 @@ export async function withWorkLock(store, { id, projectId, kind }, fn) {
 }
 export async function git(cwd, args, { env } = {}) {
   return (
-    await exec("git", args, { cwd, maxBuffer: 8 * 1024 * 1024, ...(env ? { env } : {}) })
+    await exec("git", args, {
+      cwd,
+      maxBuffer: 8 * 1024 * 1024,
+      ...(env ? { env } : {}),
+    })
   ).stdout.trim();
 }
 async function gitFile(cwd, args) {
@@ -761,7 +765,9 @@ export async function detectCheckout(folder) {
     fail("That folder is not a Git checkout.");
   }
   const quiet = (args) => git(top, args).catch(() => "");
-  const originHead = (await quiet(["symbolic-ref", "--short", "refs/remotes/origin/HEAD"])).replace(/^origin\//, "");
+  const originHead = (
+    await quiet(["symbolic-ref", "--short", "refs/remotes/origin/HEAD"])
+  ).replace(/^origin\//, "");
   const current = await quiet(["branch", "--show-current"]);
   const remoteUrl = await quiet(["remote", "get-url", "origin"]);
   const github = remoteUrl ? githubRepositoryFromRemote(remoteUrl) : null;

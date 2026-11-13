@@ -400,7 +400,9 @@ function pagedGitHub(total) {
         search: {
           issueCount: total,
           pageInfo: { hasNextPage: to < reachable, endCursor: String(to) },
-          nodes: Array.from({ length: to - from }, (_, i) => node(from + i + 1)),
+          nodes: Array.from({ length: to - from }, (_, i) =>
+            node(from + i + 1),
+          ),
         },
       };
     },

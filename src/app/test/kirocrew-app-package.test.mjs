@@ -326,7 +326,12 @@ print(json.dumps({"outcome": outcome, "calls": calls}))
 // The script reads the roster first and hands it to the tick (observe first).
 const TICK = [
   ["session_status"],
-  ["call_tool", "avoozl:avoozl", "plans_tick", { input: { cron: true, sessions: [] } }],
+  [
+    "call_tool",
+    "avoozl:avoozl",
+    "plans_tick",
+    { input: { cron: true, sessions: [] } },
+  ],
 ];
 
 test("tick cron raises Skip when the tick is idle or locked", () => {
@@ -350,7 +355,12 @@ test("tick cron hands every session status to the tick before it plans", () => {
   assert.equal(result.outcome, "skip");
   assert.deepEqual(result.calls, [
     ["session_status"],
-    ["call_tool", "avoozl:avoozl", "plans_tick", { input: { cron: true, sessions } }],
+    [
+      "call_tool",
+      "avoozl:avoozl",
+      "plans_tick",
+      { input: { cron: true, sessions } },
+    ],
   ]);
   // An unreadable roster is not an empty one: the tick is told it saw nothing.
   assert.deepEqual(
