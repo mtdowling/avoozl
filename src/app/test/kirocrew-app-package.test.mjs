@@ -213,6 +213,47 @@ test("packaged launcher serves the Crew Mode runner and lists its tools", () => 
   );
 });
 
+test("every plans_* tool a brief, agent, cron or skill names is listed", () => {
+  const dir = temporaryDirectory();
+  const listed = execFileSync(
+    "python3",
+    [path.join(app, "bin", "avoozl_mcp.py")],
+    {
+      cwd: dir,
+      encoding: "utf8",
+      env: isolatedEnv(dir),
+      input:
+        JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }) + "\n",
+    },
+  );
+  const names = new Set(
+    JSON.parse(listed.trim().split("\n")[0]).result.tools.map((t) => t.name),
+  );
+  // Briefs and nudges are written in src/app; agents mount tools by name.
+  const files = (dir, test) =>
+    fs
+      .readdirSync(dir, { recursive: true })
+      .map((name) => path.join(dir, name))
+      .filter((file) => test(file) && fs.statSync(file).isFile());
+  const sources = [
+    ...files(
+      path.join(root, "src", "app"),
+      (f) => /\.mjs$/.test(f) && !f.includes(`${path.sep}test${path.sep}`),
+    ),
+    ...files(path.join(app, "agents"), (f) => f.endsWith(".json")),
+    ...files(path.join(app, "crons"), (f) => f.endsWith(".py")),
+    ...files(path.join(app, "skills"), (f) => f.endsWith(".md")),
+  ];
+  const missing = new Set();
+  for (const file of sources)
+    for (const [name] of fs
+      .readFileSync(file, "utf8")
+      .matchAll(/\bplans_[a-z]+(?:_[a-z]+)*\b/g))
+      if (!names.has(name))
+        missing.add(`${path.relative(root, file)}: ${name}`);
+  assert.deepEqual([...missing], []);
+});
+
 test("packaged MCP server answers plans_tick from any working directory", () => {
   const dir = temporaryDirectory(),
     workspace = path.join(dir, "workspace");
