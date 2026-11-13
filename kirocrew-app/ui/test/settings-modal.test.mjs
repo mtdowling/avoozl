@@ -37,10 +37,10 @@ test('the Edit dialog saves through the shared Save, blocks on a missing field a
   assert.match(settings, /if \(missing\) return setSaveError\(`Not saved\. \$\{missing\}`\)/)
   assert.match(settings, /onSave=\{save\}/)
   assert.match(settings, /replace=\{setForm\}/)
-  // Esc and a click outside both go through onDismiss; narrow is full screen.
-  assert.match(modal, /useBackStep\('modal', true, 'Close the dialog', \(\) => dismiss\.current\(\)\)/)
-  assert.match(modal, /onClick=\{\(\) => dismiss\.current\(\)\}/)
-  assert.match(modal, /width: narrow \? '100vw'/)
+  // Esc and a click outside both go through dismiss; narrow is full screen.
+  assert.match(modal, /useBackStep\(props\.kind \?\? 'modal', true, props\.backLabel \?\? 'Close the dialog', dismiss\)/)
+  assert.match(modal, /data-modal-backdrop onClick=\{dismiss\}/)
+  assert.match(modal, /narrow\s*\? \{ width: '100%', height: '100%'/)
   assert.match(modal, /aria-modal="true"/)
 })
 

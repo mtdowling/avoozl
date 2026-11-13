@@ -144,19 +144,19 @@ export function RepositoryDialog(props: {
   children: ReactNode
 }) {
   const ask = useConfirm()
-  const dismiss = () =>
-    props.edited
-      ? void ask({
-          title: `Discard your changes to ${props.name}?`,
-          body: 'Every edit in this dialog is lost. .avoozl.json stays as it is.',
-          action: 'Discard changes',
-        }).then((yes) => yes && props.onDiscard())
-      : props.onDiscard()
+  const discard = {
+    title: `Discard your changes to ${props.name}?`,
+    body: 'Every edit in this dialog is lost. .avoozl.json stays as it is.',
+    action: 'Discard changes',
+  }
+  // Cancel asks too; Esc, Back and a click outside ask through the Modal.
+  const dismiss = () => (props.edited ? void ask(discard).then((yes) => yes && props.onDiscard()) : props.onDiscard())
   return (
     <Modal
       id="avoozl-repo-edit"
       title={props.name}
-      onDismiss={dismiss}
+      unsaved={props.edited && discard}
+      onDismiss={props.onDiscard}
       footer={
         (
           <div className="flex flex-wrap items-center justify-end gap-2">

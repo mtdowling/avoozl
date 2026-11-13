@@ -4,6 +4,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { selectStyle } from './FilterSelect.tsx'
 import { pickIndex, pickKey, pickLabel, pickMatches, type PickItem } from './picker.ts'
+import { LAYER } from './layers.ts'
 
 export function Picker(props: {
   id?: string
@@ -100,7 +101,7 @@ export function Picker(props: {
       <div
         hidden={!expanded}
         className="rounded border shadow"
-        style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 70, marginTop: 2, background: 'var(--card, var(--bg))', borderColor: 'var(--border)', maxHeight: '16rem', overflow: 'auto' }}
+        style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: LAYER.popover, marginTop: 2, background: 'var(--card, var(--bg))', borderColor: 'var(--border)', maxHeight: '16rem', overflow: 'auto' }}
       >
         <ul ref={list} id={listId} role="listbox" aria-label={typeof props.label === 'string' ? props.label : undefined} className="flex flex-col p-1">
           {shown.map((item, i) => (
