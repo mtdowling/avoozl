@@ -976,30 +976,134 @@ move.
 
 Owner decision 2026-11-13 (Requirement 59, design §6.9). An epic spans
 plans; a phase groups tasks inside one plan; no group is made up from a
-file path. Numbered after Phase 21 because task IDs never move. It starts
+file path. Numbered after Phase 20 because task IDs never move. It starts
 after Phase 3's proofs and 19.1. It changes earlier tasks' behavior only as
-Requirement 59 states: 2.1's `kind: "epic"` loads as a package, 3.7
-projects epic and plan issues, 12.8's `epic` batch key is named `phase`,
-and 19.1's drawer gets separate Epic and Phases fields.
+Requirement 59 states: 2.1's `kind: "epic"` becomes an error, 3.7 projects
+epic and plan issues, 12.8's batch key `epic` is renamed `phase` and the
+old value is refused, and 19.1's drawer gets separate Epic and Phases
+fields. Old plan forms are errors with no loading path; task 21.7 rewrites
+the owner's own plans once, after P36 passes.
 
 - [ ] 21.1 Epic folders and the `epic:` key, after Phase 3's proofs [R59.1–R59.4, R59.7] (§6.9)
-  - The spec reader knows an epic folder by its manifest's top-level `"kind": "epic"`, reads members from `plan` (alias `memberPlan`), reads `epic:` front-matter like `category:`, and reports the §6.9 validation codes; `kind: "epic"` and per-entry `epic` in a plan load as `package` and `phase` with warnings.
+  - The spec reader knows an epic folder by its manifest's top-level `"kind": "epic"`, reads members from `plan`, reads `epic:` front-matter like `category:`, and reports the §6.9 validation codes; `kind: "epic"`, per-entry `epic`, a plan's `epics` list and `memberPlan` are errors, never loaded under another name.
 - [ ] 21.2 Phases from the manifest and `tasks.md` headings, after 21.1 [R59.5, R59.6] (§6.9)
   - Each task gets a phase from its `phase` value, else its nearest level-2-or-lower heading, else No phase; the store keeps cross-plan epics only and tasks lose `epic`; capture and catalog paths stop making `doc:` epics, and `specOf` reads the plan or source reference.
 - [ ] 21.3 Epic and phase reads on the page, CLI, and MCP, after 21.2 [R59.4, R59.10] (§6.9, §8)
   - An epic read gives goal, what done means, member plans with status and progress, and open decisions; plan and task reads carry epic and phase; progress is computed, never stored; reads join the grouped MCP tools (R56).
-- [ ] 21.4 Epic and plan issues on GitHub, after 21.2 [R59.8, R59.9] (§6.9, §6.3)
-  - Projection creates the epic issue with `epicIssueType`, one plan issue per plan as its sub-issue, and task issues under the plan issue or package; writes the phase line and the optional `phase` Project field; the tick closes plan and epic issues from children; the 100-sub-issue limit and refused links show in the preview and Delivery.
+- [ ] 21.4 Epic and plan issues on GitHub, after 21.2 [R59.8, R59.9, R59.15] (§6.9, §6.3)
+  - Projection creates the epic issue with `epicIssueType`, one plan issue per plan as its sub-issue, and task issues under the plan issue or package; writes the phase line and the optional `phase` Project field; the tick closes plan and epic issues from children; `github.subIssues.maxPerParent` (default 100) is read, validated, shown in Settings > GitHub setup in GitHub modes only, and checked against each parent's `subIssuesSummary.total`; children past the cap and refused links show in the preview and Delivery.
 - [ ] 21.5 Views use epic and phase, after 21.3 [R59.6, R59.10] (§6.9, §8)
   - Graph levels All > Epic > Plan > Phase > task with the back stack; separate Epic and Phase filters in Graph, Delivery, Flow, and Plans; Dashboard Progress by epic across member plans; the plan left column shows its epic link and phases; the epic page; no `doc:` ID or path shown anywhere.
 - [ ] 21.6 Batch by phase and the New plan fields, after 21.2 and 19.1 [R59.11, R59.14] (§6.9, §8.6)
-  - `flow.batch.by` accepts `phase` (default) and `epic` as its alias; the New plan drawer has Epic (pick) and Phases; the planner agent and skill write epic folders, the `epic:` key, and phase headings.
-- [ ] 21.7 Workspace epic migration, after 21.2 [R59.12, R59.13] (§6.9)
-  - `workspace.migrate.epics`, person only: preview, sha256 backup, per-plan epics to phases, `doc:` epics to their `tasks.md` section or No phase, orphaned tasks archived with `task.archive` reason "plan removed"; a second run changes nothing; it approves, starts, and pushes nothing.
+  - `flow.batch.by` accepts `phase` (default) and `files`, and refuses `epic` naming `phase`; the New plan drawer has Epic (pick) and Phases; the planner agent and skill write epic folders, the `epic:` key, and phase headings.
+- [ ] 21.7 Rewrite the owner's plans once, after avoozl-p36 [R59.12, R59.13] (§6.9)
+  - A script kept in the task's report, not in `src/`, run through existing operations: first on a copy of the database and spec repositories, then live after a sha256 backup; per-plan epics to phases, `doc:` epics to their `tasks.md` section or No phase, orphaned tasks archived with `task.archive` reason "plan removed", old manifest forms rewritten in Nupp's plans (the rewrite epic folder and the native runtime plan) and checked in Avoozl's own spec, `flow.batch.by: "epic"` set to `phase`; every plan lints with 0 errors; a second run changes nothing; spec edits are local commits; nothing is approved, started, written to GitHub or pushed.
 
-- [ ] avoozl-p36 P36 Proof: one epic over two member plans, and a migrated Nupp-shaped copy [R59] (§6.9)
-  - Setup: an isolated temporary workspace in plans-repo mode with a fake GitHub; an epic folder `rewrite` listing plans `alpha` and `beta`; `alpha` has `epic: rewrite` and two `## ` headings, one task under none; `beta` has `epic: rewrite`, manifest `phase` values and a `phases` title; a third plan `gamma` says `epic: rewrite` but is not listed. A second temporary workspace copies a Nupp-shaped database: per-plan W1–W3 epics, `doc:` epics over a spec `tasks.md` and over a free document, tasks whose plan is gone, and an epic folder with old `memberPlan` entries and no top-level kind.
-  - Action: (1) lint and approve all four folders; (2) list `beta` as a member while it names no epic, then restore; (3) read the epic, the Graph levels, Delivery, Flow, and Plans with each filter, and the Dashboard; (4) preview projection, apply it, preview again; (5) close every `alpha` and `beta` task issue; (6) in the copy, preview the migration, apply it, apply it again; (7) add the top-level kind to the copy's epic folder and lint it; then drop each entry's `kind` and `repository` and lint again.
-  - Expected: (1) 0 errors; `gamma` gets `spec.epic-unknown` and shows under No epic; (2) `spec.epic-member-unconfirmed` blocks only the epic's approval; (3) the epic lists `alpha` then `beta` with computed progress; phases come from headings or manifest values; the headless task is under No phase; no response contains `doc:` or a file path as a group name; (4) one epic issue with the epic type, two plan issues as its sub-issues, task issues under them, the phase line in each body; the second preview writes nothing; (5) the tick closes both plan issues, then the epic issue; (6) a backup with its sha256, W1–W3 as phases, the spec `doc:` tasks under their headings, the free-document tasks under No phase, orphans archived as "plan removed", nothing approved, started, or written to GitHub, and the second apply changes nothing; (7) first `spec.epic-task-fields` names each entry's `kind` and `repository`; then the folder loads as an epic with `spec.member-plan-alias` warnings and lists its members.
-  - Failure means: one word still means two things, or a group is still made up from a path.
+- [ ] avoozl-p36 P36 Proof: one epic over two member plans, and old forms refused [R59] (§6.9)
+  - Setup: an isolated temporary workspace in plans-repo mode with a fake GitHub; an epic folder `rewrite` listing plans `alpha` and `beta`; `alpha` has `epic: rewrite` and two `## ` headings, one task under none; `beta` has `epic: rewrite`, manifest `phase` values and a `phases` title; a third plan `gamma` says `epic: rewrite` but is not listed; `github.subIssues.maxPerParent` set to 2, and `beta` has three tasks outside packages. A fourth folder `old` has an entry with `kind: "epic"`, per-entry `epic` values and an `epics` list; a fifth, `old-epic`, is an epic folder with `memberPlan` entries.
+  - Action: (1) lint and approve `rewrite`, `alpha`, `beta` and `gamma`; (2) list `beta` as a member while it names no epic, then restore; (3) read the epic, the Graph levels, Delivery, Flow, and Plans with each filter, and the Dashboard; (4) preview projection, apply it, preview again; (5) close every `alpha` and `beta` task issue; (6) lint `old` and `old-epic`; (7) save `flow.batch.by: "epic"`; (8) open Settings in Local only, then in plans-repo mode.
+  - Expected: (1) 0 errors; `gamma` gets `spec.epic-unknown` and shows under No epic; (2) `spec.epic-member-unconfirmed` blocks only the epic's approval; (3) the epic lists `alpha` then `beta` with computed progress; phases come from headings or manifest values; the headless task is under No phase; no response contains `doc:` or a file path as a group name; (4) one epic issue with the epic type, two plan issues as its sub-issues, task issues under them, the phase line in each body; `beta`'s third task is unlinked, names its plan issue in the marker, and shows "Over the sub-issue limit"; the second preview writes nothing; (5) the tick closes both plan issues, then the epic issue; (6) `spec.kind-epic`, `spec.entry-epic` and `spec.epic-task-fields` errors naming each entry, and neither folder can be approved; (7) refused naming `phase`; (8) the sub-issue cap shows only in plans-repo mode.
+  - Failure means: one word still means two things, a group is still made up from a path, or an old form still loads.
   - Next decision: keep phases as Avoozl-only groups and project only epics and tasks.
+
+## Phase 22: Templates, manual tasks, and links and notes
+
+Owner approval 2026-11-13 (Requirement 61, design §4.16). Numbered after
+Phase 21 because task IDs never move. It starts after 21.1, 16.3, 17.1 and
+P28; its proof runs after P36.
+
+- [ ] 22.1 Manual leaves in lint and the tick, after 21.1 [R61.9–R61.11, R61.13, R61.15] (§4.16, §4.3)
+  - `manual: true` with completion `person`; `spec.manual-field` and `spec.person-completion`; left out of ready, batching, verification, review and integration; every edge condition met when done; Blocked or waiting, then Needs you tagged Manual; `task.manual.complete` (Done or Skipped, outcome) and `task.manual.reopen` person only, refused over MCP; Flow counts waiting on a person and skips first-pass rate and time to fix.
+- [ ] 22.2 Manual leaves on GitHub, after 22.1 and 18.1 [R61.14] (§4.16, §6.3, §6.7)
+  - Issue projected under its plan issue or package, never a ready or trigger label, never sent to Issue Radar, the manual line in the managed body; Mark done closes as the person's login after Who counts; an allowed close completes it with its reason; any other close holds dependents and opens a decision without reopening; a reopen makes it open again and leaves running sessions alone.
+- [ ] 22.3 Links and notes store, operations, CLI, and MCP, after 17.1 and avoozl-p28 [R61.16–R61.18, R61.20–R61.22] (§4.16, §4.9)
+  - `task_notes` table; field limits refused by name; `notes` content-rule boundary on by default with Allow once for a person; `task.notes.list` observe, `task.notes.add` for a session's bound task only, `edit`, `remove` and `show` person only; CLI `avoozl task notes`; briefs get the newest 20 entries within 8,000 characters as data, and dependents get blockers' outcome entries; adding an entry changes no plan revision.
+- [ ] 22.4 Task drawer Links and notes and the Mark done dialog, after 22.1 and 22.3 [R61.12, R61.19] (§4.16, §8)
+  - Drawer section newest first with author and time, Add link and Add note, edit, and remove after a confirm; a manual leaf shows its acceptance and Mark done with outcome note, links, and Done or Skipped; checked by drawing the page and looking at it.
+- [ ] 22.5 Links and notes on the issue, after 22.2 and 22.3 [R61.23] (§4.16, §3.3)
+  - Show on the issue, person only and off by default, lists the entry in the managed body under Links and notes after the `github` boundary; others' edits there are conflicts; rebuild restores shown entries and the rebuild test allows unshown ones to be missing.
+- [ ] 22.6 Template plugin part and checks, after 16.3 and 21.2 [R61.1–R61.6] (§4.16, §4.14)
+  - `template` in `provides`, running as nothing; `avoozl-template.json` keys, inputs, `{{input}}` placeholders replaced as text, unknown keys and names refused; the starter lints with sample values; `phases` match headings or `phase` values; `pack` and `flow` pass their validators; an invalid template makes its plugin invalid; `template.list` and `template.preview` read approved templates only.
+- [ ] 22.7 From template in the New plan drawer, after 22.6, 21.6 and 19.1 [R61.6–R61.8] (§4.16, §8.6)
+  - Blank or From template as radio fold-outs; template inputs as fields beside Name, Category and Epic; `plan.new` takes `template` and `inputs`, checks required inputs, reads a file input in the page up to 200 KB, and runs content rules on the seed; the pack preview with Import these settings unticked; the draft records the template; a picked epic gets its own draft revision; nothing approved, started or pushed.
+- [ ] 22.8 Sample SDK rewrite template, docs, and skills, after 22.7 and 22.4 [R61.24] (§4.16)
+  - A template-only sample plugin in the test tree with the §4.16 SDK rewrite template, its six phases, the manual Review with team leaf that cutover requires, two proof kinds and the flow defaults, naming no private system or company; `docs/plugins.md`, the plugin skill and the planner skill cover templates, manual leaves and links and notes.
+
+- [ ] avoozl-p37 P37 Proof: an SDK rewrite plan from a template, gated by a manual team review, with links and notes [R61] (§4.16)
+  - Setup: an isolated temporary workspace in single-repo mode with one repository `o/sdk`, a fake GitHub with an allowed actor `alice` and a reader `bob`, a fake terms file banning `secretword`, an epic folder `sdk-target`, and the sample template plugin from the test tree.
+  - Action: (1) add and approve the plugin; open New plan, From template, SDK rewrite; submit with no SDK name, then with `sdk: widgets`, the target repository, a gap list file and epic `sdk-target`, leaving Import these settings unticked; let a fake planner write the folder; (2) lint and approve the plan and the epic's new revision; project; (3) finish every task before the review; (4) as a session, mark the review done, add a note to the review, add a note to another task, and edit the person's note; (5) as a person, save a note with `secretword`, a link `javascript:x`, a link with a user name, then a valid outcome note and link, and Mark done with Done; (6) read the first cutover task's brief; (7) tick Show on the issue on the outcome link and run the tick; rebuild; (8) reopen the review in Avoozl; have `bob` close its issue, then `alice`.
+  - Expected: (1) refused naming `sdk`, nothing recorded; then a draft plan with six phases and the template recorded, the epic's own draft revision, no setting imported, nothing approved or started; (2) 0 errors; the review issue says a person closes it and never gets a ready or trigger label; (3) the review is in Needs you tagged Manual and no session opens for it; cutover tasks wait; (4) the mark done and the edit refused, the note on the review saved with the session's ID, the other task's note refused; (5) the first three refused naming the rule or field, the last saved; the issue closes as completed and cutover tasks become ready; (6) the brief carries the outcome note and link as data; (7) only the shown link is in the managed body, and it is back after the rebuild; (8) dependents wait again; `bob`'s close opens a decision and is not reopened; `alice`'s close completes it.
+  - Failure means: a repeated workflow cannot start from one install, a person's step cannot gate agent work, or what a review decided does not reach the next task.
+  - Next decision: keep templates as starter folders in a planning repository and drop the plugin part.
+
+## Phase 23: Specs and ideas
+
+Owner approval 2026-11-13 (Requirements 62 and 63, design §8.7 and §8.8).
+Numbered after Phase 22 because task IDs never move. It renames only what
+people read, and it builds on the incoming-item record of Phase 14.
+
+- [ ] 23.1 Say spec on the page, in docs and in skills, after 19.1 [R62] (§8.7)
+  - Every user-facing plan word becomes spec; Plan a change becomes Change spec; `plans_*`, `plan.*`, CLI, `.avoozl.json` keys, SQLite, the Plans repo mode and `avoozl-planner` are unchanged; a page-source test fails on any `plan` or `plans` word outside its allowlist.
+- [ ] 23.2 Idea record and operations, after 14.10 and 17.1 [R63.1, R63.3–R63.6, R63.10] (§8.8, §4.12)
+  - `local` items of kind `idea` with notes and links and their limits; `idea.capture`, `idea.append`, `idea.archive`, `idea.restore`; the `intake` boundary refuses blocked text; no trigger match, no task, no Untriaged count, no purge; `plans_intake` actions `capture_idea` and `add_idea_note`; CLI `avoozl intake idea`.
+- [ ] 23.3 Ideas on the page, after 23.1 and 23.2 [R63.2, R63.7, R63.10] (§8.8)
+  - + New idea on Specs and Intake; Ideas (N) on Specs; the Idea kind filter; the idea drawer with notes, links, Add note, Add link, Archive and Restore; checked by drawing the page at 375 and 1280 px in light and dark.
+- [ ] 23.4 Riff on this and Make it a spec, after 23.3 [R63.8, R63.9] (§8.8, §8.6)
+  - `chat.context` purpose `riff-idea` seeds a chat that only appends; Make it a spec prefills the New spec entry point with the idea key, and recording the request graduates the idea; a cancel leaves it unchanged.
+
+- [ ] avoozl-p38 P38 Proof: the Specs name and ideas [R62, R63] (§8.7, §8.8)
+  - Setup: an isolated temporary workspace with one repository, a trigger rule with no `source:` term and one with `source:local`, a fake terms file banning `secretword`, a fake chat opener and the New spec entry point.
+  - Action: (1) run the page-source test; list MCP tools and CLI commands; (2) as a person, add an idea with a title, a note and a link; over MCP, capture one with no title, one with a `javascript:` link, one with `secretword`, then a valid one; as a session, capture one and append a note to it; (3) tick; read the Intake tab and its Untriaged count; call Plan this and Deliver this on an idea; (4) as a session, archive an idea and graduate one; (5) Riff on this, and from the riff chat append a link; (6) Make it a spec, cancel, then submit; (7) archive and restore; move the clock 31 days and run the purge.
+  - Expected: (1) no plan word outside the allowlist; every `plans_*` tool and CLI command still answers; (2) the bad three refused by field or rule with nothing recorded; the session idea and note name the session; (3) no task, no rule match and an unchanged Untriaged count; both actions refused; (4) refused with 403; (5) the seed holds the idea as data and asks for no edits; only the link is added; (6) the cancel changes nothing; the submit prefills New spec and the idea shows Graduated with the spec name; (7) the archived and graduated ideas are still there.
+  - Failure means: an idea can start work, or the page still says plan.
+  - Next decision: keep ideas as a separate local list instead of intake items.
+
+## Phase 24: Pull the Andon cord
+
+Owner approval 2026-11-13 (Requirement 64, design §4.11). Numbered after
+Phase 23 because task IDs never move. It adds a pulled stop beside the
+automatic stops of 12.6.
+
+- [ ] 24.1 Pulled stops in the backend, CLI and MCP, after 12.6 [R64.2–R64.5, R64.7–R64.11] (§4.11)
+  - `flow.stop` {scope, repository?, spec?, taskId?, reason} records a `manual` row in `flow_stops` after the `brief` content rules; `flow.resume` {stopId} is person only and records who resumed; dispatch skips every task in scope, fix tasks included; the line watch never closes a pulled stop; Resume refuses an automatic stop and Run anyway a pulled one; `plans_session` action `stop_line`; `avoozl flow stop` and `avoozl flow resume`; Flow and the retro carry the pull.
+- [ ] 24.2 Stop the line on the Dashboard, after 24.1 [R64.1, R64.6, R64.7] (§4.11)
+  - A red Stop the line button in the Dashboard header opens a dialog with a scope, its target and a required reason; the Line stopped banner shows who, when, scope, reason and the paused count, with a Resume button that asks first; checked by drawing the page at 375 and 1280 px in light and dark.
+
+- [ ] avoozl-p39 P39 Proof: pull the Andon cord [R64] (§4.11)
+  - Setup: an isolated temporary workspace with repositories `r1` and `r2`, an approved spec `s1` with leaves `a1` and `a2` (`a2` requires `a1`) in `r1` and `b1` in `r2`, a fake terms file banning `secretword`, and fake workers.
+  - Action: (1) as a person, pull with scope `task` on `a1` and reason `bad base`; tick; (2) pull with no reason, a two-line reason, scope `repo` naming `r9`, and reason `secretword here`; (3) from an agent session, pull with scope `repo` on `r2`; (4) let the stopped check pass and the fix task integrate; tick; (5) call Resume from an agent session and from the app token; (6) press Run anyway on the pulled stop; press Resume on an automatic stop; (7) press Resume as the owner on both pulled stops; tick; (8) read Flow and the retro payload; run `avoozl flow stop` and `avoozl flow resume` from the CLI.
+  - Expected: (1) `a1` and `a2` are not dispatched, `b1` is, a running session is untouched, and the banner shows the owner, the time, the scope and `bad base`; (2) each refused by field, the unknown repository named, the content rule named without the matched text, nothing recorded; (3) the stop names the session, `b1` waits, the owner is notified once; (4) both pulled stops stay open; (5) both refused with 403; (6) both refused; (7) dispatch resumes in each scope and each stop records who resumed it; (8) both pulls are listed and counted with a time to fix, the retro sees their scope and reason, and the CLI pulls and resumes the same way.
+  - Failure means: a person cannot stop new work by hand, or a pulled stop resumes without a person.
+  - Next decision: keep the pull as a person-only button and drop the MCP action.
+
+## Phase 25: New plan hands off to Spec Builder
+
+Owner approval 2026-11-13 (Requirement 65, design §8.6). Numbered after
+Phase 24 because task IDs never move.
+
+- [x] 25.1 Spec Builder hand-off, steering file and manifest from tasks.md, after 19.1 [R65] (§8.6)
+  - The `/api/apps/spec-builder/specs` grant and a source scan test; `.kiro/steering/avoozl-specs.md` written only after the drawer asks; `plan.new` `preview` and `handoff: "spec-builder"`; the page posts the create call and opens Spec Builder; Plan a goal opens the drawer; the tick writes the manifest from a still `tasks.md` and imports a draft; plain refusals with the planner chat as fallback.
+  - Built: 3cfd93d Hand New plan and Plan a goal to Spec Builder
+
+## Phase 26: Driver handoff
+
+Owner request 2026-11-13 (Requirement 66, design §6.10). Numbered after
+Phase 25 because task IDs never move. It makes the one-writer rule of 3.8
+hold across machines. The driver is the plan issue's assignee plus a
+machine claim in its marker.
+
+- [ ] 26.1 Driver lock and read-only ticks, after 3.8 and 21.4 [R66.1–R66.9] (§6.10)
+  - Machine ID and label in machine-local settings; read the plan issue's assignees (else the epic issue's) and the marker `claim` in sync, and again before each dispatch, projection and integrate; drive only with exactly one assignee equal to the `gh` login and a claim naming this machine; zero or several opens one decision and reads only everywhere; heartbeat edits of the claim, left out of `applied`; approval creates the plan issue assigned with the claim before any task issue; Take over writes the claim and reads it back; Avoozl changes no assignee; the Local only `driver` row; `driver.status` on the page, CLI and MCP.
+- [ ] 26.2 Hand off and take over from an export, after 26.1 and 12.1 [R66.10–R66.12, R66.15, R66.16] (§6.10)
+  - Person-only `driver.handoff` with drain, Export with N unfinished and Cancel; the one-spec export file with no machine-local contents, its sha256 in the claim, and the reassign link; person-only `driver.takeover --file` with the checks and a one-transaction import; away tasks complete from GitHub facts or get one decision, never restarted by lease; the re-approve list; 403 for agent, MCP, app-token and plugin callers.
+- [ ] 26.3 Rebuild and force take over, after 26.1 and 3.10 [R66.11, R66.13–R66.15] (§6.10)
+  - `driver.takeover --rebuild` runs the spec's rebuild and shows the loss list first; open decisions re-raised by the next tick; person-only `driver.forceTakeover` with the named old driver and typed spec name sets the plan issue's assignees to this login, reads them back and stops when GitHub kept the old ones, writes a forced claim and sends one notice; a returning old driver reads only and never takes the role back.
+- [ ] 26.4 Driver in the header, banner, dialogs and Settings, after 26.2 and 26.3 [R66.17] (§6.10)
+  - The header driver chip, the read-only banner with its reason and Take over or Force take over, the stepped Hand off dialog, the loss list and confirm dialogs, and Settings › General › This computer; checked by drawing the page at 375 and 1280 px in light and dark.
+
+- [ ] avoozl-p40 P40 Proof: driver handoff [R66] (§6.10)
+  - Setup: isolated temporary workspaces `A1` and `A2` (login `alice`, two machine IDs) and `B` (login `bob`) on one fake GitHub in plans-repo mode; an epic issue and an approved spec `s1` with leaves `a1` and `a2` (`a2` requires `a1`) and a local-authority leaf `l1`; a fake plugin and a fake terms file on `A1` only; fake workers. The fake GitHub ignores assignee changes from a token without push access, as GitHub does.
+  - Action: (1) approve on `A1`; tick all three; (2) on `A2` press Take over; tick; (3) add `bob` as a second assignee; tick; remove him; (4) clear the plan issue's assignee and assign `alice` on the epic issue; tick; (5) stop `A1`'s heartbeat for 2 hours of fake time; tick `A2`; (6) reassign the plan issue to `bob` between `A1`'s sync read and its dispatch step; (7) assign `alice` again; start `a1` on `A1`, press Hand off driver, tick, let `a1` finish, write the export, reassign to `bob`; (8) change one byte of the file and take over on `B`; then take over with the real file; tick; (9) from an agent session, MCP and the app token, call hand off, take over and force take over; (10) start `a2` on `B`, stop `B` with no hand off, and force take over with rebuild on `A1`, once with a token without push access and once with one; (11) start `B` again and tick it; (12) copy a Local only workspace's SQLite to another machine ID and open it.
+  - Expected: (1) `A1` drives and dispatches `a1`; `A2` and `B` write nothing and show why; (2) `A2` drives and `A1` reads only, with no assignee change; (3) every workspace reads only and one decision opens, then closes; (4) the epic's assignee stands in and `A2` still drives; (5) `A2` shows "not seen since" and nothing moves; (6) `A1` dispatches nothing; (7) nothing new dispatches, `a1` is never ended and its report applies, the export has no terms or instructions, its sha256 is in the claim, and Avoozl never changes the assignee; (8) the changed file is refused by name with nothing changed; with the real file `B` drives with `l1`, Flow spans and notes, and lists the plugin and terms file to set up while their boundaries stay closed; (9) every call refused with 403; (10) without push access GitHub keeps `bob`, Avoozl says so and changes nothing else; with it the loss list shows first, `alice` is the only assignee, `a2` is away and gets one decision instead of a restart, open decisions come back from GitHub, and the claim is forced and names `B`; (11) `B` reads only, names `A1` and says forced; (12) the copy reads only until Take over.
+  - Failure means: two machines can write for one spec, or the role moves without a person.
+  - Next decision: put the claim in a comment instead of the marker, or drop the epic default.
