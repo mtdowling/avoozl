@@ -860,7 +860,7 @@ function PlanAside(props: {
 
 
 // Archive plan: a plain confirm, not red, because Unarchive undoes it.
-function ArchivePlanDialog(props: { workspaceId: string; row: PlanRow; client: PlansClient; onDone: (text: string | null) => void }) {
+export function ArchivePlanDialog(props: { workspaceId: string; row: PlanRow; client: PlansClient; onDone: (text: string | null) => void }) {
   const { row, client, workspaceId } = props
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -945,7 +945,7 @@ function ArchivedBanner(props: { row: PlanRow; busy: boolean; onUnarchive: () =>
 // Delete plan: the confirm names the plan, counts its tasks and says what
 // happens to each. The spec folder checkbox is off by default and removes
 // the folder from the working tree only, never committing or pushing.
-function DeletePlanDialog(props: { workspaceId: string; row: PlanRow; client: PlansClient; onDone: (text: string | null) => void }) {
+export function DeletePlanDialog(props: { workspaceId: string; row: PlanRow; client: PlansClient; onDone: (text: string | null) => void }) {
   const { row, client, workspaceId } = props
   const [preview, setPreview] = useState<DeletePreview | null>(null)
   const [folder, setFolder] = useState(false)
