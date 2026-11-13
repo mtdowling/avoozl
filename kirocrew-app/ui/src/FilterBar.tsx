@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { FilterPanel, useStoredFilter, writeStored } from './FilterPanel.tsx'
 import { FILTER_EVENT, changed, filterActive, readFilter, writeFilter, type TaskFilter, type filterChoices } from './filters.ts'
 import type { NodeState } from './graph-layout.ts'
+import { optionItems } from './picker.ts'
 
 const TASK_STORE = { event: FILTER_EVENT, read: readFilter, write: writeFilter, empty: {} as TaskFilter }
 
@@ -36,7 +37,7 @@ export function FilterBar(props: {
       onClear={() => props.onChange({})}
       fields={[
         { kind: 'search', key: 'q', label: 'Search', value: filter.q ?? '', placeholder: 'Task name or ID', onChange: (q) => set({ q }) },
-        { kind: 'select', key: 'plan', label: 'Plan', value: filter.plan ?? '', options: choices.plans, onChange: (plan) => set({ plan }) },
+        { kind: 'pick', key: 'plan', label: 'Plan', value: filter.plan ?? '', items: optionItems(choices.plans), onChange: (plan) => set({ plan }) },
         { kind: 'select', key: 'epic', label: 'Epic', value: filter.epic ?? '', options: choices.epics, onChange: (epic) => set({ epic }) },
         {
           kind: 'select',
