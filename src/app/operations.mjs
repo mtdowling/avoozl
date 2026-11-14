@@ -157,7 +157,8 @@ import {
   STATUS_VALUE_KEYS,
 } from "./github-policy.mjs";
 import { requireMirrorsPrivate } from "./mirror-policy.mjs";
-import { mirrorNeedsYou } from "./mirror-sync.mjs";
+import { mirrorNeedsYou, writeRepo } from "./mirror-sync.mjs";
+import { mirrorForwardRows, mirrorRecordFor } from "./mirror-forward.mjs";
 import { syncProject } from "./github-project.mjs";
 import { cancelSetup, githubSetup } from "./github-setup.mjs";
 import {
@@ -3056,6 +3057,7 @@ export class Operations {
       view.items.push(...remoteNeedsYou(store));
       view.items.push(...syncNeedsYou(store));
       view.items.push(...mirrorNeedsYou(store));
+      view.items.push(...mirrorForwardRows(store, policy));
       view.items.push(
         ...radarNeedsYou(
           untriagedView(
@@ -3369,8 +3371,11 @@ export class Operations {
       if (!Number.isInteger(number) || number < 1)
         fail("Name the issue number to trace.", 400);
       if (!this.github?.available?.()) fail("GitHub is not available.", 503);
-      return readTrace(this.github, input.repository, number, entry, {
+      // A mirrored repository's issues and pull requests live in the mirror.
+      const where = writeRepo(entry, input.repository);
+      return readTrace(this.github, where, number, entry, {
         draftFor: (pull) => draftForPull(store, input.repository, pull),
+        mirrorFor: (pull) => mirrorRecordFor(store, where, pull),
       });
     }
     // Integration branches (RC16.3, RC16.8): tasks merged, distance behind the
