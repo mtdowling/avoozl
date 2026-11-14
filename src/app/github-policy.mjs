@@ -6,6 +6,7 @@ import { loadLayeredConfig } from "./layered-config.mjs";
 import { fail } from "./store.mjs";
 import { parseRepository } from "./github.mjs";
 import { parseMatch } from "./issue-match.mjs";
+import { mirrorInput } from "./mirror-policy.mjs";
 
 // The rule keys `match` replaces (§4.4); still read when `match` is absent.
 const LEGACY_MATCH_KEYS = ["labelsAll", "labelsAny", "labelsNone", "assignee"];
@@ -378,6 +379,7 @@ function repositoryInput(value, id, mode) {
       "commentSteering",
       "discussions",
       "untriaged",
+      "mirror",
     ],
     label,
   );
@@ -645,6 +647,9 @@ function repositoryInput(value, id, mode) {
     commentSteering,
     discussions,
     untriaged,
+    ...(value.mirror === undefined || value.mirror === null
+      ? {}
+      : { mirror: mirrorInput(value.mirror, `${label}.mirror`) }),
   };
 }
 
