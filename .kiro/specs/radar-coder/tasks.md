@@ -48,7 +48,7 @@ Requirement RC1. The Radar path starts with one setting and four label names. No
 
 Requirement RC2. Spec to issues, in both modes, with batching and the preview. Nothing is written before a confirm.
 
-- [ ] rc-2.1 Plans-repo mode projects issues into the code repository, after rc-1.1 [RC2.2, RC2.3] (§D4.1)
+- [x] rc-2.1 Plans-repo mode projects issues into the code repository, after rc-1.1 [RC2.2, RC2.3] (§D4.1)
   - Projection for `coder: issue-radar` writes issues in the code repository in both modes; closing by `Closes #N` or by Avoozl on merge; worker coder unchanged; `src/app/test/radar-coder-projection.test.mjs`.
   - Done when: With a fake GitHub, single-repo and plans-repo projections write issues only into the code repository; plans-repo with `coder: worker` still writes into the plans repository; closing works in both forms.
 - [ ] rc-2.2 Show the plans repository name in issues, a per-repository switch, after rc-2.1 [RC2.4] (§D4.1)
@@ -120,7 +120,7 @@ Requirement RC4. The tick adds the ready label in graph order, N at a time.
 
 Requirement RC5. Crews do not arm auto-merge (Kiro Crew 0.12.2.4), so the tick does.
 
-- [ ] rc-5.1 Merge path check, after rc-1.1 [RC5.1] (§D7)
+- [x] rc-5.1 Merge path check, after rc-1.1 [RC5.1] (§D7)
   - Per repository: auto-merge allowed, default branch rule requires the named CI check, `delivery.ship` set; shown as three items; Create and release refused for `auto-merge` while not ready.
   - Done when: Each missing item is named; a repository with all three reads ready; `manual` shows a warning only.
 - [ ] rc-5.2 Arm GitHub auto-merge on crew pull requests, after rc-5.1, rc-3.1 [RC5.2, RC5.5] (§D7)

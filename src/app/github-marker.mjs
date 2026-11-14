@@ -325,13 +325,33 @@ export function withoutOrder(marker) {
   return rest;
 }
 
+// In plans-repo mode, a code repository whose `coder` is `issue-radar` holds
+// its own issues, so a crew reads and writes one repository (radar-coder
+// D4.1). The setting is read as written; plans-repo defaults to `worker`.
+export function radarIssueRepository(identity, repository) {
+  if (identity?.mode !== "plans-repo") return false;
+  const wanted = String(repository || "").toLowerCase(),
+    entry = Object.entries(identity.repositories || {}).find(
+      ([id]) => id.toLowerCase() === wanted,
+    );
+  return entry?.[1]?.coder === "issue-radar";
+}
+
 // Plans-repo mode keeps every sub-issue link and dependency between planning
-// issues, so no code-repository issue shows a link into the plan (R28.7).
+// issues, so no code-repository issue shows a link into the plan (R28.7). A
+// radar repository's issues link only to issues in a radar repository.
 export function assertPlanningLink(identity, ...repositories) {
   if (identity?.mode !== "plans-repo") return;
-  const planning = String(identity.planningRepository || "").toLowerCase();
-  for (const repository of repositories)
-    if (String(repository || "").toLowerCase() !== planning)
+  const planning = String(identity.planningRepository || "").toLowerCase(),
+    radar = repositories.map((repository) =>
+      radarIssueRepository(identity, repository),
+    );
+  for (const [index, repository] of repositories.entries())
+    if (
+      radar[index]
+        ? !radar.every(Boolean)
+        : String(repository || "").toLowerCase() !== planning
+    )
       fail(
         "In plans-repo mode Avoozl links only planning issues; " +
           repository +
