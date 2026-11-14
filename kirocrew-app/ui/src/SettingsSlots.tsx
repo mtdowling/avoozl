@@ -1,5 +1,5 @@
 // Parts of Settings that exist so the page is complete before their logic is:
-// the empty labeled slots (Workflow map, Mirror), the Adopt and Create setup
+// the empty labeled slot (Mirror), the Adopt and Create setup
 // buttons, and the banner for a repository still on the retired worker.
 // Each slot is a box with a name and one line, so whoever fills it replaces
 // the box's body and leaves its place alone.
@@ -21,10 +21,6 @@ function Slot(props: { id: string; title: string; line: string; children?: React
     </div>
   )
 }
-
-export const WorkflowMapSlot = () => (
-  <Slot id="workflow-map" title="Workflow map (coming)" line="Reserved. A map of how work moves between planning, crews and merge will go here." />
-)
 
 export const MirrorSlot = () => (
   <Slot id="mirror" title="Mirror" line="Reserved for the repository mirror. Specified separately." />
