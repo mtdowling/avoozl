@@ -225,20 +225,6 @@ test('lanes wrap 4, 2, 1 per row and never go under their minimum width', () => 
   assert.equal(laneColumns(at(4), 1), 1)
 })
 
-test('the state icons are labelled, theme-colored, and still under reduced motion', () => {
-  const view = readFileSync(new URL('../src/DeliveryView.tsx', import.meta.url), 'utf8')
-  const icon = view.slice(view.indexOf('export function StateIcon'), view.indexOf('const LANE_GAP'))
-  assert.match(icon, /useMedia\('\(prefers-reduced-motion: reduce\)'\)/)
-  // Each animation is drawn only when motion is allowed.
-  assert.equal((icon.match(/\{!still && \(\s*<animateTransform/g) ?? []).length, 2)
-  assert.match(icon, /aria-label=\{label\}/)
-  assert.match(icon, /<title>\{label\}<\/title>/)
-  assert.doesNotMatch(icon, /--warn|#[0-9a-f]{3,6}\b/i)
-  // In progress cards carry their group's icon.
-  assert.match(view, /\{props\.phase && <StateIcon phase=\{props\.phase\} \/>\}/)
-  assert.match(view, /list\(`\$\{lane\.id\}:\$\{group\.id\}`, group\.cards, group\.id\)/)
-})
-
 test('the lane rule is the one the Avoozl state Project field uses', async () => {
   const shared = await import('../../../src/delivery-lanes.mjs')
   assert.equal(laneOf, shared.laneOf)

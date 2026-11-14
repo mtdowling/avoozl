@@ -60,16 +60,17 @@ import { AddRepository, REPOSITORIES_LINE, RepositoryDialog, RepositoryList, rep
 import PluginsSettings from './PluginsSettings.tsx'
 import ContentRulesSettings from './ContentRulesSettings.tsx'
 import FlowSettings from './FlowSettings.tsx'
-import { BudgetSettings } from './BudgetSettings.tsx'
+import DriverSessionBox from './DriverSessionBox.tsx'
+import { MirrorSlot, RetiredBanner, SetupActions } from './SettingsSlots.tsx'
 import DeliverySettings from './DeliverySettings.tsx'
-import RoutingView from './RoutingView.tsx'
 import { useSteppedState } from './NavHistory.tsx'
 import { useRead } from './useRead.ts'
 import { labelsClient, triageRows, type RepositoryLabels } from './untriaged-api.ts'
 import { errorMessage, workspaceClient, type Repository, type WorkspaceList } from './workspace-api.ts'
 import { Fold } from './controls.tsx'
 import { AskForHelp, DangerBtn, IconLabel, SectionHeading, TipBtn, ViewHeading, dangerStyle } from './controls.tsx'
-import { Plus, Trash2 } from './icons.ts'
+import { ChevronRight, Plus, Trash2 } from './icons.ts'
+import { redirectSettings } from './nav-api.ts'
 import { linkHref } from './views-api.ts'
 import { ThisComputer } from './Driver.tsx'
 
@@ -84,15 +85,16 @@ const grid = (min = 220): CSSProperties => ({
 const WIDTH = { sm: '9rem', md: '18rem', lg: '28rem' } as const
 
 export const SETTINGS_TABS = [
+  { key: 'driver', label: 'Driver session' },
   { key: 'workspaces', label: 'Workspaces' },
-  { key: 'repositories', label: 'Repositories' },
+  // Coder, Labels, Crews and rules and the Workflow map are tabs of each repository's Edit dialog.
+  { key: 'repositories', label: 'Repository setup' },
   { key: 'github', label: 'Where tasks live' },
   { key: 'plugins', label: 'Plugins' },
   { key: 'content', label: 'Content rules' },
   { key: 'flow', label: 'Flow' },
+  // Who merges (delivery.ship) is read for Radar pull requests too.
   { key: 'delivery', label: 'Delivery' },
-  { key: 'budgets', label: 'Budgets' },
-  { key: 'routing', label: 'Routing' },
 ] as const
 export type SettingsTab = (typeof SETTINGS_TABS)[number]['key']
 
@@ -102,10 +104,12 @@ export type SettingsTab = (typeof SETTINGS_TABS)[number]['key']
 export const LOCAL_TAB_BLURB = 'The mode for this workspace. Save only writes .avoozl.json.'
 
 export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
+  driver:
+    'The chat that releases ready work and watches merges: a link to it, or a button to start one.',
   workspaces:
     'The Avoozl workspaces on this machine, each a folder with its own task database. Add one for each set of specs you keep apart.',
   repositories:
-    'The code checkouts tasks change and land in, with their GitHub settings. Save only writes .avoozl.json.',
+    "Each repository's coder, labels, Crews and rules, Workflow map, checks and reviews are tabs in its Edit dialog. Save only writes .avoozl.json.",
   github:
     "The mode, planning repository and Project board. Save only writes .avoozl.json; Set up GitHub creates what's missing, after showing each change.",
   plugins:
@@ -114,11 +118,7 @@ export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
     'Terms Avoozl must never write: in spec files, issues, comments, briefs and diffs. A match stops the write and asks you.',
   flow: 'How Avoozl measures delivery time and reacts to slow or broken work. Every group applies in each mode.',
   delivery:
-    'Which agent and model write each task by default, and whether pull request feedback goes back to the writer. Crews and the routing prompt are on the Routing tab.',
-  budgets:
-    "Each task's spending cap and what happens at it: stop new work, or only warn. Save only writes .avoozl.json.",
-  routing:
-    'Off by default: every task runs on this machine. On, one routing prompt picks a crew and a model for each ready task, among the options that pass the checks. Saved on this machine only.',
+    'Who merges a finished pull request, and the writer agent and model, investigate-first and pull request feedback for Avoozl worker chats.',
 }
 
 const REPOSITORY_TABS = [
@@ -1493,6 +1493,38 @@ class TabBoundary extends Component<{ label: string; children: ReactNode }, { er
   }
 }
 
+function SettingsBody(props: { tab: SettingsTab; workspaceId: string | null; onTab: (tab: SettingsTab) => void } & Pick<Parameters<typeof SettingsView>[0], 'onSelectWorkspace' | 'onListChange' | 'onOpenPlans'>) {
+  const { tab, workspaceId } = props
+  if (tab === 'workspaces') return <WorkspaceView selected={workspaceId} onSelect={props.onSelectWorkspace} onListChange={props.onListChange} />
+  if (tab === 'driver') return <DriverSessionBox workspaceId={workspaceId} />
+  if (!workspaceId)
+    return (
+      <EmptyState
+        title="Pick a workspace"
+        subtitle="Choose one in the header, or add one under Workspaces."
+        action={<Btn onClick={() => props.onTab('workspaces')}>Open Workspaces</Btn>}
+      />
+    )
+  if (tab === 'plugins') return <PluginsSettings workspaceId={workspaceId} onOpenGitHub={() => props.onTab('github')} />
+  if (tab === 'content') return <ContentRulesSettings workspaceId={workspaceId} />
+  if (tab === 'flow') return <FlowSettings workspaceId={workspaceId} />
+  if (tab === 'delivery') return <DeliverySettings workspaceId={workspaceId} />
+  return (
+    <div className="flex flex-col gap-3.5">
+      {tab === 'repositories' && (
+        <>
+          <SetupActions />
+          <MirrorSlot />
+        </>
+      )}
+      <PolicyEditor workspaceId={workspaceId} tab={tab} onOpenPlans={props.onOpenPlans} />
+    </div>
+  )
+}
+
+// Settings is one accordion: one section open at a time, each change of
+// section a Back step. A section name from an older link lands on the section
+// that took over (redirectSettings).
 export default function SettingsView(props: {
   workspaceId: string | null
   tab?: SettingsTab
@@ -1500,57 +1532,55 @@ export default function SettingsView(props: {
   onSelectWorkspace?: (id: string | null) => void
   onListChange?: (list: WorkspaceList) => void
   onOpenPlans?: () => void
-  onOpenRouting?: () => void
 }) {
   const { workspaceId } = props
   const [own, setOwn] = useState<SettingsTab>(SETTINGS_HOME)
-  const asked = props.tab ?? own
-  // A remembered tab that no longer exists falls back to Workspaces.
-  const tab: SettingsTab = SETTINGS_TABS.some((t) => t.key === asked) ? asked : SETTINGS_HOME
+  const asked = redirectSettings(props.tab ?? own)
+  // A remembered section that no longer exists falls back to Workspaces.
+  const tab: SettingsTab = SETTINGS_TABS.some((t) => t.key === asked) ? (asked as SettingsTab) : SETTINGS_HOME
   const choose = (next: SettingsTab) => (props.onTab ? props.onTab(next) : setOwn(next))
   return (
     <section aria-labelledby="avoozl-settings-title" className="flex flex-col gap-3.5">
       <ViewHeading id="avoozl-settings-title" view="settings">
         Settings
       </ViewHeading>
-      <SegmentedControl
-        layoutId="avoozl-settings-tabs"
-        ariaLabel="Settings sections"
-        segments={SETTINGS_TABS.map((t) => ({ key: t.key, label: t.label }))}
-        value={tab}
-        onChange={(key) => choose(key as SettingsTab)}
-        wrap
-      />
-      {tab !== 'github' && (
-        <p className="text-sm text-muted" data-blurb={tab}>
-          {SETTINGS_BLURBS[tab]}
-        </p>
-      )}
-      <TabBoundary key={tab} label={SETTINGS_TABS.find((t) => t.key === tab)?.label ?? tab}>
-      {tab === 'workspaces' ? (
-        <WorkspaceView selected={workspaceId} onSelect={props.onSelectWorkspace} onListChange={props.onListChange} />
-      ) : !workspaceId ? (
-        <EmptyState
-          title="Pick a workspace"
-          subtitle="Choose one in the header, or add one under Workspaces."
-          action={<Btn onClick={() => choose('workspaces')}>Open Workspaces</Btn>}
-        />
-      ) : tab === 'plugins' ? (
-        <PluginsSettings workspaceId={workspaceId} onOpenGitHub={() => choose('github')} />
-      ) : tab === 'content' ? (
-        <ContentRulesSettings workspaceId={workspaceId} />
-      ) : tab === 'flow' ? (
-        <FlowSettings workspaceId={workspaceId} />
-      ) : tab === 'delivery' ? (
-        <DeliverySettings workspaceId={workspaceId} onOpenRouting={props.onOpenRouting} />
-      ) : tab === 'budgets' ? (
-        <BudgetSettings workspaceId={workspaceId} />
-      ) : tab === 'routing' ? (
-        <RoutingView workspaceId={workspaceId} />
-      ) : (
-        <PolicyEditor workspaceId={workspaceId} tab={tab} onOpenPlans={props.onOpenPlans} />
-      )}
-      </TabBoundary>
+      <p className="text-sm text-muted">The configuration hub. One section is open at a time. Each saved change shows what it writes first.</p>
+      <RetiredBanner workspaceId={workspaceId} onOpen={() => choose('repositories')} />
+      <div className="flex flex-col" data-settings-accordion>
+        {SETTINGS_TABS.map((section) => {
+          const open = section.key === tab
+          return (
+            <section key={section.key} data-settings-section={section.key} data-open={open} className="border-t" style={{ borderColor: 'var(--border)' }}>
+              <h3 className="m-0">
+                <button
+                  type="button"
+                  aria-expanded={open}
+                  onClick={() => choose(section.key)}
+                  className="flex w-full items-center gap-2 py-2.5 text-left text-sm font-semibold"
+                  style={{ cursor: 'pointer', background: 'none', border: 0, color: 'inherit' }}
+                >
+                  <span aria-hidden="true" style={{ display: 'inline-flex', transform: open ? 'rotate(90deg)' : 'none' }}>
+                    <ChevronRight size={14} />
+                  </span>
+                  {section.label}
+                </button>
+              </h3>
+              {open && (
+                <div className="flex flex-col gap-3 pb-4" data-settings-body={section.key}>
+                  {section.key !== 'github' && (
+                    <p className="text-sm text-muted" data-blurb={section.key}>
+                      {SETTINGS_BLURBS[section.key]}
+                    </p>
+                  )}
+                  <TabBoundary key={section.key} label={section.label}>
+                    <SettingsBody tab={section.key} workspaceId={workspaceId} onTab={choose} onSelectWorkspace={props.onSelectWorkspace} onListChange={props.onListChange} onOpenPlans={props.onOpenPlans} />
+                  </TabBoundary>
+                </div>
+              )}
+            </section>
+          )
+        })}
+      </div>
     </section>
   )
 }

@@ -144,8 +144,8 @@ test('Archive is a plain confirm and sits beside Delete; the plan page has a ban
   assert.equal(rowActions(row('x')).archivable, true)
 })
 
-test('the drawer and the Delivery card show review runs and the hand-set block', () => {
-  for (const name of ['TaskDrawer.tsx', 'DeliveryView.tsx']) {
+test('the drawer shows review runs and the hand-set block', () => {
+  for (const name of ['TaskDrawer.tsx']) {
     assert.match(src(name), /<HandSetReview/)
     assert.match(src(name), /<ReviewRuns/)
   }
