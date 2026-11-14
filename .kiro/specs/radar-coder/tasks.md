@@ -193,7 +193,7 @@ Requirement RC8. The screens of the experience proposal, built for Variant B (Gi
   - One `panelTabs` entry; matches the chat from the URL; spec check and Approve in a Spec Builder chat; a test fails when the URL shape changes; opens by itself only in a Spec Builder chat with an unapproved `tasks.md`; mockup `03-side-panel.html`.
   - Done when: Each chat kind shows its content; the URL-shape test exists.
   - Limit: the host offers an app no call to open its tab, so "opens by itself" is the rule `opensItself` in `panel-chat.ts`, not yet acted on; it needs a host call.
-- [ ] rc-8.4 Flow from GitHub data, after rc-8.1 [RC8.5] (§D10)
+- [x] rc-8.4 Flow from GitHub data, after rc-8.1 [RC8.5] (§D10)
   - Ready to Claim, Claim to PR, PR to green, green to merge, flow efficiency; Stop the line keeps its meaning; mockup `07-flow-retro.html`.
   - Done when: Stage times computed from fixture events match hand-computed values.
 - [ ] rc-8.5 Retro rule targets: AGENTS.md, steering, Additional prompt text, after rc-8.4, rc-3.5 [RC8.6] (§D10)
