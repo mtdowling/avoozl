@@ -315,6 +315,7 @@ export const APP_OPERATIONS = new Set([
   "radar.setup",
   "mirror.adopt",
   "mirror.create",
+  "mirror.forward",
   "radar.signoff",
   // The Onboard flow's reads; its writes are the operations above.
   "onboarding.inspect",

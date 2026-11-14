@@ -94,11 +94,17 @@ export async function mirrorForwardStep(
 // `forward` is nudge. A blocked record keeps its row with the reason.
 export function mirrorForwardRows(store, policy) {
   return mirrorForwards(store)
-    .filter(
-      (record) =>
-        ["to_forward", "blocked"].includes(record.state) &&
-        policy?.repositories?.[record.repository]?.mirror?.forward === "nudge",
-    )
+    .filter((record) => {
+      const mirror = policy?.repositories?.[record.repository]?.mirror;
+      if (
+        !mirror ||
+        mirror.forward === "off" ||
+        !["to_forward", "blocked"].includes(record.state)
+      )
+        return false;
+      // `auto` shows a row only for a blocked record.
+      return record.state === "blocked" || mirror.forward === "nudge";
+    })
     .map((record) => ({
       kind: "needs-human",
       reason: "forward",
@@ -106,6 +112,7 @@ export function mirrorForwardRows(store, policy) {
       taskId: record.taskId,
       authority: "github",
       link: `https://github.com/${record.mirror}/pull/${record.mirrorPr}`,
+      forwardId: record.id,
       title: `Forward mirror pull request #${record.mirrorPr}`,
       detail: record.reason,
       openedAt: record.mirrorMergedAt,
