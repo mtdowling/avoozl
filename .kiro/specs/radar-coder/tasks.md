@@ -57,7 +57,7 @@ Requirement RC2. Spec to issues, in both modes, with batching and the preview. N
 - [x] rc-2.3 Batch planner for small ready tasks, after rc-1.1 [RC2.5] (§D4.2)
   - Pure function over the plan: small, ready, same phase and repository, no edge, no human completion, cap `flow.batch.max` (3, at most 5); a task with an open blocker never batches; modes Off, Suggest, Auto; reuses `flow-batch.mjs` keys; `src/app/test/radar-coder-batch.test.mjs`.
   - Done when: Tests cover: blocked tasks never batch; the cap at 3 and at 5; an edge between two tasks splits them; a batch of one stays plain; `flow.batch.max` above 5 is refused.
-- [ ] rc-2.4 Batch issues keep each task ID separate and close together, after rc-2.1, rc-2.3 [RC2.6, RC2.7] (§D4.2)
+- [x] rc-2.4 Batch issues keep each task ID separate and close together, after rc-2.1, rc-2.3 [RC2.6, RC2.7] (§D4.2)
   - A batch issue with a checklist and one marker listing the task IDs; each task keeps its node, acceptance, timing and evidence; the merged closing pull request closes every member task; the checklist boxes are never read.
   - Done when: A fake merged pull request that closes a three-task batch completes all three tasks; unticked boxes change nothing; the Graph shows the batch node with its members.
 - [ ] rc-2.5 Project to GitHub preview and Spec changed diff, after rc-2.3 [RC2.1, RC2.8] (§D4.3)
