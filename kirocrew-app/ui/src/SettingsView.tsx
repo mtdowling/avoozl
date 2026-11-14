@@ -843,6 +843,20 @@ function RepositoryEditor(props: {
             </Section>
             <Section
               level="sub"
+              title="Approval label"
+              blurb="Adding this label to the issue that asked for a spec approves its draft, when the person who adds it counts (see Who counts). Avoozl also adds it when you approve in Avoozl or a chat. It must differ from every other label here."
+            >
+              <Text
+                id={`${id}-approval-label`}
+                label="Approval label"
+                raw="radar.approvalLabel"
+                rule={{ required: false, blank: 'blank: the Avoozl default' }}
+                value={repository.approvalLabel}
+                onChange={(value) => set({ approvalLabel: value })}
+              />
+            </Section>
+            <Section
+              level="sub"
               title="Who counts"
               blurb="GitHub still decides who has access. This sets how much GitHub permission a person needs for a label, a board drag or a close to count."
             >
