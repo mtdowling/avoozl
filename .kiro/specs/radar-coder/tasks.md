@@ -286,11 +286,11 @@ Requirement RC11. A separate last epic. Nothing here starts before `rc-p11` is a
 - [ ] rc-12.1 Owner decision to retire, and what to keep, after rc-p11 [RC11.1, RC11.3] (§D13)
   - The owner reads Proof 11 and decides: retire for Radar-coded repositories only, or delete the code. The decision is recorded in `docs/evidence/`.
   - Done when: A recorded owner decision exists before any removal task starts.
-- [ ] rc-12.2 Switch off worker dispatch for Radar-coded repositories, after rc-12.1 [RC11.2, RC11.3] (§D13)
-  - The tick opens no Avoozl worker for a `coder: issue-radar` repository; `coder: worker` unchanged; tests for both.
-  - Done when: A Radar-coded repository opens no worker; a worker-coded one still does.
+- [ ] rc-12.2 Remove worker dispatch and `coder: worker` (retired), after rc-12.1 [RC11.2, RC11.3] (§D13)
+  - The tick opens no Avoozl worker for any repository; `worker` is refused as a `coder` value with the retired banner of RC1.1; tests removed with the code.
+  - Done when: No repository opens a worker; a repository set to `worker` shows the banner.
 - [ ] rc-12.3 Retire crew routing and placement for Radar-coded repositories, after rc-12.2 [RC11.2] (§D13)
-  - Routing, placement and the router prompt stop applying to them; Settings hides the Routing section when no repository is on `worker`.
+  - Routing, placement and the router prompt are removed. The Routing nav entry is already gone (RC8.1); the code is removed here, with `coder: worker`.
   - Done when: No routing call is made for a Radar-coded repository; the Routing section is hidden only when no repository needs it.
 - [ ] rc-12.4 Retire runner mode, after rc-12.1 [RC11.2] (§D13)
   - Remove `remote-runner.mjs`, its operations and CLI, the Remote badge and Attach for runners, and their tests.
@@ -305,10 +305,10 @@ Requirement RC11. A separate last epic. Nothing here starts before `rc-p11` is a
   - One test asserts that every `plans_*` MCP name, `NUPP_WORKSPACE` and `AICOMMANDER_*` variable, the `aicommander` command and `aicommander.*` setting still resolves.
   - Done when: The test fails if any listed name stops working.
 - [ ] rc-12.8 Docs and Demo retargeted to crews, after rc-12.7 [RC11.7, RC8.1] (§D13)
-  - README and docs say the Radar path first and `coder: worker` as the local option; Demo uses fake crews and a fake claim comment; `docs/research/` and `docs/evidence/` untouched.
+  - README and docs say the Radar path, and that local-only plans cannot be coded until a GitHub repository is attached; Demo uses fake crews and a fake claim comment; `docs/research/` and `docs/evidence/` untouched.
   - Done when: The docs name each path once; the release scan is clean; a diff check shows no change under `docs/research/` or `docs/evidence/` except new receipts.
 - [ ] rc-p12 Proof 12: after retirement both coders work, after rc-12.8 [RC11] (§D17)
-  - Setup: one Radar-coded and one worker-coded repository in one workspace. Action: run both through a task. Expected: crews build the first, a worker the second; every compatibility name resolves. Failure means: retirement broke local-only mode. Next decision: restore the removed code behind `coder: worker`.
+  - Setup: one Radar-coded repository and one local-only plan. Action: run a task on the first; open the second. Expected: a crew builds the first; the second is plan-only; every compatibility name resolves. Failure means: retirement broke planning or a compatibility name. Next decision: restore the removed code.
   - Done when: Expected result observed; receipt under `docs/evidence/`.
 
 ## Phase 13: The work split
