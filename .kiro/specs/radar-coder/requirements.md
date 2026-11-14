@@ -88,10 +88,12 @@ and no stranger's issue reaches a plan.
 #### Acceptance criteria
 
 1. A repository SHALL have `coder: issue-radar` (default for a repository
-   with Issue Radar connected), `coder: worker` or `coder: remote` (RC14,
-   RC15). `worker` SHALL keep
-   today's behavior, for local-only mode and repositories without Radar
-   (RC11.3). The setting SHALL be per repository and SHALL apply in both
+   with Issue Radar connected), or `coder: remote` (RC14, RC15). `coder: worker` is retired
+   (owner decision 2026-11-14, RC11.3): it is no longer a Settings choice, and
+   a repository still set to it SHALL show a Settings banner, "Local workers
+   are retired. Switch to Issue Radar." Local-only mode keeps SQLite plans
+   that are not projected; they cannot be coded until a GitHub repository is
+   attached. The setting SHALL be per repository and SHALL apply in both
    GitHub modes. This changes `.avoozl.json` validation, which today refuses
    `issue-radar` in plans-repo mode (design 4.4).
 2. For a repository with `coder: issue-radar`, Avoozl SHALL NOT triage. The
@@ -423,23 +425,22 @@ machine, and what to change, without opening a crew's chat.
    - Conflicts and Intake SHALL leave the nav and fold into Needs you
      (Radar handbacks, planning-label items, conflicts). Radar repos get no
      separate Intake page.
-   - Routing SHALL leave the nav. Its code path stays only for RC11.3
-     (`coder: worker` on local-only repos), reached from that repository's
-     Settings.
-   - Delivery SHALL leave the nav. For a Radar repository its lanes map to
-     Release queue (Ready), On the line and Radar's Pipeline lanes or crew
-     page (In progress), Needs you, Release queue held reasons and the plan
-     view (Waiting on blockers), and Trace (Done). Its controls (Defer, Start
-     now, Retry, review runs, content rule reports) act only on local workers.
-     It SHALL show only when the workspace has a repository with
-     `coder: worker`, labeled for local workers. Held or blocker text it has
-     that Release queue lacks SHALL move into Release queue.
+   - Routing SHALL leave the nav. Its code is removed by the retirement
+     epic (RC11) after proof rc-p11.
+   - Delivery SHALL be removed entirely, with no local-workers variant. Its
+     lanes map to Release queue (Ready), On the line and Radar's Pipeline
+     lanes or crew page (In progress), Needs you, Release queue held reasons
+     and the plan view (Waiting on blockers), and Trace (Done). Its controls
+     (Defer, Start now, Retry, review runs, content rule reports) go with it.
+     Held or blocker text it has that Release queue lacks SHALL move into
+     Release queue.
    - Graph SHALL leave the nav. For issues on GitHub, Avoozl SHALL link to
      Issue Radar's Graph (Focus on the issue if Radar's route supports it,
-     else the tab). Avoozl's graph stays inside Specs (a plan before
-     projection; epic, plan, phase drill-down, with phase gate, release
-     count and held reasons) and for `coder: worker` repositories beside the
-     local-workers Delivery view. Back history and drill rules stay.
+     else the tab). Avoozl's own graph stays only inside Specs (a plan before
+     projection; epic, plan, phase drill-down, with phase gate, release count
+     and held reasons). Back history and drill rules stay.
+   - A repository's Settings SHALL keep a labeled, empty slot for a future
+     **Mirror** section (not specified here).
    - Flow SHALL stay, rebuilt on GitHub data (item 5), with retros under it.
    - Runner mode, the relay, the foreman, per-task worker budgets, Prices and
      the workers' Files and diff fold SHALL leave the nav and Home.
@@ -542,7 +543,7 @@ that other tools call removed by accident.
 2. The UI removals of RC8.1 SHALL happen first and SHALL NOT wait for the
    proof. The code removals below wait for rc-p11. They SHALL keep every name
    of item 4 (`plans_*`, environment aliases) working. It SHALL list, as
-   removals for Radar-coded repositories: Avoozl's own
+   removals: Avoozl's own
    worker dispatch, crew routing and placement (Requirements 41, 42), runner
    mode (Requirement 84), the remote relay (Phase 32), per-task budgets for
    workers (Requirement 67; budgets stay for planner, retro and quick-goal
@@ -552,10 +553,13 @@ that other tools call removed by accident.
    and are not built, so nothing is removed for them. They SHALL stay unbuilt:
    crews on each machine replace them (RC11.8). Each removal task SHALL name the code
    and the tests it removes and SHALL pass `npm test`.
-3. `coder: worker` SHALL stay available, with its dispatch, verification,
-   review and integration, for local-only mode and for repositories without
-   Radar. It is frozen (RC14.4): upkeep only, no new features. The removals SHALL apply to a repository only when its `coder` is
-   `issue-radar`, until every repository the workspace knows is on it.
+3. `coder: worker` is retired (owner decision 2026-11-14). The retirement
+   epic SHALL remove it fully: dispatch, verification, the reviewer and
+   responder roles, integration by a worker, routing, runner mode, the relay,
+   worker budgets and the Files and diff fold. The UI goes now (RC8.1,
+   RC14.1); the code goes only after proof rc-p11. Local-only mode SHALL be
+   SQLite plans that are not projected; they cannot be coded until a GitHub
+   repository is attached.
 4. These SHALL stay: the `plans_*` MCP names, the `NUPP_WORKSPACE` and
    `AICOMMANDER_*` environment aliases, the `aicommander` command and the
    `aicommander.*` editor settings (AGENTS.md).
@@ -633,8 +637,7 @@ coder I pick.
 #### Acceptance criteria
 
 1. A repository SHALL name one coder: `issue-radar` (a Radar crew, shown as
-   "Radar crew"; default on GitHub), `worker` (Avoozl's own worker, shown as
-   "Avoozl worker"; for local-only repositories) or `remote` (a managed
+   "Radar crew"; default on GitHub), or `remote` (a managed
    remote harness, shown as "Remote coder"; RC15). The setting SHALL be per
    repository. No coder name SHALL be read outside the adapters.
 2. Every coder SHALL sit behind the same three calls: **hand over** a ready
@@ -645,9 +648,9 @@ coder I pick.
 3. Plan approval, provenance, release order, Stop the line, the merge path and
    whole-head acceptance SHALL be the same for every coder. Switching a
    repository's coder SHALL NOT change a plan, a task ID or an approval.
-4. `worker` SHALL be frozen: upkeep only (security fixes, bug fixes, keeping
-   `npm test` green on the three systems, the compatibility names of RC11.4).
-   No new feature SHALL be added to it. The Settings page SHALL say so.
+4. `worker` SHALL be retired (RC11.3). Until the retirement epic deletes its
+   code, it gets no new feature, and Settings SHALL NOT offer it. A repository
+   still set to it SHALL show the banner of RC1.1.
 5. WHEN a repository changes coder while tasks are in flight, Avoozl SHALL
    leave those tasks with their current coder and use the new one for tasks
    not yet handed over. It SHALL show the split once.
@@ -1023,15 +1026,13 @@ This is display only. It writes nothing and starts nothing.
    repository dialog (the merge setting, on the Delivery tab) SHALL name where it
    is set.
 5. The lanes SHALL follow the coder. With `issue-radar`, the Epic lane builds
-   with crews and releases `ready` labels. With `worker`, Avoozl starts ready
-   tasks up to the repository's tasks-at-once number and opens worker chats.
-   With `remote`, the build step names a managed remote provider. Maintenance
+   with crews and releases `ready` labels.    With `remote`, the build step names a managed remote provider. Maintenance
    needs a Radar crew and is muted for the other coders.
 6. A step that does not apply SHALL show muted with its reason in words (for
    example "no review label is set", "the coder is not Issue Radar"). Local only
-   mode SHALL show only a local-worker lane (ready task, worker chat, checks and
-   reviewer chats, merge into the landing branch) and one line saying the GitHub
-   lanes are hidden in this mode (the settings-follow-mode rule).
+   mode SHALL show no coding lane, and one line saying plans there cannot be
+   coded until a GitHub repository is attached and the GitHub lanes are hidden
+   in this mode (the settings-follow-mode rule).
 7. A step not built, or built and not proven on a real repository, SHALL carry a
    small tag ("not built", "fake-tested", "not proven live"). The tags SHALL
    come from one table in code that is keyed by step, so no card hand-writes
