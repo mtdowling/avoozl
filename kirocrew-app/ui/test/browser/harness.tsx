@@ -28,6 +28,7 @@ import { TaskFiles } from '../../src/TaskFiles.tsx'
 import { setupForm } from '../../src/settings-api.ts'
 import { LAYER } from '../../src/layers.ts'
 import { BudgetSettings } from '../../src/BudgetSettings.tsx'
+import { CoderPicker } from '../../src/CoderPicker.tsx'
 import PluginsSettings from '../../src/PluginsSettings.tsx'
 import SettingsView from '../../src/SettingsView.tsx'
 import { answerIntake } from './intake-fixture.ts'
@@ -431,6 +432,14 @@ answer('budget.settings.get', () => ({
 }
 const PAGES: Record<string, () => ReactNode> = {
   budgets: () => <BudgetSettings workspaceId="w" />,
+  // Who codes in each mode: default, a set value, and Local only.
+  coder: () => (
+    <div className="flex flex-col gap-6">
+      {[['single-repo', ''], ['plans-repo', 'remote'], ['', '']].map(([mode, value]) => (
+        <CoderPicker key={mode} id={`c-${mode || 'local'}`} mode={mode} value={value} onChange={() => {}} />
+      ))}
+    </div>
+  ),
 }
 function SettingsPage({ name }: { name: string }) {
   const render = PAGES[name]
