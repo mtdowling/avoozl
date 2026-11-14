@@ -4759,6 +4759,47 @@ local folder just before `PluginProcess` spawns.
 shortcut: S4 is a speed bump and S7 leaves a small window between the hash and
 the child's read; upgrade S4 with the upstream request, S7 by copying first.
 
+### 6.13 Runner mode over SSH
+
+Requirement 84. Prototype in `src/app/remote-runner.mjs`; research in
+`docs/research/runner-mode-ssh.md`.
+
+**Roles.** `.avoozl.json` `runner.role` is `runner` or `driver`. Repo paths
+(`runner.repos`) and the local stand-in for ssh (`hosts.<name>.argv`) are
+absolute paths, so they live in the machine config; the layered config
+refuses them in `.avoozl.json`.
+
+**Channel.** The driver runs `ssh -o BatchMode=yes ... HOST -- avoozl runner
+accept -` with the envelope on stdin, and `... runner status --json`. A host
+with `via: "local"` runs the same argv on this machine, for tests and for
+machines that refuse ssh to themselves.
+
+**Runner tick.** `workspace.tick` calls `runnerTick` first and returns its
+intents. Per task: `accepted`, make worktree, dispatch (`starting`); bound,
+`working`; `avoozl runner report` makes `reported`; the next tick runs the
+checks and pushes (`pushed`). A task stays in its state until a person acts.
+The state lives in the `runner.tasks` meta key, so no schema change.
+
+**Worker.** `tick.py` opens the dispatch with `project: false` (the worker
+runs in a worktree outside any session folder) and binds it as for local
+work. `existingTask` also accepts a runner task, so a lost binding is
+rediscovered by title.
+
+**Driver.** `driverTick` pulls every host on a cron tick. `remote.view`
+returns the unfinished workers; `summarize` turns them into In flight rows
+with a `remote` field.
+
+| Choice                             | Why                                             |
+| ---------------------------------- | ----------------------------------------------- |
+| Envelope holds IDs, never commands | A driver cannot make a runner run what it names |
+| Worker reports by CLI, not MCP     | Needs no MCP sharing approval on the runner     |
+| `workerMode` off by default        | Trust mode is the owner's choice, per runner    |
+| Last answer kept, marked stale     | A dropped link must not make workers vanish     |
+
+shortcut: the report call is not tied to the worker's session, and checks run
+inside the tick. Upgrade both once `plans_report`-style caller identity and a
+separate check job exist.
+
 ---
 
 ## 7. Kiro Crew integration map

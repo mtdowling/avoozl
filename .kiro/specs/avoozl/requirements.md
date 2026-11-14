@@ -4376,3 +4376,48 @@ chatty agent cannot reach my secrets or my approvals.
    gateway credentials. Without it, checks SHALL get what they get today.
 6. A local-folder plugin SHALL be hashed again just before it starts and
    SHALL be refused if the hash changed since approval.
+
+### Requirement 84: Runner mode over SSH
+
+Added 2026-11-14 (owner request). Design §6.13. Prototype, off by default.
+
+**User story:** As the owner, I want one Avoozl to hand a task to an Avoozl on
+another machine over SSH and see that machine's worker, so that work can run
+on a bigger or safer machine without a shared database or a shared gateway.
+
+#### Acceptance criteria
+
+1. A workspace SHALL be in runner mode only when `.avoozl.json` has
+   `runner.role` set to `runner` or `driver`. Without it every `remote.*`
+   operation SHALL be refused and every tick SHALL run as before.
+2. A runner SHALL hold no plans. Its tick SHALL run only the tasks it was
+   handed.
+3. `avoozl runner accept` SHALL take one envelope: `version`, `taskId`, `repo`,
+   `baseCommit`, `brief`, `checks`, `agent`, and optionally `model`. It SHALL
+   refuse an unknown field, a repo or check the runner does not name in its
+   own settings, an agent outside its allowlist, and a base that is not a full
+   SHA. Repo paths and check commands SHALL come only from the runner's own
+   settings. The driver SHALL send the envelope on stdin, and the remote
+   command line SHALL be fixed text.
+4. The same envelope again SHALL be a no-op. A different envelope under the
+   same task ID SHALL be refused.
+5. The runner's own tick SHALL make a worktree at the base commit, open one
+   worker session on its own crew, and bind it. A task with a bound worker
+   SHALL never be dispatched again, across a restart.
+6. A worker SHALL report with `avoozl runner report`. The runner SHALL read
+   the commit from the worktree, run the named checks, and push the branch to
+   its configured remote with a plain push.
+7. `avoozl runner status --json` SHALL give, per task: state, branch, commit,
+   each check's exit code, and for the worker its chat key, crew ID and chat
+   path. It SHALL carry no token and no absolute URL.
+8. The driver SHALL pull status over SSH on its tick and keep the last answer,
+   marked stale, when the link fails. It SHALL show each unfinished remote
+   worker in In flight with a Remote badge and an Attach link that opens the
+   runner crew's dashboard chat in a new tab. The link SHALL be built from the
+   driver's own `dashboardUrl` for that host.
+9. A runner's `workerMode` SHALL be unset by default. When the owner sets it to
+   `trust` or `trust_reads`, the tick SHALL set that mode on the worker
+   session. Unset, an unattended worker's tool calls wait for an approval no
+   one gives.
+10. A worker whose chat ended without a report SHALL raise one decision notice
+    and SHALL NOT be replaced.

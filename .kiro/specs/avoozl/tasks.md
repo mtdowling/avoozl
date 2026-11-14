@@ -1444,3 +1444,22 @@ Phase 36 because task IDs never move.
   - `pluginHost`; `src/app/test/plugins.test.mjs`.
 - [x] 37.5 Opt-in `checksEnv` allowlist [R83.5] (§6.12)
   - `repositoryEnvironment`, `commandEvidence`, project settings; same test file as 37.2.
+
+## Phase 38: Runner mode over SSH
+
+Owner request 2026-11-14 (Requirement 84, design §6.13). Prototype, off by default.
+
+- [x] 38.1 Envelope, runner state, accept, status, report, runner tick [R84.1–R84.7, R84.9, R84.10] (§6.13)
+  - `src/app/remote-runner.mjs`, `remote.*` operations, `avoozl runner`, `workerMode` in `tick.py`; `src/app/test/remote-runner.test.mjs`.
+- [x] 38.2 Driver hand-off, pull and In flight with Remote and Attach, after 38.1 [R84.8] (§6.13)
+  - `handoff`, `pullStatus`, `remoteView`, `driverTick`; `RemoteWorker` in `views-api.ts`, `remoteRow` in `dashboard-api.ts`, the badge and link in `DashboardView.tsx`; `kirocrew-app/ui/test/dashboard-api.test.mjs`.
+- [x] 38.3 Live check with two test crews, after 38.2 [R84] (§6.13)
+  - `docs/research/runner-mode-ssh.md`.
+
+- [x] avoozl-p48 P48 Proof: a task handed to a runner comes back with its worker [R84] (§6.13)
+  - Setup: two isolated Kiro Crew homes on their own ports, a throwaway repository with a bare remote, one runner workspace and one driver workspace.
+  - Action: (1) hand a task from the driver; (2) wait for the runner's tick; (3) let the worker commit and report; (4) read status from the driver; (5) kill and restart the runner's gateway mid-task; (6) fail the link during a pull.
+  - Expected: (1) accepted once, a repeat is a no-op; (2) one worker chat opens; (3) checks run, branch pushed; (4) worker chat key, crew ID and path, no token, and an Attach link; (5) no second worker; (6) last answer kept and marked stale.
+  - Failure means: a task is claimed twice, a worker replaced, or the driver loses a worker when the link drops.
+  - Next decision: tie `runner report` to the worker's session, or move checks to their own job.
+  - Built: pass with local stand-in for ssh; `src/app/test/remote-runner.test.mjs`. Live on two test crews (4 tasks); ssh itself not run, since ssh to this machine is refused.
