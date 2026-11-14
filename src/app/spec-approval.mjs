@@ -79,7 +79,9 @@ export async function openApproval(
   const changes = approvalChanges({ spec, files, decisionRecord: record }),
     base = (await github.repository(repository)).default_branch,
     head = await github.branchHead(repository, base),
-    branch = `avoozl/approve-${spec}`;
+    // A closed pull request leaves its branch, so a new try takes a new name.
+    attempt = (previous?.attempt || 0) + 1,
+    branch = `avoozl/approve-${spec}${attempt > 1 ? `-${attempt}` : ""}`;
   await github.createBranch(repository, branch, head.oid);
   for (const [path, text] of Object.entries(changes))
     await github.putFile(repository, {
@@ -99,6 +101,7 @@ export async function openApproval(
       repository: `${repository.owner}/${repository.repo}`,
       number: pull.number,
       branch,
+      attempt,
       base,
       requestedBy: approvedBy,
     };

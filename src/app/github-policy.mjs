@@ -365,6 +365,7 @@ function repositoryInput(value, id, mode) {
       "managedLabels",
       "crewLabels",
       "radar",
+      "approval",
       "acceptedLabel",
       "rules",
       "stackedPullRequests",
@@ -479,6 +480,22 @@ function repositoryInput(value, id, mode) {
       fail(`${label}.radar.clearPlanLabel must be true or false.`);
     radar.clearPlanLabel = radarInput.clearPlanLabel;
   }
+  // The approval pull request (RC3.8): the decision record is on for Issue
+  // Radar repositories until RC12.7 is answered.
+  const approvalInput = onlyKeys(
+    value.approval ?? {},
+    ["decisionRecord"],
+    `${label}.approval`,
+  );
+  if (
+    approvalInput.decisionRecord !== undefined &&
+    typeof approvalInput.decisionRecord !== "boolean"
+  )
+    fail(`${label}.approval.decisionRecord must be true or false.`);
+  const approval = {
+    decisionRecord: approvalInput.decisionRecord ?? coder === "issue-radar",
+  };
+
   // Unset follows the repository: on when it is private, off when public.
   if (radarInput.showPlansRepo !== undefined) {
     if (typeof radarInput.showPlansRepo !== "boolean")
@@ -547,6 +564,7 @@ function repositoryInput(value, id, mode) {
     folder: name(value.folder, `${label}.folder`, { optional: true }),
     baseBranch,
     coder,
+    approval,
     allowedActors,
     minimumPermission,
     requiredChecks: names(value.requiredChecks, `${label}.requiredChecks`),
