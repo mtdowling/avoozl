@@ -9,6 +9,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { Store } from "./store.mjs";
+import { renderMarker } from "./github-marker.mjs";
 import { Operations } from "./operations.mjs";
 import { workspaceConfig } from "./config.mjs";
 import { classifyOperation } from "./operation-kinds.mjs";
@@ -165,6 +166,24 @@ const CHECKS = {
   23: [{ name: "test", status: "IN_PROGRESS", conclusion: null }],
 };
 
+// Two other Avoozl instances, so In flight shows more than one group. The
+// fake mirror holds their name variables (demoGitHub `listRepoVariables`).
+export const DEMO_INSTANCES = Object.freeze([
+  { id: "inst-00000000a001", name: "Mira" },
+  { id: "inst-00000000b002", name: "Juno" },
+]);
+const DIGEST = "0".repeat(64);
+const releasedBy = (instance, taskId) =>
+  renderMarker({
+    version: 2,
+    taskId,
+    namespace: "avz_demodemodemodemo",
+    kind: "leaf",
+    source: { commit: null, manifest: DIGEST },
+    applied: { title: DIGEST, body: DIGEST, labels: [], blockers: [] },
+    instance,
+  });
+
 // What the fake GitHub holds: an epic issue with one sub-issue per leaf, a
 // Project, pull requests and their checks, and two issues for Intake.
 // Every name is made up.
@@ -192,6 +211,14 @@ export function demoGitHubData(now = Date.now()) {
       labels: [{ name: "idea" }],
     }),
   ];
+  // Who released the claimed issues. #31 has no marker: a person's issue.
+  for (const [number, instance] of [
+    [4, DEMO_INSTANCES[0].id],
+    [30, DEMO_INSTANCES[1].id],
+  ]) {
+    const issue = issues.find((entry) => entry.number === number);
+    issue.body = `${releasedBy(instance, `demo.${number}`)}\n${issue.body}`;
+  }
   // Labels crews and Avoozl put on issues (claims, ready, needs human).
   for (const issue of issues)
     for (const name of overlay.labels[issue.number] ?? [])
@@ -260,6 +287,7 @@ export const GITHUB_WRITE_METHODS = Object.freeze([
   "ensureLabel",
   "createIssue",
   "createIssueComment",
+  "setRepoVariable",
   "updateIssueComment",
   "createCommitComment",
   "updateCommitComment",
@@ -329,6 +357,11 @@ export function demoGitHub(sample = demoGitHubData()) {
       { name: "idea" },
       { name: "avoozl" },
     ],
+    listRepoVariables: async () =>
+      DEMO_INSTANCES.map(({ id, name }) => ({
+        name: `AVOOZL_INSTANCE_${id.replace("-", "_").toUpperCase()}`,
+        value: name,
+      })),
     listIssueComments: async (_repo, n) => sample.comments?.[Number(n)] ?? [],
     issueEvents: async (_repo, n) => sample.overlay?.events[Number(n)] ?? [],
     issueTimeline: async () => [],
