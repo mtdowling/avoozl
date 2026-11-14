@@ -2,7 +2,9 @@
 // Fake GitHub only. Nearby inputs checked: single-repo and plans-repo modes;
 // coder worker (no marker); no merged approval and a text plan (no marker);
 // an invalid and a content-blocked approver; a repeat projection; the marker's
-// place after the managed marker; `verify-issue` over the written issue.
+// place after the managed marker; `verify-issue` over the written issue;
+// `plans=` present in plans-repo mode, absent in single-repo mode and when the
+// name switch is off, and a content rule that blocks the plans repository name.
 import assert from "node:assert/strict";
 import test from "node:test";
 import { parseProvenance } from "../github-provenance.mjs";
@@ -19,7 +21,8 @@ import {
 
 for (const mode of ["single-repo", "plans-repo"])
   test(`${mode}: every task issue carries a provenance marker after the managed marker that verify-issue accepts`, async (t) => {
-    const context = await workspace(t, { mode, coder: "issue-radar" }),
+    const home = mode === "plans-repo" ? "example/planning" : "example/code",
+      context = await workspace(t, { mode, coder: "issue-radar" }),
       { github, ops } = context,
       { plan, approved } = await approvedSpec(context);
     await ops.execute("github.project", { planId: plan.id });
@@ -38,12 +41,17 @@ for (const mode of ["single-repo", "plans-repo"])
       assert.equal(parsed.marker.spec, "config");
       assert.equal(parsed.marker.commit, COMMIT);
       assert.equal(parsed.marker.approvedBy, "octocat");
+      // `plans=` names the plans repository in plans-repo mode only.
+      assert.equal(
+        parsed.marker.plans,
+        home === "example/code" ? undefined : home,
+      );
       // After the managed marker, before the managed section.
       const at = (text) => issue.body.indexOf(text);
       assert.ok(at("<!-- avoozl-task") < at("<!-- avoozl v=1"));
       assert.ok(at("<!-- avoozl v=1") < at("<!-- avoozl:managed:start -->"));
       const result = await verifyIssue("example/code#" + issue.number, {
-        read: reader(github, issue),
+        read: reader(github, issue, home),
       });
       assert.deepEqual(
         result.checks.filter((check) => check.status !== "ok"),
@@ -168,4 +176,38 @@ test("a plain text plan writes no marker for a radar repository", async (t) => {
   assert.ok(github.created.length > 0);
   for (const issue of github.created)
     assert.doesNotMatch(issue.body, MARKER_LINE);
+});
+
+test("plans-repo with the name switched off writes no plans key", async (t) => {
+  const context = await workspace(t, {
+      mode: "plans-repo",
+      coder: "issue-radar",
+      radar: { showPlansRepo: false },
+    }),
+    { github, ops } = context,
+    { plan } = await approvedSpec(context);
+  await ops.execute("github.project", { planId: plan.id });
+  const issues = github.created.filter((issue) => MARKER_LINE.test(issue.body));
+  assert.ok(issues.length > 0);
+  for (const issue of issues) {
+    assert.equal(parseProvenance(issue.body).marker.plans, undefined);
+    assert.doesNotMatch(issue.body, /example\/planning/);
+  }
+});
+
+test("a content rule that blocks the plans repository name stops the projection", async (t) => {
+  const context = await workspace(t, {
+      mode: "plans-repo",
+      coder: "issue-radar",
+      blockTerm: "example/planning",
+    }),
+    { github, ops } = context,
+    { plan } = await approvedSpec(context);
+  await assert.rejects(ops.execute("github.project", { planId: plan.id }), {
+    status: 422,
+  });
+  assert.equal(
+    github.created.some((issue) => /"taskId":"config\./.test(issue.body)),
+    false,
+  );
 });

@@ -121,6 +121,16 @@ export function untriagedClient(api: AppApi) {
           workspaceId,
         })
         .then((reply) => reply.result),
+    // Plan this on a GitHub row of a Radar-coded repository: the planner
+    // chat's seed. The caller opens the chat; nothing is approved.
+    planIssue: (workspaceId: string, item: Pick<UntriagedItem, 'repository' | 'number'>) =>
+      api
+        .post<{ result: { name: string; agent: string; message: string } }>(COMMAND_PATH, {
+          operation: 'untriaged.plan',
+          input: { repository: item.repository, number: item.number },
+          workspaceId,
+        })
+        .then((reply) => reply.result),
     review: (workspaceId: string, item: Pick<UntriagedItem, 'repository' | 'number'>) =>
       api
         .post<{ result: ReviewChat & { created: boolean } }>(COMMAND_PATH, {

@@ -20,6 +20,7 @@ import { pausedTaskIds } from "./github-project.mjs";
 import { ensurePlanIssue } from "./driver.mjs";
 import { graphOrder } from "./delivery.mjs";
 import { priorityRank } from "./github-policy.mjs";
+import { plansNameForIssue } from "./github-plans-repo.mjs";
 import {
   assertPlanningLink,
   radarIssueRepository,
@@ -767,10 +768,18 @@ async function project(
       previewOnly.add(config.id);
     }
     if (!verified.has(config.id)) {
-      await github.repository(config);
+      const remote = await github.repository(config);
+      // The plans repository name is written with the provenance marker
+      // (RC3.1); the gate runs now so nothing is written for a refused
+      // repository.
       provenance.set(
         config.id,
-        provenanceWriter(store, { identity, plan, config, plans: null }),
+        provenanceWriter(store, {
+          identity,
+          plan,
+          config,
+          plans: plansNameForIssue(store, identity, config, remote),
+        }),
       );
       verified.add(config.id);
     }

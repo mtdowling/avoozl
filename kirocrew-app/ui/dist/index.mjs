@@ -3,7 +3,7 @@ import { useAppApi as d, useChatLauncher as f, useNavigate as p } from "@kirocre
 import { Badge as m, Btn as h, Card as g, EmptyState as _, Input as v, PageHeader as y, SegmentedControl as b } from "@kirocrew/app-sdk/ui";
 import { Fragment as x, jsx as S, jsxs as C } from "react/jsx-runtime";
 import { createPortal as w } from "react-dom";
-import { Activity as T, Archive as E, ArchiveRestore as D, ArrowLeft as O, ArrowRight as k, Ban as A, BookOpen as j, Bot as M, Check as N, ChevronRight as P, CircleAlert as F, CircleAlert as I, CircleCheck as L, CircleDot as R, CircleHelp as ee, ClipboardCheck as z, Copy as te, Crosshair as B, Download as V, ExternalLink as ne, Eye as H, FileText as re, FileText as ie, Folder as ae, FolderOpen as oe, Gauge as se, Gauge as ce, GitBranch as le, GitPullRequest as ue, GitPullRequestDraft as de, HardDrive as fe, History as pe, History as me, Inbox as he, Inbox as ge, Info as _e, KeyRound as U, Laptop as ve, LayoutDashboard as ye, LayoutGrid as be, LayoutGrid as xe, Lightbulb as Se, Lock as Ce, MessageSquare as we, MessagesSquare as Te, Network as Ee, Network as De, Package as Oe, Pause as ke, Pencil as Ae, Play as je, Plus as Me, Radar as Ne, RefreshCw as Pe, RotateCcw as Fe, ScanSearch as Ie, Send as Le, Settings as Re, Settings as ze, ShieldCheck as Be, Trash2 as Ve, Users as He, Workflow as Ue, X as We } from "lucide-react";
+import { Activity as T, Archive as E, ArchiveRestore as D, ArrowLeft as O, ArrowRight as k, Ban as A, BookOpen as j, Bot as M, Check as N, ChevronRight as P, CircleAlert as F, CircleAlert as I, CircleCheck as L, CircleDot as ee, CircleHelp as R, ClipboardCheck as z, Copy as te, Crosshair as B, Download as V, ExternalLink as ne, Eye as H, FileText as re, FileText as ie, Folder as ae, FolderOpen as oe, Gauge as se, Gauge as ce, GitBranch as le, GitPullRequest as ue, GitPullRequestDraft as de, HardDrive as fe, History as pe, History as me, Inbox as he, Inbox as ge, Info as _e, KeyRound as U, Laptop as ve, LayoutDashboard as ye, LayoutGrid as be, LayoutGrid as xe, Lightbulb as Se, Lock as Ce, MessageSquare as we, MessagesSquare as Te, Network as Ee, Network as De, Package as Oe, Pause as ke, Pencil as Ae, Play as je, Plus as Me, Radar as Ne, RefreshCw as Pe, RotateCcw as Fe, ScanSearch as Ie, Send as Le, Settings as Re, Settings as ze, ShieldCheck as Be, Trash2 as Ve, Users as He, Workflow as Ue, X as We } from "lucide-react";
 // \0rolldown/runtime.js
 var Ge = (e, t) => () => (t || (e((t = { exports: {} }).exports, t, t.exports), e = null), t.exports), Ke = "/apps/avoozl/api/command";
 function W(e) {
@@ -674,32 +674,32 @@ function Jt(e, t = /* @__PURE__ */ new Set(), n = {}) {
 	let { columns: I, looseColumns: L } = F ? P(F) : {
 		columns: 0,
 		looseColumns: N(0)
-	}, R = new Map(h.map((e) => [e.id, []]));
-	for (let e of v) R.get(e.lo).push(e.hi), R.get(e.hi).push(e.lo);
-	let ee = /* @__PURE__ */ new Map(), z = /* @__PURE__ */ new Map(), te = 0, B = [];
+	}, ee = new Map(h.map((e) => [e.id, []]));
+	for (let e of v) ee.get(e.lo).push(e.hi), ee.get(e.hi).push(e.lo);
+	let R = /* @__PURE__ */ new Map(), z = /* @__PURE__ */ new Map(), te = 0, B = [];
 	for (let e of j) {
 		let t = Math.max(1, Math.ceil(e.length / F));
 		e.forEach((e, n) => {
-			ee.set(e, te + Math.floor(n / F)), z.set(e, t > 1 ? n % F : n);
+			R.set(e, te + Math.floor(n / F)), z.set(e, t > 1 ? n % F : n);
 		}), t === 1 && B.push(e), te += t;
 	}
 	for (let e = 0; e < Lt; e++) {
 		let t = e % 2 == 0 ? B : [...B].reverse();
 		for (let e of t) {
 			let t = e.map((e) => {
-				let t = R.get(e).map((e) => z.get(e));
+				let t = ee.get(e).map((e) => z.get(e));
 				return t.length ? qt(t) : z.get(e);
 			}), n = e.length;
 			Kt(t, e.map(() => 1)).forEach((t, r) => z.set(e[r], Math.min(Math.max(Math.round(t), r), F - n + r)));
 		}
 	}
-	for (let e of h) e.wave = _.get(e.id), e.x = s + ee.get(e.id) * D, e.y = k + z.get(e.id) * O;
+	for (let e of h) e.wave = _.get(e.id), e.x = s + R.get(e.id) * D, e.y = k + z.get(e.id) * O;
 	let V = /* @__PURE__ */ new Map(), ne = (e, t) => {
 		V.has(e) || V.set(e, /* @__PURE__ */ new Map());
 		let n = V.get(e);
 		return n.has(t) || n.set(t, n.size), n.get(t);
 	}, H = d.map((e) => {
-		let t = p.get(e.from), n = p.get(e.to), s = ee.get(t.id), c = ee.get(n.id), l = t.y + i / 2, u = n.y + i / 2, d = (a / 2 - 4) / 2, f = t.x + r + 3 + ne(`c${s}:out`, t.id) % 3 * d, m = n.x - 3 - ne(`c${c - 1}:in`, n.id) % 3 * d;
+		let t = p.get(e.from), n = p.get(e.to), s = R.get(t.id), c = R.get(n.id), l = t.y + i / 2, u = n.y + i / 2, d = (a / 2 - 4) / 2, f = t.x + r + 3 + ne(`c${s}:out`, t.id) % 3 * d, m = n.x - 3 - ne(`c${c - 1}:in`, n.id) % 3 * d;
 		if (c === s + 1) return {
 			...e,
 			points: l === u ? [[t.x + r, l], [n.x, u]] : [
@@ -725,7 +725,7 @@ function Jt(e, t = /* @__PURE__ */ new Set(), n = {}) {
 	for (let e of u) ae.set(Bt(e.group), (ae.get(Bt(e.group)) ?? 0) + (e.members?.total ?? 1));
 	let oe = /* @__PURE__ */ new Map();
 	for (let e of h) {
-		let t = ee.get(e.id);
+		let t = R.get(e.id);
 		oe.has(t) || oe.set(t, []), oe.get(t).push(e);
 	}
 	for (let e of [...oe.keys()].sort((e, t) => e - t)) {
@@ -9404,9 +9404,9 @@ function jl(e) {
 	let t = G(), n = c(() => bl(t), [t]), { openChat: i } = ht(), o = p(), s = c(() => wl(t), [t]), d = Kn(), f = Ct("(max-width: 767px)"), m = Ct("(prefers-reduced-motion: reduce)"), [g, _] = u(() => ({
 		...fl,
 		...e.seed
-	})), [y, b] = u(null), [x, w] = u(!1), [T, E] = u(!1), [D, O] = u(!1), [k, A] = u(null), [j, M] = u(null), [N, P] = u(!1), [F, I] = u(!1), [L, R] = u(e.start ?? "blank"), [ee, z] = u(null), [te, B] = u(null), [V, H] = u({}), [re, ae] = u(!1), [oe, se] = u(null), ce = r((e) => {
+	})), [y, b] = u(null), [x, w] = u(!1), [T, E] = u(!1), [D, O] = u(!1), [k, A] = u(null), [j, M] = u(null), [N, P] = u(!1), [F, I] = u(!1), [L, ee] = u(e.start ?? "blank"), [R, z] = u(null), [te, B] = u(null), [V, H] = u({}), [re, ae] = u(!1), [oe, se] = u(null), ce = r((e) => {
 		se(e), ae(!1);
-	}, []), le = c(() => al(t), [t]), ue = c(() => Fc(t), [t]), de = ee?.find((e) => sl(e) === te) ?? null, fe = l(null), pe = (e) => {
+	}, []), le = c(() => al(t), [t]), ue = c(() => Fc(t), [t]), de = R?.find((e) => sl(e) === te) ?? null, fe = l(null), pe = (e) => {
 		_((t) => ({
 			...t,
 			...e
@@ -9422,7 +9422,7 @@ function jl(e) {
 			n = !1;
 		};
 	}, [t, e.workspaceId]), a(() => {
-		if (L !== "template" || ee !== null) return;
+		if (L !== "template" || R !== null) return;
 		let t = !0;
 		return le.templates(e.workspaceId).then((e) => {
 			t && (z(e.templates), e.templates.length === 1 && B(sl(e.templates[0])));
@@ -9433,7 +9433,7 @@ function jl(e) {
 		le,
 		e.workspaceId,
 		L,
-		ee
+		R
 	]);
 	let me = vl(g) || Object.values(V).some((e) => Array.isArray(e) ? e.length > 0 : !!String(e).trim()), he = async () => {
 		D || (!me || await d({
@@ -9620,7 +9620,7 @@ function jl(e) {
 							label: "How to start",
 							value: L,
 							onChange: (e) => {
-								R(e), E(!1), A(null);
+								ee(e), E(!1), A(null);
 							},
 							sections: [{
 								key: "blank",
@@ -9719,7 +9719,7 @@ function jl(e) {
 								icon: Oe,
 								fields: /* @__PURE__ */ S(ll, {
 									workspaceId: e.workspaceId,
-									templates: ee,
+									templates: R,
 									picked: te,
 									onPick: (e) => {
 										B(e), H({});
@@ -12543,7 +12543,7 @@ function id(e) {
 	a(() => {
 		e.newPlanRequest?.n && T({ seed: e.newPlanRequest.seed });
 	}, [e.newPlanRequest]);
-	let [k, A] = u(null), [j, M] = u(null), [N, P, F] = Nn("plans-selected", "select", (e) => e ? "Back to the spec" : "Back to all specs", null), I = l(t), [L, R] = u({}), [ee, z] = u(null), [te, B] = u(null), [V, ne] = u(null), [H, re] = u(null), [ie, ae] = u(null), [oe, se] = u(null), [ce, le] = u(null), [ue, de] = u(null), [fe, pe] = u(!1), [, me] = u(0), he = l(null), ge = r(async (e) => {
+	let [k, A] = u(null), [j, M] = u(null), [N, P, F] = Nn("plans-selected", "select", (e) => e ? "Back to the spec" : "Back to all specs", null), I = l(t), [L, ee] = u({}), [R, z] = u(null), [te, B] = u(null), [V, ne] = u(null), [H, re] = u(null), [ie, ae] = u(null), [oe, se] = u(null), [ce, le] = u(null), [ue, de] = u(null), [fe, pe] = u(!1), [, me] = u(0), he = l(null), ge = r(async (e) => {
 		pe(!0), de(null);
 		try {
 			await e();
@@ -12755,14 +12755,14 @@ function id(e) {
 							docs: H,
 							docsError: ie,
 							spec: ye,
-							plan: ee,
+							plan: R,
 							preview: te,
 							projection: V,
 							busy: fe,
 							onStore: () => we((e) => o.store(e, ye.name)),
-							onReload: () => ee && we((e) => o.reload(e, ee.id, ee.hash)),
-							onApprove: () => ee && we((e) => o.approve(e, ee.id, ee.hash)),
-							onProjection: () => ee && void ge(async () => ne(await o.projection(t, ee.id)))
+							onReload: () => R && we((e) => o.reload(e, R.id, R.hash)),
+							onApprove: () => R && we((e) => o.approve(e, R.id, R.hash)),
+							onProjection: () => R && void ge(async () => ne(await o.projection(t, R.id)))
 						}) : /* @__PURE__ */ C(g, { children: [
 							/* @__PURE__ */ S(Y, {
 								title: U.name,
@@ -12794,7 +12794,7 @@ function id(e) {
 			}) : /* @__PURE__ */ C(x, { children: [j && j.items.length > 0 && /* @__PURE__ */ S(qu, {
 				filter: L,
 				rows: j.items,
-				onChange: R,
+				onChange: ee,
 				children: /* @__PURE__ */ C("p", {
 					className: "text-xs text-muted",
 					role: "status",
@@ -13344,14 +13344,14 @@ function xd({ workspaceId: e, focus: t = null, drill: n = null, onDrill: i }) {
 		x: 0,
 		y: 0,
 		scale: 1
-	}), [P] = u(() => E.memory.has("graph-stack")), F = l(null), I = l(null), L = l(!1), R = c(() => [...new Set((y?.tasks ?? []).map((e) => Bt(e.group ?? null)))], [y]), ee = c(() => w ?? new Set((!n || n.kind === "epic") && (y?.tasks.length ?? 0) > dd ? R : []), [
+	}), [P] = u(() => E.memory.has("graph-stack")), F = l(null), I = l(null), L = l(!1), ee = c(() => [...new Set((y?.tasks ?? []).map((e) => Bt(e.group ?? null)))], [y]), R = c(() => w ?? new Set((!n || n.kind === "epic") && (y?.tasks.length ?? 0) > dd ? ee : []), [
 		w,
 		y,
-		R,
-		n
-	]), [z, te] = u(1100), B = c(() => Mt(y?.tasks.length ?? 0, z), [y, z]), V = c(() => y ? Jt(y, ee, { spacing: B }) : null, [
-		y,
 		ee,
+		n
+	]), [z, te] = u(1100), B = c(() => Mt(y?.tasks.length ?? 0, z), [y, z]), V = c(() => y ? Jt(y, R, { spacing: B }) : null, [
+		y,
+		R,
 		B
 	]), ne = c(() => new Map(V?.nodes.map((e) => [e.id, e]) ?? []), [V]), H = y?.tasks.find((e) => e.id === D) ?? null, re = y ? qr(y) : null, ie = (e) => y?.groups?.find((t) => t.id === e)?.title ?? e ?? "None", [ae, oe] = Mn("graph-stack", []), se = l({
 		drill: n,
@@ -13421,7 +13421,7 @@ function xd({ workspaceId: e, focus: t = null, drill: n = null, onDrill: i }) {
 		let t = F.current?.clientWidth || 800;
 		N((n) => en(n, e, t / 2, fd / 2));
 	}, ge = (e) => {
-		let t = new Set(ee);
+		let t = new Set(R);
 		t.has(e) ? t.delete(e) : t.add(e), T(t);
 	}, _e = (e) => {
 		let t = Yt(e, L.current);
@@ -13431,7 +13431,7 @@ function xd({ workspaceId: e, focus: t = null, drill: n = null, onDrill: i }) {
 		} else t === "open" && (k(e.id), d.openTask(e.id));
 	}, U = (e) => {
 		let t = y?.tasks.find((t) => t.id === e);
-		t && ee.has(Bt(t.group ?? null)) && ge(Bt(t.group ?? null)), k(e);
+		t && R.has(Bt(t.group ?? null)) && ge(Bt(t.group ?? null)), k(e);
 	}, ve = l(null);
 	a(() => {
 		y && t && ve.current !== t && (ve.current = t, U(t));
@@ -13554,7 +13554,7 @@ function xd({ workspaceId: e, focus: t = null, drill: n = null, onDrill: i }) {
 						})] }),
 						/* @__PURE__ */ S(rr, {
 							tooltip: "Fold each group into one box",
-							onClick: () => T(new Set(R)),
+							onClick: () => T(new Set(ee)),
 							children: "Collapse all"
 						}),
 						/* @__PURE__ */ S(rr, {
@@ -15751,7 +15751,7 @@ function ep({ workspaceId: e }) {
 		})();
 	}, L = (e, t) => {
 		E(t.revision), w((n) => n && _f(n, e, t)), O(/* @__PURE__ */ new Set());
-	}, R = b ?? [], ee = Nf(R, l?.graph ?? null), z = Date.now(), te = R.filter((e) => Mf(e, m, P.get(Af(e) ?? ""), z)), B = y.take("conflicts", te), V = te.filter((e) => D.has(pf(e))), ne = B.length > 0 && B.every((e) => D.has(pf(e))), H = V.length === te.length && te.length > 0, re = Tf(V), ie = (e) => {
+	}, ee = b ?? [], R = Nf(ee, l?.graph ?? null), z = Date.now(), te = ee.filter((e) => Mf(e, m, P.get(Af(e) ?? ""), z)), B = y.take("conflicts", te), V = te.filter((e) => D.has(pf(e))), ne = B.length > 0 && B.every((e) => D.has(pf(e))), H = V.length === te.length && te.length > 0, re = Tf(V), ie = (e) => {
 		let t = {
 			...m,
 			...e
@@ -15822,7 +15822,7 @@ function ep({ workspaceId: e }) {
 							key: "kind",
 							label: "Kind",
 							value: m.kind ?? "",
-							options: ee.kinds,
+							options: R.kinds,
 							onChange: (e) => ie({ kind: e })
 						},
 						{
@@ -15830,7 +15830,7 @@ function ep({ workspaceId: e }) {
 							key: "plan",
 							label: "Spec",
 							value: m.plan ?? "",
-							items: Pa(ee.plans),
+							items: Pa(R.plans),
 							onChange: (e) => ie({ plan: e })
 						},
 						{
@@ -15838,7 +15838,7 @@ function ep({ workspaceId: e }) {
 							key: "epic",
 							label: "Epic",
 							value: m.epic ?? "",
-							options: ee.epics,
+							options: R.epics,
 							onChange: (e) => ie({ epic: e })
 						},
 						{
@@ -15846,7 +15846,7 @@ function ep({ workspaceId: e }) {
 							key: "repository",
 							label: "Repository",
 							value: m.repository ?? "",
-							options: ee.repositories,
+							options: R.repositories,
 							onChange: (e) => ie({ repository: e })
 						},
 						{
@@ -15854,7 +15854,7 @@ function ep({ workspaceId: e }) {
 							key: "age",
 							label: "Age",
 							value: m.age ?? "",
-							options: ee.ages,
+							options: R.ages,
 							onChange: (e) => ie({ age: e })
 						},
 						{
@@ -15862,7 +15862,7 @@ function ep({ workspaceId: e }) {
 							key: "changed-by",
 							label: "Changed by",
 							value: m.changedBy ?? "",
-							options: ee.changedBy,
+							options: R.changedBy,
 							onChange: (e) => ie({ changedBy: e })
 						}
 					],
@@ -16004,6 +16004,14 @@ function tp(e) {
 			input: {
 				source: n.source,
 				id: n.id
+			},
+			workspaceId: t
+		}).then((e) => e.result),
+		planIssue: (t, n) => e.post(Ke, {
+			operation: "untriaged.plan",
+			input: {
+				repository: n.repository,
+				number: n.number
 			},
 			workspaceId: t
 		}).then((e) => e.result),
@@ -16258,7 +16266,7 @@ function Op(e) {
 		b(await n.preview(t, M())), c(1);
 	}), L = () => P(async () => {
 		w(await n.send(t, M())), c(2), e.onSent();
-	}), R = d ? d.available ? !!j : !!g.trim() : !1;
+	}), ee = d ? d.available ? !!j : !!g.trim() : !1;
 	return /* @__PURE__ */ C(_r, {
 		id: "avoozl-radar",
 		width: "36rem",
@@ -16497,7 +16505,7 @@ function Op(e) {
 						type: "button",
 						"data-radar-review": !0,
 						onClick: () => void F(),
-						disabled: T || !R,
+						disabled: T || !ee,
 						children: T ? "Checking…" : "Review"
 					}),
 					s === 1 && /* @__PURE__ */ S(h, {
@@ -16563,7 +16571,7 @@ function Mp(e) {
 	});
 }
 function Np({ item: e }) {
-	let t = e.kind === "issue" ? R : e.kind === "ticket" ? ie : e.kind === "review" ? Ie : e.draft ? de : ue, n = e.kind === "issue" ? "Issue" : e.kind === "ticket" ? "Ticket" : e.kind === "review" ? "Review request" : e.draft ? "Draft pull request" : "Pull request";
+	let t = e.kind === "issue" ? ee : e.kind === "ticket" ? ie : e.kind === "review" ? Ie : e.draft ? de : ue, n = e.kind === "issue" ? "Issue" : e.kind === "ticket" ? "Ticket" : e.kind === "review" ? "Review request" : e.draft ? "Draft pull request" : "Pull request";
 	return /* @__PURE__ */ S(X, {
 		text: n,
 		children: /* @__PURE__ */ S("span", {
@@ -16614,6 +16622,12 @@ function Lp({ item: e, onSend: t, onReview: n, onStart: r }) {
 	return dp(e) === "github" ? /* @__PURE__ */ C("span", {
 		className: "inline-flex gap-1.5",
 		children: [
+			r && e.start?.plan && /* @__PURE__ */ S(J, {
+				icon: ie,
+				label: `Plan this: ${i}`,
+				tooltip: "Plan this: opens a planner chat that drafts a spec from this issue. Nothing is approved or started.",
+				onClick: () => r(e, "plan")
+			}),
 			t && (e.kind === "issue" ? /* @__PURE__ */ S(J, {
 				icon: He,
 				label: `Send ${i} to an Issue Radar crew`,
@@ -17105,30 +17119,47 @@ function Kp({ items: e, now: t, narrow: n }) {
 	});
 }
 function qp({ workspaceId: e, onMakeSpec: t, onOpenSources: n }) {
-	let i = G(), a = Kn(), o = c(() => tp(i), [i]), s = c(() => np(i), [i]), [l, d] = Nn("untriaged-show", "inner", (e) => e === "radar" ? "Back to With Issue Radar" : e === "ideas" ? "Back to Ideas" : "Back to Untriaged", "untriaged"), [f, p] = u(!1), [m, h] = u(null), [g, v] = u(null), { value: y, error: w, busy: T } = Oa(e, r((e) => o.view(e), [o])), [E, D] = u(null), [O, k] = u(!1), [A, j] = u(null), [M, N] = Ua(e, Tp), [P, F] = u(() => /* @__PURE__ */ new Set()), I = Ct("(max-width: 767px)"), L = Date.now(), R = E ?? y, ee = R && !R.enabled ? "ideas" : l, z = R?.ideas ?? [], te = c(() => mp(R), [R]), B = c(() => (R?.items ?? []).filter((e) => pp(e, M, L)), [
+	let i = G(), a = Kn(), o = c(() => tp(i), [i]), { openChat: s } = ht(), l = c(() => np(i), [i]), [d, f] = Nn("untriaged-show", "inner", (e) => e === "radar" ? "Back to With Issue Radar" : e === "ideas" ? "Back to Ideas" : "Back to Untriaged", "untriaged"), [p, m] = u(!1), [h, g] = u(null), [v, y] = u(null), { value: w, error: T, busy: E } = Oa(e, r((e) => o.view(e), [o])), [D, O] = u(null), [k, A] = u(!1), [j, M] = u(null), [N, P] = Ua(e, Tp), [F, I] = u(() => /* @__PURE__ */ new Set()), L = Ct("(max-width: 767px)"), ee = Date.now(), R = D ?? w, z = R && !R.enabled ? "ideas" : d, te = R?.ideas ?? [], B = c(() => mp(R), [R]), V = c(() => (R?.items ?? []).filter((e) => pp(e, N, ee)), [
 		R,
-		M,
-		L
-	]), V = tr(JSON.stringify(M)), ne = B.filter((e) => P.has(gp(e))), H = Sp(ne), re = rp(ne), ie = R?.withRadar ?? [], ae = async () => {
+		N,
+		ee
+	]), ne = tr(JSON.stringify(N)), H = V.filter((e) => F.has(gp(e))), re = Sp(H), ie = rp(H), ae = R?.withRadar ?? [], oe = async () => {
 		if (e) try {
-			D(await o.view(e)), F(/* @__PURE__ */ new Set());
+			O(await o.view(e)), I(/* @__PURE__ */ new Set());
 		} catch (e) {
-			j(W(e));
+			M(W(e));
 		}
-	}, oe = async (t) => {
+	}, se = async (t) => {
 		if (e) {
-			j(null);
+			M(null);
 			try {
 				let n = await o.review(e, t);
-				v(n.state === "open" ? `${t.repository} #${t.number} already has a code review chat. Use Attach.` : `Code review chat for ${t.repository} #${t.number} starts on the next tick$.`), await ae();
+				y(n.state === "open" ? `${t.repository} #${t.number} already has a code review chat. Use Attach.` : `Code review chat for ${t.repository} #${t.number} starts on the next tick$.`), await oe();
 			} catch (e) {
-				j(W(e));
+				M(W(e));
 			}
 		}
-	}, se = async (t, n) => {
+	}, ce = async (t, n) => {
 		if (!e) return;
 		let r = _p(t);
-		if (await a(n === "deliver" ? {
+		if (dp(t) === "github") {
+			if (!await a({
+				title: `Plan ${r}?`,
+				body: `A planner chat drafts a spec from "${t.title}". Nothing is approved or started until you approve the spec.`,
+				action: "Plan this"
+			})) return;
+			M(null);
+			try {
+				let n = await o.planIssue(e, t);
+				s({
+					message: n.message,
+					agent: n.agent,
+					autoSend: !0
+				}), y(`A planner chat is drafting ${n.name} from ${r}.`);
+			} catch (e) {
+				M(W(e));
+			}
+		} else if (await a(n === "deliver" ? {
 			title: `Deliver ${r}?`,
 			body: `Avoozl makes one task in ${t.repository} from "${t.title}", pinned to its text now, and a worker starts it. Avoozl writes nothing back to ${t.source}.`,
 			action: "Deliver this"
@@ -17137,26 +17168,26 @@ function qp({ workspaceId: e, onMakeSpec: t, onOpenSources: n }) {
 			body: `Avoozl adds "${t.title}" to the Inbox for a planner. Nothing starts until a spec is approved.`,
 			action: "Plan this"
 		})) {
-			j(null);
+			M(null);
 			try {
 				let i = await o.start(e, t, n);
-				v(`${r} is now task ${i.taskId}.`), await ae();
+				y(`${r} is now task ${i.taskId}.`), await oe();
 			} catch (e) {
-				j(W(e));
+				M(W(e));
 			}
 		}
-	}, ce = (e) => N({
-		...M,
+	}, le = (e) => P({
+		...N,
 		...e
-	}), le = (e, t) => F(xp(P, e, t)), ue = async () => {
+	}), ue = (e, t) => I(xp(F, e, t)), de = async () => {
 		if (e) {
-			k(!0), j(null);
+			A(!0), M(null);
 			try {
-				D(await o.refresh(e));
+				O(await o.refresh(e));
 			} catch (e) {
-				j(W(e));
+				M(W(e));
 			} finally {
-				k(!1);
+				A(!1);
 			}
 		}
 	};
@@ -17170,14 +17201,14 @@ function qp({ workspaceId: e, onMakeSpec: t, onOpenSources: n }) {
 				actions: /* @__PURE__ */ C("span", {
 					className: "flex flex-wrap gap-2",
 					children: [/* @__PURE__ */ S(Ul, {
-						onClick: () => p(!0),
+						onClick: () => m(!0),
 						disabled: !e
 					}), /* @__PURE__ */ S(q, {
 						icon: Pe,
-						onClick: () => void ue(),
-						disabled: T || O || !R?.enabled,
+						onClick: () => void de(),
+						disabled: E || k || !R?.enabled,
 						tooltip: "Read GitHub and poll each plugin source now instead of waiting for the next check",
-						children: O ? "Checking…" : "Check now"
+						children: k ? "Checking…" : "Check now"
 					})]
 				}),
 				children: "Intake"
@@ -17196,28 +17227,28 @@ function qp({ workspaceId: e, onMakeSpec: t, onOpenSources: n }) {
 					}] : [],
 					...R.enabled && R.mode ? [{
 						key: "radar",
-						label: `With Issue Radar (${ie.length})`
+						label: `With Issue Radar (${ae.length})`
 					}] : [],
 					{
 						key: "ideas",
-						label: `Ideas (${z.filter((e) => e.state === "open").length})`
+						label: `Ideas (${te.filter((e) => e.state === "open").length})`
 					}
 				],
-				value: ee,
-				onChange: (e) => d(e)
+				value: z,
+				onChange: (e) => f(e)
 			}) }),
-			g && /* @__PURE__ */ S("p", {
+			v && /* @__PURE__ */ S("p", {
 				role: "status",
 				className: "text-sm text-muted",
 				"data-radar-note": !0,
-				children: g
+				children: v
 			}),
-			(w || A) && /* @__PURE__ */ S("p", {
+			(T || j) && /* @__PURE__ */ S("p", {
 				role: "alert",
 				className: "text-sm text-danger",
-				children: w ?? A
+				children: T ?? j
 			}),
-			R ? ee === "ideas" ? /* @__PURE__ */ C(x, { children: [!R.enabled && /* @__PURE__ */ C("p", {
+			R ? z === "ideas" ? /* @__PURE__ */ C(x, { children: [!R.enabled && /* @__PURE__ */ C("p", {
 				className: "text-xs text-muted",
 				children: [
 					"Untriaged items need a GitHub mode or an intake source. Choose a mode in Settings › GitHub, or add a source in ",
@@ -17226,17 +17257,17 @@ function qp({ workspaceId: e, onMakeSpec: t, onOpenSources: n }) {
 				]
 			}), e && /* @__PURE__ */ S(Jl, {
 				workspaceId: e,
-				ideas: z,
-				narrow: I,
-				onChanged: () => void ae(),
+				ideas: te,
+				narrow: L,
+				onChanged: () => void oe(),
 				onMakeSpec: (e) => t?.(e)
-			})] }) : ee === "radar" ? /* @__PURE__ */ C("div", {
+			})] }) : z === "radar" ? /* @__PURE__ */ C("div", {
 				className: "flex flex-col gap-2",
 				"data-radar-view": !0,
 				children: [/* @__PURE__ */ S("p", {
 					className: "text-xs text-muted",
 					children: "Issues a crew holds, or that you sent to one. Crews act with your GitHub login, so Avoozl tells their work apart by label: a close on an issue a crew claimed counts only once its pull request merges, a crew’s labels never start Avoozl rules, and a crew’s “needs human” label shows under Needs you."
-				}), ie.length === 0 ? /* @__PURE__ */ S(_, {
+				}), ae.length === 0 ? /* @__PURE__ */ S(_, {
 					icon: /* @__PURE__ */ S(Ne, {
 						size: 36,
 						"aria-hidden": "true"
@@ -17244,13 +17275,13 @@ function qp({ workspaceId: e, onMakeSpec: t, onOpenSources: n }) {
 					title: "Nothing with Issue Radar",
 					subtitle: "Select issues under Untriaged and press Send to Issue Radar."
 				}) : /* @__PURE__ */ S(Kp, {
-					items: ie,
-					now: L,
-					narrow: I
+					items: ae,
+					now: ee,
+					narrow: L
 				})]
 			}) : R.items.length === 0 ? /* @__PURE__ */ C(x, { children: [/* @__PURE__ */ S(Gp, {
 				list: R,
-				now: L,
+				now: ee,
 				onOpenSources: n
 			}), /* @__PURE__ */ S(_, {
 				icon: /* @__PURE__ */ S(ge, {
@@ -17262,56 +17293,56 @@ function qp({ workspaceId: e, onMakeSpec: t, onOpenSources: n }) {
 				/* @__PURE__ */ S(Va, {
 					id: "avoozl-untriaged",
 					label: "Filter untriaged items",
-					active: up(M),
-					onClear: () => N({}),
+					active: up(N),
+					onClear: () => P({}),
 					fields: [
 						{
 							kind: "select",
 							key: "source",
 							label: "Source",
-							value: M.source ?? "",
-							options: te.sources,
-							onChange: (e) => ce({ source: e || void 0 })
+							value: N.source ?? "",
+							options: B.sources,
+							onChange: (e) => le({ source: e || void 0 })
 						},
 						{
 							kind: "select",
 							key: "repository",
 							label: "Repository",
-							value: M.repository ?? "",
-							options: te.repositories,
-							onChange: (e) => ce({ repository: e || void 0 })
+							value: N.repository ?? "",
+							options: B.repositories,
+							onChange: (e) => le({ repository: e || void 0 })
 						},
 						{
 							kind: "select",
 							key: "kind",
 							label: "Kind",
-							value: M.kind ?? "",
+							value: N.kind ?? "",
 							options: lp,
-							onChange: (e) => ce({ kind: e || void 0 })
+							onChange: (e) => le({ kind: e || void 0 })
 						},
 						{
 							kind: "select",
 							key: "age",
 							label: "Age",
-							value: M.age ?? "",
+							value: N.age ?? "",
 							options: cp,
-							onChange: (e) => ce({ age: e || void 0 })
+							onChange: (e) => le({ age: e || void 0 })
 						},
 						{
 							kind: "select",
 							key: "author",
 							label: "Author",
-							value: M.author ?? "",
-							options: te.authors,
-							onChange: (e) => ce({ author: e || void 0 })
+							value: N.author ?? "",
+							options: B.authors,
+							onChange: (e) => le({ author: e || void 0 })
 						},
 						{
 							kind: "select",
 							key: "label",
 							label: "Label",
-							value: M.label ?? "",
-							options: te.labels,
-							onChange: (e) => ce({ label: e || void 0 })
+							value: N.label ?? "",
+							options: B.labels,
+							onChange: (e) => le({ label: e || void 0 })
 						}
 					],
 					children: /* @__PURE__ */ C("div", {
@@ -17323,26 +17354,26 @@ function qp({ workspaceId: e, onMakeSpec: t, onOpenSources: n }) {
 								children: [/* @__PURE__ */ C("p", {
 									role: "status",
 									className: "text-xs text-muted",
-									children: [B.length === R.items.length ? `${R.items.length} untriaged` : `${B.length} of ${R.items.length} untriaged`, ne.length ? ` · ${ne.length} selected` : ""]
+									children: [V.length === R.items.length ? `${R.items.length} untriaged` : `${V.length} of ${R.items.length} untriaged`, H.length ? ` · ${H.length} selected` : ""]
 								}), /* @__PURE__ */ S(Gp, {
 									list: R,
-									now: L,
+									now: ee,
 									onOpenSources: n
 								})]
 							}),
 							/* @__PURE__ */ S(X, {
-								text: H.tooltip,
+								text: re.tooltip,
 								children: (e) => /* @__PURE__ */ C("a", {
-									href: Z(ne.length ? H.url : void 0),
+									href: Z(H.length ? re.url : void 0),
 									target: "_top",
 									role: "button",
-									"aria-disabled": !ne.length || void 0,
+									"aria-disabled": !H.length || void 0,
 									"aria-describedby": e,
 									tabIndex: 0,
 									style: {
 										...jp,
-										opacity: ne.length ? 1 : .5,
-										cursor: ne.length ? "pointer" : "default"
+										opacity: H.length ? 1 : .5,
+										cursor: H.length ? "pointer" : "default"
 									},
 									className: "text-sm",
 									"data-bulk-open": !0,
@@ -17354,49 +17385,49 @@ function qp({ workspaceId: e, onMakeSpec: t, onOpenSources: n }) {
 							}),
 							/* @__PURE__ */ S(q, {
 								icon: He,
-								onClick: () => h(ne),
-								disabled: !re.ok,
-								tooltip: re.reason,
+								onClick: () => g(H),
+								disabled: !ie.ok,
+								tooltip: ie.reason,
 								children: "Send selected to Issue Radar"
 							})
 						]
 					})
 				}),
-				B.length === 0 ? /* @__PURE__ */ C("p", {
+				V.length === 0 ? /* @__PURE__ */ C("p", {
 					className: "text-sm text-muted",
 					children: [
 						"No untriaged item matches these filters. Clear them to see all ",
 						R.items.length,
 						"."
 					]
-				}) : S(I ? Up : Hp, {
-					items: V.take("untriaged", B),
-					selected: P,
-					now: L,
-					onSelect: le,
-					onSend: (e) => h([e]),
-					onReview: (e) => void oe(e),
-					onStart: (e, t) => void se(e, t)
+				}) : S(L ? Up : Hp, {
+					items: ne.take("untriaged", V),
+					selected: F,
+					now: ee,
+					onSelect: ue,
+					onSend: (e) => g([e]),
+					onReview: (e) => void se(e),
+					onStart: (e, t) => void ce(e, t)
 				}),
-				/* @__PURE__ */ S(nr, { ...V.more("untriaged", B.length) })
+				/* @__PURE__ */ S(nr, { ...ne.more("untriaged", V.length) })
 			] }) : /* @__PURE__ */ S("p", {
 				className: "text-sm text-muted",
-				children: T ? "Loading…" : "Not loaded"
+				children: E ? "Loading…" : "Not loaded"
 			}),
-			f && e && /* @__PURE__ */ S(Wl, {
+			p && e && /* @__PURE__ */ S(Wl, {
 				workspaceId: e,
 				onClose: (e) => {
-					p(!1), e && (v(`Saved the idea ${e.title}.`), d("ideas"), ae());
+					m(!1), e && (y(`Saved the idea ${e.title}.`), f("ideas"), oe());
 				}
 			}),
-			m && e && /* @__PURE__ */ S(Op, {
+			h && e && /* @__PURE__ */ S(Op, {
 				workspaceId: e,
-				client: s,
-				items: m,
-				repository: m[0].repository,
-				onSent: () => void ae(),
+				client: l,
+				items: h,
+				repository: h[0].repository,
+				onSent: () => void oe(),
 				onClose: (e) => {
-					h(null), v(e ?? null);
+					g(null), y(e ?? null);
 				}
 			})
 		]
@@ -18726,7 +18757,7 @@ function uh(e) {
 				children: "Radar crew and Remote coder need GitHub, so Local only uses the Avoozl worker."
 			}),
 			i !== "remote" && /* @__PURE__ */ S("div", { children: /* @__PURE__ */ S(q, {
-				icon: ee,
+				icon: R,
 				onClick: () => n(t ? null : i),
 				"aria-label": t ? "Hide how this works" : "How does this work?",
 				children: t ? "Hide how this works" : "How does this work?"
@@ -19974,7 +20005,7 @@ function Bh({ result: e }) {
 	});
 }
 function Vh(e) {
-	let { workspaceId: t, client: n, onClose: i } = e, o = Kn(), [s, c] = u("folder"), [d, f] = u(""), [p, m] = u(null), [g, _] = u(null), [v, y] = u(!1), [b, w] = u(null), [T, E] = u(null), [D, O] = u([]), [k, A] = u(!1), [j, M] = u(null), [P, F] = u(/* @__PURE__ */ new Set()), [I, L] = u(null), [R, ee] = u({}), [z, te] = u(!1), [B, V] = u(null), ne = l(null), H = b ? Ch(b, p) : [
+	let { workspaceId: t, client: n, onClose: i } = e, o = Kn(), [s, c] = u("folder"), [d, f] = u(""), [p, m] = u(null), [g, _] = u(null), [v, y] = u(!1), [b, w] = u(null), [T, E] = u(null), [D, O] = u([]), [k, A] = u(!1), [j, M] = u(null), [P, F] = u(/* @__PURE__ */ new Set()), [I, L] = u(null), [ee, R] = u({}), [z, te] = u(!1), [B, V] = u(null), ne = l(null), H = b ? Ch(b, p) : [
 		"folder",
 		"mode",
 		"setup",
@@ -20055,7 +20086,7 @@ function Vh(e) {
 	a(() => {
 		s === "scan" && U(), s === "issues" && se(async () => {
 			let e = ge.filter((e) => e.plan && !e.plan.approved), r = await Promise.all(e.map(async (e) => [e.name, await n.previewIssues(t, e.plan.id).catch((e) => ({ error: W(e) }))]));
-			ee(Object.fromEntries(r));
+			R(Object.fromEntries(r));
 		});
 	}, [s]);
 	let ve = Ah(I), ye = s === "mode" && b && p ? wh(b, p) : null, be = s === "check" && T ? T.steps.some((e) => e.status === "failed") && T.writes.length === 0 : !1, xe = k ? [] : me.filter((e) => !e.done), Se = (e) => e === "folder" && !!p || e === "check" && !!T && T.writes.length === 0 || e === "setup" && (k || !!b && xe.length === 0) || e === "import" && ge.length > 0 && ge.every(kh);
@@ -20253,7 +20284,7 @@ function Vh(e) {
 				children: [ge.filter((e) => e.plan && !e.plan.approved).length === 0 && /* @__PURE__ */ S("p", {
 					className: "text-muted",
 					children: "No draft specs to preview. Import a spec first."
-				}), Object.entries(R).map(([e, t]) => {
+				}), Object.entries(ee).map(([e, t]) => {
 					if ("error" in t) return /* @__PURE__ */ C("p", {
 						role: "alert",
 						className: "text-sm text-danger",
@@ -28333,7 +28364,7 @@ function Vy(e) {
 }
 var Hy = (e, t, n = `${t}s`) => `${e} ${e === 1 ? t : n}`;
 function Uy(e) {
-	let { workspaceId: t } = e, n = G(), r = c(() => Ay(n), [n]), [i, o] = u(null), [s, l] = u(!1), [d, f] = u(null), [p, m] = u("choose"), [g, _] = u("provider"), [y, b] = u(""), [w, T] = u([]), [E, D] = u(""), [O, k] = u(!1), [A, j] = u(null), [M, N] = u(null), [P, F] = u(!1), [I, L] = u(null), [R, ee] = u(null), z = () => r.view(t).then((e) => {
+	let { workspaceId: t } = e, n = G(), r = c(() => Ay(n), [n]), [i, o] = u(null), [s, l] = u(!1), [d, f] = u(null), [p, m] = u("choose"), [g, _] = u("provider"), [y, b] = u(""), [w, T] = u([]), [E, D] = u(""), [O, k] = u(!1), [A, j] = u(null), [M, N] = u(null), [P, F] = u(!1), [I, L] = u(null), [ee, R] = u(null), z = () => r.view(t).then((e) => {
 		o(e), l(!1);
 	}, () => l(!0));
 	a(() => {
@@ -28364,7 +28395,7 @@ function Uy(e) {
 					alsoNewTasks: A.alsoNewTasks,
 					previewHash: A.previewHash
 				});
-				ee(Py(e, A.to)), m("done"), await z();
+				R(Py(e, A.to)), m("done"), await z();
 			} catch (e) {
 				let n = e?.status, i = W(e);
 				if (n === 409 || /changed since the dry run/.test(i)) try {
@@ -28632,7 +28663,7 @@ function Uy(e) {
 				p === "done" && /* @__PURE__ */ S("p", {
 					role: "status",
 					"data-switch-done": !0,
-					children: R
+					children: ee
 				})
 			]
 		})
@@ -31824,11 +31855,11 @@ function lx() {
 	return /* @__PURE__ */ S(An, { children: /* @__PURE__ */ S(ds, { children: /* @__PURE__ */ S(ux, {}) }) });
 }
 function ux() {
-	let e = On(), t = us(), n = G(), i = c(() => qe(n), [n]), o = c(() => Ze(ox()), []), [s, l] = u("dashboard"), [d, f] = u(Hm), [p, m] = u(null), [g, v] = u(null), [w, T] = u(0), [E, D] = u({ n: 0 }), [O, k] = u(null), [A, j] = u(null), M = c(() => Kr(n), [n]), N = c(() => tp(n), [n]), [P, F] = u(o.workspaceId), [I, L] = u(null), [R, ee] = u(null), z = r((e) => {
+	let e = On(), t = us(), n = G(), i = c(() => qe(n), [n]), o = c(() => Ze(ox()), []), [s, l] = u("dashboard"), [d, f] = u(Hm), [p, m] = u(null), [g, v] = u(null), [w, T] = u(0), [E, D] = u({ n: 0 }), [O, k] = u(null), [A, j] = u(null), M = c(() => Kr(n), [n]), N = c(() => tp(n), [n]), [P, F] = u(o.workspaceId), [I, L] = u(null), [ee, R] = u(null), z = r((e) => {
 		L(e), F((t) => Ye(e, t));
 	}, []);
 	a(() => {
-		i.list().then(z, (e) => ee(W(e)));
+		i.list().then(z, (e) => R(W(e)));
 	}, [i, z]), a(() => {
 		Qe(ox(), { workspaceId: P });
 	}, [P]);
@@ -31979,10 +32010,10 @@ function ux() {
 						})
 					}),
 					/* @__PURE__ */ S(ms, {}),
-					R && /* @__PURE__ */ S("p", {
+					ee && /* @__PURE__ */ S("p", {
 						role: "alert",
 						className: "px-6 pb-2 text-sm text-danger",
-						children: R
+						children: ee
 					}),
 					/* @__PURE__ */ S("div", {
 						ref: (t) => {
