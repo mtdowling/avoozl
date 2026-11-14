@@ -27803,15 +27803,15 @@ function gy({ workspaceId: e, onSaved: t }) {
 			}
 		}
 	};
-	return /* @__PURE__ */ x(h, {
-		className: "mt-4",
-		children: /* @__PURE__ */ x($, {
-			level: "card",
-			title: "Keep activity",
-			blurb: "Saved to .avoozl.json. Each tick deletes rows older than this.",
-			children: /* @__PURE__ */ S("div", {
-				className: "flex flex-col gap-2",
-				"data-activity-keep": !0,
+	return /* @__PURE__ */ x("div", {
+		"data-activity-keep": !0,
+		style: { marginTop: 16 },
+		children: /* @__PURE__ */ x(h, {
+			className: "flex flex-col gap-4",
+			children: /* @__PURE__ */ S($, {
+				title: "Keep activity",
+				blurb: "Saved to .avoozl.json. Each tick deletes rows older than this.",
+				level: "card",
 				children: [
 					/* @__PURE__ */ S("div", {
 						className: "flex flex-wrap items-end gap-2",
