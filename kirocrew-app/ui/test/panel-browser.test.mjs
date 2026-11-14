@@ -238,3 +238,22 @@ for (const [width, height] of [[1280, 900], [390, 800]])
       assert.ok(button.right <= button.width, 'inside the panel')
       assert.ok(button.height >= 28, 'big enough to tap')
     })
+
+// The driver line names its workspace. In a chat that is another workspace's
+// driver, the panel reads that workspace, not the one the app page last
+// showed; in any other chat it says which workspace has a driver.
+test('a Nupp driver chat\'s panel reads Nupp and shows it running', { skip }, async () => {
+  await page.open(harness.url({ page: 'panel', theme: 'light', sid: 'chat-nupp', driver: 'nupp' }), { width: 390, height: 800 })
+  await page.until(`document.querySelector('[data-panel-driver]')?.dataset.panelDriver === 'running'`)
+  assert.equal(await text('[data-driver-workspace]'), 'Nupp')
+  assert.equal(await count('[data-driver-elsewhere]'), 0)
+})
+
+test('another chat: "No driver for Harness. Nupp has one: Open", with the workspace name', { skip }, async () => {
+  await page.open(harness.url({ page: 'panel', theme: 'light', sid: 'chat-1', driver: 'nupp' }), { width: 390, height: 800 })
+  await page.until(`Boolean(document.querySelector('[data-driver-elsewhere]'))`)
+  assert.equal(await page.evaluate(`document.querySelector('[data-panel-driver]').dataset.panelDriver`), 'none')
+  assert.equal(await text('[data-driver-workspace]'), 'Harness')
+  assert.match(await text('[data-driver-elsewhere]'), /^No driver for Harness\. Nupp has one: Open$/)
+  assert.equal(await page.evaluate(`document.querySelector('[data-driver-elsewhere] a').getAttribute('href')`), '/chat?sid=chat-nupp')
+})

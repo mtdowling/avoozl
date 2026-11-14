@@ -31,10 +31,8 @@ if (!COMMANDS.has(command) && !hook) {
 
 // Without a named workspace, serve the machine catalog's default workspace,
 // the one the Workspace view adds or initializes.
-// `driver hook` writes the machine's driver record and needs no workspace.
 const env = process.env;
 if (
-  !hook &&
   !rest.includes("--workspace") &&
   !env.AVOOZL_WORKSPACE &&
   !env.AICOMMANDER_WORKSPACE &&

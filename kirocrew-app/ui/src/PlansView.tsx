@@ -1067,7 +1067,7 @@ export default function PlansView(props: {
   // Open ideas, and the Ideas view under Waiting on you.
   ideas?: number | null
   onOpenIdeas?: () => void
-  // The Epics screen, shown above the spec list (never beside a spec's documents).
+  // The Epics fold-out, shown above the spec list (never beside a spec's documents).
   epics?: ReactNode
 }) {
   const workspace = props.workspaceId
@@ -1293,7 +1293,7 @@ export default function PlansView(props: {
               ) : null
             }
           >
-            {row ? row.name : 'Epics'}
+            {row ? row.name : 'Specs'}
           </ViewHeading>
         </div>
       </div>
