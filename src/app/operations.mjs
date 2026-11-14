@@ -221,6 +221,12 @@ import {
   untriagedView,
 } from "./untriaged.mjs";
 import { requestReviewChat, reviewChats } from "./pr-review.mjs";
+import {
+  draftForPull,
+  postReviewDraft,
+  reviewDraftNeedsYou,
+  reviewDraftsView,
+} from "./review-draft.mjs";
 import { handOff, readCrews } from "./radar-handoff.mjs";
 import { readCrewStrip } from "./radar-crews.mjs";
 import { flowView, readFlowConfig, readFlowPolicy } from "./flow.mjs";
@@ -2525,6 +2531,23 @@ export class Operations {
       return postReply(store, this.github, input, context.caller, {
         roots: machineRoots(store, this.workspaceRoot),
       });
+    // Review drafts by label (RC20): the bound chat's one pending review, and
+    // the list of drafts. Avoozl never submits a review.
+    if (name === "reviewdraft.post")
+      return postReviewDraft(
+        store,
+        this.github,
+        readGitHubPolicyOrNull(this.workspaceRoot),
+        input,
+        context.caller,
+        { roots: machineRoots(store, this.workspaceRoot) },
+      );
+    if (name === "review.drafts")
+      return reviewDraftsView(
+        store,
+        readGitHubPolicyOrNull(this.workspaceRoot),
+        input,
+      );
     if (name === "session.report") {
       // The skill files a session says it loaded (R68.12): absolute paths,
       // hashed here; skills read through tool calls win.
@@ -3005,6 +3028,7 @@ export class Operations {
       view.items.push(...relayNeedsYou(store));
       view.items.push(...mergeNeedsYou(store));
       view.items.push(...approvalNeedsYou(store));
+      view.items.push(...reviewDraftNeedsYou(store));
       view.items.push(...landingNeedsYou(store));
       view.items.push(...remoteNeedsYou(store));
       view.items.push(...syncNeedsYou(store));
@@ -3314,7 +3338,9 @@ export class Operations {
       if (!Number.isInteger(number) || number < 1)
         fail("Name the issue number to trace.", 400);
       if (!this.github?.available?.()) fail("GitHub is not available.", 503);
-      return readTrace(this.github, input.repository, number, entry);
+      return readTrace(this.github, input.repository, number, entry, {
+        draftFor: (pull) => draftForPull(store, input.repository, pull),
+      });
     }
     // Integration branches (RC16.3, RC16.8): tasks merged, distance behind the
     // default branch, head checks, acceptance. Landing is a person's approval

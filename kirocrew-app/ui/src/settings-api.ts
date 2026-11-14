@@ -267,6 +267,9 @@ export interface RepositoryForm {
   // radar.reviewRules); blank is the shown default.
   planLabel: string
   conflictLabel: string
+  // Review drafts by label (RC20): radar.reviewLabel, radar.draftedLabel.
+  reviewLabel: string
+  draftedLabel: string
   reviewRules: string
   rules: RuleForm[]
   // The Untriaged list (design §8.5), each optional.
@@ -385,6 +388,8 @@ export function emptyRepository(name = ''): RepositoryForm {
     approvalLabel: '',
     planLabel: '',
     conflictLabel: '',
+    reviewLabel: '',
+    draftedLabel: '',
     reviewRules: '',
     rules: [],
     untriaged: emptyUntriaged(),
@@ -430,6 +435,8 @@ export function toForm(github: Policy): SettingsForm {
         approvalLabel: str(record(entry.radar).approvalLabel),
         planLabel: str(record(entry.radar).planLabel),
         conflictLabel: str(record(entry.radar).conflictLabel),
+        reviewLabel: str(record(entry.radar).reviewLabel),
+        draftedLabel: str(record(entry.radar).draftedLabel),
         reviewRules: str(record(entry.radar).reviewRules),
         rules: (Array.isArray(entry.rules) ? entry.rules : []).map((item) => {
           const rule = record(item)
@@ -517,6 +524,8 @@ export function toPolicy(form: SettingsForm): Policy {
                   approvalLabel: blank(repository.approvalLabel),
                   planLabel: blank(repository.planLabel),
                   conflictLabel: blank(repository.conflictLabel),
+                  reviewLabel: blank(repository.reviewLabel),
+                  draftedLabel: blank(repository.draftedLabel),
                   reviewRules: blank(repository.reviewRules),
                 })
                 return Object.keys(radar).length ? radar : undefined
@@ -925,7 +934,29 @@ export function settingsTabOnEnter<T extends string>(from: string, to: string, c
 
 // Issue Radar crew settings (radar-coder RC7.6). A blank field is the default,
 // and each line says where the shown value comes from and what it is.
-export const RADAR_DEFAULTS_SHOWN = { planLabel: 'to plan', conflictLabel: 'merge conflict' } as const
+// Avoozl's own labels (RC21), as src/app/github-policy.mjs RADAR_DEFAULTS and
+// READY_LABEL_DEFAULT name them.
+export const RADAR_DEFAULTS_SHOWN = {
+  planLabel: 'avoozl:plan',
+  ready: 'avoozl:ready',
+  approvalLabel: 'avoozl:plan-approved',
+  conflictLabel: 'avoozl:merge-conflict',
+  reviewLabel: 'avoozl:review',
+  draftedLabel: 'avoozl:drafted',
+} as const
+
+// The six Avoozl labels in Settings: what each does and who writes it (RC21.4).
+export const AVOOZL_LABELS = [
+  { key: 'planLabel', label: 'Planning', raw: 'radar.planLabel', job: 'Asks Avoozl to plan an issue.', writer: 'A person you trust adds it.' },
+  { key: 'ready', label: 'Ready', raw: 'managedLabels.ready', job: "Marks an issue a crew may take. Set the crew's label scope to it.", writer: 'Avoozl adds and removes it.' },
+  { key: 'approvalLabel', label: 'Plan approved', raw: 'radar.approvalLabel', job: 'Approves the drafted plan of the issue it is on.', writer: 'A person you trust, or Avoozl after an approval.' },
+  { key: 'conflictLabel', label: 'Merge conflict', raw: 'radar.conflictLabel', job: 'Shows a pull request has a merge conflict.', writer: 'Avoozl adds and removes it.' },
+  { key: 'reviewLabel', label: 'Review', raw: 'radar.reviewLabel', job: 'Asks Avoozl to draft a review of a pull request for you.', writer: 'A person you trust adds it.' },
+  { key: 'draftedLabel', label: 'Drafted', raw: 'radar.draftedLabel', job: 'Shows a draft review waits for you to submit.', writer: 'Avoozl adds and removes it.' },
+] as const
+
+export const OLD_LABEL_NOTE =
+  'The defaults now start with avoozl:. A repository that used the old names (to plan, ready, plan approved, merge conflict) without setting them reads the new names now; type the old name here to keep it.'
 
 export const valueSource = (value: string, fallback: string, unit = '') =>
   value.trim() ? `Set on this repository: ${value.trim()}${unit}.` : `Not set on this repository. Using the default (${fallback}${unit}).`
