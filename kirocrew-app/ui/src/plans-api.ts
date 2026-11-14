@@ -146,6 +146,8 @@ export interface PlanRow {
   type: 'feature' | 'bugfix' | null
   category: string | null
   categoryProblem: string | null
+  // Where the spec lives when a private mirror is set (RC25.2).
+  home?: 'main' | 'plansBranch'
   errors: number
   status: string
   tasks: { total: number; done: number }
@@ -465,4 +467,10 @@ export const ARCHIVE_LINES = [
 export function planEventLine(entry: { action: string; by: string | null }): string {
   const what = entry.action === 'archived' ? 'Archived' : entry.action === 'unarchived' ? 'Unarchived' : entry.action
   return entry.by ? `${what} by ${entry.by}` : what
+}
+
+// The badge a spec shows for its home (RC25.2); none when no mirror is set.
+export function homeBadge(home?: 'main' | 'plansBranch'): { label: string; warn: boolean } | null {
+  if (!home) return null
+  return home === 'plansBranch' ? { label: 'Private', warn: true } : { label: 'Public', warn: false }
 }
