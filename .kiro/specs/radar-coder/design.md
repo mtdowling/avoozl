@@ -871,3 +871,126 @@ Proofs added to D17:
 | Proof  | Proves                                                                                       |
 | ------ | -------------------------------------------------------------------------------------------- |
 | rc-p20 | A label gives one pending review under the labeler's login; submit clears it; a wrong login or a stranger drafts nothing |
+
+## D28. Tracker gates (RC23)
+
+### D28.1 The node
+
+A gate is a manifest leaf with `completion: "tracker"` and
+`tracker: { plugin, item, done }`. `spec-manifest.mjs` and plan-quality accept
+it and refuse a missing part or an unknown plugin id. It is a manual-style
+leaf: it projects to an issue, never gets the ready label, and the coder
+adapter (D19) and batching (D4.2) skip it, the way they skip `human` tasks.
+Release (D6) reads it as one more blocker kind: complete when its record says
+`done` or `cleared`.
+
+```
+plugin status --> gate record --> release (D6) --> ready label on dependents
+ (read only)      open/done/       waits while          ^
+                  failed/unknown   open/failed/         |
+                                   unknown        person clears (an order)
+```
+
+### D28.2 The record
+
+SQLite holds one row per gate: state, evidence, link, last check, next check,
+the count of `unknown` reads in a row, and, once cleared, the order (actor,
+how, time, reason, last known state). The issue's marker repeats the state and
+the order, as for an allowed close, so the record survives a rebuild. Evidence
+is screened and cut to 500 characters before it is stored.
+
+### D28.3 The plugin part
+
+`gate` joins the parts table in docs/plugins.md: it runs code, needs no
+capability, and has one method, `status({ ref }, { config })`. Avoozl passes
+`ref` (`item`, `done`) and the plugin's `config`; credentials come from the
+variables `config` names with a `...Env` key, or from the plugin's own
+sign-in. The method must not write. Avoozl calls it under a timeout (30
+seconds) and treats a throw, a timeout and a bad shape as `unknown`. Only
+fake plugins ship in this repository.
+
+Example plugins, named by role only. Each is a separate package, outside this
+repository:
+
+| Role                                 | `item` is               | `done` means                                    |
+| ------------------------------------ | ----------------------- | ----------------------------------------------- |
+| A ticket tracker                     | A ticket id or URL      | The ticket is in a resolved state               |
+| A review-shipped check, private code host | A code review id or URL | The review merged and its change is in a live release |
+| A managed remote harness task        | The harness task id     | The task finished and its change is published   |
+
+### D28.4 The tick step
+
+One step, `gateStep`, runs before the release step in the same tick:
+
+1. List gates that are not done or cleared and are due (`next check` passed).
+2. Call `status` for each, a few at a time, and store the result.
+3. On `done`, record the evidence once; the release step then sees the
+   blocker as complete and releases dependents on this pass.
+4. Set the next check from the backoff table (1, 2, 5, 15 minutes, then 30),
+   reset on a change of state.
+5. Apply labels (D28.5) and rows (D28.6).
+
+A read that fails keeps the last state and shows its age, like D20. A gate
+whose `done` was recorded is read once more at most, to write the one Trace
+note if the tracker now differs.
+
+### D28.5 The label
+
+`radar.trackerLabel`, default `avoozl:waiting-on-tracker`, joins the six
+labels of D26, and the clash check there covers it. Placement:
+
+| Issue                                          | Has the label while                           | Loses it when                                                 |
+| ---------------------------------------------- | --------------------------------------------- | ------------------------------------------------------------- |
+| The gate issue                                 | The gate is open, failed or unknown           | Done, cleared, or the gate leaves the plan                    |
+| A dependent whose unmet blockers are all gates | Any of those gates is open, failed or unknown | All its gates are done or cleared, or a non-gate blocker joins its unmet set |
+
+A failed or unknown gate keeps the label: the work is still waiting. The
+dependent's label is for a person who opens that issue and asks why nothing
+happens; it triggers nothing. Removal of the label from the gate issue is the
+clear order (D28.7).
+
+### D28.6 Rows
+
+Needs you gets one row per gate that is `failed`, or `unknown` for two reads
+in a row, keyed by gate and state so a retried tick opens no second row. It
+stays until a person clears the gate, the plan removes it, or the plugin
+reports `done`. Nothing in this step closes, removes or clears a gate.
+
+### D28.7 Clearing
+
+Two routes, one path: remove the label from the gate issue, or use the clear
+command (`avoozl gate clear <task> --reason ...`, the matching MCP call and
+the Clear control). The actor passes the trigger-label check (D2). The clear is
+written as an order with who, how, time, reason and last known state; the
+dependents are released on the next pass, and each brief says the gate was
+cleared by a person. It is never counted as verified completion, and the
+Delivery view says "cleared by <person>". An actor who is not allowed, or
+cannot be read, gets the label put back and one row. Reopening is by plan
+change only; dependents already released are left alone.
+
+### D28.8 UI
+
+| Place          | Shows                                                                                         |
+| -------------- | --------------------------------------------------------------------------------------------- |
+| Release queue  | Gate and held dependents: tracker, state word, last check, next check, evidence, link, Clear  |
+| Trace          | A Tracker step on the gate; a "waits on <gate>" line on a held dependent, same fields         |
+| Waiting on you | Only gates `failed` or `unknown` twice, linked to the gate's row                              |
+| Settings       | The label field in the RC21 box; the plugin in the existing plugin list                       |
+
+### D28.9 Failure modes
+
+| What happens                              | What Avoozl does                                                          |
+| ----------------------------------------- | ------------------------------------------------------------------------- |
+| Plugin not installed or not approved      | `unknown`, evidence says so; one row after two reads; nothing released    |
+| Sign-in expired                           | `unknown`, evidence "sign-in expired"; backoff holds; one row             |
+| Tracker says `failed`                     | One row; label stays; dependents stay held; a person clears or edits plan |
+| Tracker says `done`, then reopens         | Dependents stay released; one Trace note                                  |
+| Person clears, plugin later says `done`   | Evidence added to the record; nothing else changes                        |
+| A stranger removes the label              | Label put back; one row naming the actor                                  |
+| Evidence holds a private name or a token  | Content rules screen it; a hit stores "withheld by content rules"         |
+
+Proof added to D17:
+
+| Proof  | Proves                                                                                                                   |
+| ------ | ------------------------------------------------------------------------------------------------------------------------ |
+| rc-p22 | With a fake plugin, a gate holds dependents, carries the label, releases on `done`, raises one row on `failed`, and a person's clear is an order |

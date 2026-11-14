@@ -2829,6 +2829,7 @@ function Ei(e) {
 		inFlight: p,
 		radarFlight: e.radar?.rows ?? [],
 		radarUnseen: e.radar?.unseen ?? [],
+		radarCrewStrip: e.radar?.crewStrip ?? null,
 		neverRan: e.delivery != null && !e.delivery.some((e) => e.complete || e.sessions.length > 0 || e.evidence.length > 0 || e.deliveries.length > 0 || e.integration),
 		overBudget: (e.delivery ?? []).filter((e) => !e.complete && e.budget?.reached).length,
 		readyNext: h,
@@ -6918,7 +6919,7 @@ var dc = {
 	checks: "Checks",
 	planner: "Planner"
 }, fc = (e) => dc[e.role] ?? (e.role === "worker" ? "Worker" : `Reviewer · ${e.role}`), pc = 2e4;
-function mc({ row: e, now: t, onTrace: n }) {
+function mc({ row: e, now: t, onTrace: n, cost: r }) {
 	return /* @__PURE__ */ C("li", {
 		"data-radar-flight-row": !0,
 		className: "flex flex-wrap items-start gap-2 border-t py-2 first:border-t-0",
@@ -6975,6 +6976,19 @@ function mc({ row: e, now: t, onTrace: n }) {
 							" · ",
 							e.phase ?? "claim label, no claim comment",
 							e.updated ? ` · updated ${qi(e.updated, t)}` : ""
+						]
+					}),
+					r && r.stages.length > 0 && /* @__PURE__ */ C("span", {
+						"data-radar-cost": !0,
+						className: "block text-xs text-muted",
+						children: [
+							"Credits: ",
+							r.stages.map((e) => `${e.stage} ${e.credits.toFixed(1)}`).join(", "),
+							" (total ",
+							r.credits.toFixed(1),
+							", ",
+							r.turns,
+							" turns)"
 						]
 					})
 				]
@@ -7342,6 +7356,7 @@ function vc(e) {
 									children: k.take("radar", D.radarFlight).map((e) => /* @__PURE__ */ S(mc, {
 										row: e,
 										now: A,
+										cost: D.radarCrewStrip?.cost[`${e.repository}#${e.number}`],
 										onTrace: (e) => o({
 											repository: e.repository,
 											number: e.number
@@ -7351,9 +7366,28 @@ function vc(e) {
 								/* @__PURE__ */ S(er, { ...k.more("radar", D.radarFlight.length) }),
 								/* @__PURE__ */ S("p", {
 									className: "mt-1 text-xs text-muted",
-									children: "Issue Radar rows come from GitHub. It does not show if a crew is paused, which machine it is on, or its chat."
+									children: D.radarCrewStrip ? "Issue Radar rows come from GitHub. It does not show which machine a crew is on or its chat." : "Issue Radar rows come from GitHub. It does not show if a crew is paused, which machine it is on, or its chat."
 								})
-							] })
+							] }),
+							D.radarCrewStrip && D.radarCrewStrip.crews.length > 0 && /* @__PURE__ */ C("p", {
+								"data-crews-strip": !0,
+								className: "mt-2 text-xs text-muted",
+								children: [
+									/* @__PURE__ */ S("span", {
+										className: "font-semibold",
+										children: "Crews:"
+									}),
+									" ",
+									D.radarCrewStrip.counts.onDuty,
+									" on duty, ",
+									D.radarCrewStrip.counts.working,
+									" working, ",
+									D.radarCrewStrip.counts.paused,
+									" paused.",
+									" ",
+									D.radarCrewStrip.crews.map((e) => `${e.name} (${e.status ?? "unknown"})`).join(", ")
+								]
+							})
 						]
 					}), /* @__PURE__ */ C(oc, {
 						title: "Progress by epic",

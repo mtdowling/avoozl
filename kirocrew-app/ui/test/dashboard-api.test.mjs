@@ -229,6 +229,10 @@ test('Issue Radar claims from GitHub are listed beside Avoozl chats, with what G
   const summary = summarize({ graph: null, delivery: null, conflicts: [], plans: null, radar })
   assert.deepEqual(summary.radarFlight, [claim])
   assert.deepEqual(summary.radarUnseen, ['paused', 'machine', 'chat'])
+  // Without the grant there is no crew strip; with it the strip passes through.
+  assert.equal(summary.radarCrewStrip, null)
+  const crewStrip = { crews: [{ repository: 'o/r', id: 'c1', name: 'Draco', status: 'working' }], counts: { onDuty: 1, working: 1, paused: 0 }, cost: {} }
+  assert.deepEqual(summarize({ graph: null, delivery: null, conflicts: [], plans: null, radar: { ...radar, crewStrip } }).radarCrewStrip, crewStrip)
   // An older backend, or a failed read, shows none.
   assert.deepEqual(summarize({ graph: null, delivery: null, conflicts: [], plans: null }).radarFlight, [])
 })

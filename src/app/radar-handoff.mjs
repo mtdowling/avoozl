@@ -19,6 +19,8 @@ import {
 
 // Issue Radar's crew list route (crew_routes.py `GET /crews`).
 export const CREWS_ROUTE = "/api/apps/issue-radar/crews";
+// The pipeline route that lists one issue's sessions (pipeline_routes.py).
+export const SESSIONS_ROUTE = "/api/apps/issue-radar/pipeline/item/sessions";
 // GitHub refuses longer label names.
 export const LABEL_MAX = 50;
 export const HANDOFF_MAX = 100;
@@ -48,6 +50,24 @@ export function issueRadarReader(env = process.env, request = fetch) {
   };
 }
 
+// A function that reads one issue's sessions and their credits from Issue
+// Radar's pipeline route, or null without a gateway client.
+export function issueRadarSessionsReader(env = process.env, request = fetch) {
+  const client = gatewayClient(env, request);
+  if (!client) return null;
+  return async (repository, number) => {
+    const [owner, repo] = repository.split("/"),
+      response = await client.call(
+        `${SESSIONS_ROUTE}?number=${encodeURIComponent(number)}&owner=${encodeURIComponent(owner)}&repo=${encodeURIComponent(repo)}`,
+        { method: "GET" },
+      );
+    return {
+      status: response.status,
+      body: await response.json().catch(() => ({})),
+    };
+  };
+}
+
 // Why the crews could not be read, in words for the dialog.
 function unreadable(status, body) {
   const error = String(body?.error || "");
@@ -59,6 +79,8 @@ function unreadable(status, body) {
     return "This repository is not connected in Issue Radar. Connect it there first.";
   return `Issue Radar answered ${status}. Type the label the crew watches.`;
 }
+
+const count = (value) => (Number.isInteger(value) && value >= 0 ? value : 0);
 
 // The crews Issue Radar reports, checked field by field: this is another
 // app's answer, so each crew keeps only well-formed names and labels.
@@ -118,6 +140,11 @@ export async function readCrews(reader, repository) {
     available: true,
     reason: null,
     crews: crewsOf(answer.body),
+    counts: {
+      onDuty: count(answer.body?.counts?.on_duty),
+      working: count(answer.body?.counts?.working),
+      paused: count(answer.body?.counts?.paused),
+    },
     needsHumanLabel:
       text(answer.body?.settings?.needs_human_label, LABEL_MAX) ?? null,
   };

@@ -228,6 +228,7 @@ import {
   reviewDraftsView,
 } from "./review-draft.mjs";
 import { handOff, readCrews } from "./radar-handoff.mjs";
+import { readCrewStrip } from "./radar-crews.mjs";
 import { flowView, readFlowConfig, readFlowPolicy } from "./flow.mjs";
 import { usageView } from "./flow-usage.mjs";
 import {
@@ -885,6 +886,7 @@ export class Operations {
       repositoryBindingGuard = null,
       notifier = null,
       crewReader = null,
+      sessionsReader = null,
       // Stops one Kiro Crew session by slot (session-observer.mjs
       // gatewaySessionStopper); only the app backend has one.
       sessionStopper = null,
@@ -926,6 +928,7 @@ export class Operations {
     // Reads Issue Radar's crews through the gateway (radar-handoff.mjs);
     // only the app backend has one.
     this.crewReader = crewReader;
+    this.sessionsReader = sessionsReader;
     this.sessionStopper = sessionStopper;
     this.reviewOptions = reviewOptions;
     this.placement = placement;
@@ -3403,7 +3406,21 @@ export class Operations {
         await refreshClaims(store, this.github, policy, {
           force: input.refresh === true,
         });
-      return claimsView(store);
+      const view = claimsView(store),
+        strip = await readCrewStrip({
+          crewReader: this.crewReader,
+          sessionsReader: this.sessionsReader,
+          repositories: Object.keys(policy?.repositories || {}),
+          rows: view.rows,
+        });
+      // Behind the grant only: without it the view is the GitHub-only one.
+      return strip
+        ? {
+            ...view,
+            unseen: view.unseen.filter((name) => name !== "paused"),
+            crewStrip: strip,
+          }
+        : view;
     }
     // The Untriaged list (§8.5): cached GitHub items no rule, triage label,
     // or task covers. `refresh` reads GitHub first (Check now); read only.
