@@ -40,6 +40,14 @@ export const SKIP_SCOPES = new Set([
 const MARKER = /<!--\s*kirocrew-crew\s+([^>]*?)-->/g;
 const lower = (value) => String(value).toLocaleLowerCase();
 
+import { parseMarker } from "./github-marker.mjs";
+import {
+  peekInstance,
+  instanceOfVariable,
+  recordSeenInstance,
+} from "./instance.mjs";
+import { writeRepo } from "./mirror-sync.mjs";
+
 // Every marker in one comment body, in order. A marker with no `v` is v=1.
 export function parseMarkers(body) {
   const found = [];
@@ -82,6 +90,7 @@ function claimComments(comments) {
       parseMarkers(comment.body).map((marker) => ({
         marker,
         commentId: comment.id,
+        createdAt: comment.created_at ?? null,
         url: comment.html_url ?? comment.url ?? null,
         body: String(comment.body || ""),
       })),
@@ -158,12 +167,32 @@ export async function readClaims(github, repository, settings, now) {
         ? `https://github.com/${repository}/pull/${marker.pr}`
         : null,
       updated: marker?.updated ?? null,
+      // The Avoozl that released the issue (its marker's `instance`), the
+      // claim comment's time, and the issue's own last update.
+      instanceId: parseMarker(issue.body)?.instance ?? null,
+      claimedAt: claim?.createdAt ?? null,
+      issueUpdatedAt: issue.updated_at ?? null,
       commentUrl: claim?.url ?? null,
       stale: marker ? isStale(marker, now) : true,
       noMarker: !marker,
     });
   }
   return rows;
+}
+
+// id -> name from the Avoozl variables a repository holds. A repository that
+// cannot be read (no access, no Actions) just names nobody.
+async function readInstanceNames(github, repository) {
+  const names = {};
+  try {
+    for (const variable of await github.listRepoVariables(repository)) {
+      const id = instanceOfVariable(variable.name);
+      if (id) names[id] = String(variable.value ?? "");
+    }
+  } catch {
+    // Names are a courtesy; the ID still groups the rows.
+  }
+  return names;
 }
 
 export const RADAR_INTERVAL_MS = 2 * 60 * 1000;
@@ -181,7 +210,8 @@ export async function refreshClaims(
   if (!policy?.mode || !github) return old;
   if (!force && old.readAt && now - Date.parse(old.readAt) < RADAR_INTERVAL_MS)
     return old;
-  const next = { readAt: new Date(now).toISOString(), repositories: {} };
+  const next = { readAt: new Date(now).toISOString(), repositories: {} },
+    names = {};
   for (const [repository, settings] of Object.entries(
     policy.repositories || {},
   )) {
@@ -190,6 +220,10 @@ export async function refreshClaims(
         rows: await readClaims(github, repository, settings, now),
         error: null,
       };
+      Object.assign(
+        names,
+        await readInstanceNames(github, writeRepo(settings, repository)),
+      );
     } catch (error) {
       next.repositories[repository] = {
         rows: old.repositories?.[repository]?.rows ?? [],
@@ -197,6 +231,9 @@ export async function refreshClaims(
       };
     }
   }
+  next.names = { ...old.names, ...names };
+  for (const entry of Object.values(next.repositories))
+    for (const row of entry.rows) recordSeenInstance(store, row.instanceId);
   store.setMeta(META, next);
   return next;
 }
@@ -210,6 +247,7 @@ export function claimsView(store, now = Date.now()) {
       .sort((a, b) => String(b.updated).localeCompare(String(a.updated)));
   return {
     readAt: cache.readAt,
+    groups: groupByInstance(store, rows, cache.names ?? {}),
     stale: rows.filter((row) => row.stale).length,
     rows,
     errors: Object.entries(cache.repositories)
@@ -220,4 +258,36 @@ export function claimsView(store, now = Date.now()) {
     interval: RADAR_INTERVAL_MS,
     now,
   };
+}
+
+// Live claims grouped by the Avoozl that released them. This Avoozl shows its
+// own name; another shows the name from the mirror's variable, else its ID.
+// Claims on an issue with no `instance` in its marker go last, under "No Avoozl".
+function groupByInstance(store, rows, names) {
+  // Read only: a planning tick shows claims and must not write an identity.
+  const own = peekInstance(store) ?? { id: null, name: null },
+    byId = new Map();
+  for (const row of rows) {
+    const id = row.instanceId ?? null;
+    if (!byId.has(id)) byId.set(id, []);
+    byId.get(id).push(row);
+  }
+  return [...byId]
+    .map(([id, group]) => ({
+      instanceId: id,
+      name:
+        id === null
+          ? "No Avoozl"
+          : id === own.id
+            ? own.name
+            : (names[id] ?? id),
+      own: id !== null && id === own.id,
+      rows: group,
+    }))
+    .sort(
+      (a, b) =>
+        (a.instanceId === null) - (b.instanceId === null) ||
+        Number(b.own) - Number(a.own) ||
+        a.name.localeCompare(b.name),
+    );
 }

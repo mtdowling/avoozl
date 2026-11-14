@@ -275,3 +275,13 @@ test('the rail carries no paused, machine or chat step', () => {
   const names = railFor({ noMarker: false, phase: 'claimed', pr: null }).map((step) => step.label.toLowerCase())
   for (const hidden of ['paused', 'machine', 'chat']) assert.ok(!names.includes(hidden))
 })
+
+test('In flight passes the claims grouped by Avoozl, and an older backend shows none', () => {
+  const groups = [
+    { instanceId: 'inst-00000000a001', name: 'Mira', own: false, rows: [] },
+    { instanceId: null, name: 'No Avoozl', own: false, rows: [] },
+  ]
+  const radar = { readAt: null, stale: 0, rows: [], groups, errors: [], unseen: [] }
+  assert.deepEqual(summarize({ graph: null, delivery: null, conflicts: [], plans: null, radar }).radarGroups, groups)
+  assert.deepEqual(summarize({ graph: null, delivery: null, conflicts: [], plans: null }).radarGroups, [])
+})

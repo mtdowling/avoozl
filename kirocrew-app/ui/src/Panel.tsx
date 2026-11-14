@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Btn } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
+import Logo from './Logo.tsx'
 import { ConfirmProvider } from './controls.tsx'
 import { railFor } from './dashboard-api.ts'
 import { flowClient, type FlowViewModel } from './flow-api.ts'
@@ -440,9 +441,18 @@ export default function AvoozlPanel() {
       </Btn>
     </section>
   )
+  // A real button with the Avoozl mark, in the app's button style and theme
+  // colors, so it never reads as a bare text link in the host's side panel.
   const toPage = (
-    <Btn type="button" onClick={() => navigate(AVOOZL_PAGE)}>
-      Open the Avoozl page
+    <Btn
+      type="button"
+      aria-label="Open Avoozl"
+      data-open-avoozl
+      onClick={() => navigate(AVOOZL_PAGE)}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 8, alignSelf: 'flex-start', padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-elevated, var(--card))', color: 'var(--text)', fontWeight: 600, cursor: 'pointer' }}
+    >
+      <Logo size={18} />
+      Open Avoozl
     </Btn>
   )
 
