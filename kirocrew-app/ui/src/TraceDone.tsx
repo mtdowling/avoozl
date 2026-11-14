@@ -81,7 +81,7 @@ export default function TraceDone(props: { workspaceId: string | null; onPick?: 
             <p className="m-0 text-sm text-muted">Merged work shows here once a crew's pull request for an approved spec lands. Approve a spec and let a crew build it.</p>
             {props.onOpenEpics && (
               <Btn type="button" onClick={props.onOpenEpics}>
-                Open Epics
+                Open Specs
               </Btn>
             )}
           </div>

@@ -243,9 +243,36 @@ export interface DriverView {
   link: string | null
   start: boolean
   note: string
+  // The workspace the line is about, by name.
+  workspace: string | null
+  // When this workspace has no running driver and another one does:
+  // "No driver for A. B has one:" and that driver's link.
+  elsewhere: { text: string; href: string; slot: string; workspace: string } | null
 }
 
 export function driverView(read: DriverRead | null | undefined): DriverView {
   const state = read?.state ?? 'none'
-  return { state, link: read?.href ?? null, start: state === 'none' || state === 'idle', note: driverLine(state) }
+  const workspace = read?.workspace ?? null
+  const other = state === 'none' || state === 'idle' ? read?.others?.[0] : undefined
+  return {
+    state,
+    link: read?.href ?? null,
+    start: state === 'none' || state === 'idle',
+    note: driverLine(state),
+    workspace,
+    elsewhere: other ? { text: `No driver for ${workspace ?? 'this workspace'}. ${other.workspace} has one:`, href: other.href, slot: other.slot, workspace: other.workspace } : null,
+  }
+}
+
+// The workspace a chat drives, from a driver read's `others`: the root of the
+// workspace whose running driver is this chat, or null.
+export function drivenRoot(read: DriverRead | null | undefined, chat: string): string | null {
+  return (chat && read?.others?.find((other) => other.slot === chat)?.root) || null
+}
+
+// Two workspace roots name the same folder (separators and a trailing slash
+// aside).
+export const sameRoot = (left: string, right: string) => {
+  const plain = (value: string) => value.replace(/\\/g, '/').replace(/\/+$/, '')
+  return plain(left) === plain(right)
 }
