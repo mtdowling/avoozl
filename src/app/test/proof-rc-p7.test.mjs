@@ -236,15 +236,18 @@ test("Set up end to end: pack preview and import, Radar steps by confirm, owner 
           id: "c1",
           name: item(empty, "crew-name").value,
           labels: [item(empty, "scope").value],
+          agent: item(empty, "agent").value,
+          model: item(empty, "model").value,
+          extra_prompt: item(empty, "prompt").value,
         },
       ],
     },
   };
+  radar.body.settings.claim_ttl_hours = Number(
+    item(empty, "claim-limit").value,
+  );
   const ticked = await ops.execute("radar.values", { repository: REPO });
-  for (const id of ["repository", "crew-name", "scope", "needs-human"])
-    assert.equal(item(ticked, id).status, "ok", id);
-  // What Radar's crew read does not return stays unverified, never guessed.
-  for (const id of ["agent", "model", "claim-limit", "prompt"])
-    assert.equal(item(ticked, id).status, "cannot-verify", id);
-  assert.ok(ticked.items.every((i) => i.status !== "differs"));
+  // All eight tick when Radar's read returns them (RC7.3).
+  assert.equal(ticked.items.length, 8);
+  assert.ok(ticked.items.every((i) => i.status === "ok"));
 });
