@@ -68,6 +68,10 @@ export const PERSON_ONLY = new Map([
     "mirror.forward",
     person("Only a person forwards a change to the public repository."),
   ],
+  [
+    "mirror.forward.review",
+    person("Only a person reviews a change before it is forwarded."),
+  ],
   ["radar.signoff", person("Only a person signs off a public repository.")],
   ["radar.retro.apply", person("Only a person applies a retro rule.")],
   ["github.setup.cancel", person("Only a person cancels a GitHub setup.")],

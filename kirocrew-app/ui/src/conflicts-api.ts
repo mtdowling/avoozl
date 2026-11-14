@@ -97,6 +97,8 @@ export function noActionReason(item: ConflictItem): string | null {
   // so do findings and Ready to merge (ConflictsView.tsx).
   if (item.kind === 'budget' || item.kind === 'over-budget') return null
   if (item.kind === 'investigation' || item.kind === 'ready-to-merge' || item.kind === 'routing-failed' || item.kind === 'branch-landing') return null
+  // A forward row carries its own button (ConflictsView.tsx ForwardButton).
+  if (item.kind === 'needs-human' && item.reason === 'forward') return null
   if (item.kind === 'needs-human' && item.reason === 'hand-set-review')
     return 'Discuss it, mark it done, or move it back to planned from the task.'
   // Review drafts (RC20): the person acts on GitHub; the row clears itself.
