@@ -17016,6 +17016,7 @@ function dm(e) {
 	};
 }
 function fm(e) {
+	if (e.stopped) return `Forwarding is stopped: ${e.stopped}`;
 	if (e.changed) return "The change differs from what you reviewed. Review the new one below.";
 	if (e.blocked) return e.reason ?? "The checks blocked this change. Nothing was pushed.";
 	let t = e.record?.publicPr;
@@ -17023,13 +17024,13 @@ function fm(e) {
 }
 // kirocrew-app/ui/src/ForwardScreen.tsx
 function pm(e) {
-	let { workspaceId: t, forwardId: n } = e, r = dm(K()), [i, a] = d(null), [s, c] = d(null), [l, u] = d(!0), [f, p] = d(!1), m = (e) => {
-		p(e.blocked === !0), a(e.review ?? null), c(e.blocked || e.changed || !e.ok ? fm(e) : null);
-	}, h = async (e, t) => {
+	let { workspaceId: t, forwardId: n } = e, r = dm(K()), [i, a] = d(null), [s, c] = d(null), [l, u] = d(!0), [f, p] = d(!1), [m, h] = d(null), _ = (e) => {
+		p(e.blocked === !0), h(e.stopped ?? null), a(e.review ?? null), c(e.stopped || e.blocked || e.changed || !e.ok ? fm(e) : null);
+	}, v = async (e, t) => {
 		u(!0);
 		try {
 			let n = await e();
-			t && n.ok && !n.changed ? t(n) : m(n);
+			t && n.ok && !n.changed ? t(n) : _(n);
 		} catch (e) {
 			c(G(e));
 		} finally {
@@ -17037,7 +17038,7 @@ function pm(e) {
 		}
 	};
 	return o(() => {
-		h(() => r.review(t, n));
+		v(() => r.review(t, n));
 	}, [t, n]), /* @__PURE__ */ C(Jn, {
 		id: "forward-screen",
 		title: e.title,
@@ -17049,9 +17050,9 @@ function pm(e) {
 			children: "Close"
 		}), /* @__PURE__ */ C(g, {
 			primary: !0,
-			disabled: l || f || !i,
+			disabled: l || f || !i || m !== null,
 			"data-forward-push": !0,
-			onClick: () => void h(() => r.push(t, n, i.hash), (t) => {
+			onClick: () => void v(() => r.push(t, n, i.hash), (t) => {
 				c(fm(t)), e.onClose(!0);
 			}),
 			children: "Forward"

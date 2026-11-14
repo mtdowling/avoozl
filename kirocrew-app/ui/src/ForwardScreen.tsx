@@ -15,11 +15,13 @@ export function ForwardScreen(props: { workspaceId: string; forwardId: string; t
   const [note, setNote] = useState<string | null>(null)
   const [busy, setBusy] = useState(true)
   const [blocked, setBlocked] = useState(false)
+  const [stopped, setStopped] = useState<string | null>(null)
 
   const show = (answer: ForwardAnswer) => {
     setBlocked(answer.blocked === true)
+    setStopped(answer.stopped ?? null)
     setReview(answer.review ?? null)
-    setNote(answer.blocked || answer.changed || !answer.ok ? forwardOutcome(answer) : null)
+    setNote(answer.stopped || answer.blocked || answer.changed || !answer.ok ? forwardOutcome(answer) : null)
   }
   const settle = async (step: () => Promise<ForwardAnswer>, done?: (answer: ForwardAnswer) => void) => {
     setBusy(true)
@@ -50,7 +52,7 @@ export function ForwardScreen(props: { workspaceId: string; forwardId: string; t
           <Btn onClick={() => props.onClose(false)}>Close</Btn>
           <Btn
             primary
-            disabled={busy || blocked || !review}
+            disabled={busy || blocked || !review || stopped !== null}
             data-forward-push
             onClick={() =>
               void settle(
