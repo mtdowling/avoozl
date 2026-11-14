@@ -5,11 +5,12 @@
 // caught says it was redacted.
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useAppApi } from './host.ts'
-import { EmptyState } from '@kirocrew/app-sdk/ui'
+import { Card, EmptyState } from '@kirocrew/app-sdk/ui'
+import { Section } from './SettingsView.tsx'
 import Badge from './Badge.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import { FilterPanel, useStoredFilter } from './FilterPanel.tsx'
-import { IconLabel, SectionHeading, ShowMore, TipBtn, ViewHeading } from './controls.tsx'
+import { IconLabel, ShowMore, TipBtn, ViewHeading } from './controls.tsx'
 import { selectStyle } from './FilterSelect.tsx'
 import { useTaskDrawer } from './drawer-context.ts'
 import { useMedia } from './use-media.ts'
@@ -166,8 +167,9 @@ function KeepActivity({ workspaceId, onSaved }: { workspaceId: string; onSaved: 
     }
   }
   return (
-    <div className="flex flex-col gap-2" data-activity-keep>
-      <SectionHeading title="Keep activity" blurb="Saved to .avoozl.json. Each tick deletes rows older than this." />
+    <Card className="mt-4">
+    <Section level="card" title="Keep activity" blurb="Saved to .avoozl.json. Each tick deletes rows older than this.">
+      <div className="flex flex-col gap-2" data-activity-keep>
       <div className="flex flex-wrap items-end gap-2">
         <label htmlFor="avoozl-activity-keep" className="flex flex-col gap-1 text-sm">
           <span>Days (optional)</span>
@@ -199,7 +201,9 @@ function KeepActivity({ workspaceId, onSaved }: { workspaceId: string; onSaved: 
           {note.text}
         </p>
       )}
-    </div>
+      </div>
+    </Section>
+    </Card>
   )
 }
 

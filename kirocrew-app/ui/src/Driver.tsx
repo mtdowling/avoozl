@@ -62,24 +62,6 @@ export function DriverChip(props: { spec: DriverSpec | null }) {
   )
 }
 
-// The App header: how many specs read only on this machine.
-export function DriverSummary(props: { workspaceId: string | null }) {
-  const { status } = useDriver(props.workspaceId, null)
-  if (!status?.enabled || !status.specs.length) return null
-  const readOnly = status.readOnly ?? 0
-  const text = readOnly ? `${readOnly} of ${status.specs.length} specs read only here` : 'Driver: you'
-  return (
-    <Tooltip text={readOnly ? 'Another machine or person drives these specs. Open one in Specs to see why.' : 'This machine drives every approved spec.'}>
-      {(describedBy) => (
-        <span data-driver-summary aria-describedby={describedBy} className="inline-flex items-center gap-1.5 text-sm">
-          <Laptop size={14} aria-hidden="true" style={{ color: 'var(--muted)' }} />
-          <Badge variant={readOnly ? 'warning' : 'success'}>{text}</Badge>
-        </span>
-      )}
-    </Tooltip>
-  )
-}
-
 // A read-only spec's banner: why, with Take over or Force take over.
 export function DriverBanner(props: { workspaceId: string; spec: DriverSpec | null; onChanged: () => void }) {
   const { spec } = props

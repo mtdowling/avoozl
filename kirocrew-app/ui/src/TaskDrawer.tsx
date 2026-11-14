@@ -37,7 +37,7 @@ import { LinksAndNotes, ManualTask } from './TaskNotes.tsx'
 const SECTIONS = [
   { key: 'summary', label: 'Summary' },
   { key: 'description', label: 'Description' },
-  { key: 'links', label: 'Links' },
+  { key: 'links', label: 'Edges' },
   { key: 'notes', label: 'Links and notes' },
   { key: 'delivery', label: 'Delivery' },
   { key: 'files', label: 'Files' },
@@ -490,7 +490,7 @@ function TaskPanel(props: {
             )}
           </div>
         </Fold>
-        <Fold id="links" group="task-drawer" title="Links">
+        <Fold id="links" group="task-drawer" title="Edges">
           <div className="flex flex-col gap-3">
             <Links title="Waits on" links={detail.waitsOn} open={props.open} />
             <Links title="Blocks" links={detail.blocks} open={props.open} />

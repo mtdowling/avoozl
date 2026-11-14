@@ -52,9 +52,13 @@ test('switch records say what happened', () => {
 test('Switch model and Stop the line sit once each in the top row; providers show in Settings › Routing', () => {
   const app = source('App.tsx'),
     dashboard = source('DashboardView.tsx')
-  const row = app.slice(app.indexOf('data-top-row'), app.indexOf('</div>', app.indexOf('data-top-actions')))
-  assert.ok(row.indexOf('<SegmentedControl') < row.indexOf('<SwitchModelButton'), 'after the tabs')
-  assert.ok(row.indexOf('<SwitchModelButton') < row.indexOf('<StopLineButton'), 'Stop the line goes last')
+  // Both buttons live in the header, after Plan a goal; the tab row holds only tabs.
+  const header = app.slice(app.indexOf('<PageHeader'), app.indexOf('data-top-row'))
+  const tabRow = app.slice(app.indexOf('data-top-row'), app.indexOf('<DemoBar />'))
+  assert.ok(header.indexOf('Plan a goal') < header.indexOf('<SwitchModelButton'), 'after Plan a goal')
+  assert.ok(header.indexOf('<SwitchModelButton') < header.indexOf('<StopLineButton'), 'Stop the line goes last')
+  assert.doesNotMatch(tabRow, /<SwitchModelButton|<StopLineButton|data-top-actions/, 'not in the tab row')
+  assert.doesNotMatch(header, /<StartDemoButton|<DriverSummary/, 'no demo button or driver badge in the header')
   for (const file of ['DashboardView.tsx', 'FlowView.tsx', 'DeliveryView.tsx', 'SettingsView.tsx'])
     assert.doesNotMatch(source(file), /<SwitchModelButton|<StopLineButton/, `${file} has its own copy`)
   assert.equal(app.match(/<SwitchModelButton/g).length, 1)

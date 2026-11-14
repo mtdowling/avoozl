@@ -71,7 +71,8 @@ test('the pieces are wired: header, spec page, Hand off, dialogs and Settings', 
     plans = source('PlansView.tsx'),
     settings = source('SettingsView.tsx'),
     driver = source('Driver.tsx')
-  assert.match(app, /<DriverSummary workspaceId=\{active\} \/>/)
+  // The header never shows the read-only count; the spec page does.
+  assert.doesNotMatch(app, /DriverSummary/)
   assert.match(plans, /<DriverChip spec=\{driver\.spec\} \/>/)
   assert.match(plans, /<DriverBanner workspaceId=\{workspace\} spec=\{driver\.spec\}/)
   assert.match(plans, /<HandOffButton workspaceId=\{props\.workspaceId\}/)

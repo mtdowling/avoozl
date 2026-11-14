@@ -33,12 +33,14 @@ test('the drawer closes on Escape, its button and the backdrop, and returns focu
 
 test('the drawer shows every section, and a linked task opens in it', () => {
   const drawer = source('TaskDrawer.tsx')
-  for (const label of ['Summary', 'Description', 'Links', 'Delivery', 'Conflicts', 'Timeline'])
+  for (const label of ['Summary', 'Description', 'Edges', 'Delivery', 'Conflicts', 'Timeline'])
     assert.match(drawer, new RegExp(`label: '${label}'`))
   // Sections are an accordion of native <details> (the host ships none),
   // Summary open by default; Edit is a button that opens the form.
   assert.match(drawer, /<Fold id="summary" group="task-drawer" title="Summary" open=\{detail\.conflicts\.length === 0\}>/)
   for (const id of ['description', 'links', 'delivery', 'conflicts', 'timeline']) assert.match(drawer, new RegExp(`<Fold id="${id}" group="task-drawer"`))
+  // The fold keeps id links; only its title is Edges.
+  assert.match(drawer, /<Fold id="links" group="task-drawer" title="Edges">/)
   assert.doesNotMatch(drawer, /SegmentedControl/)
   assert.match(source('controls.tsx'), /<details\b/)
   assert.match(drawer, /setEditing\(!editing\)/)

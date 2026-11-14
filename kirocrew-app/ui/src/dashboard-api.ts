@@ -101,6 +101,11 @@ function deliveryTrouble(item: DeliveryItem): string | null {
   return null
 }
 
+// True when no task in this workspace has ever had a session or finished.
+export function neverRan(delivery: DeliveryItem[] | null): boolean {
+  return !(delivery ?? []).some((item) => item.complete || item.sessions.length > 0)
+}
+
 export function summarize(input: {
   graph: Graph | null
   delivery: DeliveryItem[] | null

@@ -3,8 +3,9 @@ import { SpendChip } from './Budget.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import { useAppApi } from './host.ts'
 import { Btn, Card, EmptyState } from '@kirocrew/app-sdk/ui'
+import { StartDemoButton } from './Demo.tsx'
 import Badge from './Badge.tsx'
-import { SMALL, attentionTarget, attentionTip, countsLayout, countsStyles, summarize, type Attention, type CountsLayout, type InFlight } from './dashboard-api.ts'
+import { SMALL, attentionTarget, attentionTip, countsLayout, countsStyles, neverRan, summarize, type Attention, type CountsLayout, type InFlight } from './dashboard-api.ts'
 import { attachHref, duration, relativeTime, sessionHref } from './task-api.ts'
 import { routingClient } from './routing-api.ts'
 import { useTaskDrawer } from './drawer-context.ts'
@@ -53,7 +54,7 @@ function Pair({ height, children }: { height: string; children: ReactNode }) {
   )
 }
 
-function Section({ title, children, empty, actions }: { title: string; children: ReactNode; empty?: string | false; actions?: ReactNode }) {
+function Section({ title, children, empty, actions }: { title: string; children: ReactNode; empty?: ReactNode; actions?: ReactNode }) {
   return (
     <Card className="flex h-full min-h-0 flex-col">
       <SectionHeading title={title} className="mb-2" actions={actions} />
@@ -295,6 +296,7 @@ export default function DashboardView(props: {
         summary: summarize({ graph: value(graph), delivery: value(delivery), conflicts: items, plans: value(stored), limit: Infinity }),
         conflicts: items ?? [],
         total: value(graph)?.total ?? 0,
+        neverRan: neverRan(value(delivery)),
         failed,
       }
     },
@@ -330,6 +332,19 @@ export default function DashboardView(props: {
       : (value?.conflicts ?? []).filter((c) => c.taskId === item.taskId && (item.kind === 'delivery' || c.kind === item.kind))
     void chat.ask(matching.length ? { items: matching.map(itemRefOf) } : { tasks: item.taskId ? [item.taskId] : [] })
   }
+
+  // Start demo shows only while nothing is in flight and no task has ever run here.
+  const noAgent = (
+    <>
+      No agent is working right now.
+      {value?.neverRan && (
+        <>
+          {' '}
+          <StartDemoButton />
+        </>
+      )}
+    </>
+  )
 
   return (
     <section aria-labelledby="avoozl-dashboard-title" className="flex flex-col gap-3.5">
@@ -384,14 +399,19 @@ export default function DashboardView(props: {
           icon={<Logo size={40} />}
           title="No tasks yet"
           subtitle="Plan a goal from the header, then approve its spec in Specs. Ready tasks start on their own."
-          action={<Btn onClick={() => onNavigate('plans')}>Open Specs</Btn>}
+          action={
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <Btn onClick={() => onNavigate('plans')}>Open Specs</Btn>
+              {value.neverRan && <StartDemoButton />}
+            </div>
+          }
         />
       ) : summary ? (
         <>
           <Pair height={ROW_HEIGHT.flight}>
             <Section
               title={`In flight (${summary.inFlight.length})`}
-              empty={summary.inFlight.length === 0 && 'No agent is working right now.'}
+              empty={summary.inFlight.length === 0 && noAgent}
             >
               <ul className="mt-1">
                 {pages.take('flight', summary.inFlight).map((row) => (

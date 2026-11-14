@@ -51,7 +51,7 @@ test('the tab: its own nav entry and icon, the shared heading, filter panel and 
   assert.match(app, /tab === 'activity' \? \(\s*<ActivityView workspaceId=\{active\} \/>/)
   assert.match(source('icons.ts'), /activity: History,/)
   assert.match(view, /<ViewHeading\s+id="avoozl-activity-title"\s+view="activity"[\s\S]*?actions=\{/)
-  assert.match(view, /<SectionHeading title="Keep activity"/)
+  assert.match(view, /<Section level="card" title="Keep activity"/)
   assert.match(view, /<FilterPanel\s+id="avoozl-activity"/)
   for (const key of ['source', 'kind', 'actor']) assert.match(view, new RegExp(`key: '${key}'`), key)
   assert.match(view, /<ShowMore left=\{page\.total - rows\.length\}/)
@@ -61,4 +61,11 @@ test('the tab: its own nav entry and icon, the shared heading, filter panel and 
   assert.doesNotMatch(view, /rel="noreferrer"/)
   assert.match(view, /drawer\.openTask\(target\.id\)/)
   assert.match(source('activity-api.ts'), /'activity\.list', \{ \.\.\.filter, offset \}/)
+})
+
+test('Keep activity sits in its own shared Section card after the table and pager', () => {
+  const view = source('ActivityView.tsx')
+  assert.match(view, /import \{ Section \} from '\.\/SettingsView\.tsx'/)
+  assert.match(view, /<Card className="mt-4">\s*<Section level="card" title="Keep activity"/)
+  assert.ok(view.indexOf('<Table rows') < view.indexOf('<ShowMore left') && view.indexOf('<ShowMore left') < view.indexOf('<KeepActivity'))
 })

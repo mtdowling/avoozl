@@ -12,7 +12,6 @@ import FlowView from './FlowView.tsx'
 import ActivityView from './ActivityView.tsx'
 import { SwitchModelButton } from './SwitchModel.tsx'
 import { StopLineButton } from './StopLine.tsx'
-import { DriverSummary } from './Driver.tsx'
 import { untriagedClient } from './untriaged-api.ts'
 import { specSeed } from './ideas-api.ts'
 import type { NewPlanForm } from './new-plan-api.ts'
@@ -239,8 +238,6 @@ function AvoozlPage() {
         actions={
           <div className="flex flex-wrap items-center gap-3">
             {demo.active ? <DemoBadge /> : <WorkspacePicker list={list} value={workspaceId} onChange={setWorkspaceId} />}
-            <DriverSummary workspaceId={active} />
-            <StartDemoButton />
             <Btn
               type="button"
               primary
@@ -252,11 +249,19 @@ function AvoozlPage() {
             >
               Plan a goal
             </Btn>
+            {active && (
+              <div className="flex flex-wrap items-center gap-2" data-top-actions>
+                {/* Move running chats to another model (§4.20, R72.12). */}
+                <SwitchModelButton workspaceId={active} />
+                {/* Pull the Andon cord (R64), last and red. */}
+                <StopLineButton workspaceId={active} />
+              </div>
+            )}
           </div>
         }
       />
-      {/* The top row on every tab: the tabs, then Switch model and Stop the
-          line (last, red). It wraps on a narrow page; nothing scrolls sideways. */}
+      {/* The top row on every tab: the tabs only. The header holds the actions.
+          It wraps on a narrow page; nothing scrolls sideways. */}
       <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 px-6 pb-3" data-top-row>
         <SegmentedControl
           layoutId="avoozl-views"
@@ -280,14 +285,6 @@ function AvoozlPage() {
           onChange={(key) => chooseTab(key as Tab)}
           wrap
         />
-        {active && (
-          <div className="flex flex-wrap items-center gap-2" data-top-actions>
-            {/* Move running chats to another model (§4.20, R72.12). */}
-            <SwitchModelButton workspaceId={active} />
-            {/* Pull the Andon cord (R64). */}
-            <StopLineButton workspaceId={active} />
-          </div>
-        )}
       </div>
       <DemoBar />
       {error && (

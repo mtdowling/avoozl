@@ -53,7 +53,7 @@ for (const [width, height] of [
   [1280, 800],
 ])
   for (const dark of [false, true])
-    test(`the top row at ${width} px ${dark ? 'dark' : 'light'}: tabs, Switch model, then a red Stop the line; no sideways scroll`, { skip }, async () => {
+    test(`the header actions at ${width} px ${dark ? 'dark' : 'light'}: Switch model, then a red Stop the line, tabs alone below; no sideways scroll`, { skip }, async () => {
       for (const stopped of [false, true]) {
         await page.open(harness.url({ app: '1', theme: dark ? 'dark' : 'light', ...(stopped ? { stopped: '1' } : {}) }), { width, height, dark })
         await page.until(`Boolean(document.querySelector('[data-top-actions] [data-stop-line]'))`)
@@ -64,7 +64,7 @@ for (const [width, height] of [
           const buttons = [...actions.querySelectorAll('button')].map((b) => b.textContent.trim())
           const box = (el) => el.getBoundingClientRect()
           const pane = document.querySelector('[data-host-pane]')
-          const inside = [...document.querySelectorAll('[data-top-row] button')].every((b) => box(b).right <= innerWidth + 0.5 && box(b).left >= -0.5)
+          const inside = [...document.querySelectorAll('[data-top-actions] button, [data-top-row] button')].every((b) => box(b).right <= innerWidth + 0.5 && box(b).left >= -0.5)
           const stop = actions.querySelector('[data-stop-line]')
           return {
             buttons,
