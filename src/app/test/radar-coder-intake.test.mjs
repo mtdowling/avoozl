@@ -106,7 +106,7 @@ function fakeGitHub(issues, { events = {}, permissions = {} } = {}) {
   };
 }
 
-const labeled = (login, label = "to plan") => [
+const labeled = (login, label = "avoozl:plan") => [
   { event: "labeled", label: { name: label }, actor: { login } },
 ];
 const PERMISSIONS = { owner: "admin", stranger: "read" };
@@ -167,7 +167,7 @@ function workspace(t, github, extra = {}) {
 
 test("no list call for plain open issues is made for a Radar-coded repository", async (t) => {
   const github = fakeGitHub(
-    [issue(1), issue(2), issue(3, { labels: ["to plan"] })],
+    [issue(1), issue(2), issue(3, { labels: ["avoozl:plan"] })],
     { events: { 3: labeled("owner") }, permissions: PERMISSIONS },
   );
   const { intake } = workspace(t, github);
@@ -176,7 +176,7 @@ test("no list call for plain open issues is made for a Radar-coded repository", 
   // plain open issues.
   assert.ok(github.calls.queries.length >= 1);
   for (const query of github.calls.queries)
-    assert.match(query, /label:"to plan"|is:pr/);
+    assert.match(query, /label:"?avoozl:plan"?|is:pr/);
   assert.equal(github.calls.listIssues, 0);
   assert.deepEqual(result.intake, [3]);
   assert.deepEqual(result.withRadar, []);
@@ -208,9 +208,9 @@ test("the Radar query lists the planning, needs-human and claim labels", () => {
 test("a planning label from an allowed person goes to Intake; a stranger's does nothing", async (t) => {
   const github = fakeGitHub(
     [
-      issue(1, { labels: ["to plan"] }),
-      issue(2, { labels: ["to plan"] }),
-      issue(3, { labels: ["to plan"] }),
+      issue(1, { labels: ["avoozl:plan"] }),
+      issue(2, { labels: ["avoozl:plan"] }),
+      issue(3, { labels: ["avoozl:plan"] }),
     ],
     {
       events: {
@@ -231,7 +231,7 @@ test("a planning label from an allowed person goes to Intake; a stranger's does 
 
 test("the last labeler counts, and an unreadable history plans nothing", async (t) => {
   const github = fakeGitHub(
-    [issue(1, { labels: ["to plan"] }), issue(2, { labels: ["to plan"] })],
+    [issue(1, { labels: ["avoozl:plan"] }), issue(2, { labels: ["avoozl:plan"] })],
     {
       events: {
         1: [...labeled("owner"), ...labeled("stranger")],
@@ -245,7 +245,7 @@ test("the last labeler counts, and an unreadable history plans nothing", async (
 });
 
 test("allowedActors admits a named person without a permission read", async (t) => {
-  const github = fakeGitHub([issue(1, { labels: ["to plan"] })], {
+  const github = fakeGitHub([issue(1, { labels: ["avoozl:plan"] })], {
     events: { 1: labeled("friend") },
     permissions: PERMISSIONS,
   });
@@ -258,7 +258,7 @@ test("allowedActors admits a named person without a permission read", async (t) 
 
 test("the planning label name is the repository's own", async (t) => {
   const github = fakeGitHub(
-    [issue(1, { labels: ["plan-it"] }), issue(2, { labels: ["to plan"] })],
+    [issue(1, { labels: ["plan-it"] }), issue(2, { labels: ["avoozl:plan"] })],
     {
       events: { 1: labeled("owner", "plan-it"), 2: labeled("owner") },
       permissions: PERMISSIONS,
@@ -273,7 +273,7 @@ test("pull requests are still read for Code review, but never planned", async (t
     [
       issue(1),
       issue(2, { pull: true }),
-      issue(3, { labels: ["to plan"], pull: true }),
+      issue(3, { labels: ["avoozl:plan"], pull: true }),
     ],
     { events: { 3: labeled("owner") }, permissions: PERMISSIONS },
   );
@@ -284,7 +284,7 @@ test("pull requests are still read for Code review, but never planned", async (t
 
 test("a crew's claim keeps the issue under With Issue Radar, not Intake", async (t) => {
   const github = fakeGitHub(
-    [issue(1, { labels: ["to plan", "crew: in progress"] })],
+    [issue(1, { labels: ["avoozl:plan", "crew: in progress"] })],
     { events: { 1: labeled("owner") }, permissions: PERMISSIONS },
   );
   const result = await workspace(t, github).intake();
@@ -303,7 +303,7 @@ test("the plan-me hand-off still routes by scope (PR 67)", async (t) => {
 });
 
 test("Plan this starts a planner chat and records the issue as the source", async (t) => {
-  const github = fakeGitHub([issue(7, { labels: ["to plan"] }), issue(8)], {
+  const github = fakeGitHub([issue(7, { labels: ["avoozl:plan"] }), issue(8)], {
     events: { 7: labeled("owner") },
     permissions: PERMISSIONS,
   });
@@ -337,7 +337,7 @@ test("Plan this starts a planner chat and records the issue as the source", asyn
 });
 
 test("Plan this is a person's: an agent or MCP caller is refused", async (t) => {
-  const github = fakeGitHub([issue(7, { labels: ["to plan"] })], {
+  const github = fakeGitHub([issue(7, { labels: ["avoozl:plan"] })], {
     events: { 7: labeled("owner") },
     permissions: PERMISSIONS,
   });

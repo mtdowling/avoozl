@@ -822,7 +822,8 @@ function RepositoryEditor(props: {
               blurb="Labels Avoozl itself adds and removes on issues to show their state. Don't edit them by hand: a hand edit shows as a conflict."
             >
               <div style={grid(200)}>
-                {choices.managedLabels.map((key) => (
+                {/* Ready is edited with Avoozl's other labels in Crews and rules. */}
+                {choices.managedLabels.filter((key) => key !== 'ready').map((key) => (
                   <Text
                     key={key}
                     id={`${id}-label-${key}`}
@@ -856,20 +857,6 @@ function RepositoryEditor(props: {
                   />
                 ))}
               </div>
-            </Section>
-            <Section
-              level="sub"
-              title="Approval label"
-              blurb="Adding this label to the issue that asked for a spec approves its draft, when the person who adds it counts (see Who counts). Avoozl also adds it when you approve in Avoozl or a chat. It must differ from every other label here."
-            >
-              <Text
-                id={`${id}-approval-label`}
-                label="Approval label"
-                raw="radar.approvalLabel"
-                rule={{ required: false, blank: 'blank: the Avoozl default' }}
-                value={repository.approvalLabel}
-                onChange={(value) => set({ approvalLabel: value })}
-              />
             </Section>
             <Section
               level="sub"
