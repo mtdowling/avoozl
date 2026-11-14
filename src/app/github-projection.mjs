@@ -19,11 +19,14 @@ import { blockerNotes, closeWithoutCode } from "./github-close.mjs";
 import { pausedTaskIds } from "./github-project.mjs";
 import { ensurePlanIssue } from "./driver.mjs";
 import { graphOrder } from "./delivery.mjs";
+import { linePausedTaskIds, openStops, stopScope } from "./flow.mjs";
 import { CREW_LABEL_DEFAULTS, priorityRank } from "./github-policy.mjs";
 import {
   capacityOf,
+  isRadarRepository,
   planRelease,
   releaseFor,
+  STOP_NOTICE,
   scopeLabelOf,
 } from "./radar-coder-release.mjs";
 import { plansNameForIssue } from "./github-plans-repo.mjs";
@@ -596,7 +599,7 @@ export async function projectPlanIssues(store, github, options) {
 // recomputed here, not read: otherwise a leaf left out once could never take
 // a freed slot or follow its finished blocker. A task paused on the Project
 // board gets no ready label (§6.7).
-function graphReady(store, data, tasks) {
+function graphReady(store, data, tasks, held = new Set()) {
   const own = new Set(tasks.map((task) => task.id)),
     paused = pausedTaskIds(store),
     ownVerdict = (task) =>
@@ -613,7 +616,26 @@ function graphReady(store, data, tasks) {
   return new Set(
     queryTasks(view, { scope: "all", q: "ready:true" })
       .map((task) => task.id)
-      .filter((id) => own.has(id) && !paused.has(id)),
+      .filter((id) => own.has(id) && !paused.has(id) && !held.has(id)),
+  );
+}
+
+// Tasks of Issue Radar repositories that an open stop pauses (RC4.3): they
+// are not released, and an unclaimed ready label on them is taken away.
+// `repositoryOf` names a task's repository.
+function stoppedTasks(store, data, identity, tasks, repositoryOf) {
+  const stopped = linePausedTaskIds(store, data);
+  return new Set(
+    tasks
+      .filter(
+        (task) =>
+          stopped.has(task.id) &&
+          isRadarRepository(
+            identity.repositories?.[repositoryOf(task)],
+            identity.mode,
+          ),
+      )
+      .map((task) => task.id),
   );
 }
 
@@ -647,7 +669,18 @@ export async function refreshProjectedReadiness(
         .map((config) => config.id),
     ),
     projected = designed.filter((task) => writers.has(task.github.repository)),
-    ready = graphReady(store, data, projected),
+    ready = graphReady(
+      store,
+      data,
+      projected,
+      stoppedTasks(
+        store,
+        data,
+        identity,
+        projected,
+        (task) => task.github.repository,
+      ),
+    ),
     plans = new Set(
       projected
         .filter(
@@ -705,13 +738,30 @@ async function project(
   // The plan issue first, then only while this workspace drives the spec
   // (§6.10). A preview writes nothing, so it does not ask.
   if (!dryRun) await ensurePlanIssue(store, github, plan);
+  const configFor = (task) =>
+    repository
+      ? store.get("github_repositories", parseRepository(repository).id)
+      : store.list("github_repositories").find(
+          (entry) =>
+            // The task's or its plan's project; else the repository a spec
+            // leaf names.
+            entry.projectId ===
+            (task.projectId || plan.context?.projectId || taskRepository(task)),
+        );
   const data = store.read(),
     complete = (status) => statusComplete(data, status),
     // An opt-in local task never syncs to GitHub (R28.3).
     tasks = data.tasks.filter(
       (task) => task.planId === plan.id && task.authority !== "local",
     ),
-    queueReady = graphReady(store, data, tasks),
+    held = stoppedTasks(
+      store,
+      data,
+      identity,
+      tasks,
+      (task) => configFor(task)?.id,
+    ),
+    queueReady = graphReady(store, data, tasks, held),
     machine = machineIdentity(store).id,
     verified = new Set(),
     provenance = new Map(),
@@ -726,15 +776,7 @@ async function project(
 
   // 1. Desired graph, matched to the issues that already carry it.
   for (const task of tasks) {
-    const config = repository
-      ? store.get("github_repositories", parseRepository(repository).id)
-      : store.list("github_repositories").find(
-          (entry) =>
-            // The task's or its plan's project; else the repository a spec
-            // leaf names.
-            entry.projectId ===
-            (task.projectId || plan.context?.projectId || taskRepository(task)),
-        );
+    const config = configFor(task);
     if (!config)
       fail(`No GitHub repository is registered for task ${task.id}.`);
     assertPlanningLink(identity, config.id);
@@ -1055,6 +1097,55 @@ async function project(
       item.current.labels = labelNames(item.current)
         .filter((name) => name !== item.labels.ready)
         .map((name) => ({ name }));
+    }
+  }
+
+  // 4b. One comment on each claimed issue the stop, or a blocker that is open
+  // again, surrounds (RC4.3). A claimed issue keeps every label.
+  if (!dryRun) {
+    const stops = openStops(store)
+        .filter((stop) => !stop.runAnyway)
+        .map((stop) => ({ id: stop.id, ids: stopScope(store, data, stop) })),
+      causeOf = (task) => {
+        if (held.has(task.id))
+          return stops.find((stop) => stop.ids.has(task.id))?.id ?? null;
+        if (queueReady.has(task.id)) return null;
+        const open = data.edges.find(
+          (edge) =>
+            edge.to === task.id &&
+            ["requires", "sequence"].includes(edge.kind) &&
+            !complete(data.tasks.find((t) => t.id === edge.from)?.status),
+        );
+        return open ? "blocker:" + open.from : null;
+      };
+    for (const item of items) {
+      if (
+        !isClaimed(item, identity) ||
+        item.current.state !== "open" ||
+        previewOnly.has(item.config.id) ||
+        !isRadarRepository(
+          identity.repositories?.[item.config.id],
+          identity.mode,
+        )
+      )
+        continue;
+      const cause = causeOf(item.task);
+      if (!cause) continue;
+      const id = `release-notice:${item.config.id}#${item.current.number}:${cause}`;
+      if (store.get("receipts", id)) continue;
+      await github.createIssueComment(
+        item.config,
+        item.current.number,
+        STOP_NOTICE,
+      );
+      store.put("receipts", {
+        id,
+        taskId: item.task.id,
+        repository: item.config.id,
+        number: item.current.number,
+        cause,
+        at: new Date().toISOString(),
+      });
     }
   }
 
