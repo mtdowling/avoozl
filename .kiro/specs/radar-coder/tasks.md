@@ -163,10 +163,10 @@ Requirement RC7. Avoozl does what `gh` can and shows exact values for what only 
 - [x] rc-7.1 Set up steps through `gh`: labels, branch rule, auto-merge setting, after rc-1.1, rc-5.1 [RC7.1] (§D9)
   - Each step is a preview and a confirm; a step the permission cannot do shows the permission it needs and changes nothing; read back after the write.
   - Done when: Against a fake GitHub each step writes once after confirm; a missing permission writes nothing and names the permission.
-- [ ] rc-7.2 Review-rules pull request to `AGENTS.md`, and the Project, after rc-7.1, rc-3.5 [RC7.1, RC3.7] (§D9)
+- [x] rc-7.2 Review-rules pull request to `AGENTS.md`, and the Project, after rc-7.1, rc-3.5 [RC7.1, RC3.7] (§D9)
   - A pull request that adds the review rules and the one-line prompt sentence to `AGENTS.md`; the Project and its fields through the existing Project sync.
   - Done when: The pull request text passes content rules; the Project fields match Requirement 29.
-- [ ] rc-7.3 The Radar values screen and re-read, after rc-3.5, rc-6.3 [RC7.2, RC7.3] (§D9)
+- [x] rc-7.3 The Radar values screen and re-read, after rc-3.5, rc-6.3 [RC7.2, RC7.3] (§D9)
   - One screen: repository, crew name, agent, model, label scope, needs-human label, claim time limit, Additional prompt, each with Copy and what it controls; with the grant, each item ticks after a re-read; without it, a checkbox marked cannot verify.
   - Done when: Every value has Copy; the grant path ticks a fake Radar's items; the no-grant path shows checkboxes; drawn at 320, 768 and 1280 px.
 - [ ] rc-7.4 Crews and rules settings in the app's style, after rc-7.3 [RC7.6] (§D9)

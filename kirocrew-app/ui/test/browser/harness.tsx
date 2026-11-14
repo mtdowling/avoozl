@@ -34,6 +34,7 @@ import { ReleaseModePicker } from '../../src/ReleaseMode.tsx'
 import PluginsSettings from '../../src/PluginsSettings.tsx'
 import SettingsView from '../../src/SettingsView.tsx'
 import { answerIntake } from './intake-fixture.ts'
+import RadarValuesScreen from '../../src/RadarValues.tsx'
 import AvoozlApp from '../../src/App.tsx'
 import { MarkDoneDialog } from '../../src/TaskNotes.tsx'
 import NewPlanDrawer from '../../src/NewPlanDrawer.tsx'
@@ -543,6 +544,23 @@ function HomePage() {
 }
 
 const page = query.get('page')
+// ?page=radar-values[&grant=1]: the Radar values screen on a fake Radar read.
+if (page === 'radar-values') {
+  const grant = query.get('grant') === '1'
+  const item = (id: string, label: string, value: string, status: string) => ({ id, label, value, controls: `What ${label} controls.`, status, note: status === 'ok' ? 'Issue Radar shows this value.' : 'Tick it yourself.' })
+  const long = 'For any issue with an <!-- avoozl --> marker, run `avoozl verify-issue OWNER/REPO#N` (or the plans_verify_issue tool) first; build only if it exits 0, otherwise skip it with scope needs-decision and say which check failed.'
+  answer('radar.values', () => ({
+    repository: 'example/code',
+    grant,
+    link: '/issue-radar',
+    items: [
+      item('repository', 'Repository to connect', 'example/code', grant ? 'ok' : 'cannot-verify'),
+      item('agent', 'Agent', 'avoozl-crew', grant ? 'ok' : 'cannot-verify'),
+      item('scope', 'Label scope', 'ready', grant ? 'differs' : 'cannot-verify'),
+      item('prompt', 'Additional prompt', long, 'cannot-verify'),
+    ],
+  }))
+}
 const intake = page === 'intake'
 if (intake) answerIntake(query.get('empty') === '1')
 // ?page=routing&state=<name>: Settings › Routing on the replies a real
@@ -569,6 +587,15 @@ class HarnessBoundary extends Component<{ children: ReactNode }, { error: string
     return this.state.error ? <pre data-harness-crash>{this.state.error}</pre> : this.props.children
   }
 }
+function RadarValuesPage() {
+  return (
+    <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)', minHeight: '100vh', boxSizing: 'border-box' }}>
+      <HarnessBoundary>
+        <RadarValuesScreen workspaceId="w" repositories={['example/code']} />
+      </HarnessBoundary>
+    </div>
+  )
+}
 function RoutingPage() {
   return (
     <div {...{ [APP_ATTR]: '' }} data-settings-page="routing" style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)', minHeight: '100vh', boxSizing: 'border-box' }}>
@@ -581,5 +608,5 @@ function RoutingPage() {
   )
 }
 createRoot(document.getElementById('root')!).render(
-  page === 'routing' ? <RoutingPage /> : intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page === 'activity' ? <ActivityPage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
+  page === 'radar-values' ? <RadarValuesPage /> : page === 'routing' ? <RoutingPage /> : intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page === 'activity' ? <ActivityPage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
 )
