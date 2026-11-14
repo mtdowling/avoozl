@@ -1,0 +1,245 @@
+{
+  "repository": "mtdowling/avoozl-radar-test",
+  "recordedAt": "2026-11-14",
+  "issues": {
+    "2": {
+      "number": 2,
+      "title": "Add a greet function",
+      "body": "It would be nice to have a greet(name) function that returns a greeting like Hello, Bob!",
+      "html_url": "https://github.com/mtdowling/avoozl-radar-test/issues/2",
+      "user": {
+        "login": "mtdowling"
+      },
+      "labels": [],
+      "comments": [
+        {
+          "id": 6872044114,
+          "html_url": "https://github.com/mtdowling/avoozl-radar-test/issues/2#issuecomment-6872044114",
+          "user": {
+            "login": "mtdowling"
+          },
+          "author_association": "OWNER",
+          "body": "👻 **Draco** · Kiro Crew Issue Radar\nskipped · duplicate · updated 05:04 UTC\n\nThis asks for the same `greet(name)` as #3. #3 is task T1 of the approved greeter spec (`.kiro/specs/greeter/`), and PR #7 builds it: `greet(\"Bob\")` returns `\"Hello, Bob!\"`. So this issue can close when #7 merges. Not claimed, and no code was written for it.\n\n<!-- kirocrew-crew v=1 id=c_022aea7f phase=skipped pr= updated=2026-11-14T05:04:00Z -->"
+        }
+      ]
+    },
+    "5": {
+      "number": 5,
+      "title": "divide(1, 0) returns Infinity",
+      "body": "Bug: divide(1, 0) returns Infinity instead of throwing a RangeError('division by zero'). Expected: throws RangeError.",
+      "html_url": "https://github.com/mtdowling/avoozl-radar-test/issues/5",
+      "user": {
+        "login": "mtdowling"
+      },
+      "labels": [
+        {
+          "name": "plan me"
+        }
+      ],
+      "comments": [
+        {
+          "id": 6872020751,
+          "html_url": "https://github.com/mtdowling/avoozl-radar-test/issues/5#issuecomment-6872020751",
+          "user": {
+            "login": "mtdowling"
+          },
+          "author_association": "OWNER",
+          "body": "👻 **Draco** · Kiro Crew Issue Radar\nskipped · #6 · updated 05:17 UTC\n\n**Finding:** `divide` in `src/index.js` is `return a / b;` with no check, so `divide(1, 0)` is `Infinity`. PR #6 makes it throw `new RangeError(\"division by zero\")` when `b === 0`, with a test that failed first. CI was 2/2 green.\n\n**Now blocked on a person:** PR #7 (merged) also changed `src/index.js`. It added `const { greet } = require(\"./greeter.js\");` and changed the export line to `module.exports = { add, divide, greet };`. PR #6 rewrote `divide` on the line next to it, so the two conflict in `src/index.js`. Crews do not resolve conflicts in source code by policy, since a wrong merge can silently drop a change.\n\n**Recommended resolution:** keep both sides. Keep the `greet` require line, keep the multi-line `divide` with the zero check, and export `{ add, divide, greet }`. No other file conflicts. Branch `crew/draco/issue-5` is left open on PR #6 for whoever finishes it. I have released this issue.\n\n<details><summary>progress</summary>\n\n- `04:55` claimed — read the issue and `src/index.js`; no zero check in `divide`\n- `04:57` branch `crew/draco/issue-5` — fix plus a regression test that fails first\n- `04:58` opened PR #6\n- `05:06` CI round 1 — 2/2 green\n- `05:17` PR #7 merged; PR #6 now conflicts in `src/index.js`; published and released\n\n</details>\n\n<!-- kirocrew-crew v=1 id=c_022aea7f phase=skipped pr=6 updated=2026-11-14T05:17:00Z -->"
+        }
+      ]
+    },
+    "12": {
+      "number": 12,
+      "title": "Add a farewell function",
+      "body": "Please add farewell(name) returning Goodbye, Bob!. This is a new feature.",
+      "html_url": "https://github.com/mtdowling/avoozl-radar-test/issues/12",
+      "user": {
+        "login": "mtdowling"
+      },
+      "labels": [
+        {
+          "name": "plan me"
+        }
+      ],
+      "comments": [
+        {
+          "id": 6872428771,
+          "html_url": "https://github.com/mtdowling/avoozl-radar-test/issues/12#issuecomment-6872428771",
+          "user": {
+            "login": "mtdowling"
+          },
+          "author_association": "OWNER",
+          "body": "👻 **Draco** · Kiro Crew Issue Radar\nskipped · new-feature · updated 05:40 UTC\n\nTest comment written by hand in the Radar claim format, not by a live crew. Scope new-feature.\n\n<!-- kirocrew-crew v=1 id=c_022aea7f phase=skipped pr= updated=2026-11-14T05:40:00Z -->"
+        }
+      ]
+    },
+    "13": {
+      "number": 13,
+      "title": "Add a locale option to greet",
+      "body": "Greeting in other languages (locale option). Opened to test an untrusted author; the test policy does not list this author.",
+      "html_url": "https://github.com/mtdowling/avoozl-radar-test/issues/13",
+      "user": {
+        "login": "mtdowling"
+      },
+      "labels": [
+        {
+          "name": "plan me"
+        }
+      ],
+      "comments": [
+        {
+          "id": 6872429026,
+          "html_url": "https://github.com/mtdowling/avoozl-radar-test/issues/13#issuecomment-6872429026",
+          "user": {
+            "login": "mtdowling"
+          },
+          "author_association": "OWNER",
+          "body": "👻 **Draco** · Kiro Crew Issue Radar\nskipped · new-feature · updated 05:40 UTC\n\nTest comment written by hand in the Radar claim format, not by a live crew. Scope new-feature.\n\n<!-- kirocrew-crew v=1 id=c_022aea7f phase=skipped pr= updated=2026-11-14T05:40:00Z -->"
+        }
+      ]
+    },
+    "14": {
+      "number": 14,
+      "title": "Should divide round or truncate?",
+      "body": "Product question: should divide(7, 2) return 3.5 or 3?",
+      "html_url": "https://github.com/mtdowling/avoozl-radar-test/issues/14",
+      "user": {
+        "login": "mtdowling"
+      },
+      "labels": [
+        {
+          "name": "plan me"
+        }
+      ],
+      "comments": [
+        {
+          "id": 6872429336,
+          "html_url": "https://github.com/mtdowling/avoozl-radar-test/issues/14#issuecomment-6872429336",
+          "user": {
+            "login": "mtdowling"
+          },
+          "author_association": "OWNER",
+          "body": "👻 **Draco** · Kiro Crew Issue Radar\nskipped · needs-decision · updated 05:40 UTC\n\nTest comment written by hand in the Radar claim format, not by a live crew. Scope needs-decision.\n\n<!-- kirocrew-crew v=1 id=c_022aea7f phase=skipped pr= updated=2026-11-14T05:40:00Z -->"
+        }
+      ]
+    },
+    "15": {
+      "number": 15,
+      "title": "Add a greet-all function",
+      "body": "Add greetAll(names) returning one greeting per name. New feature, accepted by a maintainer through the accepted label.",
+      "html_url": "https://github.com/mtdowling/avoozl-radar-test/issues/15",
+      "user": {
+        "login": "mtdowling"
+      },
+      "labels": [
+        {
+          "name": "accepted"
+        },
+        {
+          "name": "plan me"
+        }
+      ],
+      "comments": [
+        {
+          "id": 6872465016,
+          "html_url": "https://github.com/mtdowling/avoozl-radar-test/issues/15#issuecomment-6872465016",
+          "user": {
+            "login": "mtdowling"
+          },
+          "author_association": "OWNER",
+          "body": "👻 **Draco** · Kiro Crew Issue Radar\nskipped · architecture · updated 05:50 UTC\n\nTest comment written by hand in the Radar claim format, not by a live crew. Scope architecture.\n\n<!-- kirocrew-crew v=1 id=c_022aea7f phase=skipped pr= updated=2026-11-14T05:50:00Z -->"
+        }
+      ]
+    },
+    "16": {
+      "number": 16,
+      "title": "Trim whitespace in greet names",
+      "body": "greet(' Bob ') should say Hello, Bob!",
+      "html_url": "https://github.com/mtdowling/avoozl-radar-test/issues/16",
+      "user": {
+        "login": "mtdowling"
+      },
+      "labels": [
+        {
+          "name": "crew: in progress"
+        }
+      ],
+      "comments": [
+        {
+          "id": 6872465770,
+          "html_url": "https://github.com/mtdowling/avoozl-radar-test/issues/16#issuecomment-6872465770",
+          "user": {
+            "login": "mtdowling"
+          },
+          "author_association": "OWNER",
+          "body": "👻 **Draco** is on this · Kiro Crew Issue Radar\nimplementing · updated 05:52 UTC\n\nTest comment written by hand in the Radar claim format, not by a live crew.\n\n<!-- kirocrew-crew v=1 id=c_022aea7f phase=implementing pr= updated=2026-11-14T05:52:00Z -->"
+        }
+      ]
+    },
+    "17": {
+      "number": 17,
+      "title": "Support greet with an array",
+      "body": "Accept an array of names.",
+      "html_url": "https://github.com/mtdowling/avoozl-radar-test/issues/17",
+      "user": {
+        "login": "mtdowling"
+      },
+      "labels": [
+        {
+          "name": "crew: in progress"
+        }
+      ],
+      "comments": [
+        {
+          "id": 6872466362,
+          "html_url": "https://github.com/mtdowling/avoozl-radar-test/issues/17#issuecomment-6872466362",
+          "user": {
+            "login": "mtdowling"
+          },
+          "author_association": "OWNER",
+          "body": "👻 **Bode** is on this · Kiro Crew Issue Radar\nawaiting-ci · PR #6 · updated 02:10 UTC\n\nTest comment written by hand in the Radar claim format, not by a live crew. The updated stamp is old on purpose.\n\n<!-- kirocrew-crew v=1 id=c_0badc0de phase=implementing pr=6 updated=2026-11-10T02:10:00Z -->"
+        }
+      ]
+    }
+  },
+  "events": {
+    "15": [
+      {
+        "event": "labeled",
+        "actor": {
+          "login": "mtdowling"
+        },
+        "label": {
+          "name": "accepted"
+        },
+        "created_at": "2026-11-14T05:34:16Z"
+      },
+      {
+        "event": "labeled",
+        "actor": {
+          "login": "mtdowling"
+        },
+        "label": {
+          "name": "plan me"
+        },
+        "created_at": "2026-11-14T05:34:16Z"
+      }
+    ]
+  },
+  "permissions": {
+    "mtdowling": {
+      "permission": "admin",
+      "role_name": "admin",
+      "user": {
+        "login": "mtdowling"
+      }
+    },
+    "octocat": {
+      "permission": "none",
+      "role_name": "",
+      "user": {
+        "login": "octocat"
+      }
+    }
+  }
+}

@@ -6,7 +6,7 @@
 import type { BudgetChip } from './budget-api.ts'
 import type { StoredPlanPage } from './plans-api.ts'
 import { nodeState, waves, type NodeState } from './graph-layout.ts'
-import { modelLabel, safeHref, type ConflictItem, type DeliveryItem, type DeliverySession, type Graph, type GraphTask } from './views-api.ts'
+import { modelLabel, safeHref, type RadarClaim, type RadarCrews, type ConflictItem, type DeliveryItem, type DeliverySession, type Graph, type GraphTask } from './views-api.ts'
 
 // Session statuses after which a session will not move again.
 const ENDED = new Set(['closed', 'lost'])
@@ -84,6 +84,10 @@ export interface DashboardSummary {
   counts: Record<NodeState, number>
   running: RunningTask[]
   inFlight: InFlight[]
+  // Issue Radar crews with a live claim, from GitHub, on any machine.
+  radarFlight: RadarClaim[]
+  // What GitHub cannot show about them; empty when nothing was read.
+  radarUnseen: string[]
   // Open tasks at or past their cap (§4.17), for the header count.
   overBudget: number
   // True only when the delivery read worked and no task has ever run, been
@@ -110,6 +114,7 @@ export function summarize(input: {
   delivery: DeliveryItem[] | null
   conflicts: ConflictItem[] | null
   plans: StoredPlanPage | null
+  radar?: RadarCrews | null
   limit?: number
 }): DashboardSummary {
   const limit = input.limit ?? 8
@@ -232,6 +237,8 @@ export function summarize(input: {
     counts,
     running,
     inFlight,
+    radarFlight: input.radar?.rows ?? [],
+    radarUnseen: input.radar?.unseen ?? [],
     neverRan: input.delivery != null && !input.delivery.some((item) => item.complete || item.sessions.length > 0 || item.evidence.length > 0 || item.deliveries.length > 0 || item.integration),
     overBudget: (input.delivery ?? []).filter((item) => !item.complete && item.budget?.reached).length,
     readyNext,

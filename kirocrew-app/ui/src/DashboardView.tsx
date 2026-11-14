@@ -11,7 +11,7 @@ import { useTaskDrawer } from './drawer-context.ts'
 import { useMedia } from './use-media.ts'
 import { STATES, type NodeState } from './graph-layout.ts'
 import { plansClient } from './plans-api.ts'
-import { CONFLICT_LABELS, viewsClient, type ConflictItem } from './views-api.ts'
+import { CONFLICT_LABELS, viewsClient, type ConflictItem, type RadarClaim } from './views-api.ts'
 import { useRead } from './useRead.ts'
 import { LineBanner } from './FlowView.tsx'
 import { StartDemoButton } from './Demo.tsx'
@@ -155,6 +155,44 @@ const roleLabel = (row: InFlight) =>
 // stays current. Paused while the page is hidden.
 const REFRESH_MS = 20000
 
+// A live Issue Radar claim, read from GitHub: any machine's crew. GitHub
+// does not show whether the crew is paused, which machine it runs on, or
+// its chat, so there is no Attach here.
+export function RadarFlightRow({ row, now }: { row: RadarClaim; now: number }) {
+  const issue = linkHref(row.url ?? ''),
+    pull = row.prUrl ? linkHref(row.prUrl) : null
+  return (
+    <li data-radar-flight-row className="flex flex-wrap items-start gap-2 border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)' }}>
+      <span data-in-flight-role style={{ flex: '0 0 7.5rem' }}>
+        <Badge>Issue Radar</Badge>
+      </span>
+      <span className="min-w-0 flex-1" style={{ flexBasis: '12rem' }}>
+        <span className="font-medium">{row.title}</span>{' '}
+        <span className="text-xs text-muted">
+          {row.repository} #{row.number}
+        </span>{' '}
+        {row.stale && <Badge variant="warning">Stale</Badge>}
+        <span className="block text-xs text-muted">
+          {row.crewName ?? row.crewId ?? 'no crew named'} · {row.phase ?? 'claim label, no claim comment'}
+          {row.updated ? ` · updated ${relativeTime(row.updated, now)}` : ''}
+        </span>
+      </span>
+      <span data-in-flight-actions className="flex items-center justify-end gap-3" style={{ flex: '0 0 11rem' }}>
+        {issue && (
+          <a href={issue} target="_blank" rel="noreferrer" className="text-sm underline" aria-label={`Open issue ${row.number} on GitHub`}>
+            Issue
+          </a>
+        )}
+        {pull && (
+          <a href={pull} target="_blank" rel="noreferrer" className="text-sm underline" aria-label={`Open pull request ${row.pr} on GitHub`}>
+            PR #{row.pr}
+          </a>
+        )}
+      </span>
+    </li>
+  )
+}
+
 export function InFlightRow({ row, now, onInfo, onPickAgain }: { row: InFlight; now: number; onInfo: () => void; onPickAgain?: () => void }) {
   const href = attachHref(row.session),
     remote = row.session.crew && row.session.crew !== 'local'
@@ -290,17 +328,18 @@ export default function DashboardView(props: {
   // One failed read leaves its section empty rather than the whole page.
   const load = useCallback(
     async (id: string) => {
-      const [graph, delivery, conflicts, stored] = await Promise.allSettled([
+      const [graph, delivery, conflicts, stored, radar] = await Promise.allSettled([
         views.graph(id),
         views.delivery(id),
         views.conflicts(id),
         plans.stored(id),
+        views.radarCrews(id),
       ])
       const value = <T,>(result: PromiseSettledResult<T>) => (result.status === 'fulfilled' ? result.value : null)
       const failed = [graph, delivery, conflicts, stored].filter((r) => r.status === 'rejected').length
       const items = value(conflicts)
       return {
-        summary: summarize({ graph: value(graph), delivery: value(delivery), conflicts: items, plans: value(stored), limit: Infinity }),
+        summary: summarize({ graph: value(graph), delivery: value(delivery), conflicts: items, plans: value(stored), radar: value(radar), limit: Infinity }),
         conflicts: items ?? [],
         total: value(graph)?.total ?? 0,
         failed,
@@ -398,8 +437,8 @@ export default function DashboardView(props: {
         <>
           <Pair height={ROW_HEIGHT.flight}>
             <Section
-              title={`In flight (${summary.inFlight.length})`}
-              empty={summary.inFlight.length === 0 && 'No agent is working right now.'}
+              title={`In flight (${summary.inFlight.length + summary.radarFlight.length})`}
+              empty={summary.inFlight.length + summary.radarFlight.length === 0 && 'No agent is working right now.'}
               // Only while nothing has ever run; the header never has it.
               emptyAction={summary.neverRan ? <StartDemoButton label="Start demo" /> : undefined}
             >
@@ -419,6 +458,17 @@ export default function DashboardView(props: {
                 ))}
               </ul>
               <ShowMore {...pages.more('flight', summary.inFlight.length)} />
+              {summary.radarFlight.length > 0 && (
+                <>
+                  <ul className="mt-1">
+                    {pages.take('radar', summary.radarFlight).map((row) => (
+                      <RadarFlightRow key={`${row.repository}#${row.number}`} row={row} now={now} />
+                    ))}
+                  </ul>
+                  <ShowMore {...pages.more('radar', summary.radarFlight.length)} />
+                  <p className="mt-1 text-xs text-muted">Issue Radar rows come from GitHub. It does not show if a crew is paused, which machine it is on, or its chat.</p>
+                </>
+              )}
             </Section>
             <Section
               title="Progress by epic"

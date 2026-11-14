@@ -292,6 +292,21 @@ yours by label, not by login:
 Labels a crew watches are set in Issue Radar. Labels it writes are set under
 `crewLabels` (`claim`, `needsHuman`) when yours differ from the defaults.
 
+Where a skipped issue goes (the needs-human label, for example `plan me`) in
+an `issue-radar` repository depends on who may ask for work:
+
+- Not trusted: left alone. It is in neither Intake nor Needs you.
+- Trusted, and the crew's skip scope is `new-feature`, `architecture` or
+  `needs-design`: Intake, to be planned.
+- Trusted, any other scope or none found: Needs you.
+
+Trusted means the author passes `allowedActors` and `minimumPermission`, or the
+body has this workspace's own task marker, or the optional `acceptedLabel` is
+on the issue and an allowed actor added it. The scope is read from the crew's
+claim comment on GitHub; see `docs/research/radar-handoff-and-crew-list.md`.
+The Dashboard's In flight list also shows each live Issue Radar claim, read
+from GitHub only.
+
 ## Manual tasks and links and notes
 
 Some steps are a person's, such as a team review before a cutover. Mark one
