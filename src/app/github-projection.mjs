@@ -826,7 +826,14 @@ export async function refreshProjectedReadiness(
 async function project(
   store,
   github,
-  { planId, repository, identity, dryRun = false, batches = [] },
+  {
+    planId,
+    repository,
+    identity,
+    dryRun = false,
+    batches = [],
+    holdClaimed = false,
+  },
 ) {
   const previewOnly = new Set(),
     namespace = requireNamespace(identity),
@@ -1170,6 +1177,10 @@ async function project(
         resolution: resolutions.labels,
       }),
     };
+    // Spec changed (RC2.8): a claimed issue is left as it is.
+    if (holdClaimed && isClaimed(item, identity))
+      for (const field of ["title", "body", "blockers"])
+        item.plans[field].write = false;
     item.currentLabels = currentLabels;
     item.appliedLabels = appliedLabels || [];
     for (const field of FIELDS)
@@ -1692,7 +1703,10 @@ async function project(
         },
       }),
       rendered = renderMarker(next, markerOptions);
-    if (JSON.stringify(marker) !== JSON.stringify(next))
+    if (
+      !(holdClaimed && isClaimed(item, identity)) &&
+      JSON.stringify(marker) !== JSON.stringify(next)
+    )
       issue = await github.updateIssue(config, issue.number, {
         body: withMarker(issue.body, rendered),
       });
