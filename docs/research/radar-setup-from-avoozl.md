@@ -98,3 +98,69 @@ the minimum under Kiro Crew 0.12.2.4.
 - A change in Kiro Crew, such as an app-callable owner-approved write, would be
   needed to remove the clicks. Radar's owner gate is deliberate: a live crew
   runs with an auto-approve grant in the owner's name (`crew_routes.py:474-486`).
+
+## Can a Radar crew use Avoozl's MCP tools and skills?
+
+**Yes.** A Radar crew whose Agent is an app-shipped agent that mounts
+`avoozl:avoozl` can call Avoozl's tools in its own chat and can see Avoozl's
+skills. It needs four things, listed below.
+
+Same test setup as above (own `KIROCREW_HOME`, port 5612, plus its own
+`KIRO_HOME` so the real agent folder is untouched), Kiro Crew 0.12.2.4, Avoozl
+`main` built with `npm run build:kirocrew-app` and installed from
+`kirocrew-app/`. Crew `avoozl-crew-two` on `mtdowling/avoozl-radar-test`, agent
+`avoozl-crew`. Every row below was seen live.
+
+| Question | Result |
+|---|---|
+| Did the tools load in the crew's chat? | Yes. The crew slot `crew-<id>` called `@avoozl:avoozl/plans_status` and got `revision 1, total 0, complete 0, no epics`. |
+| Was MCP sharing approval needed? | No separate prompt. The server is part of the agent spec. The only prompt was the normal per-tool approval on `plans_status` (the spec's `allowedTools` was empty). An unattended crew gets the crew's auto-approve grant instead (`crew_runtime_session.py`, `sync_trust`). |
+| Did the skills load? | Yes, once the spec listed them as `skill://` resources. `skill_search` then returned `avoozl`, `avoozl-costs`, `avoozl-plugin`, `avoozl-rules`. |
+| Any refusal code? | No HTTP refusal. Two soft failures, below. |
+
+What had to be true:
+
+1. **The agent must come from an app.** A hand-written spec in the agents folder
+   was ignored. The slot kept `agent: avoozl-crew` but ran as `kirocrew`
+   (`effective_agent`), with no error and no tools. App-shipped agents resolve:
+   the app's `agents/avoozl-crew.json` is materialized as
+   `avoozl--avoozl-crew.json` and the name `avoozl-crew` then binds. Avoozl's
+   `main` ships no such agent. I added `agents/avoozl-crew.json` to the test
+   install only. Shipping one is a change to `kirocrew-app/app.json` and
+   `kirocrew-app/agents/`.
+2. **The spec lists the tools and skills.** `tools` named
+   `@avoozl:avoozl/plans_status` and `@kirocrew-core/skill_search`; `resources`
+   named the four `skills/*/SKILL.md` files as `skill://` paths. Without the
+   `resources` entries `skill_search` answered "End of this agent's available
+   skill list." with nothing in it.
+3. **Avoozl must be built before install.** An install from a plain checkout has
+   no `bin/lib`. The MCP server then fails at `initialize`
+   (`ERR_MODULE_NOT_FOUND: .../bin/lib/src/app/host-config.mjs`), and so does the
+   `avoozl-tick` cron. See `kirocrew-app/README.md`.
+4. **Avoozl needs a default workspace.** A crew chat is not bound to an Avoozl
+   workspace, so `plans_status` first returned the MCP error "Avoozl has no
+   workspace for this session. Choose a default workspace in the Avoozl
+   Workspace view." (`src/app/app-mcp.mjs:137`). After
+   `workspace adopt` and `workspace set-default` on the CLI, the same call
+   worked. In the UI this is one step on the Avoozl page.
+
+Other facts:
+
+- A narrow `tools` list also removes Radar's own crew tools. The crew said it
+  had "no Issue Radar tool", so it could not read or write its ledger. A real
+  `avoozl-crew` spec must also list `@kirocrew-core/issue_radar_crew_read` and
+  `issue_radar_crew_record` (the pair named in `crew_routes.py:70`).
+- Changing a crew's `agent` with `PUT /crew` did not move an existing slot to
+  the new agent. Create the crew with the right agent from the start.
+- The crew received its normal Radar nudge ("auto-nudge cycle", the Radar worker
+  brief), so the tools were tested inside a real crew session. The first turn
+  of each test was an owner chat message (`POST /api/chat`, then
+  `POST /api/chat/slots/<slot>/approve`), not a Radar-found issue. The test home
+  could not run `gh` (the sandbox marks every parent directory as owned by
+  another user, and Radar refuses such a binary), so Radar never synced issues.
+  The repo was added to Radar's `config.json` by hand. This does not affect the
+  tool and skill results.
+- The crew was created with the owner's cookie on the test gateway, which is the
+  one owner step. The grant test above shows an app token cannot do it.
+- Cleanup: crews retired, scratch issue #28 closed, gateway stopped. Draco and
+  the owner's real `~/.kiro/agents` were not touched.
