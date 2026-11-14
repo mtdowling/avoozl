@@ -29,6 +29,8 @@ import { setupForm } from '../../src/settings-api.ts'
 import { LAYER } from '../../src/layers.ts'
 import { BudgetSettings } from '../../src/BudgetSettings.tsx'
 import { CoderPicker } from '../../src/CoderPicker.tsx'
+import ReleaseQueue from '../../src/ReleaseQueue.tsx'
+import { ReleaseModePicker } from '../../src/ReleaseMode.tsx'
 import PluginsSettings from '../../src/PluginsSettings.tsx'
 import SettingsView from '../../src/SettingsView.tsx'
 import { answerIntake } from './intake-fixture.ts'
@@ -431,7 +433,38 @@ answer('budget.settings.get', () => ({
   repositories: { avoozl: { usd: 8, mode: 'warn' }, docs: {} },
 }))
 }
+// ?page=release-queue: the Release queue on fake rows, one of each state.
+if (query.get('page') === 'release-queue') {
+  const rows = [
+    ['rc-1.1', 'Add the claim marker reader', 'released', 'Ready label is on. A crew has not claimed it yet.', 'Phase 1'],
+    ['rc-1.2', 'Read the crew list', 'claimed', 'Claimed by Docs crew.', 'Phase 1'],
+    ['rc-2.1', 'Project plans-repo issues into the code repository for the crews', 'next', 'Next in line.', 'Phase 2'],
+    ['rc-2.2', 'Write the preview', 'held', 'Waiting for a free slot (2 of 2 in use).', 'Phase 2'],
+    ['rc-3.1', 'Verify an issue before a crew builds it', 'held', 'Waiting on rc-2.1, rc-2.2.', 'Phase 3'],
+    ['rc-4.1', 'Release engine', 'held', 'Phase Phase 4 waits for phase p3 to merge (rc-3.1, rc-3.2, rc-3.3).', 'Phase 4'],
+    ['rc-5.1', 'Merge path check', 'held', 'Step: waiting for a click to release phase Phase 5.', 'Phase 5'],
+    ['rc-5.2', 'Arm GitHub auto-merge', 'held', 'The line is stopped: bad base on main.', 'Phase 5'],
+  ].map(([taskId, title, state, reason, phase], i) => ({ taskId, title, planId: 'radar-coder', spec: 'radar-coder', phase, scope: null, label: 'ready', number: 10 + i, url: null, manual: false, state, reason, used: 2, capacity: 2 }))
+  answer('radar.releasequeue', () => ({
+    repositories: [
+      { repository: 'example/application-with-a-long-name', ready: 'ready', mode: 'step', capacity: 2, scopes: [], rows, steps: [{ planId: 'radar-coder', spec: 'radar-coder', phase: 'p5', title: 'Phase 5', released: false }] },
+      { repository: 'example/docs', ready: 'ready', mode: 'hold', capacity: 0, scopes: [], rows: [{ ...rows[2], taskId: 'd-1', state: 'held', reason: 'Release mode is Hold. Add the ready label by hand to release it.' }], steps: [] },
+    ],
+  }))
+}
+function ReleaseModes() {
+  const [modes, setModes] = useState(['automatic', 'step', 'hold'])
+  return (
+    <div className="flex flex-col gap-6">
+      {modes.map((mode, i) => (
+        <ReleaseModePicker key={i} id={`m${i}`} mode={mode} onMode={(value) => setModes(modes.map((m, at) => (at === i ? value : m)))} />
+      ))}
+    </div>
+  )
+}
 const PAGES: Record<string, () => ReactNode> = {
+  'release-queue': () => <ReleaseQueue workspaceId="w" />,
+  'release-mode': () => <ReleaseModes />,
   budgets: () => <BudgetSettings workspaceId="w" />,
   // Who codes in each mode: default, a set value, and Local only.
   coder: () => (

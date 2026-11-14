@@ -21,17 +21,24 @@ import { ensurePlanIssue } from "./driver.mjs";
 import { SUPERSEDED_STATUS } from "./supersede.mjs";
 import { graphOrder } from "./delivery.mjs";
 import { linePausedTaskIds, openStops, stopScope } from "./flow.mjs";
-import { CREW_LABEL_DEFAULTS, priorityRank } from "./github-policy.mjs";
+import {
+  CREW_LABEL_DEFAULTS,
+  DEFAULT_PERMISSION,
+  actorAllowed,
+  priorityRank,
+} from "./github-policy.mjs";
 import {
   capacityOf,
   isRadarRepository,
+  orderReceiptId,
   phaseHolds,
   planRelease,
   releaseFor,
   STOP_NOTICE,
   scopeLabelOf,
+  stepReceiptId,
 } from "./radar-coder-release.mjs";
-import { adapterFor } from "./coder-adapter.mjs";
+import { adapterFor, coderForTask } from "./coder-adapter.mjs";
 import { plansNameForIssue } from "./github-plans-repo.mjs";
 import {
   assertPlanningLink,
@@ -645,10 +652,43 @@ function graphReady(store, data, tasks, held = new Set()) {
   );
 }
 
+// Whether the person who last added the ready label may give orders under the
+// repository's policy (RC4.6). An unreadable history or permission is not an
+// order.
+async function labeledByAllowedActor(github, item, identity) {
+  try {
+    const events = await github.issueEvents(item.config, item.current.number),
+      by = (Array.isArray(events) ? events : [])
+        .filter(
+          (event) =>
+            event.event === "labeled" &&
+            event.label?.name === item.labels.ready,
+        )
+        .at(-1)?.actor?.login;
+    if (!by) return false;
+    const raw = identity.repositories?.[item.config.id] ?? {},
+      actors = raw.allowedActors ?? item.config.allowedActors ?? [],
+      rules = {
+        allowedActors: actors,
+        minimumPermission:
+          raw.minimumPermission ??
+          item.config.minimumPermission ??
+          (actors.length ? null : DEFAULT_PERMISSION),
+      };
+    let permission = null;
+    if (rules.minimumPermission)
+      permission =
+        (await github.permission(item.config, by))?.permission || "none";
+    return actorAllowed(rules, by, permission).allowed;
+  } catch {
+    return false;
+  }
+}
+
 // Tasks of Issue Radar repositories that wait for the previous phase of their
 // spec to merge (RC4.4): a Map of task ID to the hold. A task closed by order
 // does not count as merged; a manual task counts when it is complete.
-function phaseHeldTasks(data, identity, tasks, repositoryOf) {
+export function phaseHeldTasks(data, identity, tasks, repositoryOf) {
   const out = new Map(),
     complete = (status) => statusComplete(data, status);
   for (const planId of new Set(tasks.map((task) => task.planId))) {
@@ -684,7 +724,7 @@ function phaseHeldTasks(data, identity, tasks, repositoryOf) {
 // Tasks of Issue Radar repositories that an open stop pauses (RC4.3): they
 // are not released, and an unclaimed ready label on them is taken away.
 // `repositoryOf` names a task's repository.
-function stoppedTasks(store, data, identity, tasks, repositoryOf) {
+export function stoppedTasks(store, data, identity, tasks, repositoryOf) {
   const stopped = linePausedTaskIds(store, data);
   return new Set(
     tasks
@@ -1182,12 +1222,56 @@ async function project(
           !(item.current && item.current.state !== "open"),
       );
   for (const item of eligible) firstOf.set(scopeKey(item), item);
+  // A ready label an allowed person added by hand is an order (RC4.6): kept
+  // and counted. Avoozl's own label is told apart by its marker; a person's
+  // order stays on a receipt while the label stays.
+  const ordered = new Set();
+  for (const item of items) {
+    if (!item.current) continue;
+    const id = orderReceiptId(item.config.id, item.current.number);
+    if (!holds(item)) {
+      if (store.get("receipts", id)) store.remove("receipts", id);
+      continue;
+    }
+    if (
+      !isRadarRepository(identity.repositories?.[item.config.id], identity.mode)
+    )
+      continue;
+    if (store.get("receipts", id)) ordered.add(item.task.id);
+    else if (
+      !isClaimed(item, identity) &&
+      !item.marker?.applied?.labels?.includes(item.labels.ready) &&
+      (await labeledByAllowedActor(github, item, identity))
+    ) {
+      store.put("receipts", {
+        id,
+        taskId: item.task.id,
+        repository: item.config.id,
+        number: item.current.number,
+        at: new Date().toISOString(),
+      });
+      ordered.add(item.task.id);
+    }
+  }
+  // Release mode (RC4.5): Hold labels nothing new; Step labels a phase only
+  // after its click.
+  const blocked = (item) => {
+    const mode = release(item).mode;
+    return (
+      mode === "hold" ||
+      (mode === "step" &&
+        !store.get("receipts", stepReceiptId(plan.id, item.task)))
+    );
+  };
   const readyIds = planRelease({
       candidates: eligible.map((item) => ({
         id: item.task.id,
         label: scopeKey(item),
         holds: holds(item),
         claimed: isClaimed(item, identity),
+        ordered: ordered.has(item.task.id),
+        blocked: blocked(item),
+        stranger: !item.marker?.applied?.labels?.includes(item.labels.ready),
       })),
       capacity: (key) => {
         const item = firstOf.get(key);
@@ -1553,8 +1637,31 @@ async function project(
         409,
       );
     const isReady = ready.has(task.id);
+    // A task already handed over keeps its coder while its issue is open
+    // (RC14.5); the split is shown once per new coder.
+    const current =
+        identity.repositories?.[config.id]?.coder ??
+        (identity.mode === "single-repo" ? "issue-radar" : "worker"),
+      route = coderForTask({
+        held: item.record?.coder,
+        current,
+        open: issue.state !== "closed",
+      }),
+      splitId = `coder-split:${config.id}:${current}`;
+    if (route.kept && !store.get("receipts", splitId)) {
+      store.put("receipts", {
+        id: splitId,
+        kind: "coder-split",
+        repository: config.id,
+        coder: current,
+        observedAt: new Date().toISOString(),
+      });
+      notes.add(
+        `${config.id} now uses ${current}. Tasks already handed over (such as ${task.id}) stay with ${route.coder}; new tasks go to ${current}.`,
+      );
+    }
     if (isReady)
-      await adapterFor(identity.repositories?.[config.id]?.coder).handOver({
+      await adapterFor(route.coder).handOver({
         github,
         config,
         issue,
@@ -1628,6 +1735,10 @@ async function project(
         projectedPlanId: plan.id,
         projectedPlanHash: plan.hash,
         observedAt: new Date().toISOString(),
+        // The coder the task was handed to, kept while the issue is open.
+        ...(isReady || route.held
+          ? { coder: route.held ? route.coder : current }
+          : {}),
       };
     store.put("github_issues", record);
     const batch = item.memberTasks

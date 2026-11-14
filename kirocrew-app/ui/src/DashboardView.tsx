@@ -15,6 +15,7 @@ import { CONFLICT_LABELS, viewsClient, type ConflictItem, type RadarClaim } from
 import { useRead } from './useRead.ts'
 import { LineBanner } from './FlowView.tsx'
 import { StartDemoButton } from './Demo.tsx'
+import ReleaseQueue from './ReleaseQueue.tsx'
 import { LINE_EVENT, flowClient } from './flow-api.ts'
 import Logo from './Logo'
 import { IconBtn, IconLabel, SectionHeading, ShowMore, TaskTitleLink, ViewHeading, useAskChat, usePages } from './controls.tsx'
@@ -588,6 +589,7 @@ export default function DashboardView(props: {
               <ShowMore {...pages.more('next', summary.readyNext.length)} />
             </Section>
           </Pair>
+          <ReleaseQueue workspaceId={workspaceId} />
         </>
       ) : (
         !error && <p className="text-sm text-muted">Loading…</p>
