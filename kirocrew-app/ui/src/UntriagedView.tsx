@@ -7,7 +7,7 @@
 // holds, show under With Issue Radar. A row from another source links to its
 // item and offers a person Plan this and Deliver this, each asked first.
 import { useCallback, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
-import { useAppApi } from './host.ts'
+import { useAppApi, useChatLauncher } from './host.ts'
 import { EmptyState, SegmentedControl } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { Tooltip } from './Tooltip.tsx'
@@ -145,6 +145,9 @@ function Actions({ item, onSend, onReview, onStart }: { item: UntriagedItem; onS
     )
   return (
     <span className="inline-flex gap-1.5">
+      {onStart && item.start?.plan && (
+        <IconBtn icon={FileText} label={`Plan this: ${name}`} tooltip="Plan this: opens a planner chat that drafts a spec from this issue. Nothing is approved or started." onClick={() => onStart(item, 'plan')} />
+      )}
       {onSend &&
         (item.kind === 'issue' ? (
           <IconBtn icon={Users} label={`Send ${name} to an Issue Radar crew`} tooltip="Send to an Issue Radar crew: pick a crew, check the label, then Avoozl adds it." onClick={() => onSend(item)} />
@@ -439,6 +442,7 @@ export default function UntriagedView({ workspaceId, onMakeSpec, onOpenSources }
   const api = useAppApi()
   const ask = useConfirm()
   const client = useMemo(() => untriagedClient(api), [api])
+  const { openChat } = useChatLauncher()
   const radar = useMemo(() => radarClient(api), [api])
   const [chosenShow, setShow] = useSteppedState<'untriaged' | 'radar' | 'ideas'>(
     'untriaged-show',
@@ -498,6 +502,19 @@ export default function UntriagedView({ workspaceId, onMakeSpec, onOpenSources }
   const start = async (item: UntriagedItem, action: 'deliver' | 'plan') => {
     if (!workspaceId) return
     const name = itemName(item)
+    // A GitHub issue of a Radar-coded repository: a planner chat drafts the spec.
+    if (sourceOf(item) === 'github') {
+      if (!(await ask({ title: `Plan ${name}?`, body: `A planner chat drafts a spec from "${item.title}". Nothing is approved or started until you approve the spec.`, action: 'Plan this' }))) return
+      setCheckError(null)
+      try {
+        const chat = await client.planIssue(workspaceId, item)
+        openChat({ message: chat.message, agent: chat.agent, autoSend: true })
+        setNote(`A planner chat is drafting ${chat.name} from ${name}.`)
+      } catch (caught) {
+        setCheckError(errorMessage(caught))
+      }
+      return
+    }
     const yes = await ask(
       action === 'deliver'
         ? { title: `Deliver ${name}?`, body: `Avoozl makes one task in ${item.repository} from "${item.title}", pinned to its text now, and a worker starts it. Avoozl writes nothing back to ${item.source}.`, action: 'Deliver this' }
