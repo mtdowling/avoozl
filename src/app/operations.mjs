@@ -457,6 +457,11 @@ import { lintPlan } from "./plan-quality.mjs";
 import { readTrace } from "./trace.mjs";
 import { flowView as radarFlowView, refreshFlow } from "./radar-flow.mjs";
 import {
+  applyRetroRule,
+  retroView,
+  undoRetroRule,
+} from "./radar-retro-rules.mjs";
+import {
   createSpecPlan,
   epicMembers,
   findSpecFolder,
@@ -3255,6 +3260,44 @@ export class Operations {
           force: input.refresh === true,
         });
       return radarFlowView(store);
+    }
+    // Retro rule targets (RC8.6): applied rules with their check, and the
+    // apply (a pull request, or the full prompt text to copy) or undo.
+    if (name === "radar.retro")
+      return {
+        rules: retroView(
+          store,
+          Object.entries(
+            store.getMeta("radarFlow")?.repositories ?? {},
+          ).flatMap(([repository, entry]) =>
+            entry.rows.map((row) => ({ ...row, repository })),
+          ),
+        ),
+      };
+    if (name === "radar.retro.apply") {
+      if (input.undo) {
+        if (!this.github?.available?.()) fail("GitHub is not available.", 503);
+        return undoRetroRule(store, this.github, input.id);
+      }
+      const policy = readGitHubPolicyOrNull(this.workspaceRoot);
+      if (!policy?.repositories?.[input.repository])
+        fail(`${input.repository} is not a registered repository.`, 404);
+      if (input.target !== "prompt" && !this.github?.available?.())
+        fail("GitHub is not available.", 503);
+      return applyRetroRule(store, this.github, input, {
+        check: (text) => {
+          const result = checkContent(this.store, {
+            boundary: "github",
+            repository: input.repository,
+            target: "pull-request-text",
+            text,
+          });
+          return [
+            ...result.findings.map((f) => `${f.set}/${f.rule}`),
+            ...result.unavailable.map((u) => `${u.set} unavailable`),
+          ];
+        },
+      });
     }
     // One issue's Trace (RC8.2): GitHub's times for its eight steps. Read only.
     if (name === "radar.trace") {

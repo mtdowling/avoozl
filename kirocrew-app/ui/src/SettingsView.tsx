@@ -49,6 +49,8 @@ import { ReleaseModePicker } from './ReleaseMode.tsx'
 import SetupWizard from './SetupWizard.tsx'
 import RadarValuesScreen from './RadarValues.tsx'
 import { CrewsRulesSettings } from './CrewsRulesSettings.tsx'
+import WorkflowMap, { focusField } from './WorkflowMap.tsx'
+import { type Jump } from './workflow-map.ts'
 import WorkspaceView from './WorkspaceView.tsx'
 import Onboard from './Onboard.tsx'
 import { AddRepository, REPOSITORIES_LINE, RepositoryDialog, RepositoryList, repositoryRows, useReveal, type RepositoryRow } from './RepositoriesSettings.tsx'
@@ -121,10 +123,12 @@ const REPOSITORY_TABS = [
   { key: 'checks', label: 'Checks' },
   { key: 'reviews', label: 'Reviews' },
   { key: 'crews', label: 'Crews and rules' },
+  { key: 'map', label: 'Workflow map' },
 ] as const
 type RepositoryTab = (typeof REPOSITORY_TABS)[number]['key']
 
 export const REPOSITORY_BLURBS: Record<RepositoryTab, string> = {
+  map: 'The path work takes in this repository, drawn from its settings. Nothing here is edited; a value opens its field.',
   crews: 'Issue Radar crews on this repository: the review rules crews read, and the planning and conflict labels. Defaults show in each field.',
   mode: 'Which repository this is, the branch pull requests merge into, and who writes the code.',
   triggers: "A rule starts its action when an allowed person's label makes an issue match its line. No label name is built in.",
@@ -709,6 +713,7 @@ function RepositoryEditor(props: {
   review: ReviewSettings | undefined
   mode: string
   workspaceId: string
+  planningRepository: string
   onChange: (repository: RepositoryForm) => void
 }) {
   const { repository, choices } = props
@@ -725,6 +730,14 @@ function RepositoryEditor(props: {
   )
   const [inspect, setInspect] = useState<RepositoryInspect | null>(null)
   const id = `avoozl-settings-repo-${props.index}`
+  // A jump from the Workflow map: open the sub-tab, then any closed fold
+  // around the field, then focus it.
+  const [pending, setPending] = useState<Jump | null>(null)
+  useEffect(() => {
+    if (!pending || tab !== pending.tab) return
+    setPending(null)
+    focusField(id, pending)
+  }, [pending, tab, id])
   const set = (change: Partial<RepositoryForm>) => props.onChange({ ...repository, ...change })
   const setRule = (at: number, rule: RuleForm) =>
     set({ rules: repository.rules.map((item, index) => (index === at ? rule : item)) })
@@ -897,6 +910,20 @@ function RepositoryEditor(props: {
             <CrewsRulesSettings id={id} repository={repository} set={set} />
           </Section>
         )}
+        {tab === 'map' && (
+          <Section level="sub" title="Workflow map" blurb={REPOSITORY_BLURBS.map}>
+            <WorkflowMap
+              workspaceId={props.workspaceId}
+              mode={props.mode}
+              repository={repository}
+              planningRepository={props.planningRepository}
+              onJump={(jump) => {
+                setTab(jump.tab)
+                setPending(jump)
+              }}
+            />
+          </Section>
+        )}
         {tab === 'checks' && (
           <Section level="sub" title="Required checks" blurb={REPOSITORY_BLURBS.checks}>
             <ChecksEditor id={id} value={repository.requiredChecks} inspect={inspect} repository={name} onChange={(value) => set({ requiredChecks: value })} />
@@ -1054,7 +1081,7 @@ function RepositoriesTab(props: {
         >
           <div className="flex flex-col gap-3.5" data-repository-dialog-body>
             {row && !isGitHubMode(form.mode) ? (
-        <LocalRepository row={row} review={props.review} kept={row.policy >= 0} />
+        <LocalRepository row={row} review={props.review} kept={row.policy >= 0} workspaceId={props.workspaceId} />
       ) : row && row.policy >= 0 ? (
         <RepositoryEditor
           key={row.key}
@@ -1064,6 +1091,7 @@ function RepositoriesTab(props: {
           review={props.review}
           mode={form.mode}
           workspaceId={props.workspaceId}
+          planningRepository={form.planningRepository}
           onChange={(next) => set({ repositories: form.repositories.map((item, index) => (index === row.policy ? next : item)) })}
         />
       ) : row && row.github ? (
@@ -1119,7 +1147,7 @@ function RepositoriesTab(props: {
 
 // Local only: what a repository uses here (folder, landing branch, its
 // checks, reviewer chats). Its GitHub settings, if any, are kept unused.
-function LocalRepository(props: { row: RepositoryRow; review: ReviewSettings | undefined; kept: boolean }) {
+function LocalRepository(props: { row: RepositoryRow; review: ReviewSettings | undefined; kept: boolean; workspaceId: string }) {
   const { row } = props
   return (
     <Card>
@@ -1140,6 +1168,9 @@ function LocalRepository(props: { row: RepositoryRow; review: ReviewSettings | u
         {props.kept && <p className="text-xs text-muted">Its GitHub settings are kept, not used. They apply again if you pick a GitHub mode.</p>}
       </Section>
       <ReviewRoles review={props.review} repository={row.github ?? row.name} />
+      <Section level="sub" title="Workflow map" blurb={REPOSITORY_BLURBS.map}>
+        <WorkflowMap workspaceId={props.workspaceId} mode="local" repository={{ ...emptyRepository(row.name), baseBranch: row.branch }} />
+      </Section>
     </Card>
   )
 }

@@ -102,7 +102,7 @@ the retros that tune the rules.
 | A crew builds a feature issue when it links an approved spec and an accepted decision record; blocked-by links are honored; a batch issue yields one PR; checklist boxes are not ticked; `updated=` in the marker is unreliable | V | `docs/research/radar-spec-tasks.md` |
 | The crew's claim comment is one edited comment with a versioned marker `<!-- kirocrew-crew v=1 id=<crew id> phase=<phase> pr=<n> updated=<time> -->` | V | `crew_brief.md:286-300`; research above, section 5 |
 | Crews write only their claim label and the needs-human label | V | `crew_brief.md:122,646` |
-| glorp: the unit is one issue; default pick-up filter is "authored by me and assigned to me"; `gh-create` files an issue with the original prompt quoted and an agent marker; `gh-fix` splits only when the issue states separable tasks, uses the sub-issue API, and reads blocked-by links | V | glorp `README.md` (How it works), `.agents/skills/gh-create/SKILL.md`, `.agents/skills/gh-fix/SKILL.md` ("Split a multi-part issue", "Stack on an open blocking issue") |
+| the reference tool: the unit is one issue; default pick-up filter is "authored by me and assigned to me"; `gh-create` files an issue with the original prompt quoted and an agent marker; `gh-fix` splits only when the issue states separable tasks, uses the sub-issue API, and reads blocked-by links | V | the reference tool `README.md` (How it works), `.agents/skills/gh-create/SKILL.md`, `.agents/skills/gh-fix/SKILL.md` ("Split a multi-part issue", "Stack on an open blocking issue") |
 
 ---
 
@@ -132,9 +132,9 @@ comment marker.
 | **Activity** | Unchanged: who did what. | none | none |
 | **Settings** | Workspaces, Repositories, Where tasks live, Plugins, Content rules, Flow, **Crews and rules** (new), Budgets (planner only). | Crews are read, with a check list. | Crews are typed in, with the same check list marked "cannot verify". |
 
-Mockups: [Home](experience/01-home.html), [Trace](experience/02-trace.html),
-[Crews and rules](experience/06-crews-and-rules.html),
-[Flow and retro](experience/07-flow-retro.html).
+Mockups: [Home](experience/01-home.html), [Trace](experience/04-trace.html),
+[Crews and rules](experience/05-settings.html),
+[Flow (unchanged)](experience/index.html).
 
 ### 3.2 What goes away
 
@@ -221,7 +221,7 @@ undo if flow did not improve (V: design 4.11, 4.18).
 in `contributes.panelTabs` (V: `apps/manifest_contributes.py:573-640`). Ultra
 Mode's Crew panel is the model: a recap line, then what needs the person, then
 now and next (V: the `ultra_*` strings above). Mockup:
-[03-side-panel.html](experience/03-side-panel.html).
+[06-side-panel.html](experience/06-side-panel.html).
 
 | Chat that is open | Panel shows | Links to |
 | --- | --- | --- |
@@ -260,7 +260,7 @@ Alternatives:
 **Recommendation: Trace.** One page per task or goal. It opens as a drawer from
 any row (replaces today's task drawer) and as a page with its own URL state in
 the Back history (V: Requirement 60). Mockup:
-[02-trace.html](experience/02-trace.html).
+[04-trace.html](experience/04-trace.html).
 
 ### 5.1 The stages
 
@@ -358,7 +358,7 @@ shown early.
 ## 7. Spec to issues: who controls it, and where
 
 **Control sits in Avoozl's Specs view.** Nothing reaches GitHub except through
-one preview. Mockup: [04-projection.html](experience/04-projection.html).
+one preview. Mockup: [02-epics.html](experience/02-epics.html).
 
 ```text
 Spec Builder / quick goal
@@ -418,14 +418,14 @@ writer can skip it.
 
 ## 8. Quick goals
 
-### 8.1 What glorp does (read from its repo)
+### 8.1 What the reference tool does (read from its repo)
 
-| Question | glorp | Source |
+| Question | the reference tool | Source |
 | --- | --- | --- |
 | Who plans? | Nobody up front. The one issue is the plan. | README, "How it works" |
 | Creating the issue | `gh-create`: expand the request into a structured issue, quote the original prompt verbatim in a collapsed block, apply only existing labels, assign `@me`, scrub private data | `.agents/skills/gh-create/SKILL.md` |
 | Investigation | Optional and light: read files, search duplicates, never run builds, never delay filing | same, "Research, optionally" |
-| Provenance | A last line, `Created by Glorp: /glorp:<id>, <agent> (<model>)`, only when a glorp run made it | same, "Mark issues created by a glorp agent" |
+| Provenance | A last line, `Created by <tool>: /<tool>:<id>, <agent> (<model>)`, only when a tool run made it | same, "Mark issues created by a tool agent" |
 | Trust | Default filter: issue authored by me and assigned to me. Someone else assigning you an issue cannot start a run. | README, "How it works" |
 | Splitting | At pick-up, by the fixing agent, only when the issue itself states separable tasks. Sub-issues through the sub-issue API; the parent becomes a tracking issue. Never twice. | `gh-fix/SKILL.md`, "Split a multi-part issue" |
 | Order | Reads blocked-by links; may stack PRs on an open blocker | `gh-fix/SKILL.md`, "Stack on an open blocking issue" |
@@ -439,7 +439,7 @@ so authorship cannot tell a crew from the owner).
 
 ### 8.2 Avoozl's version
 
-Mockup: [05-quick-goal.html](experience/05-quick-goal.html).
+Mockup: [02-epics.html](experience/02-epics.html).
 
 ```text
 "Make tests faster"
@@ -457,7 +457,7 @@ Issues + sub-issues + blocked-by (marker v2 + approval) ─▶ ready in order
 | --- | --- | --- |
 | **What agent?** | `avoozl-planner` with a quick-goal brief, in an Avoozl-owned chat. Avoozl can read and send, and the owner can attach (V: `app.json:68`). | Run it in a crew: rejected, crews skip features and cannot be read. |
 | **How much to investigate?** | **Look** by default (read-only). **Measure** is a per-goal switch that runs the repo's own test command in a scratch worktree. Budget: 20 turns and 15 minutes by default (turns and time first, V: owner's earlier choice). The proposal must cite evidence for each task (file and line, or a measured time). | Look only, or Measure always. "Make tests faster" is hollow without a measurement, so Measure is offered up front, off by default because it runs code. |
-| **Provenance for crews** | The marker v2, plus `goal` and `approval` (section 7). The issue body ends with the original prompt, quoted, as glorp does. | Plain issue text. Rejected: a crew cannot tell it from noise. |
+| **Provenance for crews** | The marker v2, plus `goal` and `approval` (section 7). The issue body ends with the original prompt, quoted, as the reference tool does. | Plain issue text. Rejected: a crew cannot tell it from noise. |
 | **How the owner approves** | One proposal screen. **Create issues** (held) or **Create and release**. Edits happen in modals. The confirm lists every issue that will be written. Nothing is written before it. | Auto-create when the goal has up to N tasks and no open question. Offered as a setting, off by default. |
 | **How it grows** | Rules shown in the proposal and enforced: more than 8 tasks, more than 3 dependency levels, any open design question, or any change to a public interface. Then the button is **Promote to spec** and **Create issues** is replaced by the question. Promote is also always available. | Never promote; make the owner start over. Rejected. |
 
