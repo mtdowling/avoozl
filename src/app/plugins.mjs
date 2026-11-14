@@ -33,12 +33,14 @@ import { readTemplates } from "./templates.mjs";
 
 export const PLUGIN_MANIFEST = "avoozl-plugin.json";
 export const RESERVED_IDS = new Set(["local", "github"]);
-export const KINDS = ["route", "tracker", "rules"];
+export const KINDS = ["route", "tracker", "rules", "gate"];
 export const CAPABILITIES = {
   route: [],
   // `poll` brings outside work in (R50.7): the intake part.
   tracker: ["edges", "subtasks", "actor", "pause", "poll"],
   rules: [],
+  // One read-only call, `status` (RC23.6).
+  gate: [],
 };
 // The parts one plugin may bundle (R55.1), and the code kind each runs as.
 // A pack is settings only and runs as nothing; intake is a tracker's `poll`.
@@ -51,6 +53,7 @@ export const PARTS = [
   "tracker",
   "intake",
   "route",
+  "gate",
   "lessons",
   "template",
 ];
@@ -59,6 +62,7 @@ const PART_KIND = {
   tracker: "tracker",
   intake: "tracker",
   route: "route",
+  gate: "gate",
 };
 
 // A manifest's parts and the code kinds they need. A manifest written
@@ -339,7 +343,7 @@ export function validateManifest(manifest, entry) {
     manifest.kinds.some((kind) => !KINDS.includes(kind))
   )
     fail(
-      `${PLUGIN_MANIFEST} kinds must list route, tracker, or rules, or provides must list its parts.`,
+      `${PLUGIN_MANIFEST} kinds must list route, tracker, rules, or gate, or provides must list its parts.`,
     );
   const { provides, kinds } = pluginParts(manifest);
   if (
