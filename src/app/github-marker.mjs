@@ -21,10 +21,10 @@ export const isParentMarker = (marker) =>
 // Generated as RFC 4648 base32; read as any 16 lowercase letters and digits,
 // so the design's own example (`avz_k3q9m2x7v4d8p1ta`) stays valid.
 export const NAMESPACE = /^avz_[a-z0-9]{16}$/;
-const TASK_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,159}$/;
+export const TASK_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,159}$/;
 const SHA256 = /^[0-9a-f]{64}$/;
-const COMMIT = /^[0-9a-f]{40}$/;
-const LOGIN = /^[A-Za-z0-9][A-Za-z0-9-]{0,38}(?:\[bot\])?$/;
+export const COMMIT = /^[0-9a-f]{40}$/;
+export const LOGIN = /^[A-Za-z0-9][A-Za-z0-9-]{0,38}(?:\[bot\])?$/;
 const NODE_ID = /^[A-Za-z0-9_=-]{1,100}$/;
 const MARKER = /<!--\s*avoozl-task\s*\n([\s\S]*?)\n-->/;
 const ABSOLUTE_PATH = /^(?:\/|~[\\/]|[A-Za-z]:[\\/]|\\\\|file:)/i;
