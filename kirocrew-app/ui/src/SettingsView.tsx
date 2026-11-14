@@ -38,6 +38,7 @@ import {
   LOCAL_HIDDEN_LINE,
   SUB_ISSUE_LINE,
   isGitHubMode,
+  rateLines,
   defaultCoder,
   modeKey,
   unusedInLocal,
@@ -1417,6 +1418,14 @@ function PolicyEditor(props: { workspaceId: string; tab: SettingsTab; onOpenPlan
         />
       )}
       {tab === 'github' && <ThisComputer workspaceId={workspaceId} />}
+      {tab === 'github' && rateLines(settings.rate).length > 0 && (
+        <div className="text-xs text-muted" data-github-rate>
+          <p className="font-medium">GitHub calls, last known</p>
+          {rateLines(settings.rate).map((line) => (
+            <p key={line}>{line}</p>
+          ))}
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-2">
         <TipBtn tooltip="Check these settings without saving them" onClick={() => void check()} disabled={saving}>
           Check

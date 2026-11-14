@@ -1737,7 +1737,7 @@ export function plansRepoSteps(
     `1. Fetch branch ${branch}, which already exists on origin: \`git -C ${project.root} fetch origin ${branch}\`. Work in your own worktree on it, for example \`git -C ${project.root} worktree add ${worktreePath(task, project)} -B ${branch} origin/${branch}\` (reuse that worktree if it exists). Do not create another branch.`,
     `2. Commit your change and push it to that branch: \`git push origin HEAD:${branch}\`.`,
     ...middle,
-    "5. Fix failing checks and answer review on that pull request until it merges. Do not merge it by hand around required checks or reviews. When its base branch moves, merge the base branch into your branch and push; never rebase a pushed branch and never force push.",
+    "5. Fix failing checks and answer review on that pull request until it merges. To wait on checks, read them with `gh pr checks <number>` once every 2 to 3 minutes; never use `gh pr checks --watch` or a loop that polls faster, because every chat shares one GitHub rate limit. Do not merge it by hand around required checks or reviews. When its base branch moves, merge the base branch into your branch and push; never rebase a pushed branch and never force push.",
     `6. When it has merged, fetch ${base} (\`git -C ${project.root} fetch origin ${base}\`) so its merge commit is in the checkout.`,
     relay
       ? `7. Then call plans_report with ${report}${localChecks ? " and the checks list" : ""} if you have that tool. Otherwise end with a done report that names the merge commit SHA, and your conductor records it. If you cannot finish, say why: blocked, or a question.`

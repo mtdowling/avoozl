@@ -638,15 +638,17 @@ export async function driverStep(store, github, { script }) {
       putRow(store, {
         ...(row || { id: plan.id, mode: githubMode ? "github" : "local" }),
         state: "read-only",
-        reason: "unreadable",
+        reason: error.rateLimited ? "rate-limited" : "unreadable",
         error: String(error.message || error).slice(0, 300),
         readAt: iso(ctx.now()),
       });
-      notify.push({
-        channel: "failure",
-        title: `Avoozl could not read who drives ${specName(plan)}`,
-        text: `${error.message} The spec reads only on this machine until the next tick reads it.`,
-      });
+      // A rate limit has its own single row (github-rate.mjs).
+      if (!error.rateLimited)
+        notify.push({
+          channel: "failure",
+          title: `Avoozl could not read who drives ${specName(plan)}`,
+          text: `${error.message} The spec reads only on this machine until the next tick reads it.`,
+        });
     }
   }
   return { notify };
@@ -791,6 +793,8 @@ export function reasonText(row) {
       return `${row.claim?.login} took it over by force on ${row.claim?.label || row.claim?.machine} at ${row.claim?.takenAt}.`;
     case "local-other-machine":
       return `Another machine (${row.label || row.machine}) holds it in this file. Press Take over to drive it here.`;
+    case "rate-limited":
+      return "GitHub's rate limit held this read back. It reads again once the limit resets.";
     case "unreadable":
       return `Avoozl could not read its plan issue: ${row.error || "unknown error"}.`;
     default:

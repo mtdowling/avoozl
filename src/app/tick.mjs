@@ -92,6 +92,12 @@ import { advanceGitHubBreakdowns } from "./github-breakdown.mjs";
 import { blockerNotes } from "./github-close.mjs";
 import { refreshUntriaged } from "./untriaged.mjs";
 import { mergeStep } from "./radar-merge.mjs";
+import {
+  RATE_LIMIT_TEXT,
+  githubGate,
+  markGithubRun,
+  rateLimitNotices,
+} from "./github-rate.mjs";
 import { syncStep, syncTargets } from "./integration-sync.mjs";
 import { armStep } from "./radar-arm.mjs";
 import { headStep } from "./integration-head.mjs";
@@ -697,15 +703,21 @@ export async function tick(
     issueVerify,
   },
 ) {
-  // Every GitHub write of every step passes the driver backstop (§6.10).
-  const github = client ? driverGuard(store, client) : client;
   const at = new Date().toISOString(),
     roster = sessionList(sessions),
     // The script cron, which carries out intents, as opposed to the page's
     // plan-only tick. A Kiro Crew with ScriptContext.session_status (MC-2)
     // also hands the cron a roster; a stock one does not, and the app backend
     // records each session's status instead (session-observer.mjs).
-    script = Boolean(roster) || cron === true;
+    script = Boolean(roster) || cron === true,
+    // While GitHub's rate limit holds calls back, or the budget is low and
+    // reads are spaced out, no GitHub step runs: the steps reconcile from
+    // state, so the first tick after the wait does each pending write once.
+    gate = client && script ? githubGate(store) : { skip: false },
+    live = gate.skip ? null : client,
+    // Every GitHub write of every step passes the driver backstop (§6.10).
+    github = live ? driverGuard(store, live) : live;
+  if (gate.low) markGithubRun(store);
   try {
     const result = await withWorkLock(store, WORKSPACE_LOCK, async () => {
       const { policy, notify } = await loadPolicy(workspaceRoot, memory);
@@ -715,7 +727,7 @@ export async function tick(
       // so a spec driven elsewhere is read-only for this whole tick.
       // Its own plan-issue writes (claim, heartbeat, epic link) are the
       // lock itself, so it holds the unguarded client.
-      notify.push(...(await driverStep(store, client, { script })).notify);
+      notify.push(...(await driverStep(store, live, { script })).notify);
       // Observe first: statuses the script read land before any planning.
       if (roster) {
         const bound = new Set(listSessionBindings(store).map((b) => b.slot));
@@ -1231,7 +1243,7 @@ export async function tick(
       if (script) {
         const lost = await recheckDrivers(
           store,
-          client,
+          live,
           new Set(dispatch.map((d) => taskPlan.get(d.task)).filter(Boolean)),
         );
         if (lost.size)
@@ -1260,7 +1272,17 @@ export async function tick(
             text: "A brief or message asked for a force push, so it was not sent. Writers bring the base branch in with a merge commit instead.",
           });
       }
-      const notices = [...notify, ...planned.notify];
+      // One notice per rate-limit window; a step that failed on the limit
+      // adds nothing of its own.
+      const notices = [
+        ...notify,
+        ...planned.notify,
+        ...(script ? rateLimitNotices(store) : []),
+      ].filter(
+        (n) =>
+          n.title === "GitHub rate limit reached" ||
+          !RATE_LIMIT_TEXT.test(n.text || ""),
+      );
       // Nothing new starts for a task at its budget, and its sessions get
       // only the budget's own messages until a person acts (R67.8).
       const budgetHeld = budgetHeldTaskIds(store),
