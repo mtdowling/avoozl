@@ -1127,6 +1127,418 @@
       "requires": [
         "rc-12.8"
       ]
+    },
+    "rc-13.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Scope statement in the README, Set up and the quick goal modal. See RC13.1, RC13.2, RC13.5; \u00a7D18.",
+      "acceptance": [
+        "The three places show the same words from one string; no operation changes behavior; `npm test` passes."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-1.2"
+      ]
+    },
+    "rc-13.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "One-pull-request hint with Plan it anyway. See RC13.3, RC13.4; \u00a7D18.",
+      "acceptance": [
+        "A one-task proposal shows the hint and still plans when chosen; a two-task proposal shows no hint."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-13.1",
+        "rc-9.1"
+      ]
+    },
+    "rc-p13": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Proof 13: the work split. See RC13; \u00a7D22.",
+      "acceptance": [
+        "Expected result observed; receipt under `docs/evidence/`."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-13.1",
+        "rc-13.2"
+      ]
+    },
+    "rc-14.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Per-repository coder setting with three values. See RC14.1; \u00a7D19.",
+      "acceptance": [
+        "Each value validates; an unknown value is refused naming the allowed ones; Settings shows the three display names; `npm test` passes."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-1.1"
+      ]
+    },
+    "rc-14.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Coder adapter: hand over, read state, count as done. See RC14.2, RC14.3, RC14.6; \u00a7D19.",
+      "acceptance": [
+        "The Radar tests of Phases 4 and 5 pass unchanged; a fake third adapter in a test needs no change to release or projection; done is true only for a merged pull request."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-14.1",
+        "rc-4.1",
+        "rc-5.1"
+      ]
+    },
+    "rc-14.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Put the worker behind the adapter and mark it frozen. See RC14.4; \u00a7D19.",
+      "acceptance": [
+        "Existing worker tests pass unchanged; Settings says frozen; no new option is added to the worker."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-14.2"
+      ]
+    },
+    "rc-14.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Coder change with tasks in flight. See RC14.5; \u00a7D19.",
+      "acceptance": [
+        "A test switches coder with one task in flight: that task finishes with the old coder, the next goes to the new one, one notice appears."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-14.2"
+      ]
+    },
+    "rc-p14": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Proof 14: the same plan, any coder. See RC14; \u00a7D22.",
+      "acceptance": [
+        "Expected result observed; receipt under `docs/evidence/`."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-14.1",
+        "rc-14.2",
+        "rc-14.3",
+        "rc-14.4"
+      ]
+    },
+    "rc-15.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Remote coder adapter: file one task per ready task or batch. See RC15.2, RC15.3, RC15.7, RC15.9; \u00a7D20.",
+      "acceptance": [
+        "A fake harness receives one task per ready task and one per batch; a retried tick files nothing twice; nothing the content rules mark private is sent."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-14.2",
+        "rc-2.3"
+      ]
+    },
+    "rc-15.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Watch the remote task and count done only on a public merge. See RC15.3, RC15.4, RC15.8; \u00a7D20.",
+      "acceptance": [
+        "A fake harness that says complete with no pull request leaves the task not done; the merge of the public pull request releases dependents; a read failure shows the age and changes nothing."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-15.1",
+        "rc-5.1"
+      ]
+    },
+    "rc-15.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Needs you row for a waiting publish, and larger batches. See RC15.5, RC15.6; \u00a7D20.",
+      "acceptance": [
+        "The row appears once across three ticks and clears on the pull request; the preview shows the publish count; a chain that fits one batch is batched whole."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-15.2",
+        "rc-2.5"
+      ]
+    },
+    "rc-15.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "No internal names in the repository, and a scan check. See RC15.1; \u00a7D20.",
+      "acceptance": [
+        "A test with a pattern set in the environment fails when a listed name appears in a tracked file; `node scripts/release-scan.mjs --tree` is clean."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-15.1"
+      ]
+    },
+    "rc-p15": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Proof 15: a remote coder end to end with a fake harness. See RC15; \u00a7D22.",
+      "acceptance": [
+        "Expected result observed; receipt under `docs/evidence/`."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-15.1",
+        "rc-15.2",
+        "rc-15.3",
+        "rc-15.4"
+      ]
+    },
+    "rc-16.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Integration branch in the manifest, with branch checks. See RC16.1, RC16.9; \u00a7D21.",
+      "acceptance": [
+        "A missing, unprotected or default branch is refused naming the reason; a manifest without the field changes nothing."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-2.1",
+        "rc-5.1"
+      ]
+    },
+    "rc-16.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Projected tasks target the branch, and the branch merge path. See RC16.2; \u00a7D21.",
+      "acceptance": [
+        "A pull request into main for a branch epic fails `verify-issue`; a pull request into the branch passes and may be armed."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-16.1",
+        "rc-3.6",
+        "rc-5.2"
+      ]
+    },
+    "rc-16.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Whole-head checks on the branch and acceptance records. See RC16.3, RC16.5, RC16.8; \u00a7D21.",
+      "acceptance": [
+        "A green task merge leaves acceptance open; a green head records acceptance for that head; a new merge makes the record name the new head."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-16.2"
+      ]
+    },
+    "rc-16.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Scheduled merge of main into the branch. See RC16.6; \u00a7D21.",
+      "acceptance": [
+        "A test repository gets a merge commit and a normal push; a conflict leaves the branch unchanged and raises the row; the sync code contains no force option."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-16.1"
+      ]
+    },
+    "rc-16.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Stop the line for the branch. See RC16.7; \u00a7D21.",
+      "acceptance": [
+        "A red head stops release and arming; clearing it resumes both."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-16.2",
+        "rc-4.2",
+        "rc-5.4"
+      ]
+    },
+    "rc-16.6": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Landing the branch in main: one person-approved step. See RC16.4, RC16.5; \u00a7D21.",
+      "acceptance": [
+        "No code path merges the branch into the default branch; an approval on an old head is refused; the row records approver and head."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-16.3",
+        "rc-16.4"
+      ]
+    },
+    "rc-p16": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Proof 16: a rewrite on an integration branch. See RC16; \u00a7D22.",
+      "acceptance": [
+        "Expected result observed; receipt under `docs/evidence/`."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-16.1",
+        "rc-16.2",
+        "rc-16.3",
+        "rc-16.4",
+        "rc-16.5",
+        "rc-16.6"
+      ]
+    },
+    "rc-17.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Templates and docs: rewrite, cross-repository migration, large codegen change. See RC17.1, RC17.2, RC17.3, RC17.7; \u00a7D22.",
+      "acceptance": [
+        "Each template lints with 0 errors; the release scan finds no internal name."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-14.1",
+        "rc-16.1"
+      ]
+    },
+    "rc-17.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Cross-repository proposal: parent spec and one sub-spec per repository. See RC17.4, RC17.5; \u00a7D22.",
+      "acceptance": [
+        "A parent with a repository task is refused; a `requires` on a missing ID is refused naming it; two sub-specs approve separately."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-17.1",
+        "rc-2.1"
+      ]
+    },
+    "rc-17.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "External gap report becomes proposed tasks. See RC17.6; \u00a7D22.",
+      "acceptance": [
+        "A fixture report with two failing and three passing cells gives two proposals; an unreadable line is refused naming it; accepting adds the tasks."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-17.2"
+      ]
+    },
+    "rc-p17": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Proof 17: epic types. See RC17; \u00a7D22.",
+      "acceptance": [
+        "Expected result observed; receipt under `docs/evidence/`."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-17.1",
+        "rc-17.2",
+        "rc-17.3"
+      ]
     }
   }
 }
