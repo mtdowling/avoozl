@@ -84,3 +84,31 @@ export const STOP_NOTICE =
   " Avoozl releases nothing new there and leaves this issue's labels as they are." +
   " It cannot stop a running crew: only Issue Radar's own pause does that." +
   " A person resumes the line in Avoozl.";
+
+// The phase gate (RC4.4): a phase of a spec is held until every counted task
+// of the phase before it has merged. Phases run in the order their tasks
+// appear in the plan. `counts` picks the tasks that count; `merged` says
+// whether one has. Returns a Map of held task ID to
+// {phase, previous, waiting: [task IDs]}. Tasks with no phase are never held.
+export function phaseHolds(tasks, { counts, merged }) {
+  const phases = [];
+  for (const task of tasks) {
+    const id = task.phase?.id;
+    if (id && !phases.includes(id)) phases.push(id);
+  }
+  const holds = new Map();
+  for (let i = 1; i < phases.length; i += 1) {
+    const waiting = tasks
+      .filter((t) => t.phase?.id === phases[i - 1] && counts(t) && !merged(t))
+      .map((t) => t.id);
+    if (!waiting.length) continue;
+    for (const task of tasks)
+      if (task.phase?.id === phases[i])
+        holds.set(task.id, {
+          phase: phases[i],
+          previous: phases[i - 1],
+          waiting,
+        });
+  }
+  return holds;
+}
