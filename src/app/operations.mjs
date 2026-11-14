@@ -93,7 +93,11 @@ import {
   prepareGitHubRepository,
   syncGitHubIssues,
 } from "./github-sync.mjs";
-import { planningIdentity, requireNamespace } from "./github-marker.mjs";
+import {
+  parseMarker,
+  planningIdentity,
+  requireNamespace,
+} from "./github-marker.mjs";
 import { claimsView, refreshClaims } from "./radar-claims.mjs";
 import { mergePath, requireMergePath } from "./radar-merge-path.mjs";
 import { radarSetup } from "./radar-setup.mjs";
@@ -108,6 +112,13 @@ import {
   writeBackApproval,
 } from "./approval-label.mjs";
 import { planSource } from "./radar-source.mjs";
+import {
+  beginRemoteTick,
+  endRemoteTick,
+  remoteCommand,
+  remoteNeedsYou,
+  remoteStep,
+} from "./remote-coder.mjs";
 import { formatGapTable, gapProposals, parseGapReport } from "./gap-report.mjs";
 import {
   integrationView,
@@ -1639,6 +1650,53 @@ export class Operations {
       proposals = gapProposals(report, subSpecOf);
     return { report, table: formatGapTable(report), proposals };
   }
+  // Ready tasks of remote-coder repositories that still need filing: the issue,
+  // the task IDs it covers (a batch has several), the spec, and the approving
+  // person, whose own identity the task is filed under (RC15.11). A plan with
+  // no approver is not filed.
+  async remoteCandidates() {
+    const policy = readGitHubPolicyOrNull(this.workspaceRoot),
+      seen = new Set(),
+      out = [];
+    for (const task of this.store.read().tasks) {
+      const repository = task.github?.repository,
+        number = task.github?.number;
+      if (
+        policy?.repositories?.[repository]?.coder !== "remote" ||
+        !task.dispatch?.ready ||
+        !number
+      )
+        continue;
+      const key = `${repository}#${number}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const config = this.store.get("github_repositories", repository),
+        plan = this.store.get("plans", task.planId),
+        approver =
+          approvalState(this.store, plan?.id, plan?.hash)?.approvedBy ??
+          this.store.get("approvals", plan?.approvalId)?.approvedBy;
+      if (!config || !plan || !approver) continue;
+      const issue = await this.github.issue(config, number);
+      if (issue?.state !== "open") continue;
+      const members = parseMarker(issue.body)?.members;
+      out.push({
+        config,
+        issue,
+        taskIds: members?.length ? members : [task.id],
+        spec: plan.spec || plan.id,
+        approver,
+      });
+    }
+    return out;
+  }
+  // True when a repository's coder is the remote one, so the tick starts the
+  // harness's MCP server (RC15.10).
+  usesRemoteCoder() {
+    const policy = readGitHubPolicyOrNull(this.workspaceRoot);
+    return Object.values(policy?.repositories || {}).some(
+      (entry) => entry.coder === "remote",
+    );
+  }
   // Whether a plan's current text is the one last approved.
   planApproved(plan) {
     return this.store
@@ -2679,18 +2737,41 @@ export class Operations {
       });
       if (remote) return remote;
       if (input.cron === true) await driverTick(store, this.workspaceRoot);
-      const result = await tick(store, {
-        workspaceRoot: this.workspaceRoot,
-        memory: this.tickPolicy,
-        sessions: input.sessions,
-        cron: input.cron === true,
-        folders: input.folders ?? null,
-        github: this.github,
-        breakdownHooks: () => this.breakdownHooks({ locked: true }),
-        plugins: this.plugins,
-        placement: this.placement,
-        issueVerify: this.issueVerifier,
-      });
+      // The remote coder's MCP server lives for this tick only (RC15.10).
+      const harness =
+        this.usesRemoteCoder() && remoteCommand(this.workspaceRoot);
+      if (harness) beginRemoteTick(harness);
+      let result;
+      try {
+        result = await tick(store, {
+          workspaceRoot: this.workspaceRoot,
+          memory: this.tickPolicy,
+          sessions: input.sessions,
+          cron: input.cron === true,
+          folders: input.folders ?? null,
+          github: this.github,
+          breakdownHooks: () => this.breakdownHooks({ locked: true }),
+          plugins: this.plugins,
+          placement: this.placement,
+          issueVerify: this.issueVerifier,
+        });
+        if (harness && this.github?.available?.())
+          await remoteStep(store, {
+            candidates: () => this.remoteCandidates(),
+            pullsOf: async (receipt) =>
+              (
+                await this.github.closingPullRequests(
+                  store.get("github_repositories", receipt.repository),
+                  receipt.number,
+                )
+              ).map((pull) => ({
+                merged: pull.merged === true || pull.state === "MERGED",
+                state: pull.state === "OPEN" ? "open" : "closed",
+              })),
+          }).catch(() => {});
+      } finally {
+        endRemoteTick();
+      }
       if (Array.isArray(input.sessions) || input.cron === true)
         await this.approvalTick().catch(() => {});
       // A deleted plan's tasks whose chats have ended are archived now.
@@ -2886,6 +2967,7 @@ export class Operations {
       view.items.push(...mergeNeedsYou(store));
       view.items.push(...approvalNeedsYou(store));
       view.items.push(...landingNeedsYou(store));
+      view.items.push(...remoteNeedsYou(store));
       view.items.push(...syncNeedsYou(store));
       view.items.push(
         ...radarNeedsYou(
@@ -5313,19 +5395,33 @@ export class Operations {
           batches: input.batches,
         });
       // Batches the planner would group, for the preview's batch edit.
-      const suggested = (target) =>
-        planProjectionBatches({
-          tasks: target.read().tasks.filter((task) => task.planId === plan.id),
-          edges: target.read().edges,
-          mode: "suggest",
-          max: this.settingsFile().readFlowSettings().flow.batch?.max,
-          complete: (status) => statusComplete(target.read(), status),
-        }).batches.map((batch) => batch.tasks);
+      const remoteCoder =
+          policy?.repositories?.[repository]?.coder === "remote",
+        grouped = (target) =>
+          planProjectionBatches({
+            tasks: target
+              .read()
+              .tasks.filter((task) => task.planId === plan.id),
+            edges: target.read().edges,
+            mode: "suggest",
+            max: this.settingsFile().readFlowSettings().flow.batch?.max,
+            complete: (status) => statusComplete(target.read(), status),
+            chains: remoteCoder,
+          }),
+        suggested = (target) =>
+          grouped(target).batches.map((batch) => batch.tasks),
+        // Each publish costs a person's time, so a remote coder's preview
+        // counts them: one per batch and one per task left alone (RC15.6).
+        publishes = (target) => {
+          const found = grouped(target);
+          return found.batches.length + found.plain.length;
+        };
       if (plan.state === "approved")
         return withChecks({
           ...(await projection(store)),
           simulated: false,
           suggestedBatches: suggested(store),
+          ...(remoteCoder ? { publishes: publishes(store) } : {}),
         });
       const quality = this.lintSpecPlan(plan, [], { content: false }),
         blocking = quality.diagnostics.filter((d) => d.severity === "error");
@@ -5352,6 +5448,7 @@ export class Operations {
           ...(await projection(scratch)),
           simulated: true,
           suggestedBatches: suggested(scratch),
+          ...(remoteCoder ? { publishes: publishes(scratch) } : {}),
         });
       } finally {
         scratch.close();
