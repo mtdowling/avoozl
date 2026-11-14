@@ -51,7 +51,7 @@ import { AddRepository, REPOSITORIES_LINE, RepositoryDialog, RepositoryList, rep
 import PluginsSettings from './PluginsSettings.tsx'
 import ContentRulesSettings from './ContentRulesSettings.tsx'
 import FlowSettings from './FlowSettings.tsx'
-import { BudgetSettings, PricesSettings } from './BudgetSettings.tsx'
+import { BudgetSettings } from './BudgetSettings.tsx'
 import DeliverySettings from './DeliverySettings.tsx'
 import RoutingView from './RoutingView.tsx'
 import { useSteppedState } from './NavHistory.tsx'
@@ -82,7 +82,6 @@ export const SETTINGS_TABS = [
   { key: 'flow', label: 'Flow' },
   { key: 'delivery', label: 'Delivery' },
   { key: 'budgets', label: 'Budgets' },
-  { key: 'prices', label: 'Prices' },
   { key: 'routing', label: 'Routing' },
 ] as const
 export type SettingsTab = (typeof SETTINGS_TABS)[number]['key']
@@ -108,8 +107,6 @@ export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
     'Which agent and model write each task by default, and whether pull request feedback goes back to the writer. Crews and the routing prompt are on the Routing tab.',
   budgets:
     "Each task's spending cap and what happens at it: stop new work, or only warn. Save only writes .avoozl.json.",
-  prices:
-    'What each model costs, so budgets can count dollars. Kept on this computer only, never in a repository.',
   routing:
     'Off by default: every task runs on this machine. On, one routing prompt picks a crew and a model for each ready task, among the options that pass the checks. Saved on this machine only.',
 }
@@ -1438,8 +1435,6 @@ export default function SettingsView(props: {
         <DeliverySettings workspaceId={workspaceId} onOpenRouting={props.onOpenRouting} />
       ) : tab === 'budgets' ? (
         <BudgetSettings workspaceId={workspaceId} />
-      ) : tab === 'prices' ? (
-        <PricesSettings workspaceId={workspaceId} />
       ) : tab === 'routing' ? (
         <RoutingView workspaceId={workspaceId} />
       ) : (

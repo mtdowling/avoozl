@@ -337,16 +337,13 @@ export function BudgetFold(props: {
           {receipt.raises.map((r, i) => (
             <li key={i}>
               {r.by} raised {usd(r.from.usd ?? null)} to {usd(r.to.usd ?? null)}{" "}
-              on {new Date(r.at).toLocaleString()} (prices v{r.priceVersion})
+              on {new Date(r.at).toLocaleString()}
             </li>
           ))}
         </ul>
       )}
       <p className="text-xs text-muted">
-        Prices version {receipt.price.version}
-        {receipt.price.version === 0
-          ? ": none set. Add them in Settings › Prices."
-          : "."}
+        Prices: Avoozl's built-in list of {receipt.price.updated}.
       </p>
       <div>
         <Btn variant="ghost" onClick={exportJson}>

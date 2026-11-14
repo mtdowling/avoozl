@@ -229,8 +229,6 @@ export const APP_OPERATIONS = new Set([
   "budget.switchToStop",
   "budget.settings.get",
   "budget.settings.update",
-  "prices.get",
-  "prices.save",
   "flow.settings.get",
   "flow.settings.update",
   "driver.status",

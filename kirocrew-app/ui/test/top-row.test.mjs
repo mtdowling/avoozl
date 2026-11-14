@@ -116,6 +116,26 @@ test('an In flight title opens the task drawer, and Back closes it and returns f
   assert.equal(await page.evaluate(`document.activeElement?.dataset?.taskTitle ?? null`), 'a1')
 })
 
+test('In flight rows line up: titles, and Details, start at the same x in every row', { skip }, async () => {
+  for (const width of [1280, 768]) {
+    await page.open(harness.url({ modal: 'in-flight-pair' }), { width, height: 800 })
+    await page.until(`document.querySelectorAll('[data-in-flight-row]').length === 2`)
+    const cols = await page.evaluate(`(() => {
+      const rows = [...document.querySelectorAll('[data-in-flight-row]')]
+      const x = (el) => Math.round(el.getBoundingClientRect().left)
+      return {
+        role: rows.map((r) => x(r.querySelector('[data-in-flight-role]'))),
+        title: rows.map((r) => x(r.querySelector('[data-task-title]'))),
+        actions: rows.map((r) => x(r.querySelector('[data-in-flight-actions]'))),
+        right: rows.map((r) => Math.round(r.querySelector('[data-in-flight-actions]').getBoundingClientRect().right)),
+        sideways: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      }
+    })()`)
+    for (const key of ['role', 'title', 'actions', 'right']) assert.equal(cols[key][0], cols[key][1], `${key} lines up at ${width}px`)
+    assert.equal(cols.sideways, false, `no sideways scroll at ${width}px`)
+  }
+})
+
 async function chooseAndDryRun() {
   await click('Switch model')
   await page.until(`Boolean(document.querySelector('[data-switch-intro]') && document.querySelector('select[data-switch-from]') && document.querySelector('#avoozl-switch-to'))`)

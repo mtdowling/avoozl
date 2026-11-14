@@ -1,6 +1,7 @@
 ---
 category: Planning
 ---
+
 # Requirements: Avoozl as a Kiro Crew-native, GitHub-native product
 
 ## Introduction
@@ -12,11 +13,11 @@ it changes code, GitHub repositories, app settings, or local databases.
 
 The three documents together form the recommendation:
 
-| Document | Holds |
-|---|---|
-| `requirements.md` | Evidence baseline, product question, scope, and the behavior the product must have, with acceptance criteria |
-| `design.md` | Product thesis, non-goals, state ownership, architecture, workflows, Kiro Crew integration map, app UX, code disposition, moving an existing workspace, release gates, kill criteria, and the final product statement |
-| `tasks.md` | The ordered proof sequence and phased roadmap as checkable tasks |
+| Document          | Holds                                                                                                                                                                                                                 |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `requirements.md` | Evidence baseline, product question, scope, and the behavior the product must have, with acceptance criteria                                                                                                          |
+| `design.md`       | Product thesis, non-goals, state ownership, architecture, workflows, Kiro Crew integration map, app UX, code disposition, moving an existing workspace, release gates, kill criteria, and the final product statement |
+| `tasks.md`        | The ordered proof sequence and phased roadmap as checkable tasks                                                                                                                                                      |
 
 **Autopilot** is the name people read for delivery: the tick starting ready
 leaves on its own. Only the name changes (owner decision, 2026-11-13). The
@@ -67,65 +68,65 @@ allowed actor an order that releases dependents.
 
 ### Facts the brief asked to preserve
 
-| # | Claim | Result | Evidence and correction |
-|---|---|---|---|
-| F1 | Issue Radar can edit GitHub labels. | **Verified** | `issue_radar/backend/github_client_writes.py` adds and removes issue labels. Crews may write only their claim label and the configured needs-human label (`crew_brief.md`). |
-| F2 | Issue Radar's Investigate action opens one session. | **Verified, refined** | `http_routes/investigation.py`: the frontend opens one Kiro Crew chat through core chat routes, files it in an `Issue Radar - <repo>` folder, and stores a local record so a repeat click resumes the same session. It writes nothing to GitHub. |
-| F3 | Issue Radar does not break issues into GitHub sub-issues. | **Verified** | No sub-issue code exists in the Issue Radar backend. It reads dependency edges (native and inferred from timeline cross-references) for display and wake signals only. |
-| F4 | Issue Radar crews do not enforce blockers before claiming. | **Verified, refined** | `crew_brief.md` selection keeps open issues that carry *any* scope label (OR semantics; an empty scope means every open issue), drops skipped and `crew:`-labeled issues, then picks at random. Blockers feed only a `dependency-unblocked` wake for items a crew already holds (`crew_runtime.py`), from a dependency cache with a 600-second TTL (`store_deps.py`). |
-| F5 | Task Runner decomposes one task into internal execution steps. | **Verified, refined** | `docs/task-runner.md`. The app id is `projects`, display name Task Runner, API `/api/taskrunner`. Step verification uses one gateway-wide `taskrunner.test_command`, not a per-run command. Headless runs are deny-by-default for tools. |
-| F6 | Task Runner steps do not become GitHub issues. | **Verified** | The Task Runner manifest declares only `/api/taskrunner` and a `refine` event; its documentation describes no forge writes. |
-| F7 | Spec Builder writes requirements, design, and task Markdown. | **Verified, refined** | `spec_builder/backend/parsers.py`: `requirements.md`, `design.md`, `tasks.md`, plus `.spec-state.json`. Only requirements and design are approvable; approving the task list *is* the handoff into one autonomous execution session. There is no fourth phase for another app. |
-| F8 | Crew Mode supervises independent worker sessions. | **Verified, refined** | `docs/agents.md`, `docs/work-ledger.md`. Crew Mode is a feature preview behind Settings → Developer. A conductor (`kirocrew-conductor`) dispatches one `kirocrew-worker` session per item. Items must be independent: an item that consumes another item's output is not a valid item. |
-| F9 | Crew Mode work items are not GitHub tasks. | **Verified** | Work-ledger items hold title, acceptance, state, status, summary, artifacts, and an optional `pr` number. They have no issue identity and no dependency edges. |
-| F10 | Code Review Sage owns deep pull-request review. | **Verified** | Code Review Sage manifest and skills `sage-review` and `learn-from-sage`: one isolated session per pull request, findings staged as a draft GitHub review on publish or automatic posting. |
-| F11 | GitHub projection supports native cross-repository dependencies. | **Verified, with limits** | `src/app/github-sync.mjs` `projectPlanIssues` and the live proof. Limits: every target repository must be registered and private; a dependency outside the plan must already be projected; drift detection applies to edges only. |
-| F12 | Fresh Avoozl workspaces can recover projected issues from markers. | **Corrected** | Recovery reuses existing issues only when the *same approved plan ID* is projected again: issues are matched by the hidden marker's `taskId` and `planId` under the managed label. It does not rebuild local tasks, status, or edges from GitHub. `syncGitHubIssues` fails when a marker names a task that is not present locally. A closed projected issue makes re-projection fail with 409. |
-| F13 | Avoozl verifies exact pull-request completion and required checks. | **Corrected** | `src/app/github-completion.mjs` implements the check correctly and was proved live. It is called only by `scripts/github-completion-live.mjs`. No operation, CLI command, MCP tool, or dependent-release path uses it. It also requires the closing pull request to live in the issue's repository. |
-| F14 | The current Kiro Crew Avoozl app is only a proof shell. | **Verified** | `kirocrew-app/app.json` declares one page and one skill, no backend, no MCP server, and no crons. `ui/src/App.tsx` renders four static cards and one button that opens a draft chat. |
+| #   | Claim                                                              | Result                    | Evidence and correction                                                                                                                                                                                                                                                                                                                                                                        |
+| --- | ------------------------------------------------------------------ | ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F1  | Issue Radar can edit GitHub labels.                                | **Verified**              | `issue_radar/backend/github_client_writes.py` adds and removes issue labels. Crews may write only their claim label and the configured needs-human label (`crew_brief.md`).                                                                                                                                                                                                                    |
+| F2  | Issue Radar's Investigate action opens one session.                | **Verified, refined**     | `http_routes/investigation.py`: the frontend opens one Kiro Crew chat through core chat routes, files it in an `Issue Radar - <repo>` folder, and stores a local record so a repeat click resumes the same session. It writes nothing to GitHub.                                                                                                                                               |
+| F3  | Issue Radar does not break issues into GitHub sub-issues.          | **Verified**              | No sub-issue code exists in the Issue Radar backend. It reads dependency edges (native and inferred from timeline cross-references) for display and wake signals only.                                                                                                                                                                                                                         |
+| F4  | Issue Radar crews do not enforce blockers before claiming.         | **Verified, refined**     | `crew_brief.md` selection keeps open issues that carry _any_ scope label (OR semantics; an empty scope means every open issue), drops skipped and `crew:`-labeled issues, then picks at random. Blockers feed only a `dependency-unblocked` wake for items a crew already holds (`crew_runtime.py`), from a dependency cache with a 600-second TTL (`store_deps.py`).                          |
+| F5  | Task Runner decomposes one task into internal execution steps.     | **Verified, refined**     | `docs/task-runner.md`. The app id is `projects`, display name Task Runner, API `/api/taskrunner`. Step verification uses one gateway-wide `taskrunner.test_command`, not a per-run command. Headless runs are deny-by-default for tools.                                                                                                                                                       |
+| F6  | Task Runner steps do not become GitHub issues.                     | **Verified**              | The Task Runner manifest declares only `/api/taskrunner` and a `refine` event; its documentation describes no forge writes.                                                                                                                                                                                                                                                                    |
+| F7  | Spec Builder writes requirements, design, and task Markdown.       | **Verified, refined**     | `spec_builder/backend/parsers.py`: `requirements.md`, `design.md`, `tasks.md`, plus `.spec-state.json`. Only requirements and design are approvable; approving the task list _is_ the handoff into one autonomous execution session. There is no fourth phase for another app.                                                                                                                 |
+| F8  | Crew Mode supervises independent worker sessions.                  | **Verified, refined**     | `docs/agents.md`, `docs/work-ledger.md`. Crew Mode is a feature preview behind Settings → Developer. A conductor (`kirocrew-conductor`) dispatches one `kirocrew-worker` session per item. Items must be independent: an item that consumes another item's output is not a valid item.                                                                                                         |
+| F9  | Crew Mode work items are not GitHub tasks.                         | **Verified**              | Work-ledger items hold title, acceptance, state, status, summary, artifacts, and an optional `pr` number. They have no issue identity and no dependency edges.                                                                                                                                                                                                                                 |
+| F10 | Code Review Sage owns deep pull-request review.                    | **Verified**              | Code Review Sage manifest and skills `sage-review` and `learn-from-sage`: one isolated session per pull request, findings staged as a draft GitHub review on publish or automatic posting.                                                                                                                                                                                                     |
+| F11 | GitHub projection supports native cross-repository dependencies.   | **Verified, with limits** | `src/app/github-sync.mjs` `projectPlanIssues` and the live proof. Limits: every target repository must be registered and private; a dependency outside the plan must already be projected; drift detection applies to edges only.                                                                                                                                                              |
+| F12 | Fresh Avoozl workspaces can recover projected issues from markers. | **Corrected**             | Recovery reuses existing issues only when the _same approved plan ID_ is projected again: issues are matched by the hidden marker's `taskId` and `planId` under the managed label. It does not rebuild local tasks, status, or edges from GitHub. `syncGitHubIssues` fails when a marker names a task that is not present locally. A closed projected issue makes re-projection fail with 409. |
+| F13 | Avoozl verifies exact pull-request completion and required checks. | **Corrected**             | `src/app/github-completion.mjs` implements the check correctly and was proved live. It is called only by `scripts/github-completion-live.mjs`. No operation, CLI command, MCP tool, or dependent-release path uses it. It also requires the closing pull request to live in the issue's repository.                                                                                            |
+| F14 | The current Kiro Crew Avoozl app is only a proof shell.            | **Verified**              | `kirocrew-app/app.json` declares one page and one skill, no backend, no MCP server, and no crons. `ui/src/App.tsx` renders four static cards and one button that opens a draft chat.                                                                                                                                                                                                           |
 
 ### Additional facts that change the plan
 
-| # | Fact | Label | Evidence |
-|---|---|---|---|
-| F15 | Trigger labels and managed state labels are the same label today. One `label` (default `avoozl:ready`) authorizes intake *and* is the readiness label projection adds. Intake supports one label, one assignee, an actor allowlist, and a minimum permission. There are no AND, OR, or exclusion rules. | **Verified** | `github-sync.mjs` `syncGitHubIssues`, `prepareGitHubRepository`; `repository-settings.mjs`. |
-| F16 | Avoozl refuses public repositories for intake and projection with HTTP 403. This was a lockdown for testing, not a product rule; the product must support public repositories. | **Verified** (code); owner decision 2026-11-11 | `prepareGitHubRepository` and `requirePrivateRepository` in `github-sync.mjs`. |
-| F17 | Managed-field conflict detection covers dependency edges only. Titles and the managed body section are overwritten without comparing to the last applied value. | **Verified** | `projectPlanIssues` compares `managedBlockerIssueIds`; title and body go straight to `updateIssue`. |
-| F18 | GitHub task dispatch and all local execution use Avoozl's own agent host and providers (`codex`, `claude`, `openhands`), not Kiro Crew. | **Verified** | `startAuthorizedIssue` calls `ops.manager.start`; `src/app/providers/`. |
-| F19 | The feature branch is 6 commits ahead and 31 commits behind `main`. `main` adds design-prose extraction, durable andon safety controls, a team coordination control plane, and remote execution targets. The Nupp database already contains `main`-only tables (`extractions`, `plan_facts`, `execution_jobs`, `safety_*`, `team_checkpoints`). | **Verified** | `git rev-list --left-right --count main...feature/kirocrew-github-delivery`; Nupp `.tables`. |
-| F20 | A Kiro Crew app may declare a `node` backend that the gateway spawns on loopback and reverse-proxies at `/apps/<name>/api/`, plus `mcpServers`, `crons`, `agents`, and `skills`. Third-party apps run with gateway privileges after the user grants trust. | **Verified** | `apps/manifest_sections.py` `BackendConfig`; `apps/routes_proxy.py`; `docs/apps.md`. The current Avoozl app is installed and trusted (`~/.kiro/crew/apps/avoozl/installed.json`). |
-| F21 | No supported API lets an app backend create a *visible, project-bound* Kiro Crew session. The app spawn SDK starts background agent turns with no project or working-directory argument. `session_create` has no project argument; a session inherits a project only from a folder whose `project_dir` a person set. | **Verified** | `apps/spawn_sdk.py`; `docs/session-control.md` (`session_create`, `chat_folder_update`). |
-| F22 | Kiro Crew inbound webhooks run one LLM turn in an ephemeral session, bind loopback by default, and use Kiro Crew's own HMAC headers, not GitHub's webhook signature. | **Verified** | `docs/inbound-webhooks.md`. |
-| F23 | Issue Radar crew configuration lives in Issue Radar's private app data and routes (`/api/apps/issue-radar/crews`). No public contract lets another app read or write a crew's label scope. | **Verified** | `crew_ledger_spec.md`, `crew_routes.py`. |
-| F24 | Issue Radar crews can merge and re-arm auto-merge, and hold at most one item per crew in the dirty-worktree phases (Implement, Addressing review). | **Verified** | `http_routes/pr_actions.py`; `docs/issue-radar-pipeline.md`; `crew_brief.md`. |
-| F25 | Avoozl readiness treats `requires` and `sequence` edges as blocking and `supports` edges as advisory. | **Verified** | `src/query.mjs`. |
-| F26 | Avoozl runs its own runtime machinery today: `host-scheduler.mjs` (host-wide admission with default limits of 4 per host and 2 per workspace), the agent host with activity leases, the GitHub intake webhook callback with its own capability tokens (`github-intake.mjs`), and GitHub sync and queue polling driven by Avoozl's server. | **Verified** | `src/app/host-scheduler.mjs`, `src/app/agent-host.mjs`, `src/app/github-intake.mjs`, `src/app/github-queue.mjs`. |
-| F27 | Kiro Crew crons can run a shell command with no LLM call (`command` jobs), on an interval, cron expression, or one-shot time. Commands are vetted when added and on every fire; command substitution, loops, and compound commands are refused. The default subprocess limit is 300 seconds and the default wake budget is 30 minutes. An app manifest can declare crons that register on enable and are removed on disable. | **Verified** | `docs/cron-and-scheduling.md`; `apps/manifest.py` `crons`; `docs/apps.md`. |
-| F28 | Kiro Crew monitor loops wake one conversation on an interval and run an agent turn each cycle in that same conversation. | **Verified** | `docs/monitor-loops.md`. |
-| F29 | No documented Kiro Crew event pushes a session's completion to an app backend. Apps can declare permitted event names (Task Runner declares `refine`; Workflows declares `workflow_run_event`), but no session-lifecycle event for third-party apps was found. | **Verified** (absence in docs and manifests searched); push support **Inferred** missing | `~/.kiro/crew/apps/*/app.json`; `docs/session-control.md`. |
-| F30 | Apps can declare notification channels in their manifest. | **Verified** | Issue Radar manifest `notifications.channels`. |
+| #   | Fact                                                                                                                                                                                                                                                                                                                                                                                                                         | Label                                                                                    | Evidence                                                                                                                                                                          |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F15 | Trigger labels and managed state labels are the same label today. One `label` (default `avoozl:ready`) authorizes intake _and_ is the readiness label projection adds. Intake supports one label, one assignee, an actor allowlist, and a minimum permission. There are no AND, OR, or exclusion rules.                                                                                                                      | **Verified**                                                                             | `github-sync.mjs` `syncGitHubIssues`, `prepareGitHubRepository`; `repository-settings.mjs`.                                                                                       |
+| F16 | Avoozl refuses public repositories for intake and projection with HTTP 403. This was a lockdown for testing, not a product rule; the product must support public repositories.                                                                                                                                                                                                                                               | **Verified** (code); owner decision 2026-11-11                                           | `prepareGitHubRepository` and `requirePrivateRepository` in `github-sync.mjs`.                                                                                                    |
+| F17 | Managed-field conflict detection covers dependency edges only. Titles and the managed body section are overwritten without comparing to the last applied value.                                                                                                                                                                                                                                                              | **Verified**                                                                             | `projectPlanIssues` compares `managedBlockerIssueIds`; title and body go straight to `updateIssue`.                                                                               |
+| F18 | GitHub task dispatch and all local execution use Avoozl's own agent host and providers (`codex`, `claude`, `openhands`), not Kiro Crew.                                                                                                                                                                                                                                                                                      | **Verified**                                                                             | `startAuthorizedIssue` calls `ops.manager.start`; `src/app/providers/`.                                                                                                           |
+| F19 | The feature branch is 6 commits ahead and 31 commits behind `main`. `main` adds design-prose extraction, durable andon safety controls, a team coordination control plane, and remote execution targets. The Nupp database already contains `main`-only tables (`extractions`, `plan_facts`, `execution_jobs`, `safety_*`, `team_checkpoints`).                                                                              | **Verified**                                                                             | `git rev-list --left-right --count main...feature/kirocrew-github-delivery`; Nupp `.tables`.                                                                                      |
+| F20 | A Kiro Crew app may declare a `node` backend that the gateway spawns on loopback and reverse-proxies at `/apps/<name>/api/`, plus `mcpServers`, `crons`, `agents`, and `skills`. Third-party apps run with gateway privileges after the user grants trust.                                                                                                                                                                   | **Verified**                                                                             | `apps/manifest_sections.py` `BackendConfig`; `apps/routes_proxy.py`; `docs/apps.md`. The current Avoozl app is installed and trusted (`~/.kiro/crew/apps/avoozl/installed.json`). |
+| F21 | No supported API lets an app backend create a _visible, project-bound_ Kiro Crew session. The app spawn SDK starts background agent turns with no project or working-directory argument. `session_create` has no project argument; a session inherits a project only from a folder whose `project_dir` a person set.                                                                                                         | **Verified**                                                                             | `apps/spawn_sdk.py`; `docs/session-control.md` (`session_create`, `chat_folder_update`).                                                                                          |
+| F22 | Kiro Crew inbound webhooks run one LLM turn in an ephemeral session, bind loopback by default, and use Kiro Crew's own HMAC headers, not GitHub's webhook signature.                                                                                                                                                                                                                                                         | **Verified**                                                                             | `docs/inbound-webhooks.md`.                                                                                                                                                       |
+| F23 | Issue Radar crew configuration lives in Issue Radar's private app data and routes (`/api/apps/issue-radar/crews`). No public contract lets another app read or write a crew's label scope.                                                                                                                                                                                                                                   | **Verified**                                                                             | `crew_ledger_spec.md`, `crew_routes.py`.                                                                                                                                          |
+| F24 | Issue Radar crews can merge and re-arm auto-merge, and hold at most one item per crew in the dirty-worktree phases (Implement, Addressing review).                                                                                                                                                                                                                                                                           | **Verified**                                                                             | `http_routes/pr_actions.py`; `docs/issue-radar-pipeline.md`; `crew_brief.md`.                                                                                                     |
+| F25 | Avoozl readiness treats `requires` and `sequence` edges as blocking and `supports` edges as advisory.                                                                                                                                                                                                                                                                                                                        | **Verified**                                                                             | `src/query.mjs`.                                                                                                                                                                  |
+| F26 | Avoozl runs its own runtime machinery today: `host-scheduler.mjs` (host-wide admission with default limits of 4 per host and 2 per workspace), the agent host with activity leases, the GitHub intake webhook callback with its own capability tokens (`github-intake.mjs`), and GitHub sync and queue polling driven by Avoozl's server.                                                                                    | **Verified**                                                                             | `src/app/host-scheduler.mjs`, `src/app/agent-host.mjs`, `src/app/github-intake.mjs`, `src/app/github-queue.mjs`.                                                                  |
+| F27 | Kiro Crew crons can run a shell command with no LLM call (`command` jobs), on an interval, cron expression, or one-shot time. Commands are vetted when added and on every fire; command substitution, loops, and compound commands are refused. The default subprocess limit is 300 seconds and the default wake budget is 30 minutes. An app manifest can declare crons that register on enable and are removed on disable. | **Verified**                                                                             | `docs/cron-and-scheduling.md`; `apps/manifest.py` `crons`; `docs/apps.md`.                                                                                                        |
+| F28 | Kiro Crew monitor loops wake one conversation on an interval and run an agent turn each cycle in that same conversation.                                                                                                                                                                                                                                                                                                     | **Verified**                                                                             | `docs/monitor-loops.md`.                                                                                                                                                          |
+| F29 | No documented Kiro Crew event pushes a session's completion to an app backend. Apps can declare permitted event names (Task Runner declares `refine`; Workflows declares `workflow_run_event`), but no session-lifecycle event for third-party apps was found.                                                                                                                                                               | **Verified** (absence in docs and manifests searched); push support **Inferred** missing | `~/.kiro/crew/apps/*/app.json`; `docs/session-control.md`.                                                                                                                        |
+| F30 | Apps can declare notification channels in their manifest.                                                                                                                                                                                                                                                                                                                                                                    | **Verified**                                                                             | Issue Radar manifest `notifications.channels`.                                                                                                                                    |
 
 ### Example workspace facts
 
 The first existing workspace moved was Nupp's. All counts come from a
 read-only query of its `.avoozl/local/workspace.sqlite` on 2026-11-11.
 
-| Fact | Value | Label |
-|---|---|---|
-| W1–W7 epics | 7, stored in the workspace snapshot | **Verified** |
-| Tasks in W1–W7 | 141 (W1 33, W2 27, W3 22, W4 9, W5 12, W6 21, W7 17) | **Verified** |
-| Finished W tasks | 61 (58 implemented, 3 accepted) | **Verified** |
-| Unfinished W tasks | 80 (41 partial, 30 planned, 6 deferred, 2 blocked, 1 review) | **Verified** |
-| Edges among W tasks | 130 (80 `requires`, 21 `sequence`, 29 `supports`); 101 of them block readiness | **Verified** |
-| Milestones | 3 (`compiler-on-core`, `runtime-flip`, `six-workload-execution`) | **Verified** |
-| Document-derived entries from `todo/nupp-compiler-runtime-rewrite.md` | 94, all `planned`, generated `plan-<hash>` IDs, zero edges | **Verified** |
-| Those 94 entries duplicate W task scope | Likely | **Inferred** |
-| Whole database | 4,075 tasks; 3,888 are document-derived across many documents (2,036 recorded, 1,576 planned, 276 archived) | **Verified** |
-| Other native-runtime documents | 357 more document-derived entries (`nupp-native-runtime-handoff.md`, `native-runtime-plan-before-consolidation-2026-10-28.md`, `nupp-native-runtime-ledger.md`) | **Verified** |
-| Prior deduplication receipts | 149 `task-merge` evidence rows | **Verified** |
-| Runs | 12 (6 completed, 5 observing, 1 interrupted) | **Verified** |
-| GitHub projection | 0 projected issues, 0 registered intake repositories; the read-only GitHub queue tracks public repositories such as `nupp-lang/nupp` | **Verified** |
-| Integration branch | `codex/native-core-first-programs` recorded in the snapshot | **Verified** |
+| Fact                                                                  | Value                                                                                                                                                           | Label        |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| W1–W7 epics                                                           | 7, stored in the workspace snapshot                                                                                                                             | **Verified** |
+| Tasks in W1–W7                                                        | 141 (W1 33, W2 27, W3 22, W4 9, W5 12, W6 21, W7 17)                                                                                                            | **Verified** |
+| Finished W tasks                                                      | 61 (58 implemented, 3 accepted)                                                                                                                                 | **Verified** |
+| Unfinished W tasks                                                    | 80 (41 partial, 30 planned, 6 deferred, 2 blocked, 1 review)                                                                                                    | **Verified** |
+| Edges among W tasks                                                   | 130 (80 `requires`, 21 `sequence`, 29 `supports`); 101 of them block readiness                                                                                  | **Verified** |
+| Milestones                                                            | 3 (`compiler-on-core`, `runtime-flip`, `six-workload-execution`)                                                                                                | **Verified** |
+| Document-derived entries from `todo/nupp-compiler-runtime-rewrite.md` | 94, all `planned`, generated `plan-<hash>` IDs, zero edges                                                                                                      | **Verified** |
+| Those 94 entries duplicate W task scope                               | Likely                                                                                                                                                          | **Inferred** |
+| Whole database                                                        | 4,075 tasks; 3,888 are document-derived across many documents (2,036 recorded, 1,576 planned, 276 archived)                                                     | **Verified** |
+| Other native-runtime documents                                        | 357 more document-derived entries (`nupp-native-runtime-handoff.md`, `native-runtime-plan-before-consolidation-2026-10-28.md`, `nupp-native-runtime-ledger.md`) | **Verified** |
+| Prior deduplication receipts                                          | 149 `task-merge` evidence rows                                                                                                                                  | **Verified** |
+| Runs                                                                  | 12 (6 completed, 5 observing, 1 interrupted)                                                                                                                    | **Verified** |
+| GitHub projection                                                     | 0 projected issues, 0 registered intake repositories; the read-only GitHub queue tracks public repositories such as `nupp-lang/nupp`                            | **Verified** |
+| Integration branch                                                    | `codex/native-core-first-programs` recorded in the snapshot                                                                                                     | **Verified** |
 
 ## Product question
 
@@ -137,7 +138,7 @@ the following together:
 1. holds a durable, multi-level task graph with stable IDs and blocking edges
    across repositories (Crew Mode items must be independent; Task Runner steps
    are internal; Spec Builder hands one checklist to one session);
-2. computes readiness from those edges *before* work is claimed (Issue Radar
+2. computes readiness from those edges _before_ work is claimed (Issue Radar
    claims by label and random pick, F4);
 3. turns one broad goal or issue into many tracked GitHub issues with native
    edges (Issue Radar creates no sub-issues, F3);
@@ -1103,7 +1104,7 @@ issue types, or labels by hand.
       view's grouping THEN the wizard SHALL still create the view and SHALL
       put the grouping click on the checklist. The wizard SHALL NOT create a
       Roadmap view, which is date-based; a person may add one later;
-   5a. read the Project's built-in workflows and compare them with the
+      5a. read the Project's built-in workflows and compare them with the
       recommended settings (Requirement 33.6). GitHub's API can read a
       workflow's name and whether it is on, but cannot turn one on or off or
       read its column or filter, so every difference and every setting it
@@ -1145,11 +1146,11 @@ only what GitHub cannot work out.
 
 1. Ownership SHALL be split this way:
 
-   | Owner | State |
-   |---|---|
-   | GitHub | Project Status (built-in workflows); the Blocked signal (open blocked-by dependencies); closing leaf issues in both modes |
+   | Owner  | State                                                                                                                                                                               |
+   | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+   | GitHub | Project Status (built-in workflows); the Blocked signal (open blocked-by dependencies); closing leaf issues in both modes                                                           |
    | Avoozl | Issues, sub-issues, blocked-by links, the linked branch; Release at projection; Wave; picking ready work; starting coding sessions; the completion verdict that releases dependents |
-   | People | Assignees, board drags, Deferred; closing a leaf without merged code, as an order when the policy allows the closer (criterion 8) |
+   | People | Assignees, board drags, Deferred; closing a leaf without merged code, as an order when the policy allows the closer (criterion 8)                                                   |
 
 2. Avoozl SHALL NOT write a Blocked Status or a blocked label. The blocked
    signal SHALL be GitHub's own: the Blocked icon on boards and issue lists,
@@ -1202,9 +1203,9 @@ only what GitHub cannot work out.
    - WHEN the policy does not allow the closer, or the closer cannot be read,
      THEN Avoozl SHALL hold the dependents and open a decision. It SHALL NOT
      reopen the issue.
-   (Added 2026-11-12.) (Changed 2026-11-13 by Requirement 52.8: a close
-   on an issue that carries Issue Radar's claim label is never an order;
-   it holds and opens a decision unless a closing pull request merged.)
+     (Added 2026-11-12.) (Changed 2026-11-13 by Requirement 52.8: a close
+     on an issue that carries Issue Radar's claim label is never an order;
+     it holds and opens a decision unless a closing pull request merged.)
 9. WHEN a released dependent starts THEN its worker brief SHALL say that its
    blocker closed without merged code, by whom and when, and SHALL tell the
    worker to check for the missing code first. The brief SHALL name the
@@ -1373,7 +1374,7 @@ reaches the integration branch or a dependent task.
    `distinctFrom` SHALL be `model` by default: the reviewer's model SHALL
    differ from the model of the writer session whose commit it reviews,
    because a model tends to approve its own mistakes. `distinctFrom:
-   session` SHALL relax this to a new session only.
+session` SHALL relax this to a new session only.
 4. WHEN Avoozl cannot prove the rule `distinctFrom` names (the writer's or
    the reviewer's model is unknown or `auto`) THEN Avoozl SHALL NOT dispatch
    that review and SHALL open a decision. Policy validation SHALL refuse a
@@ -2635,10 +2636,10 @@ already fixes CI and review for the leaves it codes.
    an unchanged pull request SHALL cost no further read that tick.
 3. These SHALL be feedback events:
    a. a check that finished as failed, timed out, or cancelled on the
-      current head commit (a check still running is not an event);
+   current head commit (a check still running is not an event);
    b. a review that requests changes, or a new review comment or review
-      thread, by an actor the repository's policy allows (Who counts,
-      `allowedActors` or `minimumPermission`);
+   thread, by an actor the repository's policy allows (Who counts,
+   `allowedActors` or `minimumPermission`);
    c. the pull request conflicting with its base branch;
    d. auto-merge off on an open pull request whose merge has not happened.
 4. A review or comment by an actor the policy does not allow SHALL NOT be
@@ -2770,8 +2771,8 @@ setting or runs until someone on that computer has seen it and approved it.
     task's best priority label SHALL set its order inside Ready and Up
     next, after a set rank, and SHALL never change its lane. Absent,
     nothing changes. The sample pack sets `waitingLabels:
-    ["response-requested"]` and `priorityLabels: ["p0", "p1", "p2",
-    "p3"]`.
+["response-requested"]` and `priorityLabels: ["p0", "p1", "p2",
+"p3"]`.
 
 ### Requirement 56: Fewer MCP tools, every safe action
 
@@ -3526,7 +3527,7 @@ going away.
     sessions, MCP, the app token and plugins SHALL be refused with 403.
     The driver's status SHALL be readable on the page, in the CLI and over
     MCP. The CLI SHALL offer `avoozl driver status`, `avoozl driver
-    handoff`, `avoozl driver takeover --file <path>` or `--rebuild`, and
+handoff`, `avoozl driver takeover --file <path>` or `--rebuild`, and
     `--force`, which also needs `--confirm <spec>`.
 16. Machine-local items SHALL never move with the driver: plugin
     approvals, the private content-rule terms file, the routing prompt,
@@ -3566,27 +3567,19 @@ cannot spend without limit and I can see where the money went.
 2. Dollars SHALL come from a **price table**. Avoozl SHALL ship a built-in,
    dated table of public list prices for known models, with the source URL
    and the date in the file (`src/app/default-prices.mjs`), and SHALL use
-   it with no setup: nobody SHALL have to type a price. This machine MAY
-   override it in machine-local settings (`~/.config/avoozl/config.json`
-   key `prices`): per model ID, a dollar price per million input tokens and
-   per million output tokens, and one dollar price per Kiro credit. An
-   override wins for its model. Validation SHALL refuse a `prices` key in
-   `.avoozl.json`, a plugin pack, or a spec. Settings › Prices SHALL show
-   "Prices last updated <date>" and how each model is budgeted; the
-   override list SHALL be optional and collapsed by default (owner
-   decision 2026-11-13).
-3. Each save of the price table SHALL get the next version number and a
-   sha256 of its contents, and Avoozl SHALL keep every saved version in
-   SQLite so an old receipt can name the one it used.
+   it with no setup. It SHALL be the only price table: there SHALL be no
+   Settings › Prices page, no user price list, no credit price, and no
+   operation that saves prices. A saved `prices` key in machine settings,
+   `.avoozl.json` or a spec SHALL be ignored, not an error
+   (owner decision 2026-11-14, replacing the 2026-11-13 override list).
+3. A receipt SHALL name the price list it used by its date.
 4. Avoozl SHALL store raw counts only: each turn's input tokens, output
    tokens and credits, as Requirement 43 already does. Dollars SHALL be
-   computed on read from the raw counts and a price table version. A turn
-   with credits SHALL be priced only by the credit price, because Kiro
-   Crew bills it in credits and a token list price is not what it cost;
-   with no credit price it SHALL count against the credit cap (criterion
-   6), and Settings › Prices SHALL say that model is budgeted in credits.
-   A turn with only tokens SHALL be priced by this machine's price for its
-   model, else the built-in one.
+   computed on read from the raw counts and the built-in price table. A turn
+   with credits SHALL count against the credit cap (criterion 6), because
+   Kiro Crew bills it in credits and a token list price is not what it
+   cost. A turn with only tokens SHALL be priced by the built-in price for
+   its model.
 5. A budget SHALL be set at four levels, the most specific winning: the
    workspace default (`budget` in `.avoozl.json`), the repository
    (`projects.<id>.budget`), the spec (top-level `budget` in
@@ -3598,10 +3591,10 @@ cannot spend without limit and I can see where the money went.
    still be kept. There SHALL be no spec-wide total cap (owner decision
    2026-11-13).
 6. WHEN a turn cannot be priced (its model has no known price, or it has
-   credits and there is no credit price) THEN the dollar cap SHALL NOT be
+   credits) THEN the dollar cap SHALL NOT be
    enforced for that turn. Avoozl SHALL warn once per task and model on the
    task, saying why in plain words (no known price, or billed in credits),
-   SHALL say so in Settings › Prices, and SHALL count unpriced token turns
+   and SHALL count unpriced token turns
    against the token cap (input plus output) and credit turns against the
    credit cap instead. Where no level sets
    them, these caps SHALL default to 2,000,000 tokens and 200 credits per
@@ -3639,7 +3632,7 @@ cannot spend without limit and I can see where the money went.
     every raise; and the price table version and hash used. The drawer
     SHALL show it and SHALL export it as JSON. The receipt SHALL be read
     through `budget.receipt` on the page, `avoozl budget receipt TASK
-    --json` on the CLI, and `plans_view` action `receipt` on MCP. It SHALL
+--json` on the CLI, and `plans_view` action `receipt` on MCP. It SHALL
     hold counts, dollars, model IDs, stage names and times only: no
     prompts, transcript text or tool output.
 12. A receipt SHALL show dollars from the current price table and, for a
@@ -3682,10 +3675,10 @@ cannot spend without limit and I can see where the money went.
     retro payload SHALL say which receipts went over budget.
 20. Settings SHALL show the mode next to each cap with one plain line on
     what each mode does, in Settings › Budgets (the workspace and each
-    repository); prices are in Settings › Prices. A choice a level
+    repository). A choice a level
     inherits SHALL say where it comes from and what it is ("Use the
     workspace default (Stop)"), never "same as above". Stop and Warn SHALL
-    use the shared radio fold-out. Budgets, Prices and Settings ›
+    use the shared radio fold-out. Budgets and Settings ›
     Routing › Providers SHALL each have an **Ask for help** link that opens a Kiro
     Crew chat seeded with the page, its current settings and the guide;
     the chat MAY propose values, and only the page's Save writes them
