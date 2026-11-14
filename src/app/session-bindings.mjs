@@ -3,6 +3,7 @@
 // pointer is recovered from the session title `avoozl:<task-id> <short title>`.
 import { fail } from "./store.mjs";
 import { resolveTaskId } from "../task-identity.mjs";
+import { hasRemoteTask } from "./remote-runner.mjs";
 
 const ROLES = new Set([
   "worker",
@@ -48,7 +49,11 @@ function text(value, label, max) {
 function existingTask(store, id) {
   const data = store.read(),
     taskId = resolveTaskId(data, id);
-  return data.tasks.some((task) => task.id === taskId) ? taskId : null;
+  // A runner's task exists only as its handed envelope (R84).
+  return data.tasks.some((task) => task.id === taskId) ||
+    hasRemoteTask(store, id)
+    ? taskId
+    : null;
 }
 
 function bindingsFor(store, taskId) {
