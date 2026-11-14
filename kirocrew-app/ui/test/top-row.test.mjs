@@ -141,6 +141,27 @@ test('In flight rows line up: titles, and Details, start at the same x in every 
   }
 })
 
+const startDemo = `Boolean([...document.querySelectorAll('[data-demo-start]')].find((b) => b.textContent.trim() === 'Start demo'))`
+
+test('Start demo shows in the empty In flight box only while nothing has ever run', { skip }, async () => {
+  await page.open(harness.url({ page: 'home' }), { width: 1280, height: 800 })
+  await page.until(`document.body.textContent.includes('No agent is working right now.')`)
+  assert.equal(await page.evaluate(startDemo), true, 'empty and never run: shown')
+  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-demo-start]')?.closest('[data-scroll]'))`), true, 'inside the In flight card')
+  await page.open(harness.url({ page: 'home', ran: '1' }), { width: 1280, height: 800 })
+  await page.until(`document.body.textContent.includes('No agent is working right now.')`)
+  assert.equal(await page.evaluate(`document.querySelectorAll('[data-demo-start]').length`), 0, 'empty but has run: hidden')
+})
+
+test('the page header never has Start demo or Try the demo', { skip }, async () => {
+  {
+    await page.open(harness.url({ app: '1' }), { width: 1280, height: 800 })
+    await page.until(`Boolean(document.querySelector('[data-header-actions] [data-stop-line]'))`)
+    assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-header-actions] [data-demo-start]'))`), false)
+    assert.equal(await page.evaluate(`[...document.querySelectorAll('[data-header-actions] button')].some((b) => /demo/i.test(b.textContent))`), false)
+  }
+})
+
 async function chooseAndDryRun() {
   await click('Switch model')
   await page.until(`Boolean(document.querySelector('[data-switch-intro]') && document.querySelector('select[data-switch-from]') && document.querySelector('#avoozl-switch-to'))`)
