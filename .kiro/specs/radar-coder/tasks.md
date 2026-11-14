@@ -318,7 +318,7 @@ Requirement RC14. One adapter per coder. The Radar path moves behind it unchange
 - [x] rc-14.1 Per-repository coder setting with three values, after rc-1.1 [RC14.1] (§D19)
   - `coder: issue-radar | worker | remote` validated per repository; Settings shows Radar crew, Avoozl worker and Remote coder and where each value comes from; `src/app/test/coder-setting.test.mjs`.
   - Done when: Each value validates; an unknown value is refused naming the allowed ones; Settings shows the three display names; `npm test` passes.
-- [ ] rc-14.2 Coder adapter: hand over, read state, count as done, after rc-14.1, rc-4.1, rc-5.1 [RC14.2, RC14.3, RC14.6] (§D19)
+- [x] rc-14.2 Coder adapter: hand over, read state, count as done, after rc-14.1, rc-4.1, rc-5.1 [RC14.2, RC14.3, RC14.6] (§D19)
   - A small adapter object with `handOver`, `readState` and `countsAsDone`; the `issue-radar` behavior moves behind it with no change in output; release, Stop the line and the merge path call the adapter; `src/app/test/coder-adapter.test.mjs`.
   - Done when: The Radar tests of Phases 4 and 5 pass unchanged; a fake third adapter in a test needs no change to release or projection; done is true only for a merged pull request.
 - [ ] rc-14.3 Put the worker behind the adapter and mark it frozen, after rc-14.2 [RC14.4] (§D19)

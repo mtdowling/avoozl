@@ -11,6 +11,7 @@ import { parseMarker } from "./github-marker.mjs";
 import { parseProvenance } from "./github-provenance.mjs";
 import { mergePath } from "./radar-merge-path.mjs";
 import { verifyIssue } from "./verify-issue.mjs";
+import { usesMergePath } from "./coder-adapter.mjs";
 
 const KEY = "radarMerge";
 const same = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
@@ -39,7 +40,7 @@ export async function armCrewPullRequests(
   let changed = false;
   for (const [id, repository] of Object.entries(policy?.repositories || {})) {
     const ship = delivery?.repositories?.[id]?.ship ?? delivery?.ship;
-    if (repository.coder !== "issue-radar" || ship !== "auto-merge") continue;
+    if (!usesMergePath(repository.coder) || ship !== "auto-merge") continue;
     const config = store.get("github_repositories", id);
     if (!machine || !config || config.activeMachine !== machine) continue;
     const pulls = (
