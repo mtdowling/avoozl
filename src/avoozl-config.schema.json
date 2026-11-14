@@ -951,6 +951,30 @@
           "maximum": 100,
           "default": 1
         },
+        "release": {
+          "description": "Ready-label capacity: N at once per repository, and per crew label scope. N defaults to 2 for Issue Radar, else to concurrency; 0 releases nothing.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "capacity": { "type": "integer", "minimum": 0, "maximum": 100 },
+            "scopes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["label"],
+                "properties": {
+                  "label": { "type": "string", "minLength": 1 },
+                  "capacity": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100
+                  }
+                }
+              }
+            }
+          }
+        },
         "dependencyText": {
           "type": "boolean",
           "default": false
