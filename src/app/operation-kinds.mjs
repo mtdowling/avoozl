@@ -294,6 +294,8 @@ const PROTECT = new Set([
   "github.setup",
   "github.setup.cancel",
   "radar.setup",
+  "mirror.adopt",
+  "mirror.create",
   "radar.signoff",
   "radar.retro.apply",
   "local.ignore.fix",
