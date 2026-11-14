@@ -129,6 +129,18 @@ const row = async (ops, number) =>
 const githubWrites = (github) =>
   github.calls.filter((call) => !(call[0] === "graphql" && call[1] === "read"));
 
+test("the sage-review skill is read from this crew's home", () => {
+  const skill = ["skills", "sage-review", "SKILL.md"];
+  assert.equal(
+    sageSkillPath(path.resolve("h"), {}),
+    path.join(path.resolve("h"), ".kiro", "crew", ...skill),
+  );
+  assert.equal(
+    sageSkillPath(path.resolve("h"), { KIROCREW_HOME: path.resolve("c") }),
+    path.join(path.resolve("c"), ...skill),
+  );
+});
+
 test("Code review queues one seeded chat, the tick opens it, and the row shows Attach", async (t) => {
   // Nearby inputs: a second click while queued, a click while open, a click
   // after the chat closed, the head SHA, a pull request with no task.
