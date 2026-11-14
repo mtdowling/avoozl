@@ -11,6 +11,8 @@ import { Modal } from './Modal.tsx'
 import { IconLabel, dangerStyle } from './controls.tsx'
 import { ExternalLink, KeyRound, Laptop, Lock, Send } from './icons.ts'
 import { Tooltip } from './Tooltip.tsx'
+import { useInstance } from './InstanceName.tsx'
+import { handoffLine } from './instance-api.ts'
 import { errorMessage } from './workspace-api.ts'
 import { safeHref } from './views-api.ts'
 import {
@@ -350,6 +352,7 @@ export function HandOffButton(props: { workspaceId: string; spec: DriverSpec | n
 }
 
 export function HandOffDialog(props: { workspaceId: string; spec: DriverSpec; onClose: () => void }) {
+  const instance = useInstance(props.workspaceId)
   const api = useAppApi()
   const client = useMemo(() => driverClient(api), [api])
   const [spec, setSpec] = useState<DriverSpec>(props.spec)
@@ -444,6 +447,7 @@ export function HandOffDialog(props: { workspaceId: string; spec: DriverSpec; on
         </li>
         <li aria-current={step === 'reassign' ? 'step' : undefined}>
           <p className="font-medium">3. Reassign</p>
+          {handoffLine(instance) && <p data-instance-handoff>{handoffLine(instance)}</p>}
           <p className="text-muted">
             {spec.mode === 'local'
               ? 'Move the file to the other machine and press Take over there.'
