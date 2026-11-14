@@ -5847,6 +5847,8 @@ function cs({ workspaceId: e }) {
 				children: "Where delivery time goes, and what the last retro proposed."
 			}),
 			/* @__PURE__ */ C(x, {
+				collapse: !1,
+				wrap: "hug",
 				layoutId: "avoozl-flow-tabs",
 				ariaLabel: "Flow views",
 				segments: [
@@ -5864,8 +5866,7 @@ function cs({ workspaceId: e }) {
 					}
 				],
 				value: y,
-				onChange: (e) => b(e),
-				wrap: !0
+				onChange: (e) => b(e)
 			}),
 			y === "proposals" && /* @__PURE__ */ C(Mo, { workspaceId: e }),
 			y === "lessons" && /* @__PURE__ */ C(Fo, { workspaceId: e }),
@@ -6608,6 +6609,7 @@ var Ys = () => ({
 	branchPrefix: "",
 	squash: !0,
 	trustedPersons: "",
+	plansBranch: "",
 	forwardTarget: "",
 	publicBranch: "",
 	forwardMaxFileBytes: ""
@@ -6625,7 +6627,8 @@ var Ys = () => ({
 	forward: "blank: nudge, a Forward button you press",
 	forwardTo: "blank: the public repository",
 	branchPrefix: "blank: avoozl/",
-	trustedPersons: "blank: nobody, so Auto stays off"
+	trustedPersons: "blank: nobody, so Auto stays off",
+	plansBranch: "blank: avoozl-plans"
 };
 function $s(e) {
 	if (e.source.trim() || e.mirror.trim()) return pc({
@@ -6636,6 +6639,7 @@ function $s(e) {
 		branchPrefix: sc(e.branchPrefix),
 		squash: e.squash ? void 0 : !1,
 		trustedPersons: oc(e.trustedPersons),
+		plansBranch: sc(e.plansBranch),
 		forwardTarget: sc(e.forwardTarget),
 		publicBranch: sc(e.publicBranch),
 		forwardMaxFileBytes: e.forwardMaxFileBytes.trim() ? Number(e.forwardMaxFileBytes) : void 0
@@ -6786,6 +6790,7 @@ function fc(e) {
 						branchPrefix: $(e.branchPrefix),
 						squash: e.squash !== !1,
 						trustedPersons: ic(e.trustedPersons),
+						plansBranch: $(e.plansBranch),
 						forwardTarget: $(e.forwardTarget),
 						publicBranch: $(e.publicBranch),
 						forwardMaxFileBytes: $(e.forwardMaxFileBytes)
@@ -12322,6 +12327,8 @@ function Fd(e) {
 				children: "Rough ideas from you and your agents. An idea never starts work. Riff on one in a chat, then make it a spec when it is ready."
 			}),
 			/* @__PURE__ */ C("div", { children: /* @__PURE__ */ C(x, {
+				collapse: !1,
+				wrap: "hug",
 				layoutId: "avoozl-ideas-state",
 				ariaLabel: "Ideas to show",
 				segments: bd.map((e) => ({
@@ -19104,6 +19111,8 @@ function _h({ workspaceId: e, onMakeSpec: t, onOpenSources: n, embedded: r }) {
 				children: "Work that comes in from GitHub and your intake sources, and your own ideas. Untriaged shows the items no trigger rule, triage label or Avoozl task covers. Send GitHub issues to an Issue Radar crew or start a code review chat on a pull request; plan or deliver an item from another source."
 			}),
 			L && /* @__PURE__ */ C("div", { children: /* @__PURE__ */ C(x, {
+				collapse: !1,
+				wrap: "hug",
 				layoutId: "avoozl-untriaged-show",
 				ariaLabel: "Show",
 				segments: [
@@ -25879,6 +25888,8 @@ function Qv(e) {
 				className: "flex flex-wrap items-center gap-2",
 				children: [
 					/* @__PURE__ */ C(x, {
+						collapse: !1,
+						wrap: "hug",
 						layoutId: "avoozl-terms-view",
 						ariaLabel: "Terms view",
 						segments: [{
@@ -28389,6 +28400,14 @@ function ib(e) {
 							onChange: (e) => r({ branchPrefix: e })
 						}),
 						/* @__PURE__ */ C(Gy, {
+							id: `${n}-plans-branch`,
+							label: "Private specs branch",
+							raw: "mirror.plansBranch",
+							placeholder: "avoozl-plans",
+							value: t.plansBranch,
+							onChange: (e) => r({ plansBranch: e })
+						}),
+						/* @__PURE__ */ C(Gy, {
 							id: `${n}-max-bytes`,
 							label: "Largest forwarded file (bytes)",
 							raw: "mirror.forwardMaxFileBytes",
@@ -28452,6 +28471,8 @@ function ab(e) {
 		className: "flex flex-col gap-3",
 		children: [
 			/* @__PURE__ */ C(x, {
+				collapse: !1,
+				wrap: "hug",
 				layoutId: "avoozl-repository-tabs",
 				ariaLabel: "Repository settings",
 				segments: Ry.map((e) => ({
@@ -28459,8 +28480,7 @@ function ab(e) {
 					label: e.label
 				})),
 				value: a,
-				onChange: (e) => s(e),
-				wrap: !0
+				onChange: (e) => s(e)
 			}),
 			a === "mode" && /* @__PURE__ */ w(Jy, {
 				level: "sub",
@@ -33524,6 +33544,8 @@ function Yx() {
 						className: "flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 px-6 pb-3",
 						"data-top-row": !0,
 						children: /* @__PURE__ */ C(x, {
+							collapse: !1,
+							wrap: "hug",
 							layoutId: "avoozl-views",
 							ariaLabel: "Avoozl views",
 							segments: xh.map((e) => ({
@@ -33548,8 +33570,7 @@ function Yx() {
 								})
 							})),
 							value: Ch(s),
-							onChange: (e) => ue(e),
-							wrap: !0
+							onChange: (e) => ue(e)
 						})
 					}),
 					/* @__PURE__ */ C(ai, {}),
