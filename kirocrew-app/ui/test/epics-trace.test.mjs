@@ -32,7 +32,7 @@ const open = (query) =>
     width: 1280,
     height: 800,
   })
-const specsTab = button('Epics', 'tab')
+const specsTab = button('Specs', 'tab')
 
 test('no epics: it says what an epic is and offers Plan an epic', { skip }, async () => {
   await open({ epics: 'empty' })
@@ -111,7 +111,7 @@ test('Trace with nothing merged says what to do, with a button', { skip }, async
   })
   await page.until(`Boolean(document.querySelector('[data-done-empty]'))`)
   assert.match(await page.evaluate(`document.querySelector('[data-done-empty]').textContent`), /Nothing has merged yet/)
-  await click(button('Open Epics'))
+  await click(button('Open Specs'))
   await page.until(`document.querySelector('[data-picked]').textContent === 'epics'`)
 })
 

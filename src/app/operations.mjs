@@ -934,6 +934,8 @@ export class Operations {
       // nothing is recorded and the view is "none", so tests never write
       // this machine's file.
       driverSessionFile: driverFile = null,
+      // The name the driver line shows for this workspace.
+      workspaceName = null,
       // Tests replace the shipped prompts to model an Avoozl update.
       shippedPrompts = null,
       // () => model IDs Kiro Crew lists, or null when unknown.
@@ -946,6 +948,7 @@ export class Operations {
   ) {
     this.store = store;
     this.driverSessionFile = driverFile;
+    this.workspaceName = workspaceName;
     // The plugin loader (plugins.mjs). It opens one plugin session per
     // tick, and runs nothing unless a plugin is declared and approved.
     this.plugins = plugins;
@@ -2403,6 +2406,15 @@ export class Operations {
   // only to open it, read it, or close it.
   // `context.caller` is the gateway-attested Kiro Crew session calling through
   // the app's stdio MCP server, and nothing else sets it (see mcp.mjs).
+  // This workspace's place in the machine's driver records.
+  driverWorkspace() {
+    return {
+      root: this.workspaceRoot,
+      name: this.workspaceName,
+      file: this.driverSessionFile,
+    };
+  }
+
   async execute(name, input = {}, expectedRevision, context = {}) {
     const result = await this.perform(name, input, expectedRevision, context);
     // One activity row for a listed local action (§4.19); never fails it.
@@ -2669,28 +2681,26 @@ export class Operations {
       return instanceView(store);
     }
     if (name === "driversession.view")
-      return this.driverSessionFile
-        ? driverSessionView({ file: this.driverSessionFile })
-        : driverSessionView({ file: null });
+      return driverSessionView(this.driverWorkspace());
     if (name === "driversession.register") {
-      if (!this.driverSessionFile)
+      if (!this.driverSessionFile || !this.workspaceRoot)
         fail("This Avoozl process has no driver session record.");
       registerDriverSession({
         slot: input.slot,
         source: input.source,
-        file: this.driverSessionFile,
+        ...this.driverWorkspace(),
       });
-      return driverSessionView({ file: this.driverSessionFile });
+      return driverSessionView(this.driverWorkspace());
     }
     if (name === "runner.next") {
       // A conductor's attested call is the driver session's heartbeat. Only a
       // gateway-attested caller counts; the model cannot name its own slot.
       const slot = callerSlot(context.caller);
-      if (slot && this.driverSessionFile)
+      if (slot && this.driverSessionFile && this.workspaceRoot)
         registerDriverSession({
           slot,
           source: "next",
-          file: this.driverSessionFile,
+          ...this.driverWorkspace(),
         });
       return nextView(store, {
         policy: readDeliveryPolicy(this.workspaceRoot),

@@ -19,6 +19,8 @@ import { classifyChat, currentChat, opensItself, type PanelChat } from './panel-
 import {
   PANEL_REFRESH_MS,
   driverView,
+  drivenRoot,
+  sameRoot,
   panelModel,
   startRefresh,
   type FlightRow,
@@ -204,6 +206,21 @@ export default function AvoozlPanel() {
       return
     }
     if (!id) return
+    // In a driver chat, read the workspace this chat drives, not the one the
+    // app page last showed: a Nupp driver's panel shows Nupp.
+    try {
+      const root = drivenRoot(await readDriverSession(api, id), chat)
+      if (root) {
+        const drives = (await workspaceClient(api).list()).items.find((item) => sameRoot(item.root, root))
+        if (drives && drives.id !== id) {
+          id = drives.id
+          idRef.current = id
+          setWorkspaceId(id)
+        }
+      }
+    } catch {
+      // Keep the workspace we have; the reads below still run.
+    }
     const ok = <T,>(read: Promise<T>) => read.then((value) => value, () => null)
     const [conflicts, crewRead, remote, queue, flow, listed, stored, driverRead] = await Promise.all([
       ok(views.conflicts(id)),
@@ -222,7 +239,7 @@ export default function AvoozlPanel() {
     if (stored) setSpecs(stored.items)
     setDriver(driverRead)
     setNow(Date.now())
-  }, [api, flows, plans, releases, views])
+  }, [api, chat, flows, plans, releases, views])
 
   useEffect(
     () =>
@@ -392,7 +409,17 @@ export default function AvoozlPanel() {
     <section data-panel-driver={view.state} className="flex flex-col gap-2" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <h3 className="m-0 font-semibold" style={{ margin: 0 }}>
         Driver session <Badge variant={view.state === 'running' ? 'success' : undefined}>{{ running: 'Running', idle: 'Quiet', none: 'Not started', unknown: 'Unknown' }[view.state]}</Badge>
+        {view.workspace && (
+          <span className="text-xs font-normal text-muted" data-driver-workspace style={{ marginLeft: 6 }}>
+            {view.workspace}
+          </span>
+        )}
       </h3>
+      {view.elsewhere && (
+        <span data-driver-elsewhere className="text-sm">
+          {view.elsewhere.text} {link(view.elsewhere.href, 'Open')}
+        </span>
+      )}
       <Muted>
         {view.note}
         {driver?.lastSeenAt && view.state !== 'none' ? ` Last seen ${relativeTime(driver.lastSeenAt, now)}.` : ''}

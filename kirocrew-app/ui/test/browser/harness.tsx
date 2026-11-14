@@ -832,6 +832,23 @@ if (page === 'panel' && query.get('real') === '1' && realPanel) {
     answer(name, () => realPanel[name])
   answer('GET /api/apps/spec-builder/specs', () => ({ specs: ((realPanel['plan.specs'] as { items: { name: string }[] }).items ?? []).map((item) => ({ name: item.name })) }))
 }
+// &driver=nupp (any page): two workspaces. Harness (w) has no driver; Nupp (n) has
+// one on chat-nupp. Each read answers for the workspace it names.
+if (query.get('driver') === 'nupp') {
+  answer('workspaces.list', () => ({
+    defaultWorkspace: 'w',
+    items: [
+      { id: 'w', name: 'Harness', root: '/w', enabled: true, state: 'ready', served: true },
+      { id: 'n', name: 'Nupp', root: '/n', enabled: true, state: 'ready', served: true },
+    ],
+  }))
+  const nupp = { root: '/n', workspace: 'Nupp', slot: 'chat-nupp', href: '/chat?sid=chat-nupp', lastSeenAt: new Date().toISOString() }
+  answer('driversession.view', (body) =>
+    (body as { workspaceId?: string }).workspaceId === 'n'
+      ? { state: 'running', workspace: 'Nupp', slot: 'chat-nupp', href: '/chat?sid=chat-nupp', openedAt: new Date(Date.now() - 3600000).toISOString(), lastSeenAt: new Date().toISOString(), others: [] }
+      : { state: 'none', workspace: 'Harness', slot: null, href: null, openedAt: null, lastSeenAt: null, others: [nupp] },
+  )
+}
 class HarnessBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
   state = { error: null as string | null }
   static getDerivedStateFromError(error: unknown) {

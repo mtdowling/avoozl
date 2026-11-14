@@ -1,10 +1,10 @@
 // The page's top-level views and where an old place now goes. Kept free of
 // JSX so node can test it directly.
 
-// The nav row: Home, Epics, Waiting on you, Trace, Flow, Activity, Settings.
+// The nav row: Home, Specs, Waiting on you, Trace, Flow, Activity, Settings.
 export const TABS = [
   { key: 'dashboard', label: 'Home' },
-  { key: 'plans', label: 'Epics' },
+  { key: 'plans', label: 'Specs' },
   { key: 'waiting', label: 'Waiting on you' },
   { key: 'trace', label: 'Trace' },
   { key: 'flow', label: 'Flow' },
@@ -13,10 +13,10 @@ export const TABS = [
 ] as const
 
 export type NavTab = (typeof TABS)[number]['key']
-// Graph is a page inside Epics, not a nav entry: it keeps the plan drill-in.
+// Graph is a page inside Specs, not a nav entry: it keeps the plan drill-in.
 export type Tab = NavTab | 'graph'
 
-export const tabLabel = (key: Tab) => (key === 'graph' ? 'Epics' : (TABS.find((t) => t.key === key)?.label ?? key))
+export const tabLabel = (key: Tab) => (key === 'graph' ? 'Specs' : (TABS.find((t) => t.key === key)?.label ?? key))
 // The nav entry that is lit for a page.
 export const navTab = (key: Tab): NavTab => (key === 'graph' ? 'plans' : key)
 
