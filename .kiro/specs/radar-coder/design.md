@@ -1,0 +1,545 @@
+# Design: Avoozl plans and gates, Issue Radar crews code
+
+Status: Draft
+
+Requirements are in `requirements.md` (RC1 to RC12). Sections here are
+numbered D1 to D17 so they are not confused with the sections of
+`.kiro/specs/avoozl/design.md`, which this design builds on and sometimes
+changes (each change is named).
+
+## D1. Thesis
+
+Avoozl does the work that needs memory of the whole plan: the spec, the graph,
+the order, the proof of approval. Crews do the work that needs a clean context
+and a shell: triage, code, tests, a pull request. GitHub holds the shared
+state: issues, labels, blocked-by links, pull requests, merges. No part of the
+loop needs Avoozl's own workers.
+
+```text
+person ──▶ spec / quick goal ──▶ approve (a merged PR) ──▶ Project to GitHub
+                                                                │
+        ┌───────────────────────────────────────────────────────┘
+        ▼
+ issues + marker ──▶ tick adds `ready` (graph order, N at a time)
+        ▼
+ crew (any machine): verify-issue ─ ok ─▶ claim ─▶ PR ─▶ CI
+                          │ fail                         ▼
+                          └▶ skip, needs-decision   tick arms auto-merge (or person merges)
+                                                         ▼
+                                              merge ─▶ close ─▶ dependents released
+```
+
+### Who owns what
+
+| State or act                                   | Owner                                                     |
+| ---------------------------------------------- | --------------------------------------------------------- |
+| Spec text, graph, approval, release order      | Avoozl (SQLite for execution state, Markdown for prose)   |
+| Issues, sub-issues, blocked-by, labels, PRs    | GitHub                                                    |
+| Triage, claim, code, PR, CI rounds             | The crew (Radar)                                          |
+| Crew creation, agent, Additional prompt, pause | The owner, in Radar (owner-only, fact 7)                  |
+| Auto-merge on a crew PR                        | Avoozl's tick (fact 2), or the person                     |
+| Rules the crew follows                         | `AGENTS.md`, `.kiro/steering/`, the one-line prompt       |
+
+## D2. Labels
+
+Four labels, four jobs. Avoozl never writes the middle two.
+
+| Label            | Job                                            | Written by          | Default name        |
+| ---------------- | ---------------------------------------------- | ------------------- | ------------------- |
+| Planning         | "Avoozl, plan this"                            | A trusted person    | `to plan`           |
+| Needs-human      | "Crew stopped and wants a person"              | The crew            | as set in Radar     |
+| Claim            | "A crew has this"                              | The crew            | `crew: in progress` |
+| Ready            | "Eligible for a crew"; the crew's label scope  | Avoozl's tick       | `ready`             |
+| Conflict (on PRs)| "This PR has a merge conflict"                 | Avoozl's tick       | `merge conflict`    |
+
+The crew's label scope is the ready label (Radar picks only issues with a
+label in scope; an empty scope means every open issue). Set up requires it
+(RC7.2). This is the **Proposed** split, which follows the rule that an
+input label and an output label never share a name. **Not checked:** the
+exact names Kiro Crew's own repository uses were not readable for this
+spec. The names are settings, not code, so they are confirmed in question
+Q9 (D16) before the first Set up.
+
+Names are validated together: any two equal are refused (RC1.3), and a name
+that is a managed label of another rule is refused (existing rule in design
+4.4). They stay configurable per repository and per workspace; no behavior
+needs a prefix.
+
+## D3. Planning input and the plan-me hand-off (RC1)
+
+Avoozl reads three things in a Radar-coded repository, and only these:
+
+1. Issues with the planning label whose labeler passes the actor check.
+2. Issues with the needs-human label ("plan me"), through PR 67's read
+   (`radar-plan-me`): trusted author, own marker, or `acceptedLabel` by an
+   allowed person; scope from the comment's second line; a `new-feature`,
+   `architecture` or `needs-design` scope goes to Intake, anything else to
+   Needs you, and an untrusted issue is left alone. Unchanged.
+3. Claim labels and claim markers, for **On the line** (`radar.crews`).
+
+It does not read or list other open issues for that repository (the
+Untriaged list is off). That is what "Avoozl never triages" means in code: no
+list call for plain open issues.
+
+When a plan is projected from a source issue, the source becomes the parent
+in the sub-issue tree and gets no ready label. The person clears the
+needs-human label. The planning label is removed by Avoozl only when
+`radar.clearPlanLabel` is on (default off), so Avoozl's write list stays
+short.
+
+## D4. Projection (RC2)
+
+### D4.1 Two modes, one code path
+
+| Part            | Single-repo                              | Plans-repo with `coder: issue-radar`                     |
+| --------------- | ---------------------------------------- | -------------------------------------------------------- |
+| Spec            | `<code repo>/.kiro/specs/<name>/`        | `<plans repo>/.kiro/specs/<name>/`                       |
+| Issues          | code repo                                | **code repo** (changed from design 6.6)                  |
+| Marker `plans=` | absent                                   | `plans=<owner>/<repo>`, only if shown (below)            |
+| Commit pinned   | code repo commit                         | plans repo commit                                        |
+| Closing         | `Closes #N`, GitHub closes               | `Closes #N` in the PR; if absent, Avoozl closes on merge |
+| Crew reads spec | from the checkout                        | brief in the issue; `verify-issue` reads the plans repo  |
+
+Plans-repo mode with a worker coder stays as design 6.6 says (issues in the
+plans repository, public pull request text hides its name). Only the
+`issue-radar` coder moves the issues, because a crew reads and writes one
+repository. The policy check that refuses `issue-radar` in plans-repo mode is
+removed (task rc-2.1).
+
+The plans repository name appears in a public issue only with the repository
+setting **Show the plans repository name in issues**. For a private code
+repository it is on. For a public one it is off, and projection is refused
+with the reason until the person turns it on or moves the spec into the code
+repository. This is a deliberate exception to design 3.4's "the marker never
+names the planning repository". Content rules screen the name either way.
+
+### D4.2 Batching
+
+```text
+for each phase, in graph order:
+  candidates = tasks with size "small", no open blocker, no human completion
+  group candidates by (repository, phase [, overlapping paths if by=files])
+  drop any pair joined by an edge
+  cut each group into batches of at most flow.batch.max (default 3, hard cap 5)
+  a group of one stays a plain issue
+```
+
+- A task that has any unmet `requires` at projection time never batches, so
+  only the first wave of a phase can batch. **Shortcut:** later waves are
+  single issues. Upgrade when real data shows many small blocked tasks; a
+  later **Batch now** action could merge two unreleased issues.
+- A batch issue has one marker listing every task ID and one checklist. Its
+  node in the graph shows the member tasks. Each task ID keeps its own node,
+  acceptance, evidence, timing and edges. Edges between members do not exist
+  by rule; external blockers of the members are the union placed on the one
+  issue as native blocked-by links (none, by the rule above, at projection).
+- The crew's one pull request carries `Closes #<batch>`. Avoozl closes each
+  member task when it sees that merge (Requirement 16's exact-pull-request
+  check, with the batch issue as the link). The checklist is for the crew's
+  reading, never Avoozl's (fact 2).
+- The modes are one radio fold-out: Off, Suggest (default), Auto.
+
+### D4.3 Preview and Spec changed
+
+The **Project to GitHub** modal (mockup `04-projection.html`) lists every issue
+Avoozl would write, with include, batch edit, wave and release mode. **Create
+issues (held)** writes issues with no ready label. **Create and release**
+writes them and lets the tick release wave 1. Both are refused when preflight
+fails (RC2.9). **Spec changed** is the same modal in diff form.
+
+Preflight list: spec on the default branch with `Status: Approved`; decision
+record present when required; merge path ready (D7); the crew label scope
+equals the ready label (cannot verify without the grant: shown as "cannot
+verify"); and, for a public repository, the public sign-off (D12).
+
+## D5. Provenance and `verify-issue` (RC3)
+
+### D5.1 The marker
+
+```html
+<!-- avoozl v=1 spec=radar-coder tasks=rc-2.3,rc-2.4 commit=0123456789abcdef0123456789abcdef01234567 approved-by=octocat plans=octo-org/octo-plans -->
+```
+
+Keys are `key=value` pairs separated by one space, values with no spaces.
+`tasks` is a comma list. `plans` is optional. It is on one line, after the
+managed marker, so a crew can find it with one pattern. The managed marker
+(design 3.4) is unchanged and carries namespace, edges and applied hashes.
+The provenance marker carries only what a stranger-proof check needs.
+
+Writer and parser live in one module (`src/app/github-provenance.mjs`).
+Unknown keys are ignored; an unknown `v` is refused.
+
+### D5.2 Approval makes the commit real
+
+Today an Avoozl approval is a receipt in SQLite. A crew cannot read that. So
+**Approve** now ends in a commit a crew can read:
+
+1. Avoozl checks the lint (0 errors) and the Kiro layout (Requirement 30).
+2. It opens a pull request in the repository that holds the spec. The pull
+   request sets `Status: Approved` in `requirements.md` (or `bugfix.md`),
+   `design.md` and `tasks.md`, and, with `approval.decisionRecord` on, adds
+   `docs/decisions/<spec>.md` (`Status: Accepted`, "may be built by
+   automation").
+3. A person merges it. Avoozl watches for the merge and records the commit
+   (the merge commit) and the approver (the person who approved in Avoozl,
+   whose login passes the actor check).
+4. Only then may projection run. The approval receipt of Requirement 15 and the
+   four-gates rule (D15) are unchanged.
+
+The `Status:` line is excluded from the revision hash, the way checkbox marks
+already are (`withoutMarks` in `spec-plans.mjs`), so approving does not look
+like a spec edit. The line is any line equal to `Status: <Word>` in the first
+20 lines of the file. This spec's own files say `Status: Draft`.
+
+In a decision record the crew reads, no private repository is named.
+
+### D5.3 The command
+
+```text
+avoozl verify-issue <owner>/<repo>#<n> [--json]
+
+  marker    ok
+  approver  ok  octocat has write on octo-org/octo-plans
+  author    ok  octocat has write on octo-org/octo-code
+  spec      ok  tasks.md at 0123456 lists rc-2.3, rc-2.4; all three files say Approved
+  commit    ok  0123456 is identical to the default branch
+exit 0
+```
+
+| Check      | GitHub reads (all through `gh api`)                                                                 | Fails when                                                                 |
+| ---------- | --------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `marker`   | `GET repos/{o}/{r}/issues/{n}`                                                                      | no marker, two markers, unknown `v`, a required key missing                |
+| `approver` | `GET repos/{so}/{sr}/collaborators/{approved-by}/permission`, where `{so}/{sr}` holds the spec      | not admin, maintain or write; any read error                               |
+| `author`   | the same call for the issue's author, on the code repo                                              | not admin, maintain or write; any read error                               |
+| `spec`     | `GET repos/{so}/{sr}/contents/.kiro/specs/{spec}/{file}?ref={commit}` for each file                 | a file missing, a task ID not in `tasks.md`, a file without `Status: Approved` |
+| `commit`   | `GET repos/{so}/{sr}/compare/{default}...{commit}` (default from `GET repos/{so}/{sr}`)             | status other than `behind` or `identical`                                  |
+
+- Exit 0 all ok; 1 a check failed; 2 could not run; 64 bad argument. A failed
+  read is a failed check. When a check fails, later checks still run so one
+  run reports every failure, except that `spec` and `commit` are skipped as
+  `skipped` when `marker` fails.
+- Output names checks, logins, repositories, task IDs and the commit. It never
+  quotes issue or spec text (RC3.5), so a crew can paste it into a comment.
+- No workspace, no network except GitHub, no writes. The operation is
+  `issue.verify`, read-only, observe class (so MCP and app tokens may call it),
+  exposed as the CLI `verify-issue` and the MCP tool `plans_verify_issue`. The
+  tool count stays small (Requirement 56): this is the one new tool.
+- `author` goes beyond the live test, which checked three things. It closes the
+  case where a stranger opens an issue on a public repository and pastes an
+  owner's login. Crews share the owner's login (fact 11), so the author of a
+  crew-written or Avoozl-written issue is the owner.
+- **Limits.** A marker is not a signature. Anyone who can edit an issue body
+  and has write permission can write a valid marker. The check stops
+  accidents, strangers, and a changed task list. A person who can write can
+  also push code, so a signature would add nothing against them.
+- Needs `gh` on the crew's machine, logged in as an account that can read the
+  spec's repository (fact 5). Without it the command exits 2 or 1 and says why.
+
+### D5.4 The Additional prompt
+
+One line, shipped verbatim in Settings, in the team pack, and in a test that
+compares it with the text Set up shows:
+
+```
+For any issue with an <!-- avoozl --> marker, run `avoozl verify-issue OWNER/REPO#N` (or the plans_verify_issue tool) first; build only if it exits 0, otherwise skip it with scope needs-decision and say which check failed.
+```
+
+This replaces the paragraph of the live test (fact 4), which carried the
+checks in prose. The checks now live in code, so a rule change ships as a code
+change, not a prompt edit on every crew. Honest limit: it is a prompt. A crew
+with no prompt, an old prompt, or another owner's prompt does not run it. The
+repository's rules (`AGENTS.md`) SHOULD say the same sentence, because crews
+re-read them each issue (fact 3); Set up offers that as one review-rules pull
+request. The same line in two places is the only duplication this design
+allows.
+
+## D6. Release (RC4)
+
+```text
+every tick, per repository:
+  for each scope S (default: one scope = the ready label, capacity N):
+    open = issues in S carrying the ready label, not yet merged
+    free = N - |open|
+    candidates = eligible tasks/batches in graph order whose scope is S
+    add the ready label to the first `free` candidates
+  if a stop is open, an issue reopened, or a blocker reopened:
+    remove ready from every unclaimed issue in the scope
+    comment once on each claimed issue
+```
+
+- **Eligible:** all `requires` blockers complete at the required level; the
+  spec's previous phase fully merged; not held; not Deferred; no stop in
+  scope.
+- **Count:** claimed issues keep their ready label, so they use a slot until
+  they merge or close. This keeps N a real cap on work in flight.
+- **Order inside a scope:** graph order, then wave, then task ID. Crews pick
+  at random among the labeled ones, so order holds only because N is small.
+- **Per crew label scope:** `release.scopes: [{label, capacity}]`. A task's
+  manifest entry may set `scope`. This lets a docs crew and a code crew share a
+  repository.
+- **Phases:** a phase is released only when every task of the previous phase
+  of the same spec has a merged closing pull request. "Closed" by a person's
+  order does not count here (it does for dependents under Requirement 33).
+- **Mode:** a radio fold-out, Automatic, Step, Hold. Step waits for a click per
+  phase.
+- **Default N:** 2. Set up asks one question: "How many crews work this
+  repository?" and sets N to that number. Radar's own `max_open` (default 3)
+  is a per-crew limit Avoozl cannot read in Variant B.
+
+## D7. Merge path (RC5)
+
+Kiro Crew 0.12.2.4 does not arm auto-merge for a crew (fact 2). So:
+
+```text
+tick, per repository with ship = auto-merge:
+  for each open, non-draft PR from a branch in this repo whose author passes
+  the actor check and whose closing references include a marked issue:
+     if not already armed and verify(issue) still passes:
+         enablePullRequestAutoMerge(method: MERGE)        # GitHub merges later
+  for each PR with mergeable = CONFLICTING:
+     add the conflict label; one Needs you row
+  for each PR whose conflict is gone: remove the label
+tick, ship = manual:
+  one Ready to merge row per PR with required checks green
+```
+
+- The merge method is a merge commit, as the owner's standing practice and the
+  no-force-push rule need.
+- It uses GitHub's mutation, so the rules the repository set (required checks,
+  required reviews) are what decide. Avoozl never merges, uses `--admin` or
+  skips a rule (RC5.5).
+- The merge path is ready when: the repository allows auto-merge; the default
+  branch has a rule requiring the CI check by name; `delivery.ship` has a
+  value. Without a required check GitHub would merge at once or refuse; Avoozl
+  refuses to release instead.
+- A forged pull request cannot be armed: fork pull requests, authors outside
+  the actor check and pull requests that do not close a marked issue are
+  skipped. The tick re-runs `verify` once per issue per marker hash, so an
+  edited marker stops arming.
+- `delivery.ship` resolves as Requirement 80 says: task, spec, repository,
+  workspace.
+- Conflicts: a crew hands a conflicted pull request to a person with the
+  needs-human label (fact in `radar-spec-tasks.md` section 4). The conflict
+  label is Avoozl's own, on the pull request, so Delivery can filter on it.
+  Avoozl does not resolve conflicts here; merging main into a branch is the
+  crew's or person's act, never a force push.
+
+## D8. The `avoozl-crew` agent (RC6)
+
+`kirocrew-app/agents/avoozl-crew.json`, added to `app.json`:
+
+| Part       | Content                                                                                                                        |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Name       | `avoozl-crew` (materialized as `avoozl--avoozl-crew.json`; the name then binds, per the live test)                             |
+| MCP        | `avoozl:avoozl`                                                                                                                |
+| Tools      | `@avoozl:avoozl/plans_verify_issue`, `@kirocrew-core/skill_search`, `@kirocrew-core/issue_radar_crew_read`, `issue_radar_crew_record` |
+| Skills     | `skill://` resources for the Avoozl skills crews need (`avoozl`, `avoozl-rules`)                                                |
+| Hooks      | For a public repository only: the scan-before-send hook of "Crews on public repositories". No other blocking hook until proven |
+| Prompt     | Short: verify first; one issue, one PR; follow `AGENTS.md`; say the stage in the claim comment                                  |
+
+- A crew chat has no default workspace, so no tool in the list may need one.
+  `plans_verify_issue` reads only GitHub.
+- It returns the brief when every check passes (task IDs, acceptance, section
+  references, taken from the issue body the projection wrote, plus the spec text
+  it already read for check `spec`). So building in plans-repo mode needs no
+  more access than verifying does. Verifying `spec` still needs read on the
+  plans repository, or the spec mirrored into the code repository (Q5).
+- Unknown agent names fall back silently, so Set up checks that the name is in
+  Radar's Agent list. It reads the list through the grant, or the installed
+  agent files, and otherwise shows "Not verified".
+- A crew must be **created** with this agent. Changing the agent of an existing
+  crew did not move the slot in the live test.
+- The app must be built before it is installed, or the MCP server fails at
+  start; Set up detects a missing `bin/lib`.
+
+## D9. Set up and the team pack (RC7)
+
+Set up is one page with three groups:
+
+| Group                           | Does                                                                                         | Verified by                     |
+| ------------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------- |
+| **Avoozl does it** (gh)         | Labels; a branch rule requiring the CI check; the repository's auto-merge setting; the Project and fields; a pull request adding review rules to `AGENTS.md` | Reading the repository back     |
+| **You do it in Radar**          | Connect the repository; New Crew (name, agent `avoozl-crew`, model, label scope = ready); the needs-human label; claim time limit; the Additional prompt | The grant's read, or "cannot verify" with a checkbox |
+| **Avoozl checks**               | The app is built; the agent is in Radar's Agent list; the CI check exists; the merge path; the public sign-off if public | Reads                           |
+
+Every value shown has a Copy button and says what it controls. Each `gh` step
+is a preview and a confirm (Requirement 32's wizard rules). Nothing asks for a
+model price. Defaults show; advanced values fold away; an inherited value says
+where it comes from.
+
+**Team pack.** A pack is the existing settings pack (Requirement 55) with a
+`crews` section:
+
+```json
+{
+  "name": "sdk-team",
+  "crews": {
+    "count": 2,
+    "agent": "avoozl-crew",
+    "models": ["model-a", "model-b"],
+    "labels": { "plan": "to plan", "ready": "ready", "conflict": "merge conflict" },
+    "prompt": "<the one line of D5.4>",
+    "reviewRules": "<text for AGENTS.md>",
+    "template": "<a workflow template name>"
+  }
+}
+```
+
+Applying a pack fills Set up and the settings after a preview. It creates no
+crew (owner-only). Content rules screen a pack before it is saved or shared.
+
+## D10. Observe (RC8)
+
+Follows `docs/proposals/avoozl-experience.md`. The decisions that proposal
+leaves to this spec:
+
+- **Variant B first.** Everything from GitHub: claim markers, labels, pull
+  requests, checks, timeline. Variant A (Radar's crew list: status, open
+  counts, cost) is one grant and a later task, marked manual until the owner
+  wants it.
+- **Home.** Needs you; **On the line** (one row per claimed issue, with a rail
+  Ready, Claimed, PR, CI, Merge); **Release queue**; Progress by goal.
+- **Trace.** The eight steps of the experience proposal. Times come from
+  GitHub events and comment `updated_at`, never `updated=` (fact 6). Cost per
+  stage is Variant A only.
+- **Side panel.** One tab. Matches the open chat from the URL, as the proposal
+  says; the contract is **Inferred** and the first task includes a test that
+  fails if the URL shape changes.
+- **Flow.** Stage waits from GitHub times. The retro joins them to the
+  provenance marker, the claim marker's crew id and the PR.
+- **Retro targets.** A rule change to `AGENTS.md` or a steering file goes as a
+  pull request. The crews re-read both on the next issue (fact 3). A change to
+  the crew's Additional prompt is shown as full text with Copy and a link,
+  since the edit is owner-only.
+- **No repeated views.** Avoozl links to Issue Radar's lists and to Kiro
+  Crew's own pull request review for anything they already show.
+- **Cross-machine In flight** is PR 67's `radar.crews`: crew id, name, phase,
+  issue, PR, last update and a stale flag from GitHub alone. Paused state,
+  machine and chat are not on GitHub (see `radar-handoff-and-crew-list.md`).
+
+## D11. Quick goals (RC9)
+
+```text
+"Make tests faster"
+  ▼ modal: repository, depth (Look | Measure), budget (20 turns, 15 min)
+planner chat (Avoozl-owned slot): read, optionally measure in a scratch worktree
+  ▼ proposal: 1-8 tasks, edges, batches, risks, questions, evidence each
+person: Approve | Edit | Promote to spec | Discard
+  ▼ Approve
+mini-spec `goal-<slug>` written in the Kiro layout ─▶ approval PR ─▶ merge ─▶ projection
+```
+
+The mini-spec is the change from the experience proposal (RC9.3). The reason
+is mechanical: `verify-issue` check `spec` reads files at a commit, and the
+layout mandate refuses a plan with no files. A quick goal therefore has files
+too, small and generated: requirements hold the goal and the evidence, design
+the approach, tasks the tasks. **Promote to spec** is then only "open this
+folder in Spec Builder and keep going", with the same task IDs and the same
+issues. Whether a crew builds from a mini-spec with a one-sentence "approval" is
+Q6.
+
+Promote rules (any one): more than 8 tasks, more than 3 dependency levels, an
+open design question, a public interface change. Auto-approve is a setting, off.
+
+## D12. Public repositories (RC10)
+
+This design adds nothing to the public-crew layers. It gates on them and
+links to them by name: **Crews on public repositories** in
+`.kiro/specs/avoozl/` (clean crew home, scan before send, audit on the tick,
+sign-off, Stop public crews). Where this spec writes to a public repository
+(projection, labels, auto-merge, the marker), it routes the text through content
+rules first (Requirement 40), and `verify-issue` prints no text from issues.
+Release in D6 does not run for a public repository until the sign-off is
+complete (task rc-10.1, a manual task that waits for that other work to land).
+
+## D13. Retirement (RC11)
+
+A separate last epic. Nothing starts before the real-repository proof
+(rc-p11) is accepted by a person.
+
+| Removed for Radar-coded repositories                | Where today                              | Kept for `coder: worker`? |
+| --------------------------------------------------- | ---------------------------------------- | ------------------------- |
+| Own worker dispatch (tick opens a worker)          | `kirocrew-app/crons/tick.py`, `delivery.mjs`, `runner.mjs`  | Yes                       |
+| Crew routing and placement, router prompt           | Requirements 41, 42                      | Yes (placement), router off |
+| Runner mode over SSH                                | Requirement 84, `remote-runner.mjs`      | Removed (crews replace it) |
+| Remote relay                                        | Phase 32                                 | Removed                   |
+| Per-task budgets for workers                        | Requirement 67                           | Stay for planner, retro, quick goal |
+| Workers' Files and diff fold                        | Requirement 81                           | Removed with the worker UI |
+| Verifier, falsifier, reviewer, responder roles      | `kirocrew-app/agents/*`                  | Yes for `worker`          |
+| Foreman, bot heartbeat                              | research only, not built                 | Stay unbuilt              |
+
+Rules for the removal:
+
+- Remove by repository `coder`, behind the setting, in the first tasks; delete
+  the code only when no repository in any known workspace is on `worker`, which
+  the owner decides (rc-12.1). This keeps `coder: worker` honest.
+- Keep these names and files working: `plans_*` MCP names, `NUPP_WORKSPACE`
+  and `AICOMMANDER_*` variables, the `aicommander` command, the
+  `aicommander.*` editor settings (AGENTS.md). A compatibility test asserts each
+  still resolves (rc-12.8).
+- Do not rewrite `docs/research/` or `docs/evidence/`.
+
+## D14. Four gates stay four
+
+| Gate                | Radar path                                                              | Worker path (kept)          |
+| ------------------- | ----------------------------------------------------------------------- | --------------------------- |
+| Plan approval       | Approve in Avoozl, then a merged approval PR (D5.2)                     | Receipt (Requirement 15)    |
+| Implementation      | A crew's pull request, claim marker `implementing` to `resolved`        | A worker's report           |
+| Integration         | The pull request merges (armed auto-merge or a person)                  | Rebase integrate            |
+| Whole-head acceptance | The default branch's required checks after the merge; recorded by Requirement 16 | The head's checks |
+
+A crew's `resolved` is implementation only. A task completes at the merge
+(integration) and is accepted when the head's checks pass. A disconnected crew
+is never replaced for an expired claim alone (AGENTS.md): the claim shows
+stale and one decision opens.
+
+## D15. Failure modes
+
+| Failure                                         | What happens                                                                                 |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `verify-issue` cannot read the plans repository | Check `spec` fails, the crew skips as `needs-decision`, Needs you opens "crew cannot read plans" |
+| Crew has no Additional prompt                   | Not caught by Avoozl; Set up marks "cannot verify"; the audit of claim comments shows a crew that built with no verification line |
+| Auto-merge refused (no required check)          | The tick shows the repository's merge path as not ready; no release                          |
+| CI red on a crew PR                             | The crew drives CI rounds (fact 1); after its limit it hands back; Needs you                 |
+| A reopened closed issue                         | Ready removed from unclaimed dependents (RC4.3); reapplied when closed again                 |
+| Stale claim (no marker update past the TTL)     | One Needs you row; Avoozl does not replace the crew                                          |
+| Marker edited by someone                        | `marker` or `spec` check fails; the tick does not arm; a Needs you row                       |
+| GitHub rate limit                               | Reads fail closed; the tick skips the repository, backs off, shows the age of its data       |
+
+## D16. Open questions and the test that answers each
+
+| Q   | Question                                                         | Test                                                                                                                                         | Pass shows                                            | Fail changes                                        | Task      |
+| --- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- | --------------------------------------------------- | --------- |
+| Q1  | Does the loop hold on a real repository with slow CI?            | Run a 10-task spec on a real repository whose CI takes 20 minutes or more (the nupp repository), N=2, auto-merge on; record the Flow stage times and idle crew time | Crews stay busy; N=2 is enough; PR-to-green dominates | Raise default N; add a CI-aware release rule        | rc-p11    |
+| Q2  | Do two people sharing one repository interfere?                  | Two owners, each with a crew, one repository; one planner; both set `allowedActors`                                                          | No double claim; approver and author checks pass for both | Per-owner scopes become required; document the limit | rc-p11    |
+| Q3  | Will Kiro Crew put `scope=` in the claim marker?                 | Write the request note (`docs/`), a person files it; on each new release, read a skip comment's marker                                       | Skip scope is readable without prose                  | Keep reading the second line                         | rc-q3     |
+| Q4  | Is the `updated=` time still wrong in a later release?           | On each release, compare a claim's `updated=` with GitHub's `updated_at` over 5 comments                                                     | If equal, stale detection may use it                  | Keep GitHub's time only                             | rc-q4     |
+| Q5  | What does a crew without plans-repository access do?             | Run a crew under an account with no read on a private plans repo, on a marked issue                                                          | It fails `spec` and skips with the reason             | Mirror the approved spec into the code repo (new task) | rc-q5   |
+| Q6  | Does a crew take a mini-spec issue (quick goal)?                 | A quick goal with a generated mini-spec and no decision record; one marked issue; one crew                                                  | Claims and builds                                     | Mandate a decision record, or Promote for every goal | rc-q6     |
+| Q7  | Does the one-line prompt make the decision record unnecessary?   | Marked issue, approved spec, no `docs/decisions/` entry, one-line prompt                                                                     | Builds: set `approval.decisionRecord` default off     | Keep it on by default                               | rc-q7     |
+| Q8  | May a public marker name a private plans repository?             | Owner decision after seeing a sample marker; test the content-rules screen with the name                                                      | Owner turns the switch on, or moves the spec          | Spec in the code repository only                    | rc-q8     |
+| Q9  | Are the default label names right?                               | Read the label set Kiro Crew's own repository uses and compare with D2                                                                       | Names kept, or changed to match                       | Rename defaults before Set up ships                 | rc-q9     |
+
+No question blocks drafting. A question blocks only the tasks that list its
+task as an edge.
+
+## D17. Proofs
+
+Each proof has setup, action, expected result, what failure means, and the
+next decision (as `tasks.md` states). A proof is a task that requires its
+phase's tasks. `rc-p11` is the gate for retirement.
+
+| Proof   | Proves                                                                                                       |
+| ------- | ------------------------------------------------------------------------------------------------------------ |
+| rc-p1   | Avoozl lists only planning-label and plan-me issues for a Radar-coded repo; label clashes refused            |
+| rc-p2   | Single-repo and plans-repo projection; batching rules; Spec changed                                          |
+| rc-p3   | `verify-issue` passes a good issue and fails each bad one, live, with a real crew and the one-line prompt    |
+| rc-p4   | Release respects N, scopes, phases and Stop the line                                                         |
+| rc-p5   | Auto-merge armed only on the right PRs; manual leaves them; conflict label                                   |
+| rc-p6   | A crew on `avoozl-crew` verifies and builds; Set up detects a missing agent                                  |
+| rc-p7   | Set up does the `gh` steps, shows Radar's values, applies a pack                                             |
+| rc-p8   | Home, On the line, Trace, side panel, Flow, a retro rule that a crew follows next issue                      |
+| rc-p9   | A quick goal becomes issues with one approval; Promote past the rule                                         |
+| rc-p10  | Public repository: no release before sign-off; no text in `verify-issue` output                              |
+| rc-p11  | The whole path on a real repository, Q1 and Q2                                                               |
+| rc-p12  | After retirement, `coder: worker` and every compatibility name still work                                    |
