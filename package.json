@@ -34,6 +34,7 @@
     "THIRD_PARTY_NOTICES.md",
     "docs/policies.md",
     "docs/plugins.md",
+    "docs/epic-types.md",
     "kirocrew-app/",
     "!src/**/test/",
     "!src/**/*.test.mjs",

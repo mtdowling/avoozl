@@ -64,9 +64,23 @@ export async function armCrewPullRequests(
         !state.armed[`${id}#${pull.number}`],
     );
     if (!pulls.length) continue;
-    // Never arm where GitHub would merge at once or refuse.
-    if (!(await mergePath(github, id, repository, { delivery })).ready)
-      continue;
+    // Never arm where GitHub would merge at once or refuse. The default
+    // branch's rule, or an epic's integration branch's own (RC16.2), is read
+    // once per branch and only when a pull request needs it.
+    const paths = new Map(),
+      pathReady = async (base) => {
+        if (!paths.has(base))
+          paths.set(
+            base,
+            (
+              await mergePath(github, id, repository, {
+                delivery,
+                ...(base ? { branch: base } : {}),
+              })
+            ).ready,
+          );
+        return paths.get(base);
+      };
     // The marked open issues of this workspace, and the pull requests that
     // GitHub says close each.
     const closing = new Map();
@@ -86,6 +100,7 @@ export async function armCrewPullRequests(
             number: issue.number,
             hash: markerHash(marker),
             tasks: [managed.taskId, ...(marker.tasks || [])],
+            base: marker.base ?? null,
           });
           closing.set(node.number, list);
         }
@@ -96,6 +111,13 @@ export async function armCrewPullRequests(
       if (!marked?.length) continue;
       if (marked.some((issue) => issue.tasks.some((id) => paused.has(id))))
         continue;
+      // An epic's pull request targets its integration branch and nothing
+      // else (RC16.2); an issue with no base keeps the default branch.
+      const bases = new Set(marked.map((issue) => issue.base));
+      if (bases.size > 1) continue;
+      const [base] = bases;
+      if (base && pull.base?.ref !== base) continue;
+      if (!(await pathReady(base))) continue;
       const login = pull.user.login;
       if (!permissions.has(login))
         permissions.set(

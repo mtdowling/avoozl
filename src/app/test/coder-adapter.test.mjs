@@ -61,21 +61,21 @@ test("done is true only for a merged pull request", () => {
 
 test("a fake third adapter plugs in without changing callers", async () => {
   const calls = [],
-    restore = registerCoderAdapter("remote", {
+    restore = registerCoderAdapter("fake-third", {
       usesMergePath: false,
       handOver: async (input) => calls.push(input.issue.number),
       readState: () => ({ state: "filed" }),
       countsAsDone: () => false,
     });
   try {
-    await adapterFor("remote").handOver({ issue: issue() });
+    await adapterFor("fake-third").handOver({ issue: issue() });
     assert.deepEqual(calls, [7]);
-    assert.equal(usesMergePath("remote"), false);
+    assert.equal(usesMergePath("fake-third"), false);
     assert.equal(usesMergePath("issue-radar"), true);
   } finally {
     restore();
   }
-  assert.equal(usesMergePath("remote"), false);
+  assert.equal(usesMergePath("fake-third"), false);
 });
 
 test("the worker adapter keeps today's hand-over and is not on the merge path", async () => {

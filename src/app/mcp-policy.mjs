@@ -138,6 +138,11 @@ export const PERSON_ONLY = new Map([
   ["flow.resume", person("Only a person resumes a pulled stop.")],
   ["radar.releasestep", person("Only a person releases a phase.")],
   ["radar.disarm", person("Only a person disarms auto-merge.")],
+  ["gap.accept", person("Only a person accepts gap report proposals.")],
+  [
+    "integration.land",
+    person("Only a person approves landing an integration branch."),
+  ],
   ["spec.changed.apply", person("Only a person applies a spec change.")],
   ["quickgoal.get", person("Only a person works a quick goal.")],
   ["quickgoal.list", person("Only a person works a quick goal.")],

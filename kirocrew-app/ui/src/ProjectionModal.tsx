@@ -105,6 +105,11 @@ export function ProjectionModal(props: { workspaceId: string; client: Client; pl
                 <Badge variant="danger">blocked</Badge> {item.message}
               </p>
             ))}
+            {preview.publishes !== undefined && (
+              <p data-publishes>
+                A person publishes {preview.publishes} pull {preview.publishes === 1 ? 'request' : 'requests'} for this spec.
+              </p>
+            )}
             {preview.preflight && (
               <fieldset className="flex flex-col gap-1 border-0 p-0" data-preflight>
                 <legend className="font-medium">Preflight for Create and release</legend>

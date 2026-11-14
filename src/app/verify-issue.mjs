@@ -8,6 +8,7 @@ import { execFile } from "node:child_process";
 import { LOGIN } from "./github-marker.mjs";
 import { parseManagedSection } from "./github-rebuild.mjs";
 import { parseProvenance } from "./github-provenance.mjs";
+import { branchNameProblem, integrationOf } from "./integration-branch.mjs";
 import { specItems } from "./spec-plans.mjs";
 import { fail } from "./store.mjs";
 
@@ -199,12 +200,65 @@ async function checkSpec(read, home, marker, tasksText = {}) {
       problems.push(`tasks.md does not list ${absent.join(", ")}`);
   }
   tasksText.value = files["tasks.md"];
+  tasksText.manifest = files["avoozl/manifest.json"];
   return problems.length
     ? failed("spec", problems.join("; "), unavailable)
     : pass(
         "spec",
         `tasks.md at ${marker.commit.slice(0, 7)} lists ${marker.tasks.join(", ")}; all three files say Approved`,
       );
+}
+
+// The base branch (RC16.2): a spec whose manifest names an integration branch
+// must carry it as `base` in the marker, and a pull request given with --pr
+// must target it (the default branch when there is none). Only reported for
+// an epic with a branch, a marker with a base, or a pull request asked for.
+async function checkBase(read, code, marker, manifestText, pull) {
+  let branch = null;
+  try {
+    branch =
+      integrationOf(manifestText ? JSON.parse(manifestText) : null)?.branch ??
+      null;
+  } catch {
+    // The spec check already reports a manifest it cannot use.
+    if (!marker.base && pull === undefined) return null;
+    return failed(
+      "base",
+      "the spec manifest does not name a usable integration branch",
+    );
+  }
+  if (!branch && !marker.base && pull === undefined) return null;
+  if ((branch ?? undefined) !== marker.base)
+    return failed(
+      "base",
+      branch
+        ? `the spec's integration branch is ${branch}, but the marker says ${marker.base ?? "none"}`
+        : `the marker names a base ${marker.base}, but the spec has no integration branch`,
+    );
+  if (pull === undefined)
+    return pass(
+      "base",
+      branch ? `tasks target ${branch}` : "no integration branch",
+    );
+  const answer = await get(read, `${repoPath(code)}/pulls/${pull}`);
+  if (answer.kind !== "ok")
+    return failed("base", why(answer), answer.kind === "unavailable");
+  const actual = record(answer.body) ? answer.body.base?.ref : undefined;
+  if (typeof actual !== "string" || !actual)
+    return failed("base", "the pull request has no readable base branch", true);
+  // The reason prints the branch, so an API value is echoed only when it is a usable name.
+  const shown =
+    branchNameProblem(actual) === null ? actual : "an unusable branch name";
+  let wanted = branch;
+  if (!wanted) {
+    const repo = await get(read, repoPath(code));
+    wanted = record(repo.body) ? repo.body.default_branch : null;
+    if (repo.kind !== "ok" || typeof wanted !== "string")
+      return failed("base", "the default branch is unreadable", true);
+  }
+  return actual === wanted
+    ? pass("base", `pull request #${pull} targets ${wanted}`)
+    : failed("base", `pull request #${pull} targets ${shown}, not ${wanted}`);
 }
 
 async function checkCommit(read, home, marker) {
@@ -269,8 +323,10 @@ function buildBrief(marker, body, tasksText) {
 // Runs the five checks. `read` is a reader (ghReader() by default).
 export async function verifyIssue(
   reference,
-  { read = ghReader(), brief = false } = {},
+  { read = ghReader(), brief = false, pull } = {},
 ) {
+  if (pull !== undefined && !(Number.isSafeInteger(pull) && pull > 0))
+    fail("Name the pull request as a number.", 64);
   const { owner, repo, number } = parseIssueReference(reference),
     code = `${owner}/${repo}`,
     checks = [],
@@ -324,6 +380,8 @@ export async function verifyIssue(
   if (marker) {
     checks.push(await checkSpec(read, home, marker, tasksText));
     checks.push(await checkCommit(read, home, marker));
+    const base = await checkBase(read, code, marker, tasksText.manifest, pull);
+    if (base) checks.push(base);
   } else {
     checks.push(skipped("spec", "needs the marker"));
     checks.push(skipped("commit", "needs the marker"));

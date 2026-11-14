@@ -342,6 +342,14 @@ const tools = {
         "radar.preflight",
         "the Create and release checks for a spec: approval, decision record, merge path, crew label scope, public sign-off",
       ],
+      gap_report: [
+        "gap.preview",
+        "read a gap report from an issue: a repository by requirement table and one proposed task per failing cell; accepting is a person's",
+      ],
+      integration_branches: [
+        "integration.view",
+        "each integration branch: tasks merged, commits behind the default branch, head checks, acceptance and landing approval",
+      ],
       armed: [
         "radar.armed",
         "pull requests Avoozl armed for auto-merge that are still open",
