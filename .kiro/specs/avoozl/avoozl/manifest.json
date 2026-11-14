@@ -6115,6 +6115,73 @@
         "npm test",
         "git diff --check"
       ]
+    },
+    "38.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 38 (Runner mode over SSH). See R84.1–R84.7, R84.9, R84.10; §6.13.",
+      "acceptance": [
+        "Envelope, runner state, accept, status, report, runner tick",
+        "A runner accepts an envelope once, keeps its state, reports status and runs its tick."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "38.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 38 (Runner mode over SSH). See R84.8; §6.13.",
+      "acceptance": [
+        "Driver hand-off, pull and In flight with Remote and Attach, after 38.1",
+        "The driver hands a task off, pulls its status and shows it In flight with Remote and Attach."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "38.1"
+      ]
+    },
+    "38.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 38 (Runner mode over SSH). See R84; §6.13.",
+      "acceptance": [
+        "Live check with two test crews, after 38.2",
+        "Two test crews hand a task off and read it back; the result is written in docs/research/runner-mode-ssh.md."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "38.2"
+      ]
+    },
+    "avoozl-p48": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 38 (Runner mode over SSH). Proof. See R84; §6.13.",
+      "acceptance": [
+        "Proof: a task handed to a runner comes back with its worker",
+        "Expected: accepted once, a repeat is a no-op; one worker chat opens; checks run and the branch is pushed; status has the worker chat key, crew ID and path, no token, and an Attach link; a restart makes no second worker; a failed pull keeps the last answer marked stale."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "38.1",
+        "38.2",
+        "38.3"
+      ]
     }
   }
 }
