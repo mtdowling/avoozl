@@ -43,7 +43,7 @@ class SourceGitHub extends FakeGitHub {
     this.events.set(SOURCE, [
       {
         event: "labeled",
-        label: { name: "to plan" },
+        label: { name: "avoozl:plan" },
         actor: { login: "owner" },
       },
     ]);
@@ -63,7 +63,7 @@ class SourceGitHub extends FakeGitHub {
   async graphql(query, variables) {
     if (!/search\(/.test(query)) return {};
     this.searches += 1;
-    const wanted = ["to plan", HUMAN, CLAIM],
+    const wanted = ["avoozl:plan", HUMAN, CLAIM],
       found = variables.q.includes("is:pr")
         ? []
         : this.created.filter((issue) =>
@@ -104,7 +104,7 @@ async function projected(
 ) {
   const root = temporaryDirectory("avoozl-parent-"),
     code = temporaryDirectory("avoozl-parent-code-"),
-    github = new SourceGitHub(["to plan", HUMAN]);
+    github = new SourceGitHub(["avoozl:plan", HUMAN]);
   fs.writeFileSync(
     path.join(root, ".avoozl.json"),
     JSON.stringify({
@@ -169,7 +169,7 @@ async function projected(
 // Labels written to the source issue, from the fake's record.
 // Approval itself writes the approval label and the claim label (RC18.4,
 // RC19.1); those are covered in radar-coder-approval.test.mjs.
-const APPROVAL_WRITES = ["plan approved", CLAIM];
+const APPROVAL_WRITES = ["avoozl:plan-approved", CLAIM];
 const sourceWrites = (github) =>
   github.labels.filter(
     ([, number, label]) =>
@@ -210,8 +210,11 @@ test("Avoozl writes no label on the source by default", async (t) => {
   await ops.execute("workspace.tick", { sessions: [] });
   assert.deepEqual(sourceWrites(github), []);
   assert.deepEqual(
-    github.sourceLabels().filter((name) => !APPROVAL_WRITES.includes(name)),
-    ["crew: needs human", "to plan"],
+    github
+      .sourceLabels()
+      .filter((name) => !APPROVAL_WRITES.includes(name))
+      .sort(),
+    ["avoozl:plan", "crew: needs human"],
   );
 });
 
@@ -221,7 +224,7 @@ test("clearPlanLabel on removes only the planning label, once", async (t) => {
     await ops.execute("github.project", { planId: plan.id });
     await ops.execute("workspace.tick", { sessions: [] });
   }
-  assert.deepEqual(sourceWrites(github), [["remove", SOURCE, "to plan"]]);
+  assert.deepEqual(sourceWrites(github), [["remove", SOURCE, "avoozl:plan"]]);
   // The claim and needs-human labels are never written.
   assert.deepEqual(
     github.sourceLabels().filter((name) => !APPROVAL_WRITES.includes(name)),
@@ -244,7 +247,7 @@ test("one Needs you row says to clear the needs-human label, once across three t
   assert.deepEqual([view.items.length, view.withRadar.length], [0, 0]);
   // The person clears the label; the row goes and Avoozl wrote nothing.
   github.created.find((issue) => issue.number === SOURCE).labels = [
-    { name: "to plan" },
+    { name: "avoozl:plan" },
   ];
   await ops.execute("untriaged.view", { refresh: true });
   assert.deepEqual(await rows(ops), []);

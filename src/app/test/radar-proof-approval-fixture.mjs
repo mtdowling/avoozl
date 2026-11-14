@@ -13,7 +13,7 @@ import { temporaryDirectory } from "./temporary.mjs";
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
 
 export const REPO = "example/code",
-  APPROVAL = "plan approved",
+  APPROVAL = "avoozl:plan-approved",
   CLAIM = "crew: in progress",
   READY = "ready";
 
@@ -27,7 +27,7 @@ class ProofGitHub extends FakeGitHub {
         number,
         repository: REPO,
         state: "open",
-        labels: [{ name: "to plan" }],
+        labels: [{ name: "avoozl:plan" }],
         title: `Plan ${number}`,
         body: "Please plan this.",
         html_url: `https://example.test/${REPO}/issues/${number}`,

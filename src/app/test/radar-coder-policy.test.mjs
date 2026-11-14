@@ -34,13 +34,15 @@ test("coder defaults are unchanged and unknown values are refused", () => {
     assert.throws(() => repo("plans-repo", { coder }), /coder must be/);
 });
 
-test("the Radar labels default to to plan, ready, crew: in progress, merge conflict", () => {
+test("the Radar labels default to avoozl:plan, avoozl:ready, crew: in progress, avoozl:merge-conflict", () => {
   for (const mode of ["plans-repo", "single-repo"]) {
     const entry = repo(mode, { coder: "issue-radar" });
     assert.deepEqual(entry.radar, {
-      planLabel: "to plan",
-      conflictLabel: "merge conflict",
-      approvalLabel: "plan approved",
+      planLabel: "avoozl:plan",
+      conflictLabel: "avoozl:merge-conflict",
+      approvalLabel: "avoozl:plan-approved",
+      reviewLabel: "avoozl:review",
+      draftedLabel: "avoozl:drafted",
       clearPlanLabel: false,
     });
     assert.equal(entry.crewLabels.claim, "crew: in progress");
@@ -49,8 +51,11 @@ test("the Radar labels default to to plan, ready, crew: in progress, merge confl
 });
 
 test("a missing or empty radar block gives the defaults; worker repositories get them too", () => {
-  assert.equal(repo("plans-repo", { radar: {} }).radar.planLabel, "to plan");
-  assert.equal(repo("plans-repo").radar.conflictLabel, "merge conflict");
+  assert.equal(
+    repo("plans-repo", { radar: {} }).radar.planLabel,
+    "avoozl:plan",
+  );
+  assert.equal(repo("plans-repo").radar.conflictLabel, "avoozl:merge-conflict");
 });
 
 test("radar settings are read, and bad ones refused", () => {
@@ -64,7 +69,9 @@ test("radar settings are read, and bad ones refused", () => {
   assert.deepEqual(entry.radar, {
     planLabel: "plan me",
     conflictLabel: "conflict",
-    approvalLabel: "plan approved",
+    approvalLabel: "avoozl:plan-approved",
+    reviewLabel: "avoozl:review",
+    draftedLabel: "avoozl:drafted",
     clearPlanLabel: true,
   });
   for (const radar of [
@@ -117,7 +124,7 @@ test("any two equal label names are refused, naming both", () => {
 
 test("a default name clashes with a set one", () => {
   assert.throws(
-    () => repo("plans-repo", { radar: { planLabel: "ready" } }),
+    () => repo("plans-repo", { radar: { planLabel: "avoozl:ready" } }),
     /planning.*ready|ready.*planning/,
   );
   assert.throws(
