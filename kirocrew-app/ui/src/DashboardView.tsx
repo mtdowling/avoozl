@@ -22,6 +22,7 @@ import { nameFor } from './instance-api.ts'
 import { setupCards, type SetupId } from './setup-api.ts'
 import { useSetupFacts } from './setup-facts.ts'
 import ReleaseQueue from './ReleaseQueue.tsx'
+import RadarFlightGroups from './RadarFlightGroups.tsx'
 import IntegrationBranches from './IntegrationBranches.tsx'
 import ReviewDrafts from './ReviewDrafts.tsx'
 import { LINE_EVENT, flowClient } from './flow-api.ts'
@@ -440,12 +441,18 @@ export default function DashboardView(props: {
                   <h4 data-on-the-line className="mt-2 text-xs font-semibold text-muted">
                     On the line ({summary.radarFlight.length}): Ready, Claimed, PR, CI, Merge
                   </h4>
-                  <ul className="mt-1">
-                    {pages.take('radar', summary.radarFlight).map((row) => (
-                      <RadarFlightRow key={`${row.repository}#${row.number}`} row={row} now={now} cost={summary.radarCrewStrip?.cost[`${row.repository}#${row.number}`]} onTrace={(claim) => setTracing({ repository: claim.repository, number: claim.number })} />
-                    ))}
-                  </ul>
-                  <ShowMore {...pages.more('radar', summary.radarFlight.length)} />
+                  {summary.radarGroups.length > 0 ? (
+                    <RadarFlightGroups groups={summary.radarGroups} now={now} cost={summary.radarCrewStrip?.cost} onTrace={(claim) => setTracing({ repository: claim.repository, number: claim.number })} />
+                  ) : (
+                    <>
+                      <ul className="mt-1">
+                        {pages.take('radar', summary.radarFlight).map((row) => (
+                          <RadarFlightRow key={`${row.repository}#${row.number}`} row={row} now={now} cost={summary.radarCrewStrip?.cost[`${row.repository}#${row.number}`]} onTrace={(claim) => setTracing({ repository: claim.repository, number: claim.number })} />
+                        ))}
+                      </ul>
+                      <ShowMore {...pages.more('radar', summary.radarFlight.length)} />
+                    </>
+                  )}
                   <p className="mt-1 text-xs text-muted">
                     {summary.radarCrewStrip
                       ? 'Issue Radar rows come from GitHub. It does not show which machine a crew is on or its chat.'
