@@ -98,6 +98,8 @@ import { mirrorSyncStep } from "./mirror-sync.mjs";
 import { mirrorForwardStep } from "./mirror-forward.mjs";
 import { mirrorForwardRunStep } from "./mirror-forward-run.mjs";
 import { mirrorForwardAuditStep } from "./forward-audit.mjs";
+import { publicBranchesOf } from "./forward-epics.mjs";
+import { mirrorBatchStep, publicBranchStep } from "./mirror-forward-batch.mjs";
 import { mirrorPublicPollStep } from "./mirror-forward-poll.mjs";
 import { armStep } from "./radar-arm.mjs";
 import { headStep } from "./integration-head.mjs";
@@ -828,32 +830,24 @@ export async function tick(
       // (RC24.4): fast-forward only, one row for a divergence.
       if (script && github)
         try {
-          const step = await mirrorSyncStep(store, github, {
-            policy: readGitHubPolicyOrNull(workspaceRoot),
-          });
+          const policy = readGitHubPolicyOrNull(workspaceRoot),
+            publicBranches = (repository, mirror) =>
+              publicBranchesOf(store, policy, repository, mirror),
+            step = await mirrorSyncStep(store, github, {
+              policy,
+              publicBranches,
+            });
           planned.notify.push(...step.notify);
           for (const text of [
             ...step.errors,
             ...(
-              await mirrorForwardStep(store, github, {
-                policy: readGitHubPolicyOrNull(workspaceRoot),
-              })
+              await mirrorForwardStep(store, github, { policy, publicBranches })
             ).errors,
-            ...(
-              await mirrorForwardRunStep(store, github, {
-                policy: readGitHubPolicyOrNull(workspaceRoot),
-              })
-            ).errors,
-            ...(
-              await mirrorPublicPollStep(store, github, {
-                policy: readGitHubPolicyOrNull(workspaceRoot),
-              })
-            ).errors,
-            ...(
-              await mirrorForwardAuditStep(store, github, {
-                policy: readGitHubPolicyOrNull(workspaceRoot),
-              })
-            ).errors,
+            ...(await mirrorBatchStep(store, github, { policy })).errors,
+            ...(await mirrorForwardRunStep(store, github, { policy })).errors,
+            ...(await mirrorPublicPollStep(store, github, { policy })).errors,
+            ...(await mirrorForwardAuditStep(store, github, { policy })).errors,
+            ...(await publicBranchStep(store, github, { policy })).errors,
           ])
             planned.notify.push({
               channel: "failure",

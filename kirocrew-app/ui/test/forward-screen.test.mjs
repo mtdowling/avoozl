@@ -40,3 +40,7 @@ test('the screen shows diff, title and body and sends the shown hash', () => {
 test('the forward audit row says how to resume', () => {
   assert.match(noActionReason({ kind: 'needs-human', reason: 'forward-audit', authority: 'github' }), /resume the stop/)
 })
+
+test('the public branch row says a person merges it', () => {
+  assert.match(noActionReason({ kind: 'needs-human', reason: 'public-branch', authority: 'github' }), /Avoozl never merges it/)
+})

@@ -98,7 +98,7 @@ export function scratch(t, { file = "feature.txt", text = "hello\n" } = {}) {
     forwardBranch: null,
     publicPr: null,
   });
-  return { store, pub, priv, sha, commands, forward };
+  return { store, pub, priv, work, sha, commands, forward };
 }
 
 export function execFileSync2(args, { cwd, env, input } = {}) {
