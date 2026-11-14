@@ -43,6 +43,7 @@ Requirement RC1. The Radar path starts with one setting and four label names. No
 - [ ] rc-p1 Proof 1: Avoozl lists only what it was asked to plan, after rc-1.1, rc-1.2, rc-1.3 [RC1] (§D17)
   - Setup: a scratch repository, `coder: issue-radar`, three plain open issues, one with the planning label from an allowed person, one with it from a stranger, one `plan me` issue from the owner. Action: run the Untriaged read and the hand-off read; start Plan this. Expected: only the two planned issues appear; the plain ones never; the stranger's is left alone; the `plan me` routes by scope. Failure means: Avoozl still triages. Next decision: drop the Intake list for Radar-coded repositories.
   - Done when: Expected result observed; a receipt under `docs/evidence/` records setup, action, observation and verdict.
+  - Fake-GitHub proof merged in PR #141; live run pending owner (see docs/evidence/rc-proof-1.md)
 
 ## Phase 2: Projection
 
@@ -69,6 +70,7 @@ Requirement RC2. Spec to issues, in both modes, with batching and the preview. N
 - [ ] rc-p2 Proof 2: spec to issues in both modes, after rc-2.1, rc-2.2, rc-2.3, rc-2.4, rc-2.5, rc-2.6 [RC2] (§D17)
   - Setup: a scratch single-repo and a scratch plans-repo pair; a spec with 8 tasks, 3 small and ready in one phase. Action: preview, confirm, merge a fake pull request closing the batch, edit the spec, preview Spec changed. Expected: issues in the code repository, sub-issues, blocked-by links, one batch issue of three, Project fields; three tasks close on one merge; the edit changes only unclaimed issues. Failure means: a task ID was lost in a batch. Next decision: cap batches at 1.
   - Done when: Expected result observed on real scratch repositories; receipt under `docs/evidence/`.
+  - Fake-GitHub proof merged in PR #141; live run pending owner (see docs/evidence/rc-proof-2.md)
 
 ## Phase 3: Provenance and verify-issue
 
@@ -95,6 +97,7 @@ Requirement RC3. The approval becomes a commit a crew can read, and one command 
 - [ ] rc-p3 Proof 3: a real crew verifies, and each bad issue is refused, after rc-3.2, rc-3.4, rc-3.5, rc-3.6 [RC3] (§D17)
   - Setup: a scratch repository, one Radar crew with the one-line prompt, an approved spec merged through the approval pull request; plans-repo variant with a second private repo. Action: six issues: good; approver with no permission; task ID not in the spec; commit not on the default branch; author with no permission and a valid owner's login in the marker; marker edited after approval. Expected: the good one builds; each bad one is skipped as `needs-decision` and names its check. Failure means: the one-line prompt is not followed. Next decision: put the checks back in a longer prompt or add a hook.
   - Done when: Expected result observed live; receipt under `docs/evidence/`.
+  - Fake-GitHub proof merged in PR #141; live run pending owner (see docs/evidence/rc-proof-3.md)
 
 ## Phase 4: Release
 
@@ -115,6 +118,7 @@ Requirement RC4. The tick adds the ready label in graph order, N at a time.
 - [ ] rc-p4 Proof 4: release honors N, scopes, phases and the stop, after rc-4.1, rc-4.2, rc-4.3, rc-4.4 [RC4] (§D17)
   - Setup: scratch repository, two crews with different label scopes, a spec of two phases. Action: run ticks while crews claim and merge; pull Stop the line; reopen a closed issue. Expected: never more than N ready per scope; phase 2 waits; a stop clears unclaimed ready labels only. Failure means: the order is lost. Next decision: add a lower N default.
   - Done when: Expected result observed live; receipt under `docs/evidence/`.
+  - Fake-GitHub proof merged in PR #141; live run pending owner (see docs/evidence/rc-proof-4.md)
 
 ## Phase 5: Merge path
 
@@ -138,6 +142,7 @@ Requirement RC5. Crews do not arm auto-merge (Kiro Crew 0.12.2.4), so the tick d
 - [ ] rc-p5 Proof 5: auto-merge on the right pull requests only, after rc-5.2, rc-5.3, rc-5.4, rc-5.5 [RC5] (§D17)
   - Setup: scratch repository with a required check and auto-merge allowed; one crew. Action: crew PR for a marked issue; a stranger's fork PR; a manual-mode run; a conflict. Expected: only the crew PR merges by itself after green; the rest wait. Failure means: a pull request merged that should not. Next decision: arm only on an explicit label.
   - Done when: Expected result observed live; receipt under `docs/evidence/`.
+  - Fake-GitHub proof merged in PR #141; live run pending owner (see docs/evidence/rc-proof-5.md)
 
 ## Phase 6: The avoozl-crew agent
 
@@ -199,9 +204,10 @@ Requirement RC8. The screens of the experience proposal, built for Variant B (Gi
 - [ ] rc-8.5 Retro rule targets: AGENTS.md, steering, Additional prompt text, after rc-8.4, rc-3.5 [RC8.6] (§D10)
   - Retro proposals with a target; repo rules land as a pull request or a one-task issue; the Additional prompt target shows full text with Copy and a link to Radar; a check after N issues and an undo offer.
   - Done when: Applying a repo rule opens a pull request; the prompt target writes nothing to Radar; the check runs after N issues.
-- [ ] rc-8.6 Variant A: Radar's crew list through one grant, after rc-8.1 [RC8.1] (§D10)
+- [x] rc-8.6 Variant A: Radar's crew list through one grant, after rc-8.1 [RC8.1] (§D10)
   - One grant in `permissions.api`; a Crews strip and cost per stage; behind the grant only.
   - Done when: Without the grant nothing changes; with it, crews and counts show.
+  - Limit: cost per stage shows on each On the line row, not yet in Trace; the grant is `/api/apps/issue-radar/*` and was not tried against a live Kiro Crew.
 - [ ] rc-p8 Proof 8: observe, and a retro rule a crew follows, after rc-8.1, rc-8.2, rc-8.3, rc-8.4, rc-8.5 [RC8] (§D17)
   - Setup: a scratch repository with a running crew. Action: run three issues; open Trace; apply a retro rule through a pull request; run a fourth issue. Expected: Trace shows GitHub times; the fourth issue's pull request follows the new rule. Failure means: a crew did not re-read the rules. Next decision: add the rule to the Additional prompt.
   - Done when: Expected result observed live; receipt under `docs/evidence/`.

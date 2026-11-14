@@ -55,6 +55,8 @@ test("manifest declares the §4.2 app and every target ships in the package", ()
     "/api/models",
     // New plan creates a spec in Spec Builder (spec-builder-grant.test.mjs).
     "/api/apps/spec-builder/specs",
+    // Variant A: Issue Radar's crew list and per-issue credits (radar-crews.test.mjs).
+    "/api/apps/issue-radar/*",
   ]);
   assert.deepEqual(
     manifest.notifications.channels.map((c) => c.id),
