@@ -193,7 +193,7 @@ Requirement RC8. The screens of the experience proposal, built for Variant B (Gi
   - One `panelTabs` entry; matches the chat from the URL; spec check and Approve in a Spec Builder chat; a test fails when the URL shape changes; opens by itself only in a Spec Builder chat with an unapproved `tasks.md`; mockup `03-side-panel.html`.
   - Done when: Each chat kind shows its content; the URL-shape test exists.
   - Limit: the host offers an app no call to open its tab, so "opens by itself" is the rule `opensItself` in `panel-chat.ts`, not yet acted on; it needs a host call.
-- [ ] rc-8.4 Flow from GitHub data, after rc-8.1 [RC8.5] (§D10)
+- [x] rc-8.4 Flow from GitHub data, after rc-8.1 [RC8.5] (§D10)
   - Ready to Claim, Claim to PR, PR to green, green to merge, flow efficiency; Stop the line keeps its meaning; mockup `07-flow-retro.html`.
   - Done when: Stage times computed from fixture events match hand-computed values.
 - [ ] rc-8.5 Retro rule targets: AGENTS.md, steering, Additional prompt text, after rc-8.4, rc-3.5 [RC8.6] (§D10)
@@ -450,3 +450,14 @@ added it a pending review to edit and submit; every Avoozl label takes the
 - [ ] rc-p20 Proof 20: a review draft from a label, after rc-20.1, rc-20.2, rc-20.3, rc-20.4 [RC20, RC21] (§D25)
   - Setup: a scratch repository with a pull request that closes a crew-claimed, marked issue; the machine signed in as the person. Action: add the review label as that person; then as a person without write access; then as an allowed person on another login; then submit the first draft in GitHub. Expected: one pending review only that person sees, with line comments; the labels swap; the stranger's label is removed; the wrong login drafts nothing and gets one row; submit clears the drafted label; Trace shows Review. Failure means: a draft can be posted under the wrong account or submitted by Avoozl. Next decision: keep drafts in the chat only.
   - Done when: Expected result observed live; receipt under `docs/evidence/`.
+
+## Phase 21: The Workflow map
+
+Requirement RC22. A display in Settings of how work flows for each repository, read from its settings.
+
+- [ ] rc-21.1 Workflow map model: lanes, cards, values and tags from the saved settings, after rc-1.1, rc-18.1 [RC22.2, RC22.3, RC22.4, RC22.5, RC22.6, RC22.7, RC22.8] (§D27)
+  - A pure function from a repository form, the mode and the ship mode to lanes, cards, a Labels table, jump targets and tags; tags come from one table; `kirocrew-app/ui/test/workflow-map.test.mjs`.
+  - Done when: Unit tests cover issue-radar single repository, plans-repository mode, worker and remote coders, Local only (one lane), a muted step with its reason, and a test that no card text holds a tag word; `npm run test:ui` passes.
+- [ ] rc-21.2 Workflow map in Settings: sub-tab, Local only box, jumps, page test, after rc-21.1 [RC22.1, RC22.4, RC22.9] (§D27)
+  - Draws the model with theme variables, wrapping at 320 px; a value jumps to its field, opening the sub-tab and any fold; a page test renders three configs and checks the label names shown match the config.
+  - Done when: The page test passes for issue-radar single repository, plans-repository mode and Local only; a jump focuses its field; `npm run test:ui` passes.
