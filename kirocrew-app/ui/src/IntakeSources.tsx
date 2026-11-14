@@ -12,7 +12,7 @@ import { useAppApi } from './host.ts'
 import { Btn, Card, EmptyState, Input } from '@kirocrew/app-sdk/ui'
 import Badge, { type BadgeVariant } from './Badge.tsx'
 import { DangerBtn, IconLabel, SectionHeading } from './controls.tsx'
-import { Modal } from './Modal.tsx'
+import { Shelf } from './Shelf.tsx'
 import { RadioFold } from './RadioFold.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import { CircleAlert, Plus, Settings, Trash2 } from './icons.ts'
@@ -312,7 +312,7 @@ function AddSourceDialog(props: { plugins: PluginRow[]; repositories: { id: stri
     },
   ]
   return (
-    <Modal
+    <Shelf
       id="avoozl-intake-add"
       title="Add an intake source"
       width="40rem"
@@ -434,7 +434,7 @@ function AddSourceDialog(props: { plugins: PluginRow[]; repositories: { id: stri
           />
         </Group>
       </div>
-    </Modal>
+    </Shelf>
   )
 }
 
