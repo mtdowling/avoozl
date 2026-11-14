@@ -24,12 +24,12 @@ export function batchable(store, task) {
 // The phase key: the same parent package, otherwise the same phase of the
 // same plan. A task in no package and no phase batches with its plan's
 // other phaseless tasks.
-const keyOf = (task, by) =>
+export const keyOf = (task, by) =>
   by === "files"
     ? null
     : `${taskRepository(task)}|${task.parent ? `parent:${task.parent}` : `phase:${task.planId || ""}:${task.phase?.id ?? ""}`}`;
 
-const overlaps = (a, b) => {
+export const overlaps = (a, b) => {
   const left = a.paths || a.resources || [],
     right = new Set(b.paths || b.resources || []);
   return left.some((p) => right.has(p));

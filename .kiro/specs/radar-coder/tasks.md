@@ -54,7 +54,7 @@ Requirement RC2. Spec to issues, in both modes, with batching and the preview. N
 - [ ] rc-2.2 Show the plans repository name in issues, a per-repository switch, after rc-2.1 [RC2.4] (§D4.1)
   - `radar.showPlansRepo` (on for a private code repository, off for a public one); plans-repo projection to a public repository with it off is refused with the reason; content rules screen the name before the write.
   - Done when: A public code repository with the switch off is refused; turning it on writes the name after a content-rules pass; a private one writes it by default.
-- [ ] rc-2.3 Batch planner for small ready tasks, after rc-1.1 [RC2.5] (§D4.2)
+- [x] rc-2.3 Batch planner for small ready tasks, after rc-1.1 [RC2.5] (§D4.2)
   - Pure function over the plan: small, ready, same phase and repository, no edge, no human completion, cap `flow.batch.max` (3, at most 5); a task with an open blocker never batches; modes Off, Suggest, Auto; reuses `flow-batch.mjs` keys; `src/app/test/radar-coder-batch.test.mjs`.
   - Done when: Tests cover: blocked tasks never batch; the cap at 3 and at 5; an edge between two tasks splits them; a batch of one stays plain; `flow.batch.max` above 5 is refused.
 - [ ] rc-2.4 Batch issues keep each task ID separate and close together, after rc-2.1, rc-2.3 [RC2.6, RC2.7] (§D4.2)
