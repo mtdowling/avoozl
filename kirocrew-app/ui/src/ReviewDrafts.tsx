@@ -10,6 +10,7 @@ import { FilterSelect } from './FilterSelect.tsx'
 import { useAppApi } from './host.ts'
 import { useRead } from './useRead.ts'
 import { DRAFT_STATE_TEXT, releaseClient, type DraftState } from './release-api.ts'
+import { linkHref } from './views-api.ts'
 
 const VARIANT: Partial<Record<DraftState, BadgeVariant>> = { waiting: 'warning', stale: 'danger', submitted: 'success', chat: 'info', queued: 'info' }
 
@@ -42,7 +43,7 @@ export default function ReviewDrafts(props: { workspaceId: string | null }) {
         {(value?.searches ?? []).map((search) => (
           <div key={search.label} data-draft-search className="flex flex-wrap items-center gap-2 text-sm" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
             <span>On GitHub:</span>
-            <a href={search.url} target="_blank" rel="noreferrer">
+            <a href={linkHref(search.url)} target="_blank" rel="noreferrer">
               <code>{search.query}</code>
             </a>
             <Btn type="button" onClick={() => void copy(search.query)}>
@@ -56,7 +57,7 @@ export default function ReviewDrafts(props: { workspaceId: string | null }) {
         </div>
         {shown.map((item) => (
           <div key={item.id} data-review-draft={item.state} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '4px 12px' }}>
-            <a href={item.url ?? undefined} target="_blank" rel="noreferrer" className="font-medium" style={{ overflowWrap: 'anywhere' }}>
+            <a href={linkHref(item.url)} target="_blank" rel="noreferrer" className="font-medium" style={{ overflowWrap: 'anywhere' }}>
               {item.repository} #{item.number}
             </a>
             <Badge variant={VARIANT[item.state] ?? 'info'}>{DRAFT_STATE_TEXT[item.state]}</Badge>
@@ -65,7 +66,7 @@ export default function ReviewDrafts(props: { workspaceId: string | null }) {
               {item.state === 'stale' && item.headSha && item.staleHead ? ` · reviews ${item.headSha.slice(0, 7)}, now at ${item.staleHead.slice(0, 7)}` : ''}
             </span>
             {item.chat && (
-              <a href={item.chat} className="text-xs">
+              <a href={linkHref(item.chat)} className="text-xs">
                 Open chat
               </a>
             )}
