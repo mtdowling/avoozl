@@ -67,9 +67,10 @@ examples never approves a plan, starts a session, or configures a repository.
 
 ## Demo mode
 
-To show Avoozl to someone without touching your work, choose **Try the
-demo** in the Avoozl page header (or on the empty page when you have no
-workspace yet). It opens a made-up workspace, Recipe Box, and a guided tour
+To show Avoozl to someone without touching your work, choose **Start demo**
+in the empty In flight box on the Dashboard. It shows only while nothing is in
+flight and the workspace has never run a task. It is also on the empty page
+when you have no workspace yet. It opens a made-up workspace, Recipe Box, and a guided tour
 of the Dashboard, Specs, Graph, a task, Intake, Flow, Needs you, Stop the
 line and Settings. Use **Next** and **Back** or the arrow keys; Esc closes the
 tour.

@@ -118,11 +118,11 @@ const selectedTab = `document.querySelector('[aria-label="Avoozl views"] [aria-s
 const tourStep = `document.querySelector('[data-demo-tour]')?.dataset.step`
 const TAB = { dashboard: 'Dashboard', plans: 'Specs', graph: 'Graph', untriaged: 'Intake', flow: 'Flow', settings: 'Settings' }
 
-test('Try the demo opens the tour over the real pages, and Exit demo returns', { skip }, async () => {
+test('Start demo opens the tour over the real pages, and Exit demo returns', { skip }, async () => {
   await page.open(harness.url({ page: 'demo' }), { width: 1280, height: 800 })
-  await page.until(`Boolean(${button('Try the demo')} && document.querySelector('[aria-label="Workspace"]'))`)
+  await page.until(`Boolean(${button('Start demo')} && document.querySelector('[aria-label="Workspace"]'))`)
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-demo-badge]'))`), false)
-  await click(button('Try the demo'))
+  await click(button('Start demo'))
 
   // The badge replaces the workspace picker; the tour starts on step 1.
   await page.until(`${tourStep} === 'dashboard'`)
