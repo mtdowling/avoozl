@@ -162,6 +162,38 @@ test('the page header never has Start demo or Try the demo', { skip }, async () 
   }
 })
 
+test('Keep activity is the shared Section in a bordered card, below the table and its pager', { skip }, async () => {
+  for (const width of [1280, 375]) {
+    await page.open(harness.url({ page: 'activity' }), { width, height: 900 })
+    await page.until(`Boolean(document.querySelector('[data-section="Keep activity"]')) && document.body.textContent.includes('Saved a setting 2')`)
+    const keep = await page.evaluate(`(() => {
+      const section = document.querySelector('[data-section="Keep activity"]')
+      const card = section.closest('[data-stub-card]')
+      const gap = card.getBoundingClientRect().top - (card.parentElement.previousElementSibling?.getBoundingClientRect().bottom ?? 0)
+      const list = document.querySelector('table, ol, ul')
+      const status = [...document.querySelectorAll('[role="status"]')].find((e) => /entries/.test(e.textContent))
+      const before = (a, b) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING)
+      const style = card && getComputedStyle(card)
+      return {
+        inCard: Boolean(card),
+        border: style ? parseFloat(style.borderTopWidth) : 0,
+        afterList: Boolean(list) && before(list, section),
+        afterStatus: Boolean(status) && before(status, section),
+        spaceAbove: gap,
+        sideways: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+        inputInside: Boolean(section.querySelector('#avoozl-activity-keep')),
+      }
+    })()`)
+    assert.equal(keep.inCard, true, `Keep activity is inside a card at ${width}px`)
+    assert.ok(keep.border > 0, 'the card has a border')
+    assert.equal(keep.afterList, true, 'after the table or list')
+    assert.equal(keep.afterStatus, true, 'after the filter panel')
+    assert.ok(keep.spaceAbove > 0, 'space above the card')
+    assert.equal(keep.inputInside, true, 'its field is inside the section')
+    assert.equal(keep.sideways, false, 'no sideways scroll')
+  }
+})
+
 async function chooseAndDryRun() {
   await click('Switch model')
   await page.until(`Boolean(document.querySelector('[data-switch-intro]') && document.querySelector('select[data-switch-from]') && document.querySelector('#avoozl-switch-to'))`)
