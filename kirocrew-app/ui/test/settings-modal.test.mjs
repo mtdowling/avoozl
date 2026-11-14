@@ -31,7 +31,7 @@ test('the Edit dialog saves through the shared Save, blocks on a missing field a
   const repos = source('RepositoriesSettings.tsx')
   const settings = source('SettingsView.tsx')
   const modal = source('Modal.tsx')
-  assert.match(repos, /<Modal\s+id="avoozl-repo-edit"\s+title=\{props\.name\}/)
+  assert.match(repos, /<Shelf\s+id="avoozl-repo-edit"\s+width="46rem"\s+title=\{props\.name\}/)
   assert.match(repos, /action: 'Discard changes'/)
   assert.match(repos, /props\.edited\s+\? void ask\(/)
   assert.match(settings, /if \(missing\) return setSaveError\(`Not saved\. \$\{missing\}`\)/)
