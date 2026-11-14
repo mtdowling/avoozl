@@ -2252,7 +2252,7 @@ function qr(e) {
 		return null;
 	}
 }
-var Jr = /^\/(?:chat\?sid=|apps\/|issue-radar(?:$|[/?#])|code-review-sage(?:$|[/?#]))[^\s\\]*$/;
+var Jr = /^\/(?:chat\?sid=|apps\/|issue-radar(?:$|[/?#]))[^\s\\]*$/;
 function Q(e) {
 	return typeof e == "string" && Jr.test(e) ? e : qr(e) ?? void 0;
 }
@@ -16570,26 +16570,17 @@ function Ip({ item: e, onSend: t, onReview: n, onStart: r }) {
 		]
 	}) : /* @__PURE__ */ C("span", {
 		className: "inline-flex gap-1.5",
-		children: [
-			e.links.review && /* @__PURE__ */ S(jp, {
-				icon: Fe,
-				label: `Code review for ${i}`,
-				tooltip: e.links.review.tooltip,
-				href: Q(e.links.review.url)
-			}),
-			r && e.start?.plan && /* @__PURE__ */ S(Y, {
-				icon: re,
-				label: `Plan this: ${i}`,
-				tooltip: "Plan this: a planner turns it into a task in the Inbox.",
-				onClick: () => r(e, "plan")
-			}),
-			r && e.start?.deliver && /* @__PURE__ */ S(Y, {
-				icon: Ae,
-				label: `Deliver this: ${i}`,
-				tooltip: "Deliver this: one task in its repository, pinned to this text.",
-				onClick: () => r(e, "deliver")
-			})
-		]
+		children: [r && e.start?.plan && /* @__PURE__ */ S(Y, {
+			icon: re,
+			label: `Plan this: ${i}`,
+			tooltip: "Plan this: a planner turns it into a task in the Inbox.",
+			onClick: () => r(e, "plan")
+		}), r && e.start?.deliver && /* @__PURE__ */ S(Y, {
+			icon: Ae,
+			label: `Deliver this: ${i}`,
+			tooltip: "Deliver this: one task in its repository, pinned to this text.",
+			onClick: () => r(e, "deliver")
+		})]
 	});
 }
 function Lp({ item: e }) {
@@ -17040,7 +17031,7 @@ function Kp({ workspaceId: e, onMakeSpec: t, onOpenSources: n }) {
 			j(null);
 			try {
 				let n = await o.review(e, t);
-				v(n.state === "open" ? `${t.repository} #${t.number} already has a code review chat. Use Attach.` : `Code review chat for ${t.repository} #${t.number} starts on the next tick${n.skill ? "" : ". The sage-review skill is not installed, so it reviews without it"}.`), await ie();
+				v(n.state === "open" ? `${t.repository} #${t.number} already has a code review chat. Use Attach.` : `Code review chat for ${t.repository} #${t.number} starts on the next tick$.`), await ie();
 			} catch (e) {
 				j(G(e));
 			}

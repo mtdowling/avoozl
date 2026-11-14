@@ -29,7 +29,6 @@ import { PluginUnavailable } from "./plugin-session.mjs";
 import { declaredPlugins, readPluginSettings } from "./plugins.mjs";
 import { workspaceRepositories } from "./workspace-repositories.mjs";
 import { canonical, fail } from "./store.mjs";
-import { CODE_REVIEW_SAGE_PATH } from "./untriaged.mjs";
 import { listIdeas } from "./ideas.mjs";
 
 // `retro` holds the skill changes a person approved from a retrospective
@@ -1410,15 +1409,7 @@ export function intakeTab(view, store, declared) {
             github: null,
             item: item.link,
             issueRadar: null,
-            // A review goes to Code Review Sage's page until MC-15.
-            review:
-              item.kind === "review"
-                ? {
-                    url: CODE_REVIEW_SAGE_PATH,
-                    exact: false,
-                    tooltip: `Code Review Sage can't open one item from a link yet, so this opens its page. Review ${name} there.`,
-                  }
-                : null,
+            review: null,
           },
           // A person's Plan this and Deliver this (R50.15).
           start: {

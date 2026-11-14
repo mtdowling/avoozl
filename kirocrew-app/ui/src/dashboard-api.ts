@@ -1,7 +1,7 @@
 // The Dashboard's summary of one workspace, from the reads the other tabs
 // already make: graph.view, delivery.view, conflicts.view and plan.list.
 // Only graph-specific facts: Issue Radar shows issues, pull requests and CI,
-// and Code Review Sage shows review, so neither is repeated here. Kept free
+// so those are not repeated here. Kept free
 // of JSX so node can test it directly.
 import type { BudgetChip } from './budget-api.ts'
 import type { StoredPlanPage } from './plans-api.ts'

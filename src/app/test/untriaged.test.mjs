@@ -6,7 +6,6 @@ import { normalizeGitHubPolicy } from "../github-policy.mjs";
 import { parseMatch } from "../issue-match.mjs";
 import { CHANNELS, notificationPayload } from "../notifications.mjs";
 import {
-  CODE_REVIEW_SAGE_PATH,
   UNTRIAGED_INTERVAL_MS,
   UNTRIAGED_NOTICE_GAP_MS,
   defaultFilter,
@@ -300,11 +299,9 @@ test("links go to GitHub exactly and fall back to the app pages with a tooltip",
     number: 6,
     url: "https://github.com/o/app/pull/6",
   });
-  assert.equal(pr.review.url, CODE_REVIEW_SAGE_PATH);
-  assert.equal(pr.review.exact, false);
   assert.match(
     pr.review.tooltip,
-    /reviews o\/app #6 with the sage-review skill and posts nothing to GitHub\. A stand-in until the app can start Code Review Sage directly\./,
+    /reviews o\/app #6 and posts nothing to GitHub\./,
   );
 });
 
