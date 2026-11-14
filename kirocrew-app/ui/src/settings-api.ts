@@ -263,6 +263,11 @@ export interface RepositoryForm {
   crewLabels: Record<string, string>
   // The label that approves a drafted plan (radar.approvalLabel); blank is the default.
   approvalLabel: string
+  // Issue Radar crew settings (radar.planLabel, radar.conflictLabel,
+  // radar.reviewRules); blank is the shown default.
+  planLabel: string
+  conflictLabel: string
+  reviewRules: string
   rules: RuleForm[]
   // The Untriaged list (design §8.5), each optional.
   untriaged: UntriagedForm
@@ -378,6 +383,9 @@ export function emptyRepository(name = ''): RepositoryForm {
     managedLabels: {},
     crewLabels: {},
     approvalLabel: '',
+    planLabel: '',
+    conflictLabel: '',
+    reviewRules: '',
     rules: [],
     untriaged: emptyUntriaged(),
     rest: {},
@@ -420,6 +428,9 @@ export function toForm(github: Policy): SettingsForm {
         managedLabels: strings(entry.managedLabels),
         crewLabels: strings(entry.crewLabels),
         approvalLabel: str(record(entry.radar).approvalLabel),
+        planLabel: str(record(entry.radar).planLabel),
+        conflictLabel: str(record(entry.radar).conflictLabel),
+        reviewRules: str(record(entry.radar).reviewRules),
         rules: (Array.isArray(entry.rules) ? entry.rules : []).map((item) => {
           const rule = record(item)
           return {
@@ -501,7 +512,13 @@ export function toPolicy(form: SettingsForm): Policy {
               managedLabels: named(repository.managedLabels),
               crewLabels: named(repository.crewLabels),
               radar: (() => {
-                const radar = compact({ ...record(repository.rest.radar), approvalLabel: blank(repository.approvalLabel) })
+                const radar = compact({
+                  ...record(repository.rest.radar),
+                  approvalLabel: blank(repository.approvalLabel),
+                  planLabel: blank(repository.planLabel),
+                  conflictLabel: blank(repository.conflictLabel),
+                  reviewRules: blank(repository.reviewRules),
+                })
                 return Object.keys(radar).length ? radar : undefined
               })(),
               rules: repository.rules.map((rule) =>
@@ -904,3 +921,13 @@ export function settingsTabOnEnter<T extends string>(from: string, to: string, c
   if (to === 'settings' && from !== 'settings') return home
   return valid.includes(current as T) ? (current as T) : home
 }
+
+
+// Issue Radar crew settings (radar-coder RC7.6). A blank field is the default,
+// and each line says where the shown value comes from and what it is.
+export const RADAR_DEFAULTS_SHOWN = { planLabel: 'to plan', conflictLabel: 'merge conflict' } as const
+
+export const valueSource = (value: string, fallback: string, unit = '') =>
+  value.trim() ? `Set on this repository: ${value.trim()}${unit}.` : `Not set on this repository. Using the default (${fallback}${unit}).`
+
+export const rulesMode = (form: Pick<RepositoryForm, 'reviewRules'>): 'default' | 'custom' => (form.reviewRules.trim() ? 'custom' : 'default')
