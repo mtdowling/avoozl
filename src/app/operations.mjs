@@ -4201,7 +4201,8 @@ export class Operations {
       };
     }
     // Read-only and workspace-free: reads GitHub with the caller's gh login.
-    if (name === "issue.verify") return verifyIssue(input.issue);
+    if (name === "issue.verify")
+      return verifyIssue(input.issue, { brief: true });
     if (name === "plan.lint") {
       const plan = store.get("plans", input.id);
       if (!plan) fail("Plan not found.", 404);
