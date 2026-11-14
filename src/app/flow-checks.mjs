@@ -31,7 +31,7 @@ const argvOf = (check) =>
 
 // flow.checks.run: run every declared check at the worktree's HEAD and
 // record the result. Returns the entries for the done report.
-export async function runLocalChecks({ cwd, root, checks }) {
+export async function runLocalChecks({ cwd, root, checks, env }) {
   if (!checks.length) fail("This task declares no checks.", 409);
   const top = await git(cwd, ["rev-parse", "--show-toplevel"]).catch(
     () => null,
@@ -47,7 +47,7 @@ export async function runLocalChecks({ cwd, root, checks }) {
   for (const check of checks) {
     const argv = argvOf(check),
       started = Date.now(),
-      result = await commandEvidence(cwd, argv);
+      result = await commandEvidence(cwd, argv, { env });
     entries.push({
       command: argv.join(" "),
       exitCode: result.exitCode,

@@ -4342,3 +4342,33 @@ stay untouched.
 7. One Exit demo button SHALL return to the person's own workspace. A test
    SHALL hash the real workspace's database, configuration, the machine
    catalog and settings before and after a demo and find them unchanged.
+
+### Requirement 83: Security follow-ups from the PR 29 audit
+
+Added 2026-11-14 (owner request). Design §6.12. Findings S4 to S8.
+
+**User story:** As the owner, I want repository code, agent sessions and
+other local users held to what I approved, so that a public repository or a
+chatty agent cannot reach my secrets or my approvals.
+
+#### Acceptance criteria
+
+1. WHEN the CLI is run with `KIROCREW_SPAWNED=1` or `KIRO_SESSION_ID` set
+   THEN it SHALL refuse every person-only operation unless `--as-person` is
+   given. A terminal without those variables SHALL be unaffected.
+2. The docs SHALL say plainly that person-only stops MCP and app tokens, not
+   code running as the user. A draft request to Kiro Crew for passing the
+   proxy secret by descriptor or a 0600 file SHALL be kept in
+   `docs/kirocrew-requests/`. Nothing SHALL be filed.
+3. A new `.avoozl` folder SHALL be 0700 and a new database 0600, set before
+   the database opens. Backups and `export --output` files SHALL be 0600. An
+   existing workspace SHALL be tightened on open. The docs SHALL say what
+   happens on Windows.
+4. `docs/policies.md` SHALL name the repository-owned code that runs on its
+   own. `scripts/worktree` SHALL run only when the project's `worktreeHelper`
+   equals its SHA-256 hash; otherwise the refusal SHALL show the hash.
+5. A project MAY set `checksEnv`, a list of variable names. Check processes
+   SHALL then get only those, the basics needed to start, and never the
+   gateway credentials. Without it, checks SHALL get what they get today.
+6. A local-folder plugin SHALL be hashed again just before it starts and
+   SHALL be refused if the hash changed since approval.
