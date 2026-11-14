@@ -43,6 +43,8 @@ import { answerIntake } from './intake-fixture.ts'
 import RadarValuesScreen from '../../src/RadarValues.tsx'
 import { CrewsRulesSettings } from '../../src/CrewsRulesSettings.tsx'
 import { emptyRepository, type RepositoryForm } from '../../src/settings-api.ts'
+import WorkflowMap, { focusField } from '../../src/WorkflowMap.tsx'
+import { toForm } from '../../src/settings-api.ts'
 import AvoozlApp from '../../src/App.tsx'
 import { MarkDoneDialog } from '../../src/TaskNotes.tsx'
 import NewPlanDrawer from '../../src/NewPlanDrawer.tsx'
@@ -748,6 +750,51 @@ function CrewsRulesPage() {
     </div>
   )
 }
+// ?page=workflow-map&config=single|plans|local: the Workflow map drawn from a
+// real policy through toForm, with the Crews and rules fields beside it so a
+// jump has somewhere to land.
+const WORKFLOW_POLICIES: Record<string, { mode: string; policy: Record<string, unknown> }> = {
+  single: {
+    mode: 'single-repo',
+    policy: {
+      mode: 'single-repo',
+      repositories: {
+        'example/code': {
+          baseBranch: 'main',
+          coder: 'issue-radar',
+          allowedActors: ['sam', 'lee'],
+          release: { capacity: 3, mode: 'step' },
+          managedLabels: { ready: 'go-crew' },
+          crewLabels: { claim: 'taken', needsHuman: 'wants-person' },
+          radar: { planLabel: 'shape-it', approvalLabel: 'ship-it', conflictLabel: 'rebase-me' },
+        },
+      },
+    },
+  },
+  plans: {
+    mode: 'plans-repo',
+    policy: {
+      mode: 'plans-repo',
+      planningRepository: 'example/plans',
+      repositories: { 'example/code': { baseBranch: 'main', coder: 'worker', concurrency: 4, minimumPermission: 'maintain' } },
+    },
+  },
+  local: { mode: 'local', policy: { mode: 'local', repositories: { 'example/code': { baseBranch: 'trunk', coder: 'issue-radar', radar: { planLabel: 'kept-but-unused' } } } } },
+}
+function WorkflowMapPage() {
+  const config = WORKFLOW_POLICIES[query.get('config') ?? 'single']
+  const form = toForm(config.policy as never)
+  const [repository, setRepository] = useState<RepositoryForm>(form.repositories[0])
+  answer('delivery.settings.get', () => ({ hash: null, on: true, delivery: query.get('ship') === 'manual' ? { ship: 'manual' } : {} }))
+  return (
+    <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)', minHeight: '100vh', boxSizing: 'border-box' }}>
+      <HarnessBoundary>
+        <WorkflowMap workspaceId="w" mode={config.mode} repository={repository} planningRepository={form.planningRepository} onJump={(jump) => focusField('t', jump)} />
+        <CrewsRulesSettings id="t" repository={repository} set={(change) => setRepository((before) => ({ ...before, ...change }))} />
+      </HarnessBoundary>
+    </div>
+  )
+}
 function RoutingPage() {
   return (
     <div {...{ [APP_ATTR]: '' }} data-settings-page="routing" style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)', minHeight: '100vh', boxSizing: 'border-box' }}>
@@ -760,5 +807,5 @@ function RoutingPage() {
   )
 }
 createRoot(document.getElementById('root')!).render(
-  page === 'crews-rules' ? <CrewsRulesPage /> : page === 'radar-values' ? <RadarValuesPage /> : page === 'routing' ? <RoutingPage /> : intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page === 'activity' ? <ActivityPage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
+  page === 'workflow-map' ? <WorkflowMapPage /> : page === 'crews-rules' ? <CrewsRulesPage /> : page === 'radar-values' ? <RadarValuesPage /> : page === 'routing' ? <RoutingPage /> : intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page === 'activity' ? <ActivityPage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
 )
