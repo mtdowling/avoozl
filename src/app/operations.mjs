@@ -1,3 +1,4 @@
+import { verifyIssue } from "./verify-issue.mjs";
 import { crossPlanEpics, epicOfPlan, taskEpic } from "./epics.mjs";
 import path from "node:path";
 import { applicationRoot } from "./config.mjs";
@@ -4179,6 +4180,8 @@ export class Operations {
           .map((extraction) => getExtraction(store, extraction.id)),
       };
     }
+    // Read-only and workspace-free: reads GitHub with the caller's gh login.
+    if (name === "issue.verify") return verifyIssue(input.issue);
     if (name === "plan.lint") {
       const plan = store.get("plans", input.id);
       if (!plan) fail("Plan not found.", 404);

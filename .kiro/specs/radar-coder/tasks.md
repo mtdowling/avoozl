@@ -54,7 +54,7 @@ Requirement RC2. Spec to issues, in both modes, with batching and the preview. N
 - [ ] rc-2.2 Show the plans repository name in issues, a per-repository switch, after rc-2.1 [RC2.4] (§D4.1)
   - `radar.showPlansRepo` (on for a private code repository, off for a public one); plans-repo projection to a public repository with it off is refused with the reason; content rules screen the name before the write.
   - Done when: A public code repository with the switch off is refused; turning it on writes the name after a content-rules pass; a private one writes it by default.
-- [ ] rc-2.3 Batch planner for small ready tasks, after rc-1.1 [RC2.5] (§D4.2)
+- [x] rc-2.3 Batch planner for small ready tasks, after rc-1.1 [RC2.5] (§D4.2)
   - Pure function over the plan: small, ready, same phase and repository, no edge, no human completion, cap `flow.batch.max` (3, at most 5); a task with an open blocker never batches; modes Off, Suggest, Auto; reuses `flow-batch.mjs` keys; `src/app/test/radar-coder-batch.test.mjs`.
   - Done when: Tests cover: blocked tasks never batch; the cap at 3 and at 5; an edge between two tasks splits them; a batch of one stays plain; `flow.batch.max` above 5 is refused.
 - [ ] rc-2.4 Batch issues keep each task ID separate and close together, after rc-2.1, rc-2.3 [RC2.6, RC2.7] (§D4.2)
@@ -404,7 +404,7 @@ Requirement RC17. Templates and docs for migrations, codegen changes and cross-r
 
 Requirement RC18. A trusted person approves by label; any approval is written back to the issue.
 
-- [ ] rc-18.1 Approval label setting and label clash check, after rc-1.1 [RC18.1] (§D23)
+- [x] rc-18.1 Approval label setting and label clash check, after rc-1.1 [RC18.1] (§D23)
   - `approval label` per repository, default `plan approved`; equal to the planning, needs-human, claim, ready or conflict label is refused naming both; Settings shows what it does and who writes it; `src/app/test/approval-label.test.mjs`.
   - Done when: The default validates; a clash is refused naming both labels; `npm test` passes.
 - [ ] rc-18.2 Tick reads the approval label and checks the labeler, after rc-18.1, rc-1.2, rc-3.6 [RC18.2, RC18.3, RC18.7] (§D23)
