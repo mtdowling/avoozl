@@ -3,7 +3,7 @@ import { Tooltip } from './Tooltip.tsx'
 import { useAppApi } from './host.ts'
 import { Btn, Card } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
-import { graphSummary, safeHref, viewsClient, type GraphTask, noSessionLabel } from './views-api.ts'
+import { graphSummary, safeHref, viewsClient, type GraphBatch, type GraphTask, noSessionLabel } from './views-api.ts'
 import {
   backLabel,
   drillCrumbs,
@@ -167,8 +167,14 @@ function Legend() {
   )
 }
 
-function Details(props: { task: GraphTask; neighbors: ReturnType<typeof neighbors>; onSelect: (id: string) => void }) {
-  const { task } = props
+function Details(props: {
+  task: GraphTask
+  batch: GraphBatch | null
+  neighbors: ReturnType<typeof neighbors>
+  onSelect: (id: string) => void
+}) {
+  const { task, batch } = props
+  const batchHref = batch ? safeHref(batch.url) : null
   const drawer = useTaskDrawer()
   const { waitsOn, blocks } = props.neighbors
   const state = nodeState(task)
@@ -222,6 +228,26 @@ function Details(props: { task: GraphTask; neighbors: ReturnType<typeof neighbor
             <>
               <dt className="text-muted">Decision</dt>
               <dd>{task.decision}</dd>
+            </>
+          )}
+          {batch && (
+            <>
+              <dt className="text-muted">Batch</dt>
+              <dd data-batch-members={batch.members.join(',')}>
+                {batchHref ? <a href={batchHref}>#{batch.number}</a> : `#${batch.number}`} closes{' '}
+                {batch.members.map((id, i) => (
+                  <span key={id}>
+                    {i > 0 && ', '}
+                    {id === task.id ? (
+                      id
+                    ) : (
+                      <button type="button" className="underline" onClick={() => props.onSelect(id)}>
+                        {id}
+                      </button>
+                    )}
+                  </span>
+                ))}
+              </dd>
             </>
           )}
           <dt className="text-muted">Waits on</dt>
@@ -676,7 +702,12 @@ export default function GraphView({
         </Card>
       )}
       {graph && task && (
-        <Details task={task} neighbors={neighbors(graph, task.id)} onSelect={selectId} />
+        <Details
+          task={task}
+          batch={graph.batches?.find((entry) => entry.id === task.batch) ?? null}
+          neighbors={neighbors(graph, task.id)}
+          onSelect={selectId}
+        />
       )}
     </section>
   )
