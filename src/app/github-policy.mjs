@@ -82,6 +82,7 @@ export const RADAR_KEYS = Object.freeze([
   "clearPlanLabel",
   "showPlansRepo",
   "reviewRules",
+  "crew",
 ]);
 export const RADAR_DEFAULTS = Object.freeze({
   planLabel: "to plan",
@@ -485,6 +486,41 @@ function repositoryInput(value, id, mode) {
     )
       fail(`${label}.radar.reviewRules must be 1 to 4000 characters of text.`);
     radar.reviewRules = radarInput.reviewRules.trim();
+  }
+  // What Set up shows for the crew (a team pack fills it). Avoozl creates no crew.
+  if (radarInput.crew !== undefined) {
+    const crew = onlyKeys(
+        radarInput.crew,
+        ["count", "agent", "models", "template"],
+        `${label}.radar.crew`,
+      ),
+      { models, count } = crew;
+    if (
+      count !== undefined &&
+      !(Number.isSafeInteger(count) && count >= 1 && count <= 8)
+    )
+      fail(`${label}.radar.crew.count must be a whole number from 1 to 8.`);
+    if (crew.agent !== undefined && crew.agent !== "avoozl-crew")
+      fail(`${label}.radar.crew.agent must be avoozl-crew.`);
+    if (
+      models !== undefined &&
+      !(
+        Array.isArray(models) &&
+        models.length >= 1 &&
+        models.length <= 8 &&
+        models.every((m) => typeof m === "string" && m.trim() && m.length <= 80)
+      )
+    )
+      fail(`${label}.radar.crew.models must be 1 to 8 model names.`);
+    if (
+      crew.template !== undefined &&
+      !(
+        typeof crew.template === "string" &&
+        /^[a-z][a-z0-9-]{0,60}$/.test(crew.template)
+      )
+    )
+      fail(`${label}.radar.crew.template must be a lowercase template ID.`);
+    radar.crew = crew;
   }
   if (radarInput.clearPlanLabel !== undefined) {
     if (typeof radarInput.clearPlanLabel !== "boolean")

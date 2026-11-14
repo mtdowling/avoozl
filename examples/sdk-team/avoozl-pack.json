@@ -1,0 +1,18 @@
+{
+  "description": "Two Issue Radar crews for an SDK team: the labels, the review rules and the models to enter in Radar. A pack creates no crew.",
+  "settings": {
+    "crews": {
+      "count": 2,
+      "agent": "avoozl-crew",
+      "models": ["model-a", "model-b"],
+      "labels": {
+        "plan": "to plan",
+        "ready": "ready",
+        "conflict": "merge conflict"
+      },
+      "prompt": "For any issue with an <!-- avoozl --> marker, run `avoozl verify-issue OWNER/REPO#N` (or the plans_verify_issue tool) first; build only if it exits 0, otherwise skip it with scope needs-decision and say which check failed.",
+      "reviewRules": "- Build only from an issue that came from an approved spec. If the check fails, skip the issue.\n- Open one pull request per issue, and name the issue in it with `Closes #N`.\n- Say what you skipped or did not check.",
+      "template": "sdk-change"
+    }
+  }
+}
