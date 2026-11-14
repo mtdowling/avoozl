@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Full-page screenshots of Settings › Budgets on the
-// harness page with sample data, at 375, 768 and 1280 px wide, light and
+// harness page with sample data, at 320, 768 and 1280 px wide, light and
 // dark: <out>/<page>-<width>-<theme>.png. `--open` also opens every fold.
 //
 //   node test/browser/settings-shots.mjs <out dir> [--open] [page ...]
@@ -11,8 +11,8 @@ import path from 'node:path'
 import { buildHarness } from './build.mjs'
 import { findChrome, launch } from './chrome.mjs'
 
-const WIDTHS = [375, 768, 1280]
-const ALL = ['budgets']
+const WIDTHS = [320, 768, 1280]
+const ALL = ['budgets', 'coder']
 
 const args = process.argv.slice(2)
 const open = args.includes('--open')

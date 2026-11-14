@@ -70,8 +70,9 @@ export const CREW_LABEL_DEFAULTS = Object.freeze({
 // Issue Radar's own page route (its app.json), where a user scopes a crew
 // (R17.4).
 export const ISSUE_RADAR_PATH = "/issue-radar";
-// One place validates `coder`; a later task adds a third value here.
-export const CODERS = Object.freeze(["worker", "issue-radar"]);
+// One place validates `coder`. Settings shows the display names
+// (kirocrew-app/ui/src/settings-api.ts CODER_CARDS).
+export const CODERS = Object.freeze(["issue-radar", "worker", "remote"]);
 // Radar coder labels (design D2). Ready is `managedLabels.ready`; its
 // default applies to the clash check only.
 export const RADAR_KEYS = Object.freeze([
@@ -339,7 +340,9 @@ function repositoryInput(value, id, mode) {
   const coder =
     value.coder ?? (mode === "single-repo" ? "issue-radar" : "worker");
   if (!CODERS.includes(coder))
-    fail(`${label}.coder must be ${CODERS.join(" or ")}.`);
+    fail(
+      `${label}.coder must be ${CODERS.slice(0, -1).join(", ")} or ${CODERS.at(-1)}.`,
+    );
   const baseBranch = name(value.baseBranch, `${label}.baseBranch`, {
     optional: true,
   });
