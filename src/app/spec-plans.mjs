@@ -20,6 +20,7 @@ import { frontMatter, withoutFrontMatter } from "../front-matter.mjs";
 import { resolveTaskId } from "../task-identity.mjs";
 import { validateManifestBudget } from "./budget.mjs";
 import { integrationOf } from "./integration-branch.mjs";
+import { checkForwardTarget } from "./mirror-policy.mjs";
 
 export const SPECS_DIRECTORY = path.join(".kiro", "specs");
 export const MANIFEST = "avoozl/manifest.json";
@@ -574,6 +575,25 @@ export function parseSpec({
                 manifest.integrationBranch === undefined
                   ? "integrationSync"
                   : "integrationBranch",
+              ),
+              error.message,
+            ),
+          );
+        }
+        // An epic's forward target (RC26.2).
+        try {
+          checkForwardTarget(manifest, "manifest");
+        } catch (error) {
+          diagnostics.push(
+            diagnostic(
+              "manifest.schema",
+              MANIFEST,
+              manifestLine(
+                text,
+                manifest.forwardTarget === undefined ||
+                  /publicBranch/.test(error.message)
+                  ? "publicBranch"
+                  : "forwardTarget",
               ),
               error.message,
             ),

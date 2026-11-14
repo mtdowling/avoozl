@@ -556,7 +556,7 @@ Requirement RC25. Private plans live on an orphan branch of the mirror and never
 
 Requirement RC26. Where each mirror change lands on the public repository, and the protections on everything that leaves the mirror.
 
-- [ ] rc-25.1 Forward target setting and per-epic override, after rc-23.1, rc-16.1 [RC26.1, RC26.2] (§D31.1)
+- [x] rc-25.1 Forward target setting and per-epic override, after rc-23.1, rc-16.1 [RC26.1, RC26.2] (§D31.1)
   - `forwardTarget` (`each`, `branch`, `batch`) and `publicBranch` in the form and the raw file; epic manifest keys win over the repository's; Settings and Trace name the source of the value in force; `src/app/test/mirror-forward-target.test.mjs`.
   - Done when: Precedence tests for epic, repository and default; an unknown value is refused; the form and the raw file agree.
 - [ ] rc-25.2 Path policy and metadata scrub, after rc-23.4 [RC26.5, RC26.6] (§D31.2)
