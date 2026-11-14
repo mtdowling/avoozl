@@ -41,6 +41,7 @@ import { Check, DetailsIcon, ExternalLink, Eye, History, MessageSquare, RefreshC
 import { itemRef } from './chat-api.ts'
 import { linkHref } from './views-api.ts'
 import { optionItems } from './picker.ts'
+import { routingClient } from './routing-api.ts'
 
 const CONFLICT_STORE = { event: CONFLICT_FILTER_EVENT, read: readConflictFilter, write: writeConflictFilter, empty: {} as ConflictFilter }
 
@@ -119,6 +120,7 @@ export function ConflictActions(props: {
         await views.decideInvestigation(workspaceId, item.taskId!, action)
         return { ok: true, text }
       })} />}
+      {item.kind === 'routing-failed' && <RoutingFailedActions busy={busy} run={run} workspaceId={workspaceId} />}
       {item.kind === 'ready-to-merge' && <ReadyToMerge item={item} busy={busy} onIntegrate={() => run(async () => {
         await views.integrate(workspaceId, item.taskId!, item.commit)
         return { ok: true, text: `${item.taskId} lands on the next tick.` }
@@ -280,6 +282,44 @@ export function InvestigationActions(props: {
           Stop
         </DangerBtn>
       </div>
+    </div>
+  )
+}
+
+// Routing failed three times in a row (§4.10, R41.7): ask again now, or
+// turn routing off so tasks run on this machine.
+export function RoutingFailedActions(props: { busy: boolean; workspaceId: string; run: (call: () => Promise<{ ok: boolean; text: string }>) => void }) {
+  const api = useAppApi()
+  const routing = useMemo(() => routingClient(api), [api])
+  return (
+    <div className="flex flex-wrap items-center gap-2" data-routing-failed>
+      <IconLabel
+        icon={RefreshCw}
+        tooltip="Ask the routing agent again on the next tick, without waiting for the backoff"
+        disabled={props.busy}
+        onClick={() =>
+          props.run(async () => {
+            await routing.retry(props.workspaceId)
+            return { ok: true, text: 'Routing is asked again on the next tick.' }
+          })
+        }
+      >
+        Retry now
+      </IconLabel>
+      <DangerBtn
+        icon={X}
+        tooltip="Switch routing off: ready tasks run on this machine"
+        disabled={props.busy}
+        confirm={{ title: 'Turn routing off?', body: 'Ready tasks run on this machine from the next tick. Your routing prompt is kept; switch it on again in Settings › Routing.', action: 'Turn routing off' }}
+        onConfirm={() =>
+          props.run(async () => {
+            await routing.turnOff(props.workspaceId)
+            return { ok: true, text: 'Routing is off. Ready tasks run on this machine.' }
+          })
+        }
+      >
+        Turn routing off
+      </DangerBtn>
     </div>
   )
 }

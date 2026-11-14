@@ -3,7 +3,7 @@
 // scroll pane with a transform (a containing block), a sticky column, the
 // real Graph, and the modal's opener inside a card that is also a
 // containing block. ?theme=light|dark sets the host theme attribute.
-import { useState, type ReactNode } from 'react'
+import { Component, useState, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createPortal } from 'react-dom'
 import { answer, Btn, Card, Refusal, replyFor } from './stubs.tsx'
@@ -29,6 +29,7 @@ import { setupForm } from '../../src/settings-api.ts'
 import { LAYER } from '../../src/layers.ts'
 import { BudgetSettings } from '../../src/BudgetSettings.tsx'
 import PluginsSettings from '../../src/PluginsSettings.tsx'
+import SettingsView from '../../src/SettingsView.tsx'
 import { answerIntake } from './intake-fixture.ts'
 import AvoozlApp from '../../src/App.tsx'
 import { MarkDoneDialog } from '../../src/TaskNotes.tsx'
@@ -502,6 +503,41 @@ function HomePage() {
 const page = query.get('page')
 const intake = page === 'intake'
 if (intake) answerIntake(query.get('empty') === '1')
+// ?page=routing&state=<name>: Settings › Routing on the replies a real
+// backend gave for that state (routing-replies.mjs, window.__ROUTING). A
+// refused reply is refused here the same way. Any render error is caught by
+// the outer boundary and marked [data-harness-crash] for the test.
+type Routed = Record<string, Record<string, { result?: unknown; error?: string; status?: number }>>
+const routed = (window as unknown as { __ROUTING?: Routed }).__ROUTING
+if (page === 'routing' && routed) {
+  const replies = routed[query.get('state') ?? ''] ?? {}
+  for (const [operation, reply] of Object.entries(replies))
+    answer(operation, () => {
+      if (reply.error !== undefined) throw new Refusal(reply.status ?? 500, { error: reply.error })
+      return reply.result
+    })
+  answer('GET /api/models', () => ({ models: [] }))
+}
+class HarnessBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
+  state = { error: null as string | null }
+  static getDerivedStateFromError(error: unknown) {
+    return { error: String((error as Error)?.stack ?? error) }
+  }
+  render() {
+    return this.state.error ? <pre data-harness-crash>{this.state.error}</pre> : this.props.children
+  }
+}
+function RoutingPage() {
+  return (
+    <div {...{ [APP_ATTR]: '' }} data-settings-page="routing" style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)', minHeight: '100vh', boxSizing: 'border-box' }}>
+      <HarnessBoundary>
+        <ConfirmProvider>
+          <SettingsView workspaceId="w" tab="routing" />
+        </ConfirmProvider>
+      </HarnessBoundary>
+    </div>
+  )
+}
 createRoot(document.getElementById('root')!).render(
-  intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page === 'activity' ? <ActivityPage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
+  page === 'routing' ? <RoutingPage /> : intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page === 'activity' ? <ActivityPage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
 )
