@@ -435,6 +435,8 @@ export default function FlowView({ workspaceId }: { workspaceId: string | null }
       </ViewHeading>
       <p className="text-sm text-muted">Where delivery time goes, and what the last retro proposed.</p>
       <SegmentedControl
+        collapse={false}
+        wrap="hug"
         layoutId="avoozl-flow-tabs"
         ariaLabel="Flow views"
         segments={[
@@ -444,7 +446,6 @@ export default function FlowView({ workspaceId }: { workspaceId: string | null }
         ]}
         value={tab}
         onChange={(key) => setTab(key as typeof tab)}
-        wrap
       />
       {tab === 'proposals' && <ProposalsView workspaceId={workspaceId} />}
       {tab === 'lessons' && <LessonsView workspaceId={workspaceId} />}

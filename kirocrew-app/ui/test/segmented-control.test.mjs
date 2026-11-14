@@ -1,7 +1,8 @@
 // The host's SegmentedControl shows a label only on the selected segment when
 // `compact` is set, and animates the selected pill between every control that
 // shares a `layoutId`. Avoozl's segments have text and no icons, so `compact`
-// made nested Settings tabs blank, and the shared default id made the outer
+// made nested Settings tabs blank, and the host's own `collapse` (on by default)
+// does the same on a narrow page, and the shared default id made the outer
 // and inner pills fight. Each control must name its own id and skip compact.
 import assert from 'node:assert/strict'
 import { readFileSync, readdirSync } from 'node:fs'
@@ -24,6 +25,7 @@ test('every SegmentedControl shows all its labels and has its own layoutId', () 
   const ids = new Set()
   for (const { name, props } of found) {
     assert.doesNotMatch(props, /\bcompact\b/, `${name} uses compact, which hides unselected labels`)
+    assert.match(props, /\bcollapse=\{false\}/, `${name} lets the host collapse the control: below 80 px a segment it hides every unselected label`)
     const id = props.match(/layoutId="([^"]+)"/)?.[1]
     assert.ok(id, `${name} has a SegmentedControl without layoutId`)
     assert.ok(!ids.has(id), `${name} reuses layoutId ${id}`)
