@@ -3372,6 +3372,20 @@ export class Operations {
         },
       });
     }
+    // The public sign-off for one registered repository (RC10.1, RC10.2).
+    // Owner only through the app; releasing a public repository follows it.
+    if (name === "radar.signoff") {
+      const policy = readGitHubPolicyOrNull(this.workspaceRoot);
+      if (!input.repository) fail("Name the repository.", 400);
+      if (!policy?.repositories?.[input.repository])
+        fail(`${input.repository} is not a registered repository.`, 404);
+      if (typeof input.complete !== "boolean")
+        fail("Say whether the sign-off is complete.", 400);
+      const all = { ...store.getMeta("publicSignoff") };
+      all[input.repository] = { complete: input.complete };
+      store.setMeta("publicSignoff", all);
+      return { repository: input.repository, complete: input.complete };
+    }
     if (name === "radar.integrationbranch") {
       const policy = readGitHubPolicyOrNull(this.workspaceRoot),
         entry = policy?.repositories?.[input.repository];
@@ -3409,6 +3423,7 @@ export class Operations {
               connected: [input.repository],
               crews: crews.crews,
               needsHumanLabel: crews.needsHumanLabel,
+              claimTtlHours: crews.claimTtlHours,
             }
           : null;
       return {
