@@ -59,3 +59,10 @@ test('Who codes shows the three display names, each with its source', () => {
   assert.match(picker, /coderSource\(props\.mode, props\.value\)/)
   assert.match(source('Walkthrough.tsx'), /prefers-reduced-motion: reduce/)
 })
+
+test('Who codes says the Avoozl worker is frozen and no other coder does', () => {
+  const line = (coder) => CODER_CARDS.find((c) => c.coder === coder).line
+  assert.match(line('worker'), /Frozen: upkeep only/)
+  assert.doesNotMatch(line('issue-radar'), /Frozen/)
+  assert.doesNotMatch(line('remote'), /Frozen/)
+})
