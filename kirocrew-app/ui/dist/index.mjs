@@ -249,7 +249,7 @@ function ht() {
 		r
 	]);
 }
-// src/Logo.tsx
+// kirocrew-app/ui/src/Logo.tsx
 function gt({ size: e = 32 }) {
 	return /* @__PURE__ */ w("svg", {
 		viewBox: "0 0 100 100",
@@ -281,7 +281,7 @@ function gt({ size: e = 32 }) {
 		]
 	});
 }
-// src/Badge.tsx
+// kirocrew-app/ui/src/Badge.tsx
 var _t = {
 	success: { variant: "ok" },
 	warning: { variant: "warn" },
@@ -339,7 +339,7 @@ function xt(e) {
 		hide: o
 	};
 }
-// src/layers.ts
+// kirocrew-app/ui/src/layers.ts
 var St = {
 	raised: 1,
 	sticky: 10,
@@ -347,7 +347,7 @@ var St = {
 	popover: 60,
 	tooltip: 2147483e3
 };
-// src/use-media.ts
+// kirocrew-app/ui/src/use-media.ts
 function Ct(e) {
 	let [t, n] = d(() => typeof window < "u" && window.matchMedia ? window.matchMedia(e).matches : !1);
 	return o(() => {
@@ -356,11 +356,11 @@ function Ct(e) {
 		return t.addEventListener("change", r), () => t.removeEventListener("change", r);
 	}, [e]), t;
 }
-// src/focus-trap.ts
+// kirocrew-app/ui/src/focus-trap.ts
 function wt(e, t, n) {
 	return e === 0 ? -1 : t < 0 ? n ? e - 1 : 0 : n ? (t - 1 + e) % e : (t + 1) % e;
 }
-// ../../src/delivery-lanes.mjs
+// src/delivery-lanes.mjs
 var Tt = /* @__PURE__ */ new Set(["closed", "lost"]);
 Object.freeze([
 	["ready", "Ready"],
@@ -379,7 +379,7 @@ function Ot(e, t) {
 	let n = Dt(t), r = (t?.sessions ?? []).filter((e) => !Tt.has(e.status ?? ""));
 	return n === "decision" || t?.needsYou || e && Et(e) === "needs-you" && !t?.complete ? "needs-you" : t?.complete || e && Et(e) === "done" ? "done" : n === "done" || n === "verified" || t?.status === "review" && !t.handSetReview || r.some((e) => e.role !== "worker") || t?.githubReviews?.state === "pending" ? "reviewing" : r.length || n === "running" || n === "failed" || t?.status === "running" && !t.handSetReview ? "running" : e && Et(e) === "ready" ? "ready" : "waiting";
 }
-// src/graph-layout.ts
+// kirocrew-app/ui/src/graph-layout.ts
 var kt = [
 	{
 		id: "ready",
@@ -1040,7 +1040,7 @@ function wn(e, t, n, r, i, a = {}) {
 	for (let [t, n] of Object.entries(a)) e.memory.set(t, n), o || e.setters.get(t)?.(n);
 	r(n);
 }
-// src/NavHistory.tsx
+// kirocrew-app/ui/src/NavHistory.tsx
 var Tn = "data-avoozl-app", En = n(null), Dn = null, On = () => a(En) ?? (Dn ??= Sn()), kn = (e) => e instanceof Element && !!e.closest("[data-avoozl-app]");
 function An({ children: e }) {
 	let t = l(Sn, []);
@@ -1131,7 +1131,7 @@ function Nn(e, t, n, r, a = !0) {
 		l
 	];
 }
-// src/icons.ts
+// kirocrew-app/ui/src/icons.ts
 var Pn = ve, Fn = {
 	dashboard: xe,
 	plans: ae,
@@ -1164,7 +1164,7 @@ function Ln(e) {
 		activity: (e, n = 50) => t("activity.recent", { limit: n }, e).then((e) => e.items)
 	};
 }
-// src/drawer-context.ts
+// kirocrew-app/ui/src/drawer-context.ts
 var Rn = n({
 	openTask: () => void 0,
 	addTask: () => void 0,
@@ -1552,7 +1552,7 @@ function or(e) {
 		}), e.children]
 	});
 }
-// src/Modal.tsx
+// kirocrew-app/ui/src/Modal.tsx
 var sr = "a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex=\"-1\"])", cr = "color-mix(in srgb, var(--text) 30%, transparent)", lr = {
 	background: "var(--card, var(--bg))",
 	color: "var(--text)",
@@ -1687,7 +1687,7 @@ function _r(e) {
 		})]
 	}), document.body);
 }
-// src/Tooltip.tsx
+// kirocrew-app/ui/src/Tooltip.tsx
 var vr = () => typeof window < "u" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches, yr = (e) => {
 	try {
 		return e.matches(":focus-visible");
@@ -1779,7 +1779,7 @@ function Z(e) {
 		]
 	}) : /* @__PURE__ */ C(S, { children: _ });
 }
-// src/budget-api.ts
+// kirocrew-app/ui/src/budget-api.ts
 var br = (e) => e == null ? "no cap" : `$${e.toFixed(2)}`, xr = {
 	stop: "Stop",
 	warn: "Warn"
@@ -1869,7 +1869,7 @@ function Ir(e) {
 		switchToStop: (e, n) => t(e, "budget.switchToStop", { taskId: n })
 	};
 }
-// src/Budget.tsx
+// kirocrew-app/ui/src/Budget.tsx
 function Lr({ budget: e }) {
 	if (!jr(e)) return null;
 	let t = kr(e), n = /* @__PURE__ */ C(q, {
@@ -2157,7 +2157,7 @@ function Vr(e) {
 		]
 	});
 }
-// src/useRead.ts
+// kirocrew-app/ui/src/useRead.ts
 function Hr(e, t) {
 	let [n, r] = d(null), [a, s] = d(null), [c, l] = d(!1), u = i(async () => {
 		if (e) {
@@ -2180,7 +2180,7 @@ function Hr(e, t) {
 		reload: u
 	};
 }
-// src/trace-api.ts
+// kirocrew-app/ui/src/trace-api.ts
 var Ur = "trace-target";
 function Wr(e) {
 	return { read: async (t, n) => (await e.post(W, {
@@ -2222,7 +2222,7 @@ function Jr(e, t) {
 	}
 	return null;
 }
-// src/views-api.ts
+// kirocrew-app/ui/src/views-api.ts
 var Yr = {
 	check: "failed checks",
 	review: "review",
@@ -2426,7 +2426,7 @@ function fi(e) {
 function pi(e) {
 	return e === "running" ? "Waiting on your decision: marked running, but no session is running" : "Waiting on your decision: marked in review, but no review is running";
 }
-// src/TraceView.tsx
+// kirocrew-app/ui/src/TraceView.tsx
 var mi = {
 	done: {
 		border: "var(--ok)",
@@ -2659,7 +2659,7 @@ function xi({ workspaceId: e, target: t, onBack: n }) {
 		}), /* @__PURE__ */ C(vi, { read: r })]
 	});
 }
-// src/dashboard-api.ts
+// kirocrew-app/ui/src/dashboard-api.ts
 var Si = /* @__PURE__ */ new Set(["closed", "lost"]);
 function Ci(e) {
 	return e.group ? { kind: "review" } : e.taskId ? {
@@ -2886,7 +2886,7 @@ function Ni(e) {
 		state: n < t ? "done" : n === t ? "now" : "later"
 	}));
 }
-// src/task-api.ts
+// kirocrew-app/ui/src/task-api.ts
 function Pi(e) {
 	return e.lineStart ? e.lineEnd && e.lineEnd !== e.lineStart ? `${e.document}, lines ${e.lineStart}–${e.lineEnd}` : `${e.document}, line ${e.lineStart}` : e.document;
 }
@@ -3052,7 +3052,7 @@ function Qi(e) {
 	let t = e.slot.startsWith("dashboard:") ? e.slot.slice(10) : e.slot;
 	return `/chat?sid=${encodeURIComponent(t)}`;
 }
-// src/routing-api.ts
+// kirocrew-app/ui/src/routing-api.ts
 var $i = "The Avoozl backend is out of date for this page. Update Avoozl, then reload this page.", ea = (e) => Array.isArray(e), ta = (e) => !!e && typeof e == "object" && !Array.isArray(e);
 function na(e) {
 	if (!ta(e)) return !1;
@@ -3200,7 +3200,7 @@ function Ta(e) {
 		turnOff: (e) => t(e, "routing.turnOff")
 	};
 }
-// src/plans-api.ts
+// kirocrew-app/ui/src/plans-api.ts
 var Ea = "Uncategorized";
 function Da(e) {
 	let t = /* @__PURE__ */ new Map();
@@ -3350,7 +3350,7 @@ function Ga(e) {
 	let t = e.action === "archived" ? "Archived" : e.action === "unarchived" ? "Unarchived" : e.action;
 	return e.by ? `${t} by ${e.by}` : t;
 }
-// src/FilterSelect.tsx
+// kirocrew-app/ui/src/FilterSelect.tsx
 var Ka = {
 	borderColor: "var(--border)",
 	color: "var(--text)",
@@ -3442,7 +3442,7 @@ var Za = (e) => e.map((e) => ({
 	id: e.value,
 	title: e.label
 })), Qa = (e) => e.title && e.title !== e.id ? `${e.id}: ${e.title}` : e.id;
-// src/Picker.tsx
+// kirocrew-app/ui/src/Picker.tsx
 function $a(e) {
 	let t = s(), n = e.id ?? `avoozl-pick-${t.replace(/:/g, "")}`, r = `${n}-list`, i = l(() => Ja(e.items), [e.items]), a = e.keep ?? !0, c = l(() => e.items.find((t) => t.id === e.value) ?? null, [e.items, e.value]), f = c && a ? Qa(c) : "", [p, m] = d(f), [h, g] = d(!1), [_, v] = d(!1), [y, b] = d(0), x = u(null);
 	o(() => {
@@ -3724,7 +3724,7 @@ function oo(e, t) {
 function so(e, t, n) {
 	e.write(ao(), t, n), window.dispatchEvent(new Event(e.event));
 }
-// src/flow-api.ts
+// kirocrew-app/ui/src/flow-api.ts
 var co = [
 	"queued",
 	"investigate",
@@ -4140,7 +4140,7 @@ function Jo(e) {
 	}
 	return Object.keys(i).length && (t.lessons = i), { flow: t };
 }
-// src/FlowMemory.tsx
+// kirocrew-app/ui/src/FlowMemory.tsx
 var Yo = {
 	add: "var(--success, #1a7f37)",
 	del: "var(--danger)",
@@ -4852,7 +4852,7 @@ function rs({ workspaceId: e }) {
 		children: "Loading…"
 	});
 }
-// src/radar-flow-api.ts
+// kirocrew-app/ui/src/radar-flow-api.ts
 var is = [
 	"Ready to Claim",
 	"Claim to PR",
@@ -4885,7 +4885,7 @@ function ss(e) {
 function cs(e) {
 	return e.count ? `${e.count} ${e.count === 1 ? "issue" : "issues"} · median lead time ${os(e.medianLead)} · flow efficiency ${Math.round((e.efficiency ?? 0) * 100)}%` : "No finished issue yet";
 }
-// src/GithubFlow.tsx
+// kirocrew-app/ui/src/GithubFlow.tsx
 function ls({ workspaceId: e }) {
 	let t = K(), n = l(() => as(t), [t]), [r, a] = d(0), { value: o, error: s, busy: c } = Hr(e, i((e) => n.read(e, r > 0), [n, r]));
 	if (!o || !o.repositories.length && !s) return null;
@@ -4964,7 +4964,7 @@ function ls({ workspaceId: e }) {
 		})
 	});
 }
-// src/FlowCharts.tsx
+// kirocrew-app/ui/src/FlowCharts.tsx
 var us = 300, ds = 90, fs = 4;
 function ps({ points: e, value: t, format: n, color: r }) {
 	let i = e.map(t), a = i.filter((e) => e !== null), o = Math.max(...a, 0) || 1, s = (t) => e.length < 2 ? us / 2 : fs + t * 292 / (e.length - 1), c = (e) => 86 - e / o * 82, l = i.map((e, t) => e === null ? null : `${s(t)},${c(e)}`).reduce((e, t) => (t === null ? e.push([]) : e[e.length - 1].push(t), e), [[]]).filter((e) => e.length), u = a.at(-1);
@@ -5254,7 +5254,7 @@ function bs({ view: e, unit: t }) {
 		] })]
 	});
 }
-// src/FlowView.tsx
+// kirocrew-app/ui/src/FlowView.tsx
 var xs = {
 	display: "flex",
 	height: 12,
@@ -5987,7 +5987,7 @@ function js({ timing: e }) {
 		children: "No timing yet: Avoozl records it from the task's first dispatch."
 	});
 }
-// src/release-api.ts
+// kirocrew-app/ui/src/release-api.ts
 var Ms = [
 	"automatic",
 	"step",
@@ -6048,7 +6048,7 @@ function Rs(e) {
 	let t = /* @__PURE__ */ new Set();
 	return e.steps.filter((e) => e.released || t.has(e.planId) ? !1 : (t.add(e.planId), !0));
 }
-// src/ArmedPulls.tsx
+// kirocrew-app/ui/src/ArmedPulls.tsx
 function zs(e) {
 	let t = K(), n = l(() => Fs(t), [t]), r = i((e) => n.armed(e), [n]), { value: a, reload: o } = Hr(e.stopped ? e.workspaceId : null, r), [s, c] = d(null), u = a?.pullRequests ?? [];
 	if (!e.stopped || !e.workspaceId || !u.length) return null;
@@ -6102,7 +6102,7 @@ function zs(e) {
 		]
 	});
 }
-// src/Demo.tsx
+// kirocrew-app/ui/src/Demo.tsx
 var Bs = n({
 	active: !1,
 	starting: !1,
@@ -6353,7 +6353,7 @@ function qs(e) {
 		]
 	});
 }
-// src/ReleaseQueue.tsx
+// kirocrew-app/ui/src/ReleaseQueue.tsx
 var Js = {
 	released: "success",
 	claimed: "info",
@@ -6547,7 +6547,7 @@ function Zs(e) {
 		})
 	});
 }
-// src/IntegrationBranches.tsx
+// kirocrew-app/ui/src/IntegrationBranches.tsx
 var Qs = {
 	green: "success",
 	red: "danger",
@@ -6600,7 +6600,7 @@ function $s(e) {
 		})
 	}) : null;
 }
-// src/DashboardView.tsx
+// kirocrew-app/ui/src/DashboardView.tsx
 var ec = {
 	ready: "var(--accent)",
 	running: "var(--tile-purple, var(--aim))",
@@ -7422,7 +7422,7 @@ function yc(e, t) {
 	let n = [...e.find((e) => e.id === t)?.sessions ?? []].sort((e, t) => (e.role === "worker" ? -1 : 0) - (t.role === "worker" ? -1 : 0) || t.attempt - e.attempt);
 	return n[0] ? Qi(n[0]) : null;
 }
-// src/markdown.ts
+// kirocrew-app/ui/src/markdown.ts
 var bc = /(`[^`]+`)|(\*\*[^*]+\*\*|__[^_]+__)|(\*[^*\s][^*]*\*|_[^_\s][^_]*_)|(\[([^\]]+)\]\(([^)\s]+)\))/g;
 function xc(e) {
 	let t = [], n = new RegExp(bc.source, "g"), r = 0, i;
@@ -7546,9 +7546,9 @@ function Oc(e, t, n = 3) {
 		id: Dc(t, e.text, r)
 	}] : []);
 }
-// src/prism/before.ts
+// kirocrew-app/ui/src/prism/before.ts
 var kc = globalThis;
-// ../../node_modules/prismjs/components/prism-sql.js
+// node_modules/prismjs/components/prism-sql.js
 kc.__avoozlPrismPrevious = kc.Prism, kc.Prism = {
 	manual: !0,
 	disableWorkerMessageHandler: !0
@@ -8891,10 +8891,10 @@ kc.__avoozlPrismPrevious = kc.Prism, kc.Prism = {
 	operator: /[-+*\/=%^~]|&&?|\|\|?|!=?|<(?:=>?|<|>)?|>[>=]?|\b(?:AND|BETWEEN|DIV|ILIKE|IN|IS|LIKE|NOT|OR|REGEXP|RLIKE|SOUNDS LIKE|XOR)\b/i,
 	punctuation: /[;[\]()`,.]/
 };
-// src/prism/after.ts
+// kirocrew-app/ui/src/prism/after.ts
 var Ac = globalThis, jc = Ac.Prism;
 Ac.__avoozlPrismPrevious === void 0 ? delete Ac.Prism : Ac.Prism = Ac.__avoozlPrismPrevious, delete Ac.__avoozlPrismPrevious;
-// src/highlight.ts
+// kirocrew-app/ui/src/highlight.ts
 var Mc = [
 	"comment",
 	"string",
@@ -9001,7 +9001,7 @@ function Vc(e) {
 		...e.includes("comment") ? { fontStyle: "italic" } : {}
 	};
 }
-// src/Markdown.tsx
+// kirocrew-app/ui/src/Markdown.tsx
 function Hc({ parts: e }) {
 	return e.map((e, t) => e.kind === "text" ? e.text : e.kind === "code" ? /* @__PURE__ */ C("code", {
 		className: "rounded px-1 text-[12px]",
@@ -9125,7 +9125,7 @@ function Kc({ text: e, idPrefix: t, measure: n }) {
 		})
 	});
 }
-// src/Authority.tsx
+// kirocrew-app/ui/src/Authority.tsx
 function qc({ owner: e }) {
 	if (!e.authority) return null;
 	if (e.authority !== "github") return /* @__PURE__ */ C(q, { children: e.authority });
@@ -9139,7 +9139,7 @@ function qc({ owner: e }) {
 		children: n
 	}) : /* @__PURE__ */ C(q, { children: n });
 }
-// src/RadioFold.tsx
+// kirocrew-app/ui/src/RadioFold.tsx
 var Jc = "\n@keyframes avoozl-radio-fold-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }\n[data-radio-fold-body] { animation: avoozl-radio-fold-in 180ms ease-out; }\n@media (prefers-reduced-motion: reduce) { [data-radio-fold-body] { animation: none !important; } }\n";
 function Yc() {
 	return /* @__PURE__ */ C("hr", {
@@ -9231,7 +9231,7 @@ function Xc(e) {
 		})]
 	});
 }
-// src/plugins-api.ts
+// kirocrew-app/ui/src/plugins-api.ts
 var Zc = "Contract version", Qc = "Which version of Avoozl's plugin interface this plugin was built for. Not the plugin's own version.", $c = () => ({
 	id: "",
 	where: "path",
@@ -9582,7 +9582,7 @@ function jl(e) {
 	let t = (t) => e.rows.filter((e) => e.action === t).length;
 	return `Version ${e.version}: ${t("add")} new, ${t("change")} changed, ${t("keep")} unchanged, ${t("retire")} retired.`;
 }
-// src/PackImport.tsx
+// kirocrew-app/ui/src/PackImport.tsx
 var Ml = {
 	create: {
 		label: "Create",
@@ -9782,7 +9782,7 @@ function Pl(e) {
 		]
 	});
 }
-// src/notes-api.ts
+// kirocrew-app/ui/src/notes-api.ts
 var Fl = {
 	url: 2e3,
 	label: 200,
@@ -9874,7 +9874,7 @@ function Hl(e) {
 		templates: (e) => t("template.list", e, {})
 	};
 }
-// src/TemplateStart.tsx
+// kirocrew-app/ui/src/TemplateStart.tsx
 var Ul = {
 	borderColor: "var(--border)",
 	color: "var(--text)",
@@ -10107,7 +10107,7 @@ function Kl(e) {
 		children: "No templates yet. A template comes in a plugin: add and approve one in Settings › Plugins."
 	});
 }
-// src/new-plan-api.ts
+// kirocrew-app/ui/src/new-plan-api.ts
 var ql = /^[a-z0-9][a-z0-9-]{0,79}$/, Jl = "Name the epic by its spec folder: lowercase letters, digits and hyphens.", Yl = {
 	name: "",
 	category: "",
@@ -10182,7 +10182,7 @@ function ru(e) {
 		})
 	};
 }
-// src/spec-builder-api.ts
+// kirocrew-app/ui/src/spec-builder-api.ts
 var iu = "/api/apps/spec-builder/specs", au = "/spec-builder", ou = "spec-builder:last-open";
 function su(e) {
 	return { create: (t) => e.post(iu, t) };
@@ -10216,7 +10216,7 @@ function lu(e, t) {
 	} catch {}
 	t(au);
 }
-// src/NewPlanDrawer.tsx
+// kirocrew-app/ui/src/NewPlanDrawer.tsx
 var uu = (e, t) => {
 	let n = (e) => e.replace(/\\/g, "/").replace(/\/+$/, "").replace(/^\/private(?=\/)/, "");
 	return n(e) === n(t);
@@ -10685,7 +10685,7 @@ function mu(e) {
 		})]
 	});
 }
-// src/ideas-api.ts
+// kirocrew-app/ui/src/ideas-api.ts
 var hu = {
 	title: "",
 	notes: "",
@@ -10745,7 +10745,7 @@ function xu(e) {
 		restore: (e, n) => t(e, "idea.restore", { id: n })
 	};
 }
-// src/Ideas.tsx
+// kirocrew-app/ui/src/Ideas.tsx
 var Su = {
 	borderColor: "var(--border)",
 	color: "var(--text)",
@@ -11374,7 +11374,7 @@ function zu(e) {
 		saveMachine: (e, n) => t(e, "driver.settings.update", n)
 	};
 }
-// src/Driver.tsx
+// kirocrew-app/ui/src/Driver.tsx
 var Bu = {
 	borderColor: "var(--border)",
 	color: "var(--text)",
@@ -12059,7 +12059,7 @@ function Zu(e) {
 		]
 	}) });
 }
-// src/filters.ts
+// kirocrew-app/ui/src/filters.ts
 var Qu = "(none)", $u = "(none)", ed = (e) => e.spec ? `spec:${e.spec}` : e.planId ? `plan:${e.planId}` : null, td = (e) => e.spec ? `spec:${e.spec}` : e.planId ? `plan:${e.planId}` : void 0, nd = (e) => !!(e.q?.trim() || e.plan || e.epic || e.phase || e.repository || e.state || e.waveMin || e.waveMax || e.authority || e.needsYou || e.archived), rd = (e, t) => !e.planArchived || !!(t.archived || t.plan);
 function id(e, t) {
 	let n = t.q?.trim().toLowerCase() ?? "", r = t.plan;
@@ -12167,7 +12167,7 @@ function fd(e, t) {
 	for (let e of Object.keys(n)) (n[e] === void 0 || n[e] === "" || n[e] === !1) && delete n[e];
 	return n;
 }
-// src/sticky-column.ts
+// kirocrew-app/ui/src/sticky-column.ts
 function pd(e, t = (e) => getComputedStyle(e)) {
 	for (let n = e?.parentElement ?? null; n; n = n.parentElement) if (/(auto|scroll|overlay)/.test(t(n).overflowY)) return n;
 	return null;
@@ -12180,7 +12180,7 @@ function md(e, t) {
 	}
 	return Math.max(240, Math.floor(n - 16));
 }
-// src/projection-api.ts
+// kirocrew-app/ui/src/projection-api.ts
 var hd = (e) => e?.preflight?.items.filter((e) => e.status === "fail") ?? [];
 function gd(e) {
 	let t = async (t, n, r) => (await e.post(W, {
@@ -12241,7 +12241,7 @@ var Cd = {
 	claimed: "claimed",
 	unclaimed: "unclaimed"
 }, Td = (e) => e.filter((e) => e.action !== "none");
-// src/ProjectionModal.tsx
+// kirocrew-app/ui/src/ProjectionModal.tsx
 function Ed(e) {
 	let { workspaceId: t, client: n, planId: r } = e, [a, s] = d(null), [c, l] = d([]), [u, f] = d(null), [p, m] = d(!1), [h, _] = d(null), v = i(async (e) => {
 		m(!0), _(null);
@@ -12452,7 +12452,7 @@ function Ed(e) {
 		})
 	});
 }
-// src/SpecChangedModal.tsx
+// kirocrew-app/ui/src/SpecChangedModal.tsx
 function Dd(e) {
 	let { workspaceId: t, client: n, planId: r } = e, [i, a] = d(null), [s, c] = d(!1), [l, u] = d(null);
 	o(() => {
@@ -12543,7 +12543,7 @@ function Dd(e) {
 		})
 	});
 }
-// ../../src/work-split.mjs
+// src/work-split.mjs
 var Od = "Avoozl is for epics: approved goals that need many changes in a set order. Maintenance, triage and one-off pull request handling belong to Issue Radar crews or to your team's coder. Avoozl can hand each task of an epic to any coder.", kd = "If the work fits in one pull request, it is not an Avoozl job. If it needs a plan with an order, it is.", Ad = (e) => e.status === "stopped" || e.status === "refused";
 function jd(e) {
 	let t = async (t, n, r) => (await e.post(W, {
@@ -12595,7 +12595,7 @@ function Ld(e) {
 function Rd(e) {
 	return e.status === "approved" ? "Approved. The issues are next." : e.pull ? `Approval pull request #${e.pull.number} is open in ${e.pull.repository}. Merge it, then reopen Quick goal and press Check the merge.` : "Approval started.";
 }
-// src/QuickGoalModal.tsx
+// kirocrew-app/ui/src/QuickGoalModal.tsx
 var zd = "rounded border px-2 py-1 text-sm";
 function Bd(e) {
 	let { workspaceId: t, client: n } = e, [r, i] = d("ask"), [a, s] = d([]), [c, l] = d(""), [u, f] = d(""), [p, m] = d("look"), [h, _] = d(String(Md.turns)), [v, y] = d(String(Md.minutes)), [b, x] = d(!1), [T, E] = d([]), [D, O] = d(null), [k, A] = d(null), [j, M] = d(/* @__PURE__ */ new Set()), [N, P] = d({}), [F, ee] = d(null), [I, te] = d(!1), [L, R] = d(null);
@@ -13035,7 +13035,7 @@ function Bd(e) {
 		})
 	});
 }
-// src/PlansView.tsx
+// kirocrew-app/ui/src/PlansView.tsx
 var Vd = "80ch", Hd = "17rem", Ud = "(max-width: 1023px)";
 function Wd(e) {
 	let [t, n] = d(null), r = u(null), a = i((t) => {
@@ -14617,7 +14617,7 @@ function mf(e) {
 		]
 	});
 }
-// src/EpicPanel.tsx
+// kirocrew-app/ui/src/EpicPanel.tsx
 var hf = (e, t) => t ? Math.round(e / t * 100) : 0;
 function gf(e) {
 	let t = i((t) => e.client.epic(t, e.id), [e.client, e.id]), { value: n, error: r } = Hr(e.workspaceId, t);
@@ -14730,7 +14730,7 @@ function gf(e) {
 		]
 	}) : null;
 }
-// src/FilterBar.tsx
+// kirocrew-app/ui/src/FilterBar.tsx
 var _f = {
 	event: ld,
 	read: ud,
@@ -14842,7 +14842,7 @@ function bf(e) {
 		children: e.children
 	});
 }
-// src/GraphView.tsx
+// kirocrew-app/ui/src/GraphView.tsx
 var xf = 60, Sf = 640, Cf = {
 	ready: "var(--accent)",
 	running: "var(--tile-purple, var(--aim))",
@@ -15508,7 +15508,7 @@ function jf({ workspaceId: e, focus: t = null, drill: n = null, onDrill: r }) {
 		]
 	});
 }
-// src/DeliveryDetails.tsx
+// kirocrew-app/ui/src/DeliveryDetails.tsx
 function Mf({ text: e }) {
 	let t = ti(e);
 	return t ? /* @__PURE__ */ C("a", {
@@ -15913,7 +15913,7 @@ function Bf({ item: e, onSupersede: t }) {
 		]
 	});
 }
-// src/delivery-api.ts
+// kirocrew-app/ui/src/delivery-api.ts
 var Vf = [
 	{
 		id: "ready",
@@ -16251,7 +16251,7 @@ function up(e) {
 		]
 	});
 }
-// src/DeliveryView.tsx
+// kirocrew-app/ui/src/DeliveryView.tsx
 function dp(e) {
 	let { card: t, busy: n, act: r, client: i, workspaceId: a } = e, o = zn(), s = K(), c = l(() => Ta(s), [s]), u = t.sessions.some((e) => e.role === "worker" && e.sessionReason), d = t.authority === "local", f = ti(t.issue?.url ?? null), p = t.item?.complete ?? !1;
 	return /* @__PURE__ */ C("li", { children: /* @__PURE__ */ C(_, { children: /* @__PURE__ */ w("div", {
@@ -16700,7 +16700,7 @@ function vp({ reports: e }) {
 		})
 	] });
 }
-// src/conflicts-api.ts
+// kirocrew-app/ui/src/conflicts-api.ts
 function yp(e) {
 	let t = (e.authority ?? "local") === "local";
 	return e.kind === "stale-session" && e.slot ? "dismiss" : e.kind === "review" ? Cp(e).length ? "reviewed" : null : !t || e.kind === "needs-human" && e.reason === "hand-set-review" ? null : e.kind === "needs-human" ? e.reason === "blocked" ? "unblock" : "reviewed" : e.kind === "decision" ? "settle" : null;
@@ -17813,7 +17813,7 @@ function um({ workspaceId: e }) {
 		]
 	});
 }
-// src/untriaged-api.ts
+// kirocrew-app/ui/src/untriaged-api.ts
 function dm(e) {
 	let t = (t, n) => e.post(W, {
 		operation: "untriaged.view",
@@ -18349,7 +18349,7 @@ function Rm(e) {
 		]
 	});
 }
-// src/UntriagedView.tsx
+// kirocrew-app/ui/src/UntriagedView.tsx
 var zm = {
 	textAlign: "left",
 	fontWeight: 500,
@@ -19257,7 +19257,7 @@ function rh({ workspaceId: e, onMakeSpec: t, onOpenSources: n }) {
 		]
 	});
 }
-// src/settings-api.ts
+// kirocrew-app/ui/src/settings-api.ts
 function ih(e) {
 	let t = async (t, n, r) => (await e.post(W, {
 		operation: t,
@@ -20242,7 +20242,7 @@ function vg(e) {
 		})
 	});
 }
-// src/Walkthrough.tsx
+// kirocrew-app/ui/src/Walkthrough.tsx
 function yg(e) {
 	let [t, n] = d(0), r = e.steps[t], i = e.steps.length - 1, a = (e) => n(Math.max(0, Math.min(i, e)));
 	return /* @__PURE__ */ w("section", {
@@ -20385,7 +20385,7 @@ function bg(e) {
 		})]
 	});
 }
-// src/CoderPicker.tsx
+// kirocrew-app/ui/src/CoderPicker.tsx
 var xg = [
 	{
 		title: "A task becomes ready",
@@ -20622,7 +20622,7 @@ function Cg(e) {
 		]
 	});
 }
-// src/ReleaseMode.tsx
+// kirocrew-app/ui/src/ReleaseMode.tsx
 function wg(e) {
 	let t = Ms.includes(e.mode) ? e.mode : "automatic";
 	return /* @__PURE__ */ C("div", {
@@ -20644,7 +20644,7 @@ function wg(e) {
 		})
 	});
 }
-// src/SetupWizard.tsx
+// kirocrew-app/ui/src/SetupWizard.tsx
 var Tg = {
 	create: {
 		color: "var(--ok)",
@@ -21094,7 +21094,7 @@ function Og(e) {
 		]
 	});
 }
-// src/FieldBox.tsx
+// kirocrew-app/ui/src/FieldBox.tsx
 function kg(e) {
 	return /* @__PURE__ */ w("fieldset", {
 		"data-field-box": e.title,
@@ -21118,7 +21118,7 @@ function kg(e) {
 		]
 	});
 }
-// src/radar-values-api.ts
+// kirocrew-app/ui/src/radar-values-api.ts
 var Ag = (e) => ({ read: (t, n) => e.post(W, {
 	operation: "radar.values",
 	input: { repository: n },
@@ -21142,7 +21142,7 @@ function jg(e, t) {
 function Mg(e, t) {
 	return `${e.filter((e) => jg(e, t.has(e.id)).checked).length} of ${e.length} done`;
 }
-// src/RadarValues.tsx
+// kirocrew-app/ui/src/RadarValues.tsx
 function Ng({ text: e, label: t }) {
 	let [n, r] = d(!1);
 	return /* @__PURE__ */ w(g, {
@@ -21300,7 +21300,7 @@ function Fg(e) {
 		]
 	}) : null;
 }
-// src/CrewsRulesSettings.tsx
+// kirocrew-app/ui/src/CrewsRulesSettings.tsx
 function Ig(e) {
 	return /* @__PURE__ */ w("div", {
 		className: "flex min-w-0 flex-col gap-1",
@@ -21410,7 +21410,7 @@ function Lg(e) {
 		})]
 	});
 }
-// src/workflow-map.ts
+// kirocrew-app/ui/src/workflow-map.ts
 var Rg = {
 	you: "You",
 	radar: "Radar crew",
@@ -22101,7 +22101,7 @@ function n_(e) {
 		]
 	});
 }
-// src/WorkspaceView.tsx
+// kirocrew-app/ui/src/WorkspaceView.tsx
 function r_(e) {
 	return /* @__PURE__ */ w("label", {
 		htmlFor: e.id,
@@ -22447,7 +22447,7 @@ function o_(e = {}) {
 		]
 	});
 }
-// src/onboarding-api.ts
+// kirocrew-app/ui/src/onboarding-api.ts
 var s_ = [
 	{
 		key: "folder",
@@ -22609,7 +22609,7 @@ function b_(e) {
 		importSpec: (e, n) => t(e, "plan.create", { spec: n })
 	};
 }
-// src/Onboard.tsx
+// kirocrew-app/ui/src/Onboard.tsx
 var x_ = {
 	create: {
 		color: "var(--ok)",
@@ -23400,7 +23400,7 @@ function A_(e) {
 		})
 	] });
 }
-// src/repository-rows.ts
+// kirocrew-app/ui/src/repository-rows.ts
 function j_(e, t) {
 	let n = /* @__PURE__ */ new Set(), r = e.map((e) => {
 		let r = e.github ? t.findIndex((t) => t.name.trim() === e.github) : -1;
@@ -23777,7 +23777,7 @@ function B_(e) {
 		]
 	});
 }
-// src/AddPlugin.tsx
+// kirocrew-app/ui/src/AddPlugin.tsx
 var V_ = {
 	path: oe,
 	package: ke,
@@ -24310,7 +24310,7 @@ function J_(e) {
 		})
 	] });
 }
-// src/IntakeSources.tsx
+// kirocrew-app/ui/src/IntakeSources.tsx
 var Y_ = {
 	borderColor: "var(--border)",
 	color: "var(--text)",
@@ -24922,7 +24922,7 @@ function lv({ workspaceId: e, plugins: t, onOpenGitHub: n }) {
 		})]
 	});
 }
-// src/CitedFile.tsx
+// kirocrew-app/ui/src/CitedFile.tsx
 var uv = "avoozl-cited", dv = "\n[data-cited=\"true\"] { background: color-mix(in srgb, var(--accent) 14%, transparent); box-shadow: inset 3px 0 0 var(--accent); border-radius: 4px; padding-left: 10px; }\n";
 function fv(e) {
 	return e.getAttribute("role") === "heading" ? `h${e.getAttribute("aria-level") ?? "6"}` : e.tagName.toLowerCase();
@@ -24973,7 +24973,7 @@ function mv(e) {
 		})]
 	});
 }
-// src/DocumentReader.tsx
+// kirocrew-app/ui/src/DocumentReader.tsx
 var hv = "avoozl-reader";
 function gv(e) {
 	let { workspaceId: t, target: n, onClose: r, text: a } = e, s = K(), c = l(() => Bi(s), [s]), f = P_(), p = Ct("(max-width: 767px)"), m = Ct("(prefers-reduced-motion: reduce)"), [h, g] = d({
@@ -25160,7 +25160,7 @@ function _v(e) {
 		}, t.id))
 	});
 }
-// src/design-chat.ts
+// kirocrew-app/ui/src/design-chat.ts
 var vv = "docs/plugins.md", yv = "Open a chat that helps you plan a plugin and write its files. It approves nothing.", bv = `Read ${vv}: the plugin contract, parts, sources and approval`, xv = "Open a chat that suggests rules for you to paste here and save. What you type there stays in its transcript, so type truly private words straight into the editor.", Sv = (e) => e.length ? e.join(", ") : "none";
 function Cv(e) {
 	return [
@@ -25180,9 +25180,9 @@ function wv(e) {
 		`Rule sets already here: ${Sv(e.sets)}.`
 	].join(" ");
 }
-// ../../docs/plugins.md?raw
-var Tv = "# Writing a plugin\n\nA plugin adds to Avoozl without changing Avoozl itself. One plugin can\nbundle several parts, so a team installs one plugin and gets its settings,\nits content rules, its tracker and its intake source together:\n\n| Part       | What it is                                                                | Runs code |\n| ---------- | ------------------------------------------------------------------------- | --------- |\n| `pack`     | Settings a person previews and copies into `.avoozl.json` once            | No        |\n| `rules`    | Content rule sets supplied while Avoozl runs                              | Yes       |\n| `tracker`  | A task tracker that keeps Avoozl's task records                           | Yes       |\n| `intake`   | An intake source: the tracker kind's `poll`, which brings outside work in | Yes       |\n| `route`    | A delivery route for tasks that are not run by a local worker             | Yes       |\n| `gate`     | A read-only check of an outside item that a tracker gate waits on         | Yes       |\n| `template` | A workflow template that starts a new spec from a reusable folder         | No        |\n\nLocal and GitHub are the only built-in routes and trackers. Everything\nelse, including any integration that must stay private, is a separate\npackage or folder that plugs in here.\n\nThe examples on this page are the test-only plugins in Avoozl's own test\ntree: `src/app/test/fixtures/plugins/sdk-team/` bundles a pack, rules, a\ntracker and an intake source; `sdk-templates/` holds one workflow template;\n`fake-route/`, `fake-tracker/`, `fake-gate/` and `fake-rules/` each provide one part. Read them alongside this guide. These\nfakes are the only plugins tested so far; no real plugin has run live.\n\n## A pack's `crews` section\n\nA pack can carry a `crews` section for Issue Radar: `count`, `agent`\n(`avoozl-crew`), `models`, `labels` (`plan`, `ready`, `conflict`), `prompt`\n(the one-line crew prompt, word for word), `reviewRules` and `template`. The\nlabels and review rules go to each chosen repository's settings, and the\ncrew values show in Set up. A pack creates no crew: you create it in Issue\nRadar with the values Set up shows. Content rules screen the section before\nit is previewed or imported. `examples/sdk-team/avoozl-pack.json` is a\nsample with made-up values. It is tested with fakes only.\n\n## What a plugin is\n\nA plugin is a folder with a manifest, `avoozl-plugin.json`, an entry module\nfor the parts that run code, and, with a pack, `avoozl-pack.json`:\n\n```json\n{\n  \"id\": \"sdk-team\",\n  \"version\": \"1.0.0\",\n  \"contract\": 1,\n  \"provides\": [\"pack\", \"rules\", \"tracker\", \"intake\"],\n  \"capabilities\": { \"tracker\": [\"actor\", \"poll\"], \"rules\": [] },\n  \"pack\": \"avoozl-pack.json\",\n  \"entry\": \"index.mjs\"\n}\n```\n\n- `id` is lowercase letters, digits and dashes. `local` and `github` are\n  reserved. Tasks name the plugin as `plugin:<id>`.\n- `version` changes whenever you release a new build.\n- `contract` is the contract version: which version of Avoozl's plugin\n  interface this plugin was built for. It is not the plugin's own version.\n  Settings shows it as **Contract version**. This Avoozl supports contract\n  version `1`.\n- `provides` lists the parts: `pack`, `rules`, `tracker`, `intake`,\n  `route`, `gate`, `lessons` and `template`. `intake` runs as the `tracker` kind and needs the `poll`\n  capability. A manifest written before `provides` lists `kinds` instead\n  (`route`, `tracker`, `rules`), and each kind is its own part. With\n  `provides`, leave `kinds` out; if you keep it, it must match.\n- `capabilities` lists optional features per kind. A tracker may list\n  `edges`, `subtasks`, `actor`, `pause` and `poll`. A route lists none yet.\n- `pack` names the pack file inside the folder; it defaults to\n  `avoozl-pack.json`.\n- `entry` is a `.mjs` or `.js` file inside the folder. A plugin that provides\n  only data parts (`pack`, `lessons`, `template`) runs no code, so it has no\n  `entry`; Avoozl refuses one that names an entry, and never starts a\n  process for it.\n\nThe entry module exports one object per kind: `route`, `tracker`, or\n`rules`. Each\nmethod takes `(params, { config })` and returns a JSON value or a promise of\none:\n\n```js\nexport const route = {\n  submit({ task, brief }, { config }) { ... },\n  status({ id }, { config }) { ... },\n  completion({ id }, { config }) { ... },\n  cancel({ id }, { config }) { ... },\n};\n```\n\n## The `gate` part\n\nA tracker gate is a task whose manifest entry has `completion: \"tracker\"` and\na `tracker` reference: `{ \"plugin\": \"<id>\", \"item\": \"<id or URL>\", \"done\":\n\"<what counts as done, in plain words>\" }`. No crew builds it. Avoozl reads\nthe outside item through the plugin and releases the tasks that require the\ngate when the plugin says `done`.\n\nA `gate` part exports `gate` with one read-only call:\n\n```js\nexport const gate = {\n  status({ ref }, { config }) {\n    // ref is { item, done }. Return the state of the outside item.\n    return { state: \"open\", evidence: \"In review.\", link: \"https://...\" };\n  },\n};\n```\n\n- `state` is `open`, `done`, `failed` or `unknown`. `evidence` is plain text\n  of at most 500 characters. `link` is an http or https URL.\n- The plugin has no call that writes to the outside item.\n- Avoozl runs content rules over `evidence` and `link` before it stores or\n  shows them, and treats them as data, never as instructions.\n- A call that throws, takes longer than 30 seconds, or returns a value outside\n  this shape counts as `unknown`. A sign-in that expired is `unknown` with the\n  evidence \"sign-in expired\".\n- Each tick reads the gates that are due. The gap after a read is 1, 2, 5 and\n  15 minutes, then 30 minutes, and starts again when the state changes. A\n  `done` is recorded once and is never undone. If the outside item later\n  reads differently, Avoozl adds one note and changes nothing else.\n- Credentials stay in the plugin's own sign-in or in an environment variable\n  its `config` names with an `Env` key. They never go in `.avoozl.json`, the\n  manifest, an issue or the evidence.\n\nExamples, by role only. Each would be its own package, outside this\nrepository: a ticket tracker, a check that a code review shipped to a live\nrelease on a private code host, and a managed remote harness task. The only\nplugin in this repository is `fake-gate/`, which tests use.\n\n## Declaring and approving a plugin\n\nA `plugins` entry declares each plugin, either in the repository's\n`.avoozl.json` (shared and reviewed in Git) or in this machine's\n`plugins.json`, beside the global Avoozl configuration\n(`~/.config/avoozl/plugins.json`, never committed):\n\n```json\n{\n  \"plugins\": [\n    {\n      \"id\": \"fake-route\",\n      \"path\": \"../fake-route\",\n      \"contract\": 1,\n      \"config\": { \"stateFile\": \"route-state.json\" }\n    }\n  ]\n}\n```\n\n- Name exactly one of `path` (a folder, relative to the file that declares\n  it), `package` (a package installed into the `plugins` folder beside\n  `plugins.json`), or `git` (below).\n- `config` is plain data passed to every call. It never holds a credential. A\n  key ending in `Env`, such as `tokenEnv`, names the environment variable the\n  plugin reads its credential from; Avoozl passes that variable, and only the\n  variables `config` names this way, to the plugin.\n- Declare a plugin whose name must stay private in `plugins.json`. Settings\n  asks you to confirm before it saves a `plugins` entry into `.avoozl.json`.\n\n### Add plugin in Settings\n\n**Settings > Plugins > Add plugin** walks four steps, with Cancel on each:\n\n1. **Where from**: open Folder, Package or Git and fill it in. Each keeps\n   what you typed until you cancel. Git shows the exact commit its ref names.\n2. **What**: the id, version, kinds and capabilities the plugin's own\n   `avoozl-plugin.json` declares. The id and **Contract version** come from\n   that file; a git plugin, whose files are fetched later, picks a supported\n   contract version. A package's optional version is checked against the\n   installed package; the entry stores no version, the approval pins it.\n3. **Applies to**: this computer only (`plugins.json`) or shared with the\n   repository (`.avoozl.json`). A shared plugin is approved on each computer\n   for itself; a shared package is installed on each, and a shared git plugin\n   is fetched on each with **Update**. A shared folder is a path inside the\n   repository, relative to it.\n4. **Review and approve**: the version, content hash and, for git, the commit.\n   Cancel here removes the entry step 3 declared.\n\n### A plugin from a git repository\n\n```json\n{\n  \"id\": \"fake-route\",\n  \"git\": \"https://git.example.com/team/fake-route.git\",\n  \"ref\": \"v1.0.0\",\n  \"subdir\": \"plugin\",\n  \"contract\": 1\n}\n```\n\n`git` is a URL or a local repository path. `ref` is a tag, a branch or a full\ncommit, and `subdir` is the plugin's folder inside the repository. **Add from\ngit** in Settings (or `avoozl plugins add ID --git URL --ref REF`) resolves\n`ref` to one commit, fetches only that commit into\n`plugins/git/<id>/<commit>/` beside `plugins.json`, and stores the commit on\nthis machine. Git runs as you, with your credential helper or SSH key, so\nprivate repositories work. Git hooks are off, submodules are skipped, and\nAvoozl runs no `npm install`: commit the plugin ready to run, bundled or with\n`node_modules`. The approval names the commit, so a new commit needs a new\napproval. **Update** (or `avoozl plugins update ID`) resolves `ref` again.\nThe tick never fetches. Avoozl refuses a URL with a password or token in it,\na `subdir` outside the repository, and a commit with no `avoozl-plugin.json`.\n\nNothing loads until a person approves the plugin in **Settings** (or with\n`avoozl plugins approve ID --hash HASH`). Settings shows the id, version,\neach part, the code kinds it runs as, capabilities, location and content\nhash, a SHA-256 over every file in the folder, the pack included. The\napproval lists the parts and is stored on this machine only. Any change to\nthe version or to any file needs approval again. The tick and example\ninstallation never approve a plugin.\n\nA plugin **shared with the repo** puts its entry in `.avoozl.json`, where\nit is committed and reviewed like any other change. Each computer still\napproves it for itself. Because a shared entry is the same on every\ncomputer, its `config` holds no machine path: name an environment variable\n(`termsFileEnv`, `stateFileEnv`) that holds each computer's own path, as the\n`sdk-team` sample does.\n\n## How Avoozl runs a plugin\n\n- Each approved plugin runs in its own Node child process. Avoozl talks to it\n  in JSON lines over stdin and stdout, and gives it no port.\n- A plugin may call its own system over the network. It must not open a\n  listener. A plugin that listens is stopped and marked broken.\n- Write nothing to stdout yourself; it carries the protocol. `console.log`\n  output goes to stderr, which Avoozl discards.\n- Each call has a time limit (20 seconds by default) inside the tick's own\n  time budget.\n- Every reply is checked against the contract. Links must be `http` or\n  `https`. Reply text is untrusted data: Avoozl quotes it as data in briefs\n  and escapes it in views.\n- When a plugin is missing, unapproved, disabled, crashes, times out, replies\n  with the wrong shape, or expects an unsupported contract, Avoozl marks it\n  unavailable for that tick. Its tasks show \"needs you\" with the reason, and\n  every other task keeps moving. The next tick tries again. A plugin's tasks\n  never fall back to another route or tracker on their own.\n\n## Route kind\n\nA task whose manifest entry says `\"route\": \"plugin:<id>\"` is delivered by\nthat route instead of a local worker session. One graph can mix routes, for\nexample a local leaf, then a remote one, then a local one.\n\n| Call                    | Reply                                                                            |\n| ----------------------- | -------------------------------------------------------------------------------- |\n| `submit({task, brief})` | `{id, link}`: the remote ID and a link to the work                               |\n| `status({id})`          | `{state, link?, reason?}`: `queued`, `running`, `needs-person`, `failed`, `done` |\n| `completion({id})`      | `{pr?, answer?}`: a pull request link, an answer, or both                        |\n| `cancel({id})`          | `{cancelled}`                                                                    |\n\n- `submit` gets the task's own title, summary, acceptance and checks, and a\n  brief. Make it idempotent by task ID.\n- The tick reads `status` every tick until the work is done. `needs-person`\n  shows the task as \"needs you\" with your link.\n- A remote task is done only when `status` says `done` and `completion`\n  returns its result. Each dependent's brief quotes that result as data.\n- `failed` stops the task for a person. `route.resubmit` starts it again.\n\n## Tracker kind\n\nA task with `\"authority\": \"plugin:<id>\"` keeps its record in that tracker,\nthe way a GitHub task keeps its record in an issue. SQLite only caches it:\ndirect edits are refused, and changes go through the spec and projection.\n\n| Call                               | Reply                                                                                  |\n| ---------------------------------- | -------------------------------------------------------------------------------------- |\n| `project({task, desired, marker})` | `{id, link, marker}`: create or update the record, idempotent by namespace and task ID |\n| `read({ids})`                      | `{records: [...]}`: each record's state and fields                                     |\n| `list({namespace})`                | `{records: [...]}`: every record carrying this namespace, for rebuild                  |\n| `close({id, reason})`              | `{closed}`: close with reason `completed` or `not_planned`                             |\n\nEach record in a `read` or `list` reply has:\n\n- `id`, `link`, `state` (`open` or `closed`), and `closeReason` when closed;\n- `fields`: the managed values as they are in the tracker now: `title`,\n  `section` (the managed description section) and `tags`, plus `blockedBy`\n  with the `edges` capability;\n- `marker`: the namespace, task ID and last applied values Avoozl stored with\n  the record, returned unchanged;\n- with the `actor` capability, `closedBy` and `pausedBy`: who closed or paused\n  it; with `pause`, `paused`.\n\nRules a tracker plugin must follow:\n\n- **Store the marker.** Keep the `marker` from `project` with the record (a\n  hidden field or a managed description section) and return it unchanged from\n  `project`, `read` and `list`. A plugin that does not is refused as a\n  tracker.\n- **Edges.** Without the `edges` capability, the graph stays in Avoozl: its\n  edges come from the approved spec. With `edges`, `desired.blockedBy` lists\n  the record IDs that block this one; store them as the tracker's own links.\n- **Edit only managed fields.** Avoozl changes the title, the managed section,\n  managed tags and, with `edges`, blocking links. A field a person changed is a\n  conflict that Avoozl reports and leaves alone.\n- **Completion is Avoozl's.** Avoozl decides a task is done and then calls\n  `close(id, \"completed\")`. A close or pause by someone else is judged with\n  the actor you report, against the entry's `config.allowedActors`. Without\n  the `actor` capability, every outside close holds the task's dependents for\n  a person.\n\n## Rules kind\n\nA rules plugin supplies content rule sets: terms Avoozl must never write\n(see \"Ban private terms\" in `docs/policies.md`). It lets a team ship its\nlist as a private package that public Avoozl never sees.\n\n| Call           | Reply                                             |\n| -------------- | ------------------------------------------------- |\n| `ruleSets({})` | `{sets: [{id, version, rules: [{id, pattern}]}]}` |\n\n- `pattern` is a regular expression, matched per line ignoring case.\n- A set or rule must not carry `allow`. Allow lines exist only in a person's\n  own terms file; a plugin writes its exception into the pattern itself\n  (for example `\\bzebra\\b(?!-ui)`). A reply with `allow` is refused, which\n  makes that plugin's sets unavailable.\n- A `.avoozl.json` set `{ \"id\": \"<set id>\", \"plugin\": \"<plugin id>\" }` picks\n  one set by id. In **Settings > Content rules**, pick the plugin as the set's\n  **Rules plugin**; such a set has no terms file to edit there.\n- Without a plugin, a set's rules live in its terms file,\n  `.avoozl/local/content-rules/<set id>.txt`, one `name: pattern` per line,\n  plus `allow:` lines for false matches.\n  Settings edits it with a Rule builder (word or phrase, or pattern) and a\n  File view, writes it readable by your account only, and refuses to write\n  it where Git could commit it. **How rules work** on that tab explains the\n  format with made-up examples.\n- Avoozl keeps the rules in memory for the tick. It never writes them to\n  SQLite, receipts, or Git; findings record the set's `version`.\n- A plugin that is missing, unapproved, or broken makes only its own sets\n  unavailable, and every boundary those sets cover writes nothing until it is\n  fixed.\n\n## Pack part\n\nA pack is settings only. Avoozl never runs anything from it. It is one JSON\nfile:\n\n```json\n{\n  \"description\": \"Triage labels, triggers and who counts for SDK repositories.\",\n  \"settings\": {\n    \"repositories\": {\n      \"minimumPermission\": \"write\",\n      \"rules\": [\n        {\n          \"id\": \"deliver\",\n          \"action\": \"deliver\",\n          \"match\": \"label:avoozl:deliver -label:needs-triage -label:response-requested\"\n        }\n      ],\n      \"untriaged\": {\n        \"filter\": \"label:needs-triage\",\n        \"triageLabels\": [\"response-requested\", \"closing-soon\"]\n      }\n    },\n    \"project\": { \"fields\": { \"status\": \"Status\", \"release\": \"Release\" } },\n    \"contentRules\": { \"sets\": [{ \"id\": \"team-terms\", \"plugin\": \"sdk-team\" }] }\n  }\n}\n```\n\nWhat a pack may set, and where each lands in `.avoozl.json`:\n\n| Pack key                     | Sets                                                                                                                                                                                     |\n| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |\n| `settings.repositories`      | For each repository you pick at import: `rules` (trigger `match` lines), `untriaged`, `allowedActors`, `minimumPermission`, `requiredChecks`, `priority`, `managedLabels`, `concurrency` |\n| `settings.project`           | `github.project.fields` and `statusValues`, when a GitHub Project is set                                                                                                                 |\n| `settings.epicIssueType`     | `github.epicIssueType`                                                                                                                                                                   |\n| `settings.contentRules.sets` | Rule set references by id (`plugin`, `action`, `boundaries`), never rules                                                                                                                |\n| `settings.delivery`          | `reviewers` (review roles), `agent`, `model`, `runner`, `concurrency`                                                                                                                    |\n| `settings.flow`              | Flow settings, such as `batch.max`                                                                                                                                                       |\n\n- Every key is checked with the same rules Settings uses. Any other key is\n  refused by name, such as `Pack key settings.repositories.autoMerge is not\na pack setting.`, and the plugin shows as invalid until it is fixed.\n- A pack cannot hold a credential or a content rule pattern. Terms come\n  from the `rules` part at run time, so they are never stored in a public\n  repository.\n- A pack has no follow mode and no org minimums. Avoozl copies the\n  settings once; after that they are the repository's own settings.\n\n**Import.** On the plugin's card in **Settings > Plugins**, **Preview and\nimport pack** shows each setting as **Create**, **Change**, **Keep** or\n**Skip** (a setting that cannot apply here, such as Project fields with no\nProject set), with the old and new values. Nothing is written until\n**Import settings**, and only:\n\n- after this computer approved this exact plugin version;\n- for the exact preview shown: if the pack or `.avoozl.json` changed since,\n  Avoozl asks you to preview again;\n- when a setting would let more people give orders than before (a lower\n  `minimumPermission`, or new `allowedActors`), only after you accept that\n  change, which the preview names on its own line;\n- for a plugin declared on this computer only, after you confirm that its\n  id and settings go into `.avoozl.json`.\n\nImport writes `packs` into `.avoozl.json`: for each plugin, the version\nimported, when and by whom, and the settings that came from it. When a\nnewer version arrives, approve it, and the card offers its preview again;\nimporting it records the new version. At the command line:\n\n```sh\navoozl plugins pack-preview sdk-team\navoozl plugins pack-import sdk-team --preview HASH [--accept-lowered]\n```\n\n## Template part\n\nA workflow template starts a new spec the same way each time, such as one\nSDK rewrite after another. It is data only. Each template is a folder under\n`templates/` in the plugin:\n\n```\ntemplates/sdk-rewrite/\n  avoozl-template.json\n  prompt.md\n  starter/requirements.md\n  starter/design.md\n  starter/tasks.md\n  starter/avoozl/manifest.json\n```\n\n`avoozl-template.json` holds:\n\n| Key                          | Holds                                                                                                                                    |\n| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |\n| `id`, `title`, `description` | What the New spec drawer shows                                                                                                           |\n| `inputs`                     | Fields the person fills; each has `id`, `label`, `type` (`text`, `choice` with `options`, `file`, `repositories`, `epic`) and `required` |\n| `prompt`                     | The planner prompt, a Markdown file                                                                                                      |\n| `starter`                    | A spec folder in the usual layout                                                                                                        |\n| `phases`                     | Optional: the starter's phases, `{id, title}` in order                                                                                   |\n| `proofKinds`                 | Optional: proof outlines the prompt asks the planner to fill in                                                                          |\n| `pack`                       | Optional: a settings pack, as in the pack part                                                                                           |\n| `flow`                       | Optional: flow defaults: `batch`, `stopTheLine`, `localChecksFirst`, `retro.everyTasks`                                                  |\n\nThe prompt and starter files may use `{{<input id>}}`. Avoozl puts in what\nthe person typed, as plain text, once, and never runs it. A `file` input is\nread in the page, at most 200 KB of text; Avoozl never opens a path someone\ntyped. The plugin shows as invalid, naming the key or file, when:\n\n- a key or input setting is unknown, or an input ID is used twice;\n- a file uses a placeholder that is no input ID;\n- the starter, with sample values put in, does not lint clean;\n- `phases` does not match the starter's headings or manifest `phase` values;\n- `pack` or `flow` fails its own check.\n\nA template is offered only while its plugin is approved on this computer.\nIn **New spec**, choose **From template**, pick it, and fill its inputs\nbeside Name, Category and Epic. Submit checks the inputs and runs content\nrules on the seed, then opens a planner chat with the prompt, the filled\nstarter and the inputs. Picking a template changes no setting: with a `pack`\nor `flow`, the drawer shows the pack preview with **Import these settings**\nunticked, and only ticking it imports them, as Settings does. The folder\ncomes back as a draft spec that records the template; with an epic picked,\nthe epic's change comes back as its own draft. Nothing is approved, started\nor pushed.\n\nThe sample `sdk-templates/` plugin has an **SDK rewrite** template: six\nphases (inventory, codegen, runtime, protocol tests, review, cutover), a\nmanual **Review with team** task that cutover waits on, two proof kinds and\nflow defaults. Proof P37 runs it with a fake GitHub; no template has run\nlive yet.\n\nA starter may hold manual tasks (`\"manual\": true`): steps only a person\ndoes. See [Manual tasks and links and notes](policies.md#manual-tasks-and-links-and-notes).\n\n## Intake part\n\nAn intake source is a tracker kind with the `poll` capability, listed in\n`provides` as `intake`. The fake tracker (`fake-tracker/`) is the example:\nits `poll` reads a JSON file of items and returns those changed since the\ncursor.\n\n| Call                    | Reply                                                                  |\n| ----------------------- | ---------------------------------------------------------------------- |\n| `poll({cursor, limit})` | `{items, cursor, more}`: items changed since `cursor`, at most `limit` |\n\n```js\nexport const tracker = {\n  poll({ cursor, limit }, { config }) {\n    const changed = readItems(config).filter(\n      (item) => !cursor || mark(item) > cursor,\n    );\n    const page = changed.slice(0, limit);\n    return {\n      items: page,\n      cursor: page.length ? mark(page.at(-1)) : cursor,\n      more: changed.length > page.length,\n    };\n  },\n};\n```\n\n- `cursor` is your own text of at most 2,000 characters, or null on the\n  first poll. Return the cursor for the next poll and `more: true` when a\n  page is left. Avoozl asks for at most 500 items, polls each source at most\n  once per tick, and stores the new cursor only after every item of the\n  reply is handled, so a crash replays the same page. A failed poll keeps\n  the cursor and the items and shows the error on the source.\n- Each item has `id`, `link` (`http` or `https`), `kind` (`issue`, `pr`,\n  `review` or `ticket`), `title`, `state` (`open` or `closed`), and\n  `updatedAt`; and may have `body`, `labels`, `author`, `assignees`,\n  `closeReason`, `closedBy`, `closedAt`, `fields` (text, number or\n  true/false values) and `trigger`. An item that breaks a limit is refused\n  with a reason naming the field; the other items of the reply still count.\n- `trigger` is `{actor, permission, eventId, at}`: who last changed what a\n  rule would match, and that person's standing in your system, mapped to\n  `none`, `read`, `triage`, `write`, `maintain` or `admin`. Avoozl checks it\n  against the source's `allowedActors` and `minimumPermission` (default\n  `write`). Without the `actor` capability nobody counts, so your items only\n  list, pause or quarantine. A close counts as an order only when\n  `closedBy` is the trigger's actor and that actor counts.\n- A plugin that provides `intake` but not `tracker` is never asked to\n  `project`, `read`, `list` or `close`. Avoozl writes nothing back to an\n  intake source.\n\nDeclare the source under `intake.sources`, in `.avoozl.json` or in this\nmachine's `plugins.json` when its name must stay private:\n\n```json\n{\n  \"intake\": {\n    \"sources\": {\n      \"tickets\": {\n        \"via\": \"plugin:fake-tracker\",\n        \"repository\": \"example/app\",\n        \"labelFields\": [\"component\"],\n        \"minimumPermission\": \"write\"\n      }\n    }\n  }\n}\n```\n\n`repository` names a registered repository: its trigger rules apply, and a\ndelivered item's task lands there. A rule matches a source's items only\nwith a `source:` term, such as `label:go source:tickets`; a rule without\none matches GitHub only. `labelFields` adds a `<field>:<value>` label per\nfield and `assigneeField` an assignee before matching. Items no rule takes\nshow in the **Intake** tab with their source.\n\n## Testing your plugin\n\nCopy the fake plugins' approach: keep the remote system in a file or a local\nstand-in, declare the plugin in a temporary `plugins.json`, approve its hash,\nand run ticks. Avoozl's proof P26 does exactly this with the two fakes,\nproof P35 installs, previews, imports and polls the `sdk-team` bundle, and\nproof P37 starts a spec from the `sdk-templates` template.\nProof P32 polls the fake tracker as an intake source.\n";
-// src/PluginsSettings.tsx
+// docs/plugins.md?raw
+var Tv = "# Writing a plugin\n\nA plugin adds to Avoozl without changing Avoozl itself. One plugin can\nbundle several parts, so a team installs one plugin and gets its settings,\nits content rules, its tracker and its intake source together:\n\n| Part       | What it is                                                                | Runs code |\n| ---------- | ------------------------------------------------------------------------- | --------- |\n| `pack`     | Settings a person previews and copies into `.avoozl.json` once            | No        |\n| `rules`    | Content rule sets supplied while Avoozl runs                              | Yes       |\n| `tracker`  | A task tracker that keeps Avoozl's task records                           | Yes       |\n| `intake`   | An intake source: the tracker kind's `poll`, which brings outside work in | Yes       |\n| `route`    | A delivery route for tasks that are not run by a local worker             | Yes       |\n| `template` | A workflow template that starts a new spec from a reusable folder         | No        |\n\nLocal and GitHub are the only built-in routes and trackers. Everything\nelse, including any integration that must stay private, is a separate\npackage or folder that plugs in here.\n\nThe examples on this page are the test-only plugins in Avoozl's own test\ntree: `src/app/test/fixtures/plugins/sdk-team/` bundles a pack, rules, a\ntracker and an intake source; `sdk-templates/` holds one workflow template;\n`fake-route/`, `fake-tracker/` and `fake-rules/` each provide one part. Read them alongside this guide. These\nfakes are the only plugins tested so far; no real plugin has run live.\n\n## A pack's `crews` section\n\nA pack can carry a `crews` section for Issue Radar: `count`, `agent`\n(`avoozl-crew`), `models`, `labels` (`plan`, `ready`, `conflict`), `prompt`\n(the one-line crew prompt, word for word), `reviewRules` and `template`. The\nlabels and review rules go to each chosen repository's settings, and the\ncrew values show in Set up. A pack creates no crew: you create it in Issue\nRadar with the values Set up shows. Content rules screen the section before\nit is previewed or imported. `examples/sdk-team/avoozl-pack.json` is a\nsample with made-up values. It is tested with fakes only.\n\n## What a plugin is\n\nA plugin is a folder with a manifest, `avoozl-plugin.json`, an entry module\nfor the parts that run code, and, with a pack, `avoozl-pack.json`:\n\n```json\n{\n  \"id\": \"sdk-team\",\n  \"version\": \"1.0.0\",\n  \"contract\": 1,\n  \"provides\": [\"pack\", \"rules\", \"tracker\", \"intake\"],\n  \"capabilities\": { \"tracker\": [\"actor\", \"poll\"], \"rules\": [] },\n  \"pack\": \"avoozl-pack.json\",\n  \"entry\": \"index.mjs\"\n}\n```\n\n- `id` is lowercase letters, digits and dashes. `local` and `github` are\n  reserved. Tasks name the plugin as `plugin:<id>`.\n- `version` changes whenever you release a new build.\n- `contract` is the contract version: which version of Avoozl's plugin\n  interface this plugin was built for. It is not the plugin's own version.\n  Settings shows it as **Contract version**. This Avoozl supports contract\n  version `1`.\n- `provides` lists the parts: `pack`, `rules`, `tracker`, `intake`,\n  `route`, `lessons` and `template`. `intake` runs as the `tracker` kind and needs the `poll`\n  capability. A manifest written before `provides` lists `kinds` instead\n  (`route`, `tracker`, `rules`), and each kind is its own part. With\n  `provides`, leave `kinds` out; if you keep it, it must match.\n- `capabilities` lists optional features per kind. A tracker may list\n  `edges`, `subtasks`, `actor`, `pause` and `poll`. A route lists none yet.\n- `pack` names the pack file inside the folder; it defaults to\n  `avoozl-pack.json`.\n- `entry` is a `.mjs` or `.js` file inside the folder. A plugin that provides\n  only data parts (`pack`, `lessons`, `template`) runs no code, so it has no\n  `entry`; Avoozl refuses one that names an entry, and never starts a\n  process for it.\n\nThe entry module exports one object per kind: `route`, `tracker`, or\n`rules`. Each\nmethod takes `(params, { config })` and returns a JSON value or a promise of\none:\n\n```js\nexport const route = {\n  submit({ task, brief }, { config }) { ... },\n  status({ id }, { config }) { ... },\n  completion({ id }, { config }) { ... },\n  cancel({ id }, { config }) { ... },\n};\n```\n\n## Declaring and approving a plugin\n\nA `plugins` entry declares each plugin, either in the repository's\n`.avoozl.json` (shared and reviewed in Git) or in this machine's\n`plugins.json`, beside the global Avoozl configuration\n(`~/.config/avoozl/plugins.json`, never committed):\n\n```json\n{\n  \"plugins\": [\n    {\n      \"id\": \"fake-route\",\n      \"path\": \"../fake-route\",\n      \"contract\": 1,\n      \"config\": { \"stateFile\": \"route-state.json\" }\n    }\n  ]\n}\n```\n\n- Name exactly one of `path` (a folder, relative to the file that declares\n  it), `package` (a package installed into the `plugins` folder beside\n  `plugins.json`), or `git` (below).\n- `config` is plain data passed to every call. It never holds a credential. A\n  key ending in `Env`, such as `tokenEnv`, names the environment variable the\n  plugin reads its credential from; Avoozl passes that variable, and only the\n  variables `config` names this way, to the plugin.\n- Declare a plugin whose name must stay private in `plugins.json`. Settings\n  asks you to confirm before it saves a `plugins` entry into `.avoozl.json`.\n\n### Add plugin in Settings\n\n**Settings > Plugins > Add plugin** walks four steps, with Cancel on each:\n\n1. **Where from**: open Folder, Package or Git and fill it in. Each keeps\n   what you typed until you cancel. Git shows the exact commit its ref names.\n2. **What**: the id, version, kinds and capabilities the plugin's own\n   `avoozl-plugin.json` declares. The id and **Contract version** come from\n   that file; a git plugin, whose files are fetched later, picks a supported\n   contract version. A package's optional version is checked against the\n   installed package; the entry stores no version, the approval pins it.\n3. **Applies to**: this computer only (`plugins.json`) or shared with the\n   repository (`.avoozl.json`). A shared plugin is approved on each computer\n   for itself; a shared package is installed on each, and a shared git plugin\n   is fetched on each with **Update**. A shared folder is a path inside the\n   repository, relative to it.\n4. **Review and approve**: the version, content hash and, for git, the commit.\n   Cancel here removes the entry step 3 declared.\n\n### A plugin from a git repository\n\n```json\n{\n  \"id\": \"fake-route\",\n  \"git\": \"https://git.example.com/team/fake-route.git\",\n  \"ref\": \"v1.0.0\",\n  \"subdir\": \"plugin\",\n  \"contract\": 1\n}\n```\n\n`git` is a URL or a local repository path. `ref` is a tag, a branch or a full\ncommit, and `subdir` is the plugin's folder inside the repository. **Add from\ngit** in Settings (or `avoozl plugins add ID --git URL --ref REF`) resolves\n`ref` to one commit, fetches only that commit into\n`plugins/git/<id>/<commit>/` beside `plugins.json`, and stores the commit on\nthis machine. Git runs as you, with your credential helper or SSH key, so\nprivate repositories work. Git hooks are off, submodules are skipped, and\nAvoozl runs no `npm install`: commit the plugin ready to run, bundled or with\n`node_modules`. The approval names the commit, so a new commit needs a new\napproval. **Update** (or `avoozl plugins update ID`) resolves `ref` again.\nThe tick never fetches. Avoozl refuses a URL with a password or token in it,\na `subdir` outside the repository, and a commit with no `avoozl-plugin.json`.\n\nNothing loads until a person approves the plugin in **Settings** (or with\n`avoozl plugins approve ID --hash HASH`). Settings shows the id, version,\neach part, the code kinds it runs as, capabilities, location and content\nhash, a SHA-256 over every file in the folder, the pack included. The\napproval lists the parts and is stored on this machine only. Any change to\nthe version or to any file needs approval again. The tick and example\ninstallation never approve a plugin.\n\nA plugin **shared with the repo** puts its entry in `.avoozl.json`, where\nit is committed and reviewed like any other change. Each computer still\napproves it for itself. Because a shared entry is the same on every\ncomputer, its `config` holds no machine path: name an environment variable\n(`termsFileEnv`, `stateFileEnv`) that holds each computer's own path, as the\n`sdk-team` sample does.\n\n## How Avoozl runs a plugin\n\n- Each approved plugin runs in its own Node child process. Avoozl talks to it\n  in JSON lines over stdin and stdout, and gives it no port.\n- A plugin may call its own system over the network. It must not open a\n  listener. A plugin that listens is stopped and marked broken.\n- Write nothing to stdout yourself; it carries the protocol. `console.log`\n  output goes to stderr, which Avoozl discards.\n- Each call has a time limit (20 seconds by default) inside the tick's own\n  time budget.\n- Every reply is checked against the contract. Links must be `http` or\n  `https`. Reply text is untrusted data: Avoozl quotes it as data in briefs\n  and escapes it in views.\n- When a plugin is missing, unapproved, disabled, crashes, times out, replies\n  with the wrong shape, or expects an unsupported contract, Avoozl marks it\n  unavailable for that tick. Its tasks show \"needs you\" with the reason, and\n  every other task keeps moving. The next tick tries again. A plugin's tasks\n  never fall back to another route or tracker on their own.\n\n## Route kind\n\nA task whose manifest entry says `\"route\": \"plugin:<id>\"` is delivered by\nthat route instead of a local worker session. One graph can mix routes, for\nexample a local leaf, then a remote one, then a local one.\n\n| Call                    | Reply                                                                            |\n| ----------------------- | -------------------------------------------------------------------------------- |\n| `submit({task, brief})` | `{id, link}`: the remote ID and a link to the work                               |\n| `status({id})`          | `{state, link?, reason?}`: `queued`, `running`, `needs-person`, `failed`, `done` |\n| `completion({id})`      | `{pr?, answer?}`: a pull request link, an answer, or both                        |\n| `cancel({id})`          | `{cancelled}`                                                                    |\n\n- `submit` gets the task's own title, summary, acceptance and checks, and a\n  brief. Make it idempotent by task ID.\n- The tick reads `status` every tick until the work is done. `needs-person`\n  shows the task as \"needs you\" with your link.\n- A remote task is done only when `status` says `done` and `completion`\n  returns its result. Each dependent's brief quotes that result as data.\n- `failed` stops the task for a person. `route.resubmit` starts it again.\n\n## Tracker kind\n\nA task with `\"authority\": \"plugin:<id>\"` keeps its record in that tracker,\nthe way a GitHub task keeps its record in an issue. SQLite only caches it:\ndirect edits are refused, and changes go through the spec and projection.\n\n| Call                               | Reply                                                                                  |\n| ---------------------------------- | -------------------------------------------------------------------------------------- |\n| `project({task, desired, marker})` | `{id, link, marker}`: create or update the record, idempotent by namespace and task ID |\n| `read({ids})`                      | `{records: [...]}`: each record's state and fields                                     |\n| `list({namespace})`                | `{records: [...]}`: every record carrying this namespace, for rebuild                  |\n| `close({id, reason})`              | `{closed}`: close with reason `completed` or `not_planned`                             |\n\nEach record in a `read` or `list` reply has:\n\n- `id`, `link`, `state` (`open` or `closed`), and `closeReason` when closed;\n- `fields`: the managed values as they are in the tracker now: `title`,\n  `section` (the managed description section) and `tags`, plus `blockedBy`\n  with the `edges` capability;\n- `marker`: the namespace, task ID and last applied values Avoozl stored with\n  the record, returned unchanged;\n- with the `actor` capability, `closedBy` and `pausedBy`: who closed or paused\n  it; with `pause`, `paused`.\n\nRules a tracker plugin must follow:\n\n- **Store the marker.** Keep the `marker` from `project` with the record (a\n  hidden field or a managed description section) and return it unchanged from\n  `project`, `read` and `list`. A plugin that does not is refused as a\n  tracker.\n- **Edges.** Without the `edges` capability, the graph stays in Avoozl: its\n  edges come from the approved spec. With `edges`, `desired.blockedBy` lists\n  the record IDs that block this one; store them as the tracker's own links.\n- **Edit only managed fields.** Avoozl changes the title, the managed section,\n  managed tags and, with `edges`, blocking links. A field a person changed is a\n  conflict that Avoozl reports and leaves alone.\n- **Completion is Avoozl's.** Avoozl decides a task is done and then calls\n  `close(id, \"completed\")`. A close or pause by someone else is judged with\n  the actor you report, against the entry's `config.allowedActors`. Without\n  the `actor` capability, every outside close holds the task's dependents for\n  a person.\n\n## Rules kind\n\nA rules plugin supplies content rule sets: terms Avoozl must never write\n(see \"Ban private terms\" in `docs/policies.md`). It lets a team ship its\nlist as a private package that public Avoozl never sees.\n\n| Call           | Reply                                             |\n| -------------- | ------------------------------------------------- |\n| `ruleSets({})` | `{sets: [{id, version, rules: [{id, pattern}]}]}` |\n\n- `pattern` is a regular expression, matched per line ignoring case.\n- A set or rule must not carry `allow`. Allow lines exist only in a person's\n  own terms file; a plugin writes its exception into the pattern itself\n  (for example `\\bzebra\\b(?!-ui)`). A reply with `allow` is refused, which\n  makes that plugin's sets unavailable.\n- A `.avoozl.json` set `{ \"id\": \"<set id>\", \"plugin\": \"<plugin id>\" }` picks\n  one set by id. In **Settings > Content rules**, pick the plugin as the set's\n  **Rules plugin**; such a set has no terms file to edit there.\n- Without a plugin, a set's rules live in its terms file,\n  `.avoozl/local/content-rules/<set id>.txt`, one `name: pattern` per line,\n  plus `allow:` lines for false matches.\n  Settings edits it with a Rule builder (word or phrase, or pattern) and a\n  File view, writes it readable by your account only, and refuses to write\n  it where Git could commit it. **How rules work** on that tab explains the\n  format with made-up examples.\n- Avoozl keeps the rules in memory for the tick. It never writes them to\n  SQLite, receipts, or Git; findings record the set's `version`.\n- A plugin that is missing, unapproved, or broken makes only its own sets\n  unavailable, and every boundary those sets cover writes nothing until it is\n  fixed.\n\n## Pack part\n\nA pack is settings only. Avoozl never runs anything from it. It is one JSON\nfile:\n\n```json\n{\n  \"description\": \"Triage labels, triggers and who counts for SDK repositories.\",\n  \"settings\": {\n    \"repositories\": {\n      \"minimumPermission\": \"write\",\n      \"rules\": [\n        {\n          \"id\": \"deliver\",\n          \"action\": \"deliver\",\n          \"match\": \"label:avoozl:deliver -label:needs-triage -label:response-requested\"\n        }\n      ],\n      \"untriaged\": {\n        \"filter\": \"label:needs-triage\",\n        \"triageLabels\": [\"response-requested\", \"closing-soon\"]\n      }\n    },\n    \"project\": { \"fields\": { \"status\": \"Status\", \"release\": \"Release\" } },\n    \"contentRules\": { \"sets\": [{ \"id\": \"team-terms\", \"plugin\": \"sdk-team\" }] }\n  }\n}\n```\n\nWhat a pack may set, and where each lands in `.avoozl.json`:\n\n| Pack key                     | Sets                                                                                                                                                                                     |\n| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |\n| `settings.repositories`      | For each repository you pick at import: `rules` (trigger `match` lines), `untriaged`, `allowedActors`, `minimumPermission`, `requiredChecks`, `priority`, `managedLabels`, `concurrency` |\n| `settings.project`           | `github.project.fields` and `statusValues`, when a GitHub Project is set                                                                                                                 |\n| `settings.epicIssueType`     | `github.epicIssueType`                                                                                                                                                                   |\n| `settings.contentRules.sets` | Rule set references by id (`plugin`, `action`, `boundaries`), never rules                                                                                                                |\n| `settings.delivery`          | `reviewers` (review roles), `agent`, `model`, `runner`, `concurrency`                                                                                                                    |\n| `settings.flow`              | Flow settings, such as `batch.max`                                                                                                                                                       |\n\n- Every key is checked with the same rules Settings uses. Any other key is\n  refused by name, such as `Pack key settings.repositories.autoMerge is not\na pack setting.`, and the plugin shows as invalid until it is fixed.\n- A pack cannot hold a credential or a content rule pattern. Terms come\n  from the `rules` part at run time, so they are never stored in a public\n  repository.\n- A pack has no follow mode and no org minimums. Avoozl copies the\n  settings once; after that they are the repository's own settings.\n\n**Import.** On the plugin's card in **Settings > Plugins**, **Preview and\nimport pack** shows each setting as **Create**, **Change**, **Keep** or\n**Skip** (a setting that cannot apply here, such as Project fields with no\nProject set), with the old and new values. Nothing is written until\n**Import settings**, and only:\n\n- after this computer approved this exact plugin version;\n- for the exact preview shown: if the pack or `.avoozl.json` changed since,\n  Avoozl asks you to preview again;\n- when a setting would let more people give orders than before (a lower\n  `minimumPermission`, or new `allowedActors`), only after you accept that\n  change, which the preview names on its own line;\n- for a plugin declared on this computer only, after you confirm that its\n  id and settings go into `.avoozl.json`.\n\nImport writes `packs` into `.avoozl.json`: for each plugin, the version\nimported, when and by whom, and the settings that came from it. When a\nnewer version arrives, approve it, and the card offers its preview again;\nimporting it records the new version. At the command line:\n\n```sh\navoozl plugins pack-preview sdk-team\navoozl plugins pack-import sdk-team --preview HASH [--accept-lowered]\n```\n\n## Template part\n\nA workflow template starts a new spec the same way each time, such as one\nSDK rewrite after another. It is data only. Each template is a folder under\n`templates/` in the plugin:\n\n```\ntemplates/sdk-rewrite/\n  avoozl-template.json\n  prompt.md\n  starter/requirements.md\n  starter/design.md\n  starter/tasks.md\n  starter/avoozl/manifest.json\n```\n\n`avoozl-template.json` holds:\n\n| Key                          | Holds                                                                                                                                    |\n| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |\n| `id`, `title`, `description` | What the New spec drawer shows                                                                                                           |\n| `inputs`                     | Fields the person fills; each has `id`, `label`, `type` (`text`, `choice` with `options`, `file`, `repositories`, `epic`) and `required` |\n| `prompt`                     | The planner prompt, a Markdown file                                                                                                      |\n| `starter`                    | A spec folder in the usual layout                                                                                                        |\n| `phases`                     | Optional: the starter's phases, `{id, title}` in order                                                                                   |\n| `proofKinds`                 | Optional: proof outlines the prompt asks the planner to fill in                                                                          |\n| `pack`                       | Optional: a settings pack, as in the pack part                                                                                           |\n| `flow`                       | Optional: flow defaults: `batch`, `stopTheLine`, `localChecksFirst`, `retro.everyTasks`                                                  |\n\nThe prompt and starter files may use `{{<input id>}}`. Avoozl puts in what\nthe person typed, as plain text, once, and never runs it. A `file` input is\nread in the page, at most 200 KB of text; Avoozl never opens a path someone\ntyped. The plugin shows as invalid, naming the key or file, when:\n\n- a key or input setting is unknown, or an input ID is used twice;\n- a file uses a placeholder that is no input ID;\n- the starter, with sample values put in, does not lint clean;\n- `phases` does not match the starter's headings or manifest `phase` values;\n- `pack` or `flow` fails its own check.\n\nA template is offered only while its plugin is approved on this computer.\nIn **New spec**, choose **From template**, pick it, and fill its inputs\nbeside Name, Category and Epic. Submit checks the inputs and runs content\nrules on the seed, then opens a planner chat with the prompt, the filled\nstarter and the inputs. Picking a template changes no setting: with a `pack`\nor `flow`, the drawer shows the pack preview with **Import these settings**\nunticked, and only ticking it imports them, as Settings does. The folder\ncomes back as a draft spec that records the template; with an epic picked,\nthe epic's change comes back as its own draft. Nothing is approved, started\nor pushed.\n\nThe sample `sdk-templates/` plugin has an **SDK rewrite** template: six\nphases (inventory, codegen, runtime, protocol tests, review, cutover), a\nmanual **Review with team** task that cutover waits on, two proof kinds and\nflow defaults. Proof P37 runs it with a fake GitHub; no template has run\nlive yet.\n\nA starter may hold manual tasks (`\"manual\": true`): steps only a person\ndoes. See [Manual tasks and links and notes](policies.md#manual-tasks-and-links-and-notes).\n\n## Intake part\n\nAn intake source is a tracker kind with the `poll` capability, listed in\n`provides` as `intake`. The fake tracker (`fake-tracker/`) is the example:\nits `poll` reads a JSON file of items and returns those changed since the\ncursor.\n\n| Call                    | Reply                                                                  |\n| ----------------------- | ---------------------------------------------------------------------- |\n| `poll({cursor, limit})` | `{items, cursor, more}`: items changed since `cursor`, at most `limit` |\n\n```js\nexport const tracker = {\n  poll({ cursor, limit }, { config }) {\n    const changed = readItems(config).filter(\n      (item) => !cursor || mark(item) > cursor,\n    );\n    const page = changed.slice(0, limit);\n    return {\n      items: page,\n      cursor: page.length ? mark(page.at(-1)) : cursor,\n      more: changed.length > page.length,\n    };\n  },\n};\n```\n\n- `cursor` is your own text of at most 2,000 characters, or null on the\n  first poll. Return the cursor for the next poll and `more: true` when a\n  page is left. Avoozl asks for at most 500 items, polls each source at most\n  once per tick, and stores the new cursor only after every item of the\n  reply is handled, so a crash replays the same page. A failed poll keeps\n  the cursor and the items and shows the error on the source.\n- Each item has `id`, `link` (`http` or `https`), `kind` (`issue`, `pr`,\n  `review` or `ticket`), `title`, `state` (`open` or `closed`), and\n  `updatedAt`; and may have `body`, `labels`, `author`, `assignees`,\n  `closeReason`, `closedBy`, `closedAt`, `fields` (text, number or\n  true/false values) and `trigger`. An item that breaks a limit is refused\n  with a reason naming the field; the other items of the reply still count.\n- `trigger` is `{actor, permission, eventId, at}`: who last changed what a\n  rule would match, and that person's standing in your system, mapped to\n  `none`, `read`, `triage`, `write`, `maintain` or `admin`. Avoozl checks it\n  against the source's `allowedActors` and `minimumPermission` (default\n  `write`). Without the `actor` capability nobody counts, so your items only\n  list, pause or quarantine. A close counts as an order only when\n  `closedBy` is the trigger's actor and that actor counts.\n- A plugin that provides `intake` but not `tracker` is never asked to\n  `project`, `read`, `list` or `close`. Avoozl writes nothing back to an\n  intake source.\n\nDeclare the source under `intake.sources`, in `.avoozl.json` or in this\nmachine's `plugins.json` when its name must stay private:\n\n```json\n{\n  \"intake\": {\n    \"sources\": {\n      \"tickets\": {\n        \"via\": \"plugin:fake-tracker\",\n        \"repository\": \"example/app\",\n        \"labelFields\": [\"component\"],\n        \"minimumPermission\": \"write\"\n      }\n    }\n  }\n}\n```\n\n`repository` names a registered repository: its trigger rules apply, and a\ndelivered item's task lands there. A rule matches a source's items only\nwith a `source:` term, such as `label:go source:tickets`; a rule without\none matches GitHub only. `labelFields` adds a `<field>:<value>` label per\nfield and `assigneeField` an assignee before matching. Items no rule takes\nshow in the **Intake** tab with their source.\n\n## Testing your plugin\n\nCopy the fake plugins' approach: keep the remote system in a file or a local\nstand-in, declare the plugin in a temporary `plugins.json`, approve its hash,\nand run ticks. Avoozl's proof P26 does exactly this with the two fakes,\nproof P35 installs, previews, imports and polls the `sdk-team` bundle, and\nproof P37 starts a spec from the `sdk-templates` template.\nProof P32 polls the fake tracker as an intake source.\n";
+// kirocrew-app/ui/src/PluginsSettings.tsx
 function Ev({ row: e }) {
 	let t = Object.entries(e.capabilities ?? {}).map(([e, t]) => `${e}: ${t.length ? t.join(", ") : "none"}`).join("; "), n = [
 		["Version", e.version],
@@ -25475,7 +25475,7 @@ function Av({ workspaceId: e, onOpenGitHub: t }) {
 		]
 	});
 }
-// src/content-api.ts
+// kirocrew-app/ui/src/content-api.ts
 var jv = {
 	plan: "Spec files",
 	github: "GitHub text",
@@ -25688,7 +25688,7 @@ function ly(e) {
 		}, e)
 	};
 }
-// src/ContentRulesSettings.tsx
+// kirocrew-app/ui/src/ContentRulesSettings.tsx
 var uy = "avoozl-content-help";
 function dy() {
 	let e = document.getElementById(uy);
@@ -26887,7 +26887,7 @@ function Ny({ workspaceId: e }) {
 		]
 	});
 }
-// src/PromptInstructions.tsx
+// kirocrew-app/ui/src/PromptInstructions.tsx
 var Py = {
 	borderColor: "var(--border)",
 	color: "var(--text)",
@@ -26971,7 +26971,7 @@ function Fy(e) {
 		]
 	});
 }
-// src/FlowSettings.tsx
+// kirocrew-app/ui/src/FlowSettings.tsx
 var Iy = { required: !1 }, Ly = {
 	borderColor: "var(--border)",
 	color: "var(--text)",
@@ -27373,7 +27373,7 @@ function Hy({ workspaceId: e }) {
 		]
 	});
 }
-// src/BudgetSettings.tsx
+// kirocrew-app/ui/src/BudgetSettings.tsx
 var Uy = { required: !1 }, Wy = 2e6, Gy = 200, Ky = (e) => e.toLocaleString("en-US");
 function qy(e) {
 	return /* @__PURE__ */ w("div", {
@@ -27696,7 +27696,7 @@ function Xy({ workspaceId: e }) {
 		]
 	});
 }
-// src/DeliverySettings.tsx
+// kirocrew-app/ui/src/DeliverySettings.tsx
 var Zy = { required: !1 }, Qy = "The tick starts no ready task until delivery is on. Its agent, model and pull request settings show here then.", $y = {
 	borderColor: "var(--border)",
 	color: "var(--text)",
@@ -28043,7 +28043,7 @@ function nb({ workspaceId: e, onOpenRouting: t }) {
 		})]
 	});
 }
-// src/RoutingView.tsx
+// kirocrew-app/ui/src/RoutingView.tsx
 var rb = { required: !1 }, ib = { required: !0 }, ab = {
 	borderColor: "var(--border)",
 	color: "var(--text)",
@@ -28987,7 +28987,7 @@ function vb({ workspaceId: e }) {
 		})]
 	});
 }
-// src/SettingsView.tsx
+// kirocrew-app/ui/src/SettingsView.tsx
 var yb = {
 	borderColor: "var(--border)",
 	color: "var(--text)",
@@ -30768,7 +30768,7 @@ function $b(e) {
 		]
 	});
 }
-// src/activity-api.ts
+// kirocrew-app/ui/src/activity-api.ts
 var ex = {
 	local: "This workspace",
 	github: "GitHub",
@@ -31224,7 +31224,7 @@ function gx({ workspaceId: e }) {
 		]
 	});
 }
-// src/providers-api.ts
+// kirocrew-app/ui/src/providers-api.ts
 function _x(e) {
 	let t = (t, n, r = {}) => e.post(W, {
 		operation: n,
@@ -31808,7 +31808,7 @@ function jx({ dry: e, changed: t }) {
 		]
 	});
 }
-// src/StopLine.tsx
+// kirocrew-app/ui/src/StopLine.tsx
 var Mx = {
 	background: "var(--danger)",
 	borderColor: "var(--danger)",
@@ -32072,7 +32072,7 @@ function Ux(e, t, n) {
 function Wx(e, t) {
 	return t === "ArrowLeft" ? e + 40 : t === "ArrowRight" ? e - 40 : null;
 }
-// src/TaskForm.tsx
+// kirocrew-app/ui/src/TaskForm.tsx
 var Gx = {
 	borderColor: "var(--border)",
 	color: "var(--text)",
@@ -32408,7 +32408,7 @@ function Xx(e) {
 		]
 	});
 }
-// src/evidence-api.ts
+// kirocrew-app/ui/src/evidence-api.ts
 var Zx = {
 	findings: "Findings",
 	falsifier: "Falsifier",
@@ -32438,7 +32438,7 @@ function $x(e, t) {
 function eS(e) {
 	return e < 1024 ? `${e} B` : e < 1048576 ? `${Math.ceil(e / 1024)} KB` : `${(e / 1048576).toFixed(1)} MB`;
 }
-// src/Evidence.tsx
+// kirocrew-app/ui/src/Evidence.tsx
 function tS({ workspaceId: e, taskId: t, entry: n }) {
 	let r = K(), i = l(() => Qx(r), [r]), [a, o] = d(null), [s, c] = d(null), u = n.file, f = async () => {
 		try {
@@ -32528,7 +32528,7 @@ function nS({ workspaceId: e, taskId: t }) {
 		children: "Loading…"
 	});
 }
-// src/files-api.ts
+// kirocrew-app/ui/src/files-api.ts
 function rS(e) {
 	let t = async (t, n, r) => (await e.post(W, {
 		operation: t,
@@ -32687,7 +32687,7 @@ function vS(e) {
 	let t = e.additions !== null && e.deletions !== null ? ` (+${e.additions} −${e.deletions})` : "";
 	return e.link ? "A link. Not followed or shown." : e.binary ? "Binary file. Not shown." : e.tooLarge ? `Too large to show here${t}${e.bytes ? `, ${Math.round(e.bytes / 1024)} KB` : ""}. Open it in your editor.` : e.status === "unchanged" ? "This task did not change this file." : e.status === "deleted" && !e.diff ? "Deleted." : e.diff ? null : "No text changes.";
 }
-// src/TaskFiles.tsx
+// kirocrew-app/ui/src/TaskFiles.tsx
 var yS = 1500;
 function bS() {
 	try {
@@ -33140,7 +33140,7 @@ function jS(e) {
 		]
 	});
 }
-// src/TaskNotes.tsx
+// kirocrew-app/ui/src/TaskNotes.tsx
 var MS = {
 	borderColor: "var(--border)",
 	color: "var(--text)",
@@ -33750,7 +33750,7 @@ function LS(e) {
 		]
 	});
 }
-// src/TaskDrawer.tsx
+// kirocrew-app/ui/src/TaskDrawer.tsx
 function RS({ label: e, children: t }) {
 	return /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C("dt", {
 		className: "text-muted",
@@ -34724,7 +34724,7 @@ function GS({ workspaceId: e, children: t, onFocus: n }) {
 		})]
 	});
 }
-// src/App.tsx
+// kirocrew-app/ui/src/App.tsx
 var KS = [
 	{
 		key: "dashboard",
