@@ -6547,7 +6547,7 @@ function Js(e) {
 					children: [
 						/* @__PURE__ */ S("span", { children: "On GitHub:" }),
 						/* @__PURE__ */ S("a", {
-							href: e.url,
+							href: $(e.url),
 							target: "_blank",
 							rel: "noreferrer",
 							children: /* @__PURE__ */ S("code", { children: e.query })
@@ -6597,7 +6597,7 @@ function Js(e) {
 					},
 					children: [
 						/* @__PURE__ */ C("a", {
-							href: e.url ?? void 0,
+							href: $(e.url),
 							target: "_blank",
 							rel: "noreferrer",
 							className: "font-medium",
@@ -6623,7 +6623,7 @@ function Js(e) {
 							]
 						}),
 						e.chat && /* @__PURE__ */ S("a", {
-							href: e.chat,
+							href: $(e.chat),
 							className: "text-xs",
 							children: "Open chat"
 						})
