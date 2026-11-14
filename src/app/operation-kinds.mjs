@@ -296,6 +296,7 @@ const PROTECT = new Set([
   "radar.setup",
   "mirror.adopt",
   "mirror.create",
+  "mirror.forward",
   "radar.signoff",
   "radar.retro.apply",
   "local.ignore.fix",
