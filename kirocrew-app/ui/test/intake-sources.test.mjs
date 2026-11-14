@@ -62,7 +62,7 @@ test('the form saves who counts for a plugin only, and names the field to fix', 
 
 test('the form uses the shared Modal and radio fold-out, and status lives in one place', () => {
   const page = source('IntakeSources.tsx')
-  assert.match(page, /<Modal\s+id="avoozl-intake-add"/)
+  assert.match(page, /<(Modal|Shelf)\s+id="avoozl-intake-add"/)
   for (const name of ['intake-via', 'intake-who', 'intake-scope']) assert.match(page, new RegExp(`<RadioFold\\s+name="${name}"`))
   assert.doesNotMatch(page, /<select[^>]*>\s*<option value="mcp">/, 'Comes from is a radio choice, not a select')
   assert.match(page, /<Tooltip text=\{SCOPE_TIP\[scope\]\}>/, 'tooltips are the shared Tooltip')

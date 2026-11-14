@@ -12,7 +12,7 @@ import { DangerBtn, IconBtn, IconLabel, TipBtn, useConfirm } from './controls.ts
 import { ExternalLink, FolderOpen, Pencil, Plus } from './icons.ts'
 import { errorMessage, workspaceClient, type DetectedCheckout, type Repository } from './workspace-api.ts'
 import { githubHref, type RepositoryRow } from './repository-rows.ts'
-import { Modal } from './Modal.tsx'
+import { Shelf } from './Shelf.tsx'
 import { linkHref } from './views-api.ts'
 export { repositoryRows, type RepositoryRow } from './repository-rows.ts'
 
@@ -152,8 +152,9 @@ export function RepositoryDialog(props: {
   // Cancel asks too; Esc, Back and a click outside ask through the Modal.
   const dismiss = () => (props.edited ? void ask(discard).then((yes) => yes && props.onDiscard()) : props.onDiscard())
   return (
-    <Modal
+    <Shelf
       id="avoozl-repo-edit"
+      width="46rem"
       title={props.name}
       unsaved={props.edited && discard}
       onDismiss={props.onDiscard}
@@ -177,7 +178,7 @@ export function RepositoryDialog(props: {
       }
     >
       {props.children}
-    </Modal>
+    </Shelf>
   )
 }
 

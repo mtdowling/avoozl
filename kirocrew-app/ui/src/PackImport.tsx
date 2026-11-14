@@ -16,7 +16,7 @@ import {
   type PluginRow,
 } from './plugins-api.ts'
 import { errorMessage } from './workspace-api.ts'
-import { Modal } from './Modal.tsx'
+import { Shelf } from './Shelf.tsx'
 
 type Client = ReturnType<typeof pluginsClient>
 
@@ -126,7 +126,7 @@ export function PackImportDialog(props: { row: PluginRow; workspaceId: string; c
   }
   return (
     // Esc, Back and a click outside do what Cancel does.
-    <Modal id="avoozl-pack" width="48rem" backLabel="Cancel" boxRef={box} attrs={{ 'data-pack-dialog': true }} onDismiss={cancel}>
+    <Shelf id="avoozl-pack" width="48rem" backLabel="Cancel" boxRef={box} attrs={{ 'data-pack-dialog': true }} onDismiss={cancel}>
       <div>
         <h3 id="avoozl-pack-title" className="text-base font-semibold">
           Import {row.id} version {row.version}
@@ -163,6 +163,6 @@ export function PackImportDialog(props: { row: PluginRow; workspaceId: string; c
           Import settings
         </Btn>
       </div>
-    </Modal>
+    </Shelf>
   )
 }
