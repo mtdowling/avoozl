@@ -107,7 +107,7 @@ and no stranger's issue reaches a plan.
    `crew: in progress`, and the needs-human label as Radar shows it. The
    Settings page SHALL show each name, what it does and who writes it.
 4. Avoozl SHALL NOT write Radar's claim or needs-human labels (Requirement
-   17.4, 52). It SHALL write the planning label only to remove it after a plan
+   17.4, 52), except the one claim at approval (RC19). It SHALL write the planning label only to remove it after a plan
    is projected, and only when the person set the repository's
    `radar.clearPlanLabel` to on. Default: off.
 5. The `plan me` hand-off SHALL route as PR 67 built it: a trusted author, or
@@ -668,6 +668,20 @@ count a task done only when the public pull request merges.
 9. The adapter SHALL use only a documented interface of the harness and SHALL
    need no setting beyond a connection the person makes in the harness's own
    app. Avoozl SHALL NOT store the harness's credentials.
+10. The tick SHALL start the harness's MCP server as a local child process,
+    the way an existing Kiro Crew app starts its own, and SHALL call only its
+    create-code-task tool and its get-task-statuses tool. It SHALL start no
+    other process and open no listening socket for this.
+11. Avoozl SHALL file each task under the **approving person's own identity**,
+    on purpose: that identity is the provenance. The receipt (RC3, Requirement
+    15) SHALL record the approver, the harness task ID and the Avoozl task IDs
+    it covers. Avoozl SHALL NOT file under any other identity.
+12. WHEN the person's sign-in has expired, Avoozl SHALL open one Needs you item
+    ("Sign in again") and hold all new filing for that person. It SHALL NOT
+    retry in a loop: it SHALL try again only after the person says they signed
+    in, or on a later tick after one cheap check passes. Tasks already filed
+    keep being watched when the harness allows it. The item SHALL clear when
+    filing works again.
 
 ### Requirement RC16: Integration branches for rewrites
 
@@ -754,3 +768,66 @@ changes, so that each one starts from the right shape.
 7. Docs and templates SHALL use generic terms only: repositories,
    requirements, a generator, a gap report. They SHALL name no internal tool,
    service, host or team (RC15.1).
+
+### Requirement RC18: Approve on the issue
+
+**User story:** As a trusted person, I want to approve a drafted plan by
+adding a label on the issue that asked for it, and I want an approval made in
+Avoozl or in a chat to show up on that issue, so that the issue always tells
+the truth.
+
+#### Acceptance criteria
+
+1. The **approval label** SHALL be configurable per repository. Default name:
+   `plan approved`. It SHALL differ from the planning, needs-human, claim,
+   ready and conflict labels; two equal names SHALL be refused naming both
+   (RC1.3).
+2. WHEN the approval label is added to the issue that asked for a plan, and
+   that issue has a drafted plan whose lint has 0 errors, the tick SHALL check
+   the person who added it with the same check the trigger labels use
+   (`allowedActors`, `minimumPermission`; Requirement 10). A person who passes
+   SHALL approve the plan, and Avoozl SHALL record the approval (RC3.6).
+3. An untrusted labeler, or one whose login cannot be read, SHALL be ignored:
+   Avoozl SHALL remove the label, approve nothing, and show one Needs you row
+   naming the login and the issue, once.
+4. WHEN a plan is approved in Avoozl, or in a chat or the CLI (`plans_*` tool),
+   Avoozl SHALL write the approval back to the issue that asked for it: add
+   the approval label, and post one comment with a hidden marker holding the
+   approver's login, the spec path, the commit and the time. The comment text
+   SHALL NOT quote the spec.
+5. Both paths SHALL end in **one approval record**. A second approval of the
+   same revision, from any path, SHALL do nothing: no second record, no second
+   comment and no second label write.
+6. The label write-back SHALL be a best effort that never blocks the approval:
+   WHEN it fails, the approval stands and one Needs you row says the issue was
+   not updated.
+7. WHEN the approval label is removed after approval, Avoozl SHALL NOT revoke
+   the approval. A revoke SHALL be an explicit act in Avoozl.
+8. Plan approval SHALL stay separate from implementation, integration and
+   whole-head acceptance (AGENTS.md). The approval label SHALL mean the first
+   and nothing else.
+9. WHEN the approved plan has no source issue (a plan started in Avoozl), the
+   write-back SHALL be skipped without a row.
+
+### Requirement RC19: Claim at approval
+
+**User story:** As the owner, I want the parent issue marked as taken the
+moment its plan is approved, so that no crew picks up the parent itself while
+its sub-issues wait for release.
+
+#### Acceptance criteria
+
+1. WHEN a plan is approved and its source issue is the parent of the projected
+   issues (RC1.6), Avoozl SHALL post the crew claim marker on the parent, in
+   the format Radar's claim comment uses, and SHALL add Radar's in-progress
+   label. This is the one case where RC1.4 lets Avoozl write the claim label.
+2. WHEN a Radar crew already holds a claim on the parent, Avoozl SHALL leave it
+   and SHALL write nothing there, and SHALL note it once in the plan's Trace.
+3. The marker SHALL say it is held by Avoozl for the plan and SHALL NOT claim
+   any crew id of a real crew. A crew reading it SHALL see the parent as taken.
+4. Sub-issues SHALL be released later with the ready label in graph order
+   (RC4), never by this claim.
+5. WHEN the plan is superseded or the parent closes, Avoozl SHALL remove its
+   own claim label and SHALL leave a claim that is not its own.
+6. The claim SHALL be written once per approval. A second approval is a no-op
+   (RC18.5).

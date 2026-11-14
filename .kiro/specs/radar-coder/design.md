@@ -614,6 +614,16 @@ ready -> filed -> working -> finished-unpublished -> (person publishes) -> pr-op
   variable or the person's local config, so the repository never contains the
   names it forbids (RC15.1).
 
+- **Process.** The tick starts the harness's MCP server as a local child
+  process, the way an existing Kiro Crew app does, calls `create-code-task` and
+  `get-task-statuses`, and stops it after the tick. It opens no socket (RC15.10).
+- **Identity.** Tasks are filed under the approving person's own sign-in. That
+  is the provenance. The receipt holds the approver, the harness task ID and
+  the Avoozl task IDs (RC15.11).
+- **Expired sign-in.** One Needs you item, "Sign in again". New filing is held
+  for that person. No retry loop: the next try needs the person's word or one
+  cheap check that passes (RC15.12).
+
 | Failure                                    | What Avoozl does                                                  |
 | ------------------------------------------ | ----------------------------------------------------------------- |
 | Harness unreachable                        | Keep the last state, show its age, release no dependents          |
@@ -683,6 +693,33 @@ gap report (repository x requirement) -> proposed tasks per sub-spec -> a person
   is refused by number (RC17.6).
 - All wording is generic (RC17.7, RC15.1).
 
+## D23. Approve on the issue (RC18)
+
+```text
+label added on the issue ----> tick: labeler passes the actor check? --no--> remove label, one Needs you row
+                                       | yes
+                                       v
+Avoozl / chat / CLI approve ---> ONE approval record (a second one is a no-op) ---> write back to the issue:
+                                                                                     label + one marker comment
+```
+
+- The same check as trigger labels: `allowedActors`, `minimumPermission`.
+- The marker comment holds the approver login, the spec path, the commit and
+  the time, hidden in a comment, with no spec text.
+- Write-back is best effort. A failure leaves the approval and raises one row.
+- Removing the label later revokes nothing. Revoke is an act in Avoozl.
+- Approval stays one of four records: approval, implementation, integration,
+  whole-head acceptance (D15, D21).
+
+## D24. Claim at approval (RC19)
+
+On approval the parent issue gets the claim comment in Radar's format and the
+in-progress label, so no crew takes the parent. The marker names Avoozl as the
+holder and no real crew id. If a Radar crew already holds a claim, Avoozl
+writes nothing and notes it in Trace. Sub-issues are released with `ready`
+in graph order (D6). Avoozl removes only its own claim when the plan is
+superseded or the parent closes.
+
 Proofs added to D17:
 
 | Proof  | Proves                                                                                       |
@@ -692,3 +729,5 @@ Proofs added to D17:
 | rc-p15 | A remote coder: filed, waiting-for-publish row, done only on merge                           |
 | rc-p16 | An epic on an integration branch: small merges, whole-head checks, sync, stop, one landing   |
 | rc-p17 | Templates produce valid specs; sub-specs and a gap report become tasks                       |
+| rc-p18 | Approval by label and by Avoozl end in one record and one issue write-back; an untrusted labeler is removed |
+| rc-p19 | The parent is claimed at approval; an existing crew claim is left alone |
