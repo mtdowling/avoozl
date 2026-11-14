@@ -1,14 +1,9 @@
 // Code review chat (design §8.5): the Code review button on a pull request
 // asks the tick cron to open one Kiro Crew chat, seeded to review that one
-// pull request with the sage-review skill and post nothing. The cron opens
+// pull request and post nothing. The cron opens
 // it with the same session permission it opens worker sessions with, and
 // binds it as role `pr-review` to this request's receipt, so the page can
 // show Attach. Avoozl itself makes no GitHub call here.
-// shortcut: a stand-in until Kiro Crew can start Code Review Sage on one
-// pull request from an app (MC-15); then open Code Review Sage instead.
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
 import { allowWrite } from "./content-rules.mjs";
 import { FINAL_STATUSES } from "./session-bindings.mjs";
 import { fail } from "./store.mjs";
@@ -25,25 +20,13 @@ const lower = (value) => String(value).toLocaleLowerCase();
 export const reviewId = (repository, number) =>
   `${REVIEW_KIND}:${lower(repository)}#${number}`;
 
-// Where Kiro Crew installs the sage-review skill, read at request time: in
-// this crew's home, which a second gateway names with KIROCREW_HOME.
-export const sageSkillPath = (home = os.homedir(), env = process.env) =>
-  path.join(
-    env.KIROCREW_HOME
-      ? path.resolve(env.KIROCREW_HOME)
-      : path.join(home, ".kiro", "crew"),
-    "skills",
-    "sage-review",
-    "SKILL.md",
-  );
-
 // The chat's first message. Every value is GitHub's or the plan's text, so
 // the whole seed passes content rules before it is queued. `task` is the
 // Avoozl task the pull request belongs to; an Untriaged pull request has
 // none by definition (untriaged.mjs), so today's caller passes null.
 // Its title, description, comments and diff are the author's, who may be
 // anyone, so the title is quoted as data and the chat is told the rest is.
-export function reviewSeed({ repository, pull, task = null, skill = null }) {
+export function reviewSeed({ repository, pull, task = null }) {
   const lines = [
     `Review one pull request: ${pull.url}`,
     "",
@@ -68,9 +51,7 @@ export function reviewSeed({ repository, pull, task = null, skill = null }) {
   }
   lines.push(
     "",
-    skill
-      ? `Load the sage-review skill (${skill}) and follow it for this one pull request.`
-      : "The sage-review skill is not installed on this machine. Do a careful single-pull-request review without it: read the description, the linked issue and every changed file, and check correctness, tests, error handling, security and fit with the code around it.",
+    "Do a careful single-pull-request review: read the description, the linked issue and every changed file, and check correctness, tests, error handling, security and fit with the code around it.",
     pull.headSha
       ? `Review the head commit ${pull.headSha}. If the pull request has moved past it, say so first.`
       : "Review the current head commit and name it.",
@@ -98,7 +79,6 @@ export function reviewChats(store) {
       state: bound ? "open" : receipt.state,
       attempt: receipt.attempt,
       headSha: receipt.headSha ?? null,
-      skill: receipt.skill ?? null,
       slot: bound ? binding.slot : null,
       status: bound ? (binding.status ?? null) : null,
       link: bound ? sessionUrl(binding.slot) : null,
@@ -116,11 +96,7 @@ export function requestReviewChat(
   policy,
   tasks,
   input = {},
-  {
-    skillPath = sageSkillPath(),
-    exists = fs.existsSync,
-    now = Date.now(),
-  } = {},
+  { now = Date.now() } = {},
 ) {
   if (!policy?.mode) fail("Code review needs a GitHub mode.");
   const repository =
@@ -151,8 +127,7 @@ export function requestReviewChat(
       (current.state === "open" && !FINAL_STATUSES.has(current.status)))
   )
     return { id, created: false, ...current };
-  const skill = exists(skillPath) ? skillPath : null,
-    seed = reviewSeed({ repository: registered, pull, skill }),
+  const seed = reviewSeed({ repository: registered, pull }),
     attempt = (current?.attempt ?? 0) + 1;
   // Content rules (§4.9 `brief`): a block opens a decision and queues nothing.
   if (
@@ -175,7 +150,6 @@ export function requestReviewChat(
     url: pull.url,
     title: pull.title,
     headSha: pull.headSha ?? null,
-    skill,
     attempt,
     state: "queued",
     seed,
