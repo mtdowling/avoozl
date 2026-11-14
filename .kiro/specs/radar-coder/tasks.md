@@ -163,7 +163,7 @@ Requirement RC7. Avoozl does what `gh` can and shows exact values for what only 
 - [x] rc-7.1 Set up steps through `gh`: labels, branch rule, auto-merge setting, after rc-1.1, rc-5.1 [RC7.1] (§D9)
   - Each step is a preview and a confirm; a step the permission cannot do shows the permission it needs and changes nothing; read back after the write.
   - Done when: Against a fake GitHub each step writes once after confirm; a missing permission writes nothing and names the permission.
-- [ ] rc-7.2 Review-rules pull request to `AGENTS.md`, and the Project, after rc-7.1, rc-3.5 [RC7.1, RC3.7] (§D9)
+- [x] rc-7.2 Review-rules pull request to `AGENTS.md`, and the Project, after rc-7.1, rc-3.5 [RC7.1, RC3.7] (§D9)
   - A pull request that adds the review rules and the one-line prompt sentence to `AGENTS.md`; the Project and its fields through the existing Project sync.
   - Done when: The pull request text passes content rules; the Project fields match Requirement 29.
 - [x] rc-7.3 The Radar values screen and re-read, after rc-3.5, rc-6.3 [RC7.2, RC7.3] (§D9)
@@ -189,9 +189,10 @@ Requirement RC8. The screens of the experience proposal, built for Variant B (Gi
 - [ ] rc-8.2 Trace drawer and page, after rc-8.1 [RC8.2] (§D10)
   - Eight steps with GitHub times, never `updated=`; deep link and Back history (Requirement 60); mockup `02-trace.html`.
   - Done when: A claim marker with `updated=` ahead of GitHub's time still shows GitHub's time; the page opens by URL and Back returns.
-- [ ] rc-8.3 Side panel tab, after rc-3.2 [RC8.3] (§D10)
+- [x] rc-8.3 Side panel tab, after rc-3.2 [RC8.3] (§D10)
   - One `panelTabs` entry; matches the chat from the URL; spec check and Approve in a Spec Builder chat; a test fails when the URL shape changes; opens by itself only in a Spec Builder chat with an unapproved `tasks.md`; mockup `03-side-panel.html`.
   - Done when: Each chat kind shows its content; the URL-shape test exists.
+  - Limit: the host offers an app no call to open its tab, so "opens by itself" is the rule `opensItself` in `panel-chat.ts`, not yet acted on; it needs a host call.
 - [ ] rc-8.4 Flow from GitHub data, after rc-8.1 [RC8.5] (§D10)
   - Ready to Claim, Claim to PR, PR to green, green to merge, flow efficiency; Stop the line keeps its meaning; mockup `07-flow-retro.html`.
   - Done when: Stage times computed from fixture events match hand-computed values.
