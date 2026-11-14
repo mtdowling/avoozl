@@ -12,6 +12,8 @@ export interface ProjectionDetail extends ProjectionPreview {
   simulated?: boolean
   blocked?: { code: string; message: string }[]
   // The Create and release checks (RC2.9); absent for a repository Issue Radar does not code.
+  // A remote coder's plan: how many pull requests a person must publish.
+  publishes?: number
   preflight?: { ok: boolean; items: PreflightItem[] }
 }
 

@@ -1,4 +1,4 @@
-import { verifyIssue } from "./verify-issue.mjs";
+import { parseIssueReference, verifyIssue } from "./verify-issue.mjs";
 import { crossPlanEpics, epicOfPlan, taskEpic } from "./epics.mjs";
 import path from "node:path";
 import { applicationRoot } from "./config.mjs";
@@ -93,7 +93,11 @@ import {
   prepareGitHubRepository,
   syncGitHubIssues,
 } from "./github-sync.mjs";
-import { planningIdentity, requireNamespace } from "./github-marker.mjs";
+import {
+  parseMarker,
+  planningIdentity,
+  requireNamespace,
+} from "./github-marker.mjs";
 import { claimsView, refreshClaims } from "./radar-claims.mjs";
 import { mergePath, requireMergePath } from "./radar-merge-path.mjs";
 import { radarSetup } from "./radar-setup.mjs";
@@ -108,6 +112,19 @@ import {
   writeBackApproval,
 } from "./approval-label.mjs";
 import { planSource } from "./radar-source.mjs";
+import {
+  beginRemoteTick,
+  endRemoteTick,
+  remoteCommand,
+  remoteNeedsYou,
+  remoteStep,
+} from "./remote-coder.mjs";
+import { formatGapTable, gapProposals, parseGapReport } from "./gap-report.mjs";
+import {
+  integrationView,
+  landBranch,
+  landingNeedsYou,
+} from "./integration-head.mjs";
 import { releaseQueue, releaseStep } from "./radar-coder-queue.mjs";
 import { isRadarRepository } from "./radar-coder-release.mjs";
 import {
@@ -433,6 +450,7 @@ import { lintPlan } from "./plan-quality.mjs";
 import { readTrace } from "./trace.mjs";
 import {
   createSpecPlan,
+  epicMembers,
   findSpecFolder,
   lintSpec,
   linkSpecPlan,
@@ -1574,6 +1592,112 @@ export class Operations {
       plans: new Map(plans.map((plan) => [plan.id, plan])),
     });
   }
+  // A gap report (RC17.6): read from a local file a person names, or from an
+  // issue body, parsed into a table, and turned into one proposal per failing
+  // cell for the sub-specs of a parent spec. Reads only.
+  async gapPreview(input = {}, { local = false } = {}) {
+    let text;
+    if (typeof input.path === "string") {
+      if (!local)
+        fail("Name an issue; only the page and the CLI read a path.", 403);
+      const file = path.resolve(input.path);
+      let stat = null;
+      try {
+        stat = fs.statSync(file);
+      } catch {
+        fail("The gap report path cannot be read.", 404);
+      }
+      if (!stat.isFile() || stat.size > 200 * 1024)
+        fail("The gap report must be a file of at most 200 KB.", 422);
+      text = fs.readFileSync(file, "utf8");
+    } else if (typeof input.issue === "string") {
+      if (!this.github?.available?.()) fail("GitHub is not available.", 409);
+      const { owner, repo, number } = parseIssueReference(input.issue),
+        issue = await this.github.issue(
+          { owner, repo, id: `${owner}/${repo}` },
+          number,
+        );
+      text = issue?.body ?? "";
+    } else fail("Name the gap report as a path or an issue.", 422);
+    const parent = this.readSpec(input.parent);
+    if (!parent.exists)
+      fail(`No spec folder .kiro/specs/${input.parent}/.`, 404);
+    const members = epicMembers(parent.files).map((name) => {
+      const folder = this.readSpec(name);
+      let repositories = [];
+      try {
+        repositories = [
+          ...new Set(
+            Object.values(
+              JSON.parse(folder.files["avoozl/manifest.json"] ?? "{}").tasks ??
+                {},
+            )
+              .map((entry) => entry?.repository)
+              .filter((value) => typeof value === "string"),
+          ),
+        ];
+      } catch {
+        repositories = [];
+      }
+      return { name, repositories };
+    });
+    const report = parseGapReport(text),
+      subSpecOf = (repository) =>
+        members.find(
+          (member) =>
+            member.repositories.includes(repository) ||
+            member.name === repository.split("/").at(-1),
+        )?.name ?? null,
+      proposals = gapProposals(report, subSpecOf);
+    return { report, table: formatGapTable(report), proposals };
+  }
+  // Ready tasks of remote-coder repositories that still need filing: the issue,
+  // the task IDs it covers (a batch has several), the spec, and the approving
+  // person, whose own identity the task is filed under (RC15.11). A plan with
+  // no approver is not filed.
+  async remoteCandidates() {
+    const policy = readGitHubPolicyOrNull(this.workspaceRoot),
+      seen = new Set(),
+      out = [];
+    for (const task of this.store.read().tasks) {
+      const repository = task.github?.repository,
+        number = task.github?.number;
+      if (
+        policy?.repositories?.[repository]?.coder !== "remote" ||
+        !task.dispatch?.ready ||
+        !number
+      )
+        continue;
+      const key = `${repository}#${number}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const config = this.store.get("github_repositories", repository),
+        plan = this.store.get("plans", task.planId),
+        approver =
+          approvalState(this.store, plan?.id, plan?.hash)?.approvedBy ??
+          this.store.get("approvals", plan?.approvalId)?.approvedBy;
+      if (!config || !plan || !approver) continue;
+      const issue = await this.github.issue(config, number);
+      if (issue?.state !== "open") continue;
+      const members = parseMarker(issue.body)?.members;
+      out.push({
+        config,
+        issue,
+        taskIds: members?.length ? members : [task.id],
+        spec: plan.spec || plan.id,
+        approver,
+      });
+    }
+    return out;
+  }
+  // True when a repository's coder is the remote one, so the tick starts the
+  // harness's MCP server (RC15.10).
+  usesRemoteCoder() {
+    const policy = readGitHubPolicyOrNull(this.workspaceRoot);
+    return Object.values(policy?.repositories || {}).some(
+      (entry) => entry.coder === "remote",
+    );
+  }
   // Whether a plan's current text is the one last approved.
   planApproved(plan) {
     return this.store
@@ -2614,18 +2738,41 @@ export class Operations {
       });
       if (remote) return remote;
       if (input.cron === true) await driverTick(store, this.workspaceRoot);
-      const result = await tick(store, {
-        workspaceRoot: this.workspaceRoot,
-        memory: this.tickPolicy,
-        sessions: input.sessions,
-        cron: input.cron === true,
-        folders: input.folders ?? null,
-        github: this.github,
-        breakdownHooks: () => this.breakdownHooks({ locked: true }),
-        plugins: this.plugins,
-        placement: this.placement,
-        issueVerify: this.issueVerifier,
-      });
+      // The remote coder's MCP server lives for this tick only (RC15.10).
+      const harness =
+        this.usesRemoteCoder() && remoteCommand(this.workspaceRoot);
+      if (harness) beginRemoteTick(harness);
+      let result;
+      try {
+        result = await tick(store, {
+          workspaceRoot: this.workspaceRoot,
+          memory: this.tickPolicy,
+          sessions: input.sessions,
+          cron: input.cron === true,
+          folders: input.folders ?? null,
+          github: this.github,
+          breakdownHooks: () => this.breakdownHooks({ locked: true }),
+          plugins: this.plugins,
+          placement: this.placement,
+          issueVerify: this.issueVerifier,
+        });
+        if (harness && this.github?.available?.())
+          await remoteStep(store, {
+            candidates: () => this.remoteCandidates(),
+            pullsOf: async (receipt) =>
+              (
+                await this.github.closingPullRequests(
+                  store.get("github_repositories", receipt.repository),
+                  receipt.number,
+                )
+              ).map((pull) => ({
+                merged: pull.merged === true || pull.state === "MERGED",
+                state: pull.state === "OPEN" ? "open" : "closed",
+              })),
+          }).catch(() => {});
+      } finally {
+        endRemoteTick();
+      }
       if (Array.isArray(input.sessions) || input.cron === true)
         await this.approvalTick().catch(() => {});
       // A deleted plan's tasks whose chats have ended are archived now.
@@ -2820,6 +2967,8 @@ export class Operations {
       view.items.push(...relayNeedsYou(store));
       view.items.push(...mergeNeedsYou(store));
       view.items.push(...approvalNeedsYou(store));
+      view.items.push(...landingNeedsYou(store));
+      view.items.push(...remoteNeedsYou(store));
       view.items.push(...syncNeedsYou(store));
       view.items.push(
         ...radarNeedsYou(
@@ -3080,6 +3229,61 @@ export class Operations {
         fail("Name the issue number to trace.", 400);
       if (!this.github?.available?.()) fail("GitHub is not available.", 503);
       return readTrace(this.github, input.repository, number, entry);
+    }
+    // Integration branches (RC16.3, RC16.8): tasks merged, distance behind the
+    // default branch, head checks, acceptance. Landing is a person's approval
+    // of one head; Avoozl never merges the branch.
+    if (name === "integration.view") return integrationView(store);
+    if (name === "integration.land") {
+      if (context.caller || context.mcp)
+        fail(
+          "Only a person approves landing a branch, in the Avoozl page.",
+          403,
+        );
+      return landBranch(store, input, {
+        by: context.local ? "cli" : "dashboard",
+      });
+    }
+    // An external gap report becomes proposed tasks in the sub-specs; nothing is
+    // added until a person accepts (RC17.6).
+    if (name === "gap.preview")
+      return this.gapPreview(input, {
+        local: !(context.caller || context.mcp),
+      });
+    if (name === "gap.accept") {
+      if (context.caller || context.mcp)
+        fail("Only a person accepts gap report proposals.", 403);
+      const found = await this.gapPreview(input, { local: true }),
+        chosen = Array.isArray(input.ids)
+          ? found.proposals.filter((p) =>
+              input.ids.includes(`${p.spec}:${p.id}`),
+            )
+          : found.proposals,
+        added = [];
+      for (const proposal of chosen) {
+        const plan = store
+          .list("plans")
+          .find((entry) => entry.spec === proposal.spec && !entry.deletedAt);
+        if (!plan) fail(`Sub-spec ${proposal.spec} is not a plan yet.`, 409);
+        const current = store.get("plans", plan.id);
+        proposeSpecWork(
+          store,
+          {
+            id: plan.id,
+            expectedHash: current.hash,
+            proposal: {
+              id: proposal.id,
+              title: proposal.title,
+              kind: "leaf",
+              summary: `Gap report: ${proposal.repository} fails ${proposal.requirement}.`,
+              acceptance: proposal.acceptance,
+            },
+          },
+          (spec) => this.readSpec(spec),
+        );
+        added.push(`${proposal.spec}:${proposal.id}`);
+      }
+      return { added };
     }
     if (name === "radar.mergepath")
       return { repositories: await this.mergePaths(input.repository) };
@@ -4535,7 +4739,10 @@ export class Operations {
     }
     // Read-only and workspace-free: reads GitHub with the caller's gh login.
     if (name === "issue.verify")
-      return verifyIssue(input.issue, { brief: true });
+      return verifyIssue(input.issue, {
+        brief: true,
+        ...(input.pullRequest !== undefined ? { pull: input.pullRequest } : {}),
+      });
     if (name === "plan.lint") {
       const plan = store.get("plans", input.id);
       if (!plan) fail("Plan not found.", 404);
@@ -5201,19 +5408,33 @@ export class Operations {
           batches: input.batches,
         });
       // Batches the planner would group, for the preview's batch edit.
-      const suggested = (target) =>
-        planProjectionBatches({
-          tasks: target.read().tasks.filter((task) => task.planId === plan.id),
-          edges: target.read().edges,
-          mode: "suggest",
-          max: this.settingsFile().readFlowSettings().flow.batch?.max,
-          complete: (status) => statusComplete(target.read(), status),
-        }).batches.map((batch) => batch.tasks);
+      const remoteCoder =
+          policy?.repositories?.[repository]?.coder === "remote",
+        grouped = (target) =>
+          planProjectionBatches({
+            tasks: target
+              .read()
+              .tasks.filter((task) => task.planId === plan.id),
+            edges: target.read().edges,
+            mode: "suggest",
+            max: this.settingsFile().readFlowSettings().flow.batch?.max,
+            complete: (status) => statusComplete(target.read(), status),
+            chains: remoteCoder,
+          }),
+        suggested = (target) =>
+          grouped(target).batches.map((batch) => batch.tasks),
+        // Each publish costs a person's time, so a remote coder's preview
+        // counts them: one per batch and one per task left alone (RC15.6).
+        publishes = (target) => {
+          const found = grouped(target);
+          return found.batches.length + found.plain.length;
+        };
       if (plan.state === "approved")
         return withChecks({
           ...(await projection(store)),
           simulated: false,
           suggestedBatches: suggested(store),
+          ...(remoteCoder ? { publishes: publishes(store) } : {}),
         });
       const quality = this.lintSpecPlan(plan, [], { content: false }),
         blocking = quality.diagnostics.filter((d) => d.severity === "error");
@@ -5240,6 +5461,7 @@ export class Operations {
           ...(await projection(scratch)),
           simulated: true,
           suggestedBatches: suggested(scratch),
+          ...(remoteCoder ? { publishes: publishes(scratch) } : {}),
         });
       } finally {
         scratch.close();

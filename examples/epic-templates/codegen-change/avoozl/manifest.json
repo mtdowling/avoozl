@@ -1,0 +1,51 @@
+{
+  "tasks": {
+    "change-generator": {
+      "kind": "leaf",
+      "summary": "Change the generator and add its tests.",
+      "acceptance": ["The generator tests pass."],
+      "checks": ["npm test"],
+      "completion": "integrated"
+    },
+    "regenerate-sample": {
+      "kind": "leaf",
+      "summary": "Regenerate one sample with <generate command> and compare it with <compare command>.",
+      "acceptance": [
+        "The sample diff is small, reviewed and matches <compare command>."
+      ],
+      "checks": ["npm test"],
+      "completion": "integrated",
+      "requires": ["change-generator"]
+    },
+    "regenerate-batch-1": {
+      "kind": "leaf",
+      "summary": "Regenerate the first batch with <generate command> and compare it with <compare command>.",
+      "acceptance": [
+        "<compare command> reports no unexpected change in the first batch."
+      ],
+      "checks": ["npm test"],
+      "completion": "integrated",
+      "requires": ["regenerate-sample"]
+    },
+    "regenerate-batch-2": {
+      "kind": "leaf",
+      "summary": "Regenerate the second batch with <generate command> and compare it with <compare command>.",
+      "acceptance": [
+        "<compare command> reports no unexpected change in the second batch."
+      ],
+      "checks": ["npm test"],
+      "completion": "integrated",
+      "requires": ["regenerate-batch-1"]
+    },
+    "remove-old-output": {
+      "kind": "leaf",
+      "summary": "Remove the old output.",
+      "acceptance": [
+        "No file of the old output remains and every check passes."
+      ],
+      "checks": ["npm test"],
+      "completion": "integrated",
+      "requires": ["regenerate-batch-2"]
+    }
+  }
+}

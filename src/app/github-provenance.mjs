@@ -4,6 +4,7 @@
 // are IDs, a login, a commit and a repository name only; nothing in a
 // refusal repeats a value, so a message is safe to post.
 import { COMMIT, LOGIN, TASK_ID } from "./github-marker.mjs";
+import { branchNameProblem } from "./integration-branch.mjs";
 import { fail } from "./store.mjs";
 import { secretReason } from "./workspace-repository.mjs";
 
@@ -27,6 +28,8 @@ const VALUES = {
   commit: (v) => COMMIT.test(v),
   "approved-by": (v) => LOGIN.test(v),
   plans: (v) => REPOSITORY.test(v) && !v.includes(".."),
+  // The epic's integration branch (RC16.2); absent for an ordinary issue.
+  base: (v) => branchNameProblem(v) === null,
 };
 
 const bad = (key) => ({
@@ -97,7 +100,7 @@ export function parseProvenance(body) {
           message: `The provenance marker has no ${key}.`,
         },
       };
-  for (const key of [...REQUIRED, "plans"])
+  for (const key of [...REQUIRED, "plans", "base"])
     if (fields.has(key) && !checkValue(key, fields.get(key)))
       return { marker: null, problem: bad(key) };
   const marker = {
@@ -107,11 +110,19 @@ export function parseProvenance(body) {
     approvedBy: fields.get("approved-by"),
   };
   if (fields.has("plans")) marker.plans = fields.get("plans");
+  if (fields.has("base")) marker.base = fields.get("base");
   return { marker, problem: null };
 }
 
 // Writes the line, refusing any value the reader would refuse.
-export function renderProvenance({ spec, tasks, commit, approvedBy, plans }) {
+export function renderProvenance({
+  spec,
+  tasks,
+  commit,
+  approvedBy,
+  plans,
+  base,
+}) {
   const pairs = [
     ["spec", spec],
     ["tasks", Array.isArray(tasks) && tasks.length ? tasks.join(",") : ""],
@@ -119,6 +130,7 @@ export function renderProvenance({ spec, tasks, commit, approvedBy, plans }) {
     ["approved-by", approvedBy],
   ];
   if (plans !== undefined) pairs.push(["plans", plans]);
+  if (base !== undefined) pairs.push(["base", base]);
   for (const [key, value] of pairs)
     if (typeof value !== "string" || !checkValue(key, value))
       fail(`Invalid provenance marker: ${key}.`, 422);

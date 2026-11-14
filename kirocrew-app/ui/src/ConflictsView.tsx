@@ -42,6 +42,7 @@ import { itemRef } from './chat-api.ts'
 import { linkHref } from './views-api.ts'
 import { optionItems } from './picker.ts'
 import { routingClient } from './routing-api.ts'
+import { releaseClient } from './release-api.ts'
 
 const CONFLICT_STORE = { event: CONFLICT_FILTER_EVENT, read: readConflictFilter, write: writeConflictFilter, empty: {} as ConflictFilter }
 
@@ -125,6 +126,12 @@ export function ConflictActions(props: {
         await views.integrate(workspaceId, item.taskId!, item.commit)
         return { ok: true, text: `${item.taskId} lands on the next tick.` }
       })} />}
+      {item.kind === 'branch-landing' && item.repository && item.branch && item.head && (
+        <LandBranch item={item} busy={busy} onLand={() => run(async () => {
+          await releaseClient(api).land(workspaceId, item.repository!, item.branch!, item.head!)
+          return { ok: true, text: `${item.branch} is approved to land. Merge it on GitHub.` }
+        })} />
+      )}
       {item.kind === 'content-match' && item.id && (
         <ContentActions id={item.id} readable={item.readable === true} workspaceId={workspaceId} busy={busy} run={run} />
       )}
@@ -319,6 +326,32 @@ export function RoutingFailedActions(props: { busy: boolean; workspaceId: string
         }
       >
         Turn routing off
+      </DangerBtn>
+    </div>
+  )
+}
+
+// Landing an integration branch (RC16.6): the person approves one head, then
+// merges it on GitHub. Avoozl never merges the branch.
+export function LandBranch(props: { item: ConflictItem; busy: boolean; onLand: () => void }) {
+  const { item, busy } = props
+  const link = safeHref(item.link ?? null)
+  return (
+    <div className="flex flex-wrap items-center gap-2" data-branch-landing={item.branch}>
+      {link && (
+        <a href={linkHref(link)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm underline">
+          <ExternalLink size={14} aria-hidden="true" />
+          Compare {item.branch} with the default branch
+        </a>
+      )}
+      <DangerBtn
+        icon={Check}
+        tooltip="Records your approval for this head. You merge the branch on GitHub yourself."
+        disabled={busy}
+        confirm={{ title: `Approve landing ${item.branch}?`, body: `This approves head ${String(item.head ?? '').slice(0, 7)} only. If the branch moves, you approve again. Avoozl does not merge it.`, action: 'Approve landing' }}
+        onConfirm={props.onLand}
+      >
+        Approve landing
       </DangerBtn>
     </div>
   )
