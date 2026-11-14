@@ -18,12 +18,14 @@ import { WORKSPACE_LOCK } from "./tick.mjs";
 import { blockerNotes, closeWithoutCode } from "./github-close.mjs";
 import { pausedTaskIds } from "./github-project.mjs";
 import { ensurePlanIssue } from "./driver.mjs";
+import { SUPERSEDED_STATUS } from "./supersede.mjs";
 import { graphOrder } from "./delivery.mjs";
 import { linePausedTaskIds, openStops, stopScope } from "./flow.mjs";
 import { CREW_LABEL_DEFAULTS, priorityRank } from "./github-policy.mjs";
 import {
   capacityOf,
   isRadarRepository,
+  phaseHolds,
   planRelease,
   releaseFor,
   STOP_NOTICE,
@@ -643,6 +645,42 @@ function graphReady(store, data, tasks, held = new Set()) {
   );
 }
 
+// Tasks of Issue Radar repositories that wait for the previous phase of their
+// spec to merge (RC4.4): a Map of task ID to the hold. A task closed by order
+// does not count as merged; a manual task counts when it is complete.
+function phaseHeldTasks(data, identity, tasks, repositoryOf) {
+  const out = new Map(),
+    complete = (status) => statusComplete(data, status);
+  for (const planId of new Set(tasks.map((task) => task.planId))) {
+    if (!planId) continue;
+    const holds = phaseHolds(
+      data.tasks.filter(
+        (task) => task.planId === planId && task.authority !== "local",
+      ),
+      {
+        counts: (task) =>
+          taskKind(task) === "leaf" && task.status !== SUPERSEDED_STATUS.id,
+        merged: (task) =>
+          isManual(task)
+            ? complete(task.status)
+            : task.githubVerdict
+              ? task.githubVerdict.state === "verified"
+              : complete(task.status),
+      },
+    );
+    for (const task of tasks)
+      if (
+        holds.has(task.id) &&
+        isRadarRepository(
+          identity.repositories?.[repositoryOf(task)],
+          identity.mode,
+        )
+      )
+        out.set(task.id, holds.get(task.id));
+  }
+  return out;
+}
+
 // Tasks of Issue Radar repositories that an open stop pauses (RC4.3): they
 // are not released, and an unclaimed ready label on them is taken away.
 // `repositoryOf` names a task's repository.
@@ -692,17 +730,15 @@ export async function refreshProjectedReadiness(
         .map((config) => config.id),
     ),
     projected = designed.filter((task) => writers.has(task.github.repository)),
+    onGithub = (task) => task.github.repository,
     ready = graphReady(
       store,
       data,
       projected,
-      stoppedTasks(
-        store,
-        data,
-        identity,
-        projected,
-        (task) => task.github.repository,
-      ),
+      new Set([
+        ...stoppedTasks(store, data, identity, projected, onGithub),
+        ...phaseHeldTasks(data, identity, projected, onGithub).keys(),
+      ]),
     ),
     plans = new Set(
       projected
@@ -799,7 +835,18 @@ async function project(
       tasks,
       (task) => configFor(task)?.id,
     ),
-    queueReady = graphReady(store, data, tasks, held),
+    phaseHeld = phaseHeldTasks(
+      data,
+      identity,
+      tasks,
+      (task) => configFor(task)?.id,
+    ),
+    queueReady = graphReady(
+      store,
+      data,
+      tasks,
+      new Set([...held, ...phaseHeld.keys()]),
+    ),
     machine = machineIdentity(store).id,
     verified = new Set(),
     provenance = new Map(),
