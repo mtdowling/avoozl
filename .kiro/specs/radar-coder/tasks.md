@@ -120,7 +120,7 @@ Requirement RC4. The tick adds the ready label in graph order, N at a time.
 
 Requirement RC5. Crews do not arm auto-merge (Kiro Crew 0.12.2.4), so the tick does.
 
-- [ ] rc-5.1 Merge path check, after rc-1.1 [RC5.1] (§D7)
+- [x] rc-5.1 Merge path check, after rc-1.1 [RC5.1] (§D7)
   - Per repository: auto-merge allowed, default branch rule requires the named CI check, `delivery.ship` set; shown as three items; Create and release refused for `auto-merge` while not ready.
   - Done when: Each missing item is named; a repository with all three reads ready; `manual` shows a warning only.
 - [ ] rc-5.2 Arm GitHub auto-merge on crew pull requests, after rc-5.1, rc-3.1 [RC5.2, RC5.5] (§D7)

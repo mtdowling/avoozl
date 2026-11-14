@@ -980,6 +980,26 @@ export class GitHubClient {
     });
   }
 
+  // A branch at `oid`, then one file written on it. Used by the approval
+  // pull request (spec-approval.mjs). `content` is base64.
+  createBranch(value, name, oid) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    return this.request("POST", `/repos/${owner}/${repo}/git/refs`, {
+      body: { ref: `refs/heads/${name}`, sha: oid },
+    });
+  }
+
+  putFile(value, { path, branch, message, content }) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    return this.request(
+      "PUT",
+      `/repos/${owner}/${repo}/contents/${path.split("/").map(encodeURIComponent).join("/")}`,
+      { body: { message, content, branch } },
+    );
+  }
+
   pullRequest(value, number) {
     const { owner, repo } =
       typeof value === "string" ? parseRepository(value) : value;
