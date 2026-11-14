@@ -2125,6 +2125,232 @@
         "rc-24.5",
         "rc-p23"
       ]
+    },
+    "rc-25.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Forward target setting and per-epic override. See RC26.1, RC26.2; \u00a7D31.1.",
+      "acceptance": [
+        "Precedence tests for epic, repository and default; an unknown value is refused; the form and the raw file agree."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-23.1",
+        "rc-16.1"
+      ]
+    },
+    "rc-25.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Path policy and metadata scrub. See RC26.5, RC26.6; \u00a7D31.2.",
+      "acceptance": [
+        "Each excluded path blocks naming the rule; an allowlisted path passes; the commit has one parent, the person as author and no trailer or mirror reference."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-23.4"
+      ]
+    },
+    "rc-25.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Leak scan extensions: terms, hosts, ticket IDs, account IDs, secrets, binary and over-size files. See RC26.5; \u00a7D31.2.",
+      "acceptance": [
+        "Each planted case blocks; an allowlisted binary passes; the size test reads the setting."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-25.2"
+      ]
+    },
+    "rc-25.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Forward screen shows the exact public diff, title and body; receipt. See RC26.5; \u00a7D31.2, \u00a7D31.3.",
+      "acceptance": [
+        "A change after display forces a new display; an auto forward leaves the receipt before the push call."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-25.3",
+        "rc-23.4"
+      ]
+    },
+    "rc-25.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Block with one row and no retry; Stop the line stops forwarding; explicit refspecs. See RC26.5, RC26.6; \u00a7D31.2.",
+      "acceptance": [
+        "A block gives one row across three ticks and zero retries; no banned push form; with a stop open, auto pushes nothing."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-25.3",
+        "rc-4.2"
+      ]
+    },
+    "rc-25.6": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Audit on the tick of what landed on the source. See RC26.5; \u00a7D31.2.",
+      "acceptance": [
+        "A fake source with an extra file, another author or a plans-branch ref gives one row and a stop."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-25.4"
+      ]
+    },
+    "rc-25.7": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Targets branch and batch: public branch copy, epic batch, one public PR. See RC26.3, RC26.4; \u00a7D31.1.",
+      "acceptance": [
+        "Each target opens the right PR against the right base; a batch epic opens exactly one PR; no call merges the public branch into the default branch."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-25.1",
+        "rc-25.5",
+        "rc-23.5"
+      ]
+    },
+    "rc-p25": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Proof 25: forward targets and protections on scratch repositories. See RC26; \u00a7D17.",
+      "acceptance": [
+        "Expected result observed; receipt under `docs/evidence/` lists the scratch repositories."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-25.1",
+        "rc-25.2",
+        "rc-25.3",
+        "rc-25.4",
+        "rc-25.5",
+        "rc-25.6",
+        "rc-25.7",
+        "rc-p23"
+      ]
+    },
+    "rc-26.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Dry-run engine and the mirror.adopt and mirror.create operations with CLI and MCP. See RC27.1, RC27.4, RC27.7; \u00a7D32.",
+      "acceptance": [
+        "A dry run writes nothing; a changed world refuses the apply; a repeat run shows zero writes."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-23.1"
+      ]
+    },
+    "rc-26.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Adopt existing setup. See RC27.2, RC27.5, RC27.6; \u00a7D32.1.",
+      "acceptance": [
+        "An existing mirror and plans branch are found and nothing unticked is written; a blocked line gives one row."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-26.1",
+        "rc-7.2"
+      ]
+    },
+    "rc-26.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Create setup. See RC27.3, RC27.5, RC27.6; \u00a7D32.2.",
+      "acceptance": [
+        "The steps run in order; an existing name is refused; a non-private result stops with one row and no delete call."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-26.1",
+        "rc-24.1"
+      ]
+    },
+    "rc-26.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Mirror section in Settings: two buttons, dry-run view, confirm. See RC27.1, RC27.7; \u00a7D32.",
+      "acceptance": [
+        "A page test: the dry run shows, a ticked line applies, an unticked line does not; `npm run test:ui` passes."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-26.2",
+        "rc-26.3"
+      ]
+    },
+    "rc-p26": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Proof 26: Create and Adopt on scratch repositories. See RC27; \u00a7D17.",
+      "acceptance": [
+        "Expected result observed; receipt under `docs/evidence/` lists the scratch repositories."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-26.1",
+        "rc-26.2",
+        "rc-26.3",
+        "rc-26.4"
+      ]
     }
   }
 }
