@@ -268,6 +268,8 @@ export const APP_OPERATIONS = new Set([
   "flow.settings.update",
   "driver.status",
   "driversession.view",
+  "instance.view",
+  "instance.rename",
   "driver.takeover.preview",
   "driver.settings.update",
   "driver.handoff",

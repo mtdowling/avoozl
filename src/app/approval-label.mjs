@@ -4,6 +4,7 @@
 // once; and the parent issue is claimed in Radar's format so no crew takes it.
 // GitHub is read and written through the `github` client; nothing is merged
 // and no spec text is posted.
+import { instanceIdentity } from "./instance.mjs";
 import { actorAllowed } from "./github-policy.mjs";
 import { recordActivity } from "./activity-log.mjs";
 import { planSource } from "./radar-source.mjs";
@@ -30,8 +31,9 @@ const ownClaim = (body) =>
   parseMarkers(body).some((marker) => marker.id === CLAIM_HOLDER);
 
 // The hidden marker of the write-back comment: login, spec path, commit, time.
-export const approvalMarker = ({ approver, spec, commit, at }) =>
-  `<!-- avoozl-approval v=1 approver=${approver} spec=.kiro/specs/${spec} commit=${commit || "none"} at=${at} -->`;
+// The instance ID (never its name) follows when there is one.
+export const approvalMarker = ({ approver, spec, commit, at, instance }) =>
+  `<!-- avoozl-approval v=1 approver=${approver} spec=.kiro/specs/${spec} commit=${commit || "none"} at=${at}${instance ? ` instance=${instance}` : ""} -->`;
 
 // ---- Needs you rows ------------------------------------------------------
 
@@ -99,7 +101,13 @@ export async function writeBackApproval({
     await github.createIssueComment(
       config,
       source.number,
-      `Plan approved. Avoozl is releasing the work.\n\n${approvalMarker({ approver, spec: plan.spec, commit, at: now })}`,
+      `Plan approved. Avoozl is releasing the work.\n\n${approvalMarker({
+        approver,
+        spec: plan.spec,
+        commit,
+        at: now,
+        instance: instanceIdentity(store).id,
+      })}`,
     );
     store.put("receipts", { id: receipt, planId: plan.id, at: now });
     return { written: true };
