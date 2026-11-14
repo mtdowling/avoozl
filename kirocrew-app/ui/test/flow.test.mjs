@@ -27,6 +27,8 @@ test('durations and metric cards read like the sketch, with empty text that says
     ['Flow efficiency', '34%', '28%'],
     ['First-pass rate', '70%', '60%'],
     ['Time to fix', '–', null],
+    ['Fix work', '–', '–'],
+    ['Corrections', '–', null],
   ])
   assert.equal(cards[3].empty, 'No line stop yet.')
   assert.equal(metricCards({ metrics: empty, previous: empty })[0].empty, 'Finish a task to see lead time.')

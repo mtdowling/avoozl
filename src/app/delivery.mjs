@@ -45,6 +45,19 @@ import {
   routingOn,
 } from "./routing.mjs";
 import { handbackFetch, pushedFetch } from "./handback.mjs";
+import { recordCorrection } from "./corrections.mjs";
+import { addEvidence, attachEvidence, evidenceInput } from "./evidence.mjs";
+import {
+  falsifierInput,
+  findingsInput,
+  findingsText,
+  gateOpen,
+  investigateLines,
+  investigateSettings,
+  investigates,
+  recordFalsifier,
+  recordFindings,
+} from "./investigate.mjs";
 import { REPORT_LINE } from "./relay.mjs";
 import { currentPrompts } from "./retro-memory.mjs";
 import { routeResultNotes, submittedTaskIds } from "./routes.mjs";
@@ -66,7 +79,14 @@ import {
 } from "../work-model.mjs";
 import { briefNotes } from "./task-notes.mjs";
 
-export const REPORT_KINDS = ["progress", "done", "blocked", "question"];
+// `findings` is a worker's first turn when it investigates first (R75.1).
+export const REPORT_KINDS = [
+  "progress",
+  "done",
+  "blocked",
+  "question",
+  "findings",
+];
 // A done or blocked report ends its attempt; a question waits for an answer.
 const FINAL_REPORTS = new Set(["done", "blocked"]);
 // The cause a full stop records on each attempt it stopped (R64.12).
@@ -121,9 +141,13 @@ export function deliveryPolicy(value) {
         "model",
         "reviewers",
         "prFeedback",
+        "investigate",
+        "ship",
       ].includes(key)
     )
       throw Error(`delivery.${key} is not a delivery setting.`);
+  investigateSettings(delivery.investigate);
+  shipSetting(delivery.ship, "delivery.ship");
   for (const [key, [min, max]] of Object.entries(limits))
     if (delivery[key] !== undefined && !bounded(delivery[key], min, max))
       throw Error(`delivery.${key} must be a whole number ${min}–${max}.`);
@@ -162,13 +186,20 @@ export function deliveryPolicy(value) {
             "reviewers",
             "prFeedback",
             "feedbackRounds",
+            "investigate",
+            "ship",
           ].includes(key),
       ) ||
       (entry.concurrency !== undefined && !bounded(entry.concurrency, 0, 32))
     )
       throw Error(
-        `delivery.repositories.${id} may set only concurrency, a whole number 0–32, reviewers, prFeedback, and feedbackRounds.`,
+        `delivery.repositories.${id} may set only concurrency, a whole number 0–32, reviewers, prFeedback, feedbackRounds, investigate, and ship.`,
       );
+    investigateSettings(
+      entry.investigate,
+      `delivery.repositories.${id}.investigate`,
+    );
+    shipSetting(entry.ship, `delivery.repositories.${id}.ship`);
     if (entry.prFeedback !== undefined && typeof entry.prFeedback !== "boolean")
       throw Error(
         `delivery.repositories.${id}.prFeedback must be true or false.`,
@@ -198,6 +229,27 @@ export function deliveryPolicy(value) {
     reviewers,
     repositories: normalized,
   };
+}
+
+// Ship mode (R80): who merges a finished pull request. `auto-merge` (the
+// default) has the writer turn on GitHub auto-merge; `manual` leaves it off
+// and waits for a person.
+export const SHIP_MODES = Object.freeze(["auto-merge", "manual"]);
+function shipSetting(value, where) {
+  if (value !== undefined && !SHIP_MODES.includes(value))
+    throw Error(`${where} must be "auto-merge" or "manual".`);
+}
+
+// The ship mode for one task (R80.1): the task's manifest value, then its
+// spec's, then the repository's, then the workspace's.
+export function shipMode(policy, task) {
+  return (
+    task?.ship ??
+    task?.specShip ??
+    policy?.repositories?.[taskRepository(task)]?.ship ??
+    policy?.ship ??
+    "auto-merge"
+  );
 }
 
 const MODEL = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/;
@@ -382,13 +434,22 @@ export async function prepareWorktree(store, input = {}) {
 
 const CLI = fileURLToPath(new URL("../../cli.mjs", import.meta.url));
 
+// Whether a brief or message asks for a force push (R77.3): `--force`,
+// `--force-with-lease`, `push ... -f`, or a `+` refspec. Avoozl never sends
+// one; a writer brings its base branch in with a merge commit.
+const FORCE_PUSH =
+  /--force(?:-with-lease)?(?![A-Za-z-])|\bpush\b[^\n`]*\s-[A-Za-z]*f[A-Za-z]*(?![A-Za-z-])|\bpush\b[^\n`]*\s\+[^\s`]*:/;
+export const asksForcePush = (text) => FORCE_PUSH.test(String(text ?? ""));
+
 // A brief may be sent (§4.9 `brief`): no content rule blocks it. A block
 // opens one decision for the task and keeps the brief unsent; a `report`
-// match sends it and records the finding.
+// match sends it and records the finding. A brief that asks for a force
+// push is never sent (R77.3).
 export function briefAllowed(
   store,
   { taskId, role, brief, repository = null },
 ) {
+  if (asksForcePush(brief)) return false;
   if (!contentBinding(store)?.workspaceRoot) return true;
   const result = enforceContent(
     store,
@@ -446,8 +507,18 @@ function checkResults(value) {
       (Number.isInteger(entry.durationMs) && entry.durationMs >= 0)) &&
     (entry.commit === undefined ||
       (typeof entry.commit === "string" && SHA.test(entry.commit))) &&
+    // The tail of a failing check's log, for the evidence bundle (R76.1).
+    (entry.logTail === undefined ||
+      (typeof entry.logTail === "string" && entry.logTail.length <= 4000)) &&
     Object.keys(entry).every((key) =>
-      ["command", "exitCode", "notRun", "durationMs", "commit"].includes(key),
+      [
+        "command",
+        "exitCode",
+        "notRun",
+        "durationMs",
+        "commit",
+        "logTail",
+      ].includes(key),
     );
   if (
     !Array.isArray(value) ||
@@ -458,13 +529,16 @@ function checkResults(value) {
     fail(
       'Report checks as 1–50 {command, exitCode, durationMs?} entries, one per check run; a check that could not run is {command, exitCode: null, notRun: "<reason>"}.',
     );
-  return value.map(({ command, exitCode, notRun, durationMs, commit }) => ({
-    command: command.trim(),
-    exitCode,
-    ...(notRun !== undefined ? { notRun: notRun.trim() } : {}),
-    ...(durationMs !== undefined ? { durationMs } : {}),
-    ...(commit !== undefined ? { commit } : {}),
-  }));
+  return value.map(
+    ({ command, exitCode, notRun, durationMs, commit, logTail }) => ({
+      command: command.trim(),
+      exitCode,
+      ...(notRun !== undefined ? { notRun: notRun.trim() } : {}),
+      ...(durationMs !== undefined ? { durationMs } : {}),
+      ...(commit !== undefined ? { commit } : {}),
+      ...(logTail !== undefined && exitCode !== 0 ? { logTail } : {}),
+    }),
+  );
 }
 
 export const VERDICTS = ["approved", "changes-requested"];
@@ -733,7 +807,7 @@ export async function reportSession(
   store,
   input = {},
   caller = null,
-  { local = false, flow = null, placement = {} } = {},
+  { local = false, flow = null, placement = {}, policy = null } = {},
 ) {
   const own = callerSlot(caller),
     relay =
@@ -751,7 +825,7 @@ export async function reportSession(
   }
   const kind = input.kind;
   if (!REPORT_KINDS.includes(kind))
-    fail("Choose kind progress, done, blocked, or question.");
+    fail("Choose kind progress, done, blocked, question, or findings.");
   const text = reportText(input.text);
   if ((kind === "blocked" || kind === "question") && !text)
     fail(`Say why in text when you report ${kind}.`);
@@ -762,11 +836,6 @@ export async function reportSession(
     (kind !== "progress" || !PHASES.includes(input.phase))
   )
     fail(`A progress report may mark phase ${PHASES.join(", ")}.`);
-  if (
-    kind === "done" &&
-    (typeof input.commit !== "string" || !SHA.test(input.commit))
-  )
-    fail("Report done with the full lowercase commit SHA.");
   const task = findTask(store, input.taskId),
     bindings = listSessionBindings(store),
     binding = bindings.find((b) => slotKey(b.slot) === (relay || own));
@@ -778,6 +847,49 @@ export async function reportSession(
   // chat only (relay.mjs, R41.19).
   const relayed =
     relay && binding.relay && own && slotKey(binding.relay) === own;
+  // A falsifier's done names no commit: it judges findings, not code
+  // (R75.2). Everyone else's done names the commit.
+  const falsifier = binding.role === "falsifier";
+  if (falsifier && input.commit !== undefined)
+    fail("A falsifier's done report names no commit.");
+  if (
+    kind === "done" &&
+    !falsifier &&
+    (typeof input.commit !== "string" || !SHA.test(input.commit))
+  )
+    fail("Report done with the full lowercase commit SHA.");
+  const findings =
+    kind === "findings"
+      ? binding.role === "worker" && !binding.batch
+        ? findingsInput(input.findings)
+        : fail("Only a worker reports findings.")
+      : input.findings !== undefined && !reviewRoleId(binding.role)
+        ? fail("Only a findings report or a review's done has findings.")
+        : undefined;
+  const reply =
+    falsifier && kind === "done" ? falsifierInput(input.falsifier) : undefined;
+  if (!reply && input.falsifier !== undefined)
+    fail("Only a falsifier's done report has a falsifier reply.");
+  // Investigate first (R75.1, R75.3): findings change no file, and a worker
+  // opened to investigate codes only after Go ahead.
+  if (findings) {
+    const worktree = store.get("task_worktrees", task.id);
+    if (
+      worktree?.path &&
+      (await git(worktree.path, ["status", "--porcelain"]).catch(() => ""))
+    )
+      fail(
+        "Findings come before any change: the task's worktree has changes. Undo them, report findings, and wait for Go ahead.",
+        409,
+      );
+  }
+  // Attachments are checked in full before anything is taken (R76.2).
+  const attached = evidenceInput(input.evidence);
+  if (kind === "done" && !gateOpen(store, binding))
+    fail(
+      'Investigate first: report kind "findings" and wait for Avoozl\'s Go ahead before you report done.',
+      409,
+    );
   if (
     relay &&
     !relayed &&
@@ -840,7 +952,9 @@ export async function reportSession(
   }
   if (
     !review &&
-    (["findings", "closures"].some((key) => input[key] !== undefined) ||
+    (["closures"]
+      .concat(findings ? [] : ["findings"])
+      .some((key) => input[key] !== undefined) ||
       (!judgment && input.verdict !== undefined))
   )
     fail(
@@ -856,7 +970,7 @@ export async function reportSession(
       `Attempt ${binding.attempt} was replaced by attempt ${newest}; only its session reports now.`,
       409,
     );
-  if (kind === "done") {
+  if (kind === "done" && !falsifier) {
     const project = taskProject(store, task);
     // A remote worker's commit is fetched first and must be the branch tip
     // it reported (§4.10, R41.13); then it is checked here like any other.
@@ -887,7 +1001,7 @@ export async function reportSession(
         mode: "refuse",
       });
   }
-  return store.transaction(() => {
+  const result = store.transaction(() => {
     const current = store.get("session_bindings", binding.slot),
       last = current.batch ? current.reports?.[task.id] : current.report,
       same =
@@ -898,7 +1012,10 @@ export async function reportSession(
         (last.phase ?? null) === (input.phase ?? null) &&
         JSON.stringify(last.checks) === JSON.stringify(checks) &&
         (last.verdict ?? null) === (judgment ? input.verdict : null) &&
-        JSON.stringify(last.review) === JSON.stringify(review);
+        JSON.stringify(last.review) === JSON.stringify(review) &&
+        JSON.stringify(last.findings) === JSON.stringify(findings) &&
+        JSON.stringify(last.falsifier) === JSON.stringify(reply) &&
+        !attached;
     if (same) return { binding: current, report: last, changed: false };
     if (last && FINAL_REPORTS.has(last.kind))
       fail(`This attempt already reported ${last.kind}.`, 409);
@@ -910,6 +1027,8 @@ export async function reportSession(
       ...(checks ? { checks } : {}),
       ...(judgment ? { verdict: input.verdict } : {}),
       ...(review ? { review } : {}),
+      ...(findings ? { findings } : {}),
+      ...(reply ? { falsifier: reply } : {}),
       at: new Date().toISOString(),
     };
     // A batch keeps one report per task; the binding's own report turns
@@ -936,10 +1055,59 @@ export async function reportSession(
           }
         : { ...current, report };
     store.put("session_bindings", next);
+    // Investigate first (R75): the findings open a falsifier round; the
+    // falsifier's reply runs the gate.
+    if (findings) recordFindings(store, next, findings, report.at);
+    if (reply) recordFalsifier(store, next, reply, report.at, { policy, task });
     // Timing (§4.11): the marker's time is the time Avoozl received it.
     flowOnReport(store, next, report, task.id);
     return { binding: next, report, changed: true };
   });
+  if (result.changed)
+    reportEvidence(store, task, binding, result.report, attached);
+  return result;
+}
+
+// What a report adds to the task's evidence bundle (§4.22, R76.1).
+function reportEvidence(store, task, binding, report, attached) {
+  const repository = taskRepository(task) || null,
+    source = `${binding.role} ${binding.attempt}`,
+    add = (kind, text) =>
+      addEvidence(store, task.id, {
+        kind,
+        source,
+        text,
+        repository,
+        at: report.at,
+      });
+  if (report.findings) add("findings", findingsText(report.findings));
+  if (report.falsifier)
+    add(
+      "falsifier",
+      `${report.falsifier.verdict} (${report.falsifier.confidence}): ${report.falsifier.evidence}`,
+    );
+  if (report.review)
+    add(
+      "review",
+      [
+        `${binding.role.slice("review:".length)}: ${report.review.verdict} on ${String(report.commit).slice(0, 12)}`,
+        ...report.review.findings.map(
+          (f) => `${f.id} (${f.kind}, ${f.paths.join(", ")}): ${f.text}`,
+        ),
+      ].join("\n"),
+    );
+  for (const c of report.checks || [])
+    add(
+      "check",
+      [
+        `${c.command}: ${c.notRun ? `not run (${c.notRun})` : `exit ${c.exitCode}`}`,
+        c.logTail ? `Last lines:\n${c.logTail}` : null,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    );
+  if (attached?.length)
+    attachEvidence(store, task.id, attached, { source, repository });
 }
 
 // Fetch a remote attempt's branch and move this machine's task branch to it.
@@ -1069,6 +1237,11 @@ export function retryDelivery(
     dismiss = input.dismiss ?? [];
   if (!Array.isArray(dismiss) || dismiss.length > 200)
     fail("List at most 200 findings to dismiss.");
+  // Sending work back with a reason is a correction (§4.24, R78.1).
+  if (input.reason !== undefined && !printable(input.reason, 300))
+    fail("Say why in at most 300 characters.");
+  if (input.reason && (mcp || callerSlot(caller)))
+    fail("Only a person sends work back with a reason.", 403);
   if (dismiss.length && (mcp || callerSlot(caller)))
     fail("Only a person dismisses a review finding, not a session.", 403);
   for (const entry of dismiss)
@@ -1081,7 +1254,7 @@ export function retryDelivery(
       fail(
         'Dismiss a finding as {finding: "<attempt>:<role>:<id>", reason} with a reason of at most 500 characters.',
       );
-  return store.transaction(() => {
+  const result = store.transaction(() => {
     const delivery = store.get("task_deliveries", task.id);
     if (delivery?.state !== "decision")
       fail(`${task.id} is not waiting for a decision.`, 409);
@@ -1112,6 +1285,15 @@ export function retryDelivery(
         updatedAt: new Date().toISOString(),
       };
     store.put("task_deliveries", next);
+    if (input.reason)
+      recordCorrection(store, {
+        key: `sent-back:${task.id}:${next.retryFrom}`,
+        taskId: task.id,
+        by: local ? "cli" : "dashboard",
+        kind: "sent-back",
+        summary: input.reason,
+        at,
+      });
     // A session a stock Kiro Crew no longer lists ends here, on the person's
     // word, so the next tick records its attempt and starts a new one.
     for (const binding of listSessionBindings(store))
@@ -1123,6 +1305,16 @@ export function retryDelivery(
         });
     return { delivery: next, changed: true };
   });
+  // The person's answer goes in the evidence bundle (R76.1).
+  addEvidence(store, task.id, {
+    kind: "decision",
+    source: local ? "cli" : "dashboard",
+    text: input.reason
+      ? `Sent back by ${local ? "the command line" : "a person"}: ${input.reason}`
+      : `Retried by ${local ? "the command line" : "a person"}${dismiss.length ? `, dismissing ${dismiss.map((d) => d.finding).join(", ")}` : ""}.`,
+    repository: taskRepository(task) || null,
+  });
+  return result;
 }
 
 const quote = (text) =>
@@ -1501,10 +1693,22 @@ const MARKERS_STEP = (n) =>
 export function plansRepoSteps(
   task,
   project,
-  { baseBranch, relay = false, stack = null, localChecks = false },
+  {
+    baseBranch,
+    relay = false,
+    stack = null,
+    localChecks = false,
+    ship = "auto-merge",
+  },
 ) {
   const branch = `avoozl/${task.id}`,
     base = baseBranch || project.baseBranch || "main",
+    // Ship mode (R80.3): with manual, a person merges; the writer never
+    // turns on auto-merge.
+    merge =
+      ship === "manual"
+        ? "Do not turn on auto-merge and do not merge it: a person merges it on GitHub when its checks and reviews pass."
+        : "Then turn on auto-merge with a merge method the repository allows: `gh pr merge --auto --squash` (or --merge, --rebase).",
     report = `{"input": {"taskId": "${task.id}", "kind": "done", "commit": "<full SHA of the merge commit>"}}`;
   // Stacked on a blocker's open pull request (task 8.2): the pull request
   // starts against the blocker's branch and moves to `base` only after the
@@ -1513,11 +1717,15 @@ export function plansRepoSteps(
   const middle = stack
     ? [
         `3. Your branch starts from the open pull request of blocker ${stack.blocker} (branch ${stack.branch}). Open one pull request from ${branch} against ${stack.branch}, or reuse the open one: \`gh pr create --base ${stack.branch} --head ${branch}\`. Write its title and body from this task's title and acceptance only. Use no closing keyword (Closes, Fixes, Resolves) and link no issue. Do not turn on auto-merge and do not merge it while its base is ${stack.branch}.`,
-        `4. Wait until the pull request from ${stack.branch} has merged (\`gh pr view ${stack.branch} --json state\`). If it closes without merging, report blocked and say so. When it has merged, move your work onto ${base}: \`git fetch origin ${base}\`, \`git rebase --onto origin/${base} ${stack.at}\`, \`git push --force-with-lease origin HEAD:${branch}\`, then \`gh pr edit ${branch} --base ${base}\`. Then turn on auto-merge with a merge method the repository allows: \`gh pr merge --auto --squash\` (or --merge, --rebase).`,
+        // Merged forward, never rebased: a pushed branch is never rewritten
+        // or force pushed (R77.3).
+        `4. Wait until the pull request from ${stack.branch} has merged (\`gh pr view ${stack.branch} --json state\`). If it closes without merging, report blocked and say so. When it has merged, bring ${base} into your branch with a merge commit: \`git fetch origin ${base}\`, \`git merge origin/${base}\`, fix any conflicts, run the checks, push the branch as before, then \`gh pr edit ${branch} --base ${base}\`. ${merge}`,
       ]
     : [
         `3. Open one pull request from ${branch} against ${base}, or reuse the open one: \`gh pr create --base ${base} --head ${branch}\`. Write its title and body from this task's title and acceptance only. Use no closing keyword (Closes, Fixes, Resolves) and link no issue.`,
-        "4. Turn on auto-merge for it, with a merge method the repository allows: `gh pr merge --auto --squash` (or --merge, --rebase).",
+        ship === "manual"
+          ? `4. ${merge}`
+          : "4. Turn on auto-merge for it, with a merge method the repository allows: `gh pr merge --auto --squash` (or --merge, --rebase).",
       ];
   const checks = localChecks
     ? [
@@ -1529,7 +1737,7 @@ export function plansRepoSteps(
     `1. Fetch branch ${branch}, which already exists on origin: \`git -C ${project.root} fetch origin ${branch}\`. Work in your own worktree on it, for example \`git -C ${project.root} worktree add ${worktreePath(task, project)} -B ${branch} origin/${branch}\` (reuse that worktree if it exists). Do not create another branch.`,
     `2. Commit your change and push it to that branch: \`git push origin HEAD:${branch}\`.`,
     ...middle,
-    "5. Fix failing checks and answer review on that pull request until it merges. Do not merge it by hand around required checks or reviews.",
+    "5. Fix failing checks and answer review on that pull request until it merges. Do not merge it by hand around required checks or reviews. When its base branch moves, merge the base branch into your branch and push; never rebase a pushed branch and never force push.",
     `6. When it has merged, fetch ${base} (\`git -C ${project.root} fetch origin ${base}\`) so its merge commit is in the checkout.`,
     relay
       ? `7. Then call plans_report with ${report}${localChecks ? " and the checks list" : ""} if you have that tool. Otherwise end with a done report that names the merge commit SHA, and your conductor records it. If you cannot finish, say why: blocked, or a question.`
@@ -1544,7 +1752,7 @@ export function plansRepoSteps(
 export function plansRepoBrief(
   task,
   project,
-  { baseBranch, relay, stack, localChecks = true, ...options },
+  { baseBranch, relay, stack, localChecks = true, ship, ...options },
 ) {
   const own = {
     id: task.id,
@@ -1563,6 +1771,7 @@ export function plansRepoBrief(
         relay,
         stack,
         localChecks,
+        ship,
       }),
     },
   );
@@ -1617,6 +1826,7 @@ export function workerBrief(
     findings = [],
     repositoryLine = null,
     outside = outsideSource(task),
+    investigate = false,
     linksAndNotes = "",
   },
 ) {
@@ -1634,6 +1844,8 @@ export function workerBrief(
     // Links and notes people and agents left (R61.20), framed as data.
     ...(linksAndNotes ? ["", linksAndNotes] : []),
     "",
+    // Investigate first (R75.1): findings before any change.
+    ...(investigate ? investigateLines(task) : []),
     ...steps,
   ];
   if (attempt > 1)
@@ -1868,10 +2080,11 @@ function composeLeafBrief(
   store,
   data,
   leaf,
-  { relay = false, remote = null } = {},
+  { relay = false, remote = null, investigate = false, ship = null } = {},
 ) {
   const { task, project, attempt, delivery } = leaf,
     options = {
+      investigate,
       attempt,
       worktree: store.get("task_worktrees", task.id),
       previous: delivery?.attempts.at(-1),
@@ -1892,6 +2105,7 @@ function composeLeafBrief(
       ).localChecksFirst,
       ...options,
       relay,
+      ship,
       ...(branch?.stackedOn
         ? {
             baseBranch: branch.finalBase,
@@ -2047,9 +2261,13 @@ export function planReadyDispatches(store, policy, options = {}) {
         remote: target.remoteName ?? null,
         folder: target.folder,
       };
-    const brief = leaf.batch
-      ? batchBrief(store, data, leaf, leafBrief(store, data, leaf))
-      : leafBrief(store, data, leaf, { remote: target });
+    // Investigate first (R75.5): never for a batch, whose brief is one
+    // stretch of small tasks.
+    const investigate = !leaf.batch && investigates(policy, leaf.task),
+      ship = shipMode(policy, leaf.task),
+      brief = leaf.batch
+        ? batchBrief(store, data, leaf, leafBrief(store, data, leaf, { ship }))
+        : leafBrief(store, data, leaf, { remote: target, investigate, ship });
     if (
       taskRoute(leaf.task) === "github" &&
       findPlanningLeak([["brief", brief]], planning)
@@ -2092,6 +2310,7 @@ export function planReadyDispatches(store, policy, options = {}) {
             : leaf.task.title || "",
         ),
         ...(leaf.batch ? { batch: leaf.batch } : {}),
+        ...(investigate ? { investigate: true } : {}),
         folder: `Avoozl/${leaf.project.id}`,
         agent,
         ...(model ? { model } : {}),
@@ -2123,12 +2342,23 @@ export function pickAgain(store, input = {}) {
       .map((b) => b.attempt),
   );
   if (!last) fail(`${task.id} has no attempt to pick again after.`, 409);
+  if (input.reason !== undefined && !printable(input.reason, 300))
+    fail("Say why in at most 300 characters.");
   store.transaction(() =>
     store.setMeta(PICK_AGAIN, {
       ...(store.getMeta(PICK_AGAIN) || {}),
       [task.id]: last,
     }),
   );
+  // Pick again with a reason is a correction (§4.24, R78.1).
+  if (input.reason)
+    recordCorrection(store, {
+      key: `pick-again:${task.id}:${last}`,
+      taskId: task.id,
+      by: input.by ?? null,
+      kind: "pick-again",
+      summary: input.reason,
+    });
   return { taskId: task.id, pickAgainAfter: last };
 }
 
@@ -2945,7 +3175,7 @@ export function planVerifierDispatches(store, policy = null, options = {}) {
 }
 
 // Before integration: when the landing branch moved past the reviewed
-// commit's base, rebase in the task's worktree. A new head is a new round: it
+// commit's base, merge it into the task's worktree (R77.5). A new head is a new round: it
 // becomes the delivery's commit and every role judges it before anything
 // merges (R36.9). Returns {head, onto}, or null when no rebase was needed.
 export async function rebaseForIntegration(project, worktree, commit) {
@@ -2964,17 +3194,26 @@ export async function rebaseForIntegration(project, worktree, commit) {
       "The task's worktree is not at the reviewed commit; it was not rebased.",
       409,
     );
+  // Merged forward, never rebased (R77.5): the task's own commits stay as
+  // they were reviewed, and a conflict leaves the worktree as it was.
   try {
-    await git(worktree.path, ["rebase", target]);
+    await git(worktree.path, [
+      "merge",
+      "--no-ff",
+      "--no-edit",
+      "-m",
+      `Merge ${target} into ${worktree.branch || "the task branch"}`,
+      target,
+    ]);
   } catch (error) {
-    await git(worktree.path, ["rebase", "--abort"]).catch(() => {});
+    await git(worktree.path, ["merge", "--abort"]).catch(() => {});
     fail(
-      `Rebasing onto ${target} failed: ${error.message.split("\n")[0]}`,
+      `Merging ${target} into the task branch failed: ${error.message.split("\n")[0]}`,
       409,
     );
   }
   const head = await git(worktree.path, ["rev-parse", "HEAD"]);
-  return head === commit ? null : { head, onto: target };
+  return head === commit ? null : { head, onto: target, how: "merge" };
 }
 
 // Integrate each verified commit into the repository's integration branch (its
@@ -2984,11 +3223,38 @@ export async function rebaseForIntegration(project, worktree, commit) {
 // stays on its branch.
 export async function integrateVerified(
   store,
-  { now = Date.now(), skip = new Set() } = {},
+  { now = Date.now(), skip = new Set(), policy = null } = {},
 ) {
   const notify = [];
   for (const delivery of store.list("task_deliveries")) {
     if (delivery.state !== "verified" || skip.has(delivery.taskId)) continue;
+    // Ship mode manual (§4.25, R80.4): a local task waits for a person's
+    // Integrate on its Ready to merge item, for this exact commit.
+    {
+      const task = store.read().tasks.find((t) => t.id === delivery.taskId);
+      if (
+        task &&
+        taskRoute(task) !== "github" &&
+        shipMode(policy, task) === "manual" &&
+        delivery.integrateApproved?.commit !== delivery.commit
+      ) {
+        if (delivery.awaitingIntegrate !== delivery.commit) {
+          store.transaction(() =>
+            store.put("task_deliveries", {
+              ...delivery,
+              awaitingIntegrate: delivery.commit,
+            }),
+          );
+          notify.push({
+            channel: "decision",
+            task: delivery.taskId,
+            title: `${delivery.taskId}: ready to merge`,
+            text: `Its checks and reviews passed on ${delivery.commit.slice(0, 12)}. Press Integrate on its Ready to merge item to land it.`,
+          });
+        }
+        continue;
+      }
+    }
     const at = new Date(now).toISOString(),
       // A batch runs in its first task's worktree (§4.11).
       worktree =
@@ -3102,6 +3368,32 @@ export async function integrateVerified(
     store.transaction(() => store.put("task_deliveries", next));
   }
   return { notify };
+}
+
+// Integrate (§4.25, R80.4): a person lands a verified local task under
+// manual ship. Only the commit that is waiting may be approved.
+export function approveIntegration(store, input = {}, { by = "person" } = {}) {
+  const task = findTask(store, input.taskId);
+  return store.transaction(() => {
+    const delivery = store.get("task_deliveries", task.id);
+    if (delivery?.state !== "verified" || !delivery.awaitingIntegrate)
+      fail(`${task.id} is not waiting for Integrate.`, 409);
+    if (input.commit !== undefined && input.commit !== delivery.commit)
+      fail(
+        `${task.id} now waits on ${delivery.commit.slice(0, 12)}; look again.`,
+        409,
+      );
+    const next = {
+      ...delivery,
+      integrateApproved: {
+        commit: delivery.commit,
+        by,
+        at: new Date().toISOString(),
+      },
+    };
+    store.put("task_deliveries", next);
+    return { delivery: next };
+  });
 }
 
 // The tasks of a batch, in the order the worker made their commits.

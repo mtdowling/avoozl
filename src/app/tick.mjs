@@ -47,6 +47,7 @@ import {
   liveAttempt,
   planCheckRuns,
   planReadyDispatches,
+  asksForcePush,
   briefAllowed,
   planVerifierDispatches,
   reconcileDeliveries,
@@ -76,6 +77,10 @@ import { crewStep } from "./github-crew.mjs";
 import { respondStep } from "./github-respond.mjs";
 import { steeringStep } from "./github-steering.mjs";
 import { feedbackStep } from "./github-feedback.mjs";
+import { investigationStep } from "./investigate.mjs";
+import { revertCorrections } from "./corrections.mjs";
+import { evidenceCommentStep } from "./evidence.mjs";
+import { findPlanningLeak } from "./github-plans-repo.mjs";
 import { plannerStep } from "./github-planner.mjs";
 import { intakeNotices, syncGitHubIssues } from "./github-sync.mjs";
 import { advanceGitHubBreakdowns } from "./github-breakdown.mjs";
@@ -739,6 +744,7 @@ export async function tick(
           planned.notify.push(
             ...(
               await integrateVerified(store, {
+                policy: delivery,
                 skip: new Set(
                   store
                     .read()
@@ -764,6 +770,9 @@ export async function tick(
             ...(await watchLine(store, config)).notify,
           );
         }
+        // A person reverting an integrated agent commit is a correction
+        // (§4.24, R78.1); a repository that cannot be read waits a tick.
+        if (script) await revertCorrections(store).catch(() => []);
         // Dependents are released by readiness below, in this same tick.
         completeParents(store);
       }
@@ -841,6 +850,30 @@ export async function tick(
           planned.notify.push({
             channel: "failure",
             title: "Avoozl could not read pull request feedback",
+            text: error.message,
+          });
+        }
+      // The evidence comment on each open pull request (§4.22, R76.4),
+      // after feedback read the pull requests this tick.
+      if (script && github && delivery)
+        try {
+          const policy = readGitHubPolicy(workspaceRoot);
+          planned.notify.push(
+            ...(
+              await evidenceCommentStep(store, github, {
+                leak: (text) =>
+                  policy.mode === "plans-repo" &&
+                  findPlanningLeak(
+                    [["evidence", text]],
+                    policy.planningRepository,
+                  ),
+              })
+            ).notify,
+          );
+        } catch (error) {
+          planned.notify.push({
+            channel: "failure",
+            title: "Avoozl could not update evidence comments",
             text: error.message,
           });
         }
@@ -980,6 +1013,18 @@ export async function tick(
                 routing,
                 placementState,
               });
+      // Investigate first (§4.21): a falsifier per round of findings, and
+      // the Go ahead, Investigate again or Stop each decision owes.
+      const investigation =
+        unobserved.length || !delivery
+          ? { dispatch: [], messages: [], notify: [] }
+          : investigationStep(store, delivery, {
+              script,
+              briefAllowed: (input) => briefAllowed(store, input),
+              writerModel: (b) => b.model || delivery.model || null,
+            });
+      planned.messages.push(...investigation.messages);
+      planned.notify.push(...investigation.notify);
       // Command-only bars are checked by Avoozl itself, off this path: the
       // cron queues each run here and the app backend runs the queue
       // (check-runs.mjs). A spec driven elsewhere queues nothing.
@@ -1039,6 +1084,7 @@ export async function tick(
         ...ready,
         // A verifier judges work already done: it runs while a spec drains.
         ...verify.filter((d) => !readOnlyTask(d.task)),
+        ...investigation.dispatch.filter((d) => !heldTask(d.task)),
         ...responders.filter((d) => !heldTask(d.task)),
         ...planners.filter((d) => !heldTask(d.task)),
         ...retro.dispatch,
@@ -1057,6 +1103,25 @@ export async function tick(
       planned.messages = planned.messages.filter(
         (m) => !readOnly.has(taskPlan.get(m.task)),
       );
+      // Avoozl never asks for a force push (R77.3): such a brief or
+      // message is dropped here, whichever step wrote it, and said once.
+      const forced = [
+        ...dispatch.filter((d) => asksForcePush(d.brief)),
+        ...planned.messages.filter((m) => asksForcePush(m.text)),
+      ];
+      if (forced.length) {
+        dispatch = dispatch.filter((d) => !asksForcePush(d.brief));
+        planned.messages = planned.messages.filter(
+          (m) => !asksForcePush(m.text),
+        );
+        for (const id of new Set(forced.map((f) => f.task)))
+          planned.notify.push({
+            channel: "failure",
+            task: id,
+            title: `Avoozl did not send a force push request for ${id}`,
+            text: "A brief or message asked for a force push, so it was not sent. Writers bring the base branch in with a merge commit instead.",
+          });
+      }
       const notices = [...notify, ...planned.notify];
       // Nothing new starts for a task at its budget, and its sessions get
       // only the budget's own messages until a person acts (R67.8).

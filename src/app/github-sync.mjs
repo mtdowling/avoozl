@@ -222,6 +222,7 @@ function applyIssueTask(
     labelEventId: record.labelEventId,
     bodyHash: record.bodyHash,
     pullRequests: record.pullRequests || [],
+    ...(record.issueType ? { issueType: record.issueType } : {}),
   };
   // A broad issue, or one whose dependency text awaits approval, is held;
   // so is one with a waiting label (Waiting on the author).
@@ -621,6 +622,8 @@ export async function syncGitHubIssues(
           labelAt: primary.at,
           permission: primary.permission,
           pullRequests: linkedPullRequests(timeline, config.id),
+          // The issue's type, for fix work in Flow (§4.11, R79.1).
+          issueType: issue.type?.name ?? null,
           parser: parsed.parser,
           state,
           reason,

@@ -28,6 +28,7 @@ import { listSessionBindings } from "./session-bindings.mjs";
 import { epicOfPlan } from "./epics.mjs";
 import { retroMemory } from "./retro-memory.mjs";
 import { fail } from "./store.mjs";
+import { exportEvidence, importEvidence } from "./evidence.mjs";
 
 const TABLE = "drivers";
 const BASE32 = "abcdefghijklmnopqrstuvwxyz234567";
@@ -1035,6 +1036,9 @@ const MOVED_TABLES = [
   "github_issues",
   "github_linked_branches",
   "pr_feedback",
+  // Investigate first and corrections (§4.21, §4.24).
+  "task_investigations",
+  "corrections",
 ];
 // Column tables: [table, the column naming its task, columns left behind].
 const COLUMN_TABLES = [
@@ -1163,6 +1167,8 @@ export function buildExport(store, ctx, plan, { unfinished = [] } = {}) {
     unfinished,
     machineLocal: machineLocalItems(store, ctx),
     lessons: lessonsHook.export ? lessonsHook.export(store, plan) : null,
+    // Each task's evidence bundle and its files (§4.22, R76.5).
+    evidence: exportEvidence(store, [...ids]),
   };
 }
 
@@ -1351,6 +1357,7 @@ function importExport(store, value, now) {
     if (lessonsHook.import && value.lessons)
       lessonsHook.import(store, value.lessons);
   });
+  if (value.evidence) importEvidence(store, value.evidence);
   return [...away.keys()];
 }
 
