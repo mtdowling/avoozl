@@ -374,6 +374,7 @@ import { writeSpecManifest } from "./spec-manifest.mjs";
 import { decideInvestigation } from "./investigate.mjs";
 import { taskEvidence } from "./evidence.mjs";
 import { driverSessionView, registerDriverSession } from "./driver-session.mjs";
+import { instanceView, renameInstance } from "./instance.mjs";
 import {
   callerSlot,
   claimedTaskIds,
@@ -2616,6 +2617,11 @@ export class Operations {
     if (name === "remote.pull")
       return pullStatus(store, this.workspaceRoot, input);
     if (name === "remote.view") return remoteView(store, this.workspaceRoot);
+    if (name === "instance.view") return instanceView(store);
+    if (name === "instance.rename") {
+      renameInstance(store, input.name);
+      return instanceView(store);
+    }
     if (name === "driversession.view") return driverSessionView(store);
     if (name === "driversession.register") {
       registerDriverSession(store, input);
