@@ -183,7 +183,7 @@ Requirement RC7. Avoozl does what `gh` can and shows exact values for what only 
 
 Requirement RC8. The screens of the experience proposal, built for Variant B (GitHub only) first.
 
-- [ ] rc-8.1 Home: On the line, Release queue, Progress by goal, Needs you, after rc-4.4 [RC8.1, RC8.4, RC8.7] (§D10)
+- [x] rc-8.1 Home: On the line, Release queue, Progress by goal, Needs you, after rc-4.4 [RC8.1, RC8.4, RC8.7] (§D10)
   - On the line from claim markers across machines (`radar.crews`), with a five-step rail and a Stale badge; Conflicts folded into Needs you; no view that repeats Issue Radar or Kiro Crew's pull request review; mockup `01-home.html`.
   - Done when: Rows come from claim markers only; paused, machine and chat are not shown without Variant A; drawn at 320, 768 and 1280 px, light and dark.
 - [ ] rc-8.2 Trace drawer and page, after rc-8.1 [RC8.2] (§D10)
