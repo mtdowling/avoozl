@@ -174,7 +174,6 @@ function Details(props: {
   onSelect: (id: string) => void
 }) {
   const { task, batch } = props
-  const batchHref = batch ? safeHref(batch.url) : null
   const drawer = useTaskDrawer()
   const { waitsOn, blocks } = props.neighbors
   const state = nodeState(task)
@@ -234,7 +233,7 @@ function Details(props: {
             <>
               <dt className="text-muted">Batch</dt>
               <dd data-batch-members={batch.members.join(',')}>
-                {batchHref ? <a href={batchHref}>#{batch.number}</a> : `#${batch.number}`} closes{' '}
+                {safeHref(batch.url) ? <a href={safeHref(batch.url) ?? undefined}>#{batch.number}</a> : `#${batch.number}`} closes{' '}
                 {batch.members.map((id, i) => (
                   <span key={id}>
                     {i > 0 && ', '}

@@ -18,4 +18,8 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run format:check
       - run: npm test
+      # The page's own tests. The browser ones need Chrome and skip without it.
+      - run: npm run test:ui
+        env:
+          AVOOZL_CHROME: skip
       - run: npm pack --dry-run

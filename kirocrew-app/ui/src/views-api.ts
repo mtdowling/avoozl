@@ -305,7 +305,11 @@ export interface ConflictItem extends TaskOwner {
   // A needs-human item: why it waits on a person. 'crew': an Issue Radar
   // crew asked for one on an issue no task owns (R52.10). 'hand-set-review':
   // status running or review with no live session behind it.
-  reason?: 'review' | 'blocked' | 'crew' | 'hand-set-review'
+  reason?: 'review' | 'blocked' | 'crew' | 'hand-set-review' | 'approval'
+  // A branch-landing item (RC16.6): the branch and the head a person may approve.
+  repository?: string
+  branch?: string
+  head?: string
   // A stale-session item: its delivery's state; Retry applies to 'decision'.
   deliveryState?: string | null
   // A content-match or content-unavailable item (design §4.9): the decision
@@ -574,6 +578,7 @@ export const CONFLICT_LABELS: Record<string, string> = {
   'routing-failed': 'Routing failed',
   investigation: 'Findings',
   'ready-to-merge': 'Ready to merge',
+  'branch-landing': 'Ready to land',
 }
 
 // A local task that is not already replaced may be superseded by hand. GitHub

@@ -56,13 +56,33 @@ export const workerAdapter = Object.freeze({
     state?.state === "merged" || state?.state === "integrated",
 });
 
+// A managed remote harness (RC15, remote-coder.mjs). The ready label stays
+// the release slot, and `file` (given by the projection) files the task with
+// the harness once. The harness's own states are mapped in remote-coder.mjs;
+// only a merged public pull request is done, never a harness "complete".
+export const remoteAdapter = Object.freeze({
+  ...issueRadarAdapter,
+  async handOver(input) {
+    const labelled = await issueRadarAdapter.handOver(input);
+    await input.file?.();
+    return labelled;
+  },
+  readState({ issue, pulls = [], remote = null }) {
+    const read = issueRadarAdapter.readState({ issue, pulls });
+    return read.state === "merged" || read.state === "pr-open"
+      ? read
+      : { ...read, state: remote?.state ?? "filed" };
+  },
+  countsAsDone: (state) => state?.state === "merged",
+});
+
 const adapters = new Map([
   ["issue-radar", issueRadarAdapter],
   ["worker", workerAdapter],
+  ["remote", remoteAdapter],
 ]);
 
-// shortcut: the remote adapter arrives in Phase 15; until then a coder
-// without an adapter gets the label hand-over it has today.
+// A coder without an adapter gets the label hand-over it has today.
 export function adapterFor(coder) {
   return adapters.get(coder) ?? issueRadarAdapter;
 }

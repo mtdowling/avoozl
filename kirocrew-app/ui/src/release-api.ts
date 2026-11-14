@@ -64,6 +64,35 @@ export interface QueueRepository {
   steps: QueueStep[]
 }
 
+export interface IntegrationBranch {
+  key: string
+  repository: string
+  branch: string
+  head: string | null
+  base: string | null
+  behind: number | null
+  checks: 'green' | 'red' | 'pending' | null
+  tasksMerged: number
+  tasksTotal: number
+  accepted: boolean
+  landing: { head: string; approvedBy: string; at: string } | null
+  error: string | null
+  readAt: number | null
+}
+
+// One line per branch: tasks merged, distance behind the default branch, and the head's checks.
+export function branchLine(row: IntegrationBranch): string {
+  const behind = row.behind === null ? 'distance unknown' : row.behind === 0 ? `level with ${row.base}` : `${row.behind} behind ${row.base}`
+  const checks = row.checks ? `head checks ${row.checks}` : 'head not read yet'
+  return `${row.tasksMerged} of ${row.tasksTotal} tasks merged · ${behind} · ${checks}${row.accepted ? ' · accepted' : ''}`
+}
+
+export interface ArmedPull {
+  repository: string
+  number: number
+  armedAt: string
+}
+
 export interface ReleaseQueue {
   repositories: QueueRepository[]
 }
@@ -75,6 +104,12 @@ export function releaseClient(api: AppApi) {
   }
   return {
     queue: (workspaceId: string) => run<ReleaseQueue>('radar.releasequeue', {}, workspaceId),
+    // Pull requests Avoozl armed that are still open, and the person-only Disarm (RC5.4).
+    armed: (workspaceId: string) => run<{ pullRequests: ArmedPull[] }>('radar.armed', {}, workspaceId),
+    disarm: (workspaceId: string, repository: string, pullRequest: number) => run<unknown>('radar.disarm', { repository, pullRequest }, workspaceId),
+    // Integration branches (RC16.8) and the person-only landing approval (RC16.6).
+    branches: (workspaceId: string) => run<{ branches: IntegrationBranch[] }>('integration.view', {}, workspaceId),
+    land: (workspaceId: string, repository: string, branch: string, head: string) => run<unknown>('integration.land', { repository, branch, head }, workspaceId),
     // One click releases the next phase of a spec that has none yet.
     step: (workspaceId: string, planId: string) => run<{ planId: string; phase: string; title: string }>('radar.releasestep', { planId }, workspaceId),
   }

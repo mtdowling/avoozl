@@ -16,8 +16,10 @@ import { plansClient } from './plans-api.ts'
 import { CONFLICT_LABELS, viewsClient, type ConflictItem, type RadarClaim } from './views-api.ts'
 import { useRead } from './useRead.ts'
 import { LineBanner } from './FlowView.tsx'
+import ArmedPulls from './ArmedPulls.tsx'
 import { StartDemoButton } from './Demo.tsx'
 import ReleaseQueue from './ReleaseQueue.tsx'
+import IntegrationBranches from './IntegrationBranches.tsx'
 import { LINE_EVENT, flowClient } from './flow-api.ts'
 import Logo from './Logo'
 import { IconBtn, IconLabel, SectionHeading, ShowMore, TaskTitleLink, ViewHeading, useAskChat, usePages } from './controls.tsx'
@@ -448,6 +450,7 @@ export default function DashboardView(props: {
       </ViewHeading>
       {/* Line stopped (R44.9, R48.5): above every other section. */}
       <LineBanner stops={flow.value?.line ?? []} workspaceId={workspaceId} onChanged={() => void flow.reload()} />
+      <ArmedPulls workspaceId={workspaceId} stopped={(flow.value?.line ?? []).length > 0} />
       {(error || chat.error) && (
         <p role="alert" className="text-sm text-danger">
           {error ?? chat.error}
@@ -613,6 +616,7 @@ export default function DashboardView(props: {
             </Section>
           </Pair>
           <ReleaseQueue workspaceId={workspaceId} />
+          <IntegrationBranches workspaceId={workspaceId} />
         </>
       ) : (
         !error && <p className="text-sm text-muted">Loading…</p>
