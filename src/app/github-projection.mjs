@@ -38,7 +38,8 @@ import {
   requireNamespace,
 } from "./github-marker.mjs";
 import { epicOfPlan } from "./epics.mjs";
-import { provenanceWriter } from "./radar-provenance.mjs";
+import { issueRadarCoder, provenanceWriter } from "./radar-provenance.mjs";
+import { resolveBatchGroups } from "./radar-coder-batch.mjs";
 import { finishSource, planSource, sourceParent } from "./radar-source.mjs";
 import {
   issueRecordId,
@@ -77,6 +78,24 @@ ${list ? `\n## Dependencies\n\n${list}\n` : ""}${notes.length ? `\n${notes.map((
 <!-- avoozl:managed:end -->`;
 }
 
+// A batch issue's managed section: each member's text under its own heading.
+// The checklist is separate and sits outside the section, so a crew ticking
+// a box never edits what Avoozl compares; Avoozl never reads the boxes.
+function batchSection(plan, parts) {
+  const inner = (text) =>
+    text
+      .replace(/^<!-- avoozl:managed:start -->\n/, "")
+      .replace(/\n<!-- avoozl:managed:end -->$/, "")
+      .replace(/^This issue is projected from[^\n]*\n/, "");
+  return `<!-- avoozl:managed:start -->
+This issue is a batch of ${parts.length} tasks projected from approved design \`${plan.id}\` at \`${plan.hash.slice(0, 12)}\`. One pull request closes it, and that closes every task below.
+${parts.map(({ task, section }) => `\n## ${task.id}: ${task.title}\n${inner(section)}`).join("\n")}
+<!-- avoozl:managed:end -->`;
+}
+
+const checklist = (tasks) =>
+  tasks.map((task) => `- [ ] ${task.id}: ${task.title}`).join("\n");
+
 // Marker version 2 (§3.4): IDs and hashes only. Requires levels and
 // `supports` edges live here and nowhere on GitHub. `previous` carries the
 // Project values and an order forward.
@@ -88,6 +107,7 @@ function taskMarker({
   applied,
   previous,
   unlinked = null,
+  members = null,
 }) {
   const commit = plan.sourceCommit || plan.context?.github?.commit || null,
     conditions = {},
@@ -108,6 +128,8 @@ function taskMarker({
     taskId: task.id,
     namespace,
     kind: taskKind(task),
+    // A batch issue (radar-coder D4.2) lists its tasks, the lead first.
+    ...(members ? { members } : {}),
     // A child the cap or GitHub left unlinked keeps its parent here (R59.15).
     ...(task.parent
       ? { parent: task.parent }
@@ -727,7 +749,7 @@ export async function refreshProjectedReadiness(
 async function project(
   store,
   github,
-  { planId, repository, identity, dryRun = false },
+  { planId, repository, identity, dryRun = false, batches = [] },
 ) {
   const previewOnly = new Set(),
     namespace = requireNamespace(identity),
@@ -735,6 +757,21 @@ async function project(
     plan = store.get("plans", planId);
   if (!plan || plan.state !== "approved")
     fail("Approve the design revision before projecting issues.", 409);
+  // Batches (radar-coder D4.2): the ones stored on tasks plus the ones asked
+  // for now. Refused before anything is written.
+  const early = store.read(),
+    groups = resolveBatchGroups({
+      tasks: early.tasks.filter(
+        (task) => task.planId === plan.id && task.authority !== "local",
+      ),
+      edges: early.edges,
+      requested: batches,
+      complete: (status) => statusComplete(early, status),
+    }),
+    leadOf = new Map(
+      groups.flatMap((group) => group.map((id) => [id, group[0]])),
+    ),
+    memberConfig = new Map();
   // The plan issue first, then only while this workspace drives the spec
   // (§6.10). A preview writes nothing, so it does not ask.
   if (!dryRun) await ensurePlanIssue(store, github, plan);
@@ -804,6 +841,14 @@ async function project(
         }),
       );
       verified.add(config.id);
+    }
+    const lead = leadOf.get(task.id);
+    if (lead && !issueRadarCoder(identity, config.id))
+      fail(`Batches are for issue-radar repositories, not ${config.id}.`, 409);
+    // A batch member has no issue of its own; the lead's carries it.
+    if (lead && lead !== task.id) {
+      memberConfig.set(task.id, config.id);
+      continue;
     }
     const labels = managedLabels(config, identity);
     if (!managedByRepository.has(config.id)) {
@@ -890,29 +935,68 @@ async function project(
     }
   }
 
+  // A batch's lead item carries its members; a member projects no issue.
+  for (const group of groups) {
+    const item = items.find((entry) => entry.task.id === group[0]);
+    if (!item) {
+      if (skippedDone.has(group[0]))
+        for (const id of group) skippedDone.add(id);
+      continue;
+    }
+    for (const id of group.slice(1)) {
+      if (memberConfig.get(id) !== item.config.id)
+        fail(`Task ${id} is in another repository than ${group[0]}.`, 409);
+      if (managedByRepository.get(item.config.id).byTaskId.has(id))
+        fail(
+          `Task ${id} already has its own issue; it cannot join a batch.`,
+          409,
+        );
+    }
+    item.memberTasks = group.map((id) =>
+      tasks.find((candidate) => candidate.id === id),
+    );
+  }
   const byTask = new Map(items.map((item) => [item.task.id, item])),
     external = new Map();
+  for (const item of items)
+    for (const member of item.memberTasks?.slice(1) ?? [])
+      byTask.set(member.id, item);
   for (const item of items) {
     const { task } = item,
-      requires = data.edges
-        .filter((edge) => edge.to === task.id && edge.kind === "requires")
-        .map((edge) => edge.from);
-    item.title = task.title;
-    item.section = managedSection(
-      task,
-      plan,
-      requires,
-      blockerNotes(data, task),
-      shownNotes(store, task.id),
-    );
-    item.blockerTasks = data.edges
-      .filter(
-        (edge) =>
-          edge.to === task.id &&
-          BLOCKING.has(edge.kind) &&
-          !skippedDone.has(edge.from),
-      )
-      .map((edge) => edge.from);
+      members = item.memberTasks || [task],
+      inside = new Set(members.map((member) => member.id)),
+      parts = members.map((member) => ({
+        task: member,
+        section: managedSection(
+          member,
+          plan,
+          data.edges
+            .filter((edge) => edge.to === member.id && edge.kind === "requires")
+            .map((edge) => edge.from),
+          blockerNotes(data, member),
+          shownNotes(store, member.id),
+        ),
+      }));
+    item.title = item.memberTasks
+      ? `Batch of ${members.length}: ${members.map((member) => member.id).join(", ")}`
+      : task.title;
+    item.section = item.memberTasks
+      ? batchSection(plan, parts)
+      : parts[0].section;
+    // A dependent of a member waits on the batch issue, once.
+    item.blockerTasks = [
+      ...new Set(
+        data.edges
+          .filter(
+            (edge) =>
+              inside.has(edge.to) &&
+              !inside.has(edge.from) &&
+              BLOCKING.has(edge.kind) &&
+              !skippedDone.has(edge.from),
+          )
+          .map((edge) => leadOf.get(edge.from) ?? edge.from),
+      ),
+    ];
     for (const id of item.blockerTasks) {
       if (byTask.has(id) || external.has(id)) continue;
       const local = data.tasks.find((candidate) => candidate.id === id);
@@ -1044,7 +1128,9 @@ async function project(
           !item.conflicts.length &&
           !item.closed &&
           taskKind(item.task) === "leaf" &&
-          queueReady.has(item.task.id) &&
+          (item.memberTasks || [item.task]).every((member) =>
+            queueReady.has(member.id),
+          ) &&
           !(item.current && item.current.state !== "open"),
       );
   for (const item of eligible) firstOf.set(scopeKey(item), item);
@@ -1179,6 +1265,7 @@ async function project(
   async function writeIssue(item) {
     // Only a cross-plan epic's issue has the epic type (Requirement 59.8).
     const { task, config, labels, current } = item,
+      ids = (item.memberTasks || [task]).map((member) => member.id),
       type = null;
     if (!current) {
       const applied = {
@@ -1191,14 +1278,22 @@ async function project(
         title: item.title,
         body:
           renderMarker(
-            taskMarker({ task, plan, data, namespace, applied }),
+            taskMarker({
+              task,
+              plan,
+              data,
+              namespace,
+              applied,
+              members: ids.length > 1 ? ids : null,
+            }),
             markerOptions,
           ) +
           "\n" +
           // The provenance line follows the managed marker (RC2.10).
           (provenance.get(config.id)
-            ? provenance.get(config.id)([task.id]) + "\n"
+            ? provenance.get(config.id)(ids) + "\n"
             : "") +
+          (item.memberTasks ? checklist(item.memberTasks) + "\n" : "") +
           item.section,
         assignees: config.assignee ? [config.assignee] : undefined,
         labels: [labels.managed],
@@ -1428,6 +1523,7 @@ async function project(
         namespace,
         previous: marker,
         unlinked: item.unlinked,
+        members: item.memberTasks ? item.memberTasks.map((m) => m.id) : null,
         applied: {
           title: plans.title.baseline,
           body: plans.body.baseline,
@@ -1449,6 +1545,9 @@ async function project(
         id: issueRecordId(config, issue),
         repository: config.id,
         taskId: task.id,
+        ...(item.memberTasks
+          ? { taskIds: item.memberTasks.map((member) => member.id) }
+          : {}),
         issueId: issueDatabaseId(issue),
         databaseId: issueDatabaseId(issue),
         nodeId: issue.node_id,
@@ -1478,9 +1577,10 @@ async function project(
         observedAt: new Date().toISOString(),
       };
     store.put("github_issues", record);
-    recordLocal(store, task, {
-      conflicts: item.conflicts,
-      github: {
+    const batch = item.memberTasks
+        ? { lead: task.id, members: item.memberTasks.map((m) => m.id) }
+        : null,
+      shared = {
         repository: config.id,
         issueId: record.issueId,
         nodeId: issue.node_id,
@@ -1488,19 +1588,29 @@ async function project(
         url: issue.html_url,
         origin: "design",
         bodyHash: record.bodyHash,
-        ...(item.unlinked ? { unlinked: item.unlinked } : {}),
-      },
-      projectId: config.projectId,
-      dispatch: {
-        ready: isReady,
-        // What the graph allowed at this projection; the tick projects
-        // again when it changes (refreshProjectedReadiness).
-        graphReady: queueReady.has(task.id),
-        state: record.state,
-        assignee: record.assignees,
-        machineId: config.activeMachine || null,
-      },
-    });
+        ...(batch ? { batch } : {}),
+      };
+    // Each member keeps its own task row, pointing at the one issue.
+    for (const member of item.memberTasks || [task])
+      recordLocal(store, member, {
+        conflicts: item.conflicts,
+        github: {
+          ...shared,
+          ...(member === task && item.unlinked
+            ? { unlinked: item.unlinked }
+            : {}),
+        },
+        projectId: config.projectId,
+        dispatch: {
+          ready: isReady,
+          // What the graph allowed at this projection; the tick projects
+          // again when it changes (refreshProjectedReadiness).
+          graphReady: queueReady.has(member.id),
+          state: record.state,
+          assignee: record.assignees,
+          machineId: config.activeMachine || null,
+        },
+      });
     results.push(record);
   }
   let parent = null;
