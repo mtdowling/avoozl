@@ -1267,3 +1267,82 @@ item through a plugin and releases the dependents when it is done.
 13. Every write SHALL be once: a second tick, a second tool call or a second
     clear SHALL NOT add a second label, post a second comment, open a second
     row or record a second order.
+
+### Requirement RC25: Private plans on an orphan branch of the mirror
+
+**User story:** As the owner of a public repository, I want some plans to be
+private and some to be public, both working in the same mirror, so that a
+private plan never reaches the public repository and a public plan follows its
+code.
+
+#### Acceptance criteria
+
+1. **Setting.** `mirror` (RC24.1) SHALL accept an optional `plansBranch`. The
+   default is `avoozl-plans`. The branch is an **orphan branch**: it SHALL
+   share no history with the default branch or with any other branch, and it
+   SHALL hold only `.kiro/specs/` for private plans. Avoozl SHALL create it on
+   the first private plan, from an empty commit, with an explicit refspec, in
+   the mirror only. Avoozl SHALL refuse a `plansBranch` that equals the default
+   branch, starts with `branchPrefix`, or names an existing branch that has a
+   common ancestor with the default branch (checked with the compare API).
+   Settings SHALL edit it in the form and in the raw `.avoozl.json`, kept in
+   sync (RC24.1).
+2. **Where a spec lives.** Each spec SHALL record its home: `main` (public) or
+   `plansBranch` (private). Public specs stay in `.kiro/specs/` on the default
+   branch and sync from and to `source` as any other file does. Spec Builder,
+   chats and Avoozl SHALL read both homes. The same spec name in both homes
+   SHALL be refused, naming both. A new spec SHALL start private when a mirror
+   is set and SHALL show where it will live before **Approve**. Moving a spec
+   between homes SHALL be an explicit act by a person that copies the files and
+   leaves the old copy for the person to delete; Avoozl SHALL NOT move or
+   delete one on its own. The Specs page SHALL show a **Private** or **Public**
+   badge on each spec, and a short line saying what it means.
+3. **Marker.** The provenance marker (RC3.1) SHALL gain an optional
+   `ref=<branch>`, written only for a spec whose home is `plansBranch`. A
+   reader that does not know `ref` SHALL ignore it (RC3.1). Approval (RC3.6)
+   of a private spec SHALL open its pull request against `plansBranch` in the
+   mirror, and SHALL record the commit only after that pull request has merged
+   there.
+4. **`verify-issue`.** The `commit` check (RC3.3.5) SHALL, when the marker has
+   `ref`, run the compare API as `<ref>...<commit>` in the repository that holds
+   the spec, and SHALL accept `behind` or `identical`. Without `ref` it SHALL
+   compare against the default branch as before. A `ref` SHALL be accepted
+   only when the branch exists in that same repository and has no common
+   ancestor with the default branch (an orphan branch); anything else SHALL
+   fail the check naming the reason. The `spec` check SHALL read the files at
+   `commit` in that repository. Output SHALL name the ref, never the
+   plan's text (RC3.5). The docs SHALL say a ref is not a signature (RC3.9).
+5. **Crews read it.** `verify-issue --json` SHALL print, when all checks pass
+   and `ref` is set, the two commands a crew runs: `git fetch origin <ref>`
+   and `git show <commit>:<path>` for each file of the brief. The one-line
+   Additional prompt (RC3.7) SHALL stay the same one line, because it sends
+   the crew to `verify-issue`, which prints these commands; a test SHALL show
+   that the prompt text is unchanged.
+6. **The plans branch never leaves the mirror.** (a) The sync step (RC24.4)
+   SHALL name only the default branch in its refspec and SHALL NOT read or
+   write `plansBranch`. (b) A forward (RC24.7) SHALL build commits only from
+   the code branch, in a scratch clone fetched as a single branch, so no
+   object of `plansBranch` is present. (c) The leak scan of RC24.8 SHALL also
+   block a forward whose diff paths, commit message, branch name, pull request
+   title or body name `plansBranch`, a private spec's folder or any path under
+   it, or a commit reachable from `plansBranch`; the row names the rule, not
+   the text. (d) Every push by Avoozl SHALL use one explicit refspec naming
+   one branch. Avoozl SHALL NOT push with `--mirror`, `--all`, `--tags`, a
+   wildcard, or no refspec, after the seeding of the mirror.
+7. **Issues from plans.** Issues made from a private plan SHALL live in the
+   mirror and SHALL NOT be copied, linked or quoted to `source` (RC24.3).
+   Issues made from a public plan SHALL stand alone: the body holds the task's
+   text and acceptance, SHALL hold no text from any private plan, and SHALL
+   NOT name `plansBranch`. A task SHALL NOT require a task of the other home
+   (`requires` across homes SHALL be refused naming both), so a public plan
+   never waits on a private one.
+8. **One mirror, both homes.** A mirror SHALL hold public and private specs
+   together; each spec's tasks SHALL follow RC24 (a forward, the scan, done on
+   the public merge) using its code change, and the private spec SHALL stay in
+   `plansBranch` throughout.
+
+Proof added to D17:
+
+| Proof  | Proves                                                                                                         |
+| ------ | -------------------------------------------------------------------------------------------------------------- |
+| rc-p24 | One public plan and one private plan in the same mirror; `verify-issue` passes for both; the plans branch never reaches the public repository |
