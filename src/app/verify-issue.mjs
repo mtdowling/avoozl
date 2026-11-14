@@ -6,6 +6,7 @@
 // text or an API message, because no reason below is built from one.
 import { execFile } from "node:child_process";
 import { LOGIN } from "./github-marker.mjs";
+import { parseManagedSection } from "./github-rebuild.mjs";
 import { parseProvenance } from "./github-provenance.mjs";
 import { specItems } from "./spec-plans.mjs";
 import { fail } from "./store.mjs";
@@ -152,7 +153,7 @@ function statusLine(text) {
   return lines.length === 1 ? lines[0] : null;
 }
 
-async function checkSpec(read, home, marker) {
+async function checkSpec(read, home, marker, tasksText = {}) {
   const base = `${repoPath(home)}/contents/.kiro/specs/${marker.spec}`,
     problems = [],
     files = {};
@@ -197,6 +198,7 @@ async function checkSpec(read, home, marker) {
     if (absent.length)
       problems.push(`tasks.md does not list ${absent.join(", ")}`);
   }
+  tasksText.value = files["tasks.md"];
   return problems.length
     ? failed("spec", problems.join("; "), unavailable)
     : pass(
@@ -236,15 +238,48 @@ async function checkCommit(read, home, marker) {
   );
 }
 
+// The brief (RC6.3): what a crew needs to build, from the issue body the
+// projection wrote and the tasks.md the spec check already read. It holds
+// issue and spec text, so it is only built on request and never printed by
+// formatVerification. References are `[RC1.2, RC3]` and `(§D5)` on a task line.
+// shortcut: acceptance is the whole issue's, not split per task; split it
+// when one issue carries tasks with different acceptance.
+function buildBrief(marker, body, tasksText) {
+  const items = specItems(marker.spec, tasksText),
+    references = {};
+  for (const id of marker.tasks) {
+    const title = items.find((item) => item.id === id)?.title ?? "",
+      found = [];
+    for (const group of title.matchAll(/\[([^\]]*)\]/g))
+      for (const part of group[1].split(","))
+        if (part.trim()) found.push(part.trim());
+    for (const group of title.matchAll(/\((§[^)]*)\)/g))
+      found.push(group[1].trim());
+    references[id] = found;
+  }
+  return {
+    spec: marker.spec,
+    commit: marker.commit,
+    taskIds: marker.tasks,
+    acceptance: parseManagedSection(body).acceptance,
+    references,
+  };
+}
+
 // Runs the five checks. `read` is a reader (ghReader() by default).
-export async function verifyIssue(reference, { read = ghReader() } = {}) {
+export async function verifyIssue(
+  reference,
+  { read = ghReader(), brief = false } = {},
+) {
   const { owner, repo, number } = parseIssueReference(reference),
     code = `${owner}/${repo}`,
     checks = [],
     result = { repository: code, number, taskIds: [], commit: null, checks };
   const issue = await get(read, `${repoPath(code)}/issues/${number}`);
   let marker = null,
-    author = null;
+    author = null,
+    issueBody = "";
+  const tasksText = {};
   if (issue.kind !== "ok") {
     // The issue itself cannot be read: nothing can be checked.
     checks.push(failed("marker", why(issue), true));
@@ -257,9 +292,8 @@ export async function verifyIssue(reference, { read = ghReader() } = {}) {
     if (data.pull_request)
       checks.push(failed("marker", "this is a pull request, not an issue"));
     else {
-      const parsed = parseProvenance(
-        typeof data.body === "string" ? data.body : "",
-      );
+      issueBody = typeof data.body === "string" ? data.body : "";
+      const parsed = parseProvenance(issueBody);
       marker = parsed.marker;
       checks.push(
         marker ? pass("marker") : failed("marker", parsed.problem.message),
@@ -288,7 +322,7 @@ export async function verifyIssue(reference, { read = ghReader() } = {}) {
     checks.push(await permission(read, code, author, "author"));
   }
   if (marker) {
-    checks.push(await checkSpec(read, home, marker));
+    checks.push(await checkSpec(read, home, marker, tasksText));
     checks.push(await checkCommit(read, home, marker));
   } else {
     checks.push(skipped("spec", "needs the marker"));
@@ -298,6 +332,8 @@ export async function verifyIssue(reference, { read = ghReader() } = {}) {
   for (const check of checks) delete check.unavailable;
   result.ok = checks.every((check) => check.status === "ok");
   result.exitCode = result.ok ? 0 : result.couldNotRun ? 2 : 1;
+  if (brief && result.ok && marker && tasksText.value !== undefined)
+    result.brief = buildBrief(marker, issueBody, tasksText.value);
   return result;
 }
 
