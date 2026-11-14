@@ -208,3 +208,25 @@ test('neverRan is true only when the delivery read worked and nothing has ever r
   assert.equal(summarize({ ...base, delivery: [delivery('a', { complete: true })] }).neverRan, false)
   assert.equal(summarize({ ...base, delivery: [delivery('a', { integration: { commit: 'c', branch: 'main', at: null } })] }).neverRan, false)
 })
+
+test('a remote worker from a runner shows in In flight with its crew link', () => {
+  const remote = {
+    host: 'box',
+    crewId: 'crew-b',
+    taskId: 'T1',
+    state: 'working',
+    chatKey: 'chat-4',
+    status: 'running',
+    updatedAt: '2026-11-14T03:00:00.000Z',
+    attachUrl: 'https://crew-b.example/chat?sid=chat-4',
+    stale: false,
+    lastOkAt: null,
+  }
+  const summary = summarize({ graph: null, delivery: [], conflicts: [], plans: null, remote: [remote] })
+  assert.equal(summary.inFlight.length, 1)
+  const [row] = summary.inFlight
+  assert.equal(row.remote.host, 'box')
+  assert.equal(row.session.link, 'https://crew-b.example/chat?sid=chat-4')
+  assert.equal(row.session.crew, 'crew-b')
+  assert.equal(summarize({ graph: null, delivery: [], conflicts: [], plans: null }).inFlight.length, 0)
+})
