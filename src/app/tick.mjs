@@ -848,7 +848,9 @@ export async function tick(
           });
         }
       // Review drafts by label (RC20): new labels, and drafts waiting on a
-      // person. Dispatch of the chats waits for the roster check below.
+      // person. Dispatch of the chats waits for the roster check below. A
+      // read that fails keeps the last state and is tried next tick (design
+      // D25), so it raises no notice each minute.
       if (script && github)
         try {
           const step = await reviewDraftStep({
@@ -858,12 +860,6 @@ export async function tick(
             tasks: store.read().tasks,
           });
           planned.notify.push(...step.notify);
-          for (const text of step.errors)
-            planned.notify.push({
-              channel: "failure",
-              title: "Avoozl could not check review drafts",
-              text,
-            });
         } catch (error) {
           planned.notify.push({
             channel: "failure",
