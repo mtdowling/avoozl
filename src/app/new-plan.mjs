@@ -153,7 +153,9 @@ export function specBuilderDescription(
 // `deps`: {readSpec(name), repositories, specRoot, template(ref)}. With
 // `template` ({plugin, id, version}) and `inputs`, the planner chat is
 // seeded with the template's prompt and filled starter (R61.7).
-export function requestNewPlan(store, input = {}, deps) {
+// `source` ({repository, number}) names the GitHub issue a Radar-coded plan
+// comes from; the plan's issues are projected under it (rc-1.3).
+export function requestNewPlan(store, input = {}, deps, source = null) {
   if (!input || typeof input !== "object") fail("Send the New spec fields.");
   let template = null,
     templateText = null;
@@ -310,6 +312,7 @@ export function requestNewPlan(store, input = {}, deps) {
       ...(builder ? { handoff } : {}),
       ...(epic ? { epic } : {}),
       ...(template ? { template: template.ref } : {}),
+      ...(source ? { source } : {}),
     },
   ]);
   if (!builder)
@@ -434,6 +437,7 @@ export function importNewPlans(store, deps) {
               repositories: entry.repositories,
               // The template the draft came from (R61.8).
               ...(entry.template ? { template: entry.template } : {}),
+              ...(entry.source ? { source: entry.source } : {}),
             },
           },
         },
