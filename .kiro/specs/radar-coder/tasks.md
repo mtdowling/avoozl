@@ -193,7 +193,7 @@ Requirement RC8. The screens of the experience proposal, built for Variant B (Gi
   - One `panelTabs` entry; matches the chat from the URL; spec check and Approve in a Spec Builder chat; a test fails when the URL shape changes; opens by itself only in a Spec Builder chat with an unapproved `tasks.md`; mockup `03-side-panel.html`.
   - Done when: Each chat kind shows its content; the URL-shape test exists.
   - Limit: the host offers an app no call to open its tab, so "opens by itself" is the rule `opensItself` in `panel-chat.ts`, not yet acted on; it needs a host call.
-- [ ] rc-8.4 Flow from GitHub data, after rc-8.1 [RC8.5] (§D10)
+- [x] rc-8.4 Flow from GitHub data, after rc-8.1 [RC8.5] (§D10)
   - Ready to Claim, Claim to PR, PR to green, green to merge, flow efficiency; Stop the line keeps its meaning; mockup `07-flow-retro.html`.
   - Done when: Stage times computed from fixture events match hand-computed values.
 - [ ] rc-8.5 Retro rule targets: AGENTS.md, steering, Additional prompt text, after rc-8.4, rc-3.5 [RC8.6] (§D10)
@@ -427,6 +427,28 @@ Requirement RC19. The parent issue is marked as taken when its plan is approved.
   - Done when: A fake-GitHub test: the parent gets one claim and label; a parent with a crew's claim gets no write and one Trace note; a second approval writes nothing; a superseded plan removes only Avoozl's claim.
 - [ ] rc-p19 Proof 19: the parent is not taken by a crew, after rc-19.1 [RC19] (§D17)
   - Setup: a scratch repository, a Radar crew with label scope `ready`, an approved plan. Action: let the crew poll after approval and after the first release. Expected: the crew never takes the parent; it takes released sub-issues. Failure means: the claim format does not hold the crew off. Next decision: re-read the claim format on the current release.
+  - Done when: Expected result observed live; receipt under `docs/evidence/`.
+
+## Phase 20: Review drafts by label, and Avoozl's label names
+
+Requirements RC20 and RC21. A label on a pull request gives the person who
+added it a pending review to edit and submit; every Avoozl label takes the
+`avoozl:` prefix by default.
+
+- [ ] rc-20.1 Avoozl's label names: `avoozl:` defaults, review and drafted labels, clash check, Settings, after rc-1.1, rc-18.1 [RC21.1, RC21.2, RC21.3, RC21.4, RC21.5] (§D26)
+  - `RADAR_DEFAULTS` and `READY_LABEL_DEFAULT` move to `avoozl:plan`, `avoozl:ready`, `avoozl:plan-approved`, `avoozl:merge-conflict`; `radar.reviewLabel` (`avoozl:review`) and `radar.draftedLabel` (`avoozl:drafted`) are new; the clash check covers all eight roles and the other managed labels; a set name keeps working; Settings › Crews and rules shows the six labels in one box with job, writer, raw key and default; Set up creates the review and drafted labels; `src/app/test/avoozl-labels.test.mjs`.
+  - Done when: An unset policy resolves the six `avoozl:` defaults; a policy that sets `to plan` keeps it; review equal to drafted, or to the claim label, is refused naming both; the UI test shows the six fields with their defaults as placeholders; `npm test` passes.
+- [ ] rc-20.2 Review label on a pull request opens one read-only review chat, after rc-20.1 [RC20.1, RC20.2, RC20.3, RC20.10, RC20.14] (§D25)
+  - The tick finds open pull requests with the review label by one search per repository; the last labeler passes the trigger-label check or the label is removed with one row; the machine login must equal the labeler or no chat opens and one row names both; one receipt per label event; the brief holds the closing issues, crew claims and comments, and spec tasks from provenance markers, fenced as data, and passes content rules; agent `avoozl-review-draft` has read tools and one post tool; `src/app/test/review-draft-step.test.mjs`.
+  - Done when: Fake-GitHub tests: an allowed labeler with a matching login gives one dispatch across three ticks; a stranger's label is removed with one row; a login mismatch gives no dispatch and one row; the brief names the crew claim and the spec task.
+- [ ] rc-20.3 `plans_post_review_draft`: a pending review with line comments, then the label swap, after rc-20.2 [RC20.4, RC20.5, RC20.9, RC20.13, RC20.14] (§D25)
+  - The bound chat's tool screens the body and comments, checks the login again, deletes only Avoozl's own earlier pending draft, creates the review with `commit_id` and no `event`, removes the review label and adds the drafted label; a GitHub 422 goes back to the chat with nothing posted; someone else's pending review blocks with one row; no code path sends a review `event`; `src/app/test/review-draft-post.test.mjs`.
+  - Done when: Fake-GitHub tests: the create call has no `event` and the head commit; a second call posts nothing; a screen hit posts nothing; a redraft deletes only Avoozl's earlier draft; a grep test finds no submit or dismiss path.
+- [ ] rc-20.4 Waiting, stale and submitted drafts: rows, the Review drafts list, the search link and Trace, after rc-20.3, rc-8.2 [RC20.6, RC20.7, RC20.8, RC20.11, RC20.12] (§D25)
+  - The tick reads each waiting draft: submitted or deleted removes the drafted label and closes the row, recording which and GitHub's time; a moved head marks it stale with both commits; the Review drafts list (page, CLI, MCP read) filters by repository and state and shows `is:pr is:open label:"<drafted>"` with Copy; Trace adds a Review step after CI only when a draft exists; nothing is written to Radar labels; `src/app/test/review-draft-watch.test.mjs`, `kirocrew-app/ui/test/review-drafts.test.mjs`.
+  - Done when: Fake-GitHub tests: a submitted draft clears the label and row once; a deleted draft is recorded as discarded; a head move marks stale and deletes nothing; the UI test shows the list, the filter and the search link; Trace shows Review only for a drafted pull request.
+- [ ] rc-p20 Proof 20: a review draft from a label, after rc-20.1, rc-20.2, rc-20.3, rc-20.4 [RC20, RC21] (§D25)
+  - Setup: a scratch repository with a pull request that closes a crew-claimed, marked issue; the machine signed in as the person. Action: add the review label as that person; then as a person without write access; then as an allowed person on another login; then submit the first draft in GitHub. Expected: one pending review only that person sees, with line comments; the labels swap; the stranger's label is removed; the wrong login drafts nothing and gets one row; submit clears the drafted label; Trace shows Review. Failure means: a draft can be posted under the wrong account or submitted by Avoozl. Next decision: keep drafts in the chat only.
   - Done when: Expected result observed live; receipt under `docs/evidence/`.
 
 ## Phase 21: The Workflow map

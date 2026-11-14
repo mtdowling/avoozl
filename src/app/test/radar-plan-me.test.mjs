@@ -435,3 +435,11 @@ test("radar.trace shows the claim comment's GitHub time, not the marker's update
     /issue number/,
   );
 });
+
+test("radar.flow reads finished issues once and shows stage times", async (t) => {
+  const { ops } = workspace(t, fakeGitHub([recorded(16)])),
+    view = await ops.execute("radar.flow", {});
+  // The recorded issue is open, so nothing has finished.
+  assert.equal(view.count, 0);
+  assert.deepEqual(view.repositories, [REPO]);
+});
