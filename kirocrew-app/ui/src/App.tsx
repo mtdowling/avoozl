@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
 import { Btn, EmptyState, PageHeader, SegmentedControl } from '@kirocrew/app-sdk/ui'
 import Logo from './Logo'
+import { InstanceBadge } from './InstanceName.tsx'
 import DashboardView, { type DashboardTarget } from './DashboardView'
 import EpicsView from './EpicsView.tsx'
 import PlansView, { type PlanTarget } from './PlansView'
@@ -250,6 +251,7 @@ function AvoozlPage() {
           <span className="inline-flex items-center gap-2">
             <Logo size={28} />
             Avoozl
+            <InstanceBadge workspaceId={active} />
           </span>
         }
         subtitle="Specs and epics as a graph, then Issue Radar crews code the ready tasks"
