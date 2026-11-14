@@ -47,13 +47,14 @@ Ask what the team needs, then list only those parts in `provides`:
 | Task records kept in another system                                                                             | `tracker`  |
 | Outside work brought in on each tick                                                                            | `intake`   |
 | Tasks delivered somewhere other than a local worker                                                             | `route`    |
+| A task that waits on an item outside GitHub, read without writing to it (a tracker gate)                        | `gate`     |
 | Retro lessons other workspaces may use, in `avoozl-lessons.json`                                                | `lessons`  |
 | A repeated kind of work started the same way each time, as folders under `templates/`                           | `template` |
 
 A plugin with only `pack`, `lessons` or `template` has no `entry` and runs no code. `intake` runs as
 the `tracker` kind and needs `capabilities.tracker` to list `poll`.
 
-The code kinds are `route`, `tracker` and `rules`. A manifest written
+The code kinds are `route`, `tracker`, `rules` and `gate`. A manifest written
 before `provides` lists `kinds` instead; with `provides`, leave `kinds` out,
 or make it match.
 
@@ -102,11 +103,11 @@ or make it match.
 
 A `plugins` entry names exactly one source:
 
-| Source  | Entry key                    | Notes                                                                                   |
-| ------- | ---------------------------- | --------------------------------------------------------------------------------------- |
-| Folder  | `path`                       | Relative to the file that declares it. A shared folder is a path inside the repository. |
-| Package | `package`                    | Installed into the `plugins` folder beside `plugins.json`.                              |
-| Git     | `git`, `ref`, `subdir`       | `ref` resolves to one commit. No hooks, no submodules, no `npm install`.                |
+| Source  | Entry key              | Notes                                                                                   |
+| ------- | ---------------------- | --------------------------------------------------------------------------------------- |
+| Folder  | `path`                 | Relative to the file that declares it. A shared folder is a path inside the repository. |
+| Package | `package`              | Installed into the `plugins` folder beside `plugins.json`.                              |
+| Git     | `git`, `ref`, `subdir` | `ref` resolves to one commit. No hooks, no submodules, no `npm install`.                |
 
 Commit a git plugin ready to run, bundled or with `node_modules`. Avoozl
 refuses a git URL with a password or token in it.
