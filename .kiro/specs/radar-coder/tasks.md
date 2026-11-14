@@ -48,7 +48,7 @@ Requirement RC1. The Radar path starts with one setting and four label names. No
 
 Requirement RC2. Spec to issues, in both modes, with batching and the preview. Nothing is written before a confirm.
 
-- [ ] rc-2.1 Plans-repo mode projects issues into the code repository, after rc-1.1 [RC2.2, RC2.3] (§D4.1)
+- [x] rc-2.1 Plans-repo mode projects issues into the code repository, after rc-1.1 [RC2.2, RC2.3] (§D4.1)
   - Projection for `coder: issue-radar` writes issues in the code repository in both modes; closing by `Closes #N` or by Avoozl on merge; worker coder unchanged; `src/app/test/radar-coder-projection.test.mjs`.
   - Done when: With a fake GitHub, single-repo and plans-repo projections write issues only into the code repository; plans-repo with `coder: worker` still writes into the plans repository; closing works in both forms.
 - [ ] rc-2.2 Show the plans repository name in issues, a per-repository switch, after rc-2.1 [RC2.4] (§D4.1)

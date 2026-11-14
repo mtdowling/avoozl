@@ -22,6 +22,7 @@ import { graphOrder } from "./delivery.mjs";
 import { priorityRank } from "./github-policy.mjs";
 import {
   assertPlanningLink,
+  radarIssueRepository,
   isParentMarker,
   renderMarker,
   requireNamespace,
@@ -645,11 +646,19 @@ export async function refreshProjectedReadiness(
     if (skipPlans.has(planId)) continue;
     if (store.get("plans", planId)?.state !== "approved") continue;
     try {
-      // Plans-repo mode keeps every task issue in the planning repository.
+      // Plans-repo mode keeps every task issue in the planning repository,
+      // except a plan whose issues sit in an `issue-radar` code repository.
+      const radar = designed.some(
+        (task) =>
+          task.planId === planId &&
+          radarIssueRepository(identity, task.github.repository),
+      );
       await project(store, github, {
         planId,
         identity,
-        ...(identity.mode === "plans-repo" && identity.planningRepository
+        ...(identity.mode === "plans-repo" &&
+        identity.planningRepository &&
+        !radar
           ? { repository: identity.planningRepository }
           : {}),
       });
