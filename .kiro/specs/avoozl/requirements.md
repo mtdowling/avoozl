@@ -4312,12 +4312,16 @@ stay untouched.
 
 #### Acceptance criteria
 
-1. WHEN a person presses Try the demo THEN Avoozl SHALL open a made-up
+1. WHEN a person presses Start demo THEN Avoozl SHALL open a made-up
    sample workspace: one epic over three approved specs with phases, one
    draft spec, tasks that are done, ready, running, in review, blocked and
    done by a person, Intake items, an idea, Flow history with a closed stop,
    two lessons, receipts and Activity rows. It SHALL hold no real or private
-   data.
+   data. **Start demo** SHALL show only in the Dashboard's empty In flight
+   box while the workspace has never run a task (no session, evidence,
+   integration or completed task), and on the empty page with no workspace;
+   it SHALL NOT be in the page header. While the demo is on, the header keeps
+   its Demo badge and Exit demo (owner decision 2026-11-14).
 2. The sample SHALL be installed once, in its own temporary folder, built
    in a staging folder and moved into place whole. A failed build SHALL
    leave nothing. A second start SHALL reuse the sample and keep its edits.
