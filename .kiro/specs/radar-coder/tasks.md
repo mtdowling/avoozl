@@ -595,7 +595,7 @@ Requirement RC27. Adopt what exists and create what is missing, with a dry run f
   - Steps in order: private repository (visibility read back), one-time `git push --mirror` from the source into the new mirror, orphan plans branch, labels, branch rule requiring CI, auto-merge setting, then the Radar values screen; an existing name is refused and points to Adopt; a mirror that is not private stops the run and deletes nothing.
   - Done when: A fake GitHub test: the steps run in order; an existing name is refused; a non-private result stops with one row and no delete call.
   - Built with the plans branch named `avoozl-plans` until rc-24.1 adds `plansBranch`; the engine reads `mirror.plansBranch` when it exists.
-- [ ] rc-26.4 Mirror section in Settings: two buttons, dry-run view, confirm, after rc-26.2, rc-26.3 [RC27.1, RC27.7] (§D32)
+- [x] rc-26.4 Mirror section in Settings: two buttons, dry-run view, confirm, after rc-26.2, rc-26.3 [RC27.1, RC27.7] (§D32)
   - Both buttons call the operations; the dry run lists one line per write with a tick; the result fills the form and the raw file; no logic of its own in the page.
   - Done when: A page test: the dry run shows, a ticked line applies, an unticked line does not; `npm run test:ui` passes.
 - [ ] rc-p26 Proof 26: Create and Adopt on scratch repositories, after rc-26.1, rc-26.2, rc-26.3, rc-26.4 [RC27] (§D17)
