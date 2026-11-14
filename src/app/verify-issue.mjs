@@ -225,8 +225,9 @@ async function checkCommit(read, home, marker) {
   const state = record(compare.body) ? compare.body.status : undefined,
     short = marker.commit.slice(0, 7);
   if (state === "identical")
-    return pass("commit", `${short} is identical to ${branch}`);
-  if (state === "behind") return pass("commit", `${short} is behind ${branch}`);
+    return pass("commit", `${short} is identical to the default branch`);
+  if (state === "behind")
+    return pass("commit", `${short} is behind the default branch`);
   return failed(
     "commit",
     COMPARE_KNOWN.has(state)
