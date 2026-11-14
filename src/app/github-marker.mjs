@@ -135,6 +135,7 @@ export function validateMarker(marker, { planningRepository } = {}) {
       "taskId",
       "namespace",
       "kind",
+      "members",
       "parent",
       "source",
       "compiler",
@@ -165,6 +166,17 @@ export function validateMarker(marker, { planningRepository } = {}) {
     validateClaim(marker.claim);
   }
   check(marker.parent === undefined || TASK_ID.test(marker.parent), "parent");
+  // A batch issue (radar-coder D4.2): two to five task IDs, the lead first.
+  check(
+    marker.members === undefined ||
+      (Array.isArray(marker.members) &&
+        marker.members.length >= 2 &&
+        marker.members.length <= 5 &&
+        new Set(marker.members).size === marker.members.length &&
+        marker.members[0] === marker.taskId &&
+        marker.members.every((id) => TASK_ID.test(id))),
+    "members",
+  );
   onlyKeys(marker.source, ["commit", "manifest"], "source");
   check(
     marker.source.commit === null || COMMIT.test(marker.source.commit || ""),

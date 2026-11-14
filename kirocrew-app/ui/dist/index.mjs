@@ -13210,7 +13210,7 @@ function yd() {
 	});
 }
 function bd(e) {
-	let { task: t } = e, n = zn(), { waitsOn: r, blocks: i } = e.neighbors, a = Rt(t);
+	let { task: t, batch: n } = e, r = n ? Jr(n.url) : null, i = zn(), { waitsOn: a, blocks: o } = e.neighbors, s = Rt(t);
 	return /* @__PURE__ */ S(g, { children: /* @__PURE__ */ C("div", {
 		"aria-label": "Task details",
 		role: "region",
@@ -13219,11 +13219,11 @@ function bd(e) {
 				title: t.title,
 				actions: /* @__PURE__ */ C(x, { children: [/* @__PURE__ */ S(rr, {
 					tooltip: "Open this task's details in the drawer",
-					onClick: () => n.openTask(t.id),
+					onClick: () => i.openTask(t.id),
 					children: "All details"
 				}), /* @__PURE__ */ S(rr, {
 					tooltip: "Add a draft task that waits on this one",
-					onClick: () => n.addTask({ prerequisite: t.id }),
+					onClick: () => i.addTask({ prerequisite: t.id }),
 					children: "Add a task after this"
 				})] })
 			}),
@@ -13241,8 +13241,8 @@ function bd(e) {
 						children: t.status ?? "no status"
 					}),
 					/* @__PURE__ */ S(K, {
-						variant: a === "needs-you" ? "warning" : a === "ready" ? "info" : void 0,
-						children: md[a]
+						variant: s === "needs-you" ? "warning" : s === "ready" ? "info" : void 0,
+						children: md[s]
 					}),
 					t.review && /* @__PURE__ */ S(K, { children: "review" }),
 					t.planArchived && /* @__PURE__ */ S(K, { children: "Archived" }),
@@ -13296,11 +13296,31 @@ function bd(e) {
 						className: "text-muted",
 						children: "Decision"
 					}), /* @__PURE__ */ S("dd", { children: t.decision })] }),
+					n && /* @__PURE__ */ C(x, { children: [/* @__PURE__ */ S("dt", {
+						className: "text-muted",
+						children: "Batch"
+					}), /* @__PURE__ */ C("dd", {
+						"data-batch-members": n.members.join(","),
+						children: [
+							r ? /* @__PURE__ */ C("a", {
+								href: r,
+								children: ["#", n.number]
+							}) : `#${n.number}`,
+							" closes",
+							" ",
+							n.members.map((n, r) => /* @__PURE__ */ C("span", { children: [r > 0 && ", ", n === t.id ? n : /* @__PURE__ */ S("button", {
+								type: "button",
+								className: "underline",
+								onClick: () => e.onSelect(n),
+								children: n
+							})] }, n))
+						]
+					})] }),
 					/* @__PURE__ */ S("dt", {
 						className: "text-muted",
 						children: "Waits on"
 					}),
-					/* @__PURE__ */ S("dd", { children: r.length === 0 ? "nothing" : r.map((t, n) => /* @__PURE__ */ C("span", { children: [
+					/* @__PURE__ */ S("dd", { children: a.length === 0 ? "nothing" : a.map((t, n) => /* @__PURE__ */ C("span", { children: [
 						n > 0 && ", ",
 						/* @__PURE__ */ S("button", {
 							type: "button",
@@ -13322,7 +13342,7 @@ function bd(e) {
 						className: "text-muted",
 						children: "Blocks"
 					}),
-					/* @__PURE__ */ S("dd", { children: i.length === 0 ? "nothing" : i.map((t, n) => /* @__PURE__ */ C("span", { children: [n > 0 && ", ", /* @__PURE__ */ S("button", {
+					/* @__PURE__ */ S("dd", { children: o.length === 0 ? "nothing" : o.map((t, n) => /* @__PURE__ */ C("span", { children: [n > 0 && ", ", /* @__PURE__ */ S("button", {
 						type: "button",
 						className: "underline",
 						onClick: () => e.onSelect(t.id),
@@ -13720,6 +13740,7 @@ function xd({ workspaceId: e, focus: t = null, drill: n = null, onDrill: i }) {
 			] }),
 			y && H && /* @__PURE__ */ S(bd, {
 				task: H,
+				batch: y.batches?.find((e) => e.id === H.batch) ?? null,
 				neighbors: $t(y, H.id),
 				onSelect: U
 			})
