@@ -404,7 +404,7 @@ Requirement RC17. Templates and docs for migrations, codegen changes and cross-r
 
 Requirement RC18. A trusted person approves by label; any approval is written back to the issue.
 
-- [ ] rc-18.1 Approval label setting and label clash check, after rc-1.1 [RC18.1] (§D23)
+- [x] rc-18.1 Approval label setting and label clash check, after rc-1.1 [RC18.1] (§D23)
   - `approval label` per repository, default `plan approved`; equal to the planning, needs-human, claim, ready or conflict label is refused naming both; Settings shows what it does and who writes it; `src/app/test/approval-label.test.mjs`.
   - Done when: The default validates; a clash is refused naming both labels; `npm test` passes.
 - [ ] rc-18.2 Tick reads the approval label and checks the labeler, after rc-18.1, rc-1.2, rc-3.6 [RC18.2, RC18.3, RC18.7] (§D23)
