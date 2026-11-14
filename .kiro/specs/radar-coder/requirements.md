@@ -14,6 +14,15 @@ projection to GitHub) and the **gate** (proof that an issue came from an
 approved plan, release order, merge path, retros). Issue Radar crews, on any
 machine, do the triage and the coding.
 
+### Scope: what Avoozl is for
+
+Avoozl is for **epics**: approved goals that need many changes in a set order.
+It does not do maintenance, triage or one-off pull request handling. Those
+belong to Issue Radar crews, or to the team's own coder, without Avoozl.
+Rule of thumb: if the work fits in one pull request, it is not an Avoozl
+job. If it needs a plan with an order, it is. Avoozl can still hand each task
+of an epic to any coder (RC14).
+
 This is a spec only. Approving it, creating issues and starting agents are
 separate acts that a person does later. Nothing in it changes code, GitHub
 repositories or settings. It sits beside `.kiro/specs/avoozl/`, which stays
@@ -79,7 +88,8 @@ and no stranger's issue reaches a plan.
 #### Acceptance criteria
 
 1. A repository SHALL have `coder: issue-radar` (default for a repository
-   with Issue Radar connected) or `coder: worker`. `worker` SHALL keep
+   with Issue Radar connected), `coder: worker` or `coder: remote` (RC14,
+   RC15). `worker` SHALL keep
    today's behavior, for local-only mode and repositories without Radar
    (RC11.3). The setting SHALL be per repository and SHALL apply in both
    GitHub modes. This changes `.avoozl.json` validation, which today refuses
@@ -512,11 +522,11 @@ that other tools call removed by accident.
    foreman (one conductor per machine on a shared queue,
    `machine-conductors-2026-11-13.md`) and a bot heartbeat were research only
    and are not built, so nothing is removed for them. They SHALL stay unbuilt:
-   crews on each machine replace them. Each removal task SHALL name the code
+   crews on each machine replace them (RC11.8). Each removal task SHALL name the code
    and the tests it removes and SHALL pass `npm test`.
 3. `coder: worker` SHALL stay available, with its dispatch, verification,
    review and integration, for local-only mode and for repositories without
-   Radar. The removals SHALL apply to a repository only when its `coder` is
+   Radar. It is frozen (RC14.4): upkeep only, no new features. The removals SHALL apply to a repository only when its `coder` is
    `issue-radar`, until every repository the workspace knows is on it.
 4. These SHALL stay: the `plans_*` MCP names, the `NUPP_WORKSPACE` and
    `AICOMMANDER_*` environment aliases, the `aicommander` command and the
@@ -533,6 +543,12 @@ that other tools call removed by accident.
 7. Retirement SHALL move no data: existing workspaces, receipts and evidence
    SHALL stay readable, and `docs/research/` and `docs/evidence/` SHALL NOT be
    rewritten.
+8. The remote foreman conductor (one conductor per machine on a shared queue,
+   with the bot heartbeat meant to keep it awake) is **superseded by Radar
+   crews**. Where `docs/research/` describes it as a remote path, this spec is
+   the current statement, and those documents SHALL NOT be rewritten
+   (AGENTS.md). Remote work SHALL go through a Radar crew on that machine (RC1)
+   or through a remote coder (RC15).
 
 ### Requirement RC12: Open questions, each with the test that answers it
 
@@ -554,3 +570,187 @@ settles it, so that I know what the design waits on.
    that names it as a dependency.
 4. Nothing SHALL be filed upstream by this spec. A request for Kiro Crew SHALL
    be written as a note in `docs/` for a person to file.
+
+### Requirement RC13: The work split, and what Avoozl does not take
+
+**User story:** As the owner, I want Avoozl to take only work that needs a
+plan with an order, so that maintenance and one-off pull requests stay with
+the tools built for them.
+
+#### Acceptance criteria
+
+1. The scope statement in the Introduction SHALL appear in the README, in the
+   Set up screen and in the quick goal modal, in the same words. It SHALL say
+   that Avoozl is for epics, that maintenance, triage and one-off pull request
+   handling belong to Issue Radar crews or to the team's coder, and that
+   Avoozl can hand each task to any coder.
+2. The rule of thumb SHALL show beside the statement: fits in one pull
+   request, not Avoozl; needs a plan with an order, Avoozl.
+3. WHEN a quick goal or a planned issue produces one task and no edge, Avoozl
+   SHALL show one line: "This fits one pull request. A crew or your coder can
+   take it without a plan." The line SHALL offer **Plan it anyway** and SHALL
+   NOT refuse the goal or the plan.
+4. Avoozl SHALL NOT add a maintenance, triage or one-off pull request feature
+   to serve this split. The Untriaged list stays off for Radar-coded
+   repositories (RC1.2).
+5. The statement SHALL NOT change what an existing plan does. It is
+   guidance, not a gate.
+
+### Requirement RC14: The coder is pluggable per repository
+
+**User story:** As the owner, I want to choose, per repository, who writes the
+code for each task, so that Avoozl plans and gates the same way whichever
+coder I pick.
+
+#### Acceptance criteria
+
+1. A repository SHALL name one coder: `issue-radar` (a Radar crew, shown as
+   "Radar crew"; default on GitHub), `worker` (Avoozl's own worker, shown as
+   "Avoozl worker"; for local-only repositories) or `remote` (a managed
+   remote harness, shown as "Remote coder"; RC15). The setting SHALL be per
+   repository. No coder name SHALL be read outside the adapters.
+2. Every coder SHALL sit behind the same three calls: **hand over** a ready
+   task or batch, **read state** (waiting, working, pull request open, merged,
+   failed, needs a person) and **count as done**. A task counts as done only
+   when its pull request has merged on the repository's remote (RC5.1,
+   RC11.5). A coder's own "resolved" SHALL NOT count.
+3. Plan approval, provenance, release order, Stop the line, the merge path and
+   whole-head acceptance SHALL be the same for every coder. Switching a
+   repository's coder SHALL NOT change a plan, a task ID or an approval.
+4. `worker` SHALL be frozen: upkeep only (security fixes, bug fixes, keeping
+   `npm test` green on the three systems, the compatibility names of RC11.4).
+   No new feature SHALL be added to it. The Settings page SHALL say so.
+5. WHEN a repository changes coder while tasks are in flight, Avoozl SHALL
+   leave those tasks with their current coder and use the new one for tasks
+   not yet handed over. It SHALL show the split once.
+6. Adding a coder SHALL need one new adapter and its tests, and no change to
+   planning, projection or release.
+
+### Requirement RC15: A managed remote harness as coder
+
+**User story:** As the owner, I want to give tasks to a managed remote harness
+when a repository's work should run off my machines, and I want Avoozl to
+count a task done only when the public pull request merges.
+
+#### Acceptance criteria
+
+1. Everywhere in the repository (code, docs, examples, tests, issue text and
+   markers) the harness SHALL be called only "a managed remote harness" or "a
+   remote coder". No internal service, company tool, internal host or team
+   name SHALL appear anywhere in the repository. The release scan SHALL carry
+   a check for this, and the scan SHALL run before every push.
+2. For a repository with `coder: remote`, Avoozl SHALL file one code task per
+   ready task, or one per batch (RC2.5), through the harness's own app or MCP
+   interface. The filed task SHALL carry the task ID, the spec reference, the
+   provenance marker text and the approved task text, and SHALL NOT carry
+   anything the repository's content rules mark private.
+3. Avoozl SHALL store the harness's task reference with the task, watch its
+   state on the tick, and show the state in In flight and in Trace. A read
+   failure SHALL fail closed: the task keeps its last state and shows the age
+   of the read. Filing SHALL be idempotent: a retried tick files nothing twice.
+4. A task SHALL count as done only when its pull request on the public
+   repository has merged (RC14.2). A "complete" state in the harness SHALL NOT
+   count. Merge, whole-head acceptance and release of dependents then follow
+   the same path as for any coder (RC5).
+5. Avoozl SHALL assume the harness needs a person to open or publish each
+   pull request. WHEN a task's harness state is finished but no public pull
+   request exists, Needs you SHALL show one row: "Waiting for a person to
+   publish the pull request for <task>", with a link to the harness's task and
+   the age of the wait. The row SHALL clear when the pull request appears.
+6. Because each publish costs a person's time, batching SHALL matter. For a
+   remote coder the default batch size SHALL be larger than for a crew, the
+   preview SHALL show how many publishes the plan needs, and a batch SHALL
+   NOT split a chain of dependent tasks that fits in one batch.
+7. Avoozl SHALL NOT assume the harness can read a private plans repository
+   (RC12 question 5). The filed task SHALL carry the text the harness needs.
+8. Avoozl SHALL NOT arm auto-merge on a harness pull request before
+   `verify-issue` passes (RC3, RC5.8).
+9. The adapter SHALL use only a documented interface of the harness and SHALL
+   need no setting beyond a connection the person makes in the harness's own
+   app. Avoozl SHALL NOT store the harness's credentials.
+
+### Requirement RC16: Integration branches for rewrites
+
+**User story:** As the owner, I want a rewrite to land as many small pull
+requests into a long-lived branch, with one person-approved step to land the
+branch in main, so that a rewrite never half-lands in main.
+
+#### Acceptance criteria
+
+1. An epic MAY name an **integration branch** (`integrationBranch` in its
+   manifest). Avoozl SHALL create no branch on its own. It SHALL check that
+   the branch exists, is not the default branch and is protected, and say what
+   is missing.
+2. WHILE an epic names an integration branch, every projected task SHALL
+   target that branch. A task pull request merges into the branch after CI and
+   light review (the repository's rule for the branch), and auto-merge MAY be
+   armed on it (RC5.2). The branch's rule SHALL be separate from the default
+   branch's rule.
+3. **Whole-head checks** SHALL run on the integration branch's head: the
+   checks the default branch runs, plus any the epic adds. Whole-head
+   acceptance for the epic SHALL be recorded from those checks on the branch
+   head (RC11.5, Requirement 16), not from the task pull requests.
+4. Landing the branch in the default branch SHALL be **one separate step**
+   that a person approves. Avoozl SHALL NOT merge the branch into the default
+   branch on its own. It SHALL show a Needs you row when whole-head acceptance
+   is green and the branch is up to date with main, and SHALL record who
+   approved and which head. An approval for an older head SHALL NOT count.
+5. Plan approval, implementation (the task pull requests), integration (a
+   task's merge into the branch, and the branch's merge into main) and
+   whole-head acceptance SHALL stay four separate records (AGENTS.md). A task
+   merged into the branch SHALL NOT mark the epic accepted.
+6. Avoozl SHALL bring the default branch into the integration branch on a
+   schedule (default weekly, set per epic, off allowed). It SHALL do so as a
+   merge commit and push normally. It SHALL NOT rebase and force push the
+   branch (AGENTS.md). A rebase SHALL happen only when a person does it and
+   says so. WHEN the merge conflicts, Avoozl SHALL stop the sync, label it,
+   and show a Needs you row with the files.
+7. **Stop the line** SHALL work for the branch. WHILE one is open for the
+   branch's scope (a red whole-head check, a failed sync, a person's stop),
+   the tick SHALL release no new task for the epic and SHALL NOT arm
+   auto-merge on its pull requests (RC4.3, RC5.4). The row SHALL say why.
+8. The branch SHALL appear in Trace, In flight and Progress with the number of
+   tasks merged into it, how far behind main it is and the state of its
+   whole-head checks.
+9. An epic without an integration branch SHALL behave as before. No epic
+   SHALL need a branch.
+
+### Requirement RC17: Epic types beyond rewrites
+
+**User story:** As the owner, I want templates and docs for the common large
+changes, so that each one starts from the right shape.
+
+#### Acceptance criteria
+
+1. Avoozl SHALL ship templates and docs for four epic types, each with the
+   scope statement of RC13 and generic wording only: a **rewrite** (RC16), a
+   **cross-repository migration**, a **large codegen change** and a
+   **cross-repository proposal** (criteria 4 to 6).
+2. A **cross-repository migration** template SHALL give the usual order: a
+   tool or compatibility layer first; then one task per repository, each
+   behind its own check; then removal of the old path. Edges SHALL run from the
+   first stage to every per-repository task and from all of them to removal.
+3. A **large codegen change** template SHALL give the usual order: change the
+   generator and its tests; regenerate one sample and review the diff;
+   regenerate the rest in batches; then remove the old output. Each
+   regeneration task SHALL name the command it runs and the check that
+   compares the output.
+4. A **cross-repository proposal** SHALL be one parent spec with one **sub-spec
+   per repository**. Each sub-spec SHALL have its own requirements, design,
+   tasks and manifest, and SHALL be approved and released on its own. The
+   parent SHALL hold the shared requirements and the list of sub-specs, and
+   SHALL NOT hold repository tasks.
+5. A cross-repository edge (a task in one repository that needs a task in
+   another) SHALL be named in the sub-spec as a `requires` on the other
+   repository's task ID, and SHALL be refused when the other sub-spec is not
+   approved or does not hold that ID.
+6. A proposal MAY take an **external gap report**: a document that lists, per
+   repository, which of the proposal's requirements it still fails. Avoozl
+   SHALL read it from a path or an issue the person names, SHALL show it as a
+   table (repository by requirement), and SHALL turn each failing cell into a
+   proposed task in that repository's sub-spec. Nothing SHALL be added to a
+   spec until a person accepts it. A passing cell SHALL produce no task. A
+   report Avoozl cannot parse SHALL be refused naming the line.
+7. Docs and templates SHALL use generic terms only: repositories,
+   requirements, a generator, a gap report. They SHALL name no internal tool,
+   service, host or team (RC15.1).

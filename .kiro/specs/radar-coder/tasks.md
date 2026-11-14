@@ -18,6 +18,11 @@ separate acts. Task IDs start with `rc-` so they never collide with the IDs of
 `.kiro/specs/avoozl/`. Entries marked `"manual": true` in the manifest wait for
 a person.
 
+Phases 13 to 17 add the work split, the coder plug, the remote coder,
+integration branches and epic types. They depend on Phases 1 to 5 and 9 only
+and do not wait for Phase 12; the retirement epic still runs last among the
+removals.
+
 Phase 12 is the retirement epic. It is last and separate: no task in it starts
 before Proof 11 (`rc-p11`) is accepted.
 
@@ -289,4 +294,101 @@ Requirement RC11. A separate last epic. Nothing here starts before `rc-p11` is a
   - Done when: The docs name each path once; the release scan is clean; a diff check shows no change under `docs/research/` or `docs/evidence/` except new receipts.
 - [ ] rc-p12 Proof 12: after retirement both coders work, after rc-12.8 [RC11] (§D17)
   - Setup: one Radar-coded and one worker-coded repository in one workspace. Action: run both through a task. Expected: crews build the first, a worker the second; every compatibility name resolves. Failure means: retirement broke local-only mode. Next decision: restore the removed code behind `coder: worker`.
+  - Done when: Expected result observed; receipt under `docs/evidence/`.
+
+## Phase 13: The work split
+
+Requirement RC13. Avoozl is for epics. This phase puts the scope statement in three places and adds one hint.
+
+- [ ] rc-13.1 Scope statement in the README, Set up and the quick goal modal, after rc-1.2 [RC13.1, RC13.2, RC13.5] (§D18)
+  - One source string holds the statement and the rule of thumb; the README, Set up and the quick goal modal show it; it is guidance and gates nothing; `src/app/test/radar-coder-scope.test.mjs`.
+  - Done when: The three places show the same words from one string; no operation changes behavior; `npm test` passes.
+- [ ] rc-13.2 One-pull-request hint with Plan it anyway, after rc-13.1, rc-9.1 [RC13.3, RC13.4] (§D18)
+  - A proposal with one task and no edge shows the hint and a **Plan it anyway** action; nothing is refused; no triage, maintenance or single-pull-request feature is added.
+  - Done when: A one-task proposal shows the hint and still plans when chosen; a two-task proposal shows no hint.
+- [ ] rc-p13 Proof 13: the work split, after rc-13.1, rc-13.2 [RC13] (§D22)
+  - Setup: a scratch repository, a one-task goal and a five-task goal. Action: open each in the quick goal modal. Expected: the statement shows in all three places; the hint shows only for the one-task goal and does not block it. Failure means: Avoozl blocks or misleads. Next decision: remove the hint.
+  - Done when: Expected result observed; receipt under `docs/evidence/`.
+
+## Phase 14: The coder plug
+
+Requirement RC14. One adapter per coder. The Radar path moves behind it unchanged; the worker is frozen.
+
+- [ ] rc-14.1 Per-repository coder setting with three values, after rc-1.1 [RC14.1] (§D19)
+  - `coder: issue-radar | worker | remote` validated per repository; Settings shows Radar crew, Avoozl worker and Remote coder and where each value comes from; `src/app/test/coder-setting.test.mjs`.
+  - Done when: Each value validates; an unknown value is refused naming the allowed ones; Settings shows the three display names; `npm test` passes.
+- [ ] rc-14.2 Coder adapter: hand over, read state, count as done, after rc-14.1, rc-4.1, rc-5.1 [RC14.2, RC14.3, RC14.6] (§D19)
+  - A small adapter object with `handOver`, `readState` and `countsAsDone`; the `issue-radar` behavior moves behind it with no change in output; release, Stop the line and the merge path call the adapter; `src/app/test/coder-adapter.test.mjs`.
+  - Done when: The Radar tests of Phases 4 and 5 pass unchanged; a fake third adapter in a test needs no change to release or projection; done is true only for a merged pull request.
+- [ ] rc-14.3 Put the worker behind the adapter and mark it frozen, after rc-14.2 [RC14.4] (§D19)
+  - The existing worker dispatch is wrapped as an adapter with no new behavior; Settings and docs say it is frozen (upkeep only); a comment in the adapter says `shortcut: frozen, upgrade only for security, bugs and compatibility`.
+  - Done when: Existing worker tests pass unchanged; Settings says frozen; no new option is added to the worker.
+- [ ] rc-14.4 Coder change with tasks in flight, after rc-14.2 [RC14.5] (§D19)
+  - Tasks already handed over keep their coder; the next tasks use the new one; one notice shows the split.
+  - Done when: A test switches coder with one task in flight: that task finishes with the old coder, the next goes to the new one, one notice appears.
+- [ ] rc-p14 Proof 14: the same plan, any coder, after rc-14.1, rc-14.2, rc-14.3, rc-14.4 [RC14] (§D22)
+  - Setup: a scratch repository and a three-task plan. Action: run it with the Radar adapter, then the worker adapter; switch coder after the first task. Expected: identical release order, gates and acceptance; the switch leaves the first task where it was. Failure means: planning depends on a coder. Next decision: move that logic into the adapter.
+  - Done when: Expected result observed; receipt under `docs/evidence/`.
+
+## Phase 15: The remote coder
+
+Requirement RC15. A managed remote harness as a coder. A task is done only when the public pull request merges.
+
+- [ ] rc-15.1 Remote coder adapter: file one task per ready task or batch, after rc-14.2, rc-2.3 [RC15.2, RC15.3, RC15.7, RC15.9] (§D20)
+  - A `remote` adapter files a task through the harness's own app or MCP interface with the task ID, spec reference, marker text and approved task text; the harness reference is stored with the task so a retry files nothing twice; no credentials are stored; tests use a fake harness.
+  - Done when: A fake harness receives one task per ready task and one per batch; a retried tick files nothing twice; nothing the content rules mark private is sent.
+- [ ] rc-15.2 Watch the remote task and count done only on a public merge, after rc-15.1, rc-5.1 [RC15.3, RC15.4, RC15.8] (§D20)
+  - States `filed`, `working`, `finished-unpublished`, `pr-open`, `merged`, `failed` are mapped in the adapter only; a harness "complete" is not done; a read failure keeps the last state and shows its age; arming waits for `verify-issue`.
+  - Done when: A fake harness that says complete with no pull request leaves the task not done; the merge of the public pull request releases dependents; a read failure shows the age and changes nothing.
+- [ ] rc-15.3 Needs you row for a waiting publish, and larger batches, after rc-15.2, rc-2.5 [RC15.5, RC15.6] (§D20)
+  - A task `finished-unpublished` shows one Needs you row with the harness link and the age, cleared when the pull request appears; for `remote` the default batch is larger, the preview counts publishes, and a batch does not split a chain that fits in one.
+  - Done when: The row appears once across three ticks and clears on the pull request; the preview shows the publish count; a chain that fits one batch is batched whole.
+- [ ] rc-15.4 No internal names in the repository, and a scan check, after rc-15.1 [RC15.1] (§D20)
+  - Forbidden-name patterns come from an environment variable or local config and are never committed; the release scan uses them; docs and tests say only "a managed remote harness" or "a remote coder"; the scan runs before every push.
+  - Done when: A test with a pattern set in the environment fails when a listed name appears in a tracked file; `node scripts/release-scan.mjs --tree` is clean.
+- [ ] rc-p15 Proof 15: a remote coder end to end with a fake harness, after rc-15.1, rc-15.2, rc-15.3, rc-15.4 [RC15] (§D22)
+  - Setup: a scratch repository, `coder: remote`, a fake harness. Action: release two tasks; let the harness finish one with no pull request; publish it; merge. Expected: the Needs you row while waiting; done only after the merge; dependents released then. Failure means: Avoozl counted a harness state as done. Next decision: tighten the adapter map.
+  - Done when: Expected result observed; receipt under `docs/evidence/`.
+
+## Phase 16: Integration branches
+
+Requirement RC16. A rewrite lands as small pull requests into a long-lived branch, then one person lands the branch.
+
+- [ ] rc-16.1 Integration branch in the manifest, with branch checks, after rc-2.1, rc-5.1 [RC16.1, RC16.9] (§D21)
+  - `integrationBranch` in an epic's manifest; Avoozl checks the branch exists, is not the default branch and is protected, and names what is missing; it creates nothing; an epic without the field behaves as before; `src/app/test/integration-branch.test.mjs`.
+  - Done when: A missing, unprotected or default branch is refused naming the reason; a manifest without the field changes nothing.
+- [ ] rc-16.2 Projected tasks target the branch, and the branch merge path, after rc-16.1, rc-3.6, rc-5.2 [RC16.2] (§D21)
+  - The marker and the issue name the branch as base; `verify-issue` checks the base equals the branch; the branch has its own rule (CI, light review); auto-merge may be armed on task pull requests into it.
+  - Done when: A pull request into main for a branch epic fails `verify-issue`; a pull request into the branch passes and may be armed.
+- [ ] rc-16.3 Whole-head checks on the branch and acceptance records, after rc-16.2 [RC16.3, RC16.5, RC16.8] (§D21)
+  - The tick reads the branch head's check runs and records an acceptance row naming the head; a task merge does not mark the epic accepted; Trace, In flight and Progress show tasks merged, distance behind main and the head's check state.
+  - Done when: A green task merge leaves acceptance open; a green head records acceptance for that head; a new merge makes the record name the new head.
+- [ ] rc-16.4 Scheduled merge of main into the branch, after rc-16.1 [RC16.6] (§D21)
+  - On the epic's schedule (default weekly, off allowed) Avoozl merges main into the branch as a merge commit and pushes normally; no rebase and no force push anywhere in the code path; a conflict stops the sync, labels it and shows a Needs you row with the files.
+  - Done when: A test repository gets a merge commit and a normal push; a conflict leaves the branch unchanged and raises the row; the sync code contains no force option.
+- [ ] rc-16.5 Stop the line for the branch, after rc-16.2, rc-4.2, rc-5.4 [RC16.7] (§D21)
+  - The stop takes the branch as a scope: a red head, a failed sync or a person's stop; while open, no release and no arming for the epic; the row says why.
+  - Done when: A red head stops release and arming; clearing it resumes both.
+- [ ] rc-16.6 Landing the branch in main: one person-approved step, after rc-16.3, rc-16.4 [RC16.4, RC16.5] (§D21)
+  - When the head is green and up to date with main, one Needs you row asks a person to land it; Avoozl records who approved and which head; Avoozl never merges the branch into main; an approval for an older head does not count.
+  - Done when: No code path merges the branch into the default branch; an approval on an old head is refused; the row records approver and head.
+- [ ] rc-p16 Proof 16: a rewrite on an integration branch, after rc-16.1, rc-16.2, rc-16.3, rc-16.4, rc-16.5, rc-16.6 [RC16] (§D22)
+  - Setup: a scratch repository, a protected branch, a four-task epic. Action: merge three tasks, force a conflict in a sync, fail a head check, then fix both and land. Expected: small merges into the branch; the sync conflict and the red head each stop the line; landing needs one person's approval on the current head. Failure means: the rewrite could reach main by itself. Next decision: block the branch feature.
+  - Done when: Expected result observed; receipt under `docs/evidence/`.
+
+## Phase 17: Epic types
+
+Requirement RC17. Templates and docs for migrations, codegen changes and cross-repository proposals.
+
+- [ ] rc-17.1 Templates and docs: rewrite, cross-repository migration, large codegen change, after rc-14.1, rc-16.1 [RC17.1, RC17.2, RC17.3, RC17.7] (§D22)
+  - Three templates (spec skeletons with manifests and edges) and one doc page; generic wording only; each template lints clean.
+  - Done when: Each template lints with 0 errors; the release scan finds no internal name.
+- [ ] rc-17.2 Cross-repository proposal: parent spec and one sub-spec per repository, after rc-17.1, rc-2.1 [RC17.4, RC17.5] (§D22)
+  - A parent spec holds shared requirements and the list of sub-specs and no repository tasks; each sub-spec is approved and released alone; a cross-repository `requires` is refused when the other sub-spec is unapproved or lacks the ID.
+  - Done when: A parent with a repository task is refused; a `requires` on a missing ID is refused naming it; two sub-specs approve separately.
+- [ ] rc-17.3 External gap report becomes proposed tasks, after rc-17.2 [RC17.6] (§D22)
+  - A report read from a path or an issue gives a repository-by-requirement table; each failing cell becomes a proposed task in that repository's sub-spec; a passing cell gives none; nothing is added until a person accepts; an unparseable line is refused by number.
+  - Done when: A fixture report with two failing and three passing cells gives two proposals; an unreadable line is refused naming it; accepting adds the tasks.
+- [ ] rc-p17 Proof 17: epic types, after rc-17.1, rc-17.2, rc-17.3 [RC17] (§D22)
+  - Setup: a scratch workspace and three repositories. Action: create a migration from the template; create a proposal with three sub-specs; import a gap report. Expected: valid specs, separate approvals, proposed tasks only for failing cells. Failure means: the templates mislead. Next decision: fix the template before the docs.
   - Done when: Expected result observed; receipt under `docs/evidence/`.
