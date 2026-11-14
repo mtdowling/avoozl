@@ -91,7 +91,7 @@ try {
       // `avoozl budget receipt TASK --json` prints the receipt object.
       else if (
         key === "json" &&
-        args[0] === "budget" &&
+        ["budget", "runner"].includes(args[0]) &&
         (args[i + 1] === undefined || args[i + 1].startsWith("--"))
       )
         options.json = true;
@@ -723,7 +723,44 @@ try {
         2,
       ),
     );
-  else if (command === "driver") {
+  else if (command === "runner") {
+    // Runner mode over SSH (R84). `accept` and `status` run on the runner,
+    // started by the driver's ssh; `handoff` and `pull` run on the driver.
+    const action = positionals[0];
+    let result;
+    if (action === "accept")
+      result = await localOrRequest("remote.accept", {
+        envelope: fs.readFileSync(
+          positionals[1] === "-" || !positionals[1] ? 0 : positionals[1],
+          "utf8",
+        ),
+      });
+    else if (action === "status")
+      result = await localOrRequest("remote.status");
+    else if (action === "report") {
+      need(
+        positionals[1] && options.state,
+        "runner report TASK --state done|blocked",
+      );
+      result = await localOrRequest("remote.report", {
+        taskId: positionals[1],
+        state: options.state,
+      });
+    } else if (action === "handoff") {
+      need(
+        positionals[1] && options.host,
+        "runner handoff ENVELOPE.json --host NAME",
+      );
+      result = await localOrRequest("remote.handoff", {
+        host: options.host,
+        envelope: JSON.parse(fs.readFileSync(positionals[1], "utf8")),
+      });
+    } else if (action === "pull") {
+      need(options.host, "runner pull --host NAME");
+      result = await localOrRequest("remote.pull", { host: options.host });
+    } else throw Error("Use runner accept|status|report|handoff|pull.");
+    console.log(JSON.stringify(result, null, 2));
+  } else if (command === "driver") {
     // The spec driver (§6.10). Hand off, take over and force take over are
     // a person's: the CLI is the person at this machine's command line.
     const action = positionals[0] || "status",
@@ -1476,6 +1513,10 @@ try {
   flow stop --full --reason TEXT        Stop all agents: also stop every running chat Avoozl opened (needs the app backend)
   flow resume STOP_ID                   Resume a pulled stop (a person only)
   checks run --task TASK_ID             Run the declared checks in this worktree and record the pass
+  runner accept FILE|-                  Runner mode: take one task envelope (a runner's ssh calls this)
+  runner status --json                  Runner mode: this runner's tasks and workers
+  runner handoff ENVELOPE.json --host H Runner mode: hand a task to host H over ssh
+  runner pull --host H                  Runner mode: read host H's status
   driver status [SPEC]                  Which machine drives each spec, and why one reads only here
   driver handoff SPEC [--folder DIR [--unfinished]] [--cancel]
                                         Stop new work for SPEC; with --folder write the export (a person only)
