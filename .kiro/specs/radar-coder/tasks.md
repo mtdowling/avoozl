@@ -126,7 +126,7 @@ Requirement RC5. Crews do not arm auto-merge (Kiro Crew 0.12.2.4), so the tick d
 - [ ] rc-5.2 Arm GitHub auto-merge on crew pull requests, after rc-5.1, rc-3.1 [RC5.2, RC5.5] (§D7)
   - The tick arms merge-commit auto-merge on open non-draft same-repository pull requests whose author passes the actor check and that close a marked issue of this workspace; once per pull request; never `--admin`; `src/app/test/radar-coder-merge.test.mjs`.
   - Done when: A fork pull request, a pull request from a stranger, a draft, and one closing an unmarked issue are not armed; the right one is armed exactly once across three ticks.
-- [ ] rc-5.3 Manual mode and the conflict label, after rc-5.1 [RC5.3, RC5.6, RC5.7] (§D7)
+- [x] rc-5.3 Manual mode and the conflict label, after rc-5.1 [RC5.3, RC5.6, RC5.7] (§D7)
   - With `manual`: a Ready to merge row per green pull request, nothing armed. Conflict label on pull requests with a merge conflict and removed when clear; one Needs you row; no label written to Radar.
   - Done when: Manual arms nothing; a conflicted pull request gets the label and one row; resolving it removes both.
 - [ ] rc-5.4 Stop the line stops arming, and Disarm, after rc-5.2, rc-4.2 [RC5.4] (§D7)

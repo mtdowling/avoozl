@@ -233,14 +233,13 @@ test("a pull request already armed on GitHub is not armed again", async (t) => {
   assert.deepEqual(github.armed, []);
 });
 
-test("manual mode arms nothing and reads nothing", async (t) => {
+test("manual mode arms nothing", async (t) => {
   const { github, tick } = setup(t, { ship: "manual" });
   github.addIssue(6, MARKED);
   github.addPull(16);
   github.closes.set(6, [16]);
   await tick();
   assert.deepEqual(github.armed, []);
-  assert.ok(!github.calls.includes("listPullRequests"));
 });
 
 test("an edited marker blocks arming and opens one row", async (t) => {
