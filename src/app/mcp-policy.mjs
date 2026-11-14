@@ -135,7 +135,6 @@ export const PERSON_ONLY = new Map([
     person("Only a person acknowledges an over-budget task."),
   ],
   ["budget.switchToStop", person("Only a person changes a budget's mode.")],
-  ["prices.save", person("Only a person changes the price table.")],
   ["budget.settings.update", person("Only a person changes budget settings.")],
   [
     "flow.stop",
@@ -203,10 +202,6 @@ export const NOT_ON_MCP = new Map([
     "Whole-database read; plans_view and plans_task read what a session needs.",
   ],
   ["notifications.deliver", "The tick delivers notifications itself."],
-  [
-    "prices.get",
-    "This computer's price table; a person reads it in Settings › Prices.",
-  ],
   [
     "budget.view",
     "The page's budget chips; a session reads one task's receipt with plans_view receipt.",

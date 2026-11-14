@@ -401,7 +401,6 @@ const SAYS = [
   ["untriaged.handoff", "hand this item to Issue Radar"],
   ["conflicts.", "settle this conflict"],
   ["activity.settings", "change Activity settings"],
-  ["prices.", "save model prices"],
   ["onboarding.", "look at folders on this machine"],
 ];
 

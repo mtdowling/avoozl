@@ -18,13 +18,10 @@ import { LINE_EVENT, flowClient } from './flow-api.ts'
 import Logo from './Logo'
 import { IconBtn, IconLabel, SectionHeading, ShowMore, TaskTitleLink, ViewHeading, useAskChat, usePages } from './controls.tsx'
 import { Activity, DetailsIcon, ExternalLink, Inbox, MessageSquare, Network, RefreshCw, Check } from './icons.ts'
-import { chatClient, itemRef, type ActivityItem } from './chat-api.ts'
+import { itemRef } from './chat-api.ts'
 import type { TaskFilter } from './filters.ts'
 import type { Drill } from './graph-layout.ts'
 import { linkHref } from './views-api.ts'
-
-// Recent activity reads up to the backend's cap (activity.recent allows 200).
-const ACTIVITY_LIMIT = 200
 
 export type DashboardTarget = 'plans' | 'graph' | 'delivery' | 'conflicts' | 'untriaged'
 
@@ -45,7 +42,7 @@ const KIND_LABEL: Record<string, string> = { ...CONFLICT_LABELS, delivery: 'Deli
 // itself instead of growing. Narrow screens stack the cards, each at its own
 // height. Inline styles, because the host CSS has no arbitrary grid classes.
 export const WIDE = '(min-width: 1024px)'
-export const ROW_HEIGHT = { flight: '22rem', blocked: '22rem', recent: '22rem' }
+export const ROW_HEIGHT = { flight: '22rem', blocked: '22rem' }
 
 function Pair({ height, children }: { height: string; children: ReactNode }) {
   const wide = useMedia(WIDE)
@@ -154,9 +151,12 @@ export function InFlightRow({ row, now, onInfo, onPickAgain }: { row: InFlight; 
   const href = attachHref(row.session),
     remote = row.session.crew && row.session.crew !== 'local'
   return (
-    <li className="flex flex-wrap items-start gap-2 border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)' }}>
-      <Badge>{roleLabel(row)}</Badge>
-      <span className="min-w-0 flex-1">
+    <li data-in-flight-row className="flex flex-wrap items-start gap-2 border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)' }}>
+      {/* Fixed columns, so every row's title and actions start at the same x. */}
+      <span data-in-flight-role style={{ flex: '0 0 7.5rem' }}>
+        <Badge>{roleLabel(row)}</Badge>
+      </span>
+      <span className="min-w-0 flex-1" style={{ flexBasis: '12rem' }}>
         <TaskTitleLink id={row.taskId} title={row.title} className="font-medium" />{' '}
         <span className="text-xs text-muted">
           {row.taskId}
@@ -171,17 +171,17 @@ export function InFlightRow({ row, now, onInfo, onPickAgain }: { row: InFlight; 
           {row.session.crewUnreachable ? 'crew unreachable' : (row.status ?? 'not observed')} {relativeTime(row.lastAt, now)}
         </span>
       </span>
-      <span className="flex gap-1.5">
+      <span data-in-flight-actions className="flex items-center justify-end gap-1.5" style={{ flex: '0 0 11rem' }}>
         <IconBtn icon={DetailsIcon} label={`Details for ${row.title}`} tooltip="Open the task drawer" onClick={onInfo} />
         {onPickAgain && row.role === 'worker' && (
           <IconBtn icon={RefreshCw} label={`Pick again for ${row.title}`} tooltip="The next attempt picks its agent and model afresh" onClick={onPickAgain} />
         )}
         {!href ? (
-          <span className="self-center text-xs text-muted">Attach waits on Kiro Crew</span>
+          <span className="text-xs text-muted">Attach waits on Kiro Crew</span>
         ) : (
         <a
           href={linkHref(href)}
-          className="self-center text-sm underline"
+          className="text-sm underline"
           aria-label={`Attach to the ${row.role} chat for ${row.title}`}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
         >
@@ -264,42 +264,6 @@ function UntriagedStat({ count, onOpen }: { count: number; onOpen: () => void })
   )
 }
 
-// The newest task events, newest first; the card scrolls.
-function RecentActivity({
-  items,
-  now,
-  onOpen,
-  pages,
-}: {
-  items: ActivityItem[] | null
-  now: number
-  onOpen: (id: string) => void
-  pages: ReturnType<typeof usePages>
-}) {
-  if (!items) return <p className="mt-2 text-sm text-muted">Loading…</p>
-  if (!items.length) return <p className="mt-2 text-sm text-muted">Nothing has happened yet.</p>
-  return (
-    <>
-    <ol className="mt-1 flex flex-col text-sm">
-      {pages.take('activity', items).map((item, i) => (
-        <li key={`${item.taskId}:${item.at}:${i}`} className="flex items-baseline gap-2 border-t py-1.5 first:border-t-0" style={{ borderColor: 'var(--border)' }}>
-          <Tooltip text={item.at}>
-            <span className="w-16 shrink-0 text-xs text-muted">{relativeTime(item.at, now)}</span>
-          </Tooltip>
-          <span className="min-w-0 flex-1">
-            {item.text} ·{' '}
-            <button type="button" className="underline" onClick={() => onOpen(item.taskId)}>
-              {item.title}
-            </button>
-          </span>
-        </li>
-      ))}
-    </ol>
-    <ShowMore {...pages.more('activity', items.length)} />
-    </>
-  )
-}
-
 export default function DashboardView(props: {
   workspaceId: string | null
   // Untriaged items in Intake (§8.5); null when the tab is hidden.
@@ -312,32 +276,29 @@ export default function DashboardView(props: {
   const api = useAppApi()
   const views = useMemo(() => viewsClient(api), [api])
   const plans = useMemo(() => plansClient(api), [api])
-  const chats = useMemo(() => chatClient(api), [api])
   const routing = useMemo(() => routingClient(api), [api])
   const chat = useAskChat(workspaceId)
   const layout = countsLayout(useMedia(WIDE), useMedia(SMALL))
   // One failed read leaves its section empty rather than the whole page.
   const load = useCallback(
     async (id: string) => {
-      const [graph, delivery, conflicts, stored, activity] = await Promise.allSettled([
+      const [graph, delivery, conflicts, stored] = await Promise.allSettled([
         views.graph(id),
         views.delivery(id),
         views.conflicts(id),
         plans.stored(id),
-        chats.activity(id, ACTIVITY_LIMIT),
       ])
       const value = <T,>(result: PromiseSettledResult<T>) => (result.status === 'fulfilled' ? result.value : null)
-      const failed = [graph, delivery, conflicts, stored, activity].filter((r) => r.status === 'rejected').length
+      const failed = [graph, delivery, conflicts, stored].filter((r) => r.status === 'rejected').length
       const items = value(conflicts)
       return {
         summary: summarize({ graph: value(graph), delivery: value(delivery), conflicts: items, plans: value(stored), limit: Infinity }),
         conflicts: items ?? [],
-        activity: value(activity),
         total: value(graph)?.total ?? 0,
         failed,
       }
     },
-    [views, plans, chats],
+    [views, plans],
   )
   const { value, error, busy, reload } = useRead(workspaceId, load)
   const flows = useMemo(() => flowClient(api), [api])
@@ -559,50 +520,6 @@ export default function DashboardView(props: {
                 </tbody>
               </table>
               <ShowMore {...pages.more('next', summary.readyNext.length)} />
-            </Section>
-          </Pair>
-
-          <Pair height={ROW_HEIGHT.recent}>
-            <Section title={`Recently completed (${summary.recent.length})`} empty={summary.recent.length === 0 && 'Nothing delivered yet.'}>
-              <table className="w-full border-collapse text-sm">
-                <tbody>
-                  {pages.take('recent', summary.recent).map((item) => (
-                    <tr key={item.id}>
-                      <td style={CELL}>
-                        <span role="img" aria-label="Done" style={{ color: 'var(--ok)' }}>
-                          ✓
-                        </span>
-                      </td>
-                      <td style={{ ...CELL, width: '100%' }}>
-                        <TaskLink id={item.id} title={item.title} onOpen={() => drawer.openTask(item.id)} />
-                      </td>
-                      <td style={CELL} className="whitespace-nowrap">
-                        <span className="flex gap-2 text-xs">
-                          {item.issue && (
-                            <a href={linkHref(item.issue)} target="_blank" rel="noreferrer" className="underline">
-                              issue
-                            </a>
-                          )}
-                          {item.pulls.map((pull) => (
-                            <a key={pull.href} href={linkHref(pull.href)} target="_blank" rel="noreferrer" className="underline">
-                              PR{pull.number ? ` #${pull.number}` : ''}
-                            </a>
-                          ))}
-                        </span>
-                      </td>
-                      <td style={{ ...CELL, textAlign: 'right' }} className="whitespace-nowrap text-xs text-muted">
-                        <Tooltip text={item.at}>
-                          <span>{relativeTime(item.at, now)}</span>
-                        </Tooltip>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <ShowMore {...pages.more('recent', summary.recent.length)} />
-            </Section>
-            <Section title="Recent activity">
-              <RecentActivity items={value.activity} now={now} onOpen={(id) => drawer.openTask(id)} pages={pages} />
             </Section>
           </Pair>
         </>

@@ -1,11 +1,11 @@
 ---
 name: avoozl-costs
-description: Help a person choose Avoozl's Settings > Budgets, Settings > Prices and Settings > Routing > Providers values. Explains each field and its default, then proposes values with reasons. Never saves; the person saves on the page. Use when a chat opens from an Ask for help link on those pages.
+description: Help a person choose Avoozl's Settings > Budgets and Settings > Routing > Providers values. Explains each field and its default, then proposes values with reasons. Never saves; the person saves on the page. Use when a chat opens from an Ask for help link on those pages.
 ---
 
-# Avoozl budgets, prices and provider limits
+# Avoozl budgets and provider limits
 
-You help a person fill in three Avoozl settings pages. The chat that opened
+You help a person fill in two Avoozl settings pages. The chat that opened
 you holds the page's current settings as JSON. Ask what they want in plain
 words, then propose values, one short reason each. Say which fields to
 leave blank: a blank field uses the default shown on the page.
@@ -26,7 +26,7 @@ page.
 | When a task reaches its cap | `budget.mode` | Stop | Stop: no new chat starts for the task and its running chats are asked to stop. Warn: it keeps running and shows Over budget. |
 | Notice on Warn | `budget.notify` | Off | Workspace only. Sends a Kiro Crew notice when a task in Warn mode goes over. |
 | Token cap | `budget.tokens` | 2,000,000 | For turns on a model with no known price. Input plus output tokens. |
-| Credit cap | `budget.credits` | 200 | For turns Kiro Crew bills in credits, when no dollar price per credit is set. |
+| Credit cap | `budget.credits` | 200 | For turns Kiro Crew bills in credits. |
 
 A repository field left blank uses the workspace value. Its mode choice
 says so, for example "Use the workspace default (Stop)".
@@ -35,18 +35,14 @@ Rules of thumb to offer, not to impose: start with Stop; pick a dollar cap a
 little above what a normal task costs on the receipts; use Warn for
 repositories where finishing matters more than cost.
 
-## Settings > Prices
+## How cost is counted
 
-Nobody needs to type prices. Avoozl ships a dated table of public list
-prices for known models and uses it on its own. The page shows "Prices last
-updated" with that date.
+There is no price page. Avoozl ships a dated table of public list prices
+for known models and uses it on its own.
 
 - A model Kiro Crew bills in credits is budgeted in credits, against the
-  credit cap, because a token list price is not what it costs. A dollar
-  price per credit, if the person knows one, turns credits into dollars.
+  credit cap, because a token list price is not what it costs.
 - A model with no known price is budgeted against the token cap.
-- Overrides are optional and kept on this computer only. Suggest one only
-  when the person pays a different price than the list price.
 
 ## Settings > Routing > Providers
 

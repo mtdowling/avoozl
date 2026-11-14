@@ -68,14 +68,6 @@ export interface InFlight {
   budget: BudgetChip | null
 }
 
-export interface Done {
-  id: string
-  title: string
-  at: string | null
-  issue: string | null
-  pulls: { number: number | null; href: string }[]
-}
-
 export interface Progress {
   // An epic across plans; null is No epic (Requirement 59.10).
   epic: string | null
@@ -95,22 +87,11 @@ export interface DashboardSummary {
   // Open tasks at or past their cap (§4.17), for the header count.
   overBudget: number
   readyNext: (GraphTask & { wave: number })[]
-  recent: Done[]
   progress: Progress[]
   plans: { approved: number; draft: number; total: number }
 }
 
 const issueHref = (owner: { issue?: { url: string | null } | null }) => safeHref(owner.issue?.url ?? null)
-
-// The newest time a delivery item names, for "recent completions".
-function lastAt(item: DeliveryItem): string | null {
-  const times = [
-    item.integration?.at,
-    ...item.sessions.map((s) => s.statusAt ?? s.boundAt),
-    ...item.evidence.map((e) => e.at),
-  ].filter((t): t is string => typeof t === 'string')
-  return times.sort().at(-1) ?? null
-}
 
 // A delivery the owner must act on: Avoozl stopped it after its retries.
 // A failed attempt with retries left retries on its own, so it is not here.
@@ -219,21 +200,6 @@ export function summarize(input: {
     .map((t) => ({ ...t, wave: wave.get(t.id) ?? 1 }))
     .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity) || a.wave - b.wave || a.id.localeCompare(b.id))
 
-  const recent = (input.delivery ?? [])
-    .filter((item) => item.complete)
-    .map((item) => ({
-      id: item.id,
-      title: item.title,
-      at: lastAt(item),
-      issue: issueHref(item),
-      pulls: item.pullRequests.flatMap((p) => {
-        const href = safeHref(p.url)
-        return href ? [{ number: p.number, href }] : []
-      }),
-    }))
-    .sort((a, b) => (b.at ?? '').localeCompare(a.at ?? ''))
-    .slice(0, limit)
-
   const titles = new Map((graph?.epics ?? []).map((e) => [e.id, e.title]))
   const chats = new Map<string, number>()
   for (const row of inFlight) {
@@ -264,7 +230,6 @@ export function summarize(input: {
     inFlight,
     overBudget: (input.delivery ?? []).filter((item) => !item.complete && item.budget?.reached).length,
     readyNext,
-    recent,
     progress: [...byEpic.values()],
     plans: {
       approved: stored.filter((p) => p.state === 'approved').length,

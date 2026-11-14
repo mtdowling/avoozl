@@ -497,7 +497,7 @@ export function parseSpec({
         );
       else {
         entries = manifest.tasks;
-        // The spec's per-task cap, and never prices (§4.17, R67.2).
+        // The spec's per-task cap (§4.17, R67.2).
         try {
           specBudget = validateManifestBudget(manifest);
           specShip = manifest.ship;
@@ -515,11 +515,9 @@ export function parseSpec({
               MANIFEST,
               manifestLine(
                 text,
-                manifest.prices !== undefined
-                  ? "prices"
-                  : specShip === undefined && manifest.ship !== undefined
-                    ? "ship"
-                    : "budget",
+                specShip === undefined && manifest.ship !== undefined
+                  ? "ship"
+                  : "budget",
               ),
               error.message,
             ),
