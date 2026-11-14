@@ -160,6 +160,7 @@ Requirement RC6. Avoozl ships the crew agent, because an unknown agent name fall
 - [ ] rc-p6 Proof 6: a crew on avoozl-crew verifies and builds, after rc-6.1, rc-6.2, rc-6.3 [RC6] (§D17)
   - Setup: Avoozl built and installed, a crew created with agent `avoozl-crew`. Action: one marked issue and one with a bad approver. Expected: the crew calls `plans_verify_issue`, builds the first, skips the second; Set up shows the agent present. Failure means: a crew silently ran on the default agent. Next decision: fall back to the prompt-only path.
   - Done when: Expected result observed live; receipt under `docs/evidence/`.
+  - Fake-GitHub proof merged in PR #146; live run pending owner (see docs/evidence/radar-coder-proof-6-fake-github.md)
 
 ## Phase 7: Set up and the team pack
 
@@ -183,6 +184,7 @@ Requirement RC7. Avoozl does what `gh` can and shows exact values for what only 
 - [ ] rc-p7 Proof 7: Set up end to end, after rc-7.1, rc-7.2, rc-7.3, rc-7.4, rc-7.5 [RC7] (§D17)
   - Setup: a scratch repository with nothing configured, Radar on, grant approved. Action: run Set up with the `sdk-team` pack; do the Radar steps by hand with the shown values. Expected: Set up ticks each item after the re-read. Failure means: a shown value was wrong. Next decision: show Radar's own field names.
   - Done when: Expected result observed live; receipt under `docs/evidence/`.
+  - Fake-GitHub proof merged in PR #146; live run pending owner (see docs/evidence/radar-coder-proof-7-fake-github.md)
 
 ## Phase 8: Observe
 
@@ -228,6 +230,7 @@ Requirement RC9. A goal becomes issues after one approval, through a generated m
 - [ ] rc-p9 Proof 9: Make tests faster, after rc-9.1, rc-9.2, rc-9.3 [RC9] (§D17)
   - Setup: a scratch repository with a slow test suite. Action: quick goal "Make tests faster" with Measure; approve; let crews build; then a goal that crosses a promote rule. Expected: issues with measured evidence; one approval; the second goal offers Promote. Failure means: a crew skipped a mini-spec issue (Q6). Next decision: Promote for every goal.
   - Done when: Expected result observed live; receipt under `docs/evidence/`.
+  - Fake-GitHub proof merged in PR #146; live run pending owner (see docs/evidence/radar-coder-proof-9-fake-github.md)
 
 ## Phase 10: Public repositories
 
@@ -242,14 +245,16 @@ Requirement RC10. This phase gates on the public-crew layers and does not restat
 - [ ] rc-p10 Proof 10: public repository, after rc-10.1, rc-10.2 [RC10] (§D17)
   - Setup: a scratch public repository. Action: try release before and after the sign-off. Expected: nothing releases before. Failure means: a crew could be handed work without the layers. Next decision: refuse public repositories for the Radar path.
   - Done when: Expected result observed; receipt under `docs/evidence/`.
+  - Fake-GitHub proof merged in PR #146; live run pending owner (see docs/evidence/radar-coder-proof-10-fake-github.md)
 
 ## Phase 11: The Radar path on a real repository
 
 The gate for retirement. It also answers open questions Q1 and Q2 (design D16).
 
-- [ ] rc-q3 Q3: note for Kiro Crew asking for `scope=` in the claim marker [RC12.2, RC12.4] (§D16)
+- [x] rc-q3 Q3: note for Kiro Crew asking for `scope=` in the claim marker [RC12.2, RC12.4] (§D16)
   - Write the request as a note under `docs/` for a person to file. File nothing. Re-read a skip comment's marker on each new Kiro Crew release and record the answer.
   - Done when: The note exists and says exactly what key and why; the report names the release checked.
+  - Done: note at `docs/kirocrew-requests/claim-marker-scope.md`; release checked: Kiro Crew 0.12.2.4, no `scope=` key in the marker. Nothing filed.
 - [ ] rc-q4 Q4: re-check the `updated=` time on a later release [RC12.2] (§D16)
   - On each new release compare five claim markers' `updated=` with GitHub's `updated_at`; record the answer.
   - Done when: The report states the release, the five differences and whether stale detection may use `updated=`.
@@ -265,9 +270,11 @@ The gate for retirement. It also answers open questions Q1 and Q2 (design D16).
 - [ ] rc-q8 Q8: the plans repository name in a public marker, after rc-2.2 [RC12.2] (§D16)
   - Show the owner a sample public marker with the plans repository named; record the owner's choice.
   - Done when: The report states the choice: switch on, or spec moved into the code repository.
+  - Sample marker and the choice are in `docs/evidence/radar-coder-q8-public-marker-sample.md`; the owner's choice is still open, so not ticked.
 - [ ] rc-q9 Q9: the default label names [RC12.2] (§D16)
   - Read the label set Kiro Crew's own repository uses and compare it with design D2; change the defaults to match or record why not.
   - Done when: The report lists each label, its source and the decision; defaults in `rc-1.1` match.
+  - Comparison in `docs/evidence/radar-coder-q9-label-defaults.md`: Radar's two labels match; Avoozl's defaults differ from D2 (RC21). Kiro Crew's own repository label set was not read and needs the owner, so not ticked.
 - [ ] rc-p11 Proof 11: the whole path on a real repository, Q1 and Q2, after rc-p1, rc-p2, rc-p3, rc-p4, rc-p5, rc-p6, rc-p7, rc-p8, rc-p9, rc-p10, rc-q5, rc-q6, rc-q7 [RC11.1, RC12] (§D16, D17)
   - Setup: a real repository with slow CI (the nupp repository), two crews on two machines, one planner. Action: approve a 10-task spec; project; release N=2; merge by auto-merge; run the retro. Then repeat with a second person's crew in the same repository. Expected: every task merges through crews; no double claim; Flow shows where time went. Failure means: the path is not ready to replace the worker coder. Next decision: keep `coder: worker` as the default.
   - Done when: Expected result observed live and accepted by a person; receipt under `docs/evidence/`. Q1 and Q2 are answered in it.
@@ -279,11 +286,11 @@ Requirement RC11. A separate last epic. Nothing here starts before `rc-p11` is a
 - [ ] rc-12.1 Owner decision to retire, and what to keep, after rc-p11 [RC11.1, RC11.3] (§D13)
   - The owner reads Proof 11 and decides: retire for Radar-coded repositories only, or delete the code. The decision is recorded in `docs/evidence/`.
   - Done when: A recorded owner decision exists before any removal task starts.
-- [ ] rc-12.2 Switch off worker dispatch for Radar-coded repositories, after rc-12.1 [RC11.2, RC11.3] (§D13)
-  - The tick opens no Avoozl worker for a `coder: issue-radar` repository; `coder: worker` unchanged; tests for both.
-  - Done when: A Radar-coded repository opens no worker; a worker-coded one still does.
+- [ ] rc-12.2 Remove worker dispatch and `coder: worker` (retired), after rc-12.1 [RC11.2, RC11.3] (§D13)
+  - The tick opens no Avoozl worker for any repository; `worker` is refused as a `coder` value with the retired banner of RC1.1; tests removed with the code.
+  - Done when: No repository opens a worker; a repository set to `worker` shows the banner.
 - [ ] rc-12.3 Retire crew routing and placement for Radar-coded repositories, after rc-12.2 [RC11.2] (§D13)
-  - Routing, placement and the router prompt stop applying to them; Settings hides the Routing section when no repository is on `worker`.
+  - Routing, placement and the router prompt are removed. The Routing nav entry is already gone (RC8.1); the code is removed here, with `coder: worker`.
   - Done when: No routing call is made for a Radar-coded repository; the Routing section is hidden only when no repository needs it.
 - [ ] rc-12.4 Retire runner mode, after rc-12.1 [RC11.2] (§D13)
   - Remove `remote-runner.mjs`, its operations and CLI, the Remote badge and Attach for runners, and their tests.
@@ -298,10 +305,10 @@ Requirement RC11. A separate last epic. Nothing here starts before `rc-p11` is a
   - One test asserts that every `plans_*` MCP name, `NUPP_WORKSPACE` and `AICOMMANDER_*` variable, the `aicommander` command and `aicommander.*` setting still resolves.
   - Done when: The test fails if any listed name stops working.
 - [ ] rc-12.8 Docs and Demo retargeted to crews, after rc-12.7 [RC11.7, RC8.1] (§D13)
-  - README and docs say the Radar path first and `coder: worker` as the local option; Demo uses fake crews and a fake claim comment; `docs/research/` and `docs/evidence/` untouched.
+  - README and docs say the Radar path, and that local-only plans cannot be coded until a GitHub repository is attached; Demo uses fake crews and a fake claim comment; `docs/research/` and `docs/evidence/` untouched.
   - Done when: The docs name each path once; the release scan is clean; a diff check shows no change under `docs/research/` or `docs/evidence/` except new receipts.
 - [ ] rc-p12 Proof 12: after retirement both coders work, after rc-12.8 [RC11] (§D17)
-  - Setup: one Radar-coded and one worker-coded repository in one workspace. Action: run both through a task. Expected: crews build the first, a worker the second; every compatibility name resolves. Failure means: retirement broke local-only mode. Next decision: restore the removed code behind `coder: worker`.
+  - Setup: one Radar-coded repository and one local-only plan. Action: run a task on the first; open the second. Expected: a crew builds the first; the second is plan-only; every compatibility name resolves. Failure means: retirement broke planning or a compatibility name. Next decision: restore the removed code.
   - Done when: Expected result observed; receipt under `docs/evidence/`.
 
 ## Phase 13: The work split
@@ -317,6 +324,7 @@ Requirement RC13. Avoozl is for epics. This phase puts the scope statement in th
 - [ ] rc-p13 Proof 13: the work split, after rc-13.1, rc-13.2 [RC13] (§D22)
   - Setup: a scratch repository, a one-task goal and a five-task goal. Action: open each in the quick goal modal. Expected: the statement shows in all three places; the hint shows only for the one-task goal and does not block it. Failure means: Avoozl blocks or misleads. Next decision: remove the hint.
   - Done when: Expected result observed; receipt under `docs/evidence/`.
+  - Fake-GitHub proof merged in PR #147; live run pending owner (see docs/evidence/rc-proof-13.md)
 
 ## Phase 14: The coder plug
 
@@ -363,6 +371,7 @@ Requirement RC15. A managed remote harness as a coder. A task is done only when 
 - [ ] rc-p15 Proof 15: a remote coder end to end with a fake harness, after rc-15.1, rc-15.2, rc-15.3, rc-15.4, rc-15.5, rc-15.6 [RC15] (§D22)
   - Setup: a scratch repository, `coder: remote`, a fake harness. Action: release two tasks; let the harness finish one with no pull request; publish it; merge. Expected: the Needs you row while waiting; done only after the merge; dependents released then. Failure means: Avoozl counted a harness state as done. Next decision: tighten the adapter map.
   - Done when: Expected result observed; receipt under `docs/evidence/`.
+  - Fake-GitHub proof merged in PR #147; live run pending owner (see docs/evidence/rc-proof-15.md)
 
 ## Phase 16: Integration branches
 
@@ -389,6 +398,7 @@ Requirement RC16. A rewrite lands as small pull requests into a long-lived branc
 - [ ] rc-p16 Proof 16: a rewrite on an integration branch, after rc-16.1, rc-16.2, rc-16.3, rc-16.4, rc-16.5, rc-16.6 [RC16] (§D22)
   - Setup: a scratch repository, a protected branch, a four-task epic. Action: merge three tasks, force a conflict in a sync, fail a head check, then fix both and land. Expected: small merges into the branch; the sync conflict and the red head each stop the line; landing needs one person's approval on the current head. Failure means: the rewrite could reach main by itself. Next decision: block the branch feature.
   - Done when: Expected result observed; receipt under `docs/evidence/`.
+  - Fake-GitHub proof merged in PR #147; live run pending owner (see docs/evidence/rc-proof-16.md)
 
 ## Phase 17: Epic types
 
@@ -406,6 +416,7 @@ Requirement RC17. Templates and docs for migrations, codegen changes and cross-r
 - [ ] rc-p17 Proof 17: epic types, after rc-17.1, rc-17.2, rc-17.3 [RC17] (§D22)
   - Setup: a scratch workspace and three repositories. Action: create a migration from the template; create a proposal with three sub-specs; import a gap report. Expected: valid specs, separate approvals, proposed tasks only for failing cells. Failure means: the templates mislead. Next decision: fix the template before the docs.
   - Done when: Expected result observed; receipt under `docs/evidence/`.
+  - Fake-GitHub proof merged in PR #147; live run pending owner (see docs/evidence/rc-proof-17.md)
 
 ## Phase 18: Approve on the issue
 
@@ -423,6 +434,7 @@ Requirement RC18. A trusted person approves by label; any approval is written ba
 - [ ] rc-p18 Proof 18: approve on the issue, after rc-18.1, rc-18.2, rc-18.3 [RC18] (§D17)
   - Setup: a scratch repository with a drafted plan and a source issue. Action: approve by label as an allowed person; approve a second plan in Avoozl; label a third as a stranger. Expected: one record each; the issue shows the label and one marker comment for the second; the stranger's label is removed. Failure means: the issue and the record can disagree. Next decision: make the record the only source and drop the label path.
   - Done when: Expected result observed; receipt under `docs/evidence/`.
+  - Fake-GitHub proof merged in PR #147; live run pending owner (see docs/evidence/rc-proof-18.md)
 
 ## Phase 19: Claim at approval
 
@@ -434,6 +446,7 @@ Requirement RC19. The parent issue is marked as taken when its plan is approved.
 - [ ] rc-p19 Proof 19: the parent is not taken by a crew, after rc-19.1 [RC19] (§D17)
   - Setup: a scratch repository, a Radar crew with label scope `ready`, an approved plan. Action: let the crew poll after approval and after the first release. Expected: the crew never takes the parent; it takes released sub-issues. Failure means: the claim format does not hold the crew off. Next decision: re-read the claim format on the current release.
   - Done when: Expected result observed live; receipt under `docs/evidence/`.
+  - Fake-GitHub proof merged in PR #147; live run pending owner (see docs/evidence/rc-proof-19.md)
 
 ## Phase 20: Review drafts by label, and Avoozl's label names
 
@@ -461,13 +474,38 @@ added it a pending review to edit and submit; every Avoozl label takes the
 
 Requirement RC22. A display in Settings of how work flows for each repository, read from its settings.
 
-- [ ] rc-21.1 Workflow map model: lanes, cards, values and tags from the saved settings, after rc-1.1, rc-18.1 [RC22.2, RC22.3, RC22.4, RC22.5, RC22.6, RC22.7, RC22.8] (§D27)
+- [x] rc-21.1 Workflow map model: lanes, cards, values and tags from the saved settings, after rc-1.1, rc-18.1 [RC22.2, RC22.3, RC22.4, RC22.5, RC22.6, RC22.7, RC22.8] (§D27)
   - A pure function from a repository form, the mode and the ship mode to lanes, cards, a Labels table, jump targets and tags; tags come from one table; `kirocrew-app/ui/test/workflow-map.test.mjs`.
   - Done when: Unit tests cover issue-radar single repository, plans-repository mode, worker and remote coders, Local only (one lane), a muted step with its reason, and a test that no card text holds a tag word; `npm run test:ui` passes.
-- [ ] rc-21.2 Workflow map in Settings: sub-tab, Local only box, jumps, page test, after rc-21.1 [RC22.1, RC22.4, RC22.9] (§D27)
+- [x] rc-21.2 Workflow map in Settings: sub-tab, Local only box, jumps, page test, after rc-21.1 [RC22.1, RC22.4, RC22.9] (§D27)
   - Draws the model with theme variables, wrapping at 320 px; a value jumps to its field, opening the sub-tab and any fold; a page test renders three configs and checks the label names shown match the config.
   - Done when: The page test passes for issue-radar single repository, plans-repository mode and Local only; a jump focuses its field; `npm run test:ui` passes.
 
+## Phase 23: Mirror repositories
+
+Requirement RC24. Crews work a private mirror of a public repository; Avoozl syncs it, tracks merged crew PRs, and forwards them to the public repository under a person's name.
+
+- [ ] rc-23.1 `mirror` setting: form and raw `.avoozl.json`, private-only validation, after rc-1.1 [RC24.1, RC24.2] (§D29)
+  - Fields, defaults and refusals of RC24.1 and RC24.2; the form and the raw file write one record; `src/app/test/mirror-policy.test.mjs`.
+  - Done when: A public or unreadable mirror is refused; `forward: auto` with no trusted person is refused; the form and the raw file agree after an edit in either; `npm test` passes.
+- [ ] rc-23.2 Sync step and write targets, after rc-23.1, rc-2.1 [RC24.3, RC24.4] (§D29)
+  - `mirrorSyncStep` fast-forwards the mirror's default branch; divergence raises one Needs you row and pauses the mirror steps; `writeRepo(policy)` sends projection, labels, Project, release and merge to the mirror; source issue link marker with no private text copied out.
+  - Done when: A fake GitHub test: a fast-forward is applied, a divergence gives one row across three ticks and no write to either branch, no call writes to the source except the forward path.
+- [ ] rc-23.3 Track merged mirror PRs, rows and Trace steps, after rc-23.2, rc-8.2 [RC24.5, RC24.14] (§D29)
+  - `mirror_forward` record keyed by merge commit; rows in Waiting on you and Release queue; Trace steps Mirror merged, Forwarded, Public PR, Public merged.
+  - Done when: A merge in the mirror gives one record across repeated ticks and the four Trace steps appear in order with GitHub times.
+- [ ] rc-23.4 Forward: one commit, strip, scan, push, public PR; nudge and auto, after rc-23.3, rc-10.1 [RC24.7, RC24.8, RC24.9, RC24.10, RC24.13] (§D29)
+  - Squashed commit by the approver; private trailers and text stripped; content rules run on commit, message, branch, title and body before any push; Forward button with a one-line reason; `auto` only for a trusted approver; no shared-token fallback; normal push only.
+  - Done when: Tests: a clean change forwards once; a planted private term blocks the push with one row naming the rule; `auto` forwards for a trusted approver and not for another; a second press opens no second PR; no force push is ever issued.
+- [ ] rc-23.5 Public poll: done on public merge, closed unmerged, review copy-back, after rc-23.4, rc-4.1 [RC24.6, RC24.11] (§D29)
+  - Dependents release only on the public merge; a close without merge returns the item with the reason; review comments copy to the mirror PR or one follow-up issue once.
+  - Done when: A fake GitHub test: a mirror merge alone releases no dependent; the public merge releases them; a close returns the row; a comment copies once across three ticks.
+- [ ] rc-23.6 Conflicts: sync, re-apply, then a mirror issue for a crew, after rc-23.4 [RC24.12] (§D29)
+  - One retry after a sync and a fresh scan; then one mirror issue naming paths only.
+  - Done when: A fake GitHub test: a moved source applies on retry; a true conflict opens one issue with paths and no contents.
+- [ ] rc-p23 Proof 23: two scratch repositories, after rc-23.1, rc-23.2, rc-23.3, rc-23.4, rc-23.5, rc-23.6 [RC24] (§D17)
+  - Setup: two scratch repositories under `mtdowling`, created only for the proof: a public-visibility stand-in as source and a private mirror seeded as a full copy. Action: sync, merge a crew PR in the mirror, forward in nudge mode, merge the public PR; then plant a private term and try again. Expected: the public merge completes the task; the planted term blocks the push with one row. Failure means: private text can reach the public repository. Next decision: keep `forward` at `nudge` and add a second scan layer. List both scratch repositories in the receipt for the owner to delete.
+  - Done when: Expected result observed; receipt under `docs/evidence/` lists the scratch repositories.
 ## Phase 22: Tracker gates
 
 Requirement RC23. A task that waits on an outside tracker item, with a label and a plugin that reads the item.

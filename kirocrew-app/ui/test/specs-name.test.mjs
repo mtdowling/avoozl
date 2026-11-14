@@ -31,6 +31,8 @@ export const ALLOWED = new Map([
   ['Plans repo name', 'a built-in content rule set named for the mode'],
   ['Some of plan, github, brief, diff, intake', 'content-rule boundary ids'],
   ['secret-plans', 'an example repository name'],
+  // The default name of the approval label, as the backend has it.
+  ['plan approved', 'the approval label default name (github-policy.mjs)'],
   // The GitHub issue level a spec's plan projects to (R59.8, R66).
   ['Plan issue', 'the GitHub plan issue that names the driver'],
   ['plan issue', 'the GitHub plan issue that names the driver'],
