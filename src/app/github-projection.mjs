@@ -36,6 +36,7 @@ import {
 } from "./github-marker.mjs";
 import { epicOfPlan } from "./epics.mjs";
 import { provenanceWriter } from "./radar-provenance.mjs";
+import { finishSource, planSource, sourceParent } from "./radar-source.mjs";
 import {
   issueRecordId,
   machineIdentity,
@@ -396,7 +397,13 @@ async function projectPlanParents({
   epicType,
   notes,
 }) {
-  if (!plan.spec || plan.epicFolder || plan.context?.issue || plan.extractionId)
+  if (
+    !plan.spec ||
+    plan.epicFolder ||
+    plan.context?.issue ||
+    plan.extractionId ||
+    planSource(plan, identity)
+  )
     return null;
   const first = items.find((item) => item.issue) || fallback;
   if (!first) return null;
@@ -1151,20 +1158,21 @@ async function project(
 
   // 5b. The plan issue above the tasks, and its epic's issue above it
   // (Requirement 59.8). Neither is ever ready.
-  const planParent = await projectPlanParents({
-    store,
-    github,
-    plan,
-    data,
-    items,
-    fallback,
-    identity,
-    namespace,
-    markerOptions,
-    managedByRepository,
-    epicType,
-    notes,
-  });
+  const planParent =
+    (await projectPlanParents({
+      store,
+      github,
+      plan,
+      data,
+      items,
+      fallback,
+      identity,
+      namespace,
+      markerOptions,
+      managedByRepository,
+      epicType,
+      notes,
+    })) ?? (await sourceParent({ store, github, plan, identity, notes }));
 
   // 6. Links, then dependencies. Sub-issues name the child by database ID, so
   // a parent may sit in another repository or organization (F37, F38); only
@@ -1285,6 +1293,11 @@ async function project(
     item.blockerNodes = after.map((blocker) => blocker.node_id);
     item.blockerIds = after.map(issueDatabaseId);
   }
+
+  // The source issue of a Radar-coded plan: remembered, and its planning
+  // label removed when the repository asks. A preview writes nothing.
+  if (!dryRun && planParent?.source)
+    await finishSource({ store, github, plan, identity, parent: planParent });
 
   // 7. Re-read, add ready labels last, then record what was applied.
   const results = [],
