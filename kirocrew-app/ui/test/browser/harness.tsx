@@ -445,6 +445,44 @@ if (query.get('page') === 'home' || query.get('page') === 'demo') {
   answer('conflicts.view', () => ({ revision: 1, items: [] }))
   answer('plan.list', () => ({ items: [] }))
 }
+// ?page=app&radar=1: the Dashboard has one live Issue Radar claim, and a
+// Trace of it. The marker's own `updated=` (09:46) is ahead of GitHub's time
+// for the claim comment (09:21); the Trace shows GitHub's.
+if (query.get('radar') === '1') {
+  answer('delivery.view', () => ({ revision: 1, items: [] }))
+  answer('conflicts.view', () => ({ revision: 1, items: [] }))
+  answer('plan.list', () => ({ items: [] }))
+  answer('remote.view', () => ({ workers: [] }))
+  answer('flow.view', () => ({ line: [], stages: [], tasks: [], retros: [] }))
+  answer('radar.releasequeue', () => ({ repositories: [] }))
+  answer('radar.crews', () => ({
+    readAt: '2026-11-09T10:10:00Z',
+    stale: 0,
+    errors: [],
+    unseen: ['paused', 'machine', 'chat'],
+    rows: [{ repository: 'acme/recipe-box', number: 52, title: 'Index builder', url: 'https://github.com/acme/recipe-box/issues/52', crewId: 'c_022aea7f', crewName: 'Draco', phase: 'implementing', pr: 57, prUrl: 'https://github.com/acme/recipe-box/pull/57', updated: '2026-11-09T09:46:00Z', commentUrl: null, stale: false, noMarker: false }],
+  }))
+  const step = (key: string, label: string, at: string | null, state: string, extra = {}) => ({ key, label, at, state, ...extra })
+  answer('radar.trace', () => ({
+    repository: 'acme/recipe-box',
+    number: 52,
+    title: 'Index builder',
+    steps: [
+      step('spec', 'Spec approved', '2026-11-09T08:02:00Z', 'done', { by: 'owner', detail: 'search · commit a41c9e2' }),
+      step('issue', 'Issue created', '2026-11-09T08:10:00Z', 'done', { link: 'https://github.com/acme/recipe-box/issues/52' }),
+      step('ready', 'Ready', '2026-11-09T09:15:00Z', 'done'),
+      step('claimed', 'Claimed', '2026-11-09T09:21:00Z', 'done', { by: 'Draco' }),
+      step('pr', 'PR opened', '2026-11-09T09:48:00Z', 'done', { link: 'https://github.com/acme/recipe-box/pull/57' }),
+      step('ci', 'CI', null, 'now', { detail: '4 of 6 checks done', rounds: 2 }),
+      step('merged', 'Merged', null, 'later'),
+      step('retro', 'Retro', null, 'later', { detail: 'After merge' }),
+    ],
+    crew: { id: 'c_022aea7f', name: 'Draco' },
+    crewLastWordAt: '2026-11-09T10:09:00Z',
+    links: { issue: 'https://github.com/acme/recipe-box/issues/52', pr: 'https://github.com/acme/recipe-box/pull/57', claim: null },
+    problems: [],
+  }))
+}
 // ?page=demo: the whole page, where Start demo opens the sample. Calls
 // for the sample answer from window.__DEMO (demo-replies.mjs, built from
 // the real sample); other calls answer as ?page=app does.

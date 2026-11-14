@@ -186,7 +186,7 @@ Requirement RC8. The screens of the experience proposal, built for Variant B (Gi
 - [x] rc-8.1 Home: On the line, Release queue, Progress by goal, Needs you, after rc-4.4 [RC8.1, RC8.4, RC8.7] (§D10)
   - On the line from claim markers across machines (`radar.crews`), with a five-step rail and a Stale badge; Conflicts folded into Needs you; no view that repeats Issue Radar or Kiro Crew's pull request review; mockup `01-home.html`.
   - Done when: Rows come from claim markers only; paused, machine and chat are not shown without Variant A; drawn at 320, 768 and 1280 px, light and dark.
-- [ ] rc-8.2 Trace drawer and page, after rc-8.1 [RC8.2] (§D10)
+- [x] rc-8.2 Trace drawer and page, after rc-8.1 [RC8.2] (§D10)
   - Eight steps with GitHub times, never `updated=`; deep link and Back history (Requirement 60); mockup `02-trace.html`.
   - Done when: A claim marker with `updated=` ahead of GitHub's time still shows GitHub's time; the page opens by URL and Back returns.
 - [x] rc-8.3 Side panel tab, after rc-3.2 [RC8.3] (§D10)

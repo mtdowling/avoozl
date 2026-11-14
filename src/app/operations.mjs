@@ -419,6 +419,7 @@ import {
   recordOperation,
 } from "./activity-log.mjs";
 import { lintPlan } from "./plan-quality.mjs";
+import { readTrace } from "./trace.mjs";
 import {
   createSpecPlan,
   findSpecFolder,
@@ -2956,6 +2957,18 @@ export class Operations {
       if (context.caller || context.mcp)
         fail("Only a person works a quick goal, in the Avoozl page.", 403);
       return quickGoalOperation(this, name, input);
+    }
+    // One issue's Trace (RC8.2): GitHub's times for its eight steps. Read only.
+    if (name === "radar.trace") {
+      const policy = readGitHubPolicyOrNull(this.workspaceRoot),
+        entry = policy?.repositories?.[input.repository];
+      if (!entry)
+        fail(`${input.repository ?? "A repository"} is not registered.`, 404);
+      const number = Number(input.number);
+      if (!Number.isInteger(number) || number < 1)
+        fail("Name the issue number to trace.", 400);
+      if (!this.github?.available?.()) fail("GitHub is not available.", 503);
+      return readTrace(this.github, input.repository, number, entry);
     }
     if (name === "radar.mergepath")
       return { repositories: await this.mergePaths(input.repository) };
