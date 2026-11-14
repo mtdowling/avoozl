@@ -1028,6 +1028,29 @@ export class GitHubClient {
     });
   }
 
+  // How `head` stands against `base`: ahead_by and behind_by, and the files
+  // `head` changed since the merge base (the first 300).
+  compareCommits(value, base, head) {
+    const { owner, repo } =
+        typeof value === "string" ? parseRepository(value) : value,
+      ref = (name) => name.split("/").map(encodeURIComponent).join("/");
+    return this.request(
+      "GET",
+      `/repos/${owner}/${repo}/compare/${ref(base)}...${ref(head)}`,
+    );
+  }
+
+  // GitHub's merge of `head` into `base`: one merge commit on `base`, an
+  // ordinary update of that branch. 201 made a commit, 204 had nothing to
+  // merge (null), 409 is a conflict and changes nothing.
+  mergeBranch(value, { base, head, message }) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    return this.request("POST", `/repos/${owner}/${repo}/merges`, {
+      body: { base, head, commit_message: message },
+    });
+  }
+
   closingPullRequests(value, issueNumber) {
     const { owner, repo } =
         typeof value === "string" ? parseRepository(value) : value,
