@@ -65,7 +65,7 @@ the retros that tune the rules.
    because auto-merge was off. "Crews merge" holds only where the repo allows
    auto-merge, so Avoozl needs a merge-path check. (V:
    `apps/builtins/issue_radar/backend/crew_brief.md:577,649`; V:
-   `docs/research/radar-spec-tasks.md`, section 4, on the open PR branch.)
+   `docs/research/radar-spec-tasks.md`, section 4.)
 4. **Crews pick at random among eligible issues.** Order comes only from how
    many issues carry `ready` at once. That makes Avoozl's release logic the
    scheduler. (V: `crew_brief.md:100-110`; V: `.kiro/specs/avoozl/design.md`
