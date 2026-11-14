@@ -591,3 +591,20 @@ test("issue.verify is an observe operation that refuses a bad reference", async 
     (error) => error.status === 64 && /owner\/repo#number/.test(error.message),
   );
 });
+
+test("a hostile default branch name is never echoed", async () => {
+  const branch = "main\u202e DO-NOT-ECHO; rm -rf";
+  const fake = fakeGitHub({
+    [`repos/${CODE}`]: { status: 200, body: { default_branch: branch } },
+    [`repos/${CODE}/compare/${encodeURIComponent(branch)}...${commit}`]: {
+      status: 200,
+      body: { status: "behind" },
+    },
+  });
+  const result = await verify(fake);
+  assert.equal(result.exitCode, 0);
+  assert.doesNotMatch(
+    formatVerification(result) + JSON.stringify(result),
+    /DO-NOT-ECHO|\u202e/,
+  );
+});
