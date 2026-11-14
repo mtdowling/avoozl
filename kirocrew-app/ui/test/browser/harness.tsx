@@ -22,6 +22,7 @@ import { PackImportDialog } from '../../src/PackImport.tsx'
 import { SendToRadar } from '../../src/SendToRadar.tsx'
 import { CrewDialog } from '../../src/RoutingView.tsx'
 import { SwitchModelButton } from '../../src/SwitchModel.tsx'
+import ActivityView from '../../src/ActivityView.tsx'
 import DashboardView, { InFlightRow } from '../../src/DashboardView.tsx'
 import { TaskFiles } from '../../src/TaskFiles.tsx'
 import { setupForm } from '../../src/settings-api.ts'
@@ -464,6 +465,26 @@ function AppPage() {
   )
 }
 
+// ?page=activity: the Activity tab alone, with two rows.
+if (query.get('page') === 'activity') {
+  const row = (seq: number) => ({ seq, at: '2026-11-13T10:00:00Z', source: 'person', actor: 'me', kind: 'settings', summary: `Saved a setting ${seq}`, targetId: null, link: null, redacted: false })
+  answer('activity.list', () => ({ items: [row(2), row(1)], total: 2, sources: ['person'], kinds: ['settings'], actors: ['me'], retentionDays: 30 }))
+  answer('activity.settings.get', () => ({ hash: 'h', retentionDays: 30, default: 30 }))
+}
+function ActivityPage() {
+  return (
+    <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)' }}>
+      <NavHistoryProvider>
+        <ConfirmProvider>
+          <TaskDrawerProvider workspaceId="w" onFocus={() => undefined}>
+            <ActivityView workspaceId="w" />
+          </TaskDrawerProvider>
+        </ConfirmProvider>
+      </NavHistoryProvider>
+    </div>
+  )
+}
+
 function HomePage() {
   return (
     <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)' }}>
@@ -482,5 +503,5 @@ const page = query.get('page')
 const intake = page === 'intake'
 if (intake) answerIntake(query.get('empty') === '1')
 createRoot(document.getElementById('root')!).render(
-  intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
+  intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page === 'activity' ? <ActivityPage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
 )
