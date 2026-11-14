@@ -15,7 +15,7 @@ import { CircleCheck, RefreshCw, Workflow, X } from './icons.ts'
 import { groupWrites, setupForm, setupInput, setupState, writeBadge, type GitHubSettings, type SetupForm, type SetupResult, settingsClient } from './settings-api.ts'
 import { errorMessage } from './workspace-api.ts'
 import { relativeTime } from './task-api.ts'
-import { Modal } from './Modal.tsx'
+import { Shelf } from './Shelf.tsx'
 import { linkHref } from './views-api.ts'
 import { SCOPE_RULE, SCOPE_STATEMENT } from '../../../src/work-split.mjs'
 
@@ -103,7 +103,7 @@ export function SetupDialog(props: {
   return (
     // Esc, Back and a click outside do what Cancel does. The form lives in
     // the Settings page, so closing loses nothing.
-    <Modal id="avoozl-setup" width="40rem" backLabel="Cancel" describedBy="avoozl-setup-line" boxRef={box} attrs={{ 'data-setup-dialog': step }} onDismiss={cancel}>
+    <Shelf id="avoozl-setup" width="40rem" backLabel="Cancel" describedBy="avoozl-setup-line" boxRef={box} attrs={{ 'data-setup-dialog': step }} onDismiss={cancel}>
       <ol className="flex flex-wrap gap-2 text-xs" aria-label="Steps">
         {STEP_TEXT.map(([title], i) => (
           <li key={title} aria-current={i === step ? 'step' : undefined} className={i === step ? 'font-semibold' : 'text-muted'}>
@@ -253,7 +253,7 @@ export function SetupDialog(props: {
           </Btn>
         )}
       </div>
-    </Modal>
+    </Shelf>
   )
 }
 
