@@ -9,6 +9,8 @@ import DeliveryView from './DeliveryView'
 import ConflictsView from './ConflictsView'
 import UntriagedView from './UntriagedView.tsx'
 import FlowView from './FlowView.tsx'
+import { TracePage } from './TraceView.tsx'
+import { TRACE_TARGET, parseTraceLink, type TraceTarget } from './trace-api.ts'
 import ActivityView from './ActivityView.tsx'
 import { SwitchModelButton } from './SwitchModel.tsx'
 import { StopLineButton } from './StopLine.tsx'
@@ -51,7 +53,8 @@ const TABS = [
   { key: 'settings', label: 'Settings' },
 ] as const
 
-type Tab = (typeof TABS)[number]['key']
+// Trace is a page, not a tab: it has no button in the row, and Back leaves it.
+type Tab = (typeof TABS)[number]['key'] | 'trace'
 
 function storage(): Storage | null {
   try {
@@ -94,7 +97,7 @@ function WorkspacePicker(props: {
   )
 }
 
-const tabLabel = (key: Tab) => TABS.find((t) => t.key === key)?.label ?? key
+const tabLabel = (key: Tab) => TABS.find((t) => t.key === key)?.label ?? (key === 'trace' ? 'Trace' : key)
 
 export default function AvoozlApp() {
   return (
@@ -185,6 +188,15 @@ function AvoozlPage() {
       settingsTab: settingsTabOnEnter(tab, key, settingsTab, SETTINGS_TABS.map((t) => t.key)),
       tab: key,
     })
+
+  // A link with ?trace=owner/repo#52 opens that Trace as one Back step from
+  // the Dashboard (RC8.2). Read once, when the page opens.
+  useEffect(() => {
+    const link = parseTraceLink(window.location.search)
+    if (link) go({ tab: 'trace', focus: null, drill: null }, { [TRACE_TARGET]: link })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  const openTrace = (target: TraceTarget) => go({ tab: 'trace', focus: null, drill: null }, { [TRACE_TARGET]: target })
 
   useEffect(() => {
     if (!active) return setConflicts(0)
@@ -322,7 +334,7 @@ function AvoozlPage() {
             }
           />
         ) : tab === 'dashboard' ? (
-          <DashboardView workspaceId={active} untriaged={untriaged} onNavigate={navigate} onScope={scopeTo} onDrill={openDrill} />
+          <DashboardView workspaceId={active} untriaged={untriaged} onNavigate={navigate} onScope={scopeTo} onDrill={openDrill} onTrace={openTrace} />
         ) : tab === 'plans' ? (
           <PlansView
             workspaceId={active}
@@ -333,6 +345,8 @@ function AvoozlPage() {
             // The Intake tab opens on its Ideas view (UntriagedView's key).
             onOpenIdeas={() => go({ focus: null, drill: null, tab: 'untriaged' }, { 'untriaged-show': 'ideas' })}
           />
+        ) : tab === 'trace' ? (
+          <TracePage workspaceId={active} target={(nav.memory.get(TRACE_TARGET) as TraceTarget | undefined) ?? null} />
         ) : tab === 'graph' ? (
           <GraphView workspaceId={active} focus={focus} drill={drill} onDrill={setDrill} />
         ) : tab === 'delivery' ? (

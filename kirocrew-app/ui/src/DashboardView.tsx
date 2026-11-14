@@ -4,6 +4,8 @@ import { Tooltip } from './Tooltip.tsx'
 import { useAppApi } from './host.ts'
 import { Btn, Card, EmptyState } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
+import { TraceDrawer } from './TraceView.tsx'
+import type { TraceTarget } from './trace-api.ts'
 import { SMALL, attentionTarget, railFor, attentionTip, countsLayout, countsStyles, summarize, type Attention, type CountsLayout, type InFlight } from './dashboard-api.ts'
 import { attachHref, duration, relativeTime, sessionHref } from './task-api.ts'
 import { routingClient } from './routing-api.ts'
@@ -159,7 +161,7 @@ const REFRESH_MS = 20000
 // A live Issue Radar claim, read from GitHub: any machine's crew. GitHub
 // does not show whether the crew is paused, which machine it runs on, or
 // its chat, so there is no Attach here.
-export function RadarFlightRow({ row, now }: { row: RadarClaim; now: number }) {
+export function RadarFlightRow({ row, now, onTrace }: { row: RadarClaim; now: number; onTrace?: (row: RadarClaim) => void }) {
   return (
     <li data-radar-flight-row className="flex flex-wrap items-start gap-2 border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)' }}>
       <span data-in-flight-role style={{ flex: '0 0 7.5rem' }}>
@@ -187,6 +189,11 @@ export function RadarFlightRow({ row, now }: { row: RadarClaim; now: number }) {
         </span>
       </span>
       <span data-in-flight-actions className="flex items-center justify-end gap-3" style={{ flex: '0 0 11rem' }}>
+        {onTrace && (
+          <button type="button" className="text-sm underline" aria-label={`Trace issue ${row.number}`} onClick={() => onTrace(row)}>
+            Trace
+          </button>
+        )}
         {linkHref(row.url) && (
           <a href={linkHref(row.url)} target="_blank" rel="noreferrer" className="text-sm underline" aria-label={`Open issue ${row.number} on GitHub`}>
             Issue
@@ -333,8 +340,11 @@ export default function DashboardView(props: {
   onNavigate: (tab: DashboardTarget, taskId?: string) => void
   onScope?: (tab: 'graph' | 'delivery', filter: TaskFilter) => void
   onDrill?: (drill: Drill) => void
+  // Open one issue's Trace as a page (the drawer's Open page button).
+  onTrace?: (target: TraceTarget) => void
 }) {
   const { workspaceId, onNavigate } = props
+  const [tracing, setTracing] = useState<TraceTarget | null>(null)
   const api = useAppApi()
   const views = useMemo(() => viewsClient(api), [api])
   const plans = useMemo(() => plansClient(api), [api])
@@ -482,7 +492,7 @@ export default function DashboardView(props: {
                   </h4>
                   <ul className="mt-1">
                     {pages.take('radar', summary.radarFlight).map((row) => (
-                      <RadarFlightRow key={`${row.repository}#${row.number}`} row={row} now={now} />
+                      <RadarFlightRow key={`${row.repository}#${row.number}`} row={row} now={now} onTrace={(claim) => setTracing({ repository: claim.repository, number: claim.number })} />
                     ))}
                   </ul>
                   <ShowMore {...pages.more('radar', summary.radarFlight.length)} />
@@ -606,6 +616,18 @@ export default function DashboardView(props: {
         </>
       ) : (
         !error && <p className="text-sm text-muted">Loading…</p>
+      )}
+      {tracing && (
+        <TraceDrawer
+          workspaceId={workspaceId}
+          target={tracing}
+          onClose={() => setTracing(null)}
+          onOpenPage={() => {
+            const target = tracing
+            setTracing(null)
+            props.onTrace?.(target)
+          }}
+        />
       )}
     </section>
   )
