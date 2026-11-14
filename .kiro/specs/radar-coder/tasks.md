@@ -277,7 +277,7 @@ Requirement RC11. A separate last epic. Nothing here starts before `rc-p11` is a
   - The tick opens no Avoozl worker for a `coder: issue-radar` repository; `coder: worker` unchanged; tests for both.
   - Done when: A Radar-coded repository opens no worker; a worker-coded one still does.
 - [ ] rc-12.3 Retire crew routing and placement for Radar-coded repositories, after rc-12.2 [RC11.2] (§D13)
-  - Routing, placement and the router prompt stop applying to them; Settings hides the Routing section when no repository is on `worker`.
+  - Routing, placement and the router prompt stop applying to them; The Routing nav entry is already gone (RC8.1); the code path stays for `coder: worker` repositories and is reached from their Settings.
   - Done when: No routing call is made for a Radar-coded repository; the Routing section is hidden only when no repository needs it.
 - [ ] rc-12.4 Retire runner mode, after rc-12.1 [RC11.2] (§D13)
   - Remove `remote-runner.mjs`, its operations and CLI, the Remote badge and Attach for runners, and their tests.
