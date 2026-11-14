@@ -470,7 +470,7 @@ complete (task rc-10.1, a manual task that waits for that other work to land).
 A separate last epic. Nothing starts before the real-repository proof
 (rc-p11) is accepted by a person.
 
-| Removed for Radar-coded repositories                | Where today                              | Kept for `coder: worker`? |
+| Removed for Radar-coded repositories                | Where today                              | Kept? |
 | --------------------------------------------------- | ---------------------------------------- | ------------------------- |
 | Own worker dispatch (tick opens a worker)          | `kirocrew-app/crons/tick.py`, `delivery.mjs`, `runner.mjs`  | Yes                       |
 | Crew routing and placement, router prompt           | Requirements 41, 42                      | Yes (placement), router off |
@@ -485,7 +485,8 @@ Rules for the removal:
 
 - Remove by repository `coder`, behind the setting, in the first tasks; delete
   the code only when no repository in any known workspace is on `worker`, which
-  the owner decides (rc-12.1). This keeps `coder: worker` honest.
+  the owner decides (rc-12.1). Owner decision 2026-11-14: `coder: worker` is
+  retired, so these removals are for every repository, after rc-p11.
 - Keep these names and files working: `plans_*` MCP names, `NUPP_WORKSPACE`
   and `AICOMMANDER_*` variables, the `aicommander` command, the
   `aicommander.*` editor settings (AGENTS.md). A compatibility test asserts each
