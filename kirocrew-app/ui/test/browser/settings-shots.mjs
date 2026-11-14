@@ -12,7 +12,7 @@ import { buildHarness } from './build.mjs'
 import { findChrome, launch } from './chrome.mjs'
 
 const WIDTHS = [320, 768, 1280]
-const ALL = ['budgets', 'coder']
+const ALL = ['budgets', 'coder', 'release-queue', 'release-mode']
 
 const args = process.argv.slice(2)
 const open = args.includes('--open')
@@ -35,12 +35,12 @@ try {
     for (const width of WIDTHS)
       for (const theme of ['light', 'dark']) {
         await page.open(harness.url({ page: name, theme }), { width, height: 800, dark: theme === 'dark' })
-        await page.until(`Boolean(document.querySelector('[data-settings-page] button'))`)
+        await page.until(`Boolean(document.querySelector('[data-settings-page] button, [data-settings-page] input'))`)
         if (open) await page.evaluate(`(() => { document.querySelectorAll('[data-settings-page] details').forEach((d) => (d.open = true)); return true })()`)
         await page.evaluate('new Promise((r) => setTimeout(r, 150))')
         const height = await page.evaluate('Math.ceil(document.documentElement.scrollHeight)')
         await page.open(harness.url({ page: name, theme }), { width, height, dark: theme === 'dark' })
-        await page.until(`Boolean(document.querySelector('[data-settings-page] button'))`)
+        await page.until(`Boolean(document.querySelector('[data-settings-page] button, [data-settings-page] input'))`)
         if (open) await page.evaluate(`(() => { document.querySelectorAll('[data-settings-page] details').forEach((d) => (d.open = true)); return true })()`)
         await page.evaluate('new Promise((r) => setTimeout(r, 150))')
         const file = path.join(out, `${name}-${width}-${theme}${open ? '-open' : ''}.png`)
