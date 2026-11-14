@@ -20,7 +20,9 @@ function lucide() {
 
 // `hostCss` is an optional stylesheet (the host's own) used instead of the
 // harness's; screenshots use it to look like the real page.
-export async function buildHarness({ hostCss } = {}) {
+// `scripts` maps file names to classic scripts that load before the page,
+// such as the Demo mode replies (demo-replies.mjs).
+export async function buildHarness({ hostCss, scripts = {} } = {}) {
   const out = fs.mkdtempSync(path.join(os.tmpdir(), 'avoozl-harness-'))
   await build({
     configFile: false,
@@ -53,6 +55,10 @@ export async function buildHarness({ hostCss } = {}) {
   fs.copyFileSync(path.join(here, 'harness.css'), path.join(out, 'harness.css'))
   const css = hostCss ? new URL(`file://${path.resolve(hostCss)}`).href : 'harness.css'
   const links = [`<link rel="stylesheet" href="${css}">`]
+  for (const [name, text] of Object.entries(scripts)) {
+    fs.writeFileSync(path.join(out, name), text)
+    links.push(`<script src="${name}"></script>`)
+  }
   fs.writeFileSync(
     path.join(out, 'index.html'),
     `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">${links.join('')}</head><body><div id="root"></div><script src="harness.js"></script></body></html>`,

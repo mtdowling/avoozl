@@ -6,7 +6,7 @@
 // in place. A manual task shows what the person checks and Mark done, a
 // dialog with an outcome note, links, and Done or Skipped.
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useAppApi } from '@kirocrew/app-sdk'
+import { useAppApi } from './host.ts'
 import { Btn, Input } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { Tooltip } from './Tooltip.tsx'

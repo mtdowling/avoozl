@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { useAppApi, useChatLauncher } from '@kirocrew/app-sdk'
+import { useAppApi, useChatLauncher } from './host.ts'
 import { Btn, Input, SegmentedControl } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import {

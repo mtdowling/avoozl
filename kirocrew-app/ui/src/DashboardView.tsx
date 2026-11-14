@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { SpendChip } from './Budget.tsx'
 import { Tooltip } from './Tooltip.tsx'
-import { useAppApi } from '@kirocrew/app-sdk'
+import { useAppApi } from './host.ts'
 import { Btn, Card, EmptyState } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { SMALL, attentionTarget, attentionTip, countsLayout, countsStyles, summarize, type Attention, type CountsLayout, type InFlight } from './dashboard-api.ts'

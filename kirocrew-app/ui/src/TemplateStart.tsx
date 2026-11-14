@@ -4,7 +4,7 @@
 // unticked. A file input is read here, in the page, at most 200 KB; nothing
 // reads a path typed into a field. The parent owns the values.
 import { useEffect, useMemo, useState } from 'react'
-import { useAppApi } from '@kirocrew/app-sdk'
+import { useAppApi } from './host.ts'
 import { Input } from '@kirocrew/app-sdk/ui'
 import { PackChanges } from './PackImport.tsx'
 import { pluginsClient, type PackPreview } from './plugins-api.ts'

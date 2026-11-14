@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import AddPlugin from './AddPlugin.tsx'
 import IntakeSources from './IntakeSources.tsx'
-import { useAppApi, useChatLauncher } from '@kirocrew/app-sdk'
+import { useAppApi, useChatLauncher } from './host.ts'
 import { Card, EmptyState } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import {

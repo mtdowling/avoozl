@@ -2,7 +2,7 @@
 // task's branch changed, one file's diff, and Open in editor. Nothing here
 // writes: the reads are task.files and task.diff.
 import { useEffect, useMemo, useState, type CSSProperties } from 'react'
-import { useAppApi } from '@kirocrew/app-sdk'
+import { useAppApi } from './host.ts'
 import Badge from './Badge.tsx'
 import { errorMessage } from './workspace-api.ts'
 import { safeHref } from './views-api.ts'

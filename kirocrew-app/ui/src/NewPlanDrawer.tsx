@@ -7,7 +7,7 @@
 // planner chat is the fallback. Nothing here approves a plan, starts
 // delivery or pushes.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { useAppApi, useChatLauncher, useNavigate } from '@kirocrew/app-sdk'
+import { useAppApi, useChatLauncher, useNavigate } from './host.ts'
 import { Btn, Input } from '@kirocrew/app-sdk/ui'
 import { ExternalLink, FileText, MessageSquare, Package, X } from './icons.ts'
 import { RadioFold } from './RadioFold.tsx'

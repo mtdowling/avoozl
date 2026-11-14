@@ -5976,6 +5976,58 @@
         "35.1",
         "35.2"
       ]
+    },
+    "36.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 36 (Demo mode). See R82; §6.11.",
+      "acceptance": [
+        "Demo sample, fake GitHub and preview gate, after 3.7",
+        "The sample installs once and whole, keeps edits, previews every change, and no GitHub write or agent start is reachable."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "3.7"
+      ]
+    },
+    "36.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 36 (Demo mode). See R82; §6.11.",
+      "acceptance": [
+        "Demo badge, bar, tour and exit, after 36.1 and 31.3",
+        "The tour walks the nine pages with keys and reduced motion, a change shows its preview, and Exit demo returns to the person's workspace."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "36.1",
+        "31.3"
+      ]
+    },
+    "36.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 36 (Demo mode). See R82; §6.11.",
+      "acceptance": [
+        "README and screenshots, after 36.2",
+        "The README says how to start the demo, and screenshots show it at three widths in light and dark."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "36.2"
+      ]
     }
   }
 }

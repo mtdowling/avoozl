@@ -1,7 +1,7 @@
 import { useMedia } from './use-media.ts'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Tooltip } from './Tooltip.tsx'
-import { useAppApi } from '@kirocrew/app-sdk'
+import { useAppApi } from './host.ts'
 import { Btn, Card, Input } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import {

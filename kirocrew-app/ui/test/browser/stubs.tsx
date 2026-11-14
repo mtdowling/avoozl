@@ -10,7 +10,18 @@ const replies: Record<string, Reply> = {}
 export function answer(operation: string, reply: Reply) {
   replies[operation] = reply
 }
+export const replyFor = (operation: string): Reply | undefined => replies[operation]
 const never = () => new Promise<never>(() => undefined)
+// A refused call, shaped as the host client rejects: status and raw body.
+export class Refusal extends Error {
+  status: number
+  body: string
+  constructor(status: number, body: unknown) {
+    super(`Request failed (${status}).`)
+    this.status = status
+    this.body = JSON.stringify(body)
+  }
+}
 const api = {
   request: never,
   // GET answers are registered as answer('GET <path>', ...).
@@ -22,7 +33,12 @@ const api = {
   del: never,
   post: (_path: string, body: { operation?: string }) => {
     const reply = replies[body?.operation ?? '']
-    return reply ? Promise.resolve({ result: reply(body) }) : never()
+    if (!reply) return never()
+    try {
+      return Promise.resolve({ result: reply(body) })
+    } catch (error) {
+      return Promise.reject(error)
+    }
   },
 }
 export const useAppApi = () => api

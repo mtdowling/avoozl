@@ -4,7 +4,7 @@
 // Rows hold only IDs and Avoozl's own summaries; a row the content rules
 // caught says it was redacted.
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
-import { useAppApi } from '@kirocrew/app-sdk'
+import { useAppApi } from './host.ts'
 import { EmptyState } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { Tooltip } from './Tooltip.tsx'

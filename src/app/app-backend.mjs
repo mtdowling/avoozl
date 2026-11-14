@@ -42,6 +42,12 @@ import { taskRepository } from "../work-model.mjs";
 import { issueRadarReader } from "./radar-handoff.mjs";
 import { WORKSPACE_LOCK, tickHealth } from "./tick.mjs";
 import { withWorkLock } from "./git.mjs";
+import {
+  DEMO_WORKSPACE_ID,
+  defaultDemoRoot,
+  demoOperations,
+  installDemo,
+} from "./demo.mjs";
 
 export const PRINCIPAL_HEADER = "x-kirocrew-principal";
 const HOST = "127.0.0.1";
@@ -146,7 +152,7 @@ export function verifyPrincipal(
 // The page also runs the tick, reads its health, reads the Graph,
 // Delivery and Conflicts views, edits the GitHub settings, and runs Set up GitHub. The cron and agents reach `workspace.tick`
 // through the MCP server instead.
-const APP_OPERATIONS = new Set([
+export const APP_OPERATIONS = new Set([
   ...CLIENT_OPERATIONS,
   "workspace.tick",
   "workspace.tick.health",
@@ -292,6 +298,10 @@ const MACHINE_OPERATIONS = new Map([
   ["workspaces.list", "observe"],
   ["workspaces.add", "write"],
   ["workspaces.init", "write"],
+  // Demo mode (§6.11): install the sample once and open it, or close it.
+  ["demo.start", "write"],
+  ["demo.exit", "write"],
+  ["demo.status", "observe"],
 ]);
 
 // Action-level authorization. The dashboard owner may call any app operation.
@@ -397,8 +407,30 @@ export function startAppBackend({
   crewReader = issueRadarReader(process.env),
   // Stops a session for Stop all agents (session-observer.mjs).
   sessionStopper = gatewaySessionStopper(process.env),
+  // Where Demo mode keeps its sample workspace (demo.mjs).
+  demoRoot = defaultDemoRoot(),
 }) {
   const replay = new ReplayCache();
+  // The open sample, or null. Only demo.start opens it; its requests name
+  // DEMO_WORKSPACE_ID, which no catalog workspace can have.
+  let demo = null;
+  const demoOperation = async (operation) => {
+    if (operation === "demo.status")
+      return { active: Boolean(demo), workspaceId: DEMO_WORKSPACE_ID };
+    if (operation === "demo.exit") {
+      demo?.close();
+      demo = null;
+      return { active: false };
+    }
+    const installed = await installDemo(demoRoot);
+    demo ||= demoOperations(installed.root);
+    return {
+      active: true,
+      workspaceId: DEMO_WORKSPACE_ID,
+      existing: installed.existing,
+      at: installed.receipt?.at ?? null,
+    };
+  };
   // One store and Operations per workspace root, opened on first use.
   const opened = new Map();
   let registry = null;
@@ -493,6 +525,17 @@ export function startAppBackend({
         });
       if (!input || typeof input !== "object" || Array.isArray(input))
         return send(res, 400, { error: "Send input as a JSON object." });
+      if (operation.startsWith("demo."))
+        return send(res, 200, { result: await demoOperation(operation) });
+      if (workspaceId === DEMO_WORKSPACE_ID) {
+        if (!demo)
+          return send(res, 409, {
+            error: "The demo is not open. Start it again from Settings.",
+          });
+        return send(res, 200, {
+          result: await demo.execute(operation, input, expectedRevision),
+        });
+      }
       if (MACHINE_OPERATIONS.has(operation)) {
         const result = machineOperation(machine(), config, operation, input);
         if (operation !== "workspaces.list") follow();
@@ -509,6 +552,8 @@ export function startAppBackend({
       if (status === 500) console.error(error);
       return send(res, status, {
         error: status === 500 ? "Avoozl backend error." : error.message,
+        // A Demo mode preview: what the change would have done.
+        ...(error.demo ? { demo: true } : {}),
         // A person's save a content rule blocked names its decisions, so the
         // page can offer Allow once inline (R61.18). IDs only.
         ...(status === 422 && Array.isArray(error.decisions)
@@ -659,6 +704,7 @@ export function startAppBackend({
   server.on("close", () => {
     watcher?.close();
     for (const { store } of opened.values()) store.close();
+    demo?.close();
     registry?.close();
   });
   server.keepAliveTimeout = KEEP_ALIVE_MS;
