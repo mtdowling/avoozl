@@ -260,6 +260,7 @@ const PROTECT = new Set([
   "idea.restore",
   "github.setup",
   "github.setup.cancel",
+  "radar.setup",
   "local.ignore.fix",
   "conversations.settings.update",
   "openhands.automations.intake.prepare",
