@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { registerCoderAdapter } from "../coder-adapter.mjs";
 import { planningIdentity } from "../github-marker.mjs";
 import { refreshProjectedReadiness } from "../github-projection.mjs";
 import { Operations } from "../operations.mjs";
@@ -337,4 +338,49 @@ test("a content rule that blocks the plans repository name stops the projection 
     /content rule blocks the plans repository name/,
   );
   assert.equal(github.created.length, 0);
+});
+
+test("a coder change leaves a handed-over task with its coder and shows the split once", async (t) => {
+  const { store, ops } = await workspace(t, {
+      mode: "single-repo",
+      coder: "issue-radar",
+    }),
+    file = path.join(ops.workspaceRoot, ".avoozl.json"),
+    setCoder = (coder, capacity) => {
+      const config = JSON.parse(fs.readFileSync(file, "utf8"));
+      Object.assign(config.github.repositories["example/code"], {
+        coder,
+        release: { capacity },
+      });
+      fs.writeFileSync(file, JSON.stringify(config));
+    },
+    handed = new Set(),
+    restore = registerCoderAdapter("remote", {
+      usesMergePath: false,
+      handOver: async ({ issue }) => handed.add(issue.number),
+      readState: () => ({ state: "filed" }),
+      countsAsDone: () => false,
+    });
+  t.after(restore);
+  setCoder("issue-radar", 1);
+  const { plan } = await approve(ops, store, "split", [
+    leaf("split-a", "code"),
+    leaf("split-b", "code"),
+  ]);
+  await ops.execute("github.project", { planId: plan.id });
+  assert.equal(handed.size, 0);
+  setCoder("remote", 2);
+  const second = await ops.execute("github.project", { planId: plan.id });
+  // One task keeps Radar, the other goes to the new coder; one notice.
+  assert.equal(handed.size, 1);
+  assert.equal(
+    second.notes.filter((note) => /now uses remote/.test(note)).length,
+    1,
+  );
+  const third = await ops.execute("github.project", { planId: plan.id });
+  assert.equal(handed.size, 1);
+  assert.equal(
+    third.notes.filter((note) => /now uses remote/.test(note)).length,
+    0,
+  );
 });

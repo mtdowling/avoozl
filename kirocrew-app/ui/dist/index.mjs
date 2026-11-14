@@ -18652,7 +18652,7 @@ var sh = [
 	{
 		coder: "worker",
 		title: "Avoozl worker",
-		line: "Avoozl opens a Kiro Crew chat on this Mac for each ready task.",
+		line: "Avoozl opens a Kiro Crew chat on this Mac for each ready task. Frozen: upkeep only, no new features.",
 		flow: [
 			"Ready task",
 			"Worker chat",
