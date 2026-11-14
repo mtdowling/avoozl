@@ -563,6 +563,41 @@ export class GitHubClient {
     });
   }
 
+  // Actions variables of one repository: [{name, value}]. The list answers
+  // {total_count, variables}, not an array, so it is read as one page.
+  async listRepoVariables(value) {
+    const { owner, repo } =
+        typeof value === "string" ? parseRepository(value) : value,
+      page = await this.request(
+        "GET",
+        `/repos/${owner}/${repo}/actions/variables`,
+        { query: { per_page: PAGE_SIZE } },
+      );
+    return Array.isArray(page?.variables) ? page.variables : [];
+  }
+
+  // Creates or updates one Actions variable (what `gh variable set` does).
+  async setRepoVariable(value, name, text) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    try {
+      return await this.request(
+        "POST",
+        `/repos/${owner}/${repo}/actions/variables`,
+        {
+          body: { name, value: text },
+        },
+      );
+    } catch (error) {
+      if (error.status !== 409 && error.status !== 422) throw error;
+      return this.request(
+        "PATCH",
+        `/repos/${owner}/${repo}/actions/variables/${name}`,
+        { body: { name, value: text } },
+      );
+    }
+  }
+
   createIssueComment(value, number, body) {
     const { owner, repo } =
       typeof value === "string" ? parseRepository(value) : value;
