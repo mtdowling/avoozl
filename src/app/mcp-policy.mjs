@@ -136,6 +136,7 @@ export const PERSON_ONLY = new Map([
   ],
   ["flow.runAnyway", person("Only a person presses Run anyway.")],
   ["flow.resume", person("Only a person resumes a pulled stop.")],
+  ["radar.releasestep", person("Only a person releases a phase.")],
   ["budget.raise", person("Only a person raises a budget.")],
   ["budget.stop", person("Only a person stops a task at its budget.")],
   [

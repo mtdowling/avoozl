@@ -109,7 +109,7 @@ Requirement RC4. The tick adds the ready label in graph order, N at a time.
 - [x] rc-4.3 Phase gate: release the next phase after the previous one merged, after rc-4.1 [RC4.4] (§D6)
   - A phase releases only when every task of the previous phase of the spec has a merged closing pull request; a closed-by-order task does not count.
   - Done when: A phase with one task closed by order stays held; merging it releases the next phase on the next tick.
-- [ ] rc-4.4 Release mode radio fold-out and the Release queue, after rc-4.1 [RC4.5, RC4.6] (§D6)
+- [x] rc-4.4 Release mode radio fold-out and the Release queue, after rc-4.1 [RC4.5, RC4.6] (§D6)
   - Automatic, Step and Hold as one radio fold-out; the Release queue (Up next) shows what is next and why anything is held; another person's ready label counts as an order only where policy allows.
   - Done when: Step waits for one click per phase; Hold releases nothing; the queue shows the reason for each held item; drawn at 320, 768 and 1280 px.
 - [ ] rc-p4 Proof 4: release honors N, scopes, phases and the stop, after rc-4.1, rc-4.2, rc-4.3, rc-4.4 [RC4] (§D17)

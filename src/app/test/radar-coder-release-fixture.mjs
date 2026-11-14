@@ -89,5 +89,5 @@ export async function setup(
     readyIds = () =>
       approved.taskIds.filter((id) => labelsOf(issueOf(id)).includes(READY)),
     tick = () => ops.execute("github.project", { planId: plan.id });
-  return { store, github, ops, approved, issueOf, readyIds, tick };
+  return { store, github, ops, approved, issueOf, readyIds, tick, root };
 }
