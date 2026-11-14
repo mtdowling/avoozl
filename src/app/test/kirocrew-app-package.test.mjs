@@ -213,6 +213,28 @@ test("packaged launcher serves the Crew Mode runner and lists its tools", () => 
   );
 });
 
+test("the MCP launcher names its crew home when the launch env has none", () => {
+  // A chat's launch env holds no KIROCREW_HOME; the install path does.
+  const home = temporaryDirectory(),
+    bin = path.join(home, "apps", "avoozl", "bin");
+  fs.mkdirSync(bin, { recursive: true });
+  fs.copyFileSync(
+    path.join(app, "bin", "avoozl_mcp.py"),
+    path.join(bin, "avoozl_mcp.py"),
+  );
+  fs.writeFileSync(
+    path.join(bin, "avoozl.mjs"),
+    "console.log(process.env.KIROCREW_HOME ?? '');\n",
+  );
+  const run = (env) =>
+    execFileSync("python3", [path.join(bin, "avoozl_mcp.py")], {
+      encoding: "utf8",
+      env: { PATH: process.env.PATH, ...env },
+    }).trim();
+  assert.equal(run({}), fs.realpathSync.native(home));
+  assert.equal(run({ KIROCREW_HOME: "/elsewhere" }), "/elsewhere");
+});
+
 test("every plans_* tool a brief, agent, cron or skill names is listed", () => {
   const dir = temporaryDirectory();
   const listed = execFileSync(
