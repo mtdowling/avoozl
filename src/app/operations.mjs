@@ -255,6 +255,7 @@ import {
   classifyGitHubIssue,
   draftGitHubChildren,
 } from "./github-breakdown.mjs";
+import { quickGoalOperation } from "./quick-goal-ops.mjs";
 import { previewProjection } from "./github-preview.mjs";
 import { planProjectionBatches } from "./radar-coder-batch.mjs";
 import {
@@ -872,6 +873,8 @@ export class Operations {
       models = null,
       // (issue) => the issue.verify result; tests pass a fake.
       issueVerifier = undefined,
+      // (request) => the planner chat for a quick goal; tests pass a fake.
+      plannerAgent = null,
     } = {},
   ) {
     this.store = store;
@@ -891,6 +894,7 @@ export class Operations {
     // Provenance for records this workspace mints; never an authorization.
     this.operator = operator || "";
     this.issueVerifier = issueVerifier;
+    this.plannerAgent = plannerAgent;
     // Every GitHub text write passes content rules first (§4.9).
     this.github = guardGitHub(github || defaultGitHubClient(), store);
     this.configuration = configuration;
@@ -2948,6 +2952,11 @@ export class Operations {
         by: context.local ? "cli" : "dashboard",
       });
     }
+    if (name.startsWith("quickgoal.")) {
+      if (context.caller || context.mcp)
+        fail("Only a person works a quick goal, in the Avoozl page.", 403);
+      return quickGoalOperation(this, name, input);
+    }
     if (name === "radar.mergepath")
       return { repositories: await this.mergePaths(input.repository) };
     // An epic's integration branch (RC16.1): exists, not the default,
@@ -4528,7 +4537,12 @@ export class Operations {
         fail("The reviewed document hash changed.", 409);
       // Approval is of the stored revision, and only while the folder on
       // disk still matches it.
-      if (plan.spec && this.readSpec(plan.spec).hash !== plan.hash)
+      // A quick goal's folder exists only in its approval pull request.
+      if (
+        plan.spec &&
+        !plan.context?.quickGoal &&
+        this.readSpec(plan.spec).hash !== plan.hash
+      )
         fail(
           "The spec folder changed on disk. Reload it before approving.",
           409,
