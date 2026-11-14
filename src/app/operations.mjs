@@ -2905,7 +2905,22 @@ export class Operations {
       if (!entry)
         fail(`${input.repository} is not a registered repository.`, 404);
       if (!this.github?.available?.()) fail("GitHub is not available.", 503);
-      return radarSetup(this.github, input.repository, entry, input);
+      return radarSetup(this.github, input.repository, entry, input, {
+        project: policy.project ?? null,
+        // The pull request text goes through content rules before any write.
+        check: (text) => {
+          const result = checkContent(this.store, {
+            boundary: "github",
+            repository: input.repository,
+            target: "pull-request-text",
+            text,
+          });
+          return [
+            ...result.findings.map((f) => `${f.set}/${f.rule}`),
+            ...result.unavailable.map((u) => `${u.set} unavailable`),
+          ];
+        },
+      });
     }
     if (name === "radar.integrationbranch") {
       const policy = readGitHubPolicyOrNull(this.workspaceRoot),
