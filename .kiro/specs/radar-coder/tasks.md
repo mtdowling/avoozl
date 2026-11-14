@@ -1,6 +1,6 @@
 # Tasks: Avoozl plans and gates, Issue Radar crews code
 
-Status: Draft
+Status: Approved
 
 Ordered by phase. Each phase ends with a proof; a phase starts after the
 proofs it depends on pass (the edges in `avoozl/manifest.json` say which).
