@@ -24,13 +24,15 @@ after(async () => {
 })
 
 const byText = (selector, text) => `[...document.querySelectorAll(${JSON.stringify(selector)})].find((b) => b.textContent.trim().startsWith(${JSON.stringify(text)}))`
+// The row's own Trace button, not the nav tab of the same name.
+const row = `document.querySelector('button[aria-label^="Trace issue"]')`
 const times = `[...document.querySelectorAll('[data-trace-step]')].map((s) => s.dataset.traceStep + ' ' + s.querySelector('[data-trace-time]').textContent)`
 const back = `document.querySelector('[data-avoozl-app]').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', altKey: true, bubbles: true }))`
 
 test('a row opens the Trace drawer, Open page shows the page, and Back returns to the Dashboard', { skip }, async () => {
   await page.open(harness.url({ page: 'app', radar: '1' }), { width: 1280, height: 800 })
-  await page.until(`Boolean(${byText('button', 'Trace')})`)
-  await page.evaluate(`${byText('button', 'Trace')}.click()`)
+  await page.until(`Boolean(${row})`)
+  await page.evaluate(`${row}.click()`)
   await page.until(`Boolean(document.querySelector('[data-trace-drawer] [data-trace-step]'))`)
   const steps = await page.evaluate(times)
   assert.equal(steps.length, 8)
@@ -40,7 +42,7 @@ test('a row opens the Trace drawer, Open page shows the page, and Back returns t
   await page.until(`Boolean(document.querySelector('[data-trace-page] [data-trace-step]'))`)
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-trace-drawer]'))`), false)
   await page.evaluate(back)
-  await page.until(`Boolean(${byText('button', 'Trace')}) && !document.querySelector('[data-trace-page]')`)
+  await page.until(`Boolean(${row}) && !document.querySelector('[data-trace-page]')`)
 })
 
 test('the page opens from a ?trace= link and Back returns to the Dashboard', { skip }, async () => {

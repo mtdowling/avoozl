@@ -20,14 +20,11 @@ import { DocumentReader } from '../../src/DocumentReader.tsx'
 import { StopLineButton } from '../../src/StopLine.tsx'
 import { PackImportDialog } from '../../src/PackImport.tsx'
 import { SendToRadar } from '../../src/SendToRadar.tsx'
-import { CrewDialog } from '../../src/RoutingView.tsx'
 import { SwitchModelButton } from '../../src/SwitchModel.tsx'
 import ActivityView from '../../src/ActivityView.tsx'
 import DashboardView, { InFlightRow } from '../../src/DashboardView.tsx'
-import { TaskFiles } from '../../src/TaskFiles.tsx'
 import { setupForm } from '../../src/settings-api.ts'
 import { LAYER } from '../../src/layers.ts'
-import { BudgetSettings } from '../../src/BudgetSettings.tsx'
 import { CoderPicker } from '../../src/CoderPicker.tsx'
 import ReleaseQueue from '../../src/ReleaseQueue.tsx'
 import GithubFlow from '../../src/GithubFlow.tsx'
@@ -166,7 +163,6 @@ answer('quickgoal.discard', (body) => (state.calls.push(body), goalState('discar
 answer('quickgoal.edit', (body) => (state.calls.push(body), goalState()))
 const quickGoals = quickGoalClient(useAppApi() as never)
 const row = { key: 'p1', kind: 'spec', name: 'Modal plan', spec: 'modal-plan', folder: '.kiro/specs/modal-plan', planId: 'modal-plan', type: 'feature', category: null, categoryProblem: null, errors: 0, status: 'approved', tasks: { total: 3, done: 1 }, now: { ready: 1, running: 0, needsYou: 0 }, epics: 1, lastChange: null }
-const crew = { id: 'remote-1', name: 'Remote one', tags: ['linux'], trust: 'remote', gitHosts: ['github.com'], chatLimit: 2, chatLimitSet: false, delivery: 'handback', sshHost: null, worktreeRoot: null, configured: true, reading: null, ageSeconds: null, running: 0 }
 const text = ['# Guide', '', 'A short file for the viewer.', '', '## Part one', '', 'Some words.', '', '## Part two', '', 'More words.'].join('\n')
 
 // A manual task waiting for a person, with links and notes (R61).
@@ -265,7 +261,6 @@ export const SCENARIOS: Record<string, Scenario> = {
   'stop-line': own('Stop the line', <StopLineButton workspaceId="w" onPulled={() => undefined} />),
   'pack-import': shown((close) => <PackImportDialog row={{ id: 'pack-1', version: '1.0.0' } as never} workspaceId="w" client={idle} onClose={close} onChanged={async () => undefined} />),
   'send-to-radar': shown((close) => <SendToRadar workspaceId="w" client={idle} items={[]} repository="avoozl" onClose={close} onSent={close} />),
-  crew: shown((close) => <CrewDialog crew={crew as never} onCancel={close} onSave={async () => null} />),
   'switch-model': own('Switch model', <SwitchModelButton workspaceId="w" />),
   projection: shown((close) => <ProjectionModal workspaceId="w" client={projections} planId="search-v2" title="Search v2" onClose={close} onCreated={() => undefined} />),
   'spec-changed': shown((close) => <SpecChangedModal workspaceId="w" client={projections} planId="search-v2" title="Search v2" onClose={close} onApplied={() => undefined} />),
@@ -274,12 +269,6 @@ export const SCENARIOS: Record<string, Scenario> = {
   'mark-done': shown((close) => <MarkDoneDialog workspaceId="w" taskId="team-review" title="Review with team" onIssue onClose={close} onDone={close} />),
   // The real page shows New spec over the whole page, not inside a card.
   'new-spec-template': shown((close) => createPortal(<div {...{ [APP_ATTR]: '' }}><NewPlanDrawer workspaceId="w" taken={[]} categories={[]} epics={[{ id: 'sdk-target', title: 'SDK target architecture' }]} start="template" onClose={close} /></div>, document.body)),
-  // Not a modal: the drawer's Files fold, at a drawer's width.
-  'task-files': shown(() => (
-    <div style={{ maxWidth: 620 }}>
-      <TaskFiles workspaceId="w" taskId="a1" active />
-    </div>
-  )),
 }
 
 // The Switch model steps against fake answers: two running chats, one
@@ -448,10 +437,26 @@ if (query.get('page') === 'home' || query.get('page') === 'demo') {
   answer('delivery.view', () => ({ revision: 1, items: ran ? [item] : [] }))
   answer('conflicts.view', () => ({ revision: 1, items: [] }))
   answer('plan.list', () => ({ items: [] }))
-  // The Dashboard also reads remote workers and Radar claims; an unanswered
-  // read never settles and leaves it on "Loading".
-  answer('remote.view', () => ({ workers: [] }))
+  // Home reads these too; an unanswered call never settles.
   answer('radar.crews', () => ({ readAt: null, stale: 0, errors: [], unseen: [], rows: [] }))
+  answer('radar.releasequeue', () => ({ repositories: [] }))
+  answer('driversession.view', () => ({ state: 'none', slot: null, href: null, openedAt: null, lastSeenAt: null }))
+}
+// ?page=app: Settings reads the GitHub policy. &worker=1 leaves one
+// repository on the retired Avoozl worker, which shows the Settings banner.
+if (query.get('page') === 'app') {
+  const worker = query.get('worker') === '1'
+  answer('driversession.view', () => ({ state: 'none', slot: null, href: null, openedAt: null, lastSeenAt: null }))
+  answer('github.settings.get', () => ({
+    filename: '.avoozl.json',
+    exists: true,
+    hash: 'h',
+    github: { mode: 'plans-repo', repositories: { 'acme/recipe-box': worker ? { coder: 'worker' } : { coder: 'issue-radar' } } },
+    effective: null,
+    error: null,
+    crews: [],
+    choices: { modes: ['local', 'plans-repo', 'single-repo'], authorities: [], coders: ['issue-radar', 'remote'], permissions: [], actions: [], fields: [], statusValues: [], managedLabels: [], crewLabels: [] },
+  }))
 }
 // ?page=app&radar=1: the Dashboard has one live Issue Radar claim, and a
 // Trace of it. The marker's own `updated=` (09:46) is ahead of GitHub's time
@@ -608,7 +613,6 @@ const PAGES: Record<string, () => ReactNode> = {
   'github-flow': () => <GithubFlow workspaceId="w" />,
   'release-queue': () => <ReleaseQueue workspaceId="w" />,
   'release-mode': () => <ReleaseModes />,
-  budgets: () => <BudgetSettings workspaceId="w" />,
   'quick-goal': () => <QuickGoalModal workspaceId="w" client={quickGoals} onClose={() => undefined} />,
   // The two modals, open at once, for the screenshots.
   projection: () => <ProjectionModal workspaceId="w" client={projections} planId="search-v2" title="Search v2" onClose={() => undefined} onCreated={() => undefined} />,
@@ -710,21 +714,6 @@ if (page === 'radar-values') {
 }
 const intake = page === 'intake'
 if (intake) answerIntake(query.get('empty') === '1')
-// ?page=routing&state=<name>: Settings › Routing on the replies a real
-// backend gave for that state (routing-replies.mjs, window.__ROUTING). A
-// refused reply is refused here the same way. Any render error is caught by
-// the outer boundary and marked [data-harness-crash] for the test.
-type Routed = Record<string, Record<string, { result?: unknown; error?: string; status?: number }>>
-const routed = (window as unknown as { __ROUTING?: Routed }).__ROUTING
-if (page === 'routing' && routed) {
-  const replies = routed[query.get('state') ?? ''] ?? {}
-  for (const [operation, reply] of Object.entries(replies))
-    answer(operation, () => {
-      if (reply.error !== undefined) throw new Refusal(reply.status ?? 500, { error: reply.error })
-      return reply.result
-    })
-  answer('GET /api/models', () => ({ models: [] }))
-}
 
 // ?page=panel&sid=<chat>&state=full|empty: the side panel on sample reads.
 // window.__panel holds what the reads return, so a test can change it and see
@@ -771,6 +760,15 @@ if (page === 'panel') {
   answer('plan.specs', () => ({ root: '/w', items: data().specs }))
   answer('github.conflict.resolve', (body) => (panelWin.__panelCalls.push(body.input), {}))
   answer('GET /api/apps/spec-builder/specs', () => ({ specs: [{ name: 'search-v2' }] }))
+}
+// ?page=panel&real=1: the panel on the replies a real backend gave over the
+// sample workspace (window.__REAL_PANEL, panel-real.test.mjs), so a reply that
+// drifts from what the panel reads shows up here and not only in a live host.
+const realPanel = (window as unknown as { __REAL_PANEL?: Record<string, unknown> }).__REAL_PANEL
+if (page === 'panel' && query.get('real') === '1' && realPanel) {
+  for (const name of ['conflicts.view', 'radar.crews', 'remote.view', 'radar.releasequeue', 'flow.view', 'plan.specs', 'driversession.view'])
+    answer(name, () => realPanel[name])
+  answer('GET /api/apps/spec-builder/specs', () => ({ specs: ((realPanel['plan.specs'] as { items: { name: string }[] }).items ?? []).map((item) => ({ name: item.name })) }))
 }
 class HarnessBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
   state = { error: null as string | null }
@@ -856,17 +854,6 @@ function PanelPage() {
     </div>
   )
 }
-function RoutingPage() {
-  return (
-    <div {...{ [APP_ATTR]: '' }} data-settings-page="routing" style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)', minHeight: '100vh', boxSizing: 'border-box' }}>
-      <HarnessBoundary>
-        <ConfirmProvider>
-          <SettingsView workspaceId="w" tab="routing" />
-        </ConfirmProvider>
-      </HarnessBoundary>
-    </div>
-  )
-}
 createRoot(document.getElementById('root')!).render(
-  page === 'panel' ? <PanelPage /> : page === 'workflow-map' ? <WorkflowMapPage /> : page === 'crews-rules' ? <CrewsRulesPage /> : page === 'radar-values' ? <RadarValuesPage /> : page === 'routing' ? <RoutingPage /> : intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page === 'activity' ? <ActivityPage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
+  page === 'panel' ? <PanelPage /> : page === 'workflow-map' ? <WorkflowMapPage /> : page === 'crews-rules' ? <CrewsRulesPage /> : page === 'radar-values' ? <RadarValuesPage /> : intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page === 'activity' ? <ActivityPage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
 )
