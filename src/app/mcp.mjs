@@ -1,3 +1,4 @@
+import { Operations } from "./operations.mjs";
 import { complete, MCP_TOOLS, validateMcpRequest } from "../mcp.mjs";
 import { workspaceIdentity } from "./identity.mjs";
 import { classifyOperation } from "./operation-kinds.mjs";
@@ -8,6 +9,10 @@ import { GROUPED_TOOLS, groupedCall, groupedToolList } from "./mcp-tools.mjs";
 // says which grouped tool replaces it. plans_workspace is a grouped tool now;
 // its old {input} call still reads the workspace.
 export const OLD_TOOLS = {
+  plans_verify_issue: [
+    "issue.verify",
+    'Check that a GitHub issue came from an approved spec: {issue: "owner/repo#number"}. Read-only; needs no workspace, only the caller\'s gh login. Runs the marker, approver, author, spec and commit checks, reports every one, and quotes no issue text. Build only when ok is true; otherwise skip the issue and name the failed check.',
+  ],
   plans_examples: [
     "workspace.examples",
     "List optional example packs. Reading this list does not change the workspace.",
@@ -349,6 +354,8 @@ const replacement = (operation) => {
   return null;
 };
 const deprecated = (operation, description) => {
+  // The one current tool in this table (R56: one new tool).
+  if (operation === "issue.verify") return description;
   if (PERSON_ONLY.has(operation) && !replacement(operation))
     return `Person only: refused over MCP; do it in the Avoozl app. ${description}`;
   const next = replacement(operation);
@@ -369,6 +376,7 @@ export const WORKSPACE_TOOLS = Object.entries(operations).map(
     },
     annotations: {
       readOnlyHint: [
+        "issue.verify",
         "workspace.examples",
         "workspace",
         "models",
@@ -477,8 +485,15 @@ export async function handleMcp(
     const refusal = mcpRefusal(route.operation, route.input);
     if (refusal) return refuse(refusal);
     const { operation } = route;
+    // issue.verify reads GitHub only, so it needs no workspace.
+    const runner =
+      operation === "issue.verify"
+        ? {
+            execute: (name, input) => new Operations(null).perform(name, input),
+          }
+        : ops;
     try {
-      const result = await ops.execute(
+      const result = await runner.execute(
         operation,
         route.input,
         args.expectedRevision,
