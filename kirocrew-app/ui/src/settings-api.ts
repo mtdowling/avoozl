@@ -251,6 +251,9 @@ export interface RepositoryForm {
   minimumPermission: string
   requiredChecks: string
   concurrency: string
+  // Release (RC4.5): the mode, and how many crews work the repository.
+  releaseMode: string
+  releaseCapacity: string
   priority: string
   // GitHub pull-request reviews as the review verdict (task 9.10): on, and how
   // many approvals from people the repository policy allows (1 to 10).
@@ -261,11 +264,10 @@ export interface RepositoryForm {
   // The label that approves a drafted plan (radar.approvalLabel); blank is the default.
   approvalLabel: string
   // Issue Radar crew settings (radar.planLabel, radar.conflictLabel,
-  // radar.reviewRules, release.capacity); blank is the shown default.
+  // radar.reviewRules); blank is the shown default.
   planLabel: string
   conflictLabel: string
   reviewRules: string
-  releaseCapacity: string
   rules: RuleForm[]
   // The Untriaged list (design §8.5), each optional.
   untriaged: UntriagedForm
@@ -373,6 +375,8 @@ export function emptyRepository(name = ''): RepositoryForm {
     minimumPermission: '',
     requiredChecks: '',
     concurrency: '',
+    releaseMode: '',
+    releaseCapacity: '',
     priority: '',
     pullRequestReviews: false,
     reviewApprovals: '',
@@ -382,7 +386,6 @@ export function emptyRepository(name = ''): RepositoryForm {
     planLabel: '',
     conflictLabel: '',
     reviewRules: '',
-    releaseCapacity: '',
     rules: [],
     untriaged: emptyUntriaged(),
     rest: {},
@@ -417,6 +420,8 @@ export function toForm(github: Policy): SettingsForm {
         minimumPermission: str(entry.minimumPermission),
         requiredChecks: joined(entry.requiredChecks),
         concurrency: str(entry.concurrency),
+        releaseMode: str(record(entry.release).mode),
+        releaseCapacity: str(record(entry.release).capacity),
         priority: joined(entry.priority),
         pullRequestReviews: reviews !== undefined && reviews !== null,
         reviewApprovals: str(record(reviews).approvals),
@@ -426,7 +431,6 @@ export function toForm(github: Policy): SettingsForm {
         planLabel: str(record(entry.radar).planLabel),
         conflictLabel: str(record(entry.radar).conflictLabel),
         reviewRules: str(record(entry.radar).reviewRules),
-        releaseCapacity: str(record(entry.release).capacity),
         rules: (Array.isArray(entry.rules) ? entry.rules : []).map((item) => {
           const rule = record(item)
           return {
@@ -495,6 +499,11 @@ export function toPolicy(form: SettingsForm): Policy {
               minimumPermission: blank(repository.minimumPermission),
               requiredChecks: splitList(repository.requiredChecks),
               concurrency: count(repository.concurrency),
+              // The mode and capacity are shown; scopes pass through unchanged.
+              release: (() => {
+                const release = compact({ ...record(repository.rest.release), mode: blank(repository.releaseMode), capacity: count(repository.releaseCapacity) })
+                return Object.keys(release).length ? release : undefined
+              })(),
               priority: splitList(repository.priority),
               // Present means on; a blank count leaves the backend's default (1).
               pullRequestReviews: repository.pullRequestReviews
@@ -511,11 +520,6 @@ export function toPolicy(form: SettingsForm): Policy {
                   reviewRules: blank(repository.reviewRules),
                 })
                 return Object.keys(radar).length ? radar : undefined
-              })(),
-              // release keeps its scopes; only the number comes from the form.
-              release: (() => {
-                const release = compact({ ...record(repository.rest.release), capacity: count(repository.releaseCapacity) })
-                return Object.keys(release).length ? release : undefined
               })(),
               rules: repository.rules.map((rule) =>
                 compact({
@@ -577,6 +581,7 @@ export const REPOSITORY_FIELD_RULES: Record<string, FieldRule> = {
   baseBranch: { required: true, when: 'with a GitHub mode' },
   coder: { required: false, blank: 'blank: Issue Radar in single-repo mode, worker sessions otherwise' },
   concurrency: { required: false, blank: 'blank: 1 at a time' },
+  releaseCapacity: { required: false, blank: 'blank: 2 at a time' },
   allowedActors: { required: false, blank: 'blank: anyone with the minimum permission' },
   minimumPermission: { required: false, blank: 'blank: write, unless actors are named' },
   managed: { required: true, when: 'to create issues' },
@@ -868,7 +873,7 @@ export const CODER_CARDS = [
   {
     coder: 'worker',
     title: 'Avoozl worker',
-    line: 'Avoozl opens a Kiro Crew chat on this Mac for each ready task.',
+    line: 'Avoozl opens a Kiro Crew chat on this Mac for each ready task. Frozen: upkeep only, no new features.',
     flow: ['Ready task', 'Worker chat', 'Checks', 'Reviewer chats', 'Merged'],
     useWhen: ['Specs stay private', 'You want to watch each chat', 'The work needs this Mac'],
     reviews: "Avoozl's reviewer chats review the exact commit; on GitHub, the branch's review rule applies too.",
@@ -920,10 +925,9 @@ export function settingsTabOnEnter<T extends string>(from: string, to: string, c
 
 // Issue Radar crew settings (radar-coder RC7.6). A blank field is the default,
 // and each line says where the shown value comes from and what it is.
-export const RADAR_DEFAULTS_SHOWN = { planLabel: 'to plan', conflictLabel: 'merge conflict', releaseCapacity: 2 } as const
+export const RADAR_DEFAULTS_SHOWN = { planLabel: 'to plan', conflictLabel: 'merge conflict' } as const
 
 export const valueSource = (value: string, fallback: string, unit = '') =>
   value.trim() ? `Set on this repository: ${value.trim()}${unit}.` : `Not set on this repository. Using the default (${fallback}${unit}).`
 
-export const releaseMode = (form: Pick<RepositoryForm, 'releaseCapacity'>): 'default' | 'number' => (form.releaseCapacity.trim() ? 'number' : 'default')
 export const rulesMode = (form: Pick<RepositoryForm, 'reviewRules'>): 'default' | 'custom' => (form.reviewRules.trim() ? 'custom' : 'default')
