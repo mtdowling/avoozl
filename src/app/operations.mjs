@@ -373,6 +373,7 @@ import {
 import { writeSpecManifest } from "./spec-manifest.mjs";
 import { decideInvestigation } from "./investigate.mjs";
 import { taskEvidence } from "./evidence.mjs";
+import { driverSessionView, registerDriverSession } from "./driver-session.mjs";
 import {
   callerSlot,
   claimedTaskIds,
@@ -2615,11 +2616,21 @@ export class Operations {
     if (name === "remote.pull")
       return pullStatus(store, this.workspaceRoot, input);
     if (name === "remote.view") return remoteView(store, this.workspaceRoot);
-    if (name === "runner.next")
+    if (name === "driversession.view") return driverSessionView(store);
+    if (name === "driversession.register") {
+      registerDriverSession(store, input);
+      return driverSessionView(store);
+    }
+    if (name === "runner.next") {
+      // A conductor's attested call is the driver session's heartbeat. Only a
+      // gateway-attested caller counts; the model cannot name its own slot.
+      const slot = callerSlot(context.caller);
+      if (slot) registerDriverSession(store, { slot, source: "next" });
       return nextView(store, {
         policy: readDeliveryPolicy(this.workspaceRoot),
         github: readGitHubPolicyOrNull(this.workspaceRoot),
       });
+    }
     if (name === "runner.claim")
       return stampPrompts(
         store,

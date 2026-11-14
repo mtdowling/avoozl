@@ -37,7 +37,7 @@ test('the nav row has Home, Epics, Waiting on you, Trace, Flow, Activity and Set
 
 test('an empty Home says what to set up, with a button for each, instead of hiding cards', { skip }, async () => {
   await open({ radar: '1' })
-  await page.until(`Boolean(document.querySelector('[data-driver-card="none"]') && document.querySelector('[data-release-empty]'))`)
+  await page.until(`Boolean(document.querySelector('[data-driver-session="none"]') && document.querySelector('[data-release-empty]'))`)
   const body = await page.evaluate(text)
   for (const line of ['Driver session', 'Not started', 'Start a driver session', 'No epics', 'Plan an epic', 'Release queue', 'Open Repository setup'])
     assert.ok(body.includes(line), line)
@@ -53,12 +53,12 @@ test('Settings is one accordion with its empty slots and setup buttons off', { s
   assert.deepEqual(sections, ['driver', 'workspaces', 'repositories', 'github', 'plugins', 'content', 'flow', 'delivery'])
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-settings-section][data-open="true"]').length`), 1)
   await click(`document.querySelector('[data-settings-section="driver"] button[aria-expanded]')`)
-  await page.until(`Boolean(document.querySelector('[data-driver-card]'))`)
+  await page.until(`Boolean(document.querySelector('[data-driver-session]'))`)
   // Opening another section closes the first.
   await click(`document.querySelector('[data-settings-section="repositories"] button[aria-expanded]')`)
   await page.until(`Boolean(document.querySelector('[data-slot="mirror"]'))`)
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-settings-section][data-open="true"]').length`), 1)
-  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-driver-card]'))`), false)
+  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-driver-session]'))`), false)
   const buttons = await page.evaluate(`[...document.querySelectorAll('[data-setup-action]')].map((b) => [b.dataset.setupAction, b.disabled])`)
   assert.deepEqual(buttons, [['Adopt existing setup', true], ['Create setup', true]])
   assert.deepEqual(page.errors, [])

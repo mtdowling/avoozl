@@ -38,3 +38,23 @@ A Crew Mode chat can run local delivery when `.avoozl.json` sets
 `"delivery": {"runner": "crew-mode"}`. Copy `hooks/avoozl-runner.json` into
 `~/.kiro/hooks/` so a conductor that starts in one of the workspace's checkouts
 gets the runner steering and the current `next` buckets.
+
+## The driver session
+
+The driver session is one long-running chat that releases ready work and
+watches merges. Start it from the Start button on Home or in the side panel.
+The button opens a new chat on the `avoozl-driver` agent and sends its first
+message. Nothing starts one for you.
+
+Kiro Crew lets an app read only the chats the app opened, and the person opens
+this one, so Avoozl cannot look its slot up. The chat tells Avoozl instead: the
+agent's `agentSpawn` and `stop` hooks run `avoozl.mjs driver hook`, which
+records the chat key Kiro Crew puts in the hook payload, and a `plans_next`
+call from a Kiro Crew session records it too. The page shows a link to that
+chat. It reads as running for 30 minutes after the last hook or call, then as
+quiet, with the link kept and a Start button for a new one. Avoozl has no
+read of whether the chat is still open or mid-turn.
+
+Not built, because the host does not allow it: sending a message into the
+driver chat from the page, stopping it, and reading its turn count.
+Attach / steer opens a crew's chat; you type there.

@@ -15,7 +15,7 @@ import { useRead } from './useRead.ts'
 import { LineBanner } from './FlowView.tsx'
 import ArmedPulls from './ArmedPulls.tsx'
 import { StartDemoButton } from './Demo.tsx'
-import DriverCard, { useDriverSession } from './DriverCard.tsx'
+import DriverSessionBox, { useDriverSession } from './DriverSessionBox.tsx'
 import SetupCard from './SetupCard.tsx'
 import { setupCards, type SetupId } from './setup-api.ts'
 import { useSetupFacts } from './setup-facts.ts'
@@ -294,7 +294,7 @@ export default function DashboardView(props: {
   const flowLoad = useCallback((id: string) => flows.view(id, { window: '10' }), [flows])
   const flow = useRead(workspaceId, flowLoad)
   const summary = value?.summary
-  const driver = useDriverSession()
+  const driver = useDriverSession(workspaceId)
   const facts = useSetupFacts(workspaceId)
   // A stop pulled or resumed anywhere on the page (the top row's Stop the
   // line, a banner) reads the banner again.
@@ -331,7 +331,7 @@ export default function DashboardView(props: {
   const cards = setupCards({
     ...facts,
     radarCrews: summary?.radarCrewStrip ? summary.radarCrewStrip.crews.length : null,
-    driver: driver.session?.state ?? 'unknown',
+    driver: driver.read?.state ?? 'unknown',
     plans: summary ? summary.plans.total : 1,
   })
 
@@ -360,12 +360,12 @@ export default function DashboardView(props: {
       {/* Line stopped (R44.9, R48.5): above every other section. */}
       <LineBanner stops={flow.value?.line ?? []} workspaceId={workspaceId} onChanged={() => void flow.reload()} />
       <ArmedPulls workspaceId={workspaceId} stopped={(flow.value?.line ?? []).length > 0} />
+      <DriverSessionBox workspaceId={workspaceId} />
       {(error || chat.error) && (
         <p role="alert" className="text-sm text-danger">
           {error ?? chat.error}
         </p>
       )}
-      <DriverCard session={driver.session} reload={driver.reload} />
       {cards.filter((card) => card.id !== 'driver').map((card) => (
         <SetupCard
           key={card.id}

@@ -57,7 +57,7 @@ import { AddRepository, REPOSITORIES_LINE, RepositoryDialog, RepositoryList, rep
 import PluginsSettings from './PluginsSettings.tsx'
 import ContentRulesSettings from './ContentRulesSettings.tsx'
 import FlowSettings from './FlowSettings.tsx'
-import DriverCard, { useDriverSession } from './DriverCard.tsx'
+import DriverSessionBox from './DriverSessionBox.tsx'
 import { MirrorSlot, RetiredBanner, SetupActions } from './SettingsSlots.tsx'
 import DeliverySettings from './DeliverySettings.tsx'
 import { useSteppedState } from './NavHistory.tsx'
@@ -1463,9 +1463,8 @@ class TabBoundary extends Component<{ label: string; children: ReactNode }, { er
 
 function SettingsBody(props: { tab: SettingsTab; workspaceId: string | null; onTab: (tab: SettingsTab) => void } & Pick<Parameters<typeof SettingsView>[0], 'onSelectWorkspace' | 'onListChange' | 'onOpenPlans'>) {
   const { tab, workspaceId } = props
-  const driver = useDriverSession()
   if (tab === 'workspaces') return <WorkspaceView selected={workspaceId} onSelect={props.onSelectWorkspace} onListChange={props.onListChange} />
-  if (tab === 'driver') return <DriverCard session={driver.session} reload={driver.reload} />
+  if (tab === 'driver') return <DriverSessionBox workspaceId={workspaceId} />
   if (!workspaceId)
     return (
       <EmptyState

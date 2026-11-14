@@ -22,7 +22,7 @@ test('Home has the heading, the driver card, then Needs you beside In flight, th
   assert.ok(header, 'the heading row exists')
   // The state buttons and the Untriaged count went with Delivery and Intake.
   assert.doesNotMatch(dashboard, /StateCounts|UntriagedStat|Show them in Delivery|Up next/)
-  const order = ['<DriverCard', '<Pair', '<ReleaseQueue', 'data-progress-by-epic', '<IntegrationBranches']
+  const order = ['<DriverSessionBox', '<Pair', '<ReleaseQueue', 'data-progress-by-epic', '<IntegrationBranches']
   const at = order.map((text) => dashboard.indexOf(text))
   assert.deepEqual([...at].sort((a, b) => a - b), at, order.join(' < '))
   assert.ok(at.every((n) => n > 0))
@@ -33,7 +33,7 @@ test('Home has the heading, the driver card, then Needs you beside In flight, th
 test('an empty Home explains what to set up with a button, instead of hiding cards', () => {
   assert.match(dashboard, /<SetupCard/)
   assert.match(dashboard, /setupCards\(/)
-  assert.match(dashboard, /<DriverCard session=\{driver\.session\}/)
+  assert.match(dashboard, /<DriverSessionBox workspaceId=\{workspaceId\} \/>/)
   assert.doesNotMatch(dashboard, /No tasks yet/)
   assert.match(source('ReleaseQueue.tsx'), /data-release-empty/)
   assert.doesNotMatch(source('ReleaseQueue.tsx'), /Nothing to show for a workspace with no Issue Radar plan: no card/)

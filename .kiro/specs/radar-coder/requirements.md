@@ -1275,6 +1275,11 @@ private and some to be public, both working in the same mirror, so that a
 private plan never reaches the public repository and a public plan follows its
 code.
 
+Public plans on the default branch and private plans on the plans branch work
+**at the same time** in one mirror. This is not a choice per repository: every
+mirror with a `plansBranch` holds both, and Avoozl reads both on every tick
+into one graph.
+
 #### Acceptance criteria
 
 1. **Setting.** `mirror` (RC24.1) SHALL accept an optional `plansBranch`. The
@@ -1333,16 +1338,30 @@ code.
    mirror and SHALL NOT be copied, linked or quoted to `source` (RC24.3).
    Issues made from a public plan SHALL stand alone: the body holds the task's
    text and acceptance, SHALL hold no text from any private plan, and SHALL
-   NOT name `plansBranch`. A task SHALL NOT require a task of the other home
-   (`requires` across homes SHALL be refused naming both), so a public plan
-   never waits on a private one.
-8. **One mirror, both homes.** A mirror SHALL hold public and private specs
-   together; each spec's tasks SHALL follow RC24 (a forward, the scan, done on
-   the public merge) using its code change, and the private spec SHALL stay in
-   `plansBranch` throughout.
+   NOT name `plansBranch`. A public-safe issue body SHALL name a blocker from a
+   private plan only as the words **waits on a private task**, and SHALL NOT
+   give its title, text, task ID, spec name or link. Both kinds of issue are
+   written into the same mirror, and the blocked-by link GitHub holds stays in
+   the mirror.
+8. **One graph, both homes, one set of rules.** On every tick Avoozl SHALL read
+   the specs of both homes into one task graph. Public and private tasks SHALL
+   project issues into the same mirror, release under the same rules (RC4:
+   limit N, scopes, phases, Stop the line), and show side by side in Home,
+   Delivery, Graph and Trace, each marked Private or Public. Task IDs SHALL be
+   unique across both homes, and a duplicate SHALL be refused naming both.
+   Plans SHALL NOT be switched between homes by a setting; a spec's home is
+   its own.
+9. **Edges cross.** A `requires` edge SHALL be allowed from a public task to a
+   private one and from a private task to a public one. A dependent SHALL
+   release when its blocker is done by the blocker's own rule (a public task
+   on the public merge, RC24.6). A forward SHALL carry nothing of a private
+   plan (criterion 6), including a public dependent's reason for waiting.
+10. **Each spec follows RC24.** Each spec's tasks SHALL forward their code
+    change, scan it and count done on the public merge as RC24 says, and a
+    private spec SHALL stay in `plansBranch` throughout.
 
 Proof added to D17:
 
 | Proof  | Proves                                                                                                         |
 | ------ | -------------------------------------------------------------------------------------------------------------- |
-| rc-p24 | One public plan and one private plan in the same mirror; `verify-issue` passes for both; the plans branch never reaches the public repository |
+| rc-p24 | One public plan and one private plan active together in one mirror, with one cross edge; `verify-issue` passes for both; the plans branch never reaches the public repository |
