@@ -26,6 +26,7 @@ import {
   releaseFor,
   scopeLabelOf,
 } from "./radar-coder-release.mjs";
+import { adapterFor } from "./coder-adapter.mjs";
 import { plansNameForIssue } from "./github-plans-repo.mjs";
 import {
   assertPlanningLink,
@@ -1319,8 +1320,13 @@ async function project(
         409,
       );
     const isReady = ready.has(task.id);
-    if (isReady && !labelNames(issue).includes(labels.ready))
-      await github.addLabels(config, issue.number, [labels.ready]);
+    if (isReady)
+      await adapterFor(identity.repositories?.[config.id]?.coder).handOver({
+        github,
+        config,
+        issue,
+        label: labels.ready,
+      });
     const plans = item.plans,
       labelBaseline = plans.labels.conflict
         ? item.appliedLabels
