@@ -73,6 +73,7 @@ const OBSERVE = new Set([
   "untriaged.view",
   "radar.crews",
   "radar.trace",
+  "radar.flow",
   "radar.mergepath",
   "radar.values",
   "radar.releasequeue",

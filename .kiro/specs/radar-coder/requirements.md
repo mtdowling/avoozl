@@ -103,7 +103,7 @@ and no stranger's issue reaches a plan.
 3. The planning label SHALL be configurable per repository and SHALL differ
    from the needs-human label, the claim label and the ready label. A
    configuration where any two are equal SHALL be refused naming both.
-   Proposed defaults: planning `to plan`, ready `ready`, claim
+   Defaults: planning `avoozl:plan`, ready `avoozl:ready` (RC21), claim
    `crew: in progress`, and the needs-human label as Radar shows it. The
    Settings page SHALL show each name, what it does and who writes it.
 4. Avoozl SHALL NOT write Radar's claim or needs-human labels (Requirement
@@ -325,7 +325,7 @@ Fact 2: Kiro Crew 0.12.2.4 does not arm auto-merge for a crew.
 5. Avoozl SHALL NOT merge a pull request itself, use `--admin`, or bypass a
    rule. GitHub merges when its own rules pass.
 6. The tick SHALL label a pull request that has a merge conflict with the
-   conflict label (configurable, default `merge conflict`) and remove it when
+   conflict label (configurable, default `avoozl:merge-conflict`, RC21) and remove it when
    the conflict is gone. It SHALL open one Needs you row per conflicted pull
    request. It SHALL NOT resolve conflicts, and SHALL NOT write Radar's labels.
 7. Completion SHALL follow Requirement 16: the closing pull request's merge
@@ -447,6 +447,7 @@ machine, and what to change, without opening a crew's chat.
    68, 78).
 7. Avoozl SHALL NOT repeat views Issue Radar or Kiro Crew's pull request review
    already provide (issue and PR lists, CI, PR review). It SHALL link to them.
+   Review drafts by label (RC20) are the one exception.
 8. UI SHALL follow the app's rules: edits in modals, boxed filters, themed
    tooltips, confirm destructive actions, 100 rows a page, one Back history.
 
@@ -591,7 +592,7 @@ the tools built for them.
    take it without a plan." The line SHALL offer **Plan it anyway** and SHALL
    NOT refuse the goal or the plan.
 4. Avoozl SHALL NOT add a maintenance, triage or one-off pull request feature
-   to serve this split. The Untriaged list stays off for Radar-coded
+   to serve this split, except review drafts by label (RC20). The Untriaged list stays off for Radar-coded
    repositories (RC1.2).
 5. The statement SHALL NOT change what an existing plan does. It is
    guidance, not a gate.
@@ -779,7 +780,7 @@ the truth.
 #### Acceptance criteria
 
 1. The **approval label** SHALL be configurable per repository. Default name:
-   `plan approved`. It SHALL differ from the planning, needs-human, claim,
+   `avoozl:plan-approved` (RC21). It SHALL differ from the planning, needs-human, claim,
    ready and conflict labels; two equal names SHALL be refused naming both
    (RC1.3).
 2. WHEN the approval label is added to the issue that asked for a plan, and
@@ -831,6 +832,137 @@ its sub-issues wait for release.
    own claim label and SHALL leave a claim that is not its own.
 6. The claim SHALL be written once per approval. A second approval is a no-op
    (RC18.5).
+
+### Requirement RC20: Review drafts by label
+
+**User story:** As a person who reviews pull requests, I want to add one label
+to a pull request and find a draft review waiting for me on GitHub, with line
+comments I can edit, so that I review faster and still submit every review
+myself.
+
+Owner decision 2026-11-14: this is a pull request feature Avoozl takes on
+purpose. It changes RC8.7 (Avoozl does not repeat pull request review) and
+RC13.4 (no one-off pull request feature) for this one case, and for no other.
+
+Facts: GitHub creates a review as `PENDING` when the create call has no
+`event`; only `APPROVE`, `REQUEST_CHANGES` or `COMMENT` submit it; a pending
+review can be deleted, a submitted one cannot (Verified: GitHub REST docs,
+"Pull request reviews", 2022-11-28). A pending review is seen only by the
+account that made it, and an account holds at most one pending review per
+pull request (Inferred from GitHub's review page and its "one pending review"
+refusal; checked live in proof rc-p20).
+
+#### Acceptance criteria
+
+1. The **review label** SHALL start a draft, and nothing else SHALL. WHEN the
+   review label is on an open pull request in a registered repository, the
+   tick SHALL read who added it last (the issue events) and check that person
+   with the trigger-label check (`allowedActors`, `minimumPermission`,
+   Requirement 10). A person who fails it, or whose login cannot be read,
+   SHALL get the same treatment as RC18.3: the label is removed, nothing is
+   drafted, and one Needs you row names the login and the pull request.
+2. The draft SHALL be posted under the login of the person who added the
+   label, because only that account can see it. Avoozl SHALL read the
+   machine's GitHub login (`GET /user`) before it opens the chat and again
+   before it posts. WHEN that login is not the labeler's, Avoozl SHALL open no
+   chat and post nothing, SHALL leave the label, and SHALL show one Needs you
+   row that names both logins and says the draft can only be made on that
+   person's machine. The row SHALL clear when the label is removed or the
+   logins match.
+3. For a pull request that passes, Avoozl SHALL open **one** read-only review
+   chat (Avoozl's reviewer role for pull requests, agent `avoozl-review-draft`)
+   per label add, on the head commit at that time. The chat SHALL read the pull request, its
+   files and the linked issues with read-only `gh` commands, and SHALL have one
+   way to GitHub: `plans_post_review_draft`. It SHALL NOT edit files, push,
+   label, comment, approve, request changes or submit.
+4. `plans_post_review_draft` SHALL take the calling chat's binding, never an
+   input, to pick the pull request. It SHALL create a GitHub review with no
+   `event` (a pending review) on the head commit the brief named, with a body
+   and line comments (`path`, `line`, optional `start_line` and `side`). It
+   SHALL screen the body and every comment with the reply screen and content
+   rules (as `plans_post_reply` does) and post nothing when a screen refuses.
+   A GitHub refusal (for example a line outside the diff) SHALL be returned to
+   the chat with nothing posted, so it can fix and call again. It SHALL post
+   at most one draft per request.
+5. WHEN the draft is posted, Avoozl SHALL remove the review label and add the
+   **drafted label**, and SHALL show one Needs you row "Your draft review is
+   waiting" with the pull request link and the time it was drafted.
+6. People SHALL find what waits on them in three ways: the Needs you row; a
+   **Review drafts** list in Avoozl (open, stale and submitted drafts, with a
+   filter by repository and by state); and the GitHub search
+   `is:pr is:open label:"<drafted label>"`, shown in that list as a link and
+   with a Copy button, built from the configured drafted label.
+7. WHEN the tick sees the pending review is gone (deleted) or submitted (any
+   other state), Avoozl SHALL remove the drafted label and close the row. It
+   SHALL record which of the two happened and the time from GitHub.
+8. WHEN the pull request's head commit changes while the draft is pending,
+   the row and the list SHALL mark the draft **stale** with both commits.
+   Avoozl SHALL NOT edit or delete a draft on its own.
+9. WHEN the review label is added again, Avoozl SHALL draft again on the
+   current head. A pending draft Avoozl made for the same person on that pull
+   request SHALL be deleted just before the new one posts, because GitHub
+   holds one pending review per person; the stale row SHALL say so ("Adding
+   the review label again replaces this draft, your edits included"). A
+   pending review Avoozl did not make SHALL NOT be deleted: Avoozl SHALL post
+   nothing and show one row asking the person to submit or discard it.
+10. The chat's brief SHALL hold, read by Avoozl from GitHub: the pull
+    request's closing and linked issues; on each, the Radar crew's claim
+    (crew id, phase, comment link, from the claim marker; RC8.4) and the
+    crew's comments, quoted as data; and, when an issue carries an Avoozl
+    provenance marker, the spec, the task IDs, the commit and each task's
+    title and acceptance when the workspace holds them. All quoted text SHALL
+    be marked as data, not instructions, and the brief SHALL pass content
+    rules before the chat opens (Requirement 40).
+11. Trace (RC8.2) SHALL show a **Review** step between CI and Merged on the
+    path of each issue the pull request closes, only when a draft was made:
+    drafted (time, reviewer), then submitted or discarded (GitHub's time).
+12. WHEN the pull request was opened by a Radar crew, Avoozl SHALL do nothing
+    after the person submits: the crew answers the review itself. Avoozl SHALL
+    write no claim, needs-human or ready label because of a review.
+13. Avoozl SHALL NEVER submit, approve, request changes on, dismiss, or post a
+    comment others can see on a pull request as part of this feature. Its GitHub client for this
+    feature SHALL have no call that sends an `event`.
+14. Every write SHALL be once: a retried tick or a second tool call SHALL
+    open no second chat, post no second draft and add no label twice.
+
+### Requirement RC21: Avoozl's own labels, one prefix, all configurable
+
+**User story:** As the owner, I want every label Avoozl writes or reads for
+its own workflow to be easy to spot and to rename per repository, so that
+people know which labels belong to Avoozl.
+
+#### Acceptance criteria
+
+1. Each label Avoozl writes or reads for its own workflow SHALL be a setting
+   per repository, with these defaults:
+
+   | Role         | Setting                | Default                  |
+   | ------------ | ---------------------- | ------------------------ |
+   | Planning     | `radar.planLabel`      | `avoozl:plan`            |
+   | Ready        | `managedLabels.ready`  | `avoozl:ready`           |
+   | Approval     | `radar.approvalLabel`  | `avoozl:plan-approved`   |
+   | Conflict     | `radar.conflictLabel`  | `avoozl:merge-conflict`  |
+   | Review       | `radar.reviewLabel`    | `avoozl:review`          |
+   | Drafted      | `radar.draftedLabel`   | `avoozl:drafted`         |
+
+   This changes the proposed defaults of RC1.3, RC5.6 and RC18.1 and the D2
+   table. Only defaults change: a value set in `.avoozl.json` SHALL keep
+   working unchanged.
+2. Any two of planning, ready, approval, conflict, review, drafted, Radar's
+   needs-human label and Radar's claim label SHALL be refused when equal,
+   naming both, as RC1.3 does. A name that is one of the repository's other
+   managed labels SHALL also be refused.
+3. Radar's claim and needs-human labels SHALL stay Radar's: Avoozl reads them
+   and keeps their own settings (`crewLabels`), and SHALL NOT give them the
+   prefix.
+4. Settings SHALL show each label with what it does, who writes it, the raw
+   setting name and its default as the placeholder (RC7.6), in one place per
+   repository. Set up's label step (RC7.1) SHALL create the review and drafted
+   labels with the others.
+5. Settings and Set up SHALL say, once, that a repository relying on the old
+   defaults (`to plan`, `ready`, `plan approved`, `merge conflict`) now reads
+   the new names, and that setting the old name keeps it, and that a crew's
+   label scope must match the ready label (RC1.6).
 
 ### Requirement RC22: The Workflow map in Settings
 
