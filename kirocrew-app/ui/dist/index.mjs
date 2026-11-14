@@ -6610,7 +6610,8 @@ var Ys = () => ({
 	trustedPersons: "",
 	plansBranch: "",
 	forwardTarget: "",
-	publicBranch: ""
+	publicBranch: "",
+	forwardMaxFileBytes: ""
 }), Xs = [
 	"off",
 	"nudge",
@@ -6620,6 +6621,7 @@ var Ys = () => ({
 	"branch",
 	"batch"
 ], Qs = {
+	forwardMaxFileBytes: "blank: 1000000 bytes (1 MB)",
 	forwardTarget: "blank: each, one public pull request per merged change",
 	forward: "blank: nudge, a Forward button you press",
 	forwardTo: "blank: the public repository",
@@ -6638,7 +6640,8 @@ function $s(e) {
 		trustedPersons: oc(e.trustedPersons),
 		plansBranch: sc(e.plansBranch),
 		forwardTarget: sc(e.forwardTarget),
-		publicBranch: sc(e.publicBranch)
+		publicBranch: sc(e.publicBranch),
+		forwardMaxFileBytes: e.forwardMaxFileBytes.trim() ? Number(e.forwardMaxFileBytes) : void 0
 	});
 }
 var ec = () => ({
@@ -6788,7 +6791,8 @@ function fc(e) {
 						trustedPersons: ic(e.trustedPersons),
 						plansBranch: $(e.plansBranch),
 						forwardTarget: $(e.forwardTarget),
-						publicBranch: $(e.publicBranch)
+						publicBranch: $(e.publicBranch),
+						forwardMaxFileBytes: $(e.forwardMaxFileBytes)
 					};
 				})(),
 				rest: Object.fromEntries(Object.entries(n).filter(([e]) => !lc.has(e)))
@@ -28214,6 +28218,14 @@ function tb(e) {
 							placeholder: "avoozl-plans",
 							value: t.plansBranch,
 							onChange: (e) => r({ plansBranch: e })
+						}),
+						/* @__PURE__ */ C(Hy, {
+							id: `${n}-max-bytes`,
+							label: "Largest forwarded file (bytes)",
+							raw: "mirror.forwardMaxFileBytes",
+							placeholder: Qs.forwardMaxFileBytes,
+							value: t.forwardMaxFileBytes,
+							onChange: (e) => r({ forwardMaxFileBytes: e })
 						}),
 						/* @__PURE__ */ C(Hy, {
 							id: `${n}-trusted`,

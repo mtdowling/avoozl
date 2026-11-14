@@ -735,6 +735,7 @@ function MirrorBox(props: { id: string; mirror: MirrorForm; onChange: (mirror: M
           <Text id={`${id}-forward-to`} label="Forward to" raw="mirror.forwardTo" placeholder="source or fork:owner/name" value={mirror.forwardTo} onChange={(value) => set({ forwardTo: value })} />
           <Text id={`${id}-prefix`} label="Branch prefix" raw="mirror.branchPrefix" placeholder="avoozl/" value={mirror.branchPrefix} onChange={(value) => set({ branchPrefix: value })} />
           <Text id={`${id}-plans-branch`} label="Private specs branch" raw="mirror.plansBranch" placeholder="avoozl-plans" value={mirror.plansBranch} onChange={(value) => set({ plansBranch: value })} />
+          <Text id={`${id}-max-bytes`} label="Largest forwarded file (bytes)" raw="mirror.forwardMaxFileBytes" placeholder={MIRROR_DEFAULT_TEXT.forwardMaxFileBytes} value={mirror.forwardMaxFileBytes} onChange={(value) => set({ forwardMaxFileBytes: value })} />
           <Text id={`${id}-trusted`} label="Trusted persons" raw="mirror.trustedPersons" placeholder="login, login" value={mirror.trustedPersons} onChange={(value) => set({ trustedPersons: value })} />
         </div>
         <label className="flex items-center gap-2 text-sm">

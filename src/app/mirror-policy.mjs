@@ -3,6 +3,7 @@
 // deterministic; the one check that needs GitHub is `requireMirrorsPrivate`.
 import { fail } from "./store.mjs";
 import { parseRepository } from "./github.mjs";
+import { DEFAULT_FORWARD_MAX_FILE_BYTES } from "./forward-scan.mjs";
 import { branchNameProblem } from "./integration-branch.mjs";
 
 export const FORWARD_MODES = Object.freeze(["off", "nudge", "auto"]);
@@ -17,6 +18,7 @@ export const MIRROR_KEYS = Object.freeze([
   "plansBranch",
   "forwardTarget",
   "publicBranch",
+  "forwardMaxFileBytes",
 ]);
 export const FORWARD_TARGETS = Object.freeze(["each", "branch", "batch"]);
 export const MIRROR_DEFAULTS = Object.freeze({
@@ -85,6 +87,14 @@ export function mirrorInput(value, label, baseBranch) {
   const { forwardTarget, publicBranch } = checkForwardTarget(value, label);
   if (forwardTarget === "branch" && publicBranch === undefined)
     fail(`${label}.forwardTarget branch needs ${label}.publicBranch.`);
+  const { forwardMaxFileBytes } = value;
+  if (
+    forwardMaxFileBytes !== undefined &&
+    (!Number.isInteger(forwardMaxFileBytes) || forwardMaxFileBytes < 1)
+  )
+    fail(
+      `${label}.forwardMaxFileBytes must be a whole number of bytes, 1 or more.`,
+    );
   const squash = value.squash ?? MIRROR_DEFAULTS.squash;
   if (typeof squash !== "boolean")
     fail(`${label}.squash must be true or false.`);
@@ -114,8 +124,13 @@ export function mirrorInput(value, label, baseBranch) {
     plansBranch,
     ...(forwardTarget ? { forwardTarget } : {}),
     ...(publicBranch ? { publicBranch } : {}),
+    ...(forwardMaxFileBytes ? { forwardMaxFileBytes } : {}),
   };
 }
+
+// The size limit in force for forwarded files; the default is shown in Settings.
+export const forwardMaxFileBytesOf = (mirror) =>
+  mirror?.forwardMaxFileBytes ?? DEFAULT_FORWARD_MAX_FILE_BYTES;
 
 // forwardTarget and publicBranch of one record (a mirror or an epic manifest).
 // Absent stays absent, so the source of the value in force stays known.
