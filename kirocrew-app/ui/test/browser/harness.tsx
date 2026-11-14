@@ -49,6 +49,7 @@ import AvoozlApp from '../../src/App.tsx'
 import { MarkDoneDialog } from '../../src/TaskNotes.tsx'
 import NewPlanDrawer from '../../src/NewPlanDrawer.tsx'
 import { useTaskDrawer } from '../../src/drawer-context.ts'
+import AvoozlPanel from '../../src/Panel.tsx'
 
 const query = new URLSearchParams(location.search)
 document.documentElement.dataset.theme = query.get('theme') === 'dark' ? 'dark' : 'light'
@@ -719,6 +720,48 @@ if (page === 'routing' && routed) {
     })
   answer('GET /api/models', () => ({ models: [] }))
 }
+
+// ?page=panel&sid=<chat>&state=full|empty: the side panel on sample reads.
+// window.__panel holds what the reads return, so a test can change it and see
+// the panel read again; window.__panelReads counts the reads and
+// window.__panelCalls records writes.
+type PanelData = { conflicts: unknown[]; crews: unknown[]; remote: unknown[]; queue: unknown[]; tasks: unknown[]; line: unknown[]; specs: unknown[]; fail?: string }
+const panelWin = window as unknown as { __panel: PanelData; __panelReads: number; __panelCalls: unknown[] }
+const panelClaim = (number: number, crewId: string, crewName: string, phase: string, pr: number | null) => ({ repository: 'acme/recipe-box', number, title: number === 52 ? 'Index builder' : 'Ranking tests', url: `https://github.test/acme/recipe-box/issues/${number}`, crewId, crewName, phase, pr, prUrl: pr ? `https://github.test/acme/recipe-box/pull/${pr}` : null, updated: new Date(Date.now() - 600000).toISOString(), commentUrl: null, stale: false, noMarker: false })
+const panelRow = (taskId: string, state: string, reason: string) => ({ taskId, title: `Task ${taskId}`, planId: 'search-v2', spec: 'search-v2', phase: 'one', scope: null, label: 'ready', number: null, url: null, manual: false, state, reason, used: 0, capacity: 2 })
+if (page === 'panel') {
+  const full = query.get('state') !== 'empty'
+  panelWin.__panelReads = 0
+  panelWin.__panelCalls = []
+  panelWin.__panel = {
+    conflicts: full
+      ? [
+          { kind: 'needs-human', reason: 'crew', taskId: null, title: '#52 asks about the tokenizer', detail: 'Draco: tokenizer A or B? Crew paused with the needs-human label.', link: 'https://github.test/acme/recipe-box/issues/52' },
+          { kind: 'github-conflict', taskId: 'S8', field: 'title', title: 'Ranking: acceptance edited', detail: 'Someone changed the title on GitHub.', choices: ['desired', 'github'] },
+          { kind: 'stale-session', taskId: 'S9', title: 'A retired worker row', detail: 'must not show' },
+        ]
+      : [],
+    crews: full ? [panelClaim(52, 'abc', 'Draco', 'CI', 57), panelClaim(58, 'def', 'Orla', 'working', null)] : [],
+    remote: full ? [{ host: 'box', crewId: 'r1', taskId: 'S5', state: 'running', chatKey: 'k', status: 'working', updatedAt: new Date().toISOString(), attachUrl: 'https://box.test/chat?sid=k', stale: false, lastOkAt: null }] : [],
+    queue: full ? [panelRow('S9', 'next', 'Waits on #52, then it is next.'), panelRow('S10', 'held', 'Held by the budget.')] : [],
+    tasks: full ? [{ taskId: 'S4', title: 'Tokenizer', repository: 'acme/recipe-box', finishedAt: new Date(Date.now() - 3600000).toISOString() }] : [],
+    line: [],
+    specs: [{ name: 'search-v2', folder: '.kiro/specs/search-v2', type: 'feature', hash: 'h', files: ['requirements.md', 'design.md', 'tasks.md'], counts: { error: 0, warning: 1 }, taskCount: 12, critique: null, plan: { id: 'search-v2', state: 'draft', hash: 'h', revision: 1, changed: false, approved: false } }],
+  }
+  const data = () => {
+    if (panelWin.__panel.fail) throw Object.assign(new Error('down'), { status: 500, body: '{"error":"down"}' })
+    return panelWin.__panel
+  }
+  answer('workspaces.list', () => ({ defaultWorkspace: 'w', items: [{ id: 'w', name: 'Harness', root: '/w', enabled: true, state: 'ready', served: true }] }))
+  answer('conflicts.view', () => ({ revision: 1, items: ((panelWin.__panelReads += 1), data().conflicts) }))
+  answer('radar.crews', () => ({ readAt: null, stale: 0, errors: [], unseen: [], rows: data().crews }))
+  answer('remote.view', () => ({ workers: data().remote }))
+  answer('radar.releasequeue', () => ({ repositories: [{ repository: 'acme/recipe-box', ready: 'ready', mode: 'automatic', capacity: 2, scopes: [], steps: [], rows: data().queue }] }))
+  answer('flow.view', () => ({ tasks: data().tasks, line: data().line, stops: data().line }))
+  answer('plan.specs', () => ({ root: '/w', items: data().specs }))
+  answer('github.conflict.resolve', (body) => (panelWin.__panelCalls.push(body.input), {}))
+  answer('GET /api/apps/spec-builder/specs', () => ({ specs: [{ name: 'search-v2' }] }))
+}
 class HarnessBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
   state = { error: null as string | null }
   static getDerivedStateFromError(error: unknown) {
@@ -794,6 +837,15 @@ function WorkflowMapPage() {
     </div>
   )
 }
+function PanelPage() {
+  return (
+    <div style={{ width: 360, padding: 0, background: 'var(--bg)', color: 'var(--text)', minHeight: '100vh', boxSizing: 'border-box' }}>
+      <HarnessBoundary>
+        <AvoozlPanel />
+      </HarnessBoundary>
+    </div>
+  )
+}
 function RoutingPage() {
   return (
     <div {...{ [APP_ATTR]: '' }} data-settings-page="routing" style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)', minHeight: '100vh', boxSizing: 'border-box' }}>
@@ -806,5 +858,5 @@ function RoutingPage() {
   )
 }
 createRoot(document.getElementById('root')!).render(
-  page === 'workflow-map' ? <WorkflowMapPage /> : page === 'crews-rules' ? <CrewsRulesPage /> : page === 'radar-values' ? <RadarValuesPage /> : page === 'routing' ? <RoutingPage /> : intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page === 'activity' ? <ActivityPage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
+  page === 'panel' ? <PanelPage /> : page === 'workflow-map' ? <WorkflowMapPage /> : page === 'crews-rules' ? <CrewsRulesPage /> : page === 'radar-values' ? <RadarValuesPage /> : page === 'routing' ? <RoutingPage /> : intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page === 'activity' ? <ActivityPage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
 )
