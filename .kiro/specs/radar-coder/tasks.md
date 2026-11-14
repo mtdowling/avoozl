@@ -89,7 +89,7 @@ Requirement RC3. The approval becomes a commit a crew can read, and one command 
 - [ ] rc-3.5 The one-line Additional prompt, shipped verbatim, after rc-3.4 [RC3.7] (§D5.4)
   - The line of D5.4 as one constant used by Settings, the team pack and Set up; a test that compares the constant with the text in `design.md` and `AGENTS.md`-rule proposal.
   - Done when: A test fails if the constant, `design.md` D5.4 and the Set up text differ.
-- [ ] rc-3.6 Projection writes the marker, after rc-3.1, rc-2.1 [RC2.10, RC3.1] (§D5.1)
+- [x] rc-3.6 Projection writes the marker, after rc-3.1, rc-2.1 [RC2.10, RC3.1] (§D5.1)
   - Every projected issue body gets the provenance marker after the managed marker; `plans=` only when allowed; screened by content rules.
   - Done when: Both modes write a valid marker that `verify-issue` accepts against a fake GitHub; a private name in any value is refused.
 - [ ] rc-p3 Proof 3: a real crew verifies, and each bad issue is refused, after rc-3.2, rc-3.4, rc-3.5, rc-3.6 [RC3] (§D17)
@@ -143,7 +143,7 @@ Requirement RC5. Crews do not arm auto-merge (Kiro Crew 0.12.2.4), so the tick d
 
 Requirement RC6. Avoozl ships the crew agent, because an unknown agent name falls back silently.
 
-- [ ] rc-6.1 Ship `avoozl-crew` in the app, after rc-3.4 [RC6.1, RC6.2, RC6.6] (§D8)
+- [x] rc-6.1 Ship `avoozl-crew` in the app, after rc-3.4 [RC6.1, RC6.2, RC6.6] (§D8)
   - `kirocrew-app/agents/avoozl-crew.json` and the `app.json` entry; MCP `avoozl:avoozl`; the tool and skill lists of D8 including Radar's two crew tools; the build step refuses an install with no `bin/lib`; `kirocrew-app` build tests updated.
   - Done when: The built app contains the agent; its tool list holds `plans_verify_issue` and Radar's two crew tools; a build without `bin/lib` is refused with the command to run.
 - [ ] rc-6.2 Crew tools need no workspace and return the brief, after rc-3.3 [RC6.3] (§D8)
