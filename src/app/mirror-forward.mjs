@@ -99,11 +99,11 @@ export function mirrorForwardRows(store, policy) {
       if (
         !mirror ||
         mirror.forward === "off" ||
-        !["to_forward", "blocked"].includes(record.state)
+        !["to_forward", "blocked", "closed_unmerged"].includes(record.state)
       )
         return false;
-      // `auto` shows a row only for a blocked record.
-      return record.state === "blocked" || mirror.forward === "nudge";
+      // `auto` shows a row only for a blocked or closed record.
+      return record.state !== "to_forward" || mirror.forward === "nudge";
     })
     .map((record) => ({
       kind: "needs-human",
