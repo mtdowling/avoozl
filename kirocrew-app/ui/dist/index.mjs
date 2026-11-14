@@ -31097,7 +31097,7 @@ function Zb(e) {
 					/* @__PURE__ */ S(Yn, {
 						id: "links",
 						group: "task-drawer",
-						title: "Links",
+						title: "Edges",
 						children: /* @__PURE__ */ C("div", {
 							className: "flex flex-col gap-3",
 							children: [/* @__PURE__ */ S(Yb, {
