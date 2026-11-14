@@ -698,7 +698,7 @@ export const MODE_CARDS = [
     facts: [
       ['Who closes tasks', 'Avoozl, once checks and reviewer chats pass and the work merges into the landing branch'],
       ['Pull request text', 'None: work lands on the branch in your checkout'],
-      ['Default coder', 'Avoozl worker chats'],
+      ['Default coder', 'Avoozl worker'],
       ['Limit', 'No issues, labels, Project board or GitHub checks'],
     ],
   },
@@ -710,8 +710,8 @@ export const MODE_CARDS = [
     facts: [
       ['Who closes issues', 'GitHub, when the pull request from the linked branch Avoozl made merges'],
       ['Pull request text', 'The task only; never the planning repository'],
-      ['Default coder', 'Avoozl worker sessions'],
-      ['Limit', 'Issue Radar cannot code here'],
+      ['Default coder', 'Avoozl worker'],
+      ['Limit', 'A Radar crew opens pull requests only in its own repository'],
     ],
   },
   {
@@ -722,7 +722,7 @@ export const MODE_CARDS = [
     facts: [
       ['Who closes issues', 'GitHub, from "Closes #N" when the pull request merges'],
       ['Pull request text', 'Names its issue with Closes #N'],
-      ['Default coder', 'Issue Radar (worker sessions also allowed)'],
+      ['Default coder', 'Radar crew (Avoozl worker or Remote coder also allowed)'],
       ['Limit', 'Issues and plans are visible to everyone who can see the repository'],
     ],
   },
@@ -833,7 +833,7 @@ export function setupState(result: SetupResult | null, error: string | null, at:
 export const CODER_CARDS = [
   {
     coder: 'worker',
-    title: 'Avoozl worker chats',
+    title: 'Avoozl worker',
     line: 'Avoozl opens a Kiro Crew chat on this Mac for each ready task.',
     flow: ['Ready task', 'Worker chat', 'Checks', 'Reviewer chats', 'Merged'],
     useWhen: ['Specs stay private', 'You want to watch each chat', 'The work needs this Mac'],
@@ -842,14 +842,32 @@ export const CODER_CARDS = [
   },
   {
     coder: 'issue-radar',
-    title: 'Issue Radar',
+    title: 'Radar crew',
     line: 'You label a GitHub issue and Issue Radar takes it.',
     flow: ['Ready label', 'Issue Radar crew', 'Pull request', 'GitHub checks', 'Merged'],
     useWhen: ['One open repository', 'Your crew already codes issues', 'Pull requests can say Closes #N'],
     reviews: "GitHub's branch review rule and the required checks on the pull request.",
-    modes: ['single-repo'],
+    modes: ['plans-repo', 'single-repo'],
+  },
+  {
+    coder: 'remote',
+    title: 'Remote coder',
+    line: 'A managed remote harness codes the task and opens a pull request. Handing tasks over is not built yet.',
+    flow: ['Ready task', 'Remote task', 'Pull request', 'GitHub checks', 'Merged'],
+    useWhen: ['The work should not run on this Mac', 'The repository is public'],
+    reviews: "GitHub's branch review rule and the required checks on the pull request.",
+    modes: ['plans-repo', 'single-repo'],
   },
 ] as const
+
+// Where the shown coder comes from and what it is, never "same as above".
+export const coderSource = (mode: string, value: string) => {
+  const name = (coder: string) => CODER_CARDS.find((card) => card.coder === coder)?.title ?? coder
+  const fallback = defaultCoder(mode)
+  return value
+    ? `Set on this repository: ${name(value)}.`
+    : `Not set on this repository. Using the default for ${MODE_CARDS.find((card) => card.mode === modeKey(mode))?.title ?? mode} (${name(fallback)}).`
+}
 
 // The default coder in a mode, as github-policy.mjs sets it.
 export const defaultCoder = (mode: string) => (modeKey(mode) === 'single-repo' ? 'issue-radar' : 'worker')

@@ -896,8 +896,8 @@
           "description": "Must equal the repository's default branch when a mode is set."
         },
         "coder": {
-          "enum": ["worker", "issue-radar"],
-          "description": "Who codes the issues: issue-radar or worker, in either GitHub mode."
+          "enum": ["issue-radar", "worker", "remote"],
+          "description": "Who codes the issues: issue-radar (Radar crew), worker (Avoozl worker) or remote (Remote coder), in either GitHub mode."
         },
         "radar": {
           "type": "object",

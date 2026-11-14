@@ -315,7 +315,7 @@ Requirement RC13. Avoozl is for epics. This phase puts the scope statement in th
 
 Requirement RC14. One adapter per coder. The Radar path moves behind it unchanged; the worker is frozen.
 
-- [ ] rc-14.1 Per-repository coder setting with three values, after rc-1.1 [RC14.1] (§D19)
+- [x] rc-14.1 Per-repository coder setting with three values, after rc-1.1 [RC14.1] (§D19)
   - `coder: issue-radar | worker | remote` validated per repository; Settings shows Radar crew, Avoozl worker and Remote coder and where each value comes from; `src/app/test/coder-setting.test.mjs`.
   - Done when: Each value validates; an unknown value is refused naming the allowed ones; Settings shows the three display names; `npm test` passes.
 - [ ] rc-14.2 Coder adapter: hand over, read state, count as done, after rc-14.1, rc-4.1, rc-5.1 [RC14.2, RC14.3, RC14.6] (§D19)
