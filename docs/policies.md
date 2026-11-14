@@ -455,3 +455,49 @@ as early.
   turned on for the repository, and the repository needs a local checkout.
 - `commentSteering` and `discussions` use the repository's Who counts check
   (`write` when it names nobody).
+
+## What runs on its own, and who can stop it
+
+Some code Avoozl runs is owned by the repository, not by you. Read it before
+you point Avoozl at a repository you do not trust, public ones included.
+
+| Code                              | When it runs                                  | What guards it                                                                                                                                      |
+| --------------------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scripts/worktree` in the project | Every time Avoozl adds a worktree             | A person approves its SHA-256 hash first. The refusal prints the hash; set `worktreeHelper` on the project to that hash. A changed file asks again. |
+| Declared `checks` in a project    | On worker commits and on commits Avoozl lands | They are in the project settings a person edits. Checks never see the gateway credentials.                                                          |
+| A local-folder plugin             | When the tick uses it                         | A person approves its hash. Avoozl hashes it again just before it starts and refuses if it changed.                                                 |
+
+Checks otherwise see your whole environment, including `GH_TOKEN`. To narrow
+that, list the names a project's checks need. Only those, plus the basics a
+process needs to start (`PATH`, `HOME`, temp folders), pass through:
+
+```json
+{ "projects": { "code": { "checksEnv": ["GH_TOKEN"] } } }
+```
+
+Without `checksEnv`, nothing changes.
+
+### Person-only is not a wall against code running as you
+
+Person-only operations (approve a plan, change plugins, read content-rule
+terms) are refused for MCP calls and for app tokens. They do not stop code
+that runs as your user. Such code can read the gateway's signing secret from
+another process, or call the CLI.
+
+The CLI refuses a person-only operation when it runs inside a Kiro Crew agent
+session, unless you add `--as-person`. It tells a session by `KIROCREW_SPAWNED=1`
+(set on every process Kiro Crew starts for an agent) or `KIRO_SESSION_ID` (set
+in an agent's shell). The Kiro Crew dashboard terminal sets neither: it copies
+the gateway's environment and adds `KIROCREW_TERMINAL=1`, which Avoozl does
+not trust because an agent could set it. This is a speed bump: code that unsets
+those variables gets past it.
+
+### Files are private to you
+
+The `.avoozl` folder is created `0700` and the database `0600`. Backups and
+`export --output` files are `0600`. On open, Avoozl tightens an existing
+workspace's folders and database (migration: nothing to do; a person who
+shared the folder with a group loses that access). On Windows, Node cannot set
+these modes, so the files keep the access of the folder they are in, which in a
+user profile is you, the system and administrators. Move the workspace out of a
+shared folder if that matters.

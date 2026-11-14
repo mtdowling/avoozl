@@ -86,6 +86,10 @@ export interface DashboardSummary {
   inFlight: InFlight[]
   // Open tasks at or past their cap (§4.17), for the header count.
   overBudget: number
+  // True only when the delivery read worked and no task has ever run, been
+  // reviewed, integrated or completed (no session, evidence or integration
+  // on any item). Gates the Start demo button; an unread list is false.
+  neverRan: boolean
   readyNext: (GraphTask & { wave: number })[]
   progress: Progress[]
   plans: { approved: number; draft: number; total: number }
@@ -99,11 +103,6 @@ function deliveryTrouble(item: DeliveryItem): string | null {
   if (item.complete) return null
   if (item.deliveries.some((d) => d.state === 'decision')) return 'Stopped after its retries; retry it or dismiss the findings.'
   return null
-}
-
-// True when no task in this workspace has ever had a session or finished.
-export function neverRan(delivery: DeliveryItem[] | null): boolean {
-  return !(delivery ?? []).some((item) => item.complete || item.sessions.length > 0)
 }
 
 export function summarize(input: {
@@ -233,6 +232,7 @@ export function summarize(input: {
     counts,
     running,
     inFlight,
+    neverRan: input.delivery != null && !input.delivery.some((item) => item.complete || item.sessions.length > 0 || item.evidence.length > 0 || item.deliveries.length > 0 || item.integration),
     overBudget: (input.delivery ?? []).filter((item) => !item.complete && item.budget?.reached).length,
     readyNext,
     progress: [...byEpic.values()],

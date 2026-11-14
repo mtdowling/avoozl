@@ -58,7 +58,7 @@ test('Switch model and Stop the line sit once each in the header actions row, no
     assert.ok(header.includes(part), `${part} is in the header actions`)
   const order = ['<WorkspacePicker', 'Plan a goal', '<SwitchModelButton', '<StopLineButton'].map((part) => header.indexOf(part))
   assert.deepEqual(order, [...order].sort((a, b) => a - b), 'picker, Plan a goal, Switch model, Stop the line last')
-  assert.doesNotMatch(header, /<StartDemoButton|<DriverSummary/, 'no demo button or driver badge in the header')
+  assert.doesNotMatch(header, /<StartDemoButton/, 'the header never has Start demo')
   assert.doesNotMatch(tabs, /<SwitchModelButton|<StopLineButton|data-top-actions/, 'the tab row keeps only the tabs')
   assert.match(tabs, /<SegmentedControl/)
   for (const file of ['DashboardView.tsx', 'FlowView.tsx', 'DeliveryView.tsx', 'SettingsView.tsx'])

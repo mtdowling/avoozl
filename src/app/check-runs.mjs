@@ -141,7 +141,10 @@ export async function runChecksAt(
     const checks = [];
     for (const argv of argvs) {
       const started = Date.now(),
-        result = await run(dir, argv, { timeoutMs }),
+        result = await run(dir, argv, {
+          timeoutMs,
+          env: project.checksEnv,
+        }),
         elapsed = Date.now() - started,
         tail = outputTail(
           (result.stdout || "") + "\n" + (result.stderr || ""),

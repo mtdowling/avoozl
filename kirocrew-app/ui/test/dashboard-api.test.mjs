@@ -200,15 +200,11 @@ test('the state buttons share the title line wide, wrap right medium, and grid s
   assert.equal(small.button.width, '100%')
 })
 
-test('Start demo shows only when no task has ever run, and the home page places it in In flight', async () => {
-  const { neverRan } = await import('../src/dashboard-api.ts')
-  assert.equal(neverRan(null), true)
-  assert.equal(neverRan([]), true)
-  assert.equal(neverRan([{ complete: false, sessions: [] }]), true)
-  assert.equal(neverRan([{ complete: true, sessions: [] }]), false)
-  assert.equal(neverRan([{ complete: false, sessions: [{ status: 'done' }] }]), false)
-  const { readFileSync } = await import('node:fs')
-  const dashboard = readFileSync(new URL('../src/DashboardView.tsx', import.meta.url), 'utf8')
-  assert.match(dashboard, /value\?\.neverRan && \(\s*<>\s*\{' '\}\s*<StartDemoButton \/>/)
-  assert.doesNotMatch(readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8').split('<PageHeader')[1].split('data-top-row')[0], /StartDemoButton/)
+test('neverRan is true only when the delivery read worked and nothing has ever run', () => {
+  const base = { graph: null, conflicts: [], plans: null }
+  assert.equal(summarize({ ...base, delivery: [] }).neverRan, true)
+  assert.equal(summarize({ ...base, delivery: [delivery('a')] }).neverRan, true, 'a planned task has not run')
+  assert.equal(summarize({ ...base, delivery: null }).neverRan, false, 'an unread list is not never-run')
+  assert.equal(summarize({ ...base, delivery: [delivery('a', { complete: true })] }).neverRan, false)
+  assert.equal(summarize({ ...base, delivery: [delivery('a', { integration: { commit: 'c', branch: 'main', at: null } })] }).neverRan, false)
 })

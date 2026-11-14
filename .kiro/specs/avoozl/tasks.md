@@ -1428,3 +1428,19 @@ Owner request 2026-11-13 (Requirement 82, design §6.11).
   - `host.ts`, `demo-api.ts`, `Demo.tsx` and the App wiring; `kirocrew-app/ui/test/demo-tour.test.mjs` with tour, keys, preview, exit and layout at 320, 768 and 1280 px, light and dark.
 - [x] 36.3 README and screenshots, after 36.2 [R82] (§6.11)
   - README says how to start it; `docs/evidence/demo/`.
+
+## Phase 37: Security follow-ups
+
+Owner request 2026-11-14 (Requirement 83, design §6.12). Numbered after
+Phase 36 because task IDs never move.
+
+- [x] 37.1 CLI refuses person-only operations in an agent session [R83.1, R83.2] (§6.12)
+  - `agentSession`, `cliRefusal`, `--as-person`; `src/app/test/cli-person-only.test.mjs`; request draft in `docs/kirocrew-requests/`.
+- [x] 37.2 Private folder, database, backups and exports [R83.3] (§6.12)
+  - `Store`, `privateFile`; `src/app/test/security-audit.test.mjs`.
+- [x] 37.3 Name repository-owned code; approve the worktree helper's hash [R83.4] (§6.12)
+  - `docs/policies.md`; `worktreeHelper` in `git.mjs` and project settings; same test file.
+- [x] 37.4 Hash a local plugin again before it starts [R83.6] (§6.12)
+  - `pluginHost`; `src/app/test/plugins.test.mjs`.
+- [x] 37.5 Opt-in `checksEnv` allowlist [R83.5] (§6.12)
+  - `repositoryEnvironment`, `commandEvidence`, project settings; same test file as 37.2.

@@ -22,7 +22,7 @@ import { PackImportDialog } from '../../src/PackImport.tsx'
 import { SendToRadar } from '../../src/SendToRadar.tsx'
 import { CrewDialog } from '../../src/RoutingView.tsx'
 import { SwitchModelButton } from '../../src/SwitchModel.tsx'
-import { InFlightRow } from '../../src/DashboardView.tsx'
+import DashboardView, { InFlightRow } from '../../src/DashboardView.tsx'
 import { TaskFiles } from '../../src/TaskFiles.tsx'
 import { setupForm } from '../../src/settings-api.ts'
 import { LAYER } from '../../src/layers.ts'
@@ -348,7 +348,17 @@ function DeepLinkPage() {
   )
 }
 
-// ?page=demo: the whole page, where Try the demo opens the sample. Calls
+// ?page=home: the Dashboard alone with nothing in flight (?page=demo uses
+// the same answers for the real workspace, before the sample opens). &ran=1 gives the
+// workspace one finished task (it has run before); without it, none has.
+if (query.get('page') === 'home' || query.get('page') === 'demo') {
+  const ran = query.get('ran') === '1'
+  const item = { id: 'a1', title: 'Task a1', complete: true, deliveries: [], sessions: [], evidence: [], integration: { commit: 'c', branch: 'main', at: '2026-11-13T10:00:00Z' }, pullRequests: [], issue: null, budget: null }
+  answer('delivery.view', () => ({ revision: 1, items: ran ? [item] : [] }))
+  answer('conflicts.view', () => ({ revision: 1, items: [] }))
+  answer('plan.list', () => ({ items: [] }))
+}
+// ?page=demo: the whole page, where Start demo opens the sample. Calls
 // for the sample answer from window.__DEMO (demo-replies.mjs, built from
 // the real sample); other calls answer as ?page=app does.
 const demo = (window as unknown as { __DEMO?: { replies: Record<string, unknown>; previews: Record<string, string> } }).__DEMO
@@ -454,9 +464,23 @@ function AppPage() {
   )
 }
 
+function HomePage() {
+  return (
+    <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)' }}>
+      <NavHistoryProvider>
+        <ConfirmProvider>
+          <TaskDrawerProvider workspaceId="w" onFocus={() => undefined}>
+            <DashboardView workspaceId="w" onNavigate={() => undefined} />
+          </TaskDrawerProvider>
+        </ConfirmProvider>
+      </NavHistoryProvider>
+    </div>
+  )
+}
+
 const page = query.get('page')
 const intake = page === 'intake'
 if (intake) answerIntake(query.get('empty') === '1')
 createRoot(document.getElementById('root')!).render(
-  intake ? <IntakePage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
+  intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
 )

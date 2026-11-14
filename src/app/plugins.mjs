@@ -923,6 +923,25 @@ export function pluginHost({
         if (!plugin.kinds.includes(kind))
           return { reason: `Plugin ${id} does not declare the kind ${kind}.` };
         if (!running.has(id)) {
+          // A local folder can change between the check above and the spawn;
+          // hash it once more just before it starts (R83.6). Git plugins sit
+          // in a commit-named folder and are not re-hashed.
+          // shortcut: files can still change between this hash and the
+          // child's own read; upgrade by copying the folder first.
+          if (plugin.entry.git === undefined) {
+            let now;
+            try {
+              now = contentHash(plugin.location);
+            } catch (error) {
+              return {
+                reason: `Plugin ${id} cannot be read: ${error.message}`,
+              };
+            }
+            if (now !== plugin.hash)
+              return {
+                reason: `Plugin ${id} changed after it was approved (${plugin.hash.slice(0, 12)} to ${now.slice(0, 12)}); approve it again.`,
+              };
+          }
           const child = new PluginProcess(plugin, {
             timeoutMs,
             deadline,
