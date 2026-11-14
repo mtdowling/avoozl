@@ -334,6 +334,10 @@ const tools = {
         "radar.mergepath",
         "can crew pull requests merge by themselves",
       ],
+      release_queue: [
+        "radar.releasequeue",
+        "what is released, claimed, next or held, and why",
+      ],
       integration_branch: [
         "radar.integrationbranch",
         "check an epic's integration branch: exists, protected, not the default",
