@@ -918,7 +918,11 @@
               "minLength": 1,
               "default": "plan approved"
             },
-            "clearPlanLabel": { "type": "boolean", "default": false }
+            "clearPlanLabel": { "type": "boolean", "default": false },
+            "showPlansRepo": {
+              "type": "boolean",
+              "description": "Show the plans repository name in issues. Unset: on for a private code repository, off for a public one."
+            }
           },
           "additionalProperties": false
         },
