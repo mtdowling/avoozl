@@ -85,7 +85,7 @@ test('one radio fold-out section per mode, in order, real radios, motion off und
     assert.equal(card.facts.length, 4)
   }
   assert.equal(MODE_CARDS[1].line, 'Specs and their related issues live in a private planning repository; code and pull requests live in the code repositories.')
-  assert.match(MODE_CARDS[1].facts[3][1], /Issue Radar cannot code here/)
+  assert.match(MODE_CARDS[1].facts[3][1], /Radar crew opens pull requests only in its own repository/)
   assert.match(MODE_CARDS[2].facts[0][1], /Closes #N/)
   // One radiogroup of real radio inputs; the whole header is the label.
   assert.match(fold, /role="radiogroup"/)
