@@ -100,7 +100,7 @@ Requirement RC3. The approval becomes a commit a crew can read, and one command 
 
 Requirement RC4. The tick adds the ready label in graph order, N at a time.
 
-- [ ] rc-4.1 Release engine: capacity per repository and per scope, after rc-1.1, rc-2.1 [RC4.1, RC4.2, RC4.7] (§D6)
+- [x] rc-4.1 Release engine: capacity per repository and per scope, after rc-1.1, rc-2.1 [RC4.1, RC4.2, RC4.7] (§D6)
   - `release.capacity` (default 2) and `release.scopes`; a task's manifest `scope`; count open ready issues claimed or not; add ready in graph, wave, ID order; idempotent; `src/app/test/radar-coder-release.test.mjs`.
   - Done when: With N=2 and five eligible tasks, two get the label; claiming one keeps its slot; two scopes release independently; a second tick writes nothing.
 - [ ] rc-4.2 Remove ready on Stop the line, reopen and re-block, after rc-4.1 [RC4.3] (§D6)

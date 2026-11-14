@@ -149,6 +149,8 @@ export function validateProposal(item) {
     // The Project's Release and Iteration values for this task (§6.7).
     "milestone",
     "iteration",
+    // The crew label scope the task is released into (RC4.2).
+    "scope",
   ])
     if (item[field] !== undefined && typeof item[field] !== "string")
       fail(field + " must be text.");
@@ -548,6 +550,7 @@ export function approvePlan(
             "verify",
             "milestone",
             "iteration",
+            "releaseScope",
             "authority",
             "parent",
             "labels",
@@ -660,6 +663,9 @@ export function approvePlan(
       // A spec plan's phase groups only (Requirement 59.5); its epic is the
       // plan's, so a task never stores one.
       if (proposal.phase) design.phase = proposal.phase;
+      // The manifest's `scope` names a crew label scope. A task already has a
+      // catalog `scope`, so this one is stored as `releaseScope`.
+      if (proposal.scope) design.releaseScope = proposal.scope;
       // A spec plan names parents by nesting in tasks.md (spec-plans.mjs);
       // the parent is in the same plan, so it is in mapping.
       if (spec && proposal.parent) design.parent = mapping[proposal.parent];
@@ -704,6 +710,7 @@ export function approvePlan(
         for (const key of [
           "milestone",
           "iteration",
+          "releaseScope",
           "acceptFrom",
           "verify",
           "labels",
