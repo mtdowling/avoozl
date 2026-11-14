@@ -162,7 +162,13 @@ test(
       await pool(runs, Math.max(2, Math.min(8, os.availableParallelism())))
     )
       .filter(
-        (r) => r.signal || ![0, 1].includes(r.code) || CRASH.test(r.stderr),
+        (r) =>
+          r.signal ||
+          // verify-issue with no argument is a wrong argument: exit 64.
+          ![0, 1, ...(r.args[0] === "verify-issue" ? [64] : [])].includes(
+            r.code,
+          ) ||
+          CRASH.test(r.stderr),
       )
       .map(
         (r) =>
