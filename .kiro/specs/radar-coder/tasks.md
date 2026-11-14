@@ -491,7 +491,7 @@ Requirement RC24. Crews work a private mirror of a public repository; Avoozl syn
 - [x] rc-23.2 Sync step and write targets, after rc-23.1, rc-2.1 [RC24.3, RC24.4] (§D29)
   - `mirrorSyncStep` fast-forwards the mirror's default branch; divergence raises one Needs you row and pauses the mirror steps; `writeRepo(policy)` sends projection, labels, Project, release and merge to the mirror; source issue link marker with no private text copied out.
   - Done when: A fake GitHub test: a fast-forward is applied, a divergence gives one row across three ticks and no write to either branch, no call writes to the source except the forward path.
-- [ ] rc-23.3 Track merged mirror PRs, rows and Trace steps, after rc-23.2, rc-8.2 [RC24.5, RC24.14] (§D29)
+- [x] rc-23.3 Track merged mirror PRs, rows and Trace steps, after rc-23.2, rc-8.2 [RC24.5, RC24.14] (§D29)
   - `mirror_forward` record keyed by merge commit; rows in Waiting on you and Release queue; Trace steps Mirror merged, Forwarded, Public PR, Public merged.
   - Done when: A merge in the mirror gives one record across repeated ticks and the four Trace steps appear in order with GitHub times.
 - [ ] rc-23.4 Forward: one commit, strip, scan, push, public PR; nudge and auto, after rc-23.3, rc-10.1 [RC24.7, RC24.8, RC24.9, RC24.10, RC24.13] (§D29)
@@ -556,7 +556,7 @@ Requirement RC25. Private plans live on an orphan branch of the mirror and never
 
 Requirement RC26. Where each mirror change lands on the public repository, and the protections on everything that leaves the mirror.
 
-- [ ] rc-25.1 Forward target setting and per-epic override, after rc-23.1, rc-16.1 [RC26.1, RC26.2] (§D31.1)
+- [x] rc-25.1 Forward target setting and per-epic override, after rc-23.1, rc-16.1 [RC26.1, RC26.2] (§D31.1)
   - `forwardTarget` (`each`, `branch`, `batch`) and `publicBranch` in the form and the raw file; epic manifest keys win over the repository's; Settings and Trace name the source of the value in force; `src/app/test/mirror-forward-target.test.mjs`.
   - Done when: Precedence tests for epic, repository and default; an unknown value is refused; the form and the raw file agree.
 - [ ] rc-25.2 Path policy and metadata scrub, after rc-23.4 [RC26.5, RC26.6] (§D31.2)

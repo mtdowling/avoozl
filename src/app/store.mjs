@@ -152,6 +152,7 @@ export class Store {
    CREATE TABLE IF NOT EXISTS app_notifications(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS route_submissions(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS gate_records(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS mirror_forward(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS plugin_health(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS content_decisions(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS content_allowances(id TEXT PRIMARY KEY,body TEXT NOT NULL);
@@ -472,6 +473,7 @@ export class Store {
         "app_notifications",
         "route_submissions",
         "gate_records",
+        "mirror_forward",
         "plugin_health",
         "content_decisions",
         "content_allowances",
@@ -537,6 +539,7 @@ export class Store {
         "app_notifications",
         "route_submissions",
         "gate_records",
+        "mirror_forward",
         "plugin_health",
         "content_decisions",
         "content_allowances",
@@ -598,6 +601,7 @@ export class Store {
         "app_notifications",
         "route_submissions",
         "gate_records",
+        "mirror_forward",
         "plugin_health",
         "content_decisions",
         "content_allowances",
@@ -678,6 +682,7 @@ export class Store {
         "app_notifications",
         "route_submissions",
         "gate_records",
+        "mirror_forward",
         "plugin_health",
         "content_decisions",
         "content_allowances",
