@@ -38,12 +38,14 @@ import {
   LOCAL_HIDDEN_LINE,
   SUB_ISSUE_LINE,
   isGitHubMode,
+  defaultCoder,
   modeKey,
   unusedInLocal,
   visibleSettings,
   SETTINGS_HOME,
 } from './settings-api.ts'
 import { CoderPicker } from './CoderPicker.tsx'
+import { ReleaseModePicker } from './ReleaseMode.tsx'
 import SetupWizard from './SetupWizard.tsx'
 import RadarValuesScreen from './RadarValues.tsx'
 import { CrewsRulesSettings } from './CrewsRulesSettings.tsx'
@@ -123,7 +125,7 @@ const REPOSITORY_TABS = [
 type RepositoryTab = (typeof REPOSITORY_TABS)[number]['key']
 
 export const REPOSITORY_BLURBS: Record<RepositoryTab, string> = {
-  crews: 'Issue Radar crews on this repository: how many tasks at once, the review rules crews read, and the planning and conflict labels. Defaults show in each field.',
+  crews: 'Issue Radar crews on this repository: the review rules crews read, and the planning and conflict labels. Defaults show in each field.',
   mode: 'Which repository this is, the branch pull requests merge into, and who writes the code.',
   triggers: "A rule starts its action when an allowed person's label makes an issue match its line. No label name is built in.",
   checks:
@@ -765,6 +767,16 @@ function RepositoryEditor(props: {
             <Field id={`${id}-coder-worker`} label="Who codes" raw="coder" rule={REPOSITORY_FIELD_RULES.coder}>
               <CoderPicker id={`${id}-coder`} mode={props.mode} value={repository.coder} onChange={(value) => set({ coder: value })} />
             </Field>
+            {(repository.coder || defaultCoder(props.mode)) === 'issue-radar' && (
+              <>
+                <div style={grid()}>
+                  <Text id={`${id}-release-capacity`} label="Crews working this repository" raw="release.capacity" rule={REPOSITORY_FIELD_RULES.releaseCapacity} placeholder="2" type="number" width="sm" value={repository.releaseCapacity} onChange={(value) => set({ releaseCapacity: value })} />
+                </div>
+                <Field id={`${id}-release-mode`} label="Release mode" raw="release.mode">
+                  <ReleaseModePicker id={`${id}-release-mode`} mode={repository.releaseMode} onMode={(value) => set({ releaseMode: value })} />
+                </Field>
+              </>
+            )}
           </Section>
         )}
         {tab === 'triggers' && (

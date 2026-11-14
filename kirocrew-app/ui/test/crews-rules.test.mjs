@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict'
 import { readdirSync, readFileSync } from 'node:fs'
 import { after, before, test } from 'node:test'
-import { emptyRepository, releaseMode, rulesMode, toForm, toPolicy, valueSource } from '../src/settings-api.ts'
+import { emptyRepository, rulesMode, toForm, toPolicy, valueSource } from '../src/settings-api.ts'
 import { buildHarness } from './browser/build.mjs'
 import { findChrome, launch } from './browser/chrome.mjs'
 
@@ -30,9 +30,8 @@ test('no field asks for a model price', () => {
 
 test('Crews and rules modes are radio fold-outs, not selects', () => {
   const text = readFileSync(new URL('../src/CrewsRulesSettings.tsx', import.meta.url), 'utf8')
-  assert.equal((text.match(/<RadioFold\b/g) ?? []).length, 2)
+  assert.equal((text.match(/<RadioFold\b/g) ?? []).length, 1)
   assert.doesNotMatch(text, /<select|type="checkbox"/)
-  assert.match(text, /<FieldBox title="How many tasks at once"/)
   assert.match(text, /<FieldBox title="Review rules"/)
   assert.match(text, /<Fold title="Advanced: labels"/)
   // It is a tab of the repository dialog, which is the shared Modal.
@@ -40,30 +39,23 @@ test('Crews and rules modes are radio fold-outs, not selects', () => {
   assert.match(view, /tab === 'crews'[\s\S]*<CrewsRulesSettings/)
 })
 
-test('the four values round-trip and a blank one leaves the file', () => {
-  const policy = { mode: 'single-repo', repositories: { 'example/code': { baseBranch: 'main', coder: 'issue-radar', radar: { planLabel: 'to plan', reviewRules: '- Run lint.', clearPlanLabel: true }, release: { capacity: 3, scopes: [{ label: 'x', capacity: 1 }] } } } }
+test('the three values round-trip and a blank one leaves the file', () => {
+  const policy = { mode: 'single-repo', repositories: { 'example/code': { baseBranch: 'main', coder: 'issue-radar', radar: { planLabel: 'to plan', reviewRules: '- Run lint.', clearPlanLabel: true } } } }
   const form = toForm(policy)
   const repository = form.repositories[0]
   assert.equal(repository.planLabel, 'to plan')
   assert.equal(repository.reviewRules, '- Run lint.')
-  assert.equal(repository.releaseCapacity, '3')
-  const back = toPolicy(form).repositories['example/code']
-  assert.deepEqual(back.radar, policy.repositories['example/code'].radar)
-  assert.deepEqual(back.release, policy.repositories['example/code'].release)
-  repository.releaseCapacity = ''
+  assert.deepEqual(toPolicy(form).repositories['example/code'].radar, policy.repositories['example/code'].radar)
   repository.reviewRules = ''
-  const cleared = toPolicy(form).repositories['example/code']
-  assert.deepEqual(cleared.release, { scopes: [{ label: 'x', capacity: 1 }] })
-  assert.equal('reviewRules' in cleared.radar, false)
+  repository.planLabel = ''
+  assert.deepEqual(toPolicy(form).repositories['example/code'].radar, { clearPlanLabel: true })
   const bare = { ...emptyRepository('example/code') }
-  assert.equal(toPolicy({ ...form, repositories: [bare] }).repositories['example/code'].release, undefined)
+  assert.equal(toPolicy({ ...form, repositories: [bare] }).repositories['example/code'].radar, undefined)
 })
 
 test('each value says where it comes from and what it is', () => {
   assert.equal(valueSource('', 'to plan'), 'Not set on this repository. Using the default (to plan).')
-  assert.equal(valueSource('3', '2', ' at a time'), 'Set on this repository: 3 at a time.')
-  assert.equal(releaseMode({ releaseCapacity: '' }), 'default')
-  assert.equal(releaseMode({ releaseCapacity: '4' }), 'number')
+  assert.equal(valueSource('go', 'ready'), 'Set on this repository: go.')
   assert.equal(rulesMode({ reviewRules: ' ' }), 'default')
   assert.equal(rulesMode({ reviewRules: 'x' }), 'custom')
 })
@@ -83,21 +75,19 @@ after(async () => {
 })
 
 for (const width of [320, 768, 1280])
-  test(`at ${width} px each mode opens its fields and the default shows its source`, { skip }, async () => {
+  test(`at ${width} px the rules mode opens its field and the default shows its source`, { skip }, async () => {
     await page.open(harness.url({ page: 'crews-rules' }), { width, height: 900, dark: false })
-    await page.until(`document.querySelectorAll('[data-radio-fold]').length === 2`)
-    assert.match(await page.evaluate(`document.querySelector('[data-radio-section="default"][data-open="true"]').textContent`), /Using the default \(2 at a time\)/)
-    assert.equal(await page.evaluate(`document.querySelectorAll('input[type=radio]:checked').length`), 2)
-    // Pick "Set a number": the field appears with its source line.
-    await page.evaluate(`document.getElementById('t-release-mode-number').click()`)
-    await page.until(`Boolean(document.getElementById('t-capacity'))`)
-    assert.match(await page.evaluate(`document.getElementById('t-capacity-source').textContent`), /Set on this repository: 2 at a time\./)
+    await page.until(`document.querySelectorAll('[data-radio-fold]').length === 1`)
+    assert.match(await page.evaluate(`document.querySelector('[data-radio-section="default"][data-open="true"]').textContent`), /Using Avoozl's built-in review rules/)
+    assert.equal(await page.evaluate(`Boolean(document.getElementById('t-rules'))`), false)
     await page.evaluate(`document.getElementById('t-rules-mode-custom').click()`)
     await page.until(`Boolean(document.getElementById('t-rules'))`)
-    assert.match(await page.evaluate(`document.querySelector('[data-form]').textContent`), /"capacity":"2"/)
-    // Back to the default clears the value.
-    await page.evaluate(`document.getElementById('t-release-mode-default').click()`)
-    await page.until(`document.querySelector('[data-form]').textContent.includes('"capacity":""')`)
+    assert.match(await page.evaluate(`document.querySelector('[data-form]').textContent`), /"rules":"Say what you skipped/)
+    // Back to the default clears the text.
+    await page.evaluate(`document.getElementById('t-rules-mode-default').click()`)
+    await page.until(`document.querySelector('[data-form]').textContent.includes('"rules":""')`)
+    // Advanced labels are folded until opened.
+    assert.equal(await page.evaluate(`document.querySelector('[data-fold] ').open`), false)
     assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true)
     assert.deepEqual(page.errors, [])
   })

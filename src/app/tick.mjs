@@ -9,6 +9,10 @@
 // issue intake, planner sessions for matched issues, broad-issue publishing,
 // re-projection, crew labels and the Project board.
 import { notesReprojectIds, notesReprojected } from "./task-notes.mjs";
+import {
+  releaseChangedPlanIds,
+  releaseRecorded,
+} from "./radar-coder-queue.mjs";
 import { recordActivity, recordTickActivity } from "./activity-log.mjs";
 import fs from "node:fs";
 import { validateTrackedRouting } from "./placement.mjs";
@@ -474,13 +478,21 @@ async function githubStep(store, github, workspaceRoot, delivery) {
     // ready label for Issue Radar, `dispatch.ready` for the runner.
     // A taken-over spec, and one whose shown links and notes changed
     // (R61.23), are projected once more.
-    const reproject = takenOverPlanIds(store),
+    const identity = planningIdentity(workspaceRoot),
+      reproject = takenOverPlanIds(store),
       noted = notesReprojectIds(store),
+      // A changed capacity, scope, release mode or Step click (RC4.5).
+      released = releaseChangedPlanIds(store, identity),
       projection = await refreshProjectedReadiness(store, github, {
-        identity: planningIdentity(workspaceRoot),
+        identity,
         skipPlans: readOnlyPlanIds(store),
-        forcePlans: new Set([...reproject, ...noted]),
+        forcePlans: new Set([...reproject, ...noted, ...released]),
       });
+    releaseRecorded(
+      store,
+      identity,
+      projection.projected.filter((planId) => released.has(planId)),
+    );
     for (const planId of projection.projected)
       if (reproject.has(planId)) reprojected(store, planId);
     notesReprojected(

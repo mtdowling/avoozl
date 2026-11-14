@@ -8,7 +8,7 @@ import { Input } from '@kirocrew/app-sdk/ui'
 import { Fold } from './controls.tsx'
 import { FieldBox } from './FieldBox.tsx'
 import { RadioFold } from './RadioFold.tsx'
-import { RADAR_DEFAULTS_SHOWN, releaseMode, rulesMode, valueSource, type RepositoryForm } from './settings-api.ts'
+import { RADAR_DEFAULTS_SHOWN, rulesMode, valueSource, type RepositoryForm } from './settings-api.ts'
 
 function Line(props: { id: string; label: string; value: string; fallback: string; raw: string; onChange: (value: string) => void; type?: string; unit?: string }) {
   return (
@@ -28,23 +28,6 @@ export function CrewsRulesSettings(props: { id: string; repository: RepositoryFo
   const { id, repository, set } = props
   return (
     <div className="flex flex-col gap-4" data-crews-rules>
-      <FieldBox title="How many tasks at once" blurb="How many ready tasks crews may hold on this repository at the same time.">
-        <RadioFold
-          name={`${id}-release-mode`}
-          label="How many tasks at once"
-          value={releaseMode(repository)}
-          onChange={(mode) => set({ releaseCapacity: mode === 'default' ? '' : String(RADAR_DEFAULTS_SHOWN.releaseCapacity) })}
-          sections={[
-            { key: 'default', title: 'Use the default', line: `Not set on this repository. Using the default (${RADAR_DEFAULTS_SHOWN.releaseCapacity} at a time).` },
-            {
-              key: 'number',
-              title: 'Set a number',
-              line: 'Choose how many ready tasks crews may hold.',
-              fields: <Line id={`${id}-capacity`} label="Tasks at once" raw="release.capacity" type="number" value={repository.releaseCapacity} fallback={String(RADAR_DEFAULTS_SHOWN.releaseCapacity)} unit=" at a time" onChange={(releaseCapacity) => set({ releaseCapacity })} />,
-            },
-          ]}
-        />
-      </FieldBox>
       <FieldBox title="Review rules" blurb="Text Set up adds to AGENTS.md in a pull request, so crews read it for every issue.">
         <RadioFold
           name={`${id}-rules-mode`}
