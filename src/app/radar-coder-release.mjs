@@ -5,11 +5,16 @@
 // A repository's release settings from the policy as written (the identity
 // holds it unnormalized). N is `release.capacity`, else 2 for Issue Radar,
 // else the older `concurrency`, else no cap.
+export function isRadarRepository(repository = {}, mode = null) {
+  return (
+    (repository?.coder ??
+      (mode === "single-repo" ? "issue-radar" : "worker")) === "issue-radar"
+  );
+}
+
 export function releaseFor(repository = {}, mode = null) {
   const input = repository.release ?? {},
-    radar =
-      (repository.coder ??
-        (mode === "single-repo" ? "issue-radar" : "worker")) === "issue-radar",
+    radar = isRadarRepository(repository, mode),
     capacity = Number.isSafeInteger(input.capacity)
       ? input.capacity
       : radar
@@ -70,3 +75,12 @@ export function planRelease({ candidates, capacity, foreign = () => 0 }) {
     }
   return keep;
 }
+
+// The one comment a claimed issue gets when release stops around it (RC4.3).
+// It says what Avoozl did and what only Issue Radar's own pause can stop.
+export const STOP_NOTICE =
+  "Avoozl: release is paused for this issue's scope" +
+  " (the line is stopped, or a blocker is open again)." +
+  " Avoozl releases nothing new there and leaves this issue's labels as they are." +
+  " It cannot stop a running crew: only Issue Radar's own pause does that." +
+  " A person resumes the line in Avoozl.";
