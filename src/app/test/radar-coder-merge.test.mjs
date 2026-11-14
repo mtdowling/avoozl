@@ -1,6 +1,5 @@
-// rc-5.2 and rc-5.5: the tick arms merge-commit auto-merge on crew pull
-// requests, only on the right ones, once, after one re-verify per issue per
-// marker hash (RC5.2, RC5.8, design D7). Fake GitHub only: nothing is armed on
+// rc-5.2: the tick arms merge-commit auto-merge on crew pull requests, only
+// on the right ones, once (RC5.2, design D7). Fake GitHub only: nothing is armed on
 // a real pull request.
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -137,9 +136,7 @@ class MergeGitHub {
 function setup(t, { ship = "auto-merge" } = {}) {
   const { store } = fixture(t),
     root = temporaryDirectory(),
-    github = new MergeGitHub(),
-    verified = [],
-    verdicts = new Map();
+    github = new MergeGitHub();
   fs.writeFileSync(
     path.join(root, ".avoozl.json"),
     JSON.stringify({
@@ -174,22 +171,13 @@ function setup(t, { ship = "auto-merge" } = {}) {
     projectId: "code",
     activeMachine: machineIdentity(store).id,
   });
-  const issueVerifier = (reference) => {
-    verified.push(reference);
-    return Promise.resolve(
-      verdicts.get(reference) || { ok: true, couldNotRun: false, checks: [] },
-    );
-  };
   const ops = new Operations(store, {
     github,
     workspaceRoot: root,
-    issueVerifier,
   });
   return {
     store,
     github,
-    verified,
-    verdicts,
     tick: () => ops.execute("workspace.tick", { sessions: [] }),
   };
 }
@@ -240,59 +228,6 @@ test("manual mode arms nothing", async (t) => {
   github.closes.set(6, [16]);
   await tick();
   assert.deepEqual(github.armed, []);
-});
-
-test("an edited marker blocks arming and opens one row", async (t) => {
-  const { github, store, verdicts, tick } = setup(t);
-  github.addIssue(6, MARKED);
-  github.addPull(16);
-  github.closes.set(6, [16]);
-  verdicts.set(`${REPO}#6`, {
-    ok: false,
-    couldNotRun: false,
-    checks: [{ name: "spec", status: "fail", reason: "x" }],
-  });
-  for (let round = 0; round < 3; round += 1) await tick();
-  assert.deepEqual(github.armed, []);
-  assert.equal(store.getMeta("radarMerge").notified.length, 1);
-  // A fixed marker is a new hash: it is checked again and then armed.
-  verdicts.delete(`${REPO}#6`);
-  github.issues.get(6).body = managed() + "\n" + provenance(["rc-y"]);
-  await tick();
-  assert.deepEqual(github.armed, [["PR_16", "MERGE"]]);
-});
-
-test("an unchanged marker runs the check once across three ticks", async (t) => {
-  const { github, verified, tick } = setup(t);
-  github.addIssue(6, MARKED);
-  github.addPull(16);
-  github.closes.set(6, [16]);
-  for (let round = 0; round < 3; round += 1) await tick();
-  assert.deepEqual(verified, [`${REPO}#6`]);
-});
-
-test("a check that could not run arms nothing and is tried again", async (t) => {
-  const { github, verified, verdicts, tick } = setup(t);
-  github.addIssue(6, MARKED);
-  github.addPull(16);
-  github.closes.set(6, [16]);
-  verdicts.set(`${REPO}#6`, { ok: false, couldNotRun: true, checks: [] });
-  await tick();
-  await tick();
-  assert.deepEqual(github.armed, []);
-  assert.equal(verified.length, 2);
-  verdicts.delete(`${REPO}#6`);
-  await tick();
-  assert.deepEqual(github.armed, [["PR_16", "MERGE"]]);
-});
-
-test("no pull request is verified before its author and origin pass", async (t) => {
-  const { github, verified, tick } = setup(t);
-  github.addIssue(2, MARKED);
-  github.addPull(12, { author: "stranger" });
-  github.closes.set(2, [12]);
-  await tick();
-  assert.deepEqual(verified, []);
 });
 
 test("nothing is armed while the merge path is not ready", async (t) => {
