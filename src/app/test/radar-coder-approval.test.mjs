@@ -17,7 +17,7 @@ process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
 const NAMESPACE = "avz_radarapproval001",
   REPO = "example/code",
   SOURCE = 7,
-  APPROVAL = "plan approved",
+  APPROVAL = "avoozl:plan-approved",
   CLAIM = "crew: in progress";
 
 class ApprovalGitHub extends FakeGitHub {
@@ -29,7 +29,7 @@ class ApprovalGitHub extends FakeGitHub {
       number: SOURCE,
       repository: REPO,
       state: "open",
-      labels: [{ name: "to plan" }],
+      labels: [{ name: "avoozl:plan" }],
       title: "Plan the loader",
       body: "Please plan this.",
       html_url: `https://example.test/${REPO}/issues/${SOURCE}`,

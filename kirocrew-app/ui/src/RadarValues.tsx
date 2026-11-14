@@ -9,6 +9,7 @@ import { Check, Copy } from './icons.ts'
 import { useAppApi } from './host.ts'
 import { progressLine, radarValuesClient, rowState, type RadarItem, type RadarValues } from './radar-values-api.ts'
 import { linkHref } from './views-api.ts'
+import { OLD_LABEL_NOTE } from './settings-api.ts'
 import { errorMessage } from './workspace-api.ts'
 
 function CopyBtn({ text, label }: { text: string; label: string }) {
@@ -106,6 +107,10 @@ export default function RadarValuesScreen(props: { workspaceId: string; reposito
           </p>
           <p className="text-xs text-muted" data-progress>
             {progressLine(view.items, ticked)}
+          </p>
+          {/* RC21.5: said once here and once in Settings › Crews and rules. */}
+          <p className="text-xs text-muted" data-old-labels>
+            {OLD_LABEL_NOTE} The crew's label scope must match the ready label.
           </p>
           <ul className="flex min-w-0 flex-col" data-radar-values>
             {view.items.map((item) => (

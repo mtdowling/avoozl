@@ -8,20 +8,34 @@ import { Input } from '@kirocrew/app-sdk/ui'
 import { Fold } from './controls.tsx'
 import { FieldBox } from './FieldBox.tsx'
 import { RadioFold } from './RadioFold.tsx'
-import { RADAR_DEFAULTS_SHOWN, rulesMode, valueSource, type RepositoryForm } from './settings-api.ts'
+import { AVOOZL_LABELS, OLD_LABEL_NOTE, RADAR_DEFAULTS_SHOWN, rulesMode, valueSource, type RepositoryForm } from './settings-api.ts'
 
-function Line(props: { id: string; label: string; value: string; fallback: string; raw: string; onChange: (value: string) => void; type?: string; unit?: string }) {
+function Line(props: { id: string; label: string; value: string; fallback: string; raw: string; onChange: (value: string) => void; type?: string; unit?: string; help?: string }) {
   return (
     <div className="flex min-w-0 flex-col gap-1">
       <label htmlFor={props.id} className="text-sm font-medium">
         {props.label} <span className="text-xs text-muted">{props.raw}</span>
       </label>
-      <Input id={props.id} type={props.type} value={props.value} placeholder={props.fallback} aria-describedby={`${props.id}-source`} onChange={(event) => props.onChange(event.target.value)} />
+      {props.help && (
+        <span id={`${props.id}-help`} className="text-xs text-muted">
+          {props.help}
+        </span>
+      )}
+      <Input id={props.id} type={props.type} value={props.value} placeholder={props.fallback} aria-describedby={`${props.id}-source${props.help ? ` ${props.id}-help` : ''}`} onChange={(event) => props.onChange(event.target.value)} />
       <span id={`${props.id}-source`} className="text-xs text-muted" data-source>
         {valueSource(props.value, props.fallback, props.unit)}
       </span>
     </div>
   )
+}
+
+// The value and setter for one of the six labels: ready lives in
+// managedLabels, the rest in radar.
+function labelValue(repository: RepositoryForm, key: (typeof AVOOZL_LABELS)[number]['key']): string {
+  return key === 'ready' ? (repository.managedLabels.ready ?? '') : repository[key]
+}
+function labelChange(repository: RepositoryForm, key: (typeof AVOOZL_LABELS)[number]['key'], value: string): Partial<RepositoryForm> {
+  return key === 'ready' ? { managedLabels: { ...repository.managedLabels, ready: value } } : { [key]: value }
 }
 
 export function CrewsRulesSettings(props: { id: string; repository: RepositoryForm; set: (change: Partial<RepositoryForm>) => void }) {
@@ -53,10 +67,21 @@ export function CrewsRulesSettings(props: { id: string; repository: RepositoryFo
           ]}
         />
       </FieldBox>
-      <Fold title="Advanced: labels" id={`${id}-crews-advanced`}>
-        <div className="flex flex-col gap-3">
-          <Line id={`${id}-plan-label`} label="Planning label" raw="radar.planLabel" value={repository.planLabel} fallback={RADAR_DEFAULTS_SHOWN.planLabel} onChange={(planLabel) => set({ planLabel })} />
-          <Line id={`${id}-conflict-label`} label="Merge conflict label" raw="radar.conflictLabel" value={repository.conflictLabel} fallback={RADAR_DEFAULTS_SHOWN.conflictLabel} onChange={(conflictLabel) => set({ conflictLabel })} />
+      <Fold title="Avoozl labels" id={`${id}-crews-advanced`}>
+        <div className="flex flex-col gap-3" data-avoozl-labels>
+          <p className="text-xs text-muted">Labels Avoozl reads or writes for its own work. Each must differ from the others and from Issue Radar's labels. {OLD_LABEL_NOTE}</p>
+          {AVOOZL_LABELS.map((entry) => (
+            <Line
+              key={entry.key}
+              id={`${id}-label-${entry.key}`}
+              label={entry.label}
+              raw={entry.raw}
+              help={`${entry.job} ${entry.writer}`}
+              value={labelValue(repository, entry.key)}
+              fallback={RADAR_DEFAULTS_SHOWN[entry.key]}
+              onChange={(value) => set(labelChange(repository, entry.key, value))}
+            />
+          ))}
         </div>
       </Fold>
     </div>

@@ -174,6 +174,7 @@ export const APP_OPERATIONS = new Set([
   "untriaged.view",
   "radar.crews",
   "radar.trace",
+  "review.drafts",
   "radar.flow",
   "radar.retro",
   "radar.retro.apply",

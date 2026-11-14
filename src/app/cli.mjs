@@ -97,7 +97,7 @@ try {
       // `avoozl budget receipt TASK --json` prints the receipt object.
       else if (
         key === "json" &&
-        ["budget", "runner", "verify-issue"].includes(args[0]) &&
+        ["budget", "runner", "verify-issue", "review"].includes(args[0]) &&
         (args[i + 1] === undefined || args[i + 1].startsWith("--"))
       )
         options.json = true;
@@ -696,7 +696,24 @@ try {
         2,
       ),
     );
-  else if (command === "gap-report") {
+  else if (command === "review" && positionals[0] === "drafts") {
+    // Review drafts made from the review label (RC20.6): what waits on
+    // people, and the GitHub search that finds them.
+    const view = await localOrRequest("review.drafts", {
+      ...(options.repository ? { repository: options.repository } : {}),
+      ...(options.state ? { state: options.state } : {}),
+    });
+    if (options.json) console.log(JSON.stringify(view, null, 2));
+    else {
+      for (const item of view.items)
+        console.log(
+          `${item.state.padEnd(9)} ${item.repository}#${item.number}  ${item.reviewer}  ${item.url ?? ""}`,
+        );
+      if (!view.items.length) console.log("No review drafts.");
+      for (const search of view.searches)
+        console.log(`\nOn GitHub: ${search.query}\n${search.url}`);
+    }
+  } else if (command === "gap-report") {
     // An external gap report becomes proposed tasks in a parent spec's
     // sub-specs. `preview` shows the table and the proposals; `accept` adds
     // them as draft work (a person only).
@@ -1592,6 +1609,7 @@ try {
                                         Pull the Andon cord: stop new work in a scope
   flow stop --full --reason TEXT        Stop all agents: also stop every running chat Avoozl opened (needs the app backend)
   gap-report preview|accept SPEC (--path FILE | --issue OWNER/REPO#N)  Turn a gap report into proposed tasks in the sub-specs of a parent spec
+  review drafts [--repository OWNER/REPO] [--state STATE] [--json]  Review drafts made from the review label, and the GitHub search for them
   flow resume STOP_ID                   Resume a pulled stop (a person only)
   checks run --task TASK_ID             Run the declared checks in this worktree and record the pass
   runner accept FILE|-                  Runner mode: take one task envelope (a runner's ssh calls this)
