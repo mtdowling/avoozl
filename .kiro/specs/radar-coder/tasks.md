@@ -106,7 +106,7 @@ Requirement RC4. The tick adds the ready label in graph order, N at a time.
 - [x] rc-4.2 Remove ready on Stop the line, reopen and re-block, after rc-4.1 [RC4.3] (§D6)
   - Ready removed from unclaimed issues in the stopped scope, on reopen and on a reopened blocker; one comment on each claimed issue; claimed issues untouched; ties to Requirement 64.
   - Done when: A claimed issue keeps its labels; unclaimed ones lose ready; the comment is posted once across three ticks.
-- [ ] rc-4.3 Phase gate: release the next phase after the previous one merged, after rc-4.1 [RC4.4] (§D6)
+- [x] rc-4.3 Phase gate: release the next phase after the previous one merged, after rc-4.1 [RC4.4] (§D6)
   - A phase releases only when every task of the previous phase of the spec has a merged closing pull request; a closed-by-order task does not count.
   - Done when: A phase with one task closed by order stays held; merging it releases the next phase on the next tick.
 - [ ] rc-4.4 Release mode radio fold-out and the Release queue, after rc-4.1 [RC4.5, RC4.6] (§D6)
