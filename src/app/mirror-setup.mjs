@@ -425,6 +425,19 @@ async function perform(line, deps, { mirror, source }, plans) {
   return null;
 }
 
+// The repository entry a mirror setup reads and saves: the one whose `mirror`
+// names this mirror, else the registered source, else the mirror's own name.
+export function mirrorEntryKey(repositories = {}, { repository, source }) {
+  const keys = Object.keys(repositories ?? {}),
+    same = (a, b) => Boolean(a && b) && lower(a) === lower(b);
+  return (
+    keys.find((key) => same(repositories[key]?.mirror?.mirror, repository)) ??
+    keys.find((key) => same(key, source)) ??
+    keys.find((key) => same(key, repository)) ??
+    repository
+  );
+}
+
 // kind is "adopt" or "create". Without `confirm` it returns the dry run and
 // writes nothing. With it: {confirm: true, previewHash, ticked?: [ids]}.
 export async function mirrorSetup(kind, deps, input = {}) {

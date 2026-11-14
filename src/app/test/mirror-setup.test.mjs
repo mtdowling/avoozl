@@ -450,3 +450,46 @@ test("mirror.create through operations saves the mirror setting in the file", as
   const again = await ops.execute("mirror.adopt", input);
   assert.equal(again.writes, 0);
 });
+
+test("mirror setup reads and saves the source's entry, not a new one", async (t) => {
+  const { root, store } = fixture(t),
+    file = path.join(root, ".avoozl.json"),
+    write = (repositories) =>
+      fs.writeFileSync(
+        file,
+        JSON.stringify({
+          version: 1,
+          namespace: "avz_0123456789abcdef",
+          github: { mode: "single-repo", repositories },
+        }),
+      );
+  // A source registered with its mirror already set, forward off: nothing to save.
+  write({
+    [SOURCE]: {
+      baseBranch: "main",
+      mirror: { source: SOURCE, mirror: MIRROR, forward: "off" },
+    },
+  });
+  const github = fakeGitHub({
+      repos: {
+        [MIRROR]: {
+          branches: new Map([
+            ["main", { orphan: false }],
+            [PLANS_BRANCH_DEFAULT, { orphan: true }],
+          ]),
+        },
+      },
+    }),
+    ops = new Operations(store, { github, workspaceRoot: root });
+  ops.mirrorGit = deps(github).git;
+  const adopt = await ops.execute("mirror.adopt", { repository: MIRROR });
+  assert.equal(line(adopt, "setting").status, "ok");
+  // A source registered without one: the setting lands on the source's entry.
+  write({ [SOURCE]: { baseBranch: "main" } });
+  const dry = await ops.execute("mirror.adopt", input);
+  await ops.execute("mirror.adopt", { ...confirm(dry), ticked: ["setting"] });
+  const saved = JSON.parse(fs.readFileSync(file, "utf8")).github.repositories;
+  assert.deepEqual(Object.keys(saved), [SOURCE]);
+  assert.equal(saved[SOURCE].mirror.mirror, MIRROR);
+  assert.equal(saved[SOURCE].baseBranch, "main");
+});
