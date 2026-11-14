@@ -523,8 +523,13 @@ export function approvePlan(
       baselined = [],
       approver = approvedBy?.trim() || operator?.trim() || "";
     const oldMapping = plan.mapping || {};
+    // A task with an issue may leave the spec: Spec changed (RC2.8) closes
+    // its issue and archives it.
     for (const oldId of Object.keys(oldMapping))
-      if (!mapping[oldId])
+      if (
+        !mapping[oldId] &&
+        !data.tasks.find((t) => t.id === oldMapping[oldId])?.github?.number
+      )
         fail(
           "Removing an approved task requires explicitly retiring it before this amendment.",
         );

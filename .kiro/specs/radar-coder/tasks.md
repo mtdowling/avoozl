@@ -60,7 +60,7 @@ Requirement RC2. Spec to issues, in both modes, with batching and the preview. N
 - [x] rc-2.4 Batch issues keep each task ID separate and close together, after rc-2.1, rc-2.3 [RC2.6, RC2.7] (§D4.2)
   - A batch issue with a checklist and one marker listing the task IDs; each task keeps its node, acceptance, timing and evidence; the merged closing pull request closes every member task; the checklist boxes are never read.
   - Done when: A fake merged pull request that closes a three-task batch completes all three tasks; unticked boxes change nothing; the Graph shows the batch node with its members.
-- [ ] rc-2.5 Project to GitHub preview and Spec changed diff, after rc-2.3 [RC2.1, RC2.8] (§D4.3)
+- [x] rc-2.5 Project to GitHub preview and Spec changed diff, after rc-2.3 [RC2.1, RC2.8] (§D4.3)
   - The preview modal with include, batch edit, wave and release mode; **Create issues (held)** and **Create and release**; the Spec changed diff updates unclaimed issues after approval, comments on claimed ones, closes removed tasks as not planned; mockup `04-projection.html`; `kirocrew-app/ui/test/radar-projection.test.mjs`.
   - Done when: Nothing is written before the confirm (a fake GitHub records zero writes); a claimed issue is never edited; a removed task closes as not planned; drawn at 320, 768 and 1280 px, light and dark.
 - [ ] rc-2.6 Preflight checks in the preview, after rc-2.1, rc-5.1 [RC2.9] (§D4.3)

@@ -137,6 +137,7 @@ export const PERSON_ONLY = new Map([
   ["flow.runAnyway", person("Only a person presses Run anyway.")],
   ["flow.resume", person("Only a person resumes a pulled stop.")],
   ["radar.releasestep", person("Only a person releases a phase.")],
+  ["spec.changed.apply", person("Only a person applies a spec change.")],
   ["budget.raise", person("Only a person raises a budget.")],
   ["budget.stop", person("Only a person stops a task at its budget.")],
   [
@@ -235,6 +236,7 @@ export const NOT_ON_MCP = new Map([
   ["onboarding.inspect", page],
   ["onboarding.scan", page],
   ["plan.issues.preview", page],
+  ["spec.changed.preview", page],
   ...[
     "run.model",
     "run.unsend",

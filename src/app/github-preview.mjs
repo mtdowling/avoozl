@@ -317,7 +317,14 @@ export class PreviewGitHub {
 export async function previewProjection(
   store,
   github,
-  { planId, repository, identity, policy = null, claimed = new Set() },
+  {
+    planId,
+    repository,
+    identity,
+    policy = null,
+    claimed = new Set(),
+    batches = [],
+  },
 ) {
   const scratch = store.scratch(),
     stand = new PreviewGitHub(github);
@@ -328,6 +335,7 @@ export async function previewProjection(
       identity,
       locked: true,
       dryRun: true,
+      batches,
     });
     let project = { status: "off" };
     if (policy?.project) {
