@@ -69,6 +69,7 @@ export function forwardGit({ urlFor = github, run = exec } = {}) {
           `refs/heads/${base}`,
         ]);
         await git(["checkout", "-q", "-b", branch, "FETCH_HEAD"]);
+        const baseSha = (await git(["rev-parse", "HEAD"])).stdout.trim();
         await git([
           ...helper(mirrorUrl, token),
           "fetch",
@@ -124,12 +125,47 @@ export function forwardGit({ urlFor = github, run = exec } = {}) {
               text: line.slice(1),
             });
         }
-        const paths = (
-          await git(["show", "--format=", "--name-only", "HEAD"])
-        ).stdout
-          .split("\n")
-          .filter(Boolean);
-        return { dir, commit, added, paths };
+        // Every path the commit touches (deleted ones too, renames as two),
+        // and the content of each file that remains, for the guard.
+        const names = async (extra) =>
+            (
+              await git([
+                "show",
+                "-z",
+                "--format=",
+                "--name-only",
+                "--no-renames",
+                ...extra,
+                "HEAD",
+              ])
+            ).stdout
+              .split("\0")
+              .map((name) => name.replace(/^\n/, ""))
+              .filter(Boolean),
+          paths = await names([]),
+          files = [];
+        for (const file of await names(["--diff-filter=d"]))
+          files.push({
+            path: file,
+            content: (await git(["show", `HEAD:${file}`])).stdout,
+          });
+        const [parents, an, ae, cn, ce, ...rest] = (
+            await git([
+              "show",
+              "-s",
+              "--format=%P%x00%an%x00%ae%x00%cn%x00%ce%x00%B",
+              "HEAD",
+            ])
+          ).stdout.split("\0"),
+          meta = {
+            parents: parents.split(" ").filter(Boolean),
+            author: { name: an, email: ae },
+            committer: { name: cn, email: ce },
+            message: rest.join("\0").replace(/\n+$/, ""),
+          },
+          // The exact public change, for the Forward screen and the receipt.
+          shown = (await git(["show", "--format=", "-p", "HEAD"])).stdout;
+        return { dir, commit, added, paths, files, meta, baseSha, shown };
       } catch (error) {
         fs.rmSync(dir, { recursive: true, force: true });
         throw error;

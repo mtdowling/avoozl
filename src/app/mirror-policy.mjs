@@ -19,6 +19,8 @@ export const MIRROR_KEYS = Object.freeze([
   "forwardTarget",
   "publicBranch",
   "forwardMaxFileBytes",
+  "forwardExclude",
+  "forwardAllow",
 ]);
 export const FORWARD_TARGETS = Object.freeze(["each", "branch", "batch"]);
 export const MIRROR_DEFAULTS = Object.freeze({
@@ -46,6 +48,28 @@ const plainBranch = (name) =>
   typeof name === "string" &&
   BRANCH_PREFIX.test(name) &&
   !/\.\.|\/\/|@\{|\/$|\.$|\.lock$/.test(name);
+
+// A list of repository paths or globs (`*`, `**`, a trailing `/`), relative
+// and without `..`, for the forward path policy (RC26.5.1).
+function pathPatterns(value, label) {
+  if (value === undefined) return [];
+  if (
+    !Array.isArray(value) ||
+    value.some(
+      (item) =>
+        typeof item !== "string" ||
+        !item.trim() ||
+        item.length > 200 ||
+        item.startsWith("/") ||
+        item.includes("\\") ||
+        item.split("/").includes(".."),
+    )
+  )
+    fail(
+      `${label} must be a list of relative paths or patterns such as docs/private/ or **/*.pem.`,
+    );
+  return [...new Set(value.map((item) => item.trim()))];
+}
 
 // The normalized mirror of one repository entry, or null when it has none.
 // `baseBranch` is the repository's configured default branch, when known.
@@ -95,6 +119,11 @@ export function mirrorInput(value, label, baseBranch) {
     fail(
       `${label}.forwardMaxFileBytes must be a whole number of bytes, 1 or more.`,
     );
+  const forwardExclude = pathPatterns(
+      value.forwardExclude,
+      `${label}.forwardExclude`,
+    ),
+    forwardAllow = pathPatterns(value.forwardAllow, `${label}.forwardAllow`);
   const squash = value.squash ?? MIRROR_DEFAULTS.squash;
   if (typeof squash !== "boolean")
     fail(`${label}.squash must be true or false.`);
@@ -125,6 +154,8 @@ export function mirrorInput(value, label, baseBranch) {
     ...(forwardTarget ? { forwardTarget } : {}),
     ...(publicBranch ? { publicBranch } : {}),
     ...(forwardMaxFileBytes ? { forwardMaxFileBytes } : {}),
+    ...(forwardExclude.length ? { forwardExclude } : {}),
+    ...(forwardAllow.length ? { forwardAllow } : {}),
   };
 }
 

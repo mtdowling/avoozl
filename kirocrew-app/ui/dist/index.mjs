@@ -6655,7 +6655,9 @@ var Zs = () => ({
 	plansBranch: "",
 	forwardTarget: "",
 	publicBranch: "",
-	forwardMaxFileBytes: ""
+	forwardMaxFileBytes: "",
+	forwardExclude: "",
+	forwardAllow: ""
 }), Qs = [
 	"off",
 	"nudge",
@@ -6671,7 +6673,9 @@ var Zs = () => ({
 	forwardTo: "blank: the public repository",
 	branchPrefix: "blank: avoozl/",
 	trustedPersons: "blank: nobody, so Auto stays off",
-	plansBranch: "blank: avoozl-plans"
+	plansBranch: "blank: avoozl-plans",
+	forwardExclude: "blank: only the built-in exclusions (.kiro/, AGENTS.md, steering, the specs branch)",
+	forwardAllow: "blank: nothing is allowed past the exclusions"
 };
 function tc(e) {
 	if (e.source.trim() || e.mirror.trim()) return hc({
@@ -6685,7 +6689,9 @@ function tc(e) {
 		plansBranch: lc(e.plansBranch),
 		forwardTarget: lc(e.forwardTarget),
 		publicBranch: lc(e.publicBranch),
-		forwardMaxFileBytes: e.forwardMaxFileBytes.trim() ? Number(e.forwardMaxFileBytes) : void 0
+		forwardMaxFileBytes: e.forwardMaxFileBytes.trim() ? Number(e.forwardMaxFileBytes) : void 0,
+		forwardExclude: cc(e.forwardExclude),
+		forwardAllow: cc(e.forwardAllow)
 	});
 }
 var nc = () => ({
@@ -6836,7 +6842,9 @@ function mc(e) {
 						plansBranch: $(e.plansBranch),
 						forwardTarget: $(e.forwardTarget),
 						publicBranch: $(e.publicBranch),
-						forwardMaxFileBytes: $(e.forwardMaxFileBytes)
+						forwardMaxFileBytes: $(e.forwardMaxFileBytes),
+						forwardExclude: oc(e.forwardExclude),
+						forwardAllow: oc(e.forwardAllow)
 					};
 				})(),
 				rest: Object.fromEntries(Object.entries(n).filter(([e]) => !dc.has(e)))
@@ -28291,6 +28299,22 @@ function ab(e) {
 							placeholder: ec.forwardMaxFileBytes,
 							value: t.forwardMaxFileBytes,
 							onChange: (e) => r({ forwardMaxFileBytes: e })
+						}),
+						/* @__PURE__ */ C(Ky, {
+							id: `${n}-exclude`,
+							label: "Never forward these paths",
+							raw: "mirror.forwardExclude",
+							placeholder: ec.forwardExclude,
+							value: t.forwardExclude,
+							onChange: (e) => r({ forwardExclude: e })
+						}),
+						/* @__PURE__ */ C(Ky, {
+							id: `${n}-allow`,
+							label: "Forward these paths anyway",
+							raw: "mirror.forwardAllow",
+							placeholder: ec.forwardAllow,
+							value: t.forwardAllow,
+							onChange: (e) => r({ forwardAllow: e })
 						}),
 						/* @__PURE__ */ C(Ky, {
 							id: `${n}-trusted`,

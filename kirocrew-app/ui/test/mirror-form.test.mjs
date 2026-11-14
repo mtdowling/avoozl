@@ -29,6 +29,8 @@ test('the form reads and writes every mirror field', () => {
     forwardTarget: 'branch',
     publicBranch: 'rewrite',
     forwardMaxFileBytes: 500000,
+    forwardExclude: ['docs/private/', '**/*.pem'],
+    forwardAllow: ['.kiro/public.md'],
   }
   const form = toForm(github(mirror))
   assert.deepEqual(form.repositories[0].mirror, {
@@ -43,6 +45,8 @@ test('the form reads and writes every mirror field', () => {
     forwardTarget: 'branch',
     publicBranch: 'rewrite',
     forwardMaxFileBytes: '500000',
+    forwardExclude: 'docs/private/, **/*.pem',
+    forwardAllow: '.kiro/public.md',
   })
   assert.deepEqual(mirrorOf(toPolicy(form)), mirror)
 })
