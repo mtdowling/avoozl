@@ -15,6 +15,7 @@ import { parseMarkers, crewName } from "./radar-claims.mjs";
 import { parseProvenance } from "./github-provenance.mjs";
 import { fence } from "./github-respond.mjs";
 import { sessionUrl } from "./notifications.mjs";
+import { recordActivity } from "./activity-log.mjs";
 
 export const DRAFT_KIND = "review-draft";
 export const DRAFT_ROLE = "review-draft";
@@ -407,10 +408,12 @@ async function watch(store, github, policy, { at, notify, errors }) {
         reviewState: found?.state ?? null,
       });
       dropRow(store, `waiting:${receipt.id}`);
-      notify.push({
-        channel: "activity",
-        title: `Review draft for ${ref(receipt.repository, receipt.number)} ${how}`,
-        text: receipt.url ?? "",
+      recordActivity(store, {
+        source: "github",
+        kind: `review-draft.${how}`,
+        summary: `The draft review on ${ref(receipt.repository, receipt.number)} was ${how}.`,
+        targetId: receipt.id,
+        key: `review-draft.${how}:${receipt.id}`,
       });
     } catch (error) {
       errors.push(
