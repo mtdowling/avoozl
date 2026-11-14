@@ -409,3 +409,18 @@ test("githubMode() is null in Local only", async (t) => {
     "single-repo",
   ]);
 });
+
+test("github.cacheSeconds and a repository's own are whole seconds from 0 to 3600", () => {
+  const ok = normalizeGitHubPolicy({
+    cacheSeconds: 30,
+    repositories: { "o/r": { cacheSeconds: 0 } },
+  });
+  assert.equal(ok.cacheSeconds, 30);
+  assert.equal(ok.repositories["o/r"].cacheSeconds, 0);
+  assert.equal(normalizeGitHubPolicy({}).cacheSeconds, null);
+  for (const bad of [-1, 3601, 1.5, "60"])
+    assert.throws(
+      () => normalizeGitHubPolicy({ cacheSeconds: bad }),
+      /cacheSeconds/,
+    );
+});

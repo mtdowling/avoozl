@@ -45,8 +45,18 @@ export class ResponseCache {
   #db() {
     if (!this.ready) {
       this.store.db.exec(
-        "CREATE TABLE IF NOT EXISTS github_http_cache(key TEXT PRIMARY KEY,etag TEXT,last_modified TEXT,body TEXT NOT NULL,link TEXT,scopes TEXT,at INTEGER NOT NULL)",
+        "CREATE TABLE IF NOT EXISTS github_http_cache(key TEXT PRIMARY KEY,etag TEXT,last_modified TEXT,body TEXT NOT NULL,link TEXT,scopes TEXT,at INTEGER NOT NULL,fetched INTEGER NOT NULL DEFAULT 0)",
       );
+      // A table made before the max-age cache has no `fetched` column.
+      if (
+        !this.store.db
+          .prepare("PRAGMA table_info(github_http_cache)")
+          .all()
+          .some((column) => column.name === "fetched")
+      )
+        this.store.db.exec(
+          "ALTER TABLE github_http_cache ADD COLUMN fetched INTEGER NOT NULL DEFAULT 0",
+        );
       this.ready = true;
     }
     return this.store.db;
@@ -54,13 +64,21 @@ export class ResponseCache {
 
   // One entry per URL, Accept header and login, so a second account never
   // reads the first one's answer.
-  key(token, accept, href) {
+  key(token, accept, href, body) {
     return (
-      createHash("sha256").update(String(token)).digest("hex").slice(0, 8) +
-      "|" +
+      this.owner(token) +
       accept +
       "|" +
-      href
+      href +
+      (body
+        ? "#" + createHash("sha256").update(body).digest("hex").slice(0, 16)
+        : "")
+    );
+  }
+
+  owner(token) {
+    return (
+      createHash("sha256").update(String(token)).digest("hex").slice(0, 8) + "|"
     );
   }
 
@@ -68,7 +86,7 @@ export class ResponseCache {
     try {
       const row = this.#db()
         .prepare(
-          "SELECT etag,last_modified AS lastModified,body,link,scopes,at FROM github_http_cache WHERE key=?",
+          "SELECT etag,last_modified AS lastModified,body,link,scopes,at,fetched FROM github_http_cache WHERE key=?",
         )
         .get(key);
       if (!row) return null;
@@ -82,13 +100,19 @@ export class ResponseCache {
     }
   }
 
-  // An answer with neither validator, or too large, is not kept.
-  put(key, { etag, lastModified, body, link, scopes }) {
-    if ((!etag && !lastModified) || body.length > CACHE_MAX_BODY) return;
+  // An answer too large is not kept. One with no validator (a GraphQL
+  // answer) is kept for the max age only.
+  put(
+    key,
+    { etag, lastModified, body, link, scopes },
+    { ttlOnly = false } = {},
+  ) {
+    if ((!ttlOnly && !etag && !lastModified) || body.length > CACHE_MAX_BODY)
+      return;
     try {
       this.#db()
         .prepare(
-          "INSERT OR REPLACE INTO github_http_cache(key,etag,last_modified,body,link,scopes,at) VALUES (?,?,?,?,?,?,?)",
+          "INSERT OR REPLACE INTO github_http_cache(key,etag,last_modified,body,link,scopes,at,fetched) VALUES (?,?,?,?,?,?,?,?)",
         )
         .run(
           key,
@@ -98,11 +122,51 @@ export class ResponseCache {
           link || null,
           scopes ?? null,
           this.now(),
+          this.now(),
         );
       this.puts += 1;
       if (this.puts % PRUNE_EVERY === 0) this.prune();
     } catch {
       // A read-only or busy store only means no caching this time.
+    }
+  }
+
+  // GitHub just said the stored answer is still current (a 304).
+  refreshed(key) {
+    try {
+      this.#db()
+        .prepare("UPDATE github_http_cache SET fetched=?,at=? WHERE key=?")
+        .run(this.now(), this.now(), key);
+    } catch {
+      // The entry is then read again after its max age.
+    }
+  }
+
+  // A write ran: the answers it may have changed are no longer fresh. They
+  // stay, so the next read asks GitHub with their ETag, and a 304 is free.
+  // `repo` is "owner/name", or empty for everything this login stored.
+  invalidate(token, repo) {
+    try {
+      const own = this.owner(token) + "%";
+      if (repo)
+        this.#db()
+          .prepare(
+            "UPDATE github_http_cache SET fetched=0 WHERE key LIKE ? AND (key LIKE ? OR key LIKE ? OR key LIKE ? OR key LIKE ? OR key LIKE ?)",
+          )
+          .run(
+            own,
+            `%/repos/${repo}`,
+            `%/repos/${repo}/%`,
+            `%/repos/${repo}?%`,
+            "%/graphql%",
+            "%/search/%",
+          );
+      else
+        this.#db()
+          .prepare("UPDATE github_http_cache SET fetched=0 WHERE key LIKE ?")
+          .run(own);
+    } catch {
+      // Answers then age out by the max age.
     }
   }
 

@@ -507,8 +507,18 @@ as early.
 
 Every chat, Issue Radar and Avoozl's tick use one GitHub login, which GitHub
 limits to 5,000 REST calls an hour (GraphQL has its own count). Avoozl does
-four things about it:
+five things about it:
 
+- **One cache.** Every view, command and MCP tool reads GitHub through one
+  client. An answer it holds is reused with no call for `github.cacheSeconds`
+  seconds (default 60, 0 turns it off). A repository may set its own under
+  `github.repositories.<owner/name>.cacheSeconds`. Both are in Settings >
+  Where tasks live and in `.avoozl.json`. A write (a comment, a label, a
+  merge) makes the answers for its repository stale, not gone, so the next
+  read asks with the `ETag` and a 304 is free. While the rate limit holds, a
+  stored answer is served at any age. GraphQL queries are kept the same way,
+  by their text and variables; mutations and answers with errors are not.
+  A read can be up to that many seconds old, including pull-request checks.
 - **Conditional reads.** Every REST GET stores GitHub's `ETag` and
   `Last-Modified` and the body in the workspace database, and sends them back
   next time. A 304 answer costs nothing against the limit, and Avoozl reuses
@@ -524,6 +534,10 @@ four things about it:
 - **One row.** While limited, Needs you has one row, "GitHub rate limit
   reached, resumes at ...", with the calls left and the resource. It clears
   itself at the reset. There is one notification per limit window.
+- **Refresh.** The Refresh button on Home, Graph, Conflicts and Activity
+  shows its countdown, `[↻ 32s]`, and reads again at 0. It pauses while the
+  page is hidden. While limited it shows the time to the reset, `[↻ 18:51]`.
+  Details are in its tooltip.
 - **Numbers.** Settings > Where tasks live shows the last remaining and reset
   numbers and the share of calls GitHub answered with 304.
 
@@ -533,7 +547,8 @@ tasks. When every pull request read unchanged and settled, the next reads wait
 2 minutes, then 4, so a change can wait up to 4 minutes. The other GraphQL
 reads in a tick are issue links and branch heads (for a ready leaf with no
 linked branch yet), stacked-branch pull requests, Project Status moves, and
-discussions (only when turned on). They are not cached or paced yet.
+discussions (only when turned on). They go through the cache above, so they repeat at most once per
+`github.cacheSeconds`.
 
 Chats that wait on CI are told to read `gh pr checks <number>` every 2 to 3
 minutes, not `gh pr checks --watch`. Avoozl cannot enforce that for chats it

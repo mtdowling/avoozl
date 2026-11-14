@@ -83,6 +83,7 @@ import { taskSignals, isPlanInventory } from "../workbench-model.mjs";
 import { listExamples, seedExample } from "./examples.mjs";
 import { describeWorkspace } from "./client.mjs";
 import {
+  DEFAULT_CACHE_SECONDS,
   defaultGitHubClient,
   GitHubClient,
   parseRepository,
@@ -949,7 +950,8 @@ export class Operations {
     // Every GitHub text write passes content rules first (§4.9).
     const client = github || defaultGitHubClient();
     // Conditional reads and the rate-limit pause live in this workspace.
-    if (client instanceof GitHubClient) client.bind(store);
+    if (client instanceof GitHubClient)
+      client.bind(store, { cacheSeconds: (repo) => this.cacheSeconds(repo) });
     this.github = guardGitHub(client, store);
     this.configuration = configuration;
     this.workspaceRoot = workspaceRoot;
@@ -2041,7 +2043,10 @@ export class Operations {
       effective,
       error,
       // The last GitHub rate-limit numbers, for Settings > GitHub.
-      rate: rateView(this.store),
+      rate: {
+        ...rateView(this.store),
+        cacheSeconds: this.cacheSeconds(),
+      },
       // Review roles from `delivery` in the same file, shown beside each
       // repository's pull-request review settings. Read only here.
       review: reviewSettings(readDeliveryPolicy(this.workspaceRoot)),
@@ -2084,6 +2089,22 @@ export class Operations {
   // without a restart. Invalid policy refuses the operation that needs it.
   githubPolicy() {
     return readGitHubPolicy(this.workspaceRoot);
+  }
+  // github.cacheSeconds, with a repository's own value first. The files are
+  // read at most every five seconds; an unreadable file means the default.
+  cacheSeconds(repo = "") {
+    const at = Date.now();
+    if (!this.cachePolicy || at - this.cachePolicy.at > 5000)
+      this.cachePolicy = {
+        at,
+        policy: readGitHubPolicyOrNull(this.workspaceRoot),
+      };
+    const policy = this.cachePolicy.policy;
+    return (
+      policy?.repositories?.[repo]?.cacheSeconds ??
+      policy?.cacheSeconds ??
+      DEFAULT_CACHE_SECONDS
+    );
   }
   // Broad issues (§6.2): the child graph is a spec folder; approval stores it
   // as an approved plan, without its root epic, which is the source issue.
@@ -4493,6 +4514,7 @@ export class Operations {
         await requireDefaultBranches(policy, this.github);
       await requireMirrorsPrivate(policy, this.github);
       this.settingsFile().updateGitHubSettings(input);
+      this.cachePolicy = null;
       this.configuration?.reload();
       return this.githubSettings();
     }
