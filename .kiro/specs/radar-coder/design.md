@@ -1193,3 +1193,118 @@ Proof added to D17:
 | Proof  | Proves                                                                                                         |
 | ------ | -------------------------------------------------------------------------------------------------------------- |
 | rc-p24 | A public and a private plan active together in one mirror with one cross edge; `verify-issue` passes for both; no ref of `plansBranch` on the public repository |
+
+## D31. Forward targets and protections (RC26)
+
+### D31.1 Targets
+
+```text
+(a) each   mirror PR merged --> public PR --> source default branch
+(b) branch mirror PR merged --> public PR --> source publicBranch (mirror keeps a synced copy)
+(c) batch  epic mirror branch (never on source), epic done --> ONE commit --> one public PR
+                                                              --> source default branch or publicBranch
+publicBranch --> default branch: a person approves and merges; Avoozl never does (RC16.4)
+```
+
+Precedence: epic manifest (`forwardTarget`, `publicBranch`) over the
+repository's `mirror` setting over the default `each`. Settings and Trace name
+the source of the value in force ("Use the repository setting (each)").
+For (b), `mirrorSyncStep` (D29.2) also fast-forwards the mirror's copy of
+`publicBranch`, with its own explicit refspec. For (c), tasks inside the epic
+release on the mirror merge into the epic branch; tasks outside release when
+the one public PR merges. The batch commit is the net diff of the branch
+against the target base, so no mirror history is in it.
+
+### D31.2 Protections and their tests
+
+One function, `forwardGuard(change, policy)`, runs the protections in order and
+returns the first block. Every row has a test in
+`src/app/test/mirror-forward-protections.test.mjs` (a fake GitHub and a scratch
+clone; fake terms only).
+
+| # | Protection        | Default                                                                 | Test (a case that must block, or must pass)                                                     |
+| - | ----------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| 1 | Path policy       | Allow only non-excluded paths; `.kiro/`, plans branch, `AGENTS.md`, steering, `forwardExclude` out | A diff touching each excluded path blocks, naming the rule; an allowlisted path passes |
+| 2 | Leak scan         | Content rules of the public-crew layers; binary and over-size files refused | A planted fake term, host, ticket ID, account ID and secret each block; a binary and a large file block; an allowlisted binary passes |
+| 3 | Metadata scrub    | One new commit, author the person, no trailers or markers or mirror links | The commit has one parent (the source base), the person as author, no trailer, no email but the public one, no mirror SHA or URL |
+| 4 | Diff review       | Forward screen shows diff, title, body; push only on the same hash       | A change after display forces a new display; `auto` writes the receipt with the hash before the push |
+| 5 | Explicit refspecs | One branch per push; no `--mirror`, `--all`, `--tags`, wildcard          | A scan of every push call finds none of the banned forms and one refspec each                   |
+| 6 | Audit on the tick | Compare landed with the receipt                                          | A fake source with an extra file, another author or a ref named for the plans branch opens one row and a Stop the line |
+| 7 | Stop the line     | No forward while one is open                                             | With one open, the button shows the reason and `auto` pushes nothing                            |
+| 8 | A hit blocks      | One row; no retry by Avoozl                                              | A block gives one row across three ticks and zero retries; Try again re-runs 1 to 4             |
+
+Size limit: `forwardMaxFileBytes` has a default and is shown in Settings. The
+test uses the setting's value, not a number of its own.
+
+### D31.3 Receipt
+
+The forward record (D29.4) gains a receipt: the exact diff, title, body, their
+hash, the target, the person and the time. It is a private record and is never
+written to `source`. The audit (row 6) compares it with what GitHub reports.
+
+### D31.4 Failure modes
+
+| Failure                                   | What the owner sees                                            |
+| ----------------------------------------- | -------------------------------------------------------------- |
+| Excluded path in the diff                 | One Needs you row naming the rule; nothing pushed              |
+| Audit finds a difference on `source`      | One row; forwarding stops for the repository                   |
+| The shown diff changed before the push    | The Forward screen shows the new diff and asks again           |
+| Stop the line open                        | Forward button disabled with the reason                        |
+
+Proof added to D17:
+
+| Proof  | Proves                                                                                                         |
+| ------ | -------------------------------------------------------------------------------------------------------------- |
+| rc-p25 | Targets (a), (b) and (c) on scratch repositories; each protection blocks its planted case with one row         |
+
+## D32. Setup buttons (RC27)
+
+```text
+Settings > repository > Mirror
+  [Adopt existing setup]   [Create setup]
+        |                        |
+        v                        v
+   dry run: reads, found/missing/differs, writes (one per line, tick to keep)
+        |
+   confirm --> apply only ticked lines --> write `mirror` setting --> Radar values screen (Create)
+```
+
+One operation pair, `mirror.adopt` and `mirror.create` (CLI and MCP expose
+them; the page calls them), each with `dryRun: true` by default and an `apply`
+step that takes the dry run's hash. If the world changed since the hash, the
+apply refuses and returns a new dry run.
+
+### D32.1 Adopt
+
+Reads: the named or detected private mirror (and, through the remote coder's
+config, the staging repository of a managed remote harness, shown only as
+"a managed remote harness's staging repo"), branches (an orphan check for the
+plans branch), labels, the Radar values through the gateway grant (RC7.3),
+branch rules and the auto-merge setting. Output is a table of found, missing or
+differs, and a list of writes each marked tick or blocked. A rule maintained by
+another tool is not changed unless its line is listed and ticked.
+
+### D32.2 Create
+
+Steps in order, each only after the last passed: create the private repository
+and read its visibility back; `git push --mirror` once, from `source` into the
+new empty mirror, the only place that flag appears; the orphan plans branch; the
+labels; a branch rule requiring CI on the mirror's default branch; the
+auto-merge setting; then the Radar values screen. A name that already exists
+sends the person to Adopt. A mirror that does not read private stops the run
+with one row and no deletion.
+
+### D32.3 Failure modes
+
+| Failure                                   | What the owner sees                                            |
+| ----------------------------------------- | -------------------------------------------------------------- |
+| Missing permission                        | Line shown as blocked with the permission; one row on apply    |
+| Created mirror not private                | Run stops; one row; nothing deleted                            |
+| State changed since the dry run           | New dry run; confirm again                                     |
+| Name exists                               | Create refuses that step and points to Adopt                   |
+
+Proof added to D17:
+
+| Proof  | Proves                                                                                                         |
+| ------ | -------------------------------------------------------------------------------------------------------------- |
+| rc-p26 | Create builds a scratch mirror, both buttons are then no-ops; Adopt reports an existing mirror and changes nothing unticked |

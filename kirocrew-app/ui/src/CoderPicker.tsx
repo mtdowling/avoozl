@@ -13,37 +13,6 @@ import { IconLabel } from './controls.tsx'
 import { CircleHelp } from './icons.ts'
 import { CODER_CARDS, coderSource, defaultCoder, modeKey } from './settings-api.ts'
 
-const WORKER_STEPS: WalkStep[] = [
-  {
-    title: 'A task becomes ready',
-    text: 'When everything a task waits on is done, the tick marks it ready and starts it, up to the limit at once.',
-    picture: <Flow boxes={['Waits on', 'Ready', 'Started']} on={1} note="Every minute, the tick looks for ready tasks." />,
-    points: ['Watch it in Delivery, under Ready', 'Defer pauses it before it starts'],
-  },
-  {
-    title: 'A worker chat codes it',
-    text: 'Avoozl opens a Kiro Crew chat on this Mac with the task brief. It works on its own branch and reports its commit.',
-    picture: <Flow boxes={['Brief', 'Worker chat', 'Commit']} on={1} />,
-    points: ['Open the chat from the task to watch', 'Type in the chat to step in'],
-  },
-  {
-    title: 'Checks and reviewer chats',
-    text: 'A fresh chat runs the task checks on that exact commit. Reviewer chats then review it.',
-    picture: <Flow boxes={['Commit', 'Checks', 'Reviewer chats']} on={2} />,
-    points: ['A failed check starts a new attempt', 'A question shows up under Needs you'],
-  },
-  {
-    title: 'It merges',
-    text: 'Local only merges the branch in your checkout. A GitHub mode opens a pull request, and GitHub closes the issue when it merges.',
-    picture: <Flow boxes={['Approved', 'Branch', 'Merged']} on={2} />,
-  },
-  {
-    title: 'If you switch',
-    text: 'The choice is per repository. Tasks already running keep their chat. New tasks use the new coder after you save.',
-    picture: <Flow boxes={['Worker chats', 'Save', 'Issue Radar']} on={1} />,
-  },
-]
-
 const RADAR_STEPS: WalkStep[] = [
   {
     title: 'A task becomes ready',
@@ -70,7 +39,7 @@ const RADAR_STEPS: WalkStep[] = [
   {
     title: 'If you switch',
     text: 'The choice is per repository. Tasks already running stay with their crew. New tasks use the new coder after you save.',
-    picture: <Flow boxes={['Issue Radar', 'Save', 'Worker chats']} on={1} />,
+    picture: <Flow boxes={['Issue Radar', 'Save', 'Remote coder']} on={1} />,
   },
 ]
 
@@ -147,8 +116,8 @@ export function CoderPicker(props: { id: string; mode: string; value: string; on
       </div>
       <p className="text-xs text-muted" data-coder-source>{coderSource(props.mode, props.value)}</p>
       {mode === 'plans-repo' && <p className="text-xs text-muted">A Radar crew opens pull requests only in its own repository.</p>}
-      {mode === 'local' && <p className="text-xs text-muted">Radar crew and Remote coder need GitHub, so Local only uses the Avoozl worker.</p>}
-      {chosen !== 'remote' && <div>
+      {mode === 'local' && <p className="text-xs text-muted" data-local-no-coder>Local only has no coder. A Radar crew or Remote coder needs a GitHub repository: attach one to code this repository's tasks.</p>}
+      {chosen === 'issue-radar' && <div>
         <IconLabel icon={CircleHelp} onClick={() => setWalk(walk ? null : chosen)} aria-label={walk ? 'Hide how this works' : 'How does this work?'}>
           {walk ? 'Hide how this works' : 'How does this work?'}
         </IconLabel>
@@ -156,8 +125,8 @@ export function CoderPicker(props: { id: string; mode: string; value: string; on
       {walk && (
         <Walkthrough
           id={`${props.id}-walk`}
-          label={walk === 'issue-radar' ? 'How a Radar crew codes a task' : 'How the Avoozl worker codes a task'}
-          steps={walk === 'issue-radar' ? RADAR_STEPS : WORKER_STEPS}
+          label="How a Radar crew codes a task"
+          steps={RADAR_STEPS}
           onClose={() => setWalk(null)}
         />
       )}

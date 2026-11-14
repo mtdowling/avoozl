@@ -594,7 +594,7 @@ function ConflictRow(props: {
   )
 }
 
-export default function ConflictsView({ workspaceId }: { workspaceId: string | null }) {
+export default function ConflictsView({ workspaceId, embedded }: { workspaceId: string | null; embedded?: boolean }) {
   const api = useAppApi()
   const client = useMemo(() => viewsClient(api), [api])
   const tasks = useMemo(() => taskClient(api), [api])
@@ -695,6 +695,7 @@ export default function ConflictsView({ workspaceId }: { workspaceId: string | n
       <ViewHeading
         id="avoozl-conflicts-title"
         view="conflicts"
+        level={embedded ? 3 : 2}
         actions={
           workspaceId && (
             <IconLabel icon={RefreshCw} onClick={() => void reload()} disabled={busy || acting}>

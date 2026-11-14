@@ -15,7 +15,7 @@ import type { NewPlanForm } from './new-plan-api.ts'
 import { DriverBanner, DriverChip, HandOffButton, SetupList, useDriver } from './Driver.tsx'
 import type { DriverSpec } from './driver-api.ts'
 import { IconBtn, IconLabel, SectionHeading, ShowMore, TipBtn, ViewHeading, dangerStyle, useAskChat, usePages } from './controls.tsx'
-import { Archive, ArchiveRestore, ArrowLeft, ChevronRight, ClipboardCheck, DetailsIcon, Download, FolderOpen, LayoutGrid, Lightbulb, MessagesSquare, Network, Pencil, Plus, RefreshCw, Trash2, X } from './icons.ts'
+import { Archive, ArchiveRestore, ArrowLeft, ChevronRight, ClipboardCheck, DetailsIcon, Download, FolderOpen, Lightbulb, MessagesSquare, Network, Pencil, Plus, RefreshCw, Trash2, X } from './icons.ts'
 import { FilterPanel } from './FilterPanel.tsx'
 import { STATES, nodeState, type Drill, type NodeState } from './graph-layout.ts'
 import { rowPlanKey, type TaskFilter } from './filters.ts'
@@ -62,9 +62,9 @@ import {
   type SpecSummary,
 } from './plans-api'
 
-// Where a row's Graph or Delivery button goes; the filter is the tabs'
+// Where a row's Graph button goes; the filter is the tabs'
 // shared one, set to this plan.
-export type PlanTarget = 'graph' | 'delivery'
+export type PlanTarget = 'graph'
 
 // Plan prose stays at a readable line length (about 80 characters); tables
 // and code blocks may use the column's full width.
@@ -521,7 +521,7 @@ function PlansActions(props: { onQuickGoal: () => void; onNewPlan: () => void; o
       </IconLabel>
       <NewIdeaButton onClick={props.onNewIdea} />
       {props.onOpenIdeas && (
-        <IconLabel icon={Lightbulb} tooltip="Open your ideas on the Intake tab" onClick={props.onOpenIdeas}>
+        <IconLabel icon={Lightbulb} tooltip="Open your ideas under Waiting on you" onClick={props.onOpenIdeas}>
           Ideas{props.ideas !== null ? ` (${props.ideas})` : ''}
         </IconLabel>
       )}
@@ -555,7 +555,6 @@ function RowButtons(props: {
       )}
       {props.onOpen && <IconBtn icon={DetailsIcon} label={`Open docs for ${row.name}`} tooltip="Open this spec's documents and tasks" onClick={props.onOpen} />}
       {actions.scoped && <IconBtn icon={Network} label={`Graph of ${row.name}`} tooltip="Show this spec's tasks in the Graph" onClick={() => props.onScope('graph')} />}
-      {actions.scoped && <IconBtn icon={LayoutGrid} label={`Delivery of ${row.name}`} tooltip="Show this spec's tasks in Delivery" onClick={() => props.onScope('delivery')} />}
       {actions.review && props.onReview && <IconBtn icon={ClipboardCheck} label={`Review ${row.name}`} tooltip="Open this spec to check and approve it" onClick={props.onReview} />}
       {props.onChange && <IconBtn icon={Pencil} label={`Change spec ${row.name}`} tooltip="Start a planner chat to change this spec" onClick={props.onChange} />}
       {props.onArchive && actions.archivable && (
@@ -1065,7 +1064,7 @@ export default function PlansView(props: {
   // Bumped by the header's Plan a goal, or by Make it a spec with the
   // idea's fields: open the New plan drawer.
   newPlanRequest?: { n: number; seed?: Partial<NewPlanForm> }
-  // Open ideas, and the Ideas view on the Intake tab.
+  // Open ideas, and the Ideas view under Waiting on you.
   ideas?: number | null
   onOpenIdeas?: () => void
   // The Epics screen, shown above the spec list (never beside a spec's documents).
@@ -1294,7 +1293,7 @@ export default function PlansView(props: {
               ) : null
             }
           >
-            {row ? row.name : 'Specs'}
+            {row ? row.name : 'Epics'}
           </ViewHeading>
         </div>
       </div>
@@ -1399,7 +1398,7 @@ export default function PlansView(props: {
               <Card>
                 <SectionHeading title={row.name} className="mb-2" />
                 <p className="mt-1 text-xs text-muted">
-                  <code>{row.planId}</code> · written before the spec layout, so it has no folder. Its tasks show in Graph and Delivery.
+                  <code>{row.planId}</code> · written before the spec layout, so it has no folder. Its tasks show in the spec graph.
                 </p>
                 <div className="mt-2">
                   {!text ? (

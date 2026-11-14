@@ -32,7 +32,7 @@ const open = (query) =>
     width: 1280,
     height: 800,
   })
-const specsTab = button('Specs', 'tab')
+const specsTab = button('Epics', 'tab')
 
 test('no epics: it says what an epic is and offers Plan an epic', { skip }, async () => {
   await open({ epics: 'empty' })
@@ -81,9 +81,9 @@ test('a phase Graph button opens the Graph, and Back returns to the epics', { sk
   await click(radio('epics-open', 'search-v2'))
   await page.until(`Boolean(document.querySelector('[aria-label="Graph of phase Ranking"]'))`)
   await click(`document.querySelector('[aria-label="Graph of phase Ranking"]')`)
-  await page.until(`document.querySelector('[aria-label="Avoozl views"] [aria-selected="true"]')?.textContent.trim().startsWith('Graph')`)
+  await page.until(`Boolean(document.querySelector('[data-graph-view]')) && !document.querySelector('[data-epics-view]')`)
   await page.evaluate(`document.querySelector('[data-avoozl-pane]').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', code: 'ArrowLeft', altKey: true, bubbles: true }))`)
-  await page.until(`document.querySelector('[aria-label="Avoozl views"] [aria-selected="true"]')?.textContent.trim().startsWith('Specs')`)
+  await page.until(`Boolean(document.querySelector('[data-epics-view]'))`)
 })
 
 test('Trace with no issue chosen lists the merges with who did them and links', { skip }, async () => {
