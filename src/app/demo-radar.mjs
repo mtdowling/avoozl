@@ -11,7 +11,7 @@
 //
 // Local workers are retired: the sample has no worker rows. Crews are Issue
 // Radar crews on three made-up machines.
-import { statusComplete } from "../model.mjs";
+import { epicsView } from "./epics-view.mjs";
 import { buildTrace } from "./trace.mjs";
 import { renderProvenance } from "./github-provenance.mjs";
 
@@ -250,50 +250,6 @@ export function seedRadar(store, { repository, now = Date.now() }) {
 
 // --- Fixtures ----------------------------------------------------------------
 
-const PHASE_OF = (task) => task.phase?.id ?? "";
-
-function epicsView(data, rows, plans) {
-  const row = new Map(rows.map((entry) => [entry.taskId, entry]));
-  const done = (task) => statusComplete(data, task.status);
-  return data.epics.map((epic) => ({
-    id: epic.id,
-    title: epic.title ?? epic.id,
-    plans: epic.plans.map((planId) => {
-      const tasks = data.tasks.filter((task) => task.planId === planId),
-        order = [...new Set(tasks.map(PHASE_OF))];
-      let before = true;
-      const phases = order.map((phaseId) => {
-        const mine = tasks.filter((task) => PHASE_OF(task) === phaseId),
-          merged = mine.filter(done).length,
-          released = mine.filter(
-            (task) =>
-              done(task) ||
-              ["released", "claimed"].includes(row.get(task.id)?.state),
-          ).length,
-          // A handback comes first: a person must answer before anything moves.
-          handed = mine.find((task) => task.crewHold),
-          held = handed
-            ? `Handed back: answer issue #${handed.crewHold.number} on GitHub.`
-            : (mine
-                .map((task) => row.get(task.id))
-                .find((entry) => entry?.state === "held")?.reason ?? null),
-          gate = merged === mine.length ? "passed" : before ? "open" : "closed";
-        before = before && merged === mine.length;
-        return {
-          id: phaseId,
-          title: mine[0].phase?.title ?? phaseId,
-          gate,
-          total: mine.length,
-          merged,
-          released,
-          held,
-        };
-      });
-      return { id: planId, title: plans.get(planId)?.title ?? planId, phases };
-    }),
-  }));
-}
-
 const LIVE_STATUS = {
   claimed: "working",
   investigating: "working",
@@ -461,11 +417,7 @@ export async function demoFixtures(demo, { now = Date.now() } = {}) {
     version: DEMO_FIXTURES_VERSION,
     generatedAt: new Date(now).toISOString(),
     repository,
-    epics: epicsView(
-      data,
-      rows,
-      new Map(store.list("plans").map((plan) => [plan.id, plan])),
-    ),
+    epics: epicsView(store, queue).epics,
     crews,
     waitingOnYou,
     reviewDraft,

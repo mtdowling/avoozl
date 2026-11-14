@@ -374,6 +374,14 @@ const tools = {
         "radar.armed",
         "pull requests Avoozl armed for auto-merge that are still open",
       ],
+      epics: [
+        "epics.view",
+        "epics, specs and phases: gate, release count and held reasons, and specs not on GitHub yet",
+      ],
+      done_work: [
+        "trace.done",
+        "merged pull requests of approved specs, newest first, with the crew that did each",
+      ],
       release_queue: [
         "radar.releasequeue",
         "what is released, claimed, next or held, and why",

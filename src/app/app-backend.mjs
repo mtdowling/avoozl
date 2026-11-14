@@ -181,6 +181,8 @@ export const APP_OPERATIONS = new Set([
   "radar.mergepath",
   "radar.values",
   "radar.releasequeue",
+  "epics.view",
+  "trace.done",
   "quickgoal.get",
   "quickgoal.list",
   "quickgoal.confirm",
