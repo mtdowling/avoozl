@@ -831,3 +831,55 @@ its sub-issues wait for release.
    own claim label and SHALL leave a claim that is not its own.
 6. The claim SHALL be written once per approval. A second approval is a no-op
    (RC18.5).
+
+### Requirement RC22: The Workflow map in Settings
+
+**User story:** As the owner, I want one picture in Settings that shows how work
+flows through a repository with its real label names, coder, release number and
+merge setting, so that I see the whole path and where each setting is.
+
+This is display only. It writes nothing and starts nothing.
+
+#### Acceptance criteria
+
+1. Settings SHALL show a **Workflow map** for each repository, drawn from that
+   repository's saved settings (and the workspace's `delivery.ship`), never from
+   a fixed picture. A short muted line at the top SHALL say what the map shows
+   and that it is read from settings.
+2. The map SHALL have up to three lanes, each a row of step cards joined by
+   arrows that wrap on narrow widths: **Maintenance** (issue, crew label, crew
+   fixes, merge closes the issue; Avoozl is not in it), **Epic** (request, crew
+   asks for a person, planning label, draft, approval, claim and sub-issues,
+   ready labels in graph order, build, merge) and **Review draft** (pull
+   request, review label, review chat, pending review, drafted label, the
+   person submits, the crew answers).
+3. Each card SHALL carry a **who** tag: You, Radar crew, Avoozl or GitHub, each
+   with its own theme-variable color and a text word, so color is never the only
+   cue.
+4. A card SHALL show the repository's actual values: label names (set, or the
+   default and that it is the default), the coder, allowed actors or minimum
+   permission, the release number N and release mode, and the merge setting.
+   Clicking a value SHALL move focus to the field that sets it, opening the
+   Settings sub-tab and any folded group that holds it. A value set outside the
+   repository dialog (the merge setting, on the Delivery tab) SHALL name where it
+   is set.
+5. The lanes SHALL follow the coder. With `issue-radar`, the Epic lane builds
+   with crews and releases `ready` labels. With `worker`, Avoozl starts ready
+   tasks up to the repository's tasks-at-once number and opens worker chats.
+   With `remote`, the build step names a managed remote provider. Maintenance
+   needs a Radar crew and is muted for the other coders.
+6. A step that does not apply SHALL show muted with its reason in words (for
+   example "no review label is set", "the coder is not Issue Radar"). Local only
+   mode SHALL show only a local-worker lane (ready task, worker chat, checks and
+   reviewer chats, merge into the landing branch) and one line saying the GitHub
+   lanes are hidden in this mode (the settings-follow-mode rule).
+7. A step not built, or built and not proven on a real repository, SHALL carry a
+   small tag ("not built", "fake-tested", "not proven live"). The tags SHALL
+   come from one table in code that is keyed by step, so no card hand-writes
+   one, and the table SHALL be updated when a step's proof passes.
+8. A **Labels** table SHALL list each label, who writes it, and a link to its
+   setting. Labels the settings do not yet hold (review, drafted, until RC20 and
+   RC21 land) SHALL show as a placeholder that says so, and the review lane SHALL
+   be muted with that reason until a later change reads the setting.
+9. The map SHALL use theme variables only, read at 320 px, need no animation,
+   and turn off any it has under `prefers-reduced-motion`.

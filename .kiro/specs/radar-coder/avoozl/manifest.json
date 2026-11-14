@@ -1675,6 +1675,39 @@
       "requires": [
         "rc-19.1"
       ]
+    },
+    "rc-21.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Workflow map model: lanes, cards, values and tags from the saved settings. See RC22.2, RC22.3, RC22.4, RC22.5, RC22.6, RC22.7, RC22.8; \u00a7D27.",
+      "acceptance": [
+        "Unit tests cover issue-radar single repository, plans-repository mode, worker and remote coders, Local only (one lane), a muted step with its reason, and a test that no card text holds a tag word; `npm run test:ui` passes."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-1.1",
+        "rc-18.1"
+      ]
+    },
+    "rc-21.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Workflow map in Settings: sub-tab, Local only box, jumps, page test. See RC22.1, RC22.4, RC22.9; \u00a7D27.",
+      "acceptance": [
+        "The page test passes for issue-radar single repository, plans-repository mode and Local only; a jump focuses its field; `npm run test:ui` passes."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-21.1"
+      ]
     }
   }
 }

@@ -720,6 +720,40 @@ writes nothing and notes it in Trace. Sub-issues are released with `ready`
 in graph order (D6). Avoozl removes only its own claim when the plan is
 superseded or the parent closes.
 
+## D27. The Workflow map (RC22)
+
+```text
+saved settings --> buildWorkflowMap(input) --> lanes -> cards -> values (+ jump target, + tag)
+(repository form,    pure, no React            |                          |
+ delivery.ship)                                |                          '-- tag from WORKFLOW_STATUS (one table)
+                                               '-- Settings draws it: Repository dialog tab, and a Local only box
+```
+
+- **One pure function** (`kirocrew-app/ui/src/workflow-map.ts`) turns the
+  repository form and the ship mode into lanes. The page only draws what it
+  returns, so unit tests check the logic and one page test checks the drawing.
+- **Values** are `{ text, source: 'set' | 'default' | 'placeholder', jump? }`.
+  `jump` names a Settings sub-tab and an element id. The page switches the
+  sub-tab, opens any closed `<details>` around the element, then focuses it.
+- **Tags** come from `WORKFLOW_STATUS`, keyed by step key. A key that is
+  absent has no tag. No card holds its own tag text.
+- **Who colors** are `--accent` (You), `--tile-purple` (Radar crew), `--ok` (Avoozl) and
+  `--tile-orange` (GitHub), each with an existing theme variable as fallback, with the word beside each, so color is never the only cue.
+- **Lanes by coder**: `issue-radar` gets all three; `worker` replaces the
+  release steps with "the tick starts ready tasks, N at once" and the build step
+  with worker chats; `remote` names a managed remote provider and tags the step
+  not built. Local only draws one lane.
+- **Review lane**: its labels come from `radar.reviewLabel` and
+  `radar.draftedLabel` once RC21 lands. Until then they read from the form's
+  untouched `radar` keys and, when absent, show as placeholders with the lane
+  muted. A later small change wires the real fields.
+- **Where it lives**: a **Workflow map** sub-tab of the repository dialog, and a
+  box in the Local only repository view. It reads the dialog's current form, so
+  an edit shows at once; Save still writes the file.
+- **Not in scope**: editing from the map, live status of running work (Delivery
+  and Trace show that), and the merge setting's own jump (it lives on a tab
+  outside the dialog; the card names the tab).
+
 Proofs added to D17:
 
 | Proof  | Proves                                                                                       |
