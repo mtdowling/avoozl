@@ -389,6 +389,13 @@ function operationRow(name, input, result) {
       summary: `Switch model: queued ${Number(result?.queued) || 0} running chats to ${to}${input?.alsoNewTasks === true ? ", and new tasks" : ""}`,
     };
   }
+  if (name === "routing.retry")
+    return { kind: "routing.retry", summary: "Retry routing now" };
+  if (name === "routing.turnOff")
+    return {
+      kind: "routing.off",
+      summary: "Routing turned off after failures: tasks run on this machine",
+    };
   if (name === "provider.health.clear")
     return {
       kind: "model.switch",

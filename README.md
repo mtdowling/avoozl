@@ -294,8 +294,15 @@ from **Settings > Delivery**, as before.
   (so a chat cannot stall on an approval), reach the repository, and have
   the tags a task `needs` (such as `os:windows`). A model whose provider is
   out is never offered. The agent only picks among what passed; task text
-  in its brief is marked as untrusted data. A bad or missing reply falls
-  back to local and is logged in Activity.
+  in its brief is marked as untrusted data.
+- **No fallback.** With routing on, a failed router (an error, no reply in
+  90 seconds, a bad reply, a pick outside the options, a content rule on its
+  brief, or its model out) never runs a task on this machine. The task stays
+  Ready, marked "routing failed" with the reason, and is asked again after
+  1, 2, 4, 8, then every 15 minutes. After 3 failures in a row, **Needs
+  you** offers **Retry now** and **Turn routing off**. The Routing page
+  shows the last success, the last error, and the failures in a row; each
+  failure and recovery is an Activity row. Only routing off runs tasks here.
 - **Pins win.** A manifest task's `session` may pin `agent`, `model`, or
   `crew`.
 - **Providers** shows each provider's health and usage in the last 5 hours,

@@ -1139,8 +1139,11 @@ and its thresholds form are removed. In their place:
    Private repos stay local, Spread the load, Prefer Kiro models when Claude
    is low, 70% Claude, 30% Kiro.
 7. The agent chooses only among options that passed the checks, its reply
-   is validated, and task text in its brief is marked as untrusted data. A
-   bad or missing reply falls back to local and is logged in Activity.
+   is validated, and task text in its brief is marked as untrusted data.
+8. **No fallback** (owner, 2026-11-14). With routing on, a failed router
+   never runs a task on this machine. The task stays Ready, marked
+   "routing failed" with the reason, and is asked again after a backoff.
+   Only routing off runs tasks locally (below, Routing failures).
 
 Settings live in this machine's file only, because the prompt may name
 private machines:
@@ -1231,8 +1234,8 @@ above. The options are every crew with room times every model that passed.
 ```text
 tick N:   checks ─▶ options per ready worker ─▶ 1 option: take it
                                                ─▶ >1: queue ─▶ ONE avoozl-router session (all queued tasks)
-backend:  idle session ─▶ last reply ─▶ validate against each task's options ─▶ answered | fallback (Activity)
-tick N+k: checks again ─▶ pick still an option? take it : local (Activity) ─▶ answer spent
+backend:  idle session ─▶ last reply ─▶ validate against each task's options ─▶ answered | failed (Activity)
+tick N+k: checks again ─▶ pick still an option? take it : wait, marked (Activity) ─▶ answer spent
 ```
 
 - One tool-less `avoozl-router` session per tick at most, on `local`, on
@@ -1246,19 +1249,41 @@ tick N+k: checks again ─▶ pick still an option? take it : local (Activity) �
   broken so it cannot close the block. The brief passes the content rules
   like any other.
 - The reply is one JSON array `[{task, crew, model, reason}]`. A malformed
-  reply falls back for the whole call; a pick outside its task's options
-  falls back for that task. Each fallback is one Activity row of kind
-  `routing.fallback`.
-- No reply within 90 seconds, or a session that ended without one, falls
-  back.
+  reply fails the whole call; a pick outside its task's options, or a task
+  the reply leaves out, fails that task. One call is one failure or one
+  success, never both.
+- No reply within 90 seconds, or a session that ended without one, fails
+  the call.
 - An answer is used in the one tick that reads it. The checks run again on
-  that tick's facts first: a pick that no longer passes falls back to
-  local. Then the answer is spent, and any task still ready asks again in
-  the next call, with fresh facts. Nothing is cached across ticks.
-- Fallback means `local` on the kept or default model when `local` is an
-  option, else the task waits.
+  that tick's facts first: a pick that no longer passes is a failure, and
+  the task waits. Then the answer is spent, and any task still ready asks
+  again in the next call, with fresh facts. Nothing is cached across ticks.
 - The routing session is not a work chat: it does not count toward
   `local`'s chat limit.
+
+#### Routing failures
+
+With routing on, each of these is a failure (`routing-health.mjs`): the
+router session errors or ends without a reply, no reply in 90 seconds, a
+reply that is not the list, a pick outside the options or no pick, a
+content rule holds the brief, the router's model is out (rate limit or
+credits), or there is no folder to open the router chat in. A task no
+crew passes is a no-fit decision (above), never a local run. Router chats
+have no budget cap (§4.17), so a budget never stops one; if anything drops
+the router's dispatch, the 90-second limit makes it a failure.
+
+- The task stays Ready and is marked `routing failed` with the reason (the
+  Graph shows the mark). No crew is chosen and nothing records a placement.
+- The next call waits 1, 2, 4, 8 minutes, then every 15, after each
+  failure in a row. Inside the wait no task asks the router.
+- After 3 failures in a row, Needs you opens one `routing-failed` item with
+  **Retry now** (`routing.retry`, asks on the next tick) and **Turn routing
+  off** (`routing.turnOff`, switches routing off on this machine, keeps the
+  prompt, and clears the count). Both are person-only. A success closes it.
+- Each failure is an Activity row `routing.failed`; the first success after
+  failures is `routing.recovered`.
+- Settings › Routing shows last success, last error, and failures in a row.
+- Only routing off runs tasks locally.
 
 Preview runs the checks read-only over the ready tasks and shows each
 task's options, what ruled the rest out, what would happen (pinned, the
@@ -1290,7 +1315,8 @@ Kiro Crew is a route plugin (§4.8).
 | Used once, checked again             | A crew that went offline or a provider that went out since the call is never picked from an old answer   |
 | Low is a fact, out is a check        | The owner decides what low means in the prompt; out cannot run at all                                    |
 | Pins win                             | A task that must run somewhere says so in its own manifest                                               |
-| Fallback is local                    | Off is local; a failed call should look like off, not like a guess                                       |
+| No fallback when on                  | Owner, 2026-11-14: a task the prompt meant for a crew must never run here just because the router failed |
+| Backoff, then Needs you              | A broken router is retried without flooding; a person decides only after 3 failures in a row             |
 
 #### Content rules and trust
 
@@ -1347,7 +1373,7 @@ work comes back is the crew's own machine-local setting:
 #### Recording and recovery
 
 Each binding stores `crew`, the remote slot key, the reason (pinned, the
-only option, the routing agent's reason, or the fallback and why), the
+only option, the routing agent's reason, or routing off), the
 reading, what the checks ruled out, and the time. The Delivery view shows the crew.
 When a crew stops answering, its sessions show "crew unreachable" and stay
 bound (Requirement 8.2): no timer re-places them. When the crew answers
@@ -1472,7 +1498,7 @@ F77 and F131 and was not tried live (F132).
 | Stale reading means unavailable                                 | A crew that stopped reporting may be gone                                                                                    |
 | No fit opens a decision; no room just waits                     | No fit needs the owner to change a pin, `needs` or a crew; no room clears itself                                             |
 | Not Kiro Crew's own placement                                   | It has no tags and re-places on a timer (F81)                                                                                |
-| Agent after the checks, with fallback to local                  | The model ranks; it cannot widen what the checks allow, and a failure costs only the ranking                                 |
+| Agent after the checks, no fallback to local                    | The model ranks; it cannot widen what the checks allow, and a failure waits instead of running here                         |
 | Diff-covering content sets forbid remote by default             | Their pre-push hook guards a public push and runs only here                                                                  |
 | Remote relay opt-in, off by default, until MC-10                | Owner, 2026-11-13: remote placement now, without working around Kiro Crew's owner-only check                                 |
 | The person opens the relay chat; the tick only queues           | A chat the tick opens can never use `crew=`, and the tick cannot message a chat it did not open (F129, F130)                 |
@@ -5088,8 +5114,13 @@ a crew and a model for each ready task, among the options that pass the checks.
 **Routing prompt.** The switch is off by default, and on with an empty
 prompt counts as off. Each example button appends its text on its own line,
 once; the person edits it. The model picker lists the models Kiro Crew
-offers this machine. The last call's line says what happened, including a
-fallback and why.
+offers this machine. The last call's line says what happened. Under it:
+last success, last error, and failures in a row; while failures stand, a
+line says ready tasks wait and nothing runs here instead. A reply from an
+older backend that lacks what the page reads, or no `routing.view` at
+all, shows "The Avoozl backend is out of date for this page" instead of
+the sections. Each Settings tab sits in its own error boundary, so one
+tab that throws says so instead of blanking the app.
 
 **Providers.** One row per provider or model with usage, a limit or a mark
 (§4.20 Facts). A limit field per row turns usage into a percent; **Low at**
@@ -5736,7 +5767,7 @@ and next decision, are tasks in `tasks.md` (P1–P32). Summary:
 | P26   | Fake tracker and fake route plugins load only after approval, run a mixed chain end to end, rebuild from the tracker, and a broken plugin parks its tasks without stopping the tick (Phase 8)                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | P27   | Review gates with fake writers and reviewers: two review roles on distinct models gate integration of the exact commit, changes requested rework the same delivery, closures are checked against changed files, a not-run check keeps the gate shut without costing a writer attempt, a rebase forces re-review, typed paths around the gate are refused, and supersede survives plan re-approval (Phase 9)                                                                                                                                                                                                                                             |
 | P28   | Content rules with a fake terms file and a fake rules plugin: every boundary blocks a match and opens a decision without logging the term, agent calls are refused in-call, allow once passes one exact write, a missing or broken set fails closed, the built-in screens behave as before, and the terms never reach Git (Phase 10)                                                                                                                                                                                                                                                                                                                    |
-| P29   | Crew placement by one routing prompt with fake crews (`local`, `fake-linux`, `fake-windows`) and a fake routing agent: off keeps everything local, one call places every ready task among options that passed the checks, an answer is used once, a bad or missing reply falls back to local and is logged, `needs` and pins hold, a crew that would stall on approvals is never offered, no fit opens a decision, an unfetchable base leaves local alone, a lost crew keeps its binding, limits are configurable, the prompt stays machine-local, a public repository's remote push integrates, and every chat is attachable from In flight (Phase 11) |
+| P29   | Crew placement by one routing prompt with fake crews (`local`, `fake-linux`, `fake-windows`) and a fake routing agent: off keeps everything local, one call places every ready task among options that passed the checks, an answer is used once, a bad or missing reply holds the task (never local), backs off, and is logged, `needs` and pins hold, a crew that would stall on approvals is never offered, no fit opens a decision, an unfetchable base leaves local alone, a lost crew keeps its binding, limits are configurable, the prompt stays machine-local, a public repository's remote push integrates, and every chat is attachable from In flight (Phase 11) |
 | P30   | Flow with fake workers and scripted timings: spans from tool calls and from markers, a batch that runs once and splits on failure, a breaking commit that stops dependent work and resumes on green after a fix task, a flaky check that does not stop, local checks first refusing a push, and a retro proposal approved and then PDCA-checked into a revert proposal (Phase 12)                                                                                                                                                                                                                                                                       |
 | P31   | The Untriaged list with a fake GitHub: rule matches, triage labels, managed labels, and task-linked items are left out; the filter's default and errors; one cached read per interval; a failed read keeps items; the hand-off links and their fallback; Local only hides the tab; one batched notice; then a live read-only count on real repositories (Phase 13)                                                                                                                                                                                                                                                                                      |
 | P32   | Incoming items from a fake plugin source and a fake MCP caller: one record and pipeline for both, dedup and stale replays, the cursor kept on failure, content rules quarantining at intake, `source:` rules, who counts for each source, updates and closes following the allowed-close rule, a review that never delivers, every source in Untriaged, and GitHub intake and the GitHub Untriaged list unchanged (Phase 14)                                                                                                                                                                                                                            |

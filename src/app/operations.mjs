@@ -339,9 +339,11 @@ import {
 import {
   routingPreview,
   routingView,
+  turnRoutingOff,
   updateCrews,
   updateRouting,
 } from "./routing.mjs";
+import { retryRoutingNow } from "./routing-health.mjs";
 import { forgetRelay, relayCall, relayNeedsYou } from "./relay.mjs";
 import { claimTask, nextView } from "./runner.mjs";
 import {
@@ -2254,6 +2256,19 @@ export class Operations {
       return result;
     }
     if (name === "crews.update") return updateCrews(store, input);
+    // Needs you after repeated routing failures: Retry now, Turn routing off.
+    if (name === "routing.retry") {
+      if (context.caller || context.mcp)
+        fail("Only a person retries routing, in the Avoozl page.", 403);
+      return retryRoutingNow(store);
+    }
+    if (name === "routing.turnOff") {
+      if (context.caller || context.mcp)
+        fail("Only a person turns routing off, in the Avoozl page.", 403);
+      const result = turnRoutingOff(store, this.routingHooks());
+      this.configuration?.reload();
+      return result;
+    }
     // The Remote relay (relay.mjs): the relay chat's own calls, and Forget,
     // which only a person presses on the Routing page.
     if (name === "relay.call")

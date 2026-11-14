@@ -244,6 +244,8 @@ export const APP_OPERATIONS = new Set([
   "routing.update",
   "crews.update",
   "relay.forget",
+  "routing.retry",
+  "routing.turnOff",
   "providers.view",
   "provider.switch.preview",
   "provider.switch.dryRun",
