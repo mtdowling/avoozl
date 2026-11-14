@@ -317,7 +317,7 @@ Requirement RC13. Avoozl is for epics. This phase puts the scope statement in th
 - [ ] rc-p13 Proof 13: the work split, after rc-13.1, rc-13.2 [RC13] (§D22)
   - Setup: a scratch repository, a one-task goal and a five-task goal. Action: open each in the quick goal modal. Expected: the statement shows in all three places; the hint shows only for the one-task goal and does not block it. Failure means: Avoozl blocks or misleads. Next decision: remove the hint.
   - Done when: Expected result observed; receipt under `docs/evidence/`.
-  - Fake-GitHub proof merged in PR #PRNUM; live run pending owner (see docs/evidence/rc-proof-13.md)
+  - Fake-GitHub proof merged in PR #147; live run pending owner (see docs/evidence/rc-proof-13.md)
 
 ## Phase 14: The coder plug
 
@@ -364,7 +364,7 @@ Requirement RC15. A managed remote harness as a coder. A task is done only when 
 - [ ] rc-p15 Proof 15: a remote coder end to end with a fake harness, after rc-15.1, rc-15.2, rc-15.3, rc-15.4, rc-15.5, rc-15.6 [RC15] (§D22)
   - Setup: a scratch repository, `coder: remote`, a fake harness. Action: release two tasks; let the harness finish one with no pull request; publish it; merge. Expected: the Needs you row while waiting; done only after the merge; dependents released then. Failure means: Avoozl counted a harness state as done. Next decision: tighten the adapter map.
   - Done when: Expected result observed; receipt under `docs/evidence/`.
-  - Fake-GitHub proof merged in PR #PRNUM; live run pending owner (see docs/evidence/rc-proof-15.md)
+  - Fake-GitHub proof merged in PR #147; live run pending owner (see docs/evidence/rc-proof-15.md)
 
 ## Phase 16: Integration branches
 
@@ -391,7 +391,7 @@ Requirement RC16. A rewrite lands as small pull requests into a long-lived branc
 - [ ] rc-p16 Proof 16: a rewrite on an integration branch, after rc-16.1, rc-16.2, rc-16.3, rc-16.4, rc-16.5, rc-16.6 [RC16] (§D22)
   - Setup: a scratch repository, a protected branch, a four-task epic. Action: merge three tasks, force a conflict in a sync, fail a head check, then fix both and land. Expected: small merges into the branch; the sync conflict and the red head each stop the line; landing needs one person's approval on the current head. Failure means: the rewrite could reach main by itself. Next decision: block the branch feature.
   - Done when: Expected result observed; receipt under `docs/evidence/`.
-  - Fake-GitHub proof merged in PR #PRNUM; live run pending owner (see docs/evidence/rc-proof-16.md)
+  - Fake-GitHub proof merged in PR #147; live run pending owner (see docs/evidence/rc-proof-16.md)
 
 ## Phase 17: Epic types
 
@@ -409,7 +409,7 @@ Requirement RC17. Templates and docs for migrations, codegen changes and cross-r
 - [ ] rc-p17 Proof 17: epic types, after rc-17.1, rc-17.2, rc-17.3 [RC17] (§D22)
   - Setup: a scratch workspace and three repositories. Action: create a migration from the template; create a proposal with three sub-specs; import a gap report. Expected: valid specs, separate approvals, proposed tasks only for failing cells. Failure means: the templates mislead. Next decision: fix the template before the docs.
   - Done when: Expected result observed; receipt under `docs/evidence/`.
-  - Fake-GitHub proof merged in PR #PRNUM; live run pending owner (see docs/evidence/rc-proof-17.md)
+  - Fake-GitHub proof merged in PR #147; live run pending owner (see docs/evidence/rc-proof-17.md)
 
 ## Phase 18: Approve on the issue
 
@@ -427,7 +427,7 @@ Requirement RC18. A trusted person approves by label; any approval is written ba
 - [ ] rc-p18 Proof 18: approve on the issue, after rc-18.1, rc-18.2, rc-18.3 [RC18] (§D17)
   - Setup: a scratch repository with a drafted plan and a source issue. Action: approve by label as an allowed person; approve a second plan in Avoozl; label a third as a stranger. Expected: one record each; the issue shows the label and one marker comment for the second; the stranger's label is removed. Failure means: the issue and the record can disagree. Next decision: make the record the only source and drop the label path.
   - Done when: Expected result observed; receipt under `docs/evidence/`.
-  - Fake-GitHub proof merged in PR #PRNUM; live run pending owner (see docs/evidence/rc-proof-18.md)
+  - Fake-GitHub proof merged in PR #147; live run pending owner (see docs/evidence/rc-proof-18.md)
 
 ## Phase 19: Claim at approval
 
@@ -439,7 +439,7 @@ Requirement RC19. The parent issue is marked as taken when its plan is approved.
 - [ ] rc-p19 Proof 19: the parent is not taken by a crew, after rc-19.1 [RC19] (§D17)
   - Setup: a scratch repository, a Radar crew with label scope `ready`, an approved plan. Action: let the crew poll after approval and after the first release. Expected: the crew never takes the parent; it takes released sub-issues. Failure means: the claim format does not hold the crew off. Next decision: re-read the claim format on the current release.
   - Done when: Expected result observed live; receipt under `docs/evidence/`.
-  - Fake-GitHub proof merged in PR #PRNUM; live run pending owner (see docs/evidence/rc-proof-19.md)
+  - Fake-GitHub proof merged in PR #147; live run pending owner (see docs/evidence/rc-proof-19.md)
 
 ## Phase 20: Review drafts by label, and Avoozl's label names
 
