@@ -26,7 +26,7 @@ import { InFlightRow } from '../../src/DashboardView.tsx'
 import { TaskFiles } from '../../src/TaskFiles.tsx'
 import { setupForm } from '../../src/settings-api.ts'
 import { LAYER } from '../../src/layers.ts'
-import { BudgetSettings, PricesSettings } from '../../src/BudgetSettings.tsx'
+import { BudgetSettings } from '../../src/BudgetSettings.tsx'
 import PluginsSettings from '../../src/PluginsSettings.tsx'
 import { answerIntake } from './intake-fixture.ts'
 import AvoozlApp from '../../src/App.tsx'
@@ -251,6 +251,9 @@ const flightRow = {
   budget: null,
 }
 SCENARIOS['in-flight'] = { opener: '', render: () => <ul><InFlightRow row={flightRow as never} now={Date.now()} onInfo={() => undefined} /></ul> }
+// Two rows with different roles, ids and actions: their columns must line up.
+const reviewRow = { ...flightRow, slot: 's2', role: 'review:style', taskId: 'b22', title: 'A much longer task title for the second row', session: { ...flightRow.session, slot: 's2', role: 'review:style', link: '/chat?sid=s2' } }
+SCENARIOS['in-flight-pair'] = { opener: '', render: () => <ul style={{ maxWidth: 900 }}><InFlightRow row={flightRow as never} now={Date.now()} onInfo={() => undefined} /><InFlightRow row={reviewRow as never} now={Date.now()} onInfo={() => undefined} onPickAgain={undefined} /></ul> }
 SCENARIOS['switch-flow'] = own('Switch model', <SwitchModelButton workspaceId="w" />)
 
 // The whole page's top row (?app=1): workspaces and the line, nothing else
@@ -404,38 +407,18 @@ function Page() {
   )
 }
 
-// Settings pages with sample data (?page=budgets|prices), for the
-// settings screenshots. Prices and models here are made up. Only a settings
+// Settings pages with sample data (?page=budgets), for the
+// settings screenshots. Only a settings
 // page answers these, so the modal and app scenarios keep their own replies.
-if (query.get('page') === 'budgets' || query.get('page') === 'prices') {
+if (query.get('page') === 'budgets') {
 answer('budget.settings.get', () => ({
   hash: 'h1',
   budget: { usd: 5, mode: 'stop' },
   repositories: { avoozl: { usd: 8, mode: 'warn' }, docs: {} },
 }))
-answer('prices.get', () => ({
-  version: 0,
-  sha256: 'x',
-  savedAt: null,
-  hash: 'h2',
-  creditUsd: null,
-  models: {},
-  defaults: {
-    updated: '2026-11-13',
-    sources: ['https://example.com/pricing'],
-    models: { 'claude-sonnet-5.5': { inputPerMTokUsd: 2, outputPerMTokUsd: 10 } },
-  },
-  caps: { tokens: 2000000, credits: 200 },
-  seen: [
-    { model: 'claude-sonnet-5.5', turns: 12, unpricedTurns: 0, creditTurns: 0, priced: 'default' },
-    { model: 'kiro-auto', turns: 4, unpricedTurns: 4, creditTurns: 4, priced: 'credits' },
-    { model: 'local-model-x', turns: 3, unpricedTurns: 3, creditTurns: 0, priced: 'none' },
-  ],
-}))
 }
 const PAGES: Record<string, () => ReactNode> = {
   budgets: () => <BudgetSettings workspaceId="w" />,
-  prices: () => <PricesSettings workspaceId="w" />,
 }
 function SettingsPage({ name }: { name: string }) {
   const render = PAGES[name]

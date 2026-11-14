@@ -1,6 +1,5 @@
-// Task 27.1-27.3: the price table, budget levels and modes, spend, the stop
-// and the warn-mode over-budget item (design §4.17, Requirement 67). Prices
-// here are made up.
+// Task 27.1-27.3: the built-in price table, budget levels and modes, spend, the stop
+// and the warn-mode over-budget item (design §4.17, Requirement 67).
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -19,7 +18,6 @@ import {
 import { ingestUsage } from "../flow-usage.mjs";
 import { DEFAULT_PRICES, defaultPrice, priceKey } from "../default-prices.mjs";
 import { Operations } from "../operations.mjs";
-import { validatePack } from "../plugin-pack.mjs";
 import { parseSpec } from "../spec-plans.mjs";
 import { Store } from "../store.mjs";
 import { snapshot } from "./fixtures.mjs";
@@ -80,61 +78,46 @@ const turn = (ts, model, input, output, credits = 0) => ({
   credits,
 });
 
-test("a new price table is empty and every save is the next version with a hash", async (t) => {
+test("the price table is the built-in list only: no saves, no versions, an old key ignored", async (t) => {
   const { store, ops } = setup(t, [leaf("a1")]);
-  const empty = await ops.execute("prices.get", {});
-  assert.equal(empty.version, 0);
-  assert.deepEqual(empty.models, {});
-  assert.equal(empty.creditUsd, null);
-  const first = await ops.execute("prices.save", {
-    creditUsd: 0.01,
-    models: { "model-a": { inputPerMTokUsd: 1, outputPerMTokUsd: 2 } },
-  });
-  assert.equal(first.version, 1);
-  assert.match(first.sha256, /^[0-9a-f]{64}$/);
-  const second = await ops.execute("prices.save", {
-    creditUsd: 0.01,
-    models: { "model-a": { inputPerMTokUsd: 2, outputPerMTokUsd: 4 } },
-    expectedHash: first.hash,
-  });
-  assert.equal(second.version, 2);
-  assert.notEqual(second.sha256, first.sha256);
-  const rows = store.db
-    .prepare("SELECT version, sha256 FROM price_versions ORDER BY version")
-    .all();
-  assert.deepEqual(
-    rows.map((r) => r.version),
-    [1, 2],
-  );
-  await assert.rejects(
-    ops.execute("prices.save", { models: {}, expectedHash: first.hash }),
-    /changed/,
-  );
-  await assert.rejects(
-    ops.execute("prices.save", {
-      models: { "model-a": { inputPerMTokUsd: -1, outputPerMTokUsd: 1 } },
+  const table = readPrices();
+  assert.equal(table.version, 0);
+  assert.deepEqual(table.models, {});
+  assert.equal(table.defaults, DEFAULT_PRICES);
+  assert.match(table.sha256, /^[0-9a-f]{64}$/);
+  // The operations are gone, for a person too.
+  for (const name of ["prices.get", "prices.save"])
+    await assert.rejects(ops.execute(name, {}), /Unknown operation|unknown/i);
+  // An old saved key in the machine file changes nothing and is no error.
+  const file = path.join(process.env.XDG_CONFIG_HOME, "avoozl", "config.json");
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(
+    file,
+    JSON.stringify({
+      prices: {
+        version: 3,
+        creditUsd: 1,
+        models: { m: { inputPerMTokUsd: 9, outputPerMTokUsd: 9 } },
+      },
     }),
-    /0 or more/,
   );
-  assert.equal(readPrices(store).version, 2);
+  assert.deepEqual(readPrices(store, { machineFile: file }), table);
+  assert.equal(
+    priceTurn({ model: "m", credits: 0, input: 1e6, output: 0 }, table),
+    null,
+    "an old override prices nothing",
+  );
 });
 
-test("prices are refused in .avoozl.json, a manifest and a pack, by name", () => {
-  assert.throws(
-    () => validateTrackedBudgets({ prices: {} }),
-    /cannot hold prices.*this computer only/,
+test("an old prices key is ignored in .avoozl.json and a manifest; budget keys still validate", () => {
+  assert.doesNotThrow(() => validateTrackedBudgets({ prices: {} }));
+  assert.doesNotThrow(() =>
+    validateTrackedBudgets({ projects: { r1: { prices: {} } } }),
   );
+  assert.doesNotThrow(() => validateManifestBudget({ tasks: {}, prices: {} }));
   assert.throws(
-    () => validateTrackedBudgets({ projects: { r1: { prices: {} } } }),
-    /projects.r1 cannot hold prices/,
-  );
-  assert.throws(
-    () => validateManifestBudget({ tasks: {}, prices: {} }),
-    /manifest.json cannot hold prices/,
-  );
-  assert.throws(
-    () => validatePack({ settings: { prices: { models: {} } } }),
-    /Pack settings cannot hold prices/,
+    () => validateTrackedBudgets({ prices: {}, budget: { usd: 0 } }),
+    /above 0/,
   );
   assert.throws(() => budgetInput({ usd: 0 }), /above 0/);
   assert.throws(() => budgetInput({ mode: "soft" }), /"stop" or "warn"/);
@@ -152,7 +135,7 @@ test("prices are refused in .avoozl.json, a manifest and a pack, by name", () =>
   );
 });
 
-test("a spec manifest's top-level budget reaches each leaf; prices there are a diagnostic", () => {
+test("a spec manifest's top-level budget reaches each leaf; an old prices key there is ignored", () => {
   const files = {
     "requirements.md": "# R\n",
     "design.md": "# D\n",
@@ -192,7 +175,10 @@ test("a spec manifest's top-level budget reaches each leaf; prices there are a d
       }),
     },
   });
-  assert.ok(bad.diagnostics.some((d) => /cannot hold prices/.test(d.message)));
+  assert.deepEqual(
+    bad.diagnostics.filter((d) => d.severity !== "warning"),
+    [],
+  );
 });
 
 test("each key comes from the most specific level, with modes and the fallbacks", (t) => {
@@ -265,22 +251,19 @@ test("an Intake grant only sets a cap nobody set, and its cap is always stop", (
   );
 });
 
-test("a turn is priced by credits first, then by its model's token prices", () => {
-  const table = {
-    creditUsd: 0.01,
-    models: { m: { inputPerMTokUsd: 1, outputPerMTokUsd: 2 } },
-  };
-  assert.equal(priceTurn({ credits: 10, input: 0, output: 0 }, table), 0.1);
+test("a turn billed in credits is unpriced; a token turn is priced by the built-in list", () => {
+  const table = readPrices();
+  assert.equal(priceTurn({ credits: 10, input: 0, output: 0 }, table), null);
+  // claude-haiku-4.5: $1 in, $5 out per million tokens.
   assert.equal(
-    priceTurn({ model: "m", credits: 0, input: 1e6, output: 5e5 }, table),
-    2,
+    priceTurn(
+      { model: "claude-haiku-4.5", credits: 0, input: 1e6, output: 5e5 },
+      table,
+    ),
+    3.5,
   );
   assert.equal(
     priceTurn({ model: "z", credits: 0, input: 1e6, output: 0 }, table),
-    null,
-  );
-  assert.equal(
-    priceTurn({ credits: 5, input: 0, output: 0 }, { models: {} }),
     null,
   );
 });
@@ -293,12 +276,11 @@ test("warn mode never stops or messages; it opens again each further half of the
       budget: { notify: true },
     },
   );
-  await ops.execute("prices.save", {
-    models: { m: { inputPerMTokUsd: 1, outputPerMTokUsd: 0 } },
-  });
   const binding = bind(store, "w1");
   const feed = (ts, millions) =>
-    ingestUsage(store, binding, [turn(ts, "m", millions * 1e6, 0)]);
+    ingestUsage(store, binding, [
+      turn(ts, "claude-haiku-4.5", millions * 1e6, 0),
+    ]);
   const step = () => budgetStep(store, store.read(), { script: true, tracked });
   feed("2026-11-13T00:01:00Z", 1.7);
   let out = step();
@@ -375,14 +357,13 @@ test("unknown spend warns once and never stops", async (t) => {
   assert.equal(budgetHeldTaskIds(store).size, 0);
 });
 
-test("a person only: agents, MCP and app tokens cannot raise, stop or price", async (t) => {
+test("a person only: agents, MCP and app tokens cannot raise or stop", async (t) => {
   const { ops } = setup(t, [leaf("a1")]);
   for (const name of [
     "budget.raise",
     "budget.stop",
     "budget.acknowledge",
     "budget.switchToStop",
-    "prices.save",
   ])
     for (const context of [
       { mcp: true },
@@ -394,7 +375,7 @@ test("a person only: agents, MCP and app tokens cannot raise, stop or price", as
       );
 });
 
-test("built-in prices apply with no setup, and an override wins", () => {
+test("built-in prices apply with no setup", () => {
   const table = { models: {}, defaults: DEFAULT_PRICES };
   // 1M in at $3 and 1M out at $15.
   assert.equal(
@@ -417,19 +398,6 @@ test("built-in prices apply with no setup, and an override wins", () => {
     3,
     "provider prefixes, dates and dashed versions find the same price",
   );
-  const override = {
-    models: {
-      "claude-sonnet-4.5": { inputPerMTokUsd: 1, outputPerMTokUsd: 1 },
-    },
-    defaults: DEFAULT_PRICES,
-  };
-  assert.equal(
-    priceTurn(
-      { model: "claude-sonnet-4.5", credits: 0, input: 1e6, output: 0 },
-      override,
-    ),
-    1,
-  );
   assert.equal(
     priceTurn(
       { model: "no-such-model", credits: 0, input: 1e6, output: 0 },
@@ -441,7 +409,7 @@ test("built-in prices apply with no setup, and an override wins", () => {
   assert.ok(DEFAULT_PRICES.sources.every((url) => url.startsWith("https://")));
 });
 
-test("a turn billed in credits counts against the credit cap until a credit price is set", () => {
+test("a turn billed in credits counts against the credit cap", () => {
   const table = { models: {}, defaults: DEFAULT_PRICES };
   const credited = {
     model: "claude-sonnet-4.5",
@@ -450,26 +418,6 @@ test("a turn billed in credits counts against the credit cap until a credit pric
     output: 0,
   };
   assert.equal(priceTurn(credited, table), null);
-  assert.equal(priceTurn(credited, { ...table, creditUsd: 0.5 }), 1.5);
   assert.equal(priceKey("claude-opus-4-1-20250805"), "claude-opus-4.1");
   assert.equal(defaultPrice("CLAUDE-HAIKU-4.5")?.outputPerMTokUsd, 5);
-});
-
-test("prices.get shows the built-in table, its date, and how each model is budgeted", async (t) => {
-  const { store, ops } = setup(t, [leaf("a1")], { budget: { tokens: 900 } });
-  const binding = bind(store, "a1");
-  ingestUsage(store, binding, [
-    turn("2026-11-13T10:00:00Z", "claude-sonnet-4.5", 10, 10),
-    turn("2026-11-13T10:01:00Z", "kiro-model", 10, 10, 2),
-    turn("2026-11-13T10:02:00Z", "local-x", 10, 10),
-  ]);
-  const view = await ops.execute("prices.get", {});
-  assert.equal(view.defaults.updated, DEFAULT_PRICES.updated);
-  assert.deepEqual(view.caps, { tokens: 900, credits: DEFAULT_CAPS.credits });
-  const by = Object.fromEntries(view.seen.map((s) => [s.model, s.priced]));
-  assert.deepEqual(by, {
-    "claude-sonnet-4.5": "default",
-    "kiro-model": "credits",
-    "local-x": "none",
-  });
 });
