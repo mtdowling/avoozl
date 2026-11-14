@@ -13,13 +13,13 @@ Receipt for task `rc-p5` in `.kiro/specs/radar-coder/tasks.md`.
 
 A fake repository with required check `build`, auto-merge allowed and `ship: auto-merge`. A second workspace runs `ship: manual`. The fake merges a pull request only when auto-merge is armed on it, `build` is green and it has no conflict. Pull requests:
 
-| PR | Kind |
-|---|---|
-| 21 | the crew's, closes a marked issue |
-| 22 | a stranger's fork |
-| 23 | a stranger's branch in the repository |
-| 24 | a crew pull request that closes no marked issue |
-| 25 | the crew's, closes a marked issue, has a merge conflict |
+| PR  | Kind                                                    |
+| --- | ------------------------------------------------------- |
+| 21  | the crew's, closes a marked issue                       |
+| 22  | a stranger's fork                                       |
+| 23  | a stranger's branch in the repository                   |
+| 24  | a crew pull request that closes no marked issue         |
+| 25  | the crew's, closes a marked issue, has a merge conflict |
 
 ## Action
 
