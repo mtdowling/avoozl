@@ -34,7 +34,7 @@ const RULESET_NAME = "avoozl-required-check",
 const digest = (value) =>
   createHash("sha256").update(JSON.stringify(value)).digest("hex").slice(0, 32);
 
-function labelsWanted(settings) {
+export function labelsWanted(settings) {
   const radar = { ...RADAR_DEFAULTS, ...settings.radar };
   return [
     { name: radar.planLabel, color: COLORS.plan },
@@ -207,7 +207,7 @@ async function inspect(github, repository, settings, context = {}) {
   return steps;
 }
 
-async function write(github, repository, step) {
+export async function writeSetupStep(github, repository, step) {
   const { owner, repo } = parseRepository(repository);
   if (step.id === "labels")
     for (const label of step.write.create)
@@ -287,7 +287,7 @@ export async function radarSetup(
       "GitHub or the request changed since the preview. Preview again, then confirm.",
       409,
     );
-  await write(github, repository, step);
+  await writeSetupStep(github, repository, step);
   const now = await inspect(github, repository, settings, context),
     after = now.find((entry) => entry.id === step.id);
   return {
