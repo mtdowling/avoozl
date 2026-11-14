@@ -11,6 +11,7 @@
 import path from "node:path";
 import { itemKey, itemRows } from "./intake.mjs";
 import { attachHandoffs } from "./radar-plan-me.mjs";
+import { SOURCE_KIND } from "./radar-source.mjs";
 import { parseMatch } from "./issue-match.mjs";
 import {
   CREW_LABEL_DEFAULTS,
@@ -207,8 +208,6 @@ export function untriagedPath(store) {
     : null;
 }
 
-// A receipt for an issue Avoozl planned: the source of a spec (rc-1.3).
-export const SOURCE_KIND = "radar-source";
 const NOTICE_META = "untriagedNotice";
 const sourceId = (repository) => `github:${repository}`;
 const githubKey = (repository, number) =>
