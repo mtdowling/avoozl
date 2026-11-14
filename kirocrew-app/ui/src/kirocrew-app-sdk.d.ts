@@ -60,7 +60,12 @@ declare module '@kirocrew/app-sdk/ui' {
     // rest show their icon alone. Avoozl's segments have no icons, so
     // compact leaves them blank. Do not use it without icons.
     compact?: boolean
-    wrap?: boolean
+    // Host default true: below 80 px a segment the host hides every label
+    // but the selected one, and below 44 px a segment it turns into a
+    // dropdown. Avoozl's segments have no icons, so every control passes
+    // collapse={false}.
+    collapse?: boolean
+    wrap?: boolean | 'hug'
   }): ReactNode
   export const Card: ComponentType<{ children?: ReactNode; className?: string; style?: CSSProperties }>
   export const CardTitle: ComponentType<{ children?: ReactNode; className?: string }>

@@ -5847,6 +5847,8 @@ function cs({ workspaceId: e }) {
 				children: "Where delivery time goes, and what the last retro proposed."
 			}),
 			/* @__PURE__ */ C(x, {
+				collapse: !1,
+				wrap: "hug",
 				layoutId: "avoozl-flow-tabs",
 				ariaLabel: "Flow views",
 				segments: [
@@ -5864,8 +5866,7 @@ function cs({ workspaceId: e }) {
 					}
 				],
 				value: y,
-				onChange: (e) => b(e),
-				wrap: !0
+				onChange: (e) => b(e)
 			}),
 			y === "proposals" && /* @__PURE__ */ C(Mo, { workspaceId: e }),
 			y === "lessons" && /* @__PURE__ */ C(Fo, { workspaceId: e }),
@@ -12307,6 +12308,8 @@ function Pd(e) {
 				children: "Rough ideas from you and your agents. An idea never starts work. Riff on one in a chat, then make it a spec when it is ready."
 			}),
 			/* @__PURE__ */ C("div", { children: /* @__PURE__ */ C(x, {
+				collapse: !1,
+				wrap: "hug",
 				layoutId: "avoozl-ideas-state",
 				ariaLabel: "Ideas to show",
 				segments: yd.map((e) => ({
@@ -19089,6 +19092,8 @@ function gh({ workspaceId: e, onMakeSpec: t, onOpenSources: n, embedded: r }) {
 				children: "Work that comes in from GitHub and your intake sources, and your own ideas. Untriaged shows the items no trigger rule, triage label or Avoozl task covers. Send GitHub issues to an Issue Radar crew or start a code review chat on a pull request; plan or deliver an item from another source."
 			}),
 			L && /* @__PURE__ */ C("div", { children: /* @__PURE__ */ C(x, {
+				collapse: !1,
+				wrap: "hug",
 				layoutId: "avoozl-untriaged-show",
 				ariaLabel: "Show",
 				segments: [
@@ -25864,6 +25869,8 @@ function Zv(e) {
 				className: "flex flex-wrap items-center gap-2",
 				children: [
 					/* @__PURE__ */ C(x, {
+						collapse: !1,
+						wrap: "hug",
 						layoutId: "avoozl-terms-view",
 						ariaLabel: "Terms view",
 						segments: [{
@@ -28223,6 +28230,8 @@ function tb(e) {
 		className: "flex flex-col gap-3",
 		children: [
 			/* @__PURE__ */ C(x, {
+				collapse: !1,
+				wrap: "hug",
 				layoutId: "avoozl-repository-tabs",
 				ariaLabel: "Repository settings",
 				segments: Py.map((e) => ({
@@ -28230,8 +28239,7 @@ function tb(e) {
 					label: e.label
 				})),
 				value: a,
-				onChange: (e) => s(e),
-				wrap: !0
+				onChange: (e) => s(e)
 			}),
 			a === "mode" && /* @__PURE__ */ w(Wy, {
 				level: "sub",
@@ -33292,6 +33300,8 @@ function Gx() {
 						className: "flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 px-6 pb-3",
 						"data-top-row": !0,
 						children: /* @__PURE__ */ C(x, {
+							collapse: !1,
+							wrap: "hug",
 							layoutId: "avoozl-views",
 							ariaLabel: "Avoozl views",
 							segments: bh.map((e) => ({
@@ -33316,8 +33326,7 @@ function Gx() {
 								})
 							})),
 							value: Sh(s),
-							onChange: (e) => ue(e),
-							wrap: !0
+							onChange: (e) => ue(e)
 						})
 					}),
 					/* @__PURE__ */ C(ai, {}),
