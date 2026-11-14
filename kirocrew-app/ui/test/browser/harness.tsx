@@ -761,6 +761,15 @@ if (page === 'panel') {
   answer('github.conflict.resolve', (body) => (panelWin.__panelCalls.push(body.input), {}))
   answer('GET /api/apps/spec-builder/specs', () => ({ specs: [{ name: 'search-v2' }] }))
 }
+// ?page=panel&real=1: the panel on the replies a real backend gave over the
+// sample workspace (window.__REAL_PANEL, panel-real.test.mjs), so a reply that
+// drifts from what the panel reads shows up here and not only in a live host.
+const realPanel = (window as unknown as { __REAL_PANEL?: Record<string, unknown> }).__REAL_PANEL
+if (page === 'panel' && query.get('real') === '1' && realPanel) {
+  for (const name of ['conflicts.view', 'radar.crews', 'remote.view', 'radar.releasequeue', 'flow.view', 'plan.specs', 'driversession.view'])
+    answer(name, () => realPanel[name])
+  answer('GET /api/apps/spec-builder/specs', () => ({ specs: ((realPanel['plan.specs'] as { items: { name: string }[] }).items ?? []).map((item) => ({ name: item.name })) }))
+}
 class HarnessBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
   state = { error: null as string | null }
   static getDerivedStateFromError(error: unknown) {
