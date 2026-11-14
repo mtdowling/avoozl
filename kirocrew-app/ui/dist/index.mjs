@@ -6609,6 +6609,7 @@ var Ys = () => ({
 	branchPrefix: "",
 	squash: !0,
 	trustedPersons: "",
+	plansBranch: "",
 	forwardTarget: "",
 	publicBranch: "",
 	forwardMaxFileBytes: ""
@@ -6626,7 +6627,8 @@ var Ys = () => ({
 	forward: "blank: nudge, a Forward button you press",
 	forwardTo: "blank: the public repository",
 	branchPrefix: "blank: avoozl/",
-	trustedPersons: "blank: nobody, so Auto stays off"
+	trustedPersons: "blank: nobody, so Auto stays off",
+	plansBranch: "blank: avoozl-plans"
 };
 function $s(e) {
 	if (e.source.trim() || e.mirror.trim()) return pc({
@@ -6637,6 +6639,7 @@ function $s(e) {
 		branchPrefix: sc(e.branchPrefix),
 		squash: e.squash ? void 0 : !1,
 		trustedPersons: oc(e.trustedPersons),
+		plansBranch: sc(e.plansBranch),
 		forwardTarget: sc(e.forwardTarget),
 		publicBranch: sc(e.publicBranch),
 		forwardMaxFileBytes: e.forwardMaxFileBytes.trim() ? Number(e.forwardMaxFileBytes) : void 0
@@ -6787,6 +6790,7 @@ function fc(e) {
 						branchPrefix: $(e.branchPrefix),
 						squash: e.squash !== !1,
 						trustedPersons: ic(e.trustedPersons),
+						plansBranch: $(e.plansBranch),
 						forwardTarget: $(e.forwardTarget),
 						publicBranch: $(e.publicBranch),
 						forwardMaxFileBytes: $(e.forwardMaxFileBytes)
@@ -28213,6 +28217,14 @@ function tb(e) {
 							placeholder: "avoozl/",
 							value: t.branchPrefix,
 							onChange: (e) => r({ branchPrefix: e })
+						}),
+						/* @__PURE__ */ C(Hy, {
+							id: `${n}-plans-branch`,
+							label: "Private specs branch",
+							raw: "mirror.plansBranch",
+							placeholder: "avoozl-plans",
+							value: t.plansBranch,
+							onChange: (e) => r({ plansBranch: e })
 						}),
 						/* @__PURE__ */ C(Hy, {
 							id: `${n}-max-bytes`,
