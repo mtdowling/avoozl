@@ -33,6 +33,7 @@ test("a mirror gets every default", () => {
     branchPrefix: "avoozl/",
     squash: true,
     trustedPersons: [],
+    plansBranch: "avoozl-plans",
   });
 });
 
