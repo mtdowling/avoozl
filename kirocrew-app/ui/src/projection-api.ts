@@ -11,7 +11,19 @@ export interface ProjectionDetail extends ProjectionPreview {
   // The preview ran on a scratch copy because the plan is still a draft.
   simulated?: boolean
   blocked?: { code: string; message: string }[]
+  // The Create and release checks (RC2.9); absent for a repository Issue Radar does not code.
+  preflight?: { ok: boolean; items: PreflightItem[] }
 }
+
+export interface PreflightItem {
+  id: string
+  label: string
+  status: 'ok' | 'fail' | 'unverified'
+  detail: string
+}
+
+// The items that refuse Create and release, so the button can say which.
+export const preflightFailures = (preview: ProjectionDetail | null): PreflightItem[] => preview?.preflight?.items.filter((item) => item.status === 'fail') ?? []
 
 export type ChangeAction = 'update' | 'comment' | 'create' | 'close' | 'none'
 

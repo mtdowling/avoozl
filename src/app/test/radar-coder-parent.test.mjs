@@ -167,8 +167,14 @@ async function projected(
 }
 
 // Labels written to the source issue, from the fake's record.
+// Approval itself writes the approval label and the claim label (RC18.4,
+// RC19.1); those are covered in radar-coder-approval.test.mjs.
+const APPROVAL_WRITES = ["plan approved", CLAIM];
 const sourceWrites = (github) =>
-  github.labels.filter(([, number]) => number === SOURCE);
+  github.labels.filter(
+    ([, number, label]) =>
+      number === SOURCE && !APPROVAL_WRITES.includes(label),
+  );
 
 const rows = async (ops) =>
   (await ops.execute("conflicts.view", {})).items.filter((item) =>
@@ -203,7 +209,10 @@ test("Avoozl writes no label on the source by default", async (t) => {
   await ops.execute("github.project", { planId: plan.id });
   await ops.execute("workspace.tick", { sessions: [] });
   assert.deepEqual(sourceWrites(github), []);
-  assert.deepEqual(github.sourceLabels(), ["crew: needs human", "to plan"]);
+  assert.deepEqual(
+    github.sourceLabels().filter((name) => !APPROVAL_WRITES.includes(name)),
+    ["crew: needs human", "to plan"],
+  );
 });
 
 test("clearPlanLabel on removes only the planning label, once", async (t) => {
@@ -214,7 +223,10 @@ test("clearPlanLabel on removes only the planning label, once", async (t) => {
   }
   assert.deepEqual(sourceWrites(github), [["remove", SOURCE, "to plan"]]);
   // The claim and needs-human labels are never written.
-  assert.deepEqual(github.sourceLabels(), [HUMAN]);
+  assert.deepEqual(
+    github.sourceLabels().filter((name) => !APPROVAL_WRITES.includes(name)),
+    [HUMAN],
+  );
 });
 
 test("one Needs you row says to clear the needs-human label, once across three ticks", async (t) => {

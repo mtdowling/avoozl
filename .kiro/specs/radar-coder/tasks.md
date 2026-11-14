@@ -63,7 +63,7 @@ Requirement RC2. Spec to issues, in both modes, with batching and the preview. N
 - [x] rc-2.5 Project to GitHub preview and Spec changed diff, after rc-2.3 [RC2.1, RC2.8] (§D4.3)
   - The preview modal with include, batch edit, wave and release mode; **Create issues (held)** and **Create and release**; the Spec changed diff updates unclaimed issues after approval, comments on claimed ones, closes removed tasks as not planned; mockup `04-projection.html`; `kirocrew-app/ui/test/radar-projection.test.mjs`.
   - Done when: Nothing is written before the confirm (a fake GitHub records zero writes); a claimed issue is never edited; a removed task closes as not planned; drawn at 320, 768 and 1280 px, light and dark.
-- [ ] rc-2.6 Preflight checks in the preview, after rc-2.1, rc-5.1 [RC2.9] (§D4.3)
+- [x] rc-2.6 Preflight checks in the preview, after rc-2.1, rc-5.1 [RC2.9] (§D4.3)
   - Preflight shows: spec on the default branch with `Status: Approved`, decision record, merge path, crew label scope (cannot verify without the grant), and the public sign-off; **Create and release** is refused when one fails.
   - Done when: Each failing preflight item refuses Create and release and names the item; a passing run enables it.
 - [ ] rc-p2 Proof 2: spec to issues in both modes, after rc-2.1, rc-2.2, rc-2.3, rc-2.4, rc-2.5, rc-2.6 [RC2] (§D17)
@@ -129,7 +129,7 @@ Requirement RC5. Crews do not arm auto-merge (Kiro Crew 0.12.2.4), so the tick d
 - [x] rc-5.3 Manual mode and the conflict label, after rc-5.1 [RC5.3, RC5.6, RC5.7] (§D7)
   - With `manual`: a Ready to merge row per green pull request, nothing armed. Conflict label on pull requests with a merge conflict and removed when clear; one Needs you row; no label written to Radar.
   - Done when: Manual arms nothing; a conflicted pull request gets the label and one row; resolving it removes both.
-- [ ] rc-5.4 Stop the line stops arming, and Disarm, after rc-5.2, rc-4.2 [RC5.4] (§D7)
+- [x] rc-5.4 Stop the line stops arming, and Disarm, after rc-5.2, rc-4.2 [RC5.4] (§D7)
   - While a stop is open for the scope the tick arms nothing; armed pull requests are listed in the banner with a person-only **Disarm**.
   - Done when: With a stop open a new pull request stays unarmed; Disarm is refused for an agent or app token.
 - [x] rc-5.5 Re-verify before arming, after rc-5.2, rc-3.3 [RC5.8] (§D7)
@@ -227,7 +227,7 @@ Requirement RC9. A goal becomes issues after one approval, through a generated m
 
 Requirement RC10. This phase gates on the public-crew layers and does not restate them.
 
-- [ ] rc-10.1 Hold release for a public repository until the public sign-off is complete, after rc-4.1 [RC10.1, RC10.2] (§D12)
+- [x] rc-10.1 Hold release for a public repository until the public sign-off is complete, after rc-4.1 [RC10.1, RC10.2] (§D12)
   - Release and arming refuse a public repository (or one whose visibility cannot be read) until the sign-off of "Crews on public repositories" in `.kiro/specs/avoozl/` is complete. This task waits for that work to land; it adds no layer of its own.
   - Done when: A public repository with no sign-off releases nothing and says why; once that work lands the check reads its sign-off.
 - [x] rc-10.2 verify-issue output is safe to post, after rc-3.3 [RC10.3, RC10.4] (§D12)
@@ -408,10 +408,10 @@ Requirement RC18. A trusted person approves by label; any approval is written ba
 - [x] rc-18.1 Approval label setting and label clash check, after rc-1.1 [RC18.1] (§D23)
   - `approval label` per repository, default `plan approved`; equal to the planning, needs-human, claim, ready or conflict label is refused naming both; Settings shows what it does and who writes it; `src/app/test/approval-label.test.mjs`.
   - Done when: The default validates; a clash is refused naming both labels; `npm test` passes.
-- [ ] rc-18.2 Tick reads the approval label and checks the labeler, after rc-18.1, rc-1.2, rc-3.6 [RC18.2, RC18.3, RC18.7] (§D23)
+- [x] rc-18.2 Tick reads the approval label and checks the labeler, after rc-18.1, rc-1.2, rc-3.6 [RC18.2, RC18.3, RC18.7] (§D23)
   - On a drafted plan with 0 lint errors, a label added by a person who passes the trigger-label check (`allowedActors`, `minimumPermission`) approves the plan; any other labeler, or an unreadable one, is ignored: the label is removed and one Needs you row names the login and issue; removing the label later revokes nothing.
   - Done when: A fake GitHub test: an allowed labeler approves; a stranger's label is removed with one row across three ticks; a label removal after approval changes nothing.
-- [ ] rc-18.3 One approval record, with write-back to the issue, after rc-18.2 [RC18.4, RC18.5, RC18.6, RC18.8, RC18.9] (§D23)
+- [x] rc-18.3 One approval record, with write-back to the issue, after rc-18.2 [RC18.4, RC18.5, RC18.6, RC18.8, RC18.9] (§D23)
   - Approving in Avoozl, in a chat or the CLI (`plans_*` tool), or by label ends in one approval record; the first two write back to the source issue: the label and one comment with a hidden marker (approver login, spec path, commit, time) and no spec text; a second approval is a no-op; a failed write-back leaves the approval and raises one row; a plan with no source issue skips it.
   - Done when: Three fake-GitHub tests: each path gives one record; a second approval writes nothing; a failed write-back leaves the approval and one row.
 - [ ] rc-p18 Proof 18: approve on the issue, after rc-18.1, rc-18.2, rc-18.3 [RC18] (§D17)
@@ -422,7 +422,7 @@ Requirement RC18. A trusted person approves by label; any approval is written ba
 
 Requirement RC19. The parent issue is marked as taken when its plan is approved.
 
-- [ ] rc-19.1 Claim the parent at approval, after rc-18.3, rc-1.3 [RC19.1, RC19.2, RC19.3, RC19.4, RC19.5, RC19.6] (§D24)
+- [x] rc-19.1 Claim the parent at approval, after rc-18.3, rc-1.3 [RC19.1, RC19.2, RC19.3, RC19.4, RC19.5, RC19.6] (§D24)
   - At approval Avoozl posts the claim marker in Radar's format, naming Avoozl and no real crew id, and adds the in-progress label on the parent; an existing crew claim is left alone and noted once in Trace; the claim is written once per approval; Avoozl removes only its own claim when the plan is superseded or the parent closes.
   - Done when: A fake-GitHub test: the parent gets one claim and label; a parent with a crew's claim gets no write and one Trace note; a second approval writes nothing; a superseded plan removes only Avoozl's claim.
 - [ ] rc-p19 Proof 19: the parent is not taken by a crew, after rc-19.1 [RC19] (§D17)
