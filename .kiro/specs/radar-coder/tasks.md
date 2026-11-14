@@ -485,7 +485,7 @@ Requirement RC22. A display in Settings of how work flows for each repository, r
 
 Requirement RC24. Crews work a private mirror of a public repository; Avoozl syncs it, tracks merged crew PRs, and forwards them to the public repository under a person's name.
 
-- [ ] rc-23.1 `mirror` setting: form and raw `.avoozl.json`, private-only validation, after rc-1.1 [RC24.1, RC24.2] (§D29)
+- [x] rc-23.1 `mirror` setting: form and raw `.avoozl.json`, private-only validation, after rc-1.1 [RC24.1, RC24.2] (§D29)
   - Fields, defaults and refusals of RC24.1 and RC24.2; the form and the raw file write one record; `src/app/test/mirror-policy.test.mjs`.
   - Done when: A public or unreadable mirror is refused; `forward: auto` with no trusted person is refused; the form and the raw file agree after an edit in either; `npm test` passes.
 - [ ] rc-23.2 Sync step and write targets, after rc-23.1, rc-2.1 [RC24.3, RC24.4] (§D29)

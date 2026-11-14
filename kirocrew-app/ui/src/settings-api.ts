@@ -274,9 +274,53 @@ export interface RepositoryForm {
   rules: RuleForm[]
   // The Untriaged list (design §8.5), each optional.
   untriaged: UntriagedForm
+  // The private mirror (RC24.1); blank source and mirror mean none.
+  mirror: MirrorForm
   // Settings this form does not show (checkout, folder, dependencyText),
   // written back unchanged.
   rest: Record<string, unknown>
+}
+
+export interface MirrorForm {
+  source: string
+  mirror: string
+  forwardTo: string
+  forward: string
+  branchPrefix: string
+  squash: boolean
+  trustedPersons: string
+}
+
+export const emptyMirror = (): MirrorForm => ({
+  source: '',
+  mirror: '',
+  forwardTo: '',
+  forward: '',
+  branchPrefix: '',
+  squash: true,
+  trustedPersons: '',
+})
+
+// What a blank mirror field means (src/app/mirror-policy.mjs MIRROR_DEFAULTS).
+export const MIRROR_FORWARD_MODES = ['off', 'nudge', 'auto'] as const
+export const MIRROR_DEFAULT_TEXT = {
+  forward: 'blank: nudge, a Forward button you press',
+  forwardTo: 'blank: the public repository',
+  branchPrefix: 'blank: avoozl/',
+  trustedPersons: 'blank: nobody, so Auto stays off',
+}
+
+function mirrorPolicy(form: MirrorForm) {
+  if (!form.source.trim() && !form.mirror.trim()) return undefined
+  return compact({
+    source: blank(form.source),
+    mirror: blank(form.mirror),
+    forwardTo: blank(form.forwardTo),
+    forward: blank(form.forward),
+    branchPrefix: blank(form.branchPrefix),
+    squash: form.squash ? undefined : false,
+    trustedPersons: splitList(form.trustedPersons),
+  })
 }
 
 export interface UntriagedForm {
@@ -357,6 +401,7 @@ const SHOWN = new Set([
   'crewLabels',
   'rules',
   'untriaged',
+  'mirror',
 ])
 
 export function emptyRule(): RuleForm {
@@ -393,6 +438,7 @@ export function emptyRepository(name = ''): RepositoryForm {
     reviewRules: '',
     rules: [],
     untriaged: emptyUntriaged(),
+    mirror: emptyMirror(),
     rest: {},
   }
 }
@@ -455,6 +501,18 @@ export function toForm(github: Policy): SettingsForm {
             triageLabels: Array.isArray(untriaged.triageLabels) ? untriaged.triageLabels.map(str).filter(Boolean) : [],
             ignoreOlderThanDays: str(untriaged.ignoreOlderThanDays),
             notify: untriaged.notify === true,
+          }
+        })(),
+        mirror: (() => {
+          const mirror = record(entry.mirror)
+          return {
+            source: str(mirror.source),
+            mirror: str(mirror.mirror),
+            forwardTo: str(mirror.forwardTo),
+            forward: str(mirror.forward),
+            branchPrefix: str(mirror.branchPrefix),
+            squash: mirror.squash !== false,
+            trustedPersons: joined(mirror.trustedPersons),
           }
         })(),
         // radar keeps its other keys (planLabel, conflictLabel, clearPlanLabel).
@@ -540,6 +598,7 @@ export function toPolicy(form: SettingsForm): Policy {
                 }),
               ),
               untriaged: untriagedPolicy(repository.untriaged),
+              mirror: mirrorPolicy(repository.mirror),
             }),
           ]),
         )
