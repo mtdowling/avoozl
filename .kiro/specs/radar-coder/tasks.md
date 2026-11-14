@@ -585,15 +585,16 @@ Requirement RC26. Where each mirror change lands on the public repository, and t
 
 Requirement RC27. Adopt what exists and create what is missing, with a dry run first.
 
-- [ ] rc-26.1 Dry-run engine and the `mirror.adopt` and `mirror.create` operations with CLI and MCP, after rc-23.1 [RC27.1, RC27.4, RC27.7] (§D32)
+- [x] rc-26.1 Dry-run engine and the `mirror.adopt` and `mirror.create` operations with CLI and MCP, after rc-23.1 [RC27.1, RC27.4, RC27.7] (§D32)
   - A dry run lists reads, found or missing or differs, and writes; apply takes the dry run's hash and refuses when the world changed; a second run shows zero writes; `src/app/test/mirror-setup.test.mjs`.
   - Done when: A dry run writes nothing; a changed world refuses the apply; a repeat run shows zero writes.
-- [ ] rc-26.2 Adopt existing setup, after rc-26.1, rc-7.2 [RC27.2, RC27.5, RC27.6] (§D32.1)
+- [x] rc-26.2 Adopt existing setup, after rc-26.1, rc-7.2 [RC27.2, RC27.5, RC27.6] (§D32.1)
   - Detects the private mirror (including a managed remote harness's staging repo), the plans branch, labels, Radar values and branch rules; writes only ticked lines; a rule kept by another tool is untouched unless listed and ticked; a missing permission shows as blocked.
   - Done when: A fake GitHub test: an existing mirror and plans branch are found and nothing unticked is written; a blocked line gives one row.
-- [ ] rc-26.3 Create setup, after rc-26.1, rc-24.1 [RC27.3, RC27.5, RC27.6] (§D32.2)
+- [x] rc-26.3 Create setup, after rc-26.1, rc-24.1 [RC27.3, RC27.5, RC27.6] (§D32.2)
   - Steps in order: private repository (visibility read back), one-time `git push --mirror` from the source into the new mirror, orphan plans branch, labels, branch rule requiring CI, auto-merge setting, then the Radar values screen; an existing name is refused and points to Adopt; a mirror that is not private stops the run and deletes nothing.
   - Done when: A fake GitHub test: the steps run in order; an existing name is refused; a non-private result stops with one row and no delete call.
+  - Built with the plans branch named `avoozl-plans` until rc-24.1 adds `plansBranch`; the engine reads `mirror.plansBranch` when it exists.
 - [ ] rc-26.4 Mirror section in Settings: two buttons, dry-run view, confirm, after rc-26.2, rc-26.3 [RC27.1, RC27.7] (§D32)
   - Both buttons call the operations; the dry run lists one line per write with a tick; the result fills the form and the raw file; no logic of its own in the page.
   - Done when: A page test: the dry run shows, a ticked line applies, an unticked line does not; `npm run test:ui` passes.
