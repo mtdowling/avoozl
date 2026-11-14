@@ -17,14 +17,15 @@ export function currentChat(loc: Pick<Location, 'pathname' | 'search'>): string 
   return match ? decodeURIComponent(match[1]) : ''
 }
 
-export function classifyChat(chat: string, known: { specs: string[] }): PanelChat {
+// `driver` is the slot the driver session was last seen on (driver-view-api.ts).
+export function classifyChat(chat: string, known: { specs: string[]; driver?: string | null }): PanelChat {
   // The longest name wins, so `demo-two` is not taken for `demo`.
   const spec = [...known.specs]
     .sort((a, b) => b.length - a.length)
     .find((name) => chat === `spec-builder-${name}` || new RegExp(`^spec-builder-${escape(name)}-[0-9a-f]{8}$`).test(chat))
   if (spec) return { kind: 'spec-builder', spec }
   if (chat.startsWith('crew-') && chat.length > 5) return { kind: 'crew', crew: chat.slice(5) }
-  if (chat.startsWith('avoozl_')) return { kind: 'avoozl' }
+  if (chat.startsWith('avoozl_') || (known.driver && chat === known.driver)) return { kind: 'avoozl' }
   return { kind: 'other' }
 }
 
