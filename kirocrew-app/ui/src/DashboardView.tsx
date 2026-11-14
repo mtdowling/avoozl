@@ -201,9 +201,15 @@ export function InFlightRow({ row, now, onInfo, onPickAgain }: { row: InFlight; 
       {/* Fixed columns, so every row's title and actions start at the same x. */}
       <span data-in-flight-role style={{ flex: '0 0 7.5rem' }}>
         <Badge>{roleLabel(row)}</Badge>
+        {row.remote && (
+          <>
+            {' '}
+            <Badge>Remote</Badge>
+          </>
+        )}
       </span>
       <span className="min-w-0 flex-1" style={{ flexBasis: '12rem' }}>
-        <TaskTitleLink id={row.taskId} title={row.title} className="font-medium" />{' '}
+        {row.remote ? <span className="font-medium">{row.title}</span> : <TaskTitleLink id={row.taskId} title={row.title} className="font-medium" />}{' '}
         <span className="text-xs text-muted">
           {row.taskId}
           {row.epic ? ` · ${row.epic}` : ''} · attempt {row.attempt}
@@ -213,20 +219,21 @@ export function InFlightRow({ row, now, onInfo, onPickAgain }: { row: InFlight; 
         <span className="block text-xs text-muted">
           {row.session.agent ? `${row.session.agent} / ` : ''}
           {row.model ?? 'model not named'}
-          {remote ? ` · on ${row.session.crew}` : ''} · running {duration(row.startedAt, now)} ·{' '}
+          {row.remote ? ` · ${row.remote.host}, crew ${row.remote.crewId}` : remote ? ` · on ${row.session.crew}` : ''}{row.remote?.stale ? ' · link down, last answer' : ''} · running {duration(row.startedAt, now)} ·{' '}
           {row.session.crewUnreachable ? 'crew unreachable' : (row.status ?? 'not observed')} {relativeTime(row.lastAt, now)}
         </span>
       </span>
       <span data-in-flight-actions className="flex items-center justify-end gap-1.5" style={{ flex: '0 0 11rem' }}>
-        <IconBtn icon={DetailsIcon} label={`Details for ${row.title}`} tooltip="Open the task drawer" onClick={onInfo} />
+        {!row.remote && <IconBtn icon={DetailsIcon} label={`Details for ${row.title}`} tooltip="Open the task drawer" onClick={onInfo} />}
         {onPickAgain && row.role === 'worker' && (
           <IconBtn icon={RefreshCw} label={`Pick again for ${row.title}`} tooltip="The next attempt picks its agent and model afresh" onClick={onPickAgain} />
         )}
         {!href ? (
-          <span className="text-xs text-muted">Attach waits on Kiro Crew</span>
+          <span className="text-xs text-muted">{row.remote ? `Set dashboardUrl for ${row.remote.host} to attach` : 'Attach waits on Kiro Crew'}</span>
         ) : (
         <a
           href={linkHref(href)}
+          {...(row.remote ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
           className="text-sm underline"
           aria-label={`Attach to the ${row.role} chat for ${row.title}`}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
@@ -328,18 +335,19 @@ export default function DashboardView(props: {
   // One failed read leaves its section empty rather than the whole page.
   const load = useCallback(
     async (id: string) => {
-      const [graph, delivery, conflicts, stored, radar] = await Promise.allSettled([
+      const [graph, delivery, conflicts, stored, remote, radar] = await Promise.allSettled([
         views.graph(id),
         views.delivery(id),
         views.conflicts(id),
         plans.stored(id),
+        views.remote(id),
         views.radarCrews(id),
       ])
       const value = <T,>(result: PromiseSettledResult<T>) => (result.status === 'fulfilled' ? result.value : null)
       const failed = [graph, delivery, conflicts, stored].filter((r) => r.status === 'rejected').length
       const items = value(conflicts)
       return {
-        summary: summarize({ graph: value(graph), delivery: value(delivery), conflicts: items, plans: value(stored), radar: value(radar), limit: Infinity }),
+        summary: summarize({ graph: value(graph), delivery: value(delivery), conflicts: items, plans: value(stored), remote: value(remote)?.workers ?? null, radar: value(radar), limit: Infinity }),
         conflicts: items ?? [],
         total: value(graph)?.total ?? 0,
         failed,

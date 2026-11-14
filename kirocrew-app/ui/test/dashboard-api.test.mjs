@@ -232,3 +232,25 @@ test('Issue Radar claims from GitHub are listed beside Avoozl chats, with what G
   // An older backend, or a failed read, shows none.
   assert.deepEqual(summarize({ graph: null, delivery: null, conflicts: [], plans: null }).radarFlight, [])
 })
+
+test('a remote worker from a runner shows in In flight with its crew link', () => {
+  const remote = {
+    host: 'box',
+    crewId: 'crew-b',
+    taskId: 'T1',
+    state: 'working',
+    chatKey: 'chat-4',
+    status: 'running',
+    updatedAt: '2026-11-14T03:00:00.000Z',
+    attachUrl: 'https://crew-b.example/chat?sid=chat-4',
+    stale: false,
+    lastOkAt: null,
+  }
+  const summary = summarize({ graph: null, delivery: [], conflicts: [], plans: null, remote: [remote] })
+  assert.equal(summary.inFlight.length, 1)
+  const [row] = summary.inFlight
+  assert.equal(row.remote.host, 'box')
+  assert.equal(row.session.link, 'https://crew-b.example/chat?sid=chat-4')
+  assert.equal(row.session.crew, 'crew-b')
+  assert.equal(summarize({ graph: null, delivery: [], conflicts: [], plans: null }).inFlight.length, 0)
+})

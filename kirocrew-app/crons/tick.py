@@ -176,6 +176,13 @@ def run(ctx):
         if d.get("sessionReason") and d.get("agent"):
             binding["agent"] = d["agent"]
         plans(ctx, "plans_bind_session", binding)
+        # A runner's worker has nobody to approve its tools (R84.9), so the
+        # owner may name a mode. Only the documented trust modes are passed.
+        if d.get("mode") in ("trust", "trust_reads"):
+            try:
+                ctx.set_session_mode(slot, d["mode"])
+            except Exception:  # an older Kiro Crew, or session control off
+                pass
         ctx.send_to_session(slot, d["brief"])
         opened += 1
 
