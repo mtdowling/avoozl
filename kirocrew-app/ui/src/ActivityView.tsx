@@ -10,12 +10,13 @@ import Badge from './Badge.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import { Section } from './SettingsView.tsx'
 import { FilterPanel, useStoredFilter } from './FilterPanel.tsx'
-import { IconLabel, ShowMore, TipBtn, ViewHeading } from './controls.tsx'
+import { ShowMore, TipBtn, ViewHeading } from './controls.tsx'
 import { selectStyle } from './FilterSelect.tsx'
 import { useTaskDrawer } from './drawer-context.ts'
 import { useMedia } from './use-media.ts'
 import { relativeTime } from './task-api.ts'
-import { History, RefreshCw } from './icons.ts'
+import { RefreshButton } from './RefreshButton.tsx'
+import { History } from './icons.ts'
 import { errorMessage } from './workspace-api.ts'
 import { linkHref } from './views-api.ts'
 import {
@@ -259,9 +260,7 @@ export default function ActivityView({ workspaceId }: { workspaceId: string | nu
         id="avoozl-activity-title"
         view="activity"
         actions={
-          <IconLabel icon={RefreshCw} onClick={() => void load()} disabled={busy || !workspaceId} tooltip="Read the activity log again">
-            Refresh
-          </IconLabel>
+          <RefreshButton workspaceId={workspaceId} onRefresh={() => void load()} busy={busy || !workspaceId} />
         }
       >
         Activity

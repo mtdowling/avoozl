@@ -105,6 +105,7 @@ export const POLICY_KEYS = Object.freeze([
   "defaultAuthority",
   "project",
   "epicIssueType",
+  "cacheSeconds",
   "subIssues",
   "issues",
   "repositories",
@@ -355,6 +356,15 @@ function releaseInput(value, coder, label) {
   return { capacity, mode: input.mode ?? RELEASE_MODES[0], scopes };
 }
 
+// How long GitHub answers stay fresh, in seconds; 0 turns the cache off.
+export const CACHE_SECONDS_MAX = 3600;
+function cacheSecondsInput(value, label) {
+  if (value === undefined || value === null) return null;
+  if (!Number.isSafeInteger(value) || value < 0 || value > CACHE_SECONDS_MAX)
+    fail(`${label} must be a whole number of seconds from 0 to 3600.`);
+  return value;
+}
+
 function repositoryInput(value, id, mode) {
   const label = `github.repositories.${id}`;
   onlyKeys(
@@ -385,6 +395,7 @@ function repositoryInput(value, id, mode) {
       "discussions",
       "untriaged",
       "mirror",
+      "cacheSeconds",
     ],
     label,
   );
@@ -668,6 +679,10 @@ function repositoryInput(value, id, mode) {
       : {}),
     // Deferred features (task 8.2), each off by default.
     stackedPullRequests: value.stackedPullRequests === true,
+    cacheSeconds: cacheSecondsInput(
+      value.cacheSeconds,
+      `${label}.cacheSeconds`,
+    ),
     commentSteering,
     discussions,
     untriaged,
@@ -781,6 +796,7 @@ export function normalizeGitHubPolicy(value) {
     epicIssueType: name(value.epicIssueType, "github.epicIssueType", {
       optional: true,
     }),
+    cacheSeconds: cacheSecondsInput(value.cacheSeconds, "github.cacheSeconds"),
     subIssues: subIssuesInput(value.subIssues),
     issues: issuesInput(value.issues),
     repositories: Object.fromEntries(
