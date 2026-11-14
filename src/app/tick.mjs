@@ -680,6 +680,7 @@ export async function tick(
     plugins,
     placement = {},
     folders = null,
+    issueVerify,
   },
 ) {
   // Every GitHub write of every step passes the driver backstop (§6.10).
@@ -831,7 +832,7 @@ export async function tick(
             text: error.message,
           });
         }
-      // Arm auto-merge on crew pull requests (RC5.2).
+      // Arm auto-merge on crew pull requests (RC5.2, RC5.8).
       if (script && github && delivery)
         try {
           planned.notify.push(
@@ -840,6 +841,7 @@ export async function tick(
                 policy: readGitHubPolicy(workspaceRoot),
                 delivery,
                 identity: planningIdentity(workspaceRoot),
+                ...(issueVerify ? { verify: issueVerify } : {}),
               })
             ).notify,
           );

@@ -847,6 +847,8 @@ export class Operations {
       shippedPrompts = null,
       // () => model IDs Kiro Crew lists, or null when unknown.
       models = null,
+      // (issue) => the issue.verify result; tests pass a fake.
+      issueVerifier = undefined,
     } = {},
   ) {
     this.store = store;
@@ -865,6 +867,7 @@ export class Operations {
     this.placement = placement;
     // Provenance for records this workspace mints; never an authorization.
     this.operator = operator || "";
+    this.issueVerifier = issueVerifier;
     // Every GitHub text write passes content rules first (§4.9).
     this.github = guardGitHub(github || defaultGitHubClient(), store);
     this.configuration = configuration;
@@ -2412,6 +2415,7 @@ export class Operations {
         breakdownHooks: () => this.breakdownHooks({ locked: true }),
         plugins: this.plugins,
         placement: this.placement,
+        issueVerify: this.issueVerifier,
       });
       // A deleted plan's tasks whose chats have ended are archived now.
       archiveEnded(store);
