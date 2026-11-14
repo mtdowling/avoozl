@@ -164,3 +164,49 @@ Other facts:
   one owner step. The grant test above shows an app token cannot do it.
 - Cleanup: crews retired, scratch issue #28 closed, gateway stopped. Draco and
   the owner's real `~/.kiro/agents` were not touched.
+
+## Agent list and hooks
+
+Same test home and build. The test install's `avoozl-crew.json` also had
+`hooks` for `agentSpawn`, `preToolUse` (`matcher: "*"`) and `stop`. Each hook
+ran a small script that appends one line to a log file.
+
+| Question | Result |
+|---|---|
+| Does `avoozl-crew` show in Radar's Agent list? | Yes. Radar's crew form fills its Agent picker from `GET /api/agents/catalog` (the dashboard's `useAgents` hook). That list included `avoozl-crew` and every other Avoozl agent. |
+| Do Avoozl MCP tools load in the crew chat? | Yes, again. A fresh crew `avoozl-crew-hooks2` called `plans_status` and got an answer. |
+| Do Avoozl hooks fire? | **No.** All three hooks were in the materialized spec (`avoozl--avoozl-crew.json`), but none ran. The log file was never created, and the turn showed no error. |
+
+Why the hooks do not run:
+
+1. The crew chat runs on the KAS backend. Kiro Crew's log shows
+   `Using custom agent profile: kirocrew-session-start`, KAS's start agent
+   (`acp/kas_start_agent.py`).
+2. KAS has no slot for spec `hooks`, so Kiro Crew fires them itself
+   (`agent_sdk/spec_hooks.py`, `ACP_BACKENDS_CREW_FIRES_SPEC_HOOKS` in
+   `agent_sdk/backends_routing.py:333`).
+3. Each run first checks the `capabilities.script_hooks` gate
+   (`hook_runtime/script_hooks.py:162`, `hook_runtime/governance_gate.py:189`).
+4. The Amazon edition's bundled security policy pins that gate OFF
+   (`kirocrew_amazon/security_policy.py:27`). It is a ceiling that
+   `config.json` cannot widen; `kirocrew config set capabilities.script_hooks`
+   answers "Unknown key".
+
+So in this edition no agent spec hook fires, Avoozl's or any other. The public
+edition registers the same gate as off by default
+(`platform/governance_parts/catalog.py:211`). I did not test a build or policy
+with the gate on, and I did not override the security policy.
+
+What this means for Avoozl:
+
+- An `avoozl-crew` agent can ship in `kirocrew-app/agents/`, and a person picks
+  it in Radar's New crew form like any other agent.
+- Anything Avoozl wants to run in a crew turn has to be a tool call, or part of
+  the agent's prompt. A hook will not run it here.
+- Lines added to the setup steps above: the person picks `avoozl-crew` under
+  Agent in New crew, and sets a default Avoozl workspace once.
+
+Test notes: crew created and chat turns sent with the owner session of the test
+gateway, as in the section above. Test-only files (`agents/avoozl-crew.json` and
+the hook script) were installed into the test home only and are not in this
+change. Cleanup: crew retired, gateway stopped.
