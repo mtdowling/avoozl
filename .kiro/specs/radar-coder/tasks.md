@@ -494,7 +494,7 @@ Requirement RC24. Crews work a private mirror of a public repository; Avoozl syn
 - [x] rc-23.3 Track merged mirror PRs, rows and Trace steps, after rc-23.2, rc-8.2 [RC24.5, RC24.14] (§D29)
   - `mirror_forward` record keyed by merge commit; rows in Waiting on you and Release queue; Trace steps Mirror merged, Forwarded, Public PR, Public merged.
   - Done when: A merge in the mirror gives one record across repeated ticks and the four Trace steps appear in order with GitHub times.
-- [ ] rc-23.4 Forward: one commit, strip, scan, push, public PR; nudge and auto, after rc-23.3, rc-10.1 [RC24.7, RC24.8, RC24.9, RC24.10, RC24.13] (§D29)
+- [x] rc-23.4 Forward: one commit, strip, scan, push, public PR; nudge and auto, after rc-23.3, rc-10.1 [RC24.7, RC24.8, RC24.9, RC24.10, RC24.13] (§D29)
   - Squashed commit by the approver; private trailers and text stripped; content rules run on commit, message, branch, title and body before any push; Forward button with a one-line reason; `auto` only for a trusted approver; no shared-token fallback; normal push only.
   - Done when: Tests: a clean change forwards once; a planted private term blocks the push with one row naming the rule; `auto` forwards for a trusted approver and not for another; a second press opens no second PR; no force push is ever issued.
 - [ ] rc-23.5 Public poll: done on public merge, closed unmerged, review copy-back, after rc-23.4, rc-4.1 [RC24.6, RC24.11] (§D29)
@@ -562,7 +562,7 @@ Requirement RC26. Where each mirror change lands on the public repository, and t
 - [ ] rc-25.2 Path policy and metadata scrub, after rc-23.4 [RC26.5, RC26.6] (§D31.2)
   - `forwardExclude`, `forwardAllow`, the default exclusions (`.kiro/`, the plans branch, `AGENTS.md`, steering); one new commit authored by the person, no trailers, markers, mirror history or links; tests 1 and 3 of D31.2 in `src/app/test/mirror-forward-protections.test.mjs`.
   - Done when: Each excluded path blocks naming the rule; an allowlisted path passes; the commit has one parent, the person as author and no trailer or mirror reference.
-- [ ] rc-25.3 Leak scan extensions: private terms, hosts, ticket IDs, account IDs, secrets, binary and over-size files, after rc-25.2 [RC26.5] (§D31.2)
+- [x] rc-25.3 Leak scan extensions: private terms, hosts, ticket IDs, account IDs, secrets, binary and over-size files, after rc-25.2 [RC26.5] (§D31.2)
   - Runs the public-crew content rules on the diff, file names, message, branch, title and body; `forwardMaxFileBytes` shown in Settings with its default; test 2 of D31.2.
   - Done when: A planted fake term, host, ticket ID, account ID and secret each block; a binary and an over-size file block; an allowlisted binary passes; the test reads the size from the setting.
 - [ ] rc-25.4 Forward screen shows the exact public diff, title and body; receipt, after rc-25.3, rc-23.4 [RC26.5] (§D31.2, §D31.3)
