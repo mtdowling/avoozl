@@ -420,6 +420,12 @@ import {
   specEpic,
 } from "./spec-plans.mjs";
 import {
+  openApproval,
+  proseFiles,
+  reconcileApproval,
+  statusOf,
+} from "./spec-approval.mjs";
+import {
   matchingAgentInstructions,
   toggleAgentInstruction,
 } from "./agent-instructions.mjs";
@@ -1360,6 +1366,61 @@ export class Operations {
     return Boolean(
       wanted && origin && origin.toLowerCase() === wanted.toLowerCase(),
     );
+  }
+  // Where a spec's approval pull request opens (D5.2, RC3.6): the repository
+  // that holds the spec, when it is an Issue Radar repository (single-repo) or
+  // the planning repository of a workspace with one (plans-repo). A worker
+  // repository, a local workspace and a spec outside a GitHub checkout keep
+  // the plain approval.
+  approvalPullRequestTarget(plan) {
+    const policy = readGitHubPolicyOrNull(this.workspaceRoot);
+    if (!policy?.mode || !plan.spec) return null;
+    const entries = Object.entries(policy.repositories || {}),
+      radar = entries.filter(([, entry]) => entry.coder === "issue-radar"),
+      root = this.readSpec(plan.spec).root,
+      origin = root && originRepositorySync(root)?.toLowerCase();
+    if (!origin) return null;
+    const holder =
+      policy.mode === "single-repo"
+        ? radar.find(([id]) => id.toLowerCase() === origin)
+        : radar.length && policy.planningRepository?.toLowerCase() === origin
+          ? [policy.planningRepository, radar[0][1]]
+          : null;
+    if (!holder) return null;
+    const [owner, repo] = origin.split("/");
+    return {
+      repository: { owner, repo, id: origin },
+      decisionRecord: holder[1].approval.decisionRecord,
+    };
+  }
+  // Approve ends in a commit a crew can read: open the approval pull request,
+  // and approve in Avoozl only once it has merged. Returns null when no pull
+  // request applies, `{ pending }` while it is open, `{ merged }` after.
+  async approvalPullRequest(plan, { approvedBy, quality }) {
+    const target = this.approvalPullRequestTarget(plan);
+    if (!target || this.planApproved(plan)) return null;
+    // Nothing to commit: the files already say Approved and no record is on.
+    const files = plan.files || {};
+    if (
+      !target.decisionRecord &&
+      proseFiles(files).every((name) => statusOf(files[name]) === "Approved")
+    )
+      return null;
+    const ids = { github: this.github, repository: target.repository },
+      key = { planId: plan.id, hash: plan.hash };
+    let state = await reconcileApproval(this.store, { ...ids, ...key });
+    if (state?.state === "merged") return { merged: state };
+    if (state?.state !== "open")
+      state = await openApproval(this.store, {
+        ...ids,
+        ...key,
+        spec: plan.spec,
+        files: plan.files || {},
+        diagnostics: quality.diagnostics,
+        approvedBy,
+        decisionRecord: target.decisionRecord,
+      });
+    return { pending: state };
   }
   // Whether a plan's current text is the one last approved.
   planApproved(plan) {
@@ -4346,12 +4407,36 @@ export class Operations {
           `Resolve plan diagnostic ${blocking.code} before approval: ${blocking.message}`,
           409,
         );
+      let approver = input.approvedBy?.trim() || this.operator,
+        evidence = input.evidence;
+      if (plan.spec && !extraction) {
+        const gate = await this.approvalPullRequest(plan, {
+          approvedBy: approver,
+          quality,
+        });
+        if (gate?.pending)
+          return {
+            id: plan.id,
+            hash: plan.hash,
+            pending: true,
+            approvalPullRequest: {
+              repository: gate.pending.repository,
+              number: gate.pending.number,
+              branch: gate.pending.branch,
+            },
+          };
+        if (gate?.merged) {
+          approver = gate.merged.approvedBy;
+          evidence = evidence || `Approval merged at ${gate.merged.commit}.`;
+        }
+      }
       return approvePlan(store, {
         ...input,
+        evidence,
         githubPolicy: this.githubPolicy(),
         ...(extraction ? { extraction, proposals } : {}),
         ...(specQuality ? { proposals, baseline: true } : {}),
-        approvedBy: input.approvedBy?.trim() || this.operator,
+        approvedBy: approver,
         operator: input.operator || this.operator,
         expectedRevision: input.expectedRevision ?? expectedRevision,
       });
