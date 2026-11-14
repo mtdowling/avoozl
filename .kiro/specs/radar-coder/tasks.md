@@ -528,3 +528,26 @@ Requirement RC23. A task that waits on an outside tracker item, with a label and
 - [ ] rc-p22 Proof 22: a gate with a fake plugin, after rc-22.1, rc-22.2, rc-22.3, rc-22.4, rc-22.5 [RC23] (§D28)
   - Setup: a scratch repository, an approved spec with a gate and one dependent, and a fake `gate` plugin whose answer the test sets. Action: let the plugin say `open`, then `unknown` twice, then `failed`, then `done`; in a second run clear the gate as an allowed person and as a stranger. Expected: the label sits on the gate and the dependent; nothing is released until `done`; one Needs you row appears for the failed state and closes on `done`; the dependent is then released and the labels removed; an allowed clear releases the dependent as an order and a stranger's clear is reverted. Failure means: a dependent can run while its outside item is not done, or a failed gate can clear itself. Next decision: make every gate a manual task.
   - Done when: Expected result observed with the fake plugin; receipt under `docs/evidence/`.
+
+## Phase 24: Private plans on an orphan branch
+
+Requirement RC25. Private plans live on an orphan branch of the mirror and never leave it; public plans stay on the default branch.
+
+- [ ] rc-24.1 `plansBranch` setting: default, orphan creation, validation, after rc-23.1 [RC25.1] (§D30)
+  - `mirror.plansBranch` in the form and the raw file; the branch is created from an empty commit with an explicit refspec; a name equal to the default branch, starting with `branchPrefix`, or sharing history with the default branch is refused; `src/app/test/mirror-plans-branch.test.mjs`.
+  - Done when: A fake GitHub test: the branch is created once; each refused name is refused with its reason; the form and the raw file agree.
+- [ ] rc-24.2 Spec home, reading both homes, Specs badge, after rc-24.1 [RC25.2, RC25.8] (§D30)
+  - Each spec records `main` or `plansBranch`; one reader merges both lists; a name in both is refused; new specs start private; a move copies and never deletes; the Specs page shows Private or Public.
+  - Done when: Unit tests for both homes and the duplicate name; a page test shows both badges; `npm test` and `npm run test:ui` pass.
+- [ ] rc-24.3 Marker `ref`, approval on the plans branch, `verify-issue` and crew commands, after rc-24.2, rc-3.3, rc-3.6, rc-3.2 [RC25.3, RC25.4, RC25.5] (§D30)
+  - Marker writer and parser gain `ref`; approval of a private spec opens its pull request against `plansBranch`; `commit` check uses `<ref>...<commit>` and requires an orphan branch; `--json` prints the fetch and show commands; the one-line prompt is unchanged.
+  - Done when: Tests: a private spec's issue passes; a `ref` that is the default branch, missing, or shares history fails with the reason; the prompt text equals the shipped one.
+- [ ] rc-24.4 Containment: sync, forward, leak scan, explicit refspecs, after rc-24.1, rc-23.4 [RC25.6] (§D30)
+  - Sync names the default branch only; the forward clone is single-branch; the leak scan blocks the plans branch name, private spec paths and commits from it in any forward text; every push has one explicit refspec and no `--mirror`, `--all`, `--tags` or wildcard.
+  - Done when: Tests: a planted plans-branch name or path blocks the push with one row naming the rule; the sync leaves the `plansBranch` head unchanged; a test scans Avoozl's push calls and finds no banned flag.
+- [ ] rc-24.5 Issues from public and private plans, after rc-24.3 [RC25.7] (§D30)
+  - Private-plan issues stay in the mirror and never go to the source; public-plan issue bodies stand alone with no private text and no `plansBranch`; a `requires` edge across homes is refused.
+  - Done when: A fake GitHub test: both kinds of issue are written; no write reaches the source for a private plan; a cross-home edge fails lint naming both.
+- [ ] rc-p24 Proof 24: a public and a private plan in one mirror, after rc-24.1, rc-24.2, rc-24.3, rc-24.4, rc-24.5, rc-p23 [RC25] (§D17)
+  - Setup: the two scratch repositories of Proof 23 (a public-visibility stand-in under `mtdowling` and a private mirror), created only for the proof. Action: make one public plan and one private plan in the mirror, approve both, project, run `verify-issue` on one issue of each, forward a code change for each, then plant the plans branch name in a forward and try again. Expected: both verify; the private plan's files are on `plansBranch` only; the public repository has no ref of that name and no private path; the planted forward is blocked. Failure means: a private plan can reach the public repository. Next decision: forward only from a clone that never fetched the plans branch and add a second scan layer. List both scratch repositories in the receipt for the owner to delete.
+  - Done when: Expected result observed; receipt under `docs/evidence/` lists the scratch repositories.
