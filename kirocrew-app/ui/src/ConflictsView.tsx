@@ -37,6 +37,7 @@ import { useTaskDrawer } from './drawer-context.ts'
 import { DangerBtn, IconBtn, IconLabel, ShowMore, TipBtn, ViewHeading, useAskChat, useConfirm, usePages } from './controls.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import { FilterPanel, useStoredFilter } from './FilterPanel.tsx'
+import { RefreshButton } from './RefreshButton.tsx'
 import { Check, DetailsIcon, ExternalLink, Eye, History, MessageSquare, RefreshCw, RotateCcw, X } from './icons.ts'
 import { itemRef } from './chat-api.ts'
 import { linkHref } from './views-api.ts'
@@ -698,9 +699,7 @@ export default function ConflictsView({ workspaceId, embedded }: { workspaceId: 
         level={embedded ? 3 : 2}
         actions={
           workspaceId && (
-            <IconLabel icon={RefreshCw} onClick={() => void reload()} disabled={busy || acting}>
-              Refresh
-            </IconLabel>
+            <RefreshButton workspaceId={workspaceId} onRefresh={() => void reload()} busy={busy || acting} />
           )
         }
       >

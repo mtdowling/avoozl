@@ -374,14 +374,16 @@ export default function AvoozlPanel() {
     </Fold>
   )
   const line = (
-    <div data-panel-line data-stopped={stopped ? '' : undefined} className="flex flex-col gap-2" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div data-panel-line data-stopped={stopped ? '' : undefined} className="flex flex-wrap items-center gap-2" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
       {stopped ? <Badge variant="danger">Line stopped</Badge> : <Badge variant="success">Line running</Badge>}
-      {model.stops.map((text) => (
-        <Muted key={text}>{text}</Muted>
-      ))}
       <ConfirmProvider>
         <StopLineButton workspaceId={workspaceId} />
       </ConfirmProvider>
+      {model.stops.map((text) => (
+        <span key={text} style={{ flexBasis: '100%' }}>
+          <Muted>{text}</Muted>
+        </span>
+      ))}
     </div>
   )
   const view = driverView(driver)

@@ -16,6 +16,7 @@ import { workspaceConfig, applicationRoot } from "./config.mjs";
 import { initializeWorkspace } from "./workspace.mjs";
 import { Operations } from "./operations.mjs";
 import { driverSettingsPath } from "./driver.mjs";
+import { driverSessionFile, registerDriverSession } from "./driver-session.mjs";
 import { handleMcp } from "./mcp.mjs";
 import { cliRefusal } from "./mcp-policy.mjs";
 import { createAppMcp } from "./app-mcp.mjs";
@@ -191,6 +192,7 @@ try {
       plansRoot: config.plansRoot,
       configDirectory: machineAvoozlPaths().configDirectory,
       driver: { settingsFile: driverSettingsPath() },
+      driverSessionFile: driverSessionFile(),
     });
   // Without a server, every CLI write goes through Operations in process.
   // `local` marks the caller as the person at this machine's command line.
@@ -848,18 +850,28 @@ try {
     let result;
     if (action === "hook") {
       // The avoozl-driver agent's agentSpawn and stop hooks: record the chat
-      // Kiro Crew names in `session_key` as the driver session. Prints
-      // nothing, and no failure ever blocks a turn.
+      // Kiro Crew names in `session_key` as the driver session. The record is
+      // the machine's (driver-session.mjs), so no workspace is needed. Prints
+      // nothing, and no failure ever blocks a turn; a failure is logged.
       try {
         const event = await hookEvent(process.stdin),
           slot = callerSlot({ sessionKey: event?.session_key });
-        if (slot && fs.existsSync(dbPath))
-          await localOrRequest("driversession.register", {
+        if (slot)
+          registerDriverSession({
             slot,
             source: String(event.hook_event_name || "hook"),
           });
-      } catch {
-        // A hook that cannot record stays silent; the turn goes on.
+      } catch (error) {
+        try {
+          const file = driverSessionFile() + ".log";
+          fs.mkdirSync(path.dirname(file), { recursive: true });
+          fs.appendFileSync(
+            file,
+            `${new Date().toISOString()} ${String(error?.message || error).slice(0, 300)}\n`,
+          );
+        } catch {
+          // Nothing more to try.
+        }
       }
     } else if (action === "status")
       result = await localOrRequest("driver.status", planId ? { planId } : {});
