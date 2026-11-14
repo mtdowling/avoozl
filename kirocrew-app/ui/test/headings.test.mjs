@@ -16,7 +16,7 @@ test('one section heading: title and buttons on one centered row, buttons right 
   assert.match(part, /className=\{`m-0 flex min-w-0 items-center gap-2 font-semibold/)
   assert.match(part, /<div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2"/)
   // View headings are the same part at level 2.
-  assert.match(controls, /export function ViewHeading[\s\S]*?<SectionHeading level=\{2\}/)
+  assert.match(controls, /export function ViewHeading[\s\S]*?<SectionHeading level=\{props\.level \?\? 2\}/)
 })
 
 test('no view uses the host CardTitle, whose bottom margin lifts a title above its buttons', () => {
@@ -30,10 +30,8 @@ test('headings with buttons pass them as the heading actions', () => {
   assert.match(flow, /<SectionHeading\s+title="Retros"\s+actions=\{/)
   for (const [file, view] of [
     ['ConflictsView.tsx', 'conflicts'],
-    ['DeliveryView.tsx', 'delivery'],
     ['UntriagedView.tsx', 'untriaged'],
     ['PlansView.tsx', 'plans'],
-    ['DashboardView.tsx', 'dashboard'],
   ])
     assert.match(source(file), new RegExp(`<ViewHeading\\s+id="avoozl-${view}-title"\\s+view="${view}"[\\s\\S]*?actions=\\{`), file)
   assert.match(source('PlansView.tsx'), /<SectionHeading\s+title="GitHub preview"[\s\S]*?actions=\{/)
@@ -73,7 +71,7 @@ test('a Needs you title opens what it is about', () => {
   const base = { key: 'k', kind: 'decision', title: 'T', detail: 'd', tab: 'conflicts', href: null }
   assert.deepEqual(attentionTarget({ ...base, taskId: 'W1' }), { kind: 'task', id: 'W1' })
   assert.deepEqual(attentionTarget({ ...base, kind: 'review', taskId: null, group: { kind: 'review' } }), { kind: 'review' })
-  assert.deepEqual(attentionTarget({ ...base, kind: 'content-match', taskId: null }), { kind: 'tab', tab: 'conflicts' })
+  assert.deepEqual(attentionTarget({ ...base, kind: 'content-match', taskId: null }), { kind: 'tab', tab: 'waiting' })
   assert.equal(attentionTip({ ...base, taskId: 'W1' }), 'Open W1 in the drawer')
   assert.equal(attentionTip({ ...base, kind: 'review', taskId: null, group: {} }), 'Open the list of tasks to review')
   const dashboard = source('DashboardView.tsx')

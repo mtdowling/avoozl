@@ -19,20 +19,21 @@ export interface Attention {
   group?: ConflictItem
   title: string
   detail: string
-  // Where the owner acts: the tab with the buttons, and a link out if any.
-  tab: 'conflicts' | 'delivery'
+  // Where the owner acts: Waiting on you, or the task's own drawer; and a
+  // link out if any.
+  tab: 'waiting' | 'task'
   href: string | null
 }
 
 // What a Needs you title opens: a review group's list of tasks, the task's
 // drawer (it shows the task's conflicts and decisions), or, for an item
 // with no task, the tab where it is settled.
-export type AttentionTarget = { kind: 'review' } | { kind: 'task'; id: string } | { kind: 'tab'; tab: Attention['tab'] }
+export type AttentionTarget = { kind: 'review' } | { kind: 'task'; id: string } | { kind: 'tab'; tab: 'waiting' }
 
 export function attentionTarget(item: Attention): AttentionTarget {
   if (item.group) return { kind: 'review' }
   if (item.taskId) return { kind: 'task', id: item.taskId }
-  return { kind: 'tab', tab: item.tab }
+  return { kind: 'tab', tab: 'waiting' }
 }
 
 // The title link's tooltip: where the click goes.
@@ -40,7 +41,7 @@ export function attentionTip(item: Attention): string {
   const target = attentionTarget(item)
   if (target.kind === 'review') return 'Open the list of tasks to review'
   if (target.kind === 'task') return `Open ${target.id} in the drawer`
-  return target.tab === 'conflicts' ? 'Open it in Conflicts' : 'Open it in Delivery'
+  return 'Open it in Waiting on you'
 }
 
 export interface RunningTask {
@@ -176,13 +177,13 @@ export function summarize(input: {
   for (const item of input.delivery ?? []) {
     const trouble = deliveryTrouble(item)
     if (trouble)
-      push({ key: `delivery:${item.id}`, kind: 'delivery', taskId: item.id, title: item.title, detail: trouble, tab: 'delivery', href: issueHref(item) })
+      push({ key: `delivery:${item.id}`, kind: 'delivery', taskId: item.id, title: item.title, detail: trouble, tab: 'task', href: issueHref(item) })
   }
   // A manual task once its blockers hold (R61.11): a person's step, tagged
   // Manual, in the same Needs you list.
   for (const task of leaves)
     if (task.needsYou?.manual && nodeState(task) === 'needs-you')
-      push({ key: `manual:${task.id}`, kind: 'manual', taskId: task.id, title: task.title, detail: task.needsYou.reason, tab: 'delivery', href: null })
+      push({ key: `manual:${task.id}`, kind: 'manual', taskId: task.id, title: task.title, detail: task.needsYou.reason, tab: 'task', href: null })
   // Decisions and GitHub conflicts first, then the rest in view order.
   const rank = (kind: string) => ['decision', 'github-conflict', 'stale-session'].indexOf(kind) >>> 0
   for (const item of [...(input.conflicts ?? [])].sort((a, b) => rank(a.kind) - rank(b.kind)))
@@ -193,7 +194,7 @@ export function summarize(input: {
       ...(item.kind === 'review' ? { group: item } : {}),
       title: item.title,
       detail: item.detail,
-      tab: 'conflicts',
+      tab: 'waiting',
       href: issueHref(item),
     })
 
