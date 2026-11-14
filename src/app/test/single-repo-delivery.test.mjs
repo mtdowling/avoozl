@@ -36,7 +36,7 @@ class DeliveryGitHub extends FakeGitHub {
     return Promise.resolve({
       node_id: "repo-node",
       full_name: owner + "/" + repo,
-      private: false,
+      private: true,
       default_branch: "main",
     });
   }

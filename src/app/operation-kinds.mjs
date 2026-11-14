@@ -76,6 +76,7 @@ const OBSERVE = new Set([
   "radar.values",
   "radar.releasequeue",
   "radar.armed",
+  "radar.preflight",
   "radar.integrationbranch",
   "intake.list",
   "intake.view",

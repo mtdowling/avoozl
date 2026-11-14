@@ -20,6 +20,7 @@ import { pausedTaskIds } from "./github-project.mjs";
 import { ensurePlanIssue } from "./driver.mjs";
 import { SUPERSEDED_STATUS } from "./supersede.mjs";
 import { graphOrder } from "./delivery.mjs";
+import { publicHold } from "./public-signoff.mjs";
 import { linePausedTaskIds, openStops, stopScope } from "./flow.mjs";
 import {
   CREW_LABEL_DEFAULTS,
@@ -1269,6 +1270,11 @@ async function project(
   const blocked = (item) => {
     const mode = release(item).mode;
     return (
+      (isRadarRepository(
+        identity.repositories?.[item.config.id],
+        identity.mode,
+      ) &&
+        Boolean(publicHold(store, item.config.id))) ||
       mode === "hold" ||
       (mode === "step" &&
         !store.get("receipts", stepReceiptId(plan.id, item.task)))
