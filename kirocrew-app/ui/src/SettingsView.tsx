@@ -23,6 +23,9 @@ import {
   settingsClient,
   toggleCheck,
   untriagedDefault,
+  MIRROR_DEFAULT_TEXT,
+  MIRROR_FORWARD_MODES,
+  type MirrorForm,
   type UntriagedForm,
   type FieldRule,
   type RepositoryInspect,
@@ -65,6 +68,7 @@ import { useSteppedState } from './NavHistory.tsx'
 import { useRead } from './useRead.ts'
 import { labelsClient, triageRows, type RepositoryLabels } from './untriaged-api.ts'
 import { errorMessage, workspaceClient, type Repository, type WorkspaceList } from './workspace-api.ts'
+import { Fold } from './controls.tsx'
 import { AskForHelp, DangerBtn, IconLabel, SectionHeading, TipBtn, ViewHeading, dangerStyle } from './controls.tsx'
 import { ChevronRight, Plus, Trash2 } from './icons.ts'
 import { redirectSettings } from './nav-api.ts'
@@ -710,6 +714,34 @@ function ReviewRule(props: { inspect: RepositoryInspect | null; repository: stri
   )
 }
 
+// Private mirror (RC24.1): crews work a private copy of a public repository.
+function MirrorBox(props: { id: string; mirror: MirrorForm; onChange: (mirror: MirrorForm) => void }) {
+  const { mirror, id } = props
+  const set = (change: Partial<MirrorForm>) => props.onChange({ ...mirror, ...change })
+  return (
+    <div className="flex flex-col gap-2 rounded border p-3" style={{ borderColor: 'var(--border)' }} data-mirror-box>
+      <span className="text-sm font-medium">Private mirror</span>
+      <p className="text-xs text-muted">Crews work in a private copy. The mirror must be private. Leave both names blank for none.</p>
+      <div style={grid()}>
+        <Text id={`${id}-source`} label="Public repository" raw="mirror.source" placeholder="owner/name" value={mirror.source} onChange={(value) => set({ source: value })} />
+        <Text id={`${id}-mirror`} label="Private mirror" raw="mirror.mirror" placeholder="owner/name-private" value={mirror.mirror} onChange={(value) => set({ mirror: value })} />
+        <Choice id={`${id}-forward`} label="Forward mode" raw="mirror.forward" rule={{ required: false, blank: MIRROR_DEFAULT_TEXT.forward }} value={mirror.forward} options={[...MIRROR_FORWARD_MODES]} none="Default (nudge)" onChange={(value) => set({ forward: value })} />
+      </div>
+      <Fold id={`${id}-more`} title="Advanced: mirror">
+        <div style={grid()}>
+          <Text id={`${id}-forward-to`} label="Forward to" raw="mirror.forwardTo" placeholder="source or fork:owner/name" value={mirror.forwardTo} onChange={(value) => set({ forwardTo: value })} />
+          <Text id={`${id}-prefix`} label="Branch prefix" raw="mirror.branchPrefix" placeholder="avoozl/" value={mirror.branchPrefix} onChange={(value) => set({ branchPrefix: value })} />
+          <Text id={`${id}-trusted`} label="Trusted persons" raw="mirror.trustedPersons" placeholder="login, login" value={mirror.trustedPersons} onChange={(value) => set({ trustedPersons: value })} />
+        </div>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={mirror.squash} onChange={(event) => set({ squash: event.target.checked })} />
+          Squash into one commit (mirror.squash, default on)
+        </label>
+      </Fold>
+    </div>
+  )
+}
+
 function RepositoryEditor(props: {
   index: number
   repository: RepositoryForm
@@ -784,7 +816,7 @@ function RepositoryEditor(props: {
             <Field id={`${id}-coder-worker`} label="Who codes" raw="coder" rule={REPOSITORY_FIELD_RULES.coder}>
               <CoderPicker id={`${id}-coder`} mode={props.mode} value={repository.coder} onChange={(value) => set({ coder: value })} />
             </Field>
-            <MirrorSlot />
+            <MirrorBox id={`${id}-mirror`} mirror={repository.mirror} onChange={(mirror) => set({ mirror })} />
             {(repository.coder || defaultCoder(props.mode)) === 'issue-radar' && (
               <>
                 <div style={grid()}>

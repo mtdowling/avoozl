@@ -154,6 +154,7 @@ import {
   RULE_ACTIONS,
   STATUS_VALUE_KEYS,
 } from "./github-policy.mjs";
+import { requireMirrorsPrivate } from "./mirror-policy.mjs";
 import { syncProject } from "./github-project.mjs";
 import { cancelSetup, githubSetup } from "./github-setup.mjs";
 import {
@@ -4468,6 +4469,7 @@ export class Operations {
         const policy = normalizeGitHubPolicy(policySection(input.github));
         if (this.github?.available?.())
           await requireDefaultBranches(policy, this.github);
+        await requireMirrorsPrivate(policy, this.github);
         return { valid: true, error: null, policy };
       } catch (error) {
         return { valid: false, error: error.message, policy: null };
@@ -4487,11 +4489,10 @@ export class Operations {
     // Stop a running Set up GitHub apply before its next write.
     if (name === "github.setup.cancel") return cancelSetup(input.previewHash);
     if (name === "github.settings.update") {
+      const policy = normalizeGitHubPolicy(policySection(input.github));
       if (this.github?.available?.())
-        await requireDefaultBranches(
-          normalizeGitHubPolicy(policySection(input.github)),
-          this.github,
-        );
+        await requireDefaultBranches(policy, this.github);
+      await requireMirrorsPrivate(policy, this.github);
       this.settingsFile().updateGitHubSettings(input);
       this.configuration?.reload();
       return this.githubSettings();
@@ -4501,6 +4502,14 @@ export class Operations {
     if (name === "configuration.update") {
       if (!this.configuration)
         fail("Configuration editing is unavailable from this server.", 404);
+      // The raw file is held to the same private-mirror rule as the form.
+      let raw = null;
+      try {
+        raw = normalizeGitHubPolicy(JSON.parse(input.text).github);
+      } catch {
+        // An unparsable or invalid file is refused by the update itself.
+      }
+      await requireMirrorsPrivate(raw, this.github);
       return this.configuration.updateConfiguration(input);
     }
     if (name === "local.ignore.status") return globalLocalIgnoreStatus();
