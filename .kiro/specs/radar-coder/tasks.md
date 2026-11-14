@@ -37,7 +37,7 @@ Requirement RC1. The Radar path starts with one setting and four label names. No
 - [x] rc-1.2 Plan only the planning label, Untriaged off for Radar-coded repositories, after rc-1.1 [RC1.2, RC1.5, RC1.8] (§D3)
   - The Untriaged read lists no plain open issue for a `coder: issue-radar` repository; an issue with the planning label and an allowed labeler goes to Intake; the plan-me routing of PR 67 is untouched; Intake row action **Plan this** starts a planner chat; `src/app/test/radar-coder-intake.test.mjs`.
   - Done when: No list call for plain open issues is made for a Radar-coded repository (checked with a fake GitHub that records calls); a planning label added by a disallowed account does nothing; the plan-me routing tests of PR 67 still pass unchanged.
-- [ ] rc-1.3 Source issue becomes the parent, planning label cleared only by setting, after rc-1.2 [RC1.4, RC1.6, RC1.7] (§D3)
+- [x] rc-1.3 Source issue becomes the parent, planning label cleared only by setting, after rc-1.2 [RC1.4, RC1.6, RC1.7] (§D3)
   - After projection the source issue is the parent of the projected issues and has no ready label; `radar.clearPlanLabel` (default off) removes the planning label; one Needs you row says to clear the needs-human label, shown once; Avoozl never writes the claim or needs-human labels.
   - Done when: A fake-GitHub test shows the source is the parent, no claim or needs-human write ever happens, and the Needs you row appears once across three ticks.
 - [ ] rc-p1 Proof 1: Avoozl lists only what it was asked to plan, after rc-1.1, rc-1.2, rc-1.3 [RC1] (§D17)
