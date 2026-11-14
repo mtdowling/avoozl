@@ -98,7 +98,10 @@ class MergeGitHub {
       ),
     );
   }
-  addPull(number, { author = "maintainer", head = REPO, draft = false } = {}) {
+  addPull(
+    number,
+    { author = "maintainer", head = REPO, draft = false, ref } = {},
+  ) {
     this.pulls.set(number, {
       number,
       node_id: "PR_" + number,
@@ -106,7 +109,7 @@ class MergeGitHub {
       draft,
       user: { login: author },
       head: { repo: { full_name: head } },
-      base: { repo: { full_name: REPO } },
+      base: { repo: { full_name: REPO }, ...(ref ? { ref } : {}) },
       auto_merge: null,
     });
   }
@@ -401,4 +404,49 @@ test("a public repository is not armed until its sign-off is complete", async (t
   store.setMeta("publicSignoff", { [REPO]: { complete: true } });
   await tick();
   assert.deepEqual(github.armed, [["PR_16", "MERGE"]]);
+});
+
+// rc-16.2: an epic's pull request targets its integration branch.
+const provenanceWith = (base) =>
+  renderProvenance({
+    spec: "demo",
+    tasks: ["rc-x"],
+    commit: COMMIT,
+    approvedBy: "maintainer",
+    ...(base ? { base } : {}),
+  });
+
+test("an epic's pull request is armed only when it targets the integration branch", async (t) => {
+  const { github, tick } = setup(t);
+  github.addIssue(6, managed() + "\n" + provenanceWith("rewrite/x"));
+  github.addIssue(7, managed() + "\n" + provenanceWith("rewrite/x"));
+  github.addPull(16, { ref: "main" });
+  github.addPull(17, { ref: "rewrite/x" });
+  github.closes.set(6, [16]);
+  github.closes.set(7, [17]);
+  for (let round = 0; round < 3; round += 1) await tick();
+  assert.deepEqual(github.armed, [["PR_17", "MERGE"]]);
+});
+
+test("the branch's own merge path decides arming into it", async (t) => {
+  const { github, tick } = setup(t);
+  github.branchRules = (_repository, branch) =>
+    Promise.resolve(
+      branch === "rewrite/x"
+        ? []
+        : [
+            {
+              type: "required_status_checks",
+              parameters: { required_status_checks: [{ context: "build" }] },
+            },
+          ],
+    );
+  github.addIssue(6, managed() + "\n" + provenanceWith("rewrite/x"));
+  github.addIssue(7, MARKED);
+  github.addPull(17, { ref: "rewrite/x" });
+  github.addPull(18, { ref: "main" });
+  github.closes.set(6, [17]);
+  github.closes.set(7, [18]);
+  await tick();
+  assert.deepEqual(github.armed, [["PR_18", "MERGE"]]);
 });

@@ -20,7 +20,12 @@ const LABELS = {
 // { repository, branch, ship, ready, missing: [id], items: [{id, label, ok,
 // detail}], error }. A GitHub read that fails leaves its items not ok and
 // puts the reason in `error`; nothing is guessed.
-export async function mergePath(github, repository, settings, { delivery }) {
+export async function mergePath(
+  github,
+  repository,
+  settings,
+  { delivery, branch: asked = null },
+) {
   const named = settings?.requiredChecks || [],
     value =
       delivery?.repositories?.[repository]?.ship ?? delivery?.ship ?? null;
@@ -29,7 +34,7 @@ export async function mergePath(github, repository, settings, { delivery }) {
     branch = null,
     error = null;
   try {
-    branch = await ruleBranch(github, repository, settings);
+    branch = asked ?? (await ruleBranch(github, repository, settings));
     const [remote, names] = await Promise.all([
       github.repository(parseRepository(repository)),
       seenCheckNames(github, repository, branch),
