@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'r
 import { useAppApi } from './host.ts'
 import { Btn, Card, EmptyState, SegmentedControl } from '@kirocrew/app-sdk/ui'
 import { LessonsView, ProposalsView } from './FlowMemory.tsx'
+import GithubFlow from './GithubFlow.tsx'
 import Badge from './Badge.tsx'
 import { Tooltip } from './Tooltip.tsx'
 import { FilterPanel, useStoredFilter } from './FilterPanel.tsx'
@@ -457,6 +458,7 @@ export default function FlowView({ workspaceId }: { workspaceId: string | null }
       ) : (
         <>
           <LineBanner stops={view.line} workspaceId={workspaceId} onChanged={() => void reload()} />
+          <GithubFlow workspaceId={workspaceId} />
           <FilterPanel
             id="avoozl-flow"
             label="Filter flow timing"
