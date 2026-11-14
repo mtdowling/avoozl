@@ -111,7 +111,7 @@ test(
     assert.match(result.stdout, /^marker\s+ok$/m);
     assert.match(
       result.stdout,
-      /^commit\s+ok\s+0123456 is identical to main$/m,
+      /^commit\s+ok\s+0123456 is identical to the default branch$/m,
     );
     assert.equal(result.stdout.trim().split("\n").length, 5);
     assert.doesNotMatch(result.stdout + result.stderr, /DO-NOT-ECHO/);
