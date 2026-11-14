@@ -1044,6 +1044,122 @@ This is display only. It writes nothing and starts nothing.
 9. The map SHALL use theme variables only, read at 320 px, need no animation,
    and turn off any it has under `prefers-reduced-motion`.
 
+### Requirement RC24: Mirror repositories
+
+**User story:** As the owner of a public repository, I want crews to work in a
+private mirror of it, and I want Avoozl to carry each merged change over to the
+public repository under a person's name, so that issues and crew work stay off
+the public repository.
+
+GitHub cannot make a private fork of a public repository, so a private copy is
+a separate repository that starts as a full copy (a mirror push). A managed
+remote harness works the same way (RC15): changes land in a private staging
+repository, a person reviews and merges there, a branch is pushed to the public
+repository as that person, and a poller marks the task done when the public
+pull request merges. This requirement does the same for Radar crews.
+
+#### Acceptance criteria
+
+1. **Setting.** A repository's policy SHALL accept an optional `mirror`:
+   `{ source, mirror, forwardTo, forward, branchPrefix, squash }`.
+   `source` is the public `owner/name`. `mirror` is the private `owner/name`.
+   `forwardTo` is `source` (default) or `fork:<owner/name>`. `forward` is
+   `off`, `nudge` (default) or `auto`. `branchPrefix` defaults to
+   `avoozl/`. `squash` defaults to `true`. Settings SHALL edit it in a form and
+   in the raw `.avoozl.json`, and the two SHALL stay in sync, as every other
+   repository setting does. The form SHALL show each default and where it comes
+   from, and SHALL NOT ask for anything Avoozl can read.
+2. **Validation.** Avoozl SHALL read the mirror's visibility and SHALL refuse
+   the setting unless the mirror is private. WHEN visibility cannot be read,
+   the mirror SHALL count as not private and the setting SHALL be refused
+   (RC10.1 applies the same rule to the source). `mirror` and `source` SHALL
+   differ. `forward: auto` SHALL be refused unless the **trusted persons**
+   setting (criterion 9) names at least one person.
+3. **Where work lives.** With a mirror, issues, sub-issues, labels, crews, the
+   Project and every Avoozl write (RC2, RC4, RC5) SHALL target the mirror, not
+   the source. The source SHALL receive writes only through criteria 7 and 11.
+   A public issue on the source MAY be linked to a mirror issue by a marker on
+   the mirror issue (the source number and URL). Avoozl SHALL NOT copy private
+   text to the source, and SHALL NOT copy a source issue's body into the mirror
+   unless a person asks.
+4. **Sync.** On each tick Avoozl SHALL bring the mirror's default branch up to
+   `source`'s default branch by fast-forward only. WHEN the mirror's default
+   branch has commits `source` does not (divergence), Avoozl SHALL stop syncing
+   that repository and show one Needs you row naming both heads. Avoozl SHALL
+   NOT reset, rebase or force push the mirror. WHEN the sync cannot be read or
+   written, one Needs you row SHALL say so, once per cause.
+5. **Track.** WHEN a crew pull request merges into the mirror's default branch,
+   Avoozl SHALL record one **to forward** item for it: the mirror pull request,
+   the merge commit, the task, the person who approved the merge, and the time.
+   It SHALL show in **Waiting on you** (when `forward` is `nudge`), in **Release
+   queue** and in **Trace**. Trace SHALL gain the steps **Mirror merged**,
+   **Forwarded**, **Public PR** and **Public merged**, with times from GitHub.
+6. **Done on the public merge.** A task SHALL count as done, and its
+   dependents SHALL release, only WHEN the public pull request merges (the rule
+   of RC15.3). A merge in the mirror alone SHALL count as merged in the mirror
+   and nothing more. Avoozl SHALL poll the public pull request on the tick.
+7. **Forward.** To forward a change Avoozl SHALL: (a) build one commit from the
+   merged change when `squash` is `true` (else the merged commits in order),
+   authored by the approving person, with trailers that name private issues,
+   pull requests, repositories or hosts removed; (b) put it on a branch named
+   `branchPrefix` plus the task id in `forwardTo`, based on `source`'s default
+   branch; (c) push that branch with a normal push; (d) open the public pull
+   request against `source`, with a title and body generated from the mirror
+   pull request and stripped of private text (the body holds the change's
+   purpose and tests, never a link to the mirror, a private issue, a crew or a
+   plan). Avoozl SHALL NOT force push, and SHALL NOT push to `source`'s default
+   branch.
+8. **Scan before any push.** The leak scan of **Crews on public repositories** in
+   `.kiro/specs/avoozl/` (its content rules and layers) SHALL pass on the
+   commit, its message, the branch name, the pull request title and the pull
+   request body before step (c) of criterion 7. A hit SHALL block the push and
+   raise one Needs you row that names the rule, not the matched text. This
+   spec SHALL NOT restate, renumber or change those layers.
+9. **Nudge and auto.** With `forward: nudge`, Avoozl SHALL prepare the commit,
+   the branch locally and the text, run the scan, and show a **Forward** button
+   with a one-line reason ("Merged in the mirror, scan clean, ready for the
+   public repository"). Pressing it SHALL push and open the pull request as the
+   person who pressed it, if that person passes the actor check (Requirement
+   10). With `forward: auto`, Avoozl SHALL do the same on its own after the
+   mirror merge and a clean scan, but only for a merge approved by a person in
+   the **trusted persons** setting (a list of logins, empty by default, so
+   `auto` is off until it is filled). `forward: off` SHALL track and show the
+   item and do nothing else.
+10. **Identity.** A forward SHALL name the person: the commit author, and a line
+    in the public pull request body, are that person's login or public name.
+    Avoozl SHALL push with the grant that person gave Avoozl or that person's
+    own token, never with a shared bot token for another person's change. WHEN
+    no usable token exists for that person, one Needs you row SHALL say so.
+11. **After the public pull request opens.** WHEN it is closed without a merge,
+    the item SHALL go back to **to forward** with the reason (closed by whom,
+    when) shown in Waiting on you, and Avoozl SHALL NOT reopen or push again
+    until a person acts. WHEN a person leaves review comments on it, Avoozl
+    SHALL copy each comment's text and its author to the mirror pull request,
+    or, if that is merged, to one follow-up mirror issue, so a crew can act
+    on it; each copy carries a marker so it is made once. Review comments are
+    already public, so copying them inward SHALL NOT count as a leak.
+12. **Conflicts.** WHEN `source` has moved so that the forward branch cannot be
+    applied or pushed cleanly, Avoozl SHALL sync the mirror (criterion 4),
+    re-apply the change on the new base, run the scan again and continue. WHEN
+    it still conflicts, Avoozl SHALL open one mirror issue with the conflicting
+    paths (no file contents) for a crew to fix, and SHALL keep the item in
+    **to forward** with a Trace note.
+13. **Provenance.** The public pull request SHALL carry the person's name and
+    nothing that points to the mirror, a crew, Avoozl's marker or a plan.
+    The link between the mirror pull request and the public pull request SHALL
+    live only in Avoozl's private records and in the mirror.
+14. **One record.** A forward SHALL be one record per merged change, keyed by
+    the mirror merge commit. A second press, a second tick or a retry SHALL
+    find the same branch and pull request and SHALL NOT open another.
+15. **Public docs and tests** of this work SHALL use fake terms only, and
+    SHALL describe the private side as internal names and company hosts
+    (RC10.4). The harness SHALL be called only "a managed remote harness".
+
+Proof added to D17:
+
+| Proof  | Proves                                                                                                        |
+| ------ | ------------------------------------------------------------------------------------------------------------- |
+| rc-p23 | Two scratch repositories: sync, a mirror merge, a scan-clean forward, a blocked leak, the public merge counts as done |
 ### Requirement RC23: Tracker gates
 
 **User story:** As the owner, I want a task in an epic to wait on something
