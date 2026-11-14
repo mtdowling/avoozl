@@ -72,7 +72,7 @@ export const FLOW_KEYS = Object.freeze({
     SCOPES.includes(v) || `one of ${SCOPES.join(", ")}`,
   localChecksFirst: (v) => typeof v === "boolean" || "true or false",
   "batch.max": (v) =>
-    (Number.isInteger(v) && v >= 1 && v <= 10) || "a whole number 1–10",
+    (Number.isInteger(v) && v >= 1 && v <= 5) || "a whole number 1–5",
   // "epic" was the old name of "phase"; it is refused, never read as it
   // (Requirement 59.11).
   "batch.by": (v) =>
