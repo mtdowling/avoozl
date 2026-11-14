@@ -142,11 +142,11 @@ export function radarReread(values, read, reason = null) {
         : same(shown, values.find((v) => v.id === "needs-human").value);
     },
     "claim-limit": () =>
-      crew?.claimTtlHours === undefined
+      (read.claimTtlHours ?? crew?.claimTtlHours) === undefined
         ? null
-        : Number(crew.claimTtlHours) === CLAIM_TTL_HOURS,
+        : Number(read.claimTtlHours ?? crew.claimTtlHours) === CLAIM_TTL_HOURS,
     prompt: () =>
-      crew?.prompt === undefined ? null : crew.prompt.trim() === CREW_PROMPT,
+      crew?.prompt === undefined ? null : crew.prompt.includes(CREW_PROMPT),
   };
   return {
     grant: true,

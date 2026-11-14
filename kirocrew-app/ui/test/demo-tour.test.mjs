@@ -79,7 +79,7 @@ test('every view takes the host hooks through host.ts', () => {
 test('the tour covers each page, and its keys move inside it', () => {
   assert.deepEqual(
     TOUR.map((s) => s.id),
-    ['dashboard', 'specs', 'graph', 'task', 'intake', 'flow', 'needs-you', 'stop-line', 'settings'],
+    ['dashboard', 'needs-you', 'handback', 'review', 'crews', 'release', 'stop-line', 'driver', 'epics', 'graph', 'task', 'intake', 'flow', 'mirror', 'settings'],
   )
   for (const step of TOUR) assert.ok(step.caption.length > 20 && step.title, step.id)
   assert.equal(TOUR.find((s) => s.id === 'task').task, 'recipe-import.2.1')
@@ -146,9 +146,9 @@ test('Start demo opens the tour over the real pages, and Exit demo returns', { s
   }
   // Back by key and by button, then Escape closes the tour.
   await page.key('ArrowLeft', 'ArrowLeft', 37)
-  await page.until(`${tourStep} === 'stop-line'`)
+  await page.until(`${tourStep} === 'mirror'`)
   await click(button('Back'))
-  await page.until(`${tourStep} === 'needs-you'`)
+  await page.until(`${tourStep} === 'flow'`)
   await page.key('Escape')
   await page.until(`!document.querySelector('[data-demo-tour]')`)
 
@@ -188,7 +188,7 @@ test('the tour fits the screen at 320, 768 and 1280 px, light and dark', { skip 
   try {
     for (const [width, height] of SIZES)
       for (const theme of THEMES)
-        for (const step of ['dashboard', 'task', 'stop-line']) {
+        for (const step of ['dashboard', 'task', 'stop-line', 'release', 'mirror']) {
           const box = await showStep(page, harness, { width, height, theme, step })
           const where = `${step} at ${width} ${theme}`
           assert.equal(box.badge, true, where)
@@ -202,4 +202,20 @@ test('the tour fits the screen at 320, 768 and 1280 px, light and dark', { skip 
   } finally {
     rmSync(out, { recursive: true, force: true })
   }
+})
+
+test('the tour names the new screens and the fixtures stay in their shapes', async () => {
+  const { fixturesClient, stopExample } = await import('../src/demo-fixtures.ts')
+  const ids = TOUR.map((s) => s.id)
+  for (const id of ['handback', 'review', 'crews', 'release', 'driver', 'epics', 'mirror']) assert.ok(ids.includes(id), id)
+  for (const step of TOUR) assert.doesNotMatch(`${step.title} ${step.caption}`, /osiris|glorp|worker/i, step.id)
+  // The page asks for the fixtures through the one command path, read only.
+  const seen = []
+  const api = { post: async (path, body) => (seen.push([path, body.operation]), { result: { stopLine: { running: { state: 'running' }, stopped: { state: 'stopped' } } } }) }
+  const fixtures = await fixturesClient(api).read()
+  assert.deepEqual(seen, [[COMMAND_PATH, 'demo.fixtures']])
+  assert.equal(stopExample(fixtures, 'stopped').state, 'stopped')
+  // The provider offers the data and the toggle to every screen.
+  assert.match(source('Demo.tsx'), /export const useDemoFixtures/)
+  assert.match(source('Demo.tsx'), /data-demo-stop-example/)
 })

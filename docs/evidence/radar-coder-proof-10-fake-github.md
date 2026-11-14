@@ -29,11 +29,11 @@ the ready-label writes. Then record a complete sign-off and tick again.
 
 Pass on the fake: nothing releases before the sign-off, and the queue says why.
 
-Limit found: nothing in the app writes the sign-off yet. `publicHold` reads the
-workspace key `publicSignoff` (`src/app/public-signoff.mjs`), and its comment
-says the task that records it (39.3) writes that key. The test sets the key
-directly. So the "after" half of the proof cannot be run live from the app until
-that writer exists.
+Limit found, now fixed: nothing in the app wrote the sign-off. The owner-only
+operation `radar.signoff` ({repository, complete}) now writes the workspace key
+`publicSignoff` that `publicHold` reads (`src/app/test/proof-rc-p10.test.mjs`
+covers the write, the refusal for app tokens, and the release after it). The
+"after" half can now run live from the app.
 
 ## Live run for the owner (not done)
 
@@ -44,6 +44,6 @@ that writer exists.
    public-hold sentence.
 4. If a crew could be handed work, the proof fails: refuse public repositories
    for the Radar path.
-5. The "after" half needs the sign-off writer. Skip it until that task lands,
-   then complete the sign-off, tick again and expect two ready labels.
+5. Record the sign-off with the app operation `radar.signoff` (complete true),
+   tick again and expect two ready labels.
 6. Record the result in `docs/evidence/` and tick `rc-p10`.

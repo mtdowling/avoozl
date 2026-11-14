@@ -25,6 +25,7 @@ export const SESSIONS_ROUTE = "/api/apps/issue-radar/pipeline/item/sessions";
 export const LABEL_MAX = 50;
 export const HANDOFF_MAX = 100;
 const TEXT_MAX = 200;
+const PROMPT_MAX = 4000;
 
 const lower = (value) => String(value).toLocaleLowerCase();
 const text = (value, max = TEXT_MAX) =>
@@ -99,6 +100,15 @@ function crewsOf(body) {
       labels,
       status: text(crew.status, 20) ?? null,
       emptyScope: labels.length === 0,
+      // Kept only when Radar returns them, so the values re-read can tick
+      // agent, model and prompt (RC7.3).
+      ...(text(crew.agent, LABEL_MAX) && {
+        agent: text(crew.agent, LABEL_MAX),
+      }),
+      ...(text(crew.model) && { model: text(crew.model) }),
+      ...(text(crew.extra_prompt, PROMPT_MAX) && {
+        prompt: text(crew.extra_prompt, PROMPT_MAX),
+      }),
     });
   }
   return crews;
@@ -147,6 +157,10 @@ export async function readCrews(reader, repository) {
     },
     needsHumanLabel:
       text(answer.body?.settings?.needs_human_label, LABEL_MAX) ?? null,
+    // Radar keeps the claim limit per repository, not per crew.
+    ...(Number.isFinite(answer.body?.settings?.claim_ttl_hours) && {
+      claimTtlHours: answer.body.settings.claim_ttl_hours,
+    }),
   };
 }
 
