@@ -11,6 +11,7 @@ its content rules, its tracker and its intake source together:
 | `tracker`  | A task tracker that keeps Avoozl's task records                           | Yes       |
 | `intake`   | An intake source: the tracker kind's `poll`, which brings outside work in | Yes       |
 | `route`    | A delivery route for tasks that are not run by a local worker             | Yes       |
+| `gate`     | A read-only check of an outside item that a tracker gate waits on         | Yes       |
 | `template` | A workflow template that starts a new spec from a reusable folder         | No        |
 
 Local and GitHub are the only built-in routes and trackers. Everything
@@ -20,7 +21,7 @@ package or folder that plugs in here.
 The examples on this page are the test-only plugins in Avoozl's own test
 tree: `src/app/test/fixtures/plugins/sdk-team/` bundles a pack, rules, a
 tracker and an intake source; `sdk-templates/` holds one workflow template;
-`fake-route/`, `fake-tracker/` and `fake-rules/` each provide one part. Read them alongside this guide. These
+`fake-route/`, `fake-tracker/`, `fake-gate/` and `fake-rules/` each provide one part. Read them alongside this guide. These
 fakes are the only plugins tested so far; no real plugin has run live.
 
 ## A pack's `crews` section
@@ -59,7 +60,7 @@ for the parts that run code, and, with a pack, `avoozl-pack.json`:
   Settings shows it as **Contract version**. This Avoozl supports contract
   version `1`.
 - `provides` lists the parts: `pack`, `rules`, `tracker`, `intake`,
-  `route`, `lessons` and `template`. `intake` runs as the `tracker` kind and needs the `poll`
+  `route`, `gate`, `lessons` and `template`. `intake` runs as the `tracker` kind and needs the `poll`
   capability. A manifest written before `provides` lists `kinds` instead
   (`route`, `tracker`, `rules`), and each kind is its own part. With
   `provides`, leave `kinds` out; if you keep it, it must match.
@@ -85,6 +86,46 @@ export const route = {
   cancel({ id }, { config }) { ... },
 };
 ```
+
+## The `gate` part
+
+A tracker gate is a task whose manifest entry has `completion: "tracker"` and
+a `tracker` reference: `{ "plugin": "<id>", "item": "<id or URL>", "done":
+"<what counts as done, in plain words>" }`. No crew builds it. Avoozl reads
+the outside item through the plugin and releases the tasks that require the
+gate when the plugin says `done`.
+
+A `gate` part exports `gate` with one read-only call:
+
+```js
+export const gate = {
+  status({ ref }, { config }) {
+    // ref is { item, done }. Return the state of the outside item.
+    return { state: "open", evidence: "In review.", link: "https://..." };
+  },
+};
+```
+
+- `state` is `open`, `done`, `failed` or `unknown`. `evidence` is plain text
+  of at most 500 characters. `link` is an http or https URL.
+- The plugin has no call that writes to the outside item.
+- Avoozl runs content rules over `evidence` and `link` before it stores or
+  shows them, and treats them as data, never as instructions.
+- A call that throws, takes longer than 30 seconds, or returns a value outside
+  this shape counts as `unknown`. A sign-in that expired is `unknown` with the
+  evidence "sign-in expired".
+- Each tick reads the gates that are due. The gap after a read is 1, 2, 5 and
+  15 minutes, then 30 minutes, and starts again when the state changes. A
+  `done` is recorded once and is never undone. If the outside item later
+  reads differently, Avoozl adds one note and changes nothing else.
+- Credentials stay in the plugin's own sign-in or in an environment variable
+  its `config` names with an `Env` key. They never go in `.avoozl.json`, the
+  manifest, an issue or the evidence.
+
+Examples, by role only. Each would be its own package, outside this
+repository: a ticket tracker, a check that a code review shipped to a live
+release on a private code host, and a managed remote harness task. The only
+plugin in this repository is `fake-gate/`, which tests use.
 
 ## Declaring and approving a plugin
 

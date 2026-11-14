@@ -21,6 +21,7 @@ import { cliRefusal } from "./mcp-policy.mjs";
 import { createAppMcp } from "./app-mcp.mjs";
 import { startAppBackend } from "./app-backend.mjs";
 import { hookEvent, runnerHookBrief } from "./runner.mjs";
+import { callerSlot } from "./delivery.mjs";
 import { validate } from "../model.mjs";
 import { planFiles } from "../catalog.mjs";
 import { reconcileSource } from "./source-sync.mjs";
@@ -96,7 +97,7 @@ try {
       // `avoozl budget receipt TASK --json` prints the receipt object.
       else if (
         key === "json" &&
-        ["budget", "runner", "verify-issue"].includes(args[0]) &&
+        ["budget", "runner", "verify-issue", "review"].includes(args[0]) &&
         (args[i + 1] === undefined || args[i + 1].startsWith("--"))
       )
         options.json = true;
@@ -695,7 +696,24 @@ try {
         2,
       ),
     );
-  else if (command === "gap-report") {
+  else if (command === "review" && positionals[0] === "drafts") {
+    // Review drafts made from the review label (RC20.6): what waits on
+    // people, and the GitHub search that finds them.
+    const view = await localOrRequest("review.drafts", {
+      ...(options.repository ? { repository: options.repository } : {}),
+      ...(options.state ? { state: options.state } : {}),
+    });
+    if (options.json) console.log(JSON.stringify(view, null, 2));
+    else {
+      for (const item of view.items)
+        console.log(
+          `${item.state.padEnd(9)} ${item.repository}#${item.number}  ${item.reviewer}  ${item.url ?? ""}`,
+        );
+      if (!view.items.length) console.log("No review drafts.");
+      for (const search of view.searches)
+        console.log(`\nOn GitHub: ${search.query}\n${search.url}`);
+    }
+  } else if (command === "gap-report") {
     // An external gap report becomes proposed tasks in a parent spec's
     // sub-specs. `preview` shows the table and the proposals; `accept` adds
     // them as draft work (a person only).
@@ -828,7 +846,22 @@ try {
     const action = positionals[0] || "status",
       planId = options.spec || positionals[1];
     let result;
-    if (action === "status")
+    if (action === "hook") {
+      // The avoozl-driver agent's agentSpawn and stop hooks: record the chat
+      // Kiro Crew names in `session_key` as the driver session. Prints
+      // nothing, and no failure ever blocks a turn.
+      try {
+        const event = await hookEvent(process.stdin),
+          slot = callerSlot({ sessionKey: event?.session_key });
+        if (slot && fs.existsSync(dbPath))
+          await localOrRequest("driversession.register", {
+            slot,
+            source: String(event.hook_event_name || "hook"),
+          });
+      } catch {
+        // A hook that cannot record stays silent; the turn goes on.
+      }
+    } else if (action === "status")
       result = await localOrRequest("driver.status", planId ? { planId } : {});
     else if (action === "handoff") {
       // Draining already: --folder writes the export now. Otherwise this
@@ -874,10 +907,11 @@ try {
           ? { heartbeatMinutes: Number(options.heartbeat) }
           : {}),
       });
-    else throw Error("Use driver status|handoff|takeover|set.");
-    console.log(
-      typeof result === "string" ? result : JSON.stringify(result, null, 2),
-    );
+    else throw Error("Use driver status|handoff|takeover|set|hook.");
+    if (action !== "hook")
+      console.log(
+        typeof result === "string" ? result : JSON.stringify(result, null, 2),
+      );
   } else if (command === "claim")
     console.log(
       JSON.stringify(
@@ -1575,6 +1609,7 @@ try {
                                         Pull the Andon cord: stop new work in a scope
   flow stop --full --reason TEXT        Stop all agents: also stop every running chat Avoozl opened (needs the app backend)
   gap-report preview|accept SPEC (--path FILE | --issue OWNER/REPO#N)  Turn a gap report into proposed tasks in the sub-specs of a parent spec
+  review drafts [--repository OWNER/REPO] [--state STATE] [--json]  Review drafts made from the review label, and the GitHub search for them
   flow resume STOP_ID                   Resume a pulled stop (a person only)
   checks run --task TASK_ID             Run the declared checks in this worktree and record the pass
   runner accept FILE|-                  Runner mode: take one task envelope (a runner's ssh calls this)

@@ -13,10 +13,13 @@ declare module '@kirocrew/app-sdk' {
   // The host's own page navigation (a dashboard route such as /chat).
   export function useNavigate(): (path: string) => void
   export function useChatLauncher(): {
+    // slotKey opens an existing chat instead of a new one (host: UG() in the
+    // dashboard bundle, window.__mc_chat_launch.slotKey).
     openChat(input: {
-      message: string
+      message?: string
       autoSend?: boolean
       agent?: string
+      slotKey?: string
     }): void
   }
 }

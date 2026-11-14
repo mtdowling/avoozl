@@ -217,6 +217,10 @@ export const OLD_TOOLS = {
     "reply.post",
     "Post your one reply on the GitHub issue your responder session is bound to: {body}. Avoozl picks the issue from your session, refuses a reply with a secret-looking token, a URL with credentials, or an absolute or home path, or (on a public repository) one that quotes another repository on this machine (nothing is posted; fix it and post again), posts at most one comment per issue snapshot, and removes the responding label.",
   ],
+  plans_post_review_draft: [
+    "reviewdraft.post",
+    "Post your one draft review on the pull request your review draft chat is bound to: {body, comments?: [{path, line, start_line?, side?: RIGHT|LEFT, body}]}. Avoozl picks the pull request from your session and posts a PENDING review on the head commit your brief names, under the login of the person who asked; they edit and submit it. It refuses text with a secret-looking token, a URL with credentials or an absolute or home path (nothing is posted; fix it and post again), returns GitHub's refusal of a line outside the diff with nothing posted, and swaps the review label for the drafted label. It never submits, approves or requests changes.",
+  ],
   plans_next: [
     "runner.next",
     "What a Crew Mode conductor does next, with every local leaf in one bucket: ready (start each, with its brief and session title), running (claimed; wait), waiting (with the blockers each waits on), needsYou (blocked, review, questions, and stopped deliveries; ask the user), and done. Rule: start ready; wait while running is not empty; ask the user about needsYou; stop only when every leaf is done. Reads only.",
