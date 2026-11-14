@@ -688,7 +688,7 @@ function repositoryInput(value, id, mode) {
     untriaged,
     ...(value.mirror === undefined || value.mirror === null
       ? {}
-      : { mirror: mirrorInput(value.mirror, `${label}.mirror`) }),
+      : { mirror: mirrorInput(value.mirror, `${label}.mirror`, baseBranch) }),
   };
 }
 
