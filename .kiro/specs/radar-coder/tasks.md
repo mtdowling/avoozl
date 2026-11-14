@@ -488,7 +488,7 @@ Requirement RC24. Crews work a private mirror of a public repository; Avoozl syn
 - [x] rc-23.1 `mirror` setting: form and raw `.avoozl.json`, private-only validation, after rc-1.1 [RC24.1, RC24.2] (§D29)
   - Fields, defaults and refusals of RC24.1 and RC24.2; the form and the raw file write one record; `src/app/test/mirror-policy.test.mjs`.
   - Done when: A public or unreadable mirror is refused; `forward: auto` with no trusted person is refused; the form and the raw file agree after an edit in either; `npm test` passes.
-- [ ] rc-23.2 Sync step and write targets, after rc-23.1, rc-2.1 [RC24.3, RC24.4] (§D29)
+- [x] rc-23.2 Sync step and write targets, after rc-23.1, rc-2.1 [RC24.3, RC24.4] (§D29)
   - `mirrorSyncStep` fast-forwards the mirror's default branch; divergence raises one Needs you row and pauses the mirror steps; `writeRepo(policy)` sends projection, labels, Project, release and merge to the mirror; source issue link marker with no private text copied out.
   - Done when: A fake GitHub test: a fast-forward is applied, a divergence gives one row across three ticks and no write to either branch, no call writes to the source except the forward path.
 - [ ] rc-23.3 Track merged mirror PRs, rows and Trace steps, after rc-23.2, rc-8.2 [RC24.5, RC24.14] (§D29)

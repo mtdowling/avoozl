@@ -3,6 +3,7 @@
 // projection runs inside the workspace tick lock, writes only issues whose
 // marker carries this workspace's namespace, and only on repositories this
 // machine is the active writer for. Every other workspace previews.
+import { mirrorConfig } from "./mirror-sync.mjs";
 import { digest, queryTasks, statusComplete } from "../model.mjs";
 import {
   completionReached,
@@ -870,16 +871,22 @@ async function project(
   // The plan issue first, then only while this workspace drives the spec
   // (§6.10). A preview writes nothing, so it does not ask.
   if (!dryRun) await ensurePlanIssue(store, github, plan);
+  // Writes go to the private mirror when the repository has one (RC24.3).
   const configFor = (task) =>
-    repository
-      ? store.get("github_repositories", parseRepository(repository).id)
-      : store.list("github_repositories").find(
-          (entry) =>
-            // The task's or its plan's project; else the repository a spec
-            // leaf names.
-            entry.projectId ===
-            (task.projectId || plan.context?.projectId || taskRepository(task)),
-        );
+    mirrorConfig(
+      repository
+        ? store.get("github_repositories", parseRepository(repository).id)
+        : store.list("github_repositories").find(
+            (entry) =>
+              // The task's or its plan's project; else the repository a spec
+              // leaf names.
+              entry.projectId ===
+              (task.projectId ||
+                plan.context?.projectId ||
+                taskRepository(task)),
+          ),
+      identity.repositories,
+    );
   const data = store.read(),
     complete = (status) => statusComplete(data, status),
     // An opt-in local task never syncs to GitHub (R28.3).
