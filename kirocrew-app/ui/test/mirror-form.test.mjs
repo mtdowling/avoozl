@@ -25,6 +25,7 @@ test('the form reads and writes every mirror field', () => {
     branchPrefix: 'crew/',
     squash: false,
     trustedPersons: ['ana', 'bo'],
+    plansBranch: 'private-plans',
   }
   const form = toForm(github(mirror))
   assert.deepEqual(form.repositories[0].mirror, {
@@ -35,6 +36,7 @@ test('the form reads and writes every mirror field', () => {
     branchPrefix: 'crew/',
     squash: false,
     trustedPersons: 'ana, bo',
+    plansBranch: 'private-plans',
   })
   assert.deepEqual(mirrorOf(toPolicy(form)), mirror)
 })

@@ -289,6 +289,7 @@ export interface MirrorForm {
   branchPrefix: string
   squash: boolean
   trustedPersons: string
+  plansBranch: string
 }
 
 export const emptyMirror = (): MirrorForm => ({
@@ -299,6 +300,7 @@ export const emptyMirror = (): MirrorForm => ({
   branchPrefix: '',
   squash: true,
   trustedPersons: '',
+  plansBranch: '',
 })
 
 // What a blank mirror field means (src/app/mirror-policy.mjs MIRROR_DEFAULTS).
@@ -308,6 +310,7 @@ export const MIRROR_DEFAULT_TEXT = {
   forwardTo: 'blank: the public repository',
   branchPrefix: 'blank: avoozl/',
   trustedPersons: 'blank: nobody, so Auto stays off',
+  plansBranch: 'blank: avoozl-plans',
 }
 
 function mirrorPolicy(form: MirrorForm) {
@@ -320,6 +323,7 @@ function mirrorPolicy(form: MirrorForm) {
     branchPrefix: blank(form.branchPrefix),
     squash: form.squash ? undefined : false,
     trustedPersons: splitList(form.trustedPersons),
+    plansBranch: blank(form.plansBranch),
   })
 }
 
@@ -513,6 +517,7 @@ export function toForm(github: Policy): SettingsForm {
             branchPrefix: str(mirror.branchPrefix),
             squash: mirror.squash !== false,
             trustedPersons: joined(mirror.trustedPersons),
+            plansBranch: str(mirror.plansBranch),
           }
         })(),
         // radar keeps its other keys (planLabel, conflictLabel, clearPlanLabel).

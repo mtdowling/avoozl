@@ -13,12 +13,14 @@ export const MIRROR_KEYS = Object.freeze([
   "branchPrefix",
   "squash",
   "trustedPersons",
+  "plansBranch",
 ]);
 export const MIRROR_DEFAULTS = Object.freeze({
   forwardTo: "source",
   forward: "nudge",
   branchPrefix: "avoozl/",
   squash: true,
+  plansBranch: "avoozl-plans",
 });
 
 const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
@@ -32,8 +34,15 @@ function repositoryName(value, label) {
   return value;
 }
 
+// A plain git branch name: no "..", "//", "@{", trailing "/" or ".lock".
+const plainBranch = (name) =>
+  typeof name === "string" &&
+  BRANCH_PREFIX.test(name) &&
+  !/\.\.|\/\/|@\{|\/$|\.$|\.lock$/.test(name);
+
 // The normalized mirror of one repository entry, or null when it has none.
-export function mirrorInput(value, label) {
+// `baseBranch` is the repository's configured default branch, when known.
+export function mirrorInput(value, label, baseBranch) {
   if (value === undefined || value === null) return null;
   if (!record(value)) fail(`${label} must contain a JSON object.`);
   for (const key of Object.keys(value))
@@ -59,6 +68,15 @@ export function mirrorInput(value, label) {
     branchPrefix.includes("//")
   )
     fail(`${label}.branchPrefix must be a plain branch name prefix.`);
+  const plansBranch = value.plansBranch ?? MIRROR_DEFAULTS.plansBranch;
+  if (!plainBranch(plansBranch))
+    fail(`${label}.plansBranch must be a plain branch name.`);
+  if (plansBranch === baseBranch)
+    fail(`${label}.plansBranch must differ from the default branch.`);
+  if (plansBranch.startsWith(branchPrefix))
+    fail(
+      `${label}.plansBranch must not start with the branch prefix ${branchPrefix}, which task branches use.`,
+    );
   const squash = value.squash ?? MIRROR_DEFAULTS.squash;
   if (typeof squash !== "boolean")
     fail(`${label}.squash must be true or false.`);
@@ -85,6 +103,7 @@ export function mirrorInput(value, label) {
     branchPrefix,
     squash,
     trustedPersons,
+    plansBranch,
   };
 }
 
@@ -110,6 +129,62 @@ export async function requireMirrorsPrivate(policy, github) {
       fail(
         `The mirror ${id} is not private. A mirror must be a private repository.`,
         403,
+      );
+  }
+}
+
+// The mirror's plans branch is an orphan: no merge base with the default
+// branch (RC25.1, design D30.1). Refuse a name equal to the default branch
+// or sharing its history. With `create`, a missing branch is made once from
+// an empty root commit; without it (validation) nothing is written.
+export async function requirePlansBranches(
+  policy,
+  github,
+  { create = false } = {},
+) {
+  for (const entry of Object.values(policy?.repositories || {})) {
+    if (!entry.mirror) continue;
+    const { mirror, plansBranch } = entry.mirror,
+      repository = parseRepository(mirror);
+    let remote, existing;
+    try {
+      remote = await github.repository(repository);
+      existing = await github.branch(repository, plansBranch).catch((error) => {
+        if (error.status === 404) return null;
+        throw error;
+      });
+    } catch {
+      fail(
+        `The mirror ${mirror} could not be read, so plansBranch ${plansBranch} cannot be checked.`,
+        409,
+      );
+    }
+    const base = remote?.default_branch;
+    if (!base) fail(`The default branch of ${mirror} could not be read.`, 409);
+    if (plansBranch === base)
+      fail(
+        `plansBranch ${plansBranch} is the default branch of ${mirror}. Pick another name.`,
+      );
+    if (!existing) {
+      if (create) await github.createOrphanBranch(repository, plansBranch);
+      continue;
+    }
+    let shared;
+    try {
+      await github.compareCommits(repository, base, plansBranch);
+      shared = true;
+    } catch (error) {
+      if (error.status === 404 && /common ancestor/i.test(error.message || ""))
+        shared = false;
+      else
+        fail(
+          `plansBranch ${plansBranch} could not be compared with ${base}: ${error.message}`,
+          409,
+        );
+    }
+    if (shared)
+      fail(
+        `plansBranch ${plansBranch} shares history with ${base} in ${mirror}. It must be a separate branch with no shared history.`,
       );
   }
 }

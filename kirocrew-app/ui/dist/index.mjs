@@ -6416,7 +6416,8 @@ var Ls = () => ({
 	forward: "",
 	branchPrefix: "",
 	squash: !0,
-	trustedPersons: ""
+	trustedPersons: "",
+	plansBranch: ""
 }), Rs = [
 	"off",
 	"nudge",
@@ -6425,7 +6426,8 @@ var Ls = () => ({
 	forward: "blank: nudge, a Forward button you press",
 	forwardTo: "blank: the public repository",
 	branchPrefix: "blank: avoozl/",
-	trustedPersons: "blank: nobody, so Auto stays off"
+	trustedPersons: "blank: nobody, so Auto stays off",
+	plansBranch: "blank: avoozl-plans"
 };
 function Bs(e) {
 	if (e.source.trim() || e.mirror.trim()) return ec({
@@ -6435,7 +6437,8 @@ function Bs(e) {
 		forward: Js(e.forward),
 		branchPrefix: Js(e.branchPrefix),
 		squash: e.squash ? void 0 : !1,
-		trustedPersons: qs(e.trustedPersons)
+		trustedPersons: qs(e.trustedPersons),
+		plansBranch: Js(e.plansBranch)
 	});
 }
 var Vs = () => ({
@@ -6582,7 +6585,8 @@ function $s(e) {
 						forward: $(e.forward),
 						branchPrefix: $(e.branchPrefix),
 						squash: e.squash !== !1,
-						trustedPersons: Gs(e.trustedPersons)
+						trustedPersons: Gs(e.trustedPersons),
+						plansBranch: $(e.plansBranch)
 					};
 				})(),
 				rest: Object.fromEntries(Object.entries(n).filter(([e]) => !Xs.has(e)))
@@ -27686,6 +27690,14 @@ function Fy(e) {
 							placeholder: "avoozl/",
 							value: t.branchPrefix,
 							onChange: (e) => r({ branchPrefix: e })
+						}),
+						/* @__PURE__ */ C(Sy, {
+							id: `${n}-plans-branch`,
+							label: "Private specs branch",
+							raw: "mirror.plansBranch",
+							placeholder: "avoozl-plans",
+							value: t.plansBranch,
+							onChange: (e) => r({ plansBranch: e })
 						}),
 						/* @__PURE__ */ C(Sy, {
 							id: `${n}-trusted`,
