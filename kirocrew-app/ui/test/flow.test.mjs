@@ -69,7 +69,7 @@ test('the page wires the Flow tab, its icon, the banner, the Timing fold and Set
     drawer = source('TaskDrawer.tsx'),
     settings = source('FlowSettings.tsx'),
     flow = source('FlowView.tsx')
-  assert.match(app, /\{ key: 'delivery', label: 'Delivery' \},\n  \{ key: 'flow', label: 'Flow' \}/)
+  assert.match(source('nav-api.ts'), /\{ key: 'trace', label: 'Trace' \},\n  \{ key: 'flow', label: 'Flow' \}/)
   assert.match(icons, /flow: Gauge/)
   assert.match(flow, /<ViewHeading id="avoozl-flow-title" view="flow">/)
   // The banner sits above every other Dashboard section.

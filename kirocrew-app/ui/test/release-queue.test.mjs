@@ -92,7 +92,7 @@ test('the client reads the queue and clicks Step through the command path', asyn
 })
 
 test('the Dashboard shows the queue, Settings shows the mode only for Issue Radar, Step has one button per plan', () => {
-  assert.match(source('DashboardView.tsx'), /<ReleaseQueue workspaceId=\{workspaceId\} \/>/)
+  assert.match(source('DashboardView.tsx'), /<ReleaseQueue workspaceId=\{workspaceId\} onOpenSettings=/)
   const settings = source('SettingsView.tsx')
   assert.match(settings, /\(repository\.coder \|\| defaultCoder\(props\.mode\)\) === 'issue-radar' && \(/)
   assert.match(settings, /<ReleaseModePicker/)

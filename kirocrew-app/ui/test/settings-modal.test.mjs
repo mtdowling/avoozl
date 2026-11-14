@@ -79,7 +79,7 @@ test('Settings opens on Workspaces each visit and drops an unknown tab', async (
   const app = source('App.tsx')
   assert.match(app, /useState<SettingsTab>\(SETTINGS_HOME\)/)
   assert.match(app, /settingsTab: settingsTabOnEnter\(tab, key, settingsTab,/)
-  assert.match(source('SettingsView.tsx'), /SETTINGS_TABS\.some\(\(t\) => t\.key === asked\) \? asked : SETTINGS_HOME/)
+  assert.match(source('SettingsView.tsx'), /SETTINGS_TABS\.some\(\(t\) => t\.key === asked\) \? \(asked as SettingsTab\) : SETTINGS_HOME/)
 })
 
 test('the drawer width clamps to the page and is kept per workspace', async () => {
