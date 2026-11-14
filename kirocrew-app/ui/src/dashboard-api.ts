@@ -6,7 +6,7 @@
 import type { BudgetChip } from './budget-api.ts'
 import type { StoredPlanPage } from './plans-api.ts'
 import { nodeState, waves, type NodeState } from './graph-layout.ts'
-import { modelLabel, safeHref, type RadarClaim, type RadarCrews, type RadarCrewStrip, type ConflictItem, type DeliveryItem, type DeliverySession, type Graph, type GraphTask, type RemoteWorker } from './views-api.ts'
+import { modelLabel, safeHref, type RadarClaim, type RadarGroup, type RadarCrews, type RadarCrewStrip, type ConflictItem, type DeliveryItem, type DeliverySession, type Graph, type GraphTask, type RemoteWorker } from './views-api.ts'
 
 // Session statuses after which a session will not move again.
 const ENDED = new Set(['closed', 'lost'])
@@ -89,6 +89,7 @@ export interface DashboardSummary {
   inFlight: InFlight[]
   // Issue Radar crews with a live claim, from GitHub, on any machine.
   radarFlight: RadarClaim[]
+  radarGroups: RadarGroup[]
   // What GitHub cannot show about them; empty when nothing was read.
   radarUnseen: string[]
   // Variant A only: Issue Radar's crews, counts and credits per issue.
@@ -266,6 +267,7 @@ export function summarize(input: {
     running,
     inFlight,
     radarFlight: input.radar?.rows ?? [],
+    radarGroups: input.radar?.groups ?? [],
     radarUnseen: input.radar?.unseen ?? [],
     radarCrewStrip: input.radar?.crewStrip ?? null,
     neverRan: input.delivery != null && !input.delivery.some((item) => item.complete || item.sessions.length > 0 || item.evidence.length > 0 || item.deliveries.length > 0 || item.integration),
