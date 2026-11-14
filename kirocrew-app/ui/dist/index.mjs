@@ -6003,7 +6003,6 @@ var Es = {
 	planner: "Planner"
 }, Ds = (e) => Es[e.role] ?? (e.role === "worker" ? "Worker" : `Reviewer · ${e.role}`), Os = 2e4;
 function ks({ row: e, now: t }) {
-	let n = Q(e.url ?? ""), r = e.prUrl ? Q(e.prUrl) : null;
 	return /* @__PURE__ */ C("li", {
 		"data-radar-flight-row": !0,
 		className: "flex flex-wrap items-start gap-2 border-t py-2 first:border-t-0",
@@ -6051,15 +6050,15 @@ function ks({ row: e, now: t }) {
 				"data-in-flight-actions": !0,
 				className: "flex items-center justify-end gap-3",
 				style: { flex: "0 0 11rem" },
-				children: [n && /* @__PURE__ */ S("a", {
-					href: n,
+				children: [Q(e.url) && /* @__PURE__ */ S("a", {
+					href: Q(e.url),
 					target: "_blank",
 					rel: "noreferrer",
 					className: "text-sm underline",
 					"aria-label": `Open issue ${e.number} on GitHub`,
 					children: "Issue"
-				}), r && /* @__PURE__ */ C("a", {
-					href: r,
+				}), Q(e.prUrl) && /* @__PURE__ */ C("a", {
+					href: Q(e.prUrl),
 					target: "_blank",
 					rel: "noreferrer",
 					className: "text-sm underline",
