@@ -166,3 +166,19 @@ test("radar.values reads Radar through the grant and refuses an unregistered rep
     (error) => error.status === 404,
   );
 });
+
+test("a crew without agent, model or prompt in Radar's read stays unverified", async () => {
+  const { readCrews } = await import("../radar-handoff.mjs");
+  const read = await readCrews(
+    async () => ({
+      status: 200,
+      body: { crews: [{ id: "c1", name: "n", model: "", labels: [] }] },
+    }),
+    REPO,
+  );
+  const [crew] = read.crews;
+  assert.equal(crew.model, undefined);
+  assert.equal(crew.agent, undefined);
+  assert.equal(crew.prompt, undefined);
+  assert.equal(read.claimTtlHours, undefined);
+});
