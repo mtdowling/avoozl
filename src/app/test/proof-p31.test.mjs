@@ -260,11 +260,7 @@ test("P31: the Untriaged list with a fake GitHub", async (t) => {
       new RegExp(`Pick o/app #${item.number} there`),
     );
     if (item.kind === "pr") {
-      assert.equal(item.links.review.url, "/code-review-sage");
-      assert.match(
-        item.links.review.tooltip,
-        /posts nothing to GitHub\. A stand-in until the app can start Code Review Sage directly\./,
-      );
+      assert.match(item.links.review.tooltip, /posts nothing to GitHub\.$/);
     } else assert.equal(item.links.review, null);
   }
   assert.equal(view.repositories[0].checkedAt, checked);

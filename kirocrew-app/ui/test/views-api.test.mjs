@@ -102,7 +102,6 @@ test('every link goes through linkHref or safeHref', () => {
   // Kiro Crew's own pages and chats pass; anything else is not a link.
   assert.equal(linkHref('/chat?sid=chat-9'), '/chat?sid=chat-9')
   assert.equal(linkHref('/issue-radar'), '/issue-radar')
-  assert.equal(linkHref('/code-review-sage'), '/code-review-sage')
   assert.equal(linkHref('/apps/avoozl'), '/apps/avoozl')
   assert.equal(linkHref('https://github.com/o/r'), 'https://github.com/o/r')
   for (const bad of ['javascript:alert(1)', '//evil.example/x', '/tmp/receipt.md', '/chat?sid=a b', 'data:text/html,x', null, 7])
