@@ -196,7 +196,7 @@ Requirement RC8. The screens of the experience proposal, built for Variant B (Gi
 - [x] rc-8.4 Flow from GitHub data, after rc-8.1 [RC8.5] (§D10)
   - Ready to Claim, Claim to PR, PR to green, green to merge, flow efficiency; Stop the line keeps its meaning; mockup `07-flow-retro.html`.
   - Done when: Stage times computed from fixture events match hand-computed values.
-- [ ] rc-8.5 Retro rule targets: AGENTS.md, steering, Additional prompt text, after rc-8.4, rc-3.5 [RC8.6] (§D10)
+- [x] rc-8.5 Retro rule targets: AGENTS.md, steering, Additional prompt text, after rc-8.4, rc-3.5 [RC8.6] (§D10)
   - Retro proposals with a target; repo rules land as a pull request or a one-task issue; the Additional prompt target shows full text with Copy and a link to Radar; a check after N issues and an undo offer.
   - Done when: Applying a repo rule opens a pull request; the prompt target writes nothing to Radar; the check runs after N issues.
 - [ ] rc-8.6 Variant A: Radar's crew list through one grant, after rc-8.1 [RC8.1] (§D10)
