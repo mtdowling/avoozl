@@ -74,19 +74,19 @@ Requirement RC2. Spec to issues, in both modes, with batching and the preview. N
 
 Requirement RC3. The approval becomes a commit a crew can read, and one command checks it.
 
-- [ ] rc-3.1 Provenance marker writer and parser [RC3.1] (§D5.1)
+- [x] rc-3.1 Provenance marker writer and parser [RC3.1] (§D5.1)
   - `src/app/github-provenance.mjs`: write and parse `<!-- avoozl v=1 spec= tasks= commit= approved-by= plans= -->`; unknown keys ignored, unknown version refused; two markers refused; no private name or path allowed in any value; `src/app/test/github-provenance.test.mjs`.
   - Done when: Round-trip, unknown key, unknown version, duplicate marker, a space in a value, a bad commit and a path-like value are each tested.
-- [ ] rc-3.2 Approve opens an approval pull request and records the merged commit, after rc-3.1 [RC3.6, RC3.8] (§D5.2)
+- [x] rc-3.2 Approve opens an approval pull request and records the merged commit, after rc-3.1 [RC3.6, RC3.8] (§D5.2)
   - Approve opens a pull request that sets `Status: Approved` in the three prose files and, with `approval.decisionRecord`, adds `docs/decisions/<spec>.md`; Avoozl records the merge commit and approver only after the merge; the `Status:` line is outside the revision hash; lint 0 errors is required; `src/app/test/radar-coder-approve.test.mjs`.
   - Done when: Approving does not change the spec hash; no commit is recorded before the merge; a closed unmerged approval pull request records nothing; a spec with lint errors cannot be approved.
-- [ ] rc-3.3 verify-issue checks: marker, approver, author, spec, commit, after rc-3.1 [RC3.2–RC3.5] (§D5.3)
+- [x] rc-3.3 verify-issue checks: marker, approver, author, spec, commit, after rc-3.1 [RC3.2–RC3.5] (§D5.3)
   - Operation `issue.verify`, read-only, observe class; five checks with the GitHub reads of D5.3; failed reads fail closed; later checks still run; output names checks, logins, repositories, task IDs and the commit and never quotes text; `src/app/test/verify-issue.test.mjs` with a fake `gh`.
   - Done when: Tests: all ok; each check failing alone, with the others reported; a 404 and a 403 each fail the check; plans-repo reads; `behind`, `ahead`, `diverged` and `identical` compare results; no issue text appears in the output.
-- [ ] rc-3.4 CLI `avoozl verify-issue` and MCP tool `plans_verify_issue`, after rc-3.3 [RC3.2, RC3.4] (§D5.3)
+- [x] rc-3.4 CLI `avoozl verify-issue` and MCP tool `plans_verify_issue`, after rc-3.3 [RC3.2, RC3.4] (§D5.3)
   - The CLI command with `--json` and exit codes 0, 1, 2, 64; the MCP tool, with no workspace needed; the `aicommander` alias works; MCP tool count and classification tests updated.
   - Done when: Exit codes tested for each case; the command works with no workspace and no token other than the caller's `gh` login; `aicommander verify-issue` works.
-- [ ] rc-3.5 The one-line Additional prompt, shipped verbatim, after rc-3.4 [RC3.7] (§D5.4)
+- [x] rc-3.5 The one-line Additional prompt, shipped verbatim, after rc-3.4 [RC3.7] (§D5.4)
   - The line of D5.4 as one constant used by Settings, the team pack and Set up; a test that compares the constant with the text in `design.md` and `AGENTS.md`-rule proposal.
   - Done when: A test fails if the constant, `design.md` D5.4 and the Set up text differ.
 - [x] rc-3.6 Projection writes the marker, after rc-3.1, rc-2.1 [RC2.10, RC3.1] (§D5.1)
@@ -123,7 +123,7 @@ Requirement RC5. Crews do not arm auto-merge (Kiro Crew 0.12.2.4), so the tick d
 - [x] rc-5.1 Merge path check, after rc-1.1 [RC5.1] (§D7)
   - Per repository: auto-merge allowed, default branch rule requires the named CI check, `delivery.ship` set; shown as three items; Create and release refused for `auto-merge` while not ready.
   - Done when: Each missing item is named; a repository with all three reads ready; `manual` shows a warning only.
-- [ ] rc-5.2 Arm GitHub auto-merge on crew pull requests, after rc-5.1, rc-3.1 [RC5.2, RC5.5] (§D7)
+- [x] rc-5.2 Arm GitHub auto-merge on crew pull requests, after rc-5.1, rc-3.1 [RC5.2, RC5.5] (§D7)
   - The tick arms merge-commit auto-merge on open non-draft same-repository pull requests whose author passes the actor check and that close a marked issue of this workspace; once per pull request; never `--admin`; `src/app/test/radar-coder-merge.test.mjs`.
   - Done when: A fork pull request, a pull request from a stranger, a draft, and one closing an unmarked issue are not armed; the right one is armed exactly once across three ticks.
 - [x] rc-5.3 Manual mode and the conflict label, after rc-5.1 [RC5.3, RC5.6, RC5.7] (§D7)
@@ -132,7 +132,7 @@ Requirement RC5. Crews do not arm auto-merge (Kiro Crew 0.12.2.4), so the tick d
 - [ ] rc-5.4 Stop the line stops arming, and Disarm, after rc-5.2, rc-4.2 [RC5.4] (§D7)
   - While a stop is open for the scope the tick arms nothing; armed pull requests are listed in the banner with a person-only **Disarm**.
   - Done when: With a stop open a new pull request stays unarmed; Disarm is refused for an agent or app token.
-- [ ] rc-5.5 Re-verify before arming, after rc-5.2, rc-3.3 [RC5.8] (§D7)
+- [x] rc-5.5 Re-verify before arming, after rc-5.2, rc-3.3 [RC5.8] (§D7)
   - The tick runs `issue.verify` once per issue per marker hash before arming; a failure arms nothing and opens one Needs you row.
   - Done when: An edited marker blocks arming; an unchanged marker runs the check once across three ticks.
 - [ ] rc-p5 Proof 5: auto-merge on the right pull requests only, after rc-5.2, rc-5.3, rc-5.4, rc-5.5 [RC5] (§D17)
@@ -146,7 +146,7 @@ Requirement RC6. Avoozl ships the crew agent, because an unknown agent name fall
 - [x] rc-6.1 Ship `avoozl-crew` in the app, after rc-3.4 [RC6.1, RC6.2, RC6.6] (§D8)
   - `kirocrew-app/agents/avoozl-crew.json` and the `app.json` entry; MCP `avoozl:avoozl`; the tool and skill lists of D8 including Radar's two crew tools; the build step refuses an install with no `bin/lib`; `kirocrew-app` build tests updated.
   - Done when: The built app contains the agent; its tool list holds `plans_verify_issue` and Radar's two crew tools; a build without `bin/lib` is refused with the command to run.
-- [ ] rc-6.2 Crew tools need no workspace and return the brief, after rc-3.3 [RC6.3] (§D8)
+- [x] rc-6.2 Crew tools need no workspace and return the brief, after rc-3.3 [RC6.3] (§D8)
   - `plans_verify_issue` works with no default workspace and, when all checks pass, returns task IDs, acceptance and references from the issue body; no other tool in the crew's list needs a workspace.
   - Done when: A call with no workspace succeeds; the brief appears only when every check is ok; no listed tool answers "no workspace".
 - [x] rc-6.3 Set up verifies the agent is in Radar's Agent list, after rc-6.1 [RC6.5] (§D8)
@@ -230,7 +230,7 @@ Requirement RC10. This phase gates on the public-crew layers and does not restat
 - [ ] rc-10.1 Hold release for a public repository until the public sign-off is complete, after rc-4.1 [RC10.1, RC10.2] (§D12)
   - Release and arming refuse a public repository (or one whose visibility cannot be read) until the sign-off of "Crews on public repositories" in `.kiro/specs/avoozl/` is complete. This task waits for that work to land; it adds no layer of its own.
   - Done when: A public repository with no sign-off releases nothing and says why; once that work lands the check reads its sign-off.
-- [ ] rc-10.2 verify-issue output is safe to post, after rc-3.3 [RC10.3, RC10.4] (§D12)
+- [x] rc-10.2 verify-issue output is safe to post, after rc-3.3 [RC10.3, RC10.4] (§D12)
   - A test over every output path of `issue.verify` asserts no issue or spec text and no secret appears; public docs and examples use fake terms only; `scripts/release-scan.mjs` is clean.
   - Done when: The test fails when a path prints text from an issue; the release scan finds nothing.
 - [ ] rc-p10 Proof 10: public repository, after rc-10.1, rc-10.2 [RC10] (§D17)
