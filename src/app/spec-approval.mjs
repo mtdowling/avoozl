@@ -30,7 +30,12 @@ export function decisionRecord(spec) {
 }
 
 // What the approval pull request changes: path -> new text.
-export function approvalChanges({ spec, files, decisionRecord: record }) {
+export function approvalChanges({
+  spec,
+  files,
+  decisionRecord: record,
+  extra = {},
+}) {
   specName(spec);
   const changes = {};
   for (const name of proseFiles(files))
@@ -39,7 +44,8 @@ export function approvalChanges({ spec, files, decisionRecord: record }) {
       "Approved",
     );
   if (record) changes[`docs/decisions/${spec}.md`] = decisionRecord(spec);
-  return changes;
+  // Files the pull request adds as they are (a quick goal's manifest).
+  return { ...changes, ...extra };
 }
 
 export function approvalState(store, planId, hash) {
@@ -60,6 +66,7 @@ export async function openApproval(
     diagnostics = [],
     approvedBy,
     decisionRecord: record = false,
+    extra = {},
   },
 ) {
   const error = diagnostics.find((d) => d.severity === "error");
@@ -76,7 +83,12 @@ export async function openApproval(
   const prose = proseFiles(files);
   if (prose.every((name) => statusOf(files[name]) === "Approved") && !record)
     fail("This spec already says Status: Approved.", 409);
-  const changes = approvalChanges({ spec, files, decisionRecord: record }),
+  const changes = approvalChanges({
+      spec,
+      files,
+      decisionRecord: record,
+      extra,
+    }),
     base = (await github.repository(repository)).default_branch,
     head = await github.branchHead(repository, base),
     // A closed pull request leaves its branch, so a new try takes a new name.
