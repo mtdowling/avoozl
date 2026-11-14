@@ -901,7 +901,7 @@
         },
         "radar": {
           "type": "object",
-          "description": "Issue Radar coder labels. Planning, needs-human, claim, ready and conflict names must all differ.",
+          "description": "Issue Radar coder labels. Planning, needs-human, claim, ready, conflict and approval names must all differ.",
           "properties": {
             "planLabel": {
               "type": "string",
@@ -912,6 +912,11 @@
               "type": "string",
               "minLength": 1,
               "default": "merge conflict"
+            },
+            "approvalLabel": {
+              "type": "string",
+              "minLength": 1,
+              "default": "plan approved"
             },
             "clearPlanLabel": { "type": "boolean", "default": false }
           },

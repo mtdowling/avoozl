@@ -78,11 +78,13 @@ export const CODERS = Object.freeze(["issue-radar", "worker", "remote"]);
 export const RADAR_KEYS = Object.freeze([
   "planLabel",
   "conflictLabel",
+  "approvalLabel",
   "clearPlanLabel",
 ]);
 export const RADAR_DEFAULTS = Object.freeze({
   planLabel: "to plan",
   conflictLabel: "merge conflict",
+  approvalLabel: "plan approved",
   clearPlanLabel: false,
 });
 export const READY_LABEL_DEFAULT = "ready";
@@ -428,7 +430,7 @@ function repositoryInput(value, id, mode) {
     );
   const radarInput = onlyKeys(value.radar ?? {}, RADAR_KEYS, `${label}.radar`),
     radar = { ...RADAR_DEFAULTS };
-  for (const key of ["planLabel", "conflictLabel"])
+  for (const key of ["planLabel", "conflictLabel", "approvalLabel"])
     if (Object.hasOwn(radarInput, key))
       radar[key] = name(radarInput[key], `${label}.radar.${key}`);
   if (radarInput.clearPlanLabel !== undefined) {
@@ -443,6 +445,7 @@ function repositoryInput(value, id, mode) {
     ["claim", crewLabels.claim],
     ["ready", managed.ready ?? READY_LABEL_DEFAULT],
     ["conflict", radar.conflictLabel],
+    ["approval", radar.approvalLabel],
   ]) {
     const earlier = seen.get(lower(entry));
     if (earlier)
