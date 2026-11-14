@@ -1,3 +1,4 @@
+import { onePullRequestHint } from "../work-split.mjs";
 // Quick goals, the planner side (RC9.1, RC9.4, design D11). A person types a
 // goal; an Avoozl-owned planner chat investigates and returns a proposal of
 // tasks with evidence. This file holds the request check, the brief, the
@@ -225,6 +226,7 @@ export async function runPlannerChat({ agent, request, now = Date.now }) {
           turns,
           proposal,
           promote: promoteReasons(proposal),
+          hint: onePullRequestHint(proposal),
         };
       } catch (error) {
         if (error.status !== 422) throw error;
