@@ -735,6 +735,7 @@ function MirrorBox(props: { id: string; mirror: MirrorForm; onChange: (mirror: M
         <div style={grid()}>
           <Text id={`${id}-forward-to`} label="Forward to" raw="mirror.forwardTo" placeholder="source or fork:owner/name" value={mirror.forwardTo} onChange={(value) => set({ forwardTo: value })} />
           <Text id={`${id}-prefix`} label="Branch prefix" raw="mirror.branchPrefix" placeholder="avoozl/" value={mirror.branchPrefix} onChange={(value) => set({ branchPrefix: value })} />
+          <Text id={`${id}-plans-branch`} label="Private specs branch" raw="mirror.plansBranch" placeholder="avoozl-plans" value={mirror.plansBranch} onChange={(value) => set({ plansBranch: value })} />
           <Text id={`${id}-max-bytes`} label="Largest forwarded file (bytes)" raw="mirror.forwardMaxFileBytes" placeholder={MIRROR_DEFAULT_TEXT.forwardMaxFileBytes} value={mirror.forwardMaxFileBytes} onChange={(value) => set({ forwardMaxFileBytes: value })} />
           <Text id={`${id}-trusted`} label="Trusted persons" raw="mirror.trustedPersons" placeholder="login, login" value={mirror.trustedPersons} onChange={(value) => set({ trustedPersons: value })} />
         </div>
@@ -801,12 +802,13 @@ function RepositoryEditor(props: {
     <Card>
       <div className="flex flex-col gap-3">
         <SegmentedControl
+          collapse={false}
+          wrap="hug"
           layoutId="avoozl-repository-tabs"
           ariaLabel="Repository settings"
           segments={REPOSITORY_TABS.map((t) => ({ key: t.key, label: t.label }))}
           value={tab}
           onChange={(key) => setTab(key as RepositoryTab)}
-          wrap
         />
         {tab === 'mode' && (
           <Section level="sub" title="Mode and branch" blurb={REPOSITORY_BLURBS.mode}>

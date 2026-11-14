@@ -533,7 +533,7 @@ Requirement RC23. A task that waits on an outside tracker item, with a label and
 
 Requirement RC25. Private plans live on an orphan branch of the mirror and never leave it; public plans stay on the default branch.
 
-- [ ] rc-24.1 `plansBranch` setting: default, orphan creation, validation, after rc-23.1 [RC25.1] (§D30)
+- [x] rc-24.1 `plansBranch` setting: default, orphan creation, validation, after rc-23.1 [RC25.1] (§D30)
   - `mirror.plansBranch` in the form and the raw file; the branch is created from an empty commit with an explicit refspec; a name equal to the default branch, starting with `branchPrefix`, or sharing history with the default branch is refused; `src/app/test/mirror-plans-branch.test.mjs`.
   - Done when: A fake GitHub test: the branch is created once; each refused name is refused with its reason; the form and the raw file agree.
 - [ ] rc-24.2 Spec home, reading both homes, Specs badge, after rc-24.1 [RC25.2, RC25.8] (§D30)

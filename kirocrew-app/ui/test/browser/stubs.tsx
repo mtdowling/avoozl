@@ -1,7 +1,7 @@
 // Stand-ins for the host SDK (@kirocrew/app-sdk and its /ui) and lucide-react
 // in the modal harness. Card makes a containing block (a transform), as a
 // host card or pane may, so a modal that is not portaled shows it.
-import { forwardRef, type ReactNode } from 'react'
+import { forwardRef, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 
 type Reply = (body: { operation?: string; input?: unknown }) => unknown
 const replies: Record<string, Reply> = {}
@@ -85,14 +85,46 @@ export const Btn = forwardRef<HTMLButtonElement, Record<string, unknown>>(functi
 export const Input = forwardRef<HTMLInputElement, Record<string, unknown>>(function Input(props, ref) {
   return <input ref={ref} {...props} className="rounded border px-2 py-1 text-sm" />
 })
-export function SegmentedControl(props: { segments: { key: string; label: ReactNode }[]; value: string; onChange(key: string): void; ariaLabel?: string; wrap?: boolean }) {
-  return (
-    <div role="tablist" aria-label={props.ariaLabel} className={`flex gap-1 ${props.wrap ? 'flex-wrap' : ''}`}>
-      {props.segments.map((s) => (
-        <button key={s.key} type="button" role="tab" aria-selected={s.key === props.value} onClick={() => props.onChange(s.key)} className="rounded border px-2 py-1 text-sm">
-          {s.label}
+// Models the host control: with room (80 px a segment) it shows every label; with less
+// it shows only the selected label (`compact`), and under 44 px a segment
+// a single dropdown button. `collapse={false}`
+// (the host prop) keeps the full row. Colors follow the host: inactive text
+// is the theme's muted color, the selected one its accent, on the elevated bg.
+export function SegmentedControl(props: { segments: { key: string; label: ReactNode }[]; value: string; onChange(key: string): void; ariaLabel?: string; wrap?: boolean | 'hug'; collapse?: boolean; compact?: boolean; layoutId?: string }) {
+  const root = useRef<HTMLDivElement>(null)
+  const [mode, setMode] = useState<'full' | 'compact' | 'dropdown'>(props.compact ? 'compact' : 'full')
+  const n = props.segments.length
+  useLayoutEffect(() => {
+    const measure = () => {
+      if (props.compact) return setMode('compact')
+      if (props.collapse === false) return setMode('full')
+      const width = root.current?.parentElement?.clientWidth ?? 0
+      setMode(width >= n * 80 + 16 ? 'full' : width >= n * 44 + 16 ? 'compact' : 'dropdown')
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    if (root.current?.parentElement) observer.observe(root.current.parentElement)
+    return () => observer.disconnect()
+  }, [n, props.collapse, props.compact])
+  if (mode === 'dropdown') {
+    return (
+      <div ref={root} className="inline-flex">
+        <button type="button" data-collapsed aria-expanded="false" style={{ color: 'var(--accent)', background: 'var(--bg-elevated)' }}>
+          {props.segments.find((s) => s.key === props.value)?.label}
         </button>
-      ))}
+      </div>
+    )
+  }
+  return (
+    <div ref={root} role="tablist" aria-label={props.ariaLabel} className={`flex gap-1 ${props.wrap ? 'flex-wrap' : ''}`} style={{ background: 'var(--bg-elevated)' }}>
+      {props.segments.map((s) => {
+        const selected = s.key === props.value
+        return (
+          <button key={s.key} type="button" role="tab" aria-selected={selected} onClick={() => props.onChange(s.key)} className="rounded border px-2 py-1 text-sm" style={{ color: selected ? 'var(--accent)' : 'var(--muted)', background: 'var(--bg-elevated)' }}>
+            {mode === 'full' || selected ? s.label : null}
+          </button>
+        )
+      })}
     </div>
   )
 }
