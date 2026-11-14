@@ -23,6 +23,13 @@ import {
   spendRouter,
 } from "../router.mjs";
 import { placeOne } from "../routing.mjs";
+import {
+  backoffMs,
+  clearRoutingHealth,
+  retryRoutingNow,
+  routingFailedItems,
+  routingHealth,
+} from "../routing-health.mjs";
 import { listActivity } from "../activity-log.mjs";
 import { fixture } from "./fixtures.mjs";
 
@@ -362,11 +369,13 @@ test("one call places every ready task; a pick is used once, then spent", (t) =>
     role: "worker",
     project,
   });
-  assert.equal(t2.crew, "local");
-  assert.match(t2.placement.reason, /fell back to local/);
+  assert.equal(t2.crew, undefined, "a bad pick never runs locally");
+  assert.equal(t2.wait, true);
+  assert.equal(t2.routingFailed, true);
+  assert.match(t2.why, /routing failed: .*not one of its options/);
   const log = listActivity(store).items.map((r) => r.summary);
   assert.ok(
-    log.some((s) => /fell back to local for t2/.test(s)),
+    log.some((s) => /Routing failed .*t2/.test(s)),
     log.join("\n"),
   );
   spendRouter(store);
@@ -375,10 +384,10 @@ test("one call places every ready task; a pick is used once, then spent", (t) =>
     role: "worker",
     project,
   });
-  assert.equal(again.why, "placing", "a spent answer is never reused");
+  assert.equal(again.routingFailed, true, "a spent answer is never reused");
 });
 
-test("a malformed reply or a timeout falls back to local and is logged", (t) => {
+test("a malformed reply waits, never runs locally, and is logged", (t) => {
   const { store } = fixture(t),
     data = store.read(),
     ctx = ctxFor(store, fetchable);
@@ -399,7 +408,7 @@ test("a malformed reply or a timeout falls back to local and is logged", (t) => 
     facts: {},
   });
   recordRouterReply(store, dispatch.task, "I think local is best.", { now });
-  assert.equal(routerBatch(store).state, "fallback");
+  assert.equal(routerBatch(store).state, "failed");
   const r = placeOne(
     store,
     data,
@@ -411,12 +420,13 @@ test("a malformed reply or a timeout falls back to local and is logged", (t) => 
       project,
     },
   );
-  assert.equal(r.crew, "local");
-  assert.equal(r.model, null, "the default model");
+  assert.equal(r.crew, undefined, "not placed on local");
+  assert.equal(r.wait, true);
+  assert.equal(r.routingFailed, true);
+  assert.match(r.why, /routing failed: the reply was not a list/);
   assert.ok(
     listActivity(store).items.some(
-      (row) =>
-        row.kind === "routing.fallback" && /not a list/.test(row.summary),
+      (row) => row.kind === "routing.failed" && /not a list/.test(row.summary),
     ),
   );
 });
@@ -488,10 +498,11 @@ test("routerAnswer refuses a pick that no longer passes this tick", (t) => {
   const answer = routerAnswer(store, ctxFor(store), "t1", [
     { crew: "local", model: "model-b" },
   ]);
-  assert.match(answer.fallback, /no longer passes the checks/);
+  assert.match(answer.failed, /no longer passes the checks/);
+  assert.equal(routingHealth(store).failures, 1);
 });
 
-test("no reply in 90 seconds falls back and is logged", (t) => {
+test("no reply in 90 seconds fails the call and is logged", (t) => {
   const { store } = fixture(t),
     ctx = ctxFor(store);
   routerAnswer(store, ctx, "t1", [{ crew: "local", model: "model-a" }]);
@@ -503,7 +514,7 @@ test("no reply in 90 seconds falls back and is logged", (t) => {
   expireRouter(store, { ...ctx, now: now + 60_000 }, []);
   assert.equal(routerBatch(store).state, "running");
   expireRouter(store, { ...ctx, now: now + 91_000 }, []);
-  assert.equal(routerBatch(store).state, "fallback");
+  assert.equal(routerBatch(store).state, "failed");
   assert.match(routerBatch(store).why, /no reply within 90 s/);
   assert.ok(
     listActivity(store).items.some((r) =>
@@ -518,4 +529,212 @@ test("remote hosts", () => {
     "git.example.test",
   );
   assert.equal(remoteHost("/tmp/bare.git"), null);
+});
+
+// ---------------------------------------------------------------------------
+// Routing on and the router fails: the task never runs locally (R41.7).
+
+const place = (store, ctx, id = "t1") =>
+  placeOne(
+    store,
+    store.read(),
+    ctx,
+    { crews: new Map() },
+    { task: { id, repository: "app" }, role: "worker", project },
+  );
+const asks = (store, ctx, over = {}) =>
+  openRouter(store, ctx, {
+    folder: "Avoozl/app",
+    briefAllowed: () => true,
+    facts: {},
+    ...over,
+  });
+// Every failure case ends the same way: a wait, marked, with no crew.
+const heldNotLocal = (result, pattern) => {
+  assert.equal(result.wait, true);
+  assert.equal(result.routingFailed, true);
+  assert.equal(result.crew, undefined, "no crew was chosen");
+  assert.equal(result.placement, undefined, "nothing records a placement");
+  assert.match(result.why, pattern);
+};
+
+test("failure: the router session ends in error", (t) => {
+  const { store } = fixture(t),
+    ctx = ctxFor(store, fetchable);
+  place(store, ctx);
+  asks(store, ctx);
+  const binding = { role: "router", taskId: "router-1", status: "lost" };
+  expireRouter(store, ctx, [binding]);
+  heldNotLocal(
+    place(store, ctxFor(store, fetchable)),
+    /routing session ended without a reply/,
+  );
+});
+
+test("failure: no reply in time", (t) => {
+  const { store } = fixture(t),
+    ctx = ctxFor(store, fetchable);
+  place(store, ctx);
+  asks(store, ctx);
+  expireRouter(store, { ...ctx, now: now + 91_000 }, []);
+  heldNotLocal(place(store, ctxFor(store, fetchable)), /no reply within 90 s/);
+});
+
+test("failure: a reply that is not the list", (t) => {
+  const { store } = fixture(t),
+    ctx = ctxFor(store, fetchable);
+  place(store, ctx);
+  const d = asks(store, ctx);
+  recordRouterReply(store, d.task, '{"task":"t1"}', { now });
+  heldNotLocal(place(store, ctxFor(store, fetchable)), /not a list/);
+});
+
+test("failure: a pick that is not one of the options, and a task left out", (t) => {
+  const { store } = fixture(t),
+    ctx = ctxFor(store, fetchable);
+  ["t1", "t2"].forEach((id) => place(store, ctx, id));
+  const d = asks(store, ctx);
+  recordRouterReply(
+    store,
+    d.task,
+    '[{"task":"t1","crew":"nowhere","model":null,"reason":"r"}]',
+    { now },
+  );
+  const next = ctxFor(store, fetchable);
+  heldNotLocal(place(store, next, "t1"), /not one of its options/);
+  heldNotLocal(place(store, next, "t2"), /named no option/);
+  assert.equal(routingHealth(store).failures, 1, "one call, one failure");
+});
+
+test("failure: a content rule holds the routing brief", (t) => {
+  const { store } = fixture(t),
+    ctx = ctxFor(store, fetchable);
+  place(store, ctx);
+  assert.equal(asks(store, ctx, { briefAllowed: () => false }), null);
+  heldNotLocal(
+    place(store, ctxFor(store, fetchable)),
+    /content rule held the routing brief/,
+  );
+});
+
+test("failure: the router's model is out (rate limit, credits)", (t) => {
+  const { store } = fixture(t),
+    config = routingConfig({
+      machine: {
+        routing: { enabled: true, prompt: "P", model: "router-model" },
+      },
+    }),
+    ctx = ctxFor(store, {
+      ...fetchable,
+      config,
+      health: health({ "router-model": "out" }),
+    });
+  place(store, ctx);
+  assert.equal(asks(store, ctx), null, "no call is opened");
+  assert.ok(!routerBatch(store));
+  heldNotLocal(
+    place(store, ctxFor(store, { ...fetchable, config })),
+    /router-model is out/,
+  );
+});
+
+test("failure: no folder to open the routing chat in", (t) => {
+  const { store } = fixture(t),
+    ctx = ctxFor(store, fetchable);
+  place(store, ctx);
+  assert.equal(asks(store, ctx, { folder: null }), null);
+  heldNotLocal(place(store, ctxFor(store, fetchable)), /no project folder/);
+});
+
+test("failure: no crew passes the checks waits as a no-fit, not locally", (t) => {
+  const { store } = fixture(t),
+    r = placeOne(
+      store,
+      store.read(),
+      ctxFor(store, fetchable),
+      { crews: new Map() },
+      {
+        task: { id: "t1", repository: "app", needs: ["os:windows"] },
+        role: "worker",
+        project,
+      },
+    );
+  assert.equal(r.wait, true);
+  assert.equal(r.noFit, true);
+  assert.equal(r.crew, undefined);
+});
+
+test("a failed call is not asked again until its backoff passes", (t) => {
+  const { store } = fixture(t);
+  let at = now;
+  const minutes = [1, 2, 4, 8, 15, 15];
+  minutes.forEach((m, i) => {
+    const ctx = ctxFor(store, { ...fetchable, now: at });
+    const first = place(store, ctx);
+    assert.equal(first.why, "placing", `attempt ${i + 1} asks the router`);
+    const d = asks(store, ctx);
+    recordRouterReply(store, d.task, "no", { now: at });
+    spendRouter(store);
+    assert.equal(backoffMs(i + 1), m * 60_000);
+    // Inside the backoff nothing is asked and the task waits, marked.
+    const early = ctxFor(store, { ...fetchable, now: at + m * 60_000 - 1 });
+    heldNotLocal(place(store, early), /routing failed: the reply was not/);
+    assert.equal(early.routerQueue.length, 0, "no call is queued");
+    at += m * 60_000;
+  });
+  assert.equal(routingHealth(store).failures, 6);
+});
+
+test("three failures in a row open Needs you; Retry now and success close it", (t) => {
+  const { store } = fixture(t);
+  let at = now;
+  const fail = () => {
+    const ctx = ctxFor(store, { ...fetchable, now: at });
+    place(store, ctx);
+    recordRouterReply(store, asks(store, ctx).task, "no", { now: at });
+    spendRouter(store);
+    at += 15 * 60_000;
+  };
+  fail();
+  fail();
+  assert.deepEqual(routingFailedItems(store), []);
+  fail();
+  const [item] = routingFailedItems(store);
+  assert.equal(item.kind, "routing-failed");
+  assert.equal(item.failures, 3);
+  // Retry now: the next tick asks at once, even inside the backoff.
+  const ctx = ctxFor(store, { ...fetchable, now: at });
+  place(store, ctx);
+  recordRouterReply(store, asks(store, ctx).task, "no", { now: at });
+  spendRouter(store);
+  assert.equal(
+    place(store, ctxFor(store, { ...fetchable, now: at })).routingFailed,
+    true,
+  );
+  retryRoutingNow(store);
+  const again = ctxFor(store, { ...fetchable, now: at });
+  assert.equal(place(store, again).why, "placing");
+  recordRouterReply(
+    store,
+    asks(store, again).task,
+    '[{"task":"t1","crew":"local","model":"model-a","reason":"ok"}]',
+    { now: at },
+  );
+  assert.deepEqual(routingFailedItems(store), []);
+  assert.equal(routingHealth(store).failures, 0);
+  assert.ok(routingHealth(store).lastSuccessAt);
+  const rows = listActivity(store).items.map((r) => r.kind);
+  assert.ok(rows.includes("routing.recovered"));
+  assert.equal(rows.filter((k) => k === "routing.failed").length, 4);
+});
+
+test("turning routing off clears the failures", (t) => {
+  const { store } = fixture(t);
+  const ctx = ctxFor(store, fetchable);
+  place(store, ctx);
+  recordRouterReply(store, asks(store, ctx).task, "no", { now });
+  assert.equal(routingHealth(store).failures, 1);
+  clearRoutingHealth(store);
+  assert.equal(routingHealth(store).failures, 0);
+  assert.deepEqual(routingFailedItems(store), []);
 });

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { Component, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Tooltip } from './Tooltip.tsx'
 import { useAppApi } from './host.ts'
 import { Btn, Card, EmptyState, Input, SegmentedControl } from '@kirocrew/app-sdk/ui'
@@ -1384,6 +1384,22 @@ function PolicyEditor(props: { workspaceId: string; tab: SettingsTab; onOpenPlan
   )
 }
 
+// One tab that throws while drawing shows why, instead of blanking the app.
+class TabBoundary extends Component<{ label: string; children: ReactNode }, { error: string | null }> {
+  state = { error: null as string | null }
+  static getDerivedStateFromError(error: unknown) {
+    return { error: error instanceof Error ? error.message : String(error) }
+  }
+  render() {
+    if (!this.state.error) return this.props.children
+    return (
+      <p role="alert" className="text-sm text-danger" data-error-boundary>
+        Settings › {this.props.label} could not be drawn: {this.state.error}. Reload the page. If it happens again, update Avoozl.
+      </p>
+    )
+  }
+}
+
 export default function SettingsView(props: {
   workspaceId: string | null
   tab?: SettingsTab
@@ -1417,6 +1433,7 @@ export default function SettingsView(props: {
           {SETTINGS_BLURBS[tab]}
         </p>
       )}
+      <TabBoundary key={tab} label={SETTINGS_TABS.find((t) => t.key === tab)?.label ?? tab}>
       {tab === 'workspaces' ? (
         <WorkspaceView selected={workspaceId} onSelect={props.onSelectWorkspace} onListChange={props.onListChange} />
       ) : !workspaceId ? (
@@ -1440,6 +1457,7 @@ export default function SettingsView(props: {
       ) : (
         <PolicyEditor workspaceId={workspaceId} tab={tab} onOpenPlans={props.onOpenPlans} />
       )}
+      </TabBoundary>
     </section>
   )
 }

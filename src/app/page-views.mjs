@@ -3,6 +3,7 @@
 // `observe`. Old or read-only workspaces may lack newer tables; those read as
 // empty rather than failing the view.
 import { budgetSummaries } from "./budget.mjs";
+import { routingFailedItems, routingHealth } from "./routing-health.mjs";
 import { providerOutItems } from "./provider-health.mjs";
 import { investigationItems } from "./investigate.mjs";
 import { queryTasks, reviewSettled, statusComplete } from "../model.mjs";
@@ -295,6 +296,7 @@ export function graphView(store, data, input = {}) {
     archivedOf = archivedPlanOf(store),
     budgets = budgetSummaries(store, data),
     manual = manualWaitingIds(data, registered),
+    routingMarks = routingHealth(store).marks,
     counts = new Map();
   // One state per node for the Graph drawing. Needs-you comes first among
   // open tasks so a person sees it even on a running or deferred task.
@@ -387,6 +389,8 @@ export function graphView(store, data, input = {}) {
       manualDone: isManual(task) ? (task.manualDone ?? null) : null,
       // Spend against the cap (§4.17), or null with no usage.
       budget: budgets.get(task.id) ?? null,
+      // Ready, held by routing: {why, retryAt}. Never runs locally instead.
+      routingFailed: routingMarks[task.id] ?? null,
       // Status review with no session, run or delivery behind it.
       noSession: statusWithoutSession(task, live, claimed),
       handSetReview: statusWithoutSession(task, live, claimed) !== null,
@@ -1126,6 +1130,8 @@ export function conflictsView(store, data) {
   }
   // A provider or model that is out (§4.20, R72.16): one item per mark.
   items.push(...providerOutItems(store));
+  // Routing failed three times in a row (§4.10, R41.7).
+  items.push(...routingFailedItems(store));
   // Ready to merge under manual ship (§4.25, R80.3, R80.4): a pull request
   // a person merges on GitHub, or a local task waiting for Integrate.
   for (const row of optionalList(store, "pr_feedback")) {

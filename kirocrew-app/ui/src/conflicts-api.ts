@@ -96,7 +96,7 @@ export function noActionReason(item: ConflictItem): string | null {
   // Budget items carry their own actions (Budget.tsx BudgetActions), and
   // so do findings and Ready to merge (ConflictsView.tsx).
   if (item.kind === 'budget' || item.kind === 'over-budget') return null
-  if (item.kind === 'investigation' || item.kind === 'ready-to-merge') return null
+  if (item.kind === 'investigation' || item.kind === 'ready-to-merge' || item.kind === 'routing-failed') return null
   if (item.kind === 'needs-human' && item.reason === 'hand-set-review')
     return 'Discuss it, mark it done, or move it back to planned from the task.'
   if (item.kind === 'review' && settleActionOf(item) === null)
@@ -112,7 +112,7 @@ export const CONFLICT_TABS: { key: string; label: string; keep: (item: ConflictI
   { key: 'all', label: 'All', keep: () => true },
   { key: 'github-conflict', label: 'GitHub edits', keep: (item) => item.kind === 'github-conflict' },
   { key: 'decision', label: 'Decisions', keep: (item) => ['decision', 'content-match', 'content-unavailable'].includes(item.kind) },
-  { key: 'needs-human', label: 'Needs you', keep: (item) => ['needs-human', 'review', 'investigation', 'ready-to-merge'].includes(item.kind) },
+  { key: 'needs-human', label: 'Needs you', keep: (item) => ['needs-human', 'review', 'investigation', 'ready-to-merge', 'routing-failed'].includes(item.kind) },
   { key: 'other', label: 'Sessions and resources', keep: (item) => ['stale-session', 'resource', 'tracker-conflict'].includes(item.kind) },
 ]
 
