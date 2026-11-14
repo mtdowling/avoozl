@@ -103,7 +103,7 @@ test("flow settings: defaults, per-repository overrides, and refused keys", () =
   );
   assert.throws(
     () => flowPolicy({ flow: { batch: { max: 0 } } }),
-    /flow\.batch\.max must be a whole number 1–10/,
+    /flow\.batch\.max must be a whole number 1–5/,
   );
   assert.throws(
     () => flowPolicy({ flow: { stopTheLine: { scope: "off" } } }),
