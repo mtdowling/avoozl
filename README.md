@@ -353,6 +353,14 @@ Kiro Crew can open remote sessions itself, Avoozl uses that and ignores the
 setting. The relay is built and tested with a fake relay chat and fake crews
 only (P47). It has not been run against a real remote crew.
 
+## The Avoozl worker is frozen
+
+The `worker` coder gets upkeep only: security fixes, bug fixes, and keeping
+the tests green on all three systems. It gets no new features. Pick `issue-radar`
+for new work. A repository that changes coder keeps each handed-over task with
+its old coder until that task's issue closes. New tasks use the new coder, and
+the next projection shows the split once.
+
 ## Pull request feedback
 
 For each leaf an Avoozl worker codes on a linked branch, the tick reads its

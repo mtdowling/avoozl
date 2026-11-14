@@ -109,7 +109,7 @@ Requirement RC4. The tick adds the ready label in graph order, N at a time.
 - [x] rc-4.3 Phase gate: release the next phase after the previous one merged, after rc-4.1 [RC4.4] (§D6)
   - A phase releases only when every task of the previous phase of the spec has a merged closing pull request; a closed-by-order task does not count.
   - Done when: A phase with one task closed by order stays held; merging it releases the next phase on the next tick.
-- [ ] rc-4.4 Release mode radio fold-out and the Release queue, after rc-4.1 [RC4.5, RC4.6] (§D6)
+- [x] rc-4.4 Release mode radio fold-out and the Release queue, after rc-4.1 [RC4.5, RC4.6] (§D6)
   - Automatic, Step and Hold as one radio fold-out; the Release queue (Up next) shows what is next and why anything is held; another person's ready label counts as an order only where policy allows.
   - Done when: Step waits for one click per phase; Hold releases nothing; the queue shows the reason for each held item; drawn at 320, 768 and 1280 px.
 - [ ] rc-p4 Proof 4: release honors N, scopes, phases and the stop, after rc-4.1, rc-4.2, rc-4.3, rc-4.4 [RC4] (§D17)
@@ -321,10 +321,10 @@ Requirement RC14. One adapter per coder. The Radar path moves behind it unchange
 - [x] rc-14.2 Coder adapter: hand over, read state, count as done, after rc-14.1, rc-4.1, rc-5.1 [RC14.2, RC14.3, RC14.6] (§D19)
   - A small adapter object with `handOver`, `readState` and `countsAsDone`; the `issue-radar` behavior moves behind it with no change in output; release, Stop the line and the merge path call the adapter; `src/app/test/coder-adapter.test.mjs`.
   - Done when: The Radar tests of Phases 4 and 5 pass unchanged; a fake third adapter in a test needs no change to release or projection; done is true only for a merged pull request.
-- [ ] rc-14.3 Put the worker behind the adapter and mark it frozen, after rc-14.2 [RC14.4] (§D19)
+- [x] rc-14.3 Put the worker behind the adapter and mark it frozen, after rc-14.2 [RC14.4] (§D19)
   - The existing worker dispatch is wrapped as an adapter with no new behavior; Settings and docs say it is frozen (upkeep only); a comment in the adapter says `shortcut: frozen, upgrade only for security, bugs and compatibility`.
   - Done when: Existing worker tests pass unchanged; Settings says frozen; no new option is added to the worker.
-- [ ] rc-14.4 Coder change with tasks in flight, after rc-14.2 [RC14.5] (§D19)
+- [x] rc-14.4 Coder change with tasks in flight, after rc-14.2 [RC14.5] (§D19)
   - Tasks already handed over keep their coder; the next tasks use the new one; one notice shows the split.
   - Done when: A test switches coder with one task in flight: that task finishes with the old coder, the next goes to the new one, one notice appears.
 - [ ] rc-p14 Proof 14: the same plan, any coder, after rc-14.1, rc-14.2, rc-14.3, rc-14.4 [RC14] (§D22)
