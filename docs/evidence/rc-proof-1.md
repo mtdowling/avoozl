@@ -13,12 +13,12 @@ Receipt for task `rc-p1` in `.kiro/specs/radar-coder/tasks.md`.
 
 A fake GitHub with six open issues in one repository set to `coder: issue-radar`, `minimumPermission: write`:
 
-| Issue | State |
-|---|---|
-| 1, 2, 3 | plain, no label |
-| 4 | planning label `to plan`, added by an allowed person |
-| 5 | planning label, added by a stranger (read permission) |
-| 6 | `plan me` label, no planning label |
+| Issue   | State                                                 |
+| ------- | ----------------------------------------------------- |
+| 1, 2, 3 | plain, no label                                       |
+| 4       | planning label `to plan`, added by an allowed person  |
+| 5       | planning label, added by a stranger (read permission) |
+| 6       | `plan me` label, no planning label                    |
 
 The fake records every query and every write.
 

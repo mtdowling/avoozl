@@ -13,14 +13,14 @@ Receipt for task `rc-p3` in `.kiro/specs/radar-coder/tasks.md`.
 
 Two runs, `single-repo` and `plans-repo`. An approved spec merged through the recorded approval, projected into issues. Six issues are built from one projected issue:
 
-| Case | Change |
-|---|---|
-| good | none |
-| approver | `approved-by` is a login with read permission |
-| task | `tasks=` names `config.9.9`, which is not in the spec |
-| commit | the compare read says `diverged` (not on the default branch) |
-| author | the issue author has read permission; the marker names a valid approver |
-| marker | `commit=` edited to another commit after approval |
+| Case     | Change                                                                  |
+| -------- | ----------------------------------------------------------------------- |
+| good     | none                                                                    |
+| approver | `approved-by` is a login with read permission                           |
+| task     | `tasks=` names `config.9.9`, which is not in the spec                   |
+| commit   | the compare read says `diverged` (not on the default branch)            |
+| author   | the issue author has read permission; the marker names a valid approver |
+| marker   | `commit=` edited to another commit after approval                       |
 
 ## Action
 
