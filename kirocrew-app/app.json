@@ -23,7 +23,8 @@
     "agents/avoozl-relay.json",
     "agents/avoozl-code-review.json",
     "agents/avoozl-review-draft.json",
-    "agents/avoozl-crew.json"
+    "agents/avoozl-crew.json",
+    "agents/avoozl-driver.json"
   ],
   "mcpServers": {
     "avoozl": {

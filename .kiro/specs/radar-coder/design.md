@@ -1121,8 +1121,8 @@ the setting otherwise.
 A spec's home (`main` or `plansBranch`) is stored with the spec record and
 shown as the **Private** or **Public** badge on the Specs page. Reading goes
 through one function, `readSpecFolder(home, name)`, which reads from the
-default branch or from `plansBranch`; both lists are merged by name and a name
-in both is refused. New specs start private when a mirror is set. A move is an
+default branch or from `plansBranch`; both lists are read on every tick and merged
+into one graph; a spec name or task ID in both is refused naming both. New specs start private when a mirror is set. A move is an
 explicit act that copies; it never deletes.
 
 ### D30.3 Marker, approval and `verify-issue`
@@ -1166,15 +1166,25 @@ the crew to `verify-issue`; the commands arrive in its output.
 Private-plan issues live in the mirror and carry the marker with `ref`. They
 are never copied, linked or quoted to `source`. Public-plan issue bodies hold
 the task text and acceptance only, with no private text and no `plansBranch`.
-A `requires` edge from a public task to a private one is refused at lint
-(RC25.7), so a public plan cannot wait on a private one.
+A `requires` edge may cross in either direction (RC25.9). For a public-safe
+issue that waits on a private task, the body line is exactly `Waits on a
+private task.`, with no title, text, task ID, spec name or link; the
+blocked-by link GitHub holds stays in the private mirror. Release reads one
+graph: a dependent releases when its blocker is done by the blocker's own rule
+(a public task counts done on the public merge, D29.7).
+
+```text
+public spec (main) ---\                  /--- private spec (plansBranch)
+                       one graph per tick ---> issues in the mirror ---> release rules (D6)
+public task <--waits on-- private task        (cross edges both ways)
+```
 
 ### D30.7 Failure modes
 
 | Failure                                         | What the owner sees                                   |
 | ----------------------------------------------- | ----------------------------------------------------- |
 | `plansBranch` shares history with the default   | Setting refused, one line                             |
-| Same spec name in both homes                    | Lint error naming both homes                          |
+| Same spec name or task ID in both homes         | Lint error naming both homes                          |
 | Forward text names the plans branch or a path   | One Needs you row naming the rule; nothing pushed     |
 | `ref` is not an orphan branch                   | `verify-issue` fails `commit` with the reason         |
 
@@ -1182,4 +1192,4 @@ Proof added to D17:
 
 | Proof  | Proves                                                                                                         |
 | ------ | -------------------------------------------------------------------------------------------------------------- |
-| rc-p24 | A public and a private plan in one mirror; `verify-issue` passes for both; no ref of `plansBranch` on the public repository |
+| rc-p24 | A public and a private plan active together in one mirror with one cross edge; `verify-issue` passes for both; no ref of `plansBranch` on the public repository |
