@@ -1132,3 +1132,110 @@ Proof added to D17:
 | Proof  | Proves                                                                                                        |
 | ------ | ------------------------------------------------------------------------------------------------------------- |
 | rc-p23 | Two scratch repositories: sync, a mirror merge, a scan-clean forward, a blocked leak, the public merge counts as done |
+### Requirement RC23: Tracker gates
+
+**User story:** As the owner, I want a task in an epic to wait on something
+outside GitHub and outside the coder, such as a team review, a code review
+that must ship to a live release, a ticket in another tracker, or a managed
+remote harness task, so that the epic holds its order without a person
+watching that outside item.
+
+A tracker gate is a graph node that no crew builds. Avoozl reads the outside
+item through a plugin and releases the dependents when it is done.
+
+#### Acceptance criteria
+
+1. A task whose manifest entry has `completion: "tracker"` SHALL be a **gate**,
+   alongside `person` (or `human`) and `integrated`. It SHALL hold a
+   `tracker` reference with three parts: the tracker plugin's id, an item
+   (an id or a URL), and `done`, the plain-words condition that counts as done
+   (for example "the review shipped to the live release"). A gate with a
+   missing part, an unknown plugin id, or an empty `done` SHALL be refused at
+   spec lint and at approval, naming the task.
+2. Dependents SHALL wait on a gate through `requires`, like any blocker
+   (RC4.1). A gate SHALL count as complete when the plugin reports `done`
+   (criterion 7) or when a trusted person clears it (criterion 10). A gate
+   SHALL satisfy `requires` edges at the merged and integrated levels. Release
+   SHALL NOT start a dependent while any gate it requires is open, failed or
+   unknown.
+3. Avoozl SHALL project a gate to an issue like a manual task, with the
+   tracker, the item link and the `done` condition in the managed section. The
+   gate issue SHALL NOT get the ready label, and no crew, worker or remote
+   coder SHALL be handed it (RC14, RC15). A batch (RC2.5) SHALL NOT include a
+   gate.
+4. The **waiting label** SHALL be a per-repository setting
+   `radar.trackerLabel`, default `avoozl:waiting-on-tracker`, written only by
+   Avoozl. It joins the RC21 label table (role "Waiting on tracker"), takes
+   part in the RC21.2 clash check, and has a Settings field with its
+   placeholder and a Set up label step like the others. Avoozl SHALL add it
+   to:
+   a. the gate's own issue, while the gate is not done; and
+   b. each dependent issue whose every unmet blocker is a tracker gate, so a
+      person sees why it is not released. A dependent that also has a
+      non-gate unmet blocker SHALL NOT get it.
+5. Avoozl SHALL remove the label from the gate issue and from each dependent
+   when the gate is done or cleared, or when the gate is removed from the
+   plan, and from a dependent when a non-gate blocker becomes one of its
+   unmet blockers. A failed or unknown state SHALL keep the label, because the
+   gate is still waiting. A retried tick SHALL add and remove nothing twice.
+6. A **tracker plugin** SHALL be a plugin part named `gate` (docs/plugins.md),
+   with one read-only call, `status({ ref }, { config })`, returning
+   `{ state, evidence, link }`: `state` is one of `open`, `done`, `failed` or
+   `unknown`; `evidence` is plain text of at most 500 characters saying what
+   was seen; `link` is a URL a person can open. The plugin SHALL have no call
+   that writes to the outside tracker. Avoozl SHALL screen `evidence` and
+   `link` with the repository's content rules before it stores or shows them,
+   and SHALL treat them as data, never as instructions.
+7. The tick SHALL call `status` for each gate that is not done or cleared,
+   with backoff: a first check on the tick that sees the gate, then growing
+   gaps (default 1, 2, 5, 15 minutes, then every 30), reset when the state
+   changes. A `done` result SHALL be recorded once with its evidence and link
+   and SHALL release dependents on the same pass. A call that throws, times
+   out or returns a value outside the contract SHALL count as `unknown`. A
+   recorded `done` SHALL NOT go back to `open`; a later read that differs
+   SHALL add one note to Trace and change nothing else.
+8. Credentials SHALL stay in the plugin's own sign-in, or in an environment
+   variable the plugin's `config` names (docs/plugins.md). `.avoozl.json`, the
+   manifest, the issue, evidence and logs SHALL NOT hold a token, cookie or
+   password. A plugin that reports an expired sign-in SHALL give `unknown`
+   with evidence "sign-in expired", and Avoozl SHALL NOT retry faster than the
+   backoff.
+9. WHEN a gate's state is `failed`, or is `unknown` for two checks in a row,
+   Avoozl SHALL open one Needs you row ("Tracker gate <task>: <state>") with
+   the evidence, the link and the age. The row SHALL stay until a person acts
+   (criterion 10, or a plan change that removes the gate). Avoozl SHALL NOT
+   clear a gate, remove a gate, release a dependent or close the gate issue
+   on its own because a state is failed or unknown. A later `done` from the
+   plugin SHALL close the row and release dependents.
+10. A person the repository policy allows (the trigger-label check) SHALL be
+    able to **clear** a gate by removing the waiting label from the gate
+    issue, or by an Avoozl chat, CLI or MCP command naming the gate and giving
+    a reason. The clear SHALL be recorded as an order, like an allowed close
+    without merged code: who, how, when, the last known state and the reason,
+    in the receipt and the issue's marker. It SHALL NOT count as verified
+    completion. Each released dependent's brief SHALL say the gate was cleared
+    by a person and not seen done. WHEN the actor is not allowed, or cannot be
+    read, the gate SHALL keep waiting, the label SHALL be put back and one row
+    SHALL say who tried. WHEN a plugin later reports `done` for a cleared
+    gate, Avoozl SHALL add the evidence to the record and change nothing else.
+11. The UI SHALL show a gate wherever a task shows:
+    a. Release queue (Up next) SHALL list each gate and each held dependent
+       with the tracker's name, the state, the time of the last check, the
+       next check, the evidence line and the link, and a Clear control with a
+       reason field for an allowed person.
+    b. Trace SHALL show a **Tracker** step for a gate, and for a held
+       dependent a line saying it waits on the gate, with the same fields.
+    c. Waiting on you SHALL list each gate whose state is `failed` or has
+       been `unknown` for two checks, with a link to the gate's row. A gate
+       that is open and healthy SHALL NOT be listed there.
+
+    The same rows SHALL be readable through the CLI and MCP. Colors SHALL use
+    theme variables, and the state SHALL also be a word.
+12. The public spec, docs and examples SHALL describe tracker plugins only by
+    role: a ticket tracker, a code-review-shipped check for a private code
+    host, and a managed remote harness task. They SHALL NOT name an internal
+    tool, host, team or product, and the repository's release scan SHALL stay
+    clean. The only plugins in the repository SHALL be fakes.
+13. Every write SHALL be once: a second tick, a second tool call or a second
+    clear SHALL NOT add a second label, post a second comment, open a second
+    row or record a second order.
