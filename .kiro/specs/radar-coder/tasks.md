@@ -562,7 +562,7 @@ Requirement RC26. Where each mirror change lands on the public repository, and t
 - [ ] rc-25.2 Path policy and metadata scrub, after rc-23.4 [RC26.5, RC26.6] (§D31.2)
   - `forwardExclude`, `forwardAllow`, the default exclusions (`.kiro/`, the plans branch, `AGENTS.md`, steering); one new commit authored by the person, no trailers, markers, mirror history or links; tests 1 and 3 of D31.2 in `src/app/test/mirror-forward-protections.test.mjs`.
   - Done when: Each excluded path blocks naming the rule; an allowlisted path passes; the commit has one parent, the person as author and no trailer or mirror reference.
-- [ ] rc-25.3 Leak scan extensions: private terms, hosts, ticket IDs, account IDs, secrets, binary and over-size files, after rc-25.2 [RC26.5] (§D31.2)
+- [x] rc-25.3 Leak scan extensions: private terms, hosts, ticket IDs, account IDs, secrets, binary and over-size files, after rc-25.2 [RC26.5] (§D31.2)
   - Runs the public-crew content rules on the diff, file names, message, branch, title and body; `forwardMaxFileBytes` shown in Settings with its default; test 2 of D31.2.
   - Done when: A planted fake term, host, ticket ID, account ID and secret each block; a binary and an over-size file block; an allowlisted binary passes; the test reads the size from the setting.
 - [ ] rc-25.4 Forward screen shows the exact public diff, title and body; receipt, after rc-25.3, rc-23.4 [RC26.5] (§D31.2, §D31.3)
