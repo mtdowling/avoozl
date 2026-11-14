@@ -4435,3 +4435,89 @@ on a bigger or safer machine without a shared database or a shared gateway.
    one gives.
 10. A worker whose chat ended without a report SHALL raise one decision notice
     and SHALL NOT be replaced.
+
+### Requirement 85: Crews on public repositories
+
+Added 2026-11-14 (owner request). Design §6.14. Facts checked in Kiro Crew
+0.12.2.4 and on a scratch repository, written up in `docs/public-crews.md`.
+
+**User story:** As the owner of a machine that holds private names, links and
+notes, I want an Issue Radar crew to work a public repository without any of
+that reaching GitHub, and I want it to fail safe if something slips, so that
+one careless line cannot become a public leak.
+
+Facts. A crew writes its claim comment, labels, commits, pushes, pull request
+and pull request body itself, with `gh` and `git` in its own shell. Issue
+Radar's backend writes to GitHub only when a person clicks in the dashboard,
+and it refuses a crew's session on those routes. The crew's two Kiro Crew
+tools touch only its local ledger. A crew's agent comes from its crew record,
+so a hook on that agent runs before each of its tool calls. A separate
+`KIRO_HOME` hides the owner's global steering and memory from that agent, but
+not any file the same operating-system user can read.
+
+#### Acceptance criteria
+
+1. A crew SHALL count as a public crew WHEN its repository is public on
+   GitHub. A repository whose visibility cannot be read SHALL count as
+   public. The layers below SHALL apply to every public crew and SHALL NOT
+   depend on any prompt text.
+2. Layer 1, a clean home. Avoozl SHALL document and check a crew home with
+   no steering, memory or notes of the owner's, reached through its own
+   `KIRO_HOME`. The docs and the checklist SHALL say plainly that this
+   removes injected context only: the crew can still read every file its
+   operating-system user can read, and use that user's credentials. A crew
+   that must not read them SHALL run as another user, in a container, or on
+   another machine.
+3. Layer 2, scan before send. Avoozl SHALL ship a hook command that a crew's
+   agent runs before each shell call. It SHALL read the call from stdin and,
+   for these writes, run content rules (Requirement 40) before they run:
+   `gh issue` create, comment, edit; `gh pr` create, edit, comment, review,
+   merge; `gh api` with a write method or body fields; `git commit`,
+   `git tag` and `git push`. It SHALL check the text, the labels, the branch
+   name, and, for `git push` and `gh pr create`, the commit messages and
+   added lines the call would publish.
+4. WHEN a rule matches, or a rule set the repository needs is unavailable,
+   THEN the hook SHALL refuse the call (exit code 2) and name the rule set,
+   rule id and place, never the matched text (Requirement 40.8). WHEN the
+   text cannot be read from the call, because it comes from a shell
+   expansion, THEN the hook SHALL refuse it and say why, so the crew can
+   write the text to a file and pass the file.
+5. The hook SHALL be limited as follows, and the docs SHALL say so: it reads
+   the call, not what a script or interpreter does when run, so a write made
+   inside a script, `python -c`, or a build tool is not seen; and it covers
+   only the tools it is attached to. WHERE a write comes from Kiro Crew's own
+   backend instead of the crew's shell, the hook cannot see it either. Those
+   gaps SHALL be covered by criterion 6, and the missing upstream
+   capabilities SHALL be listed as requests in `docs/public-crews.md`.
+   Nothing SHALL be filed.
+6. Layer 3, audit on the tick. For each public crew's repository the tick
+   SHALL read the comments, pull requests, commits and branch names a crew
+   made since the last pass, found by the crew claim marker, the
+   `crew/<name>/` branch prefix and the crew labels, and SHALL check them
+   with content rules. The audit SHALL keep a cursor per repository and SHALL
+   run at the tick's own pace.
+7. WHEN the audit finds a match THEN Avoozl SHALL: delete the comment, and
+   SHALL NOT edit it, because GitHub keeps the edit history; close a matching
+   pull request or issue the crew opened and delete its branch; pull the cord
+   (Requirement 64) for the repository; and tell the owner in a Kiro Crew
+   notification and in Needs you, naming the rule set, rule id, place and
+   link. It SHALL record who, what and when, and a hash instead of the
+   text. The page and the docs SHALL say that a pull request body, a commit
+   or an edit history can stay reachable on GitHub by its address after
+   deletion, and that removing it for good needs a request to GitHub.
+8. Layer 4, sign-off. Avoozl SHALL NOT send an issue of a public repository
+   to Issue Radar (Requirement 52) until a person has signed off a checklist
+   of: the crew home, the hook on the crew's agent (by its hash), the rule
+   sets that cover the repository, and the audit being on. The sign-off SHALL
+   record who and when, SHALL be refused to an agent, plugin, or app token,
+   and SHALL lapse WHEN any of those items changes.
+9. Kill switch. The page and the CLI SHALL offer one **Stop public crews**
+   action that pulls the cord for every public repository and tells the
+   person which crews to pause in Kiro Crew, with a link for each. Pulling
+   the cord SHALL NOT stop a running crew, which Avoozl cannot pause today.
+   Resuming SHALL be a person only (Requirement 64).
+10. Every rule set Requirement 40 names SHALL be usable here. A public
+    repository with a public crew and no rule set SHALL show a banner and
+    SHALL keep sign-off closed. Public Avoozl files, tests and docs SHALL use
+    only fake terms, and SHALL describe the private side as internal names
+    and company hosts.
