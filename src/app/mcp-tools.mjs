@@ -325,6 +325,10 @@ const tools = {
       untriaged: ["untriaged.view", "items no rule claims"],
       crews: ["untriaged.crews", "Issue Radar crews for a repository"],
       radar: ["radar.crews", "live Issue Radar claims, from GitHub"],
+      trace: [
+        "radar.trace",
+        "one issue's eight steps with GitHub's times (repository, number)",
+      ],
       radar_setup_preview: [
         "radar.setup",
         "what each Radar set up step (labels, branch rule, auto-merge, review-rules pull request, Project) would write, without writing",

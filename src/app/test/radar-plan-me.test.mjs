@@ -412,3 +412,26 @@ test("radar.crews reads on demand and reports what GitHub cannot show", async (t
   );
   assert.deepEqual(view.unseen, ["paused", "machine", "chat"]);
 });
+
+test("radar.trace shows the claim comment's GitHub time, not the marker's updated=", async (t) => {
+  const issue = recorded(16),
+    marked = issue.comments[0];
+  // The recorded marker says 05:52; GitHub's own time for the comment is
+  // 05:30 (rc-8.2).
+  marked.created_at = "2026-11-14T05:30:00Z";
+  issue.created_at = "2026-11-14T05:00:00Z";
+  const { ops } = workspace(t, fakeGitHub([issue])),
+    trace = await ops.execute("radar.trace", { repository: REPO, number: 16 }),
+    claimed = trace.steps.find((step) => step.key === "claimed");
+  assert.equal(claimed.at, "2026-11-14T05:30:00Z");
+  assert.equal(trace.crew.name, "Draco");
+  assert.equal(trace.steps.length, 8);
+  await assert.rejects(
+    ops.execute("radar.trace", { repository: "x/y", number: 1 }),
+    /not registered/,
+  );
+  await assert.rejects(
+    ops.execute("radar.trace", { repository: REPO, number: "abc" }),
+    /issue number/,
+  );
+});
