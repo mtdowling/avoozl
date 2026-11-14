@@ -21,6 +21,7 @@ import { cliRefusal } from "./mcp-policy.mjs";
 import { createAppMcp } from "./app-mcp.mjs";
 import { startAppBackend } from "./app-backend.mjs";
 import { hookEvent, runnerHookBrief } from "./runner.mjs";
+import { callerSlot } from "./delivery.mjs";
 import { validate } from "../model.mjs";
 import { planFiles } from "../catalog.mjs";
 import { reconcileSource } from "./source-sync.mjs";
@@ -828,7 +829,22 @@ try {
     const action = positionals[0] || "status",
       planId = options.spec || positionals[1];
     let result;
-    if (action === "status")
+    if (action === "hook") {
+      // The avoozl-driver agent's agentSpawn and stop hooks: record the chat
+      // Kiro Crew names in `session_key` as the driver session. Prints
+      // nothing, and no failure ever blocks a turn.
+      try {
+        const event = await hookEvent(process.stdin),
+          slot = callerSlot({ sessionKey: event?.session_key });
+        if (slot && fs.existsSync(dbPath))
+          await localOrRequest("driversession.register", {
+            slot,
+            source: String(event.hook_event_name || "hook"),
+          });
+      } catch {
+        // A hook that cannot record stays silent; the turn goes on.
+      }
+    } else if (action === "status")
       result = await localOrRequest("driver.status", planId ? { planId } : {});
     else if (action === "handoff") {
       // Draining already: --folder writes the export now. Otherwise this
@@ -874,10 +890,11 @@ try {
           ? { heartbeatMinutes: Number(options.heartbeat) }
           : {}),
       });
-    else throw Error("Use driver status|handoff|takeover|set.");
-    console.log(
-      typeof result === "string" ? result : JSON.stringify(result, null, 2),
-    );
+    else throw Error("Use driver status|handoff|takeover|set|hook.");
+    if (action !== "hook")
+      console.log(
+        typeof result === "string" ? result : JSON.stringify(result, null, 2),
+      );
   } else if (command === "claim")
     console.log(
       JSON.stringify(

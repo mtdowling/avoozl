@@ -42,8 +42,15 @@ const api = {
   },
 }
 export const useAppApi = () => api
-export const useNavigate = () => () => undefined
-export const useChatLauncher = () => ({ openChat: () => undefined })
+export const useNavigate = () => (path: string) => {
+  ;((window as unknown as { __navigated?: string[] }).__navigated ??= []).push(path)
+}
+// A test reads window.__chats to see what a button asked the host to open.
+export const useChatLauncher = () => ({
+  openChat: (input: unknown) => {
+    ;((window as unknown as { __chats?: unknown[] }).__chats ??= []).push(input)
+  },
+})
 
 export function Icon(props: { size?: number | string; style?: object }) {
   const size = props.size ?? 16
