@@ -3,9 +3,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   adapterFor,
+  coderForTask,
   issueRadarAdapter,
   registerCoderAdapter,
   usesMergePath,
+  workerAdapter,
 } from "../coder-adapter.mjs";
 
 const issue = (labels = [], state = "open") => ({
@@ -74,4 +76,41 @@ test("a fake third adapter plugs in without changing callers", async () => {
     restore();
   }
   assert.equal(usesMergePath("remote"), false);
+});
+
+test("the worker adapter keeps today's hand-over and is not on the merge path", async () => {
+  const added = [],
+    github = { addLabels: async (...args) => added.push(args) };
+  assert.equal(adapterFor("worker"), workerAdapter);
+  assert.equal(usesMergePath("worker"), false);
+  assert.equal(
+    await workerAdapter.handOver({
+      github,
+      config: "c",
+      issue: issue(),
+      label: "ready",
+    }),
+    true,
+  );
+  assert.deepEqual(added, [["c", 7, ["ready"]]]);
+  // Done: a merged pull request or a local integration, never a closed issue.
+  const done = (input) =>
+    workerAdapter.countsAsDone(workerAdapter.readState(input));
+  assert.equal(done({ issue: issue([], "closed") }), false);
+  assert.equal(done({ issue: issue(), integrated: true }), true);
+  assert.equal(done({ issue: issue(), pulls: [{ merged: true }] }), true);
+});
+
+test("coderForTask keeps the coder of an open handed-over task", () => {
+  assert.deepEqual(coderForTask({ held: "issue-radar", current: "remote" }), {
+    coder: "issue-radar",
+    kept: true,
+    held: true,
+  });
+  assert.equal(
+    coderForTask({ held: "issue-radar", current: "remote", open: false }).coder,
+    "remote",
+  );
+  assert.equal(coderForTask({ current: "remote" }).coder, "remote");
+  assert.equal(coderForTask({ held: "remote", current: "remote" }).kept, false);
 });
