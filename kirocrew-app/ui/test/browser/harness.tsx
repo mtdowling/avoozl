@@ -30,6 +30,7 @@ import { LAYER } from '../../src/layers.ts'
 import { BudgetSettings } from '../../src/BudgetSettings.tsx'
 import { CoderPicker } from '../../src/CoderPicker.tsx'
 import ReleaseQueue from '../../src/ReleaseQueue.tsx'
+import GithubFlow from '../../src/GithubFlow.tsx'
 import { ReleaseModePicker } from '../../src/ReleaseMode.tsx'
 import { ProjectionModal } from '../../src/ProjectionModal.tsx'
 import { SpecChangedModal } from '../../src/SpecChangedModal.tsx'
@@ -581,7 +582,22 @@ function ReleaseModes() {
     </div>
   )
 }
+// ?page=github-flow: Flow from GitHub data on two finished issues.
+if (query.get('page') === 'github-flow')
+  answer('radar.flow', () => ({
+    readAt: new Date(Date.now() - 4 * 60000).toISOString(),
+    count: 2,
+    issues: [],
+    skipped: [{ number: 61 }],
+    median: [15 * 60000, 45 * 60000, 35 * 60000, 10 * 60000],
+    medianLead: 105 * 60000,
+    efficiency: 90 / 210,
+    bottleneck: 'Claim to PR',
+    errors: [],
+    repositories: ['acme/recipe-box'],
+  }))
 const PAGES: Record<string, () => ReactNode> = {
+  'github-flow': () => <GithubFlow workspaceId="w" />,
   'release-queue': () => <ReleaseQueue workspaceId="w" />,
   'release-mode': () => <ReleaseModes />,
   budgets: () => <BudgetSettings workspaceId="w" />,

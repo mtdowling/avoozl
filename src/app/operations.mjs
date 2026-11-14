@@ -454,6 +454,7 @@ import {
 } from "./activity-log.mjs";
 import { lintPlan } from "./plan-quality.mjs";
 import { readTrace } from "./trace.mjs";
+import { flowView as radarFlowView, refreshFlow } from "./radar-flow.mjs";
 import {
   createSpecPlan,
   epicMembers,
@@ -3241,6 +3242,16 @@ export class Operations {
       if (context.caller || context.mcp)
         fail("Only a person works a quick goal, in the Avoozl page.", 403);
       return quickGoalOperation(this, name, input);
+    }
+    // Flow from GitHub data (RC8.5): stage times of finished Radar issues.
+    // `refresh` reads GitHub first (at most every 10 minutes unless forced).
+    if (name === "radar.flow") {
+      const policy = readGitHubPolicyOrNull(this.workspaceRoot);
+      if (policy?.mode && this.github?.available?.())
+        await refreshFlow(store, this.github, policy, {
+          force: input.refresh === true,
+        });
+      return radarFlowView(store);
     }
     // One issue's Trace (RC8.2): GitHub's times for its eight steps. Read only.
     if (name === "radar.trace") {

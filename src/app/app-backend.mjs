@@ -172,6 +172,7 @@ export const APP_OPERATIONS = new Set([
   "radar.crews",
   "radar.trace",
   "review.drafts",
+  "radar.flow",
   "radar.mergepath",
   "radar.values",
   "radar.releasequeue",

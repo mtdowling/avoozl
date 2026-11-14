@@ -333,6 +333,10 @@ const tools = {
         "review.drafts",
         "review drafts made from the review label: state (queued, chat, waiting, stale, submitted, discarded), reviewer and pull request, with the GitHub search for drafts waiting on people (repository?, state?)",
       ],
+      flow: [
+        "radar.flow",
+        "stage times of finished Issue Radar issues, from GitHub",
+      ],
       trace: [
         "radar.trace",
         "one issue's eight steps with GitHub's times (repository, number)",
