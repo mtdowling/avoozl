@@ -100,6 +100,7 @@ export function buildTrace({
         label: "Mirror merged",
         at: mirror.mirrorMergedAt ?? null,
         by: mirror.approver ?? null,
+        ...(mirror.conflictNote ? { detail: mirror.conflictNote } : {}),
       },
       { key: "forwarded", label: "Forwarded", at: mirror.forwardedAt ?? null },
       { key: "publicPr", label: "Public PR", at: mirror.publicPrAt ?? null },

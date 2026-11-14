@@ -132,9 +132,17 @@ function execFileSync2(args, { cwd, env, input } = {}) {
 function fakeGitHub({
   title = "Add the feature",
   body = "Adds it.\n\nTests: yes.",
+  head = () => "0".repeat(40),
 } = {}) {
   const github = {
+    issues: [],
     created: [],
+    branch: async () => ({ commit: { sha: head() } }),
+    createIssue: async (repo, input) => {
+      assert.equal(repo, MIRROR);
+      github.issues.push(input);
+      return { number: 60 + github.issues.length };
+    },
     pulls: [],
     available: () => true,
     signedIn: () => true,
@@ -369,4 +377,78 @@ test("stripPrivate drops lines that name the mirror, issues, or other hosts", ()
     stripPrivate(text, { mirror: MIRROR }),
     "Adds the parser.\nDocs: https://github.com/example/code/blob/main/README.md\n\nTests: added.",
   );
+});
+
+// ---- rc-23.6: conflicts -------------------------------------------------
+
+function moveSource(root, pub, text) {
+  const dir = path.join(root, `move-${Math.random().toString(36).slice(2)}`);
+  git(root, "clone", "-q", pub, dir);
+  fs.writeFileSync(path.join(dir, "a.txt"), text);
+  git(dir, "commit", "-q", "-am", "move");
+  git(dir, "push", "-q", "origin", "HEAD:refs/heads/main");
+}
+
+test("a moved source applies on the retry after a sync", async (t) => {
+  const { store, pub, priv, sha, forward } = scratch(t, {
+      file: "a.txt",
+      text: "crew\n",
+    }),
+    root = path.dirname(pub);
+  moveSource(root, pub, "other\n");
+  let synced = 0;
+  const github = fakeGitHub(),
+    result = await forwardRecord(store, github, sha, {
+      policy: policy(),
+      person: "dana",
+      git: forward,
+      grant,
+      // The sync brings the public default branch to a state the change fits.
+      sync: async () => {
+        synced++;
+        moveSource(root, pub, "base\n");
+      },
+    });
+  assert.equal(synced, 1);
+  assert.equal(result.ok, true);
+  assert.equal(git(pub, "show", "avoozl/task-1:a.txt"), "crew");
+  assert.equal(github.issues.length, 0);
+  assert.ok(priv);
+});
+
+test("a true conflict opens one mirror issue with paths and no contents", async (t) => {
+  const { store, pub, sha, forward } = scratch(t, {
+      file: "a.txt",
+      text: "crew secret text\n",
+    }),
+    root = path.dirname(pub);
+  moveSource(root, pub, "other public text\n");
+  const heads = () => git(pub, "rev-parse", "main"),
+    github = fakeGitHub({ head: heads }),
+    options = {
+      policy: policy(),
+      person: "dana",
+      git: forward,
+      grant,
+      sync: async () => {},
+    };
+  const first = await forwardRecord(store, github, sha, options);
+  assert.equal(first.conflict, true);
+  assert.deepEqual(first.paths, ["a.txt"]);
+  assert.equal(github.issues.length, 1);
+  assert.match(github.issues[0].body, /- a\.txt/);
+  assert.doesNotMatch(github.issues[0].body, /secret|public text/);
+  assert.deepEqual(github.issues[0].labels, ["avoozl:ready"]);
+  const record = store.get("mirror_forward", sha);
+  assert.equal(record.state, "to_forward");
+  assert.match(record.conflictNote, /1 path; mirror issue #61/);
+  assert.deepEqual(branches(pub), ["main"]);
+  // Pressing again opens no second issue.
+  await forwardRecord(store, github, sha, options);
+  assert.equal(github.issues.length, 1);
+  // The step leaves it alone until the public default branch moves.
+  const before = github.issues.length;
+  await mirrorForwardRunStep(store, github, options);
+  assert.equal(github.issues.length, before);
+  assert.equal(store.get("mirror_forward", sha).publicPr, null);
 });
