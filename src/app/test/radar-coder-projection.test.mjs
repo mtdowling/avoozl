@@ -18,18 +18,23 @@ const NAMESPACE = "avz_testtesttesttest";
 const markerOf = (issue) =>
   JSON.parse(issue.body.match(/<!-- avoozl-task\n(.*)\n-->/)[1]);
 
-async function workspace(t, { mode, coder }) {
+async function workspace(t, { mode, coder, radar, blockTerm }) {
   const { store } = fixture(t),
     github = new FakeGitHub(),
     root = temporaryDirectory(),
     repositories = {
-      "example/code": { baseBranch: "main", ...(coder ? { coder } : {}) },
+      "example/code": {
+        baseBranch: "main",
+        ...(coder ? { coder } : {}),
+        ...(radar ? { radar } : {}),
+      },
     };
   fs.writeFileSync(
     path.join(root, ".avoozl.json"),
     JSON.stringify({
       version: 1,
       namespace: NAMESPACE,
+      ...(blockTerm ? { contentRules: { sets: [{ id: "names" }] } } : {}),
       github: {
         mode,
         ...(mode === "plans-repo"
@@ -39,6 +44,11 @@ async function workspace(t, { mode, coder }) {
       },
     }),
   );
+  if (blockTerm) {
+    const dir = path.join(root, ".avoozl", "local", "content-rules");
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, "names.txt"), `name: ${blockTerm}\n`);
+  }
   const ops = new Operations(store, {
     github,
     operator: "Operator",
@@ -255,3 +265,76 @@ for (const mode of ["single-repo", "plans-repo"])
     assert.equal(task.githubVerdict?.state, "verified");
     assert.deepEqual(repositoriesOf(github), ["example/code"]);
   });
+
+// rc-2.2: the plans repository name in issues. Nearby inputs checked: public
+// and private code repository; the switch unset, off and on; plans-repo and
+// single-repo mode; coder worker; a content rule that blocks the name.
+const publicRepository = (github) => {
+  github.repository = ({ owner, repo }) =>
+    Promise.resolve({
+      node_id: "repo-node",
+      full_name: owner + "/" + repo,
+      private: false,
+    });
+};
+
+for (const [visibility, radar, refused] of [
+  ["public", undefined, true],
+  ["public", { showPlansRepo: false }, true],
+  ["public", { showPlansRepo: true }, false],
+  ["private", undefined, false],
+  ["private", { showPlansRepo: false }, false],
+  ["private", { showPlansRepo: true }, false],
+])
+  test(`plans-repo, ${visibility} code repository, showPlansRepo ${radar ? radar.showPlansRepo : "unset"}: ${refused ? "refused" : "projected"}`, async (t) => {
+    const { store, github, ops } = await workspace(t, {
+      mode: "plans-repo",
+      coder: "issue-radar",
+      radar,
+    });
+    if (visibility === "public") publicRepository(github);
+    const { plan } = await approve(ops, store, "name", [
+      leaf("name-leaf", "code"),
+    ]);
+    if (refused) {
+      await assert.rejects(
+        ops.execute("github.project", { planId: plan.id }),
+        /Show the plans repository name in issues/,
+      );
+      assert.equal(github.created.length, 0);
+    } else {
+      await ops.execute("github.project", { planId: plan.id });
+      assert.deepEqual(repositoriesOf(github), ["example/code"]);
+    }
+  });
+
+test("single-repo and coder worker never need the switch", async (t) => {
+  for (const [mode, coder] of [
+    ["single-repo", "issue-radar"],
+    ["plans-repo", "worker"],
+  ]) {
+    const { store, github, ops } = await workspace(t, { mode, coder });
+    publicRepository(github);
+    const { plan } = await approve(ops, store, "no-switch", [
+      leaf("no-switch-leaf", mode === "plans-repo" ? "planning" : "code"),
+    ]);
+    await ops.execute("github.project", { planId: plan.id });
+    assert.equal(github.created.length, 1);
+  }
+});
+
+test("a content rule that blocks the plans repository name stops the projection before any write", async (t) => {
+  const { store, github, ops } = await workspace(t, {
+    mode: "plans-repo",
+    coder: "issue-radar",
+    blockTerm: "example/planning",
+  });
+  const { plan } = await approve(ops, store, "blocked-name", [
+    leaf("blocked-leaf", "code"),
+  ]);
+  await assert.rejects(
+    ops.execute("github.project", { planId: plan.id }),
+    /content rule blocks the plans repository name/,
+  );
+  assert.equal(github.created.length, 0);
+});

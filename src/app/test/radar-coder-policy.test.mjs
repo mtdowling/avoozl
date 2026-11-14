@@ -143,3 +143,19 @@ test("an existing worker repository with its own labels still validates", () => 
   });
   assert.equal(entry.managedLabels.ready, "agent:ready");
 });
+
+test("radar.showPlansRepo is unset by default, read when set, and refuses a non-boolean", () => {
+  assert.equal(
+    "showPlansRepo" in repo("plans-repo", { coder: "issue-radar" }).radar,
+    false,
+  );
+  for (const showPlansRepo of [true, false])
+    assert.equal(
+      repo("plans-repo", { radar: { showPlansRepo } }).radar.showPlansRepo,
+      showPlansRepo,
+    );
+  assert.throws(
+    () => repo("plans-repo", { radar: { showPlansRepo: "yes" } }),
+    /radar\.showPlansRepo must be true or false/,
+  );
+});
