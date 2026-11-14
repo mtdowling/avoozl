@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { SMALL, countsLayout, countsStyles, summarize } from '../src/dashboard-api.ts'
+import { RAIL_STEPS, SMALL, countsLayout, countsStyles, railFor, summarize } from '../src/dashboard-api.ts'
 
 const task = (id, state, extra = {}) => ({
   id,
@@ -253,4 +253,21 @@ test('a remote worker from a runner shows in In flight with its crew link', () =
   assert.equal(row.session.link, 'https://crew-b.example/chat?sid=chat-4')
   assert.equal(row.session.crew, 'crew-b')
   assert.equal(summarize({ graph: null, delivery: [], conflicts: [], plans: null }).inFlight.length, 0)
+})
+
+// rc-8.1: the five-step rail on an On the line row, from the claim marker only.
+test('the rail has five steps and reads only the claim marker', () => {
+  assert.deepEqual(RAIL_STEPS, ['Ready', 'Claimed', 'PR', 'CI', 'Merge'])
+  const state = (row) => railFor(row).map((step) => step.state)
+  // A claim label with no marker: ready, and nothing more is known.
+  assert.deepEqual(state({ noMarker: true, phase: null, pr: null }), ['done', 'now', 'later', 'later', 'later'])
+  // Claimed, no pull request yet.
+  assert.deepEqual(state({ noMarker: false, phase: 'implementing', pr: null }), ['done', 'done', 'now', 'later', 'later'])
+  // A pull request is open. The marker holds no CI result, so CI is the step in progress.
+  assert.deepEqual(state({ noMarker: false, phase: 'implementing', pr: 57 }), ['done', 'done', 'done', 'now', 'later'])
+})
+
+test('the rail carries no paused, machine or chat step', () => {
+  const names = railFor({ noMarker: false, phase: 'claimed', pr: null }).map((step) => step.label.toLowerCase())
+  for (const hidden of ['paused', 'machine', 'chat']) assert.ok(!names.includes(hidden))
 })

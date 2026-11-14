@@ -4,7 +4,7 @@ import { Tooltip } from './Tooltip.tsx'
 import { useAppApi } from './host.ts'
 import { Btn, Card, EmptyState } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
-import { SMALL, attentionTarget, attentionTip, countsLayout, countsStyles, summarize, type Attention, type CountsLayout, type InFlight } from './dashboard-api.ts'
+import { SMALL, attentionTarget, railFor, attentionTip, countsLayout, countsStyles, summarize, type Attention, type CountsLayout, type InFlight } from './dashboard-api.ts'
 import { attachHref, duration, relativeTime, sessionHref } from './task-api.ts'
 import { routingClient } from './routing-api.ts'
 import { useTaskDrawer } from './drawer-context.ts'
@@ -171,6 +171,16 @@ export function RadarFlightRow({ row, now }: { row: RadarClaim; now: number }) {
           {row.repository} #{row.number}
         </span>{' '}
         {row.stale && <Badge variant="warning">Stale</Badge>}
+        <span data-rail className="ml-1 inline-flex items-center gap-0.5 align-middle" role="img" aria-label={railFor(row).map((step) => `${step.label} ${step.state === 'done' ? 'done' : step.state === 'now' ? 'now' : 'next'}`).join(', ')}>
+          {railFor(row).map((step) => (
+            <i
+              key={step.label}
+              data-rail-step={step.state}
+              title={step.label}
+              style={{ display: 'block', width: 16, height: 8, borderRadius: 3, background: step.state === 'done' ? 'var(--ok)' : step.state === 'now' ? 'var(--accent)' : 'var(--border)' }}
+            />
+          ))}
+        </span>
         <span className="block text-xs text-muted">
           {row.crewName ?? row.crewId ?? 'no crew named'} · {row.phase ?? 'claim label, no claim comment'}
           {row.updated ? ` · updated ${relativeTime(row.updated, now)}` : ''}
@@ -467,6 +477,9 @@ export default function DashboardView(props: {
               <ShowMore {...pages.more('flight', summary.inFlight.length)} />
               {summary.radarFlight.length > 0 && (
                 <>
+                  <h4 data-on-the-line className="mt-2 text-xs font-semibold text-muted">
+                    On the line ({summary.radarFlight.length}): Ready, Claimed, PR, CI, Merge
+                  </h4>
                   <ul className="mt-1">
                     {pages.take('radar', summary.radarFlight).map((row) => (
                       <RadarFlightRow key={`${row.repository}#${row.number}`} row={row} now={now} />
