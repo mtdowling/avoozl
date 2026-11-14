@@ -963,6 +963,11 @@
           "additionalProperties": false,
           "properties": {
             "capacity": { "type": "integer", "minimum": 0, "maximum": 100 },
+            "mode": {
+              "description": "Automatic releases as slots free. Step waits for one click per phase. Hold releases nothing; a person adds the ready label by hand.",
+              "enum": ["automatic", "step", "hold"],
+              "default": "automatic"
+            },
             "scopes": {
               "type": "array",
               "items": {

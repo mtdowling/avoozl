@@ -306,13 +306,17 @@ function discussionsInput(value, label) {
   return { categories };
 }
 
+export const RELEASE_MODES = Object.freeze(["automatic", "step", "hold"]);
+
 // Release capacity (RC4.2): `release.capacity` is N, the most ready issues at
 // once; `release.scopes` gives a crew label its own N. A repository on Issue
 // Radar defaults to 2, any other to its `concurrency` (1). 0 releases nothing.
 function releaseInput(value, coder, label) {
   const input = value.release ?? {};
   if (!record(input)) fail(`${label}.release must be an object.`);
-  onlyKeys(input, ["capacity", "scopes"], `${label}.release`);
+  onlyKeys(input, ["capacity", "mode", "scopes"], `${label}.release`);
+  if (input.mode !== undefined && !RELEASE_MODES.includes(input.mode))
+    fail(`${label}.release.mode must be ${RELEASE_MODES.join(", ")}.`);
   const whole = (n, what) => {
     if (!Number.isSafeInteger(n) || n < 0 || n > 100)
       fail(`${what} must be a whole number from 0 to 100.`);
@@ -341,7 +345,7 @@ function releaseInput(value, coder, label) {
             : whole(entry.capacity, `${at}.capacity`),
       };
     });
-  return { capacity, scopes };
+  return { capacity, mode: input.mode ?? RELEASE_MODES[0], scopes };
 }
 
 function repositoryInput(value, id, mode) {
