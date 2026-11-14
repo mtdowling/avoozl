@@ -51,3 +51,25 @@ test("public repository: nothing releases before the sign-off, the queue says wh
   assert.equal(w.readyIds().length, 2);
   assert.equal(readyWrites(w).length, 2);
 });
+
+test("radar.signoff records the sign-off, owner only, and the hold follows it", async (t) => {
+  const { principalAllows } = await import("../app-backend.mjs");
+  for (const kind of ["app-token", "agent-tool"])
+    assert.equal(principalAllows({ kind }, "radar.signoff"), false, kind);
+  assert.equal(
+    principalAllows({ kind: "owner-session" }, "radar.signoff"),
+    true,
+  );
+  const w = await setup(t, { release: { capacity: 2 } }, [leaf("leaf-a")]);
+  visibility(w, false);
+  await assert.rejects(w.ops.execute("radar.signoff", { repository: "x/y" }), {
+    status: 404,
+  });
+  await w.ops.execute("radar.signoff", { repository: REPO, complete: false });
+  await w.tick();
+  assert.deepEqual(w.readyIds(), []);
+  await w.ops.execute("radar.signoff", { repository: REPO, complete: true });
+  assert.equal(w.store.getMeta("publicSignoff")[REPO].complete, true);
+  await w.tick();
+  assert.equal(w.readyIds().length, 1);
+});

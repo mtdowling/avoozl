@@ -88,6 +88,20 @@ test('Local only shows one local-worker lane, no labels, and says why', () => {
   assert.equal(valueOf(cards(built, 'local')[3], 'Landing branch').text, 'trunk')
 })
 
+test('defaults: Radar labels are Radar defaults and Avoozl labels use the avoozl: prefix', () => {
+  const rows = Object.fromEntries(map({ mode: 'single-repo', repositories: { 'example/code': { baseBranch: 'main' } } }).labels.map((row) => [row.key, row.name]))
+  assert.deepEqual(rows, {
+    plan: 'avoozl:plan',
+    needsHuman: 'crew: needs human',
+    claim: 'crew: in progress',
+    ready: 'avoozl:ready',
+    approval: 'avoozl:plan-approved',
+    conflict: 'avoozl:merge-conflict',
+    review: 'avoozl:review',
+    drafted: 'avoozl:drafted',
+  })
+})
+
 test('the review lane is muted with its reason until a review label setting exists; a held value is used', () => {
   const lane = map(SINGLE).lanes[2]
   assert.match(lane.muted, /no setting yet/)
@@ -170,7 +184,7 @@ test('page: plans-repo mode shows the worker lanes and the plans repository', { 
   assert.match(text, /example\/plans/)
   assert.match(text, /Worker chats build/)
   assert.equal(await page.evaluate(`document.querySelector('[data-lane="maintenance"]').dataset.laneOff`), 'true')
-  assert.deepEqual(await shown(page, '[data-label-row="plan"] code'), ['to plan'])
+  assert.deepEqual(await shown(page, '[data-label-row="plan"] code'), ['avoozl:plan'])
   assert.match(await page.evaluate(`document.querySelector('[data-label-row="plan"]').textContent`), /\(default\)/)
 })
 

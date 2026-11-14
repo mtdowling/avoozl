@@ -29,21 +29,17 @@ Run on fake GitHub; live run pending owner. Test:
 | Each confirm | `done`, read back; labels `to plan`, `ready`, `merge conflict`; auto-merge on; required check `build`; the pull request opened against `main` |
 | Set up again | every step `ok` |
 | Values, Radar with no crew | model `model-a`, scope `ready`; crew name and scope not ticked |
-| Values, after the owner enters them | repository, crew name, scope and needs-human label tick |
-| Values, the rest | agent, model, claim limit and Additional prompt stay `cannot-verify` |
+| Values, after the owner enters them | all eight tick |
 
 ## Verdict
 
-Pass on the fake for the steps and the pack. One gap in the wired re-read:
-through `radar.values`, Radar's crew read keeps only each crew's id, name and
-labels and the repository's needs-human label (`crewsOf` in
-`src/app/radar-handoff.mjs`). So four of the eight values can never tick on
-that path, even when the owner typed them right. The pure function
-`radarReread` ticks all eight when given a richer read
-(`src/app/test/radar-values.test.mjs`). The proof's Expected line ("Set up
-ticks each item after the re-read") is therefore not met by the wired path.
-Nothing is wrong with a shown value. Decide: have `crewsOf` keep agent, model,
-claim limit and prompt if Radar returns them, or show Radar's own field names.
+Pass on the fake for the steps and the pack. The wired re-read gap is fixed:
+`crewsOf` and `readCrews` (`src/app/radar-handoff.mjs`) now keep each crew's
+agent, model and Additional prompt, and the repository's claim limit, when
+Radar returns them (`agent`, `model`, `extra_prompt`, `claim_ttl_hours`). The
+Set up end-to-end test now ticks all eight values through `radar.values`
+(`src/app/test/proof-rc-p7.test.mjs`). A field Radar leaves out stays
+`cannot-verify`. Not run against a real Radar.
 
 ## Live run for the owner (not done)
 
