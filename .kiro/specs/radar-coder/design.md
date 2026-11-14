@@ -2,8 +2,8 @@
 
 Status: Draft
 
-Requirements are in `requirements.md` (RC1 to RC12). Sections here are
-numbered D1 to D17 so they are not confused with the sections of
+Requirements are in `requirements.md` (RC1 to RC13). Sections here are
+numbered D1 to D18 so they are not confused with the sections of
 `.kiro/specs/avoozl/design.md`, which this design builds on and sometimes
 changes (each change is named).
 
@@ -39,6 +39,11 @@ person ──▶ spec / quick goal ──▶ approve (a merged PR) ──▶ Pro
 | Crew creation, agent, Additional prompt, pause | The owner, in Radar (owner-only, fact 7)                  |
 | Auto-merge on a crew PR                        | Avoozl's tick (fact 2), or the person                     |
 | Rules the crew follows                         | `AGENTS.md`, `.kiro/steering/`, the one-line prompt       |
+
+The coder is a plug (D18). The diagram shows the Radar coder, which is the
+default. For `worker` and a harness plugin, the "ready" step is a dispatch or a
+`submit` call, and everything else (provenance, release limits, merge path,
+Trace) is the same.
 
 ## D2. Labels
 
@@ -280,6 +285,10 @@ every tick, per repository:
 - **Phases:** a phase is released only when every task of the previous phase
   of the same spec has a merged closing pull request. "Closed" by a person's
   order does not count here (it does for dependents under Requirement 33).
+- **Every coder:** release means the ready label for `issue-radar`, and a
+  dispatch or `submit` call for the others. The slot count, scopes, phases and
+  stops are the same code. No ready label is written for a task whose coder is
+  not a crew, so a crew with an empty scope never takes it.
 - **Mode:** a radio fold-out, Automatic, Step, Hold. Step waits for a click per
   phase.
 - **Default N:** 2. Set up asks one question: "How many crews work this
@@ -542,4 +551,49 @@ phase's tasks. `rc-p11` is the gate for retirement.
 | rc-p9   | A quick goal becomes issues with one approval; Promote past the rule                                         |
 | rc-p10  | Public repository: no release before sign-off; no text in `verify-issue` output                              |
 | rc-p11  | The whole path on a real repository, Q1 and Q2                                                               |
+| rc-p13  | A fake harness plugin: same release, provenance and Trace as a crew; done only on the public merge |
 | rc-p12  | After retirement, `coder: worker` and every compatibility name still work                                    |
+
+## D18. The coder plug (RC1.1, RC13)
+
+One interface, three coders. Avoozl calls the coder; the coder does not call
+Avoozl's graph.
+
+| Coder              | Release means             | Provenance check by        | Where the work lands first       | Done when                       |
+| ------------------ | ------------------------- | -------------------------- | -------------------------------- | ------------------------------- |
+| `issue-radar`      | ready label               | the crew (one-line prompt) | a branch in the repository       | the pull request merges         |
+| `worker`           | dispatch a worker session | Avoozl, before dispatch    | a task worktree                  | integration, then head acceptance (local) or the merge (GitHub) |
+| `plugin:<id>`      | `submit` call             | Avoozl, before `submit`    | a **private copy**, reviewed there | the **public** pull request merges |
+
+The harness path, in order:
+
+```text
+released ─▶ verify (Avoozl) ─▶ submit(brief, task IDs, issue, base commit, marker)
+        ─▶ plugin works in a private copy ─▶ in-review  (Needs you, link from plugin)
+        ─▶ a person reviews there ─▶ plugin publishes a public PR ─▶ published
+        ─▶ CI ─▶ merge path (arm auto-merge or person) ─▶ merged ─▶ task done
+```
+
+- **The seam is Requirement 22's.** `submit`, `status`, `completion`, `cancel`;
+  kind `route`; name `plugin:<id>`; result quoted to dependents as untrusted
+  data. This design adds a state list (`queued`, `working`, `in-review`,
+  `published`, `failed`, `cancelled`) and one rule: done only on the public
+  merge (RC13.6). The `in-review` and `published` states are read from `status`;
+  nothing is inferred from text.
+- **Avoozl never publishes and never approves the private review.** Both are the
+  provider's and the person's acts.
+- **Linking the public pull request.** The provider may write its own pull
+  request text and may not close the issue. Avoozl keeps the submit record (task
+  IDs, issue, time, plugin) and reads the link `completion` or `status` returns.
+  It arms auto-merge only on a pull request it can tie to that record and to a
+  marked issue, and it closes the issue itself on merge.
+- **Trace.** Same eight steps. `queued` and `working` fill Claimed; `in-review`
+  adds a **Private review** badge and a Needs you row; `published` fills PR
+  opened. A step with no event for that coder is drawn dashed.
+- **Mixed repositories.** The repository's `coder` is the default; a task's
+  `coder` overrides it. Only `issue-radar` tasks get the ready label.
+- **Generic by rule.** Public code, docs and tests say "managed remote harness
+  provider" and use fake plugins. The build gate of Requirement 22.4 applies, so
+  the tasks that need a real provider wait for it (rc-13.2 onward).
+- **Retirement does not touch it.** `worker` stays. The plug is the reason
+  retirement removes code per coder, not the coder choice itself.

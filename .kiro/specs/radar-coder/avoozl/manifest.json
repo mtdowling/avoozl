@@ -879,6 +879,110 @@
         "rc-10.2"
       ]
     },
+    "rc-13.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Coder plug: per-repository and per-task `coder`, one dispatch interface. See RC1.1, RC4.8; \u00a7D18.",
+      "acceptance": [
+        "A mixed repository releases the three kinds of task with one N; only the crew task gets the ready label; an unknown coder is refused naming it."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-1.1",
+        "rc-4.1"
+      ]
+    },
+    "rc-13.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Verify before dispatch or submit for non-crew coders. See RC3.9, RC13.2; \u00a7D18.",
+      "acceptance": [
+        "A bad approver, task ID or commit refuses the call for `worker` and for a fake plugin; a good issue passes."
+      ],
+      "completion": "person",
+      "requires": [
+        "rc-13.1",
+        "rc-3.3"
+      ],
+      "manual": true
+    },
+    "rc-13.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Harness status states and the private review row. See RC13.1, RC13.3, RC13.4; \u00a7D18.",
+      "acceptance": [
+        "The fake plugin walks all six states; the row appears once and clears on `published`; no Avoozl call publishes."
+      ],
+      "completion": "person",
+      "requires": [
+        "rc-13.2"
+      ],
+      "manual": true
+    },
+    "rc-13.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Done only when the public pull request merges. See RC13.6, RC13.7, RC13.8; \u00a7D18.",
+      "acceptance": [
+        "`in-review`, `published` and the plugin's own `completion` complete nothing; a merged public pull request completes the task; an untied pull request is not armed."
+      ],
+      "completion": "person",
+      "requires": [
+        "rc-13.3",
+        "rc-5.2"
+      ],
+      "manual": true
+    },
+    "rc-13.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Trace, Home, Flow and Delivery for every coder. See RC8.9, RC13.5; \u00a7D18.",
+      "acceptance": [
+        "The same Trace page draws a crew task, a worker task and a fake-plugin task; none shows a missing step; drawn at 320, 768 and 1280 px."
+      ],
+      "completion": "person",
+      "requires": [
+        "rc-13.3",
+        "rc-8.2"
+      ],
+      "manual": true
+    },
+    "rc-13.6": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Stop the line and a lost provider for harness tasks. See RC13.9; \u00a7D18.",
+      "acceptance": [
+        "With a stop open nothing is submitted; an `in-review` task is not cancelled; a silent provider shows stale and opens one decision."
+      ],
+      "completion": "person",
+      "requires": [
+        "rc-13.3",
+        "rc-4.2"
+      ],
+      "manual": true
+    },
+    "rc-p13": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Proof 13: a fake harness behaves like a crew. See RC13; \u00a7D17.",
+      "acceptance": [
+        "Expected result observed with the fake plugin only; receipt under `docs/evidence/`."
+      ],
+      "completion": "person",
+      "requires": [
+        "rc-13.1",
+        "rc-13.2",
+        "rc-13.3",
+        "rc-13.4",
+        "rc-13.5",
+        "rc-13.6"
+      ],
+      "manual": true
+    },
     "rc-q3": {
       "kind": "leaf",
       "repository": "avoozl",
@@ -992,7 +1096,8 @@
       ],
       "completion": "person",
       "requires": [
-        "rc-p11"
+        "rc-p11",
+        "rc-13.1"
       ],
       "manual": true
     },

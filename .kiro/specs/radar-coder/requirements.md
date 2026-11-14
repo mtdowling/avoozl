@@ -78,11 +78,14 @@ and no stranger's issue reaches a plan.
 
 #### Acceptance criteria
 
-1. A repository SHALL have `coder: issue-radar` (default for a repository
-   with Issue Radar connected) or `coder: worker`. `worker` SHALL keep
-   today's behavior, for local-only mode and repositories without Radar
-   (RC11.3). The setting SHALL be per repository and SHALL apply in both
-   GitHub modes. This changes `.avoozl.json` validation, which today refuses
+1. The coder SHALL be a plug, never a fixed choice. A repository SHALL have
+   `coder: issue-radar` (default for a repository with Issue Radar
+   connected), `coder: worker` (Avoozl's own workers, for local-only mode and
+   repositories without Radar; behavior unchanged, RC11.3), or
+   `coder: plugin:<id>`, a managed remote harness provider loaded as a
+   delivery route plugin (Requirement 22, RC13). A task's manifest entry MAY
+   name its own `coder`, which wins over the repository's, as `route` does
+   (Requirement 22.5). The setting SHALL apply in both GitHub modes. This changes `.avoozl.json` validation, which today refuses
    `issue-radar` in plans-repo mode (design 4.4).
 2. For a repository with `coder: issue-radar`, Avoozl SHALL NOT triage. The
    Untriaged list (Requirement 49) SHALL be off for it. Avoozl SHALL plan an
@@ -247,7 +250,11 @@ label or a line of text from a stranger is never enough.
    add `docs/decisions/<spec>.md` with `Status: Accepted` and a sentence that
    automation may build the spec, in the repository crews read. The record SHALL
    name no private repository.
-9. A marker SHALL NOT be a signature. The docs SHALL say it stops accidents
+9. For a coder that is not a crew (`worker`, `plugin:<id>`) there is no crew
+   prompt to run the command. Avoozl SHALL run the same checks itself,
+   before it dispatches or submits, and SHALL refuse the dispatch on any
+   failure. The marker and the checks SHALL be the same for every coder.
+10. A marker SHALL NOT be a signature. The docs SHALL say it stops accidents
    and edits by people without write access, not a person who can write to the
    repository and edit issues.
 
@@ -285,6 +292,12 @@ because crews pick at random among what is eligible.
    it, and SHALL otherwise re-apply its own computation on the next tick.
 7. The tick SHALL be idempotent: a pass that sees what the last pass saw
    writes nothing.
+8. Release SHALL work the same for every coder: the same eligibility,
+   capacity, scopes, phases, modes and stops. For `issue-radar`, release
+   means the ready label. For `worker` and `plugin:<id>` it means the
+   dispatch or `submit` call, and no ready label is written, so a crew with an
+   empty label scope never takes that task. A task that is released but not
+   yet done SHALL use one of the N slots of its scope whatever its coder.
 
 ### Requirement RC5: The merge path
 
@@ -439,6 +452,9 @@ machine, and what to change, without opening a crew's chat.
    already provide (issue and PR lists, CI, PR review). It SHALL link to them.
 8. UI SHALL follow the app's rules: edits in modals, boxed filters, themed
    tooltips, confirm destructive actions, 100 rows a page, one Back history.
+9. Home, Trace, Flow and Delivery SHALL work the same for every coder. The
+   eight Trace steps stay; each coder maps its own states onto them (RC13.5),
+   and a step a coder does not have is drawn dashed, never missing.
 
 ### Requirement RC9: Quick goals
 
@@ -522,7 +538,7 @@ that other tools call removed by accident.
    `AICOMMANDER_*` environment aliases, the `aicommander` command and the
    `aicommander.*` editor settings (AGENTS.md).
 5. Plan approval, implementation, integration and whole-head acceptance SHALL
-   stay four separate things. The Radar path SHALL map them as: approval =
+   stay four separate things for every coder. The Radar path SHALL map them as: approval =
    RC3.6; implementation = the crew's pull request; integration = the merge
    (RC5); whole-head acceptance = the default branch's checks after the merge,
    recorded by Requirement 16. A crew's "resolved" SHALL NOT count as
@@ -554,3 +570,64 @@ settles it, so that I know what the design waits on.
    that names it as a dependency.
 4. Nothing SHALL be filed upstream by this spec. A request for Kiro Crew SHALL
    be written as a note in `docs/` for a person to file.
+
+### Requirement RC13: Harness coders, a plug with a private review step
+
+**User story:** As the owner, I want a managed remote harness to code a task
+in a private copy, let me review it there, and publish it as a public pull
+request, so that private work reaches the public repository only after a
+person has seen it.
+
+This builds on the delivery route plugin seam (Requirement 22 and 34). It
+names no company and no internal service. Every harness is a route plugin
+that declares kind `route`, is named `plugin:<id>`, and implements submit,
+status, completion and cancel. Tests use only fake route plugins in the test
+tree (Requirement 22.3).
+
+#### Acceptance criteria
+
+1. WHEN a task's coder is `plugin:<id>` and the task is released (RC4.8),
+   Avoozl SHALL call that plugin's `submit` with the brief, the task IDs, the
+   issue number, the base commit and the provenance marker. It SHALL NOT open
+   a worker session and SHALL NOT write the ready label.
+2. Before `submit`, Avoozl SHALL run the checks of RC3.3 (RC3.9) and SHALL
+   refuse the call, naming the failed check, when any fails.
+3. A harness SHALL land its change **first in a private copy**. A person
+   SHALL review it there. Only after that review SHALL it be published as a
+   public pull request in the code repository. Avoozl SHALL NOT publish,
+   approve the review, or treat the private copy as the task's result.
+4. The plugin's `status` SHALL report one of: `queued`, `working`,
+   `in-review` (waiting on a person, with the link the plugin gives),
+   `published` (with the public pull request), `failed`, `cancelled`. An
+   `in-review` task SHALL show in Needs you with that link (Requirement 22.7).
+5. Each state SHALL map onto the Trace steps: `queued` and `working` onto
+   Claimed; `in-review` onto Claimed with a **Private review** badge;
+   `published` onto PR opened; then CI and Merged as for any pull request.
+   Home, Delivery and Flow SHALL show the same stages and times as for a crew.
+6. **A task is done only when the public pull request merges.** Neither
+   `in-review`, `published`, the plugin's own `completion`, nor a closed
+   private copy SHALL complete a task. Completion SHALL follow Requirement 16
+   on the public pull request, as for a crew (RC5.7). This tightens
+   Requirement 22.8, which lets a route's `completion` decide.
+7. The merge path (RC5) SHALL apply to the published pull request when it
+   closes, or names in its link, a marked issue of this workspace. The tick
+   SHALL check the author with the same actor rule and SHALL NOT arm a pull
+   request it cannot tie to a marked issue and to the task's submit record.
+8. WHEN a harness writes its own pull request text and does not close the
+   issue, Avoozl SHALL tie the pull request to the task through the plugin's
+   `completion` result link and its submit record, and SHALL close the issue
+   itself on merge (RC2.3).
+9. Stop the line (Requirement 64) SHALL stop new `submit` calls in scope and
+   SHALL call `cancel` only on tasks not yet `in-review`. Running work SHALL be
+   left alone, as for crews. A disconnected provider SHALL NOT be replaced
+   because of an expired lease alone (AGENTS.md); the task shows stale and one
+   decision opens.
+10. A plugin and its docs, tests and examples in this repository SHALL be
+    generic: "managed remote harness provider". No company, internal service
+    or private host SHALL be named, and a plugin's result SHALL be quoted to
+    dependents as untrusted data (Requirement 22.9).
+11. Requirement 22.4 still holds: the seam SHALL NOT be built beyond its
+    schema and interface until every proof of Phases 0–7 of
+    `.kiro/specs/avoozl/tasks.md` passes and a second real route exists. The
+    coder-plug tasks of this spec that need the provider (rc-13.2 onward) SHALL
+    wait for that.

@@ -4,8 +4,8 @@ Status: Draft
 
 Ordered by phase. Each phase ends with a proof; a phase starts after the
 proofs it depends on pass (the edges in `avoozl/manifest.json` say which).
-Requirement numbers are in brackets (`RC1` to `RC12`, in `requirements.md`);
-section numbers (`D1` to `D17`) refer to `design.md`.
+Requirement numbers are in brackets (`RC1` to `RC13`, in `requirements.md`);
+section numbers (`D1` to `D18`) refer to `design.md`.
 
 Rules for every task: work in a task worktree; tests use isolated temporary
 workspaces and a fake GitHub; run `npm test` and `git diff --check` before
@@ -178,7 +178,7 @@ Requirement RC7. Avoozl does what `gh` can and shows exact values for what only 
 Requirement RC8. The screens of the experience proposal, built for Variant B (GitHub only) first.
 
 - [ ] rc-8.1 Home: On the line, Release queue, Progress by goal, Needs you, after rc-4.4 [RC8.1, RC8.4, RC8.7] (§D10)
-  - On the line from claim markers across machines (`radar.crews`), with a five-step rail and a Stale badge; Conflicts folded into Needs you; no view that repeats Issue Radar or Kiro Crew's pull request review; mockup `01-home.html`.
+  - On the line from claim markers across machines (`radar.crews`), with a five-step rail and a Stale badge; Conflicts folded into Needs you; no view that repeats Issue Radar or Code Review Sage; mockup `01-home.html`.
   - Done when: Rows come from claim markers only; paused, machine and chat are not shown without Variant A; drawn at 320, 768 and 1280 px, light and dark.
 - [ ] rc-8.2 Trace drawer and page, after rc-8.1 [RC8.2] (§D10)
   - Eight steps with GitHub times, never `updated=`; deep link and Back history (Requirement 60); mockup `02-trace.html`.
@@ -230,6 +230,32 @@ Requirement RC10. This phase gates on the public-crew layers and does not restat
   - Setup: a scratch public repository. Action: try release before and after the sign-off. Expected: nothing releases before. Failure means: a crew could be handed work without the layers. Next decision: refuse public repositories for the Radar path.
   - Done when: Expected result observed; receipt under `docs/evidence/`.
 
+## Phase 10b: The coder plug
+
+Requirements RC1.1 and RC13. The coder is a plug: crew, own worker, or a managed remote harness provider through the delivery route seam. Tasks from rc-13.2 wait for Requirement 22.4's build gate.
+
+- [ ] rc-13.1 Coder plug: per-repository and per-task `coder`, one dispatch interface, after rc-1.1, rc-4.1 [RC1.1, RC4.8] (§D18)
+  - `coder` resolves task, then repository: `issue-radar`, `worker` or `plugin:<id>`; the release step calls the ready label, a worker dispatch or a route `submit` through one function; slots count the same for all; no ready label for a non-crew coder; `src/app/test/coder-plug.test.mjs`.
+  - Done when: A mixed repository releases the three kinds of task with one N; only the crew task gets the ready label; an unknown coder is refused naming it.
+- [ ] rc-13.2 Verify before dispatch or submit for non-crew coders, after rc-13.1, rc-3.3 [RC3.9, RC13.2] (§D18)
+  - Avoozl runs `issue.verify` before a worker dispatch or a `submit`; a failure refuses the call and names the check; same checks, same output as for crews.
+  - Done when: A bad approver, task ID or commit refuses the call for `worker` and for a fake plugin; a good issue passes.
+- [ ] rc-13.3 Harness status states and the private review row, after rc-13.2 [RC13.1, RC13.3, RC13.4] (§D18)
+  - Map `queued`, `working`, `in-review`, `published`, `failed`, `cancelled`; `in-review` opens one Needs you row with the plugin's link; Avoozl never publishes or approves the review; fake route plugin in the test tree; `src/app/test/coder-harness.test.mjs`.
+  - Done when: The fake plugin walks all six states; the row appears once and clears on `published`; no Avoozl call publishes.
+- [ ] rc-13.4 Done only when the public pull request merges, after rc-13.3, rc-5.2 [RC13.6, RC13.7, RC13.8] (§D18)
+  - Tie the published pull request to the submit record and a marked issue; arm auto-merge under the RC5 rules; complete on the public merge only; close the issue on merge when the plugin's text does not.
+  - Done when: `in-review`, `published` and the plugin's own `completion` complete nothing; a merged public pull request completes the task; an untied pull request is not armed.
+- [ ] rc-13.5 Trace, Home, Flow and Delivery for every coder, after rc-13.3, rc-8.2 [RC8.9, RC13.5] (§D18)
+  - Each coder's states map onto the eight Trace steps; Private review badge; a step with no event draws dashed; same stage times from GitHub for the public pull request.
+  - Done when: The same Trace page draws a crew task, a worker task and a fake-plugin task; none shows a missing step; drawn at 320, 768 and 1280 px.
+- [ ] rc-13.6 Stop the line and a lost provider for harness tasks, after rc-13.3, rc-4.2 [RC13.9] (§D18)
+  - Stop blocks new `submit` calls in scope and cancels only tasks not yet in review; a lost provider is stale with one decision, never replaced for an expired lease alone.
+  - Done when: With a stop open nothing is submitted; an `in-review` task is not cancelled; a silent provider shows stale and opens one decision.
+- [ ] rc-p13 Proof 13: a fake harness behaves like a crew, after rc-13.1, rc-13.2, rc-13.3, rc-13.4, rc-13.5, rc-13.6 [RC13] (§D17)
+  - Setup: a scratch repository, one crew task, one worker task, one fake harness plugin task. Action: release all three; walk the plugin through review and publish; merge each pull request. Expected: the same provenance checks, N slots and Trace for all; the plugin task is done only at the public merge. Failure means: a coder skipped a check or completed early. Next decision: remove the per-task `coder` override.
+  - Done when: Expected result observed with the fake plugin only; receipt under `docs/evidence/`.
+
 ## Phase 11: The Radar path on a real repository
 
 The gate for retirement. It also answers open questions Q1 and Q2 (design D16).
@@ -263,7 +289,7 @@ The gate for retirement. It also answers open questions Q1 and Q2 (design D16).
 
 Requirement RC11. A separate last epic. Nothing here starts before `rc-p11` is accepted. Removals apply by repository `coder` first; code is deleted only when no workspace is on `worker`.
 
-- [ ] rc-12.1 Owner decision to retire, and what to keep, after rc-p11 [RC11.1, RC11.3] (§D13)
+- [ ] rc-12.1 Owner decision to retire, and what to keep, after rc-p11, rc-13.1 [RC11.1, RC11.3] (§D13)
   - The owner reads Proof 11 and decides: retire for Radar-coded repositories only, or delete the code. The decision is recorded in `docs/evidence/`.
   - Done when: A recorded owner decision exists before any removal task starts.
 - [ ] rc-12.2 Switch off worker dispatch for Radar-coded repositories, after rc-12.1 [RC11.2, RC11.3] (§D13)
