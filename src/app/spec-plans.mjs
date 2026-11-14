@@ -68,12 +68,49 @@ export function withoutMarks(text) {
     .join("\n");
 }
 
+const STATUS = /^Status:[ \t]*([A-Za-z]+)[ \t]*$/;
+const STATUS_WINDOW = 20;
+
+// The Status line of a file: the first line equal to `Status: <Word>` in its
+// first 20 lines, or -1.
+function statusIndex(lines) {
+  return lines.slice(0, STATUS_WINDOW).findIndex((line) => STATUS.test(line));
+}
+
+export function statusOf(text) {
+  const lines = String(text).split("\n"),
+    at = statusIndex(lines);
+  return at < 0 ? null : STATUS.exec(lines[at])[1];
+}
+
+// The text the revision hash reads: no Status line.
+export function withoutStatus(text) {
+  const lines = String(text).split("\n"),
+    at = statusIndex(lines);
+  if (at < 0) return text;
+  lines.splice(at, 1);
+  return lines.join("\n");
+}
+
+export function withStatus(text, status) {
+  const lines = String(text).split("\n"),
+    at = statusIndex(lines);
+  if (at >= 0) lines[at] = `Status: ${status}`;
+  else lines.splice(1, 0, `Status: ${status}`);
+  return lines.join("\n");
+}
+
 export function specHash(files) {
   return digest(
     REVISION_FILES.filter((file) => files[file] !== undefined)
       .map((file) => {
+        // Checkbox marks and the Status line are not part of a revision.
         const text =
-          file === "tasks.md" ? withoutMarks(files[file]) : files[file];
+          file === MANIFEST
+            ? files[file]
+            : withoutStatus(
+                file === "tasks.md" ? withoutMarks(files[file]) : files[file],
+              );
         return `${file}\0${text}\0`;
       })
       .join(""),
