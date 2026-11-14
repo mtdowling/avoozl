@@ -233,7 +233,7 @@ test("approving in Avoozl writes the label and one marker comment back, once", a
   const body = w.markers()[0].body;
   assert.match(
     body,
-    /<!-- avoozl-approval v=1 approver=Owner spec=\.kiro\/specs\/loader commit=none at=\S+ -->/,
+    /<!-- avoozl-approval v=1 approver=Owner spec=\.kiro\/specs\/loader commit=none at=\S+ instance=inst-[0-9a-f]{12} -->/,
   );
   // No spec text.
   assert.doesNotMatch(body, /Load configuration|loader, then/);
