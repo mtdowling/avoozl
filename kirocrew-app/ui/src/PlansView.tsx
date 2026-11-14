@@ -1067,6 +1067,8 @@ export default function PlansView(props: {
   // Open ideas, and the Ideas view under Waiting on you.
   ideas?: number | null
   onOpenIdeas?: () => void
+  // The Epics screen, shown above the spec list (never beside a spec's documents).
+  epics?: ReactNode
 }) {
   const workspace = props.workspaceId
   const api = useAppApi()
@@ -1308,6 +1310,7 @@ export default function PlansView(props: {
         <p className="text-sm text-muted">Choose a workspace in the header.</p>
       ) : !row ? (
         <>
+          {props.epics}
           {table && table.items.length > 0 && (
             <PlanFilters filter={filter} rows={table.items} onChange={setFilter}>
               <p className="text-xs text-muted" role="status">

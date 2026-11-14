@@ -104,6 +104,7 @@ export const TOUR: readonly TourStep[] = [
     title: 'Epic, spec, phase',
     caption: 'The Recipe Box epic holds three specs. Each spec has phases. A phase opens when the one before it has merged, and shows why anything is held.',
     tab: 'plans',
+    target: '[data-epics-view]',
   },
   {
     id: 'graph',
