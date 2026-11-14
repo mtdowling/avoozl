@@ -1,7 +1,7 @@
 // The Intake tab (design §8.5, §4.12, R49, R50, R52): incoming items from
 // GitHub and every declared intake source. Its default filter, Untriaged,
 // shows those no trigger rule, triage label or Avoozl task covers. A GitHub
-// row hands off to GitHub, Issue Radar or Code Review Sage, which do the
+// row hands off to GitHub or Issue Radar, which do the
 // work; the one GitHub write is Send to Issue Radar (SendToRadar.tsx), which
 // adds a crew's label after a confirm step; those issues, and any a crew
 // holds, show under With Issue Radar. A row from another source links to its
@@ -130,12 +130,11 @@ type Start = (item: UntriagedItem, action: 'deliver' | 'plan') => void
 
 function Actions({ item, onSend, onReview, onStart }: { item: UntriagedItem; onSend?: (item: UntriagedItem) => void; onReview?: (item: UntriagedItem) => void; onStart?: Start }) {
   const name = itemName(item)
-  // An item from another source: a person's Plan this and Deliver this, and
-  // Code review for a review request. Issue Radar works GitHub only.
+  // An item from another source: a person's Plan this and Deliver this.
+  // Issue Radar works GitHub only.
   if (sourceOf(item) !== 'github')
     return (
       <span className="inline-flex gap-1.5">
-        {item.links.review && <IconLink icon={ScanSearch} label={`Code review for ${name}`} tooltip={item.links.review.tooltip} href={linkHref(item.links.review.url)} />}
         {onStart && item.start?.plan && (
           <IconBtn icon={FileText} label={`Plan this: ${name}`} tooltip="Plan this: a planner turns it into a task in the Inbox." onClick={() => onStart(item, 'plan')} />
         )}
@@ -488,7 +487,7 @@ export default function UntriagedView({ workspaceId, onMakeSpec, onOpenSources }
       setNote(
         chat.state === 'open'
           ? `${item.repository} #${item.number} already has a code review chat. Use Attach.`
-          : `Code review chat for ${item.repository} #${item.number} starts on the next tick${chat.skill ? '' : '. The sage-review skill is not installed, so it reviews without it'}.`,
+          : `Code review chat for ${item.repository} #${item.number} starts on the next tick$.`,
       )
       await reload()
     } catch (caught) {

@@ -546,7 +546,7 @@ test("P32: incoming items from a fake plugin source and a fake MCP caller", asyn
     assert.equal(item.links.github, null);
   }
   const r1 = view.items.find((item) => item.id === "R1");
-  assert.equal(r1.links.review.url, "/code-review-sage");
+  assert.equal(r1.links.review, null);
   assert.deepEqual(r1.start, { plan: false, deliver: false });
   assert.deepEqual(view.items.find((item) => item.id === "S1").start, {
     plan: true,

@@ -838,7 +838,7 @@ page and says so. It is numbered after Phase 12 because task IDs never move.
   - New `untriaged` notification channel; one notice per workspace when a notifying repository's count rose since the last notice and an hour has passed; counts per repository, never one per item.
   - Built: `c551205`.
 - [x] 13.6 MC-14 upstream ask [R49.8] (§8.5, §7.1, F98, F99)
-  - File the standalone request with Kiro Crew for page links into Issue Radar (repository, filter, selected numbers, one item) and Code Review Sage (one pull request's review); change no Kiro Crew code; when it ships, record the contract in §7.1 and switch 13.3's links to it.
+  - File the standalone request with Kiro Crew for page links into Issue Radar (repository, filter, selected numbers, one item) (the review app link was dropped 2026-11-14); change no Kiro Crew code; when it ships, record the contract in §7.1 and switch 13.3's links to it.
   - Built: filed as kirodotdev/KiroCrew#36431; the links stay on the fallback until it ships.
 - [x] 13.7 Send to Issue Radar, after 13.3 and 13.4 [R52.1–R52.6, R52.10, R52.11] (§8.5)
   - `untriaged.crews` (observe) reads a repository's crews through the gateway client and degrades to a typed label with the reason; `untriaged.handoff` (owner session only) refuses bad labels, checks Who counts for the `gh` login, passes content rules, adds the label per issue, and stores `radar-handoff` receipts; `untriaged.view` gains `withRadar`; the crew picker and confirm dialogs with the empty-scope warning; the With Issue Radar list; needs-human rows under Needs you; help text and docs; the draft upstream ask for a read-only crew list. Check the page by drawing it at three widths in light and dark and looking at it.
@@ -863,8 +863,7 @@ page and says so. It is numbered after Phase 12 because task IDs never move.
 Starts when Phase 2's proofs pass, like Phases 9–13, and each task also
 waits for the task it extends: 8.7 (tracker contract), 10.6 (content
 boundaries), 3.13 (Settings), and 13.3 and 13.4 (Untriaged). Avoozl writes
-nothing to a non-GitHub source in this phase. Starting a code review waits
-on Kiro Crew's MC-15 (design §7.1). Public code, docs, and fixtures name
+nothing to a non-GitHub source in this phase. Public code, docs, and fixtures name
 sources only generically. It is numbered after Phase 13 because task IDs
 never move.
 
@@ -899,8 +898,8 @@ never move.
 - [x] 14.10 Untriaged for every source, after 14.8, 14.5, and 13.4 [R50.15, R50.16, R50.19] (§8.5)
   - Source filter and source on each row; non-GitHub rows link to the item, show no Issue Radar button, show **Code review** for reviews, and offer person-only **Plan this** and **Deliver this** (403 from a session caller or MCP, with a confirm dialog naming the item); the tab in Local only mode when a non-GitHub source is declared; **Check now** polls a plugin source once. Check the page by drawing it at three widths in light and dark and looking at it.
   - Built: `3040bef`, `dbcf1b9`, `2c932c0`: `intakeTab` adds every source's items with `source`; the Intake tab (renamed, R50.23) has a Source column and filter, item links, no Issue Radar on other sources, Code review for reviews, Plan this and Deliver this behind a confirm (403 for sessions and MCP), shows in Local only with a source, and Check now polls. Drawn at 1440, 1000 and 600 in light and dark with a harness and looked at.
-- [ ] 14.11 MC-15 upstream ask [R50.19] (§4.12, §7.1, F99)
-  - File the standalone request with Kiro Crew for an app call that starts a Code Review Sage review of one item and returns its run ID; change no Kiro Crew code; when it ships, record the contract in §7.1 and add the `review` rule action.
+- [x] 14.11 MC-15 upstream ask [R50.19] (§4.12, §7.1, F99)
+  - Removed 2026-11-14: the separate review app was dropped, so there is no ask to file and no `review` rule action.
   - Open: not filed yet; filing upstream is the owner's.
 - [x] 14.12 Docs and leak scan, after 14.3 and 14.6 [R50.22] (§4.8, §13)
   - The plugin guide gains `poll` with the fake plugin as its example; a short guide to `plans_intake_submit` from a Kiro Crew cron job using a fake source; sources named only generically; the 7.4 scan covers the new docs and fixtures.
@@ -997,8 +996,8 @@ move.
 - [x] 18.1 Avoozl state Project field and board view [R29.18–R29.21] (§6.7, §8.2)
   - One lane rule in `src/delivery-lanes.mjs` for the Delivery tab and Project sync; sync writes Avoozl state only on change, writes a person's edit back once and records it in Conflicts; setup creates the field and Board by Avoozl state, names Status's first option Ready and keeps an existing Todo.
   - Built: `4e49f4c`, `src/app/test/github-project.test.mjs`, `src/app/test/github-setup.test.mjs`.
-- [x] 18.2 Code review chat, until MC-15 [R49.16–R49.18] (§8.5)
-  - `review.chat` queues one seeded sage-review chat per pull request; the tick opens it as role `pr-review`; the row shows Attach; content rules run on the seed; no GitHub write.
+- [x] 18.2 Code review chat [R49.16–R49.18] (§8.5)
+  - `review.chat` queues one seeded review chat per pull request; the tick opens it as role `pr-review`; the row shows Attach; content rules run on the seed; no GitHub write.
   - Built: `25f3132`, `src/app/test/pr-review.test.mjs`.
 
 ## Phase 19: New plan
