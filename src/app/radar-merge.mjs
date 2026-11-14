@@ -9,6 +9,7 @@
 // only those that close a marked issue; rc-5.2 adds that filter for arming.
 import { effectiveShip } from "./radar-merge-path.mjs";
 import { RADAR_INTERVAL_MS } from "./radar-claims.mjs";
+import { usesMergePath } from "./coder-adapter.mjs";
 
 const META = "radarMerge";
 const lower = (value) => String(value ?? "").toLocaleLowerCase();
@@ -110,7 +111,7 @@ export async function mergeStep(
   for (const [repository, settings] of Object.entries(
     policy.repositories || {},
   )) {
-    if (settings.coder !== "issue-radar") continue;
+    if (!usesMergePath(settings.coder)) continue;
     const before = old.repositories?.[repository] ?? {
       ready: [],
       conflicts: [],
