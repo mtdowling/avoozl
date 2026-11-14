@@ -1,30 +1,37 @@
-// Arming auto-merge on crew pull requests (RC5.2, design D7). Per
+// Arming auto-merge on crew pull requests (RC5.2, RC5.8, design D7). Per
 // Issue Radar repository whose ship mode is `auto-merge` and whose merge path
 // is ready, the tick arms GitHub's merge-commit auto-merge on an open,
 // non-draft pull request from a branch of the same repository, whose author
 // passes the actor check and which closes a marked issue of this workspace.
-// Avoozl never merges and never uses an admin path: GitHub merges when its own
-// rules pass.
+// Each such issue is verified once per marker hash first. Avoozl never merges
+// and never uses an admin path: GitHub merges when its own rules pass.
+import { createHash } from "node:crypto";
 import { actorAllowed } from "./github-policy.mjs";
 import { parseMarker } from "./github-marker.mjs";
 import { parseProvenance } from "./github-provenance.mjs";
 import { mergePath } from "./radar-merge-path.mjs";
+import { verifyIssue } from "./verify-issue.mjs";
 
 const KEY = "radarMerge";
 const same = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
 
-// `{armed: {"repo#pr": time}, notified: [keys]}`. shortcut: both only grow, a
-// few bytes per pull request; prune when a workspace has thousands.
+// `{armed: {"repo#pr": time}, verified: {"repo#issue": {hash, ok}}, notified:
+// [keys]}`. shortcut: lists only grow, a few bytes per pull request and issue;
+// prune when a workspace has thousands.
 const readState = (store) => ({
   armed: {},
+  verified: {},
   notified: [],
   ...(store.getMeta(KEY) || {}),
 });
 
+const markerHash = (marker) =>
+  createHash("sha256").update(JSON.stringify(marker)).digest("hex");
+
 export async function armCrewPullRequests(
   store,
   github,
-  { policy, delivery, identity },
+  { policy, delivery, identity, verify = verifyIssue },
 ) {
   const notify = [],
     machine = store.getMeta("machineIdentity")?.id,
@@ -68,7 +75,7 @@ export async function armCrewPullRequests(
           same(node.repository?.nameWithOwner, id)
         ) {
           const list = closing.get(node.number) || [];
-          list.push(issue.number);
+          list.push({ number: issue.number, hash: markerHash(marker) });
           closing.set(node.number, list);
         }
     }
@@ -84,6 +91,41 @@ export async function armCrewPullRequests(
         );
       if (!actorAllowed(repository, login, permissions.get(login)).allowed)
         continue;
+      let ok = true;
+      for (const issue of marked) {
+        const key = `${id}#${issue.number}`,
+          known = state.verified[key];
+        if (known?.hash === issue.hash) {
+          ok &&= known.ok;
+          continue;
+        }
+        const result = await verify(key);
+        // A check that could not run is no verdict: try again next tick.
+        if (!result.ok && result.couldNotRun) {
+          ok = false;
+          continue;
+        }
+        state.verified[key] = { hash: issue.hash, ok: result.ok };
+        changed = true;
+        if (!result.ok) {
+          ok = false;
+          const note = `${key}:${issue.hash}`;
+          if (!state.notified.includes(note)) {
+            state.notified.push(note);
+            notify.push({
+              channel: "decision",
+              title: `Issue #${issue.number} does not verify`,
+              text: `Pull request #${pull.number} closes issue #${issue.number} in ${id}, but "avoozl verify-issue ${key}" fails: ${result.checks
+                .filter((check) => check.status === "fail")
+                .map((check) => check.name)
+                .join(", ")}. Nothing was armed.`,
+              resume: "Fix the issue's marker; the next tick checks it again.",
+            });
+          }
+        }
+        ok &&= result.ok;
+      }
+      if (!ok) continue;
       try {
         await github.armAutoMerge(config, pull.node_id, "MERGE");
         state.armed[`${id}#${pull.number}`] = new Date().toISOString();
