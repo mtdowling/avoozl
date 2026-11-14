@@ -40,6 +40,7 @@ test("the Radar labels default to to plan, ready, crew: in progress, merge confl
     assert.deepEqual(entry.radar, {
       planLabel: "to plan",
       conflictLabel: "merge conflict",
+      approvalLabel: "plan approved",
       clearPlanLabel: false,
     });
     assert.equal(entry.crewLabels.claim, "crew: in progress");
@@ -63,6 +64,7 @@ test("radar settings are read, and bad ones refused", () => {
   assert.deepEqual(entry.radar, {
     planLabel: "plan me",
     conflictLabel: "conflict",
+    approvalLabel: "plan approved",
     clearPlanLabel: true,
   });
   for (const radar of [
