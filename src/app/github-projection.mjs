@@ -19,7 +19,13 @@ import { blockerNotes, closeWithoutCode } from "./github-close.mjs";
 import { pausedTaskIds } from "./github-project.mjs";
 import { ensurePlanIssue } from "./driver.mjs";
 import { graphOrder } from "./delivery.mjs";
-import { priorityRank } from "./github-policy.mjs";
+import { CREW_LABEL_DEFAULTS, priorityRank } from "./github-policy.mjs";
+import {
+  capacityOf,
+  planRelease,
+  releaseFor,
+  scopeLabelOf,
+} from "./radar-coder-release.mjs";
 import { plansNameForIssue } from "./github-plans-repo.mjs";
 import {
   assertPlanningLink,
@@ -31,6 +37,7 @@ import {
 import { epicOfPlan } from "./epics.mjs";
 import { issueRadarCoder, provenanceWriter } from "./radar-provenance.mjs";
 import { resolveBatchGroups } from "./radar-coder-batch.mjs";
+import { finishSource, planSource, sourceParent } from "./radar-source.mjs";
 import {
   issueRecordId,
   machineIdentity,
@@ -244,9 +251,13 @@ function managedLabels(config, identity) {
   return { managed, ready };
 }
 
-function concurrencyFor(config, identity) {
-  const value = identity.repositories?.[config.id]?.concurrency;
-  return Number.isInteger(value) && value >= 0 ? value : Infinity;
+// An issue carrying Issue Radar's claim label belongs to a crew; release never
+// takes its ready label away (RC4.3).
+function isClaimed(item, identity) {
+  const claim =
+    identity.repositories?.[item.config.id]?.crewLabels?.claim ??
+    CREW_LABEL_DEFAULTS.claim;
+  return Boolean(item.current) && labelNames(item.current).includes(claim);
 }
 
 // Requirement 15 for one managed field, compared as keys: write the desired
@@ -408,7 +419,13 @@ async function projectPlanParents({
   epicType,
   notes,
 }) {
-  if (!plan.spec || plan.epicFolder || plan.context?.issue || plan.extractionId)
+  if (
+    !plan.spec ||
+    plan.epicFolder ||
+    plan.context?.issue ||
+    plan.extractionId ||
+    planSource(plan, identity)
+  )
     return null;
   const first = items.find((item) => item.issue) || fallback;
   if (!first) return null;
@@ -820,7 +837,19 @@ async function project(
         task.github?.origin === "design" && task.github.repository === config.id
           ? [await github.issue(config, task.github.number)]
           : managedByRepository.get(config.id).byTaskId.get(task.id) || [],
-      item = { task, config, labels, conflicts: [] };
+      item = {
+        task,
+        config,
+        labels: {
+          ...labels,
+          ready: scopeLabelOf(
+            task,
+            releaseFor(identity.repositories?.[config.id], identity.mode),
+            labels.ready,
+          ),
+        },
+        conflicts: [],
+      };
     if (
       !identity.includeDone &&
       !matches.length &&
@@ -1028,9 +1057,7 @@ async function project(
   // already carries it keeps its slot, so a crew's claim is never pulled;
   // free slots go by the repository's priority labels, then graph order
   // (R27.7).
-  const ready = new Set(),
-    slots = new Map(),
-    order = graphOrder(data),
+  const order = graphOrder(data),
     holds = (item) =>
       item.current?.state === "open" &&
       labelNames(item.current).includes(item.labels.ready),
@@ -1039,41 +1066,60 @@ async function project(
         identity.repositories?.[item.config.id]?.priority,
         labelNames(item.current),
       ),
-    candidates = [...items].sort(
-      (left, right) =>
-        Number(holds(right)) - Number(holds(left)) ||
-        rank(left) - rank(right) ||
-        order(left.task, right.task),
-    );
-  for (const item of candidates) {
-    const { task, config, labels } = item;
-    if (
-      item.skip ||
-      item.conflicts.length ||
-      item.closed ||
-      taskKind(task) !== "leaf" ||
-      !(item.memberTasks || [task]).every((member) =>
-        queueReady.has(member.id),
-      ) ||
-      (item.current && item.current.state !== "open")
-    )
-      continue;
-    if (!slots.has(config.id)) {
-      const planned = new Set(items.map((entry) => entry.task.id)),
-        occupied = managedByRepository
-          .get(config.id)
+    release = (item) =>
+      releaseFor(identity.repositories?.[item.config.id], identity.mode),
+    // Slots are per repository and per ready label, so each crew label scope
+    // has its own N (RC4.2).
+    scopeKey = (item) => item.config.id + "\n" + item.labels.ready,
+    planned = new Set(items.map((entry) => entry.task.id)),
+    firstOf = new Map(),
+    eligible = [...items]
+      .sort(
+        (left, right) =>
+          Number(holds(right)) - Number(holds(left)) ||
+          rank(left) - rank(right) ||
+          order(left.task, right.task),
+      )
+      .filter(
+        (item) =>
+          !item.skip &&
+          !item.conflicts.length &&
+          !item.closed &&
+          taskKind(item.task) === "leaf" &&
+          (item.memberTasks || [item.task]).every((member) =>
+            queueReady.has(member.id),
+          ) &&
+          !(item.current && item.current.state !== "open"),
+      );
+  for (const item of eligible) firstOf.set(scopeKey(item), item);
+  const readyIds = planRelease({
+      candidates: eligible.map((item) => ({
+        id: item.task.id,
+        label: scopeKey(item),
+        holds: holds(item),
+        claimed: isClaimed(item, identity),
+      })),
+      capacity: (key) => {
+        const item = firstOf.get(key);
+        return capacityOf(
+          release(item),
+          item.labels.ready,
+          managedLabels(item.config, identity).ready,
+        );
+      },
+      foreign: (key) => {
+        const item = firstOf.get(key);
+        return managedByRepository
+          .get(item.config.id)
           .issues.filter(
             (issue) =>
               issue.state === "open" &&
-              labelNames(issue).includes(labels.ready) &&
+              labelNames(issue).includes(item.labels.ready) &&
               !planned.has(projectedMarker(issue.body)?.taskId),
           ).length;
-      slots.set(config.id, concurrencyFor(config, identity) - occupied);
-    }
-    if (slots.get(config.id) <= 0) continue;
-    slots.set(config.id, slots.get(config.id) - 1);
-    ready.add(task.id);
-  }
+      },
+    }),
+    ready = readyIds;
 
   // 4. Withdraw readiness from every leaf that is blocked, conflicted, over
   // the cap, or about to change.
@@ -1084,7 +1130,8 @@ async function project(
       ["title", "body", "blockers"].some((f) => item.plans[f].write);
     if (
       labelNames(item.current).includes(item.labels.ready) &&
-      (!ready.has(item.task.id) || changing)
+      (!ready.has(item.task.id) || changing) &&
+      !isClaimed(item, identity)
     ) {
       await github.removeLabel(
         item.config,
@@ -1206,20 +1253,21 @@ async function project(
 
   // 5b. The plan issue above the tasks, and its epic's issue above it
   // (Requirement 59.8). Neither is ever ready.
-  const planParent = await projectPlanParents({
-    store,
-    github,
-    plan,
-    data,
-    items,
-    fallback,
-    identity,
-    namespace,
-    markerOptions,
-    managedByRepository,
-    epicType,
-    notes,
-  });
+  const planParent =
+    (await projectPlanParents({
+      store,
+      github,
+      plan,
+      data,
+      items,
+      fallback,
+      identity,
+      namespace,
+      markerOptions,
+      managedByRepository,
+      epicType,
+      notes,
+    })) ?? (await sourceParent({ store, github, plan, identity, notes }));
 
   // 6. Links, then dependencies. Sub-issues name the child by database ID, so
   // a parent may sit in another repository or organization (F37, F38); only
@@ -1340,6 +1388,11 @@ async function project(
     item.blockerNodes = after.map((blocker) => blocker.node_id);
     item.blockerIds = after.map(issueDatabaseId);
   }
+
+  // The source issue of a Radar-coded plan: remembered, and its planning
+  // label removed when the repository asks. A preview writes nothing.
+  if (!dryRun && planParent?.source)
+    await finishSource({ store, github, plan, identity, parent: planParent });
 
   // 7. Re-read, add ready labels last, then record what was applied.
   const results = [],

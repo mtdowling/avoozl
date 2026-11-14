@@ -37,7 +37,7 @@ Requirement RC1. The Radar path starts with one setting and four label names. No
 - [x] rc-1.2 Plan only the planning label, Untriaged off for Radar-coded repositories, after rc-1.1 [RC1.2, RC1.5, RC1.8] (§D3)
   - The Untriaged read lists no plain open issue for a `coder: issue-radar` repository; an issue with the planning label and an allowed labeler goes to Intake; the plan-me routing of PR 67 is untouched; Intake row action **Plan this** starts a planner chat; `src/app/test/radar-coder-intake.test.mjs`.
   - Done when: No list call for plain open issues is made for a Radar-coded repository (checked with a fake GitHub that records calls); a planning label added by a disallowed account does nothing; the plan-me routing tests of PR 67 still pass unchanged.
-- [ ] rc-1.3 Source issue becomes the parent, planning label cleared only by setting, after rc-1.2 [RC1.4, RC1.6, RC1.7] (§D3)
+- [x] rc-1.3 Source issue becomes the parent, planning label cleared only by setting, after rc-1.2 [RC1.4, RC1.6, RC1.7] (§D3)
   - After projection the source issue is the parent of the projected issues and has no ready label; `radar.clearPlanLabel` (default off) removes the planning label; one Needs you row says to clear the needs-human label, shown once; Avoozl never writes the claim or needs-human labels.
   - Done when: A fake-GitHub test shows the source is the parent, no claim or needs-human write ever happens, and the Needs you row appears once across three ticks.
 - [ ] rc-p1 Proof 1: Avoozl lists only what it was asked to plan, after rc-1.1, rc-1.2, rc-1.3 [RC1] (§D17)
@@ -100,7 +100,7 @@ Requirement RC3. The approval becomes a commit a crew can read, and one command 
 
 Requirement RC4. The tick adds the ready label in graph order, N at a time.
 
-- [ ] rc-4.1 Release engine: capacity per repository and per scope, after rc-1.1, rc-2.1 [RC4.1, RC4.2, RC4.7] (§D6)
+- [x] rc-4.1 Release engine: capacity per repository and per scope, after rc-1.1, rc-2.1 [RC4.1, RC4.2, RC4.7] (§D6)
   - `release.capacity` (default 2) and `release.scopes`; a task's manifest `scope`; count open ready issues claimed or not; add ready in graph, wave, ID order; idempotent; `src/app/test/radar-coder-release.test.mjs`.
   - Done when: With N=2 and five eligible tasks, two get the label; claiming one keeps its slot; two scopes release independently; a second tick writes nothing.
 - [ ] rc-4.2 Remove ready on Stop the line, reopen and re-block, after rc-4.1 [RC4.3] (§D6)
@@ -143,7 +143,7 @@ Requirement RC5. Crews do not arm auto-merge (Kiro Crew 0.12.2.4), so the tick d
 
 Requirement RC6. Avoozl ships the crew agent, because an unknown agent name falls back silently.
 
-- [ ] rc-6.1 Ship `avoozl-crew` in the app, after rc-3.4 [RC6.1, RC6.2, RC6.6] (§D8)
+- [x] rc-6.1 Ship `avoozl-crew` in the app, after rc-3.4 [RC6.1, RC6.2, RC6.6] (§D8)
   - `kirocrew-app/agents/avoozl-crew.json` and the `app.json` entry; MCP `avoozl:avoozl`; the tool and skill lists of D8 including Radar's two crew tools; the build step refuses an install with no `bin/lib`; `kirocrew-app` build tests updated.
   - Done when: The built app contains the agent; its tool list holds `plans_verify_issue` and Radar's two crew tools; a build without `bin/lib` is refused with the command to run.
 - [ ] rc-6.2 Crew tools need no workspace and return the brief, after rc-3.3 [RC6.3] (§D8)
@@ -361,7 +361,7 @@ Requirement RC15. A managed remote harness as a coder. A task is done only when 
 
 Requirement RC16. A rewrite lands as small pull requests into a long-lived branch, then one person lands the branch.
 
-- [ ] rc-16.1 Integration branch in the manifest, with branch checks, after rc-2.1, rc-5.1 [RC16.1, RC16.9] (§D21)
+- [x] rc-16.1 Integration branch in the manifest, with branch checks, after rc-2.1, rc-5.1 [RC16.1, RC16.9] (§D21)
   - `integrationBranch` in an epic's manifest; Avoozl checks the branch exists, is not the default branch and is protected, and names what is missing; it creates nothing; an epic without the field behaves as before; `src/app/test/integration-branch.test.mjs`.
   - Done when: A missing, unprotected or default branch is refused naming the reason; a manifest without the field changes nothing.
 - [ ] rc-16.2 Projected tasks target the branch, and the branch merge path, after rc-16.1, rc-3.6, rc-5.2 [RC16.2] (§D21)

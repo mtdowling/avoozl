@@ -329,6 +329,10 @@ const tools = {
         "radar.mergepath",
         "can crew pull requests merge by themselves",
       ],
+      integration_branch: [
+        "radar.integrationbranch",
+        "check an epic's integration branch: exists, protected, not the default",
+      ],
       repositories: ["github.repositories", "registered GitHub repositories"],
       issues: ["github.issues", "cached issues"],
       labels: ["github.repository.labels", "a repository's labels"],
