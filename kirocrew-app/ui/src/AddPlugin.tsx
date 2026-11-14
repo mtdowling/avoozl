@@ -33,7 +33,7 @@ import { IconLabel, SectionHeading } from './controls.tsx'
 import { RadioFold } from './RadioFold.tsx'
 import { Folder, GitBranch, Laptop, Package, Plus, Users } from './icons.ts'
 import { Facts, Parts } from './PluginsSettings.tsx'
-import { Modal } from './Modal.tsx'
+import { Shelf } from './Shelf.tsx'
 
 type Client = ReturnType<typeof pluginsClient>
 
@@ -310,7 +310,7 @@ function AddPluginDialog(props: { workspaceId: string; client: Client; supported
   return (
     // Esc, Back and a click outside do what Cancel does, asking first once
     // something was entered or added.
-    <Modal
+    <Shelf
       id="avoozl-plugin"
       width="40rem"
       backLabel="Cancel"
@@ -407,7 +407,7 @@ function AddPluginDialog(props: { workspaceId: string; client: Client; supported
           </Btn>
         )}
       </div>
-    </Modal>
+    </Shelf>
   )
 }
 

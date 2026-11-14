@@ -509,11 +509,13 @@ export default function AvoozlPanel() {
                   {crewRow.pr ? `, PR #${crewRow.pr}` : ''}
                   {crewRow.stale ? ' (stale)' : ''}
                 </p>
-                <span data-rail className="inline-flex items-center gap-0.5" role="img" aria-label={railFor(crewRow).map((step) => `${step.label} ${step.state}`).join(', ')} style={{ display: 'inline-flex', gap: 3 }}>
-                  {railFor(crewRow).map((step) => (
-                    <i key={step.label} data-rail-step={step.state} title={step.label} style={{ display: 'block', width: 16, height: 8, borderRadius: 3, background: step.state === 'done' ? 'var(--ok)' : step.state === 'now' ? 'var(--accent)' : 'var(--border)' }} />
-                  ))}
-                </span>
+                <Tooltip text={railFor(crewRow).map((step) => `${step.label}: ${step.state}`).join(', ')}>
+                  <span data-rail className="inline-flex items-center gap-0.5" role="img" aria-label={railFor(crewRow).map((step) => `${step.label} ${step.state}`).join(', ')} style={{ display: 'inline-flex', gap: 3 }}>
+                    {railFor(crewRow).map((step) => (
+                      <i key={step.label} data-rail-step={step.state} style={{ display: 'block', width: 16, height: 8, borderRadius: 3, background: step.state === 'done' ? 'var(--ok)' : step.state === 'now' ? 'var(--accent)' : 'var(--border)' }} />
+                    ))}
+                  </span>
+                </Tooltip>
                 {crewRow.updated && <Muted>Updated {relativeTime(crewRow.updated, now)}</Muted>}
                 <span className="flex flex-wrap gap-2" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                   {crewRow.url && link(crewRow.url, 'Issue')}
