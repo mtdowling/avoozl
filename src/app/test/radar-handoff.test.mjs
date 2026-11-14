@@ -119,7 +119,8 @@ function workspace(
         repositories: {
           [REPO]: {
             baseBranch: "main",
-            coder: "issue-radar",
+            // Plain issues are listed only for a repository Avoozl triages.
+            coder: "worker",
             managedLabels: { managed: "avoozl:managed", ready: "avoozl:ready" },
             rules: [{ id: "go", action: "deliver", match: "label:go" }],
           },

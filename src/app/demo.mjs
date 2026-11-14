@@ -398,6 +398,7 @@ const SAYS = [
   ["content.", "change content rules"],
   ["lessons.", "share or export lessons"],
   ["review.chat", "open a review chat"],
+  ["untriaged.plan", "plan this issue"],
   ["untriaged.handoff", "hand this item to Issue Radar"],
   ["conflicts.", "settle this conflict"],
   ["activity.settings", "change Activity settings"],

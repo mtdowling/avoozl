@@ -14,8 +14,10 @@
 // `avoozl-task` marker, or an allowed actor added the repository's
 // `acceptedLabel`. Reads only; the result is stored on the cached item.
 import { parseMarker, planningIdentity } from "./github-marker.mjs";
-import { actorAllowed } from "./github-policy.mjs";
+import { actorAllowed, RADAR_DEFAULTS } from "./github-policy.mjs";
 import { latestSkip } from "./radar-claims.mjs";
+import { fail } from "./store.mjs";
+import { issueSpecName } from "./github-planner.mjs";
 
 export const INTAKE_SCOPES = new Set([
   "new-feature",
@@ -88,9 +90,26 @@ export async function trustOf(github, repository, settings, issue, options) {
   return null;
 }
 
+// Who added `name` to an issue last, and whether they pass the actor check.
+// An unreadable history is not allowed: the label does nothing.
+async function labeler(github, repository, settings, item, name, held) {
+  const events = await github.issueEvents(repository, item.number),
+    added = (Array.isArray(events) ? events : [])
+      .filter(
+        (event) =>
+          event.event === "labeled" &&
+          lower(event.label?.name || "") === lower(name),
+      )
+      .at(-1),
+    by = added?.actor?.login ?? null;
+  return { by, allowed: await allowed(github, repository, settings, by, held) };
+}
+
 // Reads what the route needs for each cached issue that carries the
-// needs-human label, and puts `planMe` on it. A read that fails leaves the
-// item without `planMe`, which keeps today's route (Needs you).
+// needs-human label, and puts `planMe` on it; for each issue that carries
+// the planning label it puts `planLabel` ({by, allowed}) on it. A read that
+// fails leaves the item without `planMe`, which keeps today's route (Needs
+// you), and without `planLabel`, which plans nothing.
 export async function attachHandoffs(
   github,
   repository,
@@ -101,8 +120,26 @@ export async function attachHandoffs(
   if (settings.coder !== "issue-radar") return;
   const human = lower(settings.crewLabels.needsHuman),
     held = new Map();
+  const plan = lower(settings.radar?.planLabel ?? RADAR_DEFAULTS.planLabel);
   for (const item of items) {
     delete item.planMe;
+    delete item.planLabel;
+    if (
+      item.kind === "issue" &&
+      item.labels.some((label) => lower(label) === plan)
+    )
+      try {
+        item.planLabel = await labeler(
+          github,
+          repository,
+          settings,
+          item,
+          plan,
+          held,
+        );
+      } catch {
+        // Left without `planLabel`: the next read tries again.
+      }
     if (
       item.kind !== "issue" ||
       !item.labels.some((label) => lower(label) === human)
@@ -129,4 +166,34 @@ export async function attachHandoffs(
       // Left without `planMe`: the next read tries again.
     }
   }
+}
+
+// Plan this on an Intake row of a Radar-coded repository (rc-1.2): the
+// New plan fields for one issue, and the source to record. Only an issue the
+// Intake list shows now can be planned, so a plain issue or a stranger's
+// planning label is refused. The issue text is data for the planner's brief.
+export async function planThisRequest(github, policy, view, input = {}) {
+  const { repository, number } = input;
+  if (typeof repository !== "string" || !Number.isInteger(number))
+    fail("Name one issue as repository and number.");
+  const row = (view?.items || []).find(
+    (item) =>
+      item.kind === "issue" &&
+      item.repository === repository &&
+      item.number === number,
+  );
+  if (policy?.repositories?.[repository]?.coder !== "issue-radar")
+    fail(`${repository} does not use Issue Radar as its coder.`, 409);
+  if (!row) fail(`${repository}#${number} is not in Intake.`, 409);
+  if (!github?.available?.()) fail("GitHub is not connected.", 409);
+  const issue = await github.issue(repository, number);
+  return {
+    fields: {
+      name: issueSpecName(repository, number),
+      repositories: [repository],
+      goal: `${row.title}\n\n${issue?.body || ""}`.trim().slice(0, 20000),
+      context: row.url,
+    },
+    source: { repository, number },
+  };
 }
