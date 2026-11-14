@@ -304,6 +304,44 @@ function discussionsInput(value, label) {
   return { categories };
 }
 
+// Release capacity (RC4.2): `release.capacity` is N, the most ready issues at
+// once; `release.scopes` gives a crew label its own N. A repository on Issue
+// Radar defaults to 2, any other to its `concurrency` (1). 0 releases nothing.
+function releaseInput(value, coder, label) {
+  const input = value.release ?? {};
+  if (!record(input)) fail(`${label}.release must be an object.`);
+  onlyKeys(input, ["capacity", "scopes"], `${label}.release`);
+  const whole = (n, what) => {
+    if (!Number.isSafeInteger(n) || n < 0 || n > 100)
+      fail(`${what} must be a whole number from 0 to 100.`);
+    return n;
+  };
+  const capacity =
+    input.capacity !== undefined
+      ? whole(input.capacity, `${label}.release.capacity`)
+      : (value.concurrency ?? (coder === "issue-radar" ? 2 : 1));
+  if (input.scopes !== undefined && !Array.isArray(input.scopes))
+    fail(`${label}.release.scopes must be a list.`);
+  const seen = new Set(),
+    scopes = (input.scopes ?? []).map((entry, index) => {
+      const at = `${label}.release.scopes[${index}]`;
+      if (!record(entry)) fail(`${at} must be an object.`);
+      onlyKeys(entry, ["label", "capacity"], at);
+      const scope = name(entry.label, `${at}.label`);
+      if (seen.has(lower(scope)))
+        fail(`${label}.release.scopes repeats ${scope}.`);
+      seen.add(lower(scope));
+      return {
+        label: scope,
+        capacity:
+          entry.capacity === undefined
+            ? capacity
+            : whole(entry.capacity, `${at}.capacity`),
+      };
+    });
+  return { capacity, scopes };
+}
+
 function repositoryInput(value, id, mode) {
   const label = `github.repositories.${id}`;
   onlyKeys(
@@ -318,6 +356,7 @@ function repositoryInput(value, id, mode) {
       "requiredChecks",
       "pullRequestReviews",
       "concurrency",
+      "release",
       "dependencyText",
       "priority",
       "priorityLabels",
@@ -358,6 +397,7 @@ function repositoryInput(value, id, mode) {
       value.concurrency > 100)
   )
     fail(`${label}.concurrency must be a whole number from 1 to 100.`);
+  const release = releaseInput(value, coder, label);
   if (
     value.dependencyText !== undefined &&
     typeof value.dependencyText !== "boolean"
@@ -460,6 +500,14 @@ function repositoryInput(value, id, mode) {
   // A crew writes these with the owner's login, so they must never start
   // Avoozl work (R52.9).
   const crewNames = new Set(Object.values(crewLabels).map(lower));
+  for (const scope of release.scopes)
+    if (
+      managedNames.has(lower(scope.label)) ||
+      crewNames.has(lower(scope.label))
+    )
+      fail(
+        `${label}.release.scopes cannot use ${scope.label}: it is a managed or Issue Radar label.`,
+      );
   for (const rule of rules)
     for (const trigger of [...rule.labelsAll, ...rule.labelsAny])
       if (crewNames.has(lower(trigger)))
@@ -497,6 +545,7 @@ function repositoryInput(value, id, mode) {
     requiredChecks: names(value.requiredChecks, `${label}.requiredChecks`),
     pullRequestReviews,
     concurrency: value.concurrency ?? 1,
+    release,
     dependencyText: value.dependencyText === true,
     priority,
     waitingLabels,
