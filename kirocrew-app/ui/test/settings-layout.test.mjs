@@ -28,7 +28,7 @@ const settings = source('SettingsView.tsx')
 test('every Settings group and repository tab renders its blurb', () => {
   for (const tab of ['workspaces', 'repositories', 'github', 'plugins', 'content'])
     assert.match(settings, new RegExp(`\\n  ${tab}:\\s*\\n?\\s*['"]`), tab)
-  assert.match(settings, /data-blurb=\{tab\}>\s*\{SETTINGS_BLURBS\[tab\]\}/)
+  assert.match(settings, /data-blurb=\{section\.key\}>\s*\{SETTINGS_BLURBS\[section\.key\]\}/)
   // Where tasks live drops its GitHub clause in Local only.
   assert.match(settings, /isGitHubMode\(form\.mode\) \? SETTINGS_BLURBS\.github : LOCAL_TAB_BLURB/)
   for (const tab of ['mode', 'triggers', 'checks', 'reviews'])
@@ -187,7 +187,7 @@ test('who counts is one row on the Triggers tab, with write as the default; no s
 })
 
 test('Settings has one Where tasks live tab, with Set up GitHub inside a GitHub pane', () => {
-  assert.deepEqual(SETTINGS_TAB_KEYS(), ['workspaces', 'repositories', 'github', 'plugins', 'content', 'flow', 'delivery', 'budgets', 'routing'])
+  assert.deepEqual(SETTINGS_TAB_KEYS(), ['driver', 'workspaces', 'repositories', 'github', 'workflow', 'plugins', 'content', 'flow'])
   assert.match(settings, /\{ key: 'github', label: 'Where tasks live' \}/)
   assert.match(settings, /setup=\{<SetupWizard/)
 })

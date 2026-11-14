@@ -47,7 +47,7 @@ test('Keep activity takes 1–365 whole days, and blank means the default', () =
 test('the tab: its own nav entry and icon, the shared heading, filter panel and 100-row pages', () => {
   const app = source('App.tsx'),
     view = source('ActivityView.tsx')
-  assert.match(app, /\{ key: 'activity', label: 'Activity' \}/)
+  assert.match(source('nav-api.ts'), /\{ key: 'activity', label: 'Activity' \}/)
   assert.match(app, /tab === 'activity' \? \(\s*<ActivityView workspaceId=\{active\} \/>/)
   assert.match(source('icons.ts'), /activity: History,/)
   assert.match(view, /<ViewHeading\s+id="avoozl-activity-title"\s+view="activity"[\s\S]*?actions=\{/)

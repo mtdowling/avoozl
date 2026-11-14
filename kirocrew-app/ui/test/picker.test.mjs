@@ -59,7 +59,6 @@ test('every task and spec choice uses the picker', () => {
   assert.match(source('FilterBar.tsx'), /kind: 'pick', key: 'plan'/)
   assert.match(source('ConflictsView.tsx'), /kind: 'pick', key: 'plan'/)
   assert.match(source('FilterPanel.tsx'), /field\.kind === 'pick'/)
-  assert.match(source('DeliveryView.tsx'), /<Picker label="Start now"/)
   assert.match(source('TaskForm.tsx'), /<Picker\s+label="Add a prerequisite"/)
 })
 

@@ -868,17 +868,9 @@ export function setupState(result: SetupResult | null, error: string | null, at:
 }
 
 
-// Who codes (CoderPicker.tsx).
+// Who codes (CoderPicker.tsx). The Avoozl worker is retired: it is not a
+// choice, and a repository still set to it shows a banner (nav-api.ts).
 export const CODER_CARDS = [
-  {
-    coder: 'worker',
-    title: 'Avoozl worker',
-    line: 'Avoozl opens a Kiro Crew chat on this Mac for each ready task. Frozen: upkeep only, no new features.',
-    flow: ['Ready task', 'Worker chat', 'Checks', 'Reviewer chats', 'Merged'],
-    useWhen: ['Specs stay private', 'You want to watch each chat', 'The work needs this Mac'],
-    reviews: "Avoozl's reviewer chats review the exact commit; on GitHub, the branch's review rule applies too.",
-    modes: ['local', 'plans-repo', 'single-repo'],
-  },
   {
     coder: 'issue-radar',
     title: 'Radar crew',
@@ -901,7 +893,7 @@ export const CODER_CARDS = [
 
 // Where the shown coder comes from and what it is, never "same as above".
 export const coderSource = (mode: string, value: string) => {
-  const name = (coder: string) => CODER_CARDS.find((card) => card.coder === coder)?.title ?? coder
+  const name = (coder: string) => (coder === 'worker' ? 'Avoozl worker, retired' : (CODER_CARDS.find((card) => card.coder === coder)?.title ?? coder))
   const fallback = defaultCoder(mode)
   return value
     ? `Set on this repository: ${name(value)}.`
