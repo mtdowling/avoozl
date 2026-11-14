@@ -80,6 +80,7 @@ export const RADAR_KEYS = Object.freeze([
   "conflictLabel",
   "approvalLabel",
   "clearPlanLabel",
+  "showPlansRepo",
 ]);
 export const RADAR_DEFAULTS = Object.freeze({
   planLabel: "to plan",
@@ -454,6 +455,13 @@ function repositoryInput(value, id, mode) {
   const approval = {
     decisionRecord: approvalInput.decisionRecord ?? coder === "issue-radar",
   };
+
+  // Unset follows the repository: on when it is private, off when public.
+  if (radarInput.showPlansRepo !== undefined) {
+    if (typeof radarInput.showPlansRepo !== "boolean")
+      fail(`${label}.radar.showPlansRepo must be true or false.`);
+    radar.showPlansRepo = radarInput.showPlansRepo;
+  }
   const seen = new Map();
   for (const [role, entry] of [
     ["planning", radar.planLabel],
