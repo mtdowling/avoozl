@@ -17,6 +17,8 @@ import ArmedPulls from './ArmedPulls.tsx'
 import { StartDemoButton } from './Demo.tsx'
 import DriverSessionBox, { useDriverSession } from './DriverSessionBox.tsx'
 import SetupCard from './SetupCard.tsx'
+import { useInstance } from './InstanceName.tsx'
+import { nameFor } from './instance-api.ts'
 import { setupCards, type SetupId } from './setup-api.ts'
 import { useSetupFacts } from './setup-facts.ts'
 import ReleaseQueue from './ReleaseQueue.tsx'
@@ -295,6 +297,7 @@ export default function DashboardView(props: {
   const flow = useRead(workspaceId, flowLoad)
   const summary = value?.summary
   const driver = useDriverSession(workspaceId)
+  const instance = useInstance(workspaceId)
   const facts = useSetupFacts(workspaceId)
   // A stop pulled or resumed anywhere on the page (the top row's Stop the
   // line, a banner) reads the banner again.
@@ -421,7 +424,7 @@ export default function DashboardView(props: {
               <ShowMore {...pages.more('attention', summary.attention.length)} />
             </Section>
             <Section
-              title={`In flight (${summary.inFlight.length + summary.radarFlight.length})`}
+              title={`In flight (${summary.inFlight.length + summary.radarFlight.length})${nameFor(instance, 'other') ? ` · ${nameFor(instance, 'other')}` : ''}`}
               empty={summary.inFlight.length + summary.radarFlight.length === 0 && 'No crew or chat is working right now. Released issues show here once a crew claims them.'}
               // Only while nothing has ever run; the header never has it.
               emptyAction={summary.neverRan ? <StartDemoButton label="Start demo" /> : undefined}

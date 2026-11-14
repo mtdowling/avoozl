@@ -31,6 +31,8 @@ import { plansClient, type SpecSummary } from './plans-api.ts'
 import { releaseClient, type ReleaseQueue } from './release-api.ts'
 import { SPEC_BUILDER_SPECS } from './spec-builder-api.ts'
 import { StopLineButton } from './StopLine.tsx'
+import { useInstance } from './InstanceName.tsx'
+import { nameFor } from './instance-api.ts'
 import { relativeTime } from './task-api.ts'
 import { Tooltip } from './Tooltip.tsx'
 import { linkHref, viewsClient, type RadarCrews } from './views-api.ts'
@@ -176,6 +178,7 @@ export default function AvoozlPanel() {
   const [now, setNow] = useState(() => Date.now())
   const [driver, setDriver] = useState<DriverRead | null>(null)
   const [away, setAway] = useState<Away | null>(() => takeAway(storage()))
+  const instance = useInstance(workspaceId)
   const chat = useMemo(() => currentChat(window.location), [])
   const plans = useMemo(() => plansClient(api), [api])
   const views = useMemo(() => viewsClient(api), [api])
@@ -322,7 +325,7 @@ export default function AvoozlPanel() {
     </Fold>
   )
   const inFlight = (
-    <Fold id="in-flight" title="In flight" count={model.inFlight.length} open>
+    <Fold id="in-flight" title={nameFor(instance, 'other') ? `In flight · ${nameFor(instance, 'other')}` : 'In flight'} count={model.inFlight.length} open>
       {unread('inFlight') ? (
         <Muted>{loading ? 'Loading…' : NOTE_UNREAD.inFlight}</Muted>
       ) : model.inFlight.length === 0 ? (
