@@ -230,6 +230,10 @@ const tools = {
         "pull the Andon cord: {scope: all|repo|spec|task, repository?, spec?, taskId?, reason}; only a person resumes",
       ],
       reply: ["reply.post", "post a responder's one reply"],
+      review_draft: [
+        "reviewdraft.post",
+        "post a review draft chat's one pending review",
+      ],
     },
   },
   plans_relay: {
@@ -325,6 +329,10 @@ const tools = {
       untriaged: ["untriaged.view", "items no rule claims"],
       crews: ["untriaged.crews", "Issue Radar crews for a repository"],
       radar: ["radar.crews", "live Issue Radar claims, from GitHub"],
+      review_drafts: [
+        "review.drafts",
+        "review drafts made from the review label: state (queued, chat, waiting, stale, submitted, discarded), reviewer and pull request, with the GitHub search for drafts waiting on people (repository?, state?)",
+      ],
       flow: [
         "radar.flow",
         "stage times of finished Issue Radar issues, from GitHub",

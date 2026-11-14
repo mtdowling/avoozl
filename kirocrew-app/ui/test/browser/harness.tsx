@@ -448,6 +448,10 @@ if (query.get('page') === 'home' || query.get('page') === 'demo') {
   answer('delivery.view', () => ({ revision: 1, items: ran ? [item] : [] }))
   answer('conflicts.view', () => ({ revision: 1, items: [] }))
   answer('plan.list', () => ({ items: [] }))
+  // The Dashboard also reads remote workers and Radar claims; an unanswered
+  // read never settles and leaves it on "Loading".
+  answer('remote.view', () => ({ workers: [] }))
+  answer('radar.crews', () => ({ readAt: null, stale: 0, errors: [], unseen: [], rows: [] }))
 }
 // ?page=app&radar=1: the Dashboard has one live Issue Radar claim, and a
 // Trace of it. The marker's own `updated=` (09:46) is ahead of GitHub's time

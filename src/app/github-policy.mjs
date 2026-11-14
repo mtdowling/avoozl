@@ -74,24 +74,29 @@ export const ISSUE_RADAR_PATH = "/issue-radar";
 // One place validates `coder`. Settings shows the display names
 // (kirocrew-app/ui/src/settings-api.ts CODER_CARDS).
 export const CODERS = Object.freeze(["issue-radar", "worker", "remote"]);
-// Radar coder labels (design D2). Ready is `managedLabels.ready`; its
-// default applies to the clash check only.
+// Avoozl's own workflow labels (design D2, D26), each with an `avoozl:`
+// default (RC21). Ready is `managedLabels.ready`. A name set in `.avoozl.json`
+// always wins; only an unset name reads the default.
 export const RADAR_KEYS = Object.freeze([
   "planLabel",
   "conflictLabel",
   "approvalLabel",
+  "reviewLabel",
+  "draftedLabel",
   "clearPlanLabel",
   "showPlansRepo",
   "reviewRules",
   "crew",
 ]);
 export const RADAR_DEFAULTS = Object.freeze({
-  planLabel: "to plan",
-  conflictLabel: "merge conflict",
-  approvalLabel: "plan approved",
+  planLabel: "avoozl:plan",
+  conflictLabel: "avoozl:merge-conflict",
+  approvalLabel: "avoozl:plan-approved",
+  reviewLabel: "avoozl:review",
+  draftedLabel: "avoozl:drafted",
   clearPlanLabel: false,
 });
-export const READY_LABEL_DEFAULT = "ready";
+export const READY_LABEL_DEFAULT = "avoozl:ready";
 const LEGACY_KEYS = ["issueIntake", "queue"];
 // The `github` keys the Settings view edits; the legacy keys stay as written.
 export const POLICY_KEYS = Object.freeze([
@@ -480,7 +485,13 @@ function repositoryInput(value, id, mode) {
     );
   const radarInput = onlyKeys(value.radar ?? {}, RADAR_KEYS, `${label}.radar`),
     radar = { ...RADAR_DEFAULTS };
-  for (const key of ["planLabel", "conflictLabel", "approvalLabel"])
+  for (const key of [
+    "planLabel",
+    "conflictLabel",
+    "approvalLabel",
+    "reviewLabel",
+    "draftedLabel",
+  ])
     if (Object.hasOwn(radarInput, key))
       radar[key] = name(radarInput[key], `${label}.radar.${key}`);
   // Text Set up proposes for `AGENTS.md` (RC7.1); a pull request, never a write.
@@ -563,6 +574,8 @@ function repositoryInput(value, id, mode) {
     ["ready", managed.ready ?? READY_LABEL_DEFAULT],
     ["conflict", radar.conflictLabel],
     ["approval", radar.approvalLabel],
+    ["review", radar.reviewLabel],
+    ["drafted", radar.draftedLabel],
   ]) {
     const earlier = seen.get(lower(entry));
     if (earlier)
@@ -574,6 +587,17 @@ function repositoryInput(value, id, mode) {
   for (const entry of Object.values(crewLabels))
     if (managedNames.has(lower(entry)))
       fail(`${label}.crewLabels cannot use managed label ${entry}.`);
+  // RC21.2: an Avoozl workflow label is not one of the other managed labels
+  // (ready is itself `managedLabels.ready`).
+  for (const key of [
+    "planLabel",
+    "conflictLabel",
+    "approvalLabel",
+    "reviewLabel",
+    "draftedLabel",
+  ])
+    if (managedNames.has(lower(radar[key])))
+      fail(`${label}.radar.${key} cannot use managed label ${radar[key]}.`);
   // A crew writes these with the owner's login, so they must never start
   // Avoozl work (R52.9).
   const crewNames = new Set(Object.values(crewLabels).map(lower));

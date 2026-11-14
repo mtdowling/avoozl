@@ -10,7 +10,7 @@ import { fixture } from "./fixtures.mjs";
 import { FakeGitHub } from "./fake-github.mjs";
 
 const REPO = "example/code";
-const CONFLICT = "merge conflict";
+const CONFLICT = "avoozl:merge-conflict";
 
 function pull(number, extra = {}) {
   return {
@@ -77,7 +77,7 @@ const policy = (extra = {}) => ({
       coder: "issue-radar",
       baseBranch: "main",
       requiredChecks: ["build"],
-      radar: { planLabel: "to plan", conflictLabel: CONFLICT },
+      radar: { planLabel: "avoozl:plan", conflictLabel: CONFLICT },
       ...extra,
     },
   },
@@ -226,12 +226,14 @@ test("only the conflict label is ever written; Radar's labels are left alone", a
         mergeable: false,
         mergeable_state: "dirty",
         labels: [
-          { name: "to plan" },
+          { name: "avoozl:plan" },
           { name: "crew: in progress" },
           { name: "ready" },
         ],
       }),
-      pull(2, { labels: [{ name: "to plan" }, { name: "crew: in progress" }] }),
+      pull(2, {
+        labels: [{ name: "avoozl:plan" }, { name: "crew: in progress" }],
+      }),
     ]);
   await run(store, github, MANUAL);
   await run(store, github, MANUAL);
