@@ -48,6 +48,7 @@ import { CoderPicker } from './CoderPicker.tsx'
 import { ReleaseModePicker } from './ReleaseMode.tsx'
 import SetupWizard from './SetupWizard.tsx'
 import RadarValuesScreen from './RadarValues.tsx'
+import { CrewsRulesSettings } from './CrewsRulesSettings.tsx'
 import WorkspaceView from './WorkspaceView.tsx'
 import Onboard from './Onboard.tsx'
 import { AddRepository, REPOSITORIES_LINE, RepositoryDialog, RepositoryList, repositoryRows, useReveal, type RepositoryRow } from './RepositoriesSettings.tsx'
@@ -119,10 +120,12 @@ const REPOSITORY_TABS = [
   { key: 'triggers', label: 'Triggers and labels' },
   { key: 'checks', label: 'Checks' },
   { key: 'reviews', label: 'Reviews' },
+  { key: 'crews', label: 'Crews and rules' },
 ] as const
 type RepositoryTab = (typeof REPOSITORY_TABS)[number]['key']
 
 export const REPOSITORY_BLURBS: Record<RepositoryTab, string> = {
+  crews: 'Issue Radar crews on this repository: the review rules crews read, and the planning and conflict labels. Defaults show in each field.',
   mode: 'Which repository this is, the branch pull requests merge into, and who writes the code.',
   triggers: "A rule starts its action when an allowed person's label makes an issue match its line. No label name is built in.",
   checks:
@@ -901,6 +904,11 @@ function RepositoryEditor(props: {
               <Text id={`${id}-priority`} label="Priority labels, highest first" raw="priority" rule={{ required: false, blank: 'blank: graph order only' }} placeholder="p0, p1, p2" width="lg" value={repository.priority} onChange={(value) => set({ priority: value })} />
             </Section>
           </div>
+        )}
+        {tab === 'crews' && (
+          <Section level="sub" title="Crews and rules" blurb={REPOSITORY_BLURBS.crews}>
+            <CrewsRulesSettings id={id} repository={repository} set={set} />
+          </Section>
         )}
         {tab === 'checks' && (
           <Section level="sub" title="Required checks" blurb={REPOSITORY_BLURBS.checks}>
