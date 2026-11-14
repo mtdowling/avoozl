@@ -153,7 +153,10 @@ test("all checks ok in code-repository mode", async () => {
     text,
     /^author\s+ok\s+owner1 has admin on octo-org\/octo-code$/m,
   );
-  assert.match(text, /^commit\s+ok\s+0123456 is identical to main$/m);
+  assert.match(
+    text,
+    /^commit\s+ok\s+0123456 is identical to the default branch$/m,
+  );
 });
 
 test("plans-repo mode reads approver, spec and commit from the plans repository", async () => {
