@@ -1,0 +1,8 @@
+{
+  "id": "fake-gate",
+  "version": "1.0.0",
+  "contract": 1,
+  "provides": ["gate"],
+  "capabilities": { "gate": [] },
+  "entry": "index.mjs"
+}

@@ -21,6 +21,7 @@ import { setupCards, type SetupId } from './setup-api.ts'
 import { useSetupFacts } from './setup-facts.ts'
 import ReleaseQueue from './ReleaseQueue.tsx'
 import IntegrationBranches from './IntegrationBranches.tsx'
+import ReviewDrafts from './ReviewDrafts.tsx'
 import { LINE_EVENT, flowClient } from './flow-api.ts'
 import { IconBtn, IconLabel, SectionHeading, ShowMore, TaskTitleLink, ViewHeading, useAskChat, usePages } from './controls.tsx'
 import { Activity, DetailsIcon, ExternalLink, MessageSquare, RefreshCw, Check } from './icons.ts'
@@ -522,6 +523,7 @@ export default function DashboardView(props: {
             </Section>
           </div>
           <IntegrationBranches workspaceId={workspaceId} />
+          <ReviewDrafts workspaceId={workspaceId} />
           <p className="text-sm text-muted" data-issue-graph-link>
             Issues on GitHub and their graph:{' '}
             <a href="/issue-radar" className="underline">
