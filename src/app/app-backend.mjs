@@ -187,6 +187,7 @@ export const APP_OPERATIONS = new Set([
   "untriaged.crews",
   "untriaged.handoff",
   "review.chat",
+  "untriaged.plan",
   "github.repository.labels",
   "task.detail",
   "task.files",
