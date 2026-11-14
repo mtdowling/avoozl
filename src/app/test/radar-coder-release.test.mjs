@@ -195,6 +195,6 @@ test("releaseFor: defaults and fallbacks", () => {
       { release: { capacity: 4, scopes: [{ label: "d" }] } },
       "single-repo",
     ),
-    { capacity: 4, scopes: [{ label: "d", capacity: 4 }] },
+    { capacity: 4, mode: "automatic", scopes: [{ label: "d", capacity: 4 }] },
   );
 });

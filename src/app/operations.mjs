@@ -98,6 +98,7 @@ import { claimsView, refreshClaims } from "./radar-claims.mjs";
 import { mergePath, requireMergePath } from "./radar-merge-path.mjs";
 import { radarSetup } from "./radar-setup.mjs";
 import { radarReread, radarValues } from "./radar-values.mjs";
+import { releaseQueue, releaseStep } from "./radar-coder-queue.mjs";
 import {
   checkIntegrationBranch,
   requireIntegrationBranch,
@@ -2893,6 +2894,17 @@ export class Operations {
     // GitHub only (radar-claims.mjs). `refresh` reads GitHub first.
     // The merge path of each Issue Radar repository (RC5.1): three items,
     // read from GitHub; nothing is written.
+    // The Release queue (RC4.5): what is released, claimed, next or held, and
+    // why. Read only. A Step click is a person's.
+    if (name === "radar.releasequeue")
+      return releaseQueue(store, planningIdentity(this.workspaceRoot));
+    if (name === "radar.releasestep") {
+      if (context.caller || context.mcp)
+        fail("Only a person releases a phase, in the Avoozl page.", 403);
+      return releaseStep(store, input, {
+        by: context.local ? "cli" : "dashboard",
+      });
+    }
     if (name === "radar.mergepath")
       return { repositories: await this.mergePaths(input.repository) };
     // An epic's integration branch (RC16.1): exists, not the default,
