@@ -52,6 +52,18 @@ export const PERSON_ONLY = new Map([
       Boolean(input?.confirm),
     ),
   ],
+  [
+    "mirror.adopt",
+    person("Only a person applies mirror setup.", (input) =>
+      Boolean(input?.confirm),
+    ),
+  ],
+  [
+    "mirror.create",
+    person("Only a person applies mirror setup.", (input) =>
+      Boolean(input?.confirm),
+    ),
+  ],
   ["radar.signoff", person("Only a person signs off a public repository.")],
   ["radar.retro.apply", person("Only a person applies a retro rule.")],
   ["github.setup.cancel", person("Only a person cancels a GitHub setup.")],
