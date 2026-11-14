@@ -1793,6 +1793,127 @@
       "requires": [
         "rc-21.1"
       ]
+    },
+    "rc-23.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "`mirror` setting with form, raw file and private-only validation. See RC24.1, RC24.2; \u00a7D29.",
+      "acceptance": [
+        "A public or unreadable mirror is refused; `forward: auto` with no trusted person is refused; the form and the raw file agree; `npm test` passes."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-1.1"
+      ]
+    },
+    "rc-23.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Mirror sync step and write targets. See RC24.3, RC24.4; \u00a7D29.",
+      "acceptance": [
+        "A fake GitHub test: a fast-forward is applied, a divergence gives one row across three ticks and no write, and no call writes to the source except the forward path."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-23.1",
+        "rc-2.1"
+      ]
+    },
+    "rc-23.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Track merged mirror PRs, rows and Trace steps. See RC24.5, RC24.14; \u00a7D29.",
+      "acceptance": [
+        "A merge in the mirror gives one record across repeated ticks and the four Trace steps appear in order."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-23.2",
+        "rc-8.2"
+      ]
+    },
+    "rc-23.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Forward: one commit, strip, scan, push, public PR; nudge and auto. See RC24.7, RC24.8, RC24.9, RC24.10, RC24.13; \u00a7D29.",
+      "acceptance": [
+        "A clean change forwards once; a planted private term blocks the push with one row; auto forwards only for a trusted approver; no force push."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-23.3",
+        "rc-10.1"
+      ]
+    },
+    "rc-23.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Public poll: done on public merge, closed unmerged, review copy-back. See RC24.6, RC24.11; \u00a7D29.",
+      "acceptance": [
+        "A mirror merge alone releases no dependent; the public merge does; a close returns the row; a comment copies once."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-23.4",
+        "rc-4.1"
+      ]
+    },
+    "rc-23.6": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Conflicts: sync, re-apply, then a mirror issue. See RC24.12; \u00a7D29.",
+      "acceptance": [
+        "A moved source applies on retry; a true conflict opens one issue with paths and no contents."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-23.4"
+      ]
+    },
+    "rc-p23": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Proof 23: two scratch repositories. See RC24; \u00a7D17.",
+      "acceptance": [
+        "Expected result observed; receipt under `docs/evidence/` lists the scratch repositories."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-23.1",
+        "rc-23.2",
+        "rc-23.3",
+        "rc-23.4",
+        "rc-23.5",
+        "rc-23.6"
+      ]
     }
   }
 }
