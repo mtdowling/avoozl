@@ -56,7 +56,11 @@ test('Settings is one accordion with its empty slots and setup buttons off', { s
   await page.until(`Boolean(document.querySelector('[data-driver-session]'))`)
   // Opening another section closes the first.
   await click(`document.querySelector('[data-settings-section="repositories"] button[aria-expanded]')`)
-  await page.until(`Boolean(document.querySelector('[data-slot="mirror"]'))`)
+  // The large editors open in a shelf from Configure.
+  await page.until(`Boolean(document.querySelector('[data-open-shelf="repositories"]'))`)
+  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-slot="mirror"]'))`), false)
+  await click(`document.querySelector('[data-open-shelf="repositories"]')`)
+  await page.until(`Boolean(document.querySelector('[data-settings-shelf="repositories"] [data-slot="mirror"]'))`)
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-settings-section][data-open="true"]').length`), 1)
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-driver-session]'))`), false)
   const buttons = await page.evaluate(`[...document.querySelectorAll('[data-setup-action]')].map((b) => [b.dataset.setupAction, b.disabled])`)
