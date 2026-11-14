@@ -230,6 +230,10 @@ export const NOT_ON_MCP = new Map([
     "remote.pull",
     "remote.view",
   ].map((name) => [name, remote]),
+  ...["driversession.view", "driversession.register"].map((name) => [
+    name,
+    "The app page reads the driver session; the session records itself through its hooks and plans_next.",
+  ]),
   ["flow.proposals", lessonsPage],
   ["lessons.view", lessonsPage],
   [
