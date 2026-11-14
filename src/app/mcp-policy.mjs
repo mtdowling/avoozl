@@ -189,7 +189,17 @@ const lessonsPage =
   "The Flow tab's Proposals and Lessons views; lessons stay summaries for retros, not sessions.";
 const removed = "Removed; the operation has no handler.";
 const page = "App page rendering only.";
+const remote =
+  "Runner mode (R84) runs over ssh and the CLI; no MCP tool hands off, accepts or reports a remote task.";
 export const NOT_ON_MCP = new Map([
+  ...[
+    "remote.accept",
+    "remote.status",
+    "remote.report",
+    "remote.handoff",
+    "remote.pull",
+    "remote.view",
+  ].map((name) => [name, remote]),
   ["flow.proposals", lessonsPage],
   ["lessons.view", lessonsPage],
   [

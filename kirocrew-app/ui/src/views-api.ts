@@ -95,6 +95,23 @@ export interface GraphFilter {
   spec?: string
 }
 
+// A worker chat on another machine's crew, from a runner over SSH (R84).
+export interface RemoteWorker {
+  host: string
+  crewId: string
+  taskId: string
+  state: string
+  chatKey: string
+  status: string | null
+  updatedAt: string
+  // The runner crew's dashboard chat URL, built from this machine's own
+  // settings. Null when no dashboard URL is set for the host. No token.
+  attachUrl: string | null
+  // The last read of the runner failed; this is its last answer.
+  stale: boolean
+  lastOkAt: string | null
+}
+
 export interface DeliverySession {
   slot: string
   role: string
@@ -364,6 +381,7 @@ export function viewsClient(api: AppApi) {
         if (filter[key]) input[key] = filter[key]
       return run<Graph>('graph.view', input, workspaceId)
     },
+    remote: (workspaceId: string) => run<{ workers: RemoteWorker[] }>('remote.view', {}, workspaceId),
     epic: (workspaceId: string, id: string) => run<EpicView>('epic.get', { id }, workspaceId),
     delivery: (workspaceId: string) =>
       run<{ revision: number; items: DeliveryItem[] }>('delivery.view', {}, workspaceId).then(

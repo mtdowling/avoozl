@@ -9,6 +9,9 @@
     "$schema": {
       "type": "string"
     },
+    "runner": {
+      "$ref": "#/$defs/runner"
+    },
     "version": {
       "const": 1
     },
@@ -324,6 +327,49 @@
     "$ref": "#/$defs/safeValue"
   },
   "$defs": {
+    "runner": {
+      "type": "object",
+      "description": "Runner mode over SSH, off unless role is set. A runner runs tasks a driver hands it. Machine paths (repos) and a local stand-in for ssh belong in ~/.config/avoozl/config.json.",
+      "properties": {
+        "role": { "enum": ["runner", "driver"] },
+        "crewId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$"
+        },
+        "agents": { "type": "array", "items": { "type": "string" } },
+        "remote": { "type": "string" },
+        "checkTimeoutSeconds": { "type": "integer", "minimum": 1 },
+        "checks": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["argv"],
+            "properties": {
+              "argv": {
+                "type": "array",
+                "minItems": 1,
+                "items": { "type": "string" }
+              }
+            }
+          }
+        },
+        "repos": {
+          "type": "object",
+          "additionalProperties": { "type": "object" }
+        },
+        "hosts": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "ssh": { "type": "string" },
+              "command": { "type": "string" },
+              "dashboardUrl": { "type": "string", "format": "uri" }
+            }
+          }
+        }
+      }
+    },
     "safePropertyName": {
       "anyOf": [
         {
