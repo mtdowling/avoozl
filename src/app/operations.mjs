@@ -97,6 +97,7 @@ import { planningIdentity, requireNamespace } from "./github-marker.mjs";
 import { claimsView, refreshClaims } from "./radar-claims.mjs";
 import { mergePath, requireMergePath } from "./radar-merge-path.mjs";
 import { radarSetup } from "./radar-setup.mjs";
+import { radarReread, radarValues } from "./radar-values.mjs";
 import { releaseQueue, releaseStep } from "./radar-coder-queue.mjs";
 import {
   checkIntegrationBranch,
@@ -2926,7 +2927,22 @@ export class Operations {
       if (!entry)
         fail(`${input.repository} is not a registered repository.`, 404);
       if (!this.github?.available?.()) fail("GitHub is not available.", 503);
-      return radarSetup(this.github, input.repository, entry, input);
+      return radarSetup(this.github, input.repository, entry, input, {
+        project: policy.project ?? null,
+        // The pull request text goes through content rules before any write.
+        check: (text) => {
+          const result = checkContent(this.store, {
+            boundary: "github",
+            repository: input.repository,
+            target: "pull-request-text",
+            text,
+          });
+          return [
+            ...result.findings.map((f) => `${f.set}/${f.rule}`),
+            ...result.unavailable.map((u) => `${u.set} unavailable`),
+          ];
+        },
+      });
     }
     if (name === "radar.integrationbranch") {
       const policy = readGitHubPolicyOrNull(this.workspaceRoot),
@@ -2944,6 +2960,33 @@ export class Operations {
           entry,
         ),
       );
+    }
+    // The values only the owner can enter in Issue Radar, with a re-read
+    // when Radar's own read is available (RC7.2, RC7.3). Writes nothing.
+    if (name === "radar.values") {
+      const policy = readGitHubPolicyOrNull(this.workspaceRoot),
+        entry = policy?.repositories?.[input.repository];
+      if (!input.repository) fail("Name the repository to set up.", 400);
+      if (!entry)
+        fail(`${input.repository} is not a registered repository.`, 404);
+      const values = radarValues({
+        repository: input.repository,
+        settings: entry,
+        crew: input.crew,
+      });
+      // Radar's crew list, read through the gateway grant when there is one.
+      const crews = await readCrews(this.crewReader, input.repository),
+        read = crews.available
+          ? {
+              connected: [input.repository],
+              crews: crews.crews,
+              needsHumanLabel: crews.needsHumanLabel,
+            }
+          : null;
+      return {
+        repository: input.repository,
+        ...radarReread(values, read, crews.reason),
+      };
     }
     if (name === "radar.crews") {
       const policy = readGitHubPolicyOrNull(this.workspaceRoot);

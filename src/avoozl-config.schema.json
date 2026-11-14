@@ -922,6 +922,12 @@
             "showPlansRepo": {
               "type": "boolean",
               "description": "Show the plans repository name in issues. Unset: on for a private code repository, off for a public one."
+            },
+            "reviewRules": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000,
+              "description": "Review rules Set up proposes for AGENTS.md in a pull request. Unset: the built-in rules."
             }
           },
           "additionalProperties": false

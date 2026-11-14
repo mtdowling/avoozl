@@ -1,19 +1,24 @@
 // Set up steps Avoozl can do through `gh` for an Issue Radar repository
 // (RC7.1, design D9): the three labels, a branch rule that requires the CI
-// check, and the repository's auto-merge setting. Each step is a preview and
+// check, the repository's auto-merge setting, a pull request that adds the
+// review rules to AGENTS.md, and the Project. Each step is a preview and
 // a confirm. A step the token cannot do writes nothing and names the
 // permission it needs. After a write the step reads GitHub back and reports
-// what it saw. The Project and the `AGENTS.md` pull request are rc-7.2.
+// what it saw. The Project itself is made by Set up GitHub (Requirement 29);
+// this step only reads that it exists.
 import { createHash } from "node:crypto";
 import { ruleBranch, seenCheckNames } from "./github-branch-rules.mjs";
 import { READY_LABEL_DEFAULT, RADAR_DEFAULTS } from "./github-policy.mjs";
 import { parseRepository } from "./github.mjs";
+import { inspectAgentsPr, writeAgentsPr } from "./radar-agents-pr.mjs";
 import { fail } from "./store.mjs";
 
 export const SETUP_STEPS = Object.freeze([
   "labels",
   "branch-rule",
   "auto-merge",
+  "agents-pr",
+  "project",
 ]);
 const RULESET_NAME = "avoozl-required-check",
   COLORS = { plan: "5319e7", ready: "0e8a16", conflict: "d93f0b" },
@@ -40,7 +45,7 @@ function labelsWanted(settings) {
 //   blocked  the token lacks `permission`; nothing is written
 //   input    a value is missing; `detail` names it
 //   error    GitHub could not be read; nothing is guessed
-async function inspect(github, repository, settings) {
+async function inspect(github, repository, settings, context = {}) {
   const target = parseRepository(repository),
     steps = [];
   let remote = null,
@@ -156,6 +161,39 @@ async function inspect(github, repository, settings) {
             write: { allow_auto_merge: true },
           },
   );
+
+  // The review-rules pull request.
+  try {
+    steps.push(
+      await inspectAgentsPr(github, repository, settings, {
+        branch: await ruleBranch(github, repository, settings),
+        push,
+        check: context.check,
+      }),
+    );
+  } catch (reason) {
+    steps.push({
+      id: "agents-pr",
+      status: "error",
+      detail: `GitHub could not be read: ${reason.message}`,
+    });
+  }
+
+  // The Project is read only here: Set up GitHub makes it and its fields.
+  steps.push(
+    context.project
+      ? {
+          id: "project",
+          status: "ok",
+          detail: `The Project is ${context.project.owner}#${context.project.number}.`,
+        }
+      : {
+          id: "project",
+          status: "input",
+          detail:
+            "No Project is set. Create it and its fields with Set up GitHub.",
+        },
+  );
   return steps;
 }
 
@@ -189,6 +227,8 @@ async function write(github, repository, step) {
         ],
       },
     });
+  else if (step.id === "agents-pr")
+    await writeAgentsPr(github, repository, step);
   else
     await github.request("PATCH", `/repos/${owner}/${repo}`, {
       body: { allow_auto_merge: true },
@@ -199,13 +239,21 @@ async function write(github, repository, step) {
 // Returns { repository, steps: [{id, status, detail, permission?, previewHash?}],
 // applied?: {id, status, detail} }. A confirm re-reads first, and writes only
 // when the step still shows the change the preview hash named.
-export async function radarSetup(github, repository, settings, input = {}) {
-  const steps = (await inspect(github, repository, settings)).map((step) => ({
-    ...step,
-    ...(step.status === "change"
-      ? { previewHash: digest([step.id, step.write]) }
-      : {}),
-  }));
+export async function radarSetup(
+  github,
+  repository,
+  settings,
+  input = {},
+  context = {},
+) {
+  const steps = (await inspect(github, repository, settings, context)).map(
+    (step) => ({
+      ...step,
+      ...(step.status === "change"
+        ? { previewHash: digest([step.id, step.write]) }
+        : {}),
+    }),
+  );
   const view = steps.map(
     ({ write: _write, branch: _branch, ...shown }) => shown,
   );
@@ -230,7 +278,7 @@ export async function radarSetup(github, repository, settings, input = {}) {
       409,
     );
   await write(github, repository, step);
-  const now = await inspect(github, repository, settings),
+  const now = await inspect(github, repository, settings, context),
     after = now.find((entry) => entry.id === step.id);
   return {
     repository,

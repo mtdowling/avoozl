@@ -15,8 +15,17 @@ function fake({
   push = true,
   labels = [],
   autoMerge = false,
+  agents = null,
 } = {}) {
-  const state = { labels: [...labels], rules: [], autoMerge, writes: [] };
+  const state = {
+    labels: [...labels],
+    rules: [],
+    autoMerge,
+    writes: [],
+    agents: agents === null ? null : { text: agents, sha: "sha-1" },
+    pulls: [],
+    pull: null,
+  };
   return {
     state,
     available: () => true,
@@ -33,7 +42,26 @@ function fake({
       return Promise.resolve(label);
     },
     request: (method, pathname, { body } = {}) => {
+      if (method === "GET" && pathname.endsWith("/contents/AGENTS.md")) {
+        if (!state.agents)
+          return Promise.reject(
+            Object.assign(Error("Not Found"), { status: 404 }),
+          );
+        return Promise.resolve({
+          sha: state.agents.sha,
+          content: Buffer.from(state.agents.text).toString("base64"),
+        });
+      }
+      if (method === "GET")
+        return Promise.resolve({ object: { sha: "base-sha" } });
       state.writes.push([method, pathname]);
+      if (pathname.endsWith("/git/refs")) state.ref = body;
+      if (pathname.endsWith("/contents/AGENTS.md")) state.put = body;
+      if (pathname.endsWith("/pulls")) {
+        state.pull = body;
+        state.pulls.push({ number: 7 });
+        return Promise.resolve({ number: 7 });
+      }
       if (method === "POST" && pathname.endsWith("/rulesets"))
         state.rules.push(
           ...body.rules[0].parameters.required_status_checks.map(
@@ -61,7 +89,7 @@ function fake({
       ),
     branchProtection: () => Promise.resolve(null),
     listCommits: () => Promise.resolve([]),
-    listPullRequests: () => Promise.resolve([]),
+    listPullRequests: () => Promise.resolve(state.pulls),
     checkRuns: () => Promise.resolve([]),
     commitStatus: () => Promise.resolve({ statuses: [] }),
   };
@@ -83,6 +111,8 @@ test("a preview shows each step and writes nothing", async () => {
       ["labels", "change"],
       ["branch-rule", "change"],
       ["auto-merge", "change"],
+      ["agents-pr", "change"],
+      ["project", "input"],
     ],
   );
   assert.deepEqual(github.state.writes, []);
@@ -92,7 +122,7 @@ test("a preview shows each step and writes nothing", async () => {
 
 test("each step writes once after confirm and reads back", async () => {
   const github = fake();
-  for (const id of ["labels", "branch-rule", "auto-merge"]) {
+  for (const id of ["labels", "branch-rule", "auto-merge", "agents-pr"]) {
     const preview = byId(await radarSetup(github, REPO, settings()), id),
       before = github.state.writes.length,
       done = await radarSetup(github, REPO, settings(), {
@@ -121,11 +151,11 @@ test("only missing labels are created", async () => {
 test("a missing permission writes nothing and names the permission", async () => {
   const github = fake({ admin: false, push: false }),
     preview = await radarSetup(github, REPO, settings());
-  for (const step of preview.steps) {
+  for (const step of preview.steps.filter((entry) => entry.id !== "project")) {
     assert.equal(step.status, "blocked", step.id);
     assert.ok(step.permission.length > 10);
   }
-  for (const id of ["labels", "branch-rule", "auto-merge"]) {
+  for (const id of ["labels", "branch-rule", "auto-merge", "agents-pr"]) {
     const done = await radarSetup(github, REPO, settings(), {
       confirm: true,
       step: id,
@@ -162,7 +192,7 @@ test("no named CI check asks for one; steps that are done change nothing", async
   const result = await radarSetup(github, REPO, settings());
   assert.deepEqual(
     result.steps.map((step) => step.status),
-    ["ok", "ok", "ok"],
+    ["ok", "ok", "ok", "change", "input"],
   );
   const none = await radarSetup(fake(), REPO, settings({ requiredChecks: [] }));
   assert.equal(byId(none, "branch-rule").status, "input");
@@ -203,9 +233,106 @@ test("radar.setup runs through operations and refuses an unregistered repository
   const github = fake(),
     ops = new Operations(store, { github, workspaceRoot: root }),
     result = await ops.execute("radar.setup", { repository: REPO });
-  assert.equal(result.steps.length, 3);
+  assert.equal(result.steps.length, 5);
   await assert.rejects(
     ops.execute("radar.setup", { repository: "other/repo" }),
     (error) => error.status === 404,
+  );
+});
+
+const AGENTS_START = "<!-- avoozl:review-rules -->";
+
+test("the review-rules pull request adds one block, once, on a branch", async () => {
+  const github = fake({ agents: "# Rules\n\nBe kind.\n" }),
+    preview = byId(await radarSetup(github, REPO, settings()), "agents-pr");
+  assert.equal(preview.status, "change");
+  assert.deepEqual(github.state.writes, []);
+  const done = await radarSetup(github, REPO, settings(), {
+    confirm: true,
+    step: "agents-pr",
+    previewHash: preview.previewHash,
+  });
+  // Branch, file, pull request: nothing touches main.
+  assert.deepEqual(
+    github.state.writes.map(
+      ([method, path]) => `${method} ${path.split("/").slice(-1)[0]}`,
+    ),
+    ["POST refs", "PUT AGENTS.md", "POST pulls"],
+  );
+  assert.equal(github.state.put.branch, "avoozl/review-rules");
+  assert.equal(github.state.pull.base, "main");
+  const text = Buffer.from(github.state.put.content, "base64").toString();
+  assert.ok(text.startsWith("# Rules\n\nBe kind.\n"));
+  assert.ok(text.includes(AGENTS_START));
+  assert.match(text, /avoozl verify-issue OWNER\/REPO#N/);
+  // With the pull request open the step reads ok and a second confirm is refused.
+  assert.equal(byId(done, "agents-pr").status, "ok");
+  assert.match(byId(done, "agents-pr").detail, /#7/);
+});
+
+test("a repository that already holds the block has nothing to change", async () => {
+  const github = fake({ agents: "" }),
+    first = byId(await radarSetup(github, REPO, settings()), "agents-pr"),
+    { rulesBlock } = await import("../radar-agents-pr.mjs");
+  assert.equal(first.status, "change");
+  github.state.agents = { text: `# A\n\n${rulesBlock(settings())}`, sha: "s2" };
+  assert.equal(
+    byId(await radarSetup(github, REPO, settings()), "agents-pr").status,
+    "ok",
+  );
+});
+
+test("custom review rules replace the built-in text", async () => {
+  const github = fake(),
+    custom = settings({ radar: { reviewRules: "- Run the linter." } }),
+    preview = byId(await radarSetup(github, REPO, custom), "agents-pr");
+  await radarSetup(github, REPO, custom, {
+    confirm: true,
+    step: "agents-pr",
+    previewHash: preview.previewHash,
+  });
+  const text = Buffer.from(github.state.put.content, "base64").toString();
+  assert.match(text, /- Run the linter\./);
+  assert.doesNotMatch(text, /Closes #N/);
+});
+
+test("without write access the pull request step changes nothing and names the permission", async () => {
+  const github = fake({ push: false, admin: false }),
+    step = byId(await radarSetup(github, REPO, settings()), "agents-pr");
+  assert.equal(step.status, "blocked");
+  assert.match(step.permission, /Pull requests/);
+  const done = await radarSetup(github, REPO, settings(), {
+    confirm: true,
+    step: "agents-pr",
+  });
+  assert.equal(done.applied.status, "blocked");
+  assert.deepEqual(github.state.writes, []);
+});
+
+test("a content rule that blocks the pull request text stops it before any write", async () => {
+  const github = fake(),
+    context = { check: () => ["names/term-1"] },
+    step = byId(
+      await radarSetup(github, REPO, settings(), {}, context),
+      "agents-pr",
+    );
+  assert.equal(step.status, "error");
+  assert.match(step.detail, /names\/term-1/);
+  assert.doesNotMatch(step.detail, /Review rules/);
+  assert.deepEqual(github.state.writes, []);
+});
+
+test("the Project step reads the configured Project and never writes it", async () => {
+  const github = fake(),
+    context = { project: { owner: "example", number: 3 } },
+    step = byId(
+      await radarSetup(github, REPO, settings(), {}, context),
+      "project",
+    );
+  assert.equal(step.status, "ok");
+  assert.match(step.detail, /example#3/);
+  await assert.rejects(
+    radarSetup(github, REPO, settings(), { confirm: true, step: "project" }),
+    (error) => error.status === 409,
   );
 });
