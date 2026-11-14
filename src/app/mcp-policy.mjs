@@ -52,6 +52,7 @@ export const PERSON_ONLY = new Map([
       Boolean(input?.confirm),
     ),
   ],
+  ["radar.signoff", person("Only a person signs off a public repository.")],
   ["radar.retro.apply", person("Only a person applies a retro rule.")],
   ["github.setup.cancel", person("Only a person cancels a GitHub setup.")],
   ["github.configure", person("Only a person changes GitHub setup.")],

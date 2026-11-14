@@ -470,7 +470,7 @@ complete (task rc-10.1, a manual task that waits for that other work to land).
 A separate last epic. Nothing starts before the real-repository proof
 (rc-p11) is accepted by a person.
 
-| Removed for Radar-coded repositories                | Where today                              | Kept for `coder: worker`? |
+| Removed for Radar-coded repositories                | Where today                              | Kept? |
 | --------------------------------------------------- | ---------------------------------------- | ------------------------- |
 | Own worker dispatch (tick opens a worker)          | `kirocrew-app/crons/tick.py`, `delivery.mjs`, `runner.mjs`  | Yes                       |
 | Crew routing and placement, router prompt           | Requirements 41, 42                      | Yes (placement), router off |
@@ -485,7 +485,8 @@ Rules for the removal:
 
 - Remove by repository `coder`, behind the setting, in the first tasks; delete
   the code only when no repository in any known workspace is on `worker`, which
-  the owner decides (rc-12.1). This keeps `coder: worker` honest.
+  the owner decides (rc-12.1). Owner decision 2026-11-14: `coder: worker` is
+  retired, so these removals are for every repository, after rc-p11.
 - Keep these names and files working: `plans_*` MCP names, `NUPP_WORKSPACE`
   and `AICOMMANDER_*` variables, the `aicommander` command, the
   `aicommander.*` editor settings (AGENTS.md). A compatibility test asserts each
@@ -872,6 +873,110 @@ Proofs added to D17:
 | ------ | -------------------------------------------------------------------------------------------- |
 | rc-p20 | A label gives one pending review under the labeler's login; submit clears it; a wrong login or a stranger drafts nothing |
 
+## D29. Mirror repositories (RC24)
+
+```text
+source (public) --fast-forward each tick--> mirror (private)
+                                              issues, labels, crews, Project, crew PRs
+crew PR merged in the mirror ---> "to forward" item (one per merge commit)
+        | nudge: Forward button (a person)      | auto: trusted person approved the merge
+        v                                       v
+ one squashed commit, person as author, private refs stripped
+        |
+ leak scan (Crews on public repositories) --hit--> block, one Needs you row
+        | clean
+ branch in forwardTo -> normal push -> public PR (text without private refs)
+        |
+ poll the public PR: merged = task done, dependents release
+                     closed unmerged = back to "to forward" with the reason
+                     review comments = copied to the mirror PR or one follow-up issue
+```
+
+### D29.1 The setting
+
+`mirror` is part of the repository policy beside `coder`. Fields and defaults
+are in RC24.1. The Settings form is one titled box ("Private mirror") with
+three plain fields (public repository, private mirror, forward mode) and a
+fold with `forwardTo`, branch prefix, squash and trusted persons. Both views
+write the same record, as other repository settings do. Validation (RC24.2)
+reads the mirror's visibility with the repository read Avoozl already has;
+unreadable counts as not private.
+
+### D29.2 Sync step
+
+One tick step, `mirrorSyncStep`, runs before projection. It compares the two
+default-branch heads. Equal: nothing. The mirror is an ancestor of the source:
+fast-forward the mirror ref. Otherwise: divergence, one Needs you row (both
+heads), and the repository's mirror steps pause until a person fixes it. No
+reset, no rebase, no force push. The step never writes to `source`.
+
+### D29.3 Write targets
+
+A small resolver, `writeRepo(policy)`, returns the mirror when one is set and
+the repository otherwise. Projection, labels, the Project, release and merge
+(RC2, RC4, RC5) call it instead of reading the repository name directly. The
+source gets a write only from `forwardStep` and the review-comment copy.
+
+### D29.4 Tracking record
+
+Table `mirror_forward`, keyed by the mirror merge commit: task id, mirror PR
+number, approver login, state (`to_forward`, `blocked`, `forwarded`,
+`public_open`, `public_merged`, `closed_unmerged`), forward branch, public PR
+number, last reason, times. SQLite is the record. Rows feed Waiting on you,
+Release queue and Trace (steps: Mirror merged, Forwarded, Public PR, Public
+merged). The mirror PR link is stored here and in the mirror only.
+
+### D29.5 Forward step
+
+`forwardStep` builds the commit in a scratch clone of `forwardTo` (shallow,
+based on `source`'s default branch), applies the merged diff, squashes, sets
+the author, strips trailers (any trailer or line naming a private issue, pull
+request, repository or host), and builds the title and body from the mirror PR
+with the same strip. It runs the content rules over the commit, message,
+branch name, title and body. Only a clean result reaches the push. Then:
+push the branch normally, open the public PR, write `forwarded` and the PR
+number. A retry finds the branch and PR by the record's key and does nothing
+twice (RC24.14).
+
+### D29.6 Nudge, auto, and who pushes
+
+`nudge` prepares everything up to the push and shows **Forward** with a one-line
+reason. The click pushes as the clicker, who must pass the actor check. `auto`
+runs the same function with the merge approver as the person, only when that
+approver is in `trustedPersons`. The token is the person's own grant; a missing
+grant is one Needs you row, never a fallback to a shared token.
+
+### D29.7 Public poll
+
+Each tick reads open public PRs of the record. Merged: `public_merged`, the
+task counts as done, dependents release (D6). Closed unmerged: `closed_unmerged`
+and the row returns to Waiting on you with who closed it and when. New review
+comments: copy text and author to the mirror PR (or one follow-up mirror issue
+if merged) with a marker, once.
+
+### D29.8 Conflicts
+
+On a push rejection or a conflict at apply time: run `mirrorSyncStep`, rebuild
+the commit on the new base, scan again, retry once. Still conflicting: one
+mirror issue (labeled for a crew) names the conflicting paths only; the record
+stays `to_forward` with a Trace note.
+
+### D29.9 Failure modes
+
+| Failure                                  | What the owner sees                                           |
+| ---------------------------------------- | ------------------------------------------------------------- |
+| Mirror is public or unreadable           | Setting refused, one line naming the cause                    |
+| Mirror and source diverged               | One Needs you row, both heads; mirror steps pause             |
+| Scan hit                                 | One Needs you row naming the rule; nothing pushed             |
+| No token for the person                  | One Needs you row; no fallback                                |
+| Public PR closed unmerged                | Back in Waiting on you with the reason                        |
+| Source moved, still conflicts            | One mirror issue for a crew; item stays to forward            |
+
+Proof added to D17:
+
+| Proof  | Proves                                                                                                         |
+| ------ | -------------------------------------------------------------------------------------------------------------- |
+| rc-p23 | Sync, forward and public-merge completion on two scratch repositories; a planted private term blocks the push |
 ## D28. Tracker gates (RC23)
 
 ### D28.1 The node
