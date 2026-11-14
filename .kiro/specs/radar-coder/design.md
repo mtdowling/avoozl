@@ -1099,3 +1099,87 @@ Proof added to D17:
 | Proof  | Proves                                                                                                                   |
 | ------ | ------------------------------------------------------------------------------------------------------------------------ |
 | rc-p22 | With a fake plugin, a gate holds dependents, carries the label, releases on `done`, raises one row on `failed`, and a person's clear is an order |
+
+## D30. Private plans on an orphan branch (RC25)
+
+```text
+mirror (private)
+  default branch ---- code + public specs (.kiro/specs/) ----sync with source, forward to source
+  plansBranch   ---- private specs only (orphan, no shared history) ---- never leaves the mirror
+```
+
+### D30.1 The branch
+
+`plansBranch` is created once, with an empty root commit and an explicit
+refspec (`refs/heads/<plansBranch>`), in the mirror only. Orphan means no
+common ancestor with the default branch; Avoozl checks that with the compare
+API (no merge base) before it uses an existing branch of that name, and refuses
+the setting otherwise.
+
+### D30.2 Spec home
+
+A spec's home (`main` or `plansBranch`) is stored with the spec record and
+shown as the **Private** or **Public** badge on the Specs page. Reading goes
+through one function, `readSpecFolder(home, name)`, which reads from the
+default branch or from `plansBranch`; both lists are merged by name and a name
+in both is refused. New specs start private when a mirror is set. A move is an
+explicit act that copies; it never deletes.
+
+### D30.3 Marker, approval and `verify-issue`
+
+The provenance marker adds `ref=<branch>` for a private spec:
+
+```html
+<!-- avoozl v=1 spec=pay-fix tasks=pf-1.1 commit=0123456789abcdef0123456789abcdef01234567 approved-by=octocat ref=avoozl-plans -->
+```
+
+Approve opens the pull request against `plansBranch` and records the merge
+commit. `verify-issue` changes in two reads only:
+
+| Check    | With `ref`                                                                                         |
+| -------- | -------------------------------------------------------------------------------------------------- |
+| `spec`   | `contents/.kiro/specs/{spec}/{file}?ref={commit}` in the mirror (unchanged call; the commit is on `ref`) |
+| `commit` | `GET repos/{o}/{r}/compare/{ref}...{commit}` is `behind` or `identical`; `ref` has no merge base with the default branch |
+
+A `ref` that is the default branch, a missing branch, or a branch that shares
+history with the default branch fails `commit` with the reason. The limit stays
+as in D5.3: a marker is not a signature.
+
+### D30.4 What a crew runs
+
+`verify-issue --json` adds, when `ref` is set and all checks pass:
+`fetch: git fetch origin <ref>` and `show: git show <commit>:<path>` for each
+brief file. The one-line prompt (D5.4) is unchanged because it already sends
+the crew to `verify-issue`; the commands arrive in its output.
+
+### D30.5 Containment
+
+| Where            | Rule                                                                                          |
+| ---------------- | --------------------------------------------------------------------------------------------- |
+| Sync (D29.2)     | refspec names the default branch only; `plansBranch` is never read or written                |
+| Forward (D29.5)  | scratch clone is `--single-branch` on the default branch; commits come from the code branch   |
+| Leak scan        | extra rule: `plansBranch` name, private spec folder or path, or a commit from `plansBranch` in a diff, message, branch name, title or body blocks the push (row names the rule) |
+| Every push       | one explicit refspec for one branch; never `--mirror`, `--all`, `--tags`, a wildcard or none |
+
+### D30.6 Issues
+
+Private-plan issues live in the mirror and carry the marker with `ref`. They
+are never copied, linked or quoted to `source`. Public-plan issue bodies hold
+the task text and acceptance only, with no private text and no `plansBranch`.
+A `requires` edge from a public task to a private one is refused at lint
+(RC25.7), so a public plan cannot wait on a private one.
+
+### D30.7 Failure modes
+
+| Failure                                         | What the owner sees                                   |
+| ----------------------------------------------- | ----------------------------------------------------- |
+| `plansBranch` shares history with the default   | Setting refused, one line                             |
+| Same spec name in both homes                    | Lint error naming both homes                          |
+| Forward text names the plans branch or a path   | One Needs you row naming the rule; nothing pushed     |
+| `ref` is not an orphan branch                   | `verify-issue` fails `commit` with the reason         |
+
+Proof added to D17:
+
+| Proof  | Proves                                                                                                         |
+| ------ | -------------------------------------------------------------------------------------------------------------- |
+| rc-p24 | A public and a private plan in one mirror; `verify-issue` passes for both; no ref of `plansBranch` on the public repository |
