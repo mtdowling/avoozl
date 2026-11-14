@@ -34,6 +34,8 @@ import { ReleaseModePicker } from '../../src/ReleaseMode.tsx'
 import { ProjectionModal } from '../../src/ProjectionModal.tsx'
 import { SpecChangedModal } from '../../src/SpecChangedModal.tsx'
 import { projectionClient } from '../../src/projection-api.ts'
+import { QuickGoalModal } from '../../src/QuickGoalModal.tsx'
+import { quickGoalClient } from '../../src/quickgoal-api.ts'
 import PluginsSettings from '../../src/PluginsSettings.tsx'
 import SettingsView from '../../src/SettingsView.tsx'
 import { answerIntake } from './intake-fixture.ts'
@@ -130,6 +132,35 @@ answer('spec.changed.apply', (body) => {
   return { planId: 'search-v2', done: [] }
 })
 const projections = projectionClient(useAppApi() as never)
+
+// Quick goal: sample replies. ?tasks=1 gives a one-task proposal, ?big=1 one
+// that crosses a promote rule. Every call is recorded in __harness.calls.
+const goalTask = (id: string, title: string) => ({ id, title, evidence: { file: 'package.json', line: 14 } })
+const goalState = (status = 'proposed') => {
+  const one = query.get('tasks') === '1'
+  const tasks = one ? [goalTask('A', 'Cache dependencies in CI')] : [goalTask('A', 'Share one database fixture across files'), goalTask('B', 'Cache built fixtures'), goalTask('C', 'Run test files in parallel workers with a long title that wraps')]
+  return {
+    id: 'qg_aaaaaaaaaaaa', status, request: { goal: 'Make tests faster', repository: 'example/recipe-box', depth: 'look', budget: { turns: 20, minutes: 15 } },
+    proposal: { tasks, edges: one ? [] : [{ from: 'A', to: 'B' }], batches: [], risks: one ? [] : ['C may expose tests that depend on order.'], questions: [], levels: one ? 1 : 2 },
+    promote: query.get('big') === '1' ? ['public-interface'] : [],
+    hint: one ? { text: 'This fits one pull request. A crew or your coder can take it without a plan.', action: 'Plan it anyway' } : null,
+    plan: null, pull: status === 'approving' ? { number: 7, repository: 'example/recipe-box' } : null,
+  }
+}
+answer('repositories.list', () => ({ items: [{ id: 'recipe', name: 'recipe', localCheckout: '/w/r', github: 'example/recipe-box', baseBranch: 'main' }] }))
+answer('quickgoal.settings.get', () => ({ autoApprove: false }))
+answer('quickgoal.list', () => [])
+answer('quickgoal.propose', (body) => (state.calls.push(body), goalState()))
+answer('quickgoal.confirm', (body) => {
+  state.calls.push(body)
+  const tasks = goalState().proposal.tasks
+  return { id: 'qg_aaaaaaaaaaaa', spec: 'goal-make-tests-faster', repository: 'example/recipe-box', issues: tasks.map((t, i) => ({ id: `goal-make-tests-faster.${i + 1}`, title: t.title, requires: i === 1 ? ['goal-make-tests-faster.1'] : [] })) }
+})
+answer('quickgoal.approve', (body) => (state.calls.push(body), { ...goalState('approving'), pending: true }))
+answer('quickgoal.promote', (body) => (state.calls.push(body), { ...goalState('promoted'), plan: { id: 'goal-make-tests-faster', hash: 'h', spec: 'goal-make-tests-faster' } }))
+answer('quickgoal.discard', (body) => (state.calls.push(body), goalState('discarded')))
+answer('quickgoal.edit', (body) => (state.calls.push(body), goalState()))
+const quickGoals = quickGoalClient(useAppApi() as never)
 const row = { key: 'p1', kind: 'spec', name: 'Modal plan', spec: 'modal-plan', folder: '.kiro/specs/modal-plan', planId: 'modal-plan', type: 'feature', category: null, categoryProblem: null, errors: 0, status: 'approved', tasks: { total: 3, done: 1 }, now: { ready: 1, running: 0, needsYou: 0 }, epics: 1, lastChange: null }
 const crew = { id: 'remote-1', name: 'Remote one', tags: ['linux'], trust: 'remote', gitHosts: ['github.com'], chatLimit: 2, chatLimitSet: false, delivery: 'handback', sshHost: null, worktreeRoot: null, configured: true, reading: null, ageSeconds: null, running: 0 }
 const text = ['# Guide', '', 'A short file for the viewer.', '', '## Part one', '', 'Some words.', '', '## Part two', '', 'More words.'].join('\n')
@@ -234,6 +265,7 @@ export const SCENARIOS: Record<string, Scenario> = {
   'switch-model': own('Switch model', <SwitchModelButton workspaceId="w" />),
   projection: shown((close) => <ProjectionModal workspaceId="w" client={projections} planId="search-v2" title="Search v2" onClose={close} onCreated={() => undefined} />),
   'spec-changed': shown((close) => <SpecChangedModal workspaceId="w" client={projections} planId="search-v2" title="Search v2" onClose={close} onApplied={() => undefined} />),
+  'quick-goal': shown((close) => <QuickGoalModal workspaceId="w" client={quickGoals} onClose={close} />),
   'task-drawer': own('Open the dialog', <OpenTask />),
   'mark-done': shown((close) => <MarkDoneDialog workspaceId="w" taskId="team-review" title="Review with team" onIssue onClose={close} onDone={close} />),
   // The real page shows New spec over the whole page, not inside a card.
@@ -515,6 +547,7 @@ const PAGES: Record<string, () => ReactNode> = {
   'release-queue': () => <ReleaseQueue workspaceId="w" />,
   'release-mode': () => <ReleaseModes />,
   budgets: () => <BudgetSettings workspaceId="w" />,
+  'quick-goal': () => <QuickGoalModal workspaceId="w" client={quickGoals} onClose={() => undefined} />,
   // The two modals, open at once, for the screenshots.
   projection: () => <ProjectionModal workspaceId="w" client={projections} planId="search-v2" title="Search v2" onClose={() => undefined} onCreated={() => undefined} />,
   'spec-changed': () => <SpecChangedModal workspaceId="w" client={projections} planId="search-v2" title="Search v2" onClose={() => undefined} onApplied={() => undefined} />,

@@ -216,7 +216,7 @@ Requirement RC9. A goal becomes issues after one approval, through a generated m
 - [x] rc-9.2 Mini-spec writer and approval, after rc-9.1, rc-3.2 [RC9.3, RC9.5] (§D11)
   - Writes `.kiro/specs/goal-<slug>/` in the Kiro layout with the goal quoted verbatim and the evidence; goes through the same approval pull request; issue bodies end with the quoted prompt after private data is removed.
   - Done when: The folder lints with 0 errors; a private name in the prompt is removed or refused; the marker passes `verify-issue`.
-- [ ] rc-9.3 Quick goal modal, proposal screen, Promote to spec, after rc-9.2, rc-2.5 [RC9.1, RC9.2, RC9.4, RC9.6] (§D11)
+- [x] rc-9.3 Quick goal modal, proposal screen, Promote to spec, after rc-9.2, rc-2.5 [RC9.1, RC9.2, RC9.4, RC9.6] (§D11)
   - Mockup `05-quick-goal.html`; Approve, Edit, Promote, Discard; confirm lists every issue; Promote opens the folder in Spec Builder and keeps issue links; auto-approve setting off by default.
   - Done when: Nothing is written before Approve; Promote keeps task IDs and issue links; drawn at 320, 768 and 1280 px.
 - [ ] rc-p9 Proof 9: Make tests faster, after rc-9.1, rc-9.2, rc-9.3 [RC9] (§D17)
@@ -302,10 +302,10 @@ Requirement RC11. A separate last epic. Nothing here starts before `rc-p11` is a
 
 Requirement RC13. Avoozl is for epics. This phase puts the scope statement in three places and adds one hint.
 
-- [ ] rc-13.1 Scope statement in the README, Set up and the quick goal modal, after rc-1.2 [RC13.1, RC13.2, RC13.5] (§D18)
+- [x] rc-13.1 Scope statement in the README, Set up and the quick goal modal, after rc-1.2 [RC13.1, RC13.2, RC13.5] (§D18)
   - One source string holds the statement and the rule of thumb; the README, Set up and the quick goal modal show it; it is guidance and gates nothing; `src/app/test/radar-coder-scope.test.mjs`.
   - Done when: The three places show the same words from one string; no operation changes behavior; `npm test` passes.
-- [ ] rc-13.2 One-pull-request hint with Plan it anyway, after rc-13.1, rc-9.1 [RC13.3, RC13.4] (§D18)
+- [x] rc-13.2 One-pull-request hint with Plan it anyway, after rc-13.1, rc-9.1 [RC13.3, RC13.4] (§D18)
   - A proposal with one task and no edge shows the hint and a **Plan it anyway** action; nothing is refused; no triage, maintenance or single-pull-request feature is added.
   - Done when: A one-task proposal shows the hint and still plans when chosen; a two-task proposal shows no hint.
 - [ ] rc-p13 Proof 13: the work split, after rc-13.1, rc-13.2 [RC13] (§D22)
