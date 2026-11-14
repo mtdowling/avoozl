@@ -1,6 +1,6 @@
 // In a real Chrome (AVOOZL_CHROME, or an installed Chrome or Chromium), on
-// the harness page (test/browser/harness.tsx): the top row with Switch
-// model and Stop the line wraps without a sideways scroll at 375, 768 and
+// the harness page (test/browser/harness.tsx): the page header's actions row
+// (picker, Demo, Plan a goal, Switch model, Stop the line) and the tab row wrap without a sideways scroll at 375, 768 and
 // 1280 px, light and dark, and shows a stopped line; an In flight title
 // opens the task drawer as a Back step; and Switch model walks its three
 // steps, showing the difference when the set changed. Skipped when no
@@ -53,24 +53,26 @@ for (const [width, height] of [
   [1280, 800],
 ])
   for (const dark of [false, true])
-    test(`the top row at ${width} px ${dark ? 'dark' : 'light'}: tabs, Switch model, then a red Stop the line; no sideways scroll`, { skip }, async () => {
+    test(`the header actions at ${width} px ${dark ? 'dark' : 'light'}: Plan a goal, Switch model, then a red Stop the line, none in the tab row; no sideways scroll`, { skip }, async () => {
       for (const stopped of [false, true]) {
         await page.open(harness.url({ app: '1', theme: dark ? 'dark' : 'light', ...(stopped ? { stopped: '1' } : {}) }), { width, height, dark })
-        await page.until(`Boolean(document.querySelector('[data-top-actions] [data-stop-line]'))`)
+        await page.until(`Boolean(document.querySelector('[data-header-actions] [data-stop-line]'))`)
         if (stopped) await page.until(`Boolean(document.querySelector('[data-stop-line][data-stopped]'))`)
         await settle()
         const row = await page.evaluate(`(() => {
-          const actions = document.querySelector('[data-top-actions]')
+          const actions = document.querySelector('[data-header-actions]')
           const buttons = [...actions.querySelectorAll('button')].map((b) => b.textContent.trim())
           const box = (el) => el.getBoundingClientRect()
           const pane = document.querySelector('[data-host-pane]')
-          const inside = [...document.querySelectorAll('[data-top-row] button')].every((b) => box(b).right <= innerWidth + 0.5 && box(b).left >= -0.5)
+          const inside = [...document.querySelectorAll('[data-header-actions] button, [data-top-row] button')].every((b) => box(b).right <= innerWidth + 0.5 && box(b).left >= -0.5)
           const stop = actions.querySelector('[data-stop-line]')
           return {
             buttons,
             inside,
             sideways: Math.max(document.scrollingElement.scrollWidth, pane.scrollWidth) > innerWidth,
             stopLast: actions.lastElementChild.contains(stop),
+            tabRowHasNone: !document.querySelector('[data-top-row] [data-stop-line], [data-top-row] [data-switch-model]') && ![...document.querySelectorAll('[data-top-row] button')].some((b) => /Switch model|Stop the line|Line stopped/.test(b.textContent)),
+            hasTopActions: Boolean(document.querySelector('[data-top-actions]')),
             // The theme's danger color, as the browser resolves it.
             red: (() => {
               const probe = document.createElement('span')
@@ -84,7 +86,10 @@ for (const [width, height] of [
             copies: document.querySelectorAll('[data-stop-line]').length,
           }
         })()`)
-        assert.deepEqual(row.buttons, ['Switch model', stopped ? 'Line stopped' : 'Stop the line'])
+        assert.deepEqual(row.buttons.slice(-2), ['Switch model', stopped ? 'Line stopped' : 'Stop the line'])
+        assert.ok(row.buttons.indexOf('Plan a goal') >= 0 && row.buttons.indexOf('Plan a goal') < row.buttons.indexOf('Switch model'), 'after Plan a goal')
+        assert.equal(row.tabRowHasNone, true, 'the tab row keeps only the tabs')
+        assert.equal(row.hasTopActions, false, 'no actions group under the tabs')
         assert.equal(row.stopLast, true, 'Stop the line is last')
         assert.equal(row.copies, 1, 'one Stop the line on the page')
         assert.equal(row.inside, true, 'every top row button is on screen')
