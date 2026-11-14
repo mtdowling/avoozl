@@ -161,6 +161,12 @@ export function createAppMcp({ fallback = null, env = process.env } = {}) {
         };
       return reply;
     }
+    // plans_verify_issue reads GitHub only and needs no workspace.
+    if (
+      message.method === "tools/call" &&
+      message.params?.name === "plans_verify_issue"
+    )
+      return (await handleMcp(message, null, { attestedCaller: true })).body;
     const target = resolve(message);
     // Before any workspace exists the cron's tick has nothing to do. An
     // error here would count toward Kiro Crew's cron auto-pause (five in a
