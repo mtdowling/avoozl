@@ -325,6 +325,10 @@ const tools = {
       untriaged: ["untriaged.view", "items no rule claims"],
       crews: ["untriaged.crews", "Issue Radar crews for a repository"],
       radar: ["radar.crews", "live Issue Radar claims, from GitHub"],
+      flow: [
+        "radar.flow",
+        "stage times of finished Issue Radar issues, from GitHub",
+      ],
       trace: [
         "radar.trace",
         "one issue's eight steps with GitHub's times (repository, number)",
