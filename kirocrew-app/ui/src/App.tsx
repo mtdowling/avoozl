@@ -3,6 +3,7 @@ import { useAppApi } from './host.ts'
 import { Btn, EmptyState, PageHeader, SegmentedControl } from '@kirocrew/app-sdk/ui'
 import Logo from './Logo'
 import DashboardView, { type DashboardTarget } from './DashboardView'
+import EpicsView from './EpicsView.tsx'
 import PlansView, { type PlanTarget } from './PlansView'
 import GraphView from './GraphView'
 import DeliveryView from './DeliveryView'
@@ -344,9 +345,10 @@ function AvoozlPage() {
             ideas={openIdeas}
             // The Intake tab opens on its Ideas view (UntriagedView's key).
             onOpenIdeas={() => go({ focus: null, drill: null, tab: 'untriaged' }, { 'untriaged-show': 'ideas' })}
+            epics={<EpicsView workspaceId={active} onDrill={openDrill} onPlanEpic={() => setPlanGoal((goal) => ({ n: goal.n + 1 }))} />}
           />
         ) : tab === 'trace' ? (
-          <TracePage workspaceId={active} target={(nav.memory.get(TRACE_TARGET) as TraceTarget | undefined) ?? null} />
+          <TracePage workspaceId={active} target={(nav.memory.get(TRACE_TARGET) as TraceTarget | undefined) ?? null} onPick={openTrace} onOpenEpics={() => chooseTab('plans')} />
         ) : tab === 'graph' ? (
           <GraphView workspaceId={active} focus={focus} drill={drill} onDrill={setDrill} />
         ) : tab === 'delivery' ? (

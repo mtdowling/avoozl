@@ -13,6 +13,7 @@ const files = readdirSync(src).filter((name) => /\.(tsx?|ts)$/.test(name) && !na
 // Each entry is one exact phrase that keeps the word, with why (R62.3).
 export const ALLOWED = new Map([
   // Plan as a verb.
+  ['Plan an epic', 'verb: the Epics button and its empty state'],
   ['Plan a goal', 'verb: the header button and the skill step it names'],
   ['Plan work as a graph', 'verb: the page subtitle'],
   ['Plan this', 'verb: an Intake action (R50.15)'],
