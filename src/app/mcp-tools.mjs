@@ -325,6 +325,10 @@ const tools = {
       untriaged: ["untriaged.view", "items no rule claims"],
       crews: ["untriaged.crews", "Issue Radar crews for a repository"],
       radar: ["radar.crews", "live Issue Radar claims, from GitHub"],
+      mergepath: [
+        "radar.mergepath",
+        "can crew pull requests merge by themselves",
+      ],
       repositories: ["github.repositories", "registered GitHub repositories"],
       issues: ["github.issues", "cached issues"],
       labels: ["github.repository.labels", "a repository's labels"],
