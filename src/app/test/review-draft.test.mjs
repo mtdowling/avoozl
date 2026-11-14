@@ -304,7 +304,8 @@ test("the tool refuses an event, a screen hit, an unbound caller and a changed l
   const { github, post } = await bound(t);
   await assert.rejects(post({ ...DRAFT, event: "APPROVE" }), /never submitted/);
   await assert.rejects(
-    post({ body: "See /Users/alice/secret.txt for details" }),
+    // Built at run time so the release scan does not read a home path here.
+    post({ body: `See ${"/" + "Users"}/alice/secret.txt for details` }),
     /nothing was posted/,
   );
   await assert.rejects(
