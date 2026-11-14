@@ -275,3 +275,28 @@ export function mcpRefusal(name, input) {
   const rule = PERSON_ONLY.get(name);
   return rule && (!rule.when || rule.when(input)) ? rule.reason : null;
 }
+
+// Kiro Crew marks every agent session's process tree: the runtime sets
+// KIROCREW_SPAWNED=1 on everything it starts, and KIRO_SESSION_ID names the
+// session in a shell the agent runs. The dashboard terminal copies the
+// gateway's own environment plus KIROCREW_TERMINAL=1, so a person's terminal
+// has neither (checked in Kiro Crew 0.12.2.4). Avoozl does not trust
+// KIROCREW_TERMINAL, because an agent could set it too.
+// shortcut: a speed bump, not a wall. Code running as the same user can
+// unset these or read the gateway secret from another process; upgrade when
+// Kiro Crew passes the secret by file descriptor (R83.2).
+export function agentSession(env = process.env) {
+  return env.KIROCREW_SPAWNED === "1" || Boolean(env.KIRO_SESSION_ID);
+}
+
+// The refusal for a CLI call from an agent session, or null. `--as-person`
+// is the typed override.
+export function cliRefusal(name, input, { env = process.env, asPerson } = {}) {
+  const reason = mcpRefusal(name, input);
+  if (!reason || asPerson || !agentSession(env)) return null;
+  return (
+    reason.replace(/ Do it in the Avoozl app\.$/, "") +
+    " This command is running inside an agent session. Do it in the Avoozl" +
+    " app, or add --as-person if you are the person typing it."
+  );
+}

@@ -238,7 +238,6 @@ function AvoozlPage() {
         actions={
           <div className="flex flex-wrap items-center gap-3" data-header-actions>
             {demo.active ? <DemoBadge /> : <WorkspacePicker list={list} value={workspaceId} onChange={setWorkspaceId} />}
-            <StartDemoButton />
             <Btn
               type="button"
               primary

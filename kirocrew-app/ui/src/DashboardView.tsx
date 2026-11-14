@@ -14,6 +14,7 @@ import { plansClient } from './plans-api.ts'
 import { CONFLICT_LABELS, viewsClient, type ConflictItem } from './views-api.ts'
 import { useRead } from './useRead.ts'
 import { LineBanner } from './FlowView.tsx'
+import { StartDemoButton } from './Demo.tsx'
 import { LINE_EVENT, flowClient } from './flow-api.ts'
 import Logo from './Logo'
 import { IconBtn, IconLabel, SectionHeading, ShowMore, TaskTitleLink, ViewHeading, useAskChat, usePages } from './controls.tsx'
@@ -53,12 +54,19 @@ function Pair({ height, children }: { height: string; children: ReactNode }) {
   )
 }
 
-function Section({ title, children, empty, actions }: { title: string; children: ReactNode; empty?: string | false; actions?: ReactNode }) {
+function Section({ title, children, empty, actions, emptyAction }: { title: string; children: ReactNode; empty?: string | false; actions?: ReactNode; emptyAction?: ReactNode }) {
   return (
     <Card className="flex h-full min-h-0 flex-col">
       <SectionHeading title={title} className="mb-2" actions={actions} />
       <div data-scroll className="min-h-0 flex-1 overflow-y-auto">
-        {empty ? <p className="mt-2 text-sm text-muted">{empty}</p> : children}
+        {empty ? (
+          <>
+            <p className="mt-2 text-sm text-muted">{empty}</p>
+            {emptyAction && <div className="mt-2">{emptyAction}</div>}
+          </>
+        ) : (
+          children
+        )}
       </div>
     </Card>
   )
@@ -392,6 +400,8 @@ export default function DashboardView(props: {
             <Section
               title={`In flight (${summary.inFlight.length})`}
               empty={summary.inFlight.length === 0 && 'No agent is working right now.'}
+              // Only while nothing has ever run; the header never has it.
+              emptyAction={summary.neverRan ? <StartDemoButton label="Start demo" /> : undefined}
             >
               <ul className="mt-1">
                 {pages.take('flight', summary.inFlight).map((row) => (

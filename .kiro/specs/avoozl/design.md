@@ -4744,6 +4744,47 @@ shortcut: the global Avoozl configuration file is still read beneath the
 sample's own (`loadLayeredConfig`); upgrade by passing the sample as home
 at each call site if a person's global file ever names repositories.
 
+### 6.12 Security follow-ups
+
+Requirement 83. Audit findings S4 to S8 from the PR 29 comment.
+
+**S4, CLI gate.** `cliRefusal` in `src/app/mcp-policy.mjs` runs at the top of
+`localOrRequest` in `cli.mjs`, before the in-process or server path. It uses
+`PERSON_ONLY` and `mcpRefusal`, so the MCP and CLI lists cannot drift. A
+session is `KIROCREW_SPAWNED=1` or `KIRO_SESSION_ID` (found in Kiro Crew's
+`launch.py` and `hook_runtime/script_hooks.py`; the dashboard terminal, in
+`handlers/terminal_shell.py`, copies the gateway environment and adds
+`KIROCREW_TERMINAL=1`, so it has neither). `--as-person` overrides. The
+request for a descriptor or 0600 file is `docs/kirocrew-requests/`.
+
+**S5, file modes.** `Store` creates `.avoozl` and `.avoozl/local` 0700 and the
+database 0600 before SQLite opens it, and `tightenWorkspace` chmods existing
+ones (and `-wal`, `-shm`) on open. A database named by `--db` outside
+`.avoozl` leaves its folder alone. `privateFile` serves backup and export.
+Windows: Node sets no modes there; the files keep their folder's access.
+
+**S6, worktree helper.** `createWorktree` hashes `scripts/worktree` and
+compares it with the project's `worktreeHelper`; a mismatch is a 409 that
+shows the hash. The approval lives with the project, beside the `checks` that
+already run repository code.
+
+**S7, plugin re-hash.** `pluginHost.connect` calls `contentHash` again for a
+local folder just before `PluginProcess` spawns.
+
+**S8, checks env.** `projectConfig` and project settings take `checksEnv`.
+`commandEvidence`, `runChecksAt`, `runCheckAt` and `runLocalChecks` pass it to
+`repositoryEnvironment(env, allow)`. The setting is named `checksEnv`, not
+`checks.env`, because `checks` is a list.
+
+| Choice                           | Why                                                        |
+| -------------------------------- | ---------------------------------------------------------- |
+| Gate on Kiro Crew's own markers  | Nothing for the person to set up; a terminal is unaffected |
+| Approval stored with the project | Whoever edits `checks` already runs code there             |
+| `checksEnv` off by default       | No existing check breaks                                   |
+
+shortcut: S4 is a speed bump and S7 leaves a small window between the hash and
+the child's read; upgrade S4 with the upstream request, S7 by copying first.
+
 ---
 
 ## 7. Kiro Crew integration map

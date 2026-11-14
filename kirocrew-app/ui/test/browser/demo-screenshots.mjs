@@ -26,7 +26,7 @@ const TOUR_IDS = ['dashboard', 'specs', 'graph', 'task', 'intake', 'flow', 'need
 // layout checks need: the tour card's box and the page's widths.
 export async function showStep(page, harness, { width, height, theme, step }) {
   await page.open(harness.url({ page: 'demo', theme }), { width, height, dark: theme === 'dark' })
-  const start = `[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Try the demo')`
+  const start = `[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Start demo')`
   await page.until(`Boolean(${start})`)
   await page.evaluate(`(() => { ${start}.click(); return true })()`)
   await page.until(`document.querySelector('[data-demo-tour]')?.dataset.step === 'dashboard'`)

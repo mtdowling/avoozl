@@ -97,7 +97,9 @@ export function DemoBadge() {
   )
 }
 
-// The button that opens the demo, for the header and empty states.
+// The button that opens the demo: in the Dashboard's empty In flight box
+// (only while nothing has ever run) and on the no-workspace page. Never in
+// the header.
 export function StartDemoButton(props: { label?: string }) {
   const { active, starting, start } = useDemo()
   if (active) return null
@@ -105,7 +107,7 @@ export function StartDemoButton(props: { label?: string }) {
     <Tooltip text="Open a made-up workspace with a guided tour. Your own work is not touched.">
       {(describedBy) => (
         <Btn type="button" data-demo-start aria-describedby={describedBy} disabled={starting} onClick={() => void start()}>
-          {starting ? 'Opening the demo…' : (props.label ?? 'Try the demo')}
+          {starting ? 'Opening the demo…' : (props.label ?? 'Start demo')}
         </Btn>
       )}
     </Tooltip>

@@ -2174,6 +2174,7 @@ export class Operations {
       return runLocalChecks({
         cwd: input.cwd,
         root: project.root,
+        env: project.checksEnv,
         checks:
           taskRoute(task) === "github"
             ? localCheckList(project)
