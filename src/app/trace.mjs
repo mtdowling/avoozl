@@ -32,6 +32,7 @@ export function buildTrace({
   readyLabel,
   specApproved = null,
   review = null,
+  mirror = null,
   problems = [],
 }) {
   const claim = claimOf(comments),
@@ -88,6 +89,26 @@ export function buildTrace({
             ? `Drafted ${review.draftedAt}, discarded`
             : `Drafted ${review.draftedAt} for ${review.reviewer}; waiting to be submitted`,
     });
+  // RC24.14: where the change stands once it left the private mirror. The times
+  // are GitHub's; a step the forward has not reached has none.
+  if (mirror)
+    steps.splice(
+      steps.findIndex((step) => step.key === "merged") + 1,
+      0,
+      {
+        key: "mirrorMerged",
+        label: "Mirror merged",
+        at: mirror.mirrorMergedAt ?? null,
+        by: mirror.approver ?? null,
+      },
+      { key: "forwarded", label: "Forwarded", at: mirror.forwardedAt ?? null },
+      { key: "publicPr", label: "Public PR", at: mirror.publicPrAt ?? null },
+      {
+        key: "publicMerged",
+        label: "Public merged",
+        at: mirror.publicMergedAt ?? null,
+      },
+    );
   const lastDone = steps.findLastIndex((step) => step.at);
   let next = true;
   for (const [index, step] of steps.entries()) {
@@ -138,7 +159,7 @@ export async function readTrace(
   repository,
   number,
   settings = {},
-  { draftFor = () => null } = {},
+  { draftFor = () => null, mirrorFor = () => null } = {},
 ) {
   const facts = await readIssueFacts(github, repository, number, settings),
     specApproved = await approvedAt(
@@ -153,6 +174,7 @@ export async function readTrace(
       ...facts,
       specApproved,
       review: facts.pull ? draftFor(facts.pull.number) : null,
+      mirror: facts.pull ? mirrorFor(facts.pull.number) : null,
     }),
   };
 }

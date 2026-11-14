@@ -350,6 +350,16 @@ const tools = {
         "what each Radar set up step (labels, branch rule, auto-merge, review-rules pull request, Project) would write, without writing",
         ({ confirm, ...input }) => input,
       ],
+      mirror_adopt_preview: [
+        "mirror.adopt",
+        "dry run of Adopt existing setup for a private mirror: what exists and what would be written (repository, source)",
+        ({ confirm, ...input }) => input,
+      ],
+      mirror_create_preview: [
+        "mirror.create",
+        "dry run of Create setup for a private mirror: the steps that would run, in order (repository, source)",
+        ({ confirm, ...input }) => input,
+      ],
       values: [
         "radar.values",
         "the values to enter in Issue Radar, ticked where Radar's own read confirms them",
@@ -373,6 +383,14 @@ const tools = {
       armed: [
         "radar.armed",
         "pull requests Avoozl armed for auto-merge that are still open",
+      ],
+      epics: [
+        "epics.view",
+        "epics, specs and phases: gate, release count and held reasons, and specs not on GitHub yet",
+      ],
+      done_work: [
+        "trace.done",
+        "merged pull requests of approved specs, newest first, with the crew that did each",
       ],
       release_queue: [
         "radar.releasequeue",

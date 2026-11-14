@@ -3,6 +3,8 @@
 // deterministic; the one check that needs GitHub is `requireMirrorsPrivate`.
 import { fail } from "./store.mjs";
 import { parseRepository } from "./github.mjs";
+import { DEFAULT_FORWARD_MAX_FILE_BYTES } from "./forward-scan.mjs";
+import { branchNameProblem } from "./integration-branch.mjs";
 
 export const FORWARD_MODES = Object.freeze(["off", "nudge", "auto"]);
 export const MIRROR_KEYS = Object.freeze([
@@ -14,7 +16,11 @@ export const MIRROR_KEYS = Object.freeze([
   "squash",
   "trustedPersons",
   "plansBranch",
+  "forwardTarget",
+  "publicBranch",
+  "forwardMaxFileBytes",
 ]);
+export const FORWARD_TARGETS = Object.freeze(["each", "branch", "batch"]);
 export const MIRROR_DEFAULTS = Object.freeze({
   forwardTo: "source",
   forward: "nudge",
@@ -22,6 +28,7 @@ export const MIRROR_DEFAULTS = Object.freeze({
   squash: true,
   plansBranch: "avoozl-plans",
 });
+export const DEFAULT_FORWARD_TARGET = "each";
 
 const REPOSITORY = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const BRANCH_PREFIX = /^[A-Za-z0-9_][A-Za-z0-9._/-]*$/;
@@ -77,6 +84,17 @@ export function mirrorInput(value, label, baseBranch) {
     fail(
       `${label}.plansBranch must not start with the branch prefix ${branchPrefix}, which task branches use.`,
     );
+  const { forwardTarget, publicBranch } = checkForwardTarget(value, label);
+  if (forwardTarget === "branch" && publicBranch === undefined)
+    fail(`${label}.forwardTarget branch needs ${label}.publicBranch.`);
+  const { forwardMaxFileBytes } = value;
+  if (
+    forwardMaxFileBytes !== undefined &&
+    (!Number.isInteger(forwardMaxFileBytes) || forwardMaxFileBytes < 1)
+  )
+    fail(
+      `${label}.forwardMaxFileBytes must be a whole number of bytes, 1 or more.`,
+    );
   const squash = value.squash ?? MIRROR_DEFAULTS.squash;
   if (typeof squash !== "boolean")
     fail(`${label}.squash must be true or false.`);
@@ -104,6 +122,56 @@ export function mirrorInput(value, label, baseBranch) {
     squash,
     trustedPersons,
     plansBranch,
+    ...(forwardTarget ? { forwardTarget } : {}),
+    ...(publicBranch ? { publicBranch } : {}),
+    ...(forwardMaxFileBytes ? { forwardMaxFileBytes } : {}),
+  };
+}
+
+// The size limit in force for forwarded files; the default is shown in Settings.
+export const forwardMaxFileBytesOf = (mirror) =>
+  mirror?.forwardMaxFileBytes ?? DEFAULT_FORWARD_MAX_FILE_BYTES;
+
+// forwardTarget and publicBranch of one record (a mirror or an epic manifest).
+// Absent stays absent, so the source of the value in force stays known.
+export function checkForwardTarget(value, label) {
+  const { forwardTarget, publicBranch } = value;
+  if (forwardTarget !== undefined && !FORWARD_TARGETS.includes(forwardTarget))
+    fail(`${label}.forwardTarget must be each, branch or batch.`);
+  if (publicBranch !== undefined) {
+    const problem = branchNameProblem(publicBranch);
+    if (problem) fail(`${label}.publicBranch: ${problem}`);
+  }
+  return { forwardTarget, publicBranch };
+}
+
+// The target in force, and where each value comes from: the epic manifest,
+// then the repository's `mirror`, then the default (RC26.2, D31.1). Throws
+// with a plain sentence on a bad value or a `branch` target with no branch.
+export function forwardTargetOf(mirror, manifest) {
+  checkForwardTarget(manifest || {}, "manifest");
+  const pick = (key, fallback) => {
+    if (manifest?.[key] !== undefined) return [manifest[key], "epic"];
+    if (mirror?.[key] !== undefined) return [mirror[key], "repository"];
+    return [fallback, "default"];
+  };
+  const [forwardTarget, targetFrom] = pick(
+      "forwardTarget",
+      DEFAULT_FORWARD_TARGET,
+    ),
+    [publicBranch, branchFrom] = pick("publicBranch");
+  if (forwardTarget === "branch" && !publicBranch)
+    fail("forwardTarget branch needs a publicBranch.");
+  const where = {
+    epic: "epic's setting",
+    repository: "repository setting",
+    default: "default",
+  };
+  return {
+    forwardTarget,
+    publicBranch,
+    from: { forwardTarget: targetFrom, publicBranch: branchFrom },
+    label: `Use the ${where[targetFrom]} (${forwardTarget}${forwardTarget === "branch" ? ` ${publicBranch}` : ""})`,
   };
 }
 
