@@ -179,9 +179,19 @@ def run(ctx):
         ctx.send_to_session(slot, d["brief"])
         opened += 1
 
+    # One refused message must not end the run: the rest still go, and a run
+    # that failed every tick would get the cron auto-paused (five in a row).
+    # Kiro Crew refuses a session another cron job opened (not_creator), as
+    # after an app reinstall gives the tick a new job.
+    # shortcut: Avoozl marks a message sent when it plans it, so a refused one
+    # is not retried; report refusals to the tick once it can take them.
     messages = intents.get("messages") or []
+    refused = []
     for m in messages:
-        ctx.send_to_session(m["slot"], m["text"])
+        try:
+            ctx.send_to_session(m["slot"], m["text"])
+        except Exception as error:  # the gateway refused this one session
+            refused.append("%s: %s" % (m["slot"], str(error)[:200]))
 
     # Notices reach the person on the app's own notification channels, with a
     # link to the session: the tick queued them, and the app backend pushes
@@ -190,3 +200,6 @@ def run(ctx):
 
     if not (opened or messages or notify):
         raise Skip()
+    # The run's summary (cron history) names what did not get through.
+    if refused:
+        return "%d message(s) refused: %s" % (len(refused), "; ".join(refused))
