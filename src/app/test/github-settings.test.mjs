@@ -241,9 +241,9 @@ const INVALID = [
     /minimumPermission must be one of/,
   ],
   [
-    "issue-radar in plans-repo mode",
-    repository({ coder: "issue-radar" }),
-    /cannot be issue-radar in plans-repo mode/,
+    "an unknown coder",
+    repository({ coder: "crew" }),
+    /coder must be worker or issue-radar/,
   ],
   [
     "a repository with no base branch under a mode",

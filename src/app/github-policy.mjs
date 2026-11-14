@@ -70,7 +70,21 @@ export const CREW_LABEL_DEFAULTS = Object.freeze({
 // Issue Radar's own page route (its app.json), where a user scopes a crew
 // (R17.4).
 export const ISSUE_RADAR_PATH = "/issue-radar";
+// One place validates `coder`; a later task adds a third value here.
 export const CODERS = Object.freeze(["worker", "issue-radar"]);
+// Radar coder labels (design D2). Ready is `managedLabels.ready`; its
+// default applies to the clash check only.
+export const RADAR_KEYS = Object.freeze([
+  "planLabel",
+  "conflictLabel",
+  "clearPlanLabel",
+]);
+export const RADAR_DEFAULTS = Object.freeze({
+  planLabel: "to plan",
+  conflictLabel: "merge conflict",
+  clearPlanLabel: false,
+});
+export const READY_LABEL_DEFAULT = "ready";
 const LEGACY_KEYS = ["issueIntake", "queue"];
 // The `github` keys the Settings view edits; the legacy keys stay as written.
 export const POLICY_KEYS = Object.freeze([
@@ -307,6 +321,7 @@ function repositoryInput(value, id, mode) {
       "waitingLabels",
       "managedLabels",
       "crewLabels",
+      "radar",
       "acceptedLabel",
       "rules",
       "stackedPullRequests",
@@ -324,10 +339,7 @@ function repositoryInput(value, id, mode) {
   const coder =
     value.coder ?? (mode === "single-repo" ? "issue-radar" : "worker");
   if (!CODERS.includes(coder))
-    fail(`${label}.coder must be worker or issue-radar.`);
-  // A crew opens pull requests only in its own repository (R27.14).
-  if (coder === "issue-radar" && mode === "plans-repo")
-    fail(`${label}.coder cannot be issue-radar in plans-repo mode.`);
+    fail(`${label}.coder must be ${CODERS.join(" or ")}.`);
   const baseBranch = name(value.baseBranch, `${label}.baseBranch`, {
     optional: true,
   });
@@ -411,8 +423,31 @@ function repositoryInput(value, id, mode) {
           : CREW_LABEL_DEFAULTS[key],
       ]),
     );
-  if (lower(crewLabels.claim) === lower(crewLabels.needsHuman))
-    fail(`${label}.crewLabels must use a different label for each state.`);
+  const radarInput = onlyKeys(value.radar ?? {}, RADAR_KEYS, `${label}.radar`),
+    radar = { ...RADAR_DEFAULTS };
+  for (const key of ["planLabel", "conflictLabel"])
+    if (Object.hasOwn(radarInput, key))
+      radar[key] = name(radarInput[key], `${label}.radar.${key}`);
+  if (radarInput.clearPlanLabel !== undefined) {
+    if (typeof radarInput.clearPlanLabel !== "boolean")
+      fail(`${label}.radar.clearPlanLabel must be true or false.`);
+    radar.clearPlanLabel = radarInput.clearPlanLabel;
+  }
+  const seen = new Map();
+  for (const [role, entry] of [
+    ["planning", radar.planLabel],
+    ["needs-human", crewLabels.needsHuman],
+    ["claim", crewLabels.claim],
+    ["ready", managed.ready ?? READY_LABEL_DEFAULT],
+    ["conflict", radar.conflictLabel],
+  ]) {
+    const earlier = seen.get(lower(entry));
+    if (earlier)
+      fail(
+        `${label} uses the label ${entry} for both ${earlier} and ${role}; each needs a different name.`,
+      );
+    seen.set(lower(entry), role);
+  }
   for (const entry of Object.values(crewLabels))
     if (managedNames.has(lower(entry)))
       fail(`${label}.crewLabels cannot use managed label ${entry}.`);
@@ -461,6 +496,7 @@ function repositoryInput(value, id, mode) {
     waitingLabels,
     managedLabels: managed,
     crewLabels,
+    radar,
     // A label an allowed actor adds to say a skipped issue may be planned.
     acceptedLabel: name(value.acceptedLabel, `${label}.acceptedLabel`, {
       optional: true,
