@@ -1,8 +1,8 @@
 // "Who codes": one card per coder, with a small flow picture, one line,
 // "Use it when", who reviews and a Default tag, plus the shared walkthrough
 // that follows a task from ready to merged. Each claim is checked against
-// the code: github-policy.mjs (default coder per mode; issue-radar refused
-// in plans-repo), delivery.mjs (the tick opens a worker chat per ready task,
+// the code: github-policy.mjs (default coder per mode; three coders
+// in both GitHub modes), delivery.mjs (the tick opens a worker chat per ready task,
 // a verifier runs its checks, reviewer roles review the exact commit),
 // github-crew.mjs (Issue Radar crews code single-repo issues carrying the
 // ready label), and github-close.mjs (required checks and the branch review
@@ -11,7 +11,7 @@ import { useState } from 'react'
 import { Flow, Walkthrough, type WalkStep } from './Walkthrough.tsx'
 import { IconLabel } from './controls.tsx'
 import { CircleHelp } from './icons.ts'
-import { CODER_CARDS, defaultCoder, modeKey } from './settings-api.ts'
+import { CODER_CARDS, coderSource, defaultCoder, modeKey } from './settings-api.ts'
 
 const WORKER_STEPS: WalkStep[] = [
   {
@@ -145,17 +145,18 @@ export function CoderPicker(props: { id: string; mode: string; value: string; on
           )
         })}
       </div>
-      {mode === 'plans-repo' && <p className="text-xs text-muted">Issue Radar can't code in plans repository mode: a crew opens pull requests only in its own repository.</p>}
-      {mode === 'local' && <p className="text-xs text-muted">Issue Radar needs GitHub issues, so Local only uses worker chats.</p>}
-      <div>
+      <p className="text-xs text-muted" data-coder-source>{coderSource(props.mode, props.value)}</p>
+      {mode === 'plans-repo' && <p className="text-xs text-muted">A Radar crew opens pull requests only in its own repository.</p>}
+      {mode === 'local' && <p className="text-xs text-muted">Radar crew and Remote coder need GitHub, so Local only uses the Avoozl worker.</p>}
+      {chosen !== 'remote' && <div>
         <IconLabel icon={CircleHelp} onClick={() => setWalk(walk ? null : chosen)} aria-label={walk ? 'Hide how this works' : 'How does this work?'}>
           {walk ? 'Hide how this works' : 'How does this work?'}
         </IconLabel>
-      </div>
+      </div>}
       {walk && (
         <Walkthrough
           id={`${props.id}-walk`}
-          label={walk === 'issue-radar' ? 'How Issue Radar codes a task' : 'How worker chats code a task'}
+          label={walk === 'issue-radar' ? 'How a Radar crew codes a task' : 'How the Avoozl worker codes a task'}
           steps={walk === 'issue-radar' ? RADAR_STEPS : WORKER_STEPS}
           onClose={() => setWalk(null)}
         />

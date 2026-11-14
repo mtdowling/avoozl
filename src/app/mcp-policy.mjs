@@ -195,7 +195,6 @@ const page = "App page rendering only.";
 const remote =
   "Runner mode (R84) runs over ssh and the CLI; no MCP tool hands off, accepts or reports a remote task.";
 export const NOT_ON_MCP = new Map([
-  ["issue.verify", "Its MCP tool arrives with rc-3.4."],
   ...[
     "remote.accept",
     "remote.status",

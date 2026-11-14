@@ -70,8 +70,9 @@ export const CREW_LABEL_DEFAULTS = Object.freeze({
 // Issue Radar's own page route (its app.json), where a user scopes a crew
 // (R17.4).
 export const ISSUE_RADAR_PATH = "/issue-radar";
-// One place validates `coder`; a later task adds a third value here.
-export const CODERS = Object.freeze(["worker", "issue-radar"]);
+// One place validates `coder`. Settings shows the display names
+// (kirocrew-app/ui/src/settings-api.ts CODER_CARDS).
+export const CODERS = Object.freeze(["issue-radar", "worker", "remote"]);
 // Radar coder labels (design D2). Ready is `managedLabels.ready`; its
 // default applies to the clash check only.
 export const RADAR_KEYS = Object.freeze([
@@ -79,6 +80,7 @@ export const RADAR_KEYS = Object.freeze([
   "conflictLabel",
   "approvalLabel",
   "clearPlanLabel",
+  "showPlansRepo",
 ]);
 export const RADAR_DEFAULTS = Object.freeze({
   planLabel: "to plan",
@@ -341,7 +343,9 @@ function repositoryInput(value, id, mode) {
   const coder =
     value.coder ?? (mode === "single-repo" ? "issue-radar" : "worker");
   if (!CODERS.includes(coder))
-    fail(`${label}.coder must be ${CODERS.join(" or ")}.`);
+    fail(
+      `${label}.coder must be ${CODERS.slice(0, -1).join(", ")} or ${CODERS.at(-1)}.`,
+    );
   const baseBranch = name(value.baseBranch, `${label}.baseBranch`, {
     optional: true,
   });
@@ -434,6 +438,12 @@ function repositoryInput(value, id, mode) {
     if (typeof radarInput.clearPlanLabel !== "boolean")
       fail(`${label}.radar.clearPlanLabel must be true or false.`);
     radar.clearPlanLabel = radarInput.clearPlanLabel;
+  }
+  // Unset follows the repository: on when it is private, off when public.
+  if (radarInput.showPlansRepo !== undefined) {
+    if (typeof radarInput.showPlansRepo !== "boolean")
+      fail(`${label}.radar.showPlansRepo must be true or false.`);
+    radar.showPlansRepo = radarInput.showPlansRepo;
   }
   const seen = new Map();
   for (const [role, entry] of [

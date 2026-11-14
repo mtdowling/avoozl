@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { CODER_CARDS, defaultCoder, groupWrites, setupState, writeBadge } from '../src/settings-api.ts'
+import { CODER_CARDS, coderSource, defaultCoder, groupWrites, setupState, writeBadge } from '../src/settings-api.ts'
 
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 const result = (writes, extra = {}) => ({ writes, steps: [], checklist: [], previewHash: 'a'.repeat(64), nothingToChange: !writes.length, applied: false, settings: { changed: false, github: {}, expectedHash: null, diff: '', error: null }, ...extra })
@@ -38,13 +38,24 @@ test('Cancel writes nothing before apply and stops mid-apply', () => {
   assert.match(wizard, /Apply \{count\} change/)
 })
 
-test('Who codes offers Issue Radar only in single-repo, with its default', () => {
+test('Who codes shows the three display names, each with its source', () => {
   assert.equal(defaultCoder('single-repo'), 'issue-radar')
   assert.equal(defaultCoder('plans-repo'), 'worker')
   assert.equal(defaultCoder(''), 'worker')
-  const radar = CODER_CARDS.find((c) => c.coder === 'issue-radar')
-  assert.deepEqual([...radar.modes], ['single-repo'])
+  assert.deepEqual(CODER_CARDS.map((c) => [c.coder, c.title]), [
+    ['worker', 'Avoozl worker'],
+    ['issue-radar', 'Radar crew'],
+    ['remote', 'Remote coder'],
+  ])
+  const only = (coder) => [...CODER_CARDS.find((c) => c.coder === coder).modes]
+  assert.deepEqual(only('worker'), ['local', 'plans-repo', 'single-repo'])
+  assert.deepEqual(only('remote'), ['plans-repo', 'single-repo'])
+  assert.equal(coderSource('single-repo', ''), 'Not set on this repository. Using the default for Single repository (Radar crew).')
+  assert.equal(coderSource('plans-repo', ''), 'Not set on this repository. Using the default for Plans repository (Avoozl worker).')
+  assert.equal(coderSource('plans-repo', 'remote'), 'Set on this repository: Remote coder.')
+  assert.doesNotMatch(coderSource('single-repo', ''), /same as above/i)
   const picker = source('CoderPicker.tsx')
   assert.match(picker, /<Walkthrough/)
+  assert.match(picker, /coderSource\(props\.mode, props\.value\)/)
   assert.match(source('Walkthrough.tsx'), /prefers-reduced-motion: reduce/)
 })
