@@ -2,6 +2,7 @@ import { Component, useCallback, useEffect, useMemo, useRef, useState, type CSSP
 import { Tooltip } from './Tooltip.tsx'
 import { useAppApi } from './host.ts'
 import { Btn, Card, EmptyState, Input, SegmentedControl } from '@kirocrew/app-sdk/ui'
+import { Shelf } from './Shelf.tsx'
 import Badge from './Badge.tsx'
 import { ModePicker } from './ModePicker.tsx'
 import {
@@ -99,6 +100,11 @@ export const SETTINGS_TABS = [
   { key: 'delivery', label: 'Delivery' },
 ] as const
 export type SettingsTab = (typeof SETTINGS_TABS)[number]['key']
+
+// Sections whose editors are large open in a shelf from a Configure button;
+// the small ones (the driver chat, the instance name, the workspace list)
+// stay inline.
+const SHELF_SECTIONS: readonly SettingsTab[] = ['repositories', 'github', 'plugins', 'content', 'flow', 'delivery']
 
 // One short line under each Settings heading: what it controls and when
 // you would change it. Each is checked against what the code does.
@@ -1547,6 +1553,8 @@ export default function SettingsView(props: {
   // A remembered section that no longer exists falls back to Workspaces.
   const tab: SettingsTab = SETTINGS_TABS.some((t) => t.key === asked) ? (asked as SettingsTab) : SETTINGS_HOME
   const choose = (next: SettingsTab) => (props.onTab ? props.onTab(next) : setOwn(next))
+  const [shelf, setShelf] = useState<SettingsTab | null>(null)
+  const shelfLabel = SETTINGS_TABS.find((t) => t.key === shelf)?.label ?? ''
   return (
     <section aria-labelledby="avoozl-settings-title" className="flex flex-col gap-3.5">
       <ViewHeading id="avoozl-settings-title" view="settings">
@@ -1580,15 +1588,32 @@ export default function SettingsView(props: {
                       {SETTINGS_BLURBS[section.key]}
                     </p>
                   )}
+                  {SHELF_SECTIONS.includes(section.key) ? (
+                    <div>
+                      <Btn type="button" onClick={() => setShelf(section.key)} data-open-shelf={section.key} aria-haspopup="dialog">
+                        Configure {section.label.toLowerCase()}
+                      </Btn>
+                    </div>
+                  ) : (
                   <TabBoundary key={section.key} label={section.label}>
                     <SettingsBody tab={section.key} workspaceId={workspaceId} onTab={choose} onSelectWorkspace={props.onSelectWorkspace} onListChange={props.onListChange} onOpenPlans={props.onOpenPlans} />
                   </TabBoundary>
+                  )}
                 </div>
               )}
             </section>
           )
         })}
       </div>
+      {shelf && (
+        <Shelf id={`avoozl-settings-${shelf}`} title={shelfLabel} width="46rem" backLabel="Close the settings shelf" attrs={{ 'data-settings-shelf': shelf }} onDismiss={() => setShelf(null)}>
+          <div className="flex flex-col gap-3">
+            <TabBoundary key={shelf} label={shelfLabel}>
+              <SettingsBody tab={shelf} workspaceId={workspaceId} onTab={(next) => (setShelf(null), choose(next))} onSelectWorkspace={props.onSelectWorkspace} onListChange={props.onListChange} onOpenPlans={props.onOpenPlans} />
+            </TabBoundary>
+          </div>
+        </Shelf>
+      )}
     </section>
   )
 }
