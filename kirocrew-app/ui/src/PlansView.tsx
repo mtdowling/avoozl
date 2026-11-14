@@ -48,6 +48,7 @@ import {
   type DeletePreview,
   type PlansClient,
   progressPercent,
+  homeBadge,
   rowActions,
   rowChoices,
   shortHash,
@@ -574,6 +575,12 @@ function RowButtons(props: {
 // last) in groups that fold. No pages: a group over PAGE rows shows that
 // many and a Show more button. A click on a row or its name opens the
 // plan; the buttons do their own thing and never open it as well.
+// Private specs live on the mirror's plans branch only; public ones follow the code (RC25.2).
+function HomeBadge(props: { home?: 'main' | 'plansBranch' }) {
+  const badge = homeBadge(props.home)
+  return badge ? <Badge variant={badge.warn ? 'warning' : undefined}>{badge.label}</Badge> : null
+}
+
 export function PlansTable(props: {
   rows: PlanRow[]
   busy?: boolean
@@ -668,6 +675,7 @@ export function PlansTable(props: {
                             {row.spec ? <code>{row.spec}</code> : row.planId ? <code>{row.planId}</code> : null}
                             {row.errors > 0 && <Badge variant="danger">{row.errors} errors</Badge>}
                             {row.archived && <Badge>Archived</Badge>}
+                            <HomeBadge home={row.home} />
                           </span>
                         </td>
                         <td style={cell} className="whitespace-nowrap">
@@ -775,6 +783,7 @@ function PlanAside(props: {
           <Badge variant={STATUS_VARIANT[row.status]}>{STATUS_LABEL[row.status] ?? row.status}</Badge>
           {row.type && <Badge>{row.type}</Badge>}
           {row.archived && <Badge>Archived</Badge>}
+          <HomeBadge home={row.home} />
         </span>
         <ProgressBar tasks={row.tasks} />
       </div>

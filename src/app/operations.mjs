@@ -161,6 +161,7 @@ import {
   requireMirrorsPrivate,
   requirePlansBranches,
 } from "./mirror-policy.mjs";
+import { mergeHomes, mirrorOf, readPrivateSpecs } from "./spec-homes.mjs";
 import { mirrorNeedsYou, writeRepo } from "./mirror-sync.mjs";
 import { mirrorForwardRows, mirrorRecordFor } from "./mirror-forward.mjs";
 import { forwardRecord } from "./mirror-forward-run.mjs";
@@ -963,6 +964,8 @@ export class Operations {
     // projections before it returns, so no caller writes the outbox itself.
     this.plansRoot = plansRoot;
     this.tickPolicy = {};
+    // Specs read from the plans branch on the last tick (RC25.2).
+    this.privateSpecs = [];
     this.repositoryBindingGuard = repositoryBindingGuard;
     this.pendingIntents = new Map();
     if (workspaceRoot && driver?.settingsFile)
@@ -1389,6 +1392,21 @@ export class Operations {
         .map((project) => project.root),
     });
   }
+  // Read the plans branch into `privateSpecs`. A failed read keeps the last
+  // good list, so a network error never makes private specs vanish.
+  async refreshPrivateSpecs() {
+    const mirror = mirrorOf(readGitHubPolicyOrNull(this.workspaceRoot));
+    if (!mirror) {
+      this.privateSpecs = [];
+      return;
+    }
+    if (!this.github?.available?.()) return;
+    try {
+      this.privateSpecs = await readPrivateSpecs(this.github, mirror);
+    } catch {
+      // Keep the last list.
+    }
+  }
   // Every spec folder the mode reads, linted, with its stored plan. Each
   // item carries its title, its front-matter category (Requirement 30.9),
   // and when its files last changed on disk.
@@ -1404,57 +1422,89 @@ export class Operations {
       plans = store
         .list("plans")
         .filter((plan) => plan.spec && !plan.deletedAt),
-      approvals = store.list("approvals");
+      approvals = store.list("approvals"),
+      mirror = mirrorOf(readGitHubPolicyOrNull(this.workspaceRoot));
+    // Both homes in one list (RC25.2). The plans branch is read on each tick
+    // into `privateSpecs`; a name or task ID in both homes is refused.
+    const publicSpecs = roots.flatMap((root) =>
+        listSpecFolders(root).map((name) => ({
+          root,
+          spec: readSpecFolder(root, name),
+        })),
+      ),
+      merged = mirror
+        ? mergeHomes(
+            publicSpecs.map((entry) => entry.spec),
+            this.privateSpecs,
+          )
+        : {
+            specs: publicSpecs.map((entry) => ({
+              home: "main",
+              spec: entry.spec,
+            })),
+            errors: [],
+          },
+      homes = merged.specs.map(({ home, spec }) => ({
+        home,
+        spec,
+        root:
+          home === "main"
+            ? publicSpecs.find((entry) => entry.spec === spec).root
+            : null,
+      })),
+      homeErrors = merged.errors;
     return {
       root: roots[0],
       roots,
-      items: roots.flatMap((root) =>
-        listSpecFolders(root).map((name) => {
-          const disk = readSpecFolder(root, name),
-            plan = plans.find((entry) => entry.spec === name) || null,
-            quality = this.withContentDiagnostics(
-              lintSpec({
-                spec: disk,
-                plan: plan || { id: name },
-                data,
-                approved: plan && this.approvedSpec(plan),
-                namespace,
-              }),
-              disk,
-            );
-          const front = frontMatter(
-            disk.files["requirements.md"] ?? disk.files["bugfix.md"],
+      items: homes.map(({ home, root, spec: disk }) => {
+        const name = disk.name,
+          plan = plans.find((entry) => entry.spec === name) || null,
+          quality = this.withContentDiagnostics(
+            lintSpec({
+              spec: disk,
+              plan: plan || { id: name },
+              data,
+              approved: plan && this.approvedSpec(plan),
+              namespace,
+            }),
+            disk,
           );
-          return {
-            name,
-            root,
-            title: specTitle(disk),
-            category: front.category,
-            categoryProblem: front.problem?.message ?? null,
-            modifiedAt: specModifiedAt(root, name, Object.keys(disk.files)),
-            folder: disk.folder,
-            type: quality.type,
-            kind: quality.kind,
-            epic: quality.epic,
-            ...(quality.members ? { members: quality.members } : {}),
-            hash: disk.hash,
-            files: Object.keys(disk.files),
-            counts: quality.counts,
-            taskCount: quality.taskCount,
-            critique: readCritique(disk.critique, disk.hash),
-            plan: plan && {
-              id: plan.id,
-              state: plan.state,
-              hash: plan.hash,
-              revision: plan.revision,
-              changed: plan.hash !== disk.hash,
-              approved: approvals.some(
-                (a) => a.planId === plan.id && a.hash === plan.hash,
-              ),
-            },
-          };
-        }),
-      ),
+        const front = frontMatter(
+          disk.files["requirements.md"] ?? disk.files["bugfix.md"],
+        );
+        return {
+          name,
+          root,
+          ...(mirror ? { home } : {}),
+          title: specTitle(disk),
+          category: front.category,
+          categoryProblem: front.problem?.message ?? null,
+          modifiedAt: root
+            ? specModifiedAt(root, name, Object.keys(disk.files))
+            : null,
+          folder: disk.folder,
+          type: quality.type,
+          kind: quality.kind,
+          epic: quality.epic,
+          ...(quality.members ? { members: quality.members } : {}),
+          hash: disk.hash,
+          files: Object.keys(disk.files),
+          counts: quality.counts,
+          taskCount: quality.taskCount,
+          critique: readCritique(disk.critique, disk.hash),
+          plan: plan && {
+            id: plan.id,
+            state: plan.state,
+            hash: plan.hash,
+            revision: plan.revision,
+            changed: plan.hash !== disk.hash,
+            approved: approvals.some(
+              (a) => a.planId === plan.id && a.hash === plan.hash,
+            ),
+          },
+        };
+      }),
+      ...(homeErrors.length ? { homeErrors } : {}),
     };
   }
   readSpec(name) {
@@ -2823,6 +2873,7 @@ export class Operations {
         command: `AVOOZL_WORKSPACE=${JSON.stringify(this.workspaceRoot)} node ${JSON.stringify(path.join(applicationRoot, "cli.mjs"))}`,
       });
       if (remote) return remote;
+      await this.refreshPrivateSpecs();
       if (input.cron === true) await driverTick(store, this.workspaceRoot);
       // The remote coder's MCP server lives for this tick only (RC15.10).
       const harness =
@@ -4362,7 +4413,8 @@ export class Operations {
         // A workspace with no spec folders for its mode still has stored
         // plans; the table shows those, and the folder problem with them.
         try {
-          return { ...this.specList(), problem: null };
+          const list = this.specList();
+          return { ...list, problem: list.homeErrors?.join(" ") || null };
         } catch (error) {
           return { root: null, items: [], problem: error.message };
         }
