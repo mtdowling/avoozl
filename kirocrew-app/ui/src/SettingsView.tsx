@@ -45,6 +45,7 @@ import {
 } from './settings-api.ts'
 import { CoderPicker } from './CoderPicker.tsx'
 import SetupWizard from './SetupWizard.tsx'
+import RadarValuesScreen from './RadarValues.tsx'
 import WorkspaceView from './WorkspaceView.tsx'
 import Onboard from './Onboard.tsx'
 import { AddRepository, REPOSITORIES_LINE, RepositoryDialog, RepositoryList, repositoryRows, useReveal, type RepositoryRow } from './RepositoriesSettings.tsx'
@@ -1354,7 +1355,14 @@ function PolicyEditor(props: { workspaceId: string; tab: SettingsTab; onOpenPlan
           choices={choices}
           set={set}
           setup={<SetupWizard workspaceId={workspaceId} client={client} settings={settings} shared={sharedSetup(form)} onSaved={reload} />}
-          crews={visibleSettings(form.mode).has('issueRadarCrews') ? <CrewScopes crews={settings.crews ?? []} /> : null}
+          crews={
+            visibleSettings(form.mode).has('issueRadarCrews') ? (
+              <>
+                <CrewScopes crews={settings.crews ?? []} />
+                <RadarValuesScreen workspaceId={workspaceId} repositories={(settings.crews ?? []).map((crew) => crew.repository)} />
+              </>
+            ) : null
+          }
         />
       )}
       {tab === 'github' && <ThisComputer workspaceId={workspaceId} />}

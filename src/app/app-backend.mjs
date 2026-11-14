@@ -171,6 +171,7 @@ export const APP_OPERATIONS = new Set([
   "untriaged.view",
   "radar.crews",
   "radar.mergepath",
+  "radar.values",
   "radar.integrationbranch",
   "intake.list",
   "intake.view",
