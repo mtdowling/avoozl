@@ -102,7 +102,8 @@ export async function publicBranchStep(store, github, { policy } = {}) {
         );
       }
   }
-  store.setMeta(READY, ready);
+  if (JSON.stringify(ready) !== JSON.stringify(store.getMeta(READY) ?? {}))
+    store.setMeta(READY, ready);
   return { errors };
 }
 
