@@ -1,4 +1,4 @@
-// Code Review Sage was dropped (2026-11-14): no tracked file may name it,
+// The separate review app was dropped (2026-11-14): no tracked file may name it,
 // except the historical records under docs/research and docs/evidence.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
