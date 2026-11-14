@@ -726,7 +726,7 @@ if (page === 'routing' && routed) {
 // window.__panel holds what the reads return, so a test can change it and see
 // the panel read again; window.__panelReads counts the reads and
 // window.__panelCalls records writes.
-type PanelData = { conflicts: unknown[]; crews: unknown[]; remote: unknown[]; queue: unknown[]; tasks: unknown[]; line: unknown[]; specs: unknown[]; fail?: string }
+type PanelData = { driver: unknown; conflicts: unknown[]; crews: unknown[]; remote: unknown[]; queue: unknown[]; tasks: unknown[]; line: unknown[]; specs: unknown[]; fail?: string }
 const panelWin = window as unknown as { __panel: PanelData; __panelReads: number; __panelCalls: unknown[] }
 const panelClaim = (number: number, crewId: string, crewName: string, phase: string, pr: number | null) => ({ repository: 'acme/recipe-box', number, title: number === 52 ? 'Index builder' : 'Ranking tests', url: `https://github.test/acme/recipe-box/issues/${number}`, crewId, crewName, phase, pr, prUrl: pr ? `https://github.test/acme/recipe-box/pull/${pr}` : null, updated: new Date(Date.now() - 600000).toISOString(), commentUrl: null, stale: false, noMarker: false })
 const panelRow = (taskId: string, state: string, reason: string) => ({ taskId, title: `Task ${taskId}`, planId: 'search-v2', spec: 'search-v2', phase: 'one', scope: null, label: 'ready', number: null, url: null, manual: false, state, reason, used: 0, capacity: 2 })
@@ -735,6 +735,7 @@ if (page === 'panel') {
   panelWin.__panelReads = 0
   panelWin.__panelCalls = []
   panelWin.__panel = {
+    driver: query.get('driver') === 'running' ? { state: 'running', slot: 'chat-7-1', href: '/chat?sid=chat-7-1', openedAt: new Date(Date.now() - 7200000).toISOString(), lastSeenAt: new Date(Date.now() - 300000).toISOString() } : query.get('driver') === 'idle' ? { state: 'idle', slot: 'chat-7-1', href: '/chat?sid=chat-7-1', openedAt: new Date(Date.now() - 86400000).toISOString(), lastSeenAt: new Date(Date.now() - 7200000).toISOString() } : query.get('driver') === 'unknown' ? null : { state: 'none', slot: null, href: null, openedAt: null, lastSeenAt: null },
     conflicts: full
       ? [
           { kind: 'needs-human', reason: 'crew', taskId: null, title: '#52 asks about the tokenizer', detail: 'Draco: tokenizer A or B? Crew paused with the needs-human label.', link: 'https://github.test/acme/recipe-box/issues/52' },
@@ -755,6 +756,10 @@ if (page === 'panel') {
   }
   answer('workspaces.list', () => ({ defaultWorkspace: 'w', items: [{ id: 'w', name: 'Harness', root: '/w', enabled: true, state: 'ready', served: true }] }))
   answer('conflicts.view', () => ({ revision: 1, items: ((panelWin.__panelReads += 1), data().conflicts) }))
+  answer('driversession.view', () => {
+    if (!data().driver) throw new Refusal(500, { error: 'down' })
+    return data().driver
+  })
   answer('radar.crews', () => ({ readAt: null, stale: 0, errors: [], unseen: [], rows: data().crews }))
   answer('remote.view', () => ({ workers: data().remote }))
   answer('radar.releasequeue', () => ({ repositories: [{ repository: 'acme/recipe-box', ready: 'ready', mode: 'automatic', capacity: 2, scopes: [], steps: [], rows: data().queue }] }))

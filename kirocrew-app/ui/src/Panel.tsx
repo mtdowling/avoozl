@@ -12,10 +12,10 @@ import Badge from './Badge.tsx'
 import { ConfirmProvider } from './controls.tsx'
 import { railFor } from './dashboard-api.ts'
 import { flowClient, type FlowViewModel } from './flow-api.ts'
+import { DRIVER_AGENT, DRIVER_START_MESSAGE, readDriverSession, recapSince, type Away, type DriverRead } from './driver-view-api.ts'
 import { useAppApi, useChatLauncher, useNavigate } from './host.ts'
 import { classifyChat, currentChat, opensItself, type PanelChat } from './panel-chat.ts'
 import {
-  DRIVER_START_MESSAGE,
   PANEL_REFRESH_MS,
   driverView,
   panelModel,
@@ -37,6 +37,21 @@ import { linkHref, viewsClient, type RadarCrews } from './views-api.ts'
 import { errorMessage, readPageState, workspaceClient } from './workspace-api.ts'
 
 const AVOOZL_PAGE = '/apps/avoozl'
+
+// What the panel kept when the window last lost focus (driver-view-api.ts
+// Away), read once on return and then removed.
+const AWAY_KEY = 'avoozl.panel.away'
+
+function takeAway(store: Storage | null): Away | null {
+  try {
+    const raw = store?.getItem(AWAY_KEY)
+    store?.removeItem(AWAY_KEY)
+    const parsed = raw ? (JSON.parse(raw) as Away) : null
+    return parsed && Number.isFinite(parsed.at) && Array.isArray(parsed.waitingKeys) ? parsed : null
+  } catch {
+    return null
+  }
+}
 
 function storage(): Storage | null {
   try {
@@ -88,7 +103,7 @@ const Muted = (props: { children: ReactNode; role?: string }) => (
   </p>
 )
 
-function WaitingList(props: { rows: WaitingRow[]; busy: string | null; onAct: (row: WaitingRow, action: PanelAction) => void }) {
+function WaitingList(props: { rows: WaitingRow[]; busy: string | null; onAct: (row: WaitingRow, action: PanelAction) => void; onOpenPage: () => void }) {
   return (
     <ul className="m-0 list-none p-0" style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 8 }}>
       {props.rows.map((row) => (
@@ -99,7 +114,11 @@ function WaitingList(props: { rows: WaitingRow[]; busy: string | null; onAct: (r
           </span>
           <span className="flex flex-wrap gap-2" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
             {row.actions.map((action) =>
-              action.kind === 'link' ? (
+              action.kind === 'link' && action.href.startsWith('/apps/') ? (
+                <Btn key={action.label} type="button" onClick={props.onOpenPage}>
+                  {action.label}
+                </Btn>
+              ) : action.kind === 'link' ? (
                 link(action.href, action.label)
               ) : (
                 <Btn key={action.label} type="button" disabled={props.busy === row.key} onClick={() => props.onAct(row, action)}>
@@ -131,7 +150,7 @@ function FlightList({ rows, now }: { rows: FlightRow[]; now: number }) {
             {row.updated ? ` · updated ${relativeTime(row.updated, now)}` : ''}
           </span>
           <span className="flex flex-wrap gap-2" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {row.attach && link(row.attach, 'Attach', row.source === 'radar' ? 'Opens here only if this crew runs on this machine.' : undefined)}
+            {row.attach && link(row.attach, 'Attach / steer', row.source === 'radar' ? 'Opens the crew chat, if this crew runs on this machine. Type there to steer it.' : 'Opens the worker chat on its crew. Type there to steer it.')}
             {row.issueUrl && link(row.issueUrl, 'Issue')}
             {row.prUrl && link(row.prUrl, `PR #${row.prNumber}`)}
             {!row.attach && row.noAttach && <span className="text-xs text-muted">{row.noAttach}</span>}
@@ -155,12 +174,16 @@ export default function AvoozlPanel() {
   const [note, setNote] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [now, setNow] = useState(() => Date.now())
+  const [driver, setDriver] = useState<DriverRead | null>(null)
+  const [away, setAway] = useState<Away | null>(() => takeAway(storage()))
   const chat = useMemo(() => currentChat(window.location), [])
   const plans = useMemo(() => plansClient(api), [api])
   const views = useMemo(() => viewsClient(api), [api])
   const releases = useMemo(() => releaseClient(api), [api])
   const flows = useMemo(() => flowClient(api), [api])
   const idRef = useRef(workspaceId)
+  const readsRef = useRef(reads)
+  readsRef.current = reads
 
   // One read of everything. A read that fails leaves only its own section
   // unread; the others still show.
@@ -178,7 +201,7 @@ export default function AvoozlPanel() {
     }
     if (!id) return
     const ok = <T,>(read: Promise<T>) => read.then((value) => value, () => null)
-    const [conflicts, crewRead, remote, queue, flow, listed, stored] = await Promise.all([
+    const [conflicts, crewRead, remote, queue, flow, listed, stored, driverRead] = await Promise.all([
       ok(views.conflicts(id)),
       ok(views.radarCrews(id)),
       ok(views.remote(id).then((r) => r.workers)),
@@ -186,12 +209,14 @@ export default function AvoozlPanel() {
       ok<FlowViewModel>(flows.view(id, { window: '10' })),
       api.get<{ specs?: { name: string }[] }>(SPEC_BUILDER_SPECS).catch(() => ({ specs: [] })),
       ok(plans.specs(id)),
+      readDriverSession(api, id),
     ])
     setError(null)
     setReads({ conflicts, crews: crewRead, remote, queue, flow })
     setCrews(crewRead)
     setSpecNames((listed.specs ?? []).map((spec) => spec.name))
     if (stored) setSpecs(stored.items)
+    setDriver(driverRead)
     setNow(Date.now())
   }, [api, flows, plans, releases, views])
 
@@ -208,8 +233,38 @@ export default function AvoozlPanel() {
   )
 
   const model: PanelModel = useMemo(() => panelModel(reads), [reads])
-  const kind: PanelChat = classifyChat(chat, { specs: specNames })
+  const kind: PanelChat = classifyChat(chat, { specs: specNames, driver: driver?.slot ?? null })
   const spec = kind.kind === 'spec-builder' ? specs.find((item) => item.name === kind.spec) : undefined
+
+  // "Since you left": remember what was waiting when the window lost focus
+  // or went hidden, and take it back when the person returns.
+  const modelRef = useRef(model)
+  modelRef.current = model
+  useEffect(() => {
+    const leave = () => {
+      if (Object.keys(readsRef.current).length === 0) return
+      try {
+        const left: Away = { at: Date.now(), waitingKeys: modelRef.current.waiting.map((row) => row.key) }
+        storage()?.setItem(AWAY_KEY, JSON.stringify(left))
+      } catch {
+        // No storage: no recap.
+      }
+    }
+    const back = () => {
+      if (document.visibilityState === 'hidden') return leave()
+      const taken = takeAway(storage())
+      if (taken) setAway(taken)
+    }
+    window.addEventListener('blur', leave)
+    window.addEventListener('focus', back)
+    document.addEventListener('visibilitychange', back)
+    return () => {
+      window.removeEventListener('blur', leave)
+      window.removeEventListener('focus', back)
+      document.removeEventListener('visibilitychange', back)
+    }
+  }, [])
+  const recap = useMemo(() => recapSince(model, away, now), [model, away, now])
 
   const act = async (row: WaitingRow, action: PanelAction) => {
     if (!workspaceId || action.kind === 'link') return
@@ -257,7 +312,7 @@ export default function AvoozlPanel() {
       ) : model.waiting.length === 0 ? (
         <Muted>Nothing is waiting on you.</Muted>
       ) : (
-        <WaitingList rows={model.waiting.slice(0, 5)} busy={busy} onAct={(row, action) => void act(row, action)} />
+        <WaitingList rows={model.waiting.slice(0, 5)} busy={busy} onAct={(row, action) => void act(row, action)} onOpenPage={() => navigate(AVOOZL_PAGE)} />
       )}
       {model.waiting.length > 5 && (
         <Btn type="button" onClick={() => navigate(AVOOZL_PAGE)}>
@@ -326,20 +381,58 @@ export default function AvoozlPanel() {
       </ConfirmProvider>
     </div>
   )
-  const driver = driverView(null)
+  const view = driverView(driver)
   const driverBox = (
-    <section data-panel-driver={driver.state} className="flex flex-col gap-2" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <section data-panel-driver={view.state} className="flex flex-col gap-2" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <h3 className="m-0 font-semibold" style={{ margin: 0 }}>
-        Driver session <Badge variant={driver.state === 'running' ? 'success' : undefined}>{driver.state === 'running' ? 'Running' : 'Not started'}</Badge>
+        Driver session <Badge variant={view.state === 'running' ? 'success' : undefined}>{{ running: 'Running', idle: 'Quiet', none: 'Not started', unknown: 'Unknown' }[view.state]}</Badge>
       </h3>
-      {driver.note && <Muted>{driver.note}</Muted>}
-      {driver.link ? (
-        link(driver.link, 'Open driver session')
-      ) : (
-        <Btn type="button" primary onClick={() => openChat({ message: DRIVER_START_MESSAGE, autoSend: false })}>
-          Start a driver session
-        </Btn>
+      <Muted>
+        {view.note}
+        {driver?.lastSeenAt && view.state !== 'none' ? ` Last seen ${relativeTime(driver.lastSeenAt, now)}.` : ''}
+      </Muted>
+      <span className="flex flex-wrap gap-2" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        {view.link && link(view.link, 'Open driver session')}
+        {view.start && (
+          <Tooltip text="Opens a new chat on the avoozl-driver agent and sends its first message. It releases work only while the chat is open.">
+            <Btn type="button" primary={!view.link} onClick={() => openChat({ agent: DRIVER_AGENT, message: DRIVER_START_MESSAGE, autoSend: true })} data-driver-start>
+              {view.link ? 'Start a new driver session' : 'Start a driver session'}
+            </Btn>
+          </Tooltip>
+        )}
+      </span>
+    </section>
+  )
+  const sinceBox = recap && (
+    <section data-since-recap className="flex flex-col gap-2 rounded-md border p-3" style={{ display: 'flex', flexDirection: 'column', gap: 8, border: '1px solid var(--border)', borderRadius: 8, padding: 12 }}>
+      <h3 className="m-0 font-semibold" style={{ margin: 0 }}>
+        Since you left <span className="text-xs font-normal text-muted">{recap.since}</span>
+      </h3>
+      {recap.finished.length > 0 && (
+        <div data-since-finished>
+          <span className="text-xs text-muted">Finished</span>
+          <ul className="m-0 list-none p-0" style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+            {recap.finished.slice(0, 5).map((row) => (
+              <li key={row.taskId}>{row.title}</li>
+            ))}
+          </ul>
+        </div>
       )}
+      {recap.needsYou.length > 0 && (
+        <div data-since-needs-you>
+          <span className="text-xs text-muted">New for you</span>
+          <ul className="m-0 list-none p-0" style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+            {recap.needsYou.slice(0, 5).map((row) => (
+              <li key={row.key}>
+                <Badge variant="warning">{row.label}</Badge> {row.title}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <Btn type="button" onClick={() => setAway(null)}>
+        Got it
+      </Btn>
     </section>
   )
   const toPage = (
@@ -434,6 +527,7 @@ export default function AvoozlPanel() {
       )}
       {kind.kind === 'avoozl' && (
         <>
+          {sinceBox}
           {driverBox}
           {waiting}
           {inFlight}
@@ -452,6 +546,7 @@ export default function AvoozlPanel() {
               ? 'Loading…'
               : `${model.waiting.length} waiting on you · ${model.inFlight.length} in flight · ${stopped ? 'line stopped' : 'line running'}`}
           </p>
+          {sinceBox}
           {waiting}
           {inFlight}
           {queue}
