@@ -169,7 +169,7 @@ Requirement RC7. Avoozl does what `gh` can and shows exact values for what only 
 - [x] rc-7.3 The Radar values screen and re-read, after rc-3.5, rc-6.3 [RC7.2, RC7.3] (§D9)
   - One screen: repository, crew name, agent, model, label scope, needs-human label, claim time limit, Additional prompt, each with Copy and what it controls; with the grant, each item ticks after a re-read; without it, a checkbox marked cannot verify.
   - Done when: Every value has Copy; the grant path ticks a fake Radar's items; the no-grant path shows checkboxes; drawn at 320, 768 and 1280 px.
-- [ ] rc-7.4 Crews and rules settings in the app's style, after rc-7.3 [RC7.6] (§D9)
+- [x] rc-7.4 Crews and rules settings in the app's style, after rc-7.3 [RC7.6] (§D9)
   - Titled boxes, plain fields with defaults shown, advanced values folded, inherited values say where they come from, modes as radio fold-outs, edits in modals, no model price.
   - Done when: A UI test fails on "same as above", on a model price field, or on a mode that is not a radio fold-out.
 - [ ] rc-7.5 Team pack with a `crews` section, after rc-7.3 [RC7.4, RC7.5] (§D9)
