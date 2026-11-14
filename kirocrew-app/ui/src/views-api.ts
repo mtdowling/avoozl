@@ -34,6 +34,9 @@ export interface GraphTask extends TaskOwner {
   status: string | null
   complete: boolean
   ready: boolean
+  // The batch issue it shares (an ID in `Graph.batches`), or null. Older
+  // backends omit it.
+  batch?: string | null
   // One drawing state; older backends omit it (see nodeState).
   state?: 'ready' | 'running' | 'waiting' | 'needs-you' | 'done' | 'deferred'
   // Waits for review because its own plan text changed (or it is new).
@@ -73,8 +76,20 @@ export interface GraphPlan {
   phases: { id: string | null; title: string | null; count: number }[]
 }
 
+// One issue that closes several tasks together (radar-coder D4.2).
+export interface GraphBatch {
+  id: string
+  repository: string
+  number: number
+  url: string | null
+  lead: string
+  members: string[]
+}
+
 export interface Graph {
   revision: number
+  // Batch issues with their member task IDs; older backends omit it.
+  batches?: GraphBatch[]
   // Epics across plans, each with its member plan IDs in order.
   epics: { id: string; title: string; count: number; plans?: string[] }[]
   // The plans the Graph drills into, with their phases; older backends omit it.

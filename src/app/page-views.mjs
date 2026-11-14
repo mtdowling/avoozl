@@ -347,8 +347,30 @@ export function graphView(store, data, input = {}) {
         .sort(dispatchOrder(data, startNowIds(store)))
         .map((task, i) => [task.id, i]),
     );
+  // Batch issues (radar-coder D4.2): one node, shown with its member tasks.
+  const batches = new Map();
+  for (const task of data.tasks) {
+    const batch = task.github?.batch;
+    if (!batch?.members || !task.github.number) continue;
+    const id = `${task.github.repository}#${task.github.number}`;
+    if (!batches.has(id))
+      batches.set(id, {
+        id,
+        repository: task.github.repository,
+        number: task.github.number,
+        url: task.github.url ?? null,
+        lead: batch.lead,
+        members: batch.members,
+      });
+  }
+  const batchOf = new Map(
+    [...batches.values()].flatMap((batch) =>
+      batch.members.map((id) => [id, batch.id]),
+    ),
+  );
   return {
     revision: data.revision,
+    batches: [...batches.values()],
     epics: crossPlanEpics(data).map((epic) => ({
       id: epic.id,
       title: epic.title ?? epic.id,
@@ -377,6 +399,7 @@ export function graphView(store, data, input = {}) {
       repository: taskRepository(task),
       status: task.status ?? null,
       complete: complete(task.status),
+      batch: batchOf.get(task.id) ?? null,
       ready: ready.has(task.id),
       state: state(task),
       // Waits for review because its own plan text changed; shown as a

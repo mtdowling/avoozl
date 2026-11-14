@@ -140,3 +140,87 @@ export function reader(
     };
   };
 }
+
+// A spec of one package with three small leaves that may batch (1.1, 1.2,
+// 1.3) and a fourth that needs 1.1. Task IDs in the store are `config.<n>`.
+export const BATCH_SPEC = (() => {
+  const leaf = (summary, extra = {}) => ({
+    kind: "leaf",
+    summary,
+    acceptance: [summary + " works."],
+    checks: ["npm test"],
+    completion: "integrated",
+    ...extra,
+  });
+  return {
+    "tasks.md": [
+      "# Tasks",
+      "",
+      "- [ ] 1 Goal",
+      "  - [ ] 1.1 First",
+      "  - [ ] 1.2 Second",
+      "  - [ ] 1.3 Third",
+      "  - [ ] 1.4 Fourth",
+      "",
+    ].join("\n"),
+    "avoozl/manifest.json": JSON.stringify({
+      tasks: {
+        1: {
+          kind: "package",
+          summary: "The goal.",
+          requires: ["1.1", "1.2", "1.3", "1.4"],
+          acceptance: ["All four work."],
+        },
+        1.1: leaf("First"),
+        1.2: leaf("Second"),
+        1.3: leaf("Third"),
+        1.4: leaf("Fourth", { requires: ["1.1"] }),
+      },
+    }),
+  };
+})();
+
+export const BATCH = ["config.1.1", "config.1.2", "config.1.3"];
+
+// GitHub merges a pull request that says `Closes #N` and closes the issue.
+export function mergeAndClose(github, issue) {
+  const pull = {
+    number: 100 + issue.number,
+    url: `https://example.test/example/code/pull/${100 + issue.number}`,
+    state: "MERGED",
+    title: "Pull " + issue.number,
+    body: "Closes #" + issue.number,
+    merged: true,
+    mergedAt: "2026-11-12T10:04:00Z",
+    headRefName: "issue-radar/one",
+    headRefOid: "a".repeat(40),
+    baseRefName: "main",
+    repository: { nameWithOwner: "example/code" },
+    commits: [],
+  };
+  github.checkRuns = () => Promise.resolve([]);
+  github.commitStatus = () => Promise.resolve({ state: "success" });
+  github.issueLinks = (_repository, number) =>
+    Promise.resolve({
+      nodeId: "issue-" + number,
+      linkedBranches: [],
+      openBlockedBy: 0,
+      totalBlockedBy: 0,
+    });
+  github.closingPullRequests = () => Promise.resolve([pull]);
+  github.branchPullRequests = () => Promise.resolve([pull]);
+  Object.assign(issue, {
+    state: "closed",
+    state_reason: "completed",
+    closed_at: "2026-11-12T10:05:00Z",
+    updated_at: "2026-11-12T10:05:00Z",
+  });
+  github.events.set(issue.number, [
+    {
+      event: "closed",
+      actor: { login: "maintainer" },
+      state_reason: "completed",
+      created_at: "2026-11-12T10:05:00Z",
+    },
+  ]);
+}
