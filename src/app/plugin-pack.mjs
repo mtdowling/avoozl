@@ -19,6 +19,7 @@ import {
   PERMISSIONS,
 } from "./github-policy.mjs";
 import { assertSafeConfig } from "./layered-config.mjs";
+import { CREW_PROMPT } from "./radar-crew-prompt.mjs";
 import { fail } from "./store.mjs";
 
 export const PACK_FILE = "avoozl-pack.json";
@@ -45,8 +46,63 @@ export const PACK_SETTINGS = Object.freeze({
   epicIssueType: null,
   contentRules: ["sets"],
   delivery: ["reviewers", "agent", "model", "runner", "concurrency"],
+  // Issue Radar crews (radar-coder RC7.4): what Set up shows and the labels
+  // and review rules a repository gets. A pack creates no crew.
+  crews: [
+    "count",
+    "agent",
+    "models",
+    "labels",
+    "prompt",
+    "reviewRules",
+    "template",
+  ],
   flow: null,
 });
+
+// Where each `crews` value lands in one repository entry, as a path.
+function crewSettings(crews) {
+  const list = [],
+    labels = crews.labels ?? {};
+  if (labels.ready !== undefined)
+    list.push({ path: ["managedLabels", "ready"], value: labels.ready });
+  if (labels.plan !== undefined)
+    list.push({ path: ["radar", "planLabel"], value: labels.plan });
+  if (labels.conflict !== undefined)
+    list.push({ path: ["radar", "conflictLabel"], value: labels.conflict });
+  if (crews.reviewRules !== undefined)
+    list.push({ path: ["radar", "reviewRules"], value: crews.reviewRules });
+  const crew = Object.fromEntries(
+    ["count", "agent", "models", "template"]
+      .filter((key) => crews[key] !== undefined)
+      .map((key) => [key, crews[key]]),
+  );
+  if (Object.keys(crew).length)
+    list.push({ path: ["radar", "crew"], value: crew });
+  return list;
+}
+
+function validateCrews(crews) {
+  only(
+    crews.labels ?? {},
+    ["plan", "ready", "conflict"],
+    "settings.crews.labels",
+  );
+  if (crews.prompt !== undefined && crews.prompt !== CREW_PROMPT)
+    fail(
+      "Pack settings.crews.prompt must be the one-line crew prompt Avoozl ships, word for word.",
+    );
+  const entry = {};
+  for (const { path: where, value } of crewSettings(crews)) {
+    const group = (entry[where[0]] ??= {});
+    group[where[1]] = value;
+  }
+  checked(
+    () => normalizeGitHubPolicy({ repositories: { [PLACEHOLDER]: entry } }),
+    `github.repositories.${PLACEHOLDER}`,
+    "settings.crews",
+  );
+}
 
 const record = (value) =>
   Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -98,6 +154,7 @@ export function validatePack(value) {
       `github.repositories.${PLACEHOLDER}`,
       "settings.repositories",
     );
+  if (settings.crews) validateCrews(settings.crews);
   if (settings.project)
     checked(
       () =>
@@ -171,6 +228,19 @@ function units(settings, current, repositories) {
           path: ["github", "repositories", repository, key],
           value: settings.repositories[key],
         });
+  if (settings.crews)
+    for (const crew of crewSettings(settings.crews))
+      if (!repositories.length)
+        list.push({
+          path: ["github", "repositories", "*", ...crew.path],
+          skip: "No GitHub repository is chosen. Add one in Settings > Repositories, then preview again.",
+        });
+      else
+        for (const repository of repositories)
+          list.push({
+            path: ["github", "repositories", repository, ...crew.path],
+            value: crew.value,
+          });
   for (const group of ["fields", "statusValues"])
     for (const [key, value] of Object.entries(settings.project?.[group] ?? {}))
       list.push(
