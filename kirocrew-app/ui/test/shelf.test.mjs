@@ -44,7 +44,7 @@ const openShelf = async () => {
 for (const dark of [false, true])
   test(`desktop: the shelf sits at the right edge, ${dark ? 'dark' : 'light'}; Settings shows a Configure button, not the editor`, { skip }, async () => {
     await start(1280, dark)
-    assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-slot="mirror"]'))`), false, 'no editor inline')
+    assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-mirror-setup]'))`), false, 'no editor inline')
     await openShelf()
     const box = await page.evaluate(`(() => { const r = ${SHELF}.querySelector('[data-modal-box]').getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, w: innerWidth, h: innerHeight } })()`)
     assert.equal(box.right, box.w, 'flush with the right edge')
@@ -52,7 +52,7 @@ for (const dark of [false, true])
     assert.equal(box.top, 0)
     assert.equal(await page.evaluate(`getComputedStyle(${SHELF}.querySelector('[data-modal-box]')).animationName`), 'none', 'no slide under reduced motion')
     assert.equal(box.bottom, box.h)
-    assert.equal(await page.evaluate(`Boolean(${SHELF}.querySelector('[data-slot="mirror"]'))`), true, 'the editor is in the shelf')
+    assert.equal(await page.evaluate(`Boolean(${SHELF}.querySelector('[data-mirror-setup]'))`), true, 'the editor is in the shelf')
   })
 
 test('mobile: the shelf is full width at 390 px', { skip }, async () => {
