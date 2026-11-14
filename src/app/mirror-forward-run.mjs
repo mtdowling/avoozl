@@ -106,8 +106,9 @@ export async function forwardRecord(
   if (!mirror || mirror.forward === "off")
     return { ok: false, record, reason: "Forwarding is off for this mirror." };
   // One record, one pull request: a second press finds the first.
-  if (record.publicPr) return { ok: true, record, again: true };
-  if (!["to_forward", "blocked"].includes(record.state))
+  if (record.publicPr && record.state !== "closed_unmerged")
+    return { ok: true, record, again: true };
+  if (!["to_forward", "blocked", "closed_unmerged"].includes(record.state))
     return { ok: false, record, reason: `Already ${record.state}.` };
   if (!person) return { ok: false, record, reason: "Name the person." };
   if (
@@ -227,12 +228,14 @@ export async function forwardRecord(
     }
     const [owner] = forwardTo.split("/"),
       head = forwardTo === mirror.source ? branch : `${owner}:${branch}`,
+      // A pull request closed without a merge is not found again: a person
+      // pressing Forward after a close opens a new one.
       existing = (
         await github.listPullRequests(mirror.source, {
           state: "all",
           head: `${owner}:${branch}`,
         })
-      )?.[0];
+      )?.find((pull) => !(pull.state === "closed" && !pull.merged_at));
     let number = existing?.number;
     if (!number) {
       await git.push({ ...prepared, forwardTo, branch, token });
