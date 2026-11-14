@@ -97,6 +97,7 @@ import { syncStep, syncTargets } from "./integration-sync.mjs";
 import { mirrorSyncStep } from "./mirror-sync.mjs";
 import { mirrorForwardStep } from "./mirror-forward.mjs";
 import { mirrorForwardRunStep } from "./mirror-forward-run.mjs";
+import { mirrorPublicPollStep } from "./mirror-forward-poll.mjs";
 import { armStep } from "./radar-arm.mjs";
 import { headStep } from "./integration-head.mjs";
 import { namespaceOf } from "./radar-plan-me.mjs";
@@ -839,6 +840,11 @@ export async function tick(
             ).errors,
             ...(
               await mirrorForwardRunStep(store, github, {
+                policy: readGitHubPolicyOrNull(workspaceRoot),
+              })
+            ).errors,
+            ...(
+              await mirrorPublicPollStep(store, github, {
                 policy: readGitHubPolicyOrNull(workspaceRoot),
               })
             ).errors,
