@@ -118,7 +118,7 @@ test("validation refuses each §4.4 violation", () => {
       /needs github.planningRepository/,
     ],
     [{ defaultAuthority: "github" }, /needs a github.mode/],
-    [app((repo) => (repo.coder = "issue-radar")), /cannot be issue-radar/],
+    [app((repo) => (repo.coder = "crew")), /coder must be/],
     [app((repo) => delete repo.baseBranch), /default branch/],
     [
       app((_repo, value) => (value.project.statusValues.ready = "Ready")),

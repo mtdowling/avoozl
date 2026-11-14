@@ -31,7 +31,7 @@ before Proof 11 (`rc-p11`) is accepted.
 
 Requirement RC1. The Radar path starts with one setting and four label names. No projection runs yet.
 
-- [ ] rc-1.1 Per-repository `coder` in both GitHub modes, and the label set [RC1.1, RC1.3] (§D2)
+- [x] rc-1.1 Per-repository `coder` in both GitHub modes, and the label set [RC1.1, RC1.3] (§D2)
   - `coder: issue-radar | worker` accepted in single-repo and plans-repo mode (the plans-repo refusal in `github-policy.mjs` is removed); `radar.planLabel`, `radar.conflictLabel`, `radar.clearPlanLabel` in the repository policy; two equal label names among planning, needs-human, claim, ready and conflict refused naming both; `src/app/test/radar-coder-policy.test.mjs`.
   - Done when: `issue-radar` validates in plans-repo mode; a policy with two equal label names is refused naming both; defaults are `to plan`, `ready`, `crew: in progress`, `merge conflict`; `npm test` passes.
 - [ ] rc-1.2 Plan only the planning label, Untriaged off for Radar-coded repositories, after rc-1.1 [RC1.2, RC1.5, RC1.8] (§D3)
