@@ -399,7 +399,9 @@ class Ctx:
     def open_session(self, name="", folder_id="", agent="", model=""):
         calls.append(["open_session", name, folder_id, agent] + ([model] if model else [])); return "slot-new"
     def send_to_session(self, slot, message):
-        calls.append(["send_to_session", slot, message]); return {"ok": True}
+        calls.append(["send_to_session", slot, message])
+        if slot in results.get("refuse", []): raise RuntimeError("HTTP 403: not_creator")
+        return {"ok": True}
     def notify(self, text, **kwargs):
         calls.append(["notify", text]); return {}
     def session_status(self):
@@ -408,11 +410,14 @@ class Ctx:
         return {"ok": True, "sessions": results.get("sessions", [])}
 if results.pop("stock", False):  # a stock Kiro Crew: no ScriptContext.session_status
     del Ctx.session_status
+returned = None
 try:
-    tick.run(Ctx()); outcome = "ok"
+    returned = tick.run(Ctx()); outcome = "ok"
 except tick.Skip:
     outcome = "skip"
-print(json.dumps({"outcome": outcome, "calls": calls}))
+out = {"outcome": outcome, "calls": calls}
+if returned is not None: out["returned"] = returned
+print(json.dumps(out))
 `;
   return JSON.parse(
     execFileSync(
@@ -557,6 +562,30 @@ test("tick cron creates a missing folder and opens nothing until it has a projec
     ["create_session_folder", "Avoozl", ""],
     ["create_session_folder", "example-app", "f0"],
   ]);
+});
+
+test("tick cron sends every other message when the gateway refuses one", () => {
+  const result = tick(
+    {
+      observe: [],
+      dispatch: [],
+      messages: [
+        { slot: "slot-old", text: "Budget reached." },
+        { slot: "slot-2", text: "Resume." },
+      ],
+      notify: [],
+    },
+    { results: { refuse: ["slot-old"] } },
+  );
+  assert.equal(result.outcome, "ok");
+  assert.deepEqual(
+    result.calls.filter((c) => c[0] === "send_to_session").map((c) => c[1]),
+    ["slot-old", "slot-2"],
+  );
+  assert.match(
+    result.returned,
+    /^1 message\(s\) refused: slot-old: .*not_creator/,
+  );
 });
 
 test("tick cron binds each session before its brief, then messages; notices stay with the backend", () => {
