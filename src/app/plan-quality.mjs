@@ -5,6 +5,7 @@ import {
 } from "../task-identity.mjs";
 import { extractPlan } from "./plans.mjs";
 import {
+  isGate,
   isManual,
   taskCompletion,
   taskKind,
@@ -105,9 +106,72 @@ function manualDiagnostics(task, projectId, add) {
     );
 }
 
+// A tracker gate (RC23.1): completion "tracker" and a `tracker` reference of
+// the plugin id, the outside item and the plain-words done condition. Nothing
+// runs a gate, so it takes none of the fields an agent would use. `pluginIds`
+// lists the approved or declared plugins that provide `gate`; when it is
+// absent (a lint with no plugin list) only the shape is checked.
+const GATE_PART = /^[a-z][a-z0-9-]{0,60}$/;
+function gateDiagnostics(task, projectId, add, pluginIds) {
+  const wants = task.completion === "tracker";
+  if (task.gate === undefined && !wants) return;
+  if (!wants)
+    return add(
+      "spec.gate-field",
+      `"${task.id}" has a tracker reference but completion is not "tracker".`,
+    );
+  if (task.manual === true || taskKind(task) !== "leaf")
+    return add(
+      "spec.gate-field",
+      `"${task.id}" has completion "tracker"; only a leaf that is not manual can be a gate.`,
+    );
+  const gate = task.gate;
+  if (!gate || typeof gate !== "object" || Array.isArray(gate))
+    add(
+      "spec.gate-field",
+      `Gate "${task.id}" needs "tracker": {"plugin", "item", "done"}.`,
+    );
+  else {
+    for (const part of ["plugin", "item", "done"])
+      if (typeof gate[part] !== "string" || !gate[part].trim())
+        add(
+          "spec.gate-field",
+          `Gate "${task.id}" needs a non-empty "${part}" in its tracker reference.`,
+        );
+    const known = typeof pluginIds === "function" ? pluginIds() : pluginIds;
+    if (typeof gate.plugin === "string" && gate.plugin.trim()) {
+      if (
+        !GATE_PART.test(gate.plugin) ||
+        (known && !known.includes(gate.plugin))
+      )
+        add(
+          "spec.gate-plugin",
+          `Gate "${task.id}" names plugin "${gate.plugin}", which is not an approved or declared plugin that provides a gate part.`,
+        );
+    }
+    for (const key of Object.keys(gate))
+      if (!["plugin", "item", "done"].includes(key))
+        add(
+          "spec.gate-field",
+          `Gate "${task.id}" has "${key}" in its tracker reference; only plugin, item and done are allowed.`,
+        );
+  }
+  for (const key of MANUAL_REFUSED)
+    if (task[key] !== undefined)
+      add(
+        "spec.gate-field",
+        `Gate "${task.id}" has "${key}"; nothing runs a gate, so remove it.`,
+      );
+  if (!projectId)
+    add(
+      "spec.gate-field",
+      `Gate "${task.id}" needs a "repository": where its issue lives.`,
+    );
+}
+
 // A leaf is bounded: one repository, acceptance, checks and a completion
 // its route can observe. Acceptance is enforced by extractPlan.
-function boundednessDiagnostics(task, projectId, projects) {
+function boundednessDiagnostics(task, projectId, projects, pluginIds) {
   const at = taskLine(task),
     found = [],
     add = (code, message) =>
@@ -129,9 +193,11 @@ function boundednessDiagnostics(task, projectId, projects) {
       `acceptFrom on "${task.id}" needs a local leaf that completes by integration.`,
     );
   manualDiagnostics(task, projectId, add);
+  gateDiagnostics(task, projectId, add, pluginIds);
   if (taskKind(task) !== "leaf") return found;
   // A manual leaf runs nothing: no route completion or checks to prove.
-  if (isManual(task)) return found;
+  if (isManual(task) || isGate(task) || task.completion === "tracker")
+    return found;
   if (task.repository && task.projectId && task.repository !== task.projectId)
     add(
       "leaf.repository",
@@ -396,7 +462,9 @@ export function lintPlan({ text, plan = {}, data = {}, proposals }) {
         ),
       );
 
-    diagnostics.push(...boundednessDiagnostics(task, projectId, projects));
+    diagnostics.push(
+      ...boundednessDiagnostics(task, projectId, projects, data.pluginIds),
+    );
 
     for (const field of ["requires", "sequence", "supports"]) {
       const seen = new Set();

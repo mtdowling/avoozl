@@ -39,6 +39,9 @@ export interface TourStep {
   task?: string
   // The Settings section the step opens.
   settingsTab?: string
+  // A CSS selector for the part of the page the step points at, when the page
+  // has it. A missing part leaves the step pointing at nothing.
+  target?: string
 }
 
 // One step per page, in the order a first look makes sense.
@@ -50,9 +53,56 @@ export const TOUR: readonly TourStep[] = [
     tab: 'dashboard',
   },
   {
-    id: 'specs',
-    title: 'Specs',
-    caption: 'Each spec is written in plain files: what to build, how, and the tasks. Three specs make up the Recipe Box epic. One is still a draft.',
+    id: 'needs-you',
+    title: 'Needs you',
+    caption: 'Avoozl asks only for real choices. Here one task waits for you to pick how to count ingredients.',
+    tab: 'dashboard',
+  },
+  {
+    id: 'handback',
+    title: 'A crew handed back',
+    caption: 'Crew Nova, on cloud-box, stopped and asked: does the week start on Monday or Sunday? Answer on GitHub. The work waits until you do.',
+    tab: 'dashboard',
+    target: '[data-waiting-handback]',
+  },
+  {
+    id: 'review',
+    title: 'A review is drafted',
+    caption: 'A crew read a pull request and drafted a review. It is ready for you to post. Nothing goes to GitHub until you say so.',
+    tab: 'dashboard',
+    target: '[data-review-draft]',
+  },
+  {
+    id: 'crews',
+    title: 'Crews at work',
+    caption: 'Issue Radar crews on three machines hold claims: Draco implements, Orion investigates, Vega just claimed an issue. Avoozl only reads this.',
+    tab: 'dashboard',
+    target: '[data-in-flight]',
+  },
+  {
+    id: 'release',
+    title: 'Release queue',
+    caption: 'Avoozl adds the ready label in graph order, up to two at a time. Each waiting task shows one reason it is held.',
+    tab: 'dashboard',
+    target: '[data-release-repository]',
+  },
+  {
+    id: 'stop-line',
+    title: 'Stop the line',
+    caption: 'The red Stop the line button pauses all new work at once. In the demo it only says what it would do. The bar above has an example you can flip.',
+    tab: 'dashboard',
+  },
+  {
+    id: 'driver',
+    title: 'The driver session',
+    caption: 'One driver session runs the releases and shows you where things stand. Open it from here. In the demo it does not start.',
+    tab: 'dashboard',
+    target: '[data-driver-session]',
+  },
+  {
+    id: 'epics',
+    title: 'Epic, spec, phase',
+    caption: 'The Recipe Box epic holds three specs. Each spec has phases. A phase opens when the one before it has merged, and shows why anything is held.',
     tab: 'plans',
   },
   {
@@ -63,8 +113,8 @@ export const TOUR: readonly TourStep[] = [
   },
   {
     id: 'task',
-    title: 'A task',
-    caption: 'Open any task to see its goal, its checks, its GitHub issue and pull request, and what it waits on.',
+    title: 'A task and its trace',
+    caption: 'Open any task to see its goal, its checks, its GitHub issue and pull request, and each step from spec to merge.',
     tab: 'graph',
     task: 'recipe-import.2.1',
   },
@@ -81,16 +131,12 @@ export const TOUR: readonly TourStep[] = [
     tab: 'flow',
   },
   {
-    id: 'needs-you',
-    title: 'Needs you',
-    caption: 'Avoozl asks only for real choices. Here one task waits for you to pick how to count ingredients.',
-    tab: 'dashboard',
-  },
-  {
-    id: 'stop-line',
-    title: 'Stop the line',
-    caption: 'The red Stop the line button pauses all new work at once. In the demo it only says what it would do.',
-    tab: 'dashboard',
+    id: 'mirror',
+    title: 'Private mirror',
+    caption: 'A public project can keep its crews in a private mirror. Merged work is forwarded to the public repository after a leak scan. This one is a sample.',
+    tab: 'settings',
+    settingsTab: 'repositories',
+    target: '[data-mirror-sample]',
   },
   {
     id: 'settings',

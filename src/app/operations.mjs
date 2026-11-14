@@ -1376,7 +1376,11 @@ export class Operations {
     const store = this.store;
     const namespace = this.specNamespace();
     const roots = this.specRoots(),
-      data = { ...this.read(), projects: store.list("projects") },
+      data = {
+        ...this.read(),
+        projects: store.list("projects"),
+        pluginIds: () => this.gatePluginIds(),
+      },
       plans = store
         .list("plans")
         .filter((plan) => plan.spec && !plan.deletedAt),
@@ -1823,12 +1827,29 @@ export class Operations {
     }
     return this.specNamespace();
   }
+  // Plugins a gate may name (RC23.1): declared, readable, and providing the
+  // `gate` part. Read only when a plan holds a gate.
+  gatePluginIds() {
+    return inspectPlugins(this.pluginOptions)
+      .filter(
+        (p) =>
+          p.id &&
+          p.state !== "invalid" &&
+          p.state !== "missing" &&
+          p.provides?.includes("gate"),
+      )
+      .map((p) => p.id);
+  }
   lintSpecPlan(plan, retitled = [], { content = true } = {}) {
     const spec = { name: plan.spec, exists: true, files: plan.files || {} },
       quality = lintSpec({
         spec,
         plan,
-        data: { ...this.read(), projects: this.store.list("projects") },
+        data: {
+          ...this.read(),
+          projects: this.store.list("projects"),
+          pluginIds: () => this.gatePluginIds(),
+        },
         approved: this.approvedSpec(plan),
         retitled,
         namespace: this.safeSpecNamespace(),
@@ -2064,7 +2085,11 @@ export class Operations {
           lintSpec({
             spec,
             plan: { id: spec.name },
-            data: { ...this.read(), projects: store.list("projects") },
+            data: {
+              ...this.read(),
+              projects: store.list("projects"),
+              pluginIds: () => this.gatePluginIds(),
+            },
           }),
           spec,
         ),
@@ -2809,7 +2834,11 @@ export class Operations {
             lintSpec({
               spec,
               plan: { id: spec.name },
-              data: { ...this.read(), projects: store.list("projects") },
+              data: {
+                ...this.read(),
+                projects: store.list("projects"),
+                pluginIds: () => this.gatePluginIds(),
+              },
             }),
             spec,
           ),
@@ -3372,6 +3401,20 @@ export class Operations {
         },
       });
     }
+    // The public sign-off for one registered repository (RC10.1, RC10.2).
+    // Owner only through the app; releasing a public repository follows it.
+    if (name === "radar.signoff") {
+      const policy = readGitHubPolicyOrNull(this.workspaceRoot);
+      if (!input.repository) fail("Name the repository.", 400);
+      if (!policy?.repositories?.[input.repository])
+        fail(`${input.repository} is not a registered repository.`, 404);
+      if (typeof input.complete !== "boolean")
+        fail("Say whether the sign-off is complete.", 400);
+      const all = { ...store.getMeta("publicSignoff") };
+      all[input.repository] = { complete: input.complete };
+      store.setMeta("publicSignoff", all);
+      return { repository: input.repository, complete: input.complete };
+    }
     if (name === "radar.integrationbranch") {
       const policy = readGitHubPolicyOrNull(this.workspaceRoot),
         entry = policy?.repositories?.[input.repository];
@@ -3409,6 +3452,7 @@ export class Operations {
               connected: [input.repository],
               crews: crews.crews,
               needsHumanLabel: crews.needsHumanLabel,
+              claimTtlHours: crews.claimTtlHours,
             }
           : null;
       return {
@@ -4794,7 +4838,11 @@ export class Operations {
           : lintPlan({
               text: plan.text,
               plan,
-              data: { ...this.read(), projects: store.list("projects") },
+              data: {
+                ...this.read(),
+                projects: store.list("projects"),
+                pluginIds: () => this.gatePluginIds(),
+              },
             }),
         ...(plan.spec ? { disk: this.specOnDisk(plan) } : {}),
         approvals: store.list("approvals").filter((a) => a.planId === plan.id),
@@ -4824,7 +4872,11 @@ export class Operations {
       return lintPlan({
         text,
         plan,
-        data: { ...this.read(), projects: store.list("projects") },
+        data: {
+          ...this.read(),
+          projects: store.list("projects"),
+          pluginIds: () => this.gatePluginIds(),
+        },
       });
     }
     if (name === "plan.preview") {
@@ -4864,7 +4916,11 @@ export class Operations {
         lintPlan({
           text,
           plan,
-          data: { ...data, projects: store.list("projects") },
+          data: {
+            ...data,
+            projects: store.list("projects"),
+            pluginIds: () => this.gatePluginIds(),
+          },
           ...(extraction ? { proposals } : {}),
         });
       return {
@@ -4984,7 +5040,11 @@ export class Operations {
           lintPlan({
             text: plan.text,
             plan,
-            data: { ...this.read(), projects: store.list("projects") },
+            data: {
+              ...this.read(),
+              projects: store.list("projects"),
+              pluginIds: () => this.gatePluginIds(),
+            },
             ...(extraction ? { proposals } : {}),
           });
       if (extraction && !proposals.length)

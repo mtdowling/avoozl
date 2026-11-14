@@ -2020,6 +2020,111 @@
         "rc-23.5",
         "rc-23.6"
       ]
+    },
+    "rc-24.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "`plansBranch` setting: default, orphan creation, validation. See RC25.1; \u00a7D30.",
+      "acceptance": [
+        "The branch is created once; each refused name is refused with its reason; the form and the raw file agree."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-23.1"
+      ]
+    },
+    "rc-24.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Spec home, reading both homes, Specs badge. See RC25.2, RC25.8; \u00a7D30.",
+      "acceptance": [
+        "Unit tests for both homes and the duplicate name; a page test shows both badges; `npm test` and `npm run test:ui` pass."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-24.1"
+      ]
+    },
+    "rc-24.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Marker `ref`, approval on the plans branch, `verify-issue` and crew commands. See RC25.3, RC25.4, RC25.5; \u00a7D30.",
+      "acceptance": [
+        "A private spec's issue passes; a `ref` that is the default branch, missing, or shares history fails with the reason; the prompt text is unchanged."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-24.2",
+        "rc-3.3",
+        "rc-3.6",
+        "rc-3.2"
+      ]
+    },
+    "rc-24.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Containment: sync, forward, leak scan, explicit refspecs. See RC25.6; \u00a7D30.",
+      "acceptance": [
+        "A planted plans-branch name or path blocks the push with one row; the sync leaves the plans branch head unchanged; no push uses a banned flag."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-24.1",
+        "rc-23.4"
+      ]
+    },
+    "rc-24.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Issues from public and private plans. See RC25.7; \u00a7D30.",
+      "acceptance": [
+        "Both kinds of issue are written; no write reaches the source for a private plan; a cross-home edge fails lint naming both."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-24.3"
+      ]
+    },
+    "rc-p24": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Proof 24: a public and a private plan in one mirror. See RC25; \u00a7D17.",
+      "acceptance": [
+        "Expected result observed; receipt under `docs/evidence/` lists the scratch repositories."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-24.1",
+        "rc-24.2",
+        "rc-24.3",
+        "rc-24.4",
+        "rc-24.5",
+        "rc-p23"
+      ]
     }
   }
 }
