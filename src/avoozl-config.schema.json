@@ -897,7 +897,25 @@
         },
         "coder": {
           "enum": ["worker", "issue-radar"],
-          "description": "issue-radar is refused in plans-repo mode."
+          "description": "Who codes the issues: issue-radar or worker, in either GitHub mode."
+        },
+        "radar": {
+          "type": "object",
+          "description": "Issue Radar coder labels. Planning, needs-human, claim, ready and conflict names must all differ.",
+          "properties": {
+            "planLabel": {
+              "type": "string",
+              "minLength": 1,
+              "default": "to plan"
+            },
+            "conflictLabel": {
+              "type": "string",
+              "minLength": 1,
+              "default": "merge conflict"
+            },
+            "clearPlanLabel": { "type": "boolean", "default": false }
+          },
+          "additionalProperties": false
         },
         "allowedActors": {
           "type": "array",
