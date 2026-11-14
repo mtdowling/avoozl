@@ -6,6 +6,7 @@
 import { digest, queryTasks, statusComplete } from "../model.mjs";
 import {
   completionReached,
+  isGate,
   isManual,
   taskKind,
   taskRepository,
@@ -74,6 +75,10 @@ const FIELDS = ["title", "body", "labels", "blockers"];
 // on the issue (R61.23).
 export const MANUAL_LINE =
   "Manual task: a person closes this issue or marks it done in Avoozl. No agent works on it.";
+// A gate says what it waits on and what counts as done (RC23.3). The values
+// are plain text from the approved spec, never a credential.
+export const gateLine = (task) =>
+  `Tracker gate: waits on ${task.gate?.plugin} item ${task.gate?.item}. Done when: ${task.gate?.done}. No agent works on it.`;
 function managedSection(task, plan, requires, notes = [], shown = []) {
   const list = requires.map((id) => `- ${id}`).join("\n"),
     entries = issueNotesLines(shown).join("\n");
@@ -85,7 +90,7 @@ ${task.summary || task.nextAction || ""}
 ## Acceptance criteria
 
 ${(task.acceptance || []).map((item) => `- [ ] ${item}`).join("\n")}
-${list ? `\n## Dependencies\n\n${list}\n` : ""}${notes.length ? `\n${notes.map((note) => `> ${note}`).join("\n")}\n` : ""}${isManual(task) ? `\n> ${MANUAL_LINE}\n` : ""}${entries ? `\n## Links and notes\n\n${entries}\n` : ""}
+${list ? `\n## Dependencies\n\n${list}\n` : ""}${notes.length ? `\n${notes.map((note) => `> ${note}`).join("\n")}\n` : ""}${isManual(task) ? `\n> ${MANUAL_LINE}\n` : ""}${isGate(task) ? `\n> ${gateLine(task)}\n` : ""}${entries ? `\n## Links and notes\n\n${entries}\n` : ""}
 <!-- avoozl:managed:end -->`;
 }
 
@@ -702,8 +707,10 @@ export function phaseHeldTasks(data, identity, tasks, repositoryOf) {
         counts: (task) =>
           taskKind(task) === "leaf" && task.status !== SUPERSEDED_STATUS.id,
         merged: (task) =>
-          isManual(task)
-            ? complete(task.status)
+          isManual(task) || isGate(task)
+            ? isGate(task)
+              ? completionReached(task, null, complete)
+              : complete(task.status)
             : task.githubVerdict
               ? task.githubVerdict.state === "verified"
               : complete(task.status),

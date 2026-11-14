@@ -4,6 +4,7 @@ import { activityState } from "./activity.mjs";
 import { isArchivedTask, isHistoricalTask } from "./browse-model.mjs";
 import {
   completionReached,
+  isGate,
   isManual,
   supersedingTask,
   taskKind,
@@ -226,6 +227,8 @@ export function queryTasks(data, options = {}) {
             // A manual leaf is never ready for an agent (R61.10); the Graph
             // asks with `manual` to find the ones waiting for a person.
             (options.manual || !isManual(t)) &&
+            // A gate is read by its plugin, never started (RC23.3).
+            !isGate(t) &&
             t.status !== "draft" &&
             !t.decision &&
             // A claimed leaf (a live session, or a delivery under way) and a
