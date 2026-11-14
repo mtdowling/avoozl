@@ -17,7 +17,7 @@ import {
 } from 'react'
 import { useAppApi, useChatLauncher } from './host.ts'
 import { Btn } from '@kirocrew/app-sdk/ui'
-import { ChevronRight, MessageSquare, VIEW_ICONS, type LucideIcon } from './icons.ts'
+import { ChevronRight, Info, MessageSquare, VIEW_ICONS, type LucideIcon } from './icons.ts'
 import { chatClient, type ChatSeed, type HelpSeed } from './chat-api.ts'
 import { useTaskDrawer } from './drawer-context.ts'
 import { errorMessage } from './workspace-api.ts'
@@ -90,6 +90,20 @@ export function IconBtn(props: {
         >
           <Icon size={ICON} aria-hidden="true" />
         </Btn>
+      )}
+    </Tooltip>
+  )
+}
+
+// The 'i' icon: the details that would crowd the page, in the shared tooltip.
+// It takes focus, so the tip opens from the keyboard too.
+export function InfoTip(props: { text: string; label?: string }) {
+  return (
+    <Tooltip text={props.text}>
+      {(describedBy) => (
+        <span tabIndex={0} role="img" aria-label={props.label ?? 'Info'} aria-describedby={describedBy} data-info-tip className="inline-flex items-center text-muted">
+          <Info size={ICON} aria-hidden="true" />
+        </span>
       )}
     </Tooltip>
   )
@@ -444,8 +458,8 @@ export function SectionHeading(props: {
 
 // A top-level view's page heading: its icon, then its word. The icon is the
 // same one its nav tab shows, sized to the text and hidden from readers.
-export function ViewHeading(props: { id: string; view: keyof typeof VIEW_ICONS; children: ReactNode; actions?: ReactNode; meta?: ReactNode; wideActions?: boolean }) {
-  return <SectionHeading level={2} id={props.id} view={props.view} title={props.children} meta={props.meta} actions={props.actions} wideActions={props.wideActions} />
+export function ViewHeading(props: { id: string; view: keyof typeof VIEW_ICONS; children: ReactNode; actions?: ReactNode; meta?: ReactNode; wideActions?: boolean; level?: 2 | 3 }) {
+  return <SectionHeading level={props.level ?? 2} id={props.id} view={props.view} title={props.children} meta={props.meta} actions={props.actions} wideActions={props.wideActions} />
 }
 
 // The nav tab label: the view's icon, then its word.

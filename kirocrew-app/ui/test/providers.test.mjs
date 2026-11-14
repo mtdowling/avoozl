@@ -49,7 +49,7 @@ test('switch records say what happened', () => {
   assert.equal(switchText({ ...base, to: null, state: 'done', result: 'no target' }), 'a: no healthy model to switch to')
 })
 
-test('Switch model and Stop the line sit once each in the header actions row, not the tab row; providers show in Settings › Routing', () => {
+test('Switch model and Stop the line sit once each in the header actions row, not the tab row', () => {
   const app = source('App.tsx'),
     dashboard = source('DashboardView.tsx')
   const header = app.slice(app.indexOf('<PageHeader'), app.indexOf('data-top-row')),
@@ -61,7 +61,7 @@ test('Switch model and Stop the line sit once each in the header actions row, no
   assert.doesNotMatch(header, /<StartDemoButton/, 'the header never has Start demo')
   assert.doesNotMatch(tabs, /<SwitchModelButton|<StopLineButton|data-top-actions/, 'the tab row keeps only the tabs')
   assert.match(tabs, /<SegmentedControl/)
-  for (const file of ['DashboardView.tsx', 'FlowView.tsx', 'DeliveryView.tsx', 'SettingsView.tsx'])
+  for (const file of ['DashboardView.tsx', 'FlowView.tsx', 'SettingsView.tsx'])
     assert.doesNotMatch(source(file), /<SwitchModelButton|<StopLineButton/, `${file} has its own copy`)
   assert.equal(app.match(/<SwitchModelButton/g).length, 1)
   assert.equal(app.match(/<StopLineButton/g).length, 1)
@@ -80,6 +80,5 @@ test('Switch model and Stop the line sit once each in the header actions row, no
   assert.match(dialog, /previewHash: dry\.previewHash/)
   assert.match(dialog, /setChanged\(dryRunDiff\(dry, next\)\)/)
   assert.match(dialog, /onClick=\{\(\) => setStep\('choose'\)\} data-switch-back/)
-  assert.match(source('RoutingView.tsx'), /<ProvidersSection /)
   assert.match(source('views-api.ts'), /'provider-out': 'Provider out'/)
 })

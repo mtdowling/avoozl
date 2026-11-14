@@ -1,7 +1,6 @@
 // Settings > Delivery (R53.3, R54.8): the writer's default agent and model,
-// and pull request feedback. Saves write `delivery` in .avoozl.json through
-// delivery.settings.update with the file's hash. Per-task agent and model
-// are the routing prompt's job, so this page links to Routing instead.
+// who merges, and pull request feedback. Saves write `delivery` in
+// .avoozl.json through delivery.settings.update with the file's hash.
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
 import { Btn, Card, Input } from '@kirocrew/app-sdk/ui'
@@ -39,7 +38,7 @@ function Labeled(props: { id: string; label: string; raw: string; width: string;
   )
 }
 
-export default function DeliverySettings({ workspaceId, onOpenRouting }: { workspaceId: string; onOpenRouting?: () => void }) {
+export default function DeliverySettings({ workspaceId }: { workspaceId: string }) {
   const api = useAppApi()
   const run = useMemo(
     () =>
@@ -142,7 +141,7 @@ export default function DeliverySettings({ workspaceId, onOpenRouting }: { works
   return (
     <div className="flex flex-col gap-3" data-delivery-settings>
       <Card className="flex flex-col gap-4">
-        <Section title="Writer" blurb="The agent and model worker chats open on, unless the routing prompt or the task picks another.">
+        <Section title="Writer" blurb="The agent and model worker chats open on, unless a task's manifest picks another.">
           <div className="flex flex-wrap gap-4">
             <Labeled id="avoozl-delivery-agent" label="Agent" raw="delivery.agent" width="16rem">
               <Input id="avoozl-delivery-agent" value={form.agent} placeholder={DELIVERY_DEFAULTS.agent} onChange={(e) => set({ agent: e.target.value })} />
@@ -157,16 +156,6 @@ export default function DeliverySettings({ workspaceId, onOpenRouting }: { works
               </select>
             </Labeled>
           </div>
-          <p className="text-xs text-muted">
-            Spreading tasks across crews and models is the routing prompt's job; a task's manifest can pin one.{' '}
-            {onOpenRouting ? (
-              <button type="button" className="underline" onClick={onOpenRouting}>
-                Open Routing
-              </button>
-            ) : (
-              'Set it on the Routing tab.'
-            )}
-          </p>
         </Section>
         <Section title="Who merges" blurb="Who lands a finished pull request. A repository, spec or task may set its own in .avoozl.json or the manifest; Avoozl never merges one itself.">
           <RadioFold<ShipMode>
