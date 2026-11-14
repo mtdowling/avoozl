@@ -49,12 +49,17 @@ test('switch records say what happened', () => {
   assert.equal(switchText({ ...base, to: null, state: 'done', result: 'no target' }), 'a: no healthy model to switch to')
 })
 
-test('Switch model and Stop the line sit once each in the top row; providers show in Settings › Routing', () => {
+test('Switch model and Stop the line sit once each in the header actions row, not the tab row; providers show in Settings › Routing', () => {
   const app = source('App.tsx'),
     dashboard = source('DashboardView.tsx')
-  const row = app.slice(app.indexOf('data-top-row'), app.indexOf('</div>', app.indexOf('data-top-actions')))
-  assert.ok(row.indexOf('<SegmentedControl') < row.indexOf('<SwitchModelButton'), 'after the tabs')
-  assert.ok(row.indexOf('<SwitchModelButton') < row.indexOf('<StopLineButton'), 'Stop the line goes last')
+  const header = app.slice(app.indexOf('<PageHeader'), app.indexOf('data-top-row')),
+    tabs = app.slice(app.indexOf('data-top-row'), app.indexOf('<DemoBar'))
+  for (const part of ['<WorkspacePicker', '<StartDemoButton', 'Plan a goal', '<SwitchModelButton', '<StopLineButton'])
+    assert.ok(header.includes(part), `${part} is in the header actions`)
+  const order = ['<WorkspacePicker', '<StartDemoButton', 'Plan a goal', '<SwitchModelButton', '<StopLineButton'].map((part) => header.indexOf(part))
+  assert.deepEqual(order, [...order].sort((a, b) => a - b), 'picker, Demo, Plan a goal, Switch model, Stop the line last')
+  assert.doesNotMatch(tabs, /<SwitchModelButton|<StopLineButton|data-top-actions/, 'the tab row keeps only the tabs')
+  assert.match(tabs, /<SegmentedControl/)
   for (const file of ['DashboardView.tsx', 'FlowView.tsx', 'DeliveryView.tsx', 'SettingsView.tsx'])
     assert.doesNotMatch(source(file), /<SwitchModelButton|<StopLineButton/, `${file} has its own copy`)
   assert.equal(app.match(/<SwitchModelButton/g).length, 1)

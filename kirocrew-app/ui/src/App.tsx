@@ -236,7 +236,7 @@ function AvoozlPage() {
         }
         subtitle="Plan work as a graph, then deliver ready tasks through Kiro Crew"
         actions={
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3" data-header-actions>
             {demo.active ? <DemoBadge /> : <WorkspacePicker list={list} value={workspaceId} onChange={setWorkspaceId} />}
             <StartDemoButton />
             <Btn
@@ -250,11 +250,19 @@ function AvoozlPage() {
             >
               Plan a goal
             </Btn>
+            {active && (
+              <>
+                {/* Move running chats to another model (§4.20, R72.12). */}
+                <SwitchModelButton workspaceId={active} />
+                {/* Pull the Andon cord (R64); last, red. */}
+                <StopLineButton workspaceId={active} />
+              </>
+            )}
           </div>
         }
       />
-      {/* The top row on every tab: the tabs, then Switch model and Stop the
-          line (last, red). It wraps on a narrow page; nothing scrolls sideways. */}
+      {/* The tab row on every tab: the tabs only. It wraps on a narrow page;
+          nothing scrolls sideways. */}
       <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 px-6 pb-3" data-top-row>
         <SegmentedControl
           layoutId="avoozl-views"
@@ -278,14 +286,6 @@ function AvoozlPage() {
           onChange={(key) => chooseTab(key as Tab)}
           wrap
         />
-        {active && (
-          <div className="flex flex-wrap items-center gap-2" data-top-actions>
-            {/* Move running chats to another model (§4.20, R72.12). */}
-            <SwitchModelButton workspaceId={active} />
-            {/* Pull the Andon cord (R64). */}
-            <StopLineButton workspaceId={active} />
-          </div>
-        )}
       </div>
       <DemoBar />
       {error && (
