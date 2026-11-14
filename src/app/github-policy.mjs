@@ -81,6 +81,7 @@ export const RADAR_KEYS = Object.freeze([
   "approvalLabel",
   "clearPlanLabel",
   "showPlansRepo",
+  "reviewRules",
 ]);
 export const RADAR_DEFAULTS = Object.freeze({
   planLabel: "to plan",
@@ -475,6 +476,16 @@ function repositoryInput(value, id, mode) {
   for (const key of ["planLabel", "conflictLabel", "approvalLabel"])
     if (Object.hasOwn(radarInput, key))
       radar[key] = name(radarInput[key], `${label}.radar.${key}`);
+  // Text Set up proposes for `AGENTS.md` (RC7.1); a pull request, never a write.
+  if (radarInput.reviewRules !== undefined) {
+    if (
+      typeof radarInput.reviewRules !== "string" ||
+      !radarInput.reviewRules.trim() ||
+      radarInput.reviewRules.length > 4000
+    )
+      fail(`${label}.radar.reviewRules must be 1 to 4000 characters of text.`);
+    radar.reviewRules = radarInput.reviewRules.trim();
+  }
   if (radarInput.clearPlanLabel !== undefined) {
     if (typeof radarInput.clearPlanLabel !== "boolean")
       fail(`${label}.radar.clearPlanLabel must be true or false.`);
