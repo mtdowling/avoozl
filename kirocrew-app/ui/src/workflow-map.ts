@@ -1,7 +1,7 @@
 // The Workflow map (radar-coder RC22, design D27): how work flows through one
 // repository, as lanes of step cards built from its settings. Pure: the page
 // draws what this returns, and no card holds text the settings do not give.
-import { RADAR_DEFAULTS_SHOWN, defaultCoder, isGitHubMode, modeKey, type RepositoryForm } from './settings-api.ts'
+import { defaultCoder, isGitHubMode, modeKey, type RepositoryForm } from './settings-api.ts'
 
 export type Who = 'you' | 'radar' | 'avoozl' | 'github'
 export const WHO_TEXT: Record<Who, string> = { you: 'You', radar: 'Radar crew', avoozl: 'Avoozl', github: 'GitHub' }
@@ -117,18 +117,19 @@ export interface WorkflowInput {
   planningRepository?: string
 }
 
-// Defaults of labels that RADAR_DEFAULTS_SHOWN does not hold. They move with
-// RC21, which renames them; plan and conflict come from RADAR_DEFAULTS_SHOWN.
+// Default label names. Radar's two are Kiro Crew's own defaults; Avoozl's are
+// the `avoozl:` names of RC21 (owner decision), each configurable. Until
+// rc-20.1 moves the backend defaults, an unset repository still gets the old
+// names from the backend; the map shows the decided ones.
 const DEFAULTS = {
-  ready: 'ready',
   claim: 'crew: in progress',
   needsHuman: 'crew: needs human',
-  approval: 'plan approved',
-  // RC21 names these; no setting holds them yet.
+  plan: 'avoozl:plan',
+  ready: 'avoozl:ready',
+  approval: 'avoozl:plan-approved',
+  conflict: 'avoozl:merge-conflict',
   review: 'avoozl:review',
   drafted: 'avoozl:drafted',
-  plan: RADAR_DEFAULTS_SHOWN.planLabel,
-  conflict: RADAR_DEFAULTS_SHOWN.conflictLabel,
 } as const
 
 const named = (set: string, fallback: string, label: string, field?: JumpField): Value => {
