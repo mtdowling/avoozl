@@ -28,14 +28,64 @@ function writable(filename) {
     return error.code === "ENOENT";
   }
 }
+// Make `file` readable by its owner only, creating it empty first when it is
+// missing so it never exists with the process umask. A filesystem that cannot
+// hold modes (FAT, some network mounts) keeps what it has. On Windows Node
+// maps only the read-only flag, so this is a no-op there and the file keeps
+// the access of its folder (R83.3).
+export function privateFile(file) {
+  try {
+    fs.closeSync(fs.openSync(file, "a", 0o600));
+    fs.chmodSync(file, 0o600);
+  } catch (error) {
+    if (!["EPERM", "ENOTSUP", "EROFS", "EACCES"].includes(error.code))
+      throw error;
+  }
+}
+
+// The private folders above a workspace database: `.avoozl`, and `.avoozl/local`
+// when the database sits there. A database named elsewhere with --db has none,
+// because its folder may be shared with other files.
+function privateFolders(filename) {
+  const folder = path.dirname(path.resolve(filename)),
+    parent = path.dirname(folder);
+  if (path.basename(folder) === ".avoozl") return [folder];
+  if (path.basename(folder) === "local" && path.basename(parent) === ".avoozl")
+    return [parent, folder];
+  return [];
+}
+
+// Tighten a workspace's folders and database files on open.
+function tightenWorkspace(filename) {
+  for (const folder of privateFolders(filename))
+    try {
+      fs.chmodSync(folder, 0o700);
+    } catch {}
+  for (const suffix of ["", "-wal", "-shm"])
+    if (fs.existsSync(filename + suffix))
+      try {
+        fs.chmodSync(filename + suffix, 0o600);
+      } catch {}
+}
+
 export class Store {
   constructor(filename) {
-    if (filename !== ":memory:")
+    if (filename !== ":memory:") {
+      // New `.avoozl` folders are private; any other new folder keeps the default.
+      for (const folder of privateFolders(filename))
+        fs.mkdirSync(folder, { recursive: true, mode: 0o700 });
       fs.mkdirSync(path.dirname(path.resolve(filename)), { recursive: true });
+    }
     this.filename = filename;
     // A database file the user made read-only is opened read-only, without
     // the schema statements, so reading it never writes. Writes then fail.
     this.readOnly = filename !== ":memory:" && !writable(filename);
+    if (filename !== ":memory:" && !this.readOnly) {
+      // A new database is created 0600 before SQLite opens it; an existing
+      // one is tightened (migration, R83.3).
+      if (!fs.existsSync(filename)) privateFile(filename);
+      tightenWorkspace(filename);
+    }
     this.db = new DatabaseSync(filename, { readOnly: this.readOnly });
     if (this.readOnly) return;
     // An existing database gaining the activity log takes its current state
