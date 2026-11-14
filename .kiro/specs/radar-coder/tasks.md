@@ -160,6 +160,7 @@ Requirement RC6. Avoozl ships the crew agent, because an unknown agent name fall
 - [ ] rc-p6 Proof 6: a crew on avoozl-crew verifies and builds, after rc-6.1, rc-6.2, rc-6.3 [RC6] (§D17)
   - Setup: Avoozl built and installed, a crew created with agent `avoozl-crew`. Action: one marked issue and one with a bad approver. Expected: the crew calls `plans_verify_issue`, builds the first, skips the second; Set up shows the agent present. Failure means: a crew silently ran on the default agent. Next decision: fall back to the prompt-only path.
   - Done when: Expected result observed live; receipt under `docs/evidence/`.
+  - Fake-GitHub proof merged in PR #146; live run pending owner (see docs/evidence/radar-coder-proof-6-fake-github.md)
 
 ## Phase 7: Set up and the team pack
 
@@ -183,6 +184,7 @@ Requirement RC7. Avoozl does what `gh` can and shows exact values for what only 
 - [ ] rc-p7 Proof 7: Set up end to end, after rc-7.1, rc-7.2, rc-7.3, rc-7.4, rc-7.5 [RC7] (§D17)
   - Setup: a scratch repository with nothing configured, Radar on, grant approved. Action: run Set up with the `sdk-team` pack; do the Radar steps by hand with the shown values. Expected: Set up ticks each item after the re-read. Failure means: a shown value was wrong. Next decision: show Radar's own field names.
   - Done when: Expected result observed live; receipt under `docs/evidence/`.
+  - Fake-GitHub proof merged in PR #146; live run pending owner (see docs/evidence/radar-coder-proof-7-fake-github.md)
 
 ## Phase 8: Observe
 
@@ -201,7 +203,7 @@ Requirement RC8. The screens of the experience proposal, built for Variant B (Gi
 - [x] rc-8.4 Flow from GitHub data, after rc-8.1 [RC8.5] (§D10)
   - Ready to Claim, Claim to PR, PR to green, green to merge, flow efficiency; Stop the line keeps its meaning; mockup `07-flow-retro.html`.
   - Done when: Stage times computed from fixture events match hand-computed values.
-- [ ] rc-8.5 Retro rule targets: AGENTS.md, steering, Additional prompt text, after rc-8.4, rc-3.5 [RC8.6] (§D10)
+- [x] rc-8.5 Retro rule targets: AGENTS.md, steering, Additional prompt text, after rc-8.4, rc-3.5 [RC8.6] (§D10)
   - Retro proposals with a target; repo rules land as a pull request or a one-task issue; the Additional prompt target shows full text with Copy and a link to Radar; a check after N issues and an undo offer.
   - Done when: Applying a repo rule opens a pull request; the prompt target writes nothing to Radar; the check runs after N issues.
 - [x] rc-8.6 Variant A: Radar's crew list through one grant, after rc-8.1 [RC8.1] (§D10)
@@ -228,6 +230,7 @@ Requirement RC9. A goal becomes issues after one approval, through a generated m
 - [ ] rc-p9 Proof 9: Make tests faster, after rc-9.1, rc-9.2, rc-9.3 [RC9] (§D17)
   - Setup: a scratch repository with a slow test suite. Action: quick goal "Make tests faster" with Measure; approve; let crews build; then a goal that crosses a promote rule. Expected: issues with measured evidence; one approval; the second goal offers Promote. Failure means: a crew skipped a mini-spec issue (Q6). Next decision: Promote for every goal.
   - Done when: Expected result observed live; receipt under `docs/evidence/`.
+  - Fake-GitHub proof merged in PR #146; live run pending owner (see docs/evidence/radar-coder-proof-9-fake-github.md)
 
 ## Phase 10: Public repositories
 
@@ -242,14 +245,16 @@ Requirement RC10. This phase gates on the public-crew layers and does not restat
 - [ ] rc-p10 Proof 10: public repository, after rc-10.1, rc-10.2 [RC10] (§D17)
   - Setup: a scratch public repository. Action: try release before and after the sign-off. Expected: nothing releases before. Failure means: a crew could be handed work without the layers. Next decision: refuse public repositories for the Radar path.
   - Done when: Expected result observed; receipt under `docs/evidence/`.
+  - Fake-GitHub proof merged in PR #146; live run pending owner (see docs/evidence/radar-coder-proof-10-fake-github.md)
 
 ## Phase 11: The Radar path on a real repository
 
 The gate for retirement. It also answers open questions Q1 and Q2 (design D16).
 
-- [ ] rc-q3 Q3: note for Kiro Crew asking for `scope=` in the claim marker [RC12.2, RC12.4] (§D16)
+- [x] rc-q3 Q3: note for Kiro Crew asking for `scope=` in the claim marker [RC12.2, RC12.4] (§D16)
   - Write the request as a note under `docs/` for a person to file. File nothing. Re-read a skip comment's marker on each new Kiro Crew release and record the answer.
   - Done when: The note exists and says exactly what key and why; the report names the release checked.
+  - Done: note at `docs/kirocrew-requests/claim-marker-scope.md`; release checked: Kiro Crew 0.12.2.4, no `scope=` key in the marker. Nothing filed.
 - [ ] rc-q4 Q4: re-check the `updated=` time on a later release [RC12.2] (§D16)
   - On each new release compare five claim markers' `updated=` with GitHub's `updated_at`; record the answer.
   - Done when: The report states the release, the five differences and whether stale detection may use `updated=`.
@@ -265,9 +270,11 @@ The gate for retirement. It also answers open questions Q1 and Q2 (design D16).
 - [ ] rc-q8 Q8: the plans repository name in a public marker, after rc-2.2 [RC12.2] (§D16)
   - Show the owner a sample public marker with the plans repository named; record the owner's choice.
   - Done when: The report states the choice: switch on, or spec moved into the code repository.
+  - Sample marker and the choice are in `docs/evidence/radar-coder-q8-public-marker-sample.md`; the owner's choice is still open, so not ticked.
 - [ ] rc-q9 Q9: the default label names [RC12.2] (§D16)
   - Read the label set Kiro Crew's own repository uses and compare it with design D2; change the defaults to match or record why not.
   - Done when: The report lists each label, its source and the decision; defaults in `rc-1.1` match.
+  - Comparison in `docs/evidence/radar-coder-q9-label-defaults.md`: Radar's two labels match; Avoozl's defaults differ from D2 (RC21). Kiro Crew's own repository label set was not read and needs the owner, so not ticked.
 - [ ] rc-p11 Proof 11: the whole path on a real repository, Q1 and Q2, after rc-p1, rc-p2, rc-p3, rc-p4, rc-p5, rc-p6, rc-p7, rc-p8, rc-p9, rc-p10, rc-q5, rc-q6, rc-q7 [RC11.1, RC12] (§D16, D17)
   - Setup: a real repository with slow CI (the nupp repository), two crews on two machines, one planner. Action: approve a 10-task spec; project; release N=2; merge by auto-merge; run the retro. Then repeat with a second person's crew in the same repository. Expected: every task merges through crews; no double claim; Flow shows where time went. Failure means: the path is not ready to replace the worker coder. Next decision: keep `coder: worker` as the default.
   - Done when: Expected result observed live and accepted by a person; receipt under `docs/evidence/`. Q1 and Q2 are answered in it.
@@ -461,9 +468,32 @@ added it a pending review to edit and submit; every Avoozl label takes the
 
 Requirement RC22. A display in Settings of how work flows for each repository, read from its settings.
 
-- [ ] rc-21.1 Workflow map model: lanes, cards, values and tags from the saved settings, after rc-1.1, rc-18.1 [RC22.2, RC22.3, RC22.4, RC22.5, RC22.6, RC22.7, RC22.8] (§D27)
+- [x] rc-21.1 Workflow map model: lanes, cards, values and tags from the saved settings, after rc-1.1, rc-18.1 [RC22.2, RC22.3, RC22.4, RC22.5, RC22.6, RC22.7, RC22.8] (§D27)
   - A pure function from a repository form, the mode and the ship mode to lanes, cards, a Labels table, jump targets and tags; tags come from one table; `kirocrew-app/ui/test/workflow-map.test.mjs`.
   - Done when: Unit tests cover issue-radar single repository, plans-repository mode, worker and remote coders, Local only (one lane), a muted step with its reason, and a test that no card text holds a tag word; `npm run test:ui` passes.
-- [ ] rc-21.2 Workflow map in Settings: sub-tab, Local only box, jumps, page test, after rc-21.1 [RC22.1, RC22.4, RC22.9] (§D27)
+- [x] rc-21.2 Workflow map in Settings: sub-tab, Local only box, jumps, page test, after rc-21.1 [RC22.1, RC22.4, RC22.9] (§D27)
   - Draws the model with theme variables, wrapping at 320 px; a value jumps to its field, opening the sub-tab and any fold; a page test renders three configs and checks the label names shown match the config.
   - Done when: The page test passes for issue-radar single repository, plans-repository mode and Local only; a jump focuses its field; `npm run test:ui` passes.
+
+## Phase 22: Tracker gates
+
+Requirement RC23. A task that waits on an outside tracker item, with a label and a plugin that reads the item.
+
+- [ ] rc-22.1 The gate node: `completion: "tracker"`, the tracker reference, lint and approval checks, after rc-1.1, rc-4.1 [RC23.1, RC23.2, RC23.3] (§D28)
+  - The manifest and plan-quality accept `tracker: { plugin, item, done }` and refuse a missing part, an empty `done` or an unknown plugin id naming the task; release treats an open, failed or unknown gate as an unmet blocker and a done or cleared one as met at merged and integrated levels; the coder adapter and batching skip gates; the issue is projected with no ready label; `src/app/test/tracker-gate-node.test.mjs`.
+  - Done when: Unit tests: a good gate lints; each bad gate is refused naming the task; a dependent is not released while the gate is open; a gate is never handed to a coder or put in a batch; `npm test` passes.
+- [ ] rc-22.2 The `gate` plugin part and the tick step with backoff, after rc-22.1 [RC23.6, RC23.7, RC23.8, RC23.13] (§D28)
+  - `gate` joins docs/plugins.md and the plugin loader with one read-only `status`; `gateStep` calls it under a timeout, stores state, evidence and link after content rules, and sets the next check (1, 2, 5, 15, then 30 minutes); a throw, timeout or bad shape is `unknown`; `done` is recorded once and never reversed; no credential is read from or written to `.avoozl.json`; `src/app/test/tracker-gate-step.test.mjs`.
+  - Done when: A fake plugin test shows the backoff gaps and the reset on a change; a throwing plugin gives `unknown`; a `done` releases the dependent on the same pass and a later `open` read leaves it released with one Trace note; a screen hit stores the withheld text; a grep test finds no token field in the settings schema.
+- [ ] rc-22.3 The waiting label setting and its writes, after rc-22.1, rc-20.1 [RC23.4, RC23.5, RC23.13] (§D28)
+  - `radar.trackerLabel` with default `avoozl:waiting-on-tracker` joins the label table, the clash check, Settings and Set up's label step; the tick adds the label to the gate issue and to dependents held only by gates, and removes it on done, cleared or removal from the plan; `src/app/test/tracker-gate-label.test.mjs`, `kirocrew-app/ui/test/tracker-label.test.mjs`.
+  - Done when: Fake-GitHub tests: the label is on the gate and its gate-only dependents, off a dependent that has another unmet blocker, kept on failed and unknown, removed on done, and written once across three ticks; a label equal to another managed label is refused naming both; the UI test shows the field with its default.
+- [ ] rc-22.4 Needs you row and the person's clear as an order, after rc-22.2, rc-22.3, rc-4.2 [RC23.9, RC23.10, RC23.13] (§D28)
+  - One row for a failed gate or two unknown reads, never cleared by Avoozl; a clear by label removal, command, MCP call or control passes the trigger-label check and is recorded as an order with who, how, time, reason and last known state; the brief of each released dependent says the gate was cleared by a person; a stranger's removal is reverted with one row; `src/app/test/tracker-gate-clear.test.mjs`.
+  - Done when: Fake tests: a failed gate gives one row across three ticks and releases nothing; an allowed clear releases the dependent and is not counted as verified completion; a stranger's clear is reverted; a later `done` adds evidence only; a second clear records nothing new.
+- [ ] rc-22.5 Gate rows in Release queue, Trace and Waiting on you, plus the CLI and MCP reads, after rc-22.4, rc-8.2 [RC23.11, RC23.12] (§D28)
+  - Release queue and Trace show tracker, state word, last and next check, evidence, link and Clear; Waiting on you lists only failed or twice-unknown gates; `avoozl gate list` and the MCP read return the same rows; docs describe the three example roles by role only; the release scan stays clean; `kirocrew-app/ui/test/tracker-gates.test.mjs`.
+  - Done when: The UI test renders an open, a failed and a cleared gate and checks the fields and the Waiting on you filter at 320 px; the CLI read matches the page; `node scripts/release-scan.mjs` is clean.
+- [ ] rc-p22 Proof 22: a gate with a fake plugin, after rc-22.1, rc-22.2, rc-22.3, rc-22.4, rc-22.5 [RC23] (§D28)
+  - Setup: a scratch repository, an approved spec with a gate and one dependent, and a fake `gate` plugin whose answer the test sets. Action: let the plugin say `open`, then `unknown` twice, then `failed`, then `done`; in a second run clear the gate as an allowed person and as a stranger. Expected: the label sits on the gate and the dependent; nothing is released until `done`; one Needs you row appears for the failed state and closes on `done`; the dependent is then released and the labels removed; an allowed clear releases the dependent as an order and a stranger's clear is reverted. Failure means: a dependent can run while its outside item is not done, or a failed gate can clear itself. Next decision: make every gate a manual task.
+  - Done when: Expected result observed with the fake plugin; receipt under `docs/evidence/`.
