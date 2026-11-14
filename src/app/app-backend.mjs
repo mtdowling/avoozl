@@ -185,6 +185,8 @@ export const APP_OPERATIONS = new Set([
   "quickgoal.settings.update",
   "radar.releasestep",
   "radar.armed",
+  "integration.view",
+  "integration.land",
   "radar.preflight",
   "radar.disarm",
   "radar.integrationbranch",

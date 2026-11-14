@@ -131,3 +131,16 @@ export function requireIntegrationBranch(check) {
     );
   return check;
 }
+
+// The integration branch of the spec a plan was approved from, or null: no
+// field, no approval yet, or a manifest the lint already refuses.
+export function integrationBranchOf(store, plan) {
+  try {
+    const text = store.get("approvals", plan.approvalId)?.files?.[
+      "avoozl/manifest.json"
+    ];
+    return text ? (integrationOf(JSON.parse(text))?.branch ?? null) : null;
+  } catch {
+    return null;
+  }
+}

@@ -365,19 +365,19 @@ Requirement RC16. A rewrite lands as small pull requests into a long-lived branc
 - [x] rc-16.1 Integration branch in the manifest, with branch checks, after rc-2.1, rc-5.1 [RC16.1, RC16.9] (§D21)
   - `integrationBranch` in an epic's manifest; Avoozl checks the branch exists, is not the default branch and is protected, and names what is missing; it creates nothing; an epic without the field behaves as before; `src/app/test/integration-branch.test.mjs`.
   - Done when: A missing, unprotected or default branch is refused naming the reason; a manifest without the field changes nothing.
-- [ ] rc-16.2 Projected tasks target the branch, and the branch merge path, after rc-16.1, rc-3.6, rc-5.2 [RC16.2] (§D21)
+- [x] rc-16.2 Projected tasks target the branch, and the branch merge path, after rc-16.1, rc-3.6, rc-5.2 [RC16.2] (§D21)
   - The marker and the issue name the branch as base; `verify-issue` checks the base equals the branch; the branch has its own rule (CI, light review); auto-merge may be armed on task pull requests into it.
   - Done when: A pull request into main for a branch epic fails `verify-issue`; a pull request into the branch passes and may be armed.
-- [ ] rc-16.3 Whole-head checks on the branch and acceptance records, after rc-16.2 [RC16.3, RC16.5, RC16.8] (§D21)
+- [x] rc-16.3 Whole-head checks on the branch and acceptance records, after rc-16.2 [RC16.3, RC16.5, RC16.8] (§D21)
   - The tick reads the branch head's check runs and records an acceptance row naming the head; a task merge does not mark the epic accepted; Trace, In flight and Progress show tasks merged, distance behind main and the head's check state.
   - Done when: A green task merge leaves acceptance open; a green head records acceptance for that head; a new merge makes the record name the new head.
 - [x] rc-16.4 Scheduled merge of main into the branch, after rc-16.1 [RC16.6] (§D21)
   - On the epic's schedule (default weekly, off allowed) Avoozl merges main into the branch as a merge commit and pushes normally; no rebase and no force push anywhere in the code path; a conflict stops the sync, labels it and shows a Needs you row with the files.
   - Done when: A test repository gets a merge commit and a normal push; a conflict leaves the branch unchanged and raises the row; the sync code contains no force option.
-- [ ] rc-16.5 Stop the line for the branch, after rc-16.2, rc-4.2, rc-5.4 [RC16.7] (§D21)
+- [x] rc-16.5 Stop the line for the branch, after rc-16.2, rc-4.2, rc-5.4 [RC16.7] (§D21)
   - The stop takes the branch as a scope: a red head, a failed sync or a person's stop; while open, no release and no arming for the epic; the row says why.
   - Done when: A red head stops release and arming; clearing it resumes both.
-- [ ] rc-16.6 Landing the branch in main: one person-approved step, after rc-16.3, rc-16.4 [RC16.4, RC16.5] (§D21)
+- [x] rc-16.6 Landing the branch in main: one person-approved step, after rc-16.3, rc-16.4 [RC16.4, RC16.5] (§D21)
   - When the head is green and up to date with main, one Needs you row asks a person to land it; Avoozl records who approved and which head; Avoozl never merges the branch into main; an approval for an older head does not count.
   - Done when: No code path merges the branch into the default branch; an approval on an old head is refused; the row records approver and head.
 - [ ] rc-p16 Proof 16: a rewrite on an integration branch, after rc-16.1, rc-16.2, rc-16.3, rc-16.4, rc-16.5, rc-16.6 [RC16] (§D22)

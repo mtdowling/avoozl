@@ -108,6 +108,11 @@ import {
   writeBackApproval,
 } from "./approval-label.mjs";
 import { planSource } from "./radar-source.mjs";
+import {
+  integrationView,
+  landBranch,
+  landingNeedsYou,
+} from "./integration-head.mjs";
 import { releaseQueue, releaseStep } from "./radar-coder-queue.mjs";
 import { isRadarRepository } from "./radar-coder-release.mjs";
 import {
@@ -2819,6 +2824,7 @@ export class Operations {
       view.items.push(...relayNeedsYou(store));
       view.items.push(...mergeNeedsYou(store));
       view.items.push(...approvalNeedsYou(store));
+      view.items.push(...landingNeedsYou(store));
       view.items.push(...syncNeedsYou(store));
       view.items.push(
         ...radarNeedsYou(
@@ -3067,6 +3073,20 @@ export class Operations {
       if (context.caller || context.mcp)
         fail("Only a person works a quick goal, in the Avoozl page.", 403);
       return quickGoalOperation(this, name, input);
+    }
+    // Integration branches (RC16.3, RC16.8): tasks merged, distance behind the
+    // default branch, head checks, acceptance. Landing is a person's approval
+    // of one head; Avoozl never merges the branch.
+    if (name === "integration.view") return integrationView(store);
+    if (name === "integration.land") {
+      if (context.caller || context.mcp)
+        fail(
+          "Only a person approves landing a branch, in the Avoozl page.",
+          403,
+        );
+      return landBranch(store, input, {
+        by: context.local ? "cli" : "dashboard",
+      });
     }
     if (name === "radar.mergepath")
       return { repositories: await this.mergePaths(input.repository) };
@@ -4522,7 +4542,10 @@ export class Operations {
     }
     // Read-only and workspace-free: reads GitHub with the caller's gh login.
     if (name === "issue.verify")
-      return verifyIssue(input.issue, { brief: true });
+      return verifyIssue(input.issue, {
+        brief: true,
+        ...(input.pullRequest !== undefined ? { pull: input.pullRequest } : {}),
+      });
     if (name === "plan.lint") {
       const plan = store.get("plans", input.id);
       if (!plan) fail("Plan not found.", 404);

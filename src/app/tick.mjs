@@ -94,6 +94,7 @@ import { refreshUntriaged } from "./untriaged.mjs";
 import { mergeStep } from "./radar-merge.mjs";
 import { syncStep, syncTargets } from "./integration-sync.mjs";
 import { armStep } from "./radar-arm.mjs";
+import { headStep } from "./integration-head.mjs";
 import { namespaceOf } from "./radar-plan-me.mjs";
 import { pluginHealth, recordHealth } from "./plugin-session.mjs";
 import { repositoryPlugins } from "./plugins.mjs";
@@ -869,22 +870,31 @@ export async function tick(
             machine = store.getMeta("machineIdentity")?.id,
             found = policy?.mode ? syncTargets(store, policy) : null;
           if (found) {
-            const step = await syncStep(
-              store,
-              github,
-              found.targets.filter(
+            const mine = found.targets.filter(
                 (target) =>
                   machine &&
                   store.get("github_repositories", target.repository)
                     ?.activeMachine === machine,
               ),
-              { policy, problems: found.problems },
-            );
+              step = await syncStep(store, github, mine, {
+                policy,
+                problems: found.problems,
+              });
             planned.notify.push(...step.notify);
             for (const text of step.errors)
               planned.notify.push({
                 channel: "failure",
                 title: "Avoozl could not sync an integration branch",
+                text,
+              });
+            // The branch head's checks, acceptance for it, and the stop that
+            // holds the epic's line while it is red or the sync conflicts
+            // (RC16.3, RC16.7).
+            for (const text of (await headStep(store, github, mine, { policy }))
+              .errors)
+              planned.notify.push({
+                channel: "failure",
+                title: "Avoozl could not read an integration branch head",
                 text,
               });
           }

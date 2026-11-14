@@ -17,7 +17,7 @@ const FINE = new Set(["success", "neutral", "skipped"]);
 const CLEAN = new Set(["clean", "has_hooks"]);
 
 // Every check run and commit status on the head commit, as {name, ok, done}.
-async function checksOf(github, repository, sha) {
+export async function checksOf(github, repository, sha) {
   const [runs, status] = await Promise.all([
     github.checkRuns(repository, sha),
     github.commitStatus(repository, sha),
@@ -36,7 +36,7 @@ async function checksOf(github, repository, sha) {
   ];
 }
 
-const green = (checks, required) =>
+export const green = (checks, required) =>
   checks.length > 0 &&
   checks.every((check) => check.ok) &&
   required.every((name) => checks.some((check) => check.name === name));
