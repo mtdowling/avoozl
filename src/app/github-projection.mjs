@@ -38,7 +38,7 @@ import {
   scopeLabelOf,
   stepReceiptId,
 } from "./radar-coder-release.mjs";
-import { adapterFor } from "./coder-adapter.mjs";
+import { adapterFor, coderForTask } from "./coder-adapter.mjs";
 import { plansNameForIssue } from "./github-plans-repo.mjs";
 import {
   assertPlanningLink,
@@ -1637,8 +1637,31 @@ async function project(
         409,
       );
     const isReady = ready.has(task.id);
+    // A task already handed over keeps its coder while its issue is open
+    // (RC14.5); the split is shown once per new coder.
+    const current =
+        identity.repositories?.[config.id]?.coder ??
+        (identity.mode === "single-repo" ? "issue-radar" : "worker"),
+      route = coderForTask({
+        held: item.record?.coder,
+        current,
+        open: issue.state !== "closed",
+      }),
+      splitId = `coder-split:${config.id}:${current}`;
+    if (route.kept && !store.get("receipts", splitId)) {
+      store.put("receipts", {
+        id: splitId,
+        kind: "coder-split",
+        repository: config.id,
+        coder: current,
+        observedAt: new Date().toISOString(),
+      });
+      notes.add(
+        `${config.id} now uses ${current}. Tasks already handed over (such as ${task.id}) stay with ${route.coder}; new tasks go to ${current}.`,
+      );
+    }
     if (isReady)
-      await adapterFor(identity.repositories?.[config.id]?.coder).handOver({
+      await adapterFor(route.coder).handOver({
         github,
         config,
         issue,
@@ -1712,6 +1735,10 @@ async function project(
         projectedPlanId: plan.id,
         projectedPlanHash: plan.hash,
         observedAt: new Date().toISOString(),
+        // The coder the task was handed to, kept while the issue is open.
+        ...(isReady || route.held
+          ? { coder: route.held ? route.coder : current }
+          : {}),
       };
     store.put("github_issues", record);
     const batch = item.memberTasks

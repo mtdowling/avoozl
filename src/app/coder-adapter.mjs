@@ -38,10 +38,31 @@ export const issueRadarAdapter = Object.freeze({
   countsAsDone: (state) => state?.state === "merged",
 });
 
-const adapters = new Map([["issue-radar", issueRadarAdapter]]);
+// The Avoozl worker (RC14.4, rc-14.3). Its dispatch is the label hand-over it
+// has today; its sessions are opened by Avoozl's own driver, not here. Its
+// pull requests do not use Radar's merge path. Local integration counts as
+// done as well as a merged pull request (design D19).
+// shortcut: frozen, upgrade only for security, bugs and compatibility
+export const workerAdapter = Object.freeze({
+  ...issueRadarAdapter,
+  usesMergePath: false,
+  readState(input) {
+    const read = issueRadarAdapter.readState(input);
+    return input?.integrated === true && read.state !== "merged"
+      ? { ...read, state: "integrated" }
+      : read;
+  },
+  countsAsDone: (state) =>
+    state?.state === "merged" || state?.state === "integrated",
+});
 
-// shortcut: the worker and remote adapters arrive in rc-14.3 and Phase 15;
-// until then every coder without one gets the label hand-over it has today.
+const adapters = new Map([
+  ["issue-radar", issueRadarAdapter],
+  ["worker", workerAdapter],
+]);
+
+// shortcut: the remote adapter arrives in Phase 15; until then a coder
+// without an adapter gets the label hand-over it has today.
 export function adapterFor(coder) {
   return adapters.get(coder) ?? issueRadarAdapter;
 }
@@ -56,3 +77,13 @@ export function registerCoderAdapter(coder, adapter) {
 // Radar's merge path runs for a repository whose coder's adapter says so.
 export const usesMergePath = (coder) =>
   Boolean(adapters.get(coder)?.usesMergePath);
+
+// The coder a task goes to (RC14.5). A task already handed over (`held`) and
+// still open keeps the coder it was handed to; every other task uses the
+// repository's current coder.
+// shortcut: an open issue counts as in flight; upgrade if a coder can leave an
+// issue open after its pull request merged.
+export function coderForTask({ held, current, open = true }) {
+  const kept = Boolean(held) && open && held !== current;
+  return { coder: kept ? held : current, kept, held: Boolean(held) && open };
+}
