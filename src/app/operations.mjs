@@ -98,6 +98,7 @@ import { claimsView, refreshClaims } from "./radar-claims.mjs";
 import { mergePath, requireMergePath } from "./radar-merge-path.mjs";
 import { radarSetup } from "./radar-setup.mjs";
 import { radarReread, radarValues } from "./radar-values.mjs";
+import { armedPullRequests, disarmPullRequest } from "./radar-arm.mjs";
 import { releaseQueue, releaseStep } from "./radar-coder-queue.mjs";
 import {
   checkIntegrationBranch,
@@ -2947,6 +2948,17 @@ export class Operations {
       return releaseStep(store, input, {
         by: context.local ? "cli" : "dashboard",
       });
+    }
+    // Pull requests Avoozl armed that are still open, and the person-only
+    // Disarm (RC5.4).
+    if (name === "radar.armed")
+      return this.github?.available?.()
+        ? armedPullRequests(store, this.github)
+        : { pullRequests: [] };
+    if (name === "radar.disarm") {
+      if (context.caller || context.mcp)
+        fail("Only a person disarms auto-merge, in the Avoozl page.", 403);
+      return disarmPullRequest(store, this.github, input);
     }
     if (name === "radar.mergepath")
       return { repositories: await this.mergePaths(input.repository) };

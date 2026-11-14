@@ -12,6 +12,8 @@ import { parseProvenance } from "./github-provenance.mjs";
 import { mergePath } from "./radar-merge-path.mjs";
 import { verifyIssue } from "./verify-issue.mjs";
 import { usesMergePath } from "./coder-adapter.mjs";
+import { linePausedTaskIds } from "./flow.mjs";
+import { fail } from "./store.mjs";
 
 const KEY = "radarMerge";
 const same = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
@@ -36,7 +38,9 @@ export async function armCrewPullRequests(
 ) {
   const notify = [],
     machine = store.getMeta("machineIdentity")?.id,
-    state = readState(store);
+    state = readState(store),
+    // Tasks a stop pauses (RC5.4): their pull requests are not armed.
+    paused = linePausedTaskIds(store);
   let changed = false;
   for (const [id, repository] of Object.entries(policy?.repositories || {})) {
     const ship = delivery?.repositories?.[id]?.ship ?? delivery?.ship;
@@ -76,7 +80,11 @@ export async function armCrewPullRequests(
           same(node.repository?.nameWithOwner, id)
         ) {
           const list = closing.get(node.number) || [];
-          list.push({ number: issue.number, hash: markerHash(marker) });
+          list.push({
+            number: issue.number,
+            hash: markerHash(marker),
+            tasks: [managed.taskId, ...(marker.tasks || [])],
+          });
           closing.set(node.number, list);
         }
     }
@@ -84,6 +92,8 @@ export async function armCrewPullRequests(
     for (const pull of pulls) {
       const marked = closing.get(pull.number);
       if (!marked?.length) continue;
+      if (marked.some((issue) => issue.tasks.some((id) => paused.has(id))))
+        continue;
       const login = pull.user.login;
       if (!permissions.has(login))
         permissions.set(
@@ -148,6 +158,56 @@ export async function armCrewPullRequests(
   }
   if (changed) store.setMeta(KEY, state);
   return { notify };
+}
+
+// Armed pull requests still open with auto-merge on, for the stop banner
+// (RC5.4). Read from GitHub; a repository that cannot be read lists none.
+export async function armedPullRequests(store, github) {
+  const { armed, disarmed = {} } = readState(store),
+    byRepository = new Map();
+  for (const key of Object.keys(armed))
+    if (!disarmed[key]) {
+      const at = key.lastIndexOf("#"),
+        list = byRepository.get(key.slice(0, at)) || [];
+      list.push(Number(key.slice(at + 1)));
+      byRepository.set(key.slice(0, at), list);
+    }
+  const out = [];
+  for (const [repository, numbers] of byRepository) {
+    const config = store.get("github_repositories", repository);
+    if (!config) continue;
+    try {
+      for (const pull of await github.listPullRequests(config, {
+        state: "open",
+      }))
+        if (numbers.includes(pull.number) && pull.auto_merge)
+          out.push({
+            repository,
+            number: pull.number,
+            armedAt: armed[`${repository}#${pull.number}`],
+          });
+    } catch {
+      // Shown again on the next read.
+    }
+  }
+  return { pullRequests: out };
+}
+
+// Disarm (RC5.4): a person turns auto-merge off on one armed pull request.
+// The tick never arms it again.
+export async function disarmPullRequest(store, github, input = {}) {
+  const key = `${input.repository}#${input.pullRequest}`,
+    state = readState(store),
+    config = store.get("github_repositories", input.repository);
+  if (!config || !state.armed[key])
+    fail("Avoozl did not arm that pull request.", 404);
+  const pull = await github.pullRequest(config, input.pullRequest);
+  if (pull?.node_id) await github.disarmAutoMerge(config, pull.node_id);
+  store.setMeta(KEY, {
+    ...state,
+    disarmed: { ...(state.disarmed || {}), [key]: new Date().toISOString() },
+  });
+  return { repository: input.repository, pullRequest: input.pullRequest };
 }
 
 // The tick's wrapper: a failure is reported, not thrown.
