@@ -1,4 +1,4 @@
-// The spec driver on the page (design §6.10, R66.17): the header chip, the
+// The spec driver on the page (design §6.10, R66.17): the spec's chip, the
 // read-only banner with Take over or Force take over, the stepped Hand off
 // dialog, the loss list and confirm dialogs, and Settings › General › This
 // computer. Nothing moves until a person presses the dialog's own button;
@@ -59,24 +59,6 @@ export function DriverChip(props: { spec: DriverSpec | null }) {
       <Laptop size={14} aria-hidden="true" style={{ color: 'var(--muted)' }} />
       <Badge variant={spec.you ? 'success' : spec.stale ? 'warning' : undefined}>{chipText(spec)}</Badge>
     </span>
-  )
-}
-
-// The App header: how many specs read only on this machine.
-export function DriverSummary(props: { workspaceId: string | null }) {
-  const { status } = useDriver(props.workspaceId, null)
-  if (!status?.enabled || !status.specs.length) return null
-  const readOnly = status.readOnly ?? 0
-  const text = readOnly ? `${readOnly} of ${status.specs.length} specs read only here` : 'Driver: you'
-  return (
-    <Tooltip text={readOnly ? 'Another machine or person drives these specs. Open one in Specs to see why.' : 'This machine drives every approved spec.'}>
-      {(describedBy) => (
-        <span data-driver-summary aria-describedby={describedBy} className="inline-flex items-center gap-1.5 text-sm">
-          <Laptop size={14} aria-hidden="true" style={{ color: 'var(--muted)' }} />
-          <Badge variant={readOnly ? 'warning' : 'success'}>{text}</Badge>
-        </span>
-      )}
-    </Tooltip>
   )
 }
 
