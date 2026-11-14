@@ -31007,7 +31007,7 @@ function Hb(e) {
 					/* @__PURE__ */ x(Jn, {
 						id: "links",
 						group: "task-drawer",
-						title: "Links",
+						title: "Edges",
 						children: /* @__PURE__ */ S("div", {
 							className: "flex flex-col gap-3",
 							children: [/* @__PURE__ */ x(Bb, {
