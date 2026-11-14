@@ -100,6 +100,8 @@ import {
 } from "./github-marker.mjs";
 import { claimsView, refreshClaims } from "./radar-claims.mjs";
 import { mergePath, requireMergePath } from "./radar-merge-path.mjs";
+import { instanceIdentity } from "./instance.mjs";
+import { mirrorGit, mirrorSetup } from "./mirror-setup.mjs";
 import { radarSetup } from "./radar-setup.mjs";
 import { radarReread, radarValues } from "./radar-values.mjs";
 import { armedPullRequests, disarmPullRequest } from "./radar-arm.mjs";
@@ -3432,6 +3434,35 @@ export class Operations {
     // protected. Read only; refuses a branch that is not ready.
     // Radar's set up steps through gh (RC7.1): a preview of each, or one
     // confirmed step with {step, confirm, previewHash}.
+    // The mirror setup buttons (RC27): a dry run, or a confirmed apply with
+    // {confirm, previewHash, ticked}. `this.mirrorGit` is a test seam.
+    if (name === "mirror.adopt" || name === "mirror.create") {
+      if (!input.repository) fail("Name the mirror repository.", 400);
+      if (!this.github?.available?.()) fail("GitHub is not available.", 503);
+      const policy = readGitHubPolicyOrNull(this.workspaceRoot);
+      return mirrorSetup(
+        name === "mirror.adopt" ? "adopt" : "create",
+        {
+          github: this.github,
+          entry: policy?.repositories?.[input.repository] ?? null,
+          git: this.mirrorGit ?? mirrorGit,
+          identity: instanceIdentity(this.store),
+          saveSetting: (mirror, value, baseBranch) => {
+            const file = this.settingsFile(),
+              current = file.readGitHubSettings(),
+              github = structuredClone(current.github),
+              entry = github.repositories?.[mirror] ?? { baseBranch };
+            github.repositories = {
+              ...github.repositories,
+              [mirror]: { ...entry, mirror: value },
+            };
+            file.updateGitHubSettings({ github, expectedHash: current.hash });
+            this.configuration?.reload();
+          },
+        },
+        input,
+      );
+    }
     if (name === "radar.setup") {
       const policy = readGitHubPolicyOrNull(this.workspaceRoot),
         entry = policy?.repositories?.[input.repository];
