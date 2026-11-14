@@ -255,3 +255,14 @@ test('the setup client previews, then confirms with the preview hash', async () 
     ],
   )
 })
+
+test('the approval label round-trips and keeps the other radar keys', () => {
+  const policy = { mode: 'single-repo', repositories: { 'example/app': { baseBranch: 'main', radar: { planLabel: 'plan me', approvalLabel: 'lgtm' } } } }
+  const form = toForm(policy)
+  assert.equal(form.repositories[0].approvalLabel, 'lgtm')
+  assert.deepEqual(toPolicy(form).repositories['example/app'].radar, { planLabel: 'plan me', approvalLabel: 'lgtm' })
+  form.repositories[0].approvalLabel = ''
+  assert.deepEqual(toPolicy(form).repositories['example/app'].radar, { planLabel: 'plan me' })
+  const none = toForm({ mode: 'single-repo', repositories: { 'example/app': { baseBranch: 'main' } } })
+  assert.equal(toPolicy(none).repositories['example/app'].radar, undefined)
+})
