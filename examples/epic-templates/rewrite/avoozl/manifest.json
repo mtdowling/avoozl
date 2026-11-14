@@ -1,0 +1,51 @@
+{
+  "integrationBranch": "rewrite/my-epic",
+  "integrationSync": "weekly",
+  "tasks": {
+    "port-module-a": {
+      "kind": "leaf",
+      "summary": "Port the first module.",
+      "acceptance": [
+        "The first module passes its own tests on the new interface."
+      ],
+      "checks": ["npm test"],
+      "completion": "integrated"
+    },
+    "port-module-b": {
+      "kind": "leaf",
+      "summary": "Port the second module.",
+      "acceptance": [
+        "The second module passes its own tests on the new interface."
+      ],
+      "checks": ["npm test"],
+      "completion": "integrated",
+      "requires": ["port-module-a"]
+    },
+    "port-module-c": {
+      "kind": "leaf",
+      "summary": "Port the third module.",
+      "acceptance": [
+        "The third module passes its own tests on the new interface."
+      ],
+      "checks": ["npm test"],
+      "completion": "integrated",
+      "requires": ["port-module-a"]
+    },
+    "switch-callers": {
+      "kind": "leaf",
+      "summary": "Switch the callers to the new part.",
+      "acceptance": ["No caller uses the old part."],
+      "checks": ["npm test"],
+      "completion": "integrated",
+      "requires": ["port-module-b", "port-module-c"]
+    },
+    "remove-old-code": {
+      "kind": "leaf",
+      "summary": "Remove the old part.",
+      "acceptance": ["The old part is gone and every check passes."],
+      "checks": ["npm test"],
+      "completion": "integrated",
+      "requires": ["switch-callers"]
+    }
+  }
+}

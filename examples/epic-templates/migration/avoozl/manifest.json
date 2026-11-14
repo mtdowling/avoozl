@@ -1,0 +1,41 @@
+{
+  "tasks": {
+    "migration-tool": {
+      "kind": "leaf",
+      "summary": "Build the tool or compatibility layer.",
+      "acceptance": [
+        "The tool migrates a sample repository and its tests pass."
+      ],
+      "checks": ["npm test"],
+      "completion": "integrated"
+    },
+    "migrate-repo-a": {
+      "kind": "leaf",
+      "summary": "Migrate the first repository.",
+      "acceptance": [
+        "The repository uses the new way and its own check passes."
+      ],
+      "checks": ["npm test"],
+      "completion": "integrated",
+      "requires": ["migration-tool"]
+    },
+    "migrate-repo-b": {
+      "kind": "leaf",
+      "summary": "Migrate the second repository.",
+      "acceptance": [
+        "The repository uses the new way and its own check passes."
+      ],
+      "checks": ["npm test"],
+      "completion": "integrated",
+      "requires": ["migration-tool"]
+    },
+    "remove-old-path": {
+      "kind": "leaf",
+      "summary": "Remove the old path.",
+      "acceptance": ["No repository uses the old way."],
+      "checks": ["npm test"],
+      "completion": "integrated",
+      "requires": ["migrate-repo-a", "migrate-repo-b"]
+    }
+  }
+}

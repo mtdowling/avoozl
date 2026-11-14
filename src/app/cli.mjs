@@ -245,15 +245,19 @@ try {
       if (positionals.length !== 1)
         throw Error("Name the issue as owner/repo#number.");
       reference = parseIssueReference(positionals[0]);
+      if (options.pr !== undefined && !/^[1-9][0-9]{0,9}$/.test(options.pr))
+        throw Error("Name the pull request as a number.");
     } catch (error) {
       console.error(
         error.message +
-          " Usage: avoozl verify-issue owner/repo#number [--json]",
+          " Usage: avoozl verify-issue owner/repo#number [--pr N] [--json]",
       );
       process.exitCode = 64;
     }
     if (reference) {
-      const result = await verifyIssue(positionals[0]);
+      const result = await verifyIssue(positionals[0], {
+        ...(options.pr !== undefined ? { pull: Number(options.pr) } : {}),
+      });
       console.log(
         options.json
           ? JSON.stringify(result, null, 2)
@@ -691,7 +695,36 @@ try {
         2,
       ),
     );
-  else if (command === "flow" && positionals[0] === "stop")
+  else if (command === "gap-report") {
+    // An external gap report becomes proposed tasks in a parent spec's
+    // sub-specs. `preview` shows the table and the proposals; `accept` adds
+    // them as draft work (a person only).
+    const action = positionals[0];
+    if (!["preview", "accept"].includes(action))
+      throw Error(
+        "Usage: gap-report preview|accept PARENT_SPEC (--path FILE | --issue OWNER/REPO#N)",
+      );
+    const input = {
+      parent: need(positionals[1], "gap-report " + action + " PARENT_SPEC"),
+      ...(options.path ? { path: options.path } : {}),
+      ...(options.issue ? { issue: options.issue } : {}),
+    };
+    if (action === "preview") {
+      const found = await localOrRequest("gap.preview", input);
+      console.log(found.table);
+      console.log(
+        found.proposals.length
+          ? "\n" +
+              found.proposals
+                .map((p) => `${p.spec}:${p.id}  ${p.title}`)
+                .join("\n")
+          : "\nNo failing cell, so no proposed task.",
+      );
+    } else
+      console.log(
+        JSON.stringify(await localOrRequest("gap.accept", input), null, 2),
+      );
+  } else if (command === "flow" && positionals[0] === "stop")
     console.log(
       JSON.stringify(
         await localOrRequest("flow.stop", {
@@ -1502,7 +1535,7 @@ try {
                                          Replace a local task; its dependents wait on the new one
   activity TASK_ID --action start|heartbeat|pause|finish ...
   skill --workspace PATH                Print the portable workflow skill
-  verify-issue OWNER/REPO#N [--json]    Check an issue came from an approved spec (exit 0, 1, 2, 64)
+  verify-issue OWNER/REPO#N [--pr N] [--json]  Check an issue came from an approved spec; with --pr, that its pull request targets the right branch (exit 0, 1, 2, 64)
   mcp --workspace PATH                  Stdio MCP server for the workspace database
   mcp --url URL                         Stdio bridge to a running server
   mcp --kirocrew                        Kiro Crew app server: workspace per caller
@@ -1541,6 +1574,7 @@ try {
   flow stop --scope all|repo|spec|task [--repository ID] [--spec ID] [--task ID] --reason TEXT
                                         Pull the Andon cord: stop new work in a scope
   flow stop --full --reason TEXT        Stop all agents: also stop every running chat Avoozl opened (needs the app backend)
+  gap-report preview|accept SPEC (--path FILE | --issue OWNER/REPO#N)  Turn a gap report into proposed tasks in the sub-specs of a parent spec
   flow resume STOP_ID                   Resume a pulled stop (a person only)
   checks run --task TASK_ID             Run the declared checks in this worktree and record the pass
   runner accept FILE|-                  Runner mode: take one task envelope (a runner's ssh calls this)
