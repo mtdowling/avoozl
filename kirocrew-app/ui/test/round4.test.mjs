@@ -32,7 +32,7 @@ test('lists page through the one hook and button, and a filter change resets the
   assert.match(controls, /const pages = state\.reset === reset \? state\.pages : \{\}/)
   assert.match(controls, /export function ShowMore/)
   for (const [name, ids] of [
-    ['DashboardView.tsx', ['flight', 'attention', 'next']],
+    ['DashboardView.tsx', ['flight', 'attention']],
     ['ConflictsView.tsx', ['conflicts']],
     ['TaskDrawer.tsx', ['timeline']],
   ])
@@ -40,8 +40,6 @@ test('lists page through the one hook and button, and a filter change resets the
       assert.match(source(name), new RegExp(`pages\\.take\\('${id}'`), `${name} ${id}`)
       assert.match(source(name), new RegExp(`<ShowMore \\{\\.\\.\\.pages\\.more\\('${id}'`), `${name} ${id}`)
     }
-  assert.match(source('DeliveryView.tsx'), /pages\.take\(id, cards\)/)
-  assert.match(source('DeliveryView.tsx'), /reset=\{JSON\.stringify\(filter\)\}/)
   assert.match(source('PlansView.tsx'), /pages\.take\(group\.category, group\.rows\)/)
   assert.match(source('PlansView.tsx'), /reset=\{JSON\.stringify\(filter\)\}/)
   assert.match(source('ConflictsView.tsx'), /const pages = usePages\(reset\)/)
@@ -49,12 +47,11 @@ test('lists page through the one hook and button, and a filter change resets the
   for (const name of views) assert.doesNotMatch(source(name), /GROUP_LIMIT|LANE_LIMIT|const SHOWN = /, name)
 })
 
-test('Graph, Delivery, Plans and Conflicts use the one boxed filter panel', () => {
+test('Graph, Plans and Conflicts use the one boxed filter panel', () => {
   assert.match(source('FilterBar.tsx'), /<FilterPanel/)
   assert.match(source('PlansView.tsx'), /<FilterPanel\s+id="avoozl-plans"/)
   assert.match(source('ConflictsView.tsx'), /<FilterPanel\s+id="avoozl-conflicts"/)
   assert.match(source('GraphView.tsx'), /<FilterBar id="avoozl-graph"/)
-  assert.match(source('DeliveryView.tsx'), /<FilterBar id="avoozl-delivery"/)
   const panel = source('FilterPanel.tsx')
   assert.match(panel, /<Card>\s*<div role="search"/)
   assert.match(panel, /useMedia\('\(max-width: 767px\)'\)/)
@@ -225,12 +222,11 @@ test('every details button uses the one details icon; Eye stays for show-on-page
 test('each view heading and its nav tab show the same icon, hidden from readers', () => {
   const icons = source('icons.ts')
   const map = icons.slice(icons.indexOf('export const VIEW_ICONS'))
-  for (const view of ['dashboard', 'plans', 'graph', 'delivery', 'conflicts', 'settings']) assert.match(map, new RegExp(`${view}: \\w+`), view)
+  for (const view of ['dashboard', 'plans', 'graph', 'waiting', 'trace', 'conflicts', 'settings']) assert.match(map, new RegExp(`${view}: \\w+`), view)
   for (const [file, view] of [
     ['DashboardView.tsx', 'dashboard'],
     ['PlansView.tsx', 'plans'],
     ['GraphView.tsx', 'graph'],
-    ['DeliveryView.tsx', 'delivery'],
     ['ConflictsView.tsx', 'conflicts'],
     ['SettingsView.tsx', 'settings'],
   ])

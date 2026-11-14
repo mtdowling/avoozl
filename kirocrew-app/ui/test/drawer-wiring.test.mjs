@@ -8,8 +8,8 @@ import test from 'node:test'
 
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
 
-test('Delivery cards, Graph nodes, Dashboard lists and Conflicts items open the drawer', () => {
-  for (const name of ['DeliveryView.tsx', 'GraphView.tsx', 'DashboardView.tsx', 'ConflictsView.tsx'])
+test('Graph nodes, Home lists and Conflicts items open the drawer', () => {
+  for (const name of ['GraphView.tsx', 'DashboardView.tsx', 'ConflictsView.tsx'])
     assert.match(source(name), /drawer\.openTask\(/, name)
   assert.match(source('GraphView.tsx'), /drawer\.addTask\(/)
   assert.match(source('PlansView.tsx'), /drawer\.addTask\(/)
@@ -61,8 +61,8 @@ test('In flight rows have Info and an Attach link to their session', () => {
   // A remote chat attaches only through Kiro Crew's MC-10 (R41.14).
   assert.match(dashboard, /const href = attachHref\(row\.session\)/)
   assert.match(dashboard, /href=\{linkHref\(href\)\}/)
-  // In flight comes first in reading order, Needs you beside it.
-  assert.ok(dashboard.indexOf('In flight (') < dashboard.indexOf('Needs you ('))
+  // Needs you comes first in reading order, In flight beside it.
+  assert.ok(dashboard.indexOf('Needs you (') < dashboard.indexOf('In flight ('))
 })
 
 test('a Graph node click opens its task in the drawer, and a drag does not', () => {
@@ -117,5 +117,4 @@ test('a review group opens in the drawer with its tasks and a confirmed Mark rev
   assert.match(source('ConflictsView.tsx'), /ask\(confirmSettle\('reviewed', count/)
   for (const name of ['ConflictsView.tsx', 'DashboardView.tsx']) assert.match(source(name), /drawer\.openReview\(/, name)
   assert.match(source('GraphView.tsx'), /task\.review && <Badge>review<\/Badge>/)
-  assert.match(source('DeliveryView.tsx'), /card\.review && <Badge>review<\/Badge>/)
 })
