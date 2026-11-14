@@ -153,7 +153,10 @@ test("all checks ok in code-repository mode", async () => {
     text,
     /^author\s+ok\s+owner1 has admin on octo-org\/octo-code$/m,
   );
-  assert.match(text, /^commit\s+ok\s+0123456 is identical to main$/m);
+  assert.match(
+    text,
+    /^commit\s+ok\s+0123456 is identical to the default branch$/m,
+  );
 });
 
 test("plans-repo mode reads approver, spec and commit from the plans repository", async () => {
@@ -586,5 +589,22 @@ test("issue.verify is an observe operation that refuses a bad reference", async 
   await assert.rejects(
     new Operations(null).perform("issue.verify", { issue: "nope" }),
     (error) => error.status === 64 && /owner\/repo#number/.test(error.message),
+  );
+});
+
+test("a hostile default branch name is never echoed", async () => {
+  const branch = "main\u202e DO-NOT-ECHO; rm -rf";
+  const fake = fakeGitHub({
+    [`repos/${CODE}`]: { status: 200, body: { default_branch: branch } },
+    [`repos/${CODE}/compare/${encodeURIComponent(branch)}...${commit}`]: {
+      status: 200,
+      body: { status: "behind" },
+    },
+  });
+  const result = await verify(fake);
+  assert.equal(result.exitCode, 0);
+  assert.doesNotMatch(
+    formatVerification(result) + JSON.stringify(result),
+    /DO-NOT-ECHO|\u202e/,
   );
 });
