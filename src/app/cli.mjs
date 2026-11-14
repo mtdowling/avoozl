@@ -695,7 +695,36 @@ try {
         2,
       ),
     );
-  else if (command === "flow" && positionals[0] === "stop")
+  else if (command === "gap-report") {
+    // An external gap report becomes proposed tasks in a parent spec's
+    // sub-specs. `preview` shows the table and the proposals; `accept` adds
+    // them as draft work (a person only).
+    const action = positionals[0];
+    if (!["preview", "accept"].includes(action))
+      throw Error(
+        "Usage: gap-report preview|accept PARENT_SPEC (--path FILE | --issue OWNER/REPO#N)",
+      );
+    const input = {
+      parent: need(positionals[1], "gap-report " + action + " PARENT_SPEC"),
+      ...(options.path ? { path: options.path } : {}),
+      ...(options.issue ? { issue: options.issue } : {}),
+    };
+    if (action === "preview") {
+      const found = await localOrRequest("gap.preview", input);
+      console.log(found.table);
+      console.log(
+        found.proposals.length
+          ? "\n" +
+              found.proposals
+                .map((p) => `${p.spec}:${p.id}  ${p.title}`)
+                .join("\n")
+          : "\nNo failing cell, so no proposed task.",
+      );
+    } else
+      console.log(
+        JSON.stringify(await localOrRequest("gap.accept", input), null, 2),
+      );
+  } else if (command === "flow" && positionals[0] === "stop")
     console.log(
       JSON.stringify(
         await localOrRequest("flow.stop", {
@@ -1545,6 +1574,7 @@ try {
   flow stop --scope all|repo|spec|task [--repository ID] [--spec ID] [--task ID] --reason TEXT
                                         Pull the Andon cord: stop new work in a scope
   flow stop --full --reason TEXT        Stop all agents: also stop every running chat Avoozl opened (needs the app backend)
+  gap-report preview|accept SPEC (--path FILE | --issue OWNER/REPO#N)  Turn a gap report into proposed tasks in the sub-specs of a parent spec
   flow resume STOP_ID                   Resume a pulled stop (a person only)
   checks run --task TASK_ID             Run the declared checks in this worktree and record the pass
   runner accept FILE|-                  Runner mode: take one task envelope (a runner's ssh calls this)

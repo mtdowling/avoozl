@@ -388,13 +388,13 @@ Requirement RC16. A rewrite lands as small pull requests into a long-lived branc
 
 Requirement RC17. Templates and docs for migrations, codegen changes and cross-repository proposals.
 
-- [ ] rc-17.1 Templates and docs: rewrite, cross-repository migration, large codegen change, after rc-14.1, rc-16.1 [RC17.1, RC17.2, RC17.3, RC17.7] (§D22)
+- [x] rc-17.1 Templates and docs: rewrite, cross-repository migration, large codegen change, after rc-14.1, rc-16.1 [RC17.1, RC17.2, RC17.3, RC17.7] (§D22)
   - Three templates (spec skeletons with manifests and edges) and one doc page; generic wording only; each template lints clean.
   - Done when: Each template lints with 0 errors; the release scan finds no internal name.
-- [ ] rc-17.2 Cross-repository proposal: parent spec and one sub-spec per repository, after rc-17.1, rc-2.1 [RC17.4, RC17.5] (§D22)
+- [x] rc-17.2 Cross-repository proposal: parent spec and one sub-spec per repository, after rc-17.1, rc-2.1 [RC17.4, RC17.5] (§D22)
   - A parent spec holds shared requirements and the list of sub-specs and no repository tasks; each sub-spec is approved and released alone; a cross-repository `requires` is refused when the other sub-spec is unapproved or lacks the ID.
   - Done when: A parent with a repository task is refused; a `requires` on a missing ID is refused naming it; two sub-specs approve separately.
-- [ ] rc-17.3 External gap report becomes proposed tasks, after rc-17.2 [RC17.6] (§D22)
+- [x] rc-17.3 External gap report becomes proposed tasks, after rc-17.2 [RC17.6] (§D22)
   - A report read from a path or an issue gives a repository-by-requirement table; each failing cell becomes a proposed task in that repository's sub-spec; a passing cell gives none; nothing is added until a person accepts; an unparseable line is refused by number.
   - Done when: A fixture report with two failing and three passing cells gives two proposals; an unreadable line is refused naming it; accepting adds the tasks.
 - [ ] rc-p17 Proof 17: epic types, after rc-17.1, rc-17.2, rc-17.3 [RC17] (§D22)

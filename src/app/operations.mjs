@@ -1,4 +1,4 @@
-import { verifyIssue } from "./verify-issue.mjs";
+import { parseIssueReference, verifyIssue } from "./verify-issue.mjs";
 import { crossPlanEpics, epicOfPlan, taskEpic } from "./epics.mjs";
 import path from "node:path";
 import { applicationRoot } from "./config.mjs";
@@ -108,6 +108,7 @@ import {
   writeBackApproval,
 } from "./approval-label.mjs";
 import { planSource } from "./radar-source.mjs";
+import { formatGapTable, gapProposals, parseGapReport } from "./gap-report.mjs";
 import {
   integrationView,
   landBranch,
@@ -437,6 +438,7 @@ import {
 import { lintPlan } from "./plan-quality.mjs";
 import {
   createSpecPlan,
+  epicMembers,
   findSpecFolder,
   lintSpec,
   linkSpecPlan,
@@ -1577,6 +1579,65 @@ export class Operations {
       policy,
       plans: new Map(plans.map((plan) => [plan.id, plan])),
     });
+  }
+  // A gap report (RC17.6): read from a local file a person names, or from an
+  // issue body, parsed into a table, and turned into one proposal per failing
+  // cell for the sub-specs of a parent spec. Reads only.
+  async gapPreview(input = {}, { local = false } = {}) {
+    let text;
+    if (typeof input.path === "string") {
+      if (!local)
+        fail("Name an issue; only the page and the CLI read a path.", 403);
+      const file = path.resolve(input.path);
+      let stat = null;
+      try {
+        stat = fs.statSync(file);
+      } catch {
+        fail("The gap report path cannot be read.", 404);
+      }
+      if (!stat.isFile() || stat.size > 200 * 1024)
+        fail("The gap report must be a file of at most 200 KB.", 422);
+      text = fs.readFileSync(file, "utf8");
+    } else if (typeof input.issue === "string") {
+      if (!this.github?.available?.()) fail("GitHub is not available.", 409);
+      const { owner, repo, number } = parseIssueReference(input.issue),
+        issue = await this.github.issue(
+          { owner, repo, id: `${owner}/${repo}` },
+          number,
+        );
+      text = issue?.body ?? "";
+    } else fail("Name the gap report as a path or an issue.", 422);
+    const parent = this.readSpec(input.parent);
+    if (!parent.exists)
+      fail(`No spec folder .kiro/specs/${input.parent}/.`, 404);
+    const members = epicMembers(parent.files).map((name) => {
+      const folder = this.readSpec(name);
+      let repositories = [];
+      try {
+        repositories = [
+          ...new Set(
+            Object.values(
+              JSON.parse(folder.files["avoozl/manifest.json"] ?? "{}").tasks ??
+                {},
+            )
+              .map((entry) => entry?.repository)
+              .filter((value) => typeof value === "string"),
+          ),
+        ];
+      } catch {
+        repositories = [];
+      }
+      return { name, repositories };
+    });
+    const report = parseGapReport(text),
+      subSpecOf = (repository) =>
+        members.find(
+          (member) =>
+            member.repositories.includes(repository) ||
+            member.name === repository.split("/").at(-1),
+        )?.name ?? null,
+      proposals = gapProposals(report, subSpecOf);
+    return { report, table: formatGapTable(report), proposals };
   }
   // Whether a plan's current text is the one last approved.
   planApproved(plan) {
@@ -3087,6 +3148,47 @@ export class Operations {
       return landBranch(store, input, {
         by: context.local ? "cli" : "dashboard",
       });
+    }
+    // An external gap report becomes proposed tasks in the sub-specs; nothing is
+    // added until a person accepts (RC17.6).
+    if (name === "gap.preview")
+      return this.gapPreview(input, {
+        local: !(context.caller || context.mcp),
+      });
+    if (name === "gap.accept") {
+      if (context.caller || context.mcp)
+        fail("Only a person accepts gap report proposals.", 403);
+      const found = await this.gapPreview(input, { local: true }),
+        chosen = Array.isArray(input.ids)
+          ? found.proposals.filter((p) =>
+              input.ids.includes(`${p.spec}:${p.id}`),
+            )
+          : found.proposals,
+        added = [];
+      for (const proposal of chosen) {
+        const plan = store
+          .list("plans")
+          .find((entry) => entry.spec === proposal.spec && !entry.deletedAt);
+        if (!plan) fail(`Sub-spec ${proposal.spec} is not a plan yet.`, 409);
+        const current = store.get("plans", plan.id);
+        proposeSpecWork(
+          store,
+          {
+            id: plan.id,
+            expectedHash: current.hash,
+            proposal: {
+              id: proposal.id,
+              title: proposal.title,
+              kind: "leaf",
+              summary: `Gap report: ${proposal.repository} fails ${proposal.requirement}.`,
+              acceptance: proposal.acceptance,
+            },
+          },
+          (spec) => this.readSpec(spec),
+        );
+        added.push(`${proposal.spec}:${proposal.id}`);
+      }
+      return { added };
     }
     if (name === "radar.mergepath")
       return { repositories: await this.mergePaths(input.repository) };
