@@ -94,7 +94,7 @@ import {
 } from "./github-sync.mjs";
 import { planningIdentity, requireNamespace } from "./github-marker.mjs";
 import { claimsView, refreshClaims } from "./radar-claims.mjs";
-import { namespaceOf } from "./radar-plan-me.mjs";
+import { namespaceOf, planThisRequest } from "./radar-plan-me.mjs";
 import {
   CODERS,
   CREW_LABEL_KEYS,
@@ -3003,6 +3003,38 @@ export class Operations {
       if (!repository)
         fail(`${input.repository} is not a registered repository.`, 404);
       return readCrews(this.crewReader, repository);
+    }
+    // Plan this on a GitHub Intake row of a Radar-coded repository: the
+    // planner chat's seed, with the issue recorded as the plan's source.
+    if (name === "untriaged.plan") {
+      if (context.caller || context.mcp)
+        fail("Only a person starts planning, from the Avoozl page.", 403);
+      const policy = readGitHubPolicyOrNull(this.workspaceRoot),
+        { fields, source } = await planThisRequest(
+          this.github,
+          policy,
+          untriagedView(
+            policy,
+            this.read().tasks,
+            readCache(store),
+            Date.now(),
+            handoffReceipts(store),
+          ),
+          input,
+        );
+      return requestNewPlan(
+        store,
+        fields,
+        {
+          readSpec: (spec) => this.readSpec(spec),
+          repositories: workspaceRepositories(store).filter(
+            (repo) => !repo.planning,
+          ),
+          specRoot: this.specRoots()[0] || null,
+          template: (ref) => pickTemplate(this.pluginOptions, ref),
+        },
+        source,
+      );
     }
     if (name === "untriaged.handoff") {
       if (context.caller || context.mcp)
