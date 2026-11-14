@@ -1,0 +1,334 @@
+{
+  "version": 1,
+  "tasks": {
+    "an-1.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "The waiting label setting and its writes (was rc-22.3). See AN1.1; \u00a7D28.",
+      "acceptance": [
+        "Fake-GitHub tests: the label is on the gate and its gate-only dependents, off a dependent that has another unmet blocker, kept on failed and unknown, removed on done, and written once across three ticks; a label equal to another managed label is refused naming both; the UI test shows the field with its default."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "an-1.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Needs you row and the person's clear as an order (was rc-22.4). See AN1.2; \u00a7D28.",
+      "acceptance": [
+        "Fake tests: a failed gate gives one row across three ticks and releases nothing; an allowed clear releases the dependent and is not counted as verified completion; a stranger's clear is reverted; a later `done` adds evidence only; a second clear records nothing new."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "an-1.1"
+      ]
+    },
+    "an-1.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Gate rows in Release queue, Trace and Waiting on you, plus the CLI and MCP reads (was rc-22.5). See AN1.3; \u00a7D28.",
+      "acceptance": [
+        "The UI test renders an open, a failed and a cleared gate and checks the fields and the Waiting on you filter at 320 px; the CLI read matches the page; `node scripts/release-scan.mjs` is clean."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "an-1.2"
+      ]
+    },
+    "an-p1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Proof: a gate with a fake plugin. See AN1.4; \u00a7D28.",
+      "acceptance": [
+        "Expected result observed with the fake plugin; receipt under `docs/evidence/`."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "an-1.1",
+        "an-1.2",
+        "an-1.3"
+      ]
+    },
+    "an-2.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "`mirror` setting: form and raw `.avoozl.json`, private-only validation. See AN2.1; \u00a7D29.",
+      "acceptance": [
+        "A public or unreadable mirror is refused; `forward: auto` with no trusted person is refused; the form and the raw file agree after an edit in either; `npm test` passes."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "an-2.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Sync step and write targets. See AN2.1; \u00a7D29.",
+      "acceptance": [
+        "A fake GitHub test: a fast-forward is applied, a divergence gives one row across three ticks and no write to either branch, no call writes to the source except the forward path."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "an-2.1"
+      ]
+    },
+    "an-2.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Track merged mirror PRs, rows and Trace steps. See AN2.1; \u00a7D29.",
+      "acceptance": [
+        "A merge in the mirror gives one record across repeated ticks and the four Trace steps appear in order with GitHub times."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "an-2.2",
+        "an-1.3"
+      ]
+    },
+    "an-2.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Forward: one commit, strip, scan, push, public PR; nudge and auto. See AN2.1; \u00a7D29.",
+      "acceptance": [
+        "Tests: a clean change forwards once; a planted private term blocks the push with one row naming the rule; `auto` forwards for a trusted approver and not for another; a second press opens no second PR; no force push is ever issued."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "an-2.3"
+      ]
+    },
+    "an-2.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Public poll: done on public merge, closed unmerged, review copy-back. See AN2.1; \u00a7D29.",
+      "acceptance": [
+        "A fake GitHub test: a mirror merge alone releases no dependent; the public merge releases them; a close returns the row; a comment copies once across three ticks."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "an-2.4"
+      ]
+    },
+    "an-2.6": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Conflicts: sync, re-apply, then a mirror issue for a crew. See AN2.1; \u00a7D29.",
+      "acceptance": [
+        "A fake GitHub test: a moved source applies on retry; a true conflict opens one issue with paths and no contents."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "an-2.4"
+      ]
+    },
+    "an-p2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Proof: the mirror flow with a fake GitHub. See AN2.2; \u00a7D29.",
+      "acceptance": [
+        "Expected result observed with the fake GitHub; receipt under `docs/evidence/`. The run on two real scratch repositories is an owner step."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "an-2.1",
+        "an-2.2",
+        "an-2.3",
+        "an-2.4",
+        "an-2.5",
+        "an-2.6"
+      ]
+    },
+    "an-3.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Hook command: scan a crew's writes before they run. See AN3.1; \u00a76.14.",
+      "acceptance": [
+        "`avoozl content hook` refuses a gh or git write that holds a rule match or text it cannot read, naming the rule set, id and place and never the text."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "an-3.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Audit on the tick: delete a hit, pull the cord, alert. See AN3.1; \u00a76.14.",
+      "acceptance": [
+        "The tick deletes a matching crew comment, closes a matching pull request, pulls the cord for the repository, and sends one notice and one Needs you item."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "an-3.1"
+      ]
+    },
+    "an-3.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Public crew checklist, sign-off and handoff gate. See AN3.1; \u00a76.14.",
+      "acceptance": [
+        "A person signs off the checklist; a public repository is handed to Issue Radar only with a current sign-off, which lapses when a hashed item changes."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "an-3.1",
+        "an-3.2"
+      ]
+    },
+    "an-3.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Stop public crews. See AN3.1; \u00a76.14.",
+      "acceptance": [
+        "One person-only action pulls the cord for every public repository with a crew and lists the crews to pause."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "an-3.2"
+      ]
+    },
+    "an-3.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Public docs and the upstream requests. See AN3.1; \u00a76.14.",
+      "acceptance": [
+        "`docs/public-crews.md` states the limits in generic terms and drafts the Kiro Crew requests without filing them."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "an-3.3",
+        "an-3.4"
+      ]
+    },
+    "an-p3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Proof: a public crew's leak is stopped, deleted and alerted. See AN3.2; \u00a76.14.",
+      "acceptance": [
+        "Expected result observed; receipt under `docs/evidence/`."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "an-3.1",
+        "an-3.2",
+        "an-3.3",
+        "an-3.4",
+        "an-3.5"
+      ]
+    },
+    "an-4.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Proof P38: the Specs name and ideas. See AN4.1; \u00a78.7, \u00a78.8.",
+      "acceptance": [
+        "The named test passes and a receipt under `docs/evidence/` records setup, action, observation and verdict."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "an-4.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Proof P39: pull the Andon cord. See AN4.1; \u00a74.11.",
+      "acceptance": [
+        "The named test passes and a receipt under `docs/evidence/` records the run."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "an-4.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Proof P42: add the Share steps 13 and 14. See AN4.2; \u00a74.18, R28.9.",
+      "acceptance": [
+        "The extended test passes; the receipt names steps 13 and 14."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "an-4.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Proof P43: activity log. See AN4.1; \u00a74.19.",
+      "acceptance": [
+        "The named test passes and a receipt under `docs/evidence/` records the run."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    }
+  }
+}
