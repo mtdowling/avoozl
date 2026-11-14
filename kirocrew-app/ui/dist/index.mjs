@@ -14451,7 +14451,7 @@ function af() {
 	});
 }
 function of(e) {
-	let { task: t, batch: n } = e, r = n ? qr(n.url) : null, i = Rn(), { waitsOn: a, blocks: o } = e.neighbors, s = Lt(t);
+	let { task: t, batch: n } = e, r = Rn(), { waitsOn: i, blocks: a } = e.neighbors, o = Lt(t);
 	return /* @__PURE__ */ S(g, { children: /* @__PURE__ */ C("div", {
 		"aria-label": "Task details",
 		role: "region",
@@ -14460,11 +14460,11 @@ function of(e) {
 				title: t.title,
 				actions: /* @__PURE__ */ C(x, { children: [/* @__PURE__ */ S(nr, {
 					tooltip: "Open this task's details in the drawer",
-					onClick: () => i.openTask(t.id),
+					onClick: () => r.openTask(t.id),
 					children: "All details"
 				}), /* @__PURE__ */ S(nr, {
 					tooltip: "Add a draft task that waits on this one",
-					onClick: () => i.addTask({ prerequisite: t.id }),
+					onClick: () => r.addTask({ prerequisite: t.id }),
 					children: "Add a task after this"
 				})] })
 			}),
@@ -14482,8 +14482,8 @@ function of(e) {
 						children: t.status ?? "no status"
 					}),
 					/* @__PURE__ */ S(q, {
-						variant: s === "needs-you" ? "warning" : s === "ready" ? "info" : void 0,
-						children: $d[s]
+						variant: o === "needs-you" ? "warning" : o === "ready" ? "info" : void 0,
+						children: $d[o]
 					}),
 					t.review && /* @__PURE__ */ S(q, { children: "review" }),
 					t.planArchived && /* @__PURE__ */ S(q, { children: "Archived" }),
@@ -14543,8 +14543,8 @@ function of(e) {
 					}), /* @__PURE__ */ C("dd", {
 						"data-batch-members": n.members.join(","),
 						children: [
-							r ? /* @__PURE__ */ C("a", {
-								href: r,
+							qr(n.url) ? /* @__PURE__ */ C("a", {
+								href: qr(n.url) ?? void 0,
 								children: ["#", n.number]
 							}) : `#${n.number}`,
 							" closes",
@@ -14561,7 +14561,7 @@ function of(e) {
 						className: "text-muted",
 						children: "Waits on"
 					}),
-					/* @__PURE__ */ S("dd", { children: a.length === 0 ? "nothing" : a.map((t, n) => /* @__PURE__ */ C("span", { children: [
+					/* @__PURE__ */ S("dd", { children: i.length === 0 ? "nothing" : i.map((t, n) => /* @__PURE__ */ C("span", { children: [
 						n > 0 && ", ",
 						/* @__PURE__ */ S("button", {
 							type: "button",
@@ -14583,7 +14583,7 @@ function of(e) {
 						className: "text-muted",
 						children: "Blocks"
 					}),
-					/* @__PURE__ */ S("dd", { children: o.length === 0 ? "nothing" : o.map((t, n) => /* @__PURE__ */ C("span", { children: [n > 0 && ", ", /* @__PURE__ */ S("button", {
+					/* @__PURE__ */ S("dd", { children: a.length === 0 ? "nothing" : a.map((t, n) => /* @__PURE__ */ C("span", { children: [n > 0 && ", ", /* @__PURE__ */ S("button", {
 						type: "button",
 						className: "underline",
 						onClick: () => e.onSelect(t.id),

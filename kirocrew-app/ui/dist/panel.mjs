@@ -200,7 +200,7 @@ function x() {
 		}
 	}, z = async () => {
 		if (p && L) try {
-			await N.store(p, L.name), j("Stored as a draft plan. Review it in Specs, then approve."), await F();
+			await N.store(p, L.name), j("Stored as a draft. Review it in Specs, then approve."), await F();
 		} catch (e) {
 			j(m(e));
 		}
@@ -246,7 +246,7 @@ function x() {
 						}),
 						!L.plan && /* @__PURE__ */ s(a, {
 							onClick: () => void z(),
-							children: "Store as a plan"
+							children: "Store this spec"
 						}),
 						L.plan && !L.plan.approved && /* @__PURE__ */ s(a, {
 							primary: !0,
