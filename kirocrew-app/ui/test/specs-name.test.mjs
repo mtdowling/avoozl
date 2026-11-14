@@ -13,11 +13,11 @@ const files = readdirSync(src).filter((name) => /\.(tsx?|ts)$/.test(name) && !na
 // Each entry is one exact phrase that keeps the word, with why (R62.3).
 export const ALLOWED = new Map([
   // Plan as a verb.
-  ['Plan an epic', 'verb: the Epics button and its empty state'],
+  ['Plan an epic', 'verb: the Specs button and its empty state'],
   ['Plan a goal', 'verb: the header button and the skill step it names'],
   ['Plan work as a graph', 'verb: the page subtitle'],
   ['Plan this', 'verb: an Intake action (R50.15)'],
-  ['Plan an epic', 'verb: Home empty state and the Epics button'],
+  ['Plan an epic', 'verb: Home empty state and the Specs button'],
   ['to plan epics for', 'verb: the no repository empty state'],
   ['Plan ?', 'verb: the Plan this confirm title, `Plan ${name}?`'],
   ['plan or deliver', 'verb: what Intake offers'],
@@ -111,5 +111,5 @@ test('the compatibility names stay as they were', () => {
   for (const operation of ['plan.table', 'plan.get', 'plan.approve']) assert.match(plans, new RegExp(`'${operation.replace('.', '\\.')}'`), operation)
   const app = readFileSync(new URL('App.tsx', src), 'utf8')
   // The tab key is a stored name; only its label changed.
-  assert.match(readFileSync(new URL('nav-api.ts', src), 'utf8'), /\{ key: 'plans', label: 'Epics' \}/)
+  assert.match(readFileSync(new URL('nav-api.ts', src), 'utf8'), /\{ key: 'plans', label: 'Specs' \}/)
 })

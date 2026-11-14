@@ -2698,7 +2698,7 @@ function xi(e) {
 					e.onOpenEpics && /* @__PURE__ */ C(g, {
 						type: "button",
 						onClick: e.onOpenEpics,
-						children: "Open Epics"
+						children: "Open Specs"
 					})
 				]
 			}) }),
@@ -6405,12 +6405,19 @@ function Ns(e) {
 var Ps = (e, t) => bs(new Date(e).toISOString(), t);
 // kirocrew-app/ui/src/panel-api.ts
 function Fs(e) {
-	let t = e?.state ?? "none";
+	let t = e?.state ?? "none", n = e?.workspace ?? null, r = t === "none" || t === "idle" ? e?.others?.[0] : void 0;
 	return {
 		state: t,
 		link: e?.href ?? null,
 		start: t === "none" || t === "idle",
-		note: As(t)
+		note: As(t),
+		workspace: n,
+		elsewhere: r ? {
+			text: `No driver for ${n ?? "this workspace"}. ${r.workspace} has one:`,
+			href: r.href,
+			slot: r.slot,
+			workspace: r.workspace
+		} : null
 	};
 }
 // kirocrew-app/ui/src/DriverSessionBox.tsx
@@ -6469,6 +6476,33 @@ function zs(e) {
 							})
 						})
 					})] })
+				}),
+				i?.workspace && /* @__PURE__ */ w("p", {
+					className: "text-xs text-muted",
+					"data-driver-workspace": !0,
+					children: ["Workspace: ", i.workspace]
+				}),
+				i?.elsewhere && /* @__PURE__ */ w("p", {
+					className: "text-sm",
+					"data-driver-elsewhere": !0,
+					children: [
+						i.elsewhere.text,
+						" ",
+						/* @__PURE__ */ C("button", {
+							type: "button",
+							className: "underline",
+							style: {
+								color: "var(--accent)",
+								background: "none",
+								border: 0,
+								padding: 0,
+								cursor: "pointer"
+							},
+							onClick: () => i.elsewhere && r({ slotKey: i.elsewhere.slot }),
+							"data-driver-elsewhere-open": !0,
+							children: "Open"
+						})
+					]
 				}),
 				/* @__PURE__ */ w("p", {
 					className: "text-sm text-muted",
@@ -8487,7 +8521,7 @@ function Tl(e) {
 						emptyAction: /* @__PURE__ */ C(g, {
 							type: "button",
 							onClick: () => n("plans"),
-							children: "Open Epics"
+							children: "Open Specs"
 						}),
 						children: [/* @__PURE__ */ w("p", {
 							className: "mt-1 text-xs text-muted",
@@ -8501,7 +8535,7 @@ function Tl(e) {
 									type: "button",
 									className: "underline",
 									onClick: () => n("plans"),
-									children: "Open Epics"
+									children: "Open Specs"
 								})
 							]
 						}), /* @__PURE__ */ C("ul", {
@@ -15781,7 +15815,7 @@ function Sp(e) {
 								onReview: () => tp("avoozl-plan-main")
 							})]
 						}) : null,
-						children: U ? U.name : "Epics"
+						children: U ? U.name : "Specs"
 					})
 				})]
 			}),
@@ -19664,7 +19698,7 @@ var Nh = [
 	},
 	{
 		key: "plans",
-		label: "Epics"
+		label: "Specs"
 	},
 	{
 		key: "waiting",
@@ -19686,7 +19720,7 @@ var Nh = [
 		key: "settings",
 		label: "Settings"
 	}
-], Ph = (e) => e === "graph" ? "Epics" : Nh.find((t) => t.key === e)?.label ?? e, Fh = (e) => e === "graph" ? "plans" : e;
+], Ph = (e) => e === "graph" ? "Specs" : Nh.find((t) => t.key === e)?.label ?? e, Fh = (e) => e === "graph" ? "plans" : e;
 function Ih(e) {
 	switch (e) {
 		case "delivery": return { tab: "dashboard" };
