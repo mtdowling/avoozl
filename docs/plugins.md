@@ -4,14 +4,14 @@ A plugin adds to Avoozl without changing Avoozl itself. One plugin can
 bundle several parts, so a team installs one plugin and gets its settings,
 its content rules, its tracker and its intake source together:
 
-| Part       | What it is                                                                 | Runs code |
-| ---------- | -------------------------------------------------------------------------- | --------- |
-| `pack`     | Settings a person previews and copies into `.avoozl.json` once             | No        |
-| `rules`    | Content rule sets supplied while Avoozl runs                               | Yes       |
-| `tracker`  | A task tracker that keeps Avoozl's task records                            | Yes       |
+| Part       | What it is                                                                | Runs code |
+| ---------- | ------------------------------------------------------------------------- | --------- |
+| `pack`     | Settings a person previews and copies into `.avoozl.json` once            | No        |
+| `rules`    | Content rule sets supplied while Avoozl runs                              | Yes       |
+| `tracker`  | A task tracker that keeps Avoozl's task records                           | Yes       |
 | `intake`   | An intake source: the tracker kind's `poll`, which brings outside work in | Yes       |
-| `route`    | A delivery route for tasks that are not run by a local worker              | Yes       |
-| `template` | A workflow template that starts a new spec from a reusable folder          | No        |
+| `route`    | A delivery route for tasks that are not run by a local worker             | Yes       |
+| `template` | A workflow template that starts a new spec from a reusable folder         | No        |
 
 Local and GitHub are the only built-in routes and trackers. Everything
 else, including any integration that must stay private, is a separate
@@ -22,6 +22,17 @@ tree: `src/app/test/fixtures/plugins/sdk-team/` bundles a pack, rules, a
 tracker and an intake source; `sdk-templates/` holds one workflow template;
 `fake-route/`, `fake-tracker/` and `fake-rules/` each provide one part. Read them alongside this guide. These
 fakes are the only plugins tested so far; no real plugin has run live.
+
+## A pack's `crews` section
+
+A pack can carry a `crews` section for Issue Radar: `count`, `agent`
+(`avoozl-crew`), `models`, `labels` (`plan`, `ready`, `conflict`), `prompt`
+(the one-line crew prompt, word for word), `reviewRules` and `template`. The
+labels and review rules go to each chosen repository's settings, and the
+crew values show in Set up. A pack creates no crew: you create it in Issue
+Radar with the values Set up shows. Content rules screen the section before
+it is previewed or imported. `examples/sdk-team/avoozl-pack.json` is a
+sample with made-up values. It is tested with fakes only.
 
 ## What a plugin is
 
@@ -127,8 +138,13 @@ A `plugins` entry declares each plugin, either in the repository's
 ### A plugin from a git repository
 
 ```json
-{ "id": "fake-route", "git": "https://git.example.com/team/fake-route.git",
-  "ref": "v1.0.0", "subdir": "plugin", "contract": 1 }
+{
+  "id": "fake-route",
+  "git": "https://git.example.com/team/fake-route.git",
+  "ref": "v1.0.0",
+  "subdir": "plugin",
+  "contract": 1
+}
 ```
 
 `git` is a URL or a local repository path. `ref` is a tag, a branch or a full
@@ -284,11 +300,16 @@ file:
     "repositories": {
       "minimumPermission": "write",
       "rules": [
-        { "id": "deliver", "action": "deliver",
-          "match": "label:avoozl:deliver -label:needs-triage -label:response-requested" }
+        {
+          "id": "deliver",
+          "action": "deliver",
+          "match": "label:avoozl:deliver -label:needs-triage -label:response-requested"
+        }
       ],
-      "untriaged": { "filter": "label:needs-triage",
-                     "triageLabels": ["response-requested", "closing-soon"] }
+      "untriaged": {
+        "filter": "label:needs-triage",
+        "triageLabels": ["response-requested", "closing-soon"]
+      }
     },
     "project": { "fields": { "status": "Status", "release": "Release" } },
     "contentRules": { "sets": [{ "id": "team-terms", "plugin": "sdk-team" }] }
@@ -298,18 +319,18 @@ file:
 
 What a pack may set, and where each lands in `.avoozl.json`:
 
-| Pack key                     | Sets                                                                                                                                                       |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pack key                     | Sets                                                                                                                                                                                     |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `settings.repositories`      | For each repository you pick at import: `rules` (trigger `match` lines), `untriaged`, `allowedActors`, `minimumPermission`, `requiredChecks`, `priority`, `managedLabels`, `concurrency` |
-| `settings.project`           | `github.project.fields` and `statusValues`, when a GitHub Project is set                                                                                   |
-| `settings.epicIssueType`     | `github.epicIssueType`                                                                                                                                     |
-| `settings.contentRules.sets` | Rule set references by id (`plugin`, `action`, `boundaries`), never rules                                                                                  |
-| `settings.delivery`          | `reviewers` (review roles), `agent`, `model`, `runner`, `concurrency`                                                                                      |
-| `settings.flow`              | Flow settings, such as `batch.max`                                                                                                                         |
+| `settings.project`           | `github.project.fields` and `statusValues`, when a GitHub Project is set                                                                                                                 |
+| `settings.epicIssueType`     | `github.epicIssueType`                                                                                                                                                                   |
+| `settings.contentRules.sets` | Rule set references by id (`plugin`, `action`, `boundaries`), never rules                                                                                                                |
+| `settings.delivery`          | `reviewers` (review roles), `agent`, `model`, `runner`, `concurrency`                                                                                                                    |
+| `settings.flow`              | Flow settings, such as `batch.max`                                                                                                                                                       |
 
 - Every key is checked with the same rules Settings uses. Any other key is
   refused by name, such as `Pack key settings.repositories.autoMerge is not
-  a pack setting.`, and the plugin shows as invalid until it is fixed.
+a pack setting.`, and the plugin shows as invalid until it is fixed.
 - A pack cannot hold a credential or a content rule pattern. Terms come
   from the `rules` part at run time, so they are never stored in a public
   repository.
@@ -359,16 +380,16 @@ templates/sdk-rewrite/
 
 `avoozl-template.json` holds:
 
-| Key                          | Holds                                                                                                                       |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `id`, `title`, `description` | What the New spec drawer shows                                                                                              |
+| Key                          | Holds                                                                                                                                    |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`, `title`, `description` | What the New spec drawer shows                                                                                                           |
 | `inputs`                     | Fields the person fills; each has `id`, `label`, `type` (`text`, `choice` with `options`, `file`, `repositories`, `epic`) and `required` |
-| `prompt`                     | The planner prompt, a Markdown file                                                                                         |
-| `starter`                    | A spec folder in the usual layout                                                                                           |
-| `phases`                     | Optional: the starter's phases, `{id, title}` in order                                                                      |
-| `proofKinds`                 | Optional: proof outlines the prompt asks the planner to fill in                                                             |
-| `pack`                       | Optional: a settings pack, as in the pack part                                                                              |
-| `flow`                       | Optional: flow defaults: `batch`, `stopTheLine`, `localChecksFirst`, `retro.everyTasks`                                     |
+| `prompt`                     | The planner prompt, a Markdown file                                                                                                      |
+| `starter`                    | A spec folder in the usual layout                                                                                                        |
+| `phases`                     | Optional: the starter's phases, `{id, title}` in order                                                                                   |
+| `proofKinds`                 | Optional: proof outlines the prompt asks the planner to fill in                                                                          |
+| `pack`                       | Optional: a settings pack, as in the pack part                                                                                           |
+| `flow`                       | Optional: flow defaults: `batch`, `stopTheLine`, `localChecksFirst`, `retro.everyTasks`                                                  |
 
 The prompt and starter files may use `{{<input id>}}`. Avoozl puts in what
 the person typed, as plain text, once, and never runs it. A `file` input is
@@ -408,8 +429,8 @@ An intake source is a tracker kind with the `poll` capability, listed in
 its `poll` reads a JSON file of items and returns those changed since the
 cursor.
 
-| Call                    | Reply                                                                   |
-| ----------------------- | ----------------------------------------------------------------------- |
+| Call                    | Reply                                                                  |
+| ----------------------- | ---------------------------------------------------------------------- |
 | `poll({cursor, limit})` | `{items, cursor, more}`: items changed since `cursor`, at most `limit` |
 
 ```js
