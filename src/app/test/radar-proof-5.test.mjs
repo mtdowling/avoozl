@@ -100,7 +100,7 @@ test("Proof 5: only the crew's pull request merges by itself; the rest wait", as
   assert.ok(github.pulls.has(25));
   assert.deepEqual(
     github.written.filter(([kind]) => kind === "add"),
-    [["add", 25, "merge conflict"]],
+    [["add", 25, "avoozl:merge-conflict"]],
   );
   assert.equal(rows(store, "needs-human").length, 1);
   assert.equal(rows(store, "needs-human")[0].pullRequest, 25);
