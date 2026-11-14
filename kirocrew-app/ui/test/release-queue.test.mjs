@@ -103,3 +103,15 @@ test('the Dashboard shows the queue, Settings shows the mode only for Issue Rada
   // Rows wrap: columns on a wide page, stacked on a narrow one.
   assert.match(queue, /flexDirection: 'row'[^}]*flexWrap: 'wrap'/)
 })
+
+test('the Dashboard lists armed pull requests under a stop, with a Disarm that calls the person-only operation', async () => {
+  const calls = []
+  const client = releaseClient({ post: async (path, body) => (calls.push([body.operation, body.input]), { result: { pullRequests: [] } }) })
+  await client.armed('w')
+  await client.disarm('w', 'example/app', 7)
+  assert.deepEqual(calls, [['radar.armed', {}], ['radar.disarm', { repository: 'example/app', pullRequest: 7 }]])
+  assert.match(source('DashboardView.tsx'), /<ArmedPulls workspaceId=\{workspaceId\} stopped=/)
+  const armed = source('ArmedPulls.tsx')
+  assert.match(armed, /if \(!props\.stopped \|\| !props\.workspaceId \|\| !pulls\.length\) return null/)
+  assert.match(armed, /Disarm/)
+})

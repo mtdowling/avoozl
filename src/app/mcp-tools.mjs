@@ -338,6 +338,10 @@ const tools = {
         "radar.mergepath",
         "can crew pull requests merge by themselves",
       ],
+      armed: [
+        "radar.armed",
+        "pull requests Avoozl armed for auto-merge that are still open",
+      ],
       release_queue: [
         "radar.releasequeue",
         "what is released, claimed, next or held, and why",

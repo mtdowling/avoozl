@@ -129,7 +129,7 @@ Requirement RC5. Crews do not arm auto-merge (Kiro Crew 0.12.2.4), so the tick d
 - [x] rc-5.3 Manual mode and the conflict label, after rc-5.1 [RC5.3, RC5.6, RC5.7] (§D7)
   - With `manual`: a Ready to merge row per green pull request, nothing armed. Conflict label on pull requests with a merge conflict and removed when clear; one Needs you row; no label written to Radar.
   - Done when: Manual arms nothing; a conflicted pull request gets the label and one row; resolving it removes both.
-- [ ] rc-5.4 Stop the line stops arming, and Disarm, after rc-5.2, rc-4.2 [RC5.4] (§D7)
+- [x] rc-5.4 Stop the line stops arming, and Disarm, after rc-5.2, rc-4.2 [RC5.4] (§D7)
   - While a stop is open for the scope the tick arms nothing; armed pull requests are listed in the banner with a person-only **Disarm**.
   - Done when: With a stop open a new pull request stays unarmed; Disarm is refused for an agent or app token.
 - [x] rc-5.5 Re-verify before arming, after rc-5.2, rc-3.3 [RC5.8] (§D7)
