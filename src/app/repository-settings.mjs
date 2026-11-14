@@ -860,7 +860,7 @@ export class RepositorySettings {
   }
 
   // Settings > Budgets (§4.17): the workspace's per-task cap and mode, and
-  // each repository's. Prices are not here: they are this machine's only.
+  // each repository's.
   readBudgetSettings() {
     const file = this.readFile(),
       projects = record(file.value.projects) ? file.value.projects : {};

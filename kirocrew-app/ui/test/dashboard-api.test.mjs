@@ -80,7 +80,6 @@ test('the dashboard puts what needs the owner first and orders ready work by wav
   assert.deepEqual(summary.counts, { ready: 2, running: 0, waiting: 0, 'needs-you': 1, done: 1, deferred: 0 })
   assert.deepEqual(summary.running.map((r) => r.id), ['r'])
   assert.deepEqual(summary.readyNext.map((t) => [t.id, t.wave]), [['c', 2], ['b', 3]])
-  assert.deepEqual(summary.recent.map((r) => [r.id, r.at]), [['a', '2026-11-12T10:00:00Z']])
   assert.deepEqual(summary.progress, [{ epic: 'e1', title: 'Epic one', done: 1, total: 4, running: 0 }])
   assert.deepEqual(summary.plans, { approved: 1, draft: 1, total: 2 })
 })
@@ -142,33 +141,6 @@ test('In flight has one row per live agent chat, by role, newest activity first'
   )
   assert.equal(summary.inFlight[0].session.link, '/chat?sid=r1')
   assert.equal(summary.inFlight[0].model, 'claude-opus-5.5')
-})
-
-test('Recently done lists issue and pull-request links, newest first', () => {
-  const summary = summarize({
-    graph: null,
-    delivery: [
-      delivery('old', { complete: true, integration: { commit: 'a', branch: 'main', at: '2026-11-10T00:00:00Z' } }),
-      delivery('new', {
-        complete: true,
-        integration: { commit: 'b', branch: 'main', at: '2026-11-12T00:00:00Z' },
-        issue: { number: 3, url: 'https://github.com/o/r/issues/3', repository: 'o/r' },
-        pullRequests: [
-          { number: 9, url: 'https://github.com/o/r/pull/9', merged: true },
-          { number: 10, url: 'javascript:alert(1)', merged: false },
-        ],
-      }),
-    ],
-    conflicts: [],
-    plans: null,
-  })
-  assert.deepEqual(
-    summary.recent.map((r) => [r.id, r.issue, r.pulls.map((p) => p.number)]),
-    [
-      ['new', 'https://github.com/o/r/issues/3', [9]],
-      ['old', null, []],
-    ],
-  )
 })
 
 test('Up next follows the tick dispatch order, and epics count their running chats', () => {

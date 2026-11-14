@@ -1535,7 +1535,7 @@ function receiptText(r) {
   const lines = [
     `${r.taskId}: ${usd(r.totals.usd)} of ${usd(r.cap.usd)}${r.cap.usd == null ? "" : ` (${r.cap.level})`}, ${r.cap.mode} mode`,
     `Tokens ${Math.round(r.totals.input + r.totals.output)} of ${capOf("tokens")}, credits ${r.totals.credits} of ${capOf("credits")}, unpriced turns ${r.totals.unpricedTurns}`,
-    `Prices: version ${r.price.version}${r.readAt ? `; last usage read ${r.readAt}` : ""}`,
+    `Prices: built-in list of ${r.price.updated}${r.readAt ? `; last usage read ${r.readAt}` : ""}`,
   ];
   if (!r.complete)
     lines.push(

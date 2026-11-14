@@ -16,11 +16,10 @@ function rows() {
   }))
 }
 
-test('the Dashboard has a one-line state header, then three paired rows in the owner order', () => {
+test('the Dashboard has a one-line state header, then two paired rows in the owner order', () => {
   assert.deepEqual(rows(), [
     { row: 'flight', titles: ['In flight', 'Progress by epic'] },
     { row: 'blocked', titles: ['Needs you', 'Up next'] },
-    { row: 'recent', titles: ['Recently completed', 'Recent activity'] },
   ])
   // The state buttons sit in the Dashboard heading row; countsStyles lays
   // them out by width. There is no separate Tasks by state title or card.
@@ -61,7 +60,7 @@ test('wide rows have one fixed height; narrow rows stack with no height', () => 
     dashboard,
     /style=\{wide \? \{ gridTemplateColumns: 'minmax\(0, 1fr\) minmax\(0, 1fr\)', height \} : undefined\}/,
   )
-  assert.match(dashboard, /ROW_HEIGHT = \{ flight: '\d+rem', blocked: '\d+rem', recent: '\d+rem' \}/)
+  assert.match(dashboard, /ROW_HEIGHT = \{ flight: '\d+rem', blocked: '\d+rem' }/)
 })
 
 test('each card fills its row and scrolls inside itself', () => {
@@ -71,14 +70,16 @@ test('each card fills its row and scrolls inside itself', () => {
   assert.equal(dashboard.match(/<Card\b/g).length, 1)
 })
 
-test('Up next and Recently completed are tables whose tasks open the drawer', () => {
-  assert.equal(dashboard.match(/<table /g).length, 2)
-  assert.match(dashboard, /<RecentActivity items=\{value\.activity\}/)
+test('Up next is a table whose tasks open the drawer', () => {
+  assert.equal(dashboard.match(/<table /g).length, 1)
   assert.match(dashboard, /<TaskLink id=\{task\.id\}[^>]*onOpen=\{\(\) => drawer\.openTask\(task\.id\)\}/)
-  assert.match(dashboard, /<TaskLink id=\{item\.id\}[^>]*onOpen=\{\(\) => drawer\.openTask\(item\.id\)\}/)
-  assert.match(dashboard, /aria-label="Done" style=\{\{ color: 'var\(--ok\)' \}\}/)
-  assert.match(dashboard, /relativeTime\(item\.at, now\)/)
-  assert.match(dashboard, /PR\{pull\.number/)
+})
+
+// The owner removed these cards twice; this fails if either comes back.
+test('the home page has no Recently completed or Recent activity card, and reads neither', () => {
+  for (const text of [/Recently completed/, /Recent activity/, /RecentActivity/, /ROW_HEIGHT\.recent/, /activity\.recent|chats\.activity|ACTIVITY_LIMIT/, /\.recent\b/])
+    assert.doesNotMatch(dashboard, text, String(text))
+  assert.doesNotMatch(source('dashboard-api.ts'), /\brecent\b/)
 })
 
 test('wave badges use the wave variant, which maps to Kiro purple, not yellow', () => {

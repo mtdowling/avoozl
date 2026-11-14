@@ -202,9 +202,7 @@ import {
   budgetRefusal,
   budgetReceipt,
   budgetView,
-  pricesView,
   raiseBudget,
-  savePrices,
   stopBudget,
   switchBudgetToStop,
 } from "./budget.mjs";
@@ -2009,7 +2007,6 @@ export class Operations {
         this.read(),
         resolveTaskId(this.read(), input.taskId),
       );
-    if (name === "prices.get") return pricesView(store);
     if (name === "budget.settings.get")
       return this.settingsFile().readBudgetSettings();
     if (name === "budget.settings.update") {
@@ -2025,19 +2022,17 @@ export class Operations {
         "budget.stop",
         "budget.acknowledge",
         "budget.switchToStop",
-        "prices.save",
       ].includes(name)
     ) {
       if (context.caller || context.mcp)
         fail(
-          "Only a person changes a budget or the price table, in the Avoozl page or the CLI.",
+          "Only a person changes a budget, in the Avoozl page or the CLI.",
           403,
         );
       const by = context.local ? "cli" : this.operator || "dashboard",
         taskInput = input.taskId
           ? { ...input, taskId: resolveTaskId(this.read(), input.taskId) }
           : input;
-      if (name === "prices.save") return savePrices(store, input);
       if (name === "budget.raise") return raiseBudget(store, taskInput, { by });
       if (name === "budget.stop") return stopBudget(store, taskInput, { by });
       if (name === "budget.acknowledge")

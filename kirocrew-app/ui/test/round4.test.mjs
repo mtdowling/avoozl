@@ -32,7 +32,7 @@ test('lists page through the one hook and button, and a filter change resets the
   assert.match(controls, /const pages = state\.reset === reset \? state\.pages : \{\}/)
   assert.match(controls, /export function ShowMore/)
   for (const [name, ids] of [
-    ['DashboardView.tsx', ['flight', 'attention', 'next', 'recent', 'activity']],
+    ['DashboardView.tsx', ['flight', 'attention', 'next']],
     ['ConflictsView.tsx', ['conflicts']],
     ['TaskDrawer.tsx', ['timeline']],
   ])

@@ -1,6 +1,6 @@
 // A titled, bordered box of related fields: a native fieldset whose legend
 // is the title, so a screen reader names the group. Used by Settings ›
-// Budgets, Prices and Providers.
+// Budgets and Providers.
 import type { ReactNode } from 'react'
 
 export function FieldBox(props: { title: string; blurb?: string; children: ReactNode }) {

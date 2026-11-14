@@ -1,10 +1,8 @@
 // Per-task budgets and usage receipts (design §4.17, Requirement 67).
 //
 // Kiro Crew's usage read (flow-usage.mjs) stores each turn's raw tokens and
-// credits. This module prices them on read from a price table that lives
-// on this machine: Avoozl's built-in list prices (default-prices.mjs), with
-// this machine's own overrides in `~/.config/avoozl/config.json` key
-// `prices` (every saved version kept in SQLite `price_versions`). It resolves each task's cap
+// credits. This module prices them on read from Avoozl's built-in dated
+// price list (default-prices.mjs); there is no user price list. It resolves each task's cap
 // from four levels (workspace, repository, spec, task; the most specific key
 // wins), and acts at the cap. In `stop` mode nothing new is dispatched for
 // the task and each live session gets one stop message; in `warn` mode the
@@ -12,14 +10,11 @@
 // a session, and a budget never opens a gate: no check, review, approval or
 // proof reads this file.
 //
-// The driver export (§6.10, Phase 26) is not built yet; when it is, it must
-// leave `prices` and `price_versions` out like every machine-local setting.
 import { createHash, randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { canonical, fail } from "./store.mjs";
 import { contentBinding } from "./content-rules.mjs";
-import { machineFile, writeMachineFile } from "./crews.mjs";
 import { listUsage, turnStage } from "./flow-usage.mjs";
 import { DEFAULT_PRICES, defaultPrice } from "./default-prices.mjs";
 import { listSpans } from "./flow.mjs";
@@ -35,8 +30,6 @@ export const OVER_STEP = 0.5;
 export const MODES = Object.freeze(["stop", "warn"]);
 export const BUDGET_KEYS = Object.freeze(["usd", "tokens", "credits"]);
 const HOLDS = "budget_holds";
-const MODEL = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/;
-const MAX_MODELS = 500;
 const MAX_USD = 1_000_000;
 const STOP_TEXT =
   'Budget reached. Finish the tool call you are in, leave the worktree as it is, report `blocked` with the text "budget", and stop.';
@@ -85,21 +78,14 @@ export function budgetInput(value, at = "budget", { workspace = false } = {}) {
   return value;
 }
 
-const PRICES_HERE =
-  "Prices are kept on this computer only, in ~/.config/avoozl/config.json (Settings › Prices).";
-
-// The budget keys of a tracked `.avoozl.json` (R67.2, R67.5): `prices` is
-// refused by name; `budget` and `projects.<id>.budget` must be valid.
+// The budget keys of a tracked `.avoozl.json` (R67.2, R67.5): `budget` and
+// `projects.<id>.budget` must be valid. A saved `prices` key is ignored.
 export function validateTrackedBudgets(value, file = ".avoozl.json") {
   if (!record(value)) return;
-  if (value.prices !== undefined)
-    fail(`${file} cannot hold prices. ${PRICES_HERE}`);
   budgetInput(value.budget, "budget", { workspace: true });
   for (const [id, entry] of Object.entries(
     record(value.projects) ? value.projects : {},
   )) {
-    if (record(entry) && entry.prices !== undefined)
-      fail(`${file} projects.${id} cannot hold prices. ${PRICES_HERE}`);
     if (record(entry)) budgetInput(entry.budget, `projects.${id}.budget`);
   }
 }
@@ -107,173 +93,34 @@ export function validateTrackedBudgets(value, file = ".avoozl.json") {
 // A spec manifest's top level (R67.2, R67.5).
 export function validateManifestBudget(manifest) {
   if (!record(manifest)) return undefined;
-  if (manifest.prices !== undefined)
-    fail(`avoozl/manifest.json cannot hold prices. ${PRICES_HERE}`);
   return budgetInput(manifest.budget, "budget");
 }
 
-// This machine's price overrides (R67.2): {creditUsd?, models: {id:
-// {inputPerMTokUsd, outputPerMTokUsd}}}. A new table is empty; the built-in
-// prices apply until a model is overridden here.
-export function pricesInput(value) {
-  if (value === undefined || value === null) return { models: {} };
-  if (!record(value)) fail("prices must be an object.");
-  for (const key of Object.keys(value))
-    if (!["version", "creditUsd", "models"].includes(key))
-      fail(`prices.${key} is not a price setting.`);
-  const price = (n, at) => {
-    if (typeof n !== "number" || !Number.isFinite(n) || n < 0 || n > MAX_USD)
-      fail(`${at} must be a dollar amount of 0 or more.`);
-    return n;
-  };
-  const out = { models: {} };
-  if (value.creditUsd !== undefined && value.creditUsd !== null)
-    out.creditUsd = price(value.creditUsd, "prices.creditUsd");
-  const models = value.models ?? {};
-  if (!record(models)) fail("prices.models must be an object.");
-  if (Object.keys(models).length > MAX_MODELS)
-    fail(`prices.models holds at most ${MAX_MODELS} models.`);
-  for (const [id, entry] of Object.entries(models)) {
-    if (!MODEL.test(id)) fail(`prices.models.${id} is not a model ID.`);
-    if (!record(entry)) fail(`prices.models.${id} must be an object.`);
-    for (const key of Object.keys(entry))
-      if (!["inputPerMTokUsd", "outputPerMTokUsd"].includes(key))
-        fail(`prices.models.${id}.${key} is not a price setting.`);
-    out.models[id] = {
-      inputPerMTokUsd: price(
-        entry.inputPerMTokUsd,
-        `prices.models.${id}.inputPerMTokUsd`,
-      ),
-      outputPerMTokUsd: price(
-        entry.outputPerMTokUsd,
-        `prices.models.${id}.outputPerMTokUsd`,
-      ),
-    };
-  }
-  return out;
-}
-
 // ---------------------------------------------------------------------------
-// The price table and its versions.
-
-const machinePath = (store, options = {}) =>
-  options.machineFile ?? contentBinding(store)?.configFile ?? null;
-
-// The hash names the overrides and the built-in table's date, so a receipt
-// can tell which prices made its dollars.
-const tableHash = (table) =>
+// The price table: Avoozl's built-in dated list. `version` stays 0 and
+// `sha256` names the list's date, so a receipt can tell which prices made its
+// dollars. A saved `prices` key in an old settings file is never read.
+const tableHash = () =>
   createHash("sha256")
-    .update(
-      canonical({
-        creditUsd: table.creditUsd ?? null,
-        models: table.models,
-        defaults: DEFAULT_PRICES.updated,
-      }),
-    )
+    .update(canonical({ defaults: DEFAULT_PRICES.updated }))
     .digest("hex");
 
-function versionRow(store, version) {
-  const row = store.db
-    .prepare("SELECT * FROM price_versions WHERE version=?")
-    .get(version);
-  return row
-    ? {
-        version: row.version,
-        sha256: row.sha256,
-        savedAt: row.saved_at,
-        table: JSON.parse(row.table_json),
-      }
-    : null;
-}
-
-// The current table on this machine: {version, sha256, creditUsd, models
-// (the overrides), defaults (the built-in table), savedAt, hash}. A missing
-// file or key is no overrides, version 0. A broken override table prices
-// nothing and says why.
-export function readPrices(store, options = {}) {
-  const file = machinePath(store, options);
-  let value = {},
-    hash = null,
-    error = null;
-  if (file)
-    try {
-      ({ value, hash } = machineFile(file));
-    } catch (e) {
-      error = e.message;
-    }
-  let table = { models: {} };
-  try {
-    table = pricesInput(value?.prices);
-  } catch (e) {
-    error = e.message;
-  }
-  const version = Number.isInteger(value?.prices?.version)
-      ? value.prices.version
-      : 0,
-    sha256 = tableHash(table),
-    saved = version ? versionRow(store, version) : null;
+export function readPrices() {
   return {
-    version,
-    sha256,
-    ...table,
-    defaults: error ? null : DEFAULT_PRICES,
-    savedAt: saved?.sha256 === sha256 ? saved.savedAt : null,
-    hash,
-    file,
-    ...(error ? { error } : {}),
+    version: 0,
+    sha256: tableHash(),
+    models: {},
+    defaults: DEFAULT_PRICES,
   };
-}
-
-// prices.save (a person only): the next version, its sha256, and a row in
-// price_versions so an old receipt can name the prices it used (R67.3).
-export function savePrices(store, input = {}, options = {}) {
-  const file = machinePath(store, options);
-  if (!file) fail("This workspace has no machine settings file.", 409);
-  const table = pricesInput({
-    creditUsd: input.creditUsd,
-    models: input.models ?? {},
-  });
-  const current = readPrices(store, options),
-    last =
-      store.db.prepare("SELECT MAX(version) AS v FROM price_versions").get()
-        ?.v ?? 0,
-    version = Math.max(current.version, last) + 1,
-    sha256 = tableHash(table),
-    savedAt = new Date().toISOString();
-  const written = writeMachineFile(
-    file,
-    (value) => {
-      value.prices = { version, ...table };
-    },
-    input.expectedHash,
-  );
-  store.db
-    .prepare("INSERT INTO price_versions VALUES (?,?,?,?)")
-    .run(version, sha256, savedAt, JSON.stringify(table));
-  return { version, sha256, savedAt, ...table, hash: written.hash };
-}
-
-// A table by version: the current one, or a saved row.
-function tableAt(store, prices, version) {
-  if (version == null || version === prices.version) return prices;
-  const row = versionRow(store, version);
-  return row ? { version, sha256: row.sha256, ...row.table } : null;
 }
 
 // Dollars for one turn, or null when it cannot be priced (R67.4). A turn
-// Kiro Crew bills in credits is priced only by a credit price, so with none
-// it counts against the credit cap: a list price for its tokens is not what
-// it cost. Otherwise tokens at this machine's price for the model, then the
-// built-in one.
+// Kiro Crew bills in credits has no list price, so it counts against the
+// credit cap: a list price for its tokens is not what it cost. Otherwise
+// tokens at the built-in price for the model.
 export function priceTurn(turn, table) {
-  if (turn.credits > 0)
-    return typeof table.creditUsd === "number"
-      ? turn.credits * table.creditUsd
-      : null;
-  const model = turn.model
-    ? (table.models?.[turn.model] ??
-      (table.defaults ? defaultPrice(turn.model, table.defaults) : null))
-    : null;
+  if (turn.credits > 0) return null;
+  const model = turn.model ? defaultPrice(turn.model, table.defaults) : null;
   if (model && (turn.input > 0 || turn.output > 0))
     return (
       (turn.input * model.inputPerMTokUsd) / 1e6 +
@@ -1047,18 +894,10 @@ export function budgetReceipt(
     },
     raises: listRaises(store, task.id).map(
       ({ by, at, from, to, priceVersion }) => {
-        const then = tableAt(store, prices, priceVersion);
-        return {
-          by,
-          at,
-          from,
-          to,
-          priceVersion,
-          ...(then ? {} : { priceMissing: true }),
-        };
+        return { by, at, from, to, priceVersion };
       },
     ),
-    price: { version: prices.version, sha256: prices.sha256 },
+    price: { updated: DEFAULT_PRICES.updated, sha256: prices.sha256 },
     stops: (hold?.stops || []).map(({ slots, ...stop }) => stop),
     warning: {
       at80: sum.warning,
@@ -1123,54 +962,4 @@ export function retroReceipts(store, data, taskIds, options = {}) {
       overBudget: s.reached,
       mode: s.cap.mode,
     }));
-}
-
-// How Settings › Prices budgets one model: "override" (this machine's
-// price), "default" (the built-in price), "credits" (Kiro Crew bills it in
-// credits and there is no credit price) or "none" (no known price).
-export function pricedBy(model, prices, { credits = false } = {}) {
-  if (credits && typeof prices.creditUsd !== "number") return "credits";
-  if (prices.models?.[model]) return "override";
-  if (prices.defaults && defaultPrice(model, prices.defaults)) return "default";
-  return "none";
-}
-
-// Settings › Prices: the overrides and their version, the built-in table
-// with its date and sources, the workspace fallback caps, and the models
-// seen in usage, each with how it is budgeted.
-export function pricesView(store, options = {}) {
-  const prices = readPrices(store, options),
-    seen = new Map();
-  for (const turn of listUsage(store)) {
-    const id = turn.model || "unknown",
-      row = seen.get(id) || {
-        model: id,
-        turns: 0,
-        unpricedTurns: 0,
-        creditTurns: 0,
-      };
-    row.turns += 1;
-    if (priceTurn(turn, prices) === null) row.unpricedTurns += 1;
-    if (turn.credits > 0) row.creditTurns += 1;
-    seen.set(id, row);
-  }
-  const budget = trackedConfig(store).budget;
-  return {
-    version: prices.version,
-    sha256: prices.sha256,
-    savedAt: prices.savedAt,
-    hash: prices.hash,
-    creditUsd: prices.creditUsd ?? null,
-    models: prices.models,
-    defaults: prices.defaults,
-    caps: {
-      tokens: budget?.tokens ?? DEFAULT_CAPS.tokens,
-      credits: budget?.credits ?? DEFAULT_CAPS.credits,
-    },
-    seen: [...seen.values()].map((row) => ({
-      ...row,
-      priced: pricedBy(row.model, prices, { credits: row.creditTurns > 0 }),
-    })),
-    ...(prices.error ? { error: prices.error } : {}),
-  };
 }

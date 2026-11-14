@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import { principalAllows } from "../app-backend.mjs";
 import { budgetHeldTaskIds, budgetStep } from "../budget.mjs";
 import { workspaceConfig } from "../config.mjs";
+import { DEFAULT_PRICES } from "../default-prices.mjs";
 import { observeUsage } from "../flow-usage.mjs";
 import { retroBrief } from "../flow-retro.mjs";
 import { groupedCall } from "../mcp-tools.mjs";
@@ -77,10 +78,11 @@ class FakeCrew {
   }
 }
 
-// Each model's dollars per million tokens: model-a $1 in, $2 out (made up).
+// The priced model is a built-in one: $1 in and $5 out per million tokens.
+const MODEL_A = "claude-haiku-4.5";
 const turn = (
   ts,
-  { model = "model-a", input = 0, output = 0, credits = 0 } = {},
+  { model = MODEL_A, input = 0, output = 0, credits = 0 } = {},
 ) => ({
   ts,
   model,
@@ -201,11 +203,6 @@ test("P41: budgets cap a task in dollars, stop at the next turn, and never open 
       await observeUsage(store, reader);
       budgetStep(store, store.read());
     };
-  await ops.execute("prices.save", {
-    creditUsd: 0.01,
-    models: { "model-a": { inputPerMTokUsd: 1, outputPerMTokUsd: 2 } },
-  });
-
   // (1) Caps and their levels.
   const receipt = (id) => ops.execute("budget.receipt", { taskId: id });
   const caps = await Promise.all(["a1", "a2", "b1"].map(receipt));
@@ -222,16 +219,14 @@ test("P41: budgets cap a task in dollars, stop at the next turn, and never open 
 
   // (2) a1 spends $1.50, then $0.80 while a tool call runs.
   await bind(ops, store, "a1", "a1-w");
-  feed.set("a1-w", [
-    turn("2026-11-13T10:00:00Z", { input: 1e6, output: 2.5e5 }),
-  ]);
+  feed.set("a1-w", [turn("2026-11-13T10:00:00Z", { input: 1e6, output: 1e5 })]);
   await read();
   assert.equal(
     (await receipt("a1")).warning.at80,
     false,
     "75% is below the warning",
   );
-  feed.get("a1-w").push(turn("2026-11-13T10:01:00Z", { output: 4e5 }));
+  feed.get("a1-w").push(turn("2026-11-13T10:01:00Z", { output: 1.6e5 }));
   crew.busy.add("a1-w");
   await read();
   assert.ok(
@@ -317,7 +312,7 @@ test("P41: budgets cap a task in dollars, stop at the next turn, and never open 
       raised.raise.priceVersion,
       typeof raised.raise.by,
     ],
-    [{ usd: 2 }, { usd: 4 }, 1, "string"],
+    [{ usd: 2 }, { usd: 4 }, 0, "string"],
   );
   const goOn = await tick(ops, store, { "a1-w": "idle" });
   assert.deepEqual(
@@ -381,10 +376,6 @@ test("P41: budgets cap a task in dollars, stop at the next turn, and never open 
       output: 6e5,
     }),
   ]);
-  await ops.execute("prices.save", {
-    models: { "model-a": { inputPerMTokUsd: 1, outputPerMTokUsd: 2 } },
-    expectedHash: (await ops.execute("prices.get", {})).hash,
-  });
   await bind(ops, store, "a4", "a4-w");
   feed.set("a4-w", [
     turn("2026-11-13T12:01:00Z", { model: null, credits: 210 }),
@@ -410,11 +401,6 @@ test("P41: budgets cap a task in dollars, stop at the next turn, and never open 
       .length,
     0,
   );
-  await ops.execute("prices.save", {
-    creditUsd: 0.01,
-    models: { "model-a": { inputPerMTokUsd: 1, outputPerMTokUsd: 2 } },
-    expectedHash: (await ops.execute("prices.get", {})).hash,
-  });
 
   // (7) One batch, $9 of turns, an $8 sum cap; each task shows half.
   await bind(ops, store, "c1", "c-batch", {
@@ -468,21 +454,17 @@ test("P41: budgets cap a task in dollars, stop at the next turn, and never open 
     2,
   );
 
-  // (9) A new price version recomputes the receipt; the stop and raise keep
-  // the version that applied then.
-  const doubled = await ops.execute("prices.save", {
-    creditUsd: 0.01,
-    models: { "model-a": { inputPerMTokUsd: 2, outputPerMTokUsd: 4 } },
-    expectedHash: (await ops.execute("prices.get", {})).hash,
-  });
+  // (9) The receipt names the built-in price list by its date; the stop and
+  // the raise keep price version 0.
   a1 = await receipt("a1");
-  assert.equal(a1.totals.usd, 4.6);
+  assert.equal(a1.totals.usd, 2.3);
   assert.deepEqual(a1.price, {
-    version: doubled.version,
-    sha256: doubled.sha256,
+    updated: DEFAULT_PRICES.updated,
+    sha256: a1.price.sha256,
   });
-  assert.deepEqual([a1.stops[0].usd, a1.stops[0].priceVersion], [2.3, 1]);
-  assert.equal(a1.raises[0].priceVersion, 1);
+  assert.match(a1.price.sha256, /^[0-9a-f]{64}$/);
+  assert.deepEqual([a1.stops[0].usd, a1.stops[0].priceVersion], [2.3, 0]);
+  assert.equal(a1.raises[0].priceVersion, 0);
 
   // (10) The page, the CLI and MCP give one object; no prompt text.
   store.db.exec("PRAGMA wal_checkpoint(FULL)");
@@ -535,8 +517,8 @@ test("P41: budgets cap a task in dollars, stop at the next turn, and never open 
     brief.slice(brief.indexOf("```json") + 7, brief.lastIndexOf("```")),
   );
   const retroA1 = payload.receipts.find((r) => r.task === "a1");
-  assert.equal(retroA1.usd, 4.6);
-  assert.ok(retroA1.byStage.length && retroA1.byModel[0].model === "model-a");
+  assert.equal(retroA1.usd, 2.3);
+  assert.ok(retroA1.byStage.length && retroA1.byModel[0].model === MODEL_A);
 
   // (11) Stop pauses a2 like Deferred: its sessions and dependents wait.
   const before = JSON.stringify(
@@ -553,11 +535,11 @@ test("P41: budgets cap a task in dollars, stop at the next turn, and never open 
   const eleven = await tick(ops, store);
   assert.ok(!eleven.dispatch.some((d) => d.task === "a2" || d.task === "d2"));
 
-  // (12) Prices in .avoozl.json are refused by name; a budget opens no gate.
+  // (12) An old `prices` key in .avoozl.json is ignored, not an error; a
+  // budget opens no gate.
   writeTracked({ ...tracked, prices: { models: {} } });
-  const refused = await tick(ops, store);
-  assert.equal(refused.policy.status, "invalid");
-  assert.match(refused.policy.error, /cannot hold prices/);
+  const ignored = await tick(ops, store);
+  assert.notEqual(ignored.policy.status, "invalid");
   writeTracked(tracked);
   await ops.execute("budget.raise", { taskId: "b1", usd: 100 });
   store.put("session_bindings", {
@@ -588,7 +570,7 @@ test("P41: budgets cap a task in dollars, stop at the next turn, and never open 
 
   // (13) Warn mode: over budget, never stopped, no stop message.
   await bind(ops, store, "w1", "w1-w");
-  feed.set("w1-w", [turn("2026-11-13T16:00:00Z", { input: 1.25e6 })]);
+  feed.set("w1-w", [turn("2026-11-13T16:00:00Z", { input: 2.5e6 })]);
   await read();
   const thirteen = await tick(ops, store);
   assert.ok(!budgetHeldTaskIds(store).has("w1"));
