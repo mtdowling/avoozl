@@ -10,6 +10,7 @@ import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { Store } from "./store.mjs";
 import { Operations } from "./operations.mjs";
 import { driverSettingsPath } from "./driver.mjs";
+import { driverSessionFile } from "./driver-session.mjs";
 import { CLIENT_OPERATIONS } from "./client.mjs";
 import { classifyOperation } from "./operation-kinds.mjs";
 import { workspaceConfig } from "./config.mjs";
@@ -531,6 +532,7 @@ export function startAppBackend({
           sessionsReader,
           sessionStopper,
           driver: { settingsFile: driverSettingsPath() },
+          driverSessionFile: driverSessionFile(),
         }),
       };
       opened.set(target.dbPath, entry);

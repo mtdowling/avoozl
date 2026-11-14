@@ -926,6 +926,11 @@ export class Operations {
       // lessons store (design §4.18). Unset (most tests) leaves retros as
       // before Phase 28; the app, MCP server and CLI pass it.
       configDirectory = null,
+      // The machine's driver session record (driver-session.mjs). The CLI,
+      // app backend and app MCP server pass driverSessionFile(); without one
+      // nothing is recorded and the view is "none", so tests never write
+      // this machine's file.
+      driverSessionFile: driverFile = null,
       // Tests replace the shipped prompts to model an Avoozl update.
       shippedPrompts = null,
       // () => model IDs Kiro Crew lists, or null when unknown.
@@ -937,6 +942,7 @@ export class Operations {
     } = {},
   ) {
     this.store = store;
+    this.driverSessionFile = driverFile;
     // The plugin loader (plugins.mjs). It opens one plugin session per
     // tick, and runs nothing unless a plugin is declared and approved.
     this.plugins = plugins;
@@ -2634,16 +2640,30 @@ export class Operations {
       renameInstance(store, input.name);
       return instanceView(store);
     }
-    if (name === "driversession.view") return driverSessionView(store);
+    if (name === "driversession.view")
+      return this.driverSessionFile
+        ? driverSessionView({ file: this.driverSessionFile })
+        : driverSessionView({ file: null });
     if (name === "driversession.register") {
-      registerDriverSession(store, input);
-      return driverSessionView(store);
+      if (!this.driverSessionFile)
+        fail("This Avoozl process has no driver session record.");
+      registerDriverSession({
+        slot: input.slot,
+        source: input.source,
+        file: this.driverSessionFile,
+      });
+      return driverSessionView({ file: this.driverSessionFile });
     }
     if (name === "runner.next") {
       // A conductor's attested call is the driver session's heartbeat. Only a
       // gateway-attested caller counts; the model cannot name its own slot.
       const slot = callerSlot(context.caller);
-      if (slot) registerDriverSession(store, { slot, source: "next" });
+      if (slot && this.driverSessionFile)
+        registerDriverSession({
+          slot,
+          source: "next",
+          file: this.driverSessionFile,
+        });
       return nextView(store, {
         policy: readDeliveryPolicy(this.workspaceRoot),
         github: readGitHubPolicyOrNull(this.workspaceRoot),
