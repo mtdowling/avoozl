@@ -195,3 +195,23 @@ test('coming back after a while shows what finished and what is new, and Got it 
   await new Promise((resolve) => setTimeout(resolve, 300))
   assert.equal(await count('[data-since-recap]'), 0)
 })
+
+// The line's status and its Stop the line button share one row, on a wide
+// panel and on a 390 px phone, light and dark.
+for (const [width, height] of [[1280, 900], [390, 800]])
+  for (const theme of ['light', 'dark'])
+    test(`Line running and Stop the line sit on one row at ${width} px ${theme}`, { skip }, async () => {
+      await page.open(harness.url({ page: 'panel', theme, sid: 'chat-1' }), { width, height, dark: theme === 'dark' })
+      await page.until(`Boolean(document.querySelector('[data-panel-line] [data-stop-line]'))`)
+      const row = await page.evaluate(`(() => {
+        const line = document.querySelector('[data-panel-line]')
+        const badge = [...line.querySelectorAll('*')].find((el) => el.children.length === 0 && /^Line (running|stopped)$/.test(el.textContent.trim()))
+        const stop = line.querySelector('[data-stop-line]')
+        const a = badge.getBoundingClientRect(), b = stop.getBoundingClientRect()
+        return { badge: badge.textContent.trim(), stop: stop.textContent.trim(), overlap: Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top), right: b.right, width: innerWidth }
+      })()`)
+      assert.equal(row.badge, 'Line running')
+      assert.match(row.stop, /Stop the line/)
+      assert.ok(row.overlap > 0, `on one row (vertical overlap ${row.overlap} px)`)
+      assert.ok(row.right <= row.width, 'inside the panel')
+    })
