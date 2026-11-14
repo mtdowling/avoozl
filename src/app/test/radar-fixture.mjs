@@ -14,7 +14,7 @@ const NAMESPACE = "avz_testtesttesttest";
 export const COMMIT = "0123456789abcdef0123456789abcdef01234567";
 export const MARKER_LINE = /^<!-- avoozl v=1 .* -->$/m;
 
-export async function workspace(t, { mode, coder, blockTerm }) {
+export async function workspace(t, { mode, coder, blockTerm, radar }) {
   const { store } = fixture(t),
     github = new FakeGitHub(),
     root = temporaryDirectory();
@@ -29,7 +29,11 @@ export async function workspace(t, { mode, coder, blockTerm }) {
           ? { planningRepository: "example/planning" }
           : {}),
         repositories: {
-          "example/code": { baseBranch: "main", ...(coder ? { coder } : {}) },
+          "example/code": {
+            baseBranch: "main",
+            ...(coder ? { coder } : {}),
+            ...(radar ? { radar } : {}),
+          },
         },
       },
       ...(blockTerm ? { contentRules: { sets: [{ id: "names" }] } } : {}),

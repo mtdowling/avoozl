@@ -51,7 +51,7 @@ Requirement RC2. Spec to issues, in both modes, with batching and the preview. N
 - [x] rc-2.1 Plans-repo mode projects issues into the code repository, after rc-1.1 [RC2.2, RC2.3] (§D4.1)
   - Projection for `coder: issue-radar` writes issues in the code repository in both modes; closing by `Closes #N` or by Avoozl on merge; worker coder unchanged; `src/app/test/radar-coder-projection.test.mjs`.
   - Done when: With a fake GitHub, single-repo and plans-repo projections write issues only into the code repository; plans-repo with `coder: worker` still writes into the plans repository; closing works in both forms.
-- [ ] rc-2.2 Show the plans repository name in issues, a per-repository switch, after rc-2.1 [RC2.4] (§D4.1)
+- [x] rc-2.2 Show the plans repository name in issues, a per-repository switch, after rc-2.1 [RC2.4] (§D4.1)
   - `radar.showPlansRepo` (on for a private code repository, off for a public one); plans-repo projection to a public repository with it off is refused with the reason; content rules screen the name before the write.
   - Done when: A public code repository with the switch off is refused; turning it on writes the name after a content-rules pass; a private one writes it by default.
 - [x] rc-2.3 Batch planner for small ready tasks, after rc-1.1 [RC2.5] (§D4.2)
@@ -89,7 +89,7 @@ Requirement RC3. The approval becomes a commit a crew can read, and one command 
 - [ ] rc-3.5 The one-line Additional prompt, shipped verbatim, after rc-3.4 [RC3.7] (§D5.4)
   - The line of D5.4 as one constant used by Settings, the team pack and Set up; a test that compares the constant with the text in `design.md` and `AGENTS.md`-rule proposal.
   - Done when: A test fails if the constant, `design.md` D5.4 and the Set up text differ.
-- [ ] rc-3.6 Projection writes the marker, after rc-3.1, rc-2.1 [RC2.10, RC3.1] (§D5.1)
+- [x] rc-3.6 Projection writes the marker, after rc-3.1, rc-2.1 [RC2.10, RC3.1] (§D5.1)
   - Every projected issue body gets the provenance marker after the managed marker; `plans=` only when allowed; screened by content rules.
   - Done when: Both modes write a valid marker that `verify-issue` accepts against a fake GitHub; a private name in any value is refused.
 - [ ] rc-p3 Proof 3: a real crew verifies, and each bad issue is refused, after rc-3.2, rc-3.4, rc-3.5, rc-3.6 [RC3] (§D17)
