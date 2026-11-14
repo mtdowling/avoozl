@@ -98,7 +98,18 @@ import { claimsView, refreshClaims } from "./radar-claims.mjs";
 import { mergePath, requireMergePath } from "./radar-merge-path.mjs";
 import { radarSetup } from "./radar-setup.mjs";
 import { radarReread, radarValues } from "./radar-values.mjs";
+import { armedPullRequests, disarmPullRequest } from "./radar-arm.mjs";
+import { preflight, requirePreflight } from "./radar-preflight.mjs";
+import {
+  approvalLabelStep,
+  approvalNeedsYou,
+  claimParent,
+  releaseClaims,
+  writeBackApproval,
+} from "./approval-label.mjs";
+import { planSource } from "./radar-source.mjs";
 import { releaseQueue, releaseStep } from "./radar-coder-queue.mjs";
+import { isRadarRepository } from "./radar-coder-release.mjs";
 import {
   checkIntegrationBranch,
   requireIntegrationBranch,
@@ -439,6 +450,7 @@ import {
   specEpic,
 } from "./spec-plans.mjs";
 import {
+  approvalState,
   openApproval,
   proseFiles,
   reconcileApproval,
@@ -1480,6 +1492,86 @@ export class Operations {
         decisionRecord: target.decisionRecord,
       });
     return { pending: state };
+  }
+  // The Create and release preflight (RC2.9) for a plan's repository, or null
+  // when that repository is not coded by Issue Radar.
+  async radarPreflight(plan, repository) {
+    const policy = readGitHubPolicyOrNull(this.workspaceRoot),
+      entry = policy?.repositories?.[repository];
+    if (!entry || !isRadarRepository(entry, policy.mode)) return null;
+    const delivery = readDeliveryPolicy(this.workspaceRoot).delivery || {};
+    return preflight({
+      store: this.store,
+      plan,
+      repository,
+      approved: this.planApproved(plan),
+      decisionRecord: entry.approval?.decisionRecord === true,
+      mergePath: (await this.mergePaths(repository))[0],
+      delivery,
+    });
+  }
+  // After an approval: write it back to the source issue unless the label
+  // itself approved it, and claim the parent (RC18.4, RC19.1). Best effort:
+  // the approval stands whatever GitHub says.
+  async afterApproval(plan, { approver, commit, viaLabel }) {
+    const policy = readGitHubPolicyOrNull(this.workspaceRoot);
+    if (!policy?.mode || !this.github?.available?.()) return;
+    const shared = {
+      store: this.store,
+      github: this.github,
+      policy,
+      identity: planningIdentity(this.workspaceRoot),
+      plan,
+    };
+    try {
+      if (!viaLabel) await writeBackApproval({ ...shared, approver, commit });
+      await claimParent(shared);
+    } catch {
+      // Nothing here may undo an approval.
+    }
+  }
+  // The tick's pass over approval labels and Avoozl's own claims (RC18.2, RC19.5).
+  async approvalTick() {
+    const policy = readGitHubPolicyOrNull(this.workspaceRoot);
+    if (!policy?.mode || !this.github?.available?.()) return;
+    const identity = planningIdentity(this.workspaceRoot),
+      plans = this.store.list("plans"),
+      drafts = plans
+        .filter(
+          (plan) =>
+            plan.spec &&
+            !plan.archivedAt &&
+            !this.planApproved(plan) &&
+            planSource(plan, identity),
+        )
+        .map((plan) => ({
+          plan,
+          errors: this.lintSpecPlan(plan, [], {
+            content: false,
+          }).diagnostics.filter((diagnostic) => diagnostic.severity === "error")
+            .length,
+        }));
+    await approvalLabelStep({
+      store: this.store,
+      github: this.github,
+      policy,
+      identity,
+      drafts,
+      approve: (plan, login) =>
+        this.perform("plan.approve", {
+          id: plan.id,
+          expectedHash: plan.hash,
+          approvedBy: login,
+          expectedRevision: this.store.read().revision,
+          via: "label",
+        }),
+    });
+    await releaseClaims({
+      store: this.store,
+      github: this.github,
+      policy,
+      plans: new Map(plans.map((plan) => [plan.id, plan])),
+    });
   }
   // Whether a plan's current text is the one last approved.
   planApproved(plan) {
@@ -2533,6 +2625,8 @@ export class Operations {
         placement: this.placement,
         issueVerify: this.issueVerifier,
       });
+      if (Array.isArray(input.sessions) || input.cron === true)
+        await this.approvalTick().catch(() => {});
       // A deleted plan's tasks whose chats have ended are archived now.
       archiveEnded(store);
       // New plan folders that lint clean become draft plans (never approved).
@@ -2724,6 +2818,7 @@ export class Operations {
       // Remote tasks waiting on the person's turn in the relay (R41.20).
       view.items.push(...relayNeedsYou(store));
       view.items.push(...mergeNeedsYou(store));
+      view.items.push(...approvalNeedsYou(store));
       view.items.push(...syncNeedsYou(store));
       view.items.push(
         ...radarNeedsYou(
@@ -2951,6 +3046,22 @@ export class Operations {
       return releaseStep(store, input, {
         by: context.local ? "cli" : "dashboard",
       });
+    }
+    // Pull requests Avoozl armed that are still open, and the person-only
+    // Disarm (RC5.4).
+    if (name === "radar.armed")
+      return this.github?.available?.()
+        ? armedPullRequests(store, this.github)
+        : { pullRequests: [] };
+    if (name === "radar.disarm") {
+      if (context.caller || context.mcp)
+        fail("Only a person disarms auto-merge, in the Avoozl page.", 403);
+      return disarmPullRequest(store, this.github, input);
+    }
+    if (name === "radar.preflight") {
+      const plan = store.get("plans", input.planId);
+      if (!plan) fail("Plan not found.", 404);
+      return { preflight: await this.radarPreflight(plan, input.repository) };
     }
     if (name.startsWith("quickgoal.")) {
       if (context.caller || context.mcp)
@@ -4618,7 +4729,7 @@ export class Operations {
           evidence = evidence || `Approval merged at ${gate.merged.commit}.`;
         }
       }
-      return approvePlan(store, {
+      const approved = approvePlan(store, {
         ...input,
         evidence,
         githubPolicy: this.githubPolicy(),
@@ -4628,6 +4739,14 @@ export class Operations {
         operator: input.operator || this.operator,
         expectedRevision: input.expectedRevision ?? expectedRevision,
       });
+      // One approval record; the issue hears of it once (RC18.4, RC18.5).
+      if (plan.spec && !extraction && !approved.existing)
+        await this.afterApproval(plan, {
+          approver,
+          commit: approvalState(store, plan.id, plan.hash)?.commit,
+          viaLabel: input.via === "label",
+        });
+      return approved;
     }
     if (name === "plan.extract.get")
       return getExtraction(store, input.id || input.extractionId);
@@ -5016,8 +5135,19 @@ export class Operations {
       });
     // Create and release (RC5.1): refused for auto-merge until the merge
     // path is ready. `release` is set only by that action.
-    if (name === "github.project" && input.release === true)
+    if (name === "github.project" && input.release === true) {
       requireMergePath(await this.mergePaths(input.repository));
+      const plan = store.get("plans", input.planId),
+        configured = store.list("github_repositories"),
+        repository =
+          input.repository ||
+          (configured.length === 1 ? configured[0].id : undefined),
+        checked =
+          plan && repository
+            ? await this.radarPreflight(plan, repository)
+            : null;
+      if (checked) requirePreflight(checked);
+    }
     if (name === "github.project")
       return this.withProjectSync(
         await projectPlanIssues(store, this.github, {
@@ -5045,6 +5175,9 @@ export class Operations {
         repository =
           input.repository ||
           (configured.length === 1 ? configured[0].id : undefined);
+      const checks = await this.radarPreflight(plan, repository),
+        withChecks = (value) =>
+          checks ? { ...value, preflight: checks } : value;
       const projection = (target) =>
         previewProjection(target, this.github, {
           planId: plan.id,
@@ -5064,20 +5197,20 @@ export class Operations {
           complete: (status) => statusComplete(target.read(), status),
         }).batches.map((batch) => batch.tasks);
       if (plan.state === "approved")
-        return {
+        return withChecks({
           ...(await projection(store)),
           simulated: false,
           suggestedBatches: suggested(store),
-        };
+        });
       const quality = this.lintSpecPlan(plan, [], { content: false }),
         blocking = quality.diagnostics.filter((d) => d.severity === "error");
       if (blocking.length)
-        return {
+        return withChecks({
           planId: plan.id,
           writes: [],
           blocked: blocking,
           simulated: true,
-        };
+        });
       const scratch = store.scratch();
       try {
         approvePlan(scratch, {
@@ -5090,11 +5223,11 @@ export class Operations {
           approvedBy: this.operator,
           operator: this.operator,
         });
-        return {
+        return withChecks({
           ...(await projection(scratch)),
           simulated: true,
           suggestedBatches: suggested(scratch),
-        };
+        });
       } finally {
         scratch.close();
       }

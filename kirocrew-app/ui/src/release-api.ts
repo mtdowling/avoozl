@@ -64,6 +64,12 @@ export interface QueueRepository {
   steps: QueueStep[]
 }
 
+export interface ArmedPull {
+  repository: string
+  number: number
+  armedAt: string
+}
+
 export interface ReleaseQueue {
   repositories: QueueRepository[]
 }
@@ -75,6 +81,9 @@ export function releaseClient(api: AppApi) {
   }
   return {
     queue: (workspaceId: string) => run<ReleaseQueue>('radar.releasequeue', {}, workspaceId),
+    // Pull requests Avoozl armed that are still open, and the person-only Disarm (RC5.4).
+    armed: (workspaceId: string) => run<{ pullRequests: ArmedPull[] }>('radar.armed', {}, workspaceId),
+    disarm: (workspaceId: string, repository: string, pullRequest: number) => run<unknown>('radar.disarm', { repository, pullRequest }, workspaceId),
     // One click releases the next phase of a spec that has none yet.
     step: (workspaceId: string, planId: string) => run<{ planId: string; phase: string; title: string }>('radar.releasestep', { planId }, workspaceId),
   }

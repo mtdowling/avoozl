@@ -7,6 +7,7 @@ import { isManual, taskKind } from "../work-model.mjs";
 import { fail } from "./store.mjs";
 import { graphOrder } from "./delivery.mjs";
 import { openStops, stopScope } from "./flow.mjs";
+import { PUBLIC_HELD, publicHold } from "./public-signoff.mjs";
 import { pausedTaskIds } from "./github-project.mjs";
 import { phaseHeldTasks, stoppedTasks } from "./github-projection.mjs";
 import {
@@ -122,6 +123,9 @@ export function releaseQueue(store, identity) {
     } else if (task.dispatch?.ready) {
       state = "released";
       reason = "Ready label is on. A crew has not claimed it yet.";
+    } else if (publicHold(store, id)) {
+      state = "held";
+      reason = PUBLIC_HELD;
     } else if (release.mode === "hold") {
       state = "held";
       reason =

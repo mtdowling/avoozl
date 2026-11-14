@@ -338,6 +338,14 @@ const tools = {
         "radar.mergepath",
         "can crew pull requests merge by themselves",
       ],
+      preflight: [
+        "radar.preflight",
+        "the Create and release checks for a spec: approval, decision record, merge path, crew label scope, public sign-off",
+      ],
+      armed: [
+        "radar.armed",
+        "pull requests Avoozl armed for auto-merge that are still open",
+      ],
       release_queue: [
         "radar.releasequeue",
         "what is released, claimed, next or held, and why",

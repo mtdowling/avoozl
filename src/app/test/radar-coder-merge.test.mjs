@@ -10,7 +10,7 @@ import { renderMarker } from "../github-marker.mjs";
 import { renderProvenance } from "../github-provenance.mjs";
 import { machineIdentity } from "../github-sync.mjs";
 import { Operations } from "../operations.mjs";
-import { fixture } from "./fixtures.mjs";
+import { fixture, snapshot } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
 process.env.XDG_CONFIG_HOME = temporaryDirectory("avoozl-xdg-");
@@ -43,6 +43,7 @@ class MergeGitHub {
     this.pulls = new Map();
     this.closes = new Map();
     this.armed = [];
+    this.disarmed = [];
     this.calls = [];
   }
   available() {
@@ -130,6 +131,17 @@ class MergeGitHub {
   }
   armAutoMerge(_repository, nodeId, method) {
     this.armed.push([nodeId, method]);
+    this.pulls.get(Number(nodeId.slice(3))).auto_merge = {
+      merge_method: "merge",
+    };
+    return Promise.resolve({});
+  }
+  pullRequest(_repository, number) {
+    return Promise.resolve(structuredClone(this.pulls.get(number)));
+  }
+  disarmAutoMerge(_repository, nodeId) {
+    this.disarmed.push(nodeId);
+    this.pulls.get(Number(nodeId.slice(3))).auto_merge = null;
     return Promise.resolve({});
   }
 }
@@ -173,6 +185,7 @@ function setup(t, { ship = "auto-merge" } = {}) {
     repo: "code",
     projectId: "code",
     activeMachine: machineIdentity(store).id,
+    private: true,
   });
   const issueVerifier = (reference) => {
     verified.push(reference);
@@ -304,4 +317,88 @@ test("nothing is armed while the merge path is not ready", async (t) => {
   github.closes.set(6, [16]);
   await tick();
   assert.deepEqual(github.armed, []);
+});
+
+// rc-5.4: Stop the line stops arming, and Disarm is a person's.
+const task = (id) => ({
+  id,
+  title: "Task " + id,
+  kind: "leaf",
+  scope: "catalog",
+  status: "planned",
+  epic: "sample",
+  track: "catalog",
+  tags: [],
+  acceptance: ["Works."],
+  repository: "code",
+});
+
+test("a stop keeps a new pull request unarmed until it is resumed", async (t) => {
+  const { github, store, tick } = setup(t);
+  store.importSnapshot({ ...snapshot(), tasks: [task("rc-x")], edges: [] });
+  github.addIssue(6, MARKED);
+  github.addPull(16);
+  github.closes.set(6, [16]);
+  const ops = new Operations(store, { github, workspaceRoot: "/nope" });
+  const { stop } = await ops.execute("flow.stop", {
+    scope: "all",
+    reason: "bad",
+  });
+  for (let round = 0; round < 3; round += 1) await tick();
+  assert.deepEqual(github.armed, []);
+  await ops.execute("flow.resume", { stopId: stop.id });
+  await tick();
+  assert.deepEqual(github.armed, [["PR_16", "MERGE"]]);
+});
+
+test("Disarm turns auto-merge off for a person, is refused for an agent, and the tick does not arm again", async (t) => {
+  const { github, store, tick } = setup(t);
+  github.addIssue(6, MARKED);
+  github.addPull(16);
+  github.closes.set(6, [16]);
+  await tick();
+  const ops = new Operations(store, { github, workspaceRoot: "/nope" });
+  assert.deepEqual(
+    (await ops.execute("radar.armed", {})).pullRequests.map((p) => [
+      p.repository,
+      p.number,
+    ]),
+    [[REPO, 16]],
+  );
+  const input = { repository: REPO, pullRequest: 16 };
+  await assert.rejects(
+    ops.execute("radar.disarm", input, undefined, { mcp: true }),
+    /person/,
+  );
+  await assert.rejects(
+    ops.execute("radar.disarm", input, undefined, { caller: "s" }),
+    /person/,
+  );
+  assert.deepEqual(github.disarmed, []);
+  await ops.execute("radar.disarm", input);
+  assert.deepEqual(github.disarmed, ["PR_16"]);
+  assert.deepEqual((await ops.execute("radar.armed", {})).pullRequests, []);
+  await tick();
+  await tick();
+  assert.equal(github.armed.length, 1);
+  await assert.rejects(
+    ops.execute("radar.disarm", { repository: REPO, pullRequest: 99 }),
+    /did not arm/,
+  );
+});
+
+test("a public repository is not armed until its sign-off is complete", async (t) => {
+  const { github, store, tick } = setup(t);
+  store.put("github_repositories", {
+    ...store.get("github_repositories", REPO),
+    private: false,
+  });
+  github.addIssue(6, MARKED);
+  github.addPull(16);
+  github.closes.set(6, [16]);
+  await tick();
+  assert.deepEqual(github.armed, []);
+  store.setMeta("publicSignoff", { [REPO]: { complete: true } });
+  await tick();
+  assert.deepEqual(github.armed, [["PR_16", "MERGE"]]);
 });
