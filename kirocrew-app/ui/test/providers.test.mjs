@@ -49,16 +49,18 @@ test('switch records say what happened', () => {
   assert.equal(switchText({ ...base, to: null, state: 'done', result: 'no target' }), 'a: no healthy model to switch to')
 })
 
-test('Switch model and Stop the line sit once each in the top row; providers show in Settings › Routing', () => {
+test('Switch model and Stop the line sit once each in the header actions row, not the tab row; providers show in Settings › Routing', () => {
   const app = source('App.tsx'),
     dashboard = source('DashboardView.tsx')
-  // Both buttons live in the header, after Plan a goal; the tab row holds only tabs.
-  const header = app.slice(app.indexOf('<PageHeader'), app.indexOf('data-top-row'))
-  const tabRow = app.slice(app.indexOf('data-top-row'), app.indexOf('<DemoBar />'))
-  assert.ok(header.indexOf('Plan a goal') < header.indexOf('<SwitchModelButton'), 'after Plan a goal')
-  assert.ok(header.indexOf('<SwitchModelButton') < header.indexOf('<StopLineButton'), 'Stop the line goes last')
-  assert.doesNotMatch(tabRow, /<SwitchModelButton|<StopLineButton|data-top-actions/, 'not in the tab row')
+  const header = app.slice(app.indexOf('<PageHeader'), app.indexOf('data-top-row')),
+    tabs = app.slice(app.indexOf('data-top-row'), app.indexOf('<DemoBar'))
+  for (const part of ['<WorkspacePicker', 'Plan a goal', '<SwitchModelButton', '<StopLineButton'])
+    assert.ok(header.includes(part), `${part} is in the header actions`)
+  const order = ['<WorkspacePicker', 'Plan a goal', '<SwitchModelButton', '<StopLineButton'].map((part) => header.indexOf(part))
+  assert.deepEqual(order, [...order].sort((a, b) => a - b), 'picker, Plan a goal, Switch model, Stop the line last')
   assert.doesNotMatch(header, /<StartDemoButton|<DriverSummary/, 'no demo button or driver badge in the header')
+  assert.doesNotMatch(tabs, /<SwitchModelButton|<StopLineButton|data-top-actions/, 'the tab row keeps only the tabs')
+  assert.match(tabs, /<SegmentedControl/)
   for (const file of ['DashboardView.tsx', 'FlowView.tsx', 'DeliveryView.tsx', 'SettingsView.tsx'])
     assert.doesNotMatch(source(file), /<SwitchModelButton|<StopLineButton/, `${file} has its own copy`)
   assert.equal(app.match(/<SwitchModelButton/g).length, 1)
