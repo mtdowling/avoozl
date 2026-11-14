@@ -272,6 +272,8 @@ export function IdeasList(props: { workspaceId: string; ideas: Idea[]; narrow: b
       <p className="text-xs text-muted">Rough ideas from you and your agents. An idea never starts work. Riff on one in a chat, then make it a spec when it is ready.</p>
       <div>
         <SegmentedControl
+          collapse={false}
+          wrap="hug"
           layoutId="avoozl-ideas-state"
           ariaLabel="Ideas to show"
           segments={IDEA_STATES.map((entry) => ({ key: entry.key, label: `${entry.label} (${ideasOf(ideas, entry.key).length})` }))}
