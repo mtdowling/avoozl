@@ -167,7 +167,7 @@ test("P29 action 2: one call places every ready task among the options that pass
   );
 });
 
-test("P29 action 4: a malformed or missing reply falls back to local, logged", async (t) => {
+test("P29 action 4: a bad or missing reply holds the task, never runs it locally", async (t) => {
   let clock = Date.now();
   const run = async (reply) => {
     const env = await workspace(t, { machine: PROMPT, ids: ["w1"] });
@@ -179,23 +179,52 @@ test("P29 action 4: a malformed or missing reply falls back to local, logged", a
     });
     assert.equal(routerDispatch(await crew.tick()).length, 1);
     if (reply === "silent") clock += 91_000;
-    else recordRouterReply(env.store, routerBatch(env.store).id, reply);
-    const next = (await crew.tick()).dispatch.find((d) => d.role === "worker");
-    return { env, next };
+    else
+      recordRouterReply(env.store, routerBatch(env.store).id, reply, {
+        now: clock,
+      });
+    const next = await crew.tick();
+    return { env, crew, next };
   };
   const silent = await run("silent");
-  assert.equal(silent.next.crew, undefined);
-  assert.match(
-    silent.next.placement.reason,
-    /fell back to local \(no reply within 90 s\)/,
+  assert.deepEqual(
+    silent.next.dispatch.filter((d) => d.role === "worker"),
+    [],
+    "no local run after a timeout",
   );
   const malformed = await run("not json");
-  assert.match(malformed.next.placement.reason, /the reply was not a list/);
-  assert.ok(
-    listActivity(malformed.env.store).items.some(
-      (r) => r.kind === "routing.fallback",
-    ),
+  assert.deepEqual(
+    malformed.next.dispatch.filter((d) => d.role === "worker"),
+    [],
+    "no local run after a bad reply",
   );
+  const { env } = malformed;
+  const rows = listActivity(env.store).items;
+  assert.ok(rows.some((r) => r.kind === "routing.failed"));
+  // The task stays Ready, marked, and Settings › Routing shows the error.
+  const graph = await env.ops.execute("graph.view", {});
+  const mark = graph.tasks.find((x) => x.id === env.id.w1);
+  assert.equal(mark.state, "ready");
+  assert.match(mark.routingFailed.why, /routing failed: .*not a list/);
+  const view = await env.ops.execute("routing.view", {});
+  assert.equal(view.health.failures, 1);
+  assert.match(view.health.lastError, /not a list/);
+  // The routing chat ended with its reply, as the cron's observer sees it.
+  await env.ops.execute("workspace.tick", {
+    sessions: env.store
+      .list("session_bindings")
+      .filter((b) => b.role === "router")
+      .map((b) => ({ target: b.slot, status: "closed" })),
+  });
+  // Inside the backoff nothing asks again; Retry now asks on the next tick.
+  assert.deepEqual(routerDispatch(await malformed.crew.tick()), []);
+  await env.ops.execute("routing.retry", {});
+  assert.equal(routerDispatch(await malformed.crew.tick()).length, 1);
+  // Only turning routing off runs the task here.
+  await env.ops.execute("routing.turnOff", {});
+  const off = await malformed.crew.tick();
+  assert.ok(off.dispatch.some((d) => d.role === "worker" && !d.crew));
+  assert.equal((await env.ops.execute("routing.view", {})).health.failures, 0);
 });
 
 test("P29 actions 6 and 11: the prompt or old routing keys in a tracked file are refused", async (t) => {

@@ -21,6 +21,7 @@ import {
   routingFacts,
 } from "./routing.mjs";
 import { expireRouter, openRouter, spendRouter } from "./router.mjs";
+import { setRoutingMarks } from "./routing-health.mjs";
 import { dropQueued, relayHeldTasks, relayStep } from "./relay.mjs";
 import path from "node:path";
 import { createHash } from "node:crypto";
@@ -1062,6 +1063,23 @@ export async function tick(
       if (router) ready.push({ ...router, project: false });
       // No fit (R41.8): one decision per task; it closes when the task fits.
       for (const id of fits) closeNoFit(store, id);
+      // Marks for tasks routing holds, shown on each task (routing-health.mjs).
+      if (routing && script)
+        setRoutingMarks(
+          store,
+          Object.fromEntries(
+            waits
+              .filter(
+                ({ result }) =>
+                  result.routingFailed ||
+                  (result.noFit && routing.config.enabled),
+              )
+              .map(({ task, result }) => [
+                task.id,
+                { why: result.why, retryAt: result.retryAt ?? null },
+              ]),
+          ),
+        );
       for (const { task, result } of waits)
         if (result.noFit)
           planned.notify.push(...openNoFit(store, task, result, { script }));

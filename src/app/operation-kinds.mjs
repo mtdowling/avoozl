@@ -223,6 +223,8 @@ const PROTECT = new Set([
   "driver.away.decide",
   "routing.update",
   "relay.forget",
+  "routing.retry",
+  "routing.turnOff",
   "crews.update",
   "provider.switch",
   "provider.switch.dryRun",

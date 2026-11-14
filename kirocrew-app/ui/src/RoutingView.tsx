@@ -23,6 +23,7 @@ import {
   DEFAULT_STALE_SECONDS,
   MC10_LINE,
   OFF_LINE,
+  OUTDATED_LINE,
   PROMPT_LIMIT,
   RELAY_AGENT,
   RELAY_CATCHES,
@@ -30,7 +31,10 @@ import {
   chatPlaceholder,
   checkText,
   crewMap,
+  healthLines,
   insertExample,
+  isCurrentView,
+  isUnknownOperation,
   levelText,
   optionText,
   readingText,
@@ -132,7 +136,7 @@ function PromptSection(props: { view: View; workspaceId: string; onSaved: () => 
         <input type="checkbox" role="switch" aria-checked={on} checked={on} onChange={(e) => setOn(e.target.checked)} />
         <span className="font-medium">On</span>
         <Marker rule={OPTIONAL} />
-        <span className="text-xs text-muted">{on ? 'One call each tick ranks every ready task. A bad or missing reply falls back to local.' : OFF_LINE}</span>
+        <span className="text-xs text-muted">{on ? 'One call each tick ranks every ready task. If routing fails, tasks wait and retry; they never run here instead.' : OFF_LINE}</span>
       </label>
       {!props.view.switchedOn && (
         <AskForHelp
@@ -189,9 +193,14 @@ function PromptSection(props: { view: View; workspaceId: string; onSaved: () => 
       </div>
       {call && (
         <p className="text-xs text-muted" data-last-call>
-          Last call {call.id}: {call.tasks} task{call.tasks === 1 ? '' : 's'}, {call.state === 'fallback' || (call.state === 'used' && call.why) ? `fell back to local (${call.why})` : call.state}.
+          Last call {call.id}: {call.tasks} task{call.tasks === 1 ? '' : 's'}, {call.why ? `failed (${call.why})` : call.state}.
         </p>
       )}
+      {healthLines(props.view.health, props.view.enabled).map((line) => (
+        <p key={line} className="text-xs" style={line.startsWith('Ready tasks wait') ? needsYou : undefined} data-routing-health>
+          {line}
+        </p>
+      ))}
     </Section>
   )
 }
@@ -622,7 +631,11 @@ export default function RoutingView({ workspaceId: given }: { workspaceId: strin
   const api = useAppApi()
   const client = useMemo(() => routingClient(api), [api])
   const load = useCallback((id: string) => client.view(id), [client])
-  const { value, error, reload } = useRead<View>(given, load)
+  const { value: read, error: refused, reload } = useRead<View>(given, load)
+  // An older backend sends another shape, or has no routing.view at all.
+  const outdated = (read !== null && read !== undefined && !isCurrentView(read)) || isUnknownOperation(refused)
+  const value = outdated ? null : read
+  const error = outdated ? OUTDATED_LINE : refused
   const saved = async () => {
     await reload()
   }

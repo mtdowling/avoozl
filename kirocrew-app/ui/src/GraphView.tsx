@@ -195,7 +195,13 @@ function Details(props: { task: GraphTask; neighbors: ReturnType<typeof neighbor
           {task.review && <Badge>review</Badge>}
           {task.planArchived && <Badge>Archived</Badge>}
           {task.handSetReview && <Badge variant="warning">set by hand</Badge>}
+          {task.routingFailed && <Badge variant="warning">routing failed</Badge>}
         </div>
+        {task.routingFailed && (
+          <p className="mt-1 text-sm" data-routing-failed-task>
+            {task.routingFailed.why}. It waits and is tried again; it never runs on this machine instead.
+          </p>
+        )}
         {task.handSetReview && (
           <p className="mt-1 text-sm" data-hand-set-review>
             {noSessionLabel(task.noSession)}.{task.nextAction ? ` Next: ${task.nextAction}` : ''} All details has Discuss, Mark done and Back to planned.

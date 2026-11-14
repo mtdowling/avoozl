@@ -40,6 +40,7 @@ import {
   routerBatch,
   routerBrief,
 } from "./router.mjs";
+import { clearRoutingHealth, routingHealth } from "./routing-health.mjs";
 import { relayActive, relayQueuedByCrew, relayView } from "./relay.mjs";
 import { listSessionBindings } from "./session-bindings.mjs";
 import { taskRepository } from "../work-model.mjs";
@@ -363,18 +364,18 @@ export function placeOne(store, data, ctx, state, input) {
     if (answer.pick) {
       pick = { crew: answer.pick.crew, model: answer.pick.model };
       reason = `routing agent: ${answer.pick.reason}`;
-    } else {
-      pick = fallbackPick(options, checks);
-      if (!pick)
-        return {
-          wait: true,
-          noFit: false,
-          why: `routing fell back to local (${answer.fallback}), and local is not an option`,
-          removed,
-          checks,
-        };
-      reason = `fell back to local (${answer.fallback})`;
-    }
+    } else
+      // Routing is on and failed for this task: it waits, marked. It never
+      // runs on this machine in the router's place.
+      return {
+        wait: true,
+        noFit: false,
+        routingFailed: true,
+        retryAt: answer.retryAt ?? null,
+        why: `routing failed: ${answer.failed}`,
+        removed,
+        checks,
+      };
   } else {
     pick = fallbackPick(options, checks) ?? options[0];
     reason = ctx.config.enabled
@@ -405,7 +406,9 @@ export function placeOne(store, data, ctx, state, input) {
   };
 }
 
-// Local on the kept or default model, else local on any model that passed.
+// With routing off, or for a check or review session (which runs where the
+// commit is): local on the kept or default model, else local on any model
+// that passed.
 function fallbackPick(options, checks) {
   const local = options.filter((o) => o.crew === LOCAL);
   return (
@@ -722,6 +725,20 @@ export function routingView(store, data, options = {}) {
         }
       : null,
     noFit: openNoFits(store),
+    // Last success, last error and failures in a row (R41.7).
+    health: (({
+      failures,
+      lastSuccessAt,
+      lastError,
+      lastErrorAt,
+      retryAt,
+    }) => ({
+      failures,
+      lastSuccessAt,
+      lastError,
+      lastErrorAt,
+      retryAt: retryAt ? new Date(retryAt).toISOString() : null,
+    }))(routingHealth(store)),
   };
 }
 
@@ -871,6 +888,18 @@ export function updateRouting(settings, store, input = {}, options = {}) {
     },
     input.expectedHash,
   );
+}
+
+// Turn routing off from Needs you: the saved prompt stays, the switch goes
+// off, and the failure count clears. Tasks then run on this machine.
+export function turnRoutingOff(store, options = {}) {
+  const file = machinePath(store, options);
+  if (!file) fail("This workspace has no machine settings file.", 409);
+  const result = writeMachineFile(file, (value) => {
+    if (value.routing) value.routing = { ...value.routing, enabled: false };
+  });
+  clearRoutingHealth(store);
+  return { hash: result.hash };
 }
 
 export function updateCrews(store, input = {}, options = {}) {

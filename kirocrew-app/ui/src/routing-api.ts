@@ -83,6 +83,55 @@ export interface RoutingView {
   configHash: string | null
   lastCall: { id: string; state: string; tasks: number; why: string | null; openedAt: string; finishedAt: string | null } | null
   noFit: { taskId: string; why: string; text: string }[]
+  // Whether routing works (R41.7). Older backends omit it.
+  health?: RoutingHealth
+}
+
+export interface RoutingHealth {
+  failures: number
+  lastSuccessAt: string | null
+  lastError: string | null
+  lastErrorAt: string | null
+  retryAt: string | null
+}
+
+export const OUTDATED_LINE = 'The Avoozl backend is out of date for this page. Update Avoozl, then reload this page.'
+// Failures in a row before Needs you opens (routing-health.mjs).
+export const NEEDS_YOU_AFTER = 3
+
+const isList = (value: unknown) => Array.isArray(value)
+const isObject = (value: unknown): value is Record<string, unknown> => Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+
+// Whether a routing.view reply has every part this page reads. An older
+// backend sends another shape; the page says so instead of crashing.
+export function isCurrentView(value: unknown): value is RoutingView {
+  if (!isObject(value)) return false
+  const providers = value.providers,
+    relay = value.relay
+  return (
+    typeof value.switchedOn === 'boolean' &&
+    isList(value.examples) &&
+    isList(value.noFit) &&
+    isList(value.crews) &&
+    (value.crews as unknown[]).every((c) => isObject(c) && isList(c.checks) && isList(c.tags)) &&
+    isObject(providers) &&
+    isList(providers.rows) &&
+    isObject(relay) &&
+    typeof relay.active === 'boolean'
+  )
+}
+
+// A refusal that means the backend has no such operation yet.
+export const isUnknownOperation = (message: string | null) => Boolean(message && /Unknown operation routing\./.test(message))
+
+// The health box's lines, in order (R41.7).
+export function healthLines(health: RoutingHealth | undefined, enabled: boolean): string[] {
+  if (!health) return []
+  const lines = [health.lastSuccessAt ? `Last success: ${health.lastSuccessAt}.` : 'Last success: none yet.']
+  if (health.lastError) lines.push(`Last error: ${health.lastError}${health.lastErrorAt ? ` (${health.lastErrorAt})` : ''}.`)
+  lines.push(`Failures in a row: ${health.failures}.`)
+  if (enabled && health.failures > 0) lines.push(`Ready tasks wait; nothing runs on this machine instead.${health.retryAt ? ` Next try: ${health.retryAt}.` : ''}`)
+  return lines
 }
 
 export interface Option {
@@ -292,5 +341,8 @@ export function routingClient(api: AppApi) {
     saveRelay: (workspaceId: string, on: boolean, expectedHash: string | null) =>
       run<{ hash: string }>(workspaceId, 'routing.update', { where: 'workspace', routing: on ? { remoteRelay: 'on' } : {}, expectedHash }),
     forgetRelay: (workspaceId: string) => run(workspaceId, 'relay.forget'),
+    // Needs you after routing failures (R41.7).
+    retry: (workspaceId: string) => run(workspaceId, 'routing.retry'),
+    turnOff: (workspaceId: string) => run(workspaceId, 'routing.turnOff'),
   }
 }
