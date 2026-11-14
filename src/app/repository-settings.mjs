@@ -68,6 +68,25 @@ function sortedRecord(value) {
   );
 }
 
+function envNames(value, id) {
+  if (
+    !Array.isArray(value) ||
+    value.some(
+      (n) => typeof n !== "string" || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(n),
+    )
+  )
+    fail(
+      `Project ${id} checksEnv must be a list of environment variable names.`,
+    );
+  return [...value];
+}
+
+function helperHash(value, id) {
+  if (typeof value !== "string" || !/^[0-9a-f]{64}$/.test(value))
+    fail(`Project ${id} worktreeHelper must be a SHA-256 hash.`);
+  return value;
+}
+
 function projectInput(value, id, base) {
   if (!record(value)) fail(`Project ${id} must contain a JSON object.`);
   const allowed = new Set([
@@ -77,6 +96,8 @@ function projectInput(value, id, base) {
     "integrationBranch",
     "worktreeRoot",
     "checks",
+    "checksEnv",
+    "worktreeHelper",
     "planning",
     "editable",
   ]);
@@ -124,6 +145,12 @@ function projectInput(value, id, base) {
           ),
         }),
     checks: structuredClone(checks),
+    ...(value.checksEnv === undefined
+      ? {}
+      : { checksEnv: envNames(value.checksEnv, id) }),
+    ...(value.worktreeHelper === undefined
+      ? {}
+      : { worktreeHelper: helperHash(value.worktreeHelper, id) }),
     planning: Boolean(value.planning),
     editable: value.editable !== false,
   };
@@ -321,6 +348,10 @@ function appliedActions(store) {
             ? { worktreeRoot: project.worktreeRoot }
             : {}),
           checks: structuredClone(project.checks || []),
+          ...(project.checksEnv ? { checksEnv: [...project.checksEnv] } : {}),
+          ...(project.worktreeHelper
+            ? { worktreeHelper: project.worktreeHelper }
+            : {}),
           planning: Boolean(project.planning),
           editable: project.editable !== false,
         },
@@ -1061,6 +1092,10 @@ export class RepositorySettings {
         ? { worktreeRoot: this.portablePath(project.worktreeRoot) }
         : {}),
       checks: structuredClone(project.checks || []),
+      ...(project.checksEnv ? { checksEnv: [...project.checksEnv] } : {}),
+      ...(project.worktreeHelper
+        ? { worktreeHelper: project.worktreeHelper }
+        : {}),
       planning: Boolean(project.planning),
       editable: project.editable !== false,
     };
@@ -1128,6 +1163,10 @@ export class RepositorySettings {
           ? { worktreeRoot: this.portablePath(project.worktreeRoot) }
           : {}),
         checks: structuredClone(project.checks || []),
+        ...(project.checksEnv ? { checksEnv: [...project.checksEnv] } : {}),
+        ...(project.worktreeHelper
+          ? { worktreeHelper: project.worktreeHelper }
+          : {}),
         planning: Boolean(project.planning),
         editable: project.editable !== false,
       };

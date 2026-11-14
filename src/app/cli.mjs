@@ -5,13 +5,14 @@ import readline from "node:readline";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
-import { Store, fail } from "./store.mjs";
+import { Store, fail, privateFile } from "./store.mjs";
 import { workflowSkill } from "./skill.mjs";
 import { workspaceConfig, applicationRoot } from "./config.mjs";
 import { initializeWorkspace } from "./workspace.mjs";
 import { Operations } from "./operations.mjs";
 import { driverSettingsPath } from "./driver.mjs";
 import { handleMcp } from "./mcp.mjs";
+import { cliRefusal } from "./mcp-policy.mjs";
 import { createAppMcp } from "./app-mcp.mjs";
 import { startAppBackend } from "./app-backend.mjs";
 import { hookEvent, runnerHookBrief } from "./runner.mjs";
@@ -81,6 +82,7 @@ try {
           "yes",
           "skipped",
           "off",
+          "as-person",
         ].includes(key) &&
         // `driver takeover --force --confirm SPEC` names the spec (R66.15).
         !(key === "confirm" && command === "driver")
@@ -187,6 +189,12 @@ try {
   // Without a server, every CLI write goes through Operations in process.
   // `local` marks the caller as the person at this machine's command line.
   const localOrRequest = async (operation, input = {}, expectedRevision) => {
+    // Person-only operations are refused from an agent session (R83.1).
+    const refusal = cliRefusal(operation, input, {
+      env: process.env,
+      asPerson: options["as-person"],
+    });
+    if (refusal) throw Error(refusal);
     if (useServer()) return request(operation, input, expectedRevision);
     requireDatabase();
     const store = new Store(dbPath);
@@ -258,12 +266,18 @@ try {
       if (command === "backup") {
         if (!options.output)
           throw Error("Choose --output for the SQLite backup.");
-        store.db.prepare("VACUUM INTO ?").run(path.resolve(options.output));
+        const target = path.resolve(options.output);
+        // Created 0600 first: VACUUM INTO accepts an empty file.
+        if (!fs.existsSync(target)) privateFile(target);
+        store.db.prepare("VACUUM INTO ?").run(target);
+        privateFile(target);
         console.log("SQLite backup saved.");
       } else {
         const value = JSON.stringify(store.read(), null, 2) + "\n";
-        if (options.output) fs.writeFileSync(options.output, value);
-        else process.stdout.write(value);
+        if (options.output) {
+          privateFile(options.output);
+          fs.writeFileSync(options.output, value);
+        } else process.stdout.write(value);
       }
     } finally {
       store.close();
@@ -1483,12 +1497,13 @@ try {
   import SNAPSHOT.json --workspace PATH [--dry-run] Local-only; registered IDs are refused
   generate | check --workspace PATH    Reindex Markdown; validate the task graph
   health [--url URL]                    Ask a running app backend whether it is up
-  OPERATION --json JSON [--revision N] --workspace PATH
+  OPERATION --json JSON [--revision N] [--as-person] --workspace PATH
   OPERATION --input FILE --workspace PATH
 
 Use --workspace PATH or AVOOZL_WORKSPACE to choose data independently
 of the application checkout. --db, --documents, --port, --operator and --url
-override workspace configuration. UI, CLI and MCP share application operations.`);
+override workspace configuration. A person-only operation run inside an agent
+session needs --as-person. UI, CLI and MCP share application operations.`);
   else if (["task", "checks", "crews"].includes(command))
     throw Error(
       {

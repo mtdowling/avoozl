@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFile, execFileSync } from "node:child_process";
 import { promisify } from "node:util";
+import { createHash } from "node:crypto";
 import { fail } from "./store.mjs";
 const exec = promisify(execFile);
 const DIFF_TEXT_LIMIT = 2 * 1024 * 1024;
@@ -184,6 +185,8 @@ export async function projectConfig({
   integrationBranch,
   worktreeRoot,
   checks = [],
+  checksEnv,
+  worktreeHelper,
 }) {
   if (!/^[a-z][a-z0-9-]{1,60}$/.test(id || ""))
     fail("Choose a stable project ID.");
@@ -206,6 +209,23 @@ export async function projectConfig({
     )
   )
     fail("Checks must be arrays of command arguments.");
+  // An opt-in allowlist of environment variable names for check processes
+  // (R83.5) and the hash of the scripts/worktree helper a person approved
+  // (R83.4).
+  if (
+    checksEnv !== undefined &&
+    (!Array.isArray(checksEnv) ||
+      checksEnv.some((n) => typeof n !== "string" || !ENV_NAME.test(n)))
+  )
+    fail("checksEnv must be a list of environment variable names.");
+  if (
+    worktreeHelper !== undefined &&
+    !(
+      typeof worktreeHelper === "string" &&
+      /^[0-9a-f]{64}$/.test(worktreeHelper)
+    )
+  )
+    fail("worktreeHelper must be the helper's SHA-256 hash.");
   worktreeRoot = path.resolve(
     worktreeRoot || path.join(path.dirname(root), ".avoozl-worktrees"),
   );
@@ -230,6 +250,8 @@ export async function projectConfig({
     ...(integrationBranch === undefined ? {} : { integrationBranch }),
     worktreeRoot,
     checks,
+    ...(checksEnv === undefined ? {} : { checksEnv: [...checksEnv] }),
+    ...(worktreeHelper === undefined ? {} : { worktreeHelper }),
     repository: await remoteRepository(root),
     createdAt: new Date().toISOString(),
   };
@@ -248,13 +270,26 @@ export async function createWorktree(store, project, runId) {
         worktree = path.join(project.worktreeRoot, runId);
       if (fs.existsSync(worktree)) fail("Run worktree already exists.", 409);
       const helper = path.join(project.root, "scripts/worktree");
-      if (fs.existsSync(helper))
+      if (fs.existsSync(helper)) {
+        // Repository-owned code that runs on every worktree add: a person
+        // approves this exact content first (R83.4).
+        const seen = helperHash(helper);
+        if (project.worktreeHelper !== seen)
+          fail(
+            `${helper} runs every time a worktree is added. Read it, then approve ` +
+              `this exact version by setting worktreeHelper to ${seen} for project ` +
+              `${project.id}` +
+              (project.worktreeHelper
+                ? " (the approved version differs)."
+                : "."),
+            409,
+          );
         await exec(helper, [branch, worktree, project.baseBranch], {
           cwd: project.root,
           env: repositoryEnvironment(),
           maxBuffer: 8 * 1024 * 1024,
         });
-      else
+      } else
         await git(project.root, [
           "worktree",
           "add",
@@ -372,16 +407,50 @@ const GATEWAY_SECRETS = [
   "KIROCREW_PROXY_SECRET",
   "KIROCREW_GATEWAY_ORIGIN_PROOF",
 ];
-export function repositoryEnvironment(env = process.env) {
+export function repositoryEnvironment(env = process.env, allow) {
   const out = { ...env };
   for (const name of GATEWAY_SECRETS) delete out[name];
-  return out;
+  if (!allow) return out;
+  // Opt-in allowlist (R83.5): only what a process needs to start, plus the
+  // names a person listed. The gateway secrets stay out even when listed.
+  // Windows names compare without case.
+  const same = (a, b) =>
+    process.platform === "win32"
+      ? a.toLowerCase() === b.toLowerCase()
+      : a === b;
+  const wanted = [...BASE_ENV, ...allow],
+    kept = {};
+  for (const key of Object.keys(out))
+    if (
+      wanted.some((name) => same(name, key)) &&
+      !GATEWAY_SECRETS.some((name) => same(name, key))
+    )
+      kept[key] = out[key];
+  return kept;
 }
+const BASE_ENV = [
+  "PATH",
+  "HOME",
+  "USER",
+  "LANG",
+  "TMPDIR",
+  "TMP",
+  "TEMP",
+  "SystemRoot",
+  "USERPROFILE",
+  "APPDATA",
+  "LOCALAPPDATA",
+  "ComSpec",
+  "PATHEXT",
+];
+const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
+export const helperHash = (file) =>
+  createHash("sha256").update(fs.readFileSync(file)).digest("hex");
 
 export async function commandEvidence(
   cwd,
   argv,
-  { timeoutMs = 120000, onStart } = {},
+  { timeoutMs = 120000, onStart, env: allow } = {},
 ) {
   if (
     !Array.isArray(argv) ||
@@ -394,7 +463,7 @@ export async function commandEvidence(
   try {
     const { stdout, stderr } = await exec(argv[0], argv.slice(1), {
       cwd,
-      env: repositoryEnvironment(),
+      env: repositoryEnvironment(process.env, allow),
       timeout: timeoutMs,
       maxBuffer: 8 * 1024 * 1024,
     });
@@ -554,7 +623,9 @@ async function validateUnlocked(
   const results = [];
   for (const argv of project.checks) {
     store.event(runId, "validation.started", { argv, phase });
-    const record = await commandEvidence(run.worktree, argv);
+    const record = await commandEvidence(run.worktree, argv, {
+      env: project.checksEnv,
+    });
     // Each record names the commit and the phase it ran in, so the checks that
     // ran on the rebased base are distinguishable from the earlier ones rather
     // than reading as duplicates of the same work.
