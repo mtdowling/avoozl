@@ -249,6 +249,7 @@ const PROTECT = new Set([
   "github.settings.update",
   "untriaged.handoff",
   "review.chat",
+  "untriaged.plan",
   "intake.deliver",
   "intake.confirm",
   "intake.plan",

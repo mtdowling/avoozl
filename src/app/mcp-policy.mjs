@@ -144,6 +144,7 @@ export const PERSON_ONLY = new Map([
   ],
   ["untriaged.handoff", person("Only a person sends issues to Issue Radar.")],
   ["review.chat", person("Only a person starts a code review chat.")],
+  ["untriaged.plan", person("Only a person presses Plan this on an issue.")],
   [
     "intake.deliver",
     person("Only a person presses Deliver this on an incoming item."),
