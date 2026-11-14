@@ -13,6 +13,9 @@ import {
   pushProblem,
 } from "../forward-guard.mjs";
 import { mirrorForwardRows } from "../mirror-forward.mjs";
+import { forwardAuditRows, mirrorForwardAuditStep } from "../forward-audit.mjs";
+import { mirrorPublicPollStep } from "../mirror-forward-poll.mjs";
+import { resumeStop } from "../flow-line.mjs";
 import { forwardRecord, mirrorForwardRunStep } from "../mirror-forward-run.mjs";
 import {
   branches,
@@ -665,4 +668,145 @@ test("the push step refuses a protected branch before git runs", async () => {
     /protected branch/,
   );
   assert.deepEqual(ran, []);
+});
+
+// rc-25.6: the audit on the tick (test 6 of D31.2).
+async function forwarded(t, over = {}) {
+  const made = scratch(t),
+    github = fakeGitHub(),
+    pol = policy("nudge", { plansBranch: "avoozl-plans" });
+  const sent = await forwardRecord(made.store, github, made.sha, {
+    policy: pol,
+    person: "dana",
+    git: made.forward,
+    grant,
+  });
+  const receipt = sent.record.receipt,
+    calls = [],
+    source = {
+      ...github,
+      pullRequest: async (repo, number) => {
+        if (repo === "example/code-private") return { title: "t", body: "b" };
+        return { number, state: "open", head: { sha: receipt.commit } };
+      },
+      listPullRequestReviewComments: async () => [],
+      compareCommits: async (...args) => {
+        calls.push(["compare", ...args]);
+        return { files: [], commits: [] };
+      },
+      branch: async (repo, name) => {
+        calls.push(["branch", repo, name]);
+        throw Object.assign(Error("Not Found"), { status: 404 });
+      },
+      ...over,
+    };
+  return { ...made, receipt, source, calls, pol, github };
+}
+const tickAudit = async (x, extra = {}) => {
+  await mirrorPublicPollStep(x.store, x.source, { policy: x.pol });
+  return mirrorForwardAuditStep(x.store, x.source, {
+    policy: x.pol,
+    refsEveryMs: 0,
+    ...extra,
+  });
+};
+const openStops = (store) =>
+  store.list("flow_stops").filter((stop) => !stop.closedAt);
+
+test("an unchanged head is clean and costs no comparison", async (t) => {
+  const x = await forwarded(t);
+  assert.deepEqual((await tickAudit(x)).errors, []);
+  assert.equal(forwardAuditRows(x.store).length, 0);
+  assert.equal(openStops(x.store).length, 0);
+  assert.deepEqual(
+    x.calls.filter((c) => c[0] === "compare"),
+    [],
+  );
+});
+
+test("an extra file, another author or a plans-branch ref gives one row and a stop", async (t) => {
+  const person = (login) => ({
+      author: { login },
+      commit: { author: { name: login } },
+    }),
+    cases = {
+      "audit-extra-file": {
+        compareCommits: async () => ({
+          files: [{ filename: "feature.txt" }, { filename: "extra.txt" }],
+          commits: [person("dana")],
+        }),
+      },
+      "audit-author": {
+        compareCommits: async () => ({
+          files: [{ filename: "feature.txt" }],
+          commits: [person("eve")],
+        }),
+      },
+      "audit-path-kiro": {
+        compareCommits: async () => ({
+          files: [{ filename: "feature.txt" }, { filename: ".kiro/a.md" }],
+          commits: [person("dana")],
+        }),
+      },
+    };
+  for (const [rule, over] of Object.entries(cases)) {
+    const x = await forwarded(t, over);
+    x.source.pullRequest = async (repo, number) =>
+      repo === "example/code-private"
+        ? { title: "t", body: "b" }
+        : { number, state: "open", head: { sha: "f".repeat(40) } };
+    await tickAudit(x);
+    await tickAudit(x);
+    const rows = forwardAuditRows(x.store);
+    assert.equal(rows.length, 1, rule);
+    assert.match(rows[0].detail, new RegExp(rule));
+    assert.equal(openStops(x.store).length, 1, rule);
+    assert.equal(openStops(x.store)[0].projectId, "example/code");
+  }
+  // A ref named for the plans branch, with the head unchanged.
+  const x = await forwarded(t, {
+    branch: async () => ({ name: "avoozl-plans" }),
+  });
+  await tickAudit(x);
+  await tickAudit(x);
+  assert.equal(forwardAuditRows(x.store).length, 1);
+  assert.match(forwardAuditRows(x.store)[0].detail, /audit-forbidden-ref/);
+  assert.equal(openStops(x.store).length, 1);
+});
+
+test("the audit's stop stops forwarding until a person resumes it", async (t) => {
+  const x = await forwarded(t, {
+    branch: async () => ({ name: "avoozl-plans" }),
+  });
+  await tickAudit(x);
+  const next = {
+      ...x.store.get("mirror_forward", x.sha),
+      id: "next",
+      state: "to_forward",
+      publicPr: null,
+      receipt: undefined,
+      publicHead: undefined,
+      audit: undefined,
+    },
+    spy = counting(x);
+  x.store.put("mirror_forward", next);
+  const result = await forwardRecord(x.store, x.source, "next", {
+    policy: x.pol,
+    person: "dana",
+    git: spy.git,
+    grant,
+  });
+  assert.equal(result.stopped !== undefined, true);
+  assert.equal(spy.pushes, 0);
+  resumeStop(x.store, { stopId: openStops(x.store)[0].id }, { by: "test" });
+  assert.equal(forwardAuditRows(x.store).length, 0);
+});
+
+test("the ref check reads at most once per interval", async (t) => {
+  const x = await forwarded(t);
+  await tickAudit(x, { refsEveryMs: 600000, now: 1_000_000 });
+  await tickAudit(x, { refsEveryMs: 600000, now: 1_100_000 });
+  assert.equal(x.calls.filter((c) => c[0] === "branch").length, 2);
+  await tickAudit(x, { refsEveryMs: 600000, now: 1_700_000 });
+  assert.equal(x.calls.filter((c) => c[0] === "branch").length, 4);
 });

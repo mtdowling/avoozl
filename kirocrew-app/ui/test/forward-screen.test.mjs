@@ -36,3 +36,7 @@ test('the screen shows diff, title and body and sends the shown hash', () => {
   assert.match(screen, /client\.push\(workspaceId, forwardId, review!\.hash\)/)
   assert.match(screen, /disabled=\{busy \|\| blocked \|\| !review \|\| stopped !== null\}/)
 })
+
+test('the forward audit row says how to resume', () => {
+  assert.match(noActionReason({ kind: 'needs-human', reason: 'forward-audit', authority: 'github' }), /resume the stop/)
+})
