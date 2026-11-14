@@ -361,7 +361,7 @@ Requirement RC15. A managed remote harness as a coder. A task is done only when 
 
 Requirement RC16. A rewrite lands as small pull requests into a long-lived branch, then one person lands the branch.
 
-- [ ] rc-16.1 Integration branch in the manifest, with branch checks, after rc-2.1, rc-5.1 [RC16.1, RC16.9] (§D21)
+- [x] rc-16.1 Integration branch in the manifest, with branch checks, after rc-2.1, rc-5.1 [RC16.1, RC16.9] (§D21)
   - `integrationBranch` in an epic's manifest; Avoozl checks the branch exists, is not the default branch and is protected, and names what is missing; it creates nothing; an epic without the field behaves as before; `src/app/test/integration-branch.test.mjs`.
   - Done when: A missing, unprotected or default branch is refused naming the reason; a manifest without the field changes nothing.
 - [ ] rc-16.2 Projected tasks target the branch, and the branch merge path, after rc-16.1, rc-3.6, rc-5.2 [RC16.2] (§D21)

@@ -19,6 +19,7 @@ import { lintPlan } from "./plan-quality.mjs";
 import { frontMatter, withoutFrontMatter } from "../front-matter.mjs";
 import { resolveTaskId } from "../task-identity.mjs";
 import { validateManifestBudget } from "./budget.mjs";
+import { integrationOf } from "./integration-branch.mjs";
 
 export const SPECS_DIRECTORY = path.join(".kiro", "specs");
 export const MANIFEST = "avoozl/manifest.json";
@@ -555,6 +556,24 @@ export function parseSpec({
                 specShip === undefined && manifest.ship !== undefined
                   ? "ship"
                   : "budget",
+              ),
+              error.message,
+            ),
+          );
+        }
+        // An integration branch (RC16.1); a manifest without it is as before.
+        try {
+          integrationOf(manifest);
+        } catch (error) {
+          diagnostics.push(
+            diagnostic(
+              "manifest.schema",
+              MANIFEST,
+              manifestLine(
+                text,
+                manifest.integrationBranch === undefined
+                  ? "integrationSync"
+                  : "integrationBranch",
               ),
               error.message,
             ),
