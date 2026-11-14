@@ -209,6 +209,30 @@ test('neverRan is true only when the delivery read worked and nothing has ever r
   assert.equal(summarize({ ...base, delivery: [delivery('a', { integration: { commit: 'c', branch: 'main', at: null } })] }).neverRan, false)
 })
 
+test('Issue Radar claims from GitHub are listed beside Avoozl chats, with what GitHub cannot show', () => {
+  const claim = {
+    repository: 'mtdowling/avoozl-radar-test',
+    number: 17,
+    title: 'Support greet with an array',
+    url: 'https://github.com/mtdowling/avoozl-radar-test/issues/17',
+    crewId: 'c_0badc0de',
+    crewName: 'Bode',
+    phase: 'implementing',
+    pr: 6,
+    prUrl: 'https://github.com/mtdowling/avoozl-radar-test/pull/6',
+    updated: '2026-11-10T02:10:00Z',
+    commentUrl: null,
+    stale: true,
+    noMarker: false,
+  }
+  const radar = { readAt: '2026-11-14T06:00:00Z', stale: 1, rows: [claim], errors: [], unseen: ['paused', 'machine', 'chat'] }
+  const summary = summarize({ graph: null, delivery: null, conflicts: [], plans: null, radar })
+  assert.deepEqual(summary.radarFlight, [claim])
+  assert.deepEqual(summary.radarUnseen, ['paused', 'machine', 'chat'])
+  // An older backend, or a failed read, shows none.
+  assert.deepEqual(summarize({ graph: null, delivery: null, conflicts: [], plans: null }).radarFlight, [])
+})
+
 test('a remote worker from a runner shows in In flight with its crew link', () => {
   const remote = {
     host: 'box',

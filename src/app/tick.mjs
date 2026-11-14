@@ -87,6 +87,7 @@ import { intakeNotices, syncGitHubIssues } from "./github-sync.mjs";
 import { advanceGitHubBreakdowns } from "./github-breakdown.mjs";
 import { blockerNotes } from "./github-close.mjs";
 import { refreshUntriaged } from "./untriaged.mjs";
+import { namespaceOf } from "./radar-plan-me.mjs";
 import { pluginHealth, recordHealth } from "./plugin-session.mjs";
 import { repositoryPlugins } from "./plugins.mjs";
 import {
@@ -811,7 +812,15 @@ export async function tick(
           const policy = readGitHubPolicyOrNull(workspaceRoot);
           planned.notify.push(
             ...(
-              await refreshUntriaged(store, github, policy, store.read().tasks)
+              await refreshUntriaged(
+                store,
+                github,
+                policy,
+                store.read().tasks,
+                {
+                  namespace: namespaceOf(workspaceRoot),
+                },
+              )
             ).notify,
           );
         } catch (error) {
