@@ -1,5 +1,6 @@
 import { crossPlanEpics, epicOfPlan, taskEpic } from "./epics.mjs";
 import path from "node:path";
+import { applicationRoot } from "./config.mjs";
 import { mcpRefusal } from "./mcp-policy.mjs";
 import { taskDiff, taskFiles } from "./task-files.mjs";
 import {
@@ -253,6 +254,7 @@ import {
 } from "./local-ignore.mjs";
 import {
   bindSession,
+  listSessionBindings,
   recordSessionStatus,
   rediscoverSessions,
   requestSession,
@@ -344,6 +346,16 @@ import {
 import { retryRoutingNow } from "./routing-health.mjs";
 import { forgetRelay, relayCall, relayNeedsYou } from "./relay.mjs";
 import { claimTask, nextView } from "./runner.mjs";
+import {
+  acceptEnvelope,
+  driverTick,
+  handoff,
+  pullStatus,
+  remoteView,
+  reportDone,
+  runnerStatus,
+  runnerTick,
+} from "./remote-runner.mjs";
 import { supersedeTask } from "./supersede.mjs";
 
 // Claimed leaves for a readiness query. A read-only database from before the
@@ -2180,6 +2192,18 @@ export class Operations {
             : declaredChecks(task, project),
       });
     }
+    // Runner mode over SSH (R84): off unless .avoozl.json has `runner`.
+    if (name === "remote.accept")
+      return acceptEnvelope(store, this.workspaceRoot, input.envelope);
+    if (name === "remote.status")
+      return runnerStatus(store, this.workspaceRoot);
+    if (name === "remote.report")
+      return reportDone(store, this.workspaceRoot, input);
+    if (name === "remote.handoff")
+      return handoff(store, this.workspaceRoot, input);
+    if (name === "remote.pull")
+      return pullStatus(store, this.workspaceRoot, input);
+    if (name === "remote.view") return remoteView(store, this.workspaceRoot);
     if (name === "runner.next")
       return nextView(store, {
         policy: readDeliveryPolicy(this.workspaceRoot),
@@ -2352,6 +2376,14 @@ export class Operations {
       return deliverNotifications(store, this.notifier);
     if (name === "worktree.prepare") return prepareWorktree(store, input);
     if (name === "workspace.tick") {
+      // A runner holds no plans, so its tick only runs handed tasks.
+      const remote = await runnerTick(store, this.workspaceRoot, {
+        roster: Array.isArray(input.sessions) ? input.sessions : null,
+        bindings: listSessionBindings(store),
+        command: `AVOOZL_WORKSPACE=${JSON.stringify(this.workspaceRoot)} node ${JSON.stringify(path.join(applicationRoot, "cli.mjs"))}`,
+      });
+      if (remote) return remote;
+      if (input.cron === true) await driverTick(store, this.workspaceRoot);
       const result = await tick(store, {
         workspaceRoot: this.workspaceRoot,
         memory: this.tickPolicy,
