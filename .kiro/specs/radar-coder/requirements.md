@@ -417,10 +417,34 @@ machine, and what to change, without opening a crew's chat.
 #### Acceptance criteria
 
 1. The screens SHALL be the experience proposal's: Home (Needs you, On the
-   line, Release queue, Progress by goal), Specs, Graph, Delivery, Flow, Intake,
-   Activity and Settings with **Crews and rules**. Conflicts SHALL fold into
-   Needs you. **Build for Variant B first** (GitHub only). Variant A (Radar's
-   crew list through one grant) SHALL be a later upgrade behind that grant.
+   line, Release queue, Progress by goal), Specs, Flow, Activity and Settings
+   with **Crews and rules**. Owner decisions 2026-11-14 (UI removal happens
+   now; code removal waits for proof rc-p11, RC11):
+   - Conflicts and Intake SHALL leave the nav and fold into Needs you
+     (Radar handbacks, planning-label items, conflicts). Radar repos get no
+     separate Intake page.
+   - Routing SHALL leave the nav. Its code path stays only for RC11.3
+     (`coder: worker` on local-only repos), reached from that repository's
+     Settings.
+   - Delivery SHALL leave the nav. For a Radar repository its lanes map to
+     Release queue (Ready), On the line and Radar's Pipeline lanes or crew
+     page (In progress), Needs you, Release queue held reasons and the plan
+     view (Waiting on blockers), and Trace (Done). Its controls (Defer, Start
+     now, Retry, review runs, content rule reports) act only on local workers.
+     It SHALL show only when the workspace has a repository with
+     `coder: worker`, labeled for local workers. Held or blocker text it has
+     that Release queue lacks SHALL move into Release queue.
+   - Graph SHALL leave the nav. For issues on GitHub, Avoozl SHALL link to
+     Issue Radar's Graph (Focus on the issue if Radar's route supports it,
+     else the tab). Avoozl's graph stays inside Specs (a plan before
+     projection; epic, plan, phase drill-down, with phase gate, release
+     count and held reasons) and for `coder: worker` repositories beside the
+     local-workers Delivery view. Back history and drill rules stay.
+   - Flow SHALL stay, rebuilt on GitHub data (item 5), with retros under it.
+   - Runner mode, the relay, the foreman, per-task worker budgets, Prices and
+     the workers' Files and diff fold SHALL leave the nav and Home.
+   **Build for Variant B first** (GitHub only). Variant A (Radar's crew list
+   through one grant) SHALL be a later upgrade behind that grant.
 2. **Trace** SHALL be a drawer and a page per task or goal, deep-linkable and
    in the Back history (Requirement 60). Its steps SHALL be Spec approved,
    Issue created, Ready, Claimed, PR opened, CI, Merged, Retro, with times from
@@ -515,7 +539,10 @@ that other tools call removed by accident.
 1. Retirement SHALL be a final, separate epic of this spec. No task in it
    SHALL start before the proof that the Radar path works on a real
    repository (RC12 tests 1 and 2, proof rc-p11) is accepted by a person.
-2. It SHALL list, as removals for Radar-coded repositories: Avoozl's own
+2. The UI removals of RC8.1 SHALL happen first and SHALL NOT wait for the
+   proof. The code removals below wait for rc-p11. They SHALL keep every name
+   of item 4 (`plans_*`, environment aliases) working. It SHALL list, as
+   removals for Radar-coded repositories: Avoozl's own
    worker dispatch, crew routing and placement (Requirements 41, 42), runner
    mode (Requirement 84), the remote relay (Phase 32), per-task budgets for
    workers (Requirement 67; budgets stay for planner, retro and quick-goal
