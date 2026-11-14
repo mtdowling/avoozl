@@ -88,6 +88,7 @@ import { advanceGitHubBreakdowns } from "./github-breakdown.mjs";
 import { blockerNotes } from "./github-close.mjs";
 import { refreshUntriaged } from "./untriaged.mjs";
 import { mergeStep } from "./radar-merge.mjs";
+import { armStep } from "./radar-arm.mjs";
 import { namespaceOf } from "./radar-plan-me.mjs";
 import { pluginHealth, recordHealth } from "./plugin-session.mjs";
 import { repositoryPlugins } from "./plugins.mjs";
@@ -829,6 +830,21 @@ export async function tick(
             title: "Avoozl could not check pull requests for merging",
             text: error.message,
           });
+        }
+      // Arm auto-merge on crew pull requests (RC5.2).
+      if (script && github && delivery)
+        try {
+          planned.notify.push(
+            ...(
+              await armStep(store, github, {
+                policy: readGitHubPolicy(workspaceRoot),
+                delivery,
+                identity: planningIdentity(workspaceRoot),
+              })
+            ).notify,
+          );
+        } catch {
+          // An unreadable policy is reported by the steps above.
         }
       // The Untriaged list (§8.5): one read-only search per repository per
       // interval, cached for the page.

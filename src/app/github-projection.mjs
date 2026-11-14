@@ -29,6 +29,7 @@ import {
   requireNamespace,
 } from "./github-marker.mjs";
 import { epicOfPlan } from "./epics.mjs";
+import { provenanceWriter } from "./radar-provenance.mjs";
 import { finishSource, planSource, sourceParent } from "./radar-source.mjs";
 import {
   issueRecordId,
@@ -703,6 +704,7 @@ async function project(
     queueReady = graphReady(store, data, tasks),
     machine = machineIdentity(store).id,
     verified = new Set(),
+    provenance = new Map(),
     managedByRepository = new Map(),
     issueTypes = new Map(),
     notes = new Set(),
@@ -737,9 +739,18 @@ async function project(
     }
     if (!verified.has(config.id)) {
       const remote = await github.repository(config);
-      // The name is written with the provenance marker (rc-3.6); the gate
-      // runs now so nothing is written for a refused repository.
-      plansNameForIssue(store, identity, config, remote);
+      // The plans repository name is written with the provenance marker
+      // (RC3.1); the gate runs now so nothing is written for a refused
+      // repository.
+      provenance.set(
+        config.id,
+        provenanceWriter(store, {
+          identity,
+          plan,
+          config,
+          plans: plansNameForIssue(store, identity, config, remote),
+        }),
+      );
       verified.add(config.id);
     }
     const labels = managedLabels(config, identity);
@@ -1053,6 +1064,10 @@ async function project(
             markerOptions,
           ) +
           "\n" +
+          // The provenance line follows the managed marker (RC2.10).
+          (provenance.get(config.id)
+            ? provenance.get(config.id)([task.id]) + "\n"
+            : "") +
           item.section,
         assignees: config.assignee ? [config.assignee] : undefined,
         labels: [labels.managed],
