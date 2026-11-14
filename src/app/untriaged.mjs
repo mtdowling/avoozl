@@ -10,6 +10,7 @@
 // the exclusions at read time, so a rule, label, or task change shows at once.
 import path from "node:path";
 import { itemKey, itemRows } from "./intake.mjs";
+import { attachHandoffs } from "./radar-plan-me.mjs";
 import { parseMatch } from "./issue-match.mjs";
 import {
   CREW_LABEL_DEFAULTS,
@@ -378,11 +379,17 @@ function withRadar(entry, repository, settings, linked, handoffs) {
   if (entry.kind !== "issue") return null;
   if (linked.issues.has(key(repository, entry.number))) return null;
   const state = crewState(entry, settings),
-    receipt = handoffs.get(key(repository, entry.number)) || null;
+    receipt = handoffs.get(key(repository, entry.number)) || null,
+    route = entry.planMe?.route ?? null;
+  // A trusted skip for planning is in Intake, not here (plan-me hand-off).
+  if (state.needsHuman && route === "intake" && !receipt && !state.claimed)
+    return null;
   if (!receipt && !state.claimed && !state.needsHuman) return null;
   return {
     claimed: state.claimed,
-    needsHuman: state.needsHuman,
+    // Left alone: shown with the crew's issues, but nobody is asked.
+    needsHuman: state.needsHuman && route !== "left-alone",
+    planMe: entry.planMe ?? null,
     needsHumanLabel: state.needsHumanLabel,
     handoff: receipt
       ? {
@@ -546,7 +553,7 @@ export async function refreshUntriaged(
   github,
   policy,
   tasks,
-  { now = Date.now(), force = false } = {},
+  { now = Date.now(), force = false, namespace = null } = {},
 ) {
   if (!policy?.mode || !github) return { read: 0, notify: [] };
   const cache = readCache(store),
@@ -581,6 +588,9 @@ export async function refreshUntriaged(
     read += 1;
     try {
       const result = await readUntriaged(github, query);
+      await attachHandoffs(github, repository, settings, result.items, {
+        namespace,
+      });
       next.repositories[repository] = {
         query,
         days,
