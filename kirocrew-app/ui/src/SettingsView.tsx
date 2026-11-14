@@ -62,7 +62,8 @@ import ContentRulesSettings from './ContentRulesSettings.tsx'
 import FlowSettings from './FlowSettings.tsx'
 import DriverSessionBox from './DriverSessionBox.tsx'
 import { InstanceRename } from './InstanceName.tsx'
-import { MirrorSlot, RetiredBanner, SetupActions } from './SettingsSlots.tsx'
+import MirrorSetup from './MirrorSetup.tsx'
+import { RetiredBanner } from './SettingsSlots.tsx'
 import DeliverySettings from './DeliverySettings.tsx'
 import { useSteppedState } from './NavHistory.tsx'
 import { useRead } from './useRead.ts'
@@ -1505,6 +1506,8 @@ class TabBoundary extends Component<{ label: string; children: ReactNode }, { er
 
 function SettingsBody(props: { tab: SettingsTab; workspaceId: string | null; onTab: (tab: SettingsTab) => void } & Pick<Parameters<typeof SettingsView>[0], 'onSelectWorkspace' | 'onListChange' | 'onOpenPlans'>) {
   const { tab, workspaceId } = props
+  // Bumped after a mirror setup applies, so the form and raw file reload.
+  const [version, setVersion] = useState(0)
   if (tab === 'workspaces') return <WorkspaceView selected={workspaceId} onSelect={props.onSelectWorkspace} onListChange={props.onListChange} />
   if (tab === 'driver') return <DriverSessionBox workspaceId={workspaceId} />
   if (tab === 'instance') return workspaceId ? <InstanceRename workspaceId={workspaceId} /> : <p className="text-sm text-muted">Pick a workspace first.</p>
@@ -1523,12 +1526,9 @@ function SettingsBody(props: { tab: SettingsTab; workspaceId: string | null; onT
   return (
     <div className="flex flex-col gap-3.5">
       {tab === 'repositories' && (
-        <>
-          <SetupActions />
-          <MirrorSlot />
-        </>
+        <MirrorSetup workspaceId={workspaceId} onApplied={() => setVersion((n) => n + 1)} />
       )}
-      <PolicyEditor workspaceId={workspaceId} tab={tab} onOpenPlans={props.onOpenPlans} />
+      <PolicyEditor key={version} workspaceId={workspaceId} tab={tab} onOpenPlans={props.onOpenPlans} />
     </div>
   )
 }
