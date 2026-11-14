@@ -9,6 +9,11 @@ changes (each change is named).
 
 ## D1. Thesis
 
+Scope. Avoozl is for epics: approved goals that need many ordered changes.
+Maintenance, triage and one-off pull requests belong to Radar crews or to the
+team's coder (RC13). Fits in one pull request: not Avoozl. Needs a plan with
+an order: Avoozl.
+
 Avoozl does the work that needs memory of the whole plan: the spec, the graph,
 the order, the proof of approval. Crews do the work that needs a clean context
 and a shell: triage, code, tests, a pull request. GitHub holds the shared
@@ -466,7 +471,7 @@ A separate last epic. Nothing starts before the real-repository proof
 | Per-task budgets for workers                        | Requirement 67                           | Stay for planner, retro, quick goal |
 | Workers' Files and diff fold                        | Requirement 81                           | Removed with the worker UI |
 | Verifier, falsifier, reviewer, responder roles      | `kirocrew-app/agents/*`                  | Yes for `worker`          |
-| Foreman, bot heartbeat                              | research only, not built                 | Stay unbuilt              |
+| Foreman, bot heartbeat                              | research only, not built; superseded by Radar crews (RC11.8) | Stay unbuilt |
 
 Rules for the removal:
 
@@ -543,3 +548,147 @@ phase's tasks. `rc-p11` is the gate for retirement.
 | rc-p10  | Public repository: no release before sign-off; no text in `verify-issue` output                              |
 | rc-p11  | The whole path on a real repository, Q1 and Q2                                                               |
 | rc-p12  | After retirement, `coder: worker` and every compatibility name still work                                    |
+
+## D18. The work split (RC13)
+
+One statement, shown in the README, Set up and the quick goal modal, from one
+source string so the three never differ. The one-pull-request hint reads the
+proposal: one task and no edge. It is a line with **Plan it anyway**, never a
+refusal. No code path in Avoozl handles triage, maintenance or a single pull
+request for a Radar-coded repository.
+
+## D19. The coder adapter (RC14)
+
+```text
+tick -> release (graph order, N at a time) -> adapter.handOver(task or batch)
+                                                |
+              +---------------------------------+------------------------+
+              v                                 v                        v
+      issue-radar adapter                worker adapter            remote adapter
+  (ready label; a crew claims)     (Avoozl opens a worker)    (files a task in the harness)
+              +-------------> adapter.readState() <----------------------+
+                                        |
+                     done = the public pull request merged (RC14.2)
+```
+
+| Call          | issue-radar                       | worker (frozen)                | remote                                |
+| ------------- | --------------------------------- | ------------------------------ | ------------------------------------- |
+| handOver      | add the ready label               | open a worker chat             | file one task per task or batch       |
+| readState     | issue, claim marker, PR (GitHub)  | session state, worktree        | the harness's task state, then the PR |
+| countsAsDone  | PR merged                         | PR merged or local integration | PR merged on the public repository    |
+
+The adapter is a small object with those three functions. The tick, the
+release queue, Stop the line and the merge path call the adapter and never a
+coder's name. `worker` keeps its code and tests; a change to it needs a bug or
+a security reason (RC14.4). Changing a repository's coder affects only tasks
+not yet handed over (RC14.5).
+
+Defaults chosen here: the setting values stay `issue-radar`, `worker` and
+`remote`; Settings shows "Radar crew", "Avoozl worker" and "Remote coder".
+
+## D20. The remote coder (RC15)
+
+Avoozl keeps these states per task: `filed`, `working`,
+`finished-unpublished`, `pr-open`, `merged`, `failed`. The harness's own words
+map onto them in the adapter only.
+
+```text
+ready -> filed -> working -> finished-unpublished -> (person publishes) -> pr-open -> merged
+                                   |                                                   |
+                      Needs you: "Waiting for a person                     dependents released
+                      to publish <task>"
+```
+
+- Done is `merged` only (RC15.4). `finished-unpublished` is not done; it is the
+  state that makes the Needs you row (RC15.5).
+- Batching: the default batch is larger than for a crew, so a person publishes
+  fewer pull requests. The preview counts publishes. A batch does not split a
+  chain of dependent tasks that fits in one batch (RC15.6).
+- The filed task is built from the approved task text, so the harness needs no
+  read on a private plans repository (RC15.7).
+- The adapter talks to the harness through its own app or MCP interface and
+  keeps no credentials (RC15.9). A read failure keeps the last state and shows
+  its age (RC15.3).
+- Naming: "a managed remote harness" or "a remote coder" is the only name.
+  The release scan reads its forbidden-name patterns from an environment
+  variable or the person's local config, so the repository never contains the
+  names it forbids (RC15.1).
+
+| Failure                                    | What Avoozl does                                                  |
+| ------------------------------------------ | ----------------------------------------------------------------- |
+| Harness unreachable                        | Keep the last state, show its age, release no dependents          |
+| Finished but no public PR for a long time  | One Needs you row shows the age; no replacement task is filed     |
+| PR opened with a different task ID         | `verify-issue` fails; no arming; a Needs you row                  |
+| Task filed twice (tick retried)            | The stored harness reference makes filing idempotent              |
+
+## D21. Integration branches (RC16)
+
+```text
+main ------------------------------------------------> (one person-approved landing)
+  |  merge main into the branch weekly (merge commit, no force push)   ^
+  v                                                                    |
+rewrite/<epic> -- task PR -- task PR -- task PR -- whole-head checks --+
+```
+
+Four records, kept apart (AGENTS.md):
+
+| Record                 | Where it comes from                                          |
+| ---------------------- | ------------------------------------------------------------ |
+| Plan approval          | The approved spec revision (RC3.6)                           |
+| Implementation         | The task pull requests                                       |
+| Integration            | A task's merge into the branch; the branch's merge into main |
+| Whole-head acceptance  | Checks on the branch head (Requirement 16)                   |
+
+- **Projection.** A task issue and its pull request target the epic's branch.
+  `verify-issue` checks that the marker's base equals the branch (a new check).
+- **Merge path.** Same checks and arming as RC5, with the branch's own rule
+  (CI, light review). Auto-merge MAY be armed.
+- **Whole head.** The tick reads the branch head's check runs and records an
+  acceptance row naming the head. A task merge moves the head, so the record
+  names the head it covers.
+- **Landing.** A Needs you row appears when the head is green and up to date
+  with main. A person approves; Avoozl records who and which head. Avoozl never
+  merges the branch into main.
+- **Sync.** On the schedule, Avoozl merges main into the branch as a merge
+  commit and pushes normally. On conflict it stops, labels the branch, shows a
+  Needs you row listing the files and opens Stop the line for the branch. It
+  never rebases and never force pushes; a person MAY rebase and say so.
+- **Stop the line.** The existing stop (D6, D7) takes the branch as a scope.
+  While it is open: no release, no arming.
+- **No branch.** An epic without `integrationBranch` behaves as before.
+
+Default chosen here: the sync runs weekly, and it is off when the epic says so.
+
+## D22. Epic types (RC17)
+
+| Type                        | Shape                                                                             | Template gives                                      |
+| --------------------------- | --------------------------------------------------------------------------------- | --------------------------------------------------- |
+| Rewrite                     | Integration branch (D21); tasks as small pull requests                            | Branch checks, sync schedule, landing step          |
+| Cross-repository migration  | Tool or compatibility layer, then one task per repository, then remove old path   | Edges from stage one to every repository task       |
+| Large codegen change        | Generator change, one sample reviewed, batches of regeneration, remove old output | A command and a compare check for each regeneration |
+| Cross-repository proposal   | Parent spec, one sub-spec per repository, optional gap report turned into tasks   | Parent index, sub-spec skeleton, gap report import  |
+
+```text
+parent spec (shared requirements, list of sub-specs)
+   +-- sub-spec, repo A (requirements, design, tasks, manifest): approved and released alone
+   +-- sub-spec, repo B
+   +-- sub-spec, repo C
+gap report (repository x requirement) -> proposed tasks per sub-spec -> a person accepts
+```
+
+- A cross-repository `requires` names the other sub-spec's task ID. The check
+  refuses an ID the other sub-spec lacks, or an unapproved sub-spec (RC17.5).
+- The gap report is read from a path or an issue the person names. A failing
+  cell becomes one proposed task, a passing cell none, and an unreadable line
+  is refused by number (RC17.6).
+- All wording is generic (RC17.7, RC15.1).
+
+Proofs added to D17:
+
+| Proof  | Proves                                                                                       |
+| ------ | -------------------------------------------------------------------------------------------- |
+| rc-p13 | The scope statement shows in three places; the hint offers Plan it anyway                    |
+| rc-p14 | The same plan runs through the Radar and worker adapters; a coder switch keeps tasks in flight |
+| rc-p15 | A remote coder: filed, waiting-for-publish row, done only on merge                           |
+| rc-p16 | An epic on an integration branch: small merges, whole-head checks, sync, stop, one landing   |
+| rc-p17 | Templates produce valid specs; sub-specs and a gap report become tasks                       |
