@@ -1,162 +1,193 @@
-// Arming auto-merge on crew pull requests (RC5.2, RC5.8, design D7). Per
-// Issue Radar repository whose ship mode is `auto-merge` and whose merge path
-// is ready, the tick arms GitHub's merge-commit auto-merge on an open,
-// non-draft pull request from a branch of the same repository, whose author
-// passes the actor check and which closes a marked issue of this workspace.
-// Each such issue is verified once per marker hash first. Avoozl never merges
-// and never uses an admin path: GitHub merges when its own rules pass.
-import { createHash } from "node:crypto";
-import { actorAllowed } from "./github-policy.mjs";
-import { parseMarker } from "./github-marker.mjs";
-import { parseProvenance } from "./github-provenance.mjs";
-import { mergePath } from "./radar-merge-path.mjs";
-import { verifyIssue } from "./verify-issue.mjs";
+// Pull requests on Issue Radar repositories (RC5.3, RC5.6, design D7), read
+// from GitHub on the tick. Two things, and no merging:
+//   - ship `manual`: one Ready to merge row per pull request whose required
+//     checks are green. Nothing is armed.
+//   - any ship mode: a pull request with a merge conflict gets the conflict
+//     label and one Needs you row; the label comes off when the conflict is
+//     gone. Avoozl resolves nothing and writes no other label.
+// shortcut: every open, non-draft, same-repository pull request counts, not
+// only those that close a marked issue; rc-5.2 adds that filter for arming.
+import { effectiveShip } from "./radar-merge-path.mjs";
+import { RADAR_INTERVAL_MS } from "./radar-claims.mjs";
 
-const KEY = "radarMerge";
-const same = (a, b) => String(a).toLowerCase() === String(b).toLowerCase();
+const META = "radarMerge";
+const lower = (value) => String(value ?? "").toLocaleLowerCase();
+const FINE = new Set(["success", "neutral", "skipped"]);
+const CLEAN = new Set(["clean", "has_hooks"]);
 
-// `{armed: {"repo#pr": time}, verified: {"repo#issue": {hash, ok}}, notified:
-// [keys]}`. shortcut: lists only grow, a few bytes per pull request and issue;
-// prune when a workspace has thousands.
-const readState = (store) => ({
-  armed: {},
-  verified: {},
-  notified: [],
-  ...(store.getMeta(KEY) || {}),
-});
-
-const markerHash = (marker) =>
-  createHash("sha256").update(JSON.stringify(marker)).digest("hex");
-
-export async function armCrewPullRequests(
-  store,
-  github,
-  { policy, delivery, identity, verify = verifyIssue },
-) {
-  const notify = [],
-    machine = store.getMeta("machineIdentity")?.id,
-    state = readState(store);
-  let changed = false;
-  for (const [id, repository] of Object.entries(policy?.repositories || {})) {
-    const ship = delivery?.repositories?.[id]?.ship ?? delivery?.ship;
-    if (repository.coder !== "issue-radar" || ship !== "auto-merge") continue;
-    const config = store.get("github_repositories", id);
-    if (!machine || !config || config.activeMachine !== machine) continue;
-    const pulls = (
-      await github.listPullRequests(config, { state: "open" })
-    ).filter(
-      (pull) =>
-        pull.state === "open" &&
-        !pull.draft &&
-        !pull.auto_merge &&
-        pull.node_id &&
-        pull.user?.login &&
-        pull.head?.repo?.full_name &&
-        same(pull.head.repo.full_name, id) &&
-        same(pull.base?.repo?.full_name, id) &&
-        !state.armed[`${id}#${pull.number}`],
-    );
-    if (!pulls.length) continue;
-    // Never arm where GitHub would merge at once or refuse.
-    if (!(await mergePath(github, id, repository, { delivery })).ready)
-      continue;
-    // The marked open issues of this workspace, and the pull requests that
-    // GitHub says close each.
-    const closing = new Map();
-    for (const issue of await github.listIssues(config, { state: "open" })) {
-      const managed = parseMarker(issue.body),
-        { marker } = parseProvenance(issue.body);
-      if (!marker || !managed || managed.namespace !== identity?.namespace)
-        continue;
-      for (const node of await github.closingPullRequests(config, issue.number))
-        if (
-          node.state === "OPEN" &&
-          !node.merged &&
-          same(node.repository?.nameWithOwner, id)
-        ) {
-          const list = closing.get(node.number) || [];
-          list.push({ number: issue.number, hash: markerHash(marker) });
-          closing.set(node.number, list);
-        }
-    }
-    const permissions = new Map();
-    for (const pull of pulls) {
-      const marked = closing.get(pull.number);
-      if (!marked?.length) continue;
-      const login = pull.user.login;
-      if (!permissions.has(login))
-        permissions.set(
-          login,
-          (await github.permission(config, login))?.permission,
-        );
-      if (!actorAllowed(repository, login, permissions.get(login)).allowed)
-        continue;
-      let ok = true;
-      for (const issue of marked) {
-        const key = `${id}#${issue.number}`,
-          known = state.verified[key];
-        if (known?.hash === issue.hash) {
-          ok &&= known.ok;
-          continue;
-        }
-        const result = await verify(key);
-        // A check that could not run is no verdict: try again next tick.
-        if (!result.ok && result.couldNotRun) {
-          ok = false;
-          continue;
-        }
-        state.verified[key] = { hash: issue.hash, ok: result.ok };
-        changed = true;
-        if (!result.ok) {
-          ok = false;
-          const note = `${key}:${issue.hash}`;
-          if (!state.notified.includes(note)) {
-            state.notified.push(note);
-            notify.push({
-              channel: "decision",
-              title: `Issue #${issue.number} does not verify`,
-              text: `Pull request #${pull.number} closes issue #${issue.number} in ${id}, but "avoozl verify-issue ${key}" fails: ${result.checks
-                .filter((check) => check.status === "fail")
-                .map((check) => check.name)
-                .join(", ")}. Nothing was armed.`,
-              resume: "Fix the issue's marker; the next tick checks it again.",
-            });
-          }
-        }
-        ok &&= result.ok;
-      }
-      if (!ok) continue;
-      try {
-        await github.armAutoMerge(config, pull.node_id, "MERGE");
-        state.armed[`${id}#${pull.number}`] = new Date().toISOString();
-        changed = true;
-      } catch (error) {
-        // Tried again next tick; the person hears of it once.
-        const note = `arm:${id}#${pull.number}`;
-        if (!state.notified.includes(note)) {
-          state.notified.push(note);
-          changed = true;
-          notify.push({
-            channel: "failure",
-            title: `Avoozl could not arm auto-merge on #${pull.number}`,
-            text: `${id}: ${error.message}`,
-          });
-        }
-      }
-    }
-  }
-  if (changed) store.setMeta(KEY, state);
-  return { notify };
+// Every check run and commit status on the head commit, as {name, ok, done}.
+async function checksOf(github, repository, sha) {
+  const [runs, status] = await Promise.all([
+    github.checkRuns(repository, sha),
+    github.commitStatus(repository, sha),
+  ]);
+  return [
+    ...(runs || []).map((run) => ({
+      name: run.name,
+      done: run.status === "completed",
+      ok: run.status === "completed" && FINE.has(run.conclusion),
+    })),
+    ...(status?.statuses || []).map((entry) => ({
+      name: entry.context,
+      done: entry.state !== "pending",
+      ok: entry.state === "success",
+    })),
+  ];
 }
 
-// The tick's wrapper: a failure is reported, not thrown.
-export async function mergeStep(store, github, options) {
-  try {
-    return {
-      status: "ok",
-      ...(await armCrewPullRequests(store, github, options)),
-    };
-  } catch (error) {
-    return { status: "error", error: error.message, notify: [] };
+const green = (checks, required) =>
+  checks.length > 0 &&
+  checks.every((check) => check.ok) &&
+  required.every((name) => checks.some((check) => check.name === name));
+
+// Reads one repository and writes only the conflict label. Returns the rows
+// that now stand; a GitHub error throws before any row changes.
+async function readRepository(github, repository, settings, ship, old, errors) {
+  const label = settings.radar?.conflictLabel,
+    required = settings.requiredChecks || [],
+    listed = await github.listPullRequests(repository, { state: "open" }),
+    rows = { ready: [], conflicts: [] };
+  for (const entry of listed) {
+    if (entry.draft || lower(entry.head?.repo?.full_name) !== lower(repository))
+      continue;
+    const pull = await github.pullRequest(repository, entry.number),
+      labelled = (pull.labels || []).some(
+        (item) => lower(item.name ?? item) === lower(label),
+      ),
+      known = old.conflicts.find((row) => row.number === pull.number),
+      base = {
+        number: pull.number,
+        url: pull.html_url,
+        title: String(pull.title ?? ""),
+        head: pull.head?.sha,
+      },
+      conflicted = pull.mergeable === false && pull.mergeable_state === "dirty",
+      clear = pull.mergeable === true;
+    if (conflicted) {
+      rows.conflicts.push({ ...base, at: known?.at });
+      if (!labelled)
+        await github.addLabels(repository, pull.number, [label]).catch((e) => {
+          errors.push(`${repository} #${pull.number}: ${e.message}`);
+        });
+    } else if (clear) {
+      if (labelled)
+        await github.removeLabel(repository, pull.number, label).catch((e) => {
+          errors.push(`${repository} #${pull.number}: ${e.message}`);
+        });
+    } else if (known) rows.conflicts.push(known);
+    if (
+      ship === "manual" &&
+      clear &&
+      CLEAN.has(pull.mergeable_state) &&
+      green(await checksOf(github, repository, pull.head.sha), required)
+    ) {
+      const kept = old.ready.find(
+        (row) => row.number === pull.number && row.head === base.head,
+      );
+      rows.ready.push({ ...base, at: kept?.at });
+    }
   }
+  return rows;
+}
+
+// The tick step. At most one read per interval unless `force`. A repository
+// that cannot be read keeps its rows and writes nothing.
+export async function mergeStep(
+  store,
+  github,
+  policy,
+  delivery,
+  { now = Date.now(), force = false } = {},
+) {
+  const notify = [],
+    errors = [],
+    old = store.getMeta(META) ?? { readAt: null, repositories: {} };
+  if (!policy?.mode || !github) return { notify, errors };
+  if (!force && old.readAt && now - Date.parse(old.readAt) < RADAR_INTERVAL_MS)
+    return { notify, errors };
+  const at = new Date(now).toISOString(),
+    next = { readAt: at, repositories: {} };
+  for (const [repository, settings] of Object.entries(
+    policy.repositories || {},
+  )) {
+    if (settings.coder !== "issue-radar") continue;
+    const before = old.repositories?.[repository] ?? {
+      ready: [],
+      conflicts: [],
+    };
+    try {
+      const rows = await readRepository(
+        github,
+        repository,
+        settings,
+        effectiveShip(delivery, repository),
+        before,
+        errors,
+      );
+      for (const row of rows.ready) {
+        row.at ??= at;
+        if (
+          !before.ready.some(
+            (r) => r.number === row.number && r.head === row.head,
+          )
+        )
+          notify.push({
+            channel: "decision",
+            title: `${repository} #${row.number} is ready to merge`,
+            text: `Its required checks pass. You merge it on GitHub: ${row.url}`,
+          });
+      }
+      for (const row of rows.conflicts) {
+        row.at ??= at;
+        if (!before.conflicts.some((r) => r.number === row.number))
+          notify.push({
+            channel: "decision",
+            title: `${repository} #${row.number} has a merge conflict`,
+            text: `Merge the base branch into it. Avoozl does not resolve conflicts: ${row.url}`,
+          });
+      }
+      next.repositories[repository] = { ...rows, error: null };
+    } catch (error) {
+      errors.push(`${repository}: GitHub could not be read: ${error.message}`);
+      next.repositories[repository] = { ...before, error: error.message };
+    }
+  }
+  store.setMeta(META, next);
+  return { notify, errors };
+}
+
+// The Needs you rows the last read left standing.
+export function mergeNeedsYou(store) {
+  const items = [];
+  for (const [repository, entry] of Object.entries(
+    store.getMeta(META)?.repositories ?? {},
+  )) {
+    for (const row of entry.ready ?? [])
+      items.push({
+        kind: "ready-to-merge",
+        id: `ready-to-merge:${repository}#${row.number}`,
+        taskId: null,
+        authority: "github",
+        pullRequest: row.number,
+        link: row.url,
+        title: `${repository} #${row.number} is ready to merge`,
+        detail: `Its required checks pass on ${String(row.head).slice(0, 12)}. You merge it on GitHub; Avoozl never merges it.`,
+        openedAt: row.at,
+      });
+    for (const row of entry.conflicts ?? [])
+      items.push({
+        kind: "needs-human",
+        reason: "crew",
+        id: `merge-conflict:${repository}#${row.number}`,
+        taskId: null,
+        authority: "github",
+        pullRequest: row.number,
+        link: row.url,
+        title: `${repository} #${row.number} has a merge conflict`,
+        detail:
+          "Merge the base branch into the pull request branch. Avoozl does not resolve conflicts; the label comes off when it is clear.",
+        openedAt: row.at,
+      });
+  }
+  return items;
 }

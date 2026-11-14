@@ -75,7 +75,6 @@ import { planningIdentity } from "./github-marker.mjs";
 import { syncProject } from "./github-project.mjs";
 import { reviewDispatches } from "./pr-review.mjs";
 import { crewStep } from "./github-crew.mjs";
-import { mergeStep } from "./radar-merge.mjs";
 import { respondStep } from "./github-respond.mjs";
 import { steeringStep } from "./github-steering.mjs";
 import { feedbackStep } from "./github-feedback.mjs";
@@ -88,6 +87,8 @@ import { intakeNotices, syncGitHubIssues } from "./github-sync.mjs";
 import { advanceGitHubBreakdowns } from "./github-breakdown.mjs";
 import { blockerNotes } from "./github-close.mjs";
 import { refreshUntriaged } from "./untriaged.mjs";
+import { mergeStep } from "./radar-merge.mjs";
+import { armStep } from "./radar-arm.mjs";
 import { namespaceOf } from "./radar-plan-me.mjs";
 import { pluginHealth, recordHealth } from "./plugin-session.mjs";
 import { repositoryPlugins } from "./plugins.mjs";
@@ -807,12 +808,36 @@ export async function tick(
       const crew =
         script && github ? await crewStep(store, github, workspaceRoot) : null;
       if (crew) planned.notify.push(...crew.notify);
+      // Ready to merge rows and the conflict label on Issue Radar pull
+      // requests (RC5.3, RC5.6): one read per repository per interval.
+      if (script && github)
+        try {
+          const step = await mergeStep(
+            store,
+            github,
+            readGitHubPolicyOrNull(workspaceRoot),
+            delivery || {},
+          );
+          planned.notify.push(...step.notify);
+          for (const text of step.errors)
+            planned.notify.push({
+              channel: "failure",
+              title: "Avoozl could not check pull requests for merging",
+              text,
+            });
+        } catch (error) {
+          planned.notify.push({
+            channel: "failure",
+            title: "Avoozl could not check pull requests for merging",
+            text: error.message,
+          });
+        }
       // Arm auto-merge on crew pull requests (RC5.2, RC5.8).
       if (script && github && delivery)
         try {
           planned.notify.push(
             ...(
-              await mergeStep(store, github, {
+              await armStep(store, github, {
                 policy: readGitHubPolicy(workspaceRoot),
                 delivery,
                 identity: planningIdentity(workspaceRoot),
