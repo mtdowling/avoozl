@@ -101,6 +101,7 @@ import {
   requireIntegrationBranch,
 } from "./integration-branch.mjs";
 import { mergeNeedsYou } from "./radar-merge.mjs";
+import { syncNeedsYou } from "./integration-sync.mjs";
 import { namespaceOf, planThisRequest } from "./radar-plan-me.mjs";
 import {
   CODERS,
@@ -2608,6 +2609,7 @@ export class Operations {
       // Remote tasks waiting on the person's turn in the relay (R41.20).
       view.items.push(...relayNeedsYou(store));
       view.items.push(...mergeNeedsYou(store));
+      view.items.push(...syncNeedsYou(store));
       view.items.push(
         ...radarNeedsYou(
           untriagedView(

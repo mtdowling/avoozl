@@ -88,6 +88,7 @@ import { advanceGitHubBreakdowns } from "./github-breakdown.mjs";
 import { blockerNotes } from "./github-close.mjs";
 import { refreshUntriaged } from "./untriaged.mjs";
 import { mergeStep } from "./radar-merge.mjs";
+import { syncStep, syncTargets } from "./integration-sync.mjs";
 import { armStep } from "./radar-arm.mjs";
 import { namespaceOf } from "./radar-plan-me.mjs";
 import { pluginHealth, recordHealth } from "./plugin-session.mjs";
@@ -845,6 +846,40 @@ export async function tick(
           );
         } catch {
           // An unreadable policy is reported by the steps above.
+        }
+      // Main into each epic's integration branch (RC16.6): one merge commit
+      // per schedule, from the machine that holds the repository.
+      if (script && github)
+        try {
+          const policy = readGitHubPolicyOrNull(workspaceRoot),
+            machine = store.getMeta("machineIdentity")?.id,
+            found = policy?.mode ? syncTargets(store, policy) : null;
+          if (found) {
+            const step = await syncStep(
+              store,
+              github,
+              found.targets.filter(
+                (target) =>
+                  machine &&
+                  store.get("github_repositories", target.repository)
+                    ?.activeMachine === machine,
+              ),
+              { policy, problems: found.problems },
+            );
+            planned.notify.push(...step.notify);
+            for (const text of step.errors)
+              planned.notify.push({
+                channel: "failure",
+                title: "Avoozl could not sync an integration branch",
+                text,
+              });
+          }
+        } catch (error) {
+          planned.notify.push({
+            channel: "failure",
+            title: "Avoozl could not sync an integration branch",
+            text: error.message,
+          });
         }
       // The Untriaged list (§8.5): one read-only search per repository per
       // interval, cached for the page.
