@@ -142,9 +142,9 @@ test('Waiting on you keeps what a person settles and drops retired worker items'
   assert.equal(model.waiting[2].actions[0].href, 'https://github.test/o/r/pull/57')
 })
 
-test('only http links become link actions', () => {
+test('only http links become link actions; a row with none deep-links into the page', () => {
   const model = panelModel({ conflicts: [conflict('needs-human', { reason: 'crew', link: 'javascript:alert(1)' })] })
-  assert.deepEqual(model.waiting[0].actions, [])
+  assert.deepEqual(model.waiting[0].actions, [{ kind: 'link', label: 'Open in Avoozl', href: '/apps/avoozl' }])
 })
 
 test('In flight lists crew claims and remote coders, with where to attach', () => {
@@ -187,9 +187,12 @@ test('a read that failed leaves its section unread, not empty', () => {
 })
 
 test('the driver session: a link when one runs, else a Start button and why', () => {
-  assert.deepEqual(driverView({ state: 'running', link: '/chat?sid=drv' }), { state: 'running', link: '/chat?sid=drv', note: null })
+  const running = driverView({ state: 'running', slot: 'drv', href: '/chat?sid=drv', openedAt: null, lastSeenAt: null })
+  assert.equal(running.link, '/chat?sid=drv')
+  assert.equal(running.start, false)
   const none = driverView(null)
-  assert.equal(none.state, 'not-started')
+  assert.equal(none.state, 'none')
   assert.equal(none.link, null)
+  assert.equal(none.start, true)
   assert.match(none.note, /nothing is released/i)
 })
