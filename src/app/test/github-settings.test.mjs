@@ -243,7 +243,7 @@ const INVALID = [
   [
     "an unknown coder",
     repository({ coder: "crew" }),
-    /coder must be worker or issue-radar/,
+    /coder must be issue-radar, worker or remote/,
   ],
   [
     "a repository with no base branch under a mode",
