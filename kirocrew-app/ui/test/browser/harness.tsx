@@ -10,6 +10,7 @@ import { answer, Btn, Card, Refusal, replyFor, useAppApi } from './stubs.tsx'
 import { NavHistoryProvider, APP_ATTR } from '../../src/NavHistory.tsx'
 import { ConfirmProvider, DangerBtn } from '../../src/controls.tsx'
 import { TaskDrawerProvider } from '../../src/TaskDrawer.tsx'
+import { TracePage } from '../../src/TraceView.tsx'
 import GraphView from '../../src/GraphView.tsx'
 import AddPlugin from '../../src/AddPlugin.tsx'
 import Onboard from '../../src/Onboard.tsx'
@@ -697,6 +698,49 @@ function HomePage() {
   )
 }
 
+// ?page=app&epics=empty|full and ?page=trace&done=empty|full: the Epics
+// screen above the spec list, and Trace with no issue chosen (Done work).
+const RADAR_GRAPH = { url: '/issue-radar', focus: false }
+if (query.get('epics') === 'empty' || query.get('done') === 'empty') {
+  answer('epics.view', () => ({ epics: [], unprojected: [], radarGraph: RADAR_GRAPH }))
+  answer('trace.done', () => ({ rows: [] }))
+}
+if (query.get('epics') === 'full') {
+  const phase = (id: string, title: string, gate: string, total: number, merged: number, released: number, held: string | null) => ({ id, title, gate, total, merged, released, held })
+  answer('epics.view', () => ({
+    epics: [
+      {
+        id: 'search-v2',
+        title: 'Search v2',
+        tasks: 12,
+        merged: 5,
+        running: 1,
+        plans: [
+          { id: 'search-v2', title: 'Plan v3', state: 'approved', phases: [phase('p1', 'Index', 'passed', 3, 3, 3, null), phase('p2', 'Ranking', 'open', 4, 0, 1, '3 wait on #52 (CI)'), phase('p3', 'Cache', 'closed', 5, 0, 0, 'Phase Ranking waits for phase Index to merge.')] },
+          { id: 'search-docs', title: 'Docs', state: 'approved', phases: [phase('d1', 'Write', 'open', 1, 0, 0, null)] },
+        ],
+      },
+    ],
+    unprojected: [{ id: 'notes', title: 'Notes export', state: 'draft', tasks: 4, reason: 'Draft spec. Not approved. Approve it in the Spec Builder chat or its side panel.' }],
+    radarGraph: RADAR_GRAPH,
+  }))
+}
+if (query.get('done') === 'full') {
+  const row = (taskId: string, title: string, issue: number, pr: number, mergedAt: string, name: string | null) => ({ taskId, title, repository: 'acme/recipe-box', issue, url: `https://github.com/acme/recipe-box/issues/${issue}`, pr, prUrl: `https://github.com/acme/recipe-box/pull/${pr}`, mergedAt, by: name ? { kind: 'radar-crew', id: 'c1', name } : null })
+  answer('trace.done', () => ({ rows: [row('S4', 'Index builder', 52, 57, '2026-11-09T11:40:00Z', 'Draco'), row('S1', 'Tokenizer', 40, 41, '2026-11-08T10:00:00Z', null)] }))
+}
+function TraceDonePage() {
+  const [picked, setPicked] = useState('')
+  return (
+    <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)' }}>
+      <NavHistoryProvider>
+        <TracePage workspaceId="w" target={null} onPick={(target) => setPicked(`${target.repository}#${target.number}`)} onOpenEpics={() => setPicked('epics')} />
+        <p data-picked>{picked}</p>
+      </NavHistoryProvider>
+    </div>
+  )
+}
+
 const page = query.get('page')
 // ?page=radar-values[&grant=1]: the Radar values screen on a fake Radar read.
 if (page === 'radar-values') {
@@ -858,5 +902,5 @@ function PanelPage() {
   )
 }
 createRoot(document.getElementById('root')!).render(
-  page === 'panel' ? <PanelPage /> : page === 'workflow-map' ? <WorkflowMapPage /> : page === 'crews-rules' ? <CrewsRulesPage /> : page === 'radar-values' ? <RadarValuesPage /> : intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page === 'activity' ? <ActivityPage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
+  page === 'trace' ? <TraceDonePage /> : page === 'panel' ? <PanelPage /> : page === 'workflow-map' ? <WorkflowMapPage /> : page === 'crews-rules' ? <CrewsRulesPage /> : page === 'radar-values' ? <RadarValuesPage /> : intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page === 'activity' ? <ActivityPage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
 )

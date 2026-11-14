@@ -11,6 +11,7 @@ import { useNav } from './NavHistory.tsx'
 import { useRead } from './useRead.ts'
 import { afterPrevious, clock, parseTraceLink, traceClient, type Trace, type TraceStep, type TraceTarget } from './trace-api.ts'
 import { linkHref } from './views-api.ts'
+import TraceDone from './TraceDone.tsx'
 
 const DOT: Record<TraceStep['state'], { border: string; background: string }> = {
   done: { border: 'var(--ok)', background: 'var(--ok)' },
@@ -173,9 +174,17 @@ export function TraceStart({ onPick }: { onPick?: (target: TraceTarget) => void 
 
 // The page: its own tab state in the Back history, so Back returns to the
 // view the person came from.
-export function TracePage({ workspaceId, target, onPick }: { workspaceId: string | null; target: TraceTarget | null; onPick?: (target: TraceTarget) => void }) {
+export function TracePage({ workspaceId, target, onPick, onOpenEpics }: { workspaceId: string | null; target: TraceTarget | null; onPick?: (target: TraceTarget) => void; onOpenEpics?: () => void }) {
   const nav = useNav()
-  if (!target) return <TraceStart onPick={onPick} />
+  if (!target)
+    return (
+      <>
+        <TraceStart onPick={onPick} />
+        <section className="mx-auto max-w-2xl py-2">
+          <TraceDone workspaceId={workspaceId} onPick={onPick} onOpenEpics={onOpenEpics} />
+        </section>
+      </>
+    )
   return <TracePageFor workspaceId={workspaceId} target={target} onBack={() => nav.history.back()} />
 }
 
