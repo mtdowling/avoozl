@@ -336,6 +336,8 @@ const MACHINE_OPERATIONS = new Map([
   ["demo.start", "write"],
   ["demo.exit", "write"],
   ["demo.status", "observe"],
+  // What the Radar screens read in the open sample (demo-radar.mjs).
+  ["demo.fixtures", "observe"],
 ]);
 
 // Action-level authorization. The dashboard owner may call any app operation.
@@ -453,6 +455,14 @@ export function startAppBackend({
   const demoOperation = async (operation) => {
     if (operation === "demo.status")
       return { active: Boolean(demo), workspaceId: DEMO_WORKSPACE_ID };
+    if (operation === "demo.fixtures") {
+      if (!demo)
+        throw badRequest(
+          "The demo is not open. Start it again from Settings.",
+          409,
+        );
+      return demo.fixtures();
+    }
     if (operation === "demo.exit") {
       demo?.close();
       demo = null;
