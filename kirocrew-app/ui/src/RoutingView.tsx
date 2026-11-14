@@ -10,7 +10,8 @@ import { useAppApi, useChatLauncher } from './host.ts'
 import { Btn, Card, Input } from '@kirocrew/app-sdk/ui'
 import { Modal } from './Modal.tsx'
 import { Marker, Section } from './SettingsView.tsx'
-import { DangerBtn, IconBtn, IconLabel } from './controls.tsx'
+import { AskForHelp, DangerBtn, IconBtn, IconLabel } from './controls.tsx'
+import { COSTS_DOCS, helpSettings } from './budget-api.ts'
 import { Pencil, Plus, Trash2 } from './icons.ts'
 import { modelOptions, parseModels } from './flow-api.ts'
 import { useRead } from './useRead.ts'
@@ -133,6 +134,21 @@ function PromptSection(props: { view: View; workspaceId: string; onSaved: () => 
         <Marker rule={OPTIONAL} />
         <span className="text-xs text-muted">{on ? 'One call each tick ranks every ready task. A bad or missing reply falls back to local.' : OFF_LINE}</span>
       </label>
+      {!props.view.switchedOn && (
+        <AskForHelp
+          workspaceId={props.workspaceId}
+          help={{
+            page: 'Settings › Routing',
+            section: 'Routing prompt',
+            says: OFF_LINE,
+            settings: [
+              { key: 'routing.enabled', value: 'false' },
+              { key: 'crews', value: props.view.crews.map((c) => c.id).join(', ') || 'none' },
+            ],
+            docs: 'README.md, section Routing',
+          }}
+        />
+      )}
       <Field id="avoozl-routing-prompt" label="Prompt" raw="routing.prompt" note={`Saved on this machine only. At most ${PROMPT_LIMIT} characters. A crew or model pinned in a task's manifest still wins.`}>
         <textarea
           id="avoozl-routing-prompt"
@@ -204,7 +220,25 @@ function ProvidersSection(props: { view: View; workspaceId: string; onSaved: () 
     }
   }
   return (
-    <Section title="Providers" blurb="Health and usage in the last 5 hours, read live. Out is never offered; low is a fact the prompt can weigh. A running chat switches model only when its provider is out.">
+    <Section
+      title="Providers"
+      blurb="Health and usage in the last 5 hours, read live. Out is never offered; low is a fact the prompt can weigh. A running chat switches model only when its provider is out."
+      actions={
+        <AskForHelp
+          workspaceId={props.workspaceId}
+          help={{
+            page: 'Settings › Routing',
+            section: 'Providers',
+            says: 'When a provider counts as low or out, from its credit limit per 5 hours. Blank fields use the default.',
+            settings: helpSettings({
+              providers: { lowPercent: form.lowPercent, limits: Object.entries(form.limits).filter(([, v]) => v.trim()).map(([p, v]) => `${p} ${v} credits`) },
+              defaults: `low at ${box.defaultLowPercent}%, no limits`,
+            }),
+            docs: COSTS_DOCS,
+          }}
+        />
+      }
+    >
       {box.rows.length ? (
         <div style={{ overflowX: 'auto' }}>
           <table className="text-sm" style={{ borderCollapse: 'collapse', width: '100%' }} data-providers>

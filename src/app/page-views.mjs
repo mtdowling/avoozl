@@ -4,9 +4,11 @@
 // empty rather than failing the view.
 import { budgetSummaries } from "./budget.mjs";
 import { providerOutItems } from "./provider-health.mjs";
+import { investigationItems } from "./investigate.mjs";
 import { queryTasks, reviewSettled, statusComplete } from "../model.mjs";
 import {
   completionReached,
+  isManual,
   pluginId,
   supersedingTask,
   taskAuthority,
@@ -110,7 +112,28 @@ export function ownership(task) {
 
 // What a person must do for a task before it moves, with a link: a remote
 // leaf waiting on its route, or a task whose plugin is parked (R22.7, R34.7).
-function needsYou(task, submissions, health, budgets = null) {
+// Manual leaves whose blockers hold: each waits in Needs you for a person
+// (R61.11). The same readiness rule as `ready`, asked with `manual`.
+export function manualWaitingIds(data, repositories) {
+  return new Set(
+    queryTasks(data, {
+      scope: "all",
+      repositories,
+      manual: true,
+      q: "ready:true",
+    })
+      .filter(isManual)
+      .map((task) => task.id),
+  );
+}
+
+function needsYou(task, submissions, health, budgets = null, manual = null) {
+  if (manual?.has(task.id))
+    return {
+      reason: `Waiting for a person: ${task.title ?? task.id}`,
+      link: null,
+      manual: true,
+    };
   // A task stopped at its budget waits for Raise budget or Stop (§4.17).
   const budget = budgets?.get(task.id);
   if (budget?.state === "open")
@@ -271,6 +294,7 @@ export function graphView(store, data, input = {}) {
     live = liveSessions(store),
     archivedOf = archivedPlanOf(store),
     budgets = budgetSummaries(store, data),
+    manual = manualWaitingIds(data, registered),
     counts = new Map();
   // One state per node for the Graph drawing. Needs-you comes first among
   // open tasks so a person sees it even on a running or deferred task.
@@ -280,7 +304,7 @@ export function graphView(store, data, input = {}) {
       task.decision ||
       task.status === "blocked" ||
       statusWithoutSession(task, live, claimed) ||
-      needsYou(task, submissions, health, budgets)
+      needsYou(task, submissions, health, budgets, manual)
     )
       return "needs-you";
     if (
@@ -357,7 +381,10 @@ export function graphView(store, data, input = {}) {
       // badge, and once per plan in Conflicts, not as needs-you.
       review: needsTextReview(data, task),
       decision: task.decision ?? null,
-      needsYou: needsYou(task, submissions, health, budgets),
+      needsYou: needsYou(task, submissions, health, budgets, manual),
+      // A step only a person does (R61.9), and how it was marked done.
+      manual: isManual(task),
+      manualDone: isManual(task) ? (task.manualDone ?? null) : null,
       // Spend against the cap (§4.17), or null with no usage.
       budget: budgets.get(task.id) ?? null,
       // Status review with no session, run or delivery behind it.
@@ -1099,6 +1126,50 @@ export function conflictsView(store, data) {
   }
   // A provider or model that is out (§4.20, R72.16): one item per mark.
   items.push(...providerOutItems(store));
+  // Ready to merge under manual ship (§4.25, R80.3, R80.4): a pull request
+  // a person merges on GitHub, or a local task waiting for Integrate.
+  for (const row of optionalList(store, "pr_feedback")) {
+    const task = byId.get(row.taskId);
+    if (!row.ready || !row.pull || !task || complete(task.status)) continue;
+    items.push({
+      kind: "ready-to-merge",
+      id: "ready-to-merge:" + task.id,
+      taskId: task.id,
+      ...ownership(task),
+      title: `${task.id} is ready to merge`,
+      detail: `Its checks and reviews pass on ${String(row.ready.head).slice(0, 12)}. You merge it on GitHub; Avoozl never merges it.`,
+      link: row.ready.url,
+      pullRequest: row.ready.number,
+      openedAt: row.ready.at,
+    });
+  }
+  for (const delivery of optionalList(store, "task_deliveries")) {
+    const task = byId.get(delivery.taskId);
+    if (
+      !task ||
+      delivery.state !== "verified" ||
+      !delivery.awaitingIntegrate ||
+      delivery.awaitingIntegrate !== delivery.commit ||
+      delivery.integrateApproved?.commit === delivery.commit
+    )
+      continue;
+    items.push({
+      kind: "ready-to-merge",
+      id: "ready-to-merge:" + task.id,
+      taskId: task.id,
+      ...ownership(task),
+      title: `${task.id} is ready to merge`,
+      detail: `Its checks and reviews passed on ${delivery.commit.slice(0, 12)}. Press Integrate to land it.`,
+      commit: delivery.commit,
+      integrate: true,
+      openedAt: delivery.updatedAt ?? null,
+    });
+  }
+  // Findings the gate did not pass (§4.21, R75.4).
+  for (const item of investigationItems(store, data)) {
+    const task = byId.get(item.taskId);
+    items.push({ ...item, ...(task ? ownership(task) : {}) });
+  }
   const holders = new Map();
   for (const run of optionalList(store, "runs"))
     if (ACTIVE_RUNS.has(run.state) && !run.deletedAt)
@@ -1233,6 +1304,12 @@ export function taskDetailView(
       issue: issueLink(detail),
       wave: wave(id),
       context: detail.context || "",
+      // A step only a person does (R61.9, R61.12): Mark done, and how it
+      // was marked.
+      manual: node?.manual ?? false,
+      manualDone: node?.manualDone ?? null,
+      // Show on the issue applies only to a task with an issue (R61.23).
+      onGitHub: Boolean(detail.github?.number),
     },
     origin: taskOrigin(detail, data, plan),
     plan: plan && {
@@ -1589,6 +1666,58 @@ export function sameItem(item, key) {
     (item.slot ?? null) === (key.slot ?? null) &&
     (item.id ?? null) === (key.id ?? null)
   );
+}
+
+// Ask for help (design §8.9): a chat seeded with where the person is on the
+// page, what it says, the settings there with their current values, and
+// where the docs are. The page sends it; every field is clipped text.
+const HELP_SETTINGS = 40;
+const helpText = (value, max) =>
+  typeof value === "string"
+    ? value
+        .replace(/[\u0000-\u001f\u007f]+/g, " ")
+        .trim()
+        .slice(0, max)
+    : "";
+
+export function helpMessage(input = {}) {
+  const help =
+    input.help && typeof input.help === "object" && !Array.isArray(input.help)
+      ? input.help
+      : {};
+  const page = helpText(help.page, 100) || "Avoozl",
+    section = helpText(help.section, 200),
+    says = helpText(help.says, 2000),
+    docs = helpText(help.docs, 300) || "README.md in the Avoozl repository",
+    settings = (Array.isArray(help.settings) ? help.settings : [])
+      .slice(0, HELP_SETTINGS)
+      .map((s) => ({
+        key: helpText(s?.key, 120),
+        value: helpText(
+          typeof s?.value === "string"
+            ? s.value
+            : JSON.stringify(s?.value ?? null),
+          300,
+        ),
+      }))
+      .filter((s) => s.key);
+  return [
+    "Context from the Avoozl page.",
+    "Help me with this part of the Avoozl page. Use the avoozl skill and the docs named below. Do not save or change any setting, write any file, or start any session: tell me what to set, and I will save it on the page.",
+    "",
+    "## Where I am",
+    `- Page: ${page}`,
+    ...(section ? [`- Section: ${section}`] : []),
+    ...(says ? [`- It says: ${says}`] : []),
+    "",
+    "## Settings here, as they are now",
+    ...(settings.length
+      ? settings.map((s) => `- ${s.key}: ${s.value}`)
+      : ["- None."]),
+    "",
+    "## Docs",
+    `- ${docs}`,
+  ].join("\n");
 }
 
 export function chatContext(

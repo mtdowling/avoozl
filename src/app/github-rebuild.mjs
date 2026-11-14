@@ -18,6 +18,7 @@ import { ensureInbox, issueRecordId, projectedMarker } from "./github-sync.mjs";
 import { fail } from "./store.mjs";
 import { WORKSPACE_LOCK } from "./tick.mjs";
 import { parseSpec, specCategory, specTitle } from "./spec-plans.mjs";
+import { parseIssueNotes } from "./task-notes.mjs";
 
 const SECTION =
   /<!-- avoozl:managed:start -->\n([\s\S]*?)\n<!-- avoozl:managed:end -->/;
@@ -40,6 +41,7 @@ export function parseManagedSection(body) {
     heading = (name) => lines.indexOf("## " + name),
     acceptanceAt = heading("Acceptance criteria"),
     dependenciesAt = heading("Dependencies"),
+    notesAt = heading("Links and notes"),
     end = (from) => {
       const next = lines.findIndex(
         (line, index) =>
@@ -62,6 +64,8 @@ export function parseManagedSection(body) {
       .trim(),
     acceptance: items(acceptanceAt),
     requires: items(dependenciesAt),
+    // Entries a person ticked Show on the issue (R61.23), as raw lines.
+    notes: notesAt === -1 ? [] : lines.slice(notesAt + 1, end(notesAt)),
   };
 }
 
@@ -312,6 +316,10 @@ async function rebuild(
       );
       const order = orderReceipt(entry, taskId);
       if (order) receipts += putIfChanged(store, "receipts", order);
+      // Shown links and notes come back from the body; unshown ones live
+      // only in SQLite and its backups, like session bindings (§3.3).
+      for (const note of parseIssueNotes(entry.section.notes, taskId))
+        receipts += putIfChanged(store, "task_notes", note);
     }
     for (const { plan, approval } of plans) {
       store.put("approvals", approval);

@@ -716,7 +716,18 @@ async function integrateUnlocked(store, { id, expectedCommit }) {
   // merge. `entry.state === "ready"` records an older validation against an
   // older base; never skip this step by trusting it.
   const before = await git(project.root, ["rev-parse", target]);
-  await git(entry.worktree, ["rebase", target]);
+  // Work already merged forward onto the target (R77.5) keeps its merge;
+  // anything else is rebased here as before.
+  const forward = await git(entry.worktree, [
+    "merge-base",
+    "--is-ancestor",
+    target,
+    "HEAD",
+  ]).then(
+    () => true,
+    () => false,
+  );
+  if (!forward) await git(entry.worktree, ["rebase", target]);
   const revalidated = await validateUnlocked(store, id, {
     phase: "integration",
     source: entry.runId ? undefined : { ...entry, state: "integrating" },

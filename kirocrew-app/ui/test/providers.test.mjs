@@ -49,18 +49,31 @@ test('switch records say what happened', () => {
   assert.equal(switchText({ ...base, to: null, state: 'done', result: 'no target' }), 'a: no healthy model to switch to')
 })
 
-test('Switch model sits in the Dashboard header and on In flight; providers show in Settings › Routing', () => {
-  const dashboard = source('DashboardView.tsx')
-  const header = dashboard.slice(dashboard.indexOf('actions={'), dashboard.indexOf('</ViewHeading>'))
-  assert.match(header, /<SwitchModelButton workspaceId=\{workspaceId\}/)
-  const flight = dashboard.slice(dashboard.indexOf('title={`In flight'), dashboard.indexOf("pages.take('flight'"))
-  assert.match(flight, /<SwitchModelButton[\s\S]*tasks=\{/)
+test('Switch model and Stop the line sit once each in the top row; providers show in Settings › Routing', () => {
+  const app = source('App.tsx'),
+    dashboard = source('DashboardView.tsx')
+  const row = app.slice(app.indexOf('data-top-row'), app.indexOf('</div>', app.indexOf('data-top-actions')))
+  assert.ok(row.indexOf('<SegmentedControl') < row.indexOf('<SwitchModelButton'), 'after the tabs')
+  assert.ok(row.indexOf('<SwitchModelButton') < row.indexOf('<StopLineButton'), 'Stop the line goes last')
+  for (const file of ['DashboardView.tsx', 'FlowView.tsx', 'DeliveryView.tsx', 'SettingsView.tsx'])
+    assert.doesNotMatch(source(file), /<SwitchModelButton|<StopLineButton/, `${file} has its own copy`)
+  assert.equal(app.match(/<SwitchModelButton/g).length, 1)
+  assert.equal(app.match(/<StopLineButton/g).length, 1)
+  assert.match(dashboard, /<LineBanner/)
   const dialog = source('SwitchModel.tsx')
-  // Switch needs a preview first, and sends its hash.
-  assert.match(dialog, /disabled=\{busy \|\| !preview/)
-  assert.match(dialog, /previewHash: preview\.previewHash/)
-  assert.match(dialog, /Also new tasks/)
-  assert.match(dialog, /client\.models\(\)/)
+  // Step 1 uses dropdowns and the shared picker, text only when a list can't be read.
+  assert.match(dialog, /<select aria-label=\{label\}/)
+  assert.match(dialog, /<Picker id="avoozl-switch-to"/)
+  assert.match(dialog, /modelOptions\(/, 'To offers auto and Kiro Crew\'s models')
+  assert.match(dialog, /models === 'failed' \?/)
+  assert.match(dialog, /could not be read, so there is no list/)
+  assert.match(dialog, /change model at their next turn\. Each keeps its branch and worktree/)
+  assert.match(dialog, /Routing skips the From provider or model for new tasks/)
+  // Step 2 is the dry run; Confirm sends its hash, and a 409 shows the difference.
+  assert.match(dialog, /client\.dryRun\(/)
+  assert.match(dialog, /previewHash: dry\.previewHash/)
+  assert.match(dialog, /setChanged\(dryRunDiff\(dry, next\)\)/)
+  assert.match(dialog, /onClick=\{\(\) => setStep\('choose'\)\} data-switch-back/)
   assert.match(source('RoutingView.tsx'), /<ProvidersSection /)
   assert.match(source('views-api.ts'), /'provider-out': 'Provider out'/)
 })

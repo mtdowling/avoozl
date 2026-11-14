@@ -104,12 +104,40 @@ def session_row(row):
     return out
 
 
+def folder_projects(ctx):
+    """{slash path: has a project directory} for every session folder.
+
+    A folder inherits the nearest project directory up its chain. None when
+    the folders cannot be read; the tick then plans as before.
+    """
+    try:
+        folders = ctx.list_session_folders()
+    except Exception:
+        return None
+    by_id = {f.get("id"): f for f in folders if isinstance(f, dict)}
+    out = {}
+    for f in by_id.values():
+        names, project, cur, seen = [], "", f, set()
+        while cur is not None and cur.get("id") not in seen:
+            seen.add(cur.get("id"))
+            names.append(cur.get("name") or "")
+            project = project or cur.get("project_dir") or ""
+            cur = by_id.get(cur.get("parent_id") or "")
+        out["/".join(reversed(names))] = bool(project)
+    return out
+
+
 def run(ctx):
     sessions = read_sessions(ctx)
     # cron marks the caller as the script that carries out intents, roster or not.
     args = {"cron": True}
     if sessions is not None:
         args["sessions"] = sessions
+    # Folders first, so a folder with no project directory gets a notice
+    # instead of a silent wait.
+    folders = folder_projects(ctx)
+    if folders is not None:
+        args["folders"] = folders
     intents = plans(ctx, "plans_tick", args)
     if not isinstance(intents, dict) or intents.get("skipped"):
         raise Skip()
@@ -119,8 +147,8 @@ def run(ctx):
         folder, project_dir = find_or_create(ctx, d.get("folder", ""))
         # MC-1: a session takes its project from its folder, which only a
         # person can set. Without one the worker would run outside the checkout.
-        # shortcut: a folder with no project directory waits silently; the
-        # Workspace view should say "Set project directory" once it reads folders.
+        # The server already dropped these and told the person (folders above);
+        # this is the backstop for a folder made in this same tick.
         # A code review chat needs no checkout and says so with project False.
         if not project_dir and d.get("project", True):
             continue
@@ -141,7 +169,7 @@ def run(ctx):
         # bound, empty session the next tick messages (§4.6). The binding
         # records the model it was opened on and the commit it judges.
         binding = {"taskId": d["task"], "slot": slot, "title": d["title"], "source": "tick"}
-        for key in ("role", "attempt", "model", "commit", "batch", "crew", "placement", "sessionReason"):
+        for key in ("role", "attempt", "model", "commit", "batch", "crew", "placement", "sessionReason", "investigate"):
             if d.get(key):
                 binding[key] = d[key]
         # The agent is recorded once placement chose it (R53.10).

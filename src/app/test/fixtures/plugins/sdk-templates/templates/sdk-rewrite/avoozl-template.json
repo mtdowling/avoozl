@@ -1,0 +1,51 @@
+{
+  "id": "sdk-rewrite",
+  "title": "SDK rewrite",
+  "description": "Rewrite one SDK on the new runtime, phase by phase, with a team review before cutover.",
+  "inputs": [
+    { "id": "sdk", "label": "Which SDK", "type": "text", "required": true },
+    {
+      "id": "repository",
+      "label": "Target repository",
+      "type": "repositories",
+      "required": true
+    },
+    { "id": "gaps", "label": "Gap list", "type": "file", "required": false }
+  ],
+  "prompt": "prompt.md",
+  "starter": "starter",
+  "phases": [
+    { "id": "inventory", "title": "Inventory" },
+    { "id": "codegen", "title": "Codegen" },
+    { "id": "runtime", "title": "Runtime" },
+    { "id": "protocol-tests", "title": "Protocol tests" },
+    { "id": "review", "title": "Review" },
+    { "id": "cutover", "title": "Cutover" }
+  ],
+  "proofKinds": [
+    {
+      "id": "protocol-tests",
+      "title": "Protocol tests pass",
+      "setup": "The new client built from the models, and the protocol test suite.",
+      "action": "Run every protocol test against the new client.",
+      "expected": "Every protocol test passes.",
+      "failureMeans": "The new client does not speak the protocol yet.",
+      "nextDecision": "Fix the failing area, or narrow the cutover."
+    },
+    {
+      "id": "cutover-dry-run",
+      "title": "Cutover dry run",
+      "setup": "A copy of the callers switched to the new client.",
+      "action": "Run the callers' own tests against the new client.",
+      "expected": "The callers' tests pass with no change to their code.",
+      "failureMeans": "The new client changes behavior callers rely on.",
+      "nextDecision": "Fix the client, or list the change in the release notes."
+    }
+  ],
+  "flow": {
+    "batch": { "by": "phase", "max": 3 },
+    "stopTheLine": { "scope": "dependents" },
+    "localChecksFirst": true,
+    "retro": { "everyTasks": 10 }
+  }
+}

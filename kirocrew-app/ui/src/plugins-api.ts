@@ -326,6 +326,8 @@ export function pluginsClient(api: AppApi) {
     remove: (workspaceId: string, id: string) => run<{ id: string; removed: boolean }>('plugin.remove', { id }, workspaceId),
     // What importing the pack would change. Reads only.
     packPreview: (workspaceId: string, id: string) => run<PackPreview>('plugin.pack.preview', { id }, workspaceId),
+    // A template's pack and flow defaults, as a pack (R61.6).
+    templatePackPreview: (workspaceId: string, id: string, template: string) => run<PackPreview>('plugin.pack.preview', { id, template }, workspaceId),
     // The exact preview the person saw (R55.5).
     packImport: (workspaceId: string, input: Record<string, unknown>) => run<PackPreview>('plugin.pack.import', input, workspaceId),
   }

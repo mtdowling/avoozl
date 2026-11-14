@@ -5,6 +5,7 @@
 // containing block. ?theme=light|dark sets the host theme attribute.
 import { useState, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { createPortal } from 'react-dom'
 import { answer, Btn, Card, Refusal, replyFor } from './stubs.tsx'
 import { NavHistoryProvider, APP_ATTR } from '../../src/NavHistory.tsx'
 import { ConfirmProvider, DangerBtn } from '../../src/controls.tsx'
@@ -21,12 +22,17 @@ import { PackImportDialog } from '../../src/PackImport.tsx'
 import { SendToRadar } from '../../src/SendToRadar.tsx'
 import { CrewDialog } from '../../src/RoutingView.tsx'
 import { SwitchModelButton } from '../../src/SwitchModel.tsx'
+import { InFlightRow } from '../../src/DashboardView.tsx'
 import { TaskFiles } from '../../src/TaskFiles.tsx'
 import { setupForm } from '../../src/settings-api.ts'
 import { LAYER } from '../../src/layers.ts'
+import { BudgetSettings, PricesSettings } from '../../src/BudgetSettings.tsx'
 import PluginsSettings from '../../src/PluginsSettings.tsx'
 import { answerIntake } from './intake-fixture.ts'
 import AvoozlApp from '../../src/App.tsx'
+import { MarkDoneDialog } from '../../src/TaskNotes.tsx'
+import NewPlanDrawer from '../../src/NewPlanDrawer.tsx'
+import { useTaskDrawer } from '../../src/drawer-context.ts'
 
 const query = new URLSearchParams(location.search)
 document.documentElement.dataset.theme = query.get('theme') === 'dark' ? 'dark' : 'light'
@@ -75,6 +81,60 @@ const row = { key: 'p1', kind: 'spec', name: 'Modal plan', spec: 'modal-plan', f
 const crew = { id: 'remote-1', name: 'Remote one', tags: ['linux'], trust: 'remote', gitHosts: ['github.com'], chatLimit: 2, chatLimitSet: false, delivery: 'handback', sshHost: null, worktreeRoot: null, configured: true, reading: null, ageSeconds: null, running: 0 }
 const text = ['# Guide', '', 'A short file for the viewer.', '', '## Part one', '', 'Some words.', '', '## Part two', '', 'More words.'].join('\n')
 
+// A manual task waiting for a person, with links and notes (R61).
+answer('task.detail', () => ({
+  revision: 1,
+  task: {
+    id: 'team-review', title: 'Review with team', summary: 'The team reviews the results before cutover.',
+    acceptance: ['The team agreed the runtime and protocol results are good enough to cut over'], checks: [],
+    epic: null, epicTitle: null, phase: { id: 'review', title: 'Review' }, kind: 'leaf', authority: 'github', route: 'github',
+    completion: 'person', repository: 'sdk', status: 'planned', state: 'needs-you', ready: false, needsReview: false, decision: null,
+    owner: null, issue: { number: 47, url: 'https://github.example.test/o/sdk/issues/47', repository: 'o/sdk' }, wave: 5, context: '',
+    manual: true, manualDone: null, onGitHub: true,
+  },
+  plan: null, locked: null, waitsOn: [], blocks: [], delivery: null, conflicts: [], timeline: [], timing: null,
+}))
+answer('task.notes.list', () => ({
+  taskId: 'team-review',
+  entries: [
+    { id: 'note-000000000002', taskId: 'team-review', kind: 'link', label: 'Protocol test results', url: 'https://docs.example.test/results', outcome: false, author: 'session:chat-1', at: '2026-11-13T10:05:00Z', onIssue: false },
+    { id: 'note-000000000001', taskId: 'team-review', kind: 'note', text: 'Agenda: runtime, protocol results, open gaps.\nInvite the runtime owners.', outcome: false, author: 'person', login: 'alice', at: '2026-11-13T09:00:00Z', onIssue: true },
+  ],
+}))
+answer('repositories.list', () => ({ items: [{ id: 'sdk', name: 'sdk', localCheckout: '/w/sdk', github: 'o/sdk', baseBranch: 'main' }] }))
+answer('template.list', () => ({
+  templates: [
+    {
+      plugin: 'sdk-templates', version: '1.0.0', id: 'sdk-rewrite', title: 'SDK rewrite',
+      description: 'Rewrite one SDK on the new runtime, phase by phase, with a team review before cutover.',
+      inputs: [
+        { id: 'sdk', label: 'Which SDK', type: 'text', required: true },
+        { id: 'repository', label: 'Target repository', type: 'repositories', required: true },
+        { id: 'gaps', label: 'Gap list', type: 'file', required: false },
+      ],
+      phases: ['Inventory', 'Codegen', 'Runtime', 'Protocol tests', 'Review', 'Cutover'].map((title) => ({ id: title.toLowerCase(), title })),
+      proofKinds: ['Protocol tests pass', 'Cutover dry run'], settings: true,
+    },
+  ],
+}))
+answer('plugin.pack.preview', () => ({
+  id: 'sdk-templates', version: '1.0.0', description: 'SDK rewrite settings', repositories: [], warnings: [], previewHash: 'h', imported: null,
+  changes: [
+    { setting: 'flow.batch', action: 'create', to: { by: 'phase', max: 3 } },
+    { setting: 'flow.retro.everyTasks', action: 'change', from: 20, to: 10 },
+    { setting: 'flow.localChecksFirst', action: 'keep', to: true },
+  ],
+}))
+
+function OpenTask() {
+  const drawer = useTaskDrawer()
+  return (
+    <Btn type="button" onClick={() => drawer.openTask('team-review')}>
+      Open the dialog
+    </Btn>
+  )
+}
+
 // Each modal: the label of the button that opens it, and what it renders.
 type Scenario = { opener: string; render: (open: boolean, setOpen: (open: boolean) => void, close: () => void) => ReactNode }
 const own = (opener: string, node: ReactNode): Scenario => ({ opener, render: () => node })
@@ -119,12 +179,85 @@ export const SCENARIOS: Record<string, Scenario> = {
   'send-to-radar': shown((close) => <SendToRadar workspaceId="w" client={idle} items={[]} repository="avoozl" onClose={close} onSent={close} />),
   crew: shown((close) => <CrewDialog crew={crew as never} onCancel={close} onSave={async () => null} />),
   'switch-model': own('Switch model', <SwitchModelButton workspaceId="w" />),
+  'task-drawer': own('Open the dialog', <OpenTask />),
+  'mark-done': shown((close) => <MarkDoneDialog workspaceId="w" taskId="team-review" title="Review with team" onIssue onClose={close} onDone={close} />),
+  // The real page shows New spec over the whole page, not inside a card.
+  'new-spec-template': shown((close) => createPortal(<div {...{ [APP_ATTR]: '' }}><NewPlanDrawer workspaceId="w" taken={[]} categories={[]} epics={[{ id: 'sdk-target', title: 'SDK target architecture' }]} start="template" onClose={close} /></div>, document.body)),
   // Not a modal: the drawer's Files fold, at a drawer's width.
   'task-files': shown(() => (
     <div style={{ maxWidth: 620 }}>
       <TaskFiles workspaceId="w" taskId="a1" active />
     </div>
   )),
+}
+
+// The Switch model steps against fake answers: two running chats, one
+// remote; the first Confirm finds the set changed (?changed=1).
+if (query.get('modal') === 'switch-flow') {
+  const chat = (slot: string, taskId: string, model: string, crew?: string) => ({ slot, taskId, title: `Task ${taskId}`, spec: 'spec-a', role: 'worker', model, to: 'gamma-1', where: crew ?? 'local' })
+  answer('providers.view', () => ({
+    settings: {},
+    hash: null,
+    defaults: { lowPercent: 80, cooldownMinutes: 30, windowHours: 5 },
+    marks: [{ id: 'error:provider:beta', scope: 'provider', name: 'beta', level: 'out', source: 'error', kind: 'credits', since: '' }],
+    switches: [],
+    chats: [
+      { slot: 's1', taskId: 'a1', role: 'worker', model: 'alpha-1', provider: 'alpha', level: 'ok' },
+      { slot: 's2', taskId: 'a2', role: 'worker', model: 'alpha-1', provider: 'alpha', level: 'ok' },
+    ],
+  }))
+  answer('GET /api/models', () => [{ model_id: 'gamma-1', display_name: 'Gamma one' }, { model_id: 'delta-1' }])
+  let runs = 0
+  const flow = state as unknown as { dryRuns: unknown[]; switches: unknown[] }
+  flow.dryRuns = []
+  flow.switches = []
+  answer('provider.switch.dryRun', (body) => {
+    flow.dryRuns.push(body.input)
+    runs += 1
+    const chats = [chat('s1', 'a1', 'alpha-1'), ...(runs > 1 && query.get('changed') ? [chat('s3', 'a3', 'alpha-1')] : [])]
+    return {
+      to: 'gamma-1',
+      alsoNewTasks: true,
+      chats,
+      skipped: [{ ...chat('s2', 'a2', 'alpha-1', 'remote-1'), why: 'runs on remote crew remote-1: only chats on this machine switch' }],
+      marks: [{ scope: 'provider', name: 'alpha', to: 'gamma-1' }],
+      queued: [{ taskId: 'q1', title: 'Task q1', spec: 'spec-a', model: 'alpha-1' }],
+      counts: { switch: chats.length, cannot: 1, queued: 1 },
+      previewHash: `h${runs}`,
+    }
+  })
+  answer('provider.switch', (body) => {
+    const input = body.input as { previewHash: string }
+    if (query.get('changed') && input.previewHash === 'h1') throw Object.assign(Error('The running chats changed since the dry run; check the new set.'), { status: 409 })
+    flow.switches.push(input)
+    return { queued: runs > 1 && query.get('changed') ? 2 : 1, marked: ['provider alpha'] }
+  })
+}
+
+// One In flight row, for the title link test.
+const flightRow = {
+  slot: 's1',
+  role: 'worker',
+  focus: null,
+  taskId: 'a1',
+  title: 'Task a1',
+  epic: 'e1',
+  attempt: 1,
+  model: 'alpha-1',
+  startedAt: null,
+  lastAt: null,
+  status: 'busy',
+  session: { slot: 's1', role: 'worker', attempt: 1, link: null, crew: null },
+  budget: null,
+}
+SCENARIOS['in-flight'] = { opener: '', render: () => <ul><InFlightRow row={flightRow as never} now={Date.now()} onInfo={() => undefined} /></ul> }
+SCENARIOS['switch-flow'] = own('Switch model', <SwitchModelButton workspaceId="w" />)
+
+// The whole page's top row (?app=1): workspaces and the line, nothing else
+// answered, so each tab stays on its loading line. ?stopped=1 opens a stop.
+if (query.get('app')) {
+  answer('workspaces.list', () => ({ defaultWorkspace: 'w', items: [{ id: 'w', name: 'Workspace', served: true }] }))
+  answer('flow.view', () => ({ line: query.get('stopped') ? [{ id: 'l1', manual: true, reason: 'bad base', scope: 'all', closedAt: null, branch: 'main', check: null }] : [] }))
 }
 
 // The Files fold's reads: a worktree with each kind of change.
@@ -204,7 +337,7 @@ answer('untriaged.view', () => ({
   ideas: [{ source: 'local', id: 'idea-1', kind: 'idea', title: 'Harness idea', state: 'open', author: 'me', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z', notes: [], links: [], graduated: null }],
 }))
 
-function AppPage() {
+function DeepLinkPage() {
   return (
     <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)' }}>
       <AvoozlApp />
@@ -237,7 +370,8 @@ if (query.get('page') === 'demo' && demo) {
 }
 
 function Page() {
-  if (query.get('page') === 'app' || query.get('page') === 'demo') return <AppPage />
+  if (query.get('page') === 'app') return <DeepLinkPage />
+  if (query.get('page') === 'demo') return <DeepLinkPage />
   return (
     <>
       <div data-host-header style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 48, zIndex: 1000, display: 'flex', alignItems: 'center', padding: '0 16px', background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border)', color: 'var(--text)' }}>
@@ -270,6 +404,49 @@ function Page() {
   )
 }
 
+// Settings pages with sample data (?page=budgets|prices), for the
+// settings screenshots. Prices and models here are made up. Only a settings
+// page answers these, so the modal and app scenarios keep their own replies.
+if (query.get('page') === 'budgets' || query.get('page') === 'prices') {
+answer('budget.settings.get', () => ({
+  hash: 'h1',
+  budget: { usd: 5, mode: 'stop' },
+  repositories: { avoozl: { usd: 8, mode: 'warn' }, docs: {} },
+}))
+answer('prices.get', () => ({
+  version: 0,
+  sha256: 'x',
+  savedAt: null,
+  hash: 'h2',
+  creditUsd: null,
+  models: {},
+  defaults: {
+    updated: '2026-11-13',
+    sources: ['https://example.com/pricing'],
+    models: { 'claude-sonnet-5.5': { inputPerMTokUsd: 2, outputPerMTokUsd: 10 } },
+  },
+  caps: { tokens: 2000000, credits: 200 },
+  seen: [
+    { model: 'claude-sonnet-5.5', turns: 12, unpricedTurns: 0, creditTurns: 0, priced: 'default' },
+    { model: 'kiro-auto', turns: 4, unpricedTurns: 4, creditTurns: 4, priced: 'credits' },
+    { model: 'local-model-x', turns: 3, unpricedTurns: 3, creditTurns: 0, priced: 'none' },
+  ],
+}))
+}
+const PAGES: Record<string, () => ReactNode> = {
+  budgets: () => <BudgetSettings workspaceId="w" />,
+  prices: () => <PricesSettings workspaceId="w" />,
+}
+function SettingsPage({ name }: { name: string }) {
+  const render = PAGES[name]
+  return (
+    <div {...{ [APP_ATTR]: '' }} data-settings-page={name} style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)', minHeight: '100vh', boxSizing: 'border-box' }}>
+      <ConfirmProvider>{render ? render() : <p>Unknown page {name}</p>}</ConfirmProvider>
+    </div>
+  )
+}
+
+
 // ?page=intake: Settings > Plugins with its Intake sources, on fake data
 // (intake-fixture.ts); &empty=1 with no source. For the intake screenshots.
 function IntakePage() {
@@ -286,6 +463,17 @@ function IntakePage() {
   )
 }
 
-const intake = query.get('page') === 'intake'
+function AppPage() {
+  return (
+    <div data-host-pane style={{ position: 'fixed', inset: 0, overflowY: 'auto', background: 'var(--bg)', color: 'var(--text)' }}>
+      <AvoozlApp />
+    </div>
+  )
+}
+
+const page = query.get('page')
+const intake = page === 'intake'
 if (intake) answerIntake(query.get('empty') === '1')
-createRoot(document.getElementById('root')!).render(intake ? <IntakePage /> : <Page />)
+createRoot(document.getElementById('root')!).render(
+  intake ? <IntakePage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
+)

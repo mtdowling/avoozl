@@ -118,6 +118,9 @@ export class Store {
    CREATE TABLE IF NOT EXISTS provider_health(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS provider_switches(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS drivers(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS task_investigations(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS corrections(id TEXT PRIMARY KEY,body TEXT NOT NULL);
+   CREATE TABLE IF NOT EXISTS task_notes(id TEXT PRIMARY KEY,body TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS flow_usage(id TEXT PRIMARY KEY,slot TEXT NOT NULL,task_id TEXT NOT NULL,attempt INTEGER,role TEXT,ts TEXT NOT NULL,model TEXT,input REAL,output REAL,credits REAL);
    CREATE TABLE IF NOT EXISTS price_versions(version INTEGER PRIMARY KEY,sha256 TEXT NOT NULL,saved_at TEXT NOT NULL,table_json TEXT NOT NULL);
    CREATE TABLE IF NOT EXISTS budget_raises(id TEXT PRIMARY KEY,task_id TEXT NOT NULL,by TEXT NOT NULL,at TEXT NOT NULL,from_json TEXT,to_json TEXT NOT NULL,price_version INTEGER);
@@ -433,6 +436,9 @@ export class Store {
         "provider_health",
         "provider_switches",
         "drivers",
+        "task_investigations",
+        "corrections",
+        "task_notes",
       ].includes(table)
     )
       fail("Unknown record type");
@@ -494,6 +500,9 @@ export class Store {
         "provider_health",
         "provider_switches",
         "drivers",
+        "task_investigations",
+        "corrections",
+        "task_notes",
       ].includes(table)
     )
       fail("Unknown record type");
@@ -551,6 +560,9 @@ export class Store {
         "provider_health",
         "provider_switches",
         "drivers",
+        "task_investigations",
+        "corrections",
+        "task_notes",
       ].includes(table)
     )
       this.db
@@ -627,6 +639,9 @@ export class Store {
         "provider_health",
         "provider_switches",
         "drivers",
+        "task_investigations",
+        "corrections",
+        "task_notes",
       ].includes(table)
     )
       fail("Unknown record type");

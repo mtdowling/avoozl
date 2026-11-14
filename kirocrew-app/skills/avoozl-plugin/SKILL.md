@@ -40,16 +40,17 @@ Work in this order, and confirm each step before the next:
 
 Ask what the team needs, then list only those parts in `provides`:
 
-| Need                                                                                                            | Part      |
-| --------------------------------------------------------------------------------------------------------------- | --------- |
-| Shared triggers, Untriaged filter, who counts, checks, review roles, Project fields, flow and delivery defaults | `pack`    |
-| Terms Avoozl must never write                                                                                   | `rules`   |
-| Task records kept in another system                                                                             | `tracker` |
-| Outside work brought in on each tick                                                                            | `intake`  |
-| Tasks delivered somewhere other than a local worker                                                             | `route`   |
-| Retro lessons other workspaces may use, in `avoozl-lessons.json`                                                | `lessons` |
+| Need                                                                                                            | Part       |
+| --------------------------------------------------------------------------------------------------------------- | ---------- |
+| Shared triggers, Untriaged filter, who counts, checks, review roles, Project fields, flow and delivery defaults | `pack`     |
+| Terms Avoozl must never write                                                                                   | `rules`    |
+| Task records kept in another system                                                                             | `tracker`  |
+| Outside work brought in on each tick                                                                            | `intake`   |
+| Tasks delivered somewhere other than a local worker                                                             | `route`    |
+| Retro lessons other workspaces may use, in `avoozl-lessons.json`                                                | `lessons`  |
+| A repeated kind of work started the same way each time, as folders under `templates/`                           | `template` |
 
-A plugin with only `pack` or `lessons` has no `entry` and runs no code. `intake` runs as
+A plugin with only `pack`, `lessons` or `template` has no `entry` and runs no code. `intake` runs as
 the `tracker` kind and needs `capabilities.tracker` to list `poll`.
 
 The code kinds are `route`, `tracker` and `rules`. A manifest written
@@ -87,6 +88,15 @@ or make it match.
 4. Make every reply match the contract tables in `docs/plugins.md`. Links
    are `http` or `https`. A `poll` reply is `{items, cursor, more}`. A rules
    reply never carries `allow`; write the exception into the pattern.
+5. For a template, write `templates/<name>/avoozl-template.json` with `id`,
+   `title`, `description`, `inputs`, `prompt` (a Markdown file) and
+   `starter` (a spec folder), and optional `phases`, `proofKinds`, `pack`
+   and `flow`. Use `{{<input id>}}` only for real input IDs. The starter
+   must lint clean with sample values put in, and `phases` must match its
+   headings. Put a step only a person does in it as a manual task
+   (`"manual": true`, completion `person`, no checks). Copy the
+   `sdk-templates` sample (`src/app/test/fixtures/plugins/sdk-templates/`)
+   and its proof (`src/app/test/proof-p37.test.mjs`).
 
 ## Where it comes from
 

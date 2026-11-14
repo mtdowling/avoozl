@@ -43,12 +43,18 @@ test('the banner names who pulled it, why, and what it covers', () => {
   assert.equal(scopeText({ scope: 'spec', planId: 's1' }), 'spec s1')
 })
 
-test('the Dashboard header has the red button, and Resume asks first', () => {
-  const dashboard = source('DashboardView.tsx'),
+test('the top row has the red button with a stopped state, and Resume asks first', () => {
+  const app = source('App.tsx'),
     dialog = source('StopLine.tsx'),
     banner = source('FlowView.tsx')
-  assert.match(dashboard, /<StopLineButton workspaceId=\{workspaceId\}/)
-  assert.ok(dashboard.indexOf('<StopLineButton') < dashboard.indexOf('<LineBanner'), 'the button is in the header, above the banner')
+  assert.match(app, /<StopLineButton workspaceId=\{active\} \/>/)
+  // Stopped: its own words and look while a stop is open; a pull or resume
+  // tells the page at once.
+  assert.match(dialog, /\{stopped \? 'Line stopped' : 'Stop the line'\}/)
+  assert.match(dialog, /style=\{stopped \? STOPPED : FILL\}/)
+  assert.match(dialog, /filter\(\(stop\) => !stop\.closedAt\)/)
+  assert.match(dialog, /lineChanged\(\)/)
+  assert.match(banner, /onChanged\?\.\(\)\n\s*lineChanged\(\)/)
   assert.match(dialog, /<RadioFold/, 'scope is a radio fold-out group')
   assert.match(dialog, /background: 'var\(--danger\)'/)
   assert.match(dialog, /Reason <span className="text-xs text-muted">\(required\)<\/span>/)

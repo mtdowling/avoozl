@@ -6,11 +6,17 @@
   "author": "mtdowling",
   "license": "MIT",
   "iconPath": "assets/icon.png",
-  "skills": ["skills/avoozl", "skills/avoozl-plugin", "skills/avoozl-rules"],
+  "skills": [
+    "skills/avoozl",
+    "skills/avoozl-plugin",
+    "skills/avoozl-rules",
+    "skills/avoozl-costs"
+  ],
   "agents": [
     "agents/avoozl-planner.json",
     "agents/avoozl-verifier.json",
     "agents/avoozl-reviewer.json",
+    "agents/avoozl-falsifier.json",
     "agents/avoozl-responder.json",
     "agents/avoozl-retro.json",
     "agents/avoozl-router.json",

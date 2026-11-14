@@ -20,6 +20,7 @@ test("Kiro Crew app package contains its page, skill, icon, and built UI", () =>
     "skills/avoozl",
     "skills/avoozl-plugin",
     "skills/avoozl-rules",
+    "skills/avoozl-costs",
   ]);
   for (const file of [
     manifest.iconPath,
@@ -27,6 +28,7 @@ test("Kiro Crew app package contains its page, skill, icon, and built UI", () =>
     "skills/avoozl/SKILL.md",
     "skills/avoozl-plugin/SKILL.md",
     "skills/avoozl-rules/SKILL.md",
+    "skills/avoozl-costs/SKILL.md",
   ])
     assert.equal(fs.statSync(path.join(appRoot, file)).isFile(), true, file);
 });
