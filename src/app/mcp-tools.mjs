@@ -325,6 +325,11 @@ const tools = {
       untriaged: ["untriaged.view", "items no rule claims"],
       crews: ["untriaged.crews", "Issue Radar crews for a repository"],
       radar: ["radar.crews", "live Issue Radar claims, from GitHub"],
+      radar_setup_preview: [
+        "radar.setup",
+        "what each Radar set up step (labels, branch rule, auto-merge) would write, without writing",
+        ({ confirm, ...input }) => input,
+      ],
       mergepath: [
         "radar.mergepath",
         "can crew pull requests merge by themselves",

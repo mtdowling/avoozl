@@ -96,6 +96,7 @@ import {
 import { planningIdentity, requireNamespace } from "./github-marker.mjs";
 import { claimsView, refreshClaims } from "./radar-claims.mjs";
 import { mergePath, requireMergePath } from "./radar-merge-path.mjs";
+import { radarSetup } from "./radar-setup.mjs";
 import {
   checkIntegrationBranch,
   requireIntegrationBranch,
@@ -2895,6 +2896,17 @@ export class Operations {
       return { repositories: await this.mergePaths(input.repository) };
     // An epic's integration branch (RC16.1): exists, not the default,
     // protected. Read only; refuses a branch that is not ready.
+    // Radar's set up steps through gh (RC7.1): a preview of each, or one
+    // confirmed step with {step, confirm, previewHash}.
+    if (name === "radar.setup") {
+      const policy = readGitHubPolicyOrNull(this.workspaceRoot),
+        entry = policy?.repositories?.[input.repository];
+      if (!input.repository) fail("Name the repository to set up.", 400);
+      if (!entry)
+        fail(`${input.repository} is not a registered repository.`, 404);
+      if (!this.github?.available?.()) fail("GitHub is not available.", 503);
+      return radarSetup(this.github, input.repository, entry, input);
+    }
     if (name === "radar.integrationbranch") {
       const policy = readGitHubPolicyOrNull(this.workspaceRoot),
         entry = policy?.repositories?.[input.repository];
