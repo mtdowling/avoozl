@@ -8,7 +8,8 @@ import { createRoot } from 'react-dom/client'
 import { createPortal } from 'react-dom'
 import { answer, Btn, Card, Refusal, replyFor, useAppApi } from './stubs.tsx'
 import { NavHistoryProvider, APP_ATTR } from '../../src/NavHistory.tsx'
-import { ConfirmProvider, DangerBtn } from '../../src/controls.tsx'
+import { ConfirmProvider, DangerBtn, InfoTip } from '../../src/controls.tsx'
+import { Tooltip } from '../../src/Tooltip.tsx'
 import { TaskDrawerProvider } from '../../src/TaskDrawer.tsx'
 import { TracePage } from '../../src/TraceView.tsx'
 import GraphView from '../../src/GraphView.tsx'
@@ -525,6 +526,20 @@ if (query.get('page') === 'demo' && demo) {
   }
 }
 
+// ?page=tip: a plain-text tooltip, an info icon, a button with a tooltip.
+function TipPage() {
+  const [clicks, setClicks] = useState(0)
+  return (
+    <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)', display: 'flex', flexDirection: 'column', gap: 24, alignItems: 'flex-start' }}>
+      <Tooltip text="Opened 2026-11-14 by Mira"><span data-plain>opened 3 days ago</span></Tooltip>
+      <span data-info-wrap><InfoTip text="Details that do not fit on the page" /></span>
+      <Tooltip text="Stops all new work"><Btn data-act onClick={() => setClicks(clicks + 1)}>Stop</Btn></Tooltip>
+      <span data-clicks>{clicks}</span>
+      <button data-elsewhere>Elsewhere</button>
+    </div>
+  )
+}
+
 function Page() {
   if (query.get('page') === 'app') return <DeepLinkPage />
   if (query.get('page') === 'demo') return <DeepLinkPage />
@@ -902,5 +917,5 @@ function PanelPage() {
   )
 }
 createRoot(document.getElementById('root')!).render(
-  page === 'trace' ? <TraceDonePage /> : page === 'panel' ? <PanelPage /> : page === 'workflow-map' ? <WorkflowMapPage /> : page === 'crews-rules' ? <CrewsRulesPage /> : page === 'radar-values' ? <RadarValuesPage /> : intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page === 'activity' ? <ActivityPage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
+  page === 'tip' ? <TipPage /> : page === 'trace' ? <TraceDonePage /> : page === 'panel' ? <PanelPage /> : page === 'workflow-map' ? <WorkflowMapPage /> : page === 'crews-rules' ? <CrewsRulesPage /> : page === 'radar-values' ? <RadarValuesPage /> : intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page === 'activity' ? <ActivityPage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
 )
