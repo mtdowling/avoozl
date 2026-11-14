@@ -33,7 +33,7 @@ test("every value has a name, a value and what it controls", () => {
   }
   assert.equal(list.find((item) => item.id === "prompt").value, CREW_PROMPT);
   assert.equal(list.find((item) => item.id === "agent").value, "avoozl-crew");
-  assert.equal(list.find((item) => item.id === "scope").value, "ready");
+  assert.equal(list.find((item) => item.id === "scope").value, "avoozl:ready");
 });
 
 test("settings and a pack change the values they name", () => {
@@ -70,7 +70,7 @@ test("with the grant a fake Radar's items tick, and a wrong one is named", () =>
         id: "c1",
         name: "avoozl-code",
         agent: "avoozl-crew",
-        labels: ["ready"],
+        labels: ["avoozl:ready"],
         model: "anything",
         claimTtlHours: 48,
         prompt: CREW_PROMPT,
@@ -141,7 +141,7 @@ test("radar.values reads Radar through the grant and refuses an unregistered rep
       status: 200,
       body: {
         settings: { needs_human_label: "crew: needs human" },
-        crews: [{ id: "c1", name: "avoozl-code", labels: ["ready"] }],
+        crews: [{ id: "c1", name: "avoozl-code", labels: ["avoozl:ready"] }],
       },
     }),
     granted = await workspace(t, reader).execute("radar.values", {

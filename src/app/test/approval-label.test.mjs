@@ -11,22 +11,22 @@ const repo = (mode, repository = {}) =>
   }).repositories["example/app"];
 const MODES = ["plans-repo", "single-repo"];
 
-test("the default is plan approved, in both modes, for worker and radar repositories", () => {
+test("the default is avoozl:plan-approved, in both modes, for worker and radar repositories", () => {
   for (const mode of MODES)
     for (const coder of [undefined, "worker", "issue-radar"])
-      assert.equal(repo(mode, { coder }).radar.approvalLabel, "plan approved");
+      assert.equal(repo(mode, { coder }).radar.approvalLabel, "avoozl:plan-approved");
   // A worker repository with no radar block, and with an empty one.
-  assert.equal(repo("plans-repo").radar.approvalLabel, "plan approved");
+  assert.equal(repo("plans-repo").radar.approvalLabel, "avoozl:plan-approved");
   assert.equal(
     repo("plans-repo", { radar: {} }).radar.approvalLabel,
-    "plan approved",
+    "avoozl:plan-approved",
   );
 });
 
 test("the approval label is configurable per repository", () => {
   const entry = repo("single-repo", { radar: { approvalLabel: "lgtm plan" } });
   assert.equal(entry.radar.approvalLabel, "lgtm plan");
-  assert.equal(entry.radar.planLabel, "to plan");
+  assert.equal(entry.radar.planLabel, "avoozl:plan");
 });
 
 test("empty, blank and non-string names are refused", () => {
@@ -63,11 +63,11 @@ test("a name equal to any other label is refused, naming both, in both modes, ig
 
 test("another label set to the approval default clashes with it", () => {
   assert.throws(
-    () => repo("plans-repo", { radar: { planLabel: "plan approved" } }),
+    () => repo("plans-repo", { radar: { planLabel: "avoozl:plan-approved" } }),
     /approval.*planning|planning.*approval/,
   );
   assert.throws(
-    () => repo("single-repo", { crewLabels: { claim: "Plan Approved" } }),
+    () => repo("single-repo", { crewLabels: { claim: "Avoozl:Plan-Approved" } }),
     /approval.*claim|claim.*approval/,
   );
 });
