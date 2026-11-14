@@ -5,7 +5,7 @@
 import assert from 'node:assert/strict'
 import { readdirSync, readFileSync } from 'node:fs'
 import { after, before, test } from 'node:test'
-import { emptyRepository, rulesMode, toForm, toPolicy, valueSource } from '../src/settings-api.ts'
+import { AVOOZL_LABELS, OLD_LABEL_NOTE, RADAR_DEFAULTS_SHOWN, emptyRepository, rulesMode, toForm, toPolicy, valueSource } from '../src/settings-api.ts'
 import { buildHarness } from './browser/build.mjs'
 import { findChrome, launch } from './browser/chrome.mjs'
 
@@ -33,10 +33,40 @@ test('Crews and rules modes are radio fold-outs, not selects', () => {
   assert.equal((text.match(/<RadioFold\b/g) ?? []).length, 1)
   assert.doesNotMatch(text, /<select|type="checkbox"/)
   assert.match(text, /<FieldBox title="Review rules"/)
-  assert.match(text, /<Fold title="Advanced: labels"/)
+  assert.match(text, /<Fold title="Avoozl labels"/)
   // It is a tab of the repository dialog, which is the shared Modal.
   const view = readFileSync(new URL('../src/SettingsView.tsx', import.meta.url), 'utf8')
   assert.match(view, /tab === 'crews'[\s\S]*<CrewsRulesSettings/)
+})
+
+test('the six Avoozl labels show with their job, writer and avoozl: default (RC21.4)', () => {
+  assert.deepEqual(
+    AVOOZL_LABELS.map((entry) => [entry.raw, RADAR_DEFAULTS_SHOWN[entry.key]]),
+    [
+      ['radar.planLabel', 'avoozl:plan'],
+      ['managedLabels.ready', 'avoozl:ready'],
+      ['radar.approvalLabel', 'avoozl:plan-approved'],
+      ['radar.conflictLabel', 'avoozl:merge-conflict'],
+      ['radar.reviewLabel', 'avoozl:review'],
+      ['radar.draftedLabel', 'avoozl:drafted'],
+    ],
+  )
+  for (const entry of AVOOZL_LABELS) assert.ok(entry.job && entry.writer, entry.key)
+  assert.match(OLD_LABEL_NOTE, /to plan, ready, plan approved, merge conflict/)
+  // One place per setting: the approval and ready fields left the other tabs.
+  const view = readFileSync(new URL('../src/SettingsView.tsx', import.meta.url), 'utf8')
+  assert.doesNotMatch(view, /raw="radar\.approvalLabel"/)
+  assert.match(view, /filter\(\(key\) => key !== 'ready'\)/)
+})
+
+test('the review and drafted labels round-trip, and ready stays in managedLabels', () => {
+  const policy = { mode: 'single-repo', repositories: { 'example/code': { baseBranch: 'main', managedLabels: { ready: 'go' }, radar: { reviewLabel: 'review me', draftedLabel: 'drafted' } } } }
+  const form = toForm(policy)
+  assert.equal(form.repositories[0].reviewLabel, 'review me')
+  assert.equal(form.repositories[0].draftedLabel, 'drafted')
+  const out = toPolicy(form).repositories['example/code']
+  assert.deepEqual(out.radar, { reviewLabel: 'review me', draftedLabel: 'drafted' })
+  assert.deepEqual(out.managedLabels, { ready: 'go' })
 })
 
 test('the three values round-trip and a blank one leaves the file', () => {

@@ -92,6 +92,7 @@ import { advanceGitHubBreakdowns } from "./github-breakdown.mjs";
 import { blockerNotes } from "./github-close.mjs";
 import { refreshUntriaged } from "./untriaged.mjs";
 import { mergeStep } from "./radar-merge.mjs";
+import { reviewDraftDispatches, reviewDraftStep } from "./review-draft.mjs";
 import { syncStep, syncTargets } from "./integration-sync.mjs";
 import { armStep } from "./radar-arm.mjs";
 import { headStep } from "./integration-head.mjs";
@@ -108,12 +109,14 @@ import { settleUnavailable, validateContentRules } from "./content-rules.mjs";
 import { statusComplete } from "../query.mjs";
 import {
   completionReached,
+  isGate,
   pluginId,
   taskAuthority,
   taskKind,
   taskRepository,
   taskRoute,
 } from "../work-model.mjs";
+import { gateStep } from "./gate-step.mjs";
 import { routeResultNotes, routeStep } from "./routes.mjs";
 import { heldByTrackers, trackerStep } from "./trackers.mjs";
 import {
@@ -626,6 +629,14 @@ function referencedPlugins(data) {
       found.set(`${route}\0route`, [route, "route"]);
     if (authority) found.set(`${authority}\0tracker`, [authority, "tracker"]);
   }
+  // A gate's plugin, until its gate is done or cleared (RC23.6).
+  for (const task of data.tasks)
+    if (
+      isGate(task) &&
+      task.gate?.plugin &&
+      !completionReached(task, undefined, complete)
+    )
+      found.set(`${task.gate.plugin}\0gate`, [task.gate.plugin, "gate"]);
   return [...found.values()];
 }
 
@@ -653,6 +664,10 @@ async function pluginStep(store, plugins, planned, workspaceRoot) {
       namespace: planningIdentity(workspaceRoot).namespace,
     });
     planned.notify.push(...trackers.notify);
+    // Tracker gates, before release: a done gate frees its dependents in
+    // this same pass (RC23.7).
+    const gates = await gateStep(store, session);
+    planned.notify.push(...gates.notify);
     held = heldByTrackers(store.read(), session);
   } finally {
     await session.close();
@@ -843,6 +858,26 @@ export async function tick(
           planned.notify.push({
             channel: "failure",
             title: "Avoozl could not check pull requests for merging",
+            text: error.message,
+          });
+        }
+      // Review drafts by label (RC20): new labels, and drafts waiting on a
+      // person. Dispatch of the chats waits for the roster check below. A
+      // read that fails keeps the last state and is tried next tick (design
+      // D25), so it raises no notice each minute.
+      if (script && github)
+        try {
+          const step = await reviewDraftStep({
+            store,
+            github,
+            policy: readGitHubPolicyOrNull(workspaceRoot),
+            tasks: store.read().tasks,
+          });
+          planned.notify.push(...step.notify);
+        } catch (error) {
+          planned.notify.push({
+            channel: "failure",
+            title: "Avoozl could not check review drafts",
             text: error.message,
           });
         }
@@ -1206,7 +1241,9 @@ export async function tick(
             : { dispatch: [] };
       // Code review chats a person asked for (pr-review.mjs), cron only.
       const reviews =
-        script && !unobserved.length ? reviewDispatches(store) : [];
+        script && !unobserved.length
+          ? [...reviewDispatches(store), ...reviewDraftDispatches(store)]
+          : [];
       // Read each spec's plan issue again right before its dispatches; a
       // spec reassigned since the sync read dispatches nothing (R66.6).
       const taskPlan = new Map(

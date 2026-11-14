@@ -1059,6 +1059,7 @@ function nt(e) {
 			branch: r,
 			head: i
 		}, e),
+		drafts: (e, n = {}) => t("review.drafts", Object.fromEntries(Object.entries(n).filter(([, e]) => e)), e),
 		step: (e, n) => t("radar.releasestep", { planId: n }, e)
 	};
 }
