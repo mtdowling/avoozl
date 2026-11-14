@@ -39,7 +39,10 @@ import {
 } from "./provider-health.mjs";
 import { recordModelList, routingContext, switchModels } from "./routing.mjs";
 import { taskRepository } from "../work-model.mjs";
-import { issueRadarReader } from "./radar-handoff.mjs";
+import {
+  issueRadarReader,
+  issueRadarSessionsReader,
+} from "./radar-handoff.mjs";
 import { WORKSPACE_LOCK, tickHealth } from "./tick.mjs";
 import { withWorkLock } from "./git.mjs";
 import {
@@ -435,6 +438,8 @@ export function startAppBackend({
   modelReader = gatewayModelList(gatewayClient(process.env)),
   // Reads Issue Radar's crews for Send to Issue Radar (radar-handoff.mjs).
   crewReader = issueRadarReader(process.env),
+  // Reads an issue's sessions and credits from Issue Radar (radar-crews.mjs).
+  sessionsReader = issueRadarSessionsReader(process.env),
   // Stops a session for Stop all agents (session-observer.mjs).
   sessionStopper = gatewaySessionStopper(process.env),
   // Where Demo mode keeps its sample workspace (demo.mjs).
@@ -500,6 +505,7 @@ export function startAppBackend({
           configDirectory: machineAvoozlPaths().configDirectory,
           notifier,
           crewReader,
+          sessionsReader,
           sessionStopper,
           driver: { settingsFile: driverSettingsPath() },
         }),
