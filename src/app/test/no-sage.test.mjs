@@ -35,3 +35,22 @@ test("no tracked file names the dropped review app outside docs/research and doc
   });
   assert.deepEqual(hits, []);
 });
+
+test("a saved key for the dropped review app is ignored, not a crash", async () => {
+  const { readDeliveryPolicy } = await import("../tick.mjs");
+  const { readGitHubPolicyOrNull } = await import("../github-policy.mjs");
+  const { temporaryDirectory } = await import("./temporary.mjs");
+  const key = `codeReview${WORD}`;
+  for (const saved of [
+    { [key]: { enabled: true } },
+    { review: { [key]: true } },
+  ]) {
+    const root = temporaryDirectory();
+    fs.writeFileSync(
+      path.join(root, ".avoozl.json"),
+      JSON.stringify({ version: 1, ...saved }),
+    );
+    assert.equal(readDeliveryPolicy(root).status, "loaded");
+    assert.equal(readGitHubPolicyOrNull(root).mode, null);
+  }
+});
