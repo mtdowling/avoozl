@@ -24,7 +24,11 @@ export class Refusal extends Error {
 }
 const api = {
   request: never,
-  get: never,
+  // GET answers are registered as answer('GET <path>', ...).
+  get: (path: string) => {
+    const reply = replies[`GET ${path}`]
+    return reply ? Promise.resolve(reply({})) : never()
+  },
   put: never,
   del: never,
   post: (_path: string, body: { operation?: string }) => {
@@ -74,9 +78,9 @@ export const Btn = forwardRef<HTMLButtonElement, Record<string, unknown>>(functi
 export const Input = forwardRef<HTMLInputElement, Record<string, unknown>>(function Input(props, ref) {
   return <input ref={ref} {...props} className="rounded border px-2 py-1 text-sm" />
 })
-export function SegmentedControl(props: { segments: { key: string; label: ReactNode }[]; value: string; onChange(key: string): void; ariaLabel?: string }) {
+export function SegmentedControl(props: { segments: { key: string; label: ReactNode }[]; value: string; onChange(key: string): void; ariaLabel?: string; wrap?: boolean }) {
   return (
-    <div role="tablist" aria-label={props.ariaLabel} className="flex gap-1">
+    <div role="tablist" aria-label={props.ariaLabel} className={`flex gap-1 ${props.wrap ? 'flex-wrap' : ''}`}>
       {props.segments.map((s) => (
         <button key={s.key} type="button" role="tab" aria-selected={s.key === props.value} onClick={() => props.onChange(s.key)} className="rounded border px-2 py-1 text-sm">
           {s.label}

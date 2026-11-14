@@ -110,6 +110,12 @@ test('Settings > Delivery holds PR feedback and the writer model, with defaults 
   assert.match(page, /placeholder=\{String\(DELIVERY_DEFAULTS\.feedbackRounds\)\}/)
   assert.match(page, /Open Routing/)
   assert.match(source('SettingsView.tsx'), /key: 'delivery', label: 'Delivery'/)
+  // Ship mode and investigate first (§4.25, §4.21): defaults stay unset.
+  const form = toDeliveryForm({ ship: 'manual', investigate: { mode: 'off', agent: 'alt' } })
+  assert.equal(form.ship, 'manual')
+  assert.deepEqual(toDeliverySection(form), { delivery: { ship: 'manual', investigate: { mode: 'off', agent: 'alt' } } })
+  assert.deepEqual(toDeliverySection({ ...form, ship: 'auto-merge', investigateMode: 'not-small' }), { delivery: { investigate: { agent: 'alt' } } })
+  for (const raw of ['delivery.ship', 'delivery.investigate.mode', 'RadioFold']) assert.ok(page.includes(raw), raw)
 })
 
 test('sessions show crew, agent, and an unreachable crew; a remote chat attaches only through MC-10', () => {

@@ -79,6 +79,8 @@ try {
           "unfinished",
           "cancel",
           "yes",
+          "skipped",
+          "off",
         ].includes(key) &&
         // `driver takeover --force --confirm SPEC` names the spec (R66.15).
         !(key === "confirm" && command === "driver")
@@ -1219,7 +1221,70 @@ try {
         2,
       ),
     );
-  else if (command === "task" && positionals[0] === "supersede") {
+  else if (command === "task" && positionals[0] === "notes") {
+    // Links and notes (R61.22): list and add for anyone; edit, remove and
+    // show on the issue are a person's, as the command line is.
+    const taskId = need(
+        positionals[1],
+        "task notes TASK_ID [add|edit|remove|show]",
+      ),
+      action = positionals[2] || "list",
+      entry = () =>
+        options.link !== undefined
+          ? { kind: "link", url: options.link, label: options.label }
+          : { kind: "note", text: options.note };
+    const name = {
+      list: "task.notes.list",
+      add: "task.notes.add",
+      edit: "task.notes.edit",
+      remove: "task.notes.remove",
+      show: "task.notes.show",
+    }[action];
+    if (!name)
+      throw Error("Choose task notes TASK_ID list, add, edit, remove or show.");
+    const id =
+        action === "list" || action === "add"
+          ? undefined
+          : need(positionals[3], `task notes TASK_ID ${action} NOTE_ID`),
+      input =
+        action === "list"
+          ? { taskId }
+          : action === "add"
+            ? { taskId, ...entry() }
+            : action === "edit"
+              ? { taskId, id, ...entry() }
+              : action === "show"
+                ? { taskId, id, onIssue: !options.off }
+                : { taskId, id };
+    console.log(JSON.stringify(await localOrRequest(name, input), null, 2));
+  } else if (
+    command === "task" &&
+    ["done", "reopen"].includes(positionals[0])
+  ) {
+    // A manual task (R61.13): a person marks it done or reopens it.
+    const taskId = need(positionals[1], `task ${positionals[0]} TASK_ID`);
+    console.log(
+      JSON.stringify(
+        await localOrRequest(
+          positionals[0] === "done"
+            ? "task.manual.complete"
+            : "task.manual.reopen",
+          positionals[0] === "done"
+            ? {
+                taskId,
+                choice: options.skipped ? "skipped" : "done",
+                ...(options.note ? { note: options.note } : {}),
+                ...(options.link
+                  ? { links: [{ url: options.link, label: options.label }] }
+                  : {}),
+              }
+            : { taskId },
+        ),
+        null,
+        2,
+      ),
+    );
+  } else if (command === "task" && positionals[0] === "supersede") {
     const create = {};
     if (options.id) create.id = options.id;
     if (options.title) create.title = options.title;
@@ -1345,6 +1410,14 @@ try {
   planning publish PLAN_ID               Open a private planning pull request
   planning reconcile                     Project tasks from merged planning PRs
   query [--q QUERY] | show TASK_ID | update TASK_ID --status STATUS
+  task notes TASK_ID [list]             A task's links and notes, newest first
+  task notes TASK_ID add --note TEXT | --link URL --label LABEL
+  task notes TASK_ID edit NOTE_ID --note TEXT | --link URL --label LABEL  (a person only)
+  task notes TASK_ID remove NOTE_ID     Remove a link or note; it stays in the activity history (a person only)
+  task notes TASK_ID show NOTE_ID [--off]  Show it on the task's issue, or stop (a person only)
+  task done TASK_ID [--skipped] [--note TEXT] [--link URL --label LABEL]
+                                         Mark a manual task done or skipped (a person only)
+  task reopen TASK_ID                   Reopen a manual task; its dependents wait again (a person only)
   task supersede TASK_ID [--id NEW_ID] [--title TITLE] [--requires A,B] [--reason TEXT]
                                          Replace a local task; its dependents wait on the new one
   activity TASK_ID --action start|heartbeat|pause|finish ...

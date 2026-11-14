@@ -13,8 +13,7 @@ Person-only tasks. Entries marked `"manual": true` in the manifest are
 tasks an agent should not start: proofs the owner skipped or that need scratch
 organizations, the existing-workspace move, publishing, and tasks waiting on
 Kiro Crew requests (MC-10, MC-13, and the asks not yet filed). The tick reads
-`manual` only once 22.1 is built; until then, move their cards to Deferred on
-the Project before turning on Autopilot. Added 2026-11-13.
+`manual` since 22.1: they wait in Needs you for a person. Added 2026-11-13.
 
 Commit names. A `Built:` line written before the publish names a commit from
 the private history; that code is in the publish commit `ac3825f`. Later lines
@@ -1067,29 +1066,38 @@ Owner approval 2026-11-13 (Requirement 61, design §4.16). Numbered after
 Phase 21 because task IDs never move. It starts after 21.1, 16.3, 17.1 and
 P28; its proof runs after P36.
 
-- [ ] 22.1 Manual leaves in lint and the tick, after 21.1 [R61.9–R61.11, R61.13, R61.15] (§4.16, §4.3)
+- [x] 22.1 Manual leaves in lint and the tick, after 21.1 [R61.9–R61.11, R61.13, R61.15] (§4.16, §4.3)
   - `manual: true` with completion `person`; `spec.manual-field` and `spec.person-completion`; left out of ready, batching, verification, review and integration; every edge condition met when done; Blocked or waiting, then Needs you tagged Manual; `task.manual.complete` (Done or Skipped, outcome) and `task.manual.reopen` person only, refused over MCP; Flow counts waiting on a person and skips first-pass rate and time to fix.
-- [ ] 22.2 Manual leaves on GitHub, after 22.1 and 18.1 [R61.14] (§4.16, §6.3, §6.7)
+  - Built: `src/work-model.mjs` (`person`, `isManual`), `src/app/plan-quality.mjs` (`spec.manual-field`, `spec.person-completion`), `src/query.mjs` (never ready), `src/app/page-views.mjs` (Needs you tagged Manual), `src/app/runner.mjs` (`needsYou` reason `manual`), `src/app/manual-tasks.mjs` (`task.manual.complete`/`reopen`, person only), `src/app/flow.mjs` (waiting on a person; out of first-pass and time to fix); the spec's 25 manual tasks now carry completion `person`. Tests: `src/app/test/manual-tasks.test.mjs`.
+- [x] 22.2 Manual leaves on GitHub, after 22.1 and 18.1 [R61.14] (§4.16, §6.3, §6.7)
   - Issue projected under its plan issue or package, never a ready or trigger label, never sent to Issue Radar, the manual line in the managed body; Mark done closes as the person's login after Who counts; an allowed close completes it with its reason; any other close holds dependents and opens a decision without reopening; a reopen makes it open again and leaves running sessions alone.
-- [ ] 22.3 Links and notes store, operations, CLI, and MCP, after 17.1 and avoozl-p28 [R61.16–R61.18, R61.20–R61.22] (§4.16, §4.9)
+  - Built: `src/app/github-projection.mjs` (manual line, no ready label), `src/app/github-close.mjs` (`judgeManual`: an allowed close completes with its reason, any other holds and opens a decision, a reopen opens it again), Mark done closes as the `gh` login after Who counts. Tests: `src/app/test/proof-p37.test.mjs`.
+- [x] 22.3 Links and notes store, operations, CLI, and MCP, after 17.1 and avoozl-p28 [R61.16–R61.18, R61.20–R61.22] (§4.16, §4.9)
   - `task_notes` table; field limits refused by name; `notes` content-rule boundary on by default with Allow once for a person; `task.notes.list` observe, `task.notes.add` for a session's bound task only, `edit`, `remove` and `show` person only; CLI `avoozl task notes`; briefs get the newest 20 entries within 8,000 characters as data, and dependents get blockers' outcome entries; adding an entry changes no plan revision.
-- [ ] 22.4 Task drawer Links and notes and the Mark done dialog, after 22.1 and 22.3 [R61.12, R61.19] (§4.16, §8)
+  - Built: `src/app/task-notes.mjs` (`task_notes` table, limits by name, `notes` boundary with Allow once, bound-task adds, briefs of 20 entries within 8,000 characters plus blockers' outcomes), operations, `avoozl task notes`, `plans_task` `notes`/`add_note`. Tests: `src/app/test/task-notes.test.mjs`.
+- [x] 22.4 Task drawer Links and notes and the Mark done dialog, after 22.1 and 22.3 [R61.12, R61.19] (§4.16, §8)
   - Drawer section newest first with author and time, Add link and Add note, edit, and remove after a confirm; a manual leaf shows its acceptance and Mark done with outcome note, links, and Done or Skipped; checked by drawing the page and looking at it.
-- [ ] 22.5 Links and notes on the issue, after 22.2 and 22.3 [R61.23] (§4.16, §3.3)
+  - Built: `kirocrew-app/ui/src/TaskNotes.tsx` (Links and notes fold, Mark done dialog on the shared Modal and RadioFold, Allow once in place), Manual badge on Dashboard and Delivery. Tests: `kirocrew-app/ui/test/manual-notes.test.mjs`; drawn at 320, 768 and 1280 in light and dark with the harness and looked at.
+- [x] 22.5 Links and notes on the issue, after 22.2 and 22.3 [R61.23] (§4.16, §3.3)
   - Show on the issue, person only and off by default, lists the entry in the managed body under Links and notes after the `github` boundary; others' edits there are conflicts; rebuild restores shown entries and the rebuild test allows unshown ones to be missing.
-- [ ] 22.6 Template plugin part and checks, after 16.3 and 21.2 [R61.1–R61.6] (§4.16, §4.14)
+  - Built: Show on the issue (`task.notes.show`, person only) lists entries under Links and notes in the managed body; the tick projects the plan again; `src/app/github-rebuild.mjs` restores shown entries. Tests: `src/app/test/proof-p37.test.mjs` step 7.
+- [x] 22.6 Template plugin part and checks, after 16.3 and 21.2 [R61.1–R61.6] (§4.16, §4.14)
   - `template` in `provides`, running as nothing; `avoozl-template.json` keys, inputs, `{{input}}` placeholders replaced as text, unknown keys and names refused; the starter lints with sample values; `phases` match headings or `phase` values; `pack` and `flow` pass their validators; an invalid template makes its plugin invalid; `template.list` and `template.preview` read approved templates only.
-- [ ] 22.7 From template in the New plan drawer, after 22.6, 21.6 and 19.1 [R61.6–R61.8] (§4.16, §8.6)
+  - Built: `src/app/templates.mjs` (keys, inputs, plain-text `{{input}}`, starter lints with sample values, phases match, `pack` and `flow` validators), `template` part in `src/app/plugins.mjs` (no entry, invalid template makes the plugin invalid), `template.list` and `template.preview` for approved plugins only. Tests: `src/app/test/templates.test.mjs`.
+- [x] 22.7 From template in the New plan drawer, after 22.6, 21.6 and 19.1 [R61.6–R61.8] (§4.16, §8.6)
   - Blank or From template as radio fold-outs; template inputs as fields beside Name, Category and Epic; `plan.new` takes `template` and `inputs`, checks required inputs, reads a file input in the page up to 200 KB, and runs content rules on the seed; the pack preview with Import these settings unticked; the draft records the template; a picked epic gets its own draft revision; nothing approved, started or pushed.
-- [ ] 22.8 Sample SDK rewrite template, docs, and skills, after 22.7 and 22.4 [R61.24] (§4.16)
+  - Built: `kirocrew-app/ui/src/NewPlanDrawer.tsx` Blank or From template fold-outs, `kirocrew-app/ui/src/TemplateStart.tsx` (inputs, file read in the page up to 200 KB, pack preview with Import these settings unticked); `src/app/new-plan.mjs` takes `template` and `inputs`, records the template on the draft and saves the epic's own draft revision. Tests: `src/app/test/proof-p37.test.mjs`, `kirocrew-app/ui/test/manual-notes.test.mjs`.
+- [x] 22.8 Sample SDK rewrite template, docs, and skills, after 22.7 and 22.4 [R61.24] (§4.16)
   - A template-only sample plugin in the test tree with the §4.16 SDK rewrite template, its six phases, the manual Review with team leaf that cutover requires, two proof kinds and the flow defaults, naming no private system or company; `docs/plugins.md`, the plugin skill and the planner skill cover templates, manual leaves and links and notes.
+  - Built: `src/app/test/fixtures/plugins/sdk-templates/` (SDK rewrite: six phases, manual Review with team before cutover, two proof kinds, flow defaults, no private names); `docs/plugins.md` Template part, `docs/policies.md` Manual tasks and links and notes, the plugin skill, the avoozl skill and the planner agent prompt.
 
-- [ ] avoozl-p37 P37 Proof: an SDK rewrite plan from a template, gated by a manual team review, with links and notes [R61] (§4.16)
+- [x] avoozl-p37 P37 Proof: an SDK rewrite plan from a template, gated by a manual team review, with links and notes [R61] (§4.16)
   - Setup: an isolated temporary workspace in single-repo mode with one repository `o/sdk`, a fake GitHub with an allowed actor `alice` and a reader `bob`, a fake terms file banning `secretword`, an epic folder `sdk-target`, and the sample template plugin from the test tree.
   - Action: (1) add and approve the plugin; open New plan, From template, SDK rewrite; submit with no SDK name, then with `sdk: widgets`, the target repository, a gap list file and epic `sdk-target`, leaving Import these settings unticked; let a fake planner write the folder; (2) lint and approve the plan and the epic's new revision; project; (3) finish every task before the review; (4) as a session, mark the review done, add a note to the review, add a note to another task, and edit the person's note; (5) as a person, save a note with `secretword`, a link `javascript:x`, a link with a user name, then a valid outcome note and link, and Mark done with Done; (6) read the first cutover task's brief; (7) tick Show on the issue on the outcome link and run the tick; rebuild; (8) reopen the review in Avoozl; have `bob` close its issue, then `alice`.
   - Expected: (1) refused naming `sdk`, nothing recorded; then a draft plan with six phases and the template recorded, the epic's own draft revision, no setting imported, nothing approved or started; (2) 0 errors; the review issue says a person closes it and never gets a ready or trigger label; (3) the review is in Needs you tagged Manual and no session opens for it; cutover tasks wait; (4) the mark done and the edit refused, the note on the review saved with the session's ID, the other task's note refused; (5) the first three refused naming the rule or field, the last saved; the issue closes as completed and cutover tasks become ready; (6) the brief carries the outcome note and link as data; (7) only the shown link is in the managed body, and it is back after the rebuild; (8) dependents wait again; `bob`'s close opens a decision and is not reopened; `alice`'s close completes it.
   - Failure means: a repeated workflow cannot start from one install, a person's step cannot gate agent work, or what a review decided does not reach the next task.
   - Next decision: keep templates as starter folders in a planning repository and drop the plugin part.
+  - Built: `src/app/test/proof-p37.test.mjs` runs every step with a fake GitHub and passes; nothing ran live.
 
 ## Phase 23: Specs and ideas
 
@@ -1362,25 +1370,32 @@ Owner decisions 2026-11-13 (Requirements 75–80, design §4.11 and
 §4.21–§4.25). Numbered after Phase 33 because task IDs never move. Tests use
 isolated temporary workspaces, a fake GitHub and fake workers.
 
-- [ ] 34.1 Findings, falsifier and the confidence gate, after 11.11 and 12.9 [R75] (§4.21)
+- [x] 34.1 Findings, falsifier and the confidence gate, after 11.11 and 12.9 [R75] (§4.21)
   - `plans_report` kind `findings`; the `falsifier` role and session; the gate; the Needs you item with Go ahead, Investigate again and Stop; `delivery.investigate` settings and manifest `investigate`; Flow spans and budget.
-- [ ] 34.2 Evidence bundle, after 34.1 and 22.3 [R76] (§4.22)
+  - Built: PR #42 (`src/app/investigate.mjs`, agent `avoozl-falsifier`, person-only `investigation.decide`, Flow stages `investigate` and `falsify`; a findings report with a changed worktree and a done before Go ahead are refused 409). The binding carries `investigate`, so a session bound by hand or by a Crew Mode conductor is not gated. The falsifier's usage counts toward the task's budget like any session bound to it.
+- [x] 34.2 Evidence bundle, after 34.1 and 22.3 [R76] (§4.22)
   - The local bundle, `plans_report` field `evidence`, screening, `task.evidence`, the drawer section, the pull request comment, and the driver export.
-- [ ] 34.3 Bring pull requests up to date, after 15.4 [R77] (§4.23)
+  - Built: PR #42 (`src/app/evidence.mjs`, content boundary `evidence`, `Evidence.tsx` in the drawer, `evidenceCommentStep` in the tick, `evidence` in the driver export). `github.evidence.attach` is not built: GitHub's API has no comment upload.
+- [x] 34.3 Bring pull requests up to date, after 15.4 [R77] (§4.23)
   - Base head tracking, the `base-moved` feedback message, the force-push refusal, and the local merge-forward.
-- [ ] 34.4 Corrections and rules, after 28.3 [R78] (§4.24)
+  - Built: PR #42 (`baseHead`, `mergeState` and `reviewDecision` in the pull request reads; `base-moved` in `src/app/github-feedback.mjs`; `asksForcePush` in `briefAllowed` and the tick; `rebaseForIntegration` merges forward). The stacked pull request brief and the commit-message leak message no longer ask for a force push.
+- [x] 34.4 Corrections and rules, after 28.3 [R78] (§4.24)
   - The `corrections` table and its four sources, the retro grouping and rule proposal, the steering leaf, and corrections in Flow and PDCA.
-- [ ] 34.5 Fix-work share, after 12.11 [R79] (§4.11)
+  - Built: PR #42 (`src/app/corrections.mjs`; changes requested from pull request feedback, `delivery.retry` and `delivery.pickAgain` with `reason`, reverts read from the landing branch; retro proposal type `rule` and `deliverRetroRule`). shortcut: PDCA matches later corrections by kind and repository, not by meaning; the next retro reads them and judges.
+- [x] 34.5 Fix-work share, after 12.11 [R79] (§4.11)
   - The fix-work rule, the Flow card and charts, and the retro payload.
-- [ ] 34.6 Ship mode, after 15.4 [R80] (§4.25)
+  - Built: PR #42 (`isFixWork`, `metrics.fixWork`, `fixShare` per day and week, `fixWork` in the retro payload; leaves of a bugfix spec carry `specType`, and issue intake keeps the issue type).
+- [x] 34.6 Ship mode, after 15.4 [R80] (§4.25)
   - `delivery.ship` in workspace and repository settings, the briefs, the Ready to merge item, and Integrate in Local only; Settings > Delivery shows it.
+  - Built: PR #42 (`shipMode` with task, spec, repository and workspace values; `ready-to-merge` in Needs you; person-only `delivery.integrate`; closed without merging goes back to the writer; the radio fold-out in `DeliverySettings.tsx`).
 
-- [ ] avoozl-p45 P45 Proof: investigate first, evidence, staying current, rules, fix share and ship mode [R75–R80] (§4.21–§4.25)
+- [x] avoozl-p45 P45 Proof: investigate first, evidence, staying current, rules, fix share and ship mode [R75–R80] (§4.21–§4.25)
   - Setup: an isolated temporary workspace in single-repo mode on a fake GitHub with leaves `a1` (plain), `a2` (`size: "small"`) and `a3` (plain), a bugfix spec with leaf `f1`, fake workers and a fake falsifier.
   - Action: (1) dispatch `a1` with findings at `high` and a `stands` reply; (2) dispatch `a3` with a `refuted` reply; press Investigate again, then Go ahead; (3) dispatch `a2`; (4) attach a screenshot and a 30 MB file to `a1`; (5) move the base branch so `a1`'s pull request conflicts; (6) request changes with the same point on `a1` and `a3`; run the retro; approve its rule; (7) finish `f1`; read Flow; (8) set `delivery.ship` to `manual` and let `a3`'s checks pass.
   - Expected: (1) no file changes before the gate, then coding; (2) the task waits in Needs you, one new round, then coding; (3) no investigation; (4) the screenshot is in the drawer and the comment, the large file refused; (5) one `base-moved` message, a merge commit and no force push; (6) one rule proposal naming both corrections and one steering leaf; (7) fix-work share 1 of 3; (8) no auto-merge, one Ready to merge item, and completion after the person merges.
   - Failure means: coding starts on refuted findings, a writer force pushes, or a manual ship merges without a person.
   - Next decision: keep the falsifier only for large tasks, or drop the PR comment and keep evidence local.
+  - Built: pass with fakes, `src/app/test/proof-p45.test.mjs` and `src/app/test/phase34.test.mjs`, PR #42. Not run live: no real falsifier chat, GitHub pull request, base move or merge has run yet. Step (8)'s completion after the merge is Requirement 16's existing path and is not driven here.
 
 ## Phase 35: Review a task's changes in the drawer
 

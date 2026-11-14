@@ -17,8 +17,9 @@ import {
 } from 'react'
 import { useAppApi, useChatLauncher } from './host.ts'
 import { Btn } from '@kirocrew/app-sdk/ui'
-import { ChevronRight, VIEW_ICONS, type LucideIcon } from './icons.ts'
-import { chatClient, type ChatSeed } from './chat-api.ts'
+import { ChevronRight, MessageSquare, VIEW_ICONS, type LucideIcon } from './icons.ts'
+import { chatClient, type ChatSeed, type HelpSeed } from './chat-api.ts'
+import { useTaskDrawer } from './drawer-context.ts'
 import { errorMessage } from './workspace-api.ts'
 import { moreLabel, visibleCount } from './paging.ts'
 import { Tooltip } from './Tooltip.tsx'
@@ -310,6 +311,51 @@ export function useAskChat(workspaceId: string | null) {
     [chats, openChat, workspaceId],
   )
   return { ask, error }
+}
+
+// Ask for help (design §8.9): one link, a chat icon and the words, that
+// opens a Kiro Crew chat seeded with where the person is, what the page
+// says, the settings there with their current values, and a docs pointer.
+// The same seeded-chat path as Discuss spec (useAskChat); the seed tells the
+// chat to save nothing, and only a person's save on the page writes.
+export function AskForHelp(props: { workspaceId: string | null; help: HelpSeed; className?: string }) {
+  const chat = useAskChat(props.workspaceId)
+  if (!props.workspaceId) return null
+  return (
+    <span className={`inline-flex flex-wrap items-center gap-2 ${props.className ?? ''}`}>
+      <Tooltip text="Open a Kiro Crew chat that knows this page and its settings. It changes nothing.">
+        {(describedBy) => (
+          <button
+            type="button"
+            className="inline-flex items-center gap-1 text-sm underline"
+            aria-describedby={describedBy}
+            onClick={() => void chat.ask({ purpose: 'help', help: props.help })}
+            data-ask-help
+          >
+            <MessageSquare size={ICON} aria-hidden="true" />
+            Ask for help
+          </button>
+        )}
+      </Tooltip>
+      {chat.error && (
+        <span role="alert" className="text-xs text-danger">
+          {chat.error}
+        </span>
+      )}
+    </span>
+  )
+}
+
+// A task's title as a link that opens its drawer (a Back step), in every
+// list of running or in-flight tasks. The page's link style: underlined
+// text on a native button, so it takes the browser's focus ring.
+export function TaskTitleLink(props: { id: string; title: string; className?: string }) {
+  const drawer = useTaskDrawer()
+  return (
+    <button type="button" className={`min-w-0 text-left underline ${props.className ?? ''}`} onClick={() => drawer.openTask(props.id)} data-task-title={props.id}>
+      {props.title}
+    </button>
+  )
 }
 
 // Paging for every long list: each list (by id) shows its first PAGE rows

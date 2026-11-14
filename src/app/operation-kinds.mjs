@@ -62,6 +62,7 @@ const OBSERVE = new Set([
   "highlight.languages",
   "activity.recent",
   "activity.list",
+  "task.evidence",
   "activity.settings.get",
   "chat.context",
   "graph.view",
@@ -118,6 +119,9 @@ const OBSERVE = new Set([
   "review.queue",
   "checkpoint.reconcile",
   "primary.liveState",
+  "task.notes.list",
+  "template.list",
+  "template.preview",
 ]);
 
 const DRAFT = new Set([
@@ -205,9 +209,15 @@ const EXECUTE = new Set([
   "jobs.dispatch",
   "jobs.redispatch",
   "work.take",
+  "task.notes.add",
 ]);
 
 const PROTECT = new Set([
+  "task.manual.complete",
+  "task.manual.reopen",
+  "task.notes.edit",
+  "task.notes.remove",
+  "task.notes.show",
   "driver.settings.update",
   "driver.handoff",
   "driver.takeover",
@@ -217,9 +227,12 @@ const PROTECT = new Set([
   "relay.forget",
   "crews.update",
   "provider.switch",
+  "provider.switch.dryRun",
   "provider.health.clear",
   "providers.settings.update",
   "delivery.pickAgain",
+  "investigation.decide",
+  "delivery.integrate",
   "delivery.settings.update",
   "activity.settings.update",
   "workspace.seed",

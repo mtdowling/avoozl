@@ -15,6 +15,7 @@ import {
   prepareWorktree,
   readyLeaves,
   briefAllowed,
+  shipMode,
 } from "./delivery.mjs";
 import {
   isLinkedBranchLeaf,
@@ -31,6 +32,7 @@ import { isArchivedTask } from "../browse-model.mjs";
 import { statusComplete } from "../query.mjs";
 import {
   completionReached,
+  isManual,
   supersedingTask,
   taskKind,
   taskRepository,
@@ -106,6 +108,26 @@ export function nextView(store, { policy, github = null }) {
       detail: `.avoozl.json is invalid: ${policy.error}`,
       link: sessionUrl(null),
     });
+  const blockersOf = (task) =>
+    data.edges
+      .filter(
+        (edge) =>
+          edge.to === task.id &&
+          BLOCKING.has(edge.kind) &&
+          !completionReached(
+            supersedingTask(byId, edge.from),
+            edge.condition,
+            complete,
+          ),
+      )
+      .map((edge) => {
+        const from = supersedingTask(byId, edge.from);
+        return {
+          id: from?.id ?? edge.from,
+          title: from ? title(from) : edge.from,
+          ...(edge.condition ? { condition: edge.condition } : {}),
+        };
+      });
   const leaves = data.tasks.filter(
     (task) =>
       taskKind(task) === "leaf" &&
@@ -158,6 +180,16 @@ export function nextView(store, { policy, github = null }) {
       });
       continue;
     }
+    // A manual leaf is never started (R61.10): once its blockers hold it
+    // waits for a person, never in ready.
+    if (isManual(task) && !blockersOf(task).length) {
+      result.needsYou.push({
+        ...item,
+        reason: "manual",
+        detail: `Waiting for a person: ${title(task)}`,
+      });
+      continue;
+    }
     if (claimed.has(task.id)) {
       // Pull request feedback for the conductor to relay (§4.13, R54.7).
       const feedback =
@@ -171,7 +203,12 @@ export function nextView(store, { policy, github = null }) {
       continue;
     }
     const leaf = startable.get(task.id),
-      brief = leaf ? leafBrief(store, data, leaf, { relay: true }) : null;
+      brief = leaf
+        ? leafBrief(store, data, leaf, {
+            relay: true,
+            ship: shipMode(delivery, task),
+          })
+        : null;
     // A brief a content rule blocks is not offered (§4.9); its decision
     // shows the task under needsYou in the Conflicts view.
     if (
@@ -195,25 +232,7 @@ export function nextView(store, { policy, github = null }) {
       });
       continue;
     }
-    const blockedBy = data.edges
-      .filter(
-        (edge) =>
-          edge.to === task.id &&
-          BLOCKING.has(edge.kind) &&
-          !completionReached(
-            supersedingTask(byId, edge.from),
-            edge.condition,
-            complete,
-          ),
-      )
-      .map((edge) => {
-        const from = supersedingTask(byId, edge.from);
-        return {
-          id: from?.id ?? edge.from,
-          title: from ? title(from) : edge.from,
-          ...(edge.condition ? { condition: edge.condition } : {}),
-        };
-      });
+    const blockedBy = blockersOf(task);
     result.waiting.push({
       ...item,
       blockedBy,

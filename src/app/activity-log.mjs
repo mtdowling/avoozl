@@ -311,6 +311,37 @@ function operationRow(name, input, result) {
     };
   if (name === "plan.approve")
     return { kind: "approve", summary: `Approved plan ${id}`, targetId: id };
+  // Manual tasks and Links and notes (§4.16). A removed entry stays here.
+  if (name === "task.manual.complete") {
+    const taskId = text(input?.taskId, 200);
+    return {
+      kind: "task.done",
+      summary: `Marked manual task ${taskId} ${input?.choice === "skipped" ? "skipped" : "done"}`,
+      targetId: taskId,
+    };
+  }
+  if (name === "task.manual.reopen") {
+    const taskId = text(input?.taskId, 200);
+    return {
+      kind: "task.reopen",
+      summary: `Reopened manual task ${taskId}`,
+      targetId: taskId,
+    };
+  }
+  if (
+    ["task.notes.add", "task.notes.edit", "task.notes.remove"].includes(name)
+  ) {
+    const taskId = text(input?.taskId, 200),
+      what = result?.kind === "link" ? "link" : "note",
+      verb = { add: "Added", edit: "Edited", remove: "Removed" }[
+        name.slice("task.notes.".length)
+      ];
+    return {
+      kind: "task.note",
+      summary: `${verb} a ${what} ${verb === "Added" ? "to" : "on"} ${taskId}`,
+      targetId: taskId,
+    };
+  }
   for (const thing of ["plan", "task", "run"]) {
     if (name === `${thing}.archive`)
       return {
@@ -337,6 +368,12 @@ function operationRow(name, input, result) {
       summary: `Approved plugin ${id}`,
       targetId: id,
     };
+  if (name === "investigation.decide")
+    return {
+      kind: "investigation.decide",
+      summary: `${{ go: "Go ahead", again: "Investigate again", stop: "Stop" }[input?.action] || "Decided"} on ${id}'s findings`,
+      targetId: id,
+    };
   if (name === "delivery.pickAgain")
     return {
       kind: "model.switch",
@@ -361,7 +398,13 @@ function operationRow(name, input, result) {
     const model = text(input?.delivery?.model, 100);
     return model
       ? { kind: "model.switch", summary: `Writer model set to ${model}` }
-      : { kind: "settings.save", summary: "Saved delivery settings" };
+      : {
+          kind: "settings.save",
+          summary:
+            input?.turnOn === true
+              ? "Turned on delivery"
+              : "Saved delivery settings",
+        };
   }
   if (name === "task.update") {
     if (input?.status === "deferred")

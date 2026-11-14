@@ -10,6 +10,8 @@ import ConflictsView from './ConflictsView'
 import UntriagedView from './UntriagedView.tsx'
 import FlowView from './FlowView.tsx'
 import ActivityView from './ActivityView.tsx'
+import { SwitchModelButton } from './SwitchModel.tsx'
+import { StopLineButton } from './StopLine.tsx'
 import { DriverSummary } from './Driver.tsx'
 import { untriagedClient } from './untriaged-api.ts'
 import { specSeed } from './ideas-api.ts'
@@ -253,7 +255,9 @@ function AvoozlPage() {
           </div>
         }
       />
-      <div className="px-6 pb-3">
+      {/* The top row on every tab: the tabs, then Switch model and Stop the
+          line (last, red). It wraps on a narrow page; nothing scrolls sideways. */}
+      <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 px-6 pb-3" data-top-row>
         <SegmentedControl
           layoutId="avoozl-views"
           ariaLabel="Avoozl views"
@@ -276,6 +280,14 @@ function AvoozlPage() {
           onChange={(key) => chooseTab(key as Tab)}
           wrap
         />
+        {active && (
+          <div className="flex flex-wrap items-center gap-2" data-top-actions>
+            {/* Move running chats to another model (§4.20, R72.12). */}
+            <SwitchModelButton workspaceId={active} />
+            {/* Pull the Andon cord (R64). */}
+            <StopLineButton workspaceId={active} />
+          </div>
+        )}
       </div>
       <DemoBar />
       {error && (

@@ -13,6 +13,14 @@ export const PERSON_ONLY = new Map([
   ["plan.approve", person("Only a person approves a plan.")],
   ["plan.delete", person("Only a person deletes a plan.")],
   ["plan.new", person("Only a person starts a new plan.")],
+  ["task.manual.complete", person("Only a person marks a manual task done.")],
+  ["task.manual.reopen", person("Only a person reopens a manual task.")],
+  ["task.notes.edit", person("Only a person edits a link or note.")],
+  ["task.notes.remove", person("Only a person removes a link or note.")],
+  [
+    "task.notes.show",
+    person("Only a person shows a link or note on the issue."),
+  ],
   ["plugin.add", person("Only a person changes plugins.")],
   ["plugin.approve", person("Only a person changes plugins.")],
   ["plugin.update", person("Only a person changes plugins.")],
@@ -76,12 +84,24 @@ export const PERSON_ONLY = new Map([
   ["crews.update", person("Only a person changes crew settings.")],
   ["relay.forget", person("Only a person forgets the relay chat.")],
   ["provider.switch", person("Only a person switches models.")],
+  [
+    "provider.switch.dryRun",
+    person("Only a person runs a model switch's dry run."),
+  ],
   ["provider.health.clear", person("Only a person undoes a provider mark.")],
   [
     "providers.settings.update",
     person("Only a person changes provider settings."),
   ],
   ["delivery.pickAgain", person("Only a person presses Pick again.")],
+  [
+    "delivery.integrate",
+    person("Only a person presses Integrate on a Ready to merge task."),
+  ],
+  [
+    "investigation.decide",
+    person("Only a person decides on a task's findings."),
+  ],
   [
     "delivery.settings.update",
     person("Only a person changes delivery settings."),

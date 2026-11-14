@@ -4,6 +4,7 @@ import { activityState } from "./activity.mjs";
 import { isArchivedTask, isHistoricalTask } from "./browse-model.mjs";
 import {
   completionReached,
+  isManual,
   supersedingTask,
   taskKind,
   taskRepository,
@@ -216,10 +217,15 @@ export function queryTasks(data, options = {}) {
             ) &&
             !t.needsReview &&
             !t.source?.removed &&
-            t.dispatch?.ready !== false &&
+            // Projection's own verdict never holds a manual leaf: it is
+            // never ready for an agent, so projection always says no.
+            ((options.manual && isManual(t)) || t.dispatch?.ready !== false) &&
             // Held while its plan is archived (plan.archive).
             !t.planArchived &&
             taskKind(t) === "leaf" &&
+            // A manual leaf is never ready for an agent (R61.10); the Graph
+            // asks with `manual` to find the ones waiting for a person.
+            (options.manual || !isManual(t)) &&
             t.status !== "draft" &&
             !t.decision &&
             // A claimed leaf (a live session, or a delivery under way) and a

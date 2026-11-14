@@ -31,7 +31,7 @@ import { HandSetReview, ReviewRuns } from './ReviewState.tsx'
 import type { Graph } from './views-api.ts'
 import { FilterBar, useSharedFilter } from './FilterBar.tsx'
 import { filterChoices } from './filters.ts'
-import { IconLabel, SectionHeading, ShowMore, ViewHeading, usePages } from './controls.tsx'
+import { IconLabel, SectionHeading, ShowMore, TaskTitleLink, ViewHeading, usePages } from './controls.tsx'
 import { DetailsIcon, Pause, Play, RefreshCw, RotateCcw } from './icons.ts'
 import { chatClient } from './chat-api.ts'
 import { DEFER_TIP, RESUME_TIP, RETRY_TIP, START_TIP } from './delivery-api.ts'
@@ -69,9 +69,7 @@ function LaneCardView(props: {
         <div className="p-1">
           <div className="flex items-start gap-2">
             {props.phase && <StateIcon phase={props.phase} />}
-            <button type="button" className="text-left text-base font-semibold leading-snug hover:underline" onClick={() => drawer.openTask(card.id)}>
-              {card.title}
-            </button>
+            <TaskTitleLink id={card.id} title={card.title} className="text-base font-semibold leading-snug" />
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-muted">
             <span>{card.id}</span>
@@ -81,6 +79,7 @@ function LaneCardView(props: {
             {card.attempt !== null && <Badge>attempt {card.attempt}</Badge>}
             {card.reviewRounds > 0 && <Badge>{card.reviewRounds} review rounds</Badge>}
             {card.deliveryState && <Badge variant={card.deliveryState === 'decision' ? 'warning' : undefined}>{card.deliveryState}</Badge>}
+            {card.manual && <Badge variant="warning">Manual</Badge>}
             {card.deferred && <Badge>deferred</Badge>}
             {card.review && <Badge>review</Badge>}
             {card.planArchived && <Badge>Archived</Badge>}

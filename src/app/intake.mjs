@@ -1197,6 +1197,44 @@ export function deliverRetroSkill(
   githubPolicy,
   { retro, proposal, repository, file, diff, summary },
 ) {
+  return deliverRetroItem(store, githubPolicy, {
+    retro,
+    proposal,
+    repository,
+    title: `Apply a retro skill change to ${file}`,
+    body: [
+      String(summary || "").slice(0, 1000),
+      `Apply this unified diff to ${file}, and change nothing else:`,
+      "```diff",
+      diff,
+      "```",
+    ].join("\n\n"),
+    reason: "A person approved this skill change from a retrospective.",
+  });
+}
+
+// A rule from repeated corrections (§4.24, R78.3): one leaf, source
+// `retro`, that adds the rule to the repository's steering rules file.
+export function deliverRetroRule(
+  store,
+  githubPolicy,
+  { retro, proposal, repository, title, body },
+) {
+  return deliverRetroItem(store, githubPolicy, {
+    retro,
+    proposal,
+    repository,
+    title,
+    body,
+    reason: "A person approved this rule from a retrospective.",
+  });
+}
+
+function deliverRetroItem(
+  store,
+  githubPolicy,
+  { retro, proposal, repository, title, body, reason },
+) {
   const project = store.get("projects", repository);
   if (!project?.root)
     fail(
@@ -1207,14 +1245,8 @@ export function deliverRetroSkill(
     item = {
       source: "retro",
       id: `${retro}-${proposal}`,
-      title: `Apply a retro skill change to ${file}`.slice(0, 200),
-      body: [
-        String(summary || "").slice(0, 1000),
-        `Apply this unified diff to ${file}, and change nothing else:`,
-        "```diff",
-        diff,
-        "```",
-      ].join("\n\n"),
+      title: String(title).slice(0, 200),
+      body,
       link: `avoozl:retro/${retro}/${proposal}`,
       kind: "task",
       labels: [],
@@ -1257,7 +1289,6 @@ export function deliverRetroSkill(
       },
       githubPolicy,
     ),
-    reason = "A person approved this skill change from a retrospective.",
     taskId = startTask(store, row, bound, "deliver", { by: "person", reason });
   const next = {
     ...row,

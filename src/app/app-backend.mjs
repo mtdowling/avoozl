@@ -160,6 +160,7 @@ export const APP_OPERATIONS = new Set([
   "highlight.languages",
   "activity.recent",
   "activity.list",
+  "task.evidence",
   "activity.settings.get",
   "activity.settings.update",
   "chat.context",
@@ -246,10 +247,13 @@ export const APP_OPERATIONS = new Set([
   "relay.forget",
   "providers.view",
   "provider.switch.preview",
+  "provider.switch.dryRun",
   "provider.switch",
   "provider.health.clear",
   "providers.settings.update",
   "delivery.pickAgain",
+  "investigation.decide",
+  "delivery.integrate",
   "delivery.settings.get",
   "delivery.settings.update",
   "flow.instructions.update",
@@ -278,6 +282,16 @@ export const APP_OPERATIONS = new Set([
   "plan.delete.preview",
   "plan.archive",
   "plan.unarchive",
+  // Manual tasks, Links and notes, and workflow templates (§4.16).
+  "task.manual.complete",
+  "task.manual.reopen",
+  "task.notes.list",
+  "task.notes.add",
+  "task.notes.edit",
+  "task.notes.remove",
+  "task.notes.show",
+  "template.list",
+  "template.preview",
 ]);
 // Machine-catalog operations, served by this backend rather than a workspace.
 const MACHINE_OPERATIONS = new Map([
@@ -540,6 +554,11 @@ export function startAppBackend({
         error: status === 500 ? "Avoozl backend error." : error.message,
         // A Demo mode preview: what the change would have done.
         ...(error.demo ? { demo: true } : {}),
+        // A person's save a content rule blocked names its decisions, so the
+        // page can offer Allow once inline (R61.18). IDs only.
+        ...(status === 422 && Array.isArray(error.decisions)
+          ? { decisions: error.decisions.map(String) }
+          : {}),
       });
     }
   });

@@ -246,6 +246,25 @@
           "enum": ["tick", "crew-mode"],
           "default": "tick"
         },
+        "investigate": {
+          "description": "Investigate before coding (design 4.21): the worker reports findings, a falsifier tries to refute them, and coding starts only at minConfidence.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "mode": {
+              "enum": ["all", "not-small", "off"],
+              "default": "not-small"
+            },
+            "minConfidence": { "enum": ["medium", "high"], "default": "high" },
+            "agent": { "type": "string" },
+            "model": { "type": "string" }
+          }
+        },
+        "ship": {
+          "description": "Who merges a finished pull request: the writer turns on GitHub auto-merge, or a person merges it (design 4.25).",
+          "enum": ["auto-merge", "manual"],
+          "default": "auto-merge"
+        },
         "repositories": {
           "type": "object",
           "additionalProperties": {

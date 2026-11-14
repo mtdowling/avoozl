@@ -76,6 +76,17 @@ export function nameProblem(name: string, taken: Iterable<string>): string | nul
   return null
 }
 
+// What blocks Submit from a template: the name and epic as for Blank; the
+// template's own required inputs instead of What you want.
+export function templateProblems(form: NewPlanForm, taken: Iterable<string>, missing: string[]): string[] {
+  const problems: string[] = []
+  const name = nameProblem(form.name, taken)
+  if (name) problems.push(name)
+  if (form.epic.trim() && !SPEC_NAME.test(form.epic.trim())) problems.push(EPIC_PROBLEM)
+  for (const label of missing) problems.push(`Fill in ${label}.`)
+  return problems
+}
+
 // Every problem that blocks Submit, in field order.
 export function formProblems(form: NewPlanForm, taken: Iterable<string>, repositoryCount: number): string[] {
   const problems: string[] = []
@@ -119,5 +130,20 @@ export function newPlanClient(api: AppApi) {
       call<SpecBuilderHandoff>(workspaceId, { ...fields(form), handoff: 'spec-builder', writeSteering }),
     // The fallback: an Avoozl planner chat's seed.
     request: (workspaceId: string, form: NewPlanForm) => call<NewPlanResult>(workspaceId, fields(form)),
+    // From template (R61.7): the planner chat seeded with the template's
+    // prompt and filled starter. The template's inputs name the
+    // repositories; What you want is optional.
+    fromTemplate: (workspaceId: string, form: NewPlanForm, template: { plugin: string; id: string; version: string }, inputs: Record<string, string | string[]>) =>
+      call<NewPlanResult>(workspaceId, {
+        name: form.name.trim(),
+        category: form.category.trim(),
+        epic: form.epic.trim(),
+        repositories: form.repositories,
+        goal: form.goal,
+        context: form.context,
+        ...(form.idea ? { idea: form.idea } : {}),
+        template,
+        inputs,
+      }),
   }
 }

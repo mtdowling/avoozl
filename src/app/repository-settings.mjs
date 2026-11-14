@@ -474,7 +474,15 @@ export function conversationSettings(store) {
   };
 }
 
-const DELIVERY_FORM_KEYS = ["agent", "model", "prFeedback", "feedbackRounds"];
+const DELIVERY_FORM_KEYS = [
+  "agent",
+  "model",
+  "prFeedback",
+  "feedbackRounds",
+  // Investigate first and ship mode (§4.21, §4.25).
+  "investigate",
+  "ship",
+];
 
 export class RepositorySettings {
   constructor(
@@ -941,7 +949,9 @@ export class RepositorySettings {
     };
   }
 
-  updateDeliverySettings({ delivery, expectedHash } = {}) {
+  // `turnOn: true` writes an empty `delivery` section first (every key at
+  // its default), so Settings > Delivery can turn delivery on with one save.
+  updateDeliverySettings({ delivery, expectedHash, turnOn } = {}) {
     const before = this.readFile();
     if (expectedHash !== before.hash)
       fail("Avoozl configuration changed; reload before saving.", 409);
@@ -950,6 +960,7 @@ export class RepositorySettings {
       if (!DELIVERY_FORM_KEYS.includes(key))
         fail(`delivery.${key} is not set here.`);
     const value = this.updateValue(before);
+    if (!record(value.delivery) && turnOn === true) value.delivery = {};
     if (!record(value.delivery))
       fail(
         "Delivery is off in .avoozl.json; turn it on before changing these.",
@@ -960,6 +971,12 @@ export class RepositorySettings {
       if (delivery[key] === undefined || delivery[key] === null)
         delete next[key];
       else next[key] = delivery[key];
+    // The tick's own check, so a save never leaves a policy it refuses.
+    try {
+      deliveryPolicy({ delivery: next });
+    } catch (error) {
+      fail(error.message);
+    }
     value.delivery = next;
     this.write(value, { expectedHash: before.hash });
     return this.readDeliverySettings();

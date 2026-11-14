@@ -12,6 +12,7 @@ import { MOVED_OPERATIONS } from "../moved-operations.mjs";
 import { classifyOperation } from "../operation-kinds.mjs";
 import { Operations } from "../operations.mjs";
 import { fixture } from "./fixtures.mjs";
+import { temporaryDirectory } from "./temporary.mjs";
 
 // Every operation name Operations.perform handles or operation-kinds.mjs
 // classifies, read from the sources so a new one cannot be missed.
@@ -279,6 +280,36 @@ test("an old plans_* name refuses an input that is not an object", async (t) => 
       assert.equal(result.content[0].text, "input must be an object.");
     }
   assert.equal(store.read().revision, before);
+});
+
+test("the cron's tick with no workspace is a skip, not an error", async () => {
+  // A second crew home with nothing in it: no catalog, no default workspace.
+  const server = createAppMcp({
+    env: { KIROCREW_HOME: temporaryDirectory("avoozl-crew-home-") },
+  });
+  const call = (name, args) =>
+    server.handle({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/call",
+      params: { name, arguments: args },
+    });
+  try {
+    for (const [name, args] of [
+      ["plans_tick", { input: { cron: true } }],
+      ["plans_maintain", { action: "tick", input: { cron: true } }],
+    ]) {
+      const result = (await call(name, args)).result;
+      assert.equal(result.isError, undefined, name);
+      assert.equal(JSON.parse(result.content[0].text).skipped, true, name);
+    }
+    // Anyone else still hears why nothing ran.
+    const plain = (await call("plans_tick", { input: {} })).result;
+    assert.equal(plain.isError, true);
+    assert.match(plain.content[0].text, /has no workspace/);
+  } finally {
+    server.close();
+  }
 });
 
 test("the app's MCP server answers a non-object request as Invalid Request", async () => {

@@ -47,6 +47,10 @@ export interface GraphTask extends TaskOwner {
   // The archived plan this task belongs to (plan.archive), or null.
   planArchived?: string | null
   issue: { number: number | null; url: string | null; repository: string | null } | null
+  // A step only a person does (R61.11); `needsYou.manual` once it waits for
+  // one. Older backends omit them.
+  manual?: boolean
+  needsYou?: { reason: string; manual?: boolean } | null
 }
 
 export interface GraphEdge {
@@ -283,6 +287,30 @@ export interface ConflictItem extends TaskOwner {
   tasks?: ReviewTask[]
   // The archived plan the item's task belongs to, or null.
   planArchived?: string | null
+  // An investigation item (design §4.21): the round, the worker's findings
+  // and the falsifier's reply, and the person's choices.
+  round?: number
+  findings?: Findings
+  reply?: FalsifierReply | null
+  // A ready-to-merge item (§4.25): the pull request a person merges, or a
+  // local task's commit waiting for Integrate.
+  pullRequest?: number
+  commit?: string
+  integrate?: boolean
+}
+
+export interface Findings {
+  read: string
+  cause: string
+  plan: string
+  check: string
+  confidence: 'low' | 'medium' | 'high'
+}
+
+export interface FalsifierReply {
+  verdict: 'stands' | 'refuted'
+  evidence: string
+  confidence: 'low' | 'medium' | 'high'
 }
 
 // A `report` content rule finding: the content was written.
@@ -359,6 +387,12 @@ export function viewsClient(api: AppApi) {
     // Local tasks only: the backend refuses edits to a github task's row.
     updateTask: (workspaceId: string, id: string, change: Record<string, unknown>, expectedRevision: number) =>
       run<unknown>('task.update', { id, ...change }, workspaceId, expectedRevision),
+    // Go ahead, Investigate again or Stop on a task's findings (§4.21).
+    decideInvestigation: (workspaceId: string, taskId: string, action: 'go' | 'again' | 'stop') =>
+      run<unknown>('investigation.decide', { taskId, action }, workspaceId),
+    // Land a verified local task under manual ship (§4.25).
+    integrate: (workspaceId: string, taskId: string, commit?: string) =>
+      run<unknown>('delivery.integrate', { taskId, ...(commit ? { commit } : {}) }, workspaceId),
     // Retry a delivery waiting on a decision, dismissing the named findings.
     retry: (workspaceId: string, taskId: string, dismiss: { finding: string; reason: string }[] = []) =>
       run<unknown>('delivery.retry', { taskId, dismiss }, workspaceId),
@@ -473,6 +507,8 @@ export const CONFLICT_LABELS: Record<string, string> = {
   budget: 'Budget reached',
   'over-budget': 'Over budget',
   'provider-out': 'Provider out',
+  investigation: 'Findings',
+  'ready-to-merge': 'Ready to merge',
 }
 
 // A local task that is not already replaced may be superseded by hand. GitHub
