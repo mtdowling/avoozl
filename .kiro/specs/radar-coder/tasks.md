@@ -103,7 +103,7 @@ Requirement RC4. The tick adds the ready label in graph order, N at a time.
 - [x] rc-4.1 Release engine: capacity per repository and per scope, after rc-1.1, rc-2.1 [RC4.1, RC4.2, RC4.7] (§D6)
   - `release.capacity` (default 2) and `release.scopes`; a task's manifest `scope`; count open ready issues claimed or not; add ready in graph, wave, ID order; idempotent; `src/app/test/radar-coder-release.test.mjs`.
   - Done when: With N=2 and five eligible tasks, two get the label; claiming one keeps its slot; two scopes release independently; a second tick writes nothing.
-- [ ] rc-4.2 Remove ready on Stop the line, reopen and re-block, after rc-4.1 [RC4.3] (§D6)
+- [x] rc-4.2 Remove ready on Stop the line, reopen and re-block, after rc-4.1 [RC4.3] (§D6)
   - Ready removed from unclaimed issues in the stopped scope, on reopen and on a reopened blocker; one comment on each claimed issue; claimed issues untouched; ties to Requirement 64.
   - Done when: A claimed issue keeps its labels; unclaimed ones lose ready; the comment is posted once across three ticks.
 - [ ] rc-4.3 Phase gate: release the next phase after the previous one merged, after rc-4.1 [RC4.4] (§D6)
@@ -209,7 +209,7 @@ Requirement RC8. The screens of the experience proposal, built for Variant B (Gi
 
 Requirement RC9. A goal becomes issues after one approval, through a generated mini-spec.
 
-- [ ] rc-9.1 Planner chat, proposal shape and promote rules, after rc-3.2 [RC9.1, RC9.4] (§D11)
+- [x] rc-9.1 Planner chat, proposal shape and promote rules, after rc-3.2 [RC9.1, RC9.4] (§D11)
   - Planner chat with a quick-goal brief and a turn-and-time budget; proposal of 1 to 8 tasks with evidence; the four promote rules; Look and Measure; Measure off by default.
   - Done when: A proposal with a task lacking evidence is refused; each promote rule triggers alone; the budget stops the chat.
 - [ ] rc-9.2 Mini-spec writer and approval, after rc-9.1, rc-3.2 [RC9.3, RC9.5] (§D11)
