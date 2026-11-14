@@ -51,7 +51,7 @@ Requirement RC2. Spec to issues, in both modes, with batching and the preview. N
 - [x] rc-2.1 Plans-repo mode projects issues into the code repository, after rc-1.1 [RC2.2, RC2.3] (§D4.1)
   - Projection for `coder: issue-radar` writes issues in the code repository in both modes; closing by `Closes #N` or by Avoozl on merge; worker coder unchanged; `src/app/test/radar-coder-projection.test.mjs`.
   - Done when: With a fake GitHub, single-repo and plans-repo projections write issues only into the code repository; plans-repo with `coder: worker` still writes into the plans repository; closing works in both forms.
-- [ ] rc-2.2 Show the plans repository name in issues, a per-repository switch, after rc-2.1 [RC2.4] (§D4.1)
+- [x] rc-2.2 Show the plans repository name in issues, a per-repository switch, after rc-2.1 [RC2.4] (§D4.1)
   - `radar.showPlansRepo` (on for a private code repository, off for a public one); plans-repo projection to a public repository with it off is refused with the reason; content rules screen the name before the write.
   - Done when: A public code repository with the switch off is refused; turning it on writes the name after a content-rules pass; a private one writes it by default.
 - [x] rc-2.3 Batch planner for small ready tasks, after rc-1.1 [RC2.5] (§D4.2)
@@ -126,7 +126,7 @@ Requirement RC5. Crews do not arm auto-merge (Kiro Crew 0.12.2.4), so the tick d
 - [ ] rc-5.2 Arm GitHub auto-merge on crew pull requests, after rc-5.1, rc-3.1 [RC5.2, RC5.5] (§D7)
   - The tick arms merge-commit auto-merge on open non-draft same-repository pull requests whose author passes the actor check and that close a marked issue of this workspace; once per pull request; never `--admin`; `src/app/test/radar-coder-merge.test.mjs`.
   - Done when: A fork pull request, a pull request from a stranger, a draft, and one closing an unmarked issue are not armed; the right one is armed exactly once across three ticks.
-- [ ] rc-5.3 Manual mode and the conflict label, after rc-5.1 [RC5.3, RC5.6, RC5.7] (§D7)
+- [x] rc-5.3 Manual mode and the conflict label, after rc-5.1 [RC5.3, RC5.6, RC5.7] (§D7)
   - With `manual`: a Ready to merge row per green pull request, nothing armed. Conflict label on pull requests with a merge conflict and removed when clear; one Needs you row; no label written to Radar.
   - Done when: Manual arms nothing; a conflicted pull request gets the label and one row; resolving it removes both.
 - [ ] rc-5.4 Stop the line stops arming, and Disarm, after rc-5.2, rc-4.2 [RC5.4] (§D7)

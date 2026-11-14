@@ -3,7 +3,9 @@
 // linked branch each one gets, and the leak screen that keeps the planning
 // repository's name out of everything the code repository shows.
 import { taskKind, taskRepository, taskRoute } from "../work-model.mjs";
-import { findPlanningLeak } from "./content-rules.mjs";
+import { check as contentCheck, findPlanningLeak } from "./content-rules.mjs";
+import { radarIssueRepository } from "./github-marker.mjs";
+import { fail } from "./store.mjs";
 
 // One record per leaf whose linked branch the tick created or reused:
 // {id: taskId, taskId, repository, name, baseBranch, linkedBranchId} or,
@@ -81,4 +83,39 @@ export function pullRequestLeak(pulls, planningRepository) {
     if (leak) return { url: pull.url, number: pull.number, ...leak };
   }
   return null;
+}
+
+// The plans repository name a radar issue may show (radar-coder D4.1), or
+// null when it shows none. `radar.showPlansRepo` decides; unset it follows
+// the code repository: on when private, off when public. A public code
+// repository with it off is refused, and a name that content rules block is
+// refused, both before any write. Only plans-repo mode with `issue-radar`.
+export function plansNameForIssue(store, identity, config, remote) {
+  if (!radarIssueRepository(identity, config.id)) return null;
+  const entry = Object.entries(identity.repositories || {}).find(
+      ([id]) => id.toLowerCase() === config.id.toLowerCase(),
+    )?.[1],
+    isPrivate = remote?.private === true,
+    shown = entry?.radar?.showPlansRepo ?? isPrivate;
+  if (!shown) {
+    if (!isPrivate)
+      fail(
+        `${config.id} is public, so its issues cannot name the plans repository. Turn on "Show the plans repository name in issues" for it, or move the spec into ${config.id}.`,
+        409,
+      );
+    return null;
+  }
+  const name = identity.planningRepository,
+    result = contentCheck(store, {
+      boundary: "github",
+      repository: config.id,
+      target: "plans-repository-name",
+      text: name,
+    });
+  if (result.findings.length || result.unavailable.length)
+    fail(
+      `A content rule blocks the plans repository name for ${config.id}. Turn off "Show the plans repository name in issues" or change the rule.`,
+      422,
+    );
+  return name;
 }

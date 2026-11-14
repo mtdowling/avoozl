@@ -96,6 +96,7 @@ import {
 import { planningIdentity, requireNamespace } from "./github-marker.mjs";
 import { claimsView, refreshClaims } from "./radar-claims.mjs";
 import { mergePath, requireMergePath } from "./radar-merge-path.mjs";
+import { mergeNeedsYou } from "./radar-merge.mjs";
 import { namespaceOf } from "./radar-plan-me.mjs";
 import {
   CODERS,
@@ -2663,6 +2664,7 @@ export class Operations {
       // Crews that asked for a person on issues no task owns (R52.10).
       // Remote tasks waiting on the person's turn in the relay (R41.20).
       view.items.push(...relayNeedsYou(store));
+      view.items.push(...mergeNeedsYou(store));
       view.items.push(
         ...radarNeedsYou(
           untriagedView(
