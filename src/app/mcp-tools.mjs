@@ -337,6 +337,10 @@ const tools = {
         "radar.flow",
         "stage times of finished Issue Radar issues, from GitHub",
       ],
+      retro: [
+        "radar.retro",
+        "applied retro rules with the check after N issues and an undo offer",
+      ],
       trace: [
         "radar.trace",
         "one issue's eight steps with GitHub's times (repository, number)",
