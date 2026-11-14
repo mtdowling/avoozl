@@ -24,6 +24,7 @@ export function releaseFor(repository = {}, mode = null) {
           : Infinity;
   return {
     capacity,
+    mode: ["step", "hold"].includes(input.mode) ? input.mode : "automatic",
     scopes: (input.scopes ?? []).map((scope) => ({
       label: scope.label,
       capacity: Number.isSafeInteger(scope.capacity)
@@ -49,11 +50,14 @@ export function capacityOf(release, label, readyLabel) {
 }
 
 // `candidates` are eligible tasks in release order: {id, label, holds,
-// claimed}. `holds` means the issue is open and already carries its ready
-// label. `foreign(label)` counts open ready issues no candidate owns.
-// A claimed holder always keeps its label and its slot (RC4.2, RC4.3); an
+// claimed, ordered, blocked}. `holds` means the issue is open and already
+// carries its ready label. `foreign(label)` counts open ready issues no
+// candidate owns. A claimed holder, and one an allowed person labeled by hand
+// (`ordered`), always keeps its label and its slot (RC4.2, RC4.3, RC4.6); an
 // unclaimed holder keeps it while the scope has room; new labels go in order
-// to the free slots. Returns the ids that carry the label after this tick.
+// to the free slots, except to a `blocked` task (release mode Hold, or Step
+// before its click); a blocked task whose label a stranger added loses it.
+// Returns the ids that carry the label after this tick.
 export function planRelease({ candidates, capacity, foreign = () => 0 }) {
   const keep = new Set(),
     left = new Map(),
@@ -62,14 +66,17 @@ export function planRelease({ candidates, capacity, foreign = () => 0 }) {
         left.set(c.label, capacity(c.label) - foreign(c.label));
       return left.get(c.label);
     };
+  // A person's order never takes a slot from an issue already released; it
+  // may take the scope over N.
   for (const group of [
     (c) => c.holds && c.claimed,
-    (c) => c.holds && !c.claimed,
-    (c) => !c.holds,
+    (c) => c.holds && !c.claimed && !c.ordered && !(c.blocked && c.stranger),
+    (c) => c.holds && !c.claimed && c.ordered,
+    (c) => !c.holds && !c.blocked,
   ])
     for (const c of candidates.filter(group)) {
       const free = take(c);
-      if (!(c.holds && c.claimed) && free <= 0) continue;
+      if (!(c.holds && (c.claimed || c.ordered)) && free <= 0) continue;
       left.set(c.label, free - 1);
       keep.add(c.id);
     }
@@ -112,3 +119,11 @@ export function phaseHolds(tasks, { counts, merged }) {
   }
   return holds;
 }
+
+// A Step click records one receipt per phase of a plan; "" is the phase of
+// tasks that name none.
+export const stepReceiptId = (planId, task) =>
+  `release-step:${planId}:${task.phase?.id ?? ""}`;
+// A person's ready label on an issue is kept as an order while it stays.
+export const orderReceiptId = (repository, number) =>
+  `release-order:${repository}#${number}`;
