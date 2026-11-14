@@ -169,6 +169,7 @@ export const APP_OPERATIONS = new Set([
   "conflicts.view",
   "remote.view",
   "untriaged.view",
+  "radar.crews",
   "intake.list",
   "intake.view",
   "intake.sources",

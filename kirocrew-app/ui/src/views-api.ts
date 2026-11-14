@@ -399,6 +399,7 @@ export function viewsClient(api: AppApi) {
       run<{ revision: number; items: ConflictItem[] }>('conflicts.view', {}, workspaceId).then(
         (r) => r.items,
       ),
+    radarCrews: (workspaceId: string) => run<RadarCrews>('radar.crews', {}, workspaceId),
     conflictsPage: (workspaceId: string) =>
       run<{ revision: number; items: ConflictItem[] }>('conflicts.view', {}, workspaceId),
     // A person's choice for one conflicted managed field; the next
@@ -424,6 +425,33 @@ export function viewsClient(api: AppApi) {
     allowContentOnce: (workspaceId: string, id: string, reason: string) =>
       run<unknown>('content.allow', { id, reason }, workspaceId),
   }
+}
+
+// One live Issue Radar claim, read from GitHub (`radar.crews`).
+export interface RadarClaim {
+  repository: string
+  number: number
+  title: string
+  url: string | null
+  crewId: string | null
+  crewName: string | null
+  phase: string | null
+  pr: number | null
+  prUrl: string | null
+  updated: string | null
+  commentUrl: string | null
+  stale: boolean
+  // A claim label with no live marker on the issue.
+  noMarker: boolean
+}
+
+export interface RadarCrews {
+  readAt: string | null
+  stale: number
+  rows: RadarClaim[]
+  errors: { repository: string; error: string }[]
+  // What GitHub cannot show about a crew.
+  unseen: string[]
 }
 
 export function graphSummary(graph: Graph) {

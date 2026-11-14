@@ -307,6 +307,7 @@ function repositoryInput(value, id, mode) {
       "waitingLabels",
       "managedLabels",
       "crewLabels",
+      "acceptedLabel",
       "rules",
       "stackedPullRequests",
       "commentSteering",
@@ -460,6 +461,10 @@ function repositoryInput(value, id, mode) {
     waitingLabels,
     managedLabels: managed,
     crewLabels,
+    // A label an allowed actor adds to say a skipped issue may be planned.
+    acceptedLabel: name(value.acceptedLabel, `${label}.acceptedLabel`, {
+      optional: true,
+    }),
     // GitHub's rules; a rule with source: matches only that intake
     // source's items (design §4.12), so GitHub code never sees it.
     rules: rules.filter((rule) => !rule.source),
