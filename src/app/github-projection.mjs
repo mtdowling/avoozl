@@ -50,6 +50,7 @@ import {
   renderMarker,
   requireNamespace,
 } from "./github-marker.mjs";
+import { instanceIdentity, peekInstanceId } from "./instance.mjs";
 import { epicOfPlan } from "./epics.mjs";
 import { projectsMarkedIssues, provenanceWriter } from "./radar-provenance.mjs";
 import { resolveBatchGroups } from "./radar-coder-batch.mjs";
@@ -125,6 +126,7 @@ function taskMarker({
   previous,
   unlinked = null,
   members = null,
+  instance = null,
 }) {
   const commit = plan.sourceCommit || plan.context?.github?.commit || null,
     conditions = {},
@@ -163,6 +165,10 @@ function taskMarker({
       ...(old?.applied.project ? { project: old.applied.project } : {}),
     },
     ...(old?.order ? { order: old.order } : {}),
+    // Last, so stripInstance can cut it from a body bound for a public repo.
+    ...(old?.instance || instance
+      ? { instance: old?.instance ?? instance }
+      : {}),
   };
 }
 
@@ -846,7 +852,10 @@ async function project(
 ) {
   const previewOnly = new Set(),
     namespace = requireNamespace(identity),
-    markerOptions = { planningRepository: identity.planningRepository },
+    markerOptions = {
+      planningRepository: identity.planningRepository,
+      instance: dryRun ? peekInstanceId(store) : instanceIdentity(store).id,
+    },
     plan = store.get("plans", planId);
   if (!plan || plan.state !== "approved")
     fail("Approve the design revision before projecting issues.", 409);
@@ -1451,6 +1460,7 @@ async function project(
               namespace,
               applied,
               members: ids.length > 1 ? ids : null,
+              instance: markerOptions.instance,
             }),
             markerOptions,
           ) +
@@ -1718,6 +1728,7 @@ async function project(
         previous: marker,
         unlinked: item.unlinked,
         members: item.memberTasks ? item.memberTasks.map((m) => m.id) : null,
+        instance: markerOptions.instance,
         applied: {
           title: plans.title.baseline,
           body: plans.body.baseline,

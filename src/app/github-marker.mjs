@@ -5,6 +5,7 @@ import { randomBytes } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { COMPLETIONS, TASK_KINDS } from "../work-model.mjs";
+import { INSTANCE_ID } from "./instance.mjs";
 import { fail } from "./store.mjs";
 import { secretReason } from "./workspace-repository.mjs";
 
@@ -143,6 +144,7 @@ export function validateMarker(marker, { planningRepository } = {}) {
       "applied",
       "order",
       "claim",
+      "instance",
     ],
     "",
   );
@@ -165,6 +167,11 @@ export function validateMarker(marker, { planningRepository } = {}) {
     check(marker.kind === "plan", "only a plan issue holds a claim");
     validateClaim(marker.claim);
   }
+  // The Avoozl that projected and released the issue (its ID, never its name).
+  check(
+    marker.instance === undefined || INSTANCE_ID.test(marker.instance),
+    "instance",
+  );
   check(marker.parent === undefined || TASK_ID.test(marker.parent), "parent");
   // A batch issue (radar-coder D4.2): two to five task IDs, the lead first.
   check(
