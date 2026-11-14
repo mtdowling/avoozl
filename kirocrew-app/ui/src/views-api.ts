@@ -472,6 +472,16 @@ export interface RadarCrews {
   errors: { repository: string; error: string }[]
   // What GitHub cannot show about a crew.
   unseen: string[]
+  // Issue Radar's own crew list and credits. Present only when Kiro Crew has
+  // given Avoozl the Issue Radar grant (Variant A).
+  crewStrip?: RadarCrewStrip
+}
+
+export interface RadarCrewStrip {
+  crews: { repository: string; id: string; name: string; status: string | null }[]
+  counts: { onDuty: number; working: number; paused: number }
+  // Credits and turns per claimed issue, keyed "owner/repo#number".
+  cost: Record<string, { credits: number; turns: number; stages: { stage: string; credits: number; turns: number }[] }>
 }
 
 export function graphSummary(graph: Graph) {

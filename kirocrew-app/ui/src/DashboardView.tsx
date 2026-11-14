@@ -13,7 +13,7 @@ import { useTaskDrawer } from './drawer-context.ts'
 import { useMedia } from './use-media.ts'
 import { STATES, type NodeState } from './graph-layout.ts'
 import { plansClient } from './plans-api.ts'
-import { CONFLICT_LABELS, viewsClient, type ConflictItem, type RadarClaim } from './views-api.ts'
+import { CONFLICT_LABELS, viewsClient, type ConflictItem, type RadarClaim, type RadarCrewStrip } from './views-api.ts'
 import { useRead } from './useRead.ts'
 import { LineBanner } from './FlowView.tsx'
 import ArmedPulls from './ArmedPulls.tsx'
@@ -164,7 +164,7 @@ const REFRESH_MS = 20000
 // A live Issue Radar claim, read from GitHub: any machine's crew. GitHub
 // does not show whether the crew is paused, which machine it runs on, or
 // its chat, so there is no Attach here.
-export function RadarFlightRow({ row, now, onTrace }: { row: RadarClaim; now: number; onTrace?: (row: RadarClaim) => void }) {
+export function RadarFlightRow({ row, now, onTrace, cost }: { row: RadarClaim; now: number; onTrace?: (row: RadarClaim) => void; cost?: RadarCrewStrip['cost'][string] }) {
   return (
     <li data-radar-flight-row className="flex flex-wrap items-start gap-2 border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)' }}>
       <span data-in-flight-role style={{ flex: '0 0 7.5rem' }}>
@@ -190,6 +190,11 @@ export function RadarFlightRow({ row, now, onTrace }: { row: RadarClaim; now: nu
           {row.crewName ?? row.crewId ?? 'no crew named'} · {row.phase ?? 'claim label, no claim comment'}
           {row.updated ? ` · updated ${relativeTime(row.updated, now)}` : ''}
         </span>
+        {cost && cost.stages.length > 0 && (
+          <span data-radar-cost className="block text-xs text-muted">
+            Credits: {cost.stages.map((entry) => `${entry.stage} ${entry.credits.toFixed(1)}`).join(', ')} (total {cost.credits.toFixed(1)}, {cost.turns} turns)
+          </span>
+        )}
       </span>
       <span data-in-flight-actions className="flex items-center justify-end gap-3" style={{ flex: '0 0 11rem' }}>
         {onTrace && (
@@ -496,12 +501,22 @@ export default function DashboardView(props: {
                   </h4>
                   <ul className="mt-1">
                     {pages.take('radar', summary.radarFlight).map((row) => (
-                      <RadarFlightRow key={`${row.repository}#${row.number}`} row={row} now={now} onTrace={(claim) => setTracing({ repository: claim.repository, number: claim.number })} />
+                      <RadarFlightRow key={`${row.repository}#${row.number}`} row={row} now={now} cost={summary.radarCrewStrip?.cost[`${row.repository}#${row.number}`]} onTrace={(claim) => setTracing({ repository: claim.repository, number: claim.number })} />
                     ))}
                   </ul>
                   <ShowMore {...pages.more('radar', summary.radarFlight.length)} />
-                  <p className="mt-1 text-xs text-muted">Issue Radar rows come from GitHub. It does not show if a crew is paused, which machine it is on, or its chat.</p>
+                  <p className="mt-1 text-xs text-muted">
+                    {summary.radarCrewStrip
+                      ? 'Issue Radar rows come from GitHub. It does not show which machine a crew is on or its chat.'
+                      : 'Issue Radar rows come from GitHub. It does not show if a crew is paused, which machine it is on, or its chat.'}
+                  </p>
                 </>
+              )}
+              {summary.radarCrewStrip && summary.radarCrewStrip.crews.length > 0 && (
+                <p data-crews-strip className="mt-2 text-xs text-muted">
+                  <span className="font-semibold">Crews:</span> {summary.radarCrewStrip.counts.onDuty} on duty, {summary.radarCrewStrip.counts.working} working, {summary.radarCrewStrip.counts.paused} paused.{' '}
+                  {summary.radarCrewStrip.crews.map((crew) => `${crew.name} (${crew.status ?? 'unknown'})`).join(', ')}
+                </p>
               )}
             </Section>
             <Section
