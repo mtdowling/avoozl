@@ -209,7 +209,7 @@ Requirement RC8. The screens of the experience proposal, built for Variant B (Gi
 
 Requirement RC9. A goal becomes issues after one approval, through a generated mini-spec.
 
-- [ ] rc-9.1 Planner chat, proposal shape and promote rules, after rc-3.2 [RC9.1, RC9.4] (§D11)
+- [x] rc-9.1 Planner chat, proposal shape and promote rules, after rc-3.2 [RC9.1, RC9.4] (§D11)
   - Planner chat with a quick-goal brief and a turn-and-time budget; proposal of 1 to 8 tasks with evidence; the four promote rules; Look and Measure; Measure off by default.
   - Done when: A proposal with a task lacking evidence is refused; each promote rule triggers alone; the budget stops the chat.
 - [ ] rc-9.2 Mini-spec writer and approval, after rc-9.1, rc-3.2 [RC9.3, RC9.5] (§D11)
