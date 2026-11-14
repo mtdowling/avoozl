@@ -153,6 +153,7 @@ import {
   STATUS_VALUE_KEYS,
 } from "./github-policy.mjs";
 import { requireMirrorsPrivate } from "./mirror-policy.mjs";
+import { mirrorNeedsYou } from "./mirror-sync.mjs";
 import { syncProject } from "./github-project.mjs";
 import { cancelSetup, githubSetup } from "./github-setup.mjs";
 import {
@@ -3050,6 +3051,7 @@ export class Operations {
       view.items.push(...landingNeedsYou(store));
       view.items.push(...remoteNeedsYou(store));
       view.items.push(...syncNeedsYou(store));
+      view.items.push(...mirrorNeedsYou(store));
       view.items.push(
         ...radarNeedsYou(
           untriagedView(
