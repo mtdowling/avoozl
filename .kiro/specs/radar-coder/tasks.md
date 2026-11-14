@@ -455,9 +455,9 @@ added it a pending review to edit and submit; every Avoozl label takes the
 
 Requirement RC22. A display in Settings of how work flows for each repository, read from its settings.
 
-- [ ] rc-21.1 Workflow map model: lanes, cards, values and tags from the saved settings, after rc-1.1, rc-18.1 [RC22.2, RC22.3, RC22.4, RC22.5, RC22.6, RC22.7, RC22.8] (§D27)
+- [x] rc-21.1 Workflow map model: lanes, cards, values and tags from the saved settings, after rc-1.1, rc-18.1 [RC22.2, RC22.3, RC22.4, RC22.5, RC22.6, RC22.7, RC22.8] (§D27)
   - A pure function from a repository form, the mode and the ship mode to lanes, cards, a Labels table, jump targets and tags; tags come from one table; `kirocrew-app/ui/test/workflow-map.test.mjs`.
   - Done when: Unit tests cover issue-radar single repository, plans-repository mode, worker and remote coders, Local only (one lane), a muted step with its reason, and a test that no card text holds a tag word; `npm run test:ui` passes.
-- [ ] rc-21.2 Workflow map in Settings: sub-tab, Local only box, jumps, page test, after rc-21.1 [RC22.1, RC22.4, RC22.9] (§D27)
+- [x] rc-21.2 Workflow map in Settings: sub-tab, Local only box, jumps, page test, after rc-21.1 [RC22.1, RC22.4, RC22.9] (§D27)
   - Draws the model with theme variables, wrapping at 320 px; a value jumps to its field, opening the sub-tab and any fold; a page test renders three configs and checks the label names shown match the config.
   - Done when: The page test passes for issue-radar single repository, plans-repository mode and Local only; a jump focuses its field; `npm run test:ui` passes.
