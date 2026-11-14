@@ -20,6 +20,7 @@ import { pausedTaskIds } from "./github-project.mjs";
 import { ensurePlanIssue } from "./driver.mjs";
 import { SUPERSEDED_STATUS } from "./supersede.mjs";
 import { graphOrder } from "./delivery.mjs";
+import { publicHold } from "./public-signoff.mjs";
 import { linePausedTaskIds, openStops, stopScope } from "./flow.mjs";
 import {
   CREW_LABEL_DEFAULTS,
@@ -48,7 +49,7 @@ import {
   requireNamespace,
 } from "./github-marker.mjs";
 import { epicOfPlan } from "./epics.mjs";
-import { issueRadarCoder, provenanceWriter } from "./radar-provenance.mjs";
+import { projectsMarkedIssues, provenanceWriter } from "./radar-provenance.mjs";
 import { resolveBatchGroups } from "./radar-coder-batch.mjs";
 import { finishSource, planSource, sourceParent } from "./radar-source.mjs";
 import {
@@ -851,6 +852,9 @@ async function project(
       edges: early.edges,
       requested: batches,
       complete: (status) => statusComplete(early, status),
+      chains: Object.values(identity.repositories || {}).some(
+        (entry) => entry.coder === "remote",
+      ),
     }),
     leadOf = new Map(
       groups.flatMap((group) => group.map((id) => [id, group[0]])),
@@ -938,7 +942,7 @@ async function project(
       verified.add(config.id);
     }
     const lead = leadOf.get(task.id);
-    if (lead && !issueRadarCoder(identity, config.id))
+    if (lead && !projectsMarkedIssues(identity, config.id))
       fail(`Batches are for issue-radar repositories, not ${config.id}.`, 409);
     // A batch member has no issue of its own; the lead's carries it.
     if (lead && lead !== task.id) {
@@ -1269,6 +1273,11 @@ async function project(
   const blocked = (item) => {
     const mode = release(item).mode;
     return (
+      (isRadarRepository(
+        identity.repositories?.[item.config.id],
+        identity.mode,
+      ) &&
+        Boolean(publicHold(store, item.config.id))) ||
       mode === "hold" ||
       (mode === "step" &&
         !store.get("receipts", stepReceiptId(plan.id, item.task)))

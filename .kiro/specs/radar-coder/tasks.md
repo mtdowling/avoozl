@@ -63,7 +63,7 @@ Requirement RC2. Spec to issues, in both modes, with batching and the preview. N
 - [x] rc-2.5 Project to GitHub preview and Spec changed diff, after rc-2.3 [RC2.1, RC2.8] (§D4.3)
   - The preview modal with include, batch edit, wave and release mode; **Create issues (held)** and **Create and release**; the Spec changed diff updates unclaimed issues after approval, comments on claimed ones, closes removed tasks as not planned; mockup `04-projection.html`; `kirocrew-app/ui/test/radar-projection.test.mjs`.
   - Done when: Nothing is written before the confirm (a fake GitHub records zero writes); a claimed issue is never edited; a removed task closes as not planned; drawn at 320, 768 and 1280 px, light and dark.
-- [ ] rc-2.6 Preflight checks in the preview, after rc-2.1, rc-5.1 [RC2.9] (§D4.3)
+- [x] rc-2.6 Preflight checks in the preview, after rc-2.1, rc-5.1 [RC2.9] (§D4.3)
   - Preflight shows: spec on the default branch with `Status: Approved`, decision record, merge path, crew label scope (cannot verify without the grant), and the public sign-off; **Create and release** is refused when one fails.
   - Done when: Each failing preflight item refuses Create and release and names the item; a passing run enables it.
 - [ ] rc-p2 Proof 2: spec to issues in both modes, after rc-2.1, rc-2.2, rc-2.3, rc-2.4, rc-2.5, rc-2.6 [RC2] (§D17)
@@ -129,7 +129,7 @@ Requirement RC5. Crews do not arm auto-merge (Kiro Crew 0.12.2.4), so the tick d
 - [x] rc-5.3 Manual mode and the conflict label, after rc-5.1 [RC5.3, RC5.6, RC5.7] (§D7)
   - With `manual`: a Ready to merge row per green pull request, nothing armed. Conflict label on pull requests with a merge conflict and removed when clear; one Needs you row; no label written to Radar.
   - Done when: Manual arms nothing; a conflicted pull request gets the label and one row; resolving it removes both.
-- [ ] rc-5.4 Stop the line stops arming, and Disarm, after rc-5.2, rc-4.2 [RC5.4] (§D7)
+- [x] rc-5.4 Stop the line stops arming, and Disarm, after rc-5.2, rc-4.2 [RC5.4] (§D7)
   - While a stop is open for the scope the tick arms nothing; armed pull requests are listed in the banner with a person-only **Disarm**.
   - Done when: With a stop open a new pull request stays unarmed; Disarm is refused for an agent or app token.
 - [x] rc-5.5 Re-verify before arming, after rc-5.2, rc-3.3 [RC5.8] (§D7)
@@ -227,7 +227,7 @@ Requirement RC9. A goal becomes issues after one approval, through a generated m
 
 Requirement RC10. This phase gates on the public-crew layers and does not restate them.
 
-- [ ] rc-10.1 Hold release for a public repository until the public sign-off is complete, after rc-4.1 [RC10.1, RC10.2] (§D12)
+- [x] rc-10.1 Hold release for a public repository until the public sign-off is complete, after rc-4.1 [RC10.1, RC10.2] (§D12)
   - Release and arming refuse a public repository (or one whose visibility cannot be read) until the sign-off of "Crews on public repositories" in `.kiro/specs/avoozl/` is complete. This task waits for that work to land; it adds no layer of its own.
   - Done when: A public repository with no sign-off releases nothing and says why; once that work lands the check reads its sign-off.
 - [x] rc-10.2 verify-issue output is safe to post, after rc-3.3 [RC10.3, RC10.4] (§D12)
@@ -336,22 +336,22 @@ Requirement RC14. One adapter per coder. The Radar path moves behind it unchange
 
 Requirement RC15. A managed remote harness as a coder. A task is done only when the public pull request merges.
 
-- [ ] rc-15.1 Remote coder adapter: file one task per ready task or batch, after rc-14.2, rc-2.3 [RC15.2, RC15.3, RC15.7, RC15.9] (§D20)
+- [x] rc-15.1 Remote coder adapter: file one task per ready task or batch, after rc-14.2, rc-2.3 [RC15.2, RC15.3, RC15.7, RC15.9] (§D20)
   - A `remote` adapter files a task through the harness's own app or MCP interface with the task ID, spec reference, marker text and approved task text; the harness reference is stored with the task so a retry files nothing twice; no credentials are stored; tests use a fake harness.
   - Done when: A fake harness receives one task per ready task and one per batch; a retried tick files nothing twice; nothing the content rules mark private is sent.
-- [ ] rc-15.2 Watch the remote task and count done only on a public merge, after rc-15.1, rc-5.1 [RC15.3, RC15.4, RC15.8] (§D20)
+- [x] rc-15.2 Watch the remote task and count done only on a public merge, after rc-15.1, rc-5.1 [RC15.3, RC15.4, RC15.8] (§D20)
   - States `filed`, `working`, `finished-unpublished`, `pr-open`, `merged`, `failed` are mapped in the adapter only; a harness "complete" is not done; a read failure keeps the last state and shows its age; arming waits for `verify-issue`.
   - Done when: A fake harness that says complete with no pull request leaves the task not done; the merge of the public pull request releases dependents; a read failure shows the age and changes nothing.
-- [ ] rc-15.3 Needs you row for a waiting publish, and larger batches, after rc-15.2, rc-2.5 [RC15.5, RC15.6] (§D20)
+- [x] rc-15.3 Needs you row for a waiting publish, and larger batches, after rc-15.2, rc-2.5 [RC15.5, RC15.6] (§D20)
   - A task `finished-unpublished` shows one Needs you row with the harness link and the age, cleared when the pull request appears; for `remote` the default batch is larger, the preview counts publishes, and a batch does not split a chain that fits in one.
   - Done when: The row appears once across three ticks and clears on the pull request; the preview shows the publish count; a chain that fits one batch is batched whole.
-- [ ] rc-15.4 No internal names in the repository, and a scan check, after rc-15.1 [RC15.1] (§D20)
+- [x] rc-15.4 No internal names in the repository, and a scan check, after rc-15.1 [RC15.1] (§D20)
   - Forbidden-name patterns come from an environment variable or local config and are never committed; the release scan uses them; docs and tests say only "a managed remote harness" or "a remote coder"; the scan runs before every push.
   - Done when: A test with a pattern set in the environment fails when a listed name appears in a tracked file; `node scripts/release-scan.mjs --tree` is clean.
-- [ ] rc-15.5 Start the harness's MCP server as a child process; file under the approver, after rc-15.1 [RC15.10, RC15.11] (§D20)
+- [x] rc-15.5 Start the harness's MCP server as a child process; file under the approver, after rc-15.1 [RC15.10, RC15.11] (§D20)
   - The tick starts the harness's MCP server as a local child process, calls only its create-code-task and get-task-statuses tools and stops it after the tick; no socket is opened; each task is filed under the approving person's own sign-in; the receipt records the approver, the harness task ID and the Avoozl task IDs.
   - Done when: A test with a fake MCP server shows only those two tools are called and the process ends with the tick; the receipt holds approver, harness task ID and Avoozl task IDs; no other identity is used.
-- [ ] rc-15.6 Expired sign-in: one Needs you item and no retry loop, after rc-15.5, rc-15.2 [RC15.12] (§D20)
+- [x] rc-15.6 Expired sign-in: one Needs you item and no retry loop, after rc-15.5, rc-15.2 [RC15.12] (§D20)
   - A refused sign-in opens one Needs you item, "Sign in again", and holds new filing for that person; the next try needs the person's word or one cheap check that passes; watching tasks already filed continues when the harness allows it; the item clears when filing works.
   - Done when: A fake harness that refuses the sign-in causes one item across five ticks and no filing attempts beyond one check per tick; filing resumes and the item clears after sign-in.
 - [ ] rc-p15 Proof 15: a remote coder end to end with a fake harness, after rc-15.1, rc-15.2, rc-15.3, rc-15.4, rc-15.5, rc-15.6 [RC15] (§D22)
@@ -365,19 +365,19 @@ Requirement RC16. A rewrite lands as small pull requests into a long-lived branc
 - [x] rc-16.1 Integration branch in the manifest, with branch checks, after rc-2.1, rc-5.1 [RC16.1, RC16.9] (§D21)
   - `integrationBranch` in an epic's manifest; Avoozl checks the branch exists, is not the default branch and is protected, and names what is missing; it creates nothing; an epic without the field behaves as before; `src/app/test/integration-branch.test.mjs`.
   - Done when: A missing, unprotected or default branch is refused naming the reason; a manifest without the field changes nothing.
-- [ ] rc-16.2 Projected tasks target the branch, and the branch merge path, after rc-16.1, rc-3.6, rc-5.2 [RC16.2] (§D21)
+- [x] rc-16.2 Projected tasks target the branch, and the branch merge path, after rc-16.1, rc-3.6, rc-5.2 [RC16.2] (§D21)
   - The marker and the issue name the branch as base; `verify-issue` checks the base equals the branch; the branch has its own rule (CI, light review); auto-merge may be armed on task pull requests into it.
   - Done when: A pull request into main for a branch epic fails `verify-issue`; a pull request into the branch passes and may be armed.
-- [ ] rc-16.3 Whole-head checks on the branch and acceptance records, after rc-16.2 [RC16.3, RC16.5, RC16.8] (§D21)
+- [x] rc-16.3 Whole-head checks on the branch and acceptance records, after rc-16.2 [RC16.3, RC16.5, RC16.8] (§D21)
   - The tick reads the branch head's check runs and records an acceptance row naming the head; a task merge does not mark the epic accepted; Trace, In flight and Progress show tasks merged, distance behind main and the head's check state.
   - Done when: A green task merge leaves acceptance open; a green head records acceptance for that head; a new merge makes the record name the new head.
 - [x] rc-16.4 Scheduled merge of main into the branch, after rc-16.1 [RC16.6] (§D21)
   - On the epic's schedule (default weekly, off allowed) Avoozl merges main into the branch as a merge commit and pushes normally; no rebase and no force push anywhere in the code path; a conflict stops the sync, labels it and shows a Needs you row with the files.
   - Done when: A test repository gets a merge commit and a normal push; a conflict leaves the branch unchanged and raises the row; the sync code contains no force option.
-- [ ] rc-16.5 Stop the line for the branch, after rc-16.2, rc-4.2, rc-5.4 [RC16.7] (§D21)
+- [x] rc-16.5 Stop the line for the branch, after rc-16.2, rc-4.2, rc-5.4 [RC16.7] (§D21)
   - The stop takes the branch as a scope: a red head, a failed sync or a person's stop; while open, no release and no arming for the epic; the row says why.
   - Done when: A red head stops release and arming; clearing it resumes both.
-- [ ] rc-16.6 Landing the branch in main: one person-approved step, after rc-16.3, rc-16.4 [RC16.4, RC16.5] (§D21)
+- [x] rc-16.6 Landing the branch in main: one person-approved step, after rc-16.3, rc-16.4 [RC16.4, RC16.5] (§D21)
   - When the head is green and up to date with main, one Needs you row asks a person to land it; Avoozl records who approved and which head; Avoozl never merges the branch into main; an approval for an older head does not count.
   - Done when: No code path merges the branch into the default branch; an approval on an old head is refused; the row records approver and head.
 - [ ] rc-p16 Proof 16: a rewrite on an integration branch, after rc-16.1, rc-16.2, rc-16.3, rc-16.4, rc-16.5, rc-16.6 [RC16] (§D22)
@@ -388,13 +388,13 @@ Requirement RC16. A rewrite lands as small pull requests into a long-lived branc
 
 Requirement RC17. Templates and docs for migrations, codegen changes and cross-repository proposals.
 
-- [ ] rc-17.1 Templates and docs: rewrite, cross-repository migration, large codegen change, after rc-14.1, rc-16.1 [RC17.1, RC17.2, RC17.3, RC17.7] (§D22)
+- [x] rc-17.1 Templates and docs: rewrite, cross-repository migration, large codegen change, after rc-14.1, rc-16.1 [RC17.1, RC17.2, RC17.3, RC17.7] (§D22)
   - Three templates (spec skeletons with manifests and edges) and one doc page; generic wording only; each template lints clean.
   - Done when: Each template lints with 0 errors; the release scan finds no internal name.
-- [ ] rc-17.2 Cross-repository proposal: parent spec and one sub-spec per repository, after rc-17.1, rc-2.1 [RC17.4, RC17.5] (§D22)
+- [x] rc-17.2 Cross-repository proposal: parent spec and one sub-spec per repository, after rc-17.1, rc-2.1 [RC17.4, RC17.5] (§D22)
   - A parent spec holds shared requirements and the list of sub-specs and no repository tasks; each sub-spec is approved and released alone; a cross-repository `requires` is refused when the other sub-spec is unapproved or lacks the ID.
   - Done when: A parent with a repository task is refused; a `requires` on a missing ID is refused naming it; two sub-specs approve separately.
-- [ ] rc-17.3 External gap report becomes proposed tasks, after rc-17.2 [RC17.6] (§D22)
+- [x] rc-17.3 External gap report becomes proposed tasks, after rc-17.2 [RC17.6] (§D22)
   - A report read from a path or an issue gives a repository-by-requirement table; each failing cell becomes a proposed task in that repository's sub-spec; a passing cell gives none; nothing is added until a person accepts; an unparseable line is refused by number.
   - Done when: A fixture report with two failing and three passing cells gives two proposals; an unreadable line is refused naming it; accepting adds the tasks.
 - [ ] rc-p17 Proof 17: epic types, after rc-17.1, rc-17.2, rc-17.3 [RC17] (§D22)
@@ -408,10 +408,10 @@ Requirement RC18. A trusted person approves by label; any approval is written ba
 - [x] rc-18.1 Approval label setting and label clash check, after rc-1.1 [RC18.1] (§D23)
   - `approval label` per repository, default `plan approved`; equal to the planning, needs-human, claim, ready or conflict label is refused naming both; Settings shows what it does and who writes it; `src/app/test/approval-label.test.mjs`.
   - Done when: The default validates; a clash is refused naming both labels; `npm test` passes.
-- [ ] rc-18.2 Tick reads the approval label and checks the labeler, after rc-18.1, rc-1.2, rc-3.6 [RC18.2, RC18.3, RC18.7] (§D23)
+- [x] rc-18.2 Tick reads the approval label and checks the labeler, after rc-18.1, rc-1.2, rc-3.6 [RC18.2, RC18.3, RC18.7] (§D23)
   - On a drafted plan with 0 lint errors, a label added by a person who passes the trigger-label check (`allowedActors`, `minimumPermission`) approves the plan; any other labeler, or an unreadable one, is ignored: the label is removed and one Needs you row names the login and issue; removing the label later revokes nothing.
   - Done when: A fake GitHub test: an allowed labeler approves; a stranger's label is removed with one row across three ticks; a label removal after approval changes nothing.
-- [ ] rc-18.3 One approval record, with write-back to the issue, after rc-18.2 [RC18.4, RC18.5, RC18.6, RC18.8, RC18.9] (§D23)
+- [x] rc-18.3 One approval record, with write-back to the issue, after rc-18.2 [RC18.4, RC18.5, RC18.6, RC18.8, RC18.9] (§D23)
   - Approving in Avoozl, in a chat or the CLI (`plans_*` tool), or by label ends in one approval record; the first two write back to the source issue: the label and one comment with a hidden marker (approver login, spec path, commit, time) and no spec text; a second approval is a no-op; a failed write-back leaves the approval and raises one row; a plan with no source issue skips it.
   - Done when: Three fake-GitHub tests: each path gives one record; a second approval writes nothing; a failed write-back leaves the approval and one row.
 - [ ] rc-p18 Proof 18: approve on the issue, after rc-18.1, rc-18.2, rc-18.3 [RC18] (§D17)
@@ -422,7 +422,7 @@ Requirement RC18. A trusted person approves by label; any approval is written ba
 
 Requirement RC19. The parent issue is marked as taken when its plan is approved.
 
-- [ ] rc-19.1 Claim the parent at approval, after rc-18.3, rc-1.3 [RC19.1, RC19.2, RC19.3, RC19.4, RC19.5, RC19.6] (§D24)
+- [x] rc-19.1 Claim the parent at approval, after rc-18.3, rc-1.3 [RC19.1, RC19.2, RC19.3, RC19.4, RC19.5, RC19.6] (§D24)
   - At approval Avoozl posts the claim marker in Radar's format, naming Avoozl and no real crew id, and adds the in-progress label on the parent; an existing crew claim is left alone and noted once in Trace; the claim is written once per approval; Avoozl removes only its own claim when the plan is superseded or the parent closes.
   - Done when: A fake-GitHub test: the parent gets one claim and label; a parent with a crew's claim gets no write and one Trace note; a second approval writes nothing; a superseded plan removes only Avoozl's claim.
 - [ ] rc-p19 Proof 19: the parent is not taken by a crew, after rc-19.1 [RC19] (§D17)

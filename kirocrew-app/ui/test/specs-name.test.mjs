@@ -20,6 +20,8 @@ export const ALLOWED = new Map([
   ['plan or deliver', 'verb: what Intake offers'],
   ['plan a plugin', 'verb: Design a plugin'],
   ['plan an Avoozl content rule set', 'verb: Design a rule set'],
+  // A backend key in a type literal, read as text by the guard.
+  ['| null plan:', 'the quick goal reply carries the spec plan under the key `plan`'],
   // Compatibility names (R62.2).
   ['Plans repository mode', 'the Plans repo mode names a repository'],
   ['plans repository mode', 'the Plans repo mode names a repository'],

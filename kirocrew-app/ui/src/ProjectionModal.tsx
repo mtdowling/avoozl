@@ -7,7 +7,7 @@ import { Btn } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { Modal } from './Modal.tsx'
 import { describeWrite, writesByRepository } from './plans-api.ts'
-import { UNDO, confirmLines, headline, projectionClient, toggleBatch, type ProjectionDetail } from './projection-api.ts'
+import { UNDO, confirmLines, headline, preflightFailures, projectionClient, toggleBatch, type ProjectionDetail } from './projection-api.ts'
 import { errorMessage } from './workspace-api.ts'
 
 type Client = ReturnType<typeof projectionClient>
@@ -54,6 +54,7 @@ export function ProjectionModal(props: { workspaceId: string; client: Client; pl
   const repository = preview?.writes.find((write) => write.repository)?.repository ?? null
   const blocked = preview?.blocked?.length ? preview.blocked : null
   const writes = preview?.writes.length ?? 0
+  const failing = preflightFailures(preview)
   return (
     <Modal
       id="avoozl-projection"
@@ -78,7 +79,11 @@ export function ProjectionModal(props: { workspaceId: string; client: Client; pl
             <Btn onClick={() => setConfirm('held')} disabled={busy || !preview || writes === 0 || Boolean(blocked)}>
               Create issues (held)…
             </Btn>
-            <Btn onClick={() => setConfirm('release')} disabled={busy || !preview || writes === 0 || Boolean(blocked)}>
+            <Btn
+              onClick={() => setConfirm('release')}
+              disabled={busy || !preview || writes === 0 || Boolean(blocked) || failing.length > 0}
+              title={failing.length ? `Preflight: ${failing.map((item) => item.label).join(', ')}` : undefined}
+            >
               Create and release…
             </Btn>
           </div>
@@ -100,6 +105,21 @@ export function ProjectionModal(props: { workspaceId: string; client: Client; pl
                 <Badge variant="danger">blocked</Badge> {item.message}
               </p>
             ))}
+            {preview.publishes !== undefined && (
+              <p data-publishes>
+                A person publishes {preview.publishes} pull {preview.publishes === 1 ? 'request' : 'requests'} for this spec.
+              </p>
+            )}
+            {preview.preflight && (
+              <fieldset className="flex flex-col gap-1 border-0 p-0" data-preflight>
+                <legend className="font-medium">Preflight for Create and release</legend>
+                {preview.preflight.items.map((item) => (
+                  <p key={item.id} data-preflight-item={item.status}>
+                    <Badge variant={item.status === 'ok' ? 'success' : item.status === 'fail' ? 'danger' : 'info'}>{item.status === 'unverified' ? 'cannot verify' : item.status}</Badge> {item.label}. <span className="text-muted">{item.detail}</span>
+                  </p>
+                ))}
+              </fieldset>
+            )}
             {preview.simulated && <p className="text-muted">This spec is not approved yet. The list shows what approval would write.</p>}
             {(preview.suggestedBatches?.length ?? 0) > 0 && (
               <fieldset className="flex flex-col gap-1 border-0 p-0" data-batches>

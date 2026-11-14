@@ -713,6 +713,15 @@ export class GitHubClient {
     );
   }
 
+  // Turns GitHub auto-merge off for one pull request (RC5.4, Disarm).
+  disarmAutoMerge(_repository, pullRequestId) {
+    return this.graphql(
+      `mutation($id:ID!){disablePullRequestAutoMerge(input:{pullRequestId:$id}){pullRequest{number}}}`,
+      { id: pullRequestId },
+      "disarm auto-merge",
+    );
+  }
+
   // Links a branch in `repositoryId` (may differ from the issue's repository)
   // to the issue, created at `oid` (F51, L13). Needs push access there.
   async createLinkedBranch({ issueId, repositoryId, oid, name }) {

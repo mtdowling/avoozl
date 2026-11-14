@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { COMMAND_PATH } from '../src/workspace-api.ts'
 import { emptyRepository, toForm, toPolicy } from '../src/settings-api.ts'
-import { MODE_TEXT, RELEASE_MODES, capacityText, heldReasons, nextSteps, releaseClient } from '../src/release-api.ts'
+import { MODE_TEXT, RELEASE_MODES, branchLine, capacityText, heldReasons, nextSteps, releaseClient } from '../src/release-api.ts'
 import { normalizeGitHubPolicy } from '../../../src/app/github-policy.mjs'
 
 const source = (name) => readFileSync(new URL(`../src/${name}`, import.meta.url), 'utf8')
@@ -102,4 +102,30 @@ test('the Dashboard shows the queue, Settings shows the mode only for Issue Rada
   assert.match(queue, /onClick=\{\(\) => onStep\(step\.planId\)\}/)
   // Rows wrap: columns on a wide page, stacked on a narrow one.
   assert.match(queue, /flexDirection: 'row'[^}]*flexWrap: 'wrap'/)
+})
+
+test('the Dashboard lists armed pull requests under a stop, with a Disarm that calls the person-only operation', async () => {
+  const calls = []
+  const client = releaseClient({ post: async (path, body) => (calls.push([body.operation, body.input]), { result: { pullRequests: [] } }) })
+  await client.armed('w')
+  await client.disarm('w', 'example/app', 7)
+  assert.deepEqual(calls, [['radar.armed', {}], ['radar.disarm', { repository: 'example/app', pullRequest: 7 }]])
+  assert.match(source('DashboardView.tsx'), /<ArmedPulls workspaceId=\{workspaceId\} stopped=/)
+  const armed = source('ArmedPulls.tsx')
+  assert.match(armed, /if \(!props\.stopped \|\| !props\.workspaceId \|\| !pulls\.length\) return null/)
+  assert.match(armed, /Disarm/)
+})
+
+test('integration branches: one line per branch, a read client, and a person-only Land on the Needs you row', async () => {
+  const calls = []
+  const client = releaseClient({ post: async (path, body) => (calls.push([body.operation, body.input]), { result: { branches: [] } }) })
+  await client.branches('w')
+  await client.land('w', 'example/app', 'rewrite/x', 'a'.repeat(40))
+  assert.deepEqual(calls, [['integration.view', {}], ['integration.land', { repository: 'example/app', branch: 'rewrite/x', head: 'a'.repeat(40) }]])
+  const row = { branch: 'rewrite/x', base: 'main', behind: 2, checks: 'green', tasksMerged: 3, tasksTotal: 5, accepted: true }
+  assert.equal(branchLine(row), '3 of 5 tasks merged · 2 behind main · head checks green · accepted')
+  assert.equal(branchLine({ ...row, behind: 0, checks: null, accepted: false }), '3 of 5 tasks merged · level with main · head not read yet')
+  assert.match(source('DashboardView.tsx'), /<IntegrationBranches workspaceId=\{workspaceId\} \/>/)
+  assert.match(source('ConflictsView.tsx'), /item\.kind === 'branch-landing' && item\.repository/)
+  assert.match(source('ConflictsView.tsx'), /action: 'Approve landing'/)
 })

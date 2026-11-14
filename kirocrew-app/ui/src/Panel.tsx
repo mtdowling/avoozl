@@ -70,7 +70,7 @@ export default function AvoozlPanel() {
     if (!workspaceId || !spec) return
     try {
       await plans.store(workspaceId, spec.name)
-      setNote('Stored as a draft plan. Review it in Specs, then approve.')
+      setNote('Stored as a draft. Review it in Specs, then approve.')
       await load()
     } catch (caught) {
       setNote(errorMessage(caught))
@@ -97,7 +97,7 @@ export default function AvoozlPanel() {
               {opensItself(kind, { files: spec.files, approved: Boolean(spec.plan?.approved) }) && (
                 <p className="text-muted">tasks.md is written and not approved yet.</p>
               )}
-              {!spec.plan && <Btn onClick={() => void store()}>Store as a plan</Btn>}
+              {!spec.plan && <Btn onClick={() => void store()}>Store this spec</Btn>}
               {spec.plan && !spec.plan.approved && (
                 <Btn primary disabled={spec.counts.error > 0 || !spec.hash} onClick={() => void approve()}>
                   Approve for Avoozl
