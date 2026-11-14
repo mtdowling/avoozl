@@ -149,7 +149,7 @@ Requirement RC6. Avoozl ships the crew agent, because an unknown agent name fall
 - [ ] rc-6.2 Crew tools need no workspace and return the brief, after rc-3.3 [RC6.3] (§D8)
   - `plans_verify_issue` works with no default workspace and, when all checks pass, returns task IDs, acceptance and references from the issue body; no other tool in the crew's list needs a workspace.
   - Done when: A call with no workspace succeeds; the brief appears only when every check is ok; no listed tool answers "no workspace".
-- [ ] rc-6.3 Set up verifies the agent is in Radar's Agent list, after rc-6.1 [RC6.5] (§D8)
+- [x] rc-6.3 Set up verifies the agent is in Radar's Agent list, after rc-6.1 [RC6.5] (§D8)
   - Read the list through the grant, or the installed agent files, else show Not verified; show a crew with another agent as not covered; say that changing an existing crew's agent is unreliable.
   - Done when: The three outcomes each show a distinct state; a fake Radar list without the agent shows missing.
 - [ ] rc-p6 Proof 6: a crew on avoozl-crew verifies and builds, after rc-6.1, rc-6.2, rc-6.3 [RC6] (§D17)
