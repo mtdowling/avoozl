@@ -1,4 +1,4 @@
-// The spec driver on the page (design §6.10, R66.17): the header chip, the
+// The spec driver on the page (design §6.10, R66.17): the spec's chip, the
 // read-only banner with Take over or Force take over, the stepped Hand off
 // dialog, the loss list and confirm dialogs, and Settings › General › This
 // computer. Nothing moves until a person presses the dialog's own button;

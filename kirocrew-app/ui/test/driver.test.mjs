@@ -66,13 +66,14 @@ test('This computer: an optional label and heartbeat minutes from 5 to 60', () =
   assert.match(setupText({ kind: 'plugin', id: 'p' }), /Approve plugin p/)
 })
 
-test('the pieces are wired: header, spec page, Hand off, dialogs and Settings', () => {
+test('the pieces are wired: spec page, Hand off, dialogs and Settings', () => {
   const app = source('App.tsx'),
     plans = source('PlansView.tsx'),
     settings = source('SettingsView.tsx'),
     driver = source('Driver.tsx')
-  // The header never shows the read-only count; the spec page does.
-  assert.doesNotMatch(app, /DriverSummary/)
+  // The read-only notice lives on the spec only; no header badge (owner, 2026-11-14).
+  for (const [name, text] of [['App.tsx', app], ['Driver.tsx', driver]])
+    assert.doesNotMatch(text, /DriverSummary|data-driver-summary|specs read only here/, name)
   assert.match(plans, /<DriverChip spec=\{driver\.spec\} \/>/)
   assert.match(plans, /<DriverBanner workspaceId=\{workspace\} spec=\{driver\.spec\}/)
   assert.match(plans, /<HandOffButton workspaceId=\{props\.workspaceId\}/)

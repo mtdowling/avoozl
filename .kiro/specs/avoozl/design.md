@@ -4655,7 +4655,8 @@ including the workspace status MCP reply. CLI: `avoozl driver status`,
 
 #### Page and Settings
 
-- The header shows the selected spec's driver: "Driver: you", or
+- The spec's own page and row show its driver (the app header shows no
+  driver or read-only count; owner decision 2026-11-14): "Driver: you", or
   "Driver: octocat · laptop · seen 4 min ago", with "not seen since"
   after three missed heartbeats.
 - A read-only spec shows a banner on its pages saying why: assigned to
