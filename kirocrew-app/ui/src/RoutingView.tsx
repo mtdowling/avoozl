@@ -6,7 +6,7 @@
 // crews.update with the machine file's hash; all of it stays on this
 // machine.
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
-import { useAppApi, useChatLauncher } from '@kirocrew/app-sdk'
+import { useAppApi, useChatLauncher } from './host.ts'
 import { Btn, Card, Input } from '@kirocrew/app-sdk/ui'
 import { Modal } from './Modal.tsx'
 import { Marker, Section } from './SettingsView.tsx'

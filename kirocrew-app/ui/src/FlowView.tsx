@@ -3,7 +3,7 @@
 // and Run anyway on a stopped line. Pull requests and CI runs stay in Issue
 // Radar and GitHub; this tab shows graph and delivery timing only.
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react'
-import { useAppApi } from '@kirocrew/app-sdk'
+import { useAppApi } from './host.ts'
 import { Btn, Card, EmptyState, SegmentedControl } from '@kirocrew/app-sdk/ui'
 import { LessonsView, ProposalsView } from './FlowMemory.tsx'
 import Badge from './Badge.tsx'

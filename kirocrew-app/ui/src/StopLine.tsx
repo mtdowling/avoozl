@@ -5,7 +5,7 @@
 // dialog's red button (and, for Stop all agents, its confirm); Cancel, Esc
 // and a click outside change nothing.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useAppApi } from '@kirocrew/app-sdk'
+import { useAppApi } from './host.ts'
 import { Btn, Input } from '@kirocrew/app-sdk/ui'
 import { ICON, useConfirm } from './controls.tsx'
 import { Pause } from './icons.ts'

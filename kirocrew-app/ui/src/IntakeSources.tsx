@@ -8,7 +8,7 @@
 // plugin may be private names. The backend has add and remove only, so a
 // source is changed by removing it and adding it again.
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
-import { useAppApi } from '@kirocrew/app-sdk'
+import { useAppApi } from './host.ts'
 import { Btn, Card, EmptyState, Input } from '@kirocrew/app-sdk/ui'
 import Badge, { type BadgeVariant } from './Badge.tsx'
 import { DangerBtn, IconLabel, SectionHeading } from './controls.tsx'

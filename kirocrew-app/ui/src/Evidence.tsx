@@ -2,7 +2,7 @@
 // found, decided and checked, newest first. An attached image or video
 // loads only when a person asks for it.
 import { useCallback, useMemo, useState } from 'react'
-import { useAppApi } from '@kirocrew/app-sdk'
+import { useAppApi } from './host.ts'
 import Badge from './Badge.tsx'
 import { relativeTime } from './task-api.ts'
 import { useRead } from './useRead.ts'

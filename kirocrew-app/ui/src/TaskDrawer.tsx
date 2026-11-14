@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { BudgetFold, SpendChip } from './Budget.tsx'
 import { Tooltip } from './Tooltip.tsx'
-import { useAppApi } from '@kirocrew/app-sdk'
+import { useAppApi } from './host.ts'
 import { Btn } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { TaskDrawerContext, type TaskDrawerApi } from './drawer-context.ts'
@@ -802,6 +802,7 @@ export function TaskDrawerProvider({
   // current one onto the Back history.
   const current = useRef<Mode>(null)
   current.current = mode
+  const closing = useRef<() => void>(() => undefined)
   const api_: TaskDrawerApi = useMemo(
     () => ({
       openTask: (id) => {
@@ -819,6 +820,7 @@ export function TaskDrawerProvider({
         setHistory([])
         setMode({ kind: 'review', group, onReviewed })
       },
+      close: () => closing.current(),
     }),
     [],
   )
@@ -829,6 +831,7 @@ export function TaskDrawerProvider({
     setHistory([])
     returnTo.current?.focus?.()
   }, [])
+  closing.current = close
 
   useEffect(() => {
     if (!mode || !workspaceId) return

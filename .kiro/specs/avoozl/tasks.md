@@ -1416,3 +1416,14 @@ Phase 34 because task IDs never move.
   - Failure means: a read leaves the worktree or an input reaches Git as an option.
   - Next decision: drop untracked files, or read diffs through a provider instead of local Git.
   - Built: pass, `src/app/test/task-files.test.mjs`, `kirocrew-app/ui/test/task-files.test.mjs`, `kirocrew-app/ui/test/task-files-browser.test.mjs`.
+
+## Phase 36: Demo mode
+
+Owner request 2026-11-13 (Requirement 82, design §6.11).
+
+- [x] 36.1 Demo sample, fake GitHub and preview gate, after 3.7 [R82.1–R82.4, R82.7] (§6.11)
+  - `src/app/demo.mjs` staged once-only install, the fake GitHub and the gate; `demo.start`, `demo.exit`, `demo.status` and `@demo` in the app backend; `src/app/test/demo.test.mjs`.
+- [x] 36.2 Demo badge, bar, tour and exit, after 36.1 and 31.3 [R82.3, R82.5–R82.7] (§6.11)
+  - `host.ts`, `demo-api.ts`, `Demo.tsx` and the App wiring; `kirocrew-app/ui/test/demo-tour.test.mjs` with tour, keys, preview, exit and layout at 320, 768 and 1280 px, light and dark.
+- [x] 36.3 README and screenshots, after 36.2 [R82] (§6.11)
+  - README says how to start it; `docs/evidence/demo/`.

@@ -6,7 +6,7 @@
 // and history. Every write here is a person's: Approve, Reject, Revert,
 // Approve rebase and Export.
 import { useCallback, useMemo, useState } from 'react'
-import { useAppApi } from '@kirocrew/app-sdk'
+import { useAppApi } from './host.ts'
 import { Btn, Card, Input } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { FilterPanel } from './FilterPanel.tsx'

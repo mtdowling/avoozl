@@ -15,7 +15,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from 'react'
-import { useAppApi, useChatLauncher } from '@kirocrew/app-sdk'
+import { useAppApi, useChatLauncher } from './host.ts'
 import { Btn } from '@kirocrew/app-sdk/ui'
 import { ChevronRight, MessageSquare, VIEW_ICONS, type LucideIcon } from './icons.ts'
 import { chatClient, type ChatSeed, type HelpSeed } from './chat-api.ts'
