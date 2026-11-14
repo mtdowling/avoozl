@@ -33,6 +33,7 @@ export async function demoReplies() {
       }
     }
     // The tour opens one task's drawer.
+    replies['demo.fixtures'] = await demo.fixtures()
     replies['task.detail'] = await demo.execute('task.detail', { id: 'recipe-import.2.1' })
   } finally {
     demo.close()

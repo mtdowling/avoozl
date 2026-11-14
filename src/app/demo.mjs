@@ -16,6 +16,7 @@ import { captureIdea } from "./ideas.mjs";
 import { recordActivity } from "./activity-log.mjs";
 import { Lessons, lessonsPath, writeLesson } from "./lessons.mjs";
 import { emptySnapshot } from "./workspace.mjs";
+import { demoFixtures, radarOverlay, seedRadar } from "./demo-radar.mjs";
 
 // The page's workspace ID for the sample. A catalog ID must start with a
 // letter (host-config.mjs), so no real workspace can have this one.
@@ -126,11 +127,13 @@ const ISSUE = (number, title, state, extra = {}) => ({
   created_at: "2026-01-02T10:00:00Z",
   ...extra,
 });
-const PULL = (number, title, head, checks, state = "open") => ({
+const PULL = (number, title, head, checks, state = "open", times = {}) => ({
   number,
   title,
   state,
   merged: state === "merged",
+  created_at: times.created_at ?? null,
+  merged_at: times.merged_at ?? null,
   html_url: `https://github.com/${DEMO_REPOSITORY}/pull/${number}`,
   head: { ref: head, sha: `${number}`.repeat(40).slice(0, 40) },
   base: { ref: "main" },
@@ -165,7 +168,8 @@ const CHECKS = {
 // What the fake GitHub holds: an epic issue with one sub-issue per leaf, a
 // Project, pull requests and their checks, and two issues for Intake.
 // Every name is made up.
-export function demoGitHubData() {
+export function demoGitHubData(now = Date.now()) {
+  const overlay = radarOverlay(now, DEMO_REPOSITORY);
   const issues = [
     ISSUE(1, "Recipe Box: first release", "open", {
       labels: [{ name: "epic" }],
@@ -175,7 +179,10 @@ export function demoGitHubData() {
         link.issue,
         LEAF_TITLES[taskId],
         DONE.has(taskId) ? "closed" : "open",
-        { parent: 1 },
+        {
+          parent: 1,
+          body: `Made-up issue for the Avoozl demo.\n\n${overlay.provenance(taskId.split(".")[0], taskId)}`,
+        },
       ),
     ),
     ISSUE(30, "Pantry photos crash the importer", "open", {
@@ -185,6 +192,10 @@ export function demoGitHubData() {
       labels: [{ name: "idea" }],
     }),
   ];
+  // Labels crews and Avoozl put on issues (claims, ready, needs human).
+  for (const issue of issues)
+    for (const name of overlay.labels[issue.number] ?? [])
+      issue.labels.push({ name });
   const pulls = Object.entries(DEMO_LINKS)
     .filter(([, link]) => link.pull)
     .map(([taskId, link]) =>
@@ -194,8 +205,23 @@ export function demoGitHubData() {
         `task/${taskId}`,
         CHECKS[link.pull],
         DONE.has(taskId) ? "merged" : "open",
+        overlay.pulls[link.pull],
       ),
     );
+  // A contributor's pull request a crew drafted a review for.
+  pulls.push({
+    ...PULL(
+      24,
+      "Dark mode for the meal grid",
+      "contrib/dark-grid",
+      [],
+      "open",
+      {
+        created_at: new Date(now - 4 * 3600_000).toISOString(),
+      },
+    ),
+    user: { login: "demo-contributor" },
+  });
   const project = {
     title: "Recipe Box",
     url: "https://github.com/orgs/example/projects/1",
@@ -214,7 +240,14 @@ export function demoGitHubData() {
             : "Todo",
     })),
   };
-  return { repository: DEMO_REPOSITORY, issues, pulls, project };
+  return {
+    repository: DEMO_REPOSITORY,
+    issues,
+    pulls,
+    project,
+    overlay,
+    comments: overlay.comments,
+  };
 }
 
 // GitHubClient methods that write. The fake refuses each one, so no path
@@ -296,8 +329,8 @@ export function demoGitHub(sample = demoGitHubData()) {
       { name: "idea" },
       { name: "avoozl" },
     ],
-    listIssueComments: async () => [],
-    issueEvents: async () => [],
+    listIssueComments: async (_repo, n) => sample.comments?.[Number(n)] ?? [],
+    issueEvents: async (_repo, n) => sample.overlay?.events[Number(n)] ?? [],
     issueTimeline: async () => [],
     issueActivity: async () => [],
     issueLinks: async () => [],
@@ -454,7 +487,7 @@ export function demoOperations(root) {
     driver: null,
     models: () => ["demo-model-large", "demo-model-small"],
   });
-  return {
+  const demo = {
     store,
     ops,
     github: ops.github,
@@ -465,6 +498,9 @@ export function demoOperations(root) {
     },
     close: () => store.close(),
   };
+  // What the Radar screens read (demo-radar.mjs), over the reads above.
+  demo.fixtures = (options) => demoFixtures(demo, options);
+  return demo;
 }
 
 // --- The sample -------------------------------------------------------------
@@ -702,6 +738,10 @@ export async function buildDemo(
     }
     await ops.execute("plan.create", { spec: "pantry-photos" });
     seedState(store, now);
+    seedRadar(store, { repository: DEMO_REPOSITORY, now });
+    // The claims the crews left, read once through the fake GitHub, so the
+    // Release queue knows them before the first tick.
+    await ops.execute("radar.crews", { refresh: true });
     seedActivity(store, now);
     seedLessons(paths.settings, now);
     // The checkout as it reads after the rename.
@@ -773,29 +813,11 @@ function seedState(store, now) {
       };
     }
   });
+  // Local workers are retired: crews on GitHub do the coding, so the sample
+  // holds no worker session and no running local delivery.
   const running = "meal-planner.1.1",
     review = "recipe-import.2.1";
   store.transaction(() => {
-    store.put("session_bindings", {
-      id: "demo-slot-1",
-      slot: "demo-slot-1",
-      taskId: running,
-      role: "worker",
-      attempt: 1,
-      title: "Week grid for the meal planner",
-      status: "running",
-      statusAt: at(0.2),
-      boundAt: at(1),
-      model: "demo-model-large",
-      source: "tick",
-    });
-    store.put("task_deliveries", {
-      id: running,
-      taskId: running,
-      state: "running",
-      attempts: [],
-      updatedAt: at(0.2),
-    });
     store.put("task_deliveries", {
       id: review,
       taskId: review,
@@ -927,13 +949,28 @@ function seedState(store, now) {
 function seedActivity(store, now) {
   const rows = [
     ["local", "plan.approve", "Approved spec recipe-import", 26],
-    ["mcp", "task.report", "Worker reported recipe-import 1.1 done", 22],
+    [
+      "github",
+      "github.merge",
+      "Crew Vega merged pull request #20 (recipe-import 1.1)",
+      22,
+    ],
     ["github", "github.close", "Issue #2 closed by pull request #10", 21],
     ["local", "flow.stop", "Stopped the line: tests red on main", 20],
     ["local", "flow.resume", "Resumed the line", 19],
-    ["mcp", "task.report", "Worker reported recipe-import 1.2 done", 12],
+    [
+      "github",
+      "github.merge",
+      "Crew Draco merged pull request #21 (recipe-import 1.2)",
+      12,
+    ],
     ["github", "github.check", "Check test failed on pull request #12", 2],
-    ["local", "task.start", "Started meal-planner 1.1", 1],
+    [
+      "github",
+      "github.handback",
+      "Crew Nova handed back issue #6: it needs a person",
+      1,
+    ],
   ];
   for (const [source, kind, summary, hours] of rows)
     recordActivity(store, {

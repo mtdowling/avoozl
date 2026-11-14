@@ -11,6 +11,7 @@ import { useTaskDrawer } from './drawer-context.ts'
 import { useMedia } from './use-media.ts'
 import { LAYER } from './layers.ts'
 import { TOUR, demoClient, stepTo, tourKey, type TourStep } from './demo-api.ts'
+import { fixturesClient, type DemoFixtures } from './demo-fixtures.ts'
 import { errorMessage } from './workspace-api.ts'
 
 interface Demo {
@@ -21,6 +22,12 @@ interface Demo {
   notice: string | null
   // The tour's step, or null when the tour is closed.
   step: number | null
+  // The made-up data the Radar screens show (demo-fixtures.ts), or null when
+  // the demo is off or has not answered yet.
+  fixtures: DemoFixtures | null
+  // Which Stop the line example the page shows.
+  stopExample: 'running' | 'stopped'
+  setStopExample(example: 'running' | 'stopped'): void
   start(): Promise<void>
   exit(): Promise<void>
   setStep(step: number | null): void
@@ -33,6 +40,9 @@ const DemoContext = createContext<Demo>({
   error: null,
   notice: null,
   step: null,
+  fixtures: null,
+  stopExample: 'running',
+  setStopExample: () => undefined,
   start: async () => undefined,
   exit: async () => undefined,
   setStep: () => undefined,
@@ -40,6 +50,10 @@ const DemoContext = createContext<Demo>({
 })
 
 export const useDemo = () => useContext(DemoContext)
+
+// The demo's data for the Radar screens, or null outside the demo. Real
+// screens keep their own reads when this is null.
+export const useDemoFixtures = () => useContext(DemoContext).fixtures
 
 export function DemoProvider(props: { children: ReactNode }) {
   const api = useHostApi()
@@ -49,11 +63,15 @@ export function DemoProvider(props: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [step, setStep] = useState<number | null>(null)
+  const [fixtures, setFixtures] = useState<DemoFixtures | null>(null)
+  const [stopExample, setStopExample] = useState<'running' | 'stopped'>('running')
   const start = useCallback(async () => {
     setStarting(true)
     setError(null)
     try {
       await client.start()
+      // The fixtures are for the new screens; a failed read leaves them off.
+      setFixtures(await fixturesClient(api).read().catch(() => null))
       setActive(true)
       setStep(0)
     } catch (caught) {
@@ -61,13 +79,15 @@ export function DemoProvider(props: { children: ReactNode }) {
     } finally {
       setStarting(false)
     }
-  }, [client])
+  }, [client, api])
   // Exit closes the sample on the backend, then the page reads the
   // person's own workspace again. A failed close still leaves the demo.
   const exit = useCallback(async () => {
     setStep(null)
     setNotice(null)
     setActive(false)
+    setFixtures(null)
+    setStopExample('running')
     try {
       await client.exit()
     } catch {
@@ -76,8 +96,8 @@ export function DemoProvider(props: { children: ReactNode }) {
   }, [client])
   const guard = useMemo(() => ({ active, notice: (text: string) => setNotice(text) }), [active])
   const value = useMemo<Demo>(
-    () => ({ active, starting, error, notice, step, start, exit, setStep, clearNotice: () => setNotice(null) }),
-    [active, starting, error, notice, step, start, exit],
+    () => ({ active, starting, error, notice, step, fixtures, stopExample, setStopExample, start, exit, setStep, clearNotice: () => setNotice(null) }),
+    [active, starting, error, notice, step, fixtures, stopExample, start, exit],
   )
   return (
     <DemoContext.Provider value={value}>
@@ -136,6 +156,14 @@ export function DemoBar() {
       <span className="flex-1" style={{ minWidth: 200 }}>
         Made-up sample. Nothing you do here changes your work, GitHub or agents.
       </span>
+      <span role="group" aria-label="Stop the line example" className="flex items-center gap-1 text-xs">
+        Stop the line example
+        {(['running', 'stopped'] as const).map((example) => (
+          <Btn key={example} type="button" data-demo-stop-example={example} aria-pressed={demo.stopExample === example} primary={demo.stopExample === example} onClick={() => demo.setStopExample(example)}>
+            {example === 'running' ? 'Running' : 'Stopped'}
+          </Btn>
+        ))}
+      </span>
       {demo.step === null && (
         <Btn type="button" onClick={() => demo.setStep(0)}>
           Start the tour
@@ -154,6 +182,10 @@ export function DemoBar() {
 // Find the part of the page a step points at: the Stop the line button,
 // or the heading that starts with the step's title.
 function stepTarget(step: TourStep): Element | null {
+  if (step.target) {
+    const found = document.querySelector(step.target)
+    if (found) return found
+  }
   if (step.id === 'stop-line') return document.querySelector('[data-stop-line]')
   if (step.id !== 'needs-you') return null
   return [...document.querySelectorAll('h2, h3, h4')].find((h) => h.textContent?.trim().startsWith(step.title)) ?? null
