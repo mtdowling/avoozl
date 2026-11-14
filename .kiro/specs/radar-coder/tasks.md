@@ -481,6 +481,31 @@ Requirement RC22. A display in Settings of how work flows for each repository, r
   - Draws the model with theme variables, wrapping at 320 px; a value jumps to its field, opening the sub-tab and any fold; a page test renders three configs and checks the label names shown match the config.
   - Done when: The page test passes for issue-radar single repository, plans-repository mode and Local only; a jump focuses its field; `npm run test:ui` passes.
 
+## Phase 23: Mirror repositories
+
+Requirement RC24. Crews work a private mirror of a public repository; Avoozl syncs it, tracks merged crew PRs, and forwards them to the public repository under a person's name.
+
+- [ ] rc-23.1 `mirror` setting: form and raw `.avoozl.json`, private-only validation, after rc-1.1 [RC24.1, RC24.2] (§D29)
+  - Fields, defaults and refusals of RC24.1 and RC24.2; the form and the raw file write one record; `src/app/test/mirror-policy.test.mjs`.
+  - Done when: A public or unreadable mirror is refused; `forward: auto` with no trusted person is refused; the form and the raw file agree after an edit in either; `npm test` passes.
+- [ ] rc-23.2 Sync step and write targets, after rc-23.1, rc-2.1 [RC24.3, RC24.4] (§D29)
+  - `mirrorSyncStep` fast-forwards the mirror's default branch; divergence raises one Needs you row and pauses the mirror steps; `writeRepo(policy)` sends projection, labels, Project, release and merge to the mirror; source issue link marker with no private text copied out.
+  - Done when: A fake GitHub test: a fast-forward is applied, a divergence gives one row across three ticks and no write to either branch, no call writes to the source except the forward path.
+- [ ] rc-23.3 Track merged mirror PRs, rows and Trace steps, after rc-23.2, rc-8.2 [RC24.5, RC24.14] (§D29)
+  - `mirror_forward` record keyed by merge commit; rows in Waiting on you and Release queue; Trace steps Mirror merged, Forwarded, Public PR, Public merged.
+  - Done when: A merge in the mirror gives one record across repeated ticks and the four Trace steps appear in order with GitHub times.
+- [ ] rc-23.4 Forward: one commit, strip, scan, push, public PR; nudge and auto, after rc-23.3, rc-10.1 [RC24.7, RC24.8, RC24.9, RC24.10, RC24.13] (§D29)
+  - Squashed commit by the approver; private trailers and text stripped; content rules run on commit, message, branch, title and body before any push; Forward button with a one-line reason; `auto` only for a trusted approver; no shared-token fallback; normal push only.
+  - Done when: Tests: a clean change forwards once; a planted private term blocks the push with one row naming the rule; `auto` forwards for a trusted approver and not for another; a second press opens no second PR; no force push is ever issued.
+- [ ] rc-23.5 Public poll: done on public merge, closed unmerged, review copy-back, after rc-23.4, rc-4.1 [RC24.6, RC24.11] (§D29)
+  - Dependents release only on the public merge; a close without merge returns the item with the reason; review comments copy to the mirror PR or one follow-up issue once.
+  - Done when: A fake GitHub test: a mirror merge alone releases no dependent; the public merge releases them; a close returns the row; a comment copies once across three ticks.
+- [ ] rc-23.6 Conflicts: sync, re-apply, then a mirror issue for a crew, after rc-23.4 [RC24.12] (§D29)
+  - One retry after a sync and a fresh scan; then one mirror issue naming paths only.
+  - Done when: A fake GitHub test: a moved source applies on retry; a true conflict opens one issue with paths and no contents.
+- [ ] rc-p23 Proof 23: two scratch repositories, after rc-23.1, rc-23.2, rc-23.3, rc-23.4, rc-23.5, rc-23.6 [RC24] (§D17)
+  - Setup: two scratch repositories under `mtdowling`, created only for the proof: a public-visibility stand-in as source and a private mirror seeded as a full copy. Action: sync, merge a crew PR in the mirror, forward in nudge mode, merge the public PR; then plant a private term and try again. Expected: the public merge completes the task; the planted term blocks the push with one row. Failure means: private text can reach the public repository. Next decision: keep `forward` at `nudge` and add a second scan layer. List both scratch repositories in the receipt for the owner to delete.
+  - Done when: Expected result observed; receipt under `docs/evidence/` lists the scratch repositories.
 ## Phase 22: Tracker gates
 
 Requirement RC23. A task that waits on an outside tracker item, with a label and a plugin that reads the item.
