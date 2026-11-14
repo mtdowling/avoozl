@@ -488,13 +488,13 @@ Requirement RC24. Crews work a private mirror of a public repository; Avoozl syn
 - [x] rc-23.1 `mirror` setting: form and raw `.avoozl.json`, private-only validation, after rc-1.1 [RC24.1, RC24.2] (§D29)
   - Fields, defaults and refusals of RC24.1 and RC24.2; the form and the raw file write one record; `src/app/test/mirror-policy.test.mjs`.
   - Done when: A public or unreadable mirror is refused; `forward: auto` with no trusted person is refused; the form and the raw file agree after an edit in either; `npm test` passes.
-- [ ] rc-23.2 Sync step and write targets, after rc-23.1, rc-2.1 [RC24.3, RC24.4] (§D29)
+- [x] rc-23.2 Sync step and write targets, after rc-23.1, rc-2.1 [RC24.3, RC24.4] (§D29)
   - `mirrorSyncStep` fast-forwards the mirror's default branch; divergence raises one Needs you row and pauses the mirror steps; `writeRepo(policy)` sends projection, labels, Project, release and merge to the mirror; source issue link marker with no private text copied out.
   - Done when: A fake GitHub test: a fast-forward is applied, a divergence gives one row across three ticks and no write to either branch, no call writes to the source except the forward path.
-- [ ] rc-23.3 Track merged mirror PRs, rows and Trace steps, after rc-23.2, rc-8.2 [RC24.5, RC24.14] (§D29)
+- [x] rc-23.3 Track merged mirror PRs, rows and Trace steps, after rc-23.2, rc-8.2 [RC24.5, RC24.14] (§D29)
   - `mirror_forward` record keyed by merge commit; rows in Waiting on you and Release queue; Trace steps Mirror merged, Forwarded, Public PR, Public merged.
   - Done when: A merge in the mirror gives one record across repeated ticks and the four Trace steps appear in order with GitHub times.
-- [ ] rc-23.4 Forward: one commit, strip, scan, push, public PR; nudge and auto, after rc-23.3, rc-10.1 [RC24.7, RC24.8, RC24.9, RC24.10, RC24.13] (§D29)
+- [x] rc-23.4 Forward: one commit, strip, scan, push, public PR; nudge and auto, after rc-23.3, rc-10.1 [RC24.7, RC24.8, RC24.9, RC24.10, RC24.13] (§D29)
   - Squashed commit by the approver; private trailers and text stripped; content rules run on commit, message, branch, title and body before any push; Forward button with a one-line reason; `auto` only for a trusted approver; no shared-token fallback; normal push only.
   - Done when: Tests: a clean change forwards once; a planted private term blocks the push with one row naming the rule; `auto` forwards for a trusted approver and not for another; a second press opens no second PR; no force push is ever issued.
 - [ ] rc-23.5 Public poll: done on public merge, closed unmerged, review copy-back, after rc-23.4, rc-4.1 [RC24.6, RC24.11] (§D29)
@@ -556,13 +556,13 @@ Requirement RC25. Private plans live on an orphan branch of the mirror and never
 
 Requirement RC26. Where each mirror change lands on the public repository, and the protections on everything that leaves the mirror.
 
-- [ ] rc-25.1 Forward target setting and per-epic override, after rc-23.1, rc-16.1 [RC26.1, RC26.2] (§D31.1)
+- [x] rc-25.1 Forward target setting and per-epic override, after rc-23.1, rc-16.1 [RC26.1, RC26.2] (§D31.1)
   - `forwardTarget` (`each`, `branch`, `batch`) and `publicBranch` in the form and the raw file; epic manifest keys win over the repository's; Settings and Trace name the source of the value in force; `src/app/test/mirror-forward-target.test.mjs`.
   - Done when: Precedence tests for epic, repository and default; an unknown value is refused; the form and the raw file agree.
 - [ ] rc-25.2 Path policy and metadata scrub, after rc-23.4 [RC26.5, RC26.6] (§D31.2)
   - `forwardExclude`, `forwardAllow`, the default exclusions (`.kiro/`, the plans branch, `AGENTS.md`, steering); one new commit authored by the person, no trailers, markers, mirror history or links; tests 1 and 3 of D31.2 in `src/app/test/mirror-forward-protections.test.mjs`.
   - Done when: Each excluded path blocks naming the rule; an allowlisted path passes; the commit has one parent, the person as author and no trailer or mirror reference.
-- [ ] rc-25.3 Leak scan extensions: private terms, hosts, ticket IDs, account IDs, secrets, binary and over-size files, after rc-25.2 [RC26.5] (§D31.2)
+- [x] rc-25.3 Leak scan extensions: private terms, hosts, ticket IDs, account IDs, secrets, binary and over-size files, after rc-25.2 [RC26.5] (§D31.2)
   - Runs the public-crew content rules on the diff, file names, message, branch, title and body; `forwardMaxFileBytes` shown in Settings with its default; test 2 of D31.2.
   - Done when: A planted fake term, host, ticket ID, account ID and secret each block; a binary and an over-size file block; an allowlisted binary passes; the test reads the size from the setting.
 - [ ] rc-25.4 Forward screen shows the exact public diff, title and body; receipt, after rc-25.3, rc-23.4 [RC26.5] (§D31.2, §D31.3)
@@ -585,15 +585,16 @@ Requirement RC26. Where each mirror change lands on the public repository, and t
 
 Requirement RC27. Adopt what exists and create what is missing, with a dry run first.
 
-- [ ] rc-26.1 Dry-run engine and the `mirror.adopt` and `mirror.create` operations with CLI and MCP, after rc-23.1 [RC27.1, RC27.4, RC27.7] (§D32)
+- [x] rc-26.1 Dry-run engine and the `mirror.adopt` and `mirror.create` operations with CLI and MCP, after rc-23.1 [RC27.1, RC27.4, RC27.7] (§D32)
   - A dry run lists reads, found or missing or differs, and writes; apply takes the dry run's hash and refuses when the world changed; a second run shows zero writes; `src/app/test/mirror-setup.test.mjs`.
   - Done when: A dry run writes nothing; a changed world refuses the apply; a repeat run shows zero writes.
-- [ ] rc-26.2 Adopt existing setup, after rc-26.1, rc-7.2 [RC27.2, RC27.5, RC27.6] (§D32.1)
+- [x] rc-26.2 Adopt existing setup, after rc-26.1, rc-7.2 [RC27.2, RC27.5, RC27.6] (§D32.1)
   - Detects the private mirror (including a managed remote harness's staging repo), the plans branch, labels, Radar values and branch rules; writes only ticked lines; a rule kept by another tool is untouched unless listed and ticked; a missing permission shows as blocked.
   - Done when: A fake GitHub test: an existing mirror and plans branch are found and nothing unticked is written; a blocked line gives one row.
-- [ ] rc-26.3 Create setup, after rc-26.1, rc-24.1 [RC27.3, RC27.5, RC27.6] (§D32.2)
+- [x] rc-26.3 Create setup, after rc-26.1, rc-24.1 [RC27.3, RC27.5, RC27.6] (§D32.2)
   - Steps in order: private repository (visibility read back), one-time `git push --mirror` from the source into the new mirror, orphan plans branch, labels, branch rule requiring CI, auto-merge setting, then the Radar values screen; an existing name is refused and points to Adopt; a mirror that is not private stops the run and deletes nothing.
   - Done when: A fake GitHub test: the steps run in order; an existing name is refused; a non-private result stops with one row and no delete call.
+  - Built with the plans branch named `avoozl-plans` until rc-24.1 adds `plansBranch`; the engine reads `mirror.plansBranch` when it exists.
 - [ ] rc-26.4 Mirror section in Settings: two buttons, dry-run view, confirm, after rc-26.2, rc-26.3 [RC27.1, RC27.7] (§D32)
   - Both buttons call the operations; the dry run lists one line per write with a tick; the result fills the form and the raw file; no logic of its own in the page.
   - Done when: A page test: the dry run shows, a ticked line applies, an unticked line does not; `npm run test:ui` passes.

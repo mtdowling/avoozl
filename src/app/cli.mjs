@@ -1133,6 +1133,30 @@ try {
     console.log(
       JSON.stringify(await localOrRequest(operation, value), null, 2),
     );
+  } else if (command === "mirror") {
+    // Preview first; rerun with --confirm --preview-hash HASH to apply.
+    const action = positionals[0];
+    if (action !== "adopt" && action !== "create")
+      throw Error("Choose mirror adopt or mirror create.");
+    console.log(
+      JSON.stringify(
+        await localOrRequest(`mirror.${action}`, {
+          repository: need(
+            options.repository || positionals[1],
+            `mirror ${action} OWNER/MIRROR --source OWNER/REPO`,
+          ),
+          source: options.source,
+          confirm: options.confirm,
+          previewHash: options["preview-hash"],
+          ticked: options.ticked
+            ?.split(",")
+            .map((entry) => entry.trim())
+            .filter(Boolean),
+        }),
+        null,
+        2,
+      ),
+    );
   } else if (command === "project") {
     const action = positionals[0],
       provided = input();
@@ -1549,6 +1573,8 @@ try {
       [--repositories A,B] [--project-owner LOGIN] [--project-number N | --project-title T]
       [--releases A,B] [--iteration] [--table-by-wave] [--no-epic]
                                          Preview the GitHub setup; add --confirm --preview-hash HASH to apply
+  mirror adopt|create OWNER/MIRROR --source OWNER/REPO [--ticked IDS]
+                                         Dry run of the mirror setup; add --confirm --preview-hash HASH to apply
   workspace-repo configure PATH [--branch avoozl-workspace] [--directory .avoozl]
   workspace-repo publish [--dry-run]     Safely publish portable planning state
   workspace-repo sync                    Hydrate from the configured private repo

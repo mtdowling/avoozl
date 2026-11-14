@@ -568,6 +568,8 @@ export default function UntriagedView({ workspaceId, onMakeSpec, onOpenSources, 
       {list && (
         <div>
         <SegmentedControl
+          collapse={false}
+          wrap="hug"
           layoutId="avoozl-untriaged-show"
           ariaLabel="Show"
           segments={[

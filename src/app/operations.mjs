@@ -100,6 +100,8 @@ import {
 } from "./github-marker.mjs";
 import { claimsView, refreshClaims } from "./radar-claims.mjs";
 import { mergePath, requireMergePath } from "./radar-merge-path.mjs";
+import { instanceIdentity } from "./instance.mjs";
+import { mirrorGit, mirrorSetup } from "./mirror-setup.mjs";
 import { radarSetup } from "./radar-setup.mjs";
 import { radarReread, radarValues } from "./radar-values.mjs";
 import { armedPullRequests, disarmPullRequest } from "./radar-arm.mjs";
@@ -126,6 +128,8 @@ import {
   landingNeedsYou,
 } from "./integration-head.mjs";
 import { releaseQueue, releaseStep } from "./radar-coder-queue.mjs";
+import { epicsView } from "./epics-view.mjs";
+import { doneWork } from "./trace-done.mjs";
 import { isRadarRepository } from "./radar-coder-release.mjs";
 import {
   checkIntegrationBranch,
@@ -145,6 +149,7 @@ import {
   newTaskAuthority,
   normalizeGitHubPolicy,
   PERMISSIONS,
+  actorAllowed,
   policySection,
   readGitHubPolicy,
   readGitHubPolicyOrNull,
@@ -157,6 +162,9 @@ import {
   requirePlansBranches,
 } from "./mirror-policy.mjs";
 import { mergeHomes, mirrorOf, readPrivateSpecs } from "./spec-homes.mjs";
+import { mirrorNeedsYou, writeRepo } from "./mirror-sync.mjs";
+import { mirrorForwardRows, mirrorRecordFor } from "./mirror-forward.mjs";
+import { forwardRecord } from "./mirror-forward-run.mjs";
 import { syncProject } from "./github-project.mjs";
 import { cancelSetup, githubSetup } from "./github-setup.mjs";
 import {
@@ -3104,6 +3112,8 @@ export class Operations {
       view.items.push(...landingNeedsYou(store));
       view.items.push(...remoteNeedsYou(store));
       view.items.push(...syncNeedsYou(store));
+      view.items.push(...mirrorNeedsYou(store));
+      view.items.push(...mirrorForwardRows(store, policy));
       view.items.push(
         ...radarNeedsYou(
           untriagedView(
@@ -3324,6 +3334,13 @@ export class Operations {
     // why. Read only. A Step click is a person's.
     if (name === "radar.releasequeue")
       return releaseQueue(store, planningIdentity(this.workspaceRoot));
+    // The Epics screen and Trace's Done work (read only).
+    if (name === "epics.view")
+      return epicsView(
+        store,
+        releaseQueue(store, planningIdentity(this.workspaceRoot)),
+      );
+    if (name === "trace.done") return doneWork(store, this.github);
     if (name === "radar.releasestep") {
       if (context.caller || context.mcp)
         fail("Only a person releases a phase, in the Avoozl page.", 403);
@@ -3410,8 +3427,11 @@ export class Operations {
       if (!Number.isInteger(number) || number < 1)
         fail("Name the issue number to trace.", 400);
       if (!this.github?.available?.()) fail("GitHub is not available.", 503);
-      return readTrace(this.github, input.repository, number, entry, {
+      // A mirrored repository's issues and pull requests live in the mirror.
+      const where = writeRepo(entry, input.repository);
+      return readTrace(this.github, where, number, entry, {
         draftFor: (pull) => draftForPull(store, input.repository, pull),
+        mirrorFor: (pull) => mirrorRecordFor(store, where, pull),
       });
     }
     // Integration branches (RC16.3, RC16.8): tasks merged, distance behind the
@@ -3475,6 +3495,59 @@ export class Operations {
     // protected. Read only; refuses a branch that is not ready.
     // Radar's set up steps through gh (RC7.1): a preview of each, or one
     // confirmed step with {step, confirm, previewHash}.
+    // The mirror setup buttons (RC27): a dry run, or a confirmed apply with
+    // {confirm, previewHash, ticked}. `this.mirrorGit` is a test seam.
+    if (name === "mirror.adopt" || name === "mirror.create") {
+      if (!input.repository) fail("Name the mirror repository.", 400);
+      if (!this.github?.available?.()) fail("GitHub is not available.", 503);
+      const policy = readGitHubPolicyOrNull(this.workspaceRoot);
+      return mirrorSetup(
+        name === "mirror.adopt" ? "adopt" : "create",
+        {
+          github: this.github,
+          entry: policy?.repositories?.[input.repository] ?? null,
+          git: this.mirrorGit ?? mirrorGit,
+          identity: instanceIdentity(this.store),
+          saveSetting: (mirror, value, baseBranch) => {
+            const file = this.settingsFile(),
+              current = file.readGitHubSettings(),
+              github = structuredClone(current.github),
+              entry = github.repositories?.[mirror] ?? { baseBranch };
+            github.repositories = {
+              ...github.repositories,
+              [mirror]: { ...entry, mirror: value },
+            };
+            file.updateGitHubSettings({ github, expectedHash: current.hash });
+            this.configuration?.reload();
+          },
+        },
+        input,
+      );
+    }
+    // Forward one merged mirror change (RC24.9): the Forward button. The
+    // person is the signed-in GitHub user, who must pass the actor check.
+    if (name === "mirror.forward") {
+      if (!this.github?.available?.()) fail("GitHub is not available.", 503);
+      const policy = readGitHubPolicyOrNull(this.workspaceRoot),
+        record = this.store.get("mirror_forward", String(input.id ?? "")),
+        entry = record && policy?.repositories?.[record.repository];
+      if (!entry?.mirror) fail("That mirror change is not known.", 404);
+      const person = (await this.github.currentUser())?.login;
+      if (!person) fail("Sign in to GitHub first.", 401);
+      const held = await this.github.permission(
+          parseRepository(entry.mirror.source),
+          person,
+        ),
+        check = actorAllowed(entry, person, held?.permission ?? held);
+      if (!check.allowed) fail(check.reason, 403);
+      const result = await forwardRecord(this.store, this.github, record.id, {
+        policy,
+        person,
+        ...(this.forwardGit ? { git: this.forwardGit } : {}),
+      });
+      if (!result.ok && !result.blocked) fail(result.reason, 409);
+      return result;
+    }
     if (name === "radar.setup") {
       const policy = readGitHubPolicyOrNull(this.workspaceRoot),
         entry = policy?.repositories?.[input.repository];

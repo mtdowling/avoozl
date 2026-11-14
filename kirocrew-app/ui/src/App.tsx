@@ -4,6 +4,7 @@ import { Btn, EmptyState, PageHeader, SegmentedControl } from '@kirocrew/app-sdk
 import Logo from './Logo'
 import { InstanceBadge } from './InstanceName.tsx'
 import DashboardView, { type DashboardTarget } from './DashboardView'
+import EpicsView from './EpicsView.tsx'
 import PlansView, { type PlanTarget } from './PlansView'
 import GraphView from './GraphView'
 import WaitingView from './WaitingView.tsx'
@@ -275,6 +276,8 @@ function AvoozlPage() {
           nothing scrolls sideways. */}
       <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 px-6 pb-3" data-top-row>
         <SegmentedControl
+          collapse={false}
+          wrap="hug"
           layoutId="avoozl-views"
           ariaLabel="Avoozl views"
           segments={TABS.map((t) => ({
@@ -290,7 +293,6 @@ function AvoozlPage() {
           }))}
           value={navTab(tab)}
           onChange={(key) => chooseTab(key as Tab)}
-          wrap
         />
       </div>
       <DemoBar />
@@ -339,9 +341,10 @@ function AvoozlPage() {
             ideas={openIdeas}
             // Ideas now sit under Waiting on you, in its planning and intake section.
             onOpenIdeas={() => go({ focus: null, drill: null, tab: 'waiting' }, { 'waiting-section': 'intake', 'untriaged-show': 'ideas' })}
+            epics={<EpicsView workspaceId={active} onDrill={openDrill} onPlanEpic={() => setPlanGoal((goal) => ({ n: goal.n + 1 }))} />}
           />
         ) : tab === 'trace' ? (
-          <TracePage workspaceId={active} target={(nav.memory.get(TRACE_TARGET) as TraceTarget | undefined) ?? null} onPick={pickTrace} />
+          <TracePage workspaceId={active} target={(nav.memory.get(TRACE_TARGET) as TraceTarget | undefined) ?? null} onPick={pickTrace} onOpenEpics={() => chooseTab('plans')} />
         ) : tab === 'graph' ? (
           <GraphView workspaceId={active} focus={focus} drill={drill} onDrill={setDrill} />
         ) : tab === 'flow' ? (

@@ -94,6 +94,9 @@ import { refreshUntriaged } from "./untriaged.mjs";
 import { mergeStep } from "./radar-merge.mjs";
 import { reviewDraftDispatches, reviewDraftStep } from "./review-draft.mjs";
 import { syncStep, syncTargets } from "./integration-sync.mjs";
+import { mirrorSyncStep } from "./mirror-sync.mjs";
+import { mirrorForwardStep } from "./mirror-forward.mjs";
+import { mirrorForwardRunStep } from "./mirror-forward-run.mjs";
 import { armStep } from "./radar-arm.mjs";
 import { headStep } from "./integration-head.mjs";
 import { namespaceOf } from "./radar-plan-me.mjs";
@@ -819,6 +822,39 @@ export async function tick(
       });
       planned.messages.push(...budget.messages);
       planned.notify.push(...budget.notify);
+      // The private mirror follows its source before anything is projected
+      // (RC24.4): fast-forward only, one row for a divergence.
+      if (script && github)
+        try {
+          const step = await mirrorSyncStep(store, github, {
+            policy: readGitHubPolicyOrNull(workspaceRoot),
+          });
+          planned.notify.push(...step.notify);
+          for (const text of [
+            ...step.errors,
+            ...(
+              await mirrorForwardStep(store, github, {
+                policy: readGitHubPolicyOrNull(workspaceRoot),
+              })
+            ).errors,
+            ...(
+              await mirrorForwardRunStep(store, github, {
+                policy: readGitHubPolicyOrNull(workspaceRoot),
+              })
+            ).errors,
+          ])
+            planned.notify.push({
+              channel: "failure",
+              title: "Avoozl could not sync a mirror",
+              text,
+            });
+        } catch (error) {
+          planned.notify.push({
+            channel: "failure",
+            title: "Avoozl could not sync a mirror",
+            text: error.message,
+          });
+        }
       // Only the cron reads and writes GitHub; the page's tick plans only.
       const githubResult =
         script && github

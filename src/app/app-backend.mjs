@@ -181,6 +181,8 @@ export const APP_OPERATIONS = new Set([
   "radar.mergepath",
   "radar.values",
   "radar.releasequeue",
+  "epics.view",
+  "trace.done",
   "quickgoal.get",
   "quickgoal.list",
   "quickgoal.confirm",
@@ -311,6 +313,9 @@ export const APP_OPERATIONS = new Set([
   "github.setup",
   "github.setup.cancel",
   "radar.setup",
+  "mirror.adopt",
+  "mirror.create",
+  "mirror.forward",
   "radar.signoff",
   // The Onboard flow's reads; its writes are the operations above.
   "onboarding.inspect",
