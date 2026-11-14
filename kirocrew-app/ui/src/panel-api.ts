@@ -3,6 +3,7 @@
 // radar.releasequeue, flow.view) and this module turns them into rows, so
 // node can test it and a fixture can feed it (every `panelModel` input is
 // plain data). No JSX and no host imports.
+import { driverLine, type DriverRead, type DriverState } from './driver-view-api.ts'
 import { bannerText, type FlowViewModel } from './flow-api.ts'
 import type { ReleaseQueue } from './release-api.ts'
 import { linkHref, type ConflictItem, type RadarClaim, type RadarCrews, type RemoteWorker } from './views-api.ts'
@@ -152,6 +153,9 @@ function waitingRow(item: ConflictItem): WaitingRow | null {
   else if (item.kind === 'branch-landing' && item.repository && item.branch && item.head)
     actions.push({ kind: 'land', label: 'Land it', repository: item.repository, branch: item.branch, head: item.head })
   else if (href) actions.push({ kind: 'link', label: item.kind === 'ready-to-merge' ? `Open PR${item.pullRequest ? ` #${item.pullRequest}` : ''}` : 'Open issue', href })
+  // The host lets an app write only what its own API offers, so a row with no
+  // direct action deep-links to the page that has the full item.
+  if (!actions.length) actions.push({ kind: 'link', label: 'Open in Avoozl', href: '/apps/avoozl' })
   return {
     key: `${item.kind}:${item.taskId ?? item.id ?? ''}:${item.field ?? ''}:${item.branch ?? ''}`,
     kind: item.kind,
@@ -231,23 +235,17 @@ export function panelModel(input: PanelInput): PanelModel {
   return { waiting, inFlight, queue, recent, stops, unread }
 }
 
-// The driver session. Avoozl has no read for it yet (another change owns
-// that logic), so the panel passes null and shows the Start button; when a
-// read exists it feeds `{ state: 'running', link }` here.
-export interface DriverSession {
-  state: 'running' | 'not-started'
-  link?: string | null
-}
+// The driver session as the panel shows it: a link when one was seen, Start
+// when none runs or the last one went quiet, and neither Start nor a link when
+// the read failed (it may be running; a second one would double-release).
 export interface DriverView {
-  state: 'running' | 'not-started'
+  state: DriverState
   link: string | null
-  note: string | null
+  start: boolean
+  note: string
 }
 
-export function driverView(driver: DriverSession | null | undefined): DriverView {
-  if (driver?.state === 'running') return { state: 'running', link: driver.link ?? null, note: null }
-  return { state: 'not-started', link: null, note: 'No driver session is open. While none runs, nothing is released and nobody watches merges. Crews already working keep going.' }
+export function driverView(read: DriverRead | null | undefined): DriverView {
+  const state = read?.state ?? 'none'
+  return { state, link: read?.href ?? null, start: state === 'none' || state === 'idle', note: driverLine(state) }
 }
-
-export const DRIVER_START_MESSAGE =
-  'Be the Avoozl driver session for this workspace. Release ready work in graph order, watch merges, and hand me the decisions that need a person. Check Avoozl before each step and do not merge anything yourself.'
