@@ -327,8 +327,12 @@ const tools = {
       radar: ["radar.crews", "live Issue Radar claims, from GitHub"],
       radar_setup_preview: [
         "radar.setup",
-        "what each Radar set up step (labels, branch rule, auto-merge) would write, without writing",
+        "what each Radar set up step (labels, branch rule, auto-merge, review-rules pull request, Project) would write, without writing",
         ({ confirm, ...input }) => input,
+      ],
+      values: [
+        "radar.values",
+        "the values to enter in Issue Radar, ticked where Radar's own read confirms them",
       ],
       mergepath: [
         "radar.mergepath",

@@ -25,6 +25,12 @@ await build({
   root: ui,
   configFile: path.join(ui, "vite.config.ts"),
 });
+// The side-panel tab is its own bundle (contributes.panelTabs).
+await build({
+  root: ui,
+  configFile: path.join(ui, "vite.config.ts"),
+  mode: "panel",
+});
 
 // Kiro Crew installs the app by copying kirocrew-app, and refuses entry points
 // that resolve outside it, so the CLI and its npm dependencies are copied in.
