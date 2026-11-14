@@ -12,6 +12,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { buildHarness } from './build.mjs'
 import { findChrome, launch } from './chrome.mjs'
+import { TOUR } from '../../src/demo-api.ts'
 import { demoReplies, demoScript } from './demo-replies.mjs'
 
 export const SIZES = [
@@ -20,7 +21,7 @@ export const SIZES = [
   [1280, 800],
 ]
 export const THEMES = ['light', 'dark']
-const TOUR_IDS = ['dashboard', 'specs', 'graph', 'task', 'intake', 'flow', 'needs-you', 'stop-line', 'settings']
+const TOUR_IDS = TOUR.map((step) => step.id)
 
 // Open the demo page, start the demo, step to `step`, and return what the
 // layout checks need: the tour card's box and the page's widths.

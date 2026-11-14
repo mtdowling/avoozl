@@ -493,7 +493,8 @@ if (query.get('page') === 'demo' && demo) {
   answer('demo.start', () => ((open = true), { active: true, workspaceId: '@demo', existing: false, at: null }))
   answer('demo.exit', () => ((open = false), { active: false }))
   answer('demo.status', () => ({ active: open, workspaceId: '@demo' }))
-  const names = new Set([...Object.keys(demo.replies), ...Object.keys(demo.previews)])
+  answer('demo.fixtures', () => demo.replies['demo.fixtures'])
+  const names = new Set([...Object.keys(demo.replies), ...Object.keys(demo.previews)].filter((name) => !name.startsWith('demo.')))
   for (const name of names) {
     const before = replyFor(name)
     answer(name, (body) => {
