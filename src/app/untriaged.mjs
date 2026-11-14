@@ -15,6 +15,7 @@ import { parseMatch } from "./issue-match.mjs";
 import {
   CREW_LABEL_DEFAULTS,
   ISSUE_RADAR_PATH,
+  RADAR_DEFAULTS,
   matchingRules,
 } from "./github-policy.mjs";
 
@@ -56,10 +57,38 @@ export function filterTerms(settings = {}) {
   return parsed;
 }
 
+// A repository whose crews are Issue Radar's: Avoozl does not triage it
+// (radar-coder R1.2), so it reads only issues that carry a label it acts on.
+export const isRadarCoded = (repo) => repo?.coder === "issue-radar";
+
+// The three labels a Radar-coded read lists: the planning label (Intake),
+// the needs-human label (the plan-me hand-off), and the claim label (On the
+// line). One `label:a,b,c` term is GitHub's "any of these".
+export function radarLabels(repo) {
+  const crew = repo?.crewLabels ?? CREW_LABEL_DEFAULTS;
+  return [
+    repo?.radar?.planLabel ?? RADAR_DEFAULTS.planLabel,
+    crew.needsHuman ?? CREW_LABEL_DEFAULTS.needsHuman,
+    crew.claim ?? CREW_LABEL_DEFAULTS.claim,
+  ];
+}
+
+// A Radar-coded repository's open pull requests, read for Code review; the
+// rule is about plain issues, not pull requests.
+export const pullQuery = (repository) => `repo:${repository} is:open is:pr`;
+
 // One GitHub search line for a repository's untriaged candidates. Each
 // excluded label is its own `-label:` term, whose meaning GitHub search
-// documents; the cutoff is a whole UTC day.
-export function searchQuery(repository, settings = {}, now = Date.now()) {
+// documents; the cutoff is a whole UTC day. A Radar-coded repository passes
+// its policy as `repo`: its line has no plain open issues in it.
+export function searchQuery(
+  repository,
+  settings = {},
+  now = Date.now(),
+  repo = null,
+) {
+  if (isRadarCoded(repo))
+    return `repo:${repository} is:open is:issue label:${radarLabels(repo).map(quote).join(",")}`;
   const terms = filterTerms(settings),
     parts = [`repo:${repository}`, "is:open"];
   for (const label of terms.labelsAll) parts.push(`label:${quote(label)}`);
@@ -178,6 +207,8 @@ export function untriagedPath(store) {
     : null;
 }
 
+// A receipt for an issue Avoozl planned: the source of a spec (rc-1.3).
+export const SOURCE_KIND = "radar-source";
 const NOTICE_META = "untriagedNotice";
 const sourceId = (repository) => `github:${repository}`;
 const githubKey = (repository, number) =>
@@ -185,7 +216,11 @@ const githubKey = (repository, number) =>
 
 export function readCache(store) {
   const cache = structuredClone(EMPTY);
+  cache.sources = new Set();
   try {
+    for (const receipt of store.list("receipts"))
+      if (receipt.kind === SOURCE_KIND)
+        cache.sources.add(key(receipt.repository, receipt.number));
     cache.notice = store.getMeta(NOTICE_META) ?? null;
     const rows = new Map(itemRows(store).map((row) => [row.id, row]));
     for (const row of store.list("intake_sources")) {
@@ -283,7 +318,9 @@ function writeCache(store, cache) {
   });
 }
 
-const key = (repository, number) => `${lower(repository)}#${number}`;
+function key(repository, number) {
+  return `${lower(repository)}#${number}`;
+}
 const PULL_URL = /github\.com\/([^/]+\/[^/]+)\/pull\/(\d+)/;
 
 // Issues and pull requests Avoozl tasks already own.
@@ -381,6 +418,9 @@ function withRadar(entry, repository, settings, linked, handoffs) {
   const state = crewState(entry, settings),
     receipt = handoffs.get(key(repository, entry.number)) || null,
     route = entry.planMe?.route ?? null;
+  // An allowed person's planning label sends the issue to Intake, unless a
+  // crew has it.
+  if (entry.planLabel?.allowed && !state.claimed && !receipt) return null;
   // A trusted skip for planning is in Intake, not here (plan-me hand-off).
   if (state.needsHuman && route === "intake" && !receipt && !state.claimed)
     return null;
@@ -428,6 +468,25 @@ export function itemLinks(repository, entry) {
 // Needs you items for With Issue Radar issues whose crew asked for a
 // person (R52.10): plain words and the issue link, settled on GitHub.
 export function radarNeedsYou(view) {
+  const sources = (view?.sources || []).map((entry) => ({
+    kind: "needs-human",
+    reason: "crew",
+    id: `radar-source:${key(entry.repository, entry.number)}`,
+    taskId: null,
+    authority: "github",
+    issue: {
+      number: entry.number,
+      url: entry.url,
+      repository: entry.repository,
+    },
+    link: entry.url,
+    title: `${entry.repository} #${entry.number} is planned: clear its needs-human label`,
+    detail: `Avoozl planned this issue and its tasks are sub-issues of it. Remove "${entry.needsHumanLabel}" on GitHub; Avoozl never writes that label.`,
+  }));
+  return [...sources, ...radarRows(view)];
+}
+
+function radarRows(view) {
   return (view?.withRadar || [])
     .filter((entry) => entry.needsHuman)
     .map((entry) => ({
@@ -445,6 +504,16 @@ export function radarNeedsYou(view) {
       title: `${entry.repository} #${entry.number} needs a person: ${entry.title}`,
       detail: `An Issue Radar crew added "${entry.needsHumanLabel}". Answer it on GitHub; the crew picks the issue up again when the label comes off.`,
     }));
+}
+
+// A Radar-coded repository lists an issue only when an allowed person put
+// the planning label on it, or the plan-me hand-off routes it to Intake.
+function radarIntake(entry, settings) {
+  if (entry.kind !== "issue") return false;
+  return (
+    entry.planLabel?.allowed === true ||
+    (crewState(entry, settings).needsHuman && entry.planMe?.route === "intake")
+  );
 }
 
 // The view (`untriaged.view`): every repository's untriaged items now.
@@ -471,7 +540,8 @@ export function untriagedView(
   const linked = linkedItems(tasks),
     repositories = [],
     items = [],
-    radar = [];
+    radar = [],
+    sources = [];
   for (const [repository, settings] of Object.entries(
     policy.repositories || {},
   )) {
@@ -479,6 +549,18 @@ export function untriagedView(
       kept = [];
     let sent = 0;
     for (const candidate of entry?.items || []) {
+      // A planned source issue is not planned again; its needs-human label
+      // is the person's to clear (RC1.7).
+      if (cache.sources?.has(key(repository, candidate.number))) {
+        const state = crewState(candidate, settings);
+        if (state.needsHuman)
+          sources.push({
+            ...candidate,
+            repository,
+            needsHumanLabel: state.needsHumanLabel,
+          });
+        continue;
+      }
       const crew = withRadar(candidate, repository, settings, linked, handoffs);
       if (crew) {
         sent += 1;
@@ -488,13 +570,18 @@ export function untriagedView(
           ...crew,
           links: itemLinks(repository, candidate),
         });
-      } else if (isUntriaged(candidate, repository, settings, linked, now))
+      } else if (
+        (!isRadarCoded(settings) ||
+          candidate.kind === "pr" ||
+          radarIntake(candidate, settings)) &&
+        isUntriaged(candidate, repository, settings, linked, now)
+      )
         kept.push(candidate);
     }
     let query = null,
       queryError = null;
     try {
-      query = searchQuery(repository, settings.untriaged, now);
+      query = searchQuery(repository, settings.untriaged, now, settings);
     } catch (error) {
       queryError = error.message;
     }
@@ -518,6 +605,10 @@ export function untriagedView(
         ...candidate,
         repository,
         links: itemLinks(repository, candidate),
+        // Plan this: a planner chat for an issue of a Radar-coded repository.
+        ...(isRadarCoded(settings) && candidate.kind === "issue"
+          ? { start: { plan: true, deliver: false } }
+          : {}),
         ...(candidate.kind === "pr"
           ? {
               reviewChat:
@@ -542,6 +633,7 @@ export function untriagedView(
     repositories,
     items,
     withRadar: radar,
+    sources,
     interval: UNTRIAGED_INTERVAL_MS,
   };
 }
@@ -565,7 +657,7 @@ export async function refreshUntriaged(
     const old = cache.repositories?.[repository] ?? null;
     let query;
     try {
-      query = searchQuery(repository, settings.untriaged, now);
+      query = searchQuery(repository, settings.untriaged, now, settings);
     } catch {
       if (old) next.repositories[repository] = old;
       continue;
@@ -588,6 +680,12 @@ export async function refreshUntriaged(
     read += 1;
     try {
       const result = await readUntriaged(github, query);
+      if (isRadarCoded(settings)) {
+        const pulls = await readUntriaged(github, pullQuery(repository));
+        result.total += pulls.total;
+        result.truncated ||= pulls.truncated;
+        result.items.push(...pulls.items.filter((item) => item.kind === "pr"));
+      }
       await attachHandoffs(github, repository, settings, result.items, {
         namespace,
       });

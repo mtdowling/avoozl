@@ -34,7 +34,7 @@ Requirement RC1. The Radar path starts with one setting and four label names. No
 - [x] rc-1.1 Per-repository `coder` in both GitHub modes, and the label set [RC1.1, RC1.3] (§D2)
   - `coder: issue-radar | worker` accepted in single-repo and plans-repo mode (the plans-repo refusal in `github-policy.mjs` is removed); `radar.planLabel`, `radar.conflictLabel`, `radar.clearPlanLabel` in the repository policy; two equal label names among planning, needs-human, claim, ready and conflict refused naming both; `src/app/test/radar-coder-policy.test.mjs`.
   - Done when: `issue-radar` validates in plans-repo mode; a policy with two equal label names is refused naming both; defaults are `to plan`, `ready`, `crew: in progress`, `merge conflict`; `npm test` passes.
-- [ ] rc-1.2 Plan only the planning label, Untriaged off for Radar-coded repositories, after rc-1.1 [RC1.2, RC1.5, RC1.8] (§D3)
+- [x] rc-1.2 Plan only the planning label, Untriaged off for Radar-coded repositories, after rc-1.1 [RC1.2, RC1.5, RC1.8] (§D3)
   - The Untriaged read lists no plain open issue for a `coder: issue-radar` repository; an issue with the planning label and an allowed labeler goes to Intake; the plan-me routing of PR 67 is untouched; Intake row action **Plan this** starts a planner chat; `src/app/test/radar-coder-intake.test.mjs`.
   - Done when: No list call for plain open issues is made for a Radar-coded repository (checked with a fake GitHub that records calls); a planning label added by a disallowed account does nothing; the plan-me routing tests of PR 67 still pass unchanged.
 - [ ] rc-1.3 Source issue becomes the parent, planning label cleared only by setting, after rc-1.2 [RC1.4, RC1.6, RC1.7] (§D3)
@@ -89,7 +89,7 @@ Requirement RC3. The approval becomes a commit a crew can read, and one command 
 - [ ] rc-3.5 The one-line Additional prompt, shipped verbatim, after rc-3.4 [RC3.7] (§D5.4)
   - The line of D5.4 as one constant used by Settings, the team pack and Set up; a test that compares the constant with the text in `design.md` and `AGENTS.md`-rule proposal.
   - Done when: A test fails if the constant, `design.md` D5.4 and the Set up text differ.
-- [ ] rc-3.6 Projection writes the marker, after rc-3.1, rc-2.1 [RC2.10, RC3.1] (§D5.1)
+- [x] rc-3.6 Projection writes the marker, after rc-3.1, rc-2.1 [RC2.10, RC3.1] (§D5.1)
   - Every projected issue body gets the provenance marker after the managed marker; `plans=` only when allowed; screened by content rules.
   - Done when: Both modes write a valid marker that `verify-issue` accepts against a fake GitHub; a private name in any value is refused.
 - [ ] rc-p3 Proof 3: a real crew verifies, and each bad issue is refused, after rc-3.2, rc-3.4, rc-3.5, rc-3.6 [RC3] (§D17)
