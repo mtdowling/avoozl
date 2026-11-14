@@ -40,7 +40,7 @@ export async function runCheckAt(project, commit, argv) {
   try {
     await git(project.root, ["worktree", "add", "--detach", dir, commit]);
     const started = Date.now(),
-      result = await commandEvidence(dir, argv);
+      result = await commandEvidence(dir, argv, { env: project.checksEnv });
     return {
       exitCode: result.exitCode,
       durationMs: Date.now() - started,
