@@ -199,3 +199,12 @@ test('the state buttons share the title line wide, wrap right medium, and grid s
   assert.ok(small.button.minHeight >= 32)
   assert.equal(small.button.width, '100%')
 })
+
+test('neverRan is true only when the delivery read worked and nothing has ever run', () => {
+  const base = { graph: null, conflicts: [], plans: null }
+  assert.equal(summarize({ ...base, delivery: [] }).neverRan, true)
+  assert.equal(summarize({ ...base, delivery: [delivery('a')] }).neverRan, true, 'a planned task has not run')
+  assert.equal(summarize({ ...base, delivery: null }).neverRan, false, 'an unread list is not never-run')
+  assert.equal(summarize({ ...base, delivery: [delivery('a', { complete: true })] }).neverRan, false)
+  assert.equal(summarize({ ...base, delivery: [delivery('a', { integration: { commit: 'c', branch: 'main', at: null } })] }).neverRan, false)
+})
