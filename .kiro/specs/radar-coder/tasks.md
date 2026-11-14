@@ -336,22 +336,22 @@ Requirement RC14. One adapter per coder. The Radar path moves behind it unchange
 
 Requirement RC15. A managed remote harness as a coder. A task is done only when the public pull request merges.
 
-- [ ] rc-15.1 Remote coder adapter: file one task per ready task or batch, after rc-14.2, rc-2.3 [RC15.2, RC15.3, RC15.7, RC15.9] (§D20)
+- [x] rc-15.1 Remote coder adapter: file one task per ready task or batch, after rc-14.2, rc-2.3 [RC15.2, RC15.3, RC15.7, RC15.9] (§D20)
   - A `remote` adapter files a task through the harness's own app or MCP interface with the task ID, spec reference, marker text and approved task text; the harness reference is stored with the task so a retry files nothing twice; no credentials are stored; tests use a fake harness.
   - Done when: A fake harness receives one task per ready task and one per batch; a retried tick files nothing twice; nothing the content rules mark private is sent.
-- [ ] rc-15.2 Watch the remote task and count done only on a public merge, after rc-15.1, rc-5.1 [RC15.3, RC15.4, RC15.8] (§D20)
+- [x] rc-15.2 Watch the remote task and count done only on a public merge, after rc-15.1, rc-5.1 [RC15.3, RC15.4, RC15.8] (§D20)
   - States `filed`, `working`, `finished-unpublished`, `pr-open`, `merged`, `failed` are mapped in the adapter only; a harness "complete" is not done; a read failure keeps the last state and shows its age; arming waits for `verify-issue`.
   - Done when: A fake harness that says complete with no pull request leaves the task not done; the merge of the public pull request releases dependents; a read failure shows the age and changes nothing.
-- [ ] rc-15.3 Needs you row for a waiting publish, and larger batches, after rc-15.2, rc-2.5 [RC15.5, RC15.6] (§D20)
+- [x] rc-15.3 Needs you row for a waiting publish, and larger batches, after rc-15.2, rc-2.5 [RC15.5, RC15.6] (§D20)
   - A task `finished-unpublished` shows one Needs you row with the harness link and the age, cleared when the pull request appears; for `remote` the default batch is larger, the preview counts publishes, and a batch does not split a chain that fits in one.
   - Done when: The row appears once across three ticks and clears on the pull request; the preview shows the publish count; a chain that fits one batch is batched whole.
-- [ ] rc-15.4 No internal names in the repository, and a scan check, after rc-15.1 [RC15.1] (§D20)
+- [x] rc-15.4 No internal names in the repository, and a scan check, after rc-15.1 [RC15.1] (§D20)
   - Forbidden-name patterns come from an environment variable or local config and are never committed; the release scan uses them; docs and tests say only "a managed remote harness" or "a remote coder"; the scan runs before every push.
   - Done when: A test with a pattern set in the environment fails when a listed name appears in a tracked file; `node scripts/release-scan.mjs --tree` is clean.
-- [ ] rc-15.5 Start the harness's MCP server as a child process; file under the approver, after rc-15.1 [RC15.10, RC15.11] (§D20)
+- [x] rc-15.5 Start the harness's MCP server as a child process; file under the approver, after rc-15.1 [RC15.10, RC15.11] (§D20)
   - The tick starts the harness's MCP server as a local child process, calls only its create-code-task and get-task-statuses tools and stops it after the tick; no socket is opened; each task is filed under the approving person's own sign-in; the receipt records the approver, the harness task ID and the Avoozl task IDs.
   - Done when: A test with a fake MCP server shows only those two tools are called and the process ends with the tick; the receipt holds approver, harness task ID and Avoozl task IDs; no other identity is used.
-- [ ] rc-15.6 Expired sign-in: one Needs you item and no retry loop, after rc-15.5, rc-15.2 [RC15.12] (§D20)
+- [x] rc-15.6 Expired sign-in: one Needs you item and no retry loop, after rc-15.5, rc-15.2 [RC15.12] (§D20)
   - A refused sign-in opens one Needs you item, "Sign in again", and holds new filing for that person; the next try needs the person's word or one cheap check that passes; watching tasks already filed continues when the harness allows it; the item clears when filing works.
   - Done when: A fake harness that refuses the sign-in causes one item across five ticks and no filing attempts beyond one check per tick; filing resumes and the item clears after sign-in.
 - [ ] rc-p15 Proof 15: a remote coder end to end with a fake harness, after rc-15.1, rc-15.2, rc-15.3, rc-15.4, rc-15.5, rc-15.6 [RC15] (§D22)

@@ -6,13 +6,15 @@ import { approvalState } from "./spec-approval.mjs";
 import { renderProvenance } from "./github-provenance.mjs";
 import { integrationBranchOf } from "./integration-branch.mjs";
 
-// True when the repository's `coder` is `issue-radar`, in either mode.
-export function issueRadarCoder(identity, repository) {
+// True when the repository's `coder` files marked issues: `issue-radar` or
+// `remote` (RC15), in either mode. Both carry the provenance marker and take
+// batches.
+export function projectsMarkedIssues(identity, repository) {
   const wanted = String(repository || "").toLowerCase(),
     entry = Object.entries(identity?.repositories || {}).find(
       ([id]) => id.toLowerCase() === wanted,
     );
-  return entry?.[1]?.coder === "issue-radar";
+  return ["issue-radar", "remote"].includes(entry?.[1]?.coder);
 }
 
 // Returns `(taskIds) => line` for one plan and repository, or null when the
@@ -22,7 +24,7 @@ export function issueRadarCoder(identity, repository) {
 // preview and its preflight, rc-2.6, say so before a write).
 // `plans` is the plans repository name an issue may show, or null.
 export function provenanceWriter(store, { identity, plan, config, plans }) {
-  if (!issueRadarCoder(identity, config.id) || !plan.spec) return null;
+  if (!projectsMarkedIssues(identity, config.id) || !plan.spec) return null;
   const approval = approvalState(store, plan.id, plan.hash);
   if (approval?.state !== "merged") return null;
   // The epic's integration branch is the base of every task pull request
