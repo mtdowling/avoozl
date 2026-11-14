@@ -49,6 +49,8 @@ import { ReleaseModePicker } from './ReleaseMode.tsx'
 import SetupWizard from './SetupWizard.tsx'
 import RadarValuesScreen from './RadarValues.tsx'
 import { CrewsRulesSettings } from './CrewsRulesSettings.tsx'
+import WorkflowMap, { focusField } from './WorkflowMap.tsx'
+import { type Jump } from './workflow-map.ts'
 import WorkspaceView from './WorkspaceView.tsx'
 import Onboard from './Onboard.tsx'
 import { AddRepository, REPOSITORIES_LINE, RepositoryDialog, RepositoryList, repositoryRows, useReveal, type RepositoryRow } from './RepositoriesSettings.tsx'
@@ -56,7 +58,8 @@ import PluginsSettings from './PluginsSettings.tsx'
 import ContentRulesSettings from './ContentRulesSettings.tsx'
 import FlowSettings from './FlowSettings.tsx'
 import DriverCard, { useDriverSession } from './DriverCard.tsx'
-import { MirrorSlot, RetiredBanner, SetupActions, WorkflowMapSlot } from './SettingsSlots.tsx'
+import { MirrorSlot, RetiredBanner, SetupActions } from './SettingsSlots.tsx'
+import DeliverySettings from './DeliverySettings.tsx'
 import { useSteppedState } from './NavHistory.tsx'
 import { useRead } from './useRead.ts'
 import { labelsClient, triageRows, type RepositoryLabels } from './untriaged-api.ts'
@@ -80,13 +83,14 @@ const WIDTH = { sm: '9rem', md: '18rem', lg: '28rem' } as const
 export const SETTINGS_TABS = [
   { key: 'driver', label: 'Driver session' },
   { key: 'workspaces', label: 'Workspaces' },
-  // Coder, Labels and Crews and rules are the tabs of each repository's Edit dialog.
+  // Coder, Labels, Crews and rules and the Workflow map are tabs of each repository's Edit dialog.
   { key: 'repositories', label: 'Repository setup' },
   { key: 'github', label: 'Where tasks live' },
-  { key: 'workflow', label: 'Workflow map (coming)' },
   { key: 'plugins', label: 'Plugins' },
   { key: 'content', label: 'Content rules' },
   { key: 'flow', label: 'Flow' },
+  // Who merges (delivery.ship) is read for Radar pull requests too.
+  { key: 'delivery', label: 'Delivery' },
 ] as const
 export type SettingsTab = (typeof SETTINGS_TABS)[number]['key']
 
@@ -98,12 +102,10 @@ export const LOCAL_TAB_BLURB = 'The mode for this workspace. Save only writes .a
 export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
   driver:
     'The chat that releases ready work and watches merges: a link to it, or a button to start one.',
-  workflow:
-    'A map of how work moves between planning, crews and merge. Reserved; it is built separately.',
   workspaces:
     'The Avoozl workspaces on this machine, each a folder with its own task database. Add one for each set of specs you keep apart.',
   repositories:
-    "Each repository's coder, labels, Crews and rules, checks and reviews are tabs in its Edit dialog. Save only writes .avoozl.json.",
+    "Each repository's coder, labels, Crews and rules, Workflow map, checks and reviews are tabs in its Edit dialog. Save only writes .avoozl.json.",
   github:
     "The mode, planning repository and Project board. Save only writes .avoozl.json; Set up GitHub creates what's missing, after showing each change.",
   plugins:
@@ -111,6 +113,8 @@ export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
   content:
     'Terms Avoozl must never write: in spec files, issues, comments, briefs and diffs. A match stops the write and asks you.',
   flow: 'How Avoozl measures delivery time and reacts to slow or broken work. Every group applies in each mode.',
+  delivery:
+    'Who merges a finished pull request, and the writer agent and model, investigate-first and pull request feedback for Avoozl worker chats.',
 }
 
 const REPOSITORY_TABS = [
@@ -119,10 +123,12 @@ const REPOSITORY_TABS = [
   { key: 'checks', label: 'Checks' },
   { key: 'reviews', label: 'Reviews' },
   { key: 'crews', label: 'Crews and rules' },
+  { key: 'map', label: 'Workflow map' },
 ] as const
 type RepositoryTab = (typeof REPOSITORY_TABS)[number]['key']
 
 export const REPOSITORY_BLURBS: Record<RepositoryTab, string> = {
+  map: 'The path work takes in this repository, drawn from its settings. Nothing here is edited; a value opens its field.',
   crews: 'Issue Radar crews on this repository: the review rules crews read, and the planning and conflict labels. Defaults show in each field.',
   mode: 'Which repository this is, the branch pull requests merge into, and who writes the code.',
   triggers: "A rule starts its action when an allowed person's label makes an issue match its line. No label name is built in.",
@@ -707,6 +713,7 @@ function RepositoryEditor(props: {
   review: ReviewSettings | undefined
   mode: string
   workspaceId: string
+  planningRepository: string
   onChange: (repository: RepositoryForm) => void
 }) {
   const { repository, choices } = props
@@ -723,6 +730,14 @@ function RepositoryEditor(props: {
   )
   const [inspect, setInspect] = useState<RepositoryInspect | null>(null)
   const id = `avoozl-settings-repo-${props.index}`
+  // A jump from the Workflow map: open the sub-tab, then any closed fold
+  // around the field, then focus it.
+  const [pending, setPending] = useState<Jump | null>(null)
+  useEffect(() => {
+    if (!pending || tab !== pending.tab) return
+    setPending(null)
+    focusField(id, pending)
+  }, [pending, tab, id])
   const set = (change: Partial<RepositoryForm>) => props.onChange({ ...repository, ...change })
   const setRule = (at: number, rule: RuleForm) =>
     set({ rules: repository.rules.map((item, index) => (index === at ? rule : item)) })
@@ -909,6 +924,20 @@ function RepositoryEditor(props: {
             <CrewsRulesSettings id={id} repository={repository} set={set} />
           </Section>
         )}
+        {tab === 'map' && (
+          <Section level="sub" title="Workflow map" blurb={REPOSITORY_BLURBS.map}>
+            <WorkflowMap
+              workspaceId={props.workspaceId}
+              mode={props.mode}
+              repository={repository}
+              planningRepository={props.planningRepository}
+              onJump={(jump) => {
+                setTab(jump.tab)
+                setPending(jump)
+              }}
+            />
+          </Section>
+        )}
         {tab === 'checks' && (
           <Section level="sub" title="Required checks" blurb={REPOSITORY_BLURBS.checks}>
             <ChecksEditor id={id} value={repository.requiredChecks} inspect={inspect} repository={name} onChange={(value) => set({ requiredChecks: value })} />
@@ -1066,7 +1095,7 @@ function RepositoriesTab(props: {
         >
           <div className="flex flex-col gap-3.5" data-repository-dialog-body>
             {row && !isGitHubMode(form.mode) ? (
-        <LocalRepository row={row} review={props.review} kept={row.policy >= 0} />
+        <LocalRepository row={row} review={props.review} kept={row.policy >= 0} workspaceId={props.workspaceId} />
       ) : row && row.policy >= 0 ? (
         <RepositoryEditor
           key={row.key}
@@ -1076,6 +1105,7 @@ function RepositoriesTab(props: {
           review={props.review}
           mode={form.mode}
           workspaceId={props.workspaceId}
+          planningRepository={form.planningRepository}
           onChange={(next) => set({ repositories: form.repositories.map((item, index) => (index === row.policy ? next : item)) })}
         />
       ) : row && row.github ? (
@@ -1131,7 +1161,7 @@ function RepositoriesTab(props: {
 
 // Local only: what a repository uses here (folder, landing branch, its
 // checks, reviewer chats). Its GitHub settings, if any, are kept unused.
-function LocalRepository(props: { row: RepositoryRow; review: ReviewSettings | undefined; kept: boolean }) {
+function LocalRepository(props: { row: RepositoryRow; review: ReviewSettings | undefined; kept: boolean; workspaceId: string }) {
   const { row } = props
   return (
     <Card>
@@ -1152,6 +1182,9 @@ function LocalRepository(props: { row: RepositoryRow; review: ReviewSettings | u
         {props.kept && <p className="text-xs text-muted">Its GitHub settings are kept, not used. They apply again if you pick a GitHub mode.</p>}
       </Section>
       <ReviewRoles review={props.review} repository={row.github ?? row.name} />
+      <Section level="sub" title="Workflow map" blurb={REPOSITORY_BLURBS.map}>
+        <WorkflowMap workspaceId={props.workspaceId} mode="local" repository={{ ...emptyRepository(row.name), baseBranch: row.branch }} />
+      </Section>
     </Card>
   )
 }
@@ -1446,7 +1479,6 @@ function SettingsBody(props: { tab: SettingsTab; workspaceId: string | null; onT
   const driver = useDriverSession()
   if (tab === 'workspaces') return <WorkspaceView selected={workspaceId} onSelect={props.onSelectWorkspace} onListChange={props.onListChange} />
   if (tab === 'driver') return <DriverCard session={driver.session} reload={driver.reload} />
-  if (tab === 'workflow') return <WorkflowMapSlot />
   if (!workspaceId)
     return (
       <EmptyState
@@ -1458,6 +1490,7 @@ function SettingsBody(props: { tab: SettingsTab; workspaceId: string | null; onT
   if (tab === 'plugins') return <PluginsSettings workspaceId={workspaceId} onOpenGitHub={() => props.onTab('github')} />
   if (tab === 'content') return <ContentRulesSettings workspaceId={workspaceId} />
   if (tab === 'flow') return <FlowSettings workspaceId={workspaceId} />
+  if (tab === 'delivery') return <DeliverySettings workspaceId={workspaceId} />
   return (
     <div className="flex flex-col gap-3.5">
       {tab === 'repositories' && (
