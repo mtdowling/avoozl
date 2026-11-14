@@ -2491,7 +2491,7 @@ function pi({ steps: e, index: t }) {
 					].filter(Boolean).join(" · ")
 				}),
 				i && /* @__PURE__ */ S("a", {
-					href: i,
+					href: $(n.link),
 					target: "_blank",
 					rel: "noreferrer",
 					className: "text-xs underline",
@@ -14661,7 +14661,7 @@ function gf() {
 	});
 }
 function _f(e) {
-	let { task: t, batch: n } = e, r = n ? $r(n.url) : null, i = Ln(), { waitsOn: a, blocks: o } = e.neighbors, s = It(t);
+	let { task: t, batch: n } = e, r = Ln(), { waitsOn: i, blocks: a } = e.neighbors, o = It(t);
 	return /* @__PURE__ */ S(g, { children: /* @__PURE__ */ C("div", {
 		"aria-label": "Task details",
 		role: "region",
@@ -14670,11 +14670,11 @@ function _f(e) {
 				title: t.title,
 				actions: /* @__PURE__ */ C(x, { children: [/* @__PURE__ */ S(tr, {
 					tooltip: "Open this task's details in the drawer",
-					onClick: () => i.openTask(t.id),
+					onClick: () => r.openTask(t.id),
 					children: "All details"
 				}), /* @__PURE__ */ S(tr, {
 					tooltip: "Add a draft task that waits on this one",
-					onClick: () => i.addTask({ prerequisite: t.id }),
+					onClick: () => r.addTask({ prerequisite: t.id }),
 					children: "Add a task after this"
 				})] })
 			}),
@@ -14692,8 +14692,8 @@ function _f(e) {
 						children: t.status ?? "no status"
 					}),
 					/* @__PURE__ */ S(J, {
-						variant: s === "needs-you" ? "warning" : s === "ready" ? "info" : void 0,
-						children: df[s]
+						variant: o === "needs-you" ? "warning" : o === "ready" ? "info" : void 0,
+						children: df[o]
 					}),
 					t.review && /* @__PURE__ */ S(J, { children: "review" }),
 					t.planArchived && /* @__PURE__ */ S(J, { children: "Archived" }),
@@ -14753,8 +14753,8 @@ function _f(e) {
 					}), /* @__PURE__ */ C("dd", {
 						"data-batch-members": n.members.join(","),
 						children: [
-							r ? /* @__PURE__ */ C("a", {
-								href: r,
+							$r(n.url) ? /* @__PURE__ */ C("a", {
+								href: $r(n.url) ?? void 0,
 								children: ["#", n.number]
 							}) : `#${n.number}`,
 							" closes",
@@ -14771,7 +14771,7 @@ function _f(e) {
 						className: "text-muted",
 						children: "Waits on"
 					}),
-					/* @__PURE__ */ S("dd", { children: a.length === 0 ? "nothing" : a.map((t, n) => /* @__PURE__ */ C("span", { children: [
+					/* @__PURE__ */ S("dd", { children: i.length === 0 ? "nothing" : i.map((t, n) => /* @__PURE__ */ C("span", { children: [
 						n > 0 && ", ",
 						/* @__PURE__ */ S("button", {
 							type: "button",
@@ -14793,7 +14793,7 @@ function _f(e) {
 						className: "text-muted",
 						children: "Blocks"
 					}),
-					/* @__PURE__ */ S("dd", { children: o.length === 0 ? "nothing" : o.map((t, n) => /* @__PURE__ */ C("span", { children: [n > 0 && ", ", /* @__PURE__ */ S("button", {
+					/* @__PURE__ */ S("dd", { children: a.length === 0 ? "nothing" : a.map((t, n) => /* @__PURE__ */ C("span", { children: [n > 0 && ", ", /* @__PURE__ */ S("button", {
 						type: "button",
 						className: "underline",
 						onClick: () => e.onSelect(t.id),
