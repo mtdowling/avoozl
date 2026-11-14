@@ -212,7 +212,7 @@ Requirement RC9. A goal becomes issues after one approval, through a generated m
 - [x] rc-9.1 Planner chat, proposal shape and promote rules, after rc-3.2 [RC9.1, RC9.4] (§D11)
   - Planner chat with a quick-goal brief and a turn-and-time budget; proposal of 1 to 8 tasks with evidence; the four promote rules; Look and Measure; Measure off by default.
   - Done when: A proposal with a task lacking evidence is refused; each promote rule triggers alone; the budget stops the chat.
-- [ ] rc-9.2 Mini-spec writer and approval, after rc-9.1, rc-3.2 [RC9.3, RC9.5] (§D11)
+- [x] rc-9.2 Mini-spec writer and approval, after rc-9.1, rc-3.2 [RC9.3, RC9.5] (§D11)
   - Writes `.kiro/specs/goal-<slug>/` in the Kiro layout with the goal quoted verbatim and the evidence; goes through the same approval pull request; issue bodies end with the quoted prompt after private data is removed.
   - Done when: The folder lints with 0 errors; a private name in the prompt is removed or refused; the marker passes `verify-issue`.
 - [ ] rc-9.3 Quick goal modal, proposal screen, Promote to spec, after rc-9.2, rc-2.5 [RC9.1, RC9.2, RC9.4, RC9.6] (§D11)
