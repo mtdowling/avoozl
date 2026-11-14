@@ -276,6 +276,8 @@ function AvoozlPage() {
           nothing scrolls sideways. */}
       <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 px-6 pb-3" data-top-row>
         <SegmentedControl
+          collapse={false}
+          wrap="hug"
           layoutId="avoozl-views"
           ariaLabel="Avoozl views"
           segments={TABS.map((t) => ({
@@ -291,7 +293,6 @@ function AvoozlPage() {
           }))}
           value={navTab(tab)}
           onChange={(key) => chooseTab(key as Tab)}
-          wrap
         />
       </div>
       <DemoBar />
