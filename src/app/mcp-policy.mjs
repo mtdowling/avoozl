@@ -46,6 +46,12 @@ export const PERSON_ONLY = new Map([
       Boolean(input?.confirm),
     ),
   ],
+  [
+    "radar.setup",
+    person("Only a person applies a Radar set up step.", (input) =>
+      Boolean(input?.confirm),
+    ),
+  ],
   ["github.setup.cancel", person("Only a person cancels a GitHub setup.")],
   ["github.configure", person("Only a person changes GitHub setup.")],
   [
