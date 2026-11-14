@@ -1234,6 +1234,8 @@ function packPlugin(options, id, template) {
 }
 
 function previewFor(options, plugin, repositories) {
+  // Content rules screen a pack before it is previewed, saved or shared.
+  options.screenPack?.(plugin.pack);
   let current;
   try {
     current = readRepositoryPolicy(options.workspaceRoot);
