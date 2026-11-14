@@ -2,14 +2,14 @@
 // drawer from a row and as a page. The page is in the Back history; the
 // drawer is one Back step. Times are the backend's (never a marker's
 // `updated=`); this file only draws them.
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
-import { Btn } from '@kirocrew/app-sdk/ui'
+import { Btn, Input } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { Modal } from './Modal.tsx'
 import { useNav } from './NavHistory.tsx'
 import { useRead } from './useRead.ts'
-import { afterPrevious, clock, traceClient, type Trace, type TraceStep, type TraceTarget } from './trace-api.ts'
+import { afterPrevious, clock, parseTraceLink, traceClient, type Trace, type TraceStep, type TraceTarget } from './trace-api.ts'
 import { linkHref } from './views-api.ts'
 import TraceDone from './TraceDone.tsx'
 
@@ -142,17 +142,48 @@ export function TraceDrawer(props: { workspaceId: string | null; target: TraceTa
   )
 }
 
+// Trace opened from the nav with no issue chosen: say what it is, take an
+// issue, and point at the rows that open one.
+export function TraceStart({ onPick }: { onPick?: (target: TraceTarget) => void }) {
+  const [text, setText] = useState('')
+  const target = parseTraceLink(`?trace=${encodeURIComponent(text.trim())}`)
+  return (
+    <section data-trace-start className="mx-auto flex max-w-2xl flex-col gap-3 py-2">
+      <h2 className="m-0 text-base font-semibold">Trace</h2>
+      <p className="text-sm text-muted">
+        The steps one issue took: spec approved, issue created, ready, claimed, pull request, checks, merged. Open one from an On the line row on Home, or enter an issue here.
+      </p>
+      <form
+        className="flex flex-wrap items-end gap-2"
+        onSubmit={(event) => {
+          event.preventDefault()
+          if (target) onPick?.(target)
+        }}
+      >
+        <label className="flex flex-col gap-1 text-sm">
+          <span>Issue</span>
+          <Input value={text} placeholder="owner/repo#52" onChange={(event) => setText(event.target.value)} style={{ minWidth: '16rem' }} />
+        </label>
+        <Btn type="submit" primary disabled={!target}>
+          Open trace
+        </Btn>
+      </form>
+    </section>
+  )
+}
+
 // The page: its own tab state in the Back history, so Back returns to the
 // view the person came from.
 export function TracePage({ workspaceId, target, onPick, onOpenEpics }: { workspaceId: string | null; target: TraceTarget | null; onPick?: (target: TraceTarget) => void; onOpenEpics?: () => void }) {
   const nav = useNav()
   if (!target)
     return (
-      <section data-trace-page className="mx-auto flex max-w-2xl flex-col gap-3 py-2">
-        <h2 className="m-0 text-base font-semibold">Trace</h2>
-        <p className="text-sm text-muted">One task from spec to merge. Open a trace from a row below or on the Dashboard.</p>
-        <TraceDone workspaceId={workspaceId} onPick={onPick} onOpenEpics={onOpenEpics} />
-      </section>
+      <>
+        <TraceStart onPick={onPick} />
+        <section className="mx-auto max-w-2xl py-2">
+          <TraceDone workspaceId={workspaceId} onPick={onPick} onOpenEpics={onOpenEpics} />
+        </section>
+      </>
     )
   return <TracePageFor workspaceId={workspaceId} target={target} onBack={() => nav.history.back()} />
 }

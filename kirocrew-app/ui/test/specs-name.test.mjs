@@ -17,6 +17,8 @@ export const ALLOWED = new Map([
   ['Plan a goal', 'verb: the header button and the skill step it names'],
   ['Plan work as a graph', 'verb: the page subtitle'],
   ['Plan this', 'verb: an Intake action (R50.15)'],
+  ['Plan an epic', 'verb: Home empty state and the Epics button'],
+  ['to plan epics for', 'verb: the no repository empty state'],
   ['Plan ?', 'verb: the Plan this confirm title, `Plan ${name}?`'],
   ['plan or deliver', 'verb: what Intake offers'],
   ['plan a plugin', 'verb: Design a plugin'],
@@ -109,5 +111,5 @@ test('the compatibility names stay as they were', () => {
   for (const operation of ['plan.table', 'plan.get', 'plan.approve']) assert.match(plans, new RegExp(`'${operation.replace('.', '\\.')}'`), operation)
   const app = readFileSync(new URL('App.tsx', src), 'utf8')
   // The tab key is a stored name; only its label changed.
-  assert.match(app, /\{ key: 'plans', label: 'Specs' \}/)
+  assert.match(readFileSync(new URL('nav-api.ts', src), 'utf8'), /\{ key: 'plans', label: 'Epics' \}/)
 })

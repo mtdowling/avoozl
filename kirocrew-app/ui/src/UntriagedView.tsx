@@ -438,7 +438,7 @@ function RadarList({ items, now, narrow }: { items: RadarItem[]; now: number; na
   )
 }
 
-export default function UntriagedView({ workspaceId, onMakeSpec, onOpenSources }: { workspaceId: string | null; onMakeSpec?: (idea: Idea) => void; onOpenSources?: () => void }) {
+export default function UntriagedView({ workspaceId, onMakeSpec, onOpenSources, embedded }: { workspaceId: string | null; onMakeSpec?: (idea: Idea) => void; onOpenSources?: () => void; embedded?: boolean }) {
   const api = useAppApi()
   const ask = useConfirm()
   const client = useMemo(() => untriagedClient(api), [api])
@@ -550,6 +550,7 @@ export default function UntriagedView({ workspaceId, onMakeSpec, onOpenSources }
       <ViewHeading
         id="avoozl-untriaged-title"
         view="untriaged"
+        level={embedded ? 3 : 2}
         actions={
           <span className="flex flex-wrap gap-2">
             <NewIdeaButton onClick={() => setNewIdea(true)} disabled={!workspaceId} />

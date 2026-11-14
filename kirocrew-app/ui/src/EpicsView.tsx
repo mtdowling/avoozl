@@ -172,7 +172,7 @@ export default function EpicsView(props: { workspaceId: string | null; onDrill: 
       <SectionHeading
         id="avoozl-epics-title"
         level={2}
-        title="Epics"
+        title="Release state by epic"
         blurb="Approved goals that need many changes in a set order. Each epic opens to its specs and phases."
         actions={
           <>

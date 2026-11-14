@@ -71,9 +71,9 @@ test('the dashboard puts what needs the owner first and orders ready work by wav
   assert.deepEqual(
     summary.attention.map((a) => [a.kind, a.taskId, a.tab]),
     [
-      ['delivery', 'd', 'delivery'],
-      ['decision', 'd', 'conflicts'],
-      ['needs-human', 'z', 'conflicts'],
+      ['delivery', 'd', 'task'],
+      ['decision', 'd', 'waiting'],
+      ['needs-human', 'z', 'waiting'],
     ],
   )
   // Epics are not counted; only leaves are.

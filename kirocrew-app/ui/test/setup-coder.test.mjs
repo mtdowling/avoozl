@@ -38,20 +38,18 @@ test('Cancel writes nothing before apply and stops mid-apply', () => {
   assert.match(wizard, /Apply \{count\} change/)
 })
 
-test('Who codes shows the three display names, each with its source', () => {
+test('Who codes offers Radar crew and Remote coder; the worker is retired but still named', () => {
   assert.equal(defaultCoder('single-repo'), 'issue-radar')
   assert.equal(defaultCoder('plans-repo'), 'worker')
   assert.equal(defaultCoder(''), 'worker')
   assert.deepEqual(CODER_CARDS.map((c) => [c.coder, c.title]), [
-    ['worker', 'Avoozl worker'],
     ['issue-radar', 'Radar crew'],
     ['remote', 'Remote coder'],
   ])
   const only = (coder) => [...CODER_CARDS.find((c) => c.coder === coder).modes]
-  assert.deepEqual(only('worker'), ['local', 'plans-repo', 'single-repo'])
   assert.deepEqual(only('remote'), ['plans-repo', 'single-repo'])
   assert.equal(coderSource('single-repo', ''), 'Not set on this repository. Using the default for Single repository (Radar crew).')
-  assert.equal(coderSource('plans-repo', ''), 'Not set on this repository. Using the default for Plans repository (Avoozl worker).')
+  assert.equal(coderSource('plans-repo', ''), 'Not set on this repository. Using the default for Plans repository (Avoozl worker, retired).')
   assert.equal(coderSource('plans-repo', 'remote'), 'Set on this repository: Remote coder.')
   assert.doesNotMatch(coderSource('single-repo', ''), /same as above/i)
   const picker = source('CoderPicker.tsx')
@@ -60,9 +58,7 @@ test('Who codes shows the three display names, each with its source', () => {
   assert.match(source('Walkthrough.tsx'), /prefers-reduced-motion: reduce/)
 })
 
-test('Who codes says the Avoozl worker is frozen and no other coder does', () => {
-  const line = (coder) => CODER_CARDS.find((c) => c.coder === coder).line
-  assert.match(line('worker'), /Frozen: upkeep only/)
-  assert.doesNotMatch(line('issue-radar'), /Frozen/)
-  assert.doesNotMatch(line('remote'), /Frozen/)
+test('the worker is no card, and a repository still on it is named retired', () => {
+  assert.equal(CODER_CARDS.some((c) => c.coder === 'worker'), false)
+  assert.match(coderSource('plans-repo', 'worker'), /retired/)
 })

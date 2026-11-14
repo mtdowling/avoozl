@@ -69,7 +69,7 @@ test('in the demo only Avoozl commands and reads reach the host', async () => {
 
 test('every view takes the host hooks through host.ts', () => {
   const dir = new URL('../src/', import.meta.url)
-  for (const name of ['App.tsx', 'TaskFiles.tsx', 'TaskDrawer.tsx', 'PlansView.tsx', 'controls.tsx', 'NewPlanDrawer.tsx', 'PluginsSettings.tsx', 'RepositoriesSettings.tsx']) {
+  for (const name of ['App.tsx', 'TaskDrawer.tsx', 'PlansView.tsx', 'controls.tsx', 'NewPlanDrawer.tsx', 'PluginsSettings.tsx', 'RepositoriesSettings.tsx']) {
     const text = readFileSync(new URL(name, dir), 'utf8')
     assert.doesNotMatch(text, /import \{[^}]*\buse(AppApi|ChatLauncher)\b[^}]*\} from '@kirocrew\/app-sdk'/, name)
   }
@@ -114,9 +114,11 @@ after(async () => {
 
 const button = (text, role) => `[...document.querySelectorAll('button${role ? `[role="${role}"]` : ''}')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(text)}))`
 const click = (expression) => page.evaluate(`(() => { const b = ${expression}; b.click(); return true })()`)
+// A count badge may follow the label, so compare the start.
 const selectedTab = `document.querySelector('[aria-label="Avoozl views"] [aria-selected="true"]')?.textContent.trim()`
 const tourStep = `document.querySelector('[data-demo-tour]')?.dataset.step`
-const TAB = { dashboard: 'Dashboard', plans: 'Specs', graph: 'Graph', untriaged: 'Intake', flow: 'Flow', settings: 'Settings' }
+// Graph is a page inside Epics, and Intake lives under Waiting on you.
+const TAB = { dashboard: 'Home', plans: 'Epics', graph: 'Epics', untriaged: 'Waiting on you', flow: 'Flow', settings: 'Settings' }
 
 test('Start demo opens the tour over the real pages, and Exit demo returns', { skip }, async () => {
   await page.open(harness.url({ page: 'demo' }), { width: 1280, height: 800 })
@@ -134,7 +136,7 @@ test('Start demo opens the tour over the real pages, and Exit demo returns', { s
   for (let i = 0; i < TOUR.length; i++) {
     const step = TOUR[i]
     await page.until(`${tourStep} === ${JSON.stringify(step.id)}`)
-    await page.until(`${selectedTab} === ${JSON.stringify(TAB[step.tab])}`)
+    await page.until(`${selectedTab}?.startsWith(${JSON.stringify(TAB[step.tab])})`)
     assert.match(await page.evaluate(`document.querySelector('[data-demo-tour]').textContent`), new RegExp(`Step ${i + 1} of ${TOUR.length}`))
     if (step.task) await page.until(`document.querySelector('[role="dialog"], [data-task-drawer], aside')?.textContent.includes('Show import errors')`)
     if (step.id === 'stop-line') await page.until(`document.querySelector('[data-stop-line]')?.hasAttribute('data-tour-on')`)
@@ -151,7 +153,7 @@ test('Start demo opens the tour over the real pages, and Exit demo returns', { s
   await page.until(`!document.querySelector('[data-demo-tour]')`)
 
   // A change shows what it would do; nothing else happens.
-  await click(button('Dashboard', 'tab'))
+  await click(button('Home', 'tab'))
   await page.until(`Boolean(${button('Stop the line')})`)
   await click(`document.querySelector('[data-stop-line]')`)
   await page.until(`Boolean(document.querySelector('[data-stop-reason]'))`)
@@ -178,6 +180,23 @@ test('Start demo opens the tour over the real pages, and Exit demo returns', { s
   await click(`document.querySelector('[data-demo-exit]')`)
   await page.until(`!document.querySelector('[data-demo-badge]') && Boolean(document.querySelector('[aria-label="Workspace"]'))`)
   assert.equal(await page.evaluate(`document.querySelector('[aria-label="Workspace"]').value`), 'w')
+  assert.deepEqual(page.errors, [])
+})
+
+test('in the demo the driver session is the made-up one: it opens nothing and starts nothing', { skip }, async () => {
+  await page.open(harness.url({ page: 'demo' }), { width: 1280, height: 800 })
+  await page.until(`Boolean(${button('Start demo')} && document.querySelector('[aria-label="Workspace"]'))`)
+  await click(button('Start demo'))
+  await page.until(`${tourStep} === 'dashboard'`)
+  await page.key('Escape')
+  await page.until(`document.querySelector('[data-driver-session]')?.dataset.driverSession === 'running'`)
+  assert.match(await page.evaluate(`document.querySelector('[data-driver-session]').textContent`), /11 of 40 turns today/)
+  // Only Open: a running session offers no Start.
+  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-driver-start]'))`), false)
+  await click(`document.querySelector('[data-driver-open]')`)
+  await page.until(`document.querySelector('[data-demo-notice]')?.textContent.includes('chat')`)
+  await click(`document.querySelector('[data-demo-exit]')`)
+  await page.until(`!document.querySelector('[data-demo-badge]')`)
   assert.deepEqual(page.errors, [])
 })
 

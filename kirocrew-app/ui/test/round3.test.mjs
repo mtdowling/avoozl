@@ -67,11 +67,11 @@ test('confirm copy names the thing and what happens', () => {
   assert.equal(confirmSettle('reviewed', 4).title, 'Mark reviewed: 4 tasks?')
 })
 
-test('Graph and Delivery share one filter bar, one saved state per workspace', () => {
-  for (const name of ['GraphView.tsx', 'DeliveryView.tsx']) {
+test('the Graph keeps one filter bar, one saved state per workspace', () => {
+  for (const name of ['GraphView.tsx']) {
     const text = source(name)
     assert.match(text, /useSharedFilter\(workspaceId\)/, name)
-    assert.match(text, /<FilterBar id="avoozl-(graph|delivery)" filter=\{filter\} choices=\{choices\}/, name)
+    assert.match(text, /<FilterBar id="avoozl-(graph)" filter=\{filter\} choices=\{choices\}/, name)
   }
   const bar = source('FilterBar.tsx')
   for (const label of ['Search', 'Plan', 'Epic', 'Repository', 'State', 'Wave', 'Owner', 'Needs me', 'Clear']) assert.match(bar, new RegExp(label), label)
@@ -139,7 +139,7 @@ test('the plan view keeps a sticky left column that stacks on narrow pages, with
   // The plan view has no Add task; the list and the Graph keep theirs.
   const detail = plans.slice(plans.indexOf('{row && ('))
   assert.doesNotMatch(detail.slice(0, detail.indexOf('</div>')), /addTask/)
-  for (const label of ["Open this spec's documents and tasks", "Show this spec's tasks in the Graph", "Show this spec's tasks in Delivery", 'Open this spec to check and approve it', 'Start a planner chat to change this spec'])
+  for (const label of ["Open this spec's documents and tasks", "Show this spec's tasks in the Graph", 'Open this spec to check and approve it', 'Start a planner chat to change this spec'])
     assert.ok(plans.includes(`tooltip="${label}"`), label)
 })
 
@@ -163,9 +163,9 @@ test('Conflicts: tab counts, a plain why, bulk only for one kind, attach to a li
   ])
   assert.equal(chats.get('a'), '/chat?sid=w')
   assert.equal(chats.has('b'), false)
-  // The Conflicts top tab shows a yellow count only when there is one.
-  assert.match(source('App.tsx'), /t\.key === 'conflicts' && conflicts > 0 \?/)
-  assert.match(source('App.tsx'), /<Badge variant="warning">\{conflicts\}<\/Badge>/)
+  // Waiting on you shows a yellow count only when there is one.
+  assert.match(source('App.tsx'), /t\.key === 'waiting' && waitingCount > 0 \?/)
+  assert.match(source('App.tsx'), /<Badge variant="warning">\{waitingCount\}<\/Badge>/)
 })
 
 test('drill-in shows one epic, or one task with everything up and down its chain', () => {
@@ -200,8 +200,4 @@ test('icons sit on buttons, and every icon is one the host module has', () => {
     const known = new Set(JSON.parse(readFileSync(host, 'utf8')))
     assert.deepEqual(names.filter((n) => n.length > 1 && !known.has(n)), [])
   }
-  const delivery = source('DeliveryView.tsx')
-  for (const icon of ['Play', 'Pause', 'RotateCcw', 'DetailsIcon']) assert.match(delivery, new RegExp(`icon=\\{${icon}\\}`), icon)
-  assert.match(delivery, /tooltip=\{DEFER_TIP\}/)
-  assert.match(source('delivery-api.ts'), /DEFER_TIP = 'Pauses new dispatch\. A running chat is left alone\. Resume undoes it\.'/)
 })
