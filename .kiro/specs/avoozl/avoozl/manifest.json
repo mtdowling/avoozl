@@ -6182,6 +6182,111 @@
         "38.2",
         "38.3"
       ]
+    },
+    "39.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 39 (Crews on public repositories). See R85.3, R85.4; §6.14.",
+      "acceptance": [
+        "Hook command: scan a crew's writes before they run",
+        "`avoozl content hook` refuses a gh or git write that holds a rule match or text it cannot read, naming the rule set, id and place and never the text."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "39.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 39 (Crews on public repositories). See R85.6, R85.7; §6.14.",
+      "acceptance": [
+        "Audit on the tick: delete a hit, pull the cord, alert, after 39.1",
+        "The tick deletes a matching crew comment, closes a matching pull request, pulls the cord for the repository, and sends one notice and one Needs you item."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "39.1"
+      ]
+    },
+    "39.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 39 (Crews on public repositories). See R85.1, R85.2, R85.8, R85.10; §6.14.",
+      "acceptance": [
+        "Public crew checklist, sign-off and handoff gate, after 39.1 and 39.2",
+        "A person signs off the checklist; a public repository is handed to Issue Radar only with a current sign-off, which lapses when a hashed item changes."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "39.1",
+        "39.2"
+      ]
+    },
+    "39.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 39 (Crews on public repositories). See R85.9; §6.14.",
+      "acceptance": [
+        "Stop public crews, after 39.2",
+        "One person-only action pulls the cord for every public repository with a crew and lists the crews to pause."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "39.2"
+      ]
+    },
+    "39.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 39 (Crews on public repositories). See R85.2, R85.5; §6.14.",
+      "acceptance": [
+        "Public docs and the upstream requests, after 39.3 and 39.4",
+        "`docs/public-crews.md` states the limits in generic terms and drafts the Kiro Crew requests without filing them."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "39.3",
+        "39.4"
+      ]
+    },
+    "avoozl-p49": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 39 (Crews on public repositories). Proof. See R85; §6.14.",
+      "acceptance": [
+        "Proof: a public crew's leak is stopped, deleted and alerted",
+        "Expected: a canary in a comment, pull request or published file is refused with no text; a script write goes through and the tick deletes it, pulls the cord and notifies once; a clean comment stays; handoff is refused before sign-off and after a hook change."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "39.1",
+        "39.2",
+        "39.3",
+        "39.4",
+        "39.5"
+      ]
     }
   }
 }

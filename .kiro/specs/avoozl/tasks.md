@@ -1466,3 +1466,26 @@ Owner request 2026-11-14 (Requirement 84, design §6.13). Prototype, off by defa
   - Failure means: a task is claimed twice, a worker replaced, or the driver loses a worker when the link drops.
   - Next decision: tie `runner report` to the worker's session, or move checks to their own job.
   - Built: pass with local stand-in for ssh; `src/app/test/remote-runner.test.mjs`. Live on two test crews (4 tasks); ssh itself not run, since ssh to this machine is refused.
+
+## Phase 39: Crews on public repositories
+
+Owner request 2026-11-14 (Requirement 85, design §6.14). Numbered after Phase
+38 because task IDs never move.
+
+- [ ] 39.1 Hook command: scan a crew's writes before they run [R85.3, R85.4] (§6.14)
+  - `avoozl content hook`, `src/app/public-crews.mjs`; tests with a fake terms file and a canary, one per write kind in R85.3, plus an expansion refusal.
+- [ ] 39.2 Audit on the tick: delete a hit, pull the cord, alert, after 39.1 [R85.6, R85.7] (§6.14)
+  - `publicCrewAudit`, cursor per repository, fake GitHub; a comment is deleted, a pull request closed, one notice and one Needs you item.
+- [ ] 39.3 Public crew checklist, sign-off and handoff gate, after 39.1 and 39.2 [R85.1, R85.2, R85.8, R85.10] (§6.14)
+  - `publiccrews.signoff`, the Public crews card, the `untriaged.handoff` check; person-only; lapse on a changed hash.
+- [ ] 39.4 Stop public crews, after 39.2 [R85.9] (§6.14)
+  - `publiccrews.stop` in the app, the CLI and MCP policy (person only to resume).
+- [ ] 39.5 Public docs and the upstream requests, after 39.3 and 39.4 [R85.2, R85.5] (§6.14)
+  - `docs/public-crews.md` in generic terms; limits stated; requests drafted, none filed.
+
+- [ ] avoozl-p49 P49 Proof: a public crew's leak is stopped, deleted and alerted [R85] (§6.14)
+  - Setup: an isolated Kiro Crew home, a scratch repository, a fake terms file with one canary, a test crew agent with the hook.
+  - Action: (1) the crew posts a comment, opens a pull request and publishes a commit, each with the canary; (2) it publishes a commit with the canary in a file; (3) it writes a comment through a script; (4) the tick runs; (5) hand an issue to a crew before and after sign-off.
+  - Expected: (1) and (2) refused with rule set, id and place and no text; (3) goes through, then the tick deletes it, pulls the cord and notifies once; (4) a clean comment stays; (5) refused before sign-off, accepted after, refused again when the hook changes.
+  - Failure means: a canary stays on GitHub, an edit is used instead of a delete, or the refusal repeats the text.
+  - Next decision: ask Kiro Crew for a single write tool for crews.
