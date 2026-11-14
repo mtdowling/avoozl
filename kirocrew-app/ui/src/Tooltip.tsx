@@ -1,4 +1,8 @@
-// The page's one tooltip. The host SDK ships none and the host uses the
+// The page's one tooltip. Desktop: hover and keyboard focus. Touch: a tap on
+// a plain anchor (text, an icon, a time) toggles it, and a tap anywhere else
+// or Esc closes it. A button or link keeps its own tap: it acts, and its
+// tooltip is not shown on touch (put text that matters inline on a narrow
+// screen). A plain anchor takes focus so the keyboard reaches it. The host SDK ships none and the host uses the
 // native title attribute, which is slow, unstyled and unreachable by
 // keyboard. This one renders in a fixed layer on document.body, so no
 // drawer or scroll area clips it, and it never moves the layout. Inside a
@@ -11,6 +15,11 @@ import { LAYER } from './layers.ts'
 import { usePortalTarget } from './Modal.tsx'
 
 const reducedMotion = () => typeof window !== 'undefined' && Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
+
+// What acts on its own tap. An info icon (data-info-tip) is focusable but
+// only informs, so a tap on it opens the tooltip.
+const ACTS = 'button, a[href], input, select, textarea, summary, [role="button"]'
+const FOCUSABLE = `${ACTS}, [tabindex]`
 
 const keyboardFocus = (target: EventTarget) => {
   try {
@@ -42,11 +51,16 @@ export function Tooltip(props: {
     if (!open) return
     const key = (event: KeyboardEvent) => control.key(event.key)
     const away = () => control.hide()
+    const outside = (event: PointerEvent) => {
+      if (!anchor.current?.contains(event.target as Node)) control.hide()
+    }
     document.addEventListener('keydown', key)
+    document.addEventListener('pointerdown', outside)
     window.addEventListener('scroll', away, true)
     window.addEventListener('resize', away)
     return () => {
       document.removeEventListener('keydown', key)
+      document.removeEventListener('pointerdown', outside)
       window.removeEventListener('scroll', away, true)
       window.removeEventListener('resize', away)
     }
@@ -58,6 +72,11 @@ export function Tooltip(props: {
     setPlace(placeTooltip(a, t, { width: window.innerWidth, height: window.innerHeight }))
   }, [open, props.text])
   const text = props.text?.trim()
+  // A plain anchor (nothing focusable inside) is itself the focus stop.
+  const [plain, setPlain] = useState(false)
+  useLayoutEffect(() => {
+    setPlain(Boolean(text) && !anchor.current?.querySelector(FOCUSABLE))
+  })
   const child = typeof props.children === 'function' ? props.children(text ? id : undefined) : props.children
   if (!text) return <>{child}</>
   return (
@@ -65,8 +84,16 @@ export function Tooltip(props: {
       ref={anchor}
       style={{ display: props.display ?? 'inline-flex', minWidth: 0 }}
       onPointerEnter={(event) => control.enter(event.pointerType)}
-      onPointerLeave={control.leave}
-      onPointerDown={control.hide}
+      onPointerLeave={(event) => event.pointerType !== 'touch' && control.leave()}
+      onPointerDown={(event) => {
+        const target = event.target as Element
+        const acts = target.closest(ACTS)
+        const informs = target.closest('[data-info-tip]') !== null || !acts || !event.currentTarget.contains(acts)
+        if (event.pointerType === 'touch' && informs) control.tap()
+        else control.hide()
+      }}
+      tabIndex={plain ? 0 : undefined}
+      aria-describedby={plain ? id : undefined}
       onFocus={(event) => control.focus(keyboardFocus(event.target))}
       onBlur={control.blur}
       data-tooltip-anchor

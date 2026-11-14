@@ -33,7 +33,7 @@ export function placeTooltip(anchor: Rect, tip: { width: number; height: number 
 let current: (() => void) | null = null
 
 // Hover shows after a delay; keyboard focus shows at once; leave, blur and
-// Esc hide. Touch never shows a hover tooltip.
+// Esc hide. Touch never shows a hover tooltip; a tap toggles it.
 export function tooltipController(options: {
   onChange: (open: boolean) => void
   delay?: number
@@ -75,6 +75,11 @@ export function tooltipController(options: {
       timer = setTimer(show, options.delay ?? TOOLTIP_DELAY)
     },
     leave: hide,
+    // A tap on touch: shows it at once, or hides it when already open.
+    tap() {
+      if (open) hide()
+      else show()
+    },
     focus(keyboard: boolean) {
       if (keyboard) show()
     },
