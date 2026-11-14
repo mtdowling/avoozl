@@ -70,7 +70,7 @@ function bound(t, store, fetch, now = () => T0) {
     apiUrl: "https://api.example.test",
     fetch,
   });
-  github.bind(store, { now });
+  github.bind(store, { now, cacheSeconds: () => 0 });
   return github;
 }
 
@@ -511,4 +511,145 @@ test("the tick holds every GitHub step while limited, with one row and one notic
   );
   await tick();
   assert.ok(calls.length > 0);
+});
+
+// ---- The one max-age cache (github.cacheSeconds) ------------------------
+
+function aged(t, routes, seconds = () => 60) {
+  const store = workspace(t),
+    clock = { now: T0 },
+    { fetch, log } = fakeGitHub(routes),
+    github = new GitHubClient({
+      token: "test-token",
+      apiUrl: "https://api.example.test",
+      fetch,
+    });
+  github.bind(store, { now: () => clock.now, cacheSeconds: seconds });
+  return { github, log, clock, store };
+}
+
+test("inside the max age a read makes no GitHub call, and after it a 304 revalidates", async (t) => {
+  const { github, log, clock } = aged(t, { "/repos/o/r": { id: 1 } });
+  await github.repository("o/r");
+  clock.now += 59_000;
+  assert.deepEqual(await github.repository("o/r"), { id: 1 });
+  assert.equal(log.requests.length, 1);
+  clock.now += 2000;
+  assert.deepEqual(await github.repository("o/r"), { id: 1 });
+  assert.equal(log.requests.length, 2);
+  assert.equal(log.notModified, 1);
+  // The 304 restarted the clock.
+  clock.now += 30_000;
+  await github.repository("o/r");
+  assert.equal(log.requests.length, 2);
+});
+
+test("a repository's own seconds beat the default, and 0 turns the cache off", async (t) => {
+  const { github, log, clock } = aged(
+    t,
+    { "/repos/o/a": { id: 1 }, "/repos/o/b": { id: 2 } },
+    (repo) => (repo === "o/a" ? 0 : 300),
+  );
+  for (const repo of ["o/a", "o/b", "o/a", "o/b"])
+    await github.repository(repo);
+  assert.deepEqual(
+    log.requests.map((r) => r.path),
+    ["/repos/o/a", "/repos/o/b", "/repos/o/a"],
+  );
+  clock.now += 299_000;
+  await github.repository("o/b");
+  assert.equal(log.requests.length, 3);
+});
+
+test("a write makes that repository's answers stale, and the next read revalidates", async (t) => {
+  const { github, log } = aged(t, {
+    "/repos/o/r": { id: 1 },
+    "/repos/o/q": { id: 2 },
+    "/repos/o/r/issues/1/comments": () => new Response("{}", { status: 201 }),
+  });
+  await github.repository("o/r");
+  await github.repository("o/q");
+  await github.request("POST", "/repos/o/r/issues/1/comments", {
+    body: { body: "hi" },
+  });
+  const before = log.requests.length;
+  await github.repository("o/q");
+  assert.equal(log.requests.length, before, "another repository stays fresh");
+  await github.repository("o/r");
+  assert.equal(log.requests.length, before + 1);
+  assert.equal(
+    log.requests.at(-1).headers["If-None-Match"] !== undefined,
+    true,
+  );
+});
+
+test("a GraphQL query is kept for the max age, a mutation makes it stale, errors are not kept", async (t) => {
+  let answers = 0;
+  const { github, log } = aged(t, {
+    "/graphql": async (_url, _headers, state) => {
+      answers += 1;
+      state.counted += 1;
+      return new Response(
+        JSON.stringify(
+          answers === 1
+            ? { errors: [{ message: "boom" }] }
+            : { data: { n: answers } },
+        ),
+        { status: 200 },
+      );
+    },
+  });
+  await assert.rejects(github.graphql("query{a}", {}, "read a"));
+  assert.deepEqual(await github.graphql("query{a}", {}, "read a"), { n: 2 });
+  assert.deepEqual(await github.graphql("query{a}", {}, "read a"), { n: 2 });
+  assert.equal(log.requests.length, 2);
+  await github.graphql("mutation{b}", {}, "write b");
+  assert.deepEqual(await github.graphql("query{a}", {}, "read a"), { n: 4 });
+});
+
+test("while the limit holds, even an old answer is served and an unseen one fails", async (t) => {
+  const { github, log, clock, store } = aged(t, {
+    "/repos/o/r": { id: 1 },
+    "/repos/o/other": { id: 2 },
+  });
+  await github.repository("o/r");
+  clock.now += 3_600_000;
+  github.rate.limit({
+    resource: "core",
+    until: clock.now + 600_000,
+    reason: "primary",
+  });
+  const calls = log.requests.length;
+  assert.deepEqual(await github.repository("o/r"), { id: 1 });
+  await assert.rejects(github.repository("o/other"), (e) =>
+    RATE_LIMIT_TEXT.test(e.message),
+  );
+  assert.equal(log.requests.length, calls);
+  assert.ok(store);
+});
+
+test("a 403 limit answer on a stored read serves the stored body", async (t) => {
+  let limited = false;
+  const { github, clock } = aged(t, {
+    "/repos/o/r": (_u, _h, state) => {
+      if (!limited) {
+        state.counted += 1;
+        return new Response('{"id":1}', {
+          status: 200,
+          headers: { etag: '"a"' },
+        });
+      }
+      return new Response('{"message":"API rate limit exceeded"}', {
+        status: 403,
+        headers: {
+          "x-ratelimit-remaining": "0",
+          "x-ratelimit-reset": String(Math.floor(T0 / 1000) + 7200),
+        },
+      });
+    },
+  });
+  await github.repository("o/r");
+  clock.now += 120_000;
+  limited = true;
+  assert.deepEqual(await github.repository("o/r"), { id: 1 });
 });

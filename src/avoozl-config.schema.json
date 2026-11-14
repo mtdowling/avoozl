@@ -801,6 +801,13 @@
           "type": ["string", "null"],
           "minLength": 1
         },
+        "cacheSeconds": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3600,
+          "default": 60,
+          "description": "How long GitHub answers stay fresh, in seconds. Inside it Avoozl makes no GitHub call for a read. 0 turns the cache off. A repository may set its own."
+        },
         "repositories": {
           "type": "object",
           "propertyNames": {
@@ -969,6 +976,12 @@
             "type": "string",
             "minLength": 1
           }
+        },
+        "cacheSeconds": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3600,
+          "description": "This repository's GitHub cache time in seconds, instead of github.cacheSeconds."
         },
         "concurrency": {
           "type": "integer",

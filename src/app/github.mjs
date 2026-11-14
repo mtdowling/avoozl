@@ -10,6 +10,7 @@ import { fail } from "./store.mjs";
 
 const API_VERSION = "2022-11-28";
 const PAGE_SIZE = 100;
+export const DEFAULT_CACHE_SECONDS = 60;
 const MAX_PAGES = 20;
 // GitHub's built-in repository roles (github-policy.mjs PERMISSIONS).
 const ROLES = new Set(["read", "triage", "write", "maintain", "admin"]);
@@ -152,6 +153,7 @@ export class GitHubClient {
     this.timeoutMs = timeoutMs;
     // The newest x-ratelimit-* headers per resource (core, search, graphql).
     this.rateLimits = new Map();
+    this.cacheSeconds = () => DEFAULT_CACHE_SECONDS;
   }
 
   // { limit, remaining, resetAt } from the newest response for `resource`,
@@ -163,7 +165,10 @@ export class GitHubClient {
   // Keeps conditional-request answers and the rate state in `store`, so a
   // GET GitHub answers 304 costs nothing and a limit holds every process of
   // the workspace back. Without it the client behaves as before.
-  bind(store, { now } = {}) {
+  bind(store, { now, cacheSeconds } = {}) {
+    // How long an answer stays fresh, in seconds, for a repository id (or
+    // none). Within it a read makes no call. Settings > GitHub sets it.
+    if (cacheSeconds) this.cacheSeconds = cacheSeconds;
     this.cache = store ? new ResponseCache(store, { now }) : null;
     this.rate = store ? new RateState(store, { now }) : null;
     return this;
@@ -203,16 +208,43 @@ export class GitHubClient {
       if (value !== undefined && value !== null && value !== "")
         url.searchParams.set(key, String(value));
     const resource = resourceOf(pathname),
-      held = this.rate?.held(resource);
-    if (held) throw rateLimitError(held);
-    // Every plain GET is conditional: the stored ETag and Last-Modified go
-    // back, and a 304 reuses the stored body.
-    const wanted = accept || "application/vnd.github+json",
+      wanted = accept || "application/vnd.github+json",
+      repoId = /^\/repos\/([^/]+\/[^/?]+)/.exec(pathname)?.[1] || "",
+      // A GET, or a GraphQL query, is kept; any other call is a write.
+      readable =
+        method === "GET" ||
+        (pathname === "/graphql" && /^\s*(query\b|\{)/.test(body?.query || "")),
       key =
-        method === "GET" && !etag && this.cache
-          ? this.cache.key(this.token, wanted, url.href)
+        readable && !etag && this.cache
+          ? this.cache.key(
+              this.token,
+              wanted,
+              url.href,
+              method === "GET" ? "" : JSON.stringify(body),
+            )
           : null,
-      stored = key ? this.cache.get(key) : null;
+      stored = key ? this.cache.get(key) : null,
+      fresh = (this.cacheSeconds(repoId) || 0) * 1000,
+      reply = (entry) => {
+        const value = entry.body ? JSON.parse(entry.body) : null;
+        return headers
+          ? {
+              value,
+              link: entry.link || "",
+              scopes: entry.scopes,
+              etag: entry.etag,
+            }
+          : value;
+      };
+    // The one cache: within its max age a read makes no call, and while the
+    // rate limit holds calls back it answers with what was stored.
+    if (stored && fresh > 0 && this.cache.now() - stored.fetched < fresh)
+      return reply(stored);
+    const held = this.rate?.held(resource);
+    if (held) {
+      if (stored) return reply(stored);
+      throw rateLimitError(held);
+    }
     let response;
     try {
       response = await this.fetch(url, {
@@ -274,6 +306,7 @@ export class GitHubClient {
       );
       if (limit && this.rate) this.rate.limit(limit);
       this.rate?.flush();
+      if (limit && stored) return reply(stored);
       const error = limit
         ? rateLimitError({ ...limit, scope: limit.reason })
         : Error(
@@ -286,14 +319,22 @@ export class GitHubClient {
     const link = reused ? stored.link || "" : header("link") || "",
       scopes = reused ? stored.scopes : (header("x-oauth-scopes") ?? null),
       tag = reused ? stored.etag : header("etag") || null;
-    if (key && !reused && response.ok)
-      this.cache.put(key, {
-        etag: tag,
-        lastModified: header("last-modified"),
-        body: text,
-        link,
-        scopes,
-      });
+    if (key && reused) this.cache.refreshed(key);
+    else if (key && response.ok && !value?.errors?.length)
+      this.cache.put(
+        key,
+        {
+          etag: tag,
+          lastModified: header("last-modified"),
+          body: text,
+          link,
+          scopes,
+        },
+        { ttlOnly: method !== "GET" },
+      );
+    // A write makes what it touched stale (not gone: a 304 still revalidates).
+    if (!readable && response.ok && this.cache)
+      this.cache.invalidate(this.token, repoId);
     this.rate?.flush();
     // `headers` asks for the Link and scope headers beside the body.
     return headers ? { value, link, scopes, etag: tag } : value;

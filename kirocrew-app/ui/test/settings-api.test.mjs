@@ -6,6 +6,7 @@ import { emptyRepository, emptyRule, matchChips, matchClient, settingsClient, se
 import { normalizeGitHubPolicy, policySection } from '../../../src/app/github-policy.mjs'
 
 const POLICY = {
+  cacheSeconds: 45,
   mode: 'plans-repo',
   planningRepository: 'example/plans',
   defaultAuthority: 'github',
@@ -158,6 +159,7 @@ test('an empty form clears every policy key', () => {
     planningRepository: null,
     defaultAuthority: null,
     epicIssueType: null,
+    cacheSeconds: null,
     subIssues: null,
     issues: null,
     project: null,
@@ -265,4 +267,15 @@ test('the approval label round-trips and keeps the other radar keys', () => {
   assert.deepEqual(toPolicy(form).repositories['example/app'].radar, { planLabel: 'plan me' })
   const none = toForm({ mode: 'single-repo', repositories: { 'example/app': { baseBranch: 'main' } } })
   assert.equal(toPolicy(none).repositories['example/app'].radar, undefined)
+})
+
+test('the cache seconds round-trip, for the workspace and for one repository', () => {
+  const github = { cacheSeconds: 45, repositories: { 'o/r': { baseBranch: 'main', cacheSeconds: 0 } } }
+  const form = toForm(github)
+  assert.equal(form.cacheSeconds, '45')
+  assert.equal(form.repositories[0].cacheSeconds, '0')
+  const policy = toPolicy(form)
+  assert.equal(policy.cacheSeconds, 45)
+  assert.equal(policy.repositories['o/r'].cacheSeconds, 0)
+  assert.equal(toPolicy({ ...form, cacheSeconds: '' }).cacheSeconds, null)
 })
