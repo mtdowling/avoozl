@@ -99,7 +99,7 @@ the retros that tune the rules.
 | Ultra Mode's Crew panel: Recap ("N of M done"), Needs you, Milestones with now/next/stuck, Status and Workers views, "Done when" line | V | `static/dist/assets/t-CuQrT1gq.js` keys `ultra_*`; `dashboard/handlers/work_ledger_board.py` |
 | Spec Builder has no panel tab, no hook, no agent setting. Its settings hold `base_path` and `model`. It records approvals per phase against a document version | V | `apps/builtins/spec_builder/app.json`; `backend/repository.py:182-212`; `backend/orchestration/controls.py:52-57` |
 | Spec Builder's list route returns name, dirs, type, title, status, phase, running. Its detail route returns `slot_key` | V | `backend/handlers.py:292-326,449` |
-| A crew builds a feature issue when it links an approved spec and an accepted decision record; blocked-by links are honored; a batch issue yields one PR; checklist boxes are not ticked; `updated=` in the marker is unreliable | V | `docs/research/radar-spec-tasks.md` (open PR branch `task/radar-spec-tasks`) |
+| A crew builds a feature issue when it links an approved spec and an accepted decision record; blocked-by links are honored; a batch issue yields one PR; checklist boxes are not ticked; `updated=` in the marker is unreliable | V | `docs/research/radar-spec-tasks.md` |
 | The crew's claim comment is one edited comment with a versioned marker `<!-- kirocrew-crew v=1 id=<crew id> phase=<phase> pr=<n> updated=<time> -->` | V | `crew_brief.md:286-300`; research above, section 5 |
 | Crews write only their claim label and the needs-human label | V | `crew_brief.md:122,646` |
 | glorp: the unit is one issue; default pick-up filter is "authored by me and assigned to me"; `gh-create` files an issue with the original prompt quoted and an agent marker; `gh-fix` splits only when the issue states separable tasks, uses the sub-issue API, and reads blocked-by links | V | glorp `README.md` (How it works), `.agents/skills/gh-create/SKILL.md`, `.agents/skills/gh-fix/SKILL.md` ("Split a multi-part issue", "Stack on an open blocking issue") |
@@ -147,7 +147,7 @@ Mockups: [Home](experience/01-home.html), [Trace](experience/02-trace.html),
 | **Investigate before coding** (design 4.21) | Moves into quick goals only | Crews investigate their own tasks. |
 | **Per-task budgets**, **Switch model** (for workers) | Budgets and Switch model stay for planner, retro and quick-goal chats only | Avoozl cannot cap a crew's spend (crew settings are owner-only, V above). |
 | **Files/diff** fold in the task drawer | Removed. A PR link and a Radar link replace it | Radar's Review button covers PR review. |
-| **Runner mode over SSH** (open PR 62) | Not merged | Crews on each machine replace it. |
+| **Runner mode over SSH** (merged in PR 62) | Removed | Crews on each machine replace it. |
 | **Demo** | Stays, retargeted to fake crews and a fake claim comment | Still the only safe first run. |
 | **Stop the line** | Stays, with a changed meaning (section 3.4) | See below. |
 
