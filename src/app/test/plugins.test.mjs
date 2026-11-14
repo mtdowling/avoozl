@@ -240,6 +240,18 @@ test("an approved plugin runs as a child process over stdio and answers checked 
   ]);
 });
 
+test("a local plugin changed after it was inspected is refused before it starts", async () => {
+  const { options, folder, state } = setup();
+  approve(options);
+  const session = pluginHost(options).open();
+  fs.appendFileSync(path.join(folder, "avoozl-plugin.json"), "\n");
+  const refused = await session.use("fake-route", "route");
+  assert.equal(refused.ok, false);
+  assert.match(refused.reason, /changed after it was approved/);
+  await session.close();
+  assert.deepEqual(state.read().calls ?? [], []);
+});
+
 for (const [mode, pattern] of [
   ["crash", /crashed \(exit 3\)/],
   ["invalid", /status reply state must be one of/],
