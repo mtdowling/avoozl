@@ -18,8 +18,9 @@ separate acts. Task IDs start with `rc-` so they never collide with the IDs of
 `.kiro/specs/avoozl/`. Entries marked `"manual": true` in the manifest wait for
 a person.
 
-Phases 13 to 17 add the work split, the coder plug, the remote coder,
-integration branches and epic types. They depend on Phases 1 to 5 and 9 only
+Phases 13 to 19 add the work split, the coder plug, the remote coder,
+integration branches, epic types, approval on the issue and the claim at
+approval. They depend on Phases 1 to 5 and 9 only
 and do not wait for Phase 12; the retirement epic still runs last among the
 removals.
 
@@ -346,7 +347,13 @@ Requirement RC15. A managed remote harness as a coder. A task is done only when 
 - [ ] rc-15.4 No internal names in the repository, and a scan check, after rc-15.1 [RC15.1] (§D20)
   - Forbidden-name patterns come from an environment variable or local config and are never committed; the release scan uses them; docs and tests say only "a managed remote harness" or "a remote coder"; the scan runs before every push.
   - Done when: A test with a pattern set in the environment fails when a listed name appears in a tracked file; `node scripts/release-scan.mjs --tree` is clean.
-- [ ] rc-p15 Proof 15: a remote coder end to end with a fake harness, after rc-15.1, rc-15.2, rc-15.3, rc-15.4 [RC15] (§D22)
+- [ ] rc-15.5 Start the harness's MCP server as a child process; file under the approver, after rc-15.1 [RC15.10, RC15.11] (§D20)
+  - The tick starts the harness's MCP server as a local child process, calls only its create-code-task and get-task-statuses tools and stops it after the tick; no socket is opened; each task is filed under the approving person's own sign-in; the receipt records the approver, the harness task ID and the Avoozl task IDs.
+  - Done when: A test with a fake MCP server shows only those two tools are called and the process ends with the tick; the receipt holds approver, harness task ID and Avoozl task IDs; no other identity is used.
+- [ ] rc-15.6 Expired sign-in: one Needs you item and no retry loop, after rc-15.5, rc-15.2 [RC15.12] (§D20)
+  - A refused sign-in opens one Needs you item, "Sign in again", and holds new filing for that person; the next try needs the person's word or one cheap check that passes; watching tasks already filed continues when the harness allows it; the item clears when filing works.
+  - Done when: A fake harness that refuses the sign-in causes one item across five ticks and no filing attempts beyond one check per tick; filing resumes and the item clears after sign-in.
+- [ ] rc-p15 Proof 15: a remote coder end to end with a fake harness, after rc-15.1, rc-15.2, rc-15.3, rc-15.4, rc-15.5, rc-15.6 [RC15] (§D22)
   - Setup: a scratch repository, `coder: remote`, a fake harness. Action: release two tasks; let the harness finish one with no pull request; publish it; merge. Expected: the Needs you row while waiting; done only after the merge; dependents released then. Failure means: Avoozl counted a harness state as done. Next decision: tighten the adapter map.
   - Done when: Expected result observed; receipt under `docs/evidence/`.
 
@@ -392,3 +399,31 @@ Requirement RC17. Templates and docs for migrations, codegen changes and cross-r
 - [ ] rc-p17 Proof 17: epic types, after rc-17.1, rc-17.2, rc-17.3 [RC17] (§D22)
   - Setup: a scratch workspace and three repositories. Action: create a migration from the template; create a proposal with three sub-specs; import a gap report. Expected: valid specs, separate approvals, proposed tasks only for failing cells. Failure means: the templates mislead. Next decision: fix the template before the docs.
   - Done when: Expected result observed; receipt under `docs/evidence/`.
+
+## Phase 18: Approve on the issue
+
+Requirement RC18. A trusted person approves by label; any approval is written back to the issue.
+
+- [ ] rc-18.1 Approval label setting and label clash check, after rc-1.1 [RC18.1] (§D23)
+  - `approval label` per repository, default `plan approved`; equal to the planning, needs-human, claim, ready or conflict label is refused naming both; Settings shows what it does and who writes it; `src/app/test/approval-label.test.mjs`.
+  - Done when: The default validates; a clash is refused naming both labels; `npm test` passes.
+- [ ] rc-18.2 Tick reads the approval label and checks the labeler, after rc-18.1, rc-1.2, rc-3.6 [RC18.2, RC18.3, RC18.7] (§D23)
+  - On a drafted plan with 0 lint errors, a label added by a person who passes the trigger-label check (`allowedActors`, `minimumPermission`) approves the plan; any other labeler, or an unreadable one, is ignored: the label is removed and one Needs you row names the login and issue; removing the label later revokes nothing.
+  - Done when: A fake GitHub test: an allowed labeler approves; a stranger's label is removed with one row across three ticks; a label removal after approval changes nothing.
+- [ ] rc-18.3 One approval record, with write-back to the issue, after rc-18.2 [RC18.4, RC18.5, RC18.6, RC18.8, RC18.9] (§D23)
+  - Approving in Avoozl, in a chat or the CLI (`plans_*` tool), or by label ends in one approval record; the first two write back to the source issue: the label and one comment with a hidden marker (approver login, spec path, commit, time) and no spec text; a second approval is a no-op; a failed write-back leaves the approval and raises one row; a plan with no source issue skips it.
+  - Done when: Three fake-GitHub tests: each path gives one record; a second approval writes nothing; a failed write-back leaves the approval and one row.
+- [ ] rc-p18 Proof 18: approve on the issue, after rc-18.1, rc-18.2, rc-18.3 [RC18] (§D17)
+  - Setup: a scratch repository with a drafted plan and a source issue. Action: approve by label as an allowed person; approve a second plan in Avoozl; label a third as a stranger. Expected: one record each; the issue shows the label and one marker comment for the second; the stranger's label is removed. Failure means: the issue and the record can disagree. Next decision: make the record the only source and drop the label path.
+  - Done when: Expected result observed; receipt under `docs/evidence/`.
+
+## Phase 19: Claim at approval
+
+Requirement RC19. The parent issue is marked as taken when its plan is approved.
+
+- [ ] rc-19.1 Claim the parent at approval, after rc-18.3, rc-1.3 [RC19.1, RC19.2, RC19.3, RC19.4, RC19.5, RC19.6] (§D24)
+  - At approval Avoozl posts the claim marker in Radar's format, naming Avoozl and no real crew id, and adds the in-progress label on the parent; an existing crew claim is left alone and noted once in Trace; the claim is written once per approval; Avoozl removes only its own claim when the plan is superseded or the parent closes.
+  - Done when: A fake-GitHub test: the parent gets one claim and label; a parent with a crew's claim gets no write and one Trace note; a second approval writes nothing; a superseded plan removes only Avoozl's claim.
+- [ ] rc-p19 Proof 19: the parent is not taken by a crew, after rc-19.1 [RC19] (§D17)
+  - Setup: a scratch repository, a Radar crew with label scope `ready`, an approved plan. Action: let the crew poll after approval and after the first release. Expected: the crew never takes the parent; it takes released sub-issues. Failure means: the claim format does not hold the crew off. Next decision: re-read the claim format on the current release.
+  - Done when: Expected result observed live; receipt under `docs/evidence/`.
