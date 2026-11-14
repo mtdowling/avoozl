@@ -110,6 +110,7 @@ import {
   CODERS,
   CREW_LABEL_KEYS,
   FIELD_KEYS,
+  CREW_LABEL_DEFAULTS,
   issueRadarCrews,
   MANAGED_LABEL_KEYS,
   MODE_CHOICES,
@@ -255,6 +256,14 @@ import {
   draftGitHubChildren,
 } from "./github-breakdown.mjs";
 import { previewProjection } from "./github-preview.mjs";
+import { planProjectionBatches } from "./radar-coder-batch.mjs";
+import {
+  applySpecChange,
+  approvedBefore,
+  changeIssues,
+  planSpecChange,
+  specTasks,
+} from "./spec-changed.mjs";
 import { inspectFolder, scanSpecs } from "./onboarding.mjs";
 import {
   assertRepositoryRemovable,
@@ -5029,9 +5038,23 @@ export class Operations {
           identity: planningIdentity(this.workspaceRoot),
           policy,
           claimed: claimedTaskIds(target),
+          batches: input.batches,
         });
+      // Batches the planner would group, for the preview's batch edit.
+      const suggested = (target) =>
+        planProjectionBatches({
+          tasks: target.read().tasks.filter((task) => task.planId === plan.id),
+          edges: target.read().edges,
+          mode: "suggest",
+          max: this.settingsFile().readFlowSettings().flow.batch?.max,
+          complete: (status) => statusComplete(target.read(), status),
+        }).batches.map((batch) => batch.tasks);
       if (plan.state === "approved")
-        return { ...(await projection(store)), simulated: false };
+        return {
+          ...(await projection(store)),
+          simulated: false,
+          suggestedBatches: suggested(store),
+        };
       const quality = this.lintSpecPlan(plan, [], { content: false }),
         blocking = quality.diagnostics.filter((d) => d.severity === "error");
       if (blocking.length)
@@ -5053,10 +5076,67 @@ export class Operations {
           approvedBy: this.operator,
           operator: this.operator,
         });
-        return { ...(await projection(scratch)), simulated: true };
+        return {
+          ...(await projection(scratch)),
+          simulated: true,
+          suggestedBatches: suggested(scratch),
+        };
       } finally {
         scratch.close();
       }
+    }
+    // Spec changed (RC2.8): what an edited spec would do to each issue, and
+    // the write once the spec is approved again. A person applies it.
+    if (name === "spec.changed.preview" || name === "spec.changed.apply") {
+      const plan = store.get("plans", input.planId);
+      if (!plan?.spec) fail("Spec plan not found.", 404);
+      const before = approvedBefore(plan) ?? plan.files,
+        after = plan.files,
+        identity = planningIdentity(this.workspaceRoot),
+        remaining = new Set(specTasks(plan.spec, after).keys()),
+        issues = await changeIssues({
+          tasks: store.read().tasks.filter((task) => task.planId === plan.id),
+          github: this.github,
+          claimLabel: (repository) =>
+            (
+              identity.repositories?.[repository]?.crewLabels ||
+              CREW_LABEL_DEFAULTS
+            ).claim,
+          localClaimed: claimedTaskIds(store),
+          remaining,
+        }),
+        rows = planSpecChange({ name: plan.spec, before, after, issues }),
+        receipt = `spec-changed:${plan.id}:${plan.hash}`,
+        approved = plan.state === "approved";
+      if (name === "spec.changed.preview")
+        return {
+          planId: plan.id,
+          hash: plan.hash,
+          approved,
+          applied: store.getMeta(receipt) ?? null,
+          rows,
+        };
+      if (context.caller || context.mcp)
+        fail("Only a person applies a spec change.", 403);
+      if (store.getMeta(receipt)) fail("This change was already applied.", 409);
+      const done = await applySpecChange(this.github, {
+        rows,
+        approved,
+        archive: (id) =>
+          store.mutate("Archive " + id, (data) => {
+            const task = data.tasks.find((item) => item.id === id);
+            task.archivedReason = "removed from the spec";
+            return archiveTask(task);
+          }),
+        project: () =>
+          projectPlanIssues(store, this.github, {
+            planId: plan.id,
+            identity,
+            holdClaimed: true,
+          }),
+      });
+      store.setMeta(receipt, done);
+      return { planId: plan.id, done };
     }
     if (name === "github.project.preview") {
       // Like `withProjectSync`, a bad Project policy never hides the issue

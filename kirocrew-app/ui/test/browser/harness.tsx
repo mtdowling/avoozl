@@ -6,7 +6,7 @@
 import { Component, useState, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { createPortal } from 'react-dom'
-import { answer, Btn, Card, Refusal, replyFor } from './stubs.tsx'
+import { answer, Btn, Card, Refusal, replyFor, useAppApi } from './stubs.tsx'
 import { NavHistoryProvider, APP_ATTR } from '../../src/NavHistory.tsx'
 import { ConfirmProvider, DangerBtn } from '../../src/controls.tsx'
 import { TaskDrawerProvider } from '../../src/TaskDrawer.tsx'
@@ -31,6 +31,9 @@ import { BudgetSettings } from '../../src/BudgetSettings.tsx'
 import { CoderPicker } from '../../src/CoderPicker.tsx'
 import ReleaseQueue from '../../src/ReleaseQueue.tsx'
 import { ReleaseModePicker } from '../../src/ReleaseMode.tsx'
+import { ProjectionModal } from '../../src/ProjectionModal.tsx'
+import { SpecChangedModal } from '../../src/SpecChangedModal.tsx'
+import { projectionClient } from '../../src/projection-api.ts'
 import PluginsSettings from '../../src/PluginsSettings.tsx'
 import SettingsView from '../../src/SettingsView.tsx'
 import { answerIntake } from './intake-fixture.ts'
@@ -44,7 +47,7 @@ import { useTaskDrawer } from '../../src/drawer-context.ts'
 
 const query = new URLSearchParams(location.search)
 document.documentElement.dataset.theme = query.get('theme') === 'dark' ? 'dark' : 'light'
-const state = ((window as unknown as { __harness: { closed: number } }).__harness = { closed: 0 })
+const state = ((window as unknown as { __harness: { closed: number; calls: { operation?: string; input?: unknown }[] } }).__harness = { closed: 0, calls: [] })
 
 // A client whose every call never settles: dialogs stay on their first step.
 const idle = new Proxy({}, { get: () => () => new Promise(() => undefined) }) as never
@@ -85,6 +88,48 @@ answer('graph.view', () => ({
   ],
 }))
 
+
+// Project to GitHub and Spec changed: sample replies. Every call is recorded
+// in __harness.calls so a test can see what was written and when.
+const write = (kind: string, taskId: string | null, extra = {}) => ({ kind, repository: 'example/recipe-box', taskId, issue: null, ...extra })
+answer('plan.issues.preview', (body) => {
+  state.calls.push(body)
+  const batched = ((body.input as { batches?: string[][] }).batches ?? []).length > 0
+  const ids = ['S1', 'S2', 'S3', 'S7', 'S8']
+  return {
+    planId: 'search-v2', planHash: 'h', conflicts: [], notes: ['Project fields: Release "search-v2", Wave 1 to 3.'], previewOnly: [], project: { status: 'ok' },
+    simulated: false,
+    suggestedBatches: [['S1', 'S2', 'S3']],
+    writes: [
+      ...ids.filter((id) => !(batched && ['S2', 'S3'].includes(id))).map((id) => write('issue.create', id, { title: `Task ${id}: a title long enough to wrap on a narrow screen` })),
+      write('blocker.add', 'S8', { blockerTaskId: 'S7' }),
+      ...ids.map((id) => write('project.add', id)),
+      write('label.add', 'S1', { labels: ['ready'] }),
+    ],
+  }
+})
+answer('github.project', (body) => {
+  state.calls.push(body)
+  return { projected: ['search-v2'] }
+})
+const changeRow = (taskId: string, title: string, change: string, issueState: string, action: string, text: string, number: number | null) => ({ taskId, title, change, issueState, action, text, number, repository: 'example/recipe-box' })
+answer('spec.changed.preview', (body) => {
+  state.calls.push(body)
+  return {
+    planId: 'search-v2', hash: 'h2', approved: query.get('approved') !== '0', applied: null,
+    rows: [
+      changeRow('S8', 'Ranking: acceptance edited', 'edited', 'unclaimed', 'update', 'Update the issue body and the approval hash.', 54),
+      changeRow('S5', 'Index builder: new step', 'edited', 'claimed', 'comment', 'Do not edit. Comment that the spec changed.', 52),
+      changeRow('S14', 'Telemetry', 'added', 'none', 'create', 'Create the issue.', null),
+      changeRow('S12', 'Docs', 'removed', 'unclaimed', 'close', 'Close as not planned.', 58),
+    ],
+  }
+})
+answer('spec.changed.apply', (body) => {
+  state.calls.push(body)
+  return { planId: 'search-v2', done: [] }
+})
+const projections = projectionClient(useAppApi() as never)
 const row = { key: 'p1', kind: 'spec', name: 'Modal plan', spec: 'modal-plan', folder: '.kiro/specs/modal-plan', planId: 'modal-plan', type: 'feature', category: null, categoryProblem: null, errors: 0, status: 'approved', tasks: { total: 3, done: 1 }, now: { ready: 1, running: 0, needsYou: 0 }, epics: 1, lastChange: null }
 const crew = { id: 'remote-1', name: 'Remote one', tags: ['linux'], trust: 'remote', gitHosts: ['github.com'], chatLimit: 2, chatLimitSet: false, delivery: 'handback', sshHost: null, worktreeRoot: null, configured: true, reading: null, ageSeconds: null, running: 0 }
 const text = ['# Guide', '', 'A short file for the viewer.', '', '## Part one', '', 'Some words.', '', '## Part two', '', 'More words.'].join('\n')
@@ -187,6 +232,8 @@ export const SCENARIOS: Record<string, Scenario> = {
   'send-to-radar': shown((close) => <SendToRadar workspaceId="w" client={idle} items={[]} repository="avoozl" onClose={close} onSent={close} />),
   crew: shown((close) => <CrewDialog crew={crew as never} onCancel={close} onSave={async () => null} />),
   'switch-model': own('Switch model', <SwitchModelButton workspaceId="w" />),
+  projection: shown((close) => <ProjectionModal workspaceId="w" client={projections} planId="search-v2" title="Search v2" onClose={close} onCreated={() => undefined} />),
+  'spec-changed': shown((close) => <SpecChangedModal workspaceId="w" client={projections} planId="search-v2" title="Search v2" onClose={close} onApplied={() => undefined} />),
   'task-drawer': own('Open the dialog', <OpenTask />),
   'mark-done': shown((close) => <MarkDoneDialog workspaceId="w" taskId="team-review" title="Review with team" onIssue onClose={close} onDone={close} />),
   // The real page shows New spec over the whole page, not inside a card.
@@ -468,6 +515,9 @@ const PAGES: Record<string, () => ReactNode> = {
   'release-queue': () => <ReleaseQueue workspaceId="w" />,
   'release-mode': () => <ReleaseModes />,
   budgets: () => <BudgetSettings workspaceId="w" />,
+  // The two modals, open at once, for the screenshots.
+  projection: () => <ProjectionModal workspaceId="w" client={projections} planId="search-v2" title="Search v2" onClose={() => undefined} onCreated={() => undefined} />,
+  'spec-changed': () => <SpecChangedModal workspaceId="w" client={projections} planId="search-v2" title="Search v2" onClose={() => undefined} onApplied={() => undefined} />,
   // Who codes in each mode: default, a set value, and Local only.
   coder: () => (
     <div className="flex flex-col gap-6">

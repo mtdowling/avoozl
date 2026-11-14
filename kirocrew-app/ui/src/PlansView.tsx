@@ -25,6 +25,9 @@ import { scrollParent, stickyHeight } from './sticky-column.ts'
 import { viewsClient, type Graph } from './views-api.ts'
 import { useSteppedState } from './NavHistory.tsx'
 import { Modal } from './Modal.tsx'
+import { ProjectionModal } from './ProjectionModal.tsx'
+import { SpecChangedModal } from './SpecChangedModal.tsx'
+import { projectionClient } from './projection-api.ts'
 import { LAYER } from './layers.ts'
 import {
   UNCATEGORIZED,
@@ -136,7 +139,7 @@ function Documents({ docs, error }: { docs: SpecDocuments | null; error: string 
 }
 
 // What projecting the approved plan would write to GitHub. Nothing is written.
-function GitHubPreview(props: { projection: ProjectionPreview | null; busy: boolean; onPreview: () => void }) {
+function GitHubPreview(props: { projection: ProjectionPreview | null; busy: boolean; onPreview: () => void; onProject: () => void; onChanged: () => void }) {
   const { projection, busy } = props
   return (
     <Card>
@@ -144,9 +147,17 @@ function GitHubPreview(props: { projection: ProjectionPreview | null; busy: bool
         title="GitHub preview"
         blurb="Lists every write a projection would make. Nothing is written."
         actions={
-          <TipBtn tooltip="List every GitHub write this spec would make. Makes none." onClick={props.onPreview} disabled={busy}>
-            {projection ? 'Preview again' : 'Preview GitHub writes'}
-          </TipBtn>
+          <div className="flex flex-wrap gap-2">
+            <TipBtn tooltip="List every GitHub write this spec would make. Makes none." onClick={props.onPreview} disabled={busy}>
+              {projection ? 'Preview again' : 'Preview GitHub writes'}
+            </TipBtn>
+            <TipBtn tooltip="Preview, choose batches and create the issues. Nothing is written until you confirm." onClick={props.onProject} disabled={busy}>
+              Project to GitHub…
+            </TipBtn>
+            <TipBtn tooltip="What an edited spec would do to each issue. Writes nothing until you apply it." onClick={props.onChanged} disabled={busy}>
+              Spec changed…
+            </TipBtn>
+          </div>
         }
       />
       {projection && (
@@ -205,6 +216,8 @@ function SpecDetail(props: {
   onReload: () => void
   onApprove: () => void
   onProjection: () => void
+  onProject: () => void
+  onChanged: () => void
 }) {
   const { spec, plan, preview, busy } = props
   const blocker = approveBlocker(plan)
@@ -312,7 +325,7 @@ function SpecDetail(props: {
         </Card>
       )}
 
-      {plan?.state === 'approved' && <GitHubPreview projection={props.projection} busy={busy} onPreview={props.onProjection} />}
+      {plan?.state === 'approved' && <GitHubPreview projection={props.projection} busy={busy} onPreview={props.onProjection} onProject={props.onProject} onChanged={props.onChanged} />}
 
       {plan && plan.approvals.length > 0 && (
         <Card>
@@ -1055,6 +1068,7 @@ export default function PlansView(props: {
   const api = useAppApi()
   const { openChat } = useChatLauncher()
   const plans = useMemo(() => plansClient(api), [api])
+  const projections = useMemo(() => projectionClient(api), [api])
   const views = useMemo(() => viewsClient(api), [api])
   const drawer = useTaskDrawer()
   const chat = useAskChat(workspace)
@@ -1081,6 +1095,7 @@ export default function PlansView(props: {
   const [plan, setPlan] = useState<SpecPlan | null>(null)
   const [preview, setPreview] = useState<Preview | null>(null)
   const [projection, setProjection] = useState<ProjectionPreview | null>(null)
+  const [dialog, setDialog] = useState<'project' | 'changed' | null>(null)
   const [docs, setDocs] = useState<SpecDocuments | null>(null)
   const [docsError, setDocsError] = useState<string | null>(null)
   const [planGraph, setPlanGraph] = useState<Graph | null>(null)
@@ -1368,6 +1383,8 @@ export default function PlansView(props: {
                 onReload={() => plan && act((workspaceId) => plans.reload(workspaceId, plan.id, plan.hash))}
                 onApprove={() => plan && act((workspaceId) => plans.approve(workspaceId, plan.id, plan.hash))}
                 onProjection={() => plan && void attempt(async () => setProjection(await plans.projection(workspace, plan.id)))}
+                onProject={() => setDialog('project')}
+                onChanged={() => setDialog('changed')}
               />
             ) : (
               <Card>
@@ -1390,6 +1407,30 @@ export default function PlansView(props: {
             )}
           </div>
         </div>
+      )}
+      {dialog && workspace && plan && (
+        <>
+          {dialog === 'project' && (
+            <ProjectionModal
+              workspaceId={workspace}
+              client={projections}
+              planId={plan.id}
+              title={plan.title}
+              onClose={() => setDialog(null)}
+              onCreated={() => void loadPlan(workspace, plan.id)}
+            />
+          )}
+          {dialog === 'changed' && (
+            <SpecChangedModal
+              workspaceId={workspace}
+              client={projections}
+              planId={plan.id}
+              title={plan.title}
+              onClose={() => setDialog(null)}
+              onApplied={() => void loadPlan(workspace, plan.id)}
+            />
+          )}
+        </>
       )}
     </section>
   )
