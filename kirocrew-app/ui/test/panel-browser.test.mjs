@@ -215,3 +215,26 @@ for (const [width, height] of [[1280, 900], [390, 800]])
       assert.ok(row.overlap > 0, `on one row (vertical overlap ${row.overlap} px)`)
       assert.ok(row.right <= row.width, 'inside the panel')
     })
+
+// The way to the app page is a styled button with the Avoozl mark, named
+// "Open Avoozl", on a wide panel and on a 390 px phone, light and dark.
+for (const [width, height] of [[1280, 900], [390, 800]])
+  for (const theme of ['light', 'dark'])
+    test(`Open Avoozl is a button with the logo at ${width} px ${theme}`, { skip }, async () => {
+      await page.open(harness.url({ page: 'panel', theme, sid: 'chat-1' }), { width, height, dark: theme === 'dark' })
+      await page.until(`Boolean(document.querySelector('[data-open-avoozl]'))`)
+      const button = await page.evaluate(`(() => {
+        const b = document.querySelector('[data-open-avoozl]')
+        const r = b.getBoundingClientRect(), s = getComputedStyle(b), logo = b.querySelector('svg').getBoundingClientRect()
+        return { tag: b.tagName, label: b.getAttribute('aria-label'), text: b.textContent.trim(), border: s.borderTopStyle, borderWidth: parseFloat(s.borderTopWidth), bg: s.backgroundColor, logo: logo.width, right: r.right, width: innerWidth, height: r.height }
+      })()`)
+      assert.equal(button.tag, 'BUTTON')
+      assert.equal(button.label, 'Open Avoozl')
+      assert.equal(button.text, 'Open Avoozl')
+      assert.equal(button.border, 'solid')
+      assert.ok(button.borderWidth >= 1, 'it has a border')
+      assert.notEqual(button.bg, 'rgba(0, 0, 0, 0)', 'it has a background')
+      assert.ok(button.logo >= 16, 'the logo shows')
+      assert.ok(button.right <= button.width, 'inside the panel')
+      assert.ok(button.height >= 28, 'big enough to tap')
+    })
