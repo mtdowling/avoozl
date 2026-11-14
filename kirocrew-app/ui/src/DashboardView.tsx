@@ -159,8 +159,6 @@ const REFRESH_MS = 20000
 // does not show whether the crew is paused, which machine it runs on, or
 // its chat, so there is no Attach here.
 export function RadarFlightRow({ row, now }: { row: RadarClaim; now: number }) {
-  const issue = linkHref(row.url ?? ''),
-    pull = row.prUrl ? linkHref(row.prUrl) : null
   return (
     <li data-radar-flight-row className="flex flex-wrap items-start gap-2 border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)' }}>
       <span data-in-flight-role style={{ flex: '0 0 7.5rem' }}>
@@ -178,13 +176,13 @@ export function RadarFlightRow({ row, now }: { row: RadarClaim; now: number }) {
         </span>
       </span>
       <span data-in-flight-actions className="flex items-center justify-end gap-3" style={{ flex: '0 0 11rem' }}>
-        {issue && (
-          <a href={issue} target="_blank" rel="noreferrer" className="text-sm underline" aria-label={`Open issue ${row.number} on GitHub`}>
+        {linkHref(row.url) && (
+          <a href={linkHref(row.url)} target="_blank" rel="noreferrer" className="text-sm underline" aria-label={`Open issue ${row.number} on GitHub`}>
             Issue
           </a>
         )}
-        {pull && (
-          <a href={pull} target="_blank" rel="noreferrer" className="text-sm underline" aria-label={`Open pull request ${row.pr} on GitHub`}>
+        {linkHref(row.prUrl) && (
+          <a href={linkHref(row.prUrl)} target="_blank" rel="noreferrer" className="text-sm underline" aria-label={`Open pull request ${row.pr} on GitHub`}>
             PR #{row.pr}
           </a>
         )}
