@@ -92,6 +92,7 @@ import { advanceGitHubBreakdowns } from "./github-breakdown.mjs";
 import { blockerNotes } from "./github-close.mjs";
 import { refreshUntriaged } from "./untriaged.mjs";
 import { mergeStep } from "./radar-merge.mjs";
+import { reviewDraftDispatches, reviewDraftStep } from "./review-draft.mjs";
 import { syncStep, syncTargets } from "./integration-sync.mjs";
 import { armStep } from "./radar-arm.mjs";
 import { headStep } from "./integration-head.mjs";
@@ -846,6 +847,30 @@ export async function tick(
             text: error.message,
           });
         }
+      // Review drafts by label (RC20): new labels, and drafts waiting on a
+      // person. Dispatch of the chats waits for the roster check below.
+      if (script && github)
+        try {
+          const step = await reviewDraftStep({
+            store,
+            github,
+            policy: readGitHubPolicyOrNull(workspaceRoot),
+            tasks: store.read().tasks,
+          });
+          planned.notify.push(...step.notify);
+          for (const text of step.errors)
+            planned.notify.push({
+              channel: "failure",
+              title: "Avoozl could not check review drafts",
+              text,
+            });
+        } catch (error) {
+          planned.notify.push({
+            channel: "failure",
+            title: "Avoozl could not check review drafts",
+            text: error.message,
+          });
+        }
       // Arm auto-merge on crew pull requests (RC5.2, RC5.8).
       if (script && github && delivery)
         try {
@@ -1206,7 +1231,9 @@ export async function tick(
             : { dispatch: [] };
       // Code review chats a person asked for (pr-review.mjs), cron only.
       const reviews =
-        script && !unobserved.length ? reviewDispatches(store) : [];
+        script && !unobserved.length
+          ? [...reviewDispatches(store), ...reviewDraftDispatches(store)]
+          : [];
       // Read each spec's plan issue again right before its dispatches; a
       // spec reassigned since the sync read dispatches nothing (R66.6).
       const taskPlan = new Map(

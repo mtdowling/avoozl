@@ -231,7 +231,9 @@ test("only the conflict label is ever written; Radar's labels are left alone", a
           { name: "ready" },
         ],
       }),
-      pull(2, { labels: [{ name: "avoozl:plan" }, { name: "crew: in progress" }] }),
+      pull(2, {
+        labels: [{ name: "avoozl:plan" }, { name: "crew: in progress" }],
+      }),
     ]);
   await run(store, github, MANUAL);
   await run(store, github, MANUAL);

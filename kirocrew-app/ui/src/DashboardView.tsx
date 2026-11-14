@@ -20,6 +20,7 @@ import ArmedPulls from './ArmedPulls.tsx'
 import { StartDemoButton } from './Demo.tsx'
 import ReleaseQueue from './ReleaseQueue.tsx'
 import IntegrationBranches from './IntegrationBranches.tsx'
+import ReviewDrafts from './ReviewDrafts.tsx'
 import { LINE_EVENT, flowClient } from './flow-api.ts'
 import Logo from './Logo'
 import { IconBtn, IconLabel, SectionHeading, ShowMore, TaskTitleLink, ViewHeading, useAskChat, usePages } from './controls.tsx'
@@ -617,6 +618,7 @@ export default function DashboardView(props: {
           </Pair>
           <ReleaseQueue workspaceId={workspaceId} />
           <IntegrationBranches workspaceId={workspaceId} />
+          <ReviewDrafts workspaceId={workspaceId} />
         </>
       ) : (
         !error && <p className="text-sm text-muted">Loading…</p>
