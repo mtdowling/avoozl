@@ -61,6 +61,7 @@ import PluginsSettings from './PluginsSettings.tsx'
 import ContentRulesSettings from './ContentRulesSettings.tsx'
 import FlowSettings from './FlowSettings.tsx'
 import DriverSessionBox from './DriverSessionBox.tsx'
+import { InstanceRename } from './InstanceName.tsx'
 import { MirrorSlot, RetiredBanner, SetupActions } from './SettingsSlots.tsx'
 import DeliverySettings from './DeliverySettings.tsx'
 import { useSteppedState } from './NavHistory.tsx'
@@ -86,6 +87,7 @@ const WIDTH = { sm: '9rem', md: '18rem', lg: '28rem' } as const
 
 export const SETTINGS_TABS = [
   { key: 'driver', label: 'Driver session' },
+  { key: 'instance', label: 'Instance name' },
   { key: 'workspaces', label: 'Workspaces' },
   // Coder, Labels, Crews and rules and the Workflow map are tabs of each repository's Edit dialog.
   { key: 'repositories', label: 'Repository setup' },
@@ -104,6 +106,8 @@ export type SettingsTab = (typeof SETTINGS_TABS)[number]['key']
 export const LOCAL_TAB_BLURB = 'The mode for this workspace. Save only writes .avoozl.json.'
 
 export const SETTINGS_BLURBS: Record<SettingsTab, string> = {
+  instance:
+    'The short name this install shows to people. Hidden markers carry a fixed ID, so a rename changes nothing on GitHub.',
   driver:
     'The chat that releases ready work and watches merges: a link to it, or a button to start one.',
   workspaces:
@@ -1497,6 +1501,7 @@ function SettingsBody(props: { tab: SettingsTab; workspaceId: string | null; onT
   const { tab, workspaceId } = props
   if (tab === 'workspaces') return <WorkspaceView selected={workspaceId} onSelect={props.onSelectWorkspace} onListChange={props.onListChange} />
   if (tab === 'driver') return <DriverSessionBox workspaceId={workspaceId} />
+  if (tab === 'instance') return workspaceId ? <InstanceRename workspaceId={workspaceId} /> : <p className="text-sm text-muted">Pick a workspace first.</p>
   if (!workspaceId)
     return (
       <EmptyState

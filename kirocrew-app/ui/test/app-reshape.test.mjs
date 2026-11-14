@@ -50,7 +50,7 @@ test('Settings is one accordion with its empty slots and setup buttons off', { s
   await click(tab('Settings'))
   await page.until(`Boolean(document.querySelector('[data-settings-accordion]'))`)
   const sections = await page.evaluate(`[...document.querySelectorAll('[data-settings-section]')].map((s) => s.dataset.settingsSection)`)
-  assert.deepEqual(sections, ['driver', 'workspaces', 'repositories', 'github', 'plugins', 'content', 'flow', 'delivery'])
+  assert.deepEqual(sections, ['driver', 'instance', 'workspaces', 'repositories', 'github', 'plugins', 'content', 'flow', 'delivery'])
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-settings-section][data-open="true"]').length`), 1)
   await click(`document.querySelector('[data-settings-section="driver"] button[aria-expanded]')`)
   await page.until(`Boolean(document.querySelector('[data-driver-session]'))`)
