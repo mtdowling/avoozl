@@ -102,7 +102,7 @@ function fakeGitHub(issues, { events = {}, permissions = {} } = {}) {
   };
 }
 
-const labeled = (login, label = "to plan") => [
+const labeled = (login, label = "avoozl:plan") => [
   { event: "labeled", label: { name: label }, actor: { login } },
 ];
 const PERMISSIONS = { owner: "admin", stranger: "read" };
@@ -169,8 +169,8 @@ test("Proof 1: only the planned issues are listed, the stranger's is left alone,
       issue(1),
       issue(2),
       issue(3),
-      issue(4, { labels: ["to plan"] }),
-      issue(5, { labels: ["to plan"] }),
+      issue(4, { labels: ["avoozl:plan"] }),
+      issue(5, { labels: ["avoozl:plan"] }),
       issue(6, { labels: ["plan me"] }),
     ],
     {
@@ -191,7 +191,7 @@ test("Proof 1: only the planned issues are listed, the stranger's is left alone,
   // No call asked for plain open issues, and nothing was written.
   assert.equal(github.calls.listIssues, 0);
   for (const query of github.calls.queries)
-    assert.match(query, /label:"[^"]*"|is:pr/);
+    assert.match(query, /label:("[^"]*"|\S)|is:pr/);
   // Plan this starts a planner chat for the planned issue only.
   const started = await ops.execute("untriaged.plan", {
     repository: REPO,

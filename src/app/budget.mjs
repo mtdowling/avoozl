@@ -233,7 +233,13 @@ const slotKey = (slot) =>
 // equal parts to each task in the batch, marked shared (R67.7).
 // Planner, critic, retro, router and code review chats are not a task's
 // work and have no cap; Flow shows them under "no task".
-const UNCAPPED = new Set(["planner", "retro", "router", "pr-review"]);
+const UNCAPPED = new Set([
+  "planner",
+  "retro",
+  "router",
+  "pr-review",
+  "review-draft",
+]);
 const capped = (b) => !UNCAPPED.has(b?.role);
 
 function turnsByTask(store, bindings) {

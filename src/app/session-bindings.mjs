@@ -12,6 +12,8 @@ const ROLES = new Set([
   "planner",
   "retro",
   "pr-review",
+  // A review draft chat (review-draft.mjs, RC20).
+  "review-draft",
   // Tries to prove a worker's findings wrong (§4.21).
   "falsifier",
   // The routing agent (§4.10): binds to its call, not a task.
@@ -155,7 +157,10 @@ export function bindSession(
           store.getMeta("routing.router.batch")?.id === named) ||
         // A code review chat binds to its request (pr-review.mjs).
         (role === "pr-review" &&
-          store.get("receipts", named)?.kind === "pr-review")
+          store.get("receipts", named)?.kind === "pr-review") ||
+        // A review draft chat binds to its draft (review-draft.mjs).
+        (role === "review-draft" &&
+          store.get("receipts", named)?.kind === "review-draft")
           ? named
           : existingTask(store, named);
     if (!taskId) fail("Task not found.", 404);

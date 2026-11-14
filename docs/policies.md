@@ -278,7 +278,7 @@ can't, the dialog says why and you type the label the crew watches.
 yours by label, not by login:
 
 - For a repository whose `coder` is `issue-radar`, the crew watches the
-  `ready` label. Avoozl adds it only to a ready leaf and takes it off when
+  ready label (`avoozl:ready` unless you set `managedLabels.ready`). Avoozl adds it only to a ready leaf and takes it off when
   the leaf is blocked again, for example when its blocker is reopened.
 - A close on an issue that carries `crew: in progress` counts as done only
   when a closing pull request merged. Otherwise Avoozl holds the dependents
@@ -306,6 +306,38 @@ on the issue and an allowed actor added it. The scope is read from the crew's
 claim comment on GitHub; see `docs/research/radar-handoff-and-crew-list.md`.
 The Dashboard's In flight list also shows each live Issue Radar claim, read
 from GitHub only.
+
+## Draft a pull request review with a label
+
+Add `avoozl:review` (`radar.reviewLabel`) to an open pull request. If you
+pass the repository's actor check (`allowedActors`, `minimumPermission`), and
+the machine running Avoozl is signed in to GitHub as you, Avoozl opens one
+read-only review chat. The chat reads the pull request, the issues it closes,
+the Issue Radar crew's claim and findings on them, and the spec tasks their
+markers name. It posts one **pending** review with line comments. Only you
+can see it. Edit it on the pull request's Files tab and submit it yourself.
+
+- When the draft is posted, Avoozl swaps `avoozl:review` for
+  `avoozl:drafted` (`radar.draftedLabel`). Search GitHub for
+  `is:pr is:open label:"avoozl:drafted"` to see every draft waiting on
+  someone. The Dashboard lists the drafts too, and Needs you has a row for
+  each one waiting on you.
+- When you submit or discard the draft, Avoozl removes `avoozl:drafted`.
+- If the pull request moves on before you submit, the row says the draft is
+  stale. Add `avoozl:review` again for a new draft on the new head. That
+  replaces Avoozl's earlier draft, your edits included.
+- If the machine is signed in as someone else, Avoozl posts nothing and
+  Needs you says so. A label from someone the policy does not allow is
+  removed.
+- Avoozl never submits, approves or requests changes. On a crew's pull
+  request, the crew answers your submitted review itself.
+
+Avoozl's own labels all start with `avoozl:` by default: `avoozl:plan`,
+`avoozl:ready`, `avoozl:plan-approved`, `avoozl:merge-conflict`,
+`avoozl:review` and `avoozl:drafted`. Each one can be renamed per repository
+under **Settings › Repositories › Crews and rules**. A repository that used
+the old defaults (`to plan`, `ready`, `plan approved`, `merge conflict`)
+without setting them now reads the new names. Set the old name to keep it.
 
 ## Manual tasks and links and notes
 
