@@ -43,6 +43,28 @@ export interface ReviewSettings {
   repositories: Record<string, ReviewRole[]>
 }
 
+// The last GitHub rate-limit numbers Avoozl saw (github-rate.mjs).
+export interface RateView {
+  resources: Record<string, { limit: number; remaining: number; resetAt: string }>
+  limitedUntil: string | null
+  limitedResource: string | null
+  calls: number
+  notModified: number
+  notModifiedShare: number | null
+}
+
+// One short line per resource, then the share of calls GitHub answered with
+// a free 304. Empty before Avoozl has made a call.
+export function rateLines(rate: RateView | undefined | null): string[] {
+  if (!rate) return []
+  const lines = Object.entries(rate.resources).map(
+    ([name, r]) => `${name}: ${r.remaining} of ${r.limit} left, resets ${new Date(r.resetAt).toLocaleTimeString()}`,
+  )
+  if (rate.limitedUntil) lines.unshift(`Limit reached (${rate.limitedResource}). Calls resume at ${new Date(rate.limitedUntil).toLocaleTimeString()}.`)
+  if (rate.notModifiedShare !== null) lines.push(`${Math.round(rate.notModifiedShare * 100)}% of ${rate.calls} calls answered 304 (free)`)
+  return lines
+}
+
 export interface GitHubSettings {
   filename: string
   exists: boolean
@@ -51,6 +73,7 @@ export interface GitHubSettings {
   effective: Policy | null
   error: string | null
   crews: CrewScope[]
+  rate?: RateView
   review?: ReviewSettings
   choices: SettingsChoices
 }

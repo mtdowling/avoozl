@@ -1,4 +1,11 @@
 import { execFileSync } from "node:child_process";
+import {
+  RateState,
+  ResponseCache,
+  limitOf,
+  rateLimitError,
+  resourceOf,
+} from "./github-rate.mjs";
 import { fail } from "./store.mjs";
 
 const API_VERSION = "2022-11-28";
@@ -153,6 +160,15 @@ export class GitHubClient {
     return this.rateLimits.get(resource) ?? null;
   }
 
+  // Keeps conditional-request answers and the rate state in `store`, so a
+  // GET GitHub answers 304 costs nothing and a limit holds every process of
+  // the workspace back. Without it the client behaves as before.
+  bind(store, { now } = {}) {
+    this.cache = store ? new ResponseCache(store, { now }) : null;
+    this.rate = store ? new RateState(store, { now }) : null;
+    return this;
+  }
+
   available() {
     return Boolean(this.token) || this.discoverToken;
   }
@@ -186,16 +202,31 @@ export class GitHubClient {
     for (const [key, value] of Object.entries(query || {}))
       if (value !== undefined && value !== null && value !== "")
         url.searchParams.set(key, String(value));
+    const resource = resourceOf(pathname),
+      held = this.rate?.held(resource);
+    if (held) throw rateLimitError(held);
+    // Every plain GET is conditional: the stored ETag and Last-Modified go
+    // back, and a 304 reuses the stored body.
+    const wanted = accept || "application/vnd.github+json",
+      key =
+        method === "GET" && !etag && this.cache
+          ? this.cache.key(this.token, wanted, url.href)
+          : null,
+      stored = key ? this.cache.get(key) : null;
     let response;
     try {
       response = await this.fetch(url, {
         method,
         headers: {
-          Accept: accept || "application/vnd.github+json",
+          Accept: wanted,
           Authorization: "Bearer " + this.token,
           "X-GitHub-Api-Version": API_VERSION,
           "User-Agent": "avoozl",
           ...(etag ? { "If-None-Match": etag } : {}),
+          ...(stored?.etag ? { "If-None-Match": stored.etag } : {}),
+          ...(stored?.lastModified
+            ? { "If-Modified-Since": stored.lastModified }
+            : {}),
           ...(body ? { "Content-Type": "application/json" } : {}),
         },
         ...(body ? { body: JSON.stringify(body) } : {}),
@@ -205,34 +236,67 @@ export class GitHubClient {
       fail("GitHub is unreachable: " + error.message, 503);
     }
     const header = (name) => response.headers?.get?.(name);
-    if (header("x-ratelimit-remaining") != null)
-      this.rateLimits.set(header("x-ratelimit-resource") || "core", {
+    if (header("x-ratelimit-remaining") != null) {
+      const seen = {
         limit: Number(header("x-ratelimit-limit")),
         remaining: Number(header("x-ratelimit-remaining")),
         resetAt: new Date(
           Number(header("x-ratelimit-reset")) * 1000,
         ).toISOString(),
+      };
+      this.rateLimits.set(header("x-ratelimit-resource") || resource, seen);
+      this.rate?.observe(header("x-ratelimit-resource") || resource, {
+        limit: seen.limit,
+        remaining: seen.remaining,
+        resetAtMs: Date.parse(seen.resetAt),
       });
-    if (etag && response.status === 304) return { notModified: true, etag };
-    const text = await response.text();
-    const value = text ? JSON.parse(text) : null;
-    if (!response.ok) {
-      const error = Error(
-        value?.message || `GitHub request failed with ${response.status}.`,
+    }
+    this.rate?.count(response.status === 304);
+    if (etag && response.status === 304) {
+      this.rate?.flush();
+      return { notModified: true, etag };
+    }
+    const reused = response.status === 304 && stored,
+      text = reused ? stored.body : await response.text();
+    let value = null;
+    try {
+      value = text ? JSON.parse(text) : null;
+    } catch (error) {
+      if (response.ok) throw error;
+    }
+    if (!response.ok && !reused) {
+      const limit = limitOf(
+        response.status,
+        response.headers,
+        value?.message,
+        resource,
+        (this.rate?.now ?? Date.now)(),
       );
-      error.status = response.status;
+      if (limit && this.rate) this.rate.limit(limit);
+      this.rate?.flush();
+      const error = limit
+        ? rateLimitError({ ...limit, scope: limit.reason })
+        : Error(
+            value?.message || `GitHub request failed with ${response.status}.`,
+          );
+      error.status = limit ? 429 : response.status;
       error.details = value;
       throw error;
     }
+    const link = reused ? stored.link || "" : header("link") || "",
+      scopes = reused ? stored.scopes : (header("x-oauth-scopes") ?? null),
+      tag = reused ? stored.etag : header("etag") || null;
+    if (key && !reused && response.ok)
+      this.cache.put(key, {
+        etag: tag,
+        lastModified: header("last-modified"),
+        body: text,
+        link,
+        scopes,
+      });
+    this.rate?.flush();
     // `headers` asks for the Link and scope headers beside the body.
-    return headers
-      ? {
-          value,
-          link: response.headers?.get?.("link") || "",
-          scopes: response.headers?.get?.("x-oauth-scopes") ?? null,
-          etag: response.headers?.get?.("etag") || null,
-        }
-      : value;
+    return headers ? { value, link, scopes, etag: tag } : value;
   }
 
   // Cursor pages, as the Projects REST API returns them (`after` in Link).

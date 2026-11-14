@@ -84,6 +84,7 @@ import { listExamples, seedExample } from "./examples.mjs";
 import { describeWorkspace } from "./client.mjs";
 import {
   defaultGitHubClient,
+  GitHubClient,
   parseRepository,
   requirePrivateRepository,
 } from "./github.mjs";
@@ -132,6 +133,7 @@ import {
   requireIntegrationBranch,
 } from "./integration-branch.mjs";
 import { mergeNeedsYou } from "./radar-merge.mjs";
+import { rateNeedsYou, rateView } from "./github-rate.mjs";
 import { syncNeedsYou } from "./integration-sync.mjs";
 import { namespaceOf, planThisRequest } from "./radar-plan-me.mjs";
 import {
@@ -936,7 +938,10 @@ export class Operations {
     this.issueVerifier = issueVerifier;
     this.plannerAgent = plannerAgent;
     // Every GitHub text write passes content rules first (§4.9).
-    this.github = guardGitHub(github || defaultGitHubClient(), store);
+    const client = github || defaultGitHubClient();
+    // Conditional reads and the rate-limit pause live in this workspace.
+    if (client instanceof GitHubClient) client.bind(store);
+    this.github = guardGitHub(client, store);
     this.configuration = configuration;
     this.workspaceRoot = workspaceRoot;
     // Given a plans root, every operation publishes its pending Markdown
@@ -2026,6 +2031,8 @@ export class Operations {
       ...this.settingsFile().readGitHubSettings(),
       effective,
       error,
+      // The last GitHub rate-limit numbers, for Settings > GitHub.
+      rate: rateView(this.store),
       // Review roles from `delivery` in the same file, shown beside each
       // repository's pull-request review settings. Read only here.
       review: reviewSettings(readDeliveryPolicy(this.workspaceRoot)),
@@ -3008,6 +3015,7 @@ export class Operations {
       view.items.push(...landingNeedsYou(store));
       view.items.push(...remoteNeedsYou(store));
       view.items.push(...syncNeedsYou(store));
+      view.items.push(...rateNeedsYou(store));
       view.items.push(
         ...radarNeedsYou(
           untriagedView(
