@@ -3537,8 +3537,8 @@ handoff`, `avoozl driver takeover --file <path>` or `--rebuild`, and
     in `.avoozl.json`. Until then the existing fail-closed rules SHALL
     hold: an unapproved plugin's tasks park (Requirement 34) and a missing
     terms file blocks its boundary (Requirement 40).
-17. The page header SHALL show the selected spec's driver: "Driver: you",
-    or the login, machine label and when it was last seen. A workspace
+17. A spec's own page and row SHALL show its driver: "Driver: you",
+    or the login, machine label and when it was last seen. The app header SHALL NOT show a driver or read-only badge. A workspace
     that is not a spec's driver SHALL show a read-only banner on that
     spec's pages saying why (assigned to someone else, another machine of
     yours, no assignee or several), with **Take over** when this login is
