@@ -7,9 +7,16 @@
 // An answer is used in the one tick that reads it, after the checks run
 // again on that tick's facts, and then dropped: nothing is cached across
 // ticks. No reply in time, a malformed reply, or a pick outside a task's
-// options falls back to local and is logged in Activity.
+// options is a routing failure (routing-health.mjs): the task stays Ready,
+// nothing runs on this machine in its place, and the call is tried again
+// after a backoff.
 import { fail } from "./store.mjs";
-import { recordActivity } from "./activity-log.mjs";
+import {
+  backingOff,
+  routeFailed,
+  routeSucceeded,
+  routingHealth,
+} from "./routing-health.mjs";
 
 const BATCH = "routing.router.batch";
 const MAX_TASKS = 50;
@@ -49,30 +56,42 @@ export const routerBatch = (store) => store.getMeta(BATCH);
 const optionKey = (o) => `${o.crew}\u0000${o.model ?? ""}`;
 
 // What placement asks for one worker: {pick: {crew, model, reason}} to
-// use, {fallback: why} to fall back to local, or {placing: true} to wait.
-// `options` are this tick's [{crew, model}] that passed the hard checks.
+// use, {failed: why, retryAt} to wait (never to run locally), or
+// {placing: true} to wait for the call. `options` are this tick's
+// [{crew, model}] that passed the hard checks.
 export function routerAnswer(store, ctx, taskId, options, facts = {}) {
   const batch = routerBatch(store);
   const mine =
     batch?.state !== "used" && batch?.tasks?.find((t) => t.task === taskId);
   if (!mine) {
+    const health = routingHealth(store);
+    // A failed call is not asked again until its backoff has passed.
+    if (backingOff(health, ctx.now))
+      return { failed: health.lastError, retryAt: health.retryAt };
     ctx.routerQueue?.push({ task: taskId, options, ...facts });
     return { placing: true };
   }
   if (batch.state === "running") return { placing: true };
-  if (batch.state === "fallback") return { fallback: batch.why };
+  if (batch.state === "failed") return { failed: batch.why };
   const pick = batch.picks?.[taskId];
-  if (!pick) return { fallback: "the routing agent gave no valid pick for it" };
-  // The checks ran again this tick: a pick that no longer passes falls back.
+  if (!pick)
+    return {
+      failed:
+        batch.bad?.[taskId] ?? "the routing agent gave no valid pick for it",
+    };
+  // The checks ran again this tick: a pick that no longer passes waits.
   if (!options.some((o) => optionKey(o) === optionKey(pick))) {
     const why = `the routing agent picked ${pick.crew} / ${pick.model ?? "default"}, which no longer passes the checks`;
-    if (ctx.script) logFallback(store, why, 1, ctx.now, taskId);
-    return { fallback: why };
+    if (ctx.script && !batch.staleFailed) {
+      store.setMeta(BATCH, { ...batch, staleFailed: true });
+      routeFailed(store, why, ctx.now);
+    }
+    return { failed: why };
   }
   return { pick };
 }
 
-// Called before planning: a running batch past its time limit falls back.
+// Called before planning: a running batch past its time limit fails.
 export function expireRouter(store, ctx, bindings) {
   const batch = routerBatch(store);
   if (batch?.state !== "running") return;
@@ -82,7 +101,7 @@ export function expireRouter(store, ctx, bindings) {
     ),
     ended = binding && ["closed", "lost"].includes(binding.status);
   if (ctx.now - Date.parse(batch.openedAt) > limit || ended)
-    fallBack(
+    failBatch(
       store,
       batch,
       ended
@@ -92,38 +111,22 @@ export function expireRouter(store, ctx, bindings) {
     );
 }
 
-function fallBack(store, batch, why, now) {
+function failBatch(store, batch, why, now) {
   const next = {
     ...batch,
-    state: "fallback",
+    state: "failed",
     why,
     finishedAt: new Date(now).toISOString(),
   };
   store.setMeta(BATCH, next);
-  logFallback(store, why, batch.tasks.length, now);
+  routeFailed(store, why, now);
   return next;
-}
-
-// Activity (R41.7): a fallback is logged once per batch or per task.
-export function logFallback(store, why, count, now = Date.now(), taskId) {
-  try {
-    recordActivity(store, {
-      source: "local",
-      actor: "avoozl",
-      kind: "routing.fallback",
-      summary: taskId
-        ? `Routing fell back to local for ${taskId}: ${why}`
-        : `Routing fell back to local for ${count} task${count === 1 ? "" : "s"}: ${why}`,
-      targetId: taskId,
-      at: new Date(now).toISOString(),
-    });
-  } catch {}
 }
 
 // After placement, on the cron's tick: an answer read this tick is spent.
 export function spendRouter(store) {
   const batch = routerBatch(store);
-  if (batch && ["answered", "fallback"].includes(batch.state))
+  if (batch && ["answered", "failed"].includes(batch.state))
     store.setMeta(BATCH, { ...batch, state: "used" });
 }
 
@@ -160,7 +163,25 @@ export function routerBrief({ prompt, tasks, crews, providers }) {
 export function openRouter(store, ctx, { folder, briefAllowed, facts }) {
   const queue = ctx.routerQueue || [];
   const current = routerBatch(store);
-  if (!queue.length || current?.state === "running" || !folder) return null;
+  if (!queue.length || current?.state === "running") return null;
+  // Every way the call cannot start is a failure, never a run on this machine.
+  if (!folder) {
+    routeFailed(
+      store,
+      "no project folder to open the routing chat in",
+      ctx.now,
+    );
+    return null;
+  }
+  const model = ctx.config.model;
+  if (model && ctx.health.level(model) === "out") {
+    routeFailed(
+      store,
+      `the routing model ${model} is out (rate limit or credits)`,
+      ctx.now,
+    );
+    return null;
+  }
   const n = (current?.n || 0) + 1,
     id = `router-${n}`,
     // shortcut: at most 50 tasks per call; the rest ask on the next tick.
@@ -182,7 +203,7 @@ export function openRouter(store, ctx, { folder, briefAllowed, facts }) {
       openedAt,
     };
   if (!briefAllowed({ taskId: id, role: "router", brief })) {
-    fallBack(store, batch, "a content rule held the routing brief", ctx.now);
+    failBatch(store, batch, "a content rule held the routing brief", ctx.now);
     return null;
   }
   store.setMeta(BATCH, { ...batch, state: "running" });
@@ -211,8 +232,8 @@ const parse = (text) => {
 };
 
 // The routing agent's answer, read from its last assistant row
-// (session-observer). Validated against each task's own options: anything
-// else falls back to local at once.
+// (session-observer). Validated against each task's own options: a task
+// without a valid pick waits, and the call counts as one failure.
 export function recordRouterReply(
   store,
   batchId,
@@ -244,7 +265,7 @@ export function recordRouterReply(
     );
   if (!shape)
     return {
-      batch: fallBack(
+      batch: failBatch(
         store,
         batch,
         "the reply was not a list of {task, crew, model, reason}",
@@ -252,36 +273,36 @@ export function recordRouterReply(
       ),
       changed: true,
     };
-  const picks = {};
+  const picks = {},
+    bad = {};
   for (const r of reply) {
     const pick = { crew: r.crew, model: r.model ?? null };
-    if (!options.get(r.task)?.has(optionKey(pick))) {
-      logFallback(
-        store,
-        `the routing agent picked ${r.crew} / ${r.model ?? "default"}, which is not one of its options`,
-        1,
-        now,
-        r.task,
-      );
-      continue;
-    }
-    picks[r.task] = { ...pick, reason: r.reason.trim() };
+    if (!options.get(r.task)?.has(optionKey(pick)))
+      bad[r.task] =
+        `the routing agent picked ${r.crew} / ${r.model ?? "default"}, which is not one of its options`;
+    else picks[r.task] = { ...pick, reason: r.reason.trim() };
   }
   for (const { task } of batch.tasks)
-    if (!picks[task] && !reply.some((r) => r.task === task))
-      logFallback(
-        store,
-        "the routing agent named no option for it",
-        1,
-        now,
-        task,
-      );
+    if (!picks[task] && !bad[task])
+      bad[task] = "the routing agent named no option for it";
   const next = {
     ...batch,
     state: "answered",
     picks,
+    bad,
     finishedAt: new Date(now).toISOString(),
   };
   store.setMeta(BATCH, next);
+  const failed = Object.entries(bad);
+  if (failed.length)
+    routeFailed(
+      store,
+      `${failed.length} of ${batch.tasks.length} tasks got no usable pick (${failed
+        .slice(0, 3)
+        .map(([task, why]) => `${task}: ${why}`)
+        .join("; ")})`,
+      now,
+    );
+  else routeSucceeded(store, now);
   return { batch: next, changed: true };
 }

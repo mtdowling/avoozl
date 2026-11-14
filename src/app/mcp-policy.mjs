@@ -83,6 +83,8 @@ export const PERSON_ONLY = new Map([
   ["routing.update", person("Only a person changes the routing prompt.")],
   ["crews.update", person("Only a person changes crew settings.")],
   ["relay.forget", person("Only a person forgets the relay chat.")],
+  ["routing.retry", person("Only a person retries routing now.")],
+  ["routing.turnOff", person("Only a person turns routing off.")],
   ["provider.switch", person("Only a person switches models.")],
   [
     "provider.switch.dryRun",

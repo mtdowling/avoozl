@@ -1644,6 +1644,11 @@ and a model for every ready worker, among the options that passed hard
 checks (criteria 2, 4, 6, 7). Off, every session runs on `local` as before.
 Providers fold into the same settings (Requirement 72).
 
+Changed 2026-11-14 (owner rule: no fallback). With routing on, a failed
+router never runs a task on this machine: the task waits, marked, and is
+retried with a backoff; after 3 failures in a row a person decides
+(criterion 7a). Only routing off runs tasks locally.
+
 **User story:** As an owner who runs several Kiro Crew instances (this
 machine plus remote crews on other machines and operating systems), I want
 Avoozl to run each task's sessions on the right crew, so that work spreads
@@ -1706,21 +1711,33 @@ user-facing work never leaves this machine.
    reply SHALL be validated against each task's options. An answer SHALL be
    used in the one tick that reads it, after the checks run again on that
    tick's facts, and SHALL NOT be cached across ticks. A bad, missing or
-   late reply (90 seconds), or a pick outside a task's options, SHALL fall
-   back to `local` and SHALL be logged in Activity. The prompt SHALL live
+   late reply (90 seconds), or a pick outside a task's options, SHALL be a
+   routing failure (criterion 7a). The prompt SHALL live
    only in machine-local settings; validation SHALL refuse it, and the old
    `routing.rules`, `routing.pick` and `routing.router` keys, in a tracked
    `.avoozl.json`. A task with one option SHALL take it without a call, and
    Avoozl SHALL record "only one choice" in the Activity log; a tick whose
    ready tasks all have one option SHALL make no routing call.
+   7a. WHILE routing is on, WHEN the router fails (its session errors or
+   ends without a reply, no reply in time, a bad reply, a pick outside the
+   options or no pick, a content rule holds its brief, its model is out,
+   or it has no folder to open in) THEN the task SHALL NOT run on `local`
+   or any crew in its place. It SHALL stay Ready, marked "routing failed"
+   with the reason. The next call SHALL wait 1, 2, 4, then 8 minutes, then
+   every 15 minutes, after each failure in a row. After 3 failures in a
+   row, Needs you SHALL show one item with **Retry now** and **Turn routing
+   off**, both person-only. Settings › Routing SHALL show the last success,
+   the last error, and the failures in a row. Each failure and each
+   recovery SHALL be one Activity row. Only routing off SHALL run tasks
+   on `local` without the router.
 8. WHEN no crew can ever pass a task's hard checks THEN the task SHALL wait
    and Avoozl SHALL open one decision naming the check that ruled each crew
    out. WHEN crews pass but none has room THEN the task SHALL wait without
    a decision. Avoozl SHALL NOT run a session on a crew that failed the
    checks, in either case.
 9. Every placement SHALL be recorded on the session binding: crew id, the
-   reason (pinned, the only option, the routing agent's reason, or the
-   fallback and why), the reading, the crews and models ruled out with why,
+   reason (pinned, the only option, the routing agent's reason, or routing
+   off), the reading, the crews and models ruled out with why,
    and the time. The Delivery view SHALL show the crew for each running
    session.
 10. WHEN a crew becomes unreachable while one of its sessions runs THEN
@@ -1855,8 +1872,10 @@ can steer where work runs without writing rules.
    routing agent's model, and canned examples the person inserts and
    edits: at least "Tests go remote", "Private repos stay local", "Spread
    the load", "Prefer Kiro models when Claude is low", and "70% Claude, 30%
-   Kiro". It SHALL show the last call's outcome, including a fallback and
-   why.
+   Kiro". It SHALL show the last call's outcome, the last success, the
+   last error, and the failures in a row (Requirement 41.7a). An older
+   backend whose reply lacks what the page reads SHALL make the page say
+   the backend is out of date, never crash it.
 4. **Providers** SHALL show each provider's health, its usage in the last
    5 hours (percent of its limit when one is set), an optional credits
    limit per provider, and one **Low at** setting (80% when unset, shown as
@@ -2595,7 +2614,7 @@ may still pin one.
    prompt stays machine-local (Requirement 41.7).
 10. Every session binding SHALL record the agent and the model asked for,
     how they were chosen (pinned, kept, the only option, the routing
-    agent's reason, or the fallback), and the model Kiro Crew reports it
+    agent's reason, or routing off), and the model Kiro Crew reports it
     ran on, when Kiro Crew reports one (design F65).
 11. Preview (Requirement 42.6) SHALL show each ready task's crew and model
     options. The Delivery view SHALL show the agent and model of each

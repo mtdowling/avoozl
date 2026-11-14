@@ -1,0 +1,87 @@
+{
+  "routing.view": {
+    "result": {
+      "crews": [
+        {
+          "id": "local",
+          "name": "local",
+          "tags": [
+            "trust:local"
+          ],
+          "trust": "local",
+          "gitHosts": [],
+          "chatLimit": 3,
+          "chatLimitSet": false,
+          "delivery": null,
+          "sshHost": null,
+          "worktreeRoot": null,
+          "configured": false,
+          "reading": {
+            "source": "node",
+            "measuredAt": "2026-11-14T03:07:08.585Z",
+            "memFreeGb": 8,
+            "diskFreeGb": 80,
+            "loadPerCpu": 0.2
+          },
+          "ageSeconds": 0,
+          "running": 0,
+          "agents": null,
+          "available": true,
+          "why": null
+        }
+      ],
+      "staleSeconds": null,
+      "machineHash": null,
+      "rules": [],
+      "workspace": {
+        "rules": [],
+        "pick": {},
+        "router": {}
+      },
+      "repositories": {},
+      "machine": {},
+      "pick": {
+        "preset": "balanced",
+        "weights": {
+          "slots": 1,
+          "memory": 1,
+          "disk": 0.5,
+          "load": 1,
+          "avoozl": 0.5,
+          "local": 0.25
+        }
+      },
+      "router": {
+        "enabled": false,
+        "model": null,
+        "timeoutSeconds": 90,
+        "hasInstructions": false
+      },
+      "instructions": "",
+      "mc10": false,
+      "remoteDispatch": false,
+      "noFit": [],
+      "labels": [],
+      "configHash": "2430f1a2ad2982d0067885488a4c89e21ad1d7c83b115ba8f1b20acc88dfaea8"
+    }
+  },
+  "routing.preview": {
+    "result": {
+      "mc10": false,
+      "items": [
+        {
+          "taskId": "sample-task",
+          "title": "Implement fixture",
+          "route": "local",
+          "crew": "local",
+          "agent": null,
+          "model": null,
+          "sessionReason": "default",
+          "reason": "no rule: local",
+          "noFit": false,
+          "whyNot": []
+        }
+      ]
+    }
+  }
+}
