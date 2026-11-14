@@ -21675,14 +21675,14 @@ var Gg = {
 	tab: Jg[e],
 	field: e
 }), Xg = {
-	ready: "ready",
 	claim: "crew: in progress",
 	needsHuman: "crew: needs human",
-	approval: "plan approved",
+	plan: "avoozl:plan",
+	ready: "avoozl:ready",
+	approval: "avoozl:plan-approved",
+	conflict: "avoozl:merge-conflict",
 	review: "avoozl:review",
-	drafted: "avoozl:drafted",
-	plan: rg.planLabel,
-	conflict: rg.conflictLabel
+	drafted: "avoozl:drafted"
 }, Zg = (e, t, n, r) => {
 	let i = e.trim();
 	return {
