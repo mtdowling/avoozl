@@ -157,6 +157,10 @@ schema. Approval and integration remain subject to the user's authorization.
 
 To refresh an installed copy, print the maintained skill with `{{CLI}} skill` and replace the installed `SKILL.md` with that output.
 
+## Waiting on CI
+
+Every chat, Issue Radar and the Avoozl tick share one GitHub login and its rate limit (5,000 REST calls an hour). To wait on a pull request's checks, run `gh pr checks <number>` once every 2 to 3 minutes. Do not use `gh pr checks --watch`, `gh run watch`, or a loop that polls faster. While Avoozl shows "GitHub rate limit reached", make no GitHub calls until the time it gives.
+
 ## Link external Claude sessions
 
 After claiming work, register the real provider identity, not just an agent

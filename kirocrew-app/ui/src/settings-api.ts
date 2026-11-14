@@ -43,6 +43,30 @@ export interface ReviewSettings {
   repositories: Record<string, ReviewRole[]>
 }
 
+// The last GitHub rate-limit numbers Avoozl saw (github-rate.mjs).
+export interface RateView {
+  // The effective github.cacheSeconds: how long Avoozl reuses a GitHub answer.
+  cacheSeconds?: number
+  resources: Record<string, { limit: number; remaining: number; resetAt: string }>
+  limitedUntil: string | null
+  limitedResource: string | null
+  calls: number
+  notModified: number
+  notModifiedShare: number | null
+}
+
+// One short line per resource, then the share of calls GitHub answered with
+// a free 304. Empty before Avoozl has made a call.
+export function rateLines(rate: RateView | undefined | null): string[] {
+  if (!rate) return []
+  const lines = Object.entries(rate.resources).map(
+    ([name, r]) => `${name}: ${r.remaining} of ${r.limit} left, resets ${new Date(r.resetAt).toLocaleTimeString()}`,
+  )
+  if (rate.limitedUntil) lines.unshift(`Limit reached (${rate.limitedResource}). Calls resume at ${new Date(rate.limitedUntil).toLocaleTimeString()}.`)
+  if (rate.notModifiedShare !== null) lines.push(`${Math.round(rate.notModifiedShare * 100)}% of ${rate.calls} calls answered 304 (free)`)
+  return lines
+}
+
 export interface GitHubSettings {
   filename: string
   exists: boolean
@@ -51,6 +75,7 @@ export interface GitHubSettings {
   effective: Policy | null
   error: string | null
   crews: CrewScope[]
+  rate?: RateView
   review?: ReviewSettings
   choices: SettingsChoices
 }
@@ -251,6 +276,8 @@ export interface RepositoryForm {
   minimumPermission: string
   requiredChecks: string
   concurrency: string
+  // github.repositories.<id>.cacheSeconds; blank follows the workspace value.
+  cacheSeconds: string
   // Release (RC4.5): the mode, and how many crews work the repository.
   releaseMode: string
   releaseCapacity: string
@@ -367,6 +394,8 @@ export interface SettingsForm {
   planningRepository: string
   defaultAuthority: string
   epicIssueType: string
+  // github.cacheSeconds; blank is 60.
+  cacheSeconds: string
   // github.subIssues.maxPerParent (R59.15); blank is GitHub's 100.
   maxPerParent: string
   // github.issues.includeDone (R74); off means only open tasks get issues.
@@ -411,6 +440,7 @@ const SHOWN = new Set([
   'minimumPermission',
   'requiredChecks',
   'concurrency',
+  'cacheSeconds',
   'priority',
   'pullRequestReviews',
   'managedLabels',
@@ -439,6 +469,7 @@ export function emptyRepository(name = ''): RepositoryForm {
     minimumPermission: '',
     requiredChecks: '',
     concurrency: '',
+    cacheSeconds: '',
     releaseMode: '',
     releaseCapacity: '',
     priority: '',
@@ -466,6 +497,7 @@ export function toForm(github: Policy): SettingsForm {
     planningRepository: str(github.planningRepository),
     defaultAuthority: str(github.defaultAuthority),
     epicIssueType: str(github.epicIssueType),
+    cacheSeconds: str(github.cacheSeconds),
     maxPerParent: (() => {
       const value = record(github.subIssues).maxPerParent
       // The default reads as blank, so an untouched file stays untouched.
@@ -487,6 +519,7 @@ export function toForm(github: Policy): SettingsForm {
         minimumPermission: str(entry.minimumPermission),
         requiredChecks: joined(entry.requiredChecks),
         concurrency: str(entry.concurrency),
+        cacheSeconds: str(entry.cacheSeconds),
         releaseMode: str(record(entry.release).mode),
         releaseCapacity: str(record(entry.release).capacity),
         priority: joined(entry.priority),
@@ -562,6 +595,7 @@ export function toPolicy(form: SettingsForm): Policy {
     planningRepository: blank(form.planningRepository) ?? null,
     defaultAuthority: blank(form.defaultAuthority) ?? null,
     epicIssueType: blank(form.epicIssueType) ?? null,
+    cacheSeconds: count(form.cacheSeconds) ?? null,
     subIssues: count(form.maxPerParent) !== undefined ? { maxPerParent: count(form.maxPerParent) } : null,
     issues: form.includeDone ? { includeDone: true } : null,
     project: hasProject
@@ -584,6 +618,7 @@ export function toPolicy(form: SettingsForm): Policy {
               minimumPermission: blank(repository.minimumPermission),
               requiredChecks: splitList(repository.requiredChecks),
               concurrency: count(repository.concurrency),
+              cacheSeconds: count(repository.cacheSeconds),
               // The mode and capacity are shown; scopes pass through unchanged.
               release: (() => {
                 const release = compact({ ...record(repository.rest.release), mode: blank(repository.releaseMode), capacity: count(repository.releaseCapacity) })
@@ -669,6 +704,7 @@ export const REPOSITORY_FIELD_RULES: Record<string, FieldRule> = {
   baseBranch: { required: true, when: 'with a GitHub mode' },
   coder: { required: false, blank: 'blank: Issue Radar in single-repo mode, worker sessions otherwise' },
   concurrency: { required: false, blank: 'blank: 1 at a time' },
+  cacheSeconds: { required: false, blank: 'blank: the workspace value' },
   releaseCapacity: { required: false, blank: 'blank: 2 at a time' },
   allowedActors: { required: false, blank: 'blank: anyone with the minimum permission' },
   minimumPermission: { required: false, blank: 'blank: write, unless actors are named' },
