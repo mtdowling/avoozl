@@ -237,12 +237,29 @@ export const RETRY_TIP = 'Starts a new attempt for this task.'
 
 // Settings > Delivery (R53.3, R54.8): the backend's defaults, shown as
 // placeholders (src/app/delivery.mjs DELIVERY_DEFAULTS).
-export const DELIVERY_DEFAULTS = { agent: 'kirocrew-worker', prFeedback: true, feedbackRounds: 5 } as const
+export const DELIVERY_DEFAULTS = {
+  agent: 'kirocrew-worker',
+  prFeedback: true,
+  feedbackRounds: 5,
+  ship: 'auto-merge',
+  investigateMode: 'not-small',
+  minConfidence: 'high',
+} as const
+
+export type ShipMode = 'auto-merge' | 'manual'
+export type InvestigateMode = 'all' | 'not-small' | 'off'
 
 export interface DeliverySettings {
   hash: string | null
   on: boolean
-  delivery: { agent?: string; model?: string; prFeedback?: boolean; feedbackRounds?: number }
+  delivery: {
+    agent?: string
+    model?: string
+    prFeedback?: boolean
+    feedbackRounds?: number
+    ship?: ShipMode
+    investigate?: { mode?: InvestigateMode; minConfidence?: 'medium' | 'high'; agent?: string; model?: string }
+  }
 }
 
 export interface DeliveryForm {
@@ -250,6 +267,11 @@ export interface DeliveryForm {
   model: string
   prFeedback: '' | 'on' | 'off'
   feedbackRounds: string
+  ship?: ShipMode
+  investigateMode?: InvestigateMode
+  minConfidence?: 'medium' | 'high'
+  // Falsifier agent and model the form does not edit; kept as they are.
+  investigateRest?: { agent?: string; model?: string }
 }
 
 export function toDeliveryForm(delivery: DeliverySettings['delivery'] = {}): DeliveryForm {
@@ -258,6 +280,13 @@ export function toDeliveryForm(delivery: DeliverySettings['delivery'] = {}): Del
     model: delivery.model ?? '',
     prFeedback: delivery.prFeedback === undefined ? '' : delivery.prFeedback ? 'on' : 'off',
     feedbackRounds: delivery.feedbackRounds === undefined ? '' : String(delivery.feedbackRounds),
+    ship: delivery.ship ?? DELIVERY_DEFAULTS.ship,
+    investigateMode: delivery.investigate?.mode ?? DELIVERY_DEFAULTS.investigateMode,
+    minConfidence: delivery.investigate?.minConfidence ?? DELIVERY_DEFAULTS.minConfidence,
+    investigateRest: {
+      ...(delivery.investigate?.agent ? { agent: delivery.investigate.agent } : {}),
+      ...(delivery.investigate?.model ? { model: delivery.investigate.model } : {}),
+    },
   }
 }
 
@@ -275,5 +304,30 @@ export function toDeliverySection(form: DeliveryForm): { delivery?: DeliverySett
     if (!Number.isInteger(n) || n < 1 || n > 20) return { error: 'Feedback rounds is a whole number 1–20.' }
     delivery.feedbackRounds = n
   }
+  // A default value is left out, so a later default change still applies.
+  if (form.ship && form.ship !== DELIVERY_DEFAULTS.ship) delivery.ship = form.ship
+  const investigate = {
+    ...(form.investigateMode && form.investigateMode !== DELIVERY_DEFAULTS.investigateMode ? { mode: form.investigateMode } : {}),
+    ...(form.minConfidence && form.minConfidence !== DELIVERY_DEFAULTS.minConfidence ? { minConfidence: form.minConfidence } : {}),
+    ...(form.investigateRest ?? {}),
+  }
+  if (Object.keys(investigate).length) delivery.investigate = investigate
   return { delivery }
 }
+
+// Settings > Delivery's ship fold-out (§4.25): one line each, and what the
+// writer, Avoozl and the person do.
+export const SHIP_CHOICES: { key: ShipMode; title: string; line: string; who: [string, string, string] }[] = [
+  {
+    key: 'auto-merge',
+    title: 'Auto-merge',
+    line: 'The writer turns on GitHub auto-merge; the pull request merges when its checks and reviews pass.',
+    who: ['Turns on auto-merge', 'Waits for the merge', 'Nothing'],
+  },
+  {
+    key: 'manual',
+    title: 'I merge',
+    line: 'Auto-merge stays off. Needs you shows Ready to merge with a link when checks and reviews pass.',
+    who: ['Leaves auto-merge off', 'Shows Ready to merge', 'Merges on GitHub, or presses Integrate for a local task'],
+  },
+]

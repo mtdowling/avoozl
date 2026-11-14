@@ -95,6 +95,14 @@ export const PERSON_ONLY = new Map([
   ],
   ["delivery.pickAgain", person("Only a person presses Pick again.")],
   [
+    "delivery.integrate",
+    person("Only a person presses Integrate on a Ready to merge task."),
+  ],
+  [
+    "investigation.decide",
+    person("Only a person decides on a task's findings."),
+  ],
+  [
     "delivery.settings.update",
     person("Only a person changes delivery settings."),
   ],

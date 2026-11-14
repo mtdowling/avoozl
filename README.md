@@ -337,6 +337,40 @@ Avoozl writes nothing to GitHub here. It is on by default, for at most 5
 rounds per leaf; set `delivery.prFeedback` and `delivery.feedbackRounds`, or
 use **Settings > Delivery**. Issue Radar's leaves are skipped.
 
+When a pull request's base branch moves and the pull request then conflicts
+with it, or falls behind a base that requires branches to be up to date, the
+writer gets one message to merge the base branch in with a merge commit.
+Avoozl never asks for a force push, and drops any brief or message that does.
+
+## Investigate first, evidence, and who merges
+
+These are built and tested with fakes only; no live run has used them yet.
+
+- **Investigate first** (`delivery.investigate`): before it changes a file,
+  a worker reports what it read, the cause it believes, the change it plans,
+  how it will check it, and how sure it is. A second, read-only chat tries
+  to prove that wrong. Coding starts only when both are sure enough
+  (`minConfidence`, default `high`) and the findings stand; otherwise the
+  task waits in Needs you with **Go ahead**, **Investigate again** and
+  **Stop**. `mode` is `not-small` (default), `all` or `off`; a manifest task
+  may set `investigate: true` or `false`.
+- **Evidence**: each task keeps one bundle under `.avoozl/local/evidence/`
+  with its findings, decisions, review verdicts, check results and the
+  images or videos (at most 20 MB) the worker attaches. The task drawer shows
+  it, and one comment on the pull request holds its text summary.
+- **Who merges** (`delivery.ship`): `auto-merge` (default) has the writer turn
+  on GitHub auto-merge. `manual` keeps it off and shows **Ready to merge** in
+  Needs you when checks and reviews pass; you merge on GitHub, or press
+  **Integrate** for a local task. A repository, spec manifest (`ship`) or
+  task may set its own. Avoozl never merges a pull request itself.
+- **Rules from corrections**: changes requested, work sent back with a
+  reason, a revert of an agent's commit, and Pick again with a reason are
+  recorded. When the retro sees the same correction on two tasks it may
+  propose a rule; once you approve it, it lands as one task that edits
+  `.kiro/steering/avoozl-rules.md` in that repository.
+- Flow shows the share of finished tasks that were bug fixes, and
+  corrections per week.
+
 ## Agents and the CLI
 
 Agent sessions in Kiro Crew reach Avoozl through the app's `avoozl` MCP

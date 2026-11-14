@@ -338,6 +338,8 @@ test("the tick dispatches ready local leaves by rank, then graph order, within l
     { ...intent, brief: undefined },
     {
       task: "urgent",
+      // Investigate first is on by default for a leaf not marked small.
+      investigate: true,
       role: "worker",
       attempt: 1,
       title: "avoozl:urgent Task urgent",

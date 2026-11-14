@@ -115,6 +115,14 @@ export function ConflictActions(props: {
           onDone={(text) => run(async () => ({ ok: true, text }))}
         />
       )}
+      {item.kind === 'investigation' && item.taskId && <InvestigationActions item={item} busy={busy} onDecide={(action, text) => run(async () => {
+        await views.decideInvestigation(workspaceId, item.taskId!, action)
+        return { ok: true, text }
+      })} />}
+      {item.kind === 'ready-to-merge' && <ReadyToMerge item={item} busy={busy} onIntegrate={() => run(async () => {
+        await views.integrate(workspaceId, item.taskId!, item.commit)
+        return { ok: true, text: `${item.taskId} lands on the next tick.` }
+      })} />}
       {item.kind === 'content-match' && item.id && (
         <ContentActions id={item.id} readable={item.readable === true} workspaceId={workspaceId} busy={busy} run={run} />
       )}
@@ -215,6 +223,91 @@ export function ConflictActions(props: {
         )}
       </div>
       {why && <p className="text-xs text-muted">{why}</p>}
+    </div>
+  )
+}
+
+const CONFIDENCE_LABEL = { low: 'Low', medium: 'Medium', high: 'High' } as const
+
+// Findings the gate did not pass (§4.21): what the worker found, what the
+// falsifier said, and the person's three choices.
+export function InvestigationActions(props: {
+  item: ConflictItem
+  busy: boolean
+  onDecide: (action: 'go' | 'again' | 'stop', text: string) => void
+}) {
+  const { item, busy } = props
+  const f = item.findings
+  const row = (label: string, value: string) => (
+    <div className="min-w-0">
+      <dt className="text-xs text-muted">{label}</dt>
+      <dd className="whitespace-pre-wrap break-words text-sm">{value}</dd>
+    </div>
+  )
+  return (
+    <div className="flex flex-col gap-2" data-investigation={item.taskId}>
+      {f && (
+        <dl className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 16rem), 1fr))' }}>
+          {row('Read', f.read)}
+          {row('Cause or approach', f.cause)}
+          {row('Planned change', f.plan)}
+          {row('How it is checked', f.check)}
+          {row('Worker is sure', CONFIDENCE_LABEL[f.confidence])}
+        </dl>
+      )}
+      {item.reply && (
+        <div className="rounded border p-2 text-sm" style={{ borderColor: 'var(--border)' }}>
+          <div className="text-xs text-muted">
+            Falsifier: {item.reply.verdict === 'refuted' ? 'refuted' : 'stands'}, {CONFIDENCE_LABEL[item.reply.confidence].toLowerCase()} confidence
+          </div>
+          <p className="mt-1 whitespace-pre-wrap break-words">{item.reply.evidence}</p>
+        </div>
+      )}
+      <div className="flex flex-wrap items-center gap-2">
+        <IconLabel icon={Check} tooltip="The worker codes the change it planned" disabled={busy} onClick={() => props.onDecide('go', `Go ahead sent to ${item.taskId}.`)}>
+          Go ahead
+        </IconLabel>
+        <IconLabel icon={RefreshCw} tooltip="One more round: the worker reads the falsifier's reply and reports new findings" disabled={busy} onClick={() => props.onDecide('again', `${item.taskId} investigates again.`)}>
+          Investigate again
+        </IconLabel>
+        <DangerBtn
+          icon={X}
+          tooltip="The worker stops and reports blocked"
+          disabled={busy}
+          confirm={{ title: `Stop ${item.taskId}?`, body: 'The worker changes nothing and reports blocked. You can retry the task later.', action: 'Stop' }}
+          onConfirm={() => props.onDecide('stop', `${item.taskId} stops.`)}
+        >
+          Stop
+        </DangerBtn>
+      </div>
+    </div>
+  )
+}
+
+// Ready to merge (§4.25): a link to the pull request a person merges on
+// GitHub, or Integrate for a local task.
+export function ReadyToMerge(props: { item: ConflictItem; busy: boolean; onIntegrate: () => void }) {
+  const { item, busy } = props
+  const link = safeHref(item.link ?? null)
+  return (
+    <div className="flex flex-wrap items-center gap-2" data-ready-to-merge={item.taskId}>
+      {link && (
+        <a href={linkHref(link)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm underline">
+          <ExternalLink size={14} aria-hidden="true" />
+          Open pull request{item.pullRequest ? ` #${item.pullRequest}` : ''} to merge it
+        </a>
+      )}
+      {item.integrate && (
+        <DangerBtn
+          icon={Check}
+          tooltip="Land this task's verified commit on its integration branch"
+          disabled={busy}
+          confirm={{ title: `Integrate ${item.taskId}?`, body: `Avoozl lands commit ${String(item.commit ?? '').slice(0, 12)} on the next tick, after its checks run again.`, action: 'Integrate' }}
+          onConfirm={props.onIntegrate}
+        >
+          Integrate
+        </DangerBtn>
+      )}
     </div>
   )
 }

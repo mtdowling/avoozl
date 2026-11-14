@@ -169,7 +169,7 @@ def run(ctx):
         # bound, empty session the next tick messages (§4.6). The binding
         # records the model it was opened on and the commit it judges.
         binding = {"taskId": d["task"], "slot": slot, "title": d["title"], "source": "tick"}
-        for key in ("role", "attempt", "model", "commit", "batch", "crew", "placement", "sessionReason"):
+        for key in ("role", "attempt", "model", "commit", "batch", "crew", "placement", "sessionReason", "investigate"):
             if d.get(key):
                 binding[key] = d[key]
         # The agent is recorded once placement chose it (R53.10).

@@ -98,6 +98,10 @@ const tools = {
         "the activity log: {source?, kind?, actor?, offset?}, 100 rows a page",
       ],
       recent: ["activity.recent", "recent task events"],
+      evidence: [
+        "task.evidence",
+        "one task's evidence bundle, newest first: {taskId, file?}",
+      ],
       queue: ["queue", "ready work, resource conflicts, queued integration"],
       next: ["runner.next", "what a Crew Mode conductor does next"],
       query: ["query", "search tasks"],
