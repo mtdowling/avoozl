@@ -18,6 +18,7 @@ import {
   MACHINE_ID,
   parseMarker,
   planningIdentity,
+  radarIssueRepository,
   renderMarker,
   requireNamespace,
 } from "./github-marker.mjs";
@@ -255,12 +256,16 @@ function planIssueConfig(store, plan, identity) {
     ),
     projectId = task?.projectId || plan.context?.projectId,
     configs = store.list("github_repositories");
-  const config =
-    (identity.mode === "plans-repo"
-      ? configs.find((entry) => same(entry.id, identity.planningRepository))
-      : null) ||
-    (projectId && configs.find((entry) => entry.projectId === projectId)) ||
-    (configs.length === 1 ? configs[0] : null);
+  const own =
+      projectId && configs.find((entry) => entry.projectId === projectId),
+    config =
+      // An `issue-radar` code repository holds its own plan issue (D4.1).
+      (own && radarIssueRepository(identity, own.id) ? own : null) ||
+      (identity.mode === "plans-repo"
+        ? configs.find((entry) => same(entry.id, identity.planningRepository))
+        : null) ||
+      own ||
+      (configs.length === 1 ? configs[0] : null);
   if (!config)
     fail(`No GitHub repository is registered for spec ${plan.id}.`, 409);
   return config;
