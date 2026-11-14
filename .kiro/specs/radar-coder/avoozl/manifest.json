@@ -1,0 +1,1132 @@
+{
+  "version": 1,
+  "tasks": {
+    "rc-1.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Per-repository `coder` in both GitHub modes, and the label set. See RC1.1, RC1.3; \u00a7D2.",
+      "acceptance": [
+        "`issue-radar` validates in plans-repo mode; a policy with two equal label names is refused naming both; defaults are `to plan`, `ready`, `crew: in progress`, `merge conflict`; `npm test` passes."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "rc-1.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Plan only the planning label, Untriaged off for Radar-coded repositories. See RC1.2, RC1.5, RC1.8; \u00a7D3.",
+      "acceptance": [
+        "No list call for plain open issues is made for a Radar-coded repository (checked with a fake GitHub that records calls); a planning label added by a disallowed account does nothing; the plan-me routing tests of PR 67 still pass unchanged."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-1.1"
+      ]
+    },
+    "rc-1.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Source issue becomes the parent, planning label cleared only by setting. See RC1.4, RC1.6, RC1.7; \u00a7D3.",
+      "acceptance": [
+        "A fake-GitHub test shows the source is the parent, no claim or needs-human write ever happens, and the Needs you row appears once across three ticks."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-1.2"
+      ]
+    },
+    "rc-p1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Proof 1: Avoozl lists only what it was asked to plan. See RC1; \u00a7D17.",
+      "acceptance": [
+        "Expected result observed; a receipt under `docs/evidence/` records setup, action, observation and verdict."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-1.1",
+        "rc-1.2",
+        "rc-1.3"
+      ]
+    },
+    "rc-2.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Plans-repo mode projects issues into the code repository. See RC2.2, RC2.3; \u00a7D4.1.",
+      "acceptance": [
+        "With a fake GitHub, single-repo and plans-repo projections write issues only into the code repository; plans-repo with `coder: worker` still writes into the plans repository; closing works in both forms."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-1.1"
+      ]
+    },
+    "rc-2.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Show the plans repository name in issues, a per-repository switch. See RC2.4; \u00a7D4.1.",
+      "acceptance": [
+        "A public code repository with the switch off is refused; turning it on writes the name after a content-rules pass; a private one writes it by default."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-2.1"
+      ]
+    },
+    "rc-2.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Batch planner for small ready tasks. See RC2.5; \u00a7D4.2.",
+      "acceptance": [
+        "Tests cover: blocked tasks never batch; the cap at 3 and at 5; an edge between two tasks splits them; a batch of one stays plain; `flow.batch.max` above 5 is refused."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-1.1"
+      ]
+    },
+    "rc-2.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Batch issues keep each task ID separate and close together. See RC2.6, RC2.7; \u00a7D4.2.",
+      "acceptance": [
+        "A fake merged pull request that closes a three-task batch completes all three tasks; unticked boxes change nothing; the Graph shows the batch node with its members."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-2.1",
+        "rc-2.3"
+      ]
+    },
+    "rc-2.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Project to GitHub preview and Spec changed diff. See RC2.1, RC2.8; \u00a7D4.3.",
+      "acceptance": [
+        "Nothing is written before the confirm (a fake GitHub records zero writes); a claimed issue is never edited; a removed task closes as not planned; drawn at 320, 768 and 1280 px, light and dark."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-2.3"
+      ]
+    },
+    "rc-2.6": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Preflight checks in the preview. See RC2.9; \u00a7D4.3.",
+      "acceptance": [
+        "Each failing preflight item refuses Create and release and names the item; a passing run enables it."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-2.1",
+        "rc-5.1"
+      ]
+    },
+    "rc-p2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Proof 2: spec to issues in both modes. See RC2; \u00a7D17.",
+      "acceptance": [
+        "Expected result observed on real scratch repositories; receipt under `docs/evidence/`."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-2.1",
+        "rc-2.2",
+        "rc-2.3",
+        "rc-2.4",
+        "rc-2.5",
+        "rc-2.6"
+      ]
+    },
+    "rc-3.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Provenance marker writer and parser. See RC3.1; \u00a7D5.1.",
+      "acceptance": [
+        "Round-trip, unknown key, unknown version, duplicate marker, a space in a value, a bad commit and a path-like value are each tested."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "rc-3.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Approve opens an approval pull request and records the merged commit. See RC3.6, RC3.8; \u00a7D5.2.",
+      "acceptance": [
+        "Approving does not change the spec hash; no commit is recorded before the merge; a closed unmerged approval pull request records nothing; a spec with lint errors cannot be approved."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-3.1"
+      ]
+    },
+    "rc-3.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "verify-issue checks: marker, approver, author, spec, commit. See RC3.2\u2013RC3.5; \u00a7D5.3.",
+      "acceptance": [
+        "Tests: all ok; each check failing alone, with the others reported; a 404 and a 403 each fail the check; plans-repo reads; `behind`, `ahead`, `diverged` and `identical` compare results; no issue text appears in the output."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-3.1"
+      ]
+    },
+    "rc-3.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "CLI `avoozl verify-issue` and MCP tool `plans_verify_issue`. See RC3.2, RC3.4; \u00a7D5.3.",
+      "acceptance": [
+        "Exit codes tested for each case; the command works with no workspace and no token other than the caller's `gh` login; `aicommander verify-issue` works."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-3.3"
+      ]
+    },
+    "rc-3.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "The one-line Additional prompt, shipped verbatim. See RC3.7; \u00a7D5.4.",
+      "acceptance": [
+        "A test fails if the constant, `design.md` D5.4 and the Set up text differ."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-3.4"
+      ]
+    },
+    "rc-3.6": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Projection writes the marker. See RC2.10, RC3.1; \u00a7D5.1.",
+      "acceptance": [
+        "Both modes write a valid marker that `verify-issue` accepts against a fake GitHub; a private name in any value is refused."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-3.1",
+        "rc-2.1"
+      ]
+    },
+    "rc-p3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Proof 3: a real crew verifies, and each bad issue is refused. See RC3; \u00a7D17.",
+      "acceptance": [
+        "Expected result observed live; receipt under `docs/evidence/`."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-3.2",
+        "rc-3.4",
+        "rc-3.5",
+        "rc-3.6"
+      ]
+    },
+    "rc-4.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Release engine: capacity per repository and per scope. See RC4.1, RC4.2, RC4.7; \u00a7D6.",
+      "acceptance": [
+        "With N=2 and five eligible tasks, two get the label; claiming one keeps its slot; two scopes release independently; a second tick writes nothing."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-1.1",
+        "rc-2.1"
+      ]
+    },
+    "rc-4.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Remove ready on Stop the line, reopen and re-block. See RC4.3; \u00a7D6.",
+      "acceptance": [
+        "A claimed issue keeps its labels; unclaimed ones lose ready; the comment is posted once across three ticks."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-4.1"
+      ]
+    },
+    "rc-4.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase gate: release the next phase after the previous one merged. See RC4.4; \u00a7D6.",
+      "acceptance": [
+        "A phase with one task closed by order stays held; merging it releases the next phase on the next tick."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-4.1"
+      ]
+    },
+    "rc-4.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Release mode radio fold-out and the Release queue. See RC4.5, RC4.6; \u00a7D6.",
+      "acceptance": [
+        "Step waits for one click per phase; Hold releases nothing; the queue shows the reason for each held item; drawn at 320, 768 and 1280 px."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-4.1"
+      ]
+    },
+    "rc-p4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Proof 4: release honors N, scopes, phases and the stop. See RC4; \u00a7D17.",
+      "acceptance": [
+        "Expected result observed live; receipt under `docs/evidence/`."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-4.1",
+        "rc-4.2",
+        "rc-4.3",
+        "rc-4.4"
+      ]
+    },
+    "rc-5.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Merge path check. See RC5.1; \u00a7D7.",
+      "acceptance": [
+        "Each missing item is named; a repository with all three reads ready; `manual` shows a warning only."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-1.1"
+      ]
+    },
+    "rc-5.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Arm GitHub auto-merge on crew pull requests. See RC5.2, RC5.5; \u00a7D7.",
+      "acceptance": [
+        "A fork pull request, a pull request from a stranger, a draft, and one closing an unmarked issue are not armed; the right one is armed exactly once across three ticks."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-5.1",
+        "rc-3.1"
+      ]
+    },
+    "rc-5.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Manual mode and the conflict label. See RC5.3, RC5.6, RC5.7; \u00a7D7.",
+      "acceptance": [
+        "Manual arms nothing; a conflicted pull request gets the label and one row; resolving it removes both."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-5.1"
+      ]
+    },
+    "rc-5.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Stop the line stops arming, and Disarm. See RC5.4; \u00a7D7.",
+      "acceptance": [
+        "With a stop open a new pull request stays unarmed; Disarm is refused for an agent or app token."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-5.2",
+        "rc-4.2"
+      ]
+    },
+    "rc-5.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Re-verify before arming. See RC5.8; \u00a7D7.",
+      "acceptance": [
+        "An edited marker blocks arming; an unchanged marker runs the check once across three ticks."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-5.2",
+        "rc-3.3"
+      ]
+    },
+    "rc-p5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Proof 5: auto-merge on the right pull requests only. See RC5; \u00a7D17.",
+      "acceptance": [
+        "Expected result observed live; receipt under `docs/evidence/`."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-5.2",
+        "rc-5.3",
+        "rc-5.4",
+        "rc-5.5"
+      ]
+    },
+    "rc-6.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Ship `avoozl-crew` in the app. See RC6.1, RC6.2, RC6.6; \u00a7D8.",
+      "acceptance": [
+        "The built app contains the agent; its tool list holds `plans_verify_issue` and Radar's two crew tools; a build without `bin/lib` is refused with the command to run."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-3.4"
+      ]
+    },
+    "rc-6.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Crew tools need no workspace and return the brief. See RC6.3; \u00a7D8.",
+      "acceptance": [
+        "A call with no workspace succeeds; the brief appears only when every check is ok; no listed tool answers \"no workspace\"."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-3.3"
+      ]
+    },
+    "rc-6.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Set up verifies the agent is in Radar's Agent list. See RC6.5; \u00a7D8.",
+      "acceptance": [
+        "The three outcomes each show a distinct state; a fake Radar list without the agent shows missing."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-6.1"
+      ]
+    },
+    "rc-p6": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Proof 6: a crew on avoozl-crew verifies and builds. See RC6; \u00a7D17.",
+      "acceptance": [
+        "Expected result observed live; receipt under `docs/evidence/`."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-6.1",
+        "rc-6.2",
+        "rc-6.3"
+      ]
+    },
+    "rc-7.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Set up steps through `gh`: labels, branch rule, auto-merge setting. See RC7.1; \u00a7D9.",
+      "acceptance": [
+        "Against a fake GitHub each step writes once after confirm; a missing permission writes nothing and names the permission."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-1.1",
+        "rc-5.1"
+      ]
+    },
+    "rc-7.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Review-rules pull request to `AGENTS.md`, and the Project. See RC7.1, RC3.7; \u00a7D9.",
+      "acceptance": [
+        "The pull request text passes content rules; the Project fields match Requirement 29."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-7.1",
+        "rc-3.5"
+      ]
+    },
+    "rc-7.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "The Radar values screen and re-read. See RC7.2, RC7.3; \u00a7D9.",
+      "acceptance": [
+        "Every value has Copy; the grant path ticks a fake Radar's items; the no-grant path shows checkboxes; drawn at 320, 768 and 1280 px."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-3.5",
+        "rc-6.3"
+      ]
+    },
+    "rc-7.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Crews and rules settings in the app's style. See RC7.6; \u00a7D9.",
+      "acceptance": [
+        "A UI test fails on \"same as above\", on a model price field, or on a mode that is not a radio fold-out."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-7.3"
+      ]
+    },
+    "rc-7.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Team pack with a `crews` section. See RC7.4, RC7.5; \u00a7D9.",
+      "acceptance": [
+        "A pack with a private name is refused; applying writes only after the preview confirm; `sdk-team` validates."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-7.3"
+      ]
+    },
+    "rc-p7": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Proof 7: Set up end to end. See RC7; \u00a7D17.",
+      "acceptance": [
+        "Expected result observed live; receipt under `docs/evidence/`."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-7.1",
+        "rc-7.2",
+        "rc-7.3",
+        "rc-7.4",
+        "rc-7.5"
+      ]
+    },
+    "rc-8.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Home: On the line, Release queue, Progress by goal, Needs you. See RC8.1, RC8.4, RC8.7; \u00a7D10.",
+      "acceptance": [
+        "Rows come from claim markers only; paused, machine and chat are not shown without Variant A; drawn at 320, 768 and 1280 px, light and dark."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-4.4"
+      ]
+    },
+    "rc-8.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Trace drawer and page. See RC8.2; \u00a7D10.",
+      "acceptance": [
+        "A claim marker with `updated=` ahead of GitHub's time still shows GitHub's time; the page opens by URL and Back returns."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-8.1"
+      ]
+    },
+    "rc-8.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Side panel tab. See RC8.3; \u00a7D10.",
+      "acceptance": [
+        "Each chat kind shows its content; the URL-shape test exists."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-3.2"
+      ]
+    },
+    "rc-8.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Flow from GitHub data. See RC8.5; \u00a7D10.",
+      "acceptance": [
+        "Stage times computed from fixture events match hand-computed values."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-8.1"
+      ]
+    },
+    "rc-8.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Retro rule targets: AGENTS.md, steering, Additional prompt text. See RC8.6; \u00a7D10.",
+      "acceptance": [
+        "Applying a repo rule opens a pull request; the prompt target writes nothing to Radar; the check runs after N issues."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-8.4",
+        "rc-3.5"
+      ]
+    },
+    "rc-8.6": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Variant A: Radar's crew list through one grant. See RC8.1; \u00a7D10.",
+      "acceptance": [
+        "Without the grant nothing changes; with it, crews and counts show."
+      ],
+      "completion": "person",
+      "requires": [
+        "rc-8.1"
+      ],
+      "manual": true
+    },
+    "rc-p8": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Proof 8: observe, and a retro rule a crew follows. See RC8; \u00a7D17.",
+      "acceptance": [
+        "Expected result observed live; receipt under `docs/evidence/`."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-8.1",
+        "rc-8.2",
+        "rc-8.3",
+        "rc-8.4",
+        "rc-8.5"
+      ]
+    },
+    "rc-9.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Planner chat, proposal shape and promote rules. See RC9.1, RC9.4; \u00a7D11.",
+      "acceptance": [
+        "A proposal with a task lacking evidence is refused; each promote rule triggers alone; the budget stops the chat."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-3.2"
+      ]
+    },
+    "rc-9.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Mini-spec writer and approval. See RC9.3, RC9.5; \u00a7D11.",
+      "acceptance": [
+        "The folder lints with 0 errors; a private name in the prompt is removed or refused; the marker passes `verify-issue`."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-9.1",
+        "rc-3.2"
+      ]
+    },
+    "rc-9.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Quick goal modal, proposal screen, Promote to spec. See RC9.1, RC9.2, RC9.4, RC9.6; \u00a7D11.",
+      "acceptance": [
+        "Nothing is written before Approve; Promote keeps task IDs and issue links; drawn at 320, 768 and 1280 px."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-9.2",
+        "rc-2.5"
+      ]
+    },
+    "rc-p9": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Proof 9: Make tests faster. See RC9; \u00a7D17.",
+      "acceptance": [
+        "Expected result observed live; receipt under `docs/evidence/`."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-9.1",
+        "rc-9.2",
+        "rc-9.3"
+      ]
+    },
+    "rc-10.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Hold release for a public repository until the public sign-off is complete. See RC10.1, RC10.2; \u00a7D12.",
+      "acceptance": [
+        "A public repository with no sign-off releases nothing and says why; once that work lands the check reads its sign-off."
+      ],
+      "completion": "person",
+      "requires": [
+        "rc-4.1"
+      ],
+      "manual": true
+    },
+    "rc-10.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "verify-issue output is safe to post. See RC10.3, RC10.4; \u00a7D12.",
+      "acceptance": [
+        "The test fails when a path prints text from an issue; the release scan finds nothing."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-3.3"
+      ]
+    },
+    "rc-p10": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Proof 10: public repository. See RC10; \u00a7D17.",
+      "acceptance": [
+        "Expected result observed; receipt under `docs/evidence/`."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-10.1",
+        "rc-10.2"
+      ]
+    },
+    "rc-q3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Q3: note for Kiro Crew asking for `scope=` in the claim marker. See RC12.2, RC12.4; \u00a7D16.",
+      "acceptance": [
+        "The note exists and says exactly what key and why; the report names the release checked."
+      ],
+      "completion": "answered"
+    },
+    "rc-q4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Q4: re-check the `updated=` time on a later release. See RC12.2; \u00a7D16.",
+      "acceptance": [
+        "The report states the release, the five differences and whether stale detection may use `updated=`."
+      ],
+      "completion": "person",
+      "manual": true
+    },
+    "rc-q5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Q5: a crew with no access to the plans repository. See RC12.2; \u00a7D16.",
+      "acceptance": [
+        "The report states the result and either closes Q5 or proposes the mirror task."
+      ],
+      "completion": "answered",
+      "requires": [
+        "rc-3.4"
+      ]
+    },
+    "rc-q6": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Q6: does a crew take a mini-spec issue. See RC12.2; \u00a7D16.",
+      "acceptance": [
+        "The report states the result and whether a decision record or Promote is required."
+      ],
+      "completion": "answered",
+      "requires": [
+        "rc-9.2",
+        "rc-3.5"
+      ]
+    },
+    "rc-q7": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Q7: does the one-line prompt make the decision record unnecessary. See RC12.2; \u00a7D16.",
+      "acceptance": [
+        "The report states the result and sets `approval.decisionRecord`'s default."
+      ],
+      "completion": "answered",
+      "requires": [
+        "rc-3.5"
+      ]
+    },
+    "rc-q8": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Q8: the plans repository name in a public marker. See RC12.2; \u00a7D16.",
+      "acceptance": [
+        "The report states the choice: switch on, or spec moved into the code repository."
+      ],
+      "completion": "person",
+      "requires": [
+        "rc-2.2"
+      ],
+      "manual": true
+    },
+    "rc-q9": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Q9: the default label names. See RC12.2; \u00a7D16.",
+      "acceptance": [
+        "The report lists each label, its source and the decision; defaults in `rc-1.1` match."
+      ],
+      "completion": "person",
+      "manual": true
+    },
+    "rc-p11": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Proof 11: the whole path on a real repository, Q1 and Q2. See RC11.1, RC12; \u00a7D16, D17.",
+      "acceptance": [
+        "Expected result observed live and accepted by a person; receipt under `docs/evidence/`. Q1 and Q2 are answered in it."
+      ],
+      "completion": "person",
+      "requires": [
+        "rc-p1",
+        "rc-p2",
+        "rc-p3",
+        "rc-p4",
+        "rc-p5",
+        "rc-p6",
+        "rc-p7",
+        "rc-p8",
+        "rc-p9",
+        "rc-p10",
+        "rc-q5",
+        "rc-q6",
+        "rc-q7"
+      ],
+      "manual": true
+    },
+    "rc-12.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Owner decision to retire, and what to keep. See RC11.1, RC11.3; \u00a7D13.",
+      "acceptance": [
+        "A recorded owner decision exists before any removal task starts."
+      ],
+      "completion": "person",
+      "requires": [
+        "rc-p11"
+      ],
+      "manual": true
+    },
+    "rc-12.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Switch off worker dispatch for Radar-coded repositories. See RC11.2, RC11.3; \u00a7D13.",
+      "acceptance": [
+        "A Radar-coded repository opens no worker; a worker-coded one still does."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-12.1"
+      ]
+    },
+    "rc-12.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Retire crew routing and placement for Radar-coded repositories. See RC11.2; \u00a7D13.",
+      "acceptance": [
+        "No routing call is made for a Radar-coded repository; the Routing section is hidden only when no repository needs it."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-12.2"
+      ]
+    },
+    "rc-12.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Retire runner mode. See RC11.2; \u00a7D13.",
+      "acceptance": [
+        "`npm test` passes; the removed names appear nowhere in the app."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-12.1"
+      ]
+    },
+    "rc-12.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Retire the remote relay. See RC11.2; \u00a7D13.",
+      "acceptance": [
+        "`npm test` passes; the relay agent is not in the built app."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-12.1"
+      ]
+    },
+    "rc-12.6": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Retire per-task worker budgets and the worker Files and diff fold. See RC11.2; \u00a7D13.",
+      "acceptance": [
+        "Budgets still cap a planner chat; the drawer has no Files fold for a Radar-coded task."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-12.2"
+      ]
+    },
+    "rc-12.7": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Compatibility test: names and aliases that must stay. See RC11.4; \u00a7D13.",
+      "acceptance": [
+        "The test fails if any listed name stops working."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-12.2",
+        "rc-12.3",
+        "rc-12.4",
+        "rc-12.5",
+        "rc-12.6"
+      ]
+    },
+    "rc-12.8": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Docs and Demo retargeted to crews. See RC11.7, RC8.1; \u00a7D13.",
+      "acceptance": [
+        "The docs name each path once; the release scan is clean; a diff check shows no change under `docs/research/` or `docs/evidence/` except new receipts."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-12.7"
+      ]
+    },
+    "rc-p12": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Proof 12: after retirement both coders work. See RC11; \u00a7D17.",
+      "acceptance": [
+        "Expected result observed; receipt under `docs/evidence/`."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-12.8"
+      ]
+    }
+  }
+}
