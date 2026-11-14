@@ -4,7 +4,7 @@ category: Planning
 
 # Requirements: Avoozl plans and gates, Issue Radar crews code
 
-Status: Draft
+Status: Approved
 
 ## Introduction
 

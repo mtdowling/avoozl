@@ -1,6 +1,6 @@
 # Design: Avoozl plans and gates, Issue Radar crews code
 
-Status: Draft
+Status: Approved
 
 Requirements are in `requirements.md` (RC1 to RC12). Sections here are
 numbered D1 to D17 so they are not confused with the sections of
