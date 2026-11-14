@@ -703,6 +703,16 @@ export class GitHubClient {
     return result?.data;
   }
 
+  // Turns on GitHub auto-merge for one pull request (RC5.2). GitHub merges
+  // later, when its own rules pass; this never merges and has no admin path.
+  armAutoMerge(_repository, pullRequestId, method = "MERGE") {
+    return this.graphql(
+      `mutation($id:ID!,$method:PullRequestMergeMethod!){enablePullRequestAutoMerge(input:{pullRequestId:$id,mergeMethod:$method}){pullRequest{number}}}`,
+      { id: pullRequestId, method },
+      "arm auto-merge",
+    );
+  }
+
   // Links a branch in `repositoryId` (may differ from the issue's repository)
   // to the issue, created at `oid` (F51, L13). Needs push access there.
   async createLinkedBranch({ issueId, repositoryId, oid, name }) {
