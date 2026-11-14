@@ -88,10 +88,12 @@ and no stranger's issue reaches a plan.
 #### Acceptance criteria
 
 1. A repository SHALL have `coder: issue-radar` (default for a repository
-   with Issue Radar connected), `coder: worker` or `coder: remote` (RC14,
-   RC15). `worker` SHALL keep
-   today's behavior, for local-only mode and repositories without Radar
-   (RC11.3). The setting SHALL be per repository and SHALL apply in both
+   with Issue Radar connected), or `coder: remote` (RC14, RC15). `coder: worker` is retired
+   (owner decision 2026-11-14, RC11.3): it is no longer a Settings choice, and
+   a repository still set to it SHALL show a Settings banner, "Local workers
+   are retired. Switch to Issue Radar." Local-only mode keeps SQLite plans
+   that are not projected; they cannot be coded until a GitHub repository is
+   attached. The setting SHALL be per repository and SHALL apply in both
    GitHub modes. This changes `.avoozl.json` validation, which today refuses
    `issue-radar` in plans-repo mode (design 4.4).
 2. For a repository with `coder: issue-radar`, Avoozl SHALL NOT triage. The
@@ -417,10 +419,33 @@ machine, and what to change, without opening a crew's chat.
 #### Acceptance criteria
 
 1. The screens SHALL be the experience proposal's: Home (Needs you, On the
-   line, Release queue, Progress by goal), Specs, Graph, Delivery, Flow, Intake,
-   Activity and Settings with **Crews and rules**. Conflicts SHALL fold into
-   Needs you. **Build for Variant B first** (GitHub only). Variant A (Radar's
-   crew list through one grant) SHALL be a later upgrade behind that grant.
+   line, Release queue, Progress by goal), Specs, Flow, Activity and Settings
+   with **Crews and rules**. Owner decisions 2026-11-14 (UI removal happens
+   now; code removal waits for proof rc-p11, RC11):
+   - Conflicts and Intake SHALL leave the nav and fold into Needs you
+     (Radar handbacks, planning-label items, conflicts). Radar repos get no
+     separate Intake page.
+   - Routing SHALL leave the nav. Its code is removed by the retirement
+     epic (RC11) after proof rc-p11.
+   - Delivery SHALL be removed entirely, with no local-workers variant. Its
+     lanes map to Release queue (Ready), On the line and Radar's Pipeline
+     lanes or crew page (In progress), Needs you, Release queue held reasons
+     and the plan view (Waiting on blockers), and Trace (Done). Its controls
+     (Defer, Start now, Retry, review runs, content rule reports) go with it.
+     Held or blocker text it has that Release queue lacks SHALL move into
+     Release queue.
+   - Graph SHALL leave the nav. For issues on GitHub, Avoozl SHALL link to
+     Issue Radar's Graph (Focus on the issue if Radar's route supports it,
+     else the tab). Avoozl's own graph stays only inside Specs (a plan before
+     projection; epic, plan, phase drill-down, with phase gate, release count
+     and held reasons). Back history and drill rules stay.
+   - A repository's Settings SHALL keep a labeled, empty slot for a future
+     **Mirror** section (not specified here).
+   - Flow SHALL stay, rebuilt on GitHub data (item 5), with retros under it.
+   - Runner mode, the relay, the foreman, per-task worker budgets, Prices and
+     the workers' Files and diff fold SHALL leave the nav and Home.
+   **Build for Variant B first** (GitHub only). Variant A (Radar's crew list
+   through one grant) SHALL be a later upgrade behind that grant.
 2. **Trace** SHALL be a drawer and a page per task or goal, deep-linkable and
    in the Back history (Requirement 60). Its steps SHALL be Spec approved,
    Issue created, Ready, Claimed, PR opened, CI, Merged, Retro, with times from
@@ -515,7 +540,10 @@ that other tools call removed by accident.
 1. Retirement SHALL be a final, separate epic of this spec. No task in it
    SHALL start before the proof that the Radar path works on a real
    repository (RC12 tests 1 and 2, proof rc-p11) is accepted by a person.
-2. It SHALL list, as removals for Radar-coded repositories: Avoozl's own
+2. The UI removals of RC8.1 SHALL happen first and SHALL NOT wait for the
+   proof. The code removals below wait for rc-p11. They SHALL keep every name
+   of item 4 (`plans_*`, environment aliases) working. It SHALL list, as
+   removals: Avoozl's own
    worker dispatch, crew routing and placement (Requirements 41, 42), runner
    mode (Requirement 84), the remote relay (Phase 32), per-task budgets for
    workers (Requirement 67; budgets stay for planner, retro and quick-goal
@@ -525,10 +553,13 @@ that other tools call removed by accident.
    and are not built, so nothing is removed for them. They SHALL stay unbuilt:
    crews on each machine replace them (RC11.8). Each removal task SHALL name the code
    and the tests it removes and SHALL pass `npm test`.
-3. `coder: worker` SHALL stay available, with its dispatch, verification,
-   review and integration, for local-only mode and for repositories without
-   Radar. It is frozen (RC14.4): upkeep only, no new features. The removals SHALL apply to a repository only when its `coder` is
-   `issue-radar`, until every repository the workspace knows is on it.
+3. `coder: worker` is retired (owner decision 2026-11-14). The retirement
+   epic SHALL remove it fully: dispatch, verification, the reviewer and
+   responder roles, integration by a worker, routing, runner mode, the relay,
+   worker budgets and the Files and diff fold. The UI goes now (RC8.1,
+   RC14.1); the code goes only after proof rc-p11. Local-only mode SHALL be
+   SQLite plans that are not projected; they cannot be coded until a GitHub
+   repository is attached.
 4. These SHALL stay: the `plans_*` MCP names, the `NUPP_WORKSPACE` and
    `AICOMMANDER_*` environment aliases, the `aicommander` command and the
    `aicommander.*` editor settings (AGENTS.md).
@@ -606,8 +637,7 @@ coder I pick.
 #### Acceptance criteria
 
 1. A repository SHALL name one coder: `issue-radar` (a Radar crew, shown as
-   "Radar crew"; default on GitHub), `worker` (Avoozl's own worker, shown as
-   "Avoozl worker"; for local-only repositories) or `remote` (a managed
+   "Radar crew"; default on GitHub), or `remote` (a managed
    remote harness, shown as "Remote coder"; RC15). The setting SHALL be per
    repository. No coder name SHALL be read outside the adapters.
 2. Every coder SHALL sit behind the same three calls: **hand over** a ready
@@ -618,9 +648,9 @@ coder I pick.
 3. Plan approval, provenance, release order, Stop the line, the merge path and
    whole-head acceptance SHALL be the same for every coder. Switching a
    repository's coder SHALL NOT change a plan, a task ID or an approval.
-4. `worker` SHALL be frozen: upkeep only (security fixes, bug fixes, keeping
-   `npm test` green on the three systems, the compatibility names of RC11.4).
-   No new feature SHALL be added to it. The Settings page SHALL say so.
+4. `worker` SHALL be retired (RC11.3). Until the retirement epic deletes its
+   code, it gets no new feature, and Settings SHALL NOT offer it. A repository
+   still set to it SHALL show the banner of RC1.1.
 5. WHEN a repository changes coder while tasks are in flight, Avoozl SHALL
    leave those tasks with their current coder and use the new one for tasks
    not yet handed over. It SHALL show the split once.
@@ -996,15 +1026,13 @@ This is display only. It writes nothing and starts nothing.
    repository dialog (the merge setting, on the Delivery tab) SHALL name where it
    is set.
 5. The lanes SHALL follow the coder. With `issue-radar`, the Epic lane builds
-   with crews and releases `ready` labels. With `worker`, Avoozl starts ready
-   tasks up to the repository's tasks-at-once number and opens worker chats.
-   With `remote`, the build step names a managed remote provider. Maintenance
+   with crews and releases `ready` labels.    With `remote`, the build step names a managed remote provider. Maintenance
    needs a Radar crew and is muted for the other coders.
 6. A step that does not apply SHALL show muted with its reason in words (for
    example "no review label is set", "the coder is not Issue Radar"). Local only
-   mode SHALL show only a local-worker lane (ready task, worker chat, checks and
-   reviewer chats, merge into the landing branch) and one line saying the GitHub
-   lanes are hidden in this mode (the settings-follow-mode rule).
+   mode SHALL show no coding lane, and one line saying plans there cannot be
+   coded until a GitHub repository is attached and the GitHub lanes are hidden
+   in this mode (the settings-follow-mode rule).
 7. A step not built, or built and not proven on a real repository, SHALL carry a
    small tag ("not built", "fake-tested", "not proven live"). The tags SHALL
    come from one table in code that is keyed by step, so no card hand-writes
@@ -1016,6 +1044,122 @@ This is display only. It writes nothing and starts nothing.
 9. The map SHALL use theme variables only, read at 320 px, need no animation,
    and turn off any it has under `prefers-reduced-motion`.
 
+### Requirement RC24: Mirror repositories
+
+**User story:** As the owner of a public repository, I want crews to work in a
+private mirror of it, and I want Avoozl to carry each merged change over to the
+public repository under a person's name, so that issues and crew work stay off
+the public repository.
+
+GitHub cannot make a private fork of a public repository, so a private copy is
+a separate repository that starts as a full copy (a mirror push). A managed
+remote harness works the same way (RC15): changes land in a private staging
+repository, a person reviews and merges there, a branch is pushed to the public
+repository as that person, and a poller marks the task done when the public
+pull request merges. This requirement does the same for Radar crews.
+
+#### Acceptance criteria
+
+1. **Setting.** A repository's policy SHALL accept an optional `mirror`:
+   `{ source, mirror, forwardTo, forward, branchPrefix, squash }`.
+   `source` is the public `owner/name`. `mirror` is the private `owner/name`.
+   `forwardTo` is `source` (default) or `fork:<owner/name>`. `forward` is
+   `off`, `nudge` (default) or `auto`. `branchPrefix` defaults to
+   `avoozl/`. `squash` defaults to `true`. Settings SHALL edit it in a form and
+   in the raw `.avoozl.json`, and the two SHALL stay in sync, as every other
+   repository setting does. The form SHALL show each default and where it comes
+   from, and SHALL NOT ask for anything Avoozl can read.
+2. **Validation.** Avoozl SHALL read the mirror's visibility and SHALL refuse
+   the setting unless the mirror is private. WHEN visibility cannot be read,
+   the mirror SHALL count as not private and the setting SHALL be refused
+   (RC10.1 applies the same rule to the source). `mirror` and `source` SHALL
+   differ. `forward: auto` SHALL be refused unless the **trusted persons**
+   setting (criterion 9) names at least one person.
+3. **Where work lives.** With a mirror, issues, sub-issues, labels, crews, the
+   Project and every Avoozl write (RC2, RC4, RC5) SHALL target the mirror, not
+   the source. The source SHALL receive writes only through criteria 7 and 11.
+   A public issue on the source MAY be linked to a mirror issue by a marker on
+   the mirror issue (the source number and URL). Avoozl SHALL NOT copy private
+   text to the source, and SHALL NOT copy a source issue's body into the mirror
+   unless a person asks.
+4. **Sync.** On each tick Avoozl SHALL bring the mirror's default branch up to
+   `source`'s default branch by fast-forward only. WHEN the mirror's default
+   branch has commits `source` does not (divergence), Avoozl SHALL stop syncing
+   that repository and show one Needs you row naming both heads. Avoozl SHALL
+   NOT reset, rebase or force push the mirror. WHEN the sync cannot be read or
+   written, one Needs you row SHALL say so, once per cause.
+5. **Track.** WHEN a crew pull request merges into the mirror's default branch,
+   Avoozl SHALL record one **to forward** item for it: the mirror pull request,
+   the merge commit, the task, the person who approved the merge, and the time.
+   It SHALL show in **Waiting on you** (when `forward` is `nudge`), in **Release
+   queue** and in **Trace**. Trace SHALL gain the steps **Mirror merged**,
+   **Forwarded**, **Public PR** and **Public merged**, with times from GitHub.
+6. **Done on the public merge.** A task SHALL count as done, and its
+   dependents SHALL release, only WHEN the public pull request merges (the rule
+   of RC15.3). A merge in the mirror alone SHALL count as merged in the mirror
+   and nothing more. Avoozl SHALL poll the public pull request on the tick.
+7. **Forward.** To forward a change Avoozl SHALL: (a) build one commit from the
+   merged change when `squash` is `true` (else the merged commits in order),
+   authored by the approving person, with trailers that name private issues,
+   pull requests, repositories or hosts removed; (b) put it on a branch named
+   `branchPrefix` plus the task id in `forwardTo`, based on `source`'s default
+   branch; (c) push that branch with a normal push; (d) open the public pull
+   request against `source`, with a title and body generated from the mirror
+   pull request and stripped of private text (the body holds the change's
+   purpose and tests, never a link to the mirror, a private issue, a crew or a
+   plan). Avoozl SHALL NOT force push, and SHALL NOT push to `source`'s default
+   branch.
+8. **Scan before any push.** The leak scan of **Crews on public repositories** in
+   `.kiro/specs/avoozl/` (its content rules and layers) SHALL pass on the
+   commit, its message, the branch name, the pull request title and the pull
+   request body before step (c) of criterion 7. A hit SHALL block the push and
+   raise one Needs you row that names the rule, not the matched text. This
+   spec SHALL NOT restate, renumber or change those layers.
+9. **Nudge and auto.** With `forward: nudge`, Avoozl SHALL prepare the commit,
+   the branch locally and the text, run the scan, and show a **Forward** button
+   with a one-line reason ("Merged in the mirror, scan clean, ready for the
+   public repository"). Pressing it SHALL push and open the pull request as the
+   person who pressed it, if that person passes the actor check (Requirement
+   10). With `forward: auto`, Avoozl SHALL do the same on its own after the
+   mirror merge and a clean scan, but only for a merge approved by a person in
+   the **trusted persons** setting (a list of logins, empty by default, so
+   `auto` is off until it is filled). `forward: off` SHALL track and show the
+   item and do nothing else.
+10. **Identity.** A forward SHALL name the person: the commit author, and a line
+    in the public pull request body, are that person's login or public name.
+    Avoozl SHALL push with the grant that person gave Avoozl or that person's
+    own token, never with a shared bot token for another person's change. WHEN
+    no usable token exists for that person, one Needs you row SHALL say so.
+11. **After the public pull request opens.** WHEN it is closed without a merge,
+    the item SHALL go back to **to forward** with the reason (closed by whom,
+    when) shown in Waiting on you, and Avoozl SHALL NOT reopen or push again
+    until a person acts. WHEN a person leaves review comments on it, Avoozl
+    SHALL copy each comment's text and its author to the mirror pull request,
+    or, if that is merged, to one follow-up mirror issue, so a crew can act
+    on it; each copy carries a marker so it is made once. Review comments are
+    already public, so copying them inward SHALL NOT count as a leak.
+12. **Conflicts.** WHEN `source` has moved so that the forward branch cannot be
+    applied or pushed cleanly, Avoozl SHALL sync the mirror (criterion 4),
+    re-apply the change on the new base, run the scan again and continue. WHEN
+    it still conflicts, Avoozl SHALL open one mirror issue with the conflicting
+    paths (no file contents) for a crew to fix, and SHALL keep the item in
+    **to forward** with a Trace note.
+13. **Provenance.** The public pull request SHALL carry the person's name and
+    nothing that points to the mirror, a crew, Avoozl's marker or a plan.
+    The link between the mirror pull request and the public pull request SHALL
+    live only in Avoozl's private records and in the mirror.
+14. **One record.** A forward SHALL be one record per merged change, keyed by
+    the mirror merge commit. A second press, a second tick or a retry SHALL
+    find the same branch and pull request and SHALL NOT open another.
+15. **Public docs and tests** of this work SHALL use fake terms only, and
+    SHALL describe the private side as internal names and company hosts
+    (RC10.4). The harness SHALL be called only "a managed remote harness".
+
+Proof added to D17:
+
+| Proof  | Proves                                                                                                        |
+| ------ | ------------------------------------------------------------------------------------------------------------- |
+| rc-p23 | Two scratch repositories: sync, a mirror merge, a scan-clean forward, a blocked leak, the public merge counts as done |
 ### Requirement RC23: Tracker gates
 
 **User story:** As the owner, I want a task in an epic to wait on something
