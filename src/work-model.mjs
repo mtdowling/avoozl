@@ -12,6 +12,7 @@ export const COMPLETIONS = [
   "released",
   "answered",
   "person",
+  "tracker",
 ];
 const SOURCE = /^(?:local|github|plugin:[a-z][a-z0-9-]{0,60})$/;
 
@@ -63,6 +64,14 @@ export const pluginId = (source) =>
 export const isManual = (task) =>
   task?.manual === true && taskKind(task) === "leaf";
 
+// A tracker gate (RC23.1): a leaf that waits on an item outside GitHub. No
+// crew builds it. Its `gate` holds {plugin, item, done}; `gateVerdict` is set
+// when the plugin says done or a trusted person clears it.
+export const isGate = (task) =>
+  task?.completion === "tracker" &&
+  task?.manual !== true &&
+  taskKind(task) === "leaf";
+
 export function taskCompletion(task) {
   if (isManual(task)) return "person";
   if (COMPLETIONS.includes(task?.completion)) return task.completion;
@@ -99,6 +108,9 @@ export function completionReached(task, level, complete) {
   // Every edge condition on a manual leaf is met when it is done: there is
   // no merge or integration to wait for (R61.10).
   if (isManual(task)) return done || Boolean(task.manualDone);
+  // A gate is met when its plugin said done or a person cleared it, at every
+  // level, and never by any other route (RC23.2).
+  if (isGate(task)) return ["done", "order"].includes(task.gateVerdict?.state);
   if (!level) {
     if (
       task.kind !== "epic" &&

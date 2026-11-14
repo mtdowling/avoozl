@@ -45,7 +45,7 @@ export function planProjectionBatches({
     candidates = open.filter(
       (task) =>
         task.size === "small" &&
-        taskCompletion(task) !== "person" &&
+        !["person", "tracker"].includes(taskCompletion(task)) &&
         task.completion !== "human" &&
         !blocked(task),
     ),
@@ -57,7 +57,7 @@ export function planProjectionBatches({
     const small = open.filter(
         (task) =>
           task.size === "small" &&
-          taskCompletion(task) !== "person" &&
+          !["person", "tracker"].includes(taskCompletion(task)) &&
           task.completion !== "human",
       ),
       ids = new Set(small.map((task) => task.id)),
@@ -179,7 +179,7 @@ export function resolveBatchGroups({
       const task = byId.get(id);
       if (
         taskKind(task) !== "leaf" ||
-        taskCompletion(task) === "person" ||
+        ["person", "tracker"].includes(taskCompletion(task)) ||
         task.completion === "human"
       )
         fail(`Task ${id} is not an automatic leaf, so it cannot batch.`, 409);
