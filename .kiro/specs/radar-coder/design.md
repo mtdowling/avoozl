@@ -47,15 +47,23 @@ person ──▶ spec / quick goal ──▶ approve (a merged PR) ──▶ Pro
 
 ## D2. Labels
 
-Four labels, four jobs. Avoozl never writes the middle two.
+Avoozl's own labels share the `avoozl:` prefix (RC21). Avoozl never writes
+Radar's two (needs-human, claim), except the claim at approval (RC19).
 
-| Label            | Job                                            | Written by          | Default name        |
-| ---------------- | ---------------------------------------------- | ------------------- | ------------------- |
-| Planning         | "Avoozl, plan this"                            | A trusted person    | `to plan`           |
-| Needs-human      | "Crew stopped and wants a person"              | The crew            | as set in Radar     |
-| Claim            | "A crew has this"                              | The crew            | `crew: in progress` |
-| Ready            | "Eligible for a crew"; the crew's label scope  | Avoozl's tick       | `ready`             |
-| Conflict (on PRs)| "This PR has a merge conflict"                 | Avoozl's tick       | `merge conflict`    |
+| Label            | Job                                            | Written by          | Default name             |
+| ---------------- | ---------------------------------------------- | ------------------- | ------------------------ |
+| Planning         | "Avoozl, plan this"                            | A trusted person    | `avoozl:plan`            |
+| Needs-human      | "Crew stopped and wants a person"              | The crew            | as set in Radar          |
+| Claim            | "A crew has this"                              | The crew            | `crew: in progress`      |
+| Ready            | "Eligible for a crew"; the crew's label scope  | Avoozl's tick       | `avoozl:ready`           |
+| Conflict (on PRs)| "This PR has a merge conflict"                 | Avoozl's tick       | `avoozl:merge-conflict`  |
+| Approval         | "This plan is approved" (RC18)                 | A trusted person, or Avoozl's write-back | `avoozl:plan-approved` |
+| Review (on PRs)  | "Draft a review for me" (RC20)                 | A trusted person    | `avoozl:review`          |
+| Drafted (on PRs) | "A draft review waits for its person" (RC20)   | Avoozl's tick       | `avoozl:drafted`         |
+
+The defaults changed from `to plan`, `ready`, `plan approved` and
+`merge conflict` (RC21.1). A name set in `.avoozl.json` keeps working; only
+an unset name reads the new default.
 
 The crew's label scope is the ready label (Radar picks only issues with a
 label in scope; an empty scope means every open issue). Set up requires it
@@ -731,3 +739,101 @@ Proofs added to D17:
 | rc-p17 | Templates produce valid specs; sub-specs and a gap report become tasks                       |
 | rc-p18 | Approval by label and by Avoozl end in one record and one issue write-back; an untrusted labeler is removed |
 | rc-p19 | The parent is claimed at approval; an existing crew claim is left alone |
+
+## D25. Review drafts by label (RC20)
+
+```text
+person adds `avoozl:review` on a PR
+   └▶ tick: labeler passes the actor check? ──no──▶ remove label, one Needs you row
+          │ yes
+          ▼
+      machine login (GET /user) == labeler? ──no──▶ keep label, one Needs you row, no chat
+          │ yes
+          ▼
+      receipt `review-draft:<repo>#<n>:<labeled event id>` (queued, head sha)
+          ▼
+      read-only chat `avoozl-review-draft` (brief: PR, linked issues, crew claims, spec tasks)
+          ▼
+      plans_post_review_draft ─▶ POST /pulls/{n}/reviews, no `event` (PENDING)
+          ▼
+      remove `avoozl:review`, add `avoozl:drafted`, Needs you "Your draft review is waiting"
+          ▼
+ tick: GET /pulls/{n}/reviews/{id}
+   PENDING, head moved ─▶ row says stale (both commits)
+   other state ─▶ submitted;  404 ─▶ discarded  ─▶ remove `avoozl:drafted`, close row
+```
+
+- **Module.** `src/app/review-draft.mjs` holds the step, the brief, the tool
+  and the rows, apart from `pr-review.mjs` (the button-started chat that
+  posts nothing). It reuses that file's binding shape and the respond step's
+  posting guard (bound slot, state marked before the call).
+- **Finding labeled pull requests.** One search per repository per tick for
+  open pull requests with the review or drafted label
+  (`searchOpenIssues(..., { pullRequests: true })`); no list of every pull
+  request.
+- **Who.** The last `labeled` event for the review label names the labeler.
+  The actor check is `actorAllowed` with the repository's settings, as for
+  approval labels (D23).
+- **Login.** `currentUser()` is read once per tick and again inside the tool.
+  A mismatch is a row, never a post. The receipt records the reviewer login.
+- **One per label add.** The receipt ID holds the label event's ID, so a
+  retried tick finds the receipt and opens no second chat; a new label add is
+  a new event and a new draft (RC20.9).
+- **Brief.** Read through GitHub: the pull request (title, author, head,
+  base), closing issues (GraphQL `closingIssuesReferences`), the claim marker
+  and crew comments on each (`radar-claims.mjs`), and the provenance marker
+  (`radar-provenance.mjs`), with task titles and acceptance from the store.
+  Quoted text is fenced as data. The brief passes content rules (`brief`
+  boundary) before the receipt is queued.
+- **Agent.** `kirocrew-app/agents/avoozl-review-draft.json`: the read tools
+  and the `gh` read allowlist of `avoozl-code-review`, plus
+  `@avoozl:avoozl/plans_post_review_draft`. No write tool.
+- **Tool.** Input `{body, comments: [{path, line, start_line?, side?, body}]}`
+  (at most 50 comments). It screens every text with the reply screen and
+  content rules, checks the login again, deletes Avoozl's own earlier pending
+  draft for that pull request (RC20.9), and calls create review with
+  `commit_id` and no `event`. A 422 is returned to the chat with nothing
+  posted (GitHub's create is all or nothing).
+- **Never submits.** The GitHub client gains three calls only:
+  `createPendingReview` (refuses an `event`), `pullRequestReview` and
+  `deletePendingReview`. A test greps the module for the submit and dismiss
+  paths.
+- **Rows.** Kept in workspace meta as `reviewDraftRows`, keyed per cause, so
+  each shows once: untrusted labeler, login mismatch, someone else's pending
+  review, draft waiting (with stale), tool refusal after three tries.
+- **List.** A `review.drafts` view (page, CLI `avoozl review drafts`, MCP
+  read) lists drafts with repository, pull request, reviewer, state (queued,
+  chat open, waiting, stale, submitted, discarded), times and the GitHub
+  search link `is:pr is:open label:"<drafted>"`.
+- **Trace.** `readTrace` takes the draft for a pull request from the store
+  and adds a Review step after CI only when one exists.
+- **Crew pull requests.** Nothing after submit: the crew reads the review on
+  its next round (fact 1). Avoozl writes no Radar label for a review.
+
+| Failure                                          | What happens                                                       |
+| ------------------------------------------------ | ------------------------------------------------------------------ |
+| Labeler not allowed, or unreadable               | Label removed, one row, nothing drafted                            |
+| Machine login is someone else                    | No chat, no post, label kept, one row naming both logins           |
+| Someone else's pending review exists for the login | Nothing posted, one row: submit or discard it                    |
+| A comment line is outside the diff               | GitHub's 422 goes back to the chat; it fixes and posts again       |
+| Chat ends without a draft                        | The review label stays; one row "No draft was posted"; re-add to retry |
+| Head moves before submit                         | Row and list say stale with both commits; nothing deleted          |
+| GitHub read fails                                | The tick keeps the last state and tries next tick                  |
+
+## D26. Avoozl's label names (RC21)
+
+- `RADAR_DEFAULTS` and `READY_LABEL_DEFAULT` in `github-policy.mjs` move to
+  the `avoozl:` names, and `reviewLabel` and `draftedLabel` join them. Every
+  reader keeps using the resolved value, so a set name wins.
+- The clash check runs over planning, needs-human, claim, ready, conflict,
+  approval, review and drafted, plus the repository's other managed labels.
+- Settings › Crews and rules shows the six Avoozl labels in one box, each
+  with its job, who writes it, the raw key and the default as placeholder,
+  with one line about the changed defaults. Set up's label step creates the
+  review and drafted labels.
+
+Proofs added to D17:
+
+| Proof  | Proves                                                                                       |
+| ------ | -------------------------------------------------------------------------------------------- |
+| rc-p20 | A label gives one pending review under the labeler's login; submit clears it; a wrong login or a stranger drafts nothing |
