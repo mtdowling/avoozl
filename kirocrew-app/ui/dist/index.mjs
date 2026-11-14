@@ -17584,6 +17584,7 @@ function mm(e = "") {
 		reviewApprovals: "",
 		managedLabels: {},
 		crewLabels: {},
+		approvalLabel: "",
 		rules: [],
 		untriaged: nm(),
 		rest: {}
@@ -17620,6 +17621,7 @@ function hm(e) {
 				reviewApprovals: om(am(r).approvals),
 				managedLabels: cm(n.managedLabels),
 				crewLabels: cm(n.crewLabels),
+				approvalLabel: om(am(n.radar).approvalLabel),
 				rules: (Array.isArray(n.rules) ? n.rules : []).map((e) => {
 					let t = am(e);
 					return {
@@ -17678,6 +17680,13 @@ function vm(e) {
 			pullRequestReviews: e.pullRequestReviews ? gm({ approvals: dm(e.reviewApprovals) }) : void 0,
 			managedLabels: _m(e.managedLabels),
 			crewLabels: _m(e.crewLabels),
+			radar: (() => {
+				let t = gm({
+					...am(e.rest.radar),
+					approvalLabel: um(e.approvalLabel)
+				});
+				return Object.keys(t).length ? t : void 0;
+			})(),
 			rules: e.rules.map((e) => gm({
 				id: e.id.trim(),
 				action: e.action,
@@ -27041,6 +27050,22 @@ function ty(e) {
 									[e]: n
 								} })
 							}, e))
+						})
+					}),
+					/* @__PURE__ */ S($, {
+						level: "sub",
+						title: "Approval label",
+						blurb: "Adding this label to the issue that asked for a spec approves its draft, when the person who adds it counts (see Who counts). Avoozl also adds it when you approve in Avoozl or a chat. It must differ from every other label here.",
+						children: /* @__PURE__ */ S(Uv, {
+							id: `${f}-approval-label`,
+							label: "Approval label",
+							raw: "radar.approvalLabel",
+							rule: {
+								required: !1,
+								blank: "blank: the Avoozl default"
+							},
+							value: t.approvalLabel,
+							onChange: (e) => p({ approvalLabel: e })
 						})
 					}),
 					/* @__PURE__ */ S($, {

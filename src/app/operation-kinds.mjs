@@ -34,6 +34,7 @@ const OBSERVE = new Set([
   "plan.specs",
   "plan.get",
   "plan.lint",
+  "issue.verify",
   "plan.preview",
   "github.project.preview",
   "plan.extract.get",
