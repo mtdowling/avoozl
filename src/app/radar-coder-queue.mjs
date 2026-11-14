@@ -5,6 +5,7 @@
 import { statusComplete } from "../model.mjs";
 import { isManual, taskKind } from "../work-model.mjs";
 import { fail } from "./store.mjs";
+import { READY_LABEL_DEFAULT } from "./github-policy.mjs";
 import { graphOrder } from "./delivery.mjs";
 import { openStops, stopScope } from "./flow.mjs";
 import { PUBLIC_HELD, publicHold } from "./public-signoff.mjs";
@@ -77,7 +78,7 @@ export function releaseQueue(store, identity) {
       ready =
         identity.repositories?.[id]?.managedLabels?.ready ||
         store.get("github_repositories", id)?.label ||
-        "ready",
+        READY_LABEL_DEFAULT,
       label = scopeLabelOf(task, release, ready),
       entry = repositories.get(id) ?? {
         repository: id,

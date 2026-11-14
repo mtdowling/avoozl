@@ -227,7 +227,7 @@ export function ConflictActions(props: {
         )}
         {issue && (
           <a href={linkHref(issue)} target="_blank" rel="noreferrer" className="text-sm underline">
-            Open the issue
+            {item.kind === 'needs-human' && item.reason === 'review-draft' ? `Open pull request${item.pullRequest ? ` #${item.pullRequest}` : ''}` : 'Open the issue'}
           </a>
         )}
       </div>

@@ -21,7 +21,14 @@ export const SETUP_STEPS = Object.freeze([
   "project",
 ]);
 const RULESET_NAME = "avoozl-required-check",
-  COLORS = { plan: "5319e7", ready: "0e8a16", conflict: "d93f0b" },
+  COLORS = {
+    plan: "5319e7",
+    ready: "0e8a16",
+    conflict: "d93f0b",
+    approval: "1d76db",
+    review: "fbca04",
+    drafted: "c5def5",
+  },
   lower = (value) => String(value).toLocaleLowerCase();
 
 const digest = (value) =>
@@ -36,6 +43,9 @@ function labelsWanted(settings) {
       color: COLORS.ready,
     },
     { name: radar.conflictLabel, color: COLORS.conflict },
+    { name: radar.approvalLabel, color: COLORS.approval },
+    { name: radar.reviewLabel, color: COLORS.review },
+    { name: radar.draftedLabel, color: COLORS.drafted },
   ];
 }
 

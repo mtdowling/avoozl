@@ -121,12 +121,13 @@ const row = async (ops, number) =>
     (item) => item.number === number,
   );
 // What GitHub saw past the untriaged search read. The tick's pull request
-// list (radar-merge.mjs) is a read, and the fake refuses it, so it is skipped.
+// list (radar-merge.mjs) and the review label search (review-draft.mjs) are
+// reads, and the fake refuses them, so they are skipped.
 const githubWrites = (github) =>
   github.calls.filter(
     (call) =>
       !(call[0] === "graphql" && call[1] === "read") &&
-      call[0] !== "listPullRequests",
+      !["listPullRequests", "searchOpenIssues"].includes(call[0]),
   );
 
 test("Code review queues one seeded chat, the tick opens it, and the row shows Attach", async (t) => {

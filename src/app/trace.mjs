@@ -31,6 +31,7 @@ export function buildTrace({
   checks = [],
   readyLabel,
   specApproved = null,
+  review = null,
   problems = [],
 }) {
   const claim = claimOf(comments),
@@ -69,8 +70,25 @@ export function buildTrace({
         at: null,
         detail: merged ? "Counted in the next retro" : "After merge",
       },
-    ].map((step, index) => ({ ...TRACE_STEPS[index], ...step })),
-    lastDone = steps.findLastIndex((step) => step.at);
+    ].map((step, index) => ({ ...TRACE_STEPS[index], ...step }));
+  // RC20.11: a Review step after CI, only when a draft review was made.
+  if (review)
+    steps.splice(6, 0, {
+      key: "review",
+      label: "Review",
+      at: ["submitted", "discarded"].includes(review.state)
+        ? review.closedAt
+        : null,
+      by: review.reviewer ?? null,
+      link: review.url ?? null,
+      detail:
+        review.state === "submitted"
+          ? `Drafted ${review.draftedAt}, submitted by ${review.reviewer}`
+          : review.state === "discarded"
+            ? `Drafted ${review.draftedAt}, discarded`
+            : `Drafted ${review.draftedAt} for ${review.reviewer}; waiting to be submitted`,
+    });
+  const lastDone = steps.findLastIndex((step) => step.at);
   let next = true;
   for (const [index, step] of steps.entries()) {
     if (step.at) step.state = "done";
@@ -114,7 +132,14 @@ async function approvedAt(github, repository, issue, problems) {
   }
 }
 
-export async function readTrace(github, repository, number, settings = {}) {
+// `draftFor(pullNumber)` gives the pull request's review draft (RC20.11).
+export async function readTrace(
+  github,
+  repository,
+  number,
+  settings = {},
+  { draftFor = () => null } = {},
+) {
   const facts = await readIssueFacts(github, repository, number, settings),
     specApproved = await approvedAt(
       github,
@@ -124,6 +149,10 @@ export async function readTrace(github, repository, number, settings = {}) {
     );
   return {
     repository,
-    ...buildTrace({ ...facts, specApproved }),
+    ...buildTrace({
+      ...facts,
+      specApproved,
+      review: facts.pull ? draftFor(facts.pull.number) : null,
+    }),
   };
 }

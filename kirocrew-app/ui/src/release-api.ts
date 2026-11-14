@@ -93,6 +93,44 @@ export interface ArmedPull {
   armedAt: string
 }
 
+// Review drafts made from the review label (RC20.6), from
+// src/app/review-draft.mjs reviewDraftsView.
+export type DraftState = 'queued' | 'chat' | 'waiting' | 'stale' | 'submitted' | 'discarded' | 'replaced' | 'ended' | 'refused' | 'closed'
+export interface ReviewDraft {
+  id: string
+  repository: string
+  number: number
+  title: string
+  url: string | null
+  reviewer: string
+  state: DraftState
+  headSha: string | null
+  staleHead: string | null
+  requestedAt: string
+  draftedAt: string | null
+  closedAt: string | null
+  reviewUrl: string | null
+  chat: string | null
+}
+export interface ReviewDrafts {
+  items: ReviewDraft[]
+  searches: { label: string; query: string; url: string }[]
+}
+
+// What each state means, in the words the page shows.
+export const DRAFT_STATE_TEXT: Record<DraftState, string> = {
+  queued: 'Waiting for a chat',
+  chat: 'Chat drafting',
+  waiting: 'Waiting for you',
+  stale: 'Stale: the pull request moved',
+  submitted: 'Submitted',
+  discarded: 'Discarded',
+  replaced: 'Replaced by a new draft',
+  ended: 'Chat ended without a draft',
+  refused: 'Blocked by content rules',
+  closed: 'Pull request closed',
+}
+
 export interface ReleaseQueue {
   repositories: QueueRepository[]
 }
@@ -110,6 +148,8 @@ export function releaseClient(api: AppApi) {
     // Integration branches (RC16.8) and the person-only landing approval (RC16.6).
     branches: (workspaceId: string) => run<{ branches: IntegrationBranch[] }>('integration.view', {}, workspaceId),
     land: (workspaceId: string, repository: string, branch: string, head: string) => run<unknown>('integration.land', { repository, branch, head }, workspaceId),
+    drafts: (workspaceId: string, filter: { repository?: string; state?: string } = {}) =>
+      run<ReviewDrafts>('review.drafts', Object.fromEntries(Object.entries(filter).filter(([, value]) => value)), workspaceId),
     // One click releases the next phase of a spec that has none yet.
     step: (workspaceId: string, planId: string) => run<{ planId: string; phase: string; title: string }>('radar.releasestep', { planId }, workspaceId),
   }
