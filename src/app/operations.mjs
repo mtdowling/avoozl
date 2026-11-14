@@ -101,7 +101,7 @@ import {
 import { claimsView, refreshClaims } from "./radar-claims.mjs";
 import { mergePath, requireMergePath } from "./radar-merge-path.mjs";
 import { instanceIdentity } from "./instance.mjs";
-import { mirrorGit, mirrorSetup } from "./mirror-setup.mjs";
+import { mirrorEntryKey, mirrorGit, mirrorSetup } from "./mirror-setup.mjs";
 import { radarSetup } from "./radar-setup.mjs";
 import { radarReread, radarValues } from "./radar-values.mjs";
 import { armedPullRequests, disarmPullRequest } from "./radar-arm.mjs";
@@ -3444,22 +3444,23 @@ export class Operations {
     if (name === "mirror.adopt" || name === "mirror.create") {
       if (!input.repository) fail("Name the mirror repository.", 400);
       if (!this.github?.available?.()) fail("GitHub is not available.", 503);
-      const policy = readGitHubPolicyOrNull(this.workspaceRoot);
+      const policy = readGitHubPolicyOrNull(this.workspaceRoot),
+        key = mirrorEntryKey(policy?.repositories, input);
       return mirrorSetup(
         name === "mirror.adopt" ? "adopt" : "create",
         {
           github: this.github,
-          entry: policy?.repositories?.[input.repository] ?? null,
+          entry: policy?.repositories?.[key] ?? null,
           git: this.mirrorGit ?? mirrorGit,
           identity: instanceIdentity(this.store),
-          saveSetting: (mirror, value, baseBranch) => {
+          saveSetting: (_mirror, value, baseBranch) => {
             const file = this.settingsFile(),
               current = file.readGitHubSettings(),
               github = structuredClone(current.github),
-              entry = github.repositories?.[mirror] ?? { baseBranch };
+              entry = github.repositories?.[key] ?? { baseBranch };
             github.repositories = {
               ...github.repositories,
-              [mirror]: { ...entry, mirror: value },
+              [key]: { ...entry, mirror: value },
             };
             file.updateGitHubSettings({ github, expectedHash: current.hash });
             this.configuration?.reload();
