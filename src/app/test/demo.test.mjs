@@ -192,6 +192,7 @@ test("the fake GitHub refuses every write and any method it does not know", asyn
       [21, "SUCCESS"],
       [22, "FAILURE,SUCCESS"],
       [23, ""],
+      [24, ""],
     ],
   );
   assert.equal((await github.projectItems()).length, 13);
@@ -310,8 +311,14 @@ test("the demo never touches the real workspace, catalog or settings", async (t)
     assert.equal(reply.body.demo, true, operation);
     assert.match(reply.body.error, /^Demo mode:/, operation);
   }
+  // The Radar screens' data, served by the open sample over the same path.
+  const fixtures = await call("demo.fixtures");
+  assert.equal(fixtures.status, 200, JSON.stringify(fixtures.body));
+  assert.equal(fixtures.body.result.epics[0].id, "recipe-box");
+  assert.equal(fixtures.body.result.driverSession.state, "running");
   assert.equal((await call("demo.start")).body.result.existing, true);
   assert.equal((await call("demo.exit")).body.result.active, false);
+  assert.equal((await call("demo.fixtures")).status, 409);
   assert.equal((await call("graph.view", {}, DEMO_WORKSPACE_ID)).status, 409);
   // Exit returns to the real workspace, unchanged to the byte.
   assert.deepEqual(realFiles(), before);
