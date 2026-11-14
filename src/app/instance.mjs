@@ -72,6 +72,10 @@ export function instanceIdentity(store, { random = Math.random } = {}) {
   return identity;
 }
 
+// The ID if one exists, without making one (a planning-only read must not write).
+export const peekInstance = (store) => store.getMeta(KEY) ?? null;
+export const peekInstanceId = (store) => peekInstance(store)?.id ?? null;
+
 export function renameInstance(store, value) {
   const name = String(value ?? "").trim();
   if (!NAME.test(name) || INSTANCE_ID.test(name))
@@ -91,6 +95,18 @@ export function recordSeenInstance(store, id) {
   if (!seen.includes(id)) store.setMeta(SEEN, [...seen, id]);
 }
 
+// The Actions variable a mirror holds for one Avoozl. GitHub names allow
+// letters, digits and underscores only, so `inst-ab12...` becomes
+// `AVOOZL_INSTANCE_INST_AB12...` (names are stored upper case).
+export const instanceVariableName = (id) =>
+  `AVOOZL_INSTANCE_${String(id).replace("-", "_").toUpperCase()}`;
+
+// The instance ID a variable name stands for, or null for any other name.
+export function instanceOfVariable(name) {
+  const match = /^AVOOZL_INSTANCE_INST_([0-9A-F]{12})$/i.exec(String(name));
+  return match ? `inst-${match[1].toLowerCase()}` : null;
+}
+
 // `shared` is true once another instance was seen; until then the name shows
 // in the header only.
 export function instanceView(store) {
@@ -106,6 +122,8 @@ const escape = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 export function stripInstance(text, { id, name } = {}) {
   let out = String(text ?? "")
     .replace(/\s*\binstance=\S+/g, "")
+    .replace(/,\s*"instance"\s*:\s*"[^"]*"/g, "")
+    .replace(/"instance"\s*:\s*"[^"]*"\s*,?/g, "")
     .replace(/<!--\s*avoozl-driver[^>]*-->\s*/g, "")
     .replace(ID_SHAPE, "");
   if (id) out = out.split(id).join("");

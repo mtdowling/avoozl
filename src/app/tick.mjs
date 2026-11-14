@@ -101,6 +101,7 @@ import {
 import { reviewDraftDispatches, reviewDraftStep } from "./review-draft.mjs";
 import { syncStep, syncTargets } from "./integration-sync.mjs";
 import { mirrorSyncStep } from "./mirror-sync.mjs";
+import { publishInstanceStep } from "./instance-publish.mjs";
 import { mirrorForwardStep } from "./mirror-forward.mjs";
 import { mirrorForwardRunStep } from "./mirror-forward-run.mjs";
 import { mirrorPublicPollStep } from "./mirror-forward-poll.mjs";
@@ -845,6 +846,11 @@ export async function tick(
           planned.notify.push(...step.notify);
           for (const text of [
             ...step.errors,
+            ...(
+              await publishInstanceStep(store, github, {
+                policy: readGitHubPolicyOrNull(workspaceRoot),
+              })
+            ).errors,
             ...(
               await mirrorForwardStep(store, github, {
                 policy: readGitHubPolicyOrNull(workspaceRoot),
