@@ -2040,9 +2040,9 @@
     "rc-24.2": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Spec home, reading both homes, Specs badge. See RC25.2, RC25.8; \u00a7D30.",
+      "summary": "Spec home, both homes read into one graph every tick, Specs badge. See RC25.2, RC25.8; \u00a7D30.",
       "acceptance": [
-        "Unit tests for both homes and the duplicate name; a page test shows both badges; `npm test` and `npm run test:ui` pass."
+        "Unit tests for both homes read in one tick and a duplicate spec name or task ID; a page test shows both badges; `npm test` and `npm run test:ui` pass."
       ],
       "completion": "integrated",
       "checks": [
@@ -2092,9 +2092,9 @@
     "rc-24.5": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Issues from public and private plans. See RC25.7; \u00a7D30.",
+      "summary": "Issues from public and private plans, with edges across homes. See RC25.7, RC25.8, RC25.9, RC25.10; \u00a7D30.",
       "acceptance": [
-        "Both kinds of issue are written; no write reaches the source for a private plan; a cross-home edge fails lint naming both."
+        "A fake GitHub test: both kinds of issue are written into one mirror; no write reaches the source for a private plan; a public task waits on a private one and the reverse, each releasing on its blocker's own rule; the public body says only `Waits on a private task.`"
       ],
       "completion": "integrated",
       "checks": [
@@ -2108,7 +2108,7 @@
     "rc-p24": {
       "kind": "leaf",
       "repository": "avoozl",
-      "summary": "Proof 24: a public and a private plan in one mirror. See RC25; \u00a7D17.",
+      "summary": "Proof 24: a public and a private plan active together in one mirror, with one cross edge. See RC25; \u00a7D17.",
       "acceptance": [
         "Expected result observed; receipt under `docs/evidence/` lists the scratch repositories."
       ],
