@@ -245,15 +245,19 @@ try {
       if (positionals.length !== 1)
         throw Error("Name the issue as owner/repo#number.");
       reference = parseIssueReference(positionals[0]);
+      if (options.pr !== undefined && !/^[1-9][0-9]{0,9}$/.test(options.pr))
+        throw Error("Name the pull request as a number.");
     } catch (error) {
       console.error(
         error.message +
-          " Usage: avoozl verify-issue owner/repo#number [--json]",
+          " Usage: avoozl verify-issue owner/repo#number [--pr N] [--json]",
       );
       process.exitCode = 64;
     }
     if (reference) {
-      const result = await verifyIssue(positionals[0]);
+      const result = await verifyIssue(positionals[0], {
+        ...(options.pr !== undefined ? { pull: Number(options.pr) } : {}),
+      });
       console.log(
         options.json
           ? JSON.stringify(result, null, 2)
@@ -1502,7 +1506,7 @@ try {
                                          Replace a local task; its dependents wait on the new one
   activity TASK_ID --action start|heartbeat|pause|finish ...
   skill --workspace PATH                Print the portable workflow skill
-  verify-issue OWNER/REPO#N [--json]    Check an issue came from an approved spec (exit 0, 1, 2, 64)
+  verify-issue OWNER/REPO#N [--pr N] [--json]  Check an issue came from an approved spec; with --pr, that its pull request targets the right branch (exit 0, 1, 2, 64)
   mcp --workspace PATH                  Stdio MCP server for the workspace database
   mcp --url URL                         Stdio bridge to a running server
   mcp --kirocrew                        Kiro Crew app server: workspace per caller

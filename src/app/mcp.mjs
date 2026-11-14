@@ -11,7 +11,7 @@ import { GROUPED_TOOLS, groupedCall, groupedToolList } from "./mcp-tools.mjs";
 export const OLD_TOOLS = {
   plans_verify_issue: [
     "issue.verify",
-    'Check that a GitHub issue came from an approved spec: {issue: "owner/repo#number"}. Read-only; needs no workspace, only the caller\'s gh login. Runs the marker, approver, author, spec and commit checks, reports every one, and quotes no issue text in the checks. When ok is true it also returns a brief: task IDs, acceptance and references. Build only when ok is true; otherwise skip the issue and name the failed check.',
+    'Check that a GitHub issue came from an approved spec: {issue: "owner/repo#number"}. Read-only; needs no workspace, only the caller\'s gh login. Runs the marker, approver, author, spec and commit checks (and, for an epic with an integration branch, the base check; add pullRequest: N to check that pull request targets the right branch), reports every one, and quotes no issue text in the checks. When ok is true it also returns a brief: task IDs, acceptance and references. Build only when ok is true; otherwise skip the issue and name the failed check.',
   ],
   plans_examples: [
     "workspace.examples",

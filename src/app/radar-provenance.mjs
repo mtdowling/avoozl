@@ -4,6 +4,7 @@
 // approval commit and the approver. A task ID list is added per issue.
 import { approvalState } from "./spec-approval.mjs";
 import { renderProvenance } from "./github-provenance.mjs";
+import { integrationBranchOf } from "./integration-branch.mjs";
 
 // True when the repository's `coder` is `issue-radar`, in either mode.
 export function issueRadarCoder(identity, repository) {
@@ -24,6 +25,9 @@ export function provenanceWriter(store, { identity, plan, config, plans }) {
   if (!issueRadarCoder(identity, config.id) || !plan.spec) return null;
   const approval = approvalState(store, plan.id, plan.hash);
   if (approval?.state !== "merged") return null;
+  // The epic's integration branch is the base of every task pull request
+  // (RC16.2): named in the marker and in one visible line.
+  const base = integrationBranchOf(store, plan);
   return (tasks) =>
     renderProvenance({
       spec: plan.spec,
@@ -31,5 +35,9 @@ export function provenanceWriter(store, { identity, plan, config, plans }) {
       commit: approval.commit,
       approvedBy: approval.approvedBy,
       ...(plans ? { plans } : {}),
-    });
+      ...(base ? { base } : {}),
+    }) +
+    (base
+      ? `\nBase branch: \`${base}\`. Open the pull request against it.`
+      : "");
 }
