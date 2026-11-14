@@ -17,6 +17,7 @@ import { errorMessage } from './workspace-api.ts'
 import { relativeTime } from './task-api.ts'
 import { Modal } from './Modal.tsx'
 import { linkHref } from './views-api.ts'
+import { SCOPE_RULE, SCOPE_STATEMENT } from '../../../src/work-split.mjs'
 
 type Client = ReturnType<typeof settingsClient>
 
@@ -289,6 +290,9 @@ export default function SetupWizard(props: {
   const state = setupState(result, error, at)
   return (
     <div className="flex flex-col gap-2" data-setup-state={state.kind}>
+      <p className="text-xs text-muted" data-scope-statement="">
+        {SCOPE_STATEMENT} {SCOPE_RULE}
+      </p>
       {state.kind === 'checking' && <p className="text-sm text-muted">Checking GitHub…</p>}
       {state.kind === 'set-up' && (
         <div className="flex flex-wrap items-center gap-2 text-sm">

@@ -6,6 +6,8 @@ page, a loopback backend, an MCP server, and a one-minute tick. Its work is
 described in Kiro spec folders, called specs on the page. Execution state lives in a local SQLite workspace. GitHub is
 optional.
 
+Avoozl is for epics: approved goals that need many changes in a set order. Maintenance, triage and one-off pull request handling belong to Issue Radar crews or to your team's coder. Avoozl can hand each task of an epic to any coder. If the work fits in one pull request, it is not an Avoozl job. If it needs a plan with an order, it is.
+
 ## Install
 
 You need Kiro Crew 0.12.2.3 or later, as installed (no custom build), Node
