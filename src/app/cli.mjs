@@ -1530,9 +1530,11 @@ override workspace configuration. UI, CLI and MCP share application operations.`
 // A receipt as a few lines of text, for the terminal.
 function receiptText(r) {
   const usd = (n) => (n == null ? "no cap" : `$${Number(n).toFixed(2)}`);
+  // Each cap names the level that set it; tokens and credits always have one.
+  const capOf = (key) => `${r.cap[key]} (${r.cap.levels?.[key] || "default"})`;
   const lines = [
-    `${r.taskId}: ${usd(r.totals.usd)} of ${usd(r.cap.usd)} (${r.cap.mode}, cap from ${r.cap.level || "nowhere"})`,
-    `Tokens ${Math.round(r.totals.input + r.totals.output)}, credits ${r.totals.credits}, unpriced turns ${r.totals.unpricedTurns}`,
+    `${r.taskId}: ${usd(r.totals.usd)} of ${usd(r.cap.usd)}${r.cap.usd == null ? "" : ` (${r.cap.level})`}, ${r.cap.mode} mode`,
+    `Tokens ${Math.round(r.totals.input + r.totals.output)} of ${capOf("tokens")}, credits ${r.totals.credits} of ${capOf("credits")}, unpriced turns ${r.totals.unpricedTurns}`,
     `Prices: version ${r.price.version}${r.readAt ? `; last usage read ${r.readAt}` : ""}`,
   ];
   if (!r.complete)
