@@ -33,6 +33,8 @@ import PluginsSettings from '../../src/PluginsSettings.tsx'
 import SettingsView from '../../src/SettingsView.tsx'
 import { answerIntake } from './intake-fixture.ts'
 import RadarValuesScreen from '../../src/RadarValues.tsx'
+import { CrewsRulesSettings } from '../../src/CrewsRulesSettings.tsx'
+import { emptyRepository, type RepositoryForm } from '../../src/settings-api.ts'
 import AvoozlApp from '../../src/App.tsx'
 import { MarkDoneDialog } from '../../src/TaskNotes.tsx'
 import NewPlanDrawer from '../../src/NewPlanDrawer.tsx'
@@ -563,6 +565,18 @@ function RadarValuesPage() {
     </div>
   )
 }
+// ?page=crews-rules: the Crews and rules tab on one repository form.
+function CrewsRulesPage() {
+  const [repository, setRepository] = useState<RepositoryForm>(emptyRepository('example/code'))
+  return (
+    <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)', minHeight: '100vh', boxSizing: 'border-box' }}>
+      <HarnessBoundary>
+        <CrewsRulesSettings id="t" repository={repository} set={(change) => setRepository((before) => ({ ...before, ...change }))} />
+        <pre data-form style={{ whiteSpace: 'pre-wrap' }}>{JSON.stringify({ capacity: repository.releaseCapacity, rules: repository.reviewRules, plan: repository.planLabel })}</pre>
+      </HarnessBoundary>
+    </div>
+  )
+}
 function RoutingPage() {
   return (
     <div {...{ [APP_ATTR]: '' }} data-settings-page="routing" style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)', minHeight: '100vh', boxSizing: 'border-box' }}>
@@ -575,5 +589,5 @@ function RoutingPage() {
   )
 }
 createRoot(document.getElementById('root')!).render(
-  page === 'radar-values' ? <RadarValuesPage /> : page === 'routing' ? <RoutingPage /> : intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page === 'activity' ? <ActivityPage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
+  page === 'crews-rules' ? <CrewsRulesPage /> : page === 'radar-values' ? <RadarValuesPage /> : page === 'routing' ? <RoutingPage /> : intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page === 'activity' ? <ActivityPage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
 )
