@@ -796,12 +796,13 @@ function RepositoryEditor(props: {
     <Card>
       <div className="flex flex-col gap-3">
         <SegmentedControl
+          collapse={false}
+          wrap="hug"
           layoutId="avoozl-repository-tabs"
           ariaLabel="Repository settings"
           segments={REPOSITORY_TABS.map((t) => ({ key: t.key, label: t.label }))}
           value={tab}
           onChange={(key) => setTab(key as RepositoryTab)}
-          wrap
         />
         {tab === 'mode' && (
           <Section level="sub" title="Mode and branch" blurb={REPOSITORY_BLURBS.mode}>

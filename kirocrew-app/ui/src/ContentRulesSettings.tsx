@@ -605,6 +605,8 @@ function TermsEditor(props: { workspaceId: string; client: Client; set: ContentR
     <div className="flex flex-col gap-2.5" data-terms-editor>
       <div className="flex flex-wrap items-center gap-2">
         <SegmentedControl
+          collapse={false}
+          wrap="hug"
           layoutId="avoozl-terms-view"
           ariaLabel="Terms view"
           segments={[
