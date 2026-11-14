@@ -29,8 +29,9 @@ So nothing crosses machines by chat. Each machine runs:
 - a **conductor**: a `kirocrew-conductor` chat that claims tasks, dispatches
   local `kirocrew-worker` chats, accepts results, and goes idle.
 
-The machines share a queue. In real use that is GitHub: an issue with an
-assignee, and a pull request as the result. Avoozl only writes the queue.
+The machines share a private queue, not GitHub (see "Private queue" below). The
+result is a pushed branch plus a status write to the queue. Avoozl only writes
+queue entries.
 
 ## What was built (all local)
 
@@ -99,7 +100,7 @@ ring (see 3). `a1`, `c1`, `d1` needed nothing.
 Verified. `c1` waited for `a1`: it was claimed 47 s after `a1` landed, and its
 checkout already held `a1`'s file. Each task is claimed only when all its
 dependencies have a done file. In real use the driver should release a task (set
-the assignee) only after its blockers close; Avoozl already does this. Keep the
+the entry as `queued`) only after its blockers close; Avoozl already does this. Keep the
 machine-side check as a second guard.
 
 ### 3. Gateway restart in the middle of a task
@@ -157,10 +158,9 @@ above, not measured).
 The bell must therefore set `trust`, on every run, because a restart drops it.
 The conductor's `work_dispatch` and `execute_bash` are not on its allow list, so
 they need trust. This is a standing grant on an unattended machine: it is safe
-only because the queue holds ids and the orders are fixed. For GitHub, the issue
-must not carry free text that a conductor could read as an order. Put the task
-brief in the plans repo (read by the worker from a checked-out file), and put
-only the issue number in the queue.
+only because the queue holds ids and the orders are fixed. In the revised design the conductor reads only fixed, pattern-checked fields; the
+free-text brief is read by the worker, and the queue must be writable only by the
+driver (see "Private queue").
 
 ### 6. Can the person type into the bell-opened conductor?
 
@@ -195,7 +195,7 @@ stand-in, once the three conditions hold:
 2. The orders replace a stopped or approval-blocked worker with a fresh child.
 3. The queue carries only ids.
 
-It never needs a cross-machine chat call. Not shown: real GitHub as the queue, two
+It never needs a cross-machine chat call. Not shown: a real private queue (the one run used a first-draft file queue, replaced below), two
 machines at once, a Windows or macOS host, and a person typing into the conductor.
 
 ## What breaks
@@ -206,36 +206,122 @@ machines at once, a Windows or macOS host, and a person typing into the conducto
 - Unattended trust is a real grant. A bad queue entry could be an instruction.
 - Reset from a cron turn works by accident.
 
+## Private queue (revised design)
+
+The queue is pluggable and private. Two backends fit one interface:
+
+- **DynamoDB-style table**, with conditional writes.
+- **Files over SSH**: the driver writes one JSON file per task to the machine
+  with a temp-name write and an atomic `mv`; the machine's own host does the
+  claim.
+
+No AWS resource was created. The DynamoDB mapping was written and its
+semantics were run against a local stand-in; it was not run against DynamoDB.
+
+### Entry
+
+| Field | Read by | Rule |
+|---|---|---|
+| `task_id`, `machine`, `branch` | conductor | checked against a fixed pattern; branch must start `task/` |
+| `repo`, `base_commit`, `agent`, `model` | conductor | checked against a fixed pattern |
+| `brief` | worker only | free text; the conductor never reads it |
+| `status` | both | `queued`, `claimed`, `done`, `failed` |
+| `version` | both | +1 on every write |
+| `lease_owner`, `lease_expires` | machine writes, driver reads | see leases |
+| `result_commit`, `result_note` | machine writes, driver reads | the branch tip and a short note |
+
+Dependencies stay in Avoozl: the driver writes an entry only when its blockers
+are done.
+
+### Claims are compare-and-set
+
+| Step | DynamoDB form | Condition |
+|---|---|---|
+| Driver adds a task | `PutItem` | `attribute_not_exists(task_id)` |
+| Machine claims | `UpdateItem` | `status = queued AND machine = me`; sets `claimed`, `lease_owner`, `lease_expires` |
+| Heartbeat or re-claim after a restart | `UpdateItem` | `lease_owner = me AND status = claimed`; extends the lease |
+| Machine finishes | `UpdateItem` | `lease_owner = me AND status = claimed`; sets `done` or `failed`, `result_commit` |
+
+A false condition is a refusal, not an error to retry blindly. The target machine
+is in the entry, so two machines never compete for one task; the condition is a
+second guard and the guard that stops a double claim on one machine.
+
+### Leases: the driver reads, never acts alone
+
+The lease says "this machine is working on it until time T". If T passes, the
+driver shows the task as stale to a person. It has no write that releases a
+lease or reassigns the task. Only the owning machine can take back its own lease
+after a restart, which is what the conductor does on its first ring. This keeps
+Avoozl's rule that a worker is never replaced because it went quiet.
+
+### Verified on the stand-in (local, no gateway)
+
+Seven tests, all passing (`CasTests`, run from the stand-in folder):
+
+- A second put of the same id is refused.
+- A field that fails its pattern (a branch of `main; rm -rf x`) is refused.
+- 24 claims from 8 processes at once: exactly one winner, version 2.
+- Another machine cannot claim, and cannot finish another machine's task.
+- An expired lease is flagged stale and is not taken by anyone else.
+- The owning machine can take its own lease back; another machine cannot.
+- A finish is refused unless the task is claimed by the caller, and a second
+  finish is refused.
+
+The conductor and bell layers (results 1 to 7 above) were measured with the
+first-draft file queue and were not re-run against this one. The changes they
+need are small: the claim command becomes the compare-and-set above, and the
+worker's commands become the three below.
+
+### Results come back as a branch plus a status write
+
+The worker runs three fixed commands, each safe to re-run:
+
+1. `prepare <id>`: reads the entry, clones `repo`, checks out `base_commit`, makes
+   `branch`, and prints the brief.
+2. The worker does the work and commits on `branch`.
+3. `finish <id>`: pushes `branch` (never a force push), then writes `done` with
+   `result_commit`. If the push fails, it writes `failed` with a short note.
+
+Nothing is posted to GitHub. A person or Avoozl reads the status and the branch.
+
+### Safety of the brief
+
+The queue is the trust boundary, because the worker runs with inherited trust. So:
+
+- Only the driver may write entries. For DynamoDB, give the driver's role
+  `PutItem` and the machine's role `UpdateItem` on its own items only (a leading-key
+  or attribute condition in IAM). For SSH, the driver's key may write only to the
+  machine's queue folder, and the machine's account cannot write there.
+- The conductor's message and its orders never contain the brief or `result_note`.
+- A brief is as trusted as the driver. This design does not stop a driver that
+  has been given a hostile brief. It limits the damage to the machine's worker
+  chat, which runs on a branch, not on the base.
+
 ## Smallest Avoozl design
 
-What Avoozl writes to GitHub: one issue per ready task, with a configurable
-label, the machine's account as assignee, and a body that holds the task id and
-the spec path only. It assigns a task only when its blockers have closed (already
-how Avoozl releases dependents). The result is the pull request that closes it.
-Avoozl writes nothing else for this.
+What Avoozl writes: one queue entry per ready task, nothing else.
 
 The bell (script cron, 60 s, no model):
 
 1. Open the machine's conductor once; reopen it if its chat is gone.
 2. Set its mode to `trust`, every run.
-3. List open issues with the label and assignee `@me` (one `gh` call), hash their
-   numbers and the closed set.
+3. Read this machine's `queued` and `claimed` entries (one query, or a folder
+   listing). Hash their ids, status, and version.
 4. If the hash, or the gateway process, changed, send the fixed message; else
    exit. Every N rings, send the reset message.
 
 Conductor steering (fixed text, same every ring):
 
-1. Run `avoozl next` (it prints ready, running, waiting and the brief). Claim
-   locally before dispatching.
-2. For each ready task with no ledger item: `work_dispatch` a `kirocrew-worker`
-   with the brief and an acceptance file or merged-PR check.
-3. Accept done items with the acceptance check.
-4. For an open task whose worker is stopped or blocked on approval: create a
-   fresh child, bind it to the same item, send the same seed. Never open a second
-   worker while the first is alive and working.
+1. Run the claim command for this machine. It claims every `queued` entry with
+   compare-and-set and prints only fixed fields: id, branch, agent, model.
+2. For each claimed id with no ledger item: `work_dispatch` the entry's agent and
+   model with a seed that names the id and the three fixed commands.
+3. Accept a done item when its status in the queue is `done` and the branch tip
+   equals `result_commit`.
+4. For a claimed id whose worker is stopped or blocked on approval: re-claim the
+   lease, create a fresh child, bind it to the same item, send the same seed.
+   Never open a second worker while the first is alive and working.
 5. Reply in one line and end the turn.
-
-The worker's commands (`avoozl` prepare and finish) must be safe to re-run.
 
 ## Kiro Crew requests still needed
 
@@ -244,5 +330,5 @@ The worker's commands (`avoozl` prepare and finish) must be safe to re-run.
 2. Support `reset_conversation` from a cron turn on purpose, or add a cron call
    for it. The current behavior contradicts the refusal text.
 3. Drop an inherited `KIROCREW_BOUND_PORT` when a gateway starts, or fail loudly.
-4. Optional: a wake kind that watches a GitHub query, so the bell script is not
+4. Optional: a wake kind that watches a queue query, so the bell script is not
    needed. Today only the work ledger and pull-request watch kinds exist.
