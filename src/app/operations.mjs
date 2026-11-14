@@ -96,6 +96,10 @@ import {
 import { planningIdentity, requireNamespace } from "./github-marker.mjs";
 import { claimsView, refreshClaims } from "./radar-claims.mjs";
 import { mergePath, requireMergePath } from "./radar-merge-path.mjs";
+import {
+  checkIntegrationBranch,
+  requireIntegrationBranch,
+} from "./integration-branch.mjs";
 import { mergeNeedsYou } from "./radar-merge.mjs";
 import { namespaceOf, planThisRequest } from "./radar-plan-me.mjs";
 import {
@@ -2822,6 +2826,25 @@ export class Operations {
     // read from GitHub; nothing is written.
     if (name === "radar.mergepath")
       return { repositories: await this.mergePaths(input.repository) };
+    // An epic's integration branch (RC16.1): exists, not the default,
+    // protected. Read only; refuses a branch that is not ready.
+    if (name === "radar.integrationbranch") {
+      const policy = readGitHubPolicyOrNull(this.workspaceRoot),
+        entry = policy?.repositories?.[input.repository];
+      if (!input.repository || !input.branch)
+        fail("Name the repository and the integration branch.", 400);
+      if (!entry)
+        fail(`${input.repository} is not a registered repository.`, 404);
+      if (!this.github?.available?.()) fail("GitHub is not available.", 503);
+      return requireIntegrationBranch(
+        await checkIntegrationBranch(
+          this.github,
+          input.repository,
+          input.branch,
+          entry,
+        ),
+      );
+    }
     if (name === "radar.crews") {
       const policy = readGitHubPolicyOrNull(this.workspaceRoot);
       // Read at most every 2 minutes, however often the Dashboard asks.
