@@ -10,11 +10,14 @@ import path from 'node:path'
 import { buildHarness } from './build.mjs'
 import { findChrome, launch } from './chrome.mjs'
 
-const SIZES = [
-  [320, 700],
-  [768, 1024],
-  [1280, 800],
-]
+// AVOOZL_SIZES=390x800,1280x800 picks other sizes.
+const SIZES = process.env.AVOOZL_SIZES
+  ? process.env.AVOOZL_SIZES.split(',').map((size) => size.split('x').map(Number))
+  : [
+      [320, 700],
+      [768, 1024],
+      [1280, 800],
+    ]
 const [out, name, wait, ...extra] = process.argv.slice(2)
 if (!out || !name || !wait) {
   console.error('Usage: page-shots.mjs <out dir> <page> <selector> [key=value ...]')

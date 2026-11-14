@@ -123,6 +123,11 @@ export async function launch(chrome) {
       async click(x, y) {
         for (const type of ['mousePressed', 'mouseReleased']) await call('Input.dispatchMouseEvent', { type, x, y, button: 'left', clickCount: 1 })
       },
+      // A finger tap: pointer events with pointerType touch.
+      async tap(x, y) {
+        await call('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] })
+        await call('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+      },
       async wheel(x, y, deltaY) {
         await call('Input.dispatchMouseEvent', { type: 'mouseWheel', x, y, deltaX: 0, deltaY })
       },

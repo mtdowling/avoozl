@@ -289,8 +289,10 @@ export interface MirrorForm {
   branchPrefix: string
   squash: boolean
   trustedPersons: string
+  plansBranch: string
   forwardTarget: string
   publicBranch: string
+  forwardMaxFileBytes: string
 }
 
 export const emptyMirror = (): MirrorForm => ({
@@ -301,19 +303,23 @@ export const emptyMirror = (): MirrorForm => ({
   branchPrefix: '',
   squash: true,
   trustedPersons: '',
+  plansBranch: '',
   forwardTarget: '',
   publicBranch: '',
+  forwardMaxFileBytes: '',
 })
 
 // What a blank mirror field means (src/app/mirror-policy.mjs MIRROR_DEFAULTS).
 export const MIRROR_FORWARD_MODES = ['off', 'nudge', 'auto'] as const
 export const MIRROR_FORWARD_TARGETS = ['each', 'branch', 'batch'] as const
 export const MIRROR_DEFAULT_TEXT = {
+  forwardMaxFileBytes: 'blank: 1000000 bytes (1 MB)',
   forwardTarget: 'blank: each, one public pull request per merged change',
   forward: 'blank: nudge, a Forward button you press',
   forwardTo: 'blank: the public repository',
   branchPrefix: 'blank: avoozl/',
   trustedPersons: 'blank: nobody, so Auto stays off',
+  plansBranch: 'blank: avoozl-plans',
 }
 
 function mirrorPolicy(form: MirrorForm) {
@@ -326,8 +332,10 @@ function mirrorPolicy(form: MirrorForm) {
     branchPrefix: blank(form.branchPrefix),
     squash: form.squash ? undefined : false,
     trustedPersons: splitList(form.trustedPersons),
+    plansBranch: blank(form.plansBranch),
     forwardTarget: blank(form.forwardTarget),
     publicBranch: blank(form.publicBranch),
+    forwardMaxFileBytes: form.forwardMaxFileBytes.trim() ? Number(form.forwardMaxFileBytes) : undefined,
   })
 }
 
@@ -521,8 +529,10 @@ export function toForm(github: Policy): SettingsForm {
             branchPrefix: str(mirror.branchPrefix),
             squash: mirror.squash !== false,
             trustedPersons: joined(mirror.trustedPersons),
+            plansBranch: str(mirror.plansBranch),
             forwardTarget: str(mirror.forwardTarget),
             publicBranch: str(mirror.publicBranch),
+            forwardMaxFileBytes: str(mirror.forwardMaxFileBytes),
           }
         })(),
         // radar keeps its other keys (planLabel, conflictLabel, clearPlanLabel).
