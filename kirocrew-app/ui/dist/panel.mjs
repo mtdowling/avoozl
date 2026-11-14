@@ -2076,10 +2076,11 @@ function Bt() {
 	}), G = /* @__PURE__ */ m("div", {
 		"data-panel-line": !0,
 		"data-stopped": _e ? "" : void 0,
-		className: "flex flex-col gap-2",
+		className: "flex flex-wrap items-center gap-2",
 		style: {
 			display: "flex",
-			flexDirection: "column",
+			flexWrap: "wrap",
+			alignItems: "center",
 			gap: 8
 		},
 		children: [
@@ -2090,8 +2091,11 @@ function Bt() {
 				variant: "success",
 				children: "Line running"
 			}),
-			L.stops.map((e) => /* @__PURE__ */ p($, { children: e }, e)),
-			/* @__PURE__ */ p(De, { children: /* @__PURE__ */ p(Dt, { workspaceId: a }) })
+			/* @__PURE__ */ p(De, { children: /* @__PURE__ */ p(Dt, { workspaceId: a }) }),
+			L.stops.map((e) => /* @__PURE__ */ p("span", {
+				style: { flexBasis: "100%" },
+				children: /* @__PURE__ */ p($, { children: e })
+			}, e))
 		]
 	}), K = ct(A), be = /* @__PURE__ */ m("section", {
 		"data-panel-driver": K.state,
