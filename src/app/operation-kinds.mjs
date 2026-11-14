@@ -79,6 +79,8 @@ const OBSERVE = new Set([
   "radar.mergepath",
   "radar.values",
   "radar.releasequeue",
+  "epics.view",
+  "trace.done",
   "radar.armed",
   "integration.view",
   "gap.preview",

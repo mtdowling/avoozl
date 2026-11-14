@@ -128,6 +128,8 @@ import {
   landingNeedsYou,
 } from "./integration-head.mjs";
 import { releaseQueue, releaseStep } from "./radar-coder-queue.mjs";
+import { epicsView } from "./epics-view.mjs";
+import { doneWork } from "./trace-done.mjs";
 import { isRadarRepository } from "./radar-coder-release.mjs";
 import {
   checkIntegrationBranch,
@@ -155,6 +157,7 @@ import {
   STATUS_VALUE_KEYS,
 } from "./github-policy.mjs";
 import { requireMirrorsPrivate } from "./mirror-policy.mjs";
+import { mirrorNeedsYou } from "./mirror-sync.mjs";
 import { syncProject } from "./github-project.mjs";
 import { cancelSetup, githubSetup } from "./github-setup.mjs";
 import {
@@ -3052,6 +3055,7 @@ export class Operations {
       view.items.push(...landingNeedsYou(store));
       view.items.push(...remoteNeedsYou(store));
       view.items.push(...syncNeedsYou(store));
+      view.items.push(...mirrorNeedsYou(store));
       view.items.push(
         ...radarNeedsYou(
           untriagedView(
@@ -3272,6 +3276,13 @@ export class Operations {
     // why. Read only. A Step click is a person's.
     if (name === "radar.releasequeue")
       return releaseQueue(store, planningIdentity(this.workspaceRoot));
+    // The Epics screen and Trace's Done work (read only).
+    if (name === "epics.view")
+      return epicsView(
+        store,
+        releaseQueue(store, planningIdentity(this.workspaceRoot)),
+      );
+    if (name === "trace.done") return doneWork(store, this.github);
     if (name === "radar.releasestep") {
       if (context.caller || context.mcp)
         fail("Only a person releases a phase, in the Avoozl page.", 403);
