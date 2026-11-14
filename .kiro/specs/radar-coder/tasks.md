@@ -513,7 +513,7 @@ Requirement RC23. A task that waits on an outside tracker item, with a label and
 - [x] rc-22.1 The gate node: `completion: "tracker"`, the tracker reference, lint and approval checks, after rc-1.1, rc-4.1 [RC23.1, RC23.2, RC23.3] (§D28)
   - The manifest and plan-quality accept `tracker: { plugin, item, done }` and refuse a missing part, an empty `done` or an unknown plugin id naming the task; release treats an open, failed or unknown gate as an unmet blocker and a done or cleared one as met at merged and integrated levels; the coder adapter and batching skip gates; the issue is projected with no ready label; `src/app/test/tracker-gate-node.test.mjs`.
   - Done when: Unit tests: a good gate lints; each bad gate is refused naming the task; a dependent is not released while the gate is open; a gate is never handed to a coder or put in a batch; `npm test` passes.
-- [ ] rc-22.2 The `gate` plugin part and the tick step with backoff, after rc-22.1 [RC23.6, RC23.7, RC23.8, RC23.13] (§D28)
+- [x] rc-22.2 The `gate` plugin part and the tick step with backoff, after rc-22.1 [RC23.6, RC23.7, RC23.8, RC23.13] (§D28)
   - `gate` joins docs/plugins.md and the plugin loader with one read-only `status`; `gateStep` calls it under a timeout, stores state, evidence and link after content rules, and sets the next check (1, 2, 5, 15, then 30 minutes); a throw, timeout or bad shape is `unknown`; `done` is recorded once and never reversed; no credential is read from or written to `.avoozl.json`; `src/app/test/tracker-gate-step.test.mjs`.
   - Done when: A fake plugin test shows the backoff gaps and the reset on a change; a throwing plugin gives `unknown`; a `done` releases the dependent on the same pass and a later `open` read leaves it released with one Trace note; a screen hit stores the withheld text; a grep test finds no token field in the settings schema.
 - [ ] rc-22.3 The waiting label setting and its writes, after rc-22.1, rc-20.1 [RC23.4, RC23.5, RC23.13] (§D28)
@@ -537,17 +537,66 @@ Requirement RC25. Private plans live on an orphan branch of the mirror and never
   - `mirror.plansBranch` in the form and the raw file; the branch is created from an empty commit with an explicit refspec; a name equal to the default branch, starting with `branchPrefix`, or sharing history with the default branch is refused; `src/app/test/mirror-plans-branch.test.mjs`.
   - Done when: A fake GitHub test: the branch is created once; each refused name is refused with its reason; the form and the raw file agree.
 - [ ] rc-24.2 Spec home, reading both homes, Specs badge, after rc-24.1 [RC25.2, RC25.8] (§D30)
-  - Each spec records `main` or `plansBranch`; one reader merges both lists; a name in both is refused; new specs start private; a move copies and never deletes; the Specs page shows Private or Public.
-  - Done when: Unit tests for both homes and the duplicate name; a page test shows both badges; `npm test` and `npm run test:ui` pass.
+  - Each spec records `main` or `plansBranch`; one reader reads both on every tick into one graph; a spec name or task ID in both is refused; new specs start private; a move copies and never deletes; the Specs page shows Private or Public.
+  - Done when: Unit tests for both homes read in one tick and the duplicate name or ID; a page test shows both badges; `npm test` and `npm run test:ui` pass.
 - [ ] rc-24.3 Marker `ref`, approval on the plans branch, `verify-issue` and crew commands, after rc-24.2, rc-3.3, rc-3.6, rc-3.2 [RC25.3, RC25.4, RC25.5] (§D30)
   - Marker writer and parser gain `ref`; approval of a private spec opens its pull request against `plansBranch`; `commit` check uses `<ref>...<commit>` and requires an orphan branch; `--json` prints the fetch and show commands; the one-line prompt is unchanged.
   - Done when: Tests: a private spec's issue passes; a `ref` that is the default branch, missing, or shares history fails with the reason; the prompt text equals the shipped one.
 - [ ] rc-24.4 Containment: sync, forward, leak scan, explicit refspecs, after rc-24.1, rc-23.4 [RC25.6] (§D30)
   - Sync names the default branch only; the forward clone is single-branch; the leak scan blocks the plans branch name, private spec paths and commits from it in any forward text; every push has one explicit refspec and no `--mirror`, `--all`, `--tags` or wildcard.
   - Done when: Tests: a planted plans-branch name or path blocks the push with one row naming the rule; the sync leaves the `plansBranch` head unchanged; a test scans Avoozl's push calls and finds no banned flag.
-- [ ] rc-24.5 Issues from public and private plans, after rc-24.3 [RC25.7] (§D30)
-  - Private-plan issues stay in the mirror and never go to the source; public-plan issue bodies stand alone with no private text and no `plansBranch`; a `requires` edge across homes is refused.
-  - Done when: A fake GitHub test: both kinds of issue are written; no write reaches the source for a private plan; a cross-home edge fails lint naming both.
+- [ ] rc-24.5 Issues from public and private plans, with edges across homes, after rc-24.3 [RC25.7, RC25.8, RC25.9, RC25.10] (§D30)
+  - Private-plan issues stay in the mirror and never go to the source; public-plan issue bodies stand alone with no private text and no `plansBranch`; both homes project into the same mirror and release under the same rules; a `requires` edge across homes is allowed both ways, and a public-safe body says only `Waits on a private task.`
+  - Done when: A fake GitHub test: both kinds of issue are written; no write reaches the source for a private plan; a public task waits on a private one and the reverse, each releases on its blocker's own rule, and the public body holds no private title, text, ID or link.
 - [ ] rc-p24 Proof 24: a public and a private plan in one mirror, after rc-24.1, rc-24.2, rc-24.3, rc-24.4, rc-24.5, rc-p23 [RC25] (§D17)
-  - Setup: the two scratch repositories of Proof 23 (a public-visibility stand-in under `mtdowling` and a private mirror), created only for the proof. Action: make one public plan and one private plan in the mirror, approve both, project, run `verify-issue` on one issue of each, forward a code change for each, then plant the plans branch name in a forward and try again. Expected: both verify; the private plan's files are on `plansBranch` only; the public repository has no ref of that name and no private path; the planted forward is blocked. Failure means: a private plan can reach the public repository. Next decision: forward only from a clone that never fetched the plans branch and add a second scan layer. List both scratch repositories in the receipt for the owner to delete.
+  - Setup: the two scratch repositories of Proof 23 (a public-visibility stand-in under `mtdowling` and a private mirror), created only for the proof. Action: make one public plan and one private plan in the mirror, active together, with one public task waiting on a private task (the reverse edge is a unit test), approve both, project, run `verify-issue` on one issue of each, forward a code change for each, then plant the plans branch name in a forward and try again. Expected: both plans appear in one graph and release under the same rules; the cross edge holds and releases; the public issue says only that it waits on a private task; both verify; the private plan's files are on `plansBranch` only; the public repository has no ref of that name and no private path; the planted forward is blocked. Failure means: a private plan can reach the public repository. Next decision: forward only from a clone that never fetched the plans branch and add a second scan layer. List both scratch repositories in the receipt for the owner to delete.
+  - Done when: Expected result observed; receipt under `docs/evidence/` lists the scratch repositories.
+
+## Phase 25: Forward targets and protections
+
+Requirement RC26. Where each mirror change lands on the public repository, and the protections on everything that leaves the mirror.
+
+- [ ] rc-25.1 Forward target setting and per-epic override, after rc-23.1, rc-16.1 [RC26.1, RC26.2] (§D31.1)
+  - `forwardTarget` (`each`, `branch`, `batch`) and `publicBranch` in the form and the raw file; epic manifest keys win over the repository's; Settings and Trace name the source of the value in force; `src/app/test/mirror-forward-target.test.mjs`.
+  - Done when: Precedence tests for epic, repository and default; an unknown value is refused; the form and the raw file agree.
+- [ ] rc-25.2 Path policy and metadata scrub, after rc-23.4 [RC26.5, RC26.6] (§D31.2)
+  - `forwardExclude`, `forwardAllow`, the default exclusions (`.kiro/`, the plans branch, `AGENTS.md`, steering); one new commit authored by the person, no trailers, markers, mirror history or links; tests 1 and 3 of D31.2 in `src/app/test/mirror-forward-protections.test.mjs`.
+  - Done when: Each excluded path blocks naming the rule; an allowlisted path passes; the commit has one parent, the person as author and no trailer or mirror reference.
+- [ ] rc-25.3 Leak scan extensions: private terms, hosts, ticket IDs, account IDs, secrets, binary and over-size files, after rc-25.2 [RC26.5] (§D31.2)
+  - Runs the public-crew content rules on the diff, file names, message, branch, title and body; `forwardMaxFileBytes` shown in Settings with its default; test 2 of D31.2.
+  - Done when: A planted fake term, host, ticket ID, account ID and secret each block; a binary and an over-size file block; an allowlisted binary passes; the test reads the size from the setting.
+- [ ] rc-25.4 Forward screen shows the exact public diff, title and body; receipt, after rc-25.3, rc-23.4 [RC26.5] (§D31.2, §D31.3)
+  - The push happens only when the hash matches what was shown; `auto` writes the receipt (diff, title, body, hash, target, person, time) before the push; test 4.
+  - Done when: A change after display forces a new display; an `auto` forward leaves the receipt before the push call.
+- [ ] rc-25.5 Block with one row and no retry; Stop the line stops forwarding; explicit refspecs, after rc-25.3, rc-4.2 [RC26.5, RC26.6] (§D31.2)
+  - `forwardGuard` runs 1 to 4 in order and returns the first block; one Needs you row naming the rule; no automatic retry; **Try again** re-runs everything; an open Stop the line disables forwarding in every mode; every push has one explicit refspec; tests 5, 7 and 8.
+  - Done when: A block gives one row across three ticks and zero retries; a scan of push calls finds no banned form; with a stop open, `auto` pushes nothing.
+- [ ] rc-25.6 Audit on the tick of what landed on the source, after rc-25.4 [RC26.5] (§D31.2)
+  - Compares each record's receipt with what GitHub reports on `source`; a difference opens one row and a Stop the line for forwarding; test 6.
+  - Done when: A fake source with an extra file, another author or a ref named for the plans branch gives one row and a stop.
+- [ ] rc-25.7 Targets `branch` and `batch`: public branch copy, epic batch, one public PR, after rc-25.1, rc-25.5, rc-23.5 [RC26.3, RC26.4] (§D31.1)
+  - The sync step also fast-forwards the copy of `publicBranch`; a `batch` epic builds one net-diff commit at epic done, runs every protection, opens one public PR; dependents inside the epic release on the mirror merge, outside it on the public merge; the public branch's landing in the default branch is a Needs you row and never an Avoozl merge.
+  - Done when: Fake GitHub tests: each target opens the right PR against the right base; a `batch` epic opens exactly one PR; no call merges the public branch into the default branch.
+- [ ] rc-p25 Proof 25: forward targets and protections on scratch repositories, after rc-25.1, rc-25.2, rc-25.3, rc-25.4, rc-25.5, rc-25.6, rc-25.7, rc-p23 [RC26] (§D17)
+  - Setup: the scratch repositories of Proof 23, created only for the proof. Action: forward one change with each target; plant an excluded path, a fake private term, a planted trailer and an extra file in turn. Expected: each target lands where set; each planted case blocks with one row and no retry; the audit catches the extra file. Failure means: a private path, term or history can reach the public repository. Next decision: turn `forward` to `nudge` for the repository and tighten the path policy. List the scratch repositories in the receipt for the owner to delete.
+  - Done when: Expected result observed; receipt under `docs/evidence/` lists the scratch repositories.
+
+## Phase 26: Setup buttons for a mirror
+
+Requirement RC27. Adopt what exists and create what is missing, with a dry run first.
+
+- [ ] rc-26.1 Dry-run engine and the `mirror.adopt` and `mirror.create` operations with CLI and MCP, after rc-23.1 [RC27.1, RC27.4, RC27.7] (§D32)
+  - A dry run lists reads, found or missing or differs, and writes; apply takes the dry run's hash and refuses when the world changed; a second run shows zero writes; `src/app/test/mirror-setup.test.mjs`.
+  - Done when: A dry run writes nothing; a changed world refuses the apply; a repeat run shows zero writes.
+- [ ] rc-26.2 Adopt existing setup, after rc-26.1, rc-7.2 [RC27.2, RC27.5, RC27.6] (§D32.1)
+  - Detects the private mirror (including a managed remote harness's staging repo), the plans branch, labels, Radar values and branch rules; writes only ticked lines; a rule kept by another tool is untouched unless listed and ticked; a missing permission shows as blocked.
+  - Done when: A fake GitHub test: an existing mirror and plans branch are found and nothing unticked is written; a blocked line gives one row.
+- [ ] rc-26.3 Create setup, after rc-26.1, rc-24.1 [RC27.3, RC27.5, RC27.6] (§D32.2)
+  - Steps in order: private repository (visibility read back), one-time `git push --mirror` from the source into the new mirror, orphan plans branch, labels, branch rule requiring CI, auto-merge setting, then the Radar values screen; an existing name is refused and points to Adopt; a mirror that is not private stops the run and deletes nothing.
+  - Done when: A fake GitHub test: the steps run in order; an existing name is refused; a non-private result stops with one row and no delete call.
+- [ ] rc-26.4 Mirror section in Settings: two buttons, dry-run view, confirm, after rc-26.2, rc-26.3 [RC27.1, RC27.7] (§D32)
+  - Both buttons call the operations; the dry run lists one line per write with a tick; the result fills the form and the raw file; no logic of its own in the page.
+  - Done when: A page test: the dry run shows, a ticked line applies, an unticked line does not; `npm run test:ui` passes.
+- [ ] rc-p26 Proof 26: Create and Adopt on scratch repositories, after rc-26.1, rc-26.2, rc-26.3, rc-26.4 [RC27] (§D17)
+  - Setup: a public-visibility scratch repository under `mtdowling`, created only for the proof. Action: Create setup (dry run, confirm), then both buttons again; then Adopt on a second pre-built private mirror. Expected: a private mirror is built and verified; the repeat runs write nothing; Adopt changes nothing unticked and deletes nothing. Failure means: a setup button can overwrite or expose a repository. Next decision: remove the apply step and keep the dry run only. List every scratch repository in the receipt for the owner to delete.
   - Done when: Expected result observed; receipt under `docs/evidence/` lists the scratch repositories.

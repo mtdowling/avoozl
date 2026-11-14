@@ -1239,6 +1239,61 @@ export class GitHubClient {
     return this.paginate(`/repos/${owner}/${repo}/pulls/${number}/reviews`);
   }
 
+  // Review drafts (radar-coder RC20): a pending review, one review, and the
+  // delete of a pending one. There is deliberately no call that submits,
+  // approves, requests changes or dismisses: a draft is the person's to send.
+  createPendingReview(value, number, { commit_id, body, comments }) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    return this.request(
+      "POST",
+      `/repos/${owner}/${repo}/pulls/${number}/reviews`,
+      {
+        body: { commit_id, body, comments },
+      },
+    );
+  }
+
+  pullRequestReview(value, number, reviewId) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    return this.request(
+      "GET",
+      `/repos/${owner}/${repo}/pulls/${number}/reviews/${reviewId}`,
+    );
+  }
+
+  // GitHub deletes only a review that was never submitted.
+  deletePendingReview(value, number, reviewId) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    return this.request(
+      "DELETE",
+      `/repos/${owner}/${repo}/pulls/${number}/reviews/${reviewId}`,
+    );
+  }
+
+  // The issues a pull request closes: [{repository, number, title, url}].
+  async pullRequestClosingIssues(value, number) {
+    const { owner, repo } =
+        typeof value === "string" ? parseRepository(value) : value,
+      data = await this.graphql(
+        `query($owner:String!,$repo:String!,$number:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$number){closingIssuesReferences(first:10){nodes{number title url repository{nameWithOwner}}}}}}`,
+        { owner, repo, number: Number(number) },
+        "read closing issues",
+      ),
+      nodes =
+        data?.repository?.pullRequest?.closingIssuesReferences?.nodes ?? [];
+    return nodes
+      .filter((node) => node?.number)
+      .map((node) => ({
+        repository: node.repository?.nameWithOwner ?? `${owner}/${repo}`,
+        number: node.number,
+        title: node.title ?? "",
+        url: node.url ?? null,
+      }));
+  }
+
   listPullRequestReviewComments(value, number) {
     const { owner, repo } =
       typeof value === "string" ? parseRepository(value) : value;

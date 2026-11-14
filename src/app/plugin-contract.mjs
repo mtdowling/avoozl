@@ -96,6 +96,30 @@ export const routeReplies = {
   },
 };
 
+export const GATE_STATES = ["open", "done", "failed", "unknown"];
+export const GATE_EVIDENCE_MAX = 500;
+
+// Gate kind (RC23.6): one read-only call, status. The evidence and link are
+// untrusted data: Avoozl screens them before it stores or shows them.
+export const gateReplies = {
+  status(reply) {
+    object(reply, "status reply");
+    if (!GATE_STATES.includes(reply.state))
+      throw new ContractError(
+        `status reply state must be one of ${GATE_STATES.join(", ")}.`,
+      );
+    return {
+      state: reply.state,
+      evidence:
+        text(reply.evidence, "status reply evidence", {
+          max: GATE_EVIDENCE_MAX,
+          optional: true,
+        }) ?? "",
+      link: link(reply.link, "status reply link"),
+    };
+  },
+};
+
 const tags = (value, where) => {
   if (
     !Array.isArray(value) ||
@@ -310,7 +334,9 @@ export function checkReply(kind, method, reply) {
         ? trackerReplies
         : kind === "rules"
           ? rulesReplies
-          : null
+          : kind === "gate"
+            ? gateReplies
+            : null
   )?.[method];
   if (!check) throw new ContractError(`Unknown ${kind} call ${method}.`);
   return check(reply);

@@ -1275,6 +1275,11 @@ private and some to be public, both working in the same mirror, so that a
 private plan never reaches the public repository and a public plan follows its
 code.
 
+Public plans on the default branch and private plans on the plans branch work
+**at the same time** in one mirror. This is not a choice per repository: every
+mirror with a `plansBranch` holds both, and Avoozl reads both on every tick
+into one graph.
+
 #### Acceptance criteria
 
 1. **Setting.** `mirror` (RC24.1) SHALL accept an optional `plansBranch`. The
@@ -1333,16 +1338,178 @@ code.
    mirror and SHALL NOT be copied, linked or quoted to `source` (RC24.3).
    Issues made from a public plan SHALL stand alone: the body holds the task's
    text and acceptance, SHALL hold no text from any private plan, and SHALL
-   NOT name `plansBranch`. A task SHALL NOT require a task of the other home
-   (`requires` across homes SHALL be refused naming both), so a public plan
-   never waits on a private one.
-8. **One mirror, both homes.** A mirror SHALL hold public and private specs
-   together; each spec's tasks SHALL follow RC24 (a forward, the scan, done on
-   the public merge) using its code change, and the private spec SHALL stay in
-   `plansBranch` throughout.
+   NOT name `plansBranch`. A public-safe issue body SHALL name a blocker from a
+   private plan only as the words **waits on a private task**, and SHALL NOT
+   give its title, text, task ID, spec name or link. Both kinds of issue are
+   written into the same mirror, and the blocked-by link GitHub holds stays in
+   the mirror.
+8. **One graph, both homes, one set of rules.** On every tick Avoozl SHALL read
+   the specs of both homes into one task graph. Public and private tasks SHALL
+   project issues into the same mirror, release under the same rules (RC4:
+   limit N, scopes, phases, Stop the line), and show side by side in Home,
+   Delivery, Graph and Trace, each marked Private or Public. Task IDs SHALL be
+   unique across both homes, and a duplicate SHALL be refused naming both.
+   Plans SHALL NOT be switched between homes by a setting; a spec's home is
+   its own.
+9. **Edges cross.** A `requires` edge SHALL be allowed from a public task to a
+   private one and from a private task to a public one. A dependent SHALL
+   release when its blocker is done by the blocker's own rule (a public task
+   on the public merge, RC24.6). A forward SHALL carry nothing of a private
+   plan (criterion 6), including a public dependent's reason for waiting.
+10. **Each spec follows RC24.** Each spec's tasks SHALL forward their code
+    change, scan it and count done on the public merge as RC24 says, and a
+    private spec SHALL stay in `plansBranch` throughout.
 
 Proof added to D17:
 
 | Proof  | Proves                                                                                                         |
 | ------ | -------------------------------------------------------------------------------------------------------------- |
-| rc-p24 | One public plan and one private plan in the same mirror; `verify-issue` passes for both; the plans branch never reaches the public repository |
+| rc-p24 | One public plan and one private plan active together in one mirror, with one cross edge; `verify-issue` passes for both; the plans branch never reaches the public repository |
+
+### Requirement RC26: Forward targets and protections on everything that leaves the mirror
+
+**User story:** As the owner of a public repository, I want to choose where
+each mirror change lands on the public repository, and I want every change
+that leaves the mirror to pass strong checks that are on by default, so that
+nothing private can reach the public repository by a setting I forgot.
+
+#### Acceptance criteria
+
+1. **Forward target.** The `mirror` setting (RC24.1) SHALL accept
+   `forwardTarget`, one of:
+   (a) `each`: each mirror pull request, as it merges, becomes one public pull
+   request against the default branch of `forwardTo`'s `source`;
+   (b) `branch`: each mirror pull request becomes one public pull request into a
+   named long-lived public branch on `source` (`publicBranch`, for example a
+   rewrite branch), merged as you go;
+   (c) `batch`: when the epic is done, one public pull request from one branch
+   built from the epic's mirror branch, against the default branch or against
+   `publicBranch`.
+   The default SHALL be `each`. Settings SHALL edit it in the form and in the
+   raw `.avoozl.json`, kept in sync (RC24.1).
+2. **Override per epic.** An epic's manifest MAY set `forwardTarget` and
+   `publicBranch`. The epic's value SHALL win over the repository's, and the
+   repository's over the default. Settings and Trace SHALL show which value is
+   in force and where it comes from.
+3. **What each target does.** For (a) and (b) the rules of RC24 apply to each
+   pull request (RC24.6: done on the public merge). For (b) the mirror SHALL
+   hold a copy of `publicBranch`, which the sync step (RC24.4) SHALL
+   fast-forward on the same terms as the default branch, and mirror pull
+   requests SHALL target that copy. For (c) the epic's mirror branch SHALL
+   never exist on `source`; Avoozl SHALL build one new commit holding the
+   branch's net change against the target base, run every protection of this
+   requirement on it, and open one public pull request. WHILE a (c) epic is
+   open, a task's dependents inside the same epic SHALL release when the task
+   merges into the epic's mirror branch, and dependents outside the epic SHALL
+   release only when the one public pull request merges.
+4. **Public branch to default branch.** Merging a public branch into the
+   default branch of `source` SHALL stay a separate step that a person
+   approves (RC16.4). Avoozl SHALL NOT merge it, SHALL NOT arm auto-merge on
+   it, and SHALL show a Needs you row when the public branch is ready,
+   naming the head that was checked.
+5. **Protections.** Every protection below SHALL be on by default, SHALL have
+   its test (design D31.2), and SHALL run on every forward, in every
+   `forward` mode, for every target:
+   1. **Path policy.** A forward SHALL include only allowed paths. `.kiro/`,
+      the plans branch (RC25), `AGENTS.md`, steering files and every path in
+      the repository's `forwardExclude` list SHALL be excluded unless the
+      person allowlists the path for that repository (`forwardAllow`). An
+      excluded path in the diff SHALL block the forward (criterion 5.8), not
+      be dropped silently.
+   2. **Leak scan.** The layers of **Crews on public repositories** in
+      `.kiro/specs/avoozl/` (private terms, hosts, ticket IDs, account IDs,
+      secrets) SHALL pass on the diff, every added file name, the commit
+      message, the branch name, the title and the body. Binary files and
+      files over the size limit (`forwardMaxFileBytes`, shown in Settings with
+      its default) SHALL be refused unless the person allowlists the path.
+      This spec SHALL NOT restate or change those layers.
+   3. **Metadata scrub.** A forward SHALL be one new commit (one per public
+      pull request) authored by the person, with Avoozl's own committer
+      identity removed. It SHALL carry no mirror commit history, no author
+      email other than the person's public one, no trailers, no crew or
+      Avoozl markers and no link to a mirror pull request or issue.
+   4. **Diff review.** The **Forward** screen SHALL show the exact public
+      diff, title and body before any push, and the push SHALL happen only if
+      the hash of that diff, title and body equals the one the person saw;
+      otherwise Avoozl SHALL show the new one and ask again. In `auto` mode
+      Avoozl SHALL record the diff, title, body and hash in the forward's
+      receipt (a private record) before it pushes.
+   5. **Explicit refspecs.** Every push SHALL name one branch with an explicit
+      refspec. Avoozl SHALL NOT push with `--mirror`, `--all`, `--tags`, a
+      wildcard or no refspec to `source`, and SHALL NOT push a mirror to
+      `source` in any form.
+   6. **Audit.** On each tick Avoozl SHALL read what actually landed on
+      `source` (the forward branches, the public pull requests and merged
+      commits of each record) and compare it with the receipt: same tree
+      change, same author, no extra file, no excluded path, no ref named after
+      the plans branch or the mirror. A difference SHALL open a Needs you row
+      and a Stop the line for forwarding (criterion 5.7).
+   7. **Stop the line.** WHILE a Stop the line is open for the repository's
+      scope, Avoozl SHALL NOT forward or push, in any mode, and the **Forward**
+      button SHALL show that reason (RC4.3).
+   8. **A hit blocks.** Any hit of protections 5.1 to 5.6 SHALL block the
+      forward, raise one Needs you row naming the rule (not the matched
+      text), and SHALL NOT be retried by Avoozl. A person's **Try again** after
+      a fix SHALL run every protection again from the start.
+6. **Order.** The protections SHALL run in the order 5.1, 5.2, 5.3, 5.4, then
+   the push (5.5), and a later protection SHALL NOT run on a result an
+   earlier one blocked.
+
+Proof added to D17:
+
+| Proof  | Proves                                                                                                         |
+| ------ | -------------------------------------------------------------------------------------------------------------- |
+| rc-p25 | Each forward target works on scratch repositories, and each protection blocks a planted case with one row      |
+
+### Requirement RC27: Setup buttons for a mirror
+
+**User story:** As the owner, I want one button that adopts the mirror setup I
+already have and one that builds what is missing, each showing a dry run first,
+so that I never run `gh` by hand and never lose a repository or a branch.
+
+#### Acceptance criteria
+
+1. Settings, in the repository's **Mirror** section, SHALL show two buttons:
+   **Adopt existing setup** and **Create setup**. Each SHALL show a **dry run**
+   first: every read it made, what it found, and every write it would make, one
+   line each. It SHALL apply only after the person confirms, and only the
+   lines still ticked. A change in what it found since the dry run SHALL show a
+   new dry run and ask again.
+2. **Adopt existing setup** SHALL detect and show, each as found, missing or
+   differs: (a) an existing private mirror, including a staging repository
+   that another tool maintains, described only as "a managed remote harness's
+   staging repo"; (b) an existing plans branch (an orphan branch, RC25.1);
+   (c) the labels of RC1.3, RC18.1 and RC21; (d) Radar crews and the eight
+   values of RC7.3, when the gateway grant allows the read; (e) branch rules and
+   the auto-merge setting. It SHALL write only the lines that the person
+   confirms, and SHALL NOT change a repository's rules that another tool
+   maintains unless that line is listed and ticked.
+3. **Create setup** SHALL build only what is missing, in this order, each step
+   only if the previous one passed: (a) a private mirror repository, verified
+   private by a read after creation; (b) the seed, a one-time `git push
+   --mirror` from `source` into the new empty mirror and nowhere else;
+   (c) the orphan plans branch (RC25.1); (d) the labels; (e) a branch rule on
+   the mirror's default branch that requires CI; (f) the auto-merge setting;
+   then it SHALL open the one Radar values screen (RC7.3).
+4. **Idempotent.** A second run of either button on a finished setup SHALL
+   show a dry run of zero writes and write nothing.
+5. **Never destroy.** Neither button SHALL delete or overwrite a repository, a
+   branch, a label's text or a rule. WHEN a name to create already exists,
+   **Create setup** SHALL refuse that step and point to **Adopt existing
+   setup**. WHEN the new mirror does not read as private, Avoozl SHALL stop,
+   write nothing more, show one Needs you row, and SHALL NOT delete it; removing
+   it is the person's act.
+6. WHEN the signed-in account lacks a permission a line needs (create a
+   repository, set a branch rule, change a setting), the dry run SHALL show the
+   line as blocked and name the permission, and the apply SHALL skip it with one
+   Needs you row.
+7. Both buttons SHALL write the `mirror` setting (RC24.1), and the form and the
+   raw `.avoozl.json` SHALL show the result. They SHALL call the same
+   operations the CLI and MCP expose (AGENTS.md), so the page holds no logic of
+   its own.
+
+Proof added to D17:
+
+| Proof  | Proves                                                                                                         |
+| ------ | -------------------------------------------------------------------------------------------------------------- |
+| rc-p26 | On scratch repositories: Create setup builds a private mirror, then both buttons are no-ops; Adopt finds an existing one and changes nothing without a tick |

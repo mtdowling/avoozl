@@ -20,8 +20,10 @@ import ArmedPulls from './ArmedPulls.tsx'
 import { StartDemoButton } from './Demo.tsx'
 import ReleaseQueue from './ReleaseQueue.tsx'
 import IntegrationBranches from './IntegrationBranches.tsx'
+import ReviewDrafts from './ReviewDrafts.tsx'
 import { LINE_EVENT, flowClient } from './flow-api.ts'
 import Logo from './Logo'
+import DriverSessionBox from './DriverSessionBox.tsx'
 import { IconBtn, IconLabel, SectionHeading, ShowMore, TaskTitleLink, ViewHeading, useAskChat, usePages } from './controls.tsx'
 import { Activity, DetailsIcon, ExternalLink, Inbox, MessageSquare, Network, RefreshCw, Check } from './icons.ts'
 import { itemRef } from './chat-api.ts'
@@ -456,6 +458,7 @@ export default function DashboardView(props: {
       {/* Line stopped (R44.9, R48.5): above every other section. */}
       <LineBanner stops={flow.value?.line ?? []} workspaceId={workspaceId} onChanged={() => void flow.reload()} />
       <ArmedPulls workspaceId={workspaceId} stopped={(flow.value?.line ?? []).length > 0} />
+      <DriverSessionBox workspaceId={workspaceId} />
       {(error || chat.error) && (
         <p role="alert" className="text-sm text-danger">
           {error ?? chat.error}
@@ -632,6 +635,7 @@ export default function DashboardView(props: {
           </Pair>
           <ReleaseQueue workspaceId={workspaceId} />
           <IntegrationBranches workspaceId={workspaceId} />
+          <ReviewDrafts workspaceId={workspaceId} />
         </>
       ) : (
         !error && <p className="text-sm text-muted">Loading…</p>

@@ -99,6 +99,9 @@ export function noActionReason(item: ConflictItem): string | null {
   if (item.kind === 'investigation' || item.kind === 'ready-to-merge' || item.kind === 'routing-failed' || item.kind === 'branch-landing') return null
   if (item.kind === 'needs-human' && item.reason === 'hand-set-review')
     return 'Discuss it, mark it done, or move it back to planned from the task.'
+  // Review drafts (RC20): the person acts on GitHub; the row clears itself.
+  if (item.kind === 'needs-human' && item.reason === 'review-draft')
+    return 'Act on the pull request on GitHub. Avoozl clears this row on its next tick once the draft is submitted or the cause is gone.'
   if (item.kind === 'review' && settleActionOf(item) === null)
     return 'GitHub or a plugin owns these tasks. Review them where they live.'
   if (settleActionOf(item) === null && item.kind !== 'github-conflict')
@@ -126,6 +129,7 @@ export function whyLine(item: ConflictItem): string {
     return `${item.changedBy ?? 'Someone'} changed ${item.field ?? 'a managed field'} on GitHub; Avoozl manages it. ${item.detail}`
   if (item.kind === 'needs-human' && item.reason === 'crew') return item.detail
   if (item.kind === 'needs-human' && item.reason === 'hand-set-review') return item.detail
+  if (item.kind === 'needs-human' && item.reason === 'review-draft') return item.detail
   if (item.kind === 'needs-human')
     return item.reason === 'blocked' ? 'Marked blocked: nothing starts until you unblock it.' : 'New or edited: it waits for your review before it can start.'
   if (item.kind === 'review') return item.detail
