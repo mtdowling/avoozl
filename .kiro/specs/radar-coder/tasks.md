@@ -472,7 +472,7 @@ Requirement RC22. A display in Settings of how work flows for each repository, r
 
 Requirement RC23. A task that waits on an outside tracker item, with a label and a plugin that reads the item.
 
-- [ ] rc-22.1 The gate node: `completion: "tracker"`, the tracker reference, lint and approval checks, after rc-1.1, rc-4.1 [RC23.1, RC23.2, RC23.3] (§D28)
+- [x] rc-22.1 The gate node: `completion: "tracker"`, the tracker reference, lint and approval checks, after rc-1.1, rc-4.1 [RC23.1, RC23.2, RC23.3] (§D28)
   - The manifest and plan-quality accept `tracker: { plugin, item, done }` and refuse a missing part, an empty `done` or an unknown plugin id naming the task; release treats an open, failed or unknown gate as an unmet blocker and a done or cleared one as met at merged and integrated levels; the coder adapter and batching skip gates; the issue is projected with no ready label; `src/app/test/tracker-gate-node.test.mjs`.
   - Done when: Unit tests: a good gate lints; each bad gate is refused naming the task; a dependent is not released while the gate is open; a gate is never handed to a coder or put in a batch; `npm test` passes.
 - [ ] rc-22.2 The `gate` plugin part and the tick step with backoff, after rc-22.1 [RC23.6, RC23.7, RC23.8, RC23.13] (§D28)

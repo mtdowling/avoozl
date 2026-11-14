@@ -91,6 +91,12 @@ export function validateProposal(item) {
     fail("route must be local, github or plugin:<id>.");
   if (item.completion !== undefined && !COMPLETIONS.includes(item.completion))
     fail("completion must be one of " + COMPLETIONS.join(", ") + ".");
+  // A tracker gate's reference (RC23.1) is stored as `gate`: `tracker` on a
+  // task is already a tracker plugin's record. Lint checks its parts.
+  if (item.tracker !== undefined) {
+    item.gate = item.tracker;
+    delete item.tracker;
+  }
   // A step only a person does (R61.9); its other rules are lint's.
   if (item.manual !== undefined && item.manual !== true)
     fail("manual may only be true.");
@@ -563,6 +569,7 @@ export function approvePlan(
             "type",
             "session",
             "manual",
+            "gate",
             "needs",
           ].map((key) => task[key] ?? null),
           task.source?.hash ?? null,
@@ -636,6 +643,7 @@ export function approvePlan(
             "specShip",
             "specType",
             "manual",
+            "gate",
           ]
             .filter((key) => proposal[key] !== undefined)
             .map((key) => [key, proposal[key]]),
@@ -732,6 +740,7 @@ export function approvePlan(
           "specType",
           "phase",
           "manual",
+          "gate",
         ])
           if (design[key] === undefined) delete existing[key];
         delete existing.epic;
