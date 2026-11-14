@@ -1140,7 +1140,10 @@ export class Operations {
   // act in Settings or the CLI: an agent session cannot approve a plugin,
   // and no MCP tool offers it.
   async pluginOperation(name, input, context) {
-    const options = this.pluginOptions;
+    const options = {
+      ...this.pluginOptions,
+      screenPack: (pack) => this.screenPack(pack),
+    };
     if (!options.workspaceRoot) fail("Plugins need a workspace root.", 409);
     if (name === "plugins.list") {
       const health = pluginHealth(this.store),
@@ -1248,6 +1251,37 @@ export class Operations {
       return result;
     }
     fail("Unknown operation " + name, 404);
+  }
+  // Refuse a pack whose text a content rule blocks (RC7.4). It names the set
+  // and rule, never the text. Only the crews section writes to GitHub.
+  screenPack(pack) {
+    const crews = pack?.settings?.crews;
+    if (!crews) return;
+    const text = [
+        pack.description,
+        Object.values(crews.labels ?? {}),
+        crews.models,
+        crews.reviewRules,
+        crews.template,
+        crews.prompt,
+      ]
+        .flat()
+        .filter((entry) => typeof entry === "string")
+        .join("\n"),
+      result = checkContent(this.store, {
+        boundary: "github",
+        target: "pack-crews",
+        text,
+      }),
+      blocked = [
+        ...result.findings.map((f) => `${f.set}/${f.rule}`),
+        ...result.unavailable.map((u) => `${u.set} unavailable`),
+      ];
+    if (blocked.length)
+      fail(
+        `A content rule blocks this pack's crews section (${blocked.join(", ")}). Nothing was changed.`,
+        422,
+      );
   }
   // The mode Settings > Content rules shows, or null when it can't be read.
   contentMode() {
@@ -2963,7 +2997,7 @@ export class Operations {
       const values = radarValues({
         repository: input.repository,
         settings: entry,
-        crew: input.crew,
+        crew: input.crew ?? entry.radar?.crew,
       });
       // Radar's crew list, read through the gateway grant when there is one.
       const crews = await readCrews(this.crewReader, input.repository),

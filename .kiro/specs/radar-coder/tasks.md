@@ -172,7 +172,7 @@ Requirement RC7. Avoozl does what `gh` can and shows exact values for what only 
 - [x] rc-7.4 Crews and rules settings in the app's style, after rc-7.3 [RC7.6] (§D9)
   - Titled boxes, plain fields with defaults shown, advanced values folded, inherited values say where they come from, modes as radio fold-outs, edits in modals, no model price.
   - Done when: A UI test fails on "same as above", on a model price field, or on a mode that is not a radio fold-out.
-- [ ] rc-7.5 Team pack with a `crews` section, after rc-7.3 [RC7.4, RC7.5] (§D9)
+- [x] rc-7.5 Team pack with a `crews` section, after rc-7.3 [RC7.4, RC7.5] (§D9)
   - The settings pack gains `crews` (count, agent, models, labels, prompt, review rules, template); validated; screened by content rules; applying shows a preview and fills Set up; no crew is created; the example `sdk-team` pack ships in `examples/` with fake terms only.
   - Done when: A pack with a private name is refused; applying writes only after the preview confirm; `sdk-team` validates.
 - [ ] rc-p7 Proof 7: Set up end to end, after rc-7.1, rc-7.2, rc-7.3, rc-7.4, rc-7.5 [RC7] (§D17)
