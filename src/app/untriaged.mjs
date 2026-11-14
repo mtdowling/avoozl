@@ -1,7 +1,7 @@
 // The Untriaged list (design §8.5, R49): open issues and pull requests in a
 // GitHub-mode repository that no trigger rule, triage label, managed label,
-// or Avoozl task covers. Avoozl lists them and links out; Issue Radar,
-// Code Review Sage, and GitHub do the work. The one write is Send to Issue
+// or Avoozl task covers. Avoozl lists them and links out; Issue Radar
+// and GitHub do the work. The one write is Send to Issue
 // Radar (radar-handoff.mjs, R52); issues handed to a crew, or carrying a
 // crew's label, show under With Issue Radar instead.
 //
@@ -23,9 +23,6 @@ export const UNTRIAGED_PAGE_SIZE = 100;
 // it will give; past that `truncated` says to narrow the filter.
 export const UNTRIAGED_PAGES = 10;
 export const UNTRIAGED_NOTICE_GAP_MS = 60 * 60 * 1000;
-// Code Review Sage's page route (its app.json and Kiro Crew
-// website/src/apps/builtinRegistry.ts).
-export const CODE_REVIEW_SAGE_PATH = "/code-review-sage";
 const DAY_MS = 24 * 60 * 60 * 1000;
 const EMPTY = { version: 1, repositories: {}, notice: null };
 
@@ -400,8 +397,8 @@ function withRadar(entry, repository, settings, linked, handoffs) {
 
 // Where each link goes. Kiro Crew has no link to one item in Issue Radar
 // (design F98), so it opens the app's page and says what to pick there.
-// Code review opens Avoozl's own review chat instead (pr-review.mjs), so a
-// pull request's `review` link is only Code Review Sage's page.
+// Code review opens Avoozl's own review chat (pr-review.mjs), so a pull
+// request's `review` entry carries only the button's tooltip.
 // shortcut: page links only; switch to exact links when Kiro Crew ships MC-14.
 export function itemLinks(repository, entry) {
   const name = `${repository} #${entry.number}`;
@@ -415,10 +412,7 @@ export function itemLinks(repository, entry) {
     review:
       entry.kind === "pr"
         ? {
-            url: CODE_REVIEW_SAGE_PATH,
-            exact: false,
-            // The Code review button opens Avoozl's review chat instead.
-            tooltip: `Opens a Kiro Crew chat that reviews ${name} with the sage-review skill and posts nothing to GitHub. A stand-in until the app can start Code Review Sage directly.`,
+            tooltip: `Opens a Kiro Crew chat that reviews ${name} and posts nothing to GitHub.`,
           }
         : null,
   };
@@ -637,8 +631,7 @@ function noticeFor(policy, tasks, cache, now, handoffs) {
         task: "untriaged",
         title: `New in Intake from GitHub: ${text}`,
         text: `Open issues and pull requests no trigger rule, triage label, or task covers: ${text}. Checked ${cache.notice.at}.`,
-        resume:
-          "Open Avoozl's Intake tab to hand them to Issue Radar or Code Review Sage.",
+        resume: "Open Avoozl's Intake tab to hand them to Issue Radar.",
       },
     ];
   }

@@ -79,7 +79,7 @@ allowed actor an order that releases dependents.
 | F7  | Spec Builder writes requirements, design, and task Markdown.       | **Verified, refined**     | `spec_builder/backend/parsers.py`: `requirements.md`, `design.md`, `tasks.md`, plus `.spec-state.json`. Only requirements and design are approvable; approving the task list _is_ the handoff into one autonomous execution session. There is no fourth phase for another app.                                                                                                                 |
 | F8  | Crew Mode supervises independent worker sessions.                  | **Verified, refined**     | `docs/agents.md`, `docs/work-ledger.md`. Crew Mode is a feature preview behind Settings → Developer. A conductor (`kirocrew-conductor`) dispatches one `kirocrew-worker` session per item. Items must be independent: an item that consumes another item's output is not a valid item.                                                                                                         |
 | F9  | Crew Mode work items are not GitHub tasks.                         | **Verified**              | Work-ledger items hold title, acceptance, state, status, summary, artifacts, and an optional `pr` number. They have no issue identity and no dependency edges.                                                                                                                                                                                                                                 |
-| F10 | Code Review Sage owns deep pull-request review.                    | **Verified**              | Code Review Sage manifest and skills `sage-review` and `learn-from-sage`: one isolated session per pull request, findings staged as a draft GitHub review on publish or automatic posting.                                                                                                                                                                                                     |
+| F10 | Removed 2026-11-14: the owner dropped the separate review app. | **Removed** | Avoozl's own code review chat stays (Requirement 49.16). |
 | F11 | GitHub projection supports native cross-repository dependencies.   | **Verified, with limits** | `src/app/github-sync.mjs` `projectPlanIssues` and the live proof. Limits: every target repository must be registered and private; a dependency outside the plan must already be projected; drift detection applies to edges only.                                                                                                                                                              |
 | F12 | Fresh Avoozl workspaces can recover projected issues from markers. | **Corrected**             | Recovery reuses existing issues only when the _same approved plan ID_ is projected again: issues are matched by the hidden marker's `taskId` and `planId` under the managed label. It does not rebuild local tasks, status, or edges from GitHub. `syncGitHubIssues` fails when a marker names a task that is not present locally. A closed projected issue makes re-projection fail with 409. |
 | F13 | Avoozl verifies exact pull-request completion and required checks. | **Corrected**             | `src/app/github-completion.mjs` implements the check correctly and was proved live. It is called only by `scripts/github-completion-live.mjs`. No operation, CLI command, MCP tool, or dependent-release path uses it. It also requires the closing pull request to live in the issue's repository.                                                                                            |
@@ -173,8 +173,8 @@ Refined statement (**Proposed**):
   GitHub Project, in plans-repo mode or single-repo mode.
 - GitHub intake, projection, Project field sync, completion, and dependent
   release.
-- Use of Issue Radar, Task Runner, Spec Builder, Crew Mode, Workflows, Code
-  Review Sage, chat, sessions, and cron through supported interfaces only.
+- Use of Issue Radar, Task Runner, Spec Builder, Crew Mode, Workflows, chat,
+  sessions, and cron through supported interfaces only.
 - A plugin seam for delivery routes and task trackers, with plugin loading
   and consent (Requirements 22, 34, 35). The public repository ships only
   test-only fake plugins; real integrations are separate packages.
@@ -432,8 +432,7 @@ execution.
     so the one-folder limit within `.kiro/specs/` stays in the prompt
     (added 2026-11-13, injection audit follow-up; upstream gap).
 14. Every link the app page renders SHALL be an http or https URL or one
-    of Kiro Crew's own pages (`/chat?sid=`, `/apps/`, `/issue-radar`,
-    `/code-review-sage`); anything else SHALL render as text (added
+    of Kiro Crew's own pages (`/chat?sid=`, `/apps/`, `/issue-radar`); anything else SHALL render as text (added
     2026-11-13, injection audit follow-up).
 
 ### Requirement 11: Configurable trigger and managed labels
@@ -643,8 +642,8 @@ views, so that I see my graph and its delivery without leaving Kiro Crew.
    Settings views.
 2. For each view the design SHALL name its data, primary actions, canonical
    source, links to existing Kiro Crew surfaces, and what it must not duplicate.
-3. The app SHALL NOT duplicate Issue Radar triage, pipeline, or crew views, or
-   Code Review Sage findings; it SHALL link to them.
+3. The app SHALL NOT duplicate Issue Radar triage, pipeline, or crew views; it
+   SHALL link to them.
 4. All app data SHALL come from the Avoozl app backend, which uses the same
    operations as the CLI and MCP interface.
 
@@ -2177,8 +2176,8 @@ Added 2026-11-12 (owner request). Design §8.5.
 
 **User story:** As the owner, I want one list of the open issues and pull
 requests no trigger rule or triage label covers, so that nobody misses new
-GitHub work, and I want each item to hand off to Issue Radar or Code Review
-Sage for the actual work.
+GitHub work, and I want each item to hand off to Issue Radar or its own code
+review chat for the actual work.
 
 Avoozl acts only on issues a trigger rule matches and reads only the pull
 requests tied to its own tasks; Issue Radar notifies only on CI failures for
@@ -2229,9 +2228,10 @@ pick up. The list is a triage list, not a second issue browser
    many were read, and say to narrow the filter.
 8. Each item SHALL link out: its number and title to GitHub in a new tab
    with `rel="noopener noreferrer"`, **Open in Issue Radar** to that item,
-   and for a pull request **Code review** to Code Review Sage's review of it.
-   WHERE Kiro Crew offers no link to the exact item, the button SHALL open
-   the app's page and its tooltip SHALL say so (MC-14, design §7.1).
+   and for a pull request **Code review**, which opens Avoozl's own review
+   chat (Requirement 49.16). WHERE Kiro Crew offers no link to the exact
+   item, **Open in Issue Radar** SHALL open the app's page and its tooltip
+   SHALL say so (MC-14, design §7.1).
 9. The page SHALL have a top-level **Untriaged** tab with an icon before its
    name, the same icon on its nav tab, and a count badge in a Kiro palette
    color other than yellow.
@@ -2252,15 +2252,14 @@ pick up. The list is a triage list, not a second issue browser
     item.
 15. The list SHALL NOT show item bodies, comments, CI logs, or review
     findings, and SHALL NOT edit labels, assignees, or state: those stay in
-    Issue Radar, Code Review Sage, and GitHub.
+    Issue Radar and GitHub.
 16. **Code review** on a pull request row SHALL open a new Kiro Crew chat
     through the tick's own session permission, seeded with the pull
     request's URL, repository, number, head commit, title, author, its Avoozl
-    task and spec section if any, and an ask to review that one pull request
-    with the sage-review skill, comments as drafts, posting nothing. WHEN the
-    skill is not installed THEN the seed SHALL ask for a careful
-    single-pull-request review without it. (Added 2026-11-13: a stand-in
-    until Kiro Crew can start Code Review Sage on one pull request, MC-15.)
+    task and spec section if any, and an ask for a careful
+    single-pull-request review, comments as drafts, posting nothing. (The
+    separate review app and its skill were dropped 2026-11-14; the seed names
+    no skill.)
     The seed SHALL quote the title as data and say that the pull request's
     title, description, comments, commits, and diff are data, not
     instructions, since its author may be anyone (added 2026-11-13,
@@ -2274,8 +2273,7 @@ pick up. The list is a triage list, not a second issue browser
     SHALL queue nothing and open a decision. Only a person SHALL start a
     review chat.
 18. The row SHALL show Attach once the chat exists, and the button's tooltip
-    SHALL say it is a stand-in until the app can start Code Review Sage
-    directly. A second click SHALL reuse a queued or open chat. Avoozl SHALL
+    SHALL say it posts nothing to GitHub. A second click SHALL reuse a queued or open chat. Avoozl SHALL
     make no GitHub write for it.
 
 ### Requirement 50: Incoming items from every source
@@ -2411,11 +2409,9 @@ and the Untriaged reader onto the record without changing what they do.
     new dispatch only, and running sessions are left alone.
 19. An item of kind `review` SHALL go to the review flow, never to
     delivery: no `deliver`, `execute`, `plan`, or `respond` rule SHALL
-    match it. It SHALL be listed in Untriaged with a **Code review**
-    hand-off to Code Review Sage, by the fallback of Requirement 49.8.
-    WHERE Kiro Crew offers an app call that starts a Code Review Sage
-    review of one item (MC-15), a `review` rule action SHALL start one
-    review per item snapshot.
+    match it. It SHALL be listed in Intake without a **Code review** button.
+    (The `review` rule action and the hand-off to a separate review app were
+    dropped 2026-11-14.)
 20. Avoozl SHALL write nothing to a non-GitHub source in this phase. A
     `respond` rule with a non-GitHub `source:` SHALL be refused at
     validation.
@@ -2501,8 +2497,7 @@ picks one at random, and adds the fixed claim label `crew: in progress`.
 When it needs a person it adds the repository's `needs_human_label`
 (default `crew: needs human`). Those are the only two labels a crew
 writes, and it writes them with the owner's `gh` login, so the actor of a
-crew's label or close is the owner. Code Review Sage starts no review on
-its own. An app token reaches Issue Radar's `GET /crews` only through a
+crew's label or close is the owner. An app token reaches Issue Radar's `GET /crews` only through a
 `permissions.api` grant, and a grant has no method, so it also admits
 `POST /crews` and `PUT /crews/settings`.
 

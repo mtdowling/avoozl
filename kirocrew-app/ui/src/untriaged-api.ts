@@ -37,7 +37,7 @@ export interface UntriagedItem {
   headSha?: string | null
   // `github` and `issueRadar` are null for an item from another source,
   // which links to its own `item` page instead.
-  links: { github: string | null; item?: string; issueRadar: HandOff | null; review: HandOff | null }
+  links: { github: string | null; item?: string; issueRadar: HandOff | null; review: { tooltip: string } | null }
   // A person's Plan this and Deliver this, for an item from another source.
   start?: { plan: boolean; deliver: boolean }
   // Why no rule took it, when one matched for someone who does not count.
@@ -51,7 +51,6 @@ export interface ReviewChat {
   state: 'queued' | 'open'
   attempt: number
   headSha: string | null
-  skill: string | null
   slot: string | null
   status: string | null
   link: string | null
