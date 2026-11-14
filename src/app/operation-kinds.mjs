@@ -71,6 +71,7 @@ const OBSERVE = new Set([
   "conflicts.view",
   "untriaged.view",
   "radar.crews",
+  "radar.mergepath",
   "intake.list",
   "intake.view",
   "intake.sources",

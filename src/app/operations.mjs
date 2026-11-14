@@ -95,6 +95,7 @@ import {
 } from "./github-sync.mjs";
 import { planningIdentity, requireNamespace } from "./github-marker.mjs";
 import { claimsView, refreshClaims } from "./radar-claims.mjs";
+import { mergePath, requireMergePath } from "./radar-merge-path.mjs";
 import { namespaceOf } from "./radar-plan-me.mjs";
 import {
   CODERS,
@@ -1763,6 +1764,19 @@ export class Operations {
         ),
     };
   }
+  // The merge path of the named repository, or of every Issue Radar one.
+  async mergePaths(only) {
+    const policy = readGitHubPolicyOrNull(this.workspaceRoot),
+      delivery = readDeliveryPolicy(this.workspaceRoot).delivery || {};
+    if (!policy?.mode || !this.github?.available?.()) return [];
+    return Promise.all(
+      Object.entries(policy.repositories || {})
+        .filter(([id, entry]) =>
+          only ? id === only : entry.coder === "issue-radar",
+        )
+        .map(([id, entry]) => mergePath(this.github, id, entry, { delivery })),
+    );
+  }
   // Projection adds its issues to the Project with the tick's own sync, so
   // the two agree (§6.7). A Project failure never fails issue projection.
   async withProjectSync(projection) {
@@ -2802,6 +2816,10 @@ export class Operations {
     }
     // Issue Radar's live claims on every registered repository, read from
     // GitHub only (radar-claims.mjs). `refresh` reads GitHub first.
+    // The merge path of each Issue Radar repository (RC5.1): three items,
+    // read from GitHub; nothing is written.
+    if (name === "radar.mergepath")
+      return { repositories: await this.mergePaths(input.repository) };
     if (name === "radar.crews") {
       const policy = readGitHubPolicyOrNull(this.workspaceRoot);
       // Read at most every 2 minutes, however often the Dashboard asks.
@@ -4723,6 +4741,10 @@ export class Operations {
         policy: this.githubPolicy(),
         readSpec: (spec) => this.readSpec(spec),
       });
+    // Create and release (RC5.1): refused for auto-merge until the merge
+    // path is ready. `release` is set only by that action.
+    if (name === "github.project" && input.release === true)
+      requireMergePath(await this.mergePaths(input.repository));
     if (name === "github.project")
       return this.withProjectSync(
         await projectPlanIssues(store, this.github, {
