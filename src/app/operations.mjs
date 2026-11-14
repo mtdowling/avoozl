@@ -99,7 +99,9 @@ import { mergePath, requireMergePath } from "./radar-merge-path.mjs";
 import { radarSetup } from "./radar-setup.mjs";
 import { radarReread, radarValues } from "./radar-values.mjs";
 import { armedPullRequests, disarmPullRequest } from "./radar-arm.mjs";
+import { preflight, requirePreflight } from "./radar-preflight.mjs";
 import { releaseQueue, releaseStep } from "./radar-coder-queue.mjs";
+import { isRadarRepository } from "./radar-coder-release.mjs";
 import {
   checkIntegrationBranch,
   requireIntegrationBranch,
@@ -1477,6 +1479,23 @@ export class Operations {
         decisionRecord: target.decisionRecord,
       });
     return { pending: state };
+  }
+  // The Create and release preflight (RC2.9) for a plan's repository, or null
+  // when that repository is not coded by Issue Radar.
+  async radarPreflight(plan, repository) {
+    const policy = readGitHubPolicyOrNull(this.workspaceRoot),
+      entry = policy?.repositories?.[repository];
+    if (!entry || !isRadarRepository(entry, policy.mode)) return null;
+    const delivery = readDeliveryPolicy(this.workspaceRoot).delivery || {};
+    return preflight({
+      store: this.store,
+      plan,
+      repository,
+      approved: this.planApproved(plan),
+      decisionRecord: entry.approval?.decisionRecord === true,
+      mergePath: (await this.mergePaths(repository))[0],
+      delivery,
+    });
   }
   // Whether a plan's current text is the one last approved.
   planApproved(plan) {
@@ -2959,6 +2978,11 @@ export class Operations {
       if (context.caller || context.mcp)
         fail("Only a person disarms auto-merge, in the Avoozl page.", 403);
       return disarmPullRequest(store, this.github, input);
+    }
+    if (name === "radar.preflight") {
+      const plan = store.get("plans", input.planId);
+      if (!plan) fail("Plan not found.", 404);
+      return { preflight: await this.radarPreflight(plan, input.repository) };
     }
     if (name === "radar.mergepath")
       return { repositories: await this.mergePaths(input.repository) };
@@ -5014,8 +5038,19 @@ export class Operations {
       });
     // Create and release (RC5.1): refused for auto-merge until the merge
     // path is ready. `release` is set only by that action.
-    if (name === "github.project" && input.release === true)
+    if (name === "github.project" && input.release === true) {
       requireMergePath(await this.mergePaths(input.repository));
+      const plan = store.get("plans", input.planId),
+        configured = store.list("github_repositories"),
+        repository =
+          input.repository ||
+          (configured.length === 1 ? configured[0].id : undefined),
+        checked =
+          plan && repository
+            ? await this.radarPreflight(plan, repository)
+            : null;
+      if (checked) requirePreflight(checked);
+    }
     if (name === "github.project")
       return this.withProjectSync(
         await projectPlanIssues(store, this.github, {
@@ -5043,6 +5078,9 @@ export class Operations {
         repository =
           input.repository ||
           (configured.length === 1 ? configured[0].id : undefined);
+      const checks = await this.radarPreflight(plan, repository),
+        withChecks = (value) =>
+          checks ? { ...value, preflight: checks } : value;
       const projection = (target) =>
         previewProjection(target, this.github, {
           planId: plan.id,
@@ -5062,20 +5100,20 @@ export class Operations {
           complete: (status) => statusComplete(target.read(), status),
         }).batches.map((batch) => batch.tasks);
       if (plan.state === "approved")
-        return {
+        return withChecks({
           ...(await projection(store)),
           simulated: false,
           suggestedBatches: suggested(store),
-        };
+        });
       const quality = this.lintSpecPlan(plan, [], { content: false }),
         blocking = quality.diagnostics.filter((d) => d.severity === "error");
       if (blocking.length)
-        return {
+        return withChecks({
           planId: plan.id,
           writes: [],
           blocked: blocking,
           simulated: true,
-        };
+        });
       const scratch = store.scratch();
       try {
         approvePlan(scratch, {
@@ -5088,11 +5126,11 @@ export class Operations {
           approvedBy: this.operator,
           operator: this.operator,
         });
-        return {
+        return withChecks({
           ...(await projection(scratch)),
           simulated: true,
           suggestedBatches: suggested(scratch),
-        };
+        });
       } finally {
         scratch.close();
       }

@@ -12,6 +12,7 @@ import { parseProvenance } from "./github-provenance.mjs";
 import { mergePath } from "./radar-merge-path.mjs";
 import { verifyIssue } from "./verify-issue.mjs";
 import { usesMergePath } from "./coder-adapter.mjs";
+import { publicHold } from "./public-signoff.mjs";
 import { linePausedTaskIds } from "./flow.mjs";
 import { fail } from "./store.mjs";
 
@@ -47,6 +48,7 @@ export async function armCrewPullRequests(
     if (!usesMergePath(repository.coder) || ship !== "auto-merge") continue;
     const config = store.get("github_repositories", id);
     if (!machine || !config || config.activeMachine !== machine) continue;
+    if (publicHold(store, id)) continue;
     const pulls = (
       await github.listPullRequests(config, { state: "open" })
     ).filter(

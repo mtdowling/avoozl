@@ -185,6 +185,7 @@ function setup(t, { ship = "auto-merge" } = {}) {
     repo: "code",
     projectId: "code",
     activeMachine: machineIdentity(store).id,
+    private: true,
   });
   const issueVerifier = (reference) => {
     verified.push(reference);
@@ -384,4 +385,20 @@ test("Disarm turns auto-merge off for a person, is refused for an agent, and the
     ops.execute("radar.disarm", { repository: REPO, pullRequest: 99 }),
     /did not arm/,
   );
+});
+
+test("a public repository is not armed until its sign-off is complete", async (t) => {
+  const { github, store, tick } = setup(t);
+  store.put("github_repositories", {
+    ...store.get("github_repositories", REPO),
+    private: false,
+  });
+  github.addIssue(6, MARKED);
+  github.addPull(16);
+  github.closes.set(6, [16]);
+  await tick();
+  assert.deepEqual(github.armed, []);
+  store.setMeta("publicSignoff", { [REPO]: { complete: true } });
+  await tick();
+  assert.deepEqual(github.armed, [["PR_16", "MERGE"]]);
 });

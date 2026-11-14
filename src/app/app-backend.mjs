@@ -175,6 +175,7 @@ export const APP_OPERATIONS = new Set([
   "radar.releasequeue",
   "radar.releasestep",
   "radar.armed",
+  "radar.preflight",
   "radar.disarm",
   "radar.integrationbranch",
   "intake.list",
