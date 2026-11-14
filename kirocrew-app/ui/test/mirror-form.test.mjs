@@ -25,6 +25,9 @@ test('the form reads and writes every mirror field', () => {
     branchPrefix: 'crew/',
     squash: false,
     trustedPersons: ['ana', 'bo'],
+    forwardTarget: 'branch',
+    publicBranch: 'rewrite',
+    forwardMaxFileBytes: 500000,
   }
   const form = toForm(github(mirror))
   assert.deepEqual(form.repositories[0].mirror, {
@@ -35,6 +38,9 @@ test('the form reads and writes every mirror field', () => {
     branchPrefix: 'crew/',
     squash: false,
     trustedPersons: 'ana, bo',
+    forwardTarget: 'branch',
+    publicBranch: 'rewrite',
+    forwardMaxFileBytes: '500000',
   })
   assert.deepEqual(mirrorOf(toPolicy(form)), mirror)
 })

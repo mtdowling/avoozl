@@ -149,6 +149,7 @@ import {
   newTaskAuthority,
   normalizeGitHubPolicy,
   PERMISSIONS,
+  actorAllowed,
   policySection,
   readGitHubPolicy,
   readGitHubPolicyOrNull,
@@ -159,6 +160,7 @@ import {
 import { requireMirrorsPrivate } from "./mirror-policy.mjs";
 import { mirrorNeedsYou, writeRepo } from "./mirror-sync.mjs";
 import { mirrorForwardRows, mirrorRecordFor } from "./mirror-forward.mjs";
+import { forwardRecord } from "./mirror-forward-run.mjs";
 import { syncProject } from "./github-project.mjs";
 import { cancelSetup, githubSetup } from "./github-setup.mjs";
 import {
@@ -3467,6 +3469,30 @@ export class Operations {
         },
         input,
       );
+    }
+    // Forward one merged mirror change (RC24.9): the Forward button. The
+    // person is the signed-in GitHub user, who must pass the actor check.
+    if (name === "mirror.forward") {
+      if (!this.github?.available?.()) fail("GitHub is not available.", 503);
+      const policy = readGitHubPolicyOrNull(this.workspaceRoot),
+        record = this.store.get("mirror_forward", String(input.id ?? "")),
+        entry = record && policy?.repositories?.[record.repository];
+      if (!entry?.mirror) fail("That mirror change is not known.", 404);
+      const person = (await this.github.currentUser())?.login;
+      if (!person) fail("Sign in to GitHub first.", 401);
+      const held = await this.github.permission(
+          parseRepository(entry.mirror.source),
+          person,
+        ),
+        check = actorAllowed(entry, person, held?.permission ?? held);
+      if (!check.allowed) fail(check.reason, 403);
+      const result = await forwardRecord(this.store, this.github, record.id, {
+        policy,
+        person,
+        ...(this.forwardGit ? { git: this.forwardGit } : {}),
+      });
+      if (!result.ok && !result.blocked) fail(result.reason, 409);
+      return result;
     }
     if (name === "radar.setup") {
       const policy = readGitHubPolicyOrNull(this.workspaceRoot),

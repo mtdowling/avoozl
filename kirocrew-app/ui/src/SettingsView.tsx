@@ -24,7 +24,7 @@ import {
   toggleCheck,
   untriagedDefault,
   MIRROR_DEFAULT_TEXT,
-  MIRROR_FORWARD_MODES,
+  MIRROR_FORWARD_MODES, MIRROR_FORWARD_TARGETS,
   type MirrorForm,
   type UntriagedForm,
   type FieldRule,
@@ -726,11 +726,15 @@ function MirrorBox(props: { id: string; mirror: MirrorForm; onChange: (mirror: M
         <Text id={`${id}-source`} label="Public repository" raw="mirror.source" placeholder="owner/name" value={mirror.source} onChange={(value) => set({ source: value })} />
         <Text id={`${id}-mirror`} label="Private mirror" raw="mirror.mirror" placeholder="owner/name-private" value={mirror.mirror} onChange={(value) => set({ mirror: value })} />
         <Choice id={`${id}-forward`} label="Forward mode" raw="mirror.forward" rule={{ required: false, blank: MIRROR_DEFAULT_TEXT.forward }} value={mirror.forward} options={[...MIRROR_FORWARD_MODES]} none="Default (nudge)" onChange={(value) => set({ forward: value })} />
+        <Choice id={`${id}-target`} label="Forward target" raw="mirror.forwardTarget" rule={{ required: false, blank: MIRROR_DEFAULT_TEXT.forwardTarget }} value={mirror.forwardTarget} options={[...MIRROR_FORWARD_TARGETS]} none="Default (each)" onChange={(value) => set({ forwardTarget: value })} />
+        <Text id={`${id}-public-branch`} label="Public branch" raw="mirror.publicBranch" placeholder="needed for the branch target" value={mirror.publicBranch} onChange={(value) => set({ publicBranch: value })} />
       </div>
+      <p className="text-xs text-muted">each: one public pull request per merged change. branch: the same, into the public branch. batch: one public pull request when the epic is done. An epic's manifest can set its own forwardTarget and publicBranch.</p>
       <Fold id={`${id}-more`} title="Advanced: mirror">
         <div style={grid()}>
           <Text id={`${id}-forward-to`} label="Forward to" raw="mirror.forwardTo" placeholder="source or fork:owner/name" value={mirror.forwardTo} onChange={(value) => set({ forwardTo: value })} />
           <Text id={`${id}-prefix`} label="Branch prefix" raw="mirror.branchPrefix" placeholder="avoozl/" value={mirror.branchPrefix} onChange={(value) => set({ branchPrefix: value })} />
+          <Text id={`${id}-max-bytes`} label="Largest forwarded file (bytes)" raw="mirror.forwardMaxFileBytes" placeholder={MIRROR_DEFAULT_TEXT.forwardMaxFileBytes} value={mirror.forwardMaxFileBytes} onChange={(value) => set({ forwardMaxFileBytes: value })} />
           <Text id={`${id}-trusted`} label="Trusted persons" raw="mirror.trustedPersons" placeholder="login, login" value={mirror.trustedPersons} onChange={(value) => set({ trustedPersons: value })} />
         </div>
         <label className="flex items-center gap-2 text-sm">
