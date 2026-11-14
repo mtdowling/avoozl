@@ -293,7 +293,7 @@ function gt() {
 		r
 	]);
 }
-// src/Logo.tsx
+// kirocrew-app/ui/src/Logo.tsx
 function _t({ size: e = 32 }) {
 	return /* @__PURE__ */ w("svg", {
 		viewBox: "0 0 100 100",
@@ -325,7 +325,7 @@ function _t({ size: e = 32 }) {
 		]
 	});
 }
-// src/icons.ts
+// kirocrew-app/ui/src/icons.ts
 var vt = ve, yt = {
 	dashboard: U,
 	plans: V,
@@ -360,7 +360,7 @@ function xt(e) {
 		activity: (e, n = 50) => t("activity.recent", { limit: n }, e).then((e) => e.items)
 	};
 }
-// src/drawer-context.ts
+// kirocrew-app/ui/src/drawer-context.ts
 var St = n({
 	openTask: () => void 0,
 	addTask: () => void 0,
@@ -403,7 +403,7 @@ function Ot(e) {
 		hide: o
 	};
 }
-// src/layers.ts
+// kirocrew-app/ui/src/layers.ts
 var kt = {
 	raised: 1,
 	sticky: 10,
@@ -411,7 +411,7 @@ var kt = {
 	popover: 60,
 	tooltip: 2147483e3
 };
-// src/use-media.ts
+// kirocrew-app/ui/src/use-media.ts
 function At(e) {
 	let [t, n] = d(() => typeof window < "u" && window.matchMedia ? window.matchMedia(e).matches : !1);
 	return o(() => {
@@ -420,7 +420,7 @@ function At(e) {
 		return t.addEventListener("change", r), () => t.removeEventListener("change", r);
 	}, [e]), t;
 }
-// src/focus-trap.ts
+// kirocrew-app/ui/src/focus-trap.ts
 function jt(e, t, n) {
 	return e === 0 ? -1 : t < 0 ? n ? e - 1 : 0 : n ? (t - 1 + e) % e : (t + 1) % e;
 }
@@ -436,7 +436,7 @@ Object.freeze([
 function Mt(e) {
 	return e.state ? e.state : e.complete ? "done" : e.decision || e.status === "blocked" ? "needs-you" : e.status === "deferred" ? "deferred" : e.status === "running" || e.status === "review" ? "running" : e.ready ? "ready" : "waiting";
 }
-// src/graph-layout.ts
+// kirocrew-app/ui/src/graph-layout.ts
 var Nt = [
 	{
 		id: "ready",
@@ -1097,7 +1097,7 @@ function On(e, t, n, r, i, a = {}) {
 	for (let [t, n] of Object.entries(a)) e.memory.set(t, n), o || e.setters.get(t)?.(n);
 	r(n);
 }
-// src/NavHistory.tsx
+// kirocrew-app/ui/src/NavHistory.tsx
 var kn = "data-avoozl-app", An = n(null), jn = null, Mn = () => a(An) ?? (jn ??= En()), Nn = (e) => e instanceof Element && !!e.closest("[data-avoozl-app]");
 function Pn({ children: e }) {
 	let t = l(En, []);
@@ -1188,7 +1188,7 @@ function Ln(e, t, n, r, a = !0) {
 		l
 	];
 }
-// src/Modal.tsx
+// kirocrew-app/ui/src/Modal.tsx
 var Rn = "a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex=\"-1\"])", zn = "color-mix(in srgb, var(--text) 30%, transparent)", Bn = {
 	background: "var(--card, var(--bg))",
 	color: "var(--text)",
@@ -1323,7 +1323,7 @@ function Jn(e) {
 		})]
 	}), document.body);
 }
-// src/Tooltip.tsx
+// kirocrew-app/ui/src/Tooltip.tsx
 var Yn = () => typeof window < "u" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches, Xn = (e) => {
 	try {
 		return e.matches(":focus-visible");
@@ -1833,7 +1833,7 @@ function br(e, t) {
 	let n = yr(e, "other");
 	return n ? `${n} hands the driver role ${t ? `to ${t}` : "over"}.` : null;
 }
-// src/InstanceName.tsx
+// kirocrew-app/ui/src/InstanceName.tsx
 var xr = "avoozl:instance-changed";
 function Sr(e) {
 	let t = K(), n = l(() => vr(t), [t]), [r, a] = d(null), s = i(() => {
@@ -1922,7 +1922,7 @@ function wr(e) {
 		]
 	});
 }
-// src/Badge.tsx
+// kirocrew-app/ui/src/Badge.tsx
 var Tr = {
 	success: { variant: "ok" },
 	warning: { variant: "warn" },
@@ -1944,7 +1944,7 @@ function Z({ variant: e, children: t }) {
 		children: t
 	});
 }
-// src/useRead.ts
+// kirocrew-app/ui/src/useRead.ts
 function Dr(e, t) {
 	let [n, r] = d(null), [a, s] = d(null), [c, l] = d(!1), u = i(async () => {
 		if (e) {
@@ -1967,7 +1967,7 @@ function Dr(e, t) {
 		reload: u
 	};
 }
-// src/trace-api.ts
+// kirocrew-app/ui/src/trace-api.ts
 var Or = "trace-target";
 function kr(e) {
 	return { read: async (t, n) => (await e.post(W, {
@@ -2009,7 +2009,7 @@ function Nr(e, t) {
 	}
 	return null;
 }
-// src/views-api.ts
+// kirocrew-app/ui/src/views-api.ts
 var Pr = {
 	check: "failed checks",
 	review: "review",
@@ -2204,14 +2204,14 @@ function Xr(e) {
 function Zr(e) {
 	return e === "running" ? "Waiting on your decision: marked running, but no session is running" : "Waiting on your decision: marked in review, but no review is running";
 }
-// src/demo-fixtures.ts
+// kirocrew-app/ui/src/demo-fixtures.ts
 function Qr(e) {
 	return { read: async () => (await e.post(W, {
 		operation: "demo.fixtures",
 		input: {}
 	})).result };
 }
-// src/Demo.tsx
+// kirocrew-app/ui/src/Demo.tsx
 var $r = n({
 	active: !1,
 	starting: !1,
@@ -2487,7 +2487,7 @@ function si(e) {
 		]
 	});
 }
-// src/epics-api.ts
+// kirocrew-app/ui/src/epics-api.ts
 function ci(e) {
 	let t = async (t, n) => (await e.post(W, {
 		operation: t,
@@ -2538,7 +2538,7 @@ function _i(e, t) {
 	let n = e.by.name ?? e.by.id ?? "a crew";
 	return t ? `Radar crew ${n} on ${t}` : `Radar crew ${n}`;
 }
-// src/TraceDone.tsx
+// kirocrew-app/ui/src/TraceDone.tsx
 function vi({ row: e, machine: t, onPick: n }) {
 	let r = Q(e.prUrl), i = Q(e.url);
 	return /* @__PURE__ */ w("li", {
@@ -2670,7 +2670,7 @@ function yi(e) {
 		]
 	});
 }
-// src/TraceView.tsx
+// kirocrew-app/ui/src/TraceView.tsx
 var bi = {
 	done: {
 		border: "var(--ok)",
@@ -2944,7 +2944,7 @@ function Oi({ workspaceId: e, target: t, onBack: n }) {
 		}), /* @__PURE__ */ C(wi, { read: r })]
 	});
 }
-// src/dashboard-api.ts
+// kirocrew-app/ui/src/dashboard-api.ts
 var ki = /* @__PURE__ */ new Set(["closed", "lost"]);
 function Ai(e) {
 	return e.group ? { kind: "review" } : e.taskId ? {
@@ -3140,7 +3140,7 @@ function Ri(e) {
 		state: n < t ? "done" : n === t ? "now" : "later"
 	}));
 }
-// src/task-api.ts
+// kirocrew-app/ui/src/task-api.ts
 function zi(e) {
 	return e.lineStart ? e.lineEnd && e.lineEnd !== e.lineStart ? `${e.document}, lines ${e.lineStart}–${e.lineEnd}` : `${e.document}, line ${e.lineStart}` : e.document;
 }
@@ -3306,7 +3306,7 @@ function ra(e) {
 	let t = e.slot.startsWith("dashboard:") ? e.slot.slice(10) : e.slot;
 	return `/chat?sid=${encodeURIComponent(t)}`;
 }
-// src/plans-api.ts
+// kirocrew-app/ui/src/plans-api.ts
 var ia = "Uncategorized";
 function aa(e) {
 	let t = /* @__PURE__ */ new Map();
@@ -3456,7 +3456,7 @@ function Ca(e) {
 	let t = e.action === "archived" ? "Archived" : e.action === "unarchived" ? "Unarchived" : e.action;
 	return e.by ? `${t} by ${e.by}` : t;
 }
-// src/FilterSelect.tsx
+// kirocrew-app/ui/src/FilterSelect.tsx
 var wa = {
 	borderColor: "var(--border)",
 	color: "var(--text)",
@@ -3548,7 +3548,7 @@ var ka = (e) => e.map((e) => ({
 	id: e.value,
 	title: e.label
 })), Aa = (e) => e.title && e.title !== e.id ? `${e.id}: ${e.title}` : e.id;
-// src/Picker.tsx
+// kirocrew-app/ui/src/Picker.tsx
 function ja(e) {
 	let t = s(), n = e.id ?? `avoozl-pick-${t.replace(/:/g, "")}`, r = `${n}-list`, i = l(() => Ea(e.items), [e.items]), a = e.keep ?? !0, c = l(() => e.items.find((t) => t.id === e.value) ?? null, [e.items, e.value]), f = c && a ? Aa(c) : "", [p, m] = d(f), [h, g] = d(!1), [_, v] = d(!1), [y, b] = d(0), x = u(null);
 	o(() => {
@@ -3830,7 +3830,7 @@ function Ra(e, t) {
 function za(e, t, n) {
 	e.write(La(), t, n), window.dispatchEvent(new Event(e.event));
 }
-// src/flow-api.ts
+// kirocrew-app/ui/src/flow-api.ts
 var Ba = [
 	"queued",
 	"investigate",
@@ -4246,7 +4246,7 @@ function Eo(e) {
 	}
 	return Object.keys(i).length && (t.lessons = i), { flow: t };
 }
-// src/FlowMemory.tsx
+// kirocrew-app/ui/src/FlowMemory.tsx
 var Do = {
 	add: "var(--success, #1a7f37)",
 	del: "var(--danger)",
@@ -4958,7 +4958,7 @@ function Fo({ workspaceId: e }) {
 		children: "Loading…"
 	});
 }
-// src/radar-flow-api.ts
+// kirocrew-app/ui/src/radar-flow-api.ts
 var Io = [
 	"Ready to Claim",
 	"Claim to PR",
@@ -4991,7 +4991,7 @@ function zo(e) {
 function Bo(e) {
 	return e.count ? `${e.count} ${e.count === 1 ? "issue" : "issues"} · median lead time ${Ro(e.medianLead)} · flow efficiency ${Math.round((e.efficiency ?? 0) * 100)}%` : "No finished issue yet";
 }
-// src/GithubFlow.tsx
+// kirocrew-app/ui/src/GithubFlow.tsx
 function Vo({ workspaceId: e }) {
 	let t = K(), n = l(() => Lo(t), [t]), [r, a] = d(0), { value: o, error: s, busy: c } = Dr(e, i((e) => n.read(e, r > 0), [n, r]));
 	if (!o || !o.repositories.length && !s) return null;
@@ -5070,7 +5070,7 @@ function Vo({ workspaceId: e }) {
 		})
 	});
 }
-// src/FlowCharts.tsx
+// kirocrew-app/ui/src/FlowCharts.tsx
 var Ho = 300, Uo = 90, Wo = 4;
 function Go({ points: e, value: t, format: n, color: r }) {
 	let i = e.map(t), a = i.filter((e) => e !== null), o = Math.max(...a, 0) || 1, s = (t) => e.length < 2 ? Ho / 2 : Wo + t * 292 / (e.length - 1), c = (e) => 86 - e / o * 82, l = i.map((e, t) => e === null ? null : `${s(t)},${c(e)}`).reduce((e, t) => (t === null ? e.push([]) : e[e.length - 1].push(t), e), [[]]).filter((e) => e.length), u = a.at(-1);
@@ -5360,7 +5360,7 @@ function Qo({ view: e, unit: t }) {
 		] })]
 	});
 }
-// src/FlowView.tsx
+// kirocrew-app/ui/src/FlowView.tsx
 var $o = {
 	display: "flex",
 	height: 12,
@@ -6093,7 +6093,7 @@ function ls({ timing: e }) {
 		children: "No timing yet: Avoozl records it from the task's first dispatch."
 	});
 }
-// src/release-api.ts
+// kirocrew-app/ui/src/release-api.ts
 var us = [
 	"automatic",
 	"step",
@@ -6167,7 +6167,7 @@ function _s(e) {
 	let t = /* @__PURE__ */ new Set();
 	return e.steps.filter((e) => e.released || t.has(e.planId) ? !1 : (t.add(e.planId), !0));
 }
-// src/ArmedPulls.tsx
+// kirocrew-app/ui/src/ArmedPulls.tsx
 function vs(e) {
 	let t = K(), n = l(() => ms(t), [t]), r = i((e) => n.armed(e), [n]), { value: a, reload: o } = Dr(e.stopped ? e.workspaceId : null, r), [s, c] = d(null), u = a?.pullRequests ?? [];
 	if (!e.stopped || !e.workspaceId || !u.length) return null;
@@ -6321,7 +6321,7 @@ function Es(e) {
 		saveMachine: (e, n) => t(e, "driver.settings.update", n)
 	};
 }
-// src/driver-view-api.ts
+// kirocrew-app/ui/src/driver-view-api.ts
 var Ds = "avoozl-driver", Os = "Start the Avoozl driver session. Keep this chat open. Release ready work in graph order, watch pull requests through checks and merge, and bring anything that needs a person to me. Use the avoozl tools. Do not merge anything yourself and do not code issues yourself.", ks = (e) => ({
 	running: "A driver session is working. Open it to watch or steer.",
 	idle: "The driver session has been quiet for a while. Open it to check on it, or start a new one.",
@@ -6357,7 +6357,7 @@ function Ms(e) {
 	};
 }
 var Ns = (e, t) => ys(new Date(e).toISOString(), t);
-// src/panel-api.ts
+// kirocrew-app/ui/src/panel-api.ts
 function Ps(e) {
 	let t = e?.state ?? "none";
 	return {
@@ -6367,7 +6367,7 @@ function Ps(e) {
 		note: ks(t)
 	};
 }
-// src/DriverSessionBox.tsx
+// kirocrew-app/ui/src/DriverSessionBox.tsx
 var Fs = {
 	running: "Running",
 	idle: "Quiet",
@@ -6462,7 +6462,7 @@ function Rs(e) {
 		})
 	});
 }
-// src/SetupCard.tsx
+// kirocrew-app/ui/src/SetupCard.tsx
 function zs(e) {
 	return /* @__PURE__ */ C("div", {
 		"data-setup-card": e.id,
@@ -6486,7 +6486,7 @@ function zs(e) {
 		})
 	});
 }
-// src/setup-api.ts
+// kirocrew-app/ui/src/setup-api.ts
 function Bs(e) {
 	let t = [];
 	return e.repositories === 0 && t.push({
@@ -6511,7 +6511,7 @@ function Bs(e) {
 		action: "Copy values for Radar"
 	}), t;
 }
-// src/settings-api.ts
+// kirocrew-app/ui/src/settings-api.ts
 function Vs(e) {
 	let t = async (t, n, r) => (await e.post(W, {
 		operation: t,
@@ -6609,7 +6609,8 @@ var Ys = () => ({
 	squash: !0,
 	trustedPersons: "",
 	forwardTarget: "",
-	publicBranch: ""
+	publicBranch: "",
+	forwardMaxFileBytes: ""
 }), Xs = [
 	"off",
 	"nudge",
@@ -6619,6 +6620,7 @@ var Ys = () => ({
 	"branch",
 	"batch"
 ], Qs = {
+	forwardMaxFileBytes: "blank: 1000000 bytes (1 MB)",
 	forwardTarget: "blank: each, one public pull request per merged change",
 	forward: "blank: nudge, a Forward button you press",
 	forwardTo: "blank: the public repository",
@@ -6635,7 +6637,8 @@ function $s(e) {
 		squash: e.squash ? void 0 : !1,
 		trustedPersons: oc(e.trustedPersons),
 		forwardTarget: sc(e.forwardTarget),
-		publicBranch: sc(e.publicBranch)
+		publicBranch: sc(e.publicBranch),
+		forwardMaxFileBytes: e.forwardMaxFileBytes.trim() ? Number(e.forwardMaxFileBytes) : void 0
 	});
 }
 var ec = () => ({
@@ -6784,7 +6787,8 @@ function fc(e) {
 						squash: e.squash !== !1,
 						trustedPersons: ic(e.trustedPersons),
 						forwardTarget: $(e.forwardTarget),
-						publicBranch: $(e.publicBranch)
+						publicBranch: $(e.publicBranch),
+						forwardMaxFileBytes: $(e.forwardMaxFileBytes)
 					};
 				})(),
 				rest: Object.fromEntries(Object.entries(n).filter(([e]) => !lc.has(e)))
@@ -7258,7 +7262,7 @@ var Vc = {
 		writer: "Avoozl adds and removes it."
 	}
 ], Uc = "The defaults now start with avoozl:. A repository that used the old names (to plan, ready, plan approved, merge conflict) without setting them reads the new names now; type the old name here to keep it.", Wc = (e, t, n = "") => e.trim() ? `Set on this repository: ${e.trim()}${n}.` : `Not set on this repository. Using the default (${t}${n}).`, Gc = (e) => e.reviewRules.trim() ? "custom" : "default";
-// src/repository-rows.ts
+// kirocrew-app/ui/src/repository-rows.ts
 function Kc(e, t) {
 	let n = /* @__PURE__ */ new Set(), r = e.map((e) => {
 		let r = e.github ? t.findIndex((t) => t.name.trim() === e.github) : -1;
@@ -7285,7 +7289,7 @@ function Kc(e, t) {
 	}), r;
 }
 var qc = (e) => e && /^[\w.-]+\/[\w.-]+$/.test(e) ? `https://github.com/${e}` : null;
-// src/setup-facts.ts
+// kirocrew-app/ui/src/setup-facts.ts
 function Jc(e) {
 	let t = K(), n = l(() => Vs(t), [t]), r = l(() => Je(t), [t]), { value: a } = Dr(e, i(async (e) => {
 		let [t, i] = await Promise.all([r.repositories(e).catch(() => []), n.get(e).catch(() => null)]), a = i ? fc(i.github) : null, o = Kc(t, a?.repositories ?? []), s = a?.mode ?? "", c = (a?.repositories ?? []).filter((e) => (e.coder || Rc(s)) === "issue-radar").length;
@@ -7299,7 +7303,7 @@ function Jc(e) {
 		radarRepositories: 0
 	};
 }
-// src/ReleaseQueue.tsx
+// kirocrew-app/ui/src/ReleaseQueue.tsx
 var Yc = {
 	released: "success",
 	claimed: "info",
@@ -7529,7 +7533,7 @@ function Qc(e) {
 		})
 	});
 }
-// src/IntegrationBranches.tsx
+// kirocrew-app/ui/src/IntegrationBranches.tsx
 var $c = {
 	green: "success",
 	red: "danger",
@@ -7582,7 +7586,7 @@ function el(e) {
 		})
 	}) : null;
 }
-// src/ReviewDrafts.tsx
+// kirocrew-app/ui/src/ReviewDrafts.tsx
 var tl = {
 	waiting: "warning",
 	stale: "danger",
@@ -7720,7 +7724,7 @@ function nl(e) {
 		})
 	});
 }
-// src/DashboardView.tsx
+// kirocrew-app/ui/src/DashboardView.tsx
 var rl = {
 	...Kr,
 	delivery: "Delivery",
@@ -8361,7 +8365,7 @@ function gl(e, t) {
 	let n = [...e.find((e) => e.id === t)?.sessions ?? []].sort((e, t) => (e.role === "worker" ? -1 : 0) - (t.role === "worker" ? -1 : 0) || t.attempt - e.attempt);
 	return n[0] ? ra(n[0]) : null;
 }
-// src/RadioFold.tsx
+// kirocrew-app/ui/src/RadioFold.tsx
 var _l = "\n@keyframes avoozl-radio-fold-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }\n[data-radio-fold-body] { animation: avoozl-radio-fold-in 180ms ease-out; }\n@media (prefers-reduced-motion: reduce) { [data-radio-fold-body] { animation: none !important; } }\n";
 function vl() {
 	return /* @__PURE__ */ C("hr", {
@@ -8453,7 +8457,7 @@ function yl(e) {
 		})]
 	});
 }
-// src/EpicsView.tsx
+// kirocrew-app/ui/src/EpicsView.tsx
 var bl = {
 	passed: "success",
 	open: "info",
@@ -8738,7 +8742,7 @@ function El(e) {
 		]
 	});
 }
-// src/markdown.ts
+// kirocrew-app/ui/src/markdown.ts
 var Dl = /(`[^`]+`)|(\*\*[^*]+\*\*|__[^_]+__)|(\*[^*\s][^*]*\*|_[^_\s][^_]*_)|(\[([^\]]+)\]\(([^)\s]+)\))/g;
 function Ol(e) {
 	let t = [], n = new RegExp(Dl.source, "g"), r = 0, i;
@@ -8862,9 +8866,9 @@ function Fl(e, t, n = 3) {
 		id: Pl(t, e.text, r)
 	}] : []);
 }
-// src/prism/before.ts
+// kirocrew-app/ui/src/prism/before.ts
 var Il = globalThis;
-// ../../node_modules/prismjs/components/prism-sql.js
+// node_modules/prismjs/components/prism-sql.js
 Il.__avoozlPrismPrevious = Il.Prism, Il.Prism = {
 	manual: !0,
 	disableWorkerMessageHandler: !0
@@ -10207,10 +10211,10 @@ Il.__avoozlPrismPrevious = Il.Prism, Il.Prism = {
 	operator: /[-+*\/=%^~]|&&?|\|\|?|!=?|<(?:=>?|<|>)?|>[>=]?|\b(?:AND|BETWEEN|DIV|ILIKE|IN|IS|LIKE|NOT|OR|REGEXP|RLIKE|SOUNDS LIKE|XOR)\b/i,
 	punctuation: /[;[\]()`,.]/
 };
-// src/prism/after.ts
+// kirocrew-app/ui/src/prism/after.ts
 var Ll = globalThis, Rl = Ll.Prism;
 Ll.__avoozlPrismPrevious === void 0 ? delete Ll.Prism : Ll.Prism = Ll.__avoozlPrismPrevious, delete Ll.__avoozlPrismPrevious;
-// src/highlight.ts
+// kirocrew-app/ui/src/highlight.ts
 var zl = [
 	"comment",
 	"string",
@@ -10317,7 +10321,7 @@ function Jl(e) {
 		...e.includes("comment") ? { fontStyle: "italic" } : {}
 	};
 }
-// src/Markdown.tsx
+// kirocrew-app/ui/src/Markdown.tsx
 function Yl({ parts: e }) {
 	return e.map((e, t) => e.kind === "text" ? e.text : e.kind === "code" ? /* @__PURE__ */ C("code", {
 		className: "rounded px-1 text-[12px]",
@@ -10441,7 +10445,7 @@ function $l({ text: e, idPrefix: t, measure: n }) {
 		})
 	});
 }
-// src/Authority.tsx
+// kirocrew-app/ui/src/Authority.tsx
 function eu({ owner: e }) {
 	if (!e.authority) return null;
 	if (e.authority !== "github") return /* @__PURE__ */ C(Z, { children: e.authority });
@@ -10455,7 +10459,7 @@ function eu({ owner: e }) {
 		children: n
 	}) : /* @__PURE__ */ C(Z, { children: n });
 }
-// src/plugins-api.ts
+// kirocrew-app/ui/src/plugins-api.ts
 var tu = "Contract version", nu = "Which version of Avoozl's plugin interface this plugin was built for. Not the plugin's own version.", ru = () => ({
 	id: "",
 	where: "path",
@@ -10806,7 +10810,7 @@ function Fu(e) {
 	let t = (t) => e.rows.filter((e) => e.action === t).length;
 	return `Version ${e.version}: ${t("add")} new, ${t("change")} changed, ${t("keep")} unchanged, ${t("retire")} retired.`;
 }
-// src/PackImport.tsx
+// kirocrew-app/ui/src/PackImport.tsx
 var Iu = {
 	create: {
 		label: "Create",
@@ -11006,7 +11010,7 @@ function Ru(e) {
 		]
 	});
 }
-// src/notes-api.ts
+// kirocrew-app/ui/src/notes-api.ts
 var zu = {
 	url: 2e3,
 	label: 200,
@@ -11098,7 +11102,7 @@ function Ku(e) {
 		templates: (e) => t("template.list", e, {})
 	};
 }
-// src/TemplateStart.tsx
+// kirocrew-app/ui/src/TemplateStart.tsx
 var qu = {
 	borderColor: "var(--border)",
 	color: "var(--text)",
@@ -11331,7 +11335,7 @@ function Xu(e) {
 		children: "No templates yet. A template comes in a plugin: add and approve one in Settings › Plugins."
 	});
 }
-// src/new-plan-api.ts
+// kirocrew-app/ui/src/new-plan-api.ts
 var Zu = /^[a-z0-9][a-z0-9-]{0,79}$/, Qu = "Name the epic by its spec folder: lowercase letters, digits and hyphens.", $u = {
 	name: "",
 	category: "",
@@ -11406,7 +11410,7 @@ function sd(e) {
 		})
 	};
 }
-// src/spec-builder-api.ts
+// kirocrew-app/ui/src/spec-builder-api.ts
 var cd = "/api/apps/spec-builder/specs", ld = "/spec-builder", ud = "spec-builder:last-open";
 function dd(e) {
 	return { create: (t) => e.post(cd, t) };
@@ -11440,7 +11444,7 @@ function pd(e, t) {
 	} catch {}
 	t(ld);
 }
-// src/NewPlanDrawer.tsx
+// kirocrew-app/ui/src/NewPlanDrawer.tsx
 var md = (e, t) => {
 	let n = (e) => e.replace(/\\/g, "/").replace(/\/+$/, "").replace(/^\/private(?=\/)/, "");
 	return n(e) === n(t);
@@ -11909,7 +11913,7 @@ function vd(e) {
 		})]
 	});
 }
-// src/ideas-api.ts
+// kirocrew-app/ui/src/ideas-api.ts
 var yd = {
 	title: "",
 	notes: "",
@@ -11969,7 +11973,7 @@ function Td(e) {
 		restore: (e, n) => t(e, "idea.restore", { id: n })
 	};
 }
-// src/Ideas.tsx
+// kirocrew-app/ui/src/Ideas.tsx
 var Ed = {
 	borderColor: "var(--border)",
 	color: "var(--text)",
@@ -12498,7 +12502,7 @@ function Fd(e) {
 		]
 	});
 }
-// src/Driver.tsx
+// kirocrew-app/ui/src/Driver.tsx
 var Id = {
 	borderColor: "var(--border)",
 	color: "var(--text)",
@@ -13187,7 +13191,7 @@ function qd(e) {
 		]
 	}) });
 }
-// src/filters.ts
+// kirocrew-app/ui/src/filters.ts
 var Jd = "(none)", Yd = "(none)", Xd = (e) => e.spec ? `spec:${e.spec}` : e.planId ? `plan:${e.planId}` : null, Zd = (e) => e.spec ? `spec:${e.spec}` : e.planId ? `plan:${e.planId}` : void 0, Qd = (e) => !!(e.q?.trim() || e.plan || e.epic || e.phase || e.repository || e.state || e.waveMin || e.waveMax || e.authority || e.needsYou || e.archived), $d = (e, t) => !e.planArchived || !!(t.archived || t.plan);
 function ef(e, t) {
 	let n = t.q?.trim().toLowerCase() ?? "", r = t.plan;
@@ -13295,7 +13299,7 @@ function lf(e, t) {
 	for (let e of Object.keys(n)) (n[e] === void 0 || n[e] === "" || n[e] === !1) && delete n[e];
 	return n;
 }
-// src/sticky-column.ts
+// kirocrew-app/ui/src/sticky-column.ts
 function uf(e, t = (e) => getComputedStyle(e)) {
 	for (let n = e?.parentElement ?? null; n; n = n.parentElement) if (/(auto|scroll|overlay)/.test(t(n).overflowY)) return n;
 	return null;
@@ -13308,7 +13312,7 @@ function df(e, t) {
 	}
 	return Math.max(240, Math.floor(n - 16));
 }
-// src/projection-api.ts
+// kirocrew-app/ui/src/projection-api.ts
 var ff = (e) => e?.preflight?.items.filter((e) => e.status === "fail") ?? [];
 function pf(e) {
 	let t = async (t, n, r) => (await e.post(W, {
@@ -13369,7 +13373,7 @@ var bf = {
 	claimed: "claimed",
 	unclaimed: "unclaimed"
 }, Sf = (e) => e.filter((e) => e.action !== "none");
-// src/ProjectionModal.tsx
+// kirocrew-app/ui/src/ProjectionModal.tsx
 function Cf(e) {
 	let { workspaceId: t, client: n, planId: r } = e, [a, s] = d(null), [c, l] = d([]), [u, f] = d(null), [p, m] = d(!1), [h, _] = d(null), v = i(async (e) => {
 		m(!0), _(null);
@@ -13580,7 +13584,7 @@ function Cf(e) {
 		})
 	});
 }
-// src/SpecChangedModal.tsx
+// kirocrew-app/ui/src/SpecChangedModal.tsx
 function wf(e) {
 	let { workspaceId: t, client: n, planId: r } = e, [i, a] = d(null), [s, c] = d(!1), [l, u] = d(null);
 	o(() => {
@@ -13671,7 +13675,7 @@ function wf(e) {
 		})
 	});
 }
-// ../../src/work-split.mjs
+// src/work-split.mjs
 var Tf = "Avoozl is for epics: approved goals that need many changes in a set order. Maintenance, triage and one-off pull request handling belong to Issue Radar crews or to your team's coder. Avoozl can hand each task of an epic to any coder.", Ef = "If the work fits in one pull request, it is not an Avoozl job. If it needs a plan with an order, it is.", Df = (e) => e.status === "stopped" || e.status === "refused";
 function Of(e) {
 	let t = async (t, n, r) => (await e.post(W, {
@@ -13723,7 +13727,7 @@ function Pf(e) {
 function Ff(e) {
 	return e.status === "approved" ? "Approved. The issues are next." : e.pull ? `Approval pull request #${e.pull.number} is open in ${e.pull.repository}. Merge it, then reopen Quick goal and press Check the merge.` : "Approval started.";
 }
-// src/QuickGoalModal.tsx
+// kirocrew-app/ui/src/QuickGoalModal.tsx
 var If = "rounded border px-2 py-1 text-sm";
 function Lf(e) {
 	let { workspaceId: t, client: n } = e, [r, i] = d("ask"), [a, s] = d([]), [c, l] = d(""), [u, f] = d(""), [p, m] = d("look"), [h, _] = d(String(kf.turns)), [v, y] = d(String(kf.minutes)), [b, x] = d(!1), [T, E] = d([]), [D, O] = d(null), [k, A] = d(null), [j, M] = d(/* @__PURE__ */ new Set()), [N, P] = d({}), [F, ee] = d(null), [I, te] = d(!1), [ne, L] = d(null);
@@ -14163,7 +14167,7 @@ function Lf(e) {
 		})
 	});
 }
-// src/PlansView.tsx
+// kirocrew-app/ui/src/PlansView.tsx
 var Rf = "80ch", zf = "17rem", Bf = "(max-width: 1023px)";
 function Vf(e) {
 	let [t, n] = d(null), r = u(null), a = i((t) => {
@@ -15743,7 +15747,7 @@ function up(e) {
 		]
 	});
 }
-// src/EpicPanel.tsx
+// kirocrew-app/ui/src/EpicPanel.tsx
 var dp = (e, t) => t ? Math.round(e / t * 100) : 0;
 function fp(e) {
 	let t = i((t) => e.client.epic(t, e.id), [e.client, e.id]), { value: n, error: r } = Dr(e.workspaceId, t);
@@ -15856,7 +15860,7 @@ function fp(e) {
 		]
 	}) : null;
 }
-// src/FilterBar.tsx
+// kirocrew-app/ui/src/FilterBar.tsx
 var pp = {
 	event: of,
 	read: sf,
@@ -15968,7 +15972,7 @@ function gp(e) {
 		children: e.children
 	});
 }
-// src/GraphView.tsx
+// kirocrew-app/ui/src/GraphView.tsx
 var _p = 60, vp = 640, yp = {
 	ready: "var(--accent)",
 	running: "var(--tile-purple, var(--aim))",
@@ -16634,7 +16638,7 @@ function Dp({ workspaceId: e, focus: t = null, drill: n = null, onDrill: r }) {
 		]
 	});
 }
-// src/budget-api.ts
+// kirocrew-app/ui/src/budget-api.ts
 var Op = (e) => e == null ? "no cap" : `$${e.toFixed(2)}`;
 function kp(e) {
 	let t = Number(e.trim().replace(/^\$/, ""));
@@ -16658,7 +16662,7 @@ function Ap(e) {
 		switchToStop: (e, n) => t(e, "budget.switchToStop", { taskId: n })
 	};
 }
-// src/Budget.tsx
+// kirocrew-app/ui/src/Budget.tsx
 function jp(e) {
 	let t = Ap(f()), { budget: n } = e, [r, i] = d(() => String(Math.max(1, Math.ceil((n.cap.usd ?? n.spent) * 1.5)))), [a, o] = d(null), [s, c] = d(!1), l = async (t, n) => {
 		c(!0), o(null);
@@ -16727,7 +16731,7 @@ function jp(e) {
 		})]
 	});
 }
-// src/conflicts-api.ts
+// kirocrew-app/ui/src/conflicts-api.ts
 function Mp(e) {
 	let t = (e.authority ?? "local") === "local";
 	return e.kind === "stale-session" && e.slot ? "dismiss" : e.kind === "review" ? Ip(e).length ? "reviewed" : null : !t || e.kind === "needs-human" && e.reason === "hand-set-review" ? null : e.kind === "needs-human" ? e.reason === "blocked" ? "unblock" : "reviewed" : e.kind === "decision" ? "settle" : null;
@@ -16931,7 +16935,7 @@ function om(e, t, n) {
 	} catch {}
 }
 var sm = (e) => im.some((t) => !!e[t]?.trim());
-// src/routing-api.ts
+// kirocrew-app/ui/src/routing-api.ts
 function cm(e) {
 	let t = (t, n, r = {}) => e.post(W, {
 		operation: n,
@@ -16958,7 +16962,7 @@ function cm(e) {
 		turnOff: (e) => t(e, "routing.turnOff")
 	};
 }
-// src/ConflictsView.tsx
+// kirocrew-app/ui/src/ConflictsView.tsx
 var lm = {
 	event: nm,
 	read: am,
@@ -17870,7 +17874,7 @@ function wm({ workspaceId: e, embedded: t }) {
 		]
 	});
 }
-// src/untriaged-api.ts
+// kirocrew-app/ui/src/untriaged-api.ts
 function Tm(e) {
 	let t = (t, n) => e.post(W, {
 		operation: "untriaged.view",
@@ -18406,7 +18410,7 @@ function Qm(e) {
 		]
 	});
 }
-// src/UntriagedView.tsx
+// kirocrew-app/ui/src/UntriagedView.tsx
 var $m = {
 	textAlign: "left",
 	fontWeight: 500,
@@ -19315,7 +19319,7 @@ function _h({ workspaceId: e, onMakeSpec: t, onOpenSources: n, embedded: r }) {
 		]
 	});
 }
-// src/WaitingView.tsx
+// kirocrew-app/ui/src/WaitingView.tsx
 var vh = [{
 	key: "decisions",
 	title: "Decisions and conflicts",
@@ -19408,7 +19412,7 @@ function bh(e) {
 		]
 	});
 }
-// src/nav-api.ts
+// kirocrew-app/ui/src/nav-api.ts
 var xh = [
 	{
 		key: "dashboard",
@@ -19461,7 +19465,7 @@ var Eh = "Local workers are retired. Switch to Issue Radar.";
 function Dh(e, t) {
 	return e.filter((e) => (e.coder || t) === "worker").map((e) => e.name);
 }
-// src/ModePicker.tsx
+// kirocrew-app/ui/src/ModePicker.tsx
 var Oh = "var(--ok)", kh = "var(--tile-purple, var(--accent))";
 function Ah({ color: e, children: t }) {
 	return /* @__PURE__ */ C("span", {
@@ -19783,7 +19787,7 @@ function Uh(e) {
 		})
 	});
 }
-// src/Walkthrough.tsx
+// kirocrew-app/ui/src/Walkthrough.tsx
 function Wh(e) {
 	let [t, n] = d(0), r = e.steps[t], i = e.steps.length - 1, a = (e) => n(Math.max(0, Math.min(i, e)));
 	return /* @__PURE__ */ w("section", {
@@ -19926,7 +19930,7 @@ function Gh(e) {
 		})]
 	});
 }
-// src/CoderPicker.tsx
+// kirocrew-app/ui/src/CoderPicker.tsx
 var Kh = [
 	{
 		title: "A task becomes ready",
@@ -20099,7 +20103,7 @@ function qh(e) {
 		]
 	});
 }
-// src/ReleaseMode.tsx
+// kirocrew-app/ui/src/ReleaseMode.tsx
 function Jh(e) {
 	let t = us.includes(e.mode) ? e.mode : "automatic";
 	return /* @__PURE__ */ C("div", {
@@ -20121,7 +20125,7 @@ function Jh(e) {
 		})
 	});
 }
-// src/SetupWizard.tsx
+// kirocrew-app/ui/src/SetupWizard.tsx
 var Yh = {
 	create: {
 		color: "var(--ok)",
@@ -20571,7 +20575,7 @@ function Qh(e) {
 		]
 	});
 }
-// src/FieldBox.tsx
+// kirocrew-app/ui/src/FieldBox.tsx
 function $h(e) {
 	return /* @__PURE__ */ w("fieldset", {
 		"data-field-box": e.title,
@@ -20595,7 +20599,7 @@ function $h(e) {
 		]
 	});
 }
-// src/radar-values-api.ts
+// kirocrew-app/ui/src/radar-values-api.ts
 var eg = (e) => ({ read: (t, n) => e.post(W, {
 	operation: "radar.values",
 	input: { repository: n },
@@ -20619,7 +20623,7 @@ function tg(e, t) {
 function ng(e, t) {
 	return `${e.filter((e) => tg(e, t.has(e.id)).checked).length} of ${e.length} done`;
 }
-// src/RadarValues.tsx
+// kirocrew-app/ui/src/RadarValues.tsx
 function rg({ text: e, label: t }) {
 	let [n, r] = d(!1);
 	return /* @__PURE__ */ w(g, {
@@ -20782,7 +20786,7 @@ function ag(e) {
 		]
 	}) : null;
 }
-// src/CrewsRulesSettings.tsx
+// kirocrew-app/ui/src/CrewsRulesSettings.tsx
 function og(e) {
 	return /* @__PURE__ */ w("div", {
 		className: "flex min-w-0 flex-col gap-1",
@@ -20904,7 +20908,7 @@ function lg(e) {
 		})]
 	});
 }
-// src/workflow-map.ts
+// kirocrew-app/ui/src/workflow-map.ts
 var ug = {
 	you: "You",
 	radar: "Radar crew",
@@ -21595,7 +21599,7 @@ function Og(e) {
 		]
 	});
 }
-// src/WorkspaceView.tsx
+// kirocrew-app/ui/src/WorkspaceView.tsx
 function kg(e) {
 	return /* @__PURE__ */ w("label", {
 		htmlFor: e.id,
@@ -21941,7 +21945,7 @@ function Mg(e = {}) {
 		]
 	});
 }
-// src/onboarding-api.ts
+// kirocrew-app/ui/src/onboarding-api.ts
 var Ng = [
 	{
 		key: "folder",
@@ -22103,7 +22107,7 @@ function Kg(e) {
 		importSpec: (e, n) => t(e, "plan.create", { spec: n })
 	};
 }
-// src/Onboard.tsx
+// kirocrew-app/ui/src/Onboard.tsx
 var qg = {
 	create: {
 		color: "var(--ok)",
@@ -22894,7 +22898,7 @@ function n_(e) {
 		})
 	] });
 }
-// src/RepositoriesSettings.tsx
+// kirocrew-app/ui/src/RepositoriesSettings.tsx
 var r_ = "A repository is a code checkout on this computer. Tasks change its code in their own worktrees and land on its branch. Each workspace keeps its own list.";
 function i_() {
 	let e = K();
@@ -23246,7 +23250,7 @@ function u_(e) {
 		]
 	});
 }
-// src/AddPlugin.tsx
+// kirocrew-app/ui/src/AddPlugin.tsx
 var d_ = {
 	path: H,
 	package: ke,
@@ -23779,7 +23783,7 @@ function v_(e) {
 		})
 	] });
 }
-// src/IntakeSources.tsx
+// kirocrew-app/ui/src/IntakeSources.tsx
 var y_ = {
 	borderColor: "var(--border)",
 	color: "var(--text)",
@@ -24391,7 +24395,7 @@ function N_({ workspaceId: e, plugins: t, onOpenGitHub: n }) {
 		})]
 	});
 }
-// src/CitedFile.tsx
+// kirocrew-app/ui/src/CitedFile.tsx
 var P_ = "avoozl-cited", F_ = "\n[data-cited=\"true\"] { background: color-mix(in srgb, var(--accent) 14%, transparent); box-shadow: inset 3px 0 0 var(--accent); border-radius: 4px; padding-left: 10px; }\n";
 function I_(e) {
 	return e.getAttribute("role") === "heading" ? `h${e.getAttribute("aria-level") ?? "6"}` : e.tagName.toLowerCase();
@@ -24442,7 +24446,7 @@ function R_(e) {
 		})]
 	});
 }
-// src/DocumentReader.tsx
+// kirocrew-app/ui/src/DocumentReader.tsx
 var z_ = "avoozl-reader";
 function B_(e) {
 	let { workspaceId: t, target: n, onClose: r, text: a } = e, s = K(), c = l(() => Gi(s), [s]), f = i_(), p = At("(max-width: 767px)"), m = At("(prefers-reduced-motion: reduce)"), [h, g] = d({
@@ -24629,7 +24633,7 @@ function V_(e) {
 		}, t.id))
 	});
 }
-// src/design-chat.ts
+// kirocrew-app/ui/src/design-chat.ts
 var H_ = "docs/plugins.md", U_ = "Open a chat that helps you plan a plugin and write its files. It approves nothing.", W_ = `Read ${H_}: the plugin contract, parts, sources and approval`, G_ = "Open a chat that suggests rules for you to paste here and save. What you type there stays in its transcript, so type truly private words straight into the editor.", K_ = (e) => e.length ? e.join(", ") : "none";
 function q_(e) {
 	return [
@@ -24649,9 +24653,9 @@ function J_(e) {
 		`Rule sets already here: ${K_(e.sets)}.`
 	].join(" ");
 }
-// ../../docs/plugins.md?raw
+// docs/plugins.md?raw
 var Y_ = "# Writing a plugin\n\nA plugin adds to Avoozl without changing Avoozl itself. One plugin can\nbundle several parts, so a team installs one plugin and gets its settings,\nits content rules, its tracker and its intake source together:\n\n| Part       | What it is                                                                | Runs code |\n| ---------- | ------------------------------------------------------------------------- | --------- |\n| `pack`     | Settings a person previews and copies into `.avoozl.json` once            | No        |\n| `rules`    | Content rule sets supplied while Avoozl runs                              | Yes       |\n| `tracker`  | A task tracker that keeps Avoozl's task records                           | Yes       |\n| `intake`   | An intake source: the tracker kind's `poll`, which brings outside work in | Yes       |\n| `route`    | A delivery route for tasks that are not run by a local worker             | Yes       |\n| `gate`     | A read-only check of an outside item that a tracker gate waits on         | Yes       |\n| `template` | A workflow template that starts a new spec from a reusable folder         | No        |\n\nLocal and GitHub are the only built-in routes and trackers. Everything\nelse, including any integration that must stay private, is a separate\npackage or folder that plugs in here.\n\nThe examples on this page are the test-only plugins in Avoozl's own test\ntree: `src/app/test/fixtures/plugins/sdk-team/` bundles a pack, rules, a\ntracker and an intake source; `sdk-templates/` holds one workflow template;\n`fake-route/`, `fake-tracker/`, `fake-gate/` and `fake-rules/` each provide one part. Read them alongside this guide. These\nfakes are the only plugins tested so far; no real plugin has run live.\n\n## A pack's `crews` section\n\nA pack can carry a `crews` section for Issue Radar: `count`, `agent`\n(`avoozl-crew`), `models`, `labels` (`plan`, `ready`, `conflict`), `prompt`\n(the one-line crew prompt, word for word), `reviewRules` and `template`. The\nlabels and review rules go to each chosen repository's settings, and the\ncrew values show in Set up. A pack creates no crew: you create it in Issue\nRadar with the values Set up shows. Content rules screen the section before\nit is previewed or imported. `examples/sdk-team/avoozl-pack.json` is a\nsample with made-up values. It is tested with fakes only.\n\n## What a plugin is\n\nA plugin is a folder with a manifest, `avoozl-plugin.json`, an entry module\nfor the parts that run code, and, with a pack, `avoozl-pack.json`:\n\n```json\n{\n  \"id\": \"sdk-team\",\n  \"version\": \"1.0.0\",\n  \"contract\": 1,\n  \"provides\": [\"pack\", \"rules\", \"tracker\", \"intake\"],\n  \"capabilities\": { \"tracker\": [\"actor\", \"poll\"], \"rules\": [] },\n  \"pack\": \"avoozl-pack.json\",\n  \"entry\": \"index.mjs\"\n}\n```\n\n- `id` is lowercase letters, digits and dashes. `local` and `github` are\n  reserved. Tasks name the plugin as `plugin:<id>`.\n- `version` changes whenever you release a new build.\n- `contract` is the contract version: which version of Avoozl's plugin\n  interface this plugin was built for. It is not the plugin's own version.\n  Settings shows it as **Contract version**. This Avoozl supports contract\n  version `1`.\n- `provides` lists the parts: `pack`, `rules`, `tracker`, `intake`,\n  `route`, `gate`, `lessons` and `template`. `intake` runs as the `tracker` kind and needs the `poll`\n  capability. A manifest written before `provides` lists `kinds` instead\n  (`route`, `tracker`, `rules`), and each kind is its own part. With\n  `provides`, leave `kinds` out; if you keep it, it must match.\n- `capabilities` lists optional features per kind. A tracker may list\n  `edges`, `subtasks`, `actor`, `pause` and `poll`. A route lists none yet.\n- `pack` names the pack file inside the folder; it defaults to\n  `avoozl-pack.json`.\n- `entry` is a `.mjs` or `.js` file inside the folder. A plugin that provides\n  only data parts (`pack`, `lessons`, `template`) runs no code, so it has no\n  `entry`; Avoozl refuses one that names an entry, and never starts a\n  process for it.\n\nThe entry module exports one object per kind: `route`, `tracker`, or\n`rules`. Each\nmethod takes `(params, { config })` and returns a JSON value or a promise of\none:\n\n```js\nexport const route = {\n  submit({ task, brief }, { config }) { ... },\n  status({ id }, { config }) { ... },\n  completion({ id }, { config }) { ... },\n  cancel({ id }, { config }) { ... },\n};\n```\n\n## The `gate` part\n\nA tracker gate is a task whose manifest entry has `completion: \"tracker\"` and\na `tracker` reference: `{ \"plugin\": \"<id>\", \"item\": \"<id or URL>\", \"done\":\n\"<what counts as done, in plain words>\" }`. No crew builds it. Avoozl reads\nthe outside item through the plugin and releases the tasks that require the\ngate when the plugin says `done`.\n\nA `gate` part exports `gate` with one read-only call:\n\n```js\nexport const gate = {\n  status({ ref }, { config }) {\n    // ref is { item, done }. Return the state of the outside item.\n    return { state: \"open\", evidence: \"In review.\", link: \"https://...\" };\n  },\n};\n```\n\n- `state` is `open`, `done`, `failed` or `unknown`. `evidence` is plain text\n  of at most 500 characters. `link` is an http or https URL.\n- The plugin has no call that writes to the outside item.\n- Avoozl runs content rules over `evidence` and `link` before it stores or\n  shows them, and treats them as data, never as instructions.\n- A call that throws, takes longer than 30 seconds, or returns a value outside\n  this shape counts as `unknown`. A sign-in that expired is `unknown` with the\n  evidence \"sign-in expired\".\n- Each tick reads the gates that are due. The gap after a read is 1, 2, 5 and\n  15 minutes, then 30 minutes, and starts again when the state changes. A\n  `done` is recorded once and is never undone. If the outside item later\n  reads differently, Avoozl adds one note and changes nothing else.\n- Credentials stay in the plugin's own sign-in or in an environment variable\n  its `config` names with an `Env` key. They never go in `.avoozl.json`, the\n  manifest, an issue or the evidence.\n\nExamples, by role only. Each would be its own package, outside this\nrepository: a ticket tracker, a check that a code review shipped to a live\nrelease on a private code host, and a managed remote harness task. The only\nplugin in this repository is `fake-gate/`, which tests use.\n\n## Declaring and approving a plugin\n\nA `plugins` entry declares each plugin, either in the repository's\n`.avoozl.json` (shared and reviewed in Git) or in this machine's\n`plugins.json`, beside the global Avoozl configuration\n(`~/.config/avoozl/plugins.json`, never committed):\n\n```json\n{\n  \"plugins\": [\n    {\n      \"id\": \"fake-route\",\n      \"path\": \"../fake-route\",\n      \"contract\": 1,\n      \"config\": { \"stateFile\": \"route-state.json\" }\n    }\n  ]\n}\n```\n\n- Name exactly one of `path` (a folder, relative to the file that declares\n  it), `package` (a package installed into the `plugins` folder beside\n  `plugins.json`), or `git` (below).\n- `config` is plain data passed to every call. It never holds a credential. A\n  key ending in `Env`, such as `tokenEnv`, names the environment variable the\n  plugin reads its credential from; Avoozl passes that variable, and only the\n  variables `config` names this way, to the plugin.\n- Declare a plugin whose name must stay private in `plugins.json`. Settings\n  asks you to confirm before it saves a `plugins` entry into `.avoozl.json`.\n\n### Add plugin in Settings\n\n**Settings > Plugins > Add plugin** walks four steps, with Cancel on each:\n\n1. **Where from**: open Folder, Package or Git and fill it in. Each keeps\n   what you typed until you cancel. Git shows the exact commit its ref names.\n2. **What**: the id, version, kinds and capabilities the plugin's own\n   `avoozl-plugin.json` declares. The id and **Contract version** come from\n   that file; a git plugin, whose files are fetched later, picks a supported\n   contract version. A package's optional version is checked against the\n   installed package; the entry stores no version, the approval pins it.\n3. **Applies to**: this computer only (`plugins.json`) or shared with the\n   repository (`.avoozl.json`). A shared plugin is approved on each computer\n   for itself; a shared package is installed on each, and a shared git plugin\n   is fetched on each with **Update**. A shared folder is a path inside the\n   repository, relative to it.\n4. **Review and approve**: the version, content hash and, for git, the commit.\n   Cancel here removes the entry step 3 declared.\n\n### A plugin from a git repository\n\n```json\n{\n  \"id\": \"fake-route\",\n  \"git\": \"https://git.example.com/team/fake-route.git\",\n  \"ref\": \"v1.0.0\",\n  \"subdir\": \"plugin\",\n  \"contract\": 1\n}\n```\n\n`git` is a URL or a local repository path. `ref` is a tag, a branch or a full\ncommit, and `subdir` is the plugin's folder inside the repository. **Add from\ngit** in Settings (or `avoozl plugins add ID --git URL --ref REF`) resolves\n`ref` to one commit, fetches only that commit into\n`plugins/git/<id>/<commit>/` beside `plugins.json`, and stores the commit on\nthis machine. Git runs as you, with your credential helper or SSH key, so\nprivate repositories work. Git hooks are off, submodules are skipped, and\nAvoozl runs no `npm install`: commit the plugin ready to run, bundled or with\n`node_modules`. The approval names the commit, so a new commit needs a new\napproval. **Update** (or `avoozl plugins update ID`) resolves `ref` again.\nThe tick never fetches. Avoozl refuses a URL with a password or token in it,\na `subdir` outside the repository, and a commit with no `avoozl-plugin.json`.\n\nNothing loads until a person approves the plugin in **Settings** (or with\n`avoozl plugins approve ID --hash HASH`). Settings shows the id, version,\neach part, the code kinds it runs as, capabilities, location and content\nhash, a SHA-256 over every file in the folder, the pack included. The\napproval lists the parts and is stored on this machine only. Any change to\nthe version or to any file needs approval again. The tick and example\ninstallation never approve a plugin.\n\nA plugin **shared with the repo** puts its entry in `.avoozl.json`, where\nit is committed and reviewed like any other change. Each computer still\napproves it for itself. Because a shared entry is the same on every\ncomputer, its `config` holds no machine path: name an environment variable\n(`termsFileEnv`, `stateFileEnv`) that holds each computer's own path, as the\n`sdk-team` sample does.\n\n## How Avoozl runs a plugin\n\n- Each approved plugin runs in its own Node child process. Avoozl talks to it\n  in JSON lines over stdin and stdout, and gives it no port.\n- A plugin may call its own system over the network. It must not open a\n  listener. A plugin that listens is stopped and marked broken.\n- Write nothing to stdout yourself; it carries the protocol. `console.log`\n  output goes to stderr, which Avoozl discards.\n- Each call has a time limit (20 seconds by default) inside the tick's own\n  time budget.\n- Every reply is checked against the contract. Links must be `http` or\n  `https`. Reply text is untrusted data: Avoozl quotes it as data in briefs\n  and escapes it in views.\n- When a plugin is missing, unapproved, disabled, crashes, times out, replies\n  with the wrong shape, or expects an unsupported contract, Avoozl marks it\n  unavailable for that tick. Its tasks show \"needs you\" with the reason, and\n  every other task keeps moving. The next tick tries again. A plugin's tasks\n  never fall back to another route or tracker on their own.\n\n## Route kind\n\nA task whose manifest entry says `\"route\": \"plugin:<id>\"` is delivered by\nthat route instead of a local worker session. One graph can mix routes, for\nexample a local leaf, then a remote one, then a local one.\n\n| Call                    | Reply                                                                            |\n| ----------------------- | -------------------------------------------------------------------------------- |\n| `submit({task, brief})` | `{id, link}`: the remote ID and a link to the work                               |\n| `status({id})`          | `{state, link?, reason?}`: `queued`, `running`, `needs-person`, `failed`, `done` |\n| `completion({id})`      | `{pr?, answer?}`: a pull request link, an answer, or both                        |\n| `cancel({id})`          | `{cancelled}`                                                                    |\n\n- `submit` gets the task's own title, summary, acceptance and checks, and a\n  brief. Make it idempotent by task ID.\n- The tick reads `status` every tick until the work is done. `needs-person`\n  shows the task as \"needs you\" with your link.\n- A remote task is done only when `status` says `done` and `completion`\n  returns its result. Each dependent's brief quotes that result as data.\n- `failed` stops the task for a person. `route.resubmit` starts it again.\n\n## Tracker kind\n\nA task with `\"authority\": \"plugin:<id>\"` keeps its record in that tracker,\nthe way a GitHub task keeps its record in an issue. SQLite only caches it:\ndirect edits are refused, and changes go through the spec and projection.\n\n| Call                               | Reply                                                                                  |\n| ---------------------------------- | -------------------------------------------------------------------------------------- |\n| `project({task, desired, marker})` | `{id, link, marker}`: create or update the record, idempotent by namespace and task ID |\n| `read({ids})`                      | `{records: [...]}`: each record's state and fields                                     |\n| `list({namespace})`                | `{records: [...]}`: every record carrying this namespace, for rebuild                  |\n| `close({id, reason})`              | `{closed}`: close with reason `completed` or `not_planned`                             |\n\nEach record in a `read` or `list` reply has:\n\n- `id`, `link`, `state` (`open` or `closed`), and `closeReason` when closed;\n- `fields`: the managed values as they are in the tracker now: `title`,\n  `section` (the managed description section) and `tags`, plus `blockedBy`\n  with the `edges` capability;\n- `marker`: the namespace, task ID and last applied values Avoozl stored with\n  the record, returned unchanged;\n- with the `actor` capability, `closedBy` and `pausedBy`: who closed or paused\n  it; with `pause`, `paused`.\n\nRules a tracker plugin must follow:\n\n- **Store the marker.** Keep the `marker` from `project` with the record (a\n  hidden field or a managed description section) and return it unchanged from\n  `project`, `read` and `list`. A plugin that does not is refused as a\n  tracker.\n- **Edges.** Without the `edges` capability, the graph stays in Avoozl: its\n  edges come from the approved spec. With `edges`, `desired.blockedBy` lists\n  the record IDs that block this one; store them as the tracker's own links.\n- **Edit only managed fields.** Avoozl changes the title, the managed section,\n  managed tags and, with `edges`, blocking links. A field a person changed is a\n  conflict that Avoozl reports and leaves alone.\n- **Completion is Avoozl's.** Avoozl decides a task is done and then calls\n  `close(id, \"completed\")`. A close or pause by someone else is judged with\n  the actor you report, against the entry's `config.allowedActors`. Without\n  the `actor` capability, every outside close holds the task's dependents for\n  a person.\n\n## Rules kind\n\nA rules plugin supplies content rule sets: terms Avoozl must never write\n(see \"Ban private terms\" in `docs/policies.md`). It lets a team ship its\nlist as a private package that public Avoozl never sees.\n\n| Call           | Reply                                             |\n| -------------- | ------------------------------------------------- |\n| `ruleSets({})` | `{sets: [{id, version, rules: [{id, pattern}]}]}` |\n\n- `pattern` is a regular expression, matched per line ignoring case.\n- A set or rule must not carry `allow`. Allow lines exist only in a person's\n  own terms file; a plugin writes its exception into the pattern itself\n  (for example `\\bzebra\\b(?!-ui)`). A reply with `allow` is refused, which\n  makes that plugin's sets unavailable.\n- A `.avoozl.json` set `{ \"id\": \"<set id>\", \"plugin\": \"<plugin id>\" }` picks\n  one set by id. In **Settings > Content rules**, pick the plugin as the set's\n  **Rules plugin**; such a set has no terms file to edit there.\n- Without a plugin, a set's rules live in its terms file,\n  `.avoozl/local/content-rules/<set id>.txt`, one `name: pattern` per line,\n  plus `allow:` lines for false matches.\n  Settings edits it with a Rule builder (word or phrase, or pattern) and a\n  File view, writes it readable by your account only, and refuses to write\n  it where Git could commit it. **How rules work** on that tab explains the\n  format with made-up examples.\n- Avoozl keeps the rules in memory for the tick. It never writes them to\n  SQLite, receipts, or Git; findings record the set's `version`.\n- A plugin that is missing, unapproved, or broken makes only its own sets\n  unavailable, and every boundary those sets cover writes nothing until it is\n  fixed.\n\n## Pack part\n\nA pack is settings only. Avoozl never runs anything from it. It is one JSON\nfile:\n\n```json\n{\n  \"description\": \"Triage labels, triggers and who counts for SDK repositories.\",\n  \"settings\": {\n    \"repositories\": {\n      \"minimumPermission\": \"write\",\n      \"rules\": [\n        {\n          \"id\": \"deliver\",\n          \"action\": \"deliver\",\n          \"match\": \"label:avoozl:deliver -label:needs-triage -label:response-requested\"\n        }\n      ],\n      \"untriaged\": {\n        \"filter\": \"label:needs-triage\",\n        \"triageLabels\": [\"response-requested\", \"closing-soon\"]\n      }\n    },\n    \"project\": { \"fields\": { \"status\": \"Status\", \"release\": \"Release\" } },\n    \"contentRules\": { \"sets\": [{ \"id\": \"team-terms\", \"plugin\": \"sdk-team\" }] }\n  }\n}\n```\n\nWhat a pack may set, and where each lands in `.avoozl.json`:\n\n| Pack key                     | Sets                                                                                                                                                                                     |\n| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |\n| `settings.repositories`      | For each repository you pick at import: `rules` (trigger `match` lines), `untriaged`, `allowedActors`, `minimumPermission`, `requiredChecks`, `priority`, `managedLabels`, `concurrency` |\n| `settings.project`           | `github.project.fields` and `statusValues`, when a GitHub Project is set                                                                                                                 |\n| `settings.epicIssueType`     | `github.epicIssueType`                                                                                                                                                                   |\n| `settings.contentRules.sets` | Rule set references by id (`plugin`, `action`, `boundaries`), never rules                                                                                                                |\n| `settings.delivery`          | `reviewers` (review roles), `agent`, `model`, `runner`, `concurrency`                                                                                                                    |\n| `settings.flow`              | Flow settings, such as `batch.max`                                                                                                                                                       |\n\n- Every key is checked with the same rules Settings uses. Any other key is\n  refused by name, such as `Pack key settings.repositories.autoMerge is not\na pack setting.`, and the plugin shows as invalid until it is fixed.\n- A pack cannot hold a credential or a content rule pattern. Terms come\n  from the `rules` part at run time, so they are never stored in a public\n  repository.\n- A pack has no follow mode and no org minimums. Avoozl copies the\n  settings once; after that they are the repository's own settings.\n\n**Import.** On the plugin's card in **Settings > Plugins**, **Preview and\nimport pack** shows each setting as **Create**, **Change**, **Keep** or\n**Skip** (a setting that cannot apply here, such as Project fields with no\nProject set), with the old and new values. Nothing is written until\n**Import settings**, and only:\n\n- after this computer approved this exact plugin version;\n- for the exact preview shown: if the pack or `.avoozl.json` changed since,\n  Avoozl asks you to preview again;\n- when a setting would let more people give orders than before (a lower\n  `minimumPermission`, or new `allowedActors`), only after you accept that\n  change, which the preview names on its own line;\n- for a plugin declared on this computer only, after you confirm that its\n  id and settings go into `.avoozl.json`.\n\nImport writes `packs` into `.avoozl.json`: for each plugin, the version\nimported, when and by whom, and the settings that came from it. When a\nnewer version arrives, approve it, and the card offers its preview again;\nimporting it records the new version. At the command line:\n\n```sh\navoozl plugins pack-preview sdk-team\navoozl plugins pack-import sdk-team --preview HASH [--accept-lowered]\n```\n\n## Template part\n\nA workflow template starts a new spec the same way each time, such as one\nSDK rewrite after another. It is data only. Each template is a folder under\n`templates/` in the plugin:\n\n```\ntemplates/sdk-rewrite/\n  avoozl-template.json\n  prompt.md\n  starter/requirements.md\n  starter/design.md\n  starter/tasks.md\n  starter/avoozl/manifest.json\n```\n\n`avoozl-template.json` holds:\n\n| Key                          | Holds                                                                                                                                    |\n| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |\n| `id`, `title`, `description` | What the New spec drawer shows                                                                                                           |\n| `inputs`                     | Fields the person fills; each has `id`, `label`, `type` (`text`, `choice` with `options`, `file`, `repositories`, `epic`) and `required` |\n| `prompt`                     | The planner prompt, a Markdown file                                                                                                      |\n| `starter`                    | A spec folder in the usual layout                                                                                                        |\n| `phases`                     | Optional: the starter's phases, `{id, title}` in order                                                                                   |\n| `proofKinds`                 | Optional: proof outlines the prompt asks the planner to fill in                                                                          |\n| `pack`                       | Optional: a settings pack, as in the pack part                                                                                           |\n| `flow`                       | Optional: flow defaults: `batch`, `stopTheLine`, `localChecksFirst`, `retro.everyTasks`                                                  |\n\nThe prompt and starter files may use `{{<input id>}}`. Avoozl puts in what\nthe person typed, as plain text, once, and never runs it. A `file` input is\nread in the page, at most 200 KB of text; Avoozl never opens a path someone\ntyped. The plugin shows as invalid, naming the key or file, when:\n\n- a key or input setting is unknown, or an input ID is used twice;\n- a file uses a placeholder that is no input ID;\n- the starter, with sample values put in, does not lint clean;\n- `phases` does not match the starter's headings or manifest `phase` values;\n- `pack` or `flow` fails its own check.\n\nA template is offered only while its plugin is approved on this computer.\nIn **New spec**, choose **From template**, pick it, and fill its inputs\nbeside Name, Category and Epic. Submit checks the inputs and runs content\nrules on the seed, then opens a planner chat with the prompt, the filled\nstarter and the inputs. Picking a template changes no setting: with a `pack`\nor `flow`, the drawer shows the pack preview with **Import these settings**\nunticked, and only ticking it imports them, as Settings does. The folder\ncomes back as a draft spec that records the template; with an epic picked,\nthe epic's change comes back as its own draft. Nothing is approved, started\nor pushed.\n\nThe sample `sdk-templates/` plugin has an **SDK rewrite** template: six\nphases (inventory, codegen, runtime, protocol tests, review, cutover), a\nmanual **Review with team** task that cutover waits on, two proof kinds and\nflow defaults. Proof P37 runs it with a fake GitHub; no template has run\nlive yet.\n\nA starter may hold manual tasks (`\"manual\": true`): steps only a person\ndoes. See [Manual tasks and links and notes](policies.md#manual-tasks-and-links-and-notes).\n\n## Intake part\n\nAn intake source is a tracker kind with the `poll` capability, listed in\n`provides` as `intake`. The fake tracker (`fake-tracker/`) is the example:\nits `poll` reads a JSON file of items and returns those changed since the\ncursor.\n\n| Call                    | Reply                                                                  |\n| ----------------------- | ---------------------------------------------------------------------- |\n| `poll({cursor, limit})` | `{items, cursor, more}`: items changed since `cursor`, at most `limit` |\n\n```js\nexport const tracker = {\n  poll({ cursor, limit }, { config }) {\n    const changed = readItems(config).filter(\n      (item) => !cursor || mark(item) > cursor,\n    );\n    const page = changed.slice(0, limit);\n    return {\n      items: page,\n      cursor: page.length ? mark(page.at(-1)) : cursor,\n      more: changed.length > page.length,\n    };\n  },\n};\n```\n\n- `cursor` is your own text of at most 2,000 characters, or null on the\n  first poll. Return the cursor for the next poll and `more: true` when a\n  page is left. Avoozl asks for at most 500 items, polls each source at most\n  once per tick, and stores the new cursor only after every item of the\n  reply is handled, so a crash replays the same page. A failed poll keeps\n  the cursor and the items and shows the error on the source.\n- Each item has `id`, `link` (`http` or `https`), `kind` (`issue`, `pr`,\n  `review` or `ticket`), `title`, `state` (`open` or `closed`), and\n  `updatedAt`; and may have `body`, `labels`, `author`, `assignees`,\n  `closeReason`, `closedBy`, `closedAt`, `fields` (text, number or\n  true/false values) and `trigger`. An item that breaks a limit is refused\n  with a reason naming the field; the other items of the reply still count.\n- `trigger` is `{actor, permission, eventId, at}`: who last changed what a\n  rule would match, and that person's standing in your system, mapped to\n  `none`, `read`, `triage`, `write`, `maintain` or `admin`. Avoozl checks it\n  against the source's `allowedActors` and `minimumPermission` (default\n  `write`). Without the `actor` capability nobody counts, so your items only\n  list, pause or quarantine. A close counts as an order only when\n  `closedBy` is the trigger's actor and that actor counts.\n- A plugin that provides `intake` but not `tracker` is never asked to\n  `project`, `read`, `list` or `close`. Avoozl writes nothing back to an\n  intake source.\n\nDeclare the source under `intake.sources`, in `.avoozl.json` or in this\nmachine's `plugins.json` when its name must stay private:\n\n```json\n{\n  \"intake\": {\n    \"sources\": {\n      \"tickets\": {\n        \"via\": \"plugin:fake-tracker\",\n        \"repository\": \"example/app\",\n        \"labelFields\": [\"component\"],\n        \"minimumPermission\": \"write\"\n      }\n    }\n  }\n}\n```\n\n`repository` names a registered repository: its trigger rules apply, and a\ndelivered item's task lands there. A rule matches a source's items only\nwith a `source:` term, such as `label:go source:tickets`; a rule without\none matches GitHub only. `labelFields` adds a `<field>:<value>` label per\nfield and `assigneeField` an assignee before matching. Items no rule takes\nshow in the **Intake** tab with their source.\n\n## Testing your plugin\n\nCopy the fake plugins' approach: keep the remote system in a file or a local\nstand-in, declare the plugin in a temporary `plugins.json`, approve its hash,\nand run ticks. Avoozl's proof P26 does exactly this with the two fakes,\nproof P35 installs, previews, imports and polls the `sdk-team` bundle, and\nproof P37 starts a spec from the `sdk-templates` template.\nProof P32 polls the fake tracker as an intake source.\n";
-// src/PluginsSettings.tsx
+// kirocrew-app/ui/src/PluginsSettings.tsx
 function X_({ row: e }) {
 	let t = Object.entries(e.capabilities ?? {}).map(([e, t]) => `${e}: ${t.length ? t.join(", ") : "none"}`).join("; "), n = [
 		["Version", e.version],
@@ -24944,7 +24948,7 @@ function ev({ workspaceId: e, onOpenGitHub: t }) {
 		]
 	});
 }
-// src/content-api.ts
+// kirocrew-app/ui/src/content-api.ts
 var tv = {
 	plan: "Spec files",
 	github: "GitHub text",
@@ -25157,7 +25161,7 @@ function Nv(e) {
 		}, e)
 	};
 }
-// src/ContentRulesSettings.tsx
+// kirocrew-app/ui/src/ContentRulesSettings.tsx
 var Pv = "avoozl-content-help";
 function Fv() {
 	let e = document.getElementById(Pv);
@@ -26356,7 +26360,7 @@ function ry({ workspaceId: e }) {
 		]
 	});
 }
-// src/PromptInstructions.tsx
+// kirocrew-app/ui/src/PromptInstructions.tsx
 var iy = {
 	borderColor: "var(--border)",
 	color: "var(--text)",
@@ -26440,7 +26444,7 @@ function ay(e) {
 		]
 	});
 }
-// src/FlowSettings.tsx
+// kirocrew-app/ui/src/FlowSettings.tsx
 var oy = { required: !1 }, sy = {
 	borderColor: "var(--border)",
 	color: "var(--text)",
@@ -26842,7 +26846,7 @@ function fy({ workspaceId: e }) {
 		]
 	});
 }
-// src/SettingsSlots.tsx
+// kirocrew-app/ui/src/SettingsSlots.tsx
 function py(e) {
 	return /* @__PURE__ */ w("div", {
 		"data-slot": e.id,
@@ -26928,7 +26932,7 @@ function _y(e) {
 		})]
 	}) : null;
 }
-// src/delivery-api.ts
+// kirocrew-app/ui/src/delivery-api.ts
 function vy(e) {
 	let t = (e?.statuses ?? []).filter((e) => !e.complete && !["deferred", "blocked"].includes(e.id));
 	return t.find((e) => e.id === "planned")?.id ?? t[0]?.id ?? null;
@@ -27331,7 +27335,7 @@ function ky({ workspaceId: e }) {
 		})]
 	});
 }
-// src/SettingsView.tsx
+// kirocrew-app/ui/src/SettingsView.tsx
 var Ay = {
 	borderColor: "var(--border)",
 	color: "var(--text)",
@@ -28202,6 +28206,14 @@ function tb(e) {
 							placeholder: "avoozl/",
 							value: t.branchPrefix,
 							onChange: (e) => r({ branchPrefix: e })
+						}),
+						/* @__PURE__ */ C(Hy, {
+							id: `${n}-max-bytes`,
+							label: "Largest forwarded file (bytes)",
+							raw: "mirror.forwardMaxFileBytes",
+							placeholder: Qs.forwardMaxFileBytes,
+							value: t.forwardMaxFileBytes,
+							onChange: (e) => r({ forwardMaxFileBytes: e })
 						}),
 						/* @__PURE__ */ C(Hy, {
 							id: `${n}-trusted`,
@@ -29270,7 +29282,7 @@ function pb(e) {
 		]
 	});
 }
-// src/activity-api.ts
+// kirocrew-app/ui/src/activity-api.ts
 var mb = {
 	local: "This workspace",
 	github: "GitHub",
@@ -29726,7 +29738,7 @@ function Ab({ workspaceId: e }) {
 		]
 	});
 }
-// src/providers-api.ts
+// kirocrew-app/ui/src/providers-api.ts
 function jb(e) {
 	let t = (t, n, r = {}) => e.post(W, {
 		operation: n,
@@ -30310,7 +30322,7 @@ function Gb({ dry: e, changed: t }) {
 		]
 	});
 }
-// src/StopLine.tsx
+// kirocrew-app/ui/src/StopLine.tsx
 var Kb = {
 	background: "var(--danger)",
 	borderColor: "var(--danger)",
@@ -30552,7 +30564,7 @@ function Qb(e) {
 		]
 	});
 }
-// src/DeliveryDetails.tsx
+// kirocrew-app/ui/src/DeliveryDetails.tsx
 function $b({ text: e }) {
 	let t = Br(e);
 	return t ? /* @__PURE__ */ C("a", {
@@ -30979,7 +30991,7 @@ function fx(e, t, n) {
 function px(e, t) {
 	return t === "ArrowLeft" ? e + 40 : t === "ArrowRight" ? e - 40 : null;
 }
-// src/ReviewState.tsx
+// kirocrew-app/ui/src/ReviewState.tsx
 var mx = (e, t) => `asked ${e ?? "agent default"}${t ? `, ran ${t}` : ""}`;
 function hx(e) {
 	let t = Xr(e.item);
@@ -31125,7 +31137,7 @@ function gx(e) {
 		]
 	});
 }
-// src/TaskForm.tsx
+// kirocrew-app/ui/src/TaskForm.tsx
 var _x = {
 	borderColor: "var(--border)",
 	color: "var(--text)",
@@ -31461,7 +31473,7 @@ function Sx(e) {
 		]
 	});
 }
-// src/evidence-api.ts
+// kirocrew-app/ui/src/evidence-api.ts
 var Cx = {
 	findings: "Findings",
 	falsifier: "Falsifier",
@@ -31491,7 +31503,7 @@ function Tx(e, t) {
 function Ex(e) {
 	return e < 1024 ? `${e} B` : e < 1048576 ? `${Math.ceil(e / 1024)} KB` : `${(e / 1048576).toFixed(1)} MB`;
 }
-// src/Evidence.tsx
+// kirocrew-app/ui/src/Evidence.tsx
 function Dx({ workspaceId: e, taskId: t, entry: n }) {
 	let r = K(), i = l(() => wx(r), [r]), [a, o] = d(null), [s, c] = d(null), u = n.file, f = async () => {
 		try {
@@ -31581,7 +31593,7 @@ function Ox({ workspaceId: e, taskId: t }) {
 		children: "Loading…"
 	});
 }
-// src/TaskNotes.tsx
+// kirocrew-app/ui/src/TaskNotes.tsx
 var kx = {
 	borderColor: "var(--border)",
 	color: "var(--text)",
@@ -32191,7 +32203,7 @@ function Px(e) {
 		]
 	});
 }
-// src/TaskDrawer.tsx
+// kirocrew-app/ui/src/TaskDrawer.tsx
 function Fx({ label: e, children: t }) {
 	return /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C("dt", {
 		className: "text-muted",
@@ -33139,7 +33151,7 @@ function Hx({ workspaceId: e, children: t, onFocus: n }) {
 		})]
 	});
 }
-// src/App.tsx
+// kirocrew-app/ui/src/App.tsx
 function Ux() {
 	try {
 		return window.localStorage;
