@@ -54,7 +54,12 @@ for (const mode of ["single-repo", "plans-repo"])
     assert.equal(parsed.problem, null);
     assert.deepEqual(parsed.marker.tasks, BATCH);
     const result = await verifyIssue("example/code#" + issue.number, {
-      read: reader(github, issue, "example/code", BATCH_SPEC),
+      read: reader(
+        github,
+        issue,
+        mode === "plans-repo" ? "example/planning" : "example/code",
+        BATCH_SPEC,
+      ),
     });
     assert.deepEqual(
       result.checks.filter((check) => check.status !== "ok"),
