@@ -1,6 +1,6 @@
 # Kiro Crew Bot heartbeats: can one drive remote work while nobody is there?
 
-Date: 2026-11-13. Kiro Crew 0.12.2.4.
+Date: 2026-11-13, sections 8 and 9 added 2026-11-14. Kiro Crew 0.12.2.4.
 
 Claim checked: "Crew Bots wake themselves on scheduled heartbeats, decide what
 to work on next, and delegate new work. Ultra Mode / Crew Mode conductors don't
@@ -219,6 +219,88 @@ on next" beyond the heartbeat bullet. They do not say conductors lack a loop.
 | Conductors don't have that loop    | `docs/monitor-loops.md:5`: "the session wakes itself on an interval"                                                                 | Half true. Conductors have a loop. It is armed by the person, capped, and not a standing schedule. |
 | A Bot is not a remote machine      | `docs/remote-crew.md:245` calls a Bot an assistant "Not a machine"                                                                   | Matches the finding                                                                                |
 
+## 8. Does the gateway-armed patrol loop wake the Bot within seconds?
+
+Yes, and by two paths. The loop is `watch="work-ledger"`. Follow-up run, same
+isolated setup as above, with the real patrol loop and no heartbeat. The Bot
+dispatched three local workers (two in one message, one in a later message).
+Each worker slept, then reported once.
+
+| Report        | Worker reported | Bot woke                                                             | Gap    | Path                 |
+| ------------- | --------------- | -------------------------------------------------------------------- | ------ | -------------------- |
+| A: `done`     | 02:56:09.6      | 02:56:19.6, as a `[work-ledger wake]` row naming the item and status | 10.0 s | Patrol loop          |
+| B: `question` | 02:56:39.1      | 02:56:42.5, a reply that quotes the worker's question                | 3.4 s  | Worker-turn-end wake |
+| C: `blocked`  | 02:58:43.8      | 02:58:47.9, a reply that names the block                             | 4.0 s  | Worker-turn-end wake |
+
+How known:
+
+- The loop's kind is `work-ledger`, its target is the Bot's own thread, and it
+  was armed by the gateway when the first item was bound, with idle 600 s, 300
+  cycles and 86400 s of runtime (Verified in the loop's own record, and
+  `conductor_patrol.py:50-52`).
+- The 10.0 s gap is the batch window. A `done`, `blocked` or `question` report
+  on the board moves the loop's next tick to now plus `DEFAULT_WAKE_BATCH_SECS`
+  (10 s), so reports landing together share one turn (Inferred:
+  `conductor_wake.py:1-60, 647-676`; `work_vocab.py:198`). The loop's own
+  clock stayed at 600 s.
+- Only one patrol cycle ran for three reports. B and C woke the Bot sooner, and
+  with no `[work-ledger wake]` row. Both match a second path: when a worker the
+  Bot created ends a turn, the gateway runs one hidden turn in the Bot's thread
+  with the worker's reply as data, `[Worker report]`, once the Bot's own turn
+  has ended, and not on a timer (Inferred: `dashboard/mate_thread_wakes.py:1-25,
+566`). I did not see that envelope in the transcript, so the attribution is
+  Inferred; what is Verified is the timing.
+- A worker report that ends quietly (`nothing_to_do`, no text) wakes nobody on
+  the second path (Inferred, same file). The patrol path does not depend on the
+  worker's wording.
+
+So a Bot with a dispatched worker hears `done`, `blocked` and `question` within
+about 3 to 10 seconds, with nobody present and no heartbeat. This is the local
+wake. It only reads local workers' reports (and remote ones the hub has
+pulled, section 5).
+
+## 9. Credits per idle wake: Bot heartbeat against a conductor timer turn
+
+Same gateway and the same usage log as section 6. The conductor was a Crew Mode
+chat on the `kirocrew-conductor` agent. In a turn the owner sent it armed
+`monitor_start` with a 300 s interval, 4 cycles and no watch. The loop then
+re-injected its check message each cycle. Two variants, so the ending is not the
+difference:
+
+- **Bare**: the message said to reply with the word "ok" and call no tools.
+- **Same ending as the Bot**: the message said nothing could move forward and
+  to end with `nothing_to_do`, writing nothing before it.
+
+| Idle wake                                  | Credits per wake                   | Samples | Context       | Time      | Model calls |
+| ------------------------------------------ | ---------------------------------- | ------- | ------------- | --------- | ----------- |
+| Bot heartbeat (section 6)                  | 0.93, 0.83, 0.85 (mean 0.87)       | 3       | 13-14k tokens | 7-9 s     | 3-4         |
+| Conductor timer, ends with `nothing_to_do` | 0.38, 0.21, 0.37 (mean 0.32)       | 3       | about 8k      | 2.4-3.5 s | 2           |
+| Conductor timer, bare "ok"                 | 0.08, 0.27, 0.13, 0.12 (mean 0.15) | 4       | about 8k      | about 1 s | 1           |
+
+Per idle hour:
+
+| Setup                                          | Wakes per hour | Credits per idle hour |
+| ---------------------------------------------- | -------------- | --------------------- |
+| Bot heartbeat, 30 min (the floor)              | 2              | about 1.7             |
+| Bot heartbeat, 60 min (default)                | 1              | about 0.9             |
+| Conductor timer, 300 s, `nothing_to_do` ending | 12             | about 3.9             |
+| Conductor timer, 300 s, bare                   | 12             | about 1.8             |
+
+What the numbers say:
+
+- One conductor timer turn costs a third to a sixth of one Bot wake. The Bot
+  wake carries the whole goal block, the milestones and the heartbeat prompt,
+  about 5k more context, and it makes more model calls.
+- At the intervals people actually use, the conductor timer costs more per hour
+  than a Bot heartbeat, because 300 s is six times as often as 30 minutes.
+  Compared at the same 30-minute spacing, the conductor turn would cost about
+  0.6 credits per hour with the `nothing_to_do` ending, against 1.7 for the Bot.
+- A conductor loop is also bounded: 4 cycles here, 24 by default when the agent
+  arms it, and a runtime budget (section 1). A heartbeat has no cap.
+- The spread is wide (0.08 to 0.27 for the same bare turn) and the samples are
+  few, so read these as the right order of magnitude and not as rates. Credits
+  only, one model, one gateway.
+
 ## Verdict and smallest setup
 
 Does a Bot make "remote work with nobody present, shown on the driver's board"
@@ -263,6 +345,8 @@ remote crews either.
 ## Not checked
 
 - Any call to a real remote crew. None was connected. Section 5 is Inferred.
+- Section 8's second wake path was read in source and timed, not seen as a
+  `[Worker report]` row. A remote worker's report was not tried.
 - A Bot as the bound worker of a parent's remote item, and the parent's
   ledger receiving its reports.
 - A heartbeat at its real 30-minute spacing, and a wake in normal approval
