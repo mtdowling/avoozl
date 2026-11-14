@@ -809,8 +809,7 @@ export class Operations {
       // Stops one Kiro Crew session by slot (session-observer.mjs
       // gatewaySessionStopper); only the app backend has one.
       sessionStopper = null,
-      // {skillPath, exists} for the code review chat (pr-review.mjs); tests
-      // point it at a temporary skill.
+      // {now} for the code review chat (pr-review.mjs); tests fix the clock.
       reviewOptions = {},
       // Placement hooks (§4.10): {localReading, sshCommand, knownHosts};
       // tests pass fakes, nothing else does.

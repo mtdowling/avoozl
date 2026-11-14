@@ -1,5 +1,5 @@
 // Code review chat (design §8.5): the Code review button queues one Kiro
-// Crew chat seeded to review one pull request with the sage-review skill.
+// Crew chat seeded to review one pull request.
 // An isolated temporary workspace and a fake GitHub that records every
 // call; nothing here reaches GitHub or Kiro Crew.
 import assert from "node:assert/strict";
@@ -9,7 +9,7 @@ import test from "node:test";
 import { Operations } from "../operations.mjs";
 import { principalAllows } from "../app-backend.mjs";
 import { machineIdentity } from "../github-sync.mjs";
-import { reviewSeed, sageSkillPath } from "../pr-review.mjs";
+import { reviewSeed } from "../pr-review.mjs";
 import { fixture } from "./fixtures.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
 
@@ -70,15 +70,11 @@ function fakeGitHub(items) {
   );
 }
 
-function workspace(t, { skill = true, contentRules = null } = {}) {
+function workspace(t, { contentRules = null } = {}) {
   const { store } = fixture(t),
     root = temporaryDirectory(),
     home = temporaryDirectory("avoozl-home-"),
     github = fakeGitHub([pull(6), pull(8, [3])]);
-  if (skill) {
-    fs.mkdirSync(path.dirname(sageSkillPath(home)), { recursive: true });
-    fs.writeFileSync(sageSkillPath(home), "# sage-review\n");
-  }
   fs.writeFileSync(
     path.join(root, ".avoozl.json"),
     JSON.stringify({
@@ -114,7 +110,6 @@ function workspace(t, { skill = true, contentRules = null } = {}) {
   const ops = new Operations(store, {
     github,
     workspaceRoot: root,
-    reviewOptions: { skillPath: sageSkillPath(home) },
   });
   return { store, github, ops, home };
 }
@@ -129,18 +124,6 @@ const row = async (ops, number) =>
 const githubWrites = (github) =>
   github.calls.filter((call) => !(call[0] === "graphql" && call[1] === "read"));
 
-test("the sage-review skill is read from this crew's home", () => {
-  const skill = ["skills", "sage-review", "SKILL.md"];
-  assert.equal(
-    sageSkillPath(path.resolve("h"), {}),
-    path.join(path.resolve("h"), ".kiro", "crew", ...skill),
-  );
-  assert.equal(
-    sageSkillPath(path.resolve("h"), { KIROCREW_HOME: path.resolve("c") }),
-    path.join(path.resolve("c"), ...skill),
-  );
-});
-
 test("Code review queues one seeded chat, the tick opens it, and the row shows Attach", async (t) => {
   // Nearby inputs: a second click while queued, a click while open, a click
   // after the chat closed, the head SHA, a pull request with no task.
@@ -149,7 +132,6 @@ test("Code review queues one seeded chat, the tick opens it, and the row shows A
   const first = await review(ops, 6);
   assert.equal(first.created, true);
   assert.equal(first.state, "queued");
-  assert.equal(first.skill, sageSkillPath(home));
   assert.equal((await row(ops, 6)).reviewChat.state, "queued");
   assert.equal((await review(ops, 6)).created, false, "queued once");
 
@@ -167,7 +149,7 @@ test("Code review queues one seeded chat, the tick opens it, and the row shows A
     `- Head commit: ${SHA}`,
     "Title:\n```text\nChange 6\n```",
     "- Author: alice",
-    `Load the sage-review skill (${sageSkillPath(home)})`,
+    "Do a careful single-pull-request review",
     "Post nothing to GitHub",
   ])
     assert.ok(seed.includes(part), part);
@@ -209,19 +191,14 @@ test("Code review queues one seeded chat, the tick opens it, and the row shows A
   );
 });
 
-test("without the skill the seed asks for a careful single review; a task adds its spec section", async (t) => {
-  // Nearby inputs: no skill file, a seed given a task with a source.
-  const { store, ops } = workspace(t, { skill: false });
+test("the seed asks for a careful single review; a task adds its spec section", async (t) => {
+  // Nearby inputs: a seed given a task with a source.
+  const { store, ops } = workspace(t);
   await ops.execute("untriaged.view", { refresh: true });
   const chat = await review(ops, 8);
-  assert.equal(chat.skill, null);
   const seed = store.get("receipts", chat.id).seed;
-  assert.match(
-    seed,
-    /sage-review skill is not installed on this machine\. Do a careful single-pull-request review without it/,
-  );
+  assert.match(seed, /Do a careful single-pull-request review/);
   assert.match(seed, /Post nothing to GitHub/);
-  assert.ok(!seed.includes("Load the sage-review skill"));
   const linked = reviewSeed({
     repository: REPO,
     pull: { url: "u", number: 8, title: "T", author: "a", headSha: SHA },
