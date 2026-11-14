@@ -19,6 +19,7 @@ import {
   taskRepository,
 } from "../work-model.mjs";
 import { inspectGitHubTaskCompletion } from "./github-completion.mjs";
+import { publicMergeReached } from "./mirror-forward-poll.mjs";
 import {
   parseMarker,
   renderMarker,
@@ -456,6 +457,12 @@ async function judge(github, store, task, issue, { policy, mode, reviewRule }) {
     closing,
   });
   if (checked.completed) {
+    // A mirrored repository's task counts as done on the public merge, not on
+    // the mirror's (RC24.6): until then dependents wait and nothing is held.
+    // `retry` reads it again each tick, since the public merge changes
+    // nothing on this issue. shortcut: upgrade when many tasks wait here.
+    if (!publicMergeReached(store, task, repo))
+      return { state: "open", retry: true };
     // With pull-request reviews on, they are the leaf's review gate: the
     // merged head needs its allowed approvals before dependents start.
     const reviews = await readReviews(
