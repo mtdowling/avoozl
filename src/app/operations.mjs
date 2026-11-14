@@ -101,7 +101,7 @@ import {
 import { claimsView, refreshClaims } from "./radar-claims.mjs";
 import { mergePath, requireMergePath } from "./radar-merge-path.mjs";
 import { instanceIdentity } from "./instance.mjs";
-import { mirrorGit, mirrorSetup } from "./mirror-setup.mjs";
+import { mirrorEntryKey, mirrorGit, mirrorSetup } from "./mirror-setup.mjs";
 import { radarSetup } from "./radar-setup.mjs";
 import { radarReread, radarValues } from "./radar-values.mjs";
 import { armedPullRequests, disarmPullRequest } from "./radar-arm.mjs";
@@ -157,7 +157,10 @@ import {
   RULE_ACTIONS,
   STATUS_VALUE_KEYS,
 } from "./github-policy.mjs";
-import { requireMirrorsPrivate } from "./mirror-policy.mjs";
+import {
+  requireMirrorsPrivate,
+  requirePlansBranches,
+} from "./mirror-policy.mjs";
 import { mirrorNeedsYou, writeRepo } from "./mirror-sync.mjs";
 import { mirrorForwardRows, mirrorRecordFor } from "./mirror-forward.mjs";
 import { forwardRecord } from "./mirror-forward-run.mjs";
@@ -3446,22 +3449,23 @@ export class Operations {
     if (name === "mirror.adopt" || name === "mirror.create") {
       if (!input.repository) fail("Name the mirror repository.", 400);
       if (!this.github?.available?.()) fail("GitHub is not available.", 503);
-      const policy = readGitHubPolicyOrNull(this.workspaceRoot);
+      const policy = readGitHubPolicyOrNull(this.workspaceRoot),
+        key = mirrorEntryKey(policy?.repositories, input);
       return mirrorSetup(
         name === "mirror.adopt" ? "adopt" : "create",
         {
           github: this.github,
-          entry: policy?.repositories?.[input.repository] ?? null,
+          entry: policy?.repositories?.[key] ?? null,
           git: this.mirrorGit ?? mirrorGit,
           identity: instanceIdentity(this.store),
-          saveSetting: (mirror, value, baseBranch) => {
+          saveSetting: (_mirror, value, baseBranch) => {
             const file = this.settingsFile(),
               current = file.readGitHubSettings(),
               github = structuredClone(current.github),
-              entry = github.repositories?.[mirror] ?? { baseBranch };
+              entry = github.repositories?.[key] ?? { baseBranch };
             github.repositories = {
               ...github.repositories,
-              [mirror]: { ...entry, mirror: value },
+              [key]: { ...entry, mirror: value },
             };
             file.updateGitHubSettings({ github, expectedHash: current.hash });
             this.configuration?.reload();
@@ -4534,6 +4538,7 @@ export class Operations {
         if (this.github?.available?.())
           await requireDefaultBranches(policy, this.github);
         await requireMirrorsPrivate(policy, this.github);
+        await requirePlansBranches(policy, this.github);
         return { valid: true, error: null, policy };
       } catch (error) {
         return { valid: false, error: error.message, policy: null };
@@ -4557,6 +4562,7 @@ export class Operations {
       if (this.github?.available?.())
         await requireDefaultBranches(policy, this.github);
       await requireMirrorsPrivate(policy, this.github);
+      await requirePlansBranches(policy, this.github, { create: true });
       this.settingsFile().updateGitHubSettings(input);
       this.configuration?.reload();
       return this.githubSettings();
@@ -4574,6 +4580,7 @@ export class Operations {
         // An unparsable or invalid file is refused by the update itself.
       }
       await requireMirrorsPrivate(raw, this.github);
+      await requirePlansBranches(raw, this.github, { create: true });
       return this.configuration.updateConfiguration(input);
     }
     if (name === "local.ignore.status") return globalLocalIgnoreStatus();

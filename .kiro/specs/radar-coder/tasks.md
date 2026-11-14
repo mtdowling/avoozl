@@ -533,7 +533,7 @@ Requirement RC23. A task that waits on an outside tracker item, with a label and
 
 Requirement RC25. Private plans live on an orphan branch of the mirror and never leave it; public plans stay on the default branch.
 
-- [ ] rc-24.1 `plansBranch` setting: default, orphan creation, validation, after rc-23.1 [RC25.1] (§D30)
+- [x] rc-24.1 `plansBranch` setting: default, orphan creation, validation, after rc-23.1 [RC25.1] (§D30)
   - `mirror.plansBranch` in the form and the raw file; the branch is created from an empty commit with an explicit refspec; a name equal to the default branch, starting with `branchPrefix`, or sharing history with the default branch is refused; `src/app/test/mirror-plans-branch.test.mjs`.
   - Done when: A fake GitHub test: the branch is created once; each refused name is refused with its reason; the form and the raw file agree.
 - [ ] rc-24.2 Spec home, reading both homes, Specs badge, after rc-24.1 [RC25.2, RC25.8] (§D30)
@@ -562,7 +562,7 @@ Requirement RC26. Where each mirror change lands on the public repository, and t
 - [ ] rc-25.2 Path policy and metadata scrub, after rc-23.4 [RC26.5, RC26.6] (§D31.2)
   - `forwardExclude`, `forwardAllow`, the default exclusions (`.kiro/`, the plans branch, `AGENTS.md`, steering); one new commit authored by the person, no trailers, markers, mirror history or links; tests 1 and 3 of D31.2 in `src/app/test/mirror-forward-protections.test.mjs`.
   - Done when: Each excluded path blocks naming the rule; an allowlisted path passes; the commit has one parent, the person as author and no trailer or mirror reference.
-- [ ] rc-25.3 Leak scan extensions: private terms, hosts, ticket IDs, account IDs, secrets, binary and over-size files, after rc-25.2 [RC26.5] (§D31.2)
+- [x] rc-25.3 Leak scan extensions: private terms, hosts, ticket IDs, account IDs, secrets, binary and over-size files, after rc-25.2 [RC26.5] (§D31.2)
   - Runs the public-crew content rules on the diff, file names, message, branch, title and body; `forwardMaxFileBytes` shown in Settings with its default; test 2 of D31.2.
   - Done when: A planted fake term, host, ticket ID, account ID and secret each block; a binary and an over-size file block; an allowlisted binary passes; the test reads the size from the setting.
 - [ ] rc-25.4 Forward screen shows the exact public diff, title and body; receipt, after rc-25.3, rc-23.4 [RC26.5] (§D31.2, §D31.3)

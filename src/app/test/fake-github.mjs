@@ -15,6 +15,29 @@ export class FakeGitHub {
     this.subIssues = [];
     this.comments = [];
     this.blockers = new Map();
+    // Branch name -> history root; the same root means shared history.
+    this.branches = new Map([["main", "main"]]);
+  }
+  branch(_repository, name) {
+    return this.branches.has(name)
+      ? Promise.resolve({ name })
+      : Promise.reject(Object.assign(new Error("Not Found"), { status: 404 }));
+  }
+  compareCommits(_repository, base, head) {
+    if (this.branches.get(base) === this.branches.get(head))
+      return Promise.resolve({ status: "ahead", ahead_by: 0, behind_by: 0 });
+    return Promise.reject(
+      Object.assign(
+        new Error(`No common ancestor between ${base} and ${head}.`),
+        {
+          status: 404,
+        },
+      ),
+    );
+  }
+  createOrphanBranch(_repository, name) {
+    this.branches.set(name, `orphan:${name}`);
+    return Promise.resolve({ ref: `refs/heads/${name}` });
   }
   available() {
     return true;
@@ -24,6 +47,7 @@ export class FakeGitHub {
       node_id: "repo-node",
       full_name: owner + "/" + repo,
       private: true,
+      default_branch: "main",
     });
   }
   currentUser() {
