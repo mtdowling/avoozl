@@ -108,12 +108,14 @@ import { settleUnavailable, validateContentRules } from "./content-rules.mjs";
 import { statusComplete } from "../query.mjs";
 import {
   completionReached,
+  isGate,
   pluginId,
   taskAuthority,
   taskKind,
   taskRepository,
   taskRoute,
 } from "../work-model.mjs";
+import { gateStep } from "./gate-step.mjs";
 import { routeResultNotes, routeStep } from "./routes.mjs";
 import { heldByTrackers, trackerStep } from "./trackers.mjs";
 import {
@@ -626,6 +628,14 @@ function referencedPlugins(data) {
       found.set(`${route}\0route`, [route, "route"]);
     if (authority) found.set(`${authority}\0tracker`, [authority, "tracker"]);
   }
+  // A gate's plugin, until its gate is done or cleared (RC23.6).
+  for (const task of data.tasks)
+    if (
+      isGate(task) &&
+      task.gate?.plugin &&
+      !completionReached(task, undefined, complete)
+    )
+      found.set(`${task.gate.plugin}\0gate`, [task.gate.plugin, "gate"]);
   return [...found.values()];
 }
 
@@ -653,6 +663,10 @@ async function pluginStep(store, plugins, planned, workspaceRoot) {
       namespace: planningIdentity(workspaceRoot).namespace,
     });
     planned.notify.push(...trackers.notify);
+    // Tracker gates, before release: a done gate frees its dependents in
+    // this same pass (RC23.7).
+    const gates = await gateStep(store, session);
+    planned.notify.push(...gates.notify);
     held = heldByTrackers(store.read(), session);
   } finally {
     await session.close();
