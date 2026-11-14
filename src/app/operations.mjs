@@ -163,6 +163,7 @@ import {
 } from "./mirror-policy.mjs";
 import { mirrorNeedsYou, writeRepo } from "./mirror-sync.mjs";
 import { forwardAuditRows } from "./forward-audit.mjs";
+import { publicBranchRows } from "./mirror-forward-batch.mjs";
 import { mirrorForwardRows, mirrorRecordFor } from "./mirror-forward.mjs";
 import { forwardRecord } from "./mirror-forward-run.mjs";
 import { syncProject } from "./github-project.mjs";
@@ -3065,6 +3066,7 @@ export class Operations {
       view.items.push(...mirrorNeedsYou(store));
       view.items.push(...mirrorForwardRows(store, policy));
       view.items.push(...forwardAuditRows(store));
+      view.items.push(...publicBranchRows(store));
       view.items.push(
         ...radarNeedsYou(
           untriagedView(
