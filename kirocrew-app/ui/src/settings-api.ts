@@ -258,6 +258,8 @@ export interface RepositoryForm {
   reviewApprovals: string
   managedLabels: Record<string, string>
   crewLabels: Record<string, string>
+  // The label that approves a drafted plan (radar.approvalLabel); blank is the default.
+  approvalLabel: string
   rules: RuleForm[]
   // The Untriaged list (design §8.5), each optional.
   untriaged: UntriagedForm
@@ -370,6 +372,7 @@ export function emptyRepository(name = ''): RepositoryForm {
     reviewApprovals: '',
     managedLabels: {},
     crewLabels: {},
+    approvalLabel: '',
     rules: [],
     untriaged: emptyUntriaged(),
     rest: {},
@@ -409,6 +412,7 @@ export function toForm(github: Policy): SettingsForm {
         reviewApprovals: str(record(reviews).approvals),
         managedLabels: strings(entry.managedLabels),
         crewLabels: strings(entry.crewLabels),
+        approvalLabel: str(record(entry.radar).approvalLabel),
         rules: (Array.isArray(entry.rules) ? entry.rules : []).map((item) => {
           const rule = record(item)
           return {
@@ -428,6 +432,7 @@ export function toForm(github: Policy): SettingsForm {
             notify: untriaged.notify === true,
           }
         })(),
+        // radar keeps its other keys (planLabel, conflictLabel, clearPlanLabel).
         rest: Object.fromEntries(Object.entries(entry).filter(([key]) => !SHOWN.has(key))),
       }
     }),
@@ -483,6 +488,10 @@ export function toPolicy(form: SettingsForm): Policy {
                 : undefined,
               managedLabels: named(repository.managedLabels),
               crewLabels: named(repository.crewLabels),
+              radar: (() => {
+                const radar = compact({ ...record(repository.rest.radar), approvalLabel: blank(repository.approvalLabel) })
+                return Object.keys(radar).length ? radar : undefined
+              })(),
               rules: repository.rules.map((rule) =>
                 compact({
                   id: rule.id.trim(),
