@@ -92,6 +92,8 @@ import {
   syncGitHubIssues,
 } from "./github-sync.mjs";
 import { planningIdentity, requireNamespace } from "./github-marker.mjs";
+import { claimsView, refreshClaims } from "./radar-claims.mjs";
+import { namespaceOf } from "./radar-plan-me.mjs";
 import {
   CODERS,
   CREW_LABEL_KEYS,
@@ -2765,6 +2767,17 @@ export class Operations {
         by: context.local ? "cli" : "dashboard",
       });
     }
+    // Issue Radar's live claims on every registered repository, read from
+    // GitHub only (radar-claims.mjs). `refresh` reads GitHub first.
+    if (name === "radar.crews") {
+      const policy = readGitHubPolicyOrNull(this.workspaceRoot);
+      // Read at most every 2 minutes, however often the Dashboard asks.
+      if (policy?.mode && this.github?.available?.())
+        await refreshClaims(store, this.github, policy, {
+          force: input.refresh === true,
+        });
+      return claimsView(store);
+    }
     // The Untriaged list (§8.5): cached GitHub items no rule, triage label,
     // or task covers. `refresh` reads GitHub first (Check now); read only.
     if (name === "untriaged.view") {
@@ -2773,6 +2786,7 @@ export class Operations {
       if (input.refresh === true && policy?.mode && this.github?.available?.())
         await refreshUntriaged(store, this.github, policy, tasks, {
           force: true,
+          namespace: namespaceOf(this.workspaceRoot),
         });
       // Check now also polls each plugin source once (R50.16).
       if (input.refresh === true && this.plugins) await this.pollNow();
