@@ -6,7 +6,7 @@
 import type { BudgetChip } from './budget-api.ts'
 import type { StoredPlanPage } from './plans-api.ts'
 import { nodeState, waves, type NodeState } from './graph-layout.ts'
-import { modelLabel, safeHref, type RadarClaim, type RadarCrews, type ConflictItem, type DeliveryItem, type DeliverySession, type Graph, type GraphTask } from './views-api.ts'
+import { modelLabel, safeHref, type RadarClaim, type RadarCrews, type ConflictItem, type DeliveryItem, type DeliverySession, type Graph, type GraphTask, type RemoteWorker } from './views-api.ts'
 
 // Session statuses after which a session will not move again.
 const ENDED = new Set(['closed', 'lost'])
@@ -66,6 +66,8 @@ export interface InFlight {
   session: DeliverySession
   // Spend against the cap (§4.17).
   budget: BudgetChip | null
+  // Set for a worker on a runner's crew (R84); Attach opens its dashboard.
+  remote?: RemoteWorker
 }
 
 export interface Progress {
@@ -109,12 +111,34 @@ function deliveryTrouble(item: DeliveryItem): string | null {
   return null
 }
 
+// A remote worker as an In flight row. The chat lives on the runner's crew,
+// so only that crew's own dashboard link opens it.
+function remoteRow(worker: RemoteWorker): InFlight {
+  return {
+    slot: `remote:${worker.host}:${worker.chatKey}`,
+    role: 'worker',
+    focus: null,
+    taskId: worker.taskId,
+    title: worker.taskId,
+    epic: null,
+    attempt: 1,
+    model: null,
+    startedAt: null,
+    lastAt: worker.updatedAt || null,
+    status: worker.status,
+    session: { slot: worker.chatKey, role: 'worker', attempt: 1, title: null, status: worker.status, statusAt: worker.updatedAt || null, boundAt: null, link: worker.attachUrl, crew: worker.crewId, crewUnreachable: worker.stale },
+    budget: null,
+    remote: worker,
+  }
+}
+
 export function summarize(input: {
   graph: Graph | null
   delivery: DeliveryItem[] | null
   conflicts: ConflictItem[] | null
   plans: StoredPlanPage | null
   radar?: RadarCrews | null
+  remote?: RemoteWorker[] | null
   limit?: number
 }): DashboardSummary {
   const limit = input.limit ?? 8
@@ -199,6 +223,7 @@ export function summarize(input: {
         }
       }),
     )
+    .concat((input.remote ?? []).map(remoteRow))
     .sort((a, b) => (b.lastAt ?? '').localeCompare(a.lastAt ?? ''))
 
   const wave = graph ? waves(graph) : new Map<string, number>()
