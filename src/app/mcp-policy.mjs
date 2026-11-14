@@ -139,6 +139,17 @@ export const PERSON_ONLY = new Map([
   ["radar.releasestep", person("Only a person releases a phase.")],
   ["radar.disarm", person("Only a person disarms auto-merge.")],
   ["spec.changed.apply", person("Only a person applies a spec change.")],
+  ["quickgoal.get", person("Only a person works a quick goal.")],
+  ["quickgoal.list", person("Only a person works a quick goal.")],
+  ["quickgoal.confirm", person("Only a person works a quick goal.")],
+  ["quickgoal.settings.get", person("Only a person works a quick goal.")],
+  ["quickgoal.propose", person("Only a person works a quick goal.")],
+  ["quickgoal.edit", person("Only a person works a quick goal.")],
+  ["quickgoal.discard", person("Only a person works a quick goal.")],
+  ["quickgoal.promote", person("Only a person works a quick goal.")],
+  ["quickgoal.approve", person("Only a person works a quick goal.")],
+  ["quickgoal.settings.update", person("Only a person works a quick goal.")],
+
   ["budget.raise", person("Only a person raises a budget.")],
   ["budget.stop", person("Only a person stops a task at its budget.")],
   [

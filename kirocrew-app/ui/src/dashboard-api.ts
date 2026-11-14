@@ -307,3 +307,18 @@ export function countsStyles(layout: CountsLayout) {
     button: { minHeight: 26, paddingInline: 8 },
   } as const
 }
+
+// The On the line rail (RC8.4): Ready, Claimed, PR, CI, Merge. It reads the
+// claim marker only. The marker holds no CI result, so with a pull request
+// open CI is the step in progress, and Merge is never done on a live claim.
+export const RAIL_STEPS = ['Ready', 'Claimed', 'PR', 'CI', 'Merge'] as const
+export interface RailStep {
+  label: (typeof RAIL_STEPS)[number]
+  state: 'done' | 'now' | 'later'
+}
+
+export function railFor(row: Pick<RadarClaim, 'noMarker' | 'pr' | 'phase'>): RailStep[] {
+  // Index of the step in progress; every step before it is done.
+  const now = row.pr ? 3 : row.noMarker ? 1 : 2
+  return RAIL_STEPS.map((label, index) => ({ label, state: index < now ? 'done' : index === now ? 'now' : 'later' }))
+}
