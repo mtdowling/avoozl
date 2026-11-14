@@ -5,6 +5,7 @@
 import { statusComplete } from "../model.mjs";
 import { isManual, taskKind } from "../work-model.mjs";
 import { fail } from "./store.mjs";
+import { mirrorForwards } from "./mirror-forward.mjs";
 import { READY_LABEL_DEFAULT } from "./github-policy.mjs";
 import { graphOrder } from "./delivery.mjs";
 import { openStops, stopScope } from "./flow.mjs";
@@ -190,6 +191,10 @@ export function releaseQueue(store, identity) {
   return {
     repositories: [...repositories.values()].filter(
       (entry) => entry.rows.length,
+    ),
+    // Merged in a private mirror and not yet public (RC24.5).
+    forwards: mirrorForwards(store).filter(
+      (record) => record.state !== "public_merged",
     ),
   };
 }
