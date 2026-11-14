@@ -307,6 +307,7 @@ export const APP_OPERATIONS = new Set([
   "github.setup",
   "github.setup.cancel",
   "radar.setup",
+  "radar.signoff",
   // The Onboard flow's reads; its writes are the operations above.
   "onboarding.inspect",
   "onboarding.scan",

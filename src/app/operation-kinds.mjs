@@ -286,6 +286,7 @@ const PROTECT = new Set([
   "github.setup",
   "github.setup.cancel",
   "radar.setup",
+  "radar.signoff",
   "radar.retro.apply",
   "local.ignore.fix",
   "conversations.settings.update",
