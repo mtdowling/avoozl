@@ -25,9 +25,17 @@ const lower = (value) => String(value).toLocaleLowerCase();
 export const reviewId = (repository, number) =>
   `${REVIEW_KIND}:${lower(repository)}#${number}`;
 
-// Where Kiro Crew installs the sage-review skill, read at request time.
-export const sageSkillPath = (home = os.homedir()) =>
-  path.join(home, ".kiro", "crew", "skills", "sage-review", "SKILL.md");
+// Where Kiro Crew installs the sage-review skill, read at request time: in
+// this crew's home, which a second gateway names with KIROCREW_HOME.
+export const sageSkillPath = (home = os.homedir(), env = process.env) =>
+  path.join(
+    env.KIROCREW_HOME
+      ? path.resolve(env.KIROCREW_HOME)
+      : path.join(home, ".kiro", "crew"),
+    "skills",
+    "sage-review",
+    "SKILL.md",
+  );
 
 // The chat's first message. Every value is GitHub's or the plan's text, so
 // the whole seed passes content rules before it is queued. `task` is the

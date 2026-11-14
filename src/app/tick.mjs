@@ -101,6 +101,7 @@ import {
   pluginId,
   taskAuthority,
   taskKind,
+  taskRepository,
   taskRoute,
 } from "../work-model.mjs";
 import { routeResultNotes, routeStep } from "./routes.mjs";
@@ -986,6 +987,16 @@ export async function tick(
       // none for an away task (R66.6, R66.10, R66.11).
       const held = driverHeldTaskIds(store),
         readOnly = readOnlyPlanIds(store);
+      // MC-1: a session takes its project from its chat folder, and only a
+      // person can set a folder's project directory. The cron reads its
+      // folders first. Placement leaves local out for a leaf whose folder
+      // has none, so it asks no routing chat each tick while it cannot start.
+      const folderUnset = (folder) =>
+        Boolean(folders && typeof folders === "object") &&
+        folders[folder] === false;
+      if (routing)
+        routing.localFolderUnset = (task) =>
+          folderUnset(`Avoozl/${taskRepository(task)}`);
       const requested = unobserved.length
           ? []
           : planDispatches(store, bindings).filter((d) => !held.has(d.task)),
@@ -1152,18 +1163,19 @@ export async function tick(
         messages: sendable,
         now: routing?.now ?? Date.now(),
       });
-      // MC-1: a session takes its project from its chat folder, and only a
-      // person can set a folder's project directory. The cron reads its
-      // folders first; a dispatch whose folder has none waits, and the
+      // A dispatch whose folder has no project directory waits too, and the
       // person hears once what to set (the same notice is queued once).
-      const unset = new Set();
-      if (folders && typeof folders === "object")
-        for (let i = dispatched.length - 1; i >= 0; i--) {
-          const d = dispatched[i];
-          if (d.project === false || folders[d.folder] !== false) continue;
-          unset.add(d.folder);
-          dispatched.splice(i, 1);
-        }
+      const unset = new Set(
+        waits
+          .filter(({ result }) => result.folder)
+          .map(({ task }) => `Avoozl/${taskRepository(task)}`),
+      );
+      for (let i = dispatched.length - 1; i >= 0; i--) {
+        const d = dispatched[i];
+        if (d.project === false || !folderUnset(d.folder)) continue;
+        unset.add(d.folder);
+        dispatched.splice(i, 1);
+      }
       for (const folder of unset) {
         const id = folder.split("/").pop(),
           checkout = store.get("projects", id)?.root;

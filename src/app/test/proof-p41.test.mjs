@@ -507,6 +507,19 @@ test("P41: budgets cap a task in dollars, stop at the next turn, and never open 
       mcp: true,
     });
   assert.deepEqual(fromCli, a1);
+  // The text receipt names every cap, not only the dollar one.
+  const asText = execFileSync(
+    process.execPath,
+    [cli, "budget", "receipt", "a1", "--workspace", root],
+    { env, encoding: "utf8" },
+  );
+  assert.match(
+    asText,
+    new RegExp(
+      `of ${a1.cap.tokens} \\(${a1.cap.levels.tokens}\\), credits .* of ${a1.cap.credits} \\(${a1.cap.levels.credits}\\)`,
+    ),
+  );
+  assert.doesNotMatch(asText, /nowhere/);
   assert.deepEqual(fromMcp, a1);
   const text = JSON.stringify(a1);
   for (const word of ["brief", "prompt", "transcript", "Task a1"])
