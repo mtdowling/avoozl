@@ -1617,6 +1617,7 @@ export function plansTableView(
       name: spec.title || spec.name,
       spec: spec.name,
       folder: spec.folder,
+      ...(spec.home ? { home: spec.home } : {}),
       planId: spec.plan?.id ?? null,
       type: spec.type,
       category: spec.category ?? null,

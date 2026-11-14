@@ -17,6 +17,29 @@ export class FakeGitHub {
     this.blockers = new Map();
     // Branch name -> history root; the same root means shared history.
     this.branches = new Map([["main", "main"]]);
+    this.files = new Map();
+  }
+  // Files by `ref:path`. A folder answers with its direct entries.
+  contents(_repository, pathname, ref) {
+    const missing = () =>
+      Promise.reject(Object.assign(new Error("Not Found"), { status: 404 }));
+    const text = this.files.get(`${ref}:${pathname}`);
+    if (text !== undefined)
+      return Promise.resolve({
+        type: "file",
+        encoding: "base64",
+        content: Buffer.from(text).toString("base64"),
+      });
+    const prefix = `${ref}:${pathname}/`,
+      names = new Map();
+    for (const key of this.files.keys())
+      if (key.startsWith(prefix)) {
+        const rest = key.slice(prefix.length);
+        names.set(rest.split("/")[0], rest.includes("/") ? "dir" : "file");
+      }
+    return names.size
+      ? Promise.resolve([...names].map(([name, type]) => ({ name, type })))
+      : missing();
   }
   branch(_repository, name) {
     return this.branches.has(name)

@@ -1027,6 +1027,17 @@ export class GitHubClient {
     return this.createBranch({ owner, repo }, name, commit.sha);
   }
 
+  // A file (base64 `content`) or a folder (an array) at `ref`.
+  contents(value, pathname, ref) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    return this.request(
+      "GET",
+      `/repos/${owner}/${repo}/contents/${pathname.split("/").map(encodeURIComponent).join("/")}`,
+      { query: { ref } },
+    );
+  }
+
   putFile(value, { path, branch, message, content }) {
     const { owner, repo } =
       typeof value === "string" ? parseRepository(value) : value;
