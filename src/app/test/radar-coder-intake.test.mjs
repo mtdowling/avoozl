@@ -231,7 +231,10 @@ test("a planning label from an allowed person goes to Intake; a stranger's does 
 
 test("the last labeler counts, and an unreadable history plans nothing", async (t) => {
   const github = fakeGitHub(
-    [issue(1, { labels: ["avoozl:plan"] }), issue(2, { labels: ["avoozl:plan"] })],
+    [
+      issue(1, { labels: ["avoozl:plan"] }),
+      issue(2, { labels: ["avoozl:plan"] }),
+    ],
     {
       events: {
         1: [...labeled("owner"), ...labeled("stranger")],

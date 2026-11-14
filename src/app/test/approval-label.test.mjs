@@ -14,7 +14,10 @@ const MODES = ["plans-repo", "single-repo"];
 test("the default is avoozl:plan-approved, in both modes, for worker and radar repositories", () => {
   for (const mode of MODES)
     for (const coder of [undefined, "worker", "issue-radar"])
-      assert.equal(repo(mode, { coder }).radar.approvalLabel, "avoozl:plan-approved");
+      assert.equal(
+        repo(mode, { coder }).radar.approvalLabel,
+        "avoozl:plan-approved",
+      );
   // A worker repository with no radar block, and with an empty one.
   assert.equal(repo("plans-repo").radar.approvalLabel, "avoozl:plan-approved");
   assert.equal(
@@ -67,7 +70,8 @@ test("another label set to the approval default clashes with it", () => {
     /approval.*planning|planning.*approval/,
   );
   assert.throws(
-    () => repo("single-repo", { crewLabels: { claim: "Avoozl:Plan-Approved" } }),
+    () =>
+      repo("single-repo", { crewLabels: { claim: "Avoozl:Plan-Approved" } }),
     /approval.*claim|claim.*approval/,
   );
 });

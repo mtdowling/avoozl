@@ -117,7 +117,10 @@ test("a preview shows each step and writes nothing", async () => {
   );
   assert.deepEqual(github.state.writes, []);
   assert.equal(result.applied, undefined);
-  assert.match(byId(result, "labels").detail, /avoozl:plan.*avoozl:ready.*avoozl:merge-conflict.*avoozl:review.*avoozl:drafted/);
+  assert.match(
+    byId(result, "labels").detail,
+    /avoozl:plan.*avoozl:ready.*avoozl:merge-conflict.*avoozl:review.*avoozl:drafted/,
+  );
 });
 
 test("each step writes once after confirm and reads back", async () => {
@@ -135,7 +138,14 @@ test("each step writes once after confirm and reads back", async () => {
     assert.equal(byId(done, id).status, "ok");
     assert.ok(github.state.writes.length > before);
   }
-  assert.deepEqual(github.state.labels, ["avoozl:plan", "avoozl:ready", "avoozl:merge-conflict", "avoozl:plan-approved", "avoozl:review", "avoozl:drafted"]);
+  assert.deepEqual(github.state.labels, [
+    "avoozl:plan",
+    "avoozl:ready",
+    "avoozl:merge-conflict",
+    "avoozl:plan-approved",
+    "avoozl:review",
+    "avoozl:drafted",
+  ]);
   assert.equal(github.state.autoMerge, true);
   const writes = github.state.writes.length;
   await radarSetup(github, REPO, settings());
@@ -145,7 +155,10 @@ test("each step writes once after confirm and reads back", async () => {
 test("only missing labels are created", async () => {
   const github = fake({ labels: ["Avoozl:Ready", "avoozl:plan"] }),
     result = await radarSetup(github, REPO, settings());
-  assert.match(byId(result, "labels").detail, /^Create avoozl:merge-conflict, avoozl:plan-approved, avoozl:review, avoozl:drafted\.$/);
+  assert.match(
+    byId(result, "labels").detail,
+    /^Create avoozl:merge-conflict, avoozl:plan-approved, avoozl:review, avoozl:drafted\.$/,
+  );
 });
 
 test("a missing permission writes nothing and names the permission", async () => {
@@ -185,7 +198,14 @@ test("a stale preview hash and an unnamed step are refused", async () => {
 
 test("no named CI check asks for one; steps that are done change nothing", async () => {
   const github = fake({
-    labels: ["avoozl:plan", "avoozl:ready", "avoozl:merge-conflict", "avoozl:plan-approved", "avoozl:review", "avoozl:drafted"],
+    labels: [
+      "avoozl:plan",
+      "avoozl:ready",
+      "avoozl:merge-conflict",
+      "avoozl:plan-approved",
+      "avoozl:review",
+      "avoozl:drafted",
+    ],
     autoMerge: true,
   });
   github.state.rules.push("build");

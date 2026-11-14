@@ -51,7 +51,10 @@ test("the Radar labels default to avoozl:plan, avoozl:ready, crew: in progress, 
 });
 
 test("a missing or empty radar block gives the defaults; worker repositories get them too", () => {
-  assert.equal(repo("plans-repo", { radar: {} }).radar.planLabel, "avoozl:plan");
+  assert.equal(
+    repo("plans-repo", { radar: {} }).radar.planLabel,
+    "avoozl:plan",
+  );
   assert.equal(repo("plans-repo").radar.conflictLabel, "avoozl:merge-conflict");
 });
 
