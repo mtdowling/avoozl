@@ -3,7 +3,7 @@
 // projection runs inside the workspace tick lock, writes only issues whose
 // marker carries this workspace's namespace, and only on repositories this
 // machine is the active writer for. Every other workspace previews.
-import { mirrorConfig } from "./mirror-sync.mjs";
+import { mirrorConfig, refusePrivateToSource } from "./mirror-sync.mjs";
 import { digest, queryTasks, statusComplete } from "../model.mjs";
 import {
   completionReached,
@@ -938,9 +938,6 @@ async function project(
       groups.flatMap((group) => group.map((id) => [id, group[0]])),
     ),
     memberConfig = new Map();
-  // The plan issue first, then only while this workspace drives the spec
-  // (§6.10). A preview writes nothing, so it does not ask.
-  if (!dryRun) await ensurePlanIssue(store, github, plan);
   // Writes go to the private mirror when the repository has one (RC24.3).
   const configFor = (task) =>
     mirrorConfig(
@@ -957,6 +954,14 @@ async function project(
           ),
       identity.repositories,
     );
+  // A private spec is refused before anything is written when any of its
+  // tasks would land in a mirror's public source.
+  for (const task of early.tasks)
+    if (task.planId === plan.id && task.authority !== "local")
+      refusePrivateToSource(plan, identity.repositories, configFor(task)?.id);
+  // The plan issue first, then only while this workspace drives the spec
+  // (§6.10). A preview writes nothing, so it does not ask.
+  if (!dryRun) await ensurePlanIssue(store, github, plan);
   const data = store.read(),
     complete = (status) => statusComplete(data, status),
     // An opt-in local task never syncs to GitHub (R28.3).
