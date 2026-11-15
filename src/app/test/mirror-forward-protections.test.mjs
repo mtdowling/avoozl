@@ -24,6 +24,7 @@ import {
   grant,
   policy,
   scratch,
+  forwardName,
 } from "./forward-scratch.mjs";
 
 // rc-25.3: the leak scan of a forward (RC26.5.2, D31.2 test 2). Fake terms
@@ -254,13 +255,13 @@ test("a forward touching an excluded path pushes nothing and names the rule", as
 });
 
 test("an allowlisted excluded path forwards", async (t) => {
-  const { pub, result } = await run(
+  const { pub, sha, result } = await run(
     t,
     { file: ".kiro/public.md" },
     { forwardAllow: [".kiro/public.md"] },
   );
   assert.equal(result.record.state, "public_open");
-  assert.deepEqual(branches(pub).sort(), ["avoozl/task-1", "main"]);
+  assert.deepEqual(branches(pub).sort(), [forwardName(sha), "main"]);
 });
 
 test("the pushed commit is one new commit by the person, with no trailer or mirror reference", async (t) => {
@@ -280,14 +281,17 @@ test("the pushed commit is one new commit by the person, with no trailer or mirr
   );
   assert.equal(result.record.state, "public_open");
   const main = git(pub, "rev-parse", "main"),
-    parents = git(pub, "log", "-1", "--format=%P", "avoozl/task-1");
+    parents = git(pub, "log", "-1", "--format=%P", forwardName(sha));
   assert.equal(parents, main);
-  assert.equal(git(pub, "rev-list", "--count", "main..avoozl/task-1"), "1");
   assert.equal(
-    git(pub, "log", "-1", "--format=%an|%ae|%cn|%ce", "avoozl/task-1"),
+    git(pub, "rev-list", "--count", `main..${forwardName(sha)}`),
+    "1",
+  );
+  assert.equal(
+    git(pub, "log", "-1", "--format=%an|%ae|%cn|%ce", forwardName(sha)),
     "dana|dana@users.noreply.github.com|dana|dana@users.noreply.github.com",
   );
-  const message = git(pub, "log", "-1", "--format=%B", "avoozl/task-1");
+  const message = git(pub, "log", "-1", "--format=%B", forwardName(sha));
   assert.doesNotMatch(message, /Signed-off-by|Co-authored-by|corp\.test/);
   assert.ok(!message.includes(sha.slice(0, 7)));
   assert.doesNotMatch(message, /code-private|\/pull\/|#\d/);
@@ -425,7 +429,7 @@ test("a push needs the hash that was shown; a change after display forces a new 
     seenHash: again.review.hash,
   });
   assert.equal(sent.record.state, "public_open");
-  assert.deepEqual(branches(made.pub).sort(), ["avoozl/task-1", "main"]);
+  assert.deepEqual(branches(made.pub).sort(), [forwardName(made.sha), "main"]);
   assert.equal(sent.record.receipt.hash, again.review.hash);
 });
 
@@ -447,7 +451,13 @@ test("the receipt holds the diff, title, body, hash, target, person and time", a
   assert.equal(receipt.person, "dana");
   assert.equal(receipt.at, "2026-11-14T12:00:00.000Z");
   // A private record: the pushed commit does not hold it.
-  const message = git(made.pub, "log", "-1", "--format=%B", "avoozl/task-1");
+  const message = git(
+    made.pub,
+    "log",
+    "-1",
+    "--format=%B",
+    forwardName(made.sha),
+  );
   assert.ok(!message.includes(receipt.hash));
 });
 

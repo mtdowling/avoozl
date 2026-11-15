@@ -12,7 +12,7 @@ const MIRROR = "example/code-private";
 const PLANS = "avoozl-plans";
 const SECRET_TITLE = "Rotate the hidden signing key";
 
-const manifest = (requires) =>
+const manifest = (requires, unblocks) =>
   JSON.stringify({
     tasks: {
       1: {
@@ -25,16 +25,17 @@ const manifest = (requires) =>
         kind: "leaf",
         summary: "Do the work.",
         ...(requires ? { requires: [requires] } : {}),
+        ...(unblocks ? { unblocks: [unblocks] } : {}),
         acceptance: ["It works."],
         checks: ["npm test"],
         completion: "integrated",
       },
     },
   });
-const files = (title, requires) => ({
+const files = (title, requires, unblocks) => ({
   ...specFiles(),
   "tasks.md": `# Tasks\n\n- [ ] 1 Goal\n  - [ ] 1.1 ${title}\n`,
-  "avoozl/manifest.json": manifest(requires),
+  "avoozl/manifest.json": manifest(requires, unblocks),
 });
 
 async function setup(t) {
@@ -76,8 +77,8 @@ async function approve({ store, ops }, name, home) {
 
 const putPublic = (context, name, title, requires) =>
   writeSpec(context.root, name, files(title, requires));
-async function putPrivate(context, name, title, requires) {
-  for (const [file, text] of Object.entries(files(title, requires)))
+async function putPrivate(context, name, title, requires, unblocks) {
+  for (const [file, text] of Object.entries(files(title, requires, unblocks)))
     context.github.files.set(`${PLANS}:.kiro/specs/${name}/${file}`, text);
   await context.ops.refreshPrivateSpecs();
 }
@@ -103,8 +104,8 @@ function checkContainment(github) {
 test("a public task waits on a private task: both issues are in the mirror and the public one names nothing private", async (t) => {
   const context = await setup(t),
     { github, ops } = context;
-  await putPrivate(context, "secret", SECRET_TITLE);
-  putPublic(context, "pubspec", "Ship the public change", "secret.1.1");
+  await putPrivate(context, "secret", SECRET_TITLE, null, "pubspec.1.1");
+  putPublic(context, "pubspec", "Ship the public change");
   const hidden = await approve(context, "secret", "plansBranch"),
     open = await approve(context, "pubspec", "main");
   assert.equal(hidden.home, "plansBranch");
@@ -154,8 +155,8 @@ test("a private task waits on a public task, and its issue may name it", async (
 test("a public issue's marker holds no private task ID", async (t) => {
   const context = await setup(t),
     { github, ops } = context;
-  await putPrivate(context, "secret", SECRET_TITLE);
-  putPublic(context, "pubspec", "Ship the public change", "secret.1.1");
+  await putPrivate(context, "secret", SECRET_TITLE, null, "pubspec.1.1");
+  putPublic(context, "pubspec", "Ship the public change");
   const hidden = await approve(context, "secret", "plansBranch"),
     open = await approve(context, "pubspec", "main");
   await ops.execute("github.project", { planId: hidden.id });
@@ -163,4 +164,17 @@ test("a public issue's marker holds no private task ID", async (t) => {
   assert.ok(
     !JSON.stringify(marker(issueFor(github, "pubspec.1.1"))).includes("secret"),
   );
+});
+
+test("a public spec that names a private task is refused at approval", async (t) => {
+  const context = await setup(t),
+    { github } = context;
+  await putPrivate(context, "secret", SECRET_TITLE);
+  putPublic(context, "pubspec", "Ship the public change", "secret.1.1");
+  await approve(context, "secret", "plansBranch");
+  await assert.rejects(
+    approve(context, "pubspec", "main"),
+    /names private tasks \(secret\.1\.1\)/,
+  );
+  assert.ok(!github.created.some((issue) => issue.body.includes("pubspec")));
 });
