@@ -126,11 +126,26 @@ export function PackImportDialog(props: { row: PluginRow; workspaceId: string; c
   }
   return (
     // Esc, Back and a click outside do what Cancel does.
-    <Modal close id="avoozl-pack" width="48rem" backLabel="Cancel" boxRef={box} attrs={{ 'data-pack-dialog': true }} onDismiss={cancel}>
+    <Modal
+      id="avoozl-pack"
+      width="48rem"
+      backLabel="Cancel"
+      boxRef={box}
+      attrs={{ 'data-pack-dialog': true }}
+      title={`Import ${row.id} version ${row.version}`}
+      onDismiss={cancel}
+      footer={
+        <>
+          <Btn type="button" onClick={cancel} disabled={busy}>
+            Cancel
+          </Btn>
+          <Btn type="button" primary onClick={() => void run()} disabled={busy || Boolean(blocked)}>
+            Import settings
+          </Btn>
+        </>
+      }
+    >
       <div>
-        <h3 id="avoozl-pack-title" className="text-base font-semibold">
-          Import {row.id} version {row.version}
-        </h3>
         <p className="text-sm text-muted">Copies these settings into .avoozl.json once. Later versions offer their changes here again.</p>
       </div>
       {preview ? <PackChanges preview={preview} /> : !error && <p className="text-sm text-muted">Reading the pack...</p>}
@@ -155,14 +170,6 @@ export function PackImportDialog(props: { row: PluginRow; workspaceId: string; c
           {error}
         </p>
       )}
-      <div className="flex flex-wrap justify-end gap-2">
-        <Btn type="button" onClick={cancel} disabled={busy}>
-          Cancel
-        </Btn>
-        <Btn type="button" primary onClick={() => void run()} disabled={busy || Boolean(blocked)}>
-          Import settings
-        </Btn>
-      </div>
     </Modal>
   )
 }

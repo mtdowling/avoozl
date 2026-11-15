@@ -12,7 +12,7 @@ test('Trace has no centered max width', () => {
 
 test('Flow: Retros is its own tab, and Overview no longer lists retros', () => {
   const flow = source('FlowView.tsx')
-  assert.match(flow, /\{ key: 'retros', label: 'Retros' \}/)
+  assert.match(source('nav-api.ts'), /\{ key: 'retros', label: 'Retros' \}/)
   assert.match(flow, /tab === 'retros' \? \(\s*view \? <Retros /)
   assert.equal(flow.match(/<Retros /g).length, 1)
   assert.match(flow, /<Card data-no-timing>\s*<EmptyState[\s\S]{0,120}title="No timing yet"/)
