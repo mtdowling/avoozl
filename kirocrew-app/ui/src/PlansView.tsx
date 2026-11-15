@@ -13,7 +13,7 @@ import NewPlanDrawer from './NewPlanDrawer.tsx'
 import type { NewPlanForm } from './new-plan-api.ts'
 import { DriverBanner, DriverChip, HandOffButton, SetupList, useDriver } from './Driver.tsx'
 import type { DriverSpec } from './driver-api.ts'
-import { IconBtn, IconLabel, SectionHeading, ShowMore, SmallBtn, TipBtn, ViewHeading, dangerStyle, useAskChat, usePages } from './controls.tsx'
+import { COMPACT_BTN, IconBtn, IconLabel, SectionHeading, ShowMore, SmallBtn, TipBtn, ViewHeading, dangerStyle, useAskChat, usePages } from './controls.tsx'
 import { Archive, ArchiveRestore, ArrowLeft, ChevronRight, ClipboardCheck, DetailsIcon, Download, FolderOpen, MessagesSquare, Network, Pencil, Plus, RefreshCw, Trash2, X, Menu } from './icons.ts'
 import { FilterPanel } from './FilterPanel.tsx'
 import { STATES, nodeState, type Drill, type NodeState } from './graph-layout.ts'
@@ -52,6 +52,7 @@ import {
   type ApprovalBatches,
   type ApproveManyResult,
   type BatchEntry,
+  type BatchSelection,
   progressPercent,
   homeBadge,
   specChip,
@@ -161,13 +162,13 @@ function GitHubPreview(props: { projection: ProjectionPreview | null; busy: bool
         blurb="Lists every write a projection would make. Nothing is written."
         actions={
           <div className="flex flex-wrap gap-2">
-            <TipBtn tooltip="List every GitHub write this spec would make. Makes none." onClick={props.onPreview} disabled={busy}>
+            <TipBtn style={COMPACT_BTN} tooltip="List every GitHub write this spec would make. Makes none." onClick={props.onPreview} disabled={busy}>
               {projection ? 'Preview again' : 'Preview GitHub writes'}
             </TipBtn>
-            <TipBtn tooltip="Preview, choose batches and create the issues. Nothing is written until you confirm." onClick={props.onProject} disabled={busy}>
+            <TipBtn primary style={COMPACT_BTN} tooltip="Preview, choose batches and create the issues. Nothing is written until you confirm." onClick={props.onProject} disabled={busy}>
               Project to GitHub…
             </TipBtn>
-            <TipBtn tooltip="What an edited spec would do to each issue. Writes nothing until you apply it." onClick={props.onChanged} disabled={busy}>
+            <TipBtn style={COMPACT_BTN} tooltip="What an edited spec would do to each issue. Writes nothing until you apply it." onClick={props.onChanged} disabled={busy}>
               Spec changed…
             </TipBtn>
           </div>
@@ -255,17 +256,17 @@ function SpecDetail(props: {
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           {!plan && (
-            <IconLabel icon={Download} tooltip="Store this folder as a draft spec. Approves and starts nothing." onClick={props.onStore} disabled={busy}>
+            <IconLabel style={COMPACT_BTN} icon={Download} primary tooltip="Store this folder as a draft spec. Approves and starts nothing." onClick={props.onStore} disabled={busy}>
               Import
             </IconLabel>
           )}
           {plan?.disk.changed && (
-            <IconLabel icon={RefreshCw} tooltip="Store the changed files as a new revision to approve" onClick={props.onReload} disabled={busy}>
+            <IconLabel style={COMPACT_BTN} icon={RefreshCw} tooltip="Store the changed files as a new revision to approve" onClick={props.onReload} disabled={busy}>
               Reload from disk
             </IconLabel>
           )}
           {plan && (
-            <IconLabel icon={ClipboardCheck} onClick={props.onApprove} disabled={busy || blocker !== null} tooltip={blocker ?? "Approve this exact revision. Its ready tasks may then start."}>
+            <IconLabel style={COMPACT_BTN} icon={ClipboardCheck} primary onClick={props.onApprove} disabled={busy || blocker !== null} tooltip={blocker ?? "Approve this exact revision. Its ready tasks may then start."}>
               Approve revision {shortHash(plan.hash)}
             </IconLabel>
           )}
@@ -533,7 +534,7 @@ export const REFRESH_PLANS_TIP = 'Reload specs from disk. Imports nothing.'
 function PlansActions(props: { onNewPlan: () => void; onRefresh: () => void; busy: boolean }) {
   return (
     <>
-      <IconLabel icon={Plus} primary tooltip="Describe what you want. Spec Builder drafts its spec folder; nothing is approved." onClick={props.onNewPlan}>
+      <IconLabel style={COMPACT_BTN} icon={Plus} primary tooltip="Describe what you want. Spec Builder drafts its spec folder; nothing is approved." onClick={props.onNewPlan}>
         New spec
       </IconLabel>
       <IconBtn icon={RefreshCw} label="Refresh specs" tooltip={REFRESH_PLANS_TIP} onClick={props.onRefresh} disabled={props.busy} />
@@ -715,14 +716,14 @@ function PlanAside(props: {
   return (
     <div className="flex flex-col gap-4 text-sm" data-plan-aside>
       <div className="flex flex-wrap gap-2">
-        <IconLabel icon={Pencil} primary tooltip="Start a planner chat that drafts a change to the spec files" onClick={props.onEdit}>
+        <IconLabel style={COMPACT_BTN} icon={Pencil} primary tooltip="Start a planner chat that drafts a change to the spec files" onClick={props.onEdit}>
           Edit spec
         </IconLabel>
-        <IconLabel icon={MessagesSquare} tooltip="Start a chat about this spec. It makes no edits." onClick={props.onDiscuss}>
+        <IconLabel style={COMPACT_BTN} icon={MessagesSquare} tooltip="Start a chat about this spec. It makes no edits." onClick={props.onDiscuss}>
           Discuss spec
         </IconLabel>
         <span data-new-task className="contents">
-          <IconLabel icon={Plus} tooltip="Add a draft task from this spec. It waits for your review." onClick={props.onNewTask}>
+          <IconLabel style={COMPACT_BTN} icon={Plus} tooltip="Add a draft task from this spec. It waits for your review." onClick={props.onNewTask}>
             New task
           </IconLabel>
         </span>
@@ -917,10 +918,10 @@ export function ArchivePlanDialog(props: { workspaceId: string; row: PlanRow; cl
       </ul>
       {error && <p role="alert" className="text-sm text-danger">{error}</p>}
       <div className="flex justify-end gap-2">
-        <Btn ref={cancel} type="button" onClick={() => props.onDone(null)}>
+        <Btn ref={cancel} type="button" style={COMPACT_BTN} onClick={() => props.onDone(null)}>
           Cancel
         </Btn>
-        <Btn type="button" primary data-archive-confirm disabled={busy} onClick={() => void run()}>
+        <Btn type="button" primary data-archive-confirm style={COMPACT_BTN} disabled={busy} onClick={() => void run()}>
           Archive spec
         </Btn>
       </div>
@@ -947,7 +948,7 @@ function ArchivedBanner(props: { row: PlanRow; busy: boolean; onUnarchive: () =>
           do not start, and it is hidden unless Show archived is on.
         </span>
       </span>
-      <IconLabel icon={ArchiveRestore} primary disabled={props.busy} tooltip={UNARCHIVE_TIP} onClick={props.onUnarchive}>
+      <IconLabel style={COMPACT_BTN} icon={ArchiveRestore} primary disabled={props.busy} tooltip={UNARCHIVE_TIP} onClick={props.onUnarchive}>
         Unarchive
       </IconLabel>
     </div>
@@ -1015,14 +1016,69 @@ export function DeletePlanDialog(props: { workspaceId: string; row: PlanRow; cli
       )}
       {error && <p role="alert" className="text-sm text-danger">{error}</p>}
       <div className="flex justify-end gap-2">
-        <Btn ref={cancel} type="button" onClick={() => props.onDone(null)}>
+        <Btn ref={cancel} type="button" style={COMPACT_BTN} onClick={() => props.onDone(null)}>
           Cancel
         </Btn>
-        <Btn type="button" data-danger disabled={!preview || busy || blocked} onClick={() => void run()} style={{ background: 'var(--danger)', borderColor: 'var(--danger)', color: '#fff' }}>
+        <Btn type="button" data-danger disabled={!preview || busy || blocked} onClick={() => void run()} style={{ ...COMPACT_BTN, background: 'var(--danger)', borderColor: 'var(--danger)', color: '#fff' }}>
           Delete spec
         </Btn>
       </div>
     </Modal>
+  )
+}
+
+// The approve dialog's specs: a bordered box that scrolls sideways on its
+// own, fixed columns, the name truncating with the full name in its tooltip.
+// A phone shows the name and writes; the other counts are in the row tooltip.
+const TH: CSSProperties = { padding: '6px 10px', fontWeight: 600, whiteSpace: 'nowrap', color: 'var(--text-muted, var(--muted))', background: 'var(--bg-elevated)', borderBottom: '1px solid var(--border)' }
+const TD: CSSProperties = { padding: '6px 10px', borderTop: '1px solid var(--border)', whiteSpace: 'nowrap' }
+const NUM: CSSProperties = { textAlign: 'right', fontVariantNumeric: 'tabular-nums' }
+function ApproveTable(props: { entries: BatchEntry[]; selection: BatchSelection | null; phone: boolean }) {
+  const writesOf = (id: string) => {
+    const found = props.selection?.specs.find((entry) => entry.id === id)
+    if (!props.selection) return '…'
+    return found?.writes === null || found?.writes === undefined ? '—' : String(found.writes)
+  }
+  const columns = props.phone ? ['auto', '5rem'] : ['auto', '8.5rem', '5rem', '5rem']
+  return (
+    <div data-approve-list className="overflow-x-auto rounded border" style={{ borderColor: 'var(--border)' }}>
+      <table className="w-full text-sm" style={{ tableLayout: 'fixed', borderCollapse: 'collapse', minWidth: props.phone ? undefined : '30rem' }}>
+        <colgroup>
+          {columns.map((width, at) => (
+            <col key={at} style={{ width }} />
+          ))}
+        </colgroup>
+        <thead>
+          <tr>
+            <th style={{ ...TH, textAlign: 'left' }}>Spec</th>
+            {!props.phone && <th style={{ ...TH, textAlign: 'left' }}>Revision</th>}
+            {!props.phone && <th style={{ ...TH, ...NUM }}>Tasks</th>}
+            <th style={{ ...TH, ...NUM }}>Writes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {props.entries.map((entry) => {
+            const tip = props.phone ? `${entry.spec} · revision ${shortHash(entry.hash)} · ${entry.tasks} ${entry.tasks === 1 ? 'task' : 'tasks'} · ${writesOf(entry.id)} writes` : entry.spec
+            return (
+              <tr key={entry.id} data-approve-row={entry.id}>
+                <td style={{ ...TD, overflow: 'hidden' }}>
+                  <Tooltip text={tip} display="block">
+                    <span className="block truncate font-medium">{entry.spec}</span>
+                  </Tooltip>
+                </td>
+                {!props.phone && (
+                  <td style={TD}>
+                    <code className="text-xs text-muted">{shortHash(entry.hash)}</code>
+                  </td>
+                )}
+                {!props.phone && <td style={{ ...TD, ...NUM }}>{entry.tasks}</td>}
+                <td style={{ ...TD, ...NUM }}>{writesOf(entry.id)}</td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
   )
 }
 
@@ -1033,6 +1089,21 @@ export function ApproveSpecsDialog(props: { workspaceId: string; entries: BatchE
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<ApproveManyResult | null>(null)
+  // Each spec's issue writes, from a scratch approval. Writes nothing.
+  const [selection, setSelection] = useState<BatchSelection | null>(null)
+  const phone = usePhone()
+  useEffect(() => {
+    let live = true
+    props.client.selection(props.workspaceId, entries.map((entry) => entry.id)).then(
+      (value) => live && setSelection(value),
+      () => undefined,
+    )
+    return () => {
+      live = false
+    }
+    // The entries are fixed while the dialog is open.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const missing = missingOwners(entries)
   const tasks = entries.reduce((sum, entry) => sum + entry.tasks, 0)
   const label = `Approve ${entries.length} ${entries.length === 1 ? 'spec' : 'specs'}`
@@ -1109,17 +1180,7 @@ export function ApproveSpecsDialog(props: { workspaceId: string; entries: BatchE
             </ul>
           </div>
         )}
-        <ul className="m-0 flex list-none flex-col p-0" data-approve-list>
-          {entries.map((entry) => (
-            <li key={entry.id} className="flex items-center gap-3 border-t py-1.5 first:border-t-0" style={{ borderColor: 'var(--border)' }}>
-              <span className="min-w-0 flex-1 truncate font-medium">{entry.spec}</span>
-              <code className="text-xs text-muted">{shortHash(entry.hash)}</code>
-              <span className="w-16 text-right text-xs text-muted tabular-nums">
-                {entry.tasks} {entry.tasks === 1 ? 'task' : 'tasks'}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <ApproveTable entries={entries} selection={selection} phone={phone} />
       </div>
     </Modal>
   )
@@ -1389,9 +1450,16 @@ export default function PlansView(props: {
           onBack={() => openPlan(null)}
           detailActions={
             row && phone ? (
-              <button type="button" data-spec-menu aria-expanded={specMenu} aria-label={specMenu ? 'Close the spec menu' : 'Open the spec menu'} onClick={() => setSpecMenu(!specMenu)} style={{ display: 'inline-flex', alignItems: 'center', height: 28, padding: '0 6px', background: 'none', border: 0, color: 'inherit', cursor: 'pointer' }}>
-                {specMenu ? <X size={18} aria-hidden="true" /> : <Menu size={18} aria-hidden="true" />}
-              </button>
+              <TipBtn
+                type="button"
+                data-spec-menu
+                aria-expanded={specMenu}
+                aria-label={specMenu ? 'Close the spec menu' : 'Open the spec menu'}
+                onClick={() => setSpecMenu(!specMenu)}
+                style={{ display: 'inline-flex', alignItems: 'center', padding: '3px 4px', minHeight: 0, lineHeight: 0 }}
+              >
+                {specMenu ? <X size={16} aria-hidden="true" /> : <Menu size={16} aria-hidden="true" />}
+              </TipBtn>
             ) : undefined
           }
           list={
