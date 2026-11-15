@@ -731,17 +731,24 @@ if (query.get('page') === 'specs') {
     spec('math-matrix-math', 'draft', 5),
     spec('public-cli-module', 'draft', 3),
     spec('allocator', 'draft', 7),
+    spec('nupp-native-runtime-winddown-2026-11-11', 'draft', 131),
     spec('load-config', 'approved', 3, { onGitHub: true }),
     spec('window-design', 'not imported', 10),
   ]
   const entry = (id: string, batch: number, tasks: number, hash: string, extra = {}) => ({ id, spec: id, title: id, hash: hash.repeat(64 / hash.length), batch, tasks, errors: 0, loop: false, needs: [], ...extra })
   const batches = [
     { batch: 1, specs: [entry('core-design-values', 1, 4, 'b9dc37bf'), entry('math-matrix-math', 1, 5, 'b18266e9'), entry('public-cli-module', 1, 3, '4b5afd31')] },
-    { batch: 2, specs: [entry('byte-types', 2, 8, '98f38c3b', { loop: true, needs: ['compression', 'core-design-values'] }), entry('compression', 2, 12, 'f1551aa3', { loop: true, needs: ['byte-types'] })] },
+    { batch: 2, specs: [entry('byte-types', 2, 8, '98f38c3b', { loop: true, needs: ['compression', 'core-design-values'] }), entry('compression', 2, 12, 'f1551aa3', { loop: true, needs: ['byte-types'] }), entry('nupp-native-runtime-winddown-2026-11-11', 2, 131, '3a271abe', { loop: true, needs: ['compression'] })] },
     { batch: 3, specs: [entry('allocator', 3, 7, '4fb54994', { needs: ['byte-types'] })] },
   ]
   answer('plan.table', () => ({ root: '/repo', problem: null, specs: [], revision: 7, items }))
-  answer('plan.approvalBatches', () => ({ batches }))
+  const writes: Record<string, number> = { 'byte-types': 14, compression: 21, 'nupp-native-runtime-winddown-2026-11-11': 268 }
+  answer('plan.approvalBatches', (body) => {
+    const ids = (body.input as { ids?: string[] } | undefined)?.ids
+    if (!ids) return { batches }
+    const specs = batches.flatMap((b) => b.specs).filter((e) => ids.includes(e.id)).map((e) => ({ ...e, writes: writes[e.id] ?? 3 }))
+    return { batches, selection: { ok: true, specs, writes: specs.reduce((n, e) => n + e.writes, 0), failures: [], missing: [] } }
+  })
   answer('plan.approveMany', (body) => {
     state.calls.push(body as never)
     return { ok: true, approved: [], failures: [] }
