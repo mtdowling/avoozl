@@ -66,3 +66,20 @@ test('Settings > GitHub lists calls this hour by source, busiest first', () => {
   assert.deepEqual(rows.map((row) => row.source), ['tick', 'view'])
   assert.equal(rows[1].cached, 9)
 })
+
+test('a projection waiting on the write limits shows its progress and the pace', () => {
+  const resumeAt = new Date(2026, 10, 15, 14, 0).toISOString()
+  const lines = rateLines({
+    resources: {},
+    limitedUntil: null,
+    limitedResource: null,
+    calls: 0,
+    notModified: 0,
+    notModifiedShare: null,
+    writes: { perMinute: 60, perHour: 400, run: { planId: 'nupp', done: 312, total: 1740, resumeAt } },
+  })
+  assert.equal(lines.length, 1)
+  assert.match(lines[0], /^Projecting to GitHub: 312 of 1,740 writes, resumes at 14:00\. Writes are paced at 60 a minute and 400 an hour\.$/)
+  // No waiting run, no line.
+  assert.deepEqual(rateLines({ resources: {}, limitedUntil: null, limitedResource: null, calls: 0, notModified: 0, notModifiedShare: null, writes: { perMinute: 60, perHour: 400, run: null } }), [])
+})

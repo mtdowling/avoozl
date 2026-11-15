@@ -345,6 +345,7 @@ import {
   draftGitHubChildren,
 } from "./github-breakdown.mjs";
 import { previewProjection } from "./github-preview.mjs";
+import { clampLimits, paceNeedsYou, runView } from "./github-pacer.mjs";
 import { planProjectionBatches } from "./radar-coder-batch.mjs";
 import {
   applySpecChange,
@@ -999,6 +1000,7 @@ export class Operations {
       client.bind(store, {
         cacheSeconds: (repo) => this.cacheSeconds(repo),
         countFile: countFilePath(),
+        writeLimits: () => this.writeLimits(),
       });
     this.github = guardGitHub(client, store);
     this.configuration = configuration;
@@ -2310,6 +2312,11 @@ export class Operations {
       rate: {
         ...rateView(this.store, Date.now(), { countFile: countFilePath() }),
         cacheSeconds: this.cacheSeconds(),
+        // The write pace and the projection that waits on it, if any.
+        writes: {
+          ...clampLimits(this.writeLimits()),
+          run: runView(this.store),
+        },
       },
       // Review roles from `delivery` in the same file, shown beside each
       // repository's pull-request review settings. Read only here.
@@ -2353,6 +2360,16 @@ export class Operations {
   // without a restart. Invalid policy refuses the operation that needs it.
   githubPolicy() {
     return readGitHubPolicy(this.workspaceRoot);
+  }
+  // github.writesPerMinute and github.writesPerHour; blank means the built-in
+  // pace. Read like cacheSeconds, so an edit applies without a restart.
+  writeLimits() {
+    this.cacheSeconds();
+    const policy = this.cachePolicy.policy;
+    return {
+      perMinute: policy?.writesPerMinute ?? undefined,
+      perHour: policy?.writesPerHour ?? undefined,
+    };
   }
   // github.cacheSeconds, with a repository's own value first. The files are
   // read at most every five seconds; an unreadable file means the default.
@@ -3382,6 +3399,7 @@ export class Operations {
       view.items.push(...remoteNeedsYou(store));
       view.items.push(...syncNeedsYou(store));
       view.items.push(...rateNeedsYou(store));
+      view.items.push(...paceNeedsYou(store));
       view.items.push(...mirrorNeedsYou(store));
       view.items.push(...mirrorForwardRows(store, policy));
       view.items.push(...forwardAuditRows(store));
