@@ -190,7 +190,7 @@ test('in the demo the driver session is the made-up one: it opens nothing and st
   await page.until(`${tourStep} === 'dashboard'`)
   await page.key('Escape')
   await page.until(`document.querySelector('[data-driver-session]')?.dataset.driverSession === 'running'`)
-  assert.match(await page.evaluate(`document.querySelector('[data-driver-session]').textContent`), /11 of 40 turns today/)
+  assert.match(await page.evaluate(`document.querySelector('[data-driver-session]').dataset.tip`), /11 of 40 turns today/)
   // Only Open: a running session offers no Start.
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-driver-start]'))`), false)
   await click(`document.querySelector('[data-driver-open]')`)
