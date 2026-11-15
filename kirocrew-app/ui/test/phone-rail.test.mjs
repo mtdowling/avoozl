@@ -34,7 +34,7 @@ for (const dark of [false, true]) {
     await page.until(`Boolean(document.querySelector('[data-top-rail-bar]'))`)
     await settle()
     const bar = await box('[data-top-rail-bar]')
-    assert.ok(bar.height >= 44 && bar.height <= 60, `the bar is thin (${bar.height})`)
+    assert.ok(bar.height >= 24 && bar.height <= 34, `the bar is thin (${bar.height})`)
     assert.ok(bar.width >= 340, 'the bar spans the screen')
     assert.ok(bar.top < 250, 'the bar is near the top')
     assert.equal(await page.evaluate(`document.querySelectorAll('[data-top-row] [role="tab"]').length`), 0, 'no tab row')

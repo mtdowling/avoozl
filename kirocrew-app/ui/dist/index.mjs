@@ -356,8 +356,7 @@ function xt(e) {
 			alignItems: "center",
 			gap: 8,
 			width: "100%",
-			minHeight: 44,
-			padding: "0 16px",
+			padding: "3px 16px",
 			background: "var(--bg-elevated)",
 			border: 0,
 			borderTop: "1px solid var(--border)",
@@ -405,8 +404,7 @@ function xt(e) {
 				style: {
 					display: "flex",
 					alignItems: "center",
-					minHeight: 52,
-					padding: "0 16px",
+					padding: "3px 16px",
 					background: r ? "var(--bg-elevated)" : "none",
 					border: 0,
 					borderBottom: "1px solid var(--border)",
@@ -460,9 +458,9 @@ function Ct(e) {
 				display: "inline-flex",
 				alignItems: "center",
 				justifyContent: "center",
-				width: 36,
-				height: 36,
-				borderRadius: 8,
+				width: 28,
+				height: 28,
+				borderRadius: 6,
 				border: "1px solid var(--border)",
 				background: t ? "var(--bg-hover, var(--bg-elevated))" : "transparent",
 				color: "var(--text)",
@@ -3165,6 +3163,10 @@ function Ii({ onPick: e }) {
 					type: "submit",
 					primary: !0,
 					disabled: !r,
+					style: {
+						alignSelf: "flex-end",
+						height: "auto"
+					},
 					children: "Open trace"
 				})]
 			})
@@ -13908,8 +13910,7 @@ function zf(e) {
 			alignItems: "center",
 			gap: 4,
 			flexShrink: 0,
-			minHeight: 44,
-			padding: "0 8px",
+			padding: "2px 8px",
 			marginLeft: -4,
 			background: "none",
 			border: 0,
@@ -13934,7 +13935,6 @@ function Bf(e) {
 			display: "flex",
 			alignItems: "center",
 			gap: 8,
-			minHeight: 44,
 			background: "var(--bg)"
 		},
 		children: [/* @__PURE__ */ C(zf, {
@@ -20153,8 +20153,7 @@ function Qh(e) {
 							cursor: "pointer",
 							background: "none",
 							border: 0,
-							color: "inherit",
-							minHeight: 56
+							color: "inherit"
 						},
 						children: [/* @__PURE__ */ w("span", {
 							className: "flex min-w-0 flex-1 flex-col gap-0.5",
@@ -30442,8 +30441,7 @@ function Xb(e) {
 									cursor: "pointer",
 									background: "none",
 									border: 0,
-									color: "inherit",
-									minHeight: p.phone ? 48 : void 0
+									color: "inherit"
 								},
 								children: [/* @__PURE__ */ C("span", {
 									"aria-hidden": "true",

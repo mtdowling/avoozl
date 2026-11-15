@@ -236,8 +236,8 @@ for (const [width, height] of [[1280, 900], [390, 800]])
       assert.notEqual(button.bg, 'rgba(0, 0, 0, 0)', 'it has a background')
       assert.ok(button.logo >= 16, 'the logo shows')
       assert.ok(button.right <= button.width, 'inside the panel')
-      // A 44 px tap target on a phone; compact with a mouse.
-      assert.ok(button.height >= (width <= 640 ? 44 : 24), `big enough to tap (${button.height} px)`)
+      // Kiro Crew's compact size on every screen.
+      assert.ok(button.height <= 28, `compact (${button.height} px)`)
     })
 
 // The driver line names its workspace. In a chat that is another workspace's

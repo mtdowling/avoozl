@@ -43,7 +43,7 @@ export function WaitingSections(props: { open: WaitingSection; onOpen: (key: Wai
                 aria-expanded="false"
                 onClick={() => (props.onOpen(row.key), openDetail())}
                 className="flex w-full items-center gap-2 py-2 text-left text-sm font-semibold"
-                style={{ cursor: 'pointer', background: 'none', border: 0, color: 'inherit', minHeight: 56 }}
+                style={{ cursor: 'pointer', background: 'none', border: 0, color: 'inherit' }}
               >
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                   {row.title}
