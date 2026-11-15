@@ -451,7 +451,11 @@ export function reviewDraftDispatches(store) {
       task: receipt.id,
       role: DRAFT_ROLE,
       attempt: receipt.attempt,
-      title: `Review draft: ${receipt.repository}#${receipt.number}`,
+      // Kiro Crew names the chat's slot from its title, so each label event
+      // (a redraft is a new one) needs its own title or it lands in the old
+      // chat. The avoozl: prefix puts the slot under the app's
+      // /api/chat/slots/avoozl_* grant, so the backend can read its status.
+      title: `avoozl:review-draft ${receipt.repository}#${receipt.number} (label ${receipt.id.split(":").at(-1)})`,
       folder: "",
       project: false,
       agent: DRAFT_AGENT,

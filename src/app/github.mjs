@@ -1265,21 +1265,22 @@ export class GitHubClient {
     );
   }
 
-  // Create or replace one file on a branch. GitHub refuses a replace that
-  // does not name the current file's sha, so it is read first.
+  // GitHub refuses an update to an existing file unless the request names the
+  // file's current blob `sha`, so read it first; a 404 means a new file.
   async putFile(value, { path, branch, message, content }) {
     const { owner, repo } =
-        typeof value === "string" ? parseRepository(value) : value,
-      route = `/repos/${owner}/${repo}/contents/${path.split("/").map(encodeURIComponent).join("/")}`;
-    let sha = null;
+      typeof value === "string" ? parseRepository(value) : value;
+    let sha;
     try {
-      sha = (await this.request("GET", route, { query: { ref: branch } }))?.sha;
+      sha = (await this.contents({ owner, repo }, path, branch))?.sha;
     } catch (error) {
       if (error.status !== 404) throw error;
     }
-    return this.request("PUT", route, {
-      body: { message, content, branch, ...(sha ? { sha } : {}) },
-    });
+    return this.request(
+      "PUT",
+      `/repos/${owner}/${repo}/contents/${path.split("/").map(encodeURIComponent).join("/")}`,
+      { body: { message, content, branch, ...(sha ? { sha } : {}) } },
+    );
   }
 
   pullRequest(value, number) {
