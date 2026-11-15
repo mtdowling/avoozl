@@ -182,11 +182,11 @@ Requirement RC7. Avoozl does what `gh` can and shows exact values for what only 
 - [x] rc-7.5 Team pack with a `crews` section, after rc-7.3 [RC7.4, RC7.5] (§D9)
   - The settings pack gains `crews` (count, agent, models, labels, prompt, review rules, template); validated; screened by content rules; applying shows a preview and fills Set up; no crew is created; the example `sdk-team` pack ships in `examples/` with fake terms only.
   - Done when: A pack with a private name is refused; applying writes only after the preview confirm; `sdk-team` validates.
-- [ ] rc-p7 Proof 7: Set up end to end, after rc-7.1, rc-7.2, rc-7.3, rc-7.4, rc-7.5 [RC7] (§D17)
+- [x] rc-p7 Proof 7: Set up end to end, after rc-7.1, rc-7.2, rc-7.3, rc-7.4, rc-7.5 [RC7] (§D17)
   - Setup: a scratch repository with nothing configured, Radar on, grant approved. Action: run Set up with the `sdk-team` pack; do the Radar steps by hand with the shown values. Expected: Set up ticks each item after the re-read. Failure means: a shown value was wrong. Next decision: show Radar's own field names.
   - Done when: Expected result observed live; receipt under `docs/evidence/`.
   - Fake-GitHub proof merged in PR #146; live run pending owner (see docs/evidence/radar-coder-proof-7-fake-github.md)
-  - Live run 2026-11-15 failed in part: docs/evidence/rc-proof-7-live.md
+  - Live run 2026-11-15 failed in part, rerun passed (8 of 8 values tick): docs/evidence/rc-proof-7-live.md
 
 ## Phase 8: Observe
 
