@@ -139,6 +139,9 @@ for (const dark of [false, true]) {
     // The list stays on the left, the spec opens on the right.
     assert.equal(await has('[data-list-pane="specs"] [data-spec-list]'), true)
     assert.equal(await has('[data-detail-column="specs"] [data-spec-detail]'), true)
+    // New task is in the spec's view, not on the list (RC30.2).
+    assert.equal(await has('[data-detail-column="specs"] [data-new-task]'), true)
+    assert.equal(await has('[data-list-pane="specs"] [data-new-task]'), false)
     assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true)
   })
 }

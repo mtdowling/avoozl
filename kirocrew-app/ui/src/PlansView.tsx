@@ -514,11 +514,11 @@ function PlanFilters(props: { filter: PlanListFilter; rows: PlanRow[]; onChange:
 const ARCHIVE_TIP = 'Archive this spec: its tasks stop starting and it is hidden. You can undo it.'
 const UNARCHIVE_TIP = 'Unarchive this spec: its tasks may start again and it shows everywhere.'
 
-// The Plans heading buttons, in the owner's order: New plan, New task, then
-// Refresh last. Refresh re-reads plan.table (the spec folders on disk and
+// The Specs heading buttons, in the owner's order: New spec, then Refresh
+// last. New task lives in a spec's detail only (RC30.2). Refresh re-reads plan.table (the spec folders on disk and
 // the stored plans); it imports nothing.
 export const REFRESH_PLANS_TIP = 'Reload specs from disk. Imports nothing.'
-function PlansActions(props: { onNewPlan: () => void; onNewIdea: () => void; onOpenIdeas?: () => void; ideas: number | null; onNewTask: () => void; onRefresh: () => void; busy: boolean }) {
+function PlansActions(props: { onNewPlan: () => void; onNewIdea: () => void; onOpenIdeas?: () => void; ideas: number | null; onRefresh: () => void; busy: boolean }) {
   return (
     <>
       <IconLabel icon={Plus} primary tooltip="Describe what you want. Spec Builder drafts its spec folder; nothing is approved." onClick={props.onNewPlan}>
@@ -530,9 +530,6 @@ function PlansActions(props: { onNewPlan: () => void; onNewIdea: () => void; onO
           Ideas{props.ideas !== null ? ` (${props.ideas})` : ''}
         </IconLabel>
       )}
-      <IconLabel icon={Plus} tooltip="Add a draft task. It waits for your review." onClick={props.onNewTask}>
-        New task
-      </IconLabel>
       <IconBtn icon={RefreshCw} label="Refresh specs" tooltip={REFRESH_PLANS_TIP} onClick={props.onRefresh} disabled={props.busy} />
     </>
   )
@@ -654,6 +651,8 @@ function PlanAside(props: {
   docs: SpecDocuments | null
   onEdit: () => void
   onDiscuss: () => void
+  // New task: a draft task added from this spec's view (RC30.2).
+  onNewTask: () => void
   onDelete?: () => void
   onArchive?: () => void
   onUnarchive?: () => void
@@ -689,6 +688,11 @@ function PlanAside(props: {
         <IconLabel icon={MessagesSquare} tooltip="Start a chat about this spec. It makes no edits." onClick={props.onDiscuss}>
           Discuss spec
         </IconLabel>
+        <span data-new-task className="contents">
+          <IconLabel icon={Plus} tooltip="Add a draft task from this spec. It waits for your review." onClick={props.onNewTask}>
+            New task
+          </IconLabel>
+        </span>
         {props.workspaceId && <HandOffButton workspaceId={props.workspaceId} spec={props.driver} onChanged={props.onDriverChanged} />}
         {(props.onDelete || props.onArchive || props.onUnarchive) && (
           <span className="ml-auto flex gap-1.5">
@@ -1240,7 +1244,7 @@ export default function PlansView(props: {
                 view="plans"
                 phoneMenu
                 actions={
-                  <PlansActions onNewPlan={() => setCreating({})} onNewIdea={() => setNewIdea(true)} onOpenIdeas={props.onOpenIdeas} ideas={props.ideas ?? null} onNewTask={() => drawer.addTask()} onRefresh={() => void load(workspace)} busy={busy} />
+                  <PlansActions onNewPlan={() => setCreating({})} onNewIdea={() => setNewIdea(true)} onOpenIdeas={props.onOpenIdeas} ideas={props.ideas ?? null} onRefresh={() => void load(workspace)} busy={busy} />
                 }
               >
                 Specs
@@ -1312,6 +1316,7 @@ export default function PlansView(props: {
                     docs={docs}
                     onEdit={() => change(row)}
                     onDiscuss={() => void chat.ask(discussSeed(row))}
+                    onNewTask={() => drawer.addTask()}
                     onDelete={rowActions(row).deletable ? () => setDeleting(row) : undefined}
                     onArchive={rowActions(row).archivable ? () => setArchiving(row) : undefined}
                     onUnarchive={rowActions(row).unarchivable ? () => unarchive(row) : undefined}
