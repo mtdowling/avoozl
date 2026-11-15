@@ -317,3 +317,18 @@ test("the sync code has no way to rewrite history", () => {
   for (const method of ["updateRef", "deleteBranch", "createBranch", "putFile"])
     assert.ok(!text.includes(method), method);
 });
+
+test("targets: a leaf that names a project ID syncs the repository of that project", (t) => {
+  const { store } = fixture(t);
+  store.put("projects", { id: "code", root: "/tmp/code", repository: REPO });
+  plan(store, "byid", {
+    integrationBranch: BRANCH,
+    tasks: { 1: leaf("code") },
+  });
+  const { targets, problems } = syncTargets(store, policy);
+  assert.deepEqual(problems, []);
+  assert.deepEqual(
+    targets.map((entry) => [entry.spec, entry.repository]),
+    [["byid", REPO]],
+  );
+});
