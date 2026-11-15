@@ -3,42 +3,45 @@
 // merges in a normal chat; the spec check and Approve in a Spec Builder chat;
 // the claim a crew is on in a crew chat; the driver view in an Avoozl chat.
 // The host passes no props, so the chat comes from the page URL
-// (panel-chat.ts). It reads again every PANEL_REFRESH_MS and when the window
-// gains focus, and not while hidden (panel-api.ts). Local workers are
-// retired: no worker rows here.
+// (panel-chat.ts). All data comes from one operation, `panel.view`, read when
+// the Refresh countdown ends, when the window gains focus, and not while hidden
+// (panel-api.ts). Every view is built from the shared parts in PanelParts.tsx.
+// Local workers are retired: no worker rows here.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Btn } from '@kirocrew/app-sdk/ui'
-import Badge from './Badge.tsx'
 import Logo from './Logo.tsx'
 import { ConfirmProvider } from './controls.tsx'
 import { railFor } from './dashboard-api.ts'
-import { flowClient, type FlowViewModel } from './flow-api.ts'
-import { DRIVER_AGENT, DRIVER_START_MESSAGE, readDriverSession, recapSince, type Away, type DriverRead } from './driver-view-api.ts'
+import { DRIVER_AGENT, DRIVER_START_MESSAGE, recapSince, type Away, type DriverRead } from './driver-view-api.ts'
 import { useAppApi, useChatLauncher, useNavigate } from './host.ts'
 import { classifyChat, currentChat, opensItself, type PanelChat } from './panel-chat.ts'
 import {
-  PANEL_REFRESH_MS,
+  checkLabel,
   driverView,
   drivenRoot,
-  sameRoot,
   panelModel,
+  readPanel,
+  sameRoot,
+  shortAgo,
   startRefresh,
   type FlightRow,
   type PanelAction,
-  type PanelInput,
+  type PanelRead,
   type PanelModel,
-  type PanelSection,
+  type PanelSection as SectionName,
   type WaitingRow,
 } from './panel-api.ts'
-import { plansClient, type SpecSummary } from './plans-api.ts'
-import { releaseClient, type ReleaseQueue } from './release-api.ts'
+import { PanelAct, PanelChip, PanelEmpty, PanelList, PanelRoot, PanelRow, PanelSection, PanelStrip, PanelToolbar } from './PanelParts.tsx'
+import { Bot, Check, CircleAlert, CircleDot, GitBranch, GitPullRequest, Inbox, MessageSquare, Radar } from './icons.ts'
+import { RefreshButton } from './RefreshButton.tsx'
+import { plansClient } from './plans-api.ts'
+import { releaseClient } from './release-api.ts'
 import { SPEC_BUILDER_SPECS } from './spec-builder-api.ts'
 import { StopLineButton } from './StopLine.tsx'
-import { useInstance } from './InstanceName.tsx'
 import { nameFor } from './instance-api.ts'
+import { useInstance } from './InstanceName.tsx'
 import { relativeTime } from './task-api.ts'
 import { Tooltip } from './Tooltip.tsx'
-import { linkHref, viewsClient, type RadarCrews } from './views-api.ts'
+import { linkHref, viewsClient } from './views-api.ts'
 import { errorMessage, readPageState, workspaceClient } from './workspace-api.ts'
 
 const AVOOZL_PAGE = '/apps/avoozl'
@@ -66,103 +69,93 @@ function storage(): Storage | null {
   }
 }
 
-const NOTE_UNREAD: Record<PanelSection, string> = {
+const NOTE_UNREAD: Record<SectionName, string> = {
   waiting: 'Avoozl could not read what is waiting on you. It tries again soon.',
   inFlight: 'Avoozl could not read the crews. It tries again soon.',
   queue: 'Avoozl could not read the release queue. It tries again soon.',
   recent: 'Avoozl could not read recent merges. It tries again soon.',
 }
 
-const link = (href: string, label: string, tip?: string) => {
-  const anchor = (
-    <a key={label + href} href={linkHref(href)} target="_blank" rel="noreferrer" className="text-sm underline">
-      {label}
-    </a>
-  )
-  return tip ? (
-    <Tooltip key={label + href} text={tip}>
-      {anchor}
-    </Tooltip>
-  ) : (
-    anchor
-  )
-}
+const WAITING_ICON: Record<string, typeof CircleAlert> = { review: GitPullRequest, 'ready-to-merge': GitPullRequest, 'branch-landing': GitBranch }
 
-function Fold(props: { id: string; title: string; count?: number; warn?: boolean; open?: boolean; children: ReactNode }) {
+const DRIVER_STATE = { running: 'Running', idle: 'Quiet', none: 'Not started', unknown: 'Unknown' } as const
+
+// What no read has returned yet: every part null, so each section says unread.
+const UNREAD: PanelRead = { conflicts: null, crews: null, remote: null, queue: null, flow: null, driver: null, specs: null, instance: null, checks: null }
+
+function WaitingRows(props: { rows: WaitingRow[]; busy: string | null; now: number; onAct: (row: WaitingRow, action: PanelAction) => void; onOpenPage: () => void }) {
   return (
-    <details data-panel-fold={props.id} open={props.open} className="rounded-md border" style={{ border: '1px solid var(--border)', borderRadius: 8 }}>
-      <summary className="flex cursor-pointer items-center gap-2 px-3 py-2 font-medium" style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer', padding: '8px 12px' }}>
-        {props.count !== undefined && props.count > 0 && <Badge variant={props.warn ? 'warning' : 'info'}>{props.count}</Badge>}
-        {props.title}
-      </summary>
-      <div className="px-3 pb-3" style={{ padding: '0 12px 12px' }}>
-        {props.children}
-      </div>
-    </details>
-  )
-}
-
-const Muted = (props: { children: ReactNode; role?: string }) => (
-  <p className="m-0 text-muted" role={props.role} style={{ margin: 0 }}>
-    {props.children}
-  </p>
-)
-
-function WaitingList(props: { rows: WaitingRow[]; busy: string | null; onAct: (row: WaitingRow, action: PanelAction) => void; onOpenPage: () => void }) {
-  return (
-    <ul className="m-0 list-none p-0" style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <PanelList>
       {props.rows.map((row) => (
-        <li key={row.key} data-waiting-row={row.kind}>
-          <Badge variant="warning">{row.label}</Badge> <span className="font-medium">{row.title}</span>
-          <span className="block text-xs text-muted" style={{ display: 'block' }}>
-            {row.detail}
-          </span>
-          <span className="flex flex-wrap gap-2" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
-            {row.actions.map((action) =>
-              action.kind === 'link' && action.href.startsWith('/apps/') ? (
-                <Btn key={action.label} type="button" onClick={props.onOpenPage}>
-                  {action.label}
-                </Btn>
-              ) : action.kind === 'link' ? (
-                link(action.href, action.label)
-              ) : (
-                <Btn key={action.label} type="button" disabled={props.busy === row.key} onClick={() => props.onAct(row, action)}>
-                  {action.label}
-                </Btn>
-              ),
-            )}
-          </span>
-        </li>
+        <PanelRow
+          key={row.key}
+          data-waiting-row={row.kind}
+          icon={WAITING_ICON[row.kind] ?? CircleAlert}
+          title={row.title}
+          chips={<PanelChip tone="warn">{row.label}</PanelChip>}
+          age={row.at ? shortAgo(row.at, props.now) : null}
+          ageTip={row.at ? `Changed ${relativeTime(row.at, props.now)}` : undefined}
+          meta={row.detail}
+          multi={row.actions.length > 1}
+          actions={row.actions.map((action) =>
+            action.kind === 'link' && action.href.startsWith('/apps/') ? (
+              <PanelAct key={action.label} label={action.label} onClick={props.onOpenPage} />
+            ) : action.kind === 'link' ? (
+              <PanelAct key={action.label} label={action.label} href={linkHref(action.href)} />
+            ) : (
+              <PanelAct key={action.label} label={action.label} disabled={props.busy === row.key} onClick={() => props.onAct(row, action)} />
+            ),
+          )}
+        />
       ))}
-    </ul>
+    </PanelList>
   )
 }
 
-function FlightList({ rows, now }: { rows: FlightRow[]; now: number }) {
+function FlightRows({ rows, now }: { rows: FlightRow[]; now: number }) {
   return (
-    <ul className="m-0 list-none p-0" style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 8 }}>
-      {rows.map((row) => (
-        <li key={row.key} data-flight-row={row.source}>
-          <Badge>{row.source === 'radar' ? 'Issue Radar' : 'Remote coder'}</Badge> <span className="font-medium">{row.title}</span> <span className="text-xs text-muted">{row.ref}</span>
-          {row.stale && (
-            <>
-              {' '}
-              <Badge variant="warning">Stale</Badge>
-            </>
-          )}
-          <span className="block text-xs text-muted" style={{ display: 'block' }}>
-            {row.who} · {row.phase ?? 'claim label, no claim comment'}
-            {row.updated ? ` · updated ${relativeTime(row.updated, now)}` : ''}
-          </span>
-          <span className="flex flex-wrap gap-2" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {row.attach && link(row.attach, 'Attach / steer', row.source === 'radar' ? 'Opens the crew chat, if this crew runs on this machine. Type there to steer it.' : 'Opens the worker chat on its crew. Type there to steer it.')}
-            {row.issueUrl && link(row.issueUrl, 'Issue')}
-            {row.prUrl && link(row.prUrl, `PR #${row.prNumber}`)}
-            {!row.attach && row.noAttach && <span className="text-xs text-muted">{row.noAttach}</span>}
-          </span>
-        </li>
-      ))}
-    </ul>
+    <PanelList>
+      {rows.map((row) => {
+        const check = row.pr ? checkLabel(row.check) : null
+        const meta = [row.instance ?? (row.source === 'radar' ? 'No Avoozl' : null), row.crew ?? row.who, row.source === 'radar' ? row.ref : row.who, !row.phase ? 'claim label, no claim comment' : null].filter(Boolean)
+        return (
+          <PanelRow
+            key={row.key}
+            data-flight-row={row.source}
+            icon={row.pr ? GitPullRequest : row.source === 'radar' ? Radar : CircleDot}
+            title={row.title}
+            href={linkHref(row.issueUrl)}
+            chips={
+              <>
+                <PanelChip tone={row.stale ? 'warn' : 'info'} tip={row.updated ? `Updated ${relativeTime(row.updated, now)}` : undefined}>
+                  {row.phase ?? 'claimed'}
+                </PanelChip>
+                {row.stale && <PanelChip tone="warn">Stale</PanelChip>}
+                {check && (
+                  <PanelChip tone={check.tone} tip={check.tip} href={linkHref(row.prUrl)} data-flight-pr>
+                    PR #{row.prNumber} {check.text}
+                  </PanelChip>
+                )}
+              </>
+            }
+            age={shortAgo(row.claimedAt ?? row.updated, now)}
+            ageTip={[row.claimedAt && `Claimed ${relativeTime(row.claimedAt, now)}`, row.updated && `updated ${relativeTime(row.updated, now)}`].filter(Boolean).join(', ') || undefined}
+            meta={[...new Set(meta)].join(' · ')}
+            actions={
+              row.attach ? (
+                <PanelAct label="Attach" icon={MessageSquare} href={linkHref(row.attach)} tip={row.source === 'radar' ? 'Opens the crew chat, if this crew runs on this machine. Type there to steer it.' : 'Opens the worker chat on its crew. Type there to steer it.'} />
+              ) : row.noAttach ? (
+                <Tooltip text={row.noAttach}>
+                  <span data-pp-chip data-tone="muted" data-tap="">
+                    No chat
+                  </span>
+                </Tooltip>
+              ) : null
+            }
+          />
+        )
+      })}
+    </PanelList>
   )
 }
 
@@ -172,27 +165,23 @@ export default function AvoozlPanel() {
   const { openChat } = useChatLauncher()
   const [workspaceId, setWorkspaceId] = useState<string | null>(readPageState(storage()).workspaceId)
   const [specNames, setSpecNames] = useState<string[]>([])
-  const [specs, setSpecs] = useState<SpecSummary[]>([])
-  const [reads, setReads] = useState<PanelInput>({})
-  const [crews, setCrews] = useState<RadarCrews | null>(null)
+  const [reads, setReads] = useState<PanelRead | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [note, setNote] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [now, setNow] = useState(() => Date.now())
-  const [driver, setDriver] = useState<DriverRead | null>(null)
   const [away, setAway] = useState<Away | null>(() => takeAway(storage()))
   const instance = useInstance(workspaceId)
   const chat = useMemo(() => currentChat(window.location), [])
   const plans = useMemo(() => plansClient(api), [api])
   const views = useMemo(() => viewsClient(api), [api])
   const releases = useMemo(() => releaseClient(api), [api])
-  const flows = useMemo(() => flowClient(api), [api])
   const idRef = useRef(workspaceId)
   const readsRef = useRef(reads)
   readsRef.current = reads
 
-  // One read of everything. A read that fails leaves only its own section
-  // unread; the others still show.
+  // One read of everything: `panel.view`. A part that fails is null in the
+  // reply, so only its own section shows unread.
   const load = useCallback(async () => {
     let id = idRef.current
     try {
@@ -206,45 +195,41 @@ export default function AvoozlPanel() {
       return
     }
     if (!id) return
-    // In a driver chat, read the workspace this chat drives, not the one the
-    // app page last showed: a Nupp driver's panel shows Nupp.
+    let read: PanelRead = UNREAD
     try {
-      const root = drivenRoot(await readDriverSession(api, id), chat)
+      read = await readPanel(api, id)
+      // In a driver chat, read the workspace this chat drives, not the one the
+      // app page last showed: a Nupp driver's panel shows Nupp.
+      const root = drivenRoot(read.driver, chat)
       if (root) {
         const drives = (await workspaceClient(api).list()).items.find((item) => sameRoot(item.root, root))
         if (drives && drives.id !== id) {
           id = drives.id
           idRef.current = id
           setWorkspaceId(id)
+          read = await readPanel(api, id)
         }
       }
     } catch {
-      // Keep the workspace we have; the reads below still run.
+      // A failed read leaves every section unread; the next one tries again.
     }
-    const ok = <T,>(read: Promise<T>) => read.then((value) => value, () => null)
-    const [conflicts, crewRead, remote, queue, flow, listed, stored, driverRead] = await Promise.all([
-      ok(views.conflicts(id)),
-      ok(views.radarCrews(id)),
-      ok(views.remote(id).then((r) => r.workers)),
-      ok<ReleaseQueue>(releases.queue(id)),
-      ok<FlowViewModel>(flows.view(id, { window: '10' })),
-      api.get<{ specs?: { name: string }[] }>(SPEC_BUILDER_SPECS).catch(() => ({ specs: [] })),
-      ok(plans.specs(id)),
-      readDriverSession(api, id),
-    ])
+    try {
+      const listed = await api.get<{ specs?: { name: string }[] }>(SPEC_BUILDER_SPECS)
+      setSpecNames((listed.specs ?? []).map((spec) => spec.name))
+    } catch {
+      // Without the list no chat is a Spec Builder chat.
+    }
     setError(null)
-    setReads({ conflicts, crews: crewRead, remote, queue, flow })
-    setCrews(crewRead)
-    setSpecNames((listed.specs ?? []).map((spec) => spec.name))
-    if (stored) setSpecs(stored.items)
-    setDriver(driverRead)
+    setReads(read)
     setNow(Date.now())
-  }, [api, chat, flows, plans, releases, views])
+  }, [api, chat])
 
   useEffect(
     () =>
+      // The Refresh button counts down and reads; this adds the focus and
+      // visibility reads.
       startRefresh(load, {
-        intervalMs: PANEL_REFRESH_MS,
+        intervalMs: 0,
         doc: document,
         win: window,
         setTimer: (fn, ms) => setInterval(fn, ms),
@@ -253,7 +238,9 @@ export default function AvoozlPanel() {
     [load],
   )
 
-  const model: PanelModel = useMemo(() => panelModel(reads), [reads])
+  const model: PanelModel = useMemo(() => panelModel(reads ?? {}), [reads])
+  const driver: DriverRead | null = reads?.driver ?? null
+  const specs = reads?.specs ?? []
   const kind: PanelChat = classifyChat(chat, { specs: specNames, driver: driver?.slot ?? null })
   const spec = kind.kind === 'spec-builder' ? specs.find((item) => item.name === kind.spec) : undefined
 
@@ -263,7 +250,7 @@ export default function AvoozlPanel() {
   modelRef.current = model
   useEffect(() => {
     const leave = () => {
-      if (Object.keys(readsRef.current).length === 0) return
+      if (!readsRef.current) return
       try {
         const left: Away = { at: Date.now(), waitingKeys: modelRef.current.waiting.map((row) => row.key) }
         storage()?.setItem(AWAY_KEY, JSON.stringify(left))
@@ -322,284 +309,327 @@ export default function AvoozlPanel() {
     }
   }
 
-  const unread = (section: PanelSection) => model.unread.includes(section)
-  const loading = Object.keys(reads).length === 0
+  const unread = (section: SectionName) => model.unread.includes(section)
+  const loading = reads === null
   const stopped = model.stops.length > 0
+  const instanceName = nameFor(instance, 'other') ?? reads?.instance?.name ?? null
+
+  // One section: its rows, or why it has none.
+  const unreadOr = (section: SectionName, empty: string, rows: number, render: () => ReactNode) =>
+    unread(section) ? <PanelEmpty>{loading ? 'Loading…' : NOTE_UNREAD[section]}</PanelEmpty> : rows === 0 ? <PanelEmpty>{empty}</PanelEmpty> : render()
 
   const waiting = (
-    <Fold id="waiting" title="Waiting on you" count={model.waiting.length} warn open>
-      {unread('waiting') ? (
-        <Muted>{loading ? 'Loading…' : NOTE_UNREAD.waiting}</Muted>
-      ) : model.waiting.length === 0 ? (
-        <Muted>Nothing is waiting on you.</Muted>
-      ) : (
-        <WaitingList rows={model.waiting.slice(0, 5)} busy={busy} onAct={(row, action) => void act(row, action)} onOpenPage={() => navigate(AVOOZL_PAGE)} />
-      )}
+    <PanelSection id="waiting" title="Waiting on you" count={model.waiting.length} tone="warn" open>
+      {unreadOr('waiting', 'Nothing is waiting on you.', model.waiting.length, () => (
+        <WaitingRows rows={model.waiting.slice(0, 5)} busy={busy} now={now} onAct={(row, action) => void act(row, action)} onOpenPage={() => navigate(AVOOZL_PAGE)} />
+      ))}
       {model.waiting.length > 5 && (
-        <Btn type="button" onClick={() => navigate(AVOOZL_PAGE)}>
-          Show all {model.waiting.length}
-        </Btn>
+        <PanelEmpty>
+          <PanelAct label={`Show all ${model.waiting.length}`} onClick={() => navigate(AVOOZL_PAGE)} />
+        </PanelEmpty>
       )}
-    </Fold>
+    </PanelSection>
   )
   const inFlight = (
-    <Fold id="in-flight" title={nameFor(instance, 'other') ? `In flight · ${nameFor(instance, 'other')}` : 'In flight'} count={model.inFlight.length} open>
-      {unread('inFlight') ? (
-        <Muted>{loading ? 'Loading…' : NOTE_UNREAD.inFlight}</Muted>
-      ) : model.inFlight.length === 0 ? (
-        <Muted>No crew has a claim right now.</Muted>
-      ) : (
-        <FlightList rows={model.inFlight} now={now} />
-      )}
-      {crews && crews.stale > 0 && <Muted>{crews.stale} stale claim{crews.stale === 1 ? '' : 's'}.</Muted>}
-    </Fold>
+    <PanelSection id="in-flight" title="In flight" count={model.inFlight.length} summary={reads?.crews && reads.crews.stale > 0 ? `${reads.crews.stale} stale` : undefined} open>
+      {unreadOr('inFlight', 'No crew has a claim right now.', model.inFlight.length, () => (
+        <FlightRows rows={model.inFlight} now={now} />
+      ))}
+    </PanelSection>
   )
   const queue = (
-    <Fold id="queue" title="Release queue" count={model.queue?.head.length}>
-      {unread('queue') || !model.queue ? (
-        <Muted>{loading ? 'Loading…' : NOTE_UNREAD.queue}</Muted>
-      ) : model.queue.head.length === 0 ? (
-        <Muted>{model.queue.held ? `Nothing is next. ${model.queue.held} held.` : 'Nothing is next in the queue.'}</Muted>
-      ) : (
-        <ul className="m-0 list-none p-0" style={{ margin: 0, padding: 0, listStyle: 'none' }}>
-          {model.queue.head.map((entry) => (
-            <li key={entry.taskId} data-queue-head>
-              <span className="font-medium">{entry.title}</span> <span className="text-xs text-muted">{entry.taskId}</span>
-              <span className="block text-xs text-muted" style={{ display: 'block' }}>
-                {entry.repository} · {entry.reason}
-              </span>
-            </li>
+    <PanelSection id="queue" title="Release queue" count={model.queue?.head.length} summary={model.queue ? queueSummary(model.queue) : undefined}>
+      {unreadOr('queue', model.queue?.held ? `Nothing is next. ${model.queue.held} held.` : 'Nothing is next in the queue.', model.queue?.head.length ?? 0, () => (
+        <PanelList>
+          {model.queue!.head.map((entry) => (
+            <PanelRow key={entry.taskId} data-queue-head icon={Inbox} title={entry.title} chips={<PanelChip tone="info">Next</PanelChip>} age={entry.taskId} meta={`${entry.repository} · ${entry.reason}`} />
           ))}
-        </ul>
-      )}
-    </Fold>
+        </PanelList>
+      ))}
+    </PanelSection>
   )
   const recent = (
-    <Fold id="recent" title="Recent merges" count={model.recent.length}>
-      {unread('recent') ? (
-        <Muted>{loading ? 'Loading…' : NOTE_UNREAD.recent}</Muted>
-      ) : model.recent.length === 0 ? (
-        <Muted>Nothing finished lately.</Muted>
-      ) : (
-        <ul className="m-0 list-none p-0" style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+    <PanelSection id="recent" title="Recent merges" count={model.recent.length} summary={model.recent[0] ? `last ${shortAgo(model.recent[0].at, now)}` : undefined}>
+      {unreadOr('recent', 'Nothing finished lately.', model.recent.length, () => (
+        <PanelList>
           {model.recent.map((entry) => (
-            <li key={entry.taskId} data-recent-row>
-              <span className="font-medium">{entry.title}</span> <span className="text-xs text-muted">{relativeTime(entry.at, now)}</span>
-            </li>
+            <PanelRow key={entry.taskId} data-recent-row icon={Check} title={entry.title} age={shortAgo(entry.at, now)} ageTip={relativeTime(entry.at, now)} meta={[entry.repository, entry.taskId].filter(Boolean).join(' · ')} />
           ))}
-        </ul>
-      )}
-    </Fold>
+        </PanelList>
+      ))}
+    </PanelSection>
   )
+
+  // The line's state with its Stop the line button, on one row.
   const line = (
-    <div data-panel-line data-stopped={stopped ? '' : undefined} className="flex flex-wrap items-center gap-2" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
-      {stopped ? <Badge variant="danger">Line stopped</Badge> : <Badge variant="success">Line running</Badge>}
+    <div data-panel-line data-stopped={stopped ? '' : undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+      <PanelChip tone={stopped ? 'danger' : 'ok'}>{stopped ? 'Line stopped' : 'Line running'}</PanelChip>
       <ConfirmProvider>
         <StopLineButton workspaceId={workspaceId} />
       </ConfirmProvider>
-      {model.stops.map((text) => (
-        <span key={text} style={{ flexBasis: '100%' }}>
-          <Muted>{text}</Muted>
-        </span>
-      ))}
     </div>
   )
-  const view = driverView(driver)
-  const driverBox = (
-    <section data-panel-driver={view.state} className="flex flex-col gap-2" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <h3 className="m-0 font-semibold" style={{ margin: 0 }}>
-        Driver session <Badge variant={view.state === 'running' ? 'success' : undefined}>{{ running: 'Running', idle: 'Quiet', none: 'Not started', unknown: 'Unknown' }[view.state]}</Badge>
-        {view.workspace && (
-          <span className="text-xs font-normal text-muted" data-driver-workspace style={{ marginLeft: 6 }}>
-            {view.workspace}
-          </span>
-        )}
-      </h3>
-      {view.elsewhere && (
-        <span data-driver-elsewhere className="text-sm">
-          {view.elsewhere.text} {link(view.elsewhere.href, 'Open')}
-        </span>
-      )}
-      <Muted>
-        {view.note}
-        {driver?.lastSeenAt && view.state !== 'none' ? ` Last seen ${relativeTime(driver.lastSeenAt, now)}.` : ''}
-      </Muted>
-      <span className="flex flex-wrap gap-2" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-        {view.link && link(view.link, 'Open driver session')}
-        {view.start && (
-          <Tooltip text="Opens a new chat on the avoozl-driver agent and sends its first message. It releases work only while the chat is open.">
-            <Btn type="button" primary={!view.link} onClick={() => openChat({ agent: DRIVER_AGENT, message: DRIVER_START_MESSAGE, autoSend: true })} data-driver-start>
-              {view.link ? 'Start a new driver session' : 'Start a driver session'}
-            </Btn>
-          </Tooltip>
-        )}
+  const stopRows = model.stops.length > 0 && (
+    <PanelList>
+      {model.stops.map((text) => (
+        <PanelRow key={text} icon={CircleAlert} title={text} />
+      ))}
+    </PanelList>
+  )
+
+  // The top of the panel: the toolbar, then what matters at a glance.
+  const toolbar = (
+    <PanelToolbar
+      end={
+        <>
+          <RefreshButton workspaceId={workspaceId} onRefresh={() => void load()} />
+          <button
+            type="button"
+            aria-label="Open Avoozl"
+            data-open-avoozl
+            data-pp-act
+            onClick={() => navigate(AVOOZL_PAGE)}
+            style={{ background: 'var(--bg-elevated, var(--card))', fontWeight: 600 }}
+          >
+            <Logo size={16} />
+            Open Avoozl
+          </button>
+        </>
+      }
+    >
+      <PanelChip tone="info" tip={instanceName ? `This Avoozl is called ${instanceName}.` : undefined}>
+        {instanceName ?? 'Avoozl'}
+      </PanelChip>
+      <span data-recap-line style={{ fontSize: 11, color: 'var(--muted)' }}>
+        {loading ? 'Loading…' : `${model.waiting.length} waiting on you · ${model.inFlight.length} in flight · ${stopped ? 'line stopped' : 'line running'}`}
       </span>
-    </section>
+    </PanelToolbar>
+  )
+  const strip = (
+    <PanelStrip>
+      {line}
+      {model.queue && (
+        <PanelChip tone={model.queue.next ? 'info' : 'muted'} tap tip={`Release queue: ${queueSummary(model.queue)}${model.queue.mode ? `. Mode: ${model.queue.mode}.` : '.'}`} data-strip-queue>
+          Queue {queueSummary(model.queue)}
+        </PanelChip>
+      )}
+      {model.recent[0] && (
+        <PanelChip tap tip={`${model.recent.length} recent merge${model.recent.length === 1 ? '' : 's'}. Last: ${model.recent[0].title}, ${relativeTime(model.recent[0].at, now)}.`} data-strip-merged>
+          Merged {model.recent.length} · {shortAgo(model.recent[0].at, now)}
+        </PanelChip>
+      )}
+    </PanelStrip>
+  )
+
+  // A driver read that failed is unknown, never none: it may be running.
+  const view = driverView(reads && !reads.driver ? { state: 'unknown', slot: null, href: null, openedAt: null, lastSeenAt: null } : reads?.driver)
+  const driverBox = loading ? null : (
+    <PanelList>
+      <PanelRow
+        data-panel-driver={view.state}
+        icon={Bot}
+        title="Driver session"
+        chips={
+          <>
+            <PanelChip tone={view.state === 'running' ? 'ok' : view.state === 'unknown' ? 'warn' : 'muted'}>{DRIVER_STATE[view.state]}</PanelChip>
+            {view.workspace && (
+              <PanelChip data-driver-workspace tip="The workspace this driver releases work for.">
+                {view.workspace}
+              </PanelChip>
+            )}
+          </>
+        }
+        multi
+        meta={`${view.note}${driver?.lastSeenAt && view.state !== 'none' ? ` Last seen ${relativeTime(driver.lastSeenAt, now)}.` : ''}`}
+        actions={
+          <>
+            {view.link && <PanelAct label="Open driver session" href={linkHref(view.link)} />}
+            {view.start && (
+              <PanelAct
+                label={view.link ? 'Start a new driver session' : 'Start a driver session'}
+                primary={!view.link}
+                tip="Opens a new chat on the avoozl-driver agent and sends its first message. It releases work only while the chat is open."
+                onClick={() => openChat({ agent: DRIVER_AGENT, message: DRIVER_START_MESSAGE, autoSend: true })}
+                data-driver-start
+              />
+            )}
+          </>
+        }
+      />
+      {view.elsewhere && (
+        <PanelRow
+          data-driver-elsewhere
+          noTip
+          icon={Bot}
+          title={`${view.elsewhere.text} `}
+          actions={<PanelAct label="Open" href={linkHref(view.elsewhere.href)} />}
+        />
+      )}
+    </PanelList>
   )
   const sinceBox = recap && (
-    <section data-since-recap className="flex flex-col gap-2 rounded-md border p-3" style={{ display: 'flex', flexDirection: 'column', gap: 8, border: '1px solid var(--border)', borderRadius: 8, padding: 12 }}>
-      <h3 className="m-0 font-semibold" style={{ margin: 0 }}>
-        Since you left <span className="text-xs font-normal text-muted">{recap.since}</span>
-      </h3>
-      {recap.finished.length > 0 && (
-        <div data-since-finished>
-          <span className="text-xs text-muted">Finished</span>
-          <ul className="m-0 list-none p-0" style={{ margin: 0, padding: 0, listStyle: 'none' }}>
-            {recap.finished.slice(0, 5).map((row) => (
-              <li key={row.taskId}>{row.title}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {recap.needsYou.length > 0 && (
-        <div data-since-needs-you>
-          <span className="text-xs text-muted">New for you</span>
-          <ul className="m-0 list-none p-0" style={{ margin: 0, padding: 0, listStyle: 'none' }}>
-            {recap.needsYou.slice(0, 5).map((row) => (
-              <li key={row.key}>
-                <Badge variant="warning">{row.label}</Badge> {row.title}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      <Btn type="button" onClick={() => setAway(null)}>
-        Got it
-      </Btn>
-    </section>
-  )
-  // A real button with the Avoozl mark, in the app's button style and theme
-  // colors, so it never reads as a bare text link in the host's side panel.
-  const toPage = (
-    <Btn
-      type="button"
-      aria-label="Open Avoozl"
-      data-open-avoozl
-      onClick={() => navigate(AVOOZL_PAGE)}
-      style={{ display: 'inline-flex', alignItems: 'center', gap: 8, alignSelf: 'flex-start', padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-elevated, var(--card))', color: 'var(--text)', fontWeight: 600, cursor: 'pointer' }}
-    >
-      <Logo size={18} />
-      Open Avoozl
-    </Btn>
+    <div data-since-recap>
+      <PanelSection id="since" title="Since you left" summary={recap.since} open>
+        {recap.finished.length > 0 && (
+          <div data-since-finished>
+            <PanelList>
+              {recap.finished.slice(0, 5).map((row) => (
+                <PanelRow key={row.taskId} icon={Check} title={row.title} chips={<PanelChip tone="ok">Finished</PanelChip>} />
+              ))}
+            </PanelList>
+          </div>
+        )}
+        {recap.needsYou.length > 0 && (
+          <div data-since-needs-you>
+            <PanelList>
+              {recap.needsYou.slice(0, 5).map((row) => (
+                <PanelRow key={row.key} icon={CircleAlert} title={row.title} chips={<PanelChip tone="warn">{row.label}</PanelChip>} />
+              ))}
+            </PanelList>
+          </div>
+        )}
+        <PanelEmpty>
+          <PanelAct label="Got it" onClick={() => setAway(null)} />
+        </PanelEmpty>
+      </PanelSection>
+    </div>
   )
 
-  const crewRow = kind.kind === 'crew' ? crews?.rows.find((item) => item.crewId === kind.crew) : undefined
-  const specQueue = spec ? (reads.queue?.repositories ?? []).flatMap((repo) => repo.rows.filter((row) => row.spec === spec.name || row.planId === spec.plan?.id)) : []
+  const crewRow = kind.kind === 'crew' ? reads?.crews?.rows.find((item) => item.crewId === kind.crew) : undefined
+  const specQueue = spec ? (reads?.queue?.repositories ?? []).flatMap((repo) => repo.rows.filter((row) => row.spec === spec.name || row.planId === spec.plan?.id)) : []
 
   return (
-    <div className="flex flex-col gap-3 p-3 text-sm" style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 12 }} data-panel-kind={kind.kind}>
-      {error && <p role="alert">Avoozl can't read this workspace: {error}</p>}
-      {note && <p role="status">{note}</p>}
+    <PanelRoot kind={kind.kind}>
+      {toolbar}
+      {error && <PanelEmpty role="alert">Avoozl can't read this workspace: {error}</PanelEmpty>}
+      {note && <PanelEmpty role="status">{note}</PanelEmpty>}
       {kind.kind === 'spec-builder' && (
         <>
-          <section data-panel-spec>
-            <h3 className="font-semibold">Spec check: {kind.spec}</h3>
-            {!spec && <p className="text-muted">Avoozl has not read this spec folder yet.</p>}
-            {spec && (
-              <>
-                <ul>
-                  <li>Files: {spec.files.join(', ') || 'none'}</li>
-                  <li>Tasks: {spec.taskCount}</li>
-                  <li>
-                    Problems: {spec.counts.error} errors, {spec.counts.warning} warnings
-                  </li>
-                  <li>{spec.plan?.approved ? 'Approved for Avoozl.' : 'Not approved for Avoozl.'}</li>
-                </ul>
-                {opensItself(kind, { files: spec.files, approved: Boolean(spec.plan?.approved) }) && <p className="text-muted">tasks.md is written and not approved yet.</p>}
-                {spec.plan?.approved && <p className="text-muted">Do not press Execute in Spec Builder. Avoozl's gate replaces it.</p>}
-                {!spec.plan && <Btn onClick={() => void store()}>Store this spec</Btn>}
-                {spec.plan && !spec.plan.approved && (
-                  <Btn primary disabled={spec.counts.error > 0 || !spec.hash} onClick={() => void approve()}>
-                    Approve for Avoozl
-                  </Btn>
-                )}
-              </>
-            )}
-          </section>
-          {spec?.plan?.approved && (
-            <Fold id="spec-queue" title="This spec in the queue" count={specQueue.length} open>
-              {specQueue.length === 0 ? (
-                <Muted>Nothing from this spec is in the queue yet.</Muted>
+          <div data-panel-spec>
+            <PanelSection id="spec" title={`Spec check: ${kind.spec}`} open>
+              {!spec ? (
+                <PanelEmpty>{loading ? 'Loading…' : 'Avoozl has not read this spec folder yet.'}</PanelEmpty>
               ) : (
-                <ul className="m-0 list-none p-0" style={{ margin: 0, padding: 0, listStyle: 'none' }}>
-                  {specQueue.slice(0, 6).map((row) => (
-                    <li key={row.taskId} data-spec-queue-row={row.state}>
-                      <Badge>{row.state}</Badge> {row.title} <span className="text-xs text-muted">{row.reason}</span>
-                    </li>
-                  ))}
-                </ul>
+                <>
+                  <PanelList>
+                    <PanelRow icon={Inbox} title={`Files: ${spec.files.join(', ') || 'none'}`} />
+                    <PanelRow icon={Inbox} title={`Tasks: ${spec.taskCount}`} />
+                    <PanelRow
+                      icon={spec.counts.error > 0 ? CircleAlert : Check}
+                      title={`Problems: ${spec.counts.error} errors, ${spec.counts.warning} warnings`}
+                      chips={<PanelChip tone={spec.counts.error > 0 ? 'danger' : spec.counts.warning > 0 ? 'warn' : 'ok'}>{spec.counts.error > 0 ? 'Fix first' : spec.counts.warning > 0 ? 'Warnings' : 'Clean'}</PanelChip>}
+                    />
+                    <PanelRow
+                      icon={spec.plan?.approved ? Check : CircleDot}
+                      title={spec.plan?.approved ? 'Approved for Avoozl.' : 'Not approved for Avoozl.'}
+                      meta={
+                        opensItself(kind, { files: spec.files, approved: Boolean(spec.plan?.approved) })
+                          ? 'tasks.md is written and not approved yet.'
+                          : spec.plan?.approved
+                            ? "Do not press Execute in Spec Builder. Avoozl's gate replaces it."
+                            : null
+                      }
+                      actions={
+                        !spec.plan ? (
+                          <PanelAct label="Store this spec" onClick={() => void store()} />
+                        ) : !spec.plan.approved ? (
+                          <PanelAct label="Approve for Avoozl" primary disabled={spec.counts.error > 0 || !spec.hash} onClick={() => void approve()} />
+                        ) : null
+                      }
+                    />
+                  </PanelList>
+                </>
               )}
-            </Fold>
+            </PanelSection>
+          </div>
+          {spec?.plan?.approved && (
+            <PanelSection id="spec-queue" title="This spec in the queue" count={specQueue.length} open>
+              {specQueue.length === 0 ? (
+                <PanelEmpty>Nothing from this spec is in the queue yet.</PanelEmpty>
+              ) : (
+                <PanelList>
+                  {specQueue.slice(0, 6).map((row) => (
+                    <PanelRow key={row.taskId} data-spec-queue-row={row.state} icon={Inbox} title={row.title} chips={<PanelChip tone="info">{row.state}</PanelChip>} meta={row.reason} />
+                  ))}
+                </PanelList>
+              )}
+            </PanelSection>
           )}
-          {line}
-          {toPage}
+          {strip}
+          {stopRows}
         </>
       )}
       {kind.kind === 'crew' && (
         <>
-          <section data-panel-crew className="flex flex-col gap-2" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <h3 className="font-semibold">Crew {kind.crew}</h3>
-            {!crewRow ? (
-              <Muted>{loading ? 'Loading…' : unread('inFlight') ? NOTE_UNREAD.inFlight : "No live claim from this crew in Avoozl's repositories."}</Muted>
-            ) : (
-              <>
-                <p>
-                  {crewRow.repository}#{crewRow.number} {crewRow.title}: {crewRow.phase ?? 'no phase'}
-                  {crewRow.pr ? `, PR #${crewRow.pr}` : ''}
-                  {crewRow.stale ? ' (stale)' : ''}
-                </p>
-                <Tooltip text={railFor(crewRow).map((step) => `${step.label}: ${step.state}`).join(', ')}>
-                  <span data-rail className="inline-flex items-center gap-0.5" role="img" aria-label={railFor(crewRow).map((step) => `${step.label} ${step.state}`).join(', ')} style={{ display: 'inline-flex', gap: 3 }}>
-                    {railFor(crewRow).map((step) => (
-                      <i key={step.label} data-rail-step={step.state} style={{ display: 'block', width: 16, height: 8, borderRadius: 3, background: step.state === 'done' ? 'var(--ok)' : step.state === 'now' ? 'var(--accent)' : 'var(--border)' }} />
-                    ))}
-                  </span>
-                </Tooltip>
-                {crewRow.updated && <Muted>Updated {relativeTime(crewRow.updated, now)}</Muted>}
-                <span className="flex flex-wrap gap-2" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                  {crewRow.url && link(crewRow.url, 'Issue')}
-                  {crewRow.prUrl && link(crewRow.prUrl, `PR #${crewRow.pr}`)}
-                  {crewRow.commentUrl && link(crewRow.commentUrl, 'Crew comment')}
-                </span>
-              </>
-            )}
-            <Muted>Avoozl cannot message this chat. It shows what the claim on GitHub says.</Muted>
-          </section>
-          {line}
-          {toPage}
+          <div data-panel-crew>
+            <PanelSection id="crew" title={`Crew ${kind.crew}`} open>
+              {!crewRow ? (
+                <PanelEmpty>{loading ? 'Loading…' : unread('inFlight') ? NOTE_UNREAD.inFlight : "No live claim from this crew in Avoozl's repositories."}</PanelEmpty>
+              ) : (
+                <PanelList>
+                  <PanelRow
+                    icon={crewRow.pr ? GitPullRequest : Radar}
+                    title={`${crewRow.repository}#${crewRow.number} ${crewRow.title}: ${crewRow.phase ?? 'no phase'}${crewRow.pr ? `, PR #${crewRow.pr}` : ''}${crewRow.stale ? ' (stale)' : ''}`}
+                    href={linkHref(crewRow.url)}
+                    age={crewRow.updated ? shortAgo(crewRow.updated, now) : null}
+                    ageTip={crewRow.updated ? `Updated ${relativeTime(crewRow.updated, now)}` : undefined}
+                    meta={crewRow.updated ? `Updated ${relativeTime(crewRow.updated, now)}` : null}
+                    actions={
+                      <>
+                        {crewRow.prUrl && <PanelAct label={`PR #${crewRow.pr}`} href={linkHref(crewRow.prUrl)} />}
+                        {crewRow.commentUrl && <PanelAct label="Crew comment" href={linkHref(crewRow.commentUrl)} />}
+                      </>
+                    }
+                    multi
+                  />
+                  <li data-pp-row style={{ gridTemplateColumns: 'minmax(0,1fr)' }}>
+                    <Tooltip text={railFor(crewRow).map((step) => `${step.label}: ${step.state}`).join(', ')}>
+                      <span data-rail role="img" aria-label={railFor(crewRow).map((step) => `${step.label} ${step.state}`).join(', ')} style={{ display: 'inline-flex', gap: 3 }}>
+                        {railFor(crewRow).map((step) => (
+                          <i key={step.label} data-rail-step={step.state} style={{ display: 'block', width: 16, height: 8, borderRadius: 3, background: step.state === 'done' ? 'var(--ok)' : step.state === 'now' ? 'var(--accent)' : 'var(--border)' }} />
+                        ))}
+                      </span>
+                    </Tooltip>
+                  </li>
+                </PanelList>
+              )}
+              <PanelEmpty>Avoozl cannot message this chat. It shows what the claim on GitHub says.</PanelEmpty>
+            </PanelSection>
+          </div>
+          {strip}
+          {stopRows}
         </>
       )}
       {kind.kind === 'avoozl' && (
         <>
-          {sinceBox}
+          {strip}
+          {stopRows}
           {driverBox}
-          {waiting}
-          {inFlight}
-          {queue}
-          {line}
-          {toPage}
-        </>
-      )}
-      {kind.kind === 'other' && (
-        <section data-panel-recap className="flex flex-col gap-3" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <h3 className="m-0 font-semibold" style={{ margin: 0 }}>
-            Recap
-          </h3>
-          <p className="m-0" data-recap-line style={{ margin: 0 }}>
-            {loading
-              ? 'Loading…'
-              : `${model.waiting.length} waiting on you · ${model.inFlight.length} in flight · ${stopped ? 'line stopped' : 'line running'}`}
-          </p>
           {sinceBox}
           {waiting}
           {inFlight}
           {queue}
           {recent}
-          {line}
-          {driverBox}
-          {toPage}
-        </section>
+        </>
       )}
-    </div>
+      {kind.kind === 'other' && (
+        <div data-panel-recap>
+          {strip}
+          {stopRows}
+          {driverBox}
+          {sinceBox}
+          {waiting}
+          {inFlight}
+          {queue}
+          {recent}
+        </div>
+      )}
+    </PanelRoot>
   )
+}
+
+// "2 next · 1 held", what the queue chip and its section header say.
+function queueSummary(queue: NonNullable<PanelModel['queue']>): string {
+  const parts = [queue.claimed ? `${queue.claimed} claimed` : '', `${queue.next} next`, queue.held ? `${queue.held} held` : ''].filter(Boolean)
+  return parts.join(' · ')
 }
