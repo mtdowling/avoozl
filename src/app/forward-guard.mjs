@@ -197,3 +197,35 @@ export const blockReason = ({ protection, blocks }) =>
   `The ${protection} blocked this forward (${blocks
     .map((b) => (b.place === "content" ? b.rule : `${b.rule} in ${b.place}`))
     .join(", ")}). Nothing was pushed.`;
+
+// An open Stop the line that covers this repository stops every forward, in
+// every mode (RC26.5.7). It covers a stop for everything and a stop for the
+// repository. Returns the stop's reason, or null.
+// shortcut: a stop for one spec or one task does not stop forwarding; pull a
+// repository or all stop for that.
+export function forwardStop(store, repository) {
+  const stop = store
+    .list("flow_stops")
+    .filter((s) => !s.closedAt)
+    .find((s) => s.scope === "all" || s.projectId === repository);
+  return stop ? String(stop.reason || "A stop the line is open.") : null;
+}
+
+// What is wrong with the arguments of one push to the public repository, or
+// null (RC26.5.5): exactly one branch refspec, written out in full, to a
+// branch that is not protected, and none of the flags that push many refs.
+export function pushProblem(args, { forbid = [] } = {}) {
+  const at = args.indexOf("push");
+  if (at < 0) return null;
+  const rest = args.slice(at + 1);
+  const flags = rest.filter((arg) => arg.startsWith("-") && arg !== "-q");
+  if (flags.length) return "push flags";
+  const [, ...refspecs] = rest.filter((arg) => arg !== "-q");
+  if (refspecs.length !== 1) return "one refspec";
+  const match = /^refs\/heads\/([^:*+\s]+):refs\/heads\/([^:*+\s]+)$/.exec(
+    refspecs[0],
+  );
+  if (!match || match[1] !== match[2]) return "an explicit refspec";
+  if (forbid.includes(match[2])) return "a protected branch";
+  return null;
+}
