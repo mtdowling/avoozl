@@ -255,6 +255,10 @@ export const NOT_ON_MCP = new Map([
     name,
     "The app page reads the driver session; the session records itself through its hooks and plans_next.",
   ]),
+  [
+    "panel.view",
+    "The chat side panel's one read; its parts are each on MCP already.",
+  ],
   ["flow.proposals", lessonsPage],
   ["lessons.view", lessonsPage],
   [

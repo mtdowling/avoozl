@@ -47,7 +47,7 @@ test('a normal chat shows Waiting on you, In flight, the queue head, recent merg
   const buttons = await page.evaluate(`[...document.querySelectorAll('[data-waiting-row] button, [data-waiting-row] a')].map((e) => e.textContent.trim())`)
   assert.deepEqual(buttons, ['Open issue', "Keep Avoozl's", "Keep GitHub's"])
   assert.equal(await count('[data-flight-row]'), 3)
-  assert.equal(await page.evaluate(`document.querySelector('[data-flight-row="radar"] a').getAttribute('href')`), '/chat?sid=crew-abc')
+  assert.equal(await page.evaluate(`document.querySelector('[data-flight-row="radar"] a[href^="/chat"]').getAttribute('href')`), '/chat?sid=crew-abc')
   assert.equal(await count('[data-queue-head]'), 1)
   assert.equal(await count('[data-recent-row]'), 1)
   assert.match(await text('[data-panel-driver]'), /Start a driver session/)
@@ -159,7 +159,7 @@ test('the driver chat itself shows the driver, waiting and in flight views', { s
 
 test('Attach / steer opens the crew chat; a row with no action deep-links into the page', { skip }, async () => {
   await open({ sid: 'chat-1' }, `Boolean(document.querySelector('[data-flight-row]'))`)
-  assert.equal(await page.evaluate(`[...document.querySelectorAll('[data-flight-row="radar"] a')].map((a) => a.textContent.trim())[0]`), 'Attach / steer')
+  assert.equal(await page.evaluate(`document.querySelector('[data-flight-row="radar"] a[href^="/chat"]').textContent.trim()`), 'Attach')
   await page.evaluate(`window.__panel.conflicts = [{ kind: 'content-match', taskId: 'S1', id: 'd1', title: 'Matched a rule', detail: 'd' }]; window.dispatchEvent(new Event('focus')); true`)
   await page.until(`Boolean(document.querySelector('[data-waiting-row="content-match"]'))`)
   await page.evaluate(`[...document.querySelectorAll('[data-waiting-row] button')].find((b) => b.textContent.trim() === 'Open in Avoozl').click()`)
@@ -236,7 +236,8 @@ for (const [width, height] of [[1280, 900], [390, 800]])
       assert.notEqual(button.bg, 'rgba(0, 0, 0, 0)', 'it has a background')
       assert.ok(button.logo >= 16, 'the logo shows')
       assert.ok(button.right <= button.width, 'inside the panel')
-      assert.ok(button.height >= 28, 'big enough to tap')
+      // A 44 px tap target on a phone; compact with a mouse.
+      assert.ok(button.height >= (width <= 640 ? 44 : 24), `big enough to tap (${button.height} px)`)
     })
 
 // The driver line names its workspace. In a chat that is another workspace's
