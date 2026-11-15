@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAppApi } from './host.ts'
 import { Btn, Input } from '@kirocrew/app-sdk/ui'
 import { ICON, useConfirm } from './controls.tsx'
-import { Pause } from './icons.ts'
+import { Pause, Play } from './icons.ts'
 import { Picker, taskItems } from './Picker.tsx'
 import type { PickItem } from './picker.ts'
 import { RadioFold } from './RadioFold.tsx'
@@ -64,35 +64,63 @@ function useOpenStops(workspaceId: string | null) {
 export function StopLineButton(props: { workspaceId: string | null; onPulled?: () => void; bare?: boolean }) {
   const [open, setOpen] = useState(false)
   const stops = useOpenStops(props.workspaceId)
+  const api = useAppApi()
+  const flows = useMemo(() => flowClient(api), [api])
+  const confirm = useConfirm()
   if (!props.workspaceId) return null
   const stopped = stops.length > 0
   const why = stops
     .map((stop) => stop.reason ?? (stop.check ? `${stop.check} fails on ${stop.branch}` : `the line on ${stop.branch}`))
     .slice(0, 3)
     .join('; ')
+  // The side panel's icon: pause to stop, play to resume. Never text.
+  const resumeAll = async () => {
+    const yes = await confirm({ title: 'Resume the line?', body: `New work starts again. The line was stopped for: ${why}`, action: 'Resume' })
+    if (!yes || !props.workspaceId) return
+    for (const stop of stops) await flows.resume(props.workspaceId, stop.id)
+    lineChanged()
+  }
+  if (props.bare) {
+    const label = stopped ? 'Resume the line' : 'Stop the line'
+    const Icon = stopped ? Play : Pause
+    return (
+      <>
+        <Tooltip text={label}>
+          <button type="button" data-pp-icon data-bare data-stop-line data-stopped={stopped ? '' : undefined} aria-label={label} onClick={() => (stopped ? void resumeAll() : setOpen(true))} style={{ color: stopped ? 'var(--ok)' : 'var(--danger)', borderColor: 'var(--border)' }}>
+            <Icon size={13} aria-hidden="true" />
+          </button>
+        </Tooltip>
+        {open && (
+          <StopLineDialog
+            workspaceId={props.workspaceId}
+            onClose={() => setOpen(false)}
+            onPulled={() => {
+              setOpen(false)
+              lineChanged()
+              props.onPulled?.()
+            }}
+          />
+        )}
+      </>
+    )
+  }
   return (
     <>
       <Tooltip text={stopped ? `The line is stopped: ${why}. Resume it from the banner on the Dashboard or Flow. Press to stop more.` : 'Stop new work in a scope, or stop all agents, with a reason'}>
-        {(describedBy) =>
-          props.bare ? (
-            <button type="button" data-pp-icon data-bare data-stop-line data-stopped={stopped ? '' : undefined} aria-describedby={describedBy} aria-label={stopped ? `Line stopped, ${stops.length} open stop${stops.length === 1 ? '' : 's'}. Stop more` : 'Stop the line'} onClick={() => setOpen(true)} style={{ color: 'var(--danger)', borderColor: 'var(--border)' }}>
-              <Pause size={13} aria-hidden="true" />
-            </button>
-          ) : (
-            <Btn
-              type="button"
-              data-stop-line
-              data-stopped={stopped ? '' : undefined}
-              aria-describedby={describedBy}
-              aria-label={stopped ? `Line stopped, ${stops.length} open stop${stops.length === 1 ? '' : 's'}. Stop more` : undefined}
-              onClick={() => setOpen(true)}
-              style={stopped ? STOPPED : FILL}
-            >
-              <Pause size={ICON} aria-hidden="true" style={stopped ? { color: 'var(--danger)' } : undefined} />
-              {stopped ? 'Line stopped' : 'Stop the line'}
-            </Btn>
-          )
-        }
+        {(describedBy) => (
+          <Btn
+            type="button"
+            data-stop-line
+            data-stopped={stopped ? '' : undefined}
+            aria-describedby={describedBy}
+            aria-label={stopped ? `Line stopped, ${stops.length} open stop${stops.length === 1 ? '' : 's'}. Stop more` : undefined}
+            onClick={() => setOpen(true)}
+            style={stopped ? STOPPED : FILL}
+          >
+            <Pause size={ICON} aria-hidden="true" style={stopped ? { color: 'var(--danger)' } : undefined} />
+            {stopped ? 'Line stopped' : 'Stop the line'}
+          </Btn>
+        )}
       </Tooltip>
       {open && (
         <StopLineDialog

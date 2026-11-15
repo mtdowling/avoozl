@@ -242,6 +242,32 @@ for (const [width, height] of [[1280, 900], [390, 800]])
       assert.equal(head.appRow, false, 'no Avoozl app row')
     })
 
+// "Stop the line" is never text in the side panel: a pause icon named Stop the
+// line, and while stopped a play icon named Resume the line that resumes it.
+const visibleText = `(() => { const out = []; const walk = document.createTreeWalker(document.querySelector('[data-pp]'), NodeFilter.SHOW_TEXT); let n; while ((n = walk.nextNode())) { const el = n.parentElement; const r = el.getBoundingClientRect(); if (r.width && r.height && getComputedStyle(el).visibility !== 'hidden' && n.textContent.trim()) out.push(n.textContent.trim()) } return out })()`
+for (const [width, height] of [[1280, 900], [390, 800]])
+  for (const stopped of [false, true])
+    test(`no visible text reads Stop the line at ${width} px${stopped ? ' while stopped' : ''}`, { skip }, async () => {
+      await page.open(harness.url({ page: 'panel', theme: 'light', sid: 'chat-1', ...(stopped ? { stopped: '1' } : {}) }), { width, height })
+      await page.until(`Boolean(document.querySelector('[data-pp-head] [data-stop-line]${stopped ? '[data-stopped]' : ''}')) && Boolean(document.querySelector('[data-flight-row]'))`)
+      await page.evaluate(`document.querySelector('[data-pp-toggle-all][aria-pressed=false]')?.click()`)
+      const texts = await page.evaluate(visibleText)
+      assert.deepEqual(texts.filter((t) => /stop the line/i.test(t)), [])
+      const button = await page.evaluate(`(() => { const b = document.querySelector('[data-pp-head] [data-stop-line]'); return { label: b.getAttribute('aria-label'), text: b.innerText.trim() } })()`)
+      assert.deepEqual(button, { label: stopped ? 'Resume the line' : 'Stop the line', text: '' })
+    })
+
+test('the play icon resumes a stopped line after asking', { skip }, async () => {
+  await page.open(harness.url({ page: 'panel', theme: 'light', sid: 'chat-1', stopped: '1' }), { width: 390, height: 800 })
+  await page.until(`Boolean(document.querySelector('[data-pp-head] [data-stop-line][data-stopped]'))`)
+  await page.evaluate(`document.querySelector('[data-stop-line]').click()`)
+  await page.until(`[...document.querySelectorAll('button')].some((b) => b.textContent.trim() === 'Resume')`)
+  await page.evaluate(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Resume').click()`)
+  await page.until(`window.__panelCalls.some((c) => c.resume === 'l1')`)
+  await page.until(`!document.querySelector('[data-stop-line][data-stopped]')`)
+  assert.equal(await page.evaluate(`document.querySelector('[data-stop-line]').getAttribute('aria-label')`), 'Stop the line')
+})
+
 // The word "Avoozl" in the header opens the app page.
 test('the header word Avoozl opens the app page', { skip }, async () => {
   await page.open(harness.url({ page: 'panel', theme: 'light', sid: 'chat-1' }), { width: 390, height: 800 })
