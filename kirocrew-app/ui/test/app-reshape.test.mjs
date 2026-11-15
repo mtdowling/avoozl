@@ -28,10 +28,10 @@ const open = (query = {}) => page.open(harness.url({ page: 'app', ...query }), {
 const click = (expression) => page.evaluate(`(() => { const b = ${expression}; b.click(); return true })()`)
 const text = `document.body.innerText`
 
-test('the nav row has Home, Epics, Waiting on you, Trace, Flow, Activity and Settings, and no removed page', { skip }, async () => {
+test('the nav row has Home, Specs, Waiting on you, Trace, Flow, Activity and Settings, and no removed page', { skip }, async () => {
   await open({ radar: '1' })
   await page.until(`${tabs}.length === 7`)
-  assert.deepEqual(await page.evaluate(tabs), ['Home', 'Epics', 'Waiting on you', 'Trace', 'Flow', 'Activity', 'Settings'])
+  assert.deepEqual(await page.evaluate(tabs), ['Home', 'Specs', 'Waiting on you', 'Trace', 'Flow', 'Activity', 'Settings'])
   assert.deepEqual(page.errors, [])
 })
 

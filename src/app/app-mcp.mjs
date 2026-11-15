@@ -73,6 +73,7 @@ export function createAppMcp({ fallback = null, env = process.env } = {}) {
           configDirectory: machineAvoozlPaths().configDirectory,
           driver: { settingsFile: driverSettingsPath() },
           driverSessionFile: driverSessionFile(),
+          workspaceName: config.name,
         }),
       };
       opened.set(key, entry);

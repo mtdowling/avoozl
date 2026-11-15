@@ -47,7 +47,9 @@ test('a policy round-trips through the form unchanged', () => {
 
 test('the form keeps settings it does not show', () => {
   const form = toForm(POLICY)
-  assert.deepEqual(form.repositories[0].rest, { checkout: '../app', folder: 'Avoozl/app', dependencyText: true })
+  // The retired `concurrency` is not shown; it passes through untouched.
+  assert.deepEqual(form.repositories[0].rest, { checkout: '../app', folder: 'Avoozl/app', dependencyText: true, concurrency: 2 })
+  assert.equal('concurrency' in form.repositories[0], false)
   assert.equal(form.repositories[0].allowedActors, 'maintainer, second')
 })
 
@@ -174,14 +176,14 @@ test('lists split on commas and lines; numbers stay as typed when not whole', ()
   form.projectOwner = 'example'
   form.projectNumber = 'seven'
   const repository = emptyRepository('example/new')
-  repository.concurrency = '3'
+  repository.releaseCapacity = '3'
   repository.rules = [{ ...emptyRule(), id: 'go', match: ' label:x ' }]
   form.repositories = [repository]
   const policy = toPolicy(form)
   assert.deepEqual(policy.project, { owner: 'example', number: 'seven' })
   assert.deepEqual(policy.repositories['example/new'], {
     baseBranch: 'main',
-    concurrency: 3,
+    release: { capacity: 3 },
     rules: [{ id: 'go', action: 'deliver', match: 'label:x' }],
   })
 })

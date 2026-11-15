@@ -193,6 +193,7 @@ try {
       configDirectory: machineAvoozlPaths().configDirectory,
       driver: { settingsFile: driverSettingsPath() },
       driverSessionFile: driverSessionFile(),
+      workspaceName: config.name,
     });
   // Without a server, every CLI write goes through Operations in process.
   // `local` marks the caller as the person at this machine's command line.
@@ -850,17 +851,23 @@ try {
     let result;
     if (action === "hook") {
       // The avoozl-driver agent's agentSpawn and stop hooks: record the chat
-      // Kiro Crew names in `session_key` as the driver session. The record is
-      // the machine's (driver-session.mjs), so no workspace is needed. Prints
-      // nothing, and no failure ever blocks a turn; a failure is logged.
+      // Kiro Crew names in `session_key` as the driver of this workspace (the
+      // one plans_next serves the chat: --workspace, the AVOOZL_WORKSPACE
+      // family, or the catalog default the launcher passes). Prints nothing,
+      // and no failure ever blocks a turn; a failure is logged.
       try {
         const event = await hookEvent(process.stdin),
           slot = callerSlot({ sessionKey: event?.session_key });
-        if (slot)
+        if (slot) {
+          if (!fs.existsSync(dbPath))
+            throw Error(`No Avoozl workspace at ${config.workspaceRoot}.`);
           registerDriverSession({
             slot,
             source: String(event.hook_event_name || "hook"),
+            root: config.workspaceRoot,
+            name: config.name,
           });
+        }
       } catch (error) {
         try {
           const file = driverSessionFile() + ".log";
