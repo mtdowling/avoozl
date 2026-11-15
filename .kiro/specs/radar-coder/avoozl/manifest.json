@@ -2556,7 +2556,7 @@
       "repository": "avoozl",
       "summary": "Delete the lessons store; retros propose a steering-file pull request; one-time export. See RC30.4, RC30.5; \u00a7D35.4.",
       "acceptance": [
-        "An approved retro proposal opens one pull request to `.kiro/steering/avoozl-lessons.md`; stored lessons are appended once, then the tables drop; a failed write keeps them; AGENTS.md points to the file; `npm test` passes."
+        "An approved retro proposal opens one pull request to `.kiro/steering/avoozl-rules.md`; stored lessons are appended once, then the tables drop; a failed write keeps them; AGENTS.md points to the file; `npm test` passes."
       ],
       "completion": "integrated",
       "checks": [

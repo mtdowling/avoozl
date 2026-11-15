@@ -100,7 +100,7 @@ the `NUPP_WORKSPACE` and `AICOMMANDER_*` aliases stay.
 | Quick goal modal and proposal screen                                           | Remove. New spec's From a goal start does its job (RC30.1). |
 | New task                                                                       | Keep only in a spec's detail view (RC30.2). |
 | Ideas (page, Needs you rows, operations, CLI, storage)                         | Remove. The `capture_idea` and `add_idea_note` MCP actions stay as stubs that return a removed error (RC30.3). |
-| Lessons store, Lessons views, lessons packs, import and Share                   | Remove. Retros propose rule changes as a pull request to `.kiro/steering/avoozl-lessons.md`; stored lessons are exported there once, then the tables drop (RC30.4, RC30.5). |
+| Lessons store, Lessons views, lessons packs, import and Share                   | Remove. Retros propose rule changes as a pull request to `.kiro/steering/avoozl-rules.md`; stored lessons are exported there once, then the tables drop (RC30.4, RC30.5). |
 | Release mode and Release queue, Stop the line                                  | Keep. Fake-tested.                   |
 | Integration branches                                                           | Keep. Fake-tested.                   |
 | Demo and walkthrough                                                           | Keep. Retarget to crews (`rc-12.8`). |
