@@ -24,6 +24,7 @@ import {
   grant,
   policy,
   scratch,
+  forwardName,
 } from "./forward-scratch.mjs";
 
 const noMerge = (github) => {
@@ -67,7 +68,7 @@ test("branch opens it against the public branch and leaves the default branch al
   assert.equal(github.created[0].base, "rewrite");
   assert.equal(git(made.pub, "rev-parse", "main", "rewrite"), before);
   assert.deepEqual(branches(made.pub).sort(), [
-    "avoozl/task-1",
+    forwardName(made.sha),
     "main",
     "rewrite",
   ]);

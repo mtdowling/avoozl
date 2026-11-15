@@ -129,12 +129,35 @@ test("a clean forward fetches the default branch and one commit, and sends one r
   assert.equal(sent.length, 1);
   assert.match(
     sent[0],
-    /refs\/heads\/avoozl\/task-1:refs\/heads\/avoozl\/task-1$/,
+    /refs\/heads\/avoozl\/change-[0-9a-f]{8}:refs\/heads\/avoozl\/change-[0-9a-f]{8}$/,
   );
   for (const line of commands) {
     assert.doesNotMatch(line, new RegExp(PLANS));
     assert.doesNotMatch(line, /--all|--mirror|--tags|\*/);
   }
+});
+
+test("a bare private spec name or task ID blocks in every public text", () => {
+  const plans = {
+    specNames: ["p24s"],
+    taskIds: ["p24s.1.1", "1.2", "named-7"],
+  };
+  const run = (over) => rules(plansBlocks(change(over), mirror, plans));
+  assert.deepEqual(run({ title: "Work on p24s.1.1" }), ["plans-name in title"]);
+  assert.deepEqual(run({ branch: "avoozl/p24s.1.1" }), [
+    "plans-name in branch name",
+  ]);
+  assert.deepEqual(run({ body: "Part of P24S." }), ["plans-name in body"]);
+  assert.deepEqual(run({ message: "Do named-7 now" }), [
+    "plans-name in commit message",
+  ]);
+  assert.deepEqual(run({ title: "Fix 1.2 and p24sx and my-p24s" }), []);
+  assert.deepEqual(run({}), []);
+});
+
+test("the forward branch never carries the task ID", async (t) => {
+  const { result } = await forward(t, "Adds it.", async () => facts);
+  assert.doesNotMatch(result.record.forwardBranch, /task-1|\./);
 });
 
 const status404 = () =>
@@ -152,11 +175,13 @@ test("the plans branch facts are the head commit and the private spec folders", 
   assert.deepEqual(await plansBranchFacts(github, target), {
     commits: [HEAD],
     specNames: ["pay-fix"],
+    taskIds: [],
   });
   const missing = { branch: status404, contents: status404 };
   assert.deepEqual(await plansBranchFacts(missing, target), {
     commits: [],
     specNames: [],
+    taskIds: [],
   });
   const down = { ...missing, branch: () => Promise.reject(new Error("500")) };
   await assert.rejects(plansBranchFacts(down, target));
