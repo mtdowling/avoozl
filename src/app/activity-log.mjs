@@ -316,7 +316,7 @@ function operationRow(name, input, result) {
     const taskId = text(input?.taskId, 200);
     return {
       kind: "task.done",
-      summary: `Marked manual task ${taskId} ${input?.choice === "skipped" ? "skipped" : "done"}`,
+      summary: `Marked manual task ${taskId} ${["skipped", "refused"].includes(input?.choice) ? input.choice : "done"}`,
       targetId: taskId,
     };
   }

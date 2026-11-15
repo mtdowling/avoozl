@@ -21,7 +21,7 @@ export interface NoteEntry {
 }
 
 export interface ManualDone {
-  choice: 'done' | 'skipped'
+  choice: 'done' | 'skipped' | 'refused'
   by: string
   login?: string
   at: string
@@ -154,7 +154,7 @@ export function notesClient(api: AppApi) {
       workspaceId: string,
       taskId: string,
       input: {
-        choice: 'done' | 'skipped'
+        choice: 'done' | 'skipped' | 'refused'
         note?: string
         links?: { url: string; label: string }[]
       },

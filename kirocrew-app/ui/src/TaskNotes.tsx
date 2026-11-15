@@ -4,7 +4,7 @@
 // note, edits one, removes one after a confirm, and ticks Show on the issue
 // when the task has an issue. A save a content rule blocks offers Allow once
 // in place. A manual task shows what the person checks and Mark done, a
-// dialog with an outcome note, links, and Done or Skipped.
+// dialog with an outcome note, links, and Done, Skipped or Refused.
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
 import { Btn, Input } from '@kirocrew/app-sdk/ui'
@@ -13,7 +13,7 @@ import { Tooltip } from './Tooltip.tsx'
 import { Modal } from './Modal.tsx'
 import { RadioFold } from './RadioFold.tsx'
 import { DangerBtn, ICON, IconLabel } from './controls.tsx'
-import { Check, ClipboardCheck, ExternalLink, Pencil, Plus, RotateCcw, Trash2, X } from './icons.ts'
+import { Ban, Check, ClipboardCheck, ExternalLink, Pencil, Plus, RotateCcw, Trash2, X } from './icons.ts'
 import { safeHref, linkHref } from './views-api.ts'
 import { relativeTime } from './task-api.ts'
 import { errorMessage } from './workspace-api.ts'
@@ -386,10 +386,17 @@ export function LinksAndNotes(props: { workspaceId: string; taskId: string; onGi
   )
 }
 
-type Choice = 'done' | 'skipped'
+type Choice = 'done' | 'skipped' | 'refused'
 
-// Mark done (R61.12): an optional outcome note and links, then Done or
-// Skipped. Either releases the tasks that wait on it.
+const MARKED: Record<Choice, string> = {
+  done: 'Marked done. The tasks that wait on it may start.',
+  skipped: 'Marked skipped. The tasks that wait on it may start.',
+  refused: 'Marked refused. The tasks that wait on it stay held.',
+}
+
+// Mark done (R61.12): an optional outcome note and links, then Done,
+// Skipped or Refused. Done and Skipped release the tasks that wait on it;
+// Refused is a no-go and keeps them held.
 export function MarkDoneDialog(props: {
   workspaceId: string
   taskId: string
@@ -426,7 +433,7 @@ export function MarkDoneDialog(props: {
             }
           : {}),
       })
-      props.onDone(choice === 'done' ? 'Marked done. The tasks that wait on it may start.' : 'Marked skipped. The tasks that wait on it may start.')
+      props.onDone(MARKED[choice])
     }
     try {
       await attempt()
@@ -465,7 +472,7 @@ export function MarkDoneDialog(props: {
           Mark done: {props.title}
         </h3>
         <p id="avoozl-mark-done-line" className="text-sm text-muted">
-          {props.onIssue ? 'This closes its issue as you, on GitHub. ' : ''}The tasks that wait on it may start after either choice.
+          {props.onIssue ? 'This closes its issue as you, on GitHub. ' : ''}The tasks that wait on it may start after Done or Skipped. Refused keeps them held.
         </p>
       </div>
       <RadioFold<Choice>
@@ -485,6 +492,12 @@ export function MarkDoneDialog(props: {
             title: 'Skipped',
             line: 'It was not needed. It shows as skipped on the task and in Flow.',
             icon: X,
+          },
+          {
+            key: 'refused',
+            title: 'Refused',
+            line: 'A no-go. The tasks that wait on it stay held until you reopen it.',
+            icon: Ban,
           },
         ]}
       />
@@ -547,7 +560,7 @@ export function MarkDoneDialog(props: {
           style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
         >
           <ClipboardCheck size={ICON} aria-hidden="true" />
-          {choice === 'done' ? 'Mark done' : 'Mark skipped'}
+          {choice === 'done' ? 'Mark done' : choice === 'skipped' ? 'Mark skipped' : 'Mark refused'}
         </Btn>
       </div>
     </Modal>
@@ -587,7 +600,7 @@ export function ManualTask(props: {
       </div>
       {done ? (
         <div className="flex flex-wrap items-center gap-2 text-sm">
-          <Badge>{done.choice === 'skipped' ? 'Skipped' : 'Done'}</Badge>
+          {done.choice === 'refused' ? <Badge variant="danger">Refused</Badge> : <Badge>{done.choice === 'skipped' ? 'Skipped' : 'Done'}</Badge>}
           <span className="text-xs text-muted">
             by {done.login ?? done.by} {relativeTime(done.at)}
             {done.via === 'github' ? ', closed on GitHub' : ''}

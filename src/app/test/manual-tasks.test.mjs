@@ -220,6 +220,77 @@ test("only a person marks a manual leaf done or reopens it; either choice releas
   assert.deepEqual(ready(), ["sdk.3"]);
 });
 
+test("a refused manual leaf holds its dependents until a person reopens it", async (t) => {
+  const { store, ops } = workspace(t);
+  await approve(ops);
+  store.mutate("finish 1", (data) => {
+    data.tasks.find((task) => task.id === "sdk.1").status = "accepted";
+  });
+  const ready = () => ours(readyCandidates(store));
+  await assert.rejects(
+    ops.execute(
+      "task.manual.complete",
+      { taskId: "sdk.2", choice: "refused" },
+      undefined,
+      { mcp: true },
+    ),
+    (error) => error.status === 403,
+  );
+  const refused = await ops.execute("task.manual.complete", {
+    taskId: "sdk.2",
+    choice: "refused",
+    note: "No-go: the results are not good enough",
+  });
+  assert.equal(refused.manualDone.choice, "refused");
+  assert.deepEqual(ready(), []);
+  const row = store.read().tasks.find((task) => task.id === "sdk.2");
+  assert.equal(row.status, "blocked");
+  // Shown as refused on the task, in next, and in the activity log.
+  const graph = await ops.execute("graph.view", {});
+  assert.equal(
+    graph.tasks.find((task) => task.id === "sdk.2").manualDone.choice,
+    "refused",
+  );
+  const next = await ops.execute("runner.next", {});
+  assert.deepEqual(
+    next.needsYou
+      .filter((item) => item.id === "sdk.2")
+      .map((item) => [item.reason, item.detail]),
+    [["blocked", "Refused by a person: Review with team"]],
+  );
+  assert.deepEqual(ours(next.ready), []);
+  assert.ok(
+    store
+      .events()
+      .some(
+        (event) =>
+          event.kind === "task.manual.completed" && event.choice === "refused",
+      ),
+  );
+  await assert.rejects(
+    ops.execute("task.manual.complete", { taskId: "sdk.2", choice: "done" }),
+    /already refused\. Reopen it first/,
+  );
+  // Flow does not count a refusal as a finished task.
+  const view = flowView(store, store.read());
+  assert.equal(
+    view.tasks.find((task) => task.taskId === "sdk.2")?.finishedAt ?? null,
+    null,
+  );
+  // Reopen undoes it; then Done releases the dependents.
+  await ops.execute("task.manual.reopen", { taskId: "sdk.2" });
+  assert.equal(
+    store.read().tasks.find((task) => task.id === "sdk.2").manualDone,
+    undefined,
+  );
+  assert.deepEqual(ready(), []);
+  await ops.execute("task.manual.complete", {
+    taskId: "sdk.2",
+    choice: "done",
+  });
+  assert.deepEqual(ready(), ["sdk.3"]);
+});
+
 test("Flow counts a manual leaf's wait as a person's and leaves it out of first-pass rate", async (t) => {
   const { store, ops } = workspace(t);
   await approve(ops);
