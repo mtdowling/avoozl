@@ -5,6 +5,7 @@ import Logo from './Logo'
 import { RailButton, RailList } from './TopRail.tsx'
 import { LeftNav } from './LeftNav.tsx'
 import { MoreMenu } from './MoreMenu.tsx'
+import { PageRefreshItem, useHasPageRefresh } from './page-refresh.tsx'
 import { usePhone } from './list-detail.ts'
 import { InstanceBadge } from './InstanceName.tsx'
 import DashboardView, { type DashboardTarget } from './DashboardView'
@@ -245,6 +246,7 @@ function AvoozlPage() {
   }, [active, untriagedReads, tab])
 
   const phone = usePhone()
+  const hasRefresh = useHasPageRefresh()
   // The phone's top rail takes the whole page while it is open.
   const [railOpen, setRailOpen] = useState(false)
   const showRail = phone && railOpen
@@ -272,15 +274,15 @@ function AvoozlPage() {
         // A phone keeps the header to one thin row: the name, Stop the line
         // and a More menu with the rest (follows Kiro Crew's phone layout).
         <header className="flex min-w-0 items-center gap-2 px-2 py-1" data-phone-header style={{ borderBottom: '1px solid var(--border)' }}>
+          <span className="inline-flex shrink-0 items-center gap-1.5" data-header-brand>
+            <Logo size={20} />
+            <InstanceBadge workspaceId={active} />
+          </span>
           <RailButton items={navItems} value={navTab(tab)} open={railOpen} onOpenChange={setRailOpen} />
           <div className="flex items-center gap-2" data-header-actions>
             {active && <StopLineButton workspaceId={active} />}
             <MoreMenu label="More actions" attrs={{ 'data-header-more': '' }}>
-              <span className="inline-flex items-center gap-2 text-sm font-semibold">
-                <Logo size={18} />
-                Avoozl
-                <InstanceBadge workspaceId={active} />
-              </span>
+              <PageRefreshItem />
               {/* The demo's badge is on its own line below; the picker is not shown in it. */}
               {!demo.active && <WorkspacePicker list={list} value={workspaceId} onChange={setWorkspaceId} />}
               <Btn type="button" primary onClick={planEpic}>
@@ -294,9 +296,8 @@ function AvoozlPage() {
       ) : (
         <PageHeader
         title={
-          <span className="inline-flex items-center gap-2">
+          <span className="inline-flex items-center gap-2" aria-label="Avoozl">
             <Logo size={28} />
-            Avoozl
             <InstanceBadge workspaceId={active} />
           </span>
         }
@@ -307,11 +308,17 @@ function AvoozlPage() {
             <Btn type="button" primary onClick={planEpic}>
               Plan a goal
             </Btn>
+            {/* Refresh, with its countdown, for the page that has one. */}
+            {hasRefresh && (
+              <MoreMenu label="More actions" attrs={{ 'data-header-more': '' }}>
+                <PageRefreshItem />
+              </MoreMenu>
+            )}
             {active && (
               <>
                 {/* Move running chats to another model (§4.20, R72.12). */}
                 <SwitchModelButton workspaceId={active} />
-                {/* Pull the Andon cord (R64); last, red. */}
+                {/* Pull the Andon cord (R64): a red pause icon, last. */}
                 <StopLineButton workspaceId={active} />
               </>
             )}

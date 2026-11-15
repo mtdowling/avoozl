@@ -77,8 +77,9 @@ test('a Needs you title opens what it is about', () => {
   assert.equal(attentionTip({ ...base, taskId: 'W1' }), 'Open W1 in the drawer')
   assert.equal(attentionTip({ ...base, kind: 'review', taskId: null, group: {} }), 'Open the list of tasks to review')
   const dashboard = source('DashboardView.tsx')
-  // A real button: Tab reaches it, Enter and Space press it, and its name is the title.
-  assert.match(dashboard, /<button type="button" className="text-left font-medium underline" onClick=\{onTitle\} aria-describedby=\{describedBy\} data-attention-title>\s*\{item\.title\}/)
+  // A button role on an inline link, so a long title wraps beside its tag:
+  // Tab reaches it, Enter and Space press it, and its name is the title.
+  assert.match(dashboard, /<a\s+role="button"\s+tabIndex=\{0\}[\s\S]{0,200}onClick=\{onTitle\}[\s\S]{0,300}event\.key === 'Enter' \|\| event\.key === ' '[\s\S]{0,200}data-attention-title\s*>\s*\{item\.title\}/)
   assert.match(dashboard, /onTitle=\{\(\) => \{\s*const target = attentionTarget\(item\)/)
   assert.match(dashboard, /target\.kind === 'review' && item\.group\) drawer\.openReview/)
   assert.match(dashboard, /target\.kind === 'task'\) drawer\.openTask\(target\.id\)/)

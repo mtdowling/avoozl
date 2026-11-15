@@ -37,7 +37,7 @@ export function Tooltip(props: {
   text: string | null | undefined
   children: ReactNode | ((describedBy: string | undefined) => ReactNode)
   // 'block' for an anchor that fills its row (a full-width button).
-  display?: 'inline-flex' | 'block'
+  display?: 'inline-flex' | 'block' | 'inline'
 }) {
   const id = useId()
   const portal = usePortalTarget()

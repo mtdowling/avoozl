@@ -1,7 +1,7 @@
 // Set up GitHub (design §8.2), GitHub modes only. On load it runs the
 // wizard's read-only preview. The button shows only when the preview finds
 // at least one change; else one "GitHub is set up" line with the time of the
-// check and a quiet Check again. A preview that can't run says why and how
+// check and a quiet Recheck. A preview that can't run says why and how
 // to fix it. The dialog is stepped like Add plugin: options, review the
 // changes grouped with create/change/keep badges, apply, then save the
 // .avoozl.json change. Cancel, Esc and a click outside close it on every
@@ -301,7 +301,7 @@ export default function SetupWizard(props: {
           <Tooltip text={new Date(state.at).toLocaleString()}>
             <span className="text-xs text-muted">Checked {relativeTime(state.at, Date.now())}</span>
           </Tooltip>
-          <IconBtn icon={RefreshCw} label="Check again" tooltip="Read GitHub again. Writes nothing." onClick={() => void check()} />
+          <IconBtn icon={RefreshCw} label="Recheck" tooltip="Read GitHub again. Writes nothing." onClick={() => void check()} />
         </div>
       )}
       {state.kind === 'changes' && (
@@ -312,7 +312,7 @@ export default function SetupWizard(props: {
           <IconLabel icon={Workflow} primary onClick={() => setOpen(true)} tooltip="Show each change first. Nothing is written until you apply.">
             Set up GitHub
           </IconLabel>
-          <IconBtn icon={RefreshCw} label="Check again" tooltip="Read GitHub again. Writes nothing." onClick={() => void check()} />
+          <IconBtn icon={RefreshCw} label="Recheck" tooltip="Read GitHub again. Writes nothing." onClick={() => void check()} />
         </div>
       )}
       {state.kind === 'error' && (
@@ -327,7 +327,7 @@ export default function SetupWizard(props: {
             </span>
           )}
           <span>
-            <IconBtn icon={RefreshCw} label="Check again" tooltip="Read GitHub again. Writes nothing." onClick={() => void check()} />
+            <IconBtn icon={RefreshCw} label="Recheck" tooltip="Read GitHub again. Writes nothing." onClick={() => void check()} />
           </span>
         </div>
       )}
