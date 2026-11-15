@@ -2,7 +2,7 @@
 // page drawn in a real Chrome (skipped when none is found) for three configs.
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
-import { emptyRepository, toForm } from '../src/settings-api.ts'
+import { emptyRepository, toForm, toPolicy } from '../src/settings-api.ts'
 import { WHO_COLOR, WORKFLOW_STATUS, buildWorkflowMap, fieldSelector } from '../src/workflow-map.ts'
 import { buildHarness } from './browser/build.mjs'
 import { findChrome, launch } from './browser/chrome.mjs'
@@ -62,11 +62,12 @@ test('the merge card follows delivery.ship', () => {
   assert.equal(valueOf(merge(null), 'Merge').source, 'default')
 })
 
-test('the worker coder in plans-repo mode: tasks start at once-N, maintenance is muted, the plans repository closes the issue', () => {
+test('the worker coder in plans-repo mode: no Tasks at once value, maintenance is muted, the plans repository closes the issue', () => {
   const built = map(PLANS)
   assert.match(built.lanes[0].muted, /Issue Radar/)
   const release = cards(built, 'epic').find((card) => card.key === 'epic-release' || card.key === 'epic-start')
-  assert.equal(valueOf(release, 'Tasks at once').text, '4')
+  // `concurrency` only set the retired local workers; the map no longer shows it.
+  assert.equal(release.values.some((value) => value.label === 'Tasks at once'), false)
   assert.equal(cards(built, 'epic').find((card) => card.key.startsWith('epic-build')).title, 'Worker chats build')
   assert.match(cards(built, 'maintenance').at(-1).text, /example\/plans/)
   assert.equal(cards(built, 'epic').find((card) => card.key === 'epic-punt').muted?.length > 0, true)
@@ -131,6 +132,30 @@ test('the Labels table lists each label, its writer and a setting to open', () =
   assert.equal(rows.ready.writer, 'avoozl')
   assert.deepEqual(rows.plan.jump, { tab: 'crews', field: 'plan' })
   assert.equal(rows.review.jump, undefined)
+})
+
+test('the source-conflict fix shows with its setting, and the setting round-trips', () => {
+  const policy = structuredClone(SINGLE)
+  policy.repositories['example/code'].conflicts = { onSourceConflict: 'ask', maxAttempts: 2 }
+  const card = cards(map(policy), 'epic').find((item) => item.key === 'epic-conflict-fix')
+  assert.equal(valueOf(card, 'On a source conflict').text, 'ask (up to 2)')
+  assert.equal(valueOf(card, 'On a source conflict').source, 'set')
+  assert.equal(valueOf(cards(map(SINGLE), 'epic').find((item) => item.key === 'epic-conflict-fix'), 'On a source conflict').source, 'default')
+  assert.deepEqual(toPolicy(toForm(policy)).repositories['example/code'].conflicts, { onSourceConflict: 'ask', maxAttempts: 2 })
+  assert.equal(toPolicy(toForm(SINGLE)).repositories['example/code'].conflicts, undefined)
+})
+
+test('the merge method shows on the auto-merge card and round-trips (RC28.7)', () => {
+  const merge = (built) => valueOf(cards(built, 'epic').find((item) => item.key === 'epic-merge'), 'Merge method')
+  assert.equal(merge(map(SINGLE)).text, 'squash')
+  assert.equal(merge(map(SINGLE)).source, 'default')
+  const policy = structuredClone(SINGLE)
+  policy.repositories['example/code'].merge = { method: 'merge' }
+  assert.equal(merge(map(policy)).text, 'merge')
+  assert.deepEqual(merge(map(policy)).jump, { tab: 'crews', field: 'mergeMethod' })
+  assert.deepEqual(toPolicy(toForm(policy)).repositories['example/code'].merge, { method: 'merge' })
+  assert.equal(toPolicy(toForm(SINGLE)).repositories['example/code'].merge, undefined)
+  assert.equal(merge(map(SINGLE, 'manual')), undefined)
 })
 
 test('every who has its own theme-variable color', () => {

@@ -18,6 +18,12 @@ export interface DriverRead {
   href: string | null
   openedAt: string | null
   lastSeenAt: string | null
+  // The workspace this read is for, by name.
+  workspace?: string | null
+  // Other workspaces' drivers that are running now, so a view of a workspace
+  // with none can point at them, and a driver chat's own side panel can find
+  // the workspace it drives.
+  others?: { root: string; workspace: string; slot: string; href: string }[]
   // The demo shows made-up counts; a real read has none.
   turnsToday?: number
   turnLimit?: number

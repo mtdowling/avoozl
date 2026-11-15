@@ -8,7 +8,7 @@ import { Input } from '@kirocrew/app-sdk/ui'
 import { Fold } from './controls.tsx'
 import { FieldBox } from './FieldBox.tsx'
 import { RadioFold } from './RadioFold.tsx'
-import { AVOOZL_LABELS, OLD_LABEL_NOTE, RADAR_DEFAULTS_SHOWN, rulesMode, valueSource, type RepositoryForm } from './settings-api.ts'
+import { AVOOZL_LABELS, CONFLICT_ACTIONS, CONFLICT_ACTION_TEXT, CONFLICT_DEFAULTS, MERGE_METHODS, MERGE_METHOD_TEXT, OLD_LABEL_NOTE, RADAR_DEFAULTS_SHOWN, rulesMode, valueSource, type RepositoryForm } from './settings-api.ts'
 
 function Line(props: { id: string; label: string; value: string; fallback: string; raw: string; onChange: (value: string) => void; type?: string; unit?: string; help?: string }) {
   return (
@@ -66,6 +66,39 @@ export function CrewsRulesSettings(props: { id: string; repository: RepositoryFo
             },
           ]}
         />
+      </FieldBox>
+      <FieldBox title="When a crew's pull request conflicts in source code" blurb="Crews never resolve source conflicts. Avoozl can start one resolver chat that merges the base into the branch, keeps both sides and pushes one merge commit.">
+        <div className="flex flex-col gap-3" data-conflicts>
+          <div id={`${id}-on-source-conflict`}>
+            <RadioFold
+              name={`${id}-on-source-conflict`}
+              label="On a source conflict"
+              value={(repository.onSourceConflict || CONFLICT_DEFAULTS.onSourceConflict) as (typeof CONFLICT_ACTIONS)[number]}
+              onChange={(value) => set({ onSourceConflict: value })}
+              sections={CONFLICT_ACTIONS.map((action) => ({
+                key: action,
+                title: action === 'fix' ? 'Fix it (conflicts.onSourceConflict: fix)' : 'Ask me (conflicts.onSourceConflict: ask)',
+                line: `${CONFLICT_ACTION_TEXT[action]}.${!repository.onSourceConflict && action === CONFLICT_DEFAULTS.onSourceConflict ? ' Not set on this repository; this is the default.' : ''}`,
+              }))}
+            />
+          </div>
+          <Line id={`${id}-max-attempts`} label="Attempts per conflict" raw="conflicts.maxAttempts" type="number" help="After this many, the conflict waits for you." value={repository.maxAttempts} fallback={CONFLICT_DEFAULTS.maxAttempts} onChange={(value) => set({ maxAttempts: value })} />
+        </div>
+      </FieldBox>
+      <FieldBox title="How crew pull requests land" blurb="The merge method Avoozl uses when it arms auto-merge. A conflict fix still merges the base into the branch; with squash that merge commit never reaches the base.">
+        <div id={`${id}-merge-method`}>
+          <RadioFold
+            name={`${id}-merge-method`}
+            label="Merge method"
+            value={(repository.mergeMethod || 'squash') as (typeof MERGE_METHODS)[number]}
+            onChange={(value) => set({ mergeMethod: value })}
+            sections={MERGE_METHODS.map((method) => ({
+              key: method,
+              title: `${MERGE_METHOD_TEXT[method].title} (merge.method: ${method})`,
+              line: `${MERGE_METHOD_TEXT[method].line}${!repository.mergeMethod && method === 'squash' ? ' Not set on this repository; this is the default.' : ''}`,
+            }))}
+          />
+        </div>
       </FieldBox>
       <Fold title="Avoozl labels" id={`${id}-crews-advanced`}>
         <div className="flex flex-col gap-3" data-avoozl-labels>

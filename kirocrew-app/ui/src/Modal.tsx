@@ -50,7 +50,7 @@ export function Modal(props: {
   id: string
   onDismiss: () => void
   children: ReactNode
-  // With a title: a heading, a body that scrolls and a footer kept in view.
+  // With a title: a heading, a body that scrolls and a footer kept in view. On a shelf the heading scrolls with the body.
   title?: ReactNode
   footer?: ReactNode
   // The box's width and height, each capped by the viewport. `plain` drops
@@ -169,13 +169,15 @@ export function Modal(props: {
           <PortalTarget.Provider value={target}>
             {sections ? (
               <>
-                <div className="flex items-center gap-2 border-b px-4 py-3" style={{ borderColor: 'var(--border)' }}>
-                  <h3 id={`${props.id}-title`} className="min-w-0 flex-1 text-lg font-semibold">
-                    {props.title}
-                  </h3>
-                  {shelf && closeButton}
+                <div className={shelf ? 'min-h-0 flex-1 overflow-y-auto' : 'contents'}>
+                  <div className="flex items-center gap-2 border-b px-4 py-3" style={{ borderColor: 'var(--border)' }}>
+                    <h3 id={`${props.id}-title`} className="min-w-0 flex-1 text-lg font-semibold">
+                      {props.title}
+                    </h3>
+                    {shelf && closeButton}
+                  </div>
+                  <div className={shelf ? 'p-4' : 'min-h-0 flex-1 overflow-y-auto p-4'}>{props.children}</div>
                 </div>
-                <div className="min-h-0 flex-1 overflow-y-auto p-4">{props.children}</div>
                 {props.footer && (
                   <div className="border-t px-4 py-3" style={{ borderColor: 'var(--border)' }}>
                     {props.footer}
