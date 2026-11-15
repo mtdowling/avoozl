@@ -65,6 +65,8 @@ export async function mirrorPublicPollStep(
       const pull = await github.pullRequest(mirror.source, record.publicPr);
       noteInstances(store, pull?.body);
       record = await copyComments(store, github, record, mirror);
+      // The head the audit compares with the receipt (RC26.5.6).
+      record = { ...record, publicHead: pull?.head?.sha ?? null };
       if (pull?.merged_at) {
         record = {
           ...record,

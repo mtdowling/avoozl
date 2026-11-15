@@ -454,16 +454,16 @@ Requirements RC20 and RC21. A label on a pull request gives the person who
 added it a pending review to edit and submit; every Avoozl label takes the
 `avoozl:` prefix by default.
 
-- [ ] rc-20.1 Avoozl's label names: `avoozl:` defaults, review and drafted labels, clash check, Settings, after rc-1.1, rc-18.1 [RC21.1, RC21.2, RC21.3, RC21.4, RC21.5] (§D26)
+- [x] rc-20.1 Avoozl's label names: `avoozl:` defaults, review and drafted labels, clash check, Settings, after rc-1.1, rc-18.1 [RC21.1, RC21.2, RC21.3, RC21.4, RC21.5] (§D26)
   - `RADAR_DEFAULTS` and `READY_LABEL_DEFAULT` move to `avoozl:plan`, `avoozl:ready`, `avoozl:plan-approved`, `avoozl:merge-conflict`; `radar.reviewLabel` (`avoozl:review`) and `radar.draftedLabel` (`avoozl:drafted`) are new; the clash check covers all eight roles and the other managed labels; a set name keeps working; Settings › Crews and rules shows the six labels in one box with job, writer, raw key and default; Set up creates the review and drafted labels; `src/app/test/avoozl-labels.test.mjs`.
   - Done when: An unset policy resolves the six `avoozl:` defaults; a policy that sets `to plan` keeps it; review equal to drafted, or to the claim label, is refused naming both; the UI test shows the six fields with their defaults as placeholders; `npm test` passes.
-- [ ] rc-20.2 Review label on a pull request opens one read-only review chat, after rc-20.1 [RC20.1, RC20.2, RC20.3, RC20.10, RC20.14] (§D25)
+- [x] rc-20.2 Review label on a pull request opens one read-only review chat, after rc-20.1 [RC20.1, RC20.2, RC20.3, RC20.10, RC20.14] (§D25)
   - The tick finds open pull requests with the review label by one search per repository; the last labeler passes the trigger-label check or the label is removed with one row; the machine login must equal the labeler or no chat opens and one row names both; one receipt per label event; the brief holds the closing issues, crew claims and comments, and spec tasks from provenance markers, fenced as data, and passes content rules; agent `avoozl-review-draft` has read tools and one post tool; `src/app/test/review-draft-step.test.mjs`.
   - Done when: Fake-GitHub tests: an allowed labeler with a matching login gives one dispatch across three ticks; a stranger's label is removed with one row; a login mismatch gives no dispatch and one row; the brief names the crew claim and the spec task.
-- [ ] rc-20.3 `plans_post_review_draft`: a pending review with line comments, then the label swap, after rc-20.2 [RC20.4, RC20.5, RC20.9, RC20.13, RC20.14] (§D25)
+- [x] rc-20.3 `plans_post_review_draft`: a pending review with line comments, then the label swap, after rc-20.2 [RC20.4, RC20.5, RC20.9, RC20.13, RC20.14] (§D25)
   - The bound chat's tool screens the body and comments, checks the login again, deletes only Avoozl's own earlier pending draft, creates the review with `commit_id` and no `event`, removes the review label and adds the drafted label; a GitHub 422 goes back to the chat with nothing posted; someone else's pending review blocks with one row; no code path sends a review `event`; `src/app/test/review-draft-post.test.mjs`.
   - Done when: Fake-GitHub tests: the create call has no `event` and the head commit; a second call posts nothing; a screen hit posts nothing; a redraft deletes only Avoozl's earlier draft; a grep test finds no submit or dismiss path.
-- [ ] rc-20.4 Waiting, stale and submitted drafts: rows, the Review drafts list, the search link and Trace, after rc-20.3, rc-8.2 [RC20.6, RC20.7, RC20.8, RC20.11, RC20.12] (§D25)
+- [x] rc-20.4 Waiting, stale and submitted drafts: rows, the Review drafts list, the search link and Trace, after rc-20.3, rc-8.2 [RC20.6, RC20.7, RC20.8, RC20.11, RC20.12] (§D25)
   - The tick reads each waiting draft: submitted or deleted removes the drafted label and closes the row, recording which and GitHub's time; a moved head marks it stale with both commits; the Review drafts list (page, CLI, MCP read) filters by repository and state and shows `is:pr is:open label:"<drafted>"` with Copy; Trace adds a Review step after CI only when a draft exists; nothing is written to Radar labels; `src/app/test/review-draft-watch.test.mjs`, `kirocrew-app/ui/test/review-drafts.test.mjs`.
   - Done when: Fake-GitHub tests: a submitted draft clears the label and row once; a deleted draft is recorded as discarded; a head move marks stale and deletes nothing; the UI test shows the list, the filter and the search link; Trace shows Review only for a drafted pull request.
 - [ ] rc-p20 Proof 20: a review draft from a label, after rc-20.1, rc-20.2, rc-20.3, rc-20.4 [RC20, RC21] (§D25)
@@ -539,13 +539,13 @@ Requirement RC25. Private plans live on an orphan branch of the mirror and never
 - [x] rc-24.2 Spec home, reading both homes, Specs badge, after rc-24.1 [RC25.2, RC25.8] (§D30)
   - Each spec records `main` or `plansBranch`; one reader reads both on every tick into one graph; a spec name or task ID in both is refused; new specs start private; a move copies and never deletes; the Specs page shows Private or Public.
   - Done when: Unit tests for both homes read in one tick and the duplicate name or ID; a page test shows both badges; `npm test` and `npm run test:ui` pass.
-- [ ] rc-24.3 Marker `ref`, approval on the plans branch, `verify-issue` and crew commands, after rc-24.2, rc-3.3, rc-3.6, rc-3.2 [RC25.3, RC25.4, RC25.5] (§D30)
+- [x] rc-24.3 Marker `ref`, approval on the plans branch, `verify-issue` and crew commands, after rc-24.2, rc-3.3, rc-3.6, rc-3.2 [RC25.3, RC25.4, RC25.5] (§D30)
   - Marker writer and parser gain `ref`; approval of a private spec opens its pull request against `plansBranch`; `commit` check uses `<ref>...<commit>` and requires an orphan branch; `--json` prints the fetch and show commands; the one-line prompt is unchanged.
   - Done when: Tests: a private spec's issue passes; a `ref` that is the default branch, missing, or shares history fails with the reason; the prompt text equals the shipped one.
-- [ ] rc-24.4 Containment: sync, forward, leak scan, explicit refspecs, after rc-24.1, rc-23.4 [RC25.6] (§D30)
+- [x] rc-24.4 Containment: sync, forward, leak scan, explicit refspecs, after rc-24.1, rc-23.4 [RC25.6] (§D30)
   - Sync names the default branch only; the forward clone is single-branch; the leak scan blocks the plans branch name, private spec paths and commits from it in any forward text; every push has one explicit refspec and no `--mirror`, `--all`, `--tags` or wildcard.
   - Done when: Tests: a planted plans-branch name or path blocks the push with one row naming the rule; the sync leaves the `plansBranch` head unchanged; a test scans Avoozl's push calls and finds no banned flag.
-- [ ] rc-24.5 Issues from public and private plans, with edges across homes, after rc-24.3 [RC25.7, RC25.8, RC25.9, RC25.10] (§D30)
+- [x] rc-24.5 Issues from public and private plans, with edges across homes, after rc-24.3 [RC25.7, RC25.8, RC25.9, RC25.10] (§D30)
   - Private-plan issues stay in the mirror and never go to the source; public-plan issue bodies stand alone with no private text and no `plansBranch`; both homes project into the same mirror and release under the same rules; a `requires` edge across homes is allowed both ways, and a public-safe body says only `Waits on a private task.`
   - Done when: A fake GitHub test: both kinds of issue are written; no write reaches the source for a private plan; a public task waits on a private one and the reverse, each releases on its blocker's own rule, and the public body holds no private title, text, ID or link.
 - [ ] rc-p24 Proof 24: a public and a private plan in one mirror, after rc-24.1, rc-24.2, rc-24.3, rc-24.4, rc-24.5, rc-p23 [RC25] (§D17)
@@ -565,13 +565,13 @@ Requirement RC26. Where each mirror change lands on the public repository, and t
 - [x] rc-25.3 Leak scan extensions: private terms, hosts, ticket IDs, account IDs, secrets, binary and over-size files, after rc-25.2 [RC26.5] (§D31.2)
   - Runs the public-crew content rules on the diff, file names, message, branch, title and body; `forwardMaxFileBytes` shown in Settings with its default; test 2 of D31.2.
   - Done when: A planted fake term, host, ticket ID, account ID and secret each block; a binary and an over-size file block; an allowlisted binary passes; the test reads the size from the setting.
-- [ ] rc-25.4 Forward screen shows the exact public diff, title and body; receipt, after rc-25.3, rc-23.4 [RC26.5] (§D31.2, §D31.3)
+- [x] rc-25.4 Forward screen shows the exact public diff, title and body; receipt, after rc-25.3, rc-23.4 [RC26.5] (§D31.2, §D31.3)
   - The push happens only when the hash matches what was shown; `auto` writes the receipt (diff, title, body, hash, target, person, time) before the push; test 4.
   - Done when: A change after display forces a new display; an `auto` forward leaves the receipt before the push call.
-- [ ] rc-25.5 Block with one row and no retry; Stop the line stops forwarding; explicit refspecs, after rc-25.3, rc-4.2 [RC26.5, RC26.6] (§D31.2)
+- [x] rc-25.5 Block with one row and no retry; Stop the line stops forwarding; explicit refspecs, after rc-25.3, rc-4.2 [RC26.5, RC26.6] (§D31.2)
   - `forwardGuard` runs 1 to 4 in order and returns the first block; one Needs you row naming the rule; no automatic retry; **Try again** re-runs everything; an open Stop the line disables forwarding in every mode; every push has one explicit refspec; tests 5, 7 and 8.
   - Done when: A block gives one row across three ticks and zero retries; a scan of push calls finds no banned form; with a stop open, `auto` pushes nothing.
-- [ ] rc-25.6 Audit on the tick of what landed on the source, after rc-25.4 [RC26.5] (§D31.2)
+- [x] rc-25.6 Audit on the tick of what landed on the source, after rc-25.4 [RC26.5] (§D31.2)
   - Compares each record's receipt with what GitHub reports on `source`; a difference opens one row and a Stop the line for forwarding; test 6.
   - Done when: A fake source with an extra file, another author or a ref named for the plans branch gives one row and a stop.
 - [ ] rc-25.7 Targets `branch` and `batch`: public branch copy, epic batch, one public PR, after rc-25.1, rc-25.5, rc-23.5 [RC26.3, RC26.4] (§D31.1)
@@ -624,3 +624,20 @@ Requirement RC28. One resolver chat merges the base into a crew's conflicted pul
 - [ ] rc-p27 Proof 27: a scratch crew pull request with a source conflict, after rc-27.1, rc-27.2, rc-27.3, rc-27.4, rc-27.5 [RC28] (§D17)
   - Setup: a scratch repository created only for the proof. Action: plant a source conflict on a crew pull request. Expected: one merge commit on the same branch keeps both sides, the pull request is armed again (squash) and lands as one commit, and gets one comment; a planted drop gives one row and no push. Failure means: a change on main can be lost without a word. Next decision: set `conflicts.onSourceConflict` to `ask`. List the scratch repository in the receipt for the owner to delete.
   - Done when: Expected result observed; receipt under `docs/evidence/` lists the scratch repository.
+
+## Phase 28: GitHub usage counter and batched reads
+
+Requirement RC29. Count every call by source, and read each repository once.
+
+- [x] rc-28.1 Call counter by source, `bin/gh-counted`, and the usage in the rate view [RC29.1, RC29.2] (§D34)
+  - Tests first: calls, 304s and cache hits are counted by source; the wrapper forwards the exit code and records its source.
+  - Done when: `src/app/test/github-usage.test.mjs` passes and `npm test` passes.
+- [x] rc-28.2 One open-pull-request query per repository for heads and closing issues [RC29.4, RC29.5] (§D34)
+  - Tests first: ten open pull requests cost one query, including closing issues, labels and checks.
+  - Done when: The test passes and `npm test` passes.
+- [x] rc-28.3 Settings > GitHub shows calls this hour by source, after rc-28.1 [RC29.3] (§D34)
+  - A small table beside the rate limit: source, calls, cached, 304; read from the rate view.
+  - Done when: A page test shows the rows; screenshots are in the pull request; `npm run test:ui` passes.
+- [ ] rc-p28 Proof 28: one check costs one call, after rc-28.1, rc-28.2, rc-28.3 [RC29] (§D17)
+  - Setup: a repository with open pull requests. Action: open Home and Graph twice inside the cache window, and run one tick. Expected: Settings > GitHub shows one GraphQL call for the pull-request read. Failure means: views still read pull requests one by one. Next decision: batch the remaining readers by hand.
+  - Done when: Expected result observed; receipt under `docs/evidence/`.

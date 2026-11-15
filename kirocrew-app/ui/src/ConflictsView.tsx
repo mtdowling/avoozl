@@ -37,6 +37,7 @@ import { errorMessage } from './workspace-api.ts'
 import { useTaskDrawer } from './drawer-context.ts'
 import { DangerBtn, IconBtn, IconLabel, ShowMore, TipBtn, ViewHeading, useAskChat, useConfirm, usePages } from './controls.tsx'
 import { Tooltip } from './Tooltip.tsx'
+import { ForwardScreen } from './ForwardScreen.tsx'
 import { FilterPanel, useStoredFilter } from './FilterPanel.tsx'
 import { RefreshButton } from './RefreshButton.tsx'
 import { Check, DetailsIcon, ExternalLink, Eye, History, MessageSquare, RefreshCw, RotateCcw, X } from './icons.ts'
@@ -139,6 +140,9 @@ export function ConflictActions(props: {
           await releaseClient(api).land(workspaceId, item.repository!, item.branch!, item.head!)
           return { ok: true, text: `${item.branch} is approved to land. Merge it on GitHub.` }
         })} />
+      )}
+      {item.kind === 'needs-human' && item.reason === 'forward' && item.forwardId && (
+        <ForwardButton item={item} workspaceId={workspaceId} onDone={() => void run(async () => ({ ok: true, text: 'Forwarded.' }))} />
       )}
       {item.kind === 'content-match' && item.id && (
         <ContentActions id={item.id} readable={item.readable === true} workspaceId={workspaceId} busy={busy} run={run} />
@@ -335,6 +339,29 @@ export function RoutingFailedActions(props: { busy: boolean; workspaceId: string
       >
         Turn routing off
       </DangerBtn>
+    </div>
+  )
+}
+
+// Forward row (RC24.9, RC26.5.4): Review opens the Forward screen.
+export function ForwardButton(props: { item: ConflictItem; workspaceId: string; onDone: () => void }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="flex flex-wrap items-center gap-2" data-forward-row={props.item.forwardId}>
+      <IconLabel icon={DetailsIcon} tooltip="Shows the exact public diff, title and body before anything is pushed." onClick={() => setOpen(true)}>
+        Review and forward
+      </IconLabel>
+      {open && (
+        <ForwardScreen
+          workspaceId={props.workspaceId}
+          forwardId={props.item.forwardId!}
+          title={props.item.title}
+          onClose={(forwarded) => {
+            setOpen(false)
+            if (forwarded) props.onDone()
+          }}
+        />
+      )}
     </div>
   )
 }
