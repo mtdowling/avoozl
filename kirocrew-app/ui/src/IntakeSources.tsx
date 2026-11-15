@@ -312,7 +312,7 @@ function AddSourceDialog(props: { plugins: PluginRow[]; repositories: { id: stri
     },
   ]
   return (
-    <Modal close
+    <Modal
       id="avoozl-intake-add"
       title="Add an intake source"
       width="40rem"

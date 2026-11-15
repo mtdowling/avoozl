@@ -2,7 +2,7 @@
 // In a real Chrome (AVOOZL_CHROME, or an installed Chrome or Chromium) on the
 // harness page, at 390 and 1280 px, light and dark: a phone has a thin top bar
 // that opens a full-page list and closes when a section is picked; a desktop
-// keeps its tab row. Skipped when no Chrome is found.
+// keeps its left nav. Skipped when no Chrome is found.
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
 import { buildHarness } from './browser/build.mjs'
@@ -38,7 +38,7 @@ for (const dark of [false, true]) {
     // The hamburger shares the one header row with Stop the line and More.
     assert.ok((await box('[data-phone-header]')).width >= 340, 'the header row spans the screen')
     assert.ok(bar.top < 250, 'the bar is near the top')
-    assert.equal(await page.evaluate(`document.querySelectorAll('[data-top-row] [role="tab"]').length`), 0, 'no tab row')
+    assert.equal(await page.evaluate(`document.querySelectorAll('[data-top-row] [data-nav-head]').length`), 0, 'no tab row')
     assert.match(await page.evaluate(`document.querySelector('[data-top-rail-bar]').textContent`), /Home/)
     assert.equal(await sideways(), false)
 
@@ -48,20 +48,24 @@ for (const dark of [false, true]) {
     const pane = await box('[data-avoozl-pane]')
     assert.ok(list.height > 300, `the list takes the page (${list.height})`)
     assert.ok(pane.hidden || pane.height === 0, 'the page content is out of the way')
-    assert.equal(await page.evaluate(`document.querySelectorAll('[data-top-rail-list] [role="tab"]').length`), 7)
+    assert.equal(await page.evaluate(`document.querySelectorAll('[data-top-rail-list] [data-nav-head]').length`), 7, 'seven sections')
 
-    await page.evaluate(`[...document.querySelectorAll('[data-top-rail-list] [role="tab"]')].find((t) => t.textContent.includes('Flow')).click()`)
+    // A section opens in the menu; picking one of its pages closes the menu.
+    await page.evaluate(`[...document.querySelectorAll('[data-top-rail-list] [data-nav-head]')].find((t) => t.textContent.includes('Needs you')).click()`)
+    await settle()
+    assert.equal(await page.evaluate(`document.querySelectorAll('[data-top-rail-list] [data-nav-section][data-open]').length`), 1, 'one section is open')
+    await page.evaluate(`document.querySelector('[data-top-rail-list] [data-nav-item="waiting/intake"]').click()`)
     await settle()
     assert.equal(await box('[data-top-rail-list]'), null, 'picking collapses the rail')
-    assert.match(await page.evaluate(`document.querySelector('[data-top-rail-bar]').textContent`), /Flow/)
+    assert.match(await page.evaluate(`document.querySelector('[data-top-rail-bar]').textContent`), /Needs you · Planning and intake/)
     assert.ok((await box('[data-avoozl-pane]')).height > 100, 'the page shows again')
   })
 
   test(`a desktop at 1280 px keeps its tab row (${theme})`, { skip }, async () => {
     await page.open(harness.url({ page: 'app', theme }), { width: 1280, height: 800, dark })
-    await page.until(`Boolean(document.querySelector('[data-top-row] [role="tab"]'))`)
+    await page.until(`Boolean(document.querySelector('[data-top-row] [data-nav-head]'))`)
     await settle()
-    assert.equal(await page.evaluate(`document.querySelectorAll('[data-top-row] [role="tab"]').length`), 7)
+    assert.equal(await page.evaluate(`document.querySelectorAll('[data-top-row] [data-nav-head]').length`), 7)
     assert.equal(await box('[data-top-rail-bar]'), null, 'no top bar')
     assert.equal(await sideways(), false)
   })
