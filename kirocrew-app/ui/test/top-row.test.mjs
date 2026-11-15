@@ -218,3 +218,26 @@ test("Stop the line from the nav opens its dialog, and a tap or click in the dia
   await settle()
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-stop-reason]'))`), true, 'the dialog stays open')
 })
+
+test('a hovered nav item changes color, the selected one stays different, and keyboard focus shows a ring', { skip }, async () => {
+  for (const dark of [false, true]) {
+    await page.open(harness.url({ app: '1', theme: dark ? 'dark' : 'light' }), { width: 1280, height: 800, dark })
+    await page.until(`Boolean(document.querySelector('[data-nav-item="plans"]'))`)
+    await settle()
+    const read = (key) => page.evaluate(`(() => { const el = document.querySelector('[data-nav-item="${key}"]'), s = getComputedStyle(el); return { bg: s.backgroundColor, color: s.color, outline: s.outlineStyle } })()`)
+    const before = await read('plans')
+    const selected = await read('dashboard')
+    // Hover: the pointer sits on the item.
+    const box = await page.evaluate(`(() => { const r = document.querySelector('[data-nav-item="plans"]').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2] })()`)
+    await page.hover(box[0], box[1])
+    await settle()
+    const hover = await read('plans')
+    assert.notEqual(hover.bg, before.bg, 'hover changes the background')
+    assert.notEqual(hover.color, before.color, 'hover changes the text color')
+    assert.notDeepEqual([hover.bg, hover.color], [selected.bg, selected.color], 'hover differs from the selected item')
+    await page.hover(5, 5)
+    await page.key('Tab', 'Tab', 9)
+    await page.evaluate(`document.querySelector('[data-nav-item="flow"]').focus()`)
+    assert.equal((await read('flow')).outline, 'solid', 'keyboard focus shows a ring')
+  }
+})

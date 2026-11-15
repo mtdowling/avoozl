@@ -39,6 +39,16 @@ export function NavLine(props: { children: ReactNode }) {
   )
 }
 
+// Hover and keyboard focus, from Kiro Crew's theme variables as in Issue
+// Radar's sidebar. The selected item keeps its accent color and tint, and a
+// hover on it only deepens the tint, so the two stay apart.
+const NAV_CSS = `[data-nav-item]{background:none;color:var(--muted);transition:background-color .12s,color .12s}
+[data-nav-item]:not([data-selected]):hover{background:var(--bg-hover);color:var(--text)}
+[data-nav-item][data-selected]{background:var(--accent-subtle,var(--bg-hover,var(--bg-elevated)));color:var(--accent)}
+[data-nav-item][data-selected]:hover{background:color-mix(in srgb,var(--accent) 18%,var(--bg-elevated))}
+[data-nav-item]:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+@media (prefers-reduced-motion:reduce){[data-nav-item]{transition:none}}`
+
 export function LeftNav(props: { items: NavItem[]; value: string; onChange: (key: string) => void; line?: ReactNode; brand?: ReactNode }) {
   const [width, setWidthState] = useState(() => readWidth(pageStorage(), NAV))
   const [collapsed, setCollapsedState] = useState(() => readFlag(pageStorage(), NAV_COLLAPSED_KEY))
@@ -67,11 +77,12 @@ export function LeftNav(props: { items: NavItem[]; value: string; onChange: (key
         aria-selected={selected}
         aria-label={vertical ? (item.aria ?? item.text) : item.aria}
         data-nav-item={item.key}
+        data-selected={selected ? '' : undefined}
         onClick={() => props.onChange(item.key)}
         style={
           vertical
-            ? { writingMode: 'vertical-rl', transform: 'rotate(180deg)', padding: '10px 0', width: '100%', background: selected ? 'var(--accent-subtle, var(--bg-hover, var(--bg-elevated)))' : 'none', border: 0, borderRadius: 6, color: selected ? 'var(--accent)' : 'var(--muted)', cursor: 'pointer', fontSize: 12.5, fontWeight: selected ? 600 : 500, whiteSpace: 'nowrap' }
-            : { display: 'flex', alignItems: 'center', width: '100%', height: NAV_ROW, padding: '0 12px', background: selected ? 'var(--accent-subtle, var(--bg-hover, var(--bg-elevated)))' : 'none', border: 0, borderRadius: 8, color: selected ? 'var(--accent)' : 'var(--muted)', cursor: 'pointer', fontSize: 13, fontWeight: selected ? 600 : 400, textAlign: 'left' }
+            ? { writingMode: 'vertical-rl', transform: 'rotate(180deg)', padding: '10px 0', width: '100%', border: 0, borderRadius: 6, cursor: 'pointer', fontSize: 12.5, fontWeight: selected ? 600 : 500, whiteSpace: 'nowrap' }
+            : { display: 'flex', alignItems: 'center', width: '100%', height: NAV_ROW, padding: '0 12px', border: 0, borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: selected ? 600 : 400, textAlign: 'left' }
         }
       >
         {vertical ? (
@@ -88,6 +99,7 @@ export function LeftNav(props: { items: NavItem[]; value: string; onChange: (key
   if (collapsed)
     return (
       <nav ref={root} aria-label="Avoozl pages" data-left-nav="collapsed" data-top-row style={{ flex: `0 0 ${NAV_COLLAPSED_WIDTH}px`, width: NAV_COLLAPSED_WIDTH, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 4, padding: '4px 2px', borderRight: '1px solid var(--border)', minHeight: 0, overflowY: 'auto' }}>
+        <style>{NAV_CSS}</style>
         <button type="button" aria-label="Expand the nav" data-nav-expand onClick={() => setCollapsed(false)} style={{ display: 'flex', justifyContent: 'center', padding: '6px 0', background: 'none', border: 0, color: 'var(--muted)', cursor: 'pointer' }}>
           <ChevronRight size={16} aria-hidden="true" />
         </button>
@@ -99,6 +111,7 @@ export function LeftNav(props: { items: NavItem[]; value: string; onChange: (key
     )
   return (
     <>
+      <style>{NAV_CSS}</style>
       <nav ref={root} aria-label="Avoozl pages" data-left-nav="open" data-top-row style={{ flex: `0 0 ${width}px`, width, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 8px 4px 0', minHeight: 0, overflowY: 'auto' }}>
         <div role="tablist" aria-orientation="vertical" aria-label="Avoozl views" data-nav-card style={{ ...NAV_CARD, display: 'flex', flexDirection: 'column', gap: 2, padding: 4 }}>
           {props.items.map((item) => tab(item, false))}
