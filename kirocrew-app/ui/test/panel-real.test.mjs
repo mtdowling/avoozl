@@ -49,7 +49,7 @@ const shot = async (name) => {
   const dir = process.env.AVOOZL_PANEL_SHOTS
   if (!dir) return
   fs.mkdirSync(dir, { recursive: true })
-  await page.evaluate(`document.querySelectorAll('details').forEach((d) => (d.open = true))`)
+  await page.evaluate(`document.querySelector('[data-pp-toggle-all][aria-pressed=false]')?.click()`)
   await page.screenshot(path.join(dir, `${name}.png`))
 }
 const rows = `Boolean(document.querySelector('[data-waiting-row]')) && Boolean(document.querySelector('[data-flight-row]'))`

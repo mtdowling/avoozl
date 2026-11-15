@@ -61,7 +61,7 @@ function useOpenStops(workspaceId: string | null) {
 
 // The page's top row (App.tsx), last and red. While a stop is open it
 // says Line stopped; pressing it still opens the dialog to stop more.
-export function StopLineButton(props: { workspaceId: string | null; onPulled?: () => void }) {
+export function StopLineButton(props: { workspaceId: string | null; onPulled?: () => void; bare?: boolean }) {
   const [open, setOpen] = useState(false)
   const stops = useOpenStops(props.workspaceId)
   if (!props.workspaceId) return null
@@ -73,20 +73,27 @@ export function StopLineButton(props: { workspaceId: string | null; onPulled?: (
   return (
     <>
       <Tooltip text={stopped ? `The line is stopped: ${why}. Resume it from the banner on the Dashboard or Flow. Press to stop more.` : 'Stop new work in a scope, or stop all agents, with a reason'}>
-        {(describedBy) => (
-          <Btn
-            type="button"
-            data-stop-line
-            data-stopped={stopped ? '' : undefined}
-            aria-describedby={describedBy}
-            aria-label={stopped ? `Line stopped, ${stops.length} open stop${stops.length === 1 ? '' : 's'}. Stop more` : undefined}
-            onClick={() => setOpen(true)}
-            style={stopped ? STOPPED : FILL}
-          >
-            <Pause size={ICON} aria-hidden="true" style={stopped ? { color: 'var(--danger)' } : undefined} />
-            {stopped ? 'Line stopped' : 'Stop the line'}
-          </Btn>
-        )}
+        {(describedBy) =>
+          props.bare ? (
+            <button type="button" data-pp-act data-stop-line data-stopped={stopped ? '' : undefined} aria-describedby={describedBy} aria-label={stopped ? `Line stopped, ${stops.length} open stop${stops.length === 1 ? '' : 's'}. Stop more` : undefined} onClick={() => setOpen(true)} style={{ color: 'var(--danger)' }}>
+              <Pause size={12} aria-hidden="true" />
+              {stopped ? 'Stop more' : 'Stop the line'}
+            </button>
+          ) : (
+            <Btn
+              type="button"
+              data-stop-line
+              data-stopped={stopped ? '' : undefined}
+              aria-describedby={describedBy}
+              aria-label={stopped ? `Line stopped, ${stops.length} open stop${stops.length === 1 ? '' : 's'}. Stop more` : undefined}
+              onClick={() => setOpen(true)}
+              style={stopped ? STOPPED : FILL}
+            >
+              <Pause size={ICON} aria-hidden="true" style={stopped ? { color: 'var(--danger)' } : undefined} />
+              {stopped ? 'Line stopped' : 'Stop the line'}
+            </Btn>
+          )
+        }
       </Tooltip>
       {open && (
         <StopLineDialog

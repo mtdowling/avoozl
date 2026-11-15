@@ -8,7 +8,6 @@
 // (panel-api.ts). Every view is built from the shared parts in PanelParts.tsx.
 // Local workers are retired: no worker rows here.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import Logo from './Logo.tsx'
 import { ConfirmProvider } from './controls.tsx'
 import { railFor } from './dashboard-api.ts'
 import { DRIVER_AGENT, DRIVER_START_MESSAGE, recapSince, type Away, type DriverRead } from './driver-view-api.ts'
@@ -30,7 +29,7 @@ import {
   type PanelSection as SectionName,
   type WaitingRow,
 } from './panel-api.ts'
-import { PanelAct, PanelChip, PanelEmpty, PanelList, PanelRoot, PanelRow, PanelSection, PanelStrip, PanelToolbar } from './PanelParts.tsx'
+import { PanelAct, PanelChip, PanelEmpty, PanelHeader, PanelList, PanelRoot, PanelRow, PanelSection, PanelStatus } from './PanelParts.tsx'
 import { Bot, Check, CircleAlert, CircleDot, GitBranch, GitPullRequest, Inbox, MessageSquare, Radar } from './icons.ts'
 import { RefreshButton } from './RefreshButton.tsx'
 import { plansClient } from './plans-api.ts'
@@ -164,6 +163,7 @@ export default function AvoozlPanel() {
   const navigate = useNavigate()
   const { openChat } = useChatLauncher()
   const [workspaceId, setWorkspaceId] = useState<string | null>(readPageState(storage()).workspaceId)
+  const [workspaceName, setWorkspaceName] = useState<string | null>(null)
   const [specNames, setSpecNames] = useState<string[]>([])
   const [reads, setReads] = useState<PanelRead | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -176,6 +176,9 @@ export default function AvoozlPanel() {
   const plans = useMemo(() => plansClient(api), [api])
   const views = useMemo(() => viewsClient(api), [api])
   const releases = useMemo(() => releaseClient(api), [api])
+  useEffect(() => {
+    if (workspaceId) workspaceClient(api).list().then((list) => setWorkspaceName(list.items.find((item) => item.id === workspaceId)?.name ?? null), () => undefined)
+  }, [api, workspaceId])
   const idRef = useRef(workspaceId)
   const readsRef = useRef(reads)
   readsRef.current = reads
@@ -360,75 +363,30 @@ export default function AvoozlPanel() {
     </PanelSection>
   )
 
-  // The line's state with its Stop the line button, on one row.
-  const line = (
-    <div data-panel-line data-stopped={stopped ? '' : undefined} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-      <PanelChip tone={stopped ? 'danger' : 'ok'}>{stopped ? 'Line stopped' : 'Line running'}</PanelChip>
-      <ConfirmProvider>
-        <StopLineButton workspaceId={workspaceId} />
-      </ConfirmProvider>
-    </div>
+  // The top: one thin line (workspace name, Refresh, fold all), then one
+  // compact row of what matters at a glance.
+  const header = (
+    <PanelHeader name={workspaceName ?? 'Avoozl'} instance={instanceName}>
+      <RefreshButton bare workspaceId={workspaceId} onRefresh={() => void load()} />
+    </PanelHeader>
   )
-  const stopRows = model.stops.length > 0 && (
-    <PanelList>
-      {model.stops.map((text) => (
-        <PanelRow key={text} icon={CircleAlert} title={text} />
-      ))}
-    </PanelList>
-  )
-
-  // The top of the panel: the toolbar, then what matters at a glance.
-  const toolbar = (
-    <PanelToolbar
-      end={
-        <>
-          <RefreshButton workspaceId={workspaceId} onRefresh={() => void load()} />
-          <button
-            type="button"
-            aria-label="Open Avoozl"
-            data-open-avoozl
-            data-pp-act
-            onClick={() => navigate(AVOOZL_PAGE)}
-            style={{ background: 'var(--bg-elevated, var(--card))', fontWeight: 600 }}
-          >
-            <Logo size={16} />
-            Open Avoozl
-          </button>
-        </>
-      }
-    >
-      <PanelChip tone="info" tip={instanceName ? `This Avoozl is called ${instanceName}.` : undefined}>
-        {instanceName ?? 'Avoozl'}
-      </PanelChip>
-      <span data-recap-line style={{ fontSize: 11, color: 'var(--muted)' }}>
-        {loading ? 'Loading…' : `${model.waiting.length} waiting on you · ${model.inFlight.length} in flight · ${stopped ? 'line stopped' : 'line running'}`}
+  const status = (
+    <PanelStatus>
+      <span data-panel-line data-stopped={stopped ? '' : undefined} style={{ display: 'inline-flex' }}>
+        <PanelChip tone={stopped ? 'danger' : 'ok'}>{stopped ? 'Line stopped' : 'Line running'}</PanelChip>
       </span>
-    </PanelToolbar>
-  )
-  const strip = (
-    <PanelStrip>
-      {line}
-      {model.queue && (
-        <PanelChip tone={model.queue.next ? 'info' : 'muted'} tap tip={`Release queue: ${queueSummary(model.queue)}${model.queue.mode ? `. Mode: ${model.queue.mode}.` : '.'}`} data-strip-queue>
-          Queue {queueSummary(model.queue)}
-        </PanelChip>
-      )}
-      {model.recent[0] && (
-        <PanelChip tap tip={`${model.recent.length} recent merge${model.recent.length === 1 ? '' : 's'}. Last: ${model.recent[0].title}, ${relativeTime(model.recent[0].at, now)}.`} data-strip-merged>
-          Merged {model.recent.length} · {shortAgo(model.recent[0].at, now)}
-        </PanelChip>
-      )}
-    </PanelStrip>
+      <span data-recap-line>{loading ? 'Loading…' : `${model.waiting.length} waiting on you · ${model.inFlight.length} in flight`}</span>
+    </PanelStatus>
   )
 
   // A driver read that failed is unknown, never none: it may be running.
   const view = driverView(reads && !reads.driver ? { state: 'unknown', slot: null, href: null, openedAt: null, lastSeenAt: null } : reads?.driver)
-  const driverBox = loading ? null : (
-    <PanelList>
+  const driverRows = loading ? null : (
+    <>
       <PanelRow
         data-panel-driver={view.state}
         icon={Bot}
-        title="Driver session"
+        title="Driver"
         chips={
           <>
             <PanelChip tone={view.state === 'running' ? 'ok' : view.state === 'unknown' ? 'warn' : 'muted'}>{DRIVER_STATE[view.state]}</PanelChip>
@@ -465,7 +423,29 @@ export default function AvoozlPanel() {
           actions={<PanelAct label="Open" href={linkHref(view.elsewhere.href)} />}
         />
       )}
-    </PanelList>
+    </>
+  )
+  const lineSection = (
+    <PanelSection id="line" title="Line and driver" summary={stopped ? 'stopped' : undefined} open>
+      <PanelList>
+        <PanelRow
+          data-line-row
+          icon={CircleDot}
+          title={stopped ? 'The line is stopped' : 'The line is running'}
+          noTip
+          actions={
+            <ConfirmProvider>
+              <StopLineButton bare workspaceId={workspaceId} />
+            </ConfirmProvider>
+          }
+        />
+        {model.stops.map((text) => (
+          <PanelRow key={text} icon={CircleAlert} title={text} />
+        ))}
+        {driverRows}
+        <PanelRow icon={Radar} title="Avoozl app" noTip actions={<PanelAct label="Open Avoozl" data-open-avoozl onClick={() => navigate(AVOOZL_PAGE)} />} />
+      </PanelList>
+    </PanelSection>
   )
   const sinceBox = recap && (
     <div data-since-recap>
@@ -500,7 +480,8 @@ export default function AvoozlPanel() {
 
   return (
     <PanelRoot kind={kind.kind}>
-      {toolbar}
+      {header}
+      {status}
       {error && <PanelEmpty role="alert">Avoozl can't read this workspace: {error}</PanelEmpty>}
       {note && <PanelEmpty role="status">{note}</PanelEmpty>}
       {kind.kind === 'spec-builder' && (
@@ -555,8 +536,7 @@ export default function AvoozlPanel() {
               )}
             </PanelSection>
           )}
-          {strip}
-          {stopRows}
+          {lineSection}
         </>
       )}
       {kind.kind === 'crew' && (
@@ -596,32 +576,27 @@ export default function AvoozlPanel() {
               <PanelEmpty>Avoozl cannot message this chat. It shows what the claim on GitHub says.</PanelEmpty>
             </PanelSection>
           </div>
-          {strip}
-          {stopRows}
+          {lineSection}
         </>
       )}
       {kind.kind === 'avoozl' && (
         <>
-          {strip}
-          {stopRows}
-          {driverBox}
           {sinceBox}
           {waiting}
           {inFlight}
           {queue}
           {recent}
+          {lineSection}
         </>
       )}
       {kind.kind === 'other' && (
         <div data-panel-recap>
-          {strip}
-          {stopRows}
-          {driverBox}
           {sinceBox}
           {waiting}
           {inFlight}
           {queue}
           {recent}
+          {lineSection}
         </div>
       )}
     </PanelRoot>

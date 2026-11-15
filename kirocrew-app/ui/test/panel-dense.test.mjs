@@ -38,7 +38,7 @@ const shot = async (size, name) => {
   const dir = process.env.AVOOZL_PANEL_SHOTS
   if (!dir) return
   fs.mkdirSync(dir, { recursive: true })
-  await page.evaluate(`document.querySelectorAll('details').forEach((d) => (d.open = true))`)
+  await page.evaluate(`document.querySelector('[data-pp-toggle-all][aria-pressed=false]')?.click()`)
   await page.screenshot(path.join(dir, `${name}-${size.name}.png`))
 }
 
@@ -74,11 +74,10 @@ for (const size of SIZES) {
     assert.match(waiting, /Needs you/)
     assert.match(waiting, /tokenizer A or B/)
     // The top: Stop the line state, the release queue, recent merges and the driver with its workspace.
-    const top = await page.evaluate(`document.querySelector('[data-pp-strip]').textContent`)
-    assert.match(top, /Line running/)
-    assert.match(top, /Queue 1 next · 1 held/)
-    assert.match(top, /Merged 1 · 1h/)
-    assert.match(await page.evaluate(`document.querySelector('[data-panel-driver]').textContent`), /Driver session.*Not started/)
+    assert.match(await page.evaluate(`document.querySelector('[data-pp-status]').textContent`), /Line running.*2 waiting on you · 3 in flight/)
+    assert.match(await page.evaluate(`document.querySelector('[data-panel-fold="queue"] [data-pp-section-head]').textContent`), /Release queue.*1 next · 1 held/)
+    assert.match(await page.evaluate(`document.querySelector('[data-panel-fold="recent"] [data-pp-section-head]').textContent`), /Recent merges.*last 1h/)
+    assert.match(await page.evaluate(`document.querySelector('[data-panel-driver]').textContent`), /Driver.*Not started/)
     // The Refresh button reads [↻ 32s] from the shared GitHub cache.
     assert.match(await page.evaluate(`document.querySelector('button[aria-label^="Refresh"]').textContent`), /^\d+s$/)
   })
@@ -103,7 +102,7 @@ for (const size of SIZES) {
 test('every tap target is 44 px tall on a phone and compact on a desktop', { skip }, async () => {
   const phone = SIZES[1]
   await open(phone)
-  const small = await page.evaluate(`[...document.querySelectorAll('[data-pp] button, [data-pp] a[data-pp-act], [data-pp-section] > summary, [data-pp-chip][data-tap]')].filter((el) => el.getBoundingClientRect().height > 0 && el.getBoundingClientRect().height < 43.5).map((el) => el.textContent.trim().slice(0, 24) + ' ' + el.getBoundingClientRect().height)`)
+  const small = await page.evaluate(`[...document.querySelectorAll('[data-pp] button, [data-pp] a[data-pp-act], [data-pp-section-head], [data-pp-chip][data-tap]')].filter((el) => el.getBoundingClientRect().height > 0 && el.getBoundingClientRect().height < 43.5).map((el) => el.textContent.trim().slice(0, 24) + ' ' + el.getBoundingClientRect().height)`)
   assert.deepEqual(small, [])
   const rowHeights = await page.evaluate(`[...document.querySelectorAll('[data-pp-row]')].map((row) => row.getBoundingClientRect().height)`)
   assert.ok(rowHeights.every((height) => height >= 43.5), 'rows are tap sized')
