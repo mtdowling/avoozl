@@ -1473,6 +1473,7 @@ export class Operations {
           spec: locateLocalSpec(
             { ...readSpecFolder(root, name), root },
             mirror,
+            policy,
           ),
         })),
       ),

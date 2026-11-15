@@ -310,6 +310,10 @@ test("a proved public review branch in a mirror keeps default-branch approval", 
   const plan = await ops.execute("plan.create", { spec: "public-one" });
   assert.equal(plan.home, "main");
   assert.equal(ops.readSpec("public-one").approvalBlocked, undefined);
+  assert.equal(
+    ops.specList().items.find((item) => item.name === "public-one").home,
+    "main",
+  );
   const target = ops.approvalPullRequestTarget(plan);
   assert.equal(target.repository.id, "acme/app-private");
   assert.equal(target.ref, undefined);
