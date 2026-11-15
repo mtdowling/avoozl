@@ -356,8 +356,7 @@ function bt(e) {
 			alignItems: "center",
 			gap: 8,
 			width: "100%",
-			minHeight: 44,
-			padding: "0 16px",
+			padding: "3px 16px",
 			background: "var(--bg-elevated)",
 			border: 0,
 			borderTop: "1px solid var(--border)",
@@ -405,8 +404,7 @@ function bt(e) {
 				style: {
 					display: "flex",
 					alignItems: "center",
-					minHeight: 52,
-					padding: "0 16px",
+					padding: "3px 16px",
 					background: r ? "var(--bg-elevated)" : "none",
 					border: 0,
 					borderBottom: "1px solid var(--border)",
@@ -3045,6 +3043,10 @@ function Ni({ onPick: e }) {
 					type: "submit",
 					primary: !0,
 					disabled: !r,
+					style: {
+						alignSelf: "flex-end",
+						height: "auto"
+					},
 					children: "Open trace"
 				})]
 			})
@@ -6382,7 +6384,7 @@ function Ts(e) {
 	});
 }
 // kirocrew-app/ui/src/StatusCells.tsx
-var Es = "\n[data-sc-row]{container-type:inline-size}\n[data-sc-grid]{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:8px}\n@container (max-width:420px){[data-sc-grid]{grid-template-columns:minmax(0,1fr)}}\n[data-sc]{display:flex;flex-wrap:nowrap;align-items:center;align-content:flex-start;gap:0 8px;min-width:0;padding:4px 8px;border:1px solid var(--border);border-radius:8px;font-size:12px;line-height:18px;color:var(--text)}\n[data-sc-title]{flex:0 1 auto;display:inline-flex;align-items:center;gap:6px;min-width:0;max-width:100%;font-weight:600;color:var(--text-strong,var(--text));overflow:hidden;text-overflow:ellipsis;white-space:nowrap}\n[data-sc-dot]{flex:none;width:8px;height:8px;border-radius:50%;background:var(--muted)}\n[data-sc-dot][data-tone=ok]{background:var(--ok)}\n[data-sc-dot][data-tone=warn]{background:var(--warning,#b7791f)}\n[data-sc-dot][data-tone=danger]{background:var(--danger)}\n[data-sc-actions]{flex:none;display:inline-flex;flex-wrap:nowrap;align-items:center;gap:4px;margin-left:auto}\n[data-sc-act]{display:inline-flex;align-items:center;justify-content:center;width:24px;height:22px;padding:0;background:transparent;border:1px solid transparent;border-radius:6px;color:var(--muted);font:inherit;text-decoration:none;cursor:pointer;transition:background-color .12s,color .12s}\n[data-sc-act]:hover{background:var(--bg-hover);color:var(--text)}\n[data-sc-act][data-primary]{color:var(--accent)}\n[data-sc-act]:disabled{opacity:.6;cursor:default}\n@media (pointer:coarse),(max-width:640px){[data-sc-act]{width:26px;height:26px}[data-sc-actions]{gap:2px}}\n";
+var Es = "\n[data-sc-row]{container-type:inline-size}\n[data-sc-grid]{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:8px}\n@container (max-width:420px){[data-sc-grid]{grid-template-columns:minmax(0,1fr)}}\n[data-sc]{display:flex;flex-wrap:nowrap;align-items:center;align-content:flex-start;gap:0 8px;min-width:0;padding:4px 8px;border:1px solid var(--border);border-radius:8px;font-size:12px;line-height:18px;color:var(--text)}\n[data-sc-title]{flex:0 1 auto;display:inline-flex;align-items:center;gap:6px;min-width:0;max-width:100%;font-weight:600;color:var(--text-strong,var(--text));overflow:hidden;text-overflow:ellipsis;white-space:nowrap}\n[data-sc-dot]{flex:none;width:8px;height:8px;border-radius:50%;background:var(--muted)}\n[data-sc-dot][data-tone=ok]{background:var(--ok)}\n[data-sc-dot][data-tone=warn]{background:var(--warning,#b7791f)}\n[data-sc-dot][data-tone=danger]{background:var(--danger)}\n[data-sc-actions]{flex:none;display:inline-flex;flex-wrap:nowrap;align-items:center;gap:4px;margin-left:auto}\n[data-sc-act]{display:inline-flex;align-items:center;justify-content:center;width:24px;height:22px;padding:0;background:transparent;border:1px solid transparent;border-radius:6px;color:var(--muted);font:inherit;text-decoration:none;cursor:pointer;transition:background-color .12s,color .12s}\n[data-sc-act]:hover{background:var(--bg-hover);color:var(--text)}\n[data-sc-act][data-primary]{color:var(--accent)}\n[data-sc-act]:disabled{opacity:.6;cursor:default}\n";
 function Ds(e) {
 	return /* @__PURE__ */ w("div", {
 		"data-sc-row": !0,
@@ -13827,8 +13829,7 @@ function Vf(e) {
 			alignItems: "center",
 			gap: 4,
 			flexShrink: 0,
-			minHeight: 44,
-			padding: "0 8px",
+			padding: "2px 8px",
 			marginLeft: -4,
 			background: "none",
 			border: 0,
@@ -13853,7 +13854,6 @@ function Hf(e) {
 			display: "flex",
 			alignItems: "center",
 			gap: 8,
-			minHeight: 44,
 			background: "var(--bg)"
 		},
 		children: [/* @__PURE__ */ C(Vf, {
@@ -20008,8 +20008,7 @@ function eg(e) {
 							cursor: "pointer",
 							background: "none",
 							border: 0,
-							color: "inherit",
-							minHeight: 56
+							color: "inherit"
 						},
 						children: [/* @__PURE__ */ w("span", {
 							className: "flex min-w-0 flex-1 flex-col gap-0.5",
@@ -30299,8 +30298,7 @@ function Qb(e) {
 									cursor: "pointer",
 									background: "none",
 									border: 0,
-									color: "inherit",
-									minHeight: p.phone ? 48 : void 0
+									color: "inherit"
 								},
 								children: [/* @__PURE__ */ C("span", {
 									"aria-hidden": "true",

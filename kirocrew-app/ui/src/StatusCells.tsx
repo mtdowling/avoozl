@@ -25,7 +25,6 @@ const CSS = `
 [data-sc-act]:hover{background:var(--bg-hover);color:var(--text)}
 [data-sc-act][data-primary]{color:var(--accent)}
 [data-sc-act]:disabled{opacity:.6;cursor:default}
-@media (pointer:coarse),(max-width:640px){[data-sc-act]{width:26px;height:26px}[data-sc-actions]{gap:2px}}
 `
 
 export function StatusRow(props: { children: ReactNode }) {

@@ -1,6 +1,6 @@
 // The side panel is dense and works on a phone: rows are about two text lines
 // tall (the earlier panel stacked a title, a detail and an action row, so a row
-// was three or more lines), nothing scrolls sideways, tap targets are 44 px on
+// was three or more lines), nothing scrolls sideways, buttons stay compact on
 // a phone, nothing is sticky, and each row carries its facts. Measured in a real
 // Chrome at 1280 px light and 390 px dark. Heights are compared with the row's
 // own computed line height, not a fixed number. Skipped when no Chrome is found.
@@ -27,8 +27,8 @@ after(async () => {
 })
 
 const SIZES = [
-  { name: 'desktop', width: 1280, height: 900, theme: 'light', dark: false, lines: 3.5 },
-  { name: 'phone', width: 390, height: 800, theme: 'dark', dark: true, lines: 3.5 },
+  { name: 'desktop', width: 1280, height: 900, theme: 'light', dark: false, lines: 4 },
+  { name: 'phone', width: 390, height: 800, theme: 'dark', dark: true, lines: 4 },
 ]
 const open = async (size, query = {}) => {
   await page.open(harness.url({ page: 'panel', theme: size.theme, sid: 'chat-1', ...query }), { width: size.width, height: size.height, dark: size.dark })
@@ -122,17 +122,22 @@ for (const size of SIZES)
 test('buttons are compact icon and text buttons, on a phone and a desktop', { skip }, async () => {
   const phone = SIZES[1]
   await open(phone)
-  // Kiro Crew's own compact size: header icons 28 px, row buttons 28 px, section headers 40 px.
-  const sizes = await page.evaluate(`({
+  // Kiro Crew's own compact size on a phone as on a desktop: no tap-target bump.
+  const measure = () => page.evaluate(`({
     icons: [...document.querySelectorAll('[data-pp-head] button')].map((el) => el.getBoundingClientRect().height),
     acts: [...document.querySelectorAll('[data-pp-act]')].filter((el) => el.getBoundingClientRect().height > 0).map((el) => el.getBoundingClientRect().height),
     heads: [...document.querySelectorAll('[data-pp-section-head]')].map((el) => el.getBoundingClientRect().height),
     header: document.querySelector('[data-pp-head]').getBoundingClientRect().height,
   })`)
-  assert.ok(sizes.icons.length === 2 && sizes.icons.every((h) => h >= 27.5 && h <= 30), 'header icons ' + sizes.icons)
-  assert.ok(sizes.acts.every((h) => h >= 27.5 && h <= 30), 'row buttons ' + sizes.acts)
-  assert.ok(sizes.heads.every((h) => h >= 39.5 && h <= 44), 'section headers ' + sizes.heads)
+  const sizes = await measure()
+  assert.ok(sizes.icons.length === 2 && sizes.icons.every((h) => h <= 28), 'header icons ' + sizes.icons)
+  assert.ok(sizes.acts.every((h) => h <= 28), 'row buttons ' + sizes.acts)
+  assert.ok(sizes.heads.every((h) => h >= 36 && h <= 40), 'section headers ' + sizes.heads)
   assert.ok(sizes.header <= 40, 'the header is ' + sizes.header)
+  await open(SIZES[0])
+  const wide = await measure()
+  assert.deepEqual([...new Set(wide.heads)], [...new Set(sizes.heads)], 'section headers keep their height on a phone')
+  assert.deepEqual([...new Set(wide.acts)], [...new Set(sizes.acts)], 'row buttons keep their height on a phone')
   const desktop = SIZES[0]
   await open(desktop)
   const act = await page.evaluate(`Math.max(...[...document.querySelectorAll('[data-pp-act]')].map((el) => el.getBoundingClientRect().height))`)

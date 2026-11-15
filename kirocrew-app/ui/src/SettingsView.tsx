@@ -1646,7 +1646,7 @@ export default function SettingsView(props: {
                       aria-expanded={open}
                       onClick={() => pick(section.key)}
                       className="flex w-full items-center gap-2 py-2.5 text-left text-sm font-semibold"
-                      style={{ cursor: 'pointer', background: 'none', border: 0, color: 'inherit', minHeight: ld.phone ? 48 : undefined }}
+                      style={{ cursor: 'pointer', background: 'none', border: 0, color: 'inherit', }}
                     >
                       <span aria-hidden="true" style={{ display: 'inline-flex', transform: open ? 'rotate(90deg)' : 'none' }}>
                         <ChevronRight size={14} />

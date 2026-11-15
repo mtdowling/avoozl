@@ -217,7 +217,7 @@ for (const [width, height] of [[1280, 900], [390, 800]])
       assert.equal(row.open.text, 'Open Avoozl')
       for (const one of [row.stop, row.open]) {
         assert.ok(one.right <= row.width, 'inside the panel')
-        assert.ok(one.height >= (width <= 640 ? 28 : 18) && one.height <= 36, `small but tappable (${one.height} px)`)
+        assert.ok(one.height >= 18 && one.height <= 28, `compact (${one.height} px)`)
       }
     })
 
