@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { IconLabel } from './controls.tsx'
 import { RefreshCw } from './icons.ts'
-import { countdownText, countdownWidth, limitedFor, refreshPeriod, refreshTip } from './refresh-api.ts'
+import { countdownText, countdownWidth, limitedFor, refreshColor, refreshPeriod, refreshTip } from './refresh-api.ts'
 import { type RateView, settingsClient } from './settings-api.ts'
 import { useAppApi } from './host.ts'
 import { Tooltip } from './Tooltip.tsx'
@@ -54,16 +54,18 @@ export function RefreshButton(props: { workspaceId: string | null; onRefresh: ()
 
   const shown = limited > 0 ? limited : left
   const label = `Refresh, ${limited > 0 ? 'GitHub limit lifts in ' : 'reads again in '}${countdownText(shown, limited > 0)}`
-  // The side panel's own small button: [↻ 32s], styled by PanelParts.
-  if (bare)
+  // The side panel's own small icon: no countdown. Its color moves from muted
+  // toward red as the cached read ages, and is red while GitHub's limit holds.
+  if (bare) {
+    const age = limited > 0 ? 100 : Math.round(Math.min(1, Math.max(0, 1 - left / period)) * 100)
     return (
       <Tooltip text={refreshTip(rate, left, limited)}>
-        <button type="button" data-pp-icon onClick={refresh} disabled={busy} aria-label={label}>
-          <RefreshCw size={11} aria-hidden="true" />
-          <span style={{ display: 'inline-block', minWidth: `${countdownWidth(limited > 0, period)}ch`, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{countdownText(shown, limited > 0)}</span>
+        <button type="button" data-pp-icon data-bare data-refresh-age={age} data-limited={limited > 0 ? '' : undefined} onClick={refresh} disabled={busy} aria-label={label} style={{ color: refreshColor(age) }}>
+          <RefreshCw size={13} aria-hidden="true" />
         </button>
       </Tooltip>
     )
+  }
   return (
     <IconLabel
       icon={RefreshCw}

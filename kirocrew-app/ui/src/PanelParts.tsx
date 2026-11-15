@@ -26,10 +26,15 @@ export const PANEL_CSS = `
 [data-pp]{container-type:inline-size;font-size:12px;line-height:18px;min-width:0;max-width:100%;overflow-x:hidden;box-sizing:border-box;color:var(--text)}
 [data-pp] *{box-sizing:border-box}
 [data-pp-head]{display:flex;align-items:center;flex-wrap:nowrap;gap:6px;padding:6px 12px;border-bottom:1px solid var(--border);min-width:0}
-[data-pp-head-name]{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:600;color:var(--text-strong,var(--text))}
+[data-pp-head-name]{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:600;color:var(--text-strong,var(--text))}
 [data-pp-head-instance]{font-weight:400;color:var(--muted)}
-[data-pp-head-end]{flex:none;display:inline-flex;align-items:center;gap:6px}
-[data-pp-status]{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;padding:6px 12px;border-bottom:1px solid var(--border);font-size:11px;color:var(--muted)}
+[data-pp-head-tools]{flex:none;display:inline-flex;align-items:center;gap:2px}
+[data-pp-head-end]{flex:none;display:inline-flex;align-items:center;gap:4px;margin-left:auto}
+[data-pp-head-chip]{flex:none;display:inline-flex;align-items:center;gap:4px;padding:2px 6px;border-radius:4px;font-size:11px;line-height:16px;white-space:nowrap;color:var(--muted);background:var(--bg-hover)}
+[data-pp-head-chip][data-tone=warn]{color:var(--warning,#b7791f);background:color-mix(in srgb,var(--warning,#b7791f) 15%,transparent)}
+[data-pp-pulse]{flex:none;width:7px;height:7px;border-radius:50%;background:var(--ok);animation:pp-pulse 1.6s ease-in-out infinite}
+@keyframes pp-pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 color-mix(in srgb,var(--ok) 50%,transparent)}50%{opacity:.55;box-shadow:0 0 0 3px transparent}}
+@media (prefers-reduced-motion:reduce){[data-pp-pulse]{animation:none}}
 [data-pp-section]{border-bottom:1px solid var(--border)}
 [data-pp-section-head]{display:flex;align-items:center;gap:8px;width:100%;padding:10px 12px;background:transparent;border:0;border-radius:0;text-align:left;cursor:pointer;color:var(--text);font:inherit;font-size:12px;font-weight:600;transition:background-color .12s}
 [data-pp-section-head]:hover{background:var(--bg-hover)}
@@ -56,13 +61,17 @@ a[data-pp-row-title]:hover{text-decoration:underline}
 [data-pp-chip][data-tone=warn]{color:var(--warning,#b7791f);background:color-mix(in srgb,var(--warning,#b7791f) 15%,transparent)}
 [data-pp-chip][data-tone=danger]{color:var(--danger);background:color-mix(in srgb,var(--danger) 15%,transparent)}
 [data-pp-chip][data-tone=info]{color:var(--accent);background:color-mix(in srgb,var(--accent) 15%,transparent)}
-[data-pp-act],[data-pp-icon]{background:transparent;display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:2px 8px;border:1px solid var(--border);border-radius:6px;color:var(--muted);font:inherit;font-size:11px;line-height:16px;text-decoration:none;white-space:nowrap;cursor:pointer;transition:background-color .12s,color .12s}
+[data-pp-act],[data-pp-icon]{min-height:22px;background:transparent;display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:2px 8px;border:1px solid var(--border);border-radius:6px;color:var(--muted);font:inherit;font-size:11px;line-height:16px;text-decoration:none;white-space:nowrap;cursor:pointer;transition:background-color .12s,color .12s}
 [data-pp-act]:hover,[data-pp-icon]:hover{background:var(--bg-hover);color:var(--text)}
 [data-pp-act][data-pp-primary]{border-color:var(--accent);color:var(--accent)}
 [data-pp-act]:disabled,[data-pp-icon]:disabled{opacity:.6;cursor:default}
 [data-pp-icon][data-bare]{padding:2px 5px;border-color:transparent}
 [data-pp-cells]{padding:0 12px 8px}
 [data-pp-empty]{margin:0;padding:0 12px 12px;font-size:12px;color:var(--muted)}
+@media (max-width:640px){
+[data-pp-narrow-hide]{display:none}
+[data-pp-act][data-narrow-icon]{padding:2px 6px}
+}
 @container (max-width:520px){
 [data-pp-row-line]:has(>[data-tooltip-anchor]:nth-child(n+4)){flex-wrap:wrap}
 [data-pp-row-line]:has(>[data-tooltip-anchor]:nth-child(n+4))>[data-tooltip-anchor]:first-child{max-width:100%}
@@ -156,22 +165,22 @@ export function PanelChip(props: { tone?: Tone; tip?: string; href?: string | nu
   )
 }
 
-// The one thin line at the top: the workspace name at the start, small icon
-// buttons at the end. The last one folds or opens every section.
-export function PanelHeader(props: { name: string; instance?: string | null; children?: ReactNode }) {
+// The one thin line at the top: the name, small icon tools (Refresh, then
+// fold all), status chips, and the line's pause button at the far right.
+export function PanelHeader(props: { name: string; instance?: string | null; tip?: string; tools?: ReactNode; chips?: ReactNode; end?: ReactNode }) {
   const folds = useContext(FoldsContext)
   const label = folds?.allOpen ? 'Collapse all sections' : 'Expand all sections'
   const Icon = folds?.allOpen ? ChevronsDownUp : ChevronsUpDown
   return (
     <div data-pp-head>
-      <Tooltip text={props.instance ? `${props.name} · ${props.instance}` : props.name}>
+      <Tooltip text={props.tip ?? (props.instance ? `${props.name} · ${props.instance}` : props.name)}>
         <span data-pp-head-name>
           {props.name}
           {props.instance && <span data-pp-head-instance> · {props.instance}</span>}
         </span>
       </Tooltip>
-      <span data-pp-head-end>
-        {props.children}
+      <span data-pp-head-tools>
+        {props.tools}
         {folds && (
           <Tooltip text={label}>
             <button type="button" data-pp-icon data-bare data-pp-toggle-all aria-label={label} aria-pressed={folds.allOpen} onClick={() => folds.setAll(!folds.allOpen)}>
@@ -180,13 +189,27 @@ export function PanelHeader(props: { name: string; instance?: string | null; chi
           </Tooltip>
         )}
       </span>
+      {props.chips}
+      {props.end && <span data-pp-head-end>{props.end}</span>}
     </div>
   )
 }
 
-// What matters at a glance, in one compact row under the header.
-export function PanelStatus(props: { children: ReactNode }) {
-  return <div data-pp-status>{props.children}</div>
+// A count in the header: an icon and the number, with its words beside them on
+// a wide panel and only in the tooltip and name on a narrow one.
+export function PanelHeadChip(props: { icon: ReactNode; count: number; words: string; tip: string; tone?: 'warn' | 'muted'; [attr: `data-${string}`]: unknown }) {
+  const { icon, count, words, tip, tone, ...rest } = props
+  return (
+    <Tooltip text={tip}>
+      <span data-pp-head-chip data-tone={tone} role="img" aria-label={`${count} ${words}`} {...rest}>
+        {icon}
+        <span aria-hidden="true">{count}</span>
+        <span data-pp-narrow-hide aria-hidden="true">
+          {words}
+        </span>
+      </span>
+    </Tooltip>
+  )
 }
 
 export function PanelSection(props: { id: string; title: string; count?: number; tone?: Tone; summary?: string; open?: boolean; children: ReactNode }) {
@@ -276,22 +299,25 @@ export function PanelRow(props: {
 }
 
 // A row's action: a link when it has `href`, else a button.
-export function PanelAct(props: { label: string; icon?: LucideIcon; href?: string; onClick?: () => void; disabled?: boolean; primary?: boolean; tip?: string; [attr: `data-${string}`]: unknown }) {
-  const { label, icon: Icon, href, onClick, disabled, primary, tip, ...rest } = props
+// `narrowIcon` shows only the icon on a narrow panel; `name` is then its
+// accessible name (and the tooltip says the rest).
+export function PanelAct(props: { label: string; icon?: LucideIcon; href?: string; onClick?: () => void; disabled?: boolean; primary?: boolean; tip?: string; narrowIcon?: boolean; name?: string; [attr: `data-${string}`]: unknown }) {
+  const { label, icon: Icon, href, onClick, disabled, primary, tip, narrowIcon, name, ...rest } = props
   const inner = (
     <>
       {Icon && <Icon size={12} aria-hidden="true" />}
-      {label}
+      {narrowIcon ? <span data-pp-narrow-hide>{label}</span> : label}
     </>
   )
+  const named = { 'aria-label': name, 'data-narrow-icon': narrowIcon ? '' : undefined }
   return (
     <Tooltip text={tip}>
       {href ? (
-        <a data-pp-act data-pp-primary={primary ? '' : undefined} href={linkHref(href)} target="_blank" rel="noreferrer" {...rest}>
+        <a data-pp-act data-pp-primary={primary ? '' : undefined} href={linkHref(href)} target="_blank" rel="noreferrer" {...named} {...rest}>
           {inner}
         </a>
       ) : (
-        <button data-pp-act data-pp-primary={primary ? '' : undefined} type="button" disabled={disabled} onClick={onClick} {...rest}>
+        <button data-pp-act data-pp-primary={primary ? '' : undefined} type="button" disabled={disabled} onClick={onClick} {...named} {...rest}>
           {inner}
         </button>
       )}
