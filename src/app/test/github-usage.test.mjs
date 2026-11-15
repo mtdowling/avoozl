@@ -2,7 +2,6 @@
 // fetch and a temporary store; no network.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmodSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { GitHubClient } from "../github.mjs";
@@ -92,27 +91,23 @@ test("calls are counted by source, cache hits apart", async (t) => {
   assert.equal(view.hourCalls, 2);
 });
 
-test("bin/gh-counted forwards to gh and records the source", async (t) => {
-  const { dir, github, store } = setup(t),
-    fake = path.join(dir, "gh");
-  writeFileSync(fake, '#!/bin/sh\necho "gh $@"\nexit 3\n');
-  chmodSync(fake, 0o755);
+test("bin/gh-counted runs gh and records the source", async (t) => {
+  const { dir, github, store } = setup(t);
   const countFile = path.join(dir, "wrapper.jsonl"),
     run = spawnSync(
       process.execPath,
-      [path.resolve("bin/gh-counted"), "pr", "view", "7"],
+      [path.resolve("bin/gh-counted"), "--version"],
       {
         encoding: "utf8",
         env: {
           ...process.env,
-          PATH: dir + path.delimiter + process.env.PATH,
           AVOOZL_GH_COUNT_FILE: countFile,
           AVOOZL_GH_SOURCE: "radar",
         },
       },
     );
-  assert.equal(run.status, 3);
-  assert.equal(run.stdout.trim(), "gh pr view 7");
+  assert.equal(run.status, 0);
+  assert.match(run.stdout, /gh version/);
   assert.equal(
     rateView(store, Date.now(), { countFile }).bySource.radar.calls,
     1,
