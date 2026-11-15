@@ -5,6 +5,7 @@
 // containing block. ?theme=light|dark sets the host theme attribute.
 import { Component, useState, type ReactNode } from 'react'
 import { FilterPanel } from '../../src/FilterPanel.tsx'
+import ConflictsView from '../../src/ConflictsView.tsx'
 import { IconBtn } from '../../src/controls.tsx'
 import { RefreshCw } from '../../src/icons.ts'
 import { createRoot } from 'react-dom/client'
@@ -745,6 +746,14 @@ function TraceDonePage() {
 }
 
 const page = query.get('page')
+// ?page=needs: Needs you's list column with four open items, for the filter
+// row and the count shown once.
+if (page === 'needs') {
+  const it = (n: number, kind: string) => ({ key: `k${n}`, kind, taskId: `t${n}`, title: `Item ${n}`, detail: 'Waits on you.', plan: 'meal-planner', epic: null, repository: 'example/recipe-box', since: '2026-11-14T10:00:00Z' })
+  answer('conflicts.view', () => ({ revision: 1, items: [it(1, 'decision'), it(2, 'decision'), it(3, 'needs-human'), it(4, 'review')] }))
+  answer('delivery.view', () => ({ revision: 1, items: [] }))
+}
+const NeedsPage = () => <ConflictsView workspaceId="w" />
 // ?page=radar-values[&grant=1]: the Radar values screen on a fake Radar read.
 if (page === 'radar-values') {
   const grant = query.get('grant') === '1'
@@ -974,5 +983,5 @@ function PanelPage() {
   )
 }
 createRoot(document.getElementById('root')!).render(
-  page === 'tip' ? <TipPage /> : page === 'trace' ? <TraceDonePage /> : page === 'panel' ? <PanelPage /> : page === 'workflow-map' ? <WorkflowMapPage /> : page === 'crews-rules' ? <CrewsRulesPage /> : page === 'tracker-gates' ? <TrackerGatesPage /> : page === 'radar-values' ? <RadarValuesPage /> : page === 'forward' ? <ForwardPage /> : intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page === 'activity' ? <ActivityPage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
+  page === 'needs' ? <NeedsPage /> : page === 'tip' ? <TipPage /> : page === 'trace' ? <TraceDonePage /> : page === 'panel' ? <PanelPage /> : page === 'workflow-map' ? <WorkflowMapPage /> : page === 'crews-rules' ? <CrewsRulesPage /> : page === 'tracker-gates' ? <TrackerGatesPage /> : page === 'radar-values' ? <RadarValuesPage /> : page === 'forward' ? <ForwardPage /> : intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page === 'activity' ? <ActivityPage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
 )
