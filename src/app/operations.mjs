@@ -192,7 +192,11 @@ import {
   readPrivateSpecs,
   locateLocalSpec,
 } from "./spec-homes.mjs";
-import { mirrorNeedsYou, writeRepo } from "./mirror-sync.mjs";
+import {
+  mirrorNeedsYou,
+  refuseSourceAsExecution,
+  writeRepo,
+} from "./mirror-sync.mjs";
 import { forwardAuditRows } from "./forward-audit.mjs";
 import { publicBranchRows } from "./mirror-forward-batch.mjs";
 import { mirrorForwardRows, mirrorRecordFor } from "./mirror-forward.mjs";
@@ -5849,6 +5853,10 @@ export class Operations {
     }
     if (name === "github.configure") {
       this.configuration?.assertWritable();
+      refuseSourceAsExecution(
+        readGitHubPolicyOrNull(this.workspaceRoot)?.repositories,
+        input.repository,
+      );
       const configured = await configureGitHubRepository(
         store,
         this.github,
