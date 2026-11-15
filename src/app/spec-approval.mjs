@@ -52,6 +52,20 @@ export function approvalState(store, planId, hash) {
   return store.getMeta(key(planId, hash));
 }
 
+// The approval branch for `attempt`, or the next free name when a branch of
+// that name is left over. GitHub answers 422 for a name that exists.
+async function freshBranch(github, repository, spec, attempt, oid) {
+  for (let tries = 0; ; tries += 1, attempt += 1) {
+    const name = `avoozl/approve-${spec}${attempt > 1 ? `-${attempt}` : ""}`;
+    try {
+      await github.createBranch(repository, name, oid);
+      return { name, attempt };
+    } catch (error) {
+      if (error.status !== 422 || tries >= 9) throw error;
+    }
+  }
+}
+
 // Open the approval pull request. Returns the pending state. A pull request
 // already open for this revision is returned and no second one opens.
 export async function openApproval(
@@ -95,19 +109,25 @@ export async function openApproval(
     base = ref ?? (await github.repository(repository)).default_branch,
     head = await github.branchHead(repository, base),
     // A closed pull request leaves its branch, so a new try takes a new name.
-    attempt = (previous?.attempt || 0) + 1,
-    branch = `avoozl/approve-${spec}${attempt > 1 ? `-${attempt}` : ""}`;
-  await github.createBranch(repository, branch, head.oid);
+    // So does a try that failed after making its branch: the name is taken.
+    branch = await freshBranch(
+      github,
+      repository,
+      spec,
+      (previous?.attempt || 0) + 1,
+      head.oid,
+    ),
+    attempt = branch.attempt;
   for (const [path, text] of Object.entries(changes))
     await github.putFile(repository, {
       path,
-      branch,
+      branch: branch.name,
       message: `Approve spec ${spec}`,
       content: Buffer.from(text).toString("base64"),
     });
   const pull = await github.createPullRequest(repository, {
       title: `Approve spec ${spec}`,
-      head: branch,
+      head: branch.name,
       base,
       body: `Sets Status: Approved on spec ${spec}. Merge to make the approval a commit.`,
     }),
@@ -115,7 +135,7 @@ export async function openApproval(
       state: "open",
       repository: `${repository.owner}/${repository.repo}`,
       number: pull.number,
-      branch,
+      branch: branch.name,
       attempt,
       base,
       ...(ref ? { ref } : {}),
