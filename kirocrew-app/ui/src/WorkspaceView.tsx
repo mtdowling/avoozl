@@ -6,7 +6,9 @@ import Badge from './Badge.tsx'
 import {
   describeTick,
   errorMessage,
+  isRunning,
   pickDefault,
+  removeLines,
   workspaceClient,
   workspaceState,
   type CatalogWorkspace,
@@ -16,9 +18,9 @@ import {
 } from './workspace-api'
 import { TICK_LOG_LINES, chatClient, type TickLine } from './chat-api.ts'
 import { relativeTime } from './task-api.ts'
-import { SectionHeading } from './controls.tsx'
+import { SectionHeading, dangerStyle } from './controls.tsx'
 import { Modal } from './Modal.tsx'
-import { Pencil, Plus } from './icons.ts'
+import { Pencil, Plus, Trash2 } from './icons.ts'
 
 function Field(props: {
   id: string
@@ -114,7 +116,7 @@ export default function WorkspaceView(
   const [busy, setBusy] = useState(false)
   const [draft, setDraft] = useState({ id: '', root: '', name: '' })
   // Which dialog is open: the add form, or one workspace's details.
-  const [dialog, setDialog] = useState<'add' | { edit: string } | null>(null)
+  const [dialog, setDialog] = useState<'add' | { edit: string } | { remove: string } | null>(null)
 
   // Run one call; show its error instead of throwing.
   const attempt = useCallback(async (call: () => Promise<void>) => {
@@ -196,6 +198,19 @@ export default function WorkspaceView(
   }
 
   const current = list?.items.find((w) => w.id === selected) ?? null
+  const editing = dialog && typeof dialog === 'object' && 'edit' in dialog ? dialog.edit : null
+  const removing = dialog && typeof dialog === 'object' && 'remove' in dialog ? (list?.items.find((w) => w.id === dialog.remove) ?? null) : null
+  // Remove (or Stop it first, then Remove): the list reloads and the page
+  // picks its default again when the shown workspace left.
+  const removeWorkspace = (target: CatalogWorkspace, stopFirst: boolean) =>
+    attempt(async () => {
+      if (stopFirst) await client.stop(target.id)
+      await client.remove(target.id)
+      setDialog(null)
+      const next = await client.list()
+      setList(next)
+      setSelected((now) => pickDefault(next, now === target.id ? null : now))
+    })
 
   return (
     <section aria-labelledby="avoozl-workspace-title" className="flex flex-col gap-3.5">
@@ -321,7 +336,7 @@ export default function WorkspaceView(
         </Modal>
       )}
 
-      {dialog && dialog !== 'add' && current && current.id === dialog.edit && (
+      {editing && current && current.id === editing && (
         <Modal
           id="avoozl-ws-edit"
           width="40rem"
@@ -332,13 +347,18 @@ export default function WorkspaceView(
           onDismiss={() => setDialog(null)}
           footer={
             <>
+              {/* Remove sits at the footer's left, red; it asks first. */}
+              <Btn type="button" data-remove-workspace onClick={() => setDialog({ remove: current.id })} disabled={busy} style={{ ...dangerStyle, marginRight: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <Trash2 size={14} aria-hidden="true" />
+                Remove
+              </Btn>
               <Btn onClick={runTick} disabled={busy}>
                 Run tick now
               </Btn>
               <Btn onClick={() => selected && void loadSelected(selected)} disabled={busy}>
                 Refresh health
               </Btn>
-              <Btn type="button" primary onClick={() => setDialog(null)}>
+              <Btn type="button" primary data-autofocus onClick={() => setDialog(null)}>
                 Close
               </Btn>
             </>
@@ -377,6 +397,50 @@ export default function WorkspaceView(
               </ol>
             )}
           </div>
+        </Modal>
+      )}
+      {removing && (
+        <Modal
+          id="avoozl-ws-remove"
+          role="alertdialog"
+          width="32rem"
+          title={`Remove ${removing.name} from Avoozl?`}
+          backLabel="Cancel"
+          describedBy="avoozl-ws-remove-lines"
+          attrs={{ 'data-remove-workspace-confirm': true }}
+          onDismiss={() => setDialog({ edit: removing.id })}
+          footer={
+            <>
+              <Btn type="button" onClick={() => setDialog({ edit: removing.id })}>
+                Cancel
+              </Btn>
+              {isRunning(removing) && (
+                <Tooltip text="Turn it off, then take it off the list">
+                  {(describedBy) => (
+                    <Btn type="button" data-remove-stop-first aria-describedby={describedBy} disabled={busy} onClick={() => void removeWorkspace(removing, true)}>
+                      Stop it first
+                    </Btn>
+                  )}
+                </Tooltip>
+              )}
+              <Btn type="button" data-danger data-remove-confirm disabled={busy} onClick={() => void removeWorkspace(removing, false)} style={{ background: 'var(--danger)', borderColor: 'var(--danger)', color: '#fff' }}>
+                Remove from list
+              </Btn>
+            </>
+          }
+        >
+          <ul id="avoozl-ws-remove-lines" className="flex flex-col gap-1 pl-5 text-sm" style={{ listStyle: 'disc' }} data-remove-lines>
+            {removeLines(removing).map((line) => (
+              <li key={line} style={{ overflowWrap: 'anywhere' }}>
+                {line}
+              </li>
+            ))}
+          </ul>
+          {error && (
+            <p role="alert" className="text-sm text-danger">
+              {error}
+            </p>
+          )}
         </Modal>
       )}
     </section>
