@@ -125,7 +125,7 @@ test('buttons are compact icon and text buttons, on a phone and a desktop', { sk
   // Kiro Crew's own compact size: header icons 28 px, row buttons 28 px, section headers 40 px.
   const sizes = await page.evaluate(`({
     icons: [...document.querySelectorAll('[data-pp-head] button')].map((el) => el.getBoundingClientRect().height),
-    acts: [...document.querySelectorAll('[data-pp-act], [data-sc-act]')].filter((el) => el.getBoundingClientRect().height > 0).map((el) => el.getBoundingClientRect().height),
+    acts: [...document.querySelectorAll('[data-pp-act]')].filter((el) => el.getBoundingClientRect().height > 0).map((el) => el.getBoundingClientRect().height),
     heads: [...document.querySelectorAll('[data-pp-section-head]')].map((el) => el.getBoundingClientRect().height),
     header: document.querySelector('[data-pp-head]').getBoundingClientRect().height,
   })`)

@@ -34,17 +34,24 @@ const open = async (size) => {
 const cells = `[...document.querySelectorAll('[data-sc]')].map((el) => { const r = el.getBoundingClientRect(); const line = parseFloat(getComputedStyle(el).lineHeight); return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, height: r.height, line, text: el.textContent.trim().replace(/\\s+/g, ' ') } })`
 
 for (const size of SIZES) {
-  test(`Driver and Radar crew sit side by side in about three lines at ${size.width} px ${size.theme}`, { skip }, async () => {
+  test(`Driver and Radar crew are one line each at ${size.width} px ${size.theme}`, { skip }, async () => {
     await open(size)
     const [driver, crew] = await page.evaluate(cells)
     assert.match(driver.text, /^Driver: not started/)
     assert.match(crew.text, /^Radar crew: none/)
-    // Left and right of each other, in the same band, inside the screen.
-    assert.ok(driver.right <= crew.left + 0.5, 'the driver is left of the crew')
-    assert.ok(Math.min(driver.bottom, crew.bottom) > Math.max(driver.top, crew.top), 'they share a row')
+    if (size.width >= 1000) {
+      // Left and right of each other, in the same band.
+      assert.ok(driver.right <= crew.left + 0.5, 'the driver is left of the crew')
+      assert.ok(Math.min(driver.bottom, crew.bottom) > Math.max(driver.top, crew.top), 'they share a row')
+    } else {
+      // Too narrow for two titles and four icons side by side: one cell per line, each one line tall.
+      assert.ok(crew.top >= driver.bottom - 0.5, 'the crew cell is under the driver cell')
+    }
     assert.ok(crew.right <= size.width + 0.5, 'nothing past the right edge')
     const band = Math.max(driver.bottom, crew.bottom) - Math.min(driver.top, crew.top)
-    assert.ok(band <= driver.line * 4.5 + (size.width <= 640 ? 44 : 0), `both together are ${band}px, about ${(band / driver.line).toFixed(1)} lines`)
+    assert.ok(band <= driver.line * 5, `both together are ${band}px, about ${(band / driver.line).toFixed(1)} lines`)
+    for (const cell of [driver, crew]) assert.ok(cell.height <= 38, `a cell is ${cell.height}px tall`)
+    // On a wide row each cell is one line: dot, title and icons share it.
     // No separate explanation paragraph or workspace line: only the tooltip carries them.
     const body = await page.evaluate(`document.body.innerText`)
     assert.doesNotMatch(body, /Workspace: /)
@@ -53,20 +60,22 @@ for (const size of SIZES) {
     const tips = await page.evaluate(`[...document.querySelectorAll('[data-sc]')].map((el) => el.dataset.tip)`)
     assert.match(tips[0], /Nothing is released and nobody watches merges/)
     assert.match(tips[1], /Issue Radar crews code the issues Avoozl releases/)
-    const actions = await page.evaluate(`[...document.querySelectorAll('[data-sc-act]')].map((el) => (el.getAttribute('aria-label') || el.textContent).trim())`)
-    assert.deepEqual(actions, ['Start', 'Recheck', 'Copy values', 'Open Radar'])
+    const actions = await page.evaluate(`[...document.querySelectorAll('[data-sc-act]')].map((el) => el.getAttribute('aria-label'))`)
+    assert.deepEqual(actions, ['Start a driver session', 'Recheck', 'Copy values', 'Open Radar'])
     const small = await page.evaluate(`Math.max(...[...document.querySelectorAll('[data-sc-act]')].map((el) => el.getBoundingClientRect().height))`)
     assert.ok(small < 32, `buttons are ${small}px`)
+    // Icons only: no text in a button, and a tooltip on each.
+    assert.equal(await page.evaluate(`[...document.querySelectorAll('[data-sc-act]')].every((el) => el.textContent.trim() === '' && el.querySelector('svg'))`), true)
     assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true)
   })
 }
 
-test('the cells stack when the row is narrower than 300 px', { skip }, async () => {
+test('the cells stack when the row is narrower than 420 px', { skip }, async () => {
   await open(SIZES[0])
-  await page.evaluate(`document.querySelector('[data-sc-row]').style.width = '280px'`)
+  await page.evaluate(`document.querySelector('[data-sc-row]').style.width = '380px'`)
   const [driver, crew] = await page.evaluate(cells)
   assert.ok(crew.top >= driver.bottom - 0.5, 'the crew cell is under the driver cell')
-  await page.evaluate(`document.querySelector('[data-sc-row]').style.width = '320px'`)
+  await page.evaluate(`document.querySelector('[data-sc-row]').style.width = '460px'`)
   const [left, right] = await page.evaluate(cells)
-  assert.ok(left.right <= right.left + 0.5, 'side by side again at 320 px')
+  assert.ok(left.right <= right.left + 0.5, 'side by side again at 460 px')
 })

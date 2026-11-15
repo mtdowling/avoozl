@@ -28,7 +28,7 @@ for (const width of [1280, 390])
     // The workspace name is not a line of its own: the header shows it. The sentence is the cell's tooltip.
     assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-driver-workspace]'))`), false)
     assert.match(await page.evaluate(`document.querySelector('[data-driver-session]').dataset.tip`), /Workspace: Harness\. No driver for Harness\. Nupp has one:/)
-    assert.equal(await page.evaluate(`document.querySelector('[data-driver-elsewhere]').textContent.trim()`), "Nupp's")
+    assert.equal(await page.evaluate(`document.querySelector('[data-driver-elsewhere]').getAttribute('aria-label')`), "Open Nupp's driver")
     // Open opens the Nupp driver chat itself.
     await page.evaluate(`document.querySelector('[data-driver-elsewhere-open]').click()`)
     assert.deepEqual(await page.evaluate(`window.__chats`), [{ slotKey: 'chat-nupp' }])

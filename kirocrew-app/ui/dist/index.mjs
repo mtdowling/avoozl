@@ -6382,7 +6382,7 @@ function Ts(e) {
 	});
 }
 // kirocrew-app/ui/src/StatusCells.tsx
-var Es = "\n[data-sc-row]{container-type:inline-size}\n[data-sc-grid]{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:8px}\n@container (max-width:300px){[data-sc-grid]{grid-template-columns:minmax(0,1fr)}}\n[data-sc]{display:flex;flex-wrap:wrap;align-items:center;align-content:flex-start;gap:2px 8px;min-width:0;padding:5px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;line-height:18px;color:var(--text)}\n[data-sc-title]{display:inline-flex;align-items:center;gap:6px;min-width:0;max-width:100%;font-weight:600;color:var(--text-strong,var(--text));overflow:hidden;text-overflow:ellipsis;white-space:nowrap}\n[data-sc-dot]{flex:none;width:8px;height:8px;border-radius:50%;background:var(--muted)}\n[data-sc-dot][data-tone=ok]{background:var(--ok)}\n[data-sc-dot][data-tone=warn]{background:var(--warning,#b7791f)}\n[data-sc-dot][data-tone=danger]{background:var(--danger)}\n[data-sc-actions]{display:inline-flex;flex-wrap:wrap;align-items:center;gap:4px;margin-left:auto}\n[data-sc-act]{display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:2px 8px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--muted);font:inherit;font-size:11px;line-height:16px;text-decoration:none;white-space:nowrap;cursor:pointer;transition:background-color .12s,color .12s}\n[data-sc-act]:hover{background:var(--bg-hover);color:var(--text)}\n[data-sc-act][data-primary]{border-color:var(--accent);color:var(--accent)}\n[data-sc-act]:disabled{opacity:.6;cursor:default}\n@media (pointer:coarse),(max-width:640px){[data-sc-act]{min-height:28px;min-width:28px;padding:0 8px}[data-sc-narrow-hide]{display:none}[data-sc-act][data-icon-only]{padding:0}}\n";
+var Es = "\n[data-sc-row]{container-type:inline-size}\n[data-sc-grid]{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:8px}\n@container (max-width:420px){[data-sc-grid]{grid-template-columns:minmax(0,1fr)}}\n[data-sc]{display:flex;flex-wrap:nowrap;align-items:center;align-content:flex-start;gap:0 8px;min-width:0;padding:4px 8px;border:1px solid var(--border);border-radius:8px;font-size:12px;line-height:18px;color:var(--text)}\n[data-sc-title]{flex:0 1 auto;display:inline-flex;align-items:center;gap:6px;min-width:0;max-width:100%;font-weight:600;color:var(--text-strong,var(--text));overflow:hidden;text-overflow:ellipsis;white-space:nowrap}\n[data-sc-dot]{flex:none;width:8px;height:8px;border-radius:50%;background:var(--muted)}\n[data-sc-dot][data-tone=ok]{background:var(--ok)}\n[data-sc-dot][data-tone=warn]{background:var(--warning,#b7791f)}\n[data-sc-dot][data-tone=danger]{background:var(--danger)}\n[data-sc-actions]{flex:none;display:inline-flex;flex-wrap:nowrap;align-items:center;gap:4px;margin-left:auto}\n[data-sc-act]{display:inline-flex;align-items:center;justify-content:center;width:24px;height:22px;padding:0;background:transparent;border:1px solid transparent;border-radius:6px;color:var(--muted);font:inherit;text-decoration:none;cursor:pointer;transition:background-color .12s,color .12s}\n[data-sc-act]:hover{background:var(--bg-hover);color:var(--text)}\n[data-sc-act][data-primary]{color:var(--accent)}\n[data-sc-act]:disabled{opacity:.6;cursor:default}\n@media (pointer:coarse),(max-width:640px){[data-sc-act]{width:26px;height:26px}[data-sc-actions]{gap:2px}}\n";
 function Ds(e) {
 	return /* @__PURE__ */ w("div", {
 		"data-sc-row": !0,
@@ -6417,27 +6417,24 @@ function Os(e) {
 	});
 }
 function ks(e) {
-	let { label: t, icon: n, onClick: r, href: i, primary: a, tip: o, narrowIcon: s, ...c } = e, l = /* @__PURE__ */ w(S, { children: [n, t && /* @__PURE__ */ C("span", {
-		"data-sc-narrow-hide": s ? "" : void 0,
-		children: t
-	})] });
+	let { label: t, icon: n, onClick: r, href: i, primary: a, tip: o, ...s } = e;
 	return /* @__PURE__ */ C(q, {
-		text: o,
+		text: o ?? t,
 		children: i ? /* @__PURE__ */ C("a", {
 			"data-sc-act": !0,
-			"data-icon-only": s ? "" : void 0,
-			"aria-label": s ? t : void 0,
 			"data-primary": a ? "" : void 0,
+			"aria-label": t,
 			href: Q(i),
-			...c,
-			children: l
+			...s,
+			children: n
 		}) : /* @__PURE__ */ C("button", {
 			type: "button",
 			"data-sc-act": !0,
 			"data-primary": a ? "" : void 0,
+			"aria-label": t,
 			onClick: r,
-			...c,
-			children: l
+			...s,
+			children: n
 		})
 	});
 }
@@ -6639,38 +6636,42 @@ function Ys(e) {
 		tip: c,
 		actions: /* @__PURE__ */ w(S, { children: [
 			i?.link && /* @__PURE__ */ C(ks, {
-				label: i.start ? "Open" : "Open session",
+				label: "Open driver session",
+				icon: /* @__PURE__ */ C(Te, {
+					size: 13,
+					"aria-hidden": "true"
+				}),
 				primary: !i.start,
 				onClick: a,
-				tip: "Open the driver chat.",
 				"data-driver-open": !0
 			}),
 			i?.start && /* @__PURE__ */ C(ks, {
-				label: "Start",
+				label: i.link ? "Start a new driver session" : "Start a driver session",
 				icon: /* @__PURE__ */ C(Me, {
-					size: 11,
+					size: 13,
 					"aria-hidden": "true"
 				}),
 				primary: !i.link,
 				onClick: o,
-				tip: i.link ? "Start a new driver session." : "Start a driver session.",
 				"data-driver-start": !0
 			}),
 			i?.elsewhere && /* @__PURE__ */ C(ks, {
-				label: `${i.elsewhere.workspace}'s`,
+				label: `Open ${i.elsewhere.workspace}'s driver`,
+				icon: /* @__PURE__ */ C(B, {
+					size: 13,
+					"aria-hidden": "true"
+				}),
 				tip: i.elsewhere.text,
 				onClick: () => i.elsewhere && r({ slotKey: i.elsewhere.slot }),
 				"data-driver-elsewhere": !0,
 				"data-driver-elsewhere-open": !0
 			}),
 			t && /* @__PURE__ */ C(ks, {
-				label: "",
+				label: "Recheck",
 				icon: /* @__PURE__ */ C(Fe, {
-					size: 12,
+					size: 13,
 					"aria-hidden": "true"
 				}),
-				"aria-label": "Recheck",
-				tip: "Recheck",
 				onClick: n,
 				"data-driver-recheck": !0
 			})
@@ -8592,22 +8593,21 @@ function Vl(e) {
 				actions: /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C(ks, {
 					label: "Copy values",
 					icon: /* @__PURE__ */ C(ne, {
-						size: 11,
+						size: 13,
 						"aria-hidden": "true"
 					}),
 					primary: !0,
-					onClick: F.crew,
 					tip: "Copy the values to paste into a new Radar crew.",
+					onClick: F.crew,
 					"data-crew-copy": !0
 				}), /* @__PURE__ */ C(ks, {
 					label: "Open Radar",
-					narrowIcon: !0,
 					icon: /* @__PURE__ */ C(B, {
-						size: 11,
+						size: 13,
 						"aria-hidden": "true"
 					}),
-					href: "/issue-radar",
-					tip: "Open Radar, Crews."
+					tip: "Open Radar, Crews.",
+					href: "/issue-radar"
 				})] })
 			})] }),
 			(m || f.error) && /* @__PURE__ */ C("p", {
