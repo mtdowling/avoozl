@@ -298,7 +298,7 @@ export function countsStyles(layout: CountsLayout) {
   if (layout === 'small')
     return {
       list: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 6, width: '100%' },
-      button: { minHeight: 32, width: '100%', justifyContent: 'space-between' },
+      button: { minHeight: 26, width: '100%', justifyContent: 'space-between' },
     }
   return {
     list: {

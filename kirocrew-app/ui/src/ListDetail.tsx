@@ -1,7 +1,7 @@
 // The phone's detail pane, from Kiro Crew's list-detail pattern: a sticky row
 // that holds the Back control and, once the big title has scrolled away, the
-// title in small type. Back is the only way out of the pane, so it is 44 px
-// tall. On a desktop this renders its children and nothing else.
+// title in small type. Back is the only way out of the pane, so it is
+// a normal compact button. On a desktop this renders its children and nothing else.
 import type { ReactNode } from 'react'
 import { ArrowLeft } from './icons.ts'
 import { LAYER } from './layers.ts'
@@ -14,7 +14,7 @@ export function ListDetailBack(props: { label: string; onBack: () => void }) {
       type="button"
       data-list-detail-back
       onClick={props.onBack}
-      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0, minHeight: 44, padding: '0 8px', marginLeft: -4, background: 'none', border: 0, borderRadius: 6, color: 'var(--muted)', cursor: 'pointer', fontSize: 14 }}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0, padding: '2px 8px', marginLeft: -4, background: 'none', border: 0, borderRadius: 6, color: 'var(--muted)', cursor: 'pointer', fontSize: 14 }}
     >
       <ArrowLeft size={14} aria-hidden="true" />
       {props.label}
@@ -26,7 +26,7 @@ export function ListDetailBack(props: { label: string; onBack: () => void }) {
 // title's `titleRef` (useTitleScrolledOut) and `scrolledOut`.
 export function DetailBar(props: { backLabel: string; onBack: () => void; title: string; scrolledOut: boolean }) {
   return (
-    <div data-detail-bar style={{ position: 'sticky', top: 0, zIndex: LAYER.sticky, display: 'flex', alignItems: 'center', gap: 8, minHeight: 44, background: 'var(--bg)' }}>
+    <div data-detail-bar style={{ position: 'sticky', top: 0, zIndex: LAYER.sticky, display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg)' }}>
       <ListDetailBack label={props.backLabel} onBack={props.onBack} />
       <span
         aria-hidden="true"
