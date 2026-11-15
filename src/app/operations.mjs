@@ -3677,7 +3677,7 @@ export class Operations {
     }
     // Forward one merged mirror change (RC24.9): the Forward button. The
     // person is the signed-in GitHub user, who must pass the actor check.
-    if (name === "mirror.forward") {
+    if (name === "mirror.forward" || name === "mirror.forward.review") {
       if (!this.github?.available?.()) fail("GitHub is not available.", 503);
       const policy = readGitHubPolicyOrNull(this.workspaceRoot),
         record = this.store.get("mirror_forward", String(input.id ?? "")),
@@ -3691,12 +3691,19 @@ export class Operations {
         ),
         check = actorAllowed(entry, person, held?.permission ?? held);
       if (!check.allowed) fail(check.reason, 403);
-      const result = await forwardRecord(this.store, this.github, record.id, {
-        policy,
-        person,
-        ...(this.forwardGit ? { git: this.forwardGit } : {}),
-      });
-      if (!result.ok && !result.blocked) fail(result.reason, 409);
+      // The Forward screen's read shows the exact public diff, title and body
+      // and pushes nothing; the Forward button pushes only the hash it saw.
+      const look = name === "mirror.forward.review",
+        result = await forwardRecord(this.store, this.github, record.id, {
+          policy,
+          person,
+          push: !look,
+          review: true,
+          seenHash: input.seenHash ?? null,
+          ...(this.forwardGit ? { git: this.forwardGit } : {}),
+        });
+      if (!result.ok && !result.blocked && !result.changed)
+        fail(result.reason, 409);
       return result;
     }
     if (name === "radar.setup") {

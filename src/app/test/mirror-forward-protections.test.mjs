@@ -7,7 +7,7 @@ import {
 import { normalizeGitHubPolicy } from "../github-policy.mjs";
 import { forwardMaxFileBytesOf } from "../mirror-policy.mjs";
 import { metadataBlocks, pathBlocks } from "../forward-guard.mjs";
-import { forwardRecord } from "../mirror-forward-run.mjs";
+import { forwardRecord, mirrorForwardRunStep } from "../mirror-forward-run.mjs";
 import {
   branches,
   fakeGitHub,
@@ -361,4 +361,109 @@ test("a binary file and a file over the setting's size block a real forward", as
     { forwardAllow: ["logo.bin"] },
   );
   assert.equal(allowed.result.record.state, "public_open");
+});
+
+// rc-25.4: diff review and receipt (test 4 of D31.2).
+const reviewed = (made, github, extra = {}) =>
+  forwardRecord(made.store, github, made.sha, {
+    policy: policy("nudge"),
+    person: "dana",
+    git: made.forward,
+    grant,
+    ...extra,
+  });
+
+test("the review shows the exact diff, title and body and pushes nothing", async (t) => {
+  const made = scratch(t),
+    github = fakeGitHub(),
+    look = await reviewed(made, github, { push: false, review: true });
+  assert.equal(look.ok, true);
+  assert.match(look.review.diff, /\+\+\+ b\/feature\.txt/);
+  assert.match(look.review.diff, /\+hello/);
+  assert.equal(look.review.title, "Add the feature");
+  assert.match(look.review.body, /Contributed by @dana/);
+  assert.match(look.review.hash, /^[0-9a-f]{64}$/);
+  assert.deepEqual(branches(made.pub), ["main"]);
+  assert.equal(github.created.length, 0);
+});
+
+test("a push needs the hash that was shown; a change after display forces a new display", async (t) => {
+  const made = scratch(t),
+    github = fakeGitHub(),
+    first = (await reviewed(made, github, { push: false, review: true }))
+      .review;
+  // Nothing seen, or a wrong hash: no push, no receipt, the review again.
+  for (const seenHash of [null, "0".repeat(64)]) {
+    const result = await reviewed(made, github, { review: true, seenHash });
+    assert.equal(result.changed, true);
+    assert.equal(result.review.hash, first.hash);
+    assert.equal(made.store.get("mirror_forward", made.sha).receipt, undefined);
+  }
+  assert.deepEqual(branches(made.pub), ["main"]);
+  // The mirror pull request text changes after the display.
+  const edited = fakeGitHub({ body: "A different body." }),
+    again = await reviewed(made, edited, {
+      review: true,
+      seenHash: first.hash,
+    });
+  assert.equal(again.changed, true);
+  assert.notEqual(again.review.hash, first.hash);
+  assert.match(again.review.body, /A different body/);
+  assert.deepEqual(branches(made.pub), ["main"]);
+  // The new hash, once shown, pushes.
+  const sent = await reviewed(made, edited, {
+    review: true,
+    seenHash: again.review.hash,
+  });
+  assert.equal(sent.record.state, "public_open");
+  assert.deepEqual(branches(made.pub).sort(), ["avoozl/task-1", "main"]);
+  assert.equal(sent.record.receipt.hash, again.review.hash);
+});
+
+test("the receipt holds the diff, title, body, hash, target, person and time", async (t) => {
+  const made = scratch(t),
+    github = fakeGitHub(),
+    seen = (await reviewed(made, github, { push: false, review: true })).review,
+    sent = await reviewed(made, github, {
+      review: true,
+      seenHash: seen.hash,
+      now: "2026-11-14T12:00:00.000Z",
+    }),
+    { receipt } = sent.record;
+  assert.equal(receipt.diff, seen.diff);
+  assert.equal(receipt.title, seen.title);
+  assert.equal(receipt.body, seen.body);
+  assert.equal(receipt.hash, seen.hash);
+  assert.equal(receipt.target, "example/code:main");
+  assert.equal(receipt.person, "dana");
+  assert.equal(receipt.at, "2026-11-14T12:00:00.000Z");
+  // A private record: the pushed commit does not hold it.
+  const message = git(made.pub, "log", "-1", "--format=%B", "avoozl/task-1");
+  assert.ok(!message.includes(receipt.hash));
+});
+
+test("an auto forward leaves the receipt before the push call", async (t) => {
+  const made = scratch(t),
+    github = fakeGitHub(),
+    seen = [];
+  const spy = {
+    ...made.forward,
+    push: async (input) => {
+      seen.push(made.store.get("mirror_forward", made.sha).receipt);
+      return made.forward.push(input);
+    },
+  };
+  const result = await mirrorForwardRunStep(made.store, github, {
+    policy: policy("auto"),
+    git: spy,
+    grant,
+  });
+  assert.deepEqual(result.errors, []);
+  assert.equal(seen.length, 1);
+  assert.match(seen[0].hash, /^[0-9a-f]{64}$/);
+  assert.equal(seen[0].mode, "auto");
+  assert.equal(
+    made.store.get("mirror_forward", made.sha).receipt.hash,
+    seen[0].hash,
+  );
 });
