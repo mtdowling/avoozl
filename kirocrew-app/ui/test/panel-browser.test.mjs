@@ -93,6 +93,8 @@ test('with nothing to show, each section says so', { skip }, async () => {
   await open({ sid: 'chat-1', state: 'empty' }, `/Nothing is waiting/.test(document.body.textContent)`)
   assert.match(await text('[data-panel-fold="in-flight"]'), /No crew has a claim/)
   assert.equal(await page.evaluate(`document.querySelector('[data-head-needs]').getAttribute('aria-label')`), 'Needs me: 0')
+  // A zero stays in the row, muted: the hand is no longer yellow.
+  assert.equal(await page.evaluate(`document.querySelector('[data-head-needs]').hasAttribute('data-zero') && getComputedStyle(document.querySelector('[data-head-needs] [data-pp-hand]')).color === (() => { const t = document.createElement('i'); t.style.color = 'var(--muted)'; document.querySelector('[data-pp]').append(t); const c = getComputedStyle(t).color; t.remove(); return c })()`), true)
   assert.equal(await page.evaluate(`document.querySelector('[data-head-flight]').getAttribute('aria-label')`), 'In flight: 0')
   await shot('empty')
 })
@@ -219,6 +221,7 @@ for (const [width, height] of [[1280, 900], [390, 800]])
         return {
           name: h.querySelector('[data-pp-head-name]').textContent.trim(),
           buttons: [...h.querySelectorAll('button')].map((b) => b.getAttribute('aria-label')),
+          mutedWords: [...h.querySelectorAll('[data-pp-head-chip]')].every((c) => { const m = (() => { const t = document.createElement('i'); t.style.color = 'var(--muted)'; document.querySelector('[data-pp]').append(t); const c = getComputedStyle(t).color; t.remove(); return c })(); return getComputedStyle(c).color === m && getComputedStyle(c.querySelector('[data-pp-head-chip-count]')).color === m }),
           flat: [...h.querySelectorAll('[data-pp-head-chip]')].every((c) => getComputedStyle(c).borderTopStyle === 'none' && getComputedStyle(c).backgroundColor === 'rgba(0, 0, 0, 0)'),
           texts: [...h.querySelectorAll('button')].map((b) => b.textContent.trim()),
           chips: [...h.querySelectorAll('[data-pp-head-chip]')].map((c) => c.innerText.replace(/\\s+/g, ' ').trim()),
@@ -237,6 +240,7 @@ for (const [width, height] of [[1280, 900], [390, 800]])
       assert.deepEqual([head.texts[0], head.texts[1], head.texts[4]], ['', '', ''], 'icons only, no countdown')
       assert.deepEqual(head.chips, width > 640 ? ['Needs me 2', 'In flight 3'] : ['2', '3'])
       assert.ok(head.flat, 'chips sit flat: no box, no fill')
+      assert.ok(head.mutedWords, 'the words and counts are muted')
       assert.equal(head.wrap, 'nowrap')
       assert.ok(head.spread < 2, `everything on one line (${head.spread} px apart)`)
       assert.ok(head.height <= head.tallest + 14, `one line tall (${head.height} px)`)

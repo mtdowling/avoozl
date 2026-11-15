@@ -375,7 +375,7 @@ export default function AvoozlPanel() {
       chips={
         loading ? null : (
           <>
-            <PanelHeadChip data-head-needs section="waiting" icon={<Hand size={14} data-pp-hand aria-hidden="true" />} count={model.waiting.length} words="Needs me" tip={`${model.waiting.length} waiting on you. Open Waiting on you.`} />
+            <PanelHeadChip data-head-needs section="waiting" icon={<span data-pp-hand style={{ display: "inline-flex" }}><Hand size={14} aria-hidden="true" /></span>} count={model.waiting.length} words="Needs me" tip={`${model.waiting.length} waiting on you. Open Waiting on you.`} />
             <PanelHeadChip data-head-flight section="in-flight" icon={<i data-pp-pulse aria-hidden="true" />} count={model.inFlight.length} words="In flight" tip={`${model.inFlight.length} in flight. Open In flight.`} />
           </>
         )
