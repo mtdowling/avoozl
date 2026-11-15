@@ -20,6 +20,7 @@ import {
 } from "../work-model.mjs";
 import { inspectGitHubTaskCompletion } from "./github-completion.mjs";
 import { publicMergeReached } from "./mirror-forward-poll.mjs";
+import { mirrorConfig, policyEntryOf } from "./mirror-sync.mjs";
 import {
   parseMarker,
   renderMarker,
@@ -375,7 +376,7 @@ async function judgeManual(github, task, issue, { code, repo }) {
 async function judge(github, store, task, issue, { policy, mode, reviewRule }) {
   const repository = task.github.repository,
     code = codeRepository(store, task, mode),
-    repo = (code && policy.repositories[code]) || {};
+    repo = (code && policyEntryOf(policy.repositories, code)) || {};
   if (isManual(task)) return judgeManual(github, task, issue, { code, repo });
   const project = store.get("projects", taskRepository(task)),
     options = {
@@ -559,7 +560,7 @@ async function judge(github, store, task, issue, { policy, mode, reviewRule }) {
 // children are all done. Only repositories this machine writes are read. A
 // tick with no GitHub change writes nothing. Returns notices for the cron.
 export async function reconcileGitHubCompletion(store, github, { policy }) {
-  const writers = writerRepositories(store),
+  const writers = writerRepositories(store, policy),
     mode = policy.mode,
     markerOptions = { planningRepository: policy.planningRepository },
     notify = [],
@@ -608,7 +609,7 @@ export async function reconcileGitHubCompletion(store, github, { policy }) {
               code &&
                 (await neededApprovals(
                   reviewRule,
-                  policy.repositories[code] || {},
+                  policyEntryOf(policy.repositories, code) || {},
                   code,
                 )),
             )));
@@ -730,21 +731,25 @@ export async function reconcileGitHubCompletion(store, github, { policy }) {
 
 // Repositories this machine writes. Read only: a machine identity is minted
 // when a repository is registered, never by the tick.
-function writerRepositories(store) {
+// The repositories this machine writes, a mirror's under the mirror's ID
+// (RC24.3), since its issues are the ones the tasks name.
+function writerRepositories(store, policy = null) {
   const machine = store.getMeta("machineIdentity")?.id;
   if (!machine) return new Map();
-  return new Map(
-    store
-      .list("github_repositories")
-      .filter((entry) => entry.activeMachine === machine)
-      .map((entry) => [entry.id, entry]),
-  );
+  const writers = new Map();
+  for (const entry of store.list("github_repositories")) {
+    if (entry.activeMachine !== machine) continue;
+    writers.set(entry.id, entry);
+    const mirror = mirrorConfig(entry, policy?.repositories);
+    if (mirror.id !== entry.id) writers.set(mirror.id, mirror);
+  }
+  return writers;
 }
 
 // A parent issue closes as completed, by Avoozl, once every child is done
 // (R12.6). No pull request closes a parent. Runs after completeParents.
-export async function closeGitHubParents(store, github) {
-  const writers = writerRepositories(store);
+export async function closeGitHubParents(store, github, { policy } = {}) {
+  const writers = writerRepositories(store, policy);
   for (const parent of store.read().tasks) {
     if (
       taskKind(parent) !== "package" ||
@@ -773,8 +778,8 @@ export async function closeGitHubParents(store, github) {
 // Plan and epic issues (Requirement 59.8): Avoozl closes a plan issue once
 // every task of its plan is complete, and an epic issue once every member
 // plan's issue is closed. No pull request closes either, in either mode.
-export async function closePlanAndEpicIssues(store, github) {
-  const writers = writerRepositories(store),
+export async function closePlanAndEpicIssues(store, github, { policy } = {}) {
+  const writers = writerRepositories(store, policy),
     data = store.read(),
     complete = (status) => statusComplete(data, status),
     receipts = store
