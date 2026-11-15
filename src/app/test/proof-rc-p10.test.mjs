@@ -73,3 +73,18 @@ test("radar.signoff records the sign-off, owner only, and the hold follows it", 
   await w.tick();
   assert.equal(w.readyIds().length, 1);
 });
+
+// Live run of Proof 10: after the sign-off, the tick projected nothing again,
+// because the release fingerprint did not cover the hold, so nothing was
+// released until something else changed the plan.
+test("a recorded sign-off marks the repository's plans for release on the next tick", async (t) => {
+  const { releaseChangedPlanIds } = await import("../radar-coder-queue.mjs");
+  const { planningIdentity } = await import("../github-marker.mjs");
+  const w = await setup(t, { release: { capacity: 2 } }, [leaf("leaf-a")]);
+  visibility(w, undefined);
+  const identity = planningIdentity(w.root);
+  releaseChangedPlanIds(w.store, identity);
+  assert.deepEqual([...releaseChangedPlanIds(w.store, identity)], []);
+  await w.ops.execute("radar.signoff", { repository: REPO, complete: true });
+  assert.deepEqual([...releaseChangedPlanIds(w.store, identity)], ["rel"]);
+});
