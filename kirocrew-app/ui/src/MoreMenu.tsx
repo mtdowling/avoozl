@@ -35,7 +35,7 @@ export function MoreMenu(props: { label: string; children: ReactNode; attrs?: Re
         aria-haspopup="true"
         data-more-button
         onClick={() => setOpen(!open)}
-        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, borderRadius: 8, border: '1px solid var(--border)', background: open ? 'var(--bg-hover, var(--bg-elevated))' : 'transparent', color: 'var(--text)', cursor: 'pointer' }}
+        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 6, border: '1px solid var(--border)', background: open ? 'var(--bg-hover, var(--bg-elevated))' : 'transparent', color: 'var(--text)', cursor: 'pointer' }}
       >
         <Ellipsis size={18} aria-hidden="true" />
       </button>
