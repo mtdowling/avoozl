@@ -13,6 +13,7 @@ import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { parseRepository } from "./github.mjs";
+import { fail } from "./store.mjs";
 
 const run = promisify(execFile);
 const META = "mirrorSync";
@@ -43,6 +44,46 @@ export function mirrorConfig(config, repositories) {
   const { owner, repo, id } = parseRepository(mirror.mirror);
   const { nodeId: _nodeId, ...rest } = config;
   return { ...rest, id, owner, repo };
+}
+
+// The mirror whose public source `id` is, or null.
+export function mirrorWithSource(repositories, id) {
+  const want = String(id || "").toLowerCase();
+  return (
+    Object.values(repositories || {})
+      .map((entry) => entry.mirror)
+      .find((mirror) => mirror?.source?.toLowerCase() === want) ?? null
+  );
+}
+
+// A private spec (home plansBranch) never writes to a mirror's public
+// source, whatever the configured execution repository is: its issues would
+// publish the plan's text.
+export function refusePrivateToSource(plan, repositories, id) {
+  if (plan?.home !== "plansBranch") return;
+  const mirror = mirrorWithSource(repositories, id);
+  if (!mirror) return;
+  const name = plan.spec || plan.id;
+  fail(
+    `Spec ${name} is private (on the ${mirror.plansBranch} branch), so its issues may not go to ${mirror.source}, the mirror's public source. Nothing was projected. Configure the mirror ${mirror.mirror} as the execution repository, or put the mirror setting on the ${mirror.source} entry in .avoozl.json so its writes go to ${mirror.mirror}.`,
+    409,
+  );
+}
+
+// github.configure refuses a mirror's source as the execution repository
+// when nothing sends that repository's writes to the mirror (the mirror
+// setting is on another entry): private specs would then project into the
+// public source.
+export function refuseSourceAsExecution(repositories, repository) {
+  if (!repository) return;
+  const { id } = parseRepository(repository);
+  if (repositories?.[id]?.mirror) return;
+  const mirror = mirrorWithSource(repositories, id);
+  if (mirror?.plansBranch)
+    fail(
+      `${id} is the public source of the mirror ${mirror.mirror}, whose private specs live on the ${mirror.plansBranch} branch. Configure the mirror ${mirror.mirror} as the execution repository instead, or put the mirror setting on the ${id} entry in .avoozl.json so its writes go to ${mirror.mirror}.`,
+      409,
+    );
 }
 
 // Fast-forward `mirror`'s branch to `sha`, which only `source` has. A normal
