@@ -659,7 +659,7 @@ Requirement RC29. Count every call by source, and read each repository once.
 - [x] rc-28.3 Settings > GitHub shows calls this hour by source, after rc-28.1 [RC29.3] (§D34)
   - A small table beside the rate limit: source, calls, cached, 304; read from the rate view.
   - Done when: A page test shows the rows; screenshots are in the pull request; `npm run test:ui` passes.
-- [ ] rc-p28 Proof 28: one check costs one call, after rc-28.1, rc-28.2, rc-28.3 [RC29] (§D17)
+- [x] rc-p28 Proof 28: one check costs one call, after rc-28.1, rc-28.2, rc-28.3 [RC29] (§D17)
   - Setup: a repository with open pull requests. Action: open Home and Graph twice inside the cache window, and run one tick. Expected: Settings > GitHub shows one GraphQL call for the pull-request read. Failure means: views still read pull requests one by one. Next decision: batch the remaining readers by hand.
   - Done when: Expected result observed; receipt under `docs/evidence/`.
 
