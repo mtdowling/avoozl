@@ -9,6 +9,7 @@ import { LOGIN } from "./github-marker.mjs";
 import { parseManagedSection } from "./github-rebuild.mjs";
 import { parseProvenance } from "./github-provenance.mjs";
 import { branchNameProblem, integrationOf } from "./integration-branch.mjs";
+import { retroBlocks } from "./radar-retro-rules.mjs";
 import { specItems } from "./spec-plans.mjs";
 import { fail } from "./store.mjs";
 
@@ -387,6 +388,40 @@ function buildBrief(marker, body, tasksText) {
   };
 }
 
+// Retro rules (RC8.6) on the code repository's default branch, in AGENTS.md
+// and .kiro/steering/*.md. A crew's chat reads AGENTS.md once and keeps it,
+// so a rule merged later reaches it only through the brief. A read that fails
+// says so in one rule line instead of failing the verification.
+// shortcut: reads at most 20 steering files; page the list if a repo has more.
+const READ_RULES_YOURSELF =
+  "Retro rules: they could not be read. Read AGENTS.md and .kiro/steering/ on the default branch yourself.";
+async function retroRules(read, code) {
+  const rules = [];
+  let unread = false;
+  const take = async (file) => {
+    const answer = await get(read, `${repoPath(code)}/contents/${file}`, {
+      raw: true,
+    });
+    if (answer.kind === "ok")
+      for (const text of retroBlocks(answer.text))
+        rules.push(`Retro rule (${file}): ${text}`);
+    else if (answer.kind === "unavailable") unread = true;
+  };
+  await take("AGENTS.md");
+  const list = await get(read, `${repoPath(code)}/contents/.kiro/steering`);
+  if (list.kind === "unavailable") unread = true;
+  else if (list.kind === "ok" && Array.isArray(list.body))
+    for (const entry of list.body
+      .filter(
+        (entry) =>
+          entry?.type === "file" &&
+          /^[A-Za-z0-9][A-Za-z0-9._-]*\.md$/.test(entry?.name ?? ""),
+      )
+      .slice(0, 20))
+      await take(`.kiro/steering/${entry.name}`);
+  return unread ? [...rules, READ_RULES_YOURSELF] : rules;
+}
+
 // Runs the five checks. `read` is a reader (ghReader() by default).
 export async function verifyIssue(
   reference,
@@ -471,8 +506,10 @@ export async function verifyIssue(
     result.fetch = result.source.fetch;
     result.show = result.source.show;
   }
-  if (brief && result.ok && marker && tasksText.value !== undefined)
+  if (brief && result.ok && marker && tasksText.value !== undefined) {
     result.brief = buildBrief(marker, issueBody, tasksText.value);
+    result.brief.rules.push(...(await retroRules(read, code)));
+  }
   return result;
 }
 
