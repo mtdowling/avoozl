@@ -10,6 +10,7 @@ import {
   approvalState,
   openBatchApproval,
   reconcileApproval,
+  reconcileOpenApprovals,
 } from "./spec-approval.mjs";
 import { fail } from "./store.mjs";
 
@@ -230,6 +231,9 @@ export async function approveMany(ops, input = {}) {
     prepared = [],
     // Specs whose approval is a pull request that has not merged yet.
     gated = [];
+  // One read per open approval pull request, not one per spec of a batch.
+  if (ops.github?.available?.())
+    await reconcileOpenApprovals(store, { github: ops.github }).catch(() => {});
   for (const item of items) {
     try {
       const checked = ops.approvalChecks({
@@ -238,7 +242,7 @@ export async function approveMany(ops, input = {}) {
       });
       if (!checked.plan.spec)
         fail("Batch approval takes spec plans. Approve this plan on its own.");
-      let approver = input.approvedBy?.trim() || ops.operator,
+      let approver = await ops.specApprover(checked.plan, input.approvedBy),
         evidence = input.evidence;
       // A spec whose approval is a pull request is approved once that pull
       // request has merged, as plan.approve does.
@@ -296,7 +300,7 @@ export async function approveMany(ops, input = {}) {
       pending: true,
       approved: [],
       failures: [],
-      approvalPullRequests: await openGatePullRequests(ops, gated, input),
+      approvalPullRequests: await openGatePullRequests(ops, gated),
     };
   }
   const result = approveSet(store, prepared, options);
@@ -316,7 +320,7 @@ export async function approveMany(ops, input = {}) {
 
 // One approval pull request per target for the specs waiting on one. A spec
 // whose pull request is already open keeps it.
-async function openGatePullRequests(ops, gated, input) {
+async function openGatePullRequests(ops, gated) {
   const groups = new Map();
   for (const gate of gated) {
     const key = JSON.stringify([
@@ -333,7 +337,8 @@ async function openGatePullRequests(ops, gated, input) {
         github: ops.github,
         repository: target.repository,
         ...(target.ref ? { ref: target.ref } : {}),
-        approvedBy: input.approvedBy?.trim() || ops.operator,
+        // A gated spec's approver is a GitHub login (ops.specApprover).
+        approvedBy: group[0].entry.approver,
         specs: group.map(({ entry, target: own }) => ({
           planId: entry.plan.id,
           hash: entry.plan.hash,

@@ -302,6 +302,69 @@ export async function openBatchApproval(
   return result;
 }
 
+// Every approval pull request a record still calls open, read once each
+// (the specs of a batch share one), with each spec's record moved to merged
+// or closed as reconcileApproval does. A failed read leaves its records open
+// for the next pass. Returns each spec still waiting to be approved in
+// Avoozl after its pull request merged, grouped by pull request:
+// [{ repository, number, approvedBy, specs: [{ planId, hash }] }].
+export async function reconcileOpenApprovals(store, { github }) {
+  const entries = store.metaEntries("spec-approval:").map(([name, state]) => {
+      const rest = name.slice("spec-approval:".length),
+        cut = rest.lastIndexOf(":");
+      return { planId: rest.slice(0, cut), hash: rest.slice(cut + 1), state };
+    }),
+    pulls = new Map();
+  for (const entry of entries) {
+    if (entry.state?.state !== "open") continue;
+    const id = `${entry.state.repository}#${entry.state.number}`;
+    if (!pulls.has(id)) pulls.set(id, []);
+    pulls.get(id).push(entry);
+  }
+  for (const group of pulls.values()) {
+    const { repository, number } = group[0].state;
+    let pull;
+    try {
+      pull = await github.pullRequest(repository, number);
+    } catch {
+      continue;
+    }
+    const once = { pullRequest: async () => pull };
+    for (const entry of group)
+      try {
+        entry.state = await reconcileApproval(store, {
+          github: once,
+          repository,
+          planId: entry.planId,
+          hash: entry.hash,
+        });
+      } catch {
+        // A wrong base or a missing merge commit approves nothing.
+      }
+  }
+  const merged = new Map();
+  for (const entry of entries) {
+    if (entry.state?.state !== "merged") continue;
+    const plan = store.get("plans", entry.planId);
+    if (!plan || plan.deletedAt || plan.hash !== entry.hash) continue;
+    if (approvalOf(store, plan)) continue;
+    const id = `${entry.state.repository}#${entry.state.number}`;
+    if (!merged.has(id))
+      merged.set(id, {
+        repository: entry.state.repository,
+        number: entry.state.number,
+        approvedBy: entry.state.approvedBy,
+        specs: [],
+      });
+    merged.get(id).specs.push({ planId: entry.planId, hash: entry.hash });
+  }
+  return [...merged.values()];
+}
+const approvalOf = (store, plan) =>
+  store
+    .list("approvals")
+    .some((a) => a.planId === plan.id && a.hash === plan.hash);
+
 // Read the pull request. Only a merged one records the merge commit and the
 // approver; a closed unmerged one is marked closed and records neither.
 export async function reconcileApproval(
