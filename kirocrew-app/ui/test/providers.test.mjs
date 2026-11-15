@@ -63,8 +63,13 @@ test('Switch model and Stop the line sit once each in the header actions row, no
   assert.match(tabs, /<SegmentedControl/)
   for (const file of ['DashboardView.tsx', 'FlowView.tsx', 'SettingsView.tsx'])
     assert.doesNotMatch(source(file), /<SwitchModelButton|<StopLineButton/, `${file} has its own copy`)
-  assert.equal(app.match(/<SwitchModelButton/g).length, 1)
-  assert.equal(app.match(/<StopLineButton/g).length, 1)
+  // One copy for the desktop header, one for the phone's single row, where
+  // Stop the line stays on the row and Switch model is in the More menu.
+  assert.equal(app.match(/<SwitchModelButton/g).length, 2)
+  assert.equal(app.match(/<StopLineButton/g).length, 2)
+  const phone = app.slice(app.indexOf('data-phone-header'), app.indexOf('<PageHeader'))
+  assert.ok(phone.indexOf('<StopLineButton') < phone.indexOf('<MoreMenu'), 'Stop the line is on the phone row, before More')
+  assert.ok(phone.indexOf('<SwitchModelButton') > phone.indexOf('<MoreMenu'), 'Switch model is in the More menu')
   assert.match(dashboard, /<LineBanner/)
   const dialog = source('SwitchModel.tsx')
   // Step 1 uses dropdowns and the shared picker, text only when a list can't be read.

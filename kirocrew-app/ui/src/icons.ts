@@ -63,6 +63,7 @@ export {
   Users,
   Workflow,
   X,
+  Ellipsis,
 } from 'lucide-react'
 export type { LucideIcon } from 'lucide-react'
 

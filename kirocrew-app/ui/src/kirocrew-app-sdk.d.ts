@@ -157,6 +157,7 @@ declare module 'lucide-react' {
   export const Trash2: LucideIcon
   export const Workflow: LucideIcon
   export const X: LucideIcon
+  export const Ellipsis: LucideIcon
 }
 
 // Prism's grammar files have no types; each only fills the global Prism.

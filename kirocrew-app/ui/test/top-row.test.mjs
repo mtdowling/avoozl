@@ -86,11 +86,28 @@ for (const [width, height] of [
             copies: document.querySelectorAll('[data-stop-line]').length,
           }
         })()`)
-        assert.deepEqual(row.buttons.slice(-2), ['Switch model', stopped ? 'Line stopped' : 'Stop the line'])
-        assert.ok(row.buttons.indexOf('Plan a goal') >= 0 && row.buttons.indexOf('Plan a goal') < row.buttons.indexOf('Switch model'), 'after Plan a goal')
+        if (width < 768) {
+          // A phone: one thin row with Stop the line, then More holding the rest.
+          const header = await page.evaluate(`document.querySelector('[data-phone-header]').getBoundingClientRect().height`)
+          assert.ok(header <= 56, `the phone header is one row (${header})`)
+          assert.equal(row.buttons[0], stopped ? 'Line stopped' : 'Stop the line')
+          await page.evaluate(`document.querySelector('[data-header-actions] [data-more-button]').click()`)
+          await settle()
+          const menu = await page.evaluate(`[...document.querySelectorAll('[data-more-panel] button')].map((b) => b.textContent.trim())`)
+          assert.ok(menu.includes('Plan a goal') && menu.includes('Switch model'), `More holds Plan a goal and Switch model (${menu})`)
+          assert.ok(menu.indexOf('Plan a goal') < menu.indexOf('Switch model'))
+          const inside = await page.evaluate(`(() => { const r = document.querySelector('[data-more-panel]').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth })()`)
+          assert.equal(inside, true, 'the menu is on screen')
+          await page.evaluate(`document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))`)
+          await settle()
+          assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-more-panel]'))`), false, 'a tap outside closes it')
+        } else {
+          assert.deepEqual(row.buttons.slice(-2), ['Switch model', stopped ? 'Line stopped' : 'Stop the line'])
+          assert.ok(row.buttons.indexOf('Plan a goal') >= 0 && row.buttons.indexOf('Plan a goal') < row.buttons.indexOf('Switch model'), 'after Plan a goal')
+          assert.equal(row.stopLast, true, 'Stop the line is last')
+        }
         assert.equal(row.tabRowHasNone, true, 'the tab row keeps only the tabs')
         assert.equal(row.hasTopActions, false, 'no actions group under the tabs')
-        assert.equal(row.stopLast, true, 'Stop the line is last')
         assert.equal(row.copies, 1, 'one Stop the line on the page')
         assert.equal(row.inside, true, 'every top row button is on screen')
         assert.equal(row.sideways, false, 'no sideways scroll')
