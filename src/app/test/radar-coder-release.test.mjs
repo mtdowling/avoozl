@@ -189,7 +189,12 @@ test("releaseFor: defaults and fallbacks", () => {
     releaseFor({ coder: "worker" }, "single-repo").capacity,
     Infinity,
   );
-  assert.equal(releaseFor({ coder: "worker", concurrency: 3 }).capacity, 3);
+  // The retired `concurrency` key is ignored.
+  assert.equal(
+    releaseFor({ coder: "worker", concurrency: 3 }).capacity,
+    Infinity,
+  );
+  assert.equal(releaseFor({ concurrency: 9 }, "single-repo").capacity, 2);
   assert.deepEqual(
     releaseFor(
       { release: { capacity: 4, scopes: [{ label: "d" }] } },

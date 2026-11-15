@@ -166,3 +166,30 @@ test("radar.showPlansRepo is unset by default, read when set, and refuses a non-
     /radar\.showPlansRepo must be true or false/,
   );
 });
+
+// rc-27.1: what Avoozl does with a crew's pull request that conflicts in source.
+test("conflicts defaults to fix with one attempt, and bad values are refused by key", () => {
+  assert.deepEqual(repo("single-repo").conflicts, {
+    onSourceConflict: "fix",
+    maxAttempts: 1,
+  });
+  assert.deepEqual(
+    repo("single-repo", {
+      conflicts: { onSourceConflict: "ask", maxAttempts: 3 },
+    }).conflicts,
+    { onSourceConflict: "ask", maxAttempts: 3 },
+  );
+  assert.throws(
+    () => repo("single-repo", { conflicts: { onSourceConflict: "merge" } }),
+    /conflicts\.onSourceConflict must be fix or ask/,
+  );
+  for (const maxAttempts of [0, 11, 1.5, "2"])
+    assert.throws(
+      () => repo("single-repo", { conflicts: { maxAttempts } }),
+      /conflicts\.maxAttempts/,
+    );
+  assert.throws(
+    () => repo("single-repo", { conflicts: { other: 1 } }),
+    /conflicts/,
+  );
+});

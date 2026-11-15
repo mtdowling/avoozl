@@ -10,6 +10,8 @@ Status: Draft
 
 This spec gathers the Avoozl work that is still open, has no owner and no open
 pull request, into one plan that Avoozl can project onto its own repository.
+It was refreshed against the main branch after the mirror, forward target,
+Create and Adopt setup, instance name and In flight work merged.
 It adds no new product behavior. Each requirement below points at the
 criteria in `.kiro/specs/radar-coder/requirements.md` (RC) or
 `.kiro/specs/avoozl/requirements.md` (R) that stay the source of truth for
@@ -25,10 +27,11 @@ separate acts that a person does later.
   retired. This leaves out crew placement, the crew registry, routing
   defaults in packs (`avoozl` tasks 11.x, 16.7, `avoozl-p29`) and the
   worker adapter proof (`rc-p14`).
-- Review drafts from a label (`rc-20.1` to `rc-p20`), open as pull request 138.
-- Work an open pull request already covers: `rc-22.2` (pull request 155),
-  the mirror's private plans branch (`rc-24.*`, pull request 154), the app
-  reshape (pull request 153), and the pull requests 23, 26 and 50.
+- Review drafts from a label (`rc-20.*`), merged.
+- Work an open pull request or another worker already covers: forward screen,
+  block rules, source audit and the `branch` and `batch` targets (`rc-25.4` to
+  `rc-25.7`, pull request 191 and later), and the pull requests 23, 26, 50,
+  192 and 193.
 - Upstream requests to Kiro Crew and the MCP App views the owner skipped.
 - Live proofs, publishing, and the Nupp cutover. They need a person and are
   listed in "Owner steps" in `design.md`.
@@ -51,19 +54,23 @@ dependent waits on a tracker and I can see and override that.
 4. A fake `gate` plugin proof SHALL show open, unknown, failed, done and a
    clear by an allowed person and by a stranger, with a receipt.
 
-### Requirement AN2: Mirror repositories
+### Requirement AN2: Private plans on the mirror's plans branch
 
 **User story:** As the owner of a public repository worked through a private
-mirror, I want crews to work in the mirror and changes to reach the public
-repository only through a scanned forward, so that private text never reaches
-the public repository.
+mirror, I want private plans kept on an orphan branch of the mirror, projected
+with public plans into one graph, so that private plan text never reaches the
+public repository.
 
 #### Acceptance criteria
 
-1. The behavior of RC24.1 to RC24.14 SHALL hold, in the order of design D29 of
-   `radar-coder`.
-2. A fake-GitHub proof SHALL show sync, mirror merge, forward, public merge,
-   and a planted private term that blocks the push, with a receipt.
+1. The behavior of RC25.3 to RC25.5 (marker `ref`, approval on the plans
+   branch, `verify-issue`) SHALL hold.
+2. The behavior of RC25.6 (containment: sync, forward, leak scan, explicit
+   refspecs) SHALL hold.
+3. The behavior of RC25.7 to RC25.10 (issues from both homes, edges across
+   homes) SHALL hold.
+4. A fake-GitHub proof SHALL show both plan kinds in one graph, a cross edge,
+   and a planted plans-branch name that blocks a forward, with a receipt.
 
 ### Requirement AN3: Crews on public repositories
 

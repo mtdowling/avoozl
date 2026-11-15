@@ -16,6 +16,9 @@ test('every kind gets an action or a plain reason why it has none', () => {
     [item('github-conflict', 'g', { field: 'identity', choices: [] }), null, /duplicate issue/],
     [item('github-conflict', 'g', { field: 'title', choices: ['desired', 'github'] }), null, null],
     [item('resource', 'x'), null, /share a resource/],
+    // A source conflict Avoozl asked about has its own three buttons (RC28.3).
+    [item('needs-human', null, { reason: 'conflict-fix', authority: 'github', conflictFix: { repository: 'o/r', pullRequest: 3, actions: ['resolve', 'dismiss'] } }), null, null],
+    [item('needs-human', null, { reason: 'merge-method', authority: 'github' }), null, /merge\.method/],
   ]
   for (const [entry, action, reason] of cases) {
     assert.equal(settleActionOf(entry), action, `${entry.kind} ${entry.taskId}`)
@@ -75,4 +78,16 @@ test('a review group is one item that settles all its local tasks and shrinks as
   const remote = { ...group, tasks: [group.tasks[2]] }
   assert.equal(settleActionOf(remote), null)
   assert.match(noActionReason(remote), /where they live/)
+})
+
+test('the source-conflict choices call conflictfix.decide', async () => {
+  const { viewsClient } = await import('../src/views-api.ts')
+  const calls = []
+  const api = { post: async (_path, body) => (calls.push(body), { result: {} }) }
+  const client = viewsClient(api)
+  for (const action of ['resolve', 'dismiss']) await client.decideConflictFix('w1', 'o/r', 3, action)
+  assert.deepEqual(
+    calls.map((call) => [call.operation, call.input.action, call.input.pullRequest]),
+    [['conflictfix.decide', 'resolve', 3], ['conflictfix.decide', 'dismiss', 3]],
+  )
 })

@@ -40,7 +40,8 @@ import { useTaskDrawer } from './drawer-context.ts'
 import { FilterBar, useSharedFilter } from './FilterBar.tsx'
 import { filterChoices, filterGraph } from './filters.ts'
 import { IconLabel, SectionHeading, TipBtn, ViewHeading } from './controls.tsx'
-import { ArrowLeft, Plus, RefreshCw } from './icons.ts'
+import { RefreshButton } from './RefreshButton.tsx'
+import { ArrowLeft, Plus } from './icons.ts'
 import { useNav, useRemembered } from './NavHistory.tsx'
 import { linkHref } from './views-api.ts'
 
@@ -525,9 +526,7 @@ export default function GraphView({
       ) : (
         <FilterBar id="avoozl-graph" filter={filter} choices={choices} onChange={changeFilter}>
           <div className="flex flex-wrap gap-2">
-            <IconLabel icon={RefreshCw} onClick={() => void reload()} disabled={busy}>
-              Refresh
-            </IconLabel>
+            <RefreshButton workspaceId={workspaceId} onRefresh={() => void reload()} busy={busy} />
             <IconLabel icon={Plus} tooltip="Add a draft task. It waits for your review." onClick={() => drawer.addTask()}>
               New task
             </IconLabel>

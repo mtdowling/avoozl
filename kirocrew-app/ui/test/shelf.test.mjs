@@ -29,7 +29,9 @@ const SHELF = `document.querySelector('[data-settings-shelf="repositories"]')`
 
 async function start(width, dark = false) {
   await page.open(harness.url({ page: 'app', radar: '1', theme: dark ? 'dark' : 'light' }), { width, height: 800, dark })
-  await page.until(`Boolean(document.querySelector('[role="tab"]'))`)
+  await page.until(`Boolean(document.querySelector('[role="tab"], [data-top-rail-bar]'))`)
+  // A phone's tabs are in the top rail's list, once its bar is open.
+  await page.evaluate(`document.querySelector('[data-top-rail-bar]')?.click()`)
   await page.evaluate(`[...document.querySelectorAll('button[role="tab"]')].find((b) => b.textContent.trim() === 'Settings').click()`)
   await page.until(`Boolean(document.querySelector('[data-settings-section="repositories"] button[aria-expanded]'))`)
   await page.evaluate(`document.querySelector('[data-settings-section="repositories"] button[aria-expanded]').click()`)
@@ -44,7 +46,7 @@ const openShelf = async () => {
 for (const dark of [false, true])
   test(`desktop: the shelf sits at the right edge, ${dark ? 'dark' : 'light'}; Settings shows a Configure button, not the editor`, { skip }, async () => {
     await start(1280, dark)
-    assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-slot="mirror"]'))`), false, 'no editor inline')
+    assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-mirror-setup]'))`), false, 'no editor inline')
     await openShelf()
     const box = await page.evaluate(`(() => { const r = ${SHELF}.querySelector('[data-modal-box]').getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, w: innerWidth, h: innerHeight } })()`)
     assert.equal(box.right, box.w, 'flush with the right edge')
@@ -52,7 +54,7 @@ for (const dark of [false, true])
     assert.equal(box.top, 0)
     assert.equal(await page.evaluate(`getComputedStyle(${SHELF}.querySelector('[data-modal-box]')).animationName`), 'none', 'no slide under reduced motion')
     assert.equal(box.bottom, box.h)
-    assert.equal(await page.evaluate(`Boolean(${SHELF}.querySelector('[data-slot="mirror"]'))`), true, 'the editor is in the shelf')
+    assert.equal(await page.evaluate(`Boolean(${SHELF}.querySelector('[data-mirror-setup]'))`), true, 'the editor is in the shelf')
   })
 
 test('mobile: the shelf is full width at 390 px', { skip }, async () => {
@@ -81,3 +83,20 @@ test('Esc and the Close button close it and focus goes back to the opener; Tab s
   await page.until(`!${SHELF}`)
   assert.equal(await page.evaluate(`document.activeElement === ${OPENER}`), true, 'Close returns focus to the opener')
 })
+
+for (const [width, dark] of [[1280, false], [390, true]])
+  test(`the shelf header is not sticky and scrolls out of view at ${width} px, ${dark ? 'dark' : 'light'}`, { skip }, async () => {
+    await start(width, dark)
+    await openShelf()
+    const head = `${SHELF}.querySelector('h3').parentElement`
+    const pos = await page.evaluate(`(() => { let n = ${head}; const out = []; for (; n && n !== ${SHELF}; n = n.parentElement) out.push(getComputedStyle(n).position); return out })()`)
+    assert.ok(pos.every((p) => p !== 'sticky' && p !== 'fixed'), `no sticky or fixed header: ${pos}`)
+    // Make the body taller than the screen, then scroll the shelf.
+    await page.evaluate(`(() => { const f = document.createElement('div'); f.style.height = '3000px'; f.dataset.filler = ''; ${head}.parentElement.appendChild(f) })()`)
+    const top = () => page.evaluate(`${head}.getBoundingClientRect().bottom`)
+    assert.ok((await top()) > 0, 'header visible at first')
+    await page.evaluate(`${head}.parentElement.scrollTop = 1000`)
+    assert.ok((await top()) <= 0, 'header scrolled out of view')
+    await page.key('Escape', 'Escape', 27)
+    await page.until(`!${SHELF}`)
+  })
