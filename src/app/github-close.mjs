@@ -15,6 +15,7 @@ import {
 import {
   completionReached,
   isManual,
+  isRefused,
   taskAuthority,
   taskKind,
   taskRepository,
@@ -349,7 +350,10 @@ async function allowedCloser(github, repository, issue, code, repo) {
 // A manual leaf (R61.14): no code to check. An allowed actor's close is its
 // completion, with the close reason as Done or Skipped, and counts as
 // verified; any other close holds its dependents and opens a decision. The
-// issue is never reopened.
+// issue is never reopened. A refusal marked in Avoozl closes the issue as not
+// planned; that close keeps the refusal (state `refused`, dependents held)
+// instead of reading as Skipped. A hand close as not planned with no refusal
+// on record stays Skipped: an allowed actor's close is an order.
 async function judgeManual(github, task, issue, { code, repo }) {
   if (issue.state !== "closed") return { state: "open" };
   const { closer, held } = await allowedCloser(
@@ -363,6 +367,15 @@ async function judgeManual(github, task, issue, { code, repo }) {
     return {
       ...held,
       reason: `${held.reason} ${task.id} is a manual task: dependents wait until an allowed person closes it, or marks it done in Avoozl.`,
+    };
+  if (closer.reason === "NOT_PLANNED" && isRefused(task))
+    return {
+      state: "refused",
+      manual: {
+        choice: "refused",
+        actor: closer.actor,
+        closedAt: closer.closedAt,
+      },
     };
   return {
     state: "verified",
@@ -679,9 +692,18 @@ export async function reconcileGitHubCompletion(store, github, { policy }) {
             at: verdict.manual.closedAt || new Date().toISOString(),
             via: "github",
           };
-        if (!done && (wasDone || row.manualDone)) {
+        if (
+          !done &&
+          verdict.state !== "refused" &&
+          (wasDone || row.manualDone)
+        ) {
+          // A refusal sits as Blocked; reopening it opens the task again.
+          if (
+            statusComplete(draft, row.status) ||
+            row.manualDone?.choice === "refused"
+          )
+            row.status = "planned";
           delete row.manualDone;
-          if (statusComplete(draft, row.status)) row.status = "planned";
         }
       }
       if (decision) row.decision = decision;

@@ -288,6 +288,7 @@ The gate for retirement. It also answers open questions Q1 and Q2 (design D16).
 - [ ] rc-p11 Proof 11: the whole path on a real repository, Q1 and Q2, after rc-p1, rc-p2, rc-p3, rc-p4, rc-p5, rc-p6, rc-p7, rc-p8, rc-p9, rc-p10, rc-q5, rc-q6, rc-q7 [RC11.1, RC12] (§D16, D17)
   - Setup: a real repository with slow CI (the nupp repository), two crews on two machines, one planner. Action: approve a 10-task spec; project; release N=2; merge by auto-merge; run the retro. Then repeat with a second person's crew in the same repository. Expected: every task merges through crews; no double claim; Flow shows where time went. Failure means: the path is not ready to replace the worker coder. Next decision: keep `coder: worker` as the default.
   - Done when: Expected result observed live and accepted by a person; receipt under `docs/evidence/`. Q1 and Q2 are answered in it.
+  - Partly done: private mirror setup and Nudge up to the first to-forward row are in `docs/evidence/rc-proof-11-live.md` (pass). No plan, crew or retro has run, so not ticked.
 
 ## Phase 12: Retirement epic (runs only after Proof 11)
 
