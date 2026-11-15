@@ -234,6 +234,14 @@ const tools = {
         "reviewdraft.post",
         "post a review draft chat's one pending review",
       ],
+      conflict_check: [
+        "conflictfix.check",
+        "a conflict fix chat's drop check before it pushes",
+      ],
+      conflict_report: [
+        "conflictfix.report",
+        "a conflict fix chat's one report",
+      ],
     },
   },
   plans_relay: {

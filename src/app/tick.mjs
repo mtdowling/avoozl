@@ -93,6 +93,10 @@ import { blockerNotes } from "./github-close.mjs";
 import { refreshUntriaged } from "./untriaged.mjs";
 import { mergeStep } from "./radar-merge.mjs";
 import {
+  conflictFixDispatches,
+  conflictFixStep,
+} from "./radar-conflict-fix.mjs";
+import {
   RATE_LIMIT_TEXT,
   githubGate,
   markGithubRun,
@@ -921,6 +925,30 @@ export async function tick(
             text: error.message,
           });
         }
+      // Crew pull requests that conflict in source code get one resolver chat
+      // (RC28): it merges the base into the branch and keeps both sides.
+      if (script && github)
+        try {
+          const step = await conflictFixStep(store, github, {
+            policy: readGitHubPolicyOrNull(workspaceRoot),
+            identity: planningIdentity(workspaceRoot),
+            delivery: delivery || {},
+            ...(issueVerify ? { verify: issueVerify } : {}),
+          });
+          planned.notify.push(...step.notify);
+          for (const text of step.errors)
+            planned.notify.push({
+              channel: "failure",
+              title: "Avoozl could not fix a source conflict",
+              text,
+            });
+        } catch (error) {
+          planned.notify.push({
+            channel: "failure",
+            title: "Avoozl could not fix a source conflict",
+            text: error.message,
+          });
+        }
       // Review drafts by label (RC20): new labels, and drafts waiting on a
       // person. Dispatch of the chats waits for the roster check below. A
       // read that fails keeps the last state and is tried next tick (design
@@ -1302,7 +1330,11 @@ export async function tick(
       // Code review chats a person asked for (pr-review.mjs), cron only.
       const reviews =
         script && !unobserved.length
-          ? [...reviewDispatches(store), ...reviewDraftDispatches(store)]
+          ? [
+              ...reviewDispatches(store),
+              ...reviewDraftDispatches(store),
+              ...conflictFixDispatches(store),
+            ]
           : [];
       // Read each spec's plan issue again right before its dispatches; a
       // spec reassigned since the sync read dispatches nothing (R66.6).

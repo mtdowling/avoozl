@@ -106,7 +106,11 @@ import { instanceIdentity } from "./instance.mjs";
 import { mirrorEntryKey, mirrorGit, mirrorSetup } from "./mirror-setup.mjs";
 import { radarSetup } from "./radar-setup.mjs";
 import { radarReread, radarValues } from "./radar-values.mjs";
-import { armedPullRequests, disarmPullRequest } from "./radar-arm.mjs";
+import {
+  armedPullRequests,
+  disarmPullRequest,
+  mergeMethodNeedsYou,
+} from "./radar-arm.mjs";
 import { preflight, requirePreflight } from "./radar-preflight.mjs";
 import {
   approvalLabelStep,
@@ -138,6 +142,13 @@ import {
   requireIntegrationBranch,
 } from "./integration-branch.mjs";
 import { mergeNeedsYou } from "./radar-merge.mjs";
+import {
+  checkConflictFix,
+  conflictFixNeedsYou,
+  conflictFixesOf,
+  decideConflictFix,
+  reportConflictFix,
+} from "./radar-conflict-fix.mjs";
 import { rateNeedsYou, rateView } from "./github-rate.mjs";
 import { syncNeedsYou } from "./integration-sync.mjs";
 import { namespaceOf, planThisRequest } from "./radar-plan-me.mjs";
@@ -3166,6 +3177,8 @@ export class Operations {
       // Remote tasks waiting on the person's turn in the relay (R41.20).
       view.items.push(...relayNeedsYou(store));
       view.items.push(...mergeNeedsYou(store));
+      view.items.push(...conflictFixNeedsYou(store));
+      view.items.push(...mergeMethodNeedsYou(store));
       view.items.push(...approvalNeedsYou(store));
       view.items.push(...reviewDraftNeedsYou(store));
       view.items.push(...landingNeedsYou(store));
@@ -3440,6 +3453,29 @@ export class Operations {
         fail("Only a person disarms auto-merge, in the Avoozl page.", 403);
       return disarmPullRequest(store, this.github, input);
     }
+    // A person's choice on a source conflict Avoozl asked about (RC28.3).
+    if (name === "conflictfix.decide") {
+      if (context.caller || context.mcp)
+        fail(
+          "Only a person decides a source conflict, in the Avoozl page.",
+          403,
+        );
+      return decideConflictFix(store, input);
+    }
+    // The bound resolver chat's drop check and its one report (RC28.2, RC28.3).
+    if (name === "conflictfix.check")
+      return checkConflictFix(store, input, context.caller);
+    if (name === "conflictfix.report")
+      return reportConflictFix(
+        store,
+        this.github,
+        {
+          policy: readGitHubPolicyOrNull(this.workspaceRoot),
+          delivery: readDeliveryPolicy(this.workspaceRoot).delivery || {},
+        },
+        input,
+        context.caller,
+      );
     if (name === "radar.preflight") {
       const plan = store.get("plans", input.planId);
       if (!plan) fail("Plan not found.", 404);
@@ -3513,6 +3549,7 @@ export class Operations {
       return readTrace(this.github, where, number, entry, {
         draftFor: (pull) => draftForPull(store, input.repository, pull),
         mirrorFor: (pull) => mirrorRecordFor(store, where, pull),
+        fixesFor: (pull) => conflictFixesOf(store, input.repository, pull),
       });
     }
     // Integration branches (RC16.3, RC16.8): tasks merged, distance behind the
@@ -3598,6 +3635,18 @@ export class Operations {
             github.repositories = {
               ...github.repositories,
               [key]: { ...entry, mirror: value },
+            };
+            file.updateGitHubSettings({ github, expectedHash: current.hash });
+            this.configuration?.reload();
+          },
+          saveMergeMethod: (method) => {
+            const file = this.settingsFile(),
+              current = file.readGitHubSettings(),
+              github = structuredClone(current.github),
+              entry = github.repositories?.[key] ?? {};
+            github.repositories = {
+              ...github.repositories,
+              [key]: { ...entry, merge: { ...(entry.merge ?? {}), method } },
             };
             file.updateGitHubSettings({ github, expectedHash: current.hash });
             this.configuration?.reload();
