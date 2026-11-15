@@ -39,7 +39,8 @@ test('headings with buttons pass them as the heading actions', () => {
   assert.match(source('PlansView.tsx'), /<SectionHeading\s+title="GitHub preview"[\s\S]*?actions=\{/)
   assert.match(source('GraphView.tsx'), /<SectionHeading\s+title=\{task\.title\}\s+actions=\{/)
   assert.match(source('NewPlanDrawer.tsx'), /<SectionHeading\s+level=\{2\}\s+id="avoozl-new-plan-title"[\s\S]*?actions=\{/)
-  assert.match(source('DocumentReader.tsx'), /<SectionHeading\s+id="avoozl-reader-title"[\s\S]*?actions=\{/)
+  // The reader's file name is the shared Modal's title; its copy and reveal buttons are the modal's footer.
+  assert.match(source('DocumentReader.tsx'), /<Modal\s+id="avoozl-reader"[\s\S]*?title=\{<code>\{target\.document\}<\/code>\}[\s\S]*?footer=\{/)
   assert.match(source('SettingsView.tsx'), /<SectionHeading level=\{props\.level === 'sub' \? 4 : 3\} title=\{props\.title\} blurb=\{props\.blurb\} actions=\{props\.actions\} \/>/)
   // No hand-made heading row is left beside its buttons.
   for (const name of views) assert.doesNotMatch(source(name), /items-center gap-3">\s*<(ViewHeading|CardTitle)/, name)

@@ -6,9 +6,11 @@
 // backdrop ask `onDismiss`, after a confirm when `unsaved` is set. Tab and
 // Shift+Tab stay inside the topmost modal, focus goes back where it was when
 // it closes, and the page behind it can't scroll. Full screen on a narrow page.
-// `close` adds a Close button in its corner, for a modal with no Cancel of
-// its own (a settings form). There are no side panels: every modal is
-// centered, and full screen on a phone.
+// Every dialog has Issue Radar's Add crew layout: a fixed header with the
+// title and a Close button over a divider, a body that scrolls on its own,
+// and a fixed footer (a darker surface, a divider above it) whose buttons sit
+// at the right, the primary one last. There are no side panels: every modal
+// is centered, and full screen on a phone.
 import { createContext, useCallback, useContext, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { useMedia } from './use-media.ts'
@@ -19,8 +21,17 @@ import { X } from './icons.ts'
 import type { StepKind } from './nav-history.ts'
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])'
-const BACKDROP = 'color-mix(in srgb, var(--text) 30%, transparent)'
-const BOX = { background: 'var(--card, var(--bg))', color: 'var(--text)', borderColor: 'var(--border)' }
+const BACKDROP = 'color-mix(in srgb, var(--bg) 60%, transparent)'
+// Radar's dialog: 16px corners, a hairline border, the card surface and a
+// large soft shadow; 660px wide at most and 90% of the screen tall.
+const BOX = { background: 'var(--card, var(--bg))', color: 'var(--text)', borderColor: 'var(--border)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }
+const DIVIDER = '1px solid var(--border)'
+const MODAL_CSS = `dialog[data-modal]::backdrop{background:transparent}
+[data-modal-backdrop]{backdrop-filter:blur(12px)}
+[data-modal-close]:hover{background:var(--bg-hover);color:var(--text)}
+[data-modal-close]:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+@media (prefers-reduced-motion:no-preference){[data-modal-box]{animation:avoozl-modal-in .2s ease}}
+@keyframes avoozl-modal-in{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:none}}`
 
 // The open modals, topmost last; only the topmost takes Tab.
 const stack: object[] = []
@@ -50,14 +61,17 @@ export function Modal(props: {
   id: string
   onDismiss: () => void
   children: ReactNode
-  // With a title: a heading, a body that scrolls and a footer kept in view.
-  title?: ReactNode
+  // The header's title, and the footer's buttons (Cancel, then the primary
+  // one at the far right).
+  title: ReactNode
   footer?: ReactNode
-  // The box's width and height, each capped by the viewport. `plain` drops
-  // the padding for a box that lays itself out (the file viewer).
+  // The box's largest width, and a fixed height when the content wants one;
+  // each is capped by the viewport.
   width?: string
   height?: string
-  plain?: boolean
+  // The body has no padding and does not scroll: its content lays itself out
+  // (the file viewer's outline and text).
+  flush?: boolean
   role?: 'dialog' | 'alertdialog'
   labelledBy?: string
   describedBy?: string
@@ -65,12 +79,10 @@ export function Modal(props: {
   unsaved?: ConfirmCopy | null | false
   backLabel?: string
   kind?: StepKind
-  close?: boolean
   boxRef?: RefObject<HTMLDivElement | null>
   attrs?: Record<string, string | number | boolean | undefined>
 }) {
   const ask = useConfirm()
-  const closable = Boolean(props.close)
   const narrow = useMedia('(max-width: 767px)')
   const dialog = useRef<HTMLDialogElement>(null)
   const box = useRef<HTMLDivElement | null>(null)
@@ -119,18 +131,9 @@ export function Modal(props: {
     }
   }, [])
 
-  const sections = props.title !== undefined
   const size = narrow
-    ? { width: '100%', height: '100%', maxHeight: 'none', borderRadius: 0 }
-    : sections || props.height
-      ? { width: `min(${props.width ?? '64rem'}, 94vw)`, height: `min(${props.height ?? '52rem'}, 90vh)`, borderRadius: 10 }
-      : { width: `min(${props.width ?? '36rem'}, 94vw)`, maxHeight: '88vh', borderRadius: 10 }
-  const layout = sections || props.plain ? 'relative flex flex-col overflow-hidden border shadow-lg outline-none' : 'relative flex flex-col gap-3 overflow-y-auto border p-4 shadow-lg outline-none'
-  const closeButton = (
-    <button type="button" data-modal-close aria-label="Close" onClick={dismiss} className="rounded border p-1" style={{ cursor: 'pointer', background: 'none', borderColor: 'var(--border)', color: 'inherit', display: 'inline-flex' }}>
-      <X size={16} aria-hidden="true" />
-    </button>
-  )
+    ? { width: '100%', height: '100%', maxHeight: 'none', borderRadius: 0, border: 'none' }
+    : { width: `min(${props.width ?? '41.25rem'}, calc(100vw - 4rem))`, ...(props.height ? { height: `min(${props.height}, 90vh)` } : { maxHeight: '90vh' }), borderRadius: 16 }
   return createPortal(
     <dialog
       ref={dialog}
@@ -139,7 +142,7 @@ export function Modal(props: {
       aria-labelledby={props.labelledBy ?? `${props.id}-title`}
       aria-describedby={props.describedBy}
       data-modal={props.id}
-      data-modal-size={narrow ? 'full' : sections ? 'large' : 'box'}
+      data-modal-size={narrow ? 'full' : 'box'}
       {...{ [APP_ATTR]: '' }}
       {...props.attrs}
       // Esc is the page's Back history's (NavHistory.tsx); never let the
@@ -150,7 +153,7 @@ export function Modal(props: {
       }}
       style={{ position: 'fixed', inset: 0, width: '100%', height: '100%', maxWidth: 'none', maxHeight: 'none', margin: 0, padding: 0, border: 'none', background: 'transparent', overflow: 'hidden', color: 'var(--text)' }}
     >
-      <style>{'dialog[data-modal]::backdrop{background:transparent}'}</style>
+      <style>{MODAL_CSS}</style>
       <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div aria-hidden="true" data-modal-backdrop onClick={dismiss} style={{ position: 'absolute', inset: 0, background: BACKDROP }} />
         <div
@@ -160,32 +163,25 @@ export function Modal(props: {
           }}
           data-modal-box
           tabIndex={-1}
-          className={layout}
+          className="relative flex flex-col overflow-hidden border outline-none"
           style={{ ...BOX, ...size, boxSizing: 'border-box', overscrollBehavior: 'contain' }}
         >
           <PortalTarget.Provider value={target}>
-            {sections ? (
-              <>
-                <div className="contents">
-                  <div className="flex items-center gap-2 border-b px-4 py-3" style={{ borderColor: 'var(--border)' }}>
-                    <h3 id={`${props.id}-title`} className="min-w-0 flex-1 text-lg font-semibold">
-                      {props.title}
-                    </h3>
-                    {closable && closeButton}
-                  </div>
-                  <div className="min-h-0 flex-1 overflow-y-auto p-4">{props.children}</div>
-                </div>
-                {props.footer && (
-                  <div className="border-t px-4 py-3" style={{ borderColor: 'var(--border)' }}>
-                    {props.footer}
-                  </div>
-                )}
-              </>
-            ) : (
-              <>
-                {closable && <div className="flex justify-end">{closeButton}</div>}
-                {props.children}
-              </>
+            <div data-modal-header style={{ display: 'flex', flexShrink: 0, alignItems: 'center', gap: 12, padding: '12px 48px 12px 20px', borderBottom: DIVIDER }}>
+              <h2 id={`${props.id}-title`} style={{ margin: 0, minWidth: 0, flex: 1, fontSize: 15, fontWeight: 600, color: 'var(--text-strong, var(--text))', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {props.title}
+              </h2>
+            </div>
+            <button type="button" data-modal-close aria-label="Close" onClick={dismiss} style={{ position: 'absolute', top: 12, right: 16, width: 28, height: 28, padding: 6, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: 0, background: 'transparent', color: 'var(--muted)', cursor: 'pointer' }}>
+              <X size={16} aria-hidden="true" />
+            </button>
+            <div data-modal-body style={{ minHeight: 0, flex: 1, ...(props.flush ? { overflow: 'hidden', padding: 0, gap: 0 } : { overflowX: 'hidden', overflowY: 'auto', padding: '16px 20px', gap: 12 }), display: 'flex', flexDirection: 'column' }}>
+              {props.children}
+            </div>
+            {props.footer && (
+              <div data-modal-footer style={{ display: 'flex', flexShrink: 0, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', gap: 8, padding: '12px 20px', borderTop: DIVIDER, background: 'var(--bg-accent, var(--bg-elevated))' }}>
+                {props.footer}
+              </div>
             )}
           </PortalTarget.Provider>
         </div>

@@ -866,24 +866,26 @@ export function ArchivePlanDialog(props: { workspaceId: string; row: PlanRow; cl
   }
   return (
     // Esc, Back and a click outside do what Cancel does.
-    <Modal id="avoozl-archive-plan" role="alertdialog" width="32rem" backLabel="Cancel" attrs={{ 'data-archive-plan': true }} onDismiss={() => props.onDone(null)}>
-      <h3 id="avoozl-archive-plan-title" className="text-base font-semibold">
-        Archive the spec {row.name}?
-      </h3>
-      <ul className="flex flex-col gap-1 pl-5 text-sm" style={{ listStyle: 'disc' }}>
-        {ARCHIVE_LINES.map((line) => (
-          <li key={line}>{line}</li>
-        ))}
-      </ul>
-      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
-      <div className="flex justify-end gap-2">
+    <Modal id="avoozl-archive-plan" role="alertdialog" width="32rem" backLabel="Cancel" attrs={{ 'data-archive-plan': true }}
+      title={<>Archive the spec {row.name}?</>}
+      onDismiss={() => props.onDone(null)}
+      footer={
+        <>
         <Btn ref={cancel} type="button" onClick={() => props.onDone(null)}>
           Cancel
         </Btn>
         <Btn type="button" primary data-archive-confirm disabled={busy} onClick={() => void run()}>
           Archive spec
         </Btn>
-      </div>
+        </>
+  }
+    >
+      <ul className="flex flex-col gap-1 pl-5 text-sm" style={{ listStyle: 'disc' }}>
+        {ARCHIVE_LINES.map((line) => (
+          <li key={line}>{line}</li>
+        ))}
+      </ul>
+      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
     </Modal>
   )
 }
@@ -950,10 +952,20 @@ export function DeletePlanDialog(props: { workspaceId: string; row: PlanRow; cli
   const blocked = Boolean(folder && preview?.folder?.dirty)
   return (
     // Esc, Back and a click outside do what Cancel does.
-    <Modal id="avoozl-delete-plan" role="alertdialog" width="32rem" backLabel="Cancel" attrs={{ 'data-delete-plan': preview?.retire ? 'retire' : 'draft' }} onDismiss={() => props.onDone(null)}>
-      <h3 id="avoozl-delete-plan-title" className="text-base font-semibold">
-        Delete the spec {preview?.title ?? row.name}?
-      </h3>
+    <Modal id="avoozl-delete-plan" role="alertdialog" width="32rem" backLabel="Cancel" attrs={{ 'data-delete-plan': preview?.retire ? 'retire' : 'draft' }}
+      title={<>Delete the spec {preview?.title ?? row.name}?</>}
+      onDismiss={() => props.onDone(null)}
+      footer={
+        <>
+        <Btn ref={cancel} type="button" onClick={() => props.onDone(null)}>
+          Cancel
+        </Btn>
+        <Btn type="button" data-danger disabled={!preview || busy || blocked} onClick={() => void run()} style={{ background: 'var(--danger)', borderColor: 'var(--danger)', color: '#fff' }}>
+          Delete spec
+        </Btn>
+        </>
+  }
+    >
       {!preview && !error && <p className="text-sm text-muted">Counting its tasks…</p>}
       {preview && (
         <ul className="flex flex-col gap-1 pl-5 text-sm" style={{ listStyle: 'disc' }}>
@@ -974,14 +986,6 @@ export function DeletePlanDialog(props: { workspaceId: string; row: PlanRow; cli
         </label>
       )}
       {error && <p role="alert" className="text-sm text-danger">{error}</p>}
-      <div className="flex justify-end gap-2">
-        <Btn ref={cancel} type="button" onClick={() => props.onDone(null)}>
-          Cancel
-        </Btn>
-        <Btn type="button" data-danger disabled={!preview || busy || blocked} onClick={() => void run()} style={{ background: 'var(--danger)', borderColor: 'var(--danger)', color: '#fff' }}>
-          Delete spec
-        </Btn>
-      </div>
     </Modal>
   )
 }

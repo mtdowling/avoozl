@@ -310,7 +310,7 @@ function AddPluginDialog(props: { workspaceId: string; client: Client; supported
   return (
     // Esc, Back and a click outside do what Cancel does, asking first once
     // something was entered or added.
-    <Modal close
+    <Modal
       id="avoozl-plugin"
       width="40rem"
       backLabel="Cancel"
@@ -318,51 +318,11 @@ function AddPluginDialog(props: { workspaceId: string; client: Client; supported
       boxRef={box}
       attrs={{ 'data-plugin-dialog': step }}
       unsaved={(Boolean(added) || step > 0 || JSON.stringify(form) !== JSON.stringify(emptyPluginForm())) && { title: 'Stop adding this plugin?', body: added ? `${added.id} is removed again. Nothing ran.` : 'What you entered is lost.', action: 'Stop' }}
+      title={<>{PLUGIN_STEPS[step][0]}</>}
       onDismiss={cancel}
-    >
-      <ol className="flex flex-wrap gap-2 text-xs" aria-label="Steps">
-        {PLUGIN_STEPS.map(([title], i) => (
-          <li key={title} aria-current={i === step ? 'step' : undefined} className={i === step ? 'font-semibold' : 'text-muted'}>
-            {i + 1}. {title}
-          </li>
-        ))}
-      </ol>
-      <div>
-        <h3 id="avoozl-plugin-title" className="text-base font-semibold">
-          {PLUGIN_STEPS[step][0]}
-        </h3>
-        <p id="avoozl-plugin-line" className="text-sm text-muted">
-          {PLUGIN_STEPS[step][1]}
-        </p>
-      </div>
-      {step === 0 && <SourceFields form={form} set={set} />}
-      {step === 1 && preview && <WhatStep form={form} preview={preview} supported={supported} set={set} problem={problem} />}
-      {step === 2 && <ScopeStep form={form} set={set} confirmPublic={confirmPublic} setConfirmPublic={setConfirmPublic} />}
-      {step === 3 && added && (
-        <div className="flex flex-col gap-2 text-sm" data-plugin-review>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-semibold">{added.id}</span>
-            <Badge variant={stateLabel(added).attention ? 'warning' : undefined}>{stateLabel(added).label}</Badge>
-          </div>
-          {added.reason && <p className="text-xs text-muted">{added.reason}</p>}
-          <Parts row={added} />
-          <Facts row={added} />
-          {pack && (
-            <div className="flex flex-col gap-1">
-              <h4 className="text-sm font-semibold">Settings pack</h4>
-              <PackChanges preview={pack} />
-              <p className="text-xs text-muted">After you approve, import these from the plugin’s card. Nothing is imported now.</p>
-            </div>
-          )}
-          <p className="text-xs text-muted">Cancel removes the entry just added. Nothing has run.</p>
-        </div>
-      )}
-      {error && (
-        <p role="alert" className="text-sm text-danger">
-          {error}
-        </p>
-      )}
-      <div className="flex flex-wrap justify-end gap-2">
+    
+  footer={
+    <>
         <Btn type="button" onClick={cancel} disabled={busy}>
           Cancel
         </Btn>
@@ -406,7 +366,50 @@ function AddPluginDialog(props: { workspaceId: string; client: Client; supported
             Keep it unapproved
           </Btn>
         )}
+    </>
+      
+  }
+      
+>
+      <ol className="flex flex-wrap gap-2 text-xs" aria-label="Steps">
+        {PLUGIN_STEPS.map(([title], i) => (
+          <li key={title} aria-current={i === step ? 'step' : undefined} className={i === step ? 'font-semibold' : 'text-muted'}>
+            {i + 1}. {title}
+          </li>
+        ))}
+      </ol>
+      <div>
+        <p id="avoozl-plugin-line" className="text-sm text-muted">
+          {PLUGIN_STEPS[step][1]}
+        </p>
       </div>
+      {step === 0 && <SourceFields form={form} set={set} />}
+      {step === 1 && preview && <WhatStep form={form} preview={preview} supported={supported} set={set} problem={problem} />}
+      {step === 2 && <ScopeStep form={form} set={set} confirmPublic={confirmPublic} setConfirmPublic={setConfirmPublic} />}
+      {step === 3 && added && (
+        <div className="flex flex-col gap-2 text-sm" data-plugin-review>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-semibold">{added.id}</span>
+            <Badge variant={stateLabel(added).attention ? 'warning' : undefined}>{stateLabel(added).label}</Badge>
+          </div>
+          {added.reason && <p className="text-xs text-muted">{added.reason}</p>}
+          <Parts row={added} />
+          <Facts row={added} />
+          {pack && (
+            <div className="flex flex-col gap-1">
+              <h4 className="text-sm font-semibold">Settings pack</h4>
+              <PackChanges preview={pack} />
+              <p className="text-xs text-muted">After you approve, import these from the plugin’s card. Nothing is imported now.</p>
+            </div>
+          )}
+          <p className="text-xs text-muted">Cancel removes the entry just added. Nothing has run.</p>
+        </div>
+      )}
+      {error && (
+        <p role="alert" className="text-sm text-danger">
+          {error}
+        </p>
+      )}
     </Modal>
   )
 }

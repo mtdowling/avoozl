@@ -1660,7 +1660,7 @@ export default function SettingsView(props: {
         {renderBody(current)}
       </section>
       {dialog && (
-        <Modal close id={`avoozl-settings-${dialog}`} title={dialogLabel} width="46rem" backLabel="Close the settings dialog" attrs={{ 'data-settings-dialog': dialog }} onDismiss={() => setDialog(null)}>
+        <Modal id={`avoozl-settings-${dialog}`} title={dialogLabel} width="46rem" backLabel="Close the settings dialog" attrs={{ 'data-settings-dialog': dialog }} onDismiss={() => setDialog(null)}>
           <div className="flex flex-col gap-3">
             <TabBoundary key={dialog} label={dialogLabel}>
               <SettingsBody tab={dialog} workspaceId={workspaceId} onTab={(next) => (setDialog(null), choose(next))} onSelectWorkspace={props.onSelectWorkspace} onListChange={props.onListChange} onOpenPlans={props.onOpenPlans} />
