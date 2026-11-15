@@ -936,6 +936,7 @@ export function lintSpec({
   approved = null,
   retitled = [],
   namespace = null,
+  declaredTasks = [],
 }) {
   const data = { tasks: [], ...given },
     parsed = parseSpec(spec),
@@ -947,6 +948,7 @@ export function lintSpec({
             plan,
             data,
             proposals: parsed.proposals,
+            declaredTasks,
           }),
     diagnostics = [
       ...parsed.diagnostics,

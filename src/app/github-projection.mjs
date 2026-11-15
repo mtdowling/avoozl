@@ -859,6 +859,18 @@ async function project(
     plan = store.get("plans", planId);
   if (!plan || plan.state !== "approved")
     fail("Approve the design revision before projecting issues.", 409);
+  if (
+    store
+      .read()
+      .tasks.some(
+        (task) =>
+          task.planId === plan.id && task.pendingSpecDependencies?.length,
+      )
+  )
+    fail(
+      "Approve referenced spec owners before projecting their dependents.",
+      409,
+    );
   // Batches (radar-coder D4.2): the ones stored on tasks plus the ones asked
   // for now. Refused before anything is written.
   const early = store.read(),

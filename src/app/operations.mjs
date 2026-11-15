@@ -1,3 +1,8 @@
+import { approvedSpecDependency } from "../spec-dependencies.mjs";
+import {
+  specDeclarations,
+  declaredDependencies,
+} from "./cross-spec-dependencies.mjs";
 import { parseIssueReference, verifyIssue } from "./verify-issue.mjs";
 import { crossPlanEpics, epicOfPlan, taskEpic } from "./epics.mjs";
 import path from "node:path";
@@ -2007,6 +2012,7 @@ export class Operations {
   }
   lintSpecPlan(plan, retitled = [], { content = true } = {}) {
     const spec = { name: plan.spec, exists: true, files: plan.files || {} },
+      declarations = specDeclarations(this.store.list("plans")),
       quality = lintSpec({
         spec,
         plan,
@@ -2018,7 +2024,15 @@ export class Operations {
         approved: this.approvedSpec(plan),
         retitled,
         namespace: this.safeSpecNamespace(),
+        declaredTasks: declarations.filter((task) => task.planId !== plan.id),
       });
+    quality.declaredDependencies = declaredDependencies(
+      plan,
+      quality.proposals,
+      declarations,
+      this.read().tasks,
+      this.store.list("plans"),
+    );
     return content ? this.withContentDiagnostics(quality, spec) : quality;
   }
   // content.check (§4.9 `diff`): the pre-push hook's check. Each pushed
@@ -5353,6 +5367,30 @@ export class Operations {
               from: mapping[ref] || ref,
               to: mapping[p.id],
               known: existing.has(mapping[ref] || ref) || Boolean(mapping[ref]),
+              ...(specQuality?.declaredDependencies.find(
+                (entry) => entry.taskId === ref,
+              )
+                ? {
+                    declaredBy: specQuality.declaredDependencies.find(
+                      (entry) => entry.taskId === ref,
+                    ).spec,
+                    pending: (() => {
+                      const declaration = specQuality.declaredDependencies.find(
+                          (entry) => entry.taskId === ref,
+                        ),
+                        owner = store.get("plans", declaration.planId),
+                        receipt =
+                          owner?.approvalId &&
+                          store.get("approvals", owner.approvalId);
+                      return !approvedSpecDependency(
+                        declaration,
+                        rows.get(mapping[ref] || ref),
+                        owner,
+                        receipt,
+                      );
+                    })(),
+                  }
+                : {}),
             })),
           ),
         ),
@@ -5477,7 +5515,13 @@ export class Operations {
         evidence,
         githubPolicy: this.githubPolicy(),
         ...(extraction ? { extraction, proposals } : {}),
-        ...(specQuality ? { proposals, baseline: true } : {}),
+        ...(specQuality
+          ? {
+              proposals,
+              baseline: true,
+              declaredDependencies: specQuality.declaredDependencies,
+            }
+          : {}),
         approvedBy: approver,
         operator: input.operator || this.operator,
         expectedRevision: input.expectedRevision ?? expectedRevision,

@@ -133,6 +133,15 @@ Select the spec, review the lint results and the graph, then choose
 **Approve revision**. Approval records the exact revision hash, so a later
 edit reads as unapproved until you approve again.
 
+For dependencies across specs, load each referenced spec as a stored draft
+first. Preview distinguishes a declared task from an existing approved task.
+You approve each spec separately; approval creates only that spec's tasks.
+A dependency on a draft owner stays pending and blocks delivery and GitHub
+projection until the owning spec is actually approved. An unrelated newer
+draft does not erase its last real approval. Retiring an owner restores the
+hold; if a dependent is already projected, revise its links before invalidating
+the owner so an old ready label cannot authorize work.
+
 ## Deliver locally
 
 Register the Git checkout the work changes, with its base branch, a worktree
