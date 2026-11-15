@@ -231,9 +231,10 @@ test("approving in Avoozl writes the label and one marker comment back, once", a
   assert.ok(w.github.labelNames().includes(APPROVAL));
   assert.equal(w.markers().length, 1);
   const body = w.markers()[0].body;
+  // The approver is the signed-in GitHub login, not the operator name.
   assert.match(
     body,
-    /<!-- avoozl-approval v=1 approver=Owner spec=\.kiro\/specs\/loader commit=none at=\S+ instance=inst-[0-9a-f]{12} -->/,
+    /<!-- avoozl-approval v=1 approver=worker spec=\.kiro\/specs\/loader commit=none at=\S+ instance=inst-[0-9a-f]{12} -->/,
   );
   // No spec text.
   assert.doesNotMatch(body, /Load configuration|loader, then/);

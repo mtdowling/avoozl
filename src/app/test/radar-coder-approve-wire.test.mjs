@@ -6,6 +6,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { operatorName } from "../config.mjs";
 import { Operations } from "../operations.mjs";
 import { Store } from "../store.mjs";
 import { FakeGitHub } from "./fake-github.mjs";
@@ -56,7 +57,10 @@ class PullGitHub extends FakeGitHub {
 }
 
 // One workspace: a code checkout with an origin remote and a spec folder.
-function open(t, { mode, repositories, planning = false }) {
+function open(
+  t,
+  { mode, repositories, planning = false, operator = "maintainer", login },
+) {
   const root = temporaryDirectory("avoozl-wire-"),
     code = temporaryDirectory("avoozl-wire-code-"),
     store = new Store(
@@ -104,9 +108,11 @@ function open(t, { mode, repositories, planning = false }) {
   if (planning)
     store.setMeta("workspaceRepository", { root: specRoot, directory: "." });
   writeSpec(specRoot, "config");
+  // The signed-in GitHub login; the operator is only a display name.
+  github.login = login === undefined ? "maintainer" : login;
   const ops = new Operations(store, {
     github,
-    operator: "maintainer",
+    operator: typeof operator === "function" ? operator(root) : operator,
     workspaceRoot: root,
   });
   return { ops, store, github, specRoot };
@@ -320,4 +326,74 @@ test("a batch opens one approval pull request and approves all after it merges",
       ["second", "maintainer"],
     ],
   );
+});
+
+// The operator falls back to git user.name, which may hold spaces; GitHub
+// records the approver as a login, so approval takes the signed-in one.
+function spacedOperator(root) {
+  execFileSync("git", ["init", "-q", root]);
+  execFileSync("git", ["-C", root, "config", "user.name", "Pat Q. Example"]);
+  return operatorName({ workspaceRoot: root });
+}
+
+test("a git user.name with spaces approves a spec as the GitHub login", async (t) => {
+  const { ops, store, github } = open(t, {
+    mode: "single-repo",
+    repositories: { "example/code": {} },
+    operator: spacedOperator,
+    login: "pat-example",
+  });
+  assert.equal(ops.operator, "Pat Q. Example");
+  assert.equal((await approve(ops)).pending, true);
+  merge(github);
+  const receipt = await approve(ops);
+  assert.equal(receipt.approvedBy, "pat-example");
+  assert.equal(store.list("approvals")[0].approvedBy, "pat-example");
+});
+
+test("a git user.name with spaces approves a batch as the GitHub login", async (t) => {
+  const { ops, store, github, specRoot } = open(t, {
+    mode: "single-repo",
+    repositories: { "example/code": {} },
+    operator: spacedOperator,
+    login: "pat-example",
+  });
+  writeSpec(specRoot, "second");
+  for (const spec of ["config", "second"])
+    await ops.execute("plan.create", { spec });
+  const items = ["config", "second"].map((id) => ({
+    id,
+    expectedHash: store.get("plans", id).hash,
+  }));
+  assert.equal(
+    (await ops.execute("plan.approveMany", { items })).pending,
+    true,
+  );
+  merge(github);
+  const done = await ops.execute("plan.approveMany", { items });
+  assert.equal(done.ok, true);
+  assert.deepEqual(
+    store
+      .list("approvals")
+      .map((a) => a.approvedBy)
+      .sort(),
+    ["pat-example", "pat-example"],
+  );
+});
+
+test("with no GitHub login, approval names gh auth login", async (t) => {
+  const { ops, store, github } = open(t, {
+    mode: "single-repo",
+    repositories: { "example/code": {} },
+    operator: spacedOperator,
+    login: null,
+  });
+  await assert.rejects(approve(ops), /`gh auth login`/);
+  await ops.execute("plan.create", { spec: "config" }).catch(() => {});
+  const batch = await ops.execute("plan.approveMany", {
+    items: [{ id: "config", expectedHash: store.get("plans", "config").hash }],
+  });
+  assert.equal(batch.ok, false);
+  assert.match(batch.failures[0].error, /`gh auth login`/);
+  assert.equal(github.pulls.length, 0);
 });
