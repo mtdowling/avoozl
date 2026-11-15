@@ -535,6 +535,7 @@ import {
   openApproval,
   proseFiles,
   reconcileApproval,
+  reconcileOpenApprovals,
   statusOf,
 } from "./spec-approval.mjs";
 import {
@@ -1771,17 +1772,23 @@ export class Operations {
     return target;
   }
   // Who approves a spec. GitHub records the approver as a login (the approval
-  // pull request and the issue write-back check it), so when GitHub is in play
-  // it is the caller's login, else the signed-in GitHub login, cached for
-  // this workspace. git user.name is display provenance and may hold spaces.
+  // pull request checks it, and the issue write-back names it), so with
+  // GitHub in play it is the caller's login, else the signed-in GitHub login,
+  // cached for this workspace. git user.name is display provenance and may
+  // hold spaces. Only an approval pull request requires the login; without
+  // one a missing login keeps the operator, as before.
   async specApprover(plan, approvedBy) {
     const given = approvedBy?.trim();
     if (given) return given;
-    const github =
-      this.approvalGateTarget(plan) ||
-      (readGitHubPolicyOrNull(this.workspaceRoot)?.mode &&
-        this.github?.available?.());
-    if (!github) return this.operator;
+    const gated = Boolean(this.approvalGateTarget(plan));
+    if (
+      !gated &&
+      !(
+        readGitHubPolicyOrNull(this.workspaceRoot)?.mode &&
+        this.github?.available?.()
+      )
+    )
+      return this.operator;
     if (!this.approverLogin)
       try {
         this.approverLogin =
@@ -1789,12 +1796,12 @@ export class Operations {
             (await this.github.currentUser())?.login) ||
           null;
       } catch {}
-    if (!this.approverLogin)
-      fail(
-        "Approving a spec needs your GitHub login, and Avoozl could not find one. Run `gh auth login`, then approve again.",
-        401,
-      );
-    return this.approverLogin;
+    if (this.approverLogin) return this.approverLogin;
+    if (!gated) return this.operator;
+    fail(
+      "Approving a spec needs your GitHub login, and Avoozl could not find one. Run `gh auth login`, then approve again.",
+      401,
+    );
   }
   async approvalPullRequest(plan, { approvedBy, quality }) {
     const target = this.approvalGateTarget(plan);
@@ -1857,10 +1864,29 @@ export class Operations {
       // Nothing here may undo an approval.
     }
   }
+  // An approval pull request that merged is the person's approval (they
+  // merged it): record it under the login that asked for it, with no second
+  // command. One read per open approval pull request.
+  // shortcut: a merged spec that fails its checks is tried again each tick
+  // and says nothing; surface it in Needs you if that turns out to happen.
+  async recordMergedApprovals() {
+    const merged = await reconcileOpenApprovals(this.store, {
+      github: this.github,
+    });
+    for (const pull of merged)
+      await this.perform("plan.approveMany", {
+        items: pull.specs.map(({ planId, hash }) => ({
+          id: planId,
+          expectedHash: hash,
+        })),
+        approvedBy: pull.approvedBy,
+      }).catch(() => {});
+  }
   // The tick's pass over approval labels and Avoozl's own claims (RC18.2, RC19.5).
   async approvalTick() {
     const policy = readGitHubPolicyOrNull(this.workspaceRoot);
     if (!policy?.mode || !this.github?.available?.()) return;
+    await this.recordMergedApprovals().catch(() => {});
     const identity = planningIdentity(this.workspaceRoot),
       plans = this.store.list("plans"),
       drafts = plans

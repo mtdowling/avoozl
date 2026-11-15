@@ -235,6 +235,13 @@ export class Store {
     const row = this.db.prepare("SELECT value FROM meta WHERE key=?").get(key);
     return row ? JSON.parse(row.value) : null;
   }
+  // Every meta entry whose key starts with `prefix`, as [key, value].
+  metaEntries(prefix) {
+    return this.db
+      .prepare("SELECT key, value FROM meta WHERE substr(key, 1, ?) = ?")
+      .all(prefix.length, prefix)
+      .map((row) => [row.key, JSON.parse(row.value)]);
+  }
   setMeta(key, value) {
     this.db
       .prepare(

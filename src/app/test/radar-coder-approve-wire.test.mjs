@@ -8,6 +8,7 @@ import path from "node:path";
 import test from "node:test";
 import { operatorName } from "../config.mjs";
 import { Operations } from "../operations.mjs";
+import { approvalState } from "../spec-approval.mjs";
 import { Store } from "../store.mjs";
 import { FakeGitHub } from "./fake-github.mjs";
 import { snapshot } from "./fixtures.mjs";
@@ -396,4 +397,83 @@ test("with no GitHub login, approval names gh auth login", async (t) => {
   assert.equal(batch.ok, false);
   assert.match(batch.failures[0].error, /`gh auth login`/);
   assert.equal(github.pulls.length, 0);
+});
+
+// Two draft specs held by an Issue Radar repository, with the pull request
+// reads counted.
+async function pair(t) {
+  const w = open(t, {
+    mode: "single-repo",
+    repositories: { "example/code": {} },
+  });
+  writeSpec(w.specRoot, "second");
+  for (const spec of ["config", "second"])
+    await w.ops.execute("plan.create", { spec });
+  const read = w.github.pullRequest.bind(w.github);
+  w.reads = 0;
+  w.github.pullRequest = (...args) => {
+    w.reads += 1;
+    return read(...args);
+  };
+  w.items = () =>
+    ["config", "second"].map((id) => ({
+      id,
+      expectedHash: w.store.get("plans", id).hash,
+    }));
+  return w;
+}
+
+test("the tick records a merged batch approval without a second command", async (t) => {
+  const w = await pair(t);
+  w.github.login = "requester";
+  assert.equal(
+    (await w.ops.execute("plan.approveMany", { items: w.items() })).pending,
+    true,
+  );
+  w.github.login = "someone-else";
+  await w.ops.approvalTick();
+  assert.equal(w.store.list("approvals").length, 0);
+  merge(w.github);
+  w.reads = 0;
+  await w.ops.approvalTick();
+  assert.equal(w.reads, 1);
+  // The person who asked for the approval, who merged it, approved.
+  assert.deepEqual(
+    w.store
+      .list("approvals")
+      .map((a) => [a.planId, a.approvedBy])
+      .sort(),
+    [
+      ["config", "requester"],
+      ["second", "requester"],
+    ],
+  );
+  w.reads = 0;
+  await w.ops.approvalTick();
+  assert.equal(w.reads, 0);
+  assert.equal(w.store.list("approvals").length, 2);
+});
+
+test("running the batch again after the merge approves with one read", async (t) => {
+  const w = await pair(t);
+  await w.ops.execute("plan.approveMany", { items: w.items() });
+  merge(w.github);
+  w.reads = 0;
+  const done = await w.ops.execute("plan.approveMany", { items: w.items() });
+  assert.equal(done.ok, true);
+  assert.equal(done.approved.length, 2);
+  assert.equal(w.reads, 1);
+});
+
+test("a closed unmerged approval pull request approves nothing on the tick", async (t) => {
+  const w = await pair(t);
+  await w.ops.execute("plan.approveMany", { items: w.items() });
+  Object.assign(w.github.pulls[0], { state: "closed", merged: false });
+  await w.ops.approvalTick();
+  assert.equal(w.store.list("approvals").length, 0);
+  for (const { id, expectedHash } of w.items())
+    assert.equal(approvalState(w.store, id, expectedHash).state, "closed");
+  w.reads = 0;
+  await w.ops.approvalTick();
+  assert.equal(w.reads, 0);
 });

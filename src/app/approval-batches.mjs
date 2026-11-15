@@ -10,6 +10,7 @@ import {
   approvalState,
   openBatchApproval,
   reconcileApproval,
+  reconcileOpenApprovals,
 } from "./spec-approval.mjs";
 import { fail } from "./store.mjs";
 
@@ -230,6 +231,9 @@ export async function approveMany(ops, input = {}) {
     prepared = [],
     // Specs whose approval is a pull request that has not merged yet.
     gated = [];
+  // One read per open approval pull request, not one per spec of a batch.
+  if (ops.github?.available?.())
+    await reconcileOpenApprovals(store, { github: ops.github }).catch(() => {});
   for (const item of items) {
     try {
       const checked = ops.approvalChecks({
