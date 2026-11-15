@@ -306,7 +306,11 @@ export interface ConflictItem extends TaskOwner {
   // crew asked for one on an issue no task owns (R52.10). 'hand-set-review':
   // status running or review with no live session behind it. 'review-draft':
   // a review draft made from the review label (RC20).
+<<<<<<< HEAD
   reason?: 'review' | 'blocked' | 'crew' | 'hand-set-review' | 'approval' | 'review-draft' | 'conflict-fix' | 'merge-method' | 'forward' | 'tracker-gate'
+=======
+  reason?: 'review' | 'blocked' | 'crew' | 'hand-set-review' | 'approval' | 'review-draft' | 'conflict-fix' | 'merge-method' | 'forward' | 'forward-audit'
+>>>>>>> origin/main
   // A source conflict Avoozl asked about (RC28): the pull request and the choices.
   conflictFix?: { repository: string; pullRequest: number; actions: ('resolve' | 'dismiss')[] }
   // A forward item (RC24.9): the mirror change the Forward screen shows.

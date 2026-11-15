@@ -53,6 +53,44 @@ export function pathBlocks(paths, mirror) {
   return blocks;
 }
 
+// Protection 5.2, plans-branch rules (RC25.6c): the plans branch name, a
+// private spec's folder or any path under it, or a commit of the plans branch
+// in any path, message, branch name, title or body blocks the forward. `plans`
+// is {specNames, commits}: the private spec folder names and the commit IDs
+// read from the plans branch. A block names the rule and place only.
+// shortcut: only the commits the caller lists are matched (the plans branch
+// head); an older one cannot reach a forward, whose clone never fetched it.
+export function plansBlocks(change, mirror, plans = {}) {
+  const name = mirror?.plansBranch,
+    blocks = [],
+    block = (rule, place) => blocks.push({ rule, place });
+  if (!name) return blocks;
+  const folders = (plans.specNames ?? []).map((spec) => `.kiro/specs/${spec}`),
+    commits = (plans.commits ?? []).map((id) => id.toLowerCase()),
+    texts = [
+      ...change.paths.map((file, index) => [`file ${index + 1}`, file]),
+      ["commit message", change.message],
+      ["branch name", change.branch],
+      ["title", change.title],
+      ["body", change.body],
+    ];
+  for (const [place, text] of texts) {
+    const lower = String(text ?? "").toLowerCase();
+    if (lower.includes(name.toLowerCase())) block("plans-branch-name", place);
+    if (folders.some((folder) => lower.includes(folder.toLowerCase())))
+      block("plans-spec-path", place);
+    if (
+      commits.some((id) =>
+        [...lower.matchAll(/\b[0-9a-f]{7,40}\b/g)].some((hit) =>
+          id.startsWith(hit[0]),
+        ),
+      )
+    )
+      block("plans-commit", place);
+  }
+  return blocks;
+}
+
 const TRAILER = /^[A-Za-z][A-Za-z0-9]*-[A-Za-z0-9-]+:\s|^Cc:\s/;
 const EMAIL = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
 const MARKER = /<!--|\bavoozl[:-][\w-]+/i;
@@ -118,7 +156,7 @@ export function metadataBlocks(meta, expect, texts) {
 // policy: {mirror, identity, sets}. `sets(change)` is the configured rule
 // sets' answer, {rules: [names], unavailable: [set ids]}; with none given the
 // built-in rules alone run. Any error blocks: this fails closed.
-export function forwardGuard(change, { mirror, identity, sets } = {}) {
+export function forwardGuard(change, { mirror, identity, sets, plans } = {}) {
   const fail = (protection, blocks) => ({ ok: false, protection, blocks });
   try {
     const paths = pathBlocks(change.paths, mirror);
@@ -132,6 +170,7 @@ export function forwardGuard(change, { mirror, identity, sets } = {}) {
     const found = sets?.(change) ?? { rules: [], unavailable: [] },
       leaks = [
         ...scan.blocks,
+        ...plansBlocks(change, mirror, plans),
         ...found.rules.map((rule) => ({ rule, place: "content" })),
         ...found.unavailable.map((id) => ({
           rule: "rules-unavailable",
