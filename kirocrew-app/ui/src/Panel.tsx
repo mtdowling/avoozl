@@ -29,8 +29,8 @@ import {
   type PanelSection as SectionName,
   type WaitingRow,
 } from './panel-api.ts'
-import { PanelAct, PanelChip, PanelEmpty, PanelHeadChip, PanelHeader, PanelList, PanelRoot, PanelRow, PanelSection } from './PanelParts.tsx'
-import { Check, CircleAlert, CircleDot, CirclePlus, ExternalLink, GitBranch, GitPullRequest, Hand, Inbox, MessageSquare, Play, Radar, RefreshCw } from './icons.ts'
+import { PanelAct, PanelChip, PanelEmpty, PanelHeader, PanelList, PanelRoot, PanelRow, PanelSection } from './PanelParts.tsx'
+import { Check, CircleAlert, CircleDot, CirclePlus, ExternalLink, GitBranch, GitPullRequest, Inbox, MessageSquare, Play, Radar, RefreshCw } from './icons.ts'
 import { RefreshButton } from './RefreshButton.tsx'
 import { CellAct, StatusCell, StatusRow } from './StatusCells.tsx'
 import { plansClient } from './plans-api.ts'
@@ -364,22 +364,16 @@ export default function AvoozlPanel() {
     </PanelSection>
   )
 
-  // The top: one thin line. "Avoozl · <instance>", Refresh, fold all, what
-  // needs you and what is in flight, and the line's pause button at the end.
+  // The top: one thin line. "Avoozl · <instance>" (Avoozl opens the app page),
+  // Refresh, fold all, and the line's pause button at the end.
   const header = (
     <PanelHeader
       name="Avoozl"
+      onName={() => navigate(AVOOZL_PAGE)}
+      nameTip="Open Avoozl"
       instance={headerName}
       tip={[headerName ? `Avoozl · ${headerName}` : 'Avoozl', workspaceName ? `Workspace: ${workspaceName}` : ''].filter(Boolean).join('. ')}
       tools={<RefreshButton bare workspaceId={workspaceId} onRefresh={() => void load()} />}
-      chips={
-        loading ? null : (
-          <>
-            <PanelHeadChip data-head-needs section="waiting" icon={<span data-pp-hand style={{ display: "inline-flex" }}><Hand size={14} aria-hidden="true" /></span>} count={model.waiting.length} words="Needs me" tip={`${model.waiting.length} waiting on you. Open Waiting on you.`} />
-            <PanelHeadChip data-head-flight section="in-flight" icon={<i data-pp-pulse aria-hidden="true" />} count={model.inFlight.length} words="In flight" tip={`${model.inFlight.length} in flight. Open In flight.`} />
-          </>
-        )
-      }
       end={
         <span data-panel-line data-stopped={stopped ? '' : undefined} style={{ display: 'inline-flex' }}>
           <ConfirmProvider>
@@ -445,9 +439,6 @@ export default function AvoozlPanel() {
         ))}
       </PanelList>
       {driverCells}
-      <PanelList>
-        <PanelRow icon={Radar} title="Avoozl app" noTip actions={<PanelAct label="Open Avoozl" data-open-avoozl onClick={() => navigate(AVOOZL_PAGE)} />} />
-      </PanelList>
     </PanelSection>
   )
 

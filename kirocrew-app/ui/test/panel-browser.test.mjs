@@ -42,8 +42,6 @@ const shot = async (name) => {
 
 test('a normal chat shows Waiting on you, In flight, the queue head, recent merges and the line', { skip }, async () => {
   await open({ sid: 'chat-1' }, `Boolean(document.querySelector('[data-waiting-row]'))`)
-  assert.equal(await page.evaluate(`document.querySelector('[data-head-needs]').getAttribute('aria-label')`), 'Needs me: 2')
-  assert.equal(await page.evaluate(`document.querySelector('[data-head-flight]').getAttribute('aria-label')`), 'In flight: 3')
   assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('[data-waiting-row]')].map((r) => r.dataset.waitingRow)`), ['needs-human', 'github-conflict'])
   // The retired worker row is not shown.
   assert.doesNotMatch(await text('[data-panel-recap]'), /retired worker/)
@@ -92,10 +90,6 @@ test('one failed read leaves the other sections showing', { skip }, async () => 
 test('with nothing to show, each section says so', { skip }, async () => {
   await open({ sid: 'chat-1', state: 'empty' }, `/Nothing is waiting/.test(document.body.textContent)`)
   assert.match(await text('[data-panel-fold="in-flight"]'), /No crew has a claim/)
-  assert.equal(await page.evaluate(`document.querySelector('[data-head-needs]').getAttribute('aria-label')`), 'Needs me: 0')
-  // A zero stays in the row, muted: the hand is no longer yellow.
-  assert.equal(await page.evaluate(`document.querySelector('[data-head-needs]').hasAttribute('data-zero') && getComputedStyle(document.querySelector('[data-head-needs] [data-pp-hand]')).color === (() => { const t = document.createElement('i'); t.style.color = 'var(--muted)'; document.querySelector('[data-pp]').append(t); const c = getComputedStyle(t).color; t.remove(); return c })()`), true)
-  assert.equal(await page.evaluate(`document.querySelector('[data-head-flight]').getAttribute('aria-label')`), 'In flight: 0')
   await shot('empty')
 })
 
@@ -202,65 +196,58 @@ test('coming back after a while shows what finished and what is new, and Got it 
   assert.equal(await count('[data-since-recap]'), 0)
 })
 
-// The header is one thin line: "Avoozl · <instance>", Refresh (an icon, no
-// countdown), fold all, "2 needs you" and "3 in flight", and the pause button at
-// the far right. Desktop chips show their words; a phone shows icons and counts.
-// No "The line is running" row is left. Open Avoozl stays in the driver section.
+// The header is one thin line: "Avoozl · <instance>" (Avoozl opens the app
+// page), Refresh (an icon, no countdown), fold all, and the pause button at the
+// far right. No count chips, no "The line is running" row and no Avoozl app row.
 for (const [width, height] of [[1280, 900], [390, 800]])
   for (const theme of ['light', 'dark'])
-    test(`the header is one line: name, icons, chips and pause at ${width} px ${theme}`, { skip }, async () => {
+    test(`the header is one line: name link, icons and pause at ${width} px ${theme}`, { skip }, async () => {
       await page.open(harness.url({ page: 'panel', theme, sid: 'chat-1' }), { width, height, dark: theme === 'dark' })
-      await page.until(`Boolean(document.querySelector('[data-head-needs]')) && Boolean(document.querySelector('[data-pp-head] [data-stop-line]'))`)
+      await page.until(`Boolean(document.querySelector('[data-pp-head-link]')) && Boolean(document.querySelector('[data-pp-head] [data-stop-line]')) && Boolean(document.querySelector('[data-flight-row]'))`)
       const head = await page.evaluate(`(() => {
         const h = document.querySelector('[data-pp-head]')
         const kids = [...h.querySelectorAll('[data-pp-head-name], button')]
         const mids = kids.map((el) => { const r = el.getBoundingClientRect(); return r.top + r.height / 2 })
         const tallest = Math.max(...kids.map((el) => el.getBoundingClientRect().height))
         const stop = h.querySelector('[data-stop-line]').getBoundingClientRect()
-        const right = Math.max(...kids.filter((el) => !el.closest('[data-panel-line]')).map((el) => el.getBoundingClientRect().right))
+        const link = h.querySelector('[data-pp-head-link]'), ls = getComputedStyle(link)
         return {
-          name: h.querySelector('[data-pp-head-name]').textContent.trim(),
+          name: h.querySelector('[data-pp-head-name]').innerText.replace(/\\s+/g, ' ').trim(),
           buttons: [...h.querySelectorAll('button')].map((b) => b.getAttribute('aria-label')),
-          mutedWords: [...h.querySelectorAll('[data-pp-head-chip]')].every((c) => { const m = (() => { const t = document.createElement('i'); t.style.color = 'var(--muted)'; document.querySelector('[data-pp]').append(t); const c = getComputedStyle(t).color; t.remove(); return c })(); return getComputedStyle(c).color === m && getComputedStyle(c.querySelector('[data-pp-head-chip-count]')).color === m }),
-          flat: [...h.querySelectorAll('[data-pp-head-chip]')].every((c) => getComputedStyle(c).borderTopStyle === 'none' && getComputedStyle(c).backgroundColor === 'rgba(0, 0, 0, 0)'),
           texts: [...h.querySelectorAll('button')].map((b) => b.textContent.trim()),
-          chips: [...h.querySelectorAll('[data-pp-head-chip]')].map((c) => c.innerText.replace(/\\s+/g, ' ').trim()),
+          link: { text: link.innerText.trim(), border: ls.borderTopStyle, bg: ls.backgroundColor, underline: ls.textDecorationLine },
+          chips: h.querySelectorAll('[data-pp-head-chip]').length,
           height: h.getBoundingClientRect().height, tallest, spread: Math.max(...mids) - Math.min(...mids),
-          stopRight: stop.right, stopLeft: stop.left, right, inner: h.getBoundingClientRect().right - parseFloat(getComputedStyle(h).paddingRight),
+          stopRight: stop.right, inner: h.getBoundingClientRect().right - parseFloat(getComputedStyle(h).paddingRight),
           wrap: getComputedStyle(h).flexWrap, sticky: getComputedStyle(h).position,
           lineRow: Boolean(document.querySelector('[data-line-row]')) || /The line is running/.test(document.body.innerText),
-          open: document.querySelector('[data-open-avoozl]').textContent.trim(),
+          appRow: Boolean(document.querySelector('[data-open-avoozl]')) || /Avoozl app/.test(document.body.innerText),
         }
       })()`)
       assert.match(head.name, /^Avoozl · \S/)
-      assert.equal(head.buttons.length, 5)
-      assert.match(head.buttons[0], /^Refresh, reads again in/)
-      assert.match(head.buttons[1], /^(Collapse|Expand) all sections$/)
-      assert.deepEqual(head.buttons.slice(2), ['Needs me: 2', 'In flight: 3', 'Stop the line'])
-      assert.deepEqual([head.texts[0], head.texts[1], head.texts[4]], ['', '', ''], 'icons only, no countdown')
-      assert.deepEqual(head.chips, width > 640 ? ['Needs me 2', 'In flight 3'] : ['2', '3'])
-      assert.ok(head.flat, 'chips sit flat: no box, no fill')
-      assert.ok(head.mutedWords, 'the words and counts are muted')
+      assert.deepEqual(head.buttons.slice(0, 1), ['Open Avoozl'])
+      assert.match(head.buttons[1], /^Refresh, reads again in/)
+      assert.match(head.buttons[2], /^(Collapse|Expand) all sections$/)
+      assert.equal(head.buttons[3], 'Stop the line')
+      assert.equal(head.buttons.length, 4)
+      assert.deepEqual(head.texts.slice(1), ['', '', ''], 'icons only, no countdown')
+      assert.deepEqual(head.link, { text: 'Avoozl', border: 'none', bg: 'rgba(0, 0, 0, 0)', underline: 'none' }, 'a plain word, no button box')
+      assert.equal(head.chips, 0, 'no count chips')
       assert.equal(head.wrap, 'nowrap')
       assert.ok(head.spread < 2, `everything on one line (${head.spread} px apart)`)
       assert.ok(head.height <= head.tallest + 14, `one line tall (${head.height} px)`)
-      assert.ok(Math.abs(head.stopRight - head.inner) < 1.5 && head.stopLeft > head.right, 'pause sits at the far right')
+      assert.ok(Math.abs(head.stopRight - head.inner) < 1.5, 'pause sits at the far right')
       assert.notEqual(head.sticky, 'sticky')
       assert.equal(head.lineRow, false, 'no "The line is running" row')
-      assert.equal(head.open, 'Open Avoozl')
+      assert.equal(head.appRow, false, 'no Avoozl app row')
     })
 
-// A header chip opens its section and scrolls to it.
-test('a header chip opens its section', { skip }, async () => {
+// The word "Avoozl" in the header opens the app page.
+test('the header word Avoozl opens the app page', { skip }, async () => {
   await page.open(harness.url({ page: 'panel', theme: 'light', sid: 'chat-1' }), { width: 390, height: 800 })
-  await page.until(`Boolean(document.querySelector('[data-head-flight]'))`)
-  await page.evaluate(`localStorage.setItem('avoozl.panel.folds', JSON.stringify({ 'in-flight': false }))`)
-  await page.open(harness.url({ page: 'panel', theme: 'light', sid: 'chat-1' }), { width: 390, height: 800 })
-  await page.until(`Boolean(document.querySelector('[data-head-flight]'))`)
-  assert.equal(await count('[data-flight-row]'), 0)
-  await page.evaluate(`document.querySelector('[data-head-flight]').click()`)
-  await page.until(`document.querySelectorAll('[data-flight-row]').length === 3`)
-  await page.evaluate(`localStorage.removeItem('avoozl.panel.folds')`)
+  await page.until(`Boolean(document.querySelector('[data-pp-head-link]'))`)
+  await page.evaluate(`document.querySelector('[data-pp-head-link]').click()`)
+  assert.deepEqual(await page.evaluate(`window.__navigated`), ['/apps/avoozl'])
 })
 
 // The Refresh icon turns from muted toward red as the read ages, and is red

@@ -42,8 +42,6 @@ export {
   GitBranch,
   GitPullRequest,
   GitPullRequestDraft,
-  // Hand is in the host's lucide-react export (checked 2026-11-15).
-  Hand,
   HardDrive,
   History,
   Inbox,

@@ -26,19 +26,12 @@ export const PANEL_CSS = `
 [data-pp]{container-type:inline-size;font-size:12px;line-height:18px;min-width:0;max-width:100%;overflow-x:hidden;box-sizing:border-box;color:var(--text)}
 [data-pp] *{box-sizing:border-box}
 [data-pp-head]{display:flex;align-items:center;flex-wrap:nowrap;gap:6px;padding:6px 12px;border-bottom:1px solid var(--border);min-width:0}
-[data-pp-head-name]{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:600;color:var(--text-strong,var(--text))}
+[data-pp-head-name]{flex:0 1 auto;display:inline-flex;align-items:baseline;gap:4px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;font-weight:600;color:var(--text-strong,var(--text))}
 [data-pp-head-instance]{font-weight:400;color:var(--muted)}
+[data-pp-head-link]{padding:0;margin:0;background:none;border:0;font:inherit;color:inherit;cursor:pointer;text-decoration:none}
+[data-pp-head-link]:hover,[data-pp-head-link]:focus-visible{color:var(--accent);text-decoration:underline}
 [data-pp-head-tools]{flex:none;display:inline-flex;align-items:center;gap:2px}
 [data-pp-head-end]{flex:none;display:inline-flex;align-items:center;gap:4px;margin-left:auto}
-[data-pp-head-chip]{flex:none;display:inline-flex;align-items:center;gap:6px;padding:2px 4px;background:transparent;border:0;border-radius:6px;font:inherit;font-size:12px;font-weight:500;line-height:16px;white-space:nowrap;color:var(--muted);cursor:pointer}
-[data-pp-head-chip]:hover{background:var(--bg-hover)}
-[data-pp-head-chip-count]{color:var(--muted);font-variant-numeric:tabular-nums}
-[data-pp-head-chip][data-zero] [data-pp-hand]{color:var(--muted)}
-[data-pp-head-chip][data-zero] [data-pp-pulse]{background:var(--muted);box-shadow:none;animation:none}
-[data-pp-hand]{flex:none;color:var(--warn,var(--warning,#b7791f))}
-[data-pp-pulse]{flex:none;width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 2px color-mix(in srgb,var(--ok) 25%,transparent);animation:pp-pulse 2s ease-in-out infinite}
-@keyframes pp-pulse{0%,100%{box-shadow:0 0 0 2px color-mix(in srgb,var(--ok) 25%,transparent)}50%{box-shadow:0 0 0 5px color-mix(in srgb,var(--ok) 0%,transparent)}}
-@media (prefers-reduced-motion:reduce){[data-pp-pulse]{animation:none}}
 [data-pp-section]{border-bottom:1px solid var(--border)}
 [data-pp-section-head]{display:flex;align-items:center;gap:8px;width:100%;padding:10px 12px;background:transparent;border:0;border-radius:0;text-align:left;cursor:pointer;color:var(--text);font:inherit;font-size:12px;font-weight:600;transition:background-color .12s}
 [data-pp-section-head]:hover{background:var(--bg-hover)}
@@ -100,7 +93,6 @@ interface Folds {
   register: (id: string, fallback: boolean) => void
   allOpen: boolean
   setAll: (open: boolean) => void
-  show: (id: string) => void
 }
 const FoldsContext = createContext<Folds | null>(null)
 
@@ -134,7 +126,6 @@ function useFoldsState(): Folds {
       toggle: (id, fallback) => keep({ ...saved, [id]: !(saved[id] ?? fallback) }),
       allOpen: ids.length > 0 && ids.every((id) => saved[id] ?? known[id]),
       setAll: (open) => keep({ ...saved, ...Object.fromEntries(ids.map((id) => [id, open])) }),
-      show: (id) => keep({ ...saved, [id]: true }),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [isOpen, register, keep, saved, known],
@@ -171,20 +162,31 @@ export function PanelChip(props: { tone?: Tone; tip?: string; href?: string | nu
   )
 }
 
-// The one thin line at the top: the name, small icon tools (Refresh, then
-// fold all), status chips, and the line's pause button at the far right.
-export function PanelHeader(props: { name: string; instance?: string | null; tip?: string; tools?: ReactNode; chips?: ReactNode; end?: ReactNode }) {
+// The one thin line at the top: the name ("Avoozl" opens the app page), small
+// icon tools (Refresh, then fold all), and the line's pause button at the far
+// right.
+export function PanelHeader(props: { name: string; instance?: string | null; tip?: string; onName?: () => void; nameTip?: string; tools?: ReactNode; end?: ReactNode }) {
   const folds = useContext(FoldsContext)
   const label = folds?.allOpen ? 'Collapse all sections' : 'Expand all sections'
   const Icon = folds?.allOpen ? ChevronsDownUp : ChevronsUpDown
   return (
     <div data-pp-head>
-      <Tooltip text={props.tip ?? (props.instance ? `${props.name} · ${props.instance}` : props.name)}>
-        <span data-pp-head-name>
-          {props.name}
-          {props.instance && <span data-pp-head-instance> · {props.instance}</span>}
-        </span>
-      </Tooltip>
+      <span data-pp-head-name>
+        {props.onName ? (
+          <Tooltip text={props.nameTip}>
+            <button type="button" data-pp-head-link aria-label={props.nameTip} onClick={props.onName}>
+              {props.name}
+            </button>
+          </Tooltip>
+        ) : (
+          props.name
+        )}
+        {props.instance && (
+          <Tooltip text={props.tip}>
+            <span data-pp-head-instance>· {props.instance}</span>
+          </Tooltip>
+        )}
+      </span>
       <span data-pp-head-tools>
         {props.tools}
         {folds && (
@@ -195,34 +197,8 @@ export function PanelHeader(props: { name: string; instance?: string | null; tip
           </Tooltip>
         )}
       </span>
-      {props.chips}
       {props.end && <span data-pp-head-end>{props.end}</span>}
     </div>
-  )
-}
-
-// A count in the header, flat in the row: an icon, its words in muted, then the
-// count in muted. A zero stays, all muted. A narrow panel shows the icon and count only. A click opens that
-// section and scrolls to it.
-export function PanelHeadChip(props: { icon: ReactNode; count: number; words: string; tip: string; section: string; [attr: `data-${string}`]: unknown }) {
-  const { icon, count, words, tip, section, ...rest } = props
-  const folds = useContext(FoldsContext)
-  const jump = () => {
-    folds?.show(section)
-    requestAnimationFrame(() => document.querySelector(`[data-panel-fold="${section}"]`)?.scrollIntoView({ block: 'start', behavior: 'smooth' }))
-  }
-  return (
-    <Tooltip text={tip}>
-      <button type="button" data-pp-head-chip data-zero={count === 0 ? '' : undefined} aria-label={`${words}: ${count}`} onClick={jump} {...rest}>
-        {icon}
-        <span data-pp-narrow-hide aria-hidden="true">
-          {words}
-        </span>
-        <span data-pp-head-chip-count aria-hidden="true">
-          {count}
-        </span>
-      </button>
-    </Tooltip>
   )
 }
 
