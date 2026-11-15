@@ -414,7 +414,7 @@ export function conflictFixDispatches(store) {
       task: receipt.id,
       role: FIX_ROLE,
       attempt: receipt.attempt,
-      title: `Conflict fix: ${receipt.repository}#${receipt.pr}`,
+      title: `avoozl:conflict-fix ${receipt.repository}#${receipt.pr}`,
       folder: receipt.folder,
       agent: FIX_AGENT,
       brief: receipt.seed,
