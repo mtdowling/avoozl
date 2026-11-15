@@ -426,8 +426,8 @@ export default function FlowView({ workspaceId }: { workspaceId: string | null }
   }, [reload])
   const setField = (change: Partial<FlowFilter>) => setFilter({ ...filter, ...change })
   const [unit, setUnit] = useState<Unit>('day')
-  // Overview (timing and retros), Proposals and Lessons (design §4.18).
-  const [tab, setTab] = useState<'overview' | 'proposals' | 'lessons'>('overview')
+  // Overview (timing), Retros, Proposals and Lessons (design §4.18).
+  const [tab, setTab] = useState<'overview' | 'retros' | 'proposals' | 'lessons'>('overview')
   return (
     <section aria-labelledby="avoozl-flow-title" className="flex flex-col gap-3.5">
       <ViewHeading id="avoozl-flow-title" view="flow">
@@ -441,6 +441,7 @@ export default function FlowView({ workspaceId }: { workspaceId: string | null }
         ariaLabel="Flow views"
         segments={[
           { key: 'overview', label: 'Overview' },
+          { key: 'retros', label: 'Retros' },
           { key: 'proposals', label: 'Proposals' },
           { key: 'lessons', label: 'Lessons' },
         ]}
@@ -449,12 +450,14 @@ export default function FlowView({ workspaceId }: { workspaceId: string | null }
       />
       {tab === 'proposals' && <ProposalsView workspaceId={workspaceId} />}
       {tab === 'lessons' && <LessonsView workspaceId={workspaceId} />}
-      {tab === 'overview' && error && (
+      {(tab === 'overview' || tab === 'retros') && error && (
         <p role="alert" className="text-sm text-danger">
           {error}
         </p>
       )}
-      {tab !== 'overview' ? null : !view ? (
+      {tab === 'retros' ? (
+        view ? <Retros view={view} workspaceId={workspaceId} onChanged={() => void reload()} /> : <p className="text-sm text-muted">{busy ? 'Loading…' : 'Not loaded'}</p>
+      ) : tab !== 'overview' ? null : !view ? (
         <p className="text-sm text-muted">{busy ? 'Loading…' : 'Not loaded'}</p>
       ) : (
         <>
@@ -469,7 +472,7 @@ export default function FlowView({ workspaceId }: { workspaceId: string | null }
               { kind: 'select', key: 'repository', label: 'Repository', value: filter.repository ?? '', options: [...view.repositories.map((r) => ({ value: r, label: r }))], onChange: (repository) => setField({ repository: repository || undefined }) },
               { kind: 'select', key: 'epic', label: 'Epic', value: filter.epic ?? '', options: [...view.epics.map((e) => ({ value: e.id, label: e.title }))], onChange: (epic) => setField({ epic: epic || undefined }) },
               { kind: 'select', key: 'plan', label: 'Plan', value: filter.plan ?? '', options: (view.plans ?? []).map((p) => ({ value: p.id, label: p.title })), onChange: (plan) => setField({ plan: plan || undefined, phase: undefined }) },
-              { kind: 'select', key: 'phase', label: 'Phase', value: filter.phase ?? '', options: (view.phases ?? []).map((p) => ({ value: p.id, label: p.title })), disabled: !filter.plan, hint: filter.plan ? undefined : 'Pick a plan first', onChange: (phase) => setField({ phase: phase || undefined }) },
+              { kind: 'select', key: 'phase', label: 'Phase', value: filter.phase ?? '', options: (view.phases ?? []).map((p) => ({ value: p.id, label: p.title })), disabled: !filter.plan, hint: filter.plan ? undefined : 'Pick a plan to filter by its phases', onChange: (phase) => setField({ phase: phase || undefined }) },
               { kind: 'select', key: 'window', label: 'Window', value: filter.window ?? '20', options: WINDOW_OPTIONS, onChange: (window) => setField({ window: window || undefined }) },
               { kind: 'select', key: 'stage', label: 'Stage', value: filter.stage ?? '', options: [...STAGES.map((s) => ({ value: s, label: STAGE_LABELS[s] }))], onChange: (stage) => setField({ stage: stage || undefined }) },
             ]}
@@ -487,12 +490,13 @@ export default function FlowView({ workspaceId }: { workspaceId: string | null }
           {view.tasks.length ? (
             <TaskBars tasks={view.tasks} budget={view.budget} />
           ) : (
-            <EmptyState icon={<Gauge size={36} aria-hidden="true" />} title="No timing yet" subtitle="Avoozl records where each task's time goes as soon as a task is dispatched." />
+            <Card data-no-timing>
+              <EmptyState icon={<Gauge size={36} aria-hidden="true" />} title="No timing yet" subtitle="Avoozl records where each task's time goes as soon as a task is dispatched." />
+            </Card>
           )}
           <FlowCharts view={view} unit={unit} onUnit={setUnit} />
           <UsagePanel view={view} unit={unit} />
           <Records view={view} />
-          <Retros view={view} workspaceId={workspaceId} onChanged={() => void reload()} />
         </>
       )}
     </section>

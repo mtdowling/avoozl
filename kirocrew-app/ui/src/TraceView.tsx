@@ -148,7 +148,7 @@ export function TraceStart({ onPick }: { onPick?: (target: TraceTarget) => void 
   const [text, setText] = useState('')
   const target = parseTraceLink(`?trace=${encodeURIComponent(text.trim())}`)
   return (
-    <section data-trace-start className="mx-auto flex max-w-2xl flex-col gap-3 py-2">
+    <section data-trace-start className="flex flex-col gap-3 py-2">
       <h2 className="m-0 text-base font-semibold">Trace</h2>
       <p className="text-sm text-muted">
         The steps one issue took: spec approved, issue created, ready, claimed, pull request, checks, merged. Open one from an On the line row on Home, or enter an issue here.
@@ -180,7 +180,7 @@ export function TracePage({ workspaceId, target, onPick, onOpenEpics }: { worksp
     return (
       <>
         <TraceStart onPick={onPick} />
-        <section className="mx-auto max-w-2xl py-2">
+        <section className="py-2">
           <TraceDone workspaceId={workspaceId} onPick={onPick} onOpenEpics={onOpenEpics} />
         </section>
       </>
@@ -191,7 +191,7 @@ export function TracePage({ workspaceId, target, onPick, onOpenEpics }: { worksp
 function TracePageFor({ workspaceId, target, onBack }: { workspaceId: string | null; target: TraceTarget; onBack: () => void }) {
   const read = useTrace(workspaceId, target)
   return (
-    <section data-trace-page className="mx-auto flex max-w-2xl flex-col gap-3 py-2">
+    <section data-trace-page className="flex flex-col gap-3 py-2">
       <div className="flex flex-wrap items-center gap-2">
         <Btn type="button" onClick={onBack}>
           ← Back
