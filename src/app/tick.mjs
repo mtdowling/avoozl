@@ -101,6 +101,7 @@ import {
   githubGate,
   markGithubRun,
   rateLimitNotices,
+  withSource,
 } from "./github-rate.mjs";
 import { reviewDraftDispatches, reviewDraftStep } from "./review-draft.mjs";
 import { syncStep, syncTargets } from "./integration-sync.mjs";
@@ -715,7 +716,13 @@ function plansOf(store, taskIds) {
   return plans;
 }
 
-export async function tick(
+// Runs a step with its GitHub calls counted under `source`.
+const under =
+  (source, step) =>
+  (...args) =>
+    withSource(source, () => step(...args));
+
+async function runTick(
   store,
   {
     workspaceRoot,
@@ -859,11 +866,22 @@ export async function tick(
             ...step.errors,
             ...(await publishInstanceStep(store, github, { policy })).errors,
             ...(
-              await mirrorForwardStep(store, github, { policy, publicBranches })
+              await under("forward", mirrorForwardStep)(store, github, {
+                policy,
+                publicBranches,
+              })
             ).errors,
             ...(await mirrorBatchStep(store, github, { policy })).errors,
-            ...(await mirrorForwardRunStep(store, github, { policy })).errors,
-            ...(await mirrorPublicPollStep(store, github, { policy })).errors,
+            ...(
+              await under("forward", mirrorForwardRunStep)(store, github, {
+                policy,
+              })
+            ).errors,
+            ...(
+              await under("forward", mirrorPublicPollStep)(store, github, {
+                policy,
+              })
+            ).errors,
             ...(await mirrorForwardAuditStep(store, github, { policy })).errors,
             ...(await publicBranchStep(store, github, { policy })).errors,
           ])
@@ -951,7 +969,10 @@ export async function tick(
       // D25), so it raises no notice each minute.
       if (script && github)
         try {
-          const step = await reviewDraftStep({
+          const step = await under(
+            "review",
+            reviewDraftStep,
+          )({
             store,
             github,
             policy: readGitHubPolicyOrNull(workspaceRoot),
@@ -1527,3 +1548,6 @@ export async function tick(
     throw error;
   }
 }
+
+export const tick = (store, options) =>
+  withSource("tick", () => runTick(store, options));

@@ -2451,6 +2451,66 @@
         "rc-27.4",
         "rc-27.5"
       ]
+    },
+    "rc-28.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Call counter by source, bin/gh-counted, and the usage in the rate view. See RC29.1, RC29.2; \u00a7D34.",
+      "acceptance": [
+        "`src/app/test/github-usage.test.mjs` passes and `npm test` passes."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "rc-28.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "One open-pull-request query per repository for heads and closing issues. See RC29.4, RC29.5; \u00a7D34.",
+      "acceptance": [
+        "The test passes and `npm test` passes."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "rc-28.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Settings > GitHub shows calls this hour by source. See RC29.3; \u00a7D34.",
+      "acceptance": [
+        "A page test shows the rows; screenshots are in the pull request; `npm run test:ui` passes."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-28.1"
+      ]
+    },
+    "rc-p28": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Proof 28: one check costs one call. See RC29; \u00a7D17.",
+      "acceptance": [
+        "Expected result observed; receipt under `docs/evidence/`."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-28.1",
+        "rc-28.2",
+        "rc-28.3"
+      ]
     }
   }
 }

@@ -1590,3 +1590,37 @@ Proof added to D17:
 | Proof  | Proves                                                                                                         |
 | ------ | -------------------------------------------------------------------------------------------------------------- |
 | rc-p27 | On a scratch repository: a crew pull request with a source conflict gets one merge commit that keeps both sides, and is armed again |
+
+### Requirement RC29: GitHub calls are counted by source and read once per check
+
+**User story:** As the owner, I want to see which part of Avoozl spends my
+GitHub calls, and I want one read per repository to serve every view, so that
+the hourly limit is not spent on the same pull requests again and again.
+
+#### Acceptance criteria
+
+1. **Count by source.** Every GitHub call Avoozl makes SHALL be counted under
+   one source: `view`, `tick`, `setup`, `forward`, `review` or `other`. A read
+   the cache answered and a call GitHub answered with 304 SHALL be counted apart
+   from calls that cost the limit. Counts SHALL cover the last 60 minutes.
+2. **Wrapper.** `bin/gh-counted` SHALL run `gh` with the same arguments and exit
+   code and record one call under the source in `AVOOZL_GH_SOURCE` (default
+   `crew`). Crew chats and Issue Radar SHALL use it in place of plain `gh`. A
+   count that cannot be written SHALL never stop the call.
+3. **Settings > GitHub.** The view SHALL show calls this hour by source, with
+   the cached and 304 counts, next to the live rate limit.
+4. **One read per repository.** One GraphQL query per repository SHALL return
+   all open pull requests with head, merge state, labels, the check rollup
+   state and the issues each closes. The pull-request heads read and the
+   closing-issues read SHALL take their answer from it. Issue Radar claims SHALL
+   come from one search per repository. Every view SHALL read these through the
+   one cache.
+5. **Tests** on a fake GitHub SHALL cover: ten open pull requests cost one
+   query; calls and cache hits are counted by source; the wrapper forwards the
+   exit code and records its source.
+
+Proof added to D17:
+
+| Proof  | Proves                                                                                  |
+| ------ | --------------------------------------------------------------------------------------- |
+| rc-p28 | On a live login: one check of a repository with open pull requests costs one GraphQL call |

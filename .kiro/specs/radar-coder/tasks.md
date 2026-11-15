@@ -539,10 +539,10 @@ Requirement RC25. Private plans live on an orphan branch of the mirror and never
 - [x] rc-24.2 Spec home, reading both homes, Specs badge, after rc-24.1 [RC25.2, RC25.8] (§D30)
   - Each spec records `main` or `plansBranch`; one reader reads both on every tick into one graph; a spec name or task ID in both is refused; new specs start private; a move copies and never deletes; the Specs page shows Private or Public.
   - Done when: Unit tests for both homes read in one tick and the duplicate name or ID; a page test shows both badges; `npm test` and `npm run test:ui` pass.
-- [ ] rc-24.3 Marker `ref`, approval on the plans branch, `verify-issue` and crew commands, after rc-24.2, rc-3.3, rc-3.6, rc-3.2 [RC25.3, RC25.4, RC25.5] (§D30)
+- [x] rc-24.3 Marker `ref`, approval on the plans branch, `verify-issue` and crew commands, after rc-24.2, rc-3.3, rc-3.6, rc-3.2 [RC25.3, RC25.4, RC25.5] (§D30)
   - Marker writer and parser gain `ref`; approval of a private spec opens its pull request against `plansBranch`; `commit` check uses `<ref>...<commit>` and requires an orphan branch; `--json` prints the fetch and show commands; the one-line prompt is unchanged.
   - Done when: Tests: a private spec's issue passes; a `ref` that is the default branch, missing, or shares history fails with the reason; the prompt text equals the shipped one.
-- [ ] rc-24.4 Containment: sync, forward, leak scan, explicit refspecs, after rc-24.1, rc-23.4 [RC25.6] (§D30)
+- [x] rc-24.4 Containment: sync, forward, leak scan, explicit refspecs, after rc-24.1, rc-23.4 [RC25.6] (§D30)
   - Sync names the default branch only; the forward clone is single-branch; the leak scan blocks the plans branch name, private spec paths and commits from it in any forward text; every push has one explicit refspec and no `--mirror`, `--all`, `--tags` or wildcard.
   - Done when: Tests: a planted plans-branch name or path blocks the push with one row naming the rule; the sync leaves the `plansBranch` head unchanged; a test scans Avoozl's push calls and finds no banned flag.
 - [ ] rc-24.5 Issues from public and private plans, with edges across homes, after rc-24.3 [RC25.7, RC25.8, RC25.9, RC25.10] (§D30)
@@ -624,3 +624,20 @@ Requirement RC28. One resolver chat merges the base into a crew's conflicted pul
 - [ ] rc-p27 Proof 27: a scratch crew pull request with a source conflict, after rc-27.1, rc-27.2, rc-27.3, rc-27.4, rc-27.5 [RC28] (§D17)
   - Setup: a scratch repository created only for the proof. Action: plant a source conflict on a crew pull request. Expected: one merge commit on the same branch keeps both sides, the pull request is armed again (squash) and lands as one commit, and gets one comment; a planted drop gives one row and no push. Failure means: a change on main can be lost without a word. Next decision: set `conflicts.onSourceConflict` to `ask`. List the scratch repository in the receipt for the owner to delete.
   - Done when: Expected result observed; receipt under `docs/evidence/` lists the scratch repository.
+
+## Phase 28: GitHub usage counter and batched reads
+
+Requirement RC29. Count every call by source, and read each repository once.
+
+- [x] rc-28.1 Call counter by source, `bin/gh-counted`, and the usage in the rate view [RC29.1, RC29.2] (§D34)
+  - Tests first: calls, 304s and cache hits are counted by source; the wrapper forwards the exit code and records its source.
+  - Done when: `src/app/test/github-usage.test.mjs` passes and `npm test` passes.
+- [x] rc-28.2 One open-pull-request query per repository for heads and closing issues [RC29.4, RC29.5] (§D34)
+  - Tests first: ten open pull requests cost one query, including closing issues, labels and checks.
+  - Done when: The test passes and `npm test` passes.
+- [ ] rc-28.3 Settings > GitHub shows calls this hour by source, after rc-28.1 [RC29.3] (§D34)
+  - A small table beside the rate limit: source, calls, cached, 304; read from the rate view.
+  - Done when: A page test shows the rows; screenshots are in the pull request; `npm run test:ui` passes.
+- [ ] rc-p28 Proof 28: one check costs one call, after rc-28.1, rc-28.2, rc-28.3 [RC29] (§D17)
+  - Setup: a repository with open pull requests. Action: open Home and Graph twice inside the cache window, and run one tick. Expected: Settings > GitHub shows one GraphQL call for the pull-request read. Failure means: views still read pull requests one by one. Next decision: batch the remaining readers by hand.
+  - Done when: Expected result observed; receipt under `docs/evidence/`.
