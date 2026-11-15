@@ -87,8 +87,10 @@ export async function gateStep(
     const stored = gateRecord(store, task.id),
       verdict = task.gateVerdict?.state,
       cleared = verdict === "order";
-    // A cleared gate is a person's order (RC23.10); the plugin is not read.
-    if (cleared) continue;
+    // A cleared gate is a person's order (RC23.10): its verdict never
+    // changes. The plugin is read on, at the slowest gap, only until it says
+    // done, and that adds evidence to the record and nothing else.
+    if (cleared && stored?.rechecked) continue;
     const finished = verdict === "done";
     // A recorded done is read at most once more, for one note if it differs.
     if (finished && stored?.rechecked) continue;
@@ -101,6 +103,29 @@ export async function gateStep(
     const reply = await read(session, task, timeoutMs),
       seen = screened(store, task.id, reply.evidence, reply.link),
       at = now().toISOString();
+    if (cleared) {
+      const done = reply.state === "done";
+      store.put(GATE_RECORDS, {
+        ...stored,
+        id: task.id,
+        taskId: task.id,
+        ...(done
+          ? {
+              state: "done",
+              evidence: seen.evidence,
+              link: seen.link,
+              doneAt: at,
+              rechecked: true,
+            }
+          : {
+              nextCheck: new Date(
+                Date.parse(at) + BACKOFF_MINUTES.at(-1) * 60_000,
+              ).toISOString(),
+            }),
+        checkedAt: at,
+      });
+      continue;
+    }
     if (finished) {
       store.put(GATE_RECORDS, { ...stored, rechecked: true, checkedAt: at });
       if (reply.state !== "done")

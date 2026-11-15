@@ -144,7 +144,7 @@ test("Code review queues one seeded chat, the tick opens it, and the row shows A
   const tick = await ops.execute("workspace.tick", { sessions: [] }),
     open = tick.dispatch.filter((d) => d.role === "pr-review");
   assert.equal(open.length, 1);
-  assert.equal(open[0].title, "Code review: o/app#6");
+  assert.equal(open[0].title, "avoozl:code-review o/app#6");
   assert.equal(open[0].project, false, "opens without a checkout");
   assert.equal(open[0].agent, "avoozl-code-review", "read-only reviewer");
   const seed = open[0].brief;

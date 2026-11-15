@@ -137,6 +137,7 @@ import {
   taskRoute,
 } from "../work-model.mjs";
 import { gateStep } from "./gate-step.mjs";
+import { gateLabelStep } from "./gate-label.mjs";
 import { routeResultNotes, routeStep } from "./routes.mjs";
 import { heldByTrackers, trackerStep } from "./trackers.mjs";
 import {
@@ -942,6 +943,28 @@ async function runTick(
           planned.notify.push({
             channel: "failure",
             title: "Avoozl could not check pull requests for merging",
+            text: error.message,
+          });
+        }
+      // The waiting label on tracker gates and their gate-only dependents
+      // (RC23.4): written from state, so a quiet tick makes no call.
+      if (script && github)
+        try {
+          const step = await gateLabelStep(
+            store,
+            github,
+            readGitHubPolicyOrNull(workspaceRoot),
+          );
+          for (const text of step.errors)
+            planned.notify.push({
+              channel: "failure",
+              title: "Avoozl could not label a tracker gate",
+              text,
+            });
+        } catch (error) {
+          planned.notify.push({
+            channel: "failure",
+            title: "Avoozl could not label a tracker gate",
             text: error.message,
           });
         }

@@ -41,6 +41,7 @@ import {
   linkedBranchName,
   pullRequestLeak,
 } from "./github-plans-repo.mjs";
+import { gateClearNotes } from "./gate-clear.mjs";
 import { FINAL_STATUSES, listSessionBindings } from "./session-bindings.mjs";
 
 const MARKER_BLOCK = /<!--\s*avoozl-task\s*\n[\s\S]*?\n-->/;
@@ -83,7 +84,7 @@ export function blockerNotes(data, task) {
       `Blocker ${name} closed without merged code: ${order.order.actor} closed it as ${order.order.reason.toLowerCase()} at ${order.order.closedAt}. Check whether its code exists before relying on it.`,
     );
   }
-  return notes;
+  return [...notes, ...gateClearNotes(data, task)];
 }
 
 const login = (event) => event?.actor?.login || "";

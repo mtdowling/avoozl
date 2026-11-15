@@ -272,6 +272,8 @@ import {
   reviewDraftNeedsYou,
   reviewDraftsView,
 } from "./review-draft.mjs";
+import { clearGate, gateNeedsYou } from "./gate-clear.mjs";
+import { gateRows, gateTraceStep } from "./gate-view.mjs";
 import { handOff, readCrews } from "./radar-handoff.mjs";
 import { readCrewStrip } from "./radar-crews.mjs";
 import { flowView, readFlowConfig, readFlowPolicy } from "./flow.mjs";
@@ -2803,6 +2805,24 @@ export class Operations {
         context.caller,
         { roots: machineRoots(store, this.workspaceRoot) },
       );
+    if (name === "gate.list") return { gates: gateRows(store) };
+    if (name === "gate.clear")
+      return clearGate(
+        store,
+        this.github,
+        readGitHubPolicyOrNull(this.workspaceRoot),
+        {
+          taskId: input?.taskId,
+          reason: input?.reason,
+          how:
+            context.caller || context.mcp
+              ? "mcp"
+              : context.local
+                ? "command"
+                : "control",
+          local: context.local ? "cli" : "dashboard",
+        },
+      );
     if (name === "review.drafts")
       return reviewDraftsView(
         store,
@@ -3320,6 +3340,7 @@ export class Operations {
       view.items.push(...mergeMethodNeedsYou(store));
       view.items.push(...approvalNeedsYou(store));
       view.items.push(...reviewDraftNeedsYou(store));
+      view.items.push(...gateNeedsYou(store));
       view.items.push(...landingNeedsYou(store));
       view.items.push(...remoteNeedsYou(store));
       view.items.push(...syncNeedsYou(store));
@@ -3691,6 +3712,7 @@ export class Operations {
         draftFor: (pull) => draftForPull(store, input.repository, pull),
         mirrorFor: (pull) => mirrorRecordFor(store, where, pull),
         fixesFor: (pull) => conflictFixesOf(store, input.repository, pull),
+        trackerFor: (issue) => gateTraceStep(store, input.repository, issue),
       });
     }
     // Integration branches (RC16.3, RC16.8): tasks merged, distance behind the
