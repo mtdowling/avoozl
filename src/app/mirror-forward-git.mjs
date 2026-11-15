@@ -11,6 +11,7 @@ import { execFile } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { pushProblem } from "./forward-guard.mjs";
 
 const github = (repo) => `https://github.com/${repo}.git`;
 
@@ -172,18 +173,19 @@ export function forwardGit({ urlFor = github, run = exec } = {}) {
       }
     },
     // A normal push of one explicit refspec to a new branch.
-    async push({ dir, forwardTo, branch, token }) {
-      const url = urlFor(forwardTo);
-      await run(
-        [
+    async push({ dir, forwardTo, branch, token, forbid = [] }) {
+      const url = urlFor(forwardTo),
+        args = [
           ...helper(url, token),
           "push",
           "-q",
           url,
           `refs/heads/${branch}:refs/heads/${branch}`,
         ],
-        { cwd: dir },
-      );
+        problem = pushProblem(args, { forbid });
+      // Nothing leaves without one explicit refspec (RC26.5.5).
+      if (problem) throw Error(`The push was refused: ${problem}.`);
+      await run(args, { cwd: dir });
     },
     cleanup({ dir }) {
       fs.rmSync(dir, { recursive: true, force: true });

@@ -17,7 +17,12 @@ import {
   instanceIdentity,
   recordSeenInstance,
 } from "./instance.mjs";
-import { blockReason, dropTrailers, forwardGuard } from "./forward-guard.mjs";
+import {
+  blockReason,
+  dropTrailers,
+  forwardGuard,
+  forwardStop,
+} from "./forward-guard.mjs";
 import { plansBranchFacts } from "./plans-facts.mjs";
 import { reviewHash } from "./forward-review.mjs";
 import { forwardGit } from "./mirror-forward-git.mjs";
@@ -118,6 +123,15 @@ export async function forwardRecord(
   const mirror = policy?.repositories?.[record.repository]?.mirror;
   if (!mirror || mirror.forward === "off")
     return { ok: false, record, reason: "Forwarding is off for this mirror." };
+  // An open Stop the line stops every push, in every mode (RC26.5.7).
+  const stopped = forwardStop(store, record.repository);
+  if (stopped && push)
+    return {
+      ok: false,
+      stopped,
+      record,
+      reason: `Forwarding is stopped: ${stopped}`,
+    };
   // One record, one pull request: a second press finds the first.
   if (record.publicPr && record.state !== "closed_unmerged")
     return { ok: true, record, again: true };
@@ -293,7 +307,13 @@ export async function forwardRecord(
           };
           store.put("mirror_forward", ready);
           return {
-            done: { ok: true, ready: true, record: ready, review: shown },
+            done: {
+              ok: true,
+              ready: true,
+              record: ready,
+              review: shown,
+              ...(stopped ? { stopped } : {}),
+            },
           };
         }
         // The person pushes only what they saw (RC26.5.4).
@@ -326,7 +346,13 @@ export async function forwardRecord(
           receipt = { ...shown, at: now, mode: needsSeen ? "person" : "auto" };
           store.put("mirror_forward", { ...record, receipt });
           try {
-            await git.push({ ...prepared, forwardTo, branch, token });
+            await git.push({
+              ...prepared,
+              forwardTo,
+              branch,
+              token,
+              forbid: [base, mirror.plansBranch],
+            });
           } catch (error) {
             // The remote moved under the branch: sync, rebuild, once (RC24.12).
             if (

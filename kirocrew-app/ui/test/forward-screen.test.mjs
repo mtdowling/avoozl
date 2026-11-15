@@ -34,5 +34,5 @@ test('the screen shows diff, title and body and sends the shown hash', () => {
   const screen = source('ForwardScreen.tsx')
   for (const mark of ['data-forward-diff', 'data-forward-title', 'data-forward-body']) assert.ok(screen.includes(mark), mark)
   assert.match(screen, /client\.push\(workspaceId, forwardId, review!\.hash\)/)
-  assert.match(screen, /disabled=\{busy \|\| blocked \|\| !review\}/)
+  assert.match(screen, /disabled=\{busy \|\| blocked \|\| !review \|\| stopped !== null\}/)
 })

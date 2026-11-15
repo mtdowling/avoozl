@@ -568,7 +568,7 @@ Requirement RC26. Where each mirror change lands on the public repository, and t
 - [x] rc-25.4 Forward screen shows the exact public diff, title and body; receipt, after rc-25.3, rc-23.4 [RC26.5] (§D31.2, §D31.3)
   - The push happens only when the hash matches what was shown; `auto` writes the receipt (diff, title, body, hash, target, person, time) before the push; test 4.
   - Done when: A change after display forces a new display; an `auto` forward leaves the receipt before the push call.
-- [ ] rc-25.5 Block with one row and no retry; Stop the line stops forwarding; explicit refspecs, after rc-25.3, rc-4.2 [RC26.5, RC26.6] (§D31.2)
+- [x] rc-25.5 Block with one row and no retry; Stop the line stops forwarding; explicit refspecs, after rc-25.3, rc-4.2 [RC26.5, RC26.6] (§D31.2)
   - `forwardGuard` runs 1 to 4 in order and returns the first block; one Needs you row naming the rule; no automatic retry; **Try again** re-runs everything; an open Stop the line disables forwarding in every mode; every push has one explicit refspec; tests 5, 7 and 8.
   - Done when: A block gives one row across three ticks and zero retries; a scan of push calls finds no banned form; with a stop open, `auto` pushes nothing.
 - [ ] rc-25.6 Audit on the tick of what landed on the source, after rc-25.4 [RC26.5] (§D31.2)
