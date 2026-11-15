@@ -4,6 +4,9 @@
 // real Graph, and the modal's opener inside a card that is also a
 // containing block. ?theme=light|dark sets the host theme attribute.
 import { Component, useState, type ReactNode } from 'react'
+import { FilterPanel } from '../../src/FilterPanel.tsx'
+import { IconBtn } from '../../src/controls.tsx'
+import { RefreshCw } from '../../src/icons.ts'
 import { createRoot } from 'react-dom/client'
 import { createPortal } from 'react-dom'
 import { answer, Btn, Card, Refusal, replyFor, useAppApi } from './stubs.tsx'
@@ -262,6 +265,36 @@ const flightRow = {
   session: { slot: 's1', role: 'worker', attempt: 1, link: null, crew: null },
   budget: null,
 }
+// Needs you's filter row in a list column (?modal=filter-row): two fields on
+// the row, five behind the filter icon, the count and Refresh at the right.
+const FilterRowDemo = () => {
+  const [q, setQ] = useState('')
+  const [kind, setKind] = useState('')
+  const opts = [{ value: 'a', label: 'Alpha' }, { value: 'b', label: 'Beta' }]
+  return (
+    <div style={{ width: 'min(100%, 380px)' }} data-filter-demo>
+      <FilterPanel
+        folded
+        id="demo-filters"
+        label="Filter conflicts"
+        active={Boolean(q || kind)}
+        onClear={() => (setQ(''), setKind(''))}
+        fields={[
+          { kind: 'search', key: 'q', label: 'Search', value: q, placeholder: 'Task, ID or detail', onChange: setQ, primary: true },
+          { kind: 'select', key: 'kind', label: 'Kind', value: kind, options: opts, onChange: setKind, primary: true },
+          { kind: 'select', key: 'epic', label: 'Epic', value: '', options: opts, onChange: () => undefined },
+          { kind: 'select', key: 'repository', label: 'Repository', value: '', options: opts, onChange: () => undefined },
+          { kind: 'select', key: 'age', label: 'Age', value: '', options: opts, onChange: () => undefined },
+          { kind: 'select', key: 'changed-by', label: 'Changed by', value: '', options: opts, onChange: () => undefined },
+        ]}
+      >
+        <span role="status" className="text-xs text-muted">4 of 4</span>
+        <IconBtn icon={RefreshCw} label="Refresh" tooltip="Refresh" onClick={() => undefined} />
+      </FilterPanel>
+    </div>
+  )
+}
+SCENARIOS['filter-row'] = { opener: '', render: () => <FilterRowDemo /> }
 SCENARIOS['in-flight'] = { opener: '', render: () => <ul><InFlightRow row={flightRow as never} now={Date.now()} onInfo={() => undefined} /></ul> }
 // Two rows with different roles, ids and actions: their columns must line up.
 const reviewRow = { ...flightRow, slot: 's2', role: 'review:style', taskId: 'b22', title: 'A much longer task title for the second row', session: { ...flightRow.session, slot: 's2', role: 'review:style', link: '/chat?sid=s2' } }
