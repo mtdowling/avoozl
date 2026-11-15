@@ -7,6 +7,7 @@ import {
   resourceOf,
 } from "./github-rate.mjs";
 import { fail } from "./store.mjs";
+import { WritePacer } from "./github-pacer.mjs";
 
 const API_VERSION = "2022-11-28";
 const PAGE_SIZE = 100;
@@ -223,12 +224,32 @@ export class GitHubClient {
   // Keeps conditional-request answers and the rate state in `store`, so a
   // GET GitHub answers 304 costs nothing and a limit holds every process of
   // the workspace back. Without it the client behaves as before.
-  bind(store, { now, cacheSeconds, countFile } = {}) {
+  bind(store, { now, cacheSeconds, countFile, writeLimits, sleep } = {}) {
     // How long an answer stays fresh, in seconds, for a repository id (or
     // none). Within it a read makes no call. Settings > GitHub sets it.
     if (cacheSeconds) this.cacheSeconds = cacheSeconds;
     this.cache = store ? new ResponseCache(store, { now }) : null;
     this.rate = store ? new RateState(store, { now, countFile }) : null;
+    // Writes are paced (github-pacer.mjs); `writeLimits` reads the settings.
+    this.pacer = store
+      ? new WritePacer(store, {
+          now,
+          sleep,
+          limits: writeLimits,
+          primary: () => {
+            const seen = this.rateLimits.get("core");
+            return seen
+              ? {
+                  limit: seen.limit,
+                  remaining: seen.remaining,
+                  resetAtMs: Date.parse(seen.resetAt),
+                }
+              : null;
+          },
+          // A write cut off mid-call may have landed: the next read must see.
+          onInterrupted: () => this.cache?.invalidate(this.token, ""),
+        })
+      : null;
     return this;
   }
 
@@ -251,7 +272,24 @@ export class GitHubClient {
   // `etag` makes the read conditional: GitHub answers 304, which does not
   // count against the rate limit (checked live 2026-11-13), and this
   // returns { notModified: true }.
-  async request(method, pathname, { query, body, accept, headers, etag } = {}) {
+  async request(method, pathname, options = {}) {
+    const write =
+      method !== "GET" &&
+      !(
+        pathname === "/graphql" &&
+        /^\s*(query\b|\{)/.test(options.body?.query || "")
+      );
+    if (!write || !this.pacer) return this.send(method, pathname, options);
+    // Every write waits its turn: one at a time, inside the write pace.
+    const held = this.rate?.held(resourceOf(pathname));
+    if (held) throw rateLimitError(held);
+    this.signedIn();
+    return this.pacer.run({ method, pathname }, () =>
+      this.send(method, pathname, options),
+    );
+  }
+
+  async send(method, pathname, { query, body, accept, headers, etag } = {}) {
     if (!this.token && this.discoverToken) {
       this.token = localToken();
       this.discoverToken = false;
@@ -687,7 +725,18 @@ export class GitHubClient {
     );
   }
 
-  addIssueBlocker(value, number, blockerIssueId) {
+  // `nodes` ({ issueId, blockingIssueId }, GraphQL node IDs) sends the
+  // addBlockedBy mutation; without it the REST call names the blocker by
+  // database ID. Either is one content write.
+  async addIssueBlocker(value, number, blockerIssueId, nodes) {
+    if (nodes?.issueId && nodes.blockingIssueId) {
+      await this.graphql(
+        `mutation($input:AddBlockedByInput!){addBlockedBy(input:$input){issue{id}}}`,
+        { input: nodes },
+        "add a blocked-by link",
+      );
+      return { id: blockerIssueId };
+    }
     const { owner, repo } =
       typeof value === "string" ? parseRepository(value) : value;
     return this.request(
@@ -723,12 +772,73 @@ export class GitHubClient {
     });
   }
 
-  createIssue(value, input) {
+  // One content write. With `parentIssueId` (the parent's node ID) the issue
+  // is made under its parent in the same GraphQL mutation, so it needs no
+  // addSubIssue call after; a `type` name goes in as its issueTypeId. With
+  // neither, REST makes it the same way as before.
+  async createIssue(value, input) {
     const { owner, repo } =
-      typeof value === "string" ? parseRepository(value) : value;
-    return this.request("POST", `/repos/${owner}/${repo}/issues`, {
-      body: input,
-    });
+        typeof value === "string" ? parseRepository(value) : value,
+      { parentIssueId, ...rest } = input;
+    if (!parentIssueId && !rest.type)
+      return this.request("POST", `/repos/${owner}/${repo}/issues`, {
+        body: rest,
+      });
+    const typeId = rest.type
+      ? (await this.listIssueTypes(owner)).find(
+          (entry) => entry.name === rest.type,
+        )?.node_id
+      : null;
+    if (rest.type && !typeId)
+      fail(`${owner} has no ${rest.type} issue type.`, 409);
+    const [repository, labels, assignees] = await Promise.all([
+        this.repository({ owner, repo }),
+        Promise.all(
+          (rest.labels || []).map((name) =>
+            this.ensureLabel({ owner, repo }, { name }),
+          ),
+        ),
+        Promise.all(
+          (rest.assignees || []).map((login) =>
+            this.request("GET", `/users/${encodeURIComponent(login)}`),
+          ),
+        ),
+      ]),
+      data = await this.graphql(
+        `mutation($input:CreateIssueInput!){createIssue(input:$input){issue{id databaseId number url state title body labels(first:50){nodes{name}} assignees(first:20){nodes{login}} subIssuesSummary{total}}}}`,
+        {
+          input: {
+            repositoryId: repository.node_id,
+            title: rest.title,
+            body: rest.body,
+            ...(parentIssueId ? { parentIssueId } : {}),
+            ...(typeId ? { issueTypeId: typeId } : {}),
+            ...(labels.length
+              ? { labelIds: labels.map((l) => l.node_id) }
+              : {}),
+            ...(assignees.length
+              ? { assigneeIds: assignees.map((user) => user.node_id) }
+              : {}),
+          },
+        },
+        "create an issue",
+      ),
+      issue = data?.createIssue?.issue;
+    if (!issue?.id || !issue.number)
+      fail("GitHub returned invalid issue data.", 502);
+    return {
+      id: issue.databaseId,
+      node_id: issue.id,
+      number: issue.number,
+      html_url: issue.url,
+      state: String(issue.state).toLowerCase(),
+      title: issue.title,
+      body: issue.body,
+      labels: issue.labels.nodes,
+      assignees: issue.assignees.nodes,
+      sub_issues_summary: { total: issue.subIssuesSummary?.total ?? 0 },
+      ...(rest.type ? { type: { name: rest.type } } : {}),
+    };
   }
 
   // Actions variables of one repository: [{name, value}]. The list answers

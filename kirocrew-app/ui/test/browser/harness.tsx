@@ -109,6 +109,8 @@ answer('plan.issues.preview', (body) => {
   return {
     planId: 'search-v2', planHash: 'h', conflicts: [], notes: ['Project fields: Release "search-v2", Wave 1 to 3.'], previewOnly: [], project: { status: 'ok' },
     simulated: false,
+    // 927 issues, their sub-issue and blocked-by links, at the default pace.
+    pace: { writes: 1813, perMinute: 60, perHour: 400, finishAt: '2026-11-15T14:04:00.000Z', minutes: 244 },
     suggestedBatches: [['S1', 'S2', 'S3']],
     writes: [
       ...ids.filter((id) => !(batched && ['S2', 'S3'].includes(id))).map((id) => write('issue.create', id, { title: `Task ${id}: a title long enough to wrap on a narrow screen` })),
@@ -423,6 +425,16 @@ if (query.get('page') === 'app') {
     effective: null,
     error: null,
     crews: [],
+    rate: {
+      cacheSeconds: 60,
+      resources: {},
+      limitedUntil: null,
+      limitedResource: null,
+      calls: 0,
+      notModified: 0,
+      notModifiedShare: null,
+      writes: { perMinute: 60, perHour: 400, run: { planId: 'nupp', done: 312, total: 1740, resumeAt: new Date(Date.now() + 38 * 60000).toISOString() } },
+    },
     choices: { modes: ['local', 'plans-repo', 'single-repo'], authorities: [], coders: ['issue-radar', 'remote'], permissions: [], actions: [], fields: [], statusValues: [], managedLabels: [], crewLabels: [] },
   }))
 }
@@ -635,6 +647,7 @@ const PAGES: Record<string, () => ReactNode> = {
         notModified: 61,
         notModifiedShare: 61 / 214,
         hourCalls: 153,
+        writes: { perMinute: 60, perHour: 400, run: { planId: 'nupp', done: 312, total: 1740, resumeAt: new Date(Date.now() + 38 * 60000).toISOString() } },
         bySource: { tick: { calls: 88, notModified: 40, cached: 0 }, crew: { calls: 41, notModified: 0, cached: 0 }, view: { calls: 17, notModified: 21, cached: 132 }, review: { calls: 5, notModified: 0, cached: 3 }, setup: { calls: 2, notModified: 0, cached: 0 } },
       }}
     />

@@ -59,12 +59,15 @@ export function parseManagedSection(body) {
             .filter(Boolean);
   return {
     planId,
+    // The `Parent: #N` line is a link projection adds, not summary text.
     summary: lines
       .slice(1, acceptanceAt === -1 ? lines.length : acceptanceAt)
+      .filter((line) => !/^Parent: #\d+$/.test(line))
       .join("\n")
       .trim(),
     acceptance: items(acceptanceAt),
-    requires: items(dependenciesAt),
+    // A blocker made before its dependent is named with its issue: `id (#N)`.
+    requires: items(dependenciesAt).map((id) => id.replace(/ \(#\d+\)$/, "")),
     // Entries a person ticked Show on the issue (R61.23), as raw lines.
     notes: notesAt === -1 ? [] : lines.slice(notesAt + 1, end(notesAt)),
     // Workspace rules a Radar crew follows, as `title: instruction` lines.
