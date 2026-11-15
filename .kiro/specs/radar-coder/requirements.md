@@ -1513,3 +1513,62 @@ Proof added to D17:
 | Proof  | Proves                                                                                                         |
 | ------ | -------------------------------------------------------------------------------------------------------------- |
 | rc-p26 | On scratch repositories: Create setup builds a private mirror, then both buttons are no-ops; Adopt finds an existing one and changes nothing without a tick |
+
+### Requirement RC28: Rebuild a crew's work after a source conflict
+
+**User story:** As the owner, I want a crew's pull request that conflicts with
+newer main to be rebuilt by a crew on fresh main, so that nobody resolves
+source conflicts by hand and no crew resolves them by guessing.
+
+Crews never resolve a conflict inside source code. They publish it as a
+handback (`needs-human` label and a comment) and leave the pull request open.
+Avoozl turns that handback into a rebuild.
+
+#### Acceptance criteria
+
+1. **Trigger.** On the tick, from the pull request read RC5.3 already makes
+   (no extra list call), Avoozl SHALL treat a pull request as a rebuild
+   candidate WHEN all of these hold: (a) it is open, from a branch of the same
+   repository, with a merge conflict; (b) it is the pull request of a crew
+   claim, that is, the issue it closes carries a crew claim marker; (c) that
+   issue has a valid Avoozl marker and `issue.verify` passes; and (d) either the
+   crew handed it back (the issue has the needs-human label and a comment
+   after the claim that names a conflict), or the pull request has stood
+   conflicting and unchanged (same head commit) for one full read after the read
+   that first saw it.
+2. **Action.** For a candidate allowed by RC28.3, Avoozl SHALL, each write
+   idempotent and in this order: (a) close the pull request, keeping its branch,
+   with one short comment that names the newer main commits and files it
+   clashes with and says the task will be rebuilt; (b) remove the conflict label
+   (RC21) and the needs-human label from the issue (and the conflict label from
+   the pull request); (c) post one note on the issue that links the closed pull
+   request as reference: "rebuild on current main; reuse the approach in #N,
+   keep the changes merged since"; (d) add the ready label back so a crew claims
+   the issue again. A second tick that sees the finished state SHALL write
+   nothing.
+3. **Limits.** (a) At most `conflicts.maxRebuilds` rebuilds per issue per spec
+   version (default 1; the spec version is the approval commit the issue's
+   provenance names). A further conflict SHALL become one Waiting on you row with
+   **Rebuild again**, **Resolve myself** and **Dismiss**. (b) Avoozl SHALL NOT
+   touch a pull request that no crew wrote, one whose issue has no valid
+   Avoozl marker, or one that has a human review or a commit by anyone other than
+   the pull request's author; those become the same Waiting on you row.
+   (c) An open Stop the line SHALL pause rebuilds for the tasks it pauses.
+   (d) A closed pull request that is reopened SHALL NOT release the issue a
+   second time, and SHALL NOT count as a new rebuild.
+4. **Setting.** `conflicts.onSourceConflict` per repository, `rebuild` or `ask`
+   (default `rebuild`), and `conflicts.maxRebuilds` (default 1), in Settings and
+   `.avoozl.json`, shown in the Workflow map. With `ask`, every candidate is a
+   Waiting on you row and Avoozl writes nothing. Label names stay the
+   configurable ones of RC21; no behavior needs an `avoozl:` prefix.
+5. **Visible.** Trace and Activity SHALL show "rebuilt after conflict" with the
+   old and the new pull request. Flow SHALL count a rebuilt task as fix work.
+6. **Tests** on a fake GitHub SHALL cover: a rebuild fires once; a second
+   conflict asks; a pull request a human touched is untouched; Stop the line
+   blocks it; a reopened old pull request does not release twice.
+
+Proof added to D17:
+
+| Proof  | Proves                                                                                                         |
+| ------ | -------------------------------------------------------------------------------------------------------------- |
+| rc-p27 | On a scratch repository: a crew's conflicted pull request is closed, the issue is released once, and a second conflict asks |

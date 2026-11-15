@@ -2351,6 +2351,88 @@
         "rc-26.3",
         "rc-26.4"
       ]
+    },
+    "rc-27.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Setting conflicts.onSourceConflict and maxRebuilds. See RC28.4; \u00a7D33.",
+      "acceptance": [
+        "A bad value is refused naming the key; the default reads `rebuild` and 1; a page test shows the setting in Settings and in the map."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": []
+    },
+    "rc-27.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Rebuild step on the tick: trigger, eligibility, close and release, limits. See RC28.1, RC28.2, RC28.3, RC28.6; \u00a7D33.",
+      "acceptance": [
+        "A rebuild fires once; a second tick writes nothing; a second conflict asks; a human review or commit leaves the pull request untouched; Stop the line blocks it; a reopened old pull request does not release twice."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-27.1",
+        "rc-5.3"
+      ]
+    },
+    "rc-27.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Waiting on you row and the rebuild.decide operation. See RC28.3, RC28.4; \u00a7D33.",
+      "acceptance": [
+        "Each action has a test; MCP and sessions are refused; Dismiss keeps the row away until the pull request changes."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-27.2"
+      ]
+    },
+    "rc-27.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Trace, Activity and Flow show the rebuild. See RC28.5; \u00a7D33.2.",
+      "acceptance": [
+        "A rebuilt task shows the step with both pull requests, one activity row, and counts as fix work."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-27.2"
+      ]
+    },
+    "rc-p27": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Proof 27: a scratch crew pull request with a source conflict. See RC28; \u00a7D17.",
+      "acceptance": [
+        "Expected result observed; receipt under `docs/evidence/` lists the scratch repository."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "rc-27.1",
+        "rc-27.2",
+        "rc-27.3",
+        "rc-27.4"
+      ]
     }
   }
 }
