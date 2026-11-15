@@ -17,6 +17,14 @@ import { fail } from "./store.mjs";
 import { parseRepository } from "./github.mjs";
 import { withWorkLock } from "./git.mjs";
 import { WORKSPACE_LOCK } from "./tick.mjs";
+import {
+  dueRun,
+  finishRun,
+  noteRemaining,
+  pauseRun,
+  readRun,
+  withRun,
+} from "./github-pacer.mjs";
 import { blockerNotes, closeWithoutCode } from "./github-close.mjs";
 import { pausedTaskIds } from "./github-project.mjs";
 import { ensurePlanIssue } from "./driver.mjs";
@@ -669,10 +677,55 @@ async function projectPlanParents({
 }
 
 export async function projectPlanIssues(store, github, options) {
-  if (options.locked) return project(store, github, options);
+  if (options.locked) return pacedProject(store, github, options);
   return withWorkLock(store, WORKSPACE_LOCK, () =>
-    project(store, github, options),
+    pacedProject(store, github, options),
   );
+}
+
+// A projection that GitHub's write limits stop is kept as a run record, not
+// lost: the tick carries on when the wait is over, and what is already on
+// GitHub is found again by the marker in each issue. A preview writes nothing
+// and has no run.
+async function pacedProject(store, github, options) {
+  if (options.dryRun) return project(store, github, options);
+  try {
+    const result = await withRun(options.planId, () =>
+      project(store, github, options),
+    );
+    finishRun(store, options.planId);
+    return result;
+  } catch (error) {
+    if (error.paced || error.rateLimited)
+      pauseRun(store, {
+        planId: options.planId,
+        repository: options.repository,
+        error,
+      });
+    // Any other failure ends the run: the tick must not retry it forever.
+    else finishRun(store, options.planId);
+    throw error;
+  }
+}
+
+// About how many writes the items still need, for the progress line. New
+// issues cost a create, a sub-issue link, and their blocker links with one
+// marker rewrite; known ones cost an edit only when something changed.
+function estimateWrites(items) {
+  let count = 0;
+  for (const item of items) {
+    if (item.skip) continue;
+    if (!item.current) {
+      count +=
+        2 + item.blockerTasks.length + (item.blockerTasks.length ? 1 : 0);
+      continue;
+    }
+    const plans = item.plans;
+    if (plans?.title.write || plans?.body.write) count += 1;
+    if (plans?.blockers.write)
+      count += Math.max(0, item.blockerTasks.length - item.before.length);
+  }
+  return count;
 }
 
 // Leaves the graph lets start now, among `tasks`. `dispatch.ready` on them
@@ -799,7 +852,7 @@ export function stoppedTasks(store, data, identity, tasks, repositoryOf) {
 export async function refreshProjectedReadiness(
   store,
   github,
-  { identity, skipPlans = new Set(), forcePlans = new Set() },
+  { identity, skipPlans = new Set(), forcePlans = new Set(), now = Date.now() },
 ) {
   const data = store.read(),
     result = { projected: [], errors: [] },
@@ -810,9 +863,11 @@ export async function refreshProjectedReadiness(
         task.github.number &&
         !task.projectionConflicts?.length,
     );
+  // A projection a write limit stopped carries on once its wait is over.
+  const due = dueRun(store, now);
   // machineIdentity writes on first use; a workspace with no projected
   // task must stay untouched.
-  if (!designed.length && !forcePlans.size) return result;
+  if (!designed.length && !forcePlans.size && !due) return result;
   const machine = machineIdentity(store).id,
     writers = new Set(
       store
@@ -843,6 +898,14 @@ export async function refreshProjectedReadiness(
   // A spec taken over is projected once more, so the next tick raises again
   // every conflict whose cause is still on GitHub (§6.10).
   for (const planId of forcePlans) plans.add(planId);
+  // Waiting on a write limit, the stopped plan goes first and alone: one spec
+  // at a time, so the writes of the plans behind it are not spent early.
+  const waiting = readRun(store);
+  if (waiting && waiting.state !== "done" && !due) return result;
+  if (due) {
+    plans.clear();
+    plans.add(due.planId);
+  }
   // A blocker link a projection could not add yet (its issue did not exist).
   for (const planId of plansAwaitingLinks(data)) plans.add(planId);
   for (const planId of plans) {
@@ -850,13 +913,21 @@ export async function refreshProjectedReadiness(
     if (skipPlans.has(planId)) continue;
     if (store.get("plans", planId)?.state !== "approved") continue;
     try {
-      await project(store, github, {
+      await pacedProject(store, github, {
         planId,
         identity,
-        repository: issueRepository(identity, designed, planId),
+        repository:
+          due?.planId === planId && due.repository
+            ? due.repository
+            : issueRepository(identity, designed, planId),
       });
       result.projected.push(planId);
     } catch (error) {
+      // Stopped by a write limit: the run waits, and nothing behind it goes.
+      if (error.paced || error.rateLimited) {
+        result.paused = { planId, until: error.rateLimited.until };
+        break;
+      }
       result.errors.push({ planId, error: error.message });
     }
   }
@@ -1587,6 +1658,12 @@ async function project(
     notes.add(`${config.owner} has no ${name} issue type; epics have no type.`);
     return null;
   };
+  if (!dryRun)
+    noteRemaining(store, {
+      planId: plan.id,
+      repository,
+      remaining: estimateWrites(items),
+    });
   for (const item of items) {
     if (item.skip) continue;
     try {
@@ -1605,12 +1682,25 @@ async function project(
       ids = (item.memberTasks || [task]).map((member) => member.id),
       type = null;
     if (!current) {
-      const applied = {
-        title: digest(item.title),
-        body: digest(item.section),
-        labels: [labels.managed],
-        blockers: [],
-      };
+      // A leaf that is ready now and waits on no blocker link gets its ready
+      // label in the create call, which saves the separate label write. Only
+      // for the coders whose hand-over is that label (adapter: no-op if set).
+      const withReady =
+          ready.has(task.id) &&
+          !item.blockerTasks.length &&
+          ["issue-radar", "remote"].includes(
+            identity.repositories?.[config.id]?.coder ??
+              (identity.mode === "single-repo" ? "issue-radar" : "worker"),
+          ),
+        labelSet = withReady
+          ? [labels.managed, labels.ready]
+          : [labels.managed],
+        applied = {
+          title: digest(item.title),
+          body: digest(item.section),
+          labels: labelSet,
+          blockers: [],
+        };
       item.issue = await github.createIssue(config, {
         title: item.title,
         body:
@@ -1635,7 +1725,7 @@ async function project(
           (item.memberTasks ? checklist(item.memberTasks) + "\n" : "") +
           item.section,
         assignees: config.assignee ? [config.assignee] : undefined,
-        labels: [labels.managed],
+        labels: labelSet,
         ...(type ? { type } : {}),
       });
       item.plans = {
@@ -1646,7 +1736,7 @@ async function project(
       };
       item.before = [];
       item.arrays = { blockers: {} };
-      item.currentLabels = [labels.managed];
+      item.currentLabels = labelSet;
       return;
     }
     const patch = {};
