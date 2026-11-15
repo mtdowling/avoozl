@@ -1,8 +1,8 @@
-// The page's Refresh, drawn in the header's More menu. A page (Home) runs
-// its own countdown and publishes it here; the menu draws the button while
-// open. A small store, so the countdown's tick re-renders only the menu item.
+// The page's Refresh, drawn in the left nav. A page (Home) runs
+// its own countdown and publishes it here; the left nav draws the icon. A
+// small store, so the countdown's tick re-renders only that icon.
 import { useEffect, useSyncExternalStore } from 'react'
-import { RefreshControl, type RefreshState } from './RefreshButton.tsx'
+import { BareRefresh, type RefreshState } from './RefreshButton.tsx'
 
 let current: RefreshState | null = null
 const listeners = new Set<() => void>()
@@ -32,13 +32,8 @@ export function useHasPageRefresh() {
   return useSyncExternalStore(subscribe, () => current !== null)
 }
 
-// The menu's Refresh, or nothing when the page has none.
-export function PageRefreshItem() {
+// The nav's Refresh: the aging icon alone, or nothing when the page has none.
+export function PageRefreshIcon() {
   const state = useSyncExternalStore(subscribe, () => current)
-  return state ? (
-    <span className="inline-flex items-center gap-2 text-sm" data-page-refresh>
-      <RefreshControl state={state} />
-      <span className="text-xs text-muted">Refresh</span>
-    </span>
-  ) : null
+  return state ? <BareRefresh nav state={state} /> : null
 }

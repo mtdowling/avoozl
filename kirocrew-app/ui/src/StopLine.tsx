@@ -1,5 +1,5 @@
-// Pull the Andon cord (design §4.11, R64): the red Stop the line button at
-// the end of the page's top row, on every tab, and its dialog. The person picks Stop the line (new
+// Pull the Andon cord (design §4.11, R64): the Stop the line icon in
+// the left nav, on every tab, and its dialog. The person picks Stop the line (new
 // work in a scope) or Stop all agents (everything, and every running chat
 // Avoozl opened), and gives a one-line reason. Nothing is written until the
 // dialog's red button (and, for Stop all agents, its confirm); Cancel, Esc
@@ -13,6 +13,7 @@ import { Picker, taskItems } from './Picker.tsx'
 import type { PickItem } from './picker.ts'
 import { RadioFold } from './RadioFold.tsx'
 import { Tooltip } from './Tooltip.tsx'
+import { NAV_ICON } from './LeftNav.tsx'
 import { Modal } from './Modal.tsx'
 import { FULL_STOP_WARNING, LINE_EVENT, MAX_REASON, PULL_KINDS, PULL_SCOPES, emptyPull, flowClient, lineChanged, toPull, type LineStop, type PullForm } from './flow-api.ts'
 import { plansClient } from './plans-api.ts'
@@ -30,7 +31,7 @@ interface Choices {
   tasks: PickItem[]
 }
 
-// How often the top row reads whether the line is stopped; a pull or
+// How often the nav reads whether the line is stopped; a pull or
 // resume on the page (LINE_EVENT) reads at once.
 const LINE_READ_MS = 60000
 
@@ -59,10 +60,10 @@ function useOpenStops(workspaceId: string | null) {
   return stops
 }
 
-// The page's top row (App.tsx), last and red: a pause icon with its words in
-// the tooltip. While a stop is open it says Line stopped; pressing it still
+// The left nav's icon (App.tsx): pause or play, with its words in the
+// tooltip and aria-label only. While a stop is open it says Line stopped; pressing it still
 // opens the dialog to stop more.
-export function StopLineButton(props: { workspaceId: string | null; onPulled?: () => void; bare?: boolean }) {
+export function StopLineButton(props: { workspaceId: string | null; onPulled?: () => void; bare?: boolean; nav?: boolean }) {
   const [open, setOpen] = useState(false)
   const stops = useOpenStops(props.workspaceId)
   const api = useAppApi()
@@ -86,7 +87,7 @@ export function StopLineButton(props: { workspaceId: string | null; onPulled?: (
     />
   )
   // The side panel's icon: pause to stop, play to resume. Never text.
-  if (props.bare) {
+  if (props.bare || props.nav) {
     const resumeAll = async () => {
       const yes = await confirm({ title: 'Resume the line?', body: `New work starts again. The line was stopped for: ${why}`, action: 'Resume' })
       if (!yes || !props.workspaceId) return
@@ -98,7 +99,7 @@ export function StopLineButton(props: { workspaceId: string | null; onPulled?: (
     return (
       <>
         <Tooltip text={label}>
-          <button type="button" data-pp-icon data-bare data-stop-line data-stopped={stopped ? '' : undefined} aria-label={label} onClick={() => (stopped ? void resumeAll() : setOpen(true))} style={{ color: stopped ? 'var(--ok)' : 'var(--danger)', borderColor: 'var(--border)' }}>
+          <button type="button" {...(props.nav ? {} : { 'data-pp-icon': '', 'data-bare': '' })} data-stop-line data-stopped={stopped ? '' : undefined} aria-label={label} onClick={() => (stopped ? void resumeAll() : setOpen(true))} style={{ ...(props.nav ? NAV_ICON : {}), color: stopped ? 'var(--ok)' : 'var(--danger)', borderColor: 'var(--border)' }}>
             <Icon size={13} aria-hidden="true" />
           </button>
         </Tooltip>
@@ -276,16 +277,5 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
         </Btn>
       </div>
     </Modal>
-  )
-}
-
-// Stop the line in the header's More menu: the icon only, never its words
-// (they are the tooltip and the button's name). The menu stays open while
-// its dialog is up.
-export function StopLineItem(props: { workspaceId: string | null }) {
-  return (
-    <span className="inline-flex" data-keep-menu data-stop-line-item>
-      <StopLineButton workspaceId={props.workspaceId} />
-    </span>
   )
 }

@@ -139,7 +139,7 @@ test('Start demo opens the tour over the real pages, and Exit demo returns', { s
     await page.until(`${selectedTab}?.startsWith(${JSON.stringify(TAB[step.tab])})`)
     assert.match(await page.evaluate(`document.querySelector('[data-demo-tour]').textContent`), new RegExp(`Step ${i + 1} of ${TOUR.length}`))
     if (step.task) await page.until(`document.querySelector('[role="dialog"], [data-task-drawer], aside')?.textContent.includes('Show import errors')`)
-    if (step.id === 'stop-line') await page.until(`document.querySelector('[data-header-more] [data-more-button]')?.hasAttribute('data-tour-on')`)
+    if (step.id === 'stop-line') await page.until(`document.querySelector('[data-nav-line] [data-stop-line]')?.hasAttribute('data-tour-on')`)
     if (i === TOUR.length - 1) break
     if (i % 2) await click(button('Next'))
     else await page.key('ArrowRight', 'ArrowRight', 39)
@@ -154,9 +154,8 @@ test('Start demo opens the tour over the real pages, and Exit demo returns', { s
 
   // A change shows what it would do; nothing else happens.
   await click(button('Home', 'tab'))
-  // Stop the line is an icon in the header's More menu.
-  await click(`document.querySelector('[data-header-more] [data-more-button]')`)
-  await page.until(`Boolean(document.querySelector('[data-more-panel] [data-stop-line]'))`)
+  // Stop the line is an icon in the left nav.
+  await page.until(`Boolean(document.querySelector('[data-nav-line] [data-stop-line]'))`)
   await click(`document.querySelector('[data-stop-line]')`)
   await page.until(`Boolean(document.querySelector('[data-stop-reason]'))`)
   await page.evaluate(`(() => {

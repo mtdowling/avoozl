@@ -47,7 +47,7 @@ export async function buildHarness({ hostCss, scripts = {} } = {}) {
         },
       },
     ],
-    define: { 'process.env.NODE_ENV': '"production"' },
+    define: { 'process.env.NODE_ENV': '"production"', __AVOOZL_VERSION__: '"0.0.0-test"' },
     resolve: { preserveSymlinks: true },
     build: {
       outDir: out,
