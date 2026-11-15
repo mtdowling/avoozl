@@ -539,10 +539,10 @@ Requirement RC25. Private plans live on an orphan branch of the mirror and never
 - [x] rc-24.2 Spec home, reading both homes, Specs badge, after rc-24.1 [RC25.2, RC25.8] (§D30)
   - Each spec records `main` or `plansBranch`; one reader reads both on every tick into one graph; a spec name or task ID in both is refused; new specs start private; a move copies and never deletes; the Specs page shows Private or Public.
   - Done when: Unit tests for both homes read in one tick and the duplicate name or ID; a page test shows both badges; `npm test` and `npm run test:ui` pass.
-- [ ] rc-24.3 Marker `ref`, approval on the plans branch, `verify-issue` and crew commands, after rc-24.2, rc-3.3, rc-3.6, rc-3.2 [RC25.3, RC25.4, RC25.5] (§D30)
+- [x] rc-24.3 Marker `ref`, approval on the plans branch, `verify-issue` and crew commands, after rc-24.2, rc-3.3, rc-3.6, rc-3.2 [RC25.3, RC25.4, RC25.5] (§D30)
   - Marker writer and parser gain `ref`; approval of a private spec opens its pull request against `plansBranch`; `commit` check uses `<ref>...<commit>` and requires an orphan branch; `--json` prints the fetch and show commands; the one-line prompt is unchanged.
   - Done when: Tests: a private spec's issue passes; a `ref` that is the default branch, missing, or shares history fails with the reason; the prompt text equals the shipped one.
-- [ ] rc-24.4 Containment: sync, forward, leak scan, explicit refspecs, after rc-24.1, rc-23.4 [RC25.6] (§D30)
+- [x] rc-24.4 Containment: sync, forward, leak scan, explicit refspecs, after rc-24.1, rc-23.4 [RC25.6] (§D30)
   - Sync names the default branch only; the forward clone is single-branch; the leak scan blocks the plans branch name, private spec paths and commits from it in any forward text; every push has one explicit refspec and no `--mirror`, `--all`, `--tags` or wildcard.
   - Done when: Tests: a planted plans-branch name or path blocks the push with one row naming the rule; the sync leaves the `plansBranch` head unchanged; a test scans Avoozl's push calls and finds no banned flag.
 - [ ] rc-24.5 Issues from public and private plans, with edges across homes, after rc-24.3 [RC25.7, RC25.8, RC25.9, RC25.10] (§D30)

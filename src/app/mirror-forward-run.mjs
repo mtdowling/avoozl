@@ -23,6 +23,7 @@ import {
   forwardGuard,
   forwardStop,
 } from "./forward-guard.mjs";
+import { plansBranchFacts } from "./plans-facts.mjs";
 import { reviewHash } from "./forward-review.mjs";
 import { forwardGit } from "./mirror-forward-git.mjs";
 import { mirrorSyncStep } from "./mirror-sync.mjs";
@@ -111,6 +112,7 @@ export async function forwardRecord(
     git = forwardGit(),
     grant = defaultGrant(github),
     sync = () => mirrorSyncStep(store, github, { policy }),
+    plansFacts = (found) => plansBranchFacts(github, found),
     review: needsSeen = false,
     seenHash = null,
     now = new Date().toISOString(),
@@ -202,6 +204,16 @@ export async function forwardRecord(
       record,
       reason: "The default branch could not be read.",
     };
+  let plans;
+  try {
+    plans = await plansFacts(mirror);
+  } catch {
+    return blocked(
+      store,
+      record,
+      "The plans branch could not be read, so the forward could not be checked against it. Nothing was pushed.",
+    );
+  }
   const email = `${person}@users.noreply.github.com`,
     attempt = async () => {
       let prepared;
@@ -244,6 +256,7 @@ export async function forwardRecord(
           {
             mirror,
             identity,
+            plans,
             sets: () => {
               const found = scan(
                 store,
