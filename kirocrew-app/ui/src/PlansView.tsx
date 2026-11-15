@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Tooltip } from './Tooltip.tsx'
-import { useAppApi, useChatLauncher } from './host.ts'
+import { useAppApi, useChatLauncher, useNavigate } from './host.ts'
 import { Btn, Card } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
 import { Markdown } from './Markdown.tsx'
@@ -14,7 +14,12 @@ import type { NewPlanForm } from './new-plan-api.ts'
 import { DriverBanner, DriverChip, HandOffButton, SetupList, useDriver } from './Driver.tsx'
 import type { DriverSpec } from './driver-api.ts'
 import { IconBtn, IconLabel, SectionHeading, ShowMore, TipBtn, ViewHeading, dangerStyle, useAskChat, usePages } from './controls.tsx'
-import { Archive, ArchiveRestore, ArrowLeft, ChevronRight, ClipboardCheck, DetailsIcon, Download, FolderOpen, MessagesSquare, Network, Pencil, Plus, RefreshCw, Trash2, X, Menu } from './icons.ts'
+import { Archive, ArchiveRestore, ClipboardCheck, DetailsIcon, Download, ExternalLink, FileText, FolderOpen, MessagesSquare, Network, Pencil, Plus, RefreshCw, Trash2, type LucideIcon } from './icons.ts'
+import { MoreMenu } from './MoreMenu.tsx'
+import { useReveal } from './RepositoriesSettings.tsx'
+import { openSpecBuilder } from './spec-builder-api.ts'
+import { settingsClient } from './settings-api.ts'
+import { githubHref } from './repository-rows.ts'
 import { FilterPanel } from './FilterPanel.tsx'
 import { STATES, nodeState, type Drill, type NodeState } from './graph-layout.ts'
 import { rowPlanKey, type TaskFilter } from './filters.ts'
@@ -25,6 +30,7 @@ import { linkHref, viewsClient, type Graph } from './views-api.ts'
 import { useSteppedState } from './NavHistory.tsx'
 import { usePhone } from './list-detail.ts'
 import { ListDetailLayout } from './ListDetailLayout.tsx'
+import { useDetailTitleRef } from './ListDetail.tsx'
 import { useTitleScrolledOut } from './use-title-scrolled-out.ts'
 import { Modal } from './Modal.tsx'
 import { ProjectionModal } from './ProjectionModal.tsx'
@@ -74,10 +80,8 @@ export type PlanTarget = 'graph'
 // and code blocks may use the column's full width.
 export const PROSE_MEASURE = '80ch'
 
-// The plan view's left column width, and the width under which it stacks.
-const ASIDE_WIDTH = '17rem'
-// The spec's own left column stacks above its body when the detail column
-// is narrow: under 1280 px the list, nav and detail share the page.
+// Under 1280 px the list, nav and detail share the page, so the spec's
+// rail stops sticking and scrolls with the cards.
 const STACK = '(max-width: 1279px)'
 
 // The left column sticks to the top of whatever scrolls the page (in Kiro
@@ -113,36 +117,132 @@ function useStickyHeight(on: boolean) {
 const docPrefix = (file: string) => `avoozl-doc-${file.replace(/\.md$/, '')}`
 const jump = (id: string) => document.getElementById(id)?.scrollIntoView?.({ block: 'start' })
 
+// Issue Radar's issue view, measured on its own page: a bordered card with
+// 12px corners whose title row is small caps (11px, uppercase) on a light
+// band over a divider, and a right rail of labeled sections split by
+// dividers, 12.5px text, 236px wide.
+export function SpecCard(props: { title: string; id?: string; actions?: ReactNode; children: ReactNode }) {
+  return (
+    <section aria-label={props.title} id={props.id} data-spec-card={props.title} style={{ border: '1px solid var(--border)', borderRadius: 12, background: 'var(--card, var(--bg))', overflow: 'hidden', scrollMarginTop: 12, minWidth: 0 }}>
+      <div data-spec-card-head style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, minHeight: 34, boxSizing: 'border-box', padding: '6px 14px', borderBottom: '1px solid var(--border)', background: 'color-mix(in srgb, var(--bg-elevated) 60%, transparent)' }}>
+        <h3 style={{ margin: 0, flex: '1 1 auto', fontSize: 11, fontWeight: 500, lineHeight: '17px', letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--muted)' }}>{props.title}</h3>
+        {props.actions}
+      </div>
+      <div data-spec-card-body style={{ padding: '12px 14px', minWidth: 0 }}>
+        {props.children}
+      </div>
+    </section>
+  )
+}
+
+const RAIL_CSS = `[data-spec-rail]>[data-rail-section]:last-child{border-bottom:0;margin-bottom:0;padding-bottom:0}
+[data-rail-edit]{font-size:11.5px;color:var(--accent);background:none;border:0;padding:0;cursor:pointer}
+[data-rail-edit]:hover{text-decoration:underline}
+[data-rail-edit]:focus-visible,[data-spec-menu-item]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+[data-spec-menu-item]{display:flex;align-items:center;gap:8px;width:100%;height:28px;padding:0 8px;border:0;border-radius:6px;background:none;color:var(--text);font-size:13px;text-align:left;cursor:pointer;text-decoration:none;white-space:nowrap}
+[data-spec-menu-item]:hover{background:var(--bg-hover)}
+[data-spec-menu-item][aria-disabled=true]{color:var(--muted);cursor:default;background:none}
+[data-spec-menu-item][data-danger]{color:var(--danger)}`
+
+function RailSection(props: { title: string; edit?: { label: string; onClick: () => void }; children: ReactNode; attrs?: Record<string, string> }) {
+  return (
+    <section data-rail-section={props.title} {...props.attrs} style={{ paddingBottom: 14, marginBottom: 14, borderBottom: '1px solid var(--border)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
+        <h4 style={{ margin: 0, fontSize: 11, fontWeight: 500, lineHeight: '17px', letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--muted)' }}>{props.title}</h4>
+        {props.edit && (
+          <button type="button" data-rail-edit aria-label={props.edit.label} onClick={props.edit.onClick}>
+            Edit
+          </button>
+        )}
+      </div>
+      {props.children}
+    </section>
+  )
+}
+
+// One item in the spec's ... menu: an icon and its words, 28px tall.
+function MenuItem(props: { icon: LucideIcon; label: string; tooltip?: string; onClick?: () => void; link?: string | null; disabled?: boolean; danger?: boolean }) {
+  const Icon = props.icon
+  const body = (
+    <>
+      <Icon size={14} aria-hidden="true" />
+      {props.label}
+    </>
+  )
+  const item =
+    props.link !== undefined ? (
+      linkHref(props.link) && !props.disabled ? (
+        <a data-spec-menu-item href={linkHref(props.link)} target="_blank" rel="noopener noreferrer">
+          {body}
+        </a>
+      ) : (
+        <button type="button" data-spec-menu-item aria-disabled="true">
+          {body}
+        </button>
+      )
+    ) : (
+      <button type="button" data-spec-menu-item data-danger={props.danger ? '' : undefined} aria-disabled={props.disabled ? 'true' : undefined} onClick={props.disabled ? undefined : props.onClick}>
+        {body}
+      </button>
+    )
+  return props.tooltip ? <Tooltip text={props.tooltip} display="block">{item}</Tooltip> : item
+}
+
+// The state pill: Draft, Approved, Done and the rest, in theme colors.
+const PILL: Record<string, { color: string; background: string }> = {
+  approved: { color: 'var(--accent)', background: 'var(--accent-subtle, color-mix(in srgb, var(--accent) 12%, transparent))' },
+  done: { color: 'var(--ok)', background: 'color-mix(in srgb, var(--ok) 14%, transparent)' },
+  changed: { color: 'var(--warning, #b7791f)', background: 'color-mix(in srgb, var(--warning, #b7791f) 14%, transparent)' },
+}
+function StatePill(props: { status: string; archived?: boolean }) {
+  const look = PILL[props.status] ?? { color: 'var(--muted)', background: 'var(--bg-hover)' }
+  return (
+    <span data-spec-state={props.status} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 999, fontSize: 12, fontWeight: 500, lineHeight: '18.6px', ...look }}>
+      {props.archived ? 'Archived' : (STATUS_LABEL[props.status] ?? props.status)}
+    </span>
+  )
+}
+
 // A spec folder's documents one after another, each heading an anchor for
 // the outline in the left column.
 function Documents({ docs, error }: { docs: SpecDocuments | null; error: string | null }) {
   const tabs = documentTabs(docs)
+  if (error)
+    return (
+      <SpecCard title="Documents">
+        <p className="text-sm text-danger">{error}</p>
+      </SpecCard>
+    )
+  if (!docs)
+    return (
+      <SpecCard title="Documents">
+        <p className="text-sm text-muted">Loading…</p>
+      </SpecCard>
+    )
+  if (!tabs.length)
+    return (
+      <SpecCard title="Documents">
+        <p className="text-sm text-muted">This folder has no requirements, design or tasks file yet.</p>
+      </SpecCard>
+    )
   return (
-    <Card>
-      <SectionHeading title="Documents" className="mb-2" />
-      {error ? (
-        <p className="mt-2 text-sm text-danger">{error}</p>
-      ) : !docs ? (
-        <p className="mt-2 text-sm text-muted">Loading…</p>
-      ) : !tabs.length ? (
-        <p className="mt-2 text-sm text-muted">This folder has no requirements, design or tasks file yet.</p>
-      ) : (
-        <div className="mt-2 flex flex-col gap-6">
-          {tabs.map((tab) => (
-            <section key={tab.file} aria-label={tab.label} id={`avoozl-doc-${tab.file}`} style={{ scrollMarginTop: 12 }}>
-              <div className="mb-2 flex flex-wrap items-baseline gap-x-2 border-b pb-1" style={{ borderColor: 'var(--border)' }}>
-                <h3 className="text-base font-semibold">{tab.label}</h3>
-                <span className="min-w-0 text-xs text-muted" style={{ overflowWrap: 'anywhere' }}>
-                  {docs.folder}
-                  {tab.file}
-                </span>
-              </div>
-              <Markdown text={tab.text} idPrefix={docPrefix(tab.file)} measure={PROSE_MEASURE} />
-            </section>
-          ))}
-        </div>
-      )}
-    </Card>
+    <>
+      {tabs.map((tab) => (
+        <SpecCard
+          key={tab.file}
+          title={tab.label}
+          id={`avoozl-doc-${tab.file}`}
+          actions={
+            <span className="min-w-0 text-xs text-muted" style={{ overflowWrap: 'anywhere' }}>
+              {docs.folder}
+              {tab.file}
+            </span>
+          }
+        >
+          <Markdown text={tab.text} idPrefix={docPrefix(tab.file)} measure={PROSE_MEASURE} />
+        </SpecCard>
+      ))}
+    </>
   )
 }
 
@@ -150,10 +250,8 @@ function Documents({ docs, error }: { docs: SpecDocuments | null; error: string 
 function GitHubPreview(props: { projection: ProjectionPreview | null; busy: boolean; onPreview: () => void; onProject: () => void; onChanged: () => void }) {
   const { projection, busy } = props
   return (
-    <Card>
-      <SectionHeading
+    <SpecCard
         title="GitHub preview"
-        blurb="Lists every write a projection would make. Nothing is written."
         actions={
           <div className="flex flex-wrap gap-2">
             <TipBtn tooltip="List every GitHub write this spec would make. Makes none." onClick={props.onPreview} disabled={busy}>
@@ -167,7 +265,8 @@ function GitHubPreview(props: { projection: ProjectionPreview | null; busy: bool
             </TipBtn>
           </div>
         }
-      />
+      >
+      <p className="text-sm text-muted">Lists every write a projection would make. Nothing is written.</p>
       {projection && (
         <div className="mt-3 flex flex-col gap-2 text-sm">
           {projection.previewOnly.length > 0 && (
@@ -208,7 +307,7 @@ function GitHubPreview(props: { projection: ProjectionPreview | null; busy: bool
           )}
         </div>
       )}
-    </Card>
+    </SpecCard>
   )
 }
 
@@ -219,67 +318,52 @@ function SpecDetail(props: {
   plan: SpecPlan | null
   preview: Preview | null
   projection: ProjectionPreview | null
+  graph: Graph | null
   busy: boolean
-  onStore: () => void
-  onReload: () => void
-  onApprove: () => void
   onProjection: () => void
   onProject: () => void
   onChanged: () => void
+  onOpenTask: (id: string) => void
 }) {
   const { spec, plan, preview, busy } = props
   const blocker = approveBlocker(plan)
   const critique = plan?.disk.critique ?? spec.critique
   const diagnostics = plan?.quality.diagnostics ?? []
   return (
-    <div className="flex min-w-0 flex-col gap-3.5">
-      <Card>
-        <SectionHeading title={plan ? `Revision ${plan.revision}` : 'Not imported'} className="mb-2" />
+    <div className="flex min-w-0 flex-col" style={{ gap: 20 }}>
+      <SpecCard title="Summary">
+        <p className="text-sm">
+          {plan ? (
+            <>
+              Revision {plan.revision} · <code>{shortHash(plan.hash)}</code> · {plan.state}
+            </>
+          ) : (
+            'Not imported. Import stores this folder as a draft spec, so you can check and approve it. It approves nothing and starts nothing.'
+          )}
+        </p>
         <p className="mt-1 text-sm text-muted">
           {spec.folder} · {spec.files.join(', ') || 'no files'}
         </p>
-        {plan ? (
-          <p className="mt-1 text-sm">
-            <code>{shortHash(plan.hash)}</code> · {plan.state}
-          </p>
-        ) : (
-          <p className="mt-1 text-sm">Import stores this folder as a draft spec, so you can check and approve it. It approves nothing and starts nothing.</p>
-        )}
-        <p className="mt-1 text-xs text-muted">
+        {plan?.disk.changed && <p className="mt-1 text-sm">The files on disk changed since this revision. Reload from disk stores them as a new revision to approve.</p>}
+        {plan && blocker && <p className="mt-1 text-sm text-muted">{blocker}</p>}
+        <p className="mt-2 text-xs text-muted">
           Avoozl delivers this spec. Do not use Spec Builder&apos;s Approve tasks or Kiro&apos;s Run all Tasks on it.
         </p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {!plan && (
-            <IconLabel icon={Download} tooltip="Store this folder as a draft spec. Approves and starts nothing." onClick={props.onStore} disabled={busy}>
-              Import
-            </IconLabel>
-          )}
-          {plan?.disk.changed && (
-            <IconLabel icon={RefreshCw} tooltip="Store the changed files as a new revision to approve" onClick={props.onReload} disabled={busy}>
-              Reload from disk
-            </IconLabel>
-          )}
-          {plan && (
-            <IconLabel icon={ClipboardCheck} onClick={props.onApprove} disabled={busy || blocker !== null} tooltip={blocker ?? "Approve this exact revision. Its ready tasks may then start."}>
-              Approve revision {shortHash(plan.hash)}
-            </IconLabel>
-          )}
-        </div>
-        {plan && blocker && <p className="mt-2 text-sm text-muted">{blocker}</p>}
-      </Card>
+      </SpecCard>
 
       <Documents key={spec.name} docs={props.docs} error={props.docsError} />
 
-      <Card>
-        <SectionHeading title="Diagnostics" className="mb-2" />
+      <PhaseTasks graph={props.graph} onOpenTask={props.onOpenTask} />
+
+      <SpecCard title="Diagnostics">
         {!plan ? (
-          <p className="mt-2 text-sm text-muted">
+          <p className="text-sm text-muted">
             {spec.counts.error} errors, {spec.counts.warning} warnings in the folder on disk.
           </p>
         ) : diagnostics.length === 0 ? (
-          <p className="mt-2 text-sm text-muted">No diagnostics.</p>
+          <p className="text-sm text-muted">No diagnostics.</p>
         ) : (
-          <ul className="mt-2 flex flex-col gap-1 text-sm">
+          <ul className="flex flex-col gap-1 text-sm">
             {diagnostics.map((d) => (
               <li key={d.id}>
                 <Badge variant={d.severity === 'error' ? 'danger' : undefined}>{d.severity}</Badge> <code>{location(d)}</code>{' '}
@@ -288,15 +372,14 @@ function SpecDetail(props: {
             ))}
           </ul>
         )}
-      </Card>
+      </SpecCard>
 
-      <Card>
-        <SectionHeading title="Critique" className="mb-2" />
+      <SpecCard title="Critique">
         {!critique ? (
-          <p className="mt-2 text-sm text-muted">No avoozl/critique.md yet.</p>
+          <p className="text-sm text-muted">No avoozl/critique.md yet.</p>
         ) : (
           <>
-            <p className="mt-2 text-sm">
+            <p className="text-sm">
               {critique.current ? 'Reviews this revision.' : `Reviews ${shortHash(critique.reviewedHash)}, not this revision.`}
             </p>
             {critique.findings.length === 0 ? (
@@ -312,13 +395,12 @@ function SpecDetail(props: {
             )}
           </>
         )}
-      </Card>
+      </SpecCard>
 
       {preview && (
-        <Card>
-          <SectionHeading title="Manifest" className="mb-2" />
-          {preview.baseline?.text && <p className="mt-1 text-sm text-muted">{preview.baseline.text}.</p>}
-          <ul className="mt-2 flex flex-col gap-1 text-sm">
+        <SpecCard title="Manifest">
+          {preview.baseline?.text && <p className="text-sm text-muted">{preview.baseline.text}.</p>}
+          <ul className="mt-1 flex flex-col gap-1 text-sm">
             {preview.tasks.map((task) => {
               const requires = preview.dependencies.filter((edge) => edge.to === task.taskId && edge.kind === 'requires').map((edge) => edge.from)
               return (
@@ -330,15 +412,14 @@ function SpecDetail(props: {
               )
             })}
           </ul>
-        </Card>
+        </SpecCard>
       )}
 
       {plan?.state === 'approved' && <GitHubPreview projection={props.projection} busy={busy} onPreview={props.onProjection} onProject={props.onProject} onChanged={props.onChanged} />}
 
       {plan && plan.approvals.length > 0 && (
-        <Card>
-          <SectionHeading title="Approvals" className="mb-2" />
-          <ul className="mt-2 flex flex-col gap-1 text-sm">
+        <SpecCard title="Approvals">
+          <ul className="flex flex-col gap-1 text-sm">
             {plan.approvals.map((approval) => (
               <li key={approval.id}>
                 <code>{shortHash(approval.hash)}</code> · {approval.at}
@@ -346,9 +427,52 @@ function SpecDetail(props: {
               </li>
             ))}
           </ul>
-        </Card>
+        </SpecCard>
       )}
     </div>
+  )
+}
+
+// The spec's tasks by phase, in task order, No phase last; a title opens
+// the task drawer.
+function PhaseTasks(props: { graph: Graph | null; onOpenTask: (id: string) => void }) {
+  const leaves = (props.graph?.tasks ?? []).filter((t) => t.kind === 'leaf')
+  const groups = new Map<string | null, { title: string; tasks: typeof leaves }>()
+  for (const task of leaves) {
+    const id = task.phase?.id ?? null
+    const entry = groups.get(id) ?? { title: task.phase?.title ?? 'No phase', tasks: [] }
+    entry.tasks.push(task)
+    groups.set(id, entry)
+  }
+  const list = [...groups].sort(([a], [b]) => Number(a === null) - Number(b === null))
+  return (
+    <SpecCard title="Tasks by phase">
+      {!props.graph ? (
+        <p className="text-sm text-muted">Loading…</p>
+      ) : list.length === 0 ? (
+        <p className="text-sm text-muted">No task yet.</p>
+      ) : (
+        <div className="flex flex-col gap-3" data-phase-tasks>
+          {list.map(([id, group]) => (
+            <div key={id ?? '(none)'}>
+              <h4 className="text-sm font-medium">
+                {group.title} <span className="text-xs font-normal text-muted">{group.tasks.filter((t) => nodeState(t) === 'done').length}/{group.tasks.length}</span>
+              </h4>
+              <ul className="mt-1 flex flex-col gap-0.5 text-sm">
+                {group.tasks.map((task) => (
+                  <li key={task.id} className="flex items-baseline justify-between gap-3">
+                    <button type="button" className="min-w-0 truncate text-left hover:underline" onClick={() => props.onOpenTask(task.id)}>
+                      {task.title}
+                    </button>
+                    <span className="shrink-0 text-xs text-muted">{STATES.find((state) => state.id === nodeState(task))?.label}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
+    </SpecCard>
   )
 }
 
@@ -637,25 +761,167 @@ function RadarGraphLink() {
 }
 const RADAR_GRAPH_URL = '/issue-radar'
 
-// The plan view's left column: what you act with and what the plan holds.
-function PlanAside(props: {
-  row: PlanRow
-  graph: Graph | null
-  docs: SpecDocuments | null
+// The spec's header, as Issue Radar heads an issue: the title (27px bold),
+// a meta line (category, who approved or created it, when), then a row with
+// the state pill, the spec's ID, the one primary action and a ... menu with
+// every other spec action. A divider runs under it.
+interface SpecActions {
   onEdit: () => void
   onDiscuss: () => void
-  // New task: a draft task added from this spec's view (RC30.2).
   onNewTask: () => void
+  onImport?: () => void
+  onReload?: () => void
+  onApprove?: () => void
+  approveBlocker?: string | null
+  onSpecBuilder?: () => void
+  onGraph?: () => void
+  onFolder?: () => void
+  github: string | null
   onDelete?: () => void
   onArchive?: () => void
   onUnarchive?: () => void
+}
+
+// The primary action: Import a folder Avoozl has not stored; Approve a draft
+// that can be approved; Open in Spec Builder for a draft that cannot yet;
+// Edit spec otherwise.
+export function primaryAction(row: Pick<PlanRow, 'status' | 'spec'>, plan: { state: string } | null, blocker: string | null): 'import' | 'approve' | 'spec-builder' | 'edit' {
+  if (row.status === 'not imported') return 'import'
+  if (plan && (plan.state === 'draft' || row.status === 'changed')) return blocker === null ? 'approve' : row.spec ? 'spec-builder' : 'edit'
+  if (row.status === 'draft') return row.spec ? 'spec-builder' : 'edit'
+  return 'edit'
+}
+
+function specMeta(row: PlanRow, plan: (SpecPlan & { createdAt?: string; updatedAt?: string }) | null): ReactNode[] {
+  const parts: ReactNode[] = [<span key="category">{row.category ?? 'Uncategorized'}</span>]
+  const approval = plan?.approvals.at(-1)
+  if (approval)
+    parts.push(
+      <span key="who">
+        {approval.approvedBy ? `${approval.approvedBy} approved it` : 'Approved'}{' '}
+        <Tooltip text={approval.at}>
+          <span>{relativeTime(approval.at)}</span>
+        </Tooltip>
+      </span>,
+    )
+  else if (plan?.createdAt)
+    parts.push(
+      <span key="who">
+        Created{' '}
+        <Tooltip text={plan.createdAt}>
+          <span>{relativeTime(plan.createdAt)}</span>
+        </Tooltip>
+      </span>,
+    )
+  else if (row.lastChange)
+    parts.push(
+      <span key="who">
+        Changed{' '}
+        <Tooltip text={row.lastChange}>
+          <span>{relativeTime(row.lastChange)}</span>
+        </Tooltip>
+      </span>,
+    )
+  return parts
+}
+
+function SpecHeader(props: { row: PlanRow; plan: SpecPlan | null; actions: SpecActions; busy: boolean; driver: ReactNode; handOff: ReactNode; flush: boolean }) {
+  const { row, plan, actions } = props
+  const primary = primaryAction(row, plan, actions.approveBlocker ?? null)
+  const id = row.planId ?? row.spec ?? row.key
+  const primaryButton = {
+    import: { label: 'Import', icon: Download, tooltip: 'Store this folder as a draft spec. Approves and starts nothing.', onClick: actions.onImport },
+    approve: { label: 'Approve', icon: ClipboardCheck, tooltip: `Approve revision ${shortHash(plan?.hash)}. Its ready tasks may then start.`, onClick: actions.onApprove },
+    'spec-builder': { label: 'Open in Spec Builder', icon: FileText, tooltip: actions.approveBlocker ? `Not ready to approve: ${actions.approveBlocker}` : "Open this draft in Kiro Crew's Spec Builder", onClick: actions.onSpecBuilder },
+    edit: { label: 'Edit spec', icon: Pencil, tooltip: 'Start a planner chat that drafts a change to the spec files', onClick: actions.onEdit },
+  }[primary]
+  const PrimaryIcon = primaryButton.icon
+  const titleRef = useDetailTitleRef()
+  const pad = props.flush ? 0 : 12
+  const divider = { borderBottom: '1px solid var(--border)', marginLeft: props.flush ? 0 : -12, paddingLeft: props.flush ? 0 : 24, paddingRight: pad }
+  return (
+    <header data-spec-header>
+      <div style={{ padding: `20px ${pad}px 0`, marginLeft: props.flush ? 0 : -12, paddingLeft: props.flush ? 0 : 24 }}>
+        <h1 id="avoozl-plan-title" ref={titleRef ?? undefined} style={{ margin: 0, fontSize: 27, fontWeight: 700, lineHeight: 1.25, color: 'var(--text-strong, var(--text))', overflowWrap: 'anywhere' }}>
+          {row.name}
+        </h1>
+        <p data-spec-meta style={{ margin: '12px 0 0', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, fontSize: 12.5, lineHeight: '19.4px', color: 'var(--muted)' }}>
+          {specMeta(row, plan).map((part, i) => (
+            <span key={i} style={{ display: 'contents' }}>
+              {i > 0 && <span aria-hidden="true">·</span>}
+              {part}
+            </span>
+          ))}
+          {props.driver}
+        </p>
+      </div>
+      <div data-spec-actions style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, padding: `16px ${pad}px 16px`, ...divider }}>
+        <StatePill status={row.status} archived={Boolean(row.archived)} />
+        <span data-spec-id style={{ fontSize: 12.5, color: 'var(--muted)', fontFamily: 'var(--font-mono, ui-monospace, monospace)', overflowWrap: 'anywhere' }}>
+          {id}
+        </span>
+        <span style={{ display: 'inline-flex', alignItems: 'stretch', gap: 6 }}>
+          <Tooltip text={primaryButton.tooltip}>
+            {(describedBy) => (
+              <Btn
+                type="button"
+                primary
+                data-spec-primary={primary}
+                aria-describedby={describedBy}
+                disabled={props.busy || !primaryButton.onClick}
+                onClick={primaryButton.onClick}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', fontSize: 12, fontWeight: 500, borderRadius: 8, border: 0 }}
+              >
+                <PrimaryIcon size={13} aria-hidden="true" />
+                {primaryButton.label}
+              </Btn>
+            )}
+          </Tooltip>
+          <MoreMenu label="More spec actions" attrs={{ 'data-spec-more': '' }}>
+            <style>{RAIL_CSS}</style>
+            <div className="flex flex-col" style={{ gap: 2 }}>
+              {primary !== 'edit' && <MenuItem icon={Pencil} label="Edit spec" tooltip="Start a planner chat that drafts a change to the spec files" onClick={actions.onEdit} />}
+              <MenuItem icon={MessagesSquare} label="Discuss spec" tooltip="Start a chat about this spec. It makes no edits." onClick={actions.onDiscuss} />
+              <span data-new-task className="contents">
+                <MenuItem icon={Plus} label="New task" tooltip="Add a draft task from this spec. It waits for your review." onClick={actions.onNewTask} />
+              </span>
+              {primary !== 'spec-builder' && actions.onSpecBuilder && <MenuItem icon={FileText} label="Open in Spec Builder" onClick={actions.onSpecBuilder} />}
+              {primary !== 'approve' && actions.onApprove && plan?.state === 'draft' && (
+                <MenuItem icon={ClipboardCheck} label="Approve" disabled={actions.approveBlocker !== null} tooltip={actions.approveBlocker ?? undefined} onClick={actions.onApprove} />
+              )}
+              {actions.onReload && <MenuItem icon={RefreshCw} label="Reload from disk" tooltip="Store the changed files as a new revision to approve" onClick={actions.onReload} />}
+              {actions.onGraph && <MenuItem icon={Network} label="Show in Graph" tooltip="Show this spec's tasks in the Graph" onClick={actions.onGraph} />}
+              <MenuItem icon={FolderOpen} label="Open folder" tooltip={actions.onFolder ? 'Show the spec folder in Finder' : 'This spec has no folder on disk'} disabled={!actions.onFolder} onClick={actions.onFolder} />
+              <MenuItem icon={ExternalLink} label="Open on GitHub" tooltip={actions.github ? undefined : 'No GitHub repository holds this spec'} link={actions.github} />
+              {props.handOff && (
+                <span data-keep-menu className="contents">
+                  {props.handOff}
+                </span>
+              )}
+              {actions.onArchive && <MenuItem icon={Archive} label="Archive" tooltip={ARCHIVE_TIP} onClick={actions.onArchive} />}
+              {actions.onUnarchive && <MenuItem icon={ArchiveRestore} label="Unarchive" tooltip={UNARCHIVE_TIP} onClick={actions.onUnarchive} />}
+              {actions.onDelete && <MenuItem icon={Trash2} label="Delete" danger tooltip="Delete this spec. You confirm first; it stays in history." onClick={actions.onDelete} />}
+            </div>
+          </MoreMenu>
+        </span>
+      </div>
+    </header>
+  )
+}
+
+// The spec's right rail: small labeled sections split by dividers, each
+// with Edit where a planner chat or a setting changes it.
+function SpecRail(props: {
+  row: PlanRow
+  plan: (SpecPlan & { createdAt?: string; updatedAt?: string }) | null
+  graph: Graph | null
+  docs: SpecDocuments | null
+  onEdit: () => void
+  onRepositories?: () => void
   onDrill: (drill: Drill) => void
   onOpenTask: (id: string) => void
-  workspaceId: string | null
-  driver: DriverSpec | null
-  onDriverChanged: () => void
 }) {
-  const { row, graph, docs } = props
+  const { row, graph, docs, plan } = props
   const leaves = (graph?.tasks ?? []).filter((t) => t.kind === 'leaf')
   const counts = Object.fromEntries(STATES.map((s) => [s.id, 0])) as Record<NodeState, number>
   for (const task of leaves) counts[nodeState(task)] += 1
@@ -669,173 +935,162 @@ function PlanAside(props: {
     phases.set(id, entry)
   }
   const phaseList = [...phases].sort(([a], [b]) => Number(a === null) - Number(b === null))
+  const repositories = [...new Set(leaves.map((t) => t.repository).filter((name): name is string => Boolean(name)))].sort()
   const decisions = (graph?.tasks ?? []).filter((t) => t.decision)
   const tabs = documentTabs(docs)
-  const heading = (text: string) => <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">{text}</h4>
+  const muted = 'var(--muted)'
+  const date = (label: string, at: string | null | undefined) => (
+    <div className="flex items-baseline justify-between gap-3" data-rail-date={label}>
+      <span style={{ color: muted }}>{label}</span>
+      {at ? (
+        <Tooltip text={at}>
+          <span>{relativeTime(at)}</span>
+        </Tooltip>
+      ) : (
+        <span style={{ color: muted }}>—</span>
+      )}
+    </div>
+  )
+  const edit = (what: string) => ({ label: `Edit the ${what} of ${row.name}`, onClick: props.onEdit })
   return (
-    <div className="flex flex-col gap-4 text-sm" data-plan-aside>
-      <div className="flex flex-wrap gap-2">
-        <IconLabel icon={Pencil} primary tooltip="Start a planner chat that drafts a change to the spec files" onClick={props.onEdit}>
-          Edit spec
-        </IconLabel>
-        <IconLabel icon={MessagesSquare} tooltip="Start a chat about this spec. It makes no edits." onClick={props.onDiscuss}>
-          Discuss spec
-        </IconLabel>
-        <span data-new-task className="contents">
-          <IconLabel icon={Plus} tooltip="Add a draft task from this spec. It waits for your review." onClick={props.onNewTask}>
-            New task
-          </IconLabel>
-        </span>
-        {props.workspaceId && <HandOffButton workspaceId={props.workspaceId} spec={props.driver} onChanged={props.onDriverChanged} />}
-        {(props.onDelete || props.onArchive || props.onUnarchive) && (
-          <span className="ml-auto flex gap-1.5">
-            {props.onArchive && <IconBtn icon={Archive} label={`Archive ${row.name}`} tooltip={ARCHIVE_TIP} onClick={props.onArchive} />}
-            {props.onUnarchive && <IconBtn icon={ArchiveRestore} label={`Unarchive ${row.name}`} tooltip={UNARCHIVE_TIP} onClick={props.onUnarchive} />}
-            {props.onDelete && (
-              <IconBtn icon={Trash2} label={`Delete ${row.name}`} tooltip="Delete this spec. You confirm first; it stays in history." onClick={props.onDelete} style={dangerStyle} />
-            )}
+    <div data-spec-rail data-plan-aside style={{ fontSize: 12.5, lineHeight: '19.4px' }}>
+      <style>{RAIL_CSS}</style>
+      {row.kind !== 'epic' && (
+        <RailSection title="Epic" edit={edit('epic')}>
+          {row.epic ? (
+            <button type="button" className="text-left underline" onClick={() => props.onDrill({ kind: 'epic', id: row.epic!, title: row.epicTitle ?? row.epic! })}>
+              {row.epicTitle ?? row.epic}
+            </button>
+          ) : (
+            <span style={{ color: muted }}>No epic</span>
+          )}
+        </RailSection>
+      )}
+      <RailSection title="Category" edit={edit('category')}>
+        {row.category ?? <span style={{ color: muted }}>None in its front-matter</span>}
+        {(row.type || row.home) && (
+          <span className="mt-1 flex flex-wrap gap-1">
+            {row.type && <Badge>{row.type}</Badge>}
+            <HomeBadge home={row.home} />
           </span>
         )}
-      </div>
-      <div className="flex flex-col gap-2">
-        <span className="flex items-center gap-2">
-          <Badge variant={STATUS_VARIANT[row.status]}>{STATUS_LABEL[row.status] ?? row.status}</Badge>
-          {row.type && <Badge>{row.type}</Badge>}
-          {row.archived && <Badge>Archived</Badge>}
-          <HomeBadge home={row.home} />
-        </span>
-        <ProgressBar tasks={row.tasks} />
-      </div>
-      <div>
-        {heading('Category')}
-        <p className="mt-1">{row.category ?? <span className="text-muted">None in its front-matter</span>}</p>
-      </div>
-      <div>
-        {heading('Tasks by state')}
-        {/* One row per state: the label, then its count on the same line. */}
-        <dl className="mt-1 flex flex-col gap-0.5" style={{ margin: 0 }}>
-          {STATES.map((state) => (
-            <div key={state.id} className="flex items-baseline justify-between gap-3" data-state-count={state.id}>
-              <dt className="text-muted">{state.label}</dt>
-              <dd className="tabular-nums" style={{ margin: 0 }}>{graph ? counts[state.id] : '…'}</dd>
-            </div>
-          ))}
-        </dl>
-      </div>
-      {row.kind !== 'epic' && (
-        <div>
-          {heading('Epic')}
-          <p className="mt-1">
-            {row.epic ? (
-              <button
-                type="button"
-                className="underline"
-                onClick={() => props.onDrill({ kind: 'epic', id: row.epic!, title: row.epicTitle ?? row.epic! })}
-              >
-                {row.epicTitle ?? row.epic}
-              </button>
-            ) : (
-              <span className="text-muted">No epic</span>
-            )}
-          </p>
-        </div>
-      )}
-      {phaseList.length > 0 && (
-        <div>
-          {heading('Phases')}
-          <ul className="mt-1 flex flex-col gap-1">
-            {phaseList.map(([id, epic]) => {
-              const percent = epic.total ? Math.round((epic.done / epic.total) * 100) : 0
+      </RailSection>
+      <RailSection title="Repositories" edit={props.onRepositories ? { label: 'Edit repositories in Settings', onClick: props.onRepositories } : undefined}>
+        {repositories.length ? (
+          <ul className="flex flex-col gap-0.5">
+            {repositories.map((name) => (
+              <li key={name} style={{ overflowWrap: 'anywhere' }}>
+                {name}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <span style={{ color: muted }}>{graph ? 'No repository yet' : '…'}</span>
+        )}
+      </RailSection>
+      <RailSection title="Phases" edit={edit('phases')}>
+        {phaseList.length === 0 ? (
+          <span style={{ color: muted }}>{graph ? 'No phase yet' : '…'}</span>
+        ) : (
+          <ul className="flex flex-col gap-1">
+            {phaseList.map(([id, phase]) => {
+              const percent = phase.total ? Math.round((phase.done / phase.total) * 100) : 0
               return (
                 <li key={id ?? '(none)'}>
-                  <Tooltip text={`Show only ${epic.title} in the Graph`} display="block">
-                  <button
-                    type="button"
-                    className="w-full rounded px-1 py-0.5 text-left hover:bg-accent/10"
-                    onClick={() => props.onDrill({ kind: 'phase', plan: row.planId, id, title: epic.title })}
-                  >
-                    <span className="flex justify-between gap-2">
-                      <span className="truncate">{epic.title}</span>
-                      <span className="shrink-0 text-xs text-muted">
-                        {epic.done}/{epic.total}
+                  <Tooltip text={`Show only ${phase.title} in the Graph`} display="block">
+                    <button type="button" className="w-full rounded px-1 py-0.5 text-left hover:bg-accent/10" onClick={() => props.onDrill({ kind: 'phase', plan: row.planId, id, title: phase.title })}>
+                      <span className="flex justify-between gap-2">
+                        <span className="truncate">{phase.title}</span>
+                        <span className="shrink-0" style={{ color: muted }}>
+                          {phase.done}/{phase.total}
+                        </span>
                       </span>
-                    </span>
-                    <span className="mt-0.5 block h-1 overflow-hidden rounded" style={{ background: 'var(--border)' }}>
-                      <span className="block h-full" style={{ width: `${percent}%`, background: 'var(--ok)' }} />
-                    </span>
-                  </button>
+                      <span className="mt-0.5 block h-1 overflow-hidden rounded" style={{ background: 'var(--border)' }}>
+                        <span className="block h-full" style={{ width: `${percent}%`, background: 'var(--ok)' }} />
+                      </span>
+                    </button>
                   </Tooltip>
                 </li>
               )
             })}
           </ul>
+        )}
+      </RailSection>
+      <RailSection title="Progress">
+        <ProgressBar tasks={row.tasks} />
+        {/* One row per state: the label, then its count on the same line. */}
+        <dl className="mt-2 flex flex-col gap-0.5" style={{ margin: 0 }}>
+          {STATES.map((state) => (
+            <div key={state.id} className="flex items-baseline justify-between gap-3" data-state-count={state.id}>
+              <dt style={{ color: muted }}>{state.label}</dt>
+              <dd className="tabular-nums" style={{ margin: 0 }}>{graph ? counts[state.id] : '…'}</dd>
+            </div>
+          ))}
+        </dl>
+      </RailSection>
+      <RailSection title="Dates">
+        <div className="flex flex-col gap-0.5">
+          {date('Created', plan?.createdAt)}
+          {date('Updated', plan?.updatedAt ?? row.lastChange)}
+          {date('Approved', plan?.approvals.at(-1)?.at)}
         </div>
-      )}
-      {tabs.length > 0 && (
-        <nav aria-label="Spec outline">
-          {heading('Outline')}
-          <ul className="mt-1 flex flex-col gap-1">
-            {tabs.map((tab) => (
-              <li key={tab.file}>
-                <button type="button" className="font-medium hover:underline" onClick={() => jump(`avoozl-doc-${tab.file}`)}>
-                  {tab.label}
-                </button>
-                <ul className="flex flex-col">
-                  {outline(tab.text, docPrefix(tab.file), 2)
-                    .filter((h) => h.level === 2)
-                    .map((h) => (
-                      <li key={h.id} className="truncate pl-3">
-                        <button type="button" className="text-left text-xs text-muted hover:underline" onClick={() => jump(h.id)}>
-                          {h.text}
-                        </button>
-                      </li>
-                    ))}
-                </ul>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      )}
-      <div>
-        {heading('Last change')}
-        <p className="mt-1">
-          <Tooltip text={row.lastChange}>
-            <span>{row.lastChange ? relativeTime(row.lastChange) : <span className="text-muted">Unknown</span>}</span>
-          </Tooltip>
-        </p>
-      </div>
-      {(row.timeline ?? []).length > 0 && (
-        <div data-plan-timeline>
-          {heading('Timeline')}
-          <ol className="mt-1 flex flex-col gap-0.5">
-            {row.timeline!.map((entry, i) => (
-              <li key={i} className="flex justify-between gap-2">
-                <span>{planEventLine(entry)}</span>
-                <Tooltip text={entry.at}>
-                  <span className="shrink-0 text-xs text-muted">{relativeTime(entry.at)}</span>
-                </Tooltip>
-              </li>
-            ))}
-          </ol>
-        </div>
-      )}
-      <div>
-        {heading(`Open decisions (${decisions.length})`)}
+      </RailSection>
+      <RailSection title={`Open decisions (${decisions.length})`}>
         {decisions.length === 0 ? (
-          <p className="mt-1 text-muted">None.</p>
+          <span style={{ color: muted }}>None.</span>
         ) : (
-          <ul className="mt-1 flex flex-col gap-1">
+          <ul className="flex flex-col gap-1">
             {decisions.map((task) => (
               <li key={task.id}>
                 <button type="button" className="text-left underline" onClick={() => props.onOpenTask(task.id)}>
                   {task.title}
                 </button>
-                <span className="block text-xs text-muted">{task.decision}</span>
+                <span className="block" style={{ color: muted }}>{task.decision}</span>
               </li>
             ))}
           </ul>
         )}
-      </div>
+      </RailSection>
+      {tabs.length > 0 && (
+        <RailSection title="Outline">
+          <nav aria-label="Spec outline">
+            <ul className="flex flex-col gap-1">
+              {tabs.map((tab) => (
+                <li key={tab.file}>
+                  <button type="button" className="font-medium hover:underline" onClick={() => jump(`avoozl-doc-${tab.file}`)}>
+                    {tab.label}
+                  </button>
+                  <ul className="flex flex-col">
+                    {outline(tab.text, docPrefix(tab.file), 2)
+                      .filter((h) => h.level === 2)
+                      .map((h) => (
+                        <li key={h.id} className="truncate pl-3">
+                          <button type="button" className="text-left hover:underline" style={{ color: muted }} onClick={() => jump(h.id)}>
+                            {h.text}
+                          </button>
+                        </li>
+                      ))}
+                  </ul>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </RailSection>
+      )}
+      {(row.timeline ?? []).length > 0 && (
+        <RailSection title="Activity" attrs={{ 'data-plan-timeline': '' }}>
+          <ol className="flex flex-col gap-0.5">
+            {row.timeline!.map((entry, i) => (
+              <li key={i} className="flex justify-between gap-2">
+                <span>{planEventLine(entry)}</span>
+                <Tooltip text={entry.at}>
+                  <span className="shrink-0" style={{ color: muted }}>{relativeTime(entry.at)}</span>
+                </Tooltip>
+              </li>
+            ))}
+          </ol>
+        </RailSection>
+      )}
     </div>
   )
 }
@@ -1006,7 +1261,8 @@ export default function PlansView(props: {
   onDrill?: (drill: Drill) => void
   // Bumped by the header's Plan a goal: open the New plan drawer.
   newPlanRequest?: { n: number; seed?: Partial<NewPlanForm> }
-  // The Epics fold-out, shown above the spec list (never beside a spec's documents).
+  // The rail's Repositories Edit: Settings › Repository setup.
+  onOpenSettings?: (section: string) => void
 }) {
   const workspace = props.workspaceId
   const api = useAppApi()
@@ -1017,9 +1273,25 @@ export default function PlansView(props: {
   const drawer = useTaskDrawer()
   const chat = useAskChat(workspace)
   const stack = useMedia(STACK)
-  // A phone's spec menu: the spec's left column, opened from its hamburger.
-  const [specMenu, setSpecMenu] = useState(false)
   const phone = usePhone()
+  const navigate = useNavigate()
+  const reveal = useReveal()
+  const settings = useMemo(() => settingsClient(api), [api])
+  // The repository that holds spec folders, for Open on GitHub: the plans
+  // repository in plans-repo mode, else the one code repository a spec's
+  // tasks name. Null in Local only mode.
+  const [specHome, setSpecHome] = useState<{ mode: string; planning: string | null } | null>(null)
+  useEffect(() => {
+    setSpecHome(null)
+    if (!workspace) return
+    settings.get(workspace).then(
+      (value) => {
+        const github = (value.effective ?? value.github) as { mode?: string; planningRepository?: string }
+        setSpecHome({ mode: github.mode ?? 'local', planning: github.planningRepository ?? null })
+      },
+      () => undefined,
+    )
+  }, [settings, workspace])
   const { scrolledOut, titleRef } = useTitleScrolledOut()
   const [asideRef, asideHeight] = useStickyHeight(!stack)
   const [deleting, setDeleting] = useState<PlanRow | null>(null)
@@ -1163,6 +1435,29 @@ export default function PlansView(props: {
       return { id: next.planId! }
     })
   const rows = table ? filterRows(table.items, filter) : []
+  const specActions = (row: PlanRow): SpecActions => {
+    const actions = rowActions(row)
+    const blocker = approveBlocker(plan)
+    const repos = [...new Set((planGraph?.tasks ?? []).map((t) => t.repository).filter((name): name is string => Boolean(name)))]
+    const home = specHome?.mode === 'plans-repo' ? specHome.planning : specHome?.mode === 'single-repo' && repos.length === 1 ? repos[0] : null
+    const repoHref = githubHref(home)
+    return {
+      onEdit: () => change(row),
+      onDiscuss: () => void chat.ask(discussSeed(row)),
+      onNewTask: () => drawer.addTask(),
+      onImport: actions.importable ? () => importRow(row) : undefined,
+      onReload: plan?.disk.changed ? () => act((workspaceId) => plans.reload(workspaceId, plan.id, plan.hash)) : undefined,
+      onApprove: plan ? () => act((workspaceId) => plans.approve(workspaceId, plan.id, plan.hash)) : undefined,
+      approveBlocker: plan ? blocker : null,
+      onSpecBuilder: row.spec ? () => openSpecBuilder(row.spec!, navigate) : undefined,
+      onGraph: actions.scoped ? () => scope('graph', row) : undefined,
+      onFolder: table?.root && row.folder ? () => void reveal(`${table.root!.replace(/\/$/, '')}/${row.folder}`).then(setNotice) : undefined,
+      github: repoHref && row.folder ? `${repoHref}/tree/HEAD/${row.folder}` : null,
+      onDelete: actions.deletable ? () => setDeleting(row) : undefined,
+      onArchive: actions.archivable ? () => setArchiving(row) : undefined,
+      onUnarchive: actions.unarchivable ? () => unarchive(row) : undefined,
+    }
+  }
 
   return (
     <section aria-labelledby="avoozl-plans-title" className="flex flex-col gap-3.5">
@@ -1222,14 +1517,8 @@ export default function PlansView(props: {
           id="specs"
           backLabel="All specs"
           detailTitle={row?.name ?? ''}
+          detailOwnTitle
           onBack={() => openPlan(null)}
-          detailActions={
-            row && phone ? (
-              <button type="button" data-spec-menu aria-expanded={specMenu} aria-label={specMenu ? 'Close the spec menu' : 'Open the spec menu'} onClick={() => setSpecMenu(!specMenu)} style={{ display: 'inline-flex', alignItems: 'center', height: 28, padding: '0 6px', background: 'none', border: 0, color: 'inherit', cursor: 'pointer' }}>
-                {specMenu ? <X size={18} aria-hidden="true" /> : <Menu size={18} aria-hidden="true" />}
-              </button>
-            ) : undefined
-          }
           list={
             <div className="flex flex-col gap-3" data-plans-list-pane>
               <ViewHeading
@@ -1267,109 +1556,87 @@ export default function PlansView(props: {
           }
           detail={
             !row ? null : (
-              <div className="flex flex-col gap-3" data-spec-detail={row.key}>
-                {!phone && (
-                  <div ref={detailTop} className="flex flex-wrap items-center gap-3">
-                    <div className="min-w-0 flex-1">
-                      <ViewHeading
-                        id="avoozl-plan-title"
-                        view="plans"
-                        actions={
-                          <span className="flex flex-wrap items-center gap-2">
-                            <DriverChip spec={driver.spec} />
-                            <RowButtons row={row} onScope={(target) => scope(target, row)} onReview={() => jump('avoozl-plan-main')} />
-                          </span>
-                        }
-                      >
-                        {row.name}
-                      </ViewHeading>
-                    </div>
+              <div className="flex flex-col" data-spec-detail={row.key} ref={detailTop}>
+                <SpecHeader
+                  row={row}
+                  plan={plan}
+                  busy={busy}
+                  flush={phone}
+                  driver={<DriverChip spec={driver.spec} />}
+                  handOff={workspace ? <HandOffButton workspaceId={workspace} spec={driver.spec} onChanged={driver.reload} /> : null}
+                  actions={specActions(row)}
+                />
+                <div
+                  data-spec-body
+                  style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', gap: 24, padding: phone ? '20px 0' : '20px 12px 20px 12px' }}
+                >
+                  <div id="avoozl-plan-main" className="flex min-w-0 flex-col" style={{ flex: '1 1 260px', gap: 20, scrollMarginTop: 48 }}>
+                    <RadarGraphLink />
+                    <ArchivedBanner row={row} busy={busy} onUnarchive={() => unarchive(row)} />
+                    {workspace && <DriverBanner workspaceId={workspace} spec={driver.spec} onChanged={driver.reload} />}
+                    <SetupList spec={driver.spec} />
+                    {row.categoryProblem && (
+                      <p className="text-sm text-muted">
+                        <Badge variant="warning">front-matter</Badge> {row.categoryProblem}
+                      </p>
+                    )}
+                    {spec ? (
+                      <SpecDetail
+                        docs={docs}
+                        docsError={docsError}
+                        spec={spec}
+                        plan={plan}
+                        preview={preview}
+                        projection={projection}
+                        graph={planGraph}
+                        busy={busy}
+                        onProjection={() => plan && void attempt(async () => setProjection(await plans.projection(workspace, plan.id)))}
+                        onProject={() => setDialog('project')}
+                        onChanged={() => setDialog('changed')}
+                        onOpenTask={(id) => drawer.openTask(id)}
+                      />
+                    ) : (
+                      <>
+                        <SpecCard title="Summary">
+                          <p className="text-xs text-muted">
+                            <code>{row.planId}</code> · written before the spec layout, so it has no folder. Its tasks show in the spec graph.
+                          </p>
+                          <div className="mt-2">
+                            {!text ? (
+                              <p className="text-sm text-muted">Loading…</p>
+                            ) : text.error ? (
+                              <p className="text-sm text-danger">{text.error}</p>
+                            ) : text.text ? (
+                              <Markdown text={text.text} measure={PROSE_MEASURE} />
+                            ) : (
+                              <p className="text-sm text-muted">This spec has no text.</p>
+                            )}
+                          </div>
+                        </SpecCard>
+                        <PhaseTasks graph={planGraph} onOpenTask={(id) => drawer.openTask(id)} />
+                      </>
+                    )}
                   </div>
-                )}
-                <RadarGraphLink />
-        <div
-              style={
-                stack
-                  ? { display: 'flex', flexDirection: 'column', gap: 14 }
-                  : { display: 'grid', gridTemplateColumns: `${ASIDE_WIDTH} minmax(0, 1fr)`, gap: 14, alignItems: 'start' }
-              }
-            >
-              {/* A phone shows the spec's left column only from its menu. */}
-              {(!phone || specMenu) && (
-              <aside
-                ref={asideRef}
-                aria-label="Spec summary"
-                data-plan-aside-scroll
-                style={stack ? undefined : { position: 'sticky', top: 8, zIndex: LAYER.sticky, maxHeight: asideHeight ?? 'calc(100vh - 2rem)', overflowY: 'auto', overscrollBehavior: 'contain' }}
-              >
-                <Card>
-                  <PlanAside
-                    row={row}
-                    graph={planGraph}
-                    docs={docs}
-                    onEdit={() => change(row)}
-                    onDiscuss={() => void chat.ask(discussSeed(row))}
-                    onNewTask={() => drawer.addTask()}
-                    onDelete={rowActions(row).deletable ? () => setDeleting(row) : undefined}
-                    onArchive={rowActions(row).archivable ? () => setArchiving(row) : undefined}
-                    onUnarchive={rowActions(row).unarchivable ? () => unarchive(row) : undefined}
-                    onDrill={(drill) => props.onDrill?.(drill)}
-                    onOpenTask={(id) => drawer.openTask(id)}
-                    workspaceId={workspace}
-                    driver={driver.spec}
-                    onDriverChanged={driver.reload}
-                  />
-                </Card>
-              </aside>
-              )}
-              {(!phone || !specMenu) && (
-              <div id="avoozl-plan-main" className="min-w-0" style={phone ? { scrollMarginTop: 48 } : undefined}>
-                <ArchivedBanner row={row} busy={busy} onUnarchive={() => unarchive(row)} />
-                {workspace && <DriverBanner workspaceId={workspace} spec={driver.spec} onChanged={driver.reload} />}
-                <SetupList spec={driver.spec} />
-                {row.categoryProblem && (
-                  <p className="mb-3 text-sm text-muted">
-                    <Badge variant="warning">front-matter</Badge> {row.categoryProblem}
-                  </p>
-                )}
-                {spec ? (
-                  <SpecDetail
-                    docs={docs}
-                    docsError={docsError}
-                    spec={spec}
-                    plan={plan}
-                    preview={preview}
-                    projection={projection}
-                    busy={busy}
-                    onStore={() => act((workspaceId) => plans.store(workspaceId, spec.name))}
-                    onReload={() => plan && act((workspaceId) => plans.reload(workspaceId, plan.id, plan.hash))}
-                    onApprove={() => plan && act((workspaceId) => plans.approve(workspaceId, plan.id, plan.hash))}
-                    onProjection={() => plan && void attempt(async () => setProjection(await plans.projection(workspace, plan.id)))}
-                    onProject={() => setDialog('project')}
-                    onChanged={() => setDialog('changed')}
-                  />
-                ) : (
-                  <Card>
-                    <SectionHeading title={row.name} className="mb-2" />
-                    <p className="mt-1 text-xs text-muted">
-                      <code>{row.planId}</code> · written before the spec layout, so it has no folder. Its tasks show in the spec graph.
-                    </p>
-                    <div className="mt-2">
-                      {!text ? (
-                        <p className="text-sm text-muted">Loading…</p>
-                      ) : text.error ? (
-                        <p className="text-sm text-danger">{text.error}</p>
-                      ) : text.text ? (
-                        <Markdown text={text.text} measure={PROSE_MEASURE} />
-                      ) : (
-                        <p className="text-sm text-muted">This spec has no text.</p>
-                      )}
-                    </div>
-                  </Card>
-                )}
-              </div>
-              )}
-            </div>
+                  {/* The rail sits beside the cards, and under them when the
+                      column is narrow (a phone). */}
+                  <aside
+                    ref={asideRef}
+                    aria-label="Spec details"
+                    data-plan-aside-scroll
+                    style={{ flex: phone ? '1 1 100%' : '0 0 236px', width: phone ? '100%' : 236, minWidth: 0, ...(stack || phone ? {} : { position: 'sticky', top: 8, zIndex: LAYER.sticky, maxHeight: asideHeight ?? 'calc(100vh - 2rem)', overflowY: 'auto', overscrollBehavior: 'contain' }) }}
+                  >
+                    <SpecRail
+                      row={row}
+                      plan={plan}
+                      graph={planGraph}
+                      docs={docs}
+                      onEdit={() => change(row)}
+                      onRepositories={props.onOpenSettings ? () => props.onOpenSettings!('repositories') : undefined}
+                      onDrill={(drill) => props.onDrill?.(drill)}
+                      onOpenTask={(id) => drawer.openTask(id)}
+                    />
+                  </aside>
+                </div>
               </div>
             )
           }
