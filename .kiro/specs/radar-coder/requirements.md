@@ -1658,12 +1658,12 @@ the app has fewer places that mean the same thing.
    AGENTS.md requires for public names.
 4. Avoozl's **lessons store** SHALL be deleted: the Lessons views, lessons
    packs, their import and Share. A retro SHALL propose rule changes as a
-   pull request to the steering file `.kiro/steering/avoozl-lessons.md`,
+   pull request to the steering file `.kiro/steering/avoozl-rules.md`,
    which AGENTS.md points to, and to the crew prompt when the change is about
    how crews work. A person merges or closes that pull request; Avoozl does
    not apply a rule itself.
 5. WHEN a workspace still has stored lessons, Avoozl SHALL write them once
-   into `.kiro/steering/avoozl-lessons.md` (appending under a dated heading,
+   into `.kiro/steering/avoozl-rules.md` (appending under a dated heading,
    never overwriting the file), and only after that write succeeds SHALL drop
    the lessons tables. A failed write SHALL keep the tables and say why.
 6. The design and `docs/overview.md` SHALL list these removals and name no
