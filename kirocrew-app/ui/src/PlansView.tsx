@@ -13,7 +13,7 @@ import NewPlanDrawer from './NewPlanDrawer.tsx'
 import type { NewPlanForm } from './new-plan-api.ts'
 import { DriverBanner, DriverChip, HandOffButton, SetupList, useDriver } from './Driver.tsx'
 import type { DriverSpec } from './driver-api.ts'
-import { IconBtn, IconLabel, SectionHeading, ShowMore, TipBtn, ViewHeading, dangerStyle, useAskChat, usePages } from './controls.tsx'
+import { IconBtn, IconLabel, SectionHeading, ShowMore, SmallBtn, TipBtn, ViewHeading, dangerStyle, useAskChat, usePages } from './controls.tsx'
 import { Archive, ArchiveRestore, ArrowLeft, ChevronRight, ClipboardCheck, DetailsIcon, Download, FolderOpen, MessagesSquare, Network, Pencil, Plus, RefreshCw, Trash2, X, Menu } from './icons.ts'
 import { FilterPanel } from './FilterPanel.tsx'
 import { STATES, nodeState, type Drill, type NodeState } from './graph-layout.ts'
@@ -21,7 +21,7 @@ import { rowPlanKey, type TaskFilter } from './filters.ts'
 import { outline } from './markdown.ts'
 import { registerLanguages } from './highlight.ts'
 import { scrollParent, stickyHeight } from './sticky-column.ts'
-import { linkHref, viewsClient, type Graph } from './views-api.ts'
+import { linkHref, safeHref, viewsClient, type Graph } from './views-api.ts'
 import { useSteppedState } from './NavHistory.tsx'
 import { usePhone } from './list-detail.ts'
 import { ListDetailLayout } from './ListDetailLayout.tsx'
@@ -47,6 +47,11 @@ import {
   planEventLine,
   type DeletePreview,
   type PlansClient,
+  batchNumbers,
+  missingOwners,
+  type ApprovalBatches,
+  type ApproveManyResult,
+  type BatchEntry,
   progressPercent,
   homeBadge,
   specChip,
@@ -446,7 +451,7 @@ const head: CSSProperties = { padding: '6px 10px', textAlign: 'left', fontWeight
 
 // The Plans list's filters: search, category, status, kind and "has", in
 // the shared filter panel. The count sits on the Filters row (one line).
-function PlanFilters(props: { filter: PlanListFilter; rows: PlanRow[]; onChange: (filter: PlanListFilter) => void; children?: ReactNode }) {
+function PlanFilters(props: { filter: PlanListFilter; rows: PlanRow[]; batches: number; onChange: (filter: PlanListFilter) => void; children?: ReactNode }) {
   const { filter } = props
   const choices = rowChoices(props.rows)
   const set = (change: Partial<PlanListFilter>) => {
@@ -501,6 +506,14 @@ function PlanFilters(props: { filter: PlanListFilter; rows: PlanRow[]; onChange:
             { value: 'needs-you', label: 'Tasks that need you' },
           ],
           onChange: (has) => set({ has: (has || undefined) as PlanListFilter['has'] }),
+        },
+        {
+          kind: 'select',
+          key: 'batch',
+          label: 'Batch',
+          value: filter.batch ?? '',
+          options: Array.from({ length: props.batches }, (_, at) => ({ value: String(at + 1), label: `Batch ${at + 1}` })),
+          onChange: (batch) => set({ batch }),
         },
         { kind: 'check', key: 'archived', label: 'Show archived', checked: Boolean(filter.archived), onChange: (archived) => set({ archived }) },
       ]}
@@ -578,24 +591,50 @@ function HomeBadge(props: { home?: 'main' | 'plansBranch' }) {
 // Every spec in one list (follows Kiro Crew's list-detail pattern): the
 // name, one status chip, the task count, the epic and where it lives.
 // Picking a row opens it in the detail column.
-export function SpecList(props: { rows: PlanRow[]; selected: string | null; onOpen: (row: PlanRow) => void; reset: string }) {
+// A draft spec in an approval batch shows its Batch chip and a checkbox to
+// pick it for Approve N specs.
+export function SpecList(props: {
+  rows: PlanRow[]
+  selected: string | null
+  onOpen: (row: PlanRow) => void
+  reset: string
+  batchOf?: Map<string, number>
+  checked?: Set<string>
+  onCheck?: (planId: string, on: boolean) => void
+}) {
   const sorted = [...props.rows].sort((a, b) => a.name.localeCompare(b.name))
   const pages = usePages(props.reset)
+  const batchOf = props.batchOf ?? new Map<string, number>()
+  const picking = Boolean(props.onCheck) && props.rows.some((row) => row.planId && batchOf.has(row.planId))
   return (
     <>
     <ul className="m-0 flex list-none flex-col p-0" data-spec-list>
       {pages.take('specs', sorted).map((row) => {
         const chip = specChip(row)
         const selected = row.key === props.selected
+        const batch = row.planId ? batchOf.get(row.planId) : undefined
         return (
-          <li key={row.key} className="border-t first:border-t-0" style={{ borderColor: 'var(--border)' }}>
+          <li key={row.key} className="flex items-center gap-1 border-t first:border-t-0" style={{ borderColor: 'var(--border)' }}>
+            {picking && (
+              <span className="flex w-6 shrink-0 justify-center">
+                {batch !== undefined && row.planId && (
+                  <input
+                    type="checkbox"
+                    data-spec-check={row.planId}
+                    aria-label={`Select ${row.name} to approve`}
+                    checked={props.checked?.has(row.planId) ?? false}
+                    onChange={(event) => props.onCheck?.(row.planId!, event.target.checked)}
+                  />
+                )}
+              </span>
+            )}
             <button
               type="button"
               data-plan-row={row.key}
               data-spec-chip={chip}
               aria-current={selected ? 'true' : undefined}
               onClick={() => props.onOpen(row)}
-              className="flex w-full flex-col items-stretch gap-0.5 px-2 py-1.5 text-left"
+              className="flex w-full min-w-0 flex-col items-stretch gap-0.5 px-2 py-1.5 text-left"
               style={{ background: selected ? 'var(--accent-subtle, var(--bg-elevated))' : 'none', border: 0, borderRadius: 6, color: 'inherit', cursor: 'pointer' }}
             >
               <span className="flex min-w-0 items-center gap-2">
@@ -609,6 +648,7 @@ export function SpecList(props: { rows: PlanRow[]; selected: string | null; onOp
                 <span>·</span>
                 <span className="truncate">{row.kind === 'epic' ? 'Epic' : (row.epicTitle ?? 'No epic')}</span>
                 <HomeBadge home={row.home} />
+                {batch !== undefined && <Badge>Batch {batch}</Badge>}
                 {row.archived && <Badge>Archived</Badge>}
               </span>
             </button>
@@ -986,6 +1026,105 @@ export function DeletePlanDialog(props: { workspaceId: string; row: PlanRow; cli
   )
 }
 
+// Approve N specs: the exact revisions listed, together, all or none
+// (plan.approveMany). A spec approved through a pull request waits for it.
+export function ApproveSpecsDialog(props: { workspaceId: string; entries: BatchEntry[]; client: PlansClient; onDone: (text: string | null) => void }) {
+  const { entries } = props
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [result, setResult] = useState<ApproveManyResult | null>(null)
+  const missing = missingOwners(entries)
+  const tasks = entries.reduce((sum, entry) => sum + entry.tasks, 0)
+  const label = `Approve ${entries.length} ${entries.length === 1 ? 'spec' : 'specs'}`
+  const run = async () => {
+    setBusy(true)
+    setError(null)
+    try {
+      const done = await props.client.approveMany(
+        props.workspaceId,
+        entries.map((entry) => ({ id: entry.id, expectedHash: entry.hash })),
+      )
+      if (done.ok) props.onDone(`Approved ${entries.length} ${entries.length === 1 ? 'spec' : 'specs'}.`)
+      else setResult(done)
+    } catch (caught) {
+      setError(errorMessage(caught))
+    } finally {
+      setBusy(false)
+    }
+  }
+  const finished = Boolean(result?.pending)
+  return (
+    <Modal
+      id="avoozl-approve-specs"
+      width="36rem"
+      height="34rem"
+      title={label}
+      backLabel="Cancel"
+      attrs={{ 'data-approve-specs': result ? (result.pending ? 'pending' : 'failed') : 'confirm' }}
+      onDismiss={() => props.onDone(null)}
+      footer={
+        <div className="flex flex-wrap justify-end gap-2">
+          <SmallBtn onClick={() => props.onDone(finished ? 'Nothing approved yet. Merge the approval pull request, then approve again.' : null)}>{finished ? 'Close' : 'Cancel'}</SmallBtn>
+          {!finished && (
+            <SmallBtn primary disabled={busy || entries.length === 0} onClick={() => void run()} attrs={{ 'data-approve-specs-go': true }}>
+              {label}
+            </SmallBtn>
+          )}
+        </div>
+      }
+    >
+      <div className="flex flex-col gap-3 text-sm">
+        <p className="m-0 text-muted">
+          {entries.length} {entries.length === 1 ? 'spec' : 'specs'}, {tasks} {tasks === 1 ? 'task' : 'tasks'}. Each revision below is approved exactly as shown, or none are.
+        </p>
+        {missing.length > 0 && (
+          <p role="note" data-approve-missing className="m-0" style={{ color: 'var(--warning, var(--text))' }}>
+            These need specs from an earlier batch that are still drafts: {missing.join(', ')}.
+          </p>
+        )}
+        {error && (
+          <p role="alert" className="m-0 text-danger">
+            {error}
+          </p>
+        )}
+        {result?.pending && (
+          <div role="status" className="flex flex-col gap-1">
+            <p className="m-0">Nothing approved yet. These specs are approved through a pull request. Merge it, then approve again:</p>
+            {result.approvalPullRequests?.map((pull) => (
+              <a key={pull.number} href={safeHref(`https://github.com/${pull.repository}/pull/${pull.number}`) ?? undefined} target="_blank" rel="noreferrer" className="underline">
+                {pull.repository}#{pull.number} ({pull.specs.length} specs)
+              </a>
+            ))}
+          </div>
+        )}
+        {result && !result.pending && (
+          <div role="alert" className="flex flex-col gap-1">
+            <p className="m-0 text-danger">Nothing approved. These specs failed:</p>
+            <ul className="m-0 flex flex-col gap-1 pl-5" style={{ listStyle: 'disc' }}>
+              {result.failures.map((failure) => (
+                <li key={failure.id}>
+                  <span className="font-medium">{failure.spec ?? failure.id}</span>: {failure.error}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <ul className="m-0 flex list-none flex-col p-0" data-approve-list>
+          {entries.map((entry) => (
+            <li key={entry.id} className="flex items-center gap-3 border-t py-1.5 first:border-t-0" style={{ borderColor: 'var(--border)' }}>
+              <span className="min-w-0 flex-1 truncate font-medium">{entry.spec}</span>
+              <code className="text-xs text-muted">{shortHash(entry.hash)}</code>
+              <span className="w-16 text-right text-xs text-muted tabular-nums">
+                {entry.tasks} {entry.tasks === 1 ? 'task' : 'tasks'}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </Modal>
+  )
+}
+
 export default function PlansView(props: {
   workspaceId: string | null
   onScope?: (target: PlanTarget, filter: TaskFilter) => void
@@ -1016,6 +1155,27 @@ export default function PlansView(props: {
   }, [props.newPlanRequest])
   const [notice, setNotice] = useState<string | null>(null)
   const [table, setTable] = useState<PlanTable | null>(null)
+  // Draft specs' approval batches, read again whenever the table loads.
+  const [batches, setBatches] = useState<ApprovalBatches | null>(null)
+  const [checked, setChecked] = useState<Set<string>>(new Set())
+  const [approving, setApproving] = useState<BatchEntry[] | null>(null)
+  useEffect(() => {
+    if (!workspace || !table) return
+    let live = true
+    plans.batches(workspace).then(
+      (value) => {
+        if (!live) return
+        setBatches(value)
+        // A spec that left the drafts can't stay picked.
+        const ids = batchNumbers(value)
+        setChecked((previous) => new Set([...previous].filter((id) => ids.has(id))))
+      },
+      () => live && setBatches(null),
+    )
+    return () => {
+      live = false
+    }
+  }, [workspace, table, plans])
   // Opening a plan is a Back step; Back from another tab reopens it.
   const [selected, openPlan, setSelected] = useSteppedState<string | null>(
     'plans-selected',
@@ -1148,7 +1308,11 @@ export default function PlansView(props: {
       setNotice(`Unarchived ${next.name}. ${done.released} tasks may start again; ${done.decisions} decisions closed.`)
       return { id: next.planId! }
     })
-  const rows = table ? filterRows(table.items, filter) : []
+  const batchOf = batchNumbers(batches)
+  const rows = table ? filterRows(table.items, filter, batchOf) : []
+  const pickable = rows.flatMap((item) => (item.planId && batchOf.has(item.planId) ? [item.planId] : []))
+  const allPicked = pickable.length > 0 && pickable.every((id) => checked.has(id))
+  const entries = (batches?.batches ?? []).flatMap((batch) => batch.specs).filter((entry) => checked.has(entry.id))
 
   return (
     <section aria-labelledby="avoozl-plans-title" className="flex flex-col gap-3.5">
@@ -1175,6 +1339,20 @@ export default function PlansView(props: {
             setArchiving(null)
             if (text === null) return
             setNotice(text)
+            void load(workspace)
+          }}
+        />
+      )}
+      {approving && workspace && (
+        <ApproveSpecsDialog
+          workspaceId={workspace}
+          entries={approving}
+          client={plans}
+          onDone={(text) => {
+            setApproving(null)
+            if (text === null) return
+            setNotice(text)
+            setChecked(new Set())
             void load(workspace)
           }}
         />
@@ -1229,11 +1407,40 @@ export default function PlansView(props: {
                 Specs
               </ViewHeading>
               {table && table.items.length > 0 && (
-                <PlanFilters filter={filter} rows={table.items} onChange={setFilter}>
+                <PlanFilters filter={filter} rows={table.items} batches={batches?.batches.length ?? 0} onChange={setFilter}>
                   <span className="text-xs text-muted" role="status">
                     {rows.length} of {table.items.length} specs
                   </span>
                 </PlanFilters>
+              )}
+              {pickable.length > 0 && (
+                <div className="flex flex-wrap items-center gap-2 px-1" data-approve-bar>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      data-select-shown
+                      checked={allPicked}
+                      ref={(el) => {
+                        if (el) el.indeterminate = !allPicked && pickable.some((id) => checked.has(id))
+                      }}
+                      onChange={(event) =>
+                        setChecked((previous) => {
+                          const next = new Set(previous)
+                          for (const id of pickable) {
+                            if (event.target.checked) next.add(id)
+                            else next.delete(id)
+                          }
+                          return next
+                        })
+                      }
+                    />
+                    Select all shown
+                  </label>
+                  <span className="flex-1" />
+                  <SmallBtn primary disabled={entries.length === 0 || busy} onClick={() => setApproving(entries)} attrs={{ 'data-approve-specs-open': true }}>
+                    Approve {entries.length} {entries.length === 1 ? 'spec' : 'specs'}
+                  </SmallBtn>
+                </div>
               )}
               <div className="flex flex-col gap-2" data-plans-list>
                 {table === null ? (
@@ -1243,7 +1450,22 @@ export default function PlansView(props: {
                     No specs yet{table.root ? ` in ${table.root}/.kiro/specs` : ''}. Use New spec to start one.
                   </p>
                 ) : rows.length ? (
-                  <SpecList rows={rows} selected={row?.key ?? null} onOpen={open} reset={JSON.stringify(filter)} />
+                  <SpecList
+                    rows={rows}
+                    selected={row?.key ?? null}
+                    onOpen={open}
+                    reset={JSON.stringify(filter)}
+                    batchOf={batchOf}
+                    checked={checked}
+                    onCheck={(id, on) =>
+                      setChecked((previous) => {
+                        const next = new Set(previous)
+                        if (on) next.add(id)
+                        else next.delete(id)
+                        return next
+                      })
+                    }
+                  />
                 ) : (
                   <p className="text-sm text-muted">No spec matches these filters.</p>
                 )}
