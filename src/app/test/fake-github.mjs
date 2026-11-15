@@ -18,6 +18,7 @@ export class FakeGitHub {
     // Branch name -> history root; the same root means shared history.
     this.branches = new Map([["main", "main"]]);
     this.files = new Map();
+    this.shas = new Map();
   }
   // Files by `ref:path`. A folder answers with its direct entries.
   contents(_repository, pathname, ref) {
@@ -41,9 +42,37 @@ export class FakeGitHub {
       ? Promise.resolve([...names].map(([name, type]) => ({ name, type })))
       : missing();
   }
+  // The tree and blob reads the file reader falls back to. A commit sha
+  // names the branch it was read from.
+  shaOf(name) {
+    // The sha follows the branch's files, so a changed branch has a new head.
+    const hash = createHash("sha1").update(`branch:${name}`);
+    for (const [key, text] of this.files)
+      if (key.startsWith(`${name}:`)) hash.update(key).update(text);
+    const sha = hash.digest("hex");
+    this.shas.set(sha, name);
+    return sha;
+  }
+  treeEntries(_repository, ref) {
+    const prefix = `${this.shas.get(ref) ?? ref}:`;
+    return Promise.resolve(
+      [...this.files.keys()]
+        .filter((key) => key.startsWith(prefix))
+        .map((key) => ({ path: key.slice(prefix.length), type: "blob" })),
+    );
+  }
+  blobTexts(_repository, ref, paths) {
+    const prefix = `${this.shas.get(ref) ?? ref}:`;
+    return Promise.resolve(
+      new Map(
+        paths.map((file) => [file, this.files.get(prefix + file) ?? null]),
+      ),
+    );
+  }
   branch(_repository, name) {
-    return this.branches.has(name)
-      ? Promise.resolve({ name })
+    return this.branches.has(name) ||
+      [...this.files.keys()].some((key) => key.startsWith(`${name}:`))
+      ? Promise.resolve({ name, commit: { sha: this.shaOf(name) } })
       : Promise.reject(Object.assign(new Error("Not Found"), { status: 404 }));
   }
   compareCommits(_repository, base, head) {
