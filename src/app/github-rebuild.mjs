@@ -42,6 +42,7 @@ export function parseManagedSection(body) {
     acceptanceAt = heading("Acceptance criteria"),
     dependenciesAt = heading("Dependencies"),
     notesAt = heading("Links and notes"),
+    rulesAt = heading("Agent rules"),
     end = (from) => {
       const next = lines.findIndex(
         (line, index) =>
@@ -66,6 +67,8 @@ export function parseManagedSection(body) {
     requires: items(dependenciesAt),
     // Entries a person ticked Show on the issue (R61.23), as raw lines.
     notes: notesAt === -1 ? [] : lines.slice(notesAt + 1, end(notesAt)),
+    // Workspace rules a Radar crew follows, as `title: instruction` lines.
+    rules: items(rulesAt),
   };
 }
 
