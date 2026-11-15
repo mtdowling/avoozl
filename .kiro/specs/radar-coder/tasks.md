@@ -157,10 +157,11 @@ Requirement RC6. Avoozl ships the crew agent, because an unknown agent name fall
 - [x] rc-6.3 Set up verifies the agent is in Radar's Agent list, after rc-6.1 [RC6.5] (§D8)
   - Read the list through the grant, or the installed agent files, else show Not verified; show a crew with another agent as not covered; say that changing an existing crew's agent is unreliable.
   - Done when: The three outcomes each show a distinct state; a fake Radar list without the agent shows missing.
-- [ ] rc-p6 Proof 6: a crew on avoozl-crew verifies and builds, after rc-6.1, rc-6.2, rc-6.3 [RC6] (§D17)
+- [x] rc-p6 Proof 6: a crew on avoozl-crew verifies and builds, after rc-6.1, rc-6.2, rc-6.3 [RC6] (§D17)
   - Setup: Avoozl built and installed, a crew created with agent `avoozl-crew`. Action: one marked issue and one with a bad approver. Expected: the crew calls `plans_verify_issue`, builds the first, skips the second; Set up shows the agent present. Failure means: a crew silently ran on the default agent. Next decision: fall back to the prompt-only path.
   - Done when: Expected result observed live; receipt under `docs/evidence/`.
   - Fake-GitHub proof merged in PR #146; live run pending owner (see docs/evidence/radar-coder-proof-6-fake-github.md)
+  - Live run 2026-11-15 passed: docs/evidence/rc-proof-6-live.md
 
 ## Phase 7: Set up and the team pack
 
@@ -185,6 +186,7 @@ Requirement RC7. Avoozl does what `gh` can and shows exact values for what only 
   - Setup: a scratch repository with nothing configured, Radar on, grant approved. Action: run Set up with the `sdk-team` pack; do the Radar steps by hand with the shown values. Expected: Set up ticks each item after the re-read. Failure means: a shown value was wrong. Next decision: show Radar's own field names.
   - Done when: Expected result observed live; receipt under `docs/evidence/`.
   - Fake-GitHub proof merged in PR #146; live run pending owner (see docs/evidence/radar-coder-proof-7-fake-github.md)
+  - Live run 2026-11-15 failed in part: docs/evidence/rc-proof-7-live.md
 
 ## Phase 8: Observe
 
@@ -213,6 +215,7 @@ Requirement RC8. The screens of the experience proposal, built for Variant B (Gi
 - [ ] rc-p8 Proof 8: observe, and a retro rule a crew follows, after rc-8.1, rc-8.2, rc-8.3, rc-8.4, rc-8.5 [RC8] (§D17)
   - Setup: a scratch repository with a running crew. Action: run three issues; open Trace; apply a retro rule through a pull request; run a fourth issue. Expected: Trace shows GitHub times; the fourth issue's pull request follows the new rule. Failure means: a crew did not re-read the rules. Next decision: add the rule to the Additional prompt.
   - Done when: Expected result observed live; receipt under `docs/evidence/`.
+  - Live run 2026-11-15 not run to the end: docs/evidence/rc-proof-8-live.md
 
 ## Phase 9: Quick goals
 
@@ -231,6 +234,7 @@ Requirement RC9. A goal becomes issues after one approval, through a generated m
   - Setup: a scratch repository with a slow test suite. Action: quick goal "Make tests faster" with Measure; approve; let crews build; then a goal that crosses a promote rule. Expected: issues with measured evidence; one approval; the second goal offers Promote. Failure means: a crew skipped a mini-spec issue (Q6). Next decision: Promote for every goal.
   - Done when: Expected result observed live; receipt under `docs/evidence/`.
   - Fake-GitHub proof merged in PR #146; live run pending owner (see docs/evidence/radar-coder-proof-9-fake-github.md)
+  - Live run 2026-11-15 not run: docs/evidence/rc-proof-9-live.md
 
 ## Phase 10: Public repositories
 
@@ -246,6 +250,7 @@ Requirement RC10. This phase gates on the public-crew layers and does not restat
   - Setup: a scratch public repository. Action: try release before and after the sign-off. Expected: nothing releases before. Failure means: a crew could be handed work without the layers. Next decision: refuse public repositories for the Radar path.
   - Done when: Expected result observed; receipt under `docs/evidence/`.
   - Fake-GitHub proof merged in PR #146; live run pending owner (see docs/evidence/radar-coder-proof-10-fake-github.md)
+  - Live run 2026-11-15 not run: docs/evidence/rc-proof-10-live.md
 
 ## Phase 11: The Radar path on a real repository
 
@@ -431,10 +436,11 @@ Requirement RC18. A trusted person approves by label; any approval is written ba
 - [x] rc-18.3 One approval record, with write-back to the issue, after rc-18.2 [RC18.4, RC18.5, RC18.6, RC18.8, RC18.9] (§D23)
   - Approving in Avoozl, in a chat or the CLI (`plans_*` tool), or by label ends in one approval record; the first two write back to the source issue: the label and one comment with a hidden marker (approver login, spec path, commit, time) and no spec text; a second approval is a no-op; a failed write-back leaves the approval and raises one row; a plan with no source issue skips it.
   - Done when: Three fake-GitHub tests: each path gives one record; a second approval writes nothing; a failed write-back leaves the approval and one row.
-- [ ] rc-p18 Proof 18: approve on the issue, after rc-18.1, rc-18.2, rc-18.3 [RC18] (§D17)
+- [x] rc-p18 Proof 18: approve on the issue, after rc-18.1, rc-18.2, rc-18.3 [RC18] (§D17)
   - Setup: a scratch repository with a drafted plan and a source issue. Action: approve by label as an allowed person; approve a second plan in Avoozl; label a third as a stranger. Expected: one record each; the issue shows the label and one marker comment for the second; the stranger's label is removed. Failure means: the issue and the record can disagree. Next decision: make the record the only source and drop the label path.
   - Done when: Expected result observed; receipt under `docs/evidence/`.
   - Fake-GitHub proof merged in PR #147; live run pending owner (see docs/evidence/rc-proof-18.md)
+  - Live run 2026-11-15 passed: docs/evidence/rc-proof-18-live.md
 
 ## Phase 19: Claim at approval
 
@@ -443,10 +449,11 @@ Requirement RC19. The parent issue is marked as taken when its plan is approved.
 - [x] rc-19.1 Claim the parent at approval, after rc-18.3, rc-1.3 [RC19.1, RC19.2, RC19.3, RC19.4, RC19.5, RC19.6] (§D24)
   - At approval Avoozl posts the claim marker in Radar's format, naming Avoozl and no real crew id, and adds the in-progress label on the parent; an existing crew claim is left alone and noted once in Trace; the claim is written once per approval; Avoozl removes only its own claim when the plan is superseded or the parent closes.
   - Done when: A fake-GitHub test: the parent gets one claim and label; a parent with a crew's claim gets no write and one Trace note; a second approval writes nothing; a superseded plan removes only Avoozl's claim.
-- [ ] rc-p19 Proof 19: the parent is not taken by a crew, after rc-19.1 [RC19] (§D17)
+- [x] rc-p19 Proof 19: the parent is not taken by a crew, after rc-19.1 [RC19] (§D17)
   - Setup: a scratch repository, a Radar crew with label scope `ready`, an approved plan. Action: let the crew poll after approval and after the first release. Expected: the crew never takes the parent; it takes released sub-issues. Failure means: the claim format does not hold the crew off. Next decision: re-read the claim format on the current release.
   - Done when: Expected result observed live; receipt under `docs/evidence/`.
   - Fake-GitHub proof merged in PR #147; live run pending owner (see docs/evidence/rc-proof-19.md)
+  - Live run 2026-11-15 passed: docs/evidence/rc-proof-19-live.md
 
 ## Phase 20: Review drafts by label, and Avoozl's label names
 
@@ -469,6 +476,7 @@ added it a pending review to edit and submit; every Avoozl label takes the
 - [ ] rc-p20 Proof 20: a review draft from a label, after rc-20.1, rc-20.2, rc-20.3, rc-20.4 [RC20, RC21] (§D25)
   - Setup: a scratch repository with a pull request that closes a crew-claimed, marked issue; the machine signed in as the person. Action: add the review label as that person; then as a person without write access; then as an allowed person on another login; then submit the first draft in GitHub. Expected: one pending review only that person sees, with line comments; the labels swap; the stranger's label is removed; the wrong login drafts nothing and gets one row; submit clears the drafted label; Trace shows Review. Failure means: a draft can be posted under the wrong account or submitted by Avoozl. Next decision: keep drafts in the chat only.
   - Done when: Expected result observed live; receipt under `docs/evidence/`.
+  - Live run 2026-11-15 blocked: docs/evidence/rc-proof-20-live.md
 
 ## Phase 21: The Workflow map
 
