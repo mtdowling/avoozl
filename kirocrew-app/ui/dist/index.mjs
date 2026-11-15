@@ -6925,6 +6925,7 @@ function yc(e = "") {
 		mergeMethod: "",
 		reviewLabel: "",
 		draftedLabel: "",
+		trackerLabel: "",
 		reviewRules: "",
 		rules: [],
 		untriaged: cc(),
@@ -6974,6 +6975,7 @@ function bc(e) {
 				mergeMethod: $(dc(n.merge).method),
 				reviewLabel: $(dc(n.radar).reviewLabel),
 				draftedLabel: $(dc(n.radar).draftedLabel),
+				trackerLabel: $(dc(n.radar).trackerLabel),
 				reviewRules: $(dc(n.radar).reviewRules),
 				rules: (Array.isArray(n.rules) ? n.rules : []).map((e) => {
 					let t = dc(e);
@@ -7068,6 +7070,7 @@ function Cc(e) {
 					conflictLabel: hc(e.conflictLabel),
 					reviewLabel: hc(e.reviewLabel),
 					draftedLabel: hc(e.draftedLabel),
+					trackerLabel: hc(e.trackerLabel),
 					reviewRules: hc(e.reviewRules)
 				});
 				return Object.keys(t).length ? t : void 0;
@@ -7454,7 +7457,8 @@ var Yc = {
 	approvalLabel: "avoozl:plan-approved",
 	conflictLabel: "avoozl:merge-conflict",
 	reviewLabel: "avoozl:review",
-	draftedLabel: "avoozl:drafted"
+	draftedLabel: "avoozl:drafted",
+	trackerLabel: "avoozl:waiting-on-tracker"
 }, Xc = [
 	{
 		key: "planLabel",
@@ -7496,6 +7500,13 @@ var Yc = {
 		label: "Drafted",
 		raw: "radar.draftedLabel",
 		job: "Shows a draft review waits for you to submit.",
+		writer: "Avoozl adds and removes it."
+	},
+	{
+		key: "trackerLabel",
+		label: "Waiting on tracker",
+		raw: "radar.trackerLabel",
+		job: "Shows a task waits on an item in another tracker.",
 		writer: "Avoozl adds and removes it."
 	}
 ], Zc = ["fix", "ask"], Qc = {
