@@ -69,18 +69,22 @@ for (const dark of [false, true]) {
     assert.equal(await has('[data-settings-body]'), false)
   })
 
-  test(`Needs you on a phone: a section, Back to the list, the other section (${theme})`, { skip }, async () => {
+  test(`Needs you on a phone: the decision list, one item with Back, then the other tab (${theme})`, { skip }, async () => {
     await start(390, dark)
     await goto('Needs you', 390)
-    assert.equal(await has('[data-waiting-section="decisions"][data-open="true"]'), true, 'opens on the section with work')
+    assert.equal(await has('[data-waiting-section="decisions"][data-open="true"]'), true, 'opens on decisions')
+    assert.equal(await has('[data-conflict-list]'), true, 'the list first')
+    assert.equal(await has('[data-detail-bar]'), false)
+    await click(`document.querySelector('[data-conflict-pick]')`)
+    await wait()
+    assert.equal(await has('[data-conflict-detail]'), true, 'the item opens')
+    assert.equal(await has('[data-conflict-list]'), false, 'one pane at a time')
     assert.equal(await has('[data-detail-bar]'), true)
     await back()
-    assert.equal(await page.evaluate(`document.querySelectorAll('[data-waiting-sections] [data-waiting-section]').length`), 2)
-    assert.equal(await has('[data-detail-bar]'), false)
-    await click(`document.querySelector('[data-waiting-section="intake"] button')`)
+    assert.equal(await has('[data-conflict-list]'), true, 'Back returns to the list')
+    await click(`[...document.querySelectorAll('[data-waiting-tabs] [role="tab"]')].find((t) => t.textContent.includes('Planning and intake'))`)
     await wait()
     assert.equal(await has('[data-waiting-section="intake"][data-open="true"]'), true)
-    assert.equal(await has('[data-waiting-section="decisions"]'), false, 'one pane at a time')
   })
 
   test(`Specs on a phone: the list, then one spec whose Back shares a row with the compact title (${theme})`, { skip }, async () => {
@@ -121,7 +125,12 @@ for (const dark of [false, true]) {
     assert.equal(await has('[data-settings-body]'), true, 'the open section sits under its heading')
     assert.equal(await has('[data-detail-bar]'), false)
     await goto('Needs you', 1280)
-    assert.equal(await page.evaluate(`document.querySelectorAll('[data-waiting-sections] [data-waiting-section]').length`), 2)
+    // A dense list in the middle; picking an item opens it on the right.
+    assert.equal(await has('[data-conflict-list]'), true)
+    await click(`document.querySelector('[data-conflict-pick]')`)
+    await wait()
+    assert.equal(await has('[data-detail-column="needs-you"] [data-conflict-detail]'), true)
+    assert.equal(await has('[data-list-pane="needs-you"] [data-conflict-list]'), true, 'the list stays')
     await goto('Specs', 1280)
     await click(button('Meal planner', `document.querySelector('[data-plans-list]')`))
     await wait(600)
