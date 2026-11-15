@@ -97,17 +97,25 @@ for (const dark of [false, true]) {
     assert.equal(await echo(), '0', 'the title shows once, big, at the top')
     // The page's content pane scrolls; the Back row stays at its top.
     const pane = `document.querySelector('[data-avoozl-pane]')`
-    assert.ok(await page.evaluate(`${pane}.scrollHeight > ${pane}.clientHeight + 600`), 'the spec is long enough to scroll')
+    assert.ok(await page.evaluate(`${pane}.scrollHeight > ${pane}.clientHeight + 150`), 'the spec is long enough to scroll')
     const gap = `Math.abs(document.querySelector('[data-detail-bar]').getBoundingClientRect().top - ${pane}.getBoundingClientRect().top)`
-    await page.evaluate(`${pane}.scrollTop = 600`)
+    await page.evaluate(`${pane}.scrollTop = ${pane}.scrollHeight`)
     await wait(400)
     assert.ok((await page.evaluate(gap)) <= 1, 'the row sticks to the top of the pane')
     assert.equal(await echo(), '1', 'the compact title shows once the big one has scrolled out')
+    // The spec's left column is behind the hamburger in the Back row.
+    assert.equal(await has('[aria-label="Spec summary"]'), false)
+    await click(`document.querySelector('[data-detail-bar] [data-spec-menu]')`)
+    await wait(300)
+    assert.equal(await has('[aria-label="Spec summary"]'), true, 'the spec menu shows its left column')
+    assert.equal(await has('#avoozl-plan-main'), false, 'one pane at a time')
+    await click(`document.querySelector('[data-detail-bar] [data-spec-menu]')`)
+    await wait(300)
     await back()
     assert.equal(await has('[data-plans-list]'), true, 'Back returns to the list')
   })
 
-  test(`a desktop at 1280 px is unchanged: no detail bar, Settings keeps its accordion, Specs its All specs link (${theme})`, { skip }, async () => {
+  test(`a desktop at 1280 px is unchanged: no detail bar, Settings keeps its accordion, Specs list beside its detail (${theme})`, { skip }, async () => {
     await start(1280, dark)
     await goto('Settings', 1280)
     assert.equal(await has('[data-settings-body]'), true, 'the open section sits under its heading')
@@ -119,7 +127,9 @@ for (const dark of [false, true]) {
     await wait(600)
     assert.equal(await has('[data-detail-bar]'), false)
     assert.equal(await has('[data-list-detail-back]'), false)
-    assert.equal(await page.evaluate(`Boolean(${button('All specs')})`), true)
+    // The list stays on the left, the spec opens on the right.
+    assert.equal(await has('[data-list-pane="specs"] [data-spec-list]'), true)
+    assert.equal(await has('[data-detail-column="specs"] [data-spec-detail]'), true)
     assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true)
   })
 }

@@ -76,17 +76,14 @@ test('a Graph node click opens its task in the drawer, and a drag does not', () 
   assert.match(graph, /start\.moved = moved\.current = true/)
 })
 
-test('a Plans row, its name and Open docs open the plan in view', () => {
+test('a spec row opens the spec in the detail column', () => {
   const plans = source('PlansView.tsx')
-  assert.match(plans, /<tr[\s\S]{0,120}onClick=\{\(\) => props\.onOpen\(row\)\}/)
-  assert.match(plans, /onClick=\{stop\(\(\) => props\.onOpen\(row\)\)\}\s*>\s*\{row\.name\}/)
-  assert.match(plans, /onOpen=\{\(\) => props\.onOpen\(row\)\}/)
-  assert.match(plans, /<IconBtn icon=\{DetailsIcon\} label=\{`Open docs for \$\{row\.name\}`\} tooltip="Open this spec's documents and tasks"/)
+  assert.match(plans, /data-plan-row=\{row\.key\}[\s\S]{0,160}onClick=\{\(\) => props\.onOpen\(row\)\}/)
+  assert.match(plans, /<SpecList rows=\{rows\} selected=\{row\?\.key \?\? null\} onOpen=\{open\}/)
   // Opening sets the row at once, with no reload first, and scrolls to it.
   assert.match(plans, /const open = \(next: PlanRow\) => openPlan\(next\.key\)/)
   assert.match(plans, /detailTop\.current\?\.scrollIntoView/)
   // Graph and Delivery buttons filter to the plan; App passes the filter on.
-  assert.match(plans, /onScope=\{\(target\) => props\.onScope\(target, row\)\}/)
   assert.match(plans, /props\.onScope\?\.\(target, \{ plan: rowPlanKey\(next\) \}\)/)
   // App sets the tabs' shared filter, then opens the tab.
   const app = source('App.tsx')

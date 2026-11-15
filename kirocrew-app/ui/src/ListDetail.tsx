@@ -24,7 +24,7 @@ export function ListDetailBack(props: { label: string; onBack: () => void }) {
 
 // The sticky row alone, for a page that draws its own big title: pass that
 // title's `titleRef` (useTitleScrolledOut) and `scrolledOut`.
-export function DetailBar(props: { backLabel: string; onBack: () => void; title: string; scrolledOut: boolean }) {
+export function DetailBar(props: { backLabel: string; onBack: () => void; title: string; scrolledOut: boolean; actions?: ReactNode }) {
   return (
     <div data-detail-bar style={{ position: 'sticky', top: 0, zIndex: LAYER.sticky, display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg)' }}>
       <ListDetailBack label={props.backLabel} onBack={props.onBack} />
@@ -35,17 +35,18 @@ export function DetailBar(props: { backLabel: string; onBack: () => void; title:
       >
         {props.title}
       </span>
+      {props.actions}
     </div>
   )
 }
 
-export function DetailPane(props: { backLabel: string; onBack: () => void; title: string; children: ReactNode }) {
+export function DetailPane(props: { backLabel: string; onBack: () => void; title: string; children: ReactNode; actions?: ReactNode }) {
   const phone = usePhone()
   const { scrolledOut, titleRef } = useTitleScrolledOut()
   if (!phone) return <>{props.children}</>
   return (
     <div data-detail-pane>
-      <DetailBar backLabel={props.backLabel} onBack={props.onBack} title={props.title} scrolledOut={scrolledOut} />
+      <DetailBar backLabel={props.backLabel} onBack={props.onBack} title={props.title} scrolledOut={scrolledOut} actions={props.actions} />
       <h2 ref={titleRef} data-detail-title style={{ margin: '4px 0 12px', fontSize: 20, fontWeight: 600, overflowWrap: 'anywhere' }}>
         {props.title}
       </h2>

@@ -8,7 +8,6 @@ import { MoreMenu } from './MoreMenu.tsx'
 import { usePhone } from './list-detail.ts'
 import { InstanceBadge } from './InstanceName.tsx'
 import DashboardView, { type DashboardTarget } from './DashboardView'
-import EpicsView from './EpicsView.tsx'
 import PlansView, { type PlanTarget } from './PlansView'
 import GraphView from './GraphView'
 import WaitingView from './WaitingView.tsx'
@@ -373,7 +372,6 @@ function AvoozlPage() {
             ideas={openIdeas}
             // Ideas now sit under Needs you, in its planning and intake section.
             onOpenIdeas={() => go({ focus: null, drill: null, tab: 'waiting' }, { 'waiting-section': 'intake', 'untriaged-show': 'ideas' })}
-            epics={<EpicsView workspaceId={active} onDrill={openDrill} onPlanEpic={() => setPlanGoal((goal) => ({ n: goal.n + 1 }))} />}
           />
         ) : tab === 'trace' ? (
           <TracePage workspaceId={active} target={(nav.memory.get(TRACE_TARGET) as TraceTarget | undefined) ?? null} onPick={pickTrace} onOpenEpics={() => chooseTab('plans')} />
