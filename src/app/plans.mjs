@@ -1,3 +1,4 @@
+import { approvedSpecDependency } from "../spec-dependencies.mjs";
 import { duplicateCandidates, resolveTaskId } from "../task-identity.mjs";
 import { randomUUID } from "node:crypto";
 import { digest } from "../model.mjs";
@@ -463,6 +464,7 @@ export function approvePlan(
     extraction,
     githubPolicy,
     baseline = false,
+    declaredDependencies = [],
   },
 ) {
   // Authorization is the reviewed hash and database revision below. Who
@@ -585,6 +587,9 @@ export function approvePlan(
       ),
       held = new Set(plan.reviewHeld || []),
       edgeById = new Map(data.edges.filter((e) => e.id).map((e) => [e.id, e])),
+      foreignDeclarations = new Map(
+        declaredDependencies.map((entry) => [entry.taskId, entry]),
+      ),
       livePlans = new Set(
         store
           .list("plans")
@@ -609,72 +614,103 @@ export function approvePlan(
         "catalog";
       if (!data.tracks.some((t) => t.id === track))
         fail("Unknown track " + track);
-      const design = {
-        id: taskId,
-        title: proposal.title,
-        summary: proposal.summary || "",
-        acceptance: proposal.acceptance,
-        nextAction: proposal.nextAction || proposal.summary || proposal.title,
-        track,
-        tags: proposal.tags || [],
-        resources: proposal.resources || [],
-        projectId: proposal.projectId || plan.context.projectId,
-        ...Object.fromEntries(
-          [
-            "kind",
-            "route",
-            "completion",
-            "repository",
-            "checks",
-            "acceptFrom",
-            "verify",
-            "milestone",
-            "iteration",
-            "labels",
-            "paths",
-            "type",
-            "session",
-            "needs",
-            "budget",
-            "specBudget",
-            "size",
-            "investigate",
-            "ship",
-            "specShip",
-            "specType",
-            "manual",
-            "gate",
-          ]
-            .filter((key) => proposal[key] !== undefined)
-            .map((key) => [key, proposal[key]]),
+      const specDependencies = ["requires", "sequence", "supports"].flatMap(
+          (kind) =>
+            (proposal[kind] || [])
+              .filter((ref) => !mapping[ref] && foreignDeclarations.has(ref))
+              .map((ref) => ({
+                ...foreignDeclarations.get(ref),
+                kind,
+                ...(proposal.conditions?.[ref]
+                  ? { condition: proposal.conditions[ref] }
+                  : {}),
+              })),
         ),
-        planId: id,
-        planHash: plan.hash,
-        contextDocuments: [documentId],
-        source: {
-          document: documentId,
-          key: proposal.id,
-          lineStart: proposal.lineStart,
-          lineEnd: proposal.lineEnd,
-          hash: digest(
-            proposal.fact?.quote ||
-              plan.text
-                .split("\n")
-                .slice(proposal.lineStart - 1, proposal.lineEnd)
-                .join("\n"),
+        design = {
+          id: taskId,
+          title: proposal.title,
+          summary: proposal.summary || "",
+          acceptance: proposal.acceptance,
+          nextAction: proposal.nextAction || proposal.summary || proposal.title,
+          track,
+          tags: proposal.tags || [],
+          resources: proposal.resources || [],
+          projectId: proposal.projectId || plan.context.projectId,
+          ...Object.fromEntries(
+            [
+              "kind",
+              "route",
+              "completion",
+              "repository",
+              "checks",
+              "acceptFrom",
+              "verify",
+              "milestone",
+              "iteration",
+              "labels",
+              "paths",
+              "type",
+              "session",
+              "needs",
+              "budget",
+              "specBudget",
+              "size",
+              "investigate",
+              "ship",
+              "specShip",
+              "specType",
+              "manual",
+              "gate",
+            ]
+              .filter((key) => proposal[key] !== undefined)
+              .map((key) => [key, proposal[key]]),
           ),
-          ...(proposal.fact
-            ? {
-                factId: proposal.fact.id,
-                derivation: proposal.fact.derivation,
-              }
-            : {}),
-        },
-        statusAuthority: "database",
-        updatedAt: now,
-      };
+          planId: id,
+          planHash: plan.hash,
+          ...(specDependencies.length ? { specDependencies } : {}),
+          contextDocuments: [documentId],
+          source: {
+            document: documentId,
+            key: proposal.id,
+            lineStart: proposal.lineStart,
+            lineEnd: proposal.lineEnd,
+            hash: digest(
+              proposal.fact?.quote ||
+                plan.text
+                  .split("\n")
+                  .slice(proposal.lineStart - 1, proposal.lineEnd)
+                  .join("\n"),
+            ),
+            ...(proposal.fact
+              ? {
+                  factId: proposal.fact.id,
+                  derivation: proposal.fact.derivation,
+                }
+              : {}),
+          },
+          statusAuthority: "database",
+          updatedAt: now,
+        };
       // A spec plan's phase groups only (Requirement 59.5); its epic is the
       // plan's, so a task never stores one.
+      if (
+        checked.has(proposal.id) &&
+        specDependencies.some((ref) => {
+          const owner = store.get("plans", ref.planId),
+            receipt =
+              owner?.approvalId && store.get("approvals", owner.approvalId);
+          return !approvedSpecDependency(
+            ref,
+            data.tasks.find((task) => task.id === ref.taskId),
+            owner,
+            receipt,
+          );
+        })
+      )
+        fail(
+          "A checked task cannot be baselined before its referenced spec owners are approved.",
+          409,
+        );
       if (proposal.phase) design.phase = proposal.phase;
       // The manifest's `scope` names a crew label scope. A task already has a
       // catalog `scope`, so this one is stored as `releaseScope`.
@@ -717,6 +753,10 @@ export function approvePlan(
           },
         ];
       } else if (existing) {
+        if (!specDependencies.length) {
+          delete existing.specDependencies;
+          delete existing.pendingSpecDependencies;
+        }
         if (!design.authority) delete existing.authority;
         // A manifest that drops a milestone moves the task out of it, and
         // one that drops acceptFrom lifts the validation gate.
@@ -784,6 +824,17 @@ export function approvePlan(
       for (const kind of ["requires", "sequence", "supports"])
         for (const ref of proposal[kind] || []) {
           const from = resolveTaskId(data, mapping[ref] || ref);
+          if (foreignDeclarations.has(ref) && !mapping[ref]) {
+            const expected = foreignDeclarations.get(ref),
+              target = data.tasks.find((task) => task.id === from);
+            if (target && target.planId !== expected.planId)
+              fail(
+                "Foreign dependency ownership does not match its declaration: " +
+                  ref,
+                409,
+              );
+            continue;
+          }
           if (!known.has(from)) fail("Unknown " + kind + " reference " + ref);
           const edgeId = `${from}:${kind}:${taskId}`,
             same = edgeById.get(edgeId);
