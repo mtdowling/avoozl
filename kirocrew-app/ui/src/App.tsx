@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
 import { Btn, EmptyState, PageHeader, SegmentedControl } from '@kirocrew/app-sdk/ui'
 import Logo from './Logo'
-import { TopRail } from './TopRail.tsx'
+import { RailButton, RailList } from './TopRail.tsx'
+import { LeftNav } from './LeftNav.tsx'
 import { MoreMenu } from './MoreMenu.tsx'
 import { usePhone } from './list-detail.ts'
 import { InstanceBadge } from './InstanceName.tsx'
@@ -250,6 +251,8 @@ function AvoozlPage() {
   const showRail = phone && railOpen
   const navItems = TABS.map((t) => ({
     key: t.key,
+    text: t.label,
+    count: t.key === 'waiting' && waitingCount > 0 ? waitingCount : undefined,
     aria: t.key === 'waiting' && waitingCount > 0 ? `Needs you, ${waitingCount} items` : undefined,
     label:
       t.key === 'waiting' && waitingCount > 0 ? (
@@ -269,15 +272,16 @@ function AvoozlPage() {
       {phone ? (
         // A phone keeps the header to one thin row: the name, Stop the line
         // and a More menu with the rest (follows Kiro Crew's phone layout).
-        <header className="flex min-w-0 items-center gap-2 px-4 py-2" data-phone-header>
-          <span className="inline-flex min-w-0 flex-1 items-center gap-2 font-semibold" style={{ fontSize: 17 }}>
-            <Logo size={22} />
-            Avoozl
-            <InstanceBadge workspaceId={active} />
-          </span>
+        <header className="flex min-w-0 items-center gap-2 px-2 py-1" data-phone-header style={{ borderBottom: '1px solid var(--border)' }}>
+          <RailButton items={navItems} value={navTab(tab)} open={railOpen} onOpenChange={setRailOpen} />
           <div className="flex items-center gap-2" data-header-actions>
             {active && <StopLineButton workspaceId={active} />}
             <MoreMenu label="More actions" attrs={{ 'data-header-more': '' }}>
+              <span className="inline-flex items-center gap-2 text-sm font-semibold">
+                <Logo size={18} />
+                Avoozl
+                <InstanceBadge workspaceId={active} />
+              </span>
               {/* The demo's badge is on its own line below; the picker is not shown in it. */}
               {!demo.active && <WorkspacePicker list={list} value={workspaceId} onChange={setWorkspaceId} />}
               <Btn type="button" primary onClick={planEpic}>
@@ -316,30 +320,16 @@ function AvoozlPage() {
         }
       />
       )}
-      {/* The tab row on every tab: the tabs only. It wraps on a narrow page;
-          nothing scrolls sideways. */}
-      <div
-        className={phone ? undefined : 'flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 px-6 pb-3'}
-        style={phone ? { display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0, flex: showRail ? '1 1 0%' : '0 0 auto', marginBottom: showRail ? 0 : 12 } : undefined}
-        data-top-row
-      >
-        {phone ? (
-          <TopRail items={navItems} value={navTab(tab)} onChange={(key) => chooseTab(key as Tab)} open={railOpen} onOpenChange={setRailOpen} ariaLabel="Avoozl views" />
-        ) : (
-          <SegmentedControl
-            collapse={false}
-            wrap="hug"
-            layoutId="avoozl-views"
-            ariaLabel="Avoozl views"
-            segments={navItems}
-            value={navTab(tab)}
-            onChange={(key) => chooseTab(key as Tab)}
-          />
-        )}
-      </div>
+      {showRail && (
+        <RailList items={navItems} value={navTab(tab)} onChange={(key) => chooseTab(key as Tab)} onOpenChange={setRailOpen} ariaLabel="Avoozl views" />
+      )}
+      {/* Desktop: the left nav, then the page. A phone has the hamburger. */}
+      <div className={`flex min-h-0 flex-1 ${phone ? 'flex-col' : 'px-6 pb-2'}`} style={showRail ? { display: 'none' } : undefined} data-shell>
+      {!phone && <LeftNav items={navItems} value={navTab(tab)} onChange={(key) => chooseTab(key as Tab)} />}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col" data-shell-main>
       <DemoBar />
       {error && (
-        <p role="alert" className={`pb-2 text-sm text-danger ${phone ? 'px-4' : 'px-6'}`}>
+        <p role="alert" className={`pb-2 text-sm text-danger ${phone ? 'px-4' : 'px-2'}`}>
           {error}
         </p>
       )}
@@ -348,8 +338,7 @@ function AvoozlPage() {
           nav.scroller.current = element
         }}
         data-avoozl-pane
-        className={`flex-1 min-h-0 overflow-y-auto pb-8 ${phone ? 'px-4' : 'px-6'}`}
-        hidden={showRail}
+        className={`flex-1 min-h-0 overflow-y-auto pb-8 ${phone ? 'px-4' : 'px-2'}`}
       >
         {needsWorkspace ? (
           <EmptyState
@@ -415,6 +404,8 @@ function AvoozlPage() {
             onOpenPlans={() => chooseTab('plans')}
           />
         )}
+      </div>
+      </div>
       </div>
       <DemoTour
         onEnter={(step) =>

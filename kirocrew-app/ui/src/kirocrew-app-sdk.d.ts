@@ -157,6 +157,7 @@ declare module 'lucide-react' {
   export const Trash2: LucideIcon
   export const Workflow: LucideIcon
   export const X: LucideIcon
+  export const Menu: LucideIcon
   export const Ellipsis: LucideIcon
 }
 
