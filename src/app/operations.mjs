@@ -83,7 +83,9 @@ import { taskSignals, isPlanInventory } from "../workbench-model.mjs";
 import { listExamples, seedExample } from "./examples.mjs";
 import { describeWorkspace } from "./client.mjs";
 import {
+  DEFAULT_CACHE_SECONDS,
   defaultGitHubClient,
+  GitHubClient,
   parseRepository,
   requirePrivateRepository,
 } from "./github.mjs";
@@ -136,6 +138,7 @@ import {
   requireIntegrationBranch,
 } from "./integration-branch.mjs";
 import { mergeNeedsYou } from "./radar-merge.mjs";
+import { rateNeedsYou, rateView } from "./github-rate.mjs";
 import { syncNeedsYou } from "./integration-sync.mjs";
 import { namespaceOf, planThisRequest } from "./radar-plan-me.mjs";
 import {
@@ -926,6 +929,13 @@ export class Operations {
       // lessons store (design §4.18). Unset (most tests) leaves retros as
       // before Phase 28; the app, MCP server and CLI pass it.
       configDirectory = null,
+      // The machine's driver session record (driver-session.mjs). The CLI,
+      // app backend and app MCP server pass driverSessionFile(); without one
+      // nothing is recorded and the view is "none", so tests never write
+      // this machine's file.
+      driverSessionFile: driverFile = null,
+      // The name the driver line shows for this workspace.
+      workspaceName = null,
       // Tests replace the shipped prompts to model an Avoozl update.
       shippedPrompts = null,
       // () => model IDs Kiro Crew lists, or null when unknown.
@@ -937,6 +947,8 @@ export class Operations {
     } = {},
   ) {
     this.store = store;
+    this.driverSessionFile = driverFile;
+    this.workspaceName = workspaceName;
     // The plugin loader (plugins.mjs). It opens one plugin session per
     // tick, and runs nothing unless a plugin is declared and approved.
     this.plugins = plugins;
@@ -956,7 +968,11 @@ export class Operations {
     this.issueVerifier = issueVerifier;
     this.plannerAgent = plannerAgent;
     // Every GitHub text write passes content rules first (§4.9).
-    this.github = guardGitHub(github || defaultGitHubClient(), store);
+    const client = github || defaultGitHubClient();
+    // Conditional reads and the rate-limit pause live in this workspace.
+    if (client instanceof GitHubClient)
+      client.bind(store, { cacheSeconds: (repo) => this.cacheSeconds(repo) });
+    this.github = guardGitHub(client, store);
     this.configuration = configuration;
     this.workspaceRoot = workspaceRoot;
     // Given a plans root, every operation publishes its pending Markdown
@@ -2046,6 +2062,11 @@ export class Operations {
       ...this.settingsFile().readGitHubSettings(),
       effective,
       error,
+      // The last GitHub rate-limit numbers, for Settings > GitHub.
+      rate: {
+        ...rateView(this.store),
+        cacheSeconds: this.cacheSeconds(),
+      },
       // Review roles from `delivery` in the same file, shown beside each
       // repository's pull-request review settings. Read only here.
       review: reviewSettings(readDeliveryPolicy(this.workspaceRoot)),
@@ -2088,6 +2109,22 @@ export class Operations {
   // without a restart. Invalid policy refuses the operation that needs it.
   githubPolicy() {
     return readGitHubPolicy(this.workspaceRoot);
+  }
+  // github.cacheSeconds, with a repository's own value first. The files are
+  // read at most every five seconds; an unreadable file means the default.
+  cacheSeconds(repo = "") {
+    const at = Date.now();
+    if (!this.cachePolicy || at - this.cachePolicy.at > 5000)
+      this.cachePolicy = {
+        at,
+        policy: readGitHubPolicyOrNull(this.workspaceRoot),
+      };
+    const policy = this.cachePolicy.policy;
+    return (
+      policy?.repositories?.[repo]?.cacheSeconds ??
+      policy?.cacheSeconds ??
+      DEFAULT_CACHE_SECONDS
+    );
   }
   // Broad issues (§6.2): the child graph is a spec folder; approval stores it
   // as an approved plan, without its root epic, which is the source issue.
@@ -2369,6 +2406,15 @@ export class Operations {
   // only to open it, read it, or close it.
   // `context.caller` is the gateway-attested Kiro Crew session calling through
   // the app's stdio MCP server, and nothing else sets it (see mcp.mjs).
+  // This workspace's place in the machine's driver records.
+  driverWorkspace() {
+    return {
+      root: this.workspaceRoot,
+      name: this.workspaceName,
+      file: this.driverSessionFile,
+    };
+  }
+
   async execute(name, input = {}, expectedRevision, context = {}) {
     const result = await this.perform(name, input, expectedRevision, context);
     // One activity row for a listed local action (§4.19); never fails it.
@@ -2634,16 +2680,28 @@ export class Operations {
       renameInstance(store, input.name);
       return instanceView(store);
     }
-    if (name === "driversession.view") return driverSessionView(store);
+    if (name === "driversession.view")
+      return driverSessionView(this.driverWorkspace());
     if (name === "driversession.register") {
-      registerDriverSession(store, input);
-      return driverSessionView(store);
+      if (!this.driverSessionFile || !this.workspaceRoot)
+        fail("This Avoozl process has no driver session record.");
+      registerDriverSession({
+        slot: input.slot,
+        source: input.source,
+        ...this.driverWorkspace(),
+      });
+      return driverSessionView(this.driverWorkspace());
     }
     if (name === "runner.next") {
       // A conductor's attested call is the driver session's heartbeat. Only a
       // gateway-attested caller counts; the model cannot name its own slot.
       const slot = callerSlot(context.caller);
-      if (slot) registerDriverSession(store, { slot, source: "next" });
+      if (slot && this.driverSessionFile && this.workspaceRoot)
+        registerDriverSession({
+          slot,
+          source: "next",
+          ...this.driverWorkspace(),
+        });
       return nextView(store, {
         policy: readDeliveryPolicy(this.workspaceRoot),
         github: readGitHubPolicyOrNull(this.workspaceRoot),
@@ -3061,6 +3119,7 @@ export class Operations {
       view.items.push(...landingNeedsYou(store));
       view.items.push(...remoteNeedsYou(store));
       view.items.push(...syncNeedsYou(store));
+      view.items.push(...rateNeedsYou(store));
       view.items.push(...mirrorNeedsYou(store));
       view.items.push(...mirrorForwardRows(store, policy));
       view.items.push(
@@ -4571,6 +4630,7 @@ export class Operations {
       await requireMirrorsPrivate(policy, this.github);
       await requirePlansBranches(policy, this.github, { create: true });
       this.settingsFile().updateGitHubSettings(input);
+      this.cachePolicy = null;
       this.configuration?.reload();
       return this.githubSettings();
     }

@@ -10,6 +10,7 @@ import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import { Store } from "./store.mjs";
 import { Operations } from "./operations.mjs";
 import { driverSettingsPath } from "./driver.mjs";
+import { driverSessionFile } from "./driver-session.mjs";
 import { CLIENT_OPERATIONS } from "./client.mjs";
 import { classifyOperation } from "./operation-kinds.mjs";
 import { workspaceConfig } from "./config.mjs";
@@ -500,17 +501,19 @@ export function startAppBackend({
     if (workspaceId === undefined || workspaceId === null) return config;
     if (typeof workspaceId !== "string")
       throw badRequest("Choose a workspace ID.");
-    let root;
+    let root, name;
     try {
       machine().reload();
-      root = machine().get(workspaceId).root;
+      ({ root, name } = machine().get(workspaceId));
     } catch (error) {
       throw badRequest(error.message, 404);
     }
-    return workspaceConfig({
+    const found = workspaceConfig({
       workspace: root,
       env: { ...process.env, AVOOZL_WORKSPACE: root },
     });
+    // The catalog's name is the one the workspace picker shows.
+    return name ? { ...found, name } : found;
   };
   const operations = (target) => {
     let entry = opened.get(target.dbPath);
@@ -532,6 +535,8 @@ export function startAppBackend({
           sessionsReader,
           sessionStopper,
           driver: { settingsFile: driverSettingsPath() },
+          driverSessionFile: driverSessionFile(),
+          workspaceName: target.name,
         }),
       };
       opened.set(target.dbPath, entry);

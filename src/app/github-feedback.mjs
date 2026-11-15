@@ -314,6 +314,10 @@ function stopText(reason, task, rounds, check) {
   return `${task.id}'s pull request used all ${rounds} feedback rounds and still has new feedback. Avoozl stopped relaying it.`;
 }
 
+const PACE_META = "githubFeedbackPace";
+const PACE_BASE_MS = 60 * 1000;
+const PACE_MAX_MS = 4 * 60 * 1000;
+
 // The tick's feedback step: {messages, notify}. Reads only, from GitHub.
 export async function feedbackStep(
   store,
@@ -354,8 +358,13 @@ export async function feedbackStep(
     });
   }
   const at = new Date(now).toISOString(),
-    held = new Map();
+    held = new Map(),
+    pace = { ...(store.getMeta(PACE_META) || {}) };
   for (const [code, leaves] of groups) {
+    // A repository whose pull requests all read unchanged and settled is
+    // read again after 2, then 4 minutes, not every tick (a GraphQL call
+    // GitHub cannot answer with a free 304). Any change reads at once.
+    if (pace[code]?.nextAt > now) continue;
     const rules =
       Object.entries(policy.repositories || {}).find(
         ([id]) => lower(id) === lower(code),
@@ -407,6 +416,19 @@ export async function feedbackStep(
             changed.map((leaf) => heads[leaf.branch].number),
           )
         : {};
+      const quiet =
+        leaves.every((leaf) => heads[leaf.branch]) && !changed.length;
+      if (quiet)
+        pace[code] = {
+          quiet: (pace[code]?.quiet || 0) + 1,
+          nextAt:
+            now +
+            Math.min(
+              PACE_BASE_MS * 2 ** ((pace[code]?.quiet || 0) + 1),
+              PACE_MAX_MS,
+            ),
+        };
+      else delete pace[code];
     } catch (error) {
       failed(error); // The last state stays; the Delivery view shows why.
       continue;
@@ -714,5 +736,7 @@ export async function feedbackStep(
       save(row);
     }
   }
+  if (JSON.stringify(pace) !== JSON.stringify(store.getMeta(PACE_META) || {}))
+    store.setMeta(PACE_META, pace);
   return { messages, notify };
 }

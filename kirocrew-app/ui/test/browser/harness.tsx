@@ -37,7 +37,7 @@ import { projectionClient } from '../../src/projection-api.ts'
 import { QuickGoalModal } from '../../src/QuickGoalModal.tsx'
 import { quickGoalClient } from '../../src/quickgoal-api.ts'
 import PluginsSettings from '../../src/PluginsSettings.tsx'
-import SettingsView from '../../src/SettingsView.tsx'
+import SettingsView, { RepositoryEditor } from '../../src/SettingsView.tsx'
 import { answerIntake } from './intake-fixture.ts'
 import RadarValuesScreen from '../../src/RadarValues.tsx'
 import { CrewsRulesSettings } from '../../src/CrewsRulesSettings.tsx'
@@ -628,7 +628,19 @@ if (query.get('page') === 'github-flow')
     errors: [],
     repositories: ['acme/recipe-box'],
   }))
+// ?page=repo-mode: one repository's Edit body on its Mode and branch tab.
+function RepoModePage() {
+  const [repository, setRepository] = useState<RepositoryForm>(emptyRepository('acme/recipe-box'))
+  const choices = { modes: ['local', 'plans-repo', 'single-repo'], authorities: [], coders: ['issue-radar', 'remote'], permissions: [], actions: [], fields: [], statusValues: [], managedLabels: [], crewLabels: [] }
+  return (
+    <NavHistoryProvider>
+      <RepositoryEditor index={0} repository={repository} choices={choices as never} review={undefined} mode="single-repo" workspaceId="w" planningRepository="" onChange={setRepository} />
+    </NavHistoryProvider>
+  )
+}
+
 const PAGES: Record<string, () => ReactNode> = {
+  'repo-mode': () => <RepoModePage />,
   'github-flow': () => <GithubFlow workspaceId="w" />,
   'release-queue': () => <ReleaseQueue workspaceId="w" />,
   'release-mode': () => <ReleaseModes />,
@@ -831,6 +843,23 @@ if (page === 'panel' && query.get('real') === '1' && realPanel) {
   for (const name of ['conflicts.view', 'radar.crews', 'remote.view', 'radar.releasequeue', 'flow.view', 'plan.specs', 'driversession.view'])
     answer(name, () => realPanel[name])
   answer('GET /api/apps/spec-builder/specs', () => ({ specs: ((realPanel['plan.specs'] as { items: { name: string }[] }).items ?? []).map((item) => ({ name: item.name })) }))
+}
+// &driver=nupp (any page): two workspaces. Harness (w) has no driver; Nupp (n) has
+// one on chat-nupp. Each read answers for the workspace it names.
+if (query.get('driver') === 'nupp') {
+  answer('workspaces.list', () => ({
+    defaultWorkspace: 'w',
+    items: [
+      { id: 'w', name: 'Harness', root: '/w', enabled: true, state: 'ready', served: true },
+      { id: 'n', name: 'Nupp', root: '/n', enabled: true, state: 'ready', served: true },
+    ],
+  }))
+  const nupp = { root: '/n', workspace: 'Nupp', slot: 'chat-nupp', href: '/chat?sid=chat-nupp', lastSeenAt: new Date().toISOString() }
+  answer('driversession.view', (body) =>
+    (body as { workspaceId?: string }).workspaceId === 'n'
+      ? { state: 'running', workspace: 'Nupp', slot: 'chat-nupp', href: '/chat?sid=chat-nupp', openedAt: new Date(Date.now() - 3600000).toISOString(), lastSeenAt: new Date().toISOString(), others: [] }
+      : { state: 'none', workspace: 'Harness', slot: null, href: null, openedAt: null, lastSeenAt: null, others: [nupp] },
+  )
 }
 class HarnessBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
   state = { error: null as string | null }
