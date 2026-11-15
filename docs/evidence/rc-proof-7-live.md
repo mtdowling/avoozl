@@ -3,50 +3,60 @@
 Receipt for task `rc-p7`. The fake-GitHub run is
 `docs/evidence/radar-coder-proof-7-fake-github.md`.
 
-- Recorded: 2026-11-15, Linux, Kiro Crew 0.12.2.4 harness (own home, port
-  5692), Avoozl CLI from `main` at `30f9cbd` plus PR #220.
-- GitHub: private scratch repository `mtdowling/avoozl-scratch-6`, created
-  empty for this run.
-- Verdict: **FAIL (partial).** Every `gh` step wrote once and read back. The
-  Radar values re-read ticked 6 of 8 items; model and prompt stayed "cannot
-  verify", and the pack's models were not shown.
+This is the second live run. The first run (2026-11-15, scratch repository
+`mtdowling/avoozl-scratch-6`) was a partial fail: the values re-read ticked 6
+of 8 items and left model and prompt at "cannot verify".
+
+- Recorded: 2026-11-15, Linux, Kiro Crew 0.12.2.4 harness (own home
+  `/tmp/avoozl-live-p7-10`, port 5697), Avoozl CLI from `main` at `e46cc5a`.
+- GitHub: new private scratch repository `mtdowling/avoozl-scratch-7`
+  (scratch-6 held issues and pull requests from other proofs).
+- Verdict: **PASS.** All eight values tick against the real Issue Radar crew
+  read.
+
+## Cause of the first failure
+
+`crewsOf` in `src/app/radar-handoff.mjs` dropped `model` and `extra_prompt`
+from Radar's crew read, so `radar.values` could not tick them. Main already
+keeps them (and the agent and claim limit) when Radar returns them. The first
+run used a build from before that change. This run uses the fixed code, so
+nothing in `radar.values` changed.
+
+A second gap was real: `examples/sdk-team/` had only `avoozl-pack.json`, and
+`plugins add` needs `avoozl-plugin.json`, so the shipped example could not be
+added. This run's PR adds the manifest and a test
+(`src/app/test/crews-pack.test.mjs`, "the shipped sdk-team example folder has
+a manifest plugins add accepts").
 
 ## Commands
 
 ```
-avoozl radar.setup --json '{"repository":"mtdowling/avoozl-scratch-6"}' --as-person
-avoozl radar.setup --json '{"repository":"...","confirm":true,"step":"labels","previewHash":"..."}' --as-person
-# same for auto-merge and agents-pr
-avoozl plugins add sdk-team --path <folder with examples/sdk-team/avoozl-pack.json and a pack-only manifest> --as-person
+harness.sh start            # AVOOZL_HARNESS_DIR=/tmp/avoozl-live-p7-10 PORT=5697 REPO=scratch-7
+avoozl plugins add sdk-team --path <sdk-team folder> --as-person
 avoozl plugins approve sdk-team --hash ... --as-person
-avoozl plugins pack-preview sdk-team --repo mtdowling/avoozl-scratch-6 --as-person
+avoozl plugins pack-preview sdk-team --repo mtdowling/avoozl-scratch-7 --as-person
 avoozl plugins pack-import sdk-team --preview ... --repo ... --confirm-public --as-person
-# Radar steps done with harness.sh crew-create / crew-edit / radar-settings
-radar.values, with Radar's crew list read from the harness crews route
+avoozl radar.setup --json '{"repository":...,"confirm":true,"step":S,"previewHash":H}' --as-person
+harness.sh crew-create avoozl-avoozl-scratch-7 '{"model":"model-a","labels":["ready"],"extra_prompt":<pack prompt>,"max_open":1}'
+radar.values with the crew list read from the harness crews route
 ```
 
 ## Observation
 
 | Step | Result |
 | --- | --- |
-| labels | done; read back the six labels; after the pack, `to plan` and `merge conflict` created and read back |
-| auto-merge | done; read back "allows auto-merge" (`allow_auto_merge` true on GitHub) |
-| agents-pr | done; PR #7 "Add review rules for crews to AGENTS.md" |
-| merge-method | ok, nothing to do |
-| branch-rule | input: needs a CI check name; the scratch repository has no CI |
-| project | input: needs a Project; not created, so no Project was made on the account |
-| pack | preview listed 5 changes; import wrote them to `.avoozl.json` only after `--confirm-public`; no crew was created |
-| re-read | repository, crew name, agent, scope, needs-human, claim limit: ok. model: cannot verify (shows `auto`, the pack says `model-a`, `model-b`). prompt: cannot verify |
+| pack preview | 5 changes (plan label, conflict label, review rules, crew values; ready kept) |
+| pack import | written to `.avoozl.json` after `--confirm-public`; no crew created |
+| labels | done; `to plan`, `ready`, `merge conflict` and 4 `avoozl:` labels read back |
+| auto-merge | done; `allow_auto_merge` true on GitHub |
+| agents-pr | done; pull request #1 "Add review rules for crews to AGENTS.md" |
+| branch-rule, project | input: need a CI check name and a Project; scratch has neither, none made |
+| set up again | every changed step `ok` |
+| values, before the crew | crew-name differs; agent, model, scope, prompt cannot verify (no crew) |
+| values, after the crew | repository, crew name, agent, model, scope, needs-human, claim limit, prompt: **all 8 ok** |
+| values, crew model set to `auto` | model `differs`; set back, 8 of 8 ok |
 
-## Findings
+## Not done
 
-- Radar's crew read carries `model` and `extra_prompt` for each crew, but
-  `radar.values` treats both as unreadable. It could tick or fail them.
-- With the pack applied, the model value still shows `auto`, so the shown
-  value does not match the pack. That is the failure the proof names.
-- `examples/sdk-team/` has only `avoozl-pack.json`. `plugins add` needs an
-  `avoozl-plugin.json`, so the example cannot be added as shipped.
-- The app backend answers only gateway-signed page requests, so the re-read
-  used a script that calls the same Radar route with the harness token.
-
-Not fixed here.
+Branch rule and Project steps need a CI check and a Project the scratch
+repository does not have. The crew is created paused and never ran in this proof.
