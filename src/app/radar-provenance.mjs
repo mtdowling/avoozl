@@ -29,8 +29,11 @@ export function provenanceWriter(store, { identity, plan, config, plans }) {
   if (!projectsMarkedIssues(identity, config.id) || !plan.spec) return null;
   const approval = approvalState(store, plan.id, plan.hash);
   if (approval?.state !== "merged") return null;
-  if (approval.ref !== (plan.home === "plansBranch" ? plan.ref : undefined))
-    return null;
+  if (plan.home === "plansBranch") {
+    const expectedRef = plan.ref ?? plan.plansRef;
+    if (!approval.ref || (expectedRef && approval.ref !== expectedRef))
+      return null;
+  } else if (approval.ref) return null;
   // The epic's integration branch is the base of every task pull request
   // (RC16.2): named in the marker and in one visible line.
   const base = integrationBranchOf(store, plan);

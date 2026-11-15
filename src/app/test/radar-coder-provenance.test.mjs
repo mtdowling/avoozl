@@ -240,6 +240,18 @@ test("private spec projection carries its merged approval ref, including a mirro
   });
   assert.ok(writer);
   assert.equal(parseProvenance(writer(["task-1"])).marker.ref, "private-plans");
+  const homeOnly = { ...privatePlan };
+  delete homeOnly.ref;
+  const legacyWriter = provenanceWriter(context.store, {
+    identity: { repositories: { "example/code": { coder: "issue-radar" } } },
+    plan: homeOnly,
+    config: { id: "example/code" },
+  });
+  assert.ok(legacyWriter);
+  assert.equal(
+    parseProvenance(legacyWriter(["task-1"])).marker.ref,
+    "private-plans",
+  );
   context.store.setMeta(`spec-approval:${plan.id}:${plan.hash}`, {
     state: "merged",
     commit: COMMIT,

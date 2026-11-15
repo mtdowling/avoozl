@@ -68,6 +68,8 @@ export async function openApproval(
     approvedBy,
     decisionRecord: record = false,
     extra = {},
+    // The branch the pull request targets when it is not the default branch:
+    // a private spec's plans branch (RC25.3).
     ref,
   },
 ) {
@@ -99,7 +101,7 @@ export async function openApproval(
   const changes = approvalChanges({
       spec,
       files,
-      decisionRecord: record,
+      decisionRecord: ref === undefined && record,
       extra: {
         ...extra,
         ...(ref !== undefined && files["avoozl/manifest.json"] !== undefined
@@ -136,6 +138,15 @@ export async function openApproval(
         409,
       );
   }
+  if (
+    ref !== undefined &&
+    Object.keys(changes).some(
+      (file) =>
+        !file.startsWith(`.kiro/specs/${spec}/`) ||
+        file.split("/").some((part) => part === ".." || part === "."),
+    )
+  )
+    fail("Private approval changes must stay inside the spec folder.", 409);
   await github.createBranch(repository, branch, head.oid);
   for (const [path, text] of Object.entries(changes))
     await github.putFile(repository, {
@@ -184,7 +195,9 @@ export async function reconcileApproval(
   if (!state || state.state !== "open") return state;
   const pull = await github.pullRequest(repository, state.number);
   if (pull.merged) {
-    if (state.ref && pull.base?.ref !== state.ref)
+    const actualBase =
+      typeof pull.base === "string" ? pull.base : pull.base?.ref;
+    if (state.ref && actualBase !== state.ref)
       fail(
         "The approval merged into a different branch from the private spec home.",
         409,
