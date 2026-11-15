@@ -41,3 +41,19 @@ test('Approve N specs sends each shown hash and uses small buttons in the shared
   assert.match(plans, /Select all shown/)
   assert.match(plans, /<Badge>Batch \{batch\}<\/Badge>/)
 })
+
+test('the approve dialog lists specs in a bordered table that scrolls on its own', () => {
+  assert.match(plans, /data-approve-list className="overflow-x-auto rounded border"/)
+  assert.match(plans, /tableLayout: 'fixed'/)
+  assert.match(plans, /<th style=\{\{ \.\.\.TH, \.\.\.NUM \}\}>Writes<\/th>/)
+  // A phone shows the name and writes; the rest is in the row tooltip.
+  assert.match(plans, /props\.phone \? \['auto', '5rem'\]/)
+  assert.match(plans, /<Tooltip text=\{tip\} display="block">/)
+})
+
+test('every Specs page button uses the compact host style, one primary per group', () => {
+  assert.doesNotMatch(plans, /<IconLabel (?!style=\{COMPACT_BTN\})/)
+  for (const line of plans.split('\n').filter((l) => l.includes('<Btn '))) assert.match(line, /COMPACT_BTN/, line)
+  assert.match(plans, /<IconLabel style=\{COMPACT_BTN\} icon=\{ClipboardCheck\} primary/)
+  assert.match(plans, /<TipBtn primary style=\{COMPACT_BTN\}/)
+})

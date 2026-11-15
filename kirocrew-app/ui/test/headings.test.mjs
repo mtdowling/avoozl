@@ -50,7 +50,7 @@ test('Specs heading: New spec, then an icon-only Refresh last; New task only in 
   const part = plans.slice(plans.indexOf('function PlansActions'), plans.indexOf('// The row\'s icon buttons'))
   const at = (text) => part.indexOf(text)
   assert.ok(at('New spec') > 0 && at('New spec') < at('RefreshCw') && at('Idea') === -1 && at('New task') === -1, 'order')
-  assert.equal(part.match(/<IconLabel icon=\{Plus\}/g).length, 1)
+  assert.equal(part.match(/<IconLabel (?:style=\{COMPACT_BTN\} )?icon=\{Plus\}/g).length, 1)
   // New task is in the spec's own view, and nowhere else on the page.
   assert.match(plans, /<span data-new-task className="contents">/)
   for (const name of views.filter((n) => n !== 'PlansView.tsx' && n !== 'Panel.tsx')) assert.doesNotMatch(source(name), />\s*New task\s*</, name)
