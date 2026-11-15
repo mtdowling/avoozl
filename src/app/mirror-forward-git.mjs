@@ -49,6 +49,7 @@ export function forwardGit({ urlFor = github, run = exec } = {}) {
       mirror,
       base,
       mergeSha,
+      batch,
       author,
       message,
       branch,
@@ -71,16 +72,36 @@ export function forwardGit({ urlFor = github, run = exec } = {}) {
         ]);
         await git(["checkout", "-q", "-b", branch, "FETCH_HEAD"]);
         const baseSha = (await git(["rev-parse", "HEAD"])).stdout.trim();
-        await git([
-          ...helper(mirrorUrl, token),
-          "fetch",
-          "-q",
-          mirrorUrl,
-          mergeSha,
-        ]);
-        const patch = (
-          await git(["diff", "--binary", `${mergeSha}^1`, mergeSha])
-        ).stdout;
+        // One merge commit's change, or an epic's net change: its mirror
+        // branch against the mirror's default branch, with none of its history.
+        let patch;
+        if (batch) {
+          await git([
+            ...helper(mirrorUrl, token),
+            "fetch",
+            "-q",
+            mirrorUrl,
+            `+refs/heads/${batch.branch}:refs/avoozl/epic`,
+            `+refs/heads/${batch.base}:refs/avoozl/base`,
+          ]);
+          patch = (
+            await git([
+              "diff",
+              "--binary",
+              "refs/avoozl/base...refs/avoozl/epic",
+            ])
+          ).stdout;
+        } else {
+          await git([
+            ...helper(mirrorUrl, token),
+            "fetch",
+            "-q",
+            mirrorUrl,
+            mergeSha,
+          ]);
+          patch = (await git(["diff", "--binary", `${mergeSha}^1`, mergeSha]))
+            .stdout;
+        }
         try {
           await git(["apply", "--index", "--3way"], { input: patch });
         } catch (error) {

@@ -184,7 +184,14 @@ function fake(over = {}, line = marker()) {
     ],
     [`repos/${CODE}`, { status: 200, body: { default_branch: "main" } }],
     [`repos/${CODE}/branches/${PLANS}`, { status: 200, body: {} }],
-    // No answer for main...avoozl-plans is a 404: no merge base.
+    // Only the explicit no-common-ancestor response proves orphan history.
+    [
+      `repos/${CODE}/compare/main...${PLANS}`,
+      {
+        status: 404,
+        body: { message: `No common ancestor between main and ${PLANS}.` },
+      },
+    ],
     [
       `repos/${CODE}/compare/${PLANS}...${SHA}`,
       { status: 200, body: { status: "behind" } },
@@ -223,7 +230,10 @@ test("a private spec's issue passes and prints the fetch and show commands", asy
   const result = await verify(f);
   assert.equal(result.exitCode, 0, JSON.stringify(result.checks));
   assert.equal(result.ref, PLANS);
-  assert.equal(result.fetch, `git fetch origin ${PLANS}`);
+  assert.equal(
+    result.fetch,
+    `git fetch https://github.com/${CODE}.git refs/heads/${PLANS}`,
+  );
   assert.deepEqual(result.show, [
     `git show ${SHA}:.kiro/specs/pay-fix/requirements.md`,
     `git show ${SHA}:.kiro/specs/pay-fix/design.md`,

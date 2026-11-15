@@ -30,7 +30,7 @@ const VALUES = {
   plans: (v) => REPOSITORY.test(v) && !v.includes(".."),
   // The epic's integration branch (RC16.2); absent for an ordinary issue.
   base: (v) => branchNameProblem(v) === null,
-  // The orphan branch a private spec lives on (RC25.3); absent for a public one.
+  // The orphan branch containing a private spec (RC25.3).
   ref: (v) => branchNameProblem(v) === null,
 };
 

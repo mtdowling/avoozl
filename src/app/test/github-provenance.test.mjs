@@ -138,3 +138,32 @@ test("a problem message never repeats the value it refused", () => {
   assert.equal(problem.code, "bad-value");
   assert.doesNotMatch(problem.message, /ghp_/);
 });
+
+test("a private spec ref round trips and unsafe refs fail without echoing them", () => {
+  const privateSpec = { ...input, ref: "private/plans" };
+  assert.deepEqual(
+    parseProvenance(renderProvenance(privateSpec)).marker,
+    privateSpec,
+  );
+  for (const ref of [
+    "main;bad",
+    "-option",
+    "refs/heads/main",
+    "HEAD",
+    "a..b",
+    "a.lock",
+    "a//b",
+    "a\nsecret",
+    "a`bad`",
+    "a$(bad)",
+    "",
+  ]) {
+    assert.throws(
+      () => renderProvenance({ ...input, ref }),
+      /Invalid provenance marker: ref/,
+    );
+    const parsed = parseProvenance(line.replace(" -->", ` ref=${ref} -->`));
+    assert.equal(parsed.marker, null);
+    assert.doesNotMatch(parsed.problem.message, /secret|option|bad/);
+  }
+});
