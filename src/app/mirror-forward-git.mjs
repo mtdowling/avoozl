@@ -11,6 +11,7 @@ import { execFile } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { pushProblem } from "./forward-guard.mjs";
 
 const github = (repo) => `https://github.com/${repo}.git`;
 
@@ -48,6 +49,7 @@ export function forwardGit({ urlFor = github, run = exec } = {}) {
       mirror,
       base,
       mergeSha,
+      batch,
       author,
       message,
       branch,
@@ -70,16 +72,36 @@ export function forwardGit({ urlFor = github, run = exec } = {}) {
         ]);
         await git(["checkout", "-q", "-b", branch, "FETCH_HEAD"]);
         const baseSha = (await git(["rev-parse", "HEAD"])).stdout.trim();
-        await git([
-          ...helper(mirrorUrl, token),
-          "fetch",
-          "-q",
-          mirrorUrl,
-          mergeSha,
-        ]);
-        const patch = (
-          await git(["diff", "--binary", `${mergeSha}^1`, mergeSha])
-        ).stdout;
+        // One merge commit's change, or an epic's net change: its mirror
+        // branch against the mirror's default branch, with none of its history.
+        let patch;
+        if (batch) {
+          await git([
+            ...helper(mirrorUrl, token),
+            "fetch",
+            "-q",
+            mirrorUrl,
+            `+refs/heads/${batch.branch}:refs/avoozl/epic`,
+            `+refs/heads/${batch.base}:refs/avoozl/base`,
+          ]);
+          patch = (
+            await git([
+              "diff",
+              "--binary",
+              "refs/avoozl/base...refs/avoozl/epic",
+            ])
+          ).stdout;
+        } else {
+          await git([
+            ...helper(mirrorUrl, token),
+            "fetch",
+            "-q",
+            mirrorUrl,
+            mergeSha,
+          ]);
+          patch = (await git(["diff", "--binary", `${mergeSha}^1`, mergeSha]))
+            .stdout;
+        }
         try {
           await git(["apply", "--index", "--3way"], { input: patch });
         } catch (error) {
@@ -172,18 +194,19 @@ export function forwardGit({ urlFor = github, run = exec } = {}) {
       }
     },
     // A normal push of one explicit refspec to a new branch.
-    async push({ dir, forwardTo, branch, token }) {
-      const url = urlFor(forwardTo);
-      await run(
-        [
+    async push({ dir, forwardTo, branch, token, forbid = [] }) {
+      const url = urlFor(forwardTo),
+        args = [
           ...helper(url, token),
           "push",
           "-q",
           url,
           `refs/heads/${branch}:refs/heads/${branch}`,
         ],
-        { cwd: dir },
-      );
+        problem = pushProblem(args, { forbid });
+      // Nothing leaves without one explicit refspec (RC26.5.5).
+      if (problem) throw Error(`The push was refused: ${problem}.`);
+      await run(args, { cwd: dir });
     },
     cleanup({ dir }) {
       fs.rmSync(dir, { recursive: true, force: true });
