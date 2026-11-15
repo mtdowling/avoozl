@@ -33,6 +33,7 @@ export function buildTrace({
   specApproved = null,
   review = null,
   mirror = null,
+  fixes = [],
   problems = [],
 }) {
   const claim = claimOf(comments),
@@ -89,6 +90,16 @@ export function buildTrace({
             ? `Drafted ${review.draftedAt}, discarded`
             : `Drafted ${review.draftedAt} for ${review.reviewer}; waiting to be submitted`,
     });
+  // RC28.6: Avoozl's merge commit that fixed a source conflict, after "PR opened".
+  if (fixes.length) {
+    const last = fixes.at(-1);
+    steps.splice(steps.findIndex((step) => step.key === "pr") + 1, 0, {
+      key: "conflictFixed",
+      label: "Conflict fixed by Avoozl",
+      at: last.at ?? null,
+      detail: `Merge commit ${String(last.commit).slice(0, 12)}${fixes.length > 1 ? ` (${fixes.length} fixes)` : ""}`,
+    });
+  }
   // RC24.14: where the change stands once it left the private mirror. The times
   // are GitHub's; a step the forward has not reached has none.
   if (mirror)
@@ -160,7 +171,7 @@ export async function readTrace(
   repository,
   number,
   settings = {},
-  { draftFor = () => null, mirrorFor = () => null } = {},
+  { draftFor = () => null, mirrorFor = () => null, fixesFor = () => [] } = {},
 ) {
   const facts = await readIssueFacts(github, repository, number, settings),
     specApproved = await approvedAt(
@@ -176,6 +187,7 @@ export async function readTrace(
       specApproved,
       review: facts.pull ? draftFor(facts.pull.number) : null,
       mirror: facts.pull ? mirrorFor(facts.pull.number) : null,
+      fixes: facts.pull ? fixesFor(facts.pull.number) : [],
     }),
   };
 }

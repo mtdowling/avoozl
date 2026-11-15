@@ -1514,61 +1514,79 @@ Proof added to D17:
 | ------ | -------------------------------------------------------------------------------------------------------------- |
 | rc-p26 | On scratch repositories: Create setup builds a private mirror, then both buttons are no-ops; Adopt finds an existing one and changes nothing without a tick |
 
-### Requirement RC28: Rebuild a crew's work after a source conflict
+### Requirement RC28: Avoozl fixes a crew's source conflict with a merge commit
 
 **User story:** As the owner, I want a crew's pull request that conflicts with
-newer main to be rebuilt by a crew on fresh main, so that nobody resolves
-source conflicts by hand and no crew resolves them by guessing.
+newer main to be fixed by Avoozl with one merge commit on the same branch, so
+that nobody resolves source conflicts by hand and no change on either side is
+lost without a word.
 
 Crews never resolve a conflict inside source code. They publish it as a
-handback (`needs-human` label and a comment) and leave the pull request open.
-Avoozl turns that handback into a rebuild.
+handback (the needs-human label and a comment) and leave the pull request open.
+Avoozl turns that handback into one short resolver chat.
 
 #### Acceptance criteria
 
 1. **Trigger.** On the tick, from the pull request read RC5.3 already makes
-   (no extra list call), Avoozl SHALL treat a pull request as a rebuild
-   candidate WHEN all of these hold: (a) it is open, from a branch of the same
-   repository, with a merge conflict; (b) it is the pull request of a crew
-   claim, that is, the issue it closes carries a crew claim marker; (c) that
+   (no extra list call), a pull request SHALL be a fix candidate WHEN all of
+   these hold: (a) it is open, from a branch of the same repository, with a
+   merge conflict; (b) the issue it closes carries a crew claim marker; (c) that
    issue has a valid Avoozl marker and `issue.verify` passes; and (d) either the
-   crew handed it back (the issue has the needs-human label and a comment
-   after the claim that names a conflict), or the pull request has stood
-   conflicting and unchanged (same head commit) for one full read after the read
-   that first saw it.
-2. **Action.** For a candidate allowed by RC28.3, Avoozl SHALL, each write
-   idempotent and in this order: (a) close the pull request, keeping its branch,
-   with one short comment that names the newer main commits and files it
-   clashes with and says the task will be rebuilt; (b) remove the conflict label
-   (RC21) and the needs-human label from the issue (and the conflict label from
-   the pull request); (c) post one note on the issue that links the closed pull
-   request as reference: "rebuild on current main; reuse the approach in #N,
-   keep the changes merged since"; (d) add the ready label back so a crew claims
-   the issue again. A second tick that sees the finished state SHALL write
-   nothing.
-3. **Limits.** (a) At most `conflicts.maxRebuilds` rebuilds per issue per spec
-   version (default 1; the spec version is the approval commit the issue's
-   provenance names). A further conflict SHALL become one Waiting on you row with
-   **Rebuild again**, **Resolve myself** and **Dismiss**. (b) Avoozl SHALL NOT
-   touch a pull request that no crew wrote, one whose issue has no valid
-   Avoozl marker, or one that has a human review or a commit by anyone other than
-   the pull request's author; those become the same Waiting on you row.
-   (c) An open Stop the line SHALL pause rebuilds for the tasks it pauses.
-   (d) A closed pull request that is reopened SHALL NOT release the issue a
-   second time, and SHALL NOT count as a new rebuild.
-4. **Setting.** `conflicts.onSourceConflict` per repository, `rebuild` or `ask`
-   (default `rebuild`), and `conflicts.maxRebuilds` (default 1), in Settings and
+   crew handed it back (the issue has the needs-human label and a comment after
+   the claim that names a conflict), or the pull request has stood conflicting
+   with the same head commit for one full read after the read that first saw it.
+2. **Action.** For a candidate allowed by RC28.4, Avoozl SHALL start one
+   resolver chat (an Avoozl role agent, like the review draft chat, on the
+   machine that writes the repository). The chat SHALL check out the pull
+   request branch in its own worktree, run `git merge origin/<base>` (never a
+   rebase, never a force push), resolve each conflicted file keeping both sides'
+   intent, run the repository's checks, and push one merge commit to the same
+   branch. Then Avoozl SHALL check on GitHub that the pull request's head is
+   that merge commit with the old head as its first parent, arm auto-merge
+   again when the repository ships by auto-merge, remove the conflict label
+   (RC21) and the crew's needs-human label, and post one short pull request
+   comment listing each conflicted file and how it was resolved.
+3. **No silent drops.** Before pushing, the chat SHALL run Avoozl's drop check:
+   in each file changed on both sides, every line the base branch added since
+   the merge base SHALL still be in the merge commit or be named with a reason
+   in the comment. WHEN the chat cannot keep both sides, or the check fails, it
+   SHALL push nothing and the pull request SHALL become one Waiting on you row
+   with **Resolve myself** and **Dismiss**. A push whose commit did not pass the
+   check SHALL get the same row, and Avoozl SHALL NOT arm it.
+4. **Limits.** (a) At most `conflicts.maxAttempts` resolver attempts per
+   conflict (default 1); a conflict is one pull request at one head commit, so
+   a new push is a new conflict. (b) Avoozl SHALL NOT touch a pull request no
+   crew wrote, or one whose issue has no valid Avoozl marker; it SHALL send a
+   branch with a commit by someone other than the crew after the crew's last
+   commit (Avoozl's own merge commits aside) to the Waiting on you row. (c) An
+   open Stop the line SHALL pause it for the tasks the stop pauses.
+5. **Setting.** `conflicts.onSourceConflict` per repository, `fix` or `ask`
+   (default `fix`), and `conflicts.maxAttempts` (default 1), in Settings and
    `.avoozl.json`, shown in the Workflow map. With `ask`, every candidate is a
-   Waiting on you row and Avoozl writes nothing. Label names stay the
+   Waiting on you row and Avoozl starts no chat. Label names stay the
    configurable ones of RC21; no behavior needs an `avoozl:` prefix.
-5. **Visible.** Trace and Activity SHALL show "rebuilt after conflict" with the
-   old and the new pull request. Flow SHALL count a rebuilt task as fix work.
-6. **Tests** on a fake GitHub SHALL cover: a rebuild fires once; a second
-   conflict asks; a pull request a human touched is untouched; Stop the line
-   blocks it; a reopened old pull request does not release twice.
+6. **Visible.** Trace and Activity SHALL show "conflict fixed by Avoozl" with
+   the merge commit. Flow SHALL count the task as fix work.
+7. **Merge method.** `merge.method` per repository, `squash` or `merge`
+   (default `squash`), in Settings, `.avoozl.json` and the Workflow map. Every
+   place Avoozl arms auto-merge on a crew pull request (RC5.2 and RC28.2) SHALL
+   use it: `squash` arms a squash merge whose commit title and body are the pull
+   request's title and body, so the base gets one commit per pull request and a
+   conflict fix's merge commit never reaches it; `merge` arms a merge commit.
+   The resolver still merges the base into the branch in both cases. Set up
+   SHALL read the repository's `allow_squash_merge` and `allow_merge_commit` and
+   refuse a method the repository does not allow, naming the GitHub setting to
+   change; the tick SHALL arm nothing then and show one Needs you row. Adopt
+   SHALL set the method to one the repository allows: `squash` when allowed,
+   else `merge`.
+8. **Tests** on a fake GitHub SHALL cover: a fix pushes one merge commit to the
+   same pull request; a drop-check failure pushes nothing and asks; a pull
+   request a person committed to is untouched; Stop the line blocks it; there is
+   no second attempt on the same conflict; both merge methods; a method the
+   repository refuses.
 
 Proof added to D17:
 
 | Proof  | Proves                                                                                                         |
 | ------ | -------------------------------------------------------------------------------------------------------------- |
-| rc-p27 | On a scratch repository: a crew's conflicted pull request is closed, the issue is released once, and a second conflict asks |
+| rc-p27 | On a scratch repository: a crew pull request with a source conflict gets one merge commit that keeps both sides, and is armed again |
