@@ -31634,41 +31634,62 @@ function Ux(e) {
 	}, [n, e]), r;
 }
 function Wx(e) {
-	let [t, n] = d(!1), r = Ux(e.workspaceId);
+	let [t, n] = d(!1), r = Ux(e.workspaceId), i = q(), a = l(() => uo(i), [i]), o = ur();
 	if (!e.workspaceId) return null;
-	let i = r.length > 0, a = r.map((e) => e.reason ?? (e.check ? `${e.check} fails on ${e.branch}` : `the line on ${e.branch}`)).slice(0, 3).join("; ");
-	return /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C(J, {
-		text: i ? `The line is stopped: ${a}. Resume it from the banner on the Dashboard or Flow. Press to stop more.` : "Stop new work in a scope, or stop all agents, with a reason",
-		children: (t) => e.bare ? /* @__PURE__ */ C("button", {
-			type: "button",
-			"data-pp-icon": !0,
-			"data-bare": !0,
-			"data-stop-line": !0,
-			"data-stopped": i ? "" : void 0,
-			"aria-describedby": t,
-			"aria-label": i ? `Line stopped, ${r.length} open stop${r.length === 1 ? "" : "s"}. Stop more` : "Stop the line",
-			onClick: () => n(!0),
-			style: {
-				color: "var(--danger)",
-				borderColor: "var(--border)"
-			},
-			children: /* @__PURE__ */ C(Ae, {
-				size: 13,
-				"aria-hidden": "true"
+	let s = r.length > 0, c = r.map((e) => e.reason ?? (e.check ? `${e.check} fails on ${e.branch}` : `the line on ${e.branch}`)).slice(0, 3).join("; "), u = async () => {
+		if (await o({
+			title: "Resume the line?",
+			body: `New work starts again. The line was stopped for: ${c}`,
+			action: "Resume"
+		}) && e.workspaceId) {
+			for (let t of r) await a.resume(e.workspaceId, t.id);
+			lo();
+		}
+	};
+	if (e.bare) {
+		let r = s ? "Resume the line" : "Stop the line";
+		return /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C(J, {
+			text: r,
+			children: /* @__PURE__ */ C("button", {
+				type: "button",
+				"data-pp-icon": !0,
+				"data-bare": !0,
+				"data-stop-line": !0,
+				"data-stopped": s ? "" : void 0,
+				"aria-label": r,
+				onClick: () => s ? void u() : n(!0),
+				style: {
+					color: s ? "var(--ok)" : "var(--danger)",
+					borderColor: "var(--border)"
+				},
+				children: /* @__PURE__ */ C(s ? Me : Ae, {
+					size: 13,
+					"aria-hidden": "true"
+				})
 			})
-		}) : /* @__PURE__ */ w(g, {
+		}), t && /* @__PURE__ */ C(Gx, {
+			workspaceId: e.workspaceId,
+			onClose: () => n(!1),
+			onPulled: () => {
+				n(!1), lo(), e.onPulled?.();
+			}
+		})] });
+	}
+	return /* @__PURE__ */ w(S, { children: [/* @__PURE__ */ C(J, {
+		text: s ? `The line is stopped: ${c}. Resume it from the banner on the Dashboard or Flow. Press to stop more.` : "Stop new work in a scope, or stop all agents, with a reason",
+		children: (e) => /* @__PURE__ */ w(g, {
 			type: "button",
 			"data-stop-line": !0,
-			"data-stopped": i ? "" : void 0,
-			"aria-describedby": t,
-			"aria-label": i ? `Line stopped, ${r.length} open stop${r.length === 1 ? "" : "s"}. Stop more` : void 0,
+			"data-stopped": s ? "" : void 0,
+			"aria-describedby": e,
+			"aria-label": s ? `Line stopped, ${r.length} open stop${r.length === 1 ? "" : "s"}. Stop more` : void 0,
 			onClick: () => n(!0),
-			style: i ? Bx : zx,
+			style: s ? Bx : zx,
 			children: [/* @__PURE__ */ C(Ae, {
 				size: 14,
 				"aria-hidden": "true",
-				style: i ? { color: "var(--danger)" } : void 0
-			}), i ? "Line stopped" : "Stop the line"]
+				style: s ? { color: "var(--danger)" } : void 0
+			}), s ? "Line stopped" : "Stop the line"]
 		})
 	}), t && /* @__PURE__ */ C(Gx, {
 		workspaceId: e.workspaceId,
