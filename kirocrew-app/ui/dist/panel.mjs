@@ -2178,11 +2178,14 @@ function xn(e) {
 			body: "The line keeps running. What you entered is lost.",
 			action: "Discard"
 		},
-		title: /* @__PURE__ */ O(E, { children: [/* @__PURE__ */ D(T, {
-			size: 14,
-			"aria-hidden": "true",
-			style: { color: "var(--danger)" }
-		}), " Stop the line"] }),
+		title: /* @__PURE__ */ O("span", {
+			className: "inline-flex items-center gap-1.5",
+			children: [/* @__PURE__ */ D(T, {
+				size: 14,
+				"aria-hidden": "true",
+				style: { color: "var(--danger)" }
+			}), " Stop the line"]
+		}),
 		onDismiss: x,
 		footer: /* @__PURE__ */ O(E, { children: [/* @__PURE__ */ D(f, {
 			type: "button",

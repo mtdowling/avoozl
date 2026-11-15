@@ -318,59 +318,56 @@ function AddPluginDialog(props: { workspaceId: string; client: Client; supported
       boxRef={box}
       attrs={{ 'data-plugin-dialog': step }}
       unsaved={(Boolean(added) || step > 0 || JSON.stringify(form) !== JSON.stringify(emptyPluginForm())) && { title: 'Stop adding this plugin?', body: added ? `${added.id} is removed again. Nothing ran.` : 'What you entered is lost.', action: 'Stop' }}
-      title={<>{PLUGIN_STEPS[step][0]}</>}
+      title={PLUGIN_STEPS[step][0]}
       onDismiss={cancel}
-    
-  footer={
-    <>
-        <Btn type="button" onClick={cancel} disabled={busy}>
-          Cancel
-        </Btn>
-        {(step === 1 || step === 2) && (
-          <Btn type="button" onClick={() => setStep(step - 1)} disabled={busy}>
-            Back
+      footer={
+        <>
+          <Btn type="button" onClick={cancel} disabled={busy}>
+            Cancel
           </Btn>
-        )}
-        {step === 0 && (
-          <Btn type="button" primary onClick={() => void look()} disabled={busy}>
-            {form.where === 'git' ? 'Find the commit' : 'Next'}
-          </Btn>
-        )}
-        {step === 1 && (
-          <Btn
-            type="button"
-            primary
-            disabled={busy || Boolean(problem)}
-            onClick={() => {
-              const checked = addInput(form)
-              if (checked.error) return setError(checked.error)
-              setStep(2)
-            }}
-          >
-            Next
-          </Btn>
-        )}
-        {step === 2 && (
-          <Btn type="button" primary onClick={() => void add()} disabled={busy || (form.scope === 'repository' && !confirmPublic)}>
-            {form.where === 'git' ? 'Fetch and review' : 'Add and review'}
-          </Btn>
-        )}
-        {step === 3 && added && canApprove(added) && (
-          <Btn type="button" primary onClick={() => void approve()} disabled={busy}>
-            Approve version {added.version}
-            {added.commit ? ` at ${added.commit.slice(0, 12)}` : ''}
-          </Btn>
-        )}
-        {step === 3 && added && !canApprove(added) && (
-          <Btn type="button" primary onClick={() => onClose(`Added ${added.id}. It can't be approved yet: ${added.reason ?? stateLabel(added).label}.`)}>
-            Keep it unapproved
-          </Btn>
-        )}
-    </>
-      
-  }
-      
->
+          {(step === 1 || step === 2) && (
+            <Btn type="button" onClick={() => setStep(step - 1)} disabled={busy}>
+              Back
+            </Btn>
+          )}
+          {step === 0 && (
+            <Btn type="button" primary onClick={() => void look()} disabled={busy}>
+              {form.where === 'git' ? 'Find the commit' : 'Next'}
+            </Btn>
+          )}
+          {step === 1 && (
+            <Btn
+              type="button"
+              primary
+              disabled={busy || Boolean(problem)}
+              onClick={() => {
+                const checked = addInput(form)
+                if (checked.error) return setError(checked.error)
+                setStep(2)
+              }}
+            >
+              Next
+            </Btn>
+          )}
+          {step === 2 && (
+            <Btn type="button" primary onClick={() => void add()} disabled={busy || (form.scope === 'repository' && !confirmPublic)}>
+              {form.where === 'git' ? 'Fetch and review' : 'Add and review'}
+            </Btn>
+          )}
+          {step === 3 && added && canApprove(added) && (
+            <Btn type="button" primary onClick={() => void approve()} disabled={busy}>
+              Approve version {added.version}
+              {added.commit ? ` at ${added.commit.slice(0, 12)}` : ''}
+            </Btn>
+          )}
+          {step === 3 && added && !canApprove(added) && (
+            <Btn type="button" primary onClick={() => onClose(`Added ${added.id}. It can't be approved yet: ${added.reason ?? stateLabel(added).label}.`)}>
+              Keep it unapproved
+            </Btn>
+          )}
+        </>
+      }
+    >
       <ol className="flex flex-wrap gap-2 text-xs" aria-label="Steps">
         {PLUGIN_STEPS.map(([title], i) => (
           <li key={title} aria-current={i === step ? 'step' : undefined} className={i === step ? 'font-semibold' : 'text-muted'}>

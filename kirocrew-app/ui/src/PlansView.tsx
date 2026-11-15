@@ -866,19 +866,24 @@ export function ArchivePlanDialog(props: { workspaceId: string; row: PlanRow; cl
   }
   return (
     // Esc, Back and a click outside do what Cancel does.
-    <Modal id="avoozl-archive-plan" role="alertdialog" width="32rem" backLabel="Cancel" attrs={{ 'data-archive-plan': true }}
-      title={<>Archive the spec {row.name}?</>}
+    <Modal
+      id="avoozl-archive-plan"
+      role="alertdialog"
+      width="32rem"
+      backLabel="Cancel"
+      attrs={{ 'data-archive-plan': true }}
+      title={`Archive the spec ${row.name}?`}
       onDismiss={() => props.onDone(null)}
       footer={
         <>
-        <Btn ref={cancel} type="button" onClick={() => props.onDone(null)}>
-          Cancel
-        </Btn>
-        <Btn type="button" primary data-archive-confirm disabled={busy} onClick={() => void run()}>
-          Archive spec
-        </Btn>
+          <Btn ref={cancel} type="button" onClick={() => props.onDone(null)}>
+            Cancel
+          </Btn>
+          <Btn type="button" primary data-archive-confirm disabled={busy} onClick={() => void run()}>
+            Archive spec
+          </Btn>
         </>
-  }
+      }
     >
       <ul className="flex flex-col gap-1 pl-5 text-sm" style={{ listStyle: 'disc' }}>
         {ARCHIVE_LINES.map((line) => (
@@ -952,19 +957,24 @@ export function DeletePlanDialog(props: { workspaceId: string; row: PlanRow; cli
   const blocked = Boolean(folder && preview?.folder?.dirty)
   return (
     // Esc, Back and a click outside do what Cancel does.
-    <Modal id="avoozl-delete-plan" role="alertdialog" width="32rem" backLabel="Cancel" attrs={{ 'data-delete-plan': preview?.retire ? 'retire' : 'draft' }}
-      title={<>Delete the spec {preview?.title ?? row.name}?</>}
+    <Modal
+      id="avoozl-delete-plan"
+      role="alertdialog"
+      width="32rem"
+      backLabel="Cancel"
+      attrs={{ 'data-delete-plan': preview?.retire ? 'retire' : 'draft' }}
+      title={`Delete the spec ${preview?.title ?? row.name}?`}
       onDismiss={() => props.onDone(null)}
       footer={
         <>
-        <Btn ref={cancel} type="button" onClick={() => props.onDone(null)}>
-          Cancel
-        </Btn>
-        <Btn type="button" data-danger disabled={!preview || busy || blocked} onClick={() => void run()} style={{ background: 'var(--danger)', borderColor: 'var(--danger)', color: '#fff' }}>
-          Delete spec
-        </Btn>
+          <Btn ref={cancel} type="button" onClick={() => props.onDone(null)}>
+            Cancel
+          </Btn>
+          <Btn type="button" data-danger disabled={!preview || busy || blocked} onClick={() => void run()} style={{ background: 'var(--danger)', borderColor: 'var(--danger)', color: '#fff' }}>
+            Delete spec
+          </Btn>
         </>
-  }
+      }
     >
       {!preview && !error && <p className="text-sm text-muted">Counting its tasks…</p>}
       {preview && (

@@ -214,20 +214,23 @@ export function StopLineDialog(props: { workspaceId: string; onClose: () => void
       boxRef={box}
       attrs={{ 'data-stop-dialog': true }}
       unsaved={JSON.stringify(form) !== JSON.stringify(emptyPull()) && { title: 'Discard this stop?', body: 'The line keeps running. What you entered is lost.', action: 'Discard' }}
-      title={<><Pause size={ICON} aria-hidden="true" style={{ color: 'var(--danger)' }} /> Stop the line</>}
+      title={
+        <span className="inline-flex items-center gap-1.5">
+          <Pause size={ICON} aria-hidden="true" style={{ color: 'var(--danger)' }} /> Stop the line
+        </span>
+      }
       onDismiss={close}
-    
       footer={
         <>
-        <Btn type="button" onClick={close}>
-          Cancel
-        </Btn>
-        <Btn type="button" data-danger data-stop-confirm onClick={() => void pull()} disabled={busy} style={FILL}>
-          <Pause size={ICON} aria-hidden="true" />
-          {form.kind === 'agents' ? 'Stop all agents' : 'Stop the line'}
-        </Btn>
+          <Btn type="button" onClick={close}>
+            Cancel
+          </Btn>
+          <Btn type="button" data-danger data-stop-confirm onClick={() => void pull()} disabled={busy} style={FILL}>
+            <Pause size={ICON} aria-hidden="true" />
+            {form.kind === 'agents' ? 'Stop all agents' : 'Stop the line'}
+          </Btn>
         </>
-  }
+      }
     >
       <div>
         <p id="avoozl-stop-line" className="text-sm text-muted">
