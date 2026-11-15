@@ -94,9 +94,10 @@ export async function openApproval(
     }),
     base = ref ?? (await github.repository(repository)).default_branch,
     head = await github.branchHead(repository, base),
-    // A closed pull request leaves its branch, so a new try takes a new name.
+    // A merged or closed pull request leaves its branch, so a new try or a
+    // new revision of the spec takes a new name.
     attempt = (previous?.attempt || 0) + 1,
-    branch = `avoozl/approve-${spec}${attempt > 1 ? `-${attempt}` : ""}`;
+    branch = `avoozl/approve-${spec}-${String(hash).slice(0, 8)}${attempt > 1 ? `-${attempt}` : ""}`;
   await github.createBranch(repository, branch, head.oid);
   for (const [path, text] of Object.entries(changes))
     await github.putFile(repository, {

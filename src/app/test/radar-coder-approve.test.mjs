@@ -132,7 +132,8 @@ test("the pull request sets Status in three prose files and nothing is recorded 
   assert.ok(
     github.written.every(
       (f) =>
-        f.branch === "avoozl/approve-demo" && statusOf(f.text) === "Approved",
+        f.branch === "avoozl/approve-demo-h1" &&
+        statusOf(f.text) === "Approved",
     ),
   );
   // Still open: a read records nothing.
@@ -152,6 +153,9 @@ test("a merge records the merge commit and the approver", async () => {
   // Asking again changes nothing and opens no second pull request.
   assert.equal((await openApproval(store, args)).commit, SHA);
   assert.equal(github.pulls.length, 1);
+  // A new revision of the spec gets its own branch, not the merged one.
+  const next = await openApproval(store, { ...args, hash: "h2" });
+  assert.notEqual(next.branch, state.branch);
 });
 
 test("a closed unmerged pull request records nothing", async () => {
