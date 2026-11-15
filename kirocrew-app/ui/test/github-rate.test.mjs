@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { rateLines } from '../src/settings-api.ts'
+import { rateLines, usageRows } from '../src/settings-api.ts'
 
 test('Settings > GitHub shows the last numbers, the limit and the 304 share', () => {
   assert.deepEqual(rateLines(undefined), [])
@@ -49,4 +49,20 @@ test('the details are in the tooltip, not on the button', () => {
   const rate = { cacheSeconds: 60, resources: { core: { limit: 5000, remaining: 4000, resetAt: '' } } }
   assert.match(refreshTip(rate, 32, 0), /Reads again in 32s.*kept 60s.*4000 of 5000/)
   assert.match(refreshTip(rate, 32, 600), /rate limit is reached/)
+})
+
+test('Settings > GitHub lists calls this hour by source, busiest first', () => {
+  assert.deepEqual(usageRows(undefined), [])
+  const rows = usageRows({
+    resources: {},
+    limitedUntil: null,
+    limitedResource: null,
+    calls: 0,
+    notModified: 0,
+    notModifiedShare: null,
+    hourCalls: 14,
+    bySource: { view: { calls: 2, notModified: 1, cached: 9 }, tick: { calls: 12, notModified: 0, cached: 0 } },
+  })
+  assert.deepEqual(rows.map((row) => row.source), ['tick', 'view'])
+  assert.equal(rows[1].cached, 9)
 })
