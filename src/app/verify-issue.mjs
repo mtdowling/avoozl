@@ -474,13 +474,23 @@ export async function verifyIssue(
   return result;
 }
 
-// One line per check: `name  ok  detail`, or `FAIL name: reason`.
+// One line per check: `name  ok  detail`, or `FAIL name: reason`. A spec on a
+// plans branch is not on the code branch, so a passing result with a ref also
+// prints the commands that read it, the same ones --json returns as `source`.
 export function formatVerification(result) {
-  return result.checks
-    .map((check) =>
-      check.status === "fail"
-        ? `FAIL ${check.name}: ${check.reason}`
-        : `${check.name.padEnd(9)} ${check.status}${check.reason ? "  " + check.reason : ""}`,
-    )
-    .join("\n");
+  const lines = result.checks.map((check) =>
+    check.status === "fail"
+      ? `FAIL ${check.name}: ${check.reason}`
+      : `${check.name.padEnd(9)} ${check.status}${check.reason ? "  " + check.reason : ""}`,
+  );
+  if (result.source)
+    lines.push(
+      "",
+      `The spec is on the plans branch ${result.source.ref}, not the code branch.`,
+      "Fetch it:",
+      `  ${result.source.fetch}`,
+      "Read its files:",
+      ...result.source.show.map((command) => `  ${command}`),
+    );
+  return lines.join("\n");
 }
