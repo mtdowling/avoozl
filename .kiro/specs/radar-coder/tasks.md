@@ -571,7 +571,7 @@ Requirement RC26. Where each mirror change lands on the public repository, and t
 - [x] rc-25.5 Block with one row and no retry; Stop the line stops forwarding; explicit refspecs, after rc-25.3, rc-4.2 [RC26.5, RC26.6] (§D31.2)
   - `forwardGuard` runs 1 to 4 in order and returns the first block; one Needs you row naming the rule; no automatic retry; **Try again** re-runs everything; an open Stop the line disables forwarding in every mode; every push has one explicit refspec; tests 5, 7 and 8.
   - Done when: A block gives one row across three ticks and zero retries; a scan of push calls finds no banned form; with a stop open, `auto` pushes nothing.
-- [ ] rc-25.6 Audit on the tick of what landed on the source, after rc-25.4 [RC26.5] (§D31.2)
+- [x] rc-25.6 Audit on the tick of what landed on the source, after rc-25.4 [RC26.5] (§D31.2)
   - Compares each record's receipt with what GitHub reports on `source`; a difference opens one row and a Stop the line for forwarding; test 6.
   - Done when: A fake source with an extra file, another author or a ref named for the plans branch gives one row and a stop.
 - [ ] rc-25.7 Targets `branch` and `batch`: public branch copy, epic batch, one public PR, after rc-25.1, rc-25.5, rc-23.5 [RC26.3, RC26.4] (§D31.1)
