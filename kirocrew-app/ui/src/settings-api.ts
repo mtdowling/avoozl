@@ -275,7 +275,6 @@ export interface RepositoryForm {
   allowedActors: string
   minimumPermission: string
   requiredChecks: string
-  concurrency: string
   // github.repositories.<id>.cacheSeconds; blank follows the workspace value.
   cacheSeconds: string
   // Release (RC4.5): the mode, and how many crews work the repository.
@@ -439,7 +438,6 @@ const SHOWN = new Set([
   'allowedActors',
   'minimumPermission',
   'requiredChecks',
-  'concurrency',
   'cacheSeconds',
   'priority',
   'pullRequestReviews',
@@ -468,7 +466,6 @@ export function emptyRepository(name = ''): RepositoryForm {
     allowedActors: '',
     minimumPermission: '',
     requiredChecks: '',
-    concurrency: '',
     cacheSeconds: '',
     releaseMode: '',
     releaseCapacity: '',
@@ -518,7 +515,6 @@ export function toForm(github: Policy): SettingsForm {
         allowedActors: joined(entry.allowedActors),
         minimumPermission: str(entry.minimumPermission),
         requiredChecks: joined(entry.requiredChecks),
-        concurrency: str(entry.concurrency),
         cacheSeconds: str(entry.cacheSeconds),
         releaseMode: str(record(entry.release).mode),
         releaseCapacity: str(record(entry.release).capacity),
@@ -617,7 +613,6 @@ export function toPolicy(form: SettingsForm): Policy {
               allowedActors: splitList(repository.allowedActors),
               minimumPermission: blank(repository.minimumPermission),
               requiredChecks: splitList(repository.requiredChecks),
-              concurrency: count(repository.concurrency),
               cacheSeconds: count(repository.cacheSeconds),
               // The mode and capacity are shown; scopes pass through unchanged.
               release: (() => {
@@ -703,7 +698,6 @@ export const REPOSITORY_FIELD_RULES: Record<string, FieldRule> = {
   name: { required: true },
   baseBranch: { required: true, when: 'with a GitHub mode' },
   coder: { required: false, blank: 'blank: Issue Radar in single-repo mode, worker sessions otherwise' },
-  concurrency: { required: false, blank: 'blank: 1 at a time' },
   cacheSeconds: { required: false, blank: 'blank: the workspace value' },
   releaseCapacity: { required: false, blank: 'blank: 2 at a time' },
   allowedActors: { required: false, blank: 'blank: anyone with the minimum permission' },
