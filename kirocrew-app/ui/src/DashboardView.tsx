@@ -161,6 +161,9 @@ function AttentionRow({
 }
 
 
+// A compact card's button words; the full action is its name and tooltip.
+const SHORT_ACTION: Record<string, string> = { crew: 'Copy values', repository: 'Add a repo', epics: 'Plan an epic' }
+
 const ROLE_LABEL: Record<string, string> = { worker: 'Worker', checks: 'Checks', planner: 'Planner' }
 const roleLabel = (row: InFlight) =>
   ROLE_LABEL[row.role] ?? (row.role === 'worker' ? 'Worker' : `Reviewer · ${row.role}`)
@@ -380,13 +383,14 @@ export default function DashboardView(props: {
             line={card.line}
             action={
               <>
-                <SmallBtn primary onClick={setupAction[card.id as Exclude<SetupId, 'driver'>]}>
-                  {card.action}
+                {/* Short words on the button; its name is the whole action. */}
+                <SmallBtn primary onClick={setupAction[card.id as Exclude<SetupId, 'driver'>]} attrs={{ 'aria-label': card.action }}>
+                  {SHORT_ACTION[card.id] ?? card.action}
                 </SmallBtn>
                 {card.id === 'crew' && (
-                  <a href="/issue-radar" className="text-xs underline">
-                    Open Radar › Crews
-                  </a>
+                  <span className="ml-auto">
+                    <IconLink icon={ExternalLink} to="/issue-radar" label="Open Radar › Crews" />
+                  </span>
                 )}
                 {card.id === 'repository' && <StartDemoButton label="Try the demo" />}
               </>
