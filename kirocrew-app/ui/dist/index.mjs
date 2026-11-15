@@ -8311,9 +8311,11 @@ function Nl({ title: e, children: t, empty: n, actions: r, emptyAction: i }) {
 	});
 }
 function Pl({ item: e, attach: t, onOpen: n, onInfo: r, onAsk: i, onTitle: a }) {
+	let o = Et();
 	return /* @__PURE__ */ w("li", {
 		className: "flex flex-wrap items-start gap-2 border-t py-2 first:border-t-0",
 		style: { borderColor: "var(--border)" },
+		"data-attention-row": !0,
 		children: [
 			/* @__PURE__ */ C(Z, {
 				variant: [
@@ -8326,6 +8328,10 @@ function Pl({ item: e, attach: t, onOpen: n, onInfo: r, onAsk: i, onTitle: a }) 
 			}),
 			/* @__PURE__ */ w("span", {
 				className: "min-w-0 flex-1",
+				style: o ? {
+					order: 3,
+					flexBasis: "100%"
+				} : void 0,
 				children: [
 					/* @__PURE__ */ C(q, {
 						text: Vi(e),
@@ -8351,6 +8357,10 @@ function Pl({ item: e, attach: t, onOpen: n, onInfo: r, onAsk: i, onTitle: a }) 
 			}),
 			/* @__PURE__ */ w("span", {
 				className: "flex gap-1.5",
+				style: o ? {
+					order: 2,
+					marginLeft: "auto"
+				} : void 0,
 				children: [
 					e.href && /* @__PURE__ */ C("a", {
 						href: Q(e.href),

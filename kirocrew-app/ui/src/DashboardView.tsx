@@ -9,6 +9,7 @@ import { attentionTarget, railFor, attentionTip, summarize, type Attention, type
 import { attachHref, duration, relativeTime, sessionHref } from './task-api.ts'
 import { useTaskDrawer } from './drawer-context.ts'
 import { useMedia } from './use-media.ts'
+import { usePhone } from './list-detail.ts'
 import { plansClient } from './plans-api.ts'
 import { CONFLICT_LABELS, viewsClient, type ConflictItem, type RadarClaim, type RadarCrewStrip } from './views-api.ts'
 import { useRead } from './useRead.ts'
@@ -100,12 +101,15 @@ function AttentionRow({
   onAsk: () => void
   onTitle: () => void
 }) {
+  // A phone puts the badge and buttons on one line and the title under them
+  // at full width, so the title does not wrap a word per line.
+  const phone = usePhone()
   return (
-    <li className="flex flex-wrap items-start gap-2 border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)' }}>
+    <li className="flex flex-wrap items-start gap-2 border-t py-2 first:border-t-0" style={{ borderColor: 'var(--border)' }} data-attention-row>
       <Badge variant={['decision', 'needs-human', 'review', 'manual'].includes(item.kind) ? 'warning' : 'danger'}>
         {KIND_LABEL[item.kind] ?? item.kind}
       </Badge>
-      <span className="min-w-0 flex-1">
+      <span className="min-w-0 flex-1" style={phone ? { order: 3, flexBasis: '100%' } : undefined}>
         <Tooltip text={attentionTip(item)}>
           {(describedBy) => (
             <button type="button" className="text-left font-medium underline" onClick={onTitle} aria-describedby={describedBy} data-attention-title>
@@ -116,7 +120,7 @@ function AttentionRow({
         <span className="text-xs text-muted">{item.taskId}</span>
         <span className="block text-sm text-muted">{item.detail}</span>
       </span>
-      <span className="flex gap-1.5">
+      <span className="flex gap-1.5" style={phone ? { order: 2, marginLeft: 'auto' } : undefined}>
         {item.href && (
           <a href={linkHref(item.href)} target="_blank" rel="noreferrer" className="self-center text-sm underline">
             Issue
