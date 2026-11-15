@@ -6287,6 +6287,109 @@
         "39.4",
         "39.5"
       ]
+    },
+    "40.1": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 40 (Cross-model plan review). See R86.1, R86.10, R86.13; §4.26.",
+      "acceptance": [
+        "Plan reviewer role and `planReview` settings",
+        "`models.planReviewer` saves from Settings › Models, validation refuses one equal to a named planner, and `planReview.mode` and `planReview.rounds` are checked."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ]
+    },
+    "40.2": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 40 (Cross-model plan review). See R86.2, R86.5, R86.6; §4.26.",
+      "acceptance": [
+        "Review rounds and spec findings keyed by hash, after 40.1",
+        "Spec findings are stored per plan and revision hash; a bad file or line, and a session on the writer's model, are refused; a skipped review records its reason."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "40.1"
+      ]
+    },
+    "40.3": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 40 (Cross-model plan review). See R86.3, R86.4, R86.7, R86.10; §4.26.",
+      "acceptance": [
+        "Tick opens the reviewer, then the planner answers, after 40.2",
+        "A stored draft revision gets one read-only reviewer chat on the reviewer model, the planner answers each finding fixed or answered, and rounds stop at `planReview.rounds`."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "40.2"
+      ]
+    },
+    "40.4": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 40 (Cross-model plan review). See R86.8, R86.9; §4.26.",
+      "acceptance": [
+        "Review counts in the Approve dialogs, after 40.2",
+        "The single and batch Approve dialogs show reviewer model, found, fixed and for you per spec with each open finding, and approval gives the same result with or without a review."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "40.2"
+      ]
+    },
+    "40.5": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 40 (Cross-model plan review). See R86.11, R86.12; §4.26.",
+      "acceptance": [
+        "CLI, MCP tools and Flow planning, after 40.3",
+        "`avoozl plan review SPEC` prints and starts a review, the planner reads and answers findings over MCP, and Flow shows review time and usage under Planning per spec."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "40.3"
+      ]
+    },
+    "avoozl-p50": {
+      "kind": "leaf",
+      "repository": "avoozl",
+      "summary": "Phase 40 (Cross-model plan review). Proof. See R86; §4.26.",
+      "acceptance": [
+        "Proof: a draft is reviewed on another model and the person sees it at approval",
+        "Expected: no review runs on the writer's model or with no reviewer set; a different model finds the wrong reference and hidden order at the right line; a new hash gets a fresh round; both Approve dialogs show the counts and approval is unchanged, with no GitHub write."
+      ],
+      "completion": "integrated",
+      "checks": [
+        "npm test",
+        "git diff --check"
+      ],
+      "requires": [
+        "40.1",
+        "40.2",
+        "40.3",
+        "40.4",
+        "40.5"
+      ]
     }
   }
 }
