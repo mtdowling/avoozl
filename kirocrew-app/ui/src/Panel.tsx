@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Btn } from '@kirocrew/app-sdk/ui'
 import Badge from './Badge.tsx'
+import Logo from './Logo.tsx'
 import { ConfirmProvider } from './controls.tsx'
 import { railFor } from './dashboard-api.ts'
 import { flowClient, type FlowViewModel } from './flow-api.ts'
@@ -18,6 +19,8 @@ import { classifyChat, currentChat, opensItself, type PanelChat } from './panel-
 import {
   PANEL_REFRESH_MS,
   driverView,
+  drivenRoot,
+  sameRoot,
   panelModel,
   startRefresh,
   type FlightRow,
@@ -203,6 +206,21 @@ export default function AvoozlPanel() {
       return
     }
     if (!id) return
+    // In a driver chat, read the workspace this chat drives, not the one the
+    // app page last showed: a Nupp driver's panel shows Nupp.
+    try {
+      const root = drivenRoot(await readDriverSession(api, id), chat)
+      if (root) {
+        const drives = (await workspaceClient(api).list()).items.find((item) => sameRoot(item.root, root))
+        if (drives && drives.id !== id) {
+          id = drives.id
+          idRef.current = id
+          setWorkspaceId(id)
+        }
+      }
+    } catch {
+      // Keep the workspace we have; the reads below still run.
+    }
     const ok = <T,>(read: Promise<T>) => read.then((value) => value, () => null)
     const [conflicts, crewRead, remote, queue, flow, listed, stored, driverRead] = await Promise.all([
       ok(views.conflicts(id)),
@@ -221,7 +239,7 @@ export default function AvoozlPanel() {
     if (stored) setSpecs(stored.items)
     setDriver(driverRead)
     setNow(Date.now())
-  }, [api, flows, plans, releases, views])
+  }, [api, chat, flows, plans, releases, views])
 
   useEffect(
     () =>
@@ -374,14 +392,16 @@ export default function AvoozlPanel() {
     </Fold>
   )
   const line = (
-    <div data-panel-line data-stopped={stopped ? '' : undefined} className="flex flex-col gap-2" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div data-panel-line data-stopped={stopped ? '' : undefined} className="flex flex-wrap items-center gap-2" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
       {stopped ? <Badge variant="danger">Line stopped</Badge> : <Badge variant="success">Line running</Badge>}
-      {model.stops.map((text) => (
-        <Muted key={text}>{text}</Muted>
-      ))}
       <ConfirmProvider>
         <StopLineButton workspaceId={workspaceId} />
       </ConfirmProvider>
+      {model.stops.map((text) => (
+        <span key={text} style={{ flexBasis: '100%' }}>
+          <Muted>{text}</Muted>
+        </span>
+      ))}
     </div>
   )
   const view = driverView(driver)
@@ -389,7 +409,17 @@ export default function AvoozlPanel() {
     <section data-panel-driver={view.state} className="flex flex-col gap-2" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <h3 className="m-0 font-semibold" style={{ margin: 0 }}>
         Driver session <Badge variant={view.state === 'running' ? 'success' : undefined}>{{ running: 'Running', idle: 'Quiet', none: 'Not started', unknown: 'Unknown' }[view.state]}</Badge>
+        {view.workspace && (
+          <span className="text-xs font-normal text-muted" data-driver-workspace style={{ marginLeft: 6 }}>
+            {view.workspace}
+          </span>
+        )}
       </h3>
+      {view.elsewhere && (
+        <span data-driver-elsewhere className="text-sm">
+          {view.elsewhere.text} {link(view.elsewhere.href, 'Open')}
+        </span>
+      )}
       <Muted>
         {view.note}
         {driver?.lastSeenAt && view.state !== 'none' ? ` Last seen ${relativeTime(driver.lastSeenAt, now)}.` : ''}
@@ -438,9 +468,18 @@ export default function AvoozlPanel() {
       </Btn>
     </section>
   )
+  // A real button with the Avoozl mark, in the app's button style and theme
+  // colors, so it never reads as a bare text link in the host's side panel.
   const toPage = (
-    <Btn type="button" onClick={() => navigate(AVOOZL_PAGE)}>
-      Open the Avoozl page
+    <Btn
+      type="button"
+      aria-label="Open Avoozl"
+      data-open-avoozl
+      onClick={() => navigate(AVOOZL_PAGE)}
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 8, alignSelf: 'flex-start', padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-elevated, var(--card))', color: 'var(--text)', fontWeight: 600, cursor: 'pointer' }}
+    >
+      <Logo size={18} />
+      Open Avoozl
     </Btn>
   )
 

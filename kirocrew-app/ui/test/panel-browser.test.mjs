@@ -195,3 +195,65 @@ test('coming back after a while shows what finished and what is new, and Got it 
   await new Promise((resolve) => setTimeout(resolve, 300))
   assert.equal(await count('[data-since-recap]'), 0)
 })
+
+// The line's status and its Stop the line button share one row, on a wide
+// panel and on a 390 px phone, light and dark.
+for (const [width, height] of [[1280, 900], [390, 800]])
+  for (const theme of ['light', 'dark'])
+    test(`Line running and Stop the line sit on one row at ${width} px ${theme}`, { skip }, async () => {
+      await page.open(harness.url({ page: 'panel', theme, sid: 'chat-1' }), { width, height, dark: theme === 'dark' })
+      await page.until(`Boolean(document.querySelector('[data-panel-line] [data-stop-line]'))`)
+      const row = await page.evaluate(`(() => {
+        const line = document.querySelector('[data-panel-line]')
+        const badge = [...line.querySelectorAll('*')].find((el) => el.children.length === 0 && /^Line (running|stopped)$/.test(el.textContent.trim()))
+        const stop = line.querySelector('[data-stop-line]')
+        const a = badge.getBoundingClientRect(), b = stop.getBoundingClientRect()
+        return { badge: badge.textContent.trim(), stop: stop.textContent.trim(), overlap: Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top), right: b.right, width: innerWidth }
+      })()`)
+      assert.equal(row.badge, 'Line running')
+      assert.match(row.stop, /Stop the line/)
+      assert.ok(row.overlap > 0, `on one row (vertical overlap ${row.overlap} px)`)
+      assert.ok(row.right <= row.width, 'inside the panel')
+    })
+
+// The way to the app page is a styled button with the Avoozl mark, named
+// "Open Avoozl", on a wide panel and on a 390 px phone, light and dark.
+for (const [width, height] of [[1280, 900], [390, 800]])
+  for (const theme of ['light', 'dark'])
+    test(`Open Avoozl is a button with the logo at ${width} px ${theme}`, { skip }, async () => {
+      await page.open(harness.url({ page: 'panel', theme, sid: 'chat-1' }), { width, height, dark: theme === 'dark' })
+      await page.until(`Boolean(document.querySelector('[data-open-avoozl]'))`)
+      const button = await page.evaluate(`(() => {
+        const b = document.querySelector('[data-open-avoozl]')
+        const r = b.getBoundingClientRect(), s = getComputedStyle(b), logo = b.querySelector('svg').getBoundingClientRect()
+        return { tag: b.tagName, label: b.getAttribute('aria-label'), text: b.textContent.trim(), border: s.borderTopStyle, borderWidth: parseFloat(s.borderTopWidth), bg: s.backgroundColor, logo: logo.width, right: r.right, width: innerWidth, height: r.height }
+      })()`)
+      assert.equal(button.tag, 'BUTTON')
+      assert.equal(button.label, 'Open Avoozl')
+      assert.equal(button.text, 'Open Avoozl')
+      assert.equal(button.border, 'solid')
+      assert.ok(button.borderWidth >= 1, 'it has a border')
+      assert.notEqual(button.bg, 'rgba(0, 0, 0, 0)', 'it has a background')
+      assert.ok(button.logo >= 16, 'the logo shows')
+      assert.ok(button.right <= button.width, 'inside the panel')
+      assert.ok(button.height >= 28, 'big enough to tap')
+    })
+
+// The driver line names its workspace. In a chat that is another workspace's
+// driver, the panel reads that workspace, not the one the app page last
+// showed; in any other chat it says which workspace has a driver.
+test('a Nupp driver chat\'s panel reads Nupp and shows it running', { skip }, async () => {
+  await page.open(harness.url({ page: 'panel', theme: 'light', sid: 'chat-nupp', driver: 'nupp' }), { width: 390, height: 800 })
+  await page.until(`document.querySelector('[data-panel-driver]')?.dataset.panelDriver === 'running'`)
+  assert.equal(await text('[data-driver-workspace]'), 'Nupp')
+  assert.equal(await count('[data-driver-elsewhere]'), 0)
+})
+
+test('another chat: "No driver for Harness. Nupp has one: Open", with the workspace name', { skip }, async () => {
+  await page.open(harness.url({ page: 'panel', theme: 'light', sid: 'chat-1', driver: 'nupp' }), { width: 390, height: 800 })
+  await page.until(`Boolean(document.querySelector('[data-driver-elsewhere]'))`)
+  assert.equal(await page.evaluate(`document.querySelector('[data-panel-driver]').dataset.panelDriver`), 'none')
+  assert.equal(await text('[data-driver-workspace]'), 'Harness')
+  assert.match(await text('[data-driver-elsewhere]'), /^No driver for Harness\. Nupp has one: Open$/)
+  assert.equal(await page.evaluate(`document.querySelector('[data-driver-elsewhere] a').getAttribute('href')`), '/chat?sid=chat-nupp')
+})

@@ -465,12 +465,26 @@ export interface RadarClaim {
   stale: boolean
   // A claim label with no live marker on the issue.
   noMarker: boolean
+  // The Avoozl that released the issue (its marker's instance ID), when the
+  // marker names one; the claim comment's time; the issue's last update.
+  instanceId?: string | null
+  claimedAt?: string | null
+  issueUpdatedAt?: string | null
+}
+
+// The claims of one Avoozl; `instanceId` null is the "No Avoozl" group.
+export interface RadarGroup {
+  instanceId: string | null
+  name: string
+  own: boolean
+  rows: RadarClaim[]
 }
 
 export interface RadarCrews {
   readAt: string | null
   stale: number
   rows: RadarClaim[]
+  groups?: RadarGroup[]
   errors: { repository: string; error: string }[]
   // What GitHub cannot show about a crew.
   unseen: string[]

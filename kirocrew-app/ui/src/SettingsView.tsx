@@ -42,6 +42,7 @@ import {
   LOCAL_HIDDEN_LINE,
   SUB_ISSUE_LINE,
   isGitHubMode,
+  rateLines,
   defaultCoder,
   modeKey,
   unusedInLocal,
@@ -63,7 +64,8 @@ import ContentRulesSettings from './ContentRulesSettings.tsx'
 import FlowSettings from './FlowSettings.tsx'
 import DriverSessionBox from './DriverSessionBox.tsx'
 import { InstanceRename } from './InstanceName.tsx'
-import { MirrorSlot, RetiredBanner, SetupActions } from './SettingsSlots.tsx'
+import MirrorSetup from './MirrorSetup.tsx'
+import { RetiredBanner } from './SettingsSlots.tsx'
 import DeliverySettings from './DeliverySettings.tsx'
 import { useSteppedState } from './NavHistory.tsx'
 import { useRead } from './useRead.ts'
@@ -85,6 +87,10 @@ const grid = (min = 220): CSSProperties => ({
   alignItems: 'start',
 })
 const WIDTH = { sm: '9rem', md: '18rem', lg: '28rem' } as const
+
+// Release N (release.capacity) is the one concurrency knob: Radar crews set
+// their own, and Avoozl's local workers (the old `concurrency`) are retired.
+export const RELEASE_N_HELP = 'How many issues get the ready label at once. Crews pick from these.'
 
 export const SETTINGS_TABS = [
   { key: 'driver', label: 'Driver session' },
@@ -194,6 +200,9 @@ function Field(props: {
   raw?: string
   rule?: FieldRule
   width?: keyof typeof WIDTH
+  // One line under the field that says what it does, always shown (it works
+  // on touch, unlike a hover tooltip). The input names it in aria-describedby.
+  help?: string
   children: ReactNode
 }) {
   return (
@@ -203,6 +212,11 @@ function Field(props: {
         <Marker rule={props.rule} />
       </label>
       {props.children}
+      {props.help && (
+        <span id={`${props.id}-help`} className="text-xs text-muted" data-field-help>
+          {props.help}
+        </span>
+      )}
       {props.rule?.blank && <span className="text-xs text-muted">{props.rule.blank}</span>}
       {props.raw && (
         <Tooltip text=".avoozl.json key">
@@ -225,12 +239,14 @@ function Text(props: {
   rule?: FieldRule
   width?: keyof typeof WIDTH
   type?: string
+  help?: string
 }) {
   return (
-    <Field id={props.id} label={props.label} raw={props.raw} rule={props.rule} width={props.width}>
+    <Field id={props.id} label={props.label} raw={props.raw} rule={props.rule} width={props.width} help={props.help}>
       <Input
         id={props.id}
         type={props.type}
+        aria-describedby={props.help ? `${props.id}-help` : undefined}
         value={props.value}
         placeholder={props.placeholder}
         aria-required={props.rule?.required || undefined}
@@ -755,7 +771,7 @@ function MirrorBox(props: { id: string; mirror: MirrorForm; onChange: (mirror: M
   )
 }
 
-function RepositoryEditor(props: {
+export function RepositoryEditor(props: {
   index: number
   repository: RepositoryForm
   choices: SettingsChoices
@@ -825,17 +841,17 @@ function RepositoryEditor(props: {
             <div style={grid()}>
               <Text id={`${id}-name`} label="Repository" raw="key" rule={REPOSITORY_FIELD_RULES.name} placeholder="owner/name" value={repository.name} onChange={(value) => set({ name: value })} />
               <Text id={`${id}-base`} label="Default branch" raw="baseBranch" rule={REPOSITORY_FIELD_RULES.baseBranch} placeholder="main" width="md" value={repository.baseBranch} onChange={(value) => set({ baseBranch: value })} />
-              <Text id={`${id}-concurrency`} label="Tasks at once" raw="concurrency" rule={REPOSITORY_FIELD_RULES.concurrency} placeholder="1" type="number" width="sm" value={repository.concurrency} onChange={(value) => set({ concurrency: value })} />
+              <Text id={`${id}-cache`} label="Keep GitHub answers (seconds)" raw="cacheSeconds" rule={REPOSITORY_FIELD_RULES.cacheSeconds} placeholder="workspace value" type="number" width="sm" value={repository.cacheSeconds} onChange={(value) => set({ cacheSeconds: value })} />
             </div>
             <Field id={`${id}-coder-worker`} label="Who codes" raw="coder" rule={REPOSITORY_FIELD_RULES.coder}>
               <CoderPicker id={`${id}-coder`} mode={props.mode} value={repository.coder} onChange={(value) => set({ coder: value })} />
             </Field>
             <MirrorBox id={`${id}-mirror`} mirror={repository.mirror} onChange={(mirror) => set({ mirror })} />
+            <div style={grid()}>
+              <Text id={`${id}-release-capacity`} label="Release N" raw="release.capacity" rule={REPOSITORY_FIELD_RULES.releaseCapacity} help={RELEASE_N_HELP} placeholder="2" type="number" width="sm" value={repository.releaseCapacity} onChange={(value) => set({ releaseCapacity: value })} />
+            </div>
             {(repository.coder || defaultCoder(props.mode)) === 'issue-radar' && (
               <>
-                <div style={grid()}>
-                  <Text id={`${id}-release-capacity`} label="Crews working this repository" raw="release.capacity" rule={REPOSITORY_FIELD_RULES.releaseCapacity} placeholder="2" type="number" width="sm" value={repository.releaseCapacity} onChange={(value) => set({ releaseCapacity: value })} />
-                </div>
                 <Field id={`${id}-release-mode`} label="Release mode" raw="release.mode">
                   <ReleaseModePicker id={`${id}-release-mode`} mode={repository.releaseMode} onMode={(value) => set({ releaseMode: value })} />
                 </Field>
@@ -1274,6 +1290,7 @@ function GeneralTab(props: {
                 onChange={(value) => set({ defaultAuthority: value })}
               />
               <Text id="avoozl-settings-epic" label="Epic issue type" raw="epicIssueType" rule={{ required: false, blank: 'blank: epics get no issue type' }} placeholder="Epic" width="md" value={form.epicIssueType} onChange={(value) => set({ epicIssueType: value })} />
+              <Text id="avoozl-settings-cache" label="Keep GitHub answers (seconds)" raw="cacheSeconds" rule={{ required: false, blank: 'blank: 60. 0 turns the cache off' }} placeholder="60" type="number" width="sm" value={form.cacheSeconds} onChange={(value) => set({ cacheSeconds: value })} />
               {shown.has('subIssueCap') && (
                 <Text id="avoozl-settings-sub-issues" label="Sub-issues per parent" raw="subIssues.maxPerParent" rule={{ required: false, blank: SUB_ISSUE_LINE }} placeholder="100" type="number" width="sm" value={form.maxPerParent} onChange={(value) => set({ maxPerParent: value })} />
               )}
@@ -1455,6 +1472,14 @@ function PolicyEditor(props: { workspaceId: string; tab: SettingsTab; onOpenPlan
         />
       )}
       {tab === 'github' && <ThisComputer workspaceId={workspaceId} />}
+      {tab === 'github' && rateLines(settings.rate).length > 0 && (
+        <div className="text-xs text-muted" data-github-rate>
+          <p className="font-medium">GitHub calls, last known</p>
+          {rateLines(settings.rate).map((line) => (
+            <p key={line}>{line}</p>
+          ))}
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-2">
         <TipBtn tooltip="Check these settings without saving them" onClick={() => void check()} disabled={saving}>
           Check
@@ -1513,6 +1538,8 @@ class TabBoundary extends Component<{ label: string; children: ReactNode }, { er
 
 function SettingsBody(props: { tab: SettingsTab; workspaceId: string | null; onTab: (tab: SettingsTab) => void } & Pick<Parameters<typeof SettingsView>[0], 'onSelectWorkspace' | 'onListChange' | 'onOpenPlans'>) {
   const { tab, workspaceId } = props
+  // Bumped after a mirror setup applies, so the form and raw file reload.
+  const [version, setVersion] = useState(0)
   if (tab === 'workspaces') return <WorkspaceView selected={workspaceId} onSelect={props.onSelectWorkspace} onListChange={props.onListChange} />
   if (tab === 'driver') return <DriverSessionBox workspaceId={workspaceId} />
   if (tab === 'instance') return workspaceId ? <InstanceRename workspaceId={workspaceId} /> : <p className="text-sm text-muted">Pick a workspace first.</p>
@@ -1531,12 +1558,9 @@ function SettingsBody(props: { tab: SettingsTab; workspaceId: string | null; onT
   return (
     <div className="flex flex-col gap-3.5">
       {tab === 'repositories' && (
-        <>
-          <SetupActions />
-          <MirrorSlot />
-        </>
+        <MirrorSetup workspaceId={workspaceId} onApplied={() => setVersion((n) => n + 1)} />
       )}
-      <PolicyEditor workspaceId={workspaceId} tab={tab} onOpenPlans={props.onOpenPlans} />
+      <PolicyEditor key={version} workspaceId={workspaceId} tab={tab} onOpenPlans={props.onOpenPlans} />
     </div>
   )
 }
