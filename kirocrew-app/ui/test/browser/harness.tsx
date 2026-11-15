@@ -28,6 +28,8 @@ import DashboardView, { InFlightRow } from '../../src/DashboardView.tsx'
 import { setupForm } from '../../src/settings-api.ts'
 import { LAYER } from '../../src/layers.ts'
 import { CoderPicker } from '../../src/CoderPicker.tsx'
+import { GateList } from '../../src/TrackerGates.tsx'
+import { waitingGates, type GateRow } from '../../src/release-api.ts'
 import ReleaseQueue from '../../src/ReleaseQueue.tsx'
 import GithubFlow from '../../src/GithubFlow.tsx'
 import { ReleaseModePicker } from '../../src/ReleaseMode.tsx'
@@ -922,6 +924,22 @@ function CrewsRulesPage() {
     </div>
   )
 }
+// ?page=tracker-gates: an open, a failed and a cleared gate, and the Waiting on you filter.
+const GATES: GateRow[] = [
+  { taskId: 'sdk.1', title: 'Wait for the review to ship', tracker: 'ticket-tracker', item: 'REV-1', done: 'the review shipped to the live release', state: 'open', lastCheck: '2026-11-14T12:00:00Z', nextCheck: '2026-11-14T12:02:00Z', evidence: 'In review', link: null, cleared: null, needsYou: false, held: ['sdk.2'] },
+  { taskId: 'sdk.5', title: 'A very long gate title that has to wrap on a phone without any sideways scrolling at all', tracker: 'ticket-tracker', item: 'https://tracker.example.test/a/very/long/path/that/must/wrap/REV-2', done: 'resolved', state: 'failed', lastCheck: '2026-11-14T12:00:00Z', nextCheck: '2026-11-14T12:30:00Z', evidence: 'Rejected by the owner', link: 'https://tracker.example.test/REV-2', cleared: null, needsYou: true, held: [] },
+  { taskId: 'sdk.6', title: 'Cut over', tracker: 'ticket-tracker', item: 'REV-3', done: 'resolved', state: 'cleared', lastCheck: null, nextCheck: null, evidence: null, link: null, cleared: { actor: 'alice', how: 'command', at: '2026-11-14T13:00:00Z', reason: 'Shipped by hand.', lastState: 'failed' }, needsYou: false, held: [] },
+]
+function TrackerGatesPage() {
+  return (
+    <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)', minHeight: '100vh', boxSizing: 'border-box' }}>
+      <HarnessBoundary>
+        <GateList gates={GATES} onClear={() => undefined} />
+        <pre data-waiting>{waitingGates(GATES).map((row) => row.taskId).join(',')}</pre>
+      </HarnessBoundary>
+    </div>
+  )
+}
 // ?page=workflow-map&config=single|plans|local: the Workflow map drawn from a
 // real policy through toForm, with the Crews and rules fields beside it so a
 // jump has somewhere to land.
@@ -977,5 +995,5 @@ function PanelPage() {
   )
 }
 createRoot(document.getElementById('root')!).render(
-  page === 'tip' ? <TipPage /> : page === 'trace' ? <TraceDonePage /> : page === 'panel' ? <PanelPage /> : page === 'workflow-map' ? <WorkflowMapPage /> : page === 'crews-rules' ? <CrewsRulesPage /> : page === 'radar-values' ? <RadarValuesPage /> : intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page === 'activity' ? <ActivityPage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
+  page === 'tip' ? <TipPage /> : page === 'trace' ? <TraceDonePage /> : page === 'panel' ? <PanelPage /> : page === 'workflow-map' ? <WorkflowMapPage /> : page === 'crews-rules' ? <CrewsRulesPage /> : page === 'tracker-gates' ? <TrackerGatesPage /> : page === 'radar-values' ? <RadarValuesPage /> : intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page === 'activity' ? <ActivityPage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
 )

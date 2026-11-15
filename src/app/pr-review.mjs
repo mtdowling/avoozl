@@ -175,7 +175,7 @@ export function reviewDispatches(store) {
       task: receipt.id,
       role: REVIEW_ROLE,
       attempt: receipt.attempt,
-      title: `Code review: ${receipt.repository}#${receipt.number}`,
+      title: `avoozl:code-review ${receipt.repository}#${receipt.number}`,
       folder: "",
       project: false,
       agent: REVIEW_AGENT,
