@@ -4,11 +4,10 @@
 // shows the demo's made-up session and never reads or starts anything.
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Card } from '@kirocrew/app-sdk/ui'
-import Badge from './Badge.tsx'
 import { IconBtn, SmallBtn } from './controls.tsx'
 import { useDemoFixtures } from './Demo.tsx'
 import { useAppApi, useChatLauncher } from './host.ts'
-import { Info, RefreshCw } from './icons.ts'
+import { RefreshCw } from './icons.ts'
 import { Tooltip } from './Tooltip.tsx'
 import { sinceText } from './driver-view-api.ts'
 import { DRIVER_AGENT, DRIVER_START_MESSAGE, driverFromFixture, driverLine, readDriverSession, type DriverRead } from './driver-view-api.ts'
@@ -43,6 +42,7 @@ export default function DriverSessionBox(props: { workspaceId: string | null }) 
   const start = () => openChat({ agent: DRIVER_AGENT, message: DRIVER_START_MESSAGE, autoSend: true })
   const seen = read?.lastSeenAt ? sinceText(Date.parse(read.lastSeenAt), Date.now()) : null
   const line = [
+    read ? `${LABEL[read.state]}.` : '',
     read ? driverLine(read.state) : 'Reading the driver session…',
     seen && read?.state !== 'none' ? `Last seen ${seen}.` : '',
     read?.turnsToday !== undefined && read.turnLimit ? `${read.turnsToday} of ${read.turnLimit} turns today.` : '',
@@ -56,15 +56,22 @@ export default function DriverSessionBox(props: { workspaceId: string | null }) 
     <div data-driver-session={read?.state ?? 'loading'} data-compact-card className="min-w-0">
       <Card className="flex h-full min-w-0 flex-col gap-1" style={{ padding: '8px 12px' }}>
         <div className="flex min-w-0 items-center gap-1.5">
-          <h3 className="m-0 min-w-0 truncate text-sm font-semibold">Driver session</h3>
-          {read && <Badge variant={read.state === 'running' ? 'success' : undefined}>{LABEL[read.state]}</Badge>}
           <Tooltip text={TIP}>
             {(describedBy) => (
-              <span tabIndex={0} role="img" aria-label="About the driver session" aria-describedby={describedBy} data-info-tip className="inline-flex shrink-0 items-center text-muted">
-                <Info size={14} aria-hidden="true" />
-              </span>
+              <h3 tabIndex={0} aria-describedby={describedBy} className="m-0 min-w-0 truncate text-sm font-semibold">
+                Driver session
+              </h3>
             )}
           </Tooltip>
+          {read && (
+            <span
+              role="img"
+              aria-label={LABEL[read.state]}
+              data-driver-state={read.state}
+              className="shrink-0"
+              style={{ width: 8, height: 8, borderRadius: 999, background: read.state === 'running' ? 'var(--ok, #2e7d32)' : 'var(--muted)' }}
+            />
+          )}
         </div>
         <Tooltip text={line} display="block">
           {(describedBy) => (
