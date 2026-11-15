@@ -92,8 +92,14 @@ export function confirmLines(preview: ProjectionDetail, repository: string | nul
   ] as const
   const out = lines.filter(([n]) => n > 0).map(([n, text]) => text(n))
   if (release) out.push('check the merge path, then release by your release mode')
+  // A long run stops at GitHub's write limits and carries on by itself.
+  const pace = preview.pace
+  if (pace && pace.minutes > 2)
+    out.push(`pace the ${plural(pace.writes, 'write')} at ${pace.perMinute} a minute and ${pace.perHour} an hour: about ${duration(pace.minutes)}, and it carries on by itself`)
   return out
 }
+
+const duration = (minutes: number) => (minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)} h ${minutes % 60} min`)
 
 export const UNDO = 'Undo: close the issues as not planned.'
 

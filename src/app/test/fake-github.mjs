@@ -187,6 +187,11 @@ export class FakeGitHub {
       ...(input.type ? { type: { name: input.type } } : {}),
     };
     this.created.push(issue);
+    // Made under its parent in the create call, as GraphQL createIssue does.
+    const parent = this.created.find(
+      (item) => item.node_id === input.parentIssueId,
+    );
+    if (parent) this.subIssues.push([parent.number, issue.id]);
     return Promise.resolve(structuredClone(issue));
   }
   updateIssue(_repository, number, input) {
