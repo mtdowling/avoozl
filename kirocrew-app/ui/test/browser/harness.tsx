@@ -380,8 +380,8 @@ function Scenario({ name }: { name: string }) {
   return <>{scenario.render(open, setOpen, close)}</>
 }
 
-// ?page=app: the whole Avoozl page on one workspace with intake on and one
-// open idea, for tests that move between tabs.
+// ?page=app: the whole Avoozl page on one workspace with intake on, for
+// tests that move between tabs.
 answer('workspaces.list', () => ({ defaultWorkspace: 'w', items: [{ id: 'w', name: 'Harness', root: '/w', enabled: true, state: 'ready', served: true }] }))
 // The install's name: quiet with one instance, shown in more places with &shared=1.
 answer('instance.view', () => ({ id: 'inst-0123456789ab', name: 'Mira', others: query.get('shared') === '1' ? ['inst-aaaaaaaaaaaa'] : [], shared: query.get('shared') === '1' }))
@@ -393,7 +393,6 @@ answer('untriaged.view', () => ({
   repositories: [],
   items: [],
   withRadar: [],
-  ideas: [{ source: 'local', id: 'idea-1', kind: 'idea', title: 'Harness idea', state: 'open', author: 'me', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z', notes: [], links: [], graduated: null }],
 }))
 
 function DeepLinkPage() {

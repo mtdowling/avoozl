@@ -181,20 +181,6 @@ To let a Crew Mode conductor claim leaves instead, set
 Avoozl never replaces a worker only because its activity went quiet. It
 checks durable session and delivery records first.
 
-## Ideas
-
-An idea is a rough note that can later become a spec. Choose **New idea** on
-the Specs page or the Intake tab, give it a title, and add notes and links.
-Agents can save ideas too, over MCP (`plans_intake`, action `capture_idea`)
-or the CLI (`avoozl intake idea add --title ...`). An idea never runs work:
-no trigger rule matches it and it never counts as untriaged.
-
-On the Intake tab, **Ideas** lists them. **Riff on this** opens a chat about
-the idea that changes nothing except adding notes and links to it (action
-`add_idea_note`). **Make it a spec** opens New spec filled in from the idea,
-and the idea is marked as that spec once you send it. Only a person archives,
-restores, or makes an idea a spec.
-
 ## Deliver through GitHub
 
 Pick a GitHub mode under **Settings > Where tasks live**, then use **Set up

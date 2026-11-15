@@ -189,3 +189,28 @@ test("same-database upgrade and SQLite backup preserve durable workspace history
   assert.equal(store.get("review_threads", "review-migrated").state, "open");
   store.close();
 });
+
+test("opening a store drops stored ideas and keeps other incoming items (RC30.3)", () => {
+  const database = path.join(
+    temporaryDirectory("avoozl-ideas-"),
+    "store.sqlite",
+  );
+  let store = new Store(database);
+  store.put("incoming_items", {
+    id: "i",
+    source: "local",
+    record: { kind: "idea" },
+  });
+  store.put("incoming_items", {
+    id: "t",
+    source: "tickets",
+    record: { kind: "ticket" },
+  });
+  store.close();
+  store = new Store(database);
+  assert.deepEqual(
+    store.list("incoming_items").map((row) => row.id),
+    ["t"],
+  );
+  store.close();
+});

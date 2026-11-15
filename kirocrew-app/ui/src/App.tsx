@@ -20,7 +20,6 @@ import ActivityView from './ActivityView.tsx'
 import { SwitchModelButton } from './SwitchModel.tsx'
 import { StopLineButton } from './StopLine.tsx'
 import { untriagedClient } from './untriaged-api.ts'
-import { specSeed } from './ideas-api.ts'
 import type { NewPlanForm } from './new-plan-api.ts'
 import SettingsView, { SETTINGS_TABS, type SettingsTab } from './SettingsView'
 import { SETTINGS_HOME, settingsTabOnEnter } from './settings-api.ts'
@@ -111,13 +110,11 @@ function AvoozlPage() {
   const [drill, setDrill] = useState<Drill | null>(null)
   // Open conflicts, for the yellow count after the Conflicts tab's label.
   const [conflicts, setConflicts] = useState(0)
-  // Each Plan a goal or Make it a spec press opens the New plan drawer
-  // once, with an idea's fields for Make it a spec (R63.9).
+  // Each Plan a goal press opens the New plan drawer once.
   const [planGoal, setPlanGoal] = useState<{ n: number; seed?: Partial<NewPlanForm> }>({ n: 0 })
   // Untriaged items in Intake (§8.5): null in Local only mode with no
-  // intake source, which hides the count. The tab stays for ideas (R63.7).
+  // intake source, which hides the count.
   const [untriaged, setUntriaged] = useState<number | null>(null)
-  const [openIdeas, setOpenIdeas] = useState<number | null>(null)
   const views = useMemo(() => viewsClient(api), [api])
 
   const untriagedReads = useMemo(() => untriagedClient(api), [api])
@@ -231,9 +228,7 @@ function AvoozlPage() {
     const read = () =>
       untriagedReads.view(active).then(
         (list) => {
-          if (!live) return
-          setUntriaged(list.enabled ? list.total : null)
-          setOpenIdeas((list.ideas ?? []).filter((idea) => idea.state === 'open').length)
+          if (live) setUntriaged(list.enabled ? list.total : null)
         },
         () => undefined,
       )
@@ -376,9 +371,6 @@ function AvoozlPage() {
             onScope={scopeTo}
             onDrill={openDrill}
             newPlanRequest={planGoal}
-            ideas={openIdeas}
-            // Ideas now sit under Needs you, in its planning and intake section.
-            onOpenIdeas={() => go({ focus: null, drill: null, tab: 'waiting' }, { 'waiting-section': 'intake', 'untriaged-show': 'ideas' })}
           />
         ) : tab === 'trace' ? (
           <TracePage workspaceId={active} target={(nav.memory.get(TRACE_TARGET) as TraceTarget | undefined) ?? null} onPick={pickTrace} onOpenEpics={() => chooseTab('plans')} />
@@ -390,10 +382,6 @@ function AvoozlPage() {
           <WaitingView
             workspaceId={active}
             onOpenSources={() => go({ settingsTab: 'plugins', tab: 'settings' })}
-            onMakeSpec={(idea) => {
-              setPlanGoal((request) => ({ n: request.n + 1, seed: specSeed(idea) }))
-              go({ focus: null, drill: null, tab: 'plans' })
-            }}
           />
         ) : tab === 'activity' ? (
           <ActivityView workspaceId={active} />
