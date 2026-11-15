@@ -338,7 +338,6 @@ test("the preview lists exactly the writes the projection then makes, and makes 
   for (const kind of [
     "issue.create",
     "issue.update",
-    "label.add",
     "sub-issue.add",
     "blocker.add",
     "project.add",

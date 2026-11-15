@@ -7,6 +7,7 @@ import {
   resourceOf,
 } from "./github-rate.mjs";
 import { fail } from "./store.mjs";
+import { WritePacer } from "./github-pacer.mjs";
 
 const API_VERSION = "2022-11-28";
 const PAGE_SIZE = 100;
@@ -192,12 +193,32 @@ export class GitHubClient {
   // Keeps conditional-request answers and the rate state in `store`, so a
   // GET GitHub answers 304 costs nothing and a limit holds every process of
   // the workspace back. Without it the client behaves as before.
-  bind(store, { now, cacheSeconds, countFile } = {}) {
+  bind(store, { now, cacheSeconds, countFile, writeLimits, sleep } = {}) {
     // How long an answer stays fresh, in seconds, for a repository id (or
     // none). Within it a read makes no call. Settings > GitHub sets it.
     if (cacheSeconds) this.cacheSeconds = cacheSeconds;
     this.cache = store ? new ResponseCache(store, { now }) : null;
     this.rate = store ? new RateState(store, { now, countFile }) : null;
+    // Writes are paced (github-pacer.mjs); `writeLimits` reads the settings.
+    this.pacer = store
+      ? new WritePacer(store, {
+          now,
+          sleep,
+          limits: writeLimits,
+          primary: () => {
+            const seen = this.rateLimits.get("core");
+            return seen
+              ? {
+                  limit: seen.limit,
+                  remaining: seen.remaining,
+                  resetAtMs: Date.parse(seen.resetAt),
+                }
+              : null;
+          },
+          // A write cut off mid-call may have landed: the next read must see.
+          onInterrupted: () => this.cache?.invalidate(this.token, ""),
+        })
+      : null;
     return this;
   }
 
@@ -220,7 +241,24 @@ export class GitHubClient {
   // `etag` makes the read conditional: GitHub answers 304, which does not
   // count against the rate limit (checked live 2026-11-13), and this
   // returns { notModified: true }.
-  async request(method, pathname, { query, body, accept, headers, etag } = {}) {
+  async request(method, pathname, options = {}) {
+    const write =
+      method !== "GET" &&
+      !(
+        pathname === "/graphql" &&
+        /^\s*(query\b|\{)/.test(options.body?.query || "")
+      );
+    if (!write || !this.pacer) return this.send(method, pathname, options);
+    // Every write waits its turn: one at a time, inside the write pace.
+    const held = this.rate?.held(resourceOf(pathname));
+    if (held) throw rateLimitError(held);
+    this.signedIn();
+    return this.pacer.run({ method, pathname }, () =>
+      this.send(method, pathname, options),
+    );
+  }
+
+  async send(method, pathname, { query, body, accept, headers, etag } = {}) {
     if (!this.token && this.discoverToken) {
       this.token = localToken();
       this.discoverToken = false;
