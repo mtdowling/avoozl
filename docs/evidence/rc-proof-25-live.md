@@ -12,8 +12,8 @@ Scratch repositories (private, safe to delete):
 - `mtdowling/avoozl-scratch-f1` (source, the "public" side)
 - `mtdowling/avoozl-scratch-f2` (mirror, built by Create setup; see `rc-proof-26-live.md`)
 
-Verdict: **partial pass**. Targets `each` and `branch` and every planted case
-passed live. Target `batch` was not run live, so `rc-p25` stays unticked.
+Verdict: **pass**. Targets `each`, `branch` and `batch` and every planted case
+passed live.
 
 | Case                                                      | Expected                                                              | Observed                                                                                                                                                                                                                                                   |
 | --------------------------------------------------------- | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -37,10 +37,40 @@ screens; the component's `disabled` rule is checked by `forward-screen.test.mjs`
 The screen was not opened in the real dashboard: the page there stays on
 "Loading app" for a script-driven browser without a full host session.
 
+## Target `batch`, run live afterward
+
+Run on 2026-11-15 on the same scratch repositories, with the fix in the
+follow-up `task/epic-project-id` (pull request 226, below) in the harness. An
+approved spec `p25b2` (one manual leaf, `forwardTarget: batch`,
+`integrationBranch: epic-b2`) was approved through its approval pull request on
+the source. Two crew-style commits (`src/b1.mjs`, `src/b2.mjs`) went onto
+`epic-b2` in the mirror; the person marked the leaf done.
+
+| Case                        | Expected                               | Observed                                                       |
+| --------------------------- | -------------------------------------- | -------------------------------------------------------------- |
+| Epic not done               | No batch record                        | None while the leaf was open                                   |
+| Epic done                   | One record `batch:p25b2`               | One record, state `to_forward`                                 |
+| Review                      | Net diff of the epic branch, one title | 2 files, title "Batch scratch epic"                            |
+| Forward with the shown hash | One public pull request, one commit    | `f1` PR 6: 1 commit, 2 files, one parent, the person as author |
+| Epic branch on the source   | Never pushed                           | `epic-b2` does not exist on `f1`                               |
+| Merge of a public branch    | None by Avoozl                         | `main` and `avoozl-public` unchanged after the forward         |
+
+The pull request went against `avoozl-public`, because that repository's
+`publicBranch` was still set from the `branch` case and a batch follows it
+(D31.1). A batch with no `publicBranch` goes against the default branch; that
+base is covered by the fake-GitHub test only.
+
+Product bug found and fixed in pull request 226: a leaf names a project ID, as
+the plan lint requires, but the epic sync compared it with repository names.
+The epic never synced and a batch epic never made its record. Before the fix,
+this run showed `p25batch: f1 is not a registered repository`.
+The leaf was also a single manual leaf with no package, because a package's
+own acceptance (a separate person step) was not driven here.
+
 ## Not checked
 
-- Target `batch` (one net-diff commit, one public PR at epic done): needs an
-  approved plan with an epic; fake-GitHub tests only.
+- Target `batch` with no `publicBranch` (base is the default branch):
+  fake-GitHub tests only.
 - The public pull requests were not merged, so the public-merge poll and
   dependents' release were not exercised here (Proof 23 covers that).
 - Forbidden private terms from a terms file, hosts, ticket IDs, binary and

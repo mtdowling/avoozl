@@ -587,10 +587,10 @@ Requirement RC26. Where each mirror change lands on the public repository, and t
 - [x] rc-25.7 Targets `branch` and `batch`: public branch copy, epic batch, one public PR, after rc-25.1, rc-25.5, rc-23.5 [RC26.3, RC26.4] (§D31.1)
   - The sync step also fast-forwards the copy of `publicBranch`; a `batch` epic builds one net-diff commit at epic done, runs every protection, opens one public PR; dependents inside the epic release on the mirror merge, outside it on the public merge; the public branch's landing in the default branch is a Needs you row and never an Avoozl merge.
   - Done when: Fake GitHub tests: each target opens the right PR against the right base; a `batch` epic opens exactly one PR; no call merges the public branch into the default branch.
-- [ ] rc-p25 Proof 25: forward targets and protections on scratch repositories, after rc-25.1, rc-25.2, rc-25.3, rc-25.4, rc-25.5, rc-25.6, rc-25.7, rc-p23 [RC26] (§D17)
+- [x] rc-p25 Proof 25: forward targets and protections on scratch repositories, after rc-25.1, rc-25.2, rc-25.3, rc-25.4, rc-25.5, rc-25.6, rc-25.7, rc-p23 [RC26] (§D17)
   - Setup: the scratch repositories of Proof 23, created only for the proof. Action: forward one change with each target; plant an excluded path, a fake private term, a planted trailer and an extra file in turn. Expected: each target lands where set; each planted case blocks with one row and no retry; the audit catches the extra file. Failure means: a private path, term or history can reach the public repository. Next decision: turn `forward` to `nudge` for the repository and tighten the path policy. List the scratch repositories in the receipt for the owner to delete.
   - Done when: Expected result observed; receipt under `docs/evidence/` lists the scratch repositories.
-  - Live run 2026-11-15: targets `each` and `branch` and the planted path, secret and instance cases passed; `batch` not run live, so this box stays unticked. Receipt `docs/evidence/rc-proof-25-live.md`.
+  - Live run 2026-11-15 passed for `each`, `branch` and `batch` and the planted cases. Receipt `docs/evidence/rc-proof-25-live.md`; scratch repositories `avoozl-scratch-f1` and `avoozl-scratch-f2`.
 
 ## Phase 26: Setup buttons for a mirror
 
