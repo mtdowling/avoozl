@@ -220,7 +220,7 @@ Requirement RC8. The screens of the experience proposal, built for Variant B (Gi
 - [ ] rc-p8 Proof 8: observe, and a retro rule a crew follows, after rc-8.1, rc-8.2, rc-8.3, rc-8.4, rc-8.5 [RC8] (§D17)
   - Setup: a scratch repository with a running crew. Action: run three issues; open Trace; apply a retro rule through a pull request; run a fourth issue. Expected: Trace shows GitHub times; the fourth issue's pull request follows the new rule. Failure means: a crew did not re-read the rules. Next decision: add the rule to the Additional prompt.
   - Done when: Expected result observed live; receipt under `docs/evidence/`.
-  - Live run 2026-11-15 not run to the end: docs/evidence/rc-proof-8-live.md
+  - Live run 2026-11-15 failed: Trace and the rule pull request worked, but the crew read AGENTS.md once and the fourth pull request ignored the rule; the same rule in the Additional prompt was followed (docs/evidence/rc-proof-8-live.md)
 
 ## Phase 9: Quick goals
 
@@ -239,7 +239,7 @@ Requirement RC9. A goal becomes issues after one approval, through a generated m
   - Setup: a scratch repository with a slow test suite. Action: quick goal "Make tests faster" with Measure; approve; let crews build; then a goal that crosses a promote rule. Expected: issues with measured evidence; one approval; the second goal offers Promote. Failure means: a crew skipped a mini-spec issue (Q6). Next decision: Promote for every goal.
   - Done when: Expected result observed live; receipt under `docs/evidence/`.
   - Fake-GitHub proof merged in PR #146; live run pending owner (see docs/evidence/radar-coder-proof-9-fake-github.md)
-  - Live run 2026-11-15 not run: docs/evidence/rc-proof-9-live.md
+  - Live run 2026-11-15 failed: the app has no planner chat, so Quick goal stops at Investigate (docs/evidence/rc-proof-9-live.md)
 
 ## Phase 10: Public repositories
 
@@ -255,7 +255,7 @@ Requirement RC10. This phase gates on the public-crew layers and does not restat
   - Setup: a scratch public repository. Action: try release before and after the sign-off. Expected: nothing releases before. Failure means: a crew could be handed work without the layers. Next decision: refuse public repositories for the Radar path.
   - Done when: Expected result observed; receipt under `docs/evidence/`.
   - Fake-GitHub proof merged in PR #146; live run pending owner (see docs/evidence/radar-coder-proof-10-fake-github.md)
-  - Live run 2026-11-15 not run: docs/evidence/rc-proof-10-live.md
+  - Live run 2026-11-15 passed on a private repository with visibility not read, after the fix in PR #248; the public-repository step is parked for the owner (docs/evidence/rc-proof-10-live.md)
 
 ## Phase 11: The Radar path on a real repository
 
