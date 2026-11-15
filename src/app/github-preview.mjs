@@ -152,7 +152,23 @@ export class PreviewGitHub {
       });
     this.blockers.set(`${repository}#${id}`, []);
     this.subIssues.set(`${repository}#${id}`, []);
+    // Made under its parent in the create call: no sub-issue write follows.
+    const parent = input.parentIssueId
+      ? [...this.issues.values()].find(
+          (entry) => entry.node_id === input.parentIssueId,
+        )
+      : null;
+    if (parent)
+      (
+        await this.related(
+          this.subIssues,
+          "listSubIssues",
+          parent.repository,
+          parent.number,
+        )
+      ).push(structuredClone(issue));
     this.record("issue.create", repository, issue, {
+      ...(parent ? { parentTaskId: this.task(parent) } : {}),
       title: input.title,
       labels: input.labels || [],
       ...(input.assignees ? { assignees: input.assignees } : {}),

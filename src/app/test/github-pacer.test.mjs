@@ -165,15 +165,14 @@ test("a write cut off before it was recorded is found again on restart", (t) => 
 
 test("the estimate for 927 issues replays the pace and respects both caps", () => {
   const start = Date.parse("2026-11-15T10:00:00Z"),
-    // 927 creates, 736 sub-issue links and 75 blocked-by links.
-    writes = 927 + 736 + 75,
+    // 927 creates (each under its parent), 75 blocked-by links and the
+    // marker rewrite each of those issues needs.
+    writes = 927 + 75 + 75,
     estimate = paceEstimate(writes, [], start, {}),
     finish = Date.parse(estimate.finishAt);
-  assert.equal(estimate.writes, 1738);
-  // 400 an hour: four full hours of waiting cannot be needed for 1,738.
-  assert.ok(
-    finish - start > 3 * HOUR && finish - start < 4 * HOUR + 10 * MINUTE,
-  );
+  assert.equal(estimate.writes, 1077);
+  // 400 an hour: 1,077 writes need two full waits and part of a third hour.
+  assert.ok(finish - start > 2 * HOUR && finish - start < 3 * HOUR);
   assert.equal(estimate.minutes, Math.ceil((finish - start) / MINUTE));
 });
 
@@ -369,4 +368,103 @@ test("a run cut off is picked up again, and the preview counts what the run writ
   // The ready label rides in the create call: no separate label write.
   assert.ok(fake.created.some((issue) => issue.labels.length === 2));
   assert.equal(pacer.history().length, written);
+});
+
+test("a child is made under its parent in the create call, with no addSubIssue", async (t) => {
+  const { store, fake, state, ops, plan } = await projection(t, {
+    tasks: 4,
+    limits: { perMinute: 60, perHour: 400 },
+  });
+  // Task 0 becomes a package; the other three sit under it.
+  const tasks = store.read().tasks,
+    byTitle = (title) => tasks.find((task) => task.title === title);
+  store.mutate("Nest", (data) => {
+    const parent = data.tasks.find((task) => task.title === "Task 0");
+    parent.kind = "package";
+    for (const task of data.tasks)
+      if (/^Task [123]$/.test(task.title)) task.parent = parent.id;
+  });
+  assert.ok(byTitle("Task 0"));
+  let linked = 0;
+  const add = fake.addSubIssue.bind(fake);
+  fake.addSubIssue = (...args) => ((linked += 1), add(...args));
+  state.loseNthCreate = 0;
+  await ops.execute("github.project", { planId: plan.id });
+  const parent = fake.created.find((issue) =>
+    issue.body.includes('"taskId":"' + byTitle("Task 0").id + '"'),
+  );
+  assert.ok(parent, "the package issue exists");
+  const under = fake.subIssues.filter(([number]) => number === parent.number);
+  assert.equal(under.length, 3, "three children sit under the package");
+  assert.equal(linked, 0, "no child needed its own link call");
+  // The package came first.
+  assert.equal(fake.created[0].number, parent.number);
+});
+
+test("GraphQL createIssue and addBlockedBy are one paced write each", async (t) => {
+  const time = clock(),
+    sent = [],
+    fetch = async (url, options) => {
+      const path = new URL(url).pathname,
+        body = options.body ? JSON.parse(options.body) : null;
+      if (options.method === "POST") sent.push({ path, body });
+      if (path === "/repos/o/r")
+        return new Response(JSON.stringify({ node_id: "R1" }));
+      if (path.startsWith("/repos/o/r/labels/"))
+        return new Response(
+          JSON.stringify({ node_id: "L_" + path.split("/").pop() }),
+        );
+      if (path === "/graphql" && /createIssue/.test(body.query))
+        return new Response(
+          JSON.stringify({
+            data: {
+              createIssue: {
+                issue: {
+                  id: "I1",
+                  databaseId: 11,
+                  number: 5,
+                  url: "u",
+                  state: "OPEN",
+                  title: "t",
+                  body: "b",
+                  labels: { nodes: [{ name: "a" }] },
+                  assignees: { nodes: [] },
+                  subIssuesSummary: { total: 0 },
+                },
+              },
+            },
+          }),
+        );
+      return new Response(JSON.stringify({ data: { addBlockedBy: {} } }));
+    },
+    { store, github } = client(t, time, fetch, {});
+  const issue = await github.createIssue("o/r", {
+    title: "t",
+    body: "b",
+    labels: ["a", "b"],
+    parentIssueId: "P1",
+  });
+  assert.equal(issue.node_id, "I1");
+  assert.equal(issue.number, 5);
+  await github.addIssueBlocker("o/r", 5, 99, {
+    issueId: "I1",
+    blockingIssueId: "I0",
+  });
+  assert.deepEqual(
+    sent.map((call) => call.path),
+    ["/graphql", "/graphql"],
+  );
+  assert.deepEqual(sent[0].body.variables.input, {
+    repositoryId: "R1",
+    title: "t",
+    body: "b",
+    parentIssueId: "P1",
+    labelIds: ["L_a", "L_b"],
+  });
+  assert.match(sent[1].body.query, /addBlockedBy/);
+  assert.equal(
+    store.db.prepare("SELECT COUNT(*) AS n FROM github_write_journal").get().n,
+    2,
+    "each mutation is one write in the journal",
+  );
 });

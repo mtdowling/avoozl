@@ -400,6 +400,7 @@ async function upsertParent({
   kind,
   taskId,
   parent,
+  parentIssueId,
   type,
   namespace,
   plan,
@@ -426,6 +427,7 @@ async function upsertParent({
       title,
       body: renderMarker(marker(applied), markerOptions) + "\n" + section,
       labels: [labels.managed],
+      ...(parentIssueId ? { parentIssueId } : {}),
       ...(type ? { type } : {}),
     });
   }
@@ -497,7 +499,10 @@ async function projectPlanParents({
     planSource(plan, identity)
   )
     return null;
-  const first = items.find((item) => item.issue) || fallback;
+  const first =
+    items.find((item) => item.issue) ||
+    items.find((item) => !item.skip) ||
+    fallback;
   if (!first) return null;
   const { config, labels } = first,
     find = async (taskId, receipt) => {
@@ -620,6 +625,14 @@ async function projectPlanParents({
       kind: "plan",
       taskId: planTaskId,
       parent: epic ? `epic.${epic.id}` : null,
+      // Made under its epic in the create call when GitHub allows the link.
+      parentIssueId:
+        epicIssue &&
+        lower(epicConfig.owner) === lower(config.owner) &&
+        (Number(epicIssue.sub_issues_summary?.total) || 0) <
+          (identity.maxPerParent ?? 100)
+          ? epicIssue.node_id
+          : undefined,
       type: null,
       namespace,
       plan,
@@ -708,9 +721,10 @@ async function pacedProject(store, github, options) {
   }
 }
 
-// About how many writes the items still need, for the progress line. New
-// issues cost a create, a sub-issue link, and their blocker links with one
-// marker rewrite; known ones cost an edit only when something changed.
+// About how many writes the items still need, for the progress line. A new
+// issue costs its create (under its parent, so no link call) plus its
+// blocker links with one marker rewrite; known ones cost an edit only when
+// something changed.
 function estimateWrites(items) {
   let count = 0;
   for (const item of items) {
@@ -1658,13 +1672,61 @@ async function project(
     notes.add(`${config.owner} has no ${name} issue type; epics have no type.`);
     return null;
   };
+  // 5a. The plan issue above the tasks, and its epic's issue above it
+  // (Requirement 59.8). Neither is ever ready. They come first, so each task
+  // issue is made under its parent in one call (no addSubIssue after).
+  const planParent =
+    (await projectPlanParents({
+      store,
+      github,
+      plan,
+      data,
+      items,
+      fallback,
+      identity,
+      namespace,
+      markerOptions,
+      managedByRepository,
+      epicType,
+      notes,
+    })) ?? (await sourceParent({ store, github, plan, identity, notes }));
+
   if (!dryRun)
     noteRemaining(store, {
       planId: plan.id,
       repository,
       remaining: estimateWrites(items),
     });
-  for (const item of items) {
+  // Packages before their children, so a child can be made under its parent.
+  const depth = (item) => {
+      let levels = 0;
+      for (
+        let at = item;
+        at?.task.parent && levels < 10;
+        at = byTask.get(at.task.parent)
+      )
+        levels += 1;
+      return levels;
+    },
+    subCap = identity.maxPerParent ?? 100,
+    madeUnder = new Map(),
+    // The parent a new issue is made under: the same pick and limits as the
+    // linking step below, which links only what this leaves out.
+    parentFor = (item) => {
+      const own = item.task.parent ? byTask.get(item.task.parent) : null,
+        parent = own || planParent;
+      if (!parent?.issue || parent === item) return null;
+      if (lower(parent.config.owner) !== lower(item.config.owner)) return null;
+      const id = own ? item.task.parent : planParent.taskId,
+        total =
+          (Number(parent.issue.sub_issues_summary?.total) || 0) +
+          (madeUnder.get(id) || 0);
+      if (total >= subCap) return null;
+      assertPlanningLink(identity, parent.config.id, item.config.id);
+      madeUnder.set(id, (madeUnder.get(id) || 0) + 1);
+      return parent.issue.node_id || null;
+    };
+  for (const item of [...items].sort((a, b) => depth(a) - depth(b))) {
     if (item.skip) continue;
     try {
       await writeIssue(item);
@@ -1701,6 +1763,7 @@ async function project(
           labels: labelSet,
           blockers: [],
         };
+      const parentNode = parentFor(item);
       item.issue = await github.createIssue(config, {
         title: item.title,
         body:
@@ -1726,6 +1789,7 @@ async function project(
           item.section,
         assignees: config.assignee ? [config.assignee] : undefined,
         labels: labelSet,
+        ...(parentNode ? { parentIssueId: parentNode } : {}),
         ...(type ? { type } : {}),
       });
       item.plans = {
@@ -1771,31 +1835,13 @@ async function project(
   for (const item of items)
     if (item.issue) item.issueId = issueDatabaseId(item.issue);
 
-  // 5b. The plan issue above the tasks, and its epic's issue above it
-  // (Requirement 59.8). Neither is ever ready.
-  const planParent =
-    (await projectPlanParents({
-      store,
-      github,
-      plan,
-      data,
-      items,
-      fallback,
-      identity,
-      namespace,
-      markerOptions,
-      managedByRepository,
-      epicType,
-      notes,
-    })) ?? (await sourceParent({ store, github, plan, identity, notes }));
-
   // 6. Links, then dependencies. Sub-issues name the child by database ID, so
   // a parent may sit in another repository or organization (F37, F38); only
   // missing links are added, so a sub-issue a person added stays. A task
   // with no package sits under the plan issue. Each parent takes at most
   // `maxPerParent` sub-issues, counting the ones it has (R59.15); the rest
   // stay unlinked in tasks.md order and say why.
-  const cap = identity.maxPerParent ?? 100,
+  const cap = subCap,
     under = new Map();
   for (const item of items) {
     if (!item.issue) continue;
@@ -1872,7 +1918,8 @@ async function project(
       item.blockerIds = item.before.map(issueDatabaseId);
       continue;
     }
-    const desired = [];
+    const desired = [],
+      nodeOf = new Map();
     for (const id of item.blockerTasks) {
       const issue = blockerRef(id);
       if (!issue) {
@@ -1883,6 +1930,7 @@ async function project(
         continue;
       }
       desired.push(issueDatabaseId(issue));
+      nodeOf.set(issueDatabaseId(issue), issue.node_id);
     }
     assertPlanningLink(
       identity,
@@ -1895,7 +1943,10 @@ async function project(
         await github.removeIssueBlocker(item.config, item.issue.number, id);
     for (const id of desired)
       if (!currentIds.includes(id))
-        await github.addIssueBlocker(item.config, item.issue.number, id);
+        await github.addIssueBlocker(item.config, item.issue.number, id, {
+          issueId: item.issue.node_id,
+          blockingIssueId: nodeOf.get(id),
+        });
     const after = await github.listIssueBlockers(
       item.config,
       item.issue.number,

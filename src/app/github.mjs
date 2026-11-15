@@ -694,7 +694,18 @@ export class GitHubClient {
     );
   }
 
-  addIssueBlocker(value, number, blockerIssueId) {
+  // `nodes` ({ issueId, blockingIssueId }, GraphQL node IDs) sends the
+  // addBlockedBy mutation; without it the REST call names the blocker by
+  // database ID. Either is one content write.
+  async addIssueBlocker(value, number, blockerIssueId, nodes) {
+    if (nodes?.issueId && nodes.blockingIssueId) {
+      await this.graphql(
+        `mutation($input:AddBlockedByInput!){addBlockedBy(input:$input){issue{id}}}`,
+        { input: nodes },
+        "add a blocked-by link",
+      );
+      return { id: blockerIssueId };
+    }
     const { owner, repo } =
       typeof value === "string" ? parseRepository(value) : value;
     return this.request(
@@ -730,12 +741,64 @@ export class GitHubClient {
     });
   }
 
-  createIssue(value, input) {
+  // One content write. With `parentIssueId` (the parent's node ID) the issue
+  // is made under its parent in the same GraphQL mutation, so it needs no
+  // addSubIssue call after. An issue type has no node ID here, so a create
+  // with `type` goes by REST and the caller links it.
+  async createIssue(value, input) {
     const { owner, repo } =
-      typeof value === "string" ? parseRepository(value) : value;
-    return this.request("POST", `/repos/${owner}/${repo}/issues`, {
-      body: input,
-    });
+        typeof value === "string" ? parseRepository(value) : value,
+      { parentIssueId, ...rest } = input;
+    if (!parentIssueId || rest.type)
+      return this.request("POST", `/repos/${owner}/${repo}/issues`, {
+        body: rest,
+      });
+    const [repository, labels, assignees] = await Promise.all([
+        this.repository({ owner, repo }),
+        Promise.all(
+          (rest.labels || []).map((name) =>
+            this.ensureLabel({ owner, repo }, { name }),
+          ),
+        ),
+        Promise.all(
+          (rest.assignees || []).map((login) =>
+            this.request("GET", `/users/${encodeURIComponent(login)}`),
+          ),
+        ),
+      ]),
+      data = await this.graphql(
+        `mutation($input:CreateIssueInput!){createIssue(input:$input){issue{id databaseId number url state title body labels(first:50){nodes{name}} assignees(first:20){nodes{login}} subIssuesSummary{total}}}}`,
+        {
+          input: {
+            repositoryId: repository.node_id,
+            title: rest.title,
+            body: rest.body,
+            parentIssueId,
+            ...(labels.length
+              ? { labelIds: labels.map((l) => l.node_id) }
+              : {}),
+            ...(assignees.length
+              ? { assigneeIds: assignees.map((user) => user.node_id) }
+              : {}),
+          },
+        },
+        "create an issue",
+      ),
+      issue = data?.createIssue?.issue;
+    if (!issue?.id || !issue.number)
+      fail("GitHub returned invalid issue data.", 502);
+    return {
+      id: issue.databaseId,
+      node_id: issue.id,
+      number: issue.number,
+      html_url: issue.url,
+      state: String(issue.state).toLowerCase(),
+      title: issue.title,
+      body: issue.body,
+      labels: issue.labels.nodes,
+      assignees: issue.assignees.nodes,
+      sub_issues_summary: { total: issue.subIssuesSummary?.total ?? 0 },
+    };
   }
 
   // Actions variables of one repository: [{name, value}]. The list answers
