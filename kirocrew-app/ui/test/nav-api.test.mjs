@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { RETIRED_LINE, TABS, navTab, redirectSettings, redirectTab, retiredCoders, tabLabel } from '../src/nav-api.ts'
 
-test('the nav row is Home, Epics, Waiting on you, Trace, Flow, Activity, Settings', () => {
-  assert.deepEqual(TABS.map((t) => t.label), ['Home', 'Epics', 'Waiting on you', 'Trace', 'Flow', 'Activity', 'Settings'])
+test('the nav row is Home, Specs, Waiting on you, Trace, Flow, Activity, Settings', () => {
+  assert.deepEqual(TABS.map((t) => t.label), ['Home', 'Specs', 'Waiting on you', 'Trace', 'Flow', 'Activity', 'Settings'])
 })
 
 test('removed pages go to the page that took over, never nowhere', () => {
@@ -16,10 +16,10 @@ test('removed pages go to the page that took over, never nowhere', () => {
   for (const t of TABS) assert.deepEqual(redirectTab(t.key), { tab: t.key })
 })
 
-test('Graph is a page inside Epics', () => {
+test('Graph is a page inside Specs', () => {
   assert.equal(redirectTab('graph').tab, 'graph')
   assert.equal(navTab('graph'), 'plans')
-  assert.equal(tabLabel('graph'), 'Epics')
+  assert.equal(tabLabel('graph'), 'Specs')
 })
 
 test('a Settings section that is gone lands on Repository setup', () => {

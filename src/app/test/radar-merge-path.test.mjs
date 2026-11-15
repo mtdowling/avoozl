@@ -19,6 +19,7 @@ function fake({
   required = ["build"],
   classic = null,
   fail = null,
+  allows = {},
 } = {}) {
   return {
     available: () => true,
@@ -28,6 +29,7 @@ function fake({
         : Promise.resolve({
             default_branch: "main",
             allow_auto_merge: autoMerge,
+            ...allows,
             permissions: { admin: true },
           }),
     branch: () => Promise.resolve({ protected: true }),
@@ -70,6 +72,7 @@ test("a repository with all three items reads ready", async () => {
     ["auto-merge", true],
     ["required-check", true],
     ["ship", true],
+    ["merge-method", true],
   ]);
   assert.deepEqual(result.missing, []);
 });
@@ -81,6 +84,19 @@ test("each missing item is named, alone and together", async () => {
     [fake({ required: ["lint"] }), settings(), AUTO, ["required-check"]],
     [fake(), settings({ requiredChecks: [] }), AUTO, ["required-check"]],
     [fake(), settings(), {}, ["ship"]],
+    // RC28.7: the merge method the repository refuses.
+    [
+      fake({ allows: { allow_squash_merge: false } }),
+      settings(),
+      AUTO,
+      ["merge-method"],
+    ],
+    [
+      fake({ allows: { allow_merge_commit: false } }),
+      settings({ merge: { method: "merge" } }),
+      AUTO,
+      ["merge-method"],
+    ],
     [
       fake({ autoMerge: false, required: [] }),
       settings(),
@@ -140,7 +156,11 @@ test("GitHub failing to answer leaves the items not ok and says why", async () =
   });
   assert.equal(result.ready, false);
   assert.match(result.error, /boom/);
-  assert.deepEqual(result.missing, ["auto-merge", "required-check"]);
+  assert.deepEqual(result.missing, [
+    "auto-merge",
+    "required-check",
+    "merge-method",
+  ]);
 });
 
 test("requireMergePath refuses auto-merge when not ready, warns for manual", () => {
@@ -198,7 +218,7 @@ test("radar.mergepath shows the three items for each Radar repository and writes
   assert.equal(ops.read().revision, before);
   assert.equal(result.repositories.length, 1);
   assert.deepEqual(result.repositories[0].missing, ["auto-merge"]);
-  assert.equal(result.repositories[0].items.length, 3);
+  assert.equal(result.repositories[0].items.length, 4);
   const none = await operations(t, {
     github: fake(),
     ship: "auto-merge",

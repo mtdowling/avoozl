@@ -102,6 +102,11 @@ export function noActionReason(item: ConflictItem): string | null {
   // The forward audit (RC26.5.6): the stop is resumed from the Dashboard banner.
   if (item.kind === 'needs-human' && item.reason === 'forward-audit')
     return 'Check the public repository, then resume the stop from the banner. Avoozl forwards nothing until you do.'
+  // A source conflict Avoozl asked about carries its own buttons (ConflictFixActions.tsx).
+  if (item.kind === 'needs-human' && item.reason === 'conflict-fix') return null
+  // A merge method the repository refuses (RC28.7) is fixed in GitHub's settings.
+  if (item.kind === 'needs-human' && item.reason === 'merge-method')
+    return 'Change the GitHub setting it names, or change merge.method in Settings. The row clears on the next check.'
   if (item.kind === 'needs-human' && item.reason === 'hand-set-review')
     return 'Discuss it, mark it done, or move it back to planned from the task.'
   // Review drafts (RC20): the person acts on GitHub; the row clears itself.

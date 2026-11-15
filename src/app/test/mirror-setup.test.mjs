@@ -57,6 +57,7 @@ function fakeGitHub({
         default_branch: repo.branch,
         private: repo.private,
         allow_auto_merge: repo.autoMerge,
+        ...(repo.allows ?? {}),
         permissions: repo.can,
       });
     },
@@ -492,4 +493,28 @@ test("mirror setup reads and saves the source's entry, not a new one", async (t)
   assert.deepEqual(Object.keys(saved), [SOURCE]);
   assert.equal(saved[SOURCE].mirror.mirror, MIRROR);
   assert.equal(saved[SOURCE].baseBranch, "main");
+});
+
+test("Adopt matches merge.method to the merge methods the repository allows", async () => {
+  const methods = [];
+  const run = async (allows, extra = {}) => {
+    const github = fakeGitHub({ repos: { [MIRROR]: { allows } } }),
+      d = deps(github, entry(extra), {
+        saveMergeMethod: (method) => {
+          methods.push(method);
+          return Promise.resolve();
+        },
+      });
+    return { d, dry: await mirrorSetup("adopt", d, input) };
+  };
+  // Squash allowed and the default in force: nothing to write.
+  assert.equal(line((await run({})).dry, "merge-method").status, "ok");
+  // Only merge commits allowed: Adopt proposes merge and saves it on apply.
+  const { d, dry } = await run({ allow_squash_merge: false });
+  assert.match(line(dry, "merge-method").detail, /merge\.method to merge/);
+  await mirrorSetup("adopt", d, confirm(dry));
+  assert.deepEqual(methods, ["merge"]);
+  // A repository set to merge that allows squash is switched to squash.
+  const back = await run({}, { merge: { method: "merge" } });
+  assert.match(line(back.dry, "merge-method").detail, /to squash/);
 });

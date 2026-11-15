@@ -3,7 +3,7 @@
 // already makes. Pure module, no browser.
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { PANEL_REFRESH_MS, driverView, panelModel, startRefresh } from '../src/panel-api.ts'
+import { PANEL_REFRESH_MS, checkLabel, driverView, panelModel, shortAgo, startRefresh } from '../src/panel-api.ts'
 
 // A document and window that record listeners, and a timer the test fires.
 function env(visible = true) {
@@ -164,7 +164,7 @@ test('the release queue head is the next row, then the held count', () => {
   const model = panelModel({
     queue: { repositories: [{ repository: 'o/r', ready: 'ready', mode: 'automatic', capacity: 2, scopes: [], steps: [], rows: [queueRow('a', 'claimed'), queueRow('b', 'next'), queueRow('c', 'next'), queueRow('d', 'held')] }] },
   })
-  assert.deepEqual(model.queue, { head: [{ taskId: 'b', title: 'Task b', repository: 'o/r', reason: 'next reason' }, { taskId: 'c', title: 'Task c', repository: 'o/r', reason: 'next reason' }], held: 1, mode: 'automatic' })
+  assert.deepEqual(model.queue, { head: [{ taskId: 'b', title: 'Task b', repository: 'o/r', reason: 'next reason' }, { taskId: 'c', title: 'Task c', repository: 'o/r', reason: 'next reason' }], next: 2, claimed: 1, held: 1, mode: 'automatic' })
 })
 
 test('recent merges are the newest finished tasks; an open stop shows its sentence', () => {
@@ -195,4 +195,47 @@ test('the driver session: a link when one runs, else a Start button and why', ()
   assert.equal(none.link, null)
   assert.equal(none.start, true)
   assert.match(none.note, /nothing is released/i)
+})
+
+test('an In flight row carries its Avoozl instance, crew, claim time and pull request checks', () => {
+  const model = panelModel({
+    crews: {
+      readAt: null, stale: 0, errors: [], unseen: [],
+      rows: [claim({ instanceId: 'inst-1', claimedAt: '2026-11-14T09:00:00Z' }), claim({ number: 53, pr: null, prUrl: null })],
+      groups: [{ instanceId: 'inst-1', name: 'Kelp', own: true, rows: [claim({ instanceId: 'inst-1' })] }],
+    },
+    checks: { 'o/r#57': { state: 'failing', total: 3, done: 3, failed: ['test'] } },
+  })
+  const [first, second] = model.inFlight
+  assert.equal(first.instance, 'Kelp')
+  assert.equal(first.crew, 'Draco')
+  assert.equal(first.claimedAt, '2026-11-14T09:00:00Z')
+  assert.equal(first.check.state, 'failing')
+  assert.equal(second.instance, null)
+  assert.equal(second.check, null)
+})
+
+test('the queue says how many are claimed, next and held', () => {
+  const model = panelModel({ queue: { repositories: [{ repository: 'o/r', ready: 'ready', mode: 'automatic', capacity: 2, scopes: [], steps: [], rows: [queueRow('a', 'claimed'), queueRow('b', 'next'), queueRow('d', 'held'), queueRow('e', 'held')] }] } })
+  assert.deepEqual([model.queue.claimed, model.queue.next, model.queue.held], [1, 1, 2])
+})
+
+test('shortAgo and checkLabel are short enough for a row', () => {
+  const now = Date.parse('2026-11-14T12:00:00Z')
+  assert.deepEqual(['2026-11-14T11:59:50Z', '2026-11-14T11:30:00Z', '2026-11-14T09:00:00Z', '2026-11-10T12:00:00Z', null].map((at) => shortAgo(at, now)), ['now', '30m', '3h', '4d', ''])
+  assert.equal(checkLabel({ state: 'passing', total: 3, done: 3, failed: [] }).tone, 'ok')
+  assert.equal(checkLabel({ state: 'pending', total: 3, done: 1, failed: [] }).text, '… 1/3')
+  assert.equal(checkLabel({ state: 'failing', total: 3, done: 3, failed: ['a', 'b'] }).tip, 'Failing: a, b.')
+  assert.equal(checkLabel(null).tone, 'muted')
+})
+
+test('an interval of 0 sets no timer, so the Refresh countdown owns the schedule', async () => {
+  const e = env()
+  let reads = 0
+  const stop = startRefresh(() => void reads++, { ...e.options, intervalMs: 0 })
+  await settle()
+  assert.equal(reads, 1)
+  assert.equal(e.timer.fn, null)
+  stop()
+  assert.equal(e.timer.cleared, false)
 })

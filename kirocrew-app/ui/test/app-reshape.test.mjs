@@ -1,6 +1,6 @@
 // The reshaped page in a real Chrome (test/browser/harness.tsx ?page=app):
-// the nav row, Home's empty states, the Settings hub with its empty slots and
-// disabled setup buttons, the retired-worker banner, and Waiting on you
+// the nav row, Home's empty states, the Settings hub with the Mirror setup
+// buttons, the retired-worker banner, and Waiting on you
 // holding what Conflicts and Intake used to. Skipped when no Chrome is found.
 import assert from 'node:assert/strict'
 import { after, before, test } from 'node:test'
@@ -28,10 +28,10 @@ const open = (query = {}) => page.open(harness.url({ page: 'app', ...query }), {
 const click = (expression) => page.evaluate(`(() => { const b = ${expression}; b.click(); return true })()`)
 const text = `document.body.innerText`
 
-test('the nav row has Home, Epics, Waiting on you, Trace, Flow, Activity and Settings, and no removed page', { skip }, async () => {
+test('the nav row has Home, Specs, Waiting on you, Trace, Flow, Activity and Settings, and no removed page', { skip }, async () => {
   await open({ radar: '1' })
   await page.until(`${tabs}.length === 7`)
-  assert.deepEqual(await page.evaluate(tabs), ['Home', 'Epics', 'Waiting on you', 'Trace', 'Flow', 'Activity', 'Settings'])
+  assert.deepEqual(await page.evaluate(tabs), ['Home', 'Specs', 'Waiting on you', 'Trace', 'Flow', 'Activity', 'Settings'])
   assert.deepEqual(page.errors, [])
 })
 
@@ -44,7 +44,7 @@ test('an empty Home says what to set up, with a button for each, instead of hidi
   assert.deepEqual(page.errors, [])
 })
 
-test('Settings is one accordion with its empty slots and setup buttons off', { skip }, async () => {
+test('Settings is one accordion with the Mirror setup buttons', { skip }, async () => {
   await open({ radar: '1' })
   await page.until(`Boolean(${tab('Settings')})`)
   await click(tab('Settings'))
@@ -58,12 +58,13 @@ test('Settings is one accordion with its empty slots and setup buttons off', { s
   await click(`document.querySelector('[data-settings-section="repositories"] button[aria-expanded]')`)
   // The large editors open in a shelf from Configure.
   await page.until(`Boolean(document.querySelector('[data-open-shelf="repositories"]'))`)
-  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-slot="mirror"]'))`), false)
+  assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-mirror-setup]'))`), false)
   await click(`document.querySelector('[data-open-shelf="repositories"]')`)
-  await page.until(`Boolean(document.querySelector('[data-settings-shelf="repositories"] [data-slot="mirror"]'))`)
+  await page.until(`Boolean(document.querySelector('[data-settings-shelf="repositories"] [data-mirror-setup]'))`)
   assert.equal(await page.evaluate(`document.querySelectorAll('[data-settings-section][data-open="true"]').length`), 1)
   assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-driver-session]'))`), false)
   const buttons = await page.evaluate(`[...document.querySelectorAll('[data-setup-action]')].map((b) => [b.dataset.setupAction, b.disabled])`)
+  // Both buttons wait for the two repository names.
   assert.deepEqual(buttons, [['Adopt existing setup', true], ['Create setup', true]])
   assert.deepEqual(page.errors, [])
 })
