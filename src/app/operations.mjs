@@ -183,6 +183,7 @@ import {
 } from "./mirror-policy.mjs";
 import { mergeHomes, mirrorOf, readPrivateSpecs } from "./spec-homes.mjs";
 import { mirrorNeedsYou, writeRepo } from "./mirror-sync.mjs";
+import { forwardAuditRows } from "./forward-audit.mjs";
 import { mirrorForwardRows, mirrorRecordFor } from "./mirror-forward.mjs";
 import { forwardRecord } from "./mirror-forward-run.mjs";
 import { syncProject } from "./github-project.mjs";
@@ -1544,8 +1545,15 @@ export class Operations {
       ...(homeErrors.length ? { homeErrors } : {}),
     };
   }
+  // A folder on disk, or else a private spec read from the plans branch
+  // (RC25.2). A private spec has no `root`, so nothing writes it to disk.
+  // shortcut: spec edits that write files (manifest, status) refuse a private
+  // spec for now; they move to a contents write when Spec Builder needs them.
   readSpec(name) {
-    return findSpecFolder(this.specRoots(), specName(name));
+    const found = findSpecFolder(this.specRoots(), specName(name));
+    if (found.exists) return found;
+    const priv = this.privateSpecs.find((spec) => spec.name === name);
+    return priv ? { ...priv, home: "plansBranch" } : found;
   }
   // One folder of the mode's spec roots by name, for the checks that read
   // another folder: an epic's members, a plan's epic (Requirement 59.3).
@@ -1585,6 +1593,18 @@ export class Operations {
   approvalPullRequestTarget(plan) {
     const policy = readGitHubPolicyOrNull(this.workspaceRoot);
     if (!policy?.mode || !plan.spec) return null;
+    // A private spec's pull request opens in the mirror, against the plans
+    // branch, with no decision record (that branch holds only specs, RC25.3).
+    if (plan.home === "plansBranch") {
+      const mirror = mirrorOf(policy);
+      return mirror
+        ? {
+            repository: parseRepository(mirror.mirror),
+            decisionRecord: false,
+            ref: mirror.plansBranch,
+          }
+        : null;
+    }
     const entries = Object.entries(policy.repositories || {}),
       radar = entries.filter(([, entry]) => entry.coder === "issue-radar"),
       root = this.readSpec(plan.spec).root,
@@ -1629,6 +1649,7 @@ export class Operations {
         diagnostics: quality.diagnostics,
         approvedBy,
         decisionRecord: target.decisionRecord,
+        ...(target.ref ? { ref: target.ref } : {}),
       });
     return { pending: state };
   }
@@ -3198,6 +3219,7 @@ export class Operations {
       view.items.push(...rateNeedsYou(store));
       view.items.push(...mirrorNeedsYou(store));
       view.items.push(...mirrorForwardRows(store, policy));
+      view.items.push(...forwardAuditRows(store));
       view.items.push(
         ...radarNeedsYou(
           untriagedView(
@@ -5115,7 +5137,11 @@ export class Operations {
       if (input.spec === undefined) return createPlan(store, input);
       const spec = this.readSpec(input.spec);
       if (spec.exists && agent) enforceSpec(store, spec, { mode: "refuse" });
-      return createSpecPlan(store, input, spec);
+      return createSpecPlan(
+        store,
+        { ...input, ...(spec.home ? { home: spec.home } : {}) },
+        spec,
+      );
     }
     if (name === "plan.save") {
       const plan = store.get("plans", input.id);

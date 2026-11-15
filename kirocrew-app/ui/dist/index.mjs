@@ -17360,7 +17360,7 @@ function vm(e, t) {
 	};
 }
 function ym(e) {
-	return e.kind === "github-conflict" && !e.choices?.length ? e.field === "identity" ? "Two issues claim this task. Close or merge the duplicate issue on GitHub; Avoozl reads the result on its next tick." : e.field === "Avoozl state" ? "Avoozl fills Avoozl state and already wrote its value back. Move the card’s Status instead. This clears when the task’s state next changes." : "GitHub owns the issue state. Reopen or close it on GitHub; Avoozl reads the result on its next tick." : e.kind === "resource" ? "Two active runs share a resource. Stop one run, or wait for one to finish." : e.kind === "tracker-conflict" ? "The tracker record owns this field. Change it there or in the spec." : e.kind === "content-unavailable" ? "Add or fix this rule set’s terms file or plugin on this machine. Avoozl checks again on the next tick." : e.kind === "content-match" || e.kind === "budget" || e.kind === "over-budget" || e.kind === "investigation" || e.kind === "ready-to-merge" || e.kind === "routing-failed" || e.kind === "branch-landing" || e.kind === "needs-human" && e.reason === "forward" || e.kind === "needs-human" && e.reason === "conflict-fix" ? null : e.kind === "needs-human" && e.reason === "merge-method" ? "Change the GitHub setting it names, or change merge.method in Settings. The row clears on the next check." : e.kind === "needs-human" && e.reason === "hand-set-review" ? "Discuss it, mark it done, or move it back to planned from the task." : e.kind === "needs-human" && e.reason === "review-draft" ? "Act on the pull request on GitHub. Avoozl clears this row on its next tick once the draft is submitted or the cause is gone." : e.kind === "review" && lm(e) === null ? "GitHub or a plugin owns these tasks. Review them where they live." : lm(e) === null && e.kind !== "github-conflict" ? `${e.authority} owns this task. Settle it where it lives.` : null;
+	return e.kind === "github-conflict" && !e.choices?.length ? e.field === "identity" ? "Two issues claim this task. Close or merge the duplicate issue on GitHub; Avoozl reads the result on its next tick." : e.field === "Avoozl state" ? "Avoozl fills Avoozl state and already wrote its value back. Move the card’s Status instead. This clears when the task’s state next changes." : "GitHub owns the issue state. Reopen or close it on GitHub; Avoozl reads the result on its next tick." : e.kind === "resource" ? "Two active runs share a resource. Stop one run, or wait for one to finish." : e.kind === "tracker-conflict" ? "The tracker record owns this field. Change it there or in the spec." : e.kind === "content-unavailable" ? "Add or fix this rule set’s terms file or plugin on this machine. Avoozl checks again on the next tick." : e.kind === "content-match" || e.kind === "budget" || e.kind === "over-budget" || e.kind === "investigation" || e.kind === "ready-to-merge" || e.kind === "routing-failed" || e.kind === "branch-landing" || e.kind === "needs-human" && e.reason === "forward" ? null : e.kind === "needs-human" && e.reason === "forward-audit" ? "Check the public repository, then resume the stop from the banner. Avoozl forwards nothing until you do." : e.kind === "needs-human" && e.reason === "conflict-fix" ? null : e.kind === "needs-human" && e.reason === "merge-method" ? "Change the GitHub setting it names, or change merge.method in Settings. The row clears on the next check." : e.kind === "needs-human" && e.reason === "hand-set-review" ? "Discuss it, mark it done, or move it back to planned from the task." : e.kind === "needs-human" && e.reason === "review-draft" ? "Act on the pull request on GitHub. Avoozl clears this row on its next tick once the draft is submitted or the cause is gone." : e.kind === "review" && lm(e) === null ? "GitHub or a plugin owns these tasks. Review them where they live." : lm(e) === null && e.kind !== "github-conflict" ? `${e.authority} owns this task. Settle it where it lives.` : null;
 }
 var bm = [
 	{
@@ -17534,6 +17534,7 @@ function zm(e) {
 	};
 }
 function Bm(e) {
+	if (e.stopped) return `Forwarding is stopped: ${e.stopped}`;
 	if (e.changed) return "The change differs from what you reviewed. Review the new one below.";
 	if (e.blocked) return e.reason ?? "The checks blocked this change. Nothing was pushed.";
 	let t = e.record?.publicPr;
@@ -17541,13 +17542,13 @@ function Bm(e) {
 }
 // kirocrew-app/ui/src/ForwardScreen.tsx
 function Vm(e) {
-	let { workspaceId: t, forwardId: n } = e, r = zm(K()), [i, a] = d(null), [s, c] = d(null), [l, u] = d(!0), [f, p] = d(!1), m = (e) => {
-		p(e.blocked === !0), a(e.review ?? null), c(e.blocked || e.changed || !e.ok ? Bm(e) : null);
-	}, h = async (e, t) => {
+	let { workspaceId: t, forwardId: n } = e, r = zm(K()), [i, a] = d(null), [s, c] = d(null), [l, u] = d(!0), [f, p] = d(!1), [m, h] = d(null), _ = (e) => {
+		p(e.blocked === !0), h(e.stopped ?? null), a(e.review ?? null), c(e.stopped || e.blocked || e.changed || !e.ok ? Bm(e) : null);
+	}, v = async (e, t) => {
 		u(!0);
 		try {
 			let n = await e();
-			t && n.ok && !n.changed ? t(n) : m(n);
+			t && n.ok && !n.changed ? t(n) : _(n);
 		} catch (e) {
 			c(G(e));
 		} finally {
@@ -17555,7 +17556,7 @@ function Vm(e) {
 		}
 	};
 	return o(() => {
-		h(() => r.review(t, n));
+		v(() => r.review(t, n));
 	}, [t, n]), /* @__PURE__ */ C($n, {
 		id: "forward-screen",
 		title: e.title,
@@ -17567,9 +17568,9 @@ function Vm(e) {
 			children: "Close"
 		}), /* @__PURE__ */ C(g, {
 			primary: !0,
-			disabled: l || f || !i,
+			disabled: l || f || !i || m !== null,
 			"data-forward-push": !0,
-			onClick: () => void h(() => r.push(t, n, i.hash), (t) => {
+			onClick: () => void v(() => r.push(t, n, i.hash), (t) => {
 				c(Bm(t)), e.onClose(!0);
 			}),
 			children: "Forward"
