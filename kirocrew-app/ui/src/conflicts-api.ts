@@ -99,6 +99,9 @@ export function noActionReason(item: ConflictItem): string | null {
   if (item.kind === 'investigation' || item.kind === 'ready-to-merge' || item.kind === 'routing-failed' || item.kind === 'branch-landing') return null
   // A forward row carries its own button (ConflictsView.tsx ForwardButton).
   if (item.kind === 'needs-human' && item.reason === 'forward') return null
+  // A public branch ready to land (RC26.4): a person merges it on GitHub.
+  if (item.kind === 'needs-human' && item.reason === 'public-branch')
+    return 'Merge the public branch on GitHub yourself. Avoozl never merges it, and the row clears when it has landed.'
   // The forward audit (RC26.5.6): the stop is resumed from the Dashboard banner.
   if (item.kind === 'needs-human' && item.reason === 'forward-audit')
     return 'Check the public repository, then resume the stop from the banner. Avoozl forwards nothing until you do.'
@@ -112,6 +115,9 @@ export function noActionReason(item: ConflictItem): string | null {
   // Review drafts (RC20): the person acts on GitHub; the row clears itself.
   if (item.kind === 'needs-human' && item.reason === 'review-draft')
     return 'Act on the pull request on GitHub. Avoozl clears this row on its next tick once the draft is submitted or the cause is gone.'
+  // A tracker gate (RC23.9): a person clears it from the Release queue or the CLI.
+  if (item.kind === 'needs-human' && item.reason === 'tracker-gate')
+    return 'Clear the gate in the Release queue, or change the spec. Avoozl never clears a gate itself; the row closes when the tracker reports done.'
   if (item.kind === 'review' && settleActionOf(item) === null)
     return 'GitHub or a plugin owns these tasks. Review them where they live.'
   if (settleActionOf(item) === null && item.kind !== 'github-conflict')
@@ -140,6 +146,7 @@ export function whyLine(item: ConflictItem): string {
   if (item.kind === 'needs-human' && item.reason === 'crew') return item.detail
   if (item.kind === 'needs-human' && item.reason === 'hand-set-review') return item.detail
   if (item.kind === 'needs-human' && item.reason === 'review-draft') return item.detail
+  if (item.kind === 'needs-human' && item.reason === 'tracker-gate') return item.detail
   if (item.kind === 'needs-human')
     return item.reason === 'blocked' ? 'Marked blocked: nothing starts until you unblock it.' : 'New or edited: it waits for your review before it can start.'
   if (item.kind === 'review') return item.detail

@@ -1,3 +1,4 @@
+import { reconcileSpecDependencies } from "../spec-dependencies.mjs";
 import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import path from "node:path";
@@ -268,6 +269,7 @@ export class Store {
   commit(data, summary, expectedRevision) {
     if (this.read().revision !== (expectedRevision ?? data.revision))
       fail("Database changed. Reload and review before saving.", 409);
+    reconcileSpecDependencies(data, this.list("plans"), this.list("approvals"));
     data.revision = this.read().revision + 1;
     data.updatedAt = stamp();
     data.changelog = [

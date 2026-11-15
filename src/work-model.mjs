@@ -1,3 +1,4 @@
+import { hasPendingSpecDependencies } from "./spec-dependencies.mjs";
 // Work model fields from design §3.2 and §4.3. Rows written before these
 // fields existed are read through the defaults below; nothing rewrites them.
 // An epic is a goal across plans, never a task (Requirement 59.7).
@@ -103,6 +104,7 @@ export function taskRepository(task) {
 // completion (§4.3). A row stored before the work model (no kind or completion
 // of its own) keeps the old meaning: its complete status.
 export function completionReached(task, level, complete) {
+  if (hasPendingSpecDependencies(task)) return false;
   const done = complete(task?.status);
   if (!task) return false;
   // Every edge condition on a manual leaf is met when it is done: there is
@@ -159,6 +161,27 @@ export function workModelErrors(task) {
       errors.push("Unknown " + key + " " + task.id);
   if (task.completion !== undefined && !COMPLETIONS.includes(task.completion))
     errors.push("Unknown completion " + task.id);
+  for (const field of ["specDependencies", "pendingSpecDependencies"]) {
+    if (task[field] === undefined) continue;
+    if (!Array.isArray(task[field])) {
+      errors.push("Invalid spec dependencies " + task.id);
+      continue;
+    }
+    for (const ref of task[field])
+      if (
+        !ref ||
+        typeof ref !== "object" ||
+        !["requires", "sequence", "supports"].includes(ref.kind) ||
+        !["taskId", "spec", "planId"].every(
+          (key) => typeof ref[key] === "string" && ref[key].length,
+        ) ||
+        (ref.condition !== undefined &&
+          (ref.kind !== "requires" || !COMPLETIONS.includes(ref.condition)))
+      )
+        errors.push("Invalid spec dependency " + task.id);
+  }
+  if (task.pendingSpecDependencies?.length && !task.specDependencies?.length)
+    errors.push("Pending spec dependency has no declaration " + task.id);
   return errors;
 }
 

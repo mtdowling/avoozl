@@ -64,6 +64,7 @@ import {
   listSessionBindings,
   listSessionRequests,
   recordSessionStatus,
+  sessionRequestHold,
 } from "./session-bindings.mjs";
 import { workspaceRepositories } from "./workspace-repositories.mjs";
 import { queueNotifications, sessionUrl } from "./notifications.mjs";
@@ -110,6 +111,8 @@ import { publishInstanceStep } from "./instance-publish.mjs";
 import { mirrorForwardStep } from "./mirror-forward.mjs";
 import { mirrorForwardRunStep } from "./mirror-forward-run.mjs";
 import { mirrorForwardAuditStep } from "./forward-audit.mjs";
+import { publicBranchesOf } from "./forward-epics.mjs";
+import { mirrorBatchStep, publicBranchStep } from "./mirror-forward-batch.mjs";
 import { mirrorPublicPollStep } from "./mirror-forward-poll.mjs";
 import { armStep } from "./radar-arm.mjs";
 import { headStep } from "./integration-head.mjs";
@@ -134,6 +137,7 @@ import {
   taskRoute,
 } from "../work-model.mjs";
 import { gateStep } from "./gate-step.mjs";
+import { gateLabelStep } from "./gate-label.mjs";
 import { routeResultNotes, routeStep } from "./routes.mjs";
 import { heldByTrackers, trackerStep } from "./trackers.mjs";
 import {
@@ -411,7 +415,12 @@ function planDispatches(store, bindings) {
       continue;
     const task = data.tasks.find((t) => t.id === request.taskId),
       repository = repositories.get(request.repository);
-    if (!task || !repository?.localCheckout) continue;
+    if (
+      !task ||
+      !repository?.localCheckout ||
+      sessionRequestHold(data, task.id, request.role)
+    )
+      continue;
     const title = `avoozl:${task.id} ${task.title || ""}`.trim().slice(0, 200);
     dispatch.push({
       task: task.id,
@@ -493,8 +502,8 @@ async function githubStep(store, github, workspaceRoot, delivery) {
         policy,
       });
     completeParents(store);
-    await closeGitHubParents(store, github);
-    await closePlanAndEpicIssues(store, github);
+    await closeGitHubParents(store, github, { policy });
+    await closePlanAndEpicIssues(store, github, { policy });
     // Readiness changed by this tick's verdicts reaches GitHub now: the
     // ready label for Issue Radar, `dispatch.ready` for the runner.
     // A taken-over spec, and one whose shown links and notes changed
@@ -852,37 +861,36 @@ async function runTick(
       // (RC24.4): fast-forward only, one row for a divergence.
       if (script && github)
         try {
-          const step = await mirrorSyncStep(store, github, {
-            policy: readGitHubPolicyOrNull(workspaceRoot),
-          });
+          const policy = readGitHubPolicyOrNull(workspaceRoot),
+            publicBranches = (repository, mirror) =>
+              publicBranchesOf(store, policy, repository, mirror),
+            step = await mirrorSyncStep(store, github, {
+              policy,
+              publicBranches,
+            });
           planned.notify.push(...step.notify);
           for (const text of [
             ...step.errors,
-            ...(
-              await publishInstanceStep(store, github, {
-                policy: readGitHubPolicyOrNull(workspaceRoot),
-              })
-            ).errors,
+            ...(await publishInstanceStep(store, github, { policy })).errors,
             ...(
               await under("forward", mirrorForwardStep)(store, github, {
-                policy: readGitHubPolicyOrNull(workspaceRoot),
+                policy,
+                publicBranches,
               })
             ).errors,
+            ...(await mirrorBatchStep(store, github, { policy })).errors,
             ...(
               await under("forward", mirrorForwardRunStep)(store, github, {
-                policy: readGitHubPolicyOrNull(workspaceRoot),
+                policy,
               })
             ).errors,
             ...(
               await under("forward", mirrorPublicPollStep)(store, github, {
-                policy: readGitHubPolicyOrNull(workspaceRoot),
+                policy,
               })
             ).errors,
-            ...(
-              await mirrorForwardAuditStep(store, github, {
-                policy: readGitHubPolicyOrNull(workspaceRoot),
-              })
-            ).errors,
+            ...(await mirrorForwardAuditStep(store, github, { policy })).errors,
+            ...(await publicBranchStep(store, github, { policy })).errors,
           ])
             planned.notify.push({
               channel: "failure",
@@ -935,6 +943,28 @@ async function runTick(
           planned.notify.push({
             channel: "failure",
             title: "Avoozl could not check pull requests for merging",
+            text: error.message,
+          });
+        }
+      // The waiting label on tracker gates and their gate-only dependents
+      // (RC23.4): written from state, so a quiet tick makes no call.
+      if (script && github)
+        try {
+          const step = await gateLabelStep(
+            store,
+            github,
+            readGitHubPolicyOrNull(workspaceRoot),
+          );
+          for (const text of step.errors)
+            planned.notify.push({
+              channel: "failure",
+              title: "Avoozl could not label a tracker gate",
+              text,
+            });
+        } catch (error) {
+          planned.notify.push({
+            channel: "failure",
+            title: "Avoozl could not label a tracker gate",
             text: error.message,
           });
         }

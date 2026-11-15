@@ -318,7 +318,13 @@ function cycleDiagnostics(tasks, mapping) {
   return diagnostics;
 }
 
-export function lintPlan({ text, plan = {}, data = {}, proposals }) {
+export function lintPlan({
+  text,
+  plan = {},
+  data = {},
+  proposals,
+  declaredTasks = [],
+}) {
   const diagnostics = [];
   const matches = [...text.matchAll(taskBlocks())];
   if (!matches.length && proposals === undefined)
@@ -356,6 +362,7 @@ export function lintPlan({ text, plan = {}, data = {}, proposals }) {
     (data.tasks || []).map((task) => [task.id, task]),
   );
   const localTasks = new Map(tasks.map((task) => [task.id, task]));
+  const declarations = new Map(declaredTasks.map((task) => [task.id, task]));
   const normalizedTitles = new Map();
   // Built once: every proposal's title is checked against every task.
   let titles = null;
@@ -499,7 +506,7 @@ export function lintPlan({ text, plan = {}, data = {}, proposals }) {
         const existingReference = canonicalReference
           ? existingTasks.get(canonicalReference)
           : null;
-        if (!local && !existingReference)
+        if (!local && !existingReference && !declarations.has(reference))
           diagnostics.push(
             diagnostic(
               "task.unknown-dependency",
@@ -532,7 +539,23 @@ export function lintPlan({ text, plan = {}, data = {}, proposals }) {
       }
     }
   }
-  diagnostics.push(...cycleDiagnostics(tasks, localTasks));
+  const all = new Map([...declarations, ...localTasks]),
+    reachable = new Set();
+  function include(id) {
+    if (reachable.has(id) || !all.has(id)) return;
+    reachable.add(id);
+    const task = all.get(id);
+    for (const field of ["requires", "sequence"])
+      for (const from of task[field] || []) include(from);
+  }
+  for (const task of tasks) include(task.id);
+  const connected = [...reachable].map((id) => all.get(id));
+  diagnostics.push(
+    ...cycleDiagnostics(
+      connected,
+      new Map(connected.map((task) => [task.id, task])),
+    ),
+  );
   diagnostics.sort(
     (left, right) =>
       severityRank(left.severity) - severityRank(right.severity) ||

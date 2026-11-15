@@ -1,3 +1,4 @@
+import { hasPendingSpecDependencies } from "../spec-dependencies.mjs";
 // Local delivery (design §4.5, §5): each leaf's worktree, its worker's reports,
 // and what the tick does with them. The tick plans; the script cron opens and
 // messages sessions. Nothing here opens a session or replaces one.
@@ -3471,7 +3472,11 @@ export function completeParents(store, { now = Date.now() } = {}) {
         childrenOf.get(t.parent).push(t);
       }
     const ready = data.tasks.filter((parent) => {
-      if (!["epic", "package"].includes(parent.kind) || parent.childrenComplete)
+      if (
+        hasPendingSpecDependencies(parent) ||
+        !["epic", "package"].includes(parent.kind) ||
+        parent.childrenComplete
+      )
         return false;
       // A superseded child is history; its replacement counts instead.
       const children = childrenOf.get(parent.id) || [];

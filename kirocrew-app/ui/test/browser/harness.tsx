@@ -28,6 +28,8 @@ import DashboardView, { InFlightRow } from '../../src/DashboardView.tsx'
 import { setupForm } from '../../src/settings-api.ts'
 import { LAYER } from '../../src/layers.ts'
 import { CoderPicker } from '../../src/CoderPicker.tsx'
+import { GateList } from '../../src/TrackerGates.tsx'
+import { waitingGates, type GateRow } from '../../src/release-api.ts'
 import ReleaseQueue from '../../src/ReleaseQueue.tsx'
 import GithubFlow from '../../src/GithubFlow.tsx'
 import { ReleaseModePicker } from '../../src/ReleaseMode.tsx'
@@ -37,7 +39,7 @@ import { projectionClient } from '../../src/projection-api.ts'
 import { QuickGoalModal } from '../../src/QuickGoalModal.tsx'
 import { quickGoalClient } from '../../src/quickgoal-api.ts'
 import PluginsSettings from '../../src/PluginsSettings.tsx'
-import SettingsView, { RepositoryEditor } from '../../src/SettingsView.tsx'
+import SettingsView, { RateBlock, RepositoryEditor } from '../../src/SettingsView.tsx'
 import { answerIntake } from './intake-fixture.ts'
 import RadarValuesScreen from '../../src/RadarValues.tsx'
 import { CrewsRulesSettings } from '../../src/CrewsRulesSettings.tsx'
@@ -641,6 +643,21 @@ function RepoModePage() {
 }
 
 const PAGES: Record<string, () => ReactNode> = {
+  // The GitHub calls of the last hour by source, beside the live limit.
+  'github-usage': () => (
+    <RateBlock
+      rate={{
+        resources: { core: { limit: 5000, remaining: 1078, resetAt: new Date(Date.now() + 22 * 60000).toISOString() }, graphql: { limit: 5000, remaining: 4890, resetAt: new Date(Date.now() + 40 * 60000).toISOString() } },
+        limitedUntil: null,
+        limitedResource: null,
+        calls: 214,
+        notModified: 61,
+        notModifiedShare: 61 / 214,
+        hourCalls: 153,
+        bySource: { tick: { calls: 88, notModified: 40, cached: 0 }, crew: { calls: 41, notModified: 0, cached: 0 }, view: { calls: 17, notModified: 21, cached: 132 }, review: { calls: 5, notModified: 0, cached: 3 }, setup: { calls: 2, notModified: 0, cached: 0 } },
+      }}
+    />
+  ),
   'repo-mode': () => <RepoModePage />,
   'github-flow': () => <GithubFlow workspaceId="w" />,
   'release-queue': () => <ReleaseQueue workspaceId="w" />,
@@ -907,6 +924,22 @@ function CrewsRulesPage() {
     </div>
   )
 }
+// ?page=tracker-gates: an open, a failed and a cleared gate, and the Waiting on you filter.
+const GATES: GateRow[] = [
+  { taskId: 'sdk.1', title: 'Wait for the review to ship', tracker: 'ticket-tracker', item: 'REV-1', done: 'the review shipped to the live release', state: 'open', lastCheck: '2026-11-14T12:00:00Z', nextCheck: '2026-11-14T12:02:00Z', evidence: 'In review', link: null, cleared: null, needsYou: false, held: ['sdk.2'] },
+  { taskId: 'sdk.5', title: 'A very long gate title that has to wrap on a phone without any sideways scrolling at all', tracker: 'ticket-tracker', item: 'https://tracker.example.test/a/very/long/path/that/must/wrap/REV-2', done: 'resolved', state: 'failed', lastCheck: '2026-11-14T12:00:00Z', nextCheck: '2026-11-14T12:30:00Z', evidence: 'Rejected by the owner', link: 'https://tracker.example.test/REV-2', cleared: null, needsYou: true, held: [] },
+  { taskId: 'sdk.6', title: 'Cut over', tracker: 'ticket-tracker', item: 'REV-3', done: 'resolved', state: 'cleared', lastCheck: null, nextCheck: null, evidence: null, link: null, cleared: { actor: 'alice', how: 'command', at: '2026-11-14T13:00:00Z', reason: 'Shipped by hand.', lastState: 'failed' }, needsYou: false, held: [] },
+]
+function TrackerGatesPage() {
+  return (
+    <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)', minHeight: '100vh', boxSizing: 'border-box' }}>
+      <HarnessBoundary>
+        <GateList gates={GATES} onClear={() => undefined} />
+        <pre data-waiting>{waitingGates(GATES).map((row) => row.taskId).join(',')}</pre>
+      </HarnessBoundary>
+    </div>
+  )
+}
 // ?page=workflow-map&config=single|plans|local: the Workflow map drawn from a
 // real policy through toForm, with the Crews and rules fields beside it so a
 // jump has somewhere to land.
@@ -962,5 +995,5 @@ function PanelPage() {
   )
 }
 createRoot(document.getElementById('root')!).render(
-  page === 'tip' ? <TipPage /> : page === 'trace' ? <TraceDonePage /> : page === 'panel' ? <PanelPage /> : page === 'workflow-map' ? <WorkflowMapPage /> : page === 'crews-rules' ? <CrewsRulesPage /> : page === 'radar-values' ? <RadarValuesPage /> : intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page === 'activity' ? <ActivityPage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
+  page === 'tip' ? <TipPage /> : page === 'trace' ? <TraceDonePage /> : page === 'panel' ? <PanelPage /> : page === 'workflow-map' ? <WorkflowMapPage /> : page === 'crews-rules' ? <CrewsRulesPage /> : page === 'tracker-gates' ? <TrackerGatesPage /> : page === 'radar-values' ? <RadarValuesPage /> : intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page === 'activity' ? <ActivityPage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
 )

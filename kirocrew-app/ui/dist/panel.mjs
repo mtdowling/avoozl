@@ -1489,6 +1489,11 @@ function Rt(e) {
 			head: i
 		}, e),
 		drafts: (e, n = {}) => t("review.drafts", Object.fromEntries(Object.entries(n).filter(([, e]) => e)), e),
+		gates: (e) => t("gate.list", {}, e),
+		clearGate: (e, n, r) => t("gate.clear", {
+			taskId: n,
+			reason: r
+		}, e),
 		step: (e, n) => t("radar.releasestep", { planId: n }, e)
 	};
 }
