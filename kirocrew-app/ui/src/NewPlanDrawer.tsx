@@ -11,6 +11,7 @@ import { useAppApi, useChatLauncher, useNavigate } from './host.ts'
 import { Btn, Input } from '@kirocrew/app-sdk/ui'
 import { ExternalLink, FileText, MessageSquare, Package, X } from './icons.ts'
 import { RadioFold } from './RadioFold.tsx'
+import { Picker } from './Picker.tsx'
 import { TemplateStart, templateKey, type InputValues } from './TemplateStart.tsx'
 import { missingInputs, notesClient, type TemplateSummary } from './notes-api.ts'
 import { importInput, pluginsClient, type PackPreview } from './plugins-api.ts'
@@ -62,6 +63,9 @@ function Field(props: { id: string; label: string; need: 'required' | 'optional'
   )
 }
 
+// A picker's last choice, which turns into a field for a new name.
+const NEW_CHOICE = '__new__'
+
 export default function NewPlanDrawer(props: {
   workspaceId: string
   // Names a plan or spec folder already uses.
@@ -71,7 +75,7 @@ export default function NewPlanDrawer(props: {
   epics?: { id: string; title: string }[]
   // Make it a spec (R63.9): fields filled from an idea, and its id.
   seed?: Partial<NewPlanForm>
-  // Which way it opens; Blank unless said.
+  // Which way it opens; none picked unless said, and Submit waits for one.
   start?: 'blank' | 'template'
   onClose: (notice: string | null) => void
 }) {
@@ -96,7 +100,10 @@ export default function NewPlanDrawer(props: {
   const [shown, setShown] = useState(false)
   // Blank, or From template (R61.7): a template's inputs, and its settings
   // imported only when ticked.
-  const [start, setStart] = useState<'blank' | 'template'>(props.start ?? 'blank')
+  const [start, setStart] = useState<'blank' | 'template' | null>(props.start ?? null)
+  // A picker's "New …" choice turns into a name field.
+  const [newCategory, setNewCategory] = useState(false)
+  const [newEpic, setNewEpic] = useState(false)
   const [templates, setTemplates] = useState<TemplateSummary[] | null>(null)
   const [picked, setPicked] = useState<string | null>(null)
   const [values, setValues] = useState<InputValues>({})
@@ -188,7 +195,9 @@ export default function NewPlanDrawer(props: {
   }, [])
 
   const problems =
-    start === 'template'
+    start === null
+      ? ['Pick Blank or From template.']
+      : start === 'template'
       ? [...(template ? [] : ['Pick a template.']), ...templateProblems(form, props.taken, template ? missingInputs(template, values) : [])]
       : repositories
         ? formProblems(form, props.taken, repositories.length)
@@ -246,6 +255,7 @@ export default function NewPlanDrawer(props: {
 
   const submit = () => {
     setTried(true)
+    if (start === null) return
     if (start === 'template') {
       if (problems.length) return
       return fromTemplate()
@@ -319,7 +329,9 @@ export default function NewPlanDrawer(props: {
           <p className="text-xs text-muted">
             {start === 'template'
               ? 'An Avoozl planner chat drafts the spec from the template and what you fill in. It shows in Specs as a draft. Nothing is approved or started.'
-              : "Kiro Crew's Spec Builder drafts the spec from this: requirements, design, then tasks, each for you to review. Avoozl then writes the manifest, and the spec shows in Specs as a draft. Nothing is approved or started."}
+              : start === 'blank'
+                ? "Kiro Crew's Spec Builder drafts the spec from this: requirements, design, then tasks, each for you to review. Avoozl then writes the manifest, and the spec shows in Specs as a draft. Nothing is approved or started."
+                : 'Name it, then pick how to start: Blank or From template. It shows in Specs as a draft. Nothing is approved or started.'}
           </p>
           <Field id="avoozl-new-plan-name" need="required" label="Name" hint="Becomes the spec folder name: lowercase letters, digits and hyphens." problem={nameIssue}>
             <Input
@@ -333,47 +345,53 @@ export default function NewPlanDrawer(props: {
               style={{ maxWidth: '24rem' }}
             />
           </Field>
-          <Field id="avoozl-new-plan-category" need="optional" label="Category" hint="Pick one or type a new one. Left blank, the spec is Uncategorized.">
-            <Input
+          <Field id="avoozl-new-plan-category" need="optional" label="Category" hint="Pick one, or New category to name one. Left blank, the spec is Uncategorized.">
+            <Picker
               id="avoozl-new-plan-category"
-              list="avoozl-new-plan-categories"
-              value={form.category}
-              onChange={(event) => set({ category: event.target.value })}
-              style={{ maxWidth: '18rem' }}
+              label={<span className="sr-only">Category</span>}
+              items={[...props.categories.map((c) => ({ id: c, title: c })), { id: NEW_CHOICE, title: 'New category…' }]}
+              value={newCategory ? NEW_CHOICE : form.category}
+              emptyLabel="Uncategorized"
+              plain
+              maxWidth="18rem"
+              onPick={(id) => {
+                setNewCategory(id === NEW_CHOICE)
+                set({ category: id === NEW_CHOICE ? '' : id })
+              }}
             />
-            <datalist id="avoozl-new-plan-categories">
-              {props.categories.map((category) => (
-                <option key={category} value={category} />
-              ))}
-            </datalist>
+            {newCategory && (
+              <Input id="avoozl-new-plan-category-new" aria-label="New category" value={form.category} placeholder="Platform" onChange={(event) => set({ category: event.target.value })} style={{ maxWidth: '18rem' }} />
+            )}
           </Field>
           <Field
             id="avoozl-new-plan-epic"
             need="optional"
             label="Epic"
-            hint="Pick an epic, a goal that spans specs. Left blank, the spec is in no epic."
+            hint="An epic is a goal that holds several specs. Pick one, or New epic to start one. Left blank, the spec is in no epic."
             problem={form.epic.trim() && !SPEC_NAME.test(form.epic.trim()) ? EPIC_PROBLEM : null}
           >
-            <Input
+            <Picker
               id="avoozl-new-plan-epic"
-              value={form.epic}
-              list="avoozl-new-plan-epic-list"
-              placeholder="rewrite"
-              onChange={(event) => set({ epic: event.target.value })}
-              style={{ maxWidth: '18rem' }}
+              label={<span className="sr-only">Epic</span>}
+              items={[...(props.epics ?? []).map((epic) => ({ id: epic.id, title: epic.title })), { id: NEW_CHOICE, title: 'New epic…' }]}
+              value={newEpic ? NEW_CHOICE : form.epic}
+              emptyLabel="No epic"
+              plain
+              maxWidth="18rem"
+              onPick={(id) => {
+                setNewEpic(id === NEW_CHOICE)
+                set({ epic: id === NEW_CHOICE ? '' : id })
+              }}
             />
-            <datalist id="avoozl-new-plan-epic-list">
-              {(props.epics ?? []).map((epic) => (
-                <option key={epic.id} value={epic.id}>
-                  {epic.title}
-                </option>
-              ))}
-            </datalist>
+            {newEpic && (
+              <Input id="avoozl-new-plan-epic-new" aria-label="New epic folder name" value={form.epic} placeholder="rewrite" onChange={(event) => set({ epic: event.target.value })} style={{ maxWidth: '18rem' }} />
+            )}
           </Field>
           <RadioFold<'blank' | 'template'>
             name="avoozl-new-plan-start"
             label="How to start"
-            value={start}
+            // Neither is picked at first; each says what it does.
+            value={(start ?? '') as 'blank' | 'template'}
             onChange={(next) => {
               setStart(next)
               setTried(false)
@@ -383,7 +401,7 @@ export default function NewPlanDrawer(props: {
               {
                 key: 'blank',
                 title: 'Blank',
-                line: 'Spec Builder drafts it from what you want, phase by phase.',
+                line: "Kiro Crew's Spec Builder writes the spec with you from what you want: requirements, then design, then tasks, each for you to review. Use it for new work with no set shape.",
                 icon: FileText,
                 fields: (
                   <div className="flex flex-col gap-3">
@@ -450,7 +468,7 @@ export default function NewPlanDrawer(props: {
               {
                 key: 'template',
                 title: 'From template',
-                line: 'Start from a workflow template in an approved plugin: its phases, proofs and manual steps.',
+                line: "Start from a workflow template in an approved plugin. It brings its own phases, proofs and manual steps, and a planner chat fills them in. Use it when a team's way of working already exists.",
                 icon: Package,
                 fields: (
                   <TemplateStart
@@ -510,9 +528,14 @@ export default function NewPlanDrawer(props: {
           )}
         </form>
         <div className="flex items-center gap-2 border-t px-4 py-3" style={{ borderColor: 'var(--border)' }}>
-          <Btn type="submit" form="avoozl-new-plan-form" primary disabled={busy || repositories === null || steering !== null} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          {tried && start === null && (
+            <span role="alert" className="text-xs text-danger" data-start-problem>
+              Pick Blank or From template.
+            </span>
+          )}
+          <Btn type="submit" form="avoozl-new-plan-form" primary disabled={busy || start === null || repositories === null || steering !== null} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             {start === 'template' ? <MessageSquare size={ICON} aria-hidden="true" /> : <ExternalLink size={ICON} aria-hidden="true" />}
-            {busy ? 'Opening…' : start === 'template' ? 'Open a planner chat' : 'Open in Spec Builder'}
+            {busy ? 'Opening…' : start === 'template' ? 'Open a planner chat' : start === 'blank' ? 'Open in Spec Builder' : 'Pick how to start'}
           </Btn>
           <Btn type="button" onClick={() => void close()} disabled={busy}>
             Cancel

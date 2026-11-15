@@ -270,6 +270,8 @@ export const SCENARIOS: Record<string, Scenario> = {
   'task-drawer': own('Open the dialog', <OpenTask />),
   'mark-done': shown((close) => <MarkDoneDialog workspaceId="w" taskId="team-review" title="Review with team" onIssue onClose={close} onDone={close} />),
   // The real page shows New spec over the whole page, not inside a card.
+  // New spec with nothing picked: categories and epics to choose from.
+  'new-spec': shown((close) => createPortal(<div {...{ [APP_ATTR]: '' }}><NewPlanDrawer workspaceId="w" taken={[]} categories={['Platform', 'Search']} epics={[{ id: 'sdk-target', title: 'SDK target architecture' }]} onClose={close} /></div>, document.body)),
   'new-spec-template': shown((close) => createPortal(<div {...{ [APP_ATTR]: '' }}><NewPlanDrawer workspaceId="w" taken={[]} categories={[]} epics={[{ id: 'sdk-target', title: 'SDK target architecture' }]} start="template" onClose={close} /></div>, document.body)),
 }
 
