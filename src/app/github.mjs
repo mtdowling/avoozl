@@ -1200,13 +1200,21 @@ export class GitHubClient {
     );
   }
 
-  putFile(value, { path, branch, message, content }) {
+  // GitHub refuses an update to an existing file unless the request names the
+  // file's current blob `sha`, so read it first; a 404 means a new file.
+  async putFile(value, { path, branch, message, content }) {
     const { owner, repo } =
       typeof value === "string" ? parseRepository(value) : value;
+    let sha;
+    try {
+      sha = (await this.contents({ owner, repo }, path, branch))?.sha;
+    } catch (error) {
+      if (error.status !== 404) throw error;
+    }
     return this.request(
       "PUT",
       `/repos/${owner}/${repo}/contents/${path.split("/").map(encodeURIComponent).join("/")}`,
-      { body: { message, content, branch } },
+      { body: { message, content, branch, ...(sha ? { sha } : {}) } },
     );
   }
 
