@@ -17,6 +17,7 @@ import {
   instanceIdentity,
   recordSeenInstance,
 } from "./instance.mjs";
+import { blockReason, dropTrailers, forwardGuard } from "./forward-guard.mjs";
 import { forwardGit } from "./mirror-forward-git.mjs";
 import { mirrorSyncStep } from "./mirror-sync.mjs";
 import { READY_LABEL_DEFAULT } from "./github-policy.mjs";
@@ -149,10 +150,15 @@ export async function forwardRecord(
     );
   }
   const title = stripPrivate(rawTitle, mirror) || "Update",
-    body = [stripPrivate(rawBody, mirror), `Contributed by @${person}.`]
+    body = [
+      dropTrailers(stripPrivate(rawBody, mirror)),
+      `Contributed by @${person}.`,
+    ]
       .filter(Boolean)
       .join("\n\n"),
-    message = `${title}\n\n${stripPrivate(rawBody, mirror)}`.trim(),
+    message = dropTrailers(
+      `${title}\n\n${dropTrailers(stripPrivate(rawBody, mirror))}`,
+    ),
     branch = branchFor(mirror, record);
   try {
     for (const text of [title, body, message, branch])
@@ -175,105 +181,136 @@ export async function forwardRecord(
       record,
       reason: "The default branch could not be read.",
     };
-  const attempt = async () => {
-    let prepared;
-    try {
-      prepared = await git.prepare({
-        source: mirror.source,
-        mirror: mirror.mirror,
-        base,
-        mergeSha: record.id,
-        author: { name: person, email: `${person}@users.noreply.github.com` },
-        message,
-        branch,
-        date: record.mirrorMergedAt,
-        token,
-      });
-    } catch (error) {
-      if (error.conflict) return { conflict: true, paths: error.paths };
-      throw error;
-    }
-    try {
-      const result = scan(
-        store,
-        record.repository,
-        {
-          "commit-message": message,
-          "branch-name": branch,
-          "pull-request-title": title,
-          "pull-request-body": body,
-        },
-        prepared.added,
-      );
-      if (result.rules.length || result.unavailable.length)
-        return {
-          done: blocked(
-            store,
-            record,
-            result.rules.length
-              ? `The leak scan blocked this forward (${result.rules.join(", ")}). Nothing was pushed.`
-              : `The leak scan could not run (${result.unavailable.join(", ")}). Nothing was pushed.`,
-          ),
-        };
-      if (!push) {
-        const ready = {
-          ...record,
-          state: "to_forward",
-          scanClean: true,
-          conflictBase: null,
-          reason:
-            "Merged in the mirror, scan clean, ready for the public repository.",
-        };
-        store.put("mirror_forward", ready);
-        return { done: { ok: true, ready: true, record: ready } };
-      }
-      const [owner] = forwardTo.split("/"),
-        head = forwardTo === mirror.source ? branch : `${owner}:${branch}`,
-        // A pull request closed without a merge is not found again: a person
-        // pressing Forward after a close opens a new one.
-        existing = (
-          await github.listPullRequests(mirror.source, {
-            state: "all",
-            head: `${owner}:${branch}`,
-          })
-        )?.find((pull) => !(pull.state === "closed" && !pull.merged_at));
-      let number = existing?.number;
-      if (!number) {
-        try {
-          await git.push({ ...prepared, forwardTo, branch, token });
-        } catch (error) {
-          // The remote moved under the branch: sync, rebuild, once (RC24.12).
-          if (/rejected|non-fast-forward|fetch first/i.test(error.stderr ?? ""))
-            return { conflict: true, paths: [] };
-          throw error;
-        }
-        const created = await github.createPullRequest(mirror.source, {
-          title,
-          body,
-          head,
+  const email = `${person}@users.noreply.github.com`,
+    attempt = async () => {
+      let prepared;
+      try {
+        prepared = await git.prepare({
+          source: mirror.source,
+          mirror: mirror.mirror,
           base,
+          mergeSha: record.id,
+          author: { name: person, email },
+          message,
+          branch,
+          date: record.mirrorMergedAt,
+          token,
         });
-        number = created.number;
+      } catch (error) {
+        if (error.conflict) return { conflict: true, paths: error.paths };
+        throw error;
       }
-      const next = {
-        ...record,
-        state: "public_open",
-        reason: "Forwarded; waiting on the public pull request.",
-        scanClean: true,
-        conflictIssue: record.conflictIssue ?? null,
-        conflictBase: null,
-        forwardedAt: now,
-        publicPrAt: now,
-        forwardBranch: branch,
-        publicPr: number,
-        forwardedBy: person,
-      };
-      store.put("mirror_forward", next);
-      return { done: { ok: true, record: next } };
-    } finally {
-      git.cleanup(prepared);
-    }
-  };
+      try {
+        // The protections, in order, before anything is pushed (RC26.5, D31.2).
+        let unavailable = [];
+        const verdict = forwardGuard(
+          {
+            paths: prepared.paths,
+            files: prepared.files,
+            message,
+            branch,
+            title,
+            body,
+            meta: prepared.meta,
+            expect: {
+              base: prepared.baseSha,
+              person,
+              email,
+              mirror: mirror.mirror,
+              sha: record.id,
+            },
+          },
+          {
+            mirror,
+            identity,
+            sets: () => {
+              const found = scan(
+                store,
+                record.repository,
+                {
+                  "commit-message": message,
+                  "branch-name": branch,
+                  "pull-request-title": title,
+                  "pull-request-body": body,
+                },
+                prepared.added,
+              );
+              unavailable = found.unavailable;
+              return found;
+            },
+          },
+        );
+        if (!verdict.ok)
+          return {
+            done: blocked(
+              store,
+              record,
+              unavailable.length && verdict.protection === "leak scan"
+                ? `The leak scan could not run (${unavailable.join(", ")}). Nothing was pushed.`
+                : blockReason(verdict),
+            ),
+          };
+        if (!push) {
+          const ready = {
+            ...record,
+            state: "to_forward",
+            scanClean: true,
+            conflictBase: null,
+            reason:
+              "Merged in the mirror, scan clean, ready for the public repository.",
+          };
+          store.put("mirror_forward", ready);
+          return { done: { ok: true, ready: true, record: ready } };
+        }
+        const [owner] = forwardTo.split("/"),
+          head = forwardTo === mirror.source ? branch : `${owner}:${branch}`,
+          // A pull request closed without a merge is not found again: a person
+          // pressing Forward after a close opens a new one.
+          existing = (
+            await github.listPullRequests(mirror.source, {
+              state: "all",
+              head: `${owner}:${branch}`,
+            })
+          )?.find((pull) => !(pull.state === "closed" && !pull.merged_at));
+        let number = existing?.number;
+        if (!number) {
+          try {
+            await git.push({ ...prepared, forwardTo, branch, token });
+          } catch (error) {
+            // The remote moved under the branch: sync, rebuild, once (RC24.12).
+            if (
+              /rejected|non-fast-forward|fetch first/i.test(error.stderr ?? "")
+            )
+              return { conflict: true, paths: [] };
+            throw error;
+          }
+          const created = await github.createPullRequest(mirror.source, {
+            title,
+            body,
+            head,
+            base,
+          });
+          number = created.number;
+        }
+        const next = {
+          ...record,
+          state: "public_open",
+          reason: "Forwarded; waiting on the public pull request.",
+          scanClean: true,
+          conflictIssue: record.conflictIssue ?? null,
+          conflictBase: null,
+          forwardedAt: now,
+          publicPrAt: now,
+          forwardBranch: branch,
+          publicPr: number,
+          forwardedBy: person,
+        };
+        store.put("mirror_forward", next);
+        return { done: { ok: true, record: next } };
+      } finally {
+        git.cleanup(prepared);
+      }
+    };
   let outcome = await attempt();
   if (outcome.conflict) {
     // Source moved: sync the mirror, rebuild on the new base, scan again.

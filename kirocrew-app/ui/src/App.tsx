@@ -178,7 +178,7 @@ function AvoozlPage() {
   const openDrill = (next: Drill) => go({ focus: null, drill: next, tab: 'graph' })
   const openSettings = (section: string) => go({ focus: null, drill: null, tab: 'settings', settingsTab: section as SettingsTab })
   const planEpic = () => {
-    // The same New plan drawer, opened on the Epics tab.
+    // The same New plan drawer, opened on the Specs tab.
     setPlanGoal((request) => ({ n: request.n + 1 }))
     go({ focus: null, drill: null, tab: 'plans' })
   }
