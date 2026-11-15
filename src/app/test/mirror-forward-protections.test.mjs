@@ -6,7 +6,13 @@ import {
 } from "../forward-scan.mjs";
 import { normalizeGitHubPolicy } from "../github-policy.mjs";
 import { forwardMaxFileBytesOf } from "../mirror-policy.mjs";
-import { metadataBlocks, pathBlocks } from "../forward-guard.mjs";
+import {
+  forwardGuard,
+  metadataBlocks,
+  pathBlocks,
+  pushProblem,
+} from "../forward-guard.mjs";
+import { mirrorForwardRows } from "../mirror-forward.mjs";
 import { forwardRecord, mirrorForwardRunStep } from "../mirror-forward-run.mjs";
 import {
   branches,
@@ -466,4 +472,197 @@ test("an auto forward leaves the receipt before the push call", async (t) => {
     made.store.get("mirror_forward", made.sha).receipt.hash,
     seen[0].hash,
   );
+});
+
+// rc-25.5: a block is one row and no retry; Stop the line; explicit refspecs
+// (tests 5, 7 and 8 of D31.2).
+const counting = (made) => {
+  const spy = { count: 0, pushes: 0 };
+  spy.git = {
+    ...made.forward,
+    prepare: async (input) => {
+      spy.count += 1;
+      return made.forward.prepare(input);
+    },
+    push: async (input) => {
+      spy.pushes += 1;
+      return made.forward.push(input);
+    },
+  };
+  return spy;
+};
+const stopOpen = (store, extra = {}) =>
+  store.put("flow_stops", {
+    id: "stop:1",
+    manual: true,
+    scope: "all",
+    reason: "A test stop.",
+    openedAt: "2026-11-14T10:00:00.000Z",
+    closedAt: null,
+    ...extra,
+  });
+
+test("the protections run in order and a later one does not run on an earlier block", () => {
+  const person = { name: "dana", email: "dana@users.noreply.github.com" },
+    change = {
+      paths: [".kiro/a.md"],
+      files: [{ path: ".kiro/a.md", content: "// zorblax PROJ-1234\n" }],
+      message: "Add",
+      branch: "b",
+      title: "Add",
+      body: "by x@corp.test",
+      meta: {
+        parents: ["x", "y"],
+        author: person,
+        committer: person,
+        message: "Add",
+      },
+      expect: { base: "base", person: "dana", email: person.email },
+    };
+  const first = forwardGuard(change, { mirror: PLANS });
+  assert.equal(first.protection, "path policy");
+  const second = forwardGuard(
+    {
+      ...change,
+      paths: ["a.md"],
+      files: [{ path: "a.md", content: "// see PROJ-1234\n" }],
+    },
+    { mirror: PLANS },
+  );
+  assert.equal(second.protection, "leak scan");
+  const third = forwardGuard(
+    { ...change, paths: ["a.md"], files: [{ path: "a.md", content: "ok\n" }] },
+    { mirror: PLANS },
+  );
+  assert.equal(third.protection, "metadata scrub");
+});
+
+test("a block gives one row across three ticks and zero retries; Try again runs it all again", async (t) => {
+  for (const mode of ["auto", "nudge"]) {
+    const made = scratch(t, { file: ".kiro/x.md" }),
+      spy = counting(made),
+      github = fakeGitHub(),
+      options = { policy: policy(mode), git: spy.git, grant };
+    for (let tick = 0; tick < 3; tick++)
+      assert.deepEqual(
+        (await mirrorForwardRunStep(made.store, github, options)).errors,
+        [],
+      );
+    assert.equal(spy.count, 1, mode);
+    assert.equal(spy.pushes, 0, mode);
+    const rows = mirrorForwardRows(made.store, policy(mode));
+    assert.equal(rows.length, 1, mode);
+    assert.match(rows[0].detail, /path-kiro in file 1/);
+    // Try again, after the person fixes the rule: everything runs again.
+    const fixed = policy(mode, { forwardAllow: [".kiro/x.md"] }),
+      again = await forwardRecord(made.store, github, made.sha, {
+        policy: fixed,
+        person: "dana",
+        git: spy.git,
+        grant,
+      });
+    assert.equal(spy.count, 2, mode);
+    assert.equal(again.record.state, "public_open", mode);
+  }
+});
+
+test("an open Stop the line stops forwarding in every mode and the button says why", async (t) => {
+  const made = scratch(t),
+    spy = counting(made),
+    github = fakeGitHub();
+  stopOpen(made.store);
+  const tick = await mirrorForwardRunStep(made.store, github, {
+    policy: policy("auto"),
+    git: spy.git,
+    grant,
+  });
+  assert.deepEqual(tick.errors, []);
+  const pressed = await forwardRecord(made.store, github, made.sha, {
+    policy: policy("nudge"),
+    person: "dana",
+    git: spy.git,
+    grant,
+  });
+  assert.equal(pressed.ok, false);
+  assert.match(pressed.reason, /Forwarding is stopped: A test stop\./);
+  const look = await forwardRecord(made.store, github, made.sha, {
+    policy: policy("nudge"),
+    person: "dana",
+    git: spy.git,
+    grant,
+    push: false,
+  });
+  assert.equal(look.stopped, "A test stop.");
+  assert.equal(spy.pushes, 0);
+  assert.equal(github.created.length, 0);
+  assert.deepEqual(branches(made.pub), ["main"]);
+  // A stop for another repository does not stop this one; a closed one is over.
+  made.store.put("flow_stops", {
+    ...made.store.get("flow_stops", "stop:1"),
+    scope: "repo",
+    projectId: "example/other",
+  });
+  assert.equal(
+    (
+      await forwardRecord(made.store, github, made.sha, {
+        policy: policy("nudge"),
+        person: "dana",
+        git: spy.git,
+        grant,
+      })
+    ).record.state,
+    "public_open",
+  );
+});
+
+test("every push has one explicit refspec and none of the banned forms", async (t) => {
+  const made = scratch(t),
+    github = fakeGitHub();
+  await forwardRecord(made.store, github, made.sha, {
+    policy: policy(),
+    person: "dana",
+    git: made.forward,
+    grant,
+  });
+  const pushes = made.commands.filter((c) => /(^| )push /.test(c));
+  assert.equal(pushes.length, 1);
+  for (const command of pushes) {
+    assert.doesNotMatch(command, /--mirror|--all|--tags|--force|\+refs|\*/);
+    assert.equal(pushProblem(command.split(" ")), null);
+  }
+  const good = ["push", "-q", "url", "refs/heads/a:refs/heads/a"];
+  assert.equal(pushProblem(good), null);
+  for (const bad of [
+    ["push", "url"],
+    ["push", "--mirror", "url", "refs/heads/a:refs/heads/a"],
+    ["push", "--all", "url", "refs/heads/a:refs/heads/a"],
+    ["push", "--tags", "url", "refs/heads/a:refs/heads/a"],
+    ["push", "-f", "url", "refs/heads/a:refs/heads/a"],
+    ["push", "url", "+refs/heads/a:refs/heads/a"],
+    ["push", "url", "refs/heads/*:refs/heads/*"],
+    ["push", "url", "refs/heads/a:refs/heads/b"],
+    ["push", "url", "a:a"],
+    ["push", "url", "refs/heads/a:refs/heads/a", "refs/heads/b:refs/heads/b"],
+  ])
+    assert.notEqual(pushProblem(bad), null, bad.join(" "));
+  assert.notEqual(
+    pushProblem(["push", "url", "refs/heads/main:refs/heads/main"], {
+      forbid: ["main"],
+    }),
+    null,
+  );
+});
+
+test("the push step refuses a protected branch before git runs", async () => {
+  const { forwardGit } = await import("../mirror-forward-git.mjs"),
+    ran = [],
+    git = forwardGit({
+      urlFor: () => "https://example.test/x.git",
+      run: async (args) => ran.push(args),
+    });
+  await assert.rejects(
+    git.push({ dir: ".", forwardTo: "o/r", branch: "main", forbid: ["main"] }),
+    /protected branch/,
+  );
+  assert.deepEqual(ran, []);
 });
