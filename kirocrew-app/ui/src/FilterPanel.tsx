@@ -7,7 +7,7 @@ import { FilterSelect, selectStyle } from './FilterSelect.tsx'
 import { Picker } from './Picker.tsx'
 import type { PickItem } from './picker.ts'
 import { X } from './icons.ts'
-import { ICON, TipBtn } from './controls.tsx'
+import { COMPACT_BTN, ICON, TipBtn } from './controls.tsx'
 import { useMedia } from './use-media.ts'
 import type { Option } from './filters.ts'
 
@@ -98,7 +98,8 @@ function Field({ id, field }: { id: string; field: FilterField }) {
 // (counts, Refresh). On a narrow page the fields fold behind one Filters
 // button inside the box. `aside` sits at the right end of the fields' row
 // (under them on a narrow page): a setting that belongs with the filters.
-// `folded`: the fields fold behind Filters at any width (a list column).
+// `folded`: the fields fold behind Filters at any width (a list column), and
+// the tab's own line (counts, Refresh) sits on the Filters row: one line.
 export function FilterPanel(props: { id: string; label: string; fields: FilterField[]; active: boolean; onClear: () => void; children?: ReactNode; aside?: ReactNode; folded?: boolean }) {
   const narrow = useMedia('(max-width: 767px)') || Boolean(props.folded)
   const [open, setOpen] = useState(false)
@@ -118,9 +119,12 @@ export function FilterPanel(props: { id: string; label: string; fields: FilterFi
       <div role="search" aria-label={props.label} data-filter-panel={props.id}>
         {narrow ? (
           <div className="flex flex-col gap-2">
-            <Btn onClick={() => setOpen(!open)} aria-expanded={open}>
-              Filters{props.active ? ' (on)' : ''}
-            </Btn>
+            <div className="flex min-w-0 items-center gap-2" data-filter-row>
+              <Btn onClick={() => setOpen(!open)} aria-expanded={open} style={COMPACT_BTN}>
+                Filters{props.active ? ' (on)' : ''}
+              </Btn>
+              {props.folded && props.children && <div className="flex min-w-0 flex-1 items-center gap-2">{props.children}</div>}
+            </div>
             {open && fields}
           </div>
         ) : props.aside ? (
@@ -135,7 +139,7 @@ export function FilterPanel(props: { id: string; label: string; fields: FilterFi
         )}
         {narrow && props.aside && <div className="mt-2" data-filter-aside>{props.aside}</div>}
       </div>
-      {props.children && <div className="mt-3">{props.children}</div>}
+      {props.children && !props.folded && <div className="mt-3">{props.children}</div>}
     </Card>
   )
 }

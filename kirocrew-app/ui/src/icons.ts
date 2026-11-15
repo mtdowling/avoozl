@@ -51,6 +51,7 @@ export {
   MessageSquare,
   MessagesSquare,
   Network,
+  PanelLeftOpen,
   Package,
   Pause,
   Pencil,

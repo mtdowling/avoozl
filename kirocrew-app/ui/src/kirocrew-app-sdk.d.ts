@@ -134,6 +134,7 @@ declare module 'lucide-react' {
   export const Send: LucideIcon
   export const Check: LucideIcon
   export const ChevronDown: LucideIcon
+  export const PanelLeftOpen: LucideIcon
   export const CirclePlus: LucideIcon
   export const ChevronRight: LucideIcon
   export const ChevronsDownUp: LucideIcon

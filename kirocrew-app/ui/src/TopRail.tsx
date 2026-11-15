@@ -1,9 +1,11 @@
-// The phone's navigation, from Kiro Crew's list-detail pattern: a hamburger
-// in the thin bar under the host's top bar names where you are. Opening it
+// The phone's navigation, from Kiro Crew's list-detail pattern and Issue
+// Radar's phone top card: one 38px card under the host's top bar names where
+// you are, with the open-the-list icon at its right. Opening it
 // takes the whole page for the list of sections, and picking one closes it
 // again. A desktop has the left nav instead.
 import type { ReactNode } from 'react'
-import { Menu, X } from './icons.ts'
+import { PanelLeftOpen, X } from './icons.ts'
+import { TOP_CARD } from './LeftNav.tsx'
 
 export interface RailItem {
   key: string
@@ -12,7 +14,7 @@ export interface RailItem {
   aria?: string
 }
 
-// The hamburger and the current page's name, for the phone's header row.
+// The current page's name and the open-the-list icon, for the phone's header row.
 export function RailButton(props: { items: RailItem[]; value: string; open: boolean; onOpenChange: (open: boolean) => void }) {
   const current = props.items.find((item) => item.key === props.value)
   return (
@@ -23,12 +25,12 @@ export function RailButton(props: { items: RailItem[]; value: string; open: bool
       aria-controls="avoozl-top-rail-list"
       aria-label={props.open ? 'Close the menu' : 'Open the menu'}
       onClick={() => props.onOpenChange(!props.open)}
-      style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: '1 1 auto', height: 28, padding: '0 6px', background: 'none', border: 0, color: 'inherit', cursor: 'pointer', fontSize: 15, fontWeight: 600, textAlign: 'left' }}
+      style={{ ...TOP_CARD, display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: '1 1 auto', height: 38, boxSizing: 'border-box', padding: '0 12px', color: 'inherit', cursor: 'pointer', fontSize: 14, fontWeight: 600, textAlign: 'left' }}
     >
-      <span aria-hidden="true" style={{ display: 'inline-flex', flexShrink: 0 }}>
-        {props.open ? <X size={20} /> : <Menu size={20} />}
+      <span style={{ minWidth: 0, flex: '1 1 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{current?.label}</span>
+      <span aria-hidden="true" style={{ display: 'inline-flex', flexShrink: 0, color: 'var(--muted)' }}>
+        {props.open ? <X size={16} /> : <PanelLeftOpen size={16} />}
       </span>
-      <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{current?.label}</span>
     </button>
   )
 }

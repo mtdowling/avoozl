@@ -802,10 +802,6 @@ export default function ConflictsView({ workspaceId, embedded }: { workspaceId: 
           onBack={() => setFocus(null)}
           list={
             <div className="flex flex-col gap-2" data-conflict-list-pane>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted">{matching.length} of {items.length} items</span>
-                <span className="ml-auto">{workspaceId && <RefreshButton workspaceId={workspaceId} onRefresh={() => void reload()} busy={busy || acting} />}</span>
-              </div>
           <FilterPanel
                   folded
                   id="avoozl-conflicts"
@@ -836,9 +832,11 @@ export default function ConflictsView({ workspaceId, embedded }: { workspaceId: 
                     },
                   ]}
                 >
-                  <p role="status" className="text-xs text-muted">
-                    {matching.length} of {items.length} items
-                  </p>
+                  {/* The count once, on the Filters row, with Refresh. */}
+                  <span role="status" className="text-xs text-muted" data-conflict-count>
+                    {matching.length} of {items.length}
+                  </span>
+                  <span className="ml-auto">{workspaceId && <RefreshButton workspaceId={workspaceId} onRefresh={() => void reload()} busy={busy || acting} />}</span>
                 </FilterPanel>
                 <div className="flex flex-wrap items-center gap-2 text-sm" data-bulk-bar>
                   <label className="flex items-center gap-1.5 text-xs">
@@ -863,7 +861,8 @@ export default function ConflictsView({ workspaceId, embedded }: { workspaceId: 
                     {picked.length
                       ? `${picked.length} selected${allMatching ? `: all ${matching.length} matching` : allShown && picked.length === shown.length ? `: the ${shown.length} shown` : ''}. Bulk acts on these ${picked.length}. · `
                       : ''}
-                    {shown.length} shown of {matching.length}
+                    {/* Only when a page holds back some of the matching items. */}
+                    {shown.length < matching.length ? `${shown.length} shown of ${matching.length}` : ''}
                     {acting ? ' · Working…' : ''}
                   </span>
                   {picked.length > 0 && (

@@ -3,7 +3,7 @@ import { useAppApi } from './host.ts'
 import { Btn, EmptyState, PageHeader, SegmentedControl } from '@kirocrew/app-sdk/ui'
 import Logo from './Logo'
 import { RailButton, RailList } from './TopRail.tsx'
-import { LeftNav } from './LeftNav.tsx'
+import { LeftNav, TOP_CARD } from './LeftNav.tsx'
 import { MoreMenu } from './MoreMenu.tsx'
 import { PageRefreshItem, useHasPageRefresh } from './page-refresh.tsx'
 import { usePhone } from './list-detail.ts'
@@ -54,18 +54,20 @@ function WorkspacePicker(props: {
   list: WorkspaceList | null
   value: string | null
   onChange: (id: string) => void
+  // In the left nav's top card: the name alone, the card is its frame.
+  bare?: boolean
 }) {
   const { list } = props
   return (
-    <label className="flex items-center gap-2 text-sm">
-      <span className="text-muted">Workspace</span>
+    <label className={`flex min-w-0 items-center gap-2 text-sm ${props.bare ? 'w-full' : ''}`}>
+      {!props.bare && <span className="text-muted">Workspace</span>}
       <select
         aria-label="Workspace"
         value={props.value ?? ''}
         disabled={!list?.items.length}
         onChange={(event) => props.onChange(event.target.value)}
-        className="rounded border px-2 py-1 text-sm"
-        style={{ borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }}
+        className={props.bare ? 'min-w-0 flex-1 text-sm' : 'rounded border px-2 py-1 text-sm'}
+        style={props.bare ? { border: 0, color: 'var(--text)', background: 'transparent', fontWeight: 500, cursor: 'pointer' } : { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }}
       >
         {!list ? (
           <option value="">Loading…</option>
@@ -298,7 +300,7 @@ function AvoozlPage() {
         subtitle="Specs and epics as a graph, then Issue Radar crews code the ready tasks"
         actions={
           <div className="flex flex-wrap items-center gap-3" data-header-actions>
-            {demo.active ? <DemoBadge /> : <WorkspacePicker list={list} value={workspaceId} onChange={setWorkspaceId} />}
+            {demo.active && <DemoBadge />}
             <Btn type="button" primary onClick={planEpic}>
               Plan a goal
             </Btn>
@@ -319,7 +321,21 @@ function AvoozlPage() {
       )}
       {/* Desktop: the left nav, then the page. A phone has the hamburger. */}
       <div className={`flex min-h-0 flex-1 ${phone ? 'flex-col' : 'px-6 pb-2'}`} style={showRail ? { display: 'none' } : undefined} data-shell>
-      {!phone && <LeftNav items={navItems} value={navTab(tab)} onChange={(key) => chooseTab(key as Tab)} />}
+      {!phone && (
+        <LeftNav
+          items={navItems}
+          value={navTab(tab)}
+          onChange={(key) => chooseTab(key as Tab)}
+          // Issue Radar's top card: the workspace, as Radar shows its repository.
+          top={
+            !demo.active && (
+              <div data-nav-top style={{ ...TOP_CARD, height: 42, boxSizing: 'border-box', display: 'flex', alignItems: 'center', padding: '0 8px 0 12px' }}>
+                <WorkspacePicker bare list={list} value={workspaceId} onChange={setWorkspaceId} />
+              </div>
+            )
+          }
+        />
+      )}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col" data-shell-main>
       <DemoBar />
       {error && (

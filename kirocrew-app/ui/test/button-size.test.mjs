@@ -27,7 +27,10 @@ const MAX = 28
 // select or text field is not a button.
 // The side panel's section headers are disclosure rows the width of the panel, 38 px
 // like Kiro Crew's own Crew log; they are rows, not buttons.
-const BUTTONS = `button:not([data-pp-section-head]):not(summary), [role="button"], a[data-sc-act], a[data-pp-act]`
+// The left nav's rows (32 px) and the phone's top card (38 px) are Issue
+// Radar's sidebar rows and top card, not buttons; radar-heights.test.mjs
+// holds them to Radar's sizes.
+const BUTTONS = `button:not([data-pp-section-head]):not(summary):not([data-nav-item]):not([data-top-rail-bar]), [role="button"], a[data-sc-act], a[data-pp-act]`
 const tall = `[...document.querySelectorAll(${JSON.stringify(BUTTONS)})].filter((el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > ${MAX} + 0.5 }).map((el) => (el.getAttribute('aria-label') || el.textContent).trim().slice(0, 30) + ' ' + Math.round(el.getBoundingClientRect().height) + 'px')`
 
 const SIZES = [

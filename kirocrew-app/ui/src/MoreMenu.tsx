@@ -8,6 +8,9 @@ import { LAYER } from './layers.ts'
 
 export function MoreMenu(props: { label: string; children: ReactNode; attrs?: Record<string, string> }) {
   const [open, setOpen] = useState(false)
+  // The panel opens leftward from the button, or rightward when the button
+  // sits too near the left edge for it to fit.
+  const [fromLeft, setFromLeft] = useState(false)
   const root = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!open) return
@@ -36,7 +39,10 @@ export function MoreMenu(props: { label: string; children: ReactNode; attrs?: Re
         aria-expanded={open}
         aria-haspopup="true"
         data-more-button
-        onClick={() => setOpen(!open)}
+        onClick={(event) => {
+          setFromLeft(event.currentTarget.getBoundingClientRect().right < 240)
+          setOpen(!open)
+        }}
         style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 6, border: '1px solid var(--border)', background: open ? 'var(--bg-hover, var(--bg-elevated))' : 'transparent', color: 'var(--text)', cursor: 'pointer' }}
       >
         <Ellipsis size={18} aria-hidden="true" />
@@ -52,7 +58,7 @@ export function MoreMenu(props: { label: string; children: ReactNode; attrs?: Re
             const item = (event.target as Element).closest('button, a')
             if (item && !item.hasAttribute('aria-haspopup') && !item.closest('[data-keep-menu]')) setOpen(false)
           }}
-          style={{ position: 'absolute', top: '100%', right: 0, zIndex: LAYER.popover, marginTop: 4, minWidth: 220, maxWidth: 'calc(100vw - 24px)', display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 8, padding: 10, borderRadius: 10, border: '1px solid var(--border)', background: 'var(--card, var(--bg-elevated))', boxShadow: '0 8px 24px rgba(0,0,0,0.18)' }}
+          style={{ position: 'absolute', top: '100%', ...(fromLeft ? { left: 0 } : { right: 0 }), zIndex: LAYER.popover, marginTop: 4, minWidth: 220, maxWidth: 'calc(100vw - 24px)', display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 8, padding: 10, borderRadius: 10, border: '1px solid var(--border)', background: 'var(--card, var(--bg-elevated))', boxShadow: '0 8px 24px rgba(0,0,0,0.18)' }}
         >
           {props.children}
         </div>
