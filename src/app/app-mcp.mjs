@@ -31,7 +31,6 @@ const STATIC = new Set([
   "initialize",
   "ping",
   "tools/list",
-  "server/discover",
   "resources/list",
   "resources/templates/list",
 ]);
@@ -147,6 +146,12 @@ export function createAppMcp({ fallback = null, env = process.env } = {}) {
       return rpcError(null, "Send one JSON-RPC request object.", -32600);
     // Notifications get no reply.
     if (!Object.hasOwn(message, "id")) return null;
+    // Refused as Kiro Crew's own servers refuse it (mcp_shared_dispatch.py).
+    // A client that gets an answer speaks the 2026-07-28 revision and never
+    // sends initialize, so the gateway never sees CALLER_CAPABILITY and
+    // forwards every call without a caller block.
+    if (message.method === "server/discover")
+      return rpcError(message.id, "Method not found", -32601);
     if (STATIC.has(message.method)) {
       if (message.method === "tools/list")
         return (await handleMcp(message, null)).body;
