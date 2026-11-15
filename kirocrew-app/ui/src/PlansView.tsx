@@ -31,8 +31,6 @@ import { Modal } from './Modal.tsx'
 import { ProjectionModal } from './ProjectionModal.tsx'
 import { SpecChangedModal } from './SpecChangedModal.tsx'
 import { projectionClient } from './projection-api.ts'
-import { QuickGoalModal } from './QuickGoalModal.tsx'
-import { quickGoalClient } from './quickgoal-api.ts'
 import { LAYER } from './layers.ts'
 import {
   UNCATEGORIZED,
@@ -520,14 +518,11 @@ const UNARCHIVE_TIP = 'Unarchive this spec: its tasks may start again and it sho
 // Refresh last. Refresh re-reads plan.table (the spec folders on disk and
 // the stored plans); it imports nothing.
 export const REFRESH_PLANS_TIP = 'Reload specs from disk. Imports nothing.'
-function PlansActions(props: { onQuickGoal: () => void; onNewPlan: () => void; onNewIdea: () => void; onOpenIdeas?: () => void; ideas: number | null; onNewTask: () => void; onRefresh: () => void; busy: boolean }) {
+function PlansActions(props: { onNewPlan: () => void; onNewIdea: () => void; onOpenIdeas?: () => void; ideas: number | null; onNewTask: () => void; onRefresh: () => void; busy: boolean }) {
   return (
     <>
       <IconLabel icon={Plus} primary tooltip="Describe what you want. Spec Builder drafts its spec folder; nothing is approved." onClick={props.onNewPlan}>
         New spec
-      </IconLabel>
-      <IconLabel icon={Plus} tooltip="Type a goal. Avoozl investigates and proposes tasks. Nothing is written until you approve." onClick={props.onQuickGoal}>
-        Quick goal
       </IconLabel>
       <NewIdeaButton onClick={props.onNewIdea} />
       {props.onOpenIdeas && (
@@ -1011,7 +1006,6 @@ export default function PlansView(props: {
   const { openChat } = useChatLauncher()
   const plans = useMemo(() => plansClient(api), [api])
   const projections = useMemo(() => projectionClient(api), [api])
-  const quickGoals = useMemo(() => quickGoalClient(api), [api])
   const views = useMemo(() => viewsClient(api), [api])
   const drawer = useTaskDrawer()
   const chat = useAskChat(workspace)
@@ -1042,7 +1036,7 @@ export default function PlansView(props: {
   const [plan, setPlan] = useState<SpecPlan | null>(null)
   const [preview, setPreview] = useState<Preview | null>(null)
   const [projection, setProjection] = useState<ProjectionPreview | null>(null)
-  const [dialog, setDialog] = useState<'project' | 'changed' | 'quickgoal' | null>(null)
+  const [dialog, setDialog] = useState<'project' | 'changed' | null>(null)
   const [docs, setDocs] = useState<SpecDocuments | null>(null)
   const [docsError, setDocsError] = useState<string | null>(null)
   const [planGraph, setPlanGraph] = useState<Graph | null>(null)
@@ -1246,7 +1240,7 @@ export default function PlansView(props: {
                 view="plans"
                 phoneMenu
                 actions={
-                  <PlansActions onQuickGoal={() => setDialog('quickgoal')} onNewPlan={() => setCreating({})} onNewIdea={() => setNewIdea(true)} onOpenIdeas={props.onOpenIdeas} ideas={props.ideas ?? null} onNewTask={() => drawer.addTask()} onRefresh={() => void load(workspace)} busy={busy} />
+                  <PlansActions onNewPlan={() => setCreating({})} onNewIdea={() => setNewIdea(true)} onOpenIdeas={props.onOpenIdeas} ideas={props.ideas ?? null} onNewTask={() => drawer.addTask()} onRefresh={() => void load(workspace)} busy={busy} />
                 }
               >
                 Specs
@@ -1383,10 +1377,7 @@ export default function PlansView(props: {
           }
         />
       )}
-      {dialog === 'quickgoal' && workspace && (
-        <QuickGoalModal workspaceId={workspace} client={quickGoals} onClose={() => setDialog(null)} onPromoted={() => void load(workspace)} />
-      )}
-      {dialog && dialog !== 'quickgoal' && workspace && plan && (
+      {dialog && workspace && plan && (
         <>
           {dialog === 'project' && (
             <ProjectionModal

@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useAppApi, useChatLauncher, useNavigate } from './host.ts'
 import { Btn, Input } from '@kirocrew/app-sdk/ui'
-import { ExternalLink, FileText, MessageSquare, Package, X } from './icons.ts'
+import { Crosshair, ExternalLink, FileText, MessageSquare, Package, X } from './icons.ts'
 import { RadioFold } from './RadioFold.tsx'
 import { Picker } from './Picker.tsx'
 import { TemplateStart, templateKey, type InputValues } from './TemplateStart.tsx'
@@ -63,6 +63,10 @@ function Field(props: { id: string; label: string; need: 'required' | 'optional'
   )
 }
 
+// The three starts: Spec Builder, a plugin's template, or a planner chat
+// that writes the spec from a goal (RC30.1).
+type Start = 'blank' | 'template' | 'goal'
+
 // A picker's last choice, which turns into a field for a new name.
 const NEW_CHOICE = '__new__'
 
@@ -76,7 +80,7 @@ export default function NewPlanDrawer(props: {
   // Make it a spec (R63.9): fields filled from an idea, and its id.
   seed?: Partial<NewPlanForm>
   // Which way it opens; none picked unless said, and Submit waits for one.
-  start?: 'blank' | 'template'
+  start?: Start
   onClose: (notice: string | null) => void
 }) {
   const api = useAppApi()
@@ -100,7 +104,7 @@ export default function NewPlanDrawer(props: {
   const [shown, setShown] = useState(false)
   // Blank, or From template (R61.7): a template's inputs, and its settings
   // imported only when ticked.
-  const [start, setStart] = useState<'blank' | 'template' | null>(props.start ?? null)
+  const [start, setStart] = useState<Start | null>(props.start ?? null)
   // A picker's "New …" choice turns into a name field.
   const [newCategory, setNewCategory] = useState(false)
   const [newEpic, setNewEpic] = useState(false)
@@ -196,7 +200,7 @@ export default function NewPlanDrawer(props: {
 
   const problems =
     start === null
-      ? ['Pick Blank or From template.']
+      ? ['Pick Blank, From template or From a goal.']
       : start === 'template'
       ? [...(template ? [] : ['Pick a template.']), ...templateProblems(form, props.taken, template ? missingInputs(template, values) : [])]
       : repositories
@@ -261,6 +265,8 @@ export default function NewPlanDrawer(props: {
       return fromTemplate()
     }
     if (problems.length || !repositories) return
+    // From a goal: the planner chat writes the spec folder from the goal.
+    if (start === 'goal') return plannerChat()
     setFallback(false)
     return run(async () => {
       const preview = await client.preview(props.workspaceId, form)
@@ -277,6 +283,59 @@ export default function NewPlanDrawer(props: {
       openChat({ message: result.message, agent: result.agent, autoSend: true })
       props.onClose(`A planner chat is drafting ${result.name}. It shows here as a draft once its folder is complete; you approve it.`)
     })
+
+  // Repositories, what you want, and links: Blank and From a goal share them.
+  const sharedFields = (
+    <>
+          <fieldset className="flex flex-col gap-1 text-sm">
+            <legend className="font-medium">
+              Repositories <span className="font-normal text-muted">(required)</span>
+            </legend>
+            {repositories === null ? (
+              <span className="text-xs text-muted">Loading…</span>
+            ) : repositories.length === 0 ? (
+              <span className="text-xs text-muted">No repositories yet. Add one in Settings › Repositories, then come back.</span>
+            ) : (
+              repositories.map((repo) => (
+                <label key={repo.id} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={form.repositories.includes(repo.id)}
+                    onChange={(event) =>
+                      set({ repositories: event.target.checked ? [...form.repositories, repo.id] : form.repositories.filter((id) => id !== repo.id) })
+                    }
+                  />
+                  <span>{repo.name || repo.id}</span>
+                  {repo.github && <span className="text-xs text-muted">{repo.github}</span>}
+                </label>
+              ))
+            )}
+            {tried && repositories && repositories.length > 0 && !form.repositories.length && (
+              <span className="text-xs text-danger">Pick at least one repository.</span>
+            )}
+          </fieldset>
+          <Field id="avoozl-new-plan-goal" need="required" label="What you want" hint="The planner's first prompt: the goal, who it is for, and what done looks like." problem={tried && !form.goal.trim() ? 'Say what you want.' : null}>
+            <textarea
+              id="avoozl-new-plan-goal"
+              rows={6}
+              value={form.goal}
+              onChange={(event) => set({ goal: event.target.value })}
+              className="rounded border px-2 py-1 text-sm"
+              style={fieldStyle}
+            />
+          </Field>
+          <Field id="avoozl-new-plan-context" need="optional" label="Links and context" hint="Files, issues and notes the planner should read.">
+            <textarea
+              id="avoozl-new-plan-context"
+              rows={4}
+              value={form.context}
+              onChange={(event) => set({ context: event.target.value })}
+              className="rounded border px-2 py-1 text-sm"
+              style={fieldStyle}
+            />
+          </Field>
+    </>
+  )
 
   return (
     // A centered modal, full screen on a phone: no pull-out from the right.
@@ -329,9 +388,11 @@ export default function NewPlanDrawer(props: {
           <p className="text-xs text-muted">
             {start === 'template'
               ? 'An Avoozl planner chat drafts the spec from the template and what you fill in. It shows in Specs as a draft. Nothing is approved or started.'
-              : start === 'blank'
+              : start === 'goal'
+                ? 'An Avoozl planner chat writes the spec from your goal: requirements, design and tasks. It shows in Specs as a draft and is approved like any spec. Nothing is started.'
+                : start === 'blank'
                 ? "Kiro Crew's Spec Builder drafts the spec from this: requirements, design, then tasks, each for you to review. Avoozl then writes the manifest, and the spec shows in Specs as a draft. Nothing is approved or started."
-                : 'Name it, then pick how to start: Blank or From template. It shows in Specs as a draft. Nothing is approved or started.'}
+                : 'Name it, then pick how to start: Blank, From template or From a goal. It shows in Specs as a draft. Nothing is approved or started.'}
           </p>
           <Field id="avoozl-new-plan-name" need="required" label="Name" hint="Becomes the spec folder name: lowercase letters, digits and hyphens." problem={nameIssue}>
             <Input
@@ -387,11 +448,11 @@ export default function NewPlanDrawer(props: {
               <Input id="avoozl-new-plan-epic-new" aria-label="New epic folder name" value={form.epic} placeholder="rewrite" onChange={(event) => set({ epic: event.target.value })} style={{ maxWidth: '18rem' }} />
             )}
           </Field>
-          <RadioFold<'blank' | 'template'>
+          <RadioFold<Start>
             name="avoozl-new-plan-start"
             label="How to start"
             // Neither is picked at first; each says what it does.
-            value={(start ?? '') as 'blank' | 'template'}
+            value={(start ?? '') as Start}
             onChange={(next) => {
               setStart(next)
               setTried(false)
@@ -415,53 +476,7 @@ export default function NewPlanDrawer(props: {
               style={fieldStyle}
             />
           </Field>
-          <fieldset className="flex flex-col gap-1 text-sm">
-            <legend className="font-medium">
-              Repositories <span className="font-normal text-muted">(required)</span>
-            </legend>
-            {repositories === null ? (
-              <span className="text-xs text-muted">Loading…</span>
-            ) : repositories.length === 0 ? (
-              <span className="text-xs text-muted">No repositories yet. Add one in Settings › Repositories, then come back.</span>
-            ) : (
-              repositories.map((repo) => (
-                <label key={repo.id} className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={form.repositories.includes(repo.id)}
-                    onChange={(event) =>
-                      set({ repositories: event.target.checked ? [...form.repositories, repo.id] : form.repositories.filter((id) => id !== repo.id) })
-                    }
-                  />
-                  <span>{repo.name || repo.id}</span>
-                  {repo.github && <span className="text-xs text-muted">{repo.github}</span>}
-                </label>
-              ))
-            )}
-            {tried && repositories && repositories.length > 0 && !form.repositories.length && (
-              <span className="text-xs text-danger">Pick at least one repository.</span>
-            )}
-          </fieldset>
-          <Field id="avoozl-new-plan-goal" need="required" label="What you want" hint="The planner's first prompt: the goal, who it is for, and what done looks like." problem={tried && !form.goal.trim() ? 'Say what you want.' : null}>
-            <textarea
-              id="avoozl-new-plan-goal"
-              rows={6}
-              value={form.goal}
-              onChange={(event) => set({ goal: event.target.value })}
-              className="rounded border px-2 py-1 text-sm"
-              style={fieldStyle}
-            />
-          </Field>
-          <Field id="avoozl-new-plan-context" need="optional" label="Links and context" hint="Files, issues and notes the planner should read.">
-            <textarea
-              id="avoozl-new-plan-context"
-              rows={4}
-              value={form.context}
-              onChange={(event) => set({ context: event.target.value })}
-              className="rounded border px-2 py-1 text-sm"
-              style={fieldStyle}
-            />
-          </Field>
+          {sharedFields}
                   </div>
                 ),
               },
@@ -489,6 +504,13 @@ export default function NewPlanDrawer(props: {
                     onPreview={onPreview}
                   />
                 ),
+              },
+              {
+                key: 'goal',
+                title: 'From a goal',
+                line: 'Type the goal. An Avoozl planner chat writes the draft spec, requirements, design and tasks, and you approve it like any spec. Use it when you know the outcome but not the steps.',
+                icon: Crosshair,
+                fields: <div className="flex flex-col gap-3">{sharedFields}</div>,
               },
             ]}
           />
@@ -530,12 +552,12 @@ export default function NewPlanDrawer(props: {
         <div className="flex items-center gap-2 border-t px-4 py-3" style={{ borderColor: 'var(--border)' }}>
           {tried && start === null && (
             <span role="alert" className="text-xs text-danger" data-start-problem>
-              Pick Blank or From template.
+              Pick Blank, From template or From a goal.
             </span>
           )}
           <Btn type="submit" form="avoozl-new-plan-form" primary disabled={busy || start === null || repositories === null || steering !== null} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            {start === 'template' ? <MessageSquare size={ICON} aria-hidden="true" /> : <ExternalLink size={ICON} aria-hidden="true" />}
-            {busy ? 'Opening…' : start === 'template' ? 'Open a planner chat' : start === 'blank' ? 'Open in Spec Builder' : 'Pick how to start'}
+            {start === 'template' || start === 'goal' ? <MessageSquare size={ICON} aria-hidden="true" /> : <ExternalLink size={ICON} aria-hidden="true" />}
+            {busy ? 'Opening…' : start === 'template' || start === 'goal' ? 'Open a planner chat' : start === 'blank' ? 'Open in Spec Builder' : 'Pick how to start'}
           </Btn>
           <Btn type="button" onClick={() => void close()} disabled={busy}>
             Cancel
