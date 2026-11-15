@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
@@ -139,4 +140,181 @@ test("a workspace with no mirror shows no home", async (t) => {
   writeSpec(root, "plain");
   const ops = new Operations(store, { workspaceRoot: root });
   assert.equal("home" in ops.specList().items[0], false);
+});
+
+test("a private remote folder can be stored and approved in its mirror home", async (t) => {
+  const { root, store } = fixture(t),
+    github = new FakeGitHub();
+  fs.writeFileSync(
+    path.join(root, ".avoozl.json"),
+    JSON.stringify({
+      version: 1,
+      github: {
+        mode: "single-repo",
+        repositories: {
+          "acme/app": { baseBranch: "main", coder: "issue-radar", mirror },
+        },
+      },
+    }),
+  );
+  store.put("projects", { id: "code", root, repository: "acme/app" });
+  putPrivate(github, "private-one");
+  const ops = new Operations(store, {
+    github,
+    workspaceRoot: root,
+    configuration: new RepositorySettings(store, { workspaceRoot: root }),
+  });
+  const plan = await ops.execute("plan.create", {
+    id: "private-one",
+    spec: "private-one",
+  });
+  assert.equal(github.created.length, 0);
+  assert.equal(plan.home, "plansBranch");
+  assert.equal(plan.ref, "avoozl-plans");
+  assert.equal(ops.readSpec("private-one").repository, "acme/app-private");
+  const target = ops.approvalPullRequestTarget(plan);
+  assert.deepEqual(target.repository, {
+    owner: "acme",
+    repo: "app-private",
+    id: "acme/app-private",
+  });
+  assert.equal(target.ref, "avoozl-plans");
+});
+
+test("an orphan plans checkout is one private home, not a public duplicate", async (t) => {
+  const { root, store } = fixture(t),
+    github = new FakeGitHub();
+  execFileSync("git", ["init", "-q", "-b", "avoozl-plans", root]);
+  execFileSync("git", [
+    "-C",
+    root,
+    "remote",
+    "add",
+    "origin",
+    "https://github.com/acme/app-private.git",
+  ]);
+  fs.writeFileSync(
+    path.join(root, ".avoozl.json"),
+    JSON.stringify({
+      version: 1,
+      github: {
+        mode: "single-repo",
+        repositories: {
+          "acme/app": { baseBranch: "main", coder: "issue-radar", mirror },
+        },
+      },
+    }),
+  );
+  store.put("projects", { id: "code", root, repository: "acme/app" });
+  writeSpec(root, "private-one");
+  putPrivate(github, "private-one");
+  const ops = new Operations(store, {
+    github,
+    workspaceRoot: root,
+    configuration: new RepositorySettings(store, { workspaceRoot: root }),
+  });
+  await ops.refreshPrivateSpecs();
+  const items = ops.specList();
+  assert.equal(items.homeErrors, undefined);
+  assert.equal(items.items.length, 1);
+  assert.equal(items.items[0].home, "plansBranch");
+  const plan = await ops.execute("plan.create", { spec: "private-one" });
+  assert.equal(plan.home, "plansBranch");
+  assert.equal(ops.approvalPullRequestTarget(plan).ref, "avoozl-plans");
+});
+
+test("a review branch derived from private plans is never approved into the code branch", async (t) => {
+  const { root, store } = fixture(t),
+    github = new FakeGitHub(),
+    git = (...args) =>
+      execFileSync("git", ["-C", root, ...args], { stdio: "pipe" });
+  git("init", "-q", "-b", "avoozl-plans");
+  git("remote", "add", "origin", "https://github.com/acme/app-private.git");
+  fs.writeFileSync(
+    path.join(root, ".avoozl.json"),
+    JSON.stringify({
+      version: 1,
+      github: {
+        mode: "single-repo",
+        repositories: {
+          "acme/app": { baseBranch: "main", coder: "issue-radar", mirror },
+        },
+      },
+    }),
+  );
+  writeSpec(root, "reviewed-one");
+  git("add", ".");
+  git(
+    "-c",
+    "user.name=Example",
+    "-c",
+    "user.email=example@example.test",
+    "commit",
+    "-qm",
+    "Create generic fixture",
+  );
+  git("checkout", "-qb", "review/draft");
+  store.put("projects", { id: "code", root, repository: "acme/app" });
+  const ops = new Operations(store, {
+    github,
+    workspaceRoot: root,
+    configuration: new RepositorySettings(store, { workspaceRoot: root }),
+  });
+  const plan = await ops.execute("plan.create", { spec: "reviewed-one" });
+  assert.equal(plan.home, "plansBranch");
+  assert.equal(ops.readSpec("reviewed-one").approvalBlocked, true);
+  assert.throws(
+    () => ops.approvalPullRequestTarget(plan),
+    /configured plans branch/,
+  );
+  assert.equal(github.created.length, 0);
+});
+
+test("a proved public review branch in a mirror keeps default-branch approval", async (t) => {
+  const { root, store } = fixture(t),
+    github = new FakeGitHub(),
+    git = (...args) =>
+      execFileSync("git", ["-C", root, ...args], { stdio: "pipe" });
+  git("init", "-q", "-b", "main");
+  git("remote", "add", "origin", "https://github.com/acme/app-private.git");
+  fs.writeFileSync(
+    path.join(root, ".avoozl.json"),
+    JSON.stringify({
+      version: 1,
+      github: {
+        mode: "single-repo",
+        repositories: {
+          "acme/app": { baseBranch: "main", coder: "issue-radar", mirror },
+        },
+      },
+    }),
+  );
+  writeSpec(root, "public-one");
+  git("add", ".");
+  git(
+    "-c",
+    "user.name=Example",
+    "-c",
+    "user.email=example@example.test",
+    "commit",
+    "-qm",
+    "Create generic fixture",
+  );
+  git("checkout", "-qb", "review/public");
+  store.put("projects", { id: "code", root, repository: "acme/app" });
+  const ops = new Operations(store, {
+    github,
+    workspaceRoot: root,
+    configuration: new RepositorySettings(store, { workspaceRoot: root }),
+  });
+  const plan = await ops.execute("plan.create", { spec: "public-one" });
+  assert.equal(plan.home, "main");
+  assert.equal(ops.readSpec("public-one").approvalBlocked, undefined);
+  assert.equal(
+    ops.specList().items.find((item) => item.name === "public-one").home,
+    "main",
+  );
+  const target = ops.approvalPullRequestTarget(plan);
+  assert.equal(target.repository.id, "acme/app-private");
+  assert.equal(target.ref, undefined);
 });

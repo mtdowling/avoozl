@@ -39,7 +39,7 @@ import { projectionClient } from '../../src/projection-api.ts'
 import { QuickGoalModal } from '../../src/QuickGoalModal.tsx'
 import { quickGoalClient } from '../../src/quickgoal-api.ts'
 import PluginsSettings from '../../src/PluginsSettings.tsx'
-import SettingsView, { RepositoryEditor } from '../../src/SettingsView.tsx'
+import SettingsView, { RateBlock, RepositoryEditor } from '../../src/SettingsView.tsx'
 import { answerIntake } from './intake-fixture.ts'
 import RadarValuesScreen from '../../src/RadarValues.tsx'
 import { CrewsRulesSettings } from '../../src/CrewsRulesSettings.tsx'
@@ -643,6 +643,21 @@ function RepoModePage() {
 }
 
 const PAGES: Record<string, () => ReactNode> = {
+  // The GitHub calls of the last hour by source, beside the live limit.
+  'github-usage': () => (
+    <RateBlock
+      rate={{
+        resources: { core: { limit: 5000, remaining: 1078, resetAt: new Date(Date.now() + 22 * 60000).toISOString() }, graphql: { limit: 5000, remaining: 4890, resetAt: new Date(Date.now() + 40 * 60000).toISOString() } },
+        limitedUntil: null,
+        limitedResource: null,
+        calls: 214,
+        notModified: 61,
+        notModifiedShare: 61 / 214,
+        hourCalls: 153,
+        bySource: { tick: { calls: 88, notModified: 40, cached: 0 }, crew: { calls: 41, notModified: 0, cached: 0 }, view: { calls: 17, notModified: 21, cached: 132 }, review: { calls: 5, notModified: 0, cached: 3 }, setup: { calls: 2, notModified: 0, cached: 0 } },
+      }}
+    />
+  ),
   'repo-mode': () => <RepoModePage />,
   'github-flow': () => <GithubFlow workspaceId="w" />,
   'release-queue': () => <ReleaseQueue workspaceId="w" />,

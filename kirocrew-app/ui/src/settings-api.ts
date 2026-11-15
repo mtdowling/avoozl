@@ -53,6 +53,17 @@ export interface RateView {
   calls: number
   notModified: number
   notModifiedShare: number | null
+  // Calls in the last hour by source, and their total (github-rate.mjs).
+  bySource?: Record<string, { calls: number; notModified: number; cached: number }>
+  hourCalls?: number
+}
+
+// One row per source for the last hour, the busiest first. Calls cost the
+// limit; 304s and cache answers do not.
+export function usageRows(rate: RateView | undefined | null) {
+  return Object.entries(rate?.bySource ?? {})
+    .map(([source, row]) => ({ source, ...row }))
+    .sort((a, b) => b.calls - a.calls || a.source.localeCompare(b.source))
 }
 
 // One short line per resource, then the share of calls GitHub answered with

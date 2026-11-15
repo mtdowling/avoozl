@@ -1,0 +1,14 @@
+#!/usr/bin/env node
+// Runs gh with the same arguments and records the call by source, so Avoozl's
+// Settings > GitHub can count what crew chats and Radar spend. The source is
+// AVOOZL_GH_SOURCE (default "crew"). One run counts as one call.
+import { spawnSync } from "node:child_process";
+import { recordWrapperCall } from "../src/app/github-rate.mjs";
+
+try {
+  recordWrapperCall(process.env.AVOOZL_GH_SOURCE || "crew");
+} catch {
+  // A count that cannot be written never blocks the call.
+}
+const run = spawnSync("gh", process.argv.slice(2), { stdio: "inherit" });
+process.exit(run.status ?? 1);

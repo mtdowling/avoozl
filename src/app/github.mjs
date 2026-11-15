@@ -38,6 +38,33 @@ function pullRequestText(node) {
 // A pull request's feedback node as plain records (task 15.1). A commit
 // status reads like a check run: its state is the conclusion once final.
 const STATUS = { SUCCESS: "SUCCESS", FAILURE: "FAILURE", ERROR: "FAILURE" };
+function closingOf(nodes, owner, repo) {
+  return nodes
+    .filter((node) => node?.number)
+    .map((node) => ({
+      repository: node.repository?.nameWithOwner ?? `${owner}/${repo}`,
+      number: node.number,
+      title: node.title ?? "",
+      url: node.url ?? null,
+    }));
+}
+
+// The cheap fields of an open pull request node.
+function headOf(node) {
+  return {
+    number: node.number,
+    url: node.url,
+    updatedAt: node.updatedAt,
+    head: node.headRefOid,
+    base: node.baseRefName,
+    mergeable: node.mergeable,
+    autoMerge: Boolean(node.autoMergeRequest),
+    mergeState: node.mergeStateStatus ?? null,
+    reviewDecision: node.reviewDecision ?? null,
+    baseHead: node.baseRef?.target?.oid ?? null,
+  };
+}
+
 export function feedbackOf(node) {
   if (!node) return null;
   const who = (entry) => entry?.author?.login || null,
@@ -165,12 +192,12 @@ export class GitHubClient {
   // Keeps conditional-request answers and the rate state in `store`, so a
   // GET GitHub answers 304 costs nothing and a limit holds every process of
   // the workspace back. Without it the client behaves as before.
-  bind(store, { now, cacheSeconds } = {}) {
+  bind(store, { now, cacheSeconds, countFile } = {}) {
     // How long an answer stays fresh, in seconds, for a repository id (or
     // none). Within it a read makes no call. Settings > GitHub sets it.
     if (cacheSeconds) this.cacheSeconds = cacheSeconds;
     this.cache = store ? new ResponseCache(store, { now }) : null;
-    this.rate = store ? new RateState(store, { now }) : null;
+    this.rate = store ? new RateState(store, { now, countFile }) : null;
     return this;
   }
 
@@ -238,11 +265,16 @@ export class GitHubClient {
       };
     // The one cache: within its max age a read makes no call, and while the
     // rate limit holds calls back it answers with what was stored.
-    if (stored && fresh > 0 && this.cache.now() - stored.fetched < fresh)
+    if (stored && fresh > 0 && this.cache.now() - stored.fetched < fresh) {
+      this.rate?.cached();
       return reply(stored);
+    }
     const held = this.rate?.held(resource);
     if (held) {
-      if (stored) return reply(stored);
+      if (stored) {
+        this.rate?.cached();
+        return reply(stored);
+      }
       throw rateLimitError(held);
     }
     let response;
@@ -938,16 +970,65 @@ export class GitHubClient {
     return nodes.map(pullRequestText);
   }
 
-  // Pull request feedback, first read (task 15.1, R54.2): for each branch,
-  // its open pull request's cheap fields, in one query per repository.
-  // {branch: {number, url, updatedAt, head, base, mergeable, autoMerge} |
-  // null}. pullRequestFeedback reads the rest only for changed ones.
-  async pullRequestHeads(value, branches) {
+  // Every open pull request of a repository in one query (pages of 100, at
+  // most 5): head, merge state, labels, the check rollup state and the
+  // issues it closes. Each view reads this through the client's cache, so
+  // ten pull requests cost one call, not ten.
+  // shortcut: 500 open pull requests; a busier repository fails here and
+  // pullRequestHeads falls back to one alias per branch.
+  async openPullRequests(value) {
     const { owner, repo } =
         typeof value === "string" ? parseRepository(value) : value,
-      list = [...branches];
+      pulls = [];
+    let after = null;
+    for (let page = 0; page < 5; page += 1) {
+      const data = await this.graphql(
+          `query($owner:String!,$repo:String!,$after:String){repository(owner:$owner,name:$repo){pullRequests(states:OPEN,first:100,after:$after,orderBy:{field:CREATED_AT,direction:DESC}){pageInfo{hasNextPage endCursor} nodes{number url updatedAt isDraft headRefName headRefOid baseRefName baseRef{target{oid}} mergeable mergeStateStatus reviewDecision autoMergeRequest{enabledAt} labels(first:20){nodes{name}} closingIssuesReferences(first:10){nodes{number title url repository{nameWithOwner}}} commits(last:1){nodes{commit{statusCheckRollup{state}}}}}}}}`,
+          { owner, repo, after },
+          "read open pull requests",
+        ),
+        list = data?.repository?.pullRequests;
+      if (!Array.isArray(list?.nodes))
+        fail("GitHub returned invalid pull-request data.", 502);
+      pulls.push(...list.nodes.filter(Boolean));
+      if (!list.pageInfo?.hasNextPage) return pulls;
+      after = list.pageInfo.endCursor;
+    }
+    fail(
+      "More than 500 open pull requests in " + owner + "/" + repo + ".",
+      413,
+    );
+  }
+
+  // Pull request feedback, first read (task 15.1, R54.2): for each branch,
+  // its open pull request's cheap fields. {branch: {number, url, updatedAt,
+  // head, base, mergeable, autoMerge, ...} | null}. Read from the one
+  // open-pull-request query; pullRequestFeedback reads the rest only for
+  // changed ones.
+  async pullRequestHeads(value, branches) {
+    const list = [...branches];
     if (!list.length) return {};
-    const fields = list
+    let pulls;
+    try {
+      pulls = await this.openPullRequests(value);
+    } catch (error) {
+      if (error.status !== 413) throw error;
+      return this.pullRequestHeadsByBranch(value, list);
+    }
+    return Object.fromEntries(
+      list.map((branch) => {
+        const node = pulls
+          .filter((pull) => pull.headRefName === branch)
+          .sort((a, b) => b.number - a.number)[0];
+        return [branch, node ? headOf(node) : null];
+      }),
+    );
+  }
+
+  async pullRequestHeadsByBranch(value, list) {
+    const { owner, repo } =
+        typeof value === "string" ? parseRepository(value) : value,
+      fields = list
         .map(
           (_, i) =>
             `b${i}:pullRequests(headRefName:$b${i},states:OPEN,first:1,orderBy:{field:CREATED_AT,direction:DESC}){nodes{number url updatedAt headRefOid baseRefName baseRef{target{oid}} mergeable mergeStateStatus reviewDecision autoMergeRequest{enabledAt}}}`,
@@ -968,23 +1049,7 @@ export class GitHubClient {
     return Object.fromEntries(
       list.map((branch, i) => {
         const node = repository[`b${i}`]?.nodes?.[0];
-        return [
-          branch,
-          node
-            ? {
-                number: node.number,
-                url: node.url,
-                updatedAt: node.updatedAt,
-                head: node.headRefOid,
-                base: node.baseRefName,
-                mergeable: node.mergeable,
-                autoMerge: Boolean(node.autoMergeRequest),
-                mergeState: node.mergeStateStatus ?? null,
-                reviewDecision: node.reviewDecision ?? null,
-                baseHead: node.baseRef?.target?.oid ?? null,
-              }
-            : null,
-        ];
+        return [branch, node ? headOf(node) : null];
       }),
     );
   }
@@ -1410,22 +1475,23 @@ export class GitHubClient {
   // The issues a pull request closes: [{repository, number, title, url}].
   async pullRequestClosingIssues(value, number) {
     const { owner, repo } =
-        typeof value === "string" ? parseRepository(value) : value,
-      data = await this.graphql(
-        `query($owner:String!,$repo:String!,$number:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$number){closingIssuesReferences(first:10){nodes{number title url repository{nameWithOwner}}}}}}`,
-        { owner, repo, number: Number(number) },
-        "read closing issues",
-      ),
-      nodes =
-        data?.repository?.pullRequest?.closingIssuesReferences?.nodes ?? [];
-    return nodes
-      .filter((node) => node?.number)
-      .map((node) => ({
-        repository: node.repository?.nameWithOwner ?? `${owner}/${repo}`,
-        number: node.number,
-        title: node.title ?? "",
-        url: node.url ?? null,
-      }));
+      typeof value === "string" ? parseRepository(value) : value;
+    // An open pull request is already in the one open-pull-request read.
+    const open = (
+      await this.openPullRequests({ owner, repo }).catch(() => [])
+    ).find((pull) => pull.number === Number(number));
+    if (open?.closingIssuesReferences?.nodes?.length < 10)
+      return closingOf(open.closingIssuesReferences.nodes, owner, repo);
+    const data = await this.graphql(
+      `query($owner:String!,$repo:String!,$number:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$number){closingIssuesReferences(first:10){nodes{number title url repository{nameWithOwner}}}}}}`,
+      { owner, repo, number: Number(number) },
+      "read closing issues",
+    );
+    return closingOf(
+      data?.repository?.pullRequest?.closingIssuesReferences?.nodes ?? [],
+      owner,
+      repo,
+    );
   }
 
   listPullRequestReviewComments(value, number) {

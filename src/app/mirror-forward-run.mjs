@@ -65,7 +65,7 @@ export function stripPrivate(text, { mirror }) {
 }
 
 const branchFor = (mirror, record) =>
-  `${mirror.branchPrefix ?? "avoozl/"}${record.taskId || `change-${String(record.id).slice(0, 8)}`}`;
+  `${mirror.branchPrefix ?? "avoozl/"}${record.batch?.name || record.taskId || `change-${String(record.id).slice(0, 8)}`}`;
 
 const blocked = (store, record, reason) => {
   const next = { ...record, state: "blocked", reason };
@@ -157,7 +157,10 @@ export async function forwardRecord(
       `Avoozl has no sign-in for ${person}, so it cannot forward as them. Sign in as ${person} and try again.`,
     );
   const identity = instanceIdentity(store),
-    pull = await github.pullRequest(mirror.mirror, record.mirrorPr);
+    // An epic batch has no mirror pull request: its title is the epic's.
+    pull = record.batch
+      ? { title: record.title, body: "" }
+      : await github.pullRequest(mirror.mirror, record.mirrorPr);
   // Another Avoozl's marker in the mirror pull request (RC24.13).
   noteInstances(store, pull?.body);
   noteInstances(store, pull?.title);
@@ -196,9 +199,12 @@ export async function forwardRecord(
   const forwardTo = mirror.forwardTo?.startsWith("fork:")
       ? mirror.forwardTo.slice(5)
       : mirror.source,
-    base = (await github.repository(parseRepository(mirror.source)))
-      ?.default_branch;
-  if (!base)
+    defaultBase = (await github.repository(parseRepository(mirror.source)))
+      ?.default_branch,
+    // A merge into the mirror's copy of a public branch, and a batch aimed at
+    // one, open their public pull request against that branch (RC26.3).
+    base = record.batch?.publicBranch ?? record.base ?? defaultBase;
+  if (!defaultBase)
     return {
       ok: false,
       record,
@@ -223,6 +229,16 @@ export async function forwardRecord(
           mirror: mirror.mirror,
           base,
           mergeSha: record.id,
+          ...(record.batch
+            ? {
+                batch: {
+                  branch: record.batch.branch,
+                  base: (
+                    await github.repository(parseRepository(mirror.mirror))
+                  )?.default_branch,
+                },
+              }
+            : {}),
           author: { name: person, email },
           message,
           branch,
@@ -351,7 +367,12 @@ export async function forwardRecord(
               forwardTo,
               branch,
               token,
-              forbid: [base, mirror.plansBranch],
+              forbid: [
+                defaultBase,
+                base,
+                mirror.plansBranch,
+                record.batch?.branch,
+              ].filter(Boolean),
             });
           } catch (error) {
             // The remote moved under the branch: sync, rebuild, once (RC24.12).
@@ -420,7 +441,7 @@ async function conflictIssue(
   if (!number)
     number = (
       await github.createIssue(mirror.mirror, {
-        title: `The change from #${record.mirrorPr} conflicts with the public repository`,
+        title: `The change from ${record.mirrorPr ? `#${record.mirrorPr}` : "the epic"} conflicts with the public repository`,
         body: [
           "The change does not apply to the current default branch of the public repository. These paths conflict:",
           "",
