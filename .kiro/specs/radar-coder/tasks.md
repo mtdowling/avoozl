@@ -545,7 +545,7 @@ Requirement RC25. Private plans live on an orphan branch of the mirror and never
 - [x] rc-24.4 Containment: sync, forward, leak scan, explicit refspecs, after rc-24.1, rc-23.4 [RC25.6] (§D30)
   - Sync names the default branch only; the forward clone is single-branch; the leak scan blocks the plans branch name, private spec paths and commits from it in any forward text; every push has one explicit refspec and no `--mirror`, `--all`, `--tags` or wildcard.
   - Done when: Tests: a planted plans-branch name or path blocks the push with one row naming the rule; the sync leaves the `plansBranch` head unchanged; a test scans Avoozl's push calls and finds no banned flag.
-- [ ] rc-24.5 Issues from public and private plans, with edges across homes, after rc-24.3 [RC25.7, RC25.8, RC25.9, RC25.10] (§D30)
+- [x] rc-24.5 Issues from public and private plans, with edges across homes, after rc-24.3 [RC25.7, RC25.8, RC25.9, RC25.10] (§D30)
   - Private-plan issues stay in the mirror and never go to the source; public-plan issue bodies stand alone with no private text and no `plansBranch`; both homes project into the same mirror and release under the same rules; a `requires` edge across homes is allowed both ways, and a public-safe body says only `Waits on a private task.`
   - Done when: A fake GitHub test: both kinds of issue are written; no write reaches the source for a private plan; a public task waits on a private one and the reverse, each releases on its blocker's own rule, and the public body holds no private title, text, ID or link.
 - [ ] rc-p24 Proof 24: a public and a private plan in one mirror, after rc-24.1, rc-24.2, rc-24.3, rc-24.4, rc-24.5, rc-p23 [RC25] (§D17)
@@ -635,7 +635,7 @@ Requirement RC29. Count every call by source, and read each repository once.
 - [x] rc-28.2 One open-pull-request query per repository for heads and closing issues [RC29.4, RC29.5] (§D34)
   - Tests first: ten open pull requests cost one query, including closing issues, labels and checks.
   - Done when: The test passes and `npm test` passes.
-- [ ] rc-28.3 Settings > GitHub shows calls this hour by source, after rc-28.1 [RC29.3] (§D34)
+- [x] rc-28.3 Settings > GitHub shows calls this hour by source, after rc-28.1 [RC29.3] (§D34)
   - A small table beside the rate limit: source, calls, cached, 304; read from the rate view.
   - Done when: A page test shows the rows; screenshots are in the pull request; `npm run test:ui` passes.
 - [ ] rc-p28 Proof 28: one check costs one call, after rc-28.1, rc-28.2, rc-28.3 [RC29] (§D17)
