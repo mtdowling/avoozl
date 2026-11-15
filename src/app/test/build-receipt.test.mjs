@@ -39,7 +39,7 @@ test("the command's output and exit code pass through, and one receipt is writte
   );
   const code = await wrap(
     ["--issue", "12", "--target", "linux/x", "--", "node", "job.mjs"],
-    { cwd, out: out.stream, err: err.stream, env: {} },
+    { cwd, out: out.stream, err: err.stream, env: { PATH: process.env.PATH } },
   );
   assert.equal(code, 3);
   assert.match(out.text(), /built 3/);
@@ -72,7 +72,7 @@ test("the repository's parser gives the counters; a failing parser still writes 
     cwd,
     out: quiet.stream,
     err: quiet.stream,
-    env: {},
+    env: { PATH: process.env.PATH },
   });
   assert.deepEqual(lines(cwd)[0].counters, { hits: 7, misses: 2 });
   const bad = script(cwd, "bad.mjs", "process.exit(9)");
@@ -84,7 +84,7 @@ test("the repository's parser gives the counters; a failing parser still writes 
     cwd,
     out: quiet.stream,
     err: quiet.stream,
-    env: {},
+    env: { PATH: process.env.PATH },
   });
   assert.equal(code, 0);
   assert.deepEqual(lines(cwd)[1].counters, {});
@@ -103,7 +103,7 @@ test("cold and warm come from the repository's check", async () => {
       cwd,
       out: quiet.stream,
       err: quiet.stream,
-      env: {},
+      env: { PATH: process.env.PATH },
     });
     return lines(cwd).at(-1).start;
   };
@@ -119,7 +119,12 @@ test("a receipt that cannot be written never changes the result", async () => {
   fs.writeFileSync(path.join(cwd, "blocked"), "a file, not a folder");
   const code = await wrap(
     ["--file", "blocked/receipt.jsonl", "--", "node", "job.mjs"],
-    { cwd, out: quiet.stream, err: quiet.stream, env: {} },
+    {
+      cwd,
+      out: quiet.stream,
+      err: quiet.stream,
+      env: { PATH: process.env.PATH },
+    },
   );
   assert.equal(code, 4);
 });
@@ -131,7 +136,7 @@ test("a command that cannot start exits 127 and still leaves a receipt", async (
     cwd,
     out: quiet.stream,
     err: quiet.stream,
-    env: {},
+    env: { PATH: process.env.PATH },
   });
   assert.notEqual(code, 0);
   assert.equal(lines(cwd).length, 1);
