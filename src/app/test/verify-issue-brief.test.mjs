@@ -93,11 +93,33 @@ test("all checks ok: the brief holds task IDs, acceptance and references", async
     commit,
     taskIds: ["rc-2.3", "rc-2.4"],
     acceptance: ["First criterion", "Second criterion"],
+    rules: [],
     references: {
       "rc-2.3": ["RC2.1", "RC2.2", "§D5"],
       "rc-2.4": ["§D6"],
     },
   });
+});
+
+test("the brief carries the issue's workspace rules for the crew", async () => {
+  const withRules = section.replace(
+    "<!-- avoozl:managed:end -->",
+    "\n## Agent rules\n\nFollow these Avoozl workspace rules for this task:\n\n- Land by pull request: Open a pull request that says Closes #7.\n<!-- avoozl:managed:end -->",
+  );
+  const result = await verify({
+    [`repos/${CODE}/issues/7`]: {
+      status: 200,
+      body: { body: `${withRules}\n${marker}`, user: { login: "owner1" } },
+    },
+  });
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.brief.rules, [
+    "Land by pull request: Open a pull request that says Closes #7.",
+  ]);
+  assert.deepEqual(result.brief.acceptance, [
+    "First criterion",
+    "Second criterion",
+  ]);
 });
 
 test("any check not ok means no brief", async () => {

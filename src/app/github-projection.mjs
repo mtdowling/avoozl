@@ -52,6 +52,7 @@ import {
 } from "./github-marker.mjs";
 import { instanceIdentity, peekInstanceId } from "./instance.mjs";
 import { epicOfPlan } from "./epics.mjs";
+import { crewAgentInstructions } from "./agent-instructions.mjs";
 import { projectsMarkedIssues, provenanceWriter } from "./radar-provenance.mjs";
 import { resolveBatchGroups } from "./radar-coder-batch.mjs";
 import { finishSource, planSource, sourceParent } from "./radar-source.mjs";
@@ -83,6 +84,16 @@ export const gateLine = (task) =>
   `Tracker gate: waits on ${task.gate?.plugin} item ${task.gate?.item}. Done when: ${task.gate?.done}. No agent works on it.`;
 // A public-safe issue that waits on a private task says only this (RC25.9).
 export const PRIVATE_WAIT_LINE = "Waits on a private task.";
+// One line per workspace rule a Radar crew must follow (task.implement and
+// github.issue.implement). The line cannot end the managed section or start
+// a heading, and the body still passes the content-rule write guard.
+export const AGENT_RULES_LINE =
+  "Follow these Avoozl workspace rules for this task:";
+export const agentRuleLine = (rule) =>
+  `- ${rule.title}: ${String(rule.instruction).replace(/\s+/g, " ").trim()}`.replace(
+    /<!--/g,
+    "&lt;!--",
+  );
 function managedSection(
   task,
   plan,
@@ -90,12 +101,14 @@ function managedSection(
   notes = [],
   shown = [],
   waitsPrivate = false,
+  rules = [],
 ) {
   const list = [
       ...requires.map((id) => `- ${id}`),
       ...(waitsPrivate ? [PRIVATE_WAIT_LINE] : []),
     ].join("\n"),
-    entries = issueNotesLines(shown).join("\n");
+    entries = issueNotesLines(shown).join("\n"),
+    ruleLines = rules.map(agentRuleLine).join("\n");
   return `<!-- avoozl:managed:start -->
 This issue is projected from approved design \`${plan.id}\` at \`${plan.hash.slice(0, 12)}\`.
 ${task.phase ? `\nPhase: ${task.phase.title}\n` : ""}
@@ -104,7 +117,7 @@ ${task.summary || task.nextAction || ""}
 ## Acceptance criteria
 
 ${(task.acceptance || []).map((item) => `- [ ] ${item}`).join("\n")}
-${list ? `\n## Dependencies\n\n${list}\n` : ""}${notes.length ? `\n${notes.map((note) => `> ${note}`).join("\n")}\n` : ""}${isManual(task) ? `\n> ${MANUAL_LINE}\n` : ""}${isGate(task) ? `\n> ${gateLine(task)}\n` : ""}${entries ? `\n## Links and notes\n\n${entries}\n` : ""}
+${list ? `\n## Dependencies\n\n${list}\n` : ""}${notes.length ? `\n${notes.map((note) => `> ${note}`).join("\n")}\n` : ""}${isManual(task) ? `\n> ${MANUAL_LINE}\n` : ""}${isGate(task) ? `\n> ${gateLine(task)}\n` : ""}${entries ? `\n## Links and notes\n\n${entries}\n` : ""}${ruleLines ? `\n## Agent rules\n\n${AGENT_RULES_LINE}\n\n${ruleLines}\n` : ""}
 <!-- avoozl:managed:end -->`;
 }
 
@@ -1171,6 +1184,12 @@ async function project(
           ),
           shownNotes(store, member.id),
           blocking(member).some((edge) => hidden.has(edge.from)),
+          isRadarRepository(
+            identity.repositories?.[item.config.id],
+            identity.mode,
+          )
+            ? crewAgentInstructions(data, member)
+            : [],
         ),
       }));
     item.title = item.memberTasks
