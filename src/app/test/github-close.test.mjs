@@ -626,3 +626,22 @@ test("with no branch review rule and no old setting, reviews are not read", asyn
   await run();
   assert.equal(task("a").githubVerdict.state, "verified");
 });
+
+test("a read-only spec's closed leaf is skipped and the other specs still complete", async (t) => {
+  const { store, github, run, task } = workspace(t);
+  store.mutate(
+    "Leaf c belongs to a spec this workspace does not drive",
+    (data) => {
+      data.tasks.find((item) => item.id === "c").planId = "other";
+    },
+  );
+  store.put("drivers", { id: "other", mode: "github", state: "read-only" });
+  github.close(3, { reason: "not_planned" });
+  github.merged(1);
+  github.close(1);
+  const result = await run();
+  assert.equal(result.github.status, "ok");
+  assert.equal(task("a").githubVerdict.state, "verified");
+  assert.equal(task("c").githubVerdict, undefined);
+  assert.equal(parseMarker(github.issues.get(3).body).order, undefined);
+});
