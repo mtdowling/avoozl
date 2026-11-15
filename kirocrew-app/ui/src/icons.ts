@@ -50,6 +50,7 @@ export {
   LayoutGrid,
   MessageSquare,
   MessagesSquare,
+  ListFilter,
   Network,
   PanelLeftOpen,
   Package,

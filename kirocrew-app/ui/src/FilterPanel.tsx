@@ -6,12 +6,13 @@ import { Btn, Card } from '@kirocrew/app-sdk/ui'
 import { FilterSelect, selectStyle } from './FilterSelect.tsx'
 import { Picker } from './Picker.tsx'
 import type { PickItem } from './picker.ts'
-import { X } from './icons.ts'
-import { COMPACT_BTN, ICON, TipBtn } from './controls.tsx'
+import { ListFilter, X } from './icons.ts'
+import { MoreMenu } from './MoreMenu.tsx'
+import { ICON, IconBtn, TipBtn } from './controls.tsx'
 import { useMedia } from './use-media.ts'
 import type { Option } from './filters.ts'
 
-export type FilterField =
+export type FilterField = (
   | { kind: 'search'; key: string; label: string; value: string; placeholder: string; onChange: (value: string) => void }
   | { kind: 'select'; key: string; label: string; value: string; options: Option[]; onChange: (value: string) => void; disabled?: boolean; hint?: string }
   // A task or spec: the searchable picker (§8.9), with '' for All.
@@ -26,6 +27,11 @@ export type FilterField =
       onChange: (min: number | undefined, max: number | undefined) => void
     }
   | { kind: 'check'; key: string; label: string; checked: boolean; onChange: (checked: boolean) => void }
+) & {
+  // On the one-line row itself (a folded panel); the rest sit behind the
+  // filter icon. Without any, the first search is the one on the row.
+  primary?: boolean
+}
 
 const numberStyle = { ...selectStyle, width: '4.5rem' }
 
@@ -94,6 +100,27 @@ function Field({ id, field }: { id: string; field: FilterField }) {
   )
 }
 
+// A field drawn on the one-line row: no label above it, 24px tall. The
+// label is the field's name for a screen reader, and a select's All choice.
+const INLINE = { ...selectStyle, height: 24, boxSizing: 'border-box' as const, padding: '0 6px', fontSize: 12.5, borderRadius: 6, minWidth: 0 }
+function InlineField({ id, field }: { id: string; field: FilterField }) {
+  const fieldId = `${id}-${field.key}`
+  if (field.kind === 'search')
+    return <input id={fieldId} type="search" aria-label={field.label} value={field.value} placeholder={field.placeholder} onChange={(event) => field.onChange(event.target.value)} className="border" style={{ ...INLINE, flex: '1 1 6rem', width: '6rem', maxWidth: '16rem' }} />
+  if (field.kind === 'select')
+    return (
+      <select id={fieldId} aria-label={field.label} value={field.value} disabled={field.disabled} onChange={(event) => field.onChange(event.target.value)} className="border" style={{ ...INLINE, flex: '0 1 auto', maxWidth: '9rem' }}>
+        <option value="">{field.label}: all</option>
+        {field.options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    )
+  return <Field id={id} field={field} />
+}
+
 // A box of filter fields and Clear, then the tab's own line under them
 // (counts, Refresh). On a narrow page the fields fold behind one Filters
 // button inside the box. `aside` sits at the right end of the fields' row
@@ -114,17 +141,44 @@ export function FilterPanel(props: { id: string; label: string; fields: FilterFi
       </TipBtn>
     </div>
   )
+  if (props.folded) {
+    const marked = props.fields.some((f) => f.primary)
+    const first = props.fields.find((f) => f.kind === 'search')
+    const onRow = props.fields.filter((f) => (marked ? f.primary : f === first))
+    const rest = props.fields.filter((f) => !onRow.includes(f))
+    // One line at every width: the main fields, a filter icon with the rest,
+    // Clear while a filter is set, then the status text at the right end.
+    return (
+      <div role="search" aria-label={props.label} data-filter-panel={props.id} data-filter-row className="flex min-w-0 items-center gap-1.5" style={{ flexWrap: 'nowrap' }}>
+        {onRow.map((field) => (
+          <InlineField key={field.key} id={props.id} field={field} />
+        ))}
+        {rest.length > 0 && (
+          <MoreMenu label={`More filters${props.active ? ' (on)' : ''}`} icon={ListFilter} on={props.active} attrs={{ 'data-filter-more': '' }}>
+            <div className="flex flex-col gap-2" data-keep-menu>
+              {rest.map((field) => (
+                <Field key={field.key} id={props.id} field={field} />
+              ))}
+            </div>
+          </MoreMenu>
+        )}
+        {props.active && <IconBtn icon={X} label="Clear every filter" tooltip="Clear every filter on this tab" onClick={props.onClear} />}
+        {props.children && (
+          <div className="ml-auto flex items-center gap-1.5" style={{ flexShrink: 0, whiteSpace: 'nowrap' }} data-filter-status>
+            {props.children}
+          </div>
+        )}
+      </div>
+    )
+  }
   return (
     <Card>
       <div role="search" aria-label={props.label} data-filter-panel={props.id}>
         {narrow ? (
           <div className="flex flex-col gap-2">
-            <div className="flex min-w-0 items-center gap-2" data-filter-row>
-              <Btn onClick={() => setOpen(!open)} aria-expanded={open} style={COMPACT_BTN}>
-                Filters{props.active ? ' (on)' : ''}
-              </Btn>
-              {props.folded && props.children && <div className="flex min-w-0 flex-1 items-center gap-2">{props.children}</div>}
-            </div>
+            <Btn onClick={() => setOpen(!open)} aria-expanded={open}>
+              Filters{props.active ? ' (on)' : ''}
+            </Btn>
             {open && fields}
           </div>
         ) : props.aside ? (
@@ -139,7 +193,7 @@ export function FilterPanel(props: { id: string; label: string; fields: FilterFi
         )}
         {narrow && props.aside && <div className="mt-2" data-filter-aside>{props.aside}</div>}
       </div>
-      {props.children && !props.folded && <div className="mt-3">{props.children}</div>}
+      {props.children && <div className="mt-3">{props.children}</div>}
     </Card>
   )
 }

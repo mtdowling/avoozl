@@ -809,8 +809,8 @@ export default function ConflictsView({ workspaceId, embedded }: { workspaceId: 
                   active={conflictFilterActive(filter)}
                   onClear={() => setFilter({})}
                   fields={[
-                    { kind: 'search', key: 'q', label: 'Search', value: filter.q ?? '', placeholder: 'Task, ID or detail', onChange: (q) => setField({ q }) },
-                    { kind: 'select', key: 'kind', label: 'Kind', value: filter.kind ?? '', options: choices.kinds, onChange: (kind) => setField({ kind }) },
+                    { kind: 'search', key: 'q', label: 'Search', value: filter.q ?? '', placeholder: 'Task, ID or detail', onChange: (q) => setField({ q }), primary: true },
+                    { kind: 'select', key: 'kind', label: 'Kind', value: filter.kind ?? '', options: choices.kinds, onChange: (kind) => setField({ kind }), primary: true },
                     { kind: 'pick', key: 'plan', label: 'Spec', value: filter.plan ?? '', items: optionItems(choices.plans), onChange: (plan) => setField({ plan }) },
                     { kind: 'select', key: 'epic', label: 'Epic', value: filter.epic ?? '', options: choices.epics, onChange: (epic) => setField({ epic }) },
                     {

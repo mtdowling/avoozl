@@ -3,10 +3,13 @@
 // buttons here. The panel stays mounted while open, so a control in it can
 // open its own dialog; a tap outside, Esc, or a plain menu item closes it.
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Ellipsis } from './icons.ts'
+import { Ellipsis, type LucideIcon } from './icons.ts'
 import { LAYER } from './layers.ts'
 
-export function MoreMenu(props: { label: string; children: ReactNode; attrs?: Record<string, string> }) {
+// `icon` replaces the ellipsis (a filter menu uses a filter icon); `on`
+// marks the button as holding something set.
+export function MoreMenu(props: { label: string; children: ReactNode; attrs?: Record<string, string>; icon?: LucideIcon; on?: boolean }) {
+  const Icon = props.icon ?? Ellipsis
   const [open, setOpen] = useState(false)
   // The panel opens leftward from the button, or rightward when the button
   // sits too near the left edge for it to fit.
@@ -43,9 +46,9 @@ export function MoreMenu(props: { label: string; children: ReactNode; attrs?: Re
           setFromLeft(event.currentTarget.getBoundingClientRect().right < 240)
           setOpen(!open)
         }}
-        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 6, border: '1px solid var(--border)', background: open ? 'var(--bg-hover, var(--bg-elevated))' : 'transparent', color: 'var(--text)', cursor: 'pointer' }}
+        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: props.icon ? 24 : 28, height: props.icon ? 24 : 28, borderRadius: 6, border: '1px solid var(--border)', background: open ? 'var(--bg-hover, var(--bg-elevated))' : 'transparent', color: 'var(--text)', cursor: 'pointer' }}
       >
-        <Ellipsis size={18} aria-hidden="true" />
+        <Icon size={props.icon ? 14 : 18} aria-hidden="true" style={props.on ? { color: 'var(--accent)' } : undefined} />
       </button>
       {open && (
         <div
