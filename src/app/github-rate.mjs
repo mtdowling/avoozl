@@ -334,6 +334,13 @@ export class RateState {
     this.dirty = true;
   }
 
+  // A git fetch or ls-remote: it costs no API quota, so it is counted under
+  // source `git` and left out of the hour's call total.
+  countGit() {
+    add(this.usage, bucketOf(this.now()), "git", "calls");
+    this.dirty = true;
+  }
+
   // A read the cache answered: no call went out.
   cached(source = currentSource()) {
     add(this.usage, bucketOf(this.now()), source, "cached");
@@ -577,7 +584,10 @@ export function rateView(store, now = Date.now(), { countFile } = {}) {
   return {
     ...view,
     bySource,
-    hourCalls: Object.values(bySource).reduce((n, row) => n + row.calls, 0),
+    hourCalls: Object.entries(bySource).reduce(
+      (n, [source, row]) => (source === "git" ? n : n + row.calls),
+      0,
+    ),
   };
 }
 

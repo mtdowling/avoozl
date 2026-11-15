@@ -122,6 +122,40 @@ test("the brief carries the issue's workspace rules for the crew", async () => {
   ]);
 });
 
+test("the brief carries retro rules merged into AGENTS.md and steering files", async () => {
+  const agents =
+    "# Working here\n\n<!-- avoozl:retro rabc1 -->\nEnd every pull request body with `Retro rule: followed`.\n<!-- /avoozl:retro rabc1 -->\n";
+  const result = await verify({
+    [`repos/${CODE}/contents/AGENTS.md`]: { status: 200, text: agents },
+    [`repos/${CODE}/contents/.kiro/steering`]: {
+      status: 200,
+      body: [
+        { type: "file", name: "crew.md" },
+        { type: "dir", name: "nested" },
+      ],
+    },
+    [`repos/${CODE}/contents/.kiro/steering/crew.md`]: {
+      status: 200,
+      text: "<!-- avoozl:retro rdef2 -->\nExport each new helper\nfrom src/index.js.\n<!-- /avoozl:retro rdef2 -->\n",
+    },
+  });
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.brief.rules, [
+    "Retro rule (AGENTS.md): End every pull request body with `Retro rule: followed`.",
+    "Retro rule (.kiro/steering/crew.md): Export each new helper from src/index.js.",
+  ]);
+});
+
+test("an unreadable AGENTS.md tells the crew to read the rules itself", async () => {
+  const result = await verify({
+    [`repos/${CODE}/contents/AGENTS.md`]: { status: 502, body: {} },
+  });
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.brief.rules, [
+    "Retro rules: they could not be read. Read AGENTS.md and .kiro/steering/ on the default branch yourself.",
+  ]);
+});
+
 test("any check not ok means no brief", async () => {
   const cases = {
     marker: { [`repos/${CODE}/issues/7`]: { status: 500, body: {} } },
