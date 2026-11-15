@@ -223,7 +223,7 @@ test('the keys and the mouse back button: ours only with a step and from the pag
   assert.doesNotMatch(wiring, /pushState/)
   // Every modal is portaled to <body>, so it carries the page mark.
   assert.match(source('Modal.tsx'), /data-modal=\{props\.id\}[\s\S]*?\{\.\.\.\{ \[APP_ATTR\]: '' \}\}/)
-  assert.match(source('DocumentReader.tsx'), /<Modal\b[^\n]*attrs=\{\{ 'data-document-reader': true \}\}/)
+  assert.match(source('DocumentReader.tsx'), /<Modal\b[\s\S]*?attrs=\{\{ 'data-document-reader': true \}\}/)
   assert.match(source('App.tsx'), /<div \{\.\.\.\{ \[APP_ATTR\]: '' \}\} style=\{\{ display: 'contents' \}\}>/)
 })
 

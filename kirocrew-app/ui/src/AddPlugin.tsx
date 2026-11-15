@@ -310,7 +310,7 @@ function AddPluginDialog(props: { workspaceId: string; client: Client; supported
   return (
     // Esc, Back and a click outside do what Cancel does, asking first once
     // something was entered or added.
-    <Modal close
+    <Modal
       id="avoozl-plugin"
       width="40rem"
       backLabel="Cancel"
@@ -318,7 +318,55 @@ function AddPluginDialog(props: { workspaceId: string; client: Client; supported
       boxRef={box}
       attrs={{ 'data-plugin-dialog': step }}
       unsaved={(Boolean(added) || step > 0 || JSON.stringify(form) !== JSON.stringify(emptyPluginForm())) && { title: 'Stop adding this plugin?', body: added ? `${added.id} is removed again. Nothing ran.` : 'What you entered is lost.', action: 'Stop' }}
+      title={PLUGIN_STEPS[step][0]}
       onDismiss={cancel}
+      footer={
+        <>
+          <Btn type="button" onClick={cancel} disabled={busy}>
+            Cancel
+          </Btn>
+          {(step === 1 || step === 2) && (
+            <Btn type="button" onClick={() => setStep(step - 1)} disabled={busy}>
+              Back
+            </Btn>
+          )}
+          {step === 0 && (
+            <Btn type="button" primary onClick={() => void look()} disabled={busy}>
+              {form.where === 'git' ? 'Find the commit' : 'Next'}
+            </Btn>
+          )}
+          {step === 1 && (
+            <Btn
+              type="button"
+              primary
+              disabled={busy || Boolean(problem)}
+              onClick={() => {
+                const checked = addInput(form)
+                if (checked.error) return setError(checked.error)
+                setStep(2)
+              }}
+            >
+              Next
+            </Btn>
+          )}
+          {step === 2 && (
+            <Btn type="button" primary onClick={() => void add()} disabled={busy || (form.scope === 'repository' && !confirmPublic)}>
+              {form.where === 'git' ? 'Fetch and review' : 'Add and review'}
+            </Btn>
+          )}
+          {step === 3 && added && canApprove(added) && (
+            <Btn type="button" primary onClick={() => void approve()} disabled={busy}>
+              Approve version {added.version}
+              {added.commit ? ` at ${added.commit.slice(0, 12)}` : ''}
+            </Btn>
+          )}
+          {step === 3 && added && !canApprove(added) && (
+            <Btn type="button" primary onClick={() => onClose(`Added ${added.id}. It can't be approved yet: ${added.reason ?? stateLabel(added).label}.`)}>
+              Keep it unapproved
+            </Btn>
+          )}
+        </>
+      }
     >
       <ol className="flex flex-wrap gap-2 text-xs" aria-label="Steps">
         {PLUGIN_STEPS.map(([title], i) => (
@@ -328,9 +376,6 @@ function AddPluginDialog(props: { workspaceId: string; client: Client; supported
         ))}
       </ol>
       <div>
-        <h3 id="avoozl-plugin-title" className="text-base font-semibold">
-          {PLUGIN_STEPS[step][0]}
-        </h3>
         <p id="avoozl-plugin-line" className="text-sm text-muted">
           {PLUGIN_STEPS[step][1]}
         </p>
@@ -362,51 +407,6 @@ function AddPluginDialog(props: { workspaceId: string; client: Client; supported
           {error}
         </p>
       )}
-      <div className="flex flex-wrap justify-end gap-2">
-        <Btn type="button" onClick={cancel} disabled={busy}>
-          Cancel
-        </Btn>
-        {(step === 1 || step === 2) && (
-          <Btn type="button" onClick={() => setStep(step - 1)} disabled={busy}>
-            Back
-          </Btn>
-        )}
-        {step === 0 && (
-          <Btn type="button" primary onClick={() => void look()} disabled={busy}>
-            {form.where === 'git' ? 'Find the commit' : 'Next'}
-          </Btn>
-        )}
-        {step === 1 && (
-          <Btn
-            type="button"
-            primary
-            disabled={busy || Boolean(problem)}
-            onClick={() => {
-              const checked = addInput(form)
-              if (checked.error) return setError(checked.error)
-              setStep(2)
-            }}
-          >
-            Next
-          </Btn>
-        )}
-        {step === 2 && (
-          <Btn type="button" primary onClick={() => void add()} disabled={busy || (form.scope === 'repository' && !confirmPublic)}>
-            {form.where === 'git' ? 'Fetch and review' : 'Add and review'}
-          </Btn>
-        )}
-        {step === 3 && added && canApprove(added) && (
-          <Btn type="button" primary onClick={() => void approve()} disabled={busy}>
-            Approve version {added.version}
-            {added.commit ? ` at ${added.commit.slice(0, 12)}` : ''}
-          </Btn>
-        )}
-        {step === 3 && added && !canApprove(added) && (
-          <Btn type="button" primary onClick={() => onClose(`Added ${added.id}. It can't be approved yet: ${added.reason ?? stateLabel(added).label}.`)}>
-            Keep it unapproved
-          </Btn>
-        )}
-      </div>
     </Modal>
   )
 }

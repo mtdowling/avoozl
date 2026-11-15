@@ -129,7 +129,7 @@ test('headings get anchors for the plan outline, and prose has a readable measur
   assert.match(source('Markdown.tsx'), /id=\{idPrefix \? headingId\(idPrefix, block\.text, i\) : undefined\}/)
 })
 
-test('the plan view keeps a sticky left column that stacks on narrow pages, with Edit and Discuss', () => {
+test('the spec view keeps a sticky right rail that scrolls with the cards on narrow pages, with Edit and Discuss', () => {
   const plans = source('PlansView.tsx')
   assert.match(plans, /position: 'sticky'/)
   assert.match(plans, /useMedia\(STACK\)/)

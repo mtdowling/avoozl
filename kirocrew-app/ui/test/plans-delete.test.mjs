@@ -19,10 +19,11 @@ test('the confirm says what happens to each part of an approved plan', () => {
   assert.match(deleteLines({ retire: false }).join(' '), /stays in history/)
 })
 
-test('only a stored plan offers Delete, red, at the far right', () => {
+test('only a stored plan offers Delete, red, last in the spec menu', () => {
   assert.equal(rowActions({ kind: 'spec', status: 'not imported', spec: 's', planId: null }).deletable, false)
   assert.equal(rowActions({ kind: 'spec', status: 'approved', spec: 's', planId: 'p1' }).deletable, true)
-  assert.match(plans, /\{props\.onDelete && \(\s*<IconBtn icon=\{Trash2\} label=\{`Delete \$\{row\.name\}`\}[^>]*style=\{dangerStyle\}/)
+  assert.match(plans, /\{actions\.onDelete && <MenuItem icon=\{Trash2\} label="Delete" danger tooltip="Delete this spec\. You confirm first; it stays in history\." onClick=\{actions\.onDelete\} \/>\}\s*<\/div>\s*<\/MoreMenu>/)
+  assert.match(plans, /onDelete: actions\.deletable \? \(\) => setDeleting\(row\) : undefined/)
   assert.match(plans, /Also delete the spec folder \(\.kiro\/specs\/\{preview\.spec\}\/\) from the repo\./)
   assert.match(plans, /useState\(false\)/)
   assert.match(plans, /disabled=\{!preview \|\| busy \|\| blocked\}/)

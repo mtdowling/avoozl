@@ -275,6 +275,14 @@ export function plansClient(api: AppApi) {
       run<ProjectionPreview>(workspaceId, 'github.project.preview', { planId }),
     // Approve exactly the revision the user is looking at. The backend refuses
     // a changed hash, a changed database, or a folder that moved on disk.
+    // Draft specs in the order they can be approved (plan.approvalBatches).
+    batches: (workspaceId: string) => run<ApprovalBatches>(workspaceId, 'plan.approvalBatches'),
+    // What approving just these would do, with each one's issue writes. Writes nothing.
+    selection: (workspaceId: string, ids: string[]) =>
+      run<ApprovalBatches & { selection: BatchSelection }>(workspaceId, 'plan.approvalBatches', { ids }).then((value) => value.selection),
+    // Approve exactly these revisions together, all or none (plan.approveMany).
+    approveMany: (workspaceId: string, items: { id: string; expectedHash: string }[]) =>
+      run<ApproveManyResult>(workspaceId, 'plan.approveMany', { items }),
     approve: async (workspaceId: string, id: string, expectedHash: string) => {
       const { reviewedHash, expectedRevision } = await preview(workspaceId, id)
       if (reviewedHash !== expectedHash) throw new Error('This revision changed. Reload it before approving.')
@@ -288,6 +296,51 @@ export function plansClient(api: AppApi) {
 }
 
 export type PlansClient = ReturnType<typeof plansClient>
+
+// One draft spec in plan.approvalBatches: the batch it can be approved in.
+export interface BatchEntry {
+  id: string
+  spec: string
+  title: string
+  hash: string
+  batch: number
+  tasks: number
+  errors: number
+  // It shares a loop with other specs in its batch.
+  loop: boolean
+  // Draft specs whose tasks it needs, by name.
+  needs: string[]
+}
+export interface ApprovalBatches {
+  batches: { batch: number; specs: BatchEntry[] }[]
+}
+// plan.approvalBatches {ids}: approving just these, tried on a scratch
+// copy. `writes` counts the GitHub issue writes projecting each would make.
+export interface BatchSelection {
+  ok: boolean
+  specs: (BatchEntry & { writes?: number | null; writesError?: string; pullRequest?: boolean })[]
+  writes: number
+  failures: { id: string; spec: string | null; error: string }[]
+  missing: string[]
+}
+export interface ApproveManyResult {
+  ok: boolean
+  pending?: boolean
+  failures: { id: string; spec: string | null; error: string }[]
+  approvalPullRequests?: { repository: string; number: number; branch: string; specs: string[] }[]
+}
+
+// Each draft plan's batch number, by plan ID. Approved specs have none.
+export function batchNumbers(batches: ApprovalBatches | null): Map<string, number> {
+  return new Map((batches?.batches ?? []).flatMap((batch) => batch.specs.map((entry) => [entry.id, batch.batch] as const)))
+}
+
+// Specs the selected ones need that are not selected: approving fails
+// for them until those are approved too.
+export function missingOwners(selected: BatchEntry[]): string[] {
+  const names = new Set(selected.map((entry) => entry.spec))
+  return [...new Set(selected.flatMap((entry) => entry.needs.filter((need) => !names.has(need))))].sort()
+}
 
 export interface DeletePreview {
   id: string
@@ -425,9 +478,11 @@ export interface PlanListFilter {
   has?: 'ready' | 'running' | 'needs-you'
   // Show archived plans; they are hidden otherwise.
   archived?: boolean
+  // Draft specs in this approval batch ("1", "2", ...).
+  batch?: string
 }
 
-export function filterRows(rows: PlanRow[], filter: PlanListFilter): PlanRow[] {
+export function filterRows(rows: PlanRow[], filter: PlanListFilter, batchOf: Map<string, number> = new Map()): PlanRow[] {
   const text = filter.q?.trim().toLowerCase() ?? ''
   return rows.filter(
     (row) =>
@@ -439,6 +494,7 @@ export function filterRows(rows: PlanRow[], filter: PlanListFilter): PlanRow[] {
       (!filter.category || (row.category ?? UNCATEGORIZED) === filter.category) &&
       (!filter.status || row.status === filter.status) &&
       (!filter.kind || row.kind === filter.kind) &&
+      (!filter.batch || (row.planId !== null && batchOf.get(row.planId) === Number(filter.batch))) &&
       (!filter.has ||
         (filter.has === 'ready' ? row.now.ready > 0 : filter.has === 'running' ? row.now.running > 0 : row.now.needsYou > 0)),
   )
