@@ -380,6 +380,7 @@ function AvoozlPage() {
             onScope={scopeTo}
             onDrill={openDrill}
             newPlanRequest={planGoal}
+            onOpenSettings={openSettings}
           />
         ) : tab === 'trace' ? (
           <TracePage workspaceId={active} target={(nav.memory.get(TRACE_TARGET) as TraceTarget | undefined) ?? null} onPick={pickTrace} onOpenEpics={() => chooseTab('plans')} />
