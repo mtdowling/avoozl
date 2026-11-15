@@ -139,8 +139,8 @@ export function PanelRoot(props: { kind: string; children: ReactNode }) {
   )
 }
 
-export function PanelChip(props: { tone?: Tone; tip?: string; tap?: boolean; href?: string | null; children: ReactNode; [attr: `data-${string}`]: unknown }) {
-  const { tone = 'muted', tip, tap, href, children, ...rest } = props
+export function PanelChip(props: { tone?: Tone; tip?: string; href?: string | null; children: ReactNode; [attr: `data-${string}`]: unknown }) {
+  const { tone = 'muted', tip, href, children, ...rest } = props
   return (
     <Tooltip text={tip}>
       {href ? (
@@ -148,7 +148,7 @@ export function PanelChip(props: { tone?: Tone; tip?: string; tap?: boolean; hre
           {children}
         </a>
       ) : (
-        <span data-pp-chip data-tone={tone} data-tap={tap && tip ? '' : undefined} {...rest}>
+        <span data-pp-chip data-tone={tone} {...rest}>
           {children}
         </span>
       )}

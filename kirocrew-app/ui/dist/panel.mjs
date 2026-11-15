@@ -1204,24 +1204,23 @@ function Nt(e) {
 	});
 }
 function q(e) {
-	let { tone: t = "muted", tip: n, tap: r, href: i, children: a, ...o } = e;
+	let { tone: t = "muted", tip: n, href: r, children: i, ...a } = e;
 	return /* @__PURE__ */ k(G, {
 		text: n,
-		children: i ? /* @__PURE__ */ k("a", {
+		children: r ? /* @__PURE__ */ k("a", {
 			"data-pp-chip": !0,
 			"data-tone": t,
-			href: K(i),
+			href: K(r),
 			target: "_blank",
 			rel: "noreferrer",
 			style: { textDecoration: "none" },
-			...o,
-			children: a
+			...a,
+			children: i
 		}) : /* @__PURE__ */ k("span", {
 			"data-pp-chip": !0,
 			"data-tone": t,
-			"data-tap": r && n ? "" : void 0,
-			...o,
-			children: a
+			...a,
+			children: i
 		})
 	});
 }
@@ -2303,7 +2302,6 @@ function On({ rows: e, now: t }) {
 				children: /* @__PURE__ */ k("span", {
 					"data-pp-chip": !0,
 					"data-tone": "muted",
-					"data-tap": "",
 					children: "No chat"
 				})
 			}) : null
