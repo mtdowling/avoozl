@@ -41,6 +41,7 @@ import {
   scopeLabelOf,
   stepReceiptId,
 } from "./radar-coder-release.mjs";
+import { rankEligible } from "./release-ranking-step.mjs";
 import { adapterFor, coderForTask } from "./coder-adapter.mjs";
 import { plansNameForIssue } from "./github-plans-repo.mjs";
 import {
@@ -1397,7 +1398,7 @@ async function project(
     // has its own N (RC4.2).
     scopeKey = (item) => item.config.id + "\n" + item.labels.ready,
     firstOf = new Map(),
-    eligible = [...items]
+    sorted = [...items]
       .sort(
         (left, right) =>
           Number(holds(right)) - Number(holds(left)) ||
@@ -1417,6 +1418,21 @@ async function project(
           ) &&
           !(item.current && item.current.state !== "open"),
       );
+  // Smart ranking (RC31): only the order of unlabeled candidates changes.
+  const eligible = await rankEligible({
+    store,
+    github,
+    data,
+    identity,
+    items,
+    eligible: sorted,
+    holds,
+    rank,
+    claimed: (item) => isClaimed(item, identity),
+    complete,
+    skipPull: previewOnly,
+    dryRun,
+  });
   for (const item of eligible) firstOf.set(scopeKey(item), item);
   // An open issue that holds a scope's label but is not a candidate this tick
   // (its task is in review, held or has a decision) still takes a slot, so a

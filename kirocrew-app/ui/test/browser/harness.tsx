@@ -554,12 +554,14 @@ if (query.get('page') === 'release-queue') {
     ['rc-1.1', 'Add the claim marker reader', 'released', 'Ready label is on. A crew has not claimed it yet.', 'Phase 1'],
     ['rc-1.2', 'Read the crew list', 'claimed', 'Claimed by Docs crew.', 'Phase 1'],
     ['rc-2.1', 'Project plans-repo issues into the code repository for the crews', 'next', 'Next in line.', 'Phase 2'],
-    ['rc-2.2', 'Write the preview', 'held', 'Waiting for a free slot (2 of 2 in use).', 'Phase 2'],
+    ['rc-2.2', 'Write the preview', 'held', 'Waiting for a free slot (2 of 2 in use). Next: unblocks 4 tasks.', 'Phase 2'],
+    ['rc-2.3', 'Read the open pull requests once', 'held', 'Held: paths overlap #112 (open pull request); moves up in 7h.', 'Phase 2'],
     ['rc-3.1', 'Verify an issue before a crew builds it', 'held', 'Waiting on rc-2.1, rc-2.2.', 'Phase 3'],
     ['rc-4.1', 'Release engine', 'held', 'Phase Phase 4 waits for phase p3 to merge (rc-3.1, rc-3.2, rc-3.3).', 'Phase 4'],
     ['rc-5.1', 'Merge path check', 'held', 'Step: waiting for a click to release phase Phase 5.', 'Phase 5'],
     ['rc-5.2', 'Arm GitHub auto-merge', 'held', 'The line is stopped: bad base on main.', 'Phase 5'],
   ].map(([taskId, title, state, reason, phase], i) => ({ taskId, title, planId: 'radar-coder', spec: 'radar-coder', phase, scope: null, label: 'ready', number: 10 + i, url: null, manual: false, state, reason, used: 2, capacity: 2 }))
+  answer('delivery.view', () => ({ revision: 1, items: [] }))
   answer('radar.releasequeue', () => ({
     repositories: [
       { repository: 'example/application-with-a-long-name', ready: 'ready', mode: 'step', capacity: 2, scopes: [], rows, steps: [{ planId: 'radar-coder', spec: 'radar-coder', phase: 'p5', title: 'Phase 5', released: false }] },

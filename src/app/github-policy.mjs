@@ -7,6 +7,7 @@ import { fail } from "./store.mjs";
 import { parseRepository } from "./github.mjs";
 import { parseMatch } from "./issue-match.mjs";
 import { mirrorInput } from "./mirror-policy.mjs";
+import { rankingFor } from "./release-ranking.mjs";
 
 // The rule keys `match` replaces (§4.4); still read when `match` is absent.
 const LEGACY_MATCH_KEYS = ["labelsAll", "labelsAny", "labelsNone", "assignee"];
@@ -325,7 +326,21 @@ export const RELEASE_MODES = Object.freeze(["automatic", "step", "hold"]);
 function releaseInput(value, coder, label) {
   const input = value.release ?? {};
   if (!record(input)) fail(`${label}.release must be an object.`);
-  onlyKeys(input, ["capacity", "mode", "scopes"], `${label}.release`);
+  onlyKeys(
+    input,
+    ["capacity", "mode", "scopes", "ranking"],
+    `${label}.release`,
+  );
+  const rankIn = input.ranking ?? {};
+  if (!record(rankIn)) fail(`${label}.release.ranking must be an object.`);
+  onlyKeys(rankIn, ["enabled", "agingHours"], `${label}.release.ranking`);
+  if (rankIn.enabled !== undefined && typeof rankIn.enabled !== "boolean")
+    fail(`${label}.release.ranking.enabled must be true or false.`);
+  if (
+    rankIn.agingHours !== undefined &&
+    (!Number.isSafeInteger(rankIn.agingHours) || rankIn.agingHours < 1)
+  )
+    fail(`${label}.release.ranking.agingHours must be a whole number from 1.`);
   if (input.mode !== undefined && !RELEASE_MODES.includes(input.mode))
     fail(`${label}.release.mode must be ${RELEASE_MODES.join(", ")}.`);
   const whole = (n, what) => {
@@ -358,7 +373,12 @@ function releaseInput(value, coder, label) {
             : whole(entry.capacity, `${at}.capacity`),
       };
     });
-  return { capacity, mode: input.mode ?? RELEASE_MODES[0], scopes };
+  return {
+    capacity,
+    mode: input.mode ?? RELEASE_MODES[0],
+    scopes,
+    ranking: rankingFor({ ranking: rankIn }),
+  };
 }
 
 // How long GitHub answers stay fresh, in seconds; 0 turns the cache off.
