@@ -2,6 +2,8 @@
 // tasks get the ready label this tick. Pure, so the projection and the tests
 // share it. A scope is a ready label with its own capacity N.
 
+import { rankingFor } from "./release-ranking.mjs";
+
 // A repository's release settings from the policy as written (the identity
 // holds it unnormalized). N is `release.capacity`, else 2 for Issue Radar,
 // else no cap. The older `concurrency` key (Avoozl's retired local workers)
@@ -23,6 +25,7 @@ export function releaseFor(repository = {}, mode = null) {
   return {
     capacity,
     mode: ["step", "hold"].includes(input.mode) ? input.mode : "automatic",
+    ranking: rankingFor(input),
     scopes: (input.scopes ?? []).map((scope) => ({
       label: scope.label,
       capacity: Number.isSafeInteger(scope.capacity)
