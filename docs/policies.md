@@ -368,15 +368,22 @@ or waiting**; then it is in **Needs you**, tagged **Manual**, with "Waiting
 for a person: <title>". Its dependents wait on it like on any task.
 
 Open it in the task drawer to see its acceptance and **Mark done**. The
-dialog takes an optional outcome note and links, and **Done** or
-**Skipped**; either one releases its dependents, and Skipped stays shown.
-Only a person marks it done or reopens it, in the page or with `avoozl
-task done TASK [--skipped]` and `avoozl task reopen TASK`; MCP refuses
-both. In a GitHub mode its issue says a person closes it, never gets the
-ready label, and Mark done closes it as your `gh` login, which must pass
-**Who counts**. A close on GitHub by someone Who counts allows completes
-it (completed is Done, not planned is Skipped). Anyone else's close holds
-its dependents and opens a decision; Avoozl does not reopen the issue.
+dialog takes an optional outcome note and links, and **Done**,
+**Skipped** or **Refused**. Done and Skipped release its dependents, and
+Skipped stays shown. Refused is a no-go for a go/no-go step: the task
+shows **Refused** and sits as Blocked in Needs you, its dependents stay
+held, and Flow does not count it as finished. **Reopen** undoes any of
+the three. Only a person marks it or reopens it, in the page or with
+`avoozl task done TASK [--skipped|--refused]` and `avoozl task reopen
+TASK`; MCP refuses both. In a GitHub mode its issue says a person closes
+it, never gets the ready label, and Mark done closes it as your `gh`
+login, which must pass **Who counts**. Refused closes it as not planned,
+and the tick keeps the refusal. A close on GitHub by someone Who counts
+allows is an order and completes it (completed is Done, not planned is
+Skipped), so a hand close as not planned still releases its dependents:
+mark a refusal in Avoozl instead. Reopening the issue undoes a refusal.
+Anyone else's close holds its dependents and opens a decision; Avoozl
+does not reopen the issue.
 Flow counts its time in Needs you as waiting on a person and leaves it out
 of first-pass rate.
 

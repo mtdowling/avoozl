@@ -531,4 +531,34 @@ test("P37: an SDK rewrite plan from a template, gated by a manual team review, w
   assert.equal(task.manualDone.choice, "skipped");
   assert.equal(task.decision, null);
   assert.ok(await isReady("cutover-callers"));
+
+  // (9) Refused in Avoozl is a no-go: it closes the issue as not planned as
+  // alice, and the tick keeps the refusal, so the cutover stays held.
+  // Reopening the issue on GitHub undoes it.
+  await ops.execute("task.manual.reopen", { taskId: "team-review" });
+  await ops.execute("workspace.tick", { sessions: [] });
+  github.stateWrites.length = 0;
+  const refused = await ops.execute("task.manual.complete", {
+    taskId: "team-review",
+    choice: "refused",
+    note: "Not good enough to cut over.",
+  });
+  assert.equal(refused.manualDone.choice, "refused");
+  assert.deepEqual(github.stateWrites, [
+    [review.number, "closed", "not_planned"],
+  ]);
+  await ops.execute("workspace.tick", { sessions: [] });
+  task = store.read().tasks.find((t2) => t2.id === "team-review");
+  assert.equal(task.githubVerdict.state, "refused");
+  assert.equal(task.manualDone.choice, "refused");
+  assert.equal(task.status, "blocked");
+  assert.equal(await isReady("cutover-callers"), false);
+  assert.equal(await isReady("cutover-notes"), false);
+  github.act(review.number, "open", "alice");
+  await ops.execute("workspace.tick", { sessions: [] });
+  task = store.read().tasks.find((t2) => t2.id === "team-review");
+  assert.equal(task.githubVerdict.state, "open");
+  assert.equal(task.manualDone, undefined);
+  assert.equal(task.status, "planned");
+  assert.equal(await isReady("cutover-callers"), false);
 });

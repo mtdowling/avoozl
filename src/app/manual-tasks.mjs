@@ -1,6 +1,7 @@
 // Manual tasks (design §4.16, Requirement 61.9–61.15): a leaf only a person
-// does. It is never dispatched; a person marks it done (Done or Skipped)
-// or reopens it, from the page or the CLI. Operations.perform refuses both
+// does. It is never dispatched; a person marks it done (Done, Skipped or
+// Refused) or reopens it, from the page or the CLI. Done and Skipped
+// release its dependents; Refused is a no-go and keeps them held. Operations.perform refuses both
 // over MCP (mcp-policy.mjs) before this runs.
 //
 // In a GitHub mode Mark done closes the leaf's issue as the person's own
@@ -21,9 +22,15 @@ import {
 } from "./task-notes.mjs";
 import { fail } from "./store.mjs";
 
-export const CHOICES = Object.freeze(["done", "skipped"]);
-// The close reason each choice writes on GitHub, and back.
-const CLOSE_REASON = { done: "completed", skipped: "not_planned" };
+export const CHOICES = Object.freeze(["done", "skipped", "refused"]);
+// The close reason each choice writes on GitHub, and back. A refusal closes
+// as not planned too; the tick tells it from a skip by the refusal record
+// (github-close.mjs).
+const CLOSE_REASON = {
+  done: "completed",
+  skipped: "not_planned",
+  refused: "not_planned",
+};
 export const choiceOfReason = (reason) =>
   String(reason || "").toUpperCase() === "NOT_PLANNED" ? "skipped" : "done";
 
@@ -99,9 +106,12 @@ export async function completeManual(
   const data = store.read(),
     task = manualTask(data, input.taskId);
   if (!CHOICES.includes(input.choice))
-    fail('choice must be "done" or "skipped".');
+    fail('choice must be "done", "skipped" or "refused".');
   if (task.manualDone || statusComplete(data, task.status))
-    fail(`${task.id} is already done. Reopen it first.`, 409);
+    fail(
+      `${task.id} is already ${task.manualDone?.choice === "refused" ? "refused" : "done"}. Reopen it first.`,
+      409,
+    );
   // Every outcome entry is checked before anything is written.
   const entries = [
     ...(input.note == null || input.note === ""
@@ -126,7 +136,14 @@ export async function completeManual(
       state_reason: CLOSE_REASON[input.choice],
     });
   const at = new Date().toISOString(),
-    complete = data.statuses.find((s) => s.complete)?.id || "done",
+    refused = input.choice === "refused",
+    // A refusal is not complete: it sits as Blocked, which holds its
+    // dependents and shows in Needs you, until a person reopens it.
+    status = refused
+      ? data.statuses.some((s) => s.id === "blocked")
+        ? "blocked"
+        : "planned"
+      : data.statuses.find((s) => s.complete)?.id || "done",
     since = waitingSince(data, task),
     record = {
       choice: input.choice,
@@ -145,7 +162,7 @@ export async function completeManual(
     const draft = structuredClone(store.read()),
       row = draft.tasks.find((t) => t.id === task.id);
     row.manualDone = record;
-    row.status = complete;
+    row.status = status;
     row.updatedAt = at;
     store.commit(draft, `Mark ${task.id} ${input.choice}`);
     store.event(null, "task.manual.completed", {
@@ -171,6 +188,7 @@ export async function completeManual(
 
 // task.manual.reopen: {taskId}. The leaf is open again: new dispatch of its
 // dependents waits, running sessions are left alone. Its issue is reopened.
+// Reopening a refusal undoes it the same way.
 export async function reopenManual(
   store,
   input = {},
