@@ -6104,9 +6104,31 @@ export class Operations {
           githubPolicy: policy,
           proposals: quality.proposals,
           baseline: true,
+          // As plan.approve does: another spec's task IDs resolve.
+          declaredDependencies: quality.declaredDependencies,
           approvedBy: this.operator,
           operator: this.operator,
         });
+        // Projection refuses a task whose referenced owner is unapproved, so
+        // the preview says which approvals come first.
+        const waiting = scratch
+          .read()
+          .tasks.filter(
+            (task) =>
+              task.planId === plan.id && task.pendingSpecDependencies?.length,
+          );
+        if (waiting.length)
+          return withChecks({
+            planId: plan.id,
+            writes: [],
+            blocked: waiting.map((task) => ({
+              code: "spec.pending-owner",
+              severity: "error",
+              taskId: task.id,
+              message: `Approve ${[...new Set(task.pendingSpecDependencies.map((ref) => ref.spec))].join(", ")} first: ${task.id} needs ${task.pendingSpecDependencies.map((ref) => ref.taskId).join(", ")}.`,
+            })),
+            simulated: true,
+          });
         return withChecks({
           ...(await projection(scratch)),
           simulated: true,
