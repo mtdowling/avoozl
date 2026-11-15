@@ -20,11 +20,13 @@ export interface NavItem {
 
 // Issue Radar's sidebar cards, measured on the host: 12px corners, the
 // elevated surface, a hairline border and a small shadow. The top card's
-// border is the stronger one, and it is 42px tall (38px on a phone).
+// border is the stronger one. Buttons in them keep Kiro Crew's compact size
+// (28px at most) on every screen: there is no tall tap size.
 export const NAV_CARD = { border: '1px solid var(--border)', borderRadius: 12, background: 'var(--bg-elevated)', boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)' } as const
 export const TOP_CARD = { ...NAV_CARD, border: '1px solid var(--border-strong, var(--border))' } as const
-// Radar's sidebar rows: 32px, 13px text, 8px corners.
-export const NAV_ROW = 32
+// A nav row: 13px text and 8px corners as in Radar's sidebar, at the
+// compact 28px button height.
+export const NAV_ROW = 28
 
 export function LeftNav(props: { items: NavItem[]; value: string; onChange: (key: string) => void; top?: ReactNode }) {
   const [width, setWidthState] = useState(() => readWidth(pageStorage(), NAV))

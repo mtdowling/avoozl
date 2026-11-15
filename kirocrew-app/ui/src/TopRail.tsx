@@ -1,6 +1,6 @@
 // The phone's navigation, from Kiro Crew's list-detail pattern and Issue
-// Radar's phone top card: one 38px card under the host's top bar names where
-// you are, with the open-the-list icon at its right. Opening it
+// Radar's phone top card: one card under the host's top bar names where you
+// are, with the open-the-list icon at its right. It is a compact 28px button. Opening it
 // takes the whole page for the list of sections, and picking one closes it
 // again. A desktop has the left nav instead.
 import type { ReactNode } from 'react'
@@ -25,7 +25,7 @@ export function RailButton(props: { items: RailItem[]; value: string; open: bool
       aria-controls="avoozl-top-rail-list"
       aria-label={props.open ? 'Close the menu' : 'Open the menu'}
       onClick={() => props.onOpenChange(!props.open)}
-      style={{ ...TOP_CARD, display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: '1 1 auto', height: 38, boxSizing: 'border-box', padding: '0 12px', color: 'inherit', cursor: 'pointer', fontSize: 14, fontWeight: 600, textAlign: 'left' }}
+      style={{ ...TOP_CARD, display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: '1 1 auto', height: 28, boxSizing: 'border-box', padding: '0 10px', color: 'inherit', cursor: 'pointer', fontSize: 14, fontWeight: 600, textAlign: 'left' }}
     >
       <span style={{ minWidth: 0, flex: '1 1 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{current?.label}</span>
       <span aria-hidden="true" style={{ display: 'inline-flex', flexShrink: 0, color: 'var(--muted)' }}>
