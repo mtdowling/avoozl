@@ -824,7 +824,7 @@ if (page === 'panel') {
     answer('GET /api/chat/slots', () => [
       { key: 'nupp-chat', project: '/src/nupp/compiler' },
       { key: 'avoozl-chat', project: '/src/avoozl' },
-      { key: 'elsewhere-chat', project: '/home/someone/other' },
+      { key: 'elsewhere-chat', project: '/srv/other' },
     ])
   }
   // The one read the panel makes. A failed part is null, as in the backend.
