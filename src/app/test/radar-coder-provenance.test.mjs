@@ -211,3 +211,46 @@ test("a content rule that blocks the plans repository name stops the projection"
     false,
   );
 });
+
+test("private spec projection carries its merged approval ref, including a mirror write target", async (t) => {
+  const { provenanceWriter } = await import("../radar-provenance.mjs");
+  const context = await workspace(t, {
+      mode: "single-repo",
+      coder: "issue-radar",
+    }),
+    { plan } = await approvedSpec(context);
+  const privatePlan = { ...plan, home: "plansBranch", ref: "private-plans" };
+  context.store.setMeta(`spec-approval:${plan.id}:${plan.hash}`, {
+    state: "merged",
+    commit: COMMIT,
+    approvedBy: "octocat",
+    ref: "private-plans",
+  });
+  const writer = provenanceWriter(context.store, {
+    identity: {
+      repositories: {
+        "example/code": {
+          coder: "issue-radar",
+          mirror: { mirror: "example/private-code" },
+        },
+      },
+    },
+    plan: privatePlan,
+    config: { id: "example/private-code" },
+  });
+  assert.ok(writer);
+  assert.equal(parseProvenance(writer(["task-1"])).marker.ref, "private-plans");
+  context.store.setMeta(`spec-approval:${plan.id}:${plan.hash}`, {
+    state: "merged",
+    commit: COMMIT,
+    approvedBy: "octocat",
+  });
+  assert.equal(
+    provenanceWriter(context.store, {
+      identity: { repositories: { "example/code": { coder: "issue-radar" } } },
+      plan: privatePlan,
+      config: { id: "example/code" },
+    }),
+    null,
+  );
+});

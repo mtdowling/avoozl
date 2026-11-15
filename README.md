@@ -204,6 +204,15 @@ types); nothing is written until you confirm. Approved specs become issues,
 sub-issues, and blocked-by links, with a Project board as the view. Public and
 private repositories both work.
 
+For a mirror, private specs live on its orphan plans branch. Approval pull
+requests target that branch and the issue marker carries `ref=<branch>`.
+`avoozl verify-issue` checks that the approved commit is reachable from the
+ref and that the ref shares no history with the default code branch. A ref,
+like the rest of the marker, is not a signature. On success, `--json` also
+returns `source.repository`, `source.fetch` and one `source.show` command
+per spec file. The fetch command names the spec repository explicitly, even
+when the crew works in a separate code repository.
+
 Avoozl ships with no trigger rule, so no label starts any work until you add
 one. Each rule names an action, a `match` line in GitHub's issue-search
 syntax (for example `label:agent:go -label:hold`), and is checked against

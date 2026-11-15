@@ -106,8 +106,21 @@ async function get(read, apiPath, options) {
     headers["x-ratelimit-remaining"] === "0" ||
     headers["retry-after"] !== undefined ||
     /rate limit/i.test(text.slice(0, 500));
-  if (status === 404 || (status === 403 && !limited))
-    return { kind: "denied", status };
+  if (status === 404 || (status === 403 && !limited)) {
+    let noCommonAncestor = false;
+    if (status === 404) {
+      try {
+        const message = JSON.parse(text)?.message;
+        noCommonAncestor =
+          typeof message === "string" &&
+          message.length <= 1024 &&
+          /^No common ancestor between .+ and .+\.?$/i.test(message);
+      } catch {
+        /* An unreadable denial is never evidence of orphan history. */
+      }
+    }
+    return { kind: "denied", status, noCommonAncestor };
+  }
   return { kind: "unavailable", status, reason: response?.reason };
 }
 
@@ -201,6 +214,7 @@ async function checkSpec(read, home, marker, tasksText = {}) {
   }
   tasksText.value = files["tasks.md"];
   tasksText.manifest = files["avoozl/manifest.json"];
+  tasksText.files = Object.keys(files);
   return problems.length
     ? failed("spec", problems.join("; "), unavailable)
     : pass(
@@ -264,14 +278,47 @@ async function checkBase(read, code, marker, manifestText, pull) {
 async function checkCommit(read, home, marker) {
   const repo = await get(read, repoPath(home));
   if (repo.kind !== "ok") return failed("commit", why(repo), true);
-  const branch = record(repo.body) ? repo.body.default_branch : null;
+  const defaultBranch = record(repo.body) ? repo.body.default_branch : null;
   if (
-    typeof branch !== "string" ||
-    !branch ||
-    branch.length > 255 ||
-    /[\u0000-\u001f\u007f]/.test(branch)
+    typeof defaultBranch !== "string" ||
+    !defaultBranch ||
+    defaultBranch.length > 255 ||
+    /[\u0000-\u001f\u007f]/.test(defaultBranch)
   )
     return failed("commit", "the default branch is unreadable", true);
+  const branch = marker.ref ?? defaultBranch;
+  if (marker.ref) {
+    if (branch === defaultBranch)
+      return failed(
+        "commit",
+        "the plans ref is the default branch, not an orphan branch",
+      );
+    const exists = await get(
+      read,
+      `${repoPath(home)}/branches/${encodeURIComponent(branch)}`,
+    );
+    if (exists.kind !== "ok")
+      return failed(
+        "commit",
+        `plans ref ${branch} ${why(exists)}`,
+        exists.kind === "unavailable",
+      );
+    const history = await get(
+      read,
+      `${repoPath(home)}/compare/${encode(defaultBranch)}...${encode(branch)}`,
+    );
+    if (history.kind === "ok")
+      return failed(
+        "commit",
+        `plans ref ${branch} shares history with the default branch`,
+      );
+    if (!history.noCommonAncestor)
+      return failed(
+        "commit",
+        `plans ref ${branch} orphan history could not be verified: ${why(history)}`,
+        history.kind === "unavailable",
+      );
+  }
   const compare = await get(
     read,
     `${repoPath(home)}/compare/${encode(branch)}...${marker.commit}`,
@@ -279,16 +326,16 @@ async function checkCommit(read, home, marker) {
   if (compare.kind !== "ok")
     return failed("commit", why(compare), compare.kind === "unavailable");
   const state = record(compare.body) ? compare.body.status : undefined,
-    short = marker.commit.slice(0, 7);
+    short = marker.commit.slice(0, 7),
+    label = marker.ref ? `plans ref ${branch}` : "the default branch";
   if (state === "identical")
-    return pass("commit", `${short} is identical to the default branch`);
-  if (state === "behind")
-    return pass("commit", `${short} is behind the default branch`);
+    return pass("commit", `${short} is identical to ${label}`);
+  if (state === "behind") return pass("commit", `${short} is behind ${label}`);
   return failed(
     "commit",
     COMPARE_KNOWN.has(state)
-      ? `${short} is ${state}, not behind the default branch or identical to it`
-      : `${short} is not behind the default branch or identical to it`,
+      ? `${short} is ${state}, not behind ${label} or identical to it`
+      : `${short} is not behind ${label} or identical to it`,
   );
 }
 
@@ -362,6 +409,7 @@ export async function verifyIssue(
     result.spec = marker.spec;
     result.approvedBy = marker.approvedBy;
     if (marker.plans) result.plans = marker.plans;
+    if (marker.ref) result.ref = marker.ref;
   }
   const home = marker?.plans || code;
   checks.push(
@@ -390,6 +438,17 @@ export async function verifyIssue(
   for (const check of checks) delete check.unavailable;
   result.ok = checks.every((check) => check.status === "ok");
   result.exitCode = result.ok ? 0 : result.couldNotRun ? 2 : 1;
+  if (result.ok && marker?.ref) {
+    const paths = tasksText.files.map(
+      (file) => `.kiro/specs/${marker.spec}/${file}`,
+    );
+    result.source = {
+      repository: home,
+      ref: marker.ref,
+      fetch: `git fetch https://github.com/${home}.git refs/heads/${marker.ref}`,
+      show: paths.map((file) => `git show ${marker.commit}:${file}`),
+    };
+  }
   if (brief && result.ok && marker && tasksText.value !== undefined)
     result.brief = buildBrief(marker, issueBody, tasksText.value);
   return result;

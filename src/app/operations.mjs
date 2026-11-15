@@ -175,7 +175,12 @@ import {
   requireMirrorsPrivate,
   requirePlansBranches,
 } from "./mirror-policy.mjs";
-import { mergeHomes, mirrorOf, readPrivateSpecs } from "./spec-homes.mjs";
+import {
+  mergeHomes,
+  mirrorOf,
+  readPrivateSpecs,
+  locateLocalSpec,
+} from "./spec-homes.mjs";
 import { mirrorNeedsYou, writeRepo } from "./mirror-sync.mjs";
 import { mirrorForwardRows, mirrorRecordFor } from "./mirror-forward.mjs";
 import { forwardRecord } from "./mirror-forward-run.mjs";
@@ -1423,7 +1428,9 @@ export class Operations {
   // Read the plans branch into `privateSpecs`. A failed read keeps the last
   // good list, so a network error never makes private specs vanish.
   async refreshPrivateSpecs() {
-    const mirror = mirrorOf(readGitHubPolicyOrNull(this.workspaceRoot));
+    const policy = readGitHubPolicyOrNull(this.workspaceRoot),
+      mirror =
+        policy?.mode && policy.mode !== "local" ? mirrorOf(policy) : null;
     if (!mirror) {
       this.privateSpecs = [];
       return;
@@ -1451,19 +1458,37 @@ export class Operations {
         .list("plans")
         .filter((plan) => plan.spec && !plan.deletedAt),
       approvals = store.list("approvals"),
-      mirror = mirrorOf(readGitHubPolicyOrNull(this.workspaceRoot));
+      policy = readGitHubPolicyOrNull(this.workspaceRoot),
+      mirror = mirrorOf(policy);
     // Both homes in one list (RC25.2). The plans branch is read on each tick
     // into `privateSpecs`; a name or task ID in both homes is refused.
     const publicSpecs = roots.flatMap((root) =>
         listSpecFolders(root).map((name) => ({
           root,
-          spec: readSpecFolder(root, name),
+          spec: locateLocalSpec(
+            { ...readSpecFolder(root, name), root },
+            mirror,
+          ),
         })),
       ),
       merged = mirror
         ? mergeHomes(
-            publicSpecs.map((entry) => entry.spec),
-            this.privateSpecs,
+            publicSpecs
+              .filter((entry) => entry.spec.home !== "plansBranch")
+              .map((entry) => entry.spec),
+            [
+              ...publicSpecs
+                .filter((entry) => entry.spec.home === "plansBranch")
+                .map((entry) => entry.spec),
+              ...this.privateSpecs.filter(
+                (spec) =>
+                  !publicSpecs.some(
+                    (entry) =>
+                      entry.spec.home === "plansBranch" &&
+                      entry.spec.name === spec.name,
+                  ),
+              ),
+            ],
           )
         : {
             specs: publicSpecs.map((entry) => ({
@@ -1476,9 +1501,10 @@ export class Operations {
         home,
         spec,
         root:
-          home === "main"
+          spec.root ??
+          (home === "main"
             ? publicSpecs.find((entry) => entry.spec === spec).root
-            : null,
+            : null),
       })),
       homeErrors = merged.errors;
     return {
@@ -1536,7 +1562,23 @@ export class Operations {
     };
   }
   readSpec(name) {
-    return findSpecFolder(this.specRoots(), specName(name));
+    const policy = readGitHubPolicyOrNull(this.workspaceRoot),
+      mirror = mirrorOf(policy),
+      local = locateLocalSpec(
+        findSpecFolder(this.specRoots(), specName(name)),
+        mirror,
+        policy,
+      ),
+      privateSpec = (this.privateSpecs || []).find(
+        (entry) => entry.name === name,
+      );
+    if (local.exists && local.home === "plansBranch") return local;
+    if (local.exists && privateSpec)
+      fail(
+        `Spec ${name} exists in both homes: main and plansBranch. Rename one.`,
+        409,
+      );
+    return privateSpec || local;
   }
   // One folder of the mode's spec roots by name, for the checks that read
   // another folder: an epic's members, a plan's epic (Requirement 59.3).
@@ -1578,20 +1620,41 @@ export class Operations {
     if (!policy?.mode || !plan.spec) return null;
     const entries = Object.entries(policy.repositories || {}),
       radar = entries.filter(([, entry]) => entry.coder === "issue-radar"),
-      root = this.readSpec(plan.spec).root,
-      origin = root && originRepositorySync(root)?.toLowerCase();
+      spec = this.readSpec(plan.spec),
+      root = spec.root,
+      origin = (
+        spec.repository ||
+        (root && originRepositorySync(root))
+      )?.toLowerCase();
     if (!origin) return null;
+    if (spec.approvalBlocked)
+      fail(
+        "Publish the private spec revision on the configured plans branch before requesting approval.",
+        409,
+      );
+    const privateHolder =
+      spec.home === "plansBranch"
+        ? radar.find(
+            ([, entry]) => entry.mirror?.mirror.toLowerCase() === origin,
+          )
+        : null;
     const holder =
-      policy.mode === "single-repo"
-        ? radar.find(([id]) => id.toLowerCase() === origin)
+      privateHolder ||
+      (policy.mode === "single-repo"
+        ? radar.find(
+            ([id, entry]) =>
+              id.toLowerCase() === origin ||
+              entry.mirror?.mirror.toLowerCase() === origin,
+          )
         : radar.length && policy.planningRepository?.toLowerCase() === origin
           ? [policy.planningRepository, radar[0][1]]
-          : null;
+          : null);
     if (!holder) return null;
     const [owner, repo] = origin.split("/");
     return {
       repository: { owner, repo, id: origin },
       decisionRecord: holder[1].approval.decisionRecord,
+      ...(privateHolder ? { ref: privateHolder[1].mirror.plansBranch } : {}),
     };
   }
   // Approve ends in a commit a crew can read: open the approval pull request,
@@ -1607,7 +1670,11 @@ export class Operations {
       proseFiles(files).every((name) => statusOf(files[name]) === "Approved")
     )
       return null;
-    const ids = { github: this.github, repository: target.repository },
+    const ids = {
+        github: this.github,
+        repository: target.repository,
+        ...(target.ref ? { ref: target.ref } : {}),
+      },
       key = { planId: plan.id, hash: plan.hash };
     let state = await reconcileApproval(this.store, { ...ids, ...key });
     if (state?.state === "merged") return { merged: state };
@@ -2517,6 +2584,9 @@ export class Operations {
         }
       }
     }
+    // CLI/MCP spec operations must not depend on a prior app tick. This is
+    // read-only, and refreshPrivateSpecs does nothing outside a GitHub mirror.
+    if (name.startsWith("plan.")) await this.refreshPrivateSpecs();
     // Budgets and receipts (§4.17). Raise, Stop, Acknowledge, Switch to
     // stop and the price table are a person's only (R67.9).
     if (name === "budget.view") return budgetView(store, this.read());
