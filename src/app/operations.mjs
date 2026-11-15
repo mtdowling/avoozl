@@ -6359,9 +6359,9 @@ export class Operations {
         events: input.compact ? events.map(compactEvent) : events,
         hasEarlier: Boolean(
           first &&
-          store.db
-            .prepare("SELECT 1 FROM events WHERE run_id=? AND seq<? LIMIT 1")
-            .get(run.id, first),
+            store.db
+              .prepare("SELECT 1 FROM events WHERE run_id=? AND seq<? LIMIT 1")
+              .get(run.id, first),
         ),
         deliveries: store.db
           .prepare(

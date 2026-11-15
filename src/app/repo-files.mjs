@@ -40,8 +40,8 @@ export class RepoFiles {
   #gitReady(repository) {
     return Boolean(
       this.root &&
-      typeof this.github?.gitRemote === "function" &&
-      this.github.gitRemote(repository),
+        typeof this.github?.gitRemote === "function" &&
+        this.github.gitRemote(repository),
     );
   }
 
