@@ -166,10 +166,11 @@ const status404 = () =>
 test("the plans branch facts are the head commit and the private spec folders", async () => {
   const github = {
     branch: async () => ({ commit: { sha: HEAD } }),
-    contents: async () => [
-      { name: "pay-fix", type: "dir" },
-      { name: "note.md", type: "file" },
+    treeEntries: async () => [
+      { path: ".kiro/specs/pay-fix/design.md", type: "blob" },
+      { path: ".kiro/specs/note.md", type: "blob" },
     ],
+    blobTexts: async () => new Map(),
   };
   const target = { mirror: "a/b-private", plansBranch: PLANS };
   assert.deepEqual(await plansBranchFacts(github, target), {
@@ -177,7 +178,7 @@ test("the plans branch facts are the head commit and the private spec folders", 
     specNames: ["pay-fix"],
     taskIds: [],
   });
-  const missing = { branch: status404, contents: status404 };
+  const missing = { branch: status404 };
   assert.deepEqual(await plansBranchFacts(missing, target), {
     commits: [],
     specNames: [],

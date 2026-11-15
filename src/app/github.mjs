@@ -167,12 +167,16 @@ function localToken() {
   }
 }
 
+// Files read in one GraphQL query.
+export const BLOB_CHUNK = 100;
+
 export class GitHubClient {
   constructor({
     token,
     apiUrl = process.env.GITHUB_API_URL || "https://api.github.com",
     fetch: fetchImpl = globalThis.fetch,
     timeoutMs = 30000,
+    gitUrl = process.env.AVOOZL_GIT_URL,
   } = {}) {
     this.token = token || "";
     this.discoverToken = token === undefined;
@@ -182,6 +186,33 @@ export class GitHubClient {
     // The newest x-ratelimit-* headers per resource (core, search, graphql).
     this.rateLimits = new Map();
     this.cacheSeconds = () => DEFAULT_CACHE_SECONDS;
+    // Where `git fetch` reaches repositories: github.com, or the host named
+    // here. Another API host with no git host named reads over the API only.
+    this.gitUrl = (
+      gitUrl ||
+      (this.apiUrl === "https://api.github.com" ? "https://github.com" : "")
+    ).replace(/\/$/, "");
+  }
+
+  // The git URL of a repository, or null when git cannot be used.
+  gitRemote(value) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    return this.gitUrl ? `${this.gitUrl}/${owner}/${repo}.git` : null;
+  }
+
+  // The Authorization header git sends: the token the API calls use.
+  async gitHeader() {
+    if (!this.signedIn()) return null;
+    return (
+      "Authorization: Basic " +
+      Buffer.from(`x-access-token:${this.token}`).toString("base64")
+    );
+  }
+
+  // A git call that reached the remote. It costs no API quota.
+  countGit() {
+    this.rate?.countGit();
   }
 
   // { limit, remaining, resetAt } from the newest response for `resource`,
@@ -1496,6 +1527,50 @@ export class GitHubClient {
 
   // A branch as anyone who can read the repository sees it: `protected`,
   // and a `protection` summary with classic required status checks.
+  // Every entry of a commit's tree: { path, type, sha }. One call. A tree too
+  // large for GitHub to list whole is refused rather than read short.
+  async treeEntries(value, ref) {
+    const { owner, repo } =
+        typeof value === "string" ? parseRepository(value) : value,
+      tree = await this.request(
+        "GET",
+        `/repos/${owner}/${repo}/git/trees/${encodeURIComponent(ref)}`,
+        { query: { recursive: 1 } },
+      );
+    if (tree?.truncated)
+      fail("GitHub listed only part of this repository's tree.", 502);
+    return tree?.tree ?? [];
+  }
+
+  // Text of the files at `ref`, as Map(path -> text, or null when the file is
+  // missing, binary or too large). One GraphQL query per BLOB_CHUNK files,
+  // each file one aliased `object(expression:)`.
+  async blobTexts(value, ref, paths) {
+    const { owner, repo } =
+        typeof value === "string" ? parseRepository(value) : value,
+      texts = new Map();
+    for (let at = 0; at < paths.length; at += BLOB_CHUNK) {
+      const chunk = paths.slice(at, at + BLOB_CHUNK),
+        variables = { owner, repo };
+      chunk.forEach((file, i) => (variables[`e${i}`] = `${ref}:${file}`));
+      const data = await this.graphql(
+        `query($owner:String!,$repo:String!${chunk.map((_, i) => `,$e${i}:String!`).join("")}){repository(owner:$owner,name:$repo){${chunk
+          .map(
+            (_, i) =>
+              `f${i}:object(expression:$e${i}){...on Blob{isBinary text}}`,
+          )
+          .join(" ")}}}`,
+        variables,
+        "read files",
+      );
+      chunk.forEach((file, i) => {
+        const blob = data?.repository?.[`f${i}`];
+        texts.set(file, blob && !blob.isBinary ? (blob.text ?? null) : null);
+      });
+    }
+    return texts;
+  }
+
   branch(value, branch) {
     const { owner, repo } =
       typeof value === "string" ? parseRepository(value) : value;

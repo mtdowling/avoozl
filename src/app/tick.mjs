@@ -111,6 +111,7 @@ import { mirrorSyncStep } from "./mirror-sync.mjs";
 import { publishInstanceStep } from "./instance-publish.mjs";
 import { mirrorForwardStep } from "./mirror-forward.mjs";
 import { mirrorForwardRunStep } from "./mirror-forward-run.mjs";
+import { RepoFiles } from "./repo-files.mjs";
 import { mirrorForwardAuditStep } from "./forward-audit.mjs";
 import { publicBranchesOf } from "./forward-epics.mjs";
 import { mirrorBatchStep, publicBranchStep } from "./mirror-forward-batch.mjs";
@@ -883,6 +884,12 @@ async function runTick(
             ...(
               await under("forward", mirrorForwardRunStep)(store, github, {
                 policy,
+                files: new RepoFiles({
+                  github,
+                  root: workspaceRoot
+                    ? path.join(workspaceRoot, ".avoozl", "local", "git-cache")
+                    : null,
+                }),
               })
             ).errors,
             ...(
