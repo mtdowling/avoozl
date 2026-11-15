@@ -21,7 +21,7 @@ import AddPlugin from '../../src/AddPlugin.tsx'
 import Onboard from '../../src/Onboard.tsx'
 import { RepositoryDialog } from '../../src/RepositoriesSettings.tsx'
 import { SetupDialog } from '../../src/SetupWizard.tsx'
-import { ArchivePlanDialog, DeletePlanDialog } from '../../src/PlansView.tsx'
+import PlansView, { ArchivePlanDialog, DeletePlanDialog } from '../../src/PlansView.tsx'
 import { DocumentReader } from '../../src/DocumentReader.tsx'
 import { StopLineButton } from '../../src/StopLine.tsx'
 import { PackImportDialog } from '../../src/PackImport.tsx'
@@ -703,6 +703,64 @@ function ActivityPage() {
   )
 }
 
+// ?page=specs: the Specs tab alone, with drafts in two approval batches.
+if (query.get('page') === 'specs') {
+  const spec = (name: string, status: string, total: number, extra = {}) => ({
+    key: `spec:${name}`,
+    kind: 'spec',
+    name,
+    spec: name,
+    folder: `.kiro/specs/${name}`,
+    planId: status === 'not imported' ? null : name,
+    type: 'feature',
+    category: null,
+    categoryProblem: null,
+    errors: 0,
+    status,
+    tasks: { total, done: status === 'approved' ? 1 : 0 },
+    now: { ready: 0, running: 0, needsYou: 0 },
+    epic: null,
+    epicTitle: null,
+    lastChange: null,
+    ...extra,
+  })
+  const items = [
+    spec('byte-types', 'draft', 8),
+    spec('compression', 'draft', 12),
+    spec('core-design-values', 'draft', 4),
+    spec('math-matrix-math', 'draft', 5),
+    spec('public-cli-module', 'draft', 3),
+    spec('allocator', 'draft', 7),
+    spec('load-config', 'approved', 3, { onGitHub: true }),
+    spec('window-design', 'not imported', 10),
+  ]
+  const entry = (id: string, batch: number, tasks: number, hash: string, extra = {}) => ({ id, spec: id, title: id, hash: hash.repeat(64 / hash.length), batch, tasks, errors: 0, loop: false, needs: [], ...extra })
+  const batches = [
+    { batch: 1, specs: [entry('core-design-values', 1, 4, 'b9dc37bf'), entry('math-matrix-math', 1, 5, 'b18266e9'), entry('public-cli-module', 1, 3, '4b5afd31')] },
+    { batch: 2, specs: [entry('byte-types', 2, 8, '98f38c3b', { loop: true, needs: ['compression', 'core-design-values'] }), entry('compression', 2, 12, 'f1551aa3', { loop: true, needs: ['byte-types'] })] },
+    { batch: 3, specs: [entry('allocator', 3, 7, '4fb54994', { needs: ['byte-types'] })] },
+  ]
+  answer('plan.table', () => ({ root: '/repo', problem: null, specs: [], revision: 7, items }))
+  answer('plan.approvalBatches', () => ({ batches }))
+  answer('plan.approveMany', (body) => {
+    state.calls.push(body as never)
+    return { ok: true, approved: [], failures: [] }
+  })
+}
+function SpecsPage() {
+  return (
+    <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)' }}>
+      <NavHistoryProvider>
+        <ConfirmProvider>
+          <TaskDrawerProvider workspaceId="w" onFocus={() => undefined}>
+            <PlansView workspaceId="w" />
+          </TaskDrawerProvider>
+        </ConfirmProvider>
+      </NavHistoryProvider>
+    </div>
+  )
+}
+
 function HomePage() {
   return (
     <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)' }}>
@@ -998,5 +1056,5 @@ function PanelPage() {
   )
 }
 createRoot(document.getElementById('root')!).render(
-  page === 'needs' ? <NeedsPage /> : page === 'tip' ? <TipPage /> : page === 'trace' ? <TraceDonePage /> : page === 'panel' ? <PanelPage /> : page === 'workflow-map' ? <WorkflowMapPage /> : page === 'crews-rules' ? <CrewsRulesPage /> : page === 'tracker-gates' ? <TrackerGatesPage /> : page === 'radar-values' ? <RadarValuesPage /> : page === 'forward' ? <ForwardPage /> : intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page === 'activity' ? <ActivityPage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
+  page === 'needs' ? <NeedsPage /> : page === 'specs' ? <SpecsPage /> : page === 'tip' ? <TipPage /> : page === 'trace' ? <TraceDonePage /> : page === 'panel' ? <PanelPage /> : page === 'workflow-map' ? <WorkflowMapPage /> : page === 'crews-rules' ? <CrewsRulesPage /> : page === 'tracker-gates' ? <TrackerGatesPage /> : page === 'radar-values' ? <RadarValuesPage /> : page === 'forward' ? <ForwardPage /> : intake ? <IntakePage /> : page === 'home' ? <HomePage /> : page === 'activity' ? <ActivityPage /> : page && page !== 'app' && page !== 'demo' ? <SettingsPage name={page} /> : query.get('app') ? <AppPage /> : <Page />,
 )
