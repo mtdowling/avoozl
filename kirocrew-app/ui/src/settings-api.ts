@@ -301,6 +301,8 @@ export interface RepositoryForm {
   // Review drafts by label (RC20): radar.reviewLabel, radar.draftedLabel.
   reviewLabel: string
   draftedLabel: string
+  // Waiting on tracker (RC23.4): radar.trackerLabel.
+  trackerLabel: string
   reviewRules: string
   rules: RuleForm[]
   // The Untriaged list (design §8.5), each optional.
@@ -497,6 +499,7 @@ export function emptyRepository(name = ''): RepositoryForm {
     mergeMethod: '',
     reviewLabel: '',
     draftedLabel: '',
+    trackerLabel: '',
     reviewRules: '',
     rules: [],
     untriaged: emptyUntriaged(),
@@ -549,6 +552,7 @@ export function toForm(github: Policy): SettingsForm {
         mergeMethod: str(record(entry.merge).method),
         reviewLabel: str(record(entry.radar).reviewLabel),
         draftedLabel: str(record(entry.radar).draftedLabel),
+        trackerLabel: str(record(entry.radar).trackerLabel),
         reviewRules: str(record(entry.radar).reviewRules),
         rules: (Array.isArray(entry.rules) ? entry.rules : []).map((item) => {
           const rule = record(item)
@@ -657,6 +661,7 @@ export function toPolicy(form: SettingsForm): Policy {
                   conflictLabel: blank(repository.conflictLabel),
                   reviewLabel: blank(repository.reviewLabel),
                   draftedLabel: blank(repository.draftedLabel),
+                  trackerLabel: blank(repository.trackerLabel),
                   reviewRules: blank(repository.reviewRules),
                 })
                 return Object.keys(radar).length ? radar : undefined
@@ -1075,9 +1080,10 @@ export const RADAR_DEFAULTS_SHOWN = {
   conflictLabel: 'avoozl:merge-conflict',
   reviewLabel: 'avoozl:review',
   draftedLabel: 'avoozl:drafted',
+  trackerLabel: 'avoozl:waiting-on-tracker',
 } as const
 
-// The six Avoozl labels in Settings: what each does and who writes it (RC21.4).
+// The seven Avoozl labels in Settings: what each does and who writes it (RC21.4).
 export const AVOOZL_LABELS = [
   { key: 'planLabel', label: 'Planning', raw: 'radar.planLabel', job: 'Asks Avoozl to plan an issue.', writer: 'A person you trust adds it.' },
   { key: 'ready', label: 'Ready', raw: 'managedLabels.ready', job: "Marks an issue a crew may take. Set the crew's label scope to it.", writer: 'Avoozl adds and removes it.' },
@@ -1085,6 +1091,7 @@ export const AVOOZL_LABELS = [
   { key: 'conflictLabel', label: 'Merge conflict', raw: 'radar.conflictLabel', job: 'Shows a pull request has a merge conflict.', writer: 'Avoozl adds and removes it.' },
   { key: 'reviewLabel', label: 'Review', raw: 'radar.reviewLabel', job: 'Asks Avoozl to draft a review of a pull request for you.', writer: 'A person you trust adds it.' },
   { key: 'draftedLabel', label: 'Drafted', raw: 'radar.draftedLabel', job: 'Shows a draft review waits for you to submit.', writer: 'Avoozl adds and removes it.' },
+  { key: 'trackerLabel', label: 'Waiting on tracker', raw: 'radar.trackerLabel', job: 'Shows a task waits on an item in another tracker.', writer: 'Avoozl adds and removes it.' },
 ] as const
 
 // What Avoozl does with a crew's pull request that conflicts in source code (RC28.5).

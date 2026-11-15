@@ -83,6 +83,7 @@ export const RADAR_KEYS = Object.freeze([
   "approvalLabel",
   "reviewLabel",
   "draftedLabel",
+  "trackerLabel",
   "clearPlanLabel",
   "showPlansRepo",
   "reviewRules",
@@ -94,6 +95,7 @@ export const RADAR_DEFAULTS = Object.freeze({
   approvalLabel: "avoozl:plan-approved",
   reviewLabel: "avoozl:review",
   draftedLabel: "avoozl:drafted",
+  trackerLabel: "avoozl:waiting-on-tracker",
   clearPlanLabel: false,
 });
 export const READY_LABEL_DEFAULT = "avoozl:ready";
@@ -500,6 +502,7 @@ function repositoryInput(value, id, mode) {
     "approvalLabel",
     "reviewLabel",
     "draftedLabel",
+    "trackerLabel",
   ])
     if (Object.hasOwn(radarInput, key))
       radar[key] = name(radarInput[key], `${label}.radar.${key}`);
@@ -585,6 +588,7 @@ function repositoryInput(value, id, mode) {
     ["approval", radar.approvalLabel],
     ["review", radar.reviewLabel],
     ["drafted", radar.draftedLabel],
+    ["waiting-on-tracker", radar.trackerLabel],
   ]) {
     const earlier = seen.get(lower(entry));
     if (earlier)
@@ -604,6 +608,7 @@ function repositoryInput(value, id, mode) {
     "approvalLabel",
     "reviewLabel",
     "draftedLabel",
+    "trackerLabel",
   ])
     if (managedNames.has(lower(radar[key])))
       fail(`${label}.radar.${key} cannot use managed label ${radar[key]}.`);
