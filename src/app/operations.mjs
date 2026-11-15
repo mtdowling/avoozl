@@ -390,6 +390,7 @@ import { decideInvestigation } from "./investigate.mjs";
 import { taskEvidence } from "./evidence.mjs";
 import { driverSessionView, registerDriverSession } from "./driver-session.mjs";
 import { instanceView, renameInstance } from "./instance.mjs";
+import { panelView, pullChecks } from "./panel-view.mjs";
 import {
   callerSlot,
   claimedTaskIds,
@@ -3134,6 +3135,27 @@ export class Operations {
         ),
       );
       return view;
+    }
+    // The chat side panel in one read: every part it shows, each null when its
+    // own read fails (panel-view.mjs).
+    if (name === "panel.view") {
+      const sub = (op, args = {}) => this.perform(op, args, undefined, context),
+        data = this.read(),
+        crews = sub("radar.crews").catch(() => null);
+      return panelView({
+        conflicts: async () => (await sub("conflicts.view")).items,
+        crews: () => crews,
+        remote: async () => (await sub("remote.view")).workers,
+        queue: () => sub("radar.releasequeue"),
+        flow: () => ({
+          tasks: flowView(store, data, { window: "10" }).tasks,
+          line: lineBanner(store, data),
+        }),
+        driver: () => sub("driversession.view"),
+        specs: async () => (await sub("plan.specs")).items,
+        instance: () => instanceView(store),
+        checks: async () => pullChecks(this.github, await crews),
+      });
     }
     if (name === "flow.view") {
       const data = this.read(),
