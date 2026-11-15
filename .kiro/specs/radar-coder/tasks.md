@@ -686,10 +686,10 @@ screenshots for anything on screen.
 Requirement RC31. Order the tasks that may be released. Screen changes get
 before and after screenshots and auto-merge off.
 
-- [ ] rc-30.1 `rankCandidates`: unblock count, overlap hold-back, aging; `release.ranking` settings [RC31.1, RC31.2, RC31.3, RC31.4, RC31.6] (§D36)
+- [x] rc-30.1 `rankCandidates`: unblock count, overlap hold-back, aging; `release.ranking` settings [RC31.1, RC31.2, RC31.3, RC31.4, RC31.6] (§D36)
   - Tests first: unblock-count order; overlap hold-back; aging moves a task up and releases it after the longest wait; plan order and a person's order still win; off equals plan order; no GitHub call is added.
   - Done when: `src/app/test/release-ranking.test.mjs` passes and `npm test` passes.
-- [ ] rc-30.2 Release queue says why a task is next or held, after rc-30.1 [RC31.5] (§D36)
+- [x] rc-30.2 Release queue says why a task is next or held, after rc-30.1 [RC31.5] (§D36)
   - Tests first: the three reason lines; a row ranking did not affect keeps its text.
   - Done when: The tests pass, `npm run test:ui` passes, and the pull request shows the queue before and after.
 - [ ] rc-p30 Proof 30: the critical path goes first, after rc-30.1, rc-30.2 [RC31] (§D17)
