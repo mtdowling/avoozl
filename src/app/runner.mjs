@@ -34,6 +34,7 @@ import {
   completionReached,
   isGate,
   isManual,
+  isRefused,
   supersedingTask,
   taskKind,
   taskRepository,
@@ -169,9 +170,14 @@ export function nextView(store, { policy, github = null }) {
             ]
           : question
             ? ["question", question]
-            : NEEDS_YOU_STATUSES.has(task.status) || task.needsReview
-              ? [task.status === "blocked" ? "blocked" : "review", task.status]
-              : null;
+            : isRefused(task)
+              ? ["blocked", `Refused by a person: ${title(task)}`]
+              : NEEDS_YOU_STATUSES.has(task.status) || task.needsReview
+                ? [
+                    task.status === "blocked" ? "blocked" : "review",
+                    task.status,
+                  ]
+                : null;
     if (reason) {
       result.needsYou.push({
         ...item,

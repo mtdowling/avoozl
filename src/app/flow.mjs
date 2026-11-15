@@ -743,8 +743,11 @@ const median = (values) => {
 export function finishedAt(task) {
   return (
     task?.integration?.at ||
-    // A manual leaf finishes when a person marks it done (R61.15).
-    (task?.manual === true ? task.manualDone?.at : null) ||
+    // A manual leaf finishes when a person marks it done (R61.15). A
+    // refusal stops the work; it is not a finish.
+    (task?.manual === true && task.manualDone?.choice !== "refused"
+      ? task.manualDone?.at
+      : null) ||
     (task?.githubVerdict?.state === "verified"
       ? task.githubVerdict.mergedAt
       : null) ||

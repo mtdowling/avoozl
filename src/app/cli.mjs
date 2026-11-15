@@ -88,6 +88,7 @@ try {
           "cancel",
           "yes",
           "skipped",
+          "refused",
           "off",
           "as-person",
         ].includes(key) &&
@@ -1485,7 +1486,11 @@ try {
           positionals[0] === "done"
             ? {
                 taskId,
-                choice: options.skipped ? "skipped" : "done",
+                choice: options.refused
+                  ? "refused"
+                  : options.skipped
+                    ? "skipped"
+                    : "done",
                 ...(options.note ? { note: options.note } : {}),
                 ...(options.link
                   ? { links: [{ url: options.link, label: options.label }] }
@@ -1630,8 +1635,9 @@ try {
   task notes TASK_ID edit NOTE_ID --note TEXT | --link URL --label LABEL  (a person only)
   task notes TASK_ID remove NOTE_ID     Remove a link or note; it stays in the activity history (a person only)
   task notes TASK_ID show NOTE_ID [--off]  Show it on the task's issue, or stop (a person only)
-  task done TASK_ID [--skipped] [--note TEXT] [--link URL --label LABEL]
-                                         Mark a manual task done or skipped (a person only)
+  task done TASK_ID [--skipped|--refused] [--note TEXT] [--link URL --label LABEL]
+                                         Mark a manual task done, skipped or refused (a person only;
+                                         refused is a no-go and keeps its dependents held)
   task reopen TASK_ID                   Reopen a manual task; its dependents wait again (a person only)
   task supersede TASK_ID [--id NEW_ID] [--title TITLE] [--requires A,B] [--reason TEXT]
                                          Replace a local task; its dependents wait on the new one
