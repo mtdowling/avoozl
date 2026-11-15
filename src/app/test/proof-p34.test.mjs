@@ -850,3 +850,37 @@ test("P34 minimumPermission is read per repository, never reused across them", a
   assert.equal(Object.keys(w.row("b").strangers).length, 1);
   assert.deepEqual(w.github.writes, []);
 });
+
+test("P34 pace: unchanged, settled pull requests are read again after 2 then 4 minutes, not every tick", async (t) => {
+  const w = workspace(t, { mode: "plans-repo" });
+  w.github.open(APP, "avoozl/a");
+  w.github.open(APP, "avoozl/b");
+  const start = Date.parse("2026-11-13T11:00:00Z"),
+    heads = () => w.github.reads.filter(([kind]) => kind === "heads").length,
+    at = (seconds) =>
+      feedbackStep(w.store, w.github, {
+        policy: w.policy,
+        delivery: w.policyDelivery,
+        now: start + seconds * 1000,
+      });
+  // The tick runs every minute for ten minutes. The old path read the
+  // heads on every one of them.
+  const ticks = Array.from({ length: 11 }, (_, i) => i * 60);
+  for (const seconds of ticks) await at(seconds);
+  assert.ok(
+    heads() < ticks.length,
+    `${heads()} reads in ${ticks.length} ticks`,
+  );
+  // 0s reads, 60s reads (first quiet: next at 180s), 180s reads (next at
+  // 180+240s), 420s reads (capped at 4 minutes: next at 660s).
+  assert.equal(heads(), 4);
+  // A change is read at the next due read, with the new state.
+  const pull = w.github.pull(APP, "avoozl/a");
+  w.github.touch(pull, { checks: [w.github.check("test", "FAILURE", 9001)] });
+  const result = await at(660);
+  assert.equal(
+    w.toWorker(result, "a").length + w.toWorker(result, "b").length,
+    1,
+  );
+  assert.equal(w.github.writes.length, 0);
+});

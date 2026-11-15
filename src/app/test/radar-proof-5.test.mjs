@@ -87,8 +87,8 @@ test("Proof 5: only the crew's pull request merges by itself; the rest wait", as
   for (let round = 0; round < 3; round += 1) await tick();
   // (A conflicted crew pull request is armed too; GitHub waits for the fix.)
   assert.deepEqual(github.armed, [
-    ["PR_21", "MERGE"],
-    ["PR_25", "MERGE"],
+    ["PR_21", "SQUASH"],
+    ["PR_25", "SQUASH"],
   ]);
   assert.deepEqual(settled(github), []);
   // Green: GitHub merges it, and only it.

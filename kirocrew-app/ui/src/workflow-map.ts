@@ -37,11 +37,12 @@ export const WORKFLOW_STATUS: Record<string, StepTag> = {
 // input the page focuses.
 export type JumpField =
   | 'coder'
-  | 'concurrency'
   | 'capacity'
   | 'releaseMode'
   | 'plan'
   | 'conflict'
+  | 'onSourceConflict'
+  | 'mergeMethod'
   | 'approval'
   | 'ready'
   | 'claim'
@@ -54,11 +55,12 @@ export interface Jump {
 }
 const TAB: Record<JumpField, Jump['tab']> = {
   coder: 'mode',
-  concurrency: 'mode',
   capacity: 'mode',
   releaseMode: 'mode',
   plan: 'crews',
   conflict: 'crews',
+  onSourceConflict: 'crews',
+  mergeMethod: 'crews',
   approval: 'triggers',
   ready: 'triggers',
   claim: 'triggers',
@@ -163,6 +165,18 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
   const plan = named(repository.planLabel, DEFAULTS.plan, 'Planning label', 'plan')
   const approval = named(repository.approvalLabel, DEFAULTS.approval, 'Approval label', 'approval')
   const conflict = named(repository.conflictLabel, DEFAULTS.conflict, 'Conflict label', 'conflict')
+  const onConflict: Value = {
+    label: 'On a source conflict',
+    text: `${repository.onSourceConflict.trim() || 'fix'}${repository.maxAttempts.trim() ? ` (up to ${repository.maxAttempts.trim()})` : ''}`,
+    source: repository.onSourceConflict.trim() || repository.maxAttempts.trim() ? 'set' : 'default',
+    jump: jump('onSourceConflict'),
+  }
+  const mergeMethod: Value = {
+    label: 'Merge method',
+    text: repository.mergeMethod.trim() || 'squash',
+    source: repository.mergeMethod.trim() ? 'set' : 'default',
+    jump: jump('mergeMethod'),
+  }
   const claim = named(repository.crewLabels.claim ?? '', DEFAULTS.claim, 'Claim label', 'claim')
   const needsHuman = named(repository.crewLabels.needsHuman ?? '', DEFAULTS.needsHuman, 'Needs-human label', 'needsHuman')
   const review = placeholderLabel(repository, 'reviewLabel', DEFAULTS.review, 'Review label')
@@ -194,12 +208,6 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
     source: repository.releaseMode.trim() ? 'set' : 'default',
     jump: jump('releaseMode'),
   }
-  const atOnce: Value = {
-    label: 'Tasks at once',
-    text: repository.concurrency.trim() || '1',
-    source: repository.concurrency.trim() ? 'set' : 'default',
-    jump: jump('concurrency'),
-  }
   const ship: Value = {
     label: 'Merge',
     text: input.ship === 'manual' ? 'you merge' : 'auto-merge',
@@ -227,7 +235,7 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
           key: 'local',
           title: 'Local tasks',
           cards: [
-            { key: 'local-ready', who: 'avoozl', title: 'A task becomes ready', text: 'Everything it waits on is done. The tick starts it.', values: [atOnce] },
+            { key: 'local-ready', who: 'avoozl', title: 'A task becomes ready', text: 'Everything it waits on is done. The tick starts it.', values: [] },
             { key: 'local-code', who: 'avoozl', title: 'A worker chat codes it', text: 'On its own branch, in your checkout.', values: [] },
             { key: 'local-check', who: 'avoozl', title: 'Checks and reviewer chats', text: 'A fresh chat runs the checks on that commit; reviewer chats review it.', values: [] },
             { key: 'local-merge', who: 'avoozl', title: 'It merges', text: 'The branch merges into the landing branch.', values: [landing] },
@@ -275,8 +283,8 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
         key: 'epic-start',
         who: 'avoozl',
         title: 'The tick starts ready tasks in graph order',
-        text: 'A task starts when its blockers are done, up to the number at once.',
-        values: [atOnce],
+        text: 'A task starts when its blockers are done.',
+        values: [],
         ...tag('epic-start'),
       }
   const mergeCard: Card = {
@@ -284,8 +292,16 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
     who: input.ship === 'manual' ? 'you' : 'avoozl',
     title: input.ship === 'manual' ? 'You merge' : 'Auto-merge',
     text: input.ship === 'manual' ? 'Avoozl shows a Ready to merge row once the checks pass.' : 'Avoozl arms auto-merge; GitHub merges when its rules pass.',
-    values: [ship],
+    values: input.ship === 'manual' ? [ship] : [ship, mergeMethod],
     ...tag('epic-merge'),
+  }
+  const fixCard: Card = {
+    key: 'epic-conflict-fix',
+    who: 'avoozl',
+    title: 'Avoozl fixes a source conflict',
+    text: 'Crews never resolve source conflicts. One resolver chat merges the base into the branch, checks no line from either side was dropped, and pushes one merge commit. If it cannot keep both sides, it asks you.',
+    values: [onConflict, conflict],
+    ...(radar ? {} : { muted: 'Only for Issue Radar crews.' }),
   }
   const epic: Lane = {
     key: 'epic',
@@ -299,6 +315,7 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
       { key: 'epic-claim', who: 'avoozl', title: 'Avoozl claims the parent and writes the sub-issues', text: 'It adds blocked-by links, so the order lives on GitHub.', values: [claim], ...tag('epic-claim') },
       releaseCard,
       buildCard,
+      ...(radar ? [fixCard] : []),
       mergeCard,
     ],
   }
@@ -325,11 +342,12 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
 export const fieldSelector = (id: string, field: JumpField): string =>
   ({
     coder: `[id^="${id}-coder-"][aria-checked="true"], [id^="${id}-coder-"]`,
-    concurrency: `#${id}-concurrency`,
     capacity: `#${id}-release-capacity`,
     releaseMode: '[data-release-mode] input:checked, [data-release-mode] input',
     plan: '#' + id + '-plan-label',
     conflict: `#${id}-conflict-label`,
+    onSourceConflict: `#${id}-on-source-conflict input:checked, #${id}-on-source-conflict`,
+    mergeMethod: `#${id}-merge-method input:checked, #${id}-merge-method`,
     approval: `#${id}-approval-label`,
     ready: `#${id}-label-ready`,
     claim: `#${id}-crew-claim`,

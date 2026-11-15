@@ -43,6 +43,30 @@ export interface ReviewSettings {
   repositories: Record<string, ReviewRole[]>
 }
 
+// The last GitHub rate-limit numbers Avoozl saw (github-rate.mjs).
+export interface RateView {
+  // The effective github.cacheSeconds: how long Avoozl reuses a GitHub answer.
+  cacheSeconds?: number
+  resources: Record<string, { limit: number; remaining: number; resetAt: string }>
+  limitedUntil: string | null
+  limitedResource: string | null
+  calls: number
+  notModified: number
+  notModifiedShare: number | null
+}
+
+// One short line per resource, then the share of calls GitHub answered with
+// a free 304. Empty before Avoozl has made a call.
+export function rateLines(rate: RateView | undefined | null): string[] {
+  if (!rate) return []
+  const lines = Object.entries(rate.resources).map(
+    ([name, r]) => `${name}: ${r.remaining} of ${r.limit} left, resets ${new Date(r.resetAt).toLocaleTimeString()}`,
+  )
+  if (rate.limitedUntil) lines.unshift(`Limit reached (${rate.limitedResource}). Calls resume at ${new Date(rate.limitedUntil).toLocaleTimeString()}.`)
+  if (rate.notModifiedShare !== null) lines.push(`${Math.round(rate.notModifiedShare * 100)}% of ${rate.calls} calls answered 304 (free)`)
+  return lines
+}
+
 export interface GitHubSettings {
   filename: string
   exists: boolean
@@ -51,6 +75,7 @@ export interface GitHubSettings {
   effective: Policy | null
   error: string | null
   crews: CrewScope[]
+  rate?: RateView
   review?: ReviewSettings
   choices: SettingsChoices
 }
@@ -250,7 +275,8 @@ export interface RepositoryForm {
   allowedActors: string
   minimumPermission: string
   requiredChecks: string
-  concurrency: string
+  // github.repositories.<id>.cacheSeconds; blank follows the workspace value.
+  cacheSeconds: string
   // Release (RC4.5): the mode, and how many crews work the repository.
   releaseMode: string
   releaseCapacity: string
@@ -267,6 +293,11 @@ export interface RepositoryForm {
   // radar.reviewRules); blank is the shown default.
   planLabel: string
   conflictLabel: string
+  // conflicts.onSourceConflict (fix or ask) and conflicts.maxAttempts; blank is the default.
+  onSourceConflict: string
+  maxAttempts: string
+  // merge.method (squash or merge); blank is squash (RC28.7).
+  mergeMethod: string
   // Review drafts by label (RC20): radar.reviewLabel, radar.draftedLabel.
   reviewLabel: string
   draftedLabel: string
@@ -375,6 +406,8 @@ export interface SettingsForm {
   planningRepository: string
   defaultAuthority: string
   epicIssueType: string
+  // github.cacheSeconds; blank is 60.
+  cacheSeconds: string
   // github.subIssues.maxPerParent (R59.15); blank is GitHub's 100.
   maxPerParent: string
   // github.issues.includeDone (R74); off means only open tasks get issues.
@@ -418,7 +451,7 @@ const SHOWN = new Set([
   'allowedActors',
   'minimumPermission',
   'requiredChecks',
-  'concurrency',
+  'cacheSeconds',
   'priority',
   'pullRequestReviews',
   'managedLabels',
@@ -426,6 +459,8 @@ const SHOWN = new Set([
   'rules',
   'untriaged',
   'mirror',
+  'conflicts',
+  'merge',
 ])
 
 export function emptyRule(): RuleForm {
@@ -446,7 +481,7 @@ export function emptyRepository(name = ''): RepositoryForm {
     allowedActors: '',
     minimumPermission: '',
     requiredChecks: '',
-    concurrency: '',
+    cacheSeconds: '',
     releaseMode: '',
     releaseCapacity: '',
     priority: '',
@@ -457,6 +492,9 @@ export function emptyRepository(name = ''): RepositoryForm {
     approvalLabel: '',
     planLabel: '',
     conflictLabel: '',
+    onSourceConflict: '',
+    maxAttempts: '',
+    mergeMethod: '',
     reviewLabel: '',
     draftedLabel: '',
     reviewRules: '',
@@ -474,6 +512,7 @@ export function toForm(github: Policy): SettingsForm {
     planningRepository: str(github.planningRepository),
     defaultAuthority: str(github.defaultAuthority),
     epicIssueType: str(github.epicIssueType),
+    cacheSeconds: str(github.cacheSeconds),
     maxPerParent: (() => {
       const value = record(github.subIssues).maxPerParent
       // The default reads as blank, so an untouched file stays untouched.
@@ -494,7 +533,7 @@ export function toForm(github: Policy): SettingsForm {
         allowedActors: joined(entry.allowedActors),
         minimumPermission: str(entry.minimumPermission),
         requiredChecks: joined(entry.requiredChecks),
-        concurrency: str(entry.concurrency),
+        cacheSeconds: str(entry.cacheSeconds),
         releaseMode: str(record(entry.release).mode),
         releaseCapacity: str(record(entry.release).capacity),
         priority: joined(entry.priority),
@@ -505,6 +544,9 @@ export function toForm(github: Policy): SettingsForm {
         approvalLabel: str(record(entry.radar).approvalLabel),
         planLabel: str(record(entry.radar).planLabel),
         conflictLabel: str(record(entry.radar).conflictLabel),
+        onSourceConflict: str(record(entry.conflicts).onSourceConflict),
+        maxAttempts: str(record(entry.conflicts).maxAttempts),
+        mergeMethod: str(record(entry.merge).method),
         reviewLabel: str(record(entry.radar).reviewLabel),
         draftedLabel: str(record(entry.radar).draftedLabel),
         reviewRules: str(record(entry.radar).reviewRules),
@@ -572,6 +614,7 @@ export function toPolicy(form: SettingsForm): Policy {
     planningRepository: blank(form.planningRepository) ?? null,
     defaultAuthority: blank(form.defaultAuthority) ?? null,
     epicIssueType: blank(form.epicIssueType) ?? null,
+    cacheSeconds: count(form.cacheSeconds) ?? null,
     subIssues: count(form.maxPerParent) !== undefined ? { maxPerParent: count(form.maxPerParent) } : null,
     issues: form.includeDone ? { includeDone: true } : null,
     project: hasProject
@@ -593,7 +636,7 @@ export function toPolicy(form: SettingsForm): Policy {
               allowedActors: splitList(repository.allowedActors),
               minimumPermission: blank(repository.minimumPermission),
               requiredChecks: splitList(repository.requiredChecks),
-              concurrency: count(repository.concurrency),
+              cacheSeconds: count(repository.cacheSeconds),
               // The mode and capacity are shown; scopes pass through unchanged.
               release: (() => {
                 const release = compact({ ...record(repository.rest.release), mode: blank(repository.releaseMode), capacity: count(repository.releaseCapacity) })
@@ -617,6 +660,14 @@ export function toPolicy(form: SettingsForm): Policy {
                   reviewRules: blank(repository.reviewRules),
                 })
                 return Object.keys(radar).length ? radar : undefined
+              })(),
+              conflicts: (() => {
+                const conflicts = compact({ ...record(repository.rest.conflicts), onSourceConflict: blank(repository.onSourceConflict), maxAttempts: count(repository.maxAttempts) })
+                return Object.keys(conflicts).length ? conflicts : undefined
+              })(),
+              merge: (() => {
+                const merge = compact({ ...record(repository.rest.merge), method: blank(repository.mergeMethod) })
+                return Object.keys(merge).length ? merge : undefined
               })(),
               rules: repository.rules.map((rule) =>
                 compact({
@@ -678,7 +729,7 @@ export const REPOSITORY_FIELD_RULES: Record<string, FieldRule> = {
   name: { required: true },
   baseBranch: { required: true, when: 'with a GitHub mode' },
   coder: { required: false, blank: 'blank: Issue Radar in single-repo mode, worker sessions otherwise' },
-  concurrency: { required: false, blank: 'blank: 1 at a time' },
+  cacheSeconds: { required: false, blank: 'blank: the workspace value' },
   releaseCapacity: { required: false, blank: 'blank: 2 at a time' },
   allowedActors: { required: false, blank: 'blank: anyone with the minimum permission' },
   minimumPermission: { required: false, blank: 'blank: write, unless actors are named' },
@@ -1035,6 +1086,21 @@ export const AVOOZL_LABELS = [
   { key: 'reviewLabel', label: 'Review', raw: 'radar.reviewLabel', job: 'Asks Avoozl to draft a review of a pull request for you.', writer: 'A person you trust adds it.' },
   { key: 'draftedLabel', label: 'Drafted', raw: 'radar.draftedLabel', job: 'Shows a draft review waits for you to submit.', writer: 'Avoozl adds and removes it.' },
 ] as const
+
+// What Avoozl does with a crew's pull request that conflicts in source code (RC28.5).
+export const CONFLICT_ACTIONS = ['fix', 'ask'] as const
+export const CONFLICT_DEFAULTS = { onSourceConflict: 'fix', maxAttempts: '1' } as const
+export const CONFLICT_ACTION_TEXT: Record<(typeof CONFLICT_ACTIONS)[number], string> = {
+  fix: 'A resolver chat merges the base into the branch and keeps both sides',
+  ask: 'Only ask me; write nothing',
+}
+
+// How a crew pull request lands when Avoozl arms auto-merge (RC28.7).
+export const MERGE_METHODS = ['squash', 'merge'] as const
+export const MERGE_METHOD_TEXT: Record<(typeof MERGE_METHODS)[number], { title: string; line: string }> = {
+  squash: { title: 'Squash', line: 'One commit per pull request on the base, with its title and body. The repository must allow squash merging.' },
+  merge: { title: 'Merge commit', line: 'The branch lands with a merge commit. The repository must allow merge commits.' },
+}
 
 export const OLD_LABEL_NOTE =
   'The defaults now start with avoozl:. A repository that used the old names (to plan, ready, plan approved, merge conflict) without setting them reads the new names now; type the old name here to keep it.'

@@ -83,7 +83,9 @@ import { taskSignals, isPlanInventory } from "../workbench-model.mjs";
 import { listExamples, seedExample } from "./examples.mjs";
 import { describeWorkspace } from "./client.mjs";
 import {
+  DEFAULT_CACHE_SECONDS,
   defaultGitHubClient,
+  GitHubClient,
   parseRepository,
   requirePrivateRepository,
 } from "./github.mjs";
@@ -104,7 +106,11 @@ import { instanceIdentity } from "./instance.mjs";
 import { mirrorEntryKey, mirrorGit, mirrorSetup } from "./mirror-setup.mjs";
 import { radarSetup } from "./radar-setup.mjs";
 import { radarReread, radarValues } from "./radar-values.mjs";
-import { armedPullRequests, disarmPullRequest } from "./radar-arm.mjs";
+import {
+  armedPullRequests,
+  disarmPullRequest,
+  mergeMethodNeedsYou,
+} from "./radar-arm.mjs";
 import { preflight, requirePreflight } from "./radar-preflight.mjs";
 import {
   approvalLabelStep,
@@ -136,6 +142,14 @@ import {
   requireIntegrationBranch,
 } from "./integration-branch.mjs";
 import { mergeNeedsYou } from "./radar-merge.mjs";
+import {
+  checkConflictFix,
+  conflictFixNeedsYou,
+  conflictFixesOf,
+  decideConflictFix,
+  reportConflictFix,
+} from "./radar-conflict-fix.mjs";
+import { rateNeedsYou, rateView } from "./github-rate.mjs";
 import { syncNeedsYou } from "./integration-sync.mjs";
 import { namespaceOf, planThisRequest } from "./radar-plan-me.mjs";
 import {
@@ -161,6 +175,7 @@ import {
   requireMirrorsPrivate,
   requirePlansBranches,
 } from "./mirror-policy.mjs";
+import { mergeHomes, mirrorOf, readPrivateSpecs } from "./spec-homes.mjs";
 import { mirrorNeedsYou, writeRepo } from "./mirror-sync.mjs";
 import { forwardAuditRows } from "./forward-audit.mjs";
 import { publicBranchRows } from "./mirror-forward-batch.mjs";
@@ -389,6 +404,7 @@ import { decideInvestigation } from "./investigate.mjs";
 import { taskEvidence } from "./evidence.mjs";
 import { driverSessionView, registerDriverSession } from "./driver-session.mjs";
 import { instanceView, renameInstance } from "./instance.mjs";
+import { panelView, pullChecks } from "./panel-view.mjs";
 import {
   callerSlot,
   claimedTaskIds,
@@ -928,6 +944,13 @@ export class Operations {
       // lessons store (design §4.18). Unset (most tests) leaves retros as
       // before Phase 28; the app, MCP server and CLI pass it.
       configDirectory = null,
+      // The machine's driver session record (driver-session.mjs). The CLI,
+      // app backend and app MCP server pass driverSessionFile(); without one
+      // nothing is recorded and the view is "none", so tests never write
+      // this machine's file.
+      driverSessionFile: driverFile = null,
+      // The name the driver line shows for this workspace.
+      workspaceName = null,
       // Tests replace the shipped prompts to model an Avoozl update.
       shippedPrompts = null,
       // () => model IDs Kiro Crew lists, or null when unknown.
@@ -939,6 +962,8 @@ export class Operations {
     } = {},
   ) {
     this.store = store;
+    this.driverSessionFile = driverFile;
+    this.workspaceName = workspaceName;
     // The plugin loader (plugins.mjs). It opens one plugin session per
     // tick, and runs nothing unless a plugin is declared and approved.
     this.plugins = plugins;
@@ -958,13 +983,19 @@ export class Operations {
     this.issueVerifier = issueVerifier;
     this.plannerAgent = plannerAgent;
     // Every GitHub text write passes content rules first (§4.9).
-    this.github = guardGitHub(github || defaultGitHubClient(), store);
+    const client = github || defaultGitHubClient();
+    // Conditional reads and the rate-limit pause live in this workspace.
+    if (client instanceof GitHubClient)
+      client.bind(store, { cacheSeconds: (repo) => this.cacheSeconds(repo) });
+    this.github = guardGitHub(client, store);
     this.configuration = configuration;
     this.workspaceRoot = workspaceRoot;
     // Given a plans root, every operation publishes its pending Markdown
     // projections before it returns, so no caller writes the outbox itself.
     this.plansRoot = plansRoot;
     this.tickPolicy = {};
+    // Specs read from the plans branch on the last tick (RC25.2).
+    this.privateSpecs = [];
     this.repositoryBindingGuard = repositoryBindingGuard;
     this.pendingIntents = new Map();
     if (workspaceRoot && driver?.settingsFile)
@@ -1391,6 +1422,21 @@ export class Operations {
         .map((project) => project.root),
     });
   }
+  // Read the plans branch into `privateSpecs`. A failed read keeps the last
+  // good list, so a network error never makes private specs vanish.
+  async refreshPrivateSpecs() {
+    const mirror = mirrorOf(readGitHubPolicyOrNull(this.workspaceRoot));
+    if (!mirror) {
+      this.privateSpecs = [];
+      return;
+    }
+    if (!this.github?.available?.()) return;
+    try {
+      this.privateSpecs = await readPrivateSpecs(this.github, mirror);
+    } catch {
+      // Keep the last list.
+    }
+  }
   // Every spec folder the mode reads, linted, with its stored plan. Each
   // item carries its title, its front-matter category (Requirement 30.9),
   // and when its files last changed on disk.
@@ -1406,57 +1452,89 @@ export class Operations {
       plans = store
         .list("plans")
         .filter((plan) => plan.spec && !plan.deletedAt),
-      approvals = store.list("approvals");
+      approvals = store.list("approvals"),
+      mirror = mirrorOf(readGitHubPolicyOrNull(this.workspaceRoot));
+    // Both homes in one list (RC25.2). The plans branch is read on each tick
+    // into `privateSpecs`; a name or task ID in both homes is refused.
+    const publicSpecs = roots.flatMap((root) =>
+        listSpecFolders(root).map((name) => ({
+          root,
+          spec: readSpecFolder(root, name),
+        })),
+      ),
+      merged = mirror
+        ? mergeHomes(
+            publicSpecs.map((entry) => entry.spec),
+            this.privateSpecs,
+          )
+        : {
+            specs: publicSpecs.map((entry) => ({
+              home: "main",
+              spec: entry.spec,
+            })),
+            errors: [],
+          },
+      homes = merged.specs.map(({ home, spec }) => ({
+        home,
+        spec,
+        root:
+          home === "main"
+            ? publicSpecs.find((entry) => entry.spec === spec).root
+            : null,
+      })),
+      homeErrors = merged.errors;
     return {
       root: roots[0],
       roots,
-      items: roots.flatMap((root) =>
-        listSpecFolders(root).map((name) => {
-          const disk = readSpecFolder(root, name),
-            plan = plans.find((entry) => entry.spec === name) || null,
-            quality = this.withContentDiagnostics(
-              lintSpec({
-                spec: disk,
-                plan: plan || { id: name },
-                data,
-                approved: plan && this.approvedSpec(plan),
-                namespace,
-              }),
-              disk,
-            );
-          const front = frontMatter(
-            disk.files["requirements.md"] ?? disk.files["bugfix.md"],
+      items: homes.map(({ home, root, spec: disk }) => {
+        const name = disk.name,
+          plan = plans.find((entry) => entry.spec === name) || null,
+          quality = this.withContentDiagnostics(
+            lintSpec({
+              spec: disk,
+              plan: plan || { id: name },
+              data,
+              approved: plan && this.approvedSpec(plan),
+              namespace,
+            }),
+            disk,
           );
-          return {
-            name,
-            root,
-            title: specTitle(disk),
-            category: front.category,
-            categoryProblem: front.problem?.message ?? null,
-            modifiedAt: specModifiedAt(root, name, Object.keys(disk.files)),
-            folder: disk.folder,
-            type: quality.type,
-            kind: quality.kind,
-            epic: quality.epic,
-            ...(quality.members ? { members: quality.members } : {}),
-            hash: disk.hash,
-            files: Object.keys(disk.files),
-            counts: quality.counts,
-            taskCount: quality.taskCount,
-            critique: readCritique(disk.critique, disk.hash),
-            plan: plan && {
-              id: plan.id,
-              state: plan.state,
-              hash: plan.hash,
-              revision: plan.revision,
-              changed: plan.hash !== disk.hash,
-              approved: approvals.some(
-                (a) => a.planId === plan.id && a.hash === plan.hash,
-              ),
-            },
-          };
-        }),
-      ),
+        const front = frontMatter(
+          disk.files["requirements.md"] ?? disk.files["bugfix.md"],
+        );
+        return {
+          name,
+          root,
+          ...(mirror ? { home } : {}),
+          title: specTitle(disk),
+          category: front.category,
+          categoryProblem: front.problem?.message ?? null,
+          modifiedAt: root
+            ? specModifiedAt(root, name, Object.keys(disk.files))
+            : null,
+          folder: disk.folder,
+          type: quality.type,
+          kind: quality.kind,
+          epic: quality.epic,
+          ...(quality.members ? { members: quality.members } : {}),
+          hash: disk.hash,
+          files: Object.keys(disk.files),
+          counts: quality.counts,
+          taskCount: quality.taskCount,
+          critique: readCritique(disk.critique, disk.hash),
+          plan: plan && {
+            id: plan.id,
+            state: plan.state,
+            hash: plan.hash,
+            revision: plan.revision,
+            changed: plan.hash !== disk.hash,
+            approved: approvals.some(
+              (a) => a.planId === plan.id && a.hash === plan.hash,
+            ),
+          },
+        };
+      }),
+      ...(homeErrors.length ? { homeErrors } : {}),
     };
   }
   readSpec(name) {
@@ -2048,6 +2126,11 @@ export class Operations {
       ...this.settingsFile().readGitHubSettings(),
       effective,
       error,
+      // The last GitHub rate-limit numbers, for Settings > GitHub.
+      rate: {
+        ...rateView(this.store),
+        cacheSeconds: this.cacheSeconds(),
+      },
       // Review roles from `delivery` in the same file, shown beside each
       // repository's pull-request review settings. Read only here.
       review: reviewSettings(readDeliveryPolicy(this.workspaceRoot)),
@@ -2090,6 +2173,22 @@ export class Operations {
   // without a restart. Invalid policy refuses the operation that needs it.
   githubPolicy() {
     return readGitHubPolicy(this.workspaceRoot);
+  }
+  // github.cacheSeconds, with a repository's own value first. The files are
+  // read at most every five seconds; an unreadable file means the default.
+  cacheSeconds(repo = "") {
+    const at = Date.now();
+    if (!this.cachePolicy || at - this.cachePolicy.at > 5000)
+      this.cachePolicy = {
+        at,
+        policy: readGitHubPolicyOrNull(this.workspaceRoot),
+      };
+    const policy = this.cachePolicy.policy;
+    return (
+      policy?.repositories?.[repo]?.cacheSeconds ??
+      policy?.cacheSeconds ??
+      DEFAULT_CACHE_SECONDS
+    );
   }
   // Broad issues (§6.2): the child graph is a spec folder; approval stores it
   // as an approved plan, without its root epic, which is the source issue.
@@ -2371,6 +2470,15 @@ export class Operations {
   // only to open it, read it, or close it.
   // `context.caller` is the gateway-attested Kiro Crew session calling through
   // the app's stdio MCP server, and nothing else sets it (see mcp.mjs).
+  // This workspace's place in the machine's driver records.
+  driverWorkspace() {
+    return {
+      root: this.workspaceRoot,
+      name: this.workspaceName,
+      file: this.driverSessionFile,
+    };
+  }
+
   async execute(name, input = {}, expectedRevision, context = {}) {
     const result = await this.perform(name, input, expectedRevision, context);
     // One activity row for a listed local action (§4.19); never fails it.
@@ -2636,16 +2744,28 @@ export class Operations {
       renameInstance(store, input.name);
       return instanceView(store);
     }
-    if (name === "driversession.view") return driverSessionView(store);
+    if (name === "driversession.view")
+      return driverSessionView(this.driverWorkspace());
     if (name === "driversession.register") {
-      registerDriverSession(store, input);
-      return driverSessionView(store);
+      if (!this.driverSessionFile || !this.workspaceRoot)
+        fail("This Avoozl process has no driver session record.");
+      registerDriverSession({
+        slot: input.slot,
+        source: input.source,
+        ...this.driverWorkspace(),
+      });
+      return driverSessionView(this.driverWorkspace());
     }
     if (name === "runner.next") {
       // A conductor's attested call is the driver session's heartbeat. Only a
       // gateway-attested caller counts; the model cannot name its own slot.
       const slot = callerSlot(context.caller);
-      if (slot) registerDriverSession(store, { slot, source: "next" });
+      if (slot && this.driverSessionFile && this.workspaceRoot)
+        registerDriverSession({
+          slot,
+          source: "next",
+          ...this.driverWorkspace(),
+        });
       return nextView(store, {
         policy: readDeliveryPolicy(this.workspaceRoot),
         github: readGitHubPolicyOrNull(this.workspaceRoot),
@@ -2825,6 +2945,7 @@ export class Operations {
         command: `AVOOZL_WORKSPACE=${JSON.stringify(this.workspaceRoot)} node ${JSON.stringify(path.join(applicationRoot, "cli.mjs"))}`,
       });
       if (remote) return remote;
+      await this.refreshPrivateSpecs();
       if (input.cron === true) await driverTick(store, this.workspaceRoot);
       // The remote coder's MCP server lives for this tick only (RC15.10).
       const harness =
@@ -3058,11 +3179,14 @@ export class Operations {
       // Remote tasks waiting on the person's turn in the relay (R41.20).
       view.items.push(...relayNeedsYou(store));
       view.items.push(...mergeNeedsYou(store));
+      view.items.push(...conflictFixNeedsYou(store));
+      view.items.push(...mergeMethodNeedsYou(store));
       view.items.push(...approvalNeedsYou(store));
       view.items.push(...reviewDraftNeedsYou(store));
       view.items.push(...landingNeedsYou(store));
       view.items.push(...remoteNeedsYou(store));
       view.items.push(...syncNeedsYou(store));
+      view.items.push(...rateNeedsYou(store));
       view.items.push(...mirrorNeedsYou(store));
       view.items.push(...mirrorForwardRows(store, policy));
       view.items.push(...forwardAuditRows(store));
@@ -3079,6 +3203,27 @@ export class Operations {
         ),
       );
       return view;
+    }
+    // The chat side panel in one read: every part it shows, each null when its
+    // own read fails (panel-view.mjs).
+    if (name === "panel.view") {
+      const sub = (op, args = {}) => this.perform(op, args, undefined, context),
+        data = this.read(),
+        crews = sub("radar.crews").catch(() => null);
+      return panelView({
+        conflicts: async () => (await sub("conflicts.view")).items,
+        crews: () => crews,
+        remote: async () => (await sub("remote.view")).workers,
+        queue: () => sub("radar.releasequeue"),
+        flow: () => ({
+          tasks: flowView(store, data, { window: "10" }).tasks,
+          line: lineBanner(store, data),
+        }),
+        driver: () => sub("driversession.view"),
+        specs: async () => (await sub("plan.specs")).items,
+        instance: () => instanceView(store),
+        checks: async () => pullChecks(this.github, await crews),
+      });
     }
     if (name === "flow.view") {
       const data = this.read(),
@@ -3312,6 +3457,29 @@ export class Operations {
         fail("Only a person disarms auto-merge, in the Avoozl page.", 403);
       return disarmPullRequest(store, this.github, input);
     }
+    // A person's choice on a source conflict Avoozl asked about (RC28.3).
+    if (name === "conflictfix.decide") {
+      if (context.caller || context.mcp)
+        fail(
+          "Only a person decides a source conflict, in the Avoozl page.",
+          403,
+        );
+      return decideConflictFix(store, input);
+    }
+    // The bound resolver chat's drop check and its one report (RC28.2, RC28.3).
+    if (name === "conflictfix.check")
+      return checkConflictFix(store, input, context.caller);
+    if (name === "conflictfix.report")
+      return reportConflictFix(
+        store,
+        this.github,
+        {
+          policy: readGitHubPolicyOrNull(this.workspaceRoot),
+          delivery: readDeliveryPolicy(this.workspaceRoot).delivery || {},
+        },
+        input,
+        context.caller,
+      );
     if (name === "radar.preflight") {
       const plan = store.get("plans", input.planId);
       if (!plan) fail("Plan not found.", 404);
@@ -3385,6 +3553,7 @@ export class Operations {
       return readTrace(this.github, where, number, entry, {
         draftFor: (pull) => draftForPull(store, input.repository, pull),
         mirrorFor: (pull) => mirrorRecordFor(store, where, pull),
+        fixesFor: (pull) => conflictFixesOf(store, input.repository, pull),
       });
     }
     // Integration branches (RC16.3, RC16.8): tasks merged, distance behind the
@@ -3470,6 +3639,18 @@ export class Operations {
             github.repositories = {
               ...github.repositories,
               [key]: { ...entry, mirror: value },
+            };
+            file.updateGitHubSettings({ github, expectedHash: current.hash });
+            this.configuration?.reload();
+          },
+          saveMergeMethod: (method) => {
+            const file = this.settingsFile(),
+              current = file.readGitHubSettings(),
+              github = structuredClone(current.github),
+              entry = github.repositories?.[key] ?? {};
+            github.repositories = {
+              ...github.repositories,
+              [key]: { ...entry, merge: { ...(entry.merge ?? {}), method } },
             };
             file.updateGitHubSettings({ github, expectedHash: current.hash });
             this.configuration?.reload();
@@ -4373,7 +4554,8 @@ export class Operations {
         // A workspace with no spec folders for its mode still has stored
         // plans; the table shows those, and the folder problem with them.
         try {
-          return { ...this.specList(), problem: null };
+          const list = this.specList();
+          return { ...list, problem: list.homeErrors?.join(" ") || null };
         } catch (error) {
           return { root: null, items: [], problem: error.message };
         }
@@ -4575,6 +4757,7 @@ export class Operations {
       await requireMirrorsPrivate(policy, this.github);
       await requirePlansBranches(policy, this.github, { create: true });
       this.settingsFile().updateGitHubSettings(input);
+      this.cachePolicy = null;
       this.configuration?.reload();
       return this.githubSettings();
     }
