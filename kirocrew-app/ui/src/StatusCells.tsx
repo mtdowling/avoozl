@@ -14,7 +14,7 @@ const CSS = `
 [data-sc-row]{container-type:inline-size}
 [data-sc-grid]{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:8px}
 @container (max-width:300px){[data-sc-grid]{grid-template-columns:minmax(0,1fr)}}
-[data-sc]{display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px;min-width:0;padding:5px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;line-height:18px;color:var(--text)}
+[data-sc]{display:flex;flex-wrap:wrap;align-items:center;align-content:flex-start;gap:2px 8px;min-width:0;padding:5px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;line-height:18px;color:var(--text)}
 [data-sc-title]{display:inline-flex;align-items:center;gap:6px;min-width:0;max-width:100%;font-weight:600;color:var(--text-strong,var(--text));overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 [data-sc-dot]{flex:none;width:8px;height:8px;border-radius:50%;background:var(--muted)}
 [data-sc-dot][data-tone=ok]{background:var(--ok)}
@@ -25,7 +25,7 @@ const CSS = `
 [data-sc-act]:hover{background:var(--bg-hover);color:var(--text)}
 [data-sc-act][data-primary]{border-color:var(--accent);color:var(--accent)}
 [data-sc-act]:disabled{opacity:.6;cursor:default}
-@media (pointer:coarse),(max-width:640px){[data-sc-act]{min-height:44px;min-width:44px;padding:0 10px}[data-sc-narrow-hide]{display:none}[data-sc-act][data-icon-only]{padding:0}}
+@media (pointer:coarse),(max-width:640px){[data-sc-act]{min-height:44px;min-width:44px;padding:0 7px}[data-sc-narrow-hide]{display:none}[data-sc-act][data-icon-only]{padding:0}}
 `
 
 export function StatusRow(props: { children: ReactNode }) {
