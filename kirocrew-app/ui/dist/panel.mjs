@@ -2448,7 +2448,7 @@ function Nn() {
 		}
 	}, we = (e) => P.unread.includes(e), z = g === null, Te = P.stops.length > 0, Ee = bn(de, "header") ?? g?.instance?.name ?? null, B = (e, t, n, r) => we(e) ? /* @__PURE__ */ O(X, { children: z ? "Loading…" : Dn[e] }) : n === 0 ? /* @__PURE__ */ O(X, { children: t }) : r(), De = /* @__PURE__ */ k(J, {
 		id: "waiting",
-		title: "Waiting on you",
+		title: "Needs you",
 		count: P.waiting.length,
 		tone: "warn",
 		open: !0,

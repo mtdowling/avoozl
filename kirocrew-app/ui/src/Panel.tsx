@@ -1,5 +1,5 @@
 // The Avoozl side-panel tab (rc-8.3, design D10). One tab that changes with
-// the open chat: Waiting on you, In flight, the release queue and recent
+// the open chat: Needs you, In flight, the release queue and recent
 // merges in a normal chat; the spec check and Approve in a Spec Builder chat;
 // the claim a crew is on in a crew chat; the driver view in an Avoozl chat.
 // The host passes no props, so the chat comes from the page URL
@@ -323,7 +323,7 @@ export default function AvoozlPanel() {
     unread(section) ? <PanelEmpty>{loading ? 'Loading…' : NOTE_UNREAD[section]}</PanelEmpty> : rows === 0 ? <PanelEmpty>{empty}</PanelEmpty> : render()
 
   const waiting = (
-    <PanelSection id="waiting" title="Waiting on you" count={model.waiting.length} tone="warn" open>
+    <PanelSection id="waiting" title="Needs you" count={model.waiting.length} tone="warn" open>
       {unreadOr('waiting', 'Nothing is waiting on you.', model.waiting.length, () => (
         <WaitingRows rows={model.waiting.slice(0, 5)} busy={busy} now={now} onAct={(row, action) => void act(row, action)} onOpenPage={() => navigate(AVOOZL_PAGE)} />
       ))}
