@@ -8,19 +8,28 @@ import { flowTimes, readIssueFacts } from "./radar-events.mjs";
 import { READY_LABEL_DEFAULT } from "./github-policy.mjs";
 
 export const FLOW_INTERVAL_MS = 10 * 60 * 1000;
-// shortcut: the latest 20 closed issues carrying the ready label. An issue
-// whose ready label was removed is not found; read the repository's merged
-// pull requests instead if that leaves the view too thin.
+// shortcut: the latest 20 closed issues carrying the ready label or Avoozl's
+// managed label. The tick takes ready off a closed issue Avoozl projected, so
+// the managed label finds those; an issue that lost both is not found.
 export const FLOW_LIMIT = 20;
 const META = "radarFlow";
+const MANAGED_LABEL_DEFAULT = "avoozl:managed";
 
 // One repository's finished issues as flow rows: closed, with a merged pull
 // request the claim named. An issue with no pull request is not a delivery.
 async function readRows(github, repository, settings) {
   const label = settings.managedLabels?.ready ?? READY_LABEL_DEFAULT,
-    issues = (
-      await github.listIssues(repository, { state: "closed", label })
-    ).slice(-FLOW_LIMIT),
+    managed = settings.managedLabels?.managed ?? MANAGED_LABEL_DEFAULT,
+    found = new Map();
+  for (const name of new Set([label, managed]))
+    for (const issue of await github.listIssues(repository, {
+      state: "closed",
+      label: name,
+    }))
+      found.set(issue.number, issue);
+  const issues = [...found.values()]
+      .sort((a, b) => a.number - b.number)
+      .slice(-FLOW_LIMIT),
     rows = [];
   for (const { number } of issues) {
     const facts = await readIssueFacts(github, repository, number, settings);
