@@ -62,7 +62,7 @@ for (const dark of [false, true]) {
     assert.equal(await has('[data-settings-accordion]'), false, 'the list is out of the way')
     assert.equal(await page.evaluate(`getComputedStyle(document.querySelector('[data-detail-bar]')).position`), 'sticky')
     assert.match(await page.evaluate(`document.querySelector('[data-detail-bar]').textContent`), /Settings/)
-    assert.ok((await page.evaluate(`document.querySelector('[data-list-detail-back]').getBoundingClientRect().height`)) >= 44)
+    assert.ok((await page.evaluate(`document.querySelector('[data-list-detail-back]').getBoundingClientRect().height`)) <= 28)
     assert.equal(await page.evaluate(`document.documentElement.scrollWidth <= innerWidth`), true, 'no sideways scroll')
     await back()
     assert.equal(await has('[data-settings-accordion]'), true, 'Back returns to the list')

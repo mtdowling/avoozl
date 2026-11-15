@@ -11,8 +11,8 @@
 // right-hand summary; rows are 12px with 4px 12px padding and an 11px muted
 // second line; chips are 10px; small buttons are 11px with a 6px radius; an
 // empty state is 12px muted. Hover is the theme's --bg-hover. On a phone (a
-// narrow screen or a coarse pointer) every tap target is 44px tall, rows stay
-// two lines, nothing scrolls sideways and nothing is sticky. Colors are theme
+// narrow screen) nothing changes size: rows stay two lines, buttons stay compact,
+// nothing scrolls sideways and nothing is sticky. Colors are theme
 // variables only. Kept free of data reads: callers pass what to show.
 import { createContext, useCallback, useContext, useLayoutEffect, useMemo, useState, type ReactNode } from 'react'
 import { ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, type LucideIcon } from './icons.ts'
@@ -67,13 +67,7 @@ a[data-pp-row-title]:hover{text-decoration:underline}
 [data-pp-row-line]:has(>[data-tooltip-anchor]:nth-child(n+4)){flex-wrap:wrap}
 [data-pp-row-line]:has(>[data-tooltip-anchor]:nth-child(n+4))>[data-tooltip-anchor]:first-child{max-width:100%}
 }
-@media (max-width:640px),(pointer:coarse){
-[data-pp-head]{padding-top:2px;padding-bottom:2px}
-[data-pp-section-head]{min-height:40px}
-[data-pp-row]{min-height:40px;padding-top:2px;padding-bottom:2px}
-[data-pp-icon]{min-height:28px;min-width:28px}
-[data-pp-act]{min-height:28px;min-width:28px;padding:0 8px}
-[data-pp-chip][data-tap]{min-height:28px;padding:0 8px}
+@container (max-width:520px){
 [data-pp-row][data-multi]{grid-template-columns:14px minmax(0,1fr)}
 [data-pp-row][data-multi]>[data-pp-actions]{grid-column:2}
 }
