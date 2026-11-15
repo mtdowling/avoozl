@@ -293,6 +293,11 @@ export interface RepositoryForm {
   // radar.reviewRules); blank is the shown default.
   planLabel: string
   conflictLabel: string
+  // conflicts.onSourceConflict (fix or ask) and conflicts.maxAttempts; blank is the default.
+  onSourceConflict: string
+  maxAttempts: string
+  // merge.method (squash or merge); blank is squash (RC28.7).
+  mergeMethod: string
   // Review drafts by label (RC20): radar.reviewLabel, radar.draftedLabel.
   reviewLabel: string
   draftedLabel: string
@@ -454,6 +459,8 @@ const SHOWN = new Set([
   'rules',
   'untriaged',
   'mirror',
+  'conflicts',
+  'merge',
 ])
 
 export function emptyRule(): RuleForm {
@@ -485,6 +492,9 @@ export function emptyRepository(name = ''): RepositoryForm {
     approvalLabel: '',
     planLabel: '',
     conflictLabel: '',
+    onSourceConflict: '',
+    maxAttempts: '',
+    mergeMethod: '',
     reviewLabel: '',
     draftedLabel: '',
     reviewRules: '',
@@ -534,6 +544,9 @@ export function toForm(github: Policy): SettingsForm {
         approvalLabel: str(record(entry.radar).approvalLabel),
         planLabel: str(record(entry.radar).planLabel),
         conflictLabel: str(record(entry.radar).conflictLabel),
+        onSourceConflict: str(record(entry.conflicts).onSourceConflict),
+        maxAttempts: str(record(entry.conflicts).maxAttempts),
+        mergeMethod: str(record(entry.merge).method),
         reviewLabel: str(record(entry.radar).reviewLabel),
         draftedLabel: str(record(entry.radar).draftedLabel),
         reviewRules: str(record(entry.radar).reviewRules),
@@ -647,6 +660,14 @@ export function toPolicy(form: SettingsForm): Policy {
                   reviewRules: blank(repository.reviewRules),
                 })
                 return Object.keys(radar).length ? radar : undefined
+              })(),
+              conflicts: (() => {
+                const conflicts = compact({ ...record(repository.rest.conflicts), onSourceConflict: blank(repository.onSourceConflict), maxAttempts: count(repository.maxAttempts) })
+                return Object.keys(conflicts).length ? conflicts : undefined
+              })(),
+              merge: (() => {
+                const merge = compact({ ...record(repository.rest.merge), method: blank(repository.mergeMethod) })
+                return Object.keys(merge).length ? merge : undefined
               })(),
               rules: repository.rules.map((rule) =>
                 compact({
@@ -1065,6 +1086,21 @@ export const AVOOZL_LABELS = [
   { key: 'reviewLabel', label: 'Review', raw: 'radar.reviewLabel', job: 'Asks Avoozl to draft a review of a pull request for you.', writer: 'A person you trust adds it.' },
   { key: 'draftedLabel', label: 'Drafted', raw: 'radar.draftedLabel', job: 'Shows a draft review waits for you to submit.', writer: 'Avoozl adds and removes it.' },
 ] as const
+
+// What Avoozl does with a crew's pull request that conflicts in source code (RC28.5).
+export const CONFLICT_ACTIONS = ['fix', 'ask'] as const
+export const CONFLICT_DEFAULTS = { onSourceConflict: 'fix', maxAttempts: '1' } as const
+export const CONFLICT_ACTION_TEXT: Record<(typeof CONFLICT_ACTIONS)[number], string> = {
+  fix: 'A resolver chat merges the base into the branch and keeps both sides',
+  ask: 'Only ask me; write nothing',
+}
+
+// How a crew pull request lands when Avoozl arms auto-merge (RC28.7).
+export const MERGE_METHODS = ['squash', 'merge'] as const
+export const MERGE_METHOD_TEXT: Record<(typeof MERGE_METHODS)[number], { title: string; line: string }> = {
+  squash: { title: 'Squash', line: 'One commit per pull request on the base, with its title and body. The repository must allow squash merging.' },
+  merge: { title: 'Merge commit', line: 'The branch lands with a merge commit. The repository must allow merge commits.' },
+}
 
 export const OLD_LABEL_NOTE =
   'The defaults now start with avoozl:. A repository that used the old names (to plan, ready, plan approved, merge conflict) without setting them reads the new names now; type the old name here to keep it.'

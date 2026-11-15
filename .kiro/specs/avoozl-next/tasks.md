@@ -17,13 +17,12 @@ repository (AGENTS.md); no force push; land by task branch, pull request and
 
 This spec is a draft. Approving it, creating issues and starting agents are
 separate acts. Task IDs start with `an-` so they never collide with `rc-` or
-the IDs of `.kiro/specs/avoozl/`. Phase 1 builds on `rc-22.2` (pull request
-155) and `rc-20.1` (pull request 138); start it after both merge. The
-`design.md` section "Owner steps" lists what needs a person.
+the IDs of `.kiro/specs/avoozl/`. The `design.md` section "Owner steps" lists
+what needs a person.
 
 ## Phase 1: Tracker gates finish
 
-Requirement AN1 (RC23, D28). `rc-22.1` is done; `rc-22.2` is pull request 155.
+Requirement AN1 (RC23, D28). `rc-22.1` and `rc-22.2` are merged.
 
 - [ ] an-1.1 The waiting label setting and its writes (was rc-22.3) [AN1.1] (§D28)
   - `radar.trackerLabel` with default `avoozl:waiting-on-tracker` joins the label table, the clash check, Settings and Set up's label step; the tick adds the label to the gate issue and to dependents held only by gates, and removes it on done, cleared or removal from the plan; `src/app/test/tracker-gate-label.test.mjs`, `kirocrew-app/ui/test/tracker-label.test.mjs`.
@@ -38,31 +37,22 @@ Requirement AN1 (RC23, D28). `rc-22.1` is done; `rc-22.2` is pull request 155.
   - Setup: a scratch repository, an approved spec with a gate and one dependent, and a fake `gate` plugin whose answer the test sets. Action: the plugin says `open`, then `unknown` twice, then `failed`, then `done`; in a second run clear the gate as an allowed person and as a stranger. Expected: the label sits on the gate and the dependent; nothing is released until `done`; one Needs you row for the failed state, closed on `done`; an allowed clear releases the dependent and is recorded as an order; a stranger's clear is reverted.
   - Done when: Expected result observed with the fake plugin; receipt under `docs/evidence/`.
 
-## Phase 2: Mirror repositories
+## Phase 2: Private plans on the mirror's plans branch
 
-Requirement AN2 (RC24, D29). The mirror's private plans branch is pull request 154 and is not part of this phase.
+Requirement AN2 (RC25, D30). The mirror itself (settings, sync, tracking, forward, public poll, conflicts, Create and Adopt setup) and the `plansBranch` setting with the two-home reader are merged. Forward targets (`rc-25.1` to `rc-25.3`) are merged; `rc-25.4` to `rc-25.7` are with another worker (pull request 191 and later). Start `an-2.2` after those land, because both edit the forward path.
 
-- [ ] an-2.1 `mirror` setting: form and raw `.avoozl.json`, private-only validation [AN2.1] (§D29)
-  - Fields, defaults and refusals of RC24.1 and RC24.2; the form and the raw file write one record; `src/app/test/mirror-policy.test.mjs`.
-  - Done when: A public or unreadable mirror is refused; `forward: auto` with no trusted person is refused; the form and the raw file agree after an edit in either; `npm test` passes.
-- [ ] an-2.2 Sync step and write targets, after an-2.1 [AN2.1] (§D29)
-  - `mirrorSyncStep` fast-forwards the mirror's default branch; divergence raises one Needs you row and pauses the mirror steps; `writeRepo(policy)` sends projection, labels, Project, release and merge to the mirror; source issue link marker with no private text copied out.
-  - Done when: A fake GitHub test: a fast-forward is applied, a divergence gives one row across three ticks and no write to either branch, no call writes to the source except the forward path.
-- [ ] an-2.3 Track merged mirror PRs, rows and Trace steps, after an-2.2 and an-1.3 [AN2.1] (§D29)
-  - `mirror_forward` record keyed by merge commit; rows in Waiting on you and Release queue; Trace steps Mirror merged, Forwarded, Public PR, Public merged. It follows an-1.3 because both edit the same Trace and Release queue code.
-  - Done when: A merge in the mirror gives one record across repeated ticks and the four Trace steps appear in order with GitHub times.
-- [ ] an-2.4 Forward: one commit, strip, scan, push, public PR; nudge and auto, after an-2.3 [AN2.1] (§D29)
-  - Squashed commit by the approver; private trailers and text stripped; content rules run on commit, message, branch, title and body before any push; Forward button with a one-line reason; `auto` only for a trusted approver; no shared-token fallback; normal push only.
-  - Done when: Tests: a clean change forwards once; a planted private term blocks the push with one row naming the rule; `auto` forwards for a trusted approver and not for another; a second press opens no second PR; no force push is ever issued.
-- [ ] an-2.5 Public poll: done on public merge, closed unmerged, review copy-back, after an-2.4 [AN2.1] (§D29)
-  - Dependents release only on the public merge; a close without merge returns the item with the reason; review comments copy to the mirror PR or one follow-up issue once.
-  - Done when: A fake GitHub test: a mirror merge alone releases no dependent; the public merge releases them; a close returns the row; a comment copies once across three ticks.
-- [ ] an-2.6 Conflicts: sync, re-apply, then a mirror issue for a crew, after an-2.4 [AN2.1] (§D29)
-  - One retry after a sync and a fresh scan; then one mirror issue naming paths only.
-  - Done when: A fake GitHub test: a moved source applies on retry; a true conflict opens one issue with paths and no contents.
-- [ ] an-p2 Proof: the mirror flow with a fake GitHub, after an-2.1, an-2.2, an-2.3, an-2.4, an-2.5, an-2.6 [AN2.2] (§D29)
-  - Setup: a fake GitHub with a public-visibility source and a private mirror seeded as a full copy. Action: sync, merge a crew PR in the mirror, forward in nudge mode, merge the public PR; then plant a private term and try again. Expected: the public merge completes the task; the planted term blocks the push with one row.
-  - Done when: Expected result observed with the fake GitHub; receipt under `docs/evidence/`. The run on two real scratch repositories is an owner step.
+- [ ] an-2.1 Marker `ref`, approval on the plans branch, `verify-issue` and crew commands (was rc-24.3) [AN2.1] (§D30)
+  - Marker writer and parser gain `ref`; approval of a private spec opens its pull request against `plansBranch`; `commit` check uses `<ref>...<commit>` and requires an orphan branch; `--json` prints the fetch and show commands; the one-line prompt is unchanged.
+  - Done when: Tests: a private spec's issue passes; a `ref` that is the default branch, missing, or shares history fails with the reason; the prompt text equals the shipped one.
+- [ ] an-2.2 Containment: sync, forward, leak scan, explicit refspecs (was rc-24.4) [AN2.2] (§D30)
+  - Sync names the default branch only; the forward clone is single-branch; the leak scan blocks the plans branch name, private spec paths and commits from it in any forward text; every push has one explicit refspec and no `--mirror`, `--all`, `--tags` or wildcard.
+  - Done when: Tests: a planted plans-branch name or path blocks the push with one row naming the rule; the sync leaves the `plansBranch` head unchanged; a test scans Avoozl's push calls and finds no banned flag.
+- [ ] an-2.3 Issues from public and private plans, with edges across homes (was rc-24.5), after an-2.1 [AN2.3] (§D30)
+  - Private-plan issues stay in the mirror and never go to the source; public-plan issue bodies stand alone with no private text and no `plansBranch`; both homes project into the same mirror and release under the same rules; a `requires` edge across homes is allowed both ways, and a public-safe body says only `Waits on a private task.`
+  - Done when: A fake GitHub test: both kinds of issue are written; no write reaches the source for a private plan; a public task waits on a private one and the reverse, each releases on its blocker's own rule, and the public body holds no private title, text, ID or link.
+- [ ] an-p2 Proof: a public and a private plan in one mirror, with a fake GitHub, after an-2.1, an-2.2, an-2.3 [AN2.4] (§D30)
+  - Setup: a fake GitHub with a public-visibility source and a private mirror. Action: one public and one private plan, active together, one public task waiting on a private one; approve both, project, run `verify-issue` on one issue of each, forward a change for each, then plant the plans branch name in a forward. Expected: both plans in one graph; the cross edge holds and releases; the public issue says only that it waits on a private task; both verify; the planted forward is blocked.
+  - Done when: Expected result observed with the fake GitHub; receipt under `docs/evidence/`. The run on real scratch repositories (`rc-p24`) is an owner step.
 
 ## Phase 3: Crews on public repositories
 

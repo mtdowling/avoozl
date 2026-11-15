@@ -185,6 +185,7 @@ test("Set up end to end: pack preview and import, Radar steps by confirm, owner 
       ["labels", "change"],
       ["branch-rule", "change"],
       ["auto-merge", "change"],
+      ["merge-method", "ok"],
       ["agents-pr", "change"],
       ["project", "ok"],
     ],

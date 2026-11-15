@@ -24,6 +24,9 @@ import { registerLanguages } from './highlight.ts'
 import { scrollParent, stickyHeight } from './sticky-column.ts'
 import { viewsClient, type Graph } from './views-api.ts'
 import { useSteppedState } from './NavHistory.tsx'
+import { usePhone } from './list-detail.ts'
+import { DetailBar } from './ListDetail.tsx'
+import { useTitleScrolledOut } from './use-title-scrolled-out.ts'
 import { Modal } from './Modal.tsx'
 import { ProjectionModal } from './ProjectionModal.tsx'
 import { SpecChangedModal } from './SpecChangedModal.tsx'
@@ -48,6 +51,7 @@ import {
   type DeletePreview,
   type PlansClient,
   progressPercent,
+  homeBadge,
   rowActions,
   rowChoices,
   shortHash,
@@ -574,6 +578,12 @@ function RowButtons(props: {
 // last) in groups that fold. No pages: a group over PAGE rows shows that
 // many and a Show more button. A click on a row or its name opens the
 // plan; the buttons do their own thing and never open it as well.
+// Private specs live on the mirror's plans branch only; public ones follow the code (RC25.2).
+function HomeBadge(props: { home?: 'main' | 'plansBranch' }) {
+  const badge = homeBadge(props.home)
+  return badge ? <Badge variant={badge.warn ? 'warning' : undefined}>{badge.label}</Badge> : null
+}
+
 export function PlansTable(props: {
   rows: PlanRow[]
   busy?: boolean
@@ -668,6 +678,7 @@ export function PlansTable(props: {
                             {row.spec ? <code>{row.spec}</code> : row.planId ? <code>{row.planId}</code> : null}
                             {row.errors > 0 && <Badge variant="danger">{row.errors} errors</Badge>}
                             {row.archived && <Badge>Archived</Badge>}
+                            <HomeBadge home={row.home} />
                           </span>
                         </td>
                         <td style={cell} className="whitespace-nowrap">
@@ -775,6 +786,7 @@ function PlanAside(props: {
           <Badge variant={STATUS_VARIANT[row.status]}>{STATUS_LABEL[row.status] ?? row.status}</Badge>
           {row.type && <Badge>{row.type}</Badge>}
           {row.archived && <Badge>Archived</Badge>}
+          <HomeBadge home={row.home} />
         </span>
         <ProgressBar tasks={row.tasks} />
       </div>
@@ -1080,6 +1092,8 @@ export default function PlansView(props: {
   const drawer = useTaskDrawer()
   const chat = useAskChat(workspace)
   const stack = useMedia(STACK)
+  const phone = usePhone()
+  const { scrolledOut, titleRef } = useTitleScrolledOut()
   const [asideRef, asideHeight] = useStickyHeight(!stack)
   const [deleting, setDeleting] = useState<PlanRow | null>(null)
   const [archiving, setArchiving] = useState<PlanRow | null>(null)
@@ -1276,9 +1290,10 @@ export default function PlansView(props: {
         />
       )}
       {notice && <p role="status" className="text-sm text-muted">{notice}</p>}
-      <div ref={detailTop} className="flex flex-wrap items-center gap-3">
-        {row && <IconLabel icon={ArrowLeft} onClick={() => openPlan(null)}>All specs</IconLabel>}
-        <div className="min-w-0 flex-1">
+      {row && phone && <DetailBar backLabel="All specs" onBack={() => openPlan(null)} title={row.name} scrolledOut={scrolledOut} />}
+      <div ref={detailTop} className="flex flex-wrap items-center gap-3" style={phone && row ? { scrollMarginTop: 44 } : undefined}>
+        {row && !phone && <IconLabel icon={ArrowLeft} onClick={() => openPlan(null)}>All specs</IconLabel>}
+        <div ref={row && phone ? titleRef : undefined} className="min-w-0 flex-1">
           <ViewHeading
             id="avoozl-plans-title"
             view="plans"
@@ -1369,7 +1384,7 @@ export default function PlansView(props: {
               />
             </Card>
           </aside>
-          <div id="avoozl-plan-main" className="min-w-0">
+          <div id="avoozl-plan-main" className="min-w-0" style={phone ? { scrollMarginTop: 48 } : undefined}>
             <ArchivedBanner row={row} busy={busy} onUnarchive={() => unarchive(row)} />
             {workspace && <DriverBanner workspaceId={workspace} spec={driver.spec} onChanged={driver.reload} />}
             <SetupList spec={driver.spec} />

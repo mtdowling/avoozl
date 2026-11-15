@@ -29,7 +29,9 @@ const SHELF = `document.querySelector('[data-settings-shelf="repositories"]')`
 
 async function start(width, dark = false) {
   await page.open(harness.url({ page: 'app', radar: '1', theme: dark ? 'dark' : 'light' }), { width, height: 800, dark })
-  await page.until(`Boolean(document.querySelector('[role="tab"]'))`)
+  await page.until(`Boolean(document.querySelector('[role="tab"], [data-top-rail-bar]'))`)
+  // A phone's tabs are in the top rail's list, once its bar is open.
+  await page.evaluate(`document.querySelector('[data-top-rail-bar]')?.click()`)
   await page.evaluate(`[...document.querySelectorAll('button[role="tab"]')].find((b) => b.textContent.trim() === 'Settings').click()`)
   await page.until(`Boolean(document.querySelector('[data-settings-section="repositories"] button[aria-expanded]'))`)
   await page.evaluate(`document.querySelector('[data-settings-section="repositories"] button[aria-expanded]').click()`)
@@ -81,3 +83,20 @@ test('Esc and the Close button close it and focus goes back to the opener; Tab s
   await page.until(`!${SHELF}`)
   assert.equal(await page.evaluate(`document.activeElement === ${OPENER}`), true, 'Close returns focus to the opener')
 })
+
+for (const [width, dark] of [[1280, false], [390, true]])
+  test(`the shelf header is not sticky and scrolls out of view at ${width} px, ${dark ? 'dark' : 'light'}`, { skip }, async () => {
+    await start(width, dark)
+    await openShelf()
+    const head = `${SHELF}.querySelector('h3').parentElement`
+    const pos = await page.evaluate(`(() => { let n = ${head}; const out = []; for (; n && n !== ${SHELF}; n = n.parentElement) out.push(getComputedStyle(n).position); return out })()`)
+    assert.ok(pos.every((p) => p !== 'sticky' && p !== 'fixed'), `no sticky or fixed header: ${pos}`)
+    // Make the body taller than the screen, then scroll the shelf.
+    await page.evaluate(`(() => { const f = document.createElement('div'); f.style.height = '3000px'; f.dataset.filler = ''; ${head}.parentElement.appendChild(f) })()`)
+    const top = () => page.evaluate(`${head}.getBoundingClientRect().bottom`)
+    assert.ok((await top()) > 0, 'header visible at first')
+    await page.evaluate(`${head}.parentElement.scrollTop = 1000`)
+    assert.ok((await top()) <= 0, 'header scrolled out of view')
+    await page.key('Escape', 'Escape', 27)
+    await page.until(`!${SHELF}`)
+  })
