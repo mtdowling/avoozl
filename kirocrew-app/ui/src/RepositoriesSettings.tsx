@@ -152,7 +152,7 @@ export function RepositoryDialog(props: {
   // Cancel asks too; Esc, Back and a click outside ask through the Modal.
   const dismiss = () => (props.edited ? void ask(discard).then((yes) => yes && props.onDiscard()) : props.onDiscard())
   return (
-    <Modal close
+    <Modal
       id="avoozl-repo-edit"
       width="46rem"
       title={props.name}

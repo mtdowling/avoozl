@@ -18,11 +18,13 @@ import {
   driverView,
   drivenRoot,
   panelModel,
+  chatProject,
+  pickPanelWorkspace,
   readPanel,
-  sameRoot,
   shortAgo,
   startRefresh,
   type FlightRow,
+  type PanelPick,
   type PanelAction,
   type PanelRead,
   type PanelModel,
@@ -42,7 +44,7 @@ import { useInstance } from './InstanceName.tsx'
 import { relativeTime } from './task-api.ts'
 import { Tooltip } from './Tooltip.tsx'
 import { linkHref, viewsClient } from './views-api.ts'
-import { errorMessage, readPageState, workspaceClient } from './workspace-api.ts'
+import { errorMessage, readPageState, workspaceClient, type WorkspaceList } from './workspace-api.ts'
 
 const AVOOZL_PAGE = '/apps/avoozl'
 
@@ -159,6 +161,15 @@ function FlightRows({ rows, now }: { rows: FlightRow[]; now: number }) {
   )
 }
 
+// Why the panel reads its workspace, for the header's tooltip.
+const PICKED_BY: Record<PanelPick['why'], string> = {
+  driver: 'this driver chat drives it',
+  folder: "this chat's project folder is in it",
+  last: 'the app page showed it last',
+  default: 'the default workspace',
+  none: 'none found',
+}
+
 export default function AvoozlPanel() {
   const api = useAppApi()
   const navigate = useNavigate()
@@ -184,13 +195,23 @@ export default function AvoozlPanel() {
   const readsRef = useRef(reads)
   readsRef.current = reads
 
+  // The chat's project folder and each workspace's repository checkouts, read
+  // once: they decide which workspace this chat's panel reads.
+  const place = useRef<{ project: string | null; roots: Map<string, string[]> } | null>(null)
+  const placing = useRef<Promise<void> | null>(null)
+  const reloadRef = useRef<(() => Promise<void>) | null>(null)
+  const [pickedBy, setPickedBy] = useState<PanelPick['why'] | null>(null)
+
   // One read of everything: `panel.view`. A part that fails is null in the
-  // reply, so only its own section shows unread.
+  // reply, so only its own section shows unread. The panel never writes the
+  // page's saved workspace: picking one here changes only this panel.
   const load = useCallback(async () => {
     let id = idRef.current
+    let list: WorkspaceList
     try {
+      list = await workspaceClient(api).list()
       if (!id) {
-        id = (await workspaceClient(api).list()).defaultWorkspace
+        id = list.defaultWorkspace
         idRef.current = id
         setWorkspaceId(id)
       }
@@ -202,17 +223,39 @@ export default function AvoozlPanel() {
     let read: PanelRead = UNREAD
     try {
       read = await readPanel(api, id)
-      // In a driver chat, read the workspace this chat drives, not the one the
-      // app page last showed: a Nupp driver's panel shows Nupp.
-      const root = drivenRoot(read.driver, chat)
-      if (root) {
-        const drives = (await workspaceClient(api).list()).items.find((item) => sameRoot(item.root, root))
-        if (drives && drives.id !== id) {
-          id = drives.id
-          idRef.current = id
-          setWorkspaceId(id)
-          read = await readPanel(api, id)
-        }
+      // Looked up once, in the background: a slow or unanswered read never
+      // holds the panel back. Until it lands the other rules decide, and its
+      // landing reads again.
+      placing.current ??= (async () => {
+        const project = await chatProject(api, chat)
+        const roots = new Map<string, string[]>()
+        if (project)
+          await Promise.all(
+            list.items.map((item) =>
+              workspaceClient(api)
+                .repositories(item.id)
+                .then((repos) => void roots.set(item.id, repos.map((repo) => repo.localCheckout).filter((root): root is string => Boolean(root))))
+                .catch(() => undefined),
+            ),
+          )
+        place.current = { project, roots }
+        if (project) void reloadRef.current?.()
+      })()
+      const placed = place.current ?? { project: null, roots: new Map<string, string[]>() }
+      const pick = pickPanelWorkspace({
+        // In a driver chat, the workspace this chat drives: a Nupp driver's panel shows Nupp.
+        driverRoot: drivenRoot(read.driver, chat),
+        project: placed.project,
+        workspaces: list.items.map((item) => ({ id: item.id, root: item.root, roots: placed.roots.get(item.id) ?? [] })),
+        last: readPageState(storage()).workspaceId,
+        fallback: list.defaultWorkspace,
+      })
+      setPickedBy(pick.why)
+      if (pick.id && pick.id !== id) {
+        id = pick.id
+        idRef.current = id
+        setWorkspaceId(id)
+        read = await readPanel(api, id)
       }
     } catch {
       // A failed read leaves every section unread; the next one tries again.
@@ -227,6 +270,7 @@ export default function AvoozlPanel() {
     setReads(read)
     setNow(Date.now())
   }, [api, chat])
+  reloadRef.current = load
 
   useEffect(
     () =>
@@ -372,7 +416,8 @@ export default function AvoozlPanel() {
       onName={() => navigate(AVOOZL_PAGE)}
       nameTip="Open Avoozl"
       instance={headerName}
-      tip={[headerName ? `Avoozl · ${headerName}` : 'Avoozl', workspaceName ? `Workspace: ${workspaceName}` : ''].filter(Boolean).join('. ')}
+      workspace={workspaceName}
+      tip={[headerName ? `Avoozl · ${headerName}` : 'Avoozl', workspaceName ? `Workspace: ${workspaceName}${pickedBy ? ` (${PICKED_BY[pickedBy]})` : ''}` : ''].filter(Boolean).join('. ')}
       tools={<RefreshButton bare workspaceId={workspaceId} onRefresh={() => void load()} />}
       end={
         <span data-panel-line data-stopped={stopped ? '' : undefined} style={{ display: 'inline-flex' }}>

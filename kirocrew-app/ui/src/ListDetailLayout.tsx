@@ -20,6 +20,8 @@ export function ListDetailLayout(props: {
   onBack: () => void
   // Buttons at the right of a phone's sticky Back row (a spec's menu).
   detailActions?: ReactNode
+  // The detail draws its own big title (useDetailTitleRef).
+  detailOwnTitle?: boolean
 }) {
   const phone = usePhone()
   const spec = listSpec(props.id)
@@ -38,7 +40,7 @@ export function ListDetailLayout(props: {
       <div data-list-pane={props.id}>{props.list}</div>
     ) : (
       <div data-detail-pane-for={props.id}>
-        <DetailPane backLabel={props.backLabel} onBack={props.onBack} title={props.detailTitle} actions={props.detailActions}>
+        <DetailPane backLabel={props.backLabel} onBack={props.onBack} title={props.detailTitle} actions={props.detailActions} ownTitle={props.detailOwnTitle}>
           {props.detail}
         </DetailPane>
       </div>

@@ -7,6 +7,7 @@ import { isGate, isManual, taskKind } from "../work-model.mjs";
 import { fail } from "./store.mjs";
 import { mirrorForwards } from "./mirror-forward.mjs";
 import { READY_LABEL_DEFAULT } from "./github-policy.mjs";
+import { rankingNotes } from "./release-ranking-step.mjs";
 import { graphOrder } from "./delivery.mjs";
 import { openStops, stopScope } from "./flow.mjs";
 import { PUBLIC_HELD, publicHold } from "./public-signoff.mjs";
@@ -58,6 +59,7 @@ export function releaseQueue(store, identity) {
     stops = openStops(store).filter((stop) => !stop.runAnyway),
     claims = store.getMeta("radarClaims")?.repositories ?? {},
     byId = new Map(data.tasks.map((task) => [task.id, task])),
+    ranked = rankingNotes(store),
     plans = new Map(store.list("plans").map((plan) => [plan.id, plan])),
     repositories = new Map();
   const candidates = data.tasks.filter(
@@ -116,7 +118,10 @@ export function releaseQueue(store, identity) {
       phase = phased.get(task.id),
       plan = plans.get(task.planId);
     let state = "next",
-      reason = "Next in line.";
+      reason =
+        ranked[task.id]?.kind === "next"
+          ? ranked[task.id].reason
+          : "Next in line.";
     if (paused.has(task.id)) {
       state = "held";
       reason = "Deferred on the Project board.";
@@ -178,12 +183,22 @@ export function releaseQueue(store, identity) {
           : entry.scopes.find((s) => s.label === row.label).capacity;
       row.used = used.get(row.label) ?? 0;
       row.capacity = cap;
-      if (row.state === "next" && row.used >= cap) {
+      const note = ranked[row.taskId];
+      if (
+        row.state === "next" &&
+        note?.kind === "held" &&
+        cap > 0 &&
+        row.used >= cap
+      ) {
+        row.state = "held";
+        row.reason = note.reason;
+      } else if (row.state === "next" && row.used >= cap) {
         row.state = "held";
         row.reason =
           cap === 0
             ? "Capacity is 0, so nothing is released."
-            : `Waiting for a free slot (${row.used} of ${cap} in use).`;
+            : `Waiting for a free slot (${row.used} of ${cap} in use).` +
+              (note?.kind === "next" ? ` ${note.reason}` : "");
       }
     }
     for (const plan of plans.values())

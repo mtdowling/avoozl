@@ -79,7 +79,7 @@ test('a Graph node click opens its task in the drawer, and a drag does not', () 
 test('a spec row opens the spec in the detail column', () => {
   const plans = source('PlansView.tsx')
   assert.match(plans, /data-plan-row=\{row\.key\}[\s\S]{0,160}onClick=\{\(\) => props\.onOpen\(row\)\}/)
-  assert.match(plans, /<SpecList rows=\{rows\} selected=\{row\?\.key \?\? null\} onOpen=\{open\}/)
+  assert.match(plans, /<SpecList\s+rows=\{rows\}\s+selected=\{row\?\.key \?\? null\}\s+onOpen=\{open\}/)
   // Opening sets the row at once, with no reload first, and scrolls to it.
   assert.match(plans, /const open = \(next: PlanRow\) => openPlan\(next\.key\)/)
   assert.match(plans, /detailTop\.current\?\.scrollIntoView/)

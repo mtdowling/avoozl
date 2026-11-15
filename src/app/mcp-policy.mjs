@@ -11,6 +11,7 @@ const person = (reason, when) => ({ reason: reason + APP, when });
 
 export const PERSON_ONLY = new Map([
   ["plan.approve", person("Only a person approves a plan.")],
+  ["plan.approveMany", person("Only a person approves a plan.")],
   ["plan.delete", person("Only a person deletes a plan.")],
   ["plan.new", person("Only a person starts a new plan.")],
   ["task.manual.complete", person("Only a person marks a manual task done.")],

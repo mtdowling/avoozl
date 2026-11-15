@@ -1464,3 +1464,101 @@ read AGENTS.md, so a rule about how crews work reaches them without editing
 the crew prompt. The one-time migration exports stored lessons into that file under
 a dated heading, appending only, then drops the tables in the same
 transaction that records the export. If the write fails the tables stay.
+
+## D36. Smart release ranking (RC31)
+
+`planRelease` already keeps held labels first and gives new labels, in order,
+to the free slots. Ranking changes only that last group's order, in a pure
+function `rankCandidates` in `radar-coder-release.mjs`, called by the
+projection and by the Release queue so both agree.
+
+Input: the eligible, unlabeled candidates in plan order, the graph edges, the
+claimed rows, the open pull requests (RC29 batched read), and per task the time
+it was first held for overlap (kept in the `release-held:<task>` receipt).
+
+1. `unblocks(task)` is the count of distinct open tasks reachable from it over
+   `requires` and `sequence` edges. Candidates sort by it, descending; the sort
+   is stable, so a tie keeps plan order. A task that an edge or sequence puts
+   behind another is never ranked above it, because the one behind is not
+   eligible yet.
+2. `overlaps(task)` compares its `paths` with the `paths` of claimed tasks and
+   of the tasks whose issues an open pull request in the same repository
+   closes (from the batched read, which already holds the closing issues). A path matches when equal, one is a
+   directory prefix of the other, or a glob of one matches the other. A task
+   with no `paths` never overlaps. An overlapping task sorts after every
+   non-overlapping candidate.
+3. Aging: the first tick that holds a task for overlap writes its receipt.
+   Rank moves up by `floor(held hours / agingHours)`. After
+   `4 * agingHours` it is released whatever it overlaps, if a slot is free.
+   Releasing it deletes the receipt.
+
+A person's order and a claimed task are outside the function: they are the
+first, third and fourth groups of `planRelease`. Ranking off returns the input
+unchanged. The function reads no GitHub itself, so ranking adds no call.
+
+The Release queue row gets its reason from the same function: `Next: unblocks
+4 tasks`, `Held: paths overlap #112 (open pull request); moves up in 7h`,
+`Next: waited 12h`. A row ranking did not affect keeps today's text.
+
+Settings: `release.ranking.enabled` and `release.ranking.agingHours`, in the
+policy schema, `.avoozl.json`, Settings > Release and the Workflow map.
+
+## D37. Build receipts (RC32)
+
+`bin/build-receipt [--issue N] [--target T] -- <command...>` is a small Node
+script, beside `bin/gh-counted`. It times the command with `performance.now`,
+passes standard input, output and the exit code through, and then writes one
+JSON line:
+
+```
+{"v":1,"issue":12,"commit":"abc1234","command":"npm test","target":"linux-x64/node22","start":"cold","ms":41230,"exit":0,"counters":{"cacheHits":412,"cacheMisses":9},"at":"2026-11-15T20:00:00Z"}
+```
+
+Issue comes from `--issue` or `AVOOZL_ISSUE`; commit from `git rev-parse HEAD`;
+target from `--target` or `AVOOZL_TARGET`, else platform and Node version.
+`start` comes from `receipts.warmCheck` (exit 0 is `warm`, non-zero `cold`, no
+check or an error `unknown`). The wrapper tees the output into a bounded buffer
+(last 256 KB) for the parser named in `receipts.parser`, run with the same
+timeout, which prints a JSON object of numbers; anything else gives `{}`. The
+line goes to `AVOOZL_RECEIPT_FILE`, else `build-receipt.jsonl` in the working
+directory. Any failure to write is swallowed.
+
+CI: the workflow runs its build and test steps through the wrapper, then a
+step prints the last receipt to `$GITHUB_STEP_SUMMARY` and uploads the file as
+artifact `build-receipt` (one day of retention is enough; the reader keeps the
+numbers).
+
+Reader (`build-receipt-read.mjs`): for a merged pull request not yet in the
+`build-receipts` table, find the last successful run on the head commit, list
+its artifacts, download `build-receipt` and parse the line. Each GitHub call is
+counted under source `receipt` in the usage counter and goes through the
+client cache. The row (pull request, issue, instance, receipt or `none`) is
+stored, so a later check reads nothing. A read that fails is retried next tick
+and never blocks one.
+
+Trace shows the receipt on the merged step. Flow shows a duration series over
+merged pull requests and the median per target and start. Rows group by the
+marker's `instance=` ID, with the display name from RC24's published variable.
+
+The brief builder (`radar-crew-prompt.mjs`) adds one repo-rule line when the
+repository has `bin/build-receipt`.
+
+## D38. Perf repair (RC33, not built now)
+
+A `perf` module reads the `build-receipts` table. A budget is
+`{command, target, start, limitMs, samples}`; the breach test is that the last
+`samples` comparable receipts all exceed `limitMs` (median over the limit
+alone does not count). The first breach files the repair issue through the
+normal projection with marker `perf-budget=<id>`; later breaches add one
+comment. The issue is a task like any other, so ranking, phases and approval
+apply. `perf.repair.preapprove` names the classes; only those labels the issue
+ready on creation.
+
+Guard: the close check lists the pull request's changed files and patch lines
+and refuses on a removed test file, a new skip marker for the repository's test
+runner, or a removed assertion line. The check lives in Avoozl and in the
+brief. Close needs a comparable before receipt and after receipt, the after
+under the limit.
+
+It starts only when `perf.repair.enabled` is on and the table holds about a week
+of receipts.

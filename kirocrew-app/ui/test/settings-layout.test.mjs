@@ -157,16 +157,18 @@ test('Repositories: one list with row actions, a red Remove behind a confirm, th
   assert.match(tab, /Added repositories \(\$\{rows\.length\}\)/)
   assert.match(tab, /workspaces\.removeRepository\(props\.workspaceId, target\.checkout\.id\)/)
   assert.match(tab, /data-local-checks/)
-  // The Workspaces pane has no repositories panel at all; the tick log
-  // takes its place, floated right beside the list and Add box.
+  // The Workspaces pane has no repositories panel at all. Add and Edit are
+  // modals: no inline form and no right-side shelf.
   const ws = source('WorkspaceView.tsx')
   assert.doesNotMatch(ws, /Register repository|Manage in Repositories|data-repository-summary|client\.repositories/)
-  const layout = ws.slice(ws.indexOf('data-workspaces-layout'))
-  assert.ok(layout.indexOf('Your workspaces') < layout.indexOf('data-add-workspace'))
-  assert.ok(layout.indexOf('data-add-workspace') < layout.indexOf('<aside aria-label="Tick health"'))
-  assert.match(ws, /gridTemplateColumns: 'minmax\(0, 3fr\) minmax\(18rem, 2fr\)', gap: 14, alignItems: 'start'/)
-  assert.match(ws, /useMedia\('\(min-width: 768px\)'\)/)
-  assert.match(ws, /data-tick-panel style=\{\{ maxHeight: 'calc\(100vh - 12rem\)', overflowY: 'auto' \}\}/)
+  assert.doesNotMatch(ws, /data-workspaces-layout|<aside|gridTemplateColumns: 'minmax\(0, 3fr\)|useMedia/)
+  assert.match(ws, /<Btn type="button" primary data-add-workspace onClick=\{\(\) => setDialog\('add'\)\}>/)
+  assert.match(ws, /<Modal\s+id="avoozl-ws-add"/)
+  assert.match(ws, /<Modal\s+id="avoozl-ws-edit"/)
+  assert.match(ws, /data-edit-workspace=\{workspace\.id\}/)
+  assert.match(ws, /<Pencil size=\{14\}/)
+  // The add form sits inside its modal, after the list.
+  assert.ok(ws.indexOf('Your workspaces') < ws.indexOf('<Modal\n          id="avoozl-ws-add"'))
   assert.match(source('controls.tsx'), /export const dangerStyle: CSSProperties = \{ color: 'var\(--danger\)', borderColor: 'var\(--danger\)' \}/)
 })
 
