@@ -199,6 +199,7 @@ async function checkSpec(read, home, marker, tasksText = {}) {
     if (absent.length)
       problems.push(`tasks.md does not list ${absent.join(", ")}`);
   }
+  tasksText.files = Object.keys(files);
   tasksText.value = files["tasks.md"];
   tasksText.manifest = files["avoozl/manifest.json"];
   return problems.length
@@ -261,6 +262,43 @@ async function checkBase(read, code, marker, manifestText, pull) {
     : failed("base", `pull request #${pull} targets ${shown}, not ${wanted}`);
 }
 
+// A private spec's marker names the orphan branch it lives on (RC25.4): the
+// branch must exist in the repository that holds the spec, share no history
+// with the default branch, and have the commit behind or at its head. The
+// reasons name the ref, never the plan's text.
+async function checkRef(read, home, marker, branch) {
+  const ref = marker.ref,
+    short = marker.commit.slice(0, 7);
+  if (ref === branch)
+    return failed("commit", `the ref ${ref} is the default branch`);
+  const exists = await get(read, `${repoPath(home)}/branches/${encode(ref)}`);
+  if (exists.kind === "denied")
+    return failed("commit", `the ref ${ref} is not a branch of ${home}`);
+  if (exists.kind !== "ok") return failed("commit", why(exists), true);
+  // GitHub answers 404 when two branches have no merge base.
+  const shared = await get(
+    read,
+    `${repoPath(home)}/compare/${encode(branch)}...${encode(ref)}`,
+  );
+  if (shared.kind === "ok")
+    return failed(
+      "commit",
+      `the ref ${ref} shares history with the default branch, so it is not an orphan branch`,
+    );
+  if (shared.kind !== "denied") return failed("commit", why(shared), true);
+  const compare = await get(
+    read,
+    `${repoPath(home)}/compare/${encode(ref)}...${marker.commit}`,
+  );
+  if (compare.kind !== "ok")
+    return failed("commit", why(compare), compare.kind === "unavailable");
+  const state = record(compare.body) ? compare.body.status : undefined;
+  if (state === "identical")
+    return pass("commit", `${short} is identical to ${ref}`);
+  if (state === "behind") return pass("commit", `${short} is behind ${ref}`);
+  return failed("commit", `${short} is not behind ${ref} or identical to it`);
+}
+
 async function checkCommit(read, home, marker) {
   const repo = await get(read, repoPath(home));
   if (repo.kind !== "ok") return failed("commit", why(repo), true);
@@ -272,6 +310,7 @@ async function checkCommit(read, home, marker) {
     /[\u0000-\u001f\u007f]/.test(branch)
   )
     return failed("commit", "the default branch is unreadable", true);
+  if (marker.ref) return checkRef(read, home, marker, branch);
   const compare = await get(
     read,
     `${repoPath(home)}/compare/${encode(branch)}...${marker.commit}`,
@@ -362,6 +401,7 @@ export async function verifyIssue(
     result.spec = marker.spec;
     result.approvedBy = marker.approvedBy;
     if (marker.plans) result.plans = marker.plans;
+    if (marker.ref) result.ref = marker.ref;
   }
   const home = marker?.plans || code;
   checks.push(
@@ -390,6 +430,14 @@ export async function verifyIssue(
   for (const check of checks) delete check.unavailable;
   result.ok = checks.every((check) => check.status === "ok");
   result.exitCode = result.ok ? 0 : result.couldNotRun ? 2 : 1;
+  // A crew reads a private spec from the plans branch with these two commands
+  // (RC25.5); the one-line prompt stays the same because it names this tool.
+  if (result.ok && marker?.ref && tasksText.files) {
+    result.fetch = `git fetch origin ${marker.ref}`;
+    result.show = tasksText.files.map(
+      (file) => `git show ${marker.commit}:.kiro/specs/${marker.spec}/${file}`,
+    );
+  }
   if (brief && result.ok && marker && tasksText.value !== undefined)
     result.brief = buildBrief(marker, issueBody, tasksText.value);
   return result;
