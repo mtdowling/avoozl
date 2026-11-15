@@ -311,6 +311,18 @@ function operationRow(name, input, result) {
     };
   if (name === "plan.approve")
     return { kind: "approve", summary: `Approved plan ${id}`, targetId: id };
+  if (name === "plan.approveMany") {
+    // A refused batch approved nothing.
+    if (!result?.ok) return null;
+    const ids = (Array.isArray(input?.items) ? input.items : [])
+      .map((item) => text(item?.id, 200))
+      .filter(Boolean);
+    return {
+      kind: "approve",
+      summary: `Approved ${ids.length} specs: ${ids.join(", ")}`.slice(0, 500),
+      targetId: ids[0] || null,
+    };
+  }
   // Manual tasks and Links and notes (§4.16). A removed entry stays here.
   if (name === "task.manual.complete") {
     const taskId = text(input?.taskId, 200);
