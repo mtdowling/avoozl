@@ -31,10 +31,10 @@ const READ = `(() => {
   const lum = ({ r, g, b }) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4 }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b) }
   const back = (el) => { for (; el; el = el.parentElement) { const c = rgb(getComputedStyle(el).backgroundColor); if (c.a > 0.99) return c } return { r: 255, g: 255, b: 255 } }
   const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05) }
-  return [...document.querySelectorAll('[role="tablist"], [role="radiogroup"]')].map((bar) => ({
+  return [...document.querySelectorAll('[role="tablist"], [role="radiogroup"], [data-nav-accordion]')].map((bar) => ({
     bar: bar.getAttribute('aria-label'),
     collapsed: Boolean(document.querySelector('[data-collapsed]')),
-    tabs: [...bar.querySelectorAll('[role="tab"], [role="radio"]')].map((tab) => {
+    tabs: [...bar.querySelectorAll('[role="tab"], [role="radio"], [data-nav-head], [data-nav-item]')].map((tab) => {
       const box = tab.getBoundingClientRect()
       const text = tab.textContent.trim()
       return { text, visible: box.width > 0 && box.height > 0 && getComputedStyle(tab).visibility === 'visible', contrast: ratio(rgb(getComputedStyle(tab).color), back(tab)) }
@@ -48,15 +48,15 @@ for (const [width, height] of [[390, 800], [1280, 800]])
       await page.open(harness.url({ page: 'app', theme: dark ? 'dark' : 'light' }), { width, height, dark })
       // A phone shows the tabs as the top rail's list, once the bar is open.
       const openRail = () => page.evaluate(`(() => { const bar = document.querySelector('[data-top-rail-bar]'); if (bar && bar.getAttribute('aria-expanded') !== 'true') bar.click(); return true })()`)
-      await page.until(`Boolean(document.querySelector('[data-top-row] [role="tab"], [data-top-rail-bar]'))`)
+      await page.until(`Boolean(document.querySelector('[data-top-row] [data-nav-head], [data-top-rail-bar]'))`)
       await openRail()
       await settle()
       const seen = new Set()
-      const names = await page.evaluate(`[...document.querySelectorAll('[data-top-row] [role="tab"]')].map((t, i) => i)`)
+      const names = await page.evaluate(`[...document.querySelectorAll('[data-top-row] [data-nav-head]')].map((t, i) => i)`)
       for (const index of names) {
         await openRail()
         await settle()
-        await page.evaluate(`document.querySelectorAll('[data-top-row] [role="tab"]')[${index}].click()`)
+        await page.evaluate(`document.querySelectorAll('[data-top-row] [data-nav-head]')[${index}].click()`)
         await settle()
         // A phone's rail list is checked open; the page's own bars, closed.
         const rail = await page.evaluate(`Boolean(document.querySelector('[data-top-rail-bar]'))`)
@@ -64,10 +64,10 @@ for (const [width, height] of [[390, 800], [1280, 800]])
         if (rail) {
           await openRail()
           await settle()
-          bars = (await page.evaluate(READ)).filter((bar) => bar.bar === 'Avoozl views')
+          bars = (await page.evaluate(READ)).filter((bar) => bar.bar === 'Avoozl pages')
           await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
           await settle()
-          bars = bars.concat((await page.evaluate(READ)).filter((bar) => bar.bar !== 'Avoozl views'))
+          bars = bars.concat((await page.evaluate(READ)).filter((bar) => bar.bar !== 'Avoozl pages'))
         } else bars = await page.evaluate(READ)
         assert.ok(bars.length >= 1, 'a tab bar is showing')
         assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-collapsed]'))`), false, 'no tab bar collapses into a dropdown')
@@ -80,5 +80,5 @@ for (const [width, height] of [[390, 800], [1280, 800]])
           }
         }
       }
-      assert.ok(seen.has('Avoozl views'), 'the main tab bar was checked')
+      assert.ok(seen.has('Avoozl pages'), 'the main tab bar was checked')
     })

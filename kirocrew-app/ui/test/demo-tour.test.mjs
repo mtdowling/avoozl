@@ -112,10 +112,10 @@ after(async () => {
   harness?.remove()
 })
 
-const button = (text, role) => `[...document.querySelectorAll('button${role ? `[role="${role}"]` : ''}')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(text)}))`
+const button = (text, role) => `[...document.querySelectorAll('button${role === 'tab' ? '[data-nav-head]' : role ? `[role="${role}"]` : ''}')].find((b) => b.textContent.trim().startsWith(${JSON.stringify(text)}))`
 const click = (expression) => page.evaluate(`(() => { const b = ${expression}; b.click(); return true })()`)
 // A count badge may follow the label, so compare the start.
-const selectedTab = `document.querySelector('[aria-label="Avoozl views"] [aria-selected="true"]')?.textContent.trim()`
+const selectedTab = `document.querySelector('[data-nav-head][data-selected], [data-nav-head][data-open]')?.textContent.trim()`
 const tourStep = `document.querySelector('[data-demo-tour]')?.dataset.step`
 // Graph is a page inside Specs, and Intake lives under Needs you.
 const TAB = { dashboard: 'Home', plans: 'Specs', graph: 'Specs', untriaged: 'Needs you', flow: 'Flow', settings: 'Settings' }

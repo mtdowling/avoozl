@@ -33,7 +33,8 @@ test('Settings > Flow has no Lessons group and saves no flow.lessons', () => {
 test('the Flow tab has Overview, Retros and Proposals, and every write asks a person', () => {
   const view = source('FlowView.tsx'),
     memory = source('FlowMemory.tsx')
-  assert.match(view, /useState<'overview' \| 'retros' \| 'proposals'>/)
+  assert.match(source('nav-api.ts'), /FLOW_TABS[\s\S]*?'overview'[\s\S]*?'retros'[\s\S]*?'proposals'/)
+  assert.doesNotMatch(view, /SegmentedControl/)
   assert.match(view, /<ProposalsView/)
   assert.doesNotMatch(view, /LessonsView|'lessons'/)
   assert.match(view, /data-timing-versions/)

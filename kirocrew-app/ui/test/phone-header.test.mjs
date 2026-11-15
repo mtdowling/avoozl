@@ -37,8 +37,8 @@ const toSpecs = async (phone) => {
   if (phone) {
     await page.evaluate(`document.querySelector('[data-top-rail-bar]').click()`)
     await wait(100)
-    await page.evaluate(`[...document.querySelectorAll('[data-top-rail-list] [role="tab"]')].find((t) => t.textContent.includes('Specs')).click()`)
-  } else await page.evaluate(`[...document.querySelectorAll('[data-top-row] [role="tab"]')].find((t) => t.textContent.includes('Specs')).click()`)
+    await page.evaluate(`[...document.querySelectorAll('[data-top-rail-list] [data-nav-head]')].find((t) => t.textContent.includes('Specs')).click()`)
+  } else await page.evaluate(`[...document.querySelectorAll('[data-top-row] [data-nav-head]')].find((t) => t.textContent.includes('Specs')).click()`)
   await page.until(`Boolean(document.querySelector('#avoozl-plans-title'))`)
   await wait(400)
 }
