@@ -5,6 +5,10 @@
 import { ruleBranch, seenCheckNames } from "./github-branch-rules.mjs";
 import { parseRepository } from "./github.mjs";
 import { fail } from "./store.mjs";
+import {
+  MERGE_METHOD_DEFAULT,
+  MERGE_METHOD_SETTING,
+} from "./github-policy.mjs";
 
 // The ship mode in force for a repository (R80.1): the repository's own value,
 // then the workspace's, then the built-in `auto-merge`.
@@ -15,7 +19,17 @@ const LABELS = {
   "auto-merge": "Auto-merge allowed",
   "required-check": "Default branch requires the CI check",
   ship: "Ship mode set",
+  "merge-method": "Merge method allowed",
 };
+
+// Does the repository allow `method`? A field GitHub did not return (a
+// reader without admin rights) counts as allowed; only `false` refuses.
+export function methodAllowed(remote, method) {
+  return remote?.[MERGE_METHOD_SETTING[method].key] !== false;
+}
+// The words that name the GitHub setting to change.
+export const methodFix = (repository, method) =>
+  `Turn on "${MERGE_METHOD_SETTING[method].name}" in ${repository}'s settings, or set merge.method to ${method === "squash" ? "merge" : "squash"}.`;
 
 // { repository, branch, ship, ready, missing: [id], items: [{id, label, ok,
 // detail}], error }. A GitHub read that fails leaves its items not ok and
@@ -29,7 +43,9 @@ export async function mergePath(
   const named = settings?.requiredChecks || [],
     value =
       delivery?.repositories?.[repository]?.ship ?? delivery?.ship ?? null;
+  const method = settings?.merge?.method ?? MERGE_METHOD_DEFAULT;
   let allowed = false,
+    methodOk = false,
     required = null,
     branch = null,
     error = null;
@@ -40,6 +56,7 @@ export async function mergePath(
       seenCheckNames(github, repository, branch),
     ]);
     allowed = remote?.allow_auto_merge === true;
+    methodOk = methodAllowed(remote, method);
     required = names.required;
   } catch (reason) {
     error = `GitHub could not be read: ${reason.message}`;
@@ -58,6 +75,11 @@ export async function mergePath(
           : absent.length
             ? `${branch} does not require ${absent.join(", ")}. Add it to a branch rule.`
             : `${branch} requires ${named.join(", ")}.`,
+      "merge-method": methodOk
+        ? `The repository allows ${method} merges.`
+        : error
+          ? error
+          : methodFix(repository, method),
       ship: value
         ? `delivery.ship is ${value}.`
         : "Set delivery.ship to auto-merge or manual.",
@@ -66,6 +88,7 @@ export async function mergePath(
       "auto-merge": allowed,
       "required-check": !error && named.length > 0 && absent.length === 0,
       ship: Boolean(value),
+      "merge-method": !error && methodOk,
     },
     items = Object.keys(LABELS).map((id) => ({
       id,
@@ -77,6 +100,7 @@ export async function mergePath(
     repository,
     branch,
     ship: effectiveShip(delivery, repository),
+    method,
     ready: items.every((item) => item.ok),
     missing: items.filter((item) => !item.ok).map((item) => item.id),
     items,
