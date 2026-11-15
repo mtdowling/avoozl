@@ -1,4 +1,5 @@
 import { approvedSpecDependency } from "../spec-dependencies.mjs";
+import { approvalBatches, approveMany } from "./approval-batches.mjs";
 import {
   specDeclarations,
   declaredDependencies,
@@ -534,6 +535,7 @@ import {
   openApproval,
   proseFiles,
   reconcileApproval,
+  reconcileOpenApprovals,
   statusOf,
 } from "./spec-approval.mjs";
 import {
@@ -1755,7 +1757,9 @@ export class Operations {
   // Approve ends in a commit a crew can read: open the approval pull request,
   // and approve in Avoozl only once it has merged. Returns null when no pull
   // request applies, `{ pending }` while it is open, `{ merged }` after.
-  async approvalPullRequest(plan, { approvedBy, quality }) {
+  // The approval pull request target when approving this plan needs one,
+  // else null.
+  approvalGateTarget(plan) {
     const target = this.approvalPullRequestTarget(plan);
     if (!target || this.planApproved(plan)) return null;
     // Nothing to commit: the files already say Approved and no record is on.
@@ -1765,6 +1769,43 @@ export class Operations {
       proseFiles(files).every((name) => statusOf(files[name]) === "Approved")
     )
       return null;
+    return target;
+  }
+  // Who approves a spec. GitHub records the approver as a login (the approval
+  // pull request checks it, and the issue write-back names it), so with
+  // GitHub in play it is the caller's login, else the signed-in GitHub login,
+  // cached for this workspace. git user.name is display provenance and may
+  // hold spaces. Only an approval pull request requires the login; without
+  // one a missing login keeps the operator, as before.
+  async specApprover(plan, approvedBy) {
+    const given = approvedBy?.trim();
+    if (given) return given;
+    const gated = Boolean(this.approvalGateTarget(plan));
+    if (
+      !gated &&
+      !(
+        readGitHubPolicyOrNull(this.workspaceRoot)?.mode &&
+        this.github?.available?.()
+      )
+    )
+      return this.operator;
+    if (!this.approverLogin)
+      try {
+        this.approverLogin =
+          (this.github?.available?.() &&
+            (await this.github.currentUser())?.login) ||
+          null;
+      } catch {}
+    if (this.approverLogin) return this.approverLogin;
+    if (!gated) return this.operator;
+    fail(
+      "Approving a spec needs your GitHub login, and Avoozl could not find one. Run `gh auth login`, then approve again.",
+      401,
+    );
+  }
+  async approvalPullRequest(plan, { approvedBy, quality }) {
+    const target = this.approvalGateTarget(plan);
+    if (!target) return null;
     const ids = {
         github: this.github,
         repository: target.repository,
@@ -1823,10 +1864,29 @@ export class Operations {
       // Nothing here may undo an approval.
     }
   }
+  // An approval pull request that merged is the person's approval (they
+  // merged it): record it under the login that asked for it, with no second
+  // command. One read per open approval pull request.
+  // shortcut: a merged spec that fails its checks is tried again each tick
+  // and says nothing; surface it in Needs you if that turns out to happen.
+  async recordMergedApprovals() {
+    const merged = await reconcileOpenApprovals(this.store, {
+      github: this.github,
+    });
+    for (const pull of merged)
+      await this.perform("plan.approveMany", {
+        items: pull.specs.map(({ planId, hash }) => ({
+          id: planId,
+          expectedHash: hash,
+        })),
+        approvedBy: pull.approvedBy,
+      }).catch(() => {});
+  }
   // The tick's pass over approval labels and Avoozl's own claims (RC18.2, RC19.5).
   async approvalTick() {
     const policy = readGitHubPolicyOrNull(this.workspaceRoot);
     if (!policy?.mode || !this.github?.available?.()) return;
+    await this.recordMergedApprovals().catch(() => {});
     const identity = planningIdentity(this.workspaceRoot),
       plans = this.store.list("plans"),
       drafts = plans
@@ -1973,6 +2033,74 @@ export class Operations {
     );
   }
   // Whether a plan's current text is the one last approved.
+  // Every check plan.approve makes before it writes, shared with
+  // plan.approveMany so a batch keeps each one. Throws on the first failure.
+  approvalChecks(input) {
+    const plan = this.store.get("plans", input.id);
+    if (!plan) fail("Plan not found.", 404);
+    // New tasks from an archived plan would start; unarchive it first.
+    if (plan.archivedAt)
+      fail("This spec is archived. Unarchive it before approving.", 409);
+    if (plan.hash !== input.expectedHash)
+      fail("The reviewed document hash changed.", 409);
+    // Approval is of the stored revision, and only while the folder on
+    // disk still matches it.
+    if (plan.spec && this.readSpec(plan.spec).hash !== plan.hash)
+      fail("The spec folder changed on disk. Reload it before approving.", 409);
+    const extraction = input.extractionId
+      ? getExtraction(this.store, input.extractionId)
+      : null;
+    // Every spec file and the manifest at the approved hash (§4.9): a
+    // match refuses approval and opens a decision; an allowance for the
+    // exact content passes once.
+    if (plan.spec && !extraction) {
+      const spec = { ...this.readSpec(plan.spec), files: plan.files || {} },
+        content = enforceSpec(this.store, spec, { mode: "decide" });
+      queueNotifications(this.store, content.notify);
+      if (!content.ok) {
+        const first = this.withContentDiagnostics(
+          { diagnostics: [], counts: {} },
+          spec,
+        ).diagnostics[0];
+        fail(
+          `Resolve plan diagnostic ${first?.code || "content.match"} before approval: ${first?.message || "a content rule blocks this plan."}`,
+          409,
+        );
+      }
+    }
+    const specQuality =
+        plan.spec && !extraction
+          ? this.lintSpecPlan(plan, retitledInput(input.retitled), {
+              content: false,
+            })
+          : null,
+      proposals = extraction
+        ? proposalsFromFacts(this.store, extraction.id)
+        : specQuality?.proposals,
+      quality =
+        specQuality ||
+        lintPlan({
+          text: plan.text,
+          plan,
+          data: {
+            ...this.read(),
+            projects: this.store.list("projects"),
+            pluginIds: () => this.gatePluginIds(),
+          },
+          ...(extraction ? { proposals } : {}),
+        });
+    if (extraction && !proposals.length)
+      fail("The extraction contains no accepted task facts to approve.", 409);
+    const blocking = quality.diagnostics.find(
+      (diagnostic) => diagnostic.severity === "error",
+    );
+    if (blocking)
+      fail(
+        `Resolve plan diagnostic ${blocking.code} before approval: ${blocking.message}`,
+        409,
+      );
+    return { plan, extraction, specQuality, proposals, quality };
+  }
   planApproved(plan) {
     return this.store
       .list("approvals")
@@ -5548,73 +5676,12 @@ export class Operations {
       };
     }
     if (name === "plan.approve") {
-      const plan = store.get("plans", input.id);
-      if (!plan) fail("Plan not found.", 404);
-      // New tasks from an archived plan would start; unarchive it first.
-      if (plan.archivedAt)
-        fail("This spec is archived. Unarchive it before approving.", 409);
-      if (plan.hash !== input.expectedHash)
-        fail("The reviewed document hash changed.", 409);
-      // Approval is of the stored revision, and only while the folder on
-      // disk still matches it.
-      if (plan.spec && this.readSpec(plan.spec).hash !== plan.hash)
-        fail(
-          "The spec folder changed on disk. Reload it before approving.",
-          409,
-        );
-      const extraction = input.extractionId
-        ? getExtraction(store, input.extractionId)
-        : null;
-      // Every spec file and the manifest at the approved hash (§4.9): a
-      // match refuses approval and opens a decision; an allowance for the
-      // exact content passes once.
-      if (plan.spec && !extraction) {
-        const spec = { ...this.readSpec(plan.spec), files: plan.files || {} },
-          content = enforceSpec(store, spec, { mode: "decide" });
-        queueNotifications(store, content.notify);
-        if (!content.ok) {
-          const first = this.withContentDiagnostics(
-            { diagnostics: [], counts: {} },
-            spec,
-          ).diagnostics[0];
-          fail(
-            `Resolve plan diagnostic ${first?.code || "content.match"} before approval: ${first?.message || "a content rule blocks this plan."}`,
-            409,
-          );
-        }
-      }
-      const specQuality =
+      const { plan, extraction, specQuality, proposals, quality } =
+        this.approvalChecks(input);
+      let approver =
           plan.spec && !extraction
-            ? this.lintSpecPlan(plan, retitledInput(input.retitled), {
-                content: false,
-              })
-            : null,
-        proposals = extraction
-          ? proposalsFromFacts(store, extraction.id)
-          : specQuality?.proposals,
-        quality =
-          specQuality ||
-          lintPlan({
-            text: plan.text,
-            plan,
-            data: {
-              ...this.read(),
-              projects: store.list("projects"),
-              pluginIds: () => this.gatePluginIds(),
-            },
-            ...(extraction ? { proposals } : {}),
-          });
-      if (extraction && !proposals.length)
-        fail("The extraction contains no accepted task facts to approve.", 409);
-      const blocking = quality.diagnostics.find(
-        (diagnostic) => diagnostic.severity === "error",
-      );
-      if (blocking)
-        fail(
-          `Resolve plan diagnostic ${blocking.code} before approval: ${blocking.message}`,
-          409,
-        );
-      let approver = input.approvedBy?.trim() || this.operator,
+            ? await this.specApprover(plan, input.approvedBy)
+            : input.approvedBy?.trim() || this.operator,
         evidence = input.evidence;
       if (plan.spec && !extraction) {
         const gate = await this.approvalPullRequest(plan, {
@@ -5662,6 +5729,9 @@ export class Operations {
         });
       return approved;
     }
+    // Several specs at once, all or none (approval-batches.mjs).
+    if (name === "plan.approveMany") return approveMany(this, input);
+    if (name === "plan.approvalBatches") return approvalBatches(this, input);
     if (name === "plan.extract.get")
       return getExtraction(store, input.id || input.extractionId);
     if (name === "plan.extraction.submit") {

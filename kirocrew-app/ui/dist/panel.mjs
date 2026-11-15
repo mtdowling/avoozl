@@ -1703,6 +1703,9 @@ function tn(e) {
 		}),
 		languages: (e) => t(e, "highlight.languages"),
 		projection: (e, n) => t(e, "github.project.preview", { planId: n }),
+		batches: (e) => t(e, "plan.approvalBatches"),
+		selection: (e, n) => t(e, "plan.approvalBatches", { ids: n }).then((e) => e.selection),
+		approveMany: (e, n) => t(e, "plan.approveMany", { items: n }),
 		approve: async (e, r, i) => {
 			let { reviewedHash: a, expectedRevision: o } = await n(e, r);
 			if (a !== i) throw Error("This revision changed. Reload it before approving.");
