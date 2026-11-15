@@ -365,6 +365,7 @@ async function checkCommit(read, home, marker) {
 // when one issue carries tasks with different acceptance.
 function buildBrief(marker, body, tasksText) {
   const items = specItems(marker.spec, tasksText),
+    section = parseManagedSection(body),
     references = {};
   for (const id of marker.tasks) {
     const title = items.find((item) => item.id === id)?.title ?? "",
@@ -380,7 +381,8 @@ function buildBrief(marker, body, tasksText) {
     spec: marker.spec,
     commit: marker.commit,
     taskIds: marker.tasks,
-    acceptance: parseManagedSection(body).acceptance,
+    acceptance: section.acceptance,
+    rules: section.rules,
     references,
   };
 }
