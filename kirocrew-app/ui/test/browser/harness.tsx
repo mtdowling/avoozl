@@ -427,7 +427,8 @@ answer('untriaged.view', () => ({
 
 function DeepLinkPage() {
   return (
-    <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, background: 'var(--bg)', color: 'var(--text)' }}>
+    // As tall as the screen, so the page's content pane scrolls on its own, as it does in the host.
+    <div {...{ [APP_ATTR]: '' }} style={{ padding: 16, height: '100vh', boxSizing: 'border-box', background: 'var(--bg)', color: 'var(--text)' }}>
       <AvoozlApp />
     </div>
   )

@@ -74,6 +74,8 @@ import { errorMessage, workspaceClient, type Repository, type WorkspaceList } fr
 import { Fold } from './controls.tsx'
 import { AskForHelp, DangerBtn, IconLabel, SectionHeading, TipBtn, ViewHeading, dangerStyle } from './controls.tsx'
 import { ChevronRight, Plus, Trash2 } from './icons.ts'
+import { useListDetail } from './list-detail.ts'
+import { DetailPane } from './ListDetail.tsx'
 import { redirectSettings } from './nav-api.ts'
 import { linkHref } from './views-api.ts'
 import { ThisComputer } from './Driver.tsx'
@@ -1584,56 +1586,81 @@ export default function SettingsView(props: {
   const choose = (next: SettingsTab) => (props.onTab ? props.onTab(next) : setOwn(next))
   const [shelf, setShelf] = useState<SettingsTab | null>(null)
   const shelfLabel = SETTINGS_TABS.find((t) => t.key === shelf)?.label ?? ''
+  // A phone shows the section list or one section, never both. Picking a
+  // section, or an outside link to one, opens it.
+  const ld = useListDetail(tab !== SETTINGS_HOME)
+  const { openDetail } = ld
+  const firstTab = useRef(true)
+  useEffect(() => {
+    if (firstTab.current) firstTab.current = false
+    else openDetail()
+  }, [props.tab, openDetail])
+  const pick = (next: SettingsTab) => {
+    choose(next)
+    openDetail()
+  }
+  const renderBody = (section: (typeof SETTINGS_TABS)[number]) => (
+    <div className="flex flex-col gap-3 pb-4" data-settings-body={section.key}>
+      {section.key !== 'github' && (
+        <p className="text-sm text-muted" data-blurb={section.key}>
+          {SETTINGS_BLURBS[section.key]}
+        </p>
+      )}
+      {SHELF_SECTIONS.includes(section.key) ? (
+        <div>
+          <Btn type="button" onClick={() => setShelf(section.key)} data-open-shelf={section.key} aria-haspopup="dialog">
+            Configure {section.label.toLowerCase()}
+          </Btn>
+        </div>
+      ) : (
+        <TabBoundary key={section.key} label={section.label}>
+          <SettingsBody tab={section.key} workspaceId={workspaceId} onTab={pick} onSelectWorkspace={props.onSelectWorkspace} onListChange={props.onListChange} onOpenPlans={props.onOpenPlans} />
+        </TabBoundary>
+      )}
+    </div>
+  )
+  const current = SETTINGS_TABS.find((t) => t.key === tab) ?? SETTINGS_TABS[0]
   return (
     <section aria-labelledby="avoozl-settings-title" className="flex flex-col gap-3.5">
-      <ViewHeading id="avoozl-settings-title" view="settings">
-        Settings
-      </ViewHeading>
-      <p className="text-sm text-muted">The configuration hub. One section is open at a time. Each saved change shows what it writes first.</p>
-      <RetiredBanner workspaceId={workspaceId} onOpen={() => choose('repositories')} />
-      <div className="flex flex-col" data-settings-accordion>
-        {SETTINGS_TABS.map((section) => {
-          const open = section.key === tab
-          return (
-            <section key={section.key} data-settings-section={section.key} data-open={open} className="border-t" style={{ borderColor: 'var(--border)' }}>
-              <h3 className="m-0">
-                <button
-                  type="button"
-                  aria-expanded={open}
-                  onClick={() => choose(section.key)}
-                  className="flex w-full items-center gap-2 py-2.5 text-left text-sm font-semibold"
-                  style={{ cursor: 'pointer', background: 'none', border: 0, color: 'inherit' }}
-                >
-                  <span aria-hidden="true" style={{ display: 'inline-flex', transform: open ? 'rotate(90deg)' : 'none' }}>
-                    <ChevronRight size={14} />
-                  </span>
-                  {section.label}
-                </button>
-              </h3>
-              {open && (
-                <div className="flex flex-col gap-3 pb-4" data-settings-body={section.key}>
-                  {section.key !== 'github' && (
-                    <p className="text-sm text-muted" data-blurb={section.key}>
-                      {SETTINGS_BLURBS[section.key]}
-                    </p>
-                  )}
-                  {SHELF_SECTIONS.includes(section.key) ? (
-                    <div>
-                      <Btn type="button" onClick={() => setShelf(section.key)} data-open-shelf={section.key} aria-haspopup="dialog">
-                        Configure {section.label.toLowerCase()}
-                      </Btn>
-                    </div>
-                  ) : (
-                  <TabBoundary key={section.key} label={section.label}>
-                    <SettingsBody tab={section.key} workspaceId={workspaceId} onTab={choose} onSelectWorkspace={props.onSelectWorkspace} onListChange={props.onListChange} onOpenPlans={props.onOpenPlans} />
-                  </TabBoundary>
-                  )}
-                </div>
-              )}
-            </section>
-          )
-        })}
-      </div>
+      {ld.phone && ld.showDetail ? (
+        <section data-settings-section={current.key} data-open="true">
+          <DetailPane backLabel="Settings" onBack={ld.closeDetail} title={current.label}>
+            {renderBody(current)}
+          </DetailPane>
+        </section>
+      ) : (
+        <>
+          <ViewHeading id="avoozl-settings-title" view="settings">
+            Settings
+          </ViewHeading>
+          <p className="text-sm text-muted">The configuration hub. One section is open at a time. Each saved change shows what it writes first.</p>
+          <RetiredBanner workspaceId={workspaceId} onOpen={() => pick('repositories')} />
+          <div className="flex flex-col" data-settings-accordion>
+            {SETTINGS_TABS.map((section) => {
+              const open = !ld.phone && section.key === tab
+              return (
+                <section key={section.key} data-settings-section={section.key} data-open={open} className="border-t" style={{ borderColor: 'var(--border)' }}>
+                  <h3 className="m-0">
+                    <button
+                      type="button"
+                      aria-expanded={open}
+                      onClick={() => pick(section.key)}
+                      className="flex w-full items-center gap-2 py-2.5 text-left text-sm font-semibold"
+                      style={{ cursor: 'pointer', background: 'none', border: 0, color: 'inherit', minHeight: ld.phone ? 48 : undefined }}
+                    >
+                      <span aria-hidden="true" style={{ display: 'inline-flex', transform: open ? 'rotate(90deg)' : 'none' }}>
+                        <ChevronRight size={14} />
+                      </span>
+                      {section.label}
+                    </button>
+                  </h3>
+                  {open && renderBody(section)}
+                </section>
+              )
+            })}
+          </div>
+        </>
+      )}
       {shelf && (
         <Shelf id={`avoozl-settings-${shelf}`} title={shelfLabel} width="46rem" backLabel="Close the settings shelf" attrs={{ 'data-settings-shelf': shelf }} onDismiss={() => setShelf(null)}>
           <div className="flex flex-col gap-3">
