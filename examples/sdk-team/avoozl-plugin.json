@@ -1,0 +1,7 @@
+{
+  "id": "sdk-team",
+  "version": "1.0.0",
+  "contract": 1,
+  "provides": ["pack"],
+  "pack": "avoozl-pack.json"
+}
