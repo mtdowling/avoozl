@@ -774,16 +774,23 @@ export class GitHubClient {
 
   // One content write. With `parentIssueId` (the parent's node ID) the issue
   // is made under its parent in the same GraphQL mutation, so it needs no
-  // addSubIssue call after. An issue type has no node ID here, so a create
-  // with `type` goes by REST and the caller links it.
+  // addSubIssue call after; a `type` name goes in as its issueTypeId. With
+  // neither, REST makes it the same way as before.
   async createIssue(value, input) {
     const { owner, repo } =
         typeof value === "string" ? parseRepository(value) : value,
       { parentIssueId, ...rest } = input;
-    if (!parentIssueId || rest.type)
+    if (!parentIssueId && !rest.type)
       return this.request("POST", `/repos/${owner}/${repo}/issues`, {
         body: rest,
       });
+    const typeId = rest.type
+      ? (await this.listIssueTypes(owner)).find(
+          (entry) => entry.name === rest.type,
+        )?.node_id
+      : null;
+    if (rest.type && !typeId)
+      fail(`${owner} has no ${rest.type} issue type.`, 409);
     const [repository, labels, assignees] = await Promise.all([
         this.repository({ owner, repo }),
         Promise.all(
@@ -804,7 +811,8 @@ export class GitHubClient {
             repositoryId: repository.node_id,
             title: rest.title,
             body: rest.body,
-            parentIssueId,
+            ...(parentIssueId ? { parentIssueId } : {}),
+            ...(typeId ? { issueTypeId: typeId } : {}),
             ...(labels.length
               ? { labelIds: labels.map((l) => l.node_id) }
               : {}),
@@ -829,6 +837,7 @@ export class GitHubClient {
       labels: issue.labels.nodes,
       assignees: issue.assignees.nodes,
       sub_issues_summary: { total: issue.subIssuesSummary?.total ?? 0 },
+      ...(rest.type ? { type: { name: rest.type } } : {}),
     };
   }
 

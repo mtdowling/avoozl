@@ -534,12 +534,15 @@ six things about it:
   the primary limit is left. A projection that reaches the hour cap stops, keeps
   a run record, and the tick carries on when the window opens. It finds what it
   already made by the marker in each issue, so a stop or a crash makes no
-  duplicate. A new issue takes one request: GraphQL `createIssue` carries the
-  labels, the body, the marker and its parent, and parents are made first, so
-  no separate sub-issue call follows. `addSubIssue` is only for issues that
-  already exist. Blocked-by links use `addBlockedBy`. Each mutation counts as
-  one write against the limits. Avoozl does not batch mutations into one
-  request. The preview shows the write
+  duplicate. Issues are made in graph order: a parent before its children and
+  a blocker before the tasks it blocks (a cycle fails the preview). Each
+  GraphQL `createIssue` carries everything known then: title, body (with the
+  issue numbers of its blockers and parent), marker, labels, issue type and
+  parent. A fresh projection edits no issue after it is made. The only writes
+  after are one `addBlockedBy` per dependency, since `createIssue` cannot take
+  one. `addSubIssue` is only for issues that already exist. Each mutation
+  counts as one write against the limits; Avoozl does not batch mutations into
+  one request. The preview shows the write
   count and how long it takes at this pace. Settings > Where tasks live and
   Needs you show `312 of 1,740 writes, resumes at 14:00`.
 - **Conditional reads.** Every REST GET stores GitHub's `ETag` and

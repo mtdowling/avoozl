@@ -110,6 +110,7 @@ function managedSection(
   shown = [],
   waitsPrivate = false,
   rules = [],
+  parentRef = null,
 ) {
   const list = [
       ...requires.map((id) => `- ${id}`),
@@ -119,7 +120,7 @@ function managedSection(
     ruleLines = rules.map(agentRuleLine).join("\n");
   return `<!-- avoozl:managed:start -->
 This issue is projected from approved design \`${plan.id}\` at \`${plan.hash.slice(0, 12)}\`.
-${task.phase ? `\nPhase: ${task.phase.title}\n` : ""}
+${task.phase ? `\nPhase: ${task.phase.title}\n` : ""}${parentRef ? `\nParent: ${parentRef}\n` : ""}
 ${task.summary || task.nextAction || ""}
 
 ## Acceptance criteria
@@ -1271,10 +1272,31 @@ async function project(
   for (const item of items)
     for (const member of item.memberTasks?.slice(1) ?? [])
       byTask.set(member.id, item);
-  for (const item of items) {
-    const { task } = item,
-      members = item.memberTasks || [task],
-      inside = new Set(members.map((member) => member.id)),
+  // How a body names another task's issue: `#N`, and only when that issue
+  // exists in the same repository, so a plans repository's name never lands
+  // in a code repository's body. Called again when an issue is created, so a
+  // new issue links the blockers and parent made before it.
+  const issueRef = (config, id) => {
+    const found = byTask.get(leadOf.get(id) ?? id),
+      issue = found?.issue ?? found?.current;
+    return issue && found.config.id === config.id ? `#${issue.number}` : null;
+  };
+  // A package waits on its own children (it is done when they are), the
+  // opposite way to the order they are made in. Those links are made after
+  // the children exist, and a body does not name them, so it stays the same
+  // from the first projection to the next.
+  const parentOf = new Map(
+      tasks.map((candidate) => [candidate.id, candidate.parent]),
+    ),
+    below = (id, ancestor) => {
+      for (let at = parentOf.get(id), hops = 0; at && hops < 50; hops += 1) {
+        if (at === ancestor) return true;
+        at = parentOf.get(at);
+      }
+      return false;
+    };
+  const buildSection = (item) => {
+    const members = item.memberTasks || [item.task],
       blocking = (member) =>
         data.edges.filter(
           (edge) => edge.to === member.id && edge.kind === "requires",
@@ -1286,7 +1308,13 @@ async function project(
           plan,
           blocking(member)
             .map((edge) => edge.from)
-            .filter((id) => !hidden.has(id)),
+            .filter((id) => !hidden.has(id))
+            .map((id) => {
+              const ref = below(id, member.id)
+                ? null
+                : issueRef(item.config, id);
+              return ref ? `${id} (${ref})` : id;
+            }),
           blockerNotes(
             hidden.size
               ? {
@@ -1304,14 +1332,21 @@ async function project(
           )
             ? crewAgentInstructions(data, member)
             : [],
+          member.parent && !hidden.has(member.parent)
+            ? issueRef(item.config, member.parent)
+            : null,
         ),
       }));
+    return item.memberTasks ? batchSection(plan, parts) : parts[0].section;
+  };
+  for (const item of items) {
+    const { task } = item,
+      members = item.memberTasks || [task],
+      inside = new Set(members.map((member) => member.id));
     item.title = item.memberTasks
       ? `Batch of ${members.length}: ${members.map((member) => member.id).join(", ")}`
       : task.title;
-    item.section = item.memberTasks
-      ? batchSection(plan, parts)
-      : parts[0].section;
+    item.section = buildSection(item);
     // A dependent of a member waits on the batch issue, once.
     item.blockerTasks = [
       ...new Set(
@@ -1383,6 +1418,58 @@ async function project(
   };
   const blockerRepository = (id) =>
     (byTask.get(id) || external.get(id)).config.id;
+
+  // One order for every create: a parent before its children and a blocker
+  // before the tasks it blocks, so each issue is made with everything it
+  // links to already on GitHub and is never edited after. A cycle in the
+  // combined graph has no such order, and is refused before anything is
+  // written (a preview fails the same way).
+  const created = (() => {
+    const lead = (id) => byTask.get(id),
+      after = new Map(items.map((item) => [item, new Set()])),
+      waits = new Map(items.map((item) => [item, 0]));
+    for (const item of items) {
+      const before = new Set(
+        [
+          item.task.parent,
+          ...item.blockerTasks.filter(
+            (id) =>
+              !(item.memberTasks || [item.task]).some((member) =>
+                below(id, member.id),
+              ),
+          ),
+        ]
+          .filter(Boolean)
+          .map(lead)
+          .filter((other) => other && other !== item),
+      );
+      for (const other of before) {
+        after.get(other).add(item);
+        waits.set(item, waits.get(item) + 1);
+      }
+    }
+    const order = [],
+      ready = items.filter((item) => !waits.get(item));
+    while (ready.length) {
+      const item = ready.shift();
+      order.push(item);
+      for (const next of after.get(item)) {
+        waits.set(next, waits.get(next) - 1);
+        if (!waits.get(next)) ready.push(next);
+      }
+    }
+    if (order.length < items.length)
+      fail(
+        `The task graph has a cycle through ${items
+          .filter((item) => !order.includes(item))
+          .map((item) => item.task.id)
+          .join(
+            ", ",
+          )}: parents and blockers must come before the tasks they hold up.`,
+        409,
+      );
+    return order;
+  })();
 
   // 2. Managed-field conflicts against the marker's baselines (R15).
   for (const item of items) {
@@ -1697,18 +1784,7 @@ async function project(
       repository,
       remaining: estimateWrites(items),
     });
-  // Packages before their children, so a child can be made under its parent.
-  const depth = (item) => {
-      let levels = 0;
-      for (
-        let at = item;
-        at?.task.parent && levels < 10;
-        at = byTask.get(at.task.parent)
-      )
-        levels += 1;
-      return levels;
-    },
-    subCap = identity.maxPerParent ?? 100,
+  const subCap = identity.maxPerParent ?? 100,
     madeUnder = new Map(),
     // The parent a new issue is made under: the same pick and limits as the
     // linking step below, which links only what this leaves out.
@@ -1726,7 +1802,7 @@ async function project(
       madeUnder.set(id, (madeUnder.get(id) || 0) + 1);
       return parent.issue.node_id || null;
     };
-  for (const item of [...items].sort((a, b) => depth(a) - depth(b))) {
+  for (const item of created) {
     if (item.skip) continue;
     try {
       await writeIssue(item);
@@ -1744,12 +1820,14 @@ async function project(
       ids = (item.memberTasks || [task]).map((member) => member.id),
       type = null;
     if (!current) {
-      // A leaf that is ready now and waits on no blocker link gets its ready
-      // label in the create call, which saves the separate label write. Only
-      // for the coders whose hand-over is that label (adapter: no-op if set).
+      // The create call carries everything known now, so nothing is edited
+      // after it: the body links the blockers and parent made before this
+      // issue (the order guarantees they exist), the marker records the
+      // blockers it is about to link, and a ready leaf has its ready label.
+      // Only for the coders whose hand-over is that label (no-op if set).
+      item.section = buildSection(item);
       const withReady =
           ready.has(task.id) &&
-          !item.blockerTasks.length &&
           ["issue-radar", "remote"].includes(
             identity.repositories?.[config.id]?.coder ??
               (identity.mode === "single-repo" ? "issue-radar" : "worker"),
@@ -1761,7 +1839,13 @@ async function project(
           title: digest(item.title),
           body: digest(item.section),
           labels: labelSet,
-          blockers: [],
+          // The blockers made before this issue; a package's own children
+          // are linked after they exist (see `below`).
+          blockers: item.blockerTasks
+            .filter((id) => !below(id, task.id))
+            .map((id) => blockerRef(id)?.node_id)
+            .filter(Boolean)
+            .sort(),
         };
       const parentNode = parentFor(item);
       item.issue = await github.createIssue(config, {
