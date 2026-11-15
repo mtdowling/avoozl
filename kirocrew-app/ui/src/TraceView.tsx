@@ -164,7 +164,7 @@ export function TraceStart({ onPick }: { onPick?: (target: TraceTarget) => void 
           <span>Issue</span>
           <Input value={text} placeholder="owner/repo#52" onChange={(event) => setText(event.target.value)} style={{ minWidth: '16rem' }} />
         </label>
-        <Btn type="submit" primary disabled={!target}>
+        <Btn type="submit" primary disabled={!target} style={{ alignSelf: "flex-end", height: "auto" }}>
           Open trace
         </Btn>
       </form>
