@@ -1202,6 +1202,8 @@ export function createSpecPlan(store, { id, prompt, context = {} }, spec) {
         id,
         kind: "plan",
         spec: spec.name,
+        ...(spec.home ? { home: spec.home } : {}),
+        ...(spec.ref ? { ref: spec.ref } : {}),
         title: specTitle(spec),
         prompt: prompt?.trim() || `Spec ${spec.name}`,
         text: spec.files["tasks.md"] || "",
@@ -1229,6 +1231,23 @@ export function saveSpecPlan(store, { id, expectedHash }, spec) {
     if (!plan || plan.deletedAt) fail("Plan not found.", 404);
     if (plan.hash !== expectedHash)
       fail("This draft changed. Reload before saving.", 409);
+    if (spec.home && (plan.home !== spec.home || plan.ref !== spec.ref)) {
+      if (
+        plan.home &&
+        spec.hash === plan.hash &&
+        store
+          .list("approvals")
+          .some((a) => a.planId === id && a.hash === plan.hash)
+      )
+        fail(
+          "Moving an approved spec to another home requires a changed revision and new approval.",
+          409,
+        );
+      plan.home = spec.home;
+      if (spec.ref) plan.ref = spec.ref;
+      else delete plan.ref;
+      store.put("plans", plan);
+    }
     if (spec.hash === plan.hash) return plan;
     return writeRevision(
       store,

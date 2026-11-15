@@ -30,6 +30,8 @@ const VALUES = {
   plans: (v) => REPOSITORY.test(v) && !v.includes(".."),
   // The epic's integration branch (RC16.2); absent for an ordinary issue.
   base: (v) => branchNameProblem(v) === null,
+  // The orphan branch containing a private spec (RC25.3).
+  ref: (v) => branchNameProblem(v) === null,
 };
 
 const bad = (key) => ({
@@ -100,7 +102,7 @@ export function parseProvenance(body) {
           message: `The provenance marker has no ${key}.`,
         },
       };
-  for (const key of [...REQUIRED, "plans", "base"])
+  for (const key of [...REQUIRED, "plans", "base", "ref"])
     if (fields.has(key) && !checkValue(key, fields.get(key)))
       return { marker: null, problem: bad(key) };
   const marker = {
@@ -111,6 +113,7 @@ export function parseProvenance(body) {
   };
   if (fields.has("plans")) marker.plans = fields.get("plans");
   if (fields.has("base")) marker.base = fields.get("base");
+  if (fields.has("ref")) marker.ref = fields.get("ref");
   return { marker, problem: null };
 }
 
@@ -122,6 +125,7 @@ export function renderProvenance({
   approvedBy,
   plans,
   base,
+  ref,
 }) {
   const pairs = [
     ["spec", spec],
@@ -131,6 +135,7 @@ export function renderProvenance({
   ];
   if (plans !== undefined) pairs.push(["plans", plans]);
   if (base !== undefined) pairs.push(["base", base]);
+  if (ref !== undefined) pairs.push(["ref", ref]);
   for (const [key, value] of pairs)
     if (typeof value !== "string" || !checkValue(key, value))
       fail(`Invalid provenance marker: ${key}.`, 422);
