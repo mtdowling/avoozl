@@ -273,3 +273,53 @@ test("through MCP the result is the same object, and a bad reference is an error
   );
   assert.equal(reply.body.result.isError, true);
 });
+
+test(
+  "private plans --json gives fetch/show commands without adding spec text to plain output",
+  { skip: windows },
+  () => {
+    const answers = good(),
+      ref = "private-plans";
+    answers[`repos/${REPO}/issues/5`][1].body =
+      TEXT +
+      "\n" +
+      renderProvenance({
+        spec: "s1",
+        tasks: ["t-1"],
+        commit,
+        approvedBy: "octocat",
+        ref,
+      });
+    answers[`repos/${REPO}/branches/${ref}`] = [200, { name: ref }];
+    answers[`repos/${REPO}/compare/main...${ref}`] = [
+      404,
+      { message: `No common ancestor between main and ${ref}.` },
+    ];
+    answers[`repos/${REPO}/compare/${ref}...${commit}`] = [
+      200,
+      { status: "behind" },
+    ];
+    const json = run(
+      temporaryDirectory("avoozl-verify-private-"),
+      ["verify-issue", `${REPO}#5`, "--json"],
+      { answers },
+    );
+    assert.equal(json.status, 0, json.stderr);
+    const result = JSON.parse(json.stdout);
+    assert.equal(result.ref, ref);
+    assert.equal(
+      result.source.fetch,
+      `git fetch https://github.com/${REPO}.git refs/heads/private-plans`,
+    );
+    assert.ok(
+      result.source.show.includes(`git show ${commit}:.kiro/specs/s1/tasks.md`),
+    );
+    const plain = run(
+      temporaryDirectory("avoozl-verify-private-"),
+      ["verify-issue", `${REPO}#5`],
+      { answers },
+    );
+    assert.equal(plain.status, 0, plain.stderr);
+    assert.doesNotMatch(plain.stdout, /\.kiro\/specs|git fetch|DO-NOT-ECHO/);
+  },
+);

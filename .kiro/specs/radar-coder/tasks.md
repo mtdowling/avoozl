@@ -539,13 +539,13 @@ Requirement RC25. Private plans live on an orphan branch of the mirror and never
 - [x] rc-24.2 Spec home, reading both homes, Specs badge, after rc-24.1 [RC25.2, RC25.8] (§D30)
   - Each spec records `main` or `plansBranch`; one reader reads both on every tick into one graph; a spec name or task ID in both is refused; new specs start private; a move copies and never deletes; the Specs page shows Private or Public.
   - Done when: Unit tests for both homes read in one tick and the duplicate name or ID; a page test shows both badges; `npm test` and `npm run test:ui` pass.
-- [ ] rc-24.3 Marker `ref`, approval on the plans branch, `verify-issue` and crew commands, after rc-24.2, rc-3.3, rc-3.6, rc-3.2 [RC25.3, RC25.4, RC25.5] (§D30)
+- [x] rc-24.3 Marker `ref`, approval on the plans branch, `verify-issue` and crew commands, after rc-24.2, rc-3.3, rc-3.6, rc-3.2 [RC25.3, RC25.4, RC25.5] (§D30)
   - Marker writer and parser gain `ref`; approval of a private spec opens its pull request against `plansBranch`; `commit` check uses `<ref>...<commit>` and requires an orphan branch; `--json` prints the fetch and show commands; the one-line prompt is unchanged.
   - Done when: Tests: a private spec's issue passes; a `ref` that is the default branch, missing, or shares history fails with the reason; the prompt text equals the shipped one.
-- [ ] rc-24.4 Containment: sync, forward, leak scan, explicit refspecs, after rc-24.1, rc-23.4 [RC25.6] (§D30)
+- [x] rc-24.4 Containment: sync, forward, leak scan, explicit refspecs, after rc-24.1, rc-23.4 [RC25.6] (§D30)
   - Sync names the default branch only; the forward clone is single-branch; the leak scan blocks the plans branch name, private spec paths and commits from it in any forward text; every push has one explicit refspec and no `--mirror`, `--all`, `--tags` or wildcard.
   - Done when: Tests: a planted plans-branch name or path blocks the push with one row naming the rule; the sync leaves the `plansBranch` head unchanged; a test scans Avoozl's push calls and finds no banned flag.
-- [ ] rc-24.5 Issues from public and private plans, with edges across homes, after rc-24.3 [RC25.7, RC25.8, RC25.9, RC25.10] (§D30)
+- [x] rc-24.5 Issues from public and private plans, with edges across homes, after rc-24.3 [RC25.7, RC25.8, RC25.9, RC25.10] (§D30)
   - Private-plan issues stay in the mirror and never go to the source; public-plan issue bodies stand alone with no private text and no `plansBranch`; both homes project into the same mirror and release under the same rules; a `requires` edge across homes is allowed both ways, and a public-safe body says only `Waits on a private task.`
   - Done when: A fake GitHub test: both kinds of issue are written; no write reaches the source for a private plan; a public task waits on a private one and the reverse, each releases on its blocker's own rule, and the public body holds no private title, text, ID or link.
 - [ ] rc-p24 Proof 24: a public and a private plan in one mirror, after rc-24.1, rc-24.2, rc-24.3, rc-24.4, rc-24.5, rc-p23 [RC25] (§D17)
@@ -568,13 +568,13 @@ Requirement RC26. Where each mirror change lands on the public repository, and t
 - [x] rc-25.4 Forward screen shows the exact public diff, title and body; receipt, after rc-25.3, rc-23.4 [RC26.5] (§D31.2, §D31.3)
   - The push happens only when the hash matches what was shown; `auto` writes the receipt (diff, title, body, hash, target, person, time) before the push; test 4.
   - Done when: A change after display forces a new display; an `auto` forward leaves the receipt before the push call.
-- [ ] rc-25.5 Block with one row and no retry; Stop the line stops forwarding; explicit refspecs, after rc-25.3, rc-4.2 [RC26.5, RC26.6] (§D31.2)
+- [x] rc-25.5 Block with one row and no retry; Stop the line stops forwarding; explicit refspecs, after rc-25.3, rc-4.2 [RC26.5, RC26.6] (§D31.2)
   - `forwardGuard` runs 1 to 4 in order and returns the first block; one Needs you row naming the rule; no automatic retry; **Try again** re-runs everything; an open Stop the line disables forwarding in every mode; every push has one explicit refspec; tests 5, 7 and 8.
   - Done when: A block gives one row across three ticks and zero retries; a scan of push calls finds no banned form; with a stop open, `auto` pushes nothing.
-- [ ] rc-25.6 Audit on the tick of what landed on the source, after rc-25.4 [RC26.5] (§D31.2)
+- [x] rc-25.6 Audit on the tick of what landed on the source, after rc-25.4 [RC26.5] (§D31.2)
   - Compares each record's receipt with what GitHub reports on `source`; a difference opens one row and a Stop the line for forwarding; test 6.
   - Done when: A fake source with an extra file, another author or a ref named for the plans branch gives one row and a stop.
-- [ ] rc-25.7 Targets `branch` and `batch`: public branch copy, epic batch, one public PR, after rc-25.1, rc-25.5, rc-23.5 [RC26.3, RC26.4] (§D31.1)
+- [x] rc-25.7 Targets `branch` and `batch`: public branch copy, epic batch, one public PR, after rc-25.1, rc-25.5, rc-23.5 [RC26.3, RC26.4] (§D31.1)
   - The sync step also fast-forwards the copy of `publicBranch`; a `batch` epic builds one net-diff commit at epic done, runs every protection, opens one public PR; dependents inside the epic release on the mirror merge, outside it on the public merge; the public branch's landing in the default branch is a Needs you row and never an Avoozl merge.
   - Done when: Fake GitHub tests: each target opens the right PR against the right base; a `batch` epic opens exactly one PR; no call merges the public branch into the default branch.
 - [ ] rc-p25 Proof 25: forward targets and protections on scratch repositories, after rc-25.1, rc-25.2, rc-25.3, rc-25.4, rc-25.5, rc-25.6, rc-25.7, rc-p23 [RC26] (§D17)
@@ -624,3 +624,20 @@ Requirement RC28. One resolver chat merges the base into a crew's conflicted pul
 - [ ] rc-p27 Proof 27: a scratch crew pull request with a source conflict, after rc-27.1, rc-27.2, rc-27.3, rc-27.4, rc-27.5 [RC28] (§D17)
   - Setup: a scratch repository created only for the proof. Action: plant a source conflict on a crew pull request. Expected: one merge commit on the same branch keeps both sides, the pull request is armed again (squash) and lands as one commit, and gets one comment; a planted drop gives one row and no push. Failure means: a change on main can be lost without a word. Next decision: set `conflicts.onSourceConflict` to `ask`. List the scratch repository in the receipt for the owner to delete.
   - Done when: Expected result observed; receipt under `docs/evidence/` lists the scratch repository.
+
+## Phase 28: GitHub usage counter and batched reads
+
+Requirement RC29. Count every call by source, and read each repository once.
+
+- [x] rc-28.1 Call counter by source, `bin/gh-counted`, and the usage in the rate view [RC29.1, RC29.2] (§D34)
+  - Tests first: calls, 304s and cache hits are counted by source; the wrapper forwards the exit code and records its source.
+  - Done when: `src/app/test/github-usage.test.mjs` passes and `npm test` passes.
+- [x] rc-28.2 One open-pull-request query per repository for heads and closing issues [RC29.4, RC29.5] (§D34)
+  - Tests first: ten open pull requests cost one query, including closing issues, labels and checks.
+  - Done when: The test passes and `npm test` passes.
+- [x] rc-28.3 Settings > GitHub shows calls this hour by source, after rc-28.1 [RC29.3] (§D34)
+  - A small table beside the rate limit: source, calls, cached, 304; read from the rate view.
+  - Done when: A page test shows the rows; screenshots are in the pull request; `npm run test:ui` passes.
+- [ ] rc-p28 Proof 28: one check costs one call, after rc-28.1, rc-28.2, rc-28.3 [RC29] (§D17)
+  - Setup: a repository with open pull requests. Action: open Home and Graph twice inside the cache window, and run one tick. Expected: Settings > GitHub shows one GraphQL call for the pull-request read. Failure means: views still read pull requests one by one. Next decision: batch the remaining readers by hand.
+  - Done when: Expected result observed; receipt under `docs/evidence/`.

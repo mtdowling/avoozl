@@ -64,6 +64,7 @@ import {
   listSessionBindings,
   listSessionRequests,
   recordSessionStatus,
+  sessionRequestHold,
 } from "./session-bindings.mjs";
 import { workspaceRepositories } from "./workspace-repositories.mjs";
 import { queueNotifications, sessionUrl } from "./notifications.mjs";
@@ -101,6 +102,7 @@ import {
   githubGate,
   markGithubRun,
   rateLimitNotices,
+  withSource,
 } from "./github-rate.mjs";
 import { reviewDraftDispatches, reviewDraftStep } from "./review-draft.mjs";
 import { syncStep, syncTargets } from "./integration-sync.mjs";
@@ -108,6 +110,9 @@ import { mirrorSyncStep } from "./mirror-sync.mjs";
 import { publishInstanceStep } from "./instance-publish.mjs";
 import { mirrorForwardStep } from "./mirror-forward.mjs";
 import { mirrorForwardRunStep } from "./mirror-forward-run.mjs";
+import { mirrorForwardAuditStep } from "./forward-audit.mjs";
+import { publicBranchesOf } from "./forward-epics.mjs";
+import { mirrorBatchStep, publicBranchStep } from "./mirror-forward-batch.mjs";
 import { mirrorPublicPollStep } from "./mirror-forward-poll.mjs";
 import { armStep } from "./radar-arm.mjs";
 import { headStep } from "./integration-head.mjs";
@@ -409,7 +414,12 @@ function planDispatches(store, bindings) {
       continue;
     const task = data.tasks.find((t) => t.id === request.taskId),
       repository = repositories.get(request.repository);
-    if (!task || !repository?.localCheckout) continue;
+    if (
+      !task ||
+      !repository?.localCheckout ||
+      sessionRequestHold(data, task.id, request.role)
+    )
+      continue;
     const title = `avoozl:${task.id} ${task.title || ""}`.trim().slice(0, 200);
     dispatch.push({
       task: task.id,
@@ -712,7 +722,13 @@ function plansOf(store, taskIds) {
   return plans;
 }
 
-export async function tick(
+// Runs a step with its GitHub calls counted under `source`.
+const under =
+  (source, step) =>
+  (...args) =>
+    withSource(source, () => step(...args));
+
+async function runTick(
   store,
   {
     workspaceRoot,
@@ -844,32 +860,36 @@ export async function tick(
       // (RC24.4): fast-forward only, one row for a divergence.
       if (script && github)
         try {
-          const step = await mirrorSyncStep(store, github, {
-            policy: readGitHubPolicyOrNull(workspaceRoot),
-          });
+          const policy = readGitHubPolicyOrNull(workspaceRoot),
+            publicBranches = (repository, mirror) =>
+              publicBranchesOf(store, policy, repository, mirror),
+            step = await mirrorSyncStep(store, github, {
+              policy,
+              publicBranches,
+            });
           planned.notify.push(...step.notify);
           for (const text of [
             ...step.errors,
+            ...(await publishInstanceStep(store, github, { policy })).errors,
             ...(
-              await publishInstanceStep(store, github, {
-                policy: readGitHubPolicyOrNull(workspaceRoot),
+              await under("forward", mirrorForwardStep)(store, github, {
+                policy,
+                publicBranches,
+              })
+            ).errors,
+            ...(await mirrorBatchStep(store, github, { policy })).errors,
+            ...(
+              await under("forward", mirrorForwardRunStep)(store, github, {
+                policy,
               })
             ).errors,
             ...(
-              await mirrorForwardStep(store, github, {
-                policy: readGitHubPolicyOrNull(workspaceRoot),
+              await under("forward", mirrorPublicPollStep)(store, github, {
+                policy,
               })
             ).errors,
-            ...(
-              await mirrorForwardRunStep(store, github, {
-                policy: readGitHubPolicyOrNull(workspaceRoot),
-              })
-            ).errors,
-            ...(
-              await mirrorPublicPollStep(store, github, {
-                policy: readGitHubPolicyOrNull(workspaceRoot),
-              })
-            ).errors,
+            ...(await mirrorForwardAuditStep(store, github, { policy })).errors,
+            ...(await publicBranchStep(store, github, { policy })).errors,
           ])
             planned.notify.push({
               channel: "failure",
@@ -955,7 +975,10 @@ export async function tick(
       // D25), so it raises no notice each minute.
       if (script && github)
         try {
-          const step = await reviewDraftStep({
+          const step = await under(
+            "review",
+            reviewDraftStep,
+          )({
             store,
             github,
             policy: readGitHubPolicyOrNull(workspaceRoot),
@@ -1531,3 +1554,6 @@ export async function tick(
     throw error;
   }
 }
+
+export const tick = (store, options) =>
+  withSource("tick", () => runTick(store, options));

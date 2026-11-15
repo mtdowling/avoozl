@@ -5,6 +5,7 @@
 //
 // shortcut: reads one pull request at a time, three calls at most per open
 // record per tick. Upgrade to a conditional (ETag) read at many records.
+import { inBatchEpic } from "./forward-epics.mjs";
 import { noteInstances } from "./mirror-forward-run.mjs";
 
 const marker = (id) => `<!-- avoozl-review-copy ${id} -->`;
@@ -14,6 +15,9 @@ const marker = (id) => `<!-- avoozl-review-copy ${id} -->`;
 export function publicMergeReached(store, task, repo) {
   const mirror = repo?.mirror;
   if (!mirror) return true;
+  // A batch epic's task counts as done on its mirror merge, so dependents
+  // inside the epic start; the one public pull request is the epic's own.
+  if (inBatchEpic(store, mirror, task)) return true;
   const records = store
     .list("mirror_forward")
     .filter(
@@ -65,11 +69,14 @@ export async function mirrorPublicPollStep(
       const pull = await github.pullRequest(mirror.source, record.publicPr);
       noteInstances(store, pull?.body);
       record = await copyComments(store, github, record, mirror);
+      // The head the audit compares with the receipt (RC26.5.6).
+      record = { ...record, publicHead: pull?.head?.sha ?? null };
       if (pull?.merged_at) {
         record = {
           ...record,
           state: "public_merged",
           publicMergedAt: pull.merged_at,
+          publicMergeCommit: pull.merge_commit_sha ?? null,
           reason: "Merged in the public repository.",
         };
       } else if (pull?.state === "closed") {

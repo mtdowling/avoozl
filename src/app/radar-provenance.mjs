@@ -12,7 +12,9 @@ import { integrationBranchOf } from "./integration-branch.mjs";
 export function projectsMarkedIssues(identity, repository) {
   const wanted = String(repository || "").toLowerCase(),
     entry = Object.entries(identity?.repositories || {}).find(
-      ([id]) => id.toLowerCase() === wanted,
+      ([id, entry]) =>
+        id.toLowerCase() === wanted ||
+        entry.mirror?.mirror.toLowerCase() === wanted,
     );
   return ["issue-radar", "remote"].includes(entry?.[1]?.coder);
 }
@@ -27,6 +29,11 @@ export function provenanceWriter(store, { identity, plan, config, plans }) {
   if (!projectsMarkedIssues(identity, config.id) || !plan.spec) return null;
   const approval = approvalState(store, plan.id, plan.hash);
   if (approval?.state !== "merged") return null;
+  if (plan.home === "plansBranch") {
+    const expectedRef = plan.ref ?? plan.plansRef;
+    if (!approval.ref || (expectedRef && approval.ref !== expectedRef))
+      return null;
+  } else if (approval.ref) return null;
   // The epic's integration branch is the base of every task pull request
   // (RC16.2): named in the marker and in one visible line.
   const base = integrationBranchOf(store, plan);
@@ -38,6 +45,7 @@ export function provenanceWriter(store, { identity, plan, config, plans }) {
       approvedBy: approval.approvedBy,
       ...(plans ? { plans } : {}),
       ...(base ? { base } : {}),
+      ...(approval.ref ? { ref: approval.ref } : {}),
     }) +
     (base
       ? `\nBase branch: \`${base}\`. Open the pull request against it.`

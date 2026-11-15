@@ -98,7 +98,7 @@ export function scratch(t, { file = "feature.txt", text = "hello\n" } = {}) {
     forwardBranch: null,
     publicPr: null,
   });
-  return { store, pub, priv, sha, commands, forward };
+  return { store, pub, priv, work, sha, commands, forward };
 }
 
 export function execFileSync2(args, { cwd, env, input } = {}) {
@@ -130,6 +130,8 @@ export function fakeGitHub({
     issues: [],
     created: [],
     branch: async () => ({ commit: { sha: head() } }),
+    contents: async () =>
+      Promise.reject(Object.assign(new Error("Not Found"), { status: 404 })),
     createIssue: async (repo, input) => {
       assert.equal(repo, MIRROR);
       github.issues.push(input);

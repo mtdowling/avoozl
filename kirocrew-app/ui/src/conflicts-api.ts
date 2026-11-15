@@ -99,6 +99,12 @@ export function noActionReason(item: ConflictItem): string | null {
   if (item.kind === 'investigation' || item.kind === 'ready-to-merge' || item.kind === 'routing-failed' || item.kind === 'branch-landing') return null
   // A forward row carries its own button (ConflictsView.tsx ForwardButton).
   if (item.kind === 'needs-human' && item.reason === 'forward') return null
+  // A public branch ready to land (RC26.4): a person merges it on GitHub.
+  if (item.kind === 'needs-human' && item.reason === 'public-branch')
+    return 'Merge the public branch on GitHub yourself. Avoozl never merges it, and the row clears when it has landed.'
+  // The forward audit (RC26.5.6): the stop is resumed from the Dashboard banner.
+  if (item.kind === 'needs-human' && item.reason === 'forward-audit')
+    return 'Check the public repository, then resume the stop from the banner. Avoozl forwards nothing until you do.'
   // A source conflict Avoozl asked about carries its own buttons (ConflictFixActions.tsx).
   if (item.kind === 'needs-human' && item.reason === 'conflict-fix') return null
   // A merge method the repository refuses (RC28.7) is fixed in GitHub's settings.

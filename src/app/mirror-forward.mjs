@@ -26,7 +26,7 @@ export function mirrorForwards(store) {
 export async function mirrorForwardStep(
   store,
   github,
-  { policy, now = Date.now() } = {},
+  { policy, now = Date.now(), publicBranches = () => [] } = {},
 ) {
   const errors = [],
     since = { ...(store.getMeta(META) ?? {}) };
@@ -41,44 +41,54 @@ export async function mirrorForwardStep(
       changed = true;
     }
     try {
-      const base = (await github.repository(parseRepository(mirror.mirror)))
-          ?.default_branch,
-        pulls = await github.listPullRequests(mirror.mirror, {
+      const defaultBase = (
+          await github.repository(parseRepository(mirror.mirror))
+        )?.default_branch,
+        // Merges into the mirror's copy of a public branch forward too
+        // (RC26.3), as a change against that branch.
+        bases = [defaultBase, ...publicBranches(repository, mirror)].filter(
+          (name, index, all) => name && all.indexOf(name) === index,
+        );
+      for (const base of bases) {
+        const pulls = await github.listPullRequests(mirror.mirror, {
           state: "closed",
           base,
         });
-      for (const pull of pulls) {
-        const sha = pull.merge_commit_sha;
-        if (
-          !pull.merged_at ||
-          !sha ||
-          pull.base?.ref !== base ||
-          pull.merged_at < since[mirror.mirror] ||
-          store.get("mirror_forward", sha)
-        )
-          continue;
-        const detail = await github.pullRequest(mirror.mirror, pull.number),
-          head = String(pull.head?.ref ?? ""),
-          prefix = mirror.branchPrefix ?? "";
-        store.put("mirror_forward", {
-          id: sha,
-          repository,
-          mirror: mirror.mirror,
-          mirrorPr: pull.number,
-          taskId:
-            prefix && head.startsWith(prefix)
-              ? head.slice(prefix.length)
-              : null,
-          approver: detail?.merged_by?.login ?? null,
-          state: "to_forward",
-          reason: "Merged in the mirror, not forwarded yet.",
-          mirrorMergedAt: pull.merged_at,
-          forwardedAt: null,
-          publicPrAt: null,
-          publicMergedAt: null,
-          forwardBranch: null,
-          publicPr: null,
-        });
+        for (const pull of pulls) {
+          const sha = pull.merge_commit_sha;
+          if (
+            !pull.merged_at ||
+            !sha ||
+            pull.base?.ref !== base ||
+            pull.merged_at < since[mirror.mirror] ||
+            store.get("mirror_forward", sha)
+          )
+            continue;
+          const detail = await github.pullRequest(mirror.mirror, pull.number),
+            head = String(pull.head?.ref ?? ""),
+            prefix = mirror.branchPrefix ?? "";
+          store.put("mirror_forward", {
+            id: sha,
+            repository,
+            mirror: mirror.mirror,
+            mirrorPr: pull.number,
+            taskId:
+              prefix && head.startsWith(prefix)
+                ? head.slice(prefix.length)
+                : null,
+            approver: detail?.merged_by?.login ?? null,
+            // The branch it merged into: a public branch's copy, or the default.
+            ...(base === defaultBase ? {} : { base }),
+            state: "to_forward",
+            reason: "Merged in the mirror, not forwarded yet.",
+            mirrorMergedAt: pull.merged_at,
+            forwardedAt: null,
+            publicPrAt: null,
+            publicMergedAt: null,
+            forwardBranch: null,
+            publicPr: null,
+          });
+        }
       }
     } catch (error) {
       errors.push(
@@ -111,9 +121,13 @@ export function mirrorForwardRows(store, policy) {
       id: `mirror-forward:${record.id}`,
       taskId: record.taskId,
       authority: "github",
-      link: `https://github.com/${record.mirror}/pull/${record.mirrorPr}`,
+      link: record.batch
+        ? `https://github.com/${record.mirror}/tree/${record.batch.branch}`
+        : `https://github.com/${record.mirror}/pull/${record.mirrorPr}`,
       forwardId: record.id,
-      title: `Forward mirror pull request #${record.mirrorPr}`,
+      title: record.batch
+        ? `Forward epic ${record.title}`
+        : `Forward mirror pull request #${record.mirrorPr}`,
       detail: record.reason,
       openedAt: record.mirrorMergedAt,
     }));

@@ -246,3 +246,57 @@ test("an invalid approver or merge commit is refused", async () => {
   await assert.rejects(() => reconcileApproval(store, args), /no merge commit/);
   assert.equal(approvalState(store, "p1", "h1").state, "open");
 });
+
+test("private approval branches from the orphan ref and records its ref only on the correct merge", async () => {
+  const { store, github, args } = run({ ref: "private-plans" });
+  let source;
+  github.branchHead = async (_repository, base) => {
+    source = base;
+    return { oid: SHA };
+  };
+  github.compareCommits = async () => {
+    throw Object.assign(
+      new Error("No common ancestor between main and private-plans."),
+      { status: 404 },
+    );
+  };
+  const opened = await openApproval(store, args);
+  assert.equal(opened.base, "private-plans");
+  assert.equal(opened.ref, "private-plans");
+  assert.equal(source, "private-plans");
+  assert.equal(github.pulls[0].base, "private-plans");
+  assert.equal(
+    github.written.find((file) => file.path.endsWith("avoozl/manifest.json"))
+      .text,
+    args.files["avoozl/manifest.json"],
+  );
+  github.merge(1);
+  github.pulls[0].base = { ref: "main" };
+  await assert.rejects(
+    () => reconcileApproval(store, args),
+    /different branch/,
+  );
+  assert.equal(approvalState(store, args.planId, args.hash).state, "open");
+  github.pulls[0].base = { ref: "private-plans" };
+  const merged = await reconcileApproval(store, args);
+  assert.equal(merged.ref, "private-plans");
+  assert.equal(merged.commit, SHA);
+});
+test("private approval refuses unsafe, default, shared and unreadable refs before any write", async () => {
+  for (const ref of ["--oops", "main", "private-plans"]) {
+    const w = run({ ref });
+    w.github.compareCommits = async () => ({ status: "diverged" });
+    await assert.rejects(() => openApproval(w.store, w.args));
+    assert.deepEqual(w.github.branches, []);
+    assert.deepEqual(w.github.written, []);
+  }
+  const w = run({ ref: "private-plans" });
+  w.github.compareCommits = async () => {
+    throw Object.assign(new Error("Not Found"), { status: 404 });
+  };
+  await assert.rejects(
+    () => openApproval(w.store, w.args),
+    /history could not/,
+  );
+  assert.deepEqual(w.github.branches, []);
+});
