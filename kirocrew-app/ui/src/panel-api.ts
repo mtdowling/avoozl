@@ -350,3 +350,67 @@ export function checkLabel(check: PanelChecks | null | undefined): { text: strin
   if (check.state === 'passing') return { text: `✓ ${check.total}`, tone: 'ok', tip: `All ${check.total} checks passed.` }
   return { text: 'no checks', tone: 'muted', tip: 'No checks have run on this pull request.' }
 }
+
+// A path is inside a root: the root itself or a folder under it (separators
+// and a trailing slash aside).
+export function insideRoot(path: string, root: string): boolean {
+  const plain = (value: string) => value.replace(/\\/g, '/').replace(/\/+$/, '')
+  const p = plain(path),
+    r = plain(root)
+  return Boolean(r) && (p === r || p.startsWith(`${r}/`))
+}
+
+export interface PanelWorkspace {
+  id: string
+  // The workspace's own root, then each registered repository's checkout.
+  roots: string[]
+}
+
+export type PanelPick = { id: string | null; why: 'driver' | 'folder' | 'last' | 'default' | 'none' }
+
+// Which workspace the side panel reads, in order: the workspace this driver
+// chat drives; the one whose root, or a repository registered to it, holds
+// the chat's project folder (the longest matching root wins); the page's
+// last workspace; the catalog's default. Only a workspace still in the
+// catalog counts.
+export function pickPanelWorkspace(input: {
+  driverRoot: string | null
+  project: string | null
+  workspaces: (PanelWorkspace & { root: string })[]
+  last: string | null
+  fallback: string | null
+}): PanelPick {
+  const known = (id: string | null) => Boolean(id && input.workspaces.some((w) => w.id === id))
+  if (input.driverRoot) {
+    const drives = input.workspaces.find((w) => sameRoot(w.root, input.driverRoot!))
+    if (drives) return { id: drives.id, why: 'driver' }
+  }
+  if (input.project) {
+    let best: { id: string; length: number } | null = null
+    for (const workspace of input.workspaces)
+      for (const root of [workspace.root, ...workspace.roots])
+        if (root && insideRoot(input.project, root) && (!best || root.length > best.length)) best = { id: workspace.id, length: root.length }
+    if (best) return { id: best.id, why: 'folder' }
+  }
+  if (known(input.last)) return { id: input.last, why: 'last' }
+  if (known(input.fallback)) return { id: input.fallback, why: 'default' }
+  return { id: null, why: 'none' }
+}
+
+// The chat's project folder, from Kiro Crew's slot list, or null when the
+// host refuses the read or the chat is not listed.
+// shortcut: Kiro Crew gives a panel tab no project folder, and its app grant
+// matches path prefixes only, so this needs `/api/chat/slots` in app.json's
+// permissions.api, which reaches every chat. Without that grant the read is
+// refused and the folder rule is skipped. Switch to an SDK call that names
+// the panel's own chat folder if Kiro Crew adds one.
+export async function chatProject(api: AppApi, chat: string): Promise<string | null> {
+  if (!chat) return null
+  try {
+    const rows = await api.get<{ key?: string; project?: string }[]>('/api/chat/slots')
+    const row = (Array.isArray(rows) ? rows : []).find((item) => item.key === chat)
+    return typeof row?.project === 'string' && row.project ? row.project : null
+  } catch {
+    return null
+  }
+}

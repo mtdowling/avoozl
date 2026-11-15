@@ -816,6 +816,17 @@ if (page === 'panel') {
     return panelWin.__panel
   }
   answer('workspaces.list', () => ({ defaultWorkspace: 'w', items: [{ id: 'w', name: 'Harness', root: '/w', enabled: true, state: 'ready', served: true }] }))
+  // ?places=1: two workspaces, Avoozl's (/w) and Nupp's (/n, whose code
+  // checkout is /src/nupp), and chats whose project folders sit in each.
+  if (query.get('places')) {
+    answer('workspaces.list', () => ({ defaultWorkspace: 'w', items: [{ id: 'w', name: 'Avoozl plans', root: '/w', enabled: true, state: 'ready', served: true }, { id: 'nupp', name: 'Nupp plans with a long name', root: '/n', enabled: true, state: 'ready', served: false }] }))
+    answer('repositories.list', (body) => ({ items: (body as { workspaceId?: string }).workspaceId === 'nupp' ? [{ id: 'nupp', name: 'nupp', localCheckout: '/src/nupp', github: 'o/nupp', baseBranch: 'main' }] : [{ id: 'av', name: 'avoozl', localCheckout: '/src/avoozl', github: 'o/avoozl', baseBranch: 'main' }] }))
+    answer('GET /api/chat/slots', () => [
+      { key: 'nupp-chat', project: '/src/nupp/compiler' },
+      { key: 'avoozl-chat', project: '/src/avoozl' },
+      { key: 'elsewhere-chat', project: '/home/someone/other' },
+    ])
+  }
   // The one read the panel makes. A failed part is null, as in the backend.
   const part = <T,>(read: () => T): T | null => {
     try {
