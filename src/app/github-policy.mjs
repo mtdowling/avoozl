@@ -4,6 +4,7 @@
 // check that needs GitHub (base branch) is `requireDefaultBranch`.
 import { loadLayeredConfig } from "./layered-config.mjs";
 import { fail } from "./store.mjs";
+import { MAX_WRITES_PER_HOUR, MAX_WRITES_PER_MINUTE } from "./github-pacer.mjs";
 import { parseRepository } from "./github.mjs";
 import { parseMatch } from "./issue-match.mjs";
 import { mirrorInput } from "./mirror-policy.mjs";
@@ -109,6 +110,8 @@ export const POLICY_KEYS = Object.freeze([
   "project",
   "epicIssueType",
   "cacheSeconds",
+  "writesPerMinute",
+  "writesPerHour",
   "subIssues",
   "issues",
   "repositories",
@@ -387,6 +390,15 @@ function cacheSecondsInput(value, label) {
   if (value === undefined || value === null) return null;
   if (!Number.isSafeInteger(value) || value < 0 || value > CACHE_SECONDS_MAX)
     fail(`${label} must be a whole number of seconds from 0 to 3600.`);
+  return value;
+}
+
+// How many GitHub writes Avoozl makes (github-pacer.mjs). Null follows the
+// built-in 60 a minute and 400 an hour; GitHub's own ceilings are 80 and 500.
+function writesInput(value, label, max) {
+  if (value === undefined || value === null) return null;
+  if (!Number.isSafeInteger(value) || value < 1 || value > max)
+    fail(`${label} must be a whole number from 1 to ${max}.`);
   return value;
 }
 
@@ -869,6 +881,16 @@ export function normalizeGitHubPolicy(value) {
       optional: true,
     }),
     cacheSeconds: cacheSecondsInput(value.cacheSeconds, "github.cacheSeconds"),
+    writesPerMinute: writesInput(
+      value.writesPerMinute,
+      "github.writesPerMinute",
+      MAX_WRITES_PER_MINUTE,
+    ),
+    writesPerHour: writesInput(
+      value.writesPerHour,
+      "github.writesPerHour",
+      MAX_WRITES_PER_HOUR,
+    ),
     subIssues: subIssuesInput(value.subIssues),
     issues: issuesInput(value.issues),
     repositories: Object.fromEntries(

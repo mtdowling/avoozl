@@ -101,6 +101,8 @@ export interface ProjectionPreview {
   planId: string
   planHash: string
   writes: PlannedWrite[]
+  // How long the writes take at the pace GitHub allows (github-pacer.mjs).
+  pace?: { writes: number; perMinute: number; perHour: number; finishAt: string; minutes: number }
   conflicts: { taskId: string; field: string; reason: string }[]
   notes: string[]
   previewOnly: string[]
