@@ -12,7 +12,9 @@ const views = readdirSync(src).filter((name) => name.endsWith('.tsx'))
 test('one section heading: title and buttons on one centered row, buttons right and wrapping', () => {
   const controls = source('controls.tsx')
   const part = controls.slice(controls.indexOf('export function SectionHeading'), controls.indexOf('export function ViewHeading'))
-  assert.match(part, /<div className="flex flex-wrap items-center gap-x-3 gap-y-2">/)
+  // On a phone a heading with `phoneMenu` keeps one row and puts its buttons in More.
+  assert.match(part, /<div className=\{`flex items-center gap-x-3 gap-y-2 \$\{menu \? 'flex-nowrap' : 'flex-wrap'\}`\}>/)
+  assert.match(part, /<MoreMenu /)
   assert.match(part, /className=\{`m-0 flex min-w-0 items-center gap-2 font-semibold/)
   assert.match(part, /<div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2"/)
   // View headings are the same part at level 2.

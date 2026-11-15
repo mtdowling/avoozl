@@ -8,7 +8,7 @@ import UntriagedView from './UntriagedView.tsx'
 import { ViewHeading } from './controls.tsx'
 import { ChevronRight } from './icons.ts'
 import { useSteppedState } from './NavHistory.tsx'
-import { useListDetail } from './list-detail.ts'
+import { useListDetail, type ListDetail } from './list-detail.ts'
 import { DetailPane } from './ListDetail.tsx'
 import type { Idea } from './ideas-api.ts'
 
@@ -21,8 +21,9 @@ const SECTIONS: { key: WaitingSection; title: string; line: string }[] = [
 
 // A desktop shows the sections as an accordion. A phone shows them as a list,
 // and a picked section on its own page with a Back control (list-detail).
-export function WaitingSections(props: { open: WaitingSection; onOpen: (key: WaitingSection) => void; bodies: Record<WaitingSection, ReactNode> }) {
-  const ld = useListDetail(true)
+export function WaitingSections(props: { open: WaitingSection; onOpen: (key: WaitingSection) => void; bodies: Record<WaitingSection, ReactNode>; ld?: ListDetail }) {
+  const own = useListDetail(true)
+  const ld = props.ld ?? own
   const { openDetail } = ld
   if (ld.phone) {
     const section = SECTIONS.find((s) => s.key === props.open) ?? SECTIONS[0]
@@ -96,15 +97,23 @@ export default function WaitingView(props: {
     (previous) => `Back to ${SECTIONS.find((s) => s.key === previous)?.title ?? previous}`,
     'decisions',
   )
+  const ld = useListDetail(true)
+  // A phone showing one section gives it the whole pane: no page heading.
+  const detail = ld.phone && ld.showDetail
   return (
-    <section aria-labelledby="avoozl-waiting-title" className="flex flex-col gap-3.5" data-waiting-view>
-      <ViewHeading id="avoozl-waiting-title" view="waiting">
-        Waiting on you
-      </ViewHeading>
-      <p className="text-sm text-muted">
-        Everything that stops until you act. Crews working, pull requests in checks and merges are not here; they are on Home.
-      </p>
+    <section aria-labelledby={detail ? undefined : 'avoozl-waiting-title'} aria-label={detail ? 'Waiting on you' : undefined} className="flex flex-col gap-3.5" data-waiting-view>
+      {!detail && (
+        <>
+          <ViewHeading id="avoozl-waiting-title" view="waiting">
+            Waiting on you
+          </ViewHeading>
+          <p className="text-sm text-muted">
+            Everything that stops until you act. Crews working, pull requests in checks and merges are not here; they are on Home.
+          </p>
+        </>
+      )}
       <WaitingSections
+        ld={ld}
         open={open}
         onOpen={step}
         bodies={{

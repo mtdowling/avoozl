@@ -551,6 +551,7 @@ export default function UntriagedView({ workspaceId, onMakeSpec, onOpenSources, 
         id="avoozl-untriaged-title"
         view="untriaged"
         level={embedded ? 3 : 2}
+        phoneMenu
         actions={
           <span className="flex flex-wrap gap-2">
             <NewIdeaButton onClick={() => setNewIdea(true)} disabled={!workspaceId} />

@@ -24,6 +24,8 @@ import { errorMessage } from './workspace-api.ts'
 import { moreLabel, visibleCount } from './paging.ts'
 import { Tooltip } from './Tooltip.tsx'
 import { Modal } from './Modal.tsx'
+import { MoreMenu } from './MoreMenu.tsx'
+import { usePhone } from './list-detail.ts'
 
 export const ICON = 14
 
@@ -425,23 +427,33 @@ export function SectionHeading(props: {
   // The buttons take the whole width of their row (the Dashboard's state
   // buttons on a medium or small screen).
   wideActions?: boolean
+  // On a phone, the actions go into a More menu so the heading stays one row.
+  phoneMenu?: boolean
   blurb?: ReactNode
   className?: string
 }) {
   const level = props.level ?? 3
+  const phone = usePhone()
+  const menu = phone && props.phoneMenu && props.actions
   const H = `h${level}` as 'h2' | 'h3' | 'h4'
   const Icon = props.view ? VIEW_ICONS[props.view] : props.icon
   return (
     <div className={props.className} data-section-heading={level}>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1" data-heading-title>
+      <div className={`flex items-center gap-x-3 gap-y-2 ${menu ? 'flex-nowrap' : 'flex-wrap'}`}>
+        <div className={`flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 ${menu ? 'flex-1' : ''}`} data-heading-title>
           <H id={props.id} className={`m-0 flex min-w-0 items-center gap-2 font-semibold leading-snug ${HEADING_SIZE[level]}`} style={{ overflowWrap: 'anywhere' }}>
             {Icon && <Icon size={level === 2 ? 18 : 16} aria-hidden="true" style={{ color: 'var(--muted)', flexShrink: 0 }} />}
             {props.title}
           </H>
           {props.meta}
         </div>
-        {props.actions && (
+        {menu ? (
+          <MoreMenu label={`${typeof props.title === 'string' ? props.title : 'Page'} actions`} attrs={{ 'data-heading-more': '' }}>
+            <div className="flex flex-col items-stretch gap-2" data-heading-actions>
+              {props.actions}
+            </div>
+          </MoreMenu>
+        ) : props.actions && (
           <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-2" style={props.wideActions ? { width: '100%' } : undefined} data-heading-actions>
             {props.actions}
           </div>
@@ -458,8 +470,8 @@ export function SectionHeading(props: {
 
 // A top-level view's page heading: its icon, then its word. The icon is the
 // same one its nav tab shows, sized to the text and hidden from readers.
-export function ViewHeading(props: { id: string; view: keyof typeof VIEW_ICONS; children: ReactNode; actions?: ReactNode; meta?: ReactNode; wideActions?: boolean; level?: 2 | 3 }) {
-  return <SectionHeading level={props.level ?? 2} id={props.id} view={props.view} title={props.children} meta={props.meta} actions={props.actions} wideActions={props.wideActions} />
+export function ViewHeading(props: { id: string; view: keyof typeof VIEW_ICONS; children: ReactNode; actions?: ReactNode; meta?: ReactNode; wideActions?: boolean; phoneMenu?: boolean; level?: 2 | 3 }) {
+  return <SectionHeading level={props.level ?? 2} id={props.id} view={props.view} title={props.children} meta={props.meta} actions={props.actions} wideActions={props.wideActions} phoneMenu={props.phoneMenu} />
 }
 
 // The nav tab label: the view's icon, then its word.

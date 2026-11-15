@@ -1,6 +1,7 @@
 // Demo mode on the page (design §6.11): the Demo badge and bar, the guided
 // tour over the real pages, and the one Exit demo button. The sample's
 // backend answers every change with a preview; this file shows it.
+import { usePhone } from './list-detail.ts'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Btn } from '@kirocrew/app-sdk/ui'
 import { useAppApi as useHostApi } from '@kirocrew/app-sdk'
@@ -136,27 +137,13 @@ export function StartDemoButton(props: { label?: string }) {
 
 // The strip under the header: what the demo is, the last preview, Tour,
 // and Exit demo.
-export function DemoBar() {
+// The Stop the line example and Start the tour: in the bar on a desktop, in
+// the header's More menu on a phone.
+export function DemoControls() {
   const demo = useDemo()
-  if (!demo.active)
-    return demo.error ? (
-      <p role="alert" className="px-6 pb-2 text-sm text-danger">
-        {demo.error}
-      </p>
-    ) : null
   return (
-    <div
-      data-demo-bar
-      role="region"
-      aria-label="Demo mode"
-      className="mx-6 mb-3 flex flex-wrap items-center gap-3 rounded-lg border px-3 py-2 text-sm"
-      style={{ borderColor: 'var(--warning, #c90)', background: 'var(--card, transparent)' }}
-    >
-      <Badge variant="warning">Demo</Badge>
-      <span className="flex-1" style={{ minWidth: 200 }}>
-        Made-up sample. Nothing you do here changes your work, GitHub or agents.
-      </span>
-      <span role="group" aria-label="Stop the line example" className="flex items-center gap-1 text-xs">
+    <>
+      <span role="group" aria-label="Stop the line example" className="flex flex-wrap items-center gap-1 text-xs" data-keep-menu>
         Stop the line example
         {(['running', 'stopped'] as const).map((example) => (
           <Btn key={example} type="button" data-demo-stop-example={example} aria-pressed={demo.stopExample === example} primary={demo.stopExample === example} onClick={() => demo.setStopExample(example)}>
@@ -169,12 +156,59 @@ export function DemoBar() {
           Start the tour
         </Btn>
       )}
+    </>
+  )
+}
+
+export function DemoBar() {
+  const demo = useDemo()
+  const phone = usePhone()
+  if (!demo.active)
+    return demo.error ? (
+      <p role="alert" className="px-6 pb-2 text-sm text-danger">
+        {demo.error}
+      </p>
+    ) : null
+  const notice = (
+    <p role="status" aria-live="polite" className={phone ? 'sr-only' : 'w-full text-sm'} data-demo-notice>
+      {demo.notice ?? ''}
+    </p>
+  )
+  // A phone gets one thin line: the badge, a few words and Exit.
+  if (phone)
+    return (
+      <div
+        data-demo-bar
+        role="region"
+        aria-label="Demo mode"
+        className="mx-4 mb-2 flex items-center gap-2 rounded-md border px-2 text-xs"
+        style={{ minHeight: 32, borderColor: 'var(--warning, #c90)', background: 'var(--card, transparent)' }}
+      >
+        <DemoBadge />
+        <span className="min-w-0 flex-1 truncate text-muted">Made-up sample. Changes nothing.</span>
+        <button type="button" data-demo-exit onClick={() => void demo.exit()} className="text-xs font-semibold" style={{ background: 'none', border: 0, color: 'var(--accent)', cursor: 'pointer', minHeight: 32, padding: '0 4px' }}>
+          Exit demo
+        </button>
+        {notice}
+      </div>
+    )
+  return (
+    <div
+      data-demo-bar
+      role="region"
+      aria-label="Demo mode"
+      className="mx-6 mb-3 flex flex-wrap items-center gap-3 rounded-lg border px-3 py-2 text-sm"
+      style={{ borderColor: 'var(--warning, #c90)', background: 'var(--card, transparent)' }}
+    >
+      <Badge variant="warning">Demo</Badge>
+      <span className="flex-1" style={{ minWidth: 200 }}>
+        Made-up sample. Nothing you do here changes your work, GitHub or agents.
+      </span>
+      <DemoControls />
       <Btn type="button" primary data-demo-exit onClick={() => void demo.exit()}>
         Exit demo
       </Btn>
-      <p role="status" aria-live="polite" className="w-full text-sm" data-demo-notice>
-        {demo.notice ?? ''}
-      </p>
+      {notice}
     </div>
   )
 }

@@ -598,6 +598,7 @@ export function PlansTable(props: {
   reset?: string
 }) {
   const groups = groupByCategory(props.rows)
+  const phone = usePhone()
   const [shut, setShut] = useState<Set<string>>(new Set())
   const pages = usePages(props.reset ?? '')
   const stop = (action: () => void) => (event: { stopPropagation: () => void }) => {
@@ -662,7 +663,43 @@ export function PlansTable(props: {
                 </span>
               </button>
             </h2>
-            {open && (
+            {open && phone && (
+              // A phone lists each spec as one tappable row (follows Kiro
+              // Crew's list-detail pattern): name, then status, progress and
+              // what needs you on one line. Its buttons are on the spec's page.
+              <ul className="mt-2 flex flex-col" style={{ listStyle: 'none', margin: 0, padding: 0 }} data-plan-phone-list>
+                {shown.map((row) => (
+                  <li key={row.key} className="border-t" style={{ borderColor: 'var(--border)' }}>
+                    <button
+                      type="button"
+                      data-plan-row={row.key}
+                      onClick={() => props.onOpen(row)}
+                      className="flex w-full flex-col items-stretch gap-1 py-2.5 text-left"
+                      style={{ background: 'none', border: 0, color: 'inherit', cursor: 'pointer', minHeight: 52 }}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="min-w-0 flex-1 truncate font-medium">{row.name}</span>
+                        <Badge variant={STATUS_VARIANT[row.status]}>{STATUS_LABEL[row.status] ?? row.status}</Badge>
+                        <ChevronRight size={14} aria-hidden="true" style={{ color: 'var(--muted)', flexShrink: 0 }} />
+                      </span>
+                      <span className="flex flex-wrap items-center gap-2 text-xs text-muted">
+                        <span className="tabular-nums">
+                          {row.tasks.total ? `${row.tasks.done}/${row.tasks.total} done` : 'no tasks'}
+                        </span>
+                        <Now now={row.now} />
+                        {row.archived && <Badge>Archived</Badge>}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+                {group.rows.length > shown.length && (
+                  <li>
+                    <ShowMore {...pages.more(group.category, group.rows.length)} />
+                  </li>
+                )}
+              </ul>
+            )}
+            {open && !phone && (
               <div className="mt-3 overflow-x-auto">
                 <table className="w-full border-collapse text-sm" style={{ color: 'var(--text)' }}>
                   {header}
@@ -796,11 +833,12 @@ function PlanAside(props: {
       </div>
       <div>
         {heading('Tasks by state')}
-        <dl className="mt-1 grid gap-x-3 gap-y-0.5" style={{ gridTemplateColumns: '1fr auto' }}>
+        {/* One row per state: the label, then its count on the same line. */}
+        <dl className="mt-1 flex flex-col gap-0.5" style={{ margin: 0 }}>
           {STATES.map((state) => (
-            <div key={state.id} className="contents">
+            <div key={state.id} className="flex items-baseline justify-between gap-3" data-state-count={state.id}>
               <dt className="text-muted">{state.label}</dt>
-              <dd className="text-right tabular-nums">{graph ? counts[state.id] : '…'}</dd>
+              <dd className="tabular-nums" style={{ margin: 0 }}>{graph ? counts[state.id] : '…'}</dd>
             </div>
           ))}
         </dl>
@@ -1297,6 +1335,7 @@ export default function PlansView(props: {
           <ViewHeading
             id="avoozl-plans-title"
             view="plans"
+            phoneMenu
             actions={
               workspace && !row ? (
                 <PlansActions onQuickGoal={() => setDialog('quickgoal')} onNewPlan={() => setCreating({})} onNewIdea={() => setNewIdea(true)} onOpenIdeas={props.onOpenIdeas} ideas={props.ideas ?? null} onNewTask={() => drawer.addTask()} onRefresh={() => void load(workspace)} busy={busy} />

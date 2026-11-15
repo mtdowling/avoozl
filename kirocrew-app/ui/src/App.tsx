@@ -3,6 +3,7 @@ import { useAppApi } from './host.ts'
 import { Btn, EmptyState, PageHeader, SegmentedControl } from '@kirocrew/app-sdk/ui'
 import Logo from './Logo'
 import { TopRail } from './TopRail.tsx'
+import { MoreMenu } from './MoreMenu.tsx'
 import { usePhone } from './list-detail.ts'
 import { InstanceBadge } from './InstanceName.tsx'
 import DashboardView, { type DashboardTarget } from './DashboardView'
@@ -31,7 +32,7 @@ import type { Drill } from './graph-layout.ts'
 import { viewsClient } from './views-api.ts'
 import { APP_ATTR, NavHistoryProvider, useNav } from './NavHistory.tsx'
 import { changePage } from './nav-history.ts'
-import { DemoBadge, DemoBar, DemoProvider, DemoTour, StartDemoButton, useDemo } from './Demo.tsx'
+import { DemoBadge, DemoBar, DemoControls, DemoProvider, DemoTour, StartDemoButton, useDemo } from './Demo.tsx'
 import { DEMO_WORKSPACE_ID } from './demo-api.ts'
 import {
   errorMessage,
@@ -265,7 +266,30 @@ function AvoozlPage() {
     <ConfirmProvider>
     <TaskDrawerProvider workspaceId={active} onFocus={(id, title) => openDrill({ kind: 'focus', id, title })}>
     <div className="flex h-full min-h-0 flex-col">
-      <PageHeader
+      {phone ? (
+        // A phone keeps the header to one thin row: the name, Stop the line
+        // and a More menu with the rest (follows Kiro Crew's phone layout).
+        <header className="flex min-w-0 items-center gap-2 px-4 py-2" data-phone-header>
+          <span className="inline-flex min-w-0 flex-1 items-center gap-2 font-semibold" style={{ fontSize: 17 }}>
+            <Logo size={22} />
+            Avoozl
+            <InstanceBadge workspaceId={active} />
+          </span>
+          <div className="flex items-center gap-2" data-header-actions>
+            {active && <StopLineButton workspaceId={active} />}
+            <MoreMenu label="More actions" attrs={{ 'data-header-more': '' }}>
+              {/* The demo's badge is on its own line below; the picker is not shown in it. */}
+              {!demo.active && <WorkspacePicker list={list} value={workspaceId} onChange={setWorkspaceId} />}
+              <Btn type="button" primary onClick={planEpic}>
+                Plan a goal
+              </Btn>
+              {active && <SwitchModelButton workspaceId={active} />}
+              {demo.active && <DemoControls />}
+            </MoreMenu>
+          </div>
+        </header>
+      ) : (
+        <PageHeader
         title={
           <span className="inline-flex items-center gap-2">
             <Logo size={28} />
@@ -291,6 +315,7 @@ function AvoozlPage() {
           </div>
         }
       />
+      )}
       {/* The tab row on every tab: the tabs only. It wraps on a narrow page;
           nothing scrolls sideways. */}
       <div
@@ -314,7 +339,7 @@ function AvoozlPage() {
       </div>
       <DemoBar />
       {error && (
-        <p role="alert" className="px-6 pb-2 text-sm text-danger">
+        <p role="alert" className={`pb-2 text-sm text-danger ${phone ? 'px-4' : 'px-6'}`}>
           {error}
         </p>
       )}
@@ -323,7 +348,7 @@ function AvoozlPage() {
           nav.scroller.current = element
         }}
         data-avoozl-pane
-        className="flex-1 min-h-0 overflow-y-auto px-6 pb-8"
+        className={`flex-1 min-h-0 overflow-y-auto pb-8 ${phone ? 'px-4' : 'px-6'}`}
         hidden={showRail}
       >
         {needsWorkspace ? (
