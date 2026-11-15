@@ -2,72 +2,8 @@
 // RC23.5, RC23.13) on the fake GitHub and the fake gate plugin.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { gateLabelStep } from "../gate-label.mjs";
 import { normalizeGitHubPolicy } from "../github-policy.mjs";
-import { FakeGitHub } from "./fake-github.mjs";
-import { workspace } from "./gate-fixture.mjs";
-
-const leaf = (extra) => ({
-  kind: "leaf",
-  repository: "code",
-  acceptance: ["Done"],
-  checks: ["npm test"],
-  completion: "integrated",
-  ...extra,
-});
-const tree = {
-  tasks: {
-    1: leaf({
-      completion: "tracker",
-      checks: undefined,
-      tracker: { plugin: "fake-gate", item: "REV-1", done: "shipped" },
-    }),
-    2: leaf({ requires: ["1"] }),
-    3: leaf({}),
-    4: leaf({ requires: ["1", "3"] }),
-  },
-};
-const tasks = [
-  "# Tasks",
-  "",
-  ...[1, 2, 3, 4].map((id) => `- [ ] ${id} Task ${id}`),
-  "",
-].join("\n");
-const REPOSITORY = "example/code";
-const policy = (radar = {}) => ({
-  repositories: {
-    [REPOSITORY]: { radar: { trackerLabel: undefined, ...radar } },
-  },
-});
-
-async function setup(t, radar) {
-  const w = await workspace(t, { tasks, tree }),
-    github = new FakeGitHub();
-  for (const id of [1, 2, 3, 4]) {
-    const issue = await github.createIssue(
-      { id: REPOSITORY },
-      { title: `T${id}` },
-    );
-    w.store.mutate("link", (data) => {
-      data.tasks.find((task) => task.id === `sdk.${id}`).github = {
-        repository: REPOSITORY,
-        number: issue.number,
-        origin: "design",
-      };
-    });
-  }
-  const labels = (id) =>
-    (
-      github.created.find(
-        (issue) =>
-          issue.number ===
-          w.store.read().tasks.find((task) => task.id === `sdk.${id}`).github
-            .number,
-      ).labels || []
-    ).map((label) => label.name);
-  const step = () => gateLabelStep(w.store, github, policy(radar));
-  return { ...w, github, labels, step };
-}
+import { REPOSITORY, setup } from "./gate-fixture.mjs";
 
 test("the label is on the gate and its gate-only dependents, not on one with another blocker", async (t) => {
   const { step, labels } = await setup(t);

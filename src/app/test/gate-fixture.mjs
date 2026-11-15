@@ -5,6 +5,8 @@ import path from "node:path";
 import { Operations } from "../operations.mjs";
 import { gateStep } from "../gate-step.mjs";
 import { pluginHost, writePluginSettings } from "../plugins.mjs";
+import { FakeGitHub } from "./fake-github.mjs";
+import { gateLabelStep } from "../gate-label.mjs";
 import { fixture } from "./fixtures.mjs";
 import { writeSpec } from "./spec-fixture.mjs";
 import { temporaryDirectory } from "./temporary.mjs";
@@ -120,4 +122,69 @@ export async function workspace(
   const item = (state, evidence = "seen", link) =>
     outside({ items: { "REV-1": { state, evidence, link } } });
   return { root, store, ops, tick, item, outside, calls };
+}
+
+// A workspace whose four tasks each have an issue on the fake GitHub.
+const leaf = (extra) => ({
+  kind: "leaf",
+  repository: "code",
+  acceptance: ["Done"],
+  checks: ["npm test"],
+  completion: "integrated",
+  ...extra,
+});
+export const tree = {
+  tasks: {
+    1: leaf({
+      completion: "tracker",
+      checks: undefined,
+      tracker: { plugin: "fake-gate", item: "REV-1", done: "shipped" },
+    }),
+    2: leaf({ requires: ["1"] }),
+    3: leaf({}),
+    4: leaf({ requires: ["1", "3"] }),
+  },
+};
+export const tasks = [
+  "# Tasks",
+  "",
+  ...[1, 2, 3, 4].map((id) => `- [ ] ${id} Task ${id}`),
+  "",
+].join("\n");
+export const REPOSITORY = "example/code";
+export const policy = (radar = {}, rules = {}) => ({
+  repositories: {
+    [REPOSITORY]: { ...rules, radar: { trackerLabel: undefined, ...radar } },
+  },
+});
+
+export async function setup(t, radar, rules) {
+  const w = await workspace(t, { tasks, tree }),
+    github = new FakeGitHub();
+  for (const id of [1, 2, 3, 4]) {
+    const issue = await github.createIssue(
+      { id: REPOSITORY },
+      { title: `T${id}` },
+    );
+    w.store.mutate("link", (data) => {
+      data.tasks.find((task) => task.id === `sdk.${id}`).github = {
+        repository: REPOSITORY,
+        number: issue.number,
+        origin: "design",
+      };
+    });
+  }
+  const labels = (id) =>
+    (
+      github.created.find(
+        (issue) =>
+          issue.number ===
+          w.store.read().tasks.find((task) => task.id === `sdk.${id}`).github
+            .number,
+      ).labels || []
+    ).map((label) => label.name);
+  const step = () => gateLabelStep(w.store, github, policy(radar, rules));
+  const number = (id) =>
+    w.store.read().tasks.find((task) => task.id === `sdk.${id}`).github.number;
+  return { ...w, github, labels, step, number, policy: policy(radar, rules) };
 }

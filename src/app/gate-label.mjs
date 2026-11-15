@@ -5,6 +5,7 @@
 // triggers nothing. Which issues carry it is kept in the `gateLabels` meta
 // entry, so a quiet tick makes no GitHub call.
 import { RADAR_DEFAULTS } from "./github-policy.mjs";
+import { allowedToClear, putStranger, recordClear } from "./gate-clear.mjs";
 import { completionReached, isGate, supersedingTask } from "../work-model.mjs";
 
 const META = "gateLabels";
@@ -48,6 +49,29 @@ export function waitingTasks(data) {
   return waiting;
 }
 
+// Whether the issue no longer carries the label Avoozl put on it.
+async function removed(github, task, label) {
+  const issue = await github.issue(task.github.repository, task.github.number);
+  if (issue?.state === "closed") return false;
+  return !(issue?.labels || []).some(
+    (item) => lower(item.name ?? item) === lower(label),
+  );
+}
+
+// The login that took the label off: the newest `unlabeled` event for it.
+async function remover(github, repository, number, label) {
+  const events = await github.issueEvents(repository, number);
+  return (
+    (Array.isArray(events) ? events : [])
+      .filter(
+        (event) =>
+          event.event === "unlabeled" &&
+          lower(event.label?.name) === lower(label),
+      )
+      .at(-1)?.actor?.login ?? null
+  );
+}
+
 // The tick step. A repository that cannot be written is tried again next
 // tick; the meta entry only records what GitHub accepted.
 export async function gateLabelStep(store, github, policy) {
@@ -67,6 +91,28 @@ export async function gateLabelStep(store, github, policy) {
       want = waiting.has(task.id),
       have = applied[task.id];
     try {
+      // The label gone from a waiting gate's issue is the clear order
+      // (RC23.9): an allowed actor clears the gate; anyone else gets the
+      // label put back and one row.
+      if (want && isGate(task) && have && (await removed(github, task, have))) {
+        const by = await remover(github, repository, number, have),
+          verdict = await allowedToClear(github, policy, repository, by);
+        if (verdict.allowed) {
+          recordClear(store, task.id, {
+            actor: by,
+            how: "label",
+            reason: "Waiting label removed on the gate's issue.",
+          });
+          delete applied[task.id];
+          continue;
+        }
+        putStranger(store, task.id, {
+          actor: by ?? "someone Avoozl could not identify",
+          at: new Date().toISOString(),
+        });
+        await github.addLabels(repository, number, [have]);
+        continue;
+      }
       if (want && lower(have) !== lower(label)) {
         await github.addLabels(repository, number, [label]);
         applied[task.id] = label;

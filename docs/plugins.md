@@ -122,6 +122,21 @@ export const gate = {
   its `config` names with an `Env` key. They never go in `.avoozl.json`, the
   manifest, an issue or the evidence.
 
+What a person sees and does:
+
+- Avoozl puts `avoozl:waiting-on-tracker` (`radar.trackerLabel`) on the gate's
+  issue and on tasks held only by gates. It triggers nothing.
+- Waiting on you gets one row for a failed gate or one unknown twice in a row.
+  Avoozl never clears a gate.
+- Clear a gate by taking the label off its issue, with `avoozl gate clear TASK
+  --reason TEXT`, the matching MCP call, or the Clear button in the Release
+  queue. The person must pass the repository's actor check. The clear is kept
+  as an order (who, how, when, why, last state), not as verified completion,
+  and the brief of each released task says so. Someone who is not allowed gets
+  the label put back and one row.
+- `avoozl gate list` and the MCP read show each gate's state, last and next
+  check, evidence, link and what it holds, as the Release queue and Trace do.
+
 Examples, by role only. Each would be its own package, outside this
 repository: a ticket tracker, a check that a code review shipped to a live
 release on a private code host, and a managed remote harness task. The only
