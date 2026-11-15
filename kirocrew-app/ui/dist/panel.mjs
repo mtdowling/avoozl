@@ -688,6 +688,11 @@ function Ue(e) {
 		conflicts: (e) => t("conflicts.view", {}, e).then((e) => e.items),
 		radarCrews: (e) => t("radar.crews", {}, e),
 		conflictsPage: (e) => t("conflicts.view", {}, e),
+		decideConflictFix: (e, n, r, i) => t("conflictfix.decide", {
+			repository: n,
+			pullRequest: r,
+			action: i
+		}, e),
 		resolveConflict: (e, n, r, i) => t("github.conflict.resolve", {
 			taskId: n,
 			field: r,

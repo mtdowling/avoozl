@@ -845,11 +845,33 @@ export class GitHubClient {
 
   // Turns on GitHub auto-merge for one pull request (RC5.2). GitHub merges
   // later, when its own rules pass; this never merges and has no admin path.
-  armAutoMerge(_repository, pullRequestId, method = "MERGE") {
+  // `method` is MERGE or SQUASH (RC28.7). A squash lands with the pull
+  // request's own title and body as the commit's headline and body.
+  armAutoMerge(_repository, pullRequestId, method = "MERGE", commit = {}) {
+    const squash = method === "SQUASH" && commit.headline;
     return this.graphql(
-      `mutation($id:ID!,$method:PullRequestMergeMethod!){enablePullRequestAutoMerge(input:{pullRequestId:$id,mergeMethod:$method}){pullRequest{number}}}`,
-      { id: pullRequestId, method },
+      squash
+        ? `mutation($id:ID!,$method:PullRequestMergeMethod!,$headline:String,$body:String){enablePullRequestAutoMerge(input:{pullRequestId:$id,mergeMethod:$method,commitHeadline:$headline,commitBody:$body}){pullRequest{number}}}`
+        : `mutation($id:ID!,$method:PullRequestMergeMethod!){enablePullRequestAutoMerge(input:{pullRequestId:$id,mergeMethod:$method}){pullRequest{number}}}`,
+      squash
+        ? {
+            id: pullRequestId,
+            method,
+            headline: commit.headline,
+            body: commit.body ?? "",
+          }
+        : { id: pullRequestId, method },
       "arm auto-merge",
+    );
+  }
+
+  // One commit, with its parents.
+  commit(value, sha) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    return this.request(
+      "GET",
+      `/repos/${owner}/${repo}/commits/${encodeURIComponent(sha)}`,
     );
   }
 
@@ -1338,6 +1360,13 @@ export class GitHubClient {
 
   // Every review on a pull request, oldest first, each with its `state`,
   // `user`, and the `commit_id` it reviewed.
+  // The commits of a pull request, oldest first (the first 250).
+  pullRequestCommits(value, number) {
+    const { owner, repo } =
+      typeof value === "string" ? parseRepository(value) : value;
+    return this.paginate(`/repos/${owner}/${repo}/pulls/${number}/commits`);
+  }
+
   pullRequestReviews(value, number) {
     const { owner, repo } =
       typeof value === "string" ? parseRepository(value) : value;

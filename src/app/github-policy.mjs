@@ -398,6 +398,8 @@ function repositoryInput(value, id, mode) {
       "discussions",
       "untriaged",
       "mirror",
+      "conflicts",
+      "merge",
       "cacheSeconds",
     ],
     label,
@@ -681,11 +683,61 @@ function repositoryInput(value, id, mode) {
     commentSteering,
     discussions,
     untriaged,
+    conflicts: conflictsInput(value.conflicts, `${label}.conflicts`),
+    merge: mergeInput(value.merge, `${label}.merge`),
     ...(value.mirror === undefined || value.mirror === null
       ? {}
       : { mirror: mirrorInput(value.mirror, `${label}.mirror`, baseBranch) }),
   };
 }
+
+// What Avoozl does with a crew's pull request that conflicts in source code
+// (RC28.5): Avoozl merges the base into it with one resolver chat, or only
+// asks a person.
+export const CONFLICT_ACTIONS = Object.freeze(["fix", "ask"]);
+export const MAX_ATTEMPTS = 10;
+export const CONFLICT_DEFAULTS = Object.freeze({
+  onSourceConflict: "fix",
+  maxAttempts: 1,
+});
+function conflictsInput(value, label) {
+  const input = onlyKeys(
+    value ?? {},
+    ["onSourceConflict", "maxAttempts"],
+    label,
+  );
+  const action = input.onSourceConflict ?? CONFLICT_DEFAULTS.onSourceConflict,
+    count = input.maxAttempts ?? CONFLICT_DEFAULTS.maxAttempts;
+  if (!CONFLICT_ACTIONS.includes(action))
+    fail(`${label}.onSourceConflict must be fix or ask.`);
+  if (!Number.isSafeInteger(count) || count < 1 || count > MAX_ATTEMPTS)
+    fail(
+      `${label}.maxAttempts must be a whole number from 1 to ${MAX_ATTEMPTS}.`,
+    );
+  return { onSourceConflict: action, maxAttempts: count };
+}
+
+// How a crew pull request lands when Avoozl arms auto-merge (RC28.7):
+// `squash` (one commit per pull request on the base) or `merge`.
+export const MERGE_METHODS = Object.freeze(["squash", "merge"]);
+export const MERGE_METHOD_DEFAULT = "squash";
+// GitHub's repository setting for each method, and its name on screen.
+export const MERGE_METHOD_SETTING = Object.freeze({
+  squash: { key: "allow_squash_merge", name: "Allow squash merging" },
+  merge: { key: "allow_merge_commit", name: "Allow merge commits" },
+});
+function mergeInput(value, label) {
+  const input = onlyKeys(value ?? {}, ["method"], label),
+    method = input.method ?? MERGE_METHOD_DEFAULT;
+  if (!MERGE_METHODS.includes(method))
+    fail(`${label}.method must be squash or merge.`);
+  return { method };
+}
+// The GitHub GraphQL merge method for a repository's settings.
+export const mergeMethodOf = (settings) =>
+  (settings?.merge?.method ?? MERGE_METHOD_DEFAULT) === "merge"
+    ? "MERGE"
+    : "SQUASH";
 
 // The Untriaged list's settings (design §8.5, R49.3-R49.5), each optional.
 export const UNTRIAGED_MAX_DAYS = 3650;
