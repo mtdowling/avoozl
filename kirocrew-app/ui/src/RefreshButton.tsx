@@ -8,6 +8,7 @@ import { countdownText, countdownWidth, limitedFor, refreshColor, refreshPeriod,
 import { type RateView, settingsClient } from './settings-api.ts'
 import { useAppApi } from './host.ts'
 import { Tooltip } from './Tooltip.tsx'
+import { NAV_ICON } from './LeftNav.tsx'
 
 export interface RefreshState {
   refresh: () => void
@@ -19,7 +20,7 @@ export interface RefreshState {
 }
 
 // The countdown alone: it keeps reading again on its timer wherever its
-// button is drawn (a page heading, or the header's More menu).
+// button is drawn (a page heading, or the left nav).
 export function useRefreshCountdown(workspaceId: string | null, onRefresh: () => void, busy?: boolean): RefreshState {
   const api = useAppApi()
   const settings = useMemo(() => settingsClient(api), [api])
@@ -83,14 +84,14 @@ export function RefreshControl({ state }: { state: RefreshState }) {
 
 // The side panel's own small icon: no countdown. Its color moves from muted
 // toward red as the cached read ages, and is red while GitHub's limit holds.
-function BareRefresh({ state }: { state: RefreshState }) {
+export function BareRefresh({ state, nav }: { state: RefreshState; nav?: boolean }) {
   const { refresh, busy, left, limited, period } = state
   const shown = limited > 0 ? limited : left
   const label = `Refresh, ${limited > 0 ? 'GitHub limit lifts in ' : 'reads again in '}${countdownText(shown, limited > 0)}`
   const age = limited > 0 ? 100 : Math.round(Math.min(1, Math.max(0, 1 - left / period)) * 100)
   return (
     <Tooltip text={state.tip}>
-      <button type="button" data-pp-icon data-bare data-refresh-age={age} data-limited={limited > 0 ? '' : undefined} onClick={refresh} disabled={busy} aria-label={label} style={{ color: refreshColor(age) }}>
+      <button type="button" {...(nav ? { 'data-nav-refresh': '' } : { 'data-pp-icon': '', 'data-bare': '' })} data-refresh-age={age} data-limited={limited > 0 ? '' : undefined} onClick={refresh} disabled={busy} aria-label={label} style={nav ? { ...NAV_ICON, color: refreshColor(age) } : { color: refreshColor(age) }}>
         <RefreshCw size={13} aria-hidden="true" />
       </button>
     </Tooltip>

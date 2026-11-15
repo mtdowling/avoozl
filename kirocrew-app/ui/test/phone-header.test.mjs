@@ -45,19 +45,14 @@ const toSpecs = async (phone) => {
 
 for (const dark of [false, true]) {
   const theme = dark ? 'dark' : 'light'
-  test(`a phone at 390 px: one header row, a one-line demo bar, Specs buttons in More (${theme})`, { skip }, async () => {
+  test(`a phone at 390 px: one menu row, a demo bar with the intro, Specs buttons in More (${theme})`, { skip }, async () => {
     await start(390, dark)
     assert.ok((await height('[data-phone-header]')) <= 56, 'one header row')
-    assert.ok((await height('[data-demo-bar]')) <= 40, 'the demo bar is one line')
+    assert.match(await page.evaluate(`document.querySelector('[data-demo-intro]').textContent`), /Avoozl turns your specs and epics into a graph/, 'the demo bar says what Avoozl is')
     assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-demo-bar] [data-demo-badge]'))`), true, 'the bar has the Demo badge')
     assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-demo-bar] [data-demo-exit]'))`), true, 'Exit demo is one tap')
-    // The demo's extra controls moved to More.
-    assert.equal(await page.evaluate(`Boolean(document.querySelector('[data-demo-bar] [data-demo-stop-example]'))`), false)
-    await page.evaluate(`document.querySelector('[data-header-more] [data-more-button]').click()`)
-    await wait()
-    assert.equal(await page.evaluate(`document.querySelectorAll('[data-more-panel] [data-demo-stop-example]').length`), 2)
-    await page.evaluate(`document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))`)
-    await wait()
+    // The demo's own controls are in the bar, since there is no header menu.
+    assert.equal(await page.evaluate(`document.querySelectorAll('[data-demo-bar] [data-demo-stop-example]').length`), 2)
 
     await toSpecs(true)
     const heading = `document.querySelector('#avoozl-plans-title').closest('[data-section-heading]')`

@@ -1,6 +1,6 @@
 // The desktop's left nav (follows Kiro Crew's list-detail pattern and Issue
-// Radar's sidebar): a top card (the workspace), then one card with an entry
-// per page. Drag its edge to make it wider or narrower; drag it well
+// Radar's sidebar): one card with an entry per page, a small card of line controls,
+// then the brand card. Drag its edge to make it wider or narrower; drag it well
 // past its minimum, or press Collapse, and it becomes a thin tall bar whose
 // entries read as vertical text. Width and collapse are remembered.
 import { useCallback, useRef, useState, type ReactNode } from 'react'
@@ -27,8 +27,19 @@ export const TOP_CARD = { ...NAV_CARD, border: '1px solid var(--border-strong, v
 // A nav row: 13px text and 8px corners as in Radar's sidebar, at the
 // compact 28px button height.
 export const NAV_ROW = 28
+// The nav's small icon buttons (Stop the line, Refresh): 28px, icon only.
+export const NAV_ICON = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, padding: 0, borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', cursor: 'pointer' } as const
+// The small section under the nav card that holds those icons, drawn only
+// when there is something to put in it.
+export function NavLine(props: { children: ReactNode }) {
+  return (
+    <div data-nav-line style={{ ...NAV_CARD, display: 'flex', alignItems: 'center', gap: 6, padding: 4 }}>
+      {props.children}
+    </div>
+  )
+}
 
-export function LeftNav(props: { items: NavItem[]; value: string; onChange: (key: string) => void; top?: ReactNode }) {
+export function LeftNav(props: { items: NavItem[]; value: string; onChange: (key: string) => void; line?: ReactNode; brand?: ReactNode }) {
   const [width, setWidthState] = useState(() => readWidth(pageStorage(), NAV))
   const [collapsed, setCollapsedState] = useState(() => readFlag(pageStorage(), NAV_COLLAPSED_KEY))
   const root = useRef<HTMLElement>(null)
@@ -83,15 +94,17 @@ export function LeftNav(props: { items: NavItem[]; value: string; onChange: (key
         <div role="tablist" aria-orientation="vertical" aria-label="Avoozl views" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {props.items.map((item) => tab(item, true))}
         </div>
+        {props.line}
       </nav>
     )
   return (
     <>
       <nav ref={root} aria-label="Avoozl pages" data-left-nav="open" data-top-row style={{ flex: `0 0 ${width}px`, width, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 8px 4px 0', minHeight: 0, overflowY: 'auto' }}>
-        {props.top}
         <div role="tablist" aria-orientation="vertical" aria-label="Avoozl views" data-nav-card style={{ ...NAV_CARD, display: 'flex', flexDirection: 'column', gap: 2, padding: 4 }}>
           {props.items.map((item) => tab(item, false))}
         </div>
+        {props.line}
+        {props.brand}
         <button type="button" aria-label="Collapse the nav" data-nav-collapse onClick={() => setCollapsed(true)} style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', gap: 6, height: 28, padding: '0 10px', background: 'none', border: 0, color: 'var(--muted)', cursor: 'pointer', fontSize: 12 }}>
           <span aria-hidden="true" style={{ display: 'inline-flex', transform: 'rotate(180deg)' }}>
             <ChevronRight size={14} />

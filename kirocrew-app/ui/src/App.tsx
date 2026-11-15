@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAppApi } from './host.ts'
-import { Btn, EmptyState, PageHeader, SegmentedControl } from '@kirocrew/app-sdk/ui'
+import { Btn, EmptyState, SegmentedControl } from '@kirocrew/app-sdk/ui'
 import Logo from './Logo'
+import { BrandCard } from './BrandCard.tsx'
 import { RailButton, RailList } from './TopRail.tsx'
-import { LeftNav, TOP_CARD } from './LeftNav.tsx'
-import { MoreMenu } from './MoreMenu.tsx'
-import { PageRefreshItem, useHasPageRefresh } from './page-refresh.tsx'
+import { LeftNav, NavLine } from './LeftNav.tsx'
+import { PageRefreshIcon, useHasPageRefresh } from './page-refresh.tsx'
 import { usePhone } from './list-detail.ts'
-import { InstanceBadge } from './InstanceName.tsx'
 import DashboardView, { type DashboardTarget } from './DashboardView'
 import PlansView, { type PlanTarget } from './PlansView'
 import GraphView from './GraphView'
@@ -17,7 +16,7 @@ import { TracePage } from './TraceView.tsx'
 import { TABS, navTab, redirectSettings, redirectTab, tabLabel, type Tab } from './nav-api.ts'
 import { TRACE_TARGET, parseTraceLink, type TraceTarget } from './trace-api.ts'
 import ActivityView from './ActivityView.tsx'
-import { StopLineItem } from './StopLine.tsx'
+import { StopLineButton } from './StopLine.tsx'
 import { untriagedClient } from './untriaged-api.ts'
 import type { NewPlanForm } from './new-plan-api.ts'
 import SettingsView, { SETTINGS_TABS, type SettingsTab } from './SettingsView'
@@ -31,7 +30,7 @@ import type { Drill } from './graph-layout.ts'
 import { viewsClient } from './views-api.ts'
 import { APP_ATTR, NavHistoryProvider, useNav } from './NavHistory.tsx'
 import { changePage } from './nav-history.ts'
-import { DemoBadge, DemoBar, DemoControls, DemoProvider, DemoTour, StartDemoButton, useDemo } from './Demo.tsx'
+import { DemoBar, DemoProvider, DemoTour, StartDemoButton, useDemo } from './Demo.tsx'
 import { DEMO_WORKSPACE_ID } from './demo-api.ts'
 import {
   errorMessage,
@@ -54,20 +53,18 @@ function WorkspacePicker(props: {
   list: WorkspaceList | null
   value: string | null
   onChange: (id: string) => void
-  // In the left nav's top card: the name alone, the card is its frame.
-  bare?: boolean
 }) {
   const { list } = props
   return (
-    <label className={`flex min-w-0 items-center gap-2 text-sm ${props.bare ? 'w-full' : ''}`}>
-      {!props.bare && <span className="text-muted">Workspace</span>}
+    <label className="flex min-w-0 items-center gap-2 text-sm">
+      <span className="text-muted">Workspace</span>
       <select
         aria-label="Workspace"
         value={props.value ?? ''}
         disabled={!list?.items.length}
         onChange={(event) => props.onChange(event.target.value)}
-        className={props.bare ? 'min-w-0 flex-1 text-sm' : 'rounded border px-2 py-1 text-sm'}
-        style={props.bare ? { border: 0, color: 'var(--text)', background: 'transparent', fontWeight: 500, cursor: 'pointer' } : { borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }}
+        className="rounded border px-2 py-1 text-sm"
+        style={{ borderColor: 'var(--border)', color: 'var(--text)', background: 'var(--card, transparent)' }}
       >
         {!list ? (
           <option value="">Loading…</option>
@@ -246,6 +243,14 @@ function AvoozlPage() {
   // The phone's top rail takes the whole page while it is open.
   const [railOpen, setRailOpen] = useState(false)
   const showRail = phone && railOpen
+  // Stop the line and Refresh: icons only, in their own small section of the
+  // left nav (the bottom of the phone's menu).
+  const lineControls = (active || hasRefresh) && (
+    <NavLine>
+      {active && <StopLineButton nav workspaceId={active} />}
+      <PageRefreshIcon />
+    </NavLine>
+  )
   const navItems = TABS.map((t) => ({
     key: t.key,
     text: t.label,
@@ -266,58 +271,27 @@ function AvoozlPage() {
     <ConfirmProvider>
     <TaskDrawerProvider workspaceId={active} onFocus={(id, title) => openDrill({ kind: 'focus', id, title })}>
     <div className="flex h-full min-h-0 flex-col">
-      {phone ? (
-        // A phone keeps the header to one thin row: the name and a More menu
-        // with the rest, Stop the line among them (follows Kiro Crew's phone
-        // layout).
-        <header className="flex min-w-0 items-center gap-2 px-2 py-1" data-phone-header style={{ borderBottom: '1px solid var(--border)' }}>
-          <span className="inline-flex shrink-0 items-center gap-1.5" data-header-brand>
-            <Logo size={20} />
-            <InstanceBadge workspaceId={active} />
-          </span>
+      {phone && (
+        // A phone keeps one thin row: the menu button. The brand card and the
+        // line controls are at the bottom of the menu it opens.
+        <header className="flex min-w-0 items-center gap-2 px-2 py-1" data-phone-header>
           <RailButton items={navItems} value={navTab(tab)} open={railOpen} onOpenChange={setRailOpen} />
-          <div className="flex items-center gap-2" data-header-actions>
-            <MoreMenu label="More actions" attrs={{ 'data-header-more': '' }}>
-              {active && <StopLineItem workspaceId={active} />}
-              <PageRefreshItem />
-              {/* The demo's badge is on its own line below; the picker is not shown in it. */}
-              {!demo.active && <WorkspacePicker list={list} value={workspaceId} onChange={setWorkspaceId} />}
-              <Btn type="button" primary onClick={planEpic}>
-                Plan a goal
-              </Btn>
-              {demo.active && <DemoControls />}
-            </MoreMenu>
-          </div>
         </header>
-      ) : (
-        <PageHeader
-        title={
-          <span className="inline-flex items-center gap-2" aria-label="Avoozl">
-            <Logo size={28} />
-            <InstanceBadge workspaceId={active} />
-          </span>
-        }
-        subtitle="Specs and epics as a graph, then Issue Radar crews code the ready tasks"
-        actions={
-          <div className="flex flex-wrap items-center gap-3" data-header-actions>
-            {demo.active && <DemoBadge />}
-            <Btn type="button" primary onClick={planEpic}>
-              Plan a goal
-            </Btn>
-            {/* Stop the line (R64), an icon only, and Refresh with its
-                countdown for the page that has one. */}
-            {(active || hasRefresh) && (
-              <MoreMenu label="More actions" attrs={{ 'data-header-more': '' }}>
-                {active && <StopLineItem workspaceId={active} />}
-                <PageRefreshItem />
-              </MoreMenu>
-            )}
-          </div>
-        }
-      />
       )}
       {showRail && (
-        <RailList items={navItems} value={navTab(tab)} onChange={(key) => chooseTab(key as Tab)} onOpenChange={setRailOpen} ariaLabel="Avoozl views" />
+        <RailList
+          items={navItems}
+          value={navTab(tab)}
+          onChange={(key) => chooseTab(key as Tab)}
+          onOpenChange={setRailOpen}
+          ariaLabel="Avoozl views"
+          footer={
+            <>
+              {lineControls}
+              <BrandCard workspaceId={active} />
+            </>
+          }
+        />
       )}
       {/* Desktop: the left nav, then the page. A phone has the hamburger. */}
       <div className={`flex min-h-0 flex-1 ${phone ? 'flex-col' : 'px-6 pb-2'}`} style={showRail ? { display: 'none' } : undefined} data-shell>
@@ -326,17 +300,19 @@ function AvoozlPage() {
           items={navItems}
           value={navTab(tab)}
           onChange={(key) => chooseTab(key as Tab)}
-          // Issue Radar's top card: the workspace, as Radar shows its repository.
-          top={
-            !demo.active && (
-              <div data-nav-top style={{ ...TOP_CARD, height: 42, boxSizing: 'border-box', display: 'flex', alignItems: 'center', padding: '0 8px 0 12px' }}>
-                <WorkspacePicker bare list={list} value={workspaceId} onChange={setWorkspaceId} />
-              </div>
-            )
-          }
+          line={lineControls}
+          brand={<BrandCard workspaceId={active} />}
         />
       )}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col" data-shell-main>
+      <div className={`flex flex-wrap items-center gap-3 pb-2 ${phone ? 'px-4' : 'px-2'}`} data-main-top>
+        {/* The demo reads its own sample, so the picker is not shown in it. */}
+        {!demo.active && <WorkspacePicker list={list} value={workspaceId} onChange={setWorkspaceId} />}
+        <span className="flex-1" />
+        <Btn type="button" primary onClick={planEpic}>
+          Plan a goal
+        </Btn>
+      </div>
       <DemoBar />
       {error && (
         <p role="alert" className={`pb-2 text-sm text-danger ${phone ? 'px-4' : 'px-2'}`}>
@@ -357,7 +333,7 @@ function AvoozlPage() {
             subtitle={
               list?.items.length === 0
                 ? 'Add or initialize a workspace in Settings. Every tab reads from it.'
-                : 'Choose one in the header. Every tab reads from it.'
+                : 'Choose one at the top of the page. Every tab reads from it.'
             }
             action={
               list?.items.length === 0 ? (

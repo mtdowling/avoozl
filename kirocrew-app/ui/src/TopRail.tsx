@@ -36,7 +36,7 @@ export function RailButton(props: { items: RailItem[]; value: string; open: bool
 }
 
 // The full-page list a phone's hamburger opens.
-export function RailList(props: { items: RailItem[]; value: string; onChange: (key: string) => void; onOpenChange: (open: boolean) => void; ariaLabel: string }) {
+export function RailList(props: { items: RailItem[]; value: string; onChange: (key: string) => void; onOpenChange: (open: boolean) => void; ariaLabel: string; footer?: ReactNode }) {
   return (
     <div id="avoozl-top-rail-list" role="tablist" aria-label={props.ariaLabel} data-top-rail-list data-top-row style={{ flex: '1 1 0%', minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', borderTop: '1px solid var(--border)' }}>
       {props.items.map((item) => {
@@ -58,6 +58,11 @@ export function RailList(props: { items: RailItem[]; value: string; onChange: (k
           </button>
         )
       })}
+      {props.footer && (
+        <div data-top-rail-footer style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 8, padding: 12 }}>
+          {props.footer}
+        </div>
+      )}
     </div>
   )
 }

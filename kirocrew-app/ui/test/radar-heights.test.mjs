@@ -29,31 +29,29 @@ after(async () => {
 const RADAR = { top: 42, phoneTop: 28, row: 28, cardRadius: 12, rowRadius: 8, rowFont: 13 }
 
 for (const theme of ['light', 'dark']) {
-  test(`at 1280 px ${theme} the nav is Radar's: a 42 px top card, then a card of 28 px rows`, { skip }, async () => {
+  test(`at 1280 px ${theme} the nav is Radar's: a card of 28 px rows, a line section, then the brand card`, { skip }, async () => {
     await page.open(harness.url({ app: '1', theme }), { width: 1280, height: 800, dark: theme === 'dark' })
-    await page.until(`Boolean(document.querySelector('[data-nav-top]') && document.querySelector('[data-nav-card] [data-nav-item]'))`)
+    await page.until(`Boolean(document.querySelector('[data-brand-card]') && document.querySelector('[data-nav-card] [data-nav-item]'))`)
     const got = await page.evaluate(`(() => {
-      const top = document.querySelector('[data-nav-top]'), card = document.querySelector('[data-nav-card]')
+      const top = document.querySelector('[data-brand-card]'), card = document.querySelector('[data-nav-card]')
       const rows = [...card.querySelectorAll('[data-nav-item]')]
       return {
-        top: Math.round(top.getBoundingClientRect().height),
         topRadius: parseFloat(getComputedStyle(top).borderTopLeftRadius),
         cardRadius: parseFloat(getComputedStyle(card).borderTopLeftRadius),
         cardBorder: parseFloat(getComputedStyle(card).borderTopWidth),
         rows: [...new Set(rows.map((r) => Math.round(r.getBoundingClientRect().height)))],
         rowRadius: [...new Set(rows.map((r) => parseFloat(getComputedStyle(r).borderTopLeftRadius)))],
         rowFont: [...new Set(rows.map((r) => parseFloat(getComputedStyle(r).fontSize)))],
-        picker: Boolean(top.querySelector('select[aria-label="Workspace"]')),
+        order: [...document.querySelectorAll('[data-nav-card], [data-nav-line], [data-brand-card]')].map((el) => el.hasAttribute('data-nav-card') ? 'nav' : el.hasAttribute('data-nav-line') ? 'line' : 'brand'),
       }
     })()`)
-    assert.equal(got.top, RADAR.top)
     assert.equal(got.topRadius, RADAR.cardRadius)
     assert.equal(got.cardRadius, RADAR.cardRadius)
     assert.equal(got.cardBorder, 1)
     assert.deepEqual(got.rows, [RADAR.row])
     assert.deepEqual(got.rowRadius, [RADAR.rowRadius])
     assert.deepEqual(got.rowFont, [RADAR.rowFont])
-    assert.equal(got.picker, true, 'the top card holds the workspace')
+    assert.deepEqual(got.order, ['nav', 'line', 'brand'])
   })
 
   test(`at 390 px ${theme} the phone's top card: a 28 px button with the page name and the open-the-list icon`, { skip }, async () => {
