@@ -62,11 +62,12 @@ test('the merge card follows delivery.ship', () => {
   assert.equal(valueOf(merge(null), 'Merge').source, 'default')
 })
 
-test('the worker coder in plans-repo mode: tasks start at once-N, maintenance is muted, the plans repository closes the issue', () => {
+test('the worker coder in plans-repo mode: no Tasks at once value, maintenance is muted, the plans repository closes the issue', () => {
   const built = map(PLANS)
   assert.match(built.lanes[0].muted, /Issue Radar/)
   const release = cards(built, 'epic').find((card) => card.key === 'epic-release' || card.key === 'epic-start')
-  assert.equal(valueOf(release, 'Tasks at once').text, '4')
+  // `concurrency` only set the retired local workers; the map no longer shows it.
+  assert.equal(release.values.some((value) => value.label === 'Tasks at once'), false)
   assert.equal(cards(built, 'epic').find((card) => card.key.startsWith('epic-build')).title, 'Worker chats build')
   assert.match(cards(built, 'maintenance').at(-1).text, /example\/plans/)
   assert.equal(cards(built, 'epic').find((card) => card.key === 'epic-punt').muted?.length > 0, true)

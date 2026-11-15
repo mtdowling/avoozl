@@ -37,7 +37,6 @@ export const WORKFLOW_STATUS: Record<string, StepTag> = {
 // input the page focuses.
 export type JumpField =
   | 'coder'
-  | 'concurrency'
   | 'capacity'
   | 'releaseMode'
   | 'plan'
@@ -54,7 +53,6 @@ export interface Jump {
 }
 const TAB: Record<JumpField, Jump['tab']> = {
   coder: 'mode',
-  concurrency: 'mode',
   capacity: 'mode',
   releaseMode: 'mode',
   plan: 'crews',
@@ -194,12 +192,6 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
     source: repository.releaseMode.trim() ? 'set' : 'default',
     jump: jump('releaseMode'),
   }
-  const atOnce: Value = {
-    label: 'Tasks at once',
-    text: repository.concurrency.trim() || '1',
-    source: repository.concurrency.trim() ? 'set' : 'default',
-    jump: jump('concurrency'),
-  }
   const ship: Value = {
     label: 'Merge',
     text: input.ship === 'manual' ? 'you merge' : 'auto-merge',
@@ -227,7 +219,7 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
           key: 'local',
           title: 'Local tasks',
           cards: [
-            { key: 'local-ready', who: 'avoozl', title: 'A task becomes ready', text: 'Everything it waits on is done. The tick starts it.', values: [atOnce] },
+            { key: 'local-ready', who: 'avoozl', title: 'A task becomes ready', text: 'Everything it waits on is done. The tick starts it.', values: [] },
             { key: 'local-code', who: 'avoozl', title: 'A worker chat codes it', text: 'On its own branch, in your checkout.', values: [] },
             { key: 'local-check', who: 'avoozl', title: 'Checks and reviewer chats', text: 'A fresh chat runs the checks on that commit; reviewer chats review it.', values: [] },
             { key: 'local-merge', who: 'avoozl', title: 'It merges', text: 'The branch merges into the landing branch.', values: [landing] },
@@ -275,8 +267,8 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
         key: 'epic-start',
         who: 'avoozl',
         title: 'The tick starts ready tasks in graph order',
-        text: 'A task starts when its blockers are done, up to the number at once.',
-        values: [atOnce],
+        text: 'A task starts when its blockers are done.',
+        values: [],
         ...tag('epic-start'),
       }
   const mergeCard: Card = {
@@ -325,7 +317,6 @@ export function buildWorkflowMap(input: WorkflowInput): WorkflowMap {
 export const fieldSelector = (id: string, field: JumpField): string =>
   ({
     coder: `[id^="${id}-coder-"][aria-checked="true"], [id^="${id}-coder-"]`,
-    concurrency: `#${id}-concurrency`,
     capacity: `#${id}-release-capacity`,
     releaseMode: '[data-release-mode] input:checked, [data-release-mode] input',
     plan: '#' + id + '-plan-label',

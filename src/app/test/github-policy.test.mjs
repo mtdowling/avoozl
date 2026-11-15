@@ -105,6 +105,23 @@ test("the design example validates and keeps every value", () => {
   );
 });
 
+// `concurrency` only set Avoozl's retired local workers. An old file keeps
+// reading without error, any value, and nothing reads it: release.capacity is
+// the one knob, defaulting to 2 for Issue Radar and 1 otherwise.
+test("an old repository concurrency is accepted, any value, and ignored", () => {
+  for (const concurrency of [2, 0, 500, "x", null]) {
+    const policy = normalizeGitHubPolicy({
+      repositories: {
+        "example/app": { coder: "issue-radar", concurrency },
+        "example/old": { coder: "worker", concurrency },
+      },
+    });
+    assert.equal(policy.repositories["example/app"].concurrency, undefined);
+    assert.equal(policy.repositories["example/app"].release.capacity, 2);
+    assert.equal(policy.repositories["example/old"].release.capacity, 1);
+  }
+});
+
 test("validation refuses each §4.4 violation", () => {
   const app = (change) => {
     const value = example();

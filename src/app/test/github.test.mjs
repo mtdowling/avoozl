@@ -811,7 +811,7 @@ function labelsOf(issue) {
   return (issue.labels || []).map((label) => label.name);
 }
 
-test("ready labels go on last and are capped by repository concurrency", async (t) => {
+test("ready labels go on last and are capped by release.capacity", async (t) => {
   const { github, ops, plan, approved } = await projectedWorkspace(
     t,
     [leaf("leaf-one"), leaf("leaf-two"), leaf("leaf-three")],
@@ -819,7 +819,7 @@ test("ready labels go on last and are capped by repository concurrency", async (
       github: {
         repositories: {
           "example/code": {
-            concurrency: 2,
+            release: { capacity: 2 },
             managedLabels: { managed: "agent:managed", ready: "agent:ready" },
           },
         },
@@ -856,7 +856,7 @@ test("free ready slots go by priority label, then graph order, under the cap", a
       github: {
         repositories: {
           "example/code": {
-            concurrency: 1,
+            release: { capacity: 1 },
             priority: ["critical", "high"],
             managedLabels: { managed: "agent:managed", ready: "agent:ready" },
           },
